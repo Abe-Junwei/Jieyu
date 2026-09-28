@@ -18,6 +18,7 @@ export function useTranscriptionImportExportInput(
       defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
       loadSnapshot: input.loadSnapshot,
       setSaveState: input.setSaveState,
+      promptForEafTierRoles: true,
     }),
     [
       input.activeTextId,

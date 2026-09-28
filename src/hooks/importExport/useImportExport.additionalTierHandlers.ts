@@ -7,7 +7,7 @@ import type {
   UnitMorphemeDocType,
   UnitTokenDocType,
 } from '../../db';
-import { getDb } from '../../db';
+import { getDb, isLexemeEntry } from '../../db';
 import type { EafImportResult } from '../../services/EafService';
 import { LinguisticService } from '../../services/LinguisticService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
@@ -16,6 +16,7 @@ import { LayerSegmentationV2Service } from '../../services/LayerSegmentationV2Se
 import { LayerUnitSegmentWriteService } from '../../services/LayerUnitSegmentWriteService';
 import { newId, humanizeTierName } from '../../utils/transcriptionFormatters';
 import { createLogger } from '../../observability/logger';
+import { matchUnitByAnnotationRef } from '../../utils/eafImportAlign';
 import {
   resolvePreferredHostTranscriptionLayerIdForTranslationImport,
   withEafKeyMeta,
@@ -26,10 +27,12 @@ type AdditionalTierToken = {
   form: Record<string, string>;
   gloss?: Record<string, string>;
   pos?: string;
+  lexemeId?: string;
   morphemes?: Array<{
     form: Record<string, string>;
     gloss?: Record<string, string>;
     pos?: string;
+    lexemeId?: string;
   }>;
 };
 
@@ -38,6 +41,7 @@ type AdditionalTierAnnotation = {
   endTime: number;
   text: string;
   annotationId?: string;
+  annotationRef?: string;
   tokens?: AdditionalTierToken[];
 };
 
@@ -45,7 +49,14 @@ async function resolveFormLexemeId(
   form: Record<string, string>,
   language: string | undefined,
   cache: Map<string, string>,
+  explicitId?: string,
 ): Promise<string | undefined> {
+  const explicit = explicitId?.trim();
+  if (explicit) {
+    const db = await getDb();
+    const row = await db.dexie.lexemes.get(explicit);
+    if (row && isLexemeEntry(row)) return row.id;
+  }
   const surface =
     (typeof form.default === 'string' && form.default.trim()) ||
     (typeof form.eng === 'string' && form.eng.trim()) ||
@@ -65,7 +76,7 @@ async function resolveFormLexemeId(
   return lexemeId;
 }
 
-async function persistImportedTokensForHost(input: {
+export async function persistImportedTokensForHost(input: {
   textId: string;
   hostUnitId: string;
   tokens: AdditionalTierToken[];
@@ -82,6 +93,7 @@ async function persistImportedTokensForHost(input: {
       token.form,
       input.language,
       input.lexemeIdByFormKey,
+      token.lexemeId,
     );
     tokenRows.push({
       id: tokenId,
@@ -102,6 +114,7 @@ async function persistImportedTokensForHost(input: {
         morph.form,
         input.language,
         input.lexemeIdByFormKey,
+        morph.lexemeId,
       );
       morphRows.push({
         id: newId('morph'),
@@ -153,8 +166,20 @@ type InsertedUnit = {
   id: string;
   startTime: number;
   endTime: number;
+  annotationId?: string;
   unit: LayerUnitDocType;
 };
+
+function matchAdditionalTierHost(
+  units: readonly InsertedUnit[],
+  annotation: AdditionalTierAnnotation,
+  byTime: (unit: InsertedUnit) => boolean,
+): InsertedUnit | undefined {
+  if (annotation.annotationRef?.trim()) {
+    return matchUnitByAnnotationRef(units, annotation.annotationRef);
+  }
+  return units.find(byTime);
+}
 
 const log = createLogger('useImportExport.additionalTierHandlers');
 
@@ -449,7 +474,9 @@ export async function importAdditionalTiers(input: {
         const annStart = Number(annotation.startTime.toFixed(3));
         const annEnd = Number(annotation.endTime.toFixed(3));
         if (annEnd < annStart) continue;
-        const parentMatch = input.insertedUnits.find(
+        const parentMatch = matchAdditionalTierHost(
+          input.insertedUnits,
+          annotation,
           (unit) => annStart >= unit.startTime - 0.05 && annEnd <= unit.endTime + 0.05,
         );
         if (!parentMatch) {
@@ -526,7 +553,9 @@ export async function importAdditionalTiers(input: {
       if (!annotation.text.trim()) continue;
       const annStart = Number(annotation.startTime.toFixed(3));
       const annEnd = Number(annotation.endTime.toFixed(3));
-      const match = input.insertedUnits.find(
+      const match = matchAdditionalTierHost(
+        input.insertedUnits,
+        annotation,
         (unit) =>
           Math.abs(unit.startTime - annStart) < 0.05 && Math.abs(unit.endTime - annEnd) < 0.05,
       );

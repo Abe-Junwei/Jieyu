@@ -6,7 +6,7 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import type { SaveState } from '../useTranscriptionData';
-import { dexieStoresForAnnotationImportRw, getDb, withTransaction } from '../../db';
+import { dexieStoresForAnnotationImportRw, getDb, isLexemeEntry, withTransaction } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import { validateLayerTierConsistency } from '../../services/TierBridgeService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
@@ -42,6 +42,7 @@ import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTe
 import { loadOrthographyRuntime } from '../../utils/loadOrthographyRuntime';
 import { normalizeUserNoteDocForStorage } from '../../utils/camDataUtils';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
+import { writeExtraEafTranscriptionTiers } from './eafTranscriptionTierWrite';
 import {
   DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
   shouldWriteOriginalSourceText,
@@ -60,11 +61,31 @@ import {
   getLayerTreeParentLayerId,
   layerDocPatchWithTreeParent,
 } from './useImportExport.layerTreeParentField';
+import {
+  findMediaIdByFilename,
+  findReimportUnitId,
+  matchLayerByEafTier,
+  matchUnitByAnnotationRef,
+  type ReimportContentRow,
+  type ReimportUnitRow,
+} from '../../utils/eafImportAlign';
+import {
+  EafTierRolesRequiredError,
+  formatEafSideChannelNote,
+  isEafTierRolesRequiredError,
+  mergeEafTierRoles,
+  proposeEafTierRoles,
+  readEafTierRoles,
+  type EafTierRole,
+} from '../../utils/eafTierRole';
 
 const log = createLogger('useImportExport');
 
 export type ImportExportImportHandlerOptions = {
   mismatchAcknowledged?: boolean;
+  promptForEafTierRoles?: boolean;
+  tierRolesAcknowledged?: boolean;
+  tierRoles?: Readonly<Record<string, EafTierRole>>;
 };
 
 type UseImportExportImportHandlersInput = {
@@ -134,6 +155,36 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
 
       if (name.endsWith('.eaf')) {
         eafResult = importFromEaf(text);
+        const earlyTextId = activeTextId ?? (await getActiveTextId());
+        if (earlyTextId && eafResult) {
+          const earlyDb = await getDb();
+          const earlyText = await earlyDb.dexie.texts.get(earlyTextId);
+          const savedRoles = readEafTierRoles(
+            (earlyText?.metadata as Record<string, unknown> | undefined) ?? undefined,
+          );
+          const fileHasRoles = [...eafResult.tierMetadata.values()].some((meta) =>
+            Boolean(meta.role),
+          );
+          if (importOptions?.tierRoles) {
+            eafResult = importFromEaf(text, { tierRoles: importOptions.tierRoles });
+          } else if (!fileHasRoles && savedRoles) {
+            eafResult = importFromEaf(text, { tierRoles: savedRoles });
+          } else if (
+            importOptions?.promptForEafTierRoles &&
+            !importOptions.tierRolesAcknowledged &&
+            !fileHasRoles
+          ) {
+            const prompt = proposeEafTierRoles(
+              [...eafResult.tierConstraints.entries()]
+                .filter(([, info]) => !info.symbolicSubdivision)
+                .map(([tierId, info]) => ({
+                  tierId,
+                  ...(info.parentTierId ? { parentTierId: info.parentTierId } : {}),
+                })),
+            );
+            if (prompt) throw new EafTierRolesRequiredError(file.name, prompt);
+          }
+        }
       } else if (name.endsWith('.textgrid')) {
         tgResult = importFromTextGrid(text);
       } else if (name.endsWith('.trs')) {
@@ -172,14 +223,17 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           endTime: number;
           text: string;
           annotationId?: string;
+          annotationRef?: string;
           tokens?: Array<{
             form: Record<string, string>;
             gloss?: Record<string, string>;
             pos?: string;
+            lexemeId?: string;
             morphemes?: Array<{
               form: Record<string, string>;
               gloss?: Record<string, string>;
               pos?: string;
+              lexemeId?: string;
             }>;
           }>;
         }>
@@ -249,19 +303,17 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         throw new ImportMismatchRequiresAckError(file.name, mismatchNotices);
       }
 
+      let missingMediaFilename: string | undefined;
       if (
         !mediaId &&
         eafResult &&
         eafResult.mediaFilename &&
         eafResult.mediaFilename !== 'unknown.wav'
       ) {
-        const { mediaId: newMediaId } = await LinguisticService.media.importAudio({
-          textId,
-          audioBlob: new Blob([], { type: 'audio/wav' }),
-          filename: eafResult.mediaFilename,
-          duration: 0,
-        });
-        mediaId = newMediaId;
+        const mediaRows = await db.dexie.media_items.where('textId').equals(importTextId).toArray();
+        const matchedMediaId = findMediaIdByFilename(mediaRows, eafResult.mediaFilename);
+        if (matchedMediaId) mediaId = matchedMediaId;
+        else missingMediaFilename = eafResult.mediaFilename;
       }
 
       const layersAfterImport: LayerDocType[] = [...layers];
@@ -555,15 +607,23 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           const dbResolvedByLang = resolveDbLanguageName(inferredTranscriptionLang);
           if (dbResolvedByLang) dedupCandidates.add(dbResolvedByLang.toLocaleLowerCase('en'));
 
-          const nameMatch = existingTrc.find((l) => {
-            const eng =
-              typeof l.name === 'object' && l.name !== null
-                ? ((l.name as Record<string, string>).eng ?? '')
-                : '';
-            return dedupCandidates.has(eng.toLocaleLowerCase('en'));
-          });
-          if (nameMatch) {
-            effectiveTranscriptionLayerId = nameMatch.id;
+          const tierMatch = importedTrcName
+            ? matchLayerByEafTier(existingTrc, {
+                tierId: importedTrcName,
+                layerType: 'transcription',
+                ...(importedTranscriptionMeta?.languageId
+                  ? { languageId: importedTranscriptionMeta.languageId }
+                  : inferredTranscriptionLang
+                    ? { languageId: inferredTranscriptionLang }
+                    : {}),
+                ...(importedTranscriptionMeta?.orthographyId
+                  ? { orthographyId: importedTranscriptionMeta.orthographyId }
+                  : {}),
+                displayNames: [...dedupCandidates],
+              })
+            : undefined;
+          if (tierMatch) {
+            effectiveTranscriptionLayerId = tierMatch.id;
           }
         }
 
@@ -631,6 +691,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         id: string;
         startTime: number;
         endTime: number;
+        annotationId?: string;
         unit: import('../../db').LayerUnitDocType;
       }> = [];
       let tierCount = 0;
@@ -645,7 +706,13 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       const resolveImportLexemeId = async (
         form: Record<string, string>,
         language?: string,
+        explicitId?: string,
       ): Promise<string | undefined> => {
+        const explicit = explicitId?.trim();
+        if (explicit) {
+          const row = await db.dexie.lexemes.get(explicit);
+          if (row && isLexemeEntry(row)) return row.id;
+        }
         const surface =
           (typeof form.default === 'string' && form.default.trim()) ||
           (typeof form.eng === 'string' && form.eng.trim()) ||
@@ -685,20 +752,22 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             }
           }
 
-          if (importedTimelineMetadata) {
+          if (importedTimelineMetadata || importOptions?.tierRoles) {
             const textRow = await db.dexie.texts.get(importTextId);
             if (textRow) {
+              const baseMetadata = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
+              const withRoles = importOptions?.tierRoles
+                ? mergeEafTierRoles(baseMetadata, importOptions.tierRoles)
+                : baseMetadata;
               await db.dexie.texts.put({
                 ...textRow,
-                metadata: mergeImportedTimelineMetadata(
-                  (textRow.metadata as Record<string, unknown> | undefined) ?? {},
-                  importedTimelineMetadata,
-                  {
-                    establishedDocumentSpanSec,
-                    establishedAcousticSec,
-                    importedUnitsMaxEndSec,
-                  },
-                ),
+                metadata: importedTimelineMetadata
+                  ? mergeImportedTimelineMetadata(withRoles, importedTimelineMetadata, {
+                      establishedDocumentSpanSec,
+                      establishedAcousticSec,
+                      importedUnitsMaxEndSec,
+                    })
+                  : withRoles,
                 updatedAt: now,
               });
             }
@@ -722,8 +791,31 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             });
           }
 
+          const existingUnitRows = await db.dexie.layer_units
+            .where('textId')
+            .equals(textId)
+            .toArray();
+          const existingUnits: ReimportUnitRow[] = existingUnitRows.map((unitRow) => ({
+            id: unitRow.id,
+            textId: unitRow.textId,
+            ...(unitRow.externalRef ? { externalRef: unitRow.externalRef } : {}),
+            ...(unitRow.unitType ? { unitType: unitRow.unitType } : {}),
+            ...(unitRow.parentUnitId ? { parentUnitId: unitRow.parentUnitId } : {}),
+          }));
+          const existingContentRows =
+            existingUnits.length > 0
+              ? await db.dexie.layer_unit_contents
+                  .where('unitId')
+                  .anyOf(existingUnits.map((unitRow) => unitRow.id))
+                  .toArray()
+              : [];
+          const existingContents: ReimportContentRow[] = existingContentRows.map((contentRow) => ({
+            ...(contentRow.unitId ? { unitId: contentRow.unitId } : {}),
+            ...(contentRow.layerId ? { layerId: contentRow.layerId } : {}),
+            ...(contentRow.externalRef ? { externalRef: contentRow.externalRef } : {}),
+          }));
+
           for (const u of parsedUnits) {
-            const id = newId('utt');
             const startTime = Number(u.startTime.toFixed(3));
             const endTime = Number(u.endTime.toFixed(3));
             const maybeTokens = 'tokens' in u ? (u as { tokens?: unknown }).tokens : undefined;
@@ -740,18 +832,44 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               typeof maybeSpeakerId === 'string' && maybeSpeakerId.length > 0
                 ? (speakerIdMap.get(normalizedSpeakerKey) ?? maybeSpeakerId.trim())
                 : undefined;
+            const reimportId =
+              maybeAnnotationId && effectiveTranscriptionLayerId
+                ? findReimportUnitId({
+                    textId,
+                    layerId: effectiveTranscriptionLayerId,
+                    annotationId: maybeAnnotationId,
+                    units: existingUnits,
+                    contents: existingContents,
+                  })
+                : undefined;
+            const id = reimportId ?? newId('utt');
+            const previousUnit = reimportId
+              ? existingUnitRows.find((unitRow) => unitRow.id === reimportId)
+              : undefined;
             const newUnit: import('../../db').LayerUnitDocType = {
+              ...(previousUnit ?? { id, textId, createdAt: now }),
               id,
               textId,
               ...(mediaId ? { mediaId } : {}),
               startTime,
               endTime,
-              annotationStatus: 'raw',
+              annotationStatus: previousUnit?.annotationStatus ?? 'raw',
               ...(resolvedSpeakerId ? { speakerId: resolvedSpeakerId } : {}),
-              createdAt: now,
+              ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+              createdAt: previousUnit?.createdAt ?? now,
               updatedAt: now,
             };
             await LinguisticService.units.save(newUnit);
+            if (reimportId && Array.isArray(maybeTokens) && maybeTokens.length > 0) {
+              const oldTokens = await db.dexie.unit_tokens.where('unitId').equals(id).toArray();
+              const oldMorphs = await db.dexie.unit_morphemes.where('unitId').equals(id).toArray();
+              const oldIds = [...oldTokens.map((row) => row.id), ...oldMorphs.map((row) => row.id)];
+              if (oldIds.length > 0) {
+                await db.dexie.token_lexeme_links.where('targetId').anyOf(oldIds).delete();
+              }
+              await db.dexie.unit_morphemes.where('unitId').equals(id).delete();
+              await db.dexie.unit_tokens.where('unitId').equals(id).delete();
+            }
 
             if (Array.isArray(maybeTokens) && maybeTokens.length > 0) {
               const tokenRows: import('../../db').UnitTokenDocType[] = [];
@@ -763,10 +881,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                   form?: Record<string, string>;
                   gloss?: Record<string, string>;
                   pos?: string;
+                  lexemeId?: string;
                   morphemes?: Array<{
                     form?: Record<string, string>;
                     gloss?: Record<string, string>;
                     pos?: string;
+                    lexemeId?: string;
                   }>;
                 };
                 if (!token.form || typeof token.form !== 'object') continue;
@@ -774,6 +894,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                 const tokenLexemeId = await resolveImportLexemeId(
                   token.form,
                   inferredTranscriptionLang,
+                  token.lexemeId,
                 );
                 tokenRows.push({
                   id: tokenId,
@@ -794,6 +915,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                   const morphLexemeId = await resolveImportLexemeId(
                     morph.form,
                     inferredTranscriptionLang,
+                    morph.lexemeId,
                   );
                   morphRows.push({
                     id: newId('morph'),
@@ -844,7 +966,25 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                 await db.dexie.token_lexeme_links.bulkPut(linkRows);
               }
             }
-            insertedUnits.push({ id, startTime, endTime, unit: newUnit });
+            insertedUnits.push({
+              id,
+              startTime,
+              endTime,
+              ...(maybeAnnotationId ? { annotationId: maybeAnnotationId } : {}),
+              unit: newUnit,
+            });
+            existingUnits.push({
+              id,
+              textId,
+              ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+            });
+            if (maybeAnnotationId && effectiveTranscriptionLayerId) {
+              existingContents.push({
+                unitId: id,
+                layerId: effectiveTranscriptionLayerId,
+                externalRef: maybeAnnotationId,
+              });
+            }
 
             if (u.transcription.trim() && effectiveTranscriptionLayerId) {
               const transcriptionWrites = await planImportedWrites({
@@ -866,20 +1006,59 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                 ...(importedTrcName ? { tierName: importedTrcName } : {}),
               });
               for (const write of transcriptionWrites) {
-                const doc: LayerUnitContentDocType = {
-                  id: newId('utr'),
-                  unitId: id,
-                  layerId: write.layerId,
-                  modality: 'text' as const,
-                  text: write.text,
-                  sourceType: 'human' as const,
-                  ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
-                  createdAt: now,
-                  updatedAt: now,
-                };
+                const priorContent = existingContentRows.find((contentRow) => {
+                  if (contentRow.layerId !== write.layerId) return false;
+                  if (contentRow.modality !== undefined && contentRow.modality !== 'text') {
+                    return false;
+                  }
+                  if (contentRow.unitId === id) return true;
+                  const owner = existingUnits.find((row) => row.id === contentRow.unitId);
+                  return owner?.parentUnitId === id;
+                });
+                const doc: LayerUnitContentDocType = priorContent
+                  ? {
+                      ...priorContent,
+                      text: write.text,
+                      ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+                      updatedAt: now,
+                    }
+                  : {
+                      id: newId('utr'),
+                      unitId: id,
+                      layerId: write.layerId,
+                      modality: 'text' as const,
+                      text: write.text,
+                      sourceType: 'human' as const,
+                      ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+                      createdAt: now,
+                      updatedAt: now,
+                    };
                 await syncUnitTextToSegmentationV2(db, newUnit, doc);
               }
             }
+          }
+
+          if (eafResult?.extraTranscriptionTiers && eafResult.extraTranscriptionTiers.length > 0) {
+            await writeExtraEafTranscriptionTiers({
+              db,
+              now,
+              textId,
+              ...(mediaId ? { mediaId } : {}),
+              layers: layersAfterImport,
+              tiers: eafResult.extraTranscriptionTiers,
+              existingUnits,
+              existingContents,
+              insertedUnits,
+              rememberLayer,
+              tierNameToLayerId,
+              resolveLayerDisplayName,
+              resolveSpeakerId: (speakerCode) => {
+                if (!speakerCode) return undefined;
+                const key = normalizeSpeakerLookupKey(speakerCode);
+                return speakerIdMap.get(key) ?? speakerCode.trim();
+              },
+              lexemeIdByFormKey,
+            });
           }
 
           const additionalResult = await importAdditionalTiers({
@@ -909,11 +1088,13 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
 
           if (eafResult?.userNotes && eafResult.userNotes.length > 0) {
             for (const note of eafResult.userNotes) {
-              const match = insertedUnits.find(
-                (unit) =>
-                  Math.abs(unit.startTime - note.startTime) < 0.05 &&
-                  Math.abs(unit.endTime - note.endTime) < 0.05,
-              );
+              const match = note.annotationRef
+                ? matchUnitByAnnotationRef(insertedUnits, note.annotationRef)
+                : insertedUnits.find(
+                    (unit) =>
+                      Math.abs(unit.startTime - note.startTime) < 0.05 &&
+                      Math.abs(unit.endTime - note.endTime) < 0.05,
+                  );
               if (!match || !note.text.trim()) continue;
               await db.dexie.user_notes.put(
                 normalizeUserNoteDocForStorage({
@@ -921,6 +1102,24 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                   targetType: 'unit',
                   targetId: match.id,
                   content: { default: note.text },
+                  createdAt: now,
+                  updatedAt: now,
+                }),
+              );
+            }
+          }
+
+          if (eafResult?.sideChannelNotes && eafResult.sideChannelNotes.length > 0) {
+            for (const note of eafResult.sideChannelNotes) {
+              const match = matchUnitByAnnotationRef(insertedUnits, note.parentAnnotationId);
+              if (!match || !note.text.trim()) continue;
+              await db.dexie.user_notes.put(
+                normalizeUserNoteDocForStorage({
+                  id: newId('note'),
+                  targetType: 'unit',
+                  targetId: match.id,
+                  content: { default: formatEafSideChannelNote(note.kind, note.text) },
+                  category: 'linguistic',
                   createdAt: now,
                   updatedAt: now,
                 }),
@@ -1071,10 +1270,20 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                 }),
               ]
             : []),
+          ...(missingMediaFilename
+            ? [
+                tf(locale, 'transcription.importExport.importDone.mediaFileMissing', {
+                  filename: missingMediaFilename,
+                }),
+              ]
+            : []),
+          ...(eafResult?.unrecognizedTimeUnit
+            ? [t(locale, 'transcription.importExport.importDone.unrecognizedTimeUnit')]
+            : []),
         ].join(' '),
       });
     } catch (err) {
-      if (err instanceof ImportMismatchRequiresAckError) {
+      if (err instanceof ImportMismatchRequiresAckError || isEafTierRolesRequiredError(err)) {
         throw err;
       }
       const rawMessage = toErrorMessage(err);

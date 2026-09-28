@@ -177,6 +177,7 @@ export async function syncUnitTextToSegmentationV2(
     contentRole: 'primary_text',
     modality: translation.modality ?? 'text',
     ...(translation.text !== undefined ? { text: translation.text } : {}),
+    ...(translation.externalRef ? { externalRef: translation.externalRef } : {}),
     ...(translationMediaRefId ? { mediaRefId: translationMediaRefId } : {}),
     sourceType: translation.sourceType ?? 'human',
     ...(translation.ai_metadata ? { ai_metadata: translation.ai_metadata } : {}),

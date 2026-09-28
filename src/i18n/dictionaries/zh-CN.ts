@@ -1902,6 +1902,13 @@ export const zhCNDictionary = {
     '所选文件声明的时间轴为 {incoming}，长于当前项目跨度 {established}。确认后将保持语段时间不变，并自动扩展逻辑轴。',
   'transcription.importDialog.mismatchTitle': '时间轴长度不一致',
   'transcription.importDialog.mismatchAcknowledge': '我已了解，继续导入',
+  'transcription.importDialog.tierRoleTitle': '选择每个 ELAN 层的角色',
+  'transcription.importDialog.tierRoleHint':
+    '第一层保持为转写，后面的独立层保持为译文，除非你改掉它们。',
+  'transcription.importDialog.tierRole.transcription': '转写',
+  'transcription.importDialog.tierRole.translation': '译文',
+  'transcription.importDialog.tierRole.notes': '笔记',
+  'transcription.importDialog.tierRole.exclude': '不导入',
   'transcription.importExport.exportDone.eaf': 'EAF 已导出。',
   'transcription.importExport.exportDone.textgrid': 'TextGrid 已导出。',
   'transcription.importExport.exportDone.trs': 'TRS 已导出。',
@@ -1937,6 +1944,10 @@ export const zhCNDictionary = {
     '检测到 {count} 条层约束兼容性问题，请在层管理中检查并修复。',
   'transcription.importExport.importDone.hostRecoveryWarning':
     '检测到 {count} 个依赖层仅恢复了单宿主链路；EAF 无法重建多宿主全集。',
+  'transcription.importExport.importDone.mediaFileMissing':
+    '本项目里没有音频文件 {filename}。语段已导入，未附带媒体。',
+  'transcription.importExport.importDone.unrecognizedTimeUnit':
+    'EAF 时间单位无法识别，已按毫秒读取。',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     '检测到 {count} 个翻译层存在多宿主；EAF 仅导出主宿主链路（有损）。',
   'transcription.importExport.actionLabelImportFile': '导入文件',

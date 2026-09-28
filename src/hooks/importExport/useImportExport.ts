@@ -16,6 +16,11 @@ import { recordFullProjectArchiveExportCompleted } from '../../utils/backupExpor
 import { useOrthographies } from '../orthography/useOrthographies';
 import { isImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
 import type { TimelineImportMismatchNotice } from '../../utils/timelineImportMismatch';
+import {
+  isEafTierRolesRequiredError,
+  type EafRolePromptTier,
+  type EafTierRole,
+} from '../../utils/eafTierRole';
 import type { AnnotationImportBridgeStrategy } from './useImportExport.annotationImport';
 import {
   downloadTranscriptionExportText,
@@ -108,7 +113,25 @@ export interface UseImportExportInput {
   defaultTranscriptionLayerId: string | undefined;
   loadSnapshot: () => Promise<void>;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
+  /** Production transcription import asks before writing a foreign multi-tier EAF. */
+  promptForEafTierRoles?: boolean;
 }
+
+type PendingAnnotationImport =
+  | {
+      kind: 'mismatch';
+      file: File;
+      fileName: string;
+      strategy?: AnnotationImportBridgeStrategy;
+      notices: TimelineImportMismatchNotice[];
+    }
+  | {
+      kind: 'tier-roles';
+      file: File;
+      fileName: string;
+      strategy?: AnnotationImportBridgeStrategy;
+      tiers: EafRolePromptTier[];
+    };
 
 function loadCachedModule<T>(
   ref: React.MutableRefObject<Promise<T> | null>,
@@ -160,14 +183,11 @@ export function useImportExport(input: UseImportExportInput) {
     defaultTranscriptionLayerId,
     loadSnapshot,
     setSaveState,
+    promptForEafTierRoles,
   } = input;
 
-  const [pendingAnnotationImport, setPendingAnnotationImport] = useState<{
-    file: File;
-    fileName: string;
-    strategy?: AnnotationImportBridgeStrategy;
-    notices: TimelineImportMismatchNotice[];
-  } | null>(null);
+  const [pendingAnnotationImport, setPendingAnnotationImport] =
+    useState<PendingAnnotationImport | null>(null);
   const [annotationImportMismatchBusy, setAnnotationImportMismatchBusy] = useState(false);
 
   const segmentExportMediaId = useMemo(() => {
@@ -980,14 +1000,27 @@ export function useImportExport(input: UseImportExportInput) {
           normalizeSpeakerLookupKey,
         });
       try {
-        return await importFile(file, importWriteStrategy);
+        return await importFile(file, importWriteStrategy, {
+          ...(promptForEafTierRoles ? { promptForEafTierRoles: true } : {}),
+        });
       } catch (err) {
         if (isImportMismatchRequiresAckError(err)) {
           setPendingAnnotationImport({
+            kind: 'mismatch',
             file,
             ...(importWriteStrategy !== undefined ? { strategy: importWriteStrategy } : {}),
             notices: [...err.notices],
             fileName: err.fileName,
+          });
+          return;
+        }
+        if (isEafTierRolesRequiredError(err)) {
+          setPendingAnnotationImport({
+            kind: 'tier-roles',
+            file,
+            ...(importWriteStrategy !== undefined ? { strategy: importWriteStrategy } : {}),
+            fileName: err.fileName,
+            tiers: [...err.tiers],
           });
           return;
         }
@@ -1002,6 +1035,7 @@ export function useImportExport(input: UseImportExportInput) {
       layers,
       loadSnapshot,
       locale,
+      promptForEafTierRoles,
       segmentScopeMediaId,
       selectedUnitMedia,
       setSaveState,
@@ -1012,45 +1046,80 @@ export function useImportExport(input: UseImportExportInput) {
     setPendingAnnotationImport(null);
   }, []);
 
-  const confirmAnnotationImportMismatch = useCallback(async () => {
-    if (!pendingAnnotationImport) return;
-    setAnnotationImportMismatchBusy(true);
-    try {
-      const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
-      const { handleImportFile: importFile } =
-        importHandlersModule.createImportExportImportHandlers({
-          activeTextId,
-          getActiveTextId,
-          selectedUnitMedia,
-          activeTimelineMediaItem,
-          segmentScopeMediaId,
-          layers,
-          defaultTranscriptionLayerId,
-          loadSnapshot,
-          setSaveState,
-          locale,
-          normalizeSpeakerLookupKey,
+  const confirmAnnotationImportMismatch = useCallback(
+    async (tierRoles?: Record<string, EafTierRole>) => {
+      if (!pendingAnnotationImport) return;
+      setAnnotationImportMismatchBusy(true);
+      try {
+        const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
+        const { handleImportFile: importFile } =
+          importHandlersModule.createImportExportImportHandlers({
+            activeTextId,
+            getActiveTextId,
+            selectedUnitMedia,
+            activeTimelineMediaItem,
+            segmentScopeMediaId,
+            layers,
+            defaultTranscriptionLayerId,
+            loadSnapshot,
+            setSaveState,
+            locale,
+            normalizeSpeakerLookupKey,
+          });
+        if (pendingAnnotationImport.kind === 'tier-roles') {
+          const roles =
+            tierRoles ??
+            Object.fromEntries(
+              pendingAnnotationImport.tiers.map((tier) => [tier.tierId, tier.role]),
+            );
+          try {
+            await importFile(pendingAnnotationImport.file, pendingAnnotationImport.strategy, {
+              tierRoles: roles,
+              tierRolesAcknowledged: true,
+              promptForEafTierRoles: true,
+            });
+            setPendingAnnotationImport(null);
+          } catch (err) {
+            if (isImportMismatchRequiresAckError(err)) {
+              setPendingAnnotationImport({
+                kind: 'mismatch',
+                file: pendingAnnotationImport.file,
+                ...(pendingAnnotationImport.strategy !== undefined
+                  ? { strategy: pendingAnnotationImport.strategy }
+                  : {}),
+                notices: [...err.notices],
+                fileName: err.fileName,
+              });
+              return;
+            }
+            throw err;
+          }
+          return;
+        }
+        await importFile(pendingAnnotationImport.file, pendingAnnotationImport.strategy, {
+          mismatchAcknowledged: true,
+          ...(promptForEafTierRoles ? { promptForEafTierRoles: true } : {}),
         });
-      await importFile(pendingAnnotationImport.file, pendingAnnotationImport.strategy, {
-        mismatchAcknowledged: true,
-      });
-      setPendingAnnotationImport(null);
-    } finally {
-      setAnnotationImportMismatchBusy(false);
-    }
-  }, [
-    activeTextId,
-    activeTimelineMediaItem,
-    defaultTranscriptionLayerId,
-    getActiveTextId,
-    layers,
-    loadSnapshot,
-    locale,
-    pendingAnnotationImport,
-    segmentScopeMediaId,
-    selectedUnitMedia,
-    setSaveState,
-  ]);
+        setPendingAnnotationImport(null);
+      } finally {
+        setAnnotationImportMismatchBusy(false);
+      }
+    },
+    [
+      activeTextId,
+      activeTimelineMediaItem,
+      defaultTranscriptionLayerId,
+      getActiveTextId,
+      layers,
+      loadSnapshot,
+      locale,
+      pendingAnnotationImport,
+      promptForEafTierRoles,
+      segmentScopeMediaId,
+      selectedUnitMedia,
+      setSaveState,
+    ],
+  );
 
   return {
     importFileRef,
@@ -1068,15 +1137,27 @@ export function useImportExport(input: UseImportExportInput) {
     previewProjectArchiveImport: archiveImportActions.previewProjectArchiveImport,
     importProjectArchive: archiveImportActions.importProjectArchive,
     handleImportFile,
-    annotationImportMismatchDialog: pendingAnnotationImport
-      ? {
-          isOpen: true,
-          fileName: pendingAnnotationImport.fileName,
-          notices: pendingAnnotationImport.notices,
-          busy: annotationImportMismatchBusy,
-          onClose: cancelAnnotationImportMismatch,
-          onConfirm: confirmAnnotationImportMismatch,
-        }
-      : null,
+    annotationImportMismatchDialog:
+      pendingAnnotationImport?.kind === 'mismatch'
+        ? {
+            isOpen: true,
+            fileName: pendingAnnotationImport.fileName,
+            notices: pendingAnnotationImport.notices,
+            busy: annotationImportMismatchBusy,
+            onClose: cancelAnnotationImportMismatch,
+            onConfirm: confirmAnnotationImportMismatch,
+          }
+        : null,
+    eafTierRoleDialog:
+      pendingAnnotationImport?.kind === 'tier-roles'
+        ? {
+            isOpen: true,
+            fileName: pendingAnnotationImport.fileName,
+            tiers: pendingAnnotationImport.tiers,
+            busy: annotationImportMismatchBusy,
+            onClose: cancelAnnotationImportMismatch,
+            onConfirm: confirmAnnotationImportMismatch,
+          }
+        : null,
   };
 }

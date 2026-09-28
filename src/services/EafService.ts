@@ -28,6 +28,14 @@ import {
 } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 import { createLogger } from '../observability/logger';
+import { glossLanguageKey } from '../utils/eafImportAlign';
+import { eafTimeValueToSeconds, resolveEafTimeUnit } from '../utils/eafTimeUnits';
+import {
+  formatEafSideChannelNote,
+  parseEafSideChannelNote,
+  type EafNoteKind,
+  type EafTierRole,
+} from '../utils/eafTierRole';
 
 type TimelineInteropMetadata = Pick<
   OrthographyInteropMetadata,
@@ -76,10 +84,12 @@ export type EafImportToken = {
   form: Record<string, string>;
   gloss?: Record<string, string>;
   pos?: string;
+  lexemeId?: string;
   morphemes?: Array<{
     form: Record<string, string>;
     gloss?: Record<string, string>;
     pos?: string;
+    lexemeId?: string;
   }>;
 };
 
@@ -87,6 +97,22 @@ export type EafSecondaryMediaDescriptor = {
   filename: string;
   mimeType?: string;
   url?: string;
+};
+
+export type EafImportOptions = {
+  tierRoles?: Readonly<Record<string, EafTierRole>>;
+};
+
+export type EafSideChannelNote = {
+  kind: EafNoteKind;
+  text: string;
+  parentAnnotationId?: string;
+};
+
+export type EafTranscriptionTier = {
+  tierName: string;
+  locale?: string;
+  units: EafImportResult['units'];
 };
 
 export interface EafImportResult {
@@ -116,8 +142,15 @@ export interface EafImportResult {
       text: string;
       /** ANNOTATION_ID from EAF for round-trip consistency */
       annotationId?: string;
+      /** Parent ANNOTATION_REF when the row is a REF_ANNOTATION */
+      annotationRef?: string;
     }>
   >;
+  /**
+   * Independent tiers whose Jieyu role is transcription, after the primary tier.
+   * Absent when the file has no role map.
+   */
+  extraTranscriptionTiers?: EafTranscriptionTier[];
   /** Language of the first transcription tier: LANG_REF, else DEFAULT_LOCALE */
   defaultLocale?: string;
   /** Map of tier name → language id (LANG_REF, else DEFAULT_LOCALE) | 附加层的语言 */
@@ -129,7 +162,10 @@ export interface EafImportResult {
   /** <LANGUAGE> 元素中的语言 ID → 语言标签映射 | LANG_ID → LANG_LABEL from <LANGUAGE> elements */
   languageLabels: Map<string, string>;
   /** 每个 tier 的 ELAN 约束信息 | Per-tier ELAN constraint info (constraint + parentTierId) */
-  tierConstraints: Map<string, { constraint: LayerConstraint; parentTierId?: string }>;
+  tierConstraints: Map<
+    string,
+    { constraint: LayerConstraint; parentTierId?: string; symbolicSubdivision?: boolean }
+  >;
   /** Jieyu 自定义 tier 身份元数据 | Jieyu custom tier identity metadata */
   tierMetadata: Map<string, OrthographyInteropMetadata>;
   /**
@@ -140,7 +176,13 @@ export interface EafImportResult {
     startTime: number;
     endTime: number;
     text: string;
+    annotationRef?: string;
+    kind?: EafNoteKind;
   }>;
+  /** Controlled vocabulary, speaker dialect, and addressee parked on the parent annotation. */
+  sideChannelNotes?: EafSideChannelNote[];
+  /** HEADER TIME_UNITS was not one of the ELAN enumerations. Times were read as milliseconds. */
+  unrecognizedTimeUnit?: boolean;
 }
 
 const JIEYU_LAYER_META_PREFIX = 'jieyu:layer-meta:';
@@ -376,8 +418,15 @@ export function exportToEaf(input: EafExportInput): string {
   const defaultTierId = defaultTrcMeta.tierId ?? 'default';
   const tierIdentityMetadata = new Map<string, OrthographyInteropMetadata>();
   const registerTierIdentityMetadata = (tierId: string, layer?: LayerDocType) => {
-    const metadata = buildOrthographyInteropMetadata(layer, orthographies);
-    if (metadata) tierIdentityMetadata.set(tierId, metadata);
+    const metadata = buildOrthographyInteropMetadata(layer, orthographies) ?? {};
+    const role: EafTierRole | undefined =
+      layer?.layerType === 'translation'
+        ? 'translation'
+        : layer?.layerType === 'transcription'
+          ? 'transcription'
+          : undefined;
+    const next = { ...metadata, ...(role ? { role } : {}) };
+    if (Object.keys(next).length > 0) tierIdentityMetadata.set(tierId, next);
   };
   registerTierIdentityMetadata(defaultTierId, defaultTrcLayer);
 
@@ -732,8 +781,9 @@ ${annotations.join('\n')}
         const previousAttr = previousWordAnnId
           ? ` PREVIOUS_ANNOTATION="${escapeXml(previousWordAnnId)}"`
           : '';
+        const lexemeAttr = token.lexemeId ? ` JIEYU_LEXEME_ID="${escapeXml(token.lexemeId)}"` : '';
         wordAnnRows.push(`        <ANNOTATION>
-            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(wordAnnId)}" ANNOTATION_REF="${escapeXml(parentAnnId)}"${previousAttr}>
+            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(wordAnnId)}" ANNOTATION_REF="${escapeXml(parentAnnId)}"${previousAttr}${lexemeAttr}>
                 <ANNOTATION_VALUE>${escapeXml(formText)}</ANNOTATION_VALUE>
             </REF_ANNOTATION>
         </ANNOTATION>`);
@@ -756,8 +806,11 @@ ${annotations.join('\n')}
           const previousMorphAttr = previousMorphAnnId
             ? ` PREVIOUS_ANNOTATION="${escapeXml(previousMorphAnnId)}"`
             : '';
+          const morphLexemeAttr = morph.lexemeId
+            ? ` JIEYU_LEXEME_ID="${escapeXml(morph.lexemeId)}"`
+            : '';
           morphAnnRows.push(`        <ANNOTATION>
-            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(morphAnnId)}" ANNOTATION_REF="${escapeXml(wordAnnId)}"${previousMorphAttr}>
+            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(morphAnnId)}" ANNOTATION_REF="${escapeXml(wordAnnId)}"${previousMorphAttr}${morphLexemeAttr}>
                 <ANNOTATION_VALUE>${escapeXml(morphText)}</ANNOTATION_VALUE>
             </REF_ANNOTATION>
         </ANNOTATION>`);
@@ -811,6 +864,12 @@ ${morphGlossAnnRows.join('\n')}
   if (timelineMetadata && Object.keys(timelineMetadata).length > 0) {
     headerLines.push(
       `        <PROPERTY NAME="${escapeXml(JIEYU_PROJECT_META_TIMELINE)}">${escapeXml(JSON.stringify(timelineMetadata))}</PROPERTY>`,
+    );
+  }
+  const hasSpeakerDialect = (speakers ?? []).some((speaker) => speaker.dialect?.trim());
+  if ((userNotes && userNotes.length > 0) || hasSpeakerDialect) {
+    headerLines.push(
+      `        <PROPERTY NAME="${escapeXml(`${JIEYU_LAYER_META_PREFIX}notes`)}">${escapeXml(JSON.stringify({ role: 'notes' }))}</PROPERTY>`,
     );
   }
   const mediaHeader =
@@ -884,7 +943,7 @@ ${transcriptionAnnotations.join('\n')}
 })()}
 ${wordTierXml.join('\n')}
 ${translationTierXml.join('\n')}
-${buildNoteTierXml(sorted, uttSlotMap, userNotes ?? [], annCounter)}
+${buildNoteTierXml(sorted, uttSlotMap, userNotes ?? [], annCounter, uttAnnotationIdMap, speakers ?? [], defaultTierId)}
 ${footerLines.join('\n')}
 </ANNOTATION_DOCUMENT>
 `;
@@ -895,10 +954,10 @@ function buildNoteTierXml(
   uttSlotMap: Map<string, { tsStart: string; tsEnd: string }>,
   notes: UserNoteDocType[],
   annCounterStart: number,
+  uttAnnotationIdMap: Map<string, string>,
+  speakers: SpeakerDocType[],
+  parentTierId: string,
 ): string {
-  if (notes.length === 0) return '';
-
-  // Group notes by unit
   const notesByUtt = new Map<string, UserNoteDocType[]>();
   for (const note of notes) {
     if (note.targetType !== 'unit') continue;
@@ -910,16 +969,31 @@ function buildNoteTierXml(
   let counter = annCounterStart;
   const annotations = sorted
     .map((utt) => {
-      const uttNotes = notesByUtt.get(utt.id);
-      if (!uttNotes || uttNotes.length === 0) return null;
+      const uttNotes = notesByUtt.get(utt.id) ?? [];
       const slots = uttSlotMap.get(utt.id);
+      if (!slots && uttNotes.length === 0) return null;
+      const speaker = speakers.find((item) => item.id === utt.speakerId);
+      const dialect = speaker?.dialect?.trim();
+      const parts = [
+        ...uttNotes.map((note) => {
+          const body = note.content['default'] ?? Object.values(note.content)[0] ?? '';
+          if (parseEafSideChannelNote(body)) return body;
+          const prefix = note.category ? `[${note.category}] ` : '';
+          return prefix + body;
+        }),
+        ...(dialect ? [formatEafSideChannelNote('speaker-dialect', dialect)] : []),
+      ].filter((part) => part.trim().length > 0);
+      if (parts.length === 0) return null;
+      const text = parts.join(' | ');
+      const parentAnnId = uttAnnotationIdMap.get(utt.id);
+      if (parentAnnId) {
+        return `        <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="a${counter++}" ANNOTATION_REF="${escapeXml(parentAnnId)}">
+                <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+        </ANNOTATION>`;
+      }
       if (!slots) return null;
-      const text = uttNotes
-        .map((n) => {
-          const prefix = n.category ? `[${n.category}] ` : '';
-          return prefix + (n.content['default'] ?? Object.values(n.content)[0] ?? '');
-        })
-        .join(' | ');
       return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="a${counter++}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
@@ -930,7 +1004,7 @@ function buildNoteTierXml(
 
   if (annotations.length === 0) return '';
 
-  return `    <TIER TIER_ID="notes" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="en">
+  return `    <TIER TIER_ID="notes" LINGUISTIC_TYPE_REF="default-lt" PARENT_REF="${escapeXml(parentTierId)}" DEFAULT_LOCALE="en">
 ${annotations.join('\n')}
     </TIER>`;
 }
@@ -944,6 +1018,7 @@ type AnnotationEntry = {
   annotationId?: string;
   /** Parent ANNOTATION_REF for REF_ANNOTATION rows */
   annotationRef?: string;
+  lexemeId?: string;
 };
 
 /** 从 ALIGNABLE_ANNOTATION 解析标注 | Parse ALIGNABLE_ANNOTATION elements within a tier */
@@ -954,18 +1029,22 @@ function parseAlignableAnnotations(
   const result: AnnotationEntry[] = [];
   tier.querySelectorAll('ALIGNABLE_ANNOTATION').forEach((ann) => {
     const annotationId = ann.getAttribute('ANNOTATION_ID') ?? undefined;
+    const annotationRef = ann.getAttribute('ANNOTATION_REF')?.trim() || undefined;
+    const lexemeId = ann.getAttribute('JIEYU_LEXEME_ID')?.trim() || undefined;
     const ts1 = ann.getAttribute('TIME_SLOT_REF1');
     const ts2 = ann.getAttribute('TIME_SLOT_REF2');
     const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
     if (ts1 && ts2) {
-      const startMs = timeSlotMap.get(ts1);
-      const endMs = timeSlotMap.get(ts2);
-      if (startMs != null && endMs != null) {
+      const startTime = timeSlotMap.get(ts1);
+      const endTime = timeSlotMap.get(ts2);
+      if (startTime != null && endTime != null) {
         result.push({
-          startTime: startMs / 1000,
-          endTime: endMs / 1000,
+          startTime,
+          endTime,
           text: value,
           ...(annotationId ? { annotationId } : {}),
+          ...(annotationRef ? { annotationRef } : {}),
+          ...(lexemeId ? { lexemeId } : {}),
         });
       }
     }
@@ -982,20 +1061,19 @@ function parseRefAnnotations(
   tier.querySelectorAll('REF_ANNOTATION').forEach((ann) => {
     const annotationId = ann.getAttribute('ANNOTATION_ID') ?? undefined;
     const annotationRef = ann.getAttribute('ANNOTATION_REF') ?? undefined;
+    const lexemeId = ann.getAttribute('JIEYU_LEXEME_ID')?.trim() || undefined;
     const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
     if (annotationRef) {
       const parentTime = annotationTimeMap.get(annotationRef);
-      if (parentTime) {
-        result.push({
-          startTime: parentTime.startTime,
-          endTime: parentTime.endTime,
-          text: value,
-          ...(annotationId ? { annotationId } : {}),
-          annotationRef,
-        });
-        // 注册自身以支持多级嵌套 | Register self for multi-level nesting
-        if (annotationId) annotationTimeMap.set(annotationId, parentTime);
-      }
+      result.push({
+        startTime: parentTime?.startTime ?? 0,
+        endTime: parentTime?.endTime ?? 0,
+        text: value,
+        ...(annotationId ? { annotationId } : {}),
+        annotationRef,
+        ...(lexemeId ? { lexemeId } : {}),
+      });
+      if (annotationId && parentTime) annotationTimeMap.set(annotationId, parentTime);
     }
   });
   return result;
@@ -1007,11 +1085,18 @@ function mediaFilenameFromDescriptor(el: Element): string {
   return relUrl.replace(/^\.\//, '') || mediaUrl.split('/').pop() || 'unknown.wav';
 }
 
+function glossRecord(lang: string, text: string): Record<string, string> {
+  return { [glossLanguageKey(lang)]: text };
+}
+
 function attachWordTierTokensToUnits(
   units: EafImportResult['units'],
   wordTierAnns: AnnotationEntry[],
-  glossByWordAnnId: Map<string, string>,
-  morphsByWordAnnId: Map<string, Array<{ form: string; gloss?: string }>>,
+  glossByWordAnnId: Map<string, { text: string; lang: string }>,
+  morphsByWordAnnId: Map<
+    string,
+    Array<{ form: string; gloss?: string; glossLang?: string; lexemeId?: string }>
+  >,
 ): void {
   const byParent = new Map<string, AnnotationEntry[]>();
   for (const ann of wordTierAnns) {
@@ -1032,12 +1117,14 @@ function attachWordTierTokensToUnits(
       const morphs = wordAnn.annotationId ? morphsByWordAnnId.get(wordAnn.annotationId) : undefined;
       return {
         form: { default: wordAnn.text },
-        ...(glossText ? { gloss: { eng: glossText } } : {}),
+        ...(wordAnn.lexemeId ? { lexemeId: wordAnn.lexemeId } : {}),
+        ...(glossText ? { gloss: glossRecord(glossText.lang, glossText.text) } : {}),
         ...(morphs && morphs.length > 0
           ? {
               morphemes: morphs.map((m) => ({
                 form: { default: m.form },
-                ...(m.gloss ? { gloss: { eng: m.gloss } } : {}),
+                ...(m.lexemeId ? { lexemeId: m.lexemeId } : {}),
+                ...(m.gloss ? { gloss: glossRecord(m.glossLang ?? 'und', m.gloss) } : {}),
               })),
             }
           : {}),
@@ -1060,7 +1147,7 @@ function readEafTierLanguageId(tier: Element): string | undefined {
 
 // ── Import ──────────────────────────────────────────────────
 
-export function importFromEaf(xmlString: string): EafImportResult {
+export function importFromEaf(xmlString: string, options?: EafImportOptions): EafImportResult {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
 
@@ -1094,23 +1181,34 @@ export function importFromEaf(xmlString: string): EafImportResult {
   });
 
   // ── <LINGUISTIC_TYPE> → 层结构分类 | Parse <LINGUISTIC_TYPE> for tier classification ──
-  const linguisticTypes = new Map<string, { timeAlignable: boolean; constraints?: string }>();
+  const linguisticTypes = new Map<
+    string,
+    { timeAlignable: boolean; constraints?: string; controlledVocabularyRef?: string }
+  >();
   doc.querySelectorAll('LINGUISTIC_TYPE').forEach((el) => {
     const typeId = el.getAttribute('LINGUISTIC_TYPE_ID');
     const timeAlignable = el.getAttribute('TIME_ALIGNABLE') !== 'false';
     const constraints = el.getAttribute('CONSTRAINTS') ?? undefined;
+    const controlledVocabularyRef =
+      el.getAttribute('CONTROLLED_VOCABULARY_REF')?.trim() || undefined;
     if (typeId)
-      linguisticTypes.set(typeId, { timeAlignable, ...(constraints ? { constraints } : {}) });
+      linguisticTypes.set(typeId, {
+        timeAlignable,
+        ...(constraints ? { constraints } : {}),
+        ...(controlledVocabularyRef ? { controlledVocabularyRef } : {}),
+      });
   });
 
-  // Parse time slots
+  const timeUnit = resolveEafTimeUnit(doc.querySelector('HEADER')?.getAttribute('TIME_UNITS'));
   const timeSlotMap = new Map<string, number>();
   doc.querySelectorAll('TIME_SLOT').forEach((el) => {
     const id = el.getAttribute('TIME_SLOT_ID');
     const val = el.getAttribute('TIME_VALUE');
     if (id === null || id.length === 0 || val === null || val.length === 0) return;
     const parsed = parseInt(val, 10);
-    if (Number.isFinite(parsed)) timeSlotMap.set(id, parsed);
+    if (Number.isFinite(parsed)) {
+      timeSlotMap.set(id, eafTimeValueToSeconds(parsed, timeUnit.unit));
+    }
   });
   const tierMetadata = new Map<string, OrthographyInteropMetadata>();
   let timelineMetadata: TimelineInteropMetadata | undefined;
@@ -1135,6 +1233,14 @@ export function importFromEaf(xmlString: string): EafImportResult {
       log.warn('failed to parse tier metadata property', { name, err: error });
     }
   });
+  if (options?.tierRoles) {
+    for (const [tierId, role] of Object.entries(options.tierRoles)) {
+      const id = tierId.trim();
+      if (!id) continue;
+      const prev = tierMetadata.get(id);
+      tierMetadata.set(id, { ...(prev ?? {}), role });
+    }
+  }
 
   // ── 层解析 | Parse tiers ──
   const tiers = doc.querySelectorAll('TIER');
@@ -1151,8 +1257,13 @@ export function importFromEaf(xmlString: string): EafImportResult {
   const annotationTimeMap = new Map<string, { startTime: number; endTime: number }>();
   let foundPrimaryTranscription = false;
   // 每层的约束信息 | Per-tier constraint info
-  const tierConstraints = new Map<string, { constraint: LayerConstraint; parentTierId?: string }>();
+  const tierConstraints = new Map<
+    string,
+    { constraint: LayerConstraint; parentTierId?: string; symbolicSubdivision?: boolean }
+  >();
   const importedUserNotes: NonNullable<EafImportResult['userNotes']> = [];
+  const sideChannelNotes: EafSideChannelNote[] = [];
+  const extraTranscriptionTiers: EafTranscriptionTier[] = [];
   /** Word tiers (Symbolic_Subdivision under primary) — not flattened into translationTiers */
   const wordTierEntries: Array<{ tierId: string; anns: AnnotationEntry[] }> = [];
   /** Dependent tiers under a word tier (gloss / morph), keyed by parent word tier id */
@@ -1170,15 +1281,40 @@ export function importFromEaf(xmlString: string): EafImportResult {
 
     if (participant) participantSet.add(participant);
 
+    const tierRole = tierMetadata.get(tierId)?.role;
+    const tierNoteKind = tierMetadata.get(tierId)?.noteKind;
+    if (tierRole === 'exclude') return;
+
     // Jieyu-exported notes tier must round-trip as user_notes, not a translation layer.
-    if (tierId === 'notes') {
-      const noteAnns = parseAlignableAnnotations(tier, timeSlotMap);
+    if (tierId === 'notes' || tierRole === 'notes' || tierNoteKind) {
+      const noteAnns = [
+        ...parseAlignableAnnotations(tier, timeSlotMap),
+        ...parseRefAnnotations(tier, annotationTimeMap),
+      ];
       for (const a of noteAnns) {
         if (!a.text.trim()) continue;
+        const parsedNote = parseEafSideChannelNote(a.text);
+        const kind = parsedNote?.kind ?? tierNoteKind;
+        const text = parsedNote
+          ? formatEafSideChannelNote(parsedNote.kind, parsedNote.value)
+          : a.text;
+        if (kind) {
+          sideChannelNotes.push({
+            kind,
+            text: parsedNote?.value ?? a.text,
+            ...(a.annotationRef
+              ? { parentAnnotationId: a.annotationRef }
+              : a.annotationId
+                ? { parentAnnotationId: a.annotationId }
+                : {}),
+          });
+          continue;
+        }
         importedUserNotes.push({
           startTime: a.startTime,
           endTime: a.endTime,
-          text: a.text,
+          text,
+          ...(a.annotationRef ? { annotationRef: a.annotationRef } : {}),
         });
       }
       return;
@@ -1205,6 +1341,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
     tierConstraints.set(tierId, {
       constraint,
       ...(parentRef ? { parentTierId: parentRef } : {}),
+      ...(isSymbolicSubdivision ? { symbolicSubdivision: true } : {}),
     });
 
     if (isIndependentTier) {
@@ -1216,19 +1353,39 @@ export function importFromEaf(xmlString: string): EafImportResult {
         }
       }
 
-      if (!foundPrimaryTranscription) {
+      const mappedUnits = annotations.map((a) => ({
+        startTime: a.startTime,
+        endTime: a.endTime,
+        transcription: a.text,
+        ...(participant ? { speakerId: participant } : {}),
+        ...(a.annotationId ? { annotationId: a.annotationId } : {}),
+      }));
+      if (lingType?.controlledVocabularyRef) {
+        for (const annotation of annotations) {
+          if (!annotation.text.trim()) continue;
+          sideChannelNotes.push({
+            kind: 'controlled-vocabulary',
+            text: annotation.text,
+            ...(annotation.annotationId ? { parentAnnotationId: annotation.annotationId } : {}),
+          });
+        }
+      }
+      if (tierRole === 'translation') {
+        if (locale) tierLocales.set(tierId, locale);
+        translationTiers.set(tierId, annotations);
+      } else if (!foundPrimaryTranscription) {
         foundPrimaryTranscription = true;
         if (locale) defaultLocale = locale;
         transcriptionTierName = tierId;
-        units = annotations.map((a) => ({
-          startTime: a.startTime,
-          endTime: a.endTime,
-          transcription: a.text,
-          ...(participant ? { speakerId: participant } : {}),
-          ...(a.annotationId ? { annotationId: a.annotationId } : {}),
-        }));
+        units = mappedUnits;
+      } else if (tierRole === 'transcription') {
+        if (locale) tierLocales.set(tierId, locale);
+        extraTranscriptionTiers.push({
+          tierName: tierId,
+          ...(locale ? { locale } : {}),
+          units: mappedUnits,
+        });
       } else {
-        // 非首个转写层 → 归入附加层 | Non-primary transcription tier → additional tier
         if (locale) tierLocales.set(tierId, locale);
         translationTiers.set(tierId, annotations);
       }
@@ -1244,9 +1401,26 @@ export function importFromEaf(xmlString: string): EafImportResult {
         ? wordTierEntries.some((entry) => entry.tierId === parentRef)
         : false;
 
-      if (isSymbolicSubdivision && parentRef && parentRef === transcriptionTierName) {
-        // Word tier under primary utterance — absorb into unit.tokens later
+      const parentsTranscriptionTier =
+        parentRef === transcriptionTierName ||
+        extraTranscriptionTiers.some((entry) => entry.tierName === parentRef);
+      if (isSymbolicSubdivision && parentRef && parentsTranscriptionTier) {
         wordTierEntries.push({ tierId, anns });
+        return;
+      }
+      if (lingType?.controlledVocabularyRef) {
+        for (const annotation of anns) {
+          if (!annotation.text.trim()) continue;
+          sideChannelNotes.push({
+            kind: 'controlled-vocabulary',
+            text: annotation.text,
+            ...(annotation.annotationRef
+              ? { parentAnnotationId: annotation.annotationRef }
+              : annotation.annotationId
+                ? { parentAnnotationId: annotation.annotationId }
+                : {}),
+          });
+        }
         return;
       }
 
@@ -1267,8 +1441,11 @@ export function importFromEaf(xmlString: string): EafImportResult {
 
   // Attach Symbolic_Subdivision word tokens (+ optional gloss/morph under word tiers)
   if (wordTierEntries.length > 0 && units.length > 0) {
-    const glossByWordAnnId = new Map<string, string>();
-    const morphsByWordAnnId = new Map<string, Array<{ form: string; gloss?: string }>>();
+    const glossByWordAnnId = new Map<string, { text: string; lang: string }>();
+    const morphsByWordAnnId = new Map<
+      string,
+      Array<{ form: string; gloss?: string; glossLang?: string; lexemeId?: string }>
+    >();
     const morphTierIds = new Set<string>();
 
     for (const wordTier of wordTierEntries) {
@@ -1280,16 +1457,17 @@ export function importFromEaf(xmlString: string): EafImportResult {
       }
     }
 
-    const glossByMorphAnnId = new Map<string, string>();
+    const glossByMorphAnnId = new Map<string, { text: string; lang: string }>();
     if (morphTierIds.size > 0) {
       Array.from(doc.querySelectorAll('TIER')).forEach((tier) => {
         const parentRef = tier.getAttribute('PARENT_REF') ?? undefined;
         if (!parentRef || !morphTierIds.has(parentRef)) return;
         const anns = parseRefAnnotations(tier, annotationTimeMap);
+        const morphGlossLang = glossLanguageKey(readEafTierLanguageId(tier));
         for (const ann of anns) {
           if (!ann.annotationRef || !ann.text.trim()) continue;
           if (!glossByMorphAnnId.has(ann.annotationRef)) {
-            glossByMorphAnnId.set(ann.annotationRef, ann.text);
+            glossByMorphAnnId.set(ann.annotationRef, { text: ann.text, lang: morphGlossLang });
           }
         }
       });
@@ -1307,16 +1485,27 @@ export function importFromEaf(xmlString: string): EafImportResult {
               ann.annotationId != null ? glossByMorphAnnId.get(ann.annotationId) : undefined;
             morphs.push({
               form: ann.text,
-              ...(morphGloss ? { gloss: morphGloss } : {}),
+              ...(ann.lexemeId ? { lexemeId: ann.lexemeId } : {}),
+              ...(morphGloss ? { gloss: morphGloss.text, glossLang: morphGloss.lang } : {}),
             });
             morphsByWordAnnId.set(ann.annotationRef, morphs);
           } else if (!glossByWordAnnId.has(ann.annotationRef)) {
-            glossByWordAnnId.set(ann.annotationRef, ann.text);
+            glossByWordAnnId.set(ann.annotationRef, {
+              text: ann.text,
+              lang: glossLanguageKey(tierLocales.get(child.tierId)),
+            });
           }
         }
       }
-      // Merge all word tiers that parent the same utterance (document order)
       attachWordTierTokensToUnits(units, wordTier.anns, glossByWordAnnId, morphsByWordAnnId);
+      for (const extra of extraTranscriptionTiers) {
+        attachWordTierTokensToUnits(
+          extra.units,
+          wordTier.anns,
+          glossByWordAnnId,
+          morphsByWordAnnId,
+        );
+      }
     }
   }
 
@@ -1334,6 +1523,9 @@ export function importFromEaf(xmlString: string): EafImportResult {
     tierConstraints,
     tierMetadata,
     ...(importedUserNotes.length > 0 ? { userNotes: importedUserNotes } : {}),
+    ...(sideChannelNotes.length > 0 ? { sideChannelNotes } : {}),
+    ...(extraTranscriptionTiers.length > 0 ? { extraTranscriptionTiers } : {}),
+    ...(timeUnit.unrecognized ? { unrecognizedTimeUnit: true } : {}),
   };
 }
 

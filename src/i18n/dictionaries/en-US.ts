@@ -2044,6 +2044,13 @@ export const enUSDictionary = {
     'This file declares a timeline of {incoming}, longer than the current project span ({established}). After you confirm, import will keep segment times and automatically extend the logical axis.',
   'transcription.importDialog.mismatchTitle': 'Timeline length mismatch',
   'transcription.importDialog.mismatchAcknowledge': 'I understand and want to continue importing',
+  'transcription.importDialog.tierRoleTitle': 'Choose what each ELAN tier is',
+  'transcription.importDialog.tierRoleHint':
+    'The first tier stays the transcription and later independent tiers stay translations unless you change them.',
+  'transcription.importDialog.tierRole.transcription': 'Transcription',
+  'transcription.importDialog.tierRole.translation': 'Translation',
+  'transcription.importDialog.tierRole.notes': 'Notes',
+  'transcription.importDialog.tierRole.exclude': 'Exclude',
   'transcription.importExport.exportDone.eaf': 'EAF exported.',
   'transcription.importExport.exportDone.textgrid': 'TextGrid exported.',
   'transcription.importExport.exportDone.trs': 'TRS exported.',
@@ -2081,6 +2088,10 @@ export const enUSDictionary = {
     'Detected {count} layer-constraint compatibility issues. Please review and repair them in layer management.',
   'transcription.importExport.importDone.hostRecoveryWarning':
     'Detected {count} dependent tiers restored as single-host links only; EAF cannot reconstruct full multi-host sets.',
+  'transcription.importExport.importDone.mediaFileMissing':
+    'Audio file {filename} is not in this project. Segments were imported without media.',
+  'transcription.importExport.importDone.unrecognizedTimeUnit':
+    'The EAF time unit was not recognized. Times were read as milliseconds.',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     'Detected {count} translation layers with multiple hosts; EAF exported preferred-host links only (lossy).',
   'transcription.importExport.actionLabelImportFile': 'Import file',

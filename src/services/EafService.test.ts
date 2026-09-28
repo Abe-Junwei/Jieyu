@@ -271,11 +271,13 @@ describe('EafService export', () => {
       scriptTag: 'Arab',
       regionTag: 'EG',
       variantTag: 'fonipa',
+      role: 'transcription',
     });
     expect(result.tierMetadata.get('翻译')).toEqual({
       languageId: 'eng',
       orthographyId: 'ortho-en',
       scriptTag: 'Latn',
+      role: 'translation',
     });
   });
 
@@ -783,8 +785,8 @@ describe('EafService logical timeline round-trip', () => {
     expect(imported.units[0]?.tokens).toEqual([
       {
         form: { default: 'hello' },
-        gloss: { eng: 'greet' },
-        morphemes: [{ form: { default: 'hell' }, gloss: { eng: 'root' } }],
+        gloss: { en: 'greet' },
+        morphemes: [{ form: { default: 'hell' }, gloss: { en: 'root' } }],
       },
       { form: { default: 'world' } },
     ]);
@@ -839,8 +841,163 @@ describe('EafService logical timeline round-trip', () => {
     expect(imported.translationTiers.has('words')).toBe(false);
     expect(imported.translationTiers.has('gloss')).toBe(false);
     expect(imported.units[0]?.tokens).toEqual([
-      { form: { default: 'hello' }, gloss: { eng: 'greet' } },
+      { form: { default: 'hello' }, gloss: { und: 'greet' } },
       { form: { default: 'world' } },
     ]);
+  });
+});
+
+describe('EAF interchange alignment', () => {
+  const base = (body: string, timeUnits?: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="test" DATE="2026-01-01T00:00:00.000Z" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE=""${timeUnits ? ` TIME_UNITS="${timeUnits}"` : ''}>
+    <MEDIA_DESCRIPTOR MEDIA_URL="speech.wav" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./speech.wav" />
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="25" />
+    <TIME_SLOT TIME_SLOT_ID="ts3" TIME_VALUE="10000" />
+    <TIME_SLOT TIME_SLOT_ID="ts4" TIME_VALUE="11000" />
+  </TIME_ORDER>
+  ${body}
+</ANNOTATION_DOCUMENT>`;
+
+  it('converts PAL frames and flags an unrecognized time unit', () => {
+    const pal = importFromEaf(
+      base(
+        `<TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>one second</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />`,
+        'PAL-frames',
+      ),
+    );
+    expect(pal.units[0]).toMatchObject({ startTime: 0, endTime: 1 });
+    expect(pal.unrecognizedTimeUnit).toBeUndefined();
+
+    const unknown = importFromEaf(
+      base(
+        `<TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts3">
+              <ANNOTATION_VALUE>ten</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />`,
+        'furlongs',
+      ),
+    );
+    expect(unknown.unrecognizedTimeUnit).toBe(true);
+    expect(unknown.units[0]).toMatchObject({ startTime: 0, endTime: 10 });
+  });
+
+  it('keeps a gloss language from LANG_REF and leaves a second independent tier as translation', () => {
+    const imported = importFromEaf(
+      base(`
+        <TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="free" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>hi</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="words" LINGUISTIC_TYPE_REF="word-lt" PARENT_REF="utt">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1">
+              <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gloss" LINGUISTIC_TYPE_REF="gloss-lt" PARENT_REF="words" LANG_REF="cmn">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="w1">
+              <ANNOTATION_VALUE>greet</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="word-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="gloss-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />
+      `),
+    );
+    expect(imported.units).toHaveLength(1);
+    expect(imported.translationTiers.get('free')).toHaveLength(1);
+    expect(imported.extraTranscriptionTiers).toBeUndefined();
+    expect(imported.units[0]?.tokens?.[0]?.gloss).toEqual({ cmn: 'greet' });
+  });
+
+  it('honors transcription, exclude, and controlled-vocabulary roles', () => {
+    const xml = base(`
+      <TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">
+        <ANNOTATION>
+          <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+            <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+          </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="free" LINGUISTIC_TYPE_REF="default-lt">
+        <ANNOTATION>
+          <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+            <ANNOTATION_VALUE>also speech</ANNOTATION_VALUE>
+          </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="cv" LINGUISTIC_TYPE_REF="cv-lt" PARENT_REF="utt">
+        <ANNOTATION>
+          <REF_ANNOTATION ANNOTATION_ID="c1" ANNOTATION_REF="a1">
+            <ANNOTATION_VALUE>noun</ANNOTATION_VALUE>
+          </REF_ANNOTATION>
+        </ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="late" LINGUISTIC_TYPE_REF="default-lt">
+        <ANNOTATION>
+          <ALIGNABLE_ANNOTATION ANNOTATION_ID="a3" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4" ANNOTATION_REF="a1">
+            <ANNOTATION_VALUE>still this utterance</ANNOTATION_VALUE>
+          </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+      </TIER>
+      <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+      <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="cv-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" CONTROLLED_VOCABULARY_REF="pos" GRAPHIC_REFERENCES="false" />
+    `);
+    const both = importFromEaf(xml, {
+      tierRoles: { utt: 'transcription', free: 'transcription', late: 'translation' },
+    });
+    expect(both.units).toHaveLength(1);
+    expect(both.extraTranscriptionTiers).toHaveLength(1);
+    expect(both.extraTranscriptionTiers?.[0]?.tierName).toBe('free');
+    expect(both.translationTiers.has('cv')).toBe(false);
+    expect(both.sideChannelNotes).toEqual([
+      expect.objectContaining({
+        kind: 'controlled-vocabulary',
+        text: 'noun',
+        parentAnnotationId: 'a1',
+      }),
+    ]);
+    expect(both.translationTiers.get('late')?.[0]).toMatchObject({
+      annotationRef: 'a1',
+      startTime: 10,
+      endTime: 11,
+      text: 'still this utterance',
+    });
+
+    const excluded = importFromEaf(xml, {
+      tierRoles: { utt: 'transcription', free: 'exclude', late: 'exclude' },
+    });
+    expect(excluded.units).toHaveLength(1);
+    expect(excluded.extraTranscriptionTiers).toBeUndefined();
+    expect(excluded.translationTiers.has('free')).toBe(false);
+    expect(excluded.translationTiers.has('late')).toBe(false);
   });
 });
