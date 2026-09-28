@@ -61,7 +61,8 @@ describe('parseLiftXml', () => {
     if (!parsed.ok) return;
     expect(parsed.lexemes.map((row) => row.entry.partsOfSpeech?.[0])).toEqual(['noun', 'verb']);
     expect(parsed.lexemes.map((row) => row.entry.headword)).toEqual(['bank', 'bank']);
-    expect(parsed.diagnostics.some((row) => row.code === 'sense-pos-split')).toBe(true);
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.losses).toEqual([]);
     expect(parsed.resource.resource.relations?.some((row) => row.type === 'homograph')).toBe(true);
   });
 
@@ -94,6 +95,7 @@ describe('importLexemesFromLiftXml', () => {
     if (!result.ok) return;
     expect(result.readback[0]?.entry.headword).toBe('fox');
     expect(result.diagnostics.length).toBeGreaterThan(0);
+    expect(result.losses).toEqual([]);
     const xml = serializeLexemesToLift(
       result.readback,
       [...store.values()].find((row) => row.kind === 'resource')?.resource.relations ?? [],
@@ -101,5 +103,62 @@ describe('importLexemesFromLiftXml', () => {
     expect(xml).toContain('id="lex-fox"');
     expect(xml).toContain('vulpine');
     expect(xml).toContain('subsense');
+  });
+
+  it('creates a new row when an entry has no id, and reports that loss', async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13"><entry>
+  <lexical-unit><form lang="eng"><text>cat</text></form></lexical-unit>
+</entry></lift>`;
+    const store = new Map<string, LexemeEntryDoc | LexemeResourceDoc>();
+    const deps = {
+      save: async (doc: LexemeEntryDoc | LexemeResourceDoc) => {
+        store.set(doc.id, doc);
+        return doc.id;
+      },
+      list: async () =>
+        [...store.values()].filter((row): row is LexemeEntryDoc => row.kind !== 'resource'),
+      loadResource: async () => null,
+      saveResource: async (doc: LexemeResourceDoc) => {
+        store.set(doc.id, doc);
+        return doc.id;
+      },
+    };
+    const first = await importLexemesFromLiftXml(xml, deps);
+    const second = await importLexemesFromLiftXml(xml, deps);
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.losses).toEqual([{ code: 'no-stable-id', count: 1 }]);
+    expect(second.losses).toEqual([{ code: 'no-stable-id', count: 1 }]);
+    expect(second.readback).toHaveLength(2);
+    expect(new Set(second.readback.map((row) => row.id)).size).toBe(2);
+  });
+
+  it('reports replaced-by-id when the same entry id is imported again', async () => {
+    const store = new Map<string, LexemeEntryDoc | LexemeResourceDoc>();
+    const deps = {
+      save: async (doc: LexemeEntryDoc | LexemeResourceDoc) => {
+        store.set(doc.id, doc);
+        return doc.id;
+      },
+      list: async () =>
+        [...store.values()].filter((row): row is LexemeEntryDoc => row.kind !== 'resource'),
+      loadResource: async () =>
+        ([...store.values()].find((row) => row.kind === 'resource') as
+          | LexemeResourceDoc
+          | undefined) ?? null,
+      saveResource: async (doc: LexemeResourceDoc) => {
+        store.set(doc.id, doc);
+        return doc.id;
+      },
+    };
+    const first = await importLexemesFromLiftXml(fox, deps);
+    const second = await importLexemesFromLiftXml(fox, deps);
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.losses).toEqual([]);
+    expect(second.losses).toEqual([{ code: 'replaced-by-id', count: 1 }]);
+    expect(second.readback).toHaveLength(1);
+    expect(second.readback[0]?.id).toBe('lex-fox');
   });
 });
