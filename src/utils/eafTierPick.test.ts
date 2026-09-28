@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isEafContentAnchor, pickEafTiers, tokenizeEafLabel } from './eafTierPick';
+import {
+  isEafContentAnchor,
+  isPhoneticTranscriptionTier,
+  phoneticTranscriptionTier,
+  pickEafTiers,
+  tokenizeEafLabel,
+} from './eafTierPick';
 
 function tier(
   tierId: string,
@@ -30,6 +36,20 @@ function tier(
 }
 
 describe('eaf tier pick', () => {
+  it('keeps a ph tier as phonetic transcription and ignores phrase', () => {
+    expect(isPhoneticTranscriptionTier('ph@NHK')).toBe(true);
+    expect(isPhoneticTranscriptionTier('phrase-txt')).toBe(false);
+    expect(
+      phoneticTranscriptionTier({
+        tierId: 'ph',
+        annotations: [
+          { startTime: 1, endTime: 1.2, text: 'a', annotationId: 'p1' },
+          { startTime: 1.2, endTime: 1.4, text: '   ' },
+        ],
+      })?.units,
+    ).toEqual([{ startTime: 1, endTime: 1.2, transcription: 'a', annotationId: 'p1' }]);
+  });
+
   it('splits labels on non-letters and keeps gl distinct from gloss', () => {
     expect(tokenizeEafLabel('Thai-gloss')).toEqual(['thai', 'gloss']);
     expect(tokenizeEafLabel('tx@33')).toEqual(['tx']);

@@ -1102,8 +1102,19 @@ describe('EAF default tier pick', () => {
         morphemes: [{ form: { default: 'stem' }, gloss: { und: 'STEM' }, pos: 'n' }],
       },
     ]);
+    expect(imported.extraTranscriptionTiers).toEqual([
+      {
+        tierName: 'ph',
+        units: [
+          expect.objectContaining({
+            transcription: 'phon',
+            annotationId: 'h1',
+          }),
+        ],
+      },
+    ]);
     expect(imported.losses).toEqual([
-      { code: 'unmapped-field', name: 'ph, doreco-mb-algn' },
+      { code: 'unmapped-field', name: 'doreco-mb-algn' },
       { code: 'guessed-tier', name: 'tx' },
     ]);
   });
@@ -1491,6 +1502,14 @@ describe('EAF default tier pick', () => {
       expect(confirmed.units.some((unit) => unit.transcription.trim().length > 0)).toBe(true);
       expect(confirmed.translationTiers.has('ft@NHK')).toBe(true);
       expect(confirmed.translationTiers.has('nt@NHK')).toBe(true);
+      expect(confirmed.extraTranscriptionTiers?.some((tier) => tier.tierName === 'ph@NHK')).toBe(
+        true,
+      );
+      expect(
+        confirmed.extraTranscriptionTiers
+          ?.find((tier) => tier.tierName === 'ph@NHK')
+          ?.units.some((unit) => unit.transcription.trim().length > 0),
+      ).toBe(true);
       for (const tierId of [
         'sound@NOBODY',
         'dt_rec@NOBODY',

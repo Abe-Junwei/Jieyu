@@ -12,6 +12,8 @@ const TRANSLATION_TOKENS = new Set(['ft', 'gls', 'translation', 'free', '翻译'
 const ANCHOR_TOKENS = new Set(['ref', 'segnum', 'note', 'notes', 'comment']);
 const ANCHOR_PHRASES = new Set(['document_notes', 'page_no']);
 const WORD_TOKENS = new Set(['wd', 'mb', 'morph', 'word', '单词', 'ps', 'gl', 'segmentation']);
+/** DoReCo phone tier. A whole token, so `phrase` and `phonetic` are not this layer. */
+const PHONETIC_TOKEN = 'ph';
 /** DoReCo session fields. The stem is the tier id before `@`, not a free translation. */
 const RECORDING_METADATA_STEMS = new Set([
   'sound',
@@ -104,6 +106,75 @@ export type EafPickAnnotation = {
   previousAnnotationId?: string;
   lexemeId?: string;
 };
+
+function optionalAttr(el: Element, name: string): string | undefined {
+  const raw = el.getAttribute(name);
+  if (raw === null) return undefined;
+  const value = raw.trim();
+  return value.length > 0 ? value : undefined;
+}
+
+/** Parse ALIGNABLE_ANNOTATION rows. Times come from the file's time slots. */
+export function parseAlignableAnnotations(
+  tier: Element,
+  timeSlotMap: Map<string, number>,
+): EafPickAnnotation[] {
+  const result: EafPickAnnotation[] = [];
+  tier.querySelectorAll('ALIGNABLE_ANNOTATION').forEach((ann) => {
+    const annotationId = optionalAttr(ann, 'ANNOTATION_ID');
+    const annotationRef = optionalAttr(ann, 'ANNOTATION_REF');
+    const previousAnnotationId = optionalAttr(ann, 'PREVIOUS_ANNOTATION');
+    const lexemeId = optionalAttr(ann, 'JIEYU_LEXEME_ID');
+    const ts1 = ann.getAttribute('TIME_SLOT_REF1');
+    const ts2 = ann.getAttribute('TIME_SLOT_REF2');
+    const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
+    if (ts1 !== null && ts2 !== null) {
+      const startTime = timeSlotMap.get(ts1);
+      const endTime = timeSlotMap.get(ts2);
+      if (startTime != null && endTime != null) {
+        result.push({
+          startTime,
+          endTime,
+          text: value,
+          ...(filled(annotationId) ? { annotationId } : {}),
+          ...(filled(annotationRef) ? { annotationRef } : {}),
+          ...(filled(previousAnnotationId) ? { previousAnnotationId } : {}),
+          ...(filled(lexemeId) ? { lexemeId } : {}),
+        });
+      }
+    }
+  });
+  return result;
+}
+
+/** Parse REF_ANNOTATION rows. Time is copied from the parent annotation when known. */
+export function parseRefAnnotations(
+  tier: Element,
+  annotationTimeMap: Map<string, { startTime: number; endTime: number }>,
+): EafPickAnnotation[] {
+  const result: EafPickAnnotation[] = [];
+  tier.querySelectorAll('REF_ANNOTATION').forEach((ann) => {
+    const annotationId = optionalAttr(ann, 'ANNOTATION_ID');
+    const annotationRef = optionalAttr(ann, 'ANNOTATION_REF');
+    const previousAnnotationId = optionalAttr(ann, 'PREVIOUS_ANNOTATION');
+    const lexemeId = optionalAttr(ann, 'JIEYU_LEXEME_ID');
+    const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
+    if (annotationRef !== undefined) {
+      const parentTime = annotationTimeMap.get(annotationRef);
+      result.push({
+        startTime: parentTime?.startTime ?? 0,
+        endTime: parentTime?.endTime ?? 0,
+        text: value,
+        ...(filled(annotationId) ? { annotationId } : {}),
+        annotationRef,
+        ...(filled(previousAnnotationId) ? { previousAnnotationId } : {}),
+        ...(filled(lexemeId) ? { lexemeId } : {}),
+      });
+      if (filled(annotationId) && parentTime) annotationTimeMap.set(annotationId, parentTime);
+    }
+  });
+  return result;
+}
 
 export type EafPickedUnit = {
   startTime: number;
@@ -251,6 +322,35 @@ export function tokenizeEafLabel(value: string): string[] {
     .toLowerCase()
     .split(/[^\p{L}]+/u)
     .filter((token) => token.length > 0);
+}
+
+/** `ph` / `ph@NHK` is a phonetic transcription tier, not a gloss or a loss. */
+export function isPhoneticTranscriptionTier(tierId: string): boolean {
+  return tokenizeEafLabel(tierId).includes(PHONETIC_TOKEN);
+}
+
+export function phoneticTranscriptionTier(input: {
+  tierId: string;
+  locale?: string;
+  speakerId?: string;
+  annotations: readonly EafPickAnnotation[];
+}): { tierName: string; locale?: string; units: EafPickedUnit[] } | undefined {
+  if (!isPhoneticTranscriptionTier(input.tierId)) return undefined;
+  const units = input.annotations
+    .filter((row) => row.text.trim().length > 0)
+    .map((row) => ({
+      startTime: row.startTime,
+      endTime: row.endTime,
+      transcription: row.text,
+      ...(filled(input.speakerId) ? { speakerId: input.speakerId } : {}),
+      ...(filled(row.annotationId) ? { annotationId: row.annotationId } : {}),
+    }));
+  if (units.length === 0) return undefined;
+  return {
+    tierName: input.tierId,
+    ...(filled(input.locale) ? { locale: input.locale } : {}),
+    units,
+  };
 }
 
 function filled(value: string | undefined): value is string {
@@ -790,7 +890,7 @@ export function stashUnassignedTier(input: {
   return true;
 }
 
-/** Drop morph children that were published as translation rows. `ph` stays a loss. */
+/** Drop morph children that were published as translation rows. Unknown slots stay a loss. */
 export function detachMorphChildTiers(input: {
   translationTiers: Map<string, Array<{ text: string }>>;
   parentTierIdByTierId: ReadonlyMap<string, string>;

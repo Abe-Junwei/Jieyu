@@ -39,7 +39,12 @@ import {
   flexTierDisposition,
   flexTierLocale,
   maxEafChildrenPerParent,
+  isPhoneticTranscriptionTier,
+  parseAlignableAnnotations,
+  parseRefAnnotations,
+  phoneticTranscriptionTier,
   pickEafTiers,
+  type EafPickAnnotation,
   publishFilledTier,
   publishTranslationTier,
   recordControlledVocabularyNotes,
@@ -166,8 +171,8 @@ export interface EafImportResult {
     }>
   >;
   /**
-   * Independent tiers whose Jieyu role is transcription, after the primary tier.
-   * Absent when the file has no role map.
+   * Further transcription layers: a second independent tier with role transcription,
+   * or a DoReCo `ph` phonetic tier. Absent when there are none.
    */
   extraTranscriptionTiers?: EafTranscriptionTier[];
   /** Language of the first transcription tier: LANG_REF, else DEFAULT_LOCALE */
@@ -1040,78 +1045,7 @@ ${annotations.join('\n')}
 
 // ── Import helpers ──────────────────────────────────────────
 
-type AnnotationEntry = {
-  startTime: number;
-  endTime: number;
-  text: string;
-  annotationId?: string;
-  /** Parent ANNOTATION_REF for REF_ANNOTATION rows */
-  annotationRef?: string;
-  previousAnnotationId?: string;
-  lexemeId?: string;
-};
-
-/** 从 ALIGNABLE_ANNOTATION 解析标注 | Parse ALIGNABLE_ANNOTATION elements within a tier */
-function parseAlignableAnnotations(
-  tier: Element,
-  timeSlotMap: Map<string, number>,
-): AnnotationEntry[] {
-  const result: AnnotationEntry[] = [];
-  tier.querySelectorAll('ALIGNABLE_ANNOTATION').forEach((ann) => {
-    const annotationId = ann.getAttribute('ANNOTATION_ID') ?? undefined;
-    const annotationRef = ann.getAttribute('ANNOTATION_REF')?.trim() || undefined;
-    const previousAnnotationId = ann.getAttribute('PREVIOUS_ANNOTATION')?.trim() || undefined;
-    const lexemeId = ann.getAttribute('JIEYU_LEXEME_ID')?.trim() || undefined;
-    const ts1 = ann.getAttribute('TIME_SLOT_REF1');
-    const ts2 = ann.getAttribute('TIME_SLOT_REF2');
-    const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
-    if (ts1 && ts2) {
-      const startTime = timeSlotMap.get(ts1);
-      const endTime = timeSlotMap.get(ts2);
-      if (startTime != null && endTime != null) {
-        result.push({
-          startTime,
-          endTime,
-          text: value,
-          ...(annotationId ? { annotationId } : {}),
-          ...(annotationRef ? { annotationRef } : {}),
-          ...(previousAnnotationId ? { previousAnnotationId } : {}),
-          ...(lexemeId ? { lexemeId } : {}),
-        });
-      }
-    }
-  });
-  return result;
-}
-
-/** 从 REF_ANNOTATION 解析标注，通过 annotationTimeMap 解析时间 | Parse REF_ANNOTATION, resolve time via parent map */
-function parseRefAnnotations(
-  tier: Element,
-  annotationTimeMap: Map<string, { startTime: number; endTime: number }>,
-): AnnotationEntry[] {
-  const result: AnnotationEntry[] = [];
-  tier.querySelectorAll('REF_ANNOTATION').forEach((ann) => {
-    const annotationId = ann.getAttribute('ANNOTATION_ID') ?? undefined;
-    const annotationRef = ann.getAttribute('ANNOTATION_REF') ?? undefined;
-    const previousAnnotationId = ann.getAttribute('PREVIOUS_ANNOTATION')?.trim() || undefined;
-    const lexemeId = ann.getAttribute('JIEYU_LEXEME_ID')?.trim() || undefined;
-    const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
-    if (annotationRef) {
-      const parentTime = annotationTimeMap.get(annotationRef);
-      result.push({
-        startTime: parentTime?.startTime ?? 0,
-        endTime: parentTime?.endTime ?? 0,
-        text: value,
-        ...(annotationId ? { annotationId } : {}),
-        annotationRef,
-        ...(previousAnnotationId ? { previousAnnotationId } : {}),
-        ...(lexemeId ? { lexemeId } : {}),
-      });
-      if (annotationId && parentTime) annotationTimeMap.set(annotationId, parentTime);
-    }
-  });
-  return result;
-}
+type AnnotationEntry = EafPickAnnotation;
 
 function mediaFilenameFromDescriptor(el: Element): string {
   const relUrl = el.getAttribute('RELATIVE_MEDIA_URL') ?? '';
@@ -1330,6 +1264,20 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
     const tierRole = tierMetadata.get(tierId)?.role;
     const tierNoteKind = tierMetadata.get(tierId)?.noteKind;
     if (tierRole === 'exclude') return;
+
+    if (tierRole === undefined && isPhoneticTranscriptionTier(tierId)) {
+      const refAnns = parseRefAnnotations(tier, annotationTimeMap);
+      const phoneticAnns = refAnns.length > 0 ? refAnns : (alignableByTierId.get(tierId) ?? []);
+      const phonetic = phoneticTranscriptionTier({
+        tierId,
+        ...(locale ? { locale } : {}),
+        ...(unitSpeaker ? { speakerId: unitSpeaker } : {}),
+        annotations: phoneticAnns,
+      });
+      if (phonetic) extraTranscriptionTiers.push(phonetic);
+      if (locale) tierLocales.set(tierId, locale);
+      return;
+    }
 
     // Jieyu-exported notes tier must round-trip as user_notes, not a translation layer.
     if (tierId === 'notes' || tierRole === 'notes' || tierNoteKind) {
