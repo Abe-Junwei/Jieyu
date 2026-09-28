@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -200,6 +200,7 @@ describe('FlexService RTL phrase round-trip', () => {
     expect(imported.units[0]?.transcription).toBe(arabic);
     expect(imported.phraseGlosses.get('p1')).toBe(gloss);
     expect(imported.units[0]?.phraseId).toBe('p1');
+    expect(imported.units[0]?.annotationId).toBe('p1');
   });
 
   it('aligns phrase glosses by phrase guid, not array index', () => {
@@ -209,11 +210,11 @@ describe('FlexService RTL phrase round-trip', () => {
     <paragraphs>
       <paragraph guid="pg1">
         <phrases>
-          <phrase guid="phrase-b" begin-time-offset="1" end-time-offset="2">
+          <phrase guid="phrase-b" begin-time-offset="1000" end-time-offset="2000">
             <item type="txt" lang="en">second</item>
             <item type="gls" lang="en">GLOSS-B</item>
           </phrase>
-          <phrase guid="phrase-a" begin-time-offset="0" end-time-offset="1">
+          <phrase guid="phrase-a" begin-time-offset="0" end-time-offset="1000">
             <item type="txt" lang="en">first</item>
             <item type="gls" lang="en">GLOSS-A</item>
           </phrase>
@@ -224,8 +225,25 @@ describe('FlexService RTL phrase round-trip', () => {
 </document>`;
     const imported = importFromFlextext(xml);
     expect(imported.units.map((u) => u.phraseId)).toEqual(['phrase-b', 'phrase-a']);
+    expect(imported.units.map((u) => u.annotationId)).toEqual(['phrase-b', 'phrase-a']);
     expect(imported.phraseGlosses.get('phrase-b')).toBe('GLOSS-B');
     expect(imported.phraseGlosses.get('phrase-a')).toBe('GLOSS-A');
+  });
+
+  it('does not treat a missing phrase guid as a stable annotation id', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase begin-time-offset="0" end-time-offset="1000">
+        <item type="txt" lang="en">hello</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.units[0]?.phraseId).toBe('p1');
+    expect(imported.units[0]?.annotationId).toBeUndefined();
   });
 
   it('keeps secondary interlinear-text blocks in additionalTiers', () => {
@@ -236,7 +254,7 @@ describe('FlexService RTL phrase round-trip', () => {
     <paragraphs>
       <paragraph guid="pg1">
         <phrases>
-          <phrase guid="p1" begin-time-offset="0" end-time-offset="1">
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="1000">
             <item type="txt" lang="en">hello</item>
           </phrase>
         </phrases>
@@ -248,7 +266,7 @@ describe('FlexService RTL phrase round-trip', () => {
     <paragraphs>
       <paragraph guid="pg2">
         <phrases>
-          <phrase guid="p2" begin-time-offset="0" end-time-offset="1">
+          <phrase guid="p2" begin-time-offset="0" end-time-offset="1000">
             <item type="txt" lang="en">extra word</item>
             <words>
               <word guid="w1">
@@ -277,9 +295,190 @@ describe('FlexService RTL phrase round-trip', () => {
     expect(extra?.[0]?.tokens).toEqual([
       {
         form: { default: 'extra' },
-        gloss: { eng: 'EXTRA' },
-        morphemes: [{ form: { default: 'ex' }, gloss: { eng: 'EX' } }],
+        gloss: { en: 'EXTRA' },
+        morphemes: [{ form: { default: 'ex' }, gloss: { en: 'EX' } }],
       },
     ]);
+  });
+});
+
+describe('FlexService field mapping', () => {
+  it('reads pos and msa, keeps one translation row per phrase writing system, and skips unmapped items', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document version="2">
+  <interlinear-text>
+    <item type="title" lang="en">Pear Story</item>
+    <item type="source" lang="en">field notebook</item>
+    <paragraphs><paragraph><phrases>
+      <phrase guid="p1" speaker="Lenny Saumar" begin-time-offset="0" end-time-offset="1000">
+        <item type="txt" lang="woe">fiyango</item>
+        <item type="gls" lang="en">This is the story</item>
+        <item type="gls" lang="zh">这是故事</item>
+        <item type="lit" lang="en">story this</item>
+        <item type="note" lang="en">said quickly</item>
+        <item type="text-is-translation" lang="en">yes</item>
+        <words>
+          <word>
+            <item type="txt" lang="woe">fiyango</item>
+            <item type="gls" lang="zh">故事</item>
+            <item type="pos">n</item>
+            <item type="punct">,</item>
+            <morphemes>
+              <morph>
+                <item type="txt" lang="woe">fiyango</item>
+                <item type="gls" lang="en">story</item>
+                <item type="msa">n</item>
+                <item type="cf" lang="en">story</item>
+              </morph>
+            </morphemes>
+          </word>
+        </words>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.units[0]?.startTime).toBe(0);
+    expect(imported.units[0]?.endTime).toBe(1);
+    expect(imported.units[0]?.tokens).toEqual([
+      {
+        form: { default: 'fiyango,' },
+        gloss: { zh: '故事' },
+        pos: 'n',
+        morphemes: [{ form: { default: 'fiyango' }, gloss: { en: 'story' }, pos: 'n' }],
+      },
+    ]);
+    expect(imported.phraseGlosses.get('p1')).toBe('This is the story');
+    expect(imported.translationTiers?.get('FLEx Gloss (zh)')?.[0]?.text).toBe('这是故事');
+    expect(imported.translationTiers?.get('FLEx Literal (en)')?.[0]?.text).toBe('story this');
+    expect(imported.translationTiers?.size).toBe(2);
+    expect(imported.participants).toEqual(['Lenny Saumar']);
+    expect(imported.documentTitle?.en).toBe('Pear Story');
+    expect(imported.userNotes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          text: 'field notebook',
+          targetType: 'text',
+          category: 'fieldwork',
+        }),
+        expect.objectContaining({ text: 'said quickly', targetType: 'unit', category: 'comment' }),
+      ]),
+    );
+    expect(imported.losses).toEqual([
+      expect.objectContaining({ code: 'unmapped-field', name: expect.stringContaining('cf') }),
+    ]);
+    expect(imported.losses?.[0]?.name).toContain('text-is-translation');
+  });
+
+  it('joins word forms when the phrase has no txt and keeps segnum as a note', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document version="2">
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase begin-time-offset="0" end-time-offset="1000">
+        <item type="segnum" lang="en">1</item>
+        <item type="gls" lang="en">This story tells about the wind</item>
+        <item type="Discourse" lang="su">This is the discourse transcription.</item>
+        <words>
+          <word><item type="txt" lang="su">Èta</item></word>
+          <word><item type="txt" lang="su">carita</item></word>
+        </words>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.units[0]?.transcription).toBe('Èta carita');
+    expect(imported.phraseGlosses.get('p1')).toBe('This story tells about the wind');
+    const segnum = imported.userNotes?.find((note) => note.text === '1');
+    expect(segnum).toMatchObject({ text: '1', targetType: 'unit' });
+    expect(segnum?.category).toBeUndefined();
+    expect(imported.losses).toEqual([
+      expect.objectContaining({
+        code: 'unmapped-field',
+        name: expect.stringContaining('discourse'),
+      }),
+    ]);
+  });
+
+  const openFlex = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../../tests/fixtures/open-corpora/flex',
+  );
+
+  it.skipIf(!existsSync(join(openFlex, 'sundanese-north-wind.flextext')))(
+    'sundanese flextext sentence is the joined word forms',
+    () => {
+      const imported = importFromFlextext(
+        readFileSync(join(openFlex, 'sundanese-north-wind.flextext'), 'utf8'),
+      );
+      expect(imported.units[0]?.transcription.startsWith('Èta carita')).toBe(true);
+      expect(
+        [...imported.phraseGlosses.values()].some((text) => text.includes('This story tells')),
+      ).toBe(true);
+      expect(
+        imported.userNotes?.some((note) => note.text === '1' && note.category === undefined),
+      ).toBe(true);
+      expect(imported.losses?.some((loss) => loss.name?.includes('discourse'))).toBe(true);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openFlex, 'apalai-kaikuxi.flextext')))(
+    'apalai flextext sentence starts with the first word form',
+    () => {
+      const imported = importFromFlextext(
+        readFileSync(join(openFlex, 'apalai-kaikuxi.flextext'), 'utf8'),
+      );
+      expect(imported.units[0]?.transcription.startsWith('Sero kaikuxi')).toBe(true);
+      expect(
+        [...imported.phraseGlosses.values()].some((text) =>
+          text.includes('This is about a jaguar'),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openFlex, 'warao-ine-warao.flextext')))(
+    'warao flextext keeps the phrase txt sentence',
+    () => {
+      const imported = importFromFlextext(
+        readFileSync(join(openFlex, 'warao-ine-warao.flextext'), 'utf8'),
+      );
+      expect(imported.units[0]?.transcription.startsWith('Ine Wa-rao')).toBe(true);
+    },
+  );
+
+  it('exports phrase times as milliseconds and reads them back as seconds', () => {
+    const layer = makeDefaultLayer();
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_1',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: layer.id,
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'hello' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const translations: LayerUnitContentDocType[] = [
+      {
+        id: 'utr_1',
+        unitId: 'utt_1',
+        layerId: layer.id,
+        modality: 'text',
+        text: 'hello',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const flex = exportToFlextext({ units, layers: [layer], translations, languageTag: 'en' });
+    expect(flex).toContain('end-time-offset="1000"');
+    const imported = importFromFlextext(flex);
+    expect(imported.units[0]?.endTime).toBe(1);
   });
 });

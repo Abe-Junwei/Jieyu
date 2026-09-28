@@ -322,6 +322,10 @@
   margin-left: var(--space-16);
 }
 
+.lexicon-entry-edit-reversal-main {
+  padding-left: 12px;
+}
+
 .lexicon-entry-edit-actions {
   display: flex;
   flex-wrap: wrap;
