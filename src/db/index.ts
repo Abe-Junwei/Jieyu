@@ -32,7 +32,12 @@ export {
 export type { JieyuDatabase } from './engine';
 
 export { trackEntityDocumentId } from './trackEntityIds';
-export { assignLexemeNestedIdsInPlace, ensureLexemeNestedIds } from './lexemeNestedIds';
+export {
+  assignLexemeNestedIdsInPlace,
+  ensureLexemeNestedIds,
+  isLexemeEntry,
+  isLexemeResource,
+} from './lexemeNestedIds';
 
 export {
   dexieStoresForAiTaskSnapshotsRw,

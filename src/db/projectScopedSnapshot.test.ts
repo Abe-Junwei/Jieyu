@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from './engine';
+import { entryDoc } from '../utils/dmlexEntry';
 import {
   exportProjectScopedDatabaseAsJson,
   importProjectScopedDatabaseFromJson,
@@ -42,13 +43,15 @@ describe('project-scoped snapshot export/import', () => {
   it('export omits other texts and global lexemes; import does not wipe them', async () => {
     await seedText('text-a', 'unit-a');
     await seedText('text-b', 'unit-b');
-    await db.lexemes.put({
-      id: 'lex-dog',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { default: 'dog' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(
+      entryDoc({
+        id: 'lex-dog',
+        headword: 'dog',
+        definition: 'dog',
+        createdAt: NOW,
+        updatedAt: NOW,
+      }),
+    );
     await db.unit_tokens.put({
       id: 'tok-a',
       textId: 'text-a',
