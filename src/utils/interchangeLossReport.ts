@@ -13,6 +13,7 @@ export const INTERCHANGE_LOSS_CODES = [
   'no-stable-id',
   'replaced-by-id',
   'appended-without-id',
+  'guessed-tier',
 ] as const;
 
 export type InterchangeLossCode = (typeof INTERCHANGE_LOSS_CODES)[number];
@@ -39,6 +40,7 @@ const LOSS_MESSAGE_KEYS: Record<InterchangeLossCode, string> = {
   'no-stable-id': 'transcription.importExport.importDone.noStableId',
   'replaced-by-id': 'transcription.importExport.importDone.replacedById',
   'appended-without-id': 'transcription.importExport.importDone.appendedWithoutId',
+  'guessed-tier': 'transcription.importExport.importDone.guessedTier',
 };
 
 const LIFT_DIAGNOSTIC_NAME_KEYS: Record<string, string> = {
@@ -64,6 +66,7 @@ const LOSSES_AFTER_HOST_RECOVERY: readonly InterchangeLossCode[] = [
   'no-stable-id',
   'replaced-by-id',
   'appended-without-id',
+  'guessed-tier',
 ];
 
 export function composeAnnotationImportLosses(input: {
@@ -114,7 +117,9 @@ export function formatInterchangeLossMessage(
     return translate(key, { filename: loss.name ?? '' });
   }
   if (loss.code === 'unrecognized-time-unit') return translate(key);
-  if (loss.code === 'unmapped-field') return translate(key, { name: loss.name ?? '' });
+  if (loss.code === 'unmapped-field' || loss.code === 'guessed-tier') {
+    return translate(key, { name: loss.name ?? '' });
+  }
   return translate(key, { count: loss.count ?? 0 });
 }
 

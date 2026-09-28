@@ -124,6 +124,8 @@ type PendingAnnotationImport =
       fileName: string;
       strategy?: AnnotationImportBridgeStrategy;
       notices: TimelineImportMismatchNotice[];
+      /** Roles confirmed before the timeline dialog replaced the role dialog. */
+      tierRoles?: Record<string, EafTierRole>;
     }
   | {
       kind: 'tier-roles';
@@ -1089,6 +1091,7 @@ export function useImportExport(input: UseImportExportInput) {
                   : {}),
                 notices: [...err.notices],
                 fileName: err.fileName,
+                tierRoles: roles,
               });
               return;
             }
@@ -1099,6 +1102,12 @@ export function useImportExport(input: UseImportExportInput) {
         await importFile(pendingAnnotationImport.file, pendingAnnotationImport.strategy, {
           mismatchAcknowledged: true,
           ...(promptForEafTierRoles ? { promptForEafTierRoles: true } : {}),
+          ...(pendingAnnotationImport.tierRoles
+            ? {
+                tierRoles: pendingAnnotationImport.tierRoles,
+                tierRolesAcknowledged: true,
+              }
+            : {}),
         });
         setPendingAnnotationImport(null);
       } finally {

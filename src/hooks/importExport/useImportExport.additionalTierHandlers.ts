@@ -463,7 +463,7 @@ export async function importAdditionalTiers(input: {
       const firstUtt = input.insertedUnits[0];
       const importMediaId = input.mediaId ?? firstUtt?.unit.mediaId;
       const importTextId = firstUtt?.unit.textId ?? input.textId;
-      if (!importMediaId) {
+      if (!importMediaId && input.insertedUnits.length === 0) {
         droppedTranslationSegmentCount += annotations.filter((annotation) =>
           annotation.text.trim(),
         ).length;
@@ -513,18 +513,20 @@ export async function importAdditionalTiers(input: {
         });
         const segNow = new Date().toISOString();
         for (const write of writes) {
-          const segId = newId('seg');
-          await LayerSegmentationV2Service.createSegment({
-            id: segId,
-            textId: importTextId,
-            mediaId: importMediaId,
-            layerId: write.layerId,
-            unitId: parentMatch.id,
-            startTime: annStart,
-            endTime: annEnd,
-            createdAt: segNow,
-            updatedAt: segNow,
-          });
+          if (importMediaId) {
+            const segId = newId('seg');
+            await LayerSegmentationV2Service.createSegment({
+              id: segId,
+              textId: importTextId,
+              mediaId: importMediaId,
+              layerId: write.layerId,
+              unitId: parentMatch.id,
+              startTime: annStart,
+              endTime: annEnd,
+              createdAt: segNow,
+              updatedAt: segNow,
+            });
+          }
           await LayerUnitSegmentWriteService.insertSegmentContents(input.db, [
             {
               id: newId('utr'),

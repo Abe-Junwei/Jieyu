@@ -35,6 +35,7 @@
     { "pathPrefix": "src/services/stt/index.ts", "reason": "provider-protocol" },
 
     { "pathPrefix": "src/services/EafService.ts", "reason": "parser-and-format-error" },
+    { "pathPrefix": "src/services/eaf/", "reason": "parser-and-format-error" },
     { "pathPrefix": "src/services/TranscriberService.ts", "reason": "parser-and-format-error" },
     { "pathPrefix": "src/services/ProjectMemoryStore.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/services/SpeechAnnotationPipeline.ts", "reason": "runtime-template-message" },
