@@ -22,11 +22,11 @@ source_of_truth: decision
 ## 决策
 
 1. 没有已保存的层角色表时，转写层按正文和层名判断，不按文档顺序。判断是纯函数，放在 `EafService` 旁边。`importFromEaf` 在未传入 `tierRoles` 时调用它。已保存的 `eafTierRoles` 优先，本决定不覆盖用户确认过的角色。
-2. 层名和语言类型按非字母边界切开后认这些记号，大小写不敏感：转写 `tx`、`trs`、`transcription`、`转写`、含 `txt` 的句子层；翻译 `ft`、`gls`、`translation`、`free`、`翻译`；锚点 `ref`、`segnum`、`document_notes`、`page_no`、`note`、`notes`、`comment`；词层 `wd`、`mb`、`morph`、`word`、`单词`、`ps`、`gl`。非空正文里至少五分之四是语料编号、`<p:>` 或纯数字时，该层是锚点，即使层名像转写。
+2. 只切层名，不切语言类型 id。语言类型名可以是共用的 `txt` 或 `Note`，不表示这一层的项目类型。DoReCo 记号，大小写不敏感：转写 `tx`、`trs`、`transcription`、`转写`，以及作为整词出现的 `txt`；翻译 `ft`、`gls`、`translation`、`free`、`翻译`；锚点 `ref`、`segnum`、`document_notes`、`page_no`、`note`、`notes`、`comment`；词层 `wd`、`mb`、`morph`、`word`、`单词`、`ps`、`gl`。能拆成 ELAN 的 `[发音人前缀_]元素-项目类型-语言` 时，以项目类型那一格为准。项目类型用 ELAN `FlexConstants` 的清单，另加手册里代替默认短语父层的 `segnum`。元素是 `interlinear-text` 或 `Interlinear`，或项目类型是 `title`、`title-abbreviation`、`source`、`comment`、`description` 的层，是行文本篇头：不进转写候选，不进角色对话框，也不写成翻译层。元素是 `word`、`morph`、`单词` 且项目类型是 `txt` 的，仍是词层。元素是 `phrase`、`句子` 或 `transcription` 且项目类型是 `txt` 的，是转写。项目类型 `gls`、`lit` 是翻译。非空正文里至少五分之四是语料编号、`<p:>` 或纯数字时，该层是锚点，即使层名像转写。
 3. 转写优先取非空、且不像锚点的转写记号层。锚点层只提供时间。语段时间用锚点或父层的可对齐标注，正文用转写子层按 `ANNOTATION_REF` 对齐的文本。锚点上的非空编号写入已有的父标注注释，不占转写正文。没有转写记号时，退回第一条非空、且不像锚点的独立时间对齐层。再没有，才用今天的第一条独立时间对齐层。
 4. 根层类型标成不可时间对齐、但带可对齐标注，子层里有转写记号时，仍用子层做转写。空层不能当转写。
 5. `Symbolic_Subdivision` 在「某个父标注下有两条及以上子标注」或层名像词层时，继续做词切分。一个父标注最多一条子标注、且层名像转写或翻译时，按短语层处理，不折进词项。
-6. 短语级层里有两个及以上非空转写候选，或没有转写记号且独立短语层不少于两个时，才打开现有层角色对话框。对话框列出短语级层，含 `tx` / `ft` 子层，不含词层和语素层。默认值用第 2–4 条。判断唯一时不弹窗。角色仍写入现有文稿元数据 `eafTierRoles`。不新增 Dexie 版本，不新增 controller，不新增 feature flag。
+6. 短语级层里有两个及以上非空转写候选，或没有转写记号且独立短语层不少于两个时，才打开现有层角色对话框。对话框只列这些层：FLEx 元素为 `phrase` 或 `句子`、项目类型为 `txt` / `gls` / `lit` / `segnum` 的层；层名拆不开、但带 `tx` / `ft` / `transcription` / `translation` 记号的层；其余非篇头的独立时间对齐层。不含词层、语素层、行文本篇头，也不含挂在 `ref` 下的录音元数据。默认值用第 2–4 条。判断唯一时不弹窗。角色仍写入现有文稿元数据 `eafTierRoles`。不新增 Dexie 版本，不新增 controller，不新增 feature flag。
 7. 独立时间边界的翻译层，在本文稿没有媒体、但本次已经写下语段时，按现有时间重叠挂到这些语段。不新建 0 时长音频。没有语段可挂时，仍整层跳过并计入 `dropped-translation`。
 8. 选中的转写层不是第一条独立时间对齐层时，丢失清单加一条 `guessed-tier`，名字是选中的层 id。已经写入的句子不再另报丢失。
 

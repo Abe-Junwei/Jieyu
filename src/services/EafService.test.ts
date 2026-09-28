@@ -1193,6 +1193,31 @@ describe('EAF default tier pick', () => {
     },
   );
 
+  it.skipIf(!existsSync(join(openEaf, 'duoxu.eaf')))(
+    'duoxu uses the phrase segnum tier and keeps the gloss as translation',
+    () => {
+      const imported = importFromEaf(readFileSync(join(openEaf, 'duoxu.eaf'), 'utf8'));
+      expect(imported.transcriptionTierName).toBe('A_phrase-segnum-en');
+      expect(imported.tierRolePrompt).toBeUndefined();
+      const gloss = imported.translationTiers.get('A_phrase-gls-zh-CN') ?? [];
+      expect(gloss.some((row) => row.text.includes('两口子有两个女儿'))).toBe(true);
+      expect(imported.translationTiers.has('interlinear-text-title-en')).toBe(false);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openEaf, 'palauan-frog-story.eaf')))(
+    'palauan free translation stays a translation tier when the type is Note',
+    () => {
+      const imported = importFromEaf(readFileSync(join(openEaf, 'palauan-frog-story.eaf'), 'utf8'));
+      expect(imported.transcriptionTierName).toBe('A_Transcription-txt-woe');
+      const gloss = imported.translationTiers.get('A_Translation-gls-en') ?? [];
+      expect(gloss.some((row) => row.text.includes('Frog, where are you?'))).toBe(true);
+      expect(
+        imported.userNotes?.some((note) => note.text.includes('Frog, where are you?')),
+      ).toBeFalsy();
+    },
+  );
+
   it.skipIf(!existsSync(join(openEaf, 'cashinahua.eaf')))(
     'cashinahua transcription is not a paragraph mark and still has word tokens',
     () => {

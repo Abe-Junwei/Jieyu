@@ -2,7 +2,9 @@ import type { EafRolePromptTier } from './eafTierRole';
 
 /**
  * Default EAF tier choice when the file has no saved role table.
- * Tokens are the tier id and linguistic type id split on non-letters.
+ * DoReCo names are tokenized from the tier id only.
+ * FLEx names use the element and item-type slots in `[speaker_]element-itemType-lang`.
+ * The linguistic type id is not a signal: ELAN reuses type names such as `txt` and `Note`.
  */
 
 const TRANSCRIPTION_TOKENS = new Set(['tx', 'trs', 'transcription', '转写']);
@@ -10,6 +12,32 @@ const TRANSLATION_TOKENS = new Set(['ft', 'gls', 'translation', 'free', '翻译'
 const ANCHOR_TOKENS = new Set(['ref', 'segnum', 'note', 'notes', 'comment']);
 const ANCHOR_PHRASES = new Set(['document_notes', 'page_no']);
 const WORD_TOKENS = new Set(['wd', 'mb', 'morph', 'word', '单词', 'ps', 'gl']);
+/** FlexConstants.DEFINED_TYPES, longest first, plus the manual's phrase-parent alternative `segnum`. */
+const FLEX_ITEM_TYPES = [
+  'title-abbreviation',
+  'text-is-translation',
+  'varianttypes',
+  'description',
+  'comment',
+  'source',
+  'segnum',
+  'title',
+  'txt',
+  'gls',
+  'lit',
+  'msa',
+  'pos',
+] as const;
+const HEADER_ITEM_TYPES = new Set([
+  'title',
+  'title-abbreviation',
+  'source',
+  'comment',
+  'description',
+]);
+const WORD_ELEMENTS = new Set(['word', 'morph', '单词', '语素']);
+const PHRASE_ELEMENTS = new Set(['phrase', '句子', 'transcription']);
+const PHRASE_ITEM_TYPES = new Set(['txt', 'gls', 'lit', 'segnum']);
 
 const TIME_SLOP_SEC = 0.05;
 
@@ -29,6 +57,8 @@ export type EafTierPick = {
   anchorTierIds: ReadonlySet<string>;
   phraseSubdivisionTierIds: ReadonlySet<string>;
   wordTierIds: ReadonlySet<string>;
+  /** interlinear-text headers. Not imported as transcription, translation, or notes. */
+  headerTierIds: ReadonlySet<string>;
   promptTiers?: readonly EafRolePromptTier[];
 };
 
@@ -53,7 +83,31 @@ type NameSignals = {
   translation: boolean;
   anchor: boolean;
   word: boolean;
+  header: boolean;
+  /** FLEx phrase line that belongs in the role dialog. */
+  phrase: boolean;
 };
+
+type FlexTierName = {
+  element: string;
+  itemType: string;
+};
+
+function parseFlexTierName(tierId: string): FlexTierName | undefined {
+  const underscore = tierId.indexOf('_');
+  const bodies = underscore > 0 ? [tierId.slice(underscore + 1), tierId] : [tierId];
+  for (const body of bodies) {
+    const lower = body.toLowerCase();
+    for (const itemType of FLEX_ITEM_TYPES) {
+      const at = lower.indexOf(`-${itemType}-`);
+      if (at <= 0) continue;
+      const element = body.slice(0, at);
+      if (element.length === 0 || element.includes('_') || element.includes('@')) continue;
+      return { element, itemType };
+    }
+  }
+  return undefined;
+}
 
 export function maxEafChildrenPerParent(
   annotations: readonly { annotationId?: string; annotationRef?: string }[],
@@ -87,23 +141,38 @@ function normalizedPhrase(value: string): string {
     .replace(/^_+|_+$/g, '');
 }
 
-function signalsFor(tierId: string, linguisticTypeId: string | undefined): NameSignals {
-  const tokens = new Set<string>();
-  const phrases = [normalizedPhrase(tierId)];
-  if (filled(linguisticTypeId)) phrases.push(normalizedPhrase(linguisticTypeId));
-  for (const source of [tierId, linguisticTypeId ?? '']) {
-    if (source.length === 0) continue;
-    for (const token of tokenizeEafLabel(source)) tokens.add(token);
-  }
-  const anchor =
-    [...tokens].some((token) => ANCHOR_TOKENS.has(token)) || phrases.some(hasAnchorPhrase);
+function signalsFromTokens(tierId: string): NameSignals {
+  const tokens = tokenizeEafLabel(tierId);
   return {
-    transcription: [...tokens].some(
-      (token) => TRANSCRIPTION_TOKENS.has(token) || token.includes('txt'),
-    ),
-    translation: [...tokens].some((token) => TRANSLATION_TOKENS.has(token)),
-    anchor,
-    word: [...tokens].some((token) => WORD_TOKENS.has(token)),
+    transcription: tokens.some((token) => TRANSCRIPTION_TOKENS.has(token) || token === 'txt'),
+    translation: tokens.some((token) => TRANSLATION_TOKENS.has(token)),
+    anchor:
+      tokens.some((token) => ANCHOR_TOKENS.has(token)) || hasAnchorPhrase(normalizedPhrase(tierId)),
+    word: tokens.some((token) => WORD_TOKENS.has(token)),
+    header: false,
+    phrase: false,
+  };
+}
+
+function signalsFor(tierId: string): NameSignals {
+  const flex = parseFlexTierName(tierId);
+  if (!flex) return signalsFromTokens(tierId);
+  const element = flex.element.toLowerCase();
+  const itemType = flex.itemType;
+  const header =
+    element === 'interlinear-text' || element === 'interlinear' || HEADER_ITEM_TYPES.has(itemType);
+  const wordElement = WORD_ELEMENTS.has(element);
+  const phraseElement = PHRASE_ELEMENTS.has(element);
+  const transcription = !header && !wordElement && itemType === 'txt' && phraseElement;
+  const translation =
+    !header && (itemType === 'gls' || itemType === 'lit' || itemType === 'text-is-translation');
+  return {
+    transcription,
+    translation,
+    anchor: !transcription && itemType === 'segnum',
+    word: wordElement || itemType === 'pos' || itemType === 'msa',
+    header,
+    phrase: !header && phraseElement && PHRASE_ITEM_TYPES.has(itemType),
   };
 }
 
@@ -149,9 +218,15 @@ function isIndependentTimeAligned(tier: EafTierPickFact): boolean {
   return tier.timeAlignable && (tier.parentTierId === undefined || tier.parentTierId.length === 0);
 }
 
+function isRoleChoice(tier: EafTierPickFact, name: NameSignals): boolean {
+  if (name.header) return false;
+  if (name.phrase || name.transcription || name.translation) return true;
+  return isIndependentTimeAligned(tier);
+}
+
 export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
   const names = new Map<string, NameSignals>();
-  for (const tier of tiers) names.set(tier.tierId, signalsFor(tier.tierId, tier.linguisticTypeId));
+  for (const tier of tiers) names.set(tier.tierId, signalsFor(tier.tierId));
 
   const wordTierIds = new Set<string>();
   const phraseSubdivisionTierIds = new Set<string>();
@@ -176,18 +251,26 @@ export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
   const isSkipped = (tier: EafTierPickFact) =>
     wordTierIds.has(tier.tierId) || morphTierIds.has(tier.tierId);
 
+  const headerTierIds = new Set(
+    tiers.filter((tier) => names.get(tier.tierId)!.header).map((tier) => tier.tierId),
+  );
+
   const transcriptionCandidates = tiers.filter((tier) => {
     const name = names.get(tier.tierId)!;
     if (tier.nonemptyTexts.length === 0) return false;
+    if (name.header) return false;
     if (isAnchorTier(tier, name)) return false;
     if (!name.transcription) return false;
     return !isSkipped(tier);
   });
 
-  const firstIndependent = tiers.find(isIndependentTimeAligned);
+  const firstIndependent = tiers.find(
+    (tier) => isIndependentTimeAligned(tier) && !names.get(tier.tierId)!.header,
+  );
   const nonemptyIndependent = tiers.find(
     (tier) =>
       isIndependentTimeAligned(tier) &&
+      !names.get(tier.tierId)!.header &&
       tier.nonemptyTexts.length > 0 &&
       !isAnchorTier(tier, names.get(tier.tierId)!),
   );
@@ -207,7 +290,7 @@ export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
     if (tier.nonemptyTexts.length === 0) return false;
     if (isSkipped(tier)) return false;
     if (anchorTierIds.has(tier.tierId)) return false;
-    return true;
+    return isRoleChoice(tier, names.get(tier.tierId)!);
   });
   const independentPhraseCount = phraseTiers.filter(isIndependentTimeAligned).length;
   const shouldPrompt =
@@ -220,6 +303,7 @@ export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
     anchorTierIds,
     phraseSubdivisionTierIds,
     wordTierIds,
+    headerTierIds,
     ...(shouldPrompt
       ? {
           promptTiers: phraseTiers.map((tier) => ({

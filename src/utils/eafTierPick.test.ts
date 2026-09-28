@@ -105,4 +105,76 @@ describe('eaf tier pick', () => {
     expect(picked.wordTierIds.has('words')).toBe(true);
     expect(picked.transcriptionTierId).toBe('Sundanese');
   });
+
+  it('does not treat a linguistic type named txt as the transcription', () => {
+    const picked = pickEafTiers([
+      tier('A_phrase-segnum-en', { nonemptyTexts: ['1', '2', '3', '4'] }),
+      tier('interlinear-text-title-en', {
+        linguisticTypeId: 'txt',
+        nonemptyTexts: ['duoxu001'],
+      }),
+      tier('A_phrase-gls-zh-CN', {
+        parentTierId: 'A_phrase-segnum-en',
+        nonemptyTexts: ['两口子有两个女儿'],
+      }),
+      tier('A_word-txt-ers-CN', {
+        parentTierId: 'A_phrase-segnum-en',
+        symbolicSubdivision: true,
+        maxChildrenPerParent: 3,
+        nonemptyTexts: ['ni⁵⁵ɕu³¹'],
+      }),
+    ]);
+    expect(picked.transcriptionTierId).toBe('A_phrase-segnum-en');
+    expect(picked.headerTierIds.has('interlinear-text-title-en')).toBe(true);
+    expect(picked.wordTierIds.has('A_word-txt-ers-CN')).toBe(true);
+    expect(picked.promptTiers).toBeUndefined();
+  });
+
+  it('keeps a gloss tier whose linguistic type is Note on the translation side', () => {
+    const picked = pickEafTiers([
+      tier('A_Transcription-txt-woe', { nonemptyTexts: ['Dechedech ke ngarker?'] }),
+      tier('A_Translation-gls-en', {
+        parentTierId: 'A_Transcription-txt-woe',
+        linguisticTypeId: 'Note',
+        nonemptyTexts: ['Frog, where are you?'],
+      }),
+      tier('Interlinear-title-en', {
+        linguisticTypeId: 'text',
+        nonemptyTexts: ['Pear Story'],
+      }),
+    ]);
+    expect(picked.transcriptionTierId).toBe('A_Transcription-txt-woe');
+    expect(picked.anchorTierIds.has('A_Translation-gls-en')).toBe(false);
+    expect(picked.headerTierIds.has('Interlinear-title-en')).toBe(true);
+    expect(picked.promptTiers).toBeUndefined();
+  });
+
+  it('leaves recording metadata and interlinear-text headers out of the role dialog', () => {
+    const picked = pickEafTiers([
+      tier('ref@NHK', { nonemptyTexts: ['<p:>', '0114_doreco_x'] }),
+      tier('tx@NHK', { parentTierId: 'ref@NHK', nonemptyTexts: ['aay idaye'] }),
+      tier('ft@NHK', { parentTierId: 'ref@NHK', nonemptyTexts: ['yes, if there is wedding'] }),
+      tier('tx@KBK', { parentTierId: 'ref@KBK', nonemptyTexts: ['[clap]'] }),
+      tier('sound@NOBODY', { parentTierId: 'ref@NOBODY', nonemptyTexts: ['Zoom H4n'] }),
+      tier('interlinear-text-title-en', {
+        linguisticTypeId: 'txt',
+        nonemptyTexts: ['today'],
+      }),
+    ]);
+    expect(picked.promptTiers?.map((row) => row.tierId)).toEqual(['tx@NHK', 'ft@NHK', 'tx@KBK']);
+  });
+
+  it('reads a sentence tier whose element is 句子 and whose item type is txt', () => {
+    const picked = pickEafTiers([
+      tier('句子-txt-ers-Qaaa-CN-x-Ersu', { nonemptyTexts: ['ssintrema o la'] }),
+      tier('单词-txt-ers-Qaaa-CN-x-Ersu', {
+        parentTierId: '句子-txt-ers-Qaaa-CN-x-Ersu',
+        symbolicSubdivision: true,
+        maxChildrenPerParent: 4,
+        nonemptyTexts: ['ssintrema'],
+      }),
+    ]);
+    expect(picked.transcriptionTierId).toBe('句子-txt-ers-Qaaa-CN-x-Ersu');
+    expect(picked.wordTierIds.has('单词-txt-ers-Qaaa-CN-x-Ersu')).toBe(true);
+  });
 });

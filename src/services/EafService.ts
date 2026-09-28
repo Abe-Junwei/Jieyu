@@ -1372,6 +1372,8 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       return;
     }
 
+    if (tierPick?.headerTierIds.has(tierId)) return;
+
     // 判断层类型：有 LINGUISTIC_TYPE 声明则用它，否则回退到 PARENT_REF 推断
     // Determine tier type: prefer LINGUISTIC_TYPE info, fallback to PARENT_REF heuristic
     const lingType = typeRef ? linguisticTypes.get(typeRef) : undefined;
