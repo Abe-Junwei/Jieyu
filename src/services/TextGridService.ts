@@ -14,6 +14,7 @@ import type {
   UserNoteDocType,
   OrthographyDocType,
 } from '../db';
+import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
   stripPlainTextBidiIsolation,
@@ -69,6 +70,8 @@ export interface TextGridImportResult {
   timelineMetadata?: TimelineInteropMetadata;
   /** Jieyu 自定义 tier 身份元数据 | Jieyu custom tier identity metadata */
   tierMetadata: Map<string, OrthographyInteropMetadata>;
+  /** Losses known at parse time. Append-without-id is added by the import handler. */
+  losses?: InterchangeLoss[];
 }
 
 const TEXTGRID_TIER_META_MARKER = '__jieyu_meta_';

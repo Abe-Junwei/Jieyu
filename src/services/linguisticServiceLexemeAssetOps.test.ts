@@ -7,18 +7,20 @@ import {
   type LexemeAssetLinkDocType,
   type LexemeDocType,
 } from '../db';
+import { entryDoc } from '../utils/dmlexEntry';
 import { LinguisticService } from './LinguisticService';
 import { LEXEME_ASSET_MAX_BYTES } from './linguisticServiceLexemeAssetOps';
 
 const now = '2026-09-05T12:00:00.000Z';
 
-const lexeme: LexemeDocType = {
+const lexeme: LexemeDocType = entryDoc({
   id: 'lex-attach-1',
-  lemma: { default: 'dog' },
-  senses: [{ gloss: { eng: 'canine' } }],
+  headword: 'dog',
+  translation: 'canine',
+  langCode: 'eng',
   createdAt: now,
   updatedAt: now,
-};
+});
 
 describe('linguisticServiceLexemeAssetOps', () => {
   beforeEach(async () => {
