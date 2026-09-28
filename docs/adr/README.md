@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: active
 owner: repo
-last_reviewed: 2026-05-01
+last_reviewed: 2026-09-28
 source_of_truth: decision-index
 ---
 
@@ -56,6 +56,7 @@ source_of_truth: decision-index
 - [0034-collaboration-project-snapshot-excludes-global-catalogs.md](./0034-collaboration-project-snapshot-excludes-global-catalogs.md)（协作项目快照按 `textId` 裁剪；不含词库/语言资产；restore 禁止整库 replace-all）
 - [0035-lexicon-edit-baseline-dmlex.md](./0035-lexicon-edit-baseline-dmlex.md)（词典编辑基准用 DMLex 1.0 JSON Schema；LIFT 只做投影；解语附加字段放在 schema 外）
 - [0036-eaf-import-is-interchange.md](./0036-eaf-import-is-interchange.md)（EAF 是文本交换；`.jyt` / `.jym` 继续做原 id 备份；往返键是文稿 + 外部层 id + 标注 id）
+- [0037-interchange-loss-report.md](./0037-interchange-loss-report.md)（标注和 LIFT 导入共用一份丢失清单；有稳定 id 才往返；不接入 Pepper / Corflow / reBabel）
 
 ## 建议格式
 
