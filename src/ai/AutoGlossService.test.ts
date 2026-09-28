@@ -2,9 +2,28 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
+import { entryDoc } from '../utils/dmlexEntry';
 import { AutoGlossService } from './AutoGlossService';
 
 const NOW = new Date().toISOString();
+
+function lexeme(id: string, headword: string, gloss?: string, inflected: string[] = []) {
+  const doc = entryDoc({
+    id,
+    headword,
+    ...(gloss ? { translation: gloss, langCode: 'eng' } : {}),
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  if (inflected.length === 0) return doc;
+  return {
+    ...doc,
+    entry: {
+      ...doc.entry,
+      inflectedForms: inflected.map((text) => ({ text })),
+    },
+  };
+}
 
 async function clearTables(): Promise<void> {
   await Promise.all([
@@ -38,13 +57,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_1',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { eng: 'canine' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_1', 'dog', 'canine'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -62,7 +75,10 @@ describe('AutoGlossService', () => {
     expect(updated?.gloss).toEqual({ eng: 'canine' });
 
     // Verify link was created
-    const links = await db.token_lexeme_links.where('[targetType+targetId]').equals(['token', 'tok_1']).toArray();
+    const links = await db.token_lexeme_links
+      .where('[targetType+targetId]')
+      .equals(['token', 'tok_1'])
+      .toArray();
     expect(links.length).toBe(1);
     expect(result.matched[0]?.linkId).toBe(links[0]?.id);
     expect(links[0]?.lexemeId).toBe('lex_1');
@@ -87,13 +103,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_1',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { eng: 'canine' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_1', 'dog', 'canine'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -117,13 +127,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_1',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { eng: 'canine' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_1', 'dog', 'canine'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -161,13 +165,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_1',
-      lemma: { default: 'dog' },
-      senses: [],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_1', 'dog'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -196,13 +194,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_walk',
-      lemma: { default: 'walk' },
-      senses: [{ gloss: { eng: 'move on foot' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_walk', 'walk', 'move on foot'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -212,7 +204,10 @@ describe('AutoGlossService', () => {
     expect(result.matched[0]?.confidence).toBe(0.75);
     expect(result.matched[0]?.gloss).toEqual({ eng: 'move on foot' });
 
-    const links = await db.token_lexeme_links.where('[targetType+targetId]').equals(['token', 'tok_1']).toArray();
+    const links = await db.token_lexeme_links
+      .where('[targetType+targetId]')
+      .equals(['token', 'tok_1'])
+      .toArray();
     expect(links[0]?.role).toBe('stem');
     expect(links[0]?.confidence).toBe(0.75);
   });
@@ -229,22 +224,10 @@ describe('AutoGlossService', () => {
     });
 
     // 短前缀 | Short prefix
-    await db.lexemes.put({
-      id: 'lex_help',
-      lemma: { default: 'help' },
-      senses: [{ gloss: { eng: 'assist' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_help', 'help', 'assist'));
 
     // 长前缀 | Longer prefix (should win)
-    await db.lexemes.put({
-      id: 'lex_helpful',
-      lemma: { default: 'helpful' },
-      senses: [{ gloss: { eng: 'useful' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_helpful', 'helpful', 'useful'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -265,21 +248,9 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_exact',
-      lemma: { default: 'walk' },
-      senses: [{ gloss: { eng: 'move on foot' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_exact', 'walk', 'move on foot'));
 
-    await db.lexemes.put({
-      id: 'lex_prefix',
-      lemma: { default: 'wal' },
-      senses: [{ gloss: { eng: 'other' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_prefix', 'wal', 'other'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -301,13 +272,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_happ',
-      lemma: { default: 'happi' },
-      senses: [{ gloss: { eng: 'joyful' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_happ', 'happi', 'joyful'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -328,13 +293,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_ea',
-      lemma: { default: 'ea' },
-      senses: [{ gloss: { eng: 'water' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_ea', 'ea', 'water'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -355,14 +314,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_run',
-      lemma: { default: 'run' },
-      senses: [{ gloss: { eng: 'move quickly' } }],
-      forms: [{ transcription: { default: 'ran' } }, { transcription: { default: 'running' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_run', 'run', 'move quickly', ['ran', 'running']));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -386,13 +338,7 @@ describe('AutoGlossService', () => {
     });
 
     // Gloss 含非标准缩写 | Gloss contains non-standard abbreviation
-    await db.lexemes.put({
-      id: 'lex_1',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { eng: 'ANIM.PASTREL' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_1', 'dog', 'ANIM.PASTREL'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');
@@ -400,7 +346,9 @@ describe('AutoGlossService', () => {
     expect(result.matched.length).toBe(1);
     expect(result.leipzigHints).toBeDefined();
     expect(result.leipzigHints!.length).toBeGreaterThan(0);
-    expect(result.leipzigHints![0]?.warnings.some((w) => w.type === 'non_standard_abbreviation')).toBe(true);
+    expect(
+      result.leipzigHints![0]?.warnings.some((w) => w.type === 'non_standard_abbreviation'),
+    ).toBe(true);
   });
 
   it('no Leipzig hints for standard glosses', async () => {
@@ -414,13 +362,7 @@ describe('AutoGlossService', () => {
       updatedAt: NOW,
     });
 
-    await db.lexemes.put({
-      id: 'lex_1',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { eng: 'canine' } }],
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
+    await db.lexemes.put(lexeme('lex_1', 'dog', 'canine'));
 
     const service = new AutoGlossService();
     const result = await service.glossUnit('utt_1');

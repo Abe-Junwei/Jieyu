@@ -94,6 +94,7 @@ export async function createSpeaker(input: {
   dialect?: string;
   accent?: string;
   languageIds?: string[];
+  notes?: SpeakerDocType['notes'];
 }): Promise<SpeakerDocType> {
   const db = await getDb();
   const name = input.name.trim();
@@ -110,6 +111,10 @@ export async function createSpeaker(input: {
   const dialect = input.dialect?.trim();
   const accent = input.accent?.trim();
   const languageIds = input.languageIds?.map((id) => id.trim()).filter((id) => id.length > 0);
+  const notes =
+    input.notes && Object.values(input.notes).some((part) => part.trim().length > 0)
+      ? input.notes
+      : undefined;
   const speaker: SpeakerDocType = {
     id: newId('speaker'),
     name,
@@ -118,6 +123,7 @@ export async function createSpeaker(input: {
     ...(dialect ? { dialect } : {}),
     ...(accent ? { accent } : {}),
     ...(languageIds && languageIds.length > 0 ? { languageIds } : {}),
+    ...(notes ? { notes } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -129,7 +135,12 @@ export async function createSpeaker(input: {
 /** Patch optional fieldwork attrs on an existing speaker (import enrichment). */
 export async function patchSpeakerImportAttrs(
   speakerId: string,
-  attrs: { dialect?: string; accent?: string; languageIds?: string[] },
+  attrs: {
+    dialect?: string;
+    accent?: string;
+    languageIds?: string[];
+    notes?: SpeakerDocType['notes'];
+  },
 ): Promise<SpeakerDocType | undefined> {
   const db = await getDb();
   const id = speakerId.trim();
@@ -140,6 +151,12 @@ export async function patchSpeakerImportAttrs(
   const dialect = attrs.dialect?.trim();
   const accent = attrs.accent?.trim();
   const languageIds = attrs.languageIds?.map((v) => v.trim()).filter((v) => v.length > 0);
+  const notesBlank =
+    !current.notes || Object.values(current.notes).every((part) => part.trim().length === 0);
+  const notes =
+    attrs.notes && notesBlank && Object.values(attrs.notes).some((part) => part.trim().length > 0)
+      ? attrs.notes
+      : undefined;
   const next: SpeakerDocType = {
     ...current,
     ...(dialect && !current.dialect ? { dialect } : {}),
@@ -147,11 +164,13 @@ export async function patchSpeakerImportAttrs(
     ...(languageIds && languageIds.length > 0 && !current.languageIds?.length
       ? { languageIds }
       : {}),
+    ...(notes ? { notes } : {}),
     updatedAt: new Date().toISOString(),
   };
   if (
     next.dialect === current.dialect &&
     next.accent === current.accent &&
+    next.notes === current.notes &&
     JSON.stringify(next.languageIds ?? []) === JSON.stringify(current.languageIds ?? [])
   ) {
     return current;
