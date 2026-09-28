@@ -34,6 +34,7 @@ docs/execution/release-gates/release-evidence/logs/*
 # Local AI agent config
 .claude/
 .mcp.json
+.cursor-plugin/
 
 .jieyu-models/
 
@@ -56,3 +57,4 @@ tests/fixtures/open-corpora/**/*.eaf
 tests/fixtures/open-corpora/**/*.flextext
 tests/fixtures/open-corpora/**/*.lift
 tests/fixtures/open-corpora/**/*.xml
+tests/fixtures/open-corpora/**/*.pfsx
