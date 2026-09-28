@@ -38,6 +38,7 @@ import { useWaveformBridgeHoverScrollRaf } from './waveformBridgeHoverScrollRaf'
 import { useWaveformBridgeTierScrollSync } from './waveformBridgeTierScrollSync';
 import { useWaveformBridgeSegmentPlaybackControls } from './waveformBridgeSegmentPlaybackControls';
 import { applyTierScrollToWaveSurfer } from '../utils/waveformTierScrollSync';
+import { useTimelineContentFitZoom } from './useTimelineContentFitZoom';
 export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
 
 export function useTranscriptionWaveformBridgeController(
@@ -236,7 +237,21 @@ export function useTranscriptionWaveformBridgeController(
 
   const fitPxPerSec =
     fitSpanSec > 0 && Number.isFinite(fitSpanSec) ? containerWidth / fitSpanSec : 40;
-  const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
+  const contentFitZoomPercent = useTimelineContentFitZoom({
+    zoomMode: input.zoomMode,
+    zoomPercent,
+    setZoomPercent,
+    fitPxPerSec,
+    fitSpanSec,
+    containerWidth,
+    byLayer: input.timelineUnitViewIndex.byLayer,
+    ...(input.mediaId !== undefined ? { currentMediaId: input.mediaId } : {}),
+  });
+  const maxZoomPercent = Math.max(
+    200,
+    Math.ceil((2000 / (fitPxPerSec > 0 ? fitPxPerSec : 1e-9)) * 100),
+    contentFitZoomPercent,
+  );
   const zoomPxPerSec = Math.max(1e-9, fitPxPerSec * (zoomPercent / 100));
   useLayoutEffect(() => {
     setWaveformZoomPxPerSec(zoomPxPerSec);

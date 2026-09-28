@@ -116,6 +116,8 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 **实现记录（互操作回归测试，2026-04-19）**：**`EafService.test.ts`** / **`TextGridService.test.ts`** 增加无本地声学条件下的 **export→import** 用例，校验 **非均匀** 语段时间在 round-trip 后不被均分或重排（与主存坐标语义一致）。
 
+**实现记录（默认可读缩放，2026-09-26）**：占位轴若把整段时长缩进一屏，语段只剩几个像素，文字会被裁成竖纹。默认缩放（`zoomMode === 'fit-all'` 且仍停在 100%）改为 `resolveContentFitZoomPercent`：每条当前媒体语段的像素宽度至少容纳其全文（按 14px/字加段内边距），时间仍按起止比例排布，时间轴可横向滚动。工具栏「适应全部」回到整段缩进一屏，并保持到用户改用其他缩放模式。总滚动宽度超过 6_000_000px 时停止再放大，避免浏览器布局上限。
+
 **实现记录（空项目占位，2026-04-19）**：**新建项目**不再自动插入 **`document-placeholder.track`**；**建层**时仅保证文献时间轴（`ensureDocumentTimeline`）。占位行推迟到**首次需要锚定时间的写操作**（`useTranscriptionUnitActions` 内 `ensureTimelineMediaRowResolved` → `createPlaceholderMedia`）；仅有空层、尚未建段或导入声学前 UI 不展示占位行。
 
 ---
