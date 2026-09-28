@@ -94,6 +94,7 @@ export class AutoGlossService {
         targetType: 'token',
         targetId: item.tokenId,
         lexemeId: item.lexemeId,
+        ...(item.senseId ? { senseId: item.senseId } : {}),
         role,
         confidence: item.confidence,
         createdAt: now,

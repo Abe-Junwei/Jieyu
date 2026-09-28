@@ -1,4 +1,10 @@
 import type { LayerDocType, OrthographyDocType } from '../db';
+import {
+  parseEafNoteKind,
+  parseEafTierRole,
+  type EafNoteKind,
+  type EafTierRole,
+} from './eafTierRole';
 
 export interface OrthographyInteropMetadata {
   languageId?: string;
@@ -10,6 +16,8 @@ export interface OrthographyInteropMetadata {
   timelineMode?: 'document' | 'media';
   logicalDurationSec?: number;
   timebaseLabel?: string;
+  role?: EafTierRole;
+  noteKind?: EafNoteKind;
 }
 
 function normalizeInteropString(value: unknown): string | undefined {
@@ -73,6 +81,8 @@ export function parseOrthographyInteropMetadata(
       ? parsed.logicalDurationSec
       : undefined;
   const timebaseLabel = normalizeInteropString(parsed.timebaseLabel);
+  const role = parseEafTierRole(parsed.role);
+  const noteKind = parseEafNoteKind(parsed.noteKind);
   const metadata: OrthographyInteropMetadata = {
     ...(languageId !== undefined && languageId.length > 0 ? { languageId } : {}),
     ...(orthographyId !== undefined && orthographyId.length > 0 ? { orthographyId } : {}),
@@ -85,6 +95,8 @@ export function parseOrthographyInteropMetadata(
     ...(timelineMode !== undefined ? { timelineMode } : {}),
     ...(logicalDurationSec !== undefined ? { logicalDurationSec } : {}),
     ...(timebaseLabel !== undefined && timebaseLabel.length > 0 ? { timebaseLabel } : {}),
+    ...(role !== undefined ? { role } : {}),
+    ...(noteKind !== undefined ? { noteKind } : {}),
   };
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }

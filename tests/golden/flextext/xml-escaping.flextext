@@ -4,7 +4,7 @@
     <paragraphs>
       <paragraph>
         <phrases>
-          <phrase guid="p1" begin-time-offset="0" end-time-offset="3">
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="3000">
             <item type="txt" lang="und">a &lt; b &amp; c &gt; d &quot;quoted&quot;</item>
             <item type="gls" lang="en">XML special chars &amp; &lt;entities&gt;</item>
           </phrase>
