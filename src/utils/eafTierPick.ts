@@ -569,7 +569,7 @@ export function absorbEafFlexTier(input: {
   const speaker =
     filled(input.participant) && input.participant !== '***' ? input.participant : undefined;
   if (input.disposition === 'phrase-translation') {
-    input.translationTiers.set(input.tierId, [...input.annotations]);
+    publishFilledTier(input.translationTiers, input.tierId, input.annotations);
     return;
   }
   if (input.disposition === 'segnum') {
@@ -641,6 +641,69 @@ export function absorbEafFlexTier(input: {
   }
   if (input.disposition === 'morph-gloss' || input.disposition === 'morph-pos') return;
   if (nonempty.length > 0) input.unmappedTierIds.push(input.tierId);
+}
+
+/**
+ * How a morph-tier child is stored. `gloss` here is the Jieyu export name
+ * `morph-gloss`; it is not added to the word-token set used for free translations.
+ */
+export function morphDescendantSlot(tierId: string): 'pos' | 'gloss' | 'skip' {
+  const kind = flexTierDisposition(tierId);
+  if (kind === 'omit') return 'skip';
+  if (kind === 'morph-pos') return 'pos';
+  if (kind === 'morph-gloss') return 'gloss';
+  if (kind !== undefined) return 'skip';
+  const tokens = tokenizeEafLabel(tierId);
+  const posToken =
+    (tokens.includes('ps') || tokens.includes('pos')) &&
+    !tokens.includes('gl') &&
+    !tokens.includes('gloss');
+  if (posToken) return 'pos';
+  if (tokens.includes('gl') || tokens.includes('gloss')) return 'gloss';
+  return 'skip';
+}
+
+/** Keep a tier only when at least one annotation has text. */
+export function publishFilledTier<T extends { text: string }>(
+  target: Map<string, T[]>,
+  tierId: string,
+  annotations: readonly T[],
+): void {
+  const filledRows = annotations.filter((row) => row.text.trim().length > 0);
+  if (filledRows.length === 0) return;
+  target.set(tierId, [...filledRows]);
+}
+
+export function isEafMorphTier(input: {
+  tierId: string;
+  field?: 'gloss' | 'pos' | 'morph-form';
+  eafConstraint?: string;
+}): boolean {
+  if (input.field === 'morph-form') return true;
+  if (input.field !== undefined) return false;
+  if (input.eafConstraint === 'Symbolic_Subdivision') return true;
+  const tokens = tokenizeEafLabel(input.tierId);
+  return tokens.includes('mb') || tokens.includes('morph');
+}
+
+/** Drop morph children that were published as translation rows. `ph` stays a loss. */
+export function detachMorphChildTiers(input: {
+  translationTiers: Map<string, Array<{ text: string }>>;
+  parentTierIdByTierId: ReadonlyMap<string, string>;
+  morphTierIds: ReadonlySet<string>;
+  unmappedTierIds: string[];
+}): void {
+  for (const [tierId, annotations] of input.translationTiers) {
+    const parentId = input.parentTierIdByTierId.get(tierId);
+    if (parentId === undefined || !input.morphTierIds.has(parentId)) continue;
+    input.translationTiers.delete(tierId);
+    if (
+      morphDescendantSlot(tierId) === 'skip' &&
+      annotations.some((row) => row.text.trim().length > 0)
+    ) {
+      input.unmappedTierIds.push(tierId);
+    }
+  }
 }
 
 export function retargetAnnotationsToChildIds<T extends EafPickAnnotation>(

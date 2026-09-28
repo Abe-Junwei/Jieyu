@@ -131,6 +131,28 @@ function getText(el: Element | null | undefined): string {
 }
 
 const FLEX_OMIT_ITEM_TYPES = new Set(['cf', 'hn', 'varianttypes', 'text-is-translation']);
+const FLEX_KNOWN_ITEM_TYPES = new Set([
+  'txt',
+  'gls',
+  'lit',
+  'note',
+  'punct',
+  'pos',
+  'ps',
+  'msa',
+  'segnum',
+  'title',
+  'source',
+  'comment',
+  'description',
+  'title-abbreviation',
+]);
+
+function recordFlexPhraseLoss(unmapped: string[], el: Element): void {
+  const type = (el.getAttribute('type') ?? '').toLowerCase();
+  if (type.length === 0 || getText(el).length === 0) return;
+  if (FLEX_OMIT_ITEM_TYPES.has(type) || !FLEX_KNOWN_ITEM_TYPES.has(type)) unmapped.push(type);
+}
 
 function flexTimeToSeconds(raw: string | null): number {
   const value = parseFloat(raw ?? '');
@@ -400,6 +422,7 @@ function parseFlexPhrase(
   extraGlosses: Array<{ lang: string; text: string }>;
   literals: Array<{ lang: string; text: string }>;
   notes: Array<{ lang: string; text: string }>;
+  segnums: string[];
   speaker?: string;
   unmapped: string[];
   tokens?: FlexImportResult['units'][number]['tokens'];
@@ -433,11 +456,13 @@ function parseFlexPhrase(
     const text = stripPlainTextBidiIsolation(getText(el));
     return text.length > 0 ? [{ lang: itemLang(el), text }] : [];
   });
-  const unmapped = phraseItems.flatMap((el) => {
-    const type = (el.getAttribute('type') ?? '').toLowerCase();
-    if (!FLEX_OMIT_ITEM_TYPES.has(type) || getText(el).length === 0) return [];
-    return [type];
+  const segnums = phraseItems.flatMap((el) => {
+    if (el.getAttribute('type') !== 'segnum') return [];
+    const text = stripPlainTextBidiIsolation(getText(el));
+    return text.length > 0 ? [text] : [];
   });
+  const unmapped: string[] = [];
+  for (const el of phraseItems) recordFlexPhraseLoss(unmapped, el);
 
   const words: Array<{
     form: Record<string, string>;
@@ -509,6 +534,12 @@ function parseFlexPhrase(
     });
   });
 
+  const sentenceFromWords = words
+    .map((word) => (word.form.default ?? '').trim())
+    .filter((text) => text.length > 0)
+    .join(' ');
+  const sentence = transcription.length > 0 ? transcription : sentenceFromWords;
+
   const tokens =
     words.length > 0
       ? words.map((word) => ({
@@ -532,11 +563,12 @@ function parseFlexPhrase(
     ...(stableGuid.length > 0 ? { stableGuid } : {}),
     startTime,
     endTime,
-    transcription,
+    transcription: sentence,
     phraseGloss,
     extraGlosses,
     literals,
     notes,
+    segnums,
     ...(speaker ? { speaker } : {}),
     unmapped,
     ...(sourceLang ? { sourceLang } : {}),
@@ -610,6 +642,15 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
         text: note.text,
         targetType: 'unit',
         category: 'comment',
+        ...(annotationRef ? { annotationRef } : {}),
+      });
+    }
+    for (const text of parsed.segnums) {
+      userNotes.push({
+        startTime: parsed.startTime,
+        endTime: parsed.endTime,
+        text,
+        targetType: 'unit',
         ...(annotationRef ? { annotationRef } : {}),
       });
     }

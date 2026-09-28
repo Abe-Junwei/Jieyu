@@ -1026,6 +1026,7 @@ const ALIGNABLE = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="align-lt" TIME_ALIGNABLE
 const ASSOC = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="assoc-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />`;
 const NOT_ALIGNABLE_ROOT = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="root-lt" TIME_ALIGNABLE="false" GRAPHIC_REFERENCES="false" />`;
 const SUBDIVISION = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="sub-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />`;
+const INCLUDED = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="incl-lt" TIME_ALIGNABLE="true" CONSTRAINTS="Included_In" GRAPHIC_REFERENCES="false" />`;
 
 describe('EAF default tier pick', () => {
   it('reads the sentence from tx, the translation from ft, and the ids as parent notes', () => {
@@ -1056,6 +1057,113 @@ describe('EAF default tier pick', () => {
     expect(imported.userNotes?.[0]?.annotationRef).toBe('t1');
     expect(imported.losses).toEqual([{ code: 'guessed-tier', name: 'tx' }]);
     expect(imported.tierRolePrompt).toBeUndefined();
+  });
+
+  it('stores DoReCo gl and ps on morphemes and leaves ph off the translation rows', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the translation</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="wd" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>one</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="mb" LINGUISTIC_TYPE_REF="incl-lt" PARENT_REF="wd">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="m1" ANNOTATION_REF="w1"><ANNOTATION_VALUE>stem</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ps" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="mb">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="p1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>n</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gl" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="mb">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>STEM</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ph" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="mb">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="h1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>phon</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="doreco-mb-algn" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="mb">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="al1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>align</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}${SUBDIVISION}${INCLUDED}`,
+      ),
+    );
+    expect(imported.translationTiers.get('ft')?.[0]?.text).toBe('the translation');
+    for (const tierId of ['gl', 'ps', 'ph', 'doreco-mb-algn', 'wd', 'mb']) {
+      expect(imported.translationTiers.has(tierId)).toBe(false);
+    }
+    expect(imported.units[0]?.tokens).toEqual([
+      {
+        form: { default: 'one' },
+        morphemes: [{ form: { default: 'stem' }, gloss: { und: 'STEM' }, pos: 'n' }],
+      },
+    ]);
+    expect(imported.losses).toEqual([
+      { code: 'unmapped-field', name: 'ph, doreco-mb-algn' },
+      { code: 'guessed-tier', name: 'tx' },
+    ]);
+  });
+
+  it('attaches time-aligned morphemes by the word span', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="wd" LINGUISTIC_TYPE_REF="incl-lt" PARENT_REF="ref">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="w1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>one</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="mb" LINGUISTIC_TYPE_REF="incl-lt" PARENT_REF="wd">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="m1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>stem</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gl" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="mb">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>STEM</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ps" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="mb">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="p1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>n</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}${INCLUDED}`,
+      ),
+    );
+    expect(imported.translationTiers.has('gl')).toBe(false);
+    expect(imported.translationTiers.has('ps')).toBe(false);
+    expect(imported.units[0]?.tokens).toEqual([
+      {
+        form: { default: 'one' },
+        morphemes: [{ form: { default: 'stem' }, gloss: { und: 'STEM' }, pos: 'n' }],
+      },
+    ]);
+  });
+
+  it('does not publish an empty IPA tier or an empty phrase gloss', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="A_Transcription-txt-woe" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>hello</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_Transcription-txt-ipa" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_Transcription-txt-woe">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="i1" ANNOTATION_REF="a1"><ANNOTATION_VALUE></ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_phrase-gls-zh-CN" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_Transcription-txt-woe">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="a1"><ANNOTATION_VALUE></ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_Translation-gls-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_Transcription-txt-woe">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>hello there</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.units[0]?.transcription).toBe('hello');
+    expect(imported.translationTiers.has('A_Transcription-txt-ipa')).toBe(false);
+    expect(imported.translationTiers.has('A_phrase-gls-zh-CN')).toBe(false);
+    expect(imported.translationTiers.get('A_Translation-gls-en')?.[0]?.text).toBe('hello there');
   });
 
   it('uses a transcription child when the root type is not time-alignable', () => {
@@ -1172,6 +1280,18 @@ describe('EAF default tier pick', () => {
       const sample = imported.units.find((unit) => unit.transcription.trim())?.transcription ?? '';
       expect(sample.startsWith('0001_doreco_')).toBe(false);
       expect(sample.length).toBeGreaterThan(0);
+      expect(imported.translationTiers.has('ft@33')).toBe(true);
+      expect(imported.translationTiers.has('gl@33')).toBe(false);
+      expect(imported.translationTiers.has('ps@33')).toBe(false);
+      expect(
+        imported.units.some((unit) =>
+          unit.tokens?.some((token) =>
+            token.morphemes?.some(
+              (morph) => morph.gloss?.us === 'Arapaho language' && morph.pos === 'ni',
+            ),
+          ),
+        ),
+      ).toBe(true);
     },
   );
 
@@ -1219,6 +1339,7 @@ describe('EAF default tier pick', () => {
       expect(imported.transcriptionTierName).toBe('A_Transcription-txt-woe');
       const gloss = imported.translationTiers.get('A_Translation-gls-en') ?? [];
       expect(gloss.some((row) => row.text.includes('Frog, where are you?'))).toBe(true);
+      expect(imported.translationTiers.has('A_Transcription-txt-ipa')).toBe(false);
       expect(
         imported.userNotes?.some((note) => note.text.includes('Frog, where are you?')),
       ).toBeFalsy();

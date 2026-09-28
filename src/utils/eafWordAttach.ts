@@ -1,7 +1,8 @@
 import { glossLanguageKey } from './eafImportAlign';
 import {
-  flexTierDisposition,
+  isEafMorphTier,
   linkAnnotationsToUnits,
+  morphDescendantSlot,
   retargetAnnotationsToChildIds,
   type EafPickAnnotation,
   type EafPickedUnit,
@@ -71,6 +72,28 @@ function orderByPreviousAnnotation<T extends EafPickAnnotation>(rows: readonly T
     if (!seen.has(row)) ordered.push(row);
   }
   return ordered;
+}
+
+const TIME_SLOP_SEC = 0.05;
+
+function hostAnnotationId(
+  ann: EafPickAnnotation,
+  hosts: readonly EafPickAnnotation[],
+): string | undefined {
+  if (filled(ann.annotationRef)) return ann.annotationRef;
+  let bestId: string | undefined;
+  let bestSpan = Number.POSITIVE_INFINITY;
+  for (const host of hosts) {
+    if (!filled(host.annotationId)) continue;
+    if (ann.startTime < host.startTime - TIME_SLOP_SEC) continue;
+    if (ann.endTime > host.endTime + TIME_SLOP_SEC) continue;
+    const span = host.endTime - host.startTime;
+    if (span < bestSpan) {
+      bestId = host.annotationId;
+      bestSpan = span;
+    }
+  }
+  return bestId;
 }
 
 function applyWordTokens(
@@ -153,10 +176,7 @@ export function attachEafWordTiers(input: {
 
   for (const wordTier of input.wordTierEntries) {
     for (const child of input.childOfWordTier.get(wordTier.tierId) ?? []) {
-      const morphForm =
-        child.field === 'morph-form' ||
-        (child.field === undefined && child.eafConstraint === 'Symbolic_Subdivision');
-      if (morphForm) morphTierIds.add(child.tierId);
+      if (isEafMorphTier(child)) morphTierIds.add(child.tierId);
     }
   }
 
@@ -167,18 +187,17 @@ export function attachEafWordTiers(input: {
       const parentTierId = tier.getAttribute('PARENT_REF') ?? '';
       if (!morphTierIds.has(parentTierId)) return;
       const tierId = tier.getAttribute('TIER_ID') ?? '';
-      const kind = flexTierDisposition(tierId);
-      if (kind === 'omit') return;
+      const childKind = morphDescendantSlot(tierId);
+      if (childKind === 'skip') return;
       const read = input.readTier(tier);
       const lang = glossLanguageKey(read.locale);
       for (const ann of read.anns) {
         if (!filled(ann.annotationRef) || ann.text.trim().length === 0) continue;
-        if (kind === 'morph-pos') {
+        if (childKind === 'pos') {
           if (!posByMorphAnnId.has(ann.annotationRef))
             posByMorphAnnId.set(ann.annotationRef, ann.text);
           continue;
         }
-        if (kind !== 'morph-gloss' && kind !== undefined) continue;
         if (!glossByMorphAnnId.has(ann.annotationRef)) {
           glossByMorphAnnId.set(ann.annotationRef, { text: ann.text, lang });
         }
@@ -188,18 +207,16 @@ export function attachEafWordTiers(input: {
 
   for (const wordTier of input.wordTierEntries) {
     for (const child of input.childOfWordTier.get(wordTier.tierId) ?? []) {
-      const isMorph =
-        child.field === 'morph-form' ||
-        (child.field === undefined && child.eafConstraint === 'Symbolic_Subdivision');
+      const isMorph = isEafMorphTier(child);
       for (const ann of child.anns) {
-        if (!filled(ann.annotationRef) || ann.text.trim().length === 0) continue;
+        const hostId = isMorph ? hostAnnotationId(ann, wordTier.anns) : ann.annotationRef;
+        if (!filled(hostId) || ann.text.trim().length === 0) continue;
         if (child.field === 'pos') {
-          if (!posByWordAnnId.has(ann.annotationRef))
-            posByWordAnnId.set(ann.annotationRef, ann.text);
+          if (!posByWordAnnId.has(hostId)) posByWordAnnId.set(hostId, ann.text);
           continue;
         }
         if (isMorph) {
-          const morphs = morphsByWordAnnId.get(ann.annotationRef) ?? [];
+          const morphs = morphsByWordAnnId.get(hostId) ?? [];
           const morphGloss = filled(ann.annotationId)
             ? glossByMorphAnnId.get(ann.annotationId)
             : undefined;
@@ -214,12 +231,12 @@ export function attachEafWordTiers(input: {
               : {}),
             ...(filled(morphPos) ? { pos: morphPos } : {}),
           });
-          morphsByWordAnnId.set(ann.annotationRef, morphs);
+          morphsByWordAnnId.set(hostId, morphs);
           continue;
         }
         if (child.field === 'gloss' || child.field === undefined) {
-          if (!glossByWordAnnId.has(ann.annotationRef)) {
-            glossByWordAnnId.set(ann.annotationRef, {
+          if (!glossByWordAnnId.has(hostId)) {
+            glossByWordAnnId.set(hostId, {
               text: ann.text,
               lang: glossLanguageKey(input.tierLocales.get(child.tierId)),
             });

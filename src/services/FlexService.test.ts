@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -369,6 +369,84 @@ describe('FlexService field mapping', () => {
     ]);
     expect(imported.losses?.[0]?.name).toContain('text-is-translation');
   });
+
+  it('joins word forms when the phrase has no txt and keeps segnum as a note', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document version="2">
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase begin-time-offset="0" end-time-offset="1000">
+        <item type="segnum" lang="en">1</item>
+        <item type="gls" lang="en">This story tells about the wind</item>
+        <item type="Discourse" lang="su">This is the discourse transcription.</item>
+        <words>
+          <word><item type="txt" lang="su">Èta</item></word>
+          <word><item type="txt" lang="su">carita</item></word>
+        </words>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.units[0]?.transcription).toBe('Èta carita');
+    expect(imported.phraseGlosses.get('p1')).toBe('This story tells about the wind');
+    const segnum = imported.userNotes?.find((note) => note.text === '1');
+    expect(segnum).toMatchObject({ text: '1', targetType: 'unit' });
+    expect(segnum?.category).toBeUndefined();
+    expect(imported.losses).toEqual([
+      expect.objectContaining({
+        code: 'unmapped-field',
+        name: expect.stringContaining('discourse'),
+      }),
+    ]);
+  });
+
+  const openFlex = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../../tests/fixtures/open-corpora/flex',
+  );
+
+  it.skipIf(!existsSync(join(openFlex, 'sundanese-north-wind.flextext')))(
+    'sundanese flextext sentence is the joined word forms',
+    () => {
+      const imported = importFromFlextext(
+        readFileSync(join(openFlex, 'sundanese-north-wind.flextext'), 'utf8'),
+      );
+      expect(imported.units[0]?.transcription.startsWith('Èta carita')).toBe(true);
+      expect(
+        [...imported.phraseGlosses.values()].some((text) => text.includes('This story tells')),
+      ).toBe(true);
+      expect(
+        imported.userNotes?.some((note) => note.text === '1' && note.category === undefined),
+      ).toBe(true);
+      expect(imported.losses?.some((loss) => loss.name?.includes('discourse'))).toBe(true);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openFlex, 'apalai-kaikuxi.flextext')))(
+    'apalai flextext sentence starts with the first word form',
+    () => {
+      const imported = importFromFlextext(
+        readFileSync(join(openFlex, 'apalai-kaikuxi.flextext'), 'utf8'),
+      );
+      expect(imported.units[0]?.transcription.startsWith('Sero kaikuxi')).toBe(true);
+      expect(
+        [...imported.phraseGlosses.values()].some((text) =>
+          text.includes('This is about a jaguar'),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openFlex, 'warao-ine-warao.flextext')))(
+    'warao flextext keeps the phrase txt sentence',
+    () => {
+      const imported = importFromFlextext(
+        readFileSync(join(openFlex, 'warao-ine-warao.flextext'), 'utf8'),
+      );
+      expect(imported.units[0]?.transcription.startsWith('Ine Wa-rao')).toBe(true);
+    },
+  );
 
   it('exports phrase times as milliseconds and reads them back as seconds', () => {
     const layer = makeDefaultLayer();
