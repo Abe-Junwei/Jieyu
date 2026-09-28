@@ -200,6 +200,7 @@ describe('FlexService RTL phrase round-trip', () => {
     expect(imported.units[0]?.transcription).toBe(arabic);
     expect(imported.phraseGlosses.get('p1')).toBe(gloss);
     expect(imported.units[0]?.phraseId).toBe('p1');
+    expect(imported.units[0]?.annotationId).toBe('p1');
   });
 
   it('aligns phrase glosses by phrase guid, not array index', () => {
@@ -224,8 +225,25 @@ describe('FlexService RTL phrase round-trip', () => {
 </document>`;
     const imported = importFromFlextext(xml);
     expect(imported.units.map((u) => u.phraseId)).toEqual(['phrase-b', 'phrase-a']);
+    expect(imported.units.map((u) => u.annotationId)).toEqual(['phrase-b', 'phrase-a']);
     expect(imported.phraseGlosses.get('phrase-b')).toBe('GLOSS-B');
     expect(imported.phraseGlosses.get('phrase-a')).toBe('GLOSS-A');
+  });
+
+  it('does not treat a missing phrase guid as a stable annotation id', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase begin-time-offset="0" end-time-offset="1">
+        <item type="txt" lang="en">hello</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.units[0]?.phraseId).toBe('p1');
+    expect(imported.units[0]?.annotationId).toBeUndefined();
   });
 
   it('keeps secondary interlinear-text blocks in additionalTiers', () => {

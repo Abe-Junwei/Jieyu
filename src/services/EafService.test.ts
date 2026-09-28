@@ -893,6 +893,7 @@ describe('EAF interchange alignment', () => {
       ),
     );
     expect(unknown.unrecognizedTimeUnit).toBe(true);
+    expect(unknown.losses).toEqual([{ code: 'unrecognized-time-unit' }]);
     expect(unknown.units[0]).toMatchObject({ startTime: 0, endTime: 10 });
   });
 

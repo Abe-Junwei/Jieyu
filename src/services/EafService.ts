@@ -28,6 +28,7 @@ import {
 } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 import { createLogger } from '../observability/logger';
+import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import { glossLanguageKey } from '../utils/eafImportAlign';
 import { eafTimeValueToSeconds, resolveEafTimeUnit } from '../utils/eafTimeUnits';
 import {
@@ -183,6 +184,8 @@ export interface EafImportResult {
   sideChannelNotes?: EafSideChannelNote[];
   /** HEADER TIME_UNITS was not one of the ELAN enumerations. Times were read as milliseconds. */
   unrecognizedTimeUnit?: boolean;
+  /** Losses known at parse time. Write-time losses are added by the import handler. */
+  losses?: InterchangeLoss[];
 }
 
 const JIEYU_LAYER_META_PREFIX = 'jieyu:layer-meta:';
@@ -1525,7 +1528,12 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
     ...(importedUserNotes.length > 0 ? { userNotes: importedUserNotes } : {}),
     ...(sideChannelNotes.length > 0 ? { sideChannelNotes } : {}),
     ...(extraTranscriptionTiers.length > 0 ? { extraTranscriptionTiers } : {}),
-    ...(timeUnit.unrecognized ? { unrecognizedTimeUnit: true } : {}),
+    ...(timeUnit.unrecognized
+      ? {
+          unrecognizedTimeUnit: true as const,
+          losses: [{ code: 'unrecognized-time-unit' as const }],
+        }
+      : {}),
   };
 }
 

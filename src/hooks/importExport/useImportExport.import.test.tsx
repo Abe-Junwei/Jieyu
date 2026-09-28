@@ -2097,4 +2097,245 @@ describe('useImportExport - import success under stop-write', () => {
     const tokens = await db.unit_tokens.toArray();
     expect(tokens.map((row) => row.form)).toEqual([{ default: 'hello' }]);
   });
+
+  it('asks for TextGrid tier roles and keeps the default split after confirm', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-grid',
+      textId: 'text-grid',
+      key: 'trc_grid',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: 'grid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValue({
+      units: [{ startTime: 0, endTime: 1, transcription: 'hello' }],
+      additionalTiers: new Map([['free', [{ startTime: 0, endTime: 1, text: 'hi' }]]]),
+      transcriptionTierName: 'utterance',
+      tierMetadata: new Map(),
+    });
+    const { result } = renderImporter('text-grid', [defaultLayer], true);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'two.textgrid', { type: 'text/plain' }),
+      );
+    });
+    expect(await db.layer_units.count()).toBe(0);
+    const dialog = result.current.eafTierRoleDialog;
+    expect(dialog?.isOpen).toBe(true);
+    expect(dialog?.tiers.map((tier) => tier.tierId)).toEqual(['utterance', 'free']);
+    const roles = Object.fromEntries((dialog?.tiers ?? []).map((tier) => [tier.tierId, tier.role]));
+    await act(async () => {
+      await dialog?.onConfirm(roles);
+    });
+    const contents = await db.layer_unit_contents.toArray();
+    expect(contents.map((row) => row.text)).toEqual(expect.arrayContaining(['hello', 'hi']));
+  });
+
+  it('writes a two-tier TextGrid immediately when the confirm switch is off', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-grid-off',
+      textId: 'text-grid-off',
+      key: 'trc_grid_off',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: 'grid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValue({
+      units: [{ startTime: 0, endTime: 1, transcription: 'hello' }],
+      additionalTiers: new Map([['free', [{ startTime: 0, endTime: 1, text: 'hi' }]]]),
+      transcriptionTierName: 'utterance',
+      tierMetadata: new Map(),
+    });
+    const { result } = renderImporter('text-grid-off', [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'two.textgrid', { type: 'text/plain' }),
+      );
+    });
+    expect(result.current.eafTierRoleDialog?.isOpen).not.toBe(true);
+    expect(await db.layer_units.where('unitType').equals('unit').count()).toBe(1);
+    const contents = await db.layer_unit_contents.toArray();
+    expect(contents.map((row) => row.text)).toEqual(expect.arrayContaining(['hello', 'hi']));
+  });
+
+  it('reports appended-without-id only when the text already has segments', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-append',
+      textId: 'text-append',
+      key: 'trc_append',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: 'grid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValue({
+      units: [{ startTime: 0, endTime: 1, transcription: 'hello' }],
+      additionalTiers: new Map(),
+      transcriptionTierName: 'utterance',
+      tierMetadata: new Map(),
+    });
+    const { result, setSaveState } = renderImporter('text-append', [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'once.textgrid', { type: 'text/plain' }),
+      );
+    });
+    const mentionsAppend = (message: string) =>
+      message.includes('追加') || message.includes('appended');
+    const firstDone = setSaveState.mock.calls.find((call) => call[0]?.kind === 'done');
+    expect(mentionsAppend(String(firstDone?.[0]?.message ?? ''))).toBe(false);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'twice.textgrid', { type: 'text/plain' }),
+      );
+    });
+    const secondDone = setSaveState.mock.calls.filter((call) => call[0]?.kind === 'done').at(-1);
+    expect(mentionsAppend(String(secondDone?.[0]?.message ?? ''))).toBe(true);
+    expect(await db.layer_units.where('unitType').equals('unit').count()).toBe(2);
+  });
+
+  it('does not ask for tier roles on a TRS file', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-trs',
+      textId: 'text-trs',
+      key: 'trc_trs',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<Trans program="test" version="1">
+  <Speakers><Speaker id="spk1" name="Alice" /></Speakers>
+  <Episode>
+    <Section type="report" startTime="0" endTime="1">
+      <Turn speaker="spk1" startTime="0" endTime="1">
+        <Sync time="0"/>hello
+      </Turn>
+    </Section>
+  </Episode>
+</Trans>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter('text-trs', [defaultLayer], true);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'talk.trs', { type: 'application/xml' }),
+      );
+    });
+    expect(result.current.eafTierRoleDialog?.isOpen).not.toBe(true);
+    expect(await db.layer_units.where('unitType').equals('unit').count()).toBe(1);
+  });
+
+  it('updates a flextext phrase by guid on the same text only', async () => {
+    const layerFor = (textId: string): LayerDocType => ({
+      id: `trc-${textId}`,
+      textId,
+      key: `trc_${textId}`,
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const layerA = layerFor('text-flex-a');
+    const layerB = layerFor('text-flex-b');
+    await seedProjectLayers([layerA, layerB]);
+    const flex = (text: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase guid="phrase-1" begin-time-offset="0" end-time-offset="1">
+        <item type="txt" lang="en">${text}</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: flex('hello'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const first = renderImporter('text-flex-a', [layerA]);
+    await act(async () => {
+      await first.result.current.handleImportFile(
+        new File(['x'], 'a.flextext', { type: 'application/xml' }),
+      );
+    });
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: flex('hello again'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    await act(async () => {
+      await first.result.current.handleImportFile(
+        new File(['x'], 'a2.flextext', { type: 'application/xml' }),
+      );
+    });
+    const onA = await db.layer_units.where('textId').equals('text-flex-a').toArray();
+    const utterancesA = onA.filter(
+      (row) => row.unitType === 'unit' || row.parentUnitId === undefined,
+    );
+    expect(utterancesA.filter((row) => row.unitType !== 'segment')).toHaveLength(1);
+    const idsA = new Set(onA.map((row) => row.id));
+    const contentsA = (await db.layer_unit_contents.toArray()).filter(
+      (row) => row.unitId !== undefined && idsA.has(row.unitId),
+    );
+    expect(contentsA.some((row) => row.text === 'hello again')).toBe(true);
+    expect(contentsA.some((row) => row.text === 'hello')).toBe(false);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: flex('other text'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const second = renderImporter('text-flex-b', [layerB]);
+    await act(async () => {
+      await second.result.current.handleImportFile(
+        new File(['x'], 'b.flextext', { type: 'application/xml' }),
+      );
+    });
+    const contentsAfter = (await db.layer_unit_contents.toArray()).filter(
+      (row) => row.unitId !== undefined && idsA.has(row.unitId),
+    );
+    expect(contentsAfter.some((row) => row.text === 'hello again')).toBe(true);
+    expect(contentsAfter.some((row) => row.text === 'other text')).toBe(false);
+  });
 });

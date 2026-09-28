@@ -318,7 +318,14 @@ export const enUSDictionary = {
   'workspace.lexicon.importLiftInvalid': 'This LIFT file could not be read.',
   'workspace.lexicon.importLiftUnsupported': 'Only LIFT 0.13 is supported.',
   'workspace.lexicon.importLiftDiagnostics':
-    'Import kept the DMLex fields and left {count} LIFT values out of the entry.',
+    'Import kept the DMLex fields and left {count} LIFT values out of the entry: {names}.',
+  'workspace.lexicon.liftUnmapped.extraHeadword': 'extra headword',
+  'workspace.lexicon.liftUnmapped.morphType': 'morph type',
+  'workspace.lexicon.liftUnmapped.note': 'note',
+  'workspace.lexicon.liftUnmapped.reversal': 'reversal',
+  'workspace.lexicon.liftUnmapped.importResidue': 'import residue',
+  'workspace.lexicon.liftUnmapped.scientificName': 'scientific name',
+  'workspace.lexicon.liftUnmapped.variantWithSense': 'variant with its own sense',
   'workspace.lexicon.edit.headwordLabel': 'Headword',
   'workspace.lexicon.edit.headwordRequired': 'Headword is required.',
   'workspace.lexicon.edit.homographNumberLabel': 'Homograph number',
@@ -2044,7 +2051,7 @@ export const enUSDictionary = {
     'This file declares a timeline of {incoming}, longer than the current project span ({established}). After you confirm, import will keep segment times and automatically extend the logical axis.',
   'transcription.importDialog.mismatchTitle': 'Timeline length mismatch',
   'transcription.importDialog.mismatchAcknowledge': 'I understand and want to continue importing',
-  'transcription.importDialog.tierRoleTitle': 'Choose what each ELAN tier is',
+  'transcription.importDialog.tierRoleTitle': 'Choose what each tier is',
   'transcription.importDialog.tierRoleHint':
     'The first tier stays the transcription and later independent tiers stay translations unless you change them.',
   'transcription.importDialog.tierRole.transcription': 'Transcription',
@@ -2092,6 +2099,15 @@ export const enUSDictionary = {
     'Audio file {filename} is not in this project. Segments were imported without media.',
   'transcription.importExport.importDone.unrecognizedTimeUnit':
     'The EAF time unit was not recognized. Times were read as milliseconds.',
+  'transcription.importExport.importDone.unmatchedRef':
+    '{count} references did not match a parent annotation, so they were not aligned by time.',
+  'transcription.importExport.importDone.unmappedField': 'Not written: {name}.',
+  'transcription.importExport.importDone.noStableId':
+    '{count} items had no stable id and were created as new rows.',
+  'transcription.importExport.importDone.replacedById':
+    '{count} items matched a stable id and replaced existing rows.',
+  'transcription.importExport.importDone.appendedWithoutId':
+    'This text already had segments. This import appended {count} more with no stable annotation id.',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     'Detected {count} translation layers with multiple hosts; EAF exported preferred-host links only (lossy).',
   'transcription.importExport.actionLabelImportFile': 'Import file',

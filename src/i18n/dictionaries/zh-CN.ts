@@ -295,7 +295,14 @@ export const zhCNDictionary = {
   'workspace.lexicon.importLiftInvalid': '无法读取这个 LIFT 文件。',
   'workspace.lexicon.importLiftUnsupported': '只支持 LIFT 0.13。',
   'workspace.lexicon.importLiftDiagnostics':
-    '已写入 DMLex 字段，另有 {count} 条 LIFT 内容未进入词条。',
+    '已写入 DMLex 字段，另有 {count} 条 LIFT 内容未进入词条：{names}。',
+  'workspace.lexicon.liftUnmapped.extraHeadword': '额外词头',
+  'workspace.lexicon.liftUnmapped.morphType': '语素类型',
+  'workspace.lexicon.liftUnmapped.note': '注释',
+  'workspace.lexicon.liftUnmapped.reversal': '逆序',
+  'workspace.lexicon.liftUnmapped.importResidue': '导入残留',
+  'workspace.lexicon.liftUnmapped.scientificName': '学名',
+  'workspace.lexicon.liftUnmapped.variantWithSense': '带义项的变体',
   'workspace.lexicon.edit.headwordLabel': '词头',
   'workspace.lexicon.edit.headwordRequired': '词头必填。',
   'workspace.lexicon.edit.homographNumberLabel': '同形编号',
@@ -1902,7 +1909,7 @@ export const zhCNDictionary = {
     '所选文件声明的时间轴为 {incoming}，长于当前项目跨度 {established}。确认后将保持语段时间不变，并自动扩展逻辑轴。',
   'transcription.importDialog.mismatchTitle': '时间轴长度不一致',
   'transcription.importDialog.mismatchAcknowledge': '我已了解，继续导入',
-  'transcription.importDialog.tierRoleTitle': '选择每个 ELAN 层的角色',
+  'transcription.importDialog.tierRoleTitle': '选择每一层的角色',
   'transcription.importDialog.tierRoleHint':
     '第一层保持为转写，后面的独立层保持为译文，除非你改掉它们。',
   'transcription.importDialog.tierRole.transcription': '转写',
@@ -1948,6 +1955,13 @@ export const zhCNDictionary = {
     '本项目里没有音频文件 {filename}。语段已导入，未附带媒体。',
   'transcription.importExport.importDone.unrecognizedTimeUnit':
     'EAF 时间单位无法识别，已按毫秒读取。',
+  'transcription.importExport.importDone.unmatchedRef':
+    '有 {count} 条引用对不上父标注，没有改用时间对齐。',
+  'transcription.importExport.importDone.unmappedField': '未写入：{name}。',
+  'transcription.importExport.importDone.noStableId': '有 {count} 条没有稳定 id，已新建。',
+  'transcription.importExport.importDone.replacedById': '有 {count} 条按稳定 id 覆盖了已有内容。',
+  'transcription.importExport.importDone.appendedWithoutId':
+    '文稿里已有语段，这次又追加了 {count} 条没有稳定标注 id 的内容。',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     '检测到 {count} 个翻译层存在多宿主；EAF 仅导出主宿主链路（有损）。',
   'transcription.importExport.actionLabelImportFile': '导入文件',

@@ -18,6 +18,7 @@ import type {
   UnitMorphemeDocType,
   OrthographyDocType,
 } from '../db';
+import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
@@ -58,6 +59,8 @@ export interface FlexImportResult {
     transcription: string;
     /** FLEx phrase guid used to align phraseGlosses (not index order). */
     phraseId?: string;
+    /** Present only when phrase@guid is non-empty. Synthetic pN keys are not stable ids. */
+    annotationId?: string;
     tokens?: Array<{
       form: Record<string, string>;
       gloss?: Record<string, string>;
@@ -86,8 +89,12 @@ export interface FlexImportResult {
   >;
   /** Source language tag extracted from item[@type=txt]@lang | 从 txt 元素提取的源语言 */
   sourceLanguage?: string;
+  /** Title of the first interlinear-text. Word and morph rows are not tiers. */
+  transcriptionTierName?: string;
   /** Gloss language tag extracted from item[@type=gls]@lang | 从 gls 元素提取的翻译语言 */
   glossLanguage?: string;
+  /** Losses known at parse time. */
+  losses?: InterchangeLoss[];
 }
 
 function escapeXml(str: string): string {
@@ -326,6 +333,7 @@ function parseFlexPhrase(
   index: number,
 ): {
   phraseId: string;
+  stableGuid?: string;
   startTime: number;
   endTime: number;
   transcription: string;
@@ -334,7 +342,8 @@ function parseFlexPhrase(
   glossLang?: string;
   tokens?: FlexImportResult['units'][number]['tokens'];
 } {
-  const phraseId = phrase.getAttribute('guid') ?? `p${index + 1}`;
+  const stableGuid = (phrase.getAttribute('guid') ?? '').trim();
+  const phraseId = stableGuid.length > 0 ? stableGuid : `p${index + 1}`;
   const startTime = parseFloat(phrase.getAttribute('begin-time-offset') ?? '0');
   const endTime = parseFloat(phrase.getAttribute('end-time-offset') ?? '0');
 
@@ -412,6 +421,7 @@ function parseFlexPhrase(
 
   return {
     phraseId,
+    ...(stableGuid.length > 0 ? { stableGuid } : {}),
     startTime: Number.isFinite(startTime) ? startTime : 0,
     endTime: Number.isFinite(endTime) ? endTime : Number.isFinite(startTime) ? startTime : 0,
     transcription,
@@ -445,6 +455,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
   const timelineMetadata = readTimelineMetadataFromAttributes(doc.documentElement);
   let sourceLanguage: string | undefined;
   let glossLanguage: string | undefined;
+  let transcriptionTierName: string | undefined;
 
   const interlinearTexts = Array.from(doc.querySelectorAll('interlinear-text'));
   const phraseRoots =
@@ -463,6 +474,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
     const phrases = Array.from(root.querySelectorAll('phrase'));
 
     if (rootIndex === 0) {
+      transcriptionTierName = tierName;
       phrases.forEach((phrase, index) => {
         const parsed = parseFlexPhrase(phrase, index);
         if (!sourceLanguage && parsed.sourceLang) sourceLanguage = parsed.sourceLang;
@@ -473,6 +485,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
           endTime: parsed.endTime,
           transcription: parsed.transcription,
           phraseId: parsed.phraseId,
+          ...(parsed.stableGuid ? { annotationId: parsed.stableGuid } : {}),
           ...(parsed.tokens ? { tokens: parsed.tokens } : {}),
         });
       });
@@ -498,6 +511,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
     phraseGlosses,
     additionalTiers,
     ...(timelineMetadata ? { timelineMetadata } : {}),
+    ...(transcriptionTierName ? { transcriptionTierName } : {}),
     ...(sourceLanguage !== undefined && { sourceLanguage }),
     ...(glossLanguage !== undefined && { glossLanguage }),
   };
