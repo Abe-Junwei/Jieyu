@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  hasKnownEafTierName,
   isEafContentAnchor,
+  isEafDateTier,
   isPhoneticTranscriptionTier,
   isUtteranceNoteTier,
   phoneticTranscriptionTier,
   pickEafTiers,
+  publishTranslationTier,
   tokenizeEafLabel,
   utteranceNoteRows,
 } from './eafTierPick';
@@ -207,6 +210,42 @@ describe('eaf tier pick', () => {
       }),
     ]);
     expect(picked.promptTiers?.map((row) => row.tierId)).toEqual(['tx@NHK', 'ft@NHK', 'tx@KBK']);
+  });
+
+  it('drops an unnamed date tier and keeps a named sentence tier', () => {
+    expect(isEafDateTier(['10/Apr/2013', '<p:>', '2013-04-10', '****'])).toBe(true);
+    expect(isEafDateTier(['2013/4/10', '01/02/13', '10/April/2013'])).toBe(true);
+    expect(
+      isEafDateTier(['10/Apr/2013', 'a real sentence', 'another line', 'third', 'fourth']),
+    ).toBe(false);
+    expect(hasKnownEafTierName('ft')).toBe(true);
+    expect(hasKnownEafTierName('tx')).toBe(true);
+    expect(hasKnownEafTierName('dt')).toBe(true);
+    expect(hasKnownEafTierName('when')).toBe(false);
+    const dates = ['10/Apr/2013', '2013-04-10', '01/02/2013', '11/May/2014'];
+    const picked = pickEafTiers([
+      tier('when', { nonemptyTexts: dates }),
+      tier('story', { nonemptyTexts: ['a real sentence'] }),
+    ]);
+    expect(picked.transcriptionTierId).toBe('story');
+    expect(picked.anchorTierIds.has('when')).toBe(false);
+    expect(picked.promptTiers).toBeUndefined();
+    const onlyDates = pickEafTiers([tier('session', { nonemptyTexts: dates })]);
+    expect(onlyDates.transcriptionTierId).toBeUndefined();
+    const named = pickEafTiers([tier('tx', { nonemptyTexts: dates })]);
+    expect(named.transcriptionTierId).toBe('tx');
+    const rows = new Map<string, Array<{ text: string }>>();
+    const losses: string[] = [];
+    publishTranslationTier(rows, 'ft', [{ text: '10/Apr/2013' }], losses);
+    publishTranslationTier(
+      rows,
+      'when',
+      dates.map((text) => ({ text })),
+      losses,
+    );
+    expect(rows.get('ft')).toEqual([{ text: '10/Apr/2013' }]);
+    expect(rows.has('when')).toBe(false);
+    expect(losses).toEqual(['when']);
   });
 
   it('reads a sentence tier whose element is 句子 and whose item type is txt', () => {

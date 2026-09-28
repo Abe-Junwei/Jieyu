@@ -1153,6 +1153,58 @@ describe('EAF default tier pick', () => {
     ]);
   });
 
+  it('records an unnamed date tier as a loss and keeps named tx and ft', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the translation</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="when@NOBODY" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>10/Apr/2013</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w2" ANNOTATION_REF="a1"><ANNOTATION_VALUE>&lt;p:&gt;</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w3" ANNOTATION_REF="a1"><ANNOTATION_VALUE>2013-04-10</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w4" ANNOTATION_REF="a1"><ANNOTATION_VALUE>****</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.units.map((unit) => unit.transcription)).toEqual(['the sentence']);
+    expect(imported.translationTiers.get('ft')?.[0]?.text).toBe('the translation');
+    expect(imported.translationTiers.has('when@NOBODY')).toBe(false);
+    expect(imported.userNotes?.some((note) => note.text === '10/Apr/2013')).toBe(false);
+    expect(
+      imported.losses?.some(
+        (loss) => loss.code === 'unmapped-field' && loss.name?.includes('when@NOBODY'),
+      ),
+    ).toBe(true);
+
+    const namedDates = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>10/Apr/2013</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4"><ANNOTATION_VALUE>2013-04-10</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="tx">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>10/Apr/2013</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(namedDates.transcriptionTierName).toBe('tx');
+    expect(namedDates.units.map((unit) => unit.transcription)).toEqual([
+      '10/Apr/2013',
+      '2013-04-10',
+    ]);
+    expect(namedDates.translationTiers.get('ft')?.[0]?.text).toBe('10/Apr/2013');
+    expect(namedDates.losses?.some((loss) => loss.code === 'unmapped-field')).toBeFalsy();
+  });
+
   it('keeps recording metadata off the translation rows', () => {
     const imported = importFromEaf(
       eafFixture(

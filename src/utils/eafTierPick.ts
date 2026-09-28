@@ -481,6 +481,7 @@ function isIndependentTimeAligned(tier: EafTierPickFact): boolean {
 
 function isRoleChoice(tier: EafTierPickFact, name: NameSignals): boolean {
   if (name.header) return false;
+  if (isUnnamedEafDateTier(tier.tierId, tier.nonemptyTexts)) return false;
   if (name.phrase || name.transcription || name.translation) return true;
   return isIndependentTimeAligned(tier);
 }
@@ -521,6 +522,7 @@ export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
     if (tier.nonemptyTexts.length === 0) return false;
     if (name.header) return false;
     if (isAnchorTier(tier, name)) return false;
+    if (isUnnamedEafDateTier(tier.tierId, tier.nonemptyTexts)) return false;
     if (!name.transcription) return false;
     return !isSkipped(tier);
   });
@@ -533,10 +535,13 @@ export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
       isIndependentTimeAligned(tier) &&
       !names.get(tier.tierId)!.header &&
       tier.nonemptyTexts.length > 0 &&
-      !isAnchorTier(tier, names.get(tier.tierId)!),
+      !isAnchorTier(tier, names.get(tier.tierId)!) &&
+      !isUnnamedEafDateTier(tier.tierId, tier.nonemptyTexts),
   );
   const lastResort =
-    firstIndependent && !isAnchorTier(firstIndependent, names.get(firstIndependent.tierId)!)
+    firstIndependent &&
+    !isAnchorTier(firstIndependent, names.get(firstIndependent.tierId)!) &&
+    !isUnnamedEafDateTier(firstIndependent.tierId, firstIndependent.nonemptyTexts)
       ? firstIndependent.tierId
       : undefined;
   const transcriptionTierId =
@@ -853,7 +858,47 @@ export function isRecordingMetadataTier(tierId: string): boolean {
   return RECORDING_METADATA_STEMS.has(stem);
 }
 
-/** Recording-session tiers are losses. Other nonempty tiers stay translation rows. */
+const DATE_MONTH =
+  /^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)$/i;
+
+/** Closed date shapes. A sentence that merely contains a date does not match. */
+export function isEafDateText(value: string): boolean {
+  const text = value.trim();
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) return true;
+  if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(text)) return true;
+  const slash = text.split('/');
+  if (slash.length !== 3) return false;
+  const day = slash[0] ?? '';
+  const month = slash[1] ?? '';
+  const year = slash[2] ?? '';
+  if (!/^\d{1,2}$/.test(day) || !/^\d{2,4}$/.test(year)) return false;
+  if (/^\d{1,2}$/.test(month)) return true;
+  return DATE_MONTH.test(month);
+}
+
+/** At least four fifths of the non-placeholder cells are dates. */
+export function isEafDateTier(texts: readonly string[]): boolean {
+  const considered = texts.map((text) => text.trim()).filter((text) => !isNotePlaceholder(text));
+  if (considered.length === 0) return false;
+  const hits = considered.filter(isEafDateText).length;
+  return hits * 5 >= considered.length * 4;
+}
+
+/** A name the importer already classifies. Date text does not override it. */
+export function hasKnownEafTierName(tierId: string): boolean {
+  if (flexTierDisposition(tierId) !== undefined) return true;
+  if (isPhoneticTranscriptionTier(tierId)) return true;
+  if (isUtteranceNoteTier(tierId)) return true;
+  if (isRecordingMetadataTier(tierId)) return true;
+  const name = signalsFromTokens(tierId);
+  return name.transcription || name.translation || name.anchor || name.word;
+}
+
+function isUnnamedEafDateTier(tierId: string, texts: readonly string[]): boolean {
+  return !hasKnownEafTierName(tierId) && isEafDateTier(texts);
+}
+
+/** Recording-session tiers and unnamed date tiers are losses. Other nonempty tiers stay translation rows. */
 export function publishTranslationTier<T extends { text: string }>(
   target: Map<string, T[]>,
   tierId: string,
@@ -862,6 +907,15 @@ export function publishTranslationTier<T extends { text: string }>(
 ): void {
   if (isRecordingMetadataTier(tierId)) {
     if (annotations.some((row) => row.text.trim().length > 0)) unmappedTierIds.push(tierId);
+    return;
+  }
+  if (
+    isUnnamedEafDateTier(
+      tierId,
+      annotations.map((row) => row.text),
+    )
+  ) {
+    unmappedTierIds.push(tierId);
     return;
   }
   publishFilledTier(target, tierId, annotations);
