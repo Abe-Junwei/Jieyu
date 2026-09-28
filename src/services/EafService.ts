@@ -1556,6 +1556,14 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       ...anchorNotesForUnits(anchorSources, units, childAnnotationIdByParentId),
     );
   }
+  if (childAnnotationIdByParentId.size > 0) {
+    for (const [tierId, annotations] of translationTiers) {
+      translationTiers.set(
+        tierId,
+        retargetAnnotationsToChildIds(annotations, childAnnotationIdByParentId),
+      );
+    }
+  }
 
   // Attach Symbolic_Subdivision word tokens (+ optional gloss/morph under word tiers)
   if (wordTierEntries.length > 0 && units.length > 0) {

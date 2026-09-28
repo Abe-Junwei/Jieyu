@@ -1051,6 +1051,7 @@ describe('EAF default tier pick', () => {
       'second sentence',
     ]);
     expect(imported.translationTiers.get('ft')?.[0]?.text).toBe('Arapaho language');
+    expect(imported.translationTiers.get('ft')?.[0]?.annotationRef).toBe('t1');
     expect(imported.userNotes?.map((note) => note.text)).toEqual(['0001_doreco_x', '<p:>']);
     expect(imported.userNotes?.[0]?.annotationRef).toBe('t1');
     expect(imported.losses).toEqual([{ code: 'guessed-tier', name: 'tx' }]);
