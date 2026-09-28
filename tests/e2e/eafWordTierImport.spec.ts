@@ -197,8 +197,15 @@ test.describe('EAF word-tier annotation import', () => {
     const layerListText = (await rows.allTextContents()).join('\n');
     expect(layerListText).not.toContain('word-gls');
     expect(layerListText).not.toContain('G1');
-    await expect(page.getByText('the sentence', { exact: true })).toBeVisible();
-    await expect(page.getByText('aa', { exact: true })).toBeVisible();
+    await expect(page.getByText('the sentence', { exact: true }).first()).toBeVisible();
+    await expect(page.locator('.app-side-pane-segment-list-item-text', { hasText: /^aa$/ })).toBeVisible();
+    await expect(
+      page.getByTestId('transcription-workspace-screen').getByText('aa', { exact: true }),
+    ).toBeVisible();
     await expect(page.getByText('G1', { exact: true })).toHaveCount(0);
+    await page.screenshot({
+      path: '/opt/cursor/artifacts/flex-elan-import-layers.png',
+      fullPage: true,
+    });
   });
 });
