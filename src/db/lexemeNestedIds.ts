@@ -1,50 +1,64 @@
 /**
- * Assign stable nested ids on lexeme senses/forms (LIFT-style sense identity).
- * Only fills missing/blank ids; existing ids are kept.
+ * Assign stable ids on a DMLex entry and its senses.
+ * Only fills missing or blank ids. Existing ids are kept.
  */
+import { DMLEX_RESOURCE_ID } from './dmlexTypes';
+import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from './types';
 import { newId } from '../utils/transcriptionFormatters';
-import type { LexemeDocType } from './types';
 
 function nestedIdOf(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-type NestedRow = Record<string, unknown>;
+export function isLexemeResource(doc: LexemeDocType): doc is LexemeResourceDoc {
+  return doc.kind === 'resource';
+}
 
-function assignRowId(row: NestedRow, prefix: string): boolean {
-  if (nestedIdOf(row.id).length > 0) return false;
-  row.id = newId(prefix);
-  return true;
+export function isLexemeEntry(doc: LexemeDocType): doc is LexemeEntryDoc {
+  if (doc.kind === 'resource') return false;
+  const headword = (doc as { entry?: { headword?: unknown } }).entry?.headword;
+  return typeof headword === 'string' && headword.length > 0;
 }
 
 export function assignLexemeNestedIdsInPlace(lexeme: {
-  senses?: unknown;
-  forms?: unknown;
+  id?: unknown;
+  kind?: unknown;
+  entry?: { id?: unknown; senses?: unknown };
 }): boolean {
+  if (lexeme.kind === 'resource') return false;
+  const entry = lexeme.entry;
+  if (!entry || typeof entry !== 'object') return false;
   let changed = false;
-  if (Array.isArray(lexeme.senses)) {
-    for (const sense of lexeme.senses) {
-      if (sense !== null && typeof sense === 'object') {
-        if (assignRowId(sense as NestedRow, 'sense')) changed = true;
-      }
-    }
+  if (nestedIdOf(entry.id).length === 0) {
+    const rowId = nestedIdOf(lexeme.id);
+    entry.id = rowId.length > 0 ? rowId : newId('lex');
+    changed = true;
   }
-  if (Array.isArray(lexeme.forms)) {
-    for (const form of lexeme.forms) {
-      if (form !== null && typeof form === 'object') {
-        if (assignRowId(form as NestedRow, 'form')) changed = true;
-      }
+  if (Array.isArray(entry.senses)) {
+    for (const sense of entry.senses) {
+      if (sense === null || typeof sense !== 'object') continue;
+      const row = sense as { id?: unknown };
+      if (nestedIdOf(row.id).length > 0) continue;
+      row.id = newId('sense');
+      changed = true;
     }
   }
   return changed;
 }
 
-export function ensureLexemeNestedIds(data: LexemeDocType): LexemeDocType {
-  const next: LexemeDocType = {
+export function ensureLexemeNestedIds(data: LexemeEntryDoc): LexemeEntryDoc {
+  const senses = data.entry.senses?.map((sense) => ({ ...sense }));
+  const next: LexemeEntryDoc = {
     ...data,
-    senses: data.senses.map((sense) => ({ ...sense })),
-    ...(data.forms ? { forms: data.forms.map((form) => ({ ...form })) } : {}),
+    entry: {
+      ...data.entry,
+      ...(senses ? { senses } : {}),
+    },
   };
   assignLexemeNestedIdsInPlace(next);
   return next;
+}
+
+export function isDmlexResourceId(id: string): boolean {
+  return id === DMLEX_RESOURCE_ID;
 }

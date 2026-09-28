@@ -4,10 +4,10 @@
     <paragraphs>
       <paragraph>
         <phrases>
-          <phrase guid="p1" begin-time-offset="0" end-time-offset="2">
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="2000">
             <item type="txt" lang="bod">tɕʰa mo ɣa ra</item>
           </phrase>
-          <phrase guid="p2" begin-time-offset="2" end-time-offset="5.5">
+          <phrase guid="p2" begin-time-offset="2000" end-time-offset="5500">
             <item type="txt" lang="bod">ŋa joŋs pa yin</item>
           </phrase>
         </phrases>
