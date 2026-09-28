@@ -8,11 +8,11 @@ import { isLexemeEntry } from '../db/lexemeNestedIds';
 import { newId } from './transcriptionFormatters';
 import { applyLexiconEntryFields, emptyDmlexResource, type LexiconSenseDraft } from './dmlexEntry';
 import { LIFT_VERSION } from './lexiconLiftExport';
+import type { InterchangeLoss } from './interchangeLossReport';
 
 export type LexiconLiftDiagnosticCode =
   | 'extra-headword'
   | 'morph-type'
-  | 'sense-pos-split'
   | 'note'
   | 'reversal'
   | 'import-residue'
@@ -36,6 +36,7 @@ export type LexiconLiftParseResult =
       lexemes: LexemeEntryDoc[];
       resource: LexemeResourceDoc;
       diagnostics: LexiconLiftDiagnostic[];
+      losses: InterchangeLoss[];
     }
   | { ok: false; reason: Exclude<LexiconLiftImportReason, 'save-failed'> };
 
@@ -45,6 +46,7 @@ export type LexiconLiftImportResult =
       savedCount: number;
       readback: LexemeEntryDoc[];
       diagnostics: LexiconLiftDiagnostic[];
+      losses: InterchangeLoss[];
     }
   | { ok: false; reason: LexiconLiftImportReason };
 
@@ -201,6 +203,7 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
   const diagnostics: LexiconLiftDiagnostic[] = [];
   const lexemes: LexemeEntryDoc[] = [];
   let resource = emptyDmlexResource(now);
+  let missingStableIds = 0;
   for (const entry of directChildren(lift, 'entry')) {
     const entryIdAttr = attr(entry, 'id');
     const id = entryIdAttr.length > 0 ? entryIdAttr : newId('lex');
@@ -212,6 +215,7 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
     }
     const forms = formText(directChildren(entry, 'lexical-unit')[0]);
     if (forms.length === 0) continue;
+    if (entryIdAttr.length === 0) missingStableIds += 1;
     if (forms.length > 1) diagnostics.push({ code: 'extra-headword', entryId: id });
     const senses = collectSenses(
       directChildren(entry, 'sense'),
@@ -246,7 +250,6 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
               .filter((sense) => sense.pos === pos)
               .map((sense) => ({ ...sense, draft: { ...sense.draft, parentId: '' } })),
           }));
-    if (groups.length > 1) diagnostics.push({ code: 'sense-pos-split', entryId: id });
     const partners = groups.map((group) => group.id);
     for (const group of groups) {
       const applied = applyLexiconEntryFields(
@@ -272,7 +275,9 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
     }
   }
   if (lexemes.length === 0) return { ok: false, reason: 'empty' };
-  return { ok: true, lexemes, resource, diagnostics };
+  const losses: InterchangeLoss[] =
+    missingStableIds > 0 ? [{ code: 'no-stable-id', count: missingStableIds }] : [];
+  return { ok: true, lexemes, resource, diagnostics, losses };
 }
 
 export async function importLexemesFromLiftXml(
@@ -282,9 +287,12 @@ export async function importLexemesFromLiftXml(
   const parsed = parseLiftXml(xml);
   if (!parsed.ok) return parsed;
   try {
+    const existingIds = new Set((await deps.list()).map((row) => row.id));
+    let replacedById = 0;
     const existingResource = await deps.loadResource();
     let resource = existingResource ?? parsed.resource;
     for (const lexeme of parsed.lexemes) {
+      if (existingIds.has(lexeme.id)) replacedById += 1;
       const relations = [
         ...(resource.resource.relations ?? []).filter(
           (relation) =>
@@ -316,11 +324,14 @@ export async function importLexemesFromLiftXml(
     }
     await deps.saveResource(resource);
     const readback = (await deps.list()).filter(isLexemeEntry);
+    const losses = [...parsed.losses];
+    if (replacedById > 0) losses.push({ code: 'replaced-by-id', count: replacedById });
     return {
       ok: true,
       savedCount: parsed.lexemes.length,
       readback,
       diagnostics: parsed.diagnostics,
+      losses,
     };
   } catch {
     return { ok: false, reason: 'save-failed' };
