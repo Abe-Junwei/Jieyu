@@ -57,6 +57,7 @@ source_of_truth: decision-index
 - [0035-lexicon-edit-baseline-dmlex.md](./0035-lexicon-edit-baseline-dmlex.md)（词典编辑基准用 DMLex 1.0 JSON Schema；LIFT 只做投影；解语附加字段放在 schema 外）
 - [0036-eaf-import-is-interchange.md](./0036-eaf-import-is-interchange.md)（EAF 是文本交换；`.jyt` / `.jym` 继续做原 id 备份；往返键是文稿 + 外部层 id + 标注 id）
 - [0037-interchange-loss-report.md](./0037-interchange-loss-report.md)（标注和 LIFT 导入共用一份丢失清单；有稳定 id 才往返；不接入 Pepper / Corflow / reBabel）
+- [0038-eaf-tier-pick-by-content.md](./0038-eaf-tier-pick-by-content.md)（没有角色表时按正文和层名选 EAF 转写层；一句对一句的细分层不当词；没有媒体时独立翻译挂到已有语段）
 
 ## 建议格式
 
