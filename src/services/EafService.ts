@@ -38,11 +38,13 @@ import {
   detachMorphChildTiers,
   flexTierDisposition,
   flexTierLocale,
-  isEafMorphTier,
   maxEafChildrenPerParent,
   pickEafTiers,
   publishFilledTier,
+  publishTranslationTier,
+  recordControlledVocabularyNotes,
   retargetAnnotationsToChildIds,
+  stashUnassignedTier,
   unitsFromAnchorAnnotations,
   unitsFromPickedAnnotations,
 } from '../utils/eafTierPick';
@@ -1298,7 +1300,8 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
     };
   });
   const hasExplicitRoles = [...tierMetadata.values()].some((meta) => Boolean(meta.role));
-  const tierPick = hasExplicitRoles ? undefined : pickEafTiers(pickFacts);
+  const fieldPick = pickEafTiers(pickFacts);
+  const tierPick = hasExplicitRoles ? undefined : fieldPick;
   const anchorSources: AnnotationEntry[] = [];
   const childAnnotationIdByParentId = new Map<string, string>();
   const parentTierIdByTierId = new Map<string, string>();
@@ -1387,6 +1390,25 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       ...(isSymbolicSubdivision ? { symbolicSubdivision: true } : {}),
     });
 
+    if (
+      hasExplicitRoles &&
+      tierRole === undefined &&
+      stashUnassignedTier({
+        tierId,
+        parentTierId: parentRef,
+        eafConstraint,
+        annotations: parseRefAnnotations(tier, annotationTimeMap),
+        alignable: alignableByTierId.get(tierId) ?? [],
+        pick: fieldPick,
+        anchorSources,
+        wordTierEntries,
+        childOfWordTier,
+      })
+    ) {
+      if (locale) tierLocales.set(tierId, locale);
+      return;
+    }
+
     if (tierPick && disposition && disposition !== 'phrase-transcription') {
       if (locale) tierLocales.set(tierId, locale);
       const refAnns = parseRefAnnotations(tier, annotationTimeMap);
@@ -1429,14 +1451,7 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
         ...(a.annotationId ? { annotationId: a.annotationId } : {}),
       }));
       if (lingType?.controlledVocabularyRef) {
-        for (const annotation of annotations) {
-          if (!annotation.text.trim()) continue;
-          sideChannelNotes.push({
-            kind: 'controlled-vocabulary',
-            text: annotation.text,
-            ...(annotation.annotationId ? { parentAnnotationId: annotation.annotationId } : {}),
-          });
-        }
+        recordControlledVocabularyNotes(sideChannelNotes, annotations);
       }
       if (tierPick) {
         if (tierId === tierPick.transcriptionTierId) {
@@ -1448,7 +1463,7 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
           anchorSources.push(...annotations);
         } else {
           if (locale) tierLocales.set(tierId, locale);
-          publishFilledTier(translationTiers, tierId, annotations);
+          publishTranslationTier(translationTiers, tierId, annotations, unmappedTierIds);
         }
         return;
       }
@@ -1469,7 +1484,7 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
         });
       } else {
         if (locale) tierLocales.set(tierId, locale);
-        publishFilledTier(translationTiers, tierId, annotations);
+        publishTranslationTier(translationTiers, tierId, annotations, unmappedTierIds);
       }
     } else {
       // ── 依赖层（翻译/注释/词层）| Dependent tier (translation / word / morph) ──
@@ -1479,7 +1494,10 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       const anns = refAnns.length > 0 ? refAnns : parseAlignableAnnotations(tier, timeSlotMap);
       if (anns.length === 0) return;
 
-      if (tierPick && tierId === tierPick.transcriptionTierId) {
+      if (
+        (tierPick !== undefined && tierId === tierPick.transcriptionTierId) ||
+        (tierPick === undefined && tierRole === 'transcription' && !foundPrimaryTranscription)
+      ) {
         const parentAnns = parentRef ? (alignableByTierId.get(parentRef) ?? []) : [];
         const built = unitsFromPickedAnnotations(anns, parentAnns, unitSpeaker);
         units = built.units;
@@ -1496,7 +1514,7 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
         return;
       }
       if (tierPick && tierPick.phraseSubdivisionTierIds.has(tierId)) {
-        publishFilledTier(translationTiers, tierId, anns);
+        publishTranslationTier(translationTiers, tierId, anns, unmappedTierIds);
         return;
       }
 
@@ -1537,18 +1555,7 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
         return;
       }
       if (lingType?.controlledVocabularyRef) {
-        for (const annotation of anns) {
-          if (!annotation.text.trim()) continue;
-          sideChannelNotes.push({
-            kind: 'controlled-vocabulary',
-            text: annotation.text,
-            ...(annotation.annotationRef
-              ? { parentAnnotationId: annotation.annotationRef }
-              : annotation.annotationId
-                ? { parentAnnotationId: annotation.annotationId }
-                : {}),
-          });
-        }
+        recordControlledVocabularyNotes(sideChannelNotes, anns);
         return;
       }
 
@@ -1563,20 +1570,14 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
         return;
       }
 
-      publishFilledTier(translationTiers, tierId, anns);
+      publishTranslationTier(translationTiers, tierId, anns, unmappedTierIds);
     }
   });
 
-  const morphTierIds = new Set<string>();
-  for (const children of childOfWordTier.values()) {
-    for (const child of children) {
-      if (isEafMorphTier(child)) morphTierIds.add(child.tierId);
-    }
-  }
   detachMorphChildTiers({
     translationTiers,
     parentTierIdByTierId,
-    morphTierIds,
+    childOfWordTier,
     unmappedTierIds,
   });
 

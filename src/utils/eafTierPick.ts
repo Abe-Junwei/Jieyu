@@ -11,7 +11,26 @@ const TRANSCRIPTION_TOKENS = new Set(['tx', 'trs', 'transcription', '转写']);
 const TRANSLATION_TOKENS = new Set(['ft', 'gls', 'translation', 'free', '翻译']);
 const ANCHOR_TOKENS = new Set(['ref', 'segnum', 'note', 'notes', 'comment']);
 const ANCHOR_PHRASES = new Set(['document_notes', 'page_no']);
-const WORD_TOKENS = new Set(['wd', 'mb', 'morph', 'word', '单词', 'ps', 'gl']);
+const WORD_TOKENS = new Set(['wd', 'mb', 'morph', 'word', '单词', 'ps', 'gl', 'segmentation']);
+/** DoReCo session fields. The stem is the tier id before `@`, not a free translation. */
+const RECORDING_METADATA_STEMS = new Set([
+  'sound',
+  'sum',
+  'dt_rec',
+  'loc_rec',
+  'part_rec',
+  'qua_rec',
+  'vid_rec',
+  'aud_rec',
+  'af',
+  'dt_trans',
+  'part_trans',
+  'dt',
+  'media',
+  'part',
+  'publ',
+  'ed_or',
+]);
 /** FlexConstants.DEFINED_TYPES, longest first, plus the manual's phrase-parent alternative `segnum`. */
 const FLEX_ITEM_TYPES = [
   'title-abbreviation',
@@ -663,6 +682,26 @@ export function morphDescendantSlot(tierId: string): 'pos' | 'gloss' | 'skip' {
   return 'skip';
 }
 
+/** Controlled-vocabulary rows are side-channel notes, not translation text. */
+export function recordControlledVocabularyNotes(
+  notes: Array<{
+    kind: 'controlled-vocabulary' | 'speaker-dialect' | 'addressee';
+    text: string;
+    parentAnnotationId?: string;
+  }>,
+  annotations: readonly EafPickAnnotation[],
+): void {
+  for (const annotation of annotations) {
+    if (annotation.text.trim().length === 0) continue;
+    const parentAnnotationId = annotation.annotationRef ?? annotation.annotationId;
+    notes.push({
+      kind: 'controlled-vocabulary',
+      text: annotation.text,
+      ...(filled(parentAnnotationId) ? { parentAnnotationId } : {}),
+    });
+  }
+}
+
 /** Keep a tier only when at least one annotation has text. */
 export function publishFilledTier<T extends { text: string }>(
   target: Map<string, T[]>,
@@ -672,6 +711,26 @@ export function publishFilledTier<T extends { text: string }>(
   const filledRows = annotations.filter((row) => row.text.trim().length > 0);
   if (filledRows.length === 0) return;
   target.set(tierId, [...filledRows]);
+}
+
+export function isRecordingMetadataTier(tierId: string): boolean {
+  const at = tierId.indexOf('@');
+  const stem = (at > 0 ? tierId.slice(0, at) : tierId).toLowerCase();
+  return RECORDING_METADATA_STEMS.has(stem);
+}
+
+/** Recording-session tiers are losses. Other nonempty tiers stay translation rows. */
+export function publishTranslationTier<T extends { text: string }>(
+  target: Map<string, T[]>,
+  tierId: string,
+  annotations: readonly T[],
+  unmappedTierIds: string[],
+): void {
+  if (isRecordingMetadataTier(tierId)) {
+    if (annotations.some((row) => row.text.trim().length > 0)) unmappedTierIds.push(tierId);
+    return;
+  }
+  publishFilledTier(target, tierId, annotations);
 }
 
 export function isEafMorphTier(input: {
@@ -686,16 +745,74 @@ export function isEafMorphTier(input: {
   return tokens.includes('mb') || tokens.includes('morph');
 }
 
+/**
+ * A tier the role dialog did not assign. Anchors and word-family tiers stay out of
+ * the translation list; everything else can still be published.
+ */
+export function stashUnassignedTier(input: {
+  tierId: string;
+  parentTierId?: string | undefined;
+  eafConstraint?: string | undefined;
+  annotations: EafPickAnnotation[];
+  alignable?: EafPickAnnotation[];
+  pick: EafTierPick;
+  anchorSources: EafPickAnnotation[];
+  wordTierEntries: Array<{ tierId: string; anns: EafPickAnnotation[] }>;
+  childOfWordTier: Map<
+    string,
+    Array<{ tierId: string; eafConstraint?: string; anns: EafPickAnnotation[] }>
+  >;
+}): boolean {
+  const annotations =
+    input.annotations.length > 0 ? input.annotations : (input.alignable ?? input.annotations);
+  if (input.pick.anchorTierIds.has(input.tierId)) {
+    input.anchorSources.push(...annotations);
+    return true;
+  }
+  const parentId = input.parentTierId;
+  const parentIsWord = parentId !== undefined && input.pick.wordTierIds.has(parentId);
+  const parentIsAnchor = parentId !== undefined && input.pick.anchorTierIds.has(parentId);
+  if (!input.pick.wordTierIds.has(input.tierId) || parentId === undefined) return false;
+  if (!parentIsWord && !parentIsAnchor) return false;
+  if (parentIsWord) {
+    const list = input.childOfWordTier.get(parentId) ?? [];
+    list.push({
+      tierId: input.tierId,
+      ...(input.eafConstraint !== undefined && input.eafConstraint.length > 0
+        ? { eafConstraint: input.eafConstraint }
+        : {}),
+      anns: annotations,
+    });
+    input.childOfWordTier.set(parentId, list);
+    return true;
+  }
+  input.wordTierEntries.push({ tierId: input.tierId, anns: annotations });
+  return true;
+}
+
 /** Drop morph children that were published as translation rows. `ph` stays a loss. */
 export function detachMorphChildTiers(input: {
   translationTiers: Map<string, Array<{ text: string }>>;
   parentTierIdByTierId: ReadonlyMap<string, string>;
-  morphTierIds: ReadonlySet<string>;
+  childOfWordTier: ReadonlyMap<
+    string,
+    ReadonlyArray<{
+      tierId: string;
+      eafConstraint?: string;
+      field?: 'gloss' | 'pos' | 'morph-form';
+    }>
+  >;
   unmappedTierIds: string[];
 }): void {
+  const morphTierIds = new Set<string>();
+  for (const children of input.childOfWordTier.values()) {
+    for (const child of children) {
+      if (isEafMorphTier(child)) morphTierIds.add(child.tierId);
+    }
+  }
   for (const [tierId, annotations] of input.translationTiers) {
     const parentId = input.parentTierIdByTierId.get(tierId);
-    if (parentId === undefined || !input.morphTierIds.has(parentId)) continue;
+    if (parentId === undefined || !morphTierIds.has(parentId)) continue;
     input.translationTiers.delete(tierId);
     if (
       morphDescendantSlot(tierId) === 'skip' &&

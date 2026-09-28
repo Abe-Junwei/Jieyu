@@ -1142,6 +1142,123 @@ describe('EAF default tier pick', () => {
     ]);
   });
 
+  it('keeps recording metadata off the translation rows', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the translation</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="sound@NOBODY" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="s1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>Zoom H4n</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="dt_rec@NOBODY" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="d1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>01/02/13</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.translationTiers.get('ft')?.[0]?.text).toBe('the translation');
+    expect(imported.translationTiers.has('sound@NOBODY')).toBe(false);
+    expect(imported.translationTiers.has('dt_rec@NOBODY')).toBe(false);
+    expect(
+      imported.losses?.some(
+        (loss) => loss.code === 'unmapped-field' && loss.name?.includes('sound@NOBODY'),
+      ),
+    ).toBe(true);
+    expect(
+      imported.losses?.some(
+        (loss) => loss.code === 'unmapped-field' && loss.name?.includes('dt_rec@NOBODY'),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps unassigned word and recording tiers off the page after the role dialog', () => {
+    const xml = eafFixture(
+      `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+        <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the translation</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="nt@NOBODY" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="n1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>a note</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="wd" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="ref">
+        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>one</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="sound@NOBODY" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="s1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>Zoom H4n</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+      </TIER>`,
+      `${ALIGNABLE}${ASSOC}${SUBDIVISION}`,
+    );
+    const confirmed = importFromEaf(xml, { tierRoles: { tx: 'transcription', ft: 'translation' } });
+    expect(confirmed.transcriptionTierName).toBe('tx');
+    expect(confirmed.units[0]?.transcription).toBe('the sentence');
+    expect(confirmed.translationTiers.get('ft')?.[0]?.text).toBe('the translation');
+    expect(confirmed.translationTiers.get('nt@NOBODY')?.[0]?.text).toBe('a note');
+    for (const tierId of ['ref', 'wd', 'sound@NOBODY']) {
+      expect(confirmed.translationTiers.has(tierId)).toBe(false);
+    }
+    expect(confirmed.units[0]?.tokens?.map((token) => token.form.default)).toEqual(['one']);
+    expect(confirmed.losses?.some((loss) => loss.code === 'guessed-tier')).toBeFalsy();
+    expect(
+      confirmed.losses?.some(
+        (loss) => loss.code === 'unmapped-field' && loss.name?.includes('sound@NOBODY'),
+      ),
+    ).toBe(true);
+  });
+
+  it('stores a segmentation morpheme tier on the sentence instead of a translation row', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="reference_no" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>1</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="transcription" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="reference_no">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="translation" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="transcription">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="t1"><ANNOTATION_VALUE>the translation</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="segmentation" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="transcription">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="s1" ANNOTATION_REF="t1"><ANNOTATION_VALUE>kuu =ja</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="morpheme" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="segmentation">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="m1" ANNOTATION_REF="s1"><ANNOTATION_VALUE>kuu</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="m2" ANNOTATION_REF="s1" PREVIOUS_ANNOTATION="m1"><ANNOTATION_VALUE>=ja</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gloss" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="morpheme">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>today</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g2" ANNOTATION_REF="m2"><ANNOTATION_VALUE>TOP</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}${SUBDIVISION}`,
+      ),
+    );
+    expect(imported.units[0]?.transcription).toBe('the sentence');
+    expect(imported.translationTiers.get('translation')?.[0]?.text).toBe('the translation');
+    for (const tierId of ['segmentation', 'morpheme', 'gloss']) {
+      expect(imported.translationTiers.has(tierId)).toBe(false);
+    }
+    expect(imported.units[0]?.tokens).toEqual([
+      {
+        form: { default: 'kuu =ja' },
+        morphemes: [
+          { form: { default: 'kuu' }, gloss: { und: 'today' } },
+          { form: { default: '=ja' }, gloss: { und: 'TOP' } },
+        ],
+      },
+    ]);
+  });
+
   it('does not publish an empty IPA tier or an empty phrase gloss', () => {
     const imported = importFromEaf(
       eafFixture(
@@ -1354,6 +1471,60 @@ describe('EAF default tier pick', () => {
       expect(imported.units.some((unit) => unit.transcription.includes('Peki'))).toBe(true);
       expect(imported.units.every((unit) => unit.transcription.trim() === '<p:>')).toBe(false);
       expect(imported.units.some((unit) => (unit.tokens?.length ?? 0) > 0)).toBe(true);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openEaf, 'tabaq.eaf')))(
+    'tabaq keeps the free translation and drops the recording metadata tiers',
+    () => {
+      const xml = readFileSync(join(openEaf, 'tabaq.eaf'), 'utf8');
+      const imported = importFromEaf(xml);
+      expect(imported.translationTiers.has('ft@NHK')).toBe(true);
+      expect(imported.translationTiers.has('sound@NOBODY')).toBe(false);
+      expect(imported.translationTiers.has('dt_rec@NOBODY')).toBe(false);
+      expect(imported.translationTiers.has('loc_rec@NOBODY')).toBe(false);
+      const roles = Object.fromEntries(
+        (imported.tierRolePrompt ?? []).map((tier) => [tier.tierId, tier.role]),
+      );
+      const confirmed = importFromEaf(xml, { tierRoles: roles });
+      expect(confirmed.transcriptionTierName).toBe('tx@NHK');
+      expect(confirmed.units.some((unit) => unit.transcription.trim().length > 0)).toBe(true);
+      expect(confirmed.translationTiers.has('ft@NHK')).toBe(true);
+      expect(confirmed.translationTiers.has('nt@NHK')).toBe(true);
+      for (const tierId of [
+        'sound@NOBODY',
+        'dt_rec@NOBODY',
+        'loc_rec@NOBODY',
+        'wd@NHK',
+        'ph@NHK',
+        'ref@NHK',
+        'ref@KBK',
+      ]) {
+        expect(confirmed.translationTiers.has(tierId)).toBe(false);
+      }
+      expect(confirmed.losses?.some((loss) => loss.code === 'guessed-tier')).toBeFalsy();
+    },
+  );
+
+  it.skipIf(!existsSync(join(openEaf, 'okinawan-itoman-yukkanuhii.eaf')))(
+    'okinawan morpheme gloss is stored on the sentence',
+    () => {
+      const imported = importFromEaf(
+        readFileSync(join(openEaf, 'okinawan-itoman-yukkanuhii.eaf'), 'utf8'),
+      );
+      expect(imported.translationTiers.has('translation@HM')).toBe(true);
+      expect(imported.translationTiers.has('segmentation@HM')).toBe(false);
+      expect(imported.translationTiers.has('morpheme@HM')).toBe(false);
+      expect(imported.translationTiers.has('gloss@HM')).toBe(false);
+      expect(
+        imported.units.some((unit) =>
+          unit.tokens?.some((token) =>
+            token.morphemes?.some(
+              (morph) => morph.gloss?.en === 'TOP' || morph.gloss?.und === 'TOP',
+            ),
+          ),
+        ),
+      ).toBe(true);
     },
   );
 
