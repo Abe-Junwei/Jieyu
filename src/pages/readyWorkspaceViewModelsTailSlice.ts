@@ -35,6 +35,7 @@ type TailSliceInjectedKeys =
   | 'pendingAudioImportSelection'
   | 'clearPendingAudioImportSelection'
   | 'annotationImportMismatchDialog'
+  | 'eafTierRoleDialog'
   | 'mediaFileInputRef'
   | 'audioDeleteConfirm'
   | 'setAudioDeleteConfirm'
@@ -111,6 +112,7 @@ export function buildReadyWorkspaceViewModelsTailSlice(
     pendingAudioImportSelection: projectMediaController.pendingAudioImportSelection,
     clearPendingAudioImportSelection: projectMediaController.clearPendingAudioImportSelection,
     annotationImportMismatchDialog: importExportController.annotationImportMismatchDialog,
+    eafTierRoleDialog: importExportController.eafTierRoleDialog,
     mediaFileInputRef: projectMediaController.mediaFileInputRef,
     audioDeleteConfirm: projectMediaController.audioDeleteConfirm,
     setAudioDeleteConfirm: projectMediaController.setAudioDeleteConfirm,

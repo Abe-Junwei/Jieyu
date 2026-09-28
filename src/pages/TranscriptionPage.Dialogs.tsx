@@ -3,6 +3,7 @@ import { SpeakerActionDialog } from '../components/transcription/SpeakerActionDi
 import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
 import { AudioImportDialog } from '../components/AudioImportDialog';
 import { AnnotationImportMismatchDialog } from '../components/AnnotationImportMismatchDialog';
+import { EafTierRoleDialog } from '../components/EafTierRoleDialog';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { ShortcutsPanel } from '../components/ShortcutsPanel';
 import { normalizeLocale, t, tf } from '../i18n';
@@ -15,6 +16,7 @@ import type {
 } from './transcriptionAudioImportTypes';
 import type { PendingAudioImportSelection } from '../types/useTranscriptionProjectMediaController.types';
 import type { TimelineImportMismatchNotice } from '../utils/timelineImportMismatch';
+import type { EafRolePromptTier, EafTierRole } from '../utils/eafTierRole';
 
 export type AnnotationImportMismatchDialogBinding = {
   isOpen: boolean;
@@ -23,6 +25,15 @@ export type AnnotationImportMismatchDialogBinding = {
   busy?: boolean;
   onClose: () => void;
   onConfirm: () => void | Promise<void>;
+};
+
+export type EafTierRoleDialogBinding = {
+  isOpen: boolean;
+  fileName: string;
+  tiers: readonly EafRolePromptTier[];
+  busy?: boolean;
+  onClose: () => void;
+  onConfirm: (roles: Record<string, EafTierRole>) => void | Promise<void>;
 };
 
 export type {
@@ -62,6 +73,7 @@ export type TranscriptionPageDialogsProps = {
     options?: TranscriptionAudioImportOptions,
   ) => Promise<void>;
   annotationImportMismatchDialog?: AnnotationImportMismatchDialogBinding | null;
+  eafTierRoleDialog?: EafTierRoleDialogBinding | null;
   // File input ref
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
   onDirectMediaImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -100,6 +112,7 @@ export function TranscriptionPageDialogs({
   onConsumePendingAudioImportSelection,
   onImportAudio,
   annotationImportMismatchDialog,
+  eafTierRoleDialog,
   mediaFileInputRef: _mediaFileInputRef,
   onDirectMediaImport: _onDirectMediaImport,
   audioDeleteConfirm,
@@ -161,6 +174,22 @@ export function TranscriptionPageDialogs({
           onConfirm={() => {
             fireAndForget(Promise.resolve(annotationImportMismatchDialog.onConfirm()), {
               context: 'src/pages/TranscriptionPage.Dialogs.tsx:L162',
+              policy: 'user-visible',
+            });
+          }}
+        />
+      ) : null}
+
+      {eafTierRoleDialog ? (
+        <EafTierRoleDialog
+          isOpen={eafTierRoleDialog.isOpen}
+          fileName={eafTierRoleDialog.fileName}
+          tiers={eafTierRoleDialog.tiers}
+          {...(eafTierRoleDialog.busy !== undefined ? { busy: eafTierRoleDialog.busy } : {})}
+          onClose={eafTierRoleDialog.onClose}
+          onConfirm={(roles) => {
+            fireAndForget(Promise.resolve(eafTierRoleDialog.onConfirm(roles)), {
+              context: 'src/pages/TranscriptionPage.Dialogs.tsx:L191',
               policy: 'user-visible',
             });
           }}
