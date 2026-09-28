@@ -1108,7 +1108,9 @@ export function importFromEaf(xmlString: string): EafImportResult {
   doc.querySelectorAll('TIME_SLOT').forEach((el) => {
     const id = el.getAttribute('TIME_SLOT_ID');
     const val = el.getAttribute('TIME_VALUE');
-    if (id && val) timeSlotMap.set(id, parseInt(val, 10));
+    if (id === null || id.length === 0 || val === null || val.length === 0) return;
+    const parsed = parseInt(val, 10);
+    if (Number.isFinite(parsed)) timeSlotMap.set(id, parsed);
   });
   const tierMetadata = new Map<string, OrthographyInteropMetadata>();
   let timelineMetadata: TimelineInteropMetadata | undefined;
