@@ -19,6 +19,7 @@ import type {
   UnitMorphemeDocType,
   OrthographyDocType,
 } from '../db';
+import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
@@ -74,6 +75,8 @@ export interface ToolboxImportResult {
       tokens?: ToolboxImportResult['units'][number]['tokens'];
     }>
   >;
+  /** Losses known at parse time. Append-without-id is added by the import handler. */
+  losses?: InterchangeLoss[];
 }
 
 type RawRecord = {

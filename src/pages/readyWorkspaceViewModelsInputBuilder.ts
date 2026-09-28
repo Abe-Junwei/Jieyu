@@ -101,6 +101,7 @@ type ReadyWorkspaceOrchestratorRawWorkspaceTailFields = Pick<
   | 'pendingAudioImportSelection'
   | 'clearPendingAudioImportSelection'
   | 'annotationImportMismatchDialog'
+  | 'eafTierRoleDialog'
   | 'mediaFileInputRef'
   | 'handleDirectMediaImport'
   | 'audioDeleteConfirm'

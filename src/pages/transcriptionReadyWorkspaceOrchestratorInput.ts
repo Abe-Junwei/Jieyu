@@ -159,6 +159,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   pendingAudioImportSelection: PendingAudioImportSelection | null;
   clearPendingAudioImportSelection: () => void;
   annotationImportMismatchDialog?: TranscriptionPageDialogsProps['annotationImportMismatchDialog'];
+  eafTierRoleDialog?: TranscriptionPageDialogsProps['eafTierRoleDialog'];
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
   handleDirectMediaImport: (e: ChangeEvent<HTMLInputElement>) => void;
   audioDeleteConfirm: { filename: string } | null;
@@ -285,6 +286,7 @@ export function buildOrchestratorViewModelsInput(
     pendingAudioImportSelection,
     clearPendingAudioImportSelection,
     annotationImportMismatchDialog,
+    eafTierRoleDialog,
     mediaFileInputRef,
     handleDirectMediaImport,
     audioDeleteConfirm,
@@ -448,6 +450,7 @@ export function buildOrchestratorViewModelsInput(
       pendingAudioImportSelection,
       clearPendingAudioImportSelection,
       ...(annotationImportMismatchDialog ? { annotationImportMismatchDialog } : {}),
+      ...(eafTierRoleDialog ? { eafTierRoleDialog } : {}),
       mediaFileInputRef,
       handleDirectMediaImport,
       audioDeleteConfirm,

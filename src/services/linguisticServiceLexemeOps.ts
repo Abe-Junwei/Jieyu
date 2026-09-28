@@ -1,10 +1,16 @@
 import {
+  DMLEX_RESOURCE_ID,
   ensureLexemeNestedIds,
   getDb,
+  isLexemeEntry,
+  isLexemeResource,
   runDexieIndexedQueryOrElse,
   withTransaction,
   type LexemeDocType,
+  type LexemeEntryDoc,
+  type LexemeResourceDoc,
 } from '../db';
+import { lexemeHeadword, lexemeMatchValues } from '../utils/dmlexEntry';
 import { newId } from '../utils/transcriptionFormatters';
 import {
   dispatchWorkspaceLexemeDeleted,
@@ -23,41 +29,47 @@ export interface LexemeTranscriptionJumpTarget {
   linkUpdatedAt: string;
 }
 
-export async function listLexemes(): Promise<LexemeDocType[]> {
+function entryRows(docs: LexemeDocType[]): LexemeEntryDoc[] {
+  return docs.filter(isLexemeEntry);
+}
+
+export async function listLexemes(): Promise<LexemeEntryDoc[]> {
   const db = await getDb();
   const docs = await db.collections.lexemes.find().exec();
 
-  return docs
-    .map((doc) => doc.toJSON())
-    .sort((left, right) => {
-      const usageDiff = (right.usageCount ?? 0) - (left.usageCount ?? 0);
-      if (usageDiff !== 0) return usageDiff;
+  return entryRows(docs.map((doc) => doc.toJSON())).sort((left, right) => {
+    const usageDiff = (right.usageCount ?? 0) - (left.usageCount ?? 0);
+    if (usageDiff !== 0) return usageDiff;
 
-      const updatedDiff = right.updatedAt.localeCompare(left.updatedAt);
-      if (updatedDiff !== 0) return updatedDiff;
+    const updatedDiff = right.updatedAt.localeCompare(left.updatedAt);
+    if (updatedDiff !== 0) return updatedDiff;
 
-      const leftLabel = Object.values(left.lemma)[0] ?? left.id;
-      const rightLabel = Object.values(right.lemma)[0] ?? right.id;
-      return leftLabel.localeCompare(rightLabel, 'zh-CN');
-    });
+    return lexemeHeadword(left).localeCompare(lexemeHeadword(right), 'zh-CN');
+  });
 }
 
-export async function searchLexemes(query: string): Promise<LexemeDocType[]> {
+export async function searchLexemes(query: string): Promise<LexemeEntryDoc[]> {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];
 
   const db = await getDb();
   const docs = await db.collections.lexemes.find().exec();
-  return docs
-    .map((doc) => doc.toJSON())
-    .filter((item) =>
-      Object.values(item.lemma).some((value) => value.toLowerCase().includes(normalized)),
-    );
+  return entryRows(docs.map((doc) => doc.toJSON())).filter((item) =>
+    lexemeMatchValues(item).some((value) => value.includes(normalized)),
+  );
+}
+
+export async function getDmlexResource(): Promise<LexemeResourceDoc | null> {
+  const db = await getDb();
+  const doc = await db.collections.lexemes.findOne({ selector: { id: DMLEX_RESOURCE_ID } }).exec();
+  if (!doc) return null;
+  const json = doc.toJSON();
+  return isLexemeResource(json) ? json : null;
 }
 
 export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const db = await getDb();
-  const stored = ensureLexemeNestedIds(data);
+  const stored = isLexemeEntry(data) ? ensureLexemeNestedIds(data) : data;
   const doc = await db.collections.lexemes.insert(stored);
   dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
   return doc.primary;
@@ -108,14 +120,9 @@ export async function deleteLexeme(lexemeId: string): Promise<void> {
   dispatchWorkspaceLexemeDeleted({ lexemeId: id, deletionMode: 'hard' });
 }
 
-function lemmaSurface(lexeme: LexemeDocType): string {
-  const lemma = lexeme.lemma ?? {};
-  const preferred = lemma.default ?? lemma.eng ?? lemma.zho;
-  if (typeof preferred === 'string' && preferred.trim()) return preferred.trim();
-  for (const value of Object.values(lemma)) {
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return '';
+function headwordSurface(lexeme: LexemeDocType): string {
+  if (!isLexemeEntry(lexeme)) return '';
+  return lexemeHeadword(lexeme);
 }
 
 /**
@@ -132,20 +139,29 @@ export async function matchOrCreateLexemeByForm(input: {
   const language = input.language?.trim();
   const db = await getDb();
   const existing = (await db.dexie.lexemes.toArray()).find((lexeme) => {
-    if (lemmaSurface(lexeme) !== form) return false;
+    if (headwordSurface(lexeme) !== form) return false;
     if (!language) return true;
-    return (lexeme.language ?? '').trim() === language;
+    if (!isLexemeEntry(lexeme)) return false;
+    const lang = lexeme.entry.senses?.[0]?.headwordTranslations?.[0]?.langCode ?? '';
+    return lang === language;
   });
   if (existing) return existing.id;
 
   const now = new Date().toISOString();
   const id = newId('lex');
+  const senseId = newId('sense');
   await db.dexie.lexemes.put({
     id,
-    lemma: { default: form },
-    // Schema requires ≥1 sense; import creates a placeholder gloss from the surface form.
-    senses: [{ id: newId('sense'), gloss: { default: form } }],
-    ...(language ? { language } : {}),
+    entry: {
+      id,
+      headword: form,
+      senses: [
+        {
+          id: senseId,
+          headwordTranslations: [{ text: form, langCode: language || 'und' }],
+        },
+      ],
+    },
     createdAt: now,
     updatedAt: now,
   });

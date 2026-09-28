@@ -32,6 +32,7 @@ import type {
   OrthographyDocType,
   LayerUnitDocType,
 } from '../db';
+import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
@@ -90,6 +91,8 @@ export interface TrsImportResult {
   }>;
   /** Section-level topics (aggregated; preferred over per-unit topic for persistence) */
   sectionTopics?: Array<{ startTime: number; endTime: number; topic: string }>;
+  /** Losses known at parse time. Append-without-id is added by the import handler. */
+  losses?: InterchangeLoss[];
 }
 
 // ── Helpers ─────────────────────────────────────────────────
