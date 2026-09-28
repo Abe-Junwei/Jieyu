@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { useAiPanelLogic, taskToPersona, type UseAiPanelLogicInput } from './useAiPanelLogic';
 import { LinguisticService } from '../../services/LinguisticService';
-import type { LexemeDocType } from '../../db';
+import type { LexemeEntryDoc } from '../../db';
+import { entryDoc } from '../../utils/dmlexEntry';
 
 // Prevent real network calls from the debounced lexeme search effect.
 vi.mock('../../services/LinguisticService', () => ({
@@ -48,13 +49,13 @@ const makeInput = (overrides: Partial<UseAiPanelLogicInput> = {}): UseAiPanelLog
   ...overrides,
 });
 
-const lexeme = (id: string, lemma: string): LexemeDocType => ({
-  id,
-  lemma: { default: lemma },
-  senses: [],
-  createdAt: '2026-04-04T00:00:00.000Z',
-  updatedAt: '2026-04-04T00:00:00.000Z',
-});
+const lexeme = (id: string, headword: string): LexemeEntryDoc =>
+  entryDoc({
+    id,
+    headword,
+    createdAt: '2026-04-04T00:00:00.000Z',
+    updatedAt: '2026-04-04T00:00:00.000Z',
+  });
 
 // ---------------------------------------------------------------------------
 // selectedTranslationGapCount
@@ -369,8 +370,8 @@ describe('selectedAiWarning', () => {
 describe('lexemeMatches', () => {
   it('ignores stale lexeme search results from earlier queries', async () => {
     vi.useFakeTimers();
-    let resolveFirst: ((value: LexemeDocType[]) => void) | undefined;
-    let resolveSecond: ((value: LexemeDocType[]) => void) | undefined;
+    let resolveFirst: ((value: LexemeEntryDoc[]) => void) | undefined;
+    let resolveSecond: ((value: LexemeEntryDoc[]) => void) | undefined;
     searchLexemesMock.mockReset();
     searchLexemesMock
       .mockImplementationOnce(
@@ -413,7 +414,7 @@ describe('lexemeMatches', () => {
       await Promise.resolve();
     });
 
-    expect(result.current.lexemeMatches).toEqual([lexeme('new', 'beta')]);
+    expect(result.current.lexemeMatches).toEqual([{ id: 'new', lemma: { default: 'beta' } }]);
   });
 });
 

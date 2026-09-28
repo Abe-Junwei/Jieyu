@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider } from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
+import { entryDoc } from '../utils/dmlexEntry';
 
 const {
   mockListByTextId,
@@ -667,13 +668,13 @@ describe('AnnotationPage', () => {
   it('previews auto-gloss without writing until apply', async () => {
     seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', '')]);
     mockListLexemes.mockResolvedValue([
-      {
+      entryDoc({
         id: 'lex-hello',
-        lemma: { default: 'hello' },
-        senses: [{ gloss: { default: 'INTJ' } }],
-        createdAt: '',
-        updatedAt: '',
-      },
+        headword: 'hello',
+        definition: 'INTJ',
+        createdAt: '2026-09-11T08:00:00.000Z',
+        updatedAt: '2026-09-11T08:00:00.000Z',
+      }),
     ]);
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
