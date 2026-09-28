@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { isEafContentAnchor, pickEafTiers, tokenizeEafLabel } from './eafTierPick';
+import {
+  hasKnownEafTierName,
+  isEafContentAnchor,
+  isEafDateTier,
+  isPhoneticTranscriptionTier,
+  isUtteranceNoteTier,
+  phoneticTranscriptionTier,
+  pickEafTiers,
+  publishTranslationTier,
+  tokenizeEafLabel,
+  utteranceNoteRows,
+} from './eafTierPick';
 
 function tier(
   tierId: string,
@@ -30,6 +41,37 @@ function tier(
 }
 
 describe('eaf tier pick', () => {
+  it('keeps a ph tier as phonetic transcription and ignores phrase', () => {
+    expect(isPhoneticTranscriptionTier('ph@NHK')).toBe(true);
+    expect(isPhoneticTranscriptionTier('phrase-txt')).toBe(false);
+    expect(isUtteranceNoteTier('nt@NHK')).toBe(true);
+    expect(isUtteranceNoteTier('note')).toBe(false);
+    expect(
+      utteranceNoteRows([
+        { startTime: 0, endTime: 1, text: '<p:>', annotationRef: 'a0' },
+        { startTime: 1, endTime: 2, text: 'aay = Sudanese Ar. yes', annotationRef: 'a3' },
+      ]),
+    ).toEqual([
+      {
+        startTime: 1,
+        endTime: 2,
+        text: 'aay = Sudanese Ar. yes',
+        annotationRef: 'a3',
+        targetType: 'unit',
+        category: 'comment',
+      },
+    ]);
+    expect(
+      phoneticTranscriptionTier({
+        tierId: 'ph',
+        annotations: [
+          { startTime: 1, endTime: 1.2, text: 'a', annotationId: 'p1' },
+          { startTime: 1.2, endTime: 1.4, text: '   ' },
+        ],
+      })?.units,
+    ).toEqual([{ startTime: 1, endTime: 1.2, transcription: 'a', annotationId: 'p1' }]);
+  });
+
   it('splits labels on non-letters and keeps gl distinct from gloss', () => {
     expect(tokenizeEafLabel('Thai-gloss')).toEqual(['thai', 'gloss']);
     expect(tokenizeEafLabel('tx@33')).toEqual(['tx']);
@@ -123,10 +165,16 @@ describe('eaf tier pick', () => {
         maxChildrenPerParent: 3,
         nonemptyTexts: ['ni⁵⁵ɕu³¹'],
       }),
+      tier('A_word-gls-zh-CN', {
+        parentTierId: 'A_word-txt-ers-CN',
+        nonemptyTexts: ['两口子'],
+      }),
     ]);
-    expect(picked.transcriptionTierId).toBe('A_phrase-segnum-en');
+    expect(picked.transcriptionTierId).toBeUndefined();
+    expect(picked.anchorTierIds.has('A_phrase-segnum-en')).toBe(true);
     expect(picked.headerTierIds.has('interlinear-text-title-en')).toBe(true);
     expect(picked.wordTierIds.has('A_word-txt-ers-CN')).toBe(true);
+    expect(picked.wordTierIds.has('A_word-gls-zh-CN')).toBe(true);
     expect(picked.promptTiers).toBeUndefined();
   });
 
@@ -162,6 +210,42 @@ describe('eaf tier pick', () => {
       }),
     ]);
     expect(picked.promptTiers?.map((row) => row.tierId)).toEqual(['tx@NHK', 'ft@NHK', 'tx@KBK']);
+  });
+
+  it('drops an unnamed date tier and keeps a named sentence tier', () => {
+    expect(isEafDateTier(['10/Apr/2013', '<p:>', '2013-04-10', '****'])).toBe(true);
+    expect(isEafDateTier(['2013/4/10', '01/02/13', '10/April/2013'])).toBe(true);
+    expect(
+      isEafDateTier(['10/Apr/2013', 'a real sentence', 'another line', 'third', 'fourth']),
+    ).toBe(false);
+    expect(hasKnownEafTierName('ft')).toBe(true);
+    expect(hasKnownEafTierName('tx')).toBe(true);
+    expect(hasKnownEafTierName('dt')).toBe(true);
+    expect(hasKnownEafTierName('when')).toBe(false);
+    const dates = ['10/Apr/2013', '2013-04-10', '01/02/2013', '11/May/2014'];
+    const picked = pickEafTiers([
+      tier('when', { nonemptyTexts: dates }),
+      tier('story', { nonemptyTexts: ['a real sentence'] }),
+    ]);
+    expect(picked.transcriptionTierId).toBe('story');
+    expect(picked.anchorTierIds.has('when')).toBe(false);
+    expect(picked.promptTiers).toBeUndefined();
+    const onlyDates = pickEafTiers([tier('session', { nonemptyTexts: dates })]);
+    expect(onlyDates.transcriptionTierId).toBeUndefined();
+    const named = pickEafTiers([tier('tx', { nonemptyTexts: dates })]);
+    expect(named.transcriptionTierId).toBe('tx');
+    const rows = new Map<string, Array<{ text: string }>>();
+    const losses: string[] = [];
+    publishTranslationTier(rows, 'ft', [{ text: '10/Apr/2013' }], losses);
+    publishTranslationTier(
+      rows,
+      'when',
+      dates.map((text) => ({ text })),
+      losses,
+    );
+    expect(rows.get('ft')).toEqual([{ text: '10/Apr/2013' }]);
+    expect(rows.has('when')).toBe(false);
+    expect(losses).toEqual(['when']);
   });
 
   it('reads a sentence tier whose element is 句子 and whose item type is txt', () => {
