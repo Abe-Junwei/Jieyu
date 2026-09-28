@@ -2102,6 +2102,8 @@ export const enUSDictionary = {
   'transcription.importExport.importDone.unmatchedRef':
     '{count} references did not match a parent annotation, so they were not aligned by time.',
   'transcription.importExport.importDone.unmappedField': 'Not written: {name}.',
+  'transcription.importExport.importDone.guessedTier':
+    'Transcription tier chosen from the text: {name}.',
   'transcription.importExport.importDone.noStableId':
     '{count} items had no stable id and were created as new rows.',
   'transcription.importExport.importDone.replacedById':

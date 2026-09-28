@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { db, getDb, isLexemeEntry } from '../../db';
@@ -1135,7 +1137,13 @@ describe('useImportExport - import success under stop-write', () => {
     <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="1000" />
     <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1800" />
   </TIME_ORDER>
-  <TIER TIER_ID="Default Transcription" LINGUISTIC_TYPE_REF="default-lt" />
+  <TIER TIER_ID="Default Transcription" LINGUISTIC_TYPE_REF="default-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
   <TIER TIER_ID="Independent Secondary" LINGUISTIC_TYPE_REF="default-lt">
     <ANNOTATION>
       <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
@@ -2337,5 +2345,264 @@ describe('useImportExport - import success under stop-write', () => {
     );
     expect(contentsAfter.some((row) => row.text === 'hello again')).toBe(true);
     expect(contentsAfter.some((row) => row.text === 'other text')).toBe(false);
+  });
+
+  function layerFor(textId: string, id: string): LayerDocType {
+    return {
+      id,
+      textId,
+      key: id.replace(/-/g, '_'),
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+  }
+
+  it('writes English and Chinese from multi-tier-ipa when the project has no media', async () => {
+    const textId = 'text-ipa-nomedia';
+    const defaultLayer = layerFor(textId, 'trc-ipa-nomedia');
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: readFileSync(join(__dirname, '../../../tests/golden/eaf/multi-tier-ipa.eaf'), 'utf8'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter(textId, [defaultLayer]);
+    const mediaBefore = await db.media_items.count();
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'multi-tier-ipa.eaf', { type: 'application/xml' }),
+      );
+    });
+    expect(result.current.eafTierRoleDialog?.isOpen).not.toBe(true);
+    const units = await db.layer_units.where('textId').equals(textId).toArray();
+    const unitIds = new Set(units.map((row) => row.id));
+    const contents = (await db.layer_unit_contents.toArray()).filter(
+      (row) => row.unitId !== undefined && unitIds.has(row.unitId),
+    );
+    const host = units.find((row) => row.unitType === 'unit' && row.startTime === 0);
+    expect(host).toBeDefined();
+    const onHost = contents.filter((row) => row.unitId === host?.id).map((row) => row.text);
+    expect(onHost).toEqual(expect.arrayContaining(['The tea is hot', '茶很烫']));
+    expect(
+      contents.some((row) => row.text === 'tɕʰa mo ɣa ra' && row.unitId?.includes(host?.id ?? '')),
+    ).toBe(true);
+    expect(await db.media_items.count()).toBe(mediaBefore);
+  });
+
+  it('still drops an independent translation that does not overlap a unit', async () => {
+    const textId = 'text-drop-trl';
+    const defaultLayer = layerFor(textId, 'trc-drop-trl');
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: eafFile(
+        'speech.wav',
+        `<TIER TIER_ID="default" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="English" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4">
+              <ANNOTATION_VALUE>nowhere</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>`,
+      ),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { setSaveState, result } = renderImporter(textId, [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'only-translation.eaf', { type: 'application/xml' }),
+      );
+    });
+    const done = setSaveState.mock.calls.filter((call) => call[0]?.kind === 'done').at(-1);
+    const message = String(done?.[0]?.message ?? '');
+    expect(message.includes('未导入') || message.includes('Skipped')).toBe(true);
+  });
+
+  it('asks before writing when two tiers are both named tx', async () => {
+    const textId = 'text-two-tx';
+    const defaultLayer = layerFor(textId, 'trc-two-tx');
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: eafFile(
+        'speech.wav',
+        `<TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>first sentence</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx-b" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4">
+              <ANNOTATION_VALUE>second sentence</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>`,
+      ),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter(textId, [defaultLayer], true);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'two-tx.eaf', { type: 'application/xml' }),
+      );
+    });
+    expect(await db.layer_units.where('textId').equals(textId).count()).toBe(0);
+    const dialog = result.current.eafTierRoleDialog;
+    expect(dialog?.isOpen).toBe(true);
+    expect(dialog?.tiers.map((tier) => tier.tierId)).toEqual(['tx', 'tx-b']);
+    expect(dialog?.tiers[0]?.role).toBe('transcription');
+  });
+
+  it('writes a ref plus tx file without asking, and names the chosen tier', async () => {
+    const textId = 'text-ref-tx';
+    const defaultLayer = layerFor(textId, 'trc-ref-tx');
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="test" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <MEDIA_DESCRIPTOR MEDIA_URL="speech.wav" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./speech.wav" />
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1">
+        <ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1">
+        <ANNOTATION_VALUE>the translation</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="align-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="assoc-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result, setSaveState } = renderImporter(textId, [defaultLayer], true);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'ref-tx.eaf', { type: 'application/xml' }),
+      );
+    });
+    expect(result.current.eafTierRoleDialog?.isOpen).not.toBe(true);
+    const contents = await db.layer_unit_contents.toArray();
+    expect(contents.some((row) => row.text === 'the sentence')).toBe(true);
+    const notes = await db.user_notes.toArray();
+    expect(notes.some((note) => JSON.stringify(note.content).includes('0001_doreco_x'))).toBe(true);
+    const done = setSaveState.mock.calls.filter((call) => call[0]?.kind === 'done').at(-1);
+    expect(String(done?.[0]?.message ?? '')).toContain('tx');
+  });
+
+  it('does not mention a guessed tier for minimal.eaf', async () => {
+    const textId = 'text-minimal';
+    const defaultLayer = layerFor(textId, 'trc-minimal');
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: readFileSync(join(__dirname, '../../../tests/golden/eaf/minimal.eaf'), 'utf8'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result, setSaveState } = renderImporter(textId, [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'minimal.eaf', { type: 'application/xml' }),
+      );
+    });
+    const done = setSaveState.mock.calls.filter((call) => call[0]?.kind === 'done').at(-1);
+    const message = String(done?.[0]?.message ?? '');
+    expect(
+      message.includes('转写层按正文选为') || message.includes('Transcription tier chosen'),
+    ).toBe(false);
+  });
+
+  it('still asks for multi-tier-ipa roles and defaults default to transcription', async () => {
+    const textId = 'text-ipa-prompt';
+    const defaultLayer = layerFor(textId, 'trc-ipa-prompt');
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: readFileSync(join(__dirname, '../../../tests/golden/eaf/multi-tier-ipa.eaf'), 'utf8'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter(textId, [defaultLayer], true);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'multi-tier-ipa.eaf', { type: 'application/xml' }),
+      );
+    });
+    expect(await db.layer_units.where('textId').equals(textId).count()).toBe(0);
+    const dialog = result.current.eafTierRoleDialog;
+    expect(dialog?.tiers.map((tier) => [tier.tierId, tier.role])).toEqual([
+      ['default', 'transcription'],
+      ['English', 'translation'],
+      ['Chinese', 'translation'],
+    ]);
+  });
+
+  it('does not ask for tier roles when the confirm switch is off', async () => {
+    const textId = 'text-two-tx-off';
+    const defaultLayer = layerFor(textId, 'trc-two-tx-off');
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: eafFile(
+        'speech.wav',
+        `<TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>first sentence</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx-b" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4">
+              <ANNOTATION_VALUE>second sentence</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>`,
+      ),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter(textId, [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'two-tx-off.eaf', { type: 'application/xml' }),
+      );
+    });
+    expect(result.current.eafTierRoleDialog?.isOpen).not.toBe(true);
+    const contents = await db.layer_unit_contents.toArray();
+    expect(contents.some((row) => row.text === 'first sentence')).toBe(true);
   });
 });

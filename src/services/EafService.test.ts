@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type {
   LayerDocType,
@@ -1001,4 +1003,203 @@ describe('EAF interchange alignment', () => {
     expect(excluded.translationTiers.has('free')).toBe(false);
     expect(excluded.translationTiers.has('late')).toBe(false);
   });
+});
+
+function eafFixture(body: string, types: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="test" DATE="2026-01-01T00:00:00.000Z" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <MEDIA_DESCRIPTOR MEDIA_URL="speech.wav" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./speech.wav" />
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+    <TIME_SLOT TIME_SLOT_ID="ts3" TIME_VALUE="1000" />
+    <TIME_SLOT TIME_SLOT_ID="ts4" TIME_VALUE="2000" />
+  </TIME_ORDER>
+  ${body}
+  ${types}
+</ANNOTATION_DOCUMENT>`;
+}
+
+const ALIGNABLE = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="align-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />`;
+const ASSOC = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="assoc-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />`;
+const NOT_ALIGNABLE_ROOT = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="root-lt" TIME_ALIGNABLE="false" GRAPHIC_REFERENCES="false" />`;
+const SUBDIVISION = `<LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="sub-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />`;
+
+describe('EAF default tier pick', () => {
+  it('reads the sentence from tx, the translation from ft, and the ids as parent notes', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4"><ANNOTATION_VALUE>&lt;p:&gt;</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>nono'eitiit woow</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t2" ANNOTATION_REF="a2"><ANNOTATION_VALUE>second sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>Arapaho language</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.transcriptionTierName).toBe('tx');
+    expect(imported.units.map((unit) => unit.transcription)).toEqual([
+      "nono'eitiit woow",
+      'second sentence',
+    ]);
+    expect(imported.translationTiers.get('ft')?.[0]?.text).toBe('Arapaho language');
+    expect(imported.userNotes?.map((note) => note.text)).toEqual(['0001_doreco_x', '<p:>']);
+    expect(imported.userNotes?.[0]?.annotationRef).toBe('t1');
+    expect(imported.losses).toEqual([{ code: 'guessed-tier', name: 'tx' }]);
+    expect(imported.tierRolePrompt).toBeUndefined();
+  });
+
+  it('uses a transcription child when the root type is not time-alignable', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="root-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_kamas</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="align-lt" PARENT_REF="ref">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="t1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>Tumoʔim</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${NOT_ALIGNABLE_ROOT}${ALIGNABLE}`,
+      ),
+    );
+    expect(imported.units.length).toBeGreaterThan(0);
+    expect(imported.units[0]?.transcription).toBe('Tumoʔim');
+    expect(imported.transcriptionTierName).toBe('tx');
+  });
+
+  it('does not take an empty document_notes tier as the transcription', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="document_notes" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE></ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="transcription" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="document_notes">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.transcriptionTierName).not.toBe('document_notes');
+    expect(imported.units[0]?.transcription).toBe('the sentence');
+  });
+
+  it('does not take a numeric segnum tier as the transcription', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="segnum" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>12</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="segnum">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.units[0]?.transcription).toBe('the sentence');
+    expect(imported.units[0]?.transcription).not.toBe('12');
+  });
+
+  it('keeps saved roles ahead of the default guess', () => {
+    const xml = eafFixture(
+      `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+        <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+      </TIER>
+      <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+      </TIER>`,
+      `${ALIGNABLE}${ASSOC}`,
+    );
+    const saved = importFromEaf(xml, { tierRoles: { ref: 'transcription', tx: 'translation' } });
+    expect(saved.transcriptionTierName).toBe('ref');
+    expect(saved.units[0]?.transcription).toBe('0001_doreco_x');
+    expect(saved.losses?.some((loss) => loss.code === 'guessed-tier')).toBeFalsy();
+  });
+
+  it('keeps a one-to-one translation subdivision out of the word tokens', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="utterance" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>Èta carita</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="Translation" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="utterance">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="e1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>The story is about</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="words" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="utterance">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>Èta</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w2" ANNOTATION_REF="a1"><ANNOTATION_VALUE>carita</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${SUBDIVISION}`,
+      ),
+    );
+    expect(imported.translationTiers.get('Translation')?.[0]?.text).toBe('The story is about');
+    expect(imported.units[0]?.tokens?.map((token) => token.form.default)).toEqual([
+      'Èta',
+      'carita',
+    ]);
+  });
+
+  it('keeps golden transcription tier names and unit counts', () => {
+    const root = join(__dirname, '../../tests/golden/eaf');
+    const minimal = importFromEaf(readFileSync(join(root, 'minimal.eaf'), 'utf8'));
+    expect(minimal.transcriptionTierName).toBe('default');
+    expect(minimal.units).toHaveLength(2);
+    expect(minimal.losses?.some((loss) => loss.code === 'guessed-tier')).toBeFalsy();
+
+    const thai = importFromEaf(readFileSync(join(root, 'five-unit-thai.eaf'), 'utf8'));
+    expect(thai.transcriptionTierName).toBe('default');
+    expect(thai.units).toHaveLength(5);
+
+    const muya = importFromEaf(readFileSync(join(root, 'mvm-muya-real.eaf'), 'utf8'));
+    expect(muya.transcriptionTierName).toBe('mvm-fonipa-x-emic');
+    expect(muya.units).toHaveLength(1);
+    expect(muya.translationTiers.get('en')?.[0]?.text).toBe('Muya sample line');
+  });
+
+  const openEaf = join(__dirname, '../../tests/fixtures/open-corpora/elan');
+
+  it.skipIf(!existsSync(join(openEaf, 'arapaho.eaf')))(
+    'arapaho transcription does not start with a corpus id',
+    () => {
+      const imported = importFromEaf(readFileSync(join(openEaf, 'arapaho.eaf'), 'utf8'));
+      const sample = imported.units.find((unit) => unit.transcription.trim())?.transcription ?? '';
+      expect(sample.startsWith('0001_doreco_')).toBe(false);
+      expect(sample.length).toBeGreaterThan(0);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openEaf, 'kamas.eaf')))('kamas transcription contains Tumo', () => {
+    const imported = importFromEaf(readFileSync(join(openEaf, 'kamas.eaf'), 'utf8'));
+    expect(imported.units.some((unit) => unit.transcription.includes('Tumo'))).toBe(true);
+  });
+
+  it.skipIf(!existsSync(join(openEaf, 'sundanese-north-wind.eaf')))(
+    'sundanese translation keeps the English sentence',
+    () => {
+      const imported = importFromEaf(
+        readFileSync(join(openEaf, 'sundanese-north-wind.eaf'), 'utf8'),
+      );
+      const texts = [...imported.translationTiers.values()].flatMap((tier) =>
+        tier.map((row) => row.text),
+      );
+      expect(texts.some((text) => text.includes('The story is about'))).toBe(true);
+    },
+  );
+
+  it.skipIf(!existsSync(join(openEaf, 'cashinahua.eaf')))(
+    'cashinahua transcription is not a paragraph mark and still has word tokens',
+    () => {
+      const imported = importFromEaf(readFileSync(join(openEaf, 'cashinahua.eaf'), 'utf8'));
+      expect(imported.transcriptionTierName).toBe('tx@JC');
+      expect(imported.units.some((unit) => unit.transcription.includes('Peki'))).toBe(true);
+      expect(imported.units.every((unit) => unit.transcription.trim() === '<p:>')).toBe(false);
+      expect(imported.units.some((unit) => (unit.tokens?.length ?? 0) > 0)).toBe(true);
+    },
+  );
 });

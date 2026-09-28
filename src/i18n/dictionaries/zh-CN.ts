@@ -1958,6 +1958,7 @@ export const zhCNDictionary = {
   'transcription.importExport.importDone.unmatchedRef':
     '有 {count} 条引用对不上父标注，没有改用时间对齐。',
   'transcription.importExport.importDone.unmappedField': '未写入：{name}。',
+  'transcription.importExport.importDone.guessedTier': '转写层按正文选为 {name}。',
   'transcription.importExport.importDone.noStableId': '有 {count} 条没有稳定 id，已新建。',
   'transcription.importExport.importDone.replacedById': '有 {count} 条按稳定 id 覆盖了已有内容。',
   'transcription.importExport.importDone.appendedWithoutId':

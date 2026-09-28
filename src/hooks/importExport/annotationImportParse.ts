@@ -10,7 +10,6 @@ import { importFromToolbox, type ToolboxImportResult } from '../../services/Tool
 import { importFromTrs, type TrsImportResult } from '../../services/TranscriberService';
 import {
   EafTierRolesRequiredError,
-  proposeEafTierRoles,
   readEafTierRoles,
   type EafTierRole,
 } from '../../utils/eafTierRole';
@@ -78,17 +77,10 @@ export async function parseAnnotationImport(input: {
       } else if (
         importOptions?.promptForEafTierRoles &&
         !importOptions.tierRolesAcknowledged &&
-        !fileHasRoles
+        !fileHasRoles &&
+        eafResult.tierRolePrompt
       ) {
-        const prompt = proposeEafTierRoles(
-          [...eafResult.tierConstraints.entries()]
-            .filter(([, info]) => !info.symbolicSubdivision)
-            .map(([tierId, info]) => ({
-              tierId,
-              ...(info.parentTierId ? { parentTierId: info.parentTierId } : {}),
-            })),
-        );
-        if (prompt) throw new EafTierRolesRequiredError(fileName, prompt);
+        throw new EafTierRolesRequiredError(fileName, eafResult.tierRolePrompt);
       }
     }
   } else if (name.endsWith('.textgrid')) {

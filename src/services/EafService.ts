@@ -32,9 +32,18 @@ import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import { glossLanguageKey } from '../utils/eafImportAlign';
 import { eafTimeValueToSeconds, resolveEafTimeUnit } from '../utils/eafTimeUnits';
 import {
+  anchorNotesForUnits,
+  linkAnnotationsToUnits,
+  maxEafChildrenPerParent,
+  pickEafTiers,
+  retargetAnnotationsToChildIds,
+  unitsFromPickedAnnotations,
+} from '../utils/eafTierPick';
+import {
   formatEafSideChannelNote,
   parseEafSideChannelNote,
   type EafNoteKind,
+  type EafRolePromptTier,
   type EafTierRole,
 } from '../utils/eafTierRole';
 
@@ -186,6 +195,8 @@ export interface EafImportResult {
   unrecognizedTimeUnit?: boolean;
   /** Losses known at parse time. Write-time losses are added by the import handler. */
   losses?: InterchangeLoss[];
+  /** Phrase tiers to confirm when the default EAF choice is not unique. */
+  tierRolePrompt?: readonly EafRolePromptTier[];
 }
 
 const JIEYU_LAYER_META_PREFIX = 'jieyu:layer-meta:';
@@ -1274,6 +1285,44 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
     string,
     Array<{ tierId: string; eafConstraint?: string; anns: AnnotationEntry[] }>
   >();
+  const tierElements = Array.from(tiers);
+  const alignableByTierId = new Map<string, AnnotationEntry[]>();
+  for (const tier of tierElements) {
+    const tierId = tier.getAttribute('TIER_ID') ?? '';
+    if (!tierId) continue;
+    const alignable = parseAlignableAnnotations(tier, timeSlotMap);
+    alignableByTierId.set(tierId, alignable);
+    for (const annotation of alignable) {
+      if (!annotation.annotationId) continue;
+      annotationTimeMap.set(annotation.annotationId, {
+        startTime: annotation.startTime,
+        endTime: annotation.endTime,
+      });
+    }
+  }
+  const pickFacts = tierElements.map((tier, tierIndex) => {
+    const tierId = tier.getAttribute('TIER_ID') ?? `tier_${tierIndex}`;
+    const typeRef = tier.getAttribute('LINGUISTIC_TYPE_REF') ?? undefined;
+    const parentRef = tier.getAttribute('PARENT_REF') ?? undefined;
+    const lingType = typeRef ? linguisticTypes.get(typeRef) : undefined;
+    const alignable = alignableByTierId.get(tierId) ?? [];
+    const refAnns = parseRefAnnotations(tier, annotationTimeMap);
+    const rows = refAnns.length > 0 ? refAnns : alignable;
+    const nonemptyTexts = rows.map((row) => row.text.trim()).filter((text) => text.length > 0);
+    return {
+      tierId,
+      ...(typeRef ? { linguisticTypeId: typeRef } : {}),
+      ...(parentRef ? { parentTierId: parentRef } : {}),
+      timeAlignable: lingType != null ? lingType.timeAlignable : !parentRef,
+      symbolicSubdivision: lingType?.constraints === 'Symbolic_Subdivision',
+      nonemptyTexts,
+      maxChildrenPerParent: maxEafChildrenPerParent(rows),
+    };
+  });
+  const hasExplicitRoles = [...tierMetadata.values()].some((meta) => Boolean(meta.role));
+  const tierPick = hasExplicitRoles ? undefined : pickEafTiers(pickFacts);
+  const anchorSources: AnnotationEntry[] = [];
+  const childAnnotationIdByParentId = new Map<string, string>();
 
   tiers.forEach((tier, tierIndex) => {
     const tierId = tier.getAttribute('TIER_ID') ?? `tier_${tierIndex}`;
@@ -1373,6 +1422,20 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
           });
         }
       }
+      if (tierPick) {
+        if (tierId === tierPick.transcriptionTierId) {
+          foundPrimaryTranscription = true;
+          if (locale) defaultLocale = locale;
+          transcriptionTierName = tierId;
+          units = mappedUnits;
+        } else if (tierPick.anchorTierIds.has(tierId)) {
+          anchorSources.push(...annotations);
+        } else {
+          if (locale) tierLocales.set(tierId, locale);
+          translationTiers.set(tierId, annotations);
+        }
+        return;
+      }
       if (tierRole === 'translation') {
         if (locale) tierLocales.set(tierId, locale);
         translationTiers.set(tierId, annotations);
@@ -1400,6 +1463,27 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       const anns = refAnns.length > 0 ? refAnns : parseAlignableAnnotations(tier, timeSlotMap);
       if (anns.length === 0) return;
 
+      if (tierPick && tierId === tierPick.transcriptionTierId) {
+        const parentAnns = parentRef ? (alignableByTierId.get(parentRef) ?? []) : [];
+        const built = unitsFromPickedAnnotations(anns, parentAnns, participant);
+        units = built.units;
+        for (const [parentId, childId] of built.childAnnotationIdByParentId) {
+          childAnnotationIdByParentId.set(parentId, childId);
+        }
+        foundPrimaryTranscription = true;
+        if (locale) defaultLocale = locale;
+        transcriptionTierName = tierId;
+        return;
+      }
+      if (tierPick && tierPick.anchorTierIds.has(tierId)) {
+        anchorSources.push(...anns);
+        return;
+      }
+      if (tierPick && tierPick.phraseSubdivisionTierIds.has(tierId)) {
+        translationTiers.set(tierId, anns);
+        return;
+      }
+
       const parentIsWordTier = parentRef
         ? wordTierEntries.some((entry) => entry.tierId === parentRef)
         : false;
@@ -1407,7 +1491,32 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       const parentsTranscriptionTier =
         parentRef === transcriptionTierName ||
         extraTranscriptionTiers.some((entry) => entry.tierName === parentRef);
-      if (isSymbolicSubdivision && parentRef && parentsTranscriptionTier) {
+      const parentIsAnchor =
+        parentRef !== undefined && (tierPick?.anchorTierIds.has(parentRef) ?? false);
+      if (tierPick?.wordTierIds.has(tierId) && parentRef && parentIsWordTier) {
+        const list = childOfWordTier.get(parentRef) ?? [];
+        list.push({
+          tierId,
+          ...(eafConstraint ? { eafConstraint } : {}),
+          anns,
+        });
+        childOfWordTier.set(parentRef, list);
+        return;
+      }
+      if (
+        tierPick?.wordTierIds.has(tierId) &&
+        parentRef &&
+        (parentsTranscriptionTier || parentIsAnchor)
+      ) {
+        wordTierEntries.push({ tierId, anns });
+        return;
+      }
+      if (
+        isSymbolicSubdivision &&
+        parentRef &&
+        (parentsTranscriptionTier ||
+          (parentIsAnchor && (tierPick?.wordTierIds.has(tierId) ?? false)))
+      ) {
         wordTierEntries.push({ tierId, anns });
         return;
       }
@@ -1441,6 +1550,12 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       translationTiers.set(tierId, anns);
     }
   });
+
+  if (tierPick && anchorSources.length > 0) {
+    importedUserNotes.push(
+      ...anchorNotesForUnits(anchorSources, units, childAnnotationIdByParentId),
+    );
+  }
 
   // Attach Symbolic_Subdivision word tokens (+ optional gloss/morph under word tiers)
   if (wordTierEntries.length > 0 && units.length > 0) {
@@ -1500,16 +1615,24 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
           }
         }
       }
-      attachWordTierTokensToUnits(units, wordTier.anns, glossByWordAnnId, morphsByWordAnnId);
+      const wordAnns = linkAnnotationsToUnits(
+        retargetAnnotationsToChildIds(wordTier.anns, childAnnotationIdByParentId),
+        units,
+      );
+      attachWordTierTokensToUnits(units, wordAnns, glossByWordAnnId, morphsByWordAnnId);
       for (const extra of extraTranscriptionTiers) {
-        attachWordTierTokensToUnits(
-          extra.units,
-          wordTier.anns,
-          glossByWordAnnId,
-          morphsByWordAnnId,
-        );
+        attachWordTierTokensToUnits(extra.units, wordAnns, glossByWordAnnId, morphsByWordAnnId);
       }
     }
+  }
+
+  const importLosses: InterchangeLoss[] = [];
+  if (timeUnit.unrecognized) importLosses.push({ code: 'unrecognized-time-unit' });
+  if (
+    tierPick?.transcriptionTierId &&
+    tierPick.transcriptionTierId !== tierPick.firstIndependentTimeAlignedTierId
+  ) {
+    importLosses.push({ code: 'guessed-tier', name: tierPick.transcriptionTierId });
   }
 
   return {
@@ -1528,12 +1651,9 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
     ...(importedUserNotes.length > 0 ? { userNotes: importedUserNotes } : {}),
     ...(sideChannelNotes.length > 0 ? { sideChannelNotes } : {}),
     ...(extraTranscriptionTiers.length > 0 ? { extraTranscriptionTiers } : {}),
-    ...(timeUnit.unrecognized
-      ? {
-          unrecognizedTimeUnit: true as const,
-          losses: [{ code: 'unrecognized-time-unit' as const }],
-        }
-      : {}),
+    ...(timeUnit.unrecognized ? { unrecognizedTimeUnit: true as const } : {}),
+    ...(importLosses.length > 0 ? { losses: importLosses } : {}),
+    ...(tierPick?.promptTiers ? { tierRolePrompt: tierPick.promptTiers } : {}),
   };
 }
 
