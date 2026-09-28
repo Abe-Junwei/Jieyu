@@ -1,4 +1,12 @@
-import type { LexemeDocType, MultiLangString, Transcription, UnitTokenDocType } from '../db';
+import type {
+  LexemeDocType,
+  LexemeEntryDoc,
+  MultiLangString,
+  Transcription,
+  UnitTokenDocType,
+} from '../db';
+import { isLexemeEntry } from '../db/lexemeNestedIds';
+import { lexemeGlossProjection, lexemeMatchValues } from '../utils/dmlexEntry';
 
 const MIN_PREFIX_LEN = 2;
 const MIN_SUBSTRING_LEN = 3;
@@ -15,6 +23,7 @@ export type AutoGlossPreviewMatch = {
   tokenId: string;
   tokenForm: Transcription;
   lexemeId: string;
+  senseId?: string;
   lexemeLemma: Transcription;
   gloss: MultiLangString;
   confidence: number;
@@ -28,17 +37,17 @@ export type AutoGlossPreviewResult = {
 };
 
 type LexemeIndexEntry = {
-  lexeme: LexemeDocType;
+  lexeme: LexemeEntryDoc;
   values: string[];
 };
 
 type LexemeIndex = {
-  exactMap: Map<string, LexemeDocType>;
+  exactMap: Map<string, LexemeEntryDoc>;
   entries: LexemeIndexEntry[];
 };
 
 type MatchResult = {
-  lexeme: LexemeDocType;
+  lexeme: LexemeEntryDoc;
   matchType: AutoGlossMatchType;
   confidence: number;
   overlap: number;
@@ -50,24 +59,14 @@ export function tokenHasGloss(token: Pick<UnitTokenDocType, 'gloss'>): boolean {
 }
 
 export function buildLexemeIndex(lexemes: readonly LexemeDocType[]): LexemeIndex {
-  const exactMap = new Map<string, LexemeDocType>();
+  const exactMap = new Map<string, LexemeEntryDoc>();
   const entries: LexemeIndexEntry[] = [];
 
   for (const lex of lexemes) {
-    const values: string[] = [];
-    for (const val of Object.values(lex.lemma)) {
-      const key = val.toLowerCase();
-      values.push(key);
+    if (!isLexemeEntry(lex)) continue;
+    const values = lexemeMatchValues(lex);
+    for (const key of values) {
       if (!exactMap.has(key)) exactMap.set(key, lex);
-    }
-    if (lex.forms) {
-      for (const form of lex.forms) {
-        for (const val of Object.values(form.transcription)) {
-          const key = val.toLowerCase();
-          values.push(key);
-          if (!exactMap.has(key)) exactMap.set(key, lex);
-        }
-      }
     }
     entries.push({ lexeme: lex, values });
   }
@@ -77,7 +76,7 @@ export function buildLexemeIndex(lexemes: readonly LexemeDocType[]): LexemeIndex
 
 function findExactMatch(
   formValues: string[],
-  exactMap: Map<string, LexemeDocType>,
+  exactMap: Map<string, LexemeEntryDoc>,
 ): MatchResult | undefined {
   for (const fv of formValues) {
     const lex = exactMap.get(fv);
@@ -162,14 +161,15 @@ export function previewAutoGlossMatches(
       findExactMatch(formValues, exactMap) ??
       findPrefixMatch(formValues, entries) ??
       findSubstringMatch(formValues, entries);
-    if (!best || best.lexeme.senses.length === 0) continue;
-    const gloss = best.lexeme.senses[0]!.gloss;
+    if (!best) continue;
+    const gloss = lexemeGlossProjection(best.lexeme);
     if (Object.keys(gloss).length === 0) continue;
     matches.push({
       tokenId: token.id,
       tokenForm: token.form,
       lexemeId: best.lexeme.id,
-      lexemeLemma: best.lexeme.lemma,
+      ...(best.lexeme.entry.senses?.[0]?.id ? { senseId: best.lexeme.entry.senses[0].id } : {}),
+      lexemeLemma: { default: best.lexeme.entry.headword },
       gloss,
       confidence: best.confidence,
       matchType: best.matchType,

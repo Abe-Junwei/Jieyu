@@ -56,41 +56,79 @@ describe('open corpora fixtures', () => {
       it.skipIf(!existsSync(join(ROOT, file.path)))(
         `${file.language} (${file.path}) imports linguistic text`,
         () => {
-        const raw = readFileSync(join(ROOT, file.path), 'utf-8');
-        const imported = importFromEaf(raw);
-        const texts = [
-          ...imported.units.map((unit) => unit.transcription),
-          ...[...imported.translationTiers.values()].flatMap((tier) => tier.map((ann) => ann.text)),
-        ]
-          .map((text) => text.trim())
-          .filter(hasLetters);
+          const raw = readFileSync(join(ROOT, file.path), 'utf-8');
+          const imported = importFromEaf(raw);
+          const texts = [
+            ...imported.units.map((unit) => unit.transcription),
+            ...[...imported.translationTiers.values()].flatMap((tier) =>
+              tier.map((ann) => ann.text),
+            ),
+          ]
+            .map((text) => text.trim())
+            .filter(hasLetters);
 
-        expect(texts.length, file.language).toBeGreaterThan(0);
+          expect(texts.length, file.language).toBeGreaterThan(0);
 
-        const unit = imported.units.find((entry) => hasLetters(entry.transcription));
-        if (!unit) return;
+          const unit = imported.units.find((entry) => hasLetters(entry.transcription));
+          if (!unit) return;
 
-        const exported = exportToEaf({
-          units: [
-            {
-              id: 'u0',
-              textId: 'text1',
-              mediaId: 'media1',
-              transcription: { default: unit.transcription },
-              startTime: unit.startTime,
-              endTime: unit.endTime,
-              createdAt: '2026-01-01T00:00:00.000Z',
-              updatedAt: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-          layers: [],
-          translations: [],
-        });
-        const reimported = importFromEaf(exported);
-        expect(reimported.units[0]?.transcription).toBe(unit.transcription);
-      },
+          const exported = exportToEaf({
+            units: [
+              {
+                id: 'u0',
+                textId: 'text1',
+                mediaId: 'media1',
+                transcription: { default: unit.transcription },
+                startTime: unit.startTime,
+                endTime: unit.endTime,
+                createdAt: '2026-01-01T00:00:00.000Z',
+                updatedAt: '2026-01-01T00:00:00.000Z',
+              },
+            ],
+            layers: [],
+            translations: [],
+          });
+          const reimported = importFromEaf(exported);
+          expect(reimported.units[0]?.transcription).toBe(unit.transcription);
+        },
       );
     }
+
+    it.skipIf(!existsSync(join(ROOT, 'elan/tabaq.eaf')))(
+      'Tabaq keeps the sentence, free translation, phonetic tier, and utterance note when roles are confirmed',
+      () => {
+        const raw = readFileSync(join(ROOT, 'elan/tabaq.eaf'), 'utf-8');
+        const imported = importFromEaf(raw, {
+          tierRoles: {
+            'tx@NHK': 'transcription',
+            'ft@NHK': 'translation',
+            'trs@KBK': 'translation',
+            'ft@KBK': 'translation',
+            'fn@KBK': 'translation',
+            'fn@NHK': 'translation',
+          },
+        });
+        expect(imported.units.some((unit) => unit.transcription.includes('aay idaye'))).toBe(true);
+        expect(
+          [...imported.translationTiers.values()].some((rows) =>
+            rows.some((row) => row.text.includes('Tabaq wedding')),
+          ),
+        ).toBe(true);
+        expect(imported.extraTranscriptionTiers?.some((tier) => tier.tierName === 'ph@NHK')).toBe(
+          true,
+        );
+        expect(
+          imported.userNotes?.some((note) => note.text.includes('aay = Sudanese Ar. yes')),
+        ).toBe(true);
+        expect(imported.translationTiers.has('nt@NHK')).toBe(false);
+        expect(imported.translationTiers.has('dt@NHK')).toBe(false);
+        const joined = [
+          ...imported.units.map((unit) => unit.transcription),
+          ...(imported.userNotes ?? []).map((note) => note.text),
+        ].join('\n');
+        expect(joined).not.toContain('10/Apr/2013');
+      },
+    );
   });
 
   describe('FLEx', () => {
@@ -98,23 +136,25 @@ describe('open corpora fixtures', () => {
       it.skipIf(!existsSync(join(ROOT, file.path)))(
         `${file.language} (${file.path}) imports phrases and morphemes`,
         () => {
-        const raw = readFileSync(join(ROOT, file.path), 'utf-8');
-        const imported = importFromFlextext(raw);
-        expect(imported.units.length).toBeGreaterThan(0);
-        // Some FLEx exports put the baseline on word items, not a phrase-level txt item.
-        const lexical = imported.units
-          .flatMap((unit) => [
-            unit.transcription,
-            ...(unit.tokens ?? []).flatMap((token) => Object.values(token.form)),
-          ])
-          .join(' ');
-        expect(hasLetters(lexical)).toBe(true);
-        const morphemes = imported.units.flatMap((unit) =>
-          (unit.tokens ?? []).flatMap((token) => token.morphemes ?? []),
-        );
-        expect(morphemes.length).toBeGreaterThan(0);
-        expect(morphemes.some((morph) => hasLetters(Object.values(morph.form).join('')))).toBe(true);
-      },
+          const raw = readFileSync(join(ROOT, file.path), 'utf-8');
+          const imported = importFromFlextext(raw);
+          expect(imported.units.length).toBeGreaterThan(0);
+          // Some FLEx exports put the baseline on word items, not a phrase-level txt item.
+          const lexical = imported.units
+            .flatMap((unit) => [
+              unit.transcription,
+              ...(unit.tokens ?? []).flatMap((token) => Object.values(token.form)),
+            ])
+            .join(' ');
+          expect(hasLetters(lexical)).toBe(true);
+          const morphemes = imported.units.flatMap((unit) =>
+            (unit.tokens ?? []).flatMap((token) => token.morphemes ?? []),
+          );
+          expect(morphemes.length).toBeGreaterThan(0);
+          expect(morphemes.some((morph) => hasLetters(Object.values(morph.form).join('')))).toBe(
+            true,
+          );
+        },
       );
     }
   });
@@ -124,17 +164,13 @@ describe('open corpora fixtures', () => {
       it.skipIf(!existsSync(join(ROOT, file.path)))(
         `${file.language} (${file.path}) imports lexemes`,
         () => {
-        const raw = readFileSync(join(ROOT, file.path), 'utf-8');
-        const parsed = parseLiftXml(raw);
-        expect(parsed.ok).toBe(true);
-        if (!parsed.ok) return;
-        expect(parsed.lexemes.length).toBeGreaterThan(0);
-        expect(
-          parsed.lexemes.some((lexeme) =>
-            Object.values(lexeme.lemma).some((value) => hasLetters(value)),
-          ),
-        ).toBe(true);
-      },
+          const raw = readFileSync(join(ROOT, file.path), 'utf-8');
+          const parsed = parseLiftXml(raw);
+          expect(parsed.ok).toBe(true);
+          if (!parsed.ok) return;
+          expect(parsed.lexemes.length).toBeGreaterThan(0);
+          expect(parsed.lexemes.some((lexeme) => hasLetters(lexeme.entry.headword))).toBe(true);
+        },
       );
     }
   });
@@ -144,18 +180,18 @@ describe('open corpora fixtures', () => {
       it.skipIf(!existsSync(join(ROOT, file.path)))(
         `${file.language} (${file.path}) keeps sentences and translations`,
         () => {
-        const raw = readFileSync(join(ROOT, file.path), 'utf-8');
-        const doc = new DOMParser().parseFromString(raw, 'application/xml');
-        expect(doc.querySelector('parsererror')).toBeNull();
-        const forms = [...doc.querySelectorAll('FORM')]
-          .map((node) => node.textContent?.trim() ?? '')
-          .filter(hasLetters);
-        const translations = [...doc.querySelectorAll('TRANSL')]
-          .map((node) => node.textContent?.trim() ?? '')
-          .filter(hasLetters);
-        expect(forms.length).toBeGreaterThan(0);
-        expect(translations.length).toBeGreaterThan(0);
-      },
+          const raw = readFileSync(join(ROOT, file.path), 'utf-8');
+          const doc = new DOMParser().parseFromString(raw, 'application/xml');
+          expect(doc.querySelector('parsererror')).toBeNull();
+          const forms = [...doc.querySelectorAll('FORM')]
+            .map((node) => node.textContent?.trim() ?? '')
+            .filter(hasLetters);
+          const translations = [...doc.querySelectorAll('TRANSL')]
+            .map((node) => node.textContent?.trim() ?? '')
+            .filter(hasLetters);
+          expect(forms.length).toBeGreaterThan(0);
+          expect(translations.length).toBeGreaterThan(0);
+        },
       );
     }
   });

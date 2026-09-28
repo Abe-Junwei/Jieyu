@@ -1,6 +1,12 @@
 import { LinguisticService, presentTokenLexemeLink } from '../../app/languageAssetPageAccess';
-import type { LexemeDocType, TokenLexemeLinkDocType } from '../../types/jieyuDbDocTypes';
-import { newId, pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
+import { isLexemeEntry } from '../../db/lexemeNestedIds';
+import type {
+  LexemeDocType,
+  LexemeEntryDoc,
+  TokenLexemeLinkDocType,
+} from '../../types/jieyuDbDocTypes';
+import { lexemeHeadword, lexemeMatchValues } from '../../utils/dmlexEntry';
+import { newId } from '../../utils/transcriptionFormatters';
 
 export type AnnotationLexemeLinkDeps = {
   searchLexemes: (query: string) => Promise<LexemeDocType[]>;
@@ -31,20 +37,19 @@ export type AnnotationTokenLexemeLinkView = {
 export function resolveLexemeForLinkQuery(
   query: string,
   hits: readonly LexemeDocType[],
-): LexemeDocType | undefined {
+): LexemeEntryDoc | undefined {
   const normalized = query.trim().toLowerCase();
   if (normalized.length === 0) return undefined;
-  const exactId = hits.find((hit) => hit.id.toLowerCase() === normalized);
+  const entries = hits.filter(isLexemeEntry);
+  const exactId = entries.find((hit) => hit.id.toLowerCase() === normalized);
   if (exactId) return exactId;
-  const exactLemma = hits.find((hit) =>
-    Object.values(hit.lemma).some((value) => value.trim().toLowerCase() === normalized),
-  );
+  const exactLemma = entries.find((hit) => lexemeMatchValues(hit).includes(normalized));
   if (exactLemma) return exactLemma;
-  if (hits.length !== 1) return undefined;
-  const only = hits[0]!;
+  if (entries.length !== 1) return undefined;
+  const only = entries[0]!;
   const matches =
     only.id.toLowerCase().includes(normalized) ||
-    Object.values(only.lemma).some((value) => value.toLowerCase().includes(normalized));
+    lexemeMatchValues(only).some((value) => value.includes(normalized));
   return matches ? only : undefined;
 }
 
@@ -66,6 +71,7 @@ export async function saveAnnotationTokenLexemeLink(
     targetType: 'token',
     targetId: tokenId,
     lexemeId: lexeme.id,
+    ...(lexeme.entry.senses?.[0]?.id ? { senseId: lexeme.entry.senses[0].id } : {}),
     role: 'manual',
     createdAt: now,
     updatedAt: now,
@@ -78,7 +84,7 @@ export async function saveAnnotationTokenLexemeLink(
   return presentTokenLexemeLink({
     linkId: stored.id,
     lexemeId: stored.lexemeId,
-    lemma: pickDefaultTranscriptionText(lexeme.lemma),
+    lemma: lexemeHeadword(lexeme),
   });
 }
 
