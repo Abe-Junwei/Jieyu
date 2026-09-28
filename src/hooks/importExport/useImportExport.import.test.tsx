@@ -2288,6 +2288,94 @@ describe('useImportExport - import success under stop-write', () => {
     expect(tokens.map((row) => row.form)).toEqual([{ default: 'hello' }]);
   });
 
+  it('keeps confirmed tier roles when the timeline mismatch dialog follows', async () => {
+    const textId = 'text-roles-mismatch';
+    const defaultLayer: LayerDocType = {
+      id: 'trc-roles-mismatch',
+      textId,
+      key: 'trc_roles_mismatch',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    await db.texts.put({
+      id: textId,
+      title: { eng: 'short' },
+      metadata: {},
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.media_items.put({
+      id: 'media-roles-mismatch',
+      textId,
+      filename: 'speech.wav',
+      duration: 0.25,
+      isOfflineCached: true,
+      createdAt: NOW,
+    } as never);
+    await db.layer_units.put({
+      id: 'utt-roles-mismatch',
+      textId,
+      mediaId: 'media-roles-mismatch',
+      startTime: 0,
+      endTime: 1,
+      unitType: 'unit',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+    mockIngestTextFile.mockResolvedValue({
+      text: eafFile(
+        'speech.wav',
+        `<TIER TIER_ID="sentence" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4">
+              <ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="free" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4">
+              <ANNOTATION_VALUE>the translation</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>`,
+      ),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter(textId, [defaultLayer], true);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'long.eaf', { type: 'application/xml' }),
+      );
+    });
+    const roleDialog = result.current.eafTierRoleDialog;
+    expect(roleDialog?.isOpen).toBe(true);
+    const roles = Object.fromEntries(
+      (roleDialog?.tiers ?? []).map((tier) => [tier.tierId, tier.role]),
+    );
+    await act(async () => {
+      await roleDialog?.onConfirm(roles);
+    });
+    expect(result.current.eafTierRoleDialog).toBeNull();
+    const mismatch = result.current.annotationImportMismatchDialog;
+    expect(mismatch?.isOpen).toBe(true);
+    await act(async () => {
+      await mismatch?.onConfirm();
+    });
+    expect(result.current.annotationImportMismatchDialog).toBeNull();
+    const contents = await db.layer_unit_contents.toArray();
+    expect(contents.map((row) => row.text)).toEqual(
+      expect.arrayContaining(['the sentence', 'the translation']),
+    );
+  });
+
   it('asks for TextGrid tier roles and keeps the default split after confirm', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-grid',
