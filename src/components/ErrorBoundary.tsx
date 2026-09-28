@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { t, type Locale, useLocale } from '../i18n';
 import { createLogger } from '../observability/logger';
+import { reloadOnceForStaleDevReact } from '../utils/devRuntimeRecovery';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -23,6 +24,7 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, { error: Error
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
     log.error('uncaught error', { err: error, componentStack: info.componentStack });
+    reloadOnceForStaleDevReact(error);
   }
 
   private reset = () => this.setState({ error: null });
