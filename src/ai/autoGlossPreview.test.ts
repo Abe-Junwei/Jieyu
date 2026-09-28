@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { entryDoc } from '../utils/dmlexEntry';
 import { previewAutoGlossMatches } from './autoGlossPreview';
 
 describe('autoGlossPreview', () => {
@@ -18,20 +19,20 @@ describe('autoGlossPreview', () => {
         },
       ],
       [
-        {
+        entryDoc({
           id: 'lex',
-          lemma: { default: 'dog' },
-          senses: [{ gloss: { default: 'canine' } }],
+          headword: 'dog',
+          definition: 'canine',
           createdAt: now,
           updatedAt: now,
-        },
-        {
+        }),
+        entryDoc({
           id: 'lex-cat',
-          lemma: { default: 'cat' },
-          senses: [{ gloss: { default: 'feline' } }],
+          headword: 'cat',
+          definition: 'feline',
           createdAt: now,
           updatedAt: now,
-        },
+        }),
       ],
     );
     expect(result.matches).toEqual([

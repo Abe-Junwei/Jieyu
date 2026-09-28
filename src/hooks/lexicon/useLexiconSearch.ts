@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import MiniSearch from 'minisearch';
-import type { LexemeDocType } from '../../db';
+import type { LexemeEntryDoc } from '../../db';
 
 type LexiconSearchDocument = {
   id: string;
@@ -15,29 +15,33 @@ type LexiconSearchDocument = {
   notes: string;
 };
 
-function joinValues(record: Record<string, string> | undefined): string {
-  return Object.values(record ?? {})
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .join(' ');
-}
-
-function toSearchDocument(lexeme: LexemeDocType): LexiconSearchDocument {
+function toSearchDocument(lexeme: LexemeEntryDoc): LexiconSearchDocument {
+  const entry = lexeme.entry;
+  const senses = entry.senses ?? [];
   return {
     id: lexeme.id,
-    lemma: joinValues(lexeme.lemma),
-    citation: lexeme.citationForm ?? '',
-    gloss: lexeme.senses.map((sense) => joinValues(sense.gloss)).join(' '),
-    definition: lexeme.senses.map((sense) => joinValues(sense.definition)).join(' '),
-    language: lexeme.language ?? '',
-    lexemeType: lexeme.lexemeType ?? '',
-    category: lexeme.senses.map((sense) => sense.category ?? '').join(' '),
-    forms: (lexeme.forms ?? []).map((form) => joinValues(form.transcription)).join(' '),
-    notes: joinValues(lexeme.notes),
+    lemma: entry.headword,
+    citation: entry.homographNumber ?? '',
+    gloss: senses
+      .flatMap((sense) => sense.headwordTranslations ?? [])
+      .map((item) => item.text)
+      .join(' '),
+    definition: senses
+      .flatMap((sense) => [
+        ...(sense.definitions ?? []).map((item) => item.text),
+        ...(sense.headwordExplanations ?? []).map((item) => item.text),
+        ...(sense.examples ?? []).map((item) => item.text),
+      ])
+      .join(' '),
+    language: senses[0]?.headwordTranslations?.[0]?.langCode ?? '',
+    lexemeType: (entry.partsOfSpeech ?? []).join(' '),
+    category: (entry.labels ?? []).concat(senses.flatMap((sense) => sense.labels ?? [])).join(' '),
+    forms: (entry.inflectedForms ?? []).map((form) => form.text).join(' '),
+    notes: (lexeme.jieyu?.notes ?? []).map((note) => note.text).join(' '),
   };
 }
 
-export function useLexiconSearch(lexemes: LexemeDocType[], query: string): LexemeDocType[] {
+export function useLexiconSearch(lexemes: LexemeEntryDoc[], query: string): LexemeEntryDoc[] {
   const normalizedQuery = query.trim();
 
   const index = useMemo(() => {
@@ -70,6 +74,6 @@ export function useLexiconSearch(lexemes: LexemeDocType[], query: string): Lexem
     return index
       .search(normalizedQuery)
       .map((result) => lexemeById.get(String(result.id)))
-      .filter((lexeme): lexeme is LexemeDocType => Boolean(lexeme));
+      .filter((lexeme): lexeme is LexemeEntryDoc => Boolean(lexeme));
   }, [index, lexemes, normalizedQuery]);
 }
