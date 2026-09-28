@@ -311,6 +311,7 @@ export const enUSDictionary = {
   'workspace.lexicon.edit.create': 'New entry',
   'workspace.lexicon.edit.createHint':
     'Headword is required. The entry appears in the list after save.',
+  'workspace.lexicon.exportDmlex': 'Export DMLex',
   'workspace.lexicon.exportLift': 'Export LIFT',
   'workspace.lexicon.importLift': 'Import LIFT',
   'workspace.lexicon.importLiftEmpty': 'This LIFT file has no entries to import.',

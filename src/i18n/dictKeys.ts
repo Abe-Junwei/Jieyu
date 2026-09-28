@@ -274,6 +274,7 @@ export const DICT_KEYS = [
   'workspace.lexicon.edit.title',
   'workspace.lexicon.edit.create',
   'workspace.lexicon.edit.createHint',
+  'workspace.lexicon.exportDmlex',
   'workspace.lexicon.exportLift',
   'workspace.lexicon.importLift',
   'workspace.lexicon.importLiftEmpty',

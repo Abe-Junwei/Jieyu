@@ -152,6 +152,34 @@ describe('LexiconPage', () => {
     vi.clearAllMocks();
   });
 
+  it('downloads a DMLex JSON document for the listed entries', async () => {
+    let captured: Blob | undefined;
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((value: Blob | MediaSource) => {
+        if (value instanceof Blob) captured = value;
+        return 'blob:dmlex';
+      });
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    try {
+      renderLexiconPage();
+      await screen.findByText('domesticated canine');
+      fireEvent.click(screen.getByTestId('lexicon-dmlex-export'));
+      expect(captured).toBeInstanceOf(Blob);
+      if (!(captured instanceof Blob)) return;
+      const parsed = JSON.parse(await captured.text()) as {
+        entries: Array<{ headword: string }>;
+      };
+      expect(parsed.entries.map((row) => row.headword).sort()).toEqual(['dog', 'run']);
+      expect(click).toHaveBeenCalled();
+    } finally {
+      click.mockRestore();
+      createObjectURL.mockRestore();
+      revokeObjectURL.mockRestore();
+    }
+  });
+
   it('loads the workspace and shows the headword and translation', async () => {
     renderLexiconPage();
     await waitFor(() => {
@@ -277,21 +305,20 @@ describe('LexiconPage', () => {
 
   it('saves a subsense relation on the resource row', async () => {
     renderLexiconPage();
-    await screen.findByTestId('lexicon-entry-add-subsense-0');
+    await screen.findByDisplayValue('dog');
     fireEvent.click(screen.getByTestId('lexicon-entry-add-subsense-0'));
     fireEvent.change(screen.getByTestId('lexicon-entry-sense-1-translation'), {
       target: { value: 'timber' },
     });
     fireEvent.click(screen.getByTestId('lexicon-entry-save'));
     await waitFor(() => {
-      expect(mockGetResource).toHaveBeenCalled();
+      const resource = mockSaveLexeme.mock.calls
+        .map((call) => call[0] as LexemeDocType)
+        .find((doc) => doc.kind === 'resource');
+      expect(
+        resource && resource.kind === 'resource' ? resource.resource.relations?.[0]?.type : '',
+      ).toBe('subsense');
     });
-    const resource = mockSaveLexeme.mock.calls
-      .map((call) => call[0] as LexemeDocType)
-      .find((doc) => doc.kind === 'resource');
-    expect(
-      resource && resource.kind === 'resource' ? resource.resource.relations?.[0]?.type : '',
-    ).toBe('subsense');
   });
 
   it('imports a LIFT file and lists the projected headword', async () => {

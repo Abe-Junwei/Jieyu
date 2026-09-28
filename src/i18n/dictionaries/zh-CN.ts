@@ -288,6 +288,7 @@ export const zhCNDictionary = {
   'workspace.lexicon.edit.title': '编辑词条',
   'workspace.lexicon.edit.create': '新建词条',
   'workspace.lexicon.edit.createHint': '词头必填。保存后会出现在左侧列表。',
+  'workspace.lexicon.exportDmlex': '导出 DMLex',
   'workspace.lexicon.exportLift': '导出 LIFT',
   'workspace.lexicon.importLift': '导入 LIFT',
   'workspace.lexicon.importLiftEmpty': '这个 LIFT 文件里没有可导入的词条。',

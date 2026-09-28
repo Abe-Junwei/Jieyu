@@ -25,6 +25,7 @@ import { LexiconEntryOverview } from './lexicon/LexiconEntryOverview';
 import { LexiconSenseList } from './lexicon/LexiconSenseList';
 import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
 import { useLexiconEntryEditController } from './useLexiconEntryEditController';
+import { exportLexemesAsDmlex } from '../utils/dmlexJsonExport';
 import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
 import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
 
@@ -343,6 +344,17 @@ export function LexiconPage() {
             onClick={editor.onStartCreate}
           >
             {t(locale, 'workspace.lexicon.edit.create')}
+          </button>
+          <button
+            type="button"
+            className="btn lexicon-workspace-export"
+            data-testid="lexicon-dmlex-export"
+            disabled={lexemes.length === 0}
+            onClick={() => {
+              exportLexemesAsDmlex(lexemes, dmlexResource ?? null);
+            }}
+          >
+            {t(locale, 'workspace.lexicon.exportDmlex')}
           </button>
           <button
             type="button"
