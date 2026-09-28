@@ -58,6 +58,7 @@ source_of_truth: decision-index
 - [0036-eaf-import-is-interchange.md](./0036-eaf-import-is-interchange.md)（EAF 是文本交换；`.jyt` / `.jym` 继续做原 id 备份；往返键是文稿 + 外部层 id + 标注 id）
 - [0037-interchange-loss-report.md](./0037-interchange-loss-report.md)（标注和 LIFT 导入共用一份丢失清单；有稳定 id 才往返；不接入 Pepper / Corflow / reBabel）
 - [0038-eaf-tier-pick-by-content.md](./0038-eaf-tier-pick-by-content.md)（没有角色表时按正文和层名选 EAF 转写层；一句对一句的细分层不当词；没有媒体时独立翻译挂到已有语段）
+- [0039-flex-elan-import-field-map.md](./0039-flex-elan-import-field-map.md)（FLEx 与 ELAN 的元素按说明文档写进解语已有字段；词级 `gls` 不进转写页翻译行）
 
 ## 建议格式
 
