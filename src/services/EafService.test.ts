@@ -1197,11 +1197,18 @@ describe('EAF default tier pick', () => {
     'duoxu uses the phrase segnum tier and keeps the gloss as translation',
     () => {
       const imported = importFromEaf(readFileSync(join(openEaf, 'duoxu.eaf'), 'utf8'));
-      expect(imported.transcriptionTierName).toBe('A_phrase-segnum-en');
+      expect(imported.transcriptionTierName).not.toBe('A_phrase-segnum-en');
       expect(imported.tierRolePrompt).toBeUndefined();
+      expect(imported.units.some((unit) => unit.transcription.trim() === '1')).toBe(false);
+      expect(imported.units.some((unit) => unit.transcription.trim().length > 0)).toBe(true);
       const gloss = imported.translationTiers.get('A_phrase-gls-zh-CN') ?? [];
       expect(gloss.some((row) => row.text.includes('两口子有两个女儿'))).toBe(true);
+      expect(imported.translationTiers.has('A_word-gls-zh-CN')).toBe(false);
+      expect(imported.translationTiers.has('A_word-pos-zh-CN')).toBe(false);
+      expect(imported.translationTiers.has('A_morph-gls-zh-CN')).toBe(false);
       expect(imported.translationTiers.has('interlinear-text-title-en')).toBe(false);
+      expect(imported.participants.includes('***')).toBe(false);
+      expect(imported.documentTitle?.en).toBe('duoxu001');
     },
   );
 
@@ -1228,4 +1235,131 @@ describe('EAF default tier pick', () => {
       expect(imported.units.some((unit) => (unit.tokens?.length ?? 0) > 0)).toBe(true);
     },
   );
+
+  it('keeps word and morph rows off the translation page when they precede the phrase tier', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="A_word-gls-zh-CN" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_word-txt">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="w1"><ANNOTATION_VALUE>G1</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g2" ANNOTATION_REF="w2"><ANNOTATION_VALUE>G2</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_word-pos" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_word-txt">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="p1" ANNOTATION_REF="w1"><ANNOTATION_VALUE>n</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_morph-txt" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="A_word-txt">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="m1" ANNOTATION_REF="w1"><ANNOTATION_VALUE>aa</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_morph-gls" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_morph-txt">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="mg1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>MG</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_morph-msa-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_morph-txt">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="ms1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>n</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_morph-cf-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_morph-txt">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="cf1" ANNOTATION_REF="m1"><ANNOTATION_VALUE>lexeme</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_word-txt" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="A_phrase-segnum-en">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w2" ANNOTATION_REF="a1" PREVIOUS_ANNOTATION="w1"><ANNOTATION_VALUE>bb</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>aa</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_phrase-segnum-en" LINGUISTIC_TYPE_REF="align-lt" PARTICIPANT="***">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>1</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_phrase-gls-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_phrase-segnum-en">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}${SUBDIVISION}`,
+      ),
+    );
+    expect(imported.transcriptionTierName).toBe('A_word-txt');
+    expect(imported.units.map((unit) => unit.transcription)).toEqual(['aa bb']);
+    expect(imported.units[0]?.speakerId).toBeUndefined();
+    expect(imported.participants).toEqual([]);
+    expect(imported.translationTiers.get('A_phrase-gls-en')?.[0]?.text).toBe('the sentence');
+    for (const tierId of [
+      'A_word-txt',
+      'A_word-gls-zh-CN',
+      'A_word-pos',
+      'A_morph-gls',
+      'A_morph-cf-en',
+    ]) {
+      expect(imported.translationTiers.has(tierId)).toBe(false);
+    }
+    expect(imported.userNotes?.map((note) => note.text)).toContain('1');
+    expect(imported.units[0]?.tokens).toEqual([
+      {
+        form: { default: 'aa' },
+        gloss: { 'zh-CN': 'G1' },
+        pos: 'n',
+        morphemes: [{ form: { default: 'aa' }, gloss: { und: 'MG' }, pos: 'n' }],
+      },
+      { form: { default: 'bb' }, gloss: { 'zh-CN': 'G2' } },
+    ]);
+    expect(
+      imported.losses?.some(
+        (loss) => loss.code === 'unmapped-field' && loss.name?.includes('A_morph-cf-en'),
+      ),
+    ).toBe(true);
+  });
+
+  it('leaves the sentence empty when a segnum parent has no word forms', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="A_phrase-segnum-en" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>1</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_phrase-gls-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_phrase-segnum-en">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.units[0]?.transcription).toBe('');
+    expect(imported.translationTiers.get('A_phrase-gls-en')?.[0]?.text).toBe('the sentence');
+    expect(imported.userNotes?.map((note) => note.text)).toEqual(['1']);
+  });
+
+  it('uses the participant id as the speaker name and stores the text title and phrase note', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="A_Transcription-txt-woe" LINGUISTIC_TYPE_REF="align-lt" PARTICIPANT="Lenny Saumar">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>fiyango we nge</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_Translation-gls-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_Transcription-txt-woe" PARTICIPANT="Lenny Saumar">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>This is the story</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_phrase-note-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_Transcription-txt-woe">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="n1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>said quickly</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="A_Participant-note-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_Transcription-txt-woe" PARTICIPANT="Lenny Saumar">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="pn1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>narrator</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="interlinear-text-title-en" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="t1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>Pear Story</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.transcriptionTierName).toBe('A_Transcription-txt-woe');
+    expect(imported.units[0]?.transcription).toBe('fiyango we nge');
+    expect(imported.units[0]?.speakerId).toBe('Lenny Saumar');
+    expect(imported.participants).toEqual(['Lenny Saumar']);
+    expect(imported.translationTiers.get('A_Translation-gls-en')?.[0]?.text).toBe(
+      'This is the story',
+    );
+    expect(imported.translationTiers.has('interlinear-text-title-en')).toBe(false);
+    expect(imported.translationTiers.has('A_phrase-note-en')).toBe(false);
+    expect(imported.documentTitle?.en).toBe('Pear Story');
+    expect(imported.userNotes).toEqual([
+      expect.objectContaining({
+        text: 'said quickly',
+        targetType: 'unit',
+        category: 'comment',
+        annotationRef: 'a1',
+      }),
+    ]);
+    expect(imported.speakerNotes).toEqual([
+      { participant: 'Lenny Saumar', text: 'narrator', lang: 'en' },
+    ]);
+  });
 });

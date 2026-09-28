@@ -75,6 +75,26 @@ export interface FlexImportResult {
   /** phrase-level gls items keyed by phrase guid (from primary interlinear-text) */
   phraseGlosses: Map<string, string>;
   /**
+   * Phrase gls rows after the first writing system, plus every lit row.
+   * The first gls language stays in phraseGlosses so the import handler can keep the name `FLEx Gloss`.
+   */
+  translationTiers?: Map<
+    string,
+    Array<{ startTime: number; endTime: number; text: string; annotationRef?: string }>
+  >;
+  /** phrase@speaker values, excluding a blank speaker and `***`. */
+  participants?: string[];
+  /** interlinear-text title items, keyed by item@lang. */
+  documentTitle?: Record<string, string>;
+  userNotes?: Array<{
+    startTime: number;
+    endTime: number;
+    text: string;
+    annotationRef?: string;
+    targetType?: 'unit' | 'text';
+    category?: 'comment' | 'fieldwork';
+  }>;
+  /**
    * Additional `<interlinear-text>` blocks after the first, keyed by title/guid.
    * Prevents flattening secondary layers into primary units.
    */
@@ -106,8 +126,45 @@ function escapeXml(str: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function getText(el: Element | null): string {
+function getText(el: Element | null | undefined): string {
   return el?.textContent?.trim() ?? '';
+}
+
+const FLEX_OMIT_ITEM_TYPES = new Set(['cf', 'hn', 'varianttypes', 'text-is-translation']);
+
+function flexTimeToSeconds(raw: string | null): number {
+  const value = parseFloat(raw ?? '');
+  if (!Number.isFinite(value)) return 0;
+  return value / 1000;
+}
+
+function flexOffsetMs(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '0';
+  return String(Math.round(seconds * 1000));
+}
+
+function itemLang(el: Element | undefined): string {
+  const lang = el?.getAttribute('lang')?.trim() ?? '';
+  return lang.length > 0 ? lang : 'und';
+}
+
+function glossRecord(el: Element | undefined, text: string): Record<string, string> | undefined {
+  if (text.length === 0) return undefined;
+  return { [itemLang(el)]: text };
+}
+
+function glossExport(
+  gloss: Record<string, string> | undefined,
+): { lang: string; text: string } | undefined {
+  if (!gloss) return undefined;
+  for (const [lang, text] of Object.entries(gloss)) {
+    if (text.trim().length > 0) return { lang, text };
+  }
+  return undefined;
+}
+
+function itemsOf(parent: Element): Element[] {
+  return Array.from(parent.querySelectorAll(':scope > item'));
 }
 
 function buildTimelineAttributeFragment(timelineMetadata?: TimelineInteropMetadata): string {
@@ -238,7 +295,7 @@ export function exportToFlextext(input: FlexExportInput): string {
               .map((w, wi) => {
                 const wordId = `${phraseId}_w${wi + 1}`;
                 const wordTxt = w.form.default ?? Object.values(w.form)[0] ?? '';
-                const wordGls = w.gloss?.eng ?? Object.values(w.gloss ?? {})[0] ?? '';
+                const wordGloss = glossExport(w.gloss);
                 const morphs = morphemesByTokenId.get(w.id) ?? [];
                 const morphXml =
                   morphs.length > 0
@@ -246,17 +303,17 @@ export function exportToFlextext(input: FlexExportInput): string {
                         .map((m, mi) => {
                           const morphId = `${wordId}_m${mi + 1}`;
                           const mTxt = m.form.default ?? Object.values(m.form)[0] ?? '';
-                          const mGls = m.gloss?.eng ?? Object.values(m.gloss ?? {})[0] ?? '';
-                          return `                    <morph guid="${morphId}">\n                      <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(mTxt)}</item>${mGls ? `\n                      <item type="gls" lang="en">${escapeXml(mGls)}</item>` : ''}\n                    </morph>`;
+                          const morphGloss = glossExport(m.gloss);
+                          return `                    <morph guid="${morphId}">\n                      <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(mTxt)}</item>${morphGloss ? `\n                      <item type="gls" lang="${escapeXml(morphGloss.lang)}">${escapeXml(morphGloss.text)}</item>` : ''}${m.pos ? `\n                      <item type="msa">${escapeXml(m.pos)}</item>` : ''}\n                    </morph>`;
                         })
                         .join('\n')}\n                  </morphemes>`
                     : '';
-                return `                <word guid="${wordId}">\n                  <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(wordTxt)}</item>${wordGls ? `\n                  <item type="gls" lang="en">${escapeXml(wordGls)}</item>` : ''}${morphXml}\n                </word>`;
+                return `                <word guid="${wordId}">\n                  <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(wordTxt)}</item>${wordGloss ? `\n                  <item type="gls" lang="${escapeXml(wordGloss.lang)}">${escapeXml(wordGloss.text)}</item>` : ''}${w.pos ? `\n                  <item type="pos">${escapeXml(w.pos)}</item>` : ''}${morphXml}\n                </word>`;
               })
               .join('\n')}\n              </words>`
           : '';
 
-      return `            <phrase guid="${phraseId}" begin-time-offset="${u.startTime}" end-time-offset="${u.endTime}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wrappedGls ? `\n              <item type="gls" lang="en">${escapeXml(wrappedGls)}</item>` : ''}${wordsXml}\n            </phrase>`;
+      return `            <phrase guid="${phraseId}" begin-time-offset="${flexOffsetMs(u.startTime)}" end-time-offset="${flexOffsetMs(u.endTime)}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wrappedGls ? `\n              <item type="gls" lang="en">${escapeXml(wrappedGls)}</item>` : ''}${wordsXml}\n            </phrase>`;
     })
     .join('\n');
 
@@ -282,7 +339,7 @@ export function exportToFlextext(input: FlexExportInput): string {
                   .map((w, wi) => {
                     const wordId = `${phraseId}_w${wi + 1}`;
                     const wordTxt = w.form.default ?? Object.values(w.form)[0] ?? '';
-                    const wordGls = w.gloss?.eng ?? Object.values(w.gloss ?? {})[0] ?? '';
+                    const wordGloss = glossExport(w.gloss);
                     const morphs = morphemesByTokenId.get(w.id) ?? [];
                     const morphXml =
                       morphs.length > 0
@@ -290,16 +347,16 @@ export function exportToFlextext(input: FlexExportInput): string {
                             .map((m, mi) => {
                               const morphId = `${wordId}_m${mi + 1}`;
                               const mTxt = m.form.default ?? Object.values(m.form)[0] ?? '';
-                              const mGls = m.gloss?.eng ?? Object.values(m.gloss ?? {})[0] ?? '';
-                              return `                    <morph guid="${morphId}">\n                      <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(mTxt)}</item>${mGls ? `\n                      <item type="gls" lang="en">${escapeXml(mGls)}</item>` : ''}\n                    </morph>`;
+                              const morphGloss = glossExport(m.gloss);
+                              return `                    <morph guid="${morphId}">\n                      <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(mTxt)}</item>${morphGloss ? `\n                      <item type="gls" lang="${escapeXml(morphGloss.lang)}">${escapeXml(morphGloss.text)}</item>` : ''}${m.pos ? `\n                      <item type="msa">${escapeXml(m.pos)}</item>` : ''}\n                    </morph>`;
                             })
                             .join('\n')}\n                  </morphemes>`
                         : '';
-                    return `                <word guid="${wordId}">\n                  <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(wordTxt)}</item>${wordGls ? `\n                  <item type="gls" lang="en">${escapeXml(wordGls)}</item>` : ''}${morphXml}\n                </word>`;
+                    return `                <word guid="${wordId}">\n                  <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(wordTxt)}</item>${wordGloss ? `\n                  <item type="gls" lang="${escapeXml(wordGloss.lang)}">${escapeXml(wordGloss.text)}</item>` : ''}${w.pos ? `\n                  <item type="pos">${escapeXml(w.pos)}</item>` : ''}${morphXml}\n                </word>`;
                   })
                   .join('\n')}\n              </words>`
               : '';
-          return `            <phrase guid="${escapeXml(phraseId)}" begin-time-offset="${seg.startTime}" end-time-offset="${seg.endTime}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wordsXml}\n            </phrase>`;
+          return `            <phrase guid="${escapeXml(phraseId)}" begin-time-offset="${flexOffsetMs(seg.startTime)}" end-time-offset="${flexOffsetMs(seg.endTime)}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wordsXml}\n            </phrase>`;
         })
         .join('\n');
       additionalIts.push(
@@ -340,21 +397,47 @@ function parseFlexPhrase(
   phraseGloss: string;
   sourceLang?: string;
   glossLang?: string;
+  extraGlosses: Array<{ lang: string; text: string }>;
+  literals: Array<{ lang: string; text: string }>;
+  notes: Array<{ lang: string; text: string }>;
+  speaker?: string;
+  unmapped: string[];
   tokens?: FlexImportResult['units'][number]['tokens'];
 } {
   const stableGuid = (phrase.getAttribute('guid') ?? '').trim();
   const phraseId = stableGuid.length > 0 ? stableGuid : `p${index + 1}`;
-  const startTime = parseFloat(phrase.getAttribute('begin-time-offset') ?? '0');
-  const endTime = parseFloat(phrase.getAttribute('end-time-offset') ?? '0');
-
-  const phraseItems = phrase.querySelectorAll(':scope > item');
-  const txtItem = Array.from(phraseItems).find((el) => el.getAttribute('type') === 'txt');
-  const glsItem = Array.from(phraseItems).find((el) => el.getAttribute('type') === 'gls');
+  const startTime = flexTimeToSeconds(phrase.getAttribute('begin-time-offset'));
+  const endRaw = phrase.getAttribute('end-time-offset');
+  const endTime = endRaw === null ? startTime : flexTimeToSeconds(endRaw);
+  const speakerRaw = phrase.getAttribute('speaker')?.trim() ?? '';
+  const speaker = speakerRaw.length > 0 && speakerRaw !== '***' ? speakerRaw : undefined;
+  const phraseItems = itemsOf(phrase);
+  const txtItem = phraseItems.find((el) => el.getAttribute('type') === 'txt');
+  const glsItems = phraseItems.filter((el) => el.getAttribute('type') === 'gls');
   const sourceLang = txtItem?.getAttribute('lang') ?? undefined;
-  const glossLang = glsItem?.getAttribute('lang') ?? undefined;
-
-  const transcription = stripPlainTextBidiIsolation(getText(txtItem ?? null));
-  const phraseGloss = stripPlainTextBidiIsolation(getText(glsItem ?? null));
+  const firstGloss = glsItems[0];
+  const glossLang = firstGloss?.getAttribute('lang') ?? undefined;
+  const transcription = stripPlainTextBidiIsolation(getText(txtItem));
+  const phraseGloss = stripPlainTextBidiIsolation(getText(firstGloss));
+  const extraGlosses = glsItems.slice(1).flatMap((el) => {
+    const text = stripPlainTextBidiIsolation(getText(el));
+    return text.length > 0 ? [{ lang: itemLang(el), text }] : [];
+  });
+  const literals = phraseItems.flatMap((el) => {
+    if (el.getAttribute('type') !== 'lit') return [];
+    const text = stripPlainTextBidiIsolation(getText(el));
+    return text.length > 0 ? [{ lang: itemLang(el), text }] : [];
+  });
+  const notes = phraseItems.flatMap((el) => {
+    if (el.getAttribute('type') !== 'note') return [];
+    const text = stripPlainTextBidiIsolation(getText(el));
+    return text.length > 0 ? [{ lang: itemLang(el), text }] : [];
+  });
+  const unmapped = phraseItems.flatMap((el) => {
+    const type = (el.getAttribute('type') ?? '').toLowerCase();
+    if (!FLEX_OMIT_ITEM_TYPES.has(type) || getText(el).length === 0) return [];
+    return [type];
+  });
 
   const words: Array<{
     form: Record<string, string>;
@@ -366,38 +449,63 @@ function parseFlexPhrase(
       pos?: string;
     }>;
   }> = [];
+  let pendingPunct = '';
   phrase.querySelectorAll(':scope > words > word').forEach((wordEl) => {
-    const wordItems = wordEl.querySelectorAll(':scope > item');
-    const wordTxtItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'txt');
-    const wordGlsItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'gls');
-    const wordPsItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'ps');
-
-    const wordText = stripPlainTextBidiIsolation(getText(wordTxtItem ?? null));
-    const wordGloss = stripPlainTextBidiIsolation(getText(wordGlsItem ?? null));
-    const wordPos = getText(wordPsItem ?? null);
+    const wordItems = itemsOf(wordEl);
+    const wordTxtItem = wordItems.find((el) => el.getAttribute('type') === 'txt');
+    const wordGlsItem = wordItems.find((el) => el.getAttribute('type') === 'gls');
+    const wordPosItem =
+      wordItems.find((el) => el.getAttribute('type') === 'pos') ??
+      wordItems.find((el) => el.getAttribute('type') === 'ps');
+    const wordText = stripPlainTextBidiIsolation(getText(wordTxtItem));
+    const wordGloss = glossRecord(wordGlsItem, stripPlainTextBidiIsolation(getText(wordGlsItem)));
+    const wordPos = getText(wordPosItem);
+    const wordPunct = wordItems
+      .filter((el) => el.getAttribute('type') === 'punct')
+      .map((el) => getText(el))
+      .join('');
+    for (const el of wordItems) {
+      const type = (el.getAttribute('type') ?? '').toLowerCase();
+      if (FLEX_OMIT_ITEM_TYPES.has(type) && getText(el).length > 0) unmapped.push(type);
+    }
+    if (wordText.length === 0 && wordPunct.length > 0 && !wordGloss && wordPos.length === 0) {
+      const previous = words[words.length - 1];
+      if (previous) previous.form.default = `${previous.form.default ?? ''}${wordPunct}`;
+      else pendingPunct += wordPunct;
+      return;
+    }
 
     const morphemes = Array.from(wordEl.querySelectorAll(':scope > morphemes > morph')).map(
       (morphEl) => {
-        const morphItems = morphEl.querySelectorAll(':scope > item');
-        const morphTxtItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'txt');
-        const morphGlsItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'gls');
-        const morphPsItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'ps');
-        const mTxt = stripPlainTextBidiIsolation(getText(morphTxtItem ?? null));
-        const mGls = stripPlainTextBidiIsolation(getText(morphGlsItem ?? null));
-        const mPos = getText(morphPsItem ?? null);
+        const morphItems = itemsOf(morphEl);
+        const morphTxtItem = morphItems.find((el) => el.getAttribute('type') === 'txt');
+        const morphGlsItem = morphItems.find((el) => el.getAttribute('type') === 'gls');
+        const morphPosItem =
+          morphItems.find((el) => el.getAttribute('type') === 'msa') ??
+          morphItems.find((el) => el.getAttribute('type') === 'pos') ??
+          morphItems.find((el) => el.getAttribute('type') === 'ps');
+        const mTxt = stripPlainTextBidiIsolation(getText(morphTxtItem));
+        const mGls = glossRecord(morphGlsItem, stripPlainTextBidiIsolation(getText(morphGlsItem)));
+        const mPos = getText(morphPosItem);
+        for (const el of morphItems) {
+          const type = (el.getAttribute('type') ?? '').toLowerCase();
+          if (FLEX_OMIT_ITEM_TYPES.has(type) && getText(el).length > 0) unmapped.push(type);
+        }
         return {
           form: { default: mTxt },
-          ...(mGls && { gloss: { eng: mGls } }),
-          ...(mPos && { pos: mPos }),
+          ...(mGls ? { gloss: mGls } : {}),
+          ...(mPos.length > 0 ? { pos: mPos } : {}),
         };
       },
     );
 
+    const formText = `${pendingPunct}${wordText}${wordPunct}`;
+    pendingPunct = '';
     words.push({
-      form: { default: wordText },
-      ...(wordGloss && { gloss: { eng: wordGloss } }),
-      ...(wordPos && { pos: wordPos }),
-      ...(morphemes.length > 0 && { morphemes }),
+      form: { default: formText },
+      ...(wordGloss ? { gloss: wordGloss } : {}),
+      ...(wordPos.length > 0 ? { pos: wordPos } : {}),
+      ...(morphemes.length > 0 ? { morphemes } : {}),
     });
   });
 
@@ -409,10 +517,10 @@ function parseFlexPhrase(
           ...(word.pos ? { pos: word.pos } : {}),
           ...(Array.isArray(word.morphemes)
             ? {
-                morphemes: word.morphemes.map((m) => ({
-                  form: m.form,
-                  ...(m.gloss ? { gloss: m.gloss } : {}),
-                  ...(m.pos ? { pos: m.pos } : {}),
+                morphemes: word.morphemes.map((morph) => ({
+                  form: morph.form,
+                  ...(morph.gloss ? { gloss: morph.gloss } : {}),
+                  ...(morph.pos ? { pos: morph.pos } : {}),
                 })),
               }
             : {}),
@@ -422,10 +530,15 @@ function parseFlexPhrase(
   return {
     phraseId,
     ...(stableGuid.length > 0 ? { stableGuid } : {}),
-    startTime: Number.isFinite(startTime) ? startTime : 0,
-    endTime: Number.isFinite(endTime) ? endTime : Number.isFinite(startTime) ? startTime : 0,
+    startTime,
+    endTime,
     transcription,
     phraseGloss,
+    extraGlosses,
+    literals,
+    notes,
+    ...(speaker ? { speaker } : {}),
+    unmapped,
     ...(sourceLang ? { sourceLang } : {}),
     ...(glossLang ? { glossLang } : {}),
     ...(tokens && tokens.length > 0 ? { tokens } : {}),
@@ -443,6 +556,11 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
 
   const units: FlexImportResult['units'] = [];
   const phraseGlosses = new Map<string, string>();
+  const translationTiers: NonNullable<FlexImportResult['translationTiers']> = new Map();
+  const userNotes: NonNullable<FlexImportResult['userNotes']> = [];
+  const participantSet = new Set<string>();
+  const documentTitle: Record<string, string> = {};
+  const unmapped = new Set<string>();
   const additionalTiers = new Map<
     string,
     Array<{
@@ -457,6 +575,46 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
   let glossLanguage: string | undefined;
   let transcriptionTierName: string | undefined;
 
+  const pushTranslation = (
+    tierName: string,
+    row: { startTime: number; endTime: number; text: string; annotationRef?: string },
+  ) => {
+    const list = translationTiers.get(tierName) ?? [];
+    list.push(row);
+    translationTiers.set(tierName, list);
+  };
+  const recordPhrase = (parsed: ReturnType<typeof parseFlexPhrase>) => {
+    if (parsed.speaker) participantSet.add(parsed.speaker);
+    for (const name of parsed.unmapped) unmapped.add(name);
+    const annotationRef = parsed.stableGuid;
+    for (const gloss of parsed.extraGlosses) {
+      pushTranslation(`FLEx Gloss (${gloss.lang})`, {
+        startTime: parsed.startTime,
+        endTime: parsed.endTime,
+        text: gloss.text,
+        ...(annotationRef ? { annotationRef } : {}),
+      });
+    }
+    for (const literal of parsed.literals) {
+      pushTranslation(`FLEx Literal (${literal.lang})`, {
+        startTime: parsed.startTime,
+        endTime: parsed.endTime,
+        text: literal.text,
+        ...(annotationRef ? { annotationRef } : {}),
+      });
+    }
+    for (const note of parsed.notes) {
+      userNotes.push({
+        startTime: parsed.startTime,
+        endTime: parsed.endTime,
+        text: note.text,
+        targetType: 'unit',
+        category: 'comment',
+        ...(annotationRef ? { annotationRef } : {}),
+      });
+    }
+  };
+
   const interlinearTexts = Array.from(doc.querySelectorAll('interlinear-text'));
   const phraseRoots =
     interlinearTexts.length > 0
@@ -464,11 +622,37 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
       : ([doc.documentElement].filter(Boolean) as Element[]);
 
   phraseRoots.forEach((root, rootIndex) => {
-    const titleItem = Array.from(root.querySelectorAll(':scope > item')).find(
-      (el) => el.getAttribute('type') === 'title',
-    );
+    const headerItems = itemsOf(root);
+    const titleItem = headerItems.find((el) => el.getAttribute('type') === 'title');
+    if (rootIndex === 0) {
+      for (const el of headerItems) {
+        if (el.getAttribute('type') !== 'title') continue;
+        const text = getText(el);
+        if (text.length === 0) continue;
+        const lang = itemLang(el);
+        if (!documentTitle[lang]) documentTitle[lang] = text;
+      }
+    }
+    for (const el of headerItems) {
+      const type = (el.getAttribute('type') ?? '').toLowerCase();
+      const text = getText(el);
+      if (text.length === 0) continue;
+      if (type === 'source') {
+        userNotes.push({
+          startTime: 0,
+          endTime: 0,
+          text,
+          targetType: 'text',
+          category: 'fieldwork',
+        });
+      } else if (type === 'comment' || type === 'description' || type === 'title-abbreviation') {
+        userNotes.push({ startTime: 0, endTime: 0, text, targetType: 'text', category: 'comment' });
+      } else if (FLEX_OMIT_ITEM_TYPES.has(type)) {
+        unmapped.add(type);
+      }
+    }
     const tierName =
-      getText(titleItem ?? null) ||
+      getText(titleItem) ||
       root.getAttribute('guid') ||
       (rootIndex === 0 ? 'primary' : `interlinear_${rootIndex + 1}`);
     const phrases = Array.from(root.querySelectorAll('phrase'));
@@ -477,6 +661,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
       transcriptionTierName = tierName;
       phrases.forEach((phrase, index) => {
         const parsed = parseFlexPhrase(phrase, index);
+        recordPhrase(parsed);
         if (!sourceLanguage && parsed.sourceLang) sourceLanguage = parsed.sourceLang;
         if (!glossLanguage && parsed.glossLang) glossLanguage = parsed.glossLang;
         if (parsed.phraseGloss) phraseGlosses.set(parsed.phraseId, parsed.phraseGloss);
@@ -495,6 +680,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
     const segments = phrases
       .map((phrase, index) => {
         const parsed = parseFlexPhrase(phrase, index);
+        recordPhrase(parsed);
         return {
           startTime: parsed.startTime,
           endTime: parsed.endTime,
@@ -506,14 +692,23 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
     if (segments.length > 0) additionalTiers.set(tierName, segments);
   });
 
+  const losses =
+    unmapped.size > 0
+      ? [{ code: 'unmapped-field' as const, name: [...unmapped].join(', ') }]
+      : undefined;
   return {
     units,
     phraseGlosses,
     additionalTiers,
+    ...(translationTiers.size > 0 ? { translationTiers } : {}),
+    ...(participantSet.size > 0 ? { participants: [...participantSet] } : {}),
+    ...(Object.keys(documentTitle).length > 0 ? { documentTitle } : {}),
+    ...(userNotes.length > 0 ? { userNotes } : {}),
     ...(timelineMetadata ? { timelineMetadata } : {}),
     ...(transcriptionTierName ? { transcriptionTierName } : {}),
     ...(sourceLanguage !== undefined && { sourceLanguage }),
     ...(glossLanguage !== undefined && { glossLanguage }),
+    ...(losses ? { losses } : {}),
   };
 }
 

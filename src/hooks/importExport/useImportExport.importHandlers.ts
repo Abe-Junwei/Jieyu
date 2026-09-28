@@ -79,6 +79,13 @@ import { mergeInterchangeTierRoles } from '../../utils/interchangeTierRoles';
 
 const log = createLogger('useImportExport');
 
+function classifiedNoteCategory(note: object): 'comment' | 'fieldwork' | undefined {
+  if (!('category' in note)) return undefined;
+  const category = note.category;
+  if (category === 'comment' || category === 'fieldwork') return category;
+  return undefined;
+}
+
 export type ImportExportImportHandlerOptions = {
   mismatchAcknowledged?: boolean;
   promptForEafTierRoles?: boolean;
@@ -227,6 +234,11 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           })
           .filter((s) => s.text.trim() !== '');
         if (glossSegments.length > 0) additionalTiers.set('FLEx Gloss', glossSegments);
+      }
+      if (flexResult?.translationTiers) {
+        for (const [tierName, rows] of flexResult.translationTiers) {
+          if (!additionalTiers.has(tierName)) additionalTiers.set(tierName, rows);
+        }
       }
 
       const textId = activeTextId ?? (await getActiveTextId());
@@ -509,12 +521,30 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       type PendingImportSpeaker = {
         rawKey: string;
         displayName: string;
-        attrs?: { dialect?: string; accent?: string; languageIds?: string[] };
+        attrs?: {
+          dialect?: string;
+          accent?: string;
+          languageIds?: string[];
+          notes?: Record<string, string>;
+        };
       };
       const pendingSpeakers: PendingImportSpeaker[] = [];
-      if (eafResult && eafResult.participants.length > 0) {
-        for (const speakerName of eafResult.participants) {
+      const namedParticipants = [
+        ...(eafResult?.participants ?? []),
+        ...(flexResult?.participants ?? []),
+      ];
+      if (namedParticipants.length > 0) {
+        for (const speakerName of namedParticipants) {
           pendingSpeakers.push({ rawKey: speakerName, displayName: speakerName });
+        }
+        for (const note of eafResult?.speakerNotes ?? []) {
+          const pending = pendingSpeakers.find((speaker) => speaker.rawKey === note.participant);
+          if (!pending) continue;
+          const lang = note.lang && note.lang.length > 0 ? note.lang : 'default';
+          pending.attrs = {
+            ...(pending.attrs ?? {}),
+            notes: { ...(pending.attrs?.notes ?? {}), [lang]: note.text },
+          };
         }
       } else if (trsResult && trsResult.speakers.length > 0) {
         for (const trsSpeaker of trsResult.speakers) {
@@ -743,6 +773,41 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                   : withRoles,
                 updatedAt: now,
               });
+            }
+          }
+
+          const importedTitle = eafResult?.documentTitle ?? flexResult?.documentTitle;
+          if (
+            importedTitle &&
+            Object.values(importedTitle).some((part) => part.trim().length > 0)
+          ) {
+            const textRow = await db.dexie.texts.get(importTextId);
+            const currentTitle = textRow?.title;
+            const titleBlank =
+              !currentTitle ||
+              Object.values(currentTitle).every((part) => part.trim().length === 0);
+            if (textRow && titleBlank) {
+              await db.dexie.texts.put({
+                ...textRow,
+                title: { ...importedTitle },
+                updatedAt: now,
+              });
+            } else if (textRow) {
+              for (const part of Object.values(importedTitle)) {
+                const text = part.trim();
+                if (text.length === 0) continue;
+                await db.dexie.user_notes.put(
+                  normalizeUserNoteDocForStorage({
+                    id: newId('note'),
+                    targetType: 'text',
+                    targetId: importTextId,
+                    content: { default: text },
+                    category: 'comment',
+                    createdAt: now,
+                    updatedAt: now,
+                  }),
+                );
+              }
             }
           }
 
@@ -1070,10 +1135,30 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           droppedTranslationSegmentCount = additionalResult.droppedTranslationSegmentCount;
           unmatchedRefCount += additionalResult.unmatchedRefCount;
 
-          const importedUserNotes = [...(eafResult?.userNotes ?? []), ...roleNoteSegments];
+          const importedUserNotes = [
+            ...(eafResult?.userNotes ?? []),
+            ...(flexResult?.userNotes ?? []),
+            ...roleNoteSegments,
+          ];
           if (importedUserNotes.length > 0) {
             for (const note of importedUserNotes) {
               if (!note.text.trim()) continue;
+              const category = classifiedNoteCategory(note);
+              const categoryField = category !== undefined ? { category } : {};
+              if ('targetType' in note && note.targetType === 'text') {
+                await db.dexie.user_notes.put(
+                  normalizeUserNoteDocForStorage({
+                    id: newId('note'),
+                    targetType: 'text',
+                    targetId: importTextId,
+                    content: { default: note.text },
+                    ...categoryField,
+                    createdAt: now,
+                    updatedAt: now,
+                  }),
+                );
+                continue;
+              }
               const match = note.annotationRef
                 ? matchUnitByAnnotationRef(insertedUnits, note.annotationRef)
                 : insertedUnits.find(
@@ -1091,6 +1176,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                   targetType: 'unit',
                   targetId: match.id,
                   content: { default: note.text },
+                  ...categoryField,
                   createdAt: now,
                   updatedAt: now,
                 }),

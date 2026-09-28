@@ -123,10 +123,16 @@ describe('eaf tier pick', () => {
         maxChildrenPerParent: 3,
         nonemptyTexts: ['ni⁵⁵ɕu³¹'],
       }),
+      tier('A_word-gls-zh-CN', {
+        parentTierId: 'A_word-txt-ers-CN',
+        nonemptyTexts: ['两口子'],
+      }),
     ]);
-    expect(picked.transcriptionTierId).toBe('A_phrase-segnum-en');
+    expect(picked.transcriptionTierId).toBeUndefined();
+    expect(picked.anchorTierIds.has('A_phrase-segnum-en')).toBe(true);
     expect(picked.headerTierIds.has('interlinear-text-title-en')).toBe(true);
     expect(picked.wordTierIds.has('A_word-txt-ers-CN')).toBe(true);
+    expect(picked.wordTierIds.has('A_word-gls-zh-CN')).toBe(true);
     expect(picked.promptTiers).toBeUndefined();
   });
 

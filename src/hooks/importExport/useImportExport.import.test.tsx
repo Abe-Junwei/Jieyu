@@ -1314,7 +1314,7 @@ describe('useImportExport - import success under stop-write', () => {
     <paragraphs>
       <paragraph guid="pg1">
         <phrases>
-          <phrase guid="p1" begin-time-offset="0" end-time-offset="1">
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="1000">
             <item type="txt" lang="en">hello</item>
           </phrase>
         </phrases>
@@ -1326,7 +1326,7 @@ describe('useImportExport - import success under stop-write', () => {
     <paragraphs>
       <paragraph guid="pg2">
         <phrases>
-          <phrase guid="p2" begin-time-offset="0" end-time-offset="1">
+          <phrase guid="p2" begin-time-offset="0" end-time-offset="1000">
             <item type="txt" lang="en">extra</item>
             <words>
               <word guid="w1">
@@ -1377,7 +1377,7 @@ describe('useImportExport - import success under stop-write', () => {
     expect(tokens).toEqual([
       expect.objectContaining({
         form: { default: 'extra' },
-        gloss: { eng: 'EXTRA' },
+        gloss: { en: 'EXTRA' },
         lexemeId: expect.any(String),
       }),
     ]);
@@ -1469,6 +1469,188 @@ describe('useImportExport - import success under stop-write', () => {
         targetId: units[0]?.id,
         category: 'topic',
         content: expect.objectContaining({ default: 'intro' }),
+      }),
+    ]);
+  });
+
+  it('writes a FLEx title, speaker note, and phrase note without a word-gloss layer', async () => {
+    await db.texts.put({
+      id: 'text-flex-map',
+      title: { zho: '' },
+      metadata: {},
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const defaultLayer: LayerDocType = {
+      id: 'trc-flex-map',
+      textId: 'text-flex-map',
+      key: 'trc_flex_map',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="test" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <MEDIA_DESCRIPTOR MEDIA_URL="speech.wav" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./speech.wav" />
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="A_word-gls-zh-CN" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_word-txt">
+    <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="w1"><ANNOTATION_VALUE>G1</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="A_word-txt" LINGUISTIC_TYPE_REF="sub-lt" PARENT_REF="A_phrase-segnum-en">
+    <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>aa</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="A_phrase-segnum-en" LINGUISTIC_TYPE_REF="align-lt" PARTICIPANT="Lenny Saumar">
+    <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>1</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="A_phrase-gls-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_phrase-segnum-en">
+    <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="A_phrase-note-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_phrase-segnum-en">
+    <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="n1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>said quickly</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="A_Participant-note-en" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="A_phrase-segnum-en" PARTICIPANT="Lenny Saumar">
+    <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="pn1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>narrator</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="interlinear-text-title-en" LINGUISTIC_TYPE_REF="align-lt">
+    <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="t1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>Pear Story</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="align-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="assoc-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="sub-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-flex-map',
+        getActiveTextId: vi.fn(async () => 'text-flex-map'),
+        selectedUnitMedia: undefined,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'story.eaf', { type: 'application/xml' }),
+      );
+    });
+    expect((await db.texts.get('text-flex-map'))?.title).toEqual({ en: 'Pear Story' });
+    const speakers = await db.speakers.toArray();
+    expect(speakers).toEqual([
+      expect.objectContaining({ name: 'Lenny Saumar', notes: { en: 'narrator' } }),
+    ]);
+    const units = await db.layer_units.where('textId').equals('text-flex-map').toArray();
+    const utterance = units.find((unit) => unit.unitType === 'unit');
+    expect(utterance?.speakerId).toBe(speakers[0]?.id);
+    const contents = await db.layer_unit_contents.toArray();
+    expect(contents.some((row) => row.text === 'aa')).toBe(true);
+    expect(contents.some((row) => row.text === 'the sentence')).toBe(true);
+    expect(contents.some((row) => row.text === 'G1')).toBe(false);
+    expect(contents.some((row) => row.text === '1')).toBe(false);
+    const notes = await db.user_notes.toArray();
+    expect(notes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetType: 'unit',
+          category: 'comment',
+          content: expect.objectContaining({ default: 'said quickly' }),
+        }),
+        expect.objectContaining({
+          targetType: 'unit',
+          content: expect.objectContaining({ default: '1' }),
+        }),
+      ]),
+    );
+    expect(notes.some((note) => note.targetType === 'text')).toBe(false);
+  });
+
+  it('keeps an existing document title and stores the interlinear title as a text note', async () => {
+    await db.texts.put({
+      id: 'text-flex-title',
+      title: { zho: 'Existing title' },
+      metadata: {},
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const defaultLayer: LayerDocType = {
+      id: 'trc-flex-title',
+      textId: 'text-flex-title',
+      key: 'trc_flex_title',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="test" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds" />
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="A_phrase-txt-en" LINGUISTIC_TYPE_REF="align-lt">
+    <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>aa</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="interlinear-text-title-en" LINGUISTIC_TYPE_REF="align-lt">
+    <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="t1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>Pear Story</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="align-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-flex-title',
+        getActiveTextId: vi.fn(async () => 'text-flex-title'),
+        selectedUnitMedia: undefined,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'story.eaf', { type: 'application/xml' }),
+      );
+    });
+    expect((await db.texts.get('text-flex-title'))?.title).toEqual({ zho: 'Existing title' });
+    const contents = await db.layer_unit_contents.toArray();
+    expect(contents.some((row) => row.text === 'aa')).toBe(true);
+    expect(contents.some((row) => row.text === 'Pear Story')).toBe(false);
+    const notes = await db.user_notes.toArray();
+    expect(notes).toEqual([
+      expect.objectContaining({
+        targetType: 'text',
+        targetId: 'text-flex-title',
+        category: 'comment',
+        content: expect.objectContaining({ default: 'Pear Story' }),
       }),
     ]);
   });
@@ -2290,7 +2472,7 @@ describe('useImportExport - import success under stop-write', () => {
 <document>
   <interlinear-text>
     <paragraphs><paragraph><phrases>
-      <phrase guid="phrase-1" begin-time-offset="0" end-time-offset="1">
+      <phrase guid="phrase-1" begin-time-offset="0" end-time-offset="1000">
         <item type="txt" lang="en">${text}</item>
       </phrase>
     </phrases></paragraph></paragraphs>
