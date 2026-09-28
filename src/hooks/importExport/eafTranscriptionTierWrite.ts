@@ -5,6 +5,11 @@ import type {
   LayerUnitDocType,
 } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import {
+  getLayerUnitById,
+  listLayerUnitContentsByUnitIds,
+  listLayerUnitsByTextId,
+} from '../../services/LayerUnitSegmentWritePrimitives';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import type { EafTranscriptionTier } from '../../services/EafService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
@@ -107,7 +112,7 @@ export async function writeExtraEafTranscriptionTiers(input: {
         : undefined;
       const id = existingId ?? newId('utt');
       const speakerId = input.resolveSpeakerId(unit.speakerId);
-      const stored = existingId ? await input.db.dexie.layer_units.get(existingId) : undefined;
+      const stored = existingId ? await getLayerUnitById(input.db, existingId) : undefined;
       const saved: LayerUnitDocType = {
         ...(stored ?? { id, textId: input.textId, createdAt: input.now }),
         id,
@@ -144,16 +149,16 @@ export async function writeExtraEafTranscriptionTiers(input: {
       }
       if (unit.transcription.trim()) {
         const relatedUnits = existingId
-          ? (
-              await input.db.dexie.layer_units.where('textId').equals(input.textId).toArray()
-            ).filter((row) => row.id === id || row.parentUnitId === id)
+          ? (await listLayerUnitsByTextId(input.db, input.textId)).filter(
+              (row) => row.id === id || row.parentUnitId === id,
+            )
           : [];
         const contentRows =
           relatedUnits.length > 0
-            ? await input.db.dexie.layer_unit_contents
-                .where('unitId')
-                .anyOf(relatedUnits.map((row) => row.id))
-                .toArray()
+            ? await listLayerUnitContentsByUnitIds(
+                input.db,
+                relatedUnits.map((row) => row.id),
+              )
             : [];
         const prior = contentRows.find(
           (row) =>
