@@ -1949,6 +1949,7 @@ export const DICT_KEYS = [
   'transcription.importExport.importDone.unrecognizedTimeUnit',
   'transcription.importExport.importDone.unmatchedRef',
   'transcription.importExport.importDone.unmappedField',
+  'transcription.importExport.importDone.guessedTier',
   'transcription.importExport.importDone.noStableId',
   'transcription.importExport.importDone.replacedById',
   'transcription.importExport.importDone.appendedWithoutId',

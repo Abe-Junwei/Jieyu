@@ -2,6 +2,7 @@
 import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { importFromEaf, type EafImportResult } from './EafService';
+import { isEafContentAnchor, isEafDateTier } from '../utils/eafTierPick';
 
 beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -90,11 +91,16 @@ describe('importFromEaf properties', () => {
           assertFiniteTimes(outcome);
           const bothFinite =
             Number.isFinite(parseInt(timeA, 10)) && Number.isFinite(parseInt(timeB, 10));
-          expect(outcome.units.length).toBe(bothFinite ? 1 : 0);
-          if (!bothFinite) return;
+          const anchor = isEafContentAnchor([utterance]);
+          const dateTier = isEafDateTier([utterance]);
+          expect(outcome.units.length).toBe(bothFinite && !dateTier ? 1 : 0);
+          if (!bothFinite || dateTier) return;
           expect(outcome.units[0]?.startTime).toBe(parseInt(timeA, 10) / 1000);
           expect(outcome.units[0]?.endTime).toBe(parseInt(timeB, 10) / 1000);
-          expect(outcome.units[0]?.transcription).toBe(utterance);
+          expect(outcome.units[0]?.transcription).toBe(anchor ? '' : utterance);
+          if (anchor) {
+            expect(outcome.userNotes?.some((note) => note.text === utterance)).toBe(true);
+          }
         },
       ),
       { numRuns: 40 },

@@ -12,11 +12,13 @@ source_of_truth: execution-plan-index
 > 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。
 > SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。
 
-## Active（70）
+## Active（72）
 
 | status | title | last_reviewed |
 | --- | --- | --- |
 | active | [EAF 导入对齐改进](./EAF导入对齐改进-2026-09-28.md) | 2026-09-28 |
+| active | [EAF 默认选层](./EAF默认选层-2026-09-28.md) | 2026-09-28 |
+| active | [FLEx 与 ELAN 导入字段映射](./FLEx与ELAN导入字段映射-2026-09-28.md) | 2026-09-28 |
 | active | [文件交换丢失清单](./文件交换丢失清单-2026-09-28.md) | 2026-09-28 |
 | active | [标注页与词典页开发路线图（重构版）](./标注页与词典页开发路线图-2026-04-25.md) | 2026-09-27 |
 | active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-09-27 |

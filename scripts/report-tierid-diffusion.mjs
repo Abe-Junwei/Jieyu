@@ -24,6 +24,7 @@ const ALLOWED_PATH_SEGMENTS = [
   '/src/db/',
   // 互操作服务 | Interop services (EAF)
   '/src/services/EafService.ts',
+  '/src/services/eaf/',
   // 互操作 hooks | Interop hooks (import/export)
   '/src/hooks/useImportExport.ts',
 ];

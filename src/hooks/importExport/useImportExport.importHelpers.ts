@@ -160,12 +160,17 @@ export async function createImportSpeakerResolver(input: {
   const resolveOrCreateSpeaker = async (
     rawKey: string,
     displayName: string,
-    attrs?: { dialect?: string; accent?: string; languageIds?: string[] },
+    attrs?: {
+      dialect?: string;
+      accent?: string;
+      languageIds?: string[];
+      notes?: SpeakerDocType['notes'];
+    },
   ): Promise<string> => {
     const normalized = input.normalizeSpeakerLookupKey(displayName);
     const existing = speakerByName.get(normalized);
     if (existing) {
-      if (attrs && (attrs.dialect || attrs.accent || attrs.languageIds?.length)) {
+      if (attrs && (attrs.dialect || attrs.accent || attrs.languageIds?.length || attrs.notes)) {
         const patched = await LinguisticService.speakers.patchImportAttrs(existing.id, attrs);
         if (patched) speakerByName.set(normalized, patched);
       }
@@ -177,6 +182,7 @@ export async function createImportSpeakerResolver(input: {
       ...(attrs?.dialect ? { dialect: attrs.dialect } : {}),
       ...(attrs?.accent ? { accent: attrs.accent } : {}),
       ...(attrs?.languageIds?.length ? { languageIds: attrs.languageIds } : {}),
+      ...(attrs?.notes ? { notes: attrs.notes } : {}),
     });
     speakerByName.set(normalized, speaker);
     rememberSpeaker(rawKey, normalized, speaker);
