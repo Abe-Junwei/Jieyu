@@ -1,14 +1,28 @@
 /**
- * Lexicon inbound: SIL LIFT 0.13 XML (B3e subset inverse).
- *
- * Research: FLEx/WeSay merge by entry/sense guid; no guid → new row.
- * Conflict policy = FLEx option 2 (overwrite mapped fields). Fields LIFT
- * does not carry stay on the existing row. No attachments / relations / sense tree.
+ * LIFT 0.13 → DMLex JSON projection. Unmapped FLEx fields become diagnostics.
  */
-import type { LexemeDocType, MultiLangString, SenseReversal } from '../types/jieyuDbDocTypes';
 import { LinguisticService } from '../services/LinguisticService';
+import { DMLEX_HOMOGRAPH, DMLEX_SUBSENSE } from '../db/dmlexTypes';
+import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from '../db/types';
+import { isLexemeEntry } from '../db/lexemeNestedIds';
 import { newId } from './transcriptionFormatters';
+import { applyLexiconEntryFields, emptyDmlexResource, type LexiconSenseDraft } from './dmlexEntry';
 import { LIFT_VERSION } from './lexiconLiftExport';
+import type { InterchangeLoss } from './interchangeLossReport';
+
+export type LexiconLiftDiagnosticCode =
+  | 'extra-headword'
+  | 'morph-type'
+  | 'note'
+  | 'reversal'
+  | 'import-residue'
+  | 'scientific-name'
+  | 'variant-with-sense';
+
+export type LexiconLiftDiagnostic = {
+  code: LexiconLiftDiagnosticCode;
+  entryId: string;
+};
 
 export type LexiconLiftImportReason =
   | 'invalid-xml'
@@ -17,367 +31,162 @@ export type LexiconLiftImportReason =
   | 'save-failed';
 
 export type LexiconLiftParseResult =
-  | { ok: true; lexemes: LexemeDocType[] }
+  | {
+      ok: true;
+      lexemes: LexemeEntryDoc[];
+      resource: LexemeResourceDoc;
+      diagnostics: LexiconLiftDiagnostic[];
+      losses: InterchangeLoss[];
+    }
   | { ok: false; reason: Exclude<LexiconLiftImportReason, 'save-failed'> };
 
 export type LexiconLiftImportResult =
-  | { ok: true; savedCount: number; readback: LexemeDocType[] }
+  | {
+      ok: true;
+      savedCount: number;
+      readback: LexemeEntryDoc[];
+      diagnostics: LexiconLiftDiagnostic[];
+      losses: InterchangeLoss[];
+    }
   | { ok: false; reason: LexiconLiftImportReason };
 
 export type LexiconLiftImportDeps = {
   save: (doc: LexemeDocType) => Promise<string>;
-  list: () => Promise<LexemeDocType[]>;
+  list: () => Promise<LexemeEntryDoc[]>;
+  loadResource: () => Promise<LexemeResourceDoc | null>;
+  saveResource: (doc: LexemeResourceDoc) => Promise<string>;
 };
 
 const defaultDeps: LexiconLiftImportDeps = {
   save: (doc) => LinguisticService.lexemes.save(doc),
   list: () => LinguisticService.lexemes.list(),
+  loadResource: () => LinguisticService.lexemes.getResource(),
+  saveResource: (doc) => LinguisticService.lexemes.save(doc),
 };
 
 function directChildren(parent: Element, localName: string): Element[] {
   return Array.from(parent.children).filter((child) => child.localName === localName);
 }
 
-/** FLEx sense `order` starts at 0. Missing order keeps document order. */
-function sortByLiftOrder(elements: Element[]): Element[] {
-  return elements
-    .map((element, index) => {
-      const raw = attr(element, 'order');
-      const parsed = Number(raw);
-      const order = raw.length > 0 && Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
-      return { element, index, order };
-    })
-    .sort((left, right) => {
-      if (left.order !== right.order) return left.order - right.order;
-      return left.index - right.index;
-    })
-    .map((row) => row.element);
-}
-
 function attr(el: Element, name: string): string {
   return (el.getAttribute(name) ?? '').trim();
 }
 
-function formPairs(parent: Element): Array<{ lang: string; text: string }> {
-  const seen = new Set<string>();
+function formText(parent: Element | undefined): Array<{ lang: string; text: string }> {
+  if (!parent) return [];
   const out: Array<{ lang: string; text: string }> = [];
   for (const form of directChildren(parent, 'form')) {
-    const lang = attr(form, 'lang');
-    if (lang.length === 0 || seen.has(lang)) continue;
-    const textEl = directChildren(form, 'text')[0];
-    const text = (textEl?.textContent ?? '').trim();
+    const text = (directChildren(form, 'text')[0]?.textContent ?? '').trim();
     if (text.length === 0) continue;
-    seen.add(lang);
-    out.push({ lang, text });
+    const lang = attr(form, 'lang');
+    out.push({ lang: lang.length > 0 ? lang : 'und', text });
   }
   return out;
 }
 
-function multiLangFromForms(parent: Element | undefined): MultiLangString | undefined {
-  if (!parent) return undefined;
-  const pairs = formPairs(parent);
-  if (pairs.length === 0) return undefined;
-  const record: MultiLangString = {};
-  for (const pair of pairs) record[pair.lang] = pair.text;
-  const first = pairs[0];
-  if (first) record.default = first.text;
-  return record;
+function firstText(forms: Array<{ lang: string; text: string }>): string {
+  return forms[0]?.text ?? '';
 }
 
-function glossRecord(sense: Element, vernacular: string): MultiLangString | undefined {
-  const seen = new Set<string>();
-  const record: MultiLangString = {};
-  for (const gloss of directChildren(sense, 'gloss')) {
-    const glossLang = attr(gloss, 'lang');
-    const lang = glossLang.length > 0 ? glossLang : vernacular;
-    if (seen.has(lang)) continue;
-    const textEl = directChildren(gloss, 'text')[0];
-    const text = (textEl?.textContent ?? '').trim();
-    if (text.length === 0) continue;
-    seen.add(lang);
-    record[lang] = text;
-  }
-  const langs = Object.keys(record);
-  if (langs.length === 0) return undefined;
-  if ((record.default ?? '').length === 0) {
-    const first = record[langs[0]!];
-    if (first !== undefined && first.length > 0) record.default = first;
-  }
-  return record;
-}
-
-function parseExamples(sense: Element): Array<{ source: string; translation?: string }> {
-  return directChildren(sense, 'example').flatMap((example) => {
-    const source = formPairs(example)[0]?.text ?? '';
-    if (source.length === 0) return [];
-    const translationParent = directChildren(example, 'translation')[0];
-    const translation = translationParent ? (formPairs(translationParent)[0]?.text ?? '') : '';
-    return translation.length > 0 ? [{ source, translation }] : [{ source }];
-  });
-}
+type ParsedSense = {
+  id: string;
+  parentId: string;
+  draft: LexiconSenseDraft;
+  pos: string;
+};
 
 function parseSense(
   sense: Element,
-  index: number,
-  lexemeId: string,
-  vernacular: string,
-): LexemeDocType['senses'][number] | null {
-  const gloss = glossRecord(sense, vernacular);
-  if (!gloss) return null;
-  const storedId = attr(sense, 'id');
-  const definitionParent = directChildren(sense, 'definition')[0];
-  const definition = multiLangFromForms(definitionParent);
-  const grammatical = directChildren(sense, 'grammatical-info')[0];
-  const category = grammatical ? attr(grammatical, 'value') : '';
-  const examples = parseExamples(sense);
-  const scientificName = parseFieldText(sense, 'scientific-name');
-  const anthropologyNote = parseTypedNote(sense, 'anthropology');
-  const senseBibliography = parseTypedNote(sense, 'bibliography');
-  const discourseNote = parseTypedNote(sense, 'discourse');
-  const encyclopedicNote = parseTypedNote(sense, 'encyclopedic');
-  const generalNote = parseTypedNote(sense, '');
-  const grammarNote = parseTypedNote(sense, 'grammar');
-  const semanticDomains = parseSemanticDomains(sense);
-  const phonologyNote = parseTypedNote(sense, 'phonology');
-  const semanticsNote = parseTypedNote(sense, 'semantics');
-  const sociolinguisticsNote = parseTypedNote(sense, 'sociolinguistics');
-  const sourceNote = parseTypedNote(sense, 'source');
-  const usages = parseUsages(sense);
-  const senseType = parseTraitValue(sense, 'sense-type');
-  const academicDomains = parseAcademicDomains(sense);
-  const anthropologyCategories = parseAnthropologyCategories(sense);
-  const senseStatus = parseTraitValue(sense, 'status');
-  const dialectLabels = parseDialectLabels(sense);
-  const senseRestrictions = parseTypedNote(sense, 'restrictions');
-  const importResidue = parseFieldText(sense, 'import-residue');
-  const reversals = parseReversals(sense);
+  parentId: string,
+  entryId: string,
+  headLang: string,
+  diagnostics: LexiconLiftDiagnostic[],
+): ParsedSense {
+  const senseIdAttr = attr(sense, 'id');
+  const id = senseIdAttr.length > 0 ? senseIdAttr : newId('sense');
+  const glosses = directChildren(sense, 'gloss').flatMap((gloss) => {
+    const text = (gloss.querySelector('text')?.textContent ?? '').trim();
+    if (text.length === 0) return [];
+    const lang = attr(gloss, 'lang');
+    return [{ lang: lang.length > 0 ? lang : 'und', text }];
+  });
+  const definitions = directChildren(sense, 'definition').flatMap((definition) =>
+    formText(definition),
+  );
+  const sameLang = definitions.find((item) => item.lang === headLang || item.lang.length === 0);
+  const otherLang = definitions.find((item) => item.lang !== headLang && item.lang.length > 0);
+  const example = directChildren(sense, 'example')[0];
+  const exampleForms = formText(example);
+  const exampleTranslation = example
+    ? firstText(formText(directChildren(example, 'translation')[0]))
+    : '';
+  const labels = directChildren(sense, 'trait')
+    .map((trait) => attr(trait, 'value'))
+    .filter((value) => value.length > 0);
+  if (directChildren(sense, 'note').length > 0) diagnostics.push({ code: 'note', entryId });
+  if (directChildren(sense, 'reversal').length > 0) diagnostics.push({ code: 'reversal', entryId });
+  if (sense.querySelector('field[type="import-residue"]')) {
+    diagnostics.push({ code: 'import-residue', entryId });
+  }
+  if (sense.querySelector('field[type="scientific-name"]')) {
+    diagnostics.push({ code: 'scientific-name', entryId });
+  }
+  const draft: LexiconSenseDraft = {
+    id,
+    parentId,
+    indicator: '',
+    translation: glosses[0]?.text ?? '',
+    translationLang: glosses[0]?.lang ?? 'zh',
+    explanation: otherLang?.text ?? '',
+    explanationLang: otherLang?.lang ?? 'zh',
+    definition: sameLang?.text ?? (otherLang ? '' : (definitions[0]?.text ?? '')),
+    example: firstText(exampleForms),
+    exampleTranslation,
+    exampleTranslationLang: 'zh',
+    exampleSegmentId: '',
+    labels: labels.join(', '),
+    note: '',
+  };
   return {
-    id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
-    gloss,
-    ...(definition ? { definition } : {}),
-    ...(category.length > 0 ? { category } : {}),
-    ...(scientificName.length > 0 ? { scientificName } : {}),
-    ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
-    ...(senseBibliography.length > 0 ? { senseBibliography } : {}),
-    ...(discourseNote.length > 0 ? { discourseNote } : {}),
-    ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
-    ...(generalNote.length > 0 ? { generalNote } : {}),
-    ...(grammarNote.length > 0 ? { grammarNote } : {}),
-    ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
-    ...(phonologyNote.length > 0 ? { phonologyNote } : {}),
-    ...(semanticsNote.length > 0 ? { semanticsNote } : {}),
-    ...(sociolinguisticsNote.length > 0 ? { sociolinguisticsNote } : {}),
-    ...(sourceNote.length > 0 ? { sourceNote } : {}),
-    ...(usages.length > 0 ? { usages } : {}),
-    ...(senseType.length > 0 ? { senseType } : {}),
-    ...(academicDomains.length > 0 ? { academicDomains } : {}),
-    ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
-    ...(senseStatus.length > 0 ? { senseStatus } : {}),
-    ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
-    ...(senseRestrictions.length > 0 ? { senseRestrictions } : {}),
-    ...(importResidue.length > 0 ? { importResidue } : {}),
-    ...(reversals.length > 0 ? { reversals } : {}),
-    ...(examples.length > 0 ? { examples } : {}),
+    id,
+    parentId,
+    draft,
+    pos: directChildren(sense, 'grammatical-info')[0]
+      ? attr(directChildren(sense, 'grammatical-info')[0]!, 'value')
+      : '',
   };
 }
 
-function parseSenseTree(
-  sense: Element,
-  index: number,
-  lexemeId: string,
-  vernacular: string,
-  parentId: string | undefined,
-): LexemeDocType['senses'] {
-  const parsed = parseSense(sense, index, lexemeId, vernacular);
-  if (!parsed) return [];
-  const withParent =
-    parentId !== undefined && parentId.length > 0 ? { ...parsed, parentId } : parsed;
-  const children = sortByLiftOrder(directChildren(sense, 'subsense')).flatMap((child, childIndex) =>
-    parseSenseTree(child, childIndex, lexemeId, vernacular, parsed.id),
-  );
-  return [withParent, ...children];
-}
-
-function firstGlossText(parent: Element): string {
-  for (const gloss of directChildren(parent, 'gloss')) {
-    const text = (directChildren(gloss, 'text')[0]?.textContent ?? '').trim();
-    if (text.length > 0) return text;
+function collectSenses(
+  elements: Element[],
+  parentId: string,
+  entryId: string,
+  headLang: string,
+  diagnostics: LexiconLiftDiagnostic[],
+): ParsedSense[] {
+  const out: ParsedSense[] = [];
+  for (const element of elements) {
+    const parsed = parseSense(element, parentId, entryId, headLang, diagnostics);
+    out.push(parsed);
+    out.push(
+      ...collectSenses(
+        directChildren(element, 'subsense'),
+        parsed.id,
+        entryId,
+        headLang,
+        diagnostics,
+      ),
+    );
   }
-  return '';
+  return out;
 }
 
-function parseEtymology(entry: Element): LexemeDocType['etymology'] {
-  for (const block of directChildren(entry, 'etymology')) {
-    const form = formPairs(block)[0]?.text ?? '';
-    if (form.length === 0) continue;
-    const gloss = firstGlossText(block);
-    const sourceTrait =
-      directChildren(block, 'trait').find((trait) => attr(trait, 'name') === 'languages') ?? null;
-    const sourceLanguage = sourceTrait ? attr(sourceTrait, 'value') : '';
-    return {
-      form,
-      ...(gloss.length > 0 ? { gloss } : {}),
-      ...(sourceLanguage.length > 0 ? { sourceLanguage } : {}),
-    };
-  }
-  return undefined;
-}
-
-function entryNote(entry: Element, type: string): Element | undefined {
-  return directChildren(entry, 'note').find((note) => attr(note, 'type') === type);
-}
-
-function parseTypedNote(entry: Element, type: string): string {
-  const note = entryNote(entry, type);
-  if (!note) return '';
-  return formPairs(note)[0]?.text ?? '';
-}
-
-function parseSemanticDomains(sense: Element): string[] {
-  return parseTraitValues(sense, 'semantic-domain-ddp4');
-}
-
-function parseUsages(sense: Element): string[] {
-  return parseTraitValues(sense, 'usage-type');
-}
-
-function parseTraitValue(sense: Element, name: string): string {
-  return parseTraitValues(sense, name)[0] ?? '';
-}
-
-function parseAcademicDomains(sense: Element): string[] {
-  return parseTraitValues(sense, 'domain-type');
-}
-
-function parseAnthropologyCategories(sense: Element): string[] {
-  return parseTraitValues(sense, 'anthro-code');
-}
-
-function parseDialectLabels(sense: Element): string[] {
-  return parseTraitValues(sense, 'dialect-labels');
-}
-
-function parseTraitValues(sense: Element, name: string): string[] {
-  const seen = new Set<string>();
-  const values: string[] = [];
-  for (const trait of directChildren(sense, 'trait')) {
-    if (attr(trait, 'name') !== name) continue;
-    const value = attr(trait, 'value');
-    if (value.length === 0 || seen.has(value)) continue;
-    seen.add(value);
-    values.push(value);
-  }
-  return values;
-}
-
-function parseBibliography(entry: Element): string {
-  return parseTypedNote(entry, 'bibliography');
-}
-
-function parseRestrictions(entry: Element): string {
-  return parseTypedNote(entry, 'restrictions');
-}
-
-function parseReversalNode(element: Element): SenseReversal['main'] {
-  const text = formPairs(element)[0]?.text ?? '';
-  const nested = directChildren(element, 'main')[0];
-  const main = nested ? parseReversalNode(nested) : undefined;
-  if (text.length === 0) return main;
-  return main ? { text, main } : { text };
-}
-
-function parseReversals(sense: Element): SenseReversal[] {
-  const reversals: SenseReversal[] = [];
-  for (const reversal of directChildren(sense, 'reversal')) {
-    const forms = formPairs(reversal);
-    const type = attr(reversal, 'type');
-    const lang = type.length > 0 ? type : (forms[0]?.lang ?? '');
-    if (lang.length === 0) continue;
-    const text = forms.find((form) => form.lang === lang)?.text ?? forms[0]?.text ?? '';
-    if (text.length === 0) continue;
-    const nested = directChildren(reversal, 'main')[0];
-    const main = nested ? parseReversalNode(nested) : undefined;
-    reversals.push(main ? { lang, text, main } : { lang, text });
-  }
-  return reversals;
-}
-
-function parseFieldText(entry: Element, type: string): string {
-  for (const field of directChildren(entry, 'field')) {
-    if (attr(field, 'type') !== type) continue;
-    const text = formPairs(field)[0]?.text ?? '';
-    if (text.length > 0) return text;
-  }
-  return '';
-}
-
-function parseLiteralMeaning(entry: Element): string {
-  return parseFieldText(entry, 'literal-meaning');
-}
-
-function parseSummaryDefinition(entry: Element): string {
-  return parseFieldText(entry, 'summary-definition');
-}
-
-function parsePronunciation(entry: Element): string {
-  for (const block of directChildren(entry, 'pronunciation')) {
-    const text = formPairs(block)[0]?.text ?? '';
-    if (text.length > 0) return text;
-  }
-  return '';
-}
-
-function parseEntry(entry: Element, now: string): LexemeDocType | null {
-  const lexicalUnit = directChildren(entry, 'lexical-unit')[0];
-  if (!lexicalUnit) return null;
-  const lemma = multiLangFromForms(lexicalUnit);
-  if (!lemma) return null;
-  const entryId = attr(entry, 'id');
-  const id = entryId.length > 0 ? entryId : newId('lex');
-  const firstLang = formPairs(lexicalUnit)[0]?.lang ?? '';
-  const language = firstLang.length > 0 ? firstLang : 'und';
-  const citationParent = directChildren(entry, 'citation')[0];
-  const citation = citationParent ? (formPairs(citationParent)[0]?.text ?? '') : '';
-  const notesParent = entryNote(entry, '');
-  const notes = multiLangFromForms(notesParent);
-  const morphType =
-    directChildren(entry, 'trait').find((trait) => attr(trait, 'name') === 'morph-type') ?? null;
-  const lexemeType = morphType ? attr(morphType, 'value') : '';
-  const pronunciation = parsePronunciation(entry);
-  const etymology = parseEtymology(entry);
-  const literalMeaning = parseLiteralMeaning(entry);
-  const summaryDefinition = parseSummaryDefinition(entry);
-  const bibliography = parseBibliography(entry);
-  const restrictions = parseRestrictions(entry);
-  const senses = sortByLiftOrder(directChildren(entry, 'sense')).flatMap((sense, index) =>
-    parseSenseTree(sense, index, id, language, undefined),
-  );
-  const forms = directChildren(entry, 'variant').flatMap((variant) => {
-    const transcription = multiLangFromForms(variant);
-    if (!transcription) return [];
-    return [{ transcription }];
-  });
-  const createdAttr = attr(entry, 'dateCreated');
-  const updatedAttr = attr(entry, 'dateModified');
-  const createdAt = createdAttr.length > 0 ? createdAttr : now;
-  const updatedAt = updatedAttr.length > 0 ? updatedAttr : now;
+function blankEntry(id: string, headword: string, now: string): LexemeEntryDoc {
   return {
     id,
-    lemma,
-    language,
-    senses,
-    createdAt,
-    updatedAt,
-    ...(citation.length > 0 ? { citationForm: citation } : {}),
-    ...(lexemeType.length > 0 ? { lexemeType } : {}),
-    ...(pronunciation.length > 0 ? { pronunciation } : {}),
-    ...(etymology ? { etymology } : {}),
-    ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
-    ...(summaryDefinition.length > 0 ? { summaryDefinition } : {}),
-    ...(bibliography.length > 0 ? { bibliography } : {}),
-    ...(restrictions.length > 0 ? { restrictions } : {}),
-    ...(notes ? { notes } : {}),
-    ...(forms.length > 0 ? { forms } : {}),
+    entry: { id, headword },
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
@@ -389,72 +198,141 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
   if (doc.querySelector('parsererror')) return { ok: false, reason: 'invalid-xml' };
   const lift = doc.documentElement;
   if (lift.localName !== 'lift') return { ok: false, reason: 'invalid-xml' };
-  const version = attr(lift, 'version');
-  if (version !== LIFT_VERSION) return { ok: false, reason: 'unsupported-version' };
+  if (attr(lift, 'version') !== LIFT_VERSION) return { ok: false, reason: 'unsupported-version' };
   const now = new Date().toISOString();
-  const lexemes = directChildren(lift, 'entry')
-    .map((entry) => parseEntry(entry, now))
-    .filter((entry): entry is LexemeDocType => entry !== null);
-  if (lexemes.length === 0) return { ok: false, reason: 'empty' };
-  return { ok: true, lexemes };
-}
-
-function mergeParsed(
-  parsed: LexemeDocType,
-  existing: LexemeDocType | undefined,
-  now: string,
-): LexemeDocType {
-  if (!existing) {
-    const createdAt = parsed.createdAt.length > 0 ? parsed.createdAt : now;
-    return { ...parsed, updatedAt: now, createdAt };
+  const diagnostics: LexiconLiftDiagnostic[] = [];
+  const lexemes: LexemeEntryDoc[] = [];
+  let resource = emptyDmlexResource(now);
+  let missingStableIds = 0;
+  for (const entry of directChildren(lift, 'entry')) {
+    const entryIdAttr = attr(entry, 'id');
+    const id = entryIdAttr.length > 0 ? entryIdAttr : newId('lex');
+    if (
+      attr(entry, 'morph-type').length > 0 ||
+      directChildren(entry, 'trait').some((trait) => attr(trait, 'name') === 'morph-type')
+    ) {
+      diagnostics.push({ code: 'morph-type', entryId: id });
+    }
+    const forms = formText(directChildren(entry, 'lexical-unit')[0]);
+    if (forms.length === 0) continue;
+    if (entryIdAttr.length === 0) missingStableIds += 1;
+    if (forms.length > 1) diagnostics.push({ code: 'extra-headword', entryId: id });
+    const senses = collectSenses(
+      directChildren(entry, 'sense'),
+      '',
+      id,
+      forms[0]!.lang,
+      diagnostics,
+    );
+    const posValues = [
+      ...new Set(senses.map((sense) => sense.pos).filter((pos) => pos.length > 0)),
+    ];
+    const pronunciation = firstText(formText(directChildren(entry, 'pronunciation')[0]));
+    const etymology = directChildren(entry, 'etymology')[0];
+    const etymon = firstText(formText(etymology));
+    const variants = directChildren(entry, 'variant');
+    for (const variant of variants) {
+      if (directChildren(variant, 'sense').length > 0) {
+        diagnostics.push({ code: 'variant-with-sense', entryId: id });
+      }
+    }
+    const inflected = variants
+      .flatMap((variant) => formText(variant))
+      .map((form) => form.text)
+      .join(', ');
+    const groups =
+      posValues.length <= 1
+        ? [{ id, pos: posValues[0] ?? '', senses }]
+        : posValues.map((pos, index) => ({
+            id: index === 0 ? id : `${id}__${pos}`,
+            pos,
+            senses: senses
+              .filter((sense) => sense.pos === pos)
+              .map((sense) => ({ ...sense, draft: { ...sense.draft, parentId: '' } })),
+          }));
+    const partners = groups.map((group) => group.id);
+    for (const group of groups) {
+      const applied = applyLexiconEntryFields(
+        blankEntry(group.id, forms[0]!.text, now),
+        {
+          headword: forms[0]!.text,
+          homographNumber: groups.length > 1 ? String(partners.indexOf(group.id) + 1) : '',
+          partsOfSpeech: group.pos,
+          labels: '',
+          pronunciation,
+          inflectedForms: inflected,
+          etymon,
+          etymonLang: etymology ? attr(etymology, 'source') : '',
+          note: '',
+          homographEntryId: group.id === partners[0] ? '' : (partners[0] ?? ''),
+          senses: group.senses.map((sense) => sense.draft),
+        },
+        resource,
+        now,
+      );
+      lexemes.push(applied.entry);
+      resource = applied.resource;
+    }
   }
-  const citationForm = parsed.citationForm ?? existing.citationForm;
-  const lexemeType = parsed.lexemeType ?? existing.lexemeType;
-  const pronunciation = parsed.pronunciation ?? existing.pronunciation;
-  const etymology = parsed.etymology ?? existing.etymology;
-  const literalMeaning = parsed.literalMeaning ?? existing.literalMeaning;
-  const summaryDefinition = parsed.summaryDefinition ?? existing.summaryDefinition;
-  const bibliography = parsed.bibliography ?? existing.bibliography;
-  const restrictions = parsed.restrictions ?? existing.restrictions;
-  const notes = parsed.notes ?? existing.notes;
-  const forms = parsed.forms ?? existing.forms;
-  return {
-    ...existing,
-    lemma: parsed.lemma,
-    language: parsed.language ?? existing.language ?? 'und',
-    senses: parsed.senses,
-    updatedAt: now,
-    createdAt: existing.createdAt,
-    ...(citationForm !== undefined ? { citationForm } : {}),
-    ...(lexemeType !== undefined && lexemeType.length > 0 ? { lexemeType } : {}),
-    ...(pronunciation !== undefined && pronunciation.length > 0 ? { pronunciation } : {}),
-    ...(etymology !== undefined && etymology.form.length > 0 ? { etymology } : {}),
-    ...(literalMeaning !== undefined && literalMeaning.length > 0 ? { literalMeaning } : {}),
-    ...(summaryDefinition !== undefined && summaryDefinition.length > 0
-      ? { summaryDefinition }
-      : {}),
-    ...(bibliography !== undefined && bibliography.length > 0 ? { bibliography } : {}),
-    ...(restrictions !== undefined && restrictions.length > 0 ? { restrictions } : {}),
-    ...(notes !== undefined ? { notes } : {}),
-    ...(forms !== undefined ? { forms } : {}),
-  };
+  if (lexemes.length === 0) return { ok: false, reason: 'empty' };
+  const losses: InterchangeLoss[] =
+    missingStableIds > 0 ? [{ code: 'no-stable-id', count: missingStableIds }] : [];
+  return { ok: true, lexemes, resource, diagnostics, losses };
 }
 
 export async function importLexemesFromLiftXml(
   xml: string,
   deps: LexiconLiftImportDeps = defaultDeps,
-  now: string = new Date().toISOString(),
 ): Promise<LexiconLiftImportResult> {
   const parsed = parseLiftXml(xml);
   if (!parsed.ok) return parsed;
   try {
-    const existing = await deps.list();
-    const byId = new Map(existing.map((row) => [row.id, row]));
+    const existingIds = new Set((await deps.list()).map((row) => row.id));
+    let replacedById = 0;
+    const existingResource = await deps.loadResource();
+    let resource = existingResource ?? parsed.resource;
     for (const lexeme of parsed.lexemes) {
-      await deps.save(mergeParsed(lexeme, byId.get(lexeme.id), now));
+      if (existingIds.has(lexeme.id)) replacedById += 1;
+      const relations = [
+        ...(resource.resource.relations ?? []).filter(
+          (relation) =>
+            relation.type !== DMLEX_SUBSENSE &&
+            !(
+              relation.type === DMLEX_HOMOGRAPH &&
+              relation.members.some((member) => member.ref === lexeme.id)
+            ),
+        ),
+        ...(parsed.resource.resource.relations ?? []).filter((relation) =>
+          relation.members.some(
+            (member) =>
+              member.ref === lexeme.id ||
+              (lexeme.entry.senses ?? []).some((sense) => sense.id === member.ref),
+          ),
+        ),
+      ];
+      const relationTypes = parsed.resource.resource.relationTypes;
+      resource = {
+        ...parsed.resource,
+        resource: {
+          ...parsed.resource.resource,
+          relations,
+          ...(relationTypes ? { relationTypes } : {}),
+        },
+        createdAt: resource.createdAt,
+      };
+      await deps.save(lexeme);
     }
-    const readback = await deps.list();
-    return { ok: true, savedCount: parsed.lexemes.length, readback };
+    await deps.saveResource(resource);
+    const readback = (await deps.list()).filter(isLexemeEntry);
+    const losses = [...parsed.losses];
+    if (replacedById > 0) losses.push({ code: 'replaced-by-id', count: replacedById });
+    return {
+      ok: true,
+      savedCount: parsed.lexemes.length,
+      readback,
+      diagnostics: parsed.diagnostics,
+      losses,
+    };
   } catch {
     return { ok: false, reason: 'save-failed' };
   }
@@ -464,6 +342,5 @@ export async function importLexemesFromLiftFile(
   file: File,
   deps: LexiconLiftImportDeps = defaultDeps,
 ): Promise<LexiconLiftImportResult> {
-  const xml = await file.text();
-  return importLexemesFromLiftXml(xml, deps);
+  return importLexemesFromLiftXml(await file.text(), deps);
 }
