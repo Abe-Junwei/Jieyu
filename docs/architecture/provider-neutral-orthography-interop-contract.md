@@ -59,8 +59,8 @@ source_of_truth: compatibility-contract
 
 代码入口：
 
-- 导出注册 metadata：[src/services/EafService.ts](../../src/services/EafService.ts#L223)
-- 导入解析 metadata：[src/services/EafService.ts](../../src/services/EafService.ts#L679)
+- 导出注册 metadata：[src/services/eaf/eafExport.ts](../../src/services/eaf/eafExport.ts)
+- 导入解析 metadata：[src/services/eaf/eafImport.ts](../../src/services/eaf/eafImport.ts)
 
 ### TextGrid
 

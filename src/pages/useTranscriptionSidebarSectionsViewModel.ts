@@ -11,6 +11,7 @@ import type { PendingAudioImportSelection } from '../types/useTranscriptionProje
 type AudioImportDisposition = TranscriptionPageDialogsProps['audioImportDisposition'];
 type AnnotationImportMismatchDialogBinding =
   TranscriptionPageDialogsProps['annotationImportMismatchDialog'];
+type EafTierRoleDialogBinding = TranscriptionPageDialogsProps['eafTierRoleDialog'];
 
 export interface UseTranscriptionSidebarSectionsViewModelInput {
   locale: string;
@@ -43,6 +44,7 @@ export interface UseTranscriptionSidebarSectionsViewModelInput {
   pendingAudioImportSelection: PendingAudioImportSelection | null;
   clearPendingAudioImportSelection: () => void;
   annotationImportMismatchDialog?: AnnotationImportMismatchDialogBinding | null;
+  eafTierRoleDialog?: EafTierRoleDialogBinding | null;
   handleAudioImport: TranscriptionPageDialogsProps['onImportAudio'];
   mediaFileInputRef: React.RefObject<HTMLInputElement | null>;
   handleDirectMediaImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -106,6 +108,7 @@ export function useTranscriptionSidebarSectionsViewModel(
     pendingAudioImportSelection,
     clearPendingAudioImportSelection,
     annotationImportMismatchDialog,
+    eafTierRoleDialog,
     handleAudioImport,
     mediaFileInputRef,
     handleDirectMediaImport,
@@ -171,6 +174,7 @@ export function useTranscriptionSidebarSectionsViewModel(
       ...(pendingAudioImportSelection ? { pendingAudioImportSelection } : {}),
       onConsumePendingAudioImportSelection: clearPendingAudioImportSelection,
       ...(annotationImportMismatchDialog ? { annotationImportMismatchDialog } : {}),
+      ...(eafTierRoleDialog ? { eafTierRoleDialog } : {}),
       onImportAudio: handleAudioImport,
       mediaFileInputRef,
       onDirectMediaImport: handleDirectMediaImport,
@@ -190,6 +194,7 @@ export function useTranscriptionSidebarSectionsViewModel(
       audioImportDisposition,
       audioImportTimelineMismatch,
       annotationImportMismatchDialog,
+      eafTierRoleDialog,
       clearPendingAudioImportSelection,
       closeShortcuts,
       closeSpeakerDialog,
