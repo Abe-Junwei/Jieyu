@@ -60,6 +60,7 @@ source_of_truth: decision-index
 - [0038-eaf-tier-pick-by-content.md](./0038-eaf-tier-pick-by-content.md)（没有角色表时按正文和层名选 EAF 转写层；一句对一句的细分层不当词；没有媒体时独立翻译挂到已有语段）
 - [0039-flex-elan-import-field-map.md](./0039-flex-elan-import-field-map.md)（FLEx 与 ELAN 的元素按说明文档写进解语已有字段；词级 `gls` 不进转写页翻译行）
 - [0040-eaf-ph-phonetic-transcription.md](./0040-eaf-ph-phonetic-transcription.md)（DoReCo `ph` 是语音转写层，写入已有的附加转写层，不计丢失）
+- [0041-eaf-nt-note-fn-translation.md](./0041-eaf-nt-note-fn-translation.md)（DoReCo `nt` 写入句子备注，`fn` 与 `ft` 同为翻译且不合并）
 
 ## 建议格式
 

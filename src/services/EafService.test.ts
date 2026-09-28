@@ -1200,6 +1200,9 @@ describe('EAF default tier pick', () => {
       <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
         <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the translation</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
       </TIER>
+      <TIER TIER_ID="fn" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="nfn" ANNOTATION_REF="a1"><ANNOTATION_VALUE>la traducción</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+      </TIER>
       <TIER TIER_ID="nt@NOBODY" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
         <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="n1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>a note</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
       </TIER>
@@ -1215,7 +1218,16 @@ describe('EAF default tier pick', () => {
     expect(confirmed.transcriptionTierName).toBe('tx');
     expect(confirmed.units[0]?.transcription).toBe('the sentence');
     expect(confirmed.translationTiers.get('ft')?.[0]?.text).toBe('the translation');
-    expect(confirmed.translationTiers.get('nt@NOBODY')?.[0]?.text).toBe('a note');
+    expect(confirmed.translationTiers.get('fn')?.[0]?.text).toBe('la traducción');
+    expect(confirmed.translationTiers.has('nt@NOBODY')).toBe(false);
+    expect(confirmed.userNotes).toEqual([
+      expect.objectContaining({
+        text: 'a note',
+        category: 'comment',
+        targetType: 'unit',
+        annotationRef: 't1',
+      }),
+    ]);
     for (const tierId of ['ref', 'wd', 'sound@NOBODY']) {
       expect(confirmed.translationTiers.has(tierId)).toBe(false);
     }
@@ -1501,7 +1513,11 @@ describe('EAF default tier pick', () => {
       expect(confirmed.transcriptionTierName).toBe('tx@NHK');
       expect(confirmed.units.some((unit) => unit.transcription.trim().length > 0)).toBe(true);
       expect(confirmed.translationTiers.has('ft@NHK')).toBe(true);
-      expect(confirmed.translationTiers.has('nt@NHK')).toBe(true);
+      expect(confirmed.translationTiers.has('fn@NHK')).toBe(true);
+      expect(confirmed.translationTiers.has('nt@NHK')).toBe(false);
+      expect(confirmed.userNotes?.some((note) => note.text.includes('Sudanese Ar. yes'))).toBe(
+        true,
+      );
       expect(confirmed.extraTranscriptionTiers?.some((tier) => tier.tierName === 'ph@NHK')).toBe(
         true,
       );

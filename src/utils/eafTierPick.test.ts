@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   isEafContentAnchor,
   isPhoneticTranscriptionTier,
+  isUtteranceNoteTier,
   phoneticTranscriptionTier,
   pickEafTiers,
   tokenizeEafLabel,
+  utteranceNoteRows,
 } from './eafTierPick';
 
 function tier(
@@ -39,6 +41,23 @@ describe('eaf tier pick', () => {
   it('keeps a ph tier as phonetic transcription and ignores phrase', () => {
     expect(isPhoneticTranscriptionTier('ph@NHK')).toBe(true);
     expect(isPhoneticTranscriptionTier('phrase-txt')).toBe(false);
+    expect(isUtteranceNoteTier('nt@NHK')).toBe(true);
+    expect(isUtteranceNoteTier('note')).toBe(false);
+    expect(
+      utteranceNoteRows([
+        { startTime: 0, endTime: 1, text: '<p:>', annotationRef: 'a0' },
+        { startTime: 1, endTime: 2, text: 'aay = Sudanese Ar. yes', annotationRef: 'a3' },
+      ]),
+    ).toEqual([
+      {
+        startTime: 1,
+        endTime: 2,
+        text: 'aay = Sudanese Ar. yes',
+        annotationRef: 'a3',
+        targetType: 'unit',
+        category: 'comment',
+      },
+    ]);
     expect(
       phoneticTranscriptionTier({
         tierId: 'ph',

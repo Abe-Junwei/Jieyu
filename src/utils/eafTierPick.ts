@@ -8,7 +8,9 @@ import type { EafRolePromptTier } from './eafTierRole';
  */
 
 const TRANSCRIPTION_TOKENS = new Set(['tx', 'trs', 'transcription', '转写']);
-const TRANSLATION_TOKENS = new Set(['ft', 'gls', 'translation', 'free', '翻译']);
+const TRANSLATION_TOKENS = new Set(['ft', 'fn', 'gls', 'translation', 'free', '翻译']);
+/** Toolbox / DoReCo note tier. A whole token, so `note` and `notes` stay anchors. */
+const UTTERANCE_NOTE_TOKEN = 'nt';
 const ANCHOR_TOKENS = new Set(['ref', 'segnum', 'note', 'notes', 'comment']);
 const ANCHOR_PHRASES = new Set(['document_notes', 'page_no']);
 const WORD_TOKENS = new Set(['wd', 'mb', 'morph', 'word', '单词', 'ps', 'gl', 'segmentation']);
@@ -327,6 +329,38 @@ export function tokenizeEafLabel(value: string): string[] {
 /** `ph` / `ph@NHK` is a phonetic transcription tier, not a gloss or a loss. */
 export function isPhoneticTranscriptionTier(tierId: string): boolean {
   return tokenizeEafLabel(tierId).includes(PHONETIC_TOKEN);
+}
+
+/** `nt` / `nt@NHK` is an utterance note, not a translation row. */
+export function isUtteranceNoteTier(tierId: string): boolean {
+  return tokenizeEafLabel(tierId).includes(UTTERANCE_NOTE_TOKEN);
+}
+
+function isNotePlaceholder(text: string): boolean {
+  const value = text.trim();
+  if (value.length === 0) return true;
+  if (/^<\s*p\s*:\s*>$/i.test(value)) return true;
+  return /^\*+$/.test(value);
+}
+
+export function utteranceNoteRows(annotations: readonly EafPickAnnotation[]): Array<{
+  startTime: number;
+  endTime: number;
+  text: string;
+  annotationRef?: string;
+  targetType: 'unit';
+  category: 'comment';
+}> {
+  return annotations
+    .filter((row) => !isNotePlaceholder(row.text))
+    .map((row) => ({
+      startTime: row.startTime,
+      endTime: row.endTime,
+      text: row.text,
+      ...(filled(row.annotationRef) ? { annotationRef: row.annotationRef } : {}),
+      targetType: 'unit' as const,
+      category: 'comment' as const,
+    }));
 }
 
 export function phoneticTranscriptionTier(input: {

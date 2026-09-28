@@ -40,6 +40,7 @@ import {
   flexTierLocale,
   maxEafChildrenPerParent,
   isPhoneticTranscriptionTier,
+  isUtteranceNoteTier,
   parseAlignableAnnotations,
   parseRefAnnotations,
   phoneticTranscriptionTier,
@@ -52,6 +53,7 @@ import {
   stashUnassignedTier,
   unitsFromAnchorAnnotations,
   unitsFromPickedAnnotations,
+  utteranceNoteRows,
 } from '../utils/eafTierPick';
 import {
   formatEafSideChannelNote,
@@ -1276,6 +1278,13 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       });
       if (phonetic) extraTranscriptionTiers.push(phonetic);
       if (locale) tierLocales.set(tierId, locale);
+      return;
+    }
+
+    if (tierRole === undefined && isUtteranceNoteTier(tierId)) {
+      const refAnns = parseRefAnnotations(tier, annotationTimeMap);
+      const noteAnns = refAnns.length > 0 ? refAnns : (alignableByTierId.get(tierId) ?? []);
+      importedUserNotes.push(...utteranceNoteRows(noteAnns));
       return;
     }
 
