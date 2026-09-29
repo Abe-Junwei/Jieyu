@@ -45,6 +45,7 @@ vi.mock('../../services/TextGridService', async () => {
 vi.mock('../../services/TierBridgeService', () => ({
   validateLayerTierConsistency: mockValidateLayerTierConsistency,
   syncLayerToTier: mockSyncLayerToTier,
+  removeLayerTierBridge: vi.fn(async () => undefined),
 }));
 
 vi.mock('../../services/LayerConstraintService', async (importOriginal) => {
@@ -1377,7 +1378,7 @@ describe('useImportExport - import success under stop-write', () => {
     expect(tokens).toEqual([
       expect.objectContaining({
         form: { default: 'extra' },
-        gloss: { en: 'EXTRA' },
+        gloss: { eng: 'EXTRA' },
         lexemeId: expect.any(String),
       }),
     ]);
@@ -1551,10 +1552,10 @@ describe('useImportExport - import success under stop-write', () => {
         new File(['x'], 'story.eaf', { type: 'application/xml' }),
       );
     });
-    expect((await db.texts.get('text-flex-map'))?.title).toEqual({ en: 'Pear Story' });
+    expect((await db.texts.get('text-flex-map'))?.title).toEqual({ eng: 'Pear Story' });
     const speakers = await db.speakers.toArray();
     expect(speakers).toEqual([
-      expect.objectContaining({ name: 'Lenny Saumar', notes: { en: 'narrator' } }),
+      expect.objectContaining({ name: 'Lenny Saumar', notes: { eng: 'narrator' } }),
     ]);
     const units = await db.layer_units.where('textId').equals('text-flex-map').toArray();
     const utterance = units.find((unit) => unit.unitType === 'unit');
@@ -1918,7 +1919,7 @@ describe('useImportExport - import success under stop-write', () => {
     return { ...rendered, setSaveState };
   }
 
-  it('updates the same unit when the same annotation is imported again', async () => {
+  it('replaces the open text when the same annotation is imported again', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-reimport',
       textId: 'text-reimport',
@@ -1968,7 +1969,8 @@ describe('useImportExport - import success under stop-write', () => {
     });
     const again = await db.layer_units.where('unitType').equals('unit').toArray();
     expect(again).toHaveLength(1);
-    expect(again[0]?.id).toBe(first[0]?.id);
+    expect(again[0]?.id).not.toBe(first[0]?.id);
+    expect(await db.tier_definitions.where('textId').equals('text-reimport').count()).toBe(1);
     const relatedIds = new Set(
       (await db.layer_units.where('textId').equals('text-reimport').toArray()).map((row) => row.id),
     );
@@ -2456,7 +2458,7 @@ describe('useImportExport - import success under stop-write', () => {
     expect(contents.map((row) => row.text)).toEqual(expect.arrayContaining(['hello', 'hi']));
   });
 
-  it('reports appended-without-id only when the text already has segments', async () => {
+  it('replaces existing segments instead of appending a second copy', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-append',
       textId: 'text-append',
@@ -2497,8 +2499,8 @@ describe('useImportExport - import success under stop-write', () => {
       );
     });
     const secondDone = setSaveState.mock.calls.filter((call) => call[0]?.kind === 'done').at(-1);
-    expect(mentionsAppend(String(secondDone?.[0]?.message ?? ''))).toBe(true);
-    expect(await db.layer_units.where('unitType').equals('unit').count()).toBe(2);
+    expect(mentionsAppend(String(secondDone?.[0]?.message ?? ''))).toBe(false);
+    expect(await db.layer_units.where('unitType').equals('unit').count()).toBe(1);
   });
 
   it('does not ask for tier roles on a TRS file', async () => {

@@ -4,12 +4,11 @@ import {
   absorbEafFlexTier,
   countsAsEafSpeakerTier,
   flexTierDisposition,
-  flexTierLocale,
+  isEafPlaceholderText,
   isPhoneticTranscriptionTier,
   isUtteranceNoteTier,
   parseAlignableAnnotations,
   parseRefAnnotations,
-  phoneticTranscriptionTier,
   type EafPickAnnotation,
   type EafTierPick,
   publishFilledTier,
@@ -21,7 +20,10 @@ import {
 } from '../../utils/eafTierPick';
 import { formatEafSideChannelNote, parseEafSideChannelNote } from '../../utils/eafTierRole';
 import type { EafImportResult, EafSideChannelNote, EafTranscriptionTier } from './eafTypes';
-import { readEafTierLanguageId } from './eafXml';
+import {
+  resolveImportedEafTierLanguage,
+  type EafLanguageRecord,
+} from '../../utils/eafTierLanguage';
 
 type AnnotationEntry = EafPickAnnotation;
 
@@ -70,6 +72,7 @@ export function importOneEafTier(
     anchorSources: AnnotationEntry[];
     childAnnotationIdByParentId: Map<string, string>;
     parentTierIdByTierId: Map<string, string>;
+    eafLanguages: ReadonlyMap<string, EafLanguageRecord>;
   },
 ): void {
   const {
@@ -97,19 +100,21 @@ export function importOneEafTier(
     anchorSources,
     childAnnotationIdByParentId,
     parentTierIdByTierId,
+    eafLanguages,
   } = ctx;
 
   const tierId = tier.getAttribute('TIER_ID') ?? `tier_${tierIndex}`;
   const participant = tier.getAttribute('PARTICIPANT') ?? undefined;
   const unitSpeaker = participant && participant !== '***' ? participant : undefined;
   const disposition = tierPick ? flexTierDisposition(tierId) : undefined;
-  const locale = disposition
-    ? flexTierLocale(
-        tierId,
-        tier.getAttribute('LANG_REF')?.trim(),
-        tier.getAttribute('DEFAULT_LOCALE')?.trim(),
-      )
-    : readEafTierLanguageId(tier);
+  const langRef = tier.getAttribute('LANG_REF')?.trim();
+  const defaultLocale = tier.getAttribute('DEFAULT_LOCALE')?.trim();
+  const locale = resolveImportedEafTierLanguage({
+    tierId,
+    ...(langRef ? { langRef } : {}),
+    ...(defaultLocale ? { defaultLocale } : {}),
+    languages: eafLanguages,
+  });
   const typeRef = tier.getAttribute('LINGUISTIC_TYPE_REF') ?? undefined;
   const parentRef = tier.getAttribute('PARENT_REF') ?? undefined;
   if (parentRef !== undefined && parentRef.length > 0) parentTierIdByTierId.set(tierId, parentRef);
@@ -122,19 +127,7 @@ export function importOneEafTier(
   const tierNoteKind = tierMetadata.get(tierId)?.noteKind;
   if (tierRole === 'exclude') return;
 
-  if (tierRole === undefined && isPhoneticTranscriptionTier(tierId)) {
-    const refAnns = parseRefAnnotations(tier, annotationTimeMap);
-    const phoneticAnns = refAnns.length > 0 ? refAnns : (alignableByTierId.get(tierId) ?? []);
-    const phonetic = phoneticTranscriptionTier({
-      tierId,
-      ...(locale ? { locale } : {}),
-      ...(unitSpeaker ? { speakerId: unitSpeaker } : {}),
-      annotations: phoneticAnns,
-    });
-    if (phonetic) extraTranscriptionTiers.push(phonetic);
-    if (locale) tierLocales.set(tierId, locale);
-    return;
-  }
+  if (isPhoneticTranscriptionTier(tierId)) return;
 
   if (tierRole === undefined && isUtteranceNoteTier(tierId)) {
     const refAnns = parseRefAnnotations(tier, annotationTimeMap);
@@ -255,13 +248,15 @@ export function importOneEafTier(
       }
     }
 
-    const mappedUnits = annotations.map((a) => ({
-      startTime: a.startTime,
-      endTime: a.endTime,
-      transcription: a.text,
-      ...(unitSpeaker ? { speakerId: unitSpeaker } : {}),
-      ...(a.annotationId ? { annotationId: a.annotationId } : {}),
-    }));
+    const mappedUnits = annotations
+      .filter((a) => !isEafPlaceholderText(a.text))
+      .map((a) => ({
+        startTime: a.startTime,
+        endTime: a.endTime,
+        transcription: a.text,
+        ...(unitSpeaker ? { speakerId: unitSpeaker } : {}),
+        ...(a.annotationId ? { annotationId: a.annotationId } : {}),
+      }));
     if (lingType?.controlledVocabularyRef) {
       recordControlledVocabularyNotes(sideChannelNotes, annotations);
     }

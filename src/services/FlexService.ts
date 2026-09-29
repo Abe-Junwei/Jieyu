@@ -26,6 +26,7 @@ import {
   wrapPlainTextWithBidiIsolation,
 } from '../utils/bidiPlainText';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
+import { normalizeImportedLanguageTag } from '../utils/eafTierLanguage';
 
 type TimelineInteropMetadata = Pick<
   OrthographyInteropMetadata,
@@ -167,7 +168,8 @@ function flexOffsetMs(seconds: number): string {
 
 function itemLang(el: Element | undefined): string {
   const lang = el?.getAttribute('lang')?.trim() ?? '';
-  return lang.length > 0 ? lang : 'und';
+  if (lang.length === 0) return 'und';
+  return normalizeImportedLanguageTag(lang) ?? 'und';
 }
 
 function glossRecord(el: Element | undefined, text: string): Record<string, string> | undefined {

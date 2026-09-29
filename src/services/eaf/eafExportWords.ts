@@ -118,7 +118,7 @@ export function buildEafWordTierXml(input: {
 ${wordAnnRows.join('\n')}
     </TIER>`);
       if (glossAnnRows.length > 0) {
-        wordTierXml.push(`    <TIER TIER_ID="word-gloss" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="words" DEFAULT_LOCALE="en">
+        wordTierXml.push(`    <TIER TIER_ID="word-gloss" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="words" LANG_REF="en">
 ${glossAnnRows.join('\n')}
     </TIER>`);
       }
@@ -127,7 +127,7 @@ ${glossAnnRows.join('\n')}
 ${morphAnnRows.join('\n')}
     </TIER>`);
         if (morphGlossAnnRows.length > 0) {
-          wordTierXml.push(`    <TIER TIER_ID="morph-gloss" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="morphemes" DEFAULT_LOCALE="en">
+          wordTierXml.push(`    <TIER TIER_ID="morph-gloss" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="morphemes" LANG_REF="en">
 ${morphGlossAnnRows.join('\n')}
     </TIER>`);
         }

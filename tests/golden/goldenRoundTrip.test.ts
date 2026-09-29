@@ -350,7 +350,7 @@ describe('Golden Round-trip: EAF (additional)', () => {
     expect(imported.units[0]!.startTime).toBeCloseTo(0, 3);
     expect(imported.units[0]!.endTime).toBeCloseTo(2.1, 3);
     expect(imported.transcriptionTierName).toBe('mvm-fonipa-x-emic');
-    expect(imported.defaultLocale).toBe('mvm-fonipa-x-emic');
+    expect(imported.defaultLocale).toBe('mvm');
 
     const enTier = imported.translationTiers.get('en');
     expect(enTier).toBeDefined();
@@ -521,12 +521,12 @@ describe('Golden Round-trip: FLExText', () => {
     expect(words0).toHaveLength(3);
     expect(words0![0]!.form.default).toBe('tɕʰa');
     expect(words0![0]!.morphemes).toHaveLength(1);
-    expect(words0![0]!.morphemes![0]!.gloss!.en).toBe('tea');
+    expect(words0![0]!.morphemes![0]!.gloss!.eng).toBe('tea');
 
     // Third word has 2 morphemes
     expect(words0![2]!.morphemes).toHaveLength(2);
-    expect(words0![2]!.morphemes![0]!.gloss!.en).toBe('hot');
-    expect(words0![2]!.morphemes![1]!.gloss!.en).toBe('COP');
+    expect(words0![2]!.morphemes![0]!.gloss!.eng).toBe('hot');
+    expect(words0![2]!.morphemes![1]!.gloss!.eng).toBe('COP');
 
     // Phrase glosses
     expect(imported.phraseGlosses.size).toBeGreaterThanOrEqual(2);

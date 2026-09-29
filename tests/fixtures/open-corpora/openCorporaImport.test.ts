@@ -95,7 +95,7 @@ describe('open corpora fixtures', () => {
     }
 
     it.skipIf(!existsSync(join(ROOT, 'elan/tabaq.eaf')))(
-      'Tabaq keeps the sentence, free translation, phonetic tier, and utterance note when roles are confirmed',
+      'Tabaq keeps the sentence, free translation, and utterance note, and drops the phone tier',
       () => {
         const raw = readFileSync(join(ROOT, 'elan/tabaq.eaf'), 'utf-8');
         const imported = importFromEaf(raw, {
@@ -114,9 +114,9 @@ describe('open corpora fixtures', () => {
             rows.some((row) => row.text.includes('Tabaq wedding')),
           ),
         ).toBe(true);
-        expect(imported.extraTranscriptionTiers?.some((tier) => tier.tierName === 'ph@NHK')).toBe(
-          true,
-        );
+        expect(
+          imported.extraTranscriptionTiers?.some((tier) => tier.tierName === 'ph@NHK') ?? false,
+        ).toBe(false);
         expect(
           imported.userNotes?.some((note) => note.text.includes('aay = Sudanese Ar. yes')),
         ).toBe(true);

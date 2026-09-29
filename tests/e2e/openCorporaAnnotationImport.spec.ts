@@ -149,7 +149,7 @@ test.describe('open-corpus annotation import', () => {
             texts.includes('aay idaye') &&
             texts.includes('Tabaq wedding') &&
             notes.includes('Sudanese Ar. yes') &&
-            layers.includes('ph@NHK')
+            !layers.includes('ph@NHK')
           );
         },
         { timeout: 90_000 },
@@ -164,7 +164,7 @@ test.describe('open-corpus annotation import', () => {
     expect(joinedTexts).not.toContain('10/Apr/2013');
     expect(joinedNotes).toContain('aay = Sudanese Ar. yes');
     expect(joinedNotes).not.toContain('10/Apr/2013');
-    expect(joinedLabels).toContain('ph@NHK');
+    expect(joinedLabels).not.toContain('ph@NHK');
     expect(joinedLabels).not.toContain('nt@NHK');
     expect(joinedLabels).not.toContain('dt@NHK');
 
@@ -172,7 +172,6 @@ test.describe('open-corpus annotation import', () => {
     await sentence.scrollIntoViewIfNeeded();
     await expect(sentence).toBeVisible();
     await expect(page.getByText('yes, if there is wedding , Tabaq wedding').first()).toBeVisible();
-    await expect(page.getByText('ph@NHK').first()).toBeVisible();
     await page.screenshot({
       path: '/opt/cursor/artifacts/tabaq-eaf-imported.png',
       fullPage: true,

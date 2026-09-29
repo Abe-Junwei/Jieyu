@@ -34,6 +34,7 @@ import {
 import { ImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
 import { resolvePostImportLogicalExpandTargetSec } from '../../utils/timelineImportPostApply';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
+import { deleteResidualLayerUnitGraphByTextId } from '../../services/LayerSegmentGraphService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { loadOrthographyRuntime } from '../../utils/loadOrthographyRuntime';
 import { normalizeUserNoteDocForStorage } from '../../utils/camDataUtils';
@@ -297,7 +298,29 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         else missingMediaFilename = eafResult.mediaFilename;
       }
 
-      const layersAfterImport: LayerDocType[] = [...layers];
+      const existingUnitCount = await db.dexie.layer_units
+        .where('textId')
+        .equals(importTextId)
+        .count();
+      if (existingUnitCount > 0) {
+        await deleteResidualLayerUnitGraphByTextId(db, importTextId);
+        const storedLayers = await db.dexie.tier_definitions
+          .where('textId')
+          .equals(importTextId)
+          .toArray();
+        for (const layer of storedLayers) {
+          await LayerTierUnifiedService.deleteLayer({
+            id: layer.id,
+            textId: importTextId,
+            key: layer.key,
+          });
+        }
+      }
+
+      const layersAfterImport: LayerDocType[] =
+        existingUnitCount > 0
+          ? layers.filter((layer) => layer.textId !== importTextId)
+          : [...layers];
       const layerById = new Map(layersAfterImport.map((layer) => [layer.id, layer] as const));
 
       function rememberLayer(layer: LayerDocType): void {
@@ -560,7 +583,8 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         }
       }
 
-      let effectiveTranscriptionLayerId = defaultTranscriptionLayerId;
+      let effectiveTranscriptionLayerId =
+        existingUnitCount > 0 ? undefined : defaultTranscriptionLayerId;
       let autoCreatedLayerKey: string | undefined;
       let pendingAutoLayer:
         | {
@@ -593,7 +617,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       const tierNameToLayerId = new Map<string, string>();
 
       if (parsedUnits.some((u) => u.transcription.trim())) {
-        const existingTrc = layers.filter((l) => l.layerType === 'transcription');
+        const existingTrc = layersAfterImport.filter((l) => l.layerType === 'transcription');
         {
           const dedupCandidates = new Set<string>();
           if (importedTrcName) {
@@ -1114,7 +1138,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             now,
             textId,
             ...(mediaId ? { mediaId } : {}),
-            layers,
+            layers: layersAfterImport,
             additionalTiers,
             insertedUnits,
             importedTierMetadata,

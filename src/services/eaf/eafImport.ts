@@ -11,8 +11,6 @@ import { attachEafWordTiers, fillEmptyTranscriptionFromTokens } from '../../util
 import {
   anchorNotesForUnits,
   detachMorphChildTiers,
-  flexTierDisposition,
-  flexTierLocale,
   maxEafChildrenPerParent,
   parseAlignableAnnotations,
   parseRefAnnotations,
@@ -34,9 +32,12 @@ import {
   JIEYU_LAYER_META_PREFIX,
   JIEYU_PROJECT_META_TIMELINE,
   mediaFilenameFromDescriptor,
-  readEafTierLanguageId,
 } from './eafXml';
 import { importOneEafTier } from './eafImportTier';
+import {
+  resolveImportedEafTierLanguage,
+  type EafLanguageRecord,
+} from '../../utils/eafTierLanguage';
 
 const log = createLogger('EafService');
 
@@ -69,10 +70,17 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
 
   // ── <LANGUAGE> 元素 → 语言 ID/标签映射 | Parse <LANGUAGE> elements ──
   const languageLabels = new Map<string, string>();
+  const eafLanguages = new Map<string, EafLanguageRecord>();
   doc.querySelectorAll('LANGUAGE').forEach((el) => {
-    const langId = el.getAttribute('LANG_ID');
-    const langLabel = el.getAttribute('LANG_LABEL');
-    if (langId && langLabel) languageLabels.set(langId, langLabel);
+    const langId = el.getAttribute('LANG_ID')?.trim();
+    const langLabel = el.getAttribute('LANG_LABEL')?.trim();
+    const langDef = el.getAttribute('LANG_DEF')?.trim();
+    if (!langId) return;
+    if (langLabel) languageLabels.set(langId, langLabel);
+    eafLanguages.set(langId, {
+      ...(langLabel ? { label: langLabel } : {}),
+      ...(langDef ? { def: langDef } : {}),
+    });
   });
 
   // ── <LINGUISTIC_TYPE> → 层结构分类 | Parse <LINGUISTIC_TYPE> for tier classification ──
@@ -248,6 +256,7 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       anchorSources,
       childAnnotationIdByParentId,
       parentTierIdByTierId,
+      eafLanguages,
     });
   });
   units = draft.units;
@@ -299,13 +308,14 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
       tierLocales,
       readTier: (tier) => {
         const tierId = tier.getAttribute('TIER_ID') ?? '';
-        const named = flexTierDisposition(tierId)
-          ? flexTierLocale(
-              tierId,
-              tier.getAttribute('LANG_REF')?.trim(),
-              tier.getAttribute('DEFAULT_LOCALE')?.trim(),
-            )
-          : readEafTierLanguageId(tier);
+        const langRef = tier.getAttribute('LANG_REF')?.trim();
+        const defaultLocale = tier.getAttribute('DEFAULT_LOCALE')?.trim();
+        const named = resolveImportedEafTierLanguage({
+          tierId,
+          ...(langRef ? { langRef } : {}),
+          ...(defaultLocale ? { defaultLocale } : {}),
+          languages: eafLanguages,
+        });
         return {
           ...(named ? { locale: named } : {}),
           anns: parseRefAnnotations(tier, annotationTimeMap),

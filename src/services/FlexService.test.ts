@@ -295,8 +295,8 @@ describe('FlexService RTL phrase round-trip', () => {
     expect(extra?.[0]?.tokens).toEqual([
       {
         form: { default: 'extra' },
-        gloss: { en: 'EXTRA' },
-        morphemes: [{ form: { default: 'ex' }, gloss: { en: 'EX' } }],
+        gloss: { eng: 'EXTRA' },
+        morphemes: [{ form: { default: 'ex' }, gloss: { eng: 'EX' } }],
       },
     ]);
   });
@@ -343,17 +343,17 @@ describe('FlexService field mapping', () => {
     expect(imported.units[0]?.tokens).toEqual([
       {
         form: { default: 'fiyango,' },
-        gloss: { zh: '故事' },
+        gloss: { zho: '故事' },
         pos: 'n',
-        morphemes: [{ form: { default: 'fiyango' }, gloss: { en: 'story' }, pos: 'n' }],
+        morphemes: [{ form: { default: 'fiyango' }, gloss: { eng: 'story' }, pos: 'n' }],
       },
     ]);
     expect(imported.phraseGlosses.get('p1')).toBe('This is the story');
-    expect(imported.translationTiers?.get('FLEx Gloss (zh)')?.[0]?.text).toBe('这是故事');
-    expect(imported.translationTiers?.get('FLEx Literal (en)')?.[0]?.text).toBe('story this');
+    expect(imported.translationTiers?.get('FLEx Gloss (zho)')?.[0]?.text).toBe('这是故事');
+    expect(imported.translationTiers?.get('FLEx Literal (eng)')?.[0]?.text).toBe('story this');
     expect(imported.translationTiers?.size).toBe(2);
     expect(imported.participants).toEqual(['Lenny Saumar']);
-    expect(imported.documentTitle?.en).toBe('Pear Story');
+    expect(imported.documentTitle?.eng).toBe('Pear Story');
     expect(imported.userNotes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
