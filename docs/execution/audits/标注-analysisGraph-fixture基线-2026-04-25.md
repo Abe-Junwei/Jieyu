@@ -344,15 +344,91 @@ depends_on:
 }
 ```
 
-## 11. 下一批 fixture
+## 11. Fixture I：Cumulative / Portmanteau Exponence
 
-下列 fixture 必须在 M2 schema PR 前补齐：
+### I.1 目标
+
+覆盖一个 exponent 同时表达多个 feature（一对多 `realizesFeature`），与「多个 feature 挤进同一个 gloss 字符串」区分。
+
+### I.2 示例
+
+- 原文：`bonus`
+- gloss：`good.NOM.SG.M`
+- 说明：`-us` 同时表达格、数、性。
+
+```json
+{
+  "id": "fixture-cumulative-exponence",
+  "text": "bonus",
+  "displayGloss": "good.NOM.SG.M",
+  "nodes": [
+    { "id": "tok-1", "type": "token", "label": "bonus" },
+    { "id": "morph-stem", "type": "morpheme", "label": "bon", "surfaceParts": [{ "tokenId": "tok-1", "startOffset": 0, "endOffset": 3 }] },
+    { "id": "exponent-1", "type": "exponent", "label": "-us", "surfaceParts": [{ "tokenId": "tok-1", "startOffset": 3, "endOffset": 5 }], "features": { "exponence": "cumulative" } },
+    { "id": "feature-case", "type": "featureBundle", "label": "NOM", "features": { "case": "NOM" } },
+    { "id": "feature-number", "type": "featureBundle", "label": "SG", "features": { "number": "SG" } },
+    { "id": "feature-gender", "type": "featureBundle", "label": "M", "features": { "gender": "M" } }
+  ],
+  "relations": [
+    { "id": "rel-1", "type": "contains", "sourceId": "tok-1", "targetId": "morph-stem" },
+    { "id": "rel-2", "type": "contains", "sourceId": "tok-1", "targetId": "exponent-1", "role": "inflection" },
+    { "id": "rel-3", "type": "realizesFeature", "sourceId": "exponent-1", "targetId": "feature-case" },
+    { "id": "rel-4", "type": "realizesFeature", "sourceId": "exponent-1", "targetId": "feature-number" },
+    { "id": "rel-5", "type": "realizesFeature", "sourceId": "exponent-1", "targetId": "feature-gender" }
+  ],
+  "projectionDiagnostics": [
+    { "target": "conllu", "status": "complete", "message": "Project FEATS Case=Nom|Number=Sing|Gender=Masc from one cumulative exponent." },
+    { "target": "latex", "status": "degraded", "message": "Compact gloss shows NOM.SG.M; cumulative packing is not a linear morpheme cut." }
+  ]
+}
+```
+
+## 12. Fixture J：Multiple Exponence
+
+### J.1 目标
+
+覆盖同一 feature 由多个 exponent 重复表达（多对一 `realizesFeature`），与 circumfix（一个非连续 morph）区分。
+
+### J.2 示例
+
+- 原文：`gekauft`
+- gloss：`PTCP>buy<PTCP`
+- 说明：`ge-` 与 `-t` 各自是 exponent，共同指向同一 `PTCP` featureBundle。
+
+```json
+{
+  "id": "fixture-multiple-exponence",
+  "text": "gekauft",
+  "displayGloss": "PTCP>buy<PTCP",
+  "nodes": [
+    { "id": "tok-1", "type": "token", "label": "gekauft" },
+    { "id": "morph-stem", "type": "morpheme", "label": "kauf", "surfaceParts": [{ "tokenId": "tok-1", "startOffset": 2, "endOffset": 6 }] },
+    { "id": "exponent-prefix", "type": "exponent", "label": "ge-", "surfaceParts": [{ "tokenId": "tok-1", "startOffset": 0, "endOffset": 2 }], "features": { "exponence": "multiple", "role": "prefix" } },
+    { "id": "exponent-suffix", "type": "exponent", "label": "-t", "surfaceParts": [{ "tokenId": "tok-1", "startOffset": 6, "endOffset": 7 }], "features": { "exponence": "multiple", "role": "suffix" } },
+    { "id": "feature-ptcp", "type": "featureBundle", "label": "PTCP", "features": { "verbForm": "PTCP" } }
+  ],
+  "relations": [
+    { "id": "rel-1", "type": "contains", "sourceId": "tok-1", "targetId": "morph-stem" },
+    { "id": "rel-2", "type": "contains", "sourceId": "tok-1", "targetId": "exponent-prefix", "role": "prefix" },
+    { "id": "rel-3", "type": "contains", "sourceId": "tok-1", "targetId": "exponent-suffix", "role": "suffix" },
+    { "id": "rel-4", "type": "realizesFeature", "sourceId": "exponent-prefix", "targetId": "feature-ptcp" },
+    { "id": "rel-5", "type": "realizesFeature", "sourceId": "exponent-suffix", "targetId": "feature-ptcp" }
+  ],
+  "projectionDiagnostics": [
+    { "target": "latex", "status": "degraded", "message": "Multiple exponence: both ge- and -t realize the same PTCP feature; gloss may look redundant." },
+    { "target": "conllu", "status": "degraded", "message": "Project VerbForm=Part once; preserve redundant prefix/suffix exponents in MISC." }
+  ]
+}
+```
+
+## 13. 下一批 fixture
+
+下列 fixture 仍须在后续 M2 切片补齐：
 
 1. mutation / ablaut / umlaut
 2. truncation / subtraction
 3. tonal morphology
-4. multiple exponence
-5. polysynthetic word / incorporation
-6. ambiguity / multiple analyses
-7. language profile tokenization（CJK / Thai / Japanese）
-8. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）
+4. polysynthetic word / incorporation
+5. ambiguity / multiple analyses
+6. language profile tokenization（CJK / Thai / Japanese）
+7. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）

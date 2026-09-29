@@ -6,7 +6,12 @@ export const annotationAnalysisGraphFixtures = [
     text: "I'm here.",
     displayGloss: '1SG=COP here',
     nodes: [
-      { id: 'tok-1', type: 'token', label: "I'm", surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 3 }] },
+      {
+        id: 'tok-1',
+        type: 'token',
+        label: "I'm",
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 3 }],
+      },
       { id: 'word-1', type: 'word', label: 'I' },
       { id: 'word-2', type: 'word', label: 'am' },
       { id: 'gloss-1', type: 'gloss', label: '1SG', features: { person: '1', number: 'SG' } },
@@ -21,7 +26,11 @@ export const annotationAnalysisGraphFixtures = [
     ],
     projectionDiagnostics: [
       { target: 'latex', status: 'complete', message: 'Render with = clitic boundary.' },
-      { target: 'conllu', status: 'degraded', message: 'Surface contraction projected as multiword token if target profile supports it.' },
+      {
+        target: 'conllu',
+        status: 'degraded',
+        message: 'Surface contraction projected as multiword token if target profile supports it.',
+      },
     ],
   },
   {
@@ -42,8 +51,16 @@ export const annotationAnalysisGraphFixtures = [
       { id: 'rel-4', type: 'linksLexeme', sourceId: 'mwe-1', targetId: 'lex-1' },
     ],
     projectionDiagnostics: [
-      { target: 'lift', status: 'complete', message: 'MWE can be exported as phrase/lexeme entry.' },
-      { target: 'conllu', status: 'complete', message: 'Project as MWT or fixed/compound relation depending profile.' },
+      {
+        target: 'lift',
+        status: 'complete',
+        message: 'MWE can be exported as phrase/lexeme entry.',
+      },
+      {
+        target: 'conllu',
+        status: 'complete',
+        message: 'Project as MWT or fixed/compound relation depending profile.',
+      },
     ],
   },
   {
@@ -52,7 +69,12 @@ export const annotationAnalysisGraphFixtures = [
     displayGloss: 'sheep-ZERO.PL',
     nodes: [
       { id: 'tok-1', type: 'token', label: 'sheep' },
-      { id: 'morph-1', type: 'morpheme', label: 'sheep', surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 5 }] },
+      {
+        id: 'morph-1',
+        type: 'morpheme',
+        label: 'sheep',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 5 }],
+      },
       { id: 'zero-1', type: 'zero', label: 'ZERO' },
       { id: 'feature-1', type: 'featureBundle', label: 'PL', features: { number: 'PL' } },
     ],
@@ -61,7 +83,11 @@ export const annotationAnalysisGraphFixtures = [
       { id: 'rel-2', type: 'realizesFeature', sourceId: 'zero-1', targetId: 'feature-1' },
     ],
     projectionDiagnostics: [
-      { target: 'conllu', status: 'complete', message: 'Can project as empty node or feature on token depending target policy.' },
+      {
+        target: 'conllu',
+        status: 'complete',
+        message: 'Can project as empty node or feature on token depending target policy.',
+      },
       { target: 'latex', status: 'complete', message: 'Render zero morpheme as ZERO.' },
     ],
   },
@@ -96,7 +122,11 @@ export const annotationAnalysisGraphFixtures = [
     ],
     projectionDiagnostics: [
       { target: 'latex', status: 'complete', message: 'Render infix with angle brackets.' },
-      { target: 'flex', status: 'degraded', message: 'If FLEx profile lacks infix offsets, preserve role in custom field.' },
+      {
+        target: 'flex',
+        status: 'degraded',
+        message: 'If FLEx profile lacks infix offsets, preserve role in custom field.',
+      },
     ],
   },
   {
@@ -105,7 +135,12 @@ export const annotationAnalysisGraphFixtures = [
     displayGloss: 'PTCP>run<PTCP',
     nodes: [
       { id: 'tok-1', type: 'token', label: 'gelaufen' },
-      { id: 'morph-root', type: 'morpheme', label: 'lauf', surfaceParts: [{ tokenId: 'tok-1', startOffset: 2, endOffset: 6 }] },
+      {
+        id: 'morph-root',
+        type: 'morpheme',
+        label: 'lauf',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 2, endOffset: 6 }],
+      },
       {
         id: 'morph-circ',
         type: 'morpheme',
@@ -123,7 +158,11 @@ export const annotationAnalysisGraphFixtures = [
     ],
     projectionDiagnostics: [
       { target: 'latex', status: 'complete', message: 'Render as discontinuous circumfix marker.' },
-      { target: 'conllu', status: 'degraded', message: 'Project feature on word; preserve discontinuity in MISC.' },
+      {
+        target: 'conllu',
+        status: 'degraded',
+        message: 'Project feature on word; preserve discontinuity in MISC.',
+      },
     ],
   },
   {
@@ -132,7 +171,12 @@ export const annotationAnalysisGraphFixtures = [
     displayGloss: 'REDUP-dog',
     nodes: [
       { id: 'tok-1', type: 'token', label: 'wug-wug' },
-      { id: 'stem-1', type: 'morpheme', label: 'wug', surfaceParts: [{ tokenId: 'tok-1', startOffset: 4, endOffset: 7 }] },
+      {
+        id: 'stem-1',
+        type: 'morpheme',
+        label: 'wug',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 4, endOffset: 7 }],
+      },
       {
         id: 'redup-1',
         type: 'morpheme',
@@ -140,7 +184,12 @@ export const annotationAnalysisGraphFixtures = [
         surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 3 }],
         features: { role: 'reduplicant' },
       },
-      { id: 'process-1', type: 'process', label: 'reduplication', features: { processType: 'reduplication' } },
+      {
+        id: 'process-1',
+        type: 'process',
+        label: 'reduplication',
+        features: { processType: 'reduplication' },
+      },
     ],
     relations: [
       { id: 'rel-1', type: 'reduplicates', sourceId: 'redup-1', targetId: 'stem-1' },
@@ -148,7 +197,11 @@ export const annotationAnalysisGraphFixtures = [
     ],
     projectionDiagnostics: [
       { target: 'latex', status: 'complete', message: 'Render REDUP in gloss row.' },
-      { target: 'lift', status: 'degraded', message: 'Export reduplication process as custom trait if no native field exists.' },
+      {
+        target: 'lift',
+        status: 'degraded',
+        message: 'Export reduplication process as custom trait if no native field exists.',
+      },
     ],
   },
   {
@@ -168,8 +221,18 @@ export const annotationAnalysisGraphFixtures = [
         ],
       },
       { id: 'pattern-1', type: 'pattern', label: 'CaCaC' },
-      { id: 'feature-1', type: 'featureBundle', label: 'PFV.3SG', features: { aspect: 'PFV', person: '3', number: 'SG' } },
-      { id: 'process-1', type: 'process', label: 'templaticMapping', features: { processType: 'templaticMapping' } },
+      {
+        id: 'feature-1',
+        type: 'featureBundle',
+        label: 'PFV.3SG',
+        features: { aspect: 'PFV', person: '3', number: 'SG' },
+      },
+      {
+        id: 'process-1',
+        type: 'process',
+        label: 'templaticMapping',
+        features: { processType: 'templaticMapping' },
+      },
     ],
     relations: [
       { id: 'rel-1', type: 'discontinuousPartOf', sourceId: 'root-1', targetId: 'tok-1' },
@@ -177,8 +240,16 @@ export const annotationAnalysisGraphFixtures = [
       { id: 'rel-3', type: 'derivedByProcess', sourceId: 'tok-1', targetId: 'process-1' },
     ],
     projectionDiagnostics: [
-      { target: 'latex', status: 'degraded', message: 'Render compact gloss; root-pattern structure available in note.' },
-      { target: 'conllu', status: 'degraded', message: 'Project features to FEATS; preserve root/pattern in MISC.' },
+      {
+        target: 'latex',
+        status: 'degraded',
+        message: 'Render compact gloss; root-pattern structure available in note.',
+      },
+      {
+        target: 'conllu',
+        status: 'degraded',
+        message: 'Project features to FEATS; preserve root/pattern in MISC.',
+      },
     ],
   },
   {
@@ -189,10 +260,20 @@ export const annotationAnalysisGraphFixtures = [
       { id: 'tok-1', type: 'token', label: 'went' },
       { id: 'lex-1', type: 'lexemeRef', label: 'go' },
       { id: 'underlying-1', type: 'underlyingForm', label: 'go' },
-      { id: 'surface-1', type: 'surfaceForm', label: 'went', surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 4 }] },
+      {
+        id: 'surface-1',
+        type: 'surfaceForm',
+        label: 'went',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 4 }],
+      },
       { id: 'exponent-1', type: 'exponent', label: 'went', features: { tense: 'PST' } },
       { id: 'feature-1', type: 'featureBundle', label: 'PST', features: { tense: 'PST' } },
-      { id: 'process-1', type: 'process', label: 'suppletion', features: { processType: 'suppletion' } },
+      {
+        id: 'process-1',
+        type: 'process',
+        label: 'suppletion',
+        features: { processType: 'suppletion' },
+      },
     ],
     relations: [
       { id: 'rel-1', type: 'linksLexeme', sourceId: 'tok-1', targetId: 'lex-1' },
@@ -203,10 +284,141 @@ export const annotationAnalysisGraphFixtures = [
       { id: 'rel-6', type: 'realizesFeature', sourceId: 'exponent-1', targetId: 'feature-1' },
     ],
     projectionDiagnostics: [
-      { target: 'conllu', status: 'complete', message: 'Project lemma=go, form=went, FEATS Tense=Past.' },
-      { target: 'latex', status: 'degraded', message: 'Display gloss can show go.PST; suppletion relation is hidden unless diagnostic note enabled.' },
+      {
+        target: 'conllu',
+        status: 'complete',
+        message: 'Project lemma=go, form=went, FEATS Tense=Past.',
+      },
+      {
+        target: 'latex',
+        status: 'degraded',
+        message:
+          'Display gloss can show go.PST; suppletion relation is hidden unless diagnostic note enabled.',
+      },
+    ],
+  },
+  {
+    id: 'fixture-cumulative-exponence',
+    text: 'bonus',
+    displayGloss: 'good.NOM.SG.M',
+    nodes: [
+      { id: 'tok-1', type: 'token', label: 'bonus' },
+      {
+        id: 'morph-stem',
+        type: 'morpheme',
+        label: 'bon',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 3 }],
+      },
+      {
+        id: 'exponent-1',
+        type: 'exponent',
+        label: '-us',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 3, endOffset: 5 }],
+        features: { exponence: 'cumulative' },
+      },
+      { id: 'feature-case', type: 'featureBundle', label: 'NOM', features: { case: 'NOM' } },
+      { id: 'feature-number', type: 'featureBundle', label: 'SG', features: { number: 'SG' } },
+      { id: 'feature-gender', type: 'featureBundle', label: 'M', features: { gender: 'M' } },
+    ],
+    relations: [
+      { id: 'rel-1', type: 'contains', sourceId: 'tok-1', targetId: 'morph-stem' },
+      {
+        id: 'rel-2',
+        type: 'contains',
+        sourceId: 'tok-1',
+        targetId: 'exponent-1',
+        role: 'inflection',
+      },
+      { id: 'rel-3', type: 'realizesFeature', sourceId: 'exponent-1', targetId: 'feature-case' },
+      { id: 'rel-4', type: 'realizesFeature', sourceId: 'exponent-1', targetId: 'feature-number' },
+      { id: 'rel-5', type: 'realizesFeature', sourceId: 'exponent-1', targetId: 'feature-gender' },
+    ],
+    projectionDiagnostics: [
+      {
+        target: 'conllu',
+        status: 'complete',
+        message: 'Project FEATS Case=Nom|Number=Sing|Gender=Masc from one cumulative exponent.',
+      },
+      {
+        target: 'latex',
+        status: 'degraded',
+        message: 'Compact gloss shows NOM.SG.M; cumulative packing is not a linear morpheme cut.',
+      },
+    ],
+  },
+  {
+    id: 'fixture-multiple-exponence',
+    text: 'gekauft',
+    displayGloss: 'PTCP>buy<PTCP',
+    nodes: [
+      { id: 'tok-1', type: 'token', label: 'gekauft' },
+      {
+        id: 'morph-stem',
+        type: 'morpheme',
+        label: 'kauf',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 2, endOffset: 6 }],
+      },
+      {
+        id: 'exponent-prefix',
+        type: 'exponent',
+        label: 'ge-',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 2 }],
+        features: { exponence: 'multiple', role: 'prefix' },
+      },
+      {
+        id: 'exponent-suffix',
+        type: 'exponent',
+        label: '-t',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 6, endOffset: 7 }],
+        features: { exponence: 'multiple', role: 'suffix' },
+      },
+      { id: 'feature-ptcp', type: 'featureBundle', label: 'PTCP', features: { verbForm: 'PTCP' } },
+    ],
+    relations: [
+      { id: 'rel-1', type: 'contains', sourceId: 'tok-1', targetId: 'morph-stem' },
+      {
+        id: 'rel-2',
+        type: 'contains',
+        sourceId: 'tok-1',
+        targetId: 'exponent-prefix',
+        role: 'prefix',
+      },
+      {
+        id: 'rel-3',
+        type: 'contains',
+        sourceId: 'tok-1',
+        targetId: 'exponent-suffix',
+        role: 'suffix',
+      },
+      {
+        id: 'rel-4',
+        type: 'realizesFeature',
+        sourceId: 'exponent-prefix',
+        targetId: 'feature-ptcp',
+      },
+      {
+        id: 'rel-5',
+        type: 'realizesFeature',
+        sourceId: 'exponent-suffix',
+        targetId: 'feature-ptcp',
+      },
+    ],
+    projectionDiagnostics: [
+      {
+        target: 'latex',
+        status: 'degraded',
+        message:
+          'Multiple exponence: both ge- and -t realize the same PTCP feature; gloss may look redundant.',
+      },
+      {
+        target: 'conllu',
+        status: 'degraded',
+        message: 'Project VerbForm=Part once; preserve redundant prefix/suffix exponents in MISC.',
+      },
     ],
   },
 ] satisfies AnnotationAnalysisGraphFixture[];
 
-export const annotationAnalysisGraphFixtureIds = annotationAnalysisGraphFixtures.map((fixture) => fixture.id);
+export const annotationAnalysisGraphFixtureIds = annotationAnalysisGraphFixtures.map(
+  (fixture) => fixture.id,
+);
