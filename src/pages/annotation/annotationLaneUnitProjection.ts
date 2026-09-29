@@ -10,6 +10,10 @@ function compareUnits(a: LayerUnitDocType, b: LayerUnitDocType): number {
   return a.id.localeCompare(b.id);
 }
 
+export function annotationTranscriptionLanguageId(layers: readonly LayerDocType[]): string {
+  return layers.find((layer) => layer.layerType === 'transcription')?.languageId ?? '';
+}
+
 export function projectAnnotationLaneUnits(input: {
   units: readonly LayerUnitDocType[];
   layers: readonly LayerDocType[];

@@ -37,6 +37,7 @@ export function AnnotationWorkspace() {
   });
   const retokenize = useAnnotationRetokenizeController({
     textId: controller.textId,
+    languageId: controller.languageId,
     drafts: controller.drafts,
     rows: controller.rows,
     reloadWorkspace: controller.reload,

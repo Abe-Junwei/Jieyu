@@ -12,6 +12,7 @@ import type {
   UnitTokenDocType,
 } from '../../types/jieyuDbDocTypes';
 import { newId, pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
+import { annotationSegmenterLocale } from './annotationTokenizationProfile';
 
 type IntlSegmenterCtor = new (
   locales?: string | string[],
@@ -63,9 +64,10 @@ const defaultDeps: AnnotationRetokenizeDeps = {
   rejectCandidate: rejectAnalysisGraphCandidate,
 };
 
-export function proposeAnnotationTokenForms(surface: string, locale = 'und'): string[] {
+export function proposeAnnotationTokenForms(surface: string, languageId = 'und'): string[] {
   const text = surface.trim();
   if (text.length === 0) return [];
+  const locale = annotationSegmenterLocale(languageId);
   const SegmenterCtor = (Intl as unknown as { Segmenter?: IntlSegmenterCtor }).Segmenter;
   if (typeof SegmenterCtor === 'function') {
     try {
@@ -336,8 +338,9 @@ export function previewAnnotationRetokenize(input: {
   unitId: string;
   surface: string;
   currentForms: readonly string[];
+  languageId?: string;
 }): AnnotationRetokenizePreview {
-  const proposedForms = proposeAnnotationTokenForms(input.surface);
+  const proposedForms = proposeAnnotationTokenForms(input.surface, input.languageId);
   return {
     unitId: input.unitId,
     proposedForms,

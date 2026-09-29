@@ -23,7 +23,10 @@ import {
   type AnnotationKeyboardAction,
   type AnnotationKeyboardMode,
 } from './annotation/annotationKeyboardMachine';
-import { projectAnnotationLaneUnits } from './annotation/annotationLaneUnitProjection';
+import {
+  annotationTranscriptionLanguageId,
+  projectAnnotationLaneUnits,
+} from './annotation/annotationLaneUnitProjection';
 import {
   collectDirtyAnnotationTokenWrites,
   displayedAnnotationTokenFields,
@@ -81,7 +84,13 @@ export function useAnnotationWorkspaceController() {
       const translationLayerIds = layers
         .filter((layer) => layer.layerType === 'translation')
         .map((layer) => layer.id);
-      return { units: laneUnits, tokens, contents, translationLayerIds };
+      return {
+        units: laneUnits,
+        tokens,
+        contents,
+        translationLayerIds,
+        languageId: annotationTranscriptionLanguageId(layers),
+      };
     },
     enabled: textId.length > 0,
   });
@@ -106,7 +115,13 @@ export function useAnnotationWorkspaceController() {
         : urlUnitId.length > 0 && unitIds.includes(urlUnitId)
           ? urlUnitId
           : (unitIds[0] ?? '');
-    return { rows, unitIds, focusedUnitId, unitCount: rows.length };
+    return {
+      rows,
+      unitIds,
+      focusedUnitId,
+      unitCount: rows.length,
+      languageId: dataQuery.data?.languageId ?? '',
+    };
   }, [dataQuery.data, keyboard.focusedUnitId, mediaId, parsed.unitId, textId]);
 
   const handleFocusRow = useCallback((unitId: string) => {
@@ -247,6 +262,7 @@ export function useAnnotationWorkspaceController() {
     textId,
     unitCount: derived.unitCount,
     rows: derived.rows,
+    languageId: derived.languageId,
     drafts,
     focusedUnitId: derived.focusedUnitId,
     keyboardMode: keyboard.mode,

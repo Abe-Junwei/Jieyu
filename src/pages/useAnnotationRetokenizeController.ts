@@ -26,11 +26,12 @@ export type AnnotationRetokenizeController = {
 
 export function useAnnotationRetokenizeController(input: {
   textId: string;
+  languageId?: string;
   drafts: Readonly<Record<string, AnnotationTokenDraft>>;
   rows: readonly AnnotationIgtRow[];
   reloadWorkspace: () => Promise<unknown>;
 }): AnnotationRetokenizeController {
-  const { textId, drafts, rows, reloadWorkspace } = input;
+  const { textId, languageId, drafts, rows, reloadWorkspace } = input;
   const locale = useLocale();
   const [preview, setPreview] = useState<AnnotationRetokenizePreview | null>(null);
   const [forceOffer, setForceOffer] = useState<{ unitId: string; proposedForms: string[] } | null>(
@@ -59,6 +60,7 @@ export function useAnnotationRetokenizeController(input: {
         unitId,
         surface: row.surface,
         currentForms: row.tokens.map((token) => token.form),
+        ...(languageId ? { languageId } : {}),
       });
       setPreview(next);
       setSaveNotice({ kind: 'idle', message: '' });
@@ -68,7 +70,7 @@ export function useAnnotationRetokenizeController(input: {
         })
         .catch(fail);
     },
-    [fail, rows],
+    [fail, languageId, rows],
   );
 
   const onApply = useCallback(

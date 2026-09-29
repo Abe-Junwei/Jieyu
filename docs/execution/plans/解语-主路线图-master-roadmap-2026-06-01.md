@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-29）**：标注页 **B4a–B4s** 已落地。**B4s** 用 `fixture-infix` 的中缀关系记录 LaTeX / FLEx / CoNLL-U 的表达差异。余下：CJK / 泰语 / 日语分词 profile。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-29）**：标注页 **B4a–B4t** 已落地。**B4t** 二次分词按转写层语言选择分词：`zho`/`cmn`/`zh`、`jpn`、`tha` 走词典分词，其余仍是 `und`。不按字硬切。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -249,6 +249,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4q** | ablaut / 截短 / 声调 fixture | S | **【✅ 已落地】** `fixture-ablaut-sang`（`substitutesSegment`）、`fixture-truncation-exam`（`deletesSegment`）、`fixture-tone-overwrite`（`overwritesTone` + `prosodicFeature`）。不切线性词素。无新页面控件、无新 flag。基线：`标注-analysisGraph-fixture基线` | schema 验收；三类过程断言；定向 vitest | 否 |
 | **B4r** | 多式综合 / 名词并入 fixture | S | **【✅ 已落地】** `fixture-incorporation`：`berry` 在同一个 token 内，`contains` role=`incorporated`，并链到词条。不是第二个词。无新页面控件、无新 flag。 | 单 token；并入跨度与过程断言；定向 vitest | 否 |
 | **B4s** | 导出投影冲突 | S | **【✅ 已落地】** `fixture-infix` 的中缀（`contains` role=`infix`）在 LaTeX 为 complete、FLEx 为 degraded、CoNLL-U 为 unsupported。不改作者 gloss。无新页面控件、无新 flag。 | 三目标的 target 与 status；定向 vitest | 否 |
+| **B4t** | CJK / 日语 / 泰语分词 profile | S | **【✅ 已落地】** 二次分词预览使用转写层 `languageId`。`zho`/`cmn`/`zh`、`jpn`、`tha` 映射到词典分词 locale；其他语言用 `und`。分词器认不出的连续汉字仍是一个词，不按字切开。无新 flag。 | `你好世界`→你好/世界；日语/泰语词界；定向 vitest | 否 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
@@ -359,6 +360,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-28 | **词典 DMLex JSON 下载**：`/lexicon` 把当前词条嵌进一份 `lexicographicResource` JSON 并下载。`jieyu` 不写入。对照 vendored schema。无新 flag。LIFT 投影仍在。 |
 | 2026-09-27 | **词典编辑基准改为 DMLex**：采用 OASIS DMLex 1.0 带跨语言模块的 JSON Schema（`docs/architecture/dmlex/dmlex.schema.json`）作为编辑对象。LIFT 改为导入导出投影。解语的语段引用和自由文本注释放在 schema 外。无存量词条，不新增 Dexie 版本，不加 flag。运行时代码尚未替换。ADR 0035；计划 `词典编辑改用DMLex基准-2026-09-27.md`。 |
+| 2026-09-29 | **B4t 分词 profile**：二次分词按转写层语言选择 `zh` / `ja` / `th` 词典分词。认不出的连续汉字不按字切开。无新 flag。标注页计划内 B4a–B4t 已落地。不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4s 导出投影冲突**：同一条中缀图导出到 LaTeX（complete）、FLEx（degraded）、CoNLL-U（unsupported）。不改作者 gloss，不加页面控件。下一刀为 CJK / 泰语 / 日语分词 profile。不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4r 并入 fixture**：`berrypick` 把并入名词放在同一个 token 内，并链到词条。不是第二个词，不加页面控件。下一刀为导出投影冲突。不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4q 过程 fixture**：ablaut、截短、声调覆盖进入 analysisGraph 基线。不切线性词素，不加页面控件。下一刀为多式综合/并入 fixture，或导出投影冲突。不排 M2c / 依存共指 / B7。 |

@@ -568,8 +568,6 @@ depends_on:
 | flex | degraded | 缺少偏移时只能把角色放进自定义字段 |
 | conllu | unsupported | 中缀跨度不是 CoNLL-U 的词或依存 |
 
-## 19. 下一批 fixture
+## 19. 分词 profile
 
-下列 fixture 仍不在当前标注页切片内：
-
-1. language profile tokenization（CJK / Thai / Japanese）
+CJK / 日语 / 泰语不在这条 fixture 基线里。二次分词按转写层 `languageId` 选择词典分词（`annotationTokenizationProfile`）。分词器认不出的连续汉字仍是一个词。

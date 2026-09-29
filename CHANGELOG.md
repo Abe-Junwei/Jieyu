@@ -17,6 +17,8 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Annotation tokenization profile (B4t)**: Secondary tokenization on `/annotation` uses the transcription layer language. Chinese (`zho` / `cmn` / `zh`), Japanese (`jpn`), and Thai (`tha`) select a dictionary segmenter locale. Other languages stay `und`. A Chinese span the segmenter does not know stays one word; characters are not split apart. No new flag.
+
 - **Annotation export projection conflict (B4s)**: The infix relation on `fixture-infix` now records three export outcomes: LaTeX complete, FLEx degraded, CoNLL-U unsupported. Author gloss is unchanged. No new page control and no new flag.
 
 - **Annotation incorporation fixture (B4r)**: The analysis-graph baseline now includes noun incorporation (`berrypick`): the noun sits inside one token as an incorporated argument, linked to its lexeme, and is not a second word. No new page control and no new flag.
