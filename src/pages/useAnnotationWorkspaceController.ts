@@ -260,6 +260,9 @@ export function useAnnotationWorkspaceController() {
     onFocusRow: handleFocusRow,
     onFocusInput: handleFocusInput,
     onTokenDraftChange: handleTokenDraftChange,
+    clearTokenDrafts: (tokenIds: readonly string[]) => {
+      setDrafts((current) => dropDraftsForTokenIds(current, tokenIds));
+    },
     onKeyDown: handleKeyDown,
   };
 }

@@ -158,6 +158,26 @@
   background: color-mix(in srgb, var(--surface-panel) 82%, var(--surface-header) 18%);
 }
 
+.annotation-igt-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.annotation-igt-graph-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.annotation-igt-graph-chip {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--surface-panel) 80%, var(--tab-active) 20%);
+  color: var(--text-primary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
 .annotation-igt-extras-actions,
 .annotation-igt-extra-field {
   display: flex;

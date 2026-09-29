@@ -29,6 +29,7 @@ export function mapUnitToLayerUnit(
         ? { status: unit.annotationStatus }
         : {}),
       ...(unit.provenance !== undefined ? { provenance: unit.provenance } : {}),
+      ...(unit.analysisGraph !== undefined ? { analysisGraph: unit.analysisGraph } : {}),
       createdAt: unit.createdAt,
       updatedAt: unit.updatedAt,
     },
@@ -85,6 +86,7 @@ export function projectUnitDocFromLayerUnit(
       ? { annotationStatus: unit.status }
       : {}),
     ...(unit.provenance !== undefined ? { provenance: unit.provenance } : {}),
+    ...(unit.analysisGraph !== undefined ? { analysisGraph: unit.analysisGraph } : {}),
     createdAt: unit.createdAt,
     updatedAt: unit.updatedAt,
   };

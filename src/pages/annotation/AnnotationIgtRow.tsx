@@ -2,6 +2,10 @@ import { Link } from 'react-router-dom';
 import { t, tf, useLocale } from '../../i18n';
 import type { AnnotationIgtRow, AnnotationIgtToken } from '../useAnnotationWorkspaceController';
 import type { AnnotationMorphologyController } from '../useAnnotationMorphologyController';
+import { readAnalysisGraphView } from '../../annotation/analysisGraphView';
+import { UD_POS_TAGS } from '../../annotation/udPosTags';
+import type { AnnotationRelationMark } from '../useAnnotationRelationController';
+import { buildAnnotationUtteranceGraph } from './buildAnnotationUtteranceGraph';
 import { annotationGlossHasLeipzigIssue } from './annotationLeipzigGloss';
 import { displayedAnnotationMorphemeFields } from './annotationMorphemeDrafts';
 import { displayedAnnotationTokenFields, type AnnotationTokenDraft } from './annotationTokenDrafts';
@@ -36,6 +40,10 @@ type Props = {
   onToggleMweToken?: (unitId: string, tokenId: string) => void;
   onConfirmMwe?: (unitId: string) => void;
   onExportAnalysis?: (unitId: string, kind: 'cldf' | 'conllu' | 'ligt') => void;
+  onApplyPosByForm?: (unitId: string, tokenId: string, pos: string) => void;
+  onMarkRelation?: (unitId: string, mark: AnnotationRelationMark) => void;
+  relationError?: '' | 'dirty' | 'failed';
+  posError?: '' | 'dirty' | 'failed';
 };
 
 function lexemeLinkLabel(
@@ -56,6 +64,8 @@ function TokenStack({
   onTokenDraftChange,
   mweSelected = false,
   onToggleMweToken,
+  onApplyPosByForm,
+  onMarkRelation,
 }: {
   token: AnnotationIgtToken;
   unitId: string;
@@ -66,6 +76,8 @@ function TokenStack({
   onTokenDraftChange: Props['onTokenDraftChange'];
   mweSelected?: boolean;
   onToggleMweToken?: (unitId: string, tokenId: string) => void;
+  onApplyPosByForm?: Props['onApplyPosByForm'];
+  onMarkRelation?: Props['onMarkRelation'];
 }) {
   const locale = useLocale();
   const fields = displayedAnnotationTokenFields(token, drafts);
@@ -91,11 +103,30 @@ function TokenStack({
             className="annotation-igt-field"
             data-testid={`annotation-igt-pos-${token.id}`}
             aria-label={t(locale, 'workspace.annotation.posLabel')}
+            list={`annotation-pos-list-${token.id}`}
             value={fields.pos}
             onClick={(event) => event.stopPropagation()}
             onFocus={() => onFocusInput(unitId)}
             onChange={(event) => onTokenDraftChange(unitId, token.id, 'pos', event.target.value)}
           />
+          <datalist id={`annotation-pos-list-${token.id}`}>
+            {UD_POS_TAGS.map((tag) => (
+              <option key={tag} value={tag} />
+            ))}
+          </datalist>
+          {onApplyPosByForm && fields.pos.trim().length > 0 ? (
+            <button
+              type="button"
+              className="annotation-igt-action"
+              data-testid={`annotation-igt-pos-apply-${token.id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onApplyPosByForm(unitId, token.id, fields.pos.trim());
+              }}
+            >
+              {t(locale, 'workspace.annotation.applyPosByForm')}
+            </button>
+          ) : null}
           <input
             className={
               glossInvalid
@@ -188,6 +219,26 @@ function TokenStack({
                           morphology.onMorphDraftChange(morph.id, 'gloss', event.target.value)
                         }
                       />
+                      {onMarkRelation && morphs.indexOf(morph) > 0 ? (
+                        <button
+                          type="button"
+                          className="annotation-igt-action"
+                          data-testid={`annotation-igt-redup-${morph.id}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const stem = morphs[morphs.indexOf(morph) - 1];
+                            if (stem === undefined) return;
+                            onMarkRelation(unitId, {
+                              kind: 'reduplicates',
+                              tokenId: token.id,
+                              reduplicantId: morph.id,
+                              stemId: stem.id,
+                            });
+                          }}
+                        >
+                          {t(locale, 'workspace.annotation.copiesPrevious')}
+                        </button>
+                      ) : null}
                     </span>
                   );
                 })}
@@ -240,6 +291,47 @@ function TokenStack({
               </button>
             ) : null}
           </label>
+          {onMarkRelation ? (
+            <span className="annotation-igt-actions">
+              {link && link.brokenCode === undefined && link.lemma.trim().length > 0 ? (
+                <button
+                  type="button"
+                  className="annotation-igt-action"
+                  data-testid={`annotation-igt-suppletion-${token.id}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMarkRelation(unitId, {
+                      kind: 'suppletes',
+                      tokenId: token.id,
+                      underlying: link.lemma,
+                    });
+                  }}
+                >
+                  {t(locale, 'workspace.annotation.markSuppletion')}
+                </button>
+              ) : null}
+              {(
+                [
+                  ['substitutesSegment', 'workspace.annotation.markSubstitution'],
+                  ['deletesSegment', 'workspace.annotation.markDeletion'],
+                  ['overwritesTone', 'workspace.annotation.markTone'],
+                ] as const
+              ).map(([kind, key]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="annotation-igt-action"
+                  data-testid={`annotation-igt-${kind}-${token.id}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMarkRelation(unitId, { kind, tokenId: token.id });
+                  }}
+                >
+                  {t(locale, key)}
+                </button>
+              ))}
+            </span>
+          ) : null}
         </>
       ) : (
         <>
@@ -268,6 +360,116 @@ function TokenStack({
   );
 }
 
+function AnalysisGraphReadout({
+  row,
+  drafts,
+  morphology,
+}: {
+  row: AnnotationIgtRow;
+  drafts: Readonly<Record<string, AnnotationTokenDraft>>;
+  morphology: AnnotationMorphologyController;
+}) {
+  const locale = useLocale();
+  const projected = buildAnnotationUtteranceGraph({
+    row: {
+      ...row,
+      tokens: row.tokens.map((token) => {
+        const fields = displayedAnnotationTokenFields(token, drafts);
+        return { ...token, gloss: fields.gloss, pos: fields.pos };
+      }),
+    },
+    morphsByTokenId: morphology.morphsByTokenId,
+    linksByTokenId: morphology.linksByTokenId,
+  });
+  const view = readAnalysisGraphView(projected);
+  const hasContent =
+    view.multiwordExpressions.length > 0 ||
+    view.features.length > 0 ||
+    view.links.length > 0 ||
+    view.notices.length > 0;
+  if (!hasContent) return null;
+  return (
+    <div className="annotation-igt-graph" data-testid={`annotation-igt-graph-${row.id}`}>
+      {view.multiwordExpressions.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">{t(locale, 'workspace.annotation.graphMwe')}</span>
+          {view.multiwordExpressions.map((group) => (
+            <span
+              key={group.id}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-mwe-${group.id}`}
+            >
+              {group.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {view.features.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphFeatures')}
+          </span>
+          {view.features.map((feature) => (
+            <span
+              key={feature.ownerId}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-feature-${feature.ownerId}`}
+            >
+              {`${feature.ownerLabel}: ${feature.features.map((item) => `${item.key}=${item.value}`).join(', ')}`}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {view.links.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphRelations')}
+          </span>
+          {view.links.map((link) => (
+            <span
+              key={link.id}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-link-${link.id}`}
+            >
+              {link.kind === 'reduplicates'
+                ? tf(locale, 'workspace.annotation.relationReduplicates', {
+                    source: link.source,
+                    target: link.target,
+                  })
+                : link.kind === 'suppletes'
+                  ? tf(locale, 'workspace.annotation.relationSuppletes', {
+                      source: link.source,
+                      target: link.target,
+                    })
+                  : tf(
+                      locale,
+                      link.kind === 'deletesSegment'
+                        ? 'workspace.annotation.relationDeletes'
+                        : link.kind === 'overwritesTone'
+                          ? 'workspace.annotation.relationTone'
+                          : 'workspace.annotation.relationSubstitutes',
+                      { source: link.source },
+                    )}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {view.notices.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphNotices')}
+          </span>
+          {view.notices.map((notice) => (
+            <span key={`${notice.status}:${notice.message}`} className="annotation-igt-graph-chip">
+              {notice.message}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AnnotationIgtRowView({
   row,
   focused,
@@ -288,6 +490,10 @@ export function AnnotationIgtRowView({
   onToggleMweToken,
   onConfirmMwe,
   onExportAnalysis,
+  onApplyPosByForm,
+  onMarkRelation,
+  relationError = '',
+  posError = '',
 }: Props) {
   const locale = useLocale();
   return (
@@ -317,6 +523,8 @@ export function AnnotationIgtRowView({
               onTokenDraftChange={onTokenDraftChange}
               mweSelected={mweSelectedIds?.includes(token.id) ?? false}
               {...(focused && onToggleMweToken ? { onToggleMweToken } : {})}
+              {...(onApplyPosByForm ? { onApplyPosByForm } : {})}
+              {...(focused && onMarkRelation ? { onMarkRelation } : {})}
             />
           ))
         ) : (
@@ -341,6 +549,7 @@ export function AnnotationIgtRowView({
           {t(locale, 'workspace.annotation.markMwe')}
         </button>
       ) : null}
+      {focused ? <AnalysisGraphReadout row={row} drafts={drafts} morphology={morphology} /> : null}
       {focused && mweError.length > 0 ? (
         <p className="annotation-igt-label" data-testid={`annotation-igt-mwe-error-${row.id}`}>
           {mweError === 'dirty'
@@ -348,6 +557,20 @@ export function AnnotationIgtRowView({
             : mweError === 'contiguous'
               ? t(locale, 'workspace.annotation.mweContiguous')
               : t(locale, 'workspace.annotation.mweFailed')}
+        </p>
+      ) : null}
+      {focused && relationError.length > 0 ? (
+        <p className="annotation-igt-label" data-testid={`annotation-igt-relation-error-${row.id}`}>
+          {relationError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : t(locale, 'workspace.annotation.relationFailed')}
+        </p>
+      ) : null}
+      {focused && posError.length > 0 ? (
+        <p className="annotation-igt-label" data-testid={`annotation-igt-pos-error-${row.id}`}>
+          {posError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : t(locale, 'workspace.annotation.posFailed')}
         </p>
       ) : null}
       {focused && onExportAnalysis ? (

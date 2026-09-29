@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-27
+last_reviewed: 2026-09-29
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-27）**：标注 M1、**B4f–B4i**、**B3c–B3am**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型、义项例证、词条发音、词源、字面意义、参考文献、限制、概要定义、义项学名、义项人类学注释、义项语篇注释、义项百科注释、义项语法注释、义项语义域、义项音系注释、义项语义注释、义项社会语言学注释、义项来源注释、义项用法、义项类型、义项学术领域、义项人类学类别、义项状态、义项方言标签、义项限制、义项导入残留、义项反转、义项参考文献与义项一般注释）已落地。B4i 在 IGT 行只读显示同一句段的翻译层文本。余量：**B7** 仍 blocked on ChatWindow 会话隔离。词典编辑基准已改为 DMLex JSON（[ADR 0035](../../adr/0035-lexicon-edit-baseline-dmlex.md)、[计划](词典编辑改用DMLex基准-2026-09-27.md)），LIFT 只做导入导出投影，整库下载是一份 `lexicographicResource` JSON。不排 C3d Word / M2 typed relation / 语义域浏览；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-29）**：标注 M1（**B4a–B4i**）已落地。M2 起步：**B4j** 整句 analysisGraph + MWE、**B4k** gloss 结构投影、**B4l** UD 词类/同形批量 POS/形态过程关系已落地（本分支）。下一刀 **B4m** 聚焦行只读 relation 徽章。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -239,6 +239,10 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4g** | 标注页二次分词强制覆盖与恢复 | M | **【✅ 已落地】** 已标注句段的确认仍只写 candidate。用户再点覆盖时，先把 token/词素/链接写入 pending `retokenize-snapshot`，再替换 `unit_tokens`。恢复按原 id 写回并 reject 快照。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。不接 ChatWindow | force write→readback；restore gloss/词素/链接；定向 vitest | 是 |
 | **B4h** | 标注页结构校验面板 | M | **【✅ 已落地】** 聚焦句段把非空 gloss 交给既有结构 preview，显示切段、Leipzig 缩写问题和需复核。不调用 confirm，不写 `unit_relations`。模板编辑仍在 `/assets/structural-profiles`。无新 flag。SDD：`annotation-validator-panel/`。不做 M2 typed relation | 只读 preview；未闭合中缀需复核；定向 vitest | 是 |
 | **B4i** | 标注页译文行 | S | **【✅ 已落地】** `/annotation` IGT 译文行显示同一 unit 在翻译层上的文本。无翻译层或无文本时仍是空文案。音频模态不显示。不写译文、不改转写文本。无新 flag。SDD：`annotation-translation-line/`。不做时间重叠对齐，不做 M2 typed relation | 翻译层文本出现在行上；无层时仍是空文案；定向 vitest | 是 |
+| **B4j** | 标注页整句 analysisGraph + MWE | L | **【✅ 已落地】** `/annotation` 投影聚焦句段为 `analysisGraph`（词序、词素对齐、义项链接）；连续选词可标 `partOfMwe`。CLDF/CoNLL-U/Ligt 仍是导出。不改作者 gloss。无新 flag。ADR 0022 M2 起步 | 投影+write→readback；MWE 保留；定向 vitest | 是 |
+| **B4k** | 标注页 gloss 结构投影 | M | **【✅ 已落地】** 无人工词素时，整句投影解析 Leipzig gloss（`=`/`∅`/`[]`/`<>`/`\`/`.`）写入分析图节点与关系；聚焦行展示当前投影。作者 gloss 原文保留。无新 flag。SDD：`annotation-gloss-structure/` | `1SG=COP`→cliticizesTo；零形式/中缀/需复核；定向 vitest | 是 |
+| **B4l** | 标注页 UD 词类 + 形态过程关系 | M | **【✅ 已落地】** UD 17 类建议仍可自定义；同形批量 POS（跳过脏草稿）；重叠/异干/换段/删段/声调写入分析图并在重投影时保留。无任意图编辑器。无新 flag。SDD：`annotation-pos-relations/` | 同形 readback；五类关系保留；定向 vitest | 是 |
+| **B4m** | 标注页只读 relation 徽章 | M | **【⬜ 未开始】** 聚焦行展示已保存/投影的 typed relation 徽章；不写库。ADR 0022 M2a | 徽章与 graph 一致；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
@@ -349,6 +353,9 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-28 | **词典 DMLex JSON 下载**：`/lexicon` 把当前词条嵌进一份 `lexicographicResource` JSON 并下载。`jieyu` 不写入。对照 vendored schema。无新 flag。LIFT 投影仍在。 |
 | 2026-09-27 | **词典编辑基准改为 DMLex**：采用 OASIS DMLex 1.0 带跨语言模块的 JSON Schema（`docs/architecture/dmlex/dmlex.schema.json`）作为编辑对象。LIFT 改为导入导出投影。解语的语段引用和自由文本注释放在 schema 外。无存量词条，不新增 Dexie 版本，不加 flag。运行时代码尚未替换。ADR 0035；计划 `词典编辑改用DMLex基准-2026-09-27.md`。 |
+| 2026-09-29 | **B4l POS/形态过程关系**：UD 17 类建议 + 同形批量 POS + 重叠/异干/换段/删段/声调写入分析图并重投影保留。无任意图编辑器。无新 flag。SDD：`annotation-pos-relations/`。下一刀 **B4m** 只读 relation 徽章。 |
+| 2026-09-29 | **B4k gloss 结构投影**：无人工词素时整句投影解析 Leipzig gloss 边界进 analysisGraph；聚焦行展示当前投影。无新 flag。SDD：`annotation-gloss-structure/`。 |
+| 2026-09-29 | **B4j 整句 analysisGraph + MWE**：投影词序/词素对齐/义项链接；连续选词标 `partOfMwe`。无新 flag。ADR 0022 M2 起步。 |
 | 2026-09-27 | **B3am 义项一般注释**：`/lexicon` 编辑义项 `generalNote`，对应 LIFT 义项上无 `type` 的 `<note>` 第一条 form 文本。空白省略。出站不写 `type`，lang 为 `und`，排在百科注释之后、语法注释之前。不读词条级无 type note，也不把带 type 的义项 note 写进一般注释，也不改词条 `notes`。再次导入省略该 note 时一般注释随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-general-note/`。下一刀仍不排 B7 / C3d / DMLex / 语义域浏览 / 词汇关系 / 图片 / flag 放量。 |
 | 2026-09-27 | **B3al 义项参考文献**：`/lexicon` 编辑义项 `senseBibliography`，对应 LIFT 义项 `<note type="bibliography">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在人类学注释之后、语篇注释之前。不读词条级同名 note，也不读无 type 的 General Note，也不改词条参考文献。再次导入省略该 note 时义项参考文献随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-bibliography/`。下一刀仍不排 B7 / C3d / DMLex / 语义域浏览 / 词汇关系 / 图片 / flag 放量。 |
 | 2026-09-27 | **B3ak 义项反转**：`/lexicon` 按书写系统编辑义项 `reversals`，对应 LIFT `<reversal type>` 与嵌套 `<main>` 单链。空白书写系统或空白形式省略该条。空白上级跳过并保留子级。出站排在 gloss 之后、definition 之前。不读词条级 `<reversal>`，也不把反转上的 grammatical-info 当成义项词类。并列的第二个 `main` 不写入。再次导入省略这些元素时反转随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-reversals/`。下一刀仍不排 B7 / C3d / DMLex / 语义域浏览 / 词汇关系 / flag 放量。 |

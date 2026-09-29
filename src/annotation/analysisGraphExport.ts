@@ -1,4 +1,5 @@
 import type { AnnotationAnalysisGraphFixture, ProjectionDiagnostic } from './analysisGraph';
+import { UD_POS_TAGS } from './udPosTags';
 
 export type CldfExampleRow = {
   ID: string;
@@ -13,41 +14,52 @@ function tokenNodes(graph: AnnotationAnalysisGraphFixture) {
   return graph.nodes.filter((node) => node.type === 'token');
 }
 
-const UD_UPOS = new Set([
-  'ADJ',
-  'ADP',
-  'ADV',
-  'AUX',
-  'CCONJ',
-  'DET',
-  'INTJ',
-  'NOUN',
-  'NUM',
-  'PART',
-  'PRON',
-  'PROPN',
-  'PUNCT',
-  'SCONJ',
-  'SYM',
-  'VERB',
-  'X',
-]);
+const UD_UPOS = new Set<string>(UD_POS_TAGS);
 
-function glossFeaturesFor(
-  graph: AnnotationAnalysisGraphFixture,
-  ownerId: string,
+function stringFeatureRecord(
+  features: Record<string, unknown> | undefined,
 ): Record<string, string> {
-  const gloss = graph.relations.find(
-    (relation) => relation.type === 'glosses' && relation.targetId === ownerId,
-  );
-  const glossNode = gloss ? graph.nodes.find((node) => node.id === gloss.sourceId) : undefined;
-  const features = glossNode?.features;
-  if (!features) return {};
+  if (features === undefined) return {};
   const record: Record<string, string> = {};
   for (const [key, value] of Object.entries(features)) {
     if (typeof value === 'string' && value.length > 0) record[key] = value;
   }
   return record;
+}
+
+function glossFeaturesFor(
+  graph: AnnotationAnalysisGraphFixture,
+  ownerId: string,
+): Record<string, string> {
+  const owner = graph.nodes.find((node) => node.id === ownerId);
+  const gloss = graph.relations.find(
+    (relation) => relation.type === 'glosses' && relation.targetId === ownerId,
+  );
+  const glossNode = gloss ? graph.nodes.find((node) => node.id === gloss.sourceId) : undefined;
+  const record = {
+    ...stringFeatureRecord(owner?.features),
+    ...stringFeatureRecord(glossNode?.features),
+  };
+  for (const relation of graph.relations) {
+    if (relation.type !== 'realizesFeature' || relation.sourceId !== ownerId) continue;
+    const bundle = graph.nodes.find((node) => node.id === relation.targetId);
+    if (bundle?.type !== 'featureBundle') continue;
+    Object.assign(record, stringFeatureRecord(bundle.features));
+  }
+  return record;
+}
+
+/** Object-language morphemes only. Gloss-structure nodes use ids that start with `gs-`. */
+function objectMorphLabels(graph: AnnotationAnalysisGraphFixture, tokenId: string): string[] {
+  return graph.relations
+    .filter((relation) => relation.type === 'hasPart' && relation.sourceId === tokenId)
+    .map((relation) => graph.nodes.find((node) => node.id === relation.targetId))
+    .filter(
+      (node): node is NonNullable<typeof node> =>
+        node !== undefined && node.type === 'morpheme' && !node.id.startsWith('gs-'),
+    )
+    .map((node) => node.label)
+    .filter((label) => label.length > 0);
 }
 
 function featuresOfToken(graph: AnnotationAnalysisGraphFixture, tokenId: string): string {
@@ -103,10 +115,7 @@ export function exportUtteranceToCldf(
   const tokens = tokenNodes(graph);
   const analyzed = tokens
     .map((token) => {
-      const morphs = graph.relations
-        .filter((relation) => relation.type === 'hasPart' && relation.sourceId === token.id)
-        .map((relation) => graph.nodes.find((node) => node.id === relation.targetId)?.label ?? '')
-        .filter((label) => label.length > 0);
+      const morphs = objectMorphLabels(graph, token.id);
       return morphs.length > 0 ? morphs.join('-') : token.label;
     })
     .join(' ');
@@ -175,7 +184,11 @@ export function exportUtteranceToLigt(
     graph.relations
       .filter((relation) => relation.type === 'hasPart' && relation.sourceId === token.id)
       .map((relation) => graph.nodes.find((node) => node.id === relation.targetId))
-      .filter((node): node is NonNullable<typeof node> => node?.type === 'morpheme'),
+      .filter(
+        (node): node is NonNullable<typeof node> =>
+          node !== undefined &&
+          (node.type === 'morpheme' || node.type === 'word' || node.type === 'zero'),
+      ),
   );
   const morphPayload = morphItems.map((morph, index) => {
     const parent = graph.relations.find(

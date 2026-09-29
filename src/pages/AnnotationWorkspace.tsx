@@ -10,6 +10,8 @@ import { useAnnotationValidatorPanelController } from './useAnnotationValidatorP
 import { useAnnotationSegmentPlaybackController } from './useAnnotationSegmentPlaybackController';
 import { useAnnotationUnitMetaController } from './useAnnotationUnitMetaController';
 import { useAnnotationMweController } from './useAnnotationMweController';
+import { useAnnotationPosBatchController } from './useAnnotationPosBatchController';
+import { useAnnotationRelationController } from './useAnnotationRelationController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 
 export function AnnotationWorkspace() {
@@ -39,6 +41,8 @@ export function AnnotationWorkspace() {
     reloadWorkspace: controller.reload,
   });
   const mwe = useAnnotationMweController(controller.textId, controller.reload);
+  const posBatch = useAnnotationPosBatchController(controller.reload, controller.clearTokenDrafts);
+  const relations = useAnnotationRelationController(controller.textId, controller.reload);
   const validator = useAnnotationValidatorPanelController({
     focusedUnitId: controller.focusedUnitId,
     rows: controller.rows,
@@ -201,6 +205,35 @@ export function AnnotationWorkspace() {
                     morphDrafts: morphology.drafts,
                     morphsByTokenId: morphology.morphsByTokenId,
                     linksByTokenId: morphology.linksByTokenId,
+                  });
+                }}
+                onApplyPosByForm={(unitId, tokenId, pos) => {
+                  const target = controller.rows.find((item) => item.id === unitId);
+                  if (
+                    target === undefined ||
+                    !target.tokens.some((token) => token.id === tokenId)
+                  ) {
+                    return;
+                  }
+                  void posBatch.apply({
+                    rows: controller.rows,
+                    drafts: controller.drafts,
+                    sourceTokenId: tokenId,
+                    pos,
+                  });
+                }}
+                relationError={row.id === controller.focusedUnitId ? relations.error : ''}
+                posError={row.id === controller.focusedUnitId ? posBatch.error : ''}
+                onMarkRelation={(unitId, mark) => {
+                  const target = controller.rows.find((item) => item.id === unitId);
+                  if (!target) return;
+                  void relations.apply({
+                    row: target,
+                    tokenDrafts: controller.drafts,
+                    morphDrafts: morphology.drafts,
+                    morphsByTokenId: morphology.morphsByTokenId,
+                    linksByTokenId: morphology.linksByTokenId,
+                    mark,
                   });
                 }}
                 onExportAnalysis={(unitId, kind) => {

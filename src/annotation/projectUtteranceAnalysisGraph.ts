@@ -1,3 +1,4 @@
+import { glossStructureForToken } from './glossStructure';
 import { mapGlossLabelToFeatures } from './glossFeatureMap';
 import {
   validateAnnotationAnalysisGraphFixture,
@@ -108,8 +109,23 @@ export function projectUtteranceAnalysisGraph(
     }
     previousTokenId = token.id;
     if (filled(token.gloss)) {
-      glossLabels.push(token.gloss.trim());
-      addGloss(token.id, token.gloss.trim());
+      const trimmed = token.gloss.trim();
+      glossLabels.push(trimmed);
+      const structure =
+        (token.morphemes?.length ?? 0) === 0
+          ? glossStructureForToken(token.id, trimmed)
+          : undefined;
+      if (structure !== undefined && structure.nodes.length > 0) {
+        const glossId = `gloss-${token.id}`;
+        nodes.push({ id: glossId, type: 'gloss', label: trimmed });
+        addRelation({ type: 'glosses', sourceId: glossId, targetId: token.id });
+        nodes.push(...structure.nodes);
+        for (const relation of structure.relations) addRelation(relation);
+        diagnostics.push(...structure.diagnostics);
+      } else {
+        addGloss(token.id, trimmed);
+        if (structure !== undefined) diagnostics.push(...structure.diagnostics);
+      }
     }
     if (filled(token.pos)) {
       addPos(token.id, token.pos.trim());
@@ -125,6 +141,7 @@ export function projectUtteranceAnalysisGraph(
     if (filled(token.senseId)) addSense(token.id, token.senseId.trim());
 
     let previousMorphId: string | undefined;
+    let notedMorphOrder = false;
     for (const morph of token.morphemes ?? []) {
       const spans = morph.surfaceParts ?? [];
       const discontinuous = spans.length >= 2;
@@ -158,6 +175,14 @@ export function projectUtteranceAnalysisGraph(
       }
       if (previousMorphId !== undefined) {
         addRelation({ type: 'next', sourceId: previousMorphId, targetId: morph.id, role: 'morph' });
+        if (!notedMorphOrder) {
+          notedMorphOrder = true;
+          diagnostics.push({
+            target: 'conllu',
+            status: 'degraded',
+            message: 'Morpheme order is not a CoNLL-U dependency.',
+          });
+        }
       }
       previousMorphId = morph.id;
       if (filled(morph.gloss)) addGloss(morph.id, morph.gloss.trim());

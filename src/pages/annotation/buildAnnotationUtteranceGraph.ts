@@ -1,3 +1,4 @@
+import { retainMorphologyRelations } from '../../annotation/morphologyRelations';
 import { retainPartOfMwe } from '../../annotation/partOfMwe';
 import { projectUtteranceAnalysisGraph } from '../../annotation/projectUtteranceAnalysisGraph';
 import type { AnnotationAnalysisGraphFixture } from '../../annotation/analysisGraph';
@@ -33,5 +34,8 @@ export function buildAnnotationUtteranceGraph(input: {
       };
     }),
   });
-  return retainPartOfMwe(fresh, input.row.analysisGraph);
+  return retainMorphologyRelations(
+    retainPartOfMwe(fresh, input.row.analysisGraph),
+    input.row.analysisGraph,
+  );
 }
