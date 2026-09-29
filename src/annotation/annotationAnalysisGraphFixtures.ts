@@ -456,6 +456,122 @@ export const annotationAnalysisGraphFixtures = [
       },
     ],
   },
+  {
+    id: 'fixture-ablaut-sang',
+    text: 'sang',
+    displayGloss: 'sing.PST',
+    nodes: [
+      { id: 'tok-1', type: 'token', label: 'sang' },
+      { id: 'underlying-1', type: 'underlyingForm', label: 'sing' },
+      {
+        id: 'surface-1',
+        type: 'surfaceForm',
+        label: 'sang',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 4 }],
+      },
+      {
+        id: 'process-1',
+        type: 'process',
+        label: 'ablaut',
+        features: { processType: 'ablaut', from: 'i', to: 'a' },
+      },
+    ],
+    relations: [
+      { id: 'rel-1', type: 'hasUnderlyingForm', sourceId: 'tok-1', targetId: 'underlying-1' },
+      { id: 'rel-2', type: 'hasSurfaceForm', sourceId: 'tok-1', targetId: 'surface-1' },
+      { id: 'rel-3', type: 'substitutesSegment', sourceId: 'surface-1', targetId: 'underlying-1' },
+      { id: 'rel-4', type: 'derivedByProcess', sourceId: 'surface-1', targetId: 'process-1' },
+    ],
+    projectionDiagnostics: [
+      {
+        target: 'latex',
+        status: 'degraded',
+        message: 'Render sing.PST; ablaut is not a linear morpheme cut.',
+      },
+      {
+        target: 'conllu',
+        status: 'degraded',
+        message: 'Project lemma=sing and Tense=Past; keep the vowel change in MISC.',
+      },
+    ],
+  },
+  {
+    id: 'fixture-truncation-exam',
+    text: 'exam',
+    displayGloss: 'examination',
+    nodes: [
+      { id: 'tok-1', type: 'token', label: 'exam' },
+      { id: 'underlying-1', type: 'underlyingForm', label: 'examination' },
+      {
+        id: 'surface-1',
+        type: 'surfaceForm',
+        label: 'exam',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 4 }],
+      },
+      {
+        id: 'process-1',
+        type: 'process',
+        label: 'truncation',
+        features: { processType: 'truncation' },
+      },
+    ],
+    relations: [
+      { id: 'rel-1', type: 'hasUnderlyingForm', sourceId: 'tok-1', targetId: 'underlying-1' },
+      { id: 'rel-2', type: 'hasSurfaceForm', sourceId: 'tok-1', targetId: 'surface-1' },
+      { id: 'rel-3', type: 'deletesSegment', sourceId: 'surface-1', targetId: 'underlying-1' },
+      { id: 'rel-4', type: 'derivedByProcess', sourceId: 'surface-1', targetId: 'process-1' },
+    ],
+    projectionDiagnostics: [
+      {
+        target: 'latex',
+        status: 'degraded',
+        message: 'Render the clipped form; truncation is not a hyphenated morpheme.',
+      },
+      {
+        target: 'flex',
+        status: 'degraded',
+        message: 'Store the full form as the underlying form, not as a second token.',
+      },
+    ],
+  },
+  {
+    id: 'fixture-tone-overwrite',
+    text: 'bá',
+    displayGloss: 'ba\\H',
+    nodes: [
+      { id: 'tok-1', type: 'token', label: 'bá' },
+      { id: 'underlying-1', type: 'underlyingForm', label: 'ba' },
+      {
+        id: 'tone-1',
+        type: 'prosodicFeature',
+        label: 'H',
+        features: { tone: 'H' },
+      },
+      {
+        id: 'process-1',
+        type: 'process',
+        label: 'toneOverwrite',
+        features: { processType: 'toneOverwrite' },
+      },
+    ],
+    relations: [
+      { id: 'rel-1', type: 'hasUnderlyingForm', sourceId: 'tok-1', targetId: 'underlying-1' },
+      { id: 'rel-2', type: 'overwritesTone', sourceId: 'tok-1', targetId: 'tone-1' },
+      { id: 'rel-3', type: 'derivedByProcess', sourceId: 'tok-1', targetId: 'process-1' },
+    ],
+    projectionDiagnostics: [
+      {
+        target: 'latex',
+        status: 'complete',
+        message: 'Render the tone diacritic in the object line and \\H in the gloss.',
+      },
+      {
+        target: 'conllu',
+        status: 'degraded',
+        message: 'Tone overwrite is not a FEATS feature; preserve H in MISC.',
+      },
+    ],
+  },
 ] satisfies AnnotationAnalysisGraphFixture[];
 
 export const annotationAnalysisGraphFixtureIds = annotationAnalysisGraphFixtures.map(

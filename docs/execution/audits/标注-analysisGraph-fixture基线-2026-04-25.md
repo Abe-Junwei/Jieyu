@@ -453,13 +453,90 @@ depends_on:
 }
 ```
 
-## 14. 下一批 fixture
+## 14. Fixture L：Mutation / Ablaut
+
+### L.1 目标
+
+覆盖词干内部的音段替换（ablaut / umlaut），不把它切成线性词素。
+
+### L.2 示例
+
+- 表层：`sang`
+- 底层：`sing`
+- 过程：`ablaut`
+
+```json
+{
+  "id": "fixture-ablaut-sang",
+  "text": "sang",
+  "displayGloss": "sing.PST",
+  "nodes": [
+    { "id": "tok-1", "type": "token", "label": "sang" },
+    { "id": "underlying-1", "type": "underlyingForm", "label": "sing" },
+    { "id": "surface-1", "type": "surfaceForm", "label": "sang" },
+    { "id": "process-1", "type": "process", "label": "ablaut" }
+  ],
+  "relations": [
+    { "id": "rel-1", "type": "hasUnderlyingForm", "sourceId": "tok-1", "targetId": "underlying-1" },
+    { "id": "rel-2", "type": "hasSurfaceForm", "sourceId": "tok-1", "targetId": "surface-1" },
+    { "id": "rel-3", "type": "substitutesSegment", "sourceId": "surface-1", "targetId": "underlying-1" },
+    { "id": "rel-4", "type": "derivedByProcess", "sourceId": "surface-1", "targetId": "process-1" }
+  ],
+  "projectionDiagnostics": [
+    { "target": "latex", "status": "degraded", "message": "Render sing.PST; ablaut is not a linear morpheme cut." }
+  ]
+}
+```
+
+## 15. Fixture M：Truncation / Subtraction
+
+### M.1 目标
+
+覆盖截短：表层比底层短，被删掉的部分不是一个词素边界。
+
+### M.2 示例
+
+- 表层：`exam`
+- 底层：`examination`
+
+```json
+{
+  "id": "fixture-truncation-exam",
+  "text": "exam",
+  "displayGloss": "examination",
+  "relations": [
+    { "id": "rel-3", "type": "deletesSegment", "sourceId": "surface-1", "targetId": "underlying-1" }
+  ]
+}
+```
+
+## 16. Fixture N：Tonal morphology
+
+### N.1 目标
+
+覆盖声调覆盖：声调是 `prosodicFeature`，不是再切一刀词素。
+
+### N.2 示例
+
+- 表层：`bá`
+- 底层：`ba`
+- 声调：`H`
+
+```json
+{
+  "id": "fixture-tone-overwrite",
+  "text": "bá",
+  "displayGloss": "ba\\H",
+  "relations": [
+    { "id": "rel-2", "type": "overwritesTone", "sourceId": "tok-1", "targetId": "tone-1" }
+  ]
+}
+```
+
+## 17. 下一批 fixture
 
 下列 fixture 仍不在当前标注页切片内：
 
-1. mutation / ablaut / umlaut
-2. truncation / subtraction
-3. tonal morphology
-4. polysynthetic word / incorporation
-5. language profile tokenization（CJK / Thai / Japanese）
-6. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）
+1. polysynthetic word / incorporation
+2. language profile tokenization（CJK / Thai / Japanese）
+3. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）

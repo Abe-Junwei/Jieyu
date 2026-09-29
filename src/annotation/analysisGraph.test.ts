@@ -27,6 +27,9 @@ describe('annotation analysisGraph schema', () => {
       'fixture-cumulative-exponence',
       'fixture-multiple-exponence',
       'fixture-ambiguity-bank',
+      'fixture-ablaut-sang',
+      'fixture-truncation-exam',
+      'fixture-tone-overwrite',
     ]);
 
     for (const fixture of annotationAnalysisGraphFixtures) {
@@ -48,6 +51,9 @@ describe('annotation analysisGraph schema', () => {
     expect(relationTypes).toContain('suppletes');
     expect(relationTypes).toContain('realizesFeature');
     expect(relationTypes).toContain('alternativeAnalysis');
+    expect(relationTypes).toContain('substitutesSegment');
+    expect(relationTypes).toContain('deletesSegment');
+    expect(relationTypes).toContain('overwritesTone');
   });
 
   it('models root-pattern without inventing linear morpheme cuts', () => {
@@ -109,6 +115,26 @@ describe('annotation analysisGraph schema', () => {
     expect(
       fixture!.projectionDiagnostics.some((diagnostic) => diagnostic.status !== 'complete'),
     ).toBe(true);
+  });
+
+  it('models ablaut, truncation, and tone without a linear morpheme cut', () => {
+    const cases = [
+      ['fixture-ablaut-sang', 'substitutesSegment'],
+      ['fixture-truncation-exam', 'deletesSegment'],
+      ['fixture-tone-overwrite', 'overwritesTone'],
+    ] as const;
+    for (const [id, relationType] of cases) {
+      const fixture = annotationAnalysisGraphFixtures.find((item) => item.id === id);
+      expect(fixture).toBeDefined();
+      expect(fixture!.nodes.some((node) => node.type === 'morpheme')).toBe(false);
+      expect(fixture!.relations).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: relationType })]),
+      );
+    }
+    const tone = annotationAnalysisGraphFixtures.find(
+      (item) => item.id === 'fixture-tone-overwrite',
+    );
+    expect(tone!.nodes.some((node) => node.type === 'prosodicFeature')).toBe(true);
   });
 
   it('rejects relation endpoints that do not exist', () => {
