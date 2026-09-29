@@ -147,6 +147,20 @@ describe('utterance gloss structure', () => {
     );
   });
 
+  it('packs dotted features into one exponent', () => {
+    const graph = project('good-NOM.SG.M', 'bonus');
+    const exponent = graph.nodes.find((node) => node.type === 'exponent');
+    expect(exponent?.label).toBe('NOM.SG.M');
+    const bundles = graph.relations.filter(
+      (relation) => relation.type === 'realizesFeature' && relation.sourceId === exponent?.id,
+    );
+    expect(bundles).toHaveLength(2);
+    expect(graph.nodes.some((node) => node.type === 'morpheme' && node.label === 'SG')).toBe(false);
+    expect(graph.projectionDiagnostics).toContainEqual(
+      expect.objectContaining({ message: 'Gloss label M was not mapped to a feature.' }),
+    );
+  });
+
   it('leaves the single-token structural projection on token-1', () => {
     const graph = projectStructuralParseToAnalysisGraph(parseGlossStructure('1SG=COP'));
     expect(graph.nodes[0]?.id).toBe('token-1');

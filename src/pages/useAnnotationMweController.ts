@@ -3,6 +3,9 @@ import {
   downloadTextFile,
   exportUtteranceToCldf,
   exportUtteranceToConllu,
+  exportUtteranceToElanNote,
+  exportUtteranceToFlexNote,
+  exportUtteranceToLatex,
   exportUtteranceToLigt,
 } from '../annotation/analysisGraphExport';
 import { assignPartOfMwe } from '../annotation/partOfMwe';
@@ -19,7 +22,7 @@ import type { AnnotationTokenLexemeLinkView } from './annotation/saveAnnotationL
 import { saveAnnotationUnitAnalysisGraph } from './annotation/saveAnnotationUnitAnalysisGraph';
 
 export type AnnotationMweError = '' | 'dirty' | 'contiguous' | 'failed';
-export type AnnotationAnalysisExportKind = 'cldf' | 'conllu' | 'ligt';
+export type AnnotationAnalysisExportKind = 'cldf' | 'conllu' | 'ligt' | 'latex' | 'flex' | 'elan';
 
 type ConfirmInput = {
   row: AnnotationIgtRow;
@@ -95,6 +98,18 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
         JSON.stringify(exported, null, 2),
         'application/json',
       );
+      return;
+    }
+    if (kind === 'latex') {
+      downloadTextFile(`${input.row.id}.tex`, exportUtteranceToLatex(graph), 'text/plain');
+      return;
+    }
+    if (kind === 'flex') {
+      downloadTextFile(`${input.row.id}.flex.txt`, exportUtteranceToFlexNote(graph), 'text/plain');
+      return;
+    }
+    if (kind === 'elan') {
+      downloadTextFile(`${input.row.id}.elan.txt`, exportUtteranceToElanNote(graph), 'text/plain');
       return;
     }
     downloadTextFile(

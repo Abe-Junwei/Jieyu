@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { t, tf, useLocale } from '../../i18n';
 import type { AnnotationIgtRow, AnnotationIgtToken } from '../useAnnotationWorkspaceController';
@@ -39,7 +40,11 @@ type Props = {
   mweError?: '' | 'dirty' | 'contiguous' | 'failed';
   onToggleMweToken?: (unitId: string, tokenId: string) => void;
   onConfirmMwe?: (unitId: string) => void;
-  onExportAnalysis?: (unitId: string, kind: 'cldf' | 'conllu' | 'ligt') => void;
+  onExportAnalysis?: (
+    unitId: string,
+    kind: 'cldf' | 'conllu' | 'ligt' | 'latex' | 'flex' | 'elan',
+  ) => void;
+  onAddAlternative?: (unitId: string, tokenId: string, pos: string) => void;
   onApplyPosByForm?: (unitId: string, tokenId: string, pos: string) => void;
   onMarkRelation?: (unitId: string, mark: AnnotationRelationMark) => void;
   onSelectAlternative?: (unitId: string, relationId: string) => void;
@@ -68,6 +73,7 @@ function TokenStack({
   onToggleMweToken,
   onApplyPosByForm,
   onMarkRelation,
+  onAddAlternative,
 }: {
   token: AnnotationIgtToken;
   unitId: string;
@@ -80,8 +86,11 @@ function TokenStack({
   onToggleMweToken?: (unitId: string, tokenId: string) => void;
   onApplyPosByForm?: Props['onApplyPosByForm'];
   onMarkRelation?: Props['onMarkRelation'];
+  onAddAlternative?: Props['onAddAlternative'];
 }) {
   const locale = useLocale();
+  const [rootLabel, setRootLabel] = useState('');
+  const [patternLabel, setPatternLabel] = useState('');
   const fields = displayedAnnotationTokenFields(token, drafts);
   const morphs = morphology.morphsByTokenId[token.id] ?? [];
   const link = morphology.linksByTokenId[token.id];
@@ -127,6 +136,21 @@ function TokenStack({
               }}
             >
               {t(locale, 'workspace.annotation.applyPosByForm')}
+            </button>
+          ) : null}
+          {onAddAlternative &&
+          token.pos.trim().length > 0 &&
+          fields.pos.trim() !== token.pos.trim() ? (
+            <button
+              type="button"
+              className="annotation-igt-action"
+              data-testid={`annotation-igt-alt-add-${token.id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddAlternative(unitId, token.id, fields.pos.trim());
+              }}
+            >
+              {t(locale, 'workspace.annotation.addAlternative')}
             </button>
           ) : null}
           <input
@@ -241,6 +265,51 @@ function TokenStack({
                           {t(locale, 'workspace.annotation.copiesPrevious')}
                         </button>
                       ) : null}
+                      {onMarkRelation && morphs.indexOf(morph) > 0 ? (
+                        <button
+                          type="button"
+                          className="annotation-igt-action"
+                          data-testid={`annotation-igt-share-${morph.id}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const earlier = morphs[morphs.indexOf(morph) - 1];
+                            if (earlier === undefined) return;
+                            onMarkRelation(unitId, {
+                              kind: 'sharedFeature',
+                              laterMorphId: morph.id,
+                              earlierMorphId: earlier.id,
+                            });
+                          }}
+                        >
+                          {t(locale, 'workspace.annotation.sameFeature')}
+                        </button>
+                      ) : null}
+                      {onMarkRelation ? (
+                        <button
+                          type="button"
+                          className="annotation-igt-action"
+                          data-testid={`annotation-igt-inc-${morph.id}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onMarkRelation(unitId, { kind: 'incorporation', morphId: morph.id });
+                          }}
+                        >
+                          {t(locale, 'workspace.annotation.markIncorporated')}
+                        </button>
+                      ) : null}
+                      {onMarkRelation && link && link.brokenCode === undefined ? (
+                        <button
+                          type="button"
+                          className="annotation-igt-action"
+                          data-testid={`annotation-igt-allomorph-${morph.id}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onMarkRelation(unitId, { kind: 'allomorph', morphId: morph.id });
+                          }}
+                        >
+                          {t(locale, 'workspace.annotation.markAllomorph')}
+                        </button>
+                      ) : null}
                     </span>
                   );
                 })}
@@ -295,6 +364,40 @@ function TokenStack({
           </label>
           {onMarkRelation ? (
             <span className="annotation-igt-actions">
+              <input
+                className="annotation-igt-field"
+                data-testid={`annotation-igt-root-${token.id}`}
+                aria-label={t(locale, 'workspace.annotation.rootLabel')}
+                value={rootLabel}
+                onClick={(event) => event.stopPropagation()}
+                onChange={(event) => setRootLabel(event.target.value)}
+              />
+              <input
+                className="annotation-igt-field"
+                data-testid={`annotation-igt-pattern-${token.id}`}
+                aria-label={t(locale, 'workspace.annotation.patternLabel')}
+                value={patternLabel}
+                onClick={(event) => event.stopPropagation()}
+                onChange={(event) => setPatternLabel(event.target.value)}
+              />
+              {rootLabel.trim().length > 0 && patternLabel.trim().length > 0 ? (
+                <button
+                  type="button"
+                  className="annotation-igt-action"
+                  data-testid={`annotation-igt-root-pattern-${token.id}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMarkRelation(unitId, {
+                      kind: 'rootPattern',
+                      tokenId: token.id,
+                      root: rootLabel.trim(),
+                      pattern: patternLabel.trim(),
+                    });
+                  }}
+                >
+                  {t(locale, 'workspace.annotation.markRootPattern')}
+                </button>
+              ) : null}
               {link && link.brokenCode === undefined && link.lemma.trim().length > 0 ? (
                 <button
                   type="button"
@@ -360,6 +463,46 @@ function TokenStack({
       )}
     </span>
   );
+}
+
+function relationChipText(
+  locale: ReturnType<typeof useLocale>,
+  link: { kind: string; source: string; target: string },
+): string {
+  if (link.kind === 'reduplicates') {
+    return tf(locale, 'workspace.annotation.relationReduplicates', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'suppletes') {
+    return tf(locale, 'workspace.annotation.relationSuppletes', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'hasAllomorph') {
+    return tf(locale, 'workspace.annotation.relationAllomorph', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'rootPattern') {
+    return tf(locale, 'workspace.annotation.relationRoot', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'incorporation') {
+    return tf(locale, 'workspace.annotation.relationIncorporated', { source: link.source });
+  }
+  if (link.kind === 'deletesSegment') {
+    return tf(locale, 'workspace.annotation.relationDeletes', { source: link.source });
+  }
+  if (link.kind === 'overwritesTone') {
+    return tf(locale, 'workspace.annotation.relationTone', { source: link.source });
+  }
+  return tf(locale, 'workspace.annotation.relationSubstitutes', { source: link.source });
 }
 
 function AnalysisGraphReadout({
@@ -436,25 +579,7 @@ function AnalysisGraphReadout({
               className="annotation-igt-graph-chip"
               data-testid={`annotation-igt-graph-link-${link.id}`}
             >
-              {link.kind === 'reduplicates'
-                ? tf(locale, 'workspace.annotation.relationReduplicates', {
-                    source: link.source,
-                    target: link.target,
-                  })
-                : link.kind === 'suppletes'
-                  ? tf(locale, 'workspace.annotation.relationSuppletes', {
-                      source: link.source,
-                      target: link.target,
-                    })
-                  : tf(
-                      locale,
-                      link.kind === 'deletesSegment'
-                        ? 'workspace.annotation.relationDeletes'
-                        : link.kind === 'overwritesTone'
-                          ? 'workspace.annotation.relationTone'
-                          : 'workspace.annotation.relationSubstitutes',
-                      { source: link.source },
-                    )}
+              {relationChipText(locale, link)}
             </span>
           ))}
         </div>
@@ -538,6 +663,7 @@ export function AnnotationIgtRowView({
   onExportAnalysis,
   onApplyPosByForm,
   onMarkRelation,
+  onAddAlternative,
   relationError = '',
   onSelectAlternative,
   alternativeError = '',
@@ -573,6 +699,7 @@ export function AnnotationIgtRowView({
               {...(focused && onToggleMweToken ? { onToggleMweToken } : {})}
               {...(onApplyPosByForm ? { onApplyPosByForm } : {})}
               {...(focused && onMarkRelation ? { onMarkRelation } : {})}
+              {...(focused && onAddAlternative ? { onAddAlternative } : {})}
             />
           ))
         ) : (
@@ -640,7 +767,16 @@ export function AnnotationIgtRowView({
       ) : null}
       {focused && onExportAnalysis ? (
         <div className="annotation-igt-extras-actions">
-          {(['cldf', 'conllu', 'ligt'] as const).map((kind) => (
+          {(
+            [
+              ['cldf', 'workspace.annotation.exportCldf'],
+              ['conllu', 'workspace.annotation.exportConllu'],
+              ['ligt', 'workspace.annotation.exportLigt'],
+              ['latex', 'workspace.annotation.exportLatex'],
+              ['flex', 'workspace.annotation.exportFlex'],
+              ['elan', 'workspace.annotation.exportElan'],
+            ] as const
+          ).map(([kind, key]) => (
             <button
               key={kind}
               type="button"
@@ -651,14 +787,7 @@ export function AnnotationIgtRowView({
                 onExportAnalysis(row.id, kind);
               }}
             >
-              {t(
-                locale,
-                kind === 'cldf'
-                  ? 'workspace.annotation.exportCldf'
-                  : kind === 'conllu'
-                    ? 'workspace.annotation.exportConllu'
-                    : 'workspace.annotation.exportLigt',
-              )}
+              {t(locale, key)}
             </button>
           ))}
         </div>

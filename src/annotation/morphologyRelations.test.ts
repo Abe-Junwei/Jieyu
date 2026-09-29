@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { exportUtteranceToFlexNote, exportUtteranceToLatex } from './analysisGraphExport';
 import {
+  assignAllomorph,
+  assignIncorporation,
   assignReduplicates,
+  assignRootPattern,
   assignSegmentProcess,
+  assignSharedFeature,
   assignSuppletion,
   retainMorphologyRelations,
 } from './morphologyRelations';
@@ -66,6 +71,52 @@ describe('morphology relations', () => {
     expect(toned.relations.map((relation) => relation.type)).toEqual(
       expect.arrayContaining(['substitutesSegment', 'deletesSegment', 'overwritesTone']),
     );
+  });
+
+  it('shares one feature across two morphemes and records root, incorporation, and allomorph', () => {
+    const uttered = projectUtteranceAnalysisGraph({
+      id: 'utt-more',
+      text: 'gekauft berrypick',
+      tokens: [
+        {
+          id: 'tok-ge',
+          form: 'gekauft',
+          morphemes: [
+            { id: 'morph-ge', form: 'ge', gloss: 'PST' },
+            { id: 'morph-t', form: 't', gloss: 'en' },
+          ],
+        },
+        {
+          id: 'tok-berry',
+          form: 'berrypick',
+          senseId: 'berry',
+          morphemes: [{ id: 'morph-berry', form: 'berry' }],
+        },
+      ],
+    });
+    const shared = assignSharedFeature(uttered, 'morph-t', 'morph-ge');
+    expect(
+      shared.relations.filter(
+        (relation) =>
+          relation.type === 'realizesFeature' && relation.targetId.startsWith('feat-morph-ge'),
+      ),
+    ).toHaveLength(2);
+    const rooted = assignRootPattern(shared, 'tok-ge', 'k-t-b', 'CaCaC');
+    expect(rooted.nodes.find((node) => node.id === 'root-tok-ge')?.surfaceParts).toBeUndefined();
+    expect(rooted.projectionDiagnostics).toContainEqual(
+      expect.objectContaining({
+        message: 'Root spans were not stored; only the root and pattern labels are kept.',
+      }),
+    );
+    const incorporated = assignIncorporation(rooted, 'morph-berry');
+    expect(incorporated.relations).toContainEqual(
+      expect.objectContaining({ type: 'hasPart', targetId: 'morph-berry', role: 'incorporated' }),
+    );
+    const allomorph = assignAllomorph(incorporated, 'morph-berry');
+    expect(allomorph.relations.some((relation) => relation.type === 'hasAllomorph')).toBe(true);
+    expect(exportUtteranceToLatex(allomorph)).toContain('\\gla gekauft berrypick //');
+    expect(exportUtteranceToFlexNote(allomorph)).toContain('hasAllomorph:');
+    expect(exportUtteranceToFlexNote(allomorph)).not.toContain('<item');
   });
 
   it('keeps those relations when the utterance is projected again', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { annotationAnalysisGraphFixtures } from './annotationAnalysisGraphFixtures';
 import {
+  addAlternativePos,
   listAlternativeAnalysisChoices,
   retainAlternativeAnalyses,
   selectAlternativeAnalysis,
@@ -39,7 +40,7 @@ describe('alternativeAnalysis selection', () => {
     expect(choices.find((choice) => choice.relationId === 'rel-alt-verb')?.role).toBe('rejected');
     expect(next.relations).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: 'hasPos', sourceId: 'tok-1', targetId: 'pos-noun' }),
+        expect.objectContaining({ type: 'hasPos', sourceId: 'pos-noun', targetId: 'tok-1' }),
       ]),
     );
     expect(next.projectionDiagnostics.some((item) => item.message.startsWith('Ambiguous'))).toBe(
@@ -72,6 +73,35 @@ describe('alternativeAnalysis selection', () => {
       relations: fixture.relations.filter((relation) => relation.id === 'rel-alt-noun'),
     });
     expect(() => selectAlternativeAnalysis(alone, 'rel-alt-noun')).toThrow(/at least two/);
+  });
+
+  it('adds a second part of speech beside the current one', () => {
+    const graph = addAlternativePos(
+      projectUtteranceAnalysisGraph({
+        id: 'bank',
+        text: 'bank',
+        tokens: [{ id: 'tok-1', form: 'bank', pos: 'NOUN' }],
+      }),
+      'tok-1',
+      'VERB',
+    );
+    const choices = listAlternativeAnalysisChoices(graph);
+    expect(choices.map((choice) => choice.targetLabel).sort()).toEqual(['NOUN', 'VERB']);
+    const accepted = selectAlternativeAnalysis(
+      graph,
+      choices.find((choice) => choice.targetLabel === 'NOUN')!.relationId,
+    );
+    expect(accepted.relations).toContainEqual(
+      expect.objectContaining({
+        type: 'hasPos',
+        sourceId: expect.stringMatching(/^pos/),
+        targetId: 'tok-1',
+      }),
+    );
+    expect(
+      listAlternativeAnalysisChoices(accepted).find((choice) => choice.targetLabel === 'VERB')
+        ?.role,
+    ).toBe('rejected');
   });
 
   it('ignores retokenize edges that share the alternativeAnalysis type', () => {

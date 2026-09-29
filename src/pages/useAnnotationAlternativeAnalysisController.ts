@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { selectAlternativeAnalysis } from '../annotation/alternativeAnalysis';
+import { addAlternativePos, selectAlternativeAnalysis } from '../annotation/alternativeAnalysis';
 import { collectDirtyAnnotationMorphemeWrites } from './annotation/annotationMorphemeDrafts';
 import type {
   AnnotationMorphemeDraft,
@@ -53,5 +53,27 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
     [reload, textId],
   );
 
-  return { error, select };
+  const addPos = useCallback(
+    async (input: Omit<SelectInput, 'relationId'> & { tokenId: string; pos: string }) => {
+      if (hasDirtyDrafts({ ...input, relationId: 'unused' })) {
+        setError('dirty');
+        return;
+      }
+      try {
+        const next = addAlternativePos(
+          buildAnnotationUtteranceGraph(input),
+          input.tokenId,
+          input.pos,
+        );
+        await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
+        setError('');
+        reload();
+      } catch {
+        setError('failed');
+      }
+    },
+    [reload, textId],
+  );
+
+  return { error, select, addPos };
 }

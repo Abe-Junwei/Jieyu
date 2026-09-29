@@ -1,7 +1,12 @@
 import { useCallback, useState } from 'react';
+import type { AnnotationAnalysisGraphFixture } from '../annotation/analysisGraph';
 import {
+  assignAllomorph,
+  assignIncorporation,
   assignReduplicates,
+  assignRootPattern,
   assignSegmentProcess,
+  assignSharedFeature,
   assignSuppletion,
 } from '../annotation/morphologyRelations';
 import type {
@@ -21,7 +26,30 @@ export type AnnotationRelationError = '' | 'dirty' | 'failed';
 export type AnnotationRelationMark =
   | { kind: 'reduplicates'; tokenId: string; reduplicantId: string; stemId: string }
   | { kind: 'suppletes'; tokenId: string; underlying: string }
-  | { kind: 'substitutesSegment' | 'deletesSegment' | 'overwritesTone'; tokenId: string };
+  | { kind: 'substitutesSegment' | 'deletesSegment' | 'overwritesTone'; tokenId: string }
+  | { kind: 'sharedFeature'; laterMorphId: string; earlierMorphId: string }
+  | { kind: 'rootPattern'; tokenId: string; root: string; pattern: string }
+  | { kind: 'incorporation'; morphId: string }
+  | { kind: 'allomorph'; morphId: string };
+
+function applyMark(
+  graph: AnnotationAnalysisGraphFixture,
+  mark: AnnotationRelationMark,
+): AnnotationAnalysisGraphFixture {
+  if (mark.kind === 'reduplicates') {
+    return assignReduplicates(graph, mark.reduplicantId, mark.stemId);
+  }
+  if (mark.kind === 'suppletes') return assignSuppletion(graph, mark.tokenId, mark.underlying);
+  if (mark.kind === 'sharedFeature') {
+    return assignSharedFeature(graph, mark.laterMorphId, mark.earlierMorphId);
+  }
+  if (mark.kind === 'rootPattern') {
+    return assignRootPattern(graph, mark.tokenId, mark.root, mark.pattern);
+  }
+  if (mark.kind === 'incorporation') return assignIncorporation(graph, mark.morphId);
+  if (mark.kind === 'allomorph') return assignAllomorph(graph, mark.morphId);
+  return assignSegmentProcess(graph, mark.tokenId, mark.kind);
+}
 
 type ApplyInput = {
   row: AnnotationIgtRow;
@@ -49,14 +77,7 @@ export function useAnnotationRelationController(textId: string, reload: () => vo
         return;
       }
       try {
-        const base = buildAnnotationUtteranceGraph(input);
-        const mark = input.mark;
-        const next =
-          mark.kind === 'reduplicates'
-            ? assignReduplicates(base, mark.reduplicantId, mark.stemId)
-            : mark.kind === 'suppletes'
-              ? assignSuppletion(base, mark.tokenId, mark.underlying)
-              : assignSegmentProcess(base, mark.tokenId, mark.kind);
+        const next = applyMark(buildAnnotationUtteranceGraph(input), input.mark);
         await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
         setError('');
         reload();

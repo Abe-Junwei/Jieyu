@@ -89,7 +89,11 @@ export function selectAlternativeAnalysis(
   });
 
   const withoutHasPos = nextRelations.filter(
-    (relation) => !(relation.type === 'hasPos' && relation.sourceId === sourceId),
+    (relation) =>
+      !(
+        relation.type === 'hasPos' &&
+        (relation.targetId === sourceId || relation.sourceId === sourceId)
+      ),
   );
   const target = graph.nodes.find((node) => node.id === chosen.targetId);
   const withHasPos =
@@ -97,10 +101,10 @@ export function selectAlternativeAnalysis(
       ? [
           ...withoutHasPos,
           {
-            id: `rel-haspos-${sourceId}-${chosen.targetId}`,
+            id: `rel-haspos-${chosen.targetId}-${sourceId}`.slice(0, 128),
             type: 'hasPos' as const,
-            sourceId,
-            targetId: chosen.targetId,
+            sourceId: chosen.targetId,
+            targetId: sourceId,
             role: 'accepted',
           },
         ]
@@ -120,6 +124,77 @@ export function selectAlternativeAnalysis(
     ...graph,
     relations: withHasPos,
     projectionDiagnostics: diagnostics,
+  });
+}
+
+/** Add a second part-of-speech candidate beside the token's current hasPos. */
+export function addAlternativePos(
+  graph: AnnotationAnalysisGraphFixture,
+  tokenId: string,
+  posLabel: string,
+): AnnotationAnalysisGraphFixture {
+  const label = posLabel.trim();
+  const token = graph.nodes.find((node) => node.id === tokenId && node.type === 'token');
+  if (token === undefined || label.length === 0) {
+    throw new Error('An alternative part of speech needs a token and a label.');
+  }
+  const current = graph.relations.find(
+    (relation) => relation.type === 'hasPos' && relation.targetId === tokenId,
+  );
+  if (current === undefined) {
+    throw new Error('Add a second part of speech beside the current one.');
+  }
+  const duplicate = graph.relations.some((relation) => {
+    if (!isAnalysisChoice(relation) || relation.sourceId !== tokenId) return false;
+    return graph.nodes.find((node) => node.id === relation.targetId)?.label === label;
+  });
+  if (duplicate) return graph;
+
+  const nodes = [...graph.nodes];
+  const relations = [...graph.relations];
+  const currentIsChoice = relations.some(
+    (relation) =>
+      isAnalysisChoice(relation) &&
+      relation.sourceId === tokenId &&
+      relation.targetId === current.sourceId,
+  );
+  if (!currentIsChoice) {
+    relations.push({
+      id: `alt-pos-${tokenId}-${current.sourceId}`.slice(0, 128),
+      type: 'alternativeAnalysis',
+      sourceId: tokenId,
+      targetId: current.sourceId,
+      role: 'pending',
+    });
+  }
+  const posId = `pos-alt-${tokenId}-${label}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128);
+  if (!nodes.some((node) => node.id === posId)) {
+    nodes.push({ id: posId, type: 'pos', label });
+  }
+  relations.push({
+    id: `alt-${posId}`.slice(0, 128),
+    type: 'alternativeAnalysis',
+    sourceId: tokenId,
+    targetId: posId,
+    role: 'pending',
+  });
+  const hasAmbiguity = graph.projectionDiagnostics.some((item) =>
+    item.message.startsWith('Ambiguous POS'),
+  );
+  return validateAnnotationAnalysisGraphFixture({
+    ...graph,
+    nodes,
+    relations,
+    projectionDiagnostics: hasAmbiguity
+      ? graph.projectionDiagnostics
+      : [
+          ...graph.projectionDiagnostics,
+          {
+            target: 'conllu',
+            status: 'needsReview',
+            message: `Ambiguous POS: choose one alternative for ${token.label}.`,
+          },
+        ],
   });
 }
 

@@ -25,7 +25,15 @@ export type AnalysisGraphNoticeView = {
 
 export type AnalysisGraphLinkView = {
   id: string;
-  kind: 'reduplicates' | 'suppletes' | 'substitutesSegment' | 'deletesSegment' | 'overwritesTone';
+  kind:
+    | 'reduplicates'
+    | 'suppletes'
+    | 'substitutesSegment'
+    | 'deletesSegment'
+    | 'overwritesTone'
+    | 'hasAllomorph'
+    | 'rootPattern'
+    | 'incorporation';
   source: string;
   target: string;
 };
@@ -102,7 +110,8 @@ export function readAnalysisGraphView(graph: AnnotationAnalysisGraphFixture): An
       relation.type !== 'suppletes' &&
       relation.type !== 'substitutesSegment' &&
       relation.type !== 'deletesSegment' &&
-      relation.type !== 'overwritesTone'
+      relation.type !== 'overwritesTone' &&
+      relation.type !== 'hasAllomorph'
     ) {
       continue;
     }
@@ -115,6 +124,32 @@ export function readAnalysisGraphView(graph: AnnotationAnalysisGraphFixture): An
       source: source.label,
       target: target.label,
     });
+  }
+  for (const node of graph.nodes) {
+    if (node.type === 'root' && node.id.startsWith('root-')) {
+      const pattern = nodes.get(`pat-${node.id.slice('root-'.length)}`);
+      if (pattern === undefined) continue;
+      links.push({
+        id: node.id,
+        kind: 'rootPattern',
+        source: node.label,
+        target: pattern.label,
+      });
+    }
+    if (
+      node.type === 'process' &&
+      node.label === 'incorporation' &&
+      node.id.startsWith('proc-inc-')
+    ) {
+      const morph = nodes.get(node.id.slice('proc-inc-'.length));
+      if (morph === undefined) continue;
+      links.push({
+        id: node.id,
+        kind: 'incorporation',
+        source: morph.label,
+        target: morph.label,
+      });
+    }
   }
 
   const seen = new Set<string>();

@@ -220,6 +220,77 @@ export function exportUtteranceToLigt(
   };
 }
 
+const DEGRADED_RELATION_TYPES = new Set([
+  'reduplicates',
+  'suppletes',
+  'hasAllomorph',
+  'discontinuousPartOf',
+  'derivedByProcess',
+  'substitutesSegment',
+  'deletesSegment',
+  'overwritesTone',
+]);
+
+function degradedRelationLines(graph: AnnotationAnalysisGraphFixture): string[] {
+  const lines = graph.relations
+    .filter((relation) => DEGRADED_RELATION_TYPES.has(relation.type))
+    .map((relation) => `${relation.type}: ${relation.sourceId} -> ${relation.targetId}`);
+  const bundles = new Map<string, string[]>();
+  for (const relation of graph.relations) {
+    if (relation.type !== 'realizesFeature') continue;
+    const sources = bundles.get(relation.targetId) ?? [];
+    sources.push(relation.sourceId);
+    bundles.set(relation.targetId, sources);
+  }
+  for (const [bundle, sources] of bundles) {
+    if (sources.length < 2) continue;
+    lines.push(`multiple exponence: ${sources.join(', ')} -> ${bundle}`);
+  }
+  return lines;
+}
+
+/** Leipzig lines plus notes for structure LaTeX cannot show. */
+export function exportUtteranceToLatex(graph: AnnotationAnalysisGraphFixture): string {
+  const tokens = tokenNodes(graph);
+  const notes = graph.projectionDiagnostics
+    .filter((diagnostic) => diagnostic.target === 'latex' && diagnostic.status !== 'complete')
+    .map((diagnostic) => `% ${diagnostic.message}`);
+  return [
+    '\\ex',
+    '\\begingl',
+    `\\gla ${tokens.map((token) => token.label).join(' ')} //`,
+    `\\glb ${graph.displayGloss} //`,
+    '\\endgl',
+    '\\xe',
+    ...notes,
+  ].join('\n');
+}
+
+/** Lists analysis-graph relations that are not FLEx fields. */
+export function exportUtteranceToFlexNote(graph: AnnotationAnalysisGraphFixture): string {
+  const lines = [
+    'FLEx note: these relations stay outside FLEx fields.',
+    ...degradedRelationLines(graph),
+  ];
+  for (const diagnostic of graph.projectionDiagnostics) {
+    if (diagnostic.target === 'flex' && diagnostic.status !== 'complete') {
+      lines.push(diagnostic.message);
+    }
+  }
+  return lines.join('\n');
+}
+
+/** Lists analysis-graph relations that are not ELAN tiers. */
+export function exportUtteranceToElanNote(graph: AnnotationAnalysisGraphFixture): string {
+  const lines = ['ELAN note: these relations are not tiers.', ...degradedRelationLines(graph)];
+  for (const diagnostic of graph.projectionDiagnostics) {
+    if (diagnostic.target === 'elan' && diagnostic.status !== 'complete') {
+      lines.push(diagnostic.message);
+    }
+  }
+  return lines.join('\n');
+}
+
 export function downloadTextFile(filename: string, contents: string, mime: string): void {
   const url = URL.createObjectURL(new Blob([contents], { type: mime }));
   const anchor = document.createElement('a');

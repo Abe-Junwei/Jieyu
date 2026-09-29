@@ -99,6 +99,38 @@ export function glossStructureForToken(tokenId: string, gloss: string): GlossStr
     return id;
   };
 
+  const addExponent = (label: string, parts: StructuralParsedSegment[]): string => {
+    const id = `gs-${tokenId}-${index + 1}`;
+    index += 1;
+    nodes.push({ id, type: 'exponent', label });
+    relations.push({ type: 'hasPart', sourceId: tokenId, targetId: id });
+    for (const part of parts) {
+      const mapped = featuresOf(part.text);
+      const keys = Object.keys(mapped);
+      if (keys.length === 0) {
+        diagnostics.push({
+          target: 'conllu',
+          status: 'needsReview',
+          message: `Gloss label ${part.text} was not mapped to a feature.`,
+        });
+        continue;
+      }
+      for (const key of keys) {
+        const featureId = `feat-${id}-${key}`;
+        const value = mapped[key];
+        if (value === undefined) continue;
+        nodes.push({
+          id: featureId,
+          type: 'featureBundle',
+          label: part.text,
+          features: { [key]: value },
+        });
+        relations.push({ type: 'realizesFeature', sourceId: id, targetId: featureId });
+      }
+    }
+    return id;
+  };
+
   groups.forEach((group, groupIndex) => {
     const nextSplit = groups[groupIndex + 1]?.split;
     const cliticSide = group.split === 'clitic' || nextSplit === 'clitic';
@@ -106,9 +138,13 @@ export function glossStructureForToken(tokenId: string, gloss: string): GlossStr
     const heads: string[] = [];
     if (content.length === 0) {
       const label = gloss.slice(group.parts[0]!.startOffset, group.parts.at(-1)!.endOffset);
-      const features: Record<string, string> = {};
-      for (const part of group.parts) mergeFeatures(features, part.text);
-      heads.push(addNode(cliticSide ? 'word' : 'morpheme', label, features));
+      if (cliticSide) {
+        const features: Record<string, string> = {};
+        for (const part of group.parts) mergeFeatures(features, part.text);
+        heads.push(addNode('word', label, features));
+      } else {
+        heads.push(addExponent(label, group.parts));
+      }
     } else {
       let pending: Record<string, string> = {};
       const flushFeatures = (features: Record<string, string>) => {
