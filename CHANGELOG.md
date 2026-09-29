@@ -17,6 +17,8 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Annotation incorporation fixture (B4r)**: The analysis-graph baseline now includes noun incorporation (`berrypick`): the noun sits inside one token as an incorporated argument, linked to its lexeme, and is not a second word. No new page control and no new flag.
+
 - **Annotation process fixtures (B4q)**: The analysis-graph baseline now includes ablaut (`substitutesSegment`), truncation (`deletesSegment`), and tone overwrite (`overwritesTone` onto a `prosodicFeature`). None of these is a linear morpheme cut. No new page control and no new flag.
 
 - **Annotation alternative analysis (B4p)**: A focused IGT row lists pending, chosen, and rejected analyses for the same source. Choosing one writes that analysis onto the graph and rejects the siblings. Dirty cell drafts are left unchanged. Retokenize snapshot edges stay out of this list. Re-projection keeps the choice. No free-form graph editor. No new flag.

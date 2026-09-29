@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-29）**：标注页 **B4a–B4q** 已落地。**B4q** 补 ablaut / truncation / tone overwrite 三条 fixture，不新增页面控件。余下 fixture：多式综合/并入、CJK 等分词 profile、导出投影冲突。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-29）**：标注页 **B4a–B4r** 已落地。**B4r** 用一条 fixture 表达名词并入（一个 token 内的论元，不是第二个词）。余下：导出投影冲突，以及 CJK / 泰语 / 日语分词 profile。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -247,6 +247,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4o** | analysisGraph fixture 缺口 | M | **【✅ 已落地】** 巩固 root-pattern；补 cumulative（一对多）与 multiple exponence（多对一）fixture + 结构断言。无 UI。基线：`标注-analysisGraph-fixture基线` | schema 验收；一对多/多对一断言；定向 vitest | 是 |
 | **B4p** | 歧义 / 多分析候选取舍 UI | M | **【✅ 已落地】** 聚焦行列出同一来源的 pending/accepted/rejected `alternativeAnalysis`（不含 retokenize 快照边）。选定其一写入 `hasPos` 并拒绝其余候选；脏草稿不写。重投影保留这些边。无任意图编辑。无新 flag。SDD：`annotation-alternative-analysis/`。ADR 0022 | 选定后读回；脏草稿不覆盖；定向 vitest | 是 |
 | **B4q** | ablaut / 截短 / 声调 fixture | S | **【✅ 已落地】** `fixture-ablaut-sang`（`substitutesSegment`）、`fixture-truncation-exam`（`deletesSegment`）、`fixture-tone-overwrite`（`overwritesTone` + `prosodicFeature`）。不切线性词素。无新页面控件、无新 flag。基线：`标注-analysisGraph-fixture基线` | schema 验收；三类过程断言；定向 vitest | 否 |
+| **B4r** | 多式综合 / 名词并入 fixture | S | **【✅ 已落地】** `fixture-incorporation`：`berry` 在同一个 token 内，`contains` role=`incorporated`，并链到词条。不是第二个词。无新页面控件、无新 flag。 | 单 token；并入跨度与过程断言；定向 vitest | 否 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
@@ -357,6 +358,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-28 | **词典 DMLex JSON 下载**：`/lexicon` 把当前词条嵌进一份 `lexicographicResource` JSON 并下载。`jieyu` 不写入。对照 vendored schema。无新 flag。LIFT 投影仍在。 |
 | 2026-09-27 | **词典编辑基准改为 DMLex**：采用 OASIS DMLex 1.0 带跨语言模块的 JSON Schema（`docs/architecture/dmlex/dmlex.schema.json`）作为编辑对象。LIFT 改为导入导出投影。解语的语段引用和自由文本注释放在 schema 外。无存量词条，不新增 Dexie 版本，不加 flag。运行时代码尚未替换。ADR 0035；计划 `词典编辑改用DMLex基准-2026-09-27.md`。 |
+| 2026-09-29 | **B4r 并入 fixture**：`berrypick` 把并入名词放在同一个 token 内，并链到词条。不是第二个词，不加页面控件。下一刀为导出投影冲突。不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4q 过程 fixture**：ablaut、截短、声调覆盖进入 analysisGraph 基线。不切线性词素，不加页面控件。下一刀为多式综合/并入 fixture，或导出投影冲突。不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4p 候选取舍**：聚焦行选定一条 `alternativeAnalysis`，兄弟候选改为 rejected，并在重投影时保留。retokenize 边不进选择列表。无新 flag。SDD：`annotation-alternative-analysis/`。标注页计划内切片 **B4a–B4p** 已落地；不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4o fixture 缺口**：巩固 root-pattern；补 `fixture-cumulative-exponence` / `fixture-multiple-exponence` 与结构断言。下一刀 **B4p** 歧义/多分析候选取舍。 |

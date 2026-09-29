@@ -30,6 +30,7 @@ describe('annotation analysisGraph schema', () => {
       'fixture-ablaut-sang',
       'fixture-truncation-exam',
       'fixture-tone-overwrite',
+      'fixture-incorporation',
     ]);
 
     for (const fixture of annotationAnalysisGraphFixtures) {
@@ -135,6 +136,35 @@ describe('annotation analysisGraph schema', () => {
       (item) => item.id === 'fixture-tone-overwrite',
     );
     expect(tone!.nodes.some((node) => node.type === 'prosodicFeature')).toBe(true);
+  });
+
+  it('models noun incorporation inside one token', () => {
+    const fixture = annotationAnalysisGraphFixtures.find(
+      (item) => item.id === 'fixture-incorporation',
+    );
+    expect(fixture).toBeDefined();
+    expect(fixture!.nodes.filter((node) => node.type === 'token')).toHaveLength(1);
+    const incorporated = fixture!.relations.find(
+      (relation) => 'role' in relation && relation.role === 'incorporated',
+    );
+    expect(incorporated).toMatchObject({
+      type: 'contains',
+      sourceId: 'tok-1',
+      targetId: 'noun-1',
+    });
+    const noun = fixture!.nodes.find((node) => node.id === 'noun-1');
+    expect(noun && 'surfaceParts' in noun ? noun.surfaceParts : undefined).toEqual([
+      { tokenId: 'tok-1', startOffset: 0, endOffset: 5 },
+    ]);
+    expect(fixture!.relations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'derivedByProcess',
+          sourceId: 'noun-1',
+          targetId: 'process-1',
+        }),
+      ]),
+    );
   });
 
   it('rejects relation endpoints that do not exist', () => {

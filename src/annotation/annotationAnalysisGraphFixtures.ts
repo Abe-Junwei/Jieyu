@@ -572,6 +572,58 @@ export const annotationAnalysisGraphFixtures = [
       },
     ],
   },
+  {
+    id: 'fixture-incorporation',
+    text: 'berrypick',
+    displayGloss: 'berry-pick',
+    nodes: [
+      { id: 'tok-1', type: 'token', label: 'berrypick' },
+      {
+        id: 'noun-1',
+        type: 'morpheme',
+        label: 'berry',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 0, endOffset: 5 }],
+        features: { role: 'incorporated' },
+      },
+      {
+        id: 'verb-1',
+        type: 'morpheme',
+        label: 'pick',
+        surfaceParts: [{ tokenId: 'tok-1', startOffset: 5, endOffset: 9 }],
+      },
+      { id: 'lex-1', type: 'lexemeRef', label: 'berry' },
+      {
+        id: 'process-1',
+        type: 'process',
+        label: 'incorporation',
+        features: { processType: 'incorporation' },
+      },
+    ],
+    relations: [
+      {
+        id: 'rel-1',
+        type: 'contains',
+        sourceId: 'tok-1',
+        targetId: 'noun-1',
+        role: 'incorporated',
+      },
+      { id: 'rel-2', type: 'contains', sourceId: 'tok-1', targetId: 'verb-1', role: 'stem' },
+      { id: 'rel-3', type: 'linksLexeme', sourceId: 'noun-1', targetId: 'lex-1' },
+      { id: 'rel-4', type: 'derivedByProcess', sourceId: 'noun-1', targetId: 'process-1' },
+    ],
+    projectionDiagnostics: [
+      {
+        target: 'conllu',
+        status: 'degraded',
+        message: 'Keep one word line; put the incorporated noun in MISC, not a second token.',
+      },
+      {
+        target: 'latex',
+        status: 'degraded',
+        message: 'Gloss may show berry-pick; the object line stays one word.',
+      },
+    ],
+  },
 ] satisfies AnnotationAnalysisGraphFixture[];
 
 export const annotationAnalysisGraphFixtureIds = annotationAnalysisGraphFixtures.map(

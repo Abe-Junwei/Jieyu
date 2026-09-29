@@ -533,10 +533,33 @@ depends_on:
 }
 ```
 
-## 17. 下一批 fixture
+## 17. Fixture O：Polysynthetic incorporation
+
+### O.1 目标
+
+覆盖名词并入动词：名词在同一个 token 内部，是动词的论元，不是第二个词，也不是普通词缀。
+
+### O.2 示例
+
+- 表层：`berrypick`
+- 并入名词：`berry`
+- 动词词干：`pick`
+
+```json
+{
+  "id": "fixture-incorporation",
+  "text": "berrypick",
+  "displayGloss": "berry-pick",
+  "relations": [
+    { "id": "rel-1", "type": "contains", "sourceId": "tok-1", "targetId": "noun-1", "role": "incorporated" },
+    { "id": "rel-4", "type": "derivedByProcess", "sourceId": "noun-1", "targetId": "process-1" }
+  ]
+}
+```
+
+## 18. 下一批 fixture
 
 下列 fixture 仍不在当前标注页切片内：
 
-1. polysynthetic word / incorporation
-2. language profile tokenization（CJK / Thai / Japanese）
-3. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）
+1. language profile tokenization（CJK / Thai / Japanese）
+2. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）
