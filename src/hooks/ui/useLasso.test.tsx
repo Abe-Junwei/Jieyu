@@ -11,6 +11,7 @@ import { useLasso, type SubSelectDrag } from './useLasso';
 
 function TierLassoHarness(props: {
   tierTimelineLassoSuppressed?: boolean;
+  tierLassoMode?: 'default' | 'noMediaTextCreate';
   clearUnitSelection: () => void;
   createUnitFromSelection?: (start: number, end: number) => Promise<void>;
   timelineItems?: Array<{ id: string; startTime: number; endTime: number }>;
@@ -43,6 +44,7 @@ function TierLassoHarness(props: {
     setSubSelectionRange: vi.fn(),
     subSelectDragRef,
     ...(props.tierTimelineLassoSuppressed ? { tierTimelineLassoSuppressed: true } : {}),
+    ...(props.tierLassoMode ? { tierLassoMode: props.tierLassoMode } : {}),
   });
 
   return (
@@ -276,6 +278,23 @@ describe('useLasso — tier 套索与对读排除（§6.2）', () => {
       buttons: 0,
       pointerId: 41,
     });
+
+    expect(clearUnitSelection).not.toHaveBeenCalled();
+  });
+
+  it('无媒体时点语段不清选、也不当套索起点', () => {
+    render(
+      <TierLassoHarness clearUnitSelection={clearUnitSelection} tierLassoMode="noMediaTextCreate">
+        <div className="timeline-annotation" data-testid="anno" />
+      </TierLassoHarness>,
+    );
+    const tier = screen.getByTestId('timeline-scroll');
+    stubTierGeometry(tier);
+    tier.setPointerCapture = vi.fn();
+
+    const anno = screen.getByTestId('anno');
+    fireEvent.pointerDown(anno, { clientX: 20, clientY: 20, button: 0, buttons: 1, pointerId: 43 });
+    fireEvent.pointerUp(anno, { clientX: 28, clientY: 20, button: 0, buttons: 0, pointerId: 43 });
 
     expect(clearUnitSelection).not.toHaveBeenCalled();
   });

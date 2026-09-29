@@ -19,6 +19,7 @@ import type {
 } from '../db';
 import type { TimelineUnitViewIndex } from '../hooks/transcription/timelineUnitView';
 import { TranscriptionTimelineHorizontalMediaLanes as RawTranscriptionTimelineHorizontalMediaLanes } from './TranscriptionTimelineHorizontalMediaLanes';
+import { estimateTimelineSegmentTextWidthPx } from '../utils/timelineContentFitZoom';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 
 const NOW = new Date().toISOString();
@@ -205,6 +206,38 @@ describe('TranscriptionTimelineHorizontalMediaLanes layout extent', () => {
     const content = container.querySelector('.timeline-content') as HTMLElement | null;
     expect(content).not.toBeNull();
     expect(content?.style.width).toBe(`${30 * 10 + 64}px`);
+  });
+
+  it('sizes a text-only lane by character width instead of the time span', () => {
+    editorContextValue.getUnitTextForLayer.mockReturnValue('sentence');
+    const layer = makeLayer('trc-flow');
+    const unit = makeUnit('u-flow', 0, 0.05);
+    const { container } = render(
+      <TranscriptionTimelineHorizontalMediaLanes
+        textFlowLayout
+        timelineExtentSec={1800}
+        zoomPxPerSec={10}
+        timelineContentGutterPx={64}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUnits={[unit]}
+        segmentParentUnitLookup={[unit]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={() => null}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+    const content = container.querySelector('.timeline-content') as HTMLElement | null;
+    expect(content?.style.width).toBe(`${estimateTimelineSegmentTextWidthPx('sentence') + 64}px`);
+    editorContextValue.getUnitTextForLayer.mockReturnValue('');
   });
 });
 

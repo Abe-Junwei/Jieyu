@@ -238,12 +238,8 @@ export function useTranscriptionWaveformBridgeController(
   const fitPxPerSec =
     fitSpanSec > 0 && Number.isFinite(fitSpanSec) ? containerWidth / fitSpanSec : 40;
   const contentFitZoomPercent = useTimelineContentFitZoom({
-    zoomMode: input.zoomMode,
-    zoomPercent,
-    setZoomPercent,
     fitPxPerSec,
     fitSpanSec,
-    containerWidth,
     byLayer: input.timelineUnitViewIndex.byLayer,
     ...(input.mediaId !== undefined ? { currentMediaId: input.mediaId } : {}),
   });
@@ -355,7 +351,7 @@ export function useTranscriptionWaveformBridgeController(
 
   const {
     projection: timelineViewportProjection,
-    zoomToPercent,
+    zoomToPercent: zoomToPercentRaw,
     zoomToUnit,
   } = useTimelineViewport({
     waveCanvasRef,
@@ -378,6 +374,35 @@ export function useTranscriptionWaveformBridgeController(
     waveformScrollLeft: viewportScrollLeftPx,
   });
   const { rulerView } = timelineViewportProjection;
+  const hasMediaUrl =
+    typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim().length > 0;
+  const zoomToPercent = useCallback<typeof zoomToPercentRaw>(
+    (percent, anchorFraction, mode = 'custom') => {
+      if (mode === 'fit-all' && !hasMediaUrl) {
+        const tier = input.tierContainerRef.current;
+        if (tier) tier.scrollLeft = 0;
+        input.setZoomMode('fit-all');
+        return;
+      }
+      zoomToPercentRaw(percent, anchorFraction, mode);
+    },
+    [hasMediaUrl, input, zoomToPercentRaw],
+  );
+  const zoomToUnitForView = useCallback(
+    (start: number, end: number) => {
+      if (!hasMediaUrl) {
+        const tier = input.tierContainerRef.current;
+        const target = tier?.querySelector(
+          '.timeline-annotation-active, .timeline-annotation-layer-current',
+        );
+        target?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+        input.setZoomMode('fit-selection');
+        return;
+      }
+      zoomToUnit(start, end);
+    },
+    [hasMediaUrl, input, zoomToUnit],
+  );
 
   const { handleLassoPointerDown, handleLassoPointerMove, handleLassoPointerUp } = useLasso({
     waveCanvasRef,
@@ -422,7 +447,7 @@ export function useTranscriptionWaveformBridgeController(
     selectedTimelineUnitId: input.selectedTimelineUnit?.unitId,
     zoomMode: input.zoomMode,
     selectedTimelineUnitForTime: input.selectedTimelineUnitForTime,
-    zoomToUnit,
+    zoomToUnit: zoomToUnitForView,
     skipSeekForIdRef,
   });
 
@@ -505,7 +530,7 @@ export function useTranscriptionWaveformBridgeController(
     timelineViewportProjection,
     rulerView,
     zoomToPercent,
-    zoomToUnit,
+    zoomToUnit: zoomToUnitForView,
     hoverTime,
     handleWaveformAreaFocus,
     handleWaveformAreaBlur,

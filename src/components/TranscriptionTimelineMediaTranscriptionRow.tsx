@@ -10,6 +10,7 @@ import {
 } from '../utils/recordingScopeUnitId';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { t, useLocale } from '../i18n';
+import { useTextFlowFrame } from './transcription/textFlowLayoutContext';
 
 interface TranscriptionTimelineMediaTranscriptionRowProps {
   utt: TimelineUnitView;
@@ -88,6 +89,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranscriptionRowProps) {
   const locale = useLocale();
+  const textFlow = useTextFlowFrame(layer.id, utt.id);
   const { handleDraftFocus, handleDraftChange, handleDraftBlur } =
     useTranscriptionMediaLaneRowTextAutosave({
       unitKind,
@@ -149,6 +151,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
         }}
       >
         {renderAnnotationItem(utt, layerForDisplay, '', {
+          ...(textFlow.active ? { frame: textFlow.frame ?? null } : {}),
           ...(overlapCycleItems ? { overlapCycleItems } : {}),
           ...(overlapCycleStatus ? { overlapCycleStatus } : {}),
           showSpeaker: false,
@@ -169,6 +172,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
       }}
     >
       {renderAnnotationItem(utt, layerForDisplay, draft, {
+        ...(textFlow.active ? { frame: textFlow.frame ?? null } : {}),
         ...(overlapCycleItems ? { overlapCycleItems } : {}),
         ...(overlapCycleStatus ? { overlapCycleStatus } : {}),
         ...(unitKind === 'segment'

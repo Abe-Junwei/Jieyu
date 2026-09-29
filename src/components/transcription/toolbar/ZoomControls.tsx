@@ -10,6 +10,11 @@ import { MaterialSymbol } from '../../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../../../utils/jieyuMaterialIcon';
 import { t, tf, useLocale } from '../../../i18n';
 import { recordTranscriptionKeyboardAction } from '../../../utils/transcriptionKeyboardActionTelemetry';
+import {
+  resolveOneToOneZoomPercent,
+  timelineZoomPercentFromSlider,
+  timelineZoomSliderPosition,
+} from '../../../utils/timelineZoomPercent';
 
 let lastZoomSliderTelemetryMs = 0;
 const ZOOM_SLIDER_TELEMETRY_MS = 350;
@@ -31,6 +36,10 @@ export interface ZoomControlsProps {
   unitsOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number }>;
   fitPxPerSec: number;
   maxZoomPercent: number;
+  /** Zero-crossing snap and follow-scroll need a waveform. Hidden on a text-only timeline. */
+  showAcousticTools?: boolean;
+  /** Time density controls. Hidden when cells are packed by text width. */
+  timeZoom?: boolean;
 
   // 回调 | Callbacks
   onZoomToPercent: (percent: number, mode: 'fit-all' | 'fit-selection' | 'custom') => void;
@@ -47,6 +56,8 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   unitsOnCurrentMedia,
   fitPxPerSec,
   maxZoomPercent,
+  showAcousticTools = true,
+  timeZoom = true,
   onZoomToPercent,
   onZoomToUnit,
   onSnapEnabledChange,
@@ -67,7 +78,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
 
   const handleOneToOne = useCallback(() => {
     recordTranscriptionKeyboardAction('timelineZoomOneToOne');
-    onZoomToPercent(Math.round((100 / fitPxPerSec) * 100), 'custom');
+    onZoomToPercent(resolveOneToOneZoomPercent(fitPxPerSec), 'custom');
   }, [fitPxPerSec, onZoomToPercent]);
 
   const handleSnapToggle = useCallback(() => {
@@ -78,12 +89,15 @@ const ZoomControls: FC<ZoomControlsProps> = ({
     onAutoScrollEnabledChange(!autoScrollEnabled);
   }, [autoScrollEnabled, onAutoScrollEnabledChange]);
 
-  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    recordZoomSliderTelemetryThrottled();
-    const pos = Number(e.target.value);
-    const pct = 100 * Math.pow(maxZoomPercent / 100, pos / 1000);
-    onZoomToPercent(pct, 'custom');
-  }, [maxZoomPercent, onZoomToPercent]);
+  const handleSliderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      recordZoomSliderTelemetryThrottled();
+      const pos = Number(e.target.value);
+      const pct = timelineZoomPercentFromSlider(pos, fitPxPerSec, maxZoomPercent);
+      onZoomToPercent(pct, 'custom');
+    },
+    [fitPxPerSec, maxZoomPercent, onZoomToPercent],
+  );
 
   return (
     <>
@@ -102,44 +116,68 @@ const ZoomControls: FC<ZoomControlsProps> = ({
       >
         <MaterialSymbol name="center_focus_strong" className={JIEYU_MATERIAL_INLINE} />
       </button>
-      <button
-        className="icon-btn"
-        onClick={handleOneToOne}
-        title={t(locale, 'transcription.zoom.oneToOne')}
-      >
-        <span className="icon-btn-label">1:1</span>
-      </button>
-      <div className="toolbar-sep" />
-      <button
-        className={`icon-btn${snapEnabled ? ' icon-btn-active' : ''}`}
-        onClick={handleSnapToggle}
-        title={snapEnabled ? t(locale, 'transcription.zoom.snapOn') : t(locale, 'transcription.zoom.snapOff')}
-      >
-        <span className="icon-btn-label">ZC</span>
-      </button>
-      <div className="toolbar-sep" />
-      <button
-        type="button"
-        className={`icon-btn${autoScrollEnabled ? ' icon-btn-active' : ''}`}
-        onClick={handleAutoScrollToggle}
-        title={autoScrollEnabled ? t(locale, 'transcription.zoom.autoScrollOff') : t(locale, 'transcription.zoom.autoScrollOn')}
-        aria-label={autoScrollEnabled ? t(locale, 'transcription.zoom.autoScrollOff') : t(locale, 'transcription.zoom.autoScrollOn')}
-      >
-        <span className="icon-btn-label">AS</span>
-      </button>
-      <div className="toolbar-sep" />
-      <input
-        type="range"
-        className="waveform-zoom-slider"
-        min={0}
-        max={1000}
-        step={1}
-        value={Math.round(Math.log(zoomPercent / 100) / Math.log(maxZoomPercent / 100) * 1000)}
-        onChange={handleSliderChange}
-        title={tf(locale, 'transcription.zoom.scale', { percent: zoomPercent })}
-        aria-label={tf(locale, 'transcription.zoom.scaleAria', { percent: Math.round(zoomPercent) })}
-      />
-      <span className="waveform-zoom-value">{zoomPercent}%</span>
+      {timeZoom ? (
+        <button
+          className="icon-btn"
+          onClick={handleOneToOne}
+          title={t(locale, 'transcription.zoom.oneToOne')}
+        >
+          <span className="icon-btn-label">1:1</span>
+        </button>
+      ) : null}
+      {showAcousticTools ? (
+        <>
+          <div className="toolbar-sep" />
+          <button
+            className={`icon-btn${snapEnabled ? ' icon-btn-active' : ''}`}
+            onClick={handleSnapToggle}
+            title={
+              snapEnabled
+                ? t(locale, 'transcription.zoom.snapOn')
+                : t(locale, 'transcription.zoom.snapOff')
+            }
+          >
+            <span className="icon-btn-label">ZC</span>
+          </button>
+          <div className="toolbar-sep" />
+          <button
+            type="button"
+            className={`icon-btn${autoScrollEnabled ? ' icon-btn-active' : ''}`}
+            onClick={handleAutoScrollToggle}
+            title={
+              autoScrollEnabled
+                ? t(locale, 'transcription.zoom.autoScrollOff')
+                : t(locale, 'transcription.zoom.autoScrollOn')
+            }
+            aria-label={
+              autoScrollEnabled
+                ? t(locale, 'transcription.zoom.autoScrollOff')
+                : t(locale, 'transcription.zoom.autoScrollOn')
+            }
+          >
+            <span className="icon-btn-label">AS</span>
+          </button>
+        </>
+      ) : null}
+      {timeZoom ? (
+        <>
+          <div className="toolbar-sep" />
+          <input
+            type="range"
+            className="waveform-zoom-slider"
+            min={0}
+            max={1000}
+            step={1}
+            value={timelineZoomSliderPosition(zoomPercent, fitPxPerSec, maxZoomPercent)}
+            onChange={handleSliderChange}
+            title={tf(locale, 'transcription.zoom.scale', { percent: zoomPercent })}
+            aria-label={tf(locale, 'transcription.zoom.scaleAria', {
+              percent: Math.round(zoomPercent),
+            })}
+          />
+          <span className="waveform-zoom-value">{zoomPercent}%</span>
+        </>
+      ) : null}
     </>
   );
 };

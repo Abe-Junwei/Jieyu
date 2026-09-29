@@ -10,6 +10,19 @@
  */
 
 import { useEffect, useCallback } from 'react';
+import { useLatest } from './useLatest';
+
+function focusDialogEntry(root: HTMLElement): void {
+  const focusable = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => element.offsetParent !== null && element.dataset.dialogClose !== 'true',
+  );
+  const preferred =
+    focusable.find((element) => element.hasAttribute('autofocus')) ??
+    focusable.find((element) => element.matches('input, textarea, select')) ??
+    focusable[0];
+  if (preferred) preferred.focus();
+  else root.focus();
+}
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -35,14 +48,17 @@ export function useFocusTrap(
     ).filter((el) => el.offsetParent !== null); // visible elements only
   }, [containerRef]);
 
+  const onEscapeRef = useLatest(onEscape);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!active || !containerRef.current) return;
 
-      // Escape to close
-      if (e.key === 'Escape' && onEscape) {
+      // Escape to close. Read the latest callback so typing in the dialog
+      // does not rebuild this listener and re-run the initial focus effect.
+      if (e.key === 'Escape' && onEscapeRef.current) {
         e.preventDefault();
-        onEscape();
+        onEscapeRef.current();
         return;
       }
 
@@ -72,32 +88,37 @@ export function useFocusTrap(
         }
       }
     },
-    [active, containerRef, getFocusableElements, onEscape],
+    [active, containerRef, getFocusableElements, onEscapeRef],
   );
 
-  // Activate focus trap
+  // Depends on `active` only. Callback and ref identity must not re-enter this
+  // effect: each typed character recreates `onClose`, and re-running used to
+  // focus the header close button again.
   useEffect(() => {
-    if (!active || !containerRef.current) return;
+    if (!active) return;
+    const root = containerRef.current;
+    if (!root) return;
 
-    // Store the previously focused element
-    const previousActiveElement = document.activeElement as HTMLElement | null;
+    const previousActiveElement =
+      document.activeElement instanceof HTMLElement && !root.contains(document.activeElement)
+        ? document.activeElement
+        : null;
 
-    // Focus the first focusable element
-    const focusable = getFocusableElements();
-    if (focusable.length > 0) {
-      focusable[0]!.focus();
-    } else if (containerRef.current) {
-      containerRef.current.focus();
+    if (!root.contains(document.activeElement)) {
+      focusDialogEntry(root);
     }
 
-    document.addEventListener('keydown', handleKeyDown);
-
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      // Restore focus when unmounting
-      if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
-        previousActiveElement.focus();
-      }
+      if (root.isConnected && root.contains(document.activeElement)) return;
+      if (previousActiveElement?.isConnected) previousActiveElement.focus();
     };
-  }, [active, containerRef, getFocusableElements, handleKeyDown]);
+    // containerRef is a ref object. Reading `.current` after paint is intentional.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [active, handleKeyDown]);
 }

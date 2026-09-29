@@ -1,4 +1,15 @@
-import { memo, type CSSProperties, type ChangeEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import {
+  memo,
+  useLayoutEffect,
+  useRef,
+  type CSSProperties,
+  type ChangeEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 import type { TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
 import { TimelineLaneDraftEditorCell } from './transcription/TimelineLaneDraftEditorCell';
 import { t, tf, useLocale } from '../i18n';
@@ -92,8 +103,14 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   contentDirection,
 }: TimelineAnnotationItemProps) {
   const locale = useLocale();
+  const editorRef = useRef<HTMLInputElement | null>(null);
 
   const rendersInlineEditor = !content && !skipProcessing && isActive;
+
+  useLayoutEffect(() => {
+    if (!rendersInlineEditor) return;
+    editorRef.current?.focus({ preventScroll: true });
+  }, [rendersInlineEditor]);
 
   return (
     <div
@@ -106,11 +123,17 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         !draft.trim() && !isActive ? 'timeline-annotation-empty' : '',
         speakerLabel ? 'timeline-annotation-has-speaker' : '',
         hasTrailingTools ? 'timeline-annotation-has-tools' : '',
-        typeof confidence === 'number' && confidence < 0.5 ? 'timeline-annotation-confidence-low' : '',
-        typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75 ? 'timeline-annotation-confidence-mid' : '',
+        typeof confidence === 'number' && confidence < 0.5
+          ? 'timeline-annotation-confidence-low'
+          : '',
+        typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75
+          ? 'timeline-annotation-confidence-mid'
+          : '',
         selfCertainty || selfCertaintyAmbiguous ? 'timeline-annotation-has-self-certainty' : '',
         skipProcessing ? 'timeline-annotation-skipped' : '',
-      ].filter(Boolean).join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={{
         left,
         width,
@@ -157,13 +180,17 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
         </span>
       )}
-      {content ? content : skipProcessing ? (
-        <span className="timeline-annotation-skipped-label">{t(locale, 'transcription.action.skipProcessingMarked')}</span>
+      {content ? (
+        content
+      ) : skipProcessing ? (
+        <span className="timeline-annotation-skipped-label">
+          {t(locale, 'transcription.action.skipProcessingMarked')}
+        </span>
       ) : isActive ? (
         <TimelineLaneDraftEditorCell
           inputClassName="timeline-annotation-input"
+          inputRef={editorRef}
           value={draft}
-          autoFocus
           {...(placeholder !== undefined ? { placeholder } : {})}
           {...(contentDirection !== undefined ? { dir: contentDirection } : {})}
           {...(saveStatus !== undefined ? { saveStatus } : {})}
@@ -178,18 +205,22 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       ) : (
         <span>{draft || '\u00A0'}</span>
       )}
-      {tools && !rendersInlineEditor && !content ? <div className="timeline-annotation-tools">{tools}</div> : null}
+      {tools && !rendersInlineEditor && !content ? (
+        <div className="timeline-annotation-tools">{tools}</div>
+      ) : null}
       <TimelineBadges
         locale={locale}
         {...(selfCertainty ? { selfCertainty } : {})}
         {...(selfCertaintyTitle ? { selfCertaintyTitle } : {})}
         {...(selfCertaintyAmbiguous ? { selfCertaintyAmbiguous } : {})}
         {...(noteCount != null ? { noteCount } : {})}
-        {...(onNoteClick ? {
-          onNoteClick: (event) => {
-            onNoteClick(event);
-          },
-        } : {})}
+        {...(onNoteClick
+          ? {
+              onNoteClick: (event) => {
+                onNoteClick(event);
+              },
+            }
+          : {})}
       />
     </div>
   );

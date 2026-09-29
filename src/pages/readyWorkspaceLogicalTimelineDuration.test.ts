@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
 
 describe('computeLogicalTimelineDurationForZoom', () => {
-  it('metadata 逻辑长与语段最大 end 取较大值', () => {
+  it('默认 1800s 空白画布在已有语段时改用语段终点，更长的语段仍抬高画布', () => {
     expect(computeLogicalTimelineDurationForZoom(1800, [{ endTime: 5000 }])).toBe(5000);
-    expect(computeLogicalTimelineDurationForZoom(1800, [{ endTime: 100 }])).toBe(1800);
+    expect(computeLogicalTimelineDurationForZoom(1800, [{ endTime: 100 }])).toBe(100);
   });
 
   it('无 metadata 时用 maxEnd 兜底', () => {
@@ -18,12 +18,20 @@ describe('computeLogicalTimelineDurationForZoom', () => {
     ).toBe(88);
   });
 
-  it('已有 logicalDurationSec 时不因 acoustic anchor 抬高文献轴', () => {
+  it('用户写过的文献轴短于声学时保持文献轴', () => {
+    expect(
+      computeLogicalTimelineDurationForZoom(600, [{ endTime: 100 }], {
+        acousticTimelineAnchorSec: 6700,
+      }),
+    ).toBe(600);
+  });
+
+  it('默认空白画布上的语段不因 acoustic anchor 被拉长', () => {
     expect(
       computeLogicalTimelineDurationForZoom(1800, [{ endTime: 100 }], {
         acousticTimelineAnchorSec: 6700,
       }),
-    ).toBe(1800);
+    ).toBe(100);
   });
 
   it('默认 1800s 空白画布在解码后优先用声学秒', () => {

@@ -49,6 +49,7 @@ export interface TimelineViewportZoomControls {
     nextMode?: 'fit-all' | 'fit-selection' | 'custom',
   ) => void;
   zoomToUnit: (startTime: number, endTime: number) => void;
+  zoomToExtent: (startTime: number, endTime: number, minPxPerSec?: number) => void;
 }
 
 /** Current `useZoom` return shape; phase C merges with `TimelineViewportScalars` into `TimelineViewportProjection`. */

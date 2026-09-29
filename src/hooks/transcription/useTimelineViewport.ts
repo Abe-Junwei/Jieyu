@@ -15,6 +15,7 @@ export interface UseTimelineViewportResult {
   projection: TimelineViewportProjection;
   zoomToPercent: TimelineViewportZoomControls['zoomToPercent'];
   zoomToUnit: TimelineViewportZoomControls['zoomToUnit'];
+  zoomToExtent: TimelineViewportZoomControls['zoomToExtent'];
 }
 
 function resolveDocumentSpanSec(input: UseZoomInput): number {
@@ -29,7 +30,7 @@ function resolveDocumentSpanSec(input: UseZoomInput): number {
  */
 export function useTimelineViewport(input: UseTimelineViewportInput): UseTimelineViewportResult {
   const { waveformScrollLeft, ...zoomInput } = input;
-  const { rulerView, zoomToPercent, zoomToUnit } = useZoom(zoomInput);
+  const { rulerView, zoomToPercent, zoomToUnit, zoomToExtent } = useZoom(zoomInput);
 
   const documentSpanSec = resolveDocumentSpanSec(zoomInput);
 
@@ -69,5 +70,6 @@ export function useTimelineViewport(input: UseTimelineViewportInput): UseTimelin
     projection,
     zoomToPercent,
     zoomToUnit,
+    zoomToExtent,
   };
 }
