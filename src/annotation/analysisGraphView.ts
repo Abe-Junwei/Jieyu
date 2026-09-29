@@ -1,4 +1,8 @@
 import type { AnnotationAnalysisGraphFixture, ProjectionDiagnostic } from './analysisGraph';
+import {
+  listAlternativeAnalysisChoices,
+  type AlternativeAnalysisChoice,
+} from './alternativeAnalysis';
 
 export type AnalysisGraphMweView = {
   id: string;
@@ -26,11 +30,16 @@ export type AnalysisGraphLinkView = {
   target: string;
 };
 
+export type AnalysisGraphAlternativeView = AlternativeAnalysisChoice & {
+  selectable: boolean;
+};
+
 export type AnalysisGraphReadout = {
   multiwordExpressions: AnalysisGraphMweView[];
   features: AnalysisGraphFeatureView[];
   links: AnalysisGraphLinkView[];
   notices: AnalysisGraphNoticeView[];
+  alternatives: AnalysisGraphAlternativeView[];
 };
 
 function stringFeatures(
@@ -122,5 +131,16 @@ export function readAnalysisGraphView(graph: AnnotationAnalysisGraphFixture): An
     });
   }
 
-  return { multiwordExpressions, features, links, notices };
+  const grouped = new Map<string, AlternativeAnalysisChoice[]>();
+  for (const choice of listAlternativeAnalysisChoices(graph)) {
+    const members = grouped.get(choice.sourceId) ?? [];
+    members.push(choice);
+    grouped.set(choice.sourceId, members);
+  }
+  const alternatives: AnalysisGraphAlternativeView[] = [...grouped.values()].flatMap((members) => {
+    const selectable = members.filter((choice) => choice.role !== 'rejected').length >= 2;
+    return members.map((choice) => ({ ...choice, selectable }));
+  });
+
+  return { multiwordExpressions, features, links, notices, alternatives };
 }

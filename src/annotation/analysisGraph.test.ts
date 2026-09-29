@@ -26,6 +26,7 @@ describe('annotation analysisGraph schema', () => {
       'fixture-suppletion-portmanteau',
       'fixture-cumulative-exponence',
       'fixture-multiple-exponence',
+      'fixture-ambiguity-bank',
     ]);
 
     for (const fixture of annotationAnalysisGraphFixtures) {
@@ -46,6 +47,7 @@ describe('annotation analysisGraph schema', () => {
     expect(relationTypes).toContain('reduplicates');
     expect(relationTypes).toContain('suppletes');
     expect(relationTypes).toContain('realizesFeature');
+    expect(relationTypes).toContain('alternativeAnalysis');
   });
 
   it('models root-pattern without inventing linear morpheme cuts', () => {

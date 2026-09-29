@@ -417,6 +417,45 @@ export const annotationAnalysisGraphFixtures = [
       },
     ],
   },
+  {
+    id: 'fixture-ambiguity-bank',
+    text: 'bank',
+    displayGloss: 'bank',
+    nodes: [
+      { id: 'tok-1', type: 'token', label: 'bank' },
+      { id: 'pos-noun', type: 'pos', label: 'NOUN' },
+      { id: 'pos-verb', type: 'pos', label: 'VERB' },
+    ],
+    relations: [
+      {
+        id: 'rel-alt-noun',
+        type: 'alternativeAnalysis',
+        sourceId: 'tok-1',
+        targetId: 'pos-noun',
+        role: 'pending',
+      },
+      {
+        id: 'rel-alt-verb',
+        type: 'alternativeAnalysis',
+        sourceId: 'tok-1',
+        targetId: 'pos-verb',
+        role: 'pending',
+      },
+    ],
+    projectionDiagnostics: [
+      {
+        target: 'conllu',
+        status: 'needsReview',
+        message: 'Ambiguous POS: choose NOUN or VERB before projecting UPOS.',
+      },
+      {
+        target: 'flex',
+        status: 'needsReview',
+        message:
+          'Ambiguous analysis pending; do not overwrite the author POS until one alternative is accepted.',
+      },
+    ],
+  },
 ] satisfies AnnotationAnalysisGraphFixture[];
 
 export const annotationAnalysisGraphFixtureIds = annotationAnalysisGraphFixtures.map(

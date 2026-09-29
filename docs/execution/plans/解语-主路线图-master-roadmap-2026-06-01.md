@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-29）**：标注 M1（**B4a–B4i**）已落地。M2 起步：**B4j–B4o** 已落地（本分支）。下一刀 **B4p** 歧义 / 多分析候选取舍 UI。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-29）**：标注页计划内切片 **B4a–B4p** 已落地。**B4p** 在聚焦行列出同一来源的多条 `alternativeAnalysis`，选定其一后写入分析图并在重投影时保留。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -245,7 +245,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4m** | 标注页只读 relation 徽章 | M | **【✅ 已落地】** 聚焦行经 `readAnalysisGraphView` 展示 MWE/特征/形态关系芯片；不写库。与 B4j–l 同批。ADR 0022 M2a | 徽章与 graph 一致；定向 vitest | 是 |
 | **B4n** | 标注页导出诊断条 | S | **【✅ 已落地】** 聚焦行展示非 complete 的 `projectionDiagnostics` 文案；complete 隐藏。与 B4j 同批。 | notices 与 diagnostic 一致；定向 vitest | 是 |
 | **B4o** | analysisGraph fixture 缺口 | M | **【✅ 已落地】** 巩固 root-pattern；补 cumulative（一对多）与 multiple exponence（多对一）fixture + 结构断言。无 UI。基线：`标注-analysisGraph-fixture基线` | schema 验收；一对多/多对一断言；定向 vitest | 是 |
-| **B4p** | 歧义 / 多分析候选取舍 UI | M | **【⬜ 未开始】** 同一 token 多分析并存时只读列出候选项并允许选定其一写入 graph（`alternativeAnalysis`）；无任意图编辑。ADR 0022 | 选定后读回；脏草稿不覆盖；定向 vitest | 是 |
+| **B4p** | 歧义 / 多分析候选取舍 UI | M | **【✅ 已落地】** 聚焦行列出同一来源的 pending/accepted/rejected `alternativeAnalysis`（不含 retokenize 快照边）。选定其一写入 `hasPos` 并拒绝其余候选；脏草稿不写。重投影保留这些边。无任意图编辑。无新 flag。SDD：`annotation-alternative-analysis/`。ADR 0022 | 选定后读回；脏草稿不覆盖；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
@@ -356,6 +356,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-28 | **词典 DMLex JSON 下载**：`/lexicon` 把当前词条嵌进一份 `lexicographicResource` JSON 并下载。`jieyu` 不写入。对照 vendored schema。无新 flag。LIFT 投影仍在。 |
 | 2026-09-27 | **词典编辑基准改为 DMLex**：采用 OASIS DMLex 1.0 带跨语言模块的 JSON Schema（`docs/architecture/dmlex/dmlex.schema.json`）作为编辑对象。LIFT 改为导入导出投影。解语的语段引用和自由文本注释放在 schema 外。无存量词条，不新增 Dexie 版本，不加 flag。运行时代码尚未替换。ADR 0035；计划 `词典编辑改用DMLex基准-2026-09-27.md`。 |
+| 2026-09-29 | **B4p 候选取舍**：聚焦行选定一条 `alternativeAnalysis`，兄弟候选改为 rejected，并在重投影时保留。retokenize 边不进选择列表。无新 flag。SDD：`annotation-alternative-analysis/`。标注页计划内切片 **B4a–B4p** 已落地；不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4o fixture 缺口**：巩固 root-pattern；补 `fixture-cumulative-exponence` / `fixture-multiple-exponence` 与结构断言。下一刀 **B4p** 歧义/多分析候选取舍。 |
 | 2026-09-29 | **B4m/B4n 只读徽章与导出诊断**：`readAnalysisGraphView` 在聚焦行展示 MWE/特征/形态关系芯片与非 complete diagnostics。下一刀 **B4o** fixture 缺口。 |
 | 2026-09-29 | **B4l POS/形态过程关系**：UD 17 类建议 + 同形批量 POS + 重叠/异干/换段/删段/声调写入分析图并重投影保留。无任意图编辑器。无新 flag。SDD：`annotation-pos-relations/`。下一刀 **B4m** 只读 relation 徽章。 |

@@ -1,3 +1,4 @@
+import { retainAlternativeAnalyses } from '../../annotation/alternativeAnalysis';
 import { retainMorphologyRelations } from '../../annotation/morphologyRelations';
 import { retainPartOfMwe } from '../../annotation/partOfMwe';
 import { projectUtteranceAnalysisGraph } from '../../annotation/projectUtteranceAnalysisGraph';
@@ -34,8 +35,11 @@ export function buildAnnotationUtteranceGraph(input: {
       };
     }),
   });
-  return retainMorphologyRelations(
-    retainPartOfMwe(fresh, input.row.analysisGraph),
+  return retainAlternativeAnalyses(
+    retainMorphologyRelations(
+      retainPartOfMwe(fresh, input.row.analysisGraph),
+      input.row.analysisGraph,
+    ),
     input.row.analysisGraph,
   );
 }

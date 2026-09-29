@@ -421,14 +421,45 @@ depends_on:
 }
 ```
 
-## 13. 下一批 fixture
+## 13. Fixture K：Ambiguity / Multiple Analyses
 
-下列 fixture 仍须在后续 M2 切片补齐：
+### K.1 目标
+
+覆盖同一 token 的多条待选分析（`alternativeAnalysis`），选定其一之前不把作者词性改写成单一 UPOS。
+
+### K.2 示例
+
+- 原文：`bank`
+- 候选：`NOUN` 与 `VERB`，均为 pending。
+
+```json
+{
+  "id": "fixture-ambiguity-bank",
+  "text": "bank",
+  "displayGloss": "bank",
+  "nodes": [
+    { "id": "tok-1", "type": "token", "label": "bank" },
+    { "id": "pos-noun", "type": "pos", "label": "NOUN" },
+    { "id": "pos-verb", "type": "pos", "label": "VERB" }
+  ],
+  "relations": [
+    { "id": "rel-alt-noun", "type": "alternativeAnalysis", "sourceId": "tok-1", "targetId": "pos-noun", "role": "pending" },
+    { "id": "rel-alt-verb", "type": "alternativeAnalysis", "sourceId": "tok-1", "targetId": "pos-verb", "role": "pending" }
+  ],
+  "projectionDiagnostics": [
+    { "target": "conllu", "status": "needsReview", "message": "Ambiguous POS: choose NOUN or VERB before projecting UPOS." },
+    { "target": "flex", "status": "needsReview", "message": "Ambiguous analysis pending; do not overwrite the author POS until one alternative is accepted." }
+  ]
+}
+```
+
+## 14. 下一批 fixture
+
+下列 fixture 仍不在当前标注页切片内：
 
 1. mutation / ablaut / umlaut
 2. truncation / subtraction
 3. tonal morphology
 4. polysynthetic word / incorporation
-5. ambiguity / multiple analyses
-6. language profile tokenization（CJK / Thai / Japanese）
-7. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）
+5. language profile tokenization（CJK / Thai / Japanese）
+6. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）

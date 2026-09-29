@@ -17,6 +17,8 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Annotation alternative analysis (B4p)**: A focused IGT row lists pending, chosen, and rejected analyses for the same source. Choosing one writes that analysis onto the graph and rejects the siblings. Dirty cell drafts are left unchanged. Retokenize snapshot edges stay out of this list. Re-projection keeps the choice. No free-form graph editor. No new flag.
+
 - **Annotation POS and morphology relations (B4l)**: `/annotation` suggests the 17 Universal Dependencies POS tags while still accepting custom labels. Same-form tokens in the current text can take one POS in a batch when their drafts are clean. Focused rows can mark reduplication, suppletion, segment substitution, deletion, and tone overwrite on the analysis graph; re-projection keeps those relations when endpoints remain. No free-form graph editor. No new flag.
 
 - **Annotation gloss structure (B4k)**: When a token has no manual morphemes, utterance projection parses Leipzig gloss structure (`=`, `∅`, `[]`, `<>`, `\`, `.`) into analysis-graph nodes and relations. Focused IGT rows show the live projection. Author gloss text is kept. No new flag.

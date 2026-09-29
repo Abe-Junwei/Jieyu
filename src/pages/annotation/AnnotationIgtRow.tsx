@@ -42,7 +42,9 @@ type Props = {
   onExportAnalysis?: (unitId: string, kind: 'cldf' | 'conllu' | 'ligt') => void;
   onApplyPosByForm?: (unitId: string, tokenId: string, pos: string) => void;
   onMarkRelation?: (unitId: string, mark: AnnotationRelationMark) => void;
+  onSelectAlternative?: (unitId: string, relationId: string) => void;
   relationError?: '' | 'dirty' | 'failed';
+  alternativeError?: '' | 'dirty' | 'failed';
   posError?: '' | 'dirty' | 'failed';
 };
 
@@ -364,10 +366,12 @@ function AnalysisGraphReadout({
   row,
   drafts,
   morphology,
+  onSelectAlternative,
 }: {
   row: AnnotationIgtRow;
   drafts: Readonly<Record<string, AnnotationTokenDraft>>;
   morphology: AnnotationMorphologyController;
+  onSelectAlternative?: (unitId: string, relationId: string) => void;
 }) {
   const locale = useLocale();
   const projected = buildAnnotationUtteranceGraph({
@@ -386,7 +390,8 @@ function AnalysisGraphReadout({
     view.multiwordExpressions.length > 0 ||
     view.features.length > 0 ||
     view.links.length > 0 ||
-    view.notices.length > 0;
+    view.notices.length > 0 ||
+    view.alternatives.length > 0;
   if (!hasContent) return null;
   return (
     <div className="annotation-igt-graph" data-testid={`annotation-igt-graph-${row.id}`}>
@@ -454,6 +459,47 @@ function AnalysisGraphReadout({
           ))}
         </div>
       ) : null}
+      {view.alternatives.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphAlternatives')}
+          </span>
+          {view.alternatives.map((choice) => (
+            <span
+              key={choice.relationId}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-alt-${choice.relationId}`}
+              data-role={choice.role}
+            >
+              {tf(locale, 'workspace.annotation.alternativeChoice', {
+                source: choice.sourceLabel,
+                target: choice.targetLabel,
+                role: t(
+                  locale,
+                  choice.role === 'accepted'
+                    ? 'workspace.annotation.alternativeRole.accepted'
+                    : choice.role === 'rejected'
+                      ? 'workspace.annotation.alternativeRole.rejected'
+                      : 'workspace.annotation.alternativeRole.pending',
+                ),
+              })}
+              {onSelectAlternative && choice.selectable && choice.role !== 'accepted' ? (
+                <button
+                  type="button"
+                  className="annotation-igt-action"
+                  data-testid={`annotation-igt-alt-select-${choice.relationId}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectAlternative(row.id, choice.relationId);
+                  }}
+                >
+                  {t(locale, 'workspace.annotation.selectAlternative')}
+                </button>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {view.notices.length > 0 ? (
         <div className="annotation-igt-graph-chips">
           <span className="annotation-igt-label">
@@ -493,6 +539,8 @@ export function AnnotationIgtRowView({
   onApplyPosByForm,
   onMarkRelation,
   relationError = '',
+  onSelectAlternative,
+  alternativeError = '',
   posError = '',
 }: Props) {
   const locale = useLocale();
@@ -549,7 +597,14 @@ export function AnnotationIgtRowView({
           {t(locale, 'workspace.annotation.markMwe')}
         </button>
       ) : null}
-      {focused ? <AnalysisGraphReadout row={row} drafts={drafts} morphology={morphology} /> : null}
+      {focused ? (
+        <AnalysisGraphReadout
+          row={row}
+          drafts={drafts}
+          morphology={morphology}
+          {...(onSelectAlternative ? { onSelectAlternative } : {})}
+        />
+      ) : null}
       {focused && mweError.length > 0 ? (
         <p className="annotation-igt-label" data-testid={`annotation-igt-mwe-error-${row.id}`}>
           {mweError === 'dirty'
@@ -562,6 +617,16 @@ export function AnnotationIgtRowView({
       {focused && relationError.length > 0 ? (
         <p className="annotation-igt-label" data-testid={`annotation-igt-relation-error-${row.id}`}>
           {relationError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : t(locale, 'workspace.annotation.relationFailed')}
+        </p>
+      ) : null}
+      {focused && alternativeError.length > 0 ? (
+        <p
+          className="annotation-igt-label"
+          data-testid={`annotation-igt-alternative-error-${row.id}`}
+        >
+          {alternativeError === 'dirty'
             ? t(locale, 'workspace.annotation.mweDirty')
             : t(locale, 'workspace.annotation.relationFailed')}
         </p>

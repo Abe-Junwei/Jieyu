@@ -12,6 +12,7 @@ import { useAnnotationUnitMetaController } from './useAnnotationUnitMetaControll
 import { useAnnotationMweController } from './useAnnotationMweController';
 import { useAnnotationPosBatchController } from './useAnnotationPosBatchController';
 import { useAnnotationRelationController } from './useAnnotationRelationController';
+import { useAnnotationAlternativeAnalysisController } from './useAnnotationAlternativeAnalysisController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 
 export function AnnotationWorkspace() {
@@ -43,6 +44,10 @@ export function AnnotationWorkspace() {
   const mwe = useAnnotationMweController(controller.textId, controller.reload);
   const posBatch = useAnnotationPosBatchController(controller.reload, controller.clearTokenDrafts);
   const relations = useAnnotationRelationController(controller.textId, controller.reload);
+  const alternatives = useAnnotationAlternativeAnalysisController(
+    controller.textId,
+    controller.reload,
+  );
   const validator = useAnnotationValidatorPanelController({
     focusedUnitId: controller.focusedUnitId,
     rows: controller.rows,
@@ -223,7 +228,20 @@ export function AnnotationWorkspace() {
                   });
                 }}
                 relationError={row.id === controller.focusedUnitId ? relations.error : ''}
+                alternativeError={row.id === controller.focusedUnitId ? alternatives.error : ''}
                 posError={row.id === controller.focusedUnitId ? posBatch.error : ''}
+                onSelectAlternative={(unitId, relationId) => {
+                  const target = controller.rows.find((item) => item.id === unitId);
+                  if (!target) return;
+                  void alternatives.select({
+                    row: target,
+                    tokenDrafts: controller.drafts,
+                    morphDrafts: morphology.drafts,
+                    morphsByTokenId: morphology.morphsByTokenId,
+                    linksByTokenId: morphology.linksByTokenId,
+                    relationId,
+                  });
+                }}
                 onMarkRelation={(unitId, mark) => {
                   const target = controller.rows.find((item) => item.id === unitId);
                   if (!target) return;

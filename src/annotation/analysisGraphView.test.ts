@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { annotationAnalysisGraphFixtures } from './annotationAnalysisGraphFixtures';
 import { readAnalysisGraphView } from './analysisGraphView';
 import { assignReduplicates, assignSuppletion } from './morphologyRelations';
 import { assignPartOfMwe } from './partOfMwe';
@@ -77,5 +78,17 @@ describe('readAnalysisGraphView', () => {
         expect.objectContaining({ kind: 'suppletes', source: 'went', target: 'go' }),
       ]),
     );
+  });
+
+  it('marks ambiguity choices selectable only when two or more remain open', () => {
+    const graph = annotationAnalysisGraphFixtures.find(
+      (item) => item.id === 'fixture-ambiguity-bank',
+    );
+    expect(graph).toBeDefined();
+    const view = readAnalysisGraphView(graph!);
+    expect(view.alternatives).toEqual([
+      expect.objectContaining({ relationId: 'rel-alt-noun', role: 'pending', selectable: true }),
+      expect.objectContaining({ relationId: 'rel-alt-verb', role: 'pending', selectable: true }),
+    ]);
   });
 });
