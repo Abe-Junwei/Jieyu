@@ -198,7 +198,8 @@ depends_on:
   ],
   "projectionDiagnostics": [
     { "target": "latex", "status": "complete", "message": "Render infix with angle brackets." },
-    { "target": "flex", "status": "degraded", "message": "If FLEx profile lacks infix offsets, preserve role in custom field." }
+    { "target": "flex", "status": "degraded", "message": "If FLEx profile lacks infix offsets, preserve role in custom field." },
+    { "target": "conllu", "status": "unsupported", "message": "Infix span is not a CoNLL-U word or dependency." }
   ]
 }
 ```
@@ -557,9 +558,18 @@ depends_on:
 }
 ```
 
-## 18. 下一批 fixture
+## 18. 导出投影冲突
+
+`fixture-infix` 的中缀关系（`contains` role=`infix`）在三种目标上的表达不同，仍用现有 `projectionDiagnostics`：
+
+| target | status | 含义 |
+| --- | --- | --- |
+| latex | complete | Leipzig 尖括号能写出中缀 |
+| flex | degraded | 缺少偏移时只能把角色放进自定义字段 |
+| conllu | unsupported | 中缀跨度不是 CoNLL-U 的词或依存 |
+
+## 19. 下一批 fixture
 
 下列 fixture 仍不在当前标注页切片内：
 
 1. language profile tokenization（CJK / Thai / Japanese）
-2. export projection conflict（同一 graph 导出到 FLEx / CoNLL-U / LaTeX 的表达差异）

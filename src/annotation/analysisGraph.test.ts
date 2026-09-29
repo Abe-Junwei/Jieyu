@@ -8,6 +8,7 @@ import {
   validateAnnotationAnalysisGraphFixture,
   type AnnotationAnalysisGraphFixture,
 } from './analysisGraph';
+import { buildAnalysisGraphExportDiagnosticReport } from './analysisGraphExportDiagnostics';
 
 function cloneFixture(fixture: AnnotationAnalysisGraphFixture): AnnotationAnalysisGraphFixture {
   return JSON.parse(JSON.stringify(fixture)) as AnnotationAnalysisGraphFixture;
@@ -136,6 +137,30 @@ describe('annotation analysisGraph schema', () => {
       (item) => item.id === 'fixture-tone-overwrite',
     );
     expect(tone!.nodes.some((node) => node.type === 'prosodicFeature')).toBe(true);
+  });
+
+  it('records infix export conflict across flex, conllu, and latex', () => {
+    const fixture = annotationAnalysisGraphFixtures.find((item) => item.id === 'fixture-infix');
+    expect(fixture).toBeDefined();
+    expect(fixture!.relations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'contains',
+          sourceId: 'tok-1',
+          targetId: 'morph-infix',
+          role: 'infix',
+        }),
+      ]),
+    );
+    const latex = buildAnalysisGraphExportDiagnosticReport(fixture!, 'latex');
+    const flex = buildAnalysisGraphExportDiagnosticReport(fixture!, 'flex');
+    const conllu = buildAnalysisGraphExportDiagnosticReport(fixture!, 'conllu');
+    expect(latex.target).toBe('latex');
+    expect(latex.complete.map((diagnostic) => diagnostic.status)).toEqual(['complete']);
+    expect(flex.target).toBe('flex');
+    expect(flex.degraded.map((diagnostic) => diagnostic.status)).toEqual(['degraded']);
+    expect(conllu.target).toBe('conllu');
+    expect(conllu.unsupported.map((diagnostic) => diagnostic.status)).toEqual(['unsupported']);
   });
 
   it('models noun incorporation inside one token', () => {

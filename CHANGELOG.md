@@ -17,6 +17,8 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Annotation export projection conflict (B4s)**: The infix relation on `fixture-infix` now records three export outcomes: LaTeX complete, FLEx degraded, CoNLL-U unsupported. Author gloss is unchanged. No new page control and no new flag.
+
 - **Annotation incorporation fixture (B4r)**: The analysis-graph baseline now includes noun incorporation (`berrypick`): the noun sits inside one token as an incorporated argument, linked to its lexeme, and is not a second word. No new page control and no new flag.
 
 - **Annotation process fixtures (B4q)**: The analysis-graph baseline now includes ablaut (`substitutesSegment`), truncation (`deletesSegment`), and tone overwrite (`overwritesTone` onto a `prosodicFeature`). None of these is a linear morpheme cut. No new page control and no new flag.

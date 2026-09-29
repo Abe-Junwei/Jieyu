@@ -127,6 +127,11 @@ export const annotationAnalysisGraphFixtures = [
         status: 'degraded',
         message: 'If FLEx profile lacks infix offsets, preserve role in custom field.',
       },
+      {
+        target: 'conllu',
+        status: 'unsupported',
+        message: 'Infix span is not a CoNLL-U word or dependency.',
+      },
     ],
   },
   {
