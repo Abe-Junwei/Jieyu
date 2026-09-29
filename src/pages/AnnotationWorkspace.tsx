@@ -9,6 +9,7 @@ import { useAnnotationRetokenizeController } from './useAnnotationRetokenizeCont
 import { useAnnotationValidatorPanelController } from './useAnnotationValidatorPanelController';
 import { useAnnotationSegmentPlaybackController } from './useAnnotationSegmentPlaybackController';
 import { useAnnotationUnitMetaController } from './useAnnotationUnitMetaController';
+import { useAnnotationMweController } from './useAnnotationMweController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 
 export function AnnotationWorkspace() {
@@ -37,6 +38,7 @@ export function AnnotationWorkspace() {
     rows: controller.rows,
     reloadWorkspace: controller.reload,
   });
+  const mwe = useAnnotationMweController(controller.textId, controller.reload);
   const validator = useAnnotationValidatorPanelController({
     focusedUnitId: controller.focusedUnitId,
     rows: controller.rows,
@@ -187,6 +189,34 @@ export function AnnotationWorkspace() {
                 onFocusRow={controller.onFocusRow}
                 onFocusInput={controller.onFocusInput}
                 onTokenDraftChange={controller.onTokenDraftChange}
+                mweSelectedIds={mwe.selectedByUnit[row.id] ?? []}
+                mweError={row.id === controller.focusedUnitId ? mwe.error : ''}
+                onToggleMweToken={mwe.toggle}
+                onConfirmMwe={(unitId) => {
+                  const target = controller.rows.find((item) => item.id === unitId);
+                  if (!target) return;
+                  void mwe.confirm({
+                    row: target,
+                    tokenDrafts: controller.drafts,
+                    morphDrafts: morphology.drafts,
+                    morphsByTokenId: morphology.morphsByTokenId,
+                    linksByTokenId: morphology.linksByTokenId,
+                  });
+                }}
+                onExportAnalysis={(unitId, kind) => {
+                  const target = controller.rows.find((item) => item.id === unitId);
+                  if (!target) return;
+                  mwe.exportAnalysis(
+                    {
+                      row: target,
+                      tokenDrafts: controller.drafts,
+                      morphDrafts: morphology.drafts,
+                      morphsByTokenId: morphology.morphsByTokenId,
+                      linksByTokenId: morphology.linksByTokenId,
+                    },
+                    kind,
+                  );
+                }}
               />
             ))}
           </ul>

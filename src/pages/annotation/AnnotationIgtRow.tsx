@@ -31,6 +31,11 @@ type Props = {
     field: keyof AnnotationTokenDraft,
     value: string,
   ) => void;
+  mweSelectedIds?: readonly string[];
+  mweError?: '' | 'dirty' | 'contiguous' | 'failed';
+  onToggleMweToken?: (unitId: string, tokenId: string) => void;
+  onConfirmMwe?: (unitId: string) => void;
+  onExportAnalysis?: (unitId: string, kind: 'cldf' | 'conllu' | 'ligt') => void;
 };
 
 function lexemeLinkLabel(
@@ -49,6 +54,8 @@ function TokenStack({
   morphology,
   onFocusInput,
   onTokenDraftChange,
+  mweSelected = false,
+  onToggleMweToken,
 }: {
   token: AnnotationIgtToken;
   unitId: string;
@@ -57,6 +64,8 @@ function TokenStack({
   morphology: AnnotationMorphologyController;
   onFocusInput: (unitId: string) => void;
   onTokenDraftChange: Props['onTokenDraftChange'];
+  mweSelected?: boolean;
+  onToggleMweToken?: (unitId: string, tokenId: string) => void;
 }) {
   const locale = useLocale();
   const fields = displayedAnnotationTokenFields(token, drafts);
@@ -65,6 +74,16 @@ function TokenStack({
   const glossInvalid = annotationGlossHasLeipzigIssue(fields.gloss);
   return (
     <span className="annotation-igt-stack">
+      {onToggleMweToken ? (
+        <input
+          type="checkbox"
+          data-testid={`annotation-igt-mwe-${token.id}`}
+          checked={mweSelected}
+          aria-label={t(locale, 'workspace.annotation.markMwe')}
+          onClick={(event) => event.stopPropagation()}
+          onChange={() => onToggleMweToken(unitId, token.id)}
+        />
+      ) : null}
       <span className="annotation-igt-form">{token.form}</span>
       {inputFocused ? (
         <>
@@ -264,6 +283,11 @@ export function AnnotationIgtRowView({
   onFocusRow,
   onFocusInput,
   onTokenDraftChange,
+  mweSelectedIds,
+  mweError = '',
+  onToggleMweToken,
+  onConfirmMwe,
+  onExportAnalysis,
 }: Props) {
   const locale = useLocale();
   return (
@@ -291,6 +315,8 @@ export function AnnotationIgtRowView({
               morphology={morphology}
               onFocusInput={onFocusInput}
               onTokenDraftChange={onTokenDraftChange}
+              mweSelected={mweSelectedIds?.includes(token.id) ?? false}
+              {...(focused && onToggleMweToken ? { onToggleMweToken } : {})}
             />
           ))
         ) : (
@@ -302,6 +328,53 @@ export function AnnotationIgtRowView({
           </span>
         )}
       </div>
+      {focused && onConfirmMwe && (mweSelectedIds?.length ?? 0) >= 2 ? (
+        <button
+          type="button"
+          className="annotation-igt-action"
+          data-testid={`annotation-igt-mwe-confirm-${row.id}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onConfirmMwe(row.id);
+          }}
+        >
+          {t(locale, 'workspace.annotation.markMwe')}
+        </button>
+      ) : null}
+      {focused && mweError.length > 0 ? (
+        <p className="annotation-igt-label" data-testid={`annotation-igt-mwe-error-${row.id}`}>
+          {mweError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : mweError === 'contiguous'
+              ? t(locale, 'workspace.annotation.mweContiguous')
+              : t(locale, 'workspace.annotation.mweFailed')}
+        </p>
+      ) : null}
+      {focused && onExportAnalysis ? (
+        <div className="annotation-igt-extras-actions">
+          {(['cldf', 'conllu', 'ligt'] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className="annotation-igt-action"
+              data-testid={`annotation-igt-export-${kind}-${row.id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onExportAnalysis(row.id, kind);
+              }}
+            >
+              {t(
+                locale,
+                kind === 'cldf'
+                  ? 'workspace.annotation.exportCldf'
+                  : kind === 'conllu'
+                    ? 'workspace.annotation.exportConllu'
+                    : 'workspace.annotation.exportLigt',
+              )}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <p className="annotation-igt-label">{t(locale, 'workspace.annotation.translationLabel')}</p>
       <p className="annotation-igt-translation">
         {row.translation.length > 0

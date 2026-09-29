@@ -73,17 +73,27 @@ export function useAnnotationMorphologyController(input: {
           })),
         ),
       ]);
-      const lemmaById = new Map(lexemes.map((lexeme) => [lexeme.id, lexeme.entry.headword]));
+      const entryById = new Map(lexemes.map((lexeme) => [lexeme.id, lexeme.entry]));
       const linksByTokenId: Record<string, AnnotationTokenLexemeLinkView | undefined> = {};
       for (const group of linkGroups) {
         const link = group.links[0];
-        linksByTokenId[group.tokenId] = link
-          ? presentTokenLexemeLink({
-              linkId: link.id,
-              lexemeId: link.lexemeId,
-              lemma: lemmaById.get(link.lexemeId),
-            })
-          : undefined;
+        if (!link) {
+          linksByTokenId[group.tokenId] = undefined;
+          continue;
+        }
+        const entry = entryById.get(link.lexemeId);
+        const presented = presentTokenLexemeLink({
+          linkId: link.id,
+          lexemeId: link.lexemeId,
+          lemma: entry?.headword,
+        });
+        linksByTokenId[group.tokenId] = {
+          ...presented,
+          ...(link.senseId ? { senseId: link.senseId } : {}),
+          ...(entry?.partsOfSpeech && entry.partsOfSpeech.length > 0
+            ? { entryPartsOfSpeech: [...entry.partsOfSpeech] }
+            : {}),
+        };
       }
       return { morphs: mapStoredMorphemes(morphRows), linksByTokenId };
     },

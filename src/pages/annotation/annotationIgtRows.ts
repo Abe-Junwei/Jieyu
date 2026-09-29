@@ -1,3 +1,4 @@
+import type { AnnotationAnalysisGraphFixture } from '../../annotation/analysisGraph';
 import { formatTime, pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import type { LayerUnitDocType, UnitTokenDocType } from '../../types/jieyuDbDocTypes';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
@@ -15,6 +16,7 @@ export type AnnotationIgtRow = {
   tokens: AnnotationIgtToken[];
   translation: string;
   transcriptionHref: string;
+  analysisGraph?: AnnotationAnalysisGraphFixture;
 };
 
 function glossForToken(token: UnitTokenDocType): string {
@@ -56,6 +58,7 @@ export function buildAnnotationIgtRows(input: {
         glossLang: resolveAnnotationGlossWriteLang(token.gloss),
       })),
       translation: input.translations?.get(unit.id) ?? '',
+      ...(unit.analysisGraph ? { analysisGraph: unit.analysisGraph } : {}),
       transcriptionHref: buildTranscriptionDeepLinkHref({
         textId: unit.textId.length > 0 ? unit.textId : input.textId,
         ...(resolvedMediaId.length > 0 ? { mediaId: resolvedMediaId } : {}),

@@ -869,6 +869,12 @@ export interface LayerUnitDocType {
   words?: UnitWord[] | undefined;
   accessRights?: 'open' | 'restricted' | 'confidential' | undefined;
 
+  /**
+   * Accepted utterance analysis graph for this unit.
+   * Pending retokenize candidates stay on `unit_relations.analysisGraphCandidate`.
+   */
+  analysisGraph?: import('../annotation/analysisGraph').AnnotationAnalysisGraphFixture | undefined;
+
   /** 迁移兼容字段（读模型）| Migration compatibility fields (read model) */
   unitId?: string | undefined;
   ordinal?: number | undefined;

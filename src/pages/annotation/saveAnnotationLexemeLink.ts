@@ -31,6 +31,8 @@ export type AnnotationTokenLexemeLinkView = {
   linkId: string;
   lexemeId: string;
   lemma: string;
+  senseId?: string;
+  entryPartsOfSpeech?: string[];
   brokenCode?: 'CITATION_LEXEME_NOT_FOUND';
 };
 
