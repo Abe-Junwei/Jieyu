@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   collectDirtyAnnotationTokenWrites,
   displayedAnnotationTokenFields,
+  dropCommittedTokenDrafts,
   dropDraftsForTokenIds,
   resolveAnnotationGlossWriteLang,
   type AnnotationIgtToken,
@@ -42,6 +43,23 @@ describe('annotationTokenDrafts', () => {
         'tok-1': { pos: 'X', gloss: '  ' },
       }),
     ).toEqual([{ tokenId: 'tok-1', glossLang: 'default', gloss: null }]);
+  });
+
+  it('keeps a draft that changed after the saved snapshot', () => {
+    const committed = { 'tok-1': { pos: 'N', gloss: 'n' } };
+    expect(
+      dropCommittedTokenDrafts(
+        {
+          'tok-1': { pos: 'N', gloss: 'noun' },
+          keep: { pos: 'A', gloss: 'a' },
+        },
+        committed,
+      ),
+    ).toEqual({
+      'tok-1': { pos: 'N', gloss: 'noun' },
+      keep: { pos: 'A', gloss: 'a' },
+    });
+    expect(dropCommittedTokenDrafts({ 'tok-1': committed['tok-1']! }, committed)).toEqual({});
   });
 
   it('overlays drafts for display and drops cleared ids', () => {

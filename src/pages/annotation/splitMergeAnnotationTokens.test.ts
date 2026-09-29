@@ -77,4 +77,61 @@ describe('splitMergeAnnotationTokens', () => {
     const requery = await LinguisticService.units.listTokensByUnitIds(['unit-merge-1']);
     expect(requery.map((row) => row.id)).toEqual(['tok-a']);
   });
+
+  it('keeps the right token morpheme and lexicon link on the survivor', async () => {
+    await db.unit_tokens.bulkPut([
+      {
+        id: 'tok-a',
+        textId: 'text-merge-2',
+        unitId: 'unit-merge-2',
+        form: { default: 'hello' },
+        tokenIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'tok-b',
+        textId: 'text-merge-2',
+        unitId: 'unit-merge-2',
+        form: { default: 'world' },
+        tokenIndex: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    await db.unit_morphemes.put({
+      id: 'mor-right',
+      textId: 'text-merge-2',
+      unitId: 'unit-merge-2',
+      tokenId: 'tok-b',
+      form: { default: 'world', eng: 'world' },
+      pos: 'n',
+      morphemeIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.token_lexeme_links.put({
+      id: 'link-right',
+      targetType: 'token',
+      targetId: 'tok-b',
+      lexemeId: 'lex-world',
+      senseId: 'sense-world',
+      confidence: 0.8,
+      role: 'manual',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await mergeAnnotationUnitTokenWithNext('unit-merge-2', 'tok-a');
+
+    const morphs = await LinguisticService.units.listMorphemesByTokenIds(['tok-a']);
+    expect(morphs.map((row) => row.id)).toEqual(['mor-right']);
+    expect(morphs[0]?.form).toEqual({ default: 'world', eng: 'world' });
+    expect(morphs[0]?.pos).toBe('n');
+    const links = await LinguisticService.units.listTokenLexemeLinks('token', 'tok-a');
+    expect(links.map((row) => row.id)).toEqual(['link-right']);
+    expect(links[0]?.senseId).toBe('sense-world');
+    expect(links[0]?.confidence).toBe(0.8);
+    expect(await LinguisticService.units.listMorphemesByTokenIds(['tok-b'])).toEqual([]);
+  });
 });

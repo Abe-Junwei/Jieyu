@@ -143,10 +143,14 @@ export function buildRetokenizeCandidateGraph(input: {
   };
 }
 
+type LangMap = Record<string, string>;
+
 type SnapshotMorpheme = {
   id: string;
   form: string;
+  forms?: LangMap;
   gloss?: string;
+  glosses?: LangMap;
   pos?: string;
   morphemeIndex: number;
 };
@@ -155,12 +159,16 @@ type SnapshotLink = {
   id: string;
   lexemeId: string;
   role?: TokenLexemeLinkRole;
+  senseId?: string;
+  confidence?: number;
 };
 
 type SnapshotToken = {
   id: string;
   form: string;
+  forms?: LangMap;
   gloss?: string;
+  glosses?: LangMap;
   pos?: string;
   tokenIndex: number;
   morphemes: SnapshotMorpheme[];
@@ -178,29 +186,62 @@ function readText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function langMap(value: Record<string, string> | undefined): LangMap | undefined {
+  if (!value) return undefined;
+  const next: LangMap = {};
+  for (const [key, text] of Object.entries(value)) {
+    if (key.trim().length === 0 || typeof text !== 'string') continue;
+    next[key] = text;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function readLangMap(value: unknown): LangMap | undefined {
+  const record = readRecord(value);
+  if (!record) return undefined;
+  const next: LangMap = {};
+  for (const [key, text] of Object.entries(record)) {
+    if (key.trim().length === 0 || typeof text !== 'string') continue;
+    next[key] = text;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function readConfidence(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 function snapshotTokenFromRow(
   token: UnitTokenDocType,
   morphemes: readonly UnitMorphemeDocType[],
   links: readonly TokenLexemeLinkDocType[],
 ): SnapshotToken {
+  const forms = langMap(token.form);
+  const glosses = langMap(token.gloss);
   const gloss = pickDefaultTranscriptionText(token.gloss ?? {}).trim();
   const pos = (token.pos ?? '').trim();
   return {
     id: token.id,
     form: pickDefaultTranscriptionText(token.form),
+    ...(forms ? { forms } : {}),
     ...(gloss.length > 0 ? { gloss } : {}),
+    ...(glosses ? { glosses } : {}),
     ...(pos.length > 0 ? { pos } : {}),
     tokenIndex: token.tokenIndex,
     morphemes: morphemes
       .filter((morph) => morph.tokenId === token.id)
       .sort((a, b) => a.morphemeIndex - b.morphemeIndex)
       .map((morph) => {
+        const morphForms = langMap(morph.form);
+        const morphGlosses = langMap(morph.gloss);
         const morphGloss = pickDefaultTranscriptionText(morph.gloss ?? {}).trim();
         const morphPos = (morph.pos ?? '').trim();
         return {
           id: morph.id,
           form: pickDefaultTranscriptionText(morph.form),
+          ...(morphForms ? { forms: morphForms } : {}),
           ...(morphGloss.length > 0 ? { gloss: morphGloss } : {}),
+          ...(morphGlosses ? { glosses: morphGlosses } : {}),
           ...(morphPos.length > 0 ? { pos: morphPos } : {}),
           morphemeIndex: morph.morphemeIndex,
         };
@@ -209,11 +250,15 @@ function snapshotTokenFromRow(
       const lexemeId = link.lexemeId.trim();
       if (lexemeId.length === 0) return [];
       const role = link.role;
+      const senseId = link.senseId?.trim() ?? '';
+      const confidence = readConfidence(link.confidence);
       return [
         {
           id: link.id,
           lexemeId,
           ...(role && LINK_ROLES.has(role) ? { role } : {}),
+          ...(senseId.length > 0 ? { senseId } : {}),
+          ...(confidence !== undefined ? { confidence } : {}),
         },
       ];
     }),
@@ -281,6 +326,8 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
     if (id.length === 0 || form.length === 0 || typeof tokenIndex !== 'number') return null;
     const gloss = readText(record.gloss);
     const pos = readText(record.pos);
+    const forms = readLangMap(record.forms);
+    const glosses = readLangMap(record.glosses);
     const morphemes: SnapshotMorpheme[] = [];
     if (Array.isArray(record.morphemes)) {
       for (const morphRow of record.morphemes) {
@@ -294,10 +341,14 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
         }
         const morphGloss = readText(morph.gloss);
         const morphPos = readText(morph.pos);
+        const morphForms = readLangMap(morph.forms);
+        const morphGlosses = readLangMap(morph.glosses);
         morphemes.push({
           id: morphId,
           form: morphForm,
+          ...(morphForms ? { forms: morphForms } : {}),
           ...(morphGloss.length > 0 ? { gloss: morphGloss } : {}),
+          ...(morphGlosses ? { glosses: morphGlosses } : {}),
           ...(morphPos.length > 0 ? { pos: morphPos } : {}),
           morphemeIndex,
         });
@@ -312,19 +363,25 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
         const lexemeId = readText(link.lexemeId);
         if (linkId.length === 0 || lexemeId.length === 0) return null;
         const role = readText(link.role);
+        const senseId = readText(link.senseId);
+        const confidence = readConfidence(link.confidence);
         links.push({
           id: linkId,
           lexemeId,
           ...(LINK_ROLES.has(role as TokenLexemeLinkRole)
             ? { role: role as TokenLexemeLinkRole }
             : {}),
+          ...(senseId.length > 0 ? { senseId } : {}),
+          ...(confidence !== undefined ? { confidence } : {}),
         });
       }
     }
     tokens.push({
       id,
       form,
+      ...(forms ? { forms } : {}),
       ...(gloss.length > 0 ? { gloss } : {}),
+      ...(glosses ? { glosses } : {}),
       ...(pos.length > 0 ? { pos } : {}),
       tokenIndex,
       morphemes,
@@ -390,8 +447,12 @@ async function writeSnapshotTokens(
       id: token.id,
       textId: input.textId,
       unitId: input.unitId,
-      form: { default: token.form },
-      ...(token.gloss ? { gloss: { default: token.gloss } } : {}),
+      form: token.forms ?? { default: token.form },
+      ...(token.glosses
+        ? { gloss: token.glosses }
+        : token.gloss
+          ? { gloss: { default: token.gloss } }
+          : {}),
       ...(token.pos ? { pos: token.pos } : {}),
       tokenIndex: token.tokenIndex,
       createdAt: now,
@@ -403,8 +464,12 @@ async function writeSnapshotTokens(
         textId: input.textId,
         unitId: input.unitId,
         tokenId: token.id,
-        form: { default: morph.form },
-        ...(morph.gloss ? { gloss: { default: morph.gloss } } : {}),
+        form: morph.forms ?? { default: morph.form },
+        ...(morph.glosses
+          ? { gloss: morph.glosses }
+          : morph.gloss
+            ? { gloss: { default: morph.gloss } }
+            : {}),
         ...(morph.pos ? { pos: morph.pos } : {}),
         morphemeIndex: morph.morphemeIndex,
         createdAt: now,
@@ -418,6 +483,8 @@ async function writeSnapshotTokens(
         targetId: token.id,
         lexemeId: link.lexemeId,
         ...(link.role ? { role: link.role } : {}),
+        ...(link.senseId ? { senseId: link.senseId } : {}),
+        ...(link.confidence !== undefined ? { confidence: link.confidence } : {}),
         createdAt: now,
         updatedAt: now,
       });

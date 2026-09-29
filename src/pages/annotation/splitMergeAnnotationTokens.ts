@@ -1,5 +1,9 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
-import type { UnitTokenDocType } from '../../types/jieyuDbDocTypes';
+import type {
+  TokenLexemeLinkDocType,
+  UnitMorphemeDocType,
+  UnitTokenDocType,
+} from '../../types/jieyuDbDocTypes';
 import { newId, pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 
 export type AnnotationTokenSplitDeps = {
@@ -7,6 +11,13 @@ export type AnnotationTokenSplitDeps = {
   saveToken: (data: UnitTokenDocType) => Promise<string>;
   removeToken: (tokenId: string) => Promise<void>;
   listTokensByUnitIds: (unitIds: readonly string[]) => Promise<UnitTokenDocType[]>;
+  listMorphemesByTokenIds: (tokenIds: readonly string[]) => Promise<UnitMorphemeDocType[]>;
+  saveMorpheme: (data: UnitMorphemeDocType) => Promise<string>;
+  listTokenLexemeLinks: (
+    targetType: 'token' | 'morpheme',
+    targetId: string,
+  ) => Promise<TokenLexemeLinkDocType[]>;
+  saveTokenLexemeLink: (data: TokenLexemeLinkDocType) => Promise<string>;
 };
 
 const defaultDeps: AnnotationTokenSplitDeps = {
@@ -14,6 +25,11 @@ const defaultDeps: AnnotationTokenSplitDeps = {
   saveToken: (data) => LinguisticService.units.saveToken(data),
   removeToken: (tokenId) => LinguisticService.units.removeToken(tokenId),
   listTokensByUnitIds: (unitIds) => LinguisticService.units.listTokensByUnitIds(unitIds),
+  listMorphemesByTokenIds: (tokenIds) => LinguisticService.units.listMorphemesByTokenIds(tokenIds),
+  saveMorpheme: (data) => LinguisticService.units.saveMorpheme(data),
+  listTokenLexemeLinks: (targetType, targetId) =>
+    LinguisticService.units.listTokenLexemeLinks(targetType, targetId),
+  saveTokenLexemeLink: (data) => LinguisticService.units.saveTokenLexemeLink(data),
 };
 
 export function planTokenSplit(form: string): { left: string; right: string } | null {
@@ -115,7 +131,30 @@ export async function mergeAnnotationUnitTokenWithNext(
   const now = new Date().toISOString();
   const mergedForm =
     `${pickDefaultTranscriptionText(left.form)} ${pickDefaultTranscriptionText(right.form)}`.trim();
+  const [leftMorphs, rightMorphs, rightLinks] = await Promise.all([
+    deps.listMorphemesByTokenIds([left.id]),
+    deps.listMorphemesByTokenIds([right.id]),
+    deps.listTokenLexemeLinks('token', right.id),
+  ]);
+  const nextMorphIndex =
+    leftMorphs.reduce((max, morph) => Math.max(max, morph.morphemeIndex), -1) + 1;
   await deps.saveToken(withForm(left, mergedForm, now));
+  const orderedRightMorphs = [...rightMorphs].sort((a, b) => a.morphemeIndex - b.morphemeIndex);
+  for (const [offset, morph] of orderedRightMorphs.entries()) {
+    await deps.saveMorpheme({
+      ...morph,
+      tokenId: left.id,
+      morphemeIndex: nextMorphIndex + offset,
+      updatedAt: now,
+    });
+  }
+  for (const link of rightLinks) {
+    await deps.saveTokenLexemeLink({
+      ...link,
+      targetId: left.id,
+      updatedAt: now,
+    });
+  }
   await deps.removeToken(right.id);
   for (const later of tokens.slice(index + 2)) {
     await deps.saveToken({

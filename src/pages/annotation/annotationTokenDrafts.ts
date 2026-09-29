@@ -58,6 +58,20 @@ export function collectDirtyAnnotationTokenWrites(
   return writes;
 }
 
+/** Drop only drafts that still match the values sent to save. Keystrokes during save stay. */
+export function dropCommittedTokenDrafts(
+  drafts: Readonly<Record<string, AnnotationTokenDraft>>,
+  committed: Readonly<Record<string, AnnotationTokenDraft>>,
+): Record<string, AnnotationTokenDraft> {
+  const next: Record<string, AnnotationTokenDraft> = {};
+  for (const [id, draft] of Object.entries(drafts)) {
+    const saved = committed[id];
+    if (saved && saved.pos === draft.pos && saved.gloss === draft.gloss) continue;
+    next[id] = draft;
+  }
+  return next;
+}
+
 export function dropDraftsForTokenIds(
   drafts: Readonly<Record<string, AnnotationTokenDraft>>,
   tokenIds: readonly string[],

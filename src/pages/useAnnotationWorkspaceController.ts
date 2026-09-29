@@ -30,6 +30,7 @@ import {
 import {
   collectDirtyAnnotationTokenWrites,
   displayedAnnotationTokenFields,
+  dropCommittedTokenDrafts,
   dropDraftsForTokenIds,
   type AnnotationIgtToken,
   type AnnotationTokenDraft,
@@ -166,6 +167,11 @@ export function useAnnotationWorkspaceController() {
       const row = derived.rows.find((item) => item.id === unitId);
       if (!row) return;
       const writes = collectDirtyAnnotationTokenWrites(row.tokens, drafts);
+      const committedDrafts: Record<string, AnnotationTokenDraft> = {};
+      for (const write of writes) {
+        const draft = drafts[write.tokenId];
+        if (draft) committedDrafts[write.tokenId] = draft;
+      }
       savingRef.current = true;
       setSaveNotice({ kind: 'saving', message: '' });
       try {
@@ -173,12 +179,7 @@ export function useAnnotationWorkspaceController() {
           await saveAnnotationIgtRowTokens(unitId, writes);
           await dataQuery.refetch();
         }
-        setDrafts((prev) =>
-          dropDraftsForTokenIds(
-            prev,
-            row.tokens.map((token) => token.id),
-          ),
-        );
+        setDrafts((prev) => dropCommittedTokenDrafts(prev, committedDrafts));
         setSaveNotice({ kind: 'saved', message: '' });
         if (advance) {
           const nextId = stepAnnotationUnitId(derived.unitIds, unitId, 1);

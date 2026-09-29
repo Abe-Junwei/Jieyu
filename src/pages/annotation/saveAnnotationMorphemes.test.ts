@@ -52,6 +52,43 @@ describe('saveAnnotationMorphemesForToken', () => {
     const requery = await LinguisticService.units.listMorphemesByTokenIds(['tok-morph-1']);
     expect(requery.map((row) => row.id)).toEqual(seeded.map((row) => row.id));
   });
+
+  it('keeps other languages and pos when one gloss is edited', async () => {
+    await db.unit_morphemes.put({
+      id: 'mor-keep',
+      textId: 'text-morph-1',
+      unitId: 'unit-morph-1',
+      tokenId: 'tok-morph-1',
+      form: { default: 'hello', eng: 'hi' },
+      gloss: { default: 'INTJ', eng: 'hello' },
+      pos: 'intj',
+      morphemeIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await saveAnnotationMorphemesForToken({
+      textId: 'text-morph-1',
+      unitId: 'unit-morph-1',
+      tokenId: 'tok-morph-1',
+      morphs: [
+        {
+          id: 'mor-keep',
+          tokenId: 'tok-morph-1',
+          form: 'hello',
+          gloss: 'hello!',
+          glossLang: 'eng',
+          morphemeIndex: 0,
+        },
+      ],
+    });
+
+    const requery = await LinguisticService.units.listMorphemesByTokenIds(['tok-morph-1']);
+    expect(requery).toHaveLength(1);
+    expect(requery[0]?.form).toEqual({ default: 'hello', eng: 'hi' });
+    expect(requery[0]?.gloss).toEqual({ default: 'INTJ', eng: 'hello!' });
+    expect(requery[0]?.pos).toBe('intj');
+  });
 });
 
 describe('mapStoredMorphemes', () => {

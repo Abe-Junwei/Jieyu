@@ -177,8 +177,8 @@ describe('annotationRetokenize', () => {
       id: 'tok-glossed',
       textId: 'text-rt-6',
       unitId: 'unit-rt-6',
-      form: { default: 'hello world' },
-      gloss: { default: 'greeting' },
+      form: { default: 'hello world', eng: 'hello world' },
+      gloss: { default: 'greeting', eng: 'greeting' },
       pos: 'intj',
       tokenIndex: 0,
       createdAt: now,
@@ -189,8 +189,9 @@ describe('annotationRetokenize', () => {
       textId: 'text-rt-6',
       unitId: 'unit-rt-6',
       tokenId: 'tok-glossed',
-      form: { default: 'hello' },
-      gloss: { default: 'hi' },
+      form: { default: 'hello', eng: 'hello' },
+      gloss: { default: 'hi', eng: 'hi' },
+      pos: 'intj',
       morphemeIndex: 0,
       createdAt: now,
       updatedAt: now,
@@ -200,6 +201,8 @@ describe('annotationRetokenize', () => {
       targetType: 'token',
       targetId: 'tok-glossed',
       lexemeId: 'lex-hello',
+      senseId: 'sense-hello',
+      confidence: 0.6,
       role: 'manual',
       createdAt: now,
       updatedAt: now,
@@ -231,13 +234,18 @@ describe('annotationRetokenize', () => {
     const readback = await LinguisticService.units.listTokensByUnitIds(['unit-rt-6']);
     expect(readback).toHaveLength(1);
     expect(readback[0]?.id).toBe('tok-glossed');
-    expect(readback[0]?.gloss?.default).toBe('greeting');
+    expect(readback[0]?.form).toEqual({ default: 'hello world', eng: 'hello world' });
+    expect(readback[0]?.gloss).toEqual({ default: 'greeting', eng: 'greeting' });
     expect(readback[0]?.pos).toBe('intj');
     const morphs = await LinguisticService.units.listMorphemesByTokenIds(['tok-glossed']);
     expect(morphs.map((morph) => morph.form.default)).toEqual(['hello']);
-    expect(morphs[0]?.gloss?.default).toBe('hi');
+    expect(morphs[0]?.form.eng).toBe('hello');
+    expect(morphs[0]?.gloss).toEqual({ default: 'hi', eng: 'hi' });
+    expect(morphs[0]?.pos).toBe('intj');
     const links = await LinguisticService.units.listTokenLexemeLinks('token', 'tok-glossed');
     expect(links.map((link) => link.lexemeId)).toEqual(['lex-hello']);
+    expect(links[0]?.senseId).toBe('sense-hello');
+    expect(links[0]?.confidence).toBe(0.6);
     expect(await listPendingAnalysisGraphCandidates('unit-rt-6')).toHaveLength(0);
   });
 
