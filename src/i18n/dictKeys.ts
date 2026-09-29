@@ -303,6 +303,8 @@ export const DICT_KEYS = [
   'workspace.lexicon.edit.definitionLabel',
   'workspace.lexicon.edit.exampleLabel',
   'workspace.lexicon.edit.exampleSegmentLabel',
+  'workspace.lexicon.edit.indicatorLabel',
+  'workspace.lexicon.edit.senseNoteLabel',
   'workspace.lexicon.edit.lemmaLabel',
   'workspace.lexicon.edit.glossLabel',
   'workspace.lexicon.edit.categoryLabel',

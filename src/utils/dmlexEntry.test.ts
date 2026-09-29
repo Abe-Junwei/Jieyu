@@ -30,6 +30,8 @@ describe('applyLexiconEntryFields', () => {
             exampleTranslation: '那棵松单独立着',
             exampleTranslationLang: 'zh',
             exampleSegmentId: 'seg-1',
+            indicator: 'tree',
+            note: 'ridge stands',
           },
         ],
       },
@@ -47,8 +49,10 @@ describe('applyLexiconEntryFields', () => {
       text: 'a conifer',
       langCode: 'en',
     });
+    expect(applied.entry.entry.senses?.[0]?.indicator).toBe('tree');
     expect(applied.entry.jieyu?.notes).toEqual([
       { owner: 'entry', ref: applied.entry.id, text: 'seen on ridges' },
+      { owner: 'sense', ref: 'sense-pine', text: 'ridge stands' },
     ]);
     expect(applied.entry.jieyu?.exampleRefs).toEqual([
       { senseId: 'sense-pine', exampleIndex: 0, segmentId: 'seg-1' },
