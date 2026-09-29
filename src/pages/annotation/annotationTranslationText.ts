@@ -1,11 +1,20 @@
-import type { LayerUnitContentDocType } from '../../types/jieyuDbDocTypes';
+import type { LayerDocType, LayerUnitContentDocType } from '../../types/jieyuDbDocTypes';
+
+type AnnotationLayerTextInput = {
+  contents: readonly Pick<LayerUnitContentDocType, 'unitId' | 'layerId' | 'modality' | 'text'>[];
+  layerIds: readonly string[];
+};
+
+export function annotationLayerLabel(layer: Pick<LayerDocType, 'name' | 'key'>): string {
+  const values = Object.values(layer.name)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return values[0] ?? layer.key;
+}
 
 /** First non-empty text wins. Callers should pass newest rows first. */
-export function pickAnnotationTranslationText(input: {
-  contents: readonly Pick<LayerUnitContentDocType, 'unitId' | 'layerId' | 'modality' | 'text'>[];
-  translationLayerIds: readonly string[];
-}): Map<string, string> {
-  const layers = new Set(input.translationLayerIds.filter((id) => id.length > 0));
+export function pickAnnotationLayerText(input: AnnotationLayerTextInput): Map<string, string> {
+  const layers = new Set(input.layerIds.filter((id) => id.length > 0));
   const out = new Map<string, string>();
   if (layers.size === 0) return out;
   for (const row of input.contents) {
@@ -20,4 +29,14 @@ export function pickAnnotationTranslationText(input: {
     out.set(unitId, text);
   }
   return out;
+}
+
+export function pickAnnotationTranslationText(input: {
+  contents: AnnotationLayerTextInput['contents'];
+  translationLayerIds: readonly string[];
+}): Map<string, string> {
+  return pickAnnotationLayerText({
+    contents: input.contents,
+    layerIds: input.translationLayerIds,
+  });
 }

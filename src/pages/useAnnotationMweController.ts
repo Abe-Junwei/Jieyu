@@ -64,6 +64,10 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
       const selected = selectedByUnit[input.row.id] ?? [];
       try {
         const base = buildAnnotationUtteranceGraph(input);
+        if (base === undefined) {
+          setError('failed');
+          return;
+        }
         const withMwe = assignPartOfMwe(base, selected);
         await saveAnnotationUnitAnalysisGraph({
           textId,
@@ -87,6 +91,10 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
       return;
     }
     const graph = buildAnnotationUtteranceGraph(input);
+    if (graph === undefined) {
+      setError('failed');
+      return;
+    }
     if (kind === 'conllu') {
       downloadTextFile(`${input.row.id}.conllu`, exportUtteranceToConllu(graph), 'text/plain');
       return;

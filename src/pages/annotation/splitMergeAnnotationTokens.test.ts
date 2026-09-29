@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { restoreAnnotationRetokenize } from './annotationRetokenize';
 import {
   mergeAnnotationUnitTokenWithNext,
   splitAnnotationUnitToken,
@@ -15,6 +16,7 @@ describe('splitMergeAnnotationTokens', () => {
       db.unit_tokens.clear(),
       db.unit_morphemes.clear(),
       db.token_lexeme_links.clear(),
+      db.unit_relations.clear(),
     ]);
   });
 
@@ -133,5 +135,166 @@ describe('splitMergeAnnotationTokens', () => {
     expect(links[0]?.senseId).toBe('sense-world');
     expect(links[0]?.confidence).toBe(0.8);
     expect(await LinguisticService.units.listMorphemesByTokenIds(['tok-b'])).toEqual([]);
+  });
+
+  it('keeps the right token gloss, POS, and language when the left token has none', async () => {
+    await db.unit_tokens.bulkPut([
+      {
+        id: 'tok-a',
+        textId: 'text-merge-3',
+        unitId: 'unit-merge-3',
+        form: { default: 'hello' },
+        tokenIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'tok-b',
+        textId: 'text-merge-3',
+        unitId: 'unit-merge-3',
+        form: { default: 'world' },
+        gloss: { default: 'WORLD' },
+        pos: 'N',
+        languageId: 'eng',
+        tokenIndex: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    await mergeAnnotationUnitTokenWithNext('unit-merge-3', 'tok-a');
+
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-merge-3']);
+    expect(requery).toHaveLength(1);
+    expect(requery[0]?.id).toBe('tok-a');
+    expect(requery[0]?.form.default).toBe('hello world');
+    expect(requery[0]?.gloss).toEqual({ default: 'WORLD' });
+    expect(requery[0]?.pos).toBe('N');
+    expect(requery[0]?.languageId).toBe('eng');
+  });
+
+  it('snapshots conflicting gloss and POS instead of joining them, then restore reads both tokens', async () => {
+    await db.unit_tokens.bulkPut([
+      {
+        id: 'tok-a',
+        textId: 'text-merge-4',
+        unitId: 'unit-merge-4',
+        form: { default: 'hello' },
+        gloss: { default: 'HI' },
+        pos: 'V',
+        languageId: 'bod',
+        tokenIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'tok-b',
+        textId: 'text-merge-4',
+        unitId: 'unit-merge-4',
+        form: { default: 'world' },
+        gloss: { default: 'WORLD' },
+        pos: 'N',
+        languageId: 'eng',
+        tokenIndex: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    await mergeAnnotationUnitTokenWithNext('unit-merge-4', 'tok-a');
+
+    const merged = await LinguisticService.units.listTokensByUnitIds(['unit-merge-4']);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.gloss).toEqual({ default: 'HI' });
+    expect(merged[0]?.pos).toBe('V');
+    expect(merged[0]?.languageId).toBe('bod');
+
+    const restored = await restoreAnnotationRetokenize({
+      textId: 'text-merge-4',
+      unitId: 'unit-merge-4',
+    });
+    expect(restored.restored).toBe(true);
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-merge-4']);
+    const left = requery.find((row) => row.id === 'tok-a');
+    const right = requery.find((row) => row.id === 'tok-b');
+    expect(left?.gloss).toEqual({ default: 'HI' });
+    expect(left?.pos).toBe('V');
+    expect(left?.languageId).toBe('bod');
+    expect(right?.form.default).toBe('world');
+    expect(right?.gloss).toEqual({ default: 'WORLD' });
+    expect(right?.pos).toBe('N');
+    expect(right?.languageId).toBe('eng');
+  });
+
+  it('shifts right morpheme spans onto the merged form, including gaps, unicode, and a left morpheme', async () => {
+    const leftForm = 'hi';
+    const rightForm = 'a👋b';
+    const rightSpans = [
+      { startOffset: 0, endOffset: 1 },
+      { startOffset: 3, endOffset: 4 },
+    ];
+    const rightFragment = rightSpans
+      .map((span) => rightForm.slice(span.startOffset, span.endOffset))
+      .join('');
+    await db.unit_tokens.bulkPut([
+      {
+        id: 'tok-a',
+        textId: 'text-merge-5',
+        unitId: 'unit-merge-5',
+        form: { default: leftForm },
+        tokenIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'tok-b',
+        textId: 'text-merge-5',
+        unitId: 'unit-merge-5',
+        form: { default: rightForm },
+        tokenIndex: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    await db.unit_morphemes.bulkPut([
+      {
+        id: 'mor-left',
+        textId: 'text-merge-5',
+        unitId: 'unit-merge-5',
+        tokenId: 'tok-a',
+        form: { default: leftForm },
+        surfaceParts: [{ startOffset: 0, endOffset: leftForm.length }],
+        morphemeIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'mor-right',
+        textId: 'text-merge-5',
+        unitId: 'unit-merge-5',
+        tokenId: 'tok-b',
+        form: { default: rightFragment },
+        surfaceParts: rightSpans,
+        morphemeIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    await mergeAnnotationUnitTokenWithNext('unit-merge-5', 'tok-a');
+
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-merge-5']);
+    const mergedForm = requery[0]?.form.default ?? '';
+    const morphs = await LinguisticService.units.listMorphemesByTokenIds(['tok-a']);
+    const left = morphs.find((row) => row.id === 'mor-left');
+    const right = morphs.find((row) => row.id === 'mor-right');
+    const leftSpan = left?.surfaceParts?.[0];
+    expect(leftSpan).toBeDefined();
+    expect(mergedForm.slice(leftSpan!.startOffset, leftSpan!.endOffset)).toBe(leftForm);
+    const rightSlice = (right?.surfaceParts ?? [])
+      .map((span) => mergedForm.slice(span.startOffset, span.endOffset))
+      .join('');
+    expect(rightSlice).toBe(rightFragment);
+    expect(rightSlice).toBe('ab');
   });
 });

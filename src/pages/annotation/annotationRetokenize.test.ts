@@ -2,12 +2,17 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
-import { listPendingAnalysisGraphCandidates } from '../../annotation/analysisGraphConfirmation';
+import {
+  listPendingAnalysisGraphCandidates,
+  rejectAnalysisGraphCandidate,
+  submitAnalysisGraphCandidate,
+} from '../../annotation/analysisGraphConfirmation';
 import {
   applyAnnotationRetokenize,
   previewAnnotationRetokenize,
   proposeAnnotationTokenForms,
   restoreAnnotationRetokenize,
+  type AnnotationRetokenizeDeps,
 } from './annotationRetokenize';
 
 describe('annotationRetokenize', () => {
@@ -180,6 +185,7 @@ describe('annotationRetokenize', () => {
       form: { default: 'hello world', eng: 'hello world' },
       gloss: { default: 'greeting', eng: 'greeting' },
       pos: 'intj',
+      languageId: 'eng',
       tokenIndex: 0,
       createdAt: now,
       updatedAt: now,
@@ -192,6 +198,8 @@ describe('annotationRetokenize', () => {
       form: { default: 'hello', eng: 'hello' },
       gloss: { default: 'hi', eng: 'hi' },
       pos: 'intj',
+      lexemeId: 'lex-morph',
+      surfaceParts: [{ startOffset: 0, endOffset: 5 }],
       morphemeIndex: 0,
       createdAt: now,
       updatedAt: now,
@@ -237,11 +245,15 @@ describe('annotationRetokenize', () => {
     expect(readback[0]?.form).toEqual({ default: 'hello world', eng: 'hello world' });
     expect(readback[0]?.gloss).toEqual({ default: 'greeting', eng: 'greeting' });
     expect(readback[0]?.pos).toBe('intj');
+    expect(readback[0]?.languageId).toBe('eng');
     const morphs = await LinguisticService.units.listMorphemesByTokenIds(['tok-glossed']);
     expect(morphs.map((morph) => morph.form.default)).toEqual(['hello']);
     expect(morphs[0]?.form.eng).toBe('hello');
     expect(morphs[0]?.gloss).toEqual({ default: 'hi', eng: 'hi' });
     expect(morphs[0]?.pos).toBe('intj');
+    expect(morphs[0]?.lexemeId).toBe('lex-morph');
+    expect(morphs[0]?.surfaceParts).toEqual([{ startOffset: 0, endOffset: 5 }]);
+    expect(readback[0]?.form.default?.slice(0, 5)).toBe('hello');
     const links = await LinguisticService.units.listTokenLexemeLinks('token', 'tok-glossed');
     expect(links.map((link) => link.lexemeId)).toEqual(['lex-hello']);
     expect(links[0]?.senseId).toBe('sense-hello');
@@ -273,5 +285,85 @@ describe('annotationRetokenize', () => {
     expect(requery).toHaveLength(1);
     expect(requery[0]?.form.default).toBe('hello world');
     expect(await listPendingAnalysisGraphCandidates('unit-rt-7')).toHaveLength(0);
+  });
+
+  it('keeps a language-only token instead of overwriting it', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-lang',
+      textId: 'text-rt-8',
+      unitId: 'unit-rt-8',
+      form: { default: 'hello world' },
+      languageId: 'eng',
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const result = await applyAnnotationRetokenize({
+      textId: 'text-rt-8',
+      unitId: 'unit-rt-8',
+      surface: 'hello world',
+      proposedForms: ['hello', 'world'],
+    });
+    expect(result.kind).toBe('candidate');
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-rt-8']);
+    expect(requery).toHaveLength(1);
+    expect(requery[0]?.form.default).toBe('hello world');
+    expect(requery[0]?.languageId).toBe('eng');
+  });
+
+  it('does not report restored when languageId, spans, or morpheme lexemeId are missing', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-partial',
+      textId: 'text-rt-9',
+      unitId: 'unit-rt-9',
+      form: { default: 'hello world' },
+      languageId: 'eng',
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.unit_morphemes.put({
+      id: 'morph-partial',
+      textId: 'text-rt-9',
+      unitId: 'unit-rt-9',
+      tokenId: 'tok-partial',
+      form: { default: 'hello' },
+      lexemeId: 'lex-morph',
+      surfaceParts: [{ startOffset: 0, endOffset: 5 }],
+      morphemeIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await applyAnnotationRetokenize({
+      textId: 'text-rt-9',
+      unitId: 'unit-rt-9',
+      surface: 'hello world',
+      proposedForms: ['hello', 'world'],
+      mode: 'force',
+    });
+    const deps: AnnotationRetokenizeDeps = {
+      listTokensByUnitId: (unitId) => LinguisticService.units.listTokensByUnitId(unitId),
+      listTokensByUnitIds: (unitIds) => LinguisticService.units.listTokensByUnitIds(unitIds),
+      listMorphemesByTokenIds: (tokenIds) =>
+        LinguisticService.units.listMorphemesByTokenIds(tokenIds),
+      listTokenLexemeLinks: (targetType, targetId) =>
+        LinguisticService.units.listTokenLexemeLinks(targetType, targetId),
+      saveToken: (data) => {
+        const { languageId: _languageId, ...rest } = data;
+        return LinguisticService.units.saveToken(rest);
+      },
+      removeToken: (tokenId) => LinguisticService.units.removeToken(tokenId),
+      saveMorpheme: (data) => {
+        const { surfaceParts: _surfaceParts, lexemeId: _lexemeId, ...rest } = data;
+        return LinguisticService.units.saveMorpheme(rest);
+      },
+      saveTokenLexemeLink: (data) => LinguisticService.units.saveTokenLexemeLink(data),
+      submitCandidate: submitAnalysisGraphCandidate,
+      listPendingCandidates: listPendingAnalysisGraphCandidates,
+      rejectCandidate: rejectAnalysisGraphCandidate,
+    };
+    await expect(
+      restoreAnnotationRetokenize({ textId: 'text-rt-9', unitId: 'unit-rt-9' }, deps),
+    ).rejects.toThrow(/readback mismatch/);
   });
 });

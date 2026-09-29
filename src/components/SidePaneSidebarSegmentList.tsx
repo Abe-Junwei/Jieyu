@@ -61,6 +61,7 @@ interface SidePaneSidebarSegmentListProps {
   unitsOnCurrentMedia?: LayerUnitDocType[];
   speakers?: SpeakerDocType[];
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
+  glossByUnitId?: Readonly<Record<string, string>>;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   showReviewPresets?: boolean;
 }
@@ -124,6 +125,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     unitsOnCurrentMedia,
     speakers = [],
     getUnitTextForLayer,
+    glossByUnitId,
     onSelectTimelineUnit,
     showReviewPresets = true,
   } = props;
@@ -1449,7 +1451,14 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                         {messages.segmentListEmpty}
                       </span>
                     ) : (
-                      <span className="app-side-pane-segment-list-item-text">{item.text}</span>
+                      <>
+                        <span className="app-side-pane-segment-list-item-text">{item.text}</span>
+                        {glossByUnitId?.[item.unit.unitId] ? (
+                          <span className="app-side-pane-segment-list-item-text">
+                            {glossByUnitId[item.unit.unitId]}
+                          </span>
+                        ) : null}
+                      </>
                     )}
                     {item.speakerLabels.length > 0 ||
                     item.noteCategories.length > 0 ||
@@ -1528,6 +1537,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                   ) : (
                     <span className="app-side-pane-segment-list-item-text">{item.text}</span>
                   )}
+                  {glossByUnitId?.[item.unit.unitId] ? (
+                    <span className="app-side-pane-segment-list-item-text">
+                      {glossByUnitId[item.unit.unitId]}
+                    </span>
+                  ) : null}
                   {item.speakerLabels.length > 0 ||
                   item.noteCategories.length > 0 ||
                   item.certainty ||

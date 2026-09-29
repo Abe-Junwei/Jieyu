@@ -140,6 +140,7 @@ const unitTokenDocSchema = z.object({
   gloss: multiLangStringSchema.optional(),
   pos: z.string().optional(),
   lexemeId: z.string().min(1).optional(),
+  languageId: z.string().min(1).optional(),
   tokenIndex: z.number().int().min(0),
   provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
@@ -155,6 +156,19 @@ const unitMorphemeDocSchema = z.object({
   gloss: multiLangStringSchema.optional(),
   pos: z.string().optional(),
   lexemeId: z.string().min(1).optional(),
+  surfaceParts: z
+    .array(
+      z
+        .object({
+          startOffset: z.number().int().nonnegative(),
+          endOffset: z.number().int().nonnegative(),
+        })
+        .strict()
+        .refine((part) => part.endOffset > part.startOffset, {
+          message: 'endOffset must be greater than startOffset',
+        }),
+    )
+    .optional(),
   morphemeIndex: z.number().int().min(0),
   provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
@@ -320,6 +334,19 @@ const jieyuLexemeSchema = z
             owner: z.enum(['entry', 'sense']),
             ref: dmlexText,
             text: dmlexText,
+          })
+          .strict(),
+      )
+      .optional(),
+    occurrenceCitations: z
+      .array(
+        z
+          .object({
+            textId: dmlexText,
+            unitId: dmlexText,
+            tokenId: dmlexText,
+            lexemeId: dmlexText,
+            senseId: dmlexText,
           })
           .strict(),
       )

@@ -11,6 +11,7 @@ import {
   type LexemeResourceDoc,
 } from '../db';
 import { lexemeHeadword, lexemeMatchValues } from '../utils/dmlexEntry';
+import { pickTranscriptionTextForLanguage } from '../utils/transcriptionFormatters';
 import { newId } from '../utils/transcriptionFormatters';
 import {
   dispatchWorkspaceLexemeDeleted,
@@ -25,6 +26,8 @@ export interface LexemeTranscriptionJumpTarget {
   layerId: string;
   mediaId?: string;
   unitKind: 'unit' | 'segment';
+  /** Transcription-layer sentence. The word form stays on surfaceHint. */
+  baselineText?: string;
   surfaceHint?: string;
   linkUpdatedAt: string;
 }
@@ -231,6 +234,17 @@ export async function listLexemeTranscriptionJumpTargets(
 
     const unitKind: 'unit' | 'segment' = layerUnit.unitType === 'segment' ? 'segment' : 'unit';
     const mediaId = layerUnit.mediaId?.trim() || undefined;
+    const contents = await db.dexie.layer_unit_contents.where('unitId').equals(unitId).toArray();
+    const layerText = contents.find(
+      (row) =>
+        row.layerId === layerId &&
+        (row.modality === undefined || row.modality === 'text') &&
+        (row.text ?? '').trim().length > 0,
+    );
+    const baselineText =
+      layerText?.text?.trim() ||
+      pickTranscriptionTextForLanguage(layerUnit.transcription) ||
+      undefined;
     const dedupeKey = `${textId}|${layerId}|${unitId}|${unitKind}`;
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
@@ -241,6 +255,7 @@ export async function listLexemeTranscriptionJumpTargets(
       layerId,
       ...(mediaId ? { mediaId } : {}),
       unitKind,
+      ...(baselineText ? { baselineText } : {}),
       ...(surfaceHint ? { surfaceHint } : {}),
       linkUpdatedAt: link.updatedAt,
     });

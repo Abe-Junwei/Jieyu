@@ -3,21 +3,103 @@ import { UNIT_SELF_CERTAINTY_VALUES } from '../../utils/unitSelfCertainty';
 import type { AutoGlossPreviewMatch } from '../../ai/autoGlossPreview';
 import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
-import type { AnnotationAutoGlossController } from '../useAnnotationAutoGlossController';
 import type { AnnotationRetokenizeController } from '../useAnnotationRetokenizeController';
 import type { AnnotationValidatorPanelController } from '../useAnnotationValidatorPanelController';
 
 type Props = {
   unitId: string;
-  playing: boolean;
   matches: readonly AutoGlossPreviewMatch[];
   unitMeta: AnnotationUnitMetaController;
-  autoGloss: AnnotationAutoGlossController;
   retokenize: AnnotationRetokenizeController;
   validator: AnnotationValidatorPanelController;
-  onPlay: (unitId: string) => void;
   onFocusInput: (unitId: string) => void;
+  showNote: boolean;
+  showCertainty: boolean;
+  showReadouts?: boolean;
+  turn?: {
+    addressee?: string;
+    ungrammatical?: boolean;
+    actualForm?: string;
+    targetForm?: string;
+  };
 };
+
+function TurnFields({
+  unitId,
+  unitMeta,
+  turn,
+  onFocusInput,
+}: {
+  unitId: string;
+  unitMeta: AnnotationUnitMetaController;
+  turn?: {
+    addressee?: string;
+    ungrammatical?: boolean;
+    actualForm?: string;
+    targetForm?: string;
+  };
+  onFocusInput: (unitId: string) => void;
+}) {
+  const locale = useLocale();
+  const save = (patch: {
+    ungrammatical?: boolean;
+    addressee?: string;
+    actualForm?: string;
+    targetForm?: string;
+  }) =>
+    unitMeta.onSaveTurn({
+      ungrammatical: patch.ungrammatical ?? turn?.ungrammatical === true,
+      addressee: patch.addressee ?? turn?.addressee ?? '',
+      actualForm: patch.actualForm ?? turn?.actualForm ?? '',
+      targetForm: patch.targetForm ?? turn?.targetForm ?? '',
+    });
+  return (
+    <>
+      <label className="annotation-igt-extra-field">
+        <span>{t(locale, 'workspace.annotation.ungrammatical')}</span>
+        <input
+          type="checkbox"
+          data-testid={`annotation-igt-ungrammatical-input-${unitId}`}
+          defaultChecked={turn?.ungrammatical === true}
+          onClick={(event) => event.stopPropagation()}
+          onFocus={() => onFocusInput(unitId)}
+          onChange={(event) => save({ ungrammatical: event.target.checked })}
+        />
+      </label>
+      <label className="annotation-igt-extra-field">
+        <span>{t(locale, 'workspace.annotation.addressee')}</span>
+        <input
+          className="annotation-igt-field"
+          data-testid={`annotation-igt-addressee-${unitId}`}
+          defaultValue={turn?.addressee ?? ''}
+          onClick={(event) => event.stopPropagation()}
+          onFocus={() => onFocusInput(unitId)}
+          onBlur={(event) => save({ addressee: event.target.value })}
+        />
+      </label>
+      <label className="annotation-igt-extra-field">
+        <span>{t(locale, 'workspace.annotation.actualForm')}</span>
+        <input
+          className="annotation-igt-field"
+          defaultValue={turn?.actualForm ?? ''}
+          onClick={(event) => event.stopPropagation()}
+          onFocus={() => onFocusInput(unitId)}
+          onBlur={(event) => save({ actualForm: event.target.value })}
+        />
+      </label>
+      <label className="annotation-igt-extra-field">
+        <span>{t(locale, 'workspace.annotation.targetForm')}</span>
+        <input
+          className="annotation-igt-field"
+          defaultValue={turn?.targetForm ?? ''}
+          onClick={(event) => event.stopPropagation()}
+          onFocus={() => onFocusInput(unitId)}
+          onBlur={(event) => save({ targetForm: event.target.value })}
+        />
+      </label>
+    </>
+  );
+}
 
 function noteCategoryLabel(
   locale: ReturnType<typeof useLocale>,
@@ -51,186 +133,144 @@ function certaintyLabel(
 
 export function AnnotationIgtUnitExtras({
   unitId,
-  playing,
   matches,
   unitMeta,
-  autoGloss,
   retokenize,
   validator,
-  onPlay,
   onFocusInput,
+  showNote,
+  showCertainty,
+  showReadouts = true,
+  turn,
 }: Props) {
   const locale = useLocale();
   const retokenizePreviewActive = retokenize.previewUnitId === unitId;
-  const retokenizeApplyDisabled =
-    !retokenizePreviewActive || retokenize.unchanged || retokenize.proposedForms.length === 0;
+  const showValidator =
+    showReadouts &&
+    validator.unitId === unitId &&
+    (validator.pending || validator.errorMessage.length > 0 || validator.items.length > 0);
+  const showProposal =
+    showReadouts && retokenizePreviewActive && retokenize.proposedForms.length > 0;
+  const showMatches = showReadouts && matches.length > 0;
+  if (!showNote && !showCertainty && !showMatches && !showValidator && !showProposal) {
+    return null;
+  }
   return (
-    <div className="annotation-igt-extras">
-      <div className="annotation-igt-extras-actions">
-        <button
-          type="button"
-          className="annotation-igt-action"
-          data-testid={`annotation-igt-play-${unitId}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onPlay(unitId);
-          }}
-        >
-          {playing
-            ? t(locale, 'workspace.annotation.playing')
-            : t(locale, 'workspace.annotation.play')}
-        </button>
-        <button
-          type="button"
-          className="annotation-igt-action"
-          data-testid={`annotation-igt-autogloss-preview-${unitId}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            autoGloss.onPreview(unitId);
-          }}
-        >
-          {t(locale, 'workspace.annotation.autoGlossPreview')}
-        </button>
-        <button
-          type="button"
-          className="annotation-igt-action"
-          data-testid={`annotation-igt-autogloss-apply-${unitId}`}
-          disabled={matches.length === 0}
-          onClick={(event) => {
-            event.stopPropagation();
-            autoGloss.onApply(unitId);
-          }}
-        >
-          {t(locale, 'workspace.annotation.autoGlossApply')}
-        </button>
-        <button
-          type="button"
-          className="annotation-igt-action"
-          data-testid={`annotation-igt-retokenize-preview-${unitId}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            retokenize.onPreview(unitId);
-          }}
-        >
-          {t(locale, 'workspace.annotation.retokenizePreview')}
-        </button>
-        <button
-          type="button"
-          className="annotation-igt-action"
-          data-testid={`annotation-igt-retokenize-apply-${unitId}`}
-          disabled={retokenizeApplyDisabled}
-          onClick={(event) => {
-            event.stopPropagation();
-            retokenize.onApply(unitId);
-          }}
-        >
-          {t(locale, 'workspace.annotation.retokenizeApply')}
-        </button>
-        {retokenize.forceUnitId === unitId ? (
-          <button
-            type="button"
-            className="annotation-igt-action"
-            data-testid={`annotation-igt-retokenize-overwrite-${unitId}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              retokenize.onOverwrite(unitId);
-            }}
-          >
-            {t(locale, 'workspace.annotation.retokenizeOverwrite')}
-          </button>
-        ) : null}
-        {retokenize.snapshotUnitId === unitId ? (
-          <button
-            type="button"
-            className="annotation-igt-action"
-            data-testid={`annotation-igt-retokenize-restore-${unitId}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              retokenize.onRestore(unitId);
-            }}
-          >
-            {t(locale, 'workspace.annotation.retokenizeRestore')}
-          </button>
-        ) : null}
-      </div>
-      <label className="annotation-igt-extra-field">
-        <span>{t(locale, 'workspace.annotation.noteLabel')}</span>
-        <textarea
-          className="annotation-igt-note"
-          data-testid={`annotation-igt-note-${unitId}`}
-          value={unitMeta.noteText}
-          onClick={(event) => event.stopPropagation()}
-          onFocus={() => onFocusInput(unitId)}
-          onChange={(event) => unitMeta.onNoteTextChange(event.target.value)}
-        />
-      </label>
-      <label className="annotation-igt-extra-field">
-        <span>{t(locale, 'workspace.annotation.tagLabel')}</span>
-        <select
-          className="annotation-igt-field"
-          data-testid={`annotation-igt-note-category-${unitId}`}
-          value={unitMeta.noteCategory}
-          onClick={(event) => event.stopPropagation()}
-          onFocus={() => onFocusInput(unitId)}
-          onChange={(event) =>
-            unitMeta.onNoteCategoryChange(
-              event.target.value as AnnotationUnitMetaController['noteCategory'],
+    <div className="annotation-igt-extras" onClick={(event) => event.stopPropagation()}>
+      {showNote ? (
+        <>
+          <label className="annotation-igt-extra-field">
+            <span>{t(locale, 'workspace.annotation.transcriptionNote')}</span>
+            <textarea
+              className="annotation-igt-note"
+              data-testid={`annotation-igt-source-note-${unitId}`}
+              defaultValue={
+                unitMeta.notes.find((note) => note.category === 'comment')?.content ?? ''
+              }
+              onClick={(event) => event.stopPropagation()}
+              onBlur={(event) => unitMeta.onSaveCategorizedNote('comment', event.target.value)}
+            />
+          </label>
+          <label className="annotation-igt-extra-field">
+            <span>{t(locale, 'workspace.annotation.translationNote')}</span>
+            <textarea
+              className="annotation-igt-note"
+              data-testid={`annotation-igt-translation-note-${unitId}`}
+              defaultValue={unitMeta.notes.find((note) => note.category === 'topic')?.content ?? ''}
+              onClick={(event) => event.stopPropagation()}
+              onBlur={(event) => unitMeta.onSaveCategorizedNote('topic', event.target.value)}
+            />
+          </label>
+          <label className="annotation-igt-extra-field">
+            <span>{t(locale, 'workspace.annotation.noteLabel')}</span>
+            <textarea
+              className="annotation-igt-note"
+              data-testid={`annotation-igt-note-${unitId}`}
+              value={unitMeta.noteText}
+              onClick={(event) => event.stopPropagation()}
+              onFocus={() => onFocusInput(unitId)}
+              onChange={(event) => unitMeta.onNoteTextChange(event.target.value)}
+            />
+          </label>
+          <label className="annotation-igt-extra-field">
+            <span>{t(locale, 'workspace.annotation.tagLabel')}</span>
+            <select
+              className="annotation-igt-field"
+              data-testid={`annotation-igt-note-category-${unitId}`}
+              value={unitMeta.noteCategory}
+              onClick={(event) => event.stopPropagation()}
+              onFocus={() => onFocusInput(unitId)}
+              onChange={(event) =>
+                unitMeta.onNoteCategoryChange(
+                  event.target.value as AnnotationUnitMetaController['noteCategory'],
+                )
+              }
+            >
+              {unitMeta.noteCategories.map((category) => (
+                <option key={category} value={category}>
+                  {noteCategoryLabel(locale, category)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="annotation-igt-action"
+              data-testid={`annotation-igt-note-save-${unitId}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                unitMeta.onSaveNote();
+              }}
+            >
+              {t(locale, 'workspace.annotation.noteSave')}
+            </button>
+          </label>
+        </>
+      ) : null}
+      {showCertainty ? (
+        <>
+          <TurnFields
+            unitId={unitId}
+            unitMeta={unitMeta}
+            {...(turn ? { turn } : {})}
+            onFocusInput={onFocusInput}
+          />
+          <label className="annotation-igt-extra-field">
+            <span>{t(locale, 'workspace.annotation.selfCertaintyLabel')}</span>
+            <select
+              className="annotation-igt-field"
+              data-testid={`annotation-igt-self-certainty-${unitId}`}
+              value={unitMeta.selfCertainty}
+              onClick={(event) => event.stopPropagation()}
+              onFocus={() => onFocusInput(unitId)}
+              onChange={(event) =>
+                unitMeta.onSelfCertaintyChange(
+                  event.target.value as (typeof UNIT_SELF_CERTAINTY_VALUES)[number] | '',
+                )
+              }
+            >
+              <option value="">{t(locale, 'workspace.annotation.selfCertaintyNone')}</option>
+              {UNIT_SELF_CERTAINTY_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {certaintyLabel(locale, value)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      ) : null}
+      {showMatches ? (
+        <p className="annotation-igt-autogloss" data-testid={`annotation-igt-autogloss-${unitId}`}>
+          {matches
+            .map((match) =>
+              tf(locale, 'workspace.annotation.autoGlossMatch', {
+                form: pickDefaultTranscriptionText(match.tokenForm),
+                gloss: pickDefaultTranscriptionText(match.gloss),
+              }),
             )
-          }
-        >
-          {unitMeta.noteCategories.map((category) => (
-            <option key={category} value={category}>
-              {noteCategoryLabel(locale, category)}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="annotation-igt-action"
-          data-testid={`annotation-igt-note-save-${unitId}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            unitMeta.onSaveNote();
-          }}
-        >
-          {t(locale, 'workspace.annotation.noteSave')}
-        </button>
-      </label>
-      <label className="annotation-igt-extra-field">
-        <span>{t(locale, 'workspace.annotation.selfCertaintyLabel')}</span>
-        <select
-          className="annotation-igt-field"
-          data-testid={`annotation-igt-self-certainty-${unitId}`}
-          value={unitMeta.selfCertainty}
-          onClick={(event) => event.stopPropagation()}
-          onFocus={() => onFocusInput(unitId)}
-          onChange={(event) =>
-            unitMeta.onSelfCertaintyChange(
-              event.target.value as (typeof UNIT_SELF_CERTAINTY_VALUES)[number] | '',
-            )
-          }
-        >
-          <option value="">{t(locale, 'workspace.annotation.selfCertaintyNone')}</option>
-          {UNIT_SELF_CERTAINTY_VALUES.map((value) => (
-            <option key={value} value={value}>
-              {certaintyLabel(locale, value)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className="annotation-igt-autogloss" data-testid={`annotation-igt-autogloss-${unitId}`}>
-        {matches.length === 0
-          ? t(locale, 'workspace.annotation.autoGlossEmpty')
-          : matches
-              .map((match) =>
-                tf(locale, 'workspace.annotation.autoGlossMatch', {
-                  form: pickDefaultTranscriptionText(match.tokenForm),
-                  gloss: pickDefaultTranscriptionText(match.gloss),
-                }),
-              )
-              .join(' · ')}
-      </p>
-      {validator.unitId === unitId ? (
+            .join(' · ')}
+        </p>
+      ) : null}
+      {showValidator ? (
         <div className="annotation-igt-autogloss" data-testid={`annotation-validator-${unitId}`}>
           <p>{t(locale, 'workspace.annotation.validatorPanelTitle')}</p>
           {validator.pending ? (
@@ -242,11 +282,6 @@ export function AnnotationIgtUnitExtras({
                 message: validator.errorMessage,
               })}
             </p>
-          ) : null}
-          {validator.items.length === 0 &&
-          !validator.pending &&
-          validator.errorMessage.length === 0 ? (
-            <p>{t(locale, 'workspace.annotation.validatorPanelEmpty')}</p>
           ) : null}
           {validator.items.map((item) => (
             <p key={item.tokenId} data-testid={`annotation-validator-token-${item.tokenId}`}>
@@ -269,13 +304,13 @@ export function AnnotationIgtUnitExtras({
           ))}
         </div>
       ) : null}
-      <p className="annotation-igt-autogloss" data-testid={`annotation-igt-retokenize-${unitId}`}>
-        {!retokenizePreviewActive || retokenize.proposedForms.length === 0
-          ? t(locale, 'workspace.annotation.retokenizeEmpty')
-          : tf(locale, 'workspace.annotation.retokenizeProposal', {
-              forms: retokenize.proposedForms.join(' · '),
-            })}
-      </p>
+      {showProposal ? (
+        <p className="annotation-igt-autogloss" data-testid={`annotation-igt-retokenize-${unitId}`}>
+          {tf(locale, 'workspace.annotation.retokenizeProposal', {
+            forms: retokenize.proposedForms.join(' · '),
+          })}
+        </p>
+      ) : null}
     </div>
   );
 }

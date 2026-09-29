@@ -11,16 +11,12 @@ export function buildAnnotationUtteranceGraph(input: {
   row: AnnotationIgtRow;
   morphsByTokenId: Readonly<Record<string, readonly AnnotationIgtMorpheme[] | undefined>>;
   linksByTokenId: Readonly<Record<string, AnnotationTokenLexemeLinkView | undefined>>;
-}): AnnotationAnalysisGraphFixture {
-  const fresh = projectUtteranceAnalysisGraph({
-    id: input.row.id,
-    text:
-      input.row.surface.length > 0
-        ? input.row.surface
-        : input.row.tokens.map((token) => token.form).join(' '),
-    tokens: input.row.tokens.map((token) => {
-      const link = input.linksByTokenId[token.id];
-      return {
+}): AnnotationAnalysisGraphFixture | undefined {
+  const tokens = input.row.tokens.flatMap((token) => {
+    if (token.form.trim().length === 0) return [];
+    const link = input.linksByTokenId[token.id];
+    return [
+      {
         id: token.id,
         form: token.form,
         ...(token.gloss.length > 0 ? { gloss: token.gloss } : {}),
@@ -31,9 +27,25 @@ export function buildAnnotationUtteranceGraph(input: {
           id: morph.id,
           form: morph.form,
           ...(morph.gloss.length > 0 ? { gloss: morph.gloss } : {}),
+          ...(morph.surfaceParts && morph.surfaceParts.length > 0
+            ? { surfaceParts: morph.surfaceParts }
+            : {}),
         })),
-      };
-    }),
+      },
+    ];
+  });
+  const text =
+    input.row.surface.trim().length > 0
+      ? input.row.surface.trim()
+      : tokens
+          .map((token) => token.form)
+          .join(' ')
+          .trim();
+  if (text.length === 0) return undefined;
+  const fresh = projectUtteranceAnalysisGraph({
+    id: input.row.id,
+    text,
+    tokens,
   });
   return retainAlternativeAnalyses(
     retainMorphologyRelations(

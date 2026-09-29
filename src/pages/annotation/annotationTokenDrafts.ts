@@ -6,6 +6,8 @@ export type AnnotationIgtToken = {
   gloss: string;
   pos: string;
   glossLang: string;
+  reviewStatus?: string;
+  languageId?: string;
 };
 
 export type AnnotationTokenDraft = {

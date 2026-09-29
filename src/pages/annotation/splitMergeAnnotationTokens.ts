@@ -5,6 +5,7 @@ import type {
   UnitTokenDocType,
 } from '../../types/jieyuDbDocTypes';
 import { newId, pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
+import { submitAnnotationTokenSnapshot } from './annotationRetokenize';
 
 export type AnnotationTokenSplitDeps = {
   listTokensByUnitId: (unitId: string) => Promise<UnitTokenDocType[]>;
@@ -62,6 +63,69 @@ function withForm(token: UnitTokenDocType, nextForm: string, now: string): UnitT
     form: { ...token.form, [lang]: nextForm },
     updatedAt: now,
   };
+}
+
+function filledGloss(gloss: UnitTokenDocType['gloss']): Record<string, string> | undefined {
+  if (!gloss) return undefined;
+  const next: Record<string, string> = {};
+  for (const [key, text] of Object.entries(gloss)) {
+    if (typeof text === 'string' && text.trim().length > 0) next[key] = text;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function glossFieldsConflict(
+  left: UnitTokenDocType['gloss'],
+  right: UnitTokenDocType['gloss'],
+): boolean {
+  const a = filledGloss(left);
+  const b = filledGloss(right);
+  if (!a || !b) return false;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    if ((a[key] ?? '') !== (b[key] ?? '')) return true;
+  }
+  return false;
+}
+
+function textFieldsConflict(left: string | undefined, right: string | undefined): boolean {
+  const a = (left ?? '').trim();
+  const b = (right ?? '').trim();
+  return a.length > 0 && b.length > 0 && a !== b;
+}
+
+function adoptedText(left: string | undefined, right: string | undefined): string | undefined {
+  if ((left ?? '').trim().length > 0) return left;
+  const next = (right ?? '').trim();
+  return next.length > 0 ? next : undefined;
+}
+
+function adoptedGloss(
+  left: UnitTokenDocType['gloss'],
+  right: UnitTokenDocType['gloss'],
+): UnitTokenDocType['gloss'] | undefined {
+  if (filledGloss(left)) return left;
+  if (filledGloss(right)) return right;
+  return undefined;
+}
+
+/** Index where the right surface begins in the merged form. Offsets stay JS string indices. */
+function annotationMergeRightSpanShift(leftSurface: string, rightSurface: string): number {
+  if (leftSurface.length === 0 || rightSurface.length === 0) return 0;
+  const merged = `${leftSurface} ${rightSurface}`.trim();
+  const start = merged.lastIndexOf(rightSurface);
+  return start >= 0 ? start : leftSurface.length + 1;
+}
+
+function shiftSurfaceParts(
+  parts: UnitMorphemeDocType['surfaceParts'],
+  shift: number,
+): UnitMorphemeDocType['surfaceParts'] {
+  if (!parts || parts.length === 0 || shift === 0) return parts;
+  return parts.map((part) => ({
+    startOffset: part.startOffset + shift,
+    endOffset: part.endOffset + shift,
+  }));
 }
 
 export async function splitAnnotationUnitToken(
@@ -129,8 +193,26 @@ export async function mergeAnnotationUnitTokenWithNext(
     throw new Error('token merge requires a following token');
   }
   const now = new Date().toISOString();
-  const mergedForm =
-    `${pickDefaultTranscriptionText(left.form)} ${pickDefaultTranscriptionText(right.form)}`.trim();
+  const leftSurface = pickDefaultTranscriptionText(left.form);
+  const rightSurface = pickDefaultTranscriptionText(right.form);
+  const mergedForm = `${leftSurface} ${rightSurface}`.trim();
+  const glossClash = glossFieldsConflict(left.gloss, right.gloss);
+  const posClash = textFieldsConflict(left.pos, right.pos);
+  const languageClash = textFieldsConflict(left.languageId, right.languageId);
+  if (glossClash || posClash || languageClash) {
+    const surface = tokens
+      .map((token) => pickDefaultTranscriptionText(token.form))
+      .filter((form) => form.length > 0)
+      .join(' ');
+    await submitAnnotationTokenSnapshot({
+      textId: left.textId,
+      unitId,
+      surface: surface.length > 0 ? surface : mergedForm,
+    });
+  }
+  const gloss = adoptedGloss(left.gloss, right.gloss);
+  const pos = adoptedText(left.pos, right.pos);
+  const languageId = adoptedText(left.languageId, right.languageId);
   const [leftMorphs, rightMorphs, rightLinks] = await Promise.all([
     deps.listMorphemesByTokenIds([left.id]),
     deps.listMorphemesByTokenIds([right.id]),
@@ -138,13 +220,21 @@ export async function mergeAnnotationUnitTokenWithNext(
   ]);
   const nextMorphIndex =
     leftMorphs.reduce((max, morph) => Math.max(max, morph.morphemeIndex), -1) + 1;
-  await deps.saveToken(withForm(left, mergedForm, now));
+  await deps.saveToken({
+    ...withForm(left, mergedForm, now),
+    ...(gloss ? { gloss } : {}),
+    ...(pos ? { pos } : {}),
+    ...(languageId ? { languageId } : {}),
+  });
+  const spanShift = annotationMergeRightSpanShift(leftSurface, rightSurface);
   const orderedRightMorphs = [...rightMorphs].sort((a, b) => a.morphemeIndex - b.morphemeIndex);
   for (const [offset, morph] of orderedRightMorphs.entries()) {
+    const surfaceParts = shiftSurfaceParts(morph.surfaceParts, spanShift);
     await deps.saveMorpheme({
       ...morph,
       tokenId: left.id,
       morphemeIndex: nextMorphIndex + offset,
+      ...(surfaceParts && surfaceParts.length > 0 ? { surfaceParts } : {}),
       updatedAt: now,
     });
   }

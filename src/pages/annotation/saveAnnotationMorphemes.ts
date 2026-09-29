@@ -75,6 +75,9 @@ function toStoredMorpheme(
     tokenId: morph.tokenId,
     form,
     ...(Object.keys(gloss).length > 0 ? { gloss } : {}),
+    ...(morph.surfaceParts && morph.surfaceParts.length > 0
+      ? { surfaceParts: morph.surfaceParts }
+      : {}),
     ...(existing?.pos ? { pos: existing.pos } : {}),
     ...(existing?.lexemeId ? { lexemeId: existing.lexemeId } : {}),
     ...(existing?.provenance ? { provenance: existing.provenance } : {}),
@@ -139,6 +142,9 @@ export function mapStoredMorphemes(rows: readonly UnitMorphemeDocType[]): Annota
         gloss: glossText,
         glossLang,
         morphemeIndex: row.morphemeIndex,
+        ...(row.surfaceParts && row.surfaceParts.length > 0
+          ? { surfaceParts: row.surfaceParts }
+          : {}),
       };
     });
 }

@@ -77,7 +77,12 @@ export function useAnnotationRelationController(textId: string, reload: () => vo
         return;
       }
       try {
-        const next = applyMark(buildAnnotationUtteranceGraph(input), input.mark);
+        const base = buildAnnotationUtteranceGraph(input);
+        if (base === undefined) {
+          setError('failed');
+          return;
+        }
+        const next = applyMark(base, input.mark);
         await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
         setError('');
         reload();

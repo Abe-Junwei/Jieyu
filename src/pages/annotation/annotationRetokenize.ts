@@ -98,12 +98,13 @@ export function annotationRetokenizeUnchanged(
 }
 
 export function annotationTokenHasManualWork(
-  token: Pick<UnitTokenDocType, 'pos' | 'gloss'>,
+  token: Pick<UnitTokenDocType, 'pos' | 'gloss' | 'languageId'>,
   morphCount: number,
   linkCount: number,
   hasDraft: boolean,
 ): boolean {
   if (hasDraft) return true;
+  if ((token.languageId ?? '').trim().length > 0) return true;
   if ((token.pos ?? '').trim().length > 0) return true;
   if (pickDefaultTranscriptionText(token.gloss ?? {}).trim().length > 0) return true;
   return morphCount > 0 || linkCount > 0;
@@ -145,6 +146,8 @@ export function buildRetokenizeCandidateGraph(input: {
 
 type LangMap = Record<string, string>;
 
+type SurfaceSpan = { startOffset: number; endOffset: number };
+
 type SnapshotMorpheme = {
   id: string;
   form: string;
@@ -152,6 +155,8 @@ type SnapshotMorpheme = {
   gloss?: string;
   glosses?: LangMap;
   pos?: string;
+  lexemeId?: string;
+  surfaceParts?: SurfaceSpan[];
   morphemeIndex: number;
 };
 
@@ -170,6 +175,7 @@ type SnapshotToken = {
   gloss?: string;
   glosses?: LangMap;
   pos?: string;
+  languageId?: string;
   tokenIndex: number;
   morphemes: SnapshotMorpheme[];
   links: SnapshotLink[];
@@ -211,6 +217,39 @@ function readConfidence(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+/** undefined = absent. null = present but not a usable id, so restore must not succeed. */
+function readOptionalId(record: Record<string, unknown>, key: string): string | undefined | null {
+  if (!Object.prototype.hasOwnProperty.call(record, key) || record[key] === undefined) {
+    return undefined;
+  }
+  const text = readText(record[key]);
+  return text.length > 0 ? text : null;
+}
+
+function readSurfaceParts(value: unknown): SurfaceSpan[] | undefined | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return null;
+  if (value.length === 0) return undefined;
+  const spans: SurfaceSpan[] = [];
+  for (const item of value) {
+    const record = readRecord(item);
+    if (!record) return null;
+    const startOffset = record.startOffset;
+    const endOffset = record.endOffset;
+    if (
+      typeof startOffset !== 'number' ||
+      typeof endOffset !== 'number' ||
+      !Number.isInteger(startOffset) ||
+      !Number.isInteger(endOffset) ||
+      endOffset <= startOffset
+    ) {
+      return null;
+    }
+    spans.push({ startOffset, endOffset });
+  }
+  return spans;
+}
+
 function snapshotTokenFromRow(
   token: UnitTokenDocType,
   morphemes: readonly UnitMorphemeDocType[],
@@ -220,6 +259,7 @@ function snapshotTokenFromRow(
   const glosses = langMap(token.gloss);
   const gloss = pickDefaultTranscriptionText(token.gloss ?? {}).trim();
   const pos = (token.pos ?? '').trim();
+  const languageId = (token.languageId ?? '').trim();
   return {
     id: token.id,
     form: pickDefaultTranscriptionText(token.form),
@@ -227,6 +267,7 @@ function snapshotTokenFromRow(
     ...(gloss.length > 0 ? { gloss } : {}),
     ...(glosses ? { glosses } : {}),
     ...(pos.length > 0 ? { pos } : {}),
+    ...(languageId.length > 0 ? { languageId } : {}),
     tokenIndex: token.tokenIndex,
     morphemes: morphemes
       .filter((morph) => morph.tokenId === token.id)
@@ -236,6 +277,9 @@ function snapshotTokenFromRow(
         const morphGlosses = langMap(morph.gloss);
         const morphGloss = pickDefaultTranscriptionText(morph.gloss ?? {}).trim();
         const morphPos = (morph.pos ?? '').trim();
+        const lexemeId = (morph.lexemeId ?? '').trim();
+        const surfaceParts =
+          morph.surfaceParts && morph.surfaceParts.length > 0 ? morph.surfaceParts : undefined;
         return {
           id: morph.id,
           form: pickDefaultTranscriptionText(morph.form),
@@ -243,6 +287,8 @@ function snapshotTokenFromRow(
           ...(morphGloss.length > 0 ? { gloss: morphGloss } : {}),
           ...(morphGlosses ? { glosses: morphGlosses } : {}),
           ...(morphPos.length > 0 ? { pos: morphPos } : {}),
+          ...(lexemeId.length > 0 ? { lexemeId } : {}),
+          ...(surfaceParts ? { surfaceParts } : {}),
           morphemeIndex: morph.morphemeIndex,
         };
       }),
@@ -326,6 +372,8 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
     if (id.length === 0 || form.length === 0 || typeof tokenIndex !== 'number') return null;
     const gloss = readText(record.gloss);
     const pos = readText(record.pos);
+    const languageId = readOptionalId(record, 'languageId');
+    if (languageId === null) return null;
     const forms = readLangMap(record.forms);
     const glosses = readLangMap(record.glosses);
     const morphemes: SnapshotMorpheme[] = [];
@@ -343,6 +391,10 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
         const morphPos = readText(morph.pos);
         const morphForms = readLangMap(morph.forms);
         const morphGlosses = readLangMap(morph.glosses);
+        const lexemeId = readOptionalId(morph, 'lexemeId');
+        if (lexemeId === null) return null;
+        const surfaceParts = readSurfaceParts(morph.surfaceParts);
+        if (surfaceParts === null) return null;
         morphemes.push({
           id: morphId,
           form: morphForm,
@@ -350,6 +402,8 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
           ...(morphGloss.length > 0 ? { gloss: morphGloss } : {}),
           ...(morphGlosses ? { glosses: morphGlosses } : {}),
           ...(morphPos.length > 0 ? { pos: morphPos } : {}),
+          ...(lexemeId ? { lexemeId } : {}),
+          ...(surfaceParts ? { surfaceParts } : {}),
           morphemeIndex,
         });
       }
@@ -383,6 +437,7 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
       ...(gloss.length > 0 ? { gloss } : {}),
       ...(glosses ? { glosses } : {}),
       ...(pos.length > 0 ? { pos } : {}),
+      ...(languageId ? { languageId } : {}),
       tokenIndex,
       morphemes,
       links,
@@ -454,6 +509,7 @@ async function writeSnapshotTokens(
           ? { gloss: { default: token.gloss } }
           : {}),
       ...(token.pos ? { pos: token.pos } : {}),
+      ...(token.languageId ? { languageId: token.languageId } : {}),
       tokenIndex: token.tokenIndex,
       createdAt: now,
       updatedAt: now,
@@ -471,6 +527,10 @@ async function writeSnapshotTokens(
             ? { gloss: { default: morph.gloss } }
             : {}),
         ...(morph.pos ? { pos: morph.pos } : {}),
+        ...(morph.lexemeId ? { lexemeId: morph.lexemeId } : {}),
+        ...(morph.surfaceParts && morph.surfaceParts.length > 0
+          ? { surfaceParts: morph.surfaceParts }
+          : {}),
         morphemeIndex: morph.morphemeIndex,
         createdAt: now,
         updatedAt: now,
@@ -490,6 +550,82 @@ async function writeSnapshotTokens(
       });
     }
   }
+}
+
+async function submitLoadedTokenSnapshot(
+  input: { textId: string; unitId: string; surface: string },
+  deps: AnnotationRetokenizeDeps,
+  tokens: readonly UnitTokenDocType[],
+  morphs: readonly UnitMorphemeDocType[],
+  linkGroups: readonly { tokenId: string; links: readonly TokenLexemeLinkDocType[] }[],
+): Promise<void> {
+  const snapshot = tokens.map((token) =>
+    snapshotTokenFromRow(
+      token,
+      morphs.filter((morph) => morph.tokenId === token.id),
+      linkGroups.find((group) => group.tokenId === token.id)?.links ?? [],
+    ),
+  );
+  if (snapshot.length === 0) return;
+  await deps.submitCandidate({
+    textId: input.textId,
+    unitId: input.unitId,
+    candidateGraph: buildRetokenizeSnapshotGraph({
+      unitId: input.unitId,
+      surface: input.surface,
+      tokens: snapshot,
+    }),
+  });
+}
+
+/** Persist the unit's tokens, morphemes, and links as a restorable analysis snapshot. */
+export async function submitAnnotationTokenSnapshot(
+  input: { textId: string; unitId: string; surface: string },
+  deps: AnnotationRetokenizeDeps = defaultDeps,
+): Promise<void> {
+  const tokens = [...(await deps.listTokensByUnitId(input.unitId))].sort(
+    (a, b) => a.tokenIndex - b.tokenIndex,
+  );
+  const tokenIds = tokens.map((token) => token.id);
+  const [morphs, linkGroups] = await Promise.all([
+    tokenIds.length > 0 ? deps.listMorphemesByTokenIds(tokenIds) : Promise.resolve([]),
+    Promise.all(
+      tokenIds.map(async (tokenId) => ({
+        tokenId,
+        links: await deps.listTokenLexemeLinks('token', tokenId),
+      })),
+    ),
+  ]);
+  await submitLoadedTokenSnapshot(input, deps, tokens, morphs, linkGroups);
+}
+
+function snapshotAnnotationReadbackMatches(
+  expected: readonly SnapshotToken[],
+  tokens: readonly UnitTokenDocType[],
+  morphemes: readonly UnitMorphemeDocType[],
+): boolean {
+  for (const token of expected) {
+    const stored = tokens.find((row) => row.id === token.id);
+    if (!stored) return false;
+    if ((stored.languageId ?? '').trim() !== (token.languageId ?? '')) return false;
+    for (const morph of token.morphemes) {
+      const row = morphemes.find((item) => item.id === morph.id && item.tokenId === token.id);
+      if (!row) return false;
+      if ((row.lexemeId ?? '').trim() !== (morph.lexemeId ?? '')) return false;
+      const expectedSpans = morph.surfaceParts ?? [];
+      const storedSpans = row.surfaceParts ?? [];
+      if (expectedSpans.length !== storedSpans.length) return false;
+      for (const [index, span] of expectedSpans.entries()) {
+        if (
+          storedSpans[index]?.startOffset !== span.startOffset ||
+          storedSpans[index]?.endOffset !== span.endOffset
+        ) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 export async function applyAnnotationRetokenize(
@@ -552,22 +688,7 @@ export async function applyAnnotationRetokenize(
     return { kind: 'candidate', proposedForms };
   }
   if (blocked) {
-    const snapshot = tokens.map((token) =>
-      snapshotTokenFromRow(
-        token,
-        morphs.filter((morph) => morph.tokenId === token.id),
-        linkGroups.find((group) => group.tokenId === token.id)?.links ?? [],
-      ),
-    );
-    await deps.submitCandidate({
-      textId: input.textId,
-      unitId: input.unitId,
-      candidateGraph: buildRetokenizeSnapshotGraph({
-        unitId: input.unitId,
-        surface: input.surface,
-        tokens: snapshot,
-      }),
-    });
+    await submitLoadedTokenSnapshot(input, deps, tokens, morphs, linkGroups);
     await replaceUnitTokens(input, deps, tokens);
     return { kind: 'forced', proposedForms };
   }
@@ -615,6 +736,10 @@ export async function restoreAnnotationRetokenize(
       expected.map((token) => token.form),
     )
   ) {
+    throw new Error('retokenize restore readback mismatch');
+  }
+  const morphs = await deps.listMorphemesByTokenIds(readback.map((token) => token.id));
+  if (!snapshotAnnotationReadbackMatches(expected, readback, morphs)) {
     throw new Error('retokenize restore readback mismatch');
   }
   return { restored: true };

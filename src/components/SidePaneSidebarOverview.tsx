@@ -1,4 +1,8 @@
 import { useMemo, type RefObject } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { LinguisticService } from '../services/LinguisticService';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
+import { occurrenceGlossByUnitId } from '../utils/occurrenceGlossLine';
 import type {
   LayerDocType,
   LayerLinkDocType,
@@ -100,6 +104,28 @@ export function SidePaneSidebarOverview({
     [sidePaneRows],
   );
   const orthographies = useOrthographies(orthographyLanguageIds);
+  const queryClient = useQueryClient();
+  const glossUnitIds = useMemo(
+    () => (unitsOnCurrentMedia ?? []).map((unit) => unit.id).filter((id) => id.length > 0),
+    [unitsOnCurrentMedia],
+  );
+  const glossLanguageId =
+    sidePaneRows.find((layer) => layer.id === defaultTranscriptionLayerId)?.languageId ??
+    sidePaneRows.find((layer) => layer.layerType === 'transcription')?.languageId;
+  const glossQuery = useQuery({
+    queryKey: ['transcription-token-gloss', glossLanguageId ?? '', glossUnitIds.join('|')],
+    queryFn: () =>
+      LinguisticService.units
+        .listTokensByUnitIds(glossUnitIds)
+        .then((tokens) => occurrenceGlossByUnitId(tokens, glossLanguageId)),
+    enabled: glossUnitIds.length > 0,
+  });
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      if (!glossUnitIds.includes(detail.unitId)) return;
+      void queryClient.invalidateQueries({ queryKey: ['transcription-token-gloss'] });
+    },
+  });
   const orthographyById = useMemo<Map<string, OrthographyDocType>>(
     () => new Map(orthographies.map((orthography) => [orthography.id, orthography] as const)),
     [orthographies],
@@ -254,6 +280,7 @@ export function SidePaneSidebarOverview({
             {...(unitsOnCurrentMedia !== undefined ? { unitsOnCurrentMedia } : {})}
             {...(speakers !== undefined ? { speakers } : {})}
             {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
+            {...(glossQuery.data ? { glossByUnitId: glossQuery.data } : {})}
             {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
           />
         </>

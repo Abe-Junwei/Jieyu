@@ -1,7 +1,8 @@
+import { annotationWorkspaceWriteActions } from './annotationWorkspaceController.actions';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { LinguisticService } from '../app/languageAssetPageAccess';
+import { loadAnnotationWorkspace } from './annotationWorkspaceController.data';
 import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import { t, useLocale } from '../i18n';
 import {
@@ -24,10 +25,6 @@ import {
   type AnnotationKeyboardMode,
 } from './annotation/annotationKeyboardMachine';
 import {
-  annotationTranscriptionLanguageId,
-  projectAnnotationLaneUnits,
-} from './annotation/annotationLaneUnitProjection';
-import {
   collectDirtyAnnotationTokenWrites,
   displayedAnnotationTokenFields,
   dropCommittedTokenDrafts,
@@ -36,7 +33,10 @@ import {
   type AnnotationTokenDraft,
 } from './annotation/annotationTokenDrafts';
 import { buildAnnotationIgtRows, type AnnotationIgtRow } from './annotation/annotationIgtRows';
-import { pickAnnotationTranslationText } from './annotation/annotationTranslationText';
+import {
+  pickAnnotationLayerText,
+  pickAnnotationTranslationText,
+} from './annotation/annotationTranslationText';
 import { saveAnnotationIgtRowTokens } from './annotation/saveAnnotationIgtRowTokens';
 
 export type { AnnotationIgtToken, AnnotationIgtRow };
@@ -59,6 +59,7 @@ export function useAnnotationWorkspaceController() {
     kind: 'idle',
     message: '',
   });
+  const [translationLayerId, setTranslationLayerId] = useState('');
   const savingRef = useRef(false);
 
   const parsed = readAnalysisDeepLinkParams(searchParams);
@@ -71,35 +72,25 @@ export function useAnnotationWorkspaceController() {
 
   const dataQuery = useQuery({
     queryKey: ['annotation-workspace', textId, mediaId],
-    queryFn: async () => {
-      const [units, layers] = await Promise.all([
-        LinguisticService.units.listByTextId(textId),
-        LinguisticService.layers.listByTextId(textId),
-      ]);
-      const laneUnits = projectAnnotationLaneUnits({ units, layers, mediaId });
-      const unitIds = laneUnits.map((unit) => unit.id);
-      const [tokens, contents] = await Promise.all([
-        LinguisticService.units.listTokensByUnitIds(unitIds),
-        LinguisticService.timeline.listUnitTextsByUnitIds(unitIds),
-      ]);
-      const translationLayerIds = layers
-        .filter((layer) => layer.layerType === 'translation')
-        .map((layer) => layer.id);
-      return {
-        units: laneUnits,
-        tokens,
-        contents,
-        translationLayerIds,
-        languageId: annotationTranscriptionLanguageId(layers),
-      };
-    },
+    queryFn: () => loadAnnotationWorkspace(textId, mediaId),
     enabled: textId.length > 0,
   });
 
   const derived = useMemo(() => {
+    const contents = dataQuery.data?.contents ?? [];
+    const translationLayers = dataQuery.data?.translationLayers ?? [];
+    const activeTranslationLayerId = translationLayers.some(
+      (layer) => layer.id === translationLayerId,
+    )
+      ? translationLayerId
+      : (translationLayers[0]?.id ?? '');
     const translations = pickAnnotationTranslationText({
-      contents: dataQuery.data?.contents ?? [],
-      translationLayerIds: dataQuery.data?.translationLayerIds ?? [],
+      contents,
+      translationLayerIds: activeTranslationLayerId.length > 0 ? [activeTranslationLayerId] : [],
+    });
+    const surfaces = pickAnnotationLayerText({
+      contents,
+      layerIds: dataQuery.data?.transcriptionLayerIds ?? [],
     });
     const rows = buildAnnotationIgtRows({
       units: dataQuery.data?.units ?? [],
@@ -107,6 +98,9 @@ export function useAnnotationWorkspaceController() {
       textId,
       mediaId,
       translations,
+      surfaces,
+      languageId: dataQuery.data?.languageId ?? '',
+      ...(dataQuery.data?.speakerNames ? { speakerNames: dataQuery.data.speakerNames } : {}),
     });
     const unitIds = rows.map((row) => row.id);
     const urlUnitId = parsed.unitId;
@@ -122,8 +116,10 @@ export function useAnnotationWorkspaceController() {
       focusedUnitId,
       unitCount: rows.length,
       languageId: dataQuery.data?.languageId ?? '',
+      translationLayers,
+      activeTranslationLayerId,
     };
-  }, [dataQuery.data, keyboard.focusedUnitId, mediaId, parsed.unitId, textId]);
+  }, [dataQuery.data, keyboard.focusedUnitId, mediaId, parsed.unitId, textId, translationLayerId]);
 
   const handleFocusRow = useCallback((unitId: string) => {
     const next = reduceAnnotationKeyboard(
@@ -260,10 +256,21 @@ export function useAnnotationWorkspaceController() {
         : '';
 
   return {
+    ...annotationWorkspaceWriteActions({
+      textId,
+      languageId: derived.languageId,
+      rows: derived.rows,
+      reload: () => dataQuery.refetch({ throwOnError: true }),
+      setSaveNotice,
+      locale,
+    }),
     textId,
     unitCount: derived.unitCount,
     rows: derived.rows,
     languageId: derived.languageId,
+    translationLayers: derived.translationLayers,
+    activeTranslationLayerId: derived.activeTranslationLayerId,
+    onSelectTranslationLayer: setTranslationLayerId,
     drafts,
     focusedUnitId: derived.focusedUnitId,
     keyboardMode: keyboard.mode,

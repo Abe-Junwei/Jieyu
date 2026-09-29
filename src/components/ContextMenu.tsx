@@ -26,6 +26,7 @@ export interface ContextMenuItem {
   selectionVariant?: 'dot' | 'check';
   meta?: string;
   shortcut?: string;
+  testId?: string;
   disabled?: boolean;
   danger?: boolean;
   variant?: 'default' | 'category';
@@ -265,6 +266,7 @@ export const ContextMenu = memo(function ContextMenu({
             .filter(Boolean)
             .join(' ')}
           disabled={item.disabled}
+          {...(item.testId !== undefined ? { 'data-testid': item.testId } : {})}
           role="menuitem"
           aria-haspopup={item.children && item.children.length > 0 ? 'menu' : undefined}
           aria-expanded={

@@ -70,9 +70,11 @@ export async function saveAnnotationUnitNote(
   deps: AnnotationNoteDeps = defaultNoteDeps,
 ): Promise<AnnotationUnitNoteView> {
   const notes = await deps.listNotes(input.unitId);
-  const existing = notes.length > 0 ? notes[notes.length - 1] : undefined;
+  const existing =
+    notes.find((note) => note.category === input.category) ??
+    (input.noteId ? notes.find((note) => note.id === input.noteId) : undefined);
   const now = new Date().toISOString();
-  const id = input.noteId?.trim() || existing?.id || newId('note');
+  const id = existing?.id || newId('note');
   const doc: UserNoteDocType = {
     ...(existing ?? {
       id,
@@ -93,6 +95,40 @@ export async function saveAnnotationUnitNote(
   const stored = readback.find((row) => row.id === id);
   if (!stored) throw new Error(`note readback missing ${id}`);
   return noteViewFromDoc(stored);
+}
+
+export async function saveAnnotationUnitTurn(
+  input: {
+    textId: string;
+    unitId: string;
+    addressee: string;
+    ungrammatical: boolean;
+    actualForm: string;
+    targetForm: string;
+  },
+  deps: AnnotationSelfCertaintyDeps = defaultCertaintyDeps,
+): Promise<LayerUnitDocType> {
+  const units = await deps.listByTextId(input.textId);
+  const existing = units.find((unit) => unit.id === input.unitId);
+  if (!existing) throw new Error(`readback missing unit ${input.unitId}`);
+  const next: LayerUnitDocType = {
+    ...existing,
+    ungrammatical: input.ungrammatical,
+    updatedAt: new Date().toISOString(),
+  };
+  const addressee = input.addressee.trim();
+  const actualForm = input.actualForm.trim();
+  const targetForm = input.targetForm.trim();
+  if (addressee) next.addressee = addressee;
+  else delete next.addressee;
+  if (actualForm) next.actualForm = actualForm;
+  else delete next.actualForm;
+  if (targetForm) next.targetForm = targetForm;
+  else delete next.targetForm;
+  await deps.saveBatch([next]);
+  const readback = (await deps.listByTextId(input.textId)).find((unit) => unit.id === input.unitId);
+  if (!readback) throw new Error(`readback missing unit ${input.unitId}`);
+  return readback;
 }
 
 export async function saveAnnotationUnitSelfCertainty(

@@ -201,10 +201,21 @@ export function assignRootPattern(
   if (graph.nodes.some((node) => node.id === rootId)) return graph;
   const patternId = `pat-${tokenId}`;
   const processId = `proc-template-${tokenId}`;
+  const spans = graph.relations
+    .filter((relation) => relation.type === 'hasPart' && relation.sourceId === tokenId)
+    .flatMap((relation) => {
+      const node = graph.nodes.find((item) => item.id === relation.targetId);
+      return node?.surfaceParts ?? [];
+    });
   return withAdditions(
     graph,
     [
-      { id: rootId, type: 'root', label: root },
+      {
+        id: rootId,
+        type: 'root',
+        label: root,
+        ...(spans.length >= 2 ? { surfaceParts: spans } : {}),
+      },
       { id: patternId, type: 'pattern', label: pattern },
       { id: processId, type: 'process', label: 'templaticMapping' },
     ],
@@ -212,13 +223,15 @@ export function assignRootPattern(
       { type: 'discontinuousPartOf', sourceId: rootId, targetId: tokenId },
       { type: 'derivedByProcess', sourceId: tokenId, targetId: processId },
     ],
-    [
-      {
-        target: 'latex',
-        status: 'degraded',
-        message: 'Root spans were not stored; only the root and pattern labels are kept.',
-      },
-    ],
+    spans.length >= 2
+      ? []
+      : [
+          {
+            target: 'latex',
+            status: 'degraded',
+            message: 'Root spans were not stored; only the root and pattern labels are kept.',
+          },
+        ],
   );
 }
 

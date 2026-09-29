@@ -98,6 +98,38 @@ export function lexemeHeadword(lexeme: LexemeEntryDoc): string {
   return lexeme.entry.headword.trim();
 }
 
+export type LexemeSenseChoice = {
+  senseId: string;
+  label: string;
+};
+
+function senseLabel(sense: NonNullable<LexemeEntryDoc['entry']['senses']>[number]): string {
+  const translation = sense.headwordTranslations?.[0]?.text?.trim() ?? '';
+  if (translation.length > 0) return translation;
+  const definition = sense.definitions?.[0]?.text?.trim() ?? '';
+  if (definition.length > 0) return definition;
+  return sense.indicator?.trim() ?? '';
+}
+
+export function lexemeSenseChoices(lexeme: LexemeEntryDoc): LexemeSenseChoice[] {
+  const choices: LexemeSenseChoice[] = [];
+  for (const sense of lexeme.entry.senses ?? []) {
+    const senseId = sense.id?.trim() ?? '';
+    if (senseId.length === 0) continue;
+    const label = senseLabel(sense);
+    choices.push({ senseId, label: label.length > 0 ? label : senseId });
+  }
+  return choices;
+}
+
+export function lexemeSenseGloss(lexeme: LexemeEntryDoc, senseId?: string): string {
+  const senses = lexeme.entry.senses ?? [];
+  const wanted = senseId?.trim() ?? '';
+  const sense = wanted.length > 0 ? senses.find((item) => item.id === wanted) : senses[0];
+  if (!sense) return '';
+  return senseLabel(sense);
+}
+
 export function lexemePrimaryTranslation(lexeme: LexemeEntryDoc): string {
   const sense = lexeme.entry.senses?.[0];
   const translation = sense?.headwordTranslations?.[0]?.text?.trim() ?? '';

@@ -103,6 +103,37 @@ describe('morphology relations', () => {
     ).toHaveLength(2);
     const rooted = assignRootPattern(shared, 'tok-ge', 'k-t-b', 'CaCaC');
     expect(rooted.nodes.find((node) => node.id === 'root-tok-ge')?.surfaceParts).toBeUndefined();
+    const withSpans = assignRootPattern(
+      projectUtteranceAnalysisGraph({
+        id: 'utt-spans',
+        text: 'katab',
+        tokens: [
+          {
+            id: 'tok-katab',
+            form: 'katab',
+            morphemes: [
+              {
+                id: 'morph-root',
+                form: 'ktb',
+                surfaceParts: [
+                  { startOffset: 0, endOffset: 1 },
+                  { startOffset: 2, endOffset: 3 },
+                  { startOffset: 4, endOffset: 5 },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+      'tok-katab',
+      'k-t-b',
+      'CaCaC',
+    );
+    expect(withSpans.nodes.find((node) => node.id === 'root-tok-katab')?.surfaceParts).toEqual([
+      { tokenId: 'tok-katab', startOffset: 0, endOffset: 1 },
+      { tokenId: 'tok-katab', startOffset: 2, endOffset: 3 },
+      { tokenId: 'tok-katab', startOffset: 4, endOffset: 5 },
+    ]);
     expect(rooted.projectionDiagnostics).toContainEqual(
       expect.objectContaining({
         message: 'Root spans were not stored; only the root and pattern labels are kept.',

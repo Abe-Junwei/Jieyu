@@ -42,6 +42,10 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
       }
       try {
         const base = buildAnnotationUtteranceGraph(input);
+        if (base === undefined) {
+          setError('failed');
+          return;
+        }
         const next = selectAlternativeAnalysis(base, input.relationId);
         await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
         setError('');
@@ -60,11 +64,12 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
         return;
       }
       try {
-        const next = addAlternativePos(
-          buildAnnotationUtteranceGraph(input),
-          input.tokenId,
-          input.pos,
-        );
+        const base = buildAnnotationUtteranceGraph(input);
+        if (base === undefined) {
+          setError('failed');
+          return;
+        }
+        const next = addAlternativePos(base, input.tokenId, input.pos);
         await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
         setError('');
         reload();

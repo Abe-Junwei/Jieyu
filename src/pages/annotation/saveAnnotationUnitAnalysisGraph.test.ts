@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { addAlternativePos, selectAlternativeAnalysis } from '../../annotation/alternativeAnalysis';
 import { assignPartOfMwe } from '../../annotation/partOfMwe';
 import { projectUtteranceAnalysisGraph } from '../../annotation/projectUtteranceAnalysisGraph';
 import { db } from '../../db';
@@ -15,6 +16,47 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
       db.tier_definitions.clear(),
     ]);
   });
+
+  it.each(['role', 'targetId', 'label'] as const)(
+    'rejects a concurrent same-id graph overwrite changing %s',
+    async (field) => {
+      const graph = projectUtteranceAnalysisGraph({
+        id: 'unit-conflict',
+        text: 'one two',
+        tokens: [
+          { id: 'one', form: 'one', pos: 'N' },
+          { id: 'two', form: 'two' },
+        ],
+      });
+      let stored: LayerUnitDocType = {
+        id: 'unit-conflict',
+        textId: 'text-conflict',
+        startTime: 0,
+        endTime: 1,
+        createdAt: '',
+        updatedAt: '',
+      };
+      await expect(
+        saveAnnotationUnitAnalysisGraph(
+          {
+            textId: 'text-conflict',
+            unitId: stored.id,
+            graph,
+          },
+          {
+            listByTextId: async () => [stored],
+            saveBatch: async (items) => {
+              stored = structuredClone(items[0]!);
+              const overwritten = stored.analysisGraph!;
+              if (field === 'label') overwritten.nodes[0]!.label = 'overwritten';
+              else if (field === 'role') overwritten.relations[0]!.role = 'rejected';
+              else overwritten.relations[0]!.targetId = 'two';
+            },
+          },
+        ),
+      ).rejects.toThrow('analysisGraph readback mismatch');
+    },
+  );
 
   it('stores the accepted graph on the unit and reads it back', async () => {
     const graph = assignPartOfMwe(
@@ -53,6 +95,47 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
     ).toBe(true);
     expect(readback.transcription?.default).toBe('take a walk');
     expect(readback.startTime).toBe(0);
+  });
+
+  it('reads back selected candidates and relation fields through Dexie', async () => {
+    const unitId = 'unit-choice';
+    await LinguisticService.units.saveBatch([
+      {
+        id: unitId,
+        textId: 'text-choice',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'run' },
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    const choices = addAlternativePos(
+      projectUtteranceAnalysisGraph({
+        id: unitId,
+        text: 'run',
+        tokens: [{ id: 'token-choice', form: 'run', pos: 'N' }],
+      }),
+      'token-choice',
+      'VERB',
+    );
+    const alternative = choices.relations.find(
+      (relation) => relation.type === 'alternativeAnalysis' && relation.role === 'pending',
+    )!;
+    const selected = selectAlternativeAnalysis(choices, alternative.id);
+    await saveAnnotationUnitAnalysisGraph({ textId: 'text-choice', unitId, graph: selected });
+    const stored = (await LinguisticService.units.listByTextId('text-choice'))[0]!.analysisGraph!;
+    expect(stored.nodes).toEqual(selected.nodes);
+    expect(stored.relations).toEqual(selected.relations);
+    expect(stored.relations.find((relation) => relation.id === alternative.id)?.role).toBe(
+      'accepted',
+    );
+    expect(
+      stored.relations
+        .filter((relation) => relation.type === 'alternativeAnalysis')
+        .map((relation) => relation.role)
+        .sort(),
+    ).toEqual(['accepted', 'rejected']);
   });
 
   it('persists the multiword graph through Dexie without changing the transcription', async () => {
@@ -108,6 +191,7 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
     expect(stored?.analysisGraph?.nodes.find((node) => node.type === 'mwe')?.label).toBe(
       'take a walk',
     );
+    expect(stored?.analysisGraph).toEqual(graph);
     expect(stored?.transcription?.default).toBe('take a walk');
     expect(stored?.startTime).toBe(1.5);
     expect(stored?.endTime).toBe(3);

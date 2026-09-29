@@ -415,3 +415,21 @@ export function pickDefaultTranscriptionText(transcription: unknown): string {
   const value = record[pickDefaultTranscriptionLangKey(record)];
   return typeof value === 'string' ? value.trim() : '';
 }
+
+/** Prefer the layer language. Fall back to the default display key when that language is empty. */
+export function pickTranscriptionTextForLanguage(
+  transcription: unknown,
+  languageId?: string,
+): string {
+  const preferred = languageId?.trim() ?? '';
+  if (
+    preferred.length > 0 &&
+    transcription !== null &&
+    transcription !== undefined &&
+    typeof transcription === 'object'
+  ) {
+    const value = (transcription as Record<string, unknown>)[preferred];
+    if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  }
+  return pickDefaultTranscriptionText(transcription);
+}

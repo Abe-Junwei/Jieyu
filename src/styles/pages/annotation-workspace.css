@@ -30,6 +30,15 @@
   color: var(--text-secondary);
 }
 
+.annotation-workspace-keyboard-quiet {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
 .annotation-workspace-return {
   width: fit-content;
   color: var(--header-accent);
@@ -77,6 +86,24 @@
   align-items: center;
 }
 
+.annotation-igt-lang {
+  font-size: 0.65em;
+  line-height: 1;
+  margin-left: 1px;
+}
+
+.annotation-igt-speaker {
+  margin-left: 8px;
+}
+
+.annotation-translation-layer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
 .annotation-igt-time,
 .annotation-igt-label,
 .annotation-igt-translation,
@@ -103,10 +130,164 @@
   white-space: nowrap;
 }
 
+.annotation-igt-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.annotation-igt-line,
+.annotation-igt-aligned {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: start;
+}
+
+.annotation-igt-aligned-labels {
+  display: grid;
+  row-gap: 2px;
+}
+
+.annotation-igt-aligned-words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 16px;
+}
+
+.annotation-igt-line-label {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0;
+  text-align: right;
+  font: inherit;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
+.annotation-document-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 2px 8px;
+}
+
+.annotation-document-tools-nav,
+.annotation-document-tools-sentence,
+.annotation-document-tools-checks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.annotation-document-tools-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
+.annotation-document-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.annotation-document-tools-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
+.annotation-igt-form-select {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.annotation-igt-line-sentence {
+  justify-self: start;
+  max-width: 100%;
+  color: var(--text-primary);
+}
+
 .annotation-igt-tokens {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 4px 16px;
+}
+
+.annotation-igt-word {
+  position: relative;
+  display: inline-grid;
+  justify-items: start;
+  row-gap: 2px;
+}
+
+.annotation-igt-word-selected .annotation-igt-form {
+  text-decoration: underline;
+}
+
+.annotation-igt-row-actions,
+.annotation-igt-word-actions {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 4px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.annotation-igt-word-actions {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  opacity: 0;
+}
+
+.annotation-igt-word:hover .annotation-igt-word-actions,
+.annotation-igt-word:focus-within .annotation-igt-word-actions {
+  opacity: 1;
+}
+
+.annotation-igt-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
+}
+
+.annotation-igt-editor-word {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.annotation-igt-editor-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.annotation-igt-editor-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .annotation-igt-stack {
@@ -196,6 +377,78 @@
   color: var(--text-primary);
   font: inherit;
   resize: vertical;
+}
+
+.annotation-sentence-acoustic {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.annotation-sentence-acoustic-status {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
+.annotation-sentence-acoustic-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.annotation-sentence-acoustic-toggle {
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--surface-panel) 80%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  cursor: pointer;
+}
+
+.annotation-sentence-acoustic-toggle.is-on {
+  background: color-mix(in srgb, var(--tab-active) 22%, var(--surface-panel));
+  color: var(--text-primary);
+}
+
+.annotation-sentence-acoustic-wave,
+.annotation-sentence-acoustic-spectrum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.annotation-sentence-acoustic-wave {
+  position: relative;
+}
+
+.annotation-sentence-acoustic span {
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
+.annotation-sentence-acoustic-pitch {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 48px;
+  pointer-events: none;
+}
+
+.annotation-sentence-acoustic-pitch polyline {
+  fill: none;
+  stroke: var(--tab-active);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
 }
 
 .annotation-igt-autogloss {

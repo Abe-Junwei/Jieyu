@@ -144,6 +144,8 @@ export interface UnitTokenDocType {
   gloss?: MultiLangString;
   pos?: string;
   lexemeId?: string;
+  /** Object language of this token when it differs from the transcription layer. */
+  languageId?: string;
   tokenIndex: number;
   provenance?: ProvenanceEnvelope;
   createdAt: string;
@@ -161,6 +163,8 @@ export interface UnitMorphemeDocType {
   gloss?: MultiLangString;
   pos?: string;
   lexemeId?: string;
+  /** Character spans of this morpheme inside its token. Offsets are into the token form. */
+  surfaceParts?: Array<{ startOffset: number; endOffset: number }>;
   morphemeIndex: number;
   provenance?: ProvenanceEnvelope;
   createdAt: string;
@@ -849,6 +853,10 @@ export interface LayerUnitDocType {
   endAnchorId?: string | undefined;
   orderKey?: string | undefined;
   speakerId?: string | undefined;
+  addressee?: string | undefined;
+  ungrammatical?: boolean | undefined;
+  actualForm?: string | undefined;
+  targetForm?: string | undefined;
   /** 句段级自我确信度（仅 unit 单元使用）| Unit-level self-certainty (unit units only) */
   selfCertainty?: UnitSelfCertainty | undefined;
   status?: LayerUnitStatus | undefined;

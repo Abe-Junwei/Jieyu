@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AnnotationDocumentToolsSlot } from './annotation/AnnotationDocumentTools';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
 import { AnnotationIgtRowView } from './annotation/AnnotationIgtRow';
@@ -14,15 +15,69 @@ import { useAnnotationPosBatchController } from './useAnnotationPosBatchControll
 import { useAnnotationRelationController } from './useAnnotationRelationController';
 import { useAnnotationAlternativeAnalysisController } from './useAnnotationAlternativeAnalysisController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
+import { useAnnotationSentenceAcoustic } from './useAnnotationSentenceAcoustic';
+import { glossSuggestionForToken } from './annotation/annotationGlossSuggestion';
+import { buildAnnotationSentenceExport } from './annotation/annotationSentenceExport';
+import { downloadTextFile } from '../annotation/analysisGraphExport';
+import { filterAnnotationUnits } from './annotation/annotationRowSearch';
+import { parseCharacterVariantLines } from './annotation/annotationCharacterVariants';
 
 export function AnnotationWorkspace() {
   const locale = useLocale();
+  const [showWave, setShowWave] = useState(false);
+  const [showSpectrum, setShowSpectrum] = useState(false);
+  const [showPitch, setShowPitch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<'surface' | 'word' | 'morpheme'>('surface');
+  const [excludeUngrammatical, setExcludeUngrammatical] = useState(false);
+  const [variantText, setVariantText] = useState('');
   const controller = useAnnotationWorkspaceController();
+  const glossSuggestions = useMemo(() => {
+    const tokens = controller.rows.flatMap((row) => row.tokens);
+    const suggestions: Record<string, string> = {};
+    for (const token of tokens) {
+      const suggestion = glossSuggestionForToken(
+        tokens,
+        token.id,
+        parseCharacterVariantLines(variantText),
+      );
+      if (suggestion) suggestions[token.id] = suggestion;
+    }
+    return suggestions;
+  }, [controller.rows, variantText]);
+  const focusedRow = controller.rows.find((row) => row.id === controller.focusedUnitId);
+  const sentenceAcoustic = useAnnotationSentenceAcoustic({
+    textId: controller.textId,
+    mediaId: focusedRow?.mediaId ?? '',
+    startTime: focusedRow?.startTime ?? 0,
+    endTime: focusedRow?.endTime ?? 0,
+    enabled: focusedRow !== undefined && !controller.isLoading,
+  });
   const morphology = useAnnotationMorphologyController({
     textId: controller.textId,
     rows: controller.rows,
     reloadWorkspace: controller.reload,
   });
+  const visibleRows = useMemo(() => {
+    const wordFormsByUnit = new Map(
+      controller.rows.map((row) => [row.id, row.tokens.map((token) => token.form)] as const),
+    );
+    const morphemeFormsByUnit = new Map(
+      controller.rows.map((row) => [
+        row.id,
+        row.tokens.flatMap((token) =>
+          (morphology.morphsByTokenId[token.id] ?? []).map((morph) => morph.form),
+        ),
+      ]),
+    );
+    return filterAnnotationUnits(controller.rows, {
+      query: searchQuery,
+      mode: searchMode,
+      excludeUngrammatical,
+      wordFormsByUnit,
+      morphemeFormsByUnit,
+    });
+  }, [controller.rows, excludeUngrammatical, morphology.morphsByTokenId, searchMode, searchQuery]);
   const playback = useAnnotationSegmentPlaybackController(controller.textId);
   const unitMeta = useAnnotationUnitMetaController({
     textId: controller.textId,
@@ -55,71 +110,24 @@ export function AnnotationWorkspace() {
     drafts: controller.drafts,
   });
 
-  const sidePaneContent = useMemo(
-    () => (
-      <div className="app-side-pane-feature-stack">
-        <section
-          className="app-side-pane-group"
-          aria-label={t(locale, 'workspace.annotation.sidePaneCurrent')}
-        >
-          <div
-            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
-            role="presentation"
-          >
-            <span className="app-side-pane-section-title">
-              {t(locale, 'workspace.annotation.sidePaneCurrent')}
-            </span>
-          </div>
-          <div className="app-side-pane-nav app-side-pane-feature-nav">
-            <span className="app-side-pane-feature-badge">
-              {t(locale, 'workspace.annotation.badge')}
-            </span>
-            <p className="app-side-pane-feature-summary">
-              {controller.isEmpty
-                ? t(locale, 'workspace.annotation.empty')
-                : tf(locale, 'workspace.annotation.unitCount', { count: controller.unitCount })}
-            </p>
-            <Link className="app-side-pane-feature-link" to={controller.transcriptionHref}>
-              {t(locale, 'workspace.annotation.openTranscription')}
-            </Link>
-            <p className="app-side-pane-feature-summary">
-              {tf(locale, 'workspace.annotation.validatorTemplate', {
-                id: morphology.validatorProfileId,
-              })}
-            </p>
-            <Link className="app-side-pane-feature-link" to={morphology.structuralProfilesHref}>
-              {t(locale, 'workspace.annotation.openStructuralProfiles')}
-            </Link>
-          </div>
-        </section>
-      </div>
-    ),
-    [
-      controller.isEmpty,
-      controller.transcriptionHref,
-      controller.unitCount,
-      locale,
-      morphology.structuralProfilesHref,
-      morphology.validatorProfileId,
-    ],
-  );
-
   useRegisterAppSidePane({
     title: t(locale, 'workspace.annotation.sidePaneTitle'),
     subtitle: t(locale, 'workspace.annotation.sidePaneSubtitle'),
-    content: sidePaneContent,
+    content: null,
   });
 
+  const notices = [
+    autoGloss.saveNotice,
+    retokenize.saveNotice,
+    unitMeta.saveNotice,
+    morphology.saveNotice,
+    controller.saveNotice,
+  ];
   const activeNotice =
-    autoGloss.saveNotice.kind !== 'idle'
-      ? autoGloss.saveNotice
-      : retokenize.saveNotice.kind !== 'idle'
-        ? retokenize.saveNotice
-        : unitMeta.saveNotice.kind !== 'idle'
-          ? unitMeta.saveNotice
-          : morphology.saveNotice.kind !== 'idle'
-            ? morphology.saveNotice
-            : controller.saveNotice;
+    notices.find((notice) => notice.kind === 'error') ??
+    notices.find((notice) => notice.kind === 'saving') ??
+    notices.find((notice) => notice.kind === 'saved') ??
+    controller.saveNotice;
   const saveStatusText =
     activeNotice.kind === 'saving'
       ? t(locale, 'workspace.annotation.saving')
@@ -131,7 +139,7 @@ export function AnnotationWorkspace() {
             })
           : playback.lastOutcome === 'skipped'
             ? t(locale, 'workspace.annotation.playbackSkipped')
-            : t(locale, 'workspace.annotation.keyboardHint');
+            : '';
 
   return (
     <section
@@ -155,6 +163,22 @@ export function AnnotationWorkspace() {
         <Link className="annotation-workspace-return" to={controller.transcriptionHref}>
           {t(locale, 'workspace.annotation.openTranscription')}
         </Link>
+        {controller.translationLayers.length > 1 ? (
+          <label className="annotation-translation-layer">
+            {t(locale, 'workspace.annotation.translationLayer')}
+            <select
+              data-testid="annotation-translation-layer"
+              value={controller.activeTranslationLayerId}
+              onChange={(event) => controller.onSelectTranslationLayer(event.target.value)}
+            >
+              {controller.translationLayers.map((layer) => (
+                <option key={layer.id} value={layer.id}>
+                  {layer.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </header>
 
       {controller.isEmpty ? (
@@ -170,7 +194,11 @@ export function AnnotationWorkspace() {
       ) : (
         <div className="annotation-workspace-body">
           <p
-            className="annotation-workspace-keyboard"
+            className={
+              saveStatusText.length === 0
+                ? 'annotation-workspace-keyboard annotation-workspace-keyboard-quiet'
+                : 'annotation-workspace-keyboard'
+            }
             data-testid="annotation-keyboard-status"
             data-mode={controller.keyboardMode}
             data-action={controller.lastAction}
@@ -179,12 +207,100 @@ export function AnnotationWorkspace() {
           >
             {saveStatusText}
           </p>
+          <AnnotationDocumentToolsSlot
+            isEmpty={controller.isEmpty}
+            unitCount={controller.unitCount}
+            transcriptionHref={controller.transcriptionHref}
+            structuralProfilesHref={morphology.structuralProfilesHref}
+            validatorProfileId={morphology.validatorProfileId}
+            searchQuery={searchQuery}
+            searchMode={searchMode}
+            excludeUngrammatical={excludeUngrammatical}
+            variantText={variantText}
+            showWave={showWave}
+            showSpectrum={showSpectrum}
+            showPitch={showPitch}
+            onSearchQuery={setSearchQuery}
+            onSearchMode={setSearchMode}
+            onExcludeUngrammatical={setExcludeUngrammatical}
+            onVariantText={setVariantText}
+            onToggleWave={() => setShowWave((current) => !current)}
+            onToggleSpectrum={() => setShowSpectrum((current) => !current)}
+            onTogglePitch={() => setShowPitch((current) => !current)}
+            focused={
+              focusedRow
+                ? {
+                    row: focusedRow,
+                    unitMeta,
+                    autoGloss,
+                    retokenize,
+                    validator,
+                    mweReady: (mwe.selectedByUnit[focusedRow.id] ?? []).length >= 2,
+                    onConfirmMwe: () => {
+                      void mwe.confirm({
+                        row: focusedRow,
+                        tokenDrafts: controller.drafts,
+                        morphDrafts: morphology.drafts,
+                        morphsByTokenId: morphology.morphsByTokenId,
+                        linksByTokenId: morphology.linksByTokenId,
+                      });
+                    },
+                    onExportSentence: () => {
+                      const record = buildAnnotationSentenceExport({
+                        textId: controller.textId,
+                        unitId: focusedRow.id,
+                        ...(focusedRow.speakerName ? { speakerId: focusedRow.speakerName } : {}),
+                        startTime: focusedRow.startTime,
+                        endTime: focusedRow.endTime,
+                        surface: focusedRow.surface,
+                        translation: focusedRow.translation,
+                        tokens: focusedRow.tokens.map((token) => {
+                          const senseId = morphology.linksByTokenId[token.id]?.senseId;
+                          return {
+                            id: token.id,
+                            form: token.form,
+                            gloss: token.gloss,
+                            pos: token.pos,
+                            ...(senseId ? { senseId } : {}),
+                          };
+                        }),
+                      });
+                      downloadTextFile(
+                        `${focusedRow.id}.sentence.json`,
+                        JSON.stringify(record, null, 2),
+                        'application/json',
+                      );
+                    },
+                    onExportAnalysis: (kind) => {
+                      mwe.exportAnalysis(
+                        {
+                          row: focusedRow,
+                          tokenDrafts: controller.drafts,
+                          morphDrafts: morphology.drafts,
+                          morphsByTokenId: morphology.morphsByTokenId,
+                          linksByTokenId: morphology.linksByTokenId,
+                        },
+                        kind,
+                      );
+                    },
+                    onFocusInput: controller.onFocusInput,
+                  }
+                : null
+            }
+          />
           <ul className="annotation-igt-list">
-            {controller.rows.map((row) => (
+            {visibleRows.map((row) => (
               <AnnotationIgtRowView
                 key={row.id}
                 row={row}
                 focused={row.id === controller.focusedUnitId}
+                {...(row.id === controller.focusedUnitId ? { sentenceAcoustic } : {})}
+                acousticLayers={{ showWave, showSpectrum, showPitch }}
+                textLanguageId={controller.languageId}
+                glossSuggestions={glossSuggestions}
+                onAcceptGlossSuggestion={controller.onAcceptGlossSuggestion}
+                onCiteOccurrence={controller.onCiteOccurrence}
+                onSaveTokenLanguage={controller.onSaveTokenLanguage}
                 inputFocused={controller.keyboardMode === 'inputFocused'}
                 drafts={controller.drafts}
                 morphology={morphology}
@@ -202,17 +318,6 @@ export function AnnotationWorkspace() {
                 mweSelectedIds={mwe.selectedByUnit[row.id] ?? []}
                 mweError={row.id === controller.focusedUnitId ? mwe.error : ''}
                 onToggleMweToken={mwe.toggle}
-                onConfirmMwe={(unitId) => {
-                  const target = controller.rows.find((item) => item.id === unitId);
-                  if (!target) return;
-                  void mwe.confirm({
-                    row: target,
-                    tokenDrafts: controller.drafts,
-                    morphDrafts: morphology.drafts,
-                    morphsByTokenId: morphology.morphsByTokenId,
-                    linksByTokenId: morphology.linksByTokenId,
-                  });
-                }}
                 onApplyPosByForm={(unitId, tokenId, pos) => {
                   const target = controller.rows.find((item) => item.id === unitId);
                   if (
@@ -268,20 +373,7 @@ export function AnnotationWorkspace() {
                     mark,
                   });
                 }}
-                onExportAnalysis={(unitId, kind) => {
-                  const target = controller.rows.find((item) => item.id === unitId);
-                  if (!target) return;
-                  mwe.exportAnalysis(
-                    {
-                      row: target,
-                      tokenDrafts: controller.drafts,
-                      morphDrafts: morphology.drafts,
-                      morphsByTokenId: morphology.morphsByTokenId,
-                      linksByTokenId: morphology.linksByTokenId,
-                    },
-                    kind,
-                  );
-                }}
+                onWriteFormsToSurface={controller.onWriteFormsToSurface}
               />
             ))}
           </ul>

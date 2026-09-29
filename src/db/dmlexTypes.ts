@@ -137,9 +137,19 @@ export interface JieyuNote {
   text: string;
 }
 
+/** A sentence occurrence cited from a sense. The sentence is read live, not copied. */
+export interface JieyuOccurrenceCitation {
+  textId: string;
+  unitId: string;
+  tokenId: string;
+  lexemeId: string;
+  senseId: string;
+}
+
 export interface JieyuLexemeExtras {
   exampleRefs?: JieyuExampleRef[];
   notes?: JieyuNote[];
+  occurrenceCitations?: JieyuOccurrenceCitation[];
 }
 
 export const DMLEX_RESOURCE_ID = 'dmlex-resource';

@@ -70,17 +70,19 @@ describe('saveAnnotationUnitMeta', () => {
 
     const saved = await saveAnnotationUnitNote({
       unitId: 'unit-note-2',
-      content: 'revised latest',
-      category: 'todo',
+      content: 'translation note',
+      category: 'topic',
     });
-    expect(saved.id).toBe('note-new');
-    expect(saved.content).toBe('revised latest');
+    expect(saved.id).not.toBe('note-new');
+    expect(saved.content).toBe('translation note');
 
     const requery = await LinguisticService.notes.listByTarget('unit', 'unit-note-2');
-    expect(requery).toHaveLength(2);
-    const revised = requery.find((note) => note.id === 'note-new');
-    expect(revised?.content.default).toBe('revised latest');
-    expect(revised?.category).toBe('todo');
+    expect(requery).toHaveLength(3);
+    expect(requery.find((note) => note.id === 'note-old')?.content.default).toBe('older note');
+    expect(requery.find((note) => note.id === 'note-new')?.content.default).toBe('newer note');
+    expect(requery.find((note) => note.category === 'topic')?.content.default).toBe(
+      'translation note',
+    );
   });
 
   it('patches only selfCertainty then readback matches', async () => {

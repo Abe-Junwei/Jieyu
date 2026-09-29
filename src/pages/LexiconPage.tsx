@@ -204,8 +204,8 @@ export function LexiconPage() {
   });
 
   useWorkspaceEventRefresh({
-    onUnitUpdated: (detail) => {
-      if (!lexemeJumpTargets.some((row) => row.unitId === detail.unitId)) return;
+    onUnitUpdated: () => {
+      if (selectedLexemeId.trim().length === 0) return;
       void queryClient.invalidateQueries({
         queryKey: ['lexemeTranscriptionJumpTargets', selectedLexemeId],
       });
@@ -527,7 +527,9 @@ export function LexiconPage() {
                         aria-label={t(locale, 'workspace.lexicon.hitSegmentsTitle')}
                       >
                         {lexemeJumpTargets.map((hit) => {
-                          const primaryLabel = hit.surfaceHint?.trim() || hit.unitId;
+                          const sentence = hit.baselineText?.trim() ?? '';
+                          const wordForm = hit.surfaceHint?.trim() ?? '';
+                          const primaryLabel = sentence || wordForm || hit.unitId;
                           const href = buildTranscriptionDeepLinkHref({
                             textId: hit.textId,
                             ...(hit.mediaId ? { mediaId: hit.mediaId } : {}),
@@ -549,6 +551,9 @@ export function LexiconPage() {
                                 <span className="lexicon-workspace-hit-primary">
                                   {primaryLabel}
                                 </span>
+                                {sentence.length > 0 && wordForm.length > 0 ? (
+                                  <span className="lexicon-workspace-hit-meta">{wordForm}</span>
+                                ) : null}
                                 <span className="lexicon-workspace-hit-meta">
                                   {tf(locale, 'workspace.lexicon.hitSegmentMeta', {
                                     textId: hit.textId,

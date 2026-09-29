@@ -6,6 +6,7 @@ import {
 } from './analysisGraphExport';
 import { assignPartOfMwe, retainPartOfMwe } from './partOfMwe';
 import { projectUtteranceAnalysisGraph } from './projectUtteranceAnalysisGraph';
+import { buildAnnotationUtteranceGraph } from '../pages/annotation/buildAnnotationUtteranceGraph';
 
 const utterance = projectUtteranceAnalysisGraph({
   id: 'utt-1',
@@ -130,5 +131,32 @@ describe('projectUtteranceAnalysisGraph', () => {
       tokens: [],
     });
     expect(exportUtteranceToCldf(empty).row).toBeNull();
+  });
+
+  it('does not project a focused row that has no text', () => {
+    expect(() =>
+      projectUtteranceAnalysisGraph({
+        id: 'blank',
+        text: '   ',
+        tokens: [{ id: 'tok', form: '' }],
+      }),
+    ).toThrow(/no text/);
+    expect(
+      buildAnnotationUtteranceGraph({
+        row: {
+          id: 'blank',
+          timeLabel: '',
+          startTime: 0,
+          endTime: 1,
+          mediaId: '',
+          surface: '',
+          tokens: [{ id: 'tok', form: '', gloss: '', pos: '', glossLang: 'default' }],
+          translation: '',
+          transcriptionHref: '/transcription',
+        },
+        morphsByTokenId: {},
+        linksByTokenId: {},
+      }),
+    ).toBeUndefined();
   });
 });

@@ -1,5 +1,6 @@
 import {
   getDb,
+  withTransaction,
   type LayerUnitDocType,
   type TokenLexemeLinkDocType,
   type TokenLexemeLinkTargetType,
@@ -270,11 +271,13 @@ export async function replaceMorphemesForToken(
   const id = tokenId.trim();
   if (id.length === 0) return [];
   const db = await getDb();
-  await db.collections.unit_morphemes.removeBySelector({ tokenId: id });
-  if (items.length > 0) {
-    await db.collections.unit_morphemes.bulkInsert([...items]);
-  }
-  const stored = await getMorphemesByTokenId(id);
+  const stored = await withTransaction(db, 'rw', [db.dexie.unit_morphemes], async () => {
+    await db.collections.unit_morphemes.removeBySelector({ tokenId: id });
+    if (items.length > 0) {
+      await db.collections.unit_morphemes.bulkInsert([...items]);
+    }
+    return getMorphemesByTokenId(id);
+  });
   const unitId = items[0]?.unitId ?? stored[0]?.unitId;
   if (unitId && unitId.trim().length > 0) {
     dispatchWorkspaceUnitUpdated({ unitId });

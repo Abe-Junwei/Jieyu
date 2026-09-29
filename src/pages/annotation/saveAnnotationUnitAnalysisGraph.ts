@@ -31,8 +31,17 @@ export async function saveAnnotationUnitAnalysisGraph(
   if (!readback?.analysisGraph) {
     throw new Error(`analysisGraph readback missing ${input.unitId}`);
   }
-  if (readback.analysisGraph.id !== graph.id) {
+  if (canonicalGraph(readback.analysisGraph) !== canonicalGraph(graph)) {
     throw new Error(`analysisGraph readback mismatch for ${input.unitId}`);
   }
   return readback;
+}
+
+// Object property order is not graph content; array order and every field are.
+function canonicalGraph(graph: AnnotationAnalysisGraphFixture): string {
+  return JSON.stringify(graph, (_key, value: unknown) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+      : value,
+  );
 }

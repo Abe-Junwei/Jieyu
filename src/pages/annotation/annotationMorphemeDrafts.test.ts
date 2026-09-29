@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   collectDirtyAnnotationMorphemeWrites,
   displayedAnnotationMorphemeFields,
+  dropCommittedMorphemeDrafts,
   planMorphemeFormsFromToken,
   type AnnotationIgtMorpheme,
 } from './annotationMorphemeDrafts';
@@ -29,13 +30,29 @@ describe('annotation morpheme helpers', () => {
   it('collects dirty morpheme drafts only', () => {
     expect(collectDirtyAnnotationMorphemeWrites([MORPH], {})).toEqual([]);
     expect(
-      displayedAnnotationMorphemeFields(MORPH, { 'mor-1': { form: 'hell', gloss: 'root' } }),
-    ).toEqual({ form: 'hell', gloss: 'root' });
+      displayedAnnotationMorphemeFields(MORPH, {
+        'mor-1': { form: 'hell', gloss: 'root', spans: '' },
+      }),
+    ).toEqual({ form: 'hell', gloss: 'root', spans: '' });
     expect(
       collectDirtyAnnotationMorphemeWrites([MORPH], {
-        'mor-1': { form: 'hell', gloss: 'INTJ' },
+        'mor-1': { form: 'hell', gloss: 'INTJ', spans: '' },
       }),
     ).toEqual([{ ...MORPH, form: 'hell' }]);
+  });
+
+  it('drops only the morpheme draft that still matches the save snapshot', () => {
+    const committed = { 'mor-1': { form: 'hell', gloss: 'INTJ', spans: '' } };
+    expect(dropCommittedMorphemeDrafts({ 'mor-1': committed['mor-1']! }, committed)).toEqual({});
+    expect(
+      dropCommittedMorphemeDrafts(
+        { 'mor-1': { form: 'hello!', gloss: 'INTJ', spans: '0-2' }, 'mor-2': committed['mor-1']! },
+        committed,
+      ),
+    ).toEqual({
+      'mor-1': { form: 'hello!', gloss: 'INTJ', spans: '0-2' },
+      'mor-2': { form: 'hell', gloss: 'INTJ', spans: '' },
+    });
   });
 
   it('splits tokens at | then whitespace', () => {

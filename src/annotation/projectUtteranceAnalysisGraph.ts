@@ -101,9 +101,12 @@ export function projectUtteranceAnalysisGraph(
 
   let previousTokenId: string | undefined;
   const glossLabels: string[] = [];
+  const text = input.text.trim();
 
   for (const token of input.tokens) {
-    nodes.push({ id: token.id, type: 'token', label: token.form });
+    const form = token.form.trim();
+    if (form.length === 0) continue;
+    nodes.push({ id: token.id, type: 'token', label: form });
     if (previousTokenId !== undefined) {
       addRelation({ type: 'next', sourceId: previousTokenId, targetId: token.id, role: 'word' });
     }
@@ -143,12 +146,14 @@ export function projectUtteranceAnalysisGraph(
     let previousMorphId: string | undefined;
     let notedMorphOrder = false;
     for (const morph of token.morphemes ?? []) {
+      const morphForm = morph.form.trim();
+      if (morphForm.length === 0) continue;
       const spans = morph.surfaceParts ?? [];
       const discontinuous = spans.length >= 2;
       nodes.push({
         id: morph.id,
         type: 'morpheme',
-        label: morph.form,
+        label: morphForm,
         ...(spans.length > 0
           ? {
               surfaceParts: spans.map((span) => ({
@@ -191,8 +196,11 @@ export function projectUtteranceAnalysisGraph(
     }
   }
 
-  if (input.tokens.length === 0) {
-    nodes.push({ id: `${input.id}-text`, type: 'token', label: input.text });
+  if (nodes.length === 0) {
+    if (text.length === 0) {
+      throw new Error('Utterance has no text to project.');
+    }
+    nodes.push({ id: `${input.id}-text`, type: 'token', label: text });
     diagnostics.push({
       target: 'cldf',
       status: 'unsupported',
@@ -211,11 +219,11 @@ export function projectUtteranceAnalysisGraph(
     ? input.displayGloss.trim()
     : joinedGloss.length > 0
       ? joinedGloss
-      : input.text;
+      : text;
 
   return validateAnnotationAnalysisGraphFixture({
     id: input.id,
-    text: input.text,
+    text,
     displayGloss,
     nodes,
     relations,
