@@ -2,8 +2,10 @@ import { useCallback, useState } from 'react';
 import type { AnnotationAnalysisGraphFixture } from '../annotation/analysisGraph';
 import {
   assignAllomorph,
+  assignDiscontinuousParts,
   assignIncorporation,
   assignReduplicates,
+  assignTone,
   assignRootPattern,
   assignSegmentProcess,
   assignSharedFeature,
@@ -26,7 +28,9 @@ export type AnnotationRelationError = '' | 'dirty' | 'failed';
 export type AnnotationRelationMark =
   | { kind: 'reduplicates'; tokenId: string; reduplicantId: string; stemId: string }
   | { kind: 'suppletes'; tokenId: string; underlying: string }
-  | { kind: 'substitutesSegment' | 'deletesSegment' | 'overwritesTone'; tokenId: string }
+  | { kind: 'substitutesSegment' | 'deletesSegment'; tokenId: string }
+  | { kind: 'overwritesTone'; tokenId: string; tone: string }
+  | { kind: 'discontinuous'; tokenId: string; leftMorphId: string; rightMorphId: string }
   | { kind: 'sharedFeature'; laterMorphId: string; earlierMorphId: string }
   | { kind: 'rootPattern'; tokenId: string; root: string; pattern: string }
   | { kind: 'incorporation'; morphId: string }
@@ -48,6 +52,10 @@ function applyMark(
   }
   if (mark.kind === 'incorporation') return assignIncorporation(graph, mark.morphId);
   if (mark.kind === 'allomorph') return assignAllomorph(graph, mark.morphId);
+  if (mark.kind === 'overwritesTone') return assignTone(graph, mark.tokenId, mark.tone);
+  if (mark.kind === 'discontinuous') {
+    return assignDiscontinuousParts(graph, mark.tokenId, mark.leftMorphId, mark.rightMorphId);
+  }
   return assignSegmentProcess(graph, mark.tokenId, mark.kind);
 }
 

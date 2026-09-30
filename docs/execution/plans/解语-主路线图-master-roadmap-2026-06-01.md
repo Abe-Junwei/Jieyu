@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-30）**：标注页 **B4u–B4aa** 与 **B4ab**、词典 **B3an** 已落地。这一串没有下一刀。不排 **B7** / M2c / 依存共指 / R6 / R15。行动与验收见 [转写标注词典联动需求 §6](./转写标注词典联动需求-2026-09-29.md)。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / R6 / R15 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-30）**：标注页 **B4u–B4aa** 与 **B4ab**、词典 **B3an** 已落地。词菜单上的有限分析图标记（不连续两段、声调标签；替换/删除/异干沿用既有动作）已落地。这一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15。行动与验收见 [转写标注词典联动需求 §6](./转写标注词典联动需求-2026-09-29.md)。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / 任意图编辑 / 依存共指 / R6 / R15 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -368,6 +368,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-28 | **词典 DMLex JSON 下载**：`/lexicon` 把当前词条嵌进一份 `lexicographicResource` JSON 并下载。`jieyu` 不写入。对照 vendored schema。无新 flag。LIFT 投影仍在。 |
 | 2026-09-27 | **词典编辑基准改为 DMLex**：采用 OASIS DMLex 1.0 带跨语言模块的 JSON Schema（`docs/architecture/dmlex/dmlex.schema.json`）作为编辑对象。LIFT 改为导入导出投影。解语的语段引用和自由文本注释放在 schema 外。无存量词条，不新增 Dexie 版本，不加 flag。运行时代码尚未替换。ADR 0035；计划 `词典编辑改用DMLex基准-2026-09-27.md`。 |
+| 2026-09-30 | **M2c 有限标记**：词菜单把一词的首尾语素记成两段 `surfaceParts`（`discontinuousPartOf`），声调写入 `prosodicFeature.features.tone`。词形对不上就不编造跨度。替换、删除、异干仍是原有一键动作。导出仍降级。没有任意图布。下一刀仍不排 B7 / 依存共指 / R6 / R15。 |
 | 2026-09-30 | **B4aa / B3an**：句子导出按 id 留下整句、语素词类和媒体。义项引用现场读转写和译文，保存手写例证不再清掉引用。这一串结束。 |
 | 2026-09-30 | **B4z 删词改挂**：删除右词前把语素和链接挂到左词，并保留 senseId 与 confidence。只剩一个词时菜单写明将失去的条数。下一刀 **B4aa**。 |
 | 2026-09-30 | **B4y 同形建议**：空白词回车写入已确认注释。铺到其余同形只改空白词，不复制链接。下一刀 **B4z**。 |

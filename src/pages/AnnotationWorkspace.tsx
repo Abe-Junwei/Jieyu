@@ -215,6 +215,7 @@ export function AnnotationWorkspace() {
             {saveStatusText}
           </p>
           <AnnotationDocumentToolsSlot
+            textId={controller.textId}
             isEmpty={controller.isEmpty}
             unitCount={controller.unitCount}
             transcriptionHref={controller.transcriptionHref}

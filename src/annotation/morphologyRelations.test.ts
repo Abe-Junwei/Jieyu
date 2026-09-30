@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { exportUtteranceToFlexNote, exportUtteranceToLatex } from './analysisGraphExport';
 import {
   assignAllomorph,
+  assignDiscontinuousParts,
   assignIncorporation,
   assignReduplicates,
   assignRootPattern,
   assignSegmentProcess,
   assignSharedFeature,
   assignSuppletion,
+  assignTone,
   retainMorphologyRelations,
 } from './morphologyRelations';
 import { projectUtteranceAnalysisGraph } from './projectUtteranceAnalysisGraph';
@@ -174,5 +176,59 @@ describe('morphology relations', () => {
     const kept = retainMorphologyRelations(fresh, saved);
     expect(kept.relations.some((relation) => relation.type === 'reduplicates')).toBe(true);
     expect(kept.relations.some((relation) => relation.type === 'suppletes')).toBe(true);
+  });
+
+  it('stores two spans for a discontinuous morpheme and a tone label', () => {
+    const uttered = projectUtteranceAnalysisGraph({
+      id: 'utt-disc',
+      text: 'gelaufen',
+      tokens: [
+        {
+          id: 'tok-1',
+          form: 'gelaufen',
+          morphemes: [
+            { id: 'morph-ge', form: 'ge' },
+            { id: 'morph-lauf', form: 'lauf' },
+            { id: 'morph-en', form: 'en' },
+          ],
+        },
+      ],
+    });
+    const marked = assignDiscontinuousParts(uttered, 'tok-1', 'morph-ge', 'morph-en');
+    const disc = marked.nodes.find((node) => node.id === 'disc-tok-1');
+    expect(disc?.surfaceParts).toEqual([
+      { tokenId: 'tok-1', startOffset: 0, endOffset: 2 },
+      { tokenId: 'tok-1', startOffset: 6, endOffset: 8 },
+    ]);
+    expect(disc?.label).toBe('ge...en');
+    expect(marked.relations).toContainEqual(
+      expect.objectContaining({
+        type: 'discontinuousPartOf',
+        sourceId: 'disc-tok-1',
+        targetId: 'tok-1',
+      }),
+    );
+    const toned = assignTone(marked, 'tok-1', 'H');
+    expect(toned.nodes).toContainEqual(
+      expect.objectContaining({ type: 'prosodicFeature', label: 'H', features: { tone: 'H' } }),
+    );
+    const fresh = projectUtteranceAnalysisGraph({
+      id: 'utt-disc',
+      text: 'gelaufen',
+      tokens: [
+        {
+          id: 'tok-1',
+          form: 'gelaufen',
+          morphemes: [
+            { id: 'morph-ge', form: 'ge' },
+            { id: 'morph-lauf', form: 'lauf' },
+            { id: 'morph-en', form: 'en' },
+          ],
+        },
+      ],
+    });
+    const kept = retainMorphologyRelations(fresh, toned);
+    expect(kept.nodes.find((node) => node.id === 'disc-tok-1')?.surfaceParts).toHaveLength(2);
+    expect(kept.nodes.find((node) => node.type === 'prosodicFeature')?.label).toBe('H');
   });
 });

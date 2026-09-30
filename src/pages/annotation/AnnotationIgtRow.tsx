@@ -333,6 +333,7 @@ export function AnnotationIgtRowView({
   const navigate = useNavigate();
   const [activeCell, setActiveCell] = useState<AnnotationActiveCell | null>(null);
   const [languageDraft, setLanguageDraft] = useState<string | null>(null);
+  const [toneDraft, setToneDraft] = useState('');
   const [glossLanguageDraft, setGlossLanguageDraft] = useState('');
   const [menu, setMenu] = useState<
     | { kind: 'unit'; x: number; y: number }
@@ -666,6 +667,8 @@ export function AnnotationIgtRowView({
                       ...(onMarkRelation
                         ? { onMarkRelation: (mark) => onMarkRelation(row.id, mark) }
                         : {}),
+                      toneValue: toneDraft,
+                      onToneChange: setToneDraft,
                       pos: displayedAnnotationTokenFields(menuToken, drafts).pos,
                       storedPos: menuToken.pos,
                       ...(onApplyPosByForm

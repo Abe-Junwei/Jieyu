@@ -370,12 +370,45 @@
   box-sizing: border-box;
 }
 
+.annotation-side-pane-portaled-stack {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.app-side-pane-body-slot > .annotation-side-pane-portaled-stack {
+  margin-top: calc(var(--space-2, 8px) * -1);
+}
+
 .annotation-document-tools {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
   padding: 4px 2px 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.annotation-side-pane-portaled-stack .annotation-document-tools {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.annotation-document-tools-nav,
+.annotation-document-tools-sentence,
+.annotation-document-tools-checks,
+.annotation-document-tools-field {
+  width: 100%;
+  min-width: 0;
 }
 
 .annotation-document-tools-nav,
@@ -395,10 +428,23 @@
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
+.annotation-document-tools-field input,
+.annotation-document-tools-field select {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .annotation-document-tools-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.annotation-document-tools-row input {
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 
 .annotation-document-tools-check {

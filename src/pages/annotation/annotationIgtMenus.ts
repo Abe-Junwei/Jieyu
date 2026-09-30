@@ -237,6 +237,8 @@ export function buildAnnotationTokenMenuItems(input: {
   onLanguageBlur?: (value: string) => void;
   objectLanguageIds?: readonly string[];
   pos?: string;
+  toneValue?: string;
+  onToneChange?: (value: string) => void;
   storedPos?: string;
   onApplyPosByForm?: (pos: string) => void;
   onAddAlternative?: (pos: string) => void;
@@ -380,6 +382,8 @@ function tokenRelationItems(input: {
   suppletionLemma: string;
   canAllomorph: boolean;
   onMarkRelation?: (mark: AnnotationRelationMark) => void;
+  toneValue?: string;
+  onToneChange?: (value: string) => void;
 }): ContextMenuItem[] {
   const mark = input.onMarkRelation;
   if (!mark) return [];
@@ -438,7 +442,6 @@ function tokenRelationItems(input: {
     [
       ['substitutesSegment', 'workspace.annotation.markSubstitution'],
       ['deletesSegment', 'workspace.annotation.markDeletion'],
-      ['overwritesTone', 'workspace.annotation.markTone'],
     ] as const
   ).forEach(([kind, key]) => {
     items.push({
@@ -446,6 +449,36 @@ function tokenRelationItems(input: {
       label: t(input.locale, key),
       onClick: () => mark({ kind, tokenId: input.tokenId }),
     });
+  });
+  const first = input.morphs[0];
+  const last = input.morphs[input.morphs.length - 1];
+  if (first !== undefined && last !== undefined && first.id !== last.id) {
+    items.push({
+      testId: `annotation-igt-discontinuous-${input.tokenId}`,
+      label: `${t(input.locale, 'workspace.annotation.markDiscontinuous')} · ${first.form}…${last.form}`,
+      onClick: () =>
+        mark({
+          kind: 'discontinuous',
+          tokenId: input.tokenId,
+          leftMorphId: first.id,
+          rightMorphId: last.id,
+        }),
+    });
+  }
+  items.push({
+    label: t(input.locale, 'workspace.annotation.markTone'),
+    keepOpen: true,
+    searchField: {
+      value: input.toneValue ?? '',
+      placeholder: t(input.locale, 'workspace.annotation.toneLabel'),
+      testId: `annotation-igt-tone-${input.tokenId}`,
+      onChange: (value) => input.onToneChange?.(value),
+      onBlur: (value) => {
+        const tone = value.trim();
+        if (tone.length === 0) return;
+        mark({ kind: 'overwritesTone', tokenId: input.tokenId, tone });
+      },
+    },
   });
   return items;
 }

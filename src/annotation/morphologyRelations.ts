@@ -117,6 +117,105 @@ export function assignSuppletion(
   );
 }
 
+function locateForm(
+  label: string,
+  form: string,
+  from: number,
+): { startOffset: number; endOffset: number } | null {
+  const needle = form.trim();
+  if (needle.length === 0) return null;
+  const startOffset = label.indexOf(needle, from);
+  if (startOffset < 0) return null;
+  return { startOffset, endOffset: startOffset + needle.length };
+}
+
+/** Two existing morphemes of one word. Spans are stored; the label is only a display. */
+export function assignDiscontinuousParts(
+  graph: AnnotationAnalysisGraphFixture,
+  tokenId: string,
+  leftMorphId: string,
+  rightMorphId: string,
+): AnnotationAnalysisGraphFixture {
+  if (leftMorphId === rightMorphId) {
+    throw new Error('Discontinuous parts need two different morphemes.');
+  }
+  const token = graph.nodes.find((node) => node.id === tokenId && node.type === 'token');
+  const left = graph.nodes.find((node) => node.id === leftMorphId && node.type === 'morpheme');
+  const right = graph.nodes.find((node) => node.id === rightMorphId && node.type === 'morpheme');
+  if (token === undefined || left === undefined || right === undefined) {
+    throw new Error('Discontinuous parts need a token and two morphemes.');
+  }
+  const owned = new Set(
+    graph.relations
+      .filter((relation) => relation.type === 'hasPart' && relation.sourceId === tokenId)
+      .map((relation) => relation.targetId),
+  );
+  if (!owned.has(leftMorphId) || !owned.has(rightMorphId)) {
+    throw new Error('Both morphemes must belong to the same word.');
+  }
+  const leftSpan = locateForm(token.label, left.label, 0);
+  const rightSpan =
+    leftSpan === null ? null : locateForm(token.label, right.label, leftSpan.endOffset);
+  if (leftSpan === null || rightSpan === null || rightSpan.startOffset < leftSpan.endOffset) {
+    throw new Error('The two forms were not found as separate spans in the word.');
+  }
+  const nodeId = `disc-${tokenId}`;
+  if (graph.nodes.some((node) => node.id === nodeId)) return graph;
+  return withAdditions(
+    graph,
+    [
+      {
+        id: nodeId,
+        type: 'morpheme',
+        label: `${left.label}...${right.label}`,
+        surfaceParts: [
+          { tokenId, startOffset: leftSpan.startOffset, endOffset: leftSpan.endOffset },
+          { tokenId, startOffset: rightSpan.startOffset, endOffset: rightSpan.endOffset },
+        ],
+      },
+    ],
+    [{ type: 'discontinuousPartOf', sourceId: nodeId, targetId: tokenId }],
+    interchangeDiagnostics('Discontinuous parts stay as two spans, not one concatenated string.'),
+  );
+}
+
+/** Store a short prosodic label on the word. This is not a timed tier. */
+export function assignTone(
+  graph: AnnotationAnalysisGraphFixture,
+  tokenId: string,
+  toneLabel: string,
+): AnnotationAnalysisGraphFixture {
+  const token = graph.nodes.find((node) => node.id === tokenId && node.type === 'token');
+  const label = toneLabel.trim();
+  if (token === undefined || label.length === 0) {
+    throw new Error('Tone needs a token and a short label.');
+  }
+  const toneId = `tone-${tokenId}`;
+  const existing = graph.nodes.find((node) => node.id === toneId);
+  if (existing?.label === label) return graph;
+  if (existing) {
+    return {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === toneId ? { ...node, label, features: { tone: label } } : node,
+      ),
+    };
+  }
+  const processId = `proc-tone-${tokenId}`;
+  return withAdditions(
+    graph,
+    [
+      { id: toneId, type: 'prosodicFeature', label, features: { tone: label } },
+      { id: processId, type: 'process', label: 'toneOverwrite' },
+    ],
+    [
+      { type: 'overwritesTone', sourceId: tokenId, targetId: toneId },
+      { type: 'derivedByProcess', sourceId: tokenId, targetId: processId },
+    ],
+    interchangeDiagnostics('Tone is a label on the word, not a separate timed tier.'),
+  );
+}
+
 /** Record a non-linear process on a token without splitting its form. */
 export function assignSegmentProcess(
   graph: AnnotationAnalysisGraphFixture,
@@ -369,7 +468,39 @@ export function retainMorphologyRelations(
       continue;
     }
     if (!ids.has(relation.sourceId)) continue;
+    if (relation.type === 'overwritesTone') {
+      const feature = previous.nodes.find(
+        (node) => node.id === relation.targetId && node.type === 'prosodicFeature',
+      );
+      if (feature) {
+        graph = assignTone(graph, relation.sourceId, feature.label);
+        continue;
+      }
+    }
     graph = assignSegmentProcess(graph, relation.sourceId, relation.type);
+  }
+  for (const node of previous.nodes) {
+    if (!node.id.startsWith('disc-')) continue;
+    const tokenId = node.id.slice('disc-'.length);
+    const parts = node.surfaceParts ?? [];
+    const left = parts[0];
+    const right = parts[1];
+    if (left === undefined || right === undefined || !ids.has(tokenId)) continue;
+    const token = graph.nodes.find((item) => item.id === tokenId);
+    if (
+      token === undefined ||
+      right.endOffset === undefined ||
+      right.endOffset > token.label.length
+    ) {
+      continue;
+    }
+    if (graph.nodes.some((item) => item.id === node.id)) continue;
+    graph = withAdditions(
+      graph,
+      [node],
+      [{ type: 'discontinuousPartOf', sourceId: node.id, targetId: tokenId }],
+      [],
+    );
   }
   for (const relation of previous.relations) {
     if (relation.type !== 'realizesFeature') continue;

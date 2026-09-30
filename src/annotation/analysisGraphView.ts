@@ -31,6 +31,7 @@ export type AnalysisGraphLinkView = {
     | 'substitutesSegment'
     | 'deletesSegment'
     | 'overwritesTone'
+    | 'discontinuousPartOf'
     | 'hasAllomorph'
     | 'rootPattern'
     | 'incorporation';
@@ -111,6 +112,7 @@ export function readAnalysisGraphView(graph: AnnotationAnalysisGraphFixture): An
       relation.type !== 'substitutesSegment' &&
       relation.type !== 'deletesSegment' &&
       relation.type !== 'overwritesTone' &&
+      relation.type !== 'discontinuousPartOf' &&
       relation.type !== 'hasAllomorph'
     ) {
       continue;
