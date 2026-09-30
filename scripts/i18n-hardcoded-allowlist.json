@@ -2,6 +2,7 @@
   "version": 2,
   "entries": [
     { "pathPrefix": "src/utils/langMapping.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/utils/eafTierPick.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/utils/layerDisplayStyle.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/services/IntentRouter.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/ai/config/voiceIntentResolver.ts", "reason": "runtime-template-message" },

@@ -25,8 +25,13 @@ const ALLOWED_PATH_SEGMENTS = [
   // 互操作服务 | Interop services (EAF)
   '/src/services/EafService.ts',
   '/src/services/eaf/',
-  // 互操作 hooks | Interop hooks (import/export)
+  // 互操作 hooks | Interop hooks (import/export)。拆到 importExport/ 后仍属同一边界。
   '/src/hooks/useImportExport.ts',
+  '/src/hooks/importExport/',
+  // EAF 层名识别与对齐工具，从 EafService 拆出后仍是互操作数据，不是产品 tierId 扩散。
+  '/src/utils/eaf',
+  '/src/utils/interchangeTierRoles.ts',
+  '/src/components/EafTierRoleDialog.tsx',
 ];
 
 function walk(dir) {
