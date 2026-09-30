@@ -7,5 +7,10 @@ export async function acceptAnnotationGlossSuggestion(
 ): Promise<void> {
   const trimmed = gloss.trim();
   if (!trimmed) return;
-  await LinguisticService.units.updateTokenGloss(tokenId, trimmed, lang.trim() || 'default');
+  await LinguisticService.units.updateTokenGloss(
+    tokenId,
+    trimmed,
+    lang.trim() || 'default',
+    'confirmed',
+  );
 }

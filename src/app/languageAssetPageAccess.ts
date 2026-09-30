@@ -42,3 +42,32 @@ export {
   presentTokenLexemeLink,
   resolveUnitCitation,
 } from '../services/citationResolver';
+
+export {
+  addAnnotationAbbreviation,
+  buildLeipzigAbbreviationSeed,
+  listAnnotationAbbreviations,
+  readAnnotationAbbreviations,
+  removeAnnotationAbbreviation,
+  renameAnnotationAbbreviation,
+} from '../services/annotationAbbreviationStore';
+export type { AnnotationAbbreviation } from '../services/annotationAbbreviationStore';
+
+export {
+  addAnnotationPosCategory,
+  buildUdPosCategorySeed,
+  listAnnotationPosCategories,
+  readAnnotationPosCategories,
+  removeAnnotationPosCategory,
+  renameAnnotationPosCategory,
+} from '../services/annotationPosCategoryStore';
+export type { AnnotationPosCategory } from '../services/annotationPosCategoryStore';
+
+export {
+  loadCharacterVariantLines,
+  readCharacterVariantLines,
+  saveCharacterVariantLines,
+} from '../services/projectCharacterVariantStore';
+
+export { LinguisticStructuralProfileService } from '../services/LinguisticService.structuralProfiles';
+export type { StructuralRuleProfilePreview } from '../services/LinguisticService.structuralProfiles';

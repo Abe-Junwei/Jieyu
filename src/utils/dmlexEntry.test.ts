@@ -103,6 +103,45 @@ describe('applyLexiconEntryFields', () => {
     ]);
   });
 
+  it('keeps a corpus citation when the handwritten example is cleared', () => {
+    const existing = entryDoc({
+      id: 'lex-1',
+      headword: 'pine',
+      createdAt: now,
+      updatedAt: now,
+    });
+    existing.jieyu = {
+      occurrenceCitations: [
+        {
+          textId: 'text-1',
+          unitId: 'utt-1',
+          tokenId: 'tok-1',
+          lexemeId: 'lex-1',
+          senseId: 'sense-1',
+        },
+      ],
+    };
+    const applied = applyLexiconEntryFields(
+      existing,
+      {
+        ...emptyEntryFields(),
+        headword: 'pine',
+        senses: [
+          {
+            ...emptyEntryFields().senses[0]!,
+            id: 'sense-1',
+            translation: 'tree',
+            example: '',
+          },
+        ],
+      },
+      null,
+      now,
+    );
+    expect(applied.entry.entry.senses?.[0]?.examples ?? []).toEqual([]);
+    expect(applied.entry.jieyu?.occurrenceCitations?.[0]?.tokenId).toBe('tok-1');
+  });
+
   it('links two entries with a homograph relation', () => {
     const applied = applyLexiconEntryFields(
       entryDoc({ id: 'lex-bank-1', headword: 'bank', createdAt: now, updatedAt: now }),

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  annotationFreeTranslationLayerId,
   pickAnnotationLayerText,
   pickAnnotationTranslationText,
+  resolveAnnotationTranslationLayerId,
 } from './annotationTranslationText';
 
 describe('pickAnnotationTranslationText', () => {
@@ -57,5 +59,52 @@ describe('pickAnnotationTranslationText', () => {
       contents: [{ unitId: 'uid-1', layerId: 'tl-1', text: '你好' }],
     });
     expect(picked.size).toBe(0);
+  });
+});
+
+describe('resolveAnnotationTranslationLayerId', () => {
+  const layers = [{ id: 'lit' }, { id: 'ft' }, { id: 'ft2' }];
+
+  it('uses a translation layer from the URL and remembers it when it differs', () => {
+    expect(
+      resolveAnnotationTranslationLayerId({
+        layers,
+        storedId: 'ft',
+        urlLayerId: 'ft2',
+        literalLayerId: 'lit',
+      }),
+    ).toEqual({ id: 'ft2', persist: true });
+  });
+
+  it('keeps the stored layer and ignores a transcription layer id', () => {
+    expect(
+      resolveAnnotationTranslationLayerId({
+        layers,
+        storedId: 'ft2',
+        urlLayerId: 'tx-1',
+        literalLayerId: 'lit',
+      }),
+    ).toEqual({ id: 'ft2', persist: false });
+  });
+
+  it('does not treat the literal layer as the free translation', () => {
+    expect(
+      resolveAnnotationTranslationLayerId({
+        layers,
+        storedId: '',
+        urlLayerId: 'lit',
+        literalLayerId: 'lit',
+      }),
+    ).toEqual({ id: 'ft', persist: false });
+  });
+});
+
+describe('annotationFreeTranslationLayerId', () => {
+  it('skips the literal layer and keeps an explicit free-translation choice', () => {
+    expect(annotationFreeTranslationLayerId([{ id: 'lit' }, { id: 'ft' }], '', 'lit')).toBe('ft');
+    expect(
+      annotationFreeTranslationLayerId([{ id: 'lit' }, { id: 'ft' }, { id: 'ft2' }], 'ft2', 'lit'),
+    ).toBe('ft2');
+    expect(annotationFreeTranslationLayerId([{ id: 'lit' }], 'lit', 'lit')).toBe('');
   });
 });

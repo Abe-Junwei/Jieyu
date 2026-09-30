@@ -62,6 +62,7 @@ interface SidePaneSidebarOverviewProps {
   speakers?: SpeakerDocType[];
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
+  onSegmentContextMenu?: (unit: TimelineUnit, event: React.MouseEvent, startTime: number) => void;
   onFocusLayer: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, layerId: string) => void;
   onMouseDown: (e: React.MouseEvent, layer: LayerDocType) => void;
@@ -89,6 +90,7 @@ export function SidePaneSidebarOverview({
   speakers,
   getUnitTextForLayer,
   onSelectTimelineUnit,
+  onSegmentContextMenu,
   onFocusLayer,
   onContextMenu,
   onMouseDown,
@@ -296,6 +298,7 @@ export function SidePaneSidebarOverview({
             {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
             {...(glossQuery.data ? { glossByUnitId: glossQuery.data } : {})}
             {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
+            {...(onSegmentContextMenu !== undefined ? { onSegmentContextMenu } : {})}
           />
         </>
       ) : (

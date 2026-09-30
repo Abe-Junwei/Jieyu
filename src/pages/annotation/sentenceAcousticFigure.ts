@@ -1,4 +1,4 @@
-import { computeAcousticAnalysis } from '../../services/acoustic/acousticAnalysisCore';
+import { computeAcousticAnalysis } from '../../app/transcriptionServicesPageAccess';
 import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG } from '../../utils/acousticOverlayTypes';
 
 export const SENTENCE_ACOUSTIC_COLUMNS = 96;

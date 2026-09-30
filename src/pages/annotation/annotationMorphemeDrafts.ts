@@ -12,6 +12,7 @@ export type AnnotationIgtMorpheme = {
   form: string;
   gloss: string;
   glossLang: string;
+  pos?: string;
   morphemeIndex: number;
   surfaceParts?: AnnotationSurfaceSpan[];
 };

@@ -6,6 +6,7 @@
  */
 
 import type { StructuralRuleProfile } from '../annotation/structuralRuleProfile';
+import type { ProjectTextMetadata } from '../types/projectTextMetadata';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import type { DmlexEntry, DmlexLexicographicResource, JieyuLexemeExtras } from './dmlexTypes';
 
@@ -75,7 +76,8 @@ export interface ProvenanceEnvelope {
 export interface TextDocType {
   id: string;
   title: MultiLangString;
-  metadata?: Record<string, unknown>;
+  /** Project settings. Known keys: `ProjectTextMetadata`. */
+  metadata?: ProjectTextMetadata;
   languageCode?: string;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
@@ -695,6 +697,7 @@ export interface GrammarDocDocType {
   updatedAt: string;
 }
 
+/** Global catalog row. A project's gloss abbreviations live on `texts.metadata.annotationAbbreviations`. */
 export interface AbbreviationDocType {
   id: string;
   abbreviation: string;

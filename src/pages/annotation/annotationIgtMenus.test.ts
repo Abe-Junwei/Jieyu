@@ -67,6 +67,20 @@ describe('buildAnnotationLineMenuItems', () => {
     expect(ids).toContain('annotation-igt-add-gloss-language-u1');
   });
 
+  it('offers a real source or translation layer for a project language', () => {
+    const ids = buildAnnotationLineMenuItems({
+      locale: 'zh-CN',
+      unitId: 'u1',
+      lineId: 'source',
+      lines,
+      objectLanguageIds: ['mvm'],
+      workingLanguageIds: ['eng'],
+      onAdd: () => undefined,
+    }).flatMap((item) => [item.testId, ...(item.children ?? []).map((child) => child.testId)]);
+    expect(ids).toContain('annotation-igt-add-layer-source-mvm-u1');
+    expect(ids).toContain('annotation-igt-add-layer-translation-eng-u1');
+  });
+
   it('offers another translation layer while one translation line is already shown', () => {
     expect(
       menuIds('translation', [{ key: 'translation:trl-en', label: '译文 · en' }]).filter(

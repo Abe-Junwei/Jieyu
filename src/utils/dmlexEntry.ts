@@ -404,11 +404,15 @@ export function applyLexiconEntryFields(
     if (row.note) notes.push(row.note);
   }
   const exampleRefs = built.flatMap((row) => (row.exampleRef ? [row.exampleRef] : []));
+  const occurrenceCitations = existing?.jieyu?.occurrenceCitations ?? [];
   const jieyu: JieyuLexemeExtras | undefined =
-    notes.length > 0 || exampleRefs.length > 0
+    notes.length > 0 || exampleRefs.length > 0 || occurrenceCitations.length > 0
       ? {
           ...(notes.length > 0 ? { notes } : {}),
           ...(exampleRefs.length > 0 ? { exampleRefs } : {}),
+          ...(occurrenceCitations.length > 0
+            ? { occurrenceCitations: [...occurrenceCitations] }
+            : {}),
         }
       : undefined;
   const stored: LexemeEntryDoc = {

@@ -98,7 +98,11 @@ export function useTranscriptionSnapshotLoader({
       setLayers(layerRows);
       setTranslations(translationRows);
       setMediaItems(mediaRows);
-      setSpeakers(speakerRows);
+      setSpeakers(
+        resolvedTextId.length > 0
+          ? await LinguisticService.speakers.listForProject(resolvedTextId)
+          : speakerRows,
+      );
       setLayerLinks(linkRows);
 
       const scopedUnits =

@@ -46,6 +46,7 @@ export const LinguisticService = {
   },
   speakers: {
     list: linguisticServiceSpeakerOps.getSpeakers,
+    listForProject: linguisticServiceSpeakerOps.listSpeakersForProject,
     getReferenceStats: linguisticServiceSpeakerOps.getSpeakerReferenceStats,
     create: linguisticServiceSpeakerOps.createSpeaker,
     patchImportAttrs: linguisticServiceSpeakerOps.patchSpeakerImportAttrs,

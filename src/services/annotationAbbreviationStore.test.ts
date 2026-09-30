@@ -1,7 +1,12 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { LeipzigValidator } from '../ai/LeipzigValidator';
 import { db } from '../db';
-import { annotationGlossHasLeipzigIssue } from '../pages/annotation/annotationLeipzigGloss';
+
+function glossInvalid(gloss: string, allowed: ReadonlySet<string>): boolean {
+  if (gloss.trim().length === 0) return false;
+  return !new LeipzigValidator(allowed, { exclusive: true }).validateGloss(gloss).valid;
+}
 import {
   addAnnotationAbbreviation,
   buildLeipzigAbbreviationSeed,
@@ -46,8 +51,8 @@ describe('annotation abbreviation store', () => {
       readAnnotationAbbreviations(stored?.metadata)?.some((row) => row.abbreviation === 'SG'),
     ).toBe(false);
     const allowed = new Set(after.map((row) => row.abbreviation));
-    expect(annotationGlossHasLeipzigIssue('3.SG', allowed)).toBe(true);
-    expect(annotationGlossHasLeipzigIssue('MYA', allowed)).toBe(false);
-    expect(annotationGlossHasLeipzigIssue('dog', allowed)).toBe(false);
+    expect(glossInvalid('3.SG', allowed)).toBe(true);
+    expect(glossInvalid('MYA', allowed)).toBe(false);
+    expect(glossInvalid('dog', allowed)).toBe(false);
   });
 });

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnnotationDocumentToolsSlot } from './annotation/AnnotationDocumentTools';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -17,20 +16,18 @@ import { useAnnotationRelationController } from './useAnnotationRelationControll
 import { useAnnotationAlternativeAnalysisController } from './useAnnotationAlternativeAnalysisController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 import { useAnnotationSentenceAcoustic } from './useAnnotationSentenceAcoustic';
-import { glossSuggestionForToken } from './annotation/annotationGlossSuggestion';
+import {
+  buildAnnotationGlossSuggestions,
+  collectBlankSameFormGlossWrites,
+} from './annotation/annotationGlossSuggestion';
+import { saveAnnotationGlossByForm } from './annotation/saveAnnotationGlossByForm';
+import { deleteAnnotationToken } from './annotation/deleteAnnotationToken';
 import { exportFocusedAnnotationSentence } from './annotation/annotationSentenceExport';
 import { downloadTextFile } from '../annotation/analysisGraphExport';
-import { filterAnnotationUnits } from './annotation/annotationRowSearch';
-import { parseCharacterVariantLines } from './annotation/annotationCharacterVariants';
-import {
-  loadCharacterVariantLines,
-  saveCharacterVariantLines,
-} from '../services/projectCharacterVariantStore';
-import {
-  annotationExtraLayerLines,
-  EMPTY_ANNOTATION_DOCUMENT_LAYOUT,
-  type AnnotationDocumentLayout,
-} from './annotation/annotationIgtLines';
+import { searchVisibleAnnotationRows } from './annotation/annotationRowSearch';
+import { annotationExtraLayerLines } from './annotation/annotationIgtLines';
+import { useAnnotationProjectSettings } from './useAnnotationProjectSettings';
+import { commitAnnotationDocumentLayout } from './annotation/annotationDocumentLayoutStore';
 import { annotationLanguageLineLabel } from './annotation/annotationIgtMenus';
 
 export function AnnotationWorkspace() {
@@ -41,28 +38,17 @@ export function AnnotationWorkspace() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'surface' | 'word' | 'morpheme'>('surface');
   const [excludeUngrammatical, setExcludeUngrammatical] = useState(false);
-  const [variantText, setVariantText] = useState('');
-  const [layout, setLayout] = useState<AnnotationDocumentLayout>(EMPTY_ANNOTATION_DOCUMENT_LAYOUT);
   const controller = useAnnotationWorkspaceController();
-  const queryClient = useQueryClient();
-  const variantQuery = useQuery({
-    queryKey: ['project-character-variants', controller.textId],
-    enabled: controller.textId.length > 0,
-    queryFn: () => loadCharacterVariantLines(controller.textId),
-  });
-  useEffect(() => {
-    if (variantQuery.data !== undefined) setVariantText(variantQuery.data);
-  }, [variantQuery.data]);
-  const variantGroups = useMemo(() => parseCharacterVariantLines(variantText), [variantText]);
-  const glossSuggestions = useMemo(() => {
-    const tokens = controller.rows.flatMap((row) => row.tokens);
-    const suggestions: Record<string, string> = {};
-    for (const token of tokens) {
-      const suggestion = glossSuggestionForToken(tokens, token.id, variantGroups);
-      if (suggestion) suggestions[token.id] = suggestion;
-    }
-    return suggestions;
-  }, [controller.rows, variantGroups]);
+  const {
+    layout,
+    setLayout,
+    layoutReady,
+    variantText,
+    setVariantText,
+    variantGroups,
+    onVariantBlur,
+    invalidateLayout,
+  } = useAnnotationProjectSettings(controller.textId);
   const focusedRow = controller.rows.find((row) => row.id === controller.focusedUnitId);
   const sentenceAcoustic = useAnnotationSentenceAcoustic({
     textId: controller.textId,
@@ -76,34 +62,29 @@ export function AnnotationWorkspace() {
     rows: controller.rows,
     reloadWorkspace: controller.reload,
   });
-  const visibleRows = useMemo(() => {
-    const wordFormsByUnit = new Map(
-      controller.rows.map((row) => [row.id, row.tokens.map((token) => token.form)] as const),
-    );
-    const morphemeFormsByUnit = new Map(
-      controller.rows.map((row) => [
-        row.id,
-        row.tokens.flatMap((token) =>
-          (morphology.morphsByTokenId[token.id] ?? []).map((morph) => morph.form),
-        ),
-      ]),
-    );
-    return filterAnnotationUnits(controller.rows, {
-      query: searchQuery,
-      mode: searchMode,
+  const glossSuggestions = useMemo(
+    () =>
+      buildAnnotationGlossSuggestions(controller.rows, morphology.linksByTokenId, variantGroups),
+    [controller.rows, morphology.linksByTokenId, variantGroups],
+  );
+  const visibleRows = useMemo(
+    () =>
+      searchVisibleAnnotationRows(controller.rows, {
+        query: searchQuery,
+        mode: searchMode,
+        excludeUngrammatical,
+        variantGroups,
+        morphsByTokenId: morphology.morphsByTokenId,
+      }),
+    [
+      controller.rows,
       excludeUngrammatical,
-      wordFormsByUnit,
-      morphemeFormsByUnit,
+      morphology.morphsByTokenId,
+      searchMode,
+      searchQuery,
       variantGroups,
-    });
-  }, [
-    controller.rows,
-    excludeUngrammatical,
-    morphology.morphsByTokenId,
-    searchMode,
-    searchQuery,
-    variantGroups,
-  ]);
+    ],
+  );
   const playback = useAnnotationSegmentPlaybackController(controller.textId);
   const unitMeta = useAnnotationUnitMetaController({
     textId: controller.textId,
@@ -250,14 +231,7 @@ export function AnnotationWorkspace() {
             onSearchMode={setSearchMode}
             onExcludeUngrammatical={setExcludeUngrammatical}
             onVariantText={setVariantText}
-            onVariantBlur={() => {
-              if (controller.textId.length === 0) return;
-              void saveCharacterVariantLines(controller.textId, variantText).then(() =>
-                queryClient.invalidateQueries({
-                  queryKey: ['project-character-variants', controller.textId],
-                }),
-              );
-            }}
+            onVariantBlur={onVariantBlur}
             onToggleWave={() => setShowWave((current) => !current)}
             onToggleSpectrum={() => setShowSpectrum((current) => !current)}
             onTogglePitch={() => setShowPitch((current) => !current)}
@@ -288,6 +262,15 @@ export function AnnotationWorkspace() {
                             token.id,
                             morphology.linksByTokenId[token.id]?.senseId,
                           ]),
+                        ),
+                        morphemes: focusedRow.tokens.flatMap((token) =>
+                          (morphology.morphsByTokenId[token.id] ?? []).map((morph) => ({
+                            id: morph.id,
+                            tokenId: morph.tokenId,
+                            form: morph.form,
+                            gloss: morph.gloss,
+                            pos: morph.pos ?? '',
+                          })),
                         ),
                       });
                       downloadTextFile(
@@ -324,6 +307,43 @@ export function AnnotationWorkspace() {
                 textLanguageId={controller.languageId}
                 glossSuggestions={glossSuggestions}
                 onAcceptGlossSuggestion={controller.onAcceptGlossSuggestion}
+                onApplyGlossByForm={(_unitId, tokenId, gloss) => {
+                  const tokens = controller.rows.flatMap((row) =>
+                    row.tokens.map((token) => ({
+                      id: token.id,
+                      unitId: row.id,
+                      form: token.form,
+                      gloss: token.gloss,
+                      pos: token.pos,
+                      glossLang: token.glossLang,
+                      hasLink: morphology.linksByTokenId[token.id] !== undefined,
+                      morphForms: (morphology.morphsByTokenId[token.id] ?? []).map(
+                        (morph) => morph.form,
+                      ),
+                      ...(token.reviewStatus ? { reviewStatus: token.reviewStatus } : {}),
+                    })),
+                  );
+                  const dirtyTokenIds = new Set(
+                    tokens
+                      .filter((token) => {
+                        const draft = controller.drafts[token.id];
+                        if (!draft) return false;
+                        return (
+                          draft.gloss.trim() !== token.gloss.trim() ||
+                          draft.pos.trim() !== token.pos.trim()
+                        );
+                      })
+                      .map((token) => token.id),
+                  );
+                  const writes = collectBlankSameFormGlossWrites({
+                    tokens,
+                    sourceTokenId: tokenId,
+                    gloss,
+                    groups: variantGroups,
+                    dirtyTokenIds,
+                  });
+                  void saveAnnotationGlossByForm(writes).then(() => controller.reload());
+                }}
                 onCiteOccurrence={controller.onCiteOccurrence}
                 onSaveTokenLanguage={controller.onSaveTokenLanguage}
                 inputFocused={controller.keyboardMode === 'inputFocused'}
@@ -341,7 +361,29 @@ export function AnnotationWorkspace() {
                 onFocusInput={controller.onFocusInput}
                 onTokenDraftChange={controller.onTokenDraftChange}
                 layout={layout}
-                onLayoutChange={setLayout}
+                literalText={controller.textByLayer[layout.literalLayerId]?.[row.id] ?? ''}
+                onCommitLiteral={(unitId, text) => {
+                  if (layout.literalLayerId.length === 0) return;
+                  controller.onCommitTranslation(unitId, layout.literalLayerId, text);
+                }}
+                onLayoutChange={(next) => {
+                  if (!layoutReady || controller.textId.length === 0) return;
+                  void commitAnnotationDocumentLayout({
+                    textId: controller.textId,
+                    next,
+                    workingLanguageIds: controller.projectLanguages.workingLanguageIds,
+                  }).then((resolved) => {
+                    if (resolved === null) return;
+                    setLayout(resolved);
+                    void invalidateLayout();
+                    if (
+                      resolved.literalLayerId !== layout.literalLayerId ||
+                      resolved.languageKeys.join('\n') !== layout.languageKeys.join('\n')
+                    ) {
+                      void controller.reload();
+                    }
+                  });
+                }}
                 objectLanguageIds={controller.projectLanguages.objectLanguageIds}
                 workingLanguageIds={controller.projectLanguages.workingLanguageIds}
                 {...(controller.glossAbbreviations
@@ -389,6 +431,11 @@ export function AnnotationWorkspace() {
                 mweSelectedIds={mwe.selectedByUnit[row.id] ?? []}
                 mweError={row.id === controller.focusedUnitId ? mwe.error : ''}
                 onToggleMweToken={mwe.toggle}
+                onDeleteToken={(unitId, tokenId, confirmLoss) => {
+                  void deleteAnnotationToken({ unitId, tokenId, confirmLoss }).then(() =>
+                    controller.reload(),
+                  );
+                }}
                 onApplyPosByForm={(unitId, tokenId, pos) => {
                   const target = controller.rows.find((item) => item.id === unitId);
                   if (

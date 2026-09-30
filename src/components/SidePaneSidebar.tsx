@@ -65,6 +65,7 @@ interface SidePaneSidebarProps {
   collaborationCloudPanelProps?: React.ComponentProps<typeof CollaborationCloudPanel>;
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
+  onSegmentContextMenu?: (unit: TimelineUnit, event: React.MouseEvent, startTime: number) => void;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   /** Transcription workspace: horizontal (multi-track) vs vertical (paired columns) layout. */
   workspaceTimelineLayout?: {
@@ -100,6 +101,7 @@ export function SidePaneSidebar({
   collaborationCloudPanelProps,
   getUnitTextForLayer,
   onSelectTimelineUnit,
+  onSegmentContextMenu,
   onReorderLayers,
   workspaceTimelineLayout,
 }: SidePaneSidebarProps) {
@@ -315,6 +317,7 @@ export function SidePaneSidebar({
         {...(speakers !== undefined ? { speakers } : {})}
         {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
         {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
+        {...(onSegmentContextMenu !== undefined ? { onSegmentContextMenu } : {})}
         onFocusLayer={onFocusLayer}
         onContextMenu={handleLayerContextMenu}
         onMouseDown={handleDragStart}
@@ -342,6 +345,7 @@ export function SidePaneSidebar({
       speakers,
       getUnitTextForLayer,
       onSelectTimelineUnit,
+      onSegmentContextMenu,
       onFocusLayer,
       handleLayerContextMenu,
       handleDragStart,

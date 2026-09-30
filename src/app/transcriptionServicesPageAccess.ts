@@ -21,3 +21,10 @@ export { LayerUnitService } from '../services/LayerUnitService';
 export { snapToZeroCrossing } from '../services/AudioAnalysisService';
 export { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 export { saveTierDefinition } from '../services/LinguisticService.tiers';
+export { createLayerLink } from '../services/LayerIdBridgeService';
+export {
+  canCreateLayer,
+  getLayerCreateGuard,
+  listIndependentBoundaryTranscriptionLayers,
+} from '../services/LayerConstraintService';
+export { computeAcousticAnalysis } from '../services/acoustic/acousticAnalysisCore';

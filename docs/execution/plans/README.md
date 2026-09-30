@@ -3,7 +3,7 @@ title: execution/plans 文档索引（自动生成）
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-09-29
+last_reviewed: 2026-09-30
 source_of_truth: execution-plan-index
 ---
 
@@ -16,9 +16,9 @@ source_of_truth: execution-plan-index
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-09-30 |
+| active | [转写、标注、词典联动需求](./转写标注词典联动需求-2026-09-29.md) | 2026-09-30 |
 | active | [标注页与词典页开发路线图（重构版）](./标注页与词典页开发路线图-2026-04-25.md) | 2026-09-29 |
-| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-09-29 |
-| active | [转写、标注、词典联动需求](./转写标注词典联动需求-2026-09-29.md) | 2026-09-29 |
 | active | [EAF 导入对齐改进](./EAF导入对齐改进-2026-09-28.md) | 2026-09-28 |
 | active | [EAF 默认选层](./EAF默认选层-2026-09-28.md) | 2026-09-28 |
 | active | [FLEx 与 ELAN 导入字段映射](./FLEx与ELAN导入字段映射-2026-09-28.md) | 2026-09-28 |

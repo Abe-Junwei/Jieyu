@@ -1,15 +1,18 @@
-import type { DmlexRelation, DmlexSense, JieyuLexemeExtras } from '../../db/dmlexTypes';
+import type { DmlexRelation, DmlexSense, JieyuLexemeExtras } from '../../app/jieyuDbPageAccess';
 import { t, useLocale } from '../../i18n';
 import { senseTreeDepth } from '../../utils/dmlexEntry';
+import { LexiconSenseCitations } from './LexiconSenseCitations';
 
 export function LexiconSenseList({
   senses,
   extras,
   relations,
+  onDeleteCitation,
 }: {
   senses: readonly DmlexSense[];
   extras?: JieyuLexemeExtras;
   relations?: readonly DmlexRelation[];
+  onDeleteCitation?: (tokenId: string) => void;
 }) {
   const locale = useLocale();
   const notSet = t(locale, 'workspace.lexicon.notSet');
@@ -44,6 +47,13 @@ export function LexiconSenseList({
               </p>
             ) : null}
             {note ? <p data-testid={`lexicon-workspace-sense-${index}-note`}>{note}</p> : null}
+            {onDeleteCitation ? (
+              <LexiconSenseCitations
+                senseId={id}
+                citations={extras?.occurrenceCitations ?? []}
+                onDelete={onDeleteCitation}
+              />
+            ) : null}
           </li>
         );
       })}

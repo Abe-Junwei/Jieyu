@@ -943,6 +943,45 @@ describe('EAF interchange alignment', () => {
     expect(imported.units[0]?.tokens?.[0]?.gloss).toEqual({ cmn: 'greet' });
   });
 
+  it('keeps two gloss languages on the same word', () => {
+    const imported = importFromEaf(
+      base(`
+        <TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="words" LINGUISTIC_TYPE_REF="word-lt" PARENT_REF="utt">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1">
+              <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gloss-cmn" LINGUISTIC_TYPE_REF="gloss-lt" PARENT_REF="words" LANG_REF="cmn">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="w1">
+              <ANNOTATION_VALUE>问候</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gloss-eng" LINGUISTIC_TYPE_REF="gloss-lt" PARENT_REF="words" LANG_REF="eng">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="g2" ANNOTATION_REF="w1">
+              <ANNOTATION_VALUE>greet</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="word-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="gloss-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />
+      `),
+    );
+    expect(imported.units[0]?.tokens?.[0]?.gloss).toEqual({ cmn: '问候', eng: 'greet' });
+  });
+
   it('honors transcription, exclude, and controlled-vocabulary roles', () => {
     const xml = base(`
       <TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">

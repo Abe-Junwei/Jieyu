@@ -52,6 +52,7 @@ type Props = {
   textLanguageId?: string;
   glossSuggestions?: Readonly<Record<string, string>>;
   onAcceptGlossSuggestion?: (unitId: string, tokenId: string, gloss: string, lang: string) => void;
+  onApplyGlossByForm?: (unitId: string, tokenId: string, gloss: string) => void;
   onSaveTokenLanguage?: (unitId: string, tokenId: string, languageId: string) => void;
   onCiteOccurrence?: (unitId: string, tokenId: string) => void;
   acousticLayers: {
@@ -84,6 +85,8 @@ type Props = {
   ) => void;
   onCommitSurface?: (unitId: string, text: string) => void;
   onCommitTranslation?: (unitId: string, text: string) => void;
+  literalText?: string;
+  onCommitLiteral?: (unitId: string, text: string) => void;
   onCommitTokenForm?: (unitId: string, tokenId: string, form: string) => void;
   mweSelectedIds?: readonly string[];
   mweError?: '' | 'dirty' | 'contiguous' | 'failed';
@@ -91,6 +94,7 @@ type Props = {
   onWriteFormsToSurface?: (unitId: string) => void;
   onAddAlternative?: (unitId: string, tokenId: string, pos: string) => void;
   onApplyPosByForm?: (unitId: string, tokenId: string, pos: string) => void;
+  onDeleteToken?: (unitId: string, tokenId: string, confirmLoss: boolean) => void;
   onMarkRelation?: (unitId: string, mark: AnnotationRelationMark) => void;
   onSelectAlternative?: (unitId: string, relationId: string) => void;
   relationError?: '' | 'dirty' | 'failed';
@@ -290,6 +294,7 @@ export function AnnotationIgtRowView({
   textLanguageId = '',
   glossSuggestions,
   onAcceptGlossSuggestion,
+  onApplyGlossByForm,
   onSaveTokenLanguage,
   onCiteOccurrence,
   acousticLayers,
@@ -308,6 +313,8 @@ export function AnnotationIgtRowView({
   onCommitGlossLanguage,
   onCommitSurface,
   onCommitTranslation,
+  literalText = '',
+  onCommitLiteral,
   onCommitTokenForm,
   mweSelectedIds,
   mweError = '',
@@ -320,10 +327,10 @@ export function AnnotationIgtRowView({
   posError = '',
   onAddAlternative,
   onApplyPosByForm,
+  onDeleteToken,
 }: Props) {
   const locale = useLocale();
   const navigate = useNavigate();
-  const [literalText, setLiteralText] = useState('');
   const [activeCell, setActiveCell] = useState<AnnotationActiveCell | null>(null);
   const [languageDraft, setLanguageDraft] = useState<string | null>(null);
   const [glossLanguageDraft, setGlossLanguageDraft] = useState('');
@@ -475,6 +482,9 @@ export function AnnotationIgtRowView({
         {...(onCommitTranslation
           ? { onCommitTranslation: (text: string) => onCommitTranslation(row.id, text) }
           : {})}
+        {...(onCommitLiteral
+          ? { onCommitLiteral: (text: string) => onCommitLiteral(row.id, text) }
+          : {})}
         {...(onCommitLanguageLine
           ? {
               onCommitLanguageLine: (key: string, text: string) =>
@@ -487,7 +497,6 @@ export function AnnotationIgtRowView({
                 onCommitGlossLanguage(row.id, tokenId, languageId, text),
             }
           : {})}
-        onCommitLiteral={setLiteralText}
         lineTexts={{ ...lineTexts, literal: literalText }}
         lineLabels={lineLabels}
         onReorderLine={moveLine}
@@ -505,6 +514,7 @@ export function AnnotationIgtRowView({
         glossLineLanguage={layout.languageByLine.gloss ?? ''}
         {...(glossSuggestions ? { glossSuggestions } : {})}
         {...(onAcceptGlossSuggestion ? { onAcceptGlossSuggestion } : {})}
+        {...(onApplyGlossByForm ? { onApplyGlossByForm } : {})}
       />
       {focused && mweError.length > 0 ? (
         <p className="annotation-igt-label" data-testid={`annotation-igt-mwe-error-${row.id}`}>
@@ -598,6 +608,7 @@ export function AnnotationIgtRowView({
                     lines,
                     languageLines,
                     workingLanguageIds,
+                    objectLanguageIds,
                     glossLanguageDraft,
                     onGlossLanguageDraft: setGlossLanguageDraft,
                     languageByLine: layout.languageByLine,
@@ -623,6 +634,14 @@ export function AnnotationIgtRowView({
                       canAllomorph: suppletionLemma.length > 0,
                       onSplit: () => morphology.onSplitToken(row.id, menuToken.id),
                       onMerge: () => morphology.onMergeToken(row.id, menuToken.id),
+                      ...(onDeleteToken
+                        ? {
+                            tokenIdsInOrder: row.tokens.map((token) => token.id),
+                            linkCount: menuLink ? 1 : 0,
+                            onDelete: (confirmLoss: boolean) =>
+                              onDeleteToken(row.id, menuToken.id, confirmLoss),
+                          }
+                        : {}),
                       onSeed: () =>
                         morphology.onSeedMorphemes(row.id, menuToken.id, menuToken.form),
                       onLink: () => morphology.onLinkLexeme(menuToken.id),

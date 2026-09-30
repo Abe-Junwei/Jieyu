@@ -176,6 +176,10 @@ export type AnnotationDocumentLayout = {
   languageKeys: string[];
   keyOrder: string[] | null;
   languageByLine: Record<string, string>;
+  /** Translation layer that stores sentence-level literal text. Empty until the line is added. */
+  literalLayerId: string;
+  /** Free-translation layer shown on the sentence translation line. Empty uses the first free layer. */
+  translationLayerId: string;
 };
 
 export const EMPTY_ANNOTATION_DOCUMENT_LAYOUT: AnnotationDocumentLayout = {
@@ -184,6 +188,8 @@ export const EMPTY_ANNOTATION_DOCUMENT_LAYOUT: AnnotationDocumentLayout = {
   languageKeys: [],
   keyOrder: null,
   languageByLine: {},
+  literalLayerId: '',
+  translationLayerId: '',
 };
 
 export function addAnnotationDocumentLine(

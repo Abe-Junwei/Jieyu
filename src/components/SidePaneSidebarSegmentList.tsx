@@ -3,7 +3,14 @@
  */
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { liveQuery } from 'dexie';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import type {
   LayerDocType,
   LayerLinkDocType,
@@ -63,6 +70,7 @@ interface SidePaneSidebarSegmentListProps {
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   glossByUnitId?: Readonly<Record<string, string>>;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
+  onSegmentContextMenu?: (unit: TimelineUnit, event: ReactMouseEvent, startTime: number) => void;
   showReviewPresets?: boolean;
 }
 
@@ -127,6 +135,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     getUnitTextForLayer,
     glossByUnitId,
     onSelectTimelineUnit,
+    onSegmentContextMenu,
     showReviewPresets = true,
   } = props;
 
@@ -1439,6 +1448,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                       setReviewCursor(index);
                       onSelectTimelineUnit?.(item.unit);
                     }}
+                    onContextMenu={(event) => {
+                      if (!onSegmentContextMenu) return;
+                      event.preventDefault();
+                      onSegmentContextMenu(item.unit, event, item.startTime);
+                    }}
                   >
                     <span className="app-side-pane-segment-list-item-time">
                       {messages.segmentListTimeRange(
@@ -1522,6 +1536,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                   onClick={() => {
                     setReviewCursor(index);
                     onSelectTimelineUnit?.(item.unit);
+                  }}
+                  onContextMenu={(event) => {
+                    if (!onSegmentContextMenu) return;
+                    event.preventDefault();
+                    onSegmentContextMenu(item.unit, event, item.startTime);
                   }}
                 >
                   <span className="app-side-pane-segment-list-item-time">

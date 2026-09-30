@@ -1,6 +1,6 @@
 import { getDb, withTransaction } from '../../app/jieyuDbPageAccess';
 import { LinguisticService, presentTokenLexemeLink } from '../../app/languageAssetPageAccess';
-import { isLexemeEntry } from '../../db/lexemeNestedIds';
+import { isLexemeEntry } from '../../app/jieyuDbPageAccess';
 import type {
   LexemeDocType,
   LexemeEntryDoc,
@@ -50,6 +50,7 @@ export type AnnotationTokenLexemeLinkView = {
   lemma: string;
   senseId?: string;
   senseGloss?: string;
+  linkReviewStatus?: 'draft' | 'suggested' | 'confirmed' | 'rejected';
   entryPartsOfSpeech?: string[];
   brokenCode?: 'CITATION_LEXEME_NOT_FOUND';
 };

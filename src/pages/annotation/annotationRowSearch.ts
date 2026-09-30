@@ -32,3 +32,41 @@ export function filterAnnotationUnits<
     return (forms ?? []).some((form) => comparableForm(form, groups).includes(query));
   });
 }
+
+export function searchVisibleAnnotationRows<
+  T extends {
+    id: string;
+    surface: string;
+    ungrammatical?: boolean;
+    tokens: readonly { id: string; form: string }[];
+  },
+>(
+  rows: readonly T[],
+  input: {
+    query: string;
+    mode: AnnotationSearchMode;
+    excludeUngrammatical: boolean;
+    variantGroups?: readonly CharacterVariantGroup[];
+    morphsByTokenId: Readonly<Record<string, readonly { form: string }[] | undefined>>;
+  },
+): T[] {
+  const wordFormsByUnit = new Map(
+    rows.map((row) => [row.id, row.tokens.map((token) => token.form)] as const),
+  );
+  const morphemeFormsByUnit = new Map(
+    rows.map((row) => [
+      row.id,
+      row.tokens.flatMap((token) =>
+        (input.morphsByTokenId[token.id] ?? []).map((morph) => morph.form),
+      ),
+    ]),
+  );
+  return filterAnnotationUnits(rows, {
+    query: input.query,
+    mode: input.mode,
+    excludeUngrammatical: input.excludeUngrammatical,
+    wordFormsByUnit,
+    morphemeFormsByUnit,
+    ...(input.variantGroups ? { variantGroups: input.variantGroups } : {}),
+  });
+}

@@ -262,6 +262,28 @@ export function useTranscriptionTimelineInteractionController(
     [input, persistSegmentTiming, resolveSubdivisionParentUnit, uiLocale],
   );
 
+  const waveformEmptyContextMenuRef = useRef(input);
+  waveformEmptyContextMenuRef.current = input;
+  const handleWaveformEmptyContextMenu = useRef((time: number, x: number, y: number) => {
+    const current = waveformEmptyContextMenuRef.current;
+    if (current.player.isPlaying) {
+      current.player.stop();
+    }
+    const layerId = current.activeLayerIdForEdits;
+    const row = current.layers.find((layer) => layer.id === layerId);
+    current.setCtxMenu({
+      x,
+      y,
+      unitId: '',
+      layerId,
+      unitKind: 'unit',
+      splitTime: time,
+      source: 'waveform',
+      menuSurface: 'waveform-empty',
+      layerType: row?.layerType === 'translation' ? 'translation' : 'transcription',
+    });
+  }).current;
+
   const handleWaveformRegionContextMenu = useCallback(
     (regionId: string, x: number, y: number) => {
       if (input.player.isPlaying) {
@@ -579,6 +601,7 @@ export function useTranscriptionTimelineInteractionController(
     getNeighborBoundsRouted,
     saveTimingRouted,
     handleWaveformRegionContextMenu,
+    handleWaveformEmptyContextMenu,
     handleWaveformRegionAltPointerDown,
     handleWaveformRegionClick,
     handleWaveformRegionDoubleClick,

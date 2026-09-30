@@ -6,11 +6,11 @@ import { parseCharacterVariantLines } from '../../pages/annotation/annotationCha
 import type { AnnotationSearchMode } from '../../pages/annotation/annotationRowSearch';
 import { requestPlayUnitRange } from '../../pages/transcription/playUnitRange';
 import { searchTranscriptionUnits } from '../../pages/transcription/searchTranscriptionUnits';
-import { LinguisticService } from '../../services/LinguisticService';
 import {
+  LinguisticService,
   loadCharacterVariantLines,
   saveCharacterVariantLines,
-} from '../../services/projectCharacterVariantStore';
+} from '../../app/languageAssetPageAccess';
 
 function formText(form: Transcription): string {
   const direct = (form.default ?? '').trim();

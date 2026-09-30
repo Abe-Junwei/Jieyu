@@ -23,7 +23,10 @@ export const DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS: TranscriptionVerticalPan
 };
 
 /** 右键打开全局语段菜单时的 UI 情境（与 note 的 timeline/waveform scope 独立） */
-export type TranscriptionCtxMenuSurface = 'timeline-annotation' | 'waveform-region';
+export type TranscriptionCtxMenuSurface =
+  | 'timeline-annotation'
+  | 'waveform-region'
+  | 'waveform-empty';
 
 export type TranscriptionCtxMenuLayerType = 'transcription' | 'translation';
 

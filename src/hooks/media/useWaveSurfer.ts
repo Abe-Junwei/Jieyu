@@ -62,6 +62,8 @@ export interface UseWaveSurferOptions {
   onRegionCreate?: (start: number, end: number) => void;
   /** Fires on right-click of a region. */
   onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
+  /** Fires on right-click of waveform space that is not a region. */
+  onWaveformEmptyContextMenu?: (time: number, x: number, y: number) => void;
   /** Fires on double-click of a region. */
   onRegionDblClick?: (regionId: string, start: number, end: number) => void;
   /** Fires on every playback time tick. */
@@ -753,6 +755,29 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     regions,
     startMarker,
   ]);
+
+  useEffect(() => {
+    if (!isReady) return undefined;
+    const wrapper = instanceRef.current?.getWrapper();
+    if (!wrapper) return undefined;
+    const onContextMenu = (ev: MouseEvent) => {
+      ev.preventDefault();
+      const ws = instanceRef.current;
+      if (!ws) return;
+      const scrollParent = wrapper.parentElement;
+      let time = ws.getCurrentTime();
+      if (scrollParent) {
+        const rect = scrollParent.getBoundingClientRect();
+        const pxOffset = ev.clientX - rect.left + scrollParent.scrollLeft;
+        const totalWidth = wrapper.scrollWidth || 1;
+        const dur = ws.getDuration() || 1;
+        time = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+      }
+      cbRef.current.onWaveformEmptyContextMenu?.(time, ev.clientX, ev.clientY);
+    };
+    wrapper.addEventListener('contextmenu', onContextMenu);
+    return () => wrapper.removeEventListener('contextmenu', onContextMenu);
+  }, [cbRef, isReady]);
 
   // Render sub-selection highlight as a non-interactive region.
   useEffect(() => {

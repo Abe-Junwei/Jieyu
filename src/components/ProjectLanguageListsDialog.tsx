@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocale, t } from '../i18n';
-import { LinguisticService } from '../services/LinguisticService';
+import { LinguisticService } from '../app/languageAssetPageAccess';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import {
   buildLanguageInputSeed,

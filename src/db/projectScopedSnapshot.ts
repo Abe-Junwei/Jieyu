@@ -188,6 +188,28 @@ export function filterCollectionsForProject(
   return next;
 }
 
+/** Drop links whose token or morpheme row is gone. Links for surviving targets stay. */
+export async function dropLexemeLinksWithMissingTargets(): Promise<void> {
+  const db = await getDb();
+  const [tokens, morphemes, links] = await Promise.all([
+    db.dexie.unit_tokens.toArray(),
+    db.dexie.unit_morphemes.toArray(),
+    db.dexie.token_lexeme_links.toArray(),
+  ]);
+  const tokenIds = new Set(tokens.map((row) => row.id));
+  const morphemeIds = new Set(morphemes.map((row) => row.id));
+  const staleIds = links
+    .filter((link) => {
+      if (link.targetType === 'token') return !tokenIds.has(link.targetId);
+      if (link.targetType === 'morpheme') return !morphemeIds.has(link.targetId);
+      return true;
+    })
+    .map((link) => link.id);
+  if (staleIds.length > 0) {
+    await db.dexie.token_lexeme_links.bulkDelete(staleIds);
+  }
+}
+
 export async function exportProjectScopedDatabaseAsJson(textId: string): Promise<{
   schemaVersion: number;
   exportedAt: string;
@@ -222,16 +244,8 @@ async function pruneProjectOwnedRows(textId: string): Promise<void> {
       const mediaItems = await db.dexie.media_items.where('textId').equals(projectId).toArray();
       const mediaIds = mediaItems.map((row) => row.id);
 
-      const linkTargets: Array<[string, string]> = [
-        ...tokenIds.map((id) => ['token', id] as [string, string]),
-        ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-      ];
-      if (linkTargets.length > 0) {
-        await db.dexie.token_lexeme_links
-          .where('[targetType+targetId]')
-          .anyOf(linkTargets)
-          .delete();
-      }
+      // ADR-0034: lexeme links stay on this machine. Deleting them here would drop
+      // pointers the snapshot does not carry. Dangling targets are swept after import.
 
       if (unitIds.length > 0) {
         await db.dexie.user_notes
@@ -334,5 +348,7 @@ export async function importProjectScopedDatabaseFromJson(
   };
 
   await pruneProjectOwnedRows(projectId);
-  return importDatabaseFromJson(scopedSnapshot, { strategy: 'upsert' });
+  const result = await importDatabaseFromJson(scopedSnapshot, { strategy: 'upsert' });
+  await dropLexemeLinksWithMissingTargets();
+  return result;
 }

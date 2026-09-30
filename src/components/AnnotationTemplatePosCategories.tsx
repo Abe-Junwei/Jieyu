@@ -6,7 +6,7 @@ import {
   removeAnnotationPosCategory,
   renameAnnotationPosCategory,
   type AnnotationPosCategory,
-} from '../services/annotationPosCategoryStore';
+} from '../app/languageAssetPageAccess';
 import {
   getActiveProjectTextId,
   subscribeActiveProjectTextId,

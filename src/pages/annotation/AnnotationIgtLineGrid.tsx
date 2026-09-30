@@ -95,6 +95,7 @@ export function AnnotationIgtLineGrid({
   glossLineLanguage = '',
   glossSuggestions,
   onAcceptGlossSuggestion,
+  onApplyGlossByForm,
   onCommitLiteral,
   glossAbbreviations,
   posCategories,
@@ -132,6 +133,7 @@ export function AnnotationIgtLineGrid({
   glossLineLanguage?: string;
   glossSuggestions?: Readonly<Record<string, string>>;
   onAcceptGlossSuggestion?: (unitId: string, tokenId: string, gloss: string, lang: string) => void;
+  onApplyGlossByForm?: (unitId: string, tokenId: string, gloss: string) => void;
   onCommitLiteral?: (text: string) => void;
   glossAbbreviations?: ReadonlySet<string>;
   posCategories?: readonly string[];
@@ -248,6 +250,7 @@ export function AnnotationIgtLineGrid({
                 {...(glossAbbreviations ? { glossAbbreviations } : {})}
                 {...(posCategories ? { posCategories } : {})}
                 {...(onAcceptGlossSuggestion ? { onAcceptGlossSuggestion } : {})}
+                {...(onApplyGlossByForm ? { onApplyGlossByForm } : {})}
                 {...(onCommitGlossLanguage ? { onCommitGlossLanguage } : {})}
               />
             ))}
@@ -476,6 +479,7 @@ function WordCells({
   textLanguageId = '',
   glossLineLanguage = '',
   onAcceptGlossSuggestion,
+  onApplyGlossByForm,
   onCommitGlossLanguage,
   glossAbbreviations,
   posCategories,
@@ -502,6 +506,7 @@ function WordCells({
   textLanguageId?: string;
   glossLineLanguage?: string;
   onAcceptGlossSuggestion?: (unitId: string, tokenId: string, gloss: string, lang: string) => void;
+  onApplyGlossByForm?: (unitId: string, tokenId: string, gloss: string) => void;
   onCommitGlossLanguage?: (tokenId: string, languageId: string, text: string) => void;
   glossAbbreviations?: ReadonlySet<string>;
   posCategories?: readonly string[];
@@ -749,6 +754,19 @@ function WordCells({
                   onCommitGlossLanguage?.(token.id, glossLineLanguage, event.target.value);
                 }}
               />
+              {onApplyGlossByForm && fields.gloss.trim().length > 0 ? (
+                <button
+                  type="button"
+                  className="annotation-igt-action"
+                  data-testid={`annotation-igt-gloss-apply-${token.id}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onApplyGlossByForm(unitId, token.id, fields.gloss.trim());
+                  }}
+                >
+                  {t(locale, 'workspace.annotation.applyGlossByForm')}
+                </button>
+              ) : null}
               {glossInvalid ? (
                 <Link
                   className="annotation-igt-abbr-link"

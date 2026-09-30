@@ -142,6 +142,7 @@ export function mapStoredMorphemes(rows: readonly UnitMorphemeDocType[]): Annota
         gloss: glossText,
         glossLang,
         morphemeIndex: row.morphemeIndex,
+        ...(row.pos?.trim() ? { pos: row.pos.trim() } : {}),
         ...(row.surfaceParts && row.surfaceParts.length > 0
           ? { surfaceParts: row.surfaceParts }
           : {}),

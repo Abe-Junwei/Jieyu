@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LinguisticService } from '../services/LinguisticService';
+import { LinguisticService } from '../app/languageAssetPageAccess';
 import {
   EMPTY_PROJECT_LANGUAGE_LISTS,
   readProjectLanguageLists,

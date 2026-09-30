@@ -1,4 +1,5 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
+import { dispatchWorkspaceUnitUpdated } from '../../utils/workspaceEvents';
 import type { LayerUnitDocType, NoteCategory, UserNoteDocType } from '../../types/jieyuDbDocTypes';
 import { newId } from '../../utils/transcriptionFormatters';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
@@ -110,6 +111,7 @@ export async function saveAnnotationUnitNote(
   const readback = await deps.listNotes(input.unitId);
   const stored = readback.find((row) => row.id === id);
   if (!stored) throw new Error(`note readback missing ${id}`);
+  dispatchWorkspaceUnitUpdated({ unitId: input.unitId });
   return noteViewFromDoc(stored);
 }
 
@@ -144,6 +146,7 @@ export async function saveAnnotationUnitTurn(
   await deps.saveBatch([next]);
   const readback = (await deps.listByTextId(input.textId)).find((unit) => unit.id === input.unitId);
   if (!readback) throw new Error(`readback missing unit ${input.unitId}`);
+  dispatchWorkspaceUnitUpdated({ unitId: input.unitId });
   return readback;
 }
 

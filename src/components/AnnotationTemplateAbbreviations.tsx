@@ -7,7 +7,7 @@ import {
   removeAnnotationAbbreviation,
   renameAnnotationAbbreviation,
   type AnnotationAbbreviation,
-} from '../services/annotationAbbreviationStore';
+} from '../app/languageAssetPageAccess';
 import {
   getActiveProjectTextId,
   subscribeActiveProjectTextId,

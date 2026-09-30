@@ -13,12 +13,17 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type Dispatch,
   type SetStateAction,
 } from 'react';
 import type { LayerUnitDocType, SpeakerDocType } from '../../db';
 import type { SaveState } from '../transcription/transcriptionTypes';
 import { LinguisticService } from '../../services/LinguisticService';
+import {
+  getActiveProjectTextId,
+  subscribeActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 import { fireAndForget } from '../../utils/fireAndForget';
 import {
   EMPTY_SPEAKER_REFERENCE_STATS,
@@ -156,6 +161,11 @@ export function useSpeakerActions({
   speakerFilterOptionsOverride,
   speakerReferenceStatsMediaId = null,
 }: UseSpeakerActionsOptions): UseSpeakerActionsReturn {
+  const projectTextId = useSyncExternalStore(
+    subscribeActiveProjectTextId,
+    getActiveProjectTextId,
+    getActiveProjectTextId,
+  );
   const [speakerDraftName, setSpeakerDraftName] = useState('');
   const [batchSpeakerId, setBatchSpeakerId] = useState('');
   const [speakerSaving, setSpeakerSaving] = useState(false);
@@ -210,9 +220,12 @@ export function useSpeakerActions({
   );
 
   const refreshSpeakers = useCallback(async () => {
-    const nextSpeakers = await LinguisticService.speakers.list();
+    const nextSpeakers =
+      projectTextId.length > 0
+        ? await LinguisticService.speakers.listForProject(projectTextId)
+        : await LinguisticService.speakers.list();
     setSpeakers(nextSpeakers);
-  }, [setSpeakers]);
+  }, [projectTextId, setSpeakers]);
 
   const refreshSpeakerReferenceStats = useCallback(async () => {
     const mediaKey = speakerReferenceStatsMediaId?.trim() ?? '';
@@ -583,7 +596,12 @@ export function useSpeakerActions({
       const targetIds =
         selectedUnitIds.size > 0 ? Array.from(selectedUnitIds) : activeUnitId ? [activeUnitId] : [];
 
-      const targetSpeaker = existing ?? (await LinguisticService.speakers.create({ name }));
+      const targetSpeaker =
+        existing ??
+        (await LinguisticService.speakers.create({
+          name,
+          ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+        }));
       const updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
       if (!existing) {
         setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
@@ -621,6 +639,7 @@ export function useSpeakerActions({
     applySpeakerLocally,
     data,
     findExistingSpeakerByName,
+    projectTextId,
     refreshSpeakerReferenceStats,
     selectedUnitIds,
     setSaveState,
@@ -644,7 +663,11 @@ export function useSpeakerActions({
         data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
         undoPushed = true;
         const targetSpeaker =
-          existing ?? (await LinguisticService.speakers.create({ name: trimmedName }));
+          existing ??
+          (await LinguisticService.speakers.create({
+            name: trimmedName,
+            ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+          }));
         const updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
         if (!existing) {
           setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
@@ -681,6 +704,7 @@ export function useSpeakerActions({
       applySpeakerLocally,
       data,
       findExistingSpeakerByName,
+      projectTextId,
       refreshSpeakerReferenceStats,
       setBatchSpeakerId,
       setSaveState,
@@ -706,7 +730,10 @@ export function useSpeakerActions({
         });
         return;
       }
-      const created = await LinguisticService.speakers.create({ name });
+      const created = await LinguisticService.speakers.create({
+        name,
+        ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+      });
       setSpeakers((prev) => upsertSpeaker(prev, created));
       setSpeakerDraftName('');
       await refreshSpeakerReferenceStats();
@@ -728,6 +755,7 @@ export function useSpeakerActions({
     }
   }, [
     findExistingSpeakerByName,
+    projectTextId,
     refreshSpeakerReferenceStats,
     setBatchSpeakerId,
     setSaveState,

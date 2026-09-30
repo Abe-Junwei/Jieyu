@@ -1,5 +1,6 @@
 import type { ContextMenuItem } from '../../components/ContextMenu';
 import { t, tf, type Locale } from '../../i18n';
+import { planAnnotationTokenDeletion } from './deleteAnnotationToken';
 import type { AnnotationRelationMark } from '../useAnnotationRelationController';
 import {
   ANNOTATION_ADDABLE_LINES,
@@ -113,6 +114,27 @@ export function buildAnnotationLineMenuItems(input: {
     })),
   ];
   const workingLanguages = input.workingLanguageIds ?? [];
+  const objectLanguages = input.objectLanguageIds ?? [];
+  if (input.onAdd) {
+    for (const languageId of objectLanguages) {
+      const key = `source:lang:${languageId}`;
+      if (shown.has(key)) continue;
+      addChildren.push({
+        testId: `annotation-igt-add-layer-source-${languageId}-${input.unitId}`,
+        label: annotationLanguageLineLabel(input.locale, 'source', languageId),
+        onClick: () => input.onAdd?.(key),
+      });
+    }
+    for (const languageId of workingLanguages) {
+      const key = `translation:lang:${languageId}`;
+      if (shown.has(key)) continue;
+      addChildren.push({
+        testId: `annotation-igt-add-layer-translation-${languageId}-${input.unitId}`,
+        label: annotationLanguageLineLabel(input.locale, 'translation', languageId),
+        onClick: () => input.onAdd?.(key),
+      });
+    }
+  }
   if (input.onAdd && workingLanguages.length > 0) {
     for (const languageId of workingLanguages) {
       const key = `gloss:${languageId}`;
@@ -203,6 +225,9 @@ export function buildAnnotationTokenMenuItems(input: {
   canAllomorph: boolean;
   onSplit: () => void;
   onMerge: () => void;
+  onDelete?: (confirmLoss: boolean) => void;
+  tokenIdsInOrder?: readonly string[];
+  linkCount?: number;
   onSeed: () => void;
   onCite?: () => void;
   onLink?: () => void;
@@ -230,6 +255,25 @@ export function buildAnnotationTokenMenuItems(input: {
       onClick: input.onMerge,
     },
   ];
+  if (input.onDelete) {
+    const plan = planAnnotationTokenDeletion({
+      tokenIdsInOrder: input.tokenIdsInOrder ?? [input.tokenId],
+      tokenId: input.tokenId,
+      morphCount: input.morphs.length,
+      linkCount: input.linkCount ?? 0,
+    });
+    items.push({
+      testId: `annotation-igt-delete-${input.tokenId}`,
+      label:
+        plan.kind === 'confirm'
+          ? tf(input.locale, 'workspace.annotation.deleteTokenLoss', {
+              morphs: plan.morphCount,
+              links: plan.linkCount,
+            })
+          : t(input.locale, 'workspace.annotation.deleteToken'),
+      onClick: () => input.onDelete?.(plan.kind === 'confirm'),
+    });
+  }
   if (input.morphs.length === 0) {
     items.push({
       testId: `annotation-igt-seed-morph-${input.tokenId}`,

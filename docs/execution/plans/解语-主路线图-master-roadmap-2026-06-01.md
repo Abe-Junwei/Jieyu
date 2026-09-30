@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-29
+last_reviewed: 2026-09-30
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-29）**：标注页 **B4a–B4t** 已落地。**B4t** 二次分词按转写层语言选择分词：`zho`/`cmn`/`zh`、`jpn`、`tha` 走词典分词，其余仍是 `und`。不按字硬切。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-30）**：标注页 **B4u–B4aa** 与 **B4ab**、词典 **B3an** 已落地。这一串没有下一刀。不排 **B7** / M2c / 依存共指 / R6 / R15。行动与验收见 [转写标注词典联动需求 §6](./转写标注词典联动需求-2026-09-29.md)。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / M2c 任意图编辑 / 依存共指 / R6 / R15 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -250,6 +250,14 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4r** | 多式综合 / 名词并入 fixture | S | **【✅ 已落地】** `fixture-incorporation`：`berry` 在同一个 token 内，`contains` role=`incorporated`，并链到词条。不是第二个词。无新页面控件、无新 flag。 | 单 token；并入跨度与过程断言；定向 vitest | 否 |
 | **B4s** | 导出投影冲突 | S | **【✅ 已落地】** `fixture-infix` 的中缀（`contains` role=`infix`）在 LaTeX 为 complete、FLEx 为 degraded、CoNLL-U 为 unsupported。不改作者 gloss。无新页面控件、无新 flag。 | 三目标的 target 与 status；定向 vitest | 否 |
 | **B4t** | CJK / 日语 / 泰语分词 profile | S | **【✅ 已落地】** 二次分词预览使用转写层 `languageId`。`zho`/`cmn`/`zh`、`jpn`、`tha` 映射到词典分词 locale；其他语言用 `und`。分词器认不出的连续汉字仍是一个词，不按字切开。无新 flag。 | `你好世界`→你好/世界；日语/泰语词界；定向 vitest | 否 |
+| **B4u** | 标注页行布局与直译落库 | M | **【✅ 已落地】** 行的显隐、顺序、语言和直译所绑的译文层 id 写入 `texts.metadata.annotationDocumentLayout`，整篇共享。添加直译行时经 `getLayerCreateGuard` 创建一条 `translation` 层并记下 id；正文写入该层单元文本。自由译文默认层跳过这条直译层。不使用假 layerId `literal`，不写 `unit_tokens`。无新表、无新 flag | 刷新后行顺序和直译还在；直译不进词行；无转写宿主时不建层；定向 vitest | 否 |
+| **B4w** | 标注译文跟选定层（R2） | S | **【✅ 已落地】** 承 B4u：标注译文行只读布局里的 `translationLayerId`。URL `layerId` 若是该文本的译文层（且不是直译层），用它初始化并写回。该层为空则这句译文为空。不把多层译文拼进一行 | 两层译文切换后只显示被选中层；刷新仍是该层；直译层不能当自由译文；定向 vitest | 否 |
+| **B4x** | 标注页添加原文或译文时建真实层 | M | **【✅ 已落地】** 添加 `source:lang:` / `translation:lang:` 行时走 `getLayerCreateGuard` + `LayerTierUnifiedService.createLayer`。层类型仍只是 `transcription` \| `translation`。不新建语段。同一类型+语言+模态要 alias；一种语言不能既是转写又是译文。创建后把键改成真实层 id | 新建层刷新仍在；与转写层同语言时零写入；定向 vitest | 否 |
+| **B4ab** | 字符变体接入词形比较（R13） | S | **【✅ 已落地】** `comparableForm` 在 NFC 之后套 `projectCharacterVariantStore` 的登记。转写检索和标注筛选共用。未登记的不同码位仍然分开。原文不改写。无新 flag | 登记 `ʔ` 与 `'` 后计成同一词形；未登记仍分开；定向 vitest | 否 |
+| **B4y** | 同形建议只铺空白词（R3） | M | **【✅ 已落地】** 承 B4ab：格子里的建议不落库，回车才写。整包只铺到空白词（一个语素、语素形式等于词面、没有链接、没有注释）。已有分析的词不动。平局不给建议。一次链接只改当前 token。无新 flag。SDD：`annotation-precedent/` | 空白词写入多数注释；已有注释不变；`suggested` 不增加自动写入计数；定向 vitest | 是 |
+| **B4z** | 删改前搬走附着分析（R5） | M | **【✅ 已落地】** 删除带语素或词典链接的 token 之前，改挂到保留的 token，或在确认里写出将失去的条数。只改一种语言的转写正文时，保留其他语言键、语素多语言表、链接上的 `senseId` 和 confidence。无新 flag | 删右词前语素和链接已在左词；另一种语言键还在；定向 vitest | 是 |
+| **B4aa** | 导出留下整句和媒体参照（R8） | M | **【✅ 已落地】** 导出的每一句包含转写层正文、选定译文层、词和语素的 form / gloss / pos、`senseId`、说话人、起止时间、`unitId`。整词词类和语素词类分列，靠 id 相连，不靠列位置。不改作者 gloss，不写回 | 往返后句子、`unitId`、时间和 `senseId` 还在；只改语素词类不改整词词类；定向 vitest | 是 |
+| **B3an** | 义项例句引用出现处（R4） | M | **【✅ 已落地】** `/lexicon` 义项可增加一条引用：`textId`、`unitId`、token 或语素 id、`lexemeId`、`senseId`。打开时读转写层句子和当前译文层，不另存句子副本。链接改挂后标失效，仍可删除。手写例证不覆盖。无新 flag。SDD：`lexicon-sense-citation/` | 重开仍指向同一 token；改挂后标失效；清空手写原文不影响引用；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
@@ -360,6 +368,12 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-28 | **词典 DMLex JSON 下载**：`/lexicon` 把当前词条嵌进一份 `lexicographicResource` JSON 并下载。`jieyu` 不写入。对照 vendored schema。无新 flag。LIFT 投影仍在。 |
 | 2026-09-27 | **词典编辑基准改为 DMLex**：采用 OASIS DMLex 1.0 带跨语言模块的 JSON Schema（`docs/architecture/dmlex/dmlex.schema.json`）作为编辑对象。LIFT 改为导入导出投影。解语的语段引用和自由文本注释放在 schema 外。无存量词条，不新增 Dexie 版本，不加 flag。运行时代码尚未替换。ADR 0035；计划 `词典编辑改用DMLex基准-2026-09-27.md`。 |
+| 2026-09-30 | **B4aa / B3an**：句子导出按 id 留下整句、语素词类和媒体。义项引用现场读转写和译文，保存手写例证不再清掉引用。这一串结束。 |
+| 2026-09-30 | **B4z 删词改挂**：删除右词前把语素和链接挂到左词，并保留 senseId 与 confidence。只剩一个词时菜单写明将失去的条数。下一刀 **B4aa**。 |
+| 2026-09-30 | **B4y 同形建议**：空白词回车写入已确认注释。铺到其余同形只改空白词，不复制链接。下一刀 **B4z**。 |
+| 2026-09-30 | **B4w / B4x**：译文层选择写入布局，URL `layerId` 可初始化。添加原文或译文语言行时创建真实层，不新建语段，同语言冲突零写入。**B4ab** 字符变体比较此前已接入检索。下一刀 **B4y**。 |
+| 2026-09-30 | **B4u 行布局与直译落库**：布局写入 `texts.metadata`，直译写入真实译文层。无转写宿主时不建层、不改布局。自由译文默认层跳过直译层。下一刀 **B4w**。 |
+| 2026-09-30 | **标注页下一刀改为 B4u**：B4a–B4t 保持已落地。行间版面已能用，刷新后布局和直译会丢。排入 B4u（布局+直译落库）→ B4w（R2）→ B4x（建真实层）→ B4ab（R13）→ B4y（R3）→ B4z（R5）→ B4aa（R8）→ B3an（R4）。R1 / R7 / R11 / R12 / R14 与 R10 的分列保存标为已落地，不再单列切片。不排 B7 / M2c / 依存共指 / R6 / R15 / C3d。行动见联动需求 §6。 |
 | 2026-09-29 | **B4t 分词 profile**：二次分词按转写层语言选择 `zh` / `ja` / `th` 词典分词。认不出的连续汉字不按字切开。无新 flag。标注页计划内 B4a–B4t 已落地。不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4s 导出投影冲突**：同一条中缀图导出到 LaTeX（complete）、FLEx（degraded）、CoNLL-U（unsupported）。不改作者 gloss，不加页面控件。下一刀为 CJK / 泰语 / 日语分词 profile。不排 M2c / 依存共指 / B7。 |
 | 2026-09-29 | **B4r 并入 fixture**：`berrypick` 把并入名词放在同一个 token 内，并链到词条。不是第二个词，不加页面控件。下一刀为导出投影冲突。不排 M2c / 依存共指 / B7。 |

@@ -103,6 +103,9 @@ export function useAnnotationMorphologyController(input: {
           ...presented,
           ...(link.senseId ? { senseId: link.senseId } : {}),
           ...(senseGloss.length > 0 ? { senseGloss } : {}),
+          ...(link.provenance?.reviewStatus
+            ? { linkReviewStatus: link.provenance.reviewStatus }
+            : {}),
           ...(lexeme?.entry.partsOfSpeech && lexeme.entry.partsOfSpeech.length > 0
             ? { entryPartsOfSpeech: [...lexeme.entry.partsOfSpeech] }
             : {}),

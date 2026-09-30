@@ -6,23 +6,22 @@ import {
 import { annotationLayerLabel } from './annotation/annotationTranslationText';
 import {
   buildLeipzigAbbreviationSeed,
-  readAnnotationAbbreviations,
-} from '../services/annotationAbbreviationStore';
-import {
   buildUdPosCategorySeed,
+  readAnnotationAbbreviations,
   readAnnotationPosCategories,
-} from '../services/annotationPosCategoryStore';
+} from '../app/languageAssetPageAccess';
 import {
   EMPTY_PROJECT_LANGUAGE_LISTS,
   readProjectLanguageLists,
   type ProjectLanguageLists,
 } from '../utils/projectLanguageLists';
+import { readAnnotationDocumentLayout } from './annotation/annotationDocumentLayoutStore';
 
 export async function loadAnnotationWorkspace(textId: string, mediaId: string) {
   const [units, layers, speakers] = await Promise.all([
     LinguisticService.units.listByTextId(textId),
     LinguisticService.layers.listByTextId(textId),
-    LinguisticService.speakers.list(),
+    LinguisticService.speakers.listForProject(textId),
   ]);
   const laneUnits = projectAnnotationLaneUnits({ units, layers, mediaId });
   const unitIds = laneUnits.map((unit) => unit.id);
@@ -55,9 +54,14 @@ export async function loadAnnotationWorkspace(textId: string, mediaId: string) {
   let projectLanguages: ProjectLanguageLists = EMPTY_PROJECT_LANGUAGE_LISTS;
   let glossAbbreviations: string[] | null = null;
   let posCategories: string[] | null = null;
+  let literalLayerId = '';
+  let translationLayerId = '';
   const readText = LinguisticService.timeline?.getTextById;
   if (readText) {
     const text = await readText(textId);
+    const documentLayout = readAnnotationDocumentLayout(text?.metadata);
+    literalLayerId = documentLayout.literalLayerId;
+    translationLayerId = documentLayout.translationLayerId;
     projectLanguages = readProjectLanguageLists(text?.metadata);
     glossAbbreviations = (
       readAnnotationAbbreviations(text?.metadata) ?? buildLeipzigAbbreviationSeed()
@@ -77,6 +81,8 @@ export async function loadAnnotationWorkspace(textId: string, mediaId: string) {
     posCategories,
     speakerNames,
     transcriptionLayerIds,
+    literalLayerId,
+    translationLayerId,
     languageId: annotationTranscriptionLanguageId(layers),
   };
 }

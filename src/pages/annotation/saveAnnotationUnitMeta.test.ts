@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import * as workspaceEvents from '../../utils/workspaceEvents';
 import {
   listAnnotationUnitNotes,
   saveAnnotationUnitNote,
@@ -148,5 +149,19 @@ describe('saveAnnotationUnitMeta', () => {
     const requery = await listAnnotationUnitNotes('unit-topic-1');
     expect(requery.find((note) => note.category === 'comment')?.content).toBe('transcription');
     expect(requery.find((note) => note.category === 'topic')?.content).toBe('translation edited');
+  });
+
+  it('notifies an open annotation page after a transcription note is saved', async () => {
+    const notify = vi.spyOn(workspaceEvents, 'dispatchWorkspaceUnitUpdated');
+    await saveAnnotationUnitNote({
+      unitId: 'unit-live-1',
+      content: 'heard on the tape',
+      category: 'comment',
+    });
+    expect(notify).toHaveBeenCalledWith({ unitId: 'unit-live-1' });
+    const notes = await listAnnotationUnitNotes('unit-live-1');
+    expect(notes.find((note) => note.category === 'topic')).toBeUndefined();
+    expect(notes.find((note) => note.category === 'comment')?.content).toBe('heard on the tape');
+    notify.mockRestore();
   });
 });

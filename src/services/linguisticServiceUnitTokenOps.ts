@@ -212,6 +212,7 @@ export async function updateTokenGloss(
   tokenId: string,
   gloss: string | null,
   lang = 'eng',
+  reviewStatus?: 'draft' | 'suggested' | 'confirmed' | 'rejected',
 ): Promise<void> {
   const db = await getDb();
   const existing = await db.collections.unit_tokens.findOne({ selector: { id: tokenId } }).exec();
@@ -231,10 +232,23 @@ export async function updateTokenGloss(
   }
 
   const { gloss: _oldGloss, ...rest } = row;
+  const now = new Date().toISOString();
   await db.collections.unit_tokens.insert({
     ...rest,
     ...(nextGloss ? { gloss: nextGloss } : {}),
-    updatedAt: new Date().toISOString(),
+    ...(reviewStatus
+      ? {
+          provenance: {
+            actorType: row.provenance?.actorType ?? 'human',
+            method: row.provenance?.method ?? 'manual',
+            createdAt: row.provenance?.createdAt ?? now,
+            ...row.provenance,
+            reviewStatus,
+            updatedAt: now,
+          },
+        }
+      : {}),
+    updatedAt: now,
   });
   dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
 }

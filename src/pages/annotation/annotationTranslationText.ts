@@ -61,3 +61,39 @@ export function pickAnnotationTranslationText(input: {
     layerIds: input.translationLayerIds,
   });
 }
+
+/** URL `layerId` wins when it is a free translation layer. Otherwise keep the stored choice. */
+export function resolveAnnotationTranslationLayerId(input: {
+  layers: readonly { id: string }[];
+  storedId: string;
+  urlLayerId: string;
+  literalLayerId: string;
+}): { id: string; persist: boolean } {
+  const blocked = input.literalLayerId.trim();
+  const selectable = input.layers.filter((layer) => layer.id.length > 0 && layer.id !== blocked);
+  const selectableIds = new Set(selectable.map((layer) => layer.id));
+  const urlId = input.urlLayerId.trim();
+  const storedId = input.storedId.trim();
+  if (urlId.length > 0 && selectableIds.has(urlId)) {
+    return { id: urlId, persist: urlId !== storedId };
+  }
+  if (storedId.length > 0 && selectableIds.has(storedId)) {
+    return { id: storedId, persist: false };
+  }
+  const fallback = selectable[0]?.id ?? '';
+  return { id: fallback, persist: storedId.length > 0 && storedId !== fallback };
+}
+
+/** Free translation stays off the literal layer. A selected id wins when it is still selectable. */
+export function annotationFreeTranslationLayerId(
+  layers: readonly { id: string }[],
+  selectedId: string,
+  literalLayerId: string,
+): string {
+  const blocked = literalLayerId.trim();
+  const selectable = layers.filter((layer) => layer.id !== blocked);
+  if (selectedId.length > 0 && selectable.some((layer) => layer.id === selectedId)) {
+    return selectedId;
+  }
+  return selectable[0]?.id ?? '';
+}

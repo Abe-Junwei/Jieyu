@@ -1,6 +1,6 @@
-import type { UnitRelationDocType } from '../../db';
+import { LinguisticStructuralProfileService } from '../../app/languageAssetPageAccess';
 import { submitAnalysisGraphCandidate } from '../../annotation/analysisGraphConfirmation';
-import { LinguisticStructuralProfileService } from '../../services/LinguisticService.structuralProfiles';
+import type { UnitRelationDocType } from '../../types/jieyuDbDocTypes';
 import {
   buildAnnotationStructuralPreviewViewModel,
   type AnnotationStructuralPreviewViewModel,

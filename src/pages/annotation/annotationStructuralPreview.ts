@@ -1,5 +1,8 @@
-import type { StructuralRuleProfilePreview } from '../../services/LinguisticService.structuralProfiles';
-import type { AnnotationAnalysisGraphFixture, ProjectionDiagnostic } from '../../annotation/analysisGraph';
+import type { StructuralRuleProfilePreview } from '../../app/languageAssetPageAccess';
+import type {
+  AnnotationAnalysisGraphFixture,
+  ProjectionDiagnostic,
+} from '../../annotation/analysisGraph';
 
 export type AnnotationStructuralPreviewViewModel = {
   candidateGraph: AnnotationAnalysisGraphFixture;
@@ -14,10 +17,12 @@ export function buildAnnotationStructuralPreviewViewModel(
   preview: StructuralRuleProfilePreview,
 ): AnnotationStructuralPreviewViewModel {
   const diagnostics = preview.candidateGraph.projectionDiagnostics;
-  const blockingDiagnostic = diagnostics.some((diagnostic) => (
-    diagnostic.status === 'needsReview' || diagnostic.status === 'unsupported'
-  ));
-  const blockingWarning = preview.parseResult.warnings.some((warning) => warning.severity === 'warning');
+  const blockingDiagnostic = diagnostics.some(
+    (diagnostic) => diagnostic.status === 'needsReview' || diagnostic.status === 'unsupported',
+  );
+  const blockingWarning = preview.parseResult.warnings.some(
+    (warning) => warning.severity === 'warning',
+  );
 
   return {
     candidateGraph: preview.candidateGraph,

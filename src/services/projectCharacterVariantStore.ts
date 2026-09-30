@@ -1,6 +1,7 @@
 import { getDb, type TextDocType } from '../db';
+import { projectTextMetadataKey } from '../types/projectTextMetadata';
 
-const METADATA_KEY = 'characterVariantLines';
+const METADATA_KEY = projectTextMetadataKey.characterVariantLines;
 
 export function readCharacterVariantLines(metadata: unknown): string {
   if (!metadata || typeof metadata !== 'object') return '';

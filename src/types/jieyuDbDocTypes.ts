@@ -27,6 +27,8 @@ export type {
   OrthographyDocType,
   SpeakerDocType,
   UnitMorphemeDocType,
+  UnitRelationDocType,
   UnitTokenDocType,
+  TextDocType,
   UserNoteDocType,
 } from '../db';

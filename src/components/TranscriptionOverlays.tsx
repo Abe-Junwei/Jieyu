@@ -60,6 +60,10 @@ export interface TranscriptionOverlaysProps {
     layerId: string,
   ) => void;
   getCurrentTime: () => number;
+  onWaveformEmptyPlay?: (time: number) => void;
+  onWaveformEmptyZoomIn?: () => void;
+  onWaveformEmptyZoomOut?: () => void;
+  onWaveformEmptyClearSelection?: () => void;
   onOpenNoteFromMenu: (
     x: number,
     y: number,
@@ -166,6 +170,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     resolveSkipProcessingState,
     onOpenSpeakerManagementPanelFromMenu = () => {},
     displayStyleControl,
+    onWaveformEmptyPlay,
+    onWaveformEmptyZoomIn,
+    onWaveformEmptyZoomOut,
+    onWaveformEmptyClearSelection,
   } = props;
 
   const allTextLayers = [...transcriptionLayers, ...translationLayers];
@@ -252,6 +260,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             ...(onToggleSkipProcessingFromMenu ? { onToggleSkipProcessingFromMenu } : {}),
             ...(resolveSkipProcessingState ? { resolveSkipProcessingState } : {}),
             ...(displayStyleControl ? { displayStyleControl } : {}),
+            ...(onWaveformEmptyPlay ? { onWaveformEmptyPlay } : {}),
+            ...(onWaveformEmptyZoomIn ? { onWaveformEmptyZoomIn } : {}),
+            ...(onWaveformEmptyZoomOut ? { onWaveformEmptyZoomOut } : {}),
+            ...(onWaveformEmptyClearSelection ? { onWaveformEmptyClearSelection } : {}),
             onFindSimilarUnitsFromMenu: (unitId) => {
               const unit = units.find((row) => row.id === unitId);
               void navigate(

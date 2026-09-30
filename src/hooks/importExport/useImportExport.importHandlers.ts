@@ -539,6 +539,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         });
       const { speakerIdMap, resolveOrCreateSpeaker } = await createImportSpeakerResolver({
         normalizeSpeakerLookupKey,
+        textId: importTextId,
       });
 
       type PendingImportSpeaker = {

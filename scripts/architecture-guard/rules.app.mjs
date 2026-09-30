@@ -33,7 +33,7 @@ export const architectureGuardAppLayerRules = [
     maxRegexMatchCounts: [
       {
         label: 'page→db direct imports (M3 baseline 0 — no exemptions)',
-        pattern: /^import .* from ['"]\.\.\/db/gm,
+        pattern: /^import .* from ['"](?:\.\.\/)+db/gm,
         max: 0,
       },
     ],
@@ -45,7 +45,7 @@ export const architectureGuardAppLayerRules = [
     maxRegexMatchCounts: [
       {
         label: 'page→services direct imports (M3 baseline 0 — no exemptions)',
-        pattern: /^import .* from ['"]\.\.\/services\//gm,
+        pattern: /^import .* from ['"](?:\.\.\/)+services\//gm,
         max: 0,
       },
     ],

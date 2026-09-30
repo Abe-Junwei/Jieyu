@@ -138,7 +138,9 @@ export async function resolvePreferredHostTranscriptionLayerIdForTranslationImpo
 
 export async function createImportSpeakerResolver(input: {
   normalizeSpeakerLookupKey: (value: string | undefined) => string;
+  textId?: string;
 }) {
+  const projectTextId = input.textId?.trim() ?? '';
   const speakerIdMap = new Map<string, string>();
   const existingSpeakers = await LinguisticService.speakers.list();
   const speakerByName = new Map(
@@ -170,6 +172,12 @@ export async function createImportSpeakerResolver(input: {
     const normalized = input.normalizeSpeakerLookupKey(displayName);
     const existing = speakerByName.get(normalized);
     if (existing) {
+      if (projectTextId.length > 0) {
+        await LinguisticService.speakers.create({
+          name: existing.name,
+          textId: projectTextId,
+        });
+      }
       if (attrs && (attrs.dialect || attrs.accent || attrs.languageIds?.length || attrs.notes)) {
         const patched = await LinguisticService.speakers.patchImportAttrs(existing.id, attrs);
         if (patched) speakerByName.set(normalized, patched);
@@ -179,6 +187,7 @@ export async function createImportSpeakerResolver(input: {
     }
     const speaker = await LinguisticService.speakers.create({
       name: displayName.trim(),
+      ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
       ...(attrs?.dialect ? { dialect: attrs.dialect } : {}),
       ...(attrs?.accent ? { accent: attrs.accent } : {}),
       ...(attrs?.languageIds?.length ? { languageIds: attrs.languageIds } : {}),

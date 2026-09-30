@@ -585,6 +585,31 @@ export function LexiconPage() {
                           senses={selectedLexeme.entry.senses ?? []}
                           {...(selectedLexeme.jieyu ? { extras: selectedLexeme.jieyu } : {})}
                           relations={relations}
+                          onDeleteCitation={(tokenId) => {
+                            const occurrenceCitations = (
+                              selectedLexeme.jieyu?.occurrenceCitations ?? []
+                            ).filter((citation) => citation.tokenId !== tokenId);
+                            const jieyu = { ...(selectedLexeme.jieyu ?? {}) };
+                            if (occurrenceCitations.length > 0) {
+                              jieyu.occurrenceCitations = occurrenceCitations;
+                            } else {
+                              delete jieyu.occurrenceCitations;
+                            }
+                            const stored = {
+                              ...selectedLexeme,
+                              updatedAt: new Date().toISOString(),
+                              ...(Object.keys(jieyu).length > 0 ? { jieyu } : {}),
+                            };
+                            if (Object.keys(jieyu).length === 0) delete stored.jieyu;
+                            void LinguisticService.lexemes.save(stored).then(() => {
+                              const current =
+                                queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
+                              queryClient.setQueryData(
+                                ['lexemes'],
+                                mergeLexemeIntoList(current, stored),
+                              );
+                            });
+                          }}
                         />
                       ) : (
                         <p className="lexicon-workspace-state">

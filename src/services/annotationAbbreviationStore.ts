@@ -1,6 +1,7 @@
 import { listStandardLeipzigAbbreviations } from '../ai/LeipzigValidator';
 import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
 import { getDb, type TextDocType } from '../db';
+import { projectTextMetadataKey } from '../types/projectTextMetadata';
 
 export type AnnotationAbbreviation = {
   abbreviation: string;
@@ -8,7 +9,7 @@ export type AnnotationAbbreviation = {
   leipzig: boolean;
 };
 
-const METADATA_KEY = 'annotationAbbreviations';
+const METADATA_KEY = projectTextMetadataKey.annotationAbbreviations;
 
 function leipzigSeedCodes(): string[] {
   return [

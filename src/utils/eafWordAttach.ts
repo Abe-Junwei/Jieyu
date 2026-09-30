@@ -99,7 +99,7 @@ function hostAnnotationId(
 function applyWordTokens(
   units: WordHost[],
   wordTierAnns: EafPickAnnotation[],
-  glossByWordAnnId: Map<string, { text: string; lang: string }>,
+  glossByWordAnnId: Map<string, Record<string, string>>,
   posByWordAnnId: Map<string, string>,
   morphsByWordAnnId: Map<string, MorphDraft[]>,
 ): void {
@@ -128,7 +128,9 @@ function applyWordTokens(
       return {
         form: { default: wordAnn.text },
         ...(filled(wordAnn.lexemeId) ? { lexemeId: wordAnn.lexemeId } : {}),
-        ...(glossText !== undefined ? { gloss: glossRecord(glossText.lang, glossText.text) } : {}),
+        ...(glossText !== undefined && Object.keys(glossText).length > 0
+          ? { gloss: glossText }
+          : {}),
         ...(filled(pos) ? { pos } : {}),
         ...(morphs !== undefined && morphs.length > 0
           ? {
@@ -169,7 +171,7 @@ export function attachEafWordTiers(input: {
   readTier: (tier: Element) => { locale?: string; anns: EafPickAnnotation[] };
 }): void {
   if (input.wordTierEntries.length === 0 || input.units.length === 0) return;
-  const glossByWordAnnId = new Map<string, { text: string; lang: string }>();
+  const glossByWordAnnId = new Map<string, Record<string, string>>();
   const posByWordAnnId = new Map<string, string>();
   const morphsByWordAnnId = new Map<string, MorphDraft[]>();
   const morphTierIds = new Set<string>();
@@ -234,13 +236,19 @@ export function attachEafWordTiers(input: {
           morphsByWordAnnId.set(hostId, morphs);
           continue;
         }
-        if (child.field === 'gloss' || child.field === undefined) {
-          if (!glossByWordAnnId.has(hostId)) {
-            glossByWordAnnId.set(hostId, {
-              text: ann.text,
-              lang: glossLanguageKey(input.tierLocales.get(child.tierId)),
-            });
+        const glossTier = child.field === 'gloss' || /gloss|gls/i.test(child.tierId);
+        if (glossTier) {
+          const lang = glossLanguageKey(input.tierLocales.get(child.tierId));
+          const current = glossByWordAnnId.get(hostId) ?? {};
+          if (current[lang] === undefined) {
+            glossByWordAnnId.set(hostId, { ...current, [lang]: ann.text });
           }
+          continue;
+        }
+        if (child.field === undefined && !glossByWordAnnId.has(hostId)) {
+          glossByWordAnnId.set(hostId, {
+            [glossLanguageKey(input.tierLocales.get(child.tierId))]: ann.text,
+          });
         }
       }
     }

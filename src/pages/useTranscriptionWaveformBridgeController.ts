@@ -80,6 +80,9 @@ export function useTranscriptionWaveformBridgeController(
   const handleWaveformRegionContextMenuRef = useRef<
     ((regionId: string, x: number, y: number) => void) | undefined
   >(undefined);
+  const handleWaveformEmptyContextMenuRef = useRef<
+    ((time: number, x: number, y: number) => void) | undefined
+  >(undefined);
   const handleWaveformRegionUpdateRef = useRef<
     ((regionId: string, start: number, end: number) => void) | undefined
   >(undefined);
@@ -178,6 +181,9 @@ export function useTranscriptionWaveformBridgeController(
     },
     onRegionContextMenu: (regionId, x, y) => {
       handleWaveformRegionContextMenuRef.current?.(regionId, x, y);
+    },
+    onWaveformEmptyContextMenu: (time, x, y) => {
+      handleWaveformEmptyContextMenuRef.current?.(time, x, y);
     },
     onTimeUpdate: (time) => {
       handleWaveformTimeUpdateRef.current?.(time);
@@ -568,6 +574,7 @@ export function useTranscriptionWaveformBridgeController(
       handleWaveformRegionDoubleClickRef,
       handleWaveformRegionCreateRef,
       handleWaveformRegionContextMenuRef,
+      handleWaveformEmptyContextMenuRef,
       handleWaveformRegionUpdateRef,
       handleWaveformRegionUpdateEndRef,
       handleWaveformTimeUpdateRef,

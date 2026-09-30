@@ -1,12 +1,13 @@
 import { UD_POS_TAGS } from '../annotation/udPosTags';
 import { getDb, type TextDocType } from '../db';
+import { projectTextMetadataKey } from '../types/projectTextMetadata';
 
 export type AnnotationPosCategory = {
   abbreviation: string;
   name: string;
 };
 
-const METADATA_KEY = 'annotationPosCategories';
+const METADATA_KEY = projectTextMetadataKey.annotationPosCategories;
 
 export function buildUdPosCategorySeed(): AnnotationPosCategory[] {
   return UD_POS_TAGS.map((abbreviation) => ({ abbreviation, name: abbreviation }));
