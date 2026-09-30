@@ -235,7 +235,7 @@ export function HomePage() {
         : sidePaneHost
           ? null
           : projectRoster}
-      <div>
+      <div className="home-workbench-main">
         {opened ? (
           <WorkbenchFilePane
             locale={locale}
@@ -255,6 +255,13 @@ export function HomePage() {
             }}
             onChanged={() => void refetch()}
           />
+        ) : !isLoading && !isError ? (
+          <div className="home-workbench-empty entry-card entry-card--dashed">
+            <p>{t(locale, 'app.home.noProjects')}</p>
+            <button type="button" className="btn btn-primary" onClick={() => setSetupOpen(true)}>
+              {t(locale, 'transcription.toolbar.newProject')}
+            </button>
+          </div>
         ) : null}
       </div>
       {rowMenu && menuBundle ? (

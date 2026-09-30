@@ -6,15 +6,12 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type CSSProperties,
 } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import {
   buildTranscriptionDeepLinkHref,
-  getActiveProjectTextId,
   readTranscriptionWorkspaceReturnHint,
-  subscribeActiveProjectTextId,
 } from './utils/transcriptionUrlDeepLink';
 import { AppGlobalToastHost } from './components/AppGlobalToastHost';
 import { AppOfflineStatusBanner } from './components/AppOfflineStatusBanner';
@@ -578,15 +575,6 @@ export function App() {
     if (hint.mediaId) params.set('mediaId', hint.mediaId);
     return `/annotation?${params.toString()}`;
   }
-  const projectOpen = useSyncExternalStore(
-    subscribeActiveProjectTextId,
-    getActiveProjectTextId,
-    () => '',
-  );
-  const visiblePrimaryNavItems = useMemo(
-    () => primaryNavItems.filter((item) => item.to === '/' || projectOpen.length > 0),
-    [primaryNavItems, projectOpen],
-  );
   const navItems = useMemo(
     () => [...primaryNavItems, ...secondaryNavItems],
     [primaryNavItems, secondaryNavItems],
@@ -753,7 +741,7 @@ export function App() {
                   className="app-left-rail-group app-left-rail-primary"
                   aria-label={t(locale, 'app.navGroup.core')}
                 >
-                  {visiblePrimaryNavItems.map((item) => (
+                  {primaryNavItems.map((item) => (
                     <NavLink
                       key={item.to}
                       to={resolveWorkspaceNavTo(item.to)}
@@ -788,6 +776,7 @@ export function App() {
                   className="app-left-rail-footer"
                   aria-label={t(locale, 'app.leftRail.aria.footer')}
                 >
+                  <div id="left-rail-project-hub-slot" className="left-rail-project-hub-anchor" />
                   {isTranscriptionRoute ? (
                     <button
                       type="button"

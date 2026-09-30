@@ -159,6 +159,7 @@ function ReadyStageContent({
   observerProps,
   acousticRuntimeStatus,
   vadCacheStatus,
+  projectHubProps,
   mediaInputProps,
   workspaceAreaProps,
   batchOpsSection,
@@ -209,6 +210,8 @@ function ReadyStageContent({
       ) : null}
 
       {collaborationCloudStatusSlot}
+
+      <LeftRailProjectHub {...projectHubProps} />
 
       <section className="transcription-waveform" ref={waveformSectionRef}>
         <Suspense fallback={null}>
