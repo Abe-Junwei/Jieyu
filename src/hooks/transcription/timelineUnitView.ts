@@ -104,7 +104,7 @@ export interface TimelineUnitViewIndex {
 
 const UNBOUND_TIMELINE_MEDIA_ID = '__unknown_media__';
 
-function isUnboundTimelineMedia(mediaId: string): boolean {
+export function isUnboundTimelineMedia(mediaId: string): boolean {
   const id = mediaId.trim();
   return id.length === 0 || id === UNBOUND_TIMELINE_MEDIA_ID;
 }
@@ -285,7 +285,8 @@ export function buildTimelineUnitViewIndex(
       if (u.tags?.skipProcessing === true) return false;
       if (u.unitType === 'segment') return false;
       if (!currentMedia) return true;
-      return (u.mediaId?.trim() ?? '') === currentMedia;
+      const mediaId = u.mediaId?.trim() ?? '';
+      return mediaId === currentMedia || isUnboundTimelineMedia(mediaId);
     });
     for (const lane of laneReadScope.transcriptionLayers) {
       for (const raw of rawForLanes) {

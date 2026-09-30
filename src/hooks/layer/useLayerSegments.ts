@@ -127,10 +127,12 @@ const UNBOUND_SEGMENT_MEDIA_ID = '__unknown_media__';
 export function mergeUnboundTimelineSegments(
   scoped: readonly LayerUnitDocType[],
   layerSegments: readonly LayerUnitDocType[],
+  alsoMediaIds?: ReadonlySet<string>,
 ): LayerUnitDocType[] {
   const unbound = layerSegments.filter((segment) => {
-    const mediaId = segment.mediaId?.trim() ?? '';
-    return mediaId.length === 0 || mediaId === UNBOUND_SEGMENT_MEDIA_ID;
+    const id = segment.mediaId?.trim() ?? '';
+    if (id.length === 0 || id === UNBOUND_SEGMENT_MEDIA_ID) return true;
+    return alsoMediaIds?.has(id) === true;
   });
   if (unbound.length === 0) return [...scoped];
   const seen = new Set(scoped.map((segment) => segment.id));
@@ -144,6 +146,7 @@ export function useLayerSegments(
   mediaId: string | undefined,
   defaultTranscriptionLayerId: string | undefined,
   _layerLinks: ReadonlyArray<SegmentTimelineHostLink> = [],
+  alsoMediaIds: readonly string[] = [],
 ): {
   segmentsByLayer: Map<string, LayerUnitDocType[]>;
   segmentsLoadComplete: boolean;
@@ -159,6 +162,7 @@ export function useLayerSegments(
   const [segmentsLoadComplete, setSegmentsLoadComplete] = useState(false);
   const layersRef = useLatest(layers);
   const defaultLayerIdRef = useLatest(defaultTranscriptionLayerId);
+  const alsoMediaIdsRef = useLatest(alsoMediaIds);
   const loadSequenceRef = useRef(0);
 
   const loadSegments = useCallback(async () => {
@@ -190,18 +194,21 @@ export function useLayerSegments(
           LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId),
           LayerSegmentQueryService.listSegmentsByLayerId(layer.id),
         ]);
-        return [layer.id, mergeUnboundTimelineSegments(scoped, layerSegments)];
+        return [
+          layer.id,
+          mergeUnboundTimelineSegments(scoped, layerSegments, new Set(alsoMediaIdsRef.current)),
+        ];
       }),
     );
 
     if (loadSequenceRef.current !== loadSequence) return;
     setSegmentsByLayer(new Map(entries));
     setSegmentsLoadComplete(true);
-  }, [defaultLayerIdRef, layersRef, mediaId]);
+  }, [alsoMediaIdsRef, defaultLayerIdRef, layersRef, mediaId]);
 
   useEffect(() => {
     void loadSegments();
-  }, [loadSegments, layers, defaultTranscriptionLayerId]);
+  }, [alsoMediaIds, loadSegments, layers, defaultTranscriptionLayerId]);
 
   const updateSegmentsLocally = useCallback(
     (segmentIds: Iterable<string>, updater: (segment: LayerUnitDocType) => LayerUnitDocType) => {

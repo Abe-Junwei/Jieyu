@@ -159,7 +159,6 @@ function ReadyStageContent({
   observerProps,
   acousticRuntimeStatus,
   vadCacheStatus,
-  projectHubProps,
   mediaInputProps,
   workspaceAreaProps,
   batchOpsSection,
@@ -234,8 +233,6 @@ function ReadyStageContent({
           />
         </Suspense>
       </section>
-
-      <LeftRailProjectHub {...projectHubProps} />
 
       <input
         ref={mediaInputProps.ref}

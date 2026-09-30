@@ -156,6 +156,36 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.currentMediaUnits.map((unit) => unit.id)).toEqual(['s-free']);
   });
 
+  it('keeps an unbound canonical sentence on the open recording lane', () => {
+    const parent = tr('tr-parent', 'independent_boundary');
+    const unbound: LayerUnitDocType = {
+      id: 'utt-free',
+      textId: 't1',
+      mediaId: '',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '',
+      updatedAt: '',
+      transcription: { und: 'line' },
+    };
+    const index = buildTimelineUnitViewIndex({
+      units: [unbound],
+      unitsOnCurrentMedia: [unbound],
+      segmentsByLayer: new Map(),
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: parent.id,
+      defaultTranscriptionLayerId: parent.id,
+      transcriptionLaneReadScope: {
+        transcriptionLayers: [parent],
+        allLayersOrdered: [parent],
+      },
+    });
+    expect(index.currentMediaUnits.map((unit) => unit.id)).toEqual(['utt-free']);
+    expect(index.byLayer.get(parent.id)?.some((row) => row.id === 'utt-free')).toBe(true);
+    expect(index.byLayer.get(parent.id)?.find((row) => row.id === 'utt-free')?.text).toBe('line');
+  });
+
   it('keeps multiple independent segments on the same media when a canonical unit row still exists', () => {
     const host: LayerUnitDocType = {
       id: 'utt-host',

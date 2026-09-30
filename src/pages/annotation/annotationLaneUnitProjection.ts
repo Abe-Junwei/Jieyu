@@ -24,7 +24,14 @@ export function projectAnnotationLaneUnits(input: {
       ? [...input.units]
       : (() => {
           const matched = input.units.filter((unit) => unit.mediaId === input.mediaId);
-          return matched.length > 0 ? matched : [...input.units];
+          if (matched.length > 0) return matched;
+          const belongsToAnotherFile = input.units.some(
+            (unit) =>
+              typeof unit.mediaId === 'string' &&
+              unit.mediaId.length > 0 &&
+              unit.mediaId !== input.mediaId,
+          );
+          return belongsToAnotherFile ? [] : [...input.units];
         })();
   const transcriptionLayers = input.layers.filter((layer) => layer.layerType === 'transcription');
   const lane = transcriptionLayers[0];

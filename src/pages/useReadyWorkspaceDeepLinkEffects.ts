@@ -33,7 +33,7 @@ interface UseReadyWorkspaceDeepLinkEffectsInput {
   selectedUnitMedia?: { id?: string };
   segmentsByLayer: Record<string, Array<{ id: string }> | undefined>;
   segmentsLoadComplete: boolean;
-  selectTimelineUnit: (unit: ReturnType<typeof createTimelineUnit>) => void;
+  selectTimelineUnit: (unit: ReturnType<typeof createTimelineUnit> | null) => void;
   setSelectedLayerId: (layerId: string) => void;
   setFocusedLayerRowId: (layerId: string) => void;
   setSelectedMediaId: (mediaId: string) => void;
@@ -121,14 +121,18 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
       return layers.some((l) => l.id === t && l.textId === projectTextId);
     };
 
-    const requestedMediaValid = Boolean(pending.mediaId?.trim() && mediaOk(pending.mediaId!));
+    const requestedMediaId = pending.mediaId?.trim() ?? '';
+    if (requestedMediaId.length > 0 && mediaItems.length === 0) return;
+    const requestedMediaValid = requestedMediaId.length > 0 && mediaOk(requestedMediaId);
     if (requestedMediaValid) {
-      const want = pending.mediaId!.trim();
       const cur = (selectedUnitMedia?.id ?? '').trim();
-      if (cur !== want) {
-        setSelectedMediaId(want);
+      if (cur !== requestedMediaId) {
+        selectTimelineUnit(null);
+        setSelectedMediaId(requestedMediaId);
         return;
       }
+    } else if (requestedMediaId.length > 0) {
+      pendingPostTextIdDeepLinkRef.current = null;
     }
 
     if (pending.layerId?.trim() && layerOk(pending.layerId)) {

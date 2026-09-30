@@ -303,9 +303,14 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(
               }
               return '';
             };
+            const segmentText = unit.kind === 'segment' ? segmentSurfaceText(unit.id) : '';
             const sourceText =
               unit.kind === 'segment'
-                ? segmentSurfaceText(unit.id)
+                ? segmentText.length > 0
+                  ? segmentText
+                  : realUtt
+                    ? getUnitTextForLayer(realUtt, layer.id)
+                    : unit.text
                 : realUtt
                   ? getUnitTextForLayer(realUtt, layer.id)
                   : unit.text;

@@ -6,6 +6,7 @@ import {
   isSegmentTimelineUnit,
   isUnitTimelineUnit,
 } from '../hooks/transcription/transcriptionTypes';
+import { useRecordedMediaIds } from '../hooks/transcription/useRecordedMediaIds';
 import {
   resolveSegmentMediaIdFromSegmentGraph,
   resolveSegmentScopeMediaId,
@@ -51,9 +52,16 @@ export function useReadyWorkspaceSegmentScope(input: UseReadyWorkspaceSegmentSco
   }, [segmentScopeMediaIdBase]);
 
   const segmentScopeMediaId = segmentScopeMediaOverride ?? segmentScopeMediaIdBase;
+  const recordedMediaIds = useRecordedMediaIds(segmentScopeMediaId, mediaItems);
 
   const { segmentsByLayer, segmentsLoadComplete, reloadSegments, updateSegmentsLocally } =
-    useLayerSegments(layers, segmentScopeMediaId, defaultTranscriptionLayerId, layerLinks);
+    useLayerSegments(
+      layers,
+      segmentScopeMediaId,
+      defaultTranscriptionLayerId,
+      layerLinks,
+      recordedMediaIds,
+    );
 
   const { segmentContentByLayer, reloadSegmentContents } = useLayerSegmentContents(
     layers,

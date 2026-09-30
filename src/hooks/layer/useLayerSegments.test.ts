@@ -96,6 +96,11 @@ describe('mergeUnboundTimelineSegments', () => {
     expect(
       mergeUnboundTimelineSegments([bound], [bound, free, other]).map((row) => row.id),
     ).toEqual(['seg-bound', 'seg-free']);
+    expect(
+      mergeUnboundTimelineSegments([bound], [bound, free, other], new Set(['media-2'])).map(
+        (row) => row.id,
+      ),
+    ).toEqual(['seg-bound', 'seg-other', 'seg-free']);
   });
 });
 

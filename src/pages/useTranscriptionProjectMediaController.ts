@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { MediaItemDocType } from '../types/jieyuDbDocTypes';
-import { getTranscriptionAppService } from '../app/index';
+import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import { useMediaImport } from '~/hooks/media/useMediaImport';
 import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
@@ -18,7 +18,10 @@ import type {
 } from '../types/useTranscriptionProjectMediaController.types';
 import type { TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
 import { readMediaFileFromInput } from '~/hooks/media/readMediaFileFromInput';
-import { publishActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
+import {
+  publishActiveProjectTextId,
+  clearActiveProjectTextId,
+} from '../utils/transcriptionUrlDeepLink';
 import {
   assessTimelineImportMismatch,
   resolveAudioImportWillRemapOnFirstBind,
@@ -218,6 +221,7 @@ export function useTranscriptionProjectMediaController(
       (async () => {
         try {
           await transcriptionAppService.deleteProject(currentActiveTextId);
+          clearActiveProjectTextId();
           setActiveTextId(null);
           selectTimelineUnit(null);
           clearPendingAudioImportSelection();

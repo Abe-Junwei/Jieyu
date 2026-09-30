@@ -41,7 +41,7 @@ const {
   mockDeleteProject: vi.fn(async () => undefined),
 }));
 
-vi.mock('../app/index', () => ({
+vi.mock('../app/TranscriptionAppService', () => ({
   getTranscriptionAppService: () => ({
     createProject: mockCreateProject,
     createPlaceholderMedia: mockCreatePlaceholderMedia,

@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { MediaItemDocType, LayerUnitDocType } from '../../db';
+import type {
+  LayerDocType,
+  LayerUnitContentDocType,
+  MediaItemDocType,
+  LayerUnitDocType,
+} from '../../db';
 import { useTranscriptionDerivedData } from './useTranscriptionDerivedData';
 import type { TimelineUnit } from './transcriptionTypes';
 
@@ -99,5 +104,75 @@ describe('useTranscriptionDerivedData', () => {
     expect(result.current.selectedUnitMedia?.id).toBe('media-1');
     expect(result.current.unitsOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
     expect(result.current.selectedRowMeta).toBeNull();
+  });
+
+  it('keeps unbound sentences on the open recording, including text stored under und', () => {
+    const now = '2026-04-02T00:00:00.000Z';
+    const undLayer = {
+      id: 'layer-und',
+      textId: 'text-1',
+      key: 'trc_und',
+      name: { eng: 'Transcription' },
+      languageId: 'und',
+      layerType: 'transcription',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const unbound = {
+      ...makeUnit('utt-unbound', '', 2),
+      transcription: { und: 'imported line' },
+    };
+    const content = {
+      id: 'utr-1',
+      unitId: unbound.id,
+      layerId: undLayer.id,
+      modality: 'text',
+      text: 'imported line',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerUnitContentDocType;
+
+    const { result } = renderHook(() =>
+      useTranscriptionDerivedData({
+        layers: [undLayer],
+        layerToDeleteId: '',
+        selectedTimelineUnit: null,
+        selectedMediaId: 'media-1',
+        mediaItems: [makeMedia('media-1')],
+        units: [makeUnit('utt-current', 'media-1', 0), unbound],
+        translations: [content],
+      }),
+    );
+
+    expect(result.current.unitsOnCurrentMedia.map((item) => item.id)).toEqual([
+      'utt-current',
+      'utt-unbound',
+    ]);
+    expect(result.current.getUnitTextForLayer(unbound, undLayer.id)).toBe('imported line');
+    const mapOnly = {
+      ...makeUnit('utt-map', 'media-1', 4),
+      transcription: { und: 'from map' },
+    };
+    expect(result.current.getUnitTextForLayer(mapOnly, undLayer.id)).toBe('from map');
+  });
+
+  it('shows sentences stamped onto another item of this recording', () => {
+    const stamped = makeUnit('utt-stamped', 'media-twin', 1);
+
+    const { result } = renderHook(() =>
+      useTranscriptionDerivedData({
+        layers: [],
+        layerToDeleteId: '',
+        selectedTimelineUnit: null,
+        selectedMediaId: 'media-1',
+        mediaItems: [makeMedia('media-1')],
+        units: [stamped],
+        translations: [],
+        recordedMediaIds: ['media-twin'],
+      }),
+    );
+
+    expect(result.current.unitsOnCurrentMedia.map((item) => item.id)).toEqual(['utt-stamped']);
   });
 });

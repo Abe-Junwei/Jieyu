@@ -6,6 +6,8 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import { layerTextLookupUnitId } from '../../utils/recordingScopeUnitId';
+import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
+import { isUnboundTimelineMedia } from './timelineUnitView';
 import { isUnitTimelineUnit, type TimelineUnit } from './transcriptionTypes';
 
 function sortLayersByOrder(items: LayerDocType[]) {
@@ -67,6 +69,8 @@ type Params = {
   mediaItems: MediaItemDocType[];
   units: LayerUnitDocType[];
   translations: LayerUnitContentDocType[];
+  /** Media ids that hold this recording's sentences but are not the open item. */
+  recordedMediaIds?: readonly string[];
 };
 
 export function useTranscriptionDerivedData({
@@ -77,6 +81,7 @@ export function useTranscriptionDerivedData({
   mediaItems,
   units,
   translations,
+  recordedMediaIds = [],
 }: Params) {
   const {
     orderedLayers,
@@ -124,8 +129,16 @@ export function useTranscriptionDerivedData({
       : undefined;
     const unitsSorted = [...units].sort((a, b) => a.startTime - b.startTime);
     const loadedMediaIds = new Set(mediaItems.map((item) => item.id));
+    const recordedMediaIdSet = new Set(recordedMediaIds);
     const unitsOnCurrentMedia = selectedUnitMedia?.id
-      ? unitsSorted.filter((item) => item.mediaId === selectedUnitMedia.id)
+      ? unitsSorted.filter((item) => {
+          const mediaId = item.mediaId ?? '';
+          return (
+            mediaId === selectedUnitMedia.id ||
+            isUnboundTimelineMedia(mediaId) ||
+            recordedMediaIdSet.has(mediaId)
+          );
+        })
       : selectedMediaId.length > 0 && loadedMediaIds.size > 0
         ? unitsSorted.filter((item) => !item.mediaId || loadedMediaIds.has(item.mediaId ?? ''))
         : unitsSorted.filter((item) => !item.mediaId || !loadedMediaIds.has(item.mediaId));
@@ -152,7 +165,7 @@ export function useTranscriptionDerivedData({
           }
         : null,
     };
-  }, [effectiveSelectedUnitId, mediaItems, selectedMediaId, units]);
+  }, [effectiveSelectedUnitId, mediaItems, recordedMediaIds, selectedMediaId, units]);
 
   const visibleUnits = unitsOnCurrentMedia;
 
@@ -169,19 +182,29 @@ export function useTranscriptionDerivedData({
   const getUnitTextForLayer = useCallback(
     (unit: LayerUnitDocType, layerId?: string) => {
       const resolvedLayerId = layerId ?? defaultTranscriptionLayerId;
-      if (resolvedLayerId) {
+      const readLayer = (id: string | undefined): string => {
+        if (!id) return '';
         const lookupId = layerTextLookupUnitId(unit);
         const fromLayer =
-          translationTextByLayer.get(resolvedLayerId)?.get(lookupId)?.text ??
-          (lookupId !== unit.id
-            ? translationTextByLayer.get(resolvedLayerId)?.get(unit.id)?.text
-            : undefined);
-        if (fromLayer !== undefined) return fromLayer;
+          translationTextByLayer.get(id)?.get(lookupId)?.text ??
+          (lookupId !== unit.id ? translationTextByLayer.get(id)?.get(unit.id)?.text : undefined);
+        return typeof fromLayer === 'string' ? fromLayer.trim() : '';
+      };
+      const direct = readLayer(resolvedLayerId);
+      if (direct.length > 0) return direct;
+      const onTranscriptionLayer =
+        resolvedLayerId !== undefined &&
+        transcriptionLayers.some((layer) => layer.id === resolvedLayerId);
+      if (onTranscriptionLayer) {
+        for (const layer of transcriptionLayers) {
+          if (layer.id === resolvedLayerId) continue;
+          const next = readLayer(layer.id);
+          if (next.length > 0) return next;
+        }
       }
-      // Fallback: read from the embedded cache for the default transcription layer
-      return unit.transcription?.default ?? '';
+      return pickDefaultTranscriptionText(unit.transcription);
     },
-    [defaultTranscriptionLayerId, translationTextByLayer],
+    [defaultTranscriptionLayerId, transcriptionLayers, translationTextByLayer],
   );
 
   return {

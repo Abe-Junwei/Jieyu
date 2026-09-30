@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import * as AppIndex from '../../app/index';
+import * as AppIndex from '../../app/TranscriptionAppService';
 import { getAiToolSegmentExecutionToolNames } from '../../ai/policy/aiToolPolicyMatrix';
 import { segmentAdapter } from './useAiToolCallHandler.segmentAdapter';
 
