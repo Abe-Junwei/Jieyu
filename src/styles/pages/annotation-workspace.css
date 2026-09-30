@@ -379,16 +379,24 @@
   flex-direction: column;
   gap: 10px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .app-side-pane-body-slot > .annotation-side-pane-portaled-stack {
   margin-top: calc(var(--space-2, 8px) * -1);
 }
 
+.annotation-side-pane-portaled-stack > .app-side-pane-files-group {
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .annotation-document-tools {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 10px;
   padding: 4px 2px 8px;
   width: 100%;
@@ -399,6 +407,7 @@
 .annotation-side-pane-portaled-stack .annotation-document-tools {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -416,8 +425,9 @@
 .annotation-document-tools-checks {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 6px;
+  min-width: 0;
 }
 
 .annotation-document-tools-field {

@@ -11,6 +11,7 @@
 @import './foundation/global-toast.css'; /* components */
 @import './pages/app-shell-layout.css'; /* components */
 @import './foundation/dialog-shell.css'; /* components */
+@import './foundation/context-menu.css'; /* components — home and asset pages open menus before the transcription chunk */
 @import './foundation/panel-primitives.css'; /* components */
 @import './foundation/panel-design-presets.css'; /* theme */
 @import './foundation/language-asset-section-contract.css'; /* components */

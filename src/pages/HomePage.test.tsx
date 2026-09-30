@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AppSidePaneProvider } from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
 import * as HomeProgress from '../utils/homeTranscriptionRecordProgress';
 import { HomePage } from './HomePage';
@@ -15,7 +16,10 @@ function renderHome() {
     <QueryClientProvider client={client}>
       <LocaleProvider locale="zh-CN">
         <MemoryRouter>
-          <HomePage />
+          <AppSidePaneProvider>
+            <div id="app-side-pane-body-slot" />
+            <HomePage />
+          </AppSidePaneProvider>
         </MemoryRouter>
       </LocaleProvider>
     </QueryClientProvider>,
@@ -43,6 +47,10 @@ describe('HomePage', () => {
             annotationRate: 0.1,
             transcriptionUnitCount: 8,
             translationRowCount: 8,
+            sentenceCount: 8,
+            transcribedCount: 4,
+            translatedCount: 2,
+            annotatedCount: 1,
           },
         ],
       },
@@ -53,23 +61,14 @@ describe('HomePage', () => {
     vi.restoreAllMocks();
   });
 
-  it(
-    'lists mocked project and deep-link to transcription',
-    async () => {
-      renderHome();
+  it('lists mocked project and deep-link to transcription', async () => {
+    renderHome();
 
-      expect(await screen.findByText('Demo 项目')).toBeTruthy();
-      const projectLink = await screen.findByRole('link', { name: 'Demo 项目' });
-      expect(projectLink.getAttribute('href')).toContain('/transcription?textId=');
-      expect(decodeURIComponent(projectLink.getAttribute('href') ?? '')).toContain('text-demo');
+    const projectButton = await screen.findByRole('button', { name: 'Demo 项目' });
+    expect(document.getElementById('app-side-pane-body-slot')?.contains(projectButton)).toBe(true);
 
-      expect(screen.getAllByText('50%').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText(/声文稿.*field\.wav/)).toBeTruthy();
-
-      const recordLink = screen.getByRole('link', { name: /field\.wav/ });
-      expect(recordLink.getAttribute('href')).toContain('textId=text-demo');
-      expect(recordLink.getAttribute('href')).toContain('mediaId=media-1');
-    },
-    20_000,
-  );
+    const recordLink = screen.getByRole('link', { name: 'field.wav' });
+    expect(recordLink.getAttribute('href')).toContain('textId=text-demo');
+    expect(recordLink.getAttribute('href')).toContain('mediaId=media-1');
+  }, 20_000);
 });

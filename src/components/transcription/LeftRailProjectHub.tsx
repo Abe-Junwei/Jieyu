@@ -1,6 +1,16 @@
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_NAV } from '../../utils/jieyuMaterialIcon';
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { useToast } from '../../contexts/ToastContext';
@@ -15,6 +25,12 @@ import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
+import {
+  buildTranscriptionDeepLinkHref,
+  getActiveProjectTextId,
+  subscribeActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
+import { loadProjectRoster, PROJECT_ROSTER_QUERY_KEY } from '../../utils/projectRoster';
 import type { TranscriptionOutboundExportFormat } from '../../utils/transcriptionLiteExport';
 import { createLogger } from '../../observability/logger';
 import { openProjectLanguageListsEditor } from '../ProjectLanguageListsDialog';
@@ -141,6 +157,22 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const showProjectHubLogicalTimeExchange = typeof onApplyTextTimeMapping === 'function';
 
   const locale = useLocale();
+  const navigate = useNavigate();
+  const activeTextId = useSyncExternalStore(
+    subscribeActiveProjectTextId,
+    getActiveProjectTextId,
+    () => '',
+  );
+  const rosterQuery = useQuery({
+    queryKey: [PROJECT_ROSTER_QUERY_KEY, locale],
+    queryFn: () => loadProjectRoster(locale),
+  });
+  const roster = useMemo(() => rosterQuery.data ?? [], [rosterQuery.data]);
+  const refetchRoster = rosterQuery.refetch;
+  useEffect(() => {
+    void refetchRoster();
+  }, [activeTextId, refetchRoster]);
+  const activeProjectTitle = roster.find((project) => project.textId === activeTextId)?.title ?? '';
   const sidePaneMessages = getSidePaneSidebarMessages(locale);
   const { showToast } = useToast();
   const [hostElement, setHostElement] = useState<HTMLElement | null>(null);
@@ -630,9 +662,31 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
 
     return [
       {
+        label: t(locale, 'transcription.projectHub.group.allProjects'),
+        variant: 'category',
+        children: [
+          ...roster.map((project) => ({
+            label: project.title,
+            selectionState:
+              project.textId === activeTextId ? ('selected' as const) : ('unselected' as const),
+            selectionVariant: 'check' as const,
+            onClick: () => {
+              void navigate(buildTranscriptionDeepLinkHref({ textId: project.textId }));
+            },
+          })),
+          {
+            label: t(locale, 'transcription.projectHub.openWorkbench'),
+            separatorBefore: roster.length > 0,
+            onClick: () => {
+              void navigate('/');
+            },
+          },
+        ],
+      },
+      {
         label: t(locale, 'transcription.projectHub.group.project'),
         variant: 'category',
-        meta: currentProjectLabel,
+        meta: activeProjectTitle || currentProjectLabel,
         children: [
           {
             label: t(locale, 'transcription.toolbar.newProject'),
@@ -644,6 +698,30 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                   label: t(locale, 'msg.projectSetup.editLanguages'),
                   onClick: openProjectLanguageListsEditor,
                 },
+                {
+                  label: t(locale, 'app.nav.annotation'),
+                  onClick: () => navigate('/annotation'),
+                },
+                {
+                  label: t(locale, 'app.nav.lexicon'),
+                  onClick: () => navigate('/lexicon'),
+                },
+                {
+                  label: t(locale, 'app.nav.corpus'),
+                  onClick: () => navigate('/corpus'),
+                },
+                {
+                  label: t(locale, 'app.nav.orthographies'),
+                  onClick: () => navigate('/assets/orthographies'),
+                },
+                {
+                  label: t(locale, 'app.nav.languageMetadata'),
+                  onClick: () => navigate('/assets/language-metadata'),
+                },
+                {
+                  label: sidePaneMessages.quickActionSpeakerManagement,
+                  onClick: onOpenSpeakerManagementPanel,
+                },
               ]
             : []),
           {
@@ -653,10 +731,6 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             onClick: onDeleteCurrentProject,
           },
         ],
-      },
-      {
-        label: sidePaneMessages.quickActionSpeakerManagement,
-        onClick: onOpenSpeakerManagementPanel,
       },
       {
         label: t(locale, 'transcription.projectHub.exchange.importTitle'),
@@ -690,9 +764,13 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     canDeleteAudio,
     canDeleteProject,
     currentProjectLabel,
+    activeProjectTitle,
+    activeTextId,
+    roster,
     activeTextTimeMapping,
     showProjectHubLogicalTimeExchange,
     locale,
+    navigate,
     onDeleteCurrentAudio,
     onDeleteCurrentProject,
     onExportEaf,
@@ -750,11 +828,23 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             return next;
           });
         }}
-        aria-label={t(locale, 'transcription.projectHub.toggle')}
-        title={t(locale, 'transcription.projectHub.toggle')}
+        aria-label={
+          activeProjectTitle.length > 0
+            ? activeProjectTitle
+            : t(locale, 'transcription.projectHub.toggle')
+        }
+        title={
+          activeProjectTitle.length > 0
+            ? activeProjectTitle
+            : t(locale, 'transcription.projectHub.toggle')
+        }
       >
         <MaterialSymbol name="inventory_2" aria-hidden className={JIEYU_MATERIAL_NAV} />
-        <span>{t(locale, 'transcription.projectHub.shortTitle')}</span>
+        <span>
+          {activeProjectTitle.length > 0
+            ? activeProjectTitle
+            : t(locale, 'transcription.projectHub.shortTitle')}
+        </span>
       </button>
       <input
         ref={projectArchiveInputRef}

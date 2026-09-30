@@ -67,6 +67,11 @@
   transition: margin-left var(--shell-motion-base) ease;
 }
 
+.app-shell-home .app-main {
+  margin-right: 0;
+  padding: 0;
+}
+
 .app-left-rail {
   grid-column: 1;
   position: relative;
@@ -369,8 +374,10 @@
 .app-side-pane-body-slot {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
-  overflow: visible;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .app-side-pane-empty-state {
@@ -460,6 +467,32 @@
 
 .app-side-pane-layer-actions-group {
   flex-shrink: 0;
+}
+
+.app-side-pane-files-group {
+  flex: 0 1 auto;
+  max-height: min(30%, 10.5rem);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-side-pane-files-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 2px;
+}
+
+.app-side-pane-files-wrap .project-file-pane {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .app-side-pane-group-toggle {

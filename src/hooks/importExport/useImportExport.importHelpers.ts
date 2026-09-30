@@ -142,7 +142,9 @@ export async function createImportSpeakerResolver(input: {
 }) {
   const projectTextId = input.textId?.trim() ?? '';
   const speakerIdMap = new Map<string, string>();
-  const existingSpeakers = await LinguisticService.speakers.list();
+  const existingSpeakers = projectTextId
+    ? await LinguisticService.speakers.listForProject(projectTextId)
+    : [];
   const speakerByName = new Map(
     existingSpeakers.map(
       (speaker) => [input.normalizeSpeakerLookupKey(speaker.name), speaker] as const,
@@ -172,12 +174,6 @@ export async function createImportSpeakerResolver(input: {
     const normalized = input.normalizeSpeakerLookupKey(displayName);
     const existing = speakerByName.get(normalized);
     if (existing) {
-      if (projectTextId.length > 0) {
-        await LinguisticService.speakers.create({
-          name: existing.name,
-          textId: projectTextId,
-        });
-      }
       if (attrs && (attrs.dialect || attrs.accent || attrs.languageIds?.length || attrs.notes)) {
         const patched = await LinguisticService.speakers.patchImportAttrs(existing.id, attrs);
         if (patched) speakerByName.set(normalized, patched);

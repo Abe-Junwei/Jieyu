@@ -10,6 +10,12 @@ import { LinguisticService } from '../services/LinguisticService';
 import { resolveDefaultTranscriptionLayerId } from '../services/LayerSegmentGraphService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
+import {
+  collectSentences,
+  progressFromSentences,
+  resolveMediaDurationSec,
+  translatedSentenceIds,
+} from './projectOverviewStats';
 
 /** 0–1 或 null 表示暂无数据（无层、无单元等） */
 export type ProgressRate = number | null;
@@ -23,12 +29,18 @@ export interface TranscriptionRecordProgressRow {
   kind: HomeProgressRecordKind;
   mediaId: string;
   filename: string;
+  /** Media row filename used to match an imported manuscript. */
+  storageFilename?: string;
   durationSec?: number;
   transcriptionRate: ProgressRate;
   translationRate: ProgressRate;
   annotationRate: ProgressRate;
   transcriptionUnitCount: number;
   translationRowCount: number;
+  sentenceCount: number;
+  transcribedCount: number;
+  translatedCount: number;
+  annotatedCount: number;
 }
 
 export interface HomeProjectProgressBundle {
@@ -84,12 +96,56 @@ export function computeAnnotationProgressRate(metaRows: SegmentMetaDocType[]): P
   return done / withText.length;
 }
 
-function resolveTranscriptionRateFromQuality(
-  totalUnits: number,
-  completionRate: number,
-): ProgressRate {
-  if (totalUnits <= 0) return null;
-  return Math.max(0, Math.min(1, completionRate));
+function recordDurationSec(
+  mediaDuration: number | undefined,
+  metaRows: readonly { endTime: number; unitKind?: string }[],
+): number | undefined {
+  let maxEnd = 0;
+  for (const row of metaRows) {
+    if (row.endTime > maxEnd) maxEnd = row.endTime;
+  }
+  const resolved = resolveMediaDurationSec({
+    ...(typeof mediaDuration === 'number' ? { duration: mediaDuration } : {}),
+    maxUnitEndSec: maxEnd,
+  });
+  return resolved > 0 ? resolved : undefined;
+}
+
+function emptyProgressCounts() {
+  return {
+    transcriptionRate: null as ProgressRate,
+    translationRate: null as ProgressRate,
+    annotationRate: null as ProgressRate,
+    transcriptionUnitCount: 0,
+    translationRowCount: 0,
+    sentenceCount: 0,
+    transcribedCount: 0,
+    translatedCount: 0,
+    annotatedCount: 0,
+  };
+}
+
+function countsFromRows(
+  metaRows: SegmentMetaDocType[],
+  translationRows: TranslationStatusSnapshotDocType[],
+  hasTranslationLayers: boolean,
+) {
+  const sentences = collectSentences(metaRows);
+  const progress = progressFromSentences(
+    sentences,
+    hasTranslationLayers ? translatedSentenceIds(translationRows) : new Set<string>(),
+  );
+  return {
+    transcriptionRate: progress.transcriptionRate,
+    translationRate: hasTranslationLayers ? progress.translationRate : null,
+    annotationRate: progress.annotationRate,
+    transcriptionUnitCount: progress.sentenceCount,
+    translationRowCount: progress.sentenceCount,
+    sentenceCount: progress.sentenceCount,
+    transcribedCount: progress.transcribedCount,
+    translatedCount: hasTranslationLayers ? progress.translatedCount : 0,
+    annotatedCount: progress.annotatedCount,
+  };
 }
 
 async function loadRecordRow(
@@ -100,55 +156,44 @@ async function loadRecordRow(
 ): Promise<TranscriptionRecordProgressRow> {
   const mediaId = media.id;
   const trimmedFilename = media.filename?.trim();
-  const filename =
+  const storageFilename =
     trimmedFilename !== undefined && trimmedFilename.length > 0 ? trimmedFilename : mediaId;
+  const details =
+    media.details && typeof media.details === 'object'
+      ? (media.details as Record<string, unknown>)
+      : undefined;
+  const displayName = typeof details?.displayName === 'string' ? details.displayName.trim() : '';
+  const filename = displayName.length > 0 ? displayName : storageFilename;
 
   if (defaultTxLayerId === undefined || defaultTxLayerId.length === 0) {
+    const durationSec = recordDurationSec(media.duration, []);
     return {
       kind: 'transcription_record',
       mediaId,
       filename,
-      ...(typeof media.duration === 'number' && Number.isFinite(media.duration)
-        ? { durationSec: media.duration }
-        : {}),
-      transcriptionRate: null,
-      translationRate: null,
-      annotationRate: null,
-      transcriptionUnitCount: 0,
-      translationRowCount: 0,
+      storageFilename,
+      ...(durationSec !== undefined ? { durationSec } : {}),
+      ...emptyProgressCounts(),
     };
   }
 
   const db = await getDb();
-  const [quality, metaRows, trAll] = await Promise.all([
-    WorkspaceReadModelService.summarizeQuality({ textId, mediaId, layerId: defaultTxLayerId }),
+  const [metaRows, trAll] = await Promise.all([
     db.dexie.segment_meta.where('[layerId+mediaId]').equals([defaultTxLayerId, mediaId]).toArray(),
     hasTranslationLayers
       ? db.dexie.translation_status_snapshots.where('mediaId').equals(mediaId).toArray()
       : Promise.resolve([] as TranslationStatusSnapshotDocType[]),
   ]);
-
   const trRows = hasTranslationLayers ? trAll.filter((row) => row.textId === textId) : [];
 
-  const transcriptionRate = resolveTranscriptionRateFromQuality(
-    quality.totalUnitsInScope,
-    quality.completionRate,
-  );
-  const translationRate = hasTranslationLayers ? computeTranslationProgressRate(trRows) : null;
-  const annotationRate = computeAnnotationProgressRate(metaRows);
-
+  const durationSec = recordDurationSec(media.duration, metaRows);
   return {
     kind: 'transcription_record',
     mediaId,
     filename,
-    ...(typeof media.duration === 'number' && Number.isFinite(media.duration)
-      ? { durationSec: media.duration }
-      : {}),
-    transcriptionRate,
-    translationRate,
-    annotationRate,
-    transcriptionUnitCount: quality.totalUnitsInScope,
-    translationRowCount: trRows.length,
+    storageFilename,
+    ...(durationSec !== undefined ? { durationSec } : {}),
+    ...countsFromRows(metaRows, trRows, hasTranslationLayers),
   };
 }
 
@@ -158,30 +203,18 @@ async function loadTextRecordOnlyRow(
   hasTranslationLayers: boolean,
 ): Promise<TranscriptionRecordProgressRow> {
   const db = await getDb();
-  const [quality, metaRows, trAll] = await Promise.all([
-    WorkspaceReadModelService.summarizeQuality({ textId, layerId: defaultTxLayerId }),
+  const [metaRows, trAll] = await Promise.all([
     db.dexie.segment_meta.where('[textId+layerId]').equals([textId, defaultTxLayerId]).toArray(),
     hasTranslationLayers
       ? db.dexie.translation_status_snapshots.where('textId').equals(textId).toArray()
       : Promise.resolve([] as TranslationStatusSnapshotDocType[]),
   ]);
 
-  const transcriptionRate = resolveTranscriptionRateFromQuality(
-    quality.totalUnitsInScope,
-    quality.completionRate,
-  );
-  const translationRate = hasTranslationLayers ? computeTranslationProgressRate(trAll) : null;
-  const annotationRate = computeAnnotationProgressRate(metaRows);
-
   return {
     kind: 'text_record',
     mediaId: HOME_TEXT_RECORD_ROW_ID,
     filename: '',
-    transcriptionRate,
-    translationRate,
-    annotationRate,
-    transcriptionUnitCount: quality.totalUnitsInScope,
-    translationRowCount: trAll.length,
+    ...countsFromRows(metaRows, trAll, hasTranslationLayers),
   };
 }
 

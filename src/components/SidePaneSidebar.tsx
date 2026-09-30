@@ -18,7 +18,9 @@ import {
 import { ContextMenu } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { LayerActionPopover } from './LayerActionPopover';
+import { ProjectFilePaneSection } from './project/ProjectFileBrowser';
 import { SidePaneSidebarOverview } from './SidePaneSidebarOverview';
+import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 import { CollaborationCloudPanel } from './transcription/CollaborationCloudPanel';
 import { TranscriptionLeftRailLayerActions } from './transcription/TranscriptionLeftRailLayerActions';
 import { SidePaneSidebarActions } from './SidePaneSidebarActions';
@@ -108,6 +110,8 @@ export function SidePaneSidebar({
   const location = useLocation();
   const showLeftRailLayerActions = isTranscriptionWorkspacePathname(location.pathname);
   const locale = useLocale();
+  const projectTextId =
+    new URLSearchParams(location.search).get('textId')?.trim() || getActiveProjectTextId();
   const messages = useMemo(() => getSidePaneSidebarMessages(locale), [locale]);
   const collaborationMessages = useMemo(() => getCollaborationCloudPanelMessages(locale), [locale]);
   const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
@@ -425,6 +429,7 @@ export function SidePaneSidebar({
   const sidePanePortaledNode = useMemo(
     () => (
       <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
+        <ProjectFilePaneSection textId={projectTextId} currentWorkspace="transcription" />
         {sidePaneOverviewNode}
         <section
           className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group"
@@ -445,6 +450,7 @@ export function SidePaneSidebar({
     [
       messages.quickActionsCardAria,
       messages.quickActionsCardTitle,
+      projectTextId,
       sidePaneActionsNode,
       sidePaneOverviewNode,
     ],
@@ -457,11 +463,12 @@ export function SidePaneSidebar({
         aria-label={messages.inlinePaneAria}
         data-layer-pane-interactive="true"
       >
+        <ProjectFilePaneSection textId={projectTextId} currentWorkspace="transcription" />
         {sidePaneOverviewNode}
         {sidePaneActionsNode}
       </div>
     ),
-    [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode],
+    [messages.inlinePaneAria, projectTextId, sidePaneActionsNode, sidePaneOverviewNode],
   );
 
   // Register title/subtitle only. Live pane body portals into the shell slot so

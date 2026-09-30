@@ -8,6 +8,8 @@ import type {
 import type { SaveState } from '../useTranscriptionData';
 import { dexieStoresForAnnotationImportRw, getDb, isLexemeEntry, withTransaction } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { rememberImportedSourceFile } from '../../services/projectFileOps';
+import { sourceFormatFromName } from '../../utils/projectSourceFiles';
 import { validateLayerTierConsistency } from '../../services/TierBridgeService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import {
@@ -59,7 +61,7 @@ import {
   layerDocPatchWithTreeParent,
 } from './useImportExport.layerTreeParentField';
 import {
-  findMediaIdByFilename,
+  resolveEafImportMediaId,
   findReimportUnitId,
   matchLayerByEafTier,
   matchUnitByAnnotationRef,
@@ -249,16 +251,29 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         return;
       }
       const importTextId = textId;
-      let mediaId =
-        segmentScopeMediaId?.trim() || activeTimelineMediaItem?.id || selectedUnitMedia?.id;
+      const openMediaId =
+        segmentScopeMediaId?.trim() || activeTimelineMediaItem?.id || selectedUnitMedia?.id || '';
 
       const db = await getDb();
+      const projectMediaRows = await db.dexie.media_items
+        .where('textId')
+        .equals(importTextId)
+        .toArray();
+      const eafMedia = eafResult
+        ? resolveEafImportMediaId({
+            ...(openMediaId.length > 0 ? { currentMediaId: openMediaId } : {}),
+            ...(eafResult.mediaFilename ? { eafFilename: eafResult.mediaFilename } : {}),
+            mediaItems: projectMediaRows,
+          })
+        : { ...(openMediaId.length > 0 ? { mediaId: openMediaId } : {}) };
+      let mediaId = eafMedia.mediaId;
+      let missingMediaFilename = eafMedia.missingMediaFilename;
       const now = new Date().toISOString();
       const currentText = await db.dexie.texts.get(importTextId);
       let establishedDocumentSpanSec = 0;
       let establishedAcousticSec = 0;
       if (currentText) {
-        const mediaRows = await db.dexie.media_items.where('textId').equals(importTextId).toArray();
+        const mediaRows = projectMediaRows;
         const mediaIds = mediaRows.map((row) => row.id);
         const unitsOnText =
           mediaIds.length > 0 ? await LayerSegmentQueryService.listUnitsByMediaIds(mediaIds) : [];
@@ -283,19 +298,6 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       });
       if (mismatchNotices.length > 0 && !importOptions?.mismatchAcknowledged) {
         throw new ImportMismatchRequiresAckError(file.name, mismatchNotices);
-      }
-
-      let missingMediaFilename: string | undefined;
-      if (
-        !mediaId &&
-        eafResult &&
-        eafResult.mediaFilename &&
-        eafResult.mediaFilename !== 'unknown.wav'
-      ) {
-        const mediaRows = await db.dexie.media_items.where('textId').equals(importTextId).toArray();
-        const matchedMediaId = findMediaIdByFilename(mediaRows, eafResult.mediaFilename);
-        if (matchedMediaId) mediaId = matchedMediaId;
-        else missingMediaFilename = eafResult.mediaFilename;
       }
 
       const existingUnitCount = await db.dexie.layer_units
@@ -1313,6 +1315,15 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           });
         }
       }
+      await rememberImportedSourceFile({
+        textId: importTextId,
+        name: file.name,
+        format: sourceFormatFromName(file.name),
+        ...(mediaId && mediaId.trim().length > 0 ? { mediaId } : {}),
+        ...(eafResult?.mediaFilename && eafResult.mediaFilename !== 'unknown.wav'
+          ? { linkedMediaFilename: eafResult.mediaFilename }
+          : {}),
+      });
       await loadSnapshot();
       const hostRecoveryWarningCount = eafResult
         ? [...eafResult.tierConstraints.values()].filter(

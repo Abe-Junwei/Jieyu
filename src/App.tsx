@@ -6,9 +6,16 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
 } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import {
+  buildTranscriptionDeepLinkHref,
+  getActiveProjectTextId,
+  readTranscriptionWorkspaceReturnHint,
+  subscribeActiveProjectTextId,
+} from './utils/transcriptionUrlDeepLink';
 import { AppGlobalToastHost } from './components/AppGlobalToastHost';
 import { AppOfflineStatusBanner } from './components/AppOfflineStatusBanner';
 import { WorkspaceReturnBanner } from './components/WorkspaceReturnBanner';
@@ -43,11 +50,7 @@ import {
 } from './i18n';
 import { getCollaborationCloudPanelMessages } from './i18n/messages';
 import { requestCollaborationCloudPanelOpen } from './utils/collaborationCloudPanelEvents';
-import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
-import {
-  annotationTemplateKindFromSearch,
-  annotationTemplateTargetMatches,
-} from './utils/annotationTemplateKind';
+import { annotationTemplateKindFromSearch } from './utils/annotationTemplateKind';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
 import { MaterialSymbol, ModalPanel } from './components/ui';
 import {
@@ -239,7 +242,9 @@ function AppShellSidePane({
       >
         <div className="app-side-pane-header">
           <p className="app-side-pane-title">{sidePaneTitle}</p>
-          <p className="app-side-pane-subtitle">{sidePaneSubtitle}</p>
+          {sidePaneSubtitle.length > 0 ? (
+            <p className="app-side-pane-subtitle">{sidePaneSubtitle}</p>
+          ) : null}
         </div>
 
         <div className="app-side-pane-body">
@@ -557,6 +562,31 @@ export function App() {
   );
 
   const primaryNavItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
+
+  function resolveWorkspaceNavTo(to: string): string {
+    if (to !== '/transcription' && to !== '/annotation') return to;
+    const hint = readTranscriptionWorkspaceReturnHint();
+    if (!hint) return to;
+    if (to === '/transcription') {
+      return buildTranscriptionDeepLinkHref({
+        textId: hint.textId,
+        ...(hint.mediaId ? { mediaId: hint.mediaId } : {}),
+      });
+    }
+    const params = new URLSearchParams();
+    params.set('textId', hint.textId);
+    if (hint.mediaId) params.set('mediaId', hint.mediaId);
+    return `/annotation?${params.toString()}`;
+  }
+  const projectOpen = useSyncExternalStore(
+    subscribeActiveProjectTextId,
+    getActiveProjectTextId,
+    () => '',
+  );
+  const visiblePrimaryNavItems = useMemo(
+    () => primaryNavItems.filter((item) => item.to === '/' || projectOpen.length > 0),
+    [primaryNavItems, projectOpen],
+  );
   const navItems = useMemo(
     () => [...primaryNavItems, ...secondaryNavItems],
     [primaryNavItems, secondaryNavItems],
@@ -618,27 +648,6 @@ export function App() {
       }
     },
     [location.pathname, location.search, navigate, pathToPanelId, searchFromTarget],
-  );
-
-  const isAssetPanelActive = useCallback(
-    (to: string) => {
-      if (openAssetPanel !== pathToPanelId(to)) return false;
-      const targetSearch = searchFromTarget(to);
-      if (!targetSearch) return true;
-      return annotationTemplateTargetMatches(targetSearch, location.search);
-    },
-    [location.search, openAssetPanel, pathToPanelId, searchFromTarget],
-  );
-
-  const handleAssetPanelToggle = useCallback(
-    (to: string) => {
-      if (isAssetPanelActive(to)) {
-        handleAssetPanelClose();
-        return;
-      }
-      openAssetPanelFromTarget(to);
-    },
-    [handleAssetPanelClose, isAssetPanelActive, openAssetPanelFromTarget],
   );
 
   const assetPanelCtx = useMemo<AssetPanelContextValue>(
@@ -730,7 +739,7 @@ export function App() {
       <LocaleProvider locale={locale}>
         <AppSidePaneProvider>
           <div
-            className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
+            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
             {...shellStyleProps}
           >
             <AppOfflineStatusBanner locale={locale} />
@@ -744,10 +753,10 @@ export function App() {
                   className="app-left-rail-group app-left-rail-primary"
                   aria-label={t(locale, 'app.navGroup.core')}
                 >
-                  {primaryNavItems.map((item) => (
+                  {visiblePrimaryNavItems.map((item) => (
                     <NavLink
                       key={item.to}
-                      to={item.to}
+                      to={resolveWorkspaceNavTo(item.to)}
                       end={item.to === '/'}
                       className={({ isActive }) =>
                         isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
@@ -779,47 +788,6 @@ export function App() {
                   className="app-left-rail-footer"
                   aria-label={t(locale, 'app.leftRail.aria.footer')}
                 >
-                  <div
-                    id="left-rail-project-hub-slot"
-                    className="left-rail-project-hub-anchor"
-                    aria-hidden="true"
-                  />
-                  <LeftRailResourcesMenu
-                    locale={locale}
-                    items={[
-                      {
-                        to: '/assets/language-metadata',
-                        label: t(locale, 'app.nav.languageMetadata'),
-                      },
-                      {
-                        label: t(locale, 'app.nav.templates'),
-                        children: [
-                          {
-                            to: '/assets/structural-profiles?template=abbreviations',
-                            label: t(locale, 'workspace.structuralProfile.abbreviationsTitle'),
-                          },
-                          {
-                            to: '/assets/structural-profiles?template=pos',
-                            label: t(locale, 'workspace.structuralProfile.posTitle'),
-                          },
-                          {
-                            to: '/assets/structural-profiles?template=structure',
-                            label: t(locale, 'workspace.structuralProfile.structureTitle'),
-                          },
-                        ],
-                      },
-                      {
-                        to: '/assets/orthographies',
-                        label: t(locale, 'app.nav.orthographies'),
-                      },
-                      {
-                        to: '/assets/orthography-bridges',
-                        label: t(locale, 'app.nav.orthographyBridges'),
-                      },
-                    ]}
-                    isItemActive={isAssetPanelActive}
-                    onPick={handleAssetPanelToggle}
-                  />
                   {isTranscriptionRoute ? (
                     <button
                       type="button"

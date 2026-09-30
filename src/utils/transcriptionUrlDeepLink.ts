@@ -98,6 +98,19 @@ export function publishActiveProjectTextId(textId: string): void {
   }
 }
 
+export function clearActiveProjectTextId(): void {
+  activeProjectTextId = '';
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.removeItem(WORKSPACE_RETURN_STORAGE_KEY);
+    } catch {
+      /* quota / private mode */
+    }
+    window.dispatchEvent(new CustomEvent(ACTIVE_PROJECT_TEXT_EVENT, { detail: '' }));
+  }
+  for (const listener of activeProjectTextListeners) listener();
+}
+
 export function subscribeActiveProjectTextId(listener: () => void): () => void {
   activeProjectTextListeners.add(listener);
   return () => {
@@ -130,6 +143,7 @@ export function rememberTranscriptionWorkspaceReturnHint(
     };
     if (payload.textId.length === 0) return;
     window.sessionStorage.setItem(WORKSPACE_RETURN_STORAGE_KEY, JSON.stringify(payload));
+    for (const listener of activeProjectTextListeners) listener();
   } catch {
     /* quota / private mode */
   }

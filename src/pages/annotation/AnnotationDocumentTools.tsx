@@ -8,6 +8,7 @@ import type { AnnotationRetokenizeController } from '../useAnnotationRetokenizeC
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
 import type { AnnotationValidatorPanelController } from '../useAnnotationValidatorPanelController';
 import type { AnnotationIgtRow } from '../useAnnotationWorkspaceController';
+import { ProjectFilePaneSection } from '../../components/project/ProjectFileBrowser';
 import { AnnotationIgtUnitExtras } from './AnnotationIgtUnitExtras';
 
 const EXPORTS = [
@@ -20,6 +21,7 @@ const EXPORTS = [
 ] as const;
 
 export type AnnotationDocumentToolsProps = {
+  textId: string;
   isEmpty: boolean;
   unitCount: number;
   transcriptionHref: string;
@@ -63,7 +65,12 @@ export function AnnotationDocumentToolsSlot(props: AnnotationDocumentToolsProps)
     setPlaced(true);
   }, [host]);
   if (!placed) return null;
-  const node = <AnnotationDocumentTools {...props} />;
+  const node = (
+    <div className="annotation-side-pane-portaled-stack">
+      <ProjectFilePaneSection textId={props.textId} currentWorkspace="annotation" />
+      <AnnotationDocumentTools {...props} />
+    </div>
+  );
   if (slot) return createPortal(node, slot);
   return node;
 }
