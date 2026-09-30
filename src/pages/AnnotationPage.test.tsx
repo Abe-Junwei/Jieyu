@@ -19,6 +19,7 @@ const {
   mockSearchLexemes,
   mockUpdateTokenPos,
   mockUpdateTokenGloss,
+  mockUpdateTokenLanguage,
   mockReplaceMorphemesForToken,
   mockSaveToken,
   mockRemoveToken,
@@ -42,6 +43,7 @@ const {
   mockSearchLexemes: vi.fn(),
   mockUpdateTokenPos: vi.fn(),
   mockUpdateTokenGloss: vi.fn(),
+  mockUpdateTokenLanguage: vi.fn(),
   mockReplaceMorphemesForToken: vi.fn(),
   mockSaveToken: vi.fn(),
   mockRemoveToken: vi.fn(),
@@ -67,6 +69,7 @@ vi.mock('../app/languageAssetPageAccess', () => ({
       listTokenLexemeLinks: mockListTokenLexemeLinks,
       updateTokenPos: mockUpdateTokenPos,
       updateTokenGloss: mockUpdateTokenGloss,
+      updateTokenLanguage: mockUpdateTokenLanguage,
       replaceMorphemesForToken: mockReplaceMorphemesForToken,
       saveToken: mockSaveToken,
       removeToken: mockRemoveToken,
@@ -278,8 +281,12 @@ describe('AnnotationPage', () => {
     ]);
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     const row = await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
-    expect(row.textContent).toContain('hello');
-    expect(row.textContent).toContain('INTJ');
+    expect((screen.getByTestId('annotation-igt-form-tok-1') as HTMLInputElement).value).toBe(
+      'hello',
+    );
+    expect((screen.getByTestId('annotation-igt-gloss-tok-1') as HTMLInputElement).value).toBe(
+      'INTJ',
+    );
     expect(row.textContent).not.toContain('暂无译文');
     expect(row.querySelector('[data-testid="annotation-igt-note-uid-1"]')).toBeNull();
     expect(screen.getByTestId('annotation-document-tools')).toBeTruthy();
@@ -317,7 +324,9 @@ describe('AnnotationPage', () => {
     ]);
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     const row = await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
-    expect(row.textContent).toContain('你好');
+    expect((screen.getByTestId('annotation-igt-translation-uid-1') as HTMLInputElement).value).toBe(
+      '你好',
+    );
     expect(row.textContent).not.toContain('暂无译文');
   });
 
@@ -397,8 +406,10 @@ describe('AnnotationPage', () => {
     fireEvent.keyDown(workspace, { key: 'Escape' });
     fireEvent.click(screen.getByTestId('annotation-igt-row-uid-1'));
     await waitFor(() => {
-      expect(screen.getByTestId('annotation-igt-row-uid-1').textContent).toContain('greeting');
-      expect(screen.getByTestId('annotation-igt-row-uid-1').textContent).toContain('N');
+      expect((screen.getByTestId('annotation-igt-gloss-tok-1') as HTMLInputElement).value).toBe(
+        'greeting',
+      );
+      expect((screen.getByTestId('annotation-igt-pos-tok-1') as HTMLInputElement).value).toBe('N');
     });
   });
 
@@ -502,7 +513,7 @@ describe('AnnotationPage', () => {
     });
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
-    fireEvent.click(screen.getByTestId('annotation-igt-select-tok-1'));
+    fireEvent.click(screen.getByTestId('annotation-igt-word-actions-tok-1'));
     fireEvent.click(await screen.findByTestId('annotation-igt-split-tok-1'));
     await waitFor(() => {
       expect(mockSaveToken).toHaveBeenCalled();
@@ -535,7 +546,9 @@ describe('AnnotationPage', () => {
     dispatchWorkspaceUnitUpdated({ unitId: 'uid-1', revision: 12 });
     await waitFor(() => {
       expect(mockListTokensByUnitIds.mock.calls.length).toBeGreaterThan(tokenReads);
-      expect(screen.getByTestId('annotation-igt-row-uid-1').textContent).toContain('greeting');
+      expect((screen.getByTestId('annotation-igt-gloss-tok-1') as HTMLInputElement).value).toBe(
+        'greeting',
+      );
     });
   });
 
@@ -774,11 +787,10 @@ describe('AnnotationPage', () => {
 
   it('shows language save failures through the workspace notice', async () => {
     seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', '')]);
-    mockSaveToken.mockRejectedValue(new Error('language write failed'));
+    mockUpdateTokenLanguage.mockRejectedValue(new Error('language write failed'));
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     await screen.findByTestId('annotation-igt-row-uid-1');
-    fireEvent.keyDown(screen.getByTestId('annotation-workspace'), { key: 'Enter' });
-    fireEvent.click(screen.getByTestId('annotation-igt-select-tok-1'));
+    fireEvent.click(screen.getByTestId('annotation-igt-word-actions-tok-1'));
     fireEvent.blur(await screen.findByTestId('annotation-igt-language-tok-1'), {
       target: { value: 'eng' },
     });
@@ -801,7 +813,7 @@ describe('AnnotationPage', () => {
       },
     ]);
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
-    fireEvent.click(await screen.findByTestId('annotation-igt-select-tok-1'));
+    fireEvent.click(await screen.findByTestId('annotation-igt-word-actions-tok-1'));
     const cite = await screen.findByTestId('annotation-igt-cite-tok-1');
     mockListLexemes.mockRejectedValue(new Error('citation write failed'));
     fireEvent.click(cite);

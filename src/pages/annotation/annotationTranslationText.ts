@@ -31,6 +31,27 @@ export function pickAnnotationLayerText(input: AnnotationLayerTextInput): Map<st
   return out;
 }
 
+export function annotationTextByLayer(
+  input: AnnotationLayerTextInput,
+): Map<string, Map<string, string>> {
+  const layers = new Set(input.layerIds.filter((id) => id.length > 0));
+  const out = new Map<string, Map<string, string>>();
+  for (const row of input.contents) {
+    const layerId = row.layerId ?? '';
+    if (!layers.has(layerId)) continue;
+    if (typeof row.modality === 'string' && row.modality.length > 0 && row.modality !== 'text') {
+      continue;
+    }
+    const unitId = (row.unitId ?? '').trim();
+    const text = (row.text ?? '').trim();
+    if (unitId.length === 0 || text.length === 0) continue;
+    const byUnit = out.get(layerId) ?? new Map<string, string>();
+    if (!byUnit.has(unitId)) byUnit.set(unitId, text);
+    out.set(layerId, byUnit);
+  }
+  return out;
+}
+
 export function pickAnnotationTranslationText(input: {
   contents: AnnotationLayerTextInput['contents'];
   translationLayerIds: readonly string[];

@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
+import { isLexemeEntry } from '../../db/lexemeNestedIds';
 import { LinguisticService } from '../../services/LinguisticService';
 import { entryDoc } from '../../utils/dmlexEntry';
 import {
@@ -19,8 +20,13 @@ describe('saveAnnotationLexemeLink', () => {
   });
 
   it('restores the previous sense link when replacement insertion fails', async () => {
+    const lexeme = await db.lexemes.get('lex-hello');
+    if (!lexeme || !isLexemeEntry(lexeme)) throw new Error('lexeme fixture missing');
+    lexeme.entry.senses = [{ id: 'sense-original' }];
+    await db.lexemes.put(lexeme);
     await saveAnnotationTokenLexemeLink('tok-rollback', 'hello');
     const before = await LinguisticService.units.listTokenLexemeLinks('token', 'tok-rollback');
+    expect(before[0]?.senseId).toBe('sense-original');
     const fail = () => {
       throw new Error('injected link failure');
     };

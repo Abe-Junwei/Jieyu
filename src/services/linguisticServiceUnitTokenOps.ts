@@ -95,7 +95,10 @@ export async function saveUnit(data: LayerUnitDocType): Promise<string> {
   return normalized.id;
 }
 
-export async function saveUnitsBatch(items: LayerUnitDocType[]): Promise<void> {
+export async function saveUnitsBatch(
+  items: LayerUnitDocType[],
+  options?: { expectedAnalysisGraphFingerprint?: Readonly<Record<string, string>> },
+): Promise<void> {
   const db = await getDb();
   const normalized = items.map(normalizeUnitDocForStorage);
   const existingRows = await Promise.all(
@@ -107,7 +110,7 @@ export async function saveUnitsBatch(items: LayerUnitDocType[]): Promise<void> {
   for (const row of normalized) {
     await enforceTimeSubdivisionParentBounds(db, row.id, row.startTime, row.endTime);
   }
-  await bulkUpsertUnitLayerUnits(db, normalized);
+  await bulkUpsertUnitLayerUnits(db, normalized, options);
   if (changedUnitIds.length > 0) {
     await invalidateUnitEmbeddings(db, changedUnitIds);
   }
@@ -183,6 +186,28 @@ export async function updateTokenPos(tokenId: string, pos: string | null): Promi
   dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
 }
 
+export async function updateTokenForm(
+  tokenId: string,
+  form: string,
+  lang = 'default',
+): Promise<void> {
+  const db = await getDb();
+  const existing = await db.collections.unit_tokens.findOne({ selector: { id: tokenId } }).exec();
+  if (!existing) {
+    throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
+  }
+  const row = existing.toJSON();
+  const key = lang.trim().length > 0 ? lang.trim() : 'default';
+  const trimmed = form.trim();
+  const nextForm = { ...row.form, [key]: trimmed };
+  await db.collections.unit_tokens.insert({
+    ...row,
+    form: nextForm,
+    updatedAt: new Date().toISOString(),
+  });
+  dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
+}
+
 export async function updateTokenGloss(
   tokenId: string,
   gloss: string | null,
@@ -212,6 +237,31 @@ export async function updateTokenGloss(
     updatedAt: new Date().toISOString(),
   });
   dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
+}
+
+export async function updateTokenLanguage(
+  tokenId: string,
+  languageId: string | null,
+): Promise<void> {
+  const db = await getDb();
+  const existing = await db.dexie.unit_tokens.get(tokenId);
+  if (!existing) {
+    throw new Error(`未找到 token: ${tokenId}`);
+  }
+  const trimmed = (languageId ?? '').trim();
+  const updatedAt = new Date().toISOString();
+  const changed = await db.dexie.unit_tokens
+    .where('id')
+    .equals(tokenId)
+    .modify((row) => {
+      if (trimmed.length > 0) row.languageId = trimmed;
+      else delete row.languageId;
+      row.updatedAt = updatedAt;
+    });
+  if (changed === 0) {
+    throw new Error(`未找到 token: ${tokenId}`);
+  }
+  dispatchWorkspaceUnitUpdated({ unitId: existing.unitId });
 }
 
 export async function batchUpdateTokenPosByForm(

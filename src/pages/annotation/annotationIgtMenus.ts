@@ -1,6 +1,14 @@
 import type { ContextMenuItem } from '../../components/ContextMenu';
-import { t, type Locale } from '../../i18n';
+import { t, tf, type Locale } from '../../i18n';
 import type { AnnotationRelationMark } from '../useAnnotationRelationController';
+import {
+  ANNOTATION_ADDABLE_LINES,
+  annotationLineKind,
+  annotationLineLabelKey,
+  annotationLineLanguage,
+  annotationLineMoveTarget,
+  type AnnotationLineId,
+} from './annotationIgtLines';
 import { joinAnnotationTokenForms } from './writeAnnotationFormsToSurface';
 
 export function buildAnnotationRowMenuItems(input: {
@@ -39,6 +47,110 @@ export function buildAnnotationRowMenuItems(input: {
   return items;
 }
 
+export type AnnotationLanguageLineOption = {
+  key: string;
+  label: string;
+};
+
+export function buildAnnotationLineMenuItems(input: {
+  locale: Locale;
+  unitId: string;
+  lineId: string;
+  lines: readonly string[];
+  glossLanguageDraft?: string;
+  onGlossLanguageDraft?: (value: string) => void;
+  languageLines?: readonly AnnotationLanguageLineOption[];
+  primaryGlossLanguage?: string;
+  onMove?: (from: string, to: string) => void;
+  onRemove?: (lineId: string) => void;
+  onAdd?: (lineId: string) => void;
+}): ContextMenuItem[] {
+  const items: ContextMenuItem[] = [];
+  const up = annotationLineMoveTarget(input.lines, input.lineId, 'up');
+  const down = annotationLineMoveTarget(input.lines, input.lineId, 'down');
+  if (input.onMove && up) {
+    items.push({
+      testId: `annotation-igt-line-up-${input.lineId}-${input.unitId}`,
+      label: t(input.locale, 'workspace.annotation.moveLineUp'),
+      onClick: () => input.onMove?.(input.lineId, up),
+    });
+  }
+  if (input.onMove && down) {
+    items.push({
+      testId: `annotation-igt-line-down-${input.lineId}-${input.unitId}`,
+      label: t(input.locale, 'workspace.annotation.moveLineDown'),
+      onClick: () => input.onMove?.(input.lineId, down),
+    });
+  }
+  const kind = annotationLineKind(input.lineId);
+  const removable =
+    input.lineId.includes(':') ||
+    (ANNOTATION_ADDABLE_LINES as readonly AnnotationLineId[]).includes(kind);
+  if (input.onRemove && removable && input.lineId !== 'source' && input.lineId !== 'translation') {
+    items.push({
+      testId: `annotation-igt-remove-line-${input.lineId}-${input.unitId}`,
+      label: t(input.locale, 'workspace.annotation.removeLine'),
+      separatorBefore: items.length > 0,
+      onClick: () => input.onRemove?.(input.lineId),
+    });
+  }
+  const shown = new Set(input.lines);
+  const missing = ANNOTATION_ADDABLE_LINES.filter((lineId) => !shown.has(lineId));
+  const languageChoices = (input.languageLines ?? []).filter((line) => !shown.has(line.key));
+  const addChildren: ContextMenuItem[] = [
+    ...missing.map((lineId) => ({
+      testId: `annotation-igt-add-line-${lineId}-${input.unitId}`,
+      label: t(input.locale, annotationLineLabelKey(lineId)),
+      onClick: () => input.onAdd?.(lineId),
+    })),
+    ...languageChoices.map((line) => ({
+      testId: `annotation-igt-add-line-${line.key}-${input.unitId}`,
+      label: line.label,
+      onClick: () => input.onAdd?.(line.key),
+    })),
+  ];
+  if (input.onAdd && input.onGlossLanguageDraft) {
+    addChildren.push({
+      testId: `annotation-igt-add-gloss-language-${input.unitId}`,
+      label: t(input.locale, 'workspace.annotation.lineGloss'),
+      keepOpen: true,
+      searchField: {
+        value: input.glossLanguageDraft ?? '',
+        placeholder: t(input.locale, 'workspace.annotation.lineLanguage'),
+        testId: `annotation-igt-add-gloss-language-input-${input.unitId}`,
+        onChange: input.onGlossLanguageDraft,
+        onBlur: (value) => {
+          const languageId = value.trim();
+          const primary = (input.primaryGlossLanguage ?? '').trim();
+          if (languageId.length === 0 || languageId === primary) return;
+          const key = `gloss:${languageId}`;
+          if (shown.has(key)) return;
+          input.onAdd?.(key);
+        },
+      },
+    });
+  }
+  if (input.onAdd && addChildren.length > 0) {
+    items.push({
+      label: t(input.locale, 'workspace.annotation.addLine'),
+      separatorBefore: items.length > 0,
+      children: addChildren,
+    });
+  }
+  return items;
+}
+
+export function annotationLanguageLineLabel(
+  locale: Locale,
+  key: string,
+  languageLabel?: string,
+): string {
+  const kindLabel = t(locale, annotationLineLabelKey(annotationLineKind(key)));
+  const language = (languageLabel ?? annotationLineLanguage(key)).trim();
+  if (language.length === 0) return kindLabel;
+  return tf(locale, 'workspace.annotation.lineWithLanguage', { line: kindLabel, language });
+}
+
 export function buildAnnotationTokenMenuItems(input: {
   locale: Locale;
   tokenId: string;
@@ -46,17 +158,66 @@ export function buildAnnotationTokenMenuItems(input: {
   morphs: readonly { id: string; form: string }[];
   suppletionLemma: string;
   canAllomorph: boolean;
+  onSplit: () => void;
+  onMerge: () => void;
   onSeed: () => void;
+  onCite?: () => void;
+  onLink?: () => void;
+  onUnlink?: () => void;
+  languageValue?: string;
+  onLanguageChange?: (value: string) => void;
+  onLanguageBlur?: (value: string) => void;
+  pos?: string;
+  storedPos?: string;
+  onApplyPosByForm?: (pos: string) => void;
+  onAddAlternative?: (pos: string) => void;
   onToggleMwe?: () => void;
   onMarkRelation?: (mark: AnnotationRelationMark) => void;
 }): ContextMenuItem[] {
-  const items: ContextMenuItem[] = [];
+  const items: ContextMenuItem[] = [
+    {
+      testId: `annotation-igt-split-${input.tokenId}`,
+      label: t(input.locale, 'workspace.annotation.tokenSplit'),
+      onClick: input.onSplit,
+    },
+    {
+      testId: `annotation-igt-merge-${input.tokenId}`,
+      label: t(input.locale, 'workspace.annotation.tokenMerge'),
+      onClick: input.onMerge,
+    },
+  ];
   if (input.morphs.length === 0) {
     items.push({
       testId: `annotation-igt-seed-morph-${input.tokenId}`,
       label: t(input.locale, 'workspace.annotation.morphemeSeed'),
       onClick: input.onSeed,
     });
+  }
+  const lexicon: ContextMenuItem[] = [];
+  if (input.onLink) {
+    lexicon.push({
+      testId: `annotation-igt-link-${input.tokenId}`,
+      label: t(input.locale, 'workspace.annotation.lexemeLink'),
+      onClick: input.onLink,
+    });
+  }
+  if (input.onUnlink) {
+    lexicon.push({
+      testId: `annotation-igt-unlink-${input.tokenId}`,
+      label: t(input.locale, 'workspace.annotation.lexemeUnlink'),
+      onClick: input.onUnlink,
+    });
+  }
+  if (input.onCite) {
+    lexicon.push({
+      testId: `annotation-igt-cite-${input.tokenId}`,
+      label: t(input.locale, 'workspace.annotation.citeExample'),
+      onClick: input.onCite,
+    });
+  }
+  const lexiconFirst = lexicon[0];
+  if (lexiconFirst) {
+    items.push({ ...lexiconFirst, separatorBefore: true }, ...lexicon.slice(1));
   }
   if (input.onToggleMwe) {
     items.push({
@@ -71,7 +232,38 @@ export function buildAnnotationTokenMenuItems(input: {
   if (relations.length > 0) {
     items.push({
       label: t(input.locale, 'workspace.annotation.relationsMenu'),
+      separatorBefore: true,
       children: relations,
+    });
+  }
+  const pos = input.pos?.trim() ?? '';
+  const storedPos = input.storedPos?.trim() ?? '';
+  if (input.onApplyPosByForm && pos.length > 0) {
+    items.push({
+      testId: `annotation-igt-pos-apply-${input.tokenId}`,
+      label: t(input.locale, 'workspace.annotation.applyPosByForm'),
+      separatorBefore: true,
+      onClick: () => input.onApplyPosByForm?.(pos),
+    });
+  }
+  if (input.onAddAlternative && storedPos.length > 0 && pos.length > 0 && pos !== storedPos) {
+    items.push({
+      testId: `annotation-igt-alt-add-${input.tokenId}`,
+      label: t(input.locale, 'workspace.annotation.addAlternative'),
+      onClick: () => input.onAddAlternative?.(pos),
+    });
+  }
+  if (input.onLanguageChange && input.onLanguageBlur) {
+    items.push({
+      label: t(input.locale, 'workspace.annotation.tokenLanguage'),
+      separatorBefore: true,
+      keepOpen: true,
+      searchField: {
+        value: input.languageValue ?? '',
+        testId: `annotation-igt-language-${input.tokenId}`,
+        onChange: input.onLanguageChange,
+        onBlur: input.onLanguageBlur,
+      },
     });
   }
   return items;

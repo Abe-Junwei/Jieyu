@@ -19,7 +19,18 @@ export async function loadAnnotationWorkspace(textId: string, mediaId: string) {
   ]);
   const translationLayers = layers
     .filter((layer) => layer.layerType === 'translation')
-    .map((layer) => ({ id: layer.id, label: annotationLayerLabel(layer) }));
+    .map((layer) => ({
+      id: layer.id,
+      label: annotationLayerLabel(layer),
+      languageId: layer.languageId?.trim() ?? '',
+    }));
+  const transcriptionLayers = layers
+    .filter((layer) => layer.layerType === 'transcription')
+    .map((layer) => ({
+      id: layer.id,
+      label: annotationLayerLabel(layer),
+      languageId: layer.languageId?.trim() ?? '',
+    }));
   const speakerNames = new Map(
     speakers
       .map((speaker) => [speaker.id, speaker.name.trim()] as const)
@@ -33,6 +44,7 @@ export async function loadAnnotationWorkspace(textId: string, mediaId: string) {
     tokens,
     contents,
     translationLayers,
+    transcriptionLayers,
     speakerNames,
     transcriptionLayerIds,
     languageId: annotationTranscriptionLanguageId(layers),

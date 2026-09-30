@@ -124,4 +124,29 @@ describe('saveAnnotationUnitMeta', () => {
     const requery = await LinguisticService.units.listByTextId('text-cert-1');
     expect(requery.find((row) => row.id === 'unit-cert-1')?.selfCertainty).toBe('uncertain');
   });
+
+  it('keeps a translation topic note distinct from a transcription comment', async () => {
+    await saveAnnotationUnitNote({
+      unitId: 'unit-topic-1',
+      content: 'transcription',
+      category: 'comment',
+    });
+    await saveAnnotationUnitNote({
+      unitId: 'unit-topic-1',
+      content: 'translation',
+      category: 'topic',
+    });
+    const loaded = await listAnnotationUnitNotes('unit-topic-1');
+    expect(loaded.find((note) => note.category === 'comment')?.content).toBe('transcription');
+    expect(loaded.find((note) => note.category === 'topic')?.content).toBe('translation');
+
+    await saveAnnotationUnitNote({
+      unitId: 'unit-topic-1',
+      content: 'translation edited',
+      category: 'topic',
+    });
+    const requery = await listAnnotationUnitNotes('unit-topic-1');
+    expect(requery.find((note) => note.category === 'comment')?.content).toBe('transcription');
+    expect(requery.find((note) => note.category === 'topic')?.content).toBe('translation edited');
+  });
 });

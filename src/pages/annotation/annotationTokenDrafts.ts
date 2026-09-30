@@ -6,6 +6,7 @@ export type AnnotationIgtToken = {
   gloss: string;
   pos: string;
   glossLang: string;
+  glossByLanguage?: Readonly<Record<string, string>>;
   reviewStatus?: string;
   languageId?: string;
 };
@@ -85,4 +86,20 @@ export function dropDraftsForTokenIds(
     if (!drop.has(id)) next[id] = draft;
   }
   return next;
+}
+
+/** Drop only drafts that still match the snapshot taken before a write. */
+export function dropDraftsUnchangedSince(
+  current: Readonly<Record<string, AnnotationTokenDraft>>,
+  tokenIds: readonly string[],
+  atStart: Readonly<Record<string, AnnotationTokenDraft>>,
+): Record<string, AnnotationTokenDraft> {
+  const unchanged = tokenIds.filter((id) => {
+    const before = atStart[id];
+    const now = current[id];
+    if (before === undefined && now === undefined) return true;
+    if (before === undefined || now === undefined) return false;
+    return before.pos === now.pos && before.gloss === now.gloss;
+  });
+  return dropDraftsForTokenIds(current, unchanged);
 }

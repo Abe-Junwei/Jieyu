@@ -79,7 +79,7 @@ export function useAnnotationAutoGlossController(input: {
       }
       applyingRef.current = true;
       setSaveNotice({ kind: 'saving', message: '' });
-      void applyAnnotationAutoGlossPreview(unitId, matches)
+      void applyAnnotationAutoGlossPreview(unitId, matches, undefined, skipTokenIds(unitId))
         .then(async () => {
           setMatches([]);
           setPreviewUnitId('');
@@ -91,7 +91,7 @@ export function useAnnotationAutoGlossController(input: {
           applyingRef.current = false;
         });
     },
-    [fail, matches, previewUnitId, reloadWorkspace],
+    [fail, matches, previewUnitId, reloadWorkspace, skipTokenIds],
   );
 
   return { previewUnitId, matches, saveNotice, onPreview, onApply };

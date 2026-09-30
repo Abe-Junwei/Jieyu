@@ -26,7 +26,10 @@ export type AnnotationNoteDeps = {
 
 export type AnnotationSelfCertaintyDeps = {
   listByTextId: (textId: string) => Promise<LayerUnitDocType[]>;
-  saveBatch: (items: LayerUnitDocType[]) => Promise<void>;
+  saveBatch: (
+    items: LayerUnitDocType[],
+    options?: { expectedAnalysisGraphFingerprint?: Readonly<Record<string, string>> },
+  ) => Promise<void>;
 };
 
 const defaultNoteDeps: AnnotationNoteDeps = {
@@ -38,17 +41,30 @@ const defaultNoteDeps: AnnotationNoteDeps = {
 
 const defaultCertaintyDeps: AnnotationSelfCertaintyDeps = {
   listByTextId: (textId) => LinguisticService.units.listByTextId(textId),
-  saveBatch: (items) => LinguisticService.units.saveBatch(items),
+  saveBatch: (items, options) => LinguisticService.units.saveBatch(items, options),
 };
+
+function projectAnnotationNoteCategory(category: NoteCategory | undefined): NoteCategory {
+  switch (category) {
+    case 'comment':
+    case 'question':
+    case 'todo':
+    case 'linguistic':
+    case 'fieldwork':
+    case 'correction':
+    case 'topic':
+      return category;
+    default:
+      return 'comment';
+  }
+}
 
 export function noteViewFromDoc(doc: UserNoteDocType): AnnotationUnitNoteView {
   const content =
     doc.content.default?.trim() ||
     Object.values(doc.content).find((value) => value.trim().length > 0) ||
     '';
-  const category = ANNOTATION_NOTE_CATEGORIES.includes(doc.category as NoteCategory)
-    ? (doc.category as NoteCategory)
-    : 'comment';
+  const category = projectAnnotationNoteCategory(doc.category);
   return { id: doc.id, content, category };
 }
 

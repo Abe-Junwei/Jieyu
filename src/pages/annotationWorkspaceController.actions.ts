@@ -1,11 +1,25 @@
 import { t } from '../i18n';
 import type { useLocale } from '../i18n';
-import { writeAnnotationFormsToTranscription } from './annotation/writeAnnotationFormsToSurface';
+import {
+  writeAnnotationFormsToTranscription,
+  writeAnnotationUnitLayerText,
+} from './annotation/writeAnnotationFormsToSurface';
 import { acceptAnnotationGlossSuggestion } from './annotation/acceptAnnotationGlossSuggestion';
 import { saveAnnotationTokenLanguage } from './annotation/saveAnnotationTokenLanguage';
 import { saveAnnotationOccurrenceCitation } from './annotation/saveAnnotationOccurrenceCitation';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import type { AnnotationIgtRow, AnnotationSaveNotice } from './useAnnotationWorkspaceController';
+
+/** Ignore a finished write when a later write has already taken the notice. */
+export function finishAnnotationSaveNotice(
+  ticket: { current: number },
+  mine: number,
+  setSaveNotice: (notice: AnnotationSaveNotice) => void,
+  notice: AnnotationSaveNotice,
+): void {
+  if (mine !== ticket.current) return;
+  setSaveNotice(notice);
+}
 
 /** Workspace write actions share one failure path, including refresh failures. */
 export function annotationWorkspaceWriteActions(input: {
@@ -15,15 +29,19 @@ export function annotationWorkspaceWriteActions(input: {
   reload: () => Promise<unknown>;
   setSaveNotice: (notice: AnnotationSaveNotice) => void;
   locale: ReturnType<typeof useLocale>;
+  noticeGate: { current: number };
 }) {
   const run = async (action: () => Promise<unknown>) => {
+    const ticket = input.noticeGate;
+    ticket.current += 1;
+    const mine = ticket.current;
     input.setSaveNotice({ kind: 'saving', message: '' });
     try {
       await action();
       await input.reload();
-      input.setSaveNotice({ kind: 'saved', message: '' });
+      finishAnnotationSaveNotice(ticket, mine, input.setSaveNotice, { kind: 'saved', message: '' });
     } catch (error) {
-      input.setSaveNotice({
+      finishAnnotationSaveNotice(ticket, mine, input.setSaveNotice, {
         kind: 'error',
         message:
           error instanceof Error && error.message.trim()
@@ -65,5 +83,59 @@ export function annotationWorkspaceWriteActions(input: {
         }),
       );
     },
+    onCommitLanguageLine: (unitId: string, layerId: string, text: string) => {
+      void run(() =>
+        commitAnnotationLayerText({
+          textId: input.textId,
+          unitId,
+          text,
+          languageId: input.languageId,
+          layerIds: layerId.length > 0 ? [layerId] : [],
+          ...(layerId.length > 0 ? { createLayerId: layerId } : {}),
+        }),
+      );
+    },
+    onCommitGlossLanguage: (_unitId: string, tokenId: string, languageId: string, text: string) => {
+      void run(() =>
+        LinguisticService.units.updateTokenGloss(
+          tokenId,
+          text.trim().length > 0 ? text : null,
+          languageId,
+        ),
+      );
+    },
+    onCommitSurface: (unitId: string, text: string) => {
+      void run(() =>
+        commitAnnotationLayerText({
+          textId: input.textId,
+          unitId,
+          text,
+          languageId: input.languageId,
+          layerType: 'transcription',
+        }),
+      );
+    },
+    onCommitTranslation: (unitId: string, layerId: string, text: string) => {
+      void run(() =>
+        commitAnnotationLayerText({
+          textId: input.textId,
+          unitId,
+          text,
+          languageId: input.languageId,
+          layerIds: layerId.length > 0 ? [layerId] : [],
+          ...(layerId.length > 0 ? { createLayerId: layerId } : {}),
+        }),
+      );
+    },
+    onCommitTokenForm: (_unitId: string, tokenId: string, form: string) => {
+      void run(() => LinguisticService.units.updateTokenForm(tokenId, form, input.languageId));
+    },
   };
+}
+
+async function commitAnnotationLayerText(
+  args: Parameters<typeof writeAnnotationUnitLayerText>[0],
+): Promise<void> {
+  const result = await writeAnnotationUnitLayerText(args);
+  if (result === 'missing') throw new Error('');
 }

@@ -1,3 +1,4 @@
+import { getDb, withTransaction } from '../../app/jieyuDbPageAccess';
 import { LinguisticService } from '../../app/languageAssetPageAccess';
 import type {
   TokenLexemeLinkDocType,
@@ -19,6 +20,7 @@ export type AnnotationTokenSplitDeps = {
     targetId: string,
   ) => Promise<TokenLexemeLinkDocType[]>;
   saveTokenLexemeLink: (data: TokenLexemeLinkDocType) => Promise<string>;
+  transaction?: <T>(action: () => Promise<T>) => Promise<T>;
 };
 
 const defaultDeps: AnnotationTokenSplitDeps = {
@@ -31,7 +33,25 @@ const defaultDeps: AnnotationTokenSplitDeps = {
   listTokenLexemeLinks: (targetType, targetId) =>
     LinguisticService.units.listTokenLexemeLinks(targetType, targetId),
   saveTokenLexemeLink: (data) => LinguisticService.units.saveTokenLexemeLink(data),
+  transaction: (action) => runAnnotationStructureTransaction(action, 'annotation-token-split'),
 };
+
+function runAnnotationStructureTransaction<T>(action: () => Promise<T>, label: string): Promise<T> {
+  return getDb().then((db) =>
+    withTransaction(
+      db,
+      'rw',
+      [
+        db.dexie.unit_tokens,
+        db.dexie.unit_morphemes,
+        db.dexie.token_lexeme_links,
+        db.dexie.unit_relations,
+      ],
+      action,
+      { label },
+    ),
+  );
+}
 
 export function planTokenSplit(form: string): { left: string; right: string } | null {
   const text = form.trim();
@@ -147,23 +167,28 @@ export async function splitAnnotationUnitToken(
   }
   const now = new Date().toISOString();
   const rightId = newId('tok');
-  await deps.saveToken(withForm(token, planned.left, now));
-  await deps.saveToken({
-    id: rightId,
-    textId: token.textId,
-    unitId,
-    form: { default: planned.right },
-    tokenIndex: token.tokenIndex + 1,
-    createdAt: now,
-    updatedAt: now,
-  });
-  for (const later of tokens.slice(index + 1)) {
+  const transact = deps.transaction ?? defaultDeps.transaction;
+  const write = async () => {
+    await deps.saveToken(withForm(token, planned.left, now));
     await deps.saveToken({
-      ...later,
-      tokenIndex: later.tokenIndex + 1,
+      id: rightId,
+      textId: token.textId,
+      unitId,
+      form: { default: planned.right },
+      tokenIndex: token.tokenIndex + 1,
+      createdAt: now,
       updatedAt: now,
     });
-  }
+    for (const later of tokens.slice(index + 1)) {
+      await deps.saveToken({
+        ...later,
+        tokenIndex: later.tokenIndex + 1,
+        updatedAt: now,
+      });
+    }
+  };
+  if (transact) await transact(write);
+  else await write();
   const readback = [...(await deps.listTokensByUnitIds([unitId]))].sort(
     (a, b) => a.tokenIndex - b.tokenIndex,
   );
@@ -220,39 +245,44 @@ export async function mergeAnnotationUnitTokenWithNext(
   ]);
   const nextMorphIndex =
     leftMorphs.reduce((max, morph) => Math.max(max, morph.morphemeIndex), -1) + 1;
-  await deps.saveToken({
-    ...withForm(left, mergedForm, now),
-    ...(gloss ? { gloss } : {}),
-    ...(pos ? { pos } : {}),
-    ...(languageId ? { languageId } : {}),
-  });
-  const spanShift = annotationMergeRightSpanShift(leftSurface, rightSurface);
-  const orderedRightMorphs = [...rightMorphs].sort((a, b) => a.morphemeIndex - b.morphemeIndex);
-  for (const [offset, morph] of orderedRightMorphs.entries()) {
-    const surfaceParts = shiftSurfaceParts(morph.surfaceParts, spanShift);
-    await deps.saveMorpheme({
-      ...morph,
-      tokenId: left.id,
-      morphemeIndex: nextMorphIndex + offset,
-      ...(surfaceParts && surfaceParts.length > 0 ? { surfaceParts } : {}),
-      updatedAt: now,
-    });
-  }
-  for (const link of rightLinks) {
-    await deps.saveTokenLexemeLink({
-      ...link,
-      targetId: left.id,
-      updatedAt: now,
-    });
-  }
-  await deps.removeToken(right.id);
-  for (const later of tokens.slice(index + 2)) {
+  const transact = deps.transaction ?? defaultDeps.transaction;
+  const write = async () => {
     await deps.saveToken({
-      ...later,
-      tokenIndex: later.tokenIndex - 1,
-      updatedAt: now,
+      ...withForm(left, mergedForm, now),
+      ...(gloss ? { gloss } : {}),
+      ...(pos ? { pos } : {}),
+      ...(languageId ? { languageId } : {}),
     });
-  }
+    const spanShift = annotationMergeRightSpanShift(leftSurface, rightSurface);
+    const orderedRightMorphs = [...rightMorphs].sort((a, b) => a.morphemeIndex - b.morphemeIndex);
+    for (const [offset, morph] of orderedRightMorphs.entries()) {
+      const surfaceParts = shiftSurfaceParts(morph.surfaceParts, spanShift);
+      await deps.saveMorpheme({
+        ...morph,
+        tokenId: left.id,
+        morphemeIndex: nextMorphIndex + offset,
+        ...(surfaceParts && surfaceParts.length > 0 ? { surfaceParts } : {}),
+        updatedAt: now,
+      });
+    }
+    for (const link of rightLinks) {
+      await deps.saveTokenLexemeLink({
+        ...link,
+        targetId: left.id,
+        updatedAt: now,
+      });
+    }
+    await deps.removeToken(right.id);
+    for (const later of tokens.slice(index + 2)) {
+      await deps.saveToken({
+        ...later,
+        tokenIndex: later.tokenIndex - 1,
+        updatedAt: now,
+      });
+    }
+  };
+  if (transact) await transact(write);
+  else await write();
   const readback = [...(await deps.listTokensByUnitIds([unitId]))].sort(
     (a, b) => a.tokenIndex - b.tokenIndex,
   );

@@ -20,14 +20,18 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
   it.each(['role', 'targetId', 'label'] as const)(
     'rejects a concurrent same-id graph overwrite changing %s',
     async (field) => {
-      const graph = projectUtteranceAnalysisGraph({
-        id: 'unit-conflict',
-        text: 'one two',
-        tokens: [
-          { id: 'one', form: 'one', pos: 'N' },
-          { id: 'two', form: 'two' },
-        ],
-      });
+      const graph = addAlternativePos(
+        projectUtteranceAnalysisGraph({
+          id: 'unit-conflict',
+          text: 'one two',
+          tokens: [
+            { id: 'one', form: 'one', pos: 'N' },
+            { id: 'two', form: 'two' },
+          ],
+        }),
+        'one',
+        'VERB',
+      );
       let stored: LayerUnitDocType = {
         id: 'unit-conflict',
         textId: 'text-conflict',
@@ -49,7 +53,10 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
               stored = structuredClone(items[0]!);
               const overwritten = stored.analysisGraph!;
               if (field === 'label') overwritten.nodes[0]!.label = 'overwritten';
-              else if (field === 'role') overwritten.relations[0]!.role = 'rejected';
+              else if (field === 'role')
+                overwritten.relations.find(
+                  (relation) => relation.type === 'alternativeAnalysis',
+                )!.role = 'rejected';
               else overwritten.relations[0]!.targetId = 'two';
             },
           },
@@ -99,6 +106,17 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
 
   it('reads back selected candidates and relation fields through Dexie', async () => {
     const unitId = 'unit-choice';
+    await LinguisticService.layers.saveTranslation({
+      id: 'lane-choice',
+      textId: 'text-choice',
+      key: 'lane-choice',
+      name: { default: 'lane' },
+      languageId: 'und',
+      modality: 'text',
+      layerType: 'transcription',
+      createdAt: '2026-09-29T00:00:00.000Z',
+      updatedAt: '2026-09-29T00:00:00.000Z',
+    });
     await LinguisticService.units.saveBatch([
       {
         id: unitId,
@@ -106,8 +124,8 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
         startTime: 0,
         endTime: 1,
         transcription: { default: 'run' },
-        createdAt: '',
-        updatedAt: '',
+        createdAt: '2026-09-29T00:00:00.000Z',
+        updatedAt: '2026-09-29T00:00:00.000Z',
       },
     ]);
     const choices = addAlternativePos(
@@ -195,5 +213,59 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
     expect(stored?.transcription?.default).toBe('take a walk');
     expect(stored?.startTime).toBe(1.5);
     expect(stored?.endTime).toBe(3);
+  });
+
+  it('rejects a second graph write that still uses the empty baseline', async () => {
+    const now = '2026-09-30T00:00:00.000Z';
+    await LinguisticService.layers.saveTranslation({
+      id: 'lane-base',
+      textId: 'text-base',
+      key: 'lane-base',
+      name: { default: 'lane' },
+      languageId: 'und',
+      modality: 'text',
+      layerType: 'transcription',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await LinguisticService.units.saveBatch([
+      {
+        id: 'unit-base',
+        textId: 'text-base',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'run' },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    const projected = projectUtteranceAnalysisGraph({
+      id: 'unit-base',
+      text: 'run',
+      tokens: [{ id: 'token-base', form: 'run', pos: 'N' }],
+    });
+    const before = (await LinguisticService.units.listByTextId('text-base')).find(
+      (unit) => unit.id === 'unit-base',
+    );
+    const first = addAlternativePos(projected, 'token-base', 'VERB');
+    const second = addAlternativePos(projected, 'token-base', 'ADJ');
+    await saveAnnotationUnitAnalysisGraph({
+      textId: 'text-base',
+      unitId: 'unit-base',
+      graph: first,
+      expectedBase: before?.analysisGraph,
+    });
+    await expect(
+      saveAnnotationUnitAnalysisGraph({
+        textId: 'text-base',
+        unitId: 'unit-base',
+        graph: second,
+        expectedBase: before?.analysisGraph,
+      }),
+    ).rejects.toThrow('analysisGraph baseline conflict');
+    const stored = (await LinguisticService.units.listByTextId('text-base')).find(
+      (unit) => unit.id === 'unit-base',
+    );
+    expect(stored?.analysisGraph).toEqual(first);
   });
 });

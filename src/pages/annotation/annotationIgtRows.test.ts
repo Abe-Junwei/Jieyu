@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerUnitDocType } from '../../types/jieyuDbDocTypes';
 import { buildAnnotationIgtRows } from './annotationIgtRows';
+import { exportFocusedAnnotationSentence } from './annotationSentenceExport';
 
 const now = '2026-09-29T00:00:00.000Z';
 
@@ -64,8 +65,21 @@ describe('buildAnnotationIgtRows surface', () => {
       mediaId: '',
       speakerNames: new Map([['spk-1', '白玛']]),
     });
+    expect(rows[0]?.speakerId).toBe('spk-1');
     expect(rows[0]?.speakerName).toBe('白玛');
+    expect(rows[1]?.speakerId).toBeUndefined();
     expect(rows[1]?.speakerName).toBeUndefined();
+    const exported = JSON.parse(
+      JSON.stringify(
+        exportFocusedAnnotationSentence({
+          textId: 'text-1',
+          row: rows[0]!,
+        }),
+      ),
+    ) as { speakerId?: string; speakerName?: string };
+    expect(exported.speakerId).toBe('spk-1');
+    expect(exported.speakerName).toBe('白玛');
+    expect(exported.speakerId).not.toBe(exported.speakerName);
   });
 
   it('uses the unit transcription when the transcription layer has no segment text', () => {

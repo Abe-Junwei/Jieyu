@@ -47,7 +47,12 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
           return;
         }
         const next = selectAlternativeAnalysis(base, input.relationId);
-        await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
+        await saveAnnotationUnitAnalysisGraph({
+          textId,
+          unitId: input.row.id,
+          graph: next,
+          expectedBase: input.row.analysisGraph,
+        });
         setError('');
         reload();
       } catch {
@@ -59,7 +64,15 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
 
   const addPos = useCallback(
     async (input: Omit<SelectInput, 'relationId'> & { tokenId: string; pos: string }) => {
-      if (hasDirtyDrafts({ ...input, relationId: 'unused' })) {
+      const tokenWrites = collectDirtyAnnotationTokenWrites(input.row.tokens, input.tokenDrafts);
+      const sourcePos = input.pos.trim();
+      const blocked = tokenWrites.some((write) => {
+        if (write.tokenId !== input.tokenId) return true;
+        if (write.gloss !== undefined) return true;
+        return (write.pos ?? '') !== sourcePos;
+      });
+      const morphs = input.row.tokens.flatMap((token) => input.morphsByTokenId[token.id] ?? []);
+      if (blocked || collectDirtyAnnotationMorphemeWrites(morphs, input.morphDrafts).length > 0) {
         setError('dirty');
         return;
       }
@@ -70,7 +83,12 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
           return;
         }
         const next = addAlternativePos(base, input.tokenId, input.pos);
-        await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
+        await saveAnnotationUnitAnalysisGraph({
+          textId,
+          unitId: input.row.id,
+          graph: next,
+          expectedBase: input.row.analysisGraph,
+        });
         setError('');
         reload();
       } catch {

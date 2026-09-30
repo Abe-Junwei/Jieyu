@@ -7,6 +7,7 @@ import type {
 } from '../db';
 import { isLexemeEntry } from '../db/lexemeNestedIds';
 import { lexemeGlossProjection, lexemeMatchValues } from '../utils/dmlexEntry';
+import { pickDefaultTranscriptionText } from '../utils/transcriptionFormatters';
 
 const MIN_PREFIX_LEN = 2;
 const MIN_SUBSTRING_LEN = 3;
@@ -28,6 +29,8 @@ export type AutoGlossPreviewMatch = {
   gloss: MultiLangString;
   confidence: number;
   matchType: AutoGlossMatchType;
+  /** Gloss text observed when the preview was built. Apply refuses a later manual gloss. */
+  observedGloss?: string;
 };
 
 export type AutoGlossPreviewResult = {
@@ -173,6 +176,7 @@ export function previewAutoGlossMatches(
       gloss,
       confidence: best.confidence,
       matchType: best.matchType,
+      observedGloss: pickDefaultTranscriptionText(token.gloss ?? {}),
     });
   }
 

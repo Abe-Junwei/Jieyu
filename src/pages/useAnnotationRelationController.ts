@@ -83,7 +83,12 @@ export function useAnnotationRelationController(textId: string, reload: () => vo
           return;
         }
         const next = applyMark(base, input.mark);
-        await saveAnnotationUnitAnalysisGraph({ textId, unitId: input.row.id, graph: next });
+        await saveAnnotationUnitAnalysisGraph({
+          textId,
+          unitId: input.row.id,
+          graph: next,
+          expectedBase: input.row.analysisGraph,
+        });
         setError('');
         reload();
       } catch {

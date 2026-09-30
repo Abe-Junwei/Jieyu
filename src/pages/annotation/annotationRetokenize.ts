@@ -5,6 +5,7 @@ import {
   submitAnalysisGraphCandidate,
 } from '../../annotation/analysisGraphConfirmation';
 import { LinguisticService } from '../../app/languageAssetPageAccess';
+import { getDb, withTransaction } from '../../app/jieyuDbPageAccess';
 import type {
   TokenLexemeLinkDocType,
   TokenLexemeLinkRole,
@@ -47,6 +48,7 @@ export type AnnotationRetokenizeDeps = {
   submitCandidate: typeof submitAnalysisGraphCandidate;
   listPendingCandidates: typeof listPendingAnalysisGraphCandidates;
   rejectCandidate: typeof rejectAnalysisGraphCandidate;
+  transaction?: <T>(action: () => Promise<T>) => Promise<T>;
 };
 
 const defaultDeps: AnnotationRetokenizeDeps = {
@@ -62,7 +64,25 @@ const defaultDeps: AnnotationRetokenizeDeps = {
   submitCandidate: submitAnalysisGraphCandidate,
   listPendingCandidates: listPendingAnalysisGraphCandidates,
   rejectCandidate: rejectAnalysisGraphCandidate,
+  transaction: (action) => runRetokenizeTransaction(action),
 };
+
+function runRetokenizeTransaction<T>(action: () => Promise<T>): Promise<T> {
+  return getDb().then((db) =>
+    withTransaction(
+      db,
+      'rw',
+      [
+        db.dexie.unit_tokens,
+        db.dexie.unit_morphemes,
+        db.dexie.token_lexeme_links,
+        db.dexie.unit_relations,
+      ],
+      action,
+      { label: 'annotation-retokenize' },
+    ),
+  );
+}
 
 export function proposeAnnotationTokenForms(surface: string, languageId = 'und'): string[] {
   const text = surface.trim();
@@ -468,20 +488,25 @@ async function replaceUnitTokens(
   existing: readonly UnitTokenDocType[],
 ): Promise<void> {
   const now = new Date().toISOString();
-  for (const token of existing) {
-    await deps.removeToken(token.id);
-  }
-  for (const [index, form] of input.proposedForms.entries()) {
-    await deps.saveToken({
-      id: newId('tok'),
-      textId: input.textId,
-      unitId: input.unitId,
-      form: { default: form },
-      tokenIndex: index,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
+  const transact = deps.transaction ?? defaultDeps.transaction;
+  const write = async () => {
+    for (const token of existing) {
+      await deps.removeToken(token.id);
+    }
+    for (const [index, form] of input.proposedForms.entries()) {
+      await deps.saveToken({
+        id: newId('tok'),
+        textId: input.textId,
+        unitId: input.unitId,
+        form: { default: form },
+        tokenIndex: index,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  };
+  if (transact) await transact(write);
+  else await write();
   const readback = [...(await deps.listTokensByUnitIds([input.unitId]))].sort(
     (a, b) => a.tokenIndex - b.tokenIndex,
   );
@@ -721,11 +746,16 @@ export async function restoreAnnotationRetokenize(
   const snapshot = snapshotRow ? readSnapshotTokens(snapshotRow.analysisGraphCandidate) : null;
   if (!snapshotRow || !snapshot) return { restored: false };
   const tokens = [...(await deps.listTokensByUnitId(input.unitId))];
-  for (const token of tokens) {
-    await deps.removeToken(token.id);
-  }
-  await writeSnapshotTokens({ ...input, tokens: snapshot }, deps);
-  await deps.rejectCandidate(snapshotRow.id);
+  const transact = deps.transaction ?? defaultDeps.transaction;
+  const write = async () => {
+    for (const token of tokens) {
+      await deps.removeToken(token.id);
+    }
+    await writeSnapshotTokens({ ...input, tokens: snapshot }, deps);
+    await deps.rejectCandidate(snapshotRow.id);
+  };
+  if (transact) await transact(write);
+  else await write();
   const readback = [...(await deps.listTokensByUnitIds([input.unitId]))].sort(
     (a, b) => a.tokenIndex - b.tokenIndex,
   );

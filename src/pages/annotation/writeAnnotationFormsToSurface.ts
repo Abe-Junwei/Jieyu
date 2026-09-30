@@ -83,3 +83,76 @@ export async function writeAnnotationFormsToTranscription(input: {
   });
   return 'written';
 }
+
+function layerContentForUnit(
+  contents: readonly LayerUnitContentDocType[],
+  layerIds: readonly string[],
+  unitId: string,
+): LayerUnitContentDocType | null {
+  const layers = new Set(layerIds.filter((id) => id.length > 0));
+  for (const row of contents) {
+    const layerId = row.layerId ?? '';
+    if (!layers.has(layerId) || !isTextModality(row.modality)) continue;
+    if ((row.unitId ?? '').trim() !== unitId) continue;
+    return row;
+  }
+  return null;
+}
+
+export async function writeAnnotationUnitLayerText(input: {
+  textId: string;
+  unitId: string;
+  text: string;
+  languageId: string;
+  layerIds?: readonly string[];
+  layerType?: 'transcription' | 'translation';
+  createLayerId?: string;
+}): Promise<'written' | 'unchanged' | 'missing'> {
+  const text = input.text.trim();
+  let layerIds = input.layerIds ?? [];
+  if (layerIds.length === 0 && input.layerType) {
+    const layers = await LinguisticService.layers.listByTextId(input.textId);
+    layerIds = layers
+      .filter((layer) => layer.layerType === input.layerType)
+      .map((layer) => layer.id);
+  }
+  const contents = await LinguisticService.timeline.listUnitTexts(input.unitId);
+  const content = layerContentForUnit(contents, layerIds, input.unitId);
+  const now = new Date().toISOString();
+  if (content) {
+    if ((content.text ?? '').trim() === text) return 'unchanged';
+    await LinguisticService.timeline.saveUnitText({
+      ...content,
+      text,
+      sourceType: 'human',
+      updatedAt: now,
+    });
+    return 'written';
+  }
+  const createLayerId = input.createLayerId?.trim() ?? '';
+  if (createLayerId.length > 0) {
+    await LinguisticService.timeline.saveUnitText({
+      id: `ann_${input.unitId}_${createLayerId}`,
+      unitId: input.unitId,
+      layerId: createLayerId,
+      modality: 'text',
+      text,
+      sourceType: 'human',
+      createdAt: now,
+      updatedAt: now,
+    });
+    return 'written';
+  }
+  const units = await LinguisticService.units.listByTextId(input.textId);
+  const unit = units.find((item) => item.id === input.unitId);
+  if (!unit) return 'missing';
+  const next = transcriptionMapWithSurface(unit.transcription, input.languageId, text);
+  const key = input.languageId.trim().length > 0 ? input.languageId.trim() : 'default';
+  if ((unit.transcription?.[key] ?? '').trim() === text) return 'unchanged';
+  await LinguisticService.units.save({
+    ...unit,
+    transcription: next,
+    updatedAt: now,
+  });
+  return 'written';
+}

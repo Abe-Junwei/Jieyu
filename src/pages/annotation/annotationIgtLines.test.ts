@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   annotationGlossCell,
+  annotationLineMoveTarget,
   annotationLinesToAdd,
+  arrangeAnnotationLines,
+  moveAnnotationLine,
   visibleAnnotationLines,
 } from './annotationIgtLines';
 
@@ -47,7 +50,44 @@ describe('visibleAnnotationLines', () => {
         added: ['literal'],
         hidden: [],
       }),
-    ).toEqual(['source', 'word', 'morphForm', 'lemma', 'literal']);
+    ).toEqual(['source', 'word', 'morphForm', 'gloss', 'pos', 'lemma', 'literal']);
+  });
+});
+
+describe('arrangeAnnotationLines', () => {
+  it('keeps source above analysis lines and translation below them', () => {
+    expect(
+      arrangeAnnotationLines(
+        ['source', 'word', 'gloss', 'pos', 'translation'],
+        ['translation', 'pos', 'source', 'gloss', 'word'],
+      ),
+    ).toEqual(['source', 'pos', 'gloss', 'word', 'translation']);
+  });
+});
+
+describe('moveAnnotationLine', () => {
+  it('reorders analysis lines and refuses to pull source below them', () => {
+    const order = ['source', 'word', 'gloss', 'pos', 'translation'] as const;
+    expect(moveAnnotationLine(order, 'gloss', 'word')).toEqual([
+      'source',
+      'gloss',
+      'word',
+      'pos',
+      'translation',
+    ]);
+    expect(moveAnnotationLine(order, 'source', 'gloss')).toEqual([...order]);
+    expect(moveAnnotationLine(order, 'translation', 'pos')).toEqual([...order]);
+  });
+});
+
+describe('annotationLineMoveTarget', () => {
+  it('moves analysis lines only within their band', () => {
+    const lines = ['source', 'word', 'gloss', 'pos', 'translation'] as const;
+    expect(annotationLineMoveTarget(lines, 'gloss', 'up')).toBe('word');
+    expect(annotationLineMoveTarget(lines, 'gloss', 'down')).toBe('pos');
+    expect(annotationLineMoveTarget(lines, 'source', 'down')).toBeNull();
+    expect(annotationLineMoveTarget(lines, 'translation', 'up')).toBeNull();
+    expect(annotationLineMoveTarget(lines, 'word', 'up')).toBeNull();
   });
 });
 

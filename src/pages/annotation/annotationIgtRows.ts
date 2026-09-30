@@ -13,6 +13,7 @@ export type AnnotationIgtRow = {
   mediaId: string;
   selfCertainty?: UnitSelfCertainty;
   surface: string;
+  speakerId?: string;
   speakerName?: string;
   addressee?: string;
   ungrammatical?: boolean;
@@ -70,6 +71,7 @@ export function buildAnnotationIgtRows(input: {
       endTime: unit.endTime,
       mediaId: resolvedMediaId,
       ...(unit.selfCertainty ? { selfCertainty: unit.selfCertainty } : {}),
+      ...(speakerId.length > 0 ? { speakerId } : {}),
       ...(speakerName ? { speakerName } : {}),
       ...(unit.addressee?.trim() ? { addressee: unit.addressee.trim() } : {}),
       ...(unit.ungrammatical ? { ungrammatical: true } : {}),
@@ -90,6 +92,7 @@ export function buildAnnotationIgtRows(input: {
             ? preferred
             : resolveAnnotationGlossWriteLang(token.gloss);
         })(),
+        ...(token.gloss ? { glossByLanguage: token.gloss } : {}),
       })),
       translation: input.translations?.get(unit.id) ?? '',
       ...(unit.analysisGraph ? { analysisGraph: unit.analysisGraph } : {}),

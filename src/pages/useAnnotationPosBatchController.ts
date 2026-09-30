@@ -11,7 +11,10 @@ export type AnnotationPosBatchError = '' | 'dirty' | 'failed';
 
 export function useAnnotationPosBatchController(
   reload: () => void,
-  clearDrafts: (tokenIds: readonly string[]) => void,
+  clearDrafts: (
+    tokenIds: readonly string[],
+    draftsAtStart: Readonly<Record<string, AnnotationTokenDraft>>,
+  ) => void,
 ) {
   const [error, setError] = useState<AnnotationPosBatchError>('');
 
@@ -34,9 +37,13 @@ export function useAnnotationPosBatchController(
         setError('');
         return;
       }
+      const draftsAtStart = input.drafts;
       try {
         await saveAnnotationPosByForm(writes);
-        clearDrafts(writes.map((write) => write.tokenId));
+        clearDrafts(
+          writes.map((write) => write.tokenId),
+          draftsAtStart,
+        );
         setError('');
         reload();
       } catch {

@@ -17,10 +17,17 @@ import { useAnnotationAlternativeAnalysisController } from './useAnnotationAlter
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 import { useAnnotationSentenceAcoustic } from './useAnnotationSentenceAcoustic';
 import { glossSuggestionForToken } from './annotation/annotationGlossSuggestion';
-import { buildAnnotationSentenceExport } from './annotation/annotationSentenceExport';
+import { exportFocusedAnnotationSentence } from './annotation/annotationSentenceExport';
 import { downloadTextFile } from '../annotation/analysisGraphExport';
 import { filterAnnotationUnits } from './annotation/annotationRowSearch';
 import { parseCharacterVariantLines } from './annotation/annotationCharacterVariants';
+import {
+  ANNOTATION_LINE_ORDER,
+  annotationExtraLayerLines,
+  moveAnnotationLine,
+  type AnnotationLineId,
+} from './annotation/annotationIgtLines';
+import { annotationLanguageLineLabel } from './annotation/annotationIgtMenus';
 
 export function AnnotationWorkspace() {
   const locale = useLocale();
@@ -31,6 +38,7 @@ export function AnnotationWorkspace() {
   const [searchMode, setSearchMode] = useState<'surface' | 'word' | 'morpheme'>('surface');
   const [excludeUngrammatical, setExcludeUngrammatical] = useState(false);
   const [variantText, setVariantText] = useState('');
+  const [lineOrder, setLineOrder] = useState<AnnotationLineId[]>([...ANNOTATION_LINE_ORDER]);
   const controller = useAnnotationWorkspaceController();
   const glossSuggestions = useMemo(() => {
     const tokens = controller.rows.flatMap((row) => row.tokens);
@@ -246,24 +254,15 @@ export function AnnotationWorkspace() {
                       });
                     },
                     onExportSentence: () => {
-                      const record = buildAnnotationSentenceExport({
+                      const record = exportFocusedAnnotationSentence({
                         textId: controller.textId,
-                        unitId: focusedRow.id,
-                        ...(focusedRow.speakerName ? { speakerId: focusedRow.speakerName } : {}),
-                        startTime: focusedRow.startTime,
-                        endTime: focusedRow.endTime,
-                        surface: focusedRow.surface,
-                        translation: focusedRow.translation,
-                        tokens: focusedRow.tokens.map((token) => {
-                          const senseId = morphology.linksByTokenId[token.id]?.senseId;
-                          return {
-                            id: token.id,
-                            form: token.form,
-                            gloss: token.gloss,
-                            pos: token.pos,
-                            ...(senseId ? { senseId } : {}),
-                          };
-                        }),
+                        row: focusedRow,
+                        senseIdByTokenId: Object.fromEntries(
+                          focusedRow.tokens.map((token) => [
+                            token.id,
+                            morphology.linksByTokenId[token.id]?.senseId,
+                          ]),
+                        ),
                       });
                       downloadTextFile(
                         `${focusedRow.id}.sentence.json`,
@@ -315,6 +314,49 @@ export function AnnotationWorkspace() {
                 onFocusRow={controller.onFocusRow}
                 onFocusInput={controller.onFocusInput}
                 onTokenDraftChange={controller.onTokenDraftChange}
+                lineOrder={lineOrder}
+                primaryGlossLanguage={controller.languageId}
+                languageLines={[
+                  ...annotationExtraLayerLines({
+                    unitId: row.id,
+                    kind: 'source',
+                    layers: controller.transcriptionLayers,
+                    primaryLayerId:
+                      controller.transcriptionLayers.find(
+                        (layer) => (controller.textByLayer[layer.id]?.[row.id] ?? '').length > 0,
+                      )?.id ??
+                      controller.transcriptionLayers[0]?.id ??
+                      '',
+                    textByLayer: controller.textByLayer,
+                  }),
+                  ...annotationExtraLayerLines({
+                    unitId: row.id,
+                    kind: 'translation',
+                    layers: controller.translationLayers,
+                    primaryLayerId: controller.activeTranslationLayerId,
+                    textByLayer: controller.textByLayer,
+                  }),
+                ].map((line) => ({
+                  key: line.key,
+                  text: line.text,
+                  label: annotationLanguageLineLabel(
+                    locale,
+                    line.key,
+                    line.languageId.length > 0 ? line.languageId : line.key,
+                  ),
+                }))}
+                onReorderLine={(from, to) =>
+                  setLineOrder((current) => moveAnnotationLine(current, from, to))
+                }
+                onCommitLanguageLine={(unitId, key, text) => {
+                  controller.onCommitLanguageLine(unitId, key.slice(key.indexOf(':') + 1), text);
+                }}
+                onCommitGlossLanguage={controller.onCommitGlossLanguage}
+                onCommitSurface={controller.onCommitSurface}
+                onCommitTranslation={(unitId, text) => {
+                  controller.onCommitTranslation(unitId, controller.activeTranslationLayerId, text);
+                }}
+                onCommitTokenForm={controller.onCommitTokenForm}
                 mweSelectedIds={mwe.selectedByUnit[row.id] ?? []}
                 mweError={row.id === controller.focusedUnitId ? mwe.error : ''}
                 onToggleMweToken={mwe.toggle}

@@ -4,6 +4,7 @@ import {
   displayedAnnotationTokenFields,
   dropCommittedTokenDrafts,
   dropDraftsForTokenIds,
+  dropDraftsUnchangedSince,
   resolveAnnotationGlossWriteLang,
   type AnnotationIgtToken,
 } from './annotationTokenDrafts';
@@ -72,5 +73,14 @@ describe('annotationTokenDrafts', () => {
         'tok-1',
       ]),
     ).toEqual({ keep: { pos: 'A', gloss: 'a' } });
+  });
+
+  it('keeps a draft that changed while a pos write was in flight', () => {
+    const atStart = { 'tok-1': { pos: 'N', gloss: '' } };
+    const current = { 'tok-1': { pos: 'N', gloss: 'NEW' } };
+    expect(dropDraftsUnchangedSince(current, ['tok-1'], atStart)).toEqual(current);
+    expect(
+      dropDraftsUnchangedSince({ 'tok-1': { pos: 'N', gloss: '' } }, ['tok-1'], atStart),
+    ).toEqual({});
   });
 });

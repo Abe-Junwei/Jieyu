@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { t, tf, useLocale } from '../../i18n';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../../utils/unitSelfCertainty';
 import type { AutoGlossPreviewMatch } from '../../ai/autoGlossPreview';
@@ -23,6 +24,51 @@ type Props = {
     targetForm?: string;
   };
 };
+
+function UnitBoundField({
+  unitId,
+  value,
+  testId,
+  className,
+  multiline = false,
+  onCommit,
+  onFocus,
+}: {
+  unitId: string;
+  value: string;
+  testId?: string;
+  className: string;
+  multiline?: boolean;
+  onCommit: (value: string) => void;
+  onFocus?: () => void;
+}) {
+  const [boundUnitId, setBoundUnitId] = useState(unitId);
+  const [draft, setDraft] = useState(value);
+  const [dirty, setDirty] = useState(false);
+  if (boundUnitId !== unitId) {
+    setBoundUnitId(unitId);
+    setDraft(value);
+    setDirty(false);
+  } else if (!dirty && draft !== value) {
+    setDraft(value);
+  }
+  const shared = {
+    className,
+    ...(testId ? { 'data-testid': testId } : {}),
+    value: draft,
+    onClick: (event: { stopPropagation: () => void }) => event.stopPropagation(),
+    onChange: (event: { target: { value: string } }) => {
+      setDirty(true);
+      setDraft(event.target.value);
+    },
+    onBlur: () => {
+      if (dirty && boundUnitId === unitId) onCommit(draft);
+    },
+    ...(onFocus ? { onFocus } : {}),
+  };
+  if (multiline) return <textarea {...shared} />;
+  return <input {...shared} />;
+}
 
 function TurnFields({
   unitId,
@@ -58,6 +104,7 @@ function TurnFields({
       <label className="annotation-igt-extra-field">
         <span>{t(locale, 'workspace.annotation.ungrammatical')}</span>
         <input
+          key={`${unitId}:${turn?.ungrammatical === true}`}
           type="checkbox"
           data-testid={`annotation-igt-ungrammatical-input-${unitId}`}
           defaultChecked={turn?.ungrammatical === true}
@@ -68,33 +115,33 @@ function TurnFields({
       </label>
       <label className="annotation-igt-extra-field">
         <span>{t(locale, 'workspace.annotation.addressee')}</span>
-        <input
+        <UnitBoundField
+          unitId={unitId}
           className="annotation-igt-field"
-          data-testid={`annotation-igt-addressee-${unitId}`}
-          defaultValue={turn?.addressee ?? ''}
-          onClick={(event) => event.stopPropagation()}
+          testId={`annotation-igt-addressee-${unitId}`}
+          value={turn?.addressee ?? ''}
           onFocus={() => onFocusInput(unitId)}
-          onBlur={(event) => save({ addressee: event.target.value })}
+          onCommit={(addressee) => save({ addressee })}
         />
       </label>
       <label className="annotation-igt-extra-field">
         <span>{t(locale, 'workspace.annotation.actualForm')}</span>
-        <input
+        <UnitBoundField
+          unitId={unitId}
           className="annotation-igt-field"
-          defaultValue={turn?.actualForm ?? ''}
-          onClick={(event) => event.stopPropagation()}
+          value={turn?.actualForm ?? ''}
           onFocus={() => onFocusInput(unitId)}
-          onBlur={(event) => save({ actualForm: event.target.value })}
+          onCommit={(actualForm) => save({ actualForm })}
         />
       </label>
       <label className="annotation-igt-extra-field">
         <span>{t(locale, 'workspace.annotation.targetForm')}</span>
-        <input
+        <UnitBoundField
+          unitId={unitId}
           className="annotation-igt-field"
-          defaultValue={turn?.targetForm ?? ''}
-          onClick={(event) => event.stopPropagation()}
+          value={turn?.targetForm ?? ''}
           onFocus={() => onFocusInput(unitId)}
-          onBlur={(event) => save({ targetForm: event.target.value })}
+          onCommit={(targetForm) => save({ targetForm })}
         />
       </label>
     </>
@@ -161,24 +208,24 @@ export function AnnotationIgtUnitExtras({
         <>
           <label className="annotation-igt-extra-field">
             <span>{t(locale, 'workspace.annotation.transcriptionNote')}</span>
-            <textarea
+            <UnitBoundField
+              unitId={unitId}
               className="annotation-igt-note"
-              data-testid={`annotation-igt-source-note-${unitId}`}
-              defaultValue={
-                unitMeta.notes.find((note) => note.category === 'comment')?.content ?? ''
-              }
-              onClick={(event) => event.stopPropagation()}
-              onBlur={(event) => unitMeta.onSaveCategorizedNote('comment', event.target.value)}
+              testId={`annotation-igt-source-note-${unitId}`}
+              multiline
+              value={unitMeta.notes.find((note) => note.category === 'comment')?.content ?? ''}
+              onCommit={(content) => unitMeta.onSaveCategorizedNote('comment', content)}
             />
           </label>
           <label className="annotation-igt-extra-field">
             <span>{t(locale, 'workspace.annotation.translationNote')}</span>
-            <textarea
+            <UnitBoundField
+              unitId={unitId}
               className="annotation-igt-note"
-              data-testid={`annotation-igt-translation-note-${unitId}`}
-              defaultValue={unitMeta.notes.find((note) => note.category === 'topic')?.content ?? ''}
-              onClick={(event) => event.stopPropagation()}
-              onBlur={(event) => unitMeta.onSaveCategorizedNote('topic', event.target.value)}
+              testId={`annotation-igt-translation-note-${unitId}`}
+              multiline
+              value={unitMeta.notes.find((note) => note.category === 'topic')?.content ?? ''}
+              onCommit={(content) => unitMeta.onSaveCategorizedNote('topic', content)}
             />
           </label>
           <label className="annotation-igt-extra-field">

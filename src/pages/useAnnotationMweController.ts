@@ -73,6 +73,7 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
           textId,
           unitId: input.row.id,
           graph: withMwe,
+          expectedBase: input.row.analysisGraph,
         });
         setSelectedByUnit((current) => ({ ...current, [input.row.id]: [] }));
         setError('');

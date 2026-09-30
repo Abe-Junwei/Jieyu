@@ -216,3 +216,15 @@ export function validateAnnotationAnalysisGraphFixture(
 ): AnnotationAnalysisGraphFixture {
   return annotationAnalysisGraphFixtureSchema.parse(input);
 }
+
+/** Stable content fingerprint. Object key order is not part of the graph. */
+export function annotationAnalysisGraphFingerprint(graph: unknown): string {
+  if (graph === null || graph === undefined || typeof graph !== 'object') return '';
+  return JSON.stringify(graph, (_key, value: unknown) =>
+    value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)),
+        )
+      : value,
+  );
+}

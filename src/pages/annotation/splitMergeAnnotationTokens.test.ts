@@ -297,4 +297,106 @@ describe('splitMergeAnnotationTokens', () => {
     expect(rightSlice).toBe(rightFragment);
     expect(rightSlice).toBe('ab');
   });
+
+  it('keeps the original token when the right half fails to create', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-split-fail',
+      textId: 'text-split-fail',
+      unitId: 'unit-split-fail',
+      form: { default: 'one two' },
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const fail = () => {
+      throw new Error('injected token failure');
+    };
+    db.unit_tokens.hook('creating', fail);
+    try {
+      await expect(splitAnnotationUnitToken('unit-split-fail', 'tok-split-fail')).rejects.toThrow(
+        'injected token failure',
+      );
+    } finally {
+      db.unit_tokens.hook('creating').unsubscribe(fail);
+    }
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-split-fail']);
+    expect(requery.map((token) => token.form.default)).toEqual(['one two']);
+  });
+
+  it('keeps the original tokens when a later index write fails', async () => {
+    await db.unit_tokens.bulkPut([
+      {
+        id: 'tok-split-left',
+        textId: 'text-split-index',
+        unitId: 'unit-split-index',
+        form: { default: 'one two' },
+        tokenIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'tok-split-later',
+        textId: 'text-split-index',
+        unitId: 'unit-split-index',
+        form: { default: 'three' },
+        tokenIndex: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    const fail = (_mods: object, primKey: string) => {
+      if (primKey === 'tok-split-later') throw new Error('injected index failure');
+    };
+    db.unit_tokens.hook('updating', fail);
+    try {
+      await expect(splitAnnotationUnitToken('unit-split-index', 'tok-split-left')).rejects.toThrow(
+        'injected index failure',
+      );
+    } finally {
+      db.unit_tokens.hook('updating').unsubscribe(fail);
+    }
+    const requery = [
+      ...(await LinguisticService.units.listTokensByUnitIds(['unit-split-index'])),
+    ].sort((a, b) => a.tokenIndex - b.tokenIndex);
+    expect(requery.map((token) => token.form.default)).toEqual(['one two', 'three']);
+    expect(requery.map((token) => token.tokenIndex)).toEqual([0, 1]);
+  });
+
+  it('keeps both tokens when merge deletion fails', async () => {
+    await db.unit_tokens.bulkPut([
+      {
+        id: 'tok-merge-left',
+        textId: 'text-merge-fail',
+        unitId: 'unit-merge-fail',
+        form: { default: 'one' },
+        tokenIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'tok-merge-right',
+        textId: 'text-merge-fail',
+        unitId: 'unit-merge-fail',
+        form: { default: 'two' },
+        tokenIndex: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    const fail = () => {
+      throw new Error('injected merge failure');
+    };
+    db.unit_tokens.hook('deleting', fail);
+    try {
+      await expect(
+        mergeAnnotationUnitTokenWithNext('unit-merge-fail', 'tok-merge-left'),
+      ).rejects.toThrow('injected merge failure');
+    } finally {
+      db.unit_tokens.hook('deleting').unsubscribe(fail);
+    }
+    const requery = [...(await LinguisticService.units.listTokensByUnitIds(['unit-merge-fail']))]
+      .sort((a, b) => a.tokenIndex - b.tokenIndex)
+      .map((token) => token.form.default);
+    expect(requery).toEqual(['one', 'two']);
+  });
 });

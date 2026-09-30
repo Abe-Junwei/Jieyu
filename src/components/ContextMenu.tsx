@@ -37,7 +37,9 @@ export interface ContextMenuItem {
   searchField?: {
     value: string;
     placeholder?: string;
+    testId?: string;
     onChange: (nextValue: string) => void;
+    onBlur?: (value: string) => void;
   };
 }
 
@@ -246,7 +248,9 @@ export const ContextMenu = memo(function ContextMenu({
                 className="context-menu-search-input"
                 value={item.searchField.value}
                 placeholder={item.searchField.placeholder}
+                {...(item.searchField.testId ? { 'data-testid': item.searchField.testId } : {})}
                 onChange={(e) => item.searchField?.onChange(e.target.value)}
+                onBlur={(e) => item.searchField?.onBlur?.(e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
               />
             </label>

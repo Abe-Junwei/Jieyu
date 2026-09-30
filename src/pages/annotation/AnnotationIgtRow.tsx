@@ -9,15 +9,22 @@ import { readAnalysisGraphView } from '../../annotation/analysisGraphView';
 import { buildAnnotationUtteranceGraph } from './buildAnnotationUtteranceGraph';
 import { displayedAnnotationMorphemeFields } from './annotationMorphemeDrafts';
 import { displayedAnnotationTokenFields, type AnnotationTokenDraft } from './annotationTokenDrafts';
-import { AnnotationIgtTokenEditor } from './AnnotationIgtTokenEditor';
+import type { AnnotationActiveCell } from './AnnotationIgtLineGrid';
 import { AnnotationIgtLineGrid } from './AnnotationIgtLineGrid';
 import {
-  ANNOTATION_ADDABLE_LINES,
-  annotationLineLabelKey,
+  arrangeAnnotationLines,
+  placeAnnotationLine,
+  reconcileAnnotationLineOrder,
   visibleAnnotationLines,
+  moveAnnotationLine,
   type AnnotationLineId,
 } from './annotationIgtLines';
-import { buildAnnotationRowMenuItems, buildAnnotationTokenMenuItems } from './annotationIgtMenus';
+import {
+  buildAnnotationLineMenuItems,
+  buildAnnotationRowMenuItems,
+  buildAnnotationTokenMenuItems,
+  type AnnotationLanguageLineOption,
+} from './annotationIgtMenus';
 import type { AnnotationSentenceAcoustic } from '../useAnnotationSentenceAcoustic';
 import { AnnotationIgtUnitExtras } from './AnnotationIgtUnitExtras';
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
@@ -56,6 +63,20 @@ type Props = {
     field: keyof AnnotationTokenDraft,
     value: string,
   ) => void;
+  lineOrder?: readonly AnnotationLineId[];
+  onReorderLine?: (from: AnnotationLineId, to: AnnotationLineId) => void;
+  languageLines?: readonly (AnnotationLanguageLineOption & { text: string })[];
+  primaryGlossLanguage?: string;
+  onCommitLanguageLine?: (unitId: string, key: string, text: string) => void;
+  onCommitGlossLanguage?: (
+    unitId: string,
+    tokenId: string,
+    languageId: string,
+    text: string,
+  ) => void;
+  onCommitSurface?: (unitId: string, text: string) => void;
+  onCommitTranslation?: (unitId: string, text: string) => void;
+  onCommitTokenForm?: (unitId: string, tokenId: string, form: string) => void;
   mweSelectedIds?: readonly string[];
   mweError?: '' | 'dirty' | 'contiguous' | 'failed';
   onToggleMweToken?: (unitId: string, tokenId: string) => void;
@@ -268,33 +289,43 @@ export function AnnotationIgtRowView({
   onFocusRow,
   onFocusInput,
   onTokenDraftChange,
+  lineOrder,
+  onReorderLine,
+  languageLines = [],
+  primaryGlossLanguage = '',
+  onCommitLanguageLine,
+  onCommitGlossLanguage,
+  onCommitSurface,
+  onCommitTranslation,
+  onCommitTokenForm,
   mweSelectedIds,
   mweError = '',
   onToggleMweToken,
   onWriteFormsToSurface,
-  onApplyPosByForm,
   onMarkRelation,
-  onAddAlternative,
   relationError = '',
   onSelectAlternative,
   alternativeError = '',
   posError = '',
+  onAddAlternative,
+  onApplyPosByForm,
 }: Props) {
   const locale = useLocale();
   const navigate = useNavigate();
   const [addedLines, setAddedLines] = useState<AnnotationLineId[]>([]);
+  const [addedLanguageKeys, setAddedLanguageKeys] = useState<string[]>([]);
+  const [keyOrder, setKeyOrder] = useState<string[] | null>(null);
+  const [glossLanguageDraft, setGlossLanguageDraft] = useState('');
   const [hiddenLines, setHiddenLines] = useState<AnnotationLineId[]>([]);
-  const [panel, setPanel] = useState<{ kind: 'token'; tokenId: string } | null>(null);
+  const [activeCell, setActiveCell] = useState<AnnotationActiveCell | null>(null);
+  const [languageDraft, setLanguageDraft] = useState<string | null>(null);
   const [menu, setMenu] = useState<
     | { kind: 'unit'; x: number; y: number }
     | { kind: 'token'; tokenId: string; x: number; y: number }
+    | { kind: 'line'; lineId: string; x: number; y: number }
     | null
   >(null);
-  const editorToken =
-    focused && panel?.kind === 'token'
-      ? row.tokens.find((token) => token.id === panel.tokenId)
-      : undefined;
-  const editing = focused && inputFocused && panel === null;
+  const editing = focused && inputFocused && activeCell === null;
   const hasGloss = row.tokens.some((token) => {
     const fields = displayedAnnotationTokenFields(token, drafts);
     if (fields.gloss.trim().length > 0) return true;
@@ -312,23 +343,40 @@ export function AnnotationIgtRowView({
     ),
   );
   const hasLemma = row.tokens.some((token) => morphology.linksByTokenId[token.id] !== undefined);
-  const lines = visibleAnnotationLines({
-    hasSurface: true,
-    hasTokens: row.tokens.length > 0,
-    hasMorphForms,
-    hasGloss,
-    hasPos,
-    hasLemma,
-    hasTranslation: row.translation.length > 0,
-    editing,
-    added: addedLines,
-    hidden: hiddenLines,
-  });
+  const baseLines = arrangeAnnotationLines(
+    visibleAnnotationLines({
+      hasSurface: true,
+      hasTokens: row.tokens.length > 0,
+      hasMorphForms,
+      hasGloss,
+      hasPos,
+      hasLemma,
+      hasTranslation: row.translation.length > 0,
+      editing,
+      added: addedLines,
+      hidden: hiddenLines,
+    }),
+    lineOrder ?? [],
+  );
+  const derivedLines = addedLanguageKeys.reduce<string[]>(
+    (current, key) => placeAnnotationLine(current, key),
+    [...baseLines],
+  );
+  const lines = reconcileAnnotationLineOrder(keyOrder, derivedLines);
+  const lineTexts = Object.fromEntries(languageLines.map((line) => [line.key, line.text]));
+  function moveLine(from: string, to: string) {
+    setKeyOrder(moveAnnotationLine(lines, from, to));
+    if (!from.includes(':') && !to.includes(':') && onReorderLine) {
+      onReorderLine(from as AnnotationLineId, to as AnnotationLineId);
+    }
+  }
   const menuToken =
     menu?.kind === 'token' ? row.tokens.find((token) => token.id === menu.tokenId) : undefined;
   const menuLink = menuToken ? morphology.linksByTokenId[menuToken.id] : undefined;
   const suppletionLemma =
-    menuLink !== undefined && menuLink.brokenCode === undefined ? menuLink.lemma.trim() : '';
+    menuLink !== undefined && menuLink.brokenCode === undefined
+      ? (menuLink.lemma ?? '').trim()
+      : '';
   function openMenu(
     event: ReactMouseEvent<HTMLElement>,
     next: { kind: 'unit' } | { kind: 'token'; tokenId: string },
@@ -342,7 +390,13 @@ export function AnnotationIgtRowView({
 
   return (
     <li
-      className={focused ? 'annotation-igt-row annotation-igt-row-focused' : 'annotation-igt-row'}
+      className={[
+        'annotation-igt-row',
+        focused ? 'annotation-igt-row-focused' : '',
+        playing ? 'annotation-igt-row-playing' : '',
+      ]
+        .filter((name) => name.length > 0)
+        .join(' ')}
       data-testid={`annotation-igt-row-${row.id}`}
       onClick={() => {
         setMenu(null);
@@ -385,14 +439,50 @@ export function AnnotationIgtRowView({
         morphology={morphology}
         editing={editing}
         mweSelectedIds={mweSelectedIds ?? []}
-        onOpenWordMenu={(event, tokenId) => openMenu(event, { kind: 'token', tokenId })}
-        onSelectWord={(tokenId) => {
+        activeCell={activeCell}
+        onOpenWordMenu={(event, tokenId) => {
+          setLanguageDraft(null);
+          openMenu(event, { kind: 'token', tokenId });
+        }}
+        onActivateCell={(tokenId, line) => {
           onFocusRow(row.id);
-          onFocusInput(row.id);
-          setPanel({ kind: 'token', tokenId });
+          setActiveCell({ tokenId, line });
         }}
         onFocusInput={onFocusInput}
         onTokenDraftChange={onTokenDraftChange}
+        {...(onCommitTokenForm
+          ? {
+              onCommitTokenForm: (tokenId: string, form: string) =>
+                onCommitTokenForm(row.id, tokenId, form),
+            }
+          : {})}
+        {...(onCommitSurface
+          ? { onCommitSurface: (text: string) => onCommitSurface(row.id, text) }
+          : {})}
+        {...(onCommitTranslation
+          ? { onCommitTranslation: (text: string) => onCommitTranslation(row.id, text) }
+          : {})}
+        {...(onCommitLanguageLine
+          ? {
+              onCommitLanguageLine: (key: string, text: string) =>
+                onCommitLanguageLine(row.id, key, text),
+            }
+          : {})}
+        {...(onCommitGlossLanguage
+          ? {
+              onCommitGlossLanguage: (tokenId: string, languageId: string, text: string) =>
+                onCommitGlossLanguage(row.id, tokenId, languageId, text),
+            }
+          : {})}
+        lineTexts={lineTexts}
+        lineLabels={Object.fromEntries(languageLines.map((line) => [line.key, line.label]))}
+        onReorderLine={moveLine}
+        onOpenLineMenu={(event, lineId) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onFocusRow(row.id);
+          setMenu({ kind: 'line', lineId, x: event.clientX, y: event.clientY });
+        }}
         {...(focused && sentenceAcoustic ? { sentenceAcoustic } : {})}
         showWave={acousticLayers.showWave}
         showSpectrum={acousticLayers.showSpectrum}
@@ -401,38 +491,6 @@ export function AnnotationIgtRowView({
         {...(glossSuggestions ? { glossSuggestions } : {})}
         {...(onAcceptGlossSuggestion ? { onAcceptGlossSuggestion } : {})}
       />
-      {editorToken ? (
-        <AnnotationIgtTokenEditor
-          token={editorToken}
-          unitId={row.id}
-          drafts={drafts}
-          morphology={morphology}
-          onFocusInput={onFocusInput}
-          onTokenDraftChange={onTokenDraftChange}
-          {...(onSaveTokenLanguage ? { onSaveTokenLanguage } : {})}
-          onSplit={() => morphology.onSplitToken(row.id, editorToken.id)}
-          onMerge={() => morphology.onMergeToken(row.id, editorToken.id)}
-          {...(onCiteOccurrence && morphology.linksByTokenId[editorToken.id]?.senseId
-            ? { onCite: () => onCiteOccurrence(row.id, editorToken.id) }
-            : {})}
-          {...(glossSuggestions?.[editorToken.id]
-            ? { glossSuggestion: glossSuggestions[editorToken.id] }
-            : {})}
-          {...(onAcceptGlossSuggestion ? { onAcceptGlossSuggestion } : {})}
-          {...(onApplyPosByForm ? { onApplyPosByForm } : {})}
-          {...(onAddAlternative ? { onAddAlternative } : {})}
-          {...(onMarkRelation
-            ? {
-                onMarkRootPattern: (
-                  unitId: string,
-                  tokenId: string,
-                  root: string,
-                  pattern: string,
-                ) => onMarkRelation(unitId, { kind: 'rootPattern', tokenId, root, pattern }),
-              }
-            : {})}
-        />
-      ) : null}
       {focused && mweError.length > 0 ? (
         <p className="annotation-igt-label" data-testid={`annotation-igt-mwe-error-${row.id}`}>
           {mweError === 'dirty'
@@ -516,61 +574,96 @@ export function AnnotationIgtRowView({
                       void navigate(row.transcriptionHref);
                     },
                   }),
-                  ...(row.tokens.length > 0
-                    ? [
-                        {
-                          label: t(locale, 'workspace.annotation.addLine'),
-                          separatorBefore: true,
-                          children: ANNOTATION_ADDABLE_LINES.map((lineId) => ({
-                            testId: `annotation-igt-line-toggle-${lineId}-${row.id}`,
-                            label: t(locale, annotationLineLabelKey(lineId)),
-                            selectionState: lines.includes(lineId)
-                              ? ('selected' as const)
-                              : ('unselected' as const),
-                            selectionVariant: 'check' as const,
-                            keepOpen: true,
-                            onClick: () => {
-                              if (lines.includes(lineId)) {
-                                setAddedLines((current) =>
-                                  current.filter((added) => added !== lineId),
-                                );
-                                setHiddenLines((current) =>
-                                  current.includes(lineId) ? current : [...current, lineId],
-                                );
-                                return;
-                              }
-                              setHiddenLines((current) =>
-                                current.filter((hidden) => hidden !== lineId),
-                              );
-                              setAddedLines((current) =>
-                                current.includes(lineId) ? current : [...current, lineId],
-                              );
-                            },
-                          })),
-                        },
-                      ]
-                    : []),
                 ]
-              : menuToken
-                ? buildAnnotationTokenMenuItems({
+              : menu.kind === 'line'
+                ? buildAnnotationLineMenuItems({
                     locale,
-                    tokenId: menuToken.id,
-                    mweSelected: mweSelectedIds?.includes(menuToken.id) ?? false,
-                    morphs: (morphology.morphsByTokenId[menuToken.id] ?? []).map((morph) => ({
-                      id: morph.id,
-                      form: displayedAnnotationMorphemeFields(morph, morphology.drafts).form,
-                    })),
-                    suppletionLemma,
-                    canAllomorph: suppletionLemma.length > 0,
-                    onSeed: () => morphology.onSeedMorphemes(row.id, menuToken.id, menuToken.form),
-                    ...(onToggleMweToken
-                      ? { onToggleMwe: () => onToggleMweToken(row.id, menuToken.id) }
-                      : {}),
-                    ...(onMarkRelation
-                      ? { onMarkRelation: (mark) => onMarkRelation(row.id, mark) }
-                      : {}),
+                    unitId: row.id,
+                    lineId: menu.lineId,
+                    lines,
+                    glossLanguageDraft,
+                    onGlossLanguageDraft: setGlossLanguageDraft,
+                    languageLines,
+                    primaryGlossLanguage,
+                    onMove: moveLine,
+                    onRemove: (lineId) => {
+                      if (lineId.includes(':')) {
+                        setAddedLanguageKeys((current) => current.filter((key) => key !== lineId));
+                        return;
+                      }
+                      const kind = lineId as AnnotationLineId;
+                      setAddedLines((current) => current.filter((added) => added !== kind));
+                      setHiddenLines((current) =>
+                        current.includes(kind) ? current : [...current, kind],
+                      );
+                    },
+                    onAdd: (lineId) => {
+                      if (lineId.includes(':')) {
+                        setAddedLanguageKeys((current) =>
+                          current.includes(lineId) ? current : [...current, lineId],
+                        );
+                        setGlossLanguageDraft('');
+                        return;
+                      }
+                      const kind = lineId as AnnotationLineId;
+                      setHiddenLines((current) => current.filter((hidden) => hidden !== kind));
+                      setAddedLines((current) =>
+                        current.includes(kind) ? current : [...current, kind],
+                      );
+                    },
                   })
-                : []
+                : menuToken
+                  ? buildAnnotationTokenMenuItems({
+                      locale,
+                      tokenId: menuToken.id,
+                      mweSelected: mweSelectedIds?.includes(menuToken.id) ?? false,
+                      morphs: (morphology.morphsByTokenId[menuToken.id] ?? []).map((morph) => ({
+                        id: morph.id,
+                        form: displayedAnnotationMorphemeFields(morph, morphology.drafts).form,
+                      })),
+                      suppletionLemma,
+                      canAllomorph: suppletionLemma.length > 0,
+                      onSplit: () => morphology.onSplitToken(row.id, menuToken.id),
+                      onMerge: () => morphology.onMergeToken(row.id, menuToken.id),
+                      onSeed: () =>
+                        morphology.onSeedMorphemes(row.id, menuToken.id, menuToken.form),
+                      onLink: () => morphology.onLinkLexeme(menuToken.id),
+                      ...(menuLink
+                        ? { onUnlink: () => morphology.onUnlinkLexeme(menuToken.id) }
+                        : {}),
+                      ...(onCiteOccurrence && menuLink?.senseId
+                        ? { onCite: () => onCiteOccurrence(row.id, menuToken.id) }
+                        : {}),
+                      languageValue: languageDraft ?? menuToken.languageId ?? '',
+                      onLanguageChange: setLanguageDraft,
+                      ...(onSaveTokenLanguage
+                        ? {
+                            onLanguageBlur: (value: string) =>
+                              onSaveTokenLanguage(row.id, menuToken.id, value),
+                          }
+                        : {}),
+                      ...(onToggleMweToken
+                        ? { onToggleMwe: () => onToggleMweToken(row.id, menuToken.id) }
+                        : {}),
+                      ...(onMarkRelation
+                        ? { onMarkRelation: (mark) => onMarkRelation(row.id, mark) }
+                        : {}),
+                      pos: displayedAnnotationTokenFields(menuToken, drafts).pos,
+                      storedPos: menuToken.pos,
+                      ...(onApplyPosByForm
+                        ? {
+                            onApplyPosByForm: (pos: string) =>
+                              onApplyPosByForm(row.id, menuToken.id, pos),
+                          }
+                        : {}),
+                      ...(onAddAlternative
+                        ? {
+                            onAddAlternative: (pos: string) =>
+                              onAddAlternative(row.id, menuToken.id, pos),
+                          }
+                        : {}),
+                    })
+                  : []
           }
         />
       ) : null}

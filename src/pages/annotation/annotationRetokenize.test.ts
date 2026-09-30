@@ -366,4 +366,89 @@ describe('annotationRetokenize', () => {
       restoreAnnotationRetokenize({ textId: 'text-rt-9', unitId: 'unit-rt-9' }, deps),
     ).rejects.toThrow(/readback mismatch/);
   });
+
+  it('keeps the current tokens when replacement creation fails', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-rt-fail',
+      textId: 'text-rt-fail',
+      unitId: 'unit-rt-fail',
+      form: { default: 'hello world' },
+      gloss: { default: 'greeting' },
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const fail = () => {
+      throw new Error('injected retokenize failure');
+    };
+    db.unit_tokens.hook('creating', fail);
+    try {
+      await expect(
+        applyAnnotationRetokenize({
+          textId: 'text-rt-fail',
+          unitId: 'unit-rt-fail',
+          surface: 'hello world',
+          proposedForms: ['hello', 'world'],
+          mode: 'force',
+        }),
+      ).rejects.toThrow('injected retokenize failure');
+    } finally {
+      db.unit_tokens.hook('creating').unsubscribe(fail);
+    }
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-rt-fail']);
+    expect(requery.map((token) => token.form.default)).toEqual(['hello world']);
+    expect(requery[0]?.gloss?.default).toBe('greeting');
+    expect(await listPendingAnalysisGraphCandidates('unit-rt-fail')).not.toHaveLength(0);
+  });
+
+  it('keeps the current tokens and the snapshot when restore creation fails', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-rt-restore',
+      textId: 'text-rt-restore',
+      unitId: 'unit-rt-restore',
+      form: { default: 'hello world' },
+      gloss: { default: 'greeting' },
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await applyAnnotationRetokenize({
+      textId: 'text-rt-restore',
+      unitId: 'unit-rt-restore',
+      surface: 'hello world',
+      proposedForms: ['hello', 'world'],
+      mode: 'force',
+    });
+    const before = [...(await LinguisticService.units.listTokensByUnitIds(['unit-rt-restore']))]
+      .sort((a, b) => a.tokenIndex - b.tokenIndex)
+      .map((token) => token.form.default);
+    expect(before).toEqual(['hello', 'world']);
+    expect(await listPendingAnalysisGraphCandidates('unit-rt-restore')).not.toHaveLength(0);
+    const fail = () => {
+      throw new Error('injected restore failure');
+    };
+    db.unit_tokens.hook('creating', fail);
+    try {
+      await expect(
+        restoreAnnotationRetokenize({ textId: 'text-rt-restore', unitId: 'unit-rt-restore' }),
+      ).rejects.toThrow('injected restore failure');
+    } finally {
+      db.unit_tokens.hook('creating').unsubscribe(fail);
+    }
+    const requery = [...(await LinguisticService.units.listTokensByUnitIds(['unit-rt-restore']))]
+      .sort((a, b) => a.tokenIndex - b.tokenIndex)
+      .map((token) => token.form.default);
+    expect(requery).toEqual(['hello', 'world']);
+    expect(await listPendingAnalysisGraphCandidates('unit-rt-restore')).not.toHaveLength(0);
+
+    const restored = await restoreAnnotationRetokenize({
+      textId: 'text-rt-restore',
+      unitId: 'unit-rt-restore',
+    });
+    expect(restored.restored).toBe(true);
+    const readback = await LinguisticService.units.listTokensByUnitIds(['unit-rt-restore']);
+    expect(readback.map((token) => token.form.default)).toEqual(['hello world']);
+    expect(readback[0]?.gloss?.default).toBe('greeting');
+    expect(await listPendingAnalysisGraphCandidates('unit-rt-restore')).toHaveLength(0);
+  });
 });
