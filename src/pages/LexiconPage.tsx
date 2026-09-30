@@ -1,6 +1,13 @@
 import '../styles/pages/feature-availability.css';
 import '../styles/pages/lexicon-workspace.css';
-import { useEffect, useDeferredValue, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useDeferredValue,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ProjectLanguageListsLoader } from '../components/ProjectLanguageListsContext';
@@ -18,6 +25,8 @@ import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import {
   buildTranscriptionDeepLinkHref,
   buildTranscriptionWorkspaceReturnHref,
+  getActiveProjectTextId,
+  subscribeActiveProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
 import { readOptionalListScrollTop } from '../utils/workspaceReturnDeepLink';
 import { LexiconAttachmentSection } from './LexiconAttachmentSection';
@@ -87,13 +96,21 @@ function resolveLexiconScrollRoot(workspace: HTMLElement | null): HTMLElement | 
 export function LexiconPage() {
   const locale = useLocale();
   const queryClient = useQueryClient();
+  const projectTextId = useSyncExternalStore(
+    subscribeActiveProjectTextId,
+    getActiveProjectTextId,
+    () => '',
+  );
   const {
     data: listed = [],
     isLoading: loading,
     error: queryError,
   } = useQuery({
-    queryKey: ['lexemes'],
-    queryFn: () => LinguisticService.lexemes.list(),
+    queryKey: ['lexemes', projectTextId],
+    queryFn: () =>
+      projectTextId.length > 0
+        ? LinguisticService.lexemes.list(projectTextId)
+        : Promise.resolve([]),
   });
   const lexemes = listed;
   const { data: dmlexResource } = useQuery({
@@ -176,17 +193,17 @@ export function LexiconPage() {
     selectedLexeme,
     relations,
     onSaved: (stored) => {
-      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
+      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes', projectTextId]) ?? [];
       const existed = current.some((row) => row.id === stored.id);
-      queryClient.setQueryData(['lexemes'], mergeLexemeIntoList(current, stored));
+      queryClient.setQueryData(['lexemes', projectTextId], mergeLexemeIntoList(current, stored));
       void queryClient.invalidateQueries({ queryKey: ['dmlex-resource'] });
       if (!existed) setSearchText('');
       setSelectedLexemeId(stored.id);
     },
     onDeleted: (lexemeId) => {
-      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
+      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes', projectTextId]) ?? [];
       queryClient.setQueryData(
-        ['lexemes'],
+        ['lexemes', projectTextId],
         current.filter((row) => row.id !== lexemeId),
       );
       void queryClient.removeQueries({ queryKey: ['lexemeTranscriptionJumpTargets', lexemeId] });
@@ -212,15 +229,15 @@ export function LexiconPage() {
       });
     },
     onLexemeUpdated: (detail) => {
-      void queryClient.invalidateQueries({ queryKey: ['lexemes'] });
+      void queryClient.invalidateQueries({ queryKey: ['lexemes', projectTextId] });
       void queryClient.invalidateQueries({
         queryKey: ['lexemeTranscriptionJumpTargets', detail.lexemeId],
       });
     },
     onLexemeDeleted: (detail) => {
-      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
+      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes', projectTextId]) ?? [];
       queryClient.setQueryData(
-        ['lexemes'],
+        ['lexemes', projectTextId],
         current.filter((row) => row.id !== detail.lexemeId),
       );
       void queryClient.removeQueries({
@@ -315,7 +332,11 @@ export function LexiconPage() {
         <header className="lexicon-workspace-hero">
           <span className="lexicon-workspace-badge">{t(locale, 'workspace.lexicon.badge')}</span>
           <h2 id="lexicon-workspace-title">{t(locale, 'workspace.lexicon.title')}</h2>
-          <p className="lexicon-workspace-summary">{t(locale, 'workspace.lexicon.summary')}</p>
+          <p className="lexicon-workspace-summary">
+            {projectTextId.length > 0
+              ? t(locale, 'workspace.lexicon.summary')
+              : t(locale, 'workspace.lexicon.needsProject')}
+          </p>
         </header>
 
         <div className="lexicon-workspace-layout">
@@ -392,7 +413,7 @@ export function LexiconPage() {
                     return;
                   }
                   setImportError('');
-                  queryClient.setQueryData(['lexemes'], result.readback);
+                  queryClient.setQueryData(['lexemes', projectTextId], result.readback);
                   const importNotice = formatLexiconImportNotice(
                     result.diagnostics,
                     result.losses,
@@ -603,9 +624,12 @@ export function LexiconPage() {
                             if (Object.keys(jieyu).length === 0) delete stored.jieyu;
                             void LinguisticService.lexemes.save(stored).then(() => {
                               const current =
-                                queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
+                                queryClient.getQueryData<LexemeEntryDoc[]>([
+                                  'lexemes',
+                                  projectTextId,
+                                ]) ?? [];
                               queryClient.setQueryData(
-                                ['lexemes'],
+                                ['lexemes', projectTextId],
                                 mergeLexemeIntoList(current, stored),
                               );
                             });

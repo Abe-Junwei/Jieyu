@@ -220,10 +220,11 @@ export function useSpeakerActions({
   );
 
   const refreshSpeakers = useCallback(async () => {
-    const nextSpeakers =
-      projectTextId.length > 0
-        ? await LinguisticService.speakers.listForProject(projectTextId)
-        : await LinguisticService.speakers.list();
+    if (projectTextId.length === 0) {
+      setSpeakers([]);
+      return;
+    }
+    const nextSpeakers = await LinguisticService.speakers.listForProject(projectTextId);
     setSpeakers(nextSpeakers);
   }, [projectTextId, setSpeakers]);
 

@@ -20,8 +20,22 @@ import {
 } from './languageCatalogUpsertPrep';
 import { filterLanguageCatalogEntriesBySearchText } from './languageCatalogListEntriesFilter';
 import { buildUpsertAliasRows, buildUpsertDisplayNameRows } from './languageCatalogUpsertRows';
+import { claimUnscopedCatalog, resolveOwnedProjectTextId } from '../projectCatalogScope';
 
 const log = createLogger('LinguisticService.languageCatalog');
+
+async function languageEntriesForProject(
+  entries: LanguageCatalogEntry[],
+  projectId: string,
+): Promise<LanguageCatalogEntry[]> {
+  if (projectId.length === 0) return entries.filter((entry) => entry.entryKind === 'built-in');
+  const db = await getDb();
+  const languages = await db.dexie.languages.toArray();
+  const owned = new Set(
+    languages.filter((language) => language.textId === projectId).map((language) => language.id),
+  );
+  return entries.filter((entry) => entry.entryKind === 'built-in' || owned.has(entry.id));
+}
 
 export async function listLanguageCatalogEntries(input: {
   locale: Locale;
@@ -29,13 +43,15 @@ export async function listLanguageCatalogEntries(input: {
   includeHidden?: boolean;
   languageIds?: readonly string[];
 }): Promise<LanguageCatalogEntry[]> {
+  const projectId = resolveOwnedProjectTextId();
+  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
   const entries = await lcProj.readLanguageCatalogProjection(
     input.locale,
     input.includeHidden,
     input.languageIds,
   );
-
-  return filterLanguageCatalogEntriesBySearchText(entries, input.searchText);
+  const visible = await languageEntriesForProject(entries, projectId);
+  return filterLanguageCatalogEntriesBySearchText(visible, input.searchText);
 }
 
 export async function getLanguageCatalogEntry(input: {

@@ -20,7 +20,7 @@ describe('project speaker roster', () => {
     await Promise.all(db.tables.map((table) => table.clear()));
   });
 
-  it('shows a speaker only on projects that list them, and reuses the same person by name', async () => {
+  it('keeps each project its own speaker, even when the name matches', async () => {
     await seedText('text-a');
     await seedText('text-b');
 
@@ -35,11 +35,11 @@ describe('project speaker roster', () => {
     ).toEqual(['Bo']);
 
     const shared = await LinguisticService.speakers.create({ name: 'Ada', textId: 'text-b' });
-    expect(shared.id).toBe(ada.id);
+    expect(shared.id).not.toBe(ada.id);
     expect(
       (await LinguisticService.speakers.listForProject('text-b')).map((row) => row.name).sort(),
     ).toEqual(['Ada', 'Bo']);
-    expect(await LinguisticService.speakers.list()).toHaveLength(2);
+    expect(await LinguisticService.speakers.list()).toHaveLength(3);
   });
 
   it('keeps a speaker who is already assigned on a unit before the roster is written', async () => {

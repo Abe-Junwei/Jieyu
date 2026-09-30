@@ -1,8 +1,24 @@
-import { dexieStoresForOrthographyBridgeUpsertRw, getDb, withTransaction, type MultiLangString, type OrthographyBridgeDocType, type OrthographyDocType } from '../db';
-import { getBuiltInOrthographyById, listBuiltInOrthographies, listBuiltInOrthographiesByIds, listAllBuiltInOrthographies } from '../data/builtInOrthographies';
+import {
+  dexieStoresForOrthographyBridgeUpsertRw,
+  getDb,
+  withTransaction,
+  type MultiLangString,
+  type OrthographyBridgeDocType,
+  type OrthographyDocType,
+} from '../db';
+import {
+  getBuiltInOrthographyById,
+  listBuiltInOrthographies,
+  listBuiltInOrthographiesByIds,
+  listAllBuiltInOrthographies,
+} from '../data/builtInOrthographies';
 import { getLanguageCatalogEntry as getLanguageCatalogWorkspaceEntry } from './LinguisticService.languageCatalog';
+import { claimUnscopedCatalog, resolveOwnedProjectTextId } from './projectCatalogScope';
 import { isKnownIso639_3Code } from '../utils/langMapping';
-import { buildOrthographyIdentityKey, normalizeOrthographyIdentity } from '../utils/orthographyIdentity';
+import {
+  buildOrthographyIdentityKey,
+  normalizeOrthographyIdentity,
+} from '../utils/orthographyIdentity';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { newId } from '../utils/transcriptionFormatters';
 import { previewOrthographyBridge } from '../utils/orthographyBridges';
@@ -27,7 +43,10 @@ export interface CreateOrthographyInput {
   notes?: MultiLangString;
 }
 
-export interface CloneOrthographyToLanguageInput extends Omit<CreateOrthographyInput, 'languageId' | 'name'> {
+export interface CloneOrthographyToLanguageInput extends Omit<
+  CreateOrthographyInput,
+  'languageId' | 'name'
+> {
   sourceOrthographyId: string;
   targetLanguageId: string;
   name?: MultiLangString;
@@ -101,9 +120,7 @@ export interface PreviewOrthographyBridgeInput {
 }
 
 function resolveOrthographySortLabel(orthography: OrthographyDocType): string {
-  return readAnyMultiLangLabel(orthography.name)
-    ?? orthography.abbreviation
-    ?? orthography.id;
+  return readAnyMultiLangLabel(orthography.name) ?? orthography.abbreviation ?? orthography.id;
 }
 
 function rankOrthographyBridgeStatus(status: OrthographyBridgeDocType['status']): number {
@@ -167,7 +184,7 @@ async function assertOrthographyExists(
   id: string,
   fieldName: 'sourceOrthographyId' | 'targetOrthographyId',
 ): Promise<void> {
-  const orthography = await orthographiesTable.get(id) ?? await getBuiltInOrthographyById(id);
+  const orthography = (await orthographiesTable.get(id)) ?? (await getBuiltInOrthographyById(id));
   if (!orthography) {
     throw new Error(fieldName === 'sourceOrthographyId' ? '源正字法不存在' : '目标正字法不存在');
   }
@@ -192,7 +209,10 @@ function buildOrthographySearchText(orthography: OrthographyDocType): string {
     orthography.languageId,
     orthography.scriptTag,
     orthography.type,
-  ].filter(Boolean).join(' ').toLowerCase();
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 }
 
 function normalizeSelectorValues(values: readonly string[] | undefined): string[] | undefined {
@@ -200,25 +220,21 @@ function normalizeSelectorValues(values: readonly string[] | undefined): string[
     return undefined;
   }
 
-  const normalizedValues = Array.from(new Set(
-    values
-      .map((value) => value.trim())
-      .filter(Boolean),
-  ));
+  const normalizedValues = Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 
   return normalizedValues.length > 0 ? normalizedValues : undefined;
 }
 
-function normalizeLanguageSelectorValues(values: readonly string[] | undefined): string[] | undefined {
+function normalizeLanguageSelectorValues(
+  values: readonly string[] | undefined,
+): string[] | undefined {
   if (!values) {
     return undefined;
   }
 
-  const normalizedValues = Array.from(new Set(
-    values
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean),
-  ));
+  const normalizedValues = Array.from(
+    new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean)),
+  );
 
   return normalizedValues.length > 0 ? normalizedValues : undefined;
 }
@@ -262,16 +278,22 @@ async function deactivateSiblingActiveBridges(input: {
     .equals([input.sourceOrthographyId, input.targetOrthographyId])
     .toArray();
   const now = new Date().toISOString();
-  await Promise.all(siblings
-    .filter((doc) => doc.status === 'active' && doc.id !== input.exceptId)
-    .map((doc) => input.bridgesTable.put({
-      ...doc,
-      status: 'draft',
-      updatedAt: now,
-    })));
+  await Promise.all(
+    siblings
+      .filter((doc) => doc.status === 'active' && doc.id !== input.exceptId)
+      .map((doc) =>
+        input.bridgesTable.put({
+          ...doc,
+          status: 'draft',
+          updatedAt: now,
+        }),
+      ),
+  );
 }
 
-async function resolveBridgeForApplication(input: ApplyOrthographyBridgeInput): Promise<OrthographyBridgeDocType | null> {
+async function resolveBridgeForApplication(
+  input: ApplyOrthographyBridgeInput,
+): Promise<OrthographyBridgeDocType | null> {
   const explicitBridgeId = input.bridgeId?.trim();
   if (explicitBridgeId) {
     const db = await getDb();
@@ -309,14 +331,23 @@ export async function listOrthographyRecords(
     listScopedBuiltInOrthographies(selector),
   ]);
   const dbRows = docs.map((doc) => doc.toJSON());
+  const projectId = resolveOwnedProjectTextId();
+  const scopedDbRows =
+    projectId.length === 0
+      ? dbRows.filter((row) => (row.textId?.trim() ?? '').length === 0)
+      : (await claimUnscopedCatalog(projectId),
+        (await db.collections.orthographies.find().exec())
+          .map((doc) => doc.toJSON())
+          .filter((row) => row.textId === projectId));
   const rows = selector.includeBuiltIns
-    ? mergeOrthographyCatalogRows(builtInRows, dbRows)
-    : dbRows;
+    ? mergeOrthographyCatalogRows(builtInRows, scopedDbRows)
+    : scopedDbRows;
 
   return rows
     .filter((orthography) => {
       const normalizedOrthographyLanguageId = orthography.languageId?.trim().toLowerCase() ?? '';
-      const matchesExplicitOrthographyId = normalizedOrthographyIds?.includes(orthography.id) ?? false;
+      const matchesExplicitOrthographyId =
+        normalizedOrthographyIds?.includes(orthography.id) ?? false;
       if (matchesExplicitOrthographyId) {
         return true;
       }
@@ -352,14 +383,19 @@ export async function listOrthographyRecords(
       const languageDiff = leftLanguageId.localeCompare(rightLanguageId);
       if (languageDiff !== 0) return languageDiff;
 
-      const labelDiff = resolveOrthographySortLabel(left).localeCompare(resolveOrthographySortLabel(right), 'zh-CN');
+      const labelDiff = resolveOrthographySortLabel(left).localeCompare(
+        resolveOrthographySortLabel(right),
+        'zh-CN',
+      );
       if (labelDiff !== 0) return labelDiff;
 
       return left.id.localeCompare(right.id);
     });
 }
 
-export async function createOrthographyRecord(input: CreateOrthographyInput): Promise<OrthographyDocType> {
+export async function createOrthographyRecord(
+  input: CreateOrthographyInput,
+): Promise<OrthographyDocType> {
   const db = await getDb();
   const now = new Date().toISOString();
   const languageId = await normalizeRequiredLanguageId(input.languageId);
@@ -376,8 +412,9 @@ export async function createOrthographyRecord(input: CreateOrthographyInput): Pr
     languageId: normalizedIdentity.languageId ?? languageId,
     includeBuiltIns: true,
   });
-  const hasDuplicateIdentity = existingOrthographies
-    .some((orthography) => buildOrthographyIdentityKey(orthography) === candidateIdentityKey);
+  const hasDuplicateIdentity = existingOrthographies.some(
+    (orthography) => buildOrthographyIdentityKey(orthography) === candidateIdentityKey,
+  );
   if (hasDuplicateIdentity) {
     throw new Error('已存在相同语言/类型/脚本/地区/变体身份的正字法');
   }
@@ -386,6 +423,7 @@ export async function createOrthographyRecord(input: CreateOrthographyInput): Pr
     id: newId('orth'),
     name: input.name,
     languageId: normalizedIdentity.languageId ?? languageId,
+    ...(resolveOwnedProjectTextId().length > 0 ? { textId: resolveOwnedProjectTextId() } : {}),
     ...(input.abbreviation ? { abbreviation: input.abbreviation } : {}),
     ...(input.type ? { type: input.type } : {}),
     catalogMetadata: {
@@ -412,9 +450,12 @@ export async function createOrthographyRecord(input: CreateOrthographyInput): Pr
   return orthography;
 }
 
-export async function updateOrthographyRecord(input: UpdateOrthographyInput): Promise<OrthographyDocType> {
+export async function updateOrthographyRecord(
+  input: UpdateOrthographyInput,
+): Promise<OrthographyDocType> {
   const db = await getDb();
-  const existing = await db.dexie.orthographies.get(input.id) ?? await getBuiltInOrthographyById(input.id);
+  const existing =
+    (await db.dexie.orthographies.get(input.id)) ?? (await getBuiltInOrthographyById(input.id));
   if (!existing) {
     throw new Error('正字法不存在');
   }
@@ -430,8 +471,9 @@ export async function updateOrthographyRecord(input: UpdateOrthographyInput): Pr
   });
   const candidateIdentityKey = buildOrthographyIdentityKey(normalizedIdentity);
   const existingIdentityKey = buildOrthographyIdentityKey(existing);
-  const preservesExistingIdentity = existing.languageId === (normalizedIdentity.languageId ?? languageId)
-    && existingIdentityKey === candidateIdentityKey;
+  const preservesExistingIdentity =
+    existing.languageId === (normalizedIdentity.languageId ?? languageId) &&
+    existingIdentityKey === candidateIdentityKey;
   const existingOrthographies = await listOrthographyRecords({
     languageId: normalizedIdentity.languageId ?? languageId,
     includeBuiltIns: true,
@@ -444,7 +486,10 @@ export async function updateOrthographyRecord(input: UpdateOrthographyInput): Pr
     throw new Error('已存在相同语言/类型/脚本/地区/变体身份的正字法');
   }
 
-  const nextCatalogMetadata = mergeOrthographyCatalogMetadata(existing.catalogMetadata, input.catalogMetadata);
+  const nextCatalogMetadata = mergeOrthographyCatalogMetadata(
+    existing.catalogMetadata,
+    input.catalogMetadata,
+  );
 
   const next: OrthographyDocType = {
     id: existing.id,
@@ -478,8 +523,9 @@ export async function cloneOrthographyRecordToLanguage(
   input: CloneOrthographyToLanguageInput,
 ): Promise<OrthographyDocType> {
   const db = await getDb();
-  const source = await db.dexie.orthographies.get(input.sourceOrthographyId)
-    ?? await getBuiltInOrthographyById(input.sourceOrthographyId);
+  const source =
+    (await db.dexie.orthographies.get(input.sourceOrthographyId)) ??
+    (await getBuiltInOrthographyById(input.sourceOrthographyId));
   if (!source) {
     throw new Error('\u6e90\u6b63\u5b57\u6cd5\u4e0d\u5b58\u5728');
   }
@@ -560,20 +606,26 @@ export async function createOrthographyBridgeRecord(
     updatedAt: now,
   };
 
-  await withTransaction(db, 'rw', [...dexieStoresForOrthographyBridgeUpsertRw(db)], async () => {
-    await Promise.all([
-      assertOrthographyExists(db.dexie.orthographies, sourceOrthographyId, 'sourceOrthographyId'),
-      assertOrthographyExists(db.dexie.orthographies, targetOrthographyId, 'targetOrthographyId'),
-    ]);
-    if (input.status === 'active') {
-      await deactivateSiblingActiveBridges({
-        bridgesTable: db.dexie.orthography_bridges,
-        sourceOrthographyId,
-        targetOrthographyId,
-      });
-    }
-    await db.dexie.orthography_bridges.put(bridge);
-  }, { label: 'LinguisticService.orthography.createOrthographyBridgeRecord' });
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForOrthographyBridgeUpsertRw(db)],
+    async () => {
+      await Promise.all([
+        assertOrthographyExists(db.dexie.orthographies, sourceOrthographyId, 'sourceOrthographyId'),
+        assertOrthographyExists(db.dexie.orthographies, targetOrthographyId, 'targetOrthographyId'),
+      ]);
+      if (input.status === 'active') {
+        await deactivateSiblingActiveBridges({
+          bridgesTable: db.dexie.orthography_bridges,
+          sourceOrthographyId,
+          targetOrthographyId,
+        });
+      }
+      await db.dexie.orthography_bridges.put(bridge);
+    },
+    { label: 'LinguisticService.orthography.createOrthographyBridgeRecord' },
+  );
   return bridge;
 }
 
@@ -582,19 +634,34 @@ export async function listOrthographyBridgeRecords(
 ): Promise<OrthographyBridgeDocType[]> {
   const db = await getDb();
   const docs = await db.collections.orthography_bridges.find().exec();
-  return docs
-    .map((doc) => doc.toJSON())
+  const projectId = resolveOwnedProjectTextId();
+  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
+  const owned =
+    projectId.length > 0
+      ? (await db.collections.orthography_bridges.find().exec()).map((doc) => doc.toJSON())
+      : docs.map((doc) => doc.toJSON());
+  return owned
+    .filter((doc) =>
+      projectId.length === 0 ? (doc.textId?.trim() ?? '').length === 0 : doc.textId === projectId,
+    )
     .filter((doc) => {
-      if (selector.sourceOrthographyId && doc.sourceOrthographyId !== selector.sourceOrthographyId) {
+      if (
+        selector.sourceOrthographyId &&
+        doc.sourceOrthographyId !== selector.sourceOrthographyId
+      ) {
         return false;
       }
-      if (selector.targetOrthographyId && doc.targetOrthographyId !== selector.targetOrthographyId) {
+      if (
+        selector.targetOrthographyId &&
+        doc.targetOrthographyId !== selector.targetOrthographyId
+      ) {
         return false;
       }
       return true;
     })
     .sort((left, right) => {
-      const rankDiff = rankOrthographyBridgeStatus(left.status) - rankOrthographyBridgeStatus(right.status);
+      const rankDiff =
+        rankOrthographyBridgeStatus(left.status) - rankOrthographyBridgeStatus(right.status);
       if (rankDiff !== 0) return rankDiff;
       return (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt);
     });
@@ -667,25 +734,47 @@ export async function updateOrthographyBridgeRecord(
   }
 
   if (next.status === 'active') {
-    await withTransaction(db, 'rw', [...dexieStoresForOrthographyBridgeUpsertRw(db)], async () => {
-      await Promise.all([
-        assertOrthographyExists(db.dexie.orthographies, next.sourceOrthographyId, 'sourceOrthographyId'),
-        assertOrthographyExists(db.dexie.orthographies, next.targetOrthographyId, 'targetOrthographyId'),
-      ]);
-      await deactivateSiblingActiveBridges({
-        bridgesTable: db.dexie.orthography_bridges,
-        sourceOrthographyId: next.sourceOrthographyId,
-        targetOrthographyId: next.targetOrthographyId,
-        exceptId: next.id,
-      });
-      await db.dexie.orthography_bridges.put(next);
-    }, { label: 'LinguisticService.orthography.updateOrthographyBridgeRecord' });
+    await withTransaction(
+      db,
+      'rw',
+      [...dexieStoresForOrthographyBridgeUpsertRw(db)],
+      async () => {
+        await Promise.all([
+          assertOrthographyExists(
+            db.dexie.orthographies,
+            next.sourceOrthographyId,
+            'sourceOrthographyId',
+          ),
+          assertOrthographyExists(
+            db.dexie.orthographies,
+            next.targetOrthographyId,
+            'targetOrthographyId',
+          ),
+        ]);
+        await deactivateSiblingActiveBridges({
+          bridgesTable: db.dexie.orthography_bridges,
+          sourceOrthographyId: next.sourceOrthographyId,
+          targetOrthographyId: next.targetOrthographyId,
+          exceptId: next.id,
+        });
+        await db.dexie.orthography_bridges.put(next);
+      },
+      { label: 'LinguisticService.orthography.updateOrthographyBridgeRecord' },
+    );
     return next;
   }
 
   await Promise.all([
-    assertOrthographyExists(db.dexie.orthographies, next.sourceOrthographyId, 'sourceOrthographyId'),
-    assertOrthographyExists(db.dexie.orthographies, next.targetOrthographyId, 'targetOrthographyId'),
+    assertOrthographyExists(
+      db.dexie.orthographies,
+      next.sourceOrthographyId,
+      'sourceOrthographyId',
+    ),
+    assertOrthographyExists(
+      db.dexie.orthographies,
+      next.targetOrthographyId,
+      'targetOrthographyId',
+    ),
   ]);
   await db.collections.orthography_bridges.insert(next);
   return next;
@@ -720,7 +809,10 @@ export async function applyOrthographyBridgeRecord(
 ): Promise<{ text: string; bridgeId?: string }> {
   const sourceOrthographyId = input.sourceOrthographyId?.trim();
   const targetOrthographyId = input.targetOrthographyId?.trim();
-  if (!input.text || (sourceOrthographyId && targetOrthographyId && sourceOrthographyId === targetOrthographyId)) {
+  if (
+    !input.text ||
+    (sourceOrthographyId && targetOrthographyId && sourceOrthographyId === targetOrthographyId)
+  ) {
     return { text: input.text };
   }
 

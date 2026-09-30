@@ -138,7 +138,9 @@ describe('project-scoped snapshot export/import', () => {
     });
 
     const snapshot = await exportProjectScopedDatabaseAsJson('text-a');
-    expect(snapshot.collections.token_lexeme_links).toBeUndefined();
+    expect(snapshot.collections.token_lexeme_links).toEqual([
+      expect.objectContaining({ id: 'link-a', targetId: 'tok-a' }),
+    ]);
 
     await db.unit_tokens.put({
       id: 'tok-stale',

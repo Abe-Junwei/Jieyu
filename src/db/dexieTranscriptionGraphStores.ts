@@ -209,10 +209,28 @@ export function dexieStoresForDeleteProjectByTextIdCascadeRw(db: JieyuDatabase) 
     db.dexie.ai_task_snapshots,
     db.dexie.track_entities,
     db.dexie.texts,
+    db.dexie.speakers,
+    db.dexie.lexemes,
+    db.dexie.lexeme_assets,
+    db.dexie.lexeme_asset_links,
+    db.dexie.languages,
+    db.dexie.language_display_names,
+    db.dexie.language_aliases,
+    db.dexie.language_catalog_history,
+    db.dexie.custom_field_definitions,
+    db.dexie.orthographies,
+    db.dexie.orthography_bridges,
+    db.dexie.locations,
+    db.dexie.bibliographic_sources,
+    db.dexie.grammar_docs,
+    db.dexie.abbreviations,
+    db.dexie.phonemes,
+    db.dexie.tag_definitions,
+    db.dexie.structural_rule_profiles,
   ] as const;
 }
 
-/** RW: collaboration project snapshot restore — prune this textId's graph, never speakers/lexemes/AI. */
+/** RW: collaboration project snapshot restore — prune this textId's graph and its catalog rows. */
 export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
   return [
     db.dexie.layer_unit_contents,
@@ -234,5 +252,24 @@ export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
     db.dexie.translation_status_snapshots,
     db.dexie.track_entities,
     db.dexie.texts,
+    db.dexie.speakers,
+    db.dexie.lexemes,
+    db.dexie.lexeme_assets,
+    db.dexie.lexeme_asset_links,
+    db.dexie.languages,
+    db.dexie.language_display_names,
+    db.dexie.language_aliases,
+    db.dexie.language_catalog_history,
+    db.dexie.custom_field_definitions,
+    db.dexie.orthographies,
+    db.dexie.orthography_bridges,
+    db.dexie.orthography_transforms,
+    db.dexie.locations,
+    db.dexie.bibliographic_sources,
+    db.dexie.grammar_docs,
+    db.dexie.abbreviations,
+    db.dexie.phonemes,
+    db.dexie.tag_definitions,
+    db.dexie.structural_rule_profiles,
   ] as const;
 }

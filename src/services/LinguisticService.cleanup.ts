@@ -182,6 +182,38 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
       await db.dexie.ai_tasks.where('targetId').equals(textId).delete();
       await db.dexie.ai_task_snapshots.where('targetId').equals(textId).delete();
 
+      const catalogTables = [
+        db.dexie.speakers,
+        db.dexie.lexemes,
+        db.dexie.lexeme_assets,
+        db.dexie.lexeme_asset_links,
+        db.dexie.languages,
+        db.dexie.language_display_names,
+        db.dexie.language_aliases,
+        db.dexie.language_catalog_history,
+        db.dexie.custom_field_definitions,
+        db.dexie.orthographies,
+        db.dexie.orthography_bridges,
+        db.dexie.locations,
+        db.dexie.bibliographic_sources,
+        db.dexie.grammar_docs,
+        db.dexie.abbreviations,
+        db.dexie.phonemes,
+        db.dexie.tag_definitions,
+      ] as const;
+      for (const table of catalogTables) {
+        const stale = await table
+          .filter((row) => (row as { textId?: string }).textId === textId)
+          .toArray();
+        if (stale.length > 0) await table.bulkDelete(stale.map((row) => row.id));
+      }
+      const staleProfiles = await db.dexie.structural_rule_profiles
+        .filter((row) => row.projectId === textId)
+        .toArray();
+      if (staleProfiles.length > 0) {
+        await db.dexie.structural_rule_profiles.bulkDelete(staleProfiles.map((row) => row.id));
+      }
+
       await db.dexie.texts.delete(textId);
     },
     { label: 'LinguisticService.cleanup.deleteProjectCascade' },

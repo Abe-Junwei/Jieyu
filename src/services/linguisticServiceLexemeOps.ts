@@ -18,6 +18,11 @@ import {
   dispatchWorkspaceLexemeUpdated,
 } from '../utils/workspaceEvents';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
+import {
+  claimUnscopedCatalog,
+  lexemeBelongsToProject,
+  resolveOwnedProjectTextId,
+} from './projectCatalogScope';
 
 /** 词典 → 转写深链：由 `token_lexeme_links` 解析出的可跳转时间轴单元 | Lexicon → transcription deep-link row */
 export interface LexemeTranscriptionJumpTarget {
@@ -36,29 +41,45 @@ function entryRows(docs: LexemeDocType[]): LexemeEntryDoc[] {
   return docs.filter(isLexemeEntry);
 }
 
-export async function listLexemes(): Promise<LexemeEntryDoc[]> {
-  const db = await getDb();
-  const docs = await db.collections.lexemes.find().exec();
-
-  return entryRows(docs.map((doc) => doc.toJSON())).sort((left, right) => {
-    const usageDiff = (right.usageCount ?? 0) - (left.usageCount ?? 0);
-    if (usageDiff !== 0) return usageDiff;
-
-    const updatedDiff = right.updatedAt.localeCompare(left.updatedAt);
-    if (updatedDiff !== 0) return updatedDiff;
-
-    return lexemeHeadword(left).localeCompare(lexemeHeadword(right), 'zh-CN');
-  });
+function compareLexemeEntries(left: LexemeEntryDoc, right: LexemeEntryDoc): number {
+  const usageDiff = (right.usageCount ?? 0) - (left.usageCount ?? 0);
+  if (usageDiff !== 0) return usageDiff;
+  const updatedDiff = right.updatedAt.localeCompare(left.updatedAt);
+  if (updatedDiff !== 0) return updatedDiff;
+  return lexemeHeadword(left).localeCompare(lexemeHeadword(right), 'zh-CN');
 }
 
-export async function searchLexemes(query: string): Promise<LexemeEntryDoc[]> {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
-
+export async function listLexemes(textId?: string): Promise<LexemeEntryDoc[]> {
+  const projectId = resolveOwnedProjectTextId(textId);
   const db = await getDb();
   const docs = await db.collections.lexemes.find().exec();
-  return entryRows(docs.map((doc) => doc.toJSON())).filter((item) =>
-    lexemeMatchValues(item).some((value) => value.includes(normalized)),
+  const loaded = entryRows(docs.map((doc) => doc.toJSON()));
+  if (projectId.length === 0) {
+    return loaded
+      .filter((item) => (item.textId?.trim() ?? '').length === 0)
+      .sort(compareLexemeEntries);
+  }
+  await claimUnscopedCatalog(projectId);
+  const ownedDocs = await db.collections.lexemes.find().exec();
+  return entryRows(ownedDocs.map((doc) => doc.toJSON()))
+    .filter((item) => lexemeBelongsToProject(item, projectId))
+    .sort(compareLexemeEntries);
+}
+
+export async function searchLexemes(query: string, textId?: string): Promise<LexemeEntryDoc[]> {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return [];
+  const projectId = resolveOwnedProjectTextId(textId);
+
+  const db = await getDb();
+  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
+  const docs = await db.collections.lexemes.find().exec();
+  return entryRows(docs.map((doc) => doc.toJSON())).filter(
+    (item) =>
+      (projectId.length === 0
+        ? (item.textId?.trim() ?? '').length === 0
+        : lexemeBelongsToProject(item, projectId)) &&
+      lexemeMatchValues(item).some((value) => value.includes(normalized)),
   );
 }
 
@@ -72,7 +93,12 @@ export async function getDmlexResource(): Promise<LexemeResourceDoc | null> {
 
 export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const db = await getDb();
-  const stored = isLexemeEntry(data) ? ensureLexemeNestedIds(data) : data;
+  const projectId = data.textId?.trim() || resolveOwnedProjectTextId();
+  const stamped =
+    projectId.length > 0 && (data.textId?.trim() ?? '').length === 0
+      ? { ...data, textId: projectId }
+      : data;
+  const stored = isLexemeEntry(stamped) ? ensureLexemeNestedIds(stamped) : stamped;
   const doc = await db.collections.lexemes.insert(stored);
   dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
   return doc.primary;

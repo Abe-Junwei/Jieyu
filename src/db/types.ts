@@ -191,6 +191,8 @@ export interface LexemeEntryDoc {
   provenance?: ProvenanceEnvelope;
   usageCount?: number;
   accessRights?: 'open' | 'restricted' | 'confidential';
+  /** Owning project. The same headword in another project is a different row. */
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -203,6 +205,7 @@ export interface LexemeResourceDoc {
   id: string;
   kind: 'resource';
   resource: DmlexLexicographicResource;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -470,6 +473,7 @@ export interface LanguageDocType {
   visibility?: LanguageCatalogVisibility;
   notes?: MultiLangString;
   customFields?: Record<string, string | number | boolean | string[]>;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -491,6 +495,7 @@ export interface CustomFieldDefinitionDocType {
   maxValue?: number;
   pattern?: string;
   sortOrder: number;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -504,6 +509,7 @@ export interface LanguageDisplayNameDocType {
   isPreferred?: boolean;
   sourceType: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -517,6 +523,7 @@ export interface LanguageAliasDocType {
   aliasType: LanguageAliasType;
   sourceType: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -555,6 +562,8 @@ export interface SpeakerDocType {
   accessRights?: 'open' | 'restricted' | 'confidential';
   address?: string;
   notes?: MultiLangString;
+  /** Owning project. Another project with the same name has its own row. */
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -628,6 +637,7 @@ export interface OrthographyDocType {
   /** Transliteration / conversion rule definitions (F30 预留) */
   conversionRules?: Record<string, unknown>;
   notes?: MultiLangString;
+  textId?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -653,6 +663,7 @@ export interface OrthographyBridgeDocType {
   isReversible?: boolean;
   status?: 'draft' | 'active' | 'deprecated';
   notes?: MultiLangString;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -10,11 +10,8 @@ import {
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
-import {
-  attachSpeakerToProject,
-  detachSpeakerFromProjects,
-  ensureProjectSpeakerIds,
-} from './speakerProjectMembership';
+import { attachSpeakerToProject, detachSpeakerFromProjects } from './speakerProjectMembership';
+import { claimUnscopedCatalog } from './projectCatalogScope';
 
 export async function getSpeakers(): Promise<SpeakerDocType[]> {
   const db = await getDb();
@@ -32,8 +29,8 @@ export async function listSpeakersForProject(textId: string): Promise<SpeakerDoc
   const id = textId.trim();
   const speakers = await getSpeakers();
   if (!id) return speakers;
-  const allowed = new Set(await ensureProjectSpeakerIds(id));
-  return speakers.filter((speaker) => allowed.has(speaker.id));
+  await claimUnscopedCatalog(id);
+  return (await getSpeakers()).filter((speaker) => speaker.textId === id);
 }
 
 export async function getSpeakerReferenceStats(options?: {
@@ -118,13 +115,12 @@ export async function createSpeaker(input: {
   const projectTextId = input.textId?.trim() ?? '';
   const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
   const duplicate = existingSpeakers.find(
-    (speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
+    (speaker) =>
+      speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName &&
+      (speaker.textId ?? '') === projectTextId,
   );
   if (duplicate) {
-    if (projectTextId.length > 0) {
-      await attachSpeakerToProject(duplicate.id, projectTextId);
-      return duplicate;
-    }
+    if (projectTextId.length > 0) return duplicate;
     throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
   }
 
@@ -145,6 +141,7 @@ export async function createSpeaker(input: {
     ...(accent ? { accent } : {}),
     ...(languageIds && languageIds.length > 0 ? { languageIds } : {}),
     ...(notes ? { notes } : {}),
+    ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
     createdAt: now,
     updatedAt: now,
   };

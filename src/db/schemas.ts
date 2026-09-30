@@ -365,6 +365,7 @@ const lexemeEntryDocSchema = z
     provenance: provenanceSchema.optional(),
     usageCount: z.number().int().min(0).optional(),
     accessRights: accessRightsSchema.optional(),
+    textId: z.string().min(1).optional(),
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
@@ -413,6 +414,7 @@ const lexemeResourceDocSchema = z
           .optional(),
       })
       .strict(),
+    textId: z.string().min(1).optional(),
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
@@ -866,6 +868,7 @@ const speakerDocSchema = z.object({
   accessRights: accessRightsSchema.optional(),
   address: z.string().optional(),
   notes: multiLangStringSchema.optional(),
+  textId: z.string().min(1).optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
