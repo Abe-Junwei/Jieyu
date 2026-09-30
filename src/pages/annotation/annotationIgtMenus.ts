@@ -57,13 +57,16 @@ export function buildAnnotationLineMenuItems(input: {
   unitId: string;
   lineId: string;
   lines: readonly string[];
-  glossLanguageDraft?: string;
-  onGlossLanguageDraft?: (value: string) => void;
   languageLines?: readonly AnnotationLanguageLineOption[];
-  primaryGlossLanguage?: string;
+  workingLanguageIds?: readonly string[];
+  objectLanguageIds?: readonly string[];
+  languageByLine?: Readonly<Record<string, string>>;
   onMove?: (from: string, to: string) => void;
   onRemove?: (lineId: string) => void;
   onAdd?: (lineId: string) => void;
+  onAssignLanguage?: (lineId: string, languageId: string) => void;
+  glossLanguageDraft?: string;
+  onGlossLanguageDraft?: (value: string) => void;
 }): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
   const up = annotationLineMoveTarget(input.lines, input.lineId, 'up');
@@ -109,7 +112,20 @@ export function buildAnnotationLineMenuItems(input: {
       onClick: () => input.onAdd?.(line.key),
     })),
   ];
-  if (input.onAdd && input.onGlossLanguageDraft) {
+  const workingLanguages = input.workingLanguageIds ?? [];
+  if (input.onAdd && workingLanguages.length > 0) {
+    for (const languageId of workingLanguages) {
+      const key = `gloss:${languageId}`;
+      if (shown.has(key)) continue;
+      addChildren.push({
+        testId: `annotation-igt-add-line-${key}-${input.unitId}`,
+        label: annotationLanguageLineLabel(input.locale, key, languageId),
+        selectionVariant: 'dot',
+        selectionState: 'unselected',
+        onClick: () => input.onAdd?.(key),
+      });
+    }
+  } else if (input.onAdd && input.onGlossLanguageDraft) {
     addChildren.push({
       testId: `annotation-igt-add-gloss-language-${input.unitId}`,
       label: t(input.locale, 'workspace.annotation.lineGloss'),
@@ -121,8 +137,7 @@ export function buildAnnotationLineMenuItems(input: {
         onChange: input.onGlossLanguageDraft,
         onBlur: (value) => {
           const languageId = value.trim();
-          const primary = (input.primaryGlossLanguage ?? '').trim();
-          if (languageId.length === 0 || languageId === primary) return;
+          if (languageId.length === 0) return;
           const key = `gloss:${languageId}`;
           if (shown.has(key)) return;
           input.onAdd?.(key);
@@ -130,6 +145,8 @@ export function buildAnnotationLineMenuItems(input: {
       },
     });
   }
+  const languageMenu = annotationLineLanguageMenu(input);
+  if (languageMenu) items.push(languageMenu);
   if (input.onAdd && addChildren.length > 0) {
     items.push({
       label: t(input.locale, 'workspace.annotation.addLine'),
@@ -138,6 +155,32 @@ export function buildAnnotationLineMenuItems(input: {
     });
   }
   return items;
+}
+
+function annotationLineLanguageMenu(input: {
+  locale: Locale;
+  unitId: string;
+  lineId: string;
+  workingLanguageIds?: readonly string[];
+  languageByLine?: Readonly<Record<string, string>>;
+  onAssignLanguage?: (lineId: string, languageId: string) => void;
+}): ContextMenuItem | null {
+  const kind = annotationLineKind(input.lineId);
+  if (kind !== 'gloss' && kind !== 'translation' && kind !== 'literal') return null;
+  const languages = input.workingLanguageIds ?? [];
+  if (languages.length === 0 || !input.onAssignLanguage) return null;
+  const current = input.languageByLine?.[input.lineId] ?? annotationLineLanguage(input.lineId);
+  return {
+    label: t(input.locale, 'workspace.annotation.lineLanguage'),
+    separatorBefore: true,
+    children: languages.map((languageId) => ({
+      testId: `annotation-igt-line-language-${input.lineId}-${languageId}-${input.unitId}`,
+      label: languageId,
+      selectionVariant: 'dot' as const,
+      selectionState: current === languageId ? ('selected' as const) : ('unselected' as const),
+      onClick: () => input.onAssignLanguage?.(input.lineId, languageId),
+    })),
+  };
 }
 
 export function annotationLanguageLineLabel(
@@ -167,6 +210,7 @@ export function buildAnnotationTokenMenuItems(input: {
   languageValue?: string;
   onLanguageChange?: (value: string) => void;
   onLanguageBlur?: (value: string) => void;
+  objectLanguageIds?: readonly string[];
   pos?: string;
   storedPos?: string;
   onApplyPosByForm?: (pos: string) => void;
@@ -253,7 +297,23 @@ export function buildAnnotationTokenMenuItems(input: {
       onClick: () => input.onAddAlternative?.(pos),
     });
   }
-  if (input.onLanguageChange && input.onLanguageBlur) {
+  const objectLanguages = input.objectLanguageIds ?? [];
+  if (objectLanguages.length > 0 && input.onLanguageBlur) {
+    items.push({
+      label: t(input.locale, 'workspace.annotation.tokenLanguage'),
+      separatorBefore: true,
+      children: objectLanguages.map((languageId) => ({
+        testId: `annotation-igt-language-${input.tokenId}-${languageId}`,
+        label: languageId,
+        selectionVariant: 'dot' as const,
+        selectionState:
+          (input.languageValue ?? '') === languageId
+            ? ('selected' as const)
+            : ('unselected' as const),
+        onClick: () => input.onLanguageBlur?.(languageId),
+      })),
+    });
+  } else if (input.onLanguageChange && input.onLanguageBlur) {
     items.push({
       label: t(input.locale, 'workspace.annotation.tokenLanguage'),
       separatorBefore: true,

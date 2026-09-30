@@ -679,19 +679,24 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
               const collapsedOverlapMarkers = isMultiTrackMode
                 ? activeLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
                 : [];
+              const storedSegments = segmentsByLayer?.get(segmentSourceLayerId) ?? [];
+              const segmentRows = visibleSegmentsBySourceLayer.has(segmentSourceLayerId)
+                ? (visibleSegmentsBySourceLayer.get(segmentSourceLayerId) ?? [])
+                : storedSegments;
               const rawVisibleSegments: LayerUnitDocType[] = usesSegmentTimeline
                 ? isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
                   ? (segmentItemsByOverlapGroupByLayer
                       .get(segmentSourceLayerId)
                       ?.get(activeOverlapGroupId) ?? [])
-                  : (visibleSegmentsBySourceLayer.get(segmentSourceLayerId) ?? [])
+                  : segmentRows
                 : [];
-              const rawVisibleUnits: LayerUnitDocType[] = usesSegmentTimeline
+              const drawSegmentRows = usesSegmentTimeline && storedSegments.length > 0;
+              const rawVisibleUnits: LayerUnitDocType[] = drawSegmentRows
                 ? []
                 : isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
                   ? (unitsByOverlapGroupId.get(activeOverlapGroupId) ?? [])
                   : laneUnits;
-              const visibleUnits: TimelineUnitView[] = usesSegmentTimeline
+              const visibleUnits: TimelineUnitView[] = drawSegmentRows
                 ? rawVisibleSegments.map((s) =>
                     scopeTimelineUnitViewToLayer(
                       segmentToView(s, () => ''),

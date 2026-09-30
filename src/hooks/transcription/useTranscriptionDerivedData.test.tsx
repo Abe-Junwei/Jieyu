@@ -53,6 +53,27 @@ describe('useTranscriptionDerivedData', () => {
     expect(result.current.selectedRowMeta).toBeNull();
   });
 
+  it('keeps loaded-media units when the selected media id is not a recording', () => {
+    const unitOnRecording = makeUnit('utt-current', 'media-1', 0);
+    const { result } = renderHook(() =>
+      useTranscriptionDerivedData({
+        layers: [],
+        layerToDeleteId: '',
+        selectedTimelineUnit: {
+          kind: 'unit',
+          layerId: 'layer-1',
+          unitId: 'utt-current',
+        },
+        selectedMediaId: '__unknown_media__',
+        mediaItems: [makeMedia('media-1')],
+        units: [unitOnRecording],
+        translations: [],
+      }),
+    );
+    expect(result.current.selectedUnitMedia).toBeUndefined();
+    expect(result.current.unitsOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
+  });
+
   it('keeps current-media unit scope anchored to selectedMediaId when selected unit is on another media', () => {
     const unitOnCurrentMedia = makeUnit('utt-current', 'media-1', 0);
     const unitOnOtherMedia = makeUnit('utt-other', 'media-2', 10);

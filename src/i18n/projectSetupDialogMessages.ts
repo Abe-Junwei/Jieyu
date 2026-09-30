@@ -5,7 +5,18 @@ type LanguageSuggestion = {
   label: string;
 };
 
-const PROJECT_SUGGESTION_CODES = ['cmn', 'yue', 'wuu', 'nan', 'hak', 'bod', 'iii', 'khb', 'eng', 'jpn'] as const;
+const PROJECT_SUGGESTION_CODES = [
+  'cmn',
+  'yue',
+  'wuu',
+  'nan',
+  'hak',
+  'bod',
+  'iii',
+  'khb',
+  'eng',
+  'jpn',
+] as const;
 
 function projectSuggestKey(code: (typeof PROJECT_SUGGESTION_CODES)[number]): DictKey {
   return `msg.projectSetup.suggest.${code}` as DictKey;
@@ -27,6 +38,11 @@ export type ProjectSetupDialogMessages = {
   customLanguageOption: string;
   languageCodeLabel: string;
   languageCodePlaceholder: string;
+  objectLanguagesLabel: string;
+  addObjectLanguage: string;
+  workingLanguagesLabel: string;
+  addWorkingLanguage: string;
+  removeLanguage: (language: string) => string;
   orthographyLabel: string;
   orthographyDefaultInference: string;
   createOrthography: string;
@@ -65,6 +81,11 @@ export function getProjectSetupDialogMessages(locale: Locale): ProjectSetupDialo
     customLanguageOption: t(l, 'msg.projectSetup.customLanguageOption'),
     languageCodeLabel: t(l, 'msg.projectSetup.languageCodeLabel'),
     languageCodePlaceholder: t(l, 'msg.projectSetup.languageCodePlaceholder'),
+    objectLanguagesLabel: t(l, 'msg.projectSetup.objectLanguagesLabel'),
+    addObjectLanguage: t(l, 'msg.projectSetup.addObjectLanguage'),
+    workingLanguagesLabel: t(l, 'msg.projectSetup.workingLanguagesLabel'),
+    addWorkingLanguage: t(l, 'msg.projectSetup.addWorkingLanguage'),
+    removeLanguage: (language) => tf(l, 'msg.projectSetup.removeLanguage', { language }),
     orthographyLabel: t(l, 'msg.projectSetup.orthographyLabel'),
     orthographyDefaultInference: t(l, 'msg.projectSetup.orthographyDefaultInference'),
     createOrthography: t(l, 'msg.projectSetup.createOrthography'),

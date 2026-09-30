@@ -2,6 +2,7 @@
 
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { requestPlayUnitRange } from './transcription/playUnitRange';
 import { useWaveformBridgeSegmentPlaybackControls } from './waveformBridgeSegmentPlaybackControls';
 
 describe('useWaveformBridgeSegmentPlaybackControls', () => {
@@ -52,5 +53,36 @@ describe('useWaveformBridgeSegmentPlaybackControls', () => {
     expect(zoomToUnit).toHaveBeenCalledTimes(2);
     expect(zoomToUnit).toHaveBeenLastCalledWith(3, 4);
     expect(seekTo).not.toHaveBeenCalled();
+  });
+
+  it('plays the unit range requested from search once that unit is selected', () => {
+    const playRegion = vi.fn();
+    const makeInput = (unitId: string, range: { startTime: number; endTime: number }) => ({
+      player: {
+        instanceRef: { current: null },
+        isReady: true,
+        isPlaying: false,
+        seekTo: vi.fn(),
+        stop: vi.fn(),
+        playRegion,
+      },
+      segmentLoopPlayback: false,
+      setSegmentLoopPlayback: vi.fn(),
+      setSegmentPlaybackRate: vi.fn(),
+      selectedWaveformTimelineItem: null,
+      subSelectionRange: null,
+      selectedTimelineUnitId: unitId,
+      zoomMode: 'fit-selection' as const,
+      selectedTimelineUnitForTime: range,
+      zoomToUnit: vi.fn(),
+      skipSeekForIdRef: { current: null as string | null },
+    });
+    const { rerender } = renderHook(
+      (props: ReturnType<typeof makeInput>) => useWaveformBridgeSegmentPlaybackControls(props),
+      { initialProps: makeInput('seg-1', { startTime: 0, endTime: 1 }) },
+    );
+    requestPlayUnitRange(1.25, 2.5);
+    rerender(makeInput('seg-2', { startTime: 1.25, endTime: 2.5 }));
+    expect(playRegion).toHaveBeenCalledWith(1.25, 2.5, true);
   });
 });

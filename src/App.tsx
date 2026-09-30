@@ -44,6 +44,10 @@ import {
 import { getCollaborationCloudPanelMessages } from './i18n/messages';
 import { requestCollaborationCloudPanelOpen } from './utils/collaborationCloudPanelEvents';
 import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
+import {
+  annotationTemplateKindFromSearch,
+  annotationTemplateTargetMatches,
+} from './utils/annotationTemplateKind';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
 import { MaterialSymbol, ModalPanel } from './components/ui';
 import {
@@ -91,6 +95,13 @@ const StructuralProfileWorkspacePage = lazy(() =>
     default: m.StructuralProfileWorkspacePage,
   })),
 );
+
+function structuralTemplatePanelLabel(locale: Locale, search: string): string {
+  const kind = annotationTemplateKindFromSearch(search) ?? 'structure';
+  if (kind === 'abbreviations') return t(locale, 'workspace.structuralProfile.abbreviationsTitle');
+  if (kind === 'pos') return t(locale, 'workspace.structuralProfile.posTitle');
+  return t(locale, 'workspace.structuralProfile.structureTitle');
+}
 
 function mapAssetPathToPanel(pathname: string): LanguageAssetPanel {
   if (pathname === '/assets/language-metadata') return 'language-metadata';
@@ -609,23 +620,25 @@ export function App() {
     [location.pathname, location.search, navigate, pathToPanelId, searchFromTarget],
   );
 
+  const isAssetPanelActive = useCallback(
+    (to: string) => {
+      if (openAssetPanel !== pathToPanelId(to)) return false;
+      const targetSearch = searchFromTarget(to);
+      if (!targetSearch) return true;
+      return annotationTemplateTargetMatches(targetSearch, location.search);
+    },
+    [location.search, openAssetPanel, pathToPanelId, searchFromTarget],
+  );
+
   const handleAssetPanelToggle = useCallback(
     (to: string) => {
-      const panelId = pathToPanelId(to);
-      if (panelId !== 'none' && openAssetPanel === panelId) {
+      if (isAssetPanelActive(to)) {
         handleAssetPanelClose();
         return;
       }
       openAssetPanelFromTarget(to);
     },
-    [handleAssetPanelClose, openAssetPanel, openAssetPanelFromTarget, pathToPanelId],
-  );
-
-  const isAssetPanelActive = useCallback(
-    (to: string) => {
-      return openAssetPanel === pathToPanelId(to);
-    },
-    [openAssetPanel, pathToPanelId],
+    [handleAssetPanelClose, isAssetPanelActive, openAssetPanelFromTarget],
   );
 
   const assetPanelCtx = useMemo<AssetPanelContextValue>(
@@ -773,10 +786,37 @@ export function App() {
                   />
                   <LeftRailResourcesMenu
                     locale={locale}
-                    items={secondaryNavItems.map((item) => ({
-                      to: item.to,
-                      label: item.label,
-                    }))}
+                    items={[
+                      {
+                        to: '/assets/language-metadata',
+                        label: t(locale, 'app.nav.languageMetadata'),
+                      },
+                      {
+                        label: t(locale, 'app.nav.templates'),
+                        children: [
+                          {
+                            to: '/assets/structural-profiles?template=abbreviations',
+                            label: t(locale, 'workspace.structuralProfile.abbreviationsTitle'),
+                          },
+                          {
+                            to: '/assets/structural-profiles?template=pos',
+                            label: t(locale, 'workspace.structuralProfile.posTitle'),
+                          },
+                          {
+                            to: '/assets/structural-profiles?template=structure',
+                            label: t(locale, 'workspace.structuralProfile.structureTitle'),
+                          },
+                        ],
+                      },
+                      {
+                        to: '/assets/orthographies',
+                        label: t(locale, 'app.nav.orthographies'),
+                      },
+                      {
+                        to: '/assets/orthography-bridges',
+                        label: t(locale, 'app.nav.orthographyBridges'),
+                      },
+                    ]}
                     isItemActive={isAssetPanelActive}
                     onPick={handleAssetPanelToggle}
                   />
@@ -853,7 +893,7 @@ export function App() {
                       <ModalPanel
                         isOpen={openAssetPanel === 'structural-profiles'}
                         onClose={handleAssetPanelClose}
-                        ariaLabel={t(locale, 'app.nav.structuralProfiles')}
+                        ariaLabel={structuralTemplatePanelLabel(locale, location.search)}
                         closeLabel={t(locale, 'transcription.importDialog.close')}
                         renderShell={false}
                         wide

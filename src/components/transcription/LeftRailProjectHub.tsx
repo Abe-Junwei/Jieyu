@@ -17,6 +17,7 @@ import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHu
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
 import type { TranscriptionOutboundExportFormat } from '../../utils/transcriptionLiteExport';
 import { createLogger } from '../../observability/logger';
+import { openProjectLanguageListsEditor } from '../ProjectLanguageListsDialog';
 import { ModalPanel } from '../ui/ModalPanel';
 import { PanelButton } from '../ui/PanelButton';
 import { PanelChip } from '../ui/PanelChip';
@@ -637,6 +638,14 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             label: t(locale, 'transcription.toolbar.newProject'),
             onClick: onOpenProjectSetup,
           },
+          ...(canDeleteProject
+            ? [
+                {
+                  label: t(locale, 'msg.projectSetup.editLanguages'),
+                  onClick: openProjectLanguageListsEditor,
+                },
+              ]
+            : []),
           {
             label: t(locale, 'transcription.toolbar.deleteCurrentProject'),
             danger: true,

@@ -20,7 +20,9 @@ import {
   serializeLanguageInputValue,
 } from '../utils/languageInputReducer';
 import { getLanguageInputMessages } from '../i18n/messages';
-import type { Locale } from '../i18n/index';
+import { t, type Locale } from '../i18n/index';
+import { useProjectLanguageLists } from './ProjectLanguageListsContext';
+import { projectLanguageIdsForRole } from '../utils/projectLanguageLists';
 import { PanelFeedback } from './ui';
 import {
   type LanguageCatalogSearchScope,
@@ -89,6 +91,9 @@ type LanguageIsoInputProps = {
   suppressCodeError?: boolean;
   className?: string;
   searchScope?: LanguageCatalogSearchScope;
+  /** 非空时只出这些语言。对象语言、工作语言由外层名单提供。 */
+  languageRole?: 'object' | 'working' | 'project';
+  allowedLanguageIds?: readonly string[];
   resolveLanguageDisplayName?: ResolveLanguageDisplayName;
   /** 附加到名称、代码输入框的 class（如 `layer-action-dialog-input`）| Extra class on name/code inputs */
   controlInputClassName?: string;
@@ -118,6 +123,8 @@ export function LanguageIsoInput({
   suppressCodeError = false,
   className = '',
   searchScope = 'orthography',
+  languageRole,
+  allowedLanguageIds,
   resolveLanguageDisplayName,
   controlInputClassName = '',
   languageAssetIdField,
@@ -156,7 +163,27 @@ export function LanguageIsoInput({
   );
   const hasVisibleSuggestions = visibleSuggestionMatches.length > 0;
   const hasExternalError = Boolean(error);
-  const visibleCodeError = error || (!suppressCodeError ? assistState.codeError : '');
+  const projectLists = useProjectLanguageLists();
+  const allowedKey = (
+    allowedLanguageIds ??
+    (languageRole ? projectLanguageIdsForRole(projectLists, languageRole) : [])
+  )
+    .map((id) => id.trim().toLowerCase())
+    .filter((id) => id.length > 0)
+    .join(',');
+  const allowedIds = useMemo(
+    () => allowedKey.split(',').filter((id) => id.length > 0),
+    [allowedKey],
+  );
+  const closedList = allowedIds.length > 0;
+  const closedListError =
+    closedList &&
+    presentedValue.languageCode.trim().length > 0 &&
+    !allowedIds.includes(presentedValue.languageCode.trim().toLowerCase())
+      ? t(locale as Locale, 'msg.projectSetup.languageNotInList')
+      : '';
+  const visibleCodeError =
+    error || closedListError || (!suppressCodeError ? assistState.codeError : '');
   const hasFeedbackContent = Boolean(
     assistState.detectedTagSummary ||
     assistState.ambiguityHint ||
@@ -168,59 +195,83 @@ export function LanguageIsoInput({
 
   useEffect(() => {
     const activeNameQuery = model.draft.activeField === 'name' ? model.draft.nameInput.trim() : '';
+    const closedQuery =
+      closedList &&
+      isNameInputFocused &&
+      activeNameQuery.length === 0 &&
+      model.draft.codeInput.trim().length === 0;
     if (
-      !activeNameQuery ||
       disabled ||
       model.status === 'selected' ||
-      model.draft.codeInput.trim().length > 0
+      (!activeNameQuery && !closedQuery) ||
+      (model.draft.codeInput.trim().length > 0 && !closedList)
     ) {
       return;
     }
 
     let cancelled = false;
-    const timerId = window.setTimeout(() => {
-      void (async () => {
-        try {
-          await ensureLanguageTagMappingsLoaded();
-          const suggestions = await searchLanguageCatalogSuggestions({
-            query: activeNameQuery,
-            locale,
-            limit: LANGUAGE_SUGGESTION_LIMIT,
-            catalogScope: searchScope,
-          });
-          if (cancelled) {
-            return;
+    const timerId = window.setTimeout(
+      () => {
+        void (async () => {
+          try {
+            await ensureLanguageTagMappingsLoaded();
+            const catalogMatches = closedQuery
+              ? allowedIds.flatMap((id) => {
+                  const entry = getLanguageCatalogEntry(id);
+                  if (!entry) return [];
+                  const match: LanguageCatalogMatch = {
+                    entry,
+                    score: 0,
+                    matchSource: 'iso6393-exact',
+                    matchedLabel: entry.displayNameZh || entry.name,
+                    matchedLabelKind: entry.displayNameZh ? 'local' : 'english',
+                    warnings: [],
+                  };
+                  return [match];
+                })
+              : (
+                  await searchLanguageCatalogSuggestions({
+                    query: activeNameQuery,
+                    locale,
+                    limit: closedList ? 20 : LANGUAGE_SUGGESTION_LIMIT,
+                    catalogScope: searchScope,
+                  })
+                )
+                  .map((suggestion) => toLanguageCatalogMatch(suggestion))
+                  .filter((match): match is LanguageCatalogMatch => Boolean(match));
+            if (cancelled) return;
+            const nextMatches = closedList
+              ? catalogMatches.filter((match) =>
+                  allowedIds.includes(match.entry.iso6393.trim().toLowerCase()),
+                )
+              : catalogMatches;
+            dispatch({
+              type: 'nameSuggestionsResolved',
+              query: activeNameQuery,
+              suggestions: nextMatches,
+            });
+          } catch {
+            if (cancelled) return;
+            dispatch({
+              type: 'nameSuggestionsResolved',
+              query: activeNameQuery,
+              suggestions: [],
+            });
           }
-
-          const nextMatches = suggestions
-            .map((suggestion) => toLanguageCatalogMatch(suggestion))
-            .filter((match): match is LanguageCatalogMatch => Boolean(match));
-
-          // 始终展示下拉列表，由用户手动选择，不自动填充 | Always show dropdown for manual selection, no auto-fill
-          dispatch({
-            type: 'nameSuggestionsResolved',
-            query: activeNameQuery,
-            suggestions: nextMatches,
-          });
-        } catch {
-          if (cancelled) {
-            return;
-          }
-          dispatch({
-            type: 'nameSuggestionsResolved',
-            query: activeNameQuery,
-            suggestions: [],
-          });
-        }
-      })();
-    }, LANGUAGE_SUGGESTION_DEBOUNCE_MS);
+        })();
+      },
+      closedQuery ? 0 : LANGUAGE_SUGGESTION_DEBOUNCE_MS,
+    );
 
     return () => {
       cancelled = true;
       window.clearTimeout(timerId);
     };
   }, [
+    allowedIds,
+    closedList,
     disabled,
+    isNameInputFocused,
     locale,
     model.draft.activeField,
     model.draft.codeInput,

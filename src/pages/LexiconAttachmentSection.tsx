@@ -6,6 +6,8 @@ import {
   type LexemeAttachmentView,
 } from '../app/languageAssetPageAccess';
 import { useLexiconAttachmentController } from './useLexiconAttachmentController';
+import { useProjectLanguageLists } from '../components/ProjectLanguageListsContext';
+import { projectLanguageIdsForRole } from '../utils/projectLanguageLists';
 
 function kindLabelKey(kind: LexemeAttachmentView['kind']): DictKey {
   if (kind === 'audio') return 'workspace.lexicon.attachments.kind.audio';
@@ -67,6 +69,7 @@ export function LexiconAttachmentSection({ lexemeId }: { lexemeId: string }) {
     attachFile,
     unlinkAttachment,
   } = useLexiconAttachmentController(lexemeId);
+  const projectLanguageIds = projectLanguageIdsForRole(useProjectLanguageLists(), 'project');
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -84,12 +87,28 @@ export function LexiconAttachmentSection({ lexemeId }: { lexemeId: string }) {
         <div className="lexicon-workspace-attachment-toolbar">
           <label className="lexicon-workspace-attachment-language">
             <span>{t(locale, 'workspace.lexicon.attachments.languageCode')}</span>
-            <input
-              type="text"
-              value={languageCode}
-              onChange={(event) => setLanguageCode(event.target.value)}
-              placeholder={t(locale, 'workspace.lexicon.attachments.languageCodePlaceholder')}
-            />
+            {projectLanguageIds.length > 0 ? (
+              <select
+                value={languageCode}
+                onChange={(event) => setLanguageCode(event.target.value)}
+              >
+                <option value="">
+                  {t(locale, 'workspace.lexicon.attachments.languageCodePlaceholder')}
+                </option>
+                {projectLanguageIds.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={languageCode}
+                onChange={(event) => setLanguageCode(event.target.value)}
+                placeholder={t(locale, 'workspace.lexicon.attachments.languageCodePlaceholder')}
+              />
+            )}
           </label>
           <input
             ref={fileInputRef}

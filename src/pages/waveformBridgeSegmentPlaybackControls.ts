@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
+import {
+  PLAY_UNIT_RANGE_EVENT,
+  readPlayUnitRangeDetail,
+  type PlayUnitRangeDetail,
+} from './transcription/playUnitRange';
 import { useLatest } from '~/hooks/ui/useLatest';
 import { DEFAULT_PLAYBACK_RATE_KEY, readDefaultPlaybackRate } from './useWaveformViewportSizing';
 import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
@@ -49,6 +54,7 @@ export function useWaveformBridgeSegmentPlaybackControls(input: {
 
   const previousSelectedTimelineUnitIdRef = useRef(selectedTimelineUnitId ?? '');
   const lastViewportSyncKeyRef = useRef<string>('');
+  const pendingPlayRef = useRef<PlayUnitRangeDetail | null>(null);
 
   useEffect(() => {
     const currentSelectedTimelineUnitId = selectedTimelineUnitId ?? '';
@@ -62,6 +68,14 @@ export function useWaveformBridgeSegmentPlaybackControls(input: {
     previousSelectedTimelineUnitIdRef.current = currentSelectedTimelineUnitId;
   }, [selectedTimelineUnitId, segmentLoopPlayback, setSegmentLoopPlayback, setSegmentPlaybackRate]);
 
+  useEffect(() => {
+    const onPlay = (event: Event) => {
+      pendingPlayRef.current = readPlayUnitRangeDetail(event);
+    };
+    window.addEventListener(PLAY_UNIT_RANGE_EVENT, onPlay);
+    return () => window.removeEventListener(PLAY_UNIT_RANGE_EVENT, onPlay);
+  }, []);
+
   const isPlayingRef = useLatest(player.isPlaying);
   useEffect(() => {
     const selectedRange = selectedTimelineUnitForTime;
@@ -70,6 +84,17 @@ export function useWaveformBridgeSegmentPlaybackControls(input: {
       return;
     }
     const rangeKey = `${selectedTimelineUnitId ?? ''}:${selectedRange.startTime}:${selectedRange.endTime}:${zoomMode}`;
+    const pending = pendingPlayRef.current;
+    if (
+      pending &&
+      pending.startTime === selectedRange.startTime &&
+      pending.endTime === selectedRange.endTime
+    ) {
+      pendingPlayRef.current = null;
+      player.playRegion(pending.startTime, pending.endTime, true);
+      lastViewportSyncKeyRef.current = rangeKey;
+      return;
+    }
     if (lastViewportSyncKeyRef.current === rangeKey) {
       return;
     }

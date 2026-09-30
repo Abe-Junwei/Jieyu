@@ -72,5 +72,7 @@ export function listSegmentTimelineUnitsForLayer(
     }
     return fallbackUnits;
   }
-  return segmentsByLayer?.get(sourceLayer.id) ?? [];
+  const segments = segmentsByLayer?.get(sourceLayer.id) ?? [];
+  if (segments.length > 0) return segments;
+  return fallbackUnits;
 }

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../../db';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import {
+  mergeUnboundTimelineSegments,
   resolveSegmentTimelineSourceLayer,
   useLayerSegments,
   type SegmentTimelineHostLink,
@@ -75,6 +76,29 @@ describe('resolveSegmentTimelineSourceLayer', () => {
   });
 });
 
+describe('mergeUnboundTimelineSegments', () => {
+  it('keeps media-scoped rows and adds segments that were stored without a recording', () => {
+    const now = '2026-04-21T00:00:00.000Z';
+    const segment = (id: string, mediaId: string, startTime: number): LayerUnitDocType =>
+      ({
+        id,
+        textId: 'text-1',
+        mediaId,
+        layerId: 'layer-1',
+        startTime,
+        endTime: startTime + 1,
+        createdAt: now,
+        updatedAt: now,
+      }) as LayerUnitDocType;
+    const bound = segment('seg-bound', 'media-1', 0);
+    const free = segment('seg-free', '__unknown_media__', 2);
+    const other = segment('seg-other', 'media-2', 1);
+    expect(
+      mergeUnboundTimelineSegments([bound], [bound, free, other]).map((row) => row.id),
+    ).toEqual(['seg-bound', 'seg-free']);
+  });
+});
+
 describe('useLayerSegments', () => {
   it('starts independent layer queries in parallel', async () => {
     const tr1 = createLayer({
@@ -93,6 +117,7 @@ describe('useLayerSegments', () => {
     const listSpy = vi
       .spyOn(LayerSegmentQueryService, 'listSegmentsByLayerMedia')
       .mockImplementation(() => new Promise<LayerUnitDocType[]>((_resolve) => {}));
+    vi.spyOn(LayerSegmentQueryService, 'listSegmentsByLayerId').mockResolvedValue([]);
 
     const { unmount } = renderHook(() => useLayerSegments([tr1, tr2], 'media-1', tr1.id));
 

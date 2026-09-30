@@ -9,6 +9,7 @@ import { LocaleProvider } from '../../i18n';
 import { LinguisticService } from '../../services/LinguisticService';
 import type { AnnotationMorphologyController } from '../useAnnotationMorphologyController';
 import { AnnotationIgtRowView } from './AnnotationIgtRow';
+import { EMPTY_ANNOTATION_DOCUMENT_LAYOUT } from './annotationIgtLines';
 import type { AnnotationIgtRow } from './annotationIgtRows';
 import { saveAnnotationPosByForm } from './saveAnnotationPosByForm';
 import { addAlternativePos } from '../../annotation/alternativeAnalysis';
@@ -74,6 +75,8 @@ describe('annotation pos and alternative menu', () => {
             onFocusRow={() => undefined}
             onFocusInput={() => undefined}
             onTokenDraftChange={() => undefined}
+            layout={EMPTY_ANNOTATION_DOCUMENT_LAYOUT}
+            onLayoutChange={() => undefined}
             onApplyPosByForm={(_unitId, tokenId, pos) => {
               void saveAnnotationPosByForm([
                 { unitId: 'unit-pos', tokenId, glossLang: 'default', pos },
@@ -133,6 +136,8 @@ describe('annotation pos and alternative menu', () => {
             onFocusRow={() => undefined}
             onFocusInput={() => undefined}
             onTokenDraftChange={() => undefined}
+            layout={EMPTY_ANNOTATION_DOCUMENT_LAYOUT}
+            onLayoutChange={() => undefined}
             onAddAlternative={() => {
               const base = projectUtteranceAnalysisGraph({
                 id: 'unit-pos',

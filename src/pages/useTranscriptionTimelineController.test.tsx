@@ -141,6 +141,20 @@ describe('useTranscriptionTimelineController', () => {
     expect(result.current.timelineRenderUnits.map((item) => item.id)).toEqual(['beyond-acoustic']);
   });
 
+  it('does not hide every sentence when the ruler window misses them', () => {
+    const units = [makeUnit('utt-early', 1, 2, 'spk-a')];
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineController(
+        createBaseInput({
+          unitsOnCurrentMedia: units,
+          timelineExtentSec: 200,
+          rulerView: { start: 140, end: 160 },
+        }),
+      ),
+    );
+    expect(result.current.timelineRenderUnits.map((item) => item.id)).toEqual(['utt-early']);
+  });
+
   it('keeps latest translation audio mapping and batch/editor context composition', () => {
     const translations = [
       makeTranslation('tr-1', 'layer-tr', 'utt-1', '2026-03-30T00:00:00.000Z', 'audio-old'),

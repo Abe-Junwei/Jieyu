@@ -10,16 +10,21 @@ import { buildAnnotationUtteranceGraph } from './buildAnnotationUtteranceGraph';
 import { displayedAnnotationMorphemeFields } from './annotationMorphemeDrafts';
 import { displayedAnnotationTokenFields, type AnnotationTokenDraft } from './annotationTokenDrafts';
 import type { AnnotationActiveCell } from './AnnotationIgtLineGrid';
-import { AnnotationIgtLineGrid } from './AnnotationIgtLineGrid';
+import { AnnotationIgtLineGrid, AnnotationMoreButton } from './AnnotationIgtLineGrid';
 import {
   arrangeAnnotationLines,
   placeAnnotationLine,
   reconcileAnnotationLineOrder,
   visibleAnnotationLines,
   moveAnnotationLine,
-  type AnnotationLineId,
+  ANNOTATION_LINE_ORDER,
+  addAnnotationDocumentLine,
+  assignAnnotationDocumentLineLanguage,
+  removeAnnotationDocumentLine,
+  type AnnotationDocumentLayout,
 } from './annotationIgtLines';
 import {
+  annotationLanguageLineLabel,
   buildAnnotationLineMenuItems,
   buildAnnotationRowMenuItems,
   buildAnnotationTokenMenuItems,
@@ -63,10 +68,13 @@ type Props = {
     field: keyof AnnotationTokenDraft,
     value: string,
   ) => void;
-  lineOrder?: readonly AnnotationLineId[];
-  onReorderLine?: (from: AnnotationLineId, to: AnnotationLineId) => void;
+  layout: AnnotationDocumentLayout;
+  onLayoutChange: (layout: AnnotationDocumentLayout) => void;
   languageLines?: readonly (AnnotationLanguageLineOption & { text: string })[];
-  primaryGlossLanguage?: string;
+  objectLanguageIds?: readonly string[];
+  workingLanguageIds?: readonly string[];
+  glossAbbreviations?: ReadonlySet<string>;
+  posCategories?: readonly string[];
   onCommitLanguageLine?: (unitId: string, key: string, text: string) => void;
   onCommitGlossLanguage?: (
     unitId: string,
@@ -289,10 +297,13 @@ export function AnnotationIgtRowView({
   onFocusRow,
   onFocusInput,
   onTokenDraftChange,
-  lineOrder,
-  onReorderLine,
+  layout,
+  onLayoutChange,
   languageLines = [],
-  primaryGlossLanguage = '',
+  objectLanguageIds = [],
+  workingLanguageIds = [],
+  glossAbbreviations,
+  posCategories,
   onCommitLanguageLine,
   onCommitGlossLanguage,
   onCommitSurface,
@@ -312,13 +323,10 @@ export function AnnotationIgtRowView({
 }: Props) {
   const locale = useLocale();
   const navigate = useNavigate();
-  const [addedLines, setAddedLines] = useState<AnnotationLineId[]>([]);
-  const [addedLanguageKeys, setAddedLanguageKeys] = useState<string[]>([]);
-  const [keyOrder, setKeyOrder] = useState<string[] | null>(null);
-  const [glossLanguageDraft, setGlossLanguageDraft] = useState('');
-  const [hiddenLines, setHiddenLines] = useState<AnnotationLineId[]>([]);
+  const [literalText, setLiteralText] = useState('');
   const [activeCell, setActiveCell] = useState<AnnotationActiveCell | null>(null);
   const [languageDraft, setLanguageDraft] = useState<string | null>(null);
+  const [glossLanguageDraft, setGlossLanguageDraft] = useState('');
   const [menu, setMenu] = useState<
     | { kind: 'unit'; x: number; y: number }
     | { kind: 'token'; tokenId: string; x: number; y: number }
@@ -353,22 +361,28 @@ export function AnnotationIgtRowView({
       hasLemma,
       hasTranslation: row.translation.length > 0,
       editing,
-      added: addedLines,
-      hidden: hiddenLines,
+      added: layout.added,
+      hidden: layout.hidden,
     }),
-    lineOrder ?? [],
+    [...ANNOTATION_LINE_ORDER],
   );
-  const derivedLines = addedLanguageKeys.reduce<string[]>(
+  const derivedLines = layout.languageKeys.reduce<string[]>(
     (current, key) => placeAnnotationLine(current, key),
     [...baseLines],
   );
-  const lines = reconcileAnnotationLineOrder(keyOrder, derivedLines);
+  const lines = reconcileAnnotationLineOrder(layout.keyOrder, derivedLines);
   const lineTexts = Object.fromEntries(languageLines.map((line) => [line.key, line.text]));
+  const lineLabels = {
+    ...Object.fromEntries(languageLines.map((line) => [line.key, line.label])),
+    ...Object.fromEntries(
+      Object.entries(layout.languageByLine).map(([key, language]) => [
+        key,
+        annotationLanguageLineLabel(locale, key, language),
+      ]),
+    ),
+  };
   function moveLine(from: string, to: string) {
-    setKeyOrder(moveAnnotationLine(lines, from, to));
-    if (!from.includes(':') && !to.includes(':') && onReorderLine) {
-      onReorderLine(from as AnnotationLineId, to as AnnotationLineId);
-    }
+    onLayoutChange({ ...layout, keyOrder: moveAnnotationLine(lines, from, to) });
   }
   const menuToken =
     menu?.kind === 'token' ? row.tokens.find((token) => token.id === menu.tokenId) : undefined;
@@ -422,15 +436,12 @@ export function AnnotationIgtRowView({
             </span>
           ) : null}
         </span>
-        <button
-          type="button"
+        <AnnotationMoreButton
           className="annotation-igt-row-actions"
-          data-testid={`annotation-igt-actions-${row.id}`}
-          aria-label={t(locale, 'workspace.annotation.rowActions')}
+          testId={`annotation-igt-actions-${row.id}`}
+          label={t(locale, 'workspace.annotation.rowActions')}
           onClick={(event) => openMenu(event, { kind: 'unit' })}
-        >
-          ⋯
-        </button>
+        />
       </div>
       <AnnotationIgtLineGrid
         row={row}
@@ -450,6 +461,8 @@ export function AnnotationIgtRowView({
         }}
         onFocusInput={onFocusInput}
         onTokenDraftChange={onTokenDraftChange}
+        {...(glossAbbreviations ? { glossAbbreviations } : {})}
+        {...(posCategories ? { posCategories } : {})}
         {...(onCommitTokenForm
           ? {
               onCommitTokenForm: (tokenId: string, form: string) =>
@@ -474,8 +487,9 @@ export function AnnotationIgtRowView({
                 onCommitGlossLanguage(row.id, tokenId, languageId, text),
             }
           : {})}
-        lineTexts={lineTexts}
-        lineLabels={Object.fromEntries(languageLines.map((line) => [line.key, line.label]))}
+        onCommitLiteral={setLiteralText}
+        lineTexts={{ ...lineTexts, literal: literalText }}
+        lineLabels={lineLabels}
         onReorderLine={moveLine}
         onOpenLineMenu={(event, lineId) => {
           event.preventDefault();
@@ -488,6 +502,7 @@ export function AnnotationIgtRowView({
         showSpectrum={acousticLayers.showSpectrum}
         showPitch={acousticLayers.showPitch}
         textLanguageId={textLanguageId}
+        glossLineLanguage={layout.languageByLine.gloss ?? ''}
         {...(glossSuggestions ? { glossSuggestions } : {})}
         {...(onAcceptGlossSuggestion ? { onAcceptGlossSuggestion } : {})}
       />
@@ -581,36 +596,19 @@ export function AnnotationIgtRowView({
                     unitId: row.id,
                     lineId: menu.lineId,
                     lines,
+                    languageLines,
+                    workingLanguageIds,
                     glossLanguageDraft,
                     onGlossLanguageDraft: setGlossLanguageDraft,
-                    languageLines,
-                    primaryGlossLanguage,
+                    languageByLine: layout.languageByLine,
                     onMove: moveLine,
-                    onRemove: (lineId) => {
-                      if (lineId.includes(':')) {
-                        setAddedLanguageKeys((current) => current.filter((key) => key !== lineId));
-                        return;
-                      }
-                      const kind = lineId as AnnotationLineId;
-                      setAddedLines((current) => current.filter((added) => added !== kind));
-                      setHiddenLines((current) =>
-                        current.includes(kind) ? current : [...current, kind],
-                      );
-                    },
-                    onAdd: (lineId) => {
-                      if (lineId.includes(':')) {
-                        setAddedLanguageKeys((current) =>
-                          current.includes(lineId) ? current : [...current, lineId],
-                        );
-                        setGlossLanguageDraft('');
-                        return;
-                      }
-                      const kind = lineId as AnnotationLineId;
-                      setHiddenLines((current) => current.filter((hidden) => hidden !== kind));
-                      setAddedLines((current) =>
-                        current.includes(kind) ? current : [...current, kind],
-                      );
-                    },
+                    onAssignLanguage: (lineId, languageId) =>
+                      onLayoutChange(
+                        assignAnnotationDocumentLineLanguage(layout, lineId, languageId),
+                      ),
+                    onRemove: (lineId) =>
+                      onLayoutChange(removeAnnotationDocumentLine(layout, lineId)),
+                    onAdd: (lineId) => onLayoutChange(addAnnotationDocumentLine(layout, lineId)),
                   })
                 : menuToken
                   ? buildAnnotationTokenMenuItems({
@@ -634,6 +632,7 @@ export function AnnotationIgtRowView({
                       ...(onCiteOccurrence && menuLink?.senseId
                         ? { onCite: () => onCiteOccurrence(row.id, menuToken.id) }
                         : {}),
+                      objectLanguageIds,
                       languageValue: languageDraft ?? menuToken.languageId ?? '',
                       onLanguageChange: setLanguageDraft,
                       ...(onSaveTokenLanguage

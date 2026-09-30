@@ -36,6 +36,7 @@ export type AnnotationDocumentToolsProps = {
   onSearchMode: (value: 'surface' | 'word' | 'morpheme') => void;
   onExcludeUngrammatical: (value: boolean) => void;
   onVariantText: (value: string) => void;
+  onVariantBlur?: () => void;
   onToggleWave: () => void;
   onToggleSpectrum: () => void;
   onTogglePitch: () => void;
@@ -137,6 +138,7 @@ function AnnotationDocumentTools(props: AnnotationDocumentToolsProps) {
           value={props.variantText}
           placeholder="ʔ='"
           onChange={(event) => props.onVariantText(event.target.value)}
+          {...(props.onVariantBlur ? { onBlur: props.onVariantBlur } : {})}
         />
       </label>
       <div className="annotation-document-tools-checks">

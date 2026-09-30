@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { AnnotationDocumentToolsSlot } from './annotation/AnnotationDocumentTools';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -22,10 +23,13 @@ import { downloadTextFile } from '../annotation/analysisGraphExport';
 import { filterAnnotationUnits } from './annotation/annotationRowSearch';
 import { parseCharacterVariantLines } from './annotation/annotationCharacterVariants';
 import {
-  ANNOTATION_LINE_ORDER,
+  loadCharacterVariantLines,
+  saveCharacterVariantLines,
+} from '../services/projectCharacterVariantStore';
+import {
   annotationExtraLayerLines,
-  moveAnnotationLine,
-  type AnnotationLineId,
+  EMPTY_ANNOTATION_DOCUMENT_LAYOUT,
+  type AnnotationDocumentLayout,
 } from './annotation/annotationIgtLines';
 import { annotationLanguageLineLabel } from './annotation/annotationIgtMenus';
 
@@ -38,21 +42,27 @@ export function AnnotationWorkspace() {
   const [searchMode, setSearchMode] = useState<'surface' | 'word' | 'morpheme'>('surface');
   const [excludeUngrammatical, setExcludeUngrammatical] = useState(false);
   const [variantText, setVariantText] = useState('');
-  const [lineOrder, setLineOrder] = useState<AnnotationLineId[]>([...ANNOTATION_LINE_ORDER]);
+  const [layout, setLayout] = useState<AnnotationDocumentLayout>(EMPTY_ANNOTATION_DOCUMENT_LAYOUT);
   const controller = useAnnotationWorkspaceController();
+  const queryClient = useQueryClient();
+  const variantQuery = useQuery({
+    queryKey: ['project-character-variants', controller.textId],
+    enabled: controller.textId.length > 0,
+    queryFn: () => loadCharacterVariantLines(controller.textId),
+  });
+  useEffect(() => {
+    if (variantQuery.data !== undefined) setVariantText(variantQuery.data);
+  }, [variantQuery.data]);
+  const variantGroups = useMemo(() => parseCharacterVariantLines(variantText), [variantText]);
   const glossSuggestions = useMemo(() => {
     const tokens = controller.rows.flatMap((row) => row.tokens);
     const suggestions: Record<string, string> = {};
     for (const token of tokens) {
-      const suggestion = glossSuggestionForToken(
-        tokens,
-        token.id,
-        parseCharacterVariantLines(variantText),
-      );
+      const suggestion = glossSuggestionForToken(tokens, token.id, variantGroups);
       if (suggestion) suggestions[token.id] = suggestion;
     }
     return suggestions;
-  }, [controller.rows, variantText]);
+  }, [controller.rows, variantGroups]);
   const focusedRow = controller.rows.find((row) => row.id === controller.focusedUnitId);
   const sentenceAcoustic = useAnnotationSentenceAcoustic({
     textId: controller.textId,
@@ -84,8 +94,16 @@ export function AnnotationWorkspace() {
       excludeUngrammatical,
       wordFormsByUnit,
       morphemeFormsByUnit,
+      variantGroups,
     });
-  }, [controller.rows, excludeUngrammatical, morphology.morphsByTokenId, searchMode, searchQuery]);
+  }, [
+    controller.rows,
+    excludeUngrammatical,
+    morphology.morphsByTokenId,
+    searchMode,
+    searchQuery,
+    variantGroups,
+  ]);
   const playback = useAnnotationSegmentPlaybackController(controller.textId);
   const unitMeta = useAnnotationUnitMetaController({
     textId: controller.textId,
@@ -232,6 +250,14 @@ export function AnnotationWorkspace() {
             onSearchMode={setSearchMode}
             onExcludeUngrammatical={setExcludeUngrammatical}
             onVariantText={setVariantText}
+            onVariantBlur={() => {
+              if (controller.textId.length === 0) return;
+              void saveCharacterVariantLines(controller.textId, variantText).then(() =>
+                queryClient.invalidateQueries({
+                  queryKey: ['project-character-variants', controller.textId],
+                }),
+              );
+            }}
             onToggleWave={() => setShowWave((current) => !current)}
             onToggleSpectrum={() => setShowSpectrum((current) => !current)}
             onTogglePitch={() => setShowPitch((current) => !current)}
@@ -314,8 +340,14 @@ export function AnnotationWorkspace() {
                 onFocusRow={controller.onFocusRow}
                 onFocusInput={controller.onFocusInput}
                 onTokenDraftChange={controller.onTokenDraftChange}
-                lineOrder={lineOrder}
-                primaryGlossLanguage={controller.languageId}
+                layout={layout}
+                onLayoutChange={setLayout}
+                objectLanguageIds={controller.projectLanguages.objectLanguageIds}
+                workingLanguageIds={controller.projectLanguages.workingLanguageIds}
+                {...(controller.glossAbbreviations
+                  ? { glossAbbreviations: new Set(controller.glossAbbreviations) }
+                  : {})}
+                {...(controller.posCategories ? { posCategories: controller.posCategories } : {})}
                 languageLines={[
                   ...annotationExtraLayerLines({
                     unitId: row.id,
@@ -345,9 +377,6 @@ export function AnnotationWorkspace() {
                     line.languageId.length > 0 ? line.languageId : line.key,
                   ),
                 }))}
-                onReorderLine={(from, to) =>
-                  setLineOrder((current) => moveAnnotationLine(current, from, to))
-                }
                 onCommitLanguageLine={(unitId, key, text) => {
                   controller.onCommitLanguageLine(unitId, key.slice(key.indexOf(':') + 1), text);
                 }}

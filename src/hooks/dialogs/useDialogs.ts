@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinguisticService } from '../../services/LinguisticService';
+import { publishActiveProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 import type { TextDocType, LayerUnitDocType } from '../../db';
 
 type DialogUnit = Pick<LayerUnitDocType, 'textId'>;
@@ -142,6 +143,10 @@ export function useDialogs(units: DialogUnit[]) {
     null,
   );
   const firstUnitTextId = units[0]?.textId;
+
+  useEffect(() => {
+    if (activeTextId) publishActiveProjectTextId(activeTextId);
+  }, [activeTextId]);
 
   const getActiveTextId = useCallback(async (): Promise<string | null> => {
     if (activeTextId) return activeTextId;

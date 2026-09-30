@@ -58,6 +58,8 @@ export type TranscriptionPageDialogsProps = {
     primaryTitle: string;
     englishFallbackTitle: string;
     primaryLanguageId: string;
+    objectLanguageIds?: readonly string[];
+    workingLanguageIds?: readonly string[];
     primaryOrthographyId?: string;
   }) => Promise<void>;
   // Audio import

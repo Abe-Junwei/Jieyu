@@ -134,6 +134,28 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.byId.get('s1')!.kind).toBe('segment');
   });
 
+  it('keeps unbound segments on the current recording so waveform boundaries stay visible', () => {
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
+      [
+        'layer-a',
+        [
+          seg('s-free', 'layer-a', '__unknown_media__', 0, 1),
+          seg('s-other', 'layer-a', 'm2', 1, 2),
+        ],
+      ],
+    ]);
+    const index = buildTimelineUnitViewIndex({
+      units: [],
+      unitsOnCurrentMedia: [],
+      segmentsByLayer,
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: 'layer-a',
+      defaultTranscriptionLayerId: 'layer-main',
+    });
+    expect(index.currentMediaUnits.map((unit) => unit.id)).toEqual(['s-free']);
+  });
+
   it('keeps multiple independent segments on the same media when a canonical unit row still exists', () => {
     const host: LayerUnitDocType = {
       id: 'utt-host',

@@ -6,6 +6,7 @@ import {
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
+import { Link } from 'react-router-dom';
 import { t, tf, useLocale } from '../../i18n';
 import { UD_POS_TAGS } from '../../annotation/udPosTags';
 import type { AnnotationIgtRow, AnnotationIgtToken } from '../useAnnotationWorkspaceController';
@@ -13,7 +14,10 @@ import type { AnnotationMorphologyController } from '../useAnnotationMorphologyC
 import type { AnnotationTokenDraft } from './annotationTokenDrafts';
 import { displayedAnnotationTokenFields } from './annotationTokenDrafts';
 import { displayedAnnotationMorphemeFields } from './annotationMorphemeDrafts';
-import { annotationGlossHasLeipzigIssue } from './annotationLeipzigGloss';
+import {
+  annotationGlossHasLeipzigIssue,
+  annotationUnknownGlossAbbreviation,
+} from './annotationLeipzigGloss';
 import {
   annotationLineAlignsToWords,
   annotationLineBand,
@@ -29,6 +33,38 @@ export type AnnotationActiveCell = {
   tokenId: string;
   line: 'gloss' | 'pos' | 'morphForm' | 'lemma';
 };
+
+export function AnnotationMoreButton({
+  className,
+  testId,
+  label,
+  onClick,
+}: {
+  className?: string;
+  testId?: string;
+  label: string;
+  onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={className ? `annotation-igt-more ${className}` : 'annotation-igt-more'}
+      {...(testId ? { 'data-testid': testId } : {})}
+      aria-label={label}
+      draggable={false}
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick(event);
+      }}
+    >
+      <span />
+      <span />
+      <span />
+    </button>
+  );
+}
 
 export function AnnotationIgtLineGrid({
   row,
@@ -56,8 +92,12 @@ export function AnnotationIgtLineGrid({
   showSpectrum,
   showPitch,
   textLanguageId,
+  glossLineLanguage = '',
   glossSuggestions,
   onAcceptGlossSuggestion,
+  onCommitLiteral,
+  glossAbbreviations,
+  posCategories,
 }: {
   row: AnnotationIgtRow;
   lines: readonly string[];
@@ -89,8 +129,12 @@ export function AnnotationIgtLineGrid({
   showSpectrum: boolean;
   showPitch: boolean;
   textLanguageId?: string;
+  glossLineLanguage?: string;
   glossSuggestions?: Readonly<Record<string, string>>;
   onAcceptGlossSuggestion?: (unitId: string, tokenId: string, gloss: string, lang: string) => void;
+  onCommitLiteral?: (text: string) => void;
+  glossAbbreviations?: ReadonlySet<string>;
+  posCategories?: readonly string[];
 }) {
   const [dragLine, setDragLine] = useState<string | null>(null);
   const [dropLine, setDropLine] = useState<string | null>(null);
@@ -114,7 +158,7 @@ export function AnnotationIgtLineGrid({
   const wordLines = lines.filter(annotationLineAlignsToWords);
   const sentenceLines = lines.filter((id) => !annotationLineAlignsToWords(id));
   const source = sentenceLines.filter((id) => annotationLineKind(id) === 'source');
-  const translation = sentenceLines.filter((id) => annotationLineKind(id) === 'translation');
+  const translation = sentenceLines.filter((id) => annotationLineKind(id) !== 'source');
   return (
     <div ref={linesRef} className="annotation-igt-lines">
       {sentenceAcoustic ? (
@@ -158,7 +202,7 @@ export function AnnotationIgtLineGrid({
           {...(onOpenLineMenu ? { onOpenLineMenu } : {})}
         />
       ))}
-      {wordLines.length > 0 && row.tokens.length > 0 ? (
+      {wordLines.length > 0 ? (
         <div
           className="annotation-igt-sheet"
           style={{ '--igt-lines': wordLines.length } as CSSProperties}
@@ -200,6 +244,9 @@ export function AnnotationIgtLineGrid({
                 glossSuggestion={glossSuggestions?.[token.id] ?? ''}
                 {...(onCommitTokenForm ? { onCommitTokenForm } : {})}
                 textLanguageId={textLanguageId ?? ''}
+                glossLineLanguage={glossLineLanguage}
+                {...(glossAbbreviations ? { glossAbbreviations } : {})}
+                {...(posCategories ? { posCategories } : {})}
                 {...(onAcceptGlossSuggestion ? { onAcceptGlossSuggestion } : {})}
                 {...(onCommitGlossLanguage ? { onCommitGlossLanguage } : {})}
               />
@@ -213,19 +260,31 @@ export function AnnotationIgtLineGrid({
           lineId={id}
           unitId={row.id}
           {...(lineLabels?.[id] ? { label: lineLabels[id] } : {})}
-          text={id === 'translation' ? row.translation : (lineTexts?.[id] ?? '')}
+          text={
+            id === 'translation'
+              ? row.translation
+              : id === 'literal'
+                ? (lineTexts?.literal ?? '')
+                : (lineTexts?.[id] ?? '')
+          }
           testId={
             id === 'translation'
               ? `annotation-igt-translation-${row.id}`
-              : `annotation-igt-translation-${row.id}-${annotationLineLanguage(id)}`
+              : id === 'literal'
+                ? `annotation-igt-literal-${row.id}`
+                : `annotation-igt-translation-${row.id}-${annotationLineLanguage(id)}`
           }
           {...(id === 'translation'
             ? onCommitTranslation
               ? { onCommit: onCommitTranslation }
               : {}
-            : onCommitLanguageLine
-              ? { onCommit: (text: string) => onCommitLanguageLine(id, text) }
-              : {})}
+            : id === 'literal'
+              ? onCommitLiteral
+                ? { onCommit: onCommitLiteral }
+                : {}
+              : onCommitLanguageLine
+                ? { onCommit: (text: string) => onCommitLanguageLine(id, text) }
+                : {})}
           dragLine={dragLine}
           dropLine={dropLine}
           onDragLine={setDragLine}
@@ -326,22 +385,13 @@ function LineLabel({
       }}
     >
       {showDrop ? <span className="annotation-igt-line-drop" /> : null}
-      <button
-        type="button"
-        className="annotation-igt-line-drag-handle"
-        draggable={false}
-        {...(testId ? { 'data-testid': `${testId}-actions` } : {})}
-        aria-label={t(locale, 'workspace.annotation.lineActions')}
-        onMouseDown={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onOpenLineMenu?.(event, lineId);
-        }}
-      >
-        ⋯
-      </button>
       {label ?? annotationLanguageLineLabel(locale, lineId)}
+      <AnnotationMoreButton
+        className="annotation-igt-line-actions-button"
+        {...(testId ? { testId: `${testId}-actions` } : {})}
+        label={t(locale, 'workspace.annotation.lineActions')}
+        onClick={(event) => onOpenLineMenu?.(event, lineId)}
+      />
     </span>
   );
 }
@@ -424,8 +474,11 @@ function WordCells({
   onCommitTokenForm,
   glossSuggestion = '',
   textLanguageId = '',
+  glossLineLanguage = '',
   onAcceptGlossSuggestion,
   onCommitGlossLanguage,
+  glossAbbreviations,
+  posCategories,
 }: {
   token: AnnotationIgtToken;
   unitId: string;
@@ -447,8 +500,11 @@ function WordCells({
   onCommitTokenForm?: (tokenId: string, form: string) => void;
   glossSuggestion?: string;
   textLanguageId?: string;
+  glossLineLanguage?: string;
   onAcceptGlossSuggestion?: (unitId: string, tokenId: string, gloss: string, lang: string) => void;
   onCommitGlossLanguage?: (tokenId: string, languageId: string, text: string) => void;
+  glossAbbreviations?: ReadonlySet<string>;
+  posCategories?: readonly string[];
 }) {
   const locale = useLocale();
   const fields = displayedAnnotationTokenFields(token, drafts);
@@ -457,7 +513,7 @@ function WordCells({
     displayedAnnotationMorphemeFields(morph, morphology.drafts),
   );
   const link = morphology.linksByTokenId[token.id];
-  const glossInvalid = annotationGlossHasLeipzigIssue(fields.gloss);
+  const glossInvalid = annotationGlossHasLeipzigIssue(fields.gloss, glossAbbreviations);
   return (
     <span
       className={
@@ -522,16 +578,26 @@ function WordCells({
                   {tf(locale, 'workspace.annotation.chooseSense', { label: choice.label })}
                 </button>
               ))}
-              <button
-                type="button"
+              <AnnotationMoreButton
                 className="annotation-igt-word-actions"
-                data-testid={`annotation-igt-word-actions-${token.id}`}
-                aria-label={t(locale, 'workspace.annotation.wordActions')}
+                testId={`annotation-igt-word-actions-${token.id}`}
+                label={t(locale, 'workspace.annotation.wordActions')}
                 onClick={(event) => onOpenWordMenu(event, token.id)}
-              >
-                ⋯
-              </button>
+              />
             </span>
+          );
+        }
+        if (kind === 'morphForm' && morphs.length === 0) {
+          return (
+            <input
+              key={id}
+              className="annotation-igt-field annotation-igt-inline"
+              data-testid={`annotation-igt-morph-line-${token.id}`}
+              aria-label={t(locale, 'workspace.annotation.lineMorph')}
+              onClick={(event) => event.stopPropagation()}
+              onFocus={() => onFocusInput(unitId)}
+              onBlur={(event) => morphology.onCommitMorphLine(unitId, token.id, event.target.value)}
+            />
           );
         }
         if (id === 'morphForm' && cellActive === 'morphForm' && morphs.length > 0) {
@@ -609,7 +675,10 @@ function WordCells({
                     morph,
                     morphology.drafts,
                   );
-                  const morphInvalid = annotationGlossHasLeipzigIssue(morphFieldsForInput.gloss);
+                  const morphInvalid = annotationGlossHasLeipzigIssue(
+                    morphFieldsForInput.gloss,
+                    glossAbbreviations,
+                  );
                   return (
                     <input
                       key={morph.id}
@@ -639,36 +708,59 @@ function WordCells({
               </span>
             );
           }
+          const unknownAbbr = glossInvalid
+            ? annotationUnknownGlossAbbreviation(fields.gloss, glossAbbreviations)
+            : null;
           return (
-            <input
-              key={id}
-              className={
-                glossInvalid
-                  ? 'annotation-igt-field annotation-igt-inline annotation-igt-field-invalid'
-                  : 'annotation-igt-field annotation-igt-inline'
-              }
-              data-testid={`annotation-igt-gloss-${token.id}`}
-              aria-label={t(locale, 'workspace.annotation.glossLabel')}
-              aria-invalid={glossInvalid}
-              value={fields.gloss}
-              title={t(locale, 'workspace.annotation.keyboardHint')}
-              {...(fields.gloss.trim().length === 0 && glossSuggestion
-                ? { placeholder: glossSuggestion }
-                : {})}
-              onClick={(event) => event.stopPropagation()}
-              onFocus={() => onFocusInput(unitId)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter' || event.currentTarget.value.trim() || !glossSuggestion) {
-                  return;
+            <span key={id} className="annotation-igt-gloss-cell">
+              <input
+                className={
+                  glossInvalid
+                    ? 'annotation-igt-field annotation-igt-inline annotation-igt-field-invalid'
+                    : 'annotation-igt-field annotation-igt-inline'
                 }
-                event.preventDefault();
-                event.stopPropagation();
-                onAcceptGlossSuggestion?.(unitId, token.id, glossSuggestion, token.glossLang);
-              }}
-              onChange={(event) =>
-                onTokenDraftChange(unitId, token.id, 'gloss', event.target.value)
-              }
-            />
+                data-testid={`annotation-igt-gloss-${token.id}`}
+                aria-label={t(locale, 'workspace.annotation.glossLabel')}
+                aria-invalid={glossInvalid}
+                value={fields.gloss}
+                title={t(locale, 'workspace.annotation.keyboardHint')}
+                {...(fields.gloss.trim().length === 0 && glossSuggestion
+                  ? { placeholder: glossSuggestion }
+                  : {})}
+                onClick={(event) => event.stopPropagation()}
+                onFocus={() => onFocusInput(unitId)}
+                onKeyDown={(event) => {
+                  if (
+                    event.key !== 'Enter' ||
+                    event.currentTarget.value.trim() ||
+                    !glossSuggestion
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onAcceptGlossSuggestion?.(unitId, token.id, glossSuggestion, token.glossLang);
+                }}
+                onChange={(event) =>
+                  onTokenDraftChange(unitId, token.id, 'gloss', event.target.value)
+                }
+                onBlur={(event) => {
+                  if (glossLineLanguage.length === 0) return;
+                  onCommitGlossLanguage?.(token.id, glossLineLanguage, event.target.value);
+                }}
+              />
+              {glossInvalid ? (
+                <Link
+                  className="annotation-igt-abbr-link"
+                  to={`/assets/structural-profiles?section=abbreviations${
+                    unknownAbbr ? `&abbr=${encodeURIComponent(unknownAbbr)}` : ''
+                  }`}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {t(locale, 'workspace.annotation.editAbbreviation')}
+                </Link>
+              ) : null}
+            </span>
           );
         }
         if (id === 'pos') {
@@ -687,25 +779,30 @@ function WordCells({
                 }
               />
               <datalist id={`annotation-pos-list-${token.id}`}>
-                {UD_POS_TAGS.map((tag) => (
+                {(posCategories ?? UD_POS_TAGS).map((tag) => (
                   <option key={tag} value={tag} />
                 ))}
               </datalist>
             </span>
           );
         }
-        if (id === 'lemma' && cellActive === 'lemma') {
+        if (id === 'lemma' && (cellActive === 'lemma' || link === undefined)) {
           return (
             <input
               key={id}
-              className="annotation-igt-field"
+              className="annotation-igt-field annotation-igt-inline"
               data-testid={`annotation-igt-lexeme-${token.id}`}
               aria-label={t(locale, 'workspace.annotation.lexemeLinkLabel')}
-              value={morphology.linkQueries[token.id] ?? ''}
-              autoFocus
+              defaultValue={morphology.linkQueries[token.id] ?? ''}
+              autoFocus={cellActive === 'lemma'}
               onClick={(event) => event.stopPropagation()}
               onFocus={() => onFocusInput(unitId)}
               onChange={(event) => morphology.onLinkQueryChange(token.id, event.target.value)}
+              onBlur={(event) => {
+                const query = event.target.value.trim();
+                if (query.length === 0) return;
+                morphology.onLinkLexeme(token.id, query);
+              }}
             />
           );
         }

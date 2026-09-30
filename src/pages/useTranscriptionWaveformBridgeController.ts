@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -38,6 +39,7 @@ import { useWaveformBridgeHoverScrollRaf } from './waveformBridgeHoverScrollRaf'
 import { useWaveformBridgeTierScrollSync } from './waveformBridgeTierScrollSync';
 import { useWaveformBridgeSegmentPlaybackControls } from './waveformBridgeSegmentPlaybackControls';
 import { applyTierScrollToWaveSurfer } from '../utils/waveformTierScrollSync';
+import { clearWaveformDecodeAttempt } from '../utils/waveformDecodeGuard';
 import { useTimelineContentFitZoom } from './useTimelineContentFitZoom';
 export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
 
@@ -181,6 +183,11 @@ export function useTranscriptionWaveformBridgeController(
       handleWaveformTimeUpdateRef.current?.(time);
     },
   });
+
+  useEffect(() => {
+    if (!player.isReady || !input.mediaId) return;
+    clearWaveformDecodeAttempt(input.mediaId);
+  }, [input.mediaId, player.isReady]);
 
   const documentSpanSec = useMemo(
     () =>

@@ -20,6 +20,7 @@ import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { NotePopover } from './NotePopover';
+import { UnitRecordFields } from './transcription/UnitRecordFields';
 import { buildTranscriptionUnitContextMenuItems } from './transcription/buildTranscriptionUnitContextMenuItems';
 import { buildUttOpsToolbarMenuItems } from './transcription/buildUttOpsToolbarContextMenuItems';
 import {
@@ -170,6 +171,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
   const allTextLayers = [...transcriptionLayers, ...translationLayers];
   const defaultPreviewLayer =
     transcriptionLayers.find((layer) => layer.isDefault) ?? transcriptionLayers[0];
+  const recordUnit = notePopover ? units.find((unit) => unit.id === notePopover.uttId) : undefined;
 
   const buildNotePopoverTargetLabel = (): ReactNode => {
     if (!notePopover) return messages.segment;
@@ -308,6 +310,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           onAdd={addNote}
           onUpdate={updateNote}
           onDelete={deleteNote}
+          {...(recordUnit ? { record: <UnitRecordFields unit={recordUnit} /> } : {})}
         />
       )}
     </>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   annotationGlossCell,
+  annotationLineAlignsToWords,
   annotationLineMoveTarget,
   annotationLinesToAdd,
   arrangeAnnotationLines,
@@ -36,6 +37,23 @@ describe('visibleAnnotationLines', () => {
     ).toEqual(['source', 'word', 'gloss', 'pos', 'translation']);
   });
 
+  it('shows a line the user added even when the sentence has no words yet', () => {
+    expect(
+      visibleAnnotationLines({
+        hasSurface: true,
+        hasTokens: false,
+        hasMorphForms: false,
+        hasGloss: false,
+        hasPos: false,
+        hasLemma: false,
+        hasTranslation: false,
+        editing: false,
+        added: ['morphForm', 'gloss', 'literal'],
+        hidden: [],
+      }),
+    ).toEqual(['source', 'morphForm', 'gloss', 'literal']);
+  });
+
   it('shows morpheme forms, lexeme, and literal only after they are added or already stored', () => {
     expect(
       visibleAnnotationLines({
@@ -51,6 +69,7 @@ describe('visibleAnnotationLines', () => {
         hidden: [],
       }),
     ).toEqual(['source', 'word', 'morphForm', 'gloss', 'pos', 'lemma', 'literal']);
+    expect(annotationLineAlignsToWords('literal')).toBe(false);
   });
 });
 

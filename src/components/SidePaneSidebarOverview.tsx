@@ -18,6 +18,8 @@ import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
+import { TranscriptionUnitSearch } from './transcription/TranscriptionUnitSearch';
+import { createTimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { FolderOpenIcon } from './SvgIcons';
 
 type SidebarHostLink = Pick<
@@ -268,6 +270,18 @@ export function SidePaneSidebarOverview({
               {renderSidePaneItems()}
             </div>
           </section>
+          {unitsOnCurrentMedia && onSelectTimelineUnit ? (
+            <TranscriptionUnitSearch
+              units={unitsOnCurrentMedia}
+              sentenceLayerId={defaultTranscriptionLayerId ?? focusedLayerRowId}
+              {...(getUnitTextForLayer !== undefined ? { getUnitText: getUnitTextForLayer } : {})}
+              onSelectUnit={(unit) => {
+                const layerId = defaultTranscriptionLayerId ?? focusedLayerRowId;
+                if (layerId.length === 0) return;
+                onSelectTimelineUnit(createTimelineUnit(layerId, unit.id, 'unit'));
+              }}
+            />
+          ) : null}
           <SidePaneSidebarSegmentList
             focusedLayerRowId={focusedLayerRowId}
             messages={messages}

@@ -78,6 +78,38 @@ export function buildTranscriptionDeepLinkHref(input: BuildTranscriptionDeepLink
 }
 
 const WORKSPACE_RETURN_STORAGE_KEY = 'jieyu.workspace.transcriptionReturn.v1';
+const ACTIVE_PROJECT_TEXT_EVENT = 'jieyu:active-project-text';
+
+let activeProjectTextId = '';
+const activeProjectTextListeners = new Set<() => void>();
+
+function readInitialActiveProjectTextId(): string {
+  return readTranscriptionWorkspaceReturnHint()?.textId ?? '';
+}
+
+export function publishActiveProjectTextId(textId: string): void {
+  const next = textId.trim();
+  if (next.length === 0 || next === activeProjectTextId) return;
+  activeProjectTextId = next;
+  rememberTranscriptionWorkspaceReturnHint({ textId: next });
+  for (const listener of activeProjectTextListeners) listener();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(ACTIVE_PROJECT_TEXT_EVENT, { detail: next }));
+  }
+}
+
+export function subscribeActiveProjectTextId(listener: () => void): () => void {
+  activeProjectTextListeners.add(listener);
+  return () => {
+    activeProjectTextListeners.delete(listener);
+  };
+}
+
+export function getActiveProjectTextId(): string {
+  if (activeProjectTextId.length > 0) return activeProjectTextId;
+  activeProjectTextId = readInitialActiveProjectTextId();
+  return activeProjectTextId;
+}
 
 export type TranscriptionWorkspaceReturnHint = {
   textId: string;

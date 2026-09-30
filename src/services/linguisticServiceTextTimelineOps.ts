@@ -1,4 +1,5 @@
 import { getDb, type LayerUnitContentDocType, type TextDocType } from '../db';
+import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import {
   invalidateUnitEmbeddings,
   isDefaultTranscriptionLayerForUnitText,
@@ -66,6 +67,43 @@ export async function getTextById(textId: string): Promise<TextDocType | null> {
   const db = await getDb();
   const existingDoc = await db.collections.texts.findOne({ selector: { id } }).exec();
   return existingDoc ? existingDoc.toJSON() : null;
+}
+
+export async function updateProjectLanguageLists(input: {
+  textId: string;
+  primaryTitle: string;
+  englishFallbackTitle: string;
+  objectLanguageIds: readonly string[];
+  workingLanguageIds: readonly string[];
+}): Promise<TextDocType> {
+  const db = await getDb();
+  const textId = input.textId.trim();
+  if (!textId) throw new Error('textId 不能为空');
+  const existingDoc = await db.collections.texts.findOne({ selector: { id: textId } }).exec();
+  if (!existingDoc) throw new Error(`文本不存在: ${textId}`);
+  const existing = existingDoc.toJSON();
+  const metadata = (existing.metadata as Record<string, unknown> | undefined) ?? {};
+  const objectLanguageIds = [...input.objectLanguageIds];
+  const primary = objectLanguageIds[0];
+  if (!primary) throw new Error('至少保留一种目标语言');
+  const updated: TextDocType = {
+    ...existing,
+    title: buildPrimaryAndEnglishLabels({
+      primaryLabel: input.primaryTitle,
+      englishFallbackLabel: input.englishFallbackTitle,
+      existing: existing.title,
+    }),
+    metadata: {
+      ...metadata,
+      primaryLanguageId: primary,
+      objectLanguageIds,
+      workingLanguageIds: [...input.workingLanguageIds],
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  await db.collections.texts.remove(textId);
+  await db.collections.texts.insert(updated);
+  return updated;
 }
 
 export async function saveText(data: TextDocType): Promise<string> {

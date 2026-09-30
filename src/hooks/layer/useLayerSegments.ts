@@ -122,6 +122,23 @@ export function resolveSegmentTimelineSourceLayer(
  * 返回 Map<layerId, LayerUnitDocType[]>，每个数组按 startTime 升序排列。
  * Returns Map<layerId, LayerUnitDocType[]>, each array sorted by startTime ascending.
  */
+const UNBOUND_SEGMENT_MEDIA_ID = '__unknown_media__';
+
+export function mergeUnboundTimelineSegments(
+  scoped: readonly LayerUnitDocType[],
+  layerSegments: readonly LayerUnitDocType[],
+): LayerUnitDocType[] {
+  const unbound = layerSegments.filter((segment) => {
+    const mediaId = segment.mediaId?.trim() ?? '';
+    return mediaId.length === 0 || mediaId === UNBOUND_SEGMENT_MEDIA_ID;
+  });
+  if (unbound.length === 0) return [...scoped];
+  const seen = new Set(scoped.map((segment) => segment.id));
+  return [...scoped, ...unbound.filter((segment) => !seen.has(segment.id))].sort(
+    (left, right) => left.startTime - right.startTime || left.endTime - right.endTime,
+  );
+}
+
 export function useLayerSegments(
   layers: LayerDocType[],
   mediaId: string | undefined,
@@ -169,8 +186,11 @@ export function useLayerSegments(
 
     const entries = await Promise.all(
       independentLayers.map(async (layer): Promise<[string, LayerUnitDocType[]]> => {
-        const segments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
-        return [layer.id, segments];
+        const [scoped, layerSegments] = await Promise.all([
+          LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId),
+          LayerSegmentQueryService.listSegmentsByLayerId(layer.id),
+        ]);
+        return [layer.id, mergeUnboundTimelineSegments(scoped, layerSegments)];
       }),
     );
 

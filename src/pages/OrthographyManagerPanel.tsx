@@ -427,6 +427,7 @@ export function OrthographyManagerPanel({
                 <div className="om-form-grid">
                   <div className="om-form-span-2">
                     <LanguageIsoInput
+                      languageRole="object"
                       locale={locale}
                       value={languageInput}
                       onChange={onLanguageInputChange}

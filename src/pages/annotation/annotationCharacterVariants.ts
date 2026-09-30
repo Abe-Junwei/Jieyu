@@ -27,3 +27,10 @@ export function foldCharacterVariants(
   }
   return folded;
 }
+
+export function comparableForm(
+  value: string,
+  groups: readonly CharacterVariantGroup[] = [],
+): string {
+  return foldCharacterVariants(value, groups).toLocaleLowerCase();
+}

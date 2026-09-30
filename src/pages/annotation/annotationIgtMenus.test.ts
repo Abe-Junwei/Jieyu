@@ -13,7 +13,6 @@ function menuIds(
     unitId: 'u1',
     lineId,
     lines,
-    onGlossLanguageDraft: () => undefined,
     ...(languageLines ? { languageLines } : {}),
     onMove: () => undefined,
     onRemove: () => undefined,
@@ -27,14 +26,12 @@ describe('buildAnnotationLineMenuItems', () => {
       'annotation-igt-add-line-morphForm-u1',
       'annotation-igt-add-line-lemma-u1',
       'annotation-igt-add-line-literal-u1',
-      'annotation-igt-add-gloss-language-u1',
     ]);
     expect(menuIds('word').filter((id) => id !== undefined)).toEqual([
       'annotation-igt-line-down-word-u1',
       'annotation-igt-add-line-morphForm-u1',
       'annotation-igt-add-line-lemma-u1',
       'annotation-igt-add-line-literal-u1',
-      'annotation-igt-add-gloss-language-u1',
     ]);
     expect(menuIds('gloss').filter((id) => id !== undefined)).toEqual([
       'annotation-igt-line-up-gloss-u1',
@@ -43,7 +40,6 @@ describe('buildAnnotationLineMenuItems', () => {
       'annotation-igt-add-line-morphForm-u1',
       'annotation-igt-add-line-lemma-u1',
       'annotation-igt-add-line-literal-u1',
-      'annotation-igt-add-gloss-language-u1',
     ]);
     expect(menuIds('pos').filter((id) => id !== undefined)).toEqual([
       'annotation-igt-line-up-pos-u1',
@@ -51,14 +47,24 @@ describe('buildAnnotationLineMenuItems', () => {
       'annotation-igt-add-line-morphForm-u1',
       'annotation-igt-add-line-lemma-u1',
       'annotation-igt-add-line-literal-u1',
-      'annotation-igt-add-gloss-language-u1',
     ]);
     expect(menuIds('translation').filter((id) => id !== undefined)).toEqual([
       'annotation-igt-add-line-morphForm-u1',
       'annotation-igt-add-line-lemma-u1',
       'annotation-igt-add-line-literal-u1',
-      'annotation-igt-add-gloss-language-u1',
     ]);
+  });
+
+  it('keeps a free gloss language field when the project has no working languages', () => {
+    const ids = buildAnnotationLineMenuItems({
+      locale: 'zh-CN',
+      unitId: 'u1',
+      lineId: 'gloss',
+      lines,
+      onAdd: () => undefined,
+      onGlossLanguageDraft: () => undefined,
+    }).flatMap((item) => [item.testId, ...(item.children ?? []).map((child) => child.testId)]);
+    expect(ids).toContain('annotation-igt-add-gloss-language-u1');
   });
 
   it('offers another translation layer while one translation line is already shown', () => {
@@ -67,6 +73,29 @@ describe('buildAnnotationLineMenuItems', () => {
         (id) => id !== undefined,
       ),
     ).toContain('annotation-igt-add-line-translation:trl-en-u1');
+  });
+
+  it('picks a working language for the line with a dot on the current one', () => {
+    const language = buildAnnotationLineMenuItems({
+      locale: 'zh-CN',
+      unitId: 'u1',
+      lineId: 'gloss',
+      lines,
+      workingLanguageIds: ['eng', 'zho'],
+      languageByLine: { gloss: 'eng' },
+      onAssignLanguage: () => undefined,
+      onAdd: () => undefined,
+    }).find((item) => item.children?.some((child) => child.selectionVariant === 'dot'));
+    expect(
+      language?.children?.map((child) => ({
+        label: child.label,
+        variant: child.selectionVariant,
+        state: child.selectionState,
+      })),
+    ).toEqual([
+      { label: 'eng', variant: 'dot', state: 'selected' },
+      { label: 'zho', variant: 'dot', state: 'unselected' },
+    ]);
   });
 
   it('moves a line onto its neighbor in the same band', () => {

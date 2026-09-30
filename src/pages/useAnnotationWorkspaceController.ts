@@ -122,6 +122,12 @@ export function useAnnotationWorkspaceController() {
       languageId: dataQuery.data?.languageId ?? '',
       translationLayers,
       transcriptionLayers,
+      projectLanguages: dataQuery.data?.projectLanguages ?? {
+        objectLanguageIds: [],
+        workingLanguageIds: [],
+      },
+      glossAbbreviations: dataQuery.data?.glossAbbreviations ?? null,
+      posCategories: dataQuery.data?.posCategories ?? null,
       textByLayer: Object.fromEntries(
         [
           ...annotationTextByLayer({
@@ -287,6 +293,9 @@ export function useAnnotationWorkspaceController() {
     languageId: derived.languageId,
     translationLayers: derived.translationLayers,
     transcriptionLayers: derived.transcriptionLayers,
+    projectLanguages: derived.projectLanguages,
+    glossAbbreviations: derived.glossAbbreviations,
+    posCategories: derived.posCategories,
     textByLayer: derived.textByLayer,
     activeTranslationLayerId: derived.activeTranslationLayerId,
     onSelectTranslationLayer: setTranslationLayerId,

@@ -6,6 +6,7 @@ import { getTranscriptionTextById } from '../hooks/transcription/transcriptionTe
 import {
   hasTranscriptionDeepLinkSelectionPayload,
   readTranscriptionDeepLinkOptionalParams,
+  publishActiveProjectTextId,
   rememberTranscriptionWorkspaceReturnHint,
   stripTranscriptionDeepLinkSearchParams,
 } from '../utils/transcriptionUrlDeepLink';
@@ -88,6 +89,7 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
         return;
       }
       setActiveTextId(raw);
+      publishActiveProjectTextId(raw);
       await loadSnapshot(raw);
       if (urlTextIdApplyNonceRef.current !== nonce) return;
       pendingPostTextIdDeepLinkRef.current = hasTranscriptionDeepLinkSelectionPayload(optional)

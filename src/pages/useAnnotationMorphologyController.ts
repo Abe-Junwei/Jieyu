@@ -45,10 +45,11 @@ export type AnnotationMorphologyController = {
   ) => void;
   onLinkQueryChange: (tokenId: string, value: string) => void;
   onSeedMorphemes: (unitId: string, tokenId: string, tokenForm: string) => void;
+  onCommitMorphLine: (unitId: string, tokenId: string, text: string) => void;
   onSaveMorphemes: (unitId: string, tokenId: string) => void;
   onSplitToken: (unitId: string, tokenId: string) => void;
   onMergeToken: (unitId: string, tokenId: string) => void;
-  onLinkLexeme: (tokenId: string) => void;
+  onLinkLexeme: (tokenId: string, query?: string) => void;
   onChooseLexemeSense: (tokenId: string, senseId: string) => void;
   onUnlinkLexeme: (tokenId: string) => void;
 };
@@ -192,6 +193,25 @@ export function useAnnotationMorphologyController(input: {
     [dataQuery, locale, run, textId],
   );
 
+  const onCommitMorphLine = useCallback(
+    (unitId: string, tokenId: string, text: string) => {
+      const trimmed = text.trim();
+      if (trimmed.length === 0) return;
+      const split = planMorphemeFormsFromToken(trimmed);
+      const forms = split.length > 0 ? split : [trimmed];
+      void run(async () => {
+        await saveAnnotationMorphemesForToken({
+          textId,
+          unitId,
+          tokenId,
+          morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
+        });
+        await dataQuery.refetch();
+      });
+    },
+    [dataQuery, run, textId],
+  );
+
   const onSaveMorphemes = useCallback(
     (unitId: string, tokenId: string) => {
       void run(async () => {
@@ -246,9 +266,10 @@ export function useAnnotationMorphologyController(input: {
   );
 
   const onLinkLexeme = useCallback(
-    (tokenId: string) => {
+    (tokenId: string, query?: string) => {
+      const lemma = (query ?? linkQueries[tokenId] ?? '').trim();
       void run(async () => {
-        const result = await saveAnnotationTokenLexemeLink(tokenId, linkQueries[tokenId] ?? '');
+        const result = await saveAnnotationTokenLexemeLink(tokenId, lemma);
         if (result.kind === 'choose-sense') {
           setSenseChoicesByTokenId((prev) => ({ ...prev, [tokenId]: result.senses }));
           return;
@@ -315,10 +336,11 @@ export function useAnnotationMorphologyController(input: {
     senseChoicesByTokenId,
     saveNotice,
     validatorProfileId: ANNOTATION_LEIPZIG_TEMPLATE_ID,
-    structuralProfilesHref: '/assets/structural-profiles',
+    structuralProfilesHref: '/assets/structural-profiles?template=abbreviations',
     onMorphDraftChange,
     onLinkQueryChange,
     onSeedMorphemes,
+    onCommitMorphLine,
     onSaveMorphemes,
     onSplitToken,
     onMergeToken,

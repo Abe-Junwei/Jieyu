@@ -11,14 +11,7 @@ export const ANNOTATION_LINE_ORDER = [
 
 export type AnnotationLineId = (typeof ANNOTATION_LINE_ORDER)[number];
 
-const WORD_ALIGNED = new Set<AnnotationLineId>([
-  'word',
-  'morphForm',
-  'gloss',
-  'pos',
-  'lemma',
-  'literal',
-]);
+const WORD_ALIGNED = new Set<AnnotationLineId>(['word', 'morphForm', 'gloss', 'pos', 'lemma']);
 
 export function annotationLineKind(key: string): AnnotationLineId {
   const kind = key.split(':')[0] ?? key;
@@ -79,7 +72,7 @@ export const ANNOTATION_ADDABLE_LINES = [
 ] as const satisfies readonly AnnotationLineId[];
 
 const TOP_LINES = new Set<AnnotationLineId>(['source']);
-const BOTTOM_LINES = new Set<AnnotationLineId>(['translation']);
+const BOTTOM_LINES = new Set<AnnotationLineId>(['literal', 'translation']);
 
 export function annotationLineBand(id: string): 'top' | 'middle' | 'bottom' {
   const kind = annotationLineKind(id);
@@ -177,6 +170,81 @@ export function annotationExtraLayerLines(input: {
     }));
 }
 
+export type AnnotationDocumentLayout = {
+  added: AnnotationLineId[];
+  hidden: AnnotationLineId[];
+  languageKeys: string[];
+  keyOrder: string[] | null;
+  languageByLine: Record<string, string>;
+};
+
+export const EMPTY_ANNOTATION_DOCUMENT_LAYOUT: AnnotationDocumentLayout = {
+  added: [],
+  hidden: [],
+  languageKeys: [],
+  keyOrder: null,
+  languageByLine: {},
+};
+
+export function addAnnotationDocumentLine(
+  layout: AnnotationDocumentLayout,
+  lineId: string,
+): AnnotationDocumentLayout {
+  if (lineId.includes(':')) {
+    return layout.languageKeys.includes(lineId)
+      ? layout
+      : { ...layout, languageKeys: [...layout.languageKeys, lineId] };
+  }
+  const kind = lineId as AnnotationLineId;
+  return {
+    ...layout,
+    hidden: layout.hidden.filter((id) => id !== kind),
+    added: layout.added.includes(kind) ? layout.added : [...layout.added, kind],
+  };
+}
+
+export function removeAnnotationDocumentLine(
+  layout: AnnotationDocumentLayout,
+  lineId: string,
+): AnnotationDocumentLayout {
+  if (lineId.includes(':')) {
+    return {
+      ...layout,
+      languageKeys: layout.languageKeys.filter((key) => key !== lineId),
+      keyOrder: layout.keyOrder?.filter((key) => key !== lineId) ?? null,
+    };
+  }
+  const kind = lineId as AnnotationLineId;
+  return {
+    ...layout,
+    added: layout.added.filter((id) => id !== kind),
+    hidden: layout.hidden.includes(kind) ? layout.hidden : [...layout.hidden, kind],
+  };
+}
+
+export function assignAnnotationDocumentLineLanguage(
+  layout: AnnotationDocumentLayout,
+  lineId: string,
+  languageId: string,
+): AnnotationDocumentLayout {
+  const language = languageId.trim();
+  if (language.length === 0) return layout;
+  const kind = annotationLineKind(lineId);
+  const nextKey =
+    lineId.includes(':') && (kind === 'gloss' || kind === 'translation' || kind === 'literal')
+      ? annotationLanguageLineKey(kind, language)
+      : lineId;
+  const languageByLine = { ...layout.languageByLine, [nextKey]: language };
+  if (nextKey === lineId) return { ...layout, languageByLine };
+  delete languageByLine[lineId];
+  return {
+    ...layout,
+    languageByLine,
+    languageKeys: layout.languageKeys.map((key) => (key === lineId ? nextKey : key)),
+    keyOrder: layout.keyOrder?.map((key) => (key === lineId ? nextKey : key)) ?? null,
+  };
+}
+
 export function annotationLinesToAdd(visible: readonly AnnotationLineId[]): AnnotationLineId[] {
   const shown = new Set(visible);
   return ANNOTATION_ADDABLE_LINES.filter((id) => !shown.has(id));
@@ -203,14 +271,14 @@ export function visibleAnnotationLines(input: {
   const added = new Set(input.added);
   const hidden = new Set(input.hidden);
   const show: Record<AnnotationLineId, boolean> = {
-    source: input.hasSurface,
-    word: input.hasTokens,
-    morphForm: input.hasTokens && (input.hasMorphForms || added.has('morphForm')),
-    gloss: input.hasTokens,
-    pos: input.hasTokens,
-    lemma: input.hasTokens && (input.hasLemma || added.has('lemma')),
-    literal: input.hasTokens && added.has('literal'),
-    translation: input.hasTranslation,
+    source: input.hasSurface || added.has('source'),
+    word: input.hasTokens || added.has('word'),
+    morphForm: input.hasMorphForms || added.has('morphForm'),
+    gloss: input.hasTokens || input.hasGloss || added.has('gloss'),
+    pos: input.hasTokens || input.hasPos || added.has('pos'),
+    lemma: input.hasLemma || added.has('lemma'),
+    literal: added.has('literal'),
+    translation: input.hasTranslation || added.has('translation'),
   };
   return ANNOTATION_LINE_ORDER.filter((id) => show[id] && !hidden.has(id));
 }

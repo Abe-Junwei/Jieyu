@@ -179,19 +179,21 @@
 }
 
 .annotation-igt-lines {
-  --igt-label: 3.5rem;
   --igt-type: calc(16px * var(--ui-font-scale, 1));
   --igt-meta: calc(14px * var(--ui-font-scale, 1));
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 6px;
+  align-items: center;
   font-size: var(--igt-type);
   line-height: 1.45;
 }
 
 .annotation-igt-line {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: var(--igt-label) minmax(0, 1fr);
+  grid-template-columns: subgrid;
   column-gap: 12px;
   align-items: center;
   min-height: 2rem;
@@ -208,27 +210,26 @@
   margin-top: 8px;
 }
 
-.annotation-igt-line-source,
-.annotation-igt-line-translation {
-  grid-template-columns: var(--igt-label) max-content;
-}
-
 .annotation-igt-sheet {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: var(--igt-label);
-  grid-auto-flow: column;
-  grid-auto-columns: max-content;
+  grid-template-columns: subgrid;
   grid-template-rows: repeat(var(--igt-lines), minmax(2rem, auto));
-  column-gap: 6px;
-  justify-content: start;
   align-items: stretch;
 }
 
-.annotation-igt-sheet-labels,
-.annotation-igt-word {
+.annotation-igt-sheet-labels {
+  grid-column: 1;
+  grid-row: 1 / -1;
   display: grid;
   grid-template-rows: subgrid;
-  grid-row: 1 / span var(--igt-lines);
+  align-items: center;
+}
+
+.annotation-igt-word {
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: subgrid;
   align-items: center;
 }
 
@@ -242,16 +243,47 @@
   background: color-mix(in srgb, var(--tab-active) 10%, transparent);
 }
 
+.annotation-igt-more {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 1rem;
+  min-height: 1.25rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.annotation-igt-more span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .annotation-igt-aligned-words {
-  display: contents;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  column-gap: 6px;
+  justify-content: start;
 }
 
 .annotation-igt-line-label {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
+  justify-self: end;
+  width: max-content;
+  justify-content: flex-start;
+  gap: 4px;
   border: 2px solid transparent;
   background: transparent;
   color: var(--text-secondary);
@@ -260,6 +292,7 @@
   font: inherit;
   font-size: var(--igt-meta, calc(14px * var(--ui-font-scale, 1)));
   line-height: 2rem;
+  white-space: nowrap;
   cursor: grab;
 }
 
@@ -273,6 +306,16 @@
   cursor: pointer;
   user-select: none;
   opacity: 0.45;
+}
+
+.annotation-igt-line-label .annotation-igt-more {
+  opacity: 0;
+}
+
+.annotation-igt-line-label:hover .annotation-igt-more,
+.annotation-igt-line-label:focus-within .annotation-igt-more,
+.annotation-igt-line-label-dragging .annotation-igt-more {
+  opacity: 1;
 }
 
 .annotation-igt-line-label:hover .annotation-igt-line-drag-handle,
@@ -385,6 +428,7 @@
 
 .annotation-igt-line-sentence {
   justify-self: start;
+  width: max-content;
   max-width: 100%;
   color: var(--text-primary);
 }
@@ -407,20 +451,13 @@
   text-decoration: underline;
 }
 
-.annotation-igt-row-actions,
-.annotation-igt-word-actions {
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0 4px;
-  cursor: pointer;
-  font: inherit;
+.annotation-igt-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .annotation-igt-word-actions {
-  position: absolute;
-  left: 100%;
-  top: 0;
   opacity: 0;
 }
 
@@ -465,6 +502,9 @@
 }
 
 .annotation-igt-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--text-primary);
 }
 
@@ -508,6 +548,16 @@
 .annotation-igt-field-invalid {
   text-decoration: underline wavy;
   text-decoration-color: color-mix(in srgb, var(--text-secondary) 70%, transparent);
+}
+
+.annotation-igt-gloss-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.annotation-igt-abbr-link {
+  font-size: 0.75rem;
+  line-height: 1.2;
 }
 
 .annotation-igt-actions,

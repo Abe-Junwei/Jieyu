@@ -296,6 +296,11 @@
   z-index: 1;
 }
 
+.language-iso-input-anchor:focus-within,
+.language-iso-input-anchor:has(.language-iso-input-suggestions:not(.is-empty)) {
+  z-index: 2;
+}
+
 /* 浮动下拉候选列表，与 ScriptTagCombobox 视觉对齐 | Floating dropdown visually aligned with ScriptTagCombobox pattern */
 .language-iso-input-suggestions {
   max-height: 200px;

@@ -4,9 +4,10 @@ import { JIEYU_MATERIAL_NAV } from '../utils/jieyuMaterialIcon';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { t, type Locale } from '../i18n';
 
-type LeftRailResourceItem = {
-  to: string;
+export type LeftRailResourceItem = {
+  to?: string;
   label: string;
+  children?: LeftRailResourceItem[];
 };
 
 type LeftRailResourcesMenuProps = {
@@ -47,16 +48,29 @@ export function LeftRailResourcesMenu({
     };
   }, [isOpen, syncPanelPosition]);
 
-  const menuItems = useMemo<ContextMenuItem[]>(
-    () =>
-      items.map((item) => ({
+  const menuItems = useMemo<ContextMenuItem[]>(() => {
+    const toMenuItem = (item: LeftRailResourceItem): ContextMenuItem => {
+      if (item.children && item.children.length > 0) {
+        return {
+          label: item.label,
+          children: item.children.map(toMenuItem),
+        };
+      }
+      return {
         label: item.label,
-        onClick: () => onPick(item.to),
-      })),
-    [items, onPick],
-  );
+        ...(item.to && isItemActive(item.to) ? { selectionState: 'selected' as const } : {}),
+        onClick: () => {
+          if (item.to) onPick(item.to);
+        },
+      };
+    };
+    return items.map(toMenuItem);
+  }, [isItemActive, items, onPick]);
 
-  const anyActive = items.some((item) => isItemActive(item.to));
+  const anyActive = items.some(function itemActive(item): boolean {
+    if (item.to && isItemActive(item.to)) return true;
+    return item.children?.some(itemActive) ?? false;
+  });
 
   return (
     <div className="left-rail-resources-root">

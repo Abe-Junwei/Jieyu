@@ -108,6 +108,7 @@ export const LinguisticService = {
     saveUnitText: linguisticServiceTextTimelineOps.saveUnitText,
     listTexts: linguisticServiceTextTimelineOps.getAllTexts,
     getTextById: linguisticServiceTextTimelineOps.getTextById,
+    updateProjectLanguageLists: linguisticServiceTextTimelineOps.updateProjectLanguageLists,
     saveText: linguisticServiceTextTimelineOps.saveText,
     ensureDocument: linguisticServiceTextTimelineOps.ensureDocumentTimeline,
     updateTimeMapping: linguisticServiceTextTimelineOps.updateTextTimeMapping,

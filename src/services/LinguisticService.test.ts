@@ -237,6 +237,8 @@ describe('LinguisticService smoke tests', () => {
     expect(saved?.title.und).toBe('白马藏语田野调查');
     expect(saved?.title.eng).toBe('Baima Tibetan Fieldwork');
     expect(saved?.metadata?.primaryLanguageId).toBe('eng');
+    expect(saved?.metadata?.objectLanguageIds).toEqual(['eng']);
+    expect(saved?.metadata?.workingLanguageIds).toEqual([]);
     expect((saved?.metadata as { timelineMode?: unknown } | undefined)?.timelineMode).toBe(
       'document',
     );

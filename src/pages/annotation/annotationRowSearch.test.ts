@@ -18,6 +18,20 @@ describe('filterAnnotationUnits', () => {
     expect(found.map((row) => row.id)).toEqual(['a']);
   });
 
+  it('matches NFC forms when the query is decomposed', () => {
+    const found = filterAnnotationUnits(
+      [{ id: 'c', surface: 'cafe\u0301', ungrammatical: false }],
+      {
+        query: 'é',
+        mode: 'surface',
+        excludeUngrammatical: false,
+        wordFormsByUnit: new Map(),
+        morphemeFormsByUnit: new Map(),
+      },
+    );
+    expect(found.map((row) => row.id)).toEqual(['c']);
+  });
+
   it('drops ungrammatical sentences when asked', () => {
     const found = filterAnnotationUnits(rows, {
       query: '',

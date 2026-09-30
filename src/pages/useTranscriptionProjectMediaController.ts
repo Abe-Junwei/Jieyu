@@ -18,11 +18,13 @@ import type {
 } from '../types/useTranscriptionProjectMediaController.types';
 import type { TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
 import { readMediaFileFromInput } from '~/hooks/media/readMediaFileFromInput';
+import { publishActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 import {
   assessTimelineImportMismatch,
   resolveAudioImportWillRemapOnFirstBind,
 } from '../utils/timelineImportMismatch';
 import { hasEstablishedTimedUnits } from '../utils/timelineLogicalDurationSync';
+import { isWaveformMediaTooLong } from '../utils/waveformDecodeGuard';
 import type { PendingAudioImportSelection } from '../types/useTranscriptionProjectMediaController.types';
 const log = createLogger('useTranscriptionProjectMediaController');
 
@@ -262,9 +264,12 @@ export function useTranscriptionProjectMediaController(
       primaryTitle: string;
       englishFallbackTitle: string;
       primaryLanguageId: string;
+      objectLanguageIds?: readonly string[];
+      workingLanguageIds?: readonly string[];
       primaryOrthographyId?: string;
     }) => {
       const result = await transcriptionAppService.createProject(projectInput);
+      publishActiveProjectTextId(result.textId);
       setActiveTextId(result.textId);
       setSaveState({
         kind: 'done',
@@ -278,6 +283,13 @@ export function useTranscriptionProjectMediaController(
 
   const handleAudioImport = useCallback(
     async (file: File, duration: number, options?: TranscriptionAudioImportOptions) => {
+      if (isWaveformMediaTooLong({ byteSize: file.size, durationSec: duration })) {
+        setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.action.audioTooLong'),
+        });
+        return;
+      }
       let textId = activeTextId ?? (await getActiveTextId());
       if (!textId) {
         const baseName = file.name.replace(/\.[^.]+$/, '');
@@ -348,6 +360,7 @@ export function useTranscriptionProjectMediaController(
       clearPendingAudioImportSelection,
       getActiveTextId,
       loadSnapshot,
+      locale,
       setActiveTextId,
       setSaveState,
       tfB,

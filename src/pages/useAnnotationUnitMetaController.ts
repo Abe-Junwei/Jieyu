@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import { t, useLocale } from '../i18n';
 import type { NoteCategory } from '../types/jieyuDbDocTypes';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
@@ -63,6 +64,15 @@ export function useAnnotationUnitMetaController(input: {
     queryKey: ['annotation-unit-note', focusedUnitId],
     queryFn: () => listAnnotationUnitNotes(focusedUnitId),
     enabled: focusedUnitId.length > 0,
+  });
+
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      if (detail.unitId !== focusedUnitIdRef.current) return;
+      void queryClient.invalidateQueries({
+        queryKey: ['annotation-unit-note', detail.unitId],
+      });
+    },
   });
 
   const stored =

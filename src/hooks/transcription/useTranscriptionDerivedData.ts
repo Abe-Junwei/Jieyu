@@ -123,12 +123,12 @@ export function useTranscriptionDerivedData({
       ? mediaItems.find((item) => item.id === selectedMediaId)
       : undefined;
     const unitsSorted = [...units].sort((a, b) => a.startTime - b.startTime);
+    const loadedMediaIds = new Set(mediaItems.map((item) => item.id));
     const unitsOnCurrentMedia = selectedUnitMedia?.id
       ? unitsSorted.filter((item) => item.mediaId === selectedUnitMedia.id)
-      : (() => {
-          const loadedMediaIds = new Set(mediaItems.map((m) => m.id));
-          return unitsSorted.filter((item) => !item.mediaId || !loadedMediaIds.has(item.mediaId));
-        })();
+      : selectedMediaId.length > 0 && loadedMediaIds.size > 0
+        ? unitsSorted.filter((item) => !item.mediaId || loadedMediaIds.has(item.mediaId ?? ''))
+        : unitsSorted.filter((item) => !item.mediaId || !loadedMediaIds.has(item.mediaId));
 
     if (!effectiveSelectedUnitId) {
       return {

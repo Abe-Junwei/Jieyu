@@ -165,7 +165,8 @@ describe('ProjectSetupDialog orthography creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
     });
-    const setupCodeInput = screen.getByRole('textbox', { name: /语言代码/ });
+    const setupCodeInput = screen.getAllByRole('textbox', { name: /语言代码/ })[0];
+    if (!setupCodeInput) throw new Error('missing language code input');
     fireEvent.change(setupCodeInput, {
       target: { value: 'eng' },
     });
@@ -240,7 +241,8 @@ describe('ProjectSetupDialog orthography creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
     });
-    const badgeCodeInput = screen.getByRole('textbox', { name: /语言代码/ });
+    const badgeCodeInput = screen.getAllByRole('textbox', { name: /语言代码/ })[0];
+    if (!badgeCodeInput) throw new Error('missing language code input');
     fireEvent.change(badgeCodeInput, {
       target: { value: 'eng' },
     });
@@ -268,13 +270,12 @@ describe('ProjectSetupDialog orthography creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'Portuguese' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码/ }), {
+    const codeInput = screen.getAllByRole('textbox', { name: /语言代码/ })[0] as HTMLInputElement;
+    fireEvent.change(codeInput, {
       target: { value: 'por' },
     });
 
-    expect((screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement).value).toBe(
-      'por',
-    );
+    expect(codeInput.value).toBe('por');
   });
 
   it('focuses the language code field when submit is attempted with invalid language input', () => {
@@ -290,7 +291,9 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '创建项目' }));
 
-    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement;
+    const languageCodeInput = screen.getAllByRole('textbox', {
+      name: /语言代码/,
+    })[0] as HTMLInputElement;
     expect(screen.getByText('语言代码必须是有效的 ISO 639-3 三字母代码。')).toBeTruthy();
     expect(document.activeElement).toBe(languageCodeInput);
   });

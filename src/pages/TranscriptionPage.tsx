@@ -1,3 +1,5 @@
+import { ProjectLanguageListsEditorHost } from '../components/ProjectLanguageListsDialog';
+import { ProjectLanguageListsLoader } from '../components/ProjectLanguageListsContext';
 import { TranscriptionPage as TranscriptionPageOrchestrator } from './TranscriptionPage.Orchestrator';
 
 interface TranscriptionPageProps {
@@ -6,5 +8,10 @@ interface TranscriptionPageProps {
 }
 
 export function TranscriptionPage(props: TranscriptionPageProps) {
-  return <TranscriptionPageOrchestrator {...props} />;
+  return (
+    <ProjectLanguageListsLoader>
+      <TranscriptionPageOrchestrator {...props} />
+      <ProjectLanguageListsEditorHost />
+    </ProjectLanguageListsLoader>
+  );
 }

@@ -179,6 +179,35 @@ describe('TranscriptionTimelineHorizontalMediaLanes layout extent', () => {
     timelineLaneHeaderMock.mockClear();
   });
 
+  it('draws unit rows when an independent transcription layer has no loaded segments', () => {
+    const layer = {
+      ...makeLayer('trc-empty-segments'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    render(
+      <TranscriptionTimelineHorizontalMediaLanes
+        timelineExtentSec={20}
+        zoomPxPerSec={10}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUnits={[makeUnit('u-main', 0, 2)]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        segmentsByLayer={new Map([[layer.id, []]])}
+      />,
+    );
+    expect(screen.getByTestId('ann-u-main')).toBeTruthy();
+  });
+
   it('uses timelineExtentSec alone for timeline content width', () => {
     const layer = makeLayer('trc-extent');
     const { container } = render(
