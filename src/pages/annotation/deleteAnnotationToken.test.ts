@@ -109,6 +109,51 @@ describe('deleteAnnotationToken', () => {
     expect(await db.unit_morphemes.get('morph-only')).toBeUndefined();
   });
 
+  it('rolls back morpheme and link cleanup when the token delete fails', async () => {
+    await db.unit_tokens.add({
+      id: 'only',
+      textId: 'text-1',
+      unitId: 'unit-1',
+      form: { default: 'ta' },
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.unit_morphemes.add({
+      id: 'morph-only',
+      textId: 'text-1',
+      unitId: 'unit-1',
+      tokenId: 'only',
+      form: { default: 'ta' },
+      morphemeIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.token_lexeme_links.add({
+      id: 'link-only',
+      targetType: 'token',
+      targetId: 'only',
+      lexemeId: 'lex-1',
+      senseId: 'sense-1',
+      createdAt: now,
+      updatedAt: now,
+    });
+    const fail = () => {
+      throw new Error('injected token delete failure');
+    };
+    db.unit_tokens.hook('deleting', fail);
+    try {
+      await expect(
+        deleteAnnotationToken({ unitId: 'unit-1', tokenId: 'only', confirmLoss: true }),
+      ).rejects.toThrow('injected token delete failure');
+    } finally {
+      db.unit_tokens.hook('deleting').unsubscribe(fail);
+    }
+    expect(await db.unit_tokens.get('only')).toBeDefined();
+    expect(await db.unit_morphemes.get('morph-only')).toBeDefined();
+    expect(await db.token_lexeme_links.get('link-only')).toBeDefined();
+  });
+
   it('keeps the other transcription language when one language is edited', () => {
     expect(transcriptionMapWithSurface({ default: 'ŋa', eng: 'I' }, 'default', 'nga')).toEqual({
       default: 'nga',

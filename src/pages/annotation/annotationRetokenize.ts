@@ -7,11 +7,13 @@ import {
 import { LinguisticService } from '../../app/languageAssetPageAccess';
 import { getDb, withTransaction } from '../../app/jieyuDbPageAccess';
 import type {
+  ProvenanceEnvelope,
   TokenLexemeLinkDocType,
   TokenLexemeLinkRole,
   UnitMorphemeDocType,
   UnitTokenDocType,
 } from '../../types/jieyuDbDocTypes';
+import { readProvenance } from '../../utils/provenanceEnvelope';
 import { newId, pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import { annotationSegmenterLocale } from './annotationTokenizationProfile';
 
@@ -118,12 +120,13 @@ export function annotationRetokenizeUnchanged(
 }
 
 export function annotationTokenHasManualWork(
-  token: Pick<UnitTokenDocType, 'pos' | 'gloss' | 'languageId'>,
+  token: Pick<UnitTokenDocType, 'pos' | 'gloss' | 'languageId' | 'provenance'>,
   morphCount: number,
   linkCount: number,
   hasDraft: boolean,
 ): boolean {
   if (hasDraft) return true;
+  if (token.provenance?.reviewStatus !== undefined) return true;
   if ((token.languageId ?? '').trim().length > 0) return true;
   if ((token.pos ?? '').trim().length > 0) return true;
   if (pickDefaultTranscriptionText(token.gloss ?? {}).trim().length > 0) return true;
@@ -196,6 +199,7 @@ type SnapshotToken = {
   glosses?: LangMap;
   pos?: string;
   languageId?: string;
+  provenance?: ProvenanceEnvelope;
   tokenIndex: number;
   morphemes: SnapshotMorpheme[];
   links: SnapshotLink[];
@@ -288,6 +292,7 @@ function snapshotTokenFromRow(
     ...(glosses ? { glosses } : {}),
     ...(pos.length > 0 ? { pos } : {}),
     ...(languageId.length > 0 ? { languageId } : {}),
+    ...(token.provenance ? { provenance: token.provenance } : {}),
     tokenIndex: token.tokenIndex,
     morphemes: morphemes
       .filter((morph) => morph.tokenId === token.id)
@@ -396,6 +401,8 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
     if (languageId === null) return null;
     const forms = readLangMap(record.forms);
     const glosses = readLangMap(record.glosses);
+    const provenance = readProvenance(record.provenance);
+    if (provenance === null) return null;
     const morphemes: SnapshotMorpheme[] = [];
     if (Array.isArray(record.morphemes)) {
       for (const morphRow of record.morphemes) {
@@ -458,6 +465,7 @@ function readSnapshotTokens(graph: AnnotationAnalysisGraphFixture): SnapshotToke
       ...(glosses ? { glosses } : {}),
       ...(pos.length > 0 ? { pos } : {}),
       ...(languageId ? { languageId } : {}),
+      ...(provenance ? { provenance } : {}),
       tokenIndex,
       morphemes,
       links,
@@ -535,6 +543,7 @@ async function writeSnapshotTokens(
           : {}),
       ...(token.pos ? { pos: token.pos } : {}),
       ...(token.languageId ? { languageId: token.languageId } : {}),
+      ...(token.provenance ? { provenance: token.provenance } : {}),
       tokenIndex: token.tokenIndex,
       createdAt: now,
       updatedAt: now,

@@ -70,12 +70,15 @@ export function useAnnotationSentenceAcoustic(input: {
         }
         const cacheKey = `${input.textId}:${media?.id ?? input.mediaId}`;
         let decoded = pcmCache.get(cacheKey);
-        if (!decoded) {
-          decoded = await decodeMediaPcm(resolved.src);
-          pcmCache.clear();
-          pcmCache.set(cacheKey, decoded);
+        try {
+          if (!decoded) {
+            decoded = await decodeMediaPcm(resolved.src);
+            pcmCache.clear();
+            pcmCache.set(cacheKey, decoded);
+          }
+        } finally {
+          if (resolved.objectUrl) URL.revokeObjectURL(resolved.objectUrl);
         }
-        if (resolved.objectUrl) URL.revokeObjectURL(resolved.objectUrl);
         const slice = slicePcm(decoded.pcm, decoded.sampleRate, input.startTime, input.endTime);
         const figure =
           slice.length > 0 ? buildSentenceAcousticFigure(slice, decoded.sampleRate) : null;
@@ -93,11 +96,15 @@ export function useAnnotationSentenceAcoustic(input: {
             : { status: 'unavailable', figure: null, audioUrl: null },
         );
       } catch {
+        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
         if (!cancelled) setState({ status: 'unavailable', figure: null, audioUrl: null });
       }
     })();
     return () => {
       cancelled = true;
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
     };
   }, [input.enabled, input.endTime, input.mediaId, input.startTime, input.textId]);
 

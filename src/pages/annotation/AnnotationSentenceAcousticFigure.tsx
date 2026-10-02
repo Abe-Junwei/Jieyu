@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { t, useLocale } from '../../i18n';
 import type { SentenceAcousticFigure } from './sentenceAcousticFigure';
@@ -37,6 +37,7 @@ export function AnnotationSentenceAcousticFigure({
   const locale = useLocale();
   const waveRef = useRef<HTMLDivElement>(null);
   const spectrumRef = useRef<HTMLDivElement>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     const wave = waveRef.current;
@@ -44,44 +45,49 @@ export function AnnotationSentenceAcousticFigure({
     if (!showWave && !showSpectrum) return undefined;
     let disposed = false;
     let ws: WaveSurfer | null = null;
+    setLoadFailed(false);
     void (async () => {
-      const [{ default: WaveSurferCtor }, spectrogramModule] = await Promise.all([
-        import('wavesurfer.js'),
-        import('wavesurfer.js/dist/plugins/spectrogram.esm.js'),
-      ]);
-      if (disposed || !waveRef.current) return;
-      const spectrumContainer = spectrumRef.current;
-      const spectrogram = showSpectrum
-        ? spectrogramModule.default.create({
-            ...(spectrumContainer ? { container: spectrumContainer } : {}),
-            height: 72,
-            labels: false,
-            scale: 'mel',
-            fftSamples: 512,
-            gainDB: 22,
-            rangeDB: 78,
-            colorMap: 'roseus',
-            useWebWorker: false,
-          })
-        : null;
-      ws = WaveSurferCtor.create({
-        container: waveRef.current,
-        height: showWave ? PITCH_HEIGHT : 0,
-        normalize: true,
-        interact: false,
-        cursorWidth: 0,
-        hideScrollbar: true,
-        autoScroll: false,
-        autoCenter: false,
-        plugins: spectrogram ? [spectrogram] : [],
-      });
-      const wrapper = (spectrogram as unknown as { wrapper?: HTMLElement } | null)?.wrapper;
-      if (wrapper instanceof HTMLElement && spectrumRef.current) {
-        spectrumRef.current.appendChild(wrapper);
-        wrapper.style.overflow = 'hidden';
-        wrapper.style.maxWidth = '100%';
+      try {
+        const [{ default: WaveSurferCtor }, spectrogramModule] = await Promise.all([
+          import('wavesurfer.js'),
+          import('wavesurfer.js/dist/plugins/spectrogram.esm.js'),
+        ]);
+        if (disposed || !waveRef.current) return;
+        const spectrumContainer = spectrumRef.current;
+        const spectrogram = showSpectrum
+          ? spectrogramModule.default.create({
+              ...(spectrumContainer ? { container: spectrumContainer } : {}),
+              height: 72,
+              labels: false,
+              scale: 'mel',
+              fftSamples: 512,
+              gainDB: 22,
+              rangeDB: 78,
+              colorMap: 'roseus',
+              useWebWorker: false,
+            })
+          : null;
+        ws = WaveSurferCtor.create({
+          container: waveRef.current,
+          height: showWave ? PITCH_HEIGHT : 0,
+          normalize: true,
+          interact: false,
+          cursorWidth: 0,
+          hideScrollbar: true,
+          autoScroll: false,
+          autoCenter: false,
+          plugins: spectrogram ? [spectrogram] : [],
+        });
+        const wrapper = (spectrogram as unknown as { wrapper?: HTMLElement } | null)?.wrapper;
+        if (wrapper instanceof HTMLElement && spectrumRef.current) {
+          spectrumRef.current.appendChild(wrapper);
+          wrapper.style.overflow = 'hidden';
+          wrapper.style.maxWidth = '100%';
+        }
+        await ws.load(audioUrl);
+      } catch {
+        if (!disposed) setLoadFailed(true);
       }
-      await ws.load(audioUrl);
     })();
     return () => {
       disposed = true;
@@ -97,7 +103,7 @@ export function AnnotationSentenceAcousticFigure({
       </p>
     );
   }
-  if (status === 'unavailable' || !audioUrl) {
+  if (status === 'unavailable' || !audioUrl || loadFailed) {
     return (
       <p className="annotation-sentence-acoustic-status" data-testid="annotation-sentence-acoustic">
         {t(locale, 'workspace.annotation.acousticUnavailable')}

@@ -36,7 +36,10 @@ const defaultDeps: AnnotationTokenSplitDeps = {
   transaction: (action) => runAnnotationStructureTransaction(action, 'annotation-token-split'),
 };
 
-function runAnnotationStructureTransaction<T>(action: () => Promise<T>, label: string): Promise<T> {
+export function runAnnotationStructureTransaction<T>(
+  action: () => Promise<T>,
+  label: string,
+): Promise<T> {
   return getDb().then((db) =>
     withTransaction(
       db,
@@ -137,6 +140,12 @@ function annotationMergeRightSpanShift(leftSurface: string, rightSurface: string
   return start >= 0 ? start : leftSurface.length + 1;
 }
 
+/** Index where the split right half begins in the original form; -1 when it cannot be located. */
+function annotationSplitRightSpanStart(surface: string, rightSurface: string): number {
+  if (surface.length === 0 || rightSurface.length === 0) return -1;
+  return surface.lastIndexOf(rightSurface);
+}
+
 function shiftSurfaceParts(
   parts: UnitMorphemeDocType['surfaceParts'],
   shift: number,
@@ -167,6 +176,22 @@ export async function splitAnnotationUnitToken(
   }
   const now = new Date().toISOString();
   const rightId = newId('tok');
+  const surface = pickDefaultTranscriptionText(token.form);
+  const morphs = [...(await deps.listMorphemesByTokenIds([token.id]))].sort(
+    (a, b) => a.morphemeIndex - b.morphemeIndex,
+  );
+  const rightSpanStart = annotationSplitRightSpanStart(surface, planned.right);
+  const rightMorphs =
+    rightSpanStart >= 0
+      ? morphs.filter((morph) => {
+          const parts = morph.surfaceParts;
+          return (
+            parts !== undefined &&
+            parts.length > 0 &&
+            parts.every((part) => part.startOffset >= rightSpanStart)
+          );
+        })
+      : [];
   const transact = deps.transaction ?? defaultDeps.transaction;
   const write = async () => {
     await deps.saveToken(withForm(token, planned.left, now));
@@ -179,6 +204,16 @@ export async function splitAnnotationUnitToken(
       createdAt: now,
       updatedAt: now,
     });
+    for (const [offset, morph] of rightMorphs.entries()) {
+      const surfaceParts = shiftSurfaceParts(morph.surfaceParts, -rightSpanStart);
+      await deps.saveMorpheme({
+        ...morph,
+        tokenId: rightId,
+        morphemeIndex: offset,
+        ...(surfaceParts && surfaceParts.length > 0 ? { surfaceParts } : {}),
+        updatedAt: now,
+      });
+    }
     for (const later of tokens.slice(index + 1)) {
       await deps.saveToken({
         ...later,
@@ -199,6 +234,14 @@ export async function splitAnnotationUnitToken(
   }
   if (!right || pickDefaultTranscriptionText(right.form) !== planned.right) {
     throw new Error(`token split right readback mismatch for ${rightId}`);
+  }
+  const morphReadback = await deps.listMorphemesByTokenIds([tokenId, rightId]);
+  const movedIds = new Set(rightMorphs.map((morph) => morph.id));
+  if (
+    morphReadback.some((morph) => movedIds.has(morph.id) && morph.tokenId !== rightId) ||
+    morphReadback.filter((morph) => morph.tokenId === rightId).length !== movedIds.size
+  ) {
+    throw new Error(`token split morpheme readback mismatch for ${tokenId}`);
   }
   return readback;
 }

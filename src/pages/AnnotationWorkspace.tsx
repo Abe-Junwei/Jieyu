@@ -60,7 +60,7 @@ export function AnnotationWorkspace() {
   const morphology = useAnnotationMorphologyController({
     textId: controller.textId,
     rows: controller.rows,
-    reloadWorkspace: controller.reload,
+    reloadWorkspace: () => controller.reload({ throwOnError: true }),
   });
   const glossSuggestions = useMemo(
     () =>
@@ -90,19 +90,19 @@ export function AnnotationWorkspace() {
     textId: controller.textId,
     focusedUnitId: controller.focusedUnitId,
     rows: controller.rows,
-    reloadWorkspace: controller.reload,
+    reloadWorkspace: () => controller.reload({ throwOnError: true }),
   });
   const autoGloss = useAnnotationAutoGlossController({
     drafts: controller.drafts,
     rows: controller.rows,
-    reloadWorkspace: controller.reload,
+    reloadWorkspace: () => controller.reload({ throwOnError: true }),
   });
   const retokenize = useAnnotationRetokenizeController({
     textId: controller.textId,
     languageId: controller.languageId,
     drafts: controller.drafts,
     rows: controller.rows,
-    reloadWorkspace: controller.reload,
+    reloadWorkspace: () => controller.reload({ throwOnError: true }),
   });
   const mwe = useAnnotationMweController(controller.textId, controller.reload);
   const posBatch = useAnnotationPosBatchController(controller.reload, controller.clearTokenDrafts);

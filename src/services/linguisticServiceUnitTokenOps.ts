@@ -168,22 +168,22 @@ export async function saveTokensBatch(items: UnitTokenDocType[]): Promise<void> 
 
 export async function updateTokenPos(tokenId: string, pos: string | null): Promise<void> {
   const db = await getDb();
-  const existing = await db.collections.unit_tokens.findOne({ selector: { id: tokenId } }).exec();
-  if (!existing) {
+  const trimmed = (pos ?? '').trim();
+  const updatedAt = new Date().toISOString();
+  let unitId = '';
+  const changed = await db.dexie.unit_tokens
+    .where('id')
+    .equals(tokenId)
+    .modify((row) => {
+      unitId = row.unitId;
+      if (trimmed.length > 0) row.pos = trimmed;
+      else delete row.pos;
+      row.updatedAt = updatedAt;
+    });
+  if (changed === 0) {
     throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
   }
-
-  const row = existing.toJSON();
-  const trimmed = (pos ?? '').trim();
-  const nextPos = trimmed.length > 0 ? trimmed : undefined;
-  const { pos: _oldPos, ...rest } = row;
-
-  await db.collections.unit_tokens.insert({
-    ...rest,
-    ...(nextPos ? { pos: nextPos } : {}),
-    updatedAt: new Date().toISOString(),
-  });
-  dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
+  dispatchWorkspaceUnitUpdated({ unitId });
 }
 
 export async function updateTokenForm(
@@ -192,20 +192,22 @@ export async function updateTokenForm(
   lang = 'default',
 ): Promise<void> {
   const db = await getDb();
-  const existing = await db.collections.unit_tokens.findOne({ selector: { id: tokenId } }).exec();
-  if (!existing) {
-    throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
-  }
-  const row = existing.toJSON();
   const key = lang.trim().length > 0 ? lang.trim() : 'default';
   const trimmed = form.trim();
-  const nextForm = { ...row.form, [key]: trimmed };
-  await db.collections.unit_tokens.insert({
-    ...row,
-    form: nextForm,
-    updatedAt: new Date().toISOString(),
-  });
-  dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
+  const updatedAt = new Date().toISOString();
+  let unitId = '';
+  const changed = await db.dexie.unit_tokens
+    .where('id')
+    .equals(tokenId)
+    .modify((row) => {
+      unitId = row.unitId;
+      row.form = { ...row.form, [key]: trimmed };
+      row.updatedAt = updatedAt;
+    });
+  if (changed === 0) {
+    throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
+  }
+  dispatchWorkspaceUnitUpdated({ unitId });
 }
 
 export async function updateTokenGloss(
@@ -215,42 +217,37 @@ export async function updateTokenGloss(
   reviewStatus?: 'draft' | 'suggested' | 'confirmed' | 'rejected',
 ): Promise<void> {
   const db = await getDb();
-  const existing = await db.collections.unit_tokens.findOne({ selector: { id: tokenId } }).exec();
-  if (!existing) {
+  const trimmed = (gloss ?? '').trim();
+  const now = new Date().toISOString();
+  let unitId = '';
+  const changed = await db.dexie.unit_tokens
+    .where('id')
+    .equals(tokenId)
+    .modify((row) => {
+      unitId = row.unitId;
+      if (trimmed.length > 0) {
+        row.gloss = { ...(row.gloss ?? {}), [lang]: trimmed };
+      } else if (row.gloss) {
+        const { [lang]: _removed, ...rest } = row.gloss;
+        if (Object.keys(rest).length > 0) row.gloss = rest;
+        else delete row.gloss;
+      }
+      if (reviewStatus) {
+        row.provenance = {
+          actorType: row.provenance?.actorType ?? 'human',
+          method: row.provenance?.method ?? 'manual',
+          createdAt: row.provenance?.createdAt ?? now,
+          ...row.provenance,
+          reviewStatus,
+          updatedAt: now,
+        };
+      }
+      row.updatedAt = now;
+    });
+  if (changed === 0) {
     throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
   }
-
-  const row = existing.toJSON();
-  const trimmed = (gloss ?? '').trim();
-
-  let nextGloss: Record<string, string> | undefined;
-  if (trimmed.length > 0) {
-    nextGloss = { ...(row.gloss ?? {}), [lang]: trimmed };
-  } else if (row.gloss) {
-    const { [lang]: _removed, ...rest } = row.gloss;
-    nextGloss = Object.keys(rest).length > 0 ? rest : undefined;
-  }
-
-  const { gloss: _oldGloss, ...rest } = row;
-  const now = new Date().toISOString();
-  await db.collections.unit_tokens.insert({
-    ...rest,
-    ...(nextGloss ? { gloss: nextGloss } : {}),
-    ...(reviewStatus
-      ? {
-          provenance: {
-            actorType: row.provenance?.actorType ?? 'human',
-            method: row.provenance?.method ?? 'manual',
-            createdAt: row.provenance?.createdAt ?? now,
-            ...row.provenance,
-            reviewStatus,
-            updatedAt: now,
-          },
-        }
-      : {}),
-    updatedAt: now,
-  });
-  dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
+  dispatchWorkspaceUnitUpdated({ unitId });
 }
 
 export async function updateTokenLanguage(
@@ -288,8 +285,7 @@ export async function batchUpdateTokenPosByForm(
   const normalizedForm = form.trim();
   if (!normalizedForm) return 0;
 
-  const tokens = await db.collections.unit_tokens.findByIndex('unitId', unitId);
-  const rows = tokens.map((doc) => doc.toJSON());
+  const rows = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
   const normalizedPos = (pos ?? '').trim();
   const now = new Date().toISOString();
 
@@ -301,16 +297,14 @@ export async function batchUpdateTokenPosByForm(
 
   if (matches.length === 0) return 0;
 
-  await db.collections.unit_tokens.bulkInsert(
-    matches.map((row) => {
-      const { pos: _oldPos, ...rest } = row;
-      return {
-        ...rest,
-        ...(normalizedPos ? { pos: normalizedPos } : {}),
-        updatedAt: now,
-      };
-    }),
-  );
+  await db.dexie.unit_tokens
+    .where('id')
+    .anyOf(matches.map((row) => row.id))
+    .modify((row) => {
+      if (normalizedPos.length > 0) row.pos = normalizedPos;
+      else delete row.pos;
+      row.updatedAt = now;
+    });
 
   dispatchWorkspaceUnitUpdated({ unitId });
   return matches.length;
@@ -351,12 +345,20 @@ export async function replaceMorphemesForToken(
 
 export async function removeToken(tokenId: string): Promise<void> {
   const db = await getDb();
-  await db.collections.unit_morphemes.removeBySelector({ tokenId });
-  await db.collections.unit_tokens.remove(tokenId);
-  await db.collections.token_lexeme_links.removeBySelector({
-    targetType: 'token',
-    targetId: tokenId,
-  });
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.unit_morphemes, db.dexie.unit_tokens, db.dexie.token_lexeme_links],
+    async () => {
+      await db.collections.unit_morphemes.removeBySelector({ tokenId });
+      await db.collections.unit_tokens.remove(tokenId);
+      await db.collections.token_lexeme_links.removeBySelector({
+        targetType: 'token',
+        targetId: tokenId,
+      });
+    },
+    { label: 'unit-token-remove' },
+  );
 }
 
 export async function saveTokenLexemeLink(data: TokenLexemeLinkDocType): Promise<string> {

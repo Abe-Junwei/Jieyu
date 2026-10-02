@@ -146,6 +146,14 @@ export async function saveAnnotationUnitTurn(
   await deps.saveBatch([next]);
   const readback = (await deps.listByTextId(input.textId)).find((unit) => unit.id === input.unitId);
   if (!readback) throw new Error(`readback missing unit ${input.unitId}`);
+  if (
+    readback.ungrammatical !== input.ungrammatical ||
+    readback.addressee !== (addressee || undefined) ||
+    readback.actualForm !== (actualForm || undefined) ||
+    readback.targetForm !== (targetForm || undefined)
+  ) {
+    throw new Error(`turn fields readback mismatch for ${input.unitId}`);
+  }
   dispatchWorkspaceUnitUpdated({ unitId: input.unitId });
   return readback;
 }

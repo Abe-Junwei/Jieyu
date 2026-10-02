@@ -1,5 +1,6 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
 import type { UnitTokenDocType } from '../../types/jieyuDbDocTypes';
+import { runAnnotationStructureTransaction } from './splitMergeAnnotationTokens';
 
 export type AnnotationTokenDeletionPlan =
   | { kind: 'delete' }
@@ -48,19 +49,21 @@ export async function deleteAnnotationToken(input: {
     linkCount: links.length,
   });
   if (plan.kind === 'confirm' && input.confirmLoss !== true) return plan;
-  if (plan.kind === 'reattach') {
-    const host = tokens.find((item) => item.id === plan.hostTokenId);
-    await moveAttachments(host, morphs, links);
-  }
-  await LinguisticService.units.removeToken(token.id);
-  const later = tokens.filter((item) => item.tokenIndex > token.tokenIndex);
-  for (const item of later) {
-    await LinguisticService.units.saveToken({
-      ...item,
-      tokenIndex: item.tokenIndex - 1,
-      updatedAt: new Date().toISOString(),
-    });
-  }
+  await runAnnotationStructureTransaction(async () => {
+    if (plan.kind === 'reattach') {
+      const host = tokens.find((item) => item.id === plan.hostTokenId);
+      await moveAttachments(host, morphs, links);
+    }
+    await LinguisticService.units.removeToken(token.id);
+    const later = tokens.filter((item) => item.tokenIndex > token.tokenIndex);
+    for (const item of later) {
+      await LinguisticService.units.saveToken({
+        ...item,
+        tokenIndex: item.tokenIndex - 1,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }, 'annotation-token-delete');
   return plan.kind === 'confirm' ? { kind: 'delete' } : plan;
 }
 

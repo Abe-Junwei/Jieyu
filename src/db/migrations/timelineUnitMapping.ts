@@ -24,6 +24,16 @@ export function mapUnitToLayerUnit(
       ...(unit.speakerId !== undefined && unit.speakerId.length > 0
         ? { speakerId: unit.speakerId }
         : {}),
+      ...(unit.addressee !== undefined && unit.addressee.length > 0
+        ? { addressee: unit.addressee }
+        : {}),
+      ...(unit.ungrammatical !== undefined ? { ungrammatical: unit.ungrammatical } : {}),
+      ...(unit.actualForm !== undefined && unit.actualForm.length > 0
+        ? { actualForm: unit.actualForm }
+        : {}),
+      ...(unit.targetForm !== undefined && unit.targetForm.length > 0
+        ? { targetForm: unit.targetForm }
+        : {}),
       ...(unit.selfCertainty !== undefined ? { selfCertainty: unit.selfCertainty } : {}),
       ...(unit.annotationStatus !== undefined && unit.annotationStatus.length > 0
         ? { status: unit.annotationStatus }
@@ -71,6 +81,16 @@ export function projectUnitDocFromLayerUnit(
       : {}),
     ...(unit.speakerId !== undefined && unit.speakerId.length > 0
       ? { speakerId: unit.speakerId }
+      : {}),
+    ...(unit.addressee !== undefined && unit.addressee.length > 0
+      ? { addressee: unit.addressee }
+      : {}),
+    ...(unit.ungrammatical !== undefined ? { ungrammatical: unit.ungrammatical } : {}),
+    ...(unit.actualForm !== undefined && unit.actualForm.length > 0
+      ? { actualForm: unit.actualForm }
+      : {}),
+    ...(unit.targetForm !== undefined && unit.targetForm.length > 0
+      ? { targetForm: unit.targetForm }
       : {}),
     ...(unit.selfCertainty !== undefined ? { selfCertainty: unit.selfCertainty } : {}),
     startTime: unit.startTime,

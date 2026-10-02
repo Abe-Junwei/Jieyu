@@ -362,6 +362,83 @@ describe('splitMergeAnnotationTokens', () => {
     expect(requery.map((token) => token.tokenIndex)).toEqual([0, 1]);
   });
 
+  it('moves right-half morphemes onto the new right token and shifts their spans', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-split-morph',
+      textId: 'text-split-morph',
+      unitId: 'unit-split-morph',
+      form: { default: 'hello world' },
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.unit_morphemes.bulkPut([
+      {
+        id: 'mor-left',
+        textId: 'text-split-morph',
+        unitId: 'unit-split-morph',
+        tokenId: 'tok-split-morph',
+        form: { default: 'hello' },
+        surfaceParts: [{ startOffset: 0, endOffset: 5 }],
+        morphemeIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'mor-right',
+        textId: 'text-split-morph',
+        unitId: 'unit-split-morph',
+        tokenId: 'tok-split-morph',
+        form: { default: 'world' },
+        surfaceParts: [{ startOffset: 6, endOffset: 11 }],
+        morphemeIndex: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'mor-whole',
+        textId: 'text-split-morph',
+        unitId: 'unit-split-morph',
+        tokenId: 'tok-split-morph',
+        form: { default: 'hello world' },
+        morphemeIndex: 2,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    await db.token_lexeme_links.put({
+      id: 'link-split',
+      targetType: 'token',
+      targetId: 'tok-split-morph',
+      lexemeId: 'lex-hello',
+      senseId: 'sense-hello',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const readback = await splitAnnotationUnitToken('unit-split-morph', 'tok-split-morph');
+    const right = readback.find((row) => row.id !== 'tok-split-morph');
+    expect(right?.form.default).toBe('world');
+
+    const leftMorphs = await LinguisticService.units.listMorphemesByTokenIds(['tok-split-morph']);
+    expect(leftMorphs.map((row) => row.id)).toEqual(['mor-left', 'mor-whole']);
+    expect(leftMorphs[0]?.surfaceParts).toEqual([{ startOffset: 0, endOffset: 5 }]);
+
+    const rightMorphs = await LinguisticService.units.listMorphemesByTokenIds([right!.id]);
+    expect(rightMorphs.map((row) => row.id)).toEqual(['mor-right']);
+    expect(rightMorphs[0]?.morphemeIndex).toBe(0);
+    expect(rightMorphs[0]?.surfaceParts).toEqual([{ startOffset: 0, endOffset: 5 }]);
+    const span = rightMorphs[0]!.surfaceParts![0]!;
+    expect((right!.form.default ?? '').slice(span.startOffset, span.endOffset)).toBe('world');
+
+    const leftLinks = await LinguisticService.units.listTokenLexemeLinks(
+      'token',
+      'tok-split-morph',
+    );
+    expect(leftLinks.map((row) => row.id)).toEqual(['link-split']);
+    expect(await LinguisticService.units.listTokenLexemeLinks('token', right!.id)).toEqual([]);
+  });
+
   it('keeps both tokens when merge deletion fails', async () => {
     await db.unit_tokens.bulkPut([
       {

@@ -7,6 +7,7 @@ import {
   listAnnotationUnitNotes,
   saveAnnotationUnitNote,
   saveAnnotationUnitSelfCertainty,
+  saveAnnotationUnitTurn,
 } from './saveAnnotationUnitMeta';
 
 describe('saveAnnotationUnitMeta', () => {
@@ -124,6 +125,74 @@ describe('saveAnnotationUnitMeta', () => {
 
     const requery = await LinguisticService.units.listByTextId('text-cert-1');
     expect(requery.find((row) => row.id === 'unit-cert-1')?.selfCertainty).toBe('uncertain');
+  });
+
+  it('writes turn fields then readback matches each field, and clearing removes them', async () => {
+    await LinguisticService.layers.saveTranslation({
+      id: 'lane-turn-1',
+      textId: 'text-turn-1',
+      key: 'lane-turn-1',
+      name: { default: 'lane' },
+      languageId: 'und',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+      layerType: 'transcription',
+    });
+    await LinguisticService.units.saveBatch([
+      {
+        id: 'unit-turn-1',
+        textId: 'text-turn-1',
+        mediaId: 'media-turn-1',
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'turn text' },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const readback = await saveAnnotationUnitTurn({
+      textId: 'text-turn-1',
+      unitId: 'unit-turn-1',
+      addressee: 'child',
+      ungrammatical: true,
+      actualForm: 'goed',
+      targetForm: 'went',
+    });
+    expect(readback.addressee).toBe('child');
+    expect(readback.ungrammatical).toBe(true);
+    expect(readback.actualForm).toBe('goed');
+    expect(readback.targetForm).toBe('went');
+    expect(readback.transcription?.default).toBe('turn text');
+
+    const requery = await LinguisticService.units.listByTextId('text-turn-1');
+    const stored = requery.find((row) => row.id === 'unit-turn-1');
+    expect(stored?.addressee).toBe('child');
+    expect(stored?.ungrammatical).toBe(true);
+    expect(stored?.actualForm).toBe('goed');
+    expect(stored?.targetForm).toBe('went');
+
+    const cleared = await saveAnnotationUnitTurn({
+      textId: 'text-turn-1',
+      unitId: 'unit-turn-1',
+      addressee: '',
+      ungrammatical: false,
+      actualForm: '',
+      targetForm: '',
+    });
+    expect(cleared.addressee).toBeUndefined();
+    expect(cleared.ungrammatical).toBe(false);
+    expect(cleared.actualForm).toBeUndefined();
+    expect(cleared.targetForm).toBeUndefined();
+
+    const requeryAfterClear = await LinguisticService.units.listByTextId('text-turn-1');
+    const storedAfterClear = requeryAfterClear.find((row) => row.id === 'unit-turn-1');
+    expect(storedAfterClear?.addressee).toBeUndefined();
+    expect(storedAfterClear?.ungrammatical).toBe(false);
+    expect(storedAfterClear?.actualForm).toBeUndefined();
+    expect(storedAfterClear?.targetForm).toBeUndefined();
   });
 
   it('keeps a translation topic note distinct from a transcription comment', async () => {

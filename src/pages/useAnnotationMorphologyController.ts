@@ -190,7 +190,7 @@ export function useAnnotationMorphologyController(input: {
           tokenId,
           morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
         });
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, locale, run, textId],
@@ -209,7 +209,7 @@ export function useAnnotationMorphologyController(input: {
           tokenId,
           morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
         });
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, run, textId],
@@ -240,7 +240,7 @@ export function useAnnotationMorphologyController(input: {
           morphs: next,
         });
         setDrafts((prev) => dropCommittedMorphemeDrafts(prev, committedDrafts));
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, drafts, morphsByTokenId, run, textId],
@@ -251,7 +251,7 @@ export function useAnnotationMorphologyController(input: {
       void run(async () => {
         await splitAnnotationUnitToken(unitId, tokenId);
         await reloadWorkspace();
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, reloadWorkspace, run],
@@ -262,7 +262,7 @@ export function useAnnotationMorphologyController(input: {
       void run(async () => {
         await mergeAnnotationUnitTokenWithNext(unitId, tokenId);
         await reloadWorkspace();
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, reloadWorkspace, run],
@@ -284,7 +284,7 @@ export function useAnnotationMorphologyController(input: {
           return next;
         });
         setLinkQueries((prev) => ({ ...prev, [tokenId]: '' }));
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, linkQueries, run],
@@ -306,7 +306,7 @@ export function useAnnotationMorphologyController(input: {
           return next;
         });
         setLinkQueries((prev) => ({ ...prev, [tokenId]: '' }));
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, linkQueries, run],
@@ -316,7 +316,7 @@ export function useAnnotationMorphologyController(input: {
     (tokenId: string) => {
       void run(async () => {
         await removeAnnotationTokenLexemeLink(tokenId);
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, run],

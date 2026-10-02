@@ -168,7 +168,7 @@ export function useAnnotationWorkspaceController() {
       try {
         if (writes.length > 0) {
           await saveAnnotationIgtRowTokens(unitId, writes);
-          await dataQuery.refetch();
+          await dataQuery.refetch({ throwOnError: true });
         }
         setDrafts((prev) => dropCommittedTokenDrafts(prev, committedDrafts));
         setSaveNotice({ kind: 'saved', message: '' });

@@ -43,9 +43,13 @@ export function useAnnotationProjectSettings(textId: string) {
   const variantGroups = useMemo(() => parseCharacterVariantLines(variantText), [variantText]);
   const onVariantBlur = () => {
     if (textId.length === 0) return;
-    void saveCharacterVariantLines(textId, variantText).then(() =>
-      queryClient.invalidateQueries({ queryKey: ['project-character-variants', textId] }),
-    );
+    void saveCharacterVariantLines(textId, variantText)
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: ['project-character-variants', textId] }),
+      )
+      .catch(() => {
+        /* ignore: local variant text is kept for the next blur retry */
+      });
   };
   return {
     layout,

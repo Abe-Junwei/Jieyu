@@ -1,4 +1,6 @@
+import { getDb, isLexemeEntry } from '../../app/jieyuDbPageAccess';
 import { LinguisticService } from '../../app/languageAssetPageAccess';
+import { dispatchWorkspaceLexemeUpdated } from '../../utils/workspaceEvents';
 import { upsertOccurrenceCitation, type OccurrenceCitation } from './annotationOccurrenceCitation';
 
 export async function saveAnnotationOccurrenceCitation(input: {
@@ -18,12 +20,18 @@ export async function saveAnnotationOccurrenceCitation(input: {
     lexemeId: input.lexemeId,
     senseId: input.senseId,
   };
-  await LinguisticService.lexemes.save({
-    ...lexeme,
-    jieyu: {
-      ...(lexeme.jieyu ?? {}),
-      occurrenceCitations: upsertOccurrenceCitation(lexeme.jieyu?.occurrenceCitations, citation),
-    },
-    updatedAt: new Date().toISOString(),
-  });
+  const updatedAt = new Date().toISOString();
+  const db = await getDb();
+  await db.dexie.lexemes
+    .where('id')
+    .equals(input.lexemeId)
+    .modify((row) => {
+      if (!isLexemeEntry(row)) return;
+      row.jieyu = {
+        ...(row.jieyu ?? {}),
+        occurrenceCitations: upsertOccurrenceCitation(row.jieyu?.occurrenceCitations, citation),
+      };
+      row.updatedAt = updatedAt;
+    });
+  dispatchWorkspaceLexemeUpdated({ lexemeId: input.lexemeId });
 }

@@ -451,4 +451,80 @@ describe('annotationRetokenize', () => {
     expect(readback[0]?.gloss?.default).toBe('greeting');
     expect(await listPendingAnalysisGraphCandidates('unit-rt-restore')).toHaveLength(0);
   });
+
+  it('keeps a review-status-only token instead of overwriting it', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-reviewed',
+      textId: 'text-rt-10',
+      unitId: 'unit-rt-10',
+      form: { default: 'hello world' },
+      provenance: {
+        actorType: 'human',
+        method: 'manual',
+        createdAt: now,
+        reviewStatus: 'confirmed',
+      },
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const result = await applyAnnotationRetokenize({
+      textId: 'text-rt-10',
+      unitId: 'unit-rt-10',
+      surface: 'hello world',
+      proposedForms: ['hello', 'world'],
+    });
+    expect(result.kind).toBe('candidate');
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-rt-10']);
+    expect(requery).toHaveLength(1);
+    expect(requery[0]?.form.default).toBe('hello world');
+    expect(requery[0]?.provenance?.reviewStatus).toBe('confirmed');
+    expect(await listPendingAnalysisGraphCandidates('unit-rt-10')).toHaveLength(1);
+  });
+
+  it('preserves provenance reviewStatus through force snapshot and restore', async () => {
+    const provenance = {
+      actorType: 'human' as const,
+      actorId: 'user-1',
+      method: 'manual' as const,
+      createdAt: now,
+      reviewStatus: 'confirmed' as const,
+      reviewedBy: 'user-1',
+      reviewedAt: now,
+    };
+    await db.unit_tokens.put({
+      id: 'tok-reviewed-force',
+      textId: 'text-rt-11',
+      unitId: 'unit-rt-11',
+      form: { default: 'hello world' },
+      provenance,
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const forced = await applyAnnotationRetokenize({
+      textId: 'text-rt-11',
+      unitId: 'unit-rt-11',
+      surface: 'hello world',
+      proposedForms: ['hello', 'world'],
+      mode: 'force',
+    });
+    expect(forced.kind).toBe('forced');
+    const split = [...(await LinguisticService.units.listTokensByUnitIds(['unit-rt-11']))].sort(
+      (a, b) => a.tokenIndex - b.tokenIndex,
+    );
+    expect(split.map((token) => token.form.default)).toEqual(['hello', 'world']);
+    expect(split.every((token) => token.provenance === undefined)).toBe(true);
+
+    const restored = await restoreAnnotationRetokenize({
+      textId: 'text-rt-11',
+      unitId: 'unit-rt-11',
+    });
+    expect(restored.restored).toBe(true);
+    const readback = await LinguisticService.units.listTokensByUnitIds(['unit-rt-11']);
+    expect(readback).toHaveLength(1);
+    expect(readback[0]?.id).toBe('tok-reviewed-force');
+    expect(readback[0]?.provenance).toEqual(provenance);
+    expect(await listPendingAnalysisGraphCandidates('unit-rt-11')).toHaveLength(0);
+  });
 });
