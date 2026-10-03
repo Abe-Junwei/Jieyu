@@ -15,7 +15,8 @@ export function normalizeProjectLanguageIds(ids: readonly string[]): string[] {
   const out: string[] = [];
   for (const raw of ids) {
     const id = raw.trim().toLowerCase();
-    if (id.length === 0 || seen.has(id) || !isKnownIso639_3Code(id)) continue;
+    // 'und'（undetermined）是未选语言时的占位默认值，不构成真实语言约束 | 'und' is a placeholder, not a real language constraint
+    if (id.length === 0 || id === 'und' || seen.has(id) || !isKnownIso639_3Code(id)) continue;
     seen.add(id);
     out.push(id);
   }

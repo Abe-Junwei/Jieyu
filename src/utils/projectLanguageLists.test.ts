@@ -17,6 +17,19 @@ describe('projectLanguageLists', () => {
     });
   });
 
+  it('treats an undetermined primary language as no object-language constraint', () => {
+    expect(readProjectLanguageLists({ primaryLanguageId: 'und' })).toEqual({
+      objectLanguageIds: [],
+      workingLanguageIds: [],
+    });
+    expect(
+      readProjectLanguageLists({ primaryLanguageId: 'und', objectLanguageIds: ['und'] }),
+    ).toEqual({
+      objectLanguageIds: [],
+      workingLanguageIds: [],
+    });
+  });
+
   it('prefers the stored object-language list over the legacy primary id', () => {
     expect(
       readProjectLanguageLists({
