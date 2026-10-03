@@ -7,6 +7,7 @@ import {
   hasTranscriptionDeepLinkSelectionPayload,
   readTranscriptionDeepLinkOptionalParams,
   publishActiveProjectTextId,
+  readTranscriptionWorkspaceReturnHint,
   rememberTranscriptionWorkspaceReturnHint,
   stripTranscriptionDeepLinkSearchParams,
 } from '../utils/transcriptionUrlDeepLink';
@@ -211,9 +212,16 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
     const tid = (activeTextId ?? units[0]?.textId ?? '').trim();
     if (!tid) return;
     const mid = selectedUnitMedia?.id?.trim();
+    // 深链带进来的 mediaId 可能尚未解析出 selectedUnitMedia（媒体不存在/未选中），
+    // 此时不覆盖 sessionStorage 里同 text 的既有 mediaId，保证返回提示可往返（R4 S5）。
+    // Keep a stored mediaId when the workspace hasn't resolved one yet, so the
+    // deep-link return hint survives the round trip (R4 S5).
+    const existing = readTranscriptionWorkspaceReturnHint();
+    const keepMediaId =
+      !mid && existing !== null && existing.textId === tid ? existing.mediaId : undefined;
     rememberTranscriptionWorkspaceReturnHint({
       textId: tid,
-      ...(mid ? { mediaId: mid } : {}),
+      ...(mid ? { mediaId: mid } : keepMediaId !== undefined ? { mediaId: keepMediaId } : {}),
     });
   }, [phase, activeTextId, units, selectedUnitMedia?.id]);
 }

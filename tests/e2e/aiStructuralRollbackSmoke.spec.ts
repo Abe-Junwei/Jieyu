@@ -3,6 +3,7 @@
  * Smoke anchor for AI structural rollback shell (no model calls).
  */
 import { expect, test } from '@playwright/test';
+import { setupFieldProjectWithMediaAndSegments } from './_helpers/transcriptionProjectFlow';
 
 test.describe('AI structural rollback smoke', () => {
   test('转写工作台加载且 AI 侧栏壳挂载 | Transcription workspace and AI panel mounted', async ({ page, browserName }) => {
@@ -18,6 +19,13 @@ test.describe('AI structural rollback smoke', () => {
     await page.goto('/transcription');
     await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
     await expect(page.locator('.transcription-chat-window-trigger')).toBeAttached({ timeout: 25_000 });
+
+    // 声学检查开关自 40a7b922 起仅在选中媒体后渲染（无媒体时隐藏是产品行为），
+    // 因此先建一个带媒体的项目再断言该锚点。
+    // The acoustic-inspector toggle only renders once a media is selected
+    // (intentional since 40a7b922), so seed a project with media first.
+    await setupFieldProjectWithMediaAndSegments(page);
+
     await expect(page.getByTestId('transcription-acoustic-inspector-toggle')).toBeAttached({
       timeout: 25_000,
     });

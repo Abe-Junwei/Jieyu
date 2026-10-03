@@ -88,10 +88,6 @@ async function passImportDialogs(page: Page, shotPrefix: string): Promise<void> 
 
   if (first === 'role') {
     console.log(`ROLE ${shotPrefix}\n${await roleDialog.innerText()}`);
-    await page.screenshot({
-      path: `/opt/cursor/artifacts/${shotPrefix}-tier-roles.png`,
-      fullPage: true,
-    });
     await roleDialog.getByRole('button', { name: /^(确认导入|Import)$/ }).click();
     await expect(roleDialog).toBeHidden({ timeout: 20_000 });
   }
@@ -106,10 +102,6 @@ async function passImportDialogs(page: Page, shotPrefix: string): Promise<void> 
 
   if (mismatchVisible) {
     console.log(`MISMATCH ${shotPrefix}\n${await mismatchDialog.innerText()}`);
-    await page.screenshot({
-      path: `/opt/cursor/artifacts/${shotPrefix}-mismatch.png`,
-      fullPage: true,
-    });
     await mismatchDialog.getByRole('checkbox').check();
     await mismatchDialog.getByRole('button', { name: /^(确认导入|Import)$/ }).click();
     await expect(mismatchDialog).toBeHidden({ timeout: 90_000 });
@@ -120,6 +112,12 @@ test.describe('open-corpus annotation import', () => {
   test('imports Tabaq EAF through the transcription page', async ({ page }) => {
     test.skip(!existsSync(TABAQ), 'tabaq.eaf is not in this checkout');
     test.setTimeout(240_000);
+
+    // TEMP-DIAG: surface console/page errors while the mismatch import runs.
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') console.log(`CONSOLE_ERROR ${msg.text()}`);
+    });
+    page.on('pageerror', (err) => console.log(`PAGE_ERROR ${err.message}`));
 
     await setupFieldProjectWithMediaAndSegments(page);
     await page.locator(ANNOTATION_INPUT).setInputFiles({
@@ -172,10 +170,6 @@ test.describe('open-corpus annotation import', () => {
     await sentence.scrollIntoViewIfNeeded();
     await expect(sentence).toBeVisible();
     await expect(page.getByText('yes, if there is wedding , Tabaq wedding').first()).toBeVisible();
-    await page.screenshot({
-      path: '/opt/cursor/artifacts/tabaq-eaf-imported.png',
-      fullPage: true,
-    });
   });
 
   test('imports Sundanese FLEx through the transcription page', async ({ page }) => {
@@ -229,9 +223,5 @@ test.describe('open-corpus annotation import', () => {
     });
     await sentence.first().scrollIntoViewIfNeeded();
     await expect(sentence.first()).toBeVisible();
-    await page.screenshot({
-      path: '/opt/cursor/artifacts/sundanese-flex-imported.png',
-      fullPage: true,
-    });
   });
 });

@@ -91,7 +91,16 @@ export function publishActiveProjectTextId(textId: string): void {
   const next = textId.trim();
   if (next.length === 0 || next === activeProjectTextId) return;
   activeProjectTextId = next;
-  rememberTranscriptionWorkspaceReturnHint({ textId: next });
+  // 同一 text 已记住的 mediaId 是深链往返的一部分（见 R4 S5）：调用方往往只有
+  // textId 在手，直接覆盖会把 mediaId 丢掉。仅同 textId 时合并，跨 text 不复用。
+  // Keep a remembered mediaId for the same text: callers usually only hold the
+  // textId, and overwriting here would drop the deep-link round-trip media.
+  const existing = readTranscriptionWorkspaceReturnHint();
+  const keepMediaId = existing !== null && existing.textId === next ? existing.mediaId : undefined;
+  rememberTranscriptionWorkspaceReturnHint({
+    textId: next,
+    ...(keepMediaId !== undefined ? { mediaId: keepMediaId } : {}),
+  });
   for (const listener of activeProjectTextListeners) listener();
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(ACTIVE_PROJECT_TEXT_EVENT, { detail: next }));
