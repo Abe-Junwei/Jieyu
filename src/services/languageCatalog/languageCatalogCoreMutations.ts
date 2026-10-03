@@ -28,9 +28,16 @@ async function languageEntriesForProject(
   entries: LanguageCatalogEntry[],
   projectId: string,
 ): Promise<LanguageCatalogEntry[]> {
-  if (projectId.length === 0) return entries.filter((entry) => entry.entryKind === 'built-in');
   const db = await getDb();
   const languages = await db.dexie.languages.toArray();
+  if (projectId.length === 0) {
+    const unscoped = new Set(
+      languages
+        .filter((language) => (language.textId?.trim() ?? '').length === 0)
+        .map((language) => language.id),
+    );
+    return entries.filter((entry) => entry.entryKind === 'built-in' || unscoped.has(entry.id));
+  }
   const owned = new Set(
     languages.filter((language) => language.textId === projectId).map((language) => language.id),
   );
