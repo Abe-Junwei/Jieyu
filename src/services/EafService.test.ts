@@ -1618,7 +1618,9 @@ describe('EAF default tier pick', () => {
       expect(confirmed.transcriptionTierName).toBe('tx@NHK');
       expect(confirmed.units.some((unit) => unit.transcription.trim().length > 0)).toBe(true);
       expect(confirmed.translationTiers.has('ft@NHK')).toBe(true);
-      expect(confirmed.translationTiers.has('fn@NHK')).toBe(true);
+      // fn@NHK only holds pause placeholders (`<p:>` / `****`); placeholder-only tiers
+      // no longer become layers. Its real notes survive as user comments (asserted below).
+      expect(confirmed.translationTiers.has('fn@NHK')).toBe(false);
       expect(confirmed.translationTiers.has('nt@NHK')).toBe(false);
       expect(confirmed.userNotes?.some((note) => note.text.includes('Sudanese Ar. yes'))).toBe(
         true,
