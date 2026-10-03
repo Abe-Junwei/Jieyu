@@ -305,24 +305,15 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         .equals(importTextId)
         .count();
       if (existingUnitCount > 0) {
+        // 只清 unit 图防止时间轴重复；既有层定义必须保留——导入按名称/语言复用或
+        // 新增层，而不是把用户已有的转写/翻译层连同配置一起删掉（993af34f 回归）。
+        // Clear only the unit graph to avoid duplicate timelines; keep existing
+        // layer definitions so import reuses or appends layers instead of wiping
+        // the user's transcription/translation layers (regression from 993af34f).
         await deleteResidualLayerUnitGraphByTextId(db, importTextId);
-        const storedLayers = await db.dexie.tier_definitions
-          .where('textId')
-          .equals(importTextId)
-          .toArray();
-        for (const layer of storedLayers) {
-          await LayerTierUnifiedService.deleteLayer({
-            id: layer.id,
-            textId: importTextId,
-            key: layer.key,
-          });
-        }
       }
 
-      const layersAfterImport: LayerDocType[] =
-        existingUnitCount > 0
-          ? layers.filter((layer) => layer.textId !== importTextId)
-          : [...layers];
+      const layersAfterImport: LayerDocType[] = [...layers];
       const layerById = new Map(layersAfterImport.map((layer) => [layer.id, layer] as const));
 
       function rememberLayer(layer: LayerDocType): void {
@@ -586,8 +577,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         }
       }
 
-      let effectiveTranscriptionLayerId =
-        existingUnitCount > 0 ? undefined : defaultTranscriptionLayerId;
+      let effectiveTranscriptionLayerId = defaultTranscriptionLayerId;
       let autoCreatedLayerKey: string | undefined;
       let pendingAutoLayer:
         | {
