@@ -1,4 +1,4 @@
-import { getDb, type TextDocType } from '../db';
+import { getDb, withTransaction, type TextDocType } from '../db';
 import { projectTextMetadataKey } from '../types/projectTextMetadata';
 
 const SPEAKER_IDS_KEY = projectTextMetadataKey.projectSpeakerIds;
@@ -48,7 +48,13 @@ async function writeProjectSpeakerIds(
 
 async function speakerIdsOnUnits(textId: string): Promise<string[]> {
   const database = await getDb();
-  const units = await database.dexie.layer_units.where('textId').equals(textId).toArray();
+  const units = await withTransaction(
+    database,
+    'r',
+    [database.dexie.layer_units],
+    async () => database.dexie.layer_units.where('textId').equals(textId).toArray(),
+    { label: 'speakerProjectMembership.speakerIdsOnUnits' },
+  );
   const ids: string[] = [];
   for (const unit of units) {
     const speakerId = unit.speakerId?.trim() ?? '';

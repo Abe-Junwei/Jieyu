@@ -594,14 +594,6 @@
   background: color-mix(in srgb, var(--state-info-solid) 16%, transparent);
 }
 
-.transcription-side-pane-portaled-stack .transcription-side-pane-inspector {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  gap: 8px;
-}
-
 .transcription-side-pane-portaled-stack .transcription-side-pane-actions-portaled {
   padding: 0;
   gap: 4px;
@@ -866,179 +858,6 @@
 
 /* Scrollbar handled globally via global.css — no per-component overrides needed */
 
-/* ── 聚焦层详情 | Focused layer inspector ── */
-.transcription-side-pane-inspector {
-  margin: 6px 4px 2px;
-  padding: 8px 10px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-panel);
-  border: 1px solid var(--border-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  container-type: inline-size;
-  container-name: layer-inspector;
-}
-
-/* — 头部行：chip + 标题 + 删除 | Header row — */
-.transcription-side-pane-inspector-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.transcription-side-pane-inspector-title-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  flex: 1;
-  min-width: 0;
-}
-
-.transcription-side-pane-inspector-title {
-  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-  min-width: 0;
-}
-
-.transcription-side-pane-inspector-title-primary {
-  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
-  line-height: 1.25;
-  font-weight: 600;
-}
-
-.transcription-side-pane-inspector-title-secondary,
-.transcription-side-pane-inspector-title-tertiary {
-  color: var(--text-secondary);
-  line-height: 1.2;
-}
-
-.transcription-side-pane-inspector-del-btn {
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  border-radius: 5px;
-  color: var(--border-soft);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition:
-    background 100ms ease,
-    color 100ms ease;
-}
-
-.transcription-side-pane-inspector-del-icon {
-  width: 10px;
-  height: 10px;
-}
-
-.transcription-side-pane-inspector-del-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--state-danger-bg) 65%, transparent);
-  color: var(--state-danger-solid);
-}
-
-.transcription-side-pane-inspector-del-btn:disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
-}
-
-/* — 属性：多列横向并排；每项内标题（dt）在上，内容（dd）在下 | Properties in a row; label top, value bottom — */
-.transcription-side-pane-inspector-props {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px 12px;
-  margin: 0;
-  padding: 0;
-}
-
-.transcription-side-pane-inspector-props > div {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  flex: 1 1 6.25rem;
-  min-width: 5.5rem;
-  max-width: calc(50% - 4px);
-}
-
-@media (min-width: 300px) {
-  .transcription-side-pane-inspector-props > div {
-    max-width: calc(33.333% - 6px);
-  }
-}
-
-@media (min-width: 420px) {
-  .transcription-side-pane-inspector-props > div {
-    max-width: calc(25% - 7px);
-  }
-}
-
-.transcription-side-pane-inspector-props dt {
-  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
-  color: var(--text-secondary);
-  font-weight: 500;
-  text-transform: uppercase;
-  text-align: center;
-  letter-spacing: 0.04em;
-  line-height: 1.25;
-}
-
-.transcription-side-pane-inspector-props dd {
-  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
-  color: var(--text-primary);
-  font-weight: 600;
-  margin: 0;
-  line-height: 1.35;
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-
-/* — 属性列表内下拉框 | Inspector inline select — */
-.transcription-side-pane-inspector-select {
-  width: 100%;
-  min-height: var(--input-h-compact);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  padding: var(--input-padding-micro);
-  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
-  color: var(--text-secondary);
-  background: var(--surface-panel);
-  line-height: var(--input-line-height-compact);
-  box-sizing: border-box;
-  outline: none;
-}
-
-.transcription-side-pane-inspector-select:focus-visible {
-  border-color: var(--state-info-solid);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) 30%, transparent);
-}
-
-.transcription-side-pane-inspector-note,
-.transcription-side-pane-inspector-empty {
-  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
-  color: var(--text-secondary);
-  line-height: 1.35;
-  padding: 4px 0;
-}
-
 /* ── 底部操作栏 | Bottom action bar ── */
 .transcription-side-pane-actions {
   padding: 6px 4px 4px;
@@ -1153,11 +972,6 @@
 }
 
 .transcription-side-pane-actions-portaled:focus-visible {
-  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
-  outline-offset: 2px;
-}
-
-.transcription-side-pane-inspector-del-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
 }

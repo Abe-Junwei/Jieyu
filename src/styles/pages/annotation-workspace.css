@@ -709,28 +709,6 @@
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
-.annotation-sentence-acoustic-toggles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.annotation-sentence-acoustic-toggle {
-  border: 0;
-  border-radius: var(--radius-sm, 4px);
-  padding: 1px 6px;
-  background: color-mix(in srgb, var(--surface-panel) 80%, transparent);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
-  cursor: pointer;
-}
-
-.annotation-sentence-acoustic-toggle.is-on {
-  background: color-mix(in srgb, var(--tab-active) 22%, var(--surface-panel));
-  color: var(--text-primary);
-}
-
 .annotation-sentence-acoustic-wave,
 .annotation-sentence-acoustic-spectrum {
   display: flex;

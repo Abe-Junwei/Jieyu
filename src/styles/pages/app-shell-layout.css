@@ -168,11 +168,6 @@
   min-height: 0;
 }
 
-.left-rail-resources-root {
-  position: relative;
-  width: 100%;
-}
-
 .app-side-pane {
   position: absolute;
   left: var(--left-rail-offset);

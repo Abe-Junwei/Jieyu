@@ -1,8 +1,16 @@
 {
-  "generatedAt": "2026-07-16T06:59:00.000Z",
+  "generatedAt": "2026-10-03T05:21:38.653Z",
   "allowedMissing": [
+    "annotation-igt-hint",
+    "annotation-igt-line-actions-button",
+    "annotation-igt-row-actions",
     "annotation-import-mismatch-dialog",
+    "annotation-template-abbreviation-badge",
+    "btn-quiet",
     "import-timeline-mismatch-ack",
+    "lexicon-workspace-citation-list",
+    "lm-section-title",
+    "transcription-wave-decode-skipped",
     "waveform-subselect-preview"
   ]
 }

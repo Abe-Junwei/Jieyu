@@ -260,7 +260,13 @@ export async function listLexemeTranscriptionJumpTargets(
 
     const unitKind: 'unit' | 'segment' = layerUnit.unitType === 'segment' ? 'segment' : 'unit';
     const mediaId = layerUnit.mediaId?.trim() || undefined;
-    const contents = await db.dexie.layer_unit_contents.where('unitId').equals(unitId).toArray();
+    const contents = await withTransaction(
+      db,
+      'r',
+      [db.dexie.layer_unit_contents],
+      async () => db.dexie.layer_unit_contents.where('unitId').equals(unitId).toArray(),
+      { label: 'linguisticServiceLexemeOps.unitContents' },
+    );
     const layerText = contents.find(
       (row) =>
         row.layerId === layerId &&

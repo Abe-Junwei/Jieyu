@@ -300,10 +300,13 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         throw new ImportMismatchRequiresAckError(file.name, mismatchNotices);
       }
 
-      const existingUnitCount = await db.dexie.layer_units
-        .where('textId')
-        .equals(importTextId)
-        .count();
+      const existingUnitCount = await withTransaction(
+        db,
+        'r',
+        [db.dexie.layer_units],
+        async () => db.dexie.layer_units.where('textId').equals(importTextId).count(),
+        { label: 'annotationImport.existingUnitCount' },
+      );
       if (existingUnitCount > 0) {
         // 只清 unit 图防止时间轴重复；既有层定义必须保留——导入按名称/语言复用或
         // 新增层，而不是把用户已有的转写/翻译层连同配置一起删掉（993af34f 回归）。

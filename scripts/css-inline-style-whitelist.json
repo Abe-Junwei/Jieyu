@@ -159,6 +159,42 @@
           "reviewedSha256": "d45526417bf7dbba2354a7b605b07ab9321d406a5f5604e732a91c94f616a8a1"
         }
       ]
+    },
+    {
+      "file": "src/components/project/ProjectOverviewPanel.tsx",
+      "reason": "Project progress fill width is a runtime percentage.",
+      "reviewer": "Kimi + junwei",
+      "reviewedAt": "2026-10-03",
+      "snippets": [
+        {
+          "anchor": "style={{ width: `${pct}%` }}",
+          "reviewedSha256": "25b136565d2cb0c8bc58a5eecb427594adc4e4691bddaaad0493605a4d5861b8"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/annotation/AnnotationIgtLineGrid.tsx",
+      "reason": "IGT grid exposes the runtime word-line count as a CSS variable for grid rows.",
+      "reviewer": "Kimi + junwei",
+      "reviewedAt": "2026-10-03",
+      "snippets": [
+        {
+          "anchor": "style={{ '--igt-lines': wordLines.length } as CSSProperties}",
+          "reviewedSha256": "dc252834ec6013ea9812a65d45fc36e55c9f6de7c25c9ade1f9b85208515c787"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/annotation/AnnotationSentenceAcousticFigure.tsx",
+      "reason": "Acoustic figure width is a runtime-measured layout value capped at 100%.",
+      "reviewer": "Kimi + junwei",
+      "reviewedAt": "2026-10-03",
+      "snippets": [
+        {
+          "anchor": "style={width ? { width, maxWidth: '100%' } : { maxWidth: '100%' }}",
+          "reviewedSha256": "e073647d0b1b68c7cac1c6a9b34a9f0c723f91cd0eae6b7091e51b8d301890be"
+        }
+      ]
     }
   ]
 }

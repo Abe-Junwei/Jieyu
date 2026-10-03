@@ -1,4 +1,4 @@
-import { getDb, type LexemeDocType, type SpeakerDocType } from '../db';
+import { getDb, withTransaction, type LexemeDocType, type SpeakerDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 
@@ -50,7 +50,9 @@ async function claimSpeakers(projectId: string): Promise<void> {
   const db = await getDb();
   const [speakers, units] = await Promise.all([
     db.dexie.speakers.toArray(),
-    db.dexie.layer_units.toArray(),
+    withTransaction(db, 'r', [db.dexie.layer_units], async () => db.dexie.layer_units.toArray(), {
+      label: 'projectCatalogScope.claimSpeakers',
+    }),
   ]);
   const textsBySpeaker = new Map<string, Set<string>>();
   for (const unit of units) {
@@ -88,11 +90,19 @@ async function cloneSpeakerForProject(speaker: SpeakerDocType, projectId: string
     textId: projectId,
     updatedAt: now,
   });
-  const units = await db.dexie.layer_units.where('textId').equals(projectId).toArray();
-  for (const unit of units) {
-    if (unit.speakerId !== speaker.id) continue;
-    await db.dexie.layer_units.update(unit.id, { speakerId: cloneId });
-  }
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.layer_units],
+    async () => {
+      const units = await db.dexie.layer_units.where('textId').equals(projectId).toArray();
+      for (const unit of units) {
+        if (unit.speakerId !== speaker.id) continue;
+        await db.dexie.layer_units.update(unit.id, { speakerId: cloneId });
+      }
+    },
+    { label: 'projectCatalogScope.reassignSpeakerUnits' },
+  );
 }
 
 async function claimLexemes(projectId: string): Promise<void> {

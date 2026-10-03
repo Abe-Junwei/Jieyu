@@ -1,4 +1,4 @@
-import { getDb } from '../db';
+import { getDb, withTransaction } from '../db';
 import {
   isAuxiliaryRecordingMediaRow,
   isMediaItemPlaceholderRow,
@@ -56,7 +56,13 @@ export async function listProjectFileViews(textId: string): Promise<ProjectFileV
   let sources = stored;
   if (sources.length === 0) {
     const db = await getDb();
-    const unitCount = await db.dexie.layer_units.where('textId').equals(textId).count();
+    const unitCount = await withTransaction(
+      db,
+      'r',
+      [db.dexie.layer_units],
+      async () => db.dexie.layer_units.where('textId').equals(textId).count(),
+      { label: 'projectFileOps.unitCount' },
+    );
     if (unitCount > 0) {
       const only = audio.length === 1 ? audio[0] : undefined;
       sources = [

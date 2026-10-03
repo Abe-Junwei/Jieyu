@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-06-01T07:46:19.413Z",
+  "generatedAt": "2026-10-03T05:48:33.726Z",
   "scannerVersion": 2,
-  "totalHits": 225,
+  "totalHits": 232,
   "files": {
     "src/ai/chat/executors/toolPayload.ts": 1,
     "src/ai/chat/formatters/agentLoopPayload.ts": 1,
@@ -16,9 +16,12 @@
     "src/hooks/transcription/useTranscriptionTimelineVerticalChrome.ts": 8,
     "src/services/VoiceAgentService.startFlow.ts": 1,
     "src/services/VoiceAgentService.wakeWordFailure.ts": 2,
+    "src/services/annotationAbbreviationStore.ts": 1,
+    "src/services/annotationPosCategoryStore.ts": 1,
     "src/services/languageCatalog/languageCatalogCoreNormalization.ts": 1,
     "src/services/linguisticServiceProjectBootstrap.ts": 1,
-    "src/services/linguisticServiceTextTimelineOps.ts": 7,
+    "src/services/linguisticServiceTextTimelineOps.ts": 10,
+    "src/services/linguisticServiceUnitTokenOps.ts": 2,
     "src/utils/theme.ts": 37
   }
 }
