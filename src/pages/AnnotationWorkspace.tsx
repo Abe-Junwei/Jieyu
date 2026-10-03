@@ -16,10 +16,8 @@ import { useAnnotationRelationController } from './useAnnotationRelationControll
 import { useAnnotationAlternativeAnalysisController } from './useAnnotationAlternativeAnalysisController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 import { useAnnotationSentenceAcoustic } from './useAnnotationSentenceAcoustic';
-import {
-  buildAnnotationGlossSuggestions,
-  collectBlankSameFormGlossWrites,
-} from './annotation/annotationGlossSuggestion';
+import { buildAnnotationGlossSuggestions } from './annotation/annotationGlossSuggestion';
+import { collectAnnotationGlossByFormWrites } from './annotation/annotationGlossByFormWrites';
 import { saveAnnotationGlossByForm } from './annotation/saveAnnotationGlossByForm';
 import { deleteAnnotationToken } from './annotation/deleteAnnotationToken';
 import { exportFocusedAnnotationSentence } from './annotation/annotationSentenceExport';
@@ -309,40 +307,17 @@ export function AnnotationWorkspace() {
                 glossSuggestions={glossSuggestions}
                 onAcceptGlossSuggestion={controller.onAcceptGlossSuggestion}
                 onApplyGlossByForm={(_unitId, tokenId, gloss) => {
-                  const tokens = controller.rows.flatMap((row) =>
-                    row.tokens.map((token) => ({
-                      id: token.id,
-                      unitId: row.id,
-                      form: token.form,
-                      gloss: token.gloss,
-                      pos: token.pos,
-                      glossLang: token.glossLang,
-                      hasLink: morphology.linksByTokenId[token.id] !== undefined,
-                      morphForms: (morphology.morphsByTokenId[token.id] ?? []).map(
-                        (morph) => morph.form,
-                      ),
-                      ...(token.reviewStatus ? { reviewStatus: token.reviewStatus } : {}),
-                    })),
-                  );
-                  const dirtyTokenIds = new Set(
-                    tokens
-                      .filter((token) => {
-                        const draft = controller.drafts[token.id];
-                        if (!draft) return false;
-                        return (
-                          draft.gloss.trim() !== token.gloss.trim() ||
-                          draft.pos.trim() !== token.pos.trim()
-                        );
-                      })
-                      .map((token) => token.id),
-                  );
-                  const writes = collectBlankSameFormGlossWrites({
-                    tokens,
-                    sourceTokenId: tokenId,
+                  const writes = collectAnnotationGlossByFormWrites(
+                    {
+                      rows: controller.rows,
+                      drafts: controller.drafts,
+                      linksByTokenId: morphology.linksByTokenId,
+                      morphsByTokenId: morphology.morphsByTokenId,
+                      groups: variantGroups,
+                    },
+                    tokenId,
                     gloss,
-                    groups: variantGroups,
-                    dirtyTokenIds,
-                  });
+                  );
                   void saveAnnotationGlossByForm(writes).then(() => controller.reload());
                 }}
                 onCiteOccurrence={controller.onCiteOccurrence}

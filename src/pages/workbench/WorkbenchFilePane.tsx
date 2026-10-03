@@ -194,7 +194,7 @@ export function WorkbenchFilePane(props: {
           event.target.value = '';
           if (!file) return;
           fireAndForget(importMedia(file), {
-            context: 'workbench-import-media',
+            context: 'src/pages/workbench/WorkbenchFilePane.tsx:L196',
             policy: 'user-visible',
           });
         }}
@@ -211,7 +211,7 @@ export function WorkbenchFilePane(props: {
           event.target.value = '';
           if (!file) return;
           fireAndForget(importExport.handleImportFile(file), {
-            context: 'workbench-import-annotation',
+            context: 'src/pages/workbench/WorkbenchFilePane.tsx:L213',
             policy: 'user-visible',
           });
         }}
@@ -287,7 +287,7 @@ export function WorkbenchFilePane(props: {
             fireAndForget(
               Promise.resolve(importExport.annotationImportMismatchDialog?.onConfirm()),
               {
-                context: 'workbench-import-mismatch',
+                context: 'src/pages/workbench/WorkbenchFilePane.tsx:L287',
                 policy: 'user-visible',
               },
             );
@@ -305,7 +305,7 @@ export function WorkbenchFilePane(props: {
           onClose={importExport.eafTierRoleDialog.onClose}
           onConfirm={(roles) => {
             fireAndForget(Promise.resolve(importExport.eafTierRoleDialog?.onConfirm(roles)), {
-              context: 'workbench-eaf-roles',
+              context: 'src/pages/workbench/WorkbenchFilePane.tsx:L307',
               policy: 'user-visible',
             });
           }}
