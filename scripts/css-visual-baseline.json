@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-03T05:47:01.129Z",
-  "aggregate": "a15c24337554be361c3d906e5f37ed9167c8f6a877adddea84002ece54fd169a",
+  "generatedAt": "2026-10-03T06:08:22.276Z",
+  "aggregate": "06984c82221f0e9cf48fe282d21cd5a2197c291da45922dcf6f65f4970611c6f",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -28,7 +28,7 @@
     "src/styles/pages/corpus-library-workspace.css": "010f51e6efdbd1f622877f9285a4bbf67fcd98758ac31431633307ed96ae9480",
     "src/styles/pages/feature-availability.css": "557966ee7289509abca4613b4e3a0c087cf160f8712863f325202f3797bc69eb",
     "src/styles/pages/home-page.css": "7f8db1af3ac1b2f3b0be9779c12f30667ef41566d366ff7389f8e7dc60dd8e57",
-    "src/styles/pages/language-metadata-workspace.css": "c9644a90fe44fe1f26864362242bb17d495a45fc7528d8ebc1ec3ca0ac2497eb",
+    "src/styles/pages/language-metadata-workspace.css": "920a61a590082eeb16c266158d43ed4fb01039e831553bd3d40e6b55547b93ec",
     "src/styles/pages/lexicon-workspace.css": "948d80ce1440418d67a80876b8e3f98c203cfdea44fe07d434b4a5769142202f",
     "src/styles/pages/orthography-bridge-workspace.css": "1e2d2c4f21c6604ef99fea464abd772dee86ad311c0838222129c20a374dee61",
     "src/styles/pages/orthography-manager-panel.css": "cf40ebe72d7eae75832fd2667be871cc00138339c35466f60adb5a90aa17c68e",
@@ -40,7 +40,7 @@
     "src/styles/pages/timeline/timeline-lane-label.css": "5b374b2cb88687ecb763a357c6c3a468082b6cdb71f1f5e5e4bc775d794da0b6",
     "src/styles/pages/timeline/timeline-lane.css": "dba7068589c7256c1b0e9ac1034ddf86dc229cf4069a9e3f11bb68a7b054ad11",
     "src/styles/pages/timeline/timeline-layout.css": "6a40d26bec9795957cd1a10895428f2a295d8338e1ee9600c6482dc0e97a17ab",
-    "src/styles/pages/timeline/timeline-overview.css": "c8bfdfcf7da9fafb299fc3abf5c10268120a8a76990dee13b73410eebc553db9",
+    "src/styles/pages/timeline/timeline-overview.css": "523f35bfcb958beb4a89a622ed99d85fdf0a932f812745c1bc5a4592bd46c831",
     "src/styles/pages/timeline/timeline-paired-reading.css": "0e5c1c7ed938c7650acee8099ca075e2a71cdda736b20c236a126f90914b044b",
     "src/styles/pages/timeline/timeline-segment-narrow.css": "16da99a7fe61c770d8a13b2c37c81a821af544300c851a2af204e2a567b79b27",
     "src/styles/pages/timeline/timeline-text-item.css": "11c72235f20ddc9ba6ed2e9190fb515073c159bbd386fda2922901f5bd68129a",
