@@ -22,7 +22,7 @@ export function resolveSegmentScopeMediaId(
   if (selectedTimelineUnit && isUnitTimelineUnit(selectedTimelineUnit)) {
     const row = units.find((u) => u.id === selectedTimelineUnit.unitId);
     const mid = row?.mediaId?.trim() ?? '';
-    if (mid.length > 0) return mid;
+    if (mid.length > 0 && mediaItems.some((item) => item.id === mid)) return mid;
   }
 
   const first = mediaItems[0]?.id?.trim() ?? '';

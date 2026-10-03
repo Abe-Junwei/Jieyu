@@ -11,13 +11,20 @@ import { newId } from '../utils/transcriptionFormatters';
 import { validateCustomFieldDefinitionInput } from './LanguageMetadataCustomFields';
 import { createLogger } from '../observability/logger';
 import { refreshLanguageCatalogReadModelAfterMutation } from './LinguisticService.languageCatalog.refreshBridge';
+import { claimUnscopedCatalog, resolveOwnedProjectTextId } from './projectCatalogScope';
 
 const log = createLogger('LinguisticService.languageCatalog.customFieldAdmin');
 
 export async function listCustomFieldDefinitions(): Promise<CustomFieldDefinitionDocType[]> {
   const db = await getDb();
+  const projectId = resolveOwnedProjectTextId();
+  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
   const all = await db.dexie.custom_field_definitions.toArray();
-  return all.sort((a, b) => a.sortOrder - b.sortOrder);
+  const owned =
+    projectId.length === 0
+      ? all.filter((row) => (row.textId?.trim() ?? '').length === 0)
+      : all.filter((row) => row.textId === projectId);
+  return owned.sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export async function upsertCustomFieldDefinition(input: {
@@ -60,6 +67,9 @@ export async function upsertCustomFieldDefinition(input: {
     ...(normalized.maxValue !== undefined ? { maxValue: normalized.maxValue } : {}),
     ...(normalized.pattern ? { pattern: normalized.pattern } : {}),
     sortOrder: normalized.sortOrder ?? maxSort,
+    ...(existing?.textId || resolveOwnedProjectTextId()
+      ? { textId: existing?.textId || resolveOwnedProjectTextId() }
+      : {}),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };

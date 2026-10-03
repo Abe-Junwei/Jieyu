@@ -10,6 +10,10 @@ function compareUnits(a: LayerUnitDocType, b: LayerUnitDocType): number {
   return a.id.localeCompare(b.id);
 }
 
+export function annotationTranscriptionLanguageId(layers: readonly LayerDocType[]): string {
+  return layers.find((layer) => layer.layerType === 'transcription')?.languageId ?? '';
+}
+
 export function projectAnnotationLaneUnits(input: {
   units: readonly LayerUnitDocType[];
   layers: readonly LayerDocType[];
@@ -20,7 +24,14 @@ export function projectAnnotationLaneUnits(input: {
       ? [...input.units]
       : (() => {
           const matched = input.units.filter((unit) => unit.mediaId === input.mediaId);
-          return matched.length > 0 ? matched : [...input.units];
+          if (matched.length > 0) return matched;
+          const belongsToAnotherFile = input.units.some(
+            (unit) =>
+              typeof unit.mediaId === 'string' &&
+              unit.mediaId.length > 0 &&
+              unit.mediaId !== input.mediaId,
+          );
+          return belongsToAnotherFile ? [] : [...input.units];
         })();
   const transcriptionLayers = input.layers.filter((layer) => layer.layerType === 'transcription');
   const lane = transcriptionLayers[0];

@@ -81,6 +81,9 @@ export interface WaveformInteractionHandlerRefs {
   handleWaveformRegionContextMenuRef: MutableRefObject<
     ((regionId: string, x: number, y: number) => void) | undefined
   >;
+  handleWaveformEmptyContextMenuRef: MutableRefObject<
+    ((time: number, x: number, y: number) => void) | undefined
+  >;
   handleWaveformRegionUpdateRef: MutableRefObject<
     ((regionId: string, start: number, end: number) => void) | undefined
   >;

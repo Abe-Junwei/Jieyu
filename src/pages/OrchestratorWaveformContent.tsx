@@ -11,7 +11,12 @@ import '../styles/pages/transcription-waveform.css';
  * Extracted from TranscriptionPage.Orchestrator.tsx.
  */
 
-import React, { useEffect, type MutableRefObject, type RefObject } from 'react';
+import React, {
+  useEffect,
+  useSyncExternalStore,
+  type MutableRefObject,
+  type RefObject,
+} from 'react';
 import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { NotePopoverState } from '~/hooks/notes/useNoteHandlers';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
@@ -33,6 +38,11 @@ import type { AcousticStripContract } from '../hooks/transcription/timelineViewp
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { formatTime } from '../utils/transcriptionFormatters';
+import {
+  getWaveformDecodeBlock,
+  requestWaveformDecodeRetry,
+  subscribeWaveformDecodeGuard,
+} from '../utils/waveformDecodeGuard';
 import { mapAcousticToTimelineChrome } from '../utils/mapAcousticToTimelineChrome';
 import { docSecToContentLeftPx } from '../utils/viewportFrameToScreenRange';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
@@ -633,30 +643,10 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                 aria-hidden
               />
               <div className="wave-empty transcription-wave-empty-centered">
-                {!selectedMediaUrl ? (
-                  <button
-                    className="transcription-import-media-btn"
-                    onClick={() => mediaFileInputRef.current?.click()}
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    {t(locale, 'transcription.wave.emptyImportMedia')}
-                  </button>
-                ) : (
-                  t(locale, 'transcription.wave.emptyNoMedia')
-                )}
+                <WaveformEmptyState
+                  locale={locale}
+                  onImport={() => mediaFileInputRef.current?.click()}
+                />
               </div>
             </>
           )}
@@ -666,3 +656,51 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     </>
   );
 });
+
+function WaveformEmptyState({ locale, onImport }: { locale: Locale; onImport: () => void }) {
+  const block = useSyncExternalStore(
+    subscribeWaveformDecodeGuard,
+    getWaveformDecodeBlock,
+    getWaveformDecodeBlock,
+  );
+  if (block) {
+    return (
+      <div className="transcription-wave-decode-skipped">
+        <p>
+          {t(
+            locale,
+            block.reason === 'crashed'
+              ? 'transcription.wave.decodeSkippedCrashed'
+              : 'transcription.wave.decodeSkippedTooLong',
+          )}
+        </p>
+        <button
+          type="button"
+          className="transcription-import-media-btn"
+          onClick={() => requestWaveformDecodeRetry(block.mediaId)}
+        >
+          {t(locale, 'transcription.wave.decodeRetry')}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button className="transcription-import-media-btn" onClick={onImport}>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+      {t(locale, 'transcription.wave.emptyImportMedia')}
+    </button>
+  );
+}

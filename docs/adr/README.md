@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: active
 owner: repo
-last_reviewed: 2026-09-28
+last_reviewed: 2026-09-30
 source_of_truth: decision-index
 ---
 
@@ -62,6 +62,8 @@ source_of_truth: decision-index
 - [0040-eaf-ph-phonetic-transcription.md](./0040-eaf-ph-phonetic-transcription.md)（DoReCo `ph` 是语音转写层，写入已有的附加转写层，不计丢失）
 - [0041-eaf-nt-note-fn-translation.md](./0041-eaf-nt-note-fn-translation.md)（DoReCo `nt` 写入句子备注，`fn` 与 `ft` 同为翻译且不合并）
 - [0042-eaf-unnamed-date-tier.md](./0042-eaf-unnamed-date-tier.md)（层名对不上时，闭集日期记入丢失，不进翻译行，也不当转写）
+- [0043-speaker-roster-on-project-text.md](./0043-speaker-roster-on-project-text.md)（说话人名单写在项目上；档案行的归属见 ADR-0044）
+- [0044-project-owned-catalogs.md](./0044-project-owned-catalogs.md)（词条、说话人、正字法、语言记录等按 `textId` 分开，跨项目不共用）
 
 ## 建议格式
 

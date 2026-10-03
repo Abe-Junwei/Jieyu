@@ -267,6 +267,12 @@ function acceptFlexElement(element: string): boolean {
   return element.length > 0 && !element.includes('_') && !element.includes('@');
 }
 
+export function readFlexTierName(
+  tierId: string,
+): { element: string; itemType: string; lang?: string } | undefined {
+  return parseFlexTierName(tierId);
+}
+
 function parseFlexTierName(tierId: string): FlexTierName | undefined {
   const underscore = tierId.indexOf('_');
   const bodies = underscore > 0 ? [tierId.slice(underscore + 1), tierId] : [tierId];
@@ -292,16 +298,15 @@ function parseFlexTierName(tierId: string): FlexTierName | undefined {
   return undefined;
 }
 
-/** LANG_REF, else the language slot in a FLEx tier name, else DEFAULT_LOCALE. */
+/** LANG_REF, else the language slot in a FLEx tier name. DEFAULT_LOCALE is not a language. */
 export function flexTierLocale(
   tierId: string,
   langRef: string | undefined,
-  defaultLocale: string | undefined,
+  _defaultLocale?: string | undefined,
 ): string | undefined {
   if (filled(langRef)) return langRef;
   const named = parseFlexTierName(tierId)?.lang;
   if (filled(named)) return named;
-  if (filled(defaultLocale)) return defaultLocale;
   return undefined;
 }
 
@@ -326,7 +331,7 @@ export function tokenizeEafLabel(value: string): string[] {
     .filter((token) => token.length > 0);
 }
 
-/** `ph` / `ph@NHK` is a phonetic transcription tier, not a gloss or a loss. */
+/** `ph` / `ph@NHK` is a phone tier. Import drops it instead of making another transcription layer. */
 export function isPhoneticTranscriptionTier(tierId: string): boolean {
   return tokenizeEafLabel(tierId).includes(PHONETIC_TOKEN);
 }
@@ -336,7 +341,7 @@ export function isUtteranceNoteTier(tierId: string): boolean {
   return tokenizeEafLabel(tierId).includes(UTTERANCE_NOTE_TOKEN);
 }
 
-function isNotePlaceholder(text: string): boolean {
+export function isEafPlaceholderText(text: string): boolean {
   const value = text.trim();
   if (value.length === 0) return true;
   if (/^<\s*p\s*:\s*>$/i.test(value)) return true;
@@ -352,7 +357,7 @@ export function utteranceNoteRows(annotations: readonly EafPickAnnotation[]): Ar
   category: 'comment';
 }> {
   return annotations
-    .filter((row) => !isNotePlaceholder(row.text))
+    .filter((row) => !isEafPlaceholderText(row.text))
     .map((row) => ({
       startTime: row.startTime,
       endTime: row.endTime,
@@ -606,21 +611,23 @@ export function unitsFromPickedAnnotations(
   participant?: string,
 ): { units: EafPickedUnit[]; childAnnotationIdByParentId: Map<string, string> } {
   const childAnnotationIdByParentId = new Map<string, string>();
-  const units = annotations.map((annotation) => {
+  const units: EafPickedUnit[] = [];
+  for (const annotation of annotations) {
+    if (isEafPlaceholderText(annotation.text)) continue;
     const parent =
       parentAnnotations.length > 0 ? enclosingParent(annotation, parentAnnotations) : undefined;
     const parentId = parent?.annotationId;
     if (filled(parentId) && filled(annotation.annotationId)) {
       childAnnotationIdByParentId.set(parentId, annotation.annotationId);
     }
-    return {
+    units.push({
       startTime: parent?.startTime ?? annotation.startTime,
       endTime: parent?.endTime ?? annotation.endTime,
       transcription: annotation.text,
       ...(filled(participant) ? { speakerId: participant } : {}),
       ...(filled(annotation.annotationId) ? { annotationId: annotation.annotationId } : {}),
-    };
-  });
+    });
+  }
   return { units, childAnnotationIdByParentId };
 }
 
@@ -737,6 +744,7 @@ export function absorbEafFlexTier(input: {
   }
   if (input.disposition === 'phrase-note') {
     for (const row of nonempty) {
+      if (isEafPlaceholderText(row.text)) continue;
       input.notes.push({
         startTime: row.startTime,
         endTime: row.endTime,
@@ -847,7 +855,7 @@ export function publishFilledTier<T extends { text: string }>(
   tierId: string,
   annotations: readonly T[],
 ): void {
-  const filledRows = annotations.filter((row) => row.text.trim().length > 0);
+  const filledRows = annotations.filter((row) => !isEafPlaceholderText(row.text));
   if (filledRows.length === 0) return;
   target.set(tierId, [...filledRows]);
 }
@@ -878,7 +886,7 @@ export function isEafDateText(value: string): boolean {
 
 /** At least four fifths of the non-placeholder cells are dates. */
 export function isEafDateTier(texts: readonly string[]): boolean {
-  const considered = texts.map((text) => text.trim()).filter((text) => !isNotePlaceholder(text));
+  const considered = texts.map((text) => text.trim()).filter((text) => !isEafPlaceholderText(text));
   if (considered.length === 0) return false;
   const hits = considered.filter(isEafDateText).length;
   return hits * 5 >= considered.length * 4;

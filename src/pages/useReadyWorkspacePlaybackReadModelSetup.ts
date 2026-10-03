@@ -138,6 +138,7 @@ export function useReadyWorkspacePlaybackReadModelSetup(
     handleWaveformRegionDoubleClick: timelineSyncController.handleWaveformRegionDoubleClick,
     handleWaveformRegionCreate: timelineSyncController.handleWaveformRegionCreate,
     handleWaveformRegionContextMenu: timelineSyncController.handleWaveformRegionContextMenu,
+    handleWaveformEmptyContextMenu: timelineSyncController.handleWaveformEmptyContextMenu,
     handleWaveformRegionUpdate: timelineSyncController.handleWaveformRegionUpdate,
     handleWaveformRegionUpdateEnd: timelineSyncController.handleWaveformRegionUpdateEnd,
     handleWaveformTimeUpdate: timelineSyncController.handleWaveformTimeUpdate,

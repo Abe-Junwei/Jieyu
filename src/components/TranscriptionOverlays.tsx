@@ -20,6 +20,7 @@ import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { NotePopover } from './NotePopover';
+import { UnitRecordFields } from './transcription/UnitRecordFields';
 import { buildTranscriptionUnitContextMenuItems } from './transcription/buildTranscriptionUnitContextMenuItems';
 import { buildUttOpsToolbarMenuItems } from './transcription/buildUttOpsToolbarContextMenuItems';
 import {
@@ -59,6 +60,10 @@ export interface TranscriptionOverlaysProps {
     layerId: string,
   ) => void;
   getCurrentTime: () => number;
+  onWaveformEmptyPlay?: (time: number) => void;
+  onWaveformEmptyZoomIn?: () => void;
+  onWaveformEmptyZoomOut?: () => void;
+  onWaveformEmptyClearSelection?: () => void;
   onOpenNoteFromMenu: (
     x: number,
     y: number,
@@ -165,11 +170,16 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     resolveSkipProcessingState,
     onOpenSpeakerManagementPanelFromMenu = () => {},
     displayStyleControl,
+    onWaveformEmptyPlay,
+    onWaveformEmptyZoomIn,
+    onWaveformEmptyZoomOut,
+    onWaveformEmptyClearSelection,
   } = props;
 
   const allTextLayers = [...transcriptionLayers, ...translationLayers];
   const defaultPreviewLayer =
     transcriptionLayers.find((layer) => layer.isDefault) ?? transcriptionLayers[0];
+  const recordUnit = notePopover ? units.find((unit) => unit.id === notePopover.uttId) : undefined;
 
   const buildNotePopoverTargetLabel = (): ReactNode => {
     if (!notePopover) return messages.segment;
@@ -250,6 +260,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             ...(onToggleSkipProcessingFromMenu ? { onToggleSkipProcessingFromMenu } : {}),
             ...(resolveSkipProcessingState ? { resolveSkipProcessingState } : {}),
             ...(displayStyleControl ? { displayStyleControl } : {}),
+            ...(onWaveformEmptyPlay ? { onWaveformEmptyPlay } : {}),
+            ...(onWaveformEmptyZoomIn ? { onWaveformEmptyZoomIn } : {}),
+            ...(onWaveformEmptyZoomOut ? { onWaveformEmptyZoomOut } : {}),
+            ...(onWaveformEmptyClearSelection ? { onWaveformEmptyClearSelection } : {}),
             onFindSimilarUnitsFromMenu: (unitId) => {
               const unit = units.find((row) => row.id === unitId);
               void navigate(
@@ -308,6 +322,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           onAdd={addNote}
           onUpdate={updateNote}
           onDelete={deleteNote}
+          {...(recordUnit ? { record: <UnitRecordFields unit={recordUnit} /> } : {})}
         />
       )}
     </>

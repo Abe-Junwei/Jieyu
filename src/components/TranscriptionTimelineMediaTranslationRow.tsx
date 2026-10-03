@@ -12,6 +12,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { t, useLocale } from '../i18n';
+import { useTextFlowFrame } from './transcription/textFlowLayoutContext';
 import { useMediaTranslationLaneRowDraftAutosave } from '../hooks/transcription/useTimelineLaneTextDraftAutosave';
 import { createLogger } from '../observability/logger';
 
@@ -98,6 +99,7 @@ export function TranscriptionTimelineMediaTranslationRow({
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranslationRowProps) {
   const locale = useLocale();
+  const textFlow = useTextFlowFrame(layer.id, item.id);
   const [saveStatus, setSaveStatus] = useState<'dirty' | 'saving' | 'error' | undefined>(undefined);
   const latestDraftRef = useRef(draft);
   const rowCellKey = `media-tr-${layer.id}-${item.id}`;
@@ -223,12 +225,14 @@ export function TranscriptionTimelineMediaTranslationRow({
     >
       {isAudioOnlyLayer && audioControls
         ? renderAnnotationItem(item, layerForDisplay, '', {
+            ...(textFlow.active ? { frame: textFlow.frame ?? null } : {}),
             showSpeaker: false,
             content: <div className="timeline-translation-audio-card">{audioControls}</div>,
             onChange: () => undefined,
             onBlur: () => undefined,
           })
         : renderAnnotationItem(item, layerForDisplay, draft, {
+            ...(textFlow.active ? { frame: textFlow.frame ?? null } : {}),
             showSpeaker: false,
             placeholder: usesOwnSegments
               ? t(locale, 'transcription.timeline.placeholder.segment')

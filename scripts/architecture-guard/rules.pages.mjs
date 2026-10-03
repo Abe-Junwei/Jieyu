@@ -5,6 +5,13 @@ import { pageControllerRule } from './rule-builders.mjs';
  * Extracted from `architecture-guard.config.mjs` (Phase 0.4).
  */
 export const architectureGuardPageWorkspaceRules = [
+  {
+    file: 'src/pages/AnnotationWorkspace.tsx',
+    maxLines: 500,
+    forbiddenRegexes: [
+      /import[\s\S]*?from ['"]\.\/annotation\/(?:writeAnnotationFormsToSurface|acceptAnnotationGlossSuggestion|saveAnnotationTokenLanguage|saveAnnotationOccurrenceCitation)['"]/,
+    ],
+  },
   // ── Orchestrator: 轻量壳，仅装载数据并渲染 ReadyWorkspace | Lightweight shell ──
   {
     file: 'src/pages/TranscriptionPage.Orchestrator.tsx',

@@ -6,6 +6,7 @@
  */
 
 import type { StructuralRuleProfile } from '../annotation/structuralRuleProfile';
+import type { ProjectTextMetadata } from '../types/projectTextMetadata';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import type { DmlexEntry, DmlexLexicographicResource, JieyuLexemeExtras } from './dmlexTypes';
 
@@ -75,7 +76,8 @@ export interface ProvenanceEnvelope {
 export interface TextDocType {
   id: string;
   title: MultiLangString;
-  metadata?: Record<string, unknown>;
+  /** Project settings. Known keys: `ProjectTextMetadata`. */
+  metadata?: ProjectTextMetadata;
   languageCode?: string;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
@@ -144,6 +146,8 @@ export interface UnitTokenDocType {
   gloss?: MultiLangString;
   pos?: string;
   lexemeId?: string;
+  /** Object language of this token when it differs from the transcription layer. */
+  languageId?: string;
   tokenIndex: number;
   provenance?: ProvenanceEnvelope;
   createdAt: string;
@@ -161,6 +165,8 @@ export interface UnitMorphemeDocType {
   gloss?: MultiLangString;
   pos?: string;
   lexemeId?: string;
+  /** Character spans of this morpheme inside its token. Offsets are into the token form. */
+  surfaceParts?: Array<{ startOffset: number; endOffset: number }>;
   morphemeIndex: number;
   provenance?: ProvenanceEnvelope;
   createdAt: string;
@@ -185,6 +191,8 @@ export interface LexemeEntryDoc {
   provenance?: ProvenanceEnvelope;
   usageCount?: number;
   accessRights?: 'open' | 'restricted' | 'confidential';
+  /** Owning project. The same headword in another project is a different row. */
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -197,6 +205,7 @@ export interface LexemeResourceDoc {
   id: string;
   kind: 'resource';
   resource: DmlexLexicographicResource;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -464,6 +473,7 @@ export interface LanguageDocType {
   visibility?: LanguageCatalogVisibility;
   notes?: MultiLangString;
   customFields?: Record<string, string | number | boolean | string[]>;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -485,6 +495,7 @@ export interface CustomFieldDefinitionDocType {
   maxValue?: number;
   pattern?: string;
   sortOrder: number;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -498,6 +509,7 @@ export interface LanguageDisplayNameDocType {
   isPreferred?: boolean;
   sourceType: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -511,6 +523,7 @@ export interface LanguageAliasDocType {
   aliasType: LanguageAliasType;
   sourceType: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -549,6 +562,8 @@ export interface SpeakerDocType {
   accessRights?: 'open' | 'restricted' | 'confidential';
   address?: string;
   notes?: MultiLangString;
+  /** Owning project. Another project with the same name has its own row. */
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -622,6 +637,7 @@ export interface OrthographyDocType {
   /** Transliteration / conversion rule definitions (F30 预留) */
   conversionRules?: Record<string, unknown>;
   notes?: MultiLangString;
+  textId?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -647,6 +663,7 @@ export interface OrthographyBridgeDocType {
   isReversible?: boolean;
   status?: 'draft' | 'active' | 'deprecated';
   notes?: MultiLangString;
+  textId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -691,6 +708,7 @@ export interface GrammarDocDocType {
   updatedAt: string;
 }
 
+/** Global catalog row. A project's gloss abbreviations live on `texts.metadata.annotationAbbreviations`. */
 export interface AbbreviationDocType {
   id: string;
   abbreviation: string;
@@ -849,6 +867,10 @@ export interface LayerUnitDocType {
   endAnchorId?: string | undefined;
   orderKey?: string | undefined;
   speakerId?: string | undefined;
+  addressee?: string | undefined;
+  ungrammatical?: boolean | undefined;
+  actualForm?: string | undefined;
+  targetForm?: string | undefined;
   /** 句段级自我确信度（仅 unit 单元使用）| Unit-level self-certainty (unit units only) */
   selfCertainty?: UnitSelfCertainty | undefined;
   status?: LayerUnitStatus | undefined;
@@ -868,6 +890,12 @@ export interface LayerUnitDocType {
   aiMode?: 'AUTO' | 'SUGGEST' | undefined;
   words?: UnitWord[] | undefined;
   accessRights?: 'open' | 'restricted' | 'confidential' | undefined;
+
+  /**
+   * Accepted utterance analysis graph for this unit.
+   * Pending retokenize candidates stay on `unit_relations.analysisGraphCandidate`.
+   */
+  analysisGraph?: import('../annotation/analysisGraph').AnnotationAnalysisGraphFixture | undefined;
 
   /** 迁移兼容字段（读模型）| Migration compatibility fields (read model) */
   unitId?: string | undefined;

@@ -11,6 +11,7 @@ vi.mock('../../services/LinguisticService', () => ({
   LinguisticService: {
     speakers: {
       list: vi.fn(async () => []),
+      listForProject: vi.fn(async () => []),
       create: vi.fn(),
       rename: vi.fn(),
       merge: vi.fn(),
@@ -25,9 +26,14 @@ vi.mock('../../services/LinguisticService', () => ({
 }));
 
 import { LinguisticService } from '../../services/LinguisticService';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 
 afterEach(() => {
   vi.clearAllMocks();
+  clearActiveProjectTextId();
 });
 
 function makeUnit(overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
@@ -443,7 +449,8 @@ describe('useSpeakerActions dialog flows', () => {
   it('cleans unused speaker entities from local state', async () => {
     const setSaveState = vi.fn();
     const pushUndo = vi.fn();
-    vi.mocked(LinguisticService.speakers.list).mockResolvedValueOnce([
+    publishActiveProjectTextId('text-1');
+    vi.mocked(LinguisticService.speakers.listForProject).mockResolvedValueOnce([
       makeSpeaker({ id: 'speaker-1', name: 'Orphan' }),
       makeSpeaker({ id: 'speaker-2', name: 'Used' }),
     ]);

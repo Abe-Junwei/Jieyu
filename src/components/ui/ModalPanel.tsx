@@ -110,6 +110,7 @@ export function ModalPanel({
       onClick={onClose}
       aria-label={closeLabel}
       title={closeLabel}
+      data-dialog-close="true"
       {...(closeDisabled !== undefined && { disabled: closeDisabled })}
     >
       <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />

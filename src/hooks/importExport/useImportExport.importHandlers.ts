@@ -8,6 +8,8 @@ import type {
 import type { SaveState } from '../useTranscriptionData';
 import { dexieStoresForAnnotationImportRw, getDb, isLexemeEntry, withTransaction } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { rememberImportedSourceFile } from '../../services/projectFileOps';
+import { sourceFormatFromName } from '../../utils/projectSourceFiles';
 import { validateLayerTierConsistency } from '../../services/TierBridgeService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import {
@@ -34,6 +36,7 @@ import {
 import { ImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
 import { resolvePostImportLogicalExpandTargetSec } from '../../utils/timelineImportPostApply';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
+import { deleteResidualLayerUnitGraphByTextId } from '../../services/LayerSegmentGraphService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { loadOrthographyRuntime } from '../../utils/loadOrthographyRuntime';
 import { normalizeUserNoteDocForStorage } from '../../utils/camDataUtils';
@@ -58,7 +61,7 @@ import {
   layerDocPatchWithTreeParent,
 } from './useImportExport.layerTreeParentField';
 import {
-  findMediaIdByFilename,
+  resolveEafImportMediaId,
   findReimportUnitId,
   matchLayerByEafTier,
   matchUnitByAnnotationRef,
@@ -248,16 +251,29 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         return;
       }
       const importTextId = textId;
-      let mediaId =
-        segmentScopeMediaId?.trim() || activeTimelineMediaItem?.id || selectedUnitMedia?.id;
+      const openMediaId =
+        segmentScopeMediaId?.trim() || activeTimelineMediaItem?.id || selectedUnitMedia?.id || '';
 
       const db = await getDb();
+      const projectMediaRows = await db.dexie.media_items
+        .where('textId')
+        .equals(importTextId)
+        .toArray();
+      const eafMedia = eafResult
+        ? resolveEafImportMediaId({
+            ...(openMediaId.length > 0 ? { currentMediaId: openMediaId } : {}),
+            ...(eafResult.mediaFilename ? { eafFilename: eafResult.mediaFilename } : {}),
+            mediaItems: projectMediaRows,
+          })
+        : { ...(openMediaId.length > 0 ? { mediaId: openMediaId } : {}) };
+      let mediaId = eafMedia.mediaId;
+      let missingMediaFilename = eafMedia.missingMediaFilename;
       const now = new Date().toISOString();
       const currentText = await db.dexie.texts.get(importTextId);
       let establishedDocumentSpanSec = 0;
       let establishedAcousticSec = 0;
       if (currentText) {
-        const mediaRows = await db.dexie.media_items.where('textId').equals(importTextId).toArray();
+        const mediaRows = projectMediaRows;
         const mediaIds = mediaRows.map((row) => row.id);
         const unitsOnText =
           mediaIds.length > 0 ? await LayerSegmentQueryService.listUnitsByMediaIds(mediaIds) : [];
@@ -284,17 +300,20 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         throw new ImportMismatchRequiresAckError(file.name, mismatchNotices);
       }
 
-      let missingMediaFilename: string | undefined;
-      if (
-        !mediaId &&
-        eafResult &&
-        eafResult.mediaFilename &&
-        eafResult.mediaFilename !== 'unknown.wav'
-      ) {
-        const mediaRows = await db.dexie.media_items.where('textId').equals(importTextId).toArray();
-        const matchedMediaId = findMediaIdByFilename(mediaRows, eafResult.mediaFilename);
-        if (matchedMediaId) mediaId = matchedMediaId;
-        else missingMediaFilename = eafResult.mediaFilename;
+      const existingUnitCount = await withTransaction(
+        db,
+        'r',
+        [db.dexie.layer_units],
+        async () => db.dexie.layer_units.where('textId').equals(importTextId).count(),
+        { label: 'annotationImport.existingUnitCount' },
+      );
+      if (existingUnitCount > 0) {
+        // 只清 unit 图防止时间轴重复；既有层定义必须保留——导入按名称/语言复用或
+        // 新增层，而不是把用户已有的转写/翻译层连同配置一起删掉（993af34f 回归）。
+        // Clear only the unit graph to avoid duplicate timelines; keep existing
+        // layer definitions so import reuses or appends layers instead of wiping
+        // the user's transcription/translation layers (regression from 993af34f).
+        await deleteResidualLayerUnitGraphByTextId(db, importTextId);
       }
 
       const layersAfterImport: LayerDocType[] = [...layers];
@@ -516,6 +535,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         });
       const { speakerIdMap, resolveOrCreateSpeaker } = await createImportSpeakerResolver({
         normalizeSpeakerLookupKey,
+        textId: importTextId,
       });
 
       type PendingImportSpeaker = {
@@ -593,7 +613,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       const tierNameToLayerId = new Map<string, string>();
 
       if (parsedUnits.some((u) => u.transcription.trim())) {
-        const existingTrc = layers.filter((l) => l.layerType === 'transcription');
+        const existingTrc = layersAfterImport.filter((l) => l.layerType === 'transcription');
         {
           const dedupCandidates = new Set<string>();
           if (importedTrcName) {
@@ -1114,7 +1134,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             now,
             textId,
             ...(mediaId ? { mediaId } : {}),
-            layers,
+            layers: layersAfterImport,
             additionalTiers,
             insertedUnits,
             importedTierMetadata,
@@ -1288,6 +1308,15 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           });
         }
       }
+      await rememberImportedSourceFile({
+        textId: importTextId,
+        name: file.name,
+        format: sourceFormatFromName(file.name),
+        ...(mediaId && mediaId.trim().length > 0 ? { mediaId } : {}),
+        ...(eafResult?.mediaFilename && eafResult.mediaFilename !== 'unknown.wav'
+          ? { linkedMediaFilename: eafResult.mediaFilename }
+          : {}),
+      });
       await loadSnapshot();
       const hostRecoveryWarningCount = eafResult
         ? [...eafResult.tierConstraints.values()].filter(

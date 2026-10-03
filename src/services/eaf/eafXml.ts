@@ -103,11 +103,9 @@ export function mediaFilenameFromDescriptor(el: Element): string {
 
 /**
  * ELAN 3 tiers point at `<LANGUAGE LANG_ID>` via `LANG_REF`.
- * Older files only set `DEFAULT_LOCALE`. Font `<PROPERTY>` rows are not languages.
+ * `DEFAULT_LOCALE` is the editor locale, not the tier language.
  */
 export function readEafTierLanguageId(tier: Element): string | undefined {
   const langRef = tier.getAttribute('LANG_REF')?.trim() ?? '';
-  if (langRef.length > 0) return langRef;
-  const locale = tier.getAttribute('DEFAULT_LOCALE')?.trim() ?? '';
-  return locale.length > 0 ? locale : undefined;
+  return langRef.length > 0 ? langRef : undefined;
 }

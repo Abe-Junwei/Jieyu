@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinguisticService } from '../../services/LinguisticService';
+import {
+  publishActiveProjectTextId,
+  readTranscriptionWorkspaceReturnHint,
+} from '../../utils/transcriptionUrlDeepLink';
 import type { TextDocType, LayerUnitDocType } from '../../db';
 
 type DialogUnit = Pick<LayerUnitDocType, 'textId'>;
@@ -128,7 +132,10 @@ export function useDialogs(units: DialogUnit[]) {
   const [showAudioImport, setShowAudioImport] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showUndoHistory, setShowUndoHistory] = useState(false);
-  const [activeTextId, setActiveTextId] = useState<string | null>(null);
+  const [activeTextId, setActiveTextId] = useState<string | null>(() => {
+    const hinted = readTranscriptionWorkspaceReturnHint()?.textId ?? '';
+    return hinted.length > 0 ? hinted : null;
+  });
   const [activeTextPrimaryLanguageId, setActiveTextPrimaryLanguageId] = useState<string | null>(
     null,
   );
@@ -143,8 +150,17 @@ export function useDialogs(units: DialogUnit[]) {
   );
   const firstUnitTextId = units[0]?.textId;
 
+  useEffect(() => {
+    if (activeTextId) publishActiveProjectTextId(activeTextId);
+  }, [activeTextId]);
+
   const getActiveTextId = useCallback(async (): Promise<string | null> => {
     if (activeTextId) return activeTextId;
+    const hinted = readTranscriptionWorkspaceReturnHint()?.textId ?? '';
+    if (hinted.length > 0) {
+      setActiveTextId(hinted);
+      return hinted;
+    }
     const texts = await LinguisticService.timeline.listTexts();
     const first = texts[0];
     if (first) {

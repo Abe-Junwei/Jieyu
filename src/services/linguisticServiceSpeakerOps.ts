@@ -10,6 +10,8 @@ import {
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
+import { attachSpeakerToProject, detachSpeakerFromProjects } from './speakerProjectMembership';
+import { claimUnscopedCatalog } from './projectCatalogScope';
 
 export async function getSpeakers(): Promise<SpeakerDocType[]> {
   const db = await getDb();
@@ -21,6 +23,14 @@ export async function getSpeakers(): Promise<SpeakerDocType[]> {
       if (byName !== 0) return byName;
       return a.id.localeCompare(b.id, 'en');
     });
+}
+
+export async function listSpeakersForProject(textId: string): Promise<SpeakerDocType[]> {
+  const id = textId.trim();
+  const speakers = await getSpeakers();
+  if (!id) return speakers;
+  await claimUnscopedCatalog(id);
+  return (await getSpeakers()).filter((speaker) => speaker.textId === id);
 }
 
 export async function getSpeakerReferenceStats(options?: {
@@ -89,6 +99,7 @@ export async function getSpeakerReferenceStats(options?: {
 
 export async function createSpeaker(input: {
   name: string;
+  textId?: string;
   pseudonym?: string;
   role?: SpeakerDocType['role'];
   dialect?: string;
@@ -101,11 +112,17 @@ export async function createSpeaker(input: {
   if (!name) throw new Error('\u8bf4\u8bdd\u4eba\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a');
 
   const normalizedName = name.toLocaleLowerCase('zh-Hans-CN');
+  const projectTextId = input.textId?.trim() ?? '';
   const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
   const duplicate = existingSpeakers.find(
-    (speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
+    (speaker) =>
+      speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName &&
+      (speaker.textId ?? '') === projectTextId,
   );
-  if (duplicate) throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
+  if (duplicate) {
+    if (projectTextId.length > 0) return duplicate;
+    throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
+  }
 
   const now = new Date().toISOString();
   const dialect = input.dialect?.trim();
@@ -124,11 +141,15 @@ export async function createSpeaker(input: {
     ...(accent ? { accent } : {}),
     ...(languageIds && languageIds.length > 0 ? { languageIds } : {}),
     ...(notes ? { notes } : {}),
+    ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
     createdAt: now,
     updatedAt: now,
   };
 
   await db.collections.speakers.insert(speaker);
+  if (projectTextId.length > 0) {
+    await attachSpeakerToProject(speaker.id, projectTextId);
+  }
   return speaker;
 }
 
@@ -258,6 +279,13 @@ export async function mergeSpeakers(
   }
 
   await db.collections.speakers.remove(sourceId);
+  await detachSpeakerFromProjects(sourceId);
+  const projectIds = [
+    ...new Set(unitRows.map((row) => row.textId.trim()).filter((textId) => textId.length > 0)),
+  ];
+  for (const textId of projectIds) {
+    await attachSpeakerToProject(target.id, textId);
+  }
   return unitRows.length + segments.length;
 }
 
@@ -356,6 +384,7 @@ export async function deleteSpeaker(
     'linguisticServiceSpeakerOps.deleteSpeaker',
   );
   await db.collections.speakers.remove(id);
+  await detachSpeakerFromProjects(id);
   return affectedCount;
 }
 
@@ -401,6 +430,14 @@ export async function assignSpeakerToUnits(
   });
 
   await bulkUpsertUnitLayerUnits(db, updates);
+  if (speaker) {
+    const projectIds = [
+      ...new Set(updates.map((row) => row.textId.trim()).filter((textId) => textId.length > 0)),
+    ];
+    for (const textId of projectIds) {
+      await attachSpeakerToProject(speaker.id, textId);
+    }
+  }
   scheduleSegmentMetaSyncForUnitIds(
     updates.map((row) => row.id),
     'linguisticServiceSpeakerOps.renameSpeaker',

@@ -5,7 +5,12 @@ import {
   computeTranslationProgressRate,
   pickTextTitle,
 } from './homeTranscriptionRecordProgress';
-import type { MediaItemDocType, SegmentMetaDocType, TextDocType, TranslationStatusSnapshotDocType } from '../db/types';
+import type {
+  MediaItemDocType,
+  SegmentMetaDocType,
+  TextDocType,
+  TranslationStatusSnapshotDocType,
+} from '../db/types';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
 
 describe('computeTranslationProgressRate', () => {
@@ -54,6 +59,10 @@ describe('aggregateProjectProgressRates', () => {
         annotationRate: null,
         transcriptionUnitCount: 3,
         translationRowCount: 0,
+        sentenceCount: 3,
+        transcribedCount: 0,
+        translatedCount: 0,
+        annotatedCount: 0,
       },
       {
         kind: 'transcription_record',
@@ -64,6 +73,10 @@ describe('aggregateProjectProgressRates', () => {
         annotationRate: null,
         transcriptionUnitCount: 1,
         translationRowCount: 0,
+        sentenceCount: 1,
+        transcribedCount: 1,
+        translatedCount: 0,
+        annotatedCount: 0,
       },
     ]);
     expect(agg.transcription).toBeCloseTo(0.25);
@@ -98,7 +111,9 @@ describe('home page media filter (align with project hub)', () => {
         details: {},
       },
     ] as MediaItemDocType[];
-    const filtered = rows.filter((m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m));
+    const filtered = rows.filter(
+      (m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m),
+    );
     expect(filtered.map((m) => m.id)).toEqual(['acoustic']);
   });
 });

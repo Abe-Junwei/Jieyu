@@ -171,6 +171,7 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   collaborationCloudPanelProps?: ReadyWorkspaceSidePaneSidebarProps['collaborationCloudPanelProps'];
   getUnitTextForLayer?: ReadyWorkspaceSidePaneSidebarProps['getUnitTextForLayer'];
   onSelectTimelineUnit: ReadyWorkspaceSidePaneSidebarProps['onSelectTimelineUnit'];
+  onSegmentContextMenu?: ReadyWorkspaceSidePaneSidebarProps['onSegmentContextMenu'];
   onReorderLayers: ReadyWorkspaceSidePaneSidebarProps['onReorderLayers'];
   locale: Locale;
   verticalViewActive: boolean;
@@ -244,6 +245,9 @@ export function buildReadyWorkspaceSidePaneProps(
         ? { getUnitTextForLayer: input.getUnitTextForLayer }
         : {}),
       onSelectTimelineUnit: input.onSelectTimelineUnit,
+      ...(input.onSegmentContextMenu !== undefined
+        ? { onSegmentContextMenu: input.onSegmentContextMenu }
+        : {}),
       onReorderLayers: input.onReorderLayers,
       workspaceTimelineLayout: {
         locale: input.locale,

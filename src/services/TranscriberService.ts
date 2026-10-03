@@ -39,6 +39,7 @@ import {
   stripPlainTextBidiIsolation,
   wrapPlainTextWithBidiIsolation,
 } from '../utils/bidiPlainText';
+import { normalizeImportedLanguageTag } from '../utils/eafTierLanguage';
 
 type TimelineInteropMetadata = Pick<
   OrthographyInteropMetadata,
@@ -283,10 +284,11 @@ export function importFromTrs(xmlString: string): TrsImportResult {
     const dialect = el.getAttribute('dialect')?.trim() || undefined;
     const accent = el.getAttribute('accent')?.trim() || undefined;
     const scope = el.getAttribute('scope')?.trim() || undefined;
+    const lang = normalizeImportedLanguageTag(el.getAttribute('xml:lang') ?? undefined);
     speakers.push({
       id,
       name: name ?? id,
-      ...(el.getAttribute('xml:lang') != null && { lang: el.getAttribute('xml:lang')! }),
+      ...(lang ? { lang } : {}),
       ...(check ? { check } : {}),
       ...(dialect ? { dialect } : {}),
       ...(accent ? { accent } : {}),

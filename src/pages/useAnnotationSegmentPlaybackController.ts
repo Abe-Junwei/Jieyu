@@ -18,6 +18,14 @@ export type AnnotationPlaybackController = {
   onPlayToggle: (unitId: string, rows: readonly AnnotationIgtRow[]) => Promise<void>;
 };
 
+function isPlaybackAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: unknown }).name === 'AbortError'
+  );
+}
+
 export function useAnnotationSegmentPlaybackController(
   textId: string,
 ): AnnotationPlaybackController {
@@ -25,6 +33,7 @@ export function useAnnotationSegmentPlaybackController(
   const objectUrlRef = useRef<string | null>(null);
   const loadedKeyRef = useRef('');
   const rangeEndRef = useRef<number | null>(null);
+  const playToggleSeqRef = useRef(0);
   const [playingUnitId, setPlayingUnitId] = useState<string | null>(null);
   const [lastOutcome, setLastOutcome] = useState<AnnotationPlaybackOutcome | 'idle'>('idle');
 
@@ -46,6 +55,7 @@ export function useAnnotationSegmentPlaybackController(
       setPlayingUnitId(null);
     });
     return () => {
+      playToggleSeqRef.current += 1;
       audio.pause();
       audio.removeEventListener('timeupdate', onTimeUpdate);
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -81,6 +91,7 @@ export function useAnnotationSegmentPlaybackController(
 
   const onPlayToggle = useCallback(
     async (unitId: string, rows: readonly AnnotationIgtRow[]) => {
+      const seq = ++playToggleSeqRef.current;
       const row = rows.find((item) => item.id === unitId);
       const range = row ? resolveAnnotationPlaybackRange(row) : null;
       const audio = audioRef.current;
@@ -89,15 +100,26 @@ export function useAnnotationSegmentPlaybackController(
         return;
       }
       const ready = await ensureSource(range.mediaId);
+      if (playToggleSeqRef.current !== seq) return;
       if (!ready) {
         setLastOutcome('skipped');
         return;
       }
-      const outcome = await toggleAnnotationRangePlayback({
-        audio,
-        range,
-        playingUnitId,
-      });
+      let outcome: AnnotationPlaybackOutcome;
+      try {
+        outcome = await toggleAnnotationRangePlayback({
+          audio,
+          range,
+          playingUnitId,
+        });
+      } catch (error) {
+        if (playToggleSeqRef.current !== seq) return;
+        rangeEndRef.current = null;
+        setPlayingUnitId(null);
+        if (!isPlaybackAbortError(error)) setLastOutcome('skipped');
+        return;
+      }
+      if (playToggleSeqRef.current !== seq) return;
       if (outcome === 'played') {
         rangeEndRef.current = range.endSec;
         setPlayingUnitId(unitId);

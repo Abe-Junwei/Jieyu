@@ -69,16 +69,17 @@ export function useWaveformSelectionController({
 
   const waveformTimelineItems = useMemo(() => {
     const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;
+    const byTime = (left: TimelineUnitView, right: TimelineUnitView) =>
+      left.startTime - right.startTime;
     if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
-      return unitRowsFromIndex
+      const segments = unitRowsFromIndex
         .filter(
           (unit) => unit.kind === 'segment' && unit.layerId === activeWaveformSegmentSourceLayer.id,
         )
-        .sort((a, b) => a.startTime - b.startTime);
+        .sort(byTime);
+      if (segments.length > 0) return segments;
     }
-    return unitRowsFromIndex
-      .filter((unit) => unit.kind === 'unit')
-      .sort((a, b) => a.startTime - b.startTime);
+    return unitRowsFromIndex.filter((unit) => unit.kind === 'unit').sort(byTime);
   }, [
     activeWaveformSegmentSourceLayer,
     timelineUnitViewIndex.currentMediaUnits,

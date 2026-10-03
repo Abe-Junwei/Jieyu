@@ -202,4 +202,19 @@ describe('useTranscriptionMediaSelection', () => {
     expect(revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:media-1-url');
   });
+
+  it('does not retarget the recording when the selected unit media id is not loaded', async () => {
+    const setSelectedMediaId = vi.fn();
+    const media = makeBlobMedia('media-1');
+    renderHook(() =>
+      useTranscriptionMediaSelection({
+        mediaItems: [media],
+        selectedMediaId: 'media-1',
+        setSelectedMediaId,
+        selectedUnitMediaId: '__unknown_media__',
+        selectedUnitMedia: media,
+      }),
+    );
+    expect(setSelectedMediaId).not.toHaveBeenCalled();
+  });
 });

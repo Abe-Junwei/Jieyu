@@ -203,9 +203,5 @@ test.describe('EAF word-tier annotation import', () => {
       page.getByTestId('transcription-workspace-screen').getByText('aa', { exact: true }),
     ).toBeVisible();
     await expect(page.getByText('G1', { exact: true })).toHaveCount(0);
-    await page.screenshot({
-      path: '/opt/cursor/artifacts/flex-elan-import-layers.png',
-      fullPage: true,
-    });
   });
 });

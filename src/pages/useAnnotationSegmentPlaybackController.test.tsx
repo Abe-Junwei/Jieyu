@@ -96,4 +96,75 @@ describe('useAnnotationSegmentPlaybackController', () => {
     expect(lastAudio.paused).toBe(true);
     expect(mockListMediaByTextId).toHaveBeenCalledTimes(1);
   });
+
+  it('swallows AbortError from play() without surfacing an error outcome', async () => {
+    const { result } = renderHook(() => useAnnotationSegmentPlaybackController('tid-1'));
+    const rows = [{ id: 'uid-1', startTime: 1, endTime: 2, mediaId: '' }];
+    lastAudio.play = async () => {
+      throw new DOMException('interrupted by a new load request', 'AbortError');
+    };
+
+    await act(async () => {
+      await result.current.onPlayToggle('uid-1', rows as never);
+    });
+
+    expect(result.current.playingUnitId).toBeNull();
+    expect(result.current.lastOutcome).toBe('idle');
+  });
+
+  it('reports skipped when play() rejects with a non-abort error', async () => {
+    const { result } = renderHook(() => useAnnotationSegmentPlaybackController('tid-1'));
+    const rows = [{ id: 'uid-1', startTime: 1, endTime: 2, mediaId: '' }];
+    lastAudio.play = async () => {
+      throw new DOMException('user gesture required', 'NotAllowedError');
+    };
+
+    await act(async () => {
+      await result.current.onPlayToggle('uid-1', rows as never);
+    });
+
+    expect(result.current.playingUnitId).toBeNull();
+    expect(result.current.lastOutcome).toBe('skipped');
+  });
+
+  it('drops a stale toggle continuation after a newer toggle starts', async () => {
+    let resolveFirst!: (value: unknown) => void;
+    let resolveSecond!: (value: unknown) => void;
+    const mediaItems = [{ id: 'mid-actual', url: 'https://example.test/clip.wav' }];
+    mockListMediaByTextId
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+    const { result } = renderHook(() => useAnnotationSegmentPlaybackController('tid-1'));
+    const rowsA = [{ id: 'uid-a', startTime: 1, endTime: 2, mediaId: '' }];
+    const rowsB = [{ id: 'uid-b', startTime: 3, endTime: 4, mediaId: '' }];
+
+    let toggleA: Promise<void> = Promise.resolve();
+    let toggleB: Promise<void> = Promise.resolve();
+    act(() => {
+      toggleA = result.current.onPlayToggle('uid-a', rowsA as never);
+      toggleB = result.current.onPlayToggle('uid-b', rowsB as never);
+    });
+    // B's source resolves first and wins; A resolves afterwards and must be dropped.
+    await act(async () => {
+      resolveSecond(mediaItems);
+      await toggleB;
+    });
+    await act(async () => {
+      resolveFirst(mediaItems);
+      await toggleA;
+    });
+
+    expect(result.current.playingUnitId).toBe('uid-b');
+    expect(result.current.lastOutcome).toBe('played');
+  });
 });

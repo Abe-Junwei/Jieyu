@@ -11,7 +11,7 @@ import { useCallback, useMemo, useState, type PointerEvent as ReactPointerEvent 
 import type { TimelineAxisStatusStripProps } from '../components/transcription/TimelineAxisStatusStrip';
 import { t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
-import { getTranscriptionAppService } from '../app/index';
+import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import {
   resolveTimelineAxisStatus,
   shouldShowLogicalAxisLengthOnAxisStrip,

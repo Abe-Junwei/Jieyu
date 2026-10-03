@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import { t, useLocale } from '../i18n';
 import type { NoteCategory } from '../types/jieyuDbDocTypes';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
@@ -9,18 +10,28 @@ import {
   listAnnotationUnitNotes,
   saveAnnotationUnitNote,
   saveAnnotationUnitSelfCertainty,
+  saveAnnotationUnitTurn,
+  type AnnotationUnitNoteView,
 } from './annotation/saveAnnotationUnitMeta';
 import type { AnnotationSaveNotice } from './useAnnotationWorkspaceController';
 
 export type AnnotationUnitMetaController = {
   noteText: string;
   noteCategory: NoteCategory;
+  notes: readonly AnnotationUnitNoteView[];
   noteCategories: readonly NoteCategory[];
   selfCertainty: UnitSelfCertainty | '';
   saveNotice: AnnotationSaveNotice;
   onNoteTextChange: (value: string) => void;
   onNoteCategoryChange: (value: NoteCategory) => void;
   onSaveNote: () => void;
+  onSaveCategorizedNote: (category: NoteCategory, content: string) => void;
+  onSaveTurn: (value: {
+    addressee: string;
+    ungrammatical: boolean;
+    actualForm: string;
+    targetForm: string;
+  }) => void;
   onSelfCertaintyChange: (value: UnitSelfCertainty | '') => void;
 };
 
@@ -53,6 +64,15 @@ export function useAnnotationUnitMetaController(input: {
     queryKey: ['annotation-unit-note', focusedUnitId],
     queryFn: () => listAnnotationUnitNotes(focusedUnitId),
     enabled: focusedUnitId.length > 0,
+  });
+
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      if (detail.unitId !== focusedUnitIdRef.current) return;
+      void queryClient.invalidateQueries({
+        queryKey: ['annotation-unit-note', detail.unitId],
+      });
+    },
   });
 
   const stored =
@@ -106,6 +126,49 @@ export function useAnnotationUnitMetaController(input: {
       });
   }, [displayedCategory, displayedText, fail, focusedUnitId, queryClient, stored?.id]);
 
+  const onSaveCategorizedNote = useCallback(
+    (category: NoteCategory, content: string) => {
+      if (focusedUnitId.length === 0) return;
+      const savingUnitId = focusedUnitId;
+      setSaveNotice({ kind: 'saving', message: '' });
+      void saveAnnotationUnitNote({ unitId: savingUnitId, content, category })
+        .then(async () => {
+          await queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', savingUnitId] });
+          if (focusedUnitIdRef.current !== savingUnitId) return;
+          setSaveNotice({ kind: 'saved', message: '' });
+        })
+        .catch((error) => {
+          if (focusedUnitIdRef.current !== savingUnitId) return;
+          fail(error);
+        });
+    },
+    [fail, focusedUnitId, queryClient],
+  );
+
+  const onSaveTurn = useCallback(
+    (value: {
+      addressee: string;
+      ungrammatical: boolean;
+      actualForm: string;
+      targetForm: string;
+    }) => {
+      if (textId.length === 0 || focusedUnitId.length === 0) return;
+      const savingUnitId = focusedUnitId;
+      setSaveNotice({ kind: 'saving', message: '' });
+      void saveAnnotationUnitTurn({ textId, unitId: savingUnitId, ...value })
+        .then(async () => {
+          await reloadWorkspace();
+          if (focusedUnitIdRef.current !== savingUnitId) return;
+          setSaveNotice({ kind: 'saved', message: '' });
+        })
+        .catch((error) => {
+          if (focusedUnitIdRef.current !== savingUnitId) return;
+          fail(error);
+        });
+    },
+    [fail, focusedUnitId, reloadWorkspace, textId],
+  );
+
   const onSelfCertaintyChange = useCallback(
     (value: UnitSelfCertainty | '') => {
       if (textId.length === 0 || focusedUnitId.length === 0) return;
@@ -133,6 +196,7 @@ export function useAnnotationUnitMetaController(input: {
     () => ({
       noteText: displayedText,
       noteCategory: displayedCategory,
+      notes: notesQuery.data ?? [],
       noteCategories: ANNOTATION_NOTE_CATEGORIES,
       selfCertainty,
       saveNotice,
@@ -147,12 +211,17 @@ export function useAnnotationUnitMetaController(input: {
         setNoteCategory(value);
       },
       onSaveNote,
+      onSaveCategorizedNote,
+      onSaveTurn,
       onSelfCertaintyChange,
     }),
     [
       displayedCategory,
       displayedText,
+      notesQuery.data,
+      onSaveCategorizedNote,
       onSaveNote,
+      onSaveTurn,
       onSelfCertaintyChange,
       saveNotice,
       selfCertainty,

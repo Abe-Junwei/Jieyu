@@ -9,72 +9,229 @@
 
 const STANDARD_ABBREVIATIONS: ReadonlySet<string> = new Set([
   // Person
-  '1', '2', '3',
+  '1',
+  '2',
+  '3',
   // Number
-  'SG', 'PL', 'DU',
+  'SG',
+  'PL',
+  'DU',
   // Case
-  'NOM', 'ACC', 'GEN', 'DAT', 'ERG', 'ABS', 'VOC', 'LOC', 'INS', 'COM',
-  'ALL', 'ABL', 'PRTV', 'ESS', 'TRANS', 'ILL', 'ELAT', 'INES', 'ADESS',
-  'SUPER', 'SUB', 'DEL',
+  'NOM',
+  'ACC',
+  'GEN',
+  'DAT',
+  'ERG',
+  'ABS',
+  'VOC',
+  'LOC',
+  'INS',
+  'COM',
+  'ALL',
+  'ABL',
+  'PRTV',
+  'ESS',
+  'TRANS',
+  'ILL',
+  'ELAT',
+  'INES',
+  'ADESS',
+  'SUPER',
+  'SUB',
+  'DEL',
   // Tense
-  'PST', 'PRS', 'FUT',
+  'PST',
+  'PRS',
+  'FUT',
   // Aspect
-  'IPFV', 'PFV', 'PROG', 'PERF', 'HAB', 'PROSP',
+  'IPFV',
+  'PFV',
+  'PROG',
+  'PERF',
+  'HAB',
+  'PROSP',
   // Mood
-  'IND', 'SBJV', 'IMP', 'OPT', 'COND', 'POT', 'DEONT', 'EPIST',
+  'IND',
+  'SBJV',
+  'IMP',
+  'OPT',
+  'COND',
+  'POT',
+  'DEONT',
+  'EPIST',
   // Voice
-  'ACT', 'PASS', 'MID', 'ANTIP', 'APPL', 'CAUS',
+  'ACT',
+  'PASS',
+  'MID',
+  'ANTIP',
+  'APPL',
+  'CAUS',
   // Definiteness
-  'DEF', 'INDEF',
+  'DEF',
+  'INDEF',
   // Gender
-  'M', 'F', 'N',
+  'M',
+  'F',
+  'N',
   // Negation / question / relativizer
-  'NEG', 'Q', 'REL',
+  'NEG',
+  'Q',
+  'REL',
   // Demonstrative / deictic
-  'DEM', 'PROX', 'MED', 'DIST',
+  'DEM',
+  'PROX',
+  'MED',
+  'DIST',
   // Information structure
-  'TOP', 'FOC',
+  'TOP',
+  'FOC',
   // Verbal categories
-  'COP', 'AUX', 'REFL', 'RECP', 'TR', 'INTR',
+  'COP',
+  'AUX',
+  'REFL',
+  'RECP',
+  'TR',
+  'INTR',
   // Nominalization / derivation
-  'NMLZ', 'ADV', 'ADJ', 'CLF',
+  'NMLZ',
+  'ADV',
+  'ADJ',
+  'CLF',
   // Non-finite forms
-  'INF', 'PTCP', 'CONV', 'GER',
+  'INF',
+  'PTCP',
+  'CONV',
+  'GER',
   // Comparison
-  'COMP', 'SUPERL',
+  'COMP',
+  'SUPERL',
   // Quotative / evidential
-  'QUOT', 'EV',
+  'QUOT',
+  'EV',
   // Directional / evidentiality
-  'DIR', 'INDIR',
+  'DIR',
+  'INDIR',
   // Clusivity
-  'EXCL', 'INCL',
+  'EXCL',
+  'INCL',
   // Animacy
-  'ANIM', 'INAN', 'HUM', 'NHUM',
+  'ANIM',
+  'INAN',
+  'HUM',
+  'NHUM',
   // Semantic roles
-  'AGT', 'PAT', 'EXP', 'THEM', 'REC', 'BEN', 'INSTR',
+  'AGT',
+  'PAT',
+  'EXP',
+  'THEM',
+  'REC',
+  'BEN',
+  'INSTR',
   // Other common
-  'POSS', 'ASSOC', 'PURP', 'ITER', 'INTENS', 'DIM', 'AUG',
-  'HON', 'OBL', 'OBV',
+  'POSS',
+  'ASSOC',
+  'PURP',
+  'ITER',
+  'INTENS',
+  'DIM',
+  'AUG',
+  'HON',
+  'OBL',
+  'OBV',
 ]);
 
 // Category to standard abbreviation mapping.
 
 const CATEGORY_MAP: Readonly<Record<string, readonly string[]>> = {
-  person:  ['1', '2', '3'],
-  number:  ['SG', 'PL', 'DU'],
-  tense:   ['PST', 'PRS', 'FUT'],
-  aspect:  ['IPFV', 'PFV', 'PROG', 'PERF', 'HAB', 'PROSP'],
-  mood:    ['IND', 'SBJV', 'IMP', 'OPT', 'COND', 'POT', 'DEONT', 'EPIST'],
-  case:    ['NOM', 'ACC', 'GEN', 'DAT', 'ERG', 'ABS', 'VOC', 'LOC', 'INS', 'COM',
-            'ALL', 'ABL', 'PRTV', 'ESS', 'TRANS', 'ILL', 'ELAT', 'INES', 'ADESS',
-            'SUPER', 'SUB', 'DEL'],
-  voice:   ['ACT', 'PASS', 'MID', 'ANTIP', 'APPL', 'CAUS'],
-  other:   ['DEF','INDEF','M','F','N','NEG','Q','REL','DEM','PROX','MED','DIST',
-            'TOP','FOC','COP','AUX','REFL','RECP','TR','INTR','NMLZ','ADV','ADJ',
-            'CLF','INF','PTCP','CONV','GER','COMP','SUPERL','QUOT','EV','DIR','INDIR',
-            'EXCL','INCL','ANIM','INAN','HUM','NHUM','AGT','PAT','EXP','THEM','REC',
-            'BEN','INSTR','POSS','ASSOC','PURP','ITER','INTENS','DIM','AUG','HON',
-            'OBL','OBV'],
+  person: ['1', '2', '3'],
+  number: ['SG', 'PL', 'DU'],
+  tense: ['PST', 'PRS', 'FUT'],
+  aspect: ['IPFV', 'PFV', 'PROG', 'PERF', 'HAB', 'PROSP'],
+  mood: ['IND', 'SBJV', 'IMP', 'OPT', 'COND', 'POT', 'DEONT', 'EPIST'],
+  case: [
+    'NOM',
+    'ACC',
+    'GEN',
+    'DAT',
+    'ERG',
+    'ABS',
+    'VOC',
+    'LOC',
+    'INS',
+    'COM',
+    'ALL',
+    'ABL',
+    'PRTV',
+    'ESS',
+    'TRANS',
+    'ILL',
+    'ELAT',
+    'INES',
+    'ADESS',
+    'SUPER',
+    'SUB',
+    'DEL',
+  ],
+  voice: ['ACT', 'PASS', 'MID', 'ANTIP', 'APPL', 'CAUS'],
+  other: [
+    'DEF',
+    'INDEF',
+    'M',
+    'F',
+    'N',
+    'NEG',
+    'Q',
+    'REL',
+    'DEM',
+    'PROX',
+    'MED',
+    'DIST',
+    'TOP',
+    'FOC',
+    'COP',
+    'AUX',
+    'REFL',
+    'RECP',
+    'TR',
+    'INTR',
+    'NMLZ',
+    'ADV',
+    'ADJ',
+    'CLF',
+    'INF',
+    'PTCP',
+    'CONV',
+    'GER',
+    'COMP',
+    'SUPERL',
+    'QUOT',
+    'EV',
+    'DIR',
+    'INDIR',
+    'EXCL',
+    'INCL',
+    'ANIM',
+    'INAN',
+    'HUM',
+    'NHUM',
+    'AGT',
+    'PAT',
+    'EXP',
+    'THEM',
+    'REC',
+    'BEN',
+    'INSTR',
+    'POSS',
+    'ASSOC',
+    'PURP',
+    'ITER',
+    'INTENS',
+    'DIM',
+    'AUG',
+    'HON',
+    'OBL',
+    'OBV',
+  ],
 };
 
 // Validation result interfaces.
@@ -104,12 +261,22 @@ export interface LeipzigValidationResult {
 
 // Core validator class.
 
+export function listStandardLeipzigAbbreviations(): string[] {
+  return [...STANDARD_ABBREVIATIONS];
+}
+
 export class LeipzigValidator {
   /** User-defined extension abbreviations. */
   private readonly customAbbreviations: Set<string>;
+  /** When set, the custom list is the whole allowed set. */
+  private readonly exclusive: boolean;
 
-  constructor(customAbbreviations?: Iterable<string>) {
-    this.customAbbreviations = new Set(customAbbreviations);
+  constructor(customAbbreviations?: Iterable<string>, options?: { exclusive?: boolean }) {
+    this.exclusive = options?.exclusive === true;
+    const source = customAbbreviations ?? [];
+    this.customAbbreviations = new Set(
+      this.exclusive ? [...source].map((item) => item.toUpperCase()) : source,
+    );
   }
 
   // Public API.
@@ -126,6 +293,7 @@ export class LeipzigValidator {
    */
   isKnownAbbreviation(abbr: string): boolean {
     const upper = abbr.toUpperCase();
+    if (this.exclusive) return this.customAbbreviations.has(upper);
     return STANDARD_ABBREVIATIONS.has(upper) || this.customAbbreviations.has(upper);
   }
 
@@ -138,7 +306,12 @@ export class LeipzigValidator {
     const unknown: string[] = [];
 
     if (!glossText.trim()) {
-      return { valid: true, warnings, recognizedAbbreviations: recognized, unknownAbbreviations: unknown };
+      return {
+        valid: true,
+        warnings,
+        recognizedAbbreviations: recognized,
+        unknownAbbreviations: unknown,
+      };
     }
 
     // Split morpheme-level glosses by hyphen.
@@ -274,10 +447,14 @@ export class LeipzigValidator {
       const rightHead = right.split('.')[0] ?? '';
 
       if (
-        leftTail && rightHead &&
-        leftTail === leftTail.toUpperCase() && /^[A-Z0-9]+$/.test(leftTail) &&
-        rightHead === rightHead.toUpperCase() && /^[A-Z0-9]+$/.test(rightHead) &&
-        this.isKnownAbbreviation(leftTail) && this.isKnownAbbreviation(rightHead)
+        leftTail &&
+        rightHead &&
+        leftTail === leftTail.toUpperCase() &&
+        /^[A-Z0-9]+$/.test(leftTail) &&
+        rightHead === rightHead.toUpperCase() &&
+        /^[A-Z0-9]+$/.test(rightHead) &&
+        this.isKnownAbbreviation(leftTail) &&
+        this.isKnownAbbreviation(rightHead)
       ) {
         warnings.push({
           type: 'separator_inconsistency',

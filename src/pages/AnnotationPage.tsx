@@ -4,6 +4,7 @@
  * Token 写 `unit_tokens`，词素写 `unit_morphemes`，链接写 `token_lexeme_links`，备注写 `user_notes`；
  * selfCertainty 只补丁该 `layer_units` 行；不改转写文本/时间码；不接 ChatWindow。
  */
+import '../styles/foundation/context-menu.css';
 import '../styles/pages/feature-availability.css';
 import '../styles/pages/annotation-workspace.css';
 import { FeatureAvailabilityPanel } from '../components/FeatureAvailabilityPanel';

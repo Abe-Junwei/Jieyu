@@ -92,7 +92,7 @@ export function AppSidePaneProvider({ children }: { children: ReactNode }) {
       metaRef.current = {
         ownerId,
         ...(title !== undefined && title.length > 0 ? { title } : {}),
-        ...(subtitle !== undefined && subtitle.length > 0 ? { subtitle } : {}),
+        ...(subtitle !== undefined ? { subtitle } : {}),
         revision: (prev?.revision ?? 0) + 1,
       };
       if (options?.syncNotify === true) {
@@ -199,9 +199,7 @@ export function useRegisterAppSidePane({
       ...(titleRef.current !== undefined && titleRef.current.length > 0
         ? { title: titleRef.current }
         : {}),
-      ...(subtitleRef.current !== undefined && subtitleRef.current.length > 0
-        ? { subtitle: subtitleRef.current }
-        : {}),
+      ...(subtitleRef.current !== undefined ? { subtitle: subtitleRef.current } : {}),
       content: contentRef.current,
     });
 
@@ -215,7 +213,7 @@ export function useRegisterAppSidePane({
     if (!host || !enabled) return;
     host.updateRegistrationContent(ownerId, {
       ...(title !== undefined && title.length > 0 ? { title } : {}),
-      ...(subtitle !== undefined && subtitle.length > 0 ? { subtitle } : {}),
+      ...(subtitle !== undefined ? { subtitle } : {}),
       content,
     });
   }, [content, enabled, host, ownerId, subtitle, title]);

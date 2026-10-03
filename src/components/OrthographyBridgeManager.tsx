@@ -678,6 +678,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
                 <div className="ob-bridge-group ob-bridge-group-source">
                   <div className="orthography-builder-language-field">
                     <LanguageIsoInput
+                      languageRole="object"
                       locale={locale}
                       value={sourceLanguageInput}
                       onChange={handleSourceLanguageInputChange}

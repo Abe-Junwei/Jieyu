@@ -7,6 +7,7 @@ import {
   flattenTimelineContentFitSegments,
   resolveContentFitPxPerSec,
   resolveContentFitZoomPercent,
+  resolveTextWidthFitPxPerSec,
 } from './timelineContentFitZoom';
 
 describe('timelineContentFitZoom', () => {
@@ -82,5 +83,24 @@ describe('timelineContentFitZoom', () => {
     });
     const zoomPxPerSec = 1 * (percent / 100);
     expect(fitSpanSec * zoomPxPerSec).toBeLessThanOrEqual(TIMELINE_CONTENT_FIT_MAX_SCROLL_PX + 1);
+  });
+
+  it('widens past the viewport when labels would be crushed, and still caps the scroll', () => {
+    const textPx = estimateTimelineSegmentTextWidthPx('ni');
+    const px = resolveTextWidthFitPxPerSec({
+      viewportWidthPx: 800,
+      extentSec: 20,
+      fitSpanSec: 20,
+      segments: [{ startTime: 0, endTime: 0.2, text: 'ni' }],
+    });
+    expect(px).toBe(textPx / 0.2);
+    expect(px).toBeGreaterThan((800 * 0.9) / 20);
+    const capped = resolveTextWidthFitPxPerSec({
+      viewportWidthPx: 800,
+      extentSec: 10_000,
+      fitSpanSec: 10_000,
+      segments: [{ startTime: 0, endTime: 0.01, text: 'a very long annotation that cannot fit' }],
+    });
+    expect(10_000 * capped).toBeLessThanOrEqual(TIMELINE_CONTENT_FIT_MAX_SCROLL_PX + 1);
   });
 });

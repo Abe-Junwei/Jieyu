@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   collectDirtyAnnotationTokenWrites,
   displayedAnnotationTokenFields,
+  dropCommittedTokenDrafts,
   dropDraftsForTokenIds,
+  dropDraftsUnchangedSince,
   resolveAnnotationGlossWriteLang,
   type AnnotationIgtToken,
 } from './annotationTokenDrafts';
@@ -44,6 +46,23 @@ describe('annotationTokenDrafts', () => {
     ).toEqual([{ tokenId: 'tok-1', glossLang: 'default', gloss: null }]);
   });
 
+  it('keeps a draft that changed after the saved snapshot', () => {
+    const committed = { 'tok-1': { pos: 'N', gloss: 'n' } };
+    expect(
+      dropCommittedTokenDrafts(
+        {
+          'tok-1': { pos: 'N', gloss: 'noun' },
+          keep: { pos: 'A', gloss: 'a' },
+        },
+        committed,
+      ),
+    ).toEqual({
+      'tok-1': { pos: 'N', gloss: 'noun' },
+      keep: { pos: 'A', gloss: 'a' },
+    });
+    expect(dropCommittedTokenDrafts({ 'tok-1': committed['tok-1']! }, committed)).toEqual({});
+  });
+
   it('overlays drafts for display and drops cleared ids', () => {
     expect(displayedAnnotationTokenFields(TOKEN, { 'tok-1': { pos: 'N', gloss: 'n' } })).toEqual({
       pos: 'N',
@@ -54,5 +73,14 @@ describe('annotationTokenDrafts', () => {
         'tok-1',
       ]),
     ).toEqual({ keep: { pos: 'A', gloss: 'a' } });
+  });
+
+  it('keeps a draft that changed while a pos write was in flight', () => {
+    const atStart = { 'tok-1': { pos: 'N', gloss: '' } };
+    const current = { 'tok-1': { pos: 'N', gloss: 'NEW' } };
+    expect(dropDraftsUnchangedSince(current, ['tok-1'], atStart)).toEqual(current);
+    expect(
+      dropDraftsUnchangedSince({ 'tok-1': { pos: 'N', gloss: '' } }, ['tok-1'], atStart),
+    ).toEqual({});
   });
 });

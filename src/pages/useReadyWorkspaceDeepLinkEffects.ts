@@ -6,6 +6,8 @@ import { getTranscriptionTextById } from '../hooks/transcription/transcriptionTe
 import {
   hasTranscriptionDeepLinkSelectionPayload,
   readTranscriptionDeepLinkOptionalParams,
+  publishActiveProjectTextId,
+  readTranscriptionWorkspaceReturnHint,
   rememberTranscriptionWorkspaceReturnHint,
   stripTranscriptionDeepLinkSearchParams,
 } from '../utils/transcriptionUrlDeepLink';
@@ -32,7 +34,7 @@ interface UseReadyWorkspaceDeepLinkEffectsInput {
   selectedUnitMedia?: { id?: string };
   segmentsByLayer: Record<string, Array<{ id: string }> | undefined>;
   segmentsLoadComplete: boolean;
-  selectTimelineUnit: (unit: ReturnType<typeof createTimelineUnit>) => void;
+  selectTimelineUnit: (unit: ReturnType<typeof createTimelineUnit> | null) => void;
   setSelectedLayerId: (layerId: string) => void;
   setFocusedLayerRowId: (layerId: string) => void;
   setSelectedMediaId: (mediaId: string) => void;
@@ -88,6 +90,7 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
         return;
       }
       setActiveTextId(raw);
+      publishActiveProjectTextId(raw);
       await loadSnapshot(raw);
       if (urlTextIdApplyNonceRef.current !== nonce) return;
       pendingPostTextIdDeepLinkRef.current = hasTranscriptionDeepLinkSelectionPayload(optional)
@@ -119,14 +122,18 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
       return layers.some((l) => l.id === t && l.textId === projectTextId);
     };
 
-    const requestedMediaValid = Boolean(pending.mediaId?.trim() && mediaOk(pending.mediaId!));
+    const requestedMediaId = pending.mediaId?.trim() ?? '';
+    if (requestedMediaId.length > 0 && mediaItems.length === 0) return;
+    const requestedMediaValid = requestedMediaId.length > 0 && mediaOk(requestedMediaId);
     if (requestedMediaValid) {
-      const want = pending.mediaId!.trim();
       const cur = (selectedUnitMedia?.id ?? '').trim();
-      if (cur !== want) {
-        setSelectedMediaId(want);
+      if (cur !== requestedMediaId) {
+        selectTimelineUnit(null);
+        setSelectedMediaId(requestedMediaId);
         return;
       }
+    } else if (requestedMediaId.length > 0) {
+      pendingPostTextIdDeepLinkRef.current = null;
     }
 
     if (pending.layerId?.trim() && layerOk(pending.layerId)) {
@@ -205,9 +212,16 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
     const tid = (activeTextId ?? units[0]?.textId ?? '').trim();
     if (!tid) return;
     const mid = selectedUnitMedia?.id?.trim();
+    // 深链带进来的 mediaId 可能尚未解析出 selectedUnitMedia（媒体不存在/未选中），
+    // 此时不覆盖 sessionStorage 里同 text 的既有 mediaId，保证返回提示可往返（R4 S5）。
+    // Keep a stored mediaId when the workspace hasn't resolved one yet, so the
+    // deep-link return hint survives the round trip (R4 S5).
+    const existing = readTranscriptionWorkspaceReturnHint();
+    const keepMediaId =
+      !mid && existing !== null && existing.textId === tid ? existing.mediaId : undefined;
     rememberTranscriptionWorkspaceReturnHint({
       textId: tid,
-      ...(mid ? { mediaId: mid } : {}),
+      ...(mid ? { mediaId: mid } : keepMediaId !== undefined ? { mediaId: keepMediaId } : {}),
     });
   }, [phase, activeTextId, units, selectedUnitMedia?.id]);
 }

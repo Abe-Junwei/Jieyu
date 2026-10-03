@@ -174,7 +174,7 @@ describe('exportToTrs', () => {
     expect(xml).toContain('xml:lang="ar"');
 
     const imported = importFromTrs(xml);
-    expect(imported.speakers[0]!.lang).toBe('ar');
+    expect(imported.speakers[0]!.lang).toBe('ara');
   });
 });
 

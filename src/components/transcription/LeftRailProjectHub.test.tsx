@@ -1,11 +1,24 @@
 // @vitest-environment jsdom
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../../i18n';
 import { LeftRailProjectHub } from './LeftRailProjectHub';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 
 const showToastMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../utils/projectRoster', () => ({
+  PROJECT_ROSTER_QUERY_KEY: 'projectRoster',
+  loadProjectRoster: vi.fn(async () => [
+    { textId: 'text-new', title: '新建项目甲', updatedAt: '2026-09-30T00:00:00.000Z' },
+  ]),
+}));
 
 vi.mock('../../contexts/ToastContext', () => ({
   useToast: () => ({
@@ -53,34 +66,41 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
   const onImportAnnotationFile = vi.fn(async () => undefined);
   const onApplyTextTimeMapping = vi.fn(async () => undefined);
   const importFileRef = { current: null as HTMLInputElement | null };
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
 
   render(
-    <LocaleProvider locale="zh-CN">
-      <LeftRailProjectHub
-        currentProjectLabel="项目 A"
-        importFileRef={importFileRef}
-        canDeleteProject
-        canDeleteAudio
-        onOpenProjectSetup={vi.fn()}
-        onOpenAudioImport={vi.fn()}
-        onDeleteCurrentProject={vi.fn()}
-        onDeleteCurrentAudio={vi.fn()}
-        onOpenSpeakerManagementPanel={vi.fn()}
-        onImportAnnotationFile={onImportAnnotationFile}
-        onPreviewProjectArchiveImport={onPreviewProjectArchiveImport}
-        onImportProjectArchive={onImportProjectArchive}
-        onApplyTextTimeMapping={onApplyTextTimeMapping}
-        onExportEaf={vi.fn()}
-        onExportTextGrid={vi.fn()}
-        onExportTrs={vi.fn()}
-        onExportFlextext={vi.fn()}
-        onExportToolbox={vi.fn()}
-        onExportJyt={vi.fn(async () => undefined)}
-        onExportJym={vi.fn(async () => undefined)}
-        onExportLite={vi.fn(async () => undefined)}
-        {...overrides}
-      />
-    </LocaleProvider>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <LocaleProvider locale="zh-CN">
+          <LeftRailProjectHub
+            currentProjectLabel="项目 A"
+            importFileRef={importFileRef}
+            canDeleteProject
+            canDeleteAudio
+            onOpenProjectSetup={vi.fn()}
+            onOpenAudioImport={vi.fn()}
+            onDeleteCurrentProject={vi.fn()}
+            onDeleteCurrentAudio={vi.fn()}
+            onOpenSpeakerManagementPanel={vi.fn()}
+            onImportAnnotationFile={onImportAnnotationFile}
+            onPreviewProjectArchiveImport={onPreviewProjectArchiveImport}
+            onImportProjectArchive={onImportProjectArchive}
+            onApplyTextTimeMapping={onApplyTextTimeMapping}
+            onExportEaf={vi.fn()}
+            onExportTextGrid={vi.fn()}
+            onExportTrs={vi.fn()}
+            onExportFlextext={vi.fn()}
+            onExportToolbox={vi.fn()}
+            onExportJyt={vi.fn(async () => undefined)}
+            onExportJym={vi.fn(async () => undefined)}
+            onExportLite={vi.fn(async () => undefined)}
+            {...overrides}
+          />
+        </LocaleProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 
   return {
@@ -100,10 +120,20 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  clearActiveProjectTextId();
   document.getElementById('left-rail-project-hub-slot')?.remove();
 });
 
 describe('LeftRailProjectHub project import dialog', () => {
+  it('keeps a saved project title on the project button', async () => {
+    publishActiveProjectTextId('text-new');
+    renderHub();
+    const button = await screen.findByRole('button', { name: '新建项目甲' });
+    fireEvent.click(button);
+    expect(await screen.findByText('所有项目')).toBeTruthy();
+    expect(screen.getByText('项目').closest('button')?.textContent).toContain('新建项目甲');
+  });
+
   it('opens the import preview dialog through the archive input with DialogShell wide layout', async () => {
     const { onPreviewProjectArchiveImport } = renderHub();
     const file = new File(['archive'], 'demo.jym', { type: 'application/octet-stream' });
@@ -408,31 +438,38 @@ describe('LeftRailProjectHub project import dialog', () => {
   });
 
   it('hides logical time-mapping export block when onApplyTextTimeMapping is not provided', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     render(
-      <LocaleProvider locale="zh-CN">
-        <LeftRailProjectHub
-          currentProjectLabel="项目 A"
-          importFileRef={{ current: null }}
-          canDeleteProject
-          canDeleteAudio
-          onOpenProjectSetup={vi.fn()}
-          onOpenAudioImport={vi.fn()}
-          onDeleteCurrentProject={vi.fn()}
-          onDeleteCurrentAudio={vi.fn()}
-          onOpenSpeakerManagementPanel={vi.fn()}
-          onImportAnnotationFile={vi.fn()}
-          onPreviewProjectArchiveImport={vi.fn(async () => makePreview())}
-          onImportProjectArchive={vi.fn(async () => true)}
-          onExportEaf={vi.fn()}
-          onExportTextGrid={vi.fn()}
-          onExportTrs={vi.fn()}
-          onExportFlextext={vi.fn()}
-          onExportToolbox={vi.fn()}
-          onExportJyt={vi.fn(async () => undefined)}
-          onExportJym={vi.fn(async () => undefined)}
-          onExportLite={vi.fn(async () => undefined)}
-        />
-      </LocaleProvider>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <LocaleProvider locale="zh-CN">
+            <LeftRailProjectHub
+              currentProjectLabel="项目 A"
+              importFileRef={{ current: null }}
+              canDeleteProject
+              canDeleteAudio
+              onOpenProjectSetup={vi.fn()}
+              onOpenAudioImport={vi.fn()}
+              onDeleteCurrentProject={vi.fn()}
+              onDeleteCurrentAudio={vi.fn()}
+              onOpenSpeakerManagementPanel={vi.fn()}
+              onImportAnnotationFile={vi.fn()}
+              onPreviewProjectArchiveImport={vi.fn(async () => makePreview())}
+              onImportProjectArchive={vi.fn(async () => true)}
+              onExportEaf={vi.fn()}
+              onExportTextGrid={vi.fn()}
+              onExportTrs={vi.fn()}
+              onExportFlextext={vi.fn()}
+              onExportToolbox={vi.fn()}
+              onExportJyt={vi.fn(async () => undefined)}
+              onExportJym={vi.fn(async () => undefined)}
+              onExportLite={vi.fn(async () => undefined)}
+            />
+          </LocaleProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));

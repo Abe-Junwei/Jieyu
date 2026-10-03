@@ -1,10 +1,36 @@
-import { Link } from 'react-router-dom';
+import { useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ContextMenu } from '../../components/ContextMenu';
 import { t, tf, useLocale } from '../../i18n';
-import type { AnnotationIgtRow, AnnotationIgtToken } from '../useAnnotationWorkspaceController';
+import type { AnnotationIgtRow } from '../useAnnotationWorkspaceController';
 import type { AnnotationMorphologyController } from '../useAnnotationMorphologyController';
-import { annotationGlossHasLeipzigIssue } from './annotationLeipzigGloss';
+import type { AnnotationRelationMark } from '../useAnnotationRelationController';
+import { readAnalysisGraphView } from '../../annotation/analysisGraphView';
+import { buildAnnotationUtteranceGraph } from './buildAnnotationUtteranceGraph';
 import { displayedAnnotationMorphemeFields } from './annotationMorphemeDrafts';
 import { displayedAnnotationTokenFields, type AnnotationTokenDraft } from './annotationTokenDrafts';
+import type { AnnotationActiveCell } from './AnnotationIgtLineGrid';
+import { AnnotationIgtLineGrid, AnnotationMoreButton } from './AnnotationIgtLineGrid';
+import {
+  arrangeAnnotationLines,
+  placeAnnotationLine,
+  reconcileAnnotationLineOrder,
+  visibleAnnotationLines,
+  moveAnnotationLine,
+  ANNOTATION_LINE_ORDER,
+  addAnnotationDocumentLine,
+  assignAnnotationDocumentLineLanguage,
+  removeAnnotationDocumentLine,
+  type AnnotationDocumentLayout,
+} from './annotationIgtLines';
+import {
+  annotationLanguageLineLabel,
+  buildAnnotationLineMenuItems,
+  buildAnnotationRowMenuItems,
+  buildAnnotationTokenMenuItems,
+  type AnnotationLanguageLineOption,
+} from './annotationIgtMenus';
+import type { AnnotationSentenceAcoustic } from '../useAnnotationSentenceAcoustic';
 import { AnnotationIgtUnitExtras } from './AnnotationIgtUnitExtras';
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
 import type { AnnotationAutoGlossController } from '../useAnnotationAutoGlossController';
@@ -22,6 +48,18 @@ type Props = {
   retokenize?: AnnotationRetokenizeController;
   validator?: AnnotationValidatorPanelController;
   playing?: boolean;
+  sentenceAcoustic?: AnnotationSentenceAcoustic;
+  textLanguageId?: string;
+  glossSuggestions?: Readonly<Record<string, string>>;
+  onAcceptGlossSuggestion?: (unitId: string, tokenId: string, gloss: string, lang: string) => void;
+  onApplyGlossByForm?: (unitId: string, tokenId: string, gloss: string) => void;
+  onSaveTokenLanguage?: (unitId: string, tokenId: string, languageId: string) => void;
+  onCiteOccurrence?: (unitId: string, tokenId: string) => void;
+  acousticLayers: {
+    showWave: boolean;
+    showSpectrum: boolean;
+    showPitch: boolean;
+  };
   onPlay?: (unitId: string) => void;
   onFocusRow: (unitId: string) => void;
   onFocusInput: (unitId: string) => void;
@@ -31,221 +69,213 @@ type Props = {
     field: keyof AnnotationTokenDraft,
     value: string,
   ) => void;
+  layout: AnnotationDocumentLayout;
+  onLayoutChange: (layout: AnnotationDocumentLayout) => void;
+  languageLines?: readonly (AnnotationLanguageLineOption & { text: string })[];
+  objectLanguageIds?: readonly string[];
+  workingLanguageIds?: readonly string[];
+  glossAbbreviations?: ReadonlySet<string>;
+  posCategories?: readonly string[];
+  onCommitLanguageLine?: (unitId: string, key: string, text: string) => void;
+  onCommitGlossLanguage?: (
+    unitId: string,
+    tokenId: string,
+    languageId: string,
+    text: string,
+  ) => void;
+  onCommitSurface?: (unitId: string, text: string) => void;
+  onCommitTranslation?: (unitId: string, text: string) => void;
+  literalText?: string;
+  onCommitLiteral?: (unitId: string, text: string) => void;
+  onCommitTokenForm?: (unitId: string, tokenId: string, form: string) => void;
+  mweSelectedIds?: readonly string[];
+  mweError?: '' | 'dirty' | 'contiguous' | 'failed';
+  onToggleMweToken?: (unitId: string, tokenId: string) => void;
+  onWriteFormsToSurface?: (unitId: string) => void;
+  onAddAlternative?: (unitId: string, tokenId: string, pos: string) => void;
+  onApplyPosByForm?: (unitId: string, tokenId: string, pos: string) => void;
+  onDeleteToken?: (unitId: string, tokenId: string, confirmLoss: boolean) => void;
+  onMarkRelation?: (unitId: string, mark: AnnotationRelationMark) => void;
+  onSelectAlternative?: (unitId: string, relationId: string) => void;
+  relationError?: '' | 'dirty' | 'failed';
+  alternativeError?: '' | 'dirty' | 'failed';
+  posError?: '' | 'dirty' | 'failed';
 };
 
-function lexemeLinkLabel(
+function relationChipText(
   locale: ReturnType<typeof useLocale>,
-  link: NonNullable<AnnotationMorphologyController['linksByTokenId'][string]>,
+  link: { kind: string; source: string; target: string },
 ): string {
-  if (link.brokenCode) return t(locale, 'workspace.annotation.lexemeBroken');
-  return tf(locale, 'workspace.annotation.lexemeLinked', { lemma: link.lemma });
+  if (link.kind === 'reduplicates') {
+    return tf(locale, 'workspace.annotation.relationReduplicates', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'suppletes') {
+    return tf(locale, 'workspace.annotation.relationSuppletes', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'hasAllomorph') {
+    return tf(locale, 'workspace.annotation.relationAllomorph', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'rootPattern') {
+    return tf(locale, 'workspace.annotation.relationRoot', {
+      source: link.source,
+      target: link.target,
+    });
+  }
+  if (link.kind === 'incorporation') {
+    return tf(locale, 'workspace.annotation.relationIncorporated', { source: link.source });
+  }
+  if (link.kind === 'deletesSegment') {
+    return tf(locale, 'workspace.annotation.relationDeletes', { source: link.source });
+  }
+  if (link.kind === 'overwritesTone') {
+    return tf(locale, 'workspace.annotation.relationTone', { source: link.source });
+  }
+  return tf(locale, 'workspace.annotation.relationSubstitutes', { source: link.source });
 }
 
-function TokenStack({
-  token,
-  unitId,
-  inputFocused,
+function AnalysisGraphReadout({
+  row,
   drafts,
   morphology,
-  onFocusInput,
-  onTokenDraftChange,
+  onSelectAlternative,
 }: {
-  token: AnnotationIgtToken;
-  unitId: string;
-  inputFocused: boolean;
+  row: AnnotationIgtRow;
   drafts: Readonly<Record<string, AnnotationTokenDraft>>;
   morphology: AnnotationMorphologyController;
-  onFocusInput: (unitId: string) => void;
-  onTokenDraftChange: Props['onTokenDraftChange'];
+  onSelectAlternative?: (unitId: string, relationId: string) => void;
 }) {
   const locale = useLocale();
-  const fields = displayedAnnotationTokenFields(token, drafts);
-  const morphs = morphology.morphsByTokenId[token.id] ?? [];
-  const link = morphology.linksByTokenId[token.id];
-  const glossInvalid = annotationGlossHasLeipzigIssue(fields.gloss);
+  const projected = buildAnnotationUtteranceGraph({
+    row: {
+      ...row,
+      tokens: row.tokens.map((token) => {
+        const fields = displayedAnnotationTokenFields(token, drafts);
+        return { ...token, gloss: fields.gloss, pos: fields.pos };
+      }),
+    },
+    morphsByTokenId: morphology.morphsByTokenId,
+    linksByTokenId: morphology.linksByTokenId,
+  });
+  if (projected === undefined) return null;
+  const view = readAnalysisGraphView(projected);
+  const hasContent =
+    view.multiwordExpressions.length > 0 ||
+    view.features.length > 0 ||
+    view.links.length > 0 ||
+    view.notices.length > 0 ||
+    view.alternatives.length > 0;
+  if (!hasContent) return null;
   return (
-    <span className="annotation-igt-stack">
-      <span className="annotation-igt-form">{token.form}</span>
-      {inputFocused ? (
-        <>
-          <input
-            className="annotation-igt-field"
-            data-testid={`annotation-igt-pos-${token.id}`}
-            aria-label={t(locale, 'workspace.annotation.posLabel')}
-            value={fields.pos}
-            onClick={(event) => event.stopPropagation()}
-            onFocus={() => onFocusInput(unitId)}
-            onChange={(event) => onTokenDraftChange(unitId, token.id, 'pos', event.target.value)}
-          />
-          <input
-            className={
-              glossInvalid
-                ? 'annotation-igt-field annotation-igt-field-invalid'
-                : 'annotation-igt-field'
-            }
-            data-testid={`annotation-igt-gloss-${token.id}`}
-            aria-label={t(locale, 'workspace.annotation.glossLabel')}
-            aria-invalid={glossInvalid}
-            value={fields.gloss}
-            onClick={(event) => event.stopPropagation()}
-            onFocus={() => onFocusInput(unitId)}
-            onChange={(event) => onTokenDraftChange(unitId, token.id, 'gloss', event.target.value)}
-          />
-          <span className="annotation-igt-actions">
-            <button
-              type="button"
-              className="annotation-igt-action"
-              data-testid={`annotation-igt-split-${token.id}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                morphology.onSplitToken(unitId, token.id);
-              }}
+    <div className="annotation-igt-graph" data-testid={`annotation-igt-graph-${row.id}`}>
+      {view.multiwordExpressions.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">{t(locale, 'workspace.annotation.graphMwe')}</span>
+          {view.multiwordExpressions.map((group) => (
+            <span
+              key={group.id}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-mwe-${group.id}`}
             >
-              {t(locale, 'workspace.annotation.tokenSplit')}
-            </button>
-            <button
-              type="button"
-              className="annotation-igt-action"
-              data-testid={`annotation-igt-merge-${token.id}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                morphology.onMergeToken(unitId, token.id);
-              }}
-            >
-              {t(locale, 'workspace.annotation.tokenMerge')}
-            </button>
+              {group.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {view.features.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphFeatures')}
           </span>
-          <span className="annotation-igt-morphs">
-            {morphs.length === 0 ? (
-              <button
-                type="button"
-                className="annotation-igt-action"
-                data-testid={`annotation-igt-seed-morph-${token.id}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  morphology.onSeedMorphemes(unitId, token.id, token.form);
-                }}
-              >
-                {t(locale, 'workspace.annotation.morphemeSeed')}
-              </button>
-            ) : (
-              <>
-                {morphs.map((morph) => {
-                  const morphFields = displayedAnnotationMorphemeFields(morph, morphology.drafts);
-                  const morphInvalid = annotationGlossHasLeipzigIssue(morphFields.gloss);
-                  return (
-                    <span key={morph.id} className="annotation-igt-morph">
-                      <input
-                        className="annotation-igt-field"
-                        data-testid={`annotation-igt-morph-form-${morph.id}`}
-                        aria-label={t(locale, 'workspace.annotation.morphemeFormLabel')}
-                        value={morphFields.form}
-                        onClick={(event) => event.stopPropagation()}
-                        onFocus={() => onFocusInput(unitId)}
-                        onChange={(event) =>
-                          morphology.onMorphDraftChange(morph.id, 'form', event.target.value)
-                        }
-                      />
-                      <input
-                        className={
-                          morphInvalid
-                            ? 'annotation-igt-field annotation-igt-field-invalid'
-                            : 'annotation-igt-field'
-                        }
-                        data-testid={`annotation-igt-morph-gloss-${morph.id}`}
-                        aria-label={t(locale, 'workspace.annotation.morphemeGlossLabel')}
-                        aria-invalid={morphInvalid}
-                        value={morphFields.gloss}
-                        onClick={(event) => event.stopPropagation()}
-                        onFocus={() => onFocusInput(unitId)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            morphology.onSaveMorphemes(unitId, token.id);
-                          }
-                        }}
-                        onChange={(event) =>
-                          morphology.onMorphDraftChange(morph.id, 'gloss', event.target.value)
-                        }
-                      />
-                    </span>
-                  );
-                })}
+          {view.features.map((feature) => (
+            <span
+              key={feature.ownerId}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-feature-${feature.ownerId}`}
+            >
+              {`${feature.ownerLabel}: ${feature.features.map((item) => `${item.key}=${item.value}`).join(', ')}`}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {view.links.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphRelations')}
+          </span>
+          {view.links.map((link) => (
+            <span
+              key={link.id}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-link-${link.id}`}
+            >
+              {relationChipText(locale, link)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {view.alternatives.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphAlternatives')}
+          </span>
+          {view.alternatives.map((choice) => (
+            <span
+              key={choice.relationId}
+              className="annotation-igt-graph-chip"
+              data-testid={`annotation-igt-graph-alt-${choice.relationId}`}
+              data-role={choice.role}
+            >
+              {tf(locale, 'workspace.annotation.alternativeChoice', {
+                source: choice.sourceLabel,
+                target: choice.targetLabel,
+                role: t(
+                  locale,
+                  choice.role === 'accepted'
+                    ? 'workspace.annotation.alternativeRole.accepted'
+                    : choice.role === 'rejected'
+                      ? 'workspace.annotation.alternativeRole.rejected'
+                      : 'workspace.annotation.alternativeRole.pending',
+                ),
+              })}
+              {onSelectAlternative && choice.selectable && choice.role !== 'accepted' ? (
                 <button
                   type="button"
                   className="annotation-igt-action"
-                  data-testid={`annotation-igt-save-morph-${token.id}`}
+                  data-testid={`annotation-igt-alt-select-${choice.relationId}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    morphology.onSaveMorphemes(unitId, token.id);
+                    onSelectAlternative(row.id, choice.relationId);
                   }}
                 >
-                  {t(locale, 'workspace.annotation.morphemeSave')}
+                  {t(locale, 'workspace.annotation.selectAlternative')}
                 </button>
-              </>
-            )}
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {view.notices.length > 0 ? (
+        <div className="annotation-igt-graph-chips">
+          <span className="annotation-igt-label">
+            {t(locale, 'workspace.annotation.graphNotices')}
           </span>
-          <label className="annotation-igt-lexeme">
-            <span>{t(locale, 'workspace.annotation.lexemeLinkLabel')}</span>
-            <input
-              className="annotation-igt-field"
-              data-testid={`annotation-igt-lexeme-${token.id}`}
-              value={morphology.linkQueries[token.id] ?? ''}
-              onClick={(event) => event.stopPropagation()}
-              onFocus={() => onFocusInput(unitId)}
-              onChange={(event) => morphology.onLinkQueryChange(token.id, event.target.value)}
-            />
-            <button
-              type="button"
-              className="annotation-igt-action"
-              data-testid={`annotation-igt-link-${token.id}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                morphology.onLinkLexeme(token.id);
-              }}
-            >
-              {t(locale, 'workspace.annotation.lexemeLink')}
-            </button>
-            {link ? (
-              <button
-                type="button"
-                className="annotation-igt-action"
-                data-testid={`annotation-igt-unlink-${token.id}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  morphology.onUnlinkLexeme(token.id);
-                }}
-              >
-                {lexemeLinkLabel(locale, link)}
-              </button>
-            ) : null}
-          </label>
-        </>
-      ) : (
-        <>
-          <span className="annotation-igt-pos">{fields.pos}</span>
-          <span className="annotation-igt-gloss">{fields.gloss}</span>
-          {morphs.length > 0 ? (
-            <span className="annotation-igt-gloss">
-              {morphs.map((morph) => morph.form).join('-')}
+          {view.notices.map((notice) => (
+            <span key={`${notice.status}:${notice.message}`} className="annotation-igt-graph-chip">
+              {notice.message}
             </span>
-          ) : null}
-          {link ? (
-            <span
-              className="annotation-igt-gloss"
-              data-testid={
-                link.brokenCode
-                  ? `annotation-igt-lexeme-broken-${token.id}`
-                  : `annotation-igt-lexeme-linked-${token.id}`
-              }
-            >
-              {lexemeLinkLabel(locale, link)}
-            </span>
-          ) : null}
-        </>
-      )}
-    </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -260,65 +290,402 @@ export function AnnotationIgtRowView({
   retokenize,
   validator,
   playing = false,
+  sentenceAcoustic,
+  textLanguageId = '',
+  glossSuggestions,
+  onAcceptGlossSuggestion,
+  onApplyGlossByForm,
+  onSaveTokenLanguage,
+  onCiteOccurrence,
+  acousticLayers,
   onPlay,
   onFocusRow,
   onFocusInput,
   onTokenDraftChange,
+  layout,
+  onLayoutChange,
+  languageLines = [],
+  objectLanguageIds = [],
+  workingLanguageIds = [],
+  glossAbbreviations,
+  posCategories,
+  onCommitLanguageLine,
+  onCommitGlossLanguage,
+  onCommitSurface,
+  onCommitTranslation,
+  literalText = '',
+  onCommitLiteral,
+  onCommitTokenForm,
+  mweSelectedIds,
+  mweError = '',
+  onToggleMweToken,
+  onWriteFormsToSurface,
+  onMarkRelation,
+  relationError = '',
+  onSelectAlternative,
+  alternativeError = '',
+  posError = '',
+  onAddAlternative,
+  onApplyPosByForm,
+  onDeleteToken,
 }: Props) {
   const locale = useLocale();
+  const navigate = useNavigate();
+  const [activeCell, setActiveCell] = useState<AnnotationActiveCell | null>(null);
+  const [languageDraft, setLanguageDraft] = useState<string | null>(null);
+  const [toneDraft, setToneDraft] = useState('');
+  const [glossLanguageDraft, setGlossLanguageDraft] = useState('');
+  const [menu, setMenu] = useState<
+    | { kind: 'unit'; x: number; y: number }
+    | { kind: 'token'; tokenId: string; x: number; y: number }
+    | { kind: 'line'; lineId: string; x: number; y: number }
+    | null
+  >(null);
+  const editing = focused && inputFocused && activeCell === null;
+  const hasGloss = row.tokens.some((token) => {
+    const fields = displayedAnnotationTokenFields(token, drafts);
+    if (fields.gloss.trim().length > 0) return true;
+    return (morphology.morphsByTokenId[token.id] ?? []).some(
+      (morph) =>
+        displayedAnnotationMorphemeFields(morph, morphology.drafts).gloss.trim().length > 0,
+    );
+  });
+  const hasPos = row.tokens.some(
+    (token) => displayedAnnotationTokenFields(token, drafts).pos.trim().length > 0,
+  );
+  const hasMorphForms = row.tokens.some((token) =>
+    (morphology.morphsByTokenId[token.id] ?? []).some(
+      (morph) => displayedAnnotationMorphemeFields(morph, morphology.drafts).form.trim().length > 0,
+    ),
+  );
+  const hasLemma = row.tokens.some((token) => morphology.linksByTokenId[token.id] !== undefined);
+  const baseLines = arrangeAnnotationLines(
+    visibleAnnotationLines({
+      hasSurface: true,
+      hasTokens: row.tokens.length > 0,
+      hasMorphForms,
+      hasGloss,
+      hasPos,
+      hasLemma,
+      hasTranslation: row.translation.length > 0,
+      editing,
+      added: layout.added,
+      hidden: layout.hidden,
+    }),
+    [...ANNOTATION_LINE_ORDER],
+  );
+  const derivedLines = layout.languageKeys.reduce<string[]>(
+    (current, key) => placeAnnotationLine(current, key),
+    [...baseLines],
+  );
+  const lines = reconcileAnnotationLineOrder(layout.keyOrder, derivedLines);
+  const lineTexts = Object.fromEntries(languageLines.map((line) => [line.key, line.text]));
+  const lineLabels = {
+    ...Object.fromEntries(languageLines.map((line) => [line.key, line.label])),
+    ...Object.fromEntries(
+      Object.entries(layout.languageByLine).map(([key, language]) => [
+        key,
+        annotationLanguageLineLabel(locale, key, language),
+      ]),
+    ),
+  };
+  function moveLine(from: string, to: string) {
+    onLayoutChange({ ...layout, keyOrder: moveAnnotationLine(lines, from, to) });
+  }
+  const menuToken =
+    menu?.kind === 'token' ? row.tokens.find((token) => token.id === menu.tokenId) : undefined;
+  const menuLink = menuToken ? morphology.linksByTokenId[menuToken.id] : undefined;
+  const suppletionLemma =
+    menuLink !== undefined && menuLink.brokenCode === undefined
+      ? (menuLink.lemma ?? '').trim()
+      : '';
+  function openMenu(
+    event: ReactMouseEvent<HTMLElement>,
+    next: { kind: 'unit' } | { kind: 'token'; tokenId: string },
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    onFocusRow(row.id);
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenu({ ...next, x: rect.left, y: rect.bottom });
+  }
+
   return (
     <li
-      className={focused ? 'annotation-igt-row annotation-igt-row-focused' : 'annotation-igt-row'}
+      className={[
+        'annotation-igt-row',
+        focused ? 'annotation-igt-row-focused' : '',
+        playing ? 'annotation-igt-row-playing' : '',
+      ]
+        .filter((name) => name.length > 0)
+        .join(' ')}
       data-testid={`annotation-igt-row-${row.id}`}
-      onClick={() => onFocusRow(row.id)}
+      onClick={() => {
+        setMenu(null);
+        onFocusRow(row.id);
+      }}
+      onContextMenu={(event) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest('.annotation-igt-word') !== null) return;
+        event.preventDefault();
+        onFocusRow(row.id);
+        setMenu({ kind: 'unit', x: event.clientX, y: event.clientY });
+      }}
     >
       <div className="annotation-igt-meta">
-        <span className="annotation-igt-time">{row.timeLabel}</span>
-        <Link className="annotation-igt-link" to={row.transcriptionHref}>
-          {t(locale, 'workspace.annotation.openInTranscription')}
-        </Link>
-      </div>
-      <p className="annotation-igt-label">{t(locale, 'workspace.annotation.surfaceLabel')}</p>
-      <div className="annotation-igt-tokens">
-        {row.tokens.length > 0 ? (
-          row.tokens.map((token) => (
-            <TokenStack
-              key={token.id}
-              token={token}
-              unitId={row.id}
-              inputFocused={focused && inputFocused}
-              drafts={drafts}
-              morphology={morphology}
-              onFocusInput={onFocusInput}
-              onTokenDraftChange={onTokenDraftChange}
-            />
-          ))
-        ) : (
-          <span className="annotation-igt-stack">
-            <span className="annotation-igt-form">
-              {row.surface.length > 0 ? row.surface : row.id}
+        <span className="annotation-igt-time">
+          {row.timeLabel}
+          {row.speakerName ? (
+            <span
+              className="annotation-igt-speaker"
+              data-testid={`annotation-igt-speaker-${row.id}`}
+            >
+              {row.speakerName}
             </span>
-            <span className="annotation-igt-gloss"> </span>
-          </span>
-        )}
+          ) : null}
+        </span>
+        <AnnotationMoreButton
+          className="annotation-igt-row-actions"
+          testId={`annotation-igt-actions-${row.id}`}
+          label={t(locale, 'workspace.annotation.rowActions')}
+          onClick={(event) => openMenu(event, { kind: 'unit' })}
+        />
       </div>
-      <p className="annotation-igt-label">{t(locale, 'workspace.annotation.translationLabel')}</p>
-      <p className="annotation-igt-translation">
-        {row.translation.length > 0
-          ? row.translation
-          : t(locale, 'workspace.annotation.translationEmpty')}
-      </p>
-      {focused && unitMeta && autoGloss && retokenize && validator && onPlay ? (
+      <AnnotationIgtLineGrid
+        row={row}
+        lines={lines}
+        drafts={drafts}
+        morphology={morphology}
+        editing={editing}
+        mweSelectedIds={mweSelectedIds ?? []}
+        activeCell={activeCell}
+        onOpenWordMenu={(event, tokenId) => {
+          setLanguageDraft(null);
+          openMenu(event, { kind: 'token', tokenId });
+        }}
+        onActivateCell={(tokenId, line) => {
+          onFocusRow(row.id);
+          setActiveCell({ tokenId, line });
+        }}
+        onFocusInput={onFocusInput}
+        onTokenDraftChange={onTokenDraftChange}
+        {...(glossAbbreviations ? { glossAbbreviations } : {})}
+        {...(posCategories ? { posCategories } : {})}
+        {...(onCommitTokenForm
+          ? {
+              onCommitTokenForm: (tokenId: string, form: string) =>
+                onCommitTokenForm(row.id, tokenId, form),
+            }
+          : {})}
+        {...(onCommitSurface
+          ? { onCommitSurface: (text: string) => onCommitSurface(row.id, text) }
+          : {})}
+        {...(onCommitTranslation
+          ? { onCommitTranslation: (text: string) => onCommitTranslation(row.id, text) }
+          : {})}
+        {...(onCommitLiteral
+          ? { onCommitLiteral: (text: string) => onCommitLiteral(row.id, text) }
+          : {})}
+        {...(onCommitLanguageLine
+          ? {
+              onCommitLanguageLine: (key: string, text: string) =>
+                onCommitLanguageLine(row.id, key, text),
+            }
+          : {})}
+        {...(onCommitGlossLanguage
+          ? {
+              onCommitGlossLanguage: (tokenId: string, languageId: string, text: string) =>
+                onCommitGlossLanguage(row.id, tokenId, languageId, text),
+            }
+          : {})}
+        lineTexts={{ ...lineTexts, literal: literalText }}
+        lineLabels={lineLabels}
+        onReorderLine={moveLine}
+        onOpenLineMenu={(event, lineId) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onFocusRow(row.id);
+          setMenu({ kind: 'line', lineId, x: event.clientX, y: event.clientY });
+        }}
+        {...(focused && sentenceAcoustic ? { sentenceAcoustic } : {})}
+        showWave={acousticLayers.showWave}
+        showSpectrum={acousticLayers.showSpectrum}
+        showPitch={acousticLayers.showPitch}
+        textLanguageId={textLanguageId}
+        glossLineLanguage={layout.languageByLine.gloss ?? ''}
+        {...(glossSuggestions ? { glossSuggestions } : {})}
+        {...(onAcceptGlossSuggestion ? { onAcceptGlossSuggestion } : {})}
+        {...(onApplyGlossByForm ? { onApplyGlossByForm } : {})}
+      />
+      {focused && mweError.length > 0 ? (
+        <p className="annotation-igt-label" data-testid={`annotation-igt-mwe-error-${row.id}`}>
+          {mweError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : mweError === 'contiguous'
+              ? t(locale, 'workspace.annotation.mweContiguous')
+              : t(locale, 'workspace.annotation.mweFailed')}
+        </p>
+      ) : null}
+      {focused && relationError.length > 0 ? (
+        <p className="annotation-igt-label" data-testid={`annotation-igt-relation-error-${row.id}`}>
+          {relationError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : t(locale, 'workspace.annotation.relationFailed')}
+        </p>
+      ) : null}
+      {focused && alternativeError.length > 0 ? (
+        <p
+          className="annotation-igt-label"
+          data-testid={`annotation-igt-alternative-error-${row.id}`}
+        >
+          {alternativeError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : t(locale, 'workspace.annotation.relationFailed')}
+        </p>
+      ) : null}
+      {focused && posError.length > 0 ? (
+        <p className="annotation-igt-label" data-testid={`annotation-igt-pos-error-${row.id}`}>
+          {posError === 'dirty'
+            ? t(locale, 'workspace.annotation.mweDirty')
+            : t(locale, 'workspace.annotation.posFailed')}
+        </p>
+      ) : null}
+      {focused ? (
+        <AnalysisGraphReadout
+          row={row}
+          drafts={drafts}
+          morphology={morphology}
+          {...(onSelectAlternative ? { onSelectAlternative } : {})}
+        />
+      ) : null}
+      {focused && unitMeta && retokenize && validator ? (
         <AnnotationIgtUnitExtras
           unitId={row.id}
-          playing={playing}
-          matches={autoGloss.previewUnitId === row.id ? autoGloss.matches : []}
+          matches={autoGloss && autoGloss.previewUnitId === row.id ? autoGloss.matches : []}
           unitMeta={unitMeta}
-          autoGloss={autoGloss}
           retokenize={retokenize}
           validator={validator}
-          onPlay={onPlay}
           onFocusInput={onFocusInput}
+          turn={{
+            ...(row.addressee ? { addressee: row.addressee } : {}),
+            ...(row.ungrammatical ? { ungrammatical: row.ungrammatical } : {}),
+            ...(row.actualForm ? { actualForm: row.actualForm } : {}),
+            ...(row.targetForm ? { targetForm: row.targetForm } : {}),
+          }}
+          showNote={false}
+          showCertainty={false}
+        />
+      ) : null}
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={
+            menu.kind === 'unit'
+              ? [
+                  ...buildAnnotationRowMenuItems({
+                    locale,
+                    unitId: row.id,
+                    hasTokens: row.tokens.length > 0,
+                    playing,
+                    ...(onPlay ? { onPlay } : {}),
+                    ...(onWriteFormsToSurface
+                      ? {
+                          onWriteFormsToSurface,
+                          tokenForms: row.tokens.map((token) => token.form),
+                        }
+                      : {}),
+                    onOpenTranscription: () => {
+                      void navigate(row.transcriptionHref);
+                    },
+                  }),
+                ]
+              : menu.kind === 'line'
+                ? buildAnnotationLineMenuItems({
+                    locale,
+                    unitId: row.id,
+                    lineId: menu.lineId,
+                    lines,
+                    languageLines,
+                    workingLanguageIds,
+                    objectLanguageIds,
+                    glossLanguageDraft,
+                    onGlossLanguageDraft: setGlossLanguageDraft,
+                    languageByLine: layout.languageByLine,
+                    onMove: moveLine,
+                    onAssignLanguage: (lineId, languageId) =>
+                      onLayoutChange(
+                        assignAnnotationDocumentLineLanguage(layout, lineId, languageId),
+                      ),
+                    onRemove: (lineId) =>
+                      onLayoutChange(removeAnnotationDocumentLine(layout, lineId)),
+                    onAdd: (lineId) => onLayoutChange(addAnnotationDocumentLine(layout, lineId)),
+                  })
+                : menuToken
+                  ? buildAnnotationTokenMenuItems({
+                      locale,
+                      tokenId: menuToken.id,
+                      mweSelected: mweSelectedIds?.includes(menuToken.id) ?? false,
+                      morphs: (morphology.morphsByTokenId[menuToken.id] ?? []).map((morph) => ({
+                        id: morph.id,
+                        form: displayedAnnotationMorphemeFields(morph, morphology.drafts).form,
+                      })),
+                      suppletionLemma,
+                      canAllomorph: suppletionLemma.length > 0,
+                      onSplit: () => morphology.onSplitToken(row.id, menuToken.id),
+                      onMerge: () => morphology.onMergeToken(row.id, menuToken.id),
+                      ...(onDeleteToken
+                        ? {
+                            tokenIdsInOrder: row.tokens.map((token) => token.id),
+                            linkCount: menuLink ? 1 : 0,
+                            onDelete: (confirmLoss: boolean) =>
+                              onDeleteToken(row.id, menuToken.id, confirmLoss),
+                          }
+                        : {}),
+                      onSeed: () =>
+                        morphology.onSeedMorphemes(row.id, menuToken.id, menuToken.form),
+                      onLink: () => morphology.onLinkLexeme(menuToken.id),
+                      ...(menuLink
+                        ? { onUnlink: () => morphology.onUnlinkLexeme(menuToken.id) }
+                        : {}),
+                      ...(onCiteOccurrence && menuLink?.senseId
+                        ? { onCite: () => onCiteOccurrence(row.id, menuToken.id) }
+                        : {}),
+                      objectLanguageIds,
+                      languageValue: languageDraft ?? menuToken.languageId ?? '',
+                      onLanguageChange: setLanguageDraft,
+                      ...(onSaveTokenLanguage
+                        ? {
+                            onLanguageBlur: (value: string) =>
+                              onSaveTokenLanguage(row.id, menuToken.id, value),
+                          }
+                        : {}),
+                      ...(onToggleMweToken
+                        ? { onToggleMwe: () => onToggleMweToken(row.id, menuToken.id) }
+                        : {}),
+                      ...(onMarkRelation
+                        ? { onMarkRelation: (mark) => onMarkRelation(row.id, mark) }
+                        : {}),
+                      toneValue: toneDraft,
+                      onToneChange: setToneDraft,
+                      pos: displayedAnnotationTokenFields(menuToken, drafts).pos,
+                      storedPos: menuToken.pos,
+                      ...(onApplyPosByForm
+                        ? {
+                            onApplyPosByForm: (pos: string) =>
+                              onApplyPosByForm(row.id, menuToken.id, pos),
+                          }
+                        : {}),
+                      ...(onAddAlternative
+                        ? {
+                            onAddAlternative: (pos: string) =>
+                              onAddAlternative(row.id, menuToken.id, pos),
+                          }
+                        : {}),
+                    })
+                  : []
+          }
         />
       ) : null}
     </li>

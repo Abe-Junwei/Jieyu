@@ -10,8 +10,21 @@ import {
   type UnitRelationViewDocType,
   type UnitRelationLinkType,
 } from '../db';
-import { mapUnitToLayerUnit, projectUnitDocFromLayerUnit } from '../db/migrations/timelineUnitMapping';
-import { bulkUpsertLayerUnitContents, bulkUpsertLayerUnits, collectLayerUnitGraphIdsByTextId, deleteLayerUnitCascade, deleteLayerUnitGraphByIds, deleteLayerUnitGraphByRecordIds, listLayerUnitIdsByMediaId, normalizeMediaId } from './LayerUnitSegmentWritePrimitives';
+import { annotationAnalysisGraphFingerprint } from '../annotation/analysisGraph';
+import {
+  mapUnitToLayerUnit,
+  projectUnitDocFromLayerUnit,
+} from '../db/migrations/timelineUnitMapping';
+import {
+  bulkUpsertLayerUnitContents,
+  bulkUpsertLayerUnits,
+  collectLayerUnitGraphIdsByTextId,
+  deleteLayerUnitCascade,
+  deleteLayerUnitGraphByIds,
+  deleteLayerUnitGraphByRecordIds,
+  listLayerUnitIdsByMediaId,
+  normalizeMediaId,
+} from './LayerUnitSegmentWritePrimitives';
 import { LayerSegmentQueryService, runDexieScopedReadTask } from './LayerSegmentQueryService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
@@ -76,7 +89,9 @@ function projectRelationReadModel(relation: UnitRelationDocType): UnitRelationVi
     ...relation,
     sourceSegmentId: relation.sourceUnitId,
     targetSegmentId: relation.targetUnitId,
-    ...(relation.relationType ? { linkType: mapRelationTypeToLinkType(relation.relationType) } : {}),
+    ...(relation.relationType
+      ? { linkType: mapRelationTypeToLinkType(relation.relationType) }
+      : {}),
   };
 }
 
@@ -103,25 +118,33 @@ export async function resolveDefaultTranscriptionLayerId(
   db: JieyuDatabase,
   textId: string,
 ): Promise<string | undefined> {
-  const layers = (await db.collections.layers.findByIndex('textId', textId)).map((doc) => doc.toJSON());
+  const layers = (await db.collections.layers.findByIndex('textId', textId)).map((doc) =>
+    doc.toJSON(),
+  );
   const transcriptionLayers = layers.filter((layer) => layer.layerType === 'transcription');
   if (transcriptionLayers.length === 0) return undefined;
   const exactDefault = transcriptionLayers.find((layer) => layer.isDefault === true);
   if (exactDefault) return exactDefault.id;
-  return [...transcriptionLayers]
-    .sort((left, right) => (left.sortOrder ?? Number.MAX_SAFE_INTEGER) - (right.sortOrder ?? Number.MAX_SAFE_INTEGER))[0]
-    ?.id;
+  return [...transcriptionLayers].sort(
+    (left, right) =>
+      (left.sortOrder ?? Number.MAX_SAFE_INTEGER) - (right.sortOrder ?? Number.MAX_SAFE_INTEGER),
+  )[0]?.id;
 }
 
 /** Primary keys of unit-type `layer_units` scoped to a text (e.g. last-transcription-layer delete). */
-export async function listUnitUnitPrimaryKeysByTextId(db: JieyuDatabase, textId: string): Promise<string[]> {
-  return runGraphReadWithCompatibleTransaction(['layer_units'], async () => (
-    (await db.dexie.layer_units
-      .where('textId')
-      .equals(textId)
-      .filter((u) => u.unitType === 'unit')
-      .primaryKeys()) as string[]
-  ));
+export async function listUnitUnitPrimaryKeysByTextId(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<string[]> {
+  return runGraphReadWithCompatibleTransaction(
+    ['layer_units'],
+    async () =>
+      (await db.dexie.layer_units
+        .where('textId')
+        .equals(textId)
+        .filter((u) => u.unitType === 'unit')
+        .primaryKeys()) as string[],
+  );
 }
 
 export async function bulkGetLayerUnits(
@@ -129,10 +152,15 @@ export async function bulkGetLayerUnits(
   ids: readonly string[],
 ): Promise<Array<LayerUnitDocType | undefined>> {
   if (ids.length === 0) return [];
-  return runGraphReadWithCompatibleTransaction(['layer_units'], async () => db.dexie.layer_units.bulkGet([...ids]));
+  return runGraphReadWithCompatibleTransaction(['layer_units'], async () =>
+    db.dexie.layer_units.bulkGet([...ids]),
+  );
 }
 
-export async function upsertUnitLayerUnit(db: JieyuDatabase, unit: LayerUnitDocType): Promise<void> {
+export async function upsertUnitLayerUnit(
+  db: JieyuDatabase,
+  unit: LayerUnitDocType,
+): Promise<void> {
   const layerId = await resolveDefaultTranscriptionLayerId(db, unit.textId);
   if (!layerId) return;
   const { unit: mappedUnit, content } = mapUnitToLayerUnit(unit, layerId);
@@ -151,7 +179,11 @@ export async function upsertUnitLayerUnit(db: JieyuDatabase, unit: LayerUnitDocT
   );
 }
 
-export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonly LayerUnitDocType[]): Promise<void> {
+export async function bulkUpsertUnitLayerUnits(
+  db: JieyuDatabase,
+  units: readonly LayerUnitDocType[],
+  options?: { expectedAnalysisGraphFingerprint?: Readonly<Record<string, string>> },
+): Promise<void> {
   if (units.length === 0) return;
   const layerIdByTextId = new Map<string, string>();
   for (const unit of units) {
@@ -180,6 +212,15 @@ export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonl
     'rw',
     [...dexieStoresForLayerUnitsAndContentsRw(db)],
     async () => {
+      const expected = options?.expectedAnalysisGraphFingerprint;
+      if (expected) {
+        for (const [unitId, fingerprint] of Object.entries(expected)) {
+          const current = await db.dexie.layer_units.get(unitId);
+          if (annotationAnalysisGraphFingerprint(current?.analysisGraph) !== fingerprint) {
+            throw new Error(`analysisGraph conflict for ${unitId}`);
+          }
+        }
+      }
       if (mappedUnits.length > 0) {
         await db.dexie.layer_units.bulkPut(mappedUnits);
       }
@@ -191,51 +232,66 @@ export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonl
   );
 }
 
-export async function listUnitDocsFromCanonicalLayerUnits(db: JieyuDatabase): Promise<LayerUnitDocType[]> {
+export async function listUnitDocsFromCanonicalLayerUnits(
+  db: JieyuDatabase,
+): Promise<LayerUnitDocType[]> {
   // 兼容历史库：若 layer_units 尚未恢复，先返回空数组避免首屏崩溃。
   // Compatibility for older DBs: return an empty project view instead of crashing.
   if (!db.dexie.layer_units || !db.dexie.layer_unit_contents) return [];
 
-  return runGraphReadWithCompatibleTransaction(['layer_units', 'layer_unit_contents', 'speakers'], async () => {
-    const units = await db.dexie.layer_units.filter((u) => u.unitType === 'unit').toArray();
-    if (units.length === 0) return [];
-    const unitIds = units.map((u) => u.id);
-    const allContents = await db.dexie.layer_unit_contents.where('unitId').anyOf(unitIds).toArray();
-    const primaryByUnit = new Map<string, LayerUnitContentDocType>();
-    for (const c of allContents) {
-      const unitId = c.unitId?.trim();
-      if (!unitId || c.contentRole !== 'primary_text') continue;
-      const prev = primaryByUnit.get(unitId);
-      if (!prev || c.updatedAt >= prev.updatedAt) primaryByUnit.set(unitId, c);
-    }
-    const speakers = await db.dexie.speakers.toArray();
-    const speakerNameById = new Map(speakers.map((s) => [s.id, s.name] as const));
-    return units
-      .sort((a, b) => (a.startTime !== b.startTime ? a.startTime - b.startTime : a.id.localeCompare(b.id)))
-      .map((unit) => projectUnitDocFromLayerUnit(
-        unit,
-        primaryByUnit.get(unit.id),
-        unit.speakerId ? speakerNameById.get(unit.speakerId) : undefined,
-      ));
-  });
+  return runGraphReadWithCompatibleTransaction(
+    ['layer_units', 'layer_unit_contents', 'speakers'],
+    async () => {
+      const units = await db.dexie.layer_units.filter((u) => u.unitType === 'unit').toArray();
+      if (units.length === 0) return [];
+      const unitIds = units.map((u) => u.id);
+      const allContents = await db.dexie.layer_unit_contents
+        .where('unitId')
+        .anyOf(unitIds)
+        .toArray();
+      const primaryByUnit = new Map<string, LayerUnitContentDocType>();
+      for (const c of allContents) {
+        const unitId = c.unitId?.trim();
+        if (!unitId || c.contentRole !== 'primary_text') continue;
+        const prev = primaryByUnit.get(unitId);
+        if (!prev || c.updatedAt >= prev.updatedAt) primaryByUnit.set(unitId, c);
+      }
+      const speakers = await db.dexie.speakers.toArray();
+      const speakerNameById = new Map(speakers.map((s) => [s.id, s.name] as const));
+      return units
+        .sort((a, b) =>
+          a.startTime !== b.startTime ? a.startTime - b.startTime : a.id.localeCompare(b.id),
+        )
+        .map((unit) =>
+          projectUnitDocFromLayerUnit(
+            unit,
+            primaryByUnit.get(unit.id),
+            unit.speakerId ? speakerNameById.get(unit.speakerId) : undefined,
+          ),
+        );
+    },
+  );
 }
 
 export async function getUnitDocProjectionById(
   db: JieyuDatabase,
   id: string,
 ): Promise<LayerUnitDocType | undefined> {
-  return runGraphReadWithCompatibleTransaction(['layer_units', 'layer_unit_contents', 'speakers'], async () => {
-    const unit = await db.dexie.layer_units.get(id);
-    if (!unit || unit.unitType !== 'unit') return undefined;
-    const primary = await db.dexie.layer_unit_contents
-      .where('[unitId+contentRole]')
-      .equals([id, 'primary_text'])
-      .first();
-    const speakerName = unit.speakerId
-      ? (await db.dexie.speakers.get(unit.speakerId))?.name
-      : undefined;
-    return projectUnitDocFromLayerUnit(unit, primary ?? undefined, speakerName);
-  });
+  return runGraphReadWithCompatibleTransaction(
+    ['layer_units', 'layer_unit_contents', 'speakers'],
+    async () => {
+      const unit = await db.dexie.layer_units.get(id);
+      if (!unit || unit.unitType !== 'unit') return undefined;
+      const primary = await db.dexie.layer_unit_contents
+        .where('[unitId+contentRole]')
+        .equals([id, 'primary_text'])
+        .first();
+      const speakerName = unit.speakerId
+        ? (await db.dexie.speakers.get(unit.speakerId))?.name
+        : undefined;
+      return projectUnitDocFromLayerUnit(unit, primary ?? undefined, speakerName);
+    },
+  );
 }
 
 export async function listSegmentContentsByIds(
@@ -251,16 +307,17 @@ export async function findOrphanSegmentIds(
   candidateSegmentIds?: Iterable<string>,
 ): Promise<string[]> {
   return runGraphReadWithCompatibleTransaction(['layer_units', 'layer_unit_contents'], async () => {
-    const ids = candidateSegmentIds
-      ? uniqueIds(Array.from(candidateSegmentIds))
-      : undefined;
+    const ids = candidateSegmentIds ? uniqueIds(Array.from(candidateSegmentIds)) : undefined;
     const rows = ids
       ? await LayerSegmentQueryService.listSegmentsByIds(ids)
       : await LayerSegmentQueryService.listAllSegments();
     const targetSegmentIds = rows.map((row) => row.id);
     if (targetSegmentIds.length === 0) return [];
 
-    const contents = await db.dexie.layer_unit_contents.where('unitId').anyOf(targetSegmentIds).toArray();
+    const contents = await db.dexie.layer_unit_contents
+      .where('unitId')
+      .anyOf(targetSegmentIds)
+      .toArray();
     const segmentIdsWithContent = new Set(contents.map((item) => item.unitId));
     return targetSegmentIds.filter((segmentId) => !segmentIdsWithContent.has(segmentId));
   });
@@ -287,23 +344,23 @@ async function deleteSegmentLinksBySegmentIds(
 export async function deleteLayerSegmentGraphBySegmentIds(
   db: JieyuDatabase,
   segmentIds: readonly string[],
-): Promise<{ affectedUnitIds: string[]; deletedSegmentIds: string[]; deletedContentIds: string[] }> {
+): Promise<{
+  affectedUnitIds: string[];
+  deletedSegmentIds: string[];
+  deletedContentIds: string[];
+}> {
   const ids = uniqueIds(segmentIds);
   if (ids.length === 0) {
     return { affectedUnitIds: [], deletedSegmentIds: [], deletedContentIds: [] };
   }
 
   const segments = await LayerSegmentQueryService.listSegmentsByIds(ids);
-  const deletedSegmentIds = uniqueIds([
-    ...ids,
-    ...segments.map((segment) => segment.id),
-  ]);
+  const deletedSegmentIds = uniqueIds([...ids, ...segments.map((segment) => segment.id)]);
   const affectedUnitIds = uniqueIds(
-    segments
-      .map((segment) => segment.parentUnitId)
-      .filter((id): id is string => Boolean(id)),
+    segments.map((segment) => segment.parentUnitId).filter((id): id is string => Boolean(id)),
   );
-  const contents = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(deletedSegmentIds);
+  const contents =
+    await LayerSegmentQueryService.listSegmentContentsBySegmentIds(deletedSegmentIds);
   const deletedContentIds = uniqueIds(contents.map((content) => content.id));
 
   return withTransaction(
@@ -328,7 +385,11 @@ export async function deleteLayerSegmentGraphBySegmentIds(
 export async function deleteLayerSegmentGraphByUnitIds(
   db: JieyuDatabase,
   unitIds: readonly string[],
-): Promise<{ affectedUnitIds: string[]; deletedSegmentIds: string[]; deletedContentIds: string[] }> {
+): Promise<{
+  affectedUnitIds: string[];
+  deletedSegmentIds: string[];
+  deletedContentIds: string[];
+}> {
   const ids = uniqueIds(unitIds);
   if (ids.length === 0) {
     return { affectedUnitIds: [], deletedSegmentIds: [], deletedContentIds: [] };
@@ -416,7 +477,11 @@ export async function reinsertLayerSegmentGraphSubset(
   db: JieyuDatabase,
   snapshot: LayerSegmentGraphSnapshot,
 ): Promise<void> {
-  if (snapshot.units.length === 0 && snapshot.contents.length === 0 && snapshot.links.length === 0) {
+  if (
+    snapshot.units.length === 0 &&
+    snapshot.contents.length === 0 &&
+    snapshot.links.length === 0
+  ) {
     return;
   }
 
@@ -448,10 +513,12 @@ export async function snapshotLayerSegmentGraphByLayerIds(
     return { units: [], contents: [], links: [] };
   }
 
-  const unitGroups = await Promise.all(ids.map(async (layerId) => {
-    const rows = await db.dexie.layer_units.where('layerId').equals(layerId).toArray();
-    return rows.filter((row): row is LayerUnitDocType => row.unitType === 'segment');
-  }));
+  const unitGroups = await Promise.all(
+    ids.map(async (layerId) => {
+      const rows = await db.dexie.layer_units.where('layerId').equals(layerId).toArray();
+      return rows.filter((row): row is LayerUnitDocType => row.unitType === 'segment');
+    }),
+  );
   const units = unitGroups.flat();
   const segmentIds = units.map((unit) => unit.id);
   const [contents, links] = await Promise.all([
@@ -471,8 +538,12 @@ export async function restoreLayerSegmentGraphSnapshot(
 ): Promise<void> {
   const targetLayerIds = uniqueIds([
     ...scopeLayerIds,
-    ...snapshot.units.map((unit) => unit.layerId).filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
-    ...snapshot.contents.map((content) => content.layerId).filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+    ...snapshot.units
+      .map((unit) => unit.layerId)
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+    ...snapshot.contents
+      .map((content) => content.layerId)
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
   ]);
   if (targetLayerIds.length === 0) return;
 
@@ -481,33 +552,43 @@ export async function restoreLayerSegmentGraphSnapshot(
     'rw',
     [...dexieStoresForLayerSegmentGraphRw(db)],
     async () => {
-    const existingSegments = (await Promise.all(
-      targetLayerIds.map((layerId) => LayerSegmentQueryService.listSegmentsByLayerId(layerId)),
-    )).flat();
-    const existingSegmentIds = uniqueIds(existingSegments.map((segment) => segment.id));
-    const staleContentIds = uniqueIds((
-      await Promise.all(targetLayerIds.map(async (layerId) => (
-        db.dexie.layer_unit_contents.where('layerId').equals(layerId).primaryKeys() as Promise<string[]>
-      )))
-    ).flat());
+      const existingSegments = (
+        await Promise.all(
+          targetLayerIds.map((layerId) => LayerSegmentQueryService.listSegmentsByLayerId(layerId)),
+        )
+      ).flat();
+      const existingSegmentIds = uniqueIds(existingSegments.map((segment) => segment.id));
+      const staleContentIds = uniqueIds(
+        (
+          await Promise.all(
+            targetLayerIds.map(
+              async (layerId) =>
+                db.dexie.layer_unit_contents
+                  .where('layerId')
+                  .equals(layerId)
+                  .primaryKeys() as Promise<string[]>,
+            ),
+          )
+        ).flat(),
+      );
 
-    if (staleContentIds.length > 0) {
-      await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, staleContentIds);
-    }
-    if (existingSegmentIds.length > 0) {
-      await deleteSegmentLinksBySegmentIds(db, existingSegmentIds);
-      await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, existingSegmentIds);
-    }
+      if (staleContentIds.length > 0) {
+        await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, staleContentIds);
+      }
+      if (existingSegmentIds.length > 0) {
+        await deleteSegmentLinksBySegmentIds(db, existingSegmentIds);
+        await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, existingSegmentIds);
+      }
 
-    if (snapshot.units.length > 0) {
-      await bulkUpsertLayerUnits(db, snapshot.units);
-    }
-    if (snapshot.contents.length > 0) {
-      await bulkUpsertLayerUnitContents(db, snapshot.contents);
-    }
-    if (snapshot.links.length > 0) {
-      await LayerUnitSegmentWriteService.upsertSegmentLinks(db, snapshot.links);
-    }
+      if (snapshot.units.length > 0) {
+        await bulkUpsertLayerUnits(db, snapshot.units);
+      }
+      if (snapshot.contents.length > 0) {
+        await bulkUpsertLayerUnitContents(db, snapshot.contents);
+      }
+      if (snapshot.links.length > 0) {
+        await LayerUnitSegmentWriteService.upsertSegmentLinks(db, snapshot.links);
+      }
     },
     { label: 'LayerSegmentGraphService.restoreLayerSegmentGraphSnapshot' },
   );
@@ -525,11 +606,17 @@ export async function deleteLayerSegmentGraphByLayerId(
   return { affectedUnitIds, deletedSegmentIds };
 }
 
-export async function deleteUnitLayerUnitCascade(db: JieyuDatabase, unitIds: readonly string[]): Promise<void> {
+export async function deleteUnitLayerUnitCascade(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<void> {
   const ids = uniqueIds(unitIds);
   if (ids.length === 0) return;
 
-  const childUnitIds = (await db.dexie.layer_units.where('parentUnitId').anyOf(ids).primaryKeys()) as string[];
+  const childUnitIds = (await db.dexie.layer_units
+    .where('parentUnitId')
+    .anyOf(ids)
+    .primaryKeys()) as string[];
   if (childUnitIds.length > 0) {
     await deleteLayerUnitCascade(db, childUnitIds);
   }
@@ -540,14 +627,22 @@ export async function deleteUnitLayerUnitCascade(db: JieyuDatabase, unitIds: rea
 export async function deleteResidualLayerUnitGraphByTextId(
   db: JieyuDatabase,
   textId: string,
-): Promise<{ deletedUnitIds: string[]; deletedContentIds: string[]; deletedRelationIds: string[] }> {
+): Promise<{
+  deletedUnitIds: string[];
+  deletedContentIds: string[];
+  deletedRelationIds: string[];
+}> {
   return deleteLayerUnitGraphByRecordIds(db, await collectLayerUnitGraphIdsByTextId(db, textId));
 }
 
 export async function deleteResidualLayerUnitGraphByMediaId(
   db: JieyuDatabase,
   mediaId: string,
-): Promise<{ deletedUnitIds: string[]; deletedContentIds: string[]; deletedRelationIds: string[] }> {
+): Promise<{
+  deletedUnitIds: string[];
+  deletedContentIds: string[];
+  deletedRelationIds: string[];
+}> {
   const deletedUnitIds = await listLayerUnitIdsByMediaId(db, mediaId);
   if (deletedUnitIds.length === 0) {
     return { deletedUnitIds: [], deletedContentIds: [], deletedRelationIds: [] };

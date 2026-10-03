@@ -1,5 +1,5 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
-import { isLexemeEntry } from '../../db/lexemeNestedIds';
+import { isLexemeEntry } from '../../app/jieyuDbPageAccess';
 import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from '../../types/jieyuDbDocTypes';
 import {
   applyLexiconEntryFields,

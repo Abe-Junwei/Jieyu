@@ -1,5 +1,5 @@
 import { PanelSection } from '../../components/ui/PanelSection';
-import type { DmlexRelation } from '../../db/dmlexTypes';
+import type { DmlexRelation } from '../../app/jieyuDbPageAccess';
 import { t, useLocale } from '../../i18n';
 import type { LexemeEntryDoc } from '../../types/jieyuDbDocTypes';
 import { homographPartnerId } from '../../utils/dmlexEntry';

@@ -16,11 +16,13 @@ import type { ContextMenuState } from '../../pages/TranscriptionPage.UIState';
 import { t, useLocale } from '../../i18n';
 import { type TimelineUnit } from './transcriptionTypes';
 import type { TimelineUnitView } from './timelineUnitView';
+import type { TextFlowBox } from '../../utils/timelineTextFlowLayout';
 import {
   formatTime,
   getLayerHeaderLanguageLine,
   getOrthographyHeaderLine,
   getLayerHeaderVarietyOrAliasLine,
+  getLayerHeaderWritingSystemLine,
 } from '../../utils/transcriptionFormatters';
 import {
   layerDisplaySettingsToStyle,
@@ -393,6 +395,8 @@ export function useTimelineAnnotationHelpers({
           hasTrailingTools?: boolean;
           saveStatus?: 'dirty' | 'saving' | 'error';
           onRetrySave?: () => void;
+          /** Set while text-flow layout is on. `null` keeps the cell in the text strip instead of a time coordinate. */
+          frame?: TextFlowBox | null;
         },
     ) => {
       const {
@@ -402,6 +406,7 @@ export function useTimelineAnnotationHelpers({
         content,
         tools,
         hasTrailingTools,
+        frame,
         ...itemExtra
       } = extra;
       const dpStart = dragPreview?.id === utt.id ? dragPreview.start : utt.startTime;
@@ -437,8 +442,12 @@ export function useTimelineAnnotationHelpers({
       return (
         <TimelineAnnotationItem
           key={utt.id}
-          left={dpStart * zoomPxPerSec}
-          width={Math.max(4, (dpEnd - dpStart) * zoomPxPerSec)}
+          left={frame !== undefined ? (frame?.left ?? 0) : dpStart * zoomPxPerSec}
+          width={
+            frame !== undefined
+              ? (frame?.width ?? 36)
+              : Math.max(4, (dpEnd - dpStart) * zoomPxPerSec)
+          }
           isSelected={selectedUnitIds.has(utt.id)}
           isLayerCurrent={layer.id === focusedLayerRowId && currentUnitId === utt.id}
           isActive={
@@ -446,7 +455,9 @@ export function useTimelineAnnotationHelpers({
             selectedTimelineUnit?.layerId === layer.id &&
             selectedTimelineUnit.unitId === utt.id
           }
-          isCompact={(dpEnd - dpStart) * zoomPxPerSec < 36}
+          isCompact={
+            frame !== undefined ? (frame?.width ?? 36) < 36 : (dpEnd - dpStart) * zoomPxPerSec < 36
+          }
           title={`${formatTime(utt.startTime)} – ${formatTime(utt.endTime)}${speakerVisual ? ` | 说话人：${speakerVisual.name}` : ''}`}
           draft={draft}
           speakerLabel={speakerVisual?.name ?? ''}
@@ -509,13 +520,17 @@ export function useTimelineAnnotationHelpers({
     (layer: LayerDocType) => {
       const languageLine = getLayerHeaderLanguageLine(layer, locale);
       const varietyOrAliasLine = getLayerHeaderVarietyOrAliasLine(layer);
+      const writingSystemLine = getLayerHeaderWritingSystemLine(layer);
       const targetOrthography = layer.orthographyId
         ? orthographies.find((orthography) => orthography.id === layer.orthographyId)
         : undefined;
       const orthographyLine = getOrthographyHeaderLine(targetOrthography, locale);
-      const labelLines = [languageLine, varietyOrAliasLine, orthographyLine].filter(
-        (line) => line.trim().length > 0,
-      );
+      const labelLines = [
+        languageLine,
+        varietyOrAliasLine,
+        writingSystemLine,
+        orthographyLine,
+      ].filter((line) => line.trim().length > 0);
       return (
         <>
           {labelLines.map((line, index) => (

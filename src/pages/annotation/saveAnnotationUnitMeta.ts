@@ -1,4 +1,5 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
+import { dispatchWorkspaceUnitUpdated } from '../../utils/workspaceEvents';
 import type { LayerUnitDocType, NoteCategory, UserNoteDocType } from '../../types/jieyuDbDocTypes';
 import { newId } from '../../utils/transcriptionFormatters';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
@@ -26,7 +27,10 @@ export type AnnotationNoteDeps = {
 
 export type AnnotationSelfCertaintyDeps = {
   listByTextId: (textId: string) => Promise<LayerUnitDocType[]>;
-  saveBatch: (items: LayerUnitDocType[]) => Promise<void>;
+  saveBatch: (
+    items: LayerUnitDocType[],
+    options?: { expectedAnalysisGraphFingerprint?: Readonly<Record<string, string>> },
+  ) => Promise<void>;
 };
 
 const defaultNoteDeps: AnnotationNoteDeps = {
@@ -38,17 +42,30 @@ const defaultNoteDeps: AnnotationNoteDeps = {
 
 const defaultCertaintyDeps: AnnotationSelfCertaintyDeps = {
   listByTextId: (textId) => LinguisticService.units.listByTextId(textId),
-  saveBatch: (items) => LinguisticService.units.saveBatch(items),
+  saveBatch: (items, options) => LinguisticService.units.saveBatch(items, options),
 };
+
+function projectAnnotationNoteCategory(category: NoteCategory | undefined): NoteCategory {
+  switch (category) {
+    case 'comment':
+    case 'question':
+    case 'todo':
+    case 'linguistic':
+    case 'fieldwork':
+    case 'correction':
+    case 'topic':
+      return category;
+    default:
+      return 'comment';
+  }
+}
 
 export function noteViewFromDoc(doc: UserNoteDocType): AnnotationUnitNoteView {
   const content =
     doc.content.default?.trim() ||
     Object.values(doc.content).find((value) => value.trim().length > 0) ||
     '';
-  const category = ANNOTATION_NOTE_CATEGORIES.includes(doc.category as NoteCategory)
-    ? (doc.category as NoteCategory)
-    : 'comment';
+  const category = projectAnnotationNoteCategory(doc.category);
   return { id: doc.id, content, category };
 }
 
@@ -70,9 +87,11 @@ export async function saveAnnotationUnitNote(
   deps: AnnotationNoteDeps = defaultNoteDeps,
 ): Promise<AnnotationUnitNoteView> {
   const notes = await deps.listNotes(input.unitId);
-  const existing = notes.length > 0 ? notes[notes.length - 1] : undefined;
+  const existing =
+    notes.find((note) => note.category === input.category) ??
+    (input.noteId ? notes.find((note) => note.id === input.noteId) : undefined);
   const now = new Date().toISOString();
-  const id = input.noteId?.trim() || existing?.id || newId('note');
+  const id = existing?.id || newId('note');
   const doc: UserNoteDocType = {
     ...(existing ?? {
       id,
@@ -92,7 +111,51 @@ export async function saveAnnotationUnitNote(
   const readback = await deps.listNotes(input.unitId);
   const stored = readback.find((row) => row.id === id);
   if (!stored) throw new Error(`note readback missing ${id}`);
+  dispatchWorkspaceUnitUpdated({ unitId: input.unitId });
   return noteViewFromDoc(stored);
+}
+
+export async function saveAnnotationUnitTurn(
+  input: {
+    textId: string;
+    unitId: string;
+    addressee: string;
+    ungrammatical: boolean;
+    actualForm: string;
+    targetForm: string;
+  },
+  deps: AnnotationSelfCertaintyDeps = defaultCertaintyDeps,
+): Promise<LayerUnitDocType> {
+  const units = await deps.listByTextId(input.textId);
+  const existing = units.find((unit) => unit.id === input.unitId);
+  if (!existing) throw new Error(`readback missing unit ${input.unitId}`);
+  const next: LayerUnitDocType = {
+    ...existing,
+    ungrammatical: input.ungrammatical,
+    updatedAt: new Date().toISOString(),
+  };
+  const addressee = input.addressee.trim();
+  const actualForm = input.actualForm.trim();
+  const targetForm = input.targetForm.trim();
+  if (addressee) next.addressee = addressee;
+  else delete next.addressee;
+  if (actualForm) next.actualForm = actualForm;
+  else delete next.actualForm;
+  if (targetForm) next.targetForm = targetForm;
+  else delete next.targetForm;
+  await deps.saveBatch([next]);
+  const readback = (await deps.listByTextId(input.textId)).find((unit) => unit.id === input.unitId);
+  if (!readback) throw new Error(`readback missing unit ${input.unitId}`);
+  if (
+    readback.ungrammatical !== input.ungrammatical ||
+    readback.addressee !== (addressee || undefined) ||
+    readback.actualForm !== (actualForm || undefined) ||
+    readback.targetForm !== (targetForm || undefined)
+  ) {
+    throw new Error(`turn fields readback mismatch for ${input.unitId}`);
+  }
+  dispatchWorkspaceUnitUpdated({ unitId: input.unitId });
+  return readback;
 }
 
 export async function saveAnnotationUnitSelfCertainty(

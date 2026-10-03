@@ -84,6 +84,10 @@ export type BuildTranscriptionUnitContextMenuItemsInput = {
     };
   };
   onFindSimilarUnitsFromMenu?: (unitId: string) => void;
+  onWaveformEmptyPlay?: (time: number) => void;
+  onWaveformEmptyZoomIn?: () => void;
+  onWaveformEmptyZoomOut?: () => void;
+  onWaveformEmptyClearSelection?: () => void;
 };
 
 function isTranscriptionLayerContext(
@@ -123,7 +127,48 @@ export function buildTranscriptionUnitContextMenuItems(
     runSplitAtTime,
     displayStyleControl,
     onFindSimilarUnitsFromMenu,
+    onWaveformEmptyPlay,
+    onWaveformEmptyZoomIn,
+    onWaveformEmptyZoomOut,
+    onWaveformEmptyClearSelection,
   } = input;
+
+  if (ctxMenu.menuSurface === 'waveform-empty') {
+    return [
+      ...(onWaveformEmptyPlay
+        ? [
+            {
+              label: t(locale, 'transcription.ctxMenu.playFromHere'),
+              onClick: () => onWaveformEmptyPlay(ctxMenu.splitTime),
+            },
+          ]
+        : []),
+      ...(onWaveformEmptyZoomIn
+        ? [
+            {
+              label: t(locale, 'transcription.ctxMenu.zoomIn'),
+              onClick: () => onWaveformEmptyZoomIn(),
+            },
+          ]
+        : []),
+      ...(onWaveformEmptyZoomOut
+        ? [
+            {
+              label: t(locale, 'transcription.ctxMenu.zoomOut'),
+              onClick: () => onWaveformEmptyZoomOut(),
+            },
+          ]
+        : []),
+      ...(onWaveformEmptyClearSelection
+        ? [
+            {
+              label: t(locale, 'transcription.ctxMenu.clearSelection'),
+              onClick: () => onWaveformEmptyClearSelection(),
+            },
+          ]
+        : []),
+    ];
+  }
 
   const id = ctxMenu.unitId;
   const multiCount = selectedUnitIds.size;

@@ -1,6 +1,6 @@
 import type { LayerUnitDocType } from '../../db';
 import { getDb } from '../../db';
-import { getTranscriptionAppService } from '../../app/index';
+import { getTranscriptionAppService } from '../../app/TranscriptionAppService';
 import { t, tf } from '../../i18n';
 import { getAiToolSegmentExecutionToolNames } from '../../ai/policy/aiToolPolicyMatrix';
 import {

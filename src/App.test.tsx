@@ -3,6 +3,10 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from './utils/transcriptionUrlDeepLink';
 
 vi.mock('./pages/HomePage', () => ({
   HomePage: () => <div data-testid="home-page">home-page</div>,
@@ -10,18 +14,24 @@ vi.mock('./pages/HomePage', () => ({
 
 vi.mock('./pages/TranscriptionPage', () => ({
   TranscriptionPage: ({ appSearchRequest }: { appSearchRequest?: { query?: string } | null }) => (
-    <div data-testid="transcription-page">{appSearchRequest ? `search:${appSearchRequest.query ?? ''}` : 'transcription-ready'}</div>
+    <div data-testid="transcription-page">
+      {appSearchRequest ? `search:${appSearchRequest.query ?? ''}` : 'transcription-ready'}
+    </div>
   ),
 }));
 
 vi.mock('./pages/AnnotationPage', () => ({ AnnotationPage: () => <div>annotation-page</div> }));
 vi.mock('./pages/AnalysisPage', () => ({ AnalysisPage: () => <div>analysis-page</div> }));
-vi.mock('./pages/CorpusLibraryPage', () => ({ CorpusLibraryPage: () => <div>corpus-library-page</div> }));
+vi.mock('./pages/CorpusLibraryPage', () => ({
+  CorpusLibraryPage: () => <div>corpus-library-page</div>,
+}));
 vi.mock('./pages/LexiconPage', () => ({ LexiconPage: () => <div>lexicon-page</div> }));
 vi.mock('./pages/LanguageMetadataWorkspacePage', () => ({
   LanguageMetadataWorkspacePage: ({ onClose }: { onClose?: () => void }) => (
     <>
-      <button type="button" aria-label="Close" onClick={() => onClose?.()}>close</button>
+      <button type="button" aria-label="Close" onClick={() => onClose?.()}>
+        close
+      </button>
       <div>language-metadata-page</div>
     </>
   ),
@@ -29,7 +39,9 @@ vi.mock('./pages/LanguageMetadataWorkspacePage', () => ({
 vi.mock('./pages/OrthographyManagerPage', () => ({
   OrthographyManagerPage: ({ onClose }: { onClose?: () => void }) => (
     <>
-      <button type="button" aria-label="Close" onClick={() => onClose?.()}>close</button>
+      <button type="button" aria-label="Close" onClick={() => onClose?.()}>
+        close
+      </button>
       <div>orthography-manager-page</div>
     </>
   ),
@@ -37,7 +49,9 @@ vi.mock('./pages/OrthographyManagerPage', () => ({
 vi.mock('./pages/OrthographyBridgeWorkspacePage', () => ({
   OrthographyBridgeWorkspacePage: ({ onClose }: { onClose?: () => void }) => (
     <>
-      <button type="button" aria-label="Close" onClick={() => onClose?.()}>close</button>
+      <button type="button" aria-label="Close" onClick={() => onClose?.()}>
+        close
+      </button>
       <div>orthography-bridge-workspace-page</div>
     </>
   ),
@@ -76,16 +90,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  clearActiveProjectTextId();
 });
-
-function getLeftRailResourcesButton(): HTMLElement {
-  return screen.getByRole('button', { name: /Language assets and resources|语言资产与资源/ });
-}
-
-function openLanguageAssetFromMenu(name: RegExp): void {
-  fireEvent.click(getLeftRailResourcesButton());
-  fireEvent.click(screen.getByRole('menuitem', { name }));
-}
 
 describe('App shell', () => {
   it('removes shell search/theme/shortcut controls', async () => {
@@ -101,6 +107,7 @@ describe('App shell', () => {
   });
 
   it('renders the current multi-workbench shell navigation', () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/transcription']}>
         <App />
@@ -112,15 +119,13 @@ describe('App shell', () => {
     expect(transcriptionLinks.length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Annotation|标注/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Analysis|分析/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /Corpus library|语料库/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Corpus library|语料库/ }).length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getAllByRole('link', { name: /Lexicon|词典/ }).length).toBeGreaterThan(0);
-    fireEvent.click(getLeftRailResourcesButton());
-    expect(screen.getByRole('menuitem', { name: /Language Metadata|语言元数据/ })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: /Orthographies|正字法/ })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: /Orthography Bridges|正字法桥接/ })).toBeTruthy();
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.getAllByLabelText(/功能面板内容区|Feature panel content area/).length).toBeGreaterThan(0);
-    expect(within(getLeftRailResourcesButton()).getByText(/Assets|资源/)).toBeTruthy();
+    expect(
+      screen.getAllByLabelText(/功能面板内容区|Feature panel content area/).length,
+    ).toBeGreaterThan(0);
   });
 
   it('shows a lexicon return banner when lexiconReturn survives on the transcription URL', () => {
@@ -158,57 +163,59 @@ describe('App shell', () => {
 
   it('opens language metadata as a modal panel over the current page from the left rail button', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Language Metadata|语言元数据/);
-
-    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain(
+      'transcription-ready',
+    );
     expect(await screen.findByText('language-metadata-page')).toBeTruthy();
-    expect(screen.getAllByRole('dialog', { name: /Language Metadata|语言元数据/ }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole('dialog', { name: /Language Metadata|语言元数据/ }).length,
+    ).toBeGreaterThan(0);
   });
 
   it('opens orthography bridges as a modal panel over the current page from the left rail button', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Orthography Bridges|正字法桥接/);
-
-    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain(
+      'transcription-ready',
+    );
     expect(await screen.findByText('orthography-bridge-workspace-page')).toBeTruthy();
-    expect(screen.getAllByRole('dialog', { name: /Orthography Bridges|正字法桥接/ }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole('dialog', { name: /Orthography Bridges|正字法桥接/ }).length,
+    ).toBeGreaterThan(0);
   });
 
   it('opens orthography manager as a modal panel over the current page from the left rail button', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/orthographies']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Orthographies|正字法/);
-
-    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain(
+      'transcription-ready',
+    );
     expect(await screen.findByText('orthography-manager-page')).toBeTruthy();
-    expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(
+      0,
+    );
   });
 
   it('closes language-asset modal directly to background page after modal-to-modal navigation', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Language Metadata|语言元数据/);
-    expect(await screen.findByText('language-metadata-page')).toBeTruthy();
-
-    openLanguageAssetFromMenu(/Orthography Bridges|正字法桥接/);
     expect(await screen.findByText('orthography-bridge-workspace-page')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Close|关闭/ }));
@@ -217,17 +224,18 @@ describe('App shell', () => {
       expect(screen.queryByRole('dialog', { name: /Orthography Bridges|正字法桥接/ })).toBeNull();
       expect(screen.queryByRole('dialog', { name: /Language Metadata|语言元数据/ })).toBeNull();
     });
-    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain(
+      'transcription-ready',
+    );
   });
 
   it('closes language-asset modal when pressing Escape', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Language Metadata|语言元数据/);
     expect(await screen.findByText('language-metadata-page')).toBeTruthy();
 
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -239,12 +247,11 @@ describe('App shell', () => {
 
   it('closes language-asset modal when clicking overlay backdrop and keeps shared overlay style', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Language Metadata|语言元数据/);
     expect(await screen.findByText('language-metadata-page')).toBeTruthy();
 
     const overlay = document.querySelector('.dialog-overlay') as HTMLElement | null;
@@ -262,14 +269,14 @@ describe('App shell', () => {
 
   it('opens orthography manager as a modal over the transcription page and applies wide variant', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/orthographies']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Orthographies|正字法/);
-
-    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain(
+      'transcription-ready',
+    );
     expect((await screen.findAllByText('orthography-manager-page')).length).toBeGreaterThan(0);
     const dialog = screen.getAllByRole('dialog', { name: /Orthographies|正字法/ })[0];
     expect(dialog).toBeTruthy();
@@ -278,14 +285,14 @@ describe('App shell', () => {
 
   it('opens language metadata as a modal over the transcription page and applies wide variant', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Language Metadata|语言元数据/);
-
-    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain(
+      'transcription-ready',
+    );
     expect((await screen.findAllByText('language-metadata-page')).length).toBeGreaterThan(0);
     const dialog = screen.getAllByRole('dialog', { name: /Language Metadata|语言元数据/ })[0];
     expect(dialog).toBeTruthy();
@@ -294,21 +301,24 @@ describe('App shell', () => {
 
   it('opens orthography bridges as a modal over the transcription page and applies wide variant', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
         <App />
       </MemoryRouter>,
     );
 
-    openLanguageAssetFromMenu(/Orthography Bridges|正字法桥接/);
-
-    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
-    expect((await screen.findAllByText('orthography-bridge-workspace-page')).length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain(
+      'transcription-ready',
+    );
+    expect(
+      (await screen.findAllByText('orthography-bridge-workspace-page')).length,
+    ).toBeGreaterThan(0);
     const dialog = screen.getAllByRole('dialog', { name: /Orthography Bridges|正字法桥接/ })[0];
     expect(dialog).toBeTruthy();
     expect(dialog!.className).toContain('dialog-card-wide');
   });
 
   it('persists locale preference and rerenders shell copy after toggling language', async () => {
+    publishActiveProjectTextId('text-demo');
     const getter = vi.spyOn(navigator, 'language', 'get');
     getter.mockReturnValue('zh-CN');
 
@@ -331,5 +341,4 @@ describe('App shell', () => {
 
     getter.mockRestore();
   });
-
 });

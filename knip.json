@@ -19,6 +19,8 @@
     "src/components/*/index.ts",
     "src/pages/*/index.ts",
     "src/app/index.ts",
+    "src/app/AiAppService.ts",
+    "src/app/LanguageAssetsAppService.ts",
     "src/ai/embeddings/embeddingSmokeTest.ts",
     "src/ai/mcp/client/mcpClientTypes.ts",
     "src/ai/perf/embeddingModelDecision.ts",

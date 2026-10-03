@@ -4,7 +4,7 @@
  * 仅负责 ready workspace 的页面拼装，不承载业务编排。| Only composes the ready workspace view and keeps business orchestration out of the page shell.
  */
 
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import type { CSSProperties, ContextType, ReactNode, RefObject } from 'react';
 import {
   TimelineRailSection,
@@ -189,6 +189,10 @@ function ReadyStageContent({
     pdfRuntimeProps,
     shouldRenderPdfRuntime,
   } = workspaceAreaProps;
+  const showAcousticTools = Boolean(readyWorkspaceWaveformContentProps.selectedMediaUrl);
+  useEffect(() => {
+    if (!showAcousticTools) setIsAcousticInspectorOpen(false);
+  }, [showAcousticTools]);
 
   return (
     <>
@@ -206,6 +210,8 @@ function ReadyStageContent({
       ) : null}
 
       {collaborationCloudStatusSlot}
+
+      <LeftRailProjectHub {...projectHubProps} />
 
       <section className="transcription-waveform" ref={waveformSectionRef}>
         <Suspense fallback={null}>
@@ -230,8 +236,6 @@ function ReadyStageContent({
           />
         </Suspense>
       </section>
-
-      <LeftRailProjectHub {...projectHubProps} />
 
       <input
         ref={mediaInputProps.ref}
@@ -326,21 +330,27 @@ function ReadyStageContent({
 
           <BottomToolbarSection>
             <ToolbarLeftSection>
-              <button
-                type="button"
-                className={`icon-btn${isAcousticInspectorOpen ? ' icon-btn-active' : ''}`}
-                data-testid="transcription-acoustic-inspector-toggle"
-                aria-pressed={isAcousticInspectorOpen}
-                title={t(locale, 'transcription.acousticInspector.toggle')}
-                onClick={() => {
-                  setIsAcousticInspectorOpen((open) => !open);
-                }}
-              >
-                <span className="icon-btn-label">
-                  {t(locale, 'transcription.acousticInspector.toggle')}
-                </span>
-              </button>
-              <ZoomControlsSection {...zoomControlsProps} />
+              {showAcousticTools ? (
+                <button
+                  type="button"
+                  className={`icon-btn${isAcousticInspectorOpen ? ' icon-btn-active' : ''}`}
+                  data-testid="transcription-acoustic-inspector-toggle"
+                  aria-pressed={isAcousticInspectorOpen}
+                  title={t(locale, 'transcription.acousticInspector.toggle')}
+                  onClick={() => {
+                    setIsAcousticInspectorOpen((open) => !open);
+                  }}
+                >
+                  <span className="icon-btn-label">
+                    {t(locale, 'transcription.acousticInspector.toggle')}
+                  </span>
+                </button>
+              ) : null}
+              <ZoomControlsSection
+                {...zoomControlsProps}
+                showAcousticTools={showAcousticTools}
+                timeZoom={showAcousticTools}
+              />
             </ToolbarLeftSection>
             <ToolbarRightSection {...historyControlsProps} />
           </BottomToolbarSection>

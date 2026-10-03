@@ -90,9 +90,10 @@ export function useTranscriptionTimelineController(
     const buffer = Math.max(1, viewSpan * 0.45);
     const left = Math.max(0, input.rulerView.start - buffer);
     const right = Math.min(extentSec, input.rulerView.end + buffer);
-    return filteredUnitsOnCurrentMedia.filter(
+    const inWindow = filteredUnitsOnCurrentMedia.filter(
       (unit) => unit.endTime >= left && unit.startTime <= right,
     );
+    return inWindow.length > 0 ? inWindow : filteredUnitsOnCurrentMedia;
   }, [filteredUnitsOnCurrentMedia, input.timelineExtentSec, input.playerDuration, input.rulerView]);
 
   const translationAudioByLayer = useMemo(() => {

@@ -140,6 +140,7 @@ const unitTokenDocSchema = z.object({
   gloss: multiLangStringSchema.optional(),
   pos: z.string().optional(),
   lexemeId: z.string().min(1).optional(),
+  languageId: z.string().min(1).optional(),
   tokenIndex: z.number().int().min(0),
   provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
@@ -155,6 +156,19 @@ const unitMorphemeDocSchema = z.object({
   gloss: multiLangStringSchema.optional(),
   pos: z.string().optional(),
   lexemeId: z.string().min(1).optional(),
+  surfaceParts: z
+    .array(
+      z
+        .object({
+          startOffset: z.number().int().nonnegative(),
+          endOffset: z.number().int().nonnegative(),
+        })
+        .strict()
+        .refine((part) => part.endOffset > part.startOffset, {
+          message: 'endOffset must be greater than startOffset',
+        }),
+    )
+    .optional(),
   morphemeIndex: z.number().int().min(0),
   provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
@@ -324,6 +338,19 @@ const jieyuLexemeSchema = z
           .strict(),
       )
       .optional(),
+    occurrenceCitations: z
+      .array(
+        z
+          .object({
+            textId: dmlexText,
+            unitId: dmlexText,
+            tokenId: dmlexText,
+            lexemeId: dmlexText,
+            senseId: dmlexText,
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 
@@ -338,6 +365,7 @@ const lexemeEntryDocSchema = z
     provenance: provenanceSchema.optional(),
     usageCount: z.number().int().min(0).optional(),
     accessRights: accessRightsSchema.optional(),
+    textId: z.string().min(1).optional(),
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
@@ -386,6 +414,7 @@ const lexemeResourceDocSchema = z
           .optional(),
       })
       .strict(),
+    textId: z.string().min(1).optional(),
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
@@ -839,6 +868,7 @@ const speakerDocSchema = z.object({
   accessRights: accessRightsSchema.optional(),
   address: z.string().optional(),
   notes: multiLangStringSchema.optional(),
+  textId: z.string().min(1).optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });

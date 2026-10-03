@@ -29,6 +29,7 @@ interface NotePopoverProps {
     updates: { content?: MultiLangString; category?: NoteCategory },
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  record?: ReactNode;
 }
 
 export const NotePopover = memo(function NotePopover({
@@ -41,6 +42,7 @@ export const NotePopover = memo(function NotePopover({
   onAdd,
   onUpdate,
   onDelete,
+  record,
 }: NotePopoverProps) {
   const isDialogMode = displayMode === 'dialog';
   const locale = useOptionalLocale() ?? 'zh-CN';
@@ -176,6 +178,7 @@ export const NotePopover = memo(function NotePopover({
       {...(!isDialogMode ? { style: { left: pos.left, top: pos.top } } : {})}
       {...(isDialogMode ? { role: 'dialog', 'aria-modal': true } : {})}
     >
+      {record}
       <PanelSection className="note-popover-list-surface">
         <div className="note-popover-list">
           {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}

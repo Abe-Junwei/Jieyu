@@ -9,25 +9,6 @@ import { dexieStoresForProjectScopedSnapshotPruneRw } from './dexieTranscription
 import { withTransaction } from './withTransaction';
 
 export const COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS = new Set<string>([
-  'lexemes',
-  'token_lexeme_links',
-  'lexeme_assets',
-  'lexeme_asset_links',
-  'languages',
-  'language_display_names',
-  'language_aliases',
-  'language_catalog_history',
-  'custom_field_definitions',
-  'orthographies',
-  'orthography_bridges',
-  'orthography_transforms',
-  'locations',
-  'bibliographic_sources',
-  'grammar_docs',
-  'abbreviations',
-  'structural_rule_profiles',
-  'phonemes',
-  'tag_definitions',
   'ai_tasks',
   'ai_task_snapshots',
   'embeddings',
@@ -42,6 +23,26 @@ export const COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS = new Set<string>([
   'audit_logs',
   'language_asset_overviews',
 ]);
+
+const PROJECT_OWNED_CATALOG_COLLECTIONS = [
+  'lexemes',
+  'lexeme_assets',
+  'lexeme_asset_links',
+  'languages',
+  'language_display_names',
+  'language_aliases',
+  'language_catalog_history',
+  'custom_field_definitions',
+  'orthographies',
+  'orthography_bridges',
+  'orthography_transforms',
+  'locations',
+  'bibliographic_sources',
+  'grammar_docs',
+  'abbreviations',
+  'phonemes',
+  'tag_definitions',
+] as const;
 
 const TEXT_ID_COLLECTIONS = [
   'media_items',
@@ -179,13 +180,53 @@ export function filterCollectionsForProject(
   }
   const speakers = rowsOf(collections, 'speakers').filter((row) => {
     const id = rowString(row, 'id');
-    return id !== null && speakerIds.has(id);
+    return (id !== null && speakerIds.has(id)) || rowString(row, 'textId') === projectId;
   });
   if (speakers.length > 0) {
     next.speakers = speakers;
   }
 
+  for (const name of PROJECT_OWNED_CATALOG_COLLECTIONS) {
+    const filtered = rowsOf(collections, name).filter(
+      (row) => rowString(row, 'textId') === projectId,
+    );
+    if (filtered.length > 0) next[name] = filtered;
+  }
+
+  const profiles = rowsOf(collections, 'structural_rule_profiles').filter(
+    (row) => rowString(row, 'projectId') === projectId,
+  );
+  if (profiles.length > 0) next.structural_rule_profiles = profiles;
+
+  const lexemeLinks = rowsOf(collections, 'token_lexeme_links').filter((row) => {
+    const targetId = rowString(row, 'targetId');
+    return targetId !== null && (tokenIds.has(targetId) || morphemeIds.has(targetId));
+  });
+  if (lexemeLinks.length > 0) next.token_lexeme_links = lexemeLinks;
+
   return next;
+}
+
+/** Drop links whose token or morpheme row is gone. Links for surviving targets stay. */
+export async function dropLexemeLinksWithMissingTargets(): Promise<void> {
+  const db = await getDb();
+  const [tokens, morphemes, links] = await Promise.all([
+    db.dexie.unit_tokens.toArray(),
+    db.dexie.unit_morphemes.toArray(),
+    db.dexie.token_lexeme_links.toArray(),
+  ]);
+  const tokenIds = new Set(tokens.map((row) => row.id));
+  const morphemeIds = new Set(morphemes.map((row) => row.id));
+  const staleIds = links
+    .filter((link) => {
+      if (link.targetType === 'token') return !tokenIds.has(link.targetId);
+      if (link.targetType === 'morpheme') return !morphemeIds.has(link.targetId);
+      return true;
+    })
+    .map((link) => link.id);
+  if (staleIds.length > 0) {
+    await db.dexie.token_lexeme_links.bulkDelete(staleIds);
+  }
 }
 
 export async function exportProjectScopedDatabaseAsJson(textId: string): Promise<{
@@ -287,6 +328,38 @@ async function pruneProjectOwnedRows(textId: string): Promise<void> {
       await db.dexie.speaker_profile_snapshots.where('textId').equals(projectId).delete();
       await db.dexie.translation_status_snapshots.where('textId').equals(projectId).delete();
       await db.dexie.track_entities.where('textId').equals(projectId).delete();
+      const catalogTables = [
+        db.dexie.speakers,
+        db.dexie.lexemes,
+        db.dexie.lexeme_assets,
+        db.dexie.lexeme_asset_links,
+        db.dexie.languages,
+        db.dexie.language_display_names,
+        db.dexie.language_aliases,
+        db.dexie.language_catalog_history,
+        db.dexie.custom_field_definitions,
+        db.dexie.orthographies,
+        db.dexie.orthography_bridges,
+        db.dexie.orthography_transforms,
+        db.dexie.locations,
+        db.dexie.bibliographic_sources,
+        db.dexie.grammar_docs,
+        db.dexie.abbreviations,
+        db.dexie.phonemes,
+        db.dexie.tag_definitions,
+      ] as const;
+      for (const table of catalogTables) {
+        const stale = await table
+          .filter((row) => (row as { textId?: string }).textId === projectId)
+          .toArray();
+        if (stale.length > 0) await table.bulkDelete(stale.map((row) => row.id));
+      }
+      const staleProfiles = await db.dexie.structural_rule_profiles
+        .filter((row) => row.projectId === projectId)
+        .toArray();
+      if (staleProfiles.length > 0) {
+        await db.dexie.structural_rule_profiles.bulkDelete(staleProfiles.map((row) => row.id));
+      }
       await db.dexie.texts.delete(projectId);
     },
     { label: 'projectScopedSnapshot.prune' },
@@ -334,5 +407,7 @@ export async function importProjectScopedDatabaseFromJson(
   };
 
   await pruneProjectOwnedRows(projectId);
-  return importDatabaseFromJson(scopedSnapshot, { strategy: 'upsert' });
+  const result = await importDatabaseFromJson(scopedSnapshot, { strategy: 'upsert' });
+  await dropLexemeLinksWithMissingTargets();
+  return result;
 }

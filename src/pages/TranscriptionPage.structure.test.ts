@@ -613,7 +613,7 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(
       hookCode.includes(
-        'input.waveformInteractionHandlerRefs.handleWaveformRegionUpdateEndRef.current = input.handleWaveformRegionUpdateEnd;',
+        'input.waveformInteractionHandlerRefs.handleWaveformRegionUpdateEndRef.current =\n      input.handleWaveformRegionUpdateEnd;',
       ),
     ).toBe(true);
     expect(hookCode.includes('input.executeActionRef.current = input.executeAction;')).toBe(true);

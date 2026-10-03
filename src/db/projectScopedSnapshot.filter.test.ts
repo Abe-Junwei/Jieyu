@@ -31,9 +31,12 @@ describe('filterCollectionsForProject', () => {
     expect(filtered.layer_units).toEqual([{ id: 'u-a', textId: 'text-a' }]);
     expect(filtered.unit_tokens).toEqual([{ id: 'tok-a', textId: 'text-a', unitId: 'u-a' }]);
     expect(filtered.lexemes).toBeUndefined();
-    expect(filtered.token_lexeme_links).toBeUndefined();
+    expect(filtered.token_lexeme_links).toEqual([
+      { id: 'link-1', lexemeId: 'lex-dog', targetId: 'tok-a' },
+    ]);
     expect(filtered.languages).toBeUndefined();
-    expect(COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS.has('lexemes')).toBe(true);
+    expect(COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS.has('lexemes')).toBe(false);
+    expect(COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS.has('ai_tasks')).toBe(true);
   });
 
   it('keeps only speakers referenced by the project units', () => {

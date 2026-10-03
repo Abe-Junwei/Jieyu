@@ -53,6 +53,16 @@ describe('resolveSegmentScopeMediaId', () => {
     expect(id).toBe('m-host');
   });
 
+  it('ignores a unit media id that is not a loaded recording', () => {
+    const id = resolveSegmentScopeMediaId(
+      undefined,
+      createTimelineUnit('L', 'u1', 'unit'),
+      [unit('u1', '__unknown_media__')],
+      [media('m-first')],
+    );
+    expect(id).toBe('m-first');
+  });
+
   it('falls back to first media row', () => {
     const id = resolveSegmentScopeMediaId(undefined, null, [], [media('m-first')]);
     expect(id).toBe('m-first');

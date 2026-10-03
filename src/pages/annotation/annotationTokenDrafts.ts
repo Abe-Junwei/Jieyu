@@ -6,6 +6,9 @@ export type AnnotationIgtToken = {
   gloss: string;
   pos: string;
   glossLang: string;
+  glossByLanguage?: Readonly<Record<string, string>>;
+  reviewStatus?: string;
+  languageId?: string;
 };
 
 export type AnnotationTokenDraft = {
@@ -58,6 +61,20 @@ export function collectDirtyAnnotationTokenWrites(
   return writes;
 }
 
+/** Drop only drafts that still match the values sent to save. Keystrokes during save stay. */
+export function dropCommittedTokenDrafts(
+  drafts: Readonly<Record<string, AnnotationTokenDraft>>,
+  committed: Readonly<Record<string, AnnotationTokenDraft>>,
+): Record<string, AnnotationTokenDraft> {
+  const next: Record<string, AnnotationTokenDraft> = {};
+  for (const [id, draft] of Object.entries(drafts)) {
+    const saved = committed[id];
+    if (saved && saved.pos === draft.pos && saved.gloss === draft.gloss) continue;
+    next[id] = draft;
+  }
+  return next;
+}
+
 export function dropDraftsForTokenIds(
   drafts: Readonly<Record<string, AnnotationTokenDraft>>,
   tokenIds: readonly string[],
@@ -69,4 +86,20 @@ export function dropDraftsForTokenIds(
     if (!drop.has(id)) next[id] = draft;
   }
   return next;
+}
+
+/** Drop only drafts that still match the snapshot taken before a write. */
+export function dropDraftsUnchangedSince(
+  current: Readonly<Record<string, AnnotationTokenDraft>>,
+  tokenIds: readonly string[],
+  atStart: Readonly<Record<string, AnnotationTokenDraft>>,
+): Record<string, AnnotationTokenDraft> {
+  const unchanged = tokenIds.filter((id) => {
+    const before = atStart[id];
+    const now = current[id];
+    if (before === undefined && now === undefined) return true;
+    if (before === undefined || now === undefined) return false;
+    return before.pos === now.pos && before.gloss === now.gloss;
+  });
+  return dropDraftsForTokenIds(current, unchanged);
 }

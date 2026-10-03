@@ -94,6 +94,7 @@ export function LayerActionPopoverEditMetadataCoreSection(
         locale={locale}
         value={languageInput}
         onChange={setLanguageInput}
+        languageRole={editingLayer?.layerType === 'translation' ? 'working' : 'object'}
         searchScope="language"
         resolveLanguageDisplayName={resolveLanguageDisplayName}
         nameLabel={actionMessages.languageNameLabel}

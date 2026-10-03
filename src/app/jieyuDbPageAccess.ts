@@ -5,4 +5,6 @@
 
 export { db, getDb, withTransaction } from '../db';
 export { stripForbiddenTranslationParentLayerId } from '../db';
+export { isLexemeEntry } from '../db';
 export { brandLayerUnitWriteTarget, type LayerUnitWriteTarget } from '../db/unitIdBrands';
+export type { DmlexRelation, DmlexSense, JieyuLexemeExtras } from '../db/dmlexTypes';

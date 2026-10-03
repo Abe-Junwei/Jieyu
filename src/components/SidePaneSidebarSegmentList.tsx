@@ -3,7 +3,14 @@
  */
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { liveQuery } from 'dexie';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import type {
   LayerDocType,
   LayerLinkDocType,
@@ -61,7 +68,9 @@ interface SidePaneSidebarSegmentListProps {
   unitsOnCurrentMedia?: LayerUnitDocType[];
   speakers?: SpeakerDocType[];
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
+  glossByUnitId?: Readonly<Record<string, string>>;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
+  onSegmentContextMenu?: (unit: TimelineUnit, event: ReactMouseEvent, startTime: number) => void;
   showReviewPresets?: boolean;
 }
 
@@ -124,7 +133,9 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     unitsOnCurrentMedia,
     speakers = [],
     getUnitTextForLayer,
+    glossByUnitId,
     onSelectTimelineUnit,
+    onSegmentContextMenu,
     showReviewPresets = true,
   } = props;
 
@@ -1437,6 +1448,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                       setReviewCursor(index);
                       onSelectTimelineUnit?.(item.unit);
                     }}
+                    onContextMenu={(event) => {
+                      if (!onSegmentContextMenu) return;
+                      event.preventDefault();
+                      onSegmentContextMenu(item.unit, event, item.startTime);
+                    }}
                   >
                     <span className="app-side-pane-segment-list-item-time">
                       {messages.segmentListTimeRange(
@@ -1449,7 +1465,14 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                         {messages.segmentListEmpty}
                       </span>
                     ) : (
-                      <span className="app-side-pane-segment-list-item-text">{item.text}</span>
+                      <>
+                        <span className="app-side-pane-segment-list-item-text">{item.text}</span>
+                        {glossByUnitId?.[item.unit.unitId] ? (
+                          <span className="app-side-pane-segment-list-item-text">
+                            {glossByUnitId[item.unit.unitId]}
+                          </span>
+                        ) : null}
+                      </>
                     )}
                     {item.speakerLabels.length > 0 ||
                     item.noteCategories.length > 0 ||
@@ -1514,6 +1537,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                     setReviewCursor(index);
                     onSelectTimelineUnit?.(item.unit);
                   }}
+                  onContextMenu={(event) => {
+                    if (!onSegmentContextMenu) return;
+                    event.preventDefault();
+                    onSegmentContextMenu(item.unit, event, item.startTime);
+                  }}
                 >
                   <span className="app-side-pane-segment-list-item-time">
                     {messages.segmentListTimeRange(
@@ -1528,6 +1556,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                   ) : (
                     <span className="app-side-pane-segment-list-item-text">{item.text}</span>
                   )}
+                  {glossByUnitId?.[item.unit.unitId] ? (
+                    <span className="app-side-pane-segment-list-item-text">
+                      {glossByUnitId[item.unit.unitId]}
+                    </span>
+                  ) : null}
                   {item.speakerLabels.length > 0 ||
                   item.noteCategories.length > 0 ||
                   item.certainty ||

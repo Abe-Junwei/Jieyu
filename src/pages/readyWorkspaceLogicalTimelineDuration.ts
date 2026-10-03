@@ -18,7 +18,8 @@ export type ComputeLogicalTimelineDurationForZoomOptions = {
 
 /**
  * 无声学壳层：缩放/刻度用文献秒跨度。
- * metadata 有 `logicalDurationSec` 时仍与当前轨上 unit 最大 `endTime` 取 max，避免内容超出默认画布后视口锁死。
+ * 默认 1800s 空白画布在轨上已有语段时改用语段最大 `endTime`，纯文本导入不会再被压成一条线。
+ * 用户另行写过的文献轴仍与语段最大 `endTime` 取 max。
  */
 export function computeLogicalTimelineDurationForZoom(
   logicalDurationSecFromMapping: number | undefined,
@@ -27,6 +28,15 @@ export function computeLogicalTimelineDurationForZoom(
 ): number {
   const maxEnd = maxTimedUnitEndSec(unitsOnCurrentMedia);
   const ac = options?.acousticTimelineAnchorSec;
+  if (
+    typeof logicalDurationSecFromMapping === 'number' &&
+    Number.isFinite(logicalDurationSecFromMapping) &&
+    logicalDurationSecFromMapping > 0 &&
+    isDefaultBlankTimelineLogical(logicalDurationSecFromMapping) &&
+    maxEnd > 0.05
+  ) {
+    return maxEnd;
+  }
   if (
     typeof logicalDurationSecFromMapping === 'number' &&
     Number.isFinite(logicalDurationSecFromMapping) &&

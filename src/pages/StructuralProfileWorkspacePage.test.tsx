@@ -26,6 +26,13 @@ vi.mock('../services/LinguisticService.structuralProfiles', () => ({
   },
 }));
 
+vi.mock('../services/annotationAbbreviationStore', () => ({
+  listAnnotationAbbreviations: vi.fn(async () => []),
+  addAnnotationAbbreviation: vi.fn(async () => 'added'),
+  removeAnnotationAbbreviation: vi.fn(async () => undefined),
+  renameAnnotationAbbreviation: vi.fn(async () => undefined),
+}));
+
 vi.mock('../hooks/useProjectLanguageIds', () => ({
   useProjectLanguageIds: () => ({ projectLanguageIds: PROJECT_LANGUAGE_IDS, loading: false }),
 }));

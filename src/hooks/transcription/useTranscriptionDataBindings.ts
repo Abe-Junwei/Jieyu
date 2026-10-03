@@ -6,6 +6,7 @@ import { useTranscriptionRecoveryActions } from './useTranscriptionRecoveryActio
 import { useTranscriptionSnapshotLoader } from './useTranscriptionSnapshotLoader';
 import { useTranscriptionSnapGuideActions } from './useTranscriptionSnapGuideActions';
 import { useTranscriptionDerivedData } from './useTranscriptionDerivedData';
+import { useRecordedMediaIds } from './useRecordedMediaIds';
 import { useTranscriptionMediaSelection } from './useTranscriptionMediaSelection';
 import { useTranscriptionSelectionGuards } from './useTranscriptionSelectionGuards';
 import { useTranscriptionTranslationDraftSync } from './useTranscriptionTranslationDraftSync';
@@ -106,6 +107,8 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     selectedLayerIdRef,
   } = transcriptionState;
 
+  const recordedMediaIds = useRecordedMediaIds(selectedMediaId, mediaItems);
+
   const {
     orderedLayers,
     translationLayers,
@@ -131,6 +134,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     mediaItems,
     units,
     translations,
+    recordedMediaIds,
   });
 
   useTranscriptionDataPhaseCountsEffect({

@@ -169,6 +169,7 @@ export interface UseTranscriptionTimelineInteractionControllerResult {
   ) => { left: number; right: number | undefined };
   saveTimingRouted: (id: string, start: number, end: number, layerId?: string) => Promise<void>;
   handleWaveformRegionContextMenu: (regionId: string, x: number, y: number) => void;
+  handleWaveformEmptyContextMenu: (time: number, x: number, y: number) => void;
   handleWaveformRegionAltPointerDown: (
     regionId: string,
     time: number,

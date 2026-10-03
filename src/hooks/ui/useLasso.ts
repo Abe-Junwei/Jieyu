@@ -680,6 +680,8 @@ export function useLasso(input: UseLassoInput) {
     (e: React.PointerEvent<HTMLDivElement>) => {
       const info = lassoRef.current;
       if (!info) return;
+      // Text-flow pixels are not seconds. Do not turn an empty-lane drag into a time range.
+      if (tierLassoMode === 'noMediaTextCreate') return;
 
       const dx = e.clientX - info.anchorX;
       const dy = e.clientY - info.anchorY;
@@ -727,7 +729,7 @@ export function useLasso(input: UseLassoInput) {
         });
       }
     },
-    [flushTimelineLassoMove, tierContainerRef, pxPerDocSec],
+    [flushTimelineLassoMove, pxPerDocSec, tierContainerRef, tierLassoMode],
   );
 
   const handleLassoPointerUp = useCallback(

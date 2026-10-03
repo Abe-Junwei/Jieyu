@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { MediaItemDocType } from '../../db';
 import { resolveMediaItemTimelineKind } from '../../utils/mediaItemTimelineKind';
+import {
+  markWaveformDecodeAttempt,
+  publishWaveformDecodeBlock,
+  subscribeWaveformDecodeGuard,
+  getWaveformDecodeGuardRevision,
+  isWaveformDecodeForced,
+  waveformDecodeBlockReason,
+} from '../../utils/waveformDecodeGuard';
 
 type Params = {
   mediaItems: MediaItemDocType[];
@@ -41,9 +49,13 @@ export function useTranscriptionMediaSelection({
   selectedUnitMedia,
 }: Params) {
   useEffect(() => {
-    if (selectedUnitMediaId) {
-      if (selectedUnitMediaId !== selectedMediaId) {
-        setSelectedMediaId(selectedUnitMediaId);
+    const knownUnitMediaId =
+      selectedUnitMediaId && mediaItems.some((item) => item.id === selectedUnitMediaId)
+        ? selectedUnitMediaId
+        : '';
+    if (knownUnitMediaId) {
+      if (knownUnitMediaId !== selectedMediaId) {
+        setSelectedMediaId(knownUnitMediaId);
       }
       return;
     }
@@ -69,6 +81,11 @@ export function useTranscriptionMediaSelection({
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | undefined>();
   const objectUrlRef = useRef<string | undefined>(undefined);
   const mediaSourceKeyRef = useRef<string | undefined>(undefined);
+  const guardRevision = useSyncExternalStore(
+    subscribeWaveformDecodeGuard,
+    getWaveformDecodeGuardRevision,
+    getWaveformDecodeGuardRevision,
+  );
 
   useEffect(() => {
     const media = selectedUnitMedia;
@@ -79,6 +96,7 @@ export function useTranscriptionMediaSelection({
         return;
       }
       mediaSourceKeyRef.current = undefined;
+      publishWaveformDecodeBlock(null);
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = undefined;
@@ -89,18 +107,42 @@ export function useTranscriptionMediaSelection({
 
     const details = media.details as Record<string, unknown> | undefined;
     const blob = details?.audioBlob;
+    const byteSize = blob instanceof Blob ? blob.size : undefined;
+    const durationSec = typeof media.duration === 'number' ? media.duration : undefined;
     const mediaSourceKey =
       blob instanceof Blob
         ? `${media.id}|blob|${media.filename}|${blob.size}|${blob.type}|${media.duration ?? ''}`
         : `${media.id}|url|${media.url ?? ''}|${media.filename}|${resolveMediaItemTimelineKind(media)}`;
+    const force = isWaveformDecodeForced(media.id);
+    const blockReason = waveformDecodeBlockReason({
+      mediaId: media.id,
+      ...(byteSize !== undefined ? { byteSize } : {}),
+      ...(durationSec !== undefined ? { durationSec } : {}),
+      ...(force ? { force: true } : {}),
+    });
+    if (blockReason) {
+      const blockedKey = `${mediaSourceKey}|blocked:${blockReason}`;
+      if (mediaSourceKeyRef.current === blockedKey) return;
+      mediaSourceKeyRef.current = blockedKey;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = undefined;
+      }
+      setSelectedMediaUrl(undefined);
+      publishWaveformDecodeBlock({ mediaId: media.id, reason: blockReason });
+      return;
+    }
 
     if (mediaSourceKey === mediaSourceKeyRef.current) return;
     mediaSourceKeyRef.current = mediaSourceKey;
+    publishWaveformDecodeBlock(null);
 
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = undefined;
     }
+
+    if (force) markWaveformDecodeAttempt(media.id);
 
     if (blob instanceof Blob) {
       const url = URL.createObjectURL(blob);
@@ -110,7 +152,7 @@ export function useTranscriptionMediaSelection({
     }
 
     setSelectedMediaUrl(media.url);
-  }, [selectedMediaId, selectedUnitMedia]);
+  }, [guardRevision, selectedMediaId, selectedUnitMedia]);
 
   useEffect(
     () => () => {

@@ -16,12 +16,28 @@ import { getOrthographyCatalogGroupLabel, getOrthographyBuilderMessages } from '
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { FormField, ModalPanel, PanelButton, PanelFeedback } from './ui';
 import { isKnownIso639_3Code } from '../utils/langMapping';
+import { normalizeProjectLanguageIds } from '../utils/projectLanguageLists';
 import {
   buildLanguageInputSeed,
   getDisplayedLanguageInputLabel,
   normalizeLanguageInputCode,
 } from '../utils/languageInputHostState';
 import { focusFirstInvalidLanguageCodeInput } from '../utils/focusInvalidLanguageInput';
+
+function languageCodes(inputs: readonly LanguageIsoInputValue[]): {
+  codes: string[];
+  invalid: boolean;
+} {
+  const codes: string[] = [];
+  let invalid = false;
+  for (const input of inputs) {
+    const code = normalizeLanguageInputCode(input);
+    if (code.length === 0) continue;
+    if (!isKnownIso639_3Code(code)) invalid = true;
+    else codes.push(code);
+  }
+  return { codes, invalid };
+}
 
 type ProjectSetupDialogProps = {
   isOpen: boolean;
@@ -30,6 +46,8 @@ type ProjectSetupDialogProps = {
     primaryTitle: string;
     englishFallbackTitle: string;
     primaryLanguageId: string;
+    objectLanguageIds: readonly string[];
+    workingLanguageIds: readonly string[];
     primaryOrthographyId?: string;
   }) => Promise<void>;
 };
@@ -45,14 +63,15 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   );
   const [primaryTitle, setPrimaryTitle] = useState('');
   const [englishFallbackTitle, setEnglishFallbackTitle] = useState('');
-  const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>(emptyLanguageInput);
+  const [objectInputs, setObjectInputs] = useState<LanguageIsoInputValue[]>([emptyLanguageInput]);
+  const [workingInputs, setWorkingInputs] = useState<LanguageIsoInputValue[]>([emptyLanguageInput]);
   const [orthographyId, setOrthographyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [languageInputError, setLanguageInputError] = useState('');
 
-  const effectiveLang = normalizeLanguageInputCode(languageInput);
-  const displayedLanguage = getDisplayedLanguageInputLabel(languageInput);
+  const effectiveLang = normalizeLanguageInputCode(objectInputs[0] ?? emptyLanguageInput);
+  const displayedLanguage = getDisplayedLanguageInputLabel(objectInputs[0] ?? emptyLanguageInput);
   const orthographyPicker = useOrthographyPicker(effectiveLang, orthographyId, setOrthographyId);
   const groupedOrthographyOptions = groupOrthographiesForSelect(orthographyPicker.orthographies);
   const selectedOrthography = orthographyPicker.orthographies.find(
@@ -72,7 +91,8 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const reset = () => {
     setPrimaryTitle('');
     setEnglishFallbackTitle('');
-    setLanguageInput(emptyLanguageInput);
+    setObjectInputs([emptyLanguageInput]);
+    setWorkingInputs([emptyLanguageInput]);
     setOrthographyId('');
     setError('');
     setLanguageInputError('');
@@ -96,6 +116,14 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
       return;
     }
     setLanguageInputError('');
+    const objectLanguages = languageCodes(objectInputs);
+    const workingLanguages = languageCodes(workingInputs);
+    if (objectLanguages.invalid || workingLanguages.invalid) {
+      setLanguageInputError(messages.invalidLanguageCode);
+      setError('');
+      focusFirstInvalidLanguageCodeInput({ allowFallback: true });
+      return;
+    }
     if (orthographySelectionError) {
       setError(orthographySelectionError);
       return;
@@ -107,6 +135,8 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
         primaryTitle: primaryTitle.trim(),
         englishFallbackTitle: englishFallbackTitle.trim(),
         primaryLanguageId: effectiveLang,
+        objectLanguageIds: normalizeProjectLanguageIds(objectLanguages.codes),
+        workingLanguageIds: normalizeProjectLanguageIds(workingLanguages.codes),
         ...(orthographyId ? { primaryOrthographyId: orthographyId } : {}),
       });
       handleClose();
@@ -233,27 +263,68 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
             />
           </FormField>
 
-          <FormField>
-            <LanguageIsoInput
-              locale={locale}
-              value={languageInput}
-              onChange={(nextValue) => {
-                setLanguageInput(nextValue);
-                if (languageInputError) {
-                  setLanguageInputError('');
-                }
-              }}
-              searchScope="language"
-              resolveLanguageDisplayName={resolveLanguageDisplayName}
-              nameLabel={messages.languageLabel}
-              codeLabel={messages.languageCodeLabel}
-              namePlaceholder={messages.languagePlaceholder}
-              codePlaceholder={messages.languageCodePlaceholder}
-              required
+          <div className="dialog-field">
+            {objectInputs.map((input, index) => (
+              <LanguageIsoInput
+                key={`object-${index}`}
+                locale={locale}
+                value={input}
+                onChange={(nextValue) => {
+                  setObjectInputs((current) =>
+                    current.map((item, itemIndex) => (itemIndex === index ? nextValue : item)),
+                  );
+                  if (languageInputError) setLanguageInputError('');
+                }}
+                searchScope="language"
+                resolveLanguageDisplayName={resolveLanguageDisplayName}
+                nameLabel={messages.languageLabel}
+                codeLabel={messages.languageCodeLabel}
+                namePlaceholder={messages.languagePlaceholder}
+                codePlaceholder={messages.languageCodePlaceholder}
+                required={index === 0}
+                disabled={submitting}
+                {...(index === 0 ? { error: resolvedLanguageError } : {})}
+              />
+            ))}
+            <PanelButton
+              type="button"
+              variant="ghost"
               disabled={submitting}
-              error={resolvedLanguageError}
-            />
-          </FormField>
+              onClick={() => setObjectInputs((current) => [...current, emptyLanguageInput])}
+            >
+              {messages.addObjectLanguage}
+            </PanelButton>
+          </div>
+
+          <div className="dialog-field">
+            {workingInputs.map((input, index) => (
+              <LanguageIsoInput
+                key={`working-${index}`}
+                locale={locale}
+                value={input}
+                onChange={(nextValue) => {
+                  setWorkingInputs((current) =>
+                    current.map((item, itemIndex) => (itemIndex === index ? nextValue : item)),
+                  );
+                }}
+                searchScope="language"
+                resolveLanguageDisplayName={resolveLanguageDisplayName}
+                nameLabel={messages.workingLanguagesLabel}
+                codeLabel={messages.languageCodeLabel}
+                namePlaceholder={messages.languagePlaceholder}
+                codePlaceholder={messages.languageCodePlaceholder}
+                disabled={submitting}
+              />
+            ))}
+            <PanelButton
+              type="button"
+              variant="ghost"
+              disabled={submitting}
+              onClick={() => setWorkingInputs((current) => [...current, emptyLanguageInput])}
+            >
+              {messages.addWorkingLanguage}
+            </PanelButton>
+          </div>
 
           {effectiveLang && (
             <FormField

@@ -76,6 +76,7 @@ export type BuildReadyWorkspaceSidePanePropsInputFromControllers = {
   listCloudProjectMembers: SidePaneCollaborationDirectory['listProjectMembers'];
   getUnitTextForLayer: BuildReadyWorkspaceSidePanePropsInput['getUnitTextForLayer'];
   onSelectTimelineUnit: BuildReadyWorkspaceSidePanePropsInput['onSelectTimelineUnit'];
+  onSegmentContextMenu?: BuildReadyWorkspaceSidePanePropsInput['onSegmentContextMenu'];
   onReorderLayers: BuildReadyWorkspaceSidePanePropsInput['onReorderLayers'];
   locale: BuildReadyWorkspaceSidePanePropsInput['locale'];
   verticalViewActive: BuildReadyWorkspaceSidePanePropsInput['verticalViewActive'];
@@ -163,6 +164,9 @@ export function buildReadyWorkspaceSidePanePropsInput(
     collaborationCloudPanelProps,
     getUnitTextForLayer: input.getUnitTextForLayer,
     onSelectTimelineUnit: input.onSelectTimelineUnit,
+    ...(input.onSegmentContextMenu !== undefined
+      ? { onSegmentContextMenu: input.onSegmentContextMenu }
+      : {}),
     onReorderLayers: input.onReorderLayers,
     locale: input.locale,
     verticalViewActive: input.verticalViewActive,

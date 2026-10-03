@@ -59,6 +59,15 @@ describe('projectAnnotationLaneUnits', () => {
     expect(rows.map((row) => row.id)).toEqual(['u-ok']);
   });
 
+  it('does not show another file when the opened media has no units', () => {
+    const rows = projectAnnotationLaneUnits({
+      units: [unit({ id: 'u-2', mediaId: 'mid-2', startTime: 1, layerId: 'lane-1' })],
+      layers: [layer('lane-1')],
+      mediaId: 'mid-1',
+    });
+    expect(rows).toEqual([]);
+  });
+
   it('falls back to current-media units when no transcription layer exists', () => {
     const rows = projectAnnotationLaneUnits({
       units: [

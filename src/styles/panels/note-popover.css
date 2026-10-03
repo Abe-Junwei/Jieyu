@@ -76,7 +76,9 @@
   border: 1px solid transparent;
   letter-spacing: 0.01em;
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 45%, transparent);
-  transition: border-color 0.1s, transform 0.1s;
+  transition:
+    border-color 0.1s,
+    transform 0.1s;
 }
 
 .note-popover-tag-comment {
@@ -138,7 +140,10 @@
   color: var(--text-secondary);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  transition:
+    opacity 0.15s,
+    color 0.15s,
+    background 0.15s;
 }
 
 .note-popover-item:hover .note-popover-edit-trigger,
@@ -224,7 +229,9 @@
   background: transparent;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 .note-indicator:hover {
   background: var(--surface-elevated);
@@ -266,7 +273,9 @@
   cursor: pointer;
   z-index: var(--z-timeline-seg-note);
   opacity: 1;
-  transition: color 0.15s, filter 0.15s;
+  transition:
+    color 0.15s,
+    filter 0.15s;
   flex-shrink: 0;
   pointer-events: auto;
   filter: drop-shadow(0 0 1px color-mix(in srgb, var(--state-info-solid) 28%, transparent));
@@ -291,4 +300,16 @@
 .note-popover-item:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
+}
+
+.note-popover-unit-record {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.note-popover-unit-record textarea,
+.note-popover-unit-record input[type='text'],
+.note-popover-unit-record input:not([type]) {
+  width: 100%;
 }

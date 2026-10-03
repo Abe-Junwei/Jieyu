@@ -1,4 +1,8 @@
 import { useMemo, type RefObject } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { LinguisticService } from '../services/LinguisticService';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
+import { occurrenceGlossByUnitId } from '../utils/occurrenceGlossLine';
 import type {
   LayerDocType,
   LayerLinkDocType,
@@ -14,6 +18,8 @@ import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
+import { TranscriptionUnitSearch } from './transcription/TranscriptionUnitSearch';
+import { createTimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { FolderOpenIcon } from './SvgIcons';
 
 type SidebarHostLink = Pick<
@@ -56,6 +62,7 @@ interface SidePaneSidebarOverviewProps {
   speakers?: SpeakerDocType[];
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
+  onSegmentContextMenu?: (unit: TimelineUnit, event: React.MouseEvent, startTime: number) => void;
   onFocusLayer: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, layerId: string) => void;
   onMouseDown: (e: React.MouseEvent, layer: LayerDocType) => void;
@@ -83,6 +90,7 @@ export function SidePaneSidebarOverview({
   speakers,
   getUnitTextForLayer,
   onSelectTimelineUnit,
+  onSegmentContextMenu,
   onFocusLayer,
   onContextMenu,
   onMouseDown,
@@ -100,6 +108,28 @@ export function SidePaneSidebarOverview({
     [sidePaneRows],
   );
   const orthographies = useOrthographies(orthographyLanguageIds);
+  const queryClient = useQueryClient();
+  const glossUnitIds = useMemo(
+    () => (unitsOnCurrentMedia ?? []).map((unit) => unit.id).filter((id) => id.length > 0),
+    [unitsOnCurrentMedia],
+  );
+  const glossLanguageId =
+    sidePaneRows.find((layer) => layer.id === defaultTranscriptionLayerId)?.languageId ??
+    sidePaneRows.find((layer) => layer.layerType === 'transcription')?.languageId;
+  const glossQuery = useQuery({
+    queryKey: ['transcription-token-gloss', glossLanguageId ?? '', glossUnitIds.join('|')],
+    queryFn: () =>
+      LinguisticService.units
+        .listTokensByUnitIds(glossUnitIds)
+        .then((tokens) => occurrenceGlossByUnitId(tokens, glossLanguageId)),
+    enabled: glossUnitIds.length > 0,
+  });
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      if (!glossUnitIds.includes(detail.unitId)) return;
+      void queryClient.invalidateQueries({ queryKey: ['transcription-token-gloss'] });
+    },
+  });
   const orthographyById = useMemo<Map<string, OrthographyDocType>>(
     () => new Map(orthographies.map((orthography) => [orthography.id, orthography] as const)),
     [orthographies],
@@ -242,6 +272,18 @@ export function SidePaneSidebarOverview({
               {renderSidePaneItems()}
             </div>
           </section>
+          {unitsOnCurrentMedia && onSelectTimelineUnit ? (
+            <TranscriptionUnitSearch
+              units={unitsOnCurrentMedia}
+              sentenceLayerId={defaultTranscriptionLayerId ?? focusedLayerRowId}
+              {...(getUnitTextForLayer !== undefined ? { getUnitText: getUnitTextForLayer } : {})}
+              onSelectUnit={(unit) => {
+                const layerId = defaultTranscriptionLayerId ?? focusedLayerRowId;
+                if (layerId.length === 0) return;
+                onSelectTimelineUnit(createTimelineUnit(layerId, unit.id, 'unit'));
+              }}
+            />
+          ) : null}
           <SidePaneSidebarSegmentList
             focusedLayerRowId={focusedLayerRowId}
             messages={messages}
@@ -254,7 +296,9 @@ export function SidePaneSidebarOverview({
             {...(unitsOnCurrentMedia !== undefined ? { unitsOnCurrentMedia } : {})}
             {...(speakers !== undefined ? { speakers } : {})}
             {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
+            {...(glossQuery.data ? { glossByUnitId: glossQuery.data } : {})}
             {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
+            {...(onSegmentContextMenu !== undefined ? { onSegmentContextMenu } : {})}
           />
         </>
       ) : (

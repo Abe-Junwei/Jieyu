@@ -3,7 +3,7 @@ title: '0034 — 协作项目快照不含全局目录'
 doc_type: adr
 status: active
 owner: collaboration
-last_reviewed: 2026-09-20
+last_reviewed: 2026-09-30
 source_of_truth: decision
 ---
 
@@ -23,6 +23,7 @@ source_of_truth: decision
 ## 影响
 
 - 第二台不会从项目快照得到词库；本机词条在 restore 后仍在。
+- Restore 不删除本机 `token_lexeme_links`。导入完成后，只清掉目标词或语素已经不存在的链接。删除项目仍会删掉该项目词上的链接。
 - 旧的整库云快照仍可导入：先按 `textId` 过滤，丢弃词库与其它项目行。
 
 ## 被放弃的备选方案

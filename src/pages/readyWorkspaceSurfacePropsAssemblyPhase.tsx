@@ -7,6 +7,8 @@ import type { CollaborationProtocolGuardEvaluation } from '../collaboration/clou
 import { isCollaborationCloudSurfaceActive } from '../collaboration/cloud/collaborationCloudFeatureGate';
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
 import type { Locale } from '../i18n';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { ContextMenuState } from './TranscriptionPage.UIState';
 import {
   buildReadyWorkspaceSidePaneProps,
   buildReadyWorkspaceWaveformContentProps,
@@ -112,6 +114,27 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       listCloudProjectMembers: input.listCloudProjectMembers,
       getUnitTextForLayer: input.getUnitTextForLayer,
       onSelectTimelineUnit: input.selectTimelineUnit,
+      onSegmentContextMenu: (
+        unit: TimelineUnit,
+        event: { preventDefault(): void; clientX: number; clientY: number },
+        startTime: number,
+      ) => {
+        event.preventDefault();
+        const layers = input.orderedLayers as Array<{ id: string; layerType?: string }>;
+        const row = layers.find((layer) => layer.id === unit.layerId);
+        const openMenu = o.setCtxMenu as (next: ContextMenuState | null) => void;
+        openMenu({
+          x: event.clientX,
+          y: event.clientY,
+          unitId: unit.unitId,
+          layerId: unit.layerId,
+          unitKind: unit.kind,
+          splitTime: startTime,
+          source: 'timeline',
+          menuSurface: 'timeline-annotation',
+          layerType: row?.layerType === 'translation' ? 'translation' : 'transcription',
+        });
+      },
       onReorderLayers: input.reorderLayers,
       locale: input.locale,
       verticalViewActive: input.verticalViewActive,
@@ -236,6 +259,24 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       runMergeNext: o.runMergeNext,
       runSplitAtTime: o.runSplitAtTime,
       getCurrentTime: o.getCurrentTime,
+      onWaveformEmptyPlay: (time: number) => {
+        const seek = playerBridge?.seekTo;
+        const toggle = playerBridge?.togglePlayback;
+        if (typeof seek === 'function') seek(time);
+        if (typeof toggle === 'function' && playerBridge?.isPlaying !== true) toggle();
+      },
+      onWaveformEmptyZoomIn: () => {
+        const current = typeof w.zoomPercent === 'number' ? w.zoomPercent : 100;
+        zoomToPercent(Math.min(800, current + 25), undefined, 'custom');
+      },
+      onWaveformEmptyZoomOut: () => {
+        const current = typeof w.zoomPercent === 'number' ? w.zoomPercent : 100;
+        zoomToPercent(Math.max(100, current - 25), undefined, 'custom');
+      },
+      onWaveformEmptyClearSelection: () => {
+        const clear = asRecord(input.waveform)?.setSubSelectionRange;
+        if (typeof clear === 'function') clear(null);
+      },
       setNotePopover: o.setNotePopover,
       deleteConfirmState: o.deleteConfirmState,
       muteDeleteConfirmInSession: o.muteDeleteConfirmInSession,

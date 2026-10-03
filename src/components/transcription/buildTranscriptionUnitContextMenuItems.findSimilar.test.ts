@@ -74,4 +74,49 @@ describe('buildTranscriptionUnitContextMenuItems find similar', () => {
     similar?.onClick?.();
     expect(onFindSimilarUnitsFromMenu).toHaveBeenCalledWith('utt_1');
   });
+
+  it('limits a blank waveform menu to play, zoom, and clear selection', () => {
+    const onWaveformEmptyPlay = vi.fn();
+    const onWaveformEmptyZoomIn = vi.fn();
+    const onWaveformEmptyZoomOut = vi.fn();
+    const onWaveformEmptyClearSelection = vi.fn();
+    const items = buildTranscriptionUnitContextMenuItems({
+      ctxMenu: {
+        x: 4,
+        y: 8,
+        unitId: '',
+        layerId: 'layer_default',
+        unitKind: 'unit',
+        splitTime: 1.25,
+        menuSurface: 'waveform-empty',
+        layerType: 'transcription',
+      },
+      locale: 'zh-CN',
+      messages: getTranscriptionOverlaysMessages('zh-CN'),
+      selectedUnitIds: new Set(),
+      units: [],
+      transcriptionLayers: [makeLayer()],
+      translationLayers: [],
+      speakerFilterOptions: [],
+      speakerOptions: [],
+      onAssignSpeakerFromMenu: vi.fn(),
+      onOpenNoteFromMenu: vi.fn(),
+      onOpenSpeakerManagementPanelFromMenu: vi.fn(),
+      runDeleteSelection: vi.fn(),
+      runMergeSelection: vi.fn(),
+      runSelectBefore: vi.fn(),
+      runSelectAfter: vi.fn(),
+      runDeleteOne: vi.fn(),
+      runMergePrev: vi.fn(),
+      runMergeNext: vi.fn(),
+      runSplitAtTime: vi.fn(),
+      onWaveformEmptyPlay,
+      onWaveformEmptyZoomIn,
+      onWaveformEmptyZoomOut,
+      onWaveformEmptyClearSelection,
+    });
+    expect(items.map((item) => item.label)).toEqual(['从这里播放', '放大', '缩小', '清除选区']);
+    items[0]?.onClick?.();
+    expect(onWaveformEmptyPlay).toHaveBeenCalledWith(1.25);
+  });
 });

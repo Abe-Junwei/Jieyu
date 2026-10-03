@@ -5,6 +5,8 @@ import { JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
+import { AnnotationTemplateAbbreviations } from '../components/AnnotationTemplateAbbreviations';
+import { AnnotationTemplatePosCategories } from '../components/AnnotationTemplatePosCategories';
 import { StructuralRuleProfileSandboxPanel } from '../components/StructuralRuleProfileSandboxPanel';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -16,6 +18,7 @@ import {
 } from '../hooks/structuralProfileWorkspaceRuntime';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
+import { annotationTemplateKindFromSearch } from '../utils/annotationTemplateKind';
 import {
   LANGUAGE_ID_PARAM,
   readEntryKindLabel,
@@ -42,6 +45,13 @@ export function StructuralProfileWorkspacePage({
   const [structuralPreviewPending, setStructuralPreviewPending] = useState(false);
   const [structuralPreviewError, setStructuralPreviewError] = useState('');
   const selectedLanguageId = searchParams.get(LANGUAGE_ID_PARAM) ?? '';
+  const template = annotationTemplateKindFromSearch(searchParams.toString()) ?? 'structure';
+  const panelTitle =
+    template === 'abbreviations'
+      ? t(locale, 'workspace.structuralProfile.abbreviationsTitle')
+      : template === 'pos'
+        ? t(locale, 'workspace.structuralProfile.posTitle')
+        : t(locale, 'workspace.structuralProfile.structureTitle');
 
   const browseLanguageIds = useMemo(() => {
     const ids = new Set<string>();
@@ -223,7 +233,7 @@ export function StructuralProfileWorkspacePage({
   );
 
   useRegisterAppSidePane({
-    title: t(locale, 'workspace.structuralProfile.sidePaneTitle'),
+    title: panelTitle,
     subtitle: selectedEntry?.localName ?? t(locale, 'workspace.structuralProfile.sidePaneSubtitle'),
     content: sidePaneContent,
     enabled: registerSidePane,
@@ -241,25 +251,29 @@ export function StructuralProfileWorkspacePage({
     </button>
   ) : undefined;
 
-  const panelFooter = (
-    <div className="lm-footer">
-      <div className="lm-footer-status">
-        <p className="lm-state">{t(locale, 'workspace.structuralProfile.summary')}</p>
+  const panelFooter =
+    template === 'structure' ? (
+      <div className="lm-footer">
+        <div className="lm-footer-status">
+          <p className="lm-state">{t(locale, 'workspace.structuralProfile.summary')}</p>
+        </div>
       </div>
-    </div>
-  );
+    ) : undefined;
 
   return (
     <EmbeddedPanelShell
       className="lm-shell lm-workspace la-shell"
       bodyClassName="lm-layout la-panel-stack"
       footerClassName="lm-footer"
-      title={t(locale, 'workspace.structuralProfile.title')}
+      title={panelTitle}
       actions={panelActions}
-      footer={panelFooter}
-      aria-label={t(locale, 'workspace.structuralProfile.title')}
+      {...(panelFooter ? { footer: panelFooter } : {})}
+      aria-label={panelTitle}
     >
-      {entries.length > 0 && (
+      {template === 'abbreviations' ? <AnnotationTemplateAbbreviations /> : null}
+      {template === 'pos' ? <AnnotationTemplatePosCategories /> : null}
+
+      {template === 'structure' && entries.length > 0 && (
         <nav
           className="lm-entry-list la-panel-section"
           aria-label={t(locale, 'workspace.structuralProfile.title')}
@@ -284,7 +298,7 @@ export function StructuralProfileWorkspacePage({
         </nav>
       )}
 
-      {selectedEntry ? (
+      {template === 'structure' && selectedEntry ? (
         <StructuralRuleProfileSandboxPanel
           locale={locale}
           preview={structuralPreview}

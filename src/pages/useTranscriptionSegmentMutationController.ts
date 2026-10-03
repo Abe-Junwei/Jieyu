@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { getTranscriptionAppService } from '../app/index';
+import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import { t, useLocale } from '../i18n';
 import {
   dispatchTimelineUnitMutation,

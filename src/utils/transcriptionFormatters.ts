@@ -2,6 +2,7 @@
 import type { LayerDocType } from '../db/types';
 import type { LanguageSearchLocale } from './langMapping';
 import { getLanguageCatalogEntry, getLanguageDisplayName } from './langMapping';
+import { readFlexTierName } from './eafTierPick';
 import {
   listUniqueNonEmptyMultiLangLabels,
   readAnyMultiLangLabel,
@@ -205,6 +206,51 @@ export function getLayerHeaderLanguageName(
   );
 }
 
+const PRIVATE_USE_SCRIPT = /^qaa[a-x]$/i;
+
+function languageNameKeys(primary: string): Set<string> {
+  const keys = new Set<string>([primary.toLowerCase()]);
+  const entry = getLanguageCatalogEntry(primary);
+  if (!entry) return keys;
+  for (const name of [entry.name, entry.invertedName, entry.displayNameZh, ...entry.aliases]) {
+    const trimmed = name?.trim().toLowerCase() ?? '';
+    if (trimmed.length > 0) keys.add(trimmed);
+  }
+  return keys;
+}
+
+/** Short writing-system label from a FLEx/BCP 47 tag. Private scripts such as Qaaa stay hidden. */
+export function writingSystemHeaderLabel(tag: string | undefined): string {
+  const raw = tag?.trim() ?? '';
+  if (raw.length === 0) return '';
+  const parsed = parseBcp47(raw);
+  if (parsed.primary.length === 0) return '';
+  const names = languageNameKeys(parsed.primary);
+  const parts: string[] = [];
+  for (const variant of parsed.variants) {
+    parts.push(VARIANT_LABEL_MAP[variant] ?? variant);
+  }
+  if (parsed.privateUse !== undefined && parsed.privateUse.length > 0) {
+    for (const subtag of parsed.privateUse.replace(/^x-/i, '').split('-')) {
+      const token = subtag.trim();
+      if (token.length === 0 || names.has(token.toLowerCase())) continue;
+      parts.push(token);
+    }
+  }
+  if (parts.length === 0 && parsed.region !== undefined && parsed.region.length > 0) {
+    parts.push(parsed.region);
+  }
+  if (
+    parts.length === 0 &&
+    parsed.script !== undefined &&
+    parsed.script.length > 0 &&
+    !PRIVATE_USE_SCRIPT.test(parsed.script)
+  ) {
+    parts.push(parsed.script);
+  }
+  return parts.join(' · ');
+}
+
 export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
   const explicitVarietyParts = [layer.dialect?.trim(), layer.vernacular?.trim()].filter(
     (part): part is string => Boolean(part),
@@ -212,6 +258,10 @@ export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
   if (explicitVarietyParts.length > 0) {
     return explicitVarietyParts.join(' · ');
   }
+
+  const rawName = readAnyMultiLangLabel(layer.name) ?? '';
+  const flexElement = readFlexTierName(rawName)?.element;
+  if (flexElement !== undefined && flexElement.length > 0) return flexElement;
 
   const code = (layer.languageId ?? '').trim();
   if (code.length === 0) return resolveLayerAlias(layer);
@@ -230,6 +280,13 @@ export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
     return varietyParts.join(' · ');
   }
   return resolveLayerAlias(layer);
+}
+
+/** Writing-system line when the layer name still carries the FLEx language slot. */
+export function getLayerHeaderWritingSystemLine(layer: LayerDocType): string {
+  if ((layer.orthographyId ?? '').trim().length > 0) return '';
+  const lang = readFlexTierName(readAnyMultiLangLabel(layer.name) ?? '')?.lang;
+  return writingSystemHeaderLabel(lang);
 }
 
 export function getOrthographyHeaderLine(
@@ -270,13 +327,14 @@ export function buildLaneHeaderInlineDotSeparatedLabel(
 ): string {
   const languageLine = getLayerHeaderLanguageLine(layer, locale);
   const varietyOrAliasLine = getLayerHeaderVarietyOrAliasLine(layer);
+  const writingSystemLine = getLayerHeaderWritingSystemLine(layer);
   const targetOrthography =
     layer.orthographyId !== undefined && layer.orthographyId.length > 0
       ? orthographies.find((o) => o.id === layer.orthographyId)
       : undefined;
   const orthographyLocale = ORTHOGRAPHY_HEADER_LOCALE_BY_SEARCH[locale] ?? 'zh-CN';
   const orthographyLine = getOrthographyHeaderLine(targetOrthography, orthographyLocale);
-  const parts = [languageLine, varietyOrAliasLine, orthographyLine]
+  const parts = [languageLine, varietyOrAliasLine, writingSystemLine, orthographyLine]
     .map((line) => normalizeSingleLine(line).trim())
     .filter((line) => line.length > 0);
   return parts.join(' · ');
@@ -356,4 +414,22 @@ export function pickDefaultTranscriptionText(transcription: unknown): string {
   const record = transcription as Record<string, unknown>;
   const value = record[pickDefaultTranscriptionLangKey(record)];
   return typeof value === 'string' ? value.trim() : '';
+}
+
+/** Prefer the layer language. Fall back to the default display key when that language is empty. */
+export function pickTranscriptionTextForLanguage(
+  transcription: unknown,
+  languageId?: string,
+): string {
+  const preferred = languageId?.trim() ?? '';
+  if (
+    preferred.length > 0 &&
+    transcription !== null &&
+    transcription !== undefined &&
+    typeof transcription === 'object'
+  ) {
+    const value = (transcription as Record<string, unknown>)[preferred];
+    if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  }
+  return pickDefaultTranscriptionText(transcription);
 }

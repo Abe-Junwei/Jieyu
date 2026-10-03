@@ -135,6 +135,29 @@ describe('useWaveformSelectionController', () => {
     expect(result.current.selectedWaveformTimelineItem?.id).toBe('seg-2');
   });
 
+  it('draws unit boundaries on the waveform when the segment list for that layer is empty', () => {
+    const units = [
+      unitToTimelineView(makeSegment('utt-1', 'layer-seg', 0, 1), 'layer-seg'),
+      unitToTimelineView(makeSegment('utt-2', 'layer-seg', 1, 2), 'layer-seg'),
+    ];
+    const { result } = renderHook(() =>
+      useWaveformSelectionController({
+        activeLayerIdForEdits: 'layer-seg',
+        layers: [makeLayer('layer-seg', 'independent_boundary')],
+        layerById: new Map([['layer-seg', makeLayer('layer-seg', 'independent_boundary')]]),
+        layerLinks: [],
+        defaultTranscriptionLayerId: 'layer-seg',
+        timelineUnitViewIndex: makeIndex(units),
+        selectedTimelineUnit: null,
+        selectedUnitIds: new Set(),
+      }),
+    );
+    expect(result.current.waveformRegions).toEqual([
+      { id: 'utt-1', start: 0, end: 1 },
+      { id: 'utt-2', start: 1, end: 2 },
+    ]);
+  });
+
   it('reuses parent segment timeline for dependent segment-backed layers while preserving dependent selection', () => {
     const independentLayer = makeLayer('layer-seg', 'independent_boundary');
     const dependentLayer = {

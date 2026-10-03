@@ -1,12 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { MediaItemDocType } from '../types/jieyuDbDocTypes';
-import { getTranscriptionAppService } from '../app/index';
+import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import { useMediaImport } from '~/hooks/media/useMediaImport';
 import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
-import { withResolvedMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
 import {
   buildProjectMediaSearchableItems,
   computeAudioImportDisposition,
@@ -17,12 +15,16 @@ import type {
   UseTranscriptionProjectMediaControllerResult,
 } from '../types/useTranscriptionProjectMediaController.types';
 import type { TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
+import { importTranscriptionProjectAudio } from './importTranscriptionProjectAudio';
 import { readMediaFileFromInput } from '~/hooks/media/readMediaFileFromInput';
+import {
+  publishActiveProjectTextId,
+  clearActiveProjectTextId,
+} from '../utils/transcriptionUrlDeepLink';
 import {
   assessTimelineImportMismatch,
   resolveAudioImportWillRemapOnFirstBind,
 } from '../utils/timelineImportMismatch';
-import { hasEstablishedTimedUnits } from '../utils/timelineLogicalDurationSync';
 import type { PendingAudioImportSelection } from '../types/useTranscriptionProjectMediaController.types';
 const log = createLogger('useTranscriptionProjectMediaController');
 
@@ -134,7 +136,7 @@ export function useTranscriptionProjectMediaController(
         }
       })(),
       {
-        context: 'src/pages/useTranscriptionProjectMediaController.ts:L85',
+        context: 'src/pages/useTranscriptionProjectMediaController.ts:L101',
         policy: 'user-visible',
       },
     );
@@ -187,7 +189,7 @@ export function useTranscriptionProjectMediaController(
         }
       })(),
       {
-        context: 'src/pages/useTranscriptionProjectMediaController.ts:L120',
+        context: 'src/pages/useTranscriptionProjectMediaController.ts:L165',
         policy: 'user-visible',
       },
     );
@@ -216,6 +218,7 @@ export function useTranscriptionProjectMediaController(
       (async () => {
         try {
           await transcriptionAppService.deleteProject(currentActiveTextId);
+          clearActiveProjectTextId();
           setActiveTextId(null);
           selectTimelineUnit(null);
           clearPendingAudioImportSelection();
@@ -240,7 +243,7 @@ export function useTranscriptionProjectMediaController(
         }
       })(),
       {
-        context: 'src/pages/useTranscriptionProjectMediaController.ts:L153',
+        context: 'src/pages/useTranscriptionProjectMediaController.ts:L217',
         policy: 'user-visible',
       },
     );
@@ -262,9 +265,12 @@ export function useTranscriptionProjectMediaController(
       primaryTitle: string;
       englishFallbackTitle: string;
       primaryLanguageId: string;
+      objectLanguageIds?: readonly string[];
+      workingLanguageIds?: readonly string[];
       primaryOrthographyId?: string;
     }) => {
       const result = await transcriptionAppService.createProject(projectInput);
+      publishActiveProjectTextId(result.textId);
       setActiveTextId(result.textId);
       setSaveState({
         kind: 'done',
@@ -277,70 +283,24 @@ export function useTranscriptionProjectMediaController(
   );
 
   const handleAudioImport = useCallback(
-    async (file: File, duration: number, options?: TranscriptionAudioImportOptions) => {
-      let textId = activeTextId ?? (await getActiveTextId());
-      if (!textId) {
-        const baseName = file.name.replace(/\.[^.]+$/, '');
-        const result = await transcriptionAppService.createProject({
-          primaryTitle: baseName,
-          englishFallbackTitle: baseName,
-          primaryLanguageId: 'und',
-        });
-        textId = result.textId;
-        setActiveTextId(textId);
-      }
-      const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
-      const choose = audioImportDisposition.kind === 'choose' ? audioImportDisposition : null;
-      const importPayload = {
-        textId,
-        audioBlob: blob,
-        filename: file.name,
+    (file: File, duration: number, options?: TranscriptionAudioImportOptions) =>
+      importTranscriptionProjectAudio({
+        transcriptionAppService,
+        activeTextId,
+        getActiveTextId,
+        setActiveTextId,
+        addMediaItem,
+        setSaveState,
+        audioImportDisposition,
+        unitsOnCurrentMedia,
+        loadSnapshot,
+        clearPendingAudioImportSelection,
+        locale,
+        tfB,
+        file,
         duration,
-        ...(options?.mode === 'replace' && choose
-          ? { importMode: 'replace' as const, replaceMediaId: choose.replaceMediaId }
-          : options?.mode === 'add' && choose
-            ? { importMode: 'add' as const }
-            : {}),
-      };
-      const { mediaId } = await transcriptionAppService.importAudio(importPayload);
-      addMediaItem(
-        withResolvedMediaItemTimelineKind({
-          id: mediaId,
-          textId,
-          filename: file.name,
-          duration,
-          details: { audioBlob: blob },
-          isOfflineCached: true,
-          createdAt: new Date().toISOString(),
-        } as MediaItemDocType),
-      );
-      if (options?.mismatchAcknowledged) {
-        const expandTarget = Math.max(
-          duration,
-          typeof options.postImportExpandLogicalToSec === 'number' &&
-            Number.isFinite(options.postImportExpandLogicalToSec)
-            ? options.postImportExpandLogicalToSec
-            : 0,
-        );
-        if (expandTarget > 0) {
-          await transcriptionAppService.expandTextLogicalDurationToAtLeast({
-            textId,
-            minLogicalDurationSec: expandTarget,
-          });
-        }
-      } else if (!hasEstablishedTimedUnits(unitsOnCurrentMedia) && duration > 0) {
-        await transcriptionAppService.setTextLogicalDurationSec({
-          textId,
-          logicalDurationSec: duration,
-        });
-      }
-      await loadSnapshot();
-      clearPendingAudioImportSelection();
-      setSaveState({
-        kind: 'done',
-        message: tfB('transcription.action.audioImported', { filename: file.name }),
-      });
-    },
+        ...(options !== undefined ? { options } : {}),
+      }),
     [
       activeTextId,
       addMediaItem,
@@ -348,6 +308,7 @@ export function useTranscriptionProjectMediaController(
       clearPendingAudioImportSelection,
       getActiveTextId,
       loadSnapshot,
+      locale,
       setActiveTextId,
       setSaveState,
       tfB,

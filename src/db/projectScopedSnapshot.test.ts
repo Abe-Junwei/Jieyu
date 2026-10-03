@@ -89,4 +89,82 @@ describe('project-scoped snapshot export/import', () => {
     expect(await db.layer_units.get('unit-a-stale')).toBeUndefined();
     expect(await db.texts.get('text-a')).toBeTruthy();
   });
+
+  it('keeps local lexeme links for tokens the snapshot still contains', async () => {
+    await seedText('text-a', 'unit-a');
+    await seedText('text-b', 'unit-b');
+    await db.lexemes.put(
+      entryDoc({
+        id: 'lex-dog',
+        headword: 'dog',
+        definition: 'dog',
+        createdAt: NOW,
+        updatedAt: NOW,
+      }),
+    );
+    await db.unit_tokens.put({
+      id: 'tok-a',
+      textId: 'text-a',
+      unitId: 'unit-a',
+      form: { default: 'nga' },
+      tokenIndex: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.unit_tokens.put({
+      id: 'tok-b',
+      textId: 'text-b',
+      unitId: 'unit-b',
+      form: { default: 'nu' },
+      tokenIndex: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.token_lexeme_links.put({
+      id: 'link-a',
+      targetType: 'token',
+      targetId: 'tok-a',
+      lexemeId: 'lex-dog',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.token_lexeme_links.put({
+      id: 'link-b',
+      targetType: 'token',
+      targetId: 'tok-b',
+      lexemeId: 'lex-dog',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const snapshot = await exportProjectScopedDatabaseAsJson('text-a');
+    expect(snapshot.collections.token_lexeme_links).toEqual([
+      expect.objectContaining({ id: 'link-a', targetId: 'tok-a' }),
+    ]);
+
+    await db.unit_tokens.put({
+      id: 'tok-stale',
+      textId: 'text-a',
+      unitId: 'unit-a',
+      form: { default: 'stale' },
+      tokenIndex: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.token_lexeme_links.put({
+      id: 'link-stale',
+      targetType: 'token',
+      targetId: 'tok-stale',
+      lexemeId: 'lex-dog',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await importProjectScopedDatabaseFromJson(snapshot, 'text-a');
+
+    expect(await db.token_lexeme_links.get('link-a')).toBeTruthy();
+    expect(await db.token_lexeme_links.get('link-b')).toBeTruthy();
+    expect(await db.token_lexeme_links.get('link-stale')).toBeUndefined();
+    expect(await db.lexemes.get('lex-dog')).toBeTruthy();
+  });
 });

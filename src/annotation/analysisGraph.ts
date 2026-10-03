@@ -24,6 +24,8 @@ export const analysisGraphRelationTypeSchema = z.enum([
   'glosses',
   'hasPos',
   'linksLexeme',
+  'next',
+  'hasPart',
   'contains',
   'cliticizesTo',
   'partOfMwe',
@@ -49,6 +51,8 @@ export const analysisGraphProjectionTargetSchema = z.enum([
   'lift',
   'elan',
   'latex',
+  'cldf',
+  'ligt',
 ]);
 
 export const analysisGraphProjectionStatusSchema = z.enum([
@@ -61,104 +65,118 @@ export const analysisGraphProjectionStatusSchema = z.enum([
 const idSchema = z.string().trim().min(1).max(128);
 const featureRecordSchema = z.record(z.string(), z.unknown());
 
-export const analysisGraphSurfacePartSchema = z.object({
-  tokenId: idSchema,
-  startOffset: z.number().int().nonnegative().optional(),
-  endOffset: z.number().int().nonnegative().optional(),
-}).strict().superRefine((part, ctx) => {
-  const startOffset = part.startOffset;
-  const endOffset = part.endOffset;
-  const hasStart = typeof startOffset === 'number';
-  const hasEnd = typeof endOffset === 'number';
-  if (hasStart !== hasEnd) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'startOffset and endOffset must be provided together',
-    });
-  }
-  if (hasStart && hasEnd && endOffset <= startOffset) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'endOffset must be greater than startOffset',
-    });
-  }
-});
-
-export const analysisGraphNodeSchema = z.object({
-  id: idSchema,
-  type: analysisGraphNodeTypeSchema,
-  label: z.string().trim().min(1).max(256),
-  surfaceParts: z.array(analysisGraphSurfacePartSchema).optional(),
-  features: featureRecordSchema.optional(),
-}).strict();
-
-export const analysisGraphRelationSchema = z.object({
-  id: idSchema,
-  type: analysisGraphRelationTypeSchema,
-  sourceId: idSchema,
-  targetId: idSchema,
-  role: z.string().trim().min(1).max(64).optional(),
-  features: featureRecordSchema.optional(),
-}).strict();
-
-export const projectionDiagnosticSubjectSchema = z.object({
-  kind: z.enum(['segment', 'boundary', 'cliticBoundary']),
-  segmentId: z.string().trim().min(1).optional(),
-  boundaryOffset: z.number().int().nonnegative().optional(),
-}).strict();
-
-export const projectionDiagnosticSchema = z.object({
-  target: analysisGraphProjectionTargetSchema,
-  status: analysisGraphProjectionStatusSchema,
-  message: z.string().trim().min(1).max(500),
-  subject: projectionDiagnosticSubjectSchema.optional(),
-}).strict();
-
-export const annotationAnalysisGraphFixtureSchema = z.object({
-  id: idSchema,
-  text: z.string().trim().min(1),
-  displayGloss: z.string().trim().min(1),
-  nodes: z.array(analysisGraphNodeSchema).min(1),
-  relations: z.array(analysisGraphRelationSchema),
-  projectionDiagnostics: z.array(projectionDiagnosticSchema).min(1),
-}).strict().superRefine((graph, ctx) => {
-  const nodeIds = new Set<string>();
-  const relationIds = new Set<string>();
-  for (const [index, node] of graph.nodes.entries()) {
-    if (nodeIds.has(node.id)) {
+export const analysisGraphSurfacePartSchema = z
+  .object({
+    tokenId: idSchema,
+    startOffset: z.number().int().nonnegative().optional(),
+    endOffset: z.number().int().nonnegative().optional(),
+  })
+  .strict()
+  .superRefine((part, ctx) => {
+    const startOffset = part.startOffset;
+    const endOffset = part.endOffset;
+    const hasStart = typeof startOffset === 'number';
+    const hasEnd = typeof endOffset === 'number';
+    if (hasStart !== hasEnd) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['nodes', index, 'id'],
-        message: `duplicate node id: ${node.id}`,
+        message: 'startOffset and endOffset must be provided together',
       });
     }
-    nodeIds.add(node.id);
-  }
-  for (const [index, relation] of graph.relations.entries()) {
-    if (relationIds.has(relation.id)) {
+    if (hasStart && hasEnd && endOffset <= startOffset) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['relations', index, 'id'],
-        message: `duplicate relation id: ${relation.id}`,
+        message: 'endOffset must be greater than startOffset',
       });
     }
-    relationIds.add(relation.id);
-    if (!nodeIds.has(relation.sourceId)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['relations', index, 'sourceId'],
-        message: `relation source does not exist: ${relation.sourceId}`,
-      });
+  });
+
+export const analysisGraphNodeSchema = z
+  .object({
+    id: idSchema,
+    type: analysisGraphNodeTypeSchema,
+    label: z.string().trim().min(1).max(256),
+    surfaceParts: z.array(analysisGraphSurfacePartSchema).optional(),
+    features: featureRecordSchema.optional(),
+  })
+  .strict();
+
+export const analysisGraphRelationSchema = z
+  .object({
+    id: idSchema,
+    type: analysisGraphRelationTypeSchema,
+    sourceId: idSchema,
+    targetId: idSchema,
+    role: z.string().trim().min(1).max(64).optional(),
+    features: featureRecordSchema.optional(),
+  })
+  .strict();
+
+export const projectionDiagnosticSubjectSchema = z
+  .object({
+    kind: z.enum(['segment', 'boundary', 'cliticBoundary']),
+    segmentId: z.string().trim().min(1).optional(),
+    boundaryOffset: z.number().int().nonnegative().optional(),
+  })
+  .strict();
+
+export const projectionDiagnosticSchema = z
+  .object({
+    target: analysisGraphProjectionTargetSchema,
+    status: analysisGraphProjectionStatusSchema,
+    message: z.string().trim().min(1).max(500),
+    subject: projectionDiagnosticSubjectSchema.optional(),
+  })
+  .strict();
+
+export const annotationAnalysisGraphFixtureSchema = z
+  .object({
+    id: idSchema,
+    text: z.string().trim().min(1),
+    displayGloss: z.string().trim().min(1),
+    nodes: z.array(analysisGraphNodeSchema).min(1),
+    relations: z.array(analysisGraphRelationSchema),
+    projectionDiagnostics: z.array(projectionDiagnosticSchema).min(1),
+  })
+  .strict()
+  .superRefine((graph, ctx) => {
+    const nodeIds = new Set<string>();
+    const relationIds = new Set<string>();
+    for (const [index, node] of graph.nodes.entries()) {
+      if (nodeIds.has(node.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['nodes', index, 'id'],
+          message: `duplicate node id: ${node.id}`,
+        });
+      }
+      nodeIds.add(node.id);
     }
-    if (!nodeIds.has(relation.targetId)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['relations', index, 'targetId'],
-        message: `relation target does not exist: ${relation.targetId}`,
-      });
+    for (const [index, relation] of graph.relations.entries()) {
+      if (relationIds.has(relation.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['relations', index, 'id'],
+          message: `duplicate relation id: ${relation.id}`,
+        });
+      }
+      relationIds.add(relation.id);
+      if (!nodeIds.has(relation.sourceId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['relations', index, 'sourceId'],
+          message: `relation source does not exist: ${relation.sourceId}`,
+        });
+      }
+      if (!nodeIds.has(relation.targetId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['relations', index, 'targetId'],
+          message: `relation target does not exist: ${relation.targetId}`,
+        });
+      }
     }
-  }
-});
+  });
 
 export type AnalysisGraphProjectionTarget = z.infer<typeof analysisGraphProjectionTargetSchema>;
 type AnalysisGraphProjectionStatus = z.infer<typeof analysisGraphProjectionStatusSchema>;
@@ -197,4 +215,16 @@ export function validateAnnotationAnalysisGraphFixture(
   input: unknown,
 ): AnnotationAnalysisGraphFixture {
   return annotationAnalysisGraphFixtureSchema.parse(input);
+}
+
+/** Stable content fingerprint. Object key order is not part of the graph. */
+export function annotationAnalysisGraphFingerprint(graph: unknown): string {
+  if (graph === null || graph === undefined || typeof graph !== 'object') return '';
+  return JSON.stringify(graph, (_key, value: unknown) =>
+    value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)),
+        )
+      : value,
+  );
 }

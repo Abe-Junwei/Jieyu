@@ -129,6 +129,7 @@ export function LayerActionPopoverCreateContent(props: LayerActionPopoverCreateC
         locale={locale}
         value={languageInput}
         onChange={setLanguageInput}
+        languageRole={action === 'create-translation' ? 'working' : 'object'}
         searchScope="language"
         resolveLanguageDisplayName={resolveLanguageDisplayName}
         nameLabel={actionMessages.languageNameLabel}

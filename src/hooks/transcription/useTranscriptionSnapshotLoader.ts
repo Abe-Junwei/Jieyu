@@ -58,20 +58,17 @@ export function useTranscriptionSnapshotLoader({
   const loadSnapshot = useCallback(
     async (scopeTextId?: string) => {
       const db = await getDb();
-      const [unitRowsRaw, anchorDocs, layerDocs, mediaDocs, speakerDocs, linkDocs] =
-        await Promise.all([
-          listUnitDocsFromCanonicalLayerUnits(db),
-          db.collections.anchors.find().exec(),
-          db.collections.layers.find().exec(),
-          db.collections.media_items.find().exec(),
-          db.collections.speakers.find().exec(),
-          db.collections.layer_links.find().exec(),
-        ]);
+      const [unitRowsRaw, anchorDocs, layerDocs, mediaDocs, linkDocs] = await Promise.all([
+        listUnitDocsFromCanonicalLayerUnits(db),
+        db.collections.anchors.find().exec(),
+        db.collections.layers.find().exec(),
+        db.collections.media_items.find().exec(),
+        db.collections.layer_links.find().exec(),
+      ]);
       const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
       const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as LayerDocType);
       const translationRows = await listUnitTextsFromSegmentation(db);
       const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
-      const speakerRows = speakerDocs.map((doc) => doc.toJSON() as unknown as SpeakerDocType);
       const linkRows = linkDocs.map((doc) => doc.toJSON() as unknown as LayerLinkDocType);
 
       // token/morpheme 延迟加载，不阻塞首屏 | Deferred to loadLinguisticAnnotations
@@ -98,7 +95,11 @@ export function useTranscriptionSnapshotLoader({
       setLayers(layerRows);
       setTranslations(translationRows);
       setMediaItems(mediaRows);
-      setSpeakers(speakerRows);
+      setSpeakers(
+        resolvedTextId.length > 0
+          ? await LinguisticService.speakers.listForProject(resolvedTextId)
+          : [],
+      );
       setLayerLinks(linkRows);
 
       const scopedUnits =

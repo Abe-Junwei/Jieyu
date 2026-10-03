@@ -6,6 +6,7 @@ import {
   isSegmentTimelineUnit,
   isUnitTimelineUnit,
 } from '../hooks/transcription/transcriptionTypes';
+import { useRecordedMediaIds } from '../hooks/transcription/useRecordedMediaIds';
 import {
   resolveSegmentMediaIdFromSegmentGraph,
   resolveSegmentScopeMediaId,
@@ -51,9 +52,16 @@ export function useReadyWorkspaceSegmentScope(input: UseReadyWorkspaceSegmentSco
   }, [segmentScopeMediaIdBase]);
 
   const segmentScopeMediaId = segmentScopeMediaOverride ?? segmentScopeMediaIdBase;
+  const recordedMediaIds = useRecordedMediaIds(segmentScopeMediaId, mediaItems);
 
   const { segmentsByLayer, segmentsLoadComplete, reloadSegments, updateSegmentsLocally } =
-    useLayerSegments(layers, segmentScopeMediaId, defaultTranscriptionLayerId, layerLinks);
+    useLayerSegments(
+      layers,
+      segmentScopeMediaId,
+      defaultTranscriptionLayerId,
+      layerLinks,
+      recordedMediaIds,
+    );
 
   const { segmentContentByLayer, reloadSegmentContents } = useLayerSegmentContents(
     layers,
@@ -65,12 +73,27 @@ export function useReadyWorkspaceSegmentScope(input: UseReadyWorkspaceSegmentSco
 
   useEffect(() => {
     const fromGraph = resolveSegmentMediaIdFromSegmentGraph(selectedTimelineUnit, segmentsByLayer);
-    if (fromGraph === undefined || fromGraph.length === 0) return;
+    const knownMedia = (mediaId: string | undefined) =>
+      typeof mediaId === 'string' &&
+      mediaId.length > 0 &&
+      mediaItems.some((item) => item.id === mediaId);
+    if (fromGraph === undefined || !knownMedia(fromGraph)) {
+      if (segmentScopeMediaOverride !== undefined && !knownMedia(segmentScopeMediaOverride)) {
+        setSegmentScopeMediaOverride(undefined);
+      }
+      return;
+    }
     const current = segmentScopeMediaOverride ?? segmentScopeMediaIdBase;
     if (fromGraph !== current) {
       setSegmentScopeMediaOverride(fromGraph);
     }
-  }, [segmentScopeMediaIdBase, segmentScopeMediaOverride, segmentsByLayer, selectedTimelineUnit]);
+  }, [
+    mediaItems,
+    segmentScopeMediaIdBase,
+    segmentScopeMediaOverride,
+    segmentsByLayer,
+    selectedTimelineUnit,
+  ]);
 
   return {
     activeTimelineUnitId,

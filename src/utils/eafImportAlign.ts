@@ -25,6 +25,62 @@ export function mediaBasename(filename: string): string {
   return base.toLocaleLowerCase('en');
 }
 
+/**
+ * Bind an EAF to the recording it names. The file already open on the timeline
+ * is used only when it is that recording. A different open file is not stamped.
+ */
+export function resolveEafImportMediaId(input: {
+  currentMediaId?: string;
+  eafFilename?: string;
+  mediaItems: ReadonlyArray<{ id: string; filename: string }>;
+}): { mediaId?: string; missingMediaFilename?: string } {
+  const current = input.currentMediaId?.trim() ?? '';
+  const named = input.eafFilename?.trim() ?? '';
+  if (named.length === 0 || named === 'unknown.wav') {
+    return current.length > 0 ? { mediaId: current } : {};
+  }
+  const matched = findMediaIdByFilename(input.mediaItems, named);
+  if (matched !== undefined) return { mediaId: matched };
+  const open = input.mediaItems.find((item) => item.id === current);
+  if (open !== undefined && mediaBasename(open.filename) === mediaBasename(named)) {
+    return { mediaId: current };
+  }
+  return { missingMediaFilename: named };
+}
+
+/**
+ * Media ids that hold sentences for the open recording, including an import
+ * that was stamped onto a different item while that recording was named in the file.
+ */
+export function mediaIdsRecordedForFilename(input: {
+  selectedMediaId: string;
+  selectedFilename: string;
+  mediaItems: ReadonlyArray<{ id: string; filename: string }>;
+  sources: ReadonlyArray<{
+    name?: string;
+    mediaId?: string;
+    linkedMediaFilename?: string;
+  }>;
+}): string[] {
+  const selectedId = input.selectedMediaId.trim();
+  const base = mediaBasename(input.selectedFilename);
+  if (selectedId.length === 0 || base.length === 0) return [];
+  const ids = new Set<string>();
+  for (const item of input.mediaItems) {
+    if (item.id !== selectedId && mediaBasename(item.filename) === base) ids.add(item.id);
+  }
+  for (const source of input.sources) {
+    const sourceMediaId = source.mediaId?.trim() ?? '';
+    if (sourceMediaId.length === 0 || sourceMediaId === selectedId) continue;
+    const linked = source.linkedMediaFilename?.trim() ?? '';
+    const sourceName = source.name?.trim().toLocaleLowerCase('en') ?? '';
+    const linkedHit = linked.length > 0 && mediaBasename(linked) === base;
+    const nameHit = sourceName.length > 0 && sourceName.includes(base);
+    if (linkedHit || nameHit) ids.add(sourceMediaId);
+  }
+  return [...ids];
+}
+
 export function findMediaIdByFilename(
   rows: ReadonlyArray<{ id: string; filename: string }>,
   wantedFilename: string,

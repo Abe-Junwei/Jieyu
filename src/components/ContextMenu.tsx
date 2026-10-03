@@ -26,6 +26,7 @@ export interface ContextMenuItem {
   selectionVariant?: 'dot' | 'check';
   meta?: string;
   shortcut?: string;
+  testId?: string;
   disabled?: boolean;
   danger?: boolean;
   variant?: 'default' | 'category';
@@ -36,7 +37,9 @@ export interface ContextMenuItem {
   searchField?: {
     value: string;
     placeholder?: string;
+    testId?: string;
     onChange: (nextValue: string) => void;
+    onBlur?: (value: string) => void;
   };
 }
 
@@ -156,10 +159,22 @@ export const ContextMenu = memo(function ContextMenu({
   // 子菜单不再做「panel 实测尺寸后二次 setSubmenus」的 layout 环：首开时 ref 由 0→实测宽会触发
   // React #185。位置以 `computeSubmenuPosition(anchorEl, panel)` 初算为准（panel 空时用 fallback 尺寸）。
 
+  const submenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelSubmenuClose = useCallback(() => {
+    if (submenuCloseTimer.current === null) return;
+    clearTimeout(submenuCloseTimer.current);
+    submenuCloseTimer.current = null;
+  }, []);
+  useEffect(() => () => cancelSubmenuClose(), [cancelSubmenuClose]);
+
   const openSubmenuForItem = (itemPath: number[], target: HTMLElement, depth: number) => {
+    cancelSubmenuClose();
     const children = getChildrenAtPath(itemPath);
     if (children.length === 0) {
-      setSubmenus((prev) => prev.slice(0, depth));
+      submenuCloseTimer.current = setTimeout(() => {
+        submenuCloseTimer.current = null;
+        setSubmenus((prev) => prev.slice(0, depth));
+      }, 280);
       return;
     }
     const position = computeSubmenuPosition(target, submenuRefs.current[depth] ?? null);
@@ -245,7 +260,9 @@ export const ContextMenu = memo(function ContextMenu({
                 className="context-menu-search-input"
                 value={item.searchField.value}
                 placeholder={item.searchField.placeholder}
+                {...(item.searchField.testId ? { 'data-testid': item.searchField.testId } : {})}
                 onChange={(e) => item.searchField?.onChange(e.target.value)}
+                onBlur={(e) => item.searchField?.onBlur?.(e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
               />
             </label>
@@ -265,6 +282,7 @@ export const ContextMenu = memo(function ContextMenu({
             .filter(Boolean)
             .join(' ')}
           disabled={item.disabled}
+          {...(item.testId !== undefined ? { 'data-testid': item.testId } : {})}
           role="menuitem"
           aria-haspopup={item.children && item.children.length > 0 ? 'menu' : undefined}
           aria-expanded={
@@ -369,6 +387,8 @@ export const ContextMenu = memo(function ContextMenu({
               zIndex: 10000 + index,
             }}
             role="menu"
+            onMouseEnter={cancelSubmenuClose}
+            onMouseDown={(event) => event.stopPropagation()}
             onScroll={requestLayoutRecalc}
           >
             {renderMenuItems(submenuItems, index + 1, submenu.path)}

@@ -7,6 +7,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   PointerEventHandler,
   ReactNode,
+  Ref,
 } from 'react';
 import { t, useLocale } from '../../i18n';
 
@@ -23,6 +24,7 @@ interface TimelineDraftEditorSurfaceProps {
   disabled?: boolean;
   dir?: string;
   autoFocus?: boolean;
+  inputRef?: Ref<HTMLInputElement>;
   multiline?: boolean;
   rows?: number;
   saveStatus?: TimelineDraftSaveStatus;
@@ -60,6 +62,7 @@ export function TimelineDraftEditorSurface({
   disabled = false,
   dir,
   autoFocus = false,
+  inputRef,
   multiline = false,
   rows,
   saveStatus,
@@ -154,6 +157,7 @@ export function TimelineDraftEditorSurface({
         </>
       ) : (
         <input
+          ref={inputRef}
           type="text"
           className={inputClassName}
           data-allow-native-scroll="true"

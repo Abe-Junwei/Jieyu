@@ -187,7 +187,12 @@ function main() {
     const text = readText(rule.file);
 
     for (const expected of rule.mustInclude ?? []) {
-      if (!text.includes(expected)) {
+      // prettier 会把多声明规则展开成多行；契约只关心声明内容，不关心排版，
+      // 因此比较前折叠空白 | prettier expands multi-declaration rules; the
+      // contract cares about declarations, not line breaks — collapse whitespace.
+      const normalizedText = text.replace(/\s+/g, ' ');
+      const normalizedExpected = expected.replace(/\s+/g, ' ');
+      if (!normalizedText.includes(normalizedExpected)) {
         failures.push(`${rule.file}: missing snippet -> ${expected}`);
       }
     }

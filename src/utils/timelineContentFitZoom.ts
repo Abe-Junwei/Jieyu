@@ -58,6 +58,31 @@ export function resolveContentFitZoomPercent(input: {
   return Math.max(100, Math.ceil((targetPxPerSec / input.fitPxPerSec) * 100));
 }
 
+/**
+ * Pixels per second for a text-only fit.
+ * At least enough to frame the extent in the viewport, and wider when a label
+ * would otherwise be narrower than its text. Scroll width stays under the layout cap.
+ */
+export function resolveTextWidthFitPxPerSec(input: {
+  viewportWidthPx: number;
+  extentSec: number;
+  fitSpanSec: number;
+  segments: ReadonlyArray<TimelineContentFitSegment>;
+  fill?: number;
+}): number {
+  const fill = input.fill ?? 0.9;
+  const extentFit =
+    input.viewportWidthPx > 0 && input.extentSec > 0
+      ? (input.viewportWidthPx * fill) / input.extentSec
+      : 0;
+  const contentFit = resolveContentFitPxPerSec(input.segments);
+  let pxPerSec = Math.max(extentFit, contentFit);
+  if (input.fitSpanSec > 0) {
+    pxPerSec = Math.min(pxPerSec, TIMELINE_CONTENT_FIT_MAX_SCROLL_PX / input.fitSpanSec);
+  }
+  return pxPerSec;
+}
+
 export function flattenTimelineContentFitSegments(
   byLayer: ReadonlyMap<string, ReadonlyArray<TimelineContentFitSegment>>,
   currentMediaId?: string,

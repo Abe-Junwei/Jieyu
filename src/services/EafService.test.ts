@@ -12,8 +12,10 @@ import type {
   UnitTokenDocType,
 } from '../db';
 import { exportToEaf, importFromEaf, resolveEafMediaMimeType } from './EafService';
+import { getLanguageCatalogEntry } from '../utils/langMapping';
 
 const NOW = '2026-03-26T00:00:00.000Z';
+const importedChineseId = getLanguageCatalogEntry('zh')?.iso6393 ?? 'zho';
 
 describe('EafService export', () => {
   it('exports one alignable annotation per segment for multi-segment independent boundary layers', () => {
@@ -470,8 +472,8 @@ describe('EafService export', () => {
 </ANNOTATION_DOCUMENT>`;
 
     const result = importFromEaf(xml);
-    expect(result.defaultLocale).toBe('mvm-fonipa-x-emic');
-    expect(result.tierLocales.get('Phrase Free Translation')).toBe('en');
+    expect(result.defaultLocale).toBe('mvm');
+    expect(result.tierLocales.get('Phrase Free Translation')).toBe('eng');
     expect(result.languageLabels.get('en')).toBe('en');
     expect(result.tierMetadata.size).toBe(0);
     expect([...result.translationTiers.keys()]).toEqual(['Phrase Free Translation']);
@@ -787,8 +789,8 @@ describe('EafService logical timeline round-trip', () => {
     expect(imported.units[0]?.tokens).toEqual([
       {
         form: { default: 'hello' },
-        gloss: { en: 'greet' },
-        morphemes: [{ form: { default: 'hell' }, gloss: { en: 'root' } }],
+        gloss: { eng: 'greet' },
+        morphemes: [{ form: { default: 'hell' }, gloss: { eng: 'root' } }],
       },
       { form: { default: 'world' } },
     ]);
@@ -941,6 +943,45 @@ describe('EAF interchange alignment', () => {
     expect(imported.units[0]?.tokens?.[0]?.gloss).toEqual({ cmn: 'greet' });
   });
 
+  it('keeps two gloss languages on the same word', () => {
+    const imported = importFromEaf(
+      base(`
+        <TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="words" LINGUISTIC_TYPE_REF="word-lt" PARENT_REF="utt">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1">
+              <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gloss-cmn" LINGUISTIC_TYPE_REF="gloss-lt" PARENT_REF="words" LANG_REF="cmn">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="w1">
+              <ANNOTATION_VALUE>问候</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="gloss-eng" LINGUISTIC_TYPE_REF="gloss-lt" PARENT_REF="words" LANG_REF="eng">
+          <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="g2" ANNOTATION_REF="w1">
+              <ANNOTATION_VALUE>greet</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+          </ANNOTATION>
+        </TIER>
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="word-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />
+        <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="gloss-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />
+      `),
+    );
+    expect(imported.units[0]?.tokens?.[0]?.gloss).toEqual({ cmn: '问候', eng: 'greet' });
+  });
+
   it('honors transcription, exclude, and controlled-vocabulary roles', () => {
     const xml = base(`
       <TIER TIER_ID="utt" LINGUISTIC_TYPE_REF="default-lt">
@@ -1059,6 +1100,28 @@ describe('EAF default tier pick', () => {
     expect(imported.tierRolePrompt).toBeUndefined();
   });
 
+  it('drops pause placeholders from the sentence and the free translation', () => {
+    const imported = importFromEaf(
+      eafFixture(
+        `<TIER TIER_ID="ref" LINGUISTIC_TYPE_REF="align-lt">
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>0001_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+          <ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4"><ANNOTATION_VALUE>0002_doreco_x</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>the sentence</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="t2" ANNOTATION_REF="a2"><ANNOTATION_VALUE>&lt;p:&gt;</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>
+        <TIER TIER_ID="ft" LINGUISTIC_TYPE_REF="assoc-lt" PARENT_REF="ref">
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f1" ANNOTATION_REF="a1"><ANNOTATION_VALUE>English line</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+          <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="f2" ANNOTATION_REF="a2"><ANNOTATION_VALUE>&lt;p:&gt;</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>
+        </TIER>`,
+        `${ALIGNABLE}${ASSOC}`,
+      ),
+    );
+    expect(imported.units.map((unit) => unit.transcription)).toEqual(['the sentence']);
+    expect(imported.translationTiers.get('ft')?.map((row) => row.text)).toEqual(['English line']);
+  });
+
   it('stores DoReCo gl and ps on morphemes and leaves ph off the translation rows', () => {
     const imported = importFromEaf(
       eafFixture(
@@ -1102,17 +1165,7 @@ describe('EAF default tier pick', () => {
         morphemes: [{ form: { default: 'stem' }, gloss: { und: 'STEM' }, pos: 'n' }],
       },
     ]);
-    expect(imported.extraTranscriptionTiers).toEqual([
-      {
-        tierName: 'ph',
-        units: [
-          expect.objectContaining({
-            transcription: 'phon',
-            annotationId: 'h1',
-          }),
-        ],
-      },
-    ]);
+    expect(imported.extraTranscriptionTiers).toBeUndefined();
     expect(imported.losses).toEqual([
       { code: 'unmapped-field', name: 'doreco-mb-algn' },
       { code: 'guessed-tier', name: 'tx' },
@@ -1479,7 +1532,7 @@ describe('EAF default tier pick', () => {
         imported.units.some((unit) =>
           unit.tokens?.some((token) =>
             token.morphemes?.some(
-              (morph) => morph.gloss?.us === 'Arapaho language' && morph.pos === 'ni',
+              (morph) => morph.pos === 'ni' && morph.gloss?.und === 'Arapaho language',
             ),
           ),
         ),
@@ -1520,7 +1573,7 @@ describe('EAF default tier pick', () => {
       expect(imported.translationTiers.has('A_morph-gls-zh-CN')).toBe(false);
       expect(imported.translationTiers.has('interlinear-text-title-en')).toBe(false);
       expect(imported.participants.includes('***')).toBe(false);
-      expect(imported.documentTitle?.en).toBe('duoxu001');
+      expect(imported.documentTitle?.eng).toBe('duoxu001');
     },
   );
 
@@ -1565,19 +1618,16 @@ describe('EAF default tier pick', () => {
       expect(confirmed.transcriptionTierName).toBe('tx@NHK');
       expect(confirmed.units.some((unit) => unit.transcription.trim().length > 0)).toBe(true);
       expect(confirmed.translationTiers.has('ft@NHK')).toBe(true);
-      expect(confirmed.translationTiers.has('fn@NHK')).toBe(true);
+      // fn@NHK only holds pause placeholders (`<p:>` / `****`); placeholder-only tiers
+      // no longer become layers. Its real notes survive as user comments (asserted below).
+      expect(confirmed.translationTiers.has('fn@NHK')).toBe(false);
       expect(confirmed.translationTiers.has('nt@NHK')).toBe(false);
       expect(confirmed.userNotes?.some((note) => note.text.includes('Sudanese Ar. yes'))).toBe(
         true,
       );
-      expect(confirmed.extraTranscriptionTiers?.some((tier) => tier.tierName === 'ph@NHK')).toBe(
-        true,
-      );
       expect(
-        confirmed.extraTranscriptionTiers
-          ?.find((tier) => tier.tierName === 'ph@NHK')
-          ?.units.some((unit) => unit.transcription.trim().length > 0),
-      ).toBe(true);
+        confirmed.extraTranscriptionTiers?.some((tier) => tier.tierName === 'ph@NHK') ?? false,
+      ).toBe(false);
       for (const tierId of [
         'sound@NOBODY',
         'dt_rec@NOBODY',
@@ -1668,11 +1718,11 @@ describe('EAF default tier pick', () => {
     expect(imported.units[0]?.tokens).toEqual([
       {
         form: { default: 'aa' },
-        gloss: { 'zh-CN': 'G1' },
+        gloss: { [importedChineseId]: 'G1' },
         pos: 'n',
         morphemes: [{ form: { default: 'aa' }, gloss: { und: 'MG' }, pos: 'n' }],
       },
-      { form: { default: 'bb' }, gloss: { 'zh-CN': 'G2' } },
+      { form: { default: 'bb' }, gloss: { [importedChineseId]: 'G2' } },
     ]);
     expect(
       imported.losses?.some(
@@ -1728,7 +1778,7 @@ describe('EAF default tier pick', () => {
     );
     expect(imported.translationTiers.has('interlinear-text-title-en')).toBe(false);
     expect(imported.translationTiers.has('A_phrase-note-en')).toBe(false);
-    expect(imported.documentTitle?.en).toBe('Pear Story');
+    expect(imported.documentTitle?.eng).toBe('Pear Story');
     expect(imported.userNotes).toEqual([
       expect.objectContaining({
         text: 'said quickly',
@@ -1738,7 +1788,7 @@ describe('EAF default tier pick', () => {
       }),
     ]);
     expect(imported.speakerNotes).toEqual([
-      { participant: 'Lenny Saumar', text: 'narrator', lang: 'en' },
+      { participant: 'Lenny Saumar', text: 'narrator', lang: 'eng' },
     ]);
   });
 });

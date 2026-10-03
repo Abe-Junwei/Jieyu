@@ -1,5 +1,5 @@
 import { useCallback, type MutableRefObject } from 'react';
-import { getTranscriptionAppService } from '../app/index';
+import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';

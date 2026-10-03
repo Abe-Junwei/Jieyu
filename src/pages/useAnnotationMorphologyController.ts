@@ -1,11 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinguisticService, presentTokenLexemeLink } from '../app/languageAssetPageAccess';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
+import { lexemeHeadword, lexemeSenseGloss, type LexemeSenseChoice } from '../utils/dmlexEntry';
 import { t, useLocale } from '../i18n';
 import { ANNOTATION_LEIPZIG_TEMPLATE_ID } from './annotation/annotationLeipzigGloss';
 import {
   collectDirtyAnnotationMorphemeWrites,
+  dropCommittedMorphemeDrafts,
   dropMorphemeDraftsForIds,
+  formatSurfaceSpans,
   planMorphemeFormsFromToken,
   type AnnotationMorphemeDraft,
 } from './annotation/annotationMorphemeDrafts';
@@ -30,6 +34,7 @@ export type AnnotationMorphologyController = {
   linksByTokenId: Record<string, AnnotationTokenLexemeLinkView | undefined>;
   drafts: Record<string, AnnotationMorphemeDraft>;
   linkQueries: Record<string, string>;
+  senseChoicesByTokenId: Record<string, LexemeSenseChoice[]>;
   saveNotice: AnnotationSaveNotice;
   validatorProfileId: string;
   structuralProfilesHref: string;
@@ -40,10 +45,12 @@ export type AnnotationMorphologyController = {
   ) => void;
   onLinkQueryChange: (tokenId: string, value: string) => void;
   onSeedMorphemes: (unitId: string, tokenId: string, tokenForm: string) => void;
+  onCommitMorphLine: (unitId: string, tokenId: string, text: string) => void;
   onSaveMorphemes: (unitId: string, tokenId: string) => void;
   onSplitToken: (unitId: string, tokenId: string) => void;
   onMergeToken: (unitId: string, tokenId: string) => void;
-  onLinkLexeme: (tokenId: string) => void;
+  onLinkLexeme: (tokenId: string, query?: string) => void;
+  onChooseLexemeSense: (tokenId: string, senseId: string) => void;
   onUnlinkLexeme: (tokenId: string) => void;
 };
 
@@ -56,6 +63,10 @@ export function useAnnotationMorphologyController(input: {
   const locale = useLocale();
   const [drafts, setDrafts] = useState<Record<string, AnnotationMorphemeDraft>>({});
   const [linkQueries, setLinkQueries] = useState<Record<string, string>>({});
+  const [senseChoicesByTokenId, setSenseChoicesByTokenId] = useState<
+    Record<string, LexemeSenseChoice[]>
+  >({});
+  const queryClient = useQueryClient();
   const [saveNotice, setSaveNotice] = useState<AnnotationSaveNotice>({ kind: 'idle', message: '' });
   const savingRef = useRef(false);
   const tokenIds = rows.flatMap((row) => row.tokens.map((token) => token.id));
@@ -73,17 +84,32 @@ export function useAnnotationMorphologyController(input: {
           })),
         ),
       ]);
-      const lemmaById = new Map(lexemes.map((lexeme) => [lexeme.id, lexeme.entry.headword]));
+      const lexemeById = new Map(lexemes.map((lexeme) => [lexeme.id, lexeme]));
       const linksByTokenId: Record<string, AnnotationTokenLexemeLinkView | undefined> = {};
       for (const group of linkGroups) {
         const link = group.links[0];
-        linksByTokenId[group.tokenId] = link
-          ? presentTokenLexemeLink({
-              linkId: link.id,
-              lexemeId: link.lexemeId,
-              lemma: lemmaById.get(link.lexemeId),
-            })
-          : undefined;
+        if (!link) {
+          linksByTokenId[group.tokenId] = undefined;
+          continue;
+        }
+        const lexeme = lexemeById.get(link.lexemeId);
+        const senseGloss = lexeme ? lexemeSenseGloss(lexeme, link.senseId) : '';
+        const presented = presentTokenLexemeLink({
+          linkId: link.id,
+          lexemeId: link.lexemeId,
+          lemma: lexeme ? lexemeHeadword(lexeme) : undefined,
+        });
+        linksByTokenId[group.tokenId] = {
+          ...presented,
+          ...(link.senseId ? { senseId: link.senseId } : {}),
+          ...(senseGloss.length > 0 ? { senseGloss } : {}),
+          ...(link.provenance?.reviewStatus
+            ? { linkReviewStatus: link.provenance.reviewStatus }
+            : {}),
+          ...(lexeme?.entry.partsOfSpeech && lexeme.entry.partsOfSpeech.length > 0
+            ? { entryPartsOfSpeech: [...lexeme.entry.partsOfSpeech] }
+            : {}),
+        };
       }
       return { morphs: mapStoredMorphemes(morphRows), linksByTokenId };
     },
@@ -126,9 +152,19 @@ export function useAnnotationMorphologyController(input: {
       const morph = (dataQuery.data?.morphs ?? []).find((item) => item.id === morphId);
       if (!morph) return;
       setDrafts((prev) => {
-        const current = { form: morph.form, gloss: morph.gloss, ...prev[morphId] };
+        const storedSpans = formatSurfaceSpans(morph.surfaceParts);
+        const current = {
+          form: morph.form,
+          gloss: morph.gloss,
+          spans: storedSpans,
+          ...prev[morphId],
+        };
         const merged = { ...current, [field]: value };
-        if (merged.form === morph.form && merged.gloss === morph.gloss) {
+        if (
+          merged.form === morph.form &&
+          merged.gloss === morph.gloss &&
+          merged.spans === storedSpans
+        ) {
           return dropMorphemeDraftsForIds(prev, [morphId]);
         }
         return { ...prev, [morphId]: merged };
@@ -154,10 +190,29 @@ export function useAnnotationMorphologyController(input: {
           tokenId,
           morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
         });
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, locale, run, textId],
+  );
+
+  const onCommitMorphLine = useCallback(
+    (unitId: string, tokenId: string, text: string) => {
+      const trimmed = text.trim();
+      if (trimmed.length === 0) return;
+      const split = planMorphemeFormsFromToken(trimmed);
+      const forms = split.length > 0 ? split : [trimmed];
+      void run(async () => {
+        await saveAnnotationMorphemesForToken({
+          textId,
+          unitId,
+          tokenId,
+          morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
+        });
+        await dataQuery.refetch({ throwOnError: true });
+      });
+    },
+    [dataQuery, run, textId],
   );
 
   const onSaveMorphemes = useCallback(
@@ -166,6 +221,17 @@ export function useAnnotationMorphologyController(input: {
         const morphs = morphsByTokenId[tokenId] ?? [];
         const writes = collectDirtyAnnotationMorphemeWrites(morphs, drafts);
         if (writes.length === 0) return;
+        const committedDrafts: Record<string, AnnotationMorphemeDraft> = {};
+        for (const write of writes) {
+          const draft = drafts[write.id];
+          if (draft) {
+            committedDrafts[write.id] = {
+              form: draft.form,
+              gloss: draft.gloss,
+              spans: draft.spans,
+            };
+          }
+        }
         const next = morphs.map((morph) => writes.find((item) => item.id === morph.id) ?? morph);
         await saveAnnotationMorphemesForToken({
           textId,
@@ -173,13 +239,8 @@ export function useAnnotationMorphologyController(input: {
           tokenId,
           morphs: next,
         });
-        setDrafts((prev) =>
-          dropMorphemeDraftsForIds(
-            prev,
-            morphs.map((item) => item.id),
-          ),
-        );
-        await dataQuery.refetch();
+        setDrafts((prev) => dropCommittedMorphemeDrafts(prev, committedDrafts));
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, drafts, morphsByTokenId, run, textId],
@@ -190,7 +251,7 @@ export function useAnnotationMorphologyController(input: {
       void run(async () => {
         await splitAnnotationUnitToken(unitId, tokenId);
         await reloadWorkspace();
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, reloadWorkspace, run],
@@ -201,18 +262,51 @@ export function useAnnotationMorphologyController(input: {
       void run(async () => {
         await mergeAnnotationUnitTokenWithNext(unitId, tokenId);
         await reloadWorkspace();
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, reloadWorkspace, run],
   );
 
   const onLinkLexeme = useCallback(
-    (tokenId: string) => {
+    (tokenId: string, query?: string) => {
+      const lemma = (query ?? linkQueries[tokenId] ?? '').trim();
       void run(async () => {
-        await saveAnnotationTokenLexemeLink(tokenId, linkQueries[tokenId] ?? '');
+        const result = await saveAnnotationTokenLexemeLink(tokenId, lemma);
+        if (result.kind === 'choose-sense') {
+          setSenseChoicesByTokenId((prev) => ({ ...prev, [tokenId]: result.senses }));
+          return;
+        }
+        setSenseChoicesByTokenId((prev) => {
+          if (prev[tokenId] === undefined) return prev;
+          const next = { ...prev };
+          delete next[tokenId];
+          return next;
+        });
         setLinkQueries((prev) => ({ ...prev, [tokenId]: '' }));
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
+      });
+    },
+    [dataQuery, linkQueries, run],
+  );
+
+  const onChooseLexemeSense = useCallback(
+    (tokenId: string, senseId: string) => {
+      void run(async () => {
+        const result = await saveAnnotationTokenLexemeLink(
+          tokenId,
+          linkQueries[tokenId] ?? '',
+          senseId,
+        );
+        if (result.kind === 'choose-sense') return;
+        setSenseChoicesByTokenId((prev) => {
+          if (prev[tokenId] === undefined) return prev;
+          const next = { ...prev };
+          delete next[tokenId];
+          return next;
+        });
+        setLinkQueries((prev) => ({ ...prev, [tokenId]: '' }));
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, linkQueries, run],
@@ -222,27 +316,39 @@ export function useAnnotationMorphologyController(input: {
     (tokenId: string) => {
       void run(async () => {
         await removeAnnotationTokenLexemeLink(tokenId);
-        await dataQuery.refetch();
+        await dataQuery.refetch({ throwOnError: true });
       });
     },
     [dataQuery, run],
   );
+
+  useWorkspaceEventRefresh({
+    onLexemeUpdated: () => {
+      void queryClient.invalidateQueries({ queryKey: ['annotation-morphology', textId] });
+    },
+    onLexemeDeleted: () => {
+      void queryClient.invalidateQueries({ queryKey: ['annotation-morphology', textId] });
+    },
+  });
 
   return {
     morphsByTokenId,
     linksByTokenId: dataQuery.data?.linksByTokenId ?? {},
     drafts,
     linkQueries,
+    senseChoicesByTokenId,
     saveNotice,
     validatorProfileId: ANNOTATION_LEIPZIG_TEMPLATE_ID,
-    structuralProfilesHref: '/assets/structural-profiles',
+    structuralProfilesHref: '/assets/structural-profiles?template=abbreviations',
     onMorphDraftChange,
     onLinkQueryChange,
     onSeedMorphemes,
+    onCommitMorphLine,
     onSaveMorphemes,
     onSplitToken,
     onMergeToken,
     onLinkLexeme,
+    onChooseLexemeSense,
     onUnlinkLexeme,
   };
 }

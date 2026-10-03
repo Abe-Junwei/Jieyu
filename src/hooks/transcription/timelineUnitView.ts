@@ -102,6 +102,13 @@ export interface TimelineUnitViewIndex {
   isComplete: boolean;
 }
 
+const UNBOUND_TIMELINE_MEDIA_ID = '__unknown_media__';
+
+export function isUnboundTimelineMedia(mediaId: string): boolean {
+  const id = mediaId.trim();
+  return id.length === 0 || id === UNBOUND_TIMELINE_MEDIA_ID;
+}
+
 function resolveSegmentText(
   segmentId: string,
   activeLayerIdForEdits: string | undefined,
@@ -235,9 +242,13 @@ export function buildTimelineUnitViewIndex(
   const allUnits = Array.from(mergedBySemanticKey.values()).sort((a, b) =>
     a.startTime !== b.startTime ? a.startTime - b.startTime : a.endTime - b.endTime,
   );
-  const currentMediaUnits = input.currentMediaId
-    ? allUnits.filter((unit) => unit.mediaId === input.currentMediaId)
-    : allUnits;
+  const currentMediaId = input.currentMediaId?.trim() ?? '';
+  const currentMediaUnits =
+    currentMediaId.length > 0
+      ? allUnits.filter(
+          (unit) => unit.mediaId === currentMediaId || isUnboundTimelineMedia(unit.mediaId),
+        )
+      : allUnits;
 
   const byId = new Map<string, TimelineUnitView>();
   const byLayerMutable = new Map<string, TimelineUnitView[]>();
@@ -274,7 +285,8 @@ export function buildTimelineUnitViewIndex(
       if (u.tags?.skipProcessing === true) return false;
       if (u.unitType === 'segment') return false;
       if (!currentMedia) return true;
-      return (u.mediaId?.trim() ?? '') === currentMedia;
+      const mediaId = u.mediaId?.trim() ?? '';
+      return mediaId === currentMedia || isUnboundTimelineMedia(mediaId);
     });
     for (const lane of laneReadScope.transcriptionLayers) {
       for (const raw of rawForLanes) {
