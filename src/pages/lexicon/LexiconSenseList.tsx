@@ -21,6 +21,7 @@ export function LexiconSenseList({
       {senses.map((sense, index) => {
         const id = sense.id ?? '';
         const depth = id.length > 0 ? senseTreeDepth(id, relations ?? []) : 0;
+        const indicator = sense.indicator ?? '';
         const translation = sense.headwordTranslations?.[0]?.text ?? '';
         const explanation = sense.headwordExplanations?.[0]?.text ?? '';
         const definition = sense.definitions?.[0]?.text ?? '';
@@ -33,6 +34,9 @@ export function LexiconSenseList({
             data-depth={String(depth)}
             data-testid={`lexicon-workspace-sense-${index}`}
           >
+            {indicator.length > 0 ? (
+              <p data-testid={`lexicon-workspace-sense-${index}-indicator`}>{indicator}</p>
+            ) : null}
             <p data-testid={`lexicon-workspace-sense-${index}-translation`}>
               {translation || notSet}
             </p>

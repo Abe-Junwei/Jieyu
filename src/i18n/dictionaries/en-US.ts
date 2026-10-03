@@ -482,6 +482,8 @@ export const enUSDictionary = {
   'workspace.lexicon.edit.definitionLabel': 'Definition',
   'workspace.lexicon.edit.exampleLabel': 'Example',
   'workspace.lexicon.edit.exampleSegmentLabel': 'Example segment',
+  'workspace.lexicon.edit.indicatorLabel': 'Sense indicator',
+  'workspace.lexicon.edit.senseNoteLabel': 'Sense note',
   'workspace.lexicon.edit.lemmaLabel': 'Lemma',
   'workspace.lexicon.edit.glossLabel': 'Primary gloss',
   'workspace.lexicon.edit.categoryLabel': 'Part of speech',
