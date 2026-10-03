@@ -13,7 +13,9 @@ import { newId } from '../utils/transcriptionFormatters';
 
 const UNKNOWN_MEDIA_ID = '__unknown_media__';
 
-function mapLegacyLinkTypeToRelationType(linkType: UnitRelationViewDocType['linkType']): UnitRelationDocType['relationType'] {
+function mapLegacyLinkTypeToRelationType(
+  linkType: UnitRelationViewDocType['linkType'],
+): UnitRelationDocType['relationType'] {
   if (linkType === 'projection' || linkType === 'time_subdivision') return 'derived_from';
   if (linkType === 'equivalent' || linkType === 'bridge') return 'aligned_to';
   return undefined;
@@ -37,9 +39,7 @@ function normalizeLayerUnitForStorage(unit: LayerUnitDocType): LayerUnitDocType 
   };
   const normalizedMediaId = normalizeMediaId(rest.mediaId);
   const parentUnitId = rest.parentUnitId?.trim() || undefined;
-  const orderKey = rest.orderKey?.trim().length
-    ? rest.orderKey.trim()
-    : undefined;
+  const orderKey = rest.orderKey?.trim().length ? rest.orderKey.trim() : undefined;
 
   return {
     ...rest,
@@ -50,14 +50,17 @@ function normalizeLayerUnitForStorage(unit: LayerUnitDocType): LayerUnitDocType 
   };
 }
 
-function normalizeLayerUnitContentForStorage(content: LayerUnitContentDocType | LayerUnitContentViewDocType): LayerUnitContentDocType {
+function normalizeLayerUnitContentForStorage(
+  content: LayerUnitContentDocType | LayerUnitContentViewDocType,
+): LayerUnitContentDocType {
   const {
     segmentId: _legacySegmentId,
     translationAudioMediaId: _legacyTranslationAudioMediaId,
     ...rest
   } = content as LayerUnitContentViewDocType;
   const legacySegmentId = typeof _legacySegmentId === 'string' ? _legacySegmentId.trim() : '';
-  const legacyMediaRefId = typeof _legacyTranslationAudioMediaId === 'string' ? _legacyTranslationAudioMediaId.trim() : '';
+  const legacyMediaRefId =
+    typeof _legacyTranslationAudioMediaId === 'string' ? _legacyTranslationAudioMediaId.trim() : '';
   const unitId = rest.unitId?.trim() || legacySegmentId || rest.id;
   const mediaRefId = rest.mediaRefId?.trim() || legacyMediaRefId || undefined;
   return {
@@ -70,18 +73,23 @@ function normalizeLayerUnitContentForStorage(content: LayerUnitContentDocType | 
   };
 }
 
-function normalizeUnitRelationForStorage(relation: UnitRelationDocType | UnitRelationViewDocType): UnitRelationDocType {
+function normalizeUnitRelationForStorage(
+  relation: UnitRelationDocType | UnitRelationViewDocType,
+): UnitRelationDocType {
   const {
     sourceSegmentId: _legacySourceSegmentId,
     targetSegmentId: _legacyTargetSegmentId,
     linkType: _legacyLinkType,
     ...rest
   } = relation as UnitRelationViewDocType;
-  const legacySourceUnitId = typeof _legacySourceSegmentId === 'string' ? _legacySourceSegmentId.trim() : '';
-  const legacyTargetUnitId = typeof _legacyTargetSegmentId === 'string' ? _legacyTargetSegmentId.trim() : '';
+  const legacySourceUnitId =
+    typeof _legacySourceSegmentId === 'string' ? _legacySourceSegmentId.trim() : '';
+  const legacyTargetUnitId =
+    typeof _legacyTargetSegmentId === 'string' ? _legacyTargetSegmentId.trim() : '';
   const sourceUnitId = rest.sourceUnitId?.trim() || legacySourceUnitId || rest.id;
   const targetUnitId = rest.targetUnitId?.trim() || legacyTargetUnitId || rest.id;
-  const relationType = rest.relationType ?? mapLegacyLinkTypeToRelationType(_legacyLinkType) ?? 'aligned_to';
+  const relationType =
+    rest.relationType ?? mapLegacyLinkTypeToRelationType(_legacyLinkType) ?? 'aligned_to';
   return {
     ...rest,
     sourceUnitId,
@@ -94,17 +102,39 @@ export async function putLayerUnit(db: JieyuDatabase, unit: LayerUnitDocType): P
   await db.dexie.layer_units.put(normalizeLayerUnitForStorage(unit));
 }
 
-export async function updateLayerUnit(db: JieyuDatabase, unitId: string, changes: Partial<LayerUnitDocType>): Promise<void> {
-  await db.dexie.layer_units.where(':id').equals(unitId).modify((row) => {
-    Object.assign(row, normalizeLayerUnitForStorage({ ...row, ...changes }));
-  });
+export async function updateLayerUnit(
+  db: JieyuDatabase,
+  unitId: string,
+  changes: Partial<LayerUnitDocType>,
+): Promise<void> {
+  await db.dexie.layer_units
+    .where(':id')
+    .equals(unitId)
+    .modify((row) => {
+      Object.assign(row, normalizeLayerUnitForStorage({ ...row, ...changes }));
+    });
 }
 
-export async function getLayerUnitById(db: JieyuDatabase, unitId: string): Promise<LayerUnitDocType | undefined> {
+export async function getLayerUnitById(
+  db: JieyuDatabase,
+  unitId: string,
+): Promise<LayerUnitDocType | undefined> {
   return db.dexie.layer_units.get(unitId);
 }
 
-export async function listLayerUnitsByIds(db: JieyuDatabase, unitIds: readonly string[]): Promise<LayerUnitDocType[]> {
+export async function listLayerUnitsByTextId(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<LayerUnitDocType[]> {
+  const normalizedTextId = textId.trim();
+  if (!normalizedTextId) return [];
+  return db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray();
+}
+
+export async function listLayerUnitsByIds(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<LayerUnitDocType[]> {
   const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
   if (ids.length === 0) return [];
   const rows = await db.dexie.layer_units.bulkGet(ids);
@@ -119,12 +149,18 @@ export async function listLayerUnitsByLayerMedia(
   return db.dexie.layer_units.where('[layerId+mediaId]').equals([layerId, mediaId]).toArray();
 }
 
-export async function bulkUpsertLayerUnits(db: JieyuDatabase, units: readonly LayerUnitDocType[]): Promise<void> {
+export async function bulkUpsertLayerUnits(
+  db: JieyuDatabase,
+  units: readonly LayerUnitDocType[],
+): Promise<void> {
   if (units.length === 0) return;
   await db.dexie.layer_units.bulkPut(units.map(normalizeLayerUnitForStorage));
 }
 
-export async function putLayerUnitContent(db: JieyuDatabase, content: LayerUnitContentDocType): Promise<void> {
+export async function putLayerUnitContent(
+  db: JieyuDatabase,
+  content: LayerUnitContentDocType,
+): Promise<void> {
   await db.dexie.layer_unit_contents.put(normalizeLayerUnitContentForStorage(content));
 }
 
@@ -135,6 +171,15 @@ export async function listLayerUnitContentsByUnitId(
   return db.dexie.layer_unit_contents.where('unitId').equals(unitId).toArray();
 }
 
+export async function listLayerUnitContentsByUnitIds(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<LayerUnitContentDocType[]> {
+  const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
+  if (ids.length === 0) return [];
+  return db.dexie.layer_unit_contents.where('unitId').anyOf(ids).toArray();
+}
+
 export async function bulkUpsertLayerUnitContents(
   db: JieyuDatabase,
   contents: readonly LayerUnitContentDocType[],
@@ -143,7 +188,10 @@ export async function bulkUpsertLayerUnitContents(
   await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
 }
 
-export async function putUnitRelation(db: JieyuDatabase, relation: UnitRelationDocType): Promise<void> {
+export async function putUnitRelation(
+  db: JieyuDatabase,
+  relation: UnitRelationDocType,
+): Promise<void> {
   const normalized = normalizeUnitRelationForStorage(relation);
   validateUnitRelationDoc(normalized);
   await db.dexie.unit_relations.put(normalized);
@@ -168,7 +216,10 @@ export type LayerSegmentGraphUpsert = {
   relations?: readonly UnitRelationDocType[];
 };
 
-export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: LayerSegmentGraphUpsert): Promise<void> {
+export async function bulkUpsertLayerSegmentGraph(
+  db: JieyuDatabase,
+  graph: LayerSegmentGraphUpsert,
+): Promise<void> {
   const units = graph.units ?? [];
   const contents = graph.contents ?? [];
   const relations = graph.relations ?? [];
@@ -183,7 +234,9 @@ export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: Laye
         await db.dexie.layer_units.bulkPut(units.map(normalizeLayerUnitForStorage));
       }
       if (contents.length > 0) {
-        await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
+        await db.dexie.layer_unit_contents.bulkPut(
+          contents.map(normalizeLayerUnitContentForStorage),
+        );
       }
       if (relations.length > 0) {
         const normalizedRelations = relations.map(normalizeUnitRelationForStorage);
@@ -197,13 +250,19 @@ export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: Laye
   );
 }
 
-export async function bulkDeleteLayerUnitContentsByIds(db: JieyuDatabase, contentIds: readonly string[]): Promise<void> {
+export async function bulkDeleteLayerUnitContentsByIds(
+  db: JieyuDatabase,
+  contentIds: readonly string[],
+): Promise<void> {
   const ids = [...new Set(contentIds.filter((id) => id.trim().length > 0))];
   if (ids.length === 0) return;
   await db.dexie.layer_unit_contents.bulkDelete(ids);
 }
 
-export async function deleteSegmentLayerUnitCascade(db: JieyuDatabase, segmentIds: readonly string[]): Promise<void> {
+export async function deleteSegmentLayerUnitCascade(
+  db: JieyuDatabase,
+  segmentIds: readonly string[],
+): Promise<void> {
   await deleteLayerUnitCascade(db, segmentIds);
 }
 
@@ -245,21 +304,36 @@ export async function collectLayerUnitGraphIdsByTextId(
   }
 
   const [contentIds, unitIds, relationIds] = await Promise.all([
-    db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).primaryKeys() as Promise<string[]>,
-    db.dexie.layer_units.where('textId').equals(normalizedTextId).primaryKeys() as Promise<string[]>,
-    db.dexie.unit_relations.where('textId').equals(normalizedTextId).primaryKeys() as Promise<string[]>,
+    db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).primaryKeys() as Promise<
+      string[]
+    >,
+    db.dexie.layer_units.where('textId').equals(normalizedTextId).primaryKeys() as Promise<
+      string[]
+    >,
+    db.dexie.unit_relations.where('textId').equals(normalizedTextId).primaryKeys() as Promise<
+      string[]
+    >,
   ]);
 
   return { unitIds, contentIds, relationIds };
 }
 
-export async function listLayerUnitIdsByMediaId(db: JieyuDatabase, mediaId: string): Promise<string[]> {
+export async function listLayerUnitIdsByMediaId(
+  db: JieyuDatabase,
+  mediaId: string,
+): Promise<string[]> {
   const normalizedMediaId = mediaId.trim();
   if (!normalizedMediaId) return [];
-  return (await db.dexie.layer_units.where('mediaId').equals(normalizedMediaId).primaryKeys()) as string[];
+  return (await db.dexie.layer_units
+    .where('mediaId')
+    .equals(normalizedMediaId)
+    .primaryKeys()) as string[];
 }
 
-export async function deleteLayerUnitCascade(db: JieyuDatabase, unitIds: readonly string[]): Promise<void> {
+export async function deleteLayerUnitCascade(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<void> {
   await deleteLayerUnitGraphByIds(db, unitIds);
 }
 
@@ -276,10 +350,18 @@ export async function deleteLayerUnitGraphByRecordIds(
   deletedRelationIds: string[];
 }> {
   const deletedUnitIds = [...new Set((graph.unitIds ?? []).filter((id) => id.trim().length > 0))];
-  const deletedContentIds = [...new Set((graph.contentIds ?? []).filter((id) => id.trim().length > 0))];
-  const deletedRelationIds = [...new Set((graph.relationIds ?? []).filter((id) => id.trim().length > 0))];
+  const deletedContentIds = [
+    ...new Set((graph.contentIds ?? []).filter((id) => id.trim().length > 0)),
+  ];
+  const deletedRelationIds = [
+    ...new Set((graph.relationIds ?? []).filter((id) => id.trim().length > 0)),
+  ];
 
-  if (deletedContentIds.length === 0 && deletedRelationIds.length === 0 && deletedUnitIds.length === 0) {
+  if (
+    deletedContentIds.length === 0 &&
+    deletedRelationIds.length === 0 &&
+    deletedUnitIds.length === 0
+  ) {
     return {
       deletedUnitIds,
       deletedContentIds,

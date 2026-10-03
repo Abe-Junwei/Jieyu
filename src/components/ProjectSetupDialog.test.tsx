@@ -278,6 +278,22 @@ describe('ProjectSetupDialog orthography creation', () => {
     expect(codeInput.value).toBe('por');
   });
 
+  it('keeps the project title input focused after typing one character', () => {
+    mockUseOrthographies.mockReturnValue([]);
+
+    renderWithLocale(
+      <ProjectSetupDialog isOpen onClose={vi.fn()} onSubmit={vi.fn(async () => undefined)} />,
+    );
+
+    const titleInput = screen.getByPlaceholderText('例：白马藏语田野调查') as HTMLInputElement;
+    titleInput.focus();
+    fireEvent.change(titleInput, { target: { value: '白' } });
+
+    expect(titleInput.value).toBe('白');
+    expect(document.activeElement).toBe(titleInput);
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: '关闭' }));
+  });
+
   it('focuses the language code field when submit is attempted with invalid language input', () => {
     mockUseOrthographies.mockReturnValue([]);
 
