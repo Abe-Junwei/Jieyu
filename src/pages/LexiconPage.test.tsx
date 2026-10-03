@@ -12,6 +12,10 @@ import type { LexemeDocType, LexemeEntryDoc } from '../db';
 import { LocaleProvider } from '../i18n';
 import { LexiconPage } from './LexiconPage';
 import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../utils/transcriptionUrlDeepLink';
 
 const {
   mockListLexemes,
@@ -145,11 +149,13 @@ describe('LexiconPage', () => {
       mockListLexemes.mockResolvedValue(current.filter((row) => row.id !== lexemeId));
     });
     window.sessionStorage.clear();
+    publishActiveProjectTextId('text-lexicon');
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    clearActiveProjectTextId();
   });
 
   it('downloads a DMLex JSON document for the listed entries', async () => {

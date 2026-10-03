@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { SpeakerDocType } from '../db';
 import type { LayerDocType } from '../db';
 import type { LayerLinkDocType } from '../db';
@@ -22,8 +23,16 @@ vi.mock('../hooks/orthography/useOrthographies', () => ({
 }));
 
 function wrapSidebarTestTree(node: ReactNode) {
-  return <MemoryRouter initialEntries={['/transcription']}>{node}</MemoryRouter>;
+  return (
+    <QueryClientProvider client={sidebarTestQueryClient}>
+      <MemoryRouter initialEntries={['/transcription']}>{node}</MemoryRouter>
+    </QueryClientProvider>
+  );
 }
+
+const sidebarTestQueryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
 
 function ensureLeftRailLayerActionsHost(): void {
   if (document.getElementById(LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID)) return;

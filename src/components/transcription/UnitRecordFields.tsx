@@ -50,14 +50,22 @@ export function UnitRecordFields({ unit }: { unit: LayerUnitDocType }) {
     void saveAnnotationUnitNote({ unitId: unit.id, content, category })
       .then(() => queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', unit.id] }))
       .catch((error: unknown) => {
-        reportActionError({ actionLabel: 'save-unit-layer-note', error });
+        reportActionError({
+          actionLabel: 'save-unit-layer-note',
+          error,
+          i18nKey: 'workspace.annotation.saveFailed',
+        });
       });
   };
 
   const saveTurn = (next: TurnDraft) => {
     void saveAnnotationUnitTurn({ textId: unit.textId, unitId: unit.id, ...next }).catch(
       (error: unknown) => {
-        reportActionError({ actionLabel: 'save-unit-turn', error });
+        reportActionError({
+          actionLabel: 'save-unit-turn',
+          error,
+          i18nKey: 'workspace.annotation.saveFailed',
+        });
       },
     );
   };
