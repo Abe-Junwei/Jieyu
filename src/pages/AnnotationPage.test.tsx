@@ -31,6 +31,7 @@ const {
   mockSaveBatch,
   mockListUnitTextsByUnitIds,
   mockListSpeakers,
+  mockListSpeakersForProject,
   featureFlagState,
 } = vi.hoisted(() => ({
   mockListByTextId: vi.fn(),
@@ -55,6 +56,7 @@ const {
   mockSaveBatch: vi.fn(),
   mockListUnitTextsByUnitIds: vi.fn(),
   mockListSpeakers: vi.fn(),
+  mockListSpeakersForProject: vi.fn(),
   featureFlagState: { annotationPageEnabled: false },
 }));
 
@@ -97,6 +99,7 @@ vi.mock('../app/languageAssetPageAccess', () => ({
     },
     speakers: {
       list: mockListSpeakers,
+      listForProject: mockListSpeakersForProject,
     },
   },
 }));
@@ -239,6 +242,7 @@ function seedWorkspace(tokens: TokenFixture[], units: Array<typeof UNIT_ONE> = [
   mockSaveBatch.mockResolvedValue(undefined);
   mockListUnitTextsByUnitIds.mockResolvedValue([]);
   mockListSpeakers.mockResolvedValue([]);
+  mockListSpeakersForProject.mockResolvedValue([]);
 }
 
 afterEach(() => {
@@ -264,6 +268,7 @@ afterEach(() => {
   mockSaveBatch.mockReset();
   mockListUnitTextsByUnitIds.mockReset();
   mockListSpeakers.mockReset();
+  mockListSpeakersForProject.mockReset();
   featureFlagState.annotationPageEnabled = false;
 });
 
