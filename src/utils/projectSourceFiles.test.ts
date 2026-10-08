@@ -8,7 +8,16 @@ import {
 describe('projectSourceFiles', () => {
   it('keeps an imported manuscript beside the audio it names', () => {
     const views = linkManuscriptsToAudio(
-      [{ id: 'media-1', name: '田野录音', filename: 'field.wav', durationSec: 75 }],
+      [
+        {
+          id: 'media-1',
+          name: '田野录音',
+          filename: 'field.wav',
+          durationSec: 75,
+          audioFormat: 'WAV',
+          sentenceCount: 12,
+        },
+      ],
       [
         {
           id: 'src-eaf-story.eaf',
@@ -20,6 +29,7 @@ describe('projectSourceFiles', () => {
     );
     expect(views.map((row) => row.name)).toEqual(['田野录音', 'story.eaf']);
     expect(views[1]?.linkedAudioId).toBe('media-1');
+    expect(views[0]).toMatchObject({ audioFormat: 'WAV', sentenceCount: 12 });
   });
 
   it('reads and replaces a source file by id', () => {

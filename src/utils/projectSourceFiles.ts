@@ -11,6 +11,8 @@ export interface ProjectAudioFile {
   name: string;
   filename: string;
   durationSec?: number;
+  audioFormat?: string;
+  sentenceCount?: number;
   transcriptionRate?: number | null;
   translationRate?: number | null;
   annotationRate?: number | null;
@@ -23,6 +25,8 @@ export interface ProjectFileView {
   name: string;
   mediaId?: string;
   durationSec?: number;
+  audioFormat?: string;
+  sentenceCount?: number;
   linkedAudioId?: string;
   transcriptionRate?: number | null;
   translationRate?: number | null;
@@ -128,6 +132,8 @@ export function linkManuscriptsToAudio(
     name: row.name,
     mediaId: row.id,
     ...(row.durationSec !== undefined ? { durationSec: row.durationSec } : {}),
+    ...(row.audioFormat !== undefined ? { audioFormat: row.audioFormat } : {}),
+    ...(row.sentenceCount !== undefined ? { sentenceCount: row.sentenceCount } : {}),
     ...(row.transcriptionRate !== undefined ? { transcriptionRate: row.transcriptionRate } : {}),
     ...(row.translationRate !== undefined ? { translationRate: row.translationRate } : {}),
     ...(row.annotationRate !== undefined ? { annotationRate: row.annotationRate } : {}),

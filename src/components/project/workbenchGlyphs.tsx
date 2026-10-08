@@ -11,15 +11,9 @@ const svgProps = {
 };
 
 export function WorkbenchGlyph(props: {
-  name: 'overview' | 'wave' | 'play' | 'clock' | 'upload' | 'download' | 'pencil' | 'rules';
+  name: 'overview' | 'wave' | 'clock' | 'upload' | 'download' | 'pencil' | 'rules';
 }) {
   switch (props.name) {
-    case 'play':
-      return (
-        <svg {...svgProps} fill="currentColor" stroke="none">
-          <path d="M6.2 4.2v7.6L12 8 6.2 4.2z" />
-        </svg>
-      );
     case 'wave':
       return (
         <svg {...svgProps}>

@@ -68,6 +68,7 @@
 .app-shell-home .app-main {
   margin-right: 0;
   padding: 0;
+  padding-left: calc(var(--left-rail-offset) + var(--side-pane-width));
 }
 
 .app-left-rail {

@@ -2,7 +2,7 @@ import '../../styles/components/project-file-list.css';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { t, useLocale, type Locale } from '../../i18n';
+import { t, tf, useLocale, type Locale } from '../../i18n';
 import { LinguisticService } from '../../services/LinguisticService';
 import {
   listProjectFileViews,
@@ -203,15 +203,6 @@ function fileTargets(textId: string, row: ProjectFileView) {
   return { transcriptionTo, annotationTo, rememberFile };
 }
 
-function dashProgress(locale: Locale): string {
-  const na = t(locale, 'app.home.progress.na');
-  return [
-    `${t(locale, 'app.home.progress.transcription')} ${na}`,
-    `${t(locale, 'app.home.progress.translation')} ${na}`,
-    `${t(locale, 'app.home.progress.annotation')} ${na}`,
-  ].join(' · ');
-}
-
 function BoardName(props: {
   row: ProjectFileView;
   to: string;
@@ -261,24 +252,6 @@ function BoardName(props: {
   );
 }
 
-function BoardLinks(props: {
-  transcriptionTo: string;
-  annotationTo: string;
-  onNavigate: () => void;
-}) {
-  const locale = useLocale();
-  return (
-    <span className="project-file-links">
-      <Link to={props.transcriptionTo} onClick={props.onNavigate}>
-        {t(locale, 'app.nav.transcription')}
-      </Link>
-      <Link to={props.annotationTo} onClick={props.onNavigate}>
-        {t(locale, 'app.nav.annotation')}
-      </Link>
-    </span>
-  );
-}
-
 function BoardAudio(props: {
   row: ProjectFileView;
   textId: string;
@@ -287,48 +260,87 @@ function BoardAudio(props: {
   setDraft: (value: string) => void;
   setEditingId: (value: string) => void;
   commitRename: (row: ProjectFileView) => Promise<void>;
-  stats: string;
+  docs: ProjectFileView[];
 }) {
   const locale = useLocale();
   const { transcriptionTo, annotationTo, rememberFile } = fileTargets(props.textId, props.row);
+  const stages = [
+    { label: t(locale, 'app.home.progress.transcription'), rate: props.row.transcriptionRate },
+    { label: t(locale, 'app.home.progress.translation'), rate: props.row.translationRate },
+    { label: t(locale, 'app.home.progress.annotation'), rate: props.row.annotationRate },
+  ];
   return (
     <div className="project-file-audio">
-      <div className="project-file-audio-row">
-        <span className="project-file-kind">{kindLabel(locale, props.row.format)}</span>
-        <Link
-          className="project-file-play"
-          to={transcriptionTo}
-          aria-label={t(locale, 'app.files.play')}
-          onClick={rememberFile}
-        >
-          <WorkbenchGlyph name="play" />
-        </Link>
-        <span className="project-file-main">
-          <BoardName
-            row={props.row}
-            to={transcriptionTo}
-            editingId={props.editingId}
-            draft={props.draft}
-            setDraft={props.setDraft}
-            setEditingId={props.setEditingId}
-            commitRename={props.commitRename}
-            onNavigate={rememberFile}
-          />
+      <div className="project-file-audio-top">
+        <span className="project-file-audio-icon">
+          <WorkbenchGlyph name="wave" />
+        </span>
+        <span className="project-file-kind">
+          {kindLabel(locale, props.row.audioFormat || props.row.format)}
         </span>
         <span className="project-file-duration">
-          <WorkbenchGlyph name="wave" />
-          {formatDuration(props.row.durationSec)}
+          {formatDuration(props.row.durationSec) || t(locale, 'app.home.progress.na')}
         </span>
       </div>
-      <div className="project-file-audio-sub">
-        <div className="project-file-subline">
-          <BoardLinks
-            transcriptionTo={transcriptionTo}
-            annotationTo={annotationTo}
-            onNavigate={rememberFile}
-          />
-          <span className="project-file-progress">{props.stats}</span>
-        </div>
+      <div className="project-file-audio-title">
+        <BoardName
+          row={props.row}
+          to={transcriptionTo}
+          editingId={props.editingId}
+          draft={props.draft}
+          setDraft={props.setDraft}
+          setEditingId={props.setEditingId}
+          commitRename={props.commitRename}
+          onNavigate={rememberFile}
+        />
+      </div>
+      {props.docs.map((doc) => (
+        <BoardDoc
+          key={doc.id}
+          row={doc}
+          textId={props.textId}
+          editingId={props.editingId}
+          draft={props.draft}
+          setDraft={props.setDraft}
+          setEditingId={props.setEditingId}
+          commitRename={props.commitRename}
+        />
+      ))}
+      <p className="project-file-audio-meta">
+        {props.row.sentenceCount !== undefined
+          ? `${t(locale, 'app.overview.sentences')} ${props.row.sentenceCount}`
+          : t(locale, 'app.files.audio')}
+        {props.docs.length > 0
+          ? ` · ${t(locale, 'app.overview.manuscriptCount')} ${props.docs.length}`
+          : ''}
+      </p>
+      <div className="project-file-stages">
+        {stages.map(({ label, rate }) => (
+          <div className="project-file-stage" key={label}>
+            <div className="project-file-stage-label">
+              <span>{label}</span>
+              <strong>{formatRate(locale, rate)}</strong>
+            </div>
+            {rate === null || rate === undefined ? (
+              <span className="project-file-stage-meter" aria-hidden="true" />
+            ) : (
+              <progress
+                className="project-file-stage-meter"
+                value={rate}
+                max={1}
+                aria-label={`${label} ${formatRate(locale, rate)}`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="project-file-audio-actions">
+        <Link className="project-file-primary-action" to={transcriptionTo} onClick={rememberFile}>
+          {t(locale, 'app.files.enterTranscription')} <span aria-hidden="true">→</span>
+        </Link>
+        <Link className="project-file-annotation-action" to={annotationTo} onClick={rememberFile}>
+          {t(locale, 'app.nav.annotation')}
+        </Link>
       </div>
     </div>
   );
@@ -342,18 +354,17 @@ function BoardDoc(props: {
   setDraft: (value: string) => void;
   setEditingId: (value: string) => void;
   commitRename: (row: ProjectFileView) => Promise<void>;
-  stats: string | null;
 }) {
   const locale = useLocale();
-  const { transcriptionTo, annotationTo, rememberFile } = fileTargets(props.textId, props.row);
-  const primaryTo = annotationTo;
+  const { annotationTo, rememberFile } = fileTargets(props.textId, props.row);
   return (
     <div className="project-file-doc">
-      <span className="project-file-kind">{kindLabel(locale, props.row.format)}</span>
-      <span className="project-file-main">
+      <span className="project-file-role">{t(locale, 'app.files.linked')}</span>
+      <div className="project-file-doc-row">
+        <span className="project-file-kind">{kindLabel(locale, props.row.format)}</span>
         <BoardName
           row={props.row}
-          to={primaryTo}
+          to={annotationTo}
           editingId={props.editingId}
           draft={props.draft}
           setDraft={props.setDraft}
@@ -361,14 +372,7 @@ function BoardDoc(props: {
           commitRename={props.commitRename}
           onNavigate={rememberFile}
         />
-      </span>
-      <span className="project-file-role">{t(locale, 'app.files.linked')}</span>
-      <BoardLinks
-        transcriptionTo={transcriptionTo}
-        annotationTo={annotationTo}
-        onNavigate={rememberFile}
-      />
-      {props.stats ? <span className="project-file-progress">{props.stats}</span> : null}
+      </div>
     </div>
   );
 }
@@ -388,6 +392,7 @@ export function ProjectFileBrowser(props: {
   const { textId, audio, fallbackManuscript = false, onChanged } = props;
   const [editingId, setEditingId] = useState('');
   const [draft, setDraft] = useState('');
+  const [search, setSearch] = useState('');
   const sources = useQuery({
     queryKey: ['project-source-files', textId],
     queryFn: () => listProjectSourceFiles(textId),
@@ -469,20 +474,13 @@ export function ProjectFileBrowser(props: {
     if (host) host.docs.push(row);
     else groups.push({ audio: null, docs: [row] });
   }
+  const visibleGroups = groups.filter((group) =>
+    [group.audio, ...group.docs].some((row) =>
+      row?.name.toLowerCase().includes(search.trim().toLowerCase()),
+    ),
+  );
+  const recordingCount = groups.filter((group) => group.audio !== null).length;
 
-  const statsFor = (row: ProjectFileView): string | null => {
-    const storedProgress = row.mediaId ? progressByMedia.get(row.mediaId) : undefined;
-    const progressRow =
-      row.transcriptionRate !== undefined || !storedProgress
-        ? row
-        : {
-            ...row,
-            transcriptionRate: storedProgress.transcriptionRate,
-            translationRate: storedProgress.translationRate,
-            annotationRate: storedProgress.annotationRate,
-          };
-    return progressText(locale, progressRow);
-  };
   const board = props.variant === 'board';
   const pane = props.variant === 'pane';
 
@@ -502,12 +500,19 @@ export function ProjectFileBrowser(props: {
         <div className="project-file-section-head">
           <h3 className="project-file-section-title">
             <WorkbenchGlyph name="wave" />
-            {t(locale, 'app.files.recordings')} ({groups.length})
+            {t(locale, 'app.files.recordings')}
           </h3>
-          <p className="project-file-legend">
-            <span className="is-done">{t(locale, 'app.files.legendDone')}</span>
-            <span>{t(locale, 'app.files.legendPending')}</span>
-          </p>
+          <span className="project-file-board-count">
+            {tf(locale, 'app.files.recordingCount', { count: recordingCount })}
+          </span>
+          <input
+            className="project-file-board-search"
+            type="search"
+            value={search}
+            placeholder={t(locale, 'app.files.search')}
+            aria-label={t(locale, 'app.files.search')}
+            onChange={(event) => setSearch(event.target.value)}
+          />
         </div>
       ) : pane ? null : (
         <h3 className="project-file-section-title">
@@ -515,11 +520,16 @@ export function ProjectFileBrowser(props: {
         </h3>
       )}
       <div className="project-file-cards">
-        {groups.map((group) => {
+        {visibleGroups.map((group) => {
           const head = group.audio ?? group.docs[0];
           if (!head) return null;
           return (
-            <article key={head.id} className="project-file-card">
+            <article
+              key={head.id}
+              className={
+                board && !group.audio ? 'project-file-card is-document-only' : 'project-file-card'
+              }
+            >
               {group.audio ? (
                 board ? (
                   <BoardAudio
@@ -530,7 +540,7 @@ export function ProjectFileBrowser(props: {
                     setDraft={setDraft}
                     setEditingId={setEditingId}
                     commitRename={commitRename}
-                    stats={statsFor(group.audio) ?? dashProgress(locale)}
+                    docs={group.docs}
                   />
                 ) : (
                   <FileLine
@@ -550,42 +560,45 @@ export function ProjectFileBrowser(props: {
                   />
                 )
               ) : null}
-              {group.docs.map((doc) =>
-                board ? (
-                  <BoardDoc
-                    key={doc.id}
-                    row={doc}
-                    textId={textId}
-                    editingId={editingId}
-                    draft={draft}
-                    setDraft={setDraft}
-                    setEditingId={setEditingId}
-                    commitRename={commitRename}
-                    stats={group.audio ? null : statsFor(doc)}
-                  />
-                ) : (
-                  <FileLine
-                    key={doc.id}
-                    row={doc}
-                    textId={textId}
-                    editingId={editingId}
-                    draft={draft}
-                    setDraft={setDraft}
-                    setEditingId={setEditingId}
-                    commitRename={commitRename}
-                    progressByMedia={progressByMedia}
-                    showProgress={!pane}
-                    compact={pane}
-                    {...(props.currentWorkspace
-                      ? { currentWorkspace: props.currentWorkspace }
-                      : {})}
-                  />
-                ),
-              )}
+              {(!board || !group.audio) &&
+                group.docs.map((doc) =>
+                  board ? (
+                    <BoardDoc
+                      key={doc.id}
+                      row={doc}
+                      textId={textId}
+                      editingId={editingId}
+                      draft={draft}
+                      setDraft={setDraft}
+                      setEditingId={setEditingId}
+                      commitRename={commitRename}
+                    />
+                  ) : (
+                    <FileLine
+                      key={doc.id}
+                      row={doc}
+                      textId={textId}
+                      editingId={editingId}
+                      draft={draft}
+                      setDraft={setDraft}
+                      setEditingId={setEditingId}
+                      commitRename={commitRename}
+                      progressByMedia={progressByMedia}
+                      showProgress={!pane}
+                      compact={pane}
+                      {...(props.currentWorkspace
+                        ? { currentWorkspace: props.currentWorkspace }
+                        : {})}
+                    />
+                  ),
+                )}
             </article>
           );
         })}
       </div>
+      {board && visibleGroups.length === 0 ? (
+        <p className="project-file-empty">{t(locale, 'app.files.noMatches')}</p>
+      ) : null}
     </section>
   );
 }

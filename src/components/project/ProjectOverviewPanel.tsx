@@ -2,6 +2,7 @@ import '../../styles/components/project-file-list.css';
 import { useQuery } from '@tanstack/react-query';
 import { t, useLocale, type Locale } from '../../i18n';
 import { loadProjectOverview } from '../../services/projectOverview';
+import { lookupLanguageCatalogEntriesByIds } from '../../services/LanguageCatalogSearchService';
 import {
   sumCounts,
   type ProgressRate,
@@ -26,10 +27,6 @@ function formatDuration(sec: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function formatProgress(locale: Locale, done: number, total: number, rate: ProgressRate): string {
-  return `${done}/${total} · ${formatRate(locale, rate)}`;
-}
-
 function countsFromRecord(row: TranscriptionRecordProgressRow): ProjectProgressCounts {
   const sentenceCount = row.sentenceCount ?? row.transcriptionUnitCount ?? 0;
   const rateCount = (rate: ProgressRate) => (rate === null ? 0 : Math.round(rate * sentenceCount));
@@ -44,10 +41,6 @@ function countsFromRecord(row: TranscriptionRecordProgressRow): ProjectProgressC
   };
 }
 
-function languages(codes: readonly string[], empty: string): string {
-  return codes.length > 0 ? codes.join(', ') : empty;
-}
-
 export function ProjectOverviewPanel(props: {
   textId: string;
   records: TranscriptionRecordProgressRow[];
@@ -60,6 +53,22 @@ export function ProjectOverviewPanel(props: {
     enabled: props.textId.trim().length > 0,
   });
   const data = overview.data ?? null;
+  const languageCodes = [...(data?.objectLanguages ?? []), ...(data?.workingLanguages ?? [])];
+  const languageLabels = useQuery({
+    queryKey: ['project-overview-language-labels', locale, languageCodes],
+    queryFn: () => lookupLanguageCatalogEntriesByIds(languageCodes, locale),
+    enabled: languageCodes.length > 0,
+  });
+  const languageNameByCode = new Map(
+    (languageLabels.data ?? []).map((entry) => [
+      entry.languageCode,
+      entry.byLocale?.[locale] || entry.localName || entry.englishName,
+    ]),
+  );
+  const formatLanguages = (codes: readonly string[]) =>
+    codes.length > 0
+      ? codes.map((code) => `${languageNameByCode.get(code) ?? code} (${code})`).join(', ')
+      : empty;
   const fromRecords = sumCounts(props.records.map((row) => countsFromRecord(row)));
   const progress = data?.progress.sentenceCount ? data.progress : fromRecords;
   const audioDurationSec =
@@ -67,28 +76,8 @@ export function ProjectOverviewPanel(props: {
   const audioCount =
     data?.audioCount ?? props.records.filter((row) => row.kind === 'transcription_record').length;
   const empty = t(locale, 'app.overview.empty');
-  const objectLanguageLabel = languages(data?.objectLanguages ?? [], empty);
-  const facts = [
-    {
-      label: t(locale, 'app.overview.objectLanguages'),
-      value: objectLanguageLabel,
-      ...(objectLanguageLabel === empty && props.onConfigureLanguages
-        ? { configure: true as const }
-        : {}),
-    },
-    {
-      label: t(locale, 'app.overview.workingLanguages'),
-      value: languages(data?.workingLanguages ?? [], empty),
-    },
-    {
-      label: t(locale, 'app.overview.audioDuration'),
-      value: formatDuration(audioDurationSec),
-    },
-    { label: t(locale, 'app.overview.audioCount'), value: String(audioCount) },
-    {
-      label: t(locale, 'app.overview.manuscriptCount'),
-      value: String(data?.manuscriptCount ?? 0),
-    },
+  const details = [
+    { label: t(locale, 'app.overview.manuscriptCount'), value: String(data?.manuscriptCount ?? 0) },
     { label: t(locale, 'app.overview.sentences'), value: String(progress.sentenceCount) },
     {
       label: `${t(locale, 'app.overview.speakers')} / ${t(locale, 'app.overview.lexemes')}`,
@@ -97,33 +86,11 @@ export function ProjectOverviewPanel(props: {
   ];
   const bars = [
     {
-      label: t(locale, 'app.home.progress.transcription'),
-      text: formatProgress(
-        locale,
-        progress.transcribedCount,
-        progress.sentenceCount,
-        progress.transcriptionRate,
-      ),
-      rate: progress.transcriptionRate,
-    },
-    {
       label: t(locale, 'app.home.progress.translation'),
-      text: formatProgress(
-        locale,
-        progress.translatedCount,
-        progress.sentenceCount,
-        progress.translationRate,
-      ),
       rate: progress.translationRate,
     },
     {
       label: t(locale, 'app.home.progress.annotation'),
-      text: formatProgress(
-        locale,
-        progress.annotatedCount,
-        progress.transcribedCount,
-        progress.annotationRate,
-      ),
       rate: progress.annotationRate,
     },
   ];
@@ -134,41 +101,47 @@ export function ProjectOverviewPanel(props: {
           <WorkbenchGlyph name="overview" />
           {t(locale, 'app.overview.title')}
         </h3>
-        <span className="project-overview-caption">{t(locale, 'app.overview.statsCaption')}</span>
+        {props.onConfigureLanguages ? (
+          <button
+            type="button"
+            className="project-overview-configure"
+            onClick={props.onConfigureLanguages}
+          >
+            {t(locale, 'app.overview.configure')}
+          </button>
+        ) : null}
       </div>
-      <dl className="project-overview-facts">
-        {facts.map((item) => (
-          <div key={item.label}>
-            <dt>{item.label}</dt>
-            <dd>
-              {item.value}
-              {'configure' in item ? (
-                <button
-                  type="button"
-                  className="project-overview-set"
-                  onClick={props.onConfigureLanguages}
-                >
-                  {t(locale, 'app.overview.configure')}
-                </button>
-              ) : null}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <div className="project-overview-bars">
-        <div className="project-overview-token">
-          <span>{t(locale, 'app.overview.tokens')}</span>
-          <strong>{data?.tokenCount ?? 0}</strong>
-        </div>
-        <div className="project-overview-bar-grid">
+      <div className="project-overview-facts">
+        <dl className="project-overview-fact">
+          <dt>{t(locale, 'app.overview.objectLanguages')}</dt>
+          <dd>{formatLanguages(data?.objectLanguages ?? [])}</dd>
+        </dl>
+        <dl className="project-overview-fact">
+          <dt>{t(locale, 'app.overview.workingLanguages')}</dt>
+          <dd>{formatLanguages(data?.workingLanguages ?? [])}</dd>
+        </dl>
+        <dl className="project-overview-fact project-overview-recordings">
+          <dt>{t(locale, 'app.overview.audioCount')}</dt>
+          <dd>{audioCount}</dd>
+          <dt>{t(locale, 'app.overview.audioDuration')}</dt>
+          <dd>{formatDuration(audioDurationSec)}</dd>
+        </dl>
+        <div className="project-overview-progress">
+          <span className="project-overview-progress-title">
+            {t(locale, 'app.home.progress.transcription')}
+          </span>
+          <strong>{formatRate(locale, progress.transcriptionRate)}</strong>
+          <span className="project-overview-progress-count">
+            {progress.transcribedCount}/{progress.sentenceCount}
+          </span>
           {bars.map((bar) => {
             const pct =
               bar.rate === null ? 0 : Math.round(Math.max(0, Math.min(1, bar.rate)) * 100);
             return (
-              <div key={bar.label}>
+              <div className="project-overview-mini-bar" key={bar.label}>
                 <div className="project-overview-bar-label">
                   <span>{bar.label}</span>
-                  <span>{bar.text}</span>
+                  <span>{formatRate(locale, bar.rate)}</span>
                 </div>
                 <div className="project-overview-track" aria-hidden>
                   <div className="project-overview-fill" style={{ width: `${pct}%` }} />
@@ -178,6 +151,18 @@ export function ProjectOverviewPanel(props: {
           })}
         </div>
       </div>
+      <dl className="project-overview-details">
+        {details.map((item) => (
+          <div key={item.label}>
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))}
+        <div>
+          <dt>{t(locale, 'app.overview.tokens')}</dt>
+          <dd>{data?.tokenCount ?? 0}</dd>
+        </div>
+      </dl>
     </section>
   );
 }

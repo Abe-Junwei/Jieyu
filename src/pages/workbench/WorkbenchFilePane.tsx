@@ -39,6 +39,14 @@ function projectIso(code: string | undefined): string | null {
   return value;
 }
 
+function audioFormat(filename: string | undefined): string {
+  const extension = filename?.split('.').pop()?.toUpperCase();
+  return extension &&
+    ['AAC', 'FLAC', 'M4A', 'MP3', 'MP4', 'MOV', 'OGG', 'WAV', 'WEBM'].includes(extension)
+    ? extension
+    : 'audio';
+}
+
 export function WorkbenchFilePane(props: {
   locale: Locale;
   textId: string;
@@ -175,6 +183,8 @@ export function WorkbenchFilePane(props: {
             name: row.filename,
             filename: row.storageFilename ?? row.filename,
             ...(row.durationSec !== undefined ? { durationSec: row.durationSec } : {}),
+            audioFormat: audioFormat(row.storageFilename),
+            sentenceCount: row.sentenceCount,
             transcriptionRate: row.transcriptionRate,
             translationRate: row.translationRate,
             annotationRate: row.annotationRate,
