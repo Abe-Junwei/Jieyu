@@ -11,7 +11,7 @@ import type {
   TextDocType,
   TranslationStatusSnapshotDocType,
 } from '../db/types';
-import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
+import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
 
 describe('computeTranslationProgressRate', () => {
   it('returns null when no rows', () => {
@@ -91,14 +91,20 @@ describe('home page media filter (align with project hub)', () => {
         textId: 't',
         filename: 'story.wav',
         isOfflineCached: false,
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: '',
-        details: { timelineKind: 'acoustic' as const },
+        details: {},
       },
       {
         id: 'aux-trl',
         textId: 't',
         filename: 'trl_zho_ul3ci-media_1776984871604_x.webm',
         isOfflineCached: false,
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: '',
         details: { source: 'translation-recording' },
       },
@@ -107,6 +113,9 @@ describe('home page media filter (align with project hub)', () => {
         textId: 't',
         filename: 'document-placeholder.track',
         isOfflineCached: false,
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: '',
         details: {},
       },

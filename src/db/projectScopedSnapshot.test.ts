@@ -21,6 +21,9 @@ async function seedText(textId: string, unitId: string): Promise<void> {
     textId,
     filename: `${textId}.wav`,
     isOfflineCached: false,
+    timelineKind: 'acoustic',
+    byteLocation: 'none',
+    availability: 'missing',
     createdAt: NOW,
   });
   await db.layer_units.put({

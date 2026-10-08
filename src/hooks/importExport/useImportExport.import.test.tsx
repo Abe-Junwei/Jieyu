@@ -258,8 +258,11 @@ describe('useImportExport - import success under stop-write', () => {
       textId: 'text-import-cap',
       filename: 'clip.wav',
       duration: 200,
-      details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }) },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: NOW,
     });
 
@@ -1037,6 +1040,9 @@ describe('useImportExport - import success under stop-write', () => {
       textId: 'text-import',
       filename: 'demo.wav',
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     } as never);
 
@@ -1066,6 +1072,9 @@ describe('useImportExport - import success under stop-write', () => {
       textId: 'text-import',
       filename: 'demo.wav',
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     };
 
@@ -1304,6 +1313,9 @@ describe('useImportExport - import success under stop-write', () => {
       textId: 'text-import',
       filename: 'demo.wav',
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     } as never);
 
@@ -1354,6 +1366,9 @@ describe('useImportExport - import success under stop-write', () => {
           textId: 'text-import',
           filename: 'demo.wav',
           isOfflineCached: true,
+          timelineKind: 'acoustic',
+          byteLocation: 'none',
+          availability: 'missing',
           createdAt: NOW,
         } as never,
         unitsOnCurrentMedia: [],
@@ -1675,6 +1690,9 @@ describe('useImportExport - import success under stop-write', () => {
       textId: 'text-import',
       filename: 'primary.wav',
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       details: { source: 'upload' },
       createdAt: NOW,
     } as never);
@@ -1725,6 +1743,9 @@ describe('useImportExport - import success under stop-write', () => {
           textId: 'text-import',
           filename: 'primary.wav',
           isOfflineCached: true,
+          timelineKind: 'acoustic',
+          byteLocation: 'none',
+          availability: 'missing',
           details: { source: 'upload' },
           createdAt: NOW,
         } as never,
@@ -1800,6 +1821,9 @@ describe('useImportExport - import success under stop-write', () => {
       textId: 'text-import',
       filename: 'demo.wav',
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     } as never);
 
@@ -1847,6 +1871,9 @@ describe('useImportExport - import success under stop-write', () => {
           textId: 'text-import',
           filename: 'demo.wav',
           isOfflineCached: true,
+          timelineKind: 'acoustic',
+          byteLocation: 'none',
+          availability: 'missing',
           createdAt: NOW,
         } as never,
         unitsOnCurrentMedia: [],
@@ -2057,6 +2084,9 @@ describe('useImportExport - import success under stop-write', () => {
       textId: 'text-media',
       filename: 'Speech.wav',
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     } as never);
     mockIngestTextFile.mockResolvedValueOnce({
@@ -2318,6 +2348,9 @@ describe('useImportExport - import success under stop-write', () => {
       filename: 'speech.wav',
       duration: 0.25,
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     } as never);
     await db.layer_units.put({

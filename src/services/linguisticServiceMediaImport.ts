@@ -1,11 +1,14 @@
+import type { Table } from 'dexie';
 import { getDb, withTransaction, type MediaItemDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
+import { computeBlobSha256 } from '../utils/blobSha256';
 import {
+  DOCUMENT_PLACEHOLDER_TRACK_FILENAME,
   isAuxiliaryRecordingMediaRow,
   isMediaItemPlaceholderRow,
-  MEDIA_TIMELINE_KIND_ACOUSTIC,
-  MEDIA_TIMELINE_KIND_PLACEHOLDER,
-} from '../utils/mediaItemTimelineKind';
+  managedAcousticMediaState,
+  placeholderMediaState,
+} from '../utils/mediaItemState';
 import { remapLayerUnitsAndAnchorsForFirstAcousticImport } from '../utils/remapLayerUnitsForFirstAcousticImport';
 import {
   maxTimedUnitEndSec,
@@ -29,6 +32,96 @@ export class AudioImportPlaceholderSelectionRequiredError extends Error {
   }
 }
 
+/**
+ * Relink 时新字节与记录的 `contentSha256` 不一致，且调用方没有确认时抛出；数据库不变。
+ * Thrown when relinked bytes do not match the recorded `contentSha256` and the caller has not
+ * acknowledged it; nothing is written (rev5 T20).
+ */
+export class MediaContentMismatchError extends Error {
+  readonly mediaId: string;
+  readonly expectedSha256: string;
+  readonly actualSha256: string;
+
+  constructor(mediaId: string, expectedSha256: string, actualSha256: string) {
+    super(
+      `relinkMedia: bytes for ${mediaId} do not match the recorded content (expected sha256 ${expectedSha256.slice(0, 12)}…, got ${actualSha256.slice(0, 12)}…)`,
+    );
+    this.name = 'MediaContentMismatchError';
+    this.mediaId = mediaId;
+    this.expectedSha256 = expectedSha256;
+    this.actualSha256 = actualSha256;
+  }
+}
+
+function stripStateDetails(details: Record<string, unknown> | undefined): Record<string, unknown> {
+  const {
+    placeholder: _placeholder,
+    timelineMode: _timelineMode,
+    timelineKind: _timelineKind,
+    audioBlob: _oldAudioBlob,
+    ...remainingDetails
+  } = details ?? {};
+  return remainingDetails;
+}
+
+/**
+ * Relink：给一条缺音的声学录音挂回字节。ID、原名和句段时间都不变；
+ * 新字节与已记录的 `contentSha256` 不符时，未确认就抛 `MediaContentMismatchError`。
+ * Relink: reattach bytes to an acoustic recording whose bytes are missing. Keeps the id, the
+ * original name and every unit time; throws `MediaContentMismatchError` on a sha256 mismatch
+ * unless acknowledged (rev5 §4.2-10, T20).
+ */
+export async function relinkMedia(input: {
+  mediaId: string;
+  audioBlob: Blob;
+  duration?: number;
+  acknowledgeContentMismatch?: boolean;
+  /** 同一事务内的附加写入（只能做 IDB 操作）| Extra writes in the same transaction (IDB only) */
+  afterWrite?: {
+    tables: readonly Table<any, any>[];
+    run: () => Promise<void>;
+  };
+}): Promise<{ mediaId: string }> {
+  const db = await getDb();
+  // 哈希在事务外先算好（rev5 §4.2-3）| Hash outside the transaction
+  const contentSha256 = await computeBlobSha256(input.audioBlob);
+  const row = await db.dexie.media_items.get(input.mediaId);
+  if (!row) throw new Error(`relinkMedia: media ${input.mediaId} not found`);
+  if (row.timelineKind !== 'acoustic') {
+    throw new Error('relinkMedia: only acoustic recordings can be relinked');
+  }
+  if (
+    row.contentSha256 !== undefined &&
+    contentSha256 !== undefined &&
+    row.contentSha256 !== contentSha256 &&
+    input.acknowledgeContentMismatch !== true
+  ) {
+    throw new MediaContentMismatchError(row.id, row.contentSha256, contentSha256);
+  }
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.media_items, ...(input.afterWrite?.tables ?? [])],
+    async () => {
+      const current = await db.dexie.media_items.get(input.mediaId);
+      if (!current) throw new Error(`relinkMedia: media ${input.mediaId} disappeared`);
+      await db.dexie.media_items.put({
+        ...current,
+        ...(typeof input.duration === 'number' &&
+        Number.isFinite(input.duration) &&
+        input.duration > 0
+          ? { duration: input.duration }
+          : {}),
+        details: { ...stripStateDetails(current.details), audioBlob: input.audioBlob },
+        ...managedAcousticMediaState(input.audioBlob, contentSha256),
+      });
+      if (input.afterWrite) await input.afterWrite.run();
+    },
+    { label: 'LinguisticService.media.relink' },
+  );
+  return { mediaId: input.mediaId };
+}
+
 export async function importAudio(input: {
   textId: string;
   audioBlob: Blob;
@@ -44,6 +137,8 @@ export async function importAudio(input: {
   importMode?: 'default' | 'replace' | 'add';
   /** `importMode === 'replace'` 时必填，且须属于 `textId`。 */
   replaceMediaId?: string;
+  /** 替换目标是缺音录音（即 Relink）且 sha256 不符时，用户已确认继续 | User confirmed a relink sha256 mismatch */
+  acknowledgeContentMismatch?: boolean;
 }): Promise<{ mediaId: string }> {
   const db = await getDb();
   const now = new Date().toISOString();
@@ -95,15 +190,23 @@ export async function importAudio(input: {
     if (!targetRow || targetRow.textId !== input.textId) {
       throw new Error('importAudio: replaceMediaId must refer to a media item in this text');
     }
+    if (!isMediaItemPlaceholderRow(targetRow) && targetRow.availability === 'missing') {
+      // 缺音录音的替换就是 Relink：保留 ID 与原名 | Replacing a missing recording is a relink
+      await relinkMedia({
+        mediaId: targetRow.id,
+        audioBlob: input.audioBlob,
+        duration: input.duration,
+        ...(input.acknowledgeContentMismatch === true ? { acknowledgeContentMismatch: true } : {}),
+        afterWrite: {
+          tables: [db.dexie.texts, db.dexie.layer_units],
+          run: () => refreshMediaTimelineMetadata(targetRow.id),
+        },
+      });
+      return { mediaId: targetRow.id };
+    }
     if (!isMediaItemPlaceholderRow(targetRow)) {
-      const previousDetails = (targetRow.details as Record<string, unknown> | undefined) ?? {};
-      const {
-        placeholder: _placeholder,
-        timelineMode: _timelineMode,
-        timelineKind: _timelineKind,
-        audioBlob: _oldAudioBlob,
-        ...remainingDetails
-      } = previousDetails;
+      const contentSha256 = await computeBlobSha256(input.audioBlob);
+      const remainingDetails = stripStateDetails(targetRow.details);
       await withTransaction(
         db,
         'rw',
@@ -117,11 +220,11 @@ export async function importAudio(input: {
             details: {
               ...remainingDetails,
               audioBlob: input.audioBlob,
-              timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
             },
             isOfflineCached: targetRow.isOfflineCached,
             ...(targetRow.accessRights ? { accessRights: targetRow.accessRights } : {}),
             createdAt: targetRow.createdAt,
+            ...managedAcousticMediaState(input.audioBlob, contentSha256),
           });
           await refreshMediaTimelineMetadata(targetRow.id);
         },
@@ -156,17 +259,10 @@ export async function importAudio(input: {
     createdAt = primaryPlaceholder.createdAt;
     accessRights = primaryPlaceholder.accessRights;
     isOfflineCached = primaryPlaceholder.isOfflineCached;
-    const previousDetails =
-      (primaryPlaceholder.details as Record<string, unknown> | undefined) ?? {};
-    const {
-      placeholder: _placeholder,
-      timelineMode: _timelineMode,
-      timelineKind: _timelineKind,
-      audioBlob: _oldAudioBlob,
-      ...remainingDetails
-    } = previousDetails;
-    mergedDetails = remainingDetails;
+    mergedDetails = stripStateDetails(primaryPlaceholder.details);
   }
+  // 哈希在事务外先算好（rev5 §4.2-3）| Hash outside the transaction
+  const contentSha256 = await computeBlobSha256(input.audioBlob);
 
   await withTransaction(
     db,
@@ -181,11 +277,11 @@ export async function importAudio(input: {
         details: {
           ...mergedDetails,
           audioBlob: input.audioBlob,
-          timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
         },
         isOfflineCached,
         ...(accessRights ? { accessRights } : {}),
         createdAt,
+        ...managedAcousticMediaState(input.audioBlob, contentSha256),
       });
 
       let remapResult = { didRemap: false, maxUnitEnd: 0 };
@@ -243,7 +339,7 @@ export async function createPlaceholderMedia(input: {
     Number.isFinite(input.duration) && (input.duration ?? 0) > 0
       ? (input.duration as number)
       : 1800;
-  const filename = input.filename?.trim() || 'document-placeholder.track';
+  const filename = input.filename?.trim() || DOCUMENT_PLACEHOLDER_TRACK_FILENAME;
 
   const mediaItem: MediaItemDocType = {
     id: mediaId,
@@ -251,12 +347,11 @@ export async function createPlaceholderMedia(input: {
     filename,
     duration,
     details: {
-      placeholder: true,
       timelineMode: 'document',
-      timelineKind: MEDIA_TIMELINE_KIND_PLACEHOLDER,
     },
     isOfflineCached: true,
     createdAt: now,
+    ...placeholderMediaState(),
   };
 
   await db.collections.media_items.insert(mediaItem);

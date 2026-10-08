@@ -1,9 +1,9 @@
 import type { MediaItemDocType } from '../db';
-import { isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
+import { isMediaItemPlaceholderRow } from './mediaItemState';
 import { resolveTimelineBindingExtentSec } from './timelineBindingExtent';
 
 /** 建段钳制：需能识别占位行（正 `duration` 的占位仍视为无声学上界）。 */
-export type MediaDurationBoundsInput = Pick<MediaItemDocType, 'duration' | 'details' | 'filename'>;
+export type MediaDurationBoundsInput = Pick<MediaItemDocType, 'duration' | 'timelineKind'>;
 
 /**
  * 建段/拖选钳制用的媒体时长上界。

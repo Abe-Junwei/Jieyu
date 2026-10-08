@@ -73,6 +73,9 @@ describe('import/export round-trip idempotency', () => {
       textId: 'text_roundtrip',
       filename: 'roundtrip.wav',
       isOfflineCached: false,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       details: { mimeType: 'audio/wav' },
       createdAt: NOW,
     });
@@ -208,6 +211,9 @@ describe('import/export round-trip idempotency', () => {
       textId: 'text_audio_export',
       filename: 'clip.wav',
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       details: {
         mimeType: 'audio/wav',
         audioBlob: new Blob(['abc'], { type: 'audio/wav' }),

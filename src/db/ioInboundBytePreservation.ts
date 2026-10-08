@@ -24,8 +24,6 @@ const MEDIA_OMISSION_KEYS = [
   MEDIA_AUDIO_EXPORT_OMITTED_MIME_TYPE_KEY,
 ] as const;
 
-const DOCUMENT_PLACEHOLDER_TRACK_FILENAME = 'document-placeholder.track';
-
 export type InboundByteConflictReason =
   | 'project-mismatch'
   | 'size-mismatch'
@@ -59,6 +57,27 @@ export class InboundByteConflictError extends Error {
 }
 
 type Row = Record<string, unknown> & { id: string };
+
+/**
+ * 入站媒体行如果声明 `managed` 却没带字节（导出时省略），先改写成 `none + missing`，保留已知的
+ * `contentSize` / `contentSha256`；之后如果本机有同一 ID 的字节，再由 `mergeInboundMediaRow` 换回本机状态。
+ * 不推断任何缺失的状态字段：缺字段的行交给校验拒绝（rev5 §4.2-7，2B-C）。
+ * Inbound media rows that declare `managed` but carry no bytes (omitted on export) become
+ * `none + missing`, keeping any known content fingerprint; local bytes of the same id are restored
+ * later by `mergeInboundMediaRow`. Missing state fields are never inferred; validation rejects them.
+ */
+export function normalizeInboundMediaByteState(
+  doc: Record<string, unknown>,
+): Record<string, unknown> {
+  const details = asRecord(doc['details']);
+  const blob = details['audioBlob'];
+  if (blob instanceof Blob) {
+    // 带字节入站：字节数以实际字节为准 | Included bytes: size follows the actual bytes
+    return doc['contentSize'] === blob.size ? doc : { ...doc, contentSize: blob.size };
+  }
+  if (doc['byteLocation'] !== 'managed' || doc['availability'] !== 'available') return doc;
+  return { ...doc, byteLocation: 'none', availability: 'missing' };
+}
 
 type MergeOutcome =
   | { kind: 'keep-incoming' }
@@ -96,10 +115,7 @@ export function mergeInboundMediaRow(incoming: Row, local: Row | undefined): Mer
   }
 
   const markedOmitted = incomingDetails[MEDIA_AUDIO_EXPORT_OMITTED_KEY] === true;
-  const declaresPlaceholder =
-    incomingDetails['timelineKind'] === 'placeholder' ||
-    incomingDetails['placeholder'] === true ||
-    incoming['filename'] === DOCUMENT_PLACEHOLDER_TRACK_FILENAME;
+  const declaresPlaceholder = incoming['timelineKind'] === 'placeholder';
   if (!markedOmitted && declaresPlaceholder) {
     // 入站明确声明「无音频的占位行」，而本机有字节：不静默丢弃，也不强行复活。
     // Inbound explicitly says placeholder while local holds bytes: neither drop nor resurrect.
@@ -117,7 +133,17 @@ export function mergeInboundMediaRow(incoming: Row, local: Row | undefined): Mer
   const nextDetails: Record<string, unknown> = { ...incomingDetails };
   for (const key of MEDIA_OMISSION_KEYS) delete nextDetails[key];
   nextDetails['audioBlob'] = localBlob;
-  return { kind: 'preserved', doc: { ...incoming, details: nextDetails } };
+  // 字节与对应的状态、指纹一起保留（rev5 §4.2-7）| Keep the bytes together with their state and fingerprint
+  const doc: Row = {
+    ...incoming,
+    details: nextDetails,
+    byteLocation: 'managed',
+    availability: 'available',
+    contentSize: localBlob.size,
+  };
+  if (typeof local['contentSha256'] === 'string') doc['contentSha256'] = local['contentSha256'];
+  else delete doc['contentSha256'];
+  return { kind: 'preserved', doc };
 }
 
 /**

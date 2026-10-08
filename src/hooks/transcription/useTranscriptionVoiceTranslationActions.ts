@@ -6,7 +6,7 @@ import type {
   LayerUnitDocType,
   LayerUnitContentDocType,
 } from '../../db';
-import { withResolvedMediaItemTimelineKind } from '../../utils/mediaItemTimelineKind';
+import { managedAcousticMediaState } from '../../utils/mediaItemState';
 import { newId } from '../../utils/transcriptionFormatters';
 import {
   listUnitTextsByUnit,
@@ -257,14 +257,15 @@ export function useTranscriptionVoiceTranslationActions({
           : 'translation-recording';
       const ext = fileExtensionForRecordedVoiceBlob(blob);
       const fallbackMime = ext === 'm4a' ? 'audio/mp4' : 'audio/webm';
-      const newMedia = withResolvedMediaItemTimelineKind({
+      const newMedia: MediaItemDocType = {
         id: mediaId,
         textId: targetUnit.textId,
         filename: `${targetLayer.key}-${mediaId}.${ext}`,
         isOfflineCached: true,
         details: { source: recordingSource, mimeType: blob.type || fallbackMime, audioBlob: blob },
         createdAt: now,
-      } as MediaItemDocType);
+        ...managedAcousticMediaState(blob),
+      };
       await db.collections.media_items.insert(newMedia);
 
       const translationId =

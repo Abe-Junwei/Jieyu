@@ -197,6 +197,9 @@ function makeInput(overrides: Partial<UseImportExportInput> = {}): UseImportExpo
     textId: 'text-1',
     filename: 'demo.wav',
     isOfflineCached: true,
+    timelineKind: 'acoustic',
+    byteLocation: 'none',
+    availability: 'missing',
     details: { source: 'upload' },
     createdAt: '2026-03-26T00:00:00.000Z',
   } as MediaItemDocType;

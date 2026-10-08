@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { t, type Locale } from '../i18n';
-import { DOCUMENT_PLACEHOLDER_TRACK_FILENAME } from '../utils/mediaItemTimelineKind';
+import { DOCUMENT_PLACEHOLDER_TRACK_FILENAME } from '../utils/mediaItemState';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';

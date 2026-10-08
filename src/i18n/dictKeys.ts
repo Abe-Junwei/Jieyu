@@ -1319,6 +1319,8 @@ export const DICT_KEYS = [
   'transcription.action.projectCreated',
   'transcription.action.audioImported',
   'transcription.action.audioImportSelectPlaceholder',
+  'transcription.action.relinkContentMismatchConfirm',
+  'transcription.action.relinkContentMismatchCancelled',
   'transcription.action.audioImportFailed',
   'transcription.action.audioTooLong',
   'transcription.action.skipProcessingMarked',

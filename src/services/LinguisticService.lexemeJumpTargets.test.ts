@@ -33,6 +33,9 @@ describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
       textId: 'text-jt-1',
       filename: 'jt.wav',
       isOfflineCached: false,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
     await LinguisticService.layers.saveTranslation({

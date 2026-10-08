@@ -14,11 +14,7 @@ import {
   deleteUnitLayerUnitCascade,
 } from './LayerSegmentGraphService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
-import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
-import {
-  isMediaItemPlaceholderRow,
-  MEDIA_TIMELINE_KIND_PLACEHOLDER,
-} from '../utils/mediaItemTimelineKind';
+import { isMediaItemPlaceholderRow, missingAcousticMediaState } from '../utils/mediaItemState';
 import {
   hasEstablishedTimedUnits,
   maxTimedUnitEndSec,
@@ -203,7 +199,14 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
   );
 }
 
-/** 删音保留语段时间与逻辑轴（ADR-0004 决策 3）；不在此重算或均分句段时间。 */
+/**
+ * 删除录音字节（rev5 §5“删除录音字节”，N9，T19）：这是唯一允许删除字节的操作。
+ * 行保留 ID 与原名，状态变为 `acoustic + none + missing`；句段时间、来源关系与逻辑轴都不变，
+ * 也不合并其他占位轴（rev5 §4.2-11）。
+ * Delete recording bytes (the only operation allowed to drop bytes). Keeps the id and the original
+ * filename; state becomes `acoustic + none + missing`; unit times, source links and the logical axis
+ * stay; other placeholder timelines are never merged.
+ */
 export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void> {
   const db = await getDb();
   const now = new Date().toISOString();
@@ -215,28 +218,10 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
     async () => {
       const media = await db.dexie.media_items.get(mediaId);
       if (!media) return;
+      if (media.timelineKind !== 'acoustic') return;
 
       const text = await db.dexie.texts.get(media.textId);
-      const siblingRows = await db.dexie.media_items.where('textId').equals(media.textId).toArray();
-      const siblingPlaceholderIds = siblingRows
-        .filter((row) => row.id !== mediaId)
-        .filter((row) => isMediaItemPlaceholderRow(row))
-        .map((row) => row.id);
       const relatedUnits = await LayerSegmentQueryService.listUnitsByMediaId(mediaId);
-      if (siblingPlaceholderIds.length > 0) {
-        const siblingUnits =
-          await LayerSegmentQueryService.listUnitsByMediaIds(siblingPlaceholderIds);
-        if (siblingUnits.length > 0) {
-          const reassignedUnits = await LayerUnitSegmentWriteService.reassignUnitsToMediaId(
-            db,
-            siblingUnits,
-            mediaId,
-            now,
-          );
-          relatedUnits.push(...reassignedUnits);
-        }
-        await db.dexie.media_items.bulkDelete(siblingPlaceholderIds);
-      }
       const maxUnitEnd = maxTimedUnitEndSec(relatedUnits);
       const existingMetadata = text?.metadata as { logicalDurationSec?: unknown } | undefined;
       const existingLogicalDurationSec =
@@ -250,39 +235,34 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
         existingLogicalDurationSec,
         hasTimedUnits,
       });
-      const previousDetails = (media.details as Record<string, unknown> | undefined) ?? {};
       const {
         audioBlob: _audioBlob,
-        timelineKind: _prevTimelineKind,
+        timelineKind: _legacyTimelineKind,
+        placeholder: _legacyPlaceholder,
         ...remainingDetails
-      } = previousDetails;
+      } = (media.details as Record<string, unknown> | undefined) ?? {};
 
       const textMeta = (text?.metadata as Record<string, unknown> | undefined) ?? {};
       /** 互操作标签：由「是否存在时间对齐语段」推断，不再读 `texts.metadata.timelineMode` 做运行时门控。 */
       const preservedTimelineMode = hasTimedUnits ? 'media' : 'document';
-      const placeholderDetailTimelineMode = preservedTimelineMode;
       const preservedTimebaseLabel =
         typeof textMeta.timebaseLabel === 'string' && textMeta.timebaseLabel.trim().length > 0
           ? textMeta.timebaseLabel.trim()
           : 'logical-second';
 
-      const placeholderMedia: MediaItemDocType = {
-        id: media.id,
-        textId: media.textId,
-        filename: 'document-placeholder.track',
-        ...(logicalDurationSec > 0 ? { duration: logicalDurationSec } : {}),
-        details: {
-          ...remainingDetails,
-          placeholder: true,
-          timelineMode: placeholderDetailTimelineMode,
-          timelineKind: MEDIA_TIMELINE_KIND_PLACEHOLDER,
-        },
-        isOfflineCached: true,
-        ...(media.accessRights ? { accessRights: media.accessRights } : {}),
-        createdAt: media.createdAt,
+      const knownContentSize =
+        media.contentSize ?? (_audioBlob instanceof Blob ? _audioBlob.size : undefined);
+      const { url: _url, ...mediaWithoutUrl } = media;
+      const missingMedia: MediaItemDocType = {
+        ...(media.byteLocation === 'url' ? mediaWithoutUrl : media),
+        details: remainingDetails,
+        ...missingAcousticMediaState({
+          ...(knownContentSize !== undefined ? { contentSize: knownContentSize } : {}),
+          ...(media.contentSha256 !== undefined ? { contentSha256: media.contentSha256 } : {}),
+        }),
       };
 
-      await db.dexie.media_items.put(placeholderMedia);
+      await db.dexie.media_items.put(missingMedia);
 
       if (text) {
         await db.dexie.texts.put({

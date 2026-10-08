@@ -98,7 +98,9 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
       const { audioBlob: _drop, ...rest } = real.details ?? {};
       await dexie.media_items.put({
         ...real,
-        details: { ...rest, timelineKind: 'acoustic', audioExportOmitted: true },
+        byteLocation: 'none',
+        availability: 'missing',
+        details: { ...rest, audioExportOmitted: true },
       });
       for (const n of [2, 3]) {
         await dexie.media_items.put({
@@ -107,8 +109,11 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
           filename: `missing-${n}.wav`,
           duration: 3,
           isOfflineCached: false,
+          timelineKind: 'acoustic',
+          byteLocation: 'none',
+          availability: 'missing',
           createdAt: '2099-06-10T00:00:00.000Z',
-          details: { timelineKind: 'acoustic', audioExportOmitted: true },
+          details: { audioExportOmitted: true },
         });
       }
     }, project);
@@ -166,14 +171,14 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
       await dexie.open();
       const real = await dexie.media_items.get(mediaId);
       if (!real) throw new Error('media missing');
-      const placeholderDetails = {
-        placeholder: true,
-        timelineMode: 'document',
-        timelineKind: 'placeholder',
-      };
+      const placeholderDetails = { timelineMode: 'document' };
+      const { contentSize: _size, contentSha256: _sha, ...realWithoutContent } = real;
       await dexie.media_items.put({
-        ...real,
+        ...realWithoutContent,
         filename: 'document-placeholder.track',
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
         details: placeholderDetails,
       });
       const createdAt = '2099-06-10T00:00:00.000Z';
@@ -183,6 +188,9 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
         filename: 'document-placeholder.track',
         duration: 1800,
         isOfflineCached: true,
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt,
         details: placeholderDetails,
       });

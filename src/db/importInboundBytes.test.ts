@@ -29,8 +29,12 @@ async function seedProjectWithBytes(): Promise<void> {
     textId: TEXT_ID,
     filename: 'field.wav',
     duration: 3,
-    details: { audioBlob: new Blob([AUDIO], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+    details: { audioBlob: new Blob([AUDIO], { type: 'audio/wav' }) },
     isOfflineCached: true,
+    timelineKind: 'acoustic',
+    byteLocation: 'managed',
+    availability: 'available',
+    contentSize: AUDIO.length,
     createdAt: NOW,
   });
   await db.layer_units.put({
@@ -66,6 +70,7 @@ async function readBytes() {
     details,
     audioText: audio instanceof Blob ? await audio.text() : undefined,
     audioType: audio instanceof Blob ? audio.type : undefined,
+    audioSize: audio instanceof Blob ? audio.size : undefined,
     asset,
     assetText: asset?.blob instanceof Blob ? await asset.blob.text() : undefined,
   };
@@ -79,7 +84,10 @@ async function expectLocalBytesKeptAndConsistent(): Promise<void> {
   expect(state.details['audioExportOmitted']).toBeUndefined();
   expect(state.details['audioExportOmittedByteSize']).toBeUndefined();
   expect(state.details['audioExportOmittedMimeType']).toBeUndefined();
-  expect(state.details['timelineKind']).toBe('acoustic');
+  expect(state.media?.timelineKind).toBe('acoustic');
+  expect(state.media?.byteLocation).toBe('managed');
+  expect(state.media?.availability).toBe('available');
+  expect(state.media?.contentSize).toBe(state.audioSize);
   expect(state.assetText).toBe(IMAGE);
   expect(state.asset?.byteSize).toBe(state.asset?.blob?.size);
   expect(state.asset?.blobExportOmitted).toBeUndefined();
@@ -155,9 +163,12 @@ describe('inbound bytes: preserve or abort (N2)', () => {
       };
       // 导出之后本机换了一段不同长度的音频（同一 id）| Local audio replaced after export
       const media = await db.media_items.get(MEDIA_ID);
+      const newerBlob = new Blob(['newer-audio'], { type: 'audio/wav' });
+      const { contentSha256: _staleSha, ...mediaWithoutSha } = media!;
       await db.media_items.put({
-        ...media!,
-        details: { ...media!.details, audioBlob: new Blob(['newer-audio'], { type: 'audio/wav' }) },
+        ...mediaWithoutSha,
+        contentSize: newerBlob.size,
+        details: { ...media!.details, audioBlob: newerBlob },
       });
       const before = await dumpTables();
 
@@ -204,7 +215,11 @@ describe('inbound bytes: preserve or abort (N2)', () => {
 
   it('T8: an explicit placeholder arriving over local bytes aborts instead of dropping them', async () => {
     const snapshot = clone(await exportDatabaseAsJson());
-    mediaRow(snapshot)['details'] = { placeholder: true, timelineKind: 'placeholder' };
+    mediaRow(snapshot)['details'] = {};
+    mediaRow(snapshot)['timelineKind'] = 'placeholder';
+    mediaRow(snapshot)['byteLocation'] = 'none';
+    mediaRow(snapshot)['availability'] = 'missing';
+    delete mediaRow(snapshot)['contentSize'];
     mediaRow(snapshot)['filename'] = 'document-placeholder.track';
     const before = await dumpTables();
 
@@ -216,7 +231,7 @@ describe('inbound bytes: preserve or abort (N2)', () => {
 
   it('T8: a row without bytes and without an omission marker still keeps local bytes', async () => {
     const snapshot = clone(await exportDatabaseAsJson());
-    mediaRow(snapshot)['details'] = { timelineKind: 'acoustic' };
+    mediaRow(snapshot)['details'] = {};
     const asset = (snapshot.collections['lexeme_assets'] as Array<Record<string, unknown>>)[0]!;
     delete asset['blobExportOmitted'];
 
@@ -234,6 +249,10 @@ describe('inbound bytes: preserve or abort (N2)', () => {
     const state = await readBytes();
     expect(state.audioText).toBeUndefined();
     expect(state.details['audioExportOmitted']).toBe(true);
+    // 本机没有：写成 none + missing（rev5 §4.2-7）| No local copy: none + missing
+    expect(state.media?.timelineKind).toBe('acoustic');
+    expect(state.media?.byteLocation).toBe('none');
+    expect(state.media?.availability).toBe('missing');
     expect(state.assetText).toBeUndefined();
     expect(state.asset?.blobExportOmitted).toBe(true);
   });
@@ -243,7 +262,6 @@ describe('inbound bytes: preserve or abort (N2)', () => {
     // 2A 删除了 `audioDataUrl` 回灌；“带字节”的行以内存 Blob 表示（第 3 批的新格式会打包媒体）
     // 2A removed `audioDataUrl` rehydration; included bytes are an in-memory Blob (batch 3 packages media)
     mediaRow(snapshot)['details'] = {
-      timelineKind: 'acoustic',
       audioBlob: new Blob(['included-audio'], { type: 'audio/wav' }),
     };
 
@@ -251,6 +269,8 @@ describe('inbound bytes: preserve or abort (N2)', () => {
 
     const state = await readBytes();
     expect(state.audioText).toBe('included-audio');
+    expect(state.media?.byteLocation).toBe('managed');
+    expect(state.media?.contentSize).toBe('included-audio'.length);
   });
 
   it('T7: applying a recovery snapshot keeps local audio', async () => {

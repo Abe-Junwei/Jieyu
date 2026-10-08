@@ -84,9 +84,17 @@ export interface TextDocType {
   updatedAt: string;
 }
 
+/** 媒体行的时间线类别 | Timeline kind of a media row (rev5 §4.1, required) */
+export type MediaTimelineKind = 'acoustic' | 'placeholder';
+/** 媒体字节所在位置 | Where the media bytes live (rev5 §4.1, required) */
+export type MediaByteLocation = 'managed' | 'url' | 'none';
+/** 媒体字节是否可用 | Whether the media bytes are available (rev5 §4.1, required) */
+export type MediaAvailability = 'available' | 'missing';
+
 export interface MediaItemDocType {
   id: string;
   textId: string;
+  /** 原始文件名；删除录音字节后仍保留 | Original file name; kept after the bytes are deleted (N9) */
   filename: string;
   url?: string;
   duration?: number;
@@ -94,6 +102,21 @@ export interface MediaItemDocType {
   isOfflineCached: boolean;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
+  /**
+   * 必填状态字段，由统一写入校验强制（不再启发式推断）。
+   * Required state fields, enforced by the unified write validation (no heuristics).
+   * - `placeholder` ⇒ `none` + `missing`
+   * - `managed` ⇒ `details.audioBlob` is a Blob, `available`
+   * - `url` ⇒ non-empty `url`
+   * - `none` ⇒ no `details.audioBlob`, `missing`
+   */
+  timelineKind: MediaTimelineKind;
+  byteLocation: MediaByteLocation;
+  availability: MediaAvailability;
+  /** 原始内容字节数（已知时）| Original content size in bytes, when known */
+  contentSize?: number;
+  /** 原始内容 sha256（小写十六进制，已知时）| Original content sha256 (lowercase hex), when known */
+  contentSha256?: string;
 }
 
 // ── Morpheme-level annotation types ──────────────────────────────────────────

@@ -1,8 +1,5 @@
 import { getDb, withTransaction } from '../db';
-import {
-  isAuxiliaryRecordingMediaRow,
-  isMediaItemPlaceholderRow,
-} from '../utils/mediaItemTimelineKind';
+import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from '../utils/mediaItemState';
 import {
   audioDisplayName,
   linkManuscriptsToAudio,

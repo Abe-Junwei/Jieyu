@@ -632,6 +632,9 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
         extractedText: 'Morphology paradigms and field methods documentation.',
       },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
 
@@ -756,6 +759,9 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
         extractedText: 'Elicitation guide for phonological analysis and morphology.',
       },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
 

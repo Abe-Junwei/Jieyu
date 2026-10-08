@@ -30,6 +30,7 @@ import {
   MEDIA_AUDIO_EXPORT_OMITTED_BYTE_SIZE_KEY,
   MEDIA_AUDIO_EXPORT_OMITTED_KEY,
   MEDIA_AUDIO_EXPORT_OMITTED_MIME_TYPE_KEY,
+  normalizeInboundMediaByteState,
   preserveLocalBytesForInbound,
   type InboundByteConflict,
 } from './ioInboundBytePreservation';
@@ -363,6 +364,8 @@ function normalizeImportedDoc(
       return ensureImportProvenance(doc as TokenLexemeLinkDocType, fallbackCreatedAt);
     case 'phonemes':
       return ensureImportProvenance(doc as PhonemeDocType, fallbackCreatedAt);
+    case 'media_items':
+      return normalizeInboundMediaByteState(doc as Record<string, unknown>);
     default:
       return doc;
   }

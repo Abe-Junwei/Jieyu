@@ -47,6 +47,9 @@ function makeMedia(id = 'media-1'): MediaItemDocType {
     filename: 'demo.wav',
     duration: 12,
     isOfflineCached: true,
+    timelineKind: 'acoustic',
+    byteLocation: 'none',
+    availability: 'missing',
     createdAt: '2026-04-08T00:00:00.000Z',
   } as MediaItemDocType;
 }
@@ -259,8 +262,11 @@ describe('useTranscriptionProjectMediaController', () => {
       textId: 'text-1',
       filename: 'document-placeholder.track',
       duration: 30,
-      details: { placeholder: true, timelineMode: 'document', timelineKind: 'placeholder' },
+      details: { placeholder: true, timelineMode: 'document' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: '2026-04-08T00:00:00.000Z',
     } as MediaItemDocType;
     const translationRecordingMedia = {
@@ -274,6 +280,9 @@ describe('useTranscriptionProjectMediaController', () => {
         timelineKind: 'acoustic',
       },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: '2026-04-08T00:00:00.000Z',
     } as MediaItemDocType;
 

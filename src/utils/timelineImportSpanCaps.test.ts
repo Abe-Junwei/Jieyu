@@ -10,8 +10,11 @@ describe('resolveEstablishedAcousticDurationSec', () => {
         textId: 'text_1',
         filename: 'clip.wav',
         duration: 200,
-        details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+        details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }) },
         isOfflineCached: true,
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
+        availability: 'available',
         createdAt: '2026-01-01T00:00:00.000Z',
       },
     ];

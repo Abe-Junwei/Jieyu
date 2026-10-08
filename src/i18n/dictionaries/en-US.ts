@@ -1493,7 +1493,7 @@ export const enUSDictionary = {
   'transcription.toast.deepLinkTextNotFound':
     'The linked project was not found or was removed (textId: {textId})',
   'transcription.action.confirmDeleteAudio':
-    'Remove playable audio from "{filename}"? Timeline units and transcription are kept; the row becomes a placeholder for continued editing.',
+    'Delete the recording bytes of "{filename}"? Segments, timecodes and transcription are kept; the recording is marked missing under its original name and can be relinked later.',
   'transcription.action.audioDeleted': 'Current media deleted.',
   'transcription.action.audioDeleteFailed': 'Failed to delete current media: {message}',
   'transcription.action.confirmDeleteProject':
@@ -1504,6 +1504,10 @@ export const enUSDictionary = {
   'transcription.action.audioImported': 'Media "{filename}" imported successfully.',
   'transcription.action.audioImportSelectPlaceholder':
     'This project has several placeholder timelines. Select the one to attach the audio to on the timeline, then import again.',
+  'transcription.action.relinkContentMismatchConfirm':
+    'The selected file does not match the original recording (different SHA-256). Attach it to this recording anyway? Segment times stay unchanged.',
+  'transcription.action.relinkContentMismatchCancelled':
+    'Relink cancelled: the selected file does not match the original recording.',
   'transcription.action.audioImportFailed': 'Failed to import media: {message}',
   'transcription.action.audioTooLong':
     'This recording is too long. Import was cancelled so decoding the waveform cannot crash the page. The text timeline is unchanged.',
@@ -1683,7 +1687,7 @@ export const enUSDictionary = {
     'This is the last transcription layer. Deleting it will also cascade-delete dependent translation layers.',
   'transcription.dialog.deleteAudioTitle': 'Delete current media',
   'transcription.dialog.deleteAudioDescription':
-    'Removes playable audio from "{filename}"; units, segments, and times stay; the media row becomes a placeholder. This cannot be undone.',
+    'Deletes the recording bytes of "{filename}"; segments, transcription and times stay, and the recording keeps its name marked as missing so it can be relinked later. Deleting bytes cannot be undone.',
   'transcription.dialog.deleteProjectTitle': 'Delete project',
   'transcription.dialog.focusModeExitBadge': 'Focus mode — click or ⌘⇧F to exit',
   'transcription.aiSidebar.assistantTab': 'Assistant',

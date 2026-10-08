@@ -2,7 +2,7 @@ import type { ITranscriptionAppServiceGateway } from '../app/TranscriptionAppSer
 import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import { t, type Locale } from '../i18n';
-import { withResolvedMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
+import { managedAcousticMediaState } from '../utils/mediaItemState';
 import { hasEstablishedTimedUnits } from '../utils/timelineLogicalDurationSync';
 import { isWaveformMediaTooLong } from '../utils/waveformDecodeGuard';
 import type {
@@ -83,7 +83,24 @@ export async function importTranscriptionProjectAudio(input: {
   };
   let mediaId: string;
   try {
-    ({ mediaId } = await transcriptionAppService.importAudio(importPayload));
+    try {
+      ({ mediaId } = await transcriptionAppService.importAudio(importPayload));
+    } catch (error) {
+      // Relink 的新字节与原录音指纹不符：先让用户确认（rev5 T20）。
+      // Relinked bytes differ from the recorded fingerprint: ask before writing (rev5 T20).
+      if (!(error instanceof Error && error.name === 'MediaContentMismatchError')) throw error;
+      if (!window.confirm(t(locale, 'transcription.action.relinkContentMismatchConfirm'))) {
+        setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.action.relinkContentMismatchCancelled'),
+        });
+        return;
+      }
+      ({ mediaId } = await transcriptionAppService.importAudio({
+        ...importPayload,
+        acknowledgeContentMismatch: true,
+      }));
+    }
   } catch (error) {
     // 多条占位轴且未选中任何一条：提示用户先在时间轴上选择，不自动合并。
     // Several placeholder timelines and none selected: ask the user to pick one; never auto-merge.
@@ -96,17 +113,16 @@ export async function importTranscriptionProjectAudio(input: {
     }
     throw error;
   }
-  addMediaItem(
-    withResolvedMediaItemTimelineKind({
-      id: mediaId,
-      textId,
-      filename: file.name,
-      duration,
-      details: { audioBlob: blob },
-      isOfflineCached: true,
-      createdAt: new Date().toISOString(),
-    } as MediaItemDocType),
-  );
+  addMediaItem({
+    id: mediaId,
+    textId,
+    filename: file.name,
+    duration,
+    details: { audioBlob: blob },
+    isOfflineCached: true,
+    createdAt: new Date().toISOString(),
+    ...managedAcousticMediaState(blob),
+  });
   if (options?.mismatchAcknowledged) {
     const expandTarget = Math.max(
       duration,

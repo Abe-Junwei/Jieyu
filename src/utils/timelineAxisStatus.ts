@@ -2,7 +2,7 @@
  * 时间轴顶栏媒体可播性提示（ADR-0004 7A）。**语段时间**不由本模块推断；仅汇总壳层与 `max(endTime)`。
  */
 import type { LayerUnitDocType, MediaItemDocType } from '../db';
-import { isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
+import { isMediaItemPlaceholderRow } from './mediaItemState';
 import { resolveTimelineShellMode } from './timelineShellMode';
 export type TimelineAxisMediaHint =
   | { kind: 'hidden' }
@@ -36,7 +36,7 @@ export interface ResolveTimelineAxisStatusInput {
   playerIsReady: boolean;
   playerDuration: number;
   acousticState?: 'no_media' | 'pending_decode' | 'playable';
-  selectedTimelineMedia: Pick<MediaItemDocType, 'filename' | 'details'> | null | undefined;
+  selectedTimelineMedia: Pick<MediaItemDocType, 'timelineKind'> | null | undefined;
   unitsOnCurrentMedia: ReadonlyArray<Pick<LayerUnitDocType, 'endTime'>>;
 }
 

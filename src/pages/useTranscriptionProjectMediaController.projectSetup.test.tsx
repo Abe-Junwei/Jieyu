@@ -29,9 +29,11 @@ const {
         details: {
           placeholder: true,
           timelineMode: 'document',
-          timelineKind: 'placeholder',
         },
         isOfflineCached: true,
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: '2026-04-17T00:00:00.000Z',
       }) as MediaItemDocType,
   ),

@@ -2077,6 +2077,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 120,
       details: { placeholder: true, timelineMode: 'media' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
     await LinguisticService.units.saveBatch([
@@ -2165,6 +2168,9 @@ describe('LinguisticService smoke tests', () => {
         textId: 'text_del',
         filename: 'single.wav',
         isOfflineCached: true,
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: NOW,
       },
       {
@@ -2172,6 +2178,9 @@ describe('LinguisticService smoke tests', () => {
         textId: 'text_del',
         filename: 'audio.wav',
         isOfflineCached: true,
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: NOW,
       },
     ]);
@@ -2306,13 +2315,13 @@ describe('LinguisticService smoke tests', () => {
         endTime: 2,
       }),
     );
+    // N9 / T19：删除字节后保留原名，状态为 acoustic + none + missing
     await expect(db.media_items.get('media_del_audio')).resolves.toEqual(
       expect.objectContaining({
-        filename: 'document-placeholder.track',
-        details: expect.objectContaining({
-          placeholder: true,
-          timelineMode: 'media',
-        }),
+        filename: 'audio.wav',
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
       }),
     );
     await expect(db.texts.get('text_del')).resolves.toEqual(
@@ -2351,6 +2360,9 @@ describe('LinguisticService smoke tests', () => {
         timelineMode: 'document',
       },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
 
@@ -2423,9 +2435,11 @@ describe('LinguisticService smoke tests', () => {
         details: {
           placeholder: true,
           timelineMode: 'document',
-          timelineKind: 'placeholder',
         },
         isOfflineCached: true,
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: now,
       },
       {
@@ -2439,6 +2453,9 @@ describe('LinguisticService smoke tests', () => {
           timelineKind: 'acoustic',
         },
         isOfflineCached: true,
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
+        availability: 'available',
         createdAt: now,
       },
     ]);
@@ -2473,9 +2490,9 @@ describe('LinguisticService smoke tests', () => {
       expect.objectContaining({
         filename: 'imported-aux.wav',
         duration: 18,
-        details: expect.objectContaining({
-          timelineKind: 'acoustic',
-        }),
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
+        availability: 'available',
       }),
     );
     await expect(db.media_items.get('media_translation_recording_aux')).resolves.toEqual(
@@ -2515,6 +2532,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 30,
       details: {},
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
 
@@ -2565,7 +2585,15 @@ describe('LinguisticService smoke tests', () => {
     });
     expect(relinked.mediaId).toBe('media_doc_legacy_payload_empty');
     const relinkedRow = await db.media_items.get('media_doc_legacy_payload_empty');
-    expect(relinkedRow?.filename).toBe('relinked.wav');
+    // Relink 保持身份与原名（rev5 §4.2-10）| Relink keeps identity and the original name
+    expect(relinkedRow?.filename).toBe('legacy-doc-row.media');
+    expect(relinkedRow).toEqual(
+      expect.objectContaining({
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
+        availability: 'available',
+      }),
+    );
     expect((relinkedRow?.details as Record<string, unknown>)['audioBlob']).toBeInstanceOf(Blob);
     await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(
       expect.objectContaining({
@@ -2576,7 +2604,7 @@ describe('LinguisticService smoke tests', () => {
     );
   });
 
-  it('keeps both pre-import and post-import segments on one placeholder timeline after deleting audio', async () => {
+  it('deleting audio bytes keeps the recording row and never merges other placeholder timelines (N9, §4.2-11)', async () => {
     const now = new Date().toISOString();
 
     await seedDefaultTranscriptionLayerForText('text_doc_merge', 'layer_trc_doc_merge', now);
@@ -2603,6 +2631,9 @@ describe('LinguisticService smoke tests', () => {
           timelineMode: 'document',
         },
         isOfflineCached: true,
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: now,
       },
       {
@@ -2614,6 +2645,9 @@ describe('LinguisticService smoke tests', () => {
           audioBlob: new Blob(['audio'], { type: 'audio/wav' }),
         },
         isOfflineCached: true,
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
+        availability: 'available',
         createdAt: now,
       },
     ]);
@@ -2641,7 +2675,7 @@ describe('LinguisticService smoke tests', () => {
 
     await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(
       expect.objectContaining({
-        mediaId: 'media_doc_new',
+        mediaId: 'media_doc_old',
         startTime: 2,
         endTime: 4,
       }),
@@ -2655,14 +2689,17 @@ describe('LinguisticService smoke tests', () => {
     );
     await expect(
       db.media_items.where('textId').equals('text_doc_merge').toArray(),
-    ).resolves.toHaveLength(1);
+    ).resolves.toHaveLength(2);
+    await expect(db.media_items.get('media_doc_old')).resolves.toEqual(
+      expect.objectContaining({ timelineKind: 'placeholder' }),
+    );
     await expect(db.media_items.get('media_doc_new')).resolves.toEqual(
       expect.objectContaining({
-        filename: 'document-placeholder.track',
-        details: expect.objectContaining({
-          placeholder: true,
-          timelineMode: 'media',
-        }),
+        filename: 'imported.wav',
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
+        contentSize: 5,
       }),
     );
     await expect(db.texts.get('text_doc_merge')).resolves.toEqual(
@@ -2696,6 +2733,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 25,
       details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }) },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: now,
     });
     await LinguisticService.units.save({
@@ -2721,21 +2761,22 @@ describe('LinguisticService smoke tests', () => {
     );
     await expect(db.media_items.get('media_media_rt')).resolves.toEqual(
       expect.objectContaining({
-        filename: 'document-placeholder.track',
-        details: expect.objectContaining({
-          placeholder: true,
-          timelineMode: 'media',
-          timelineKind: 'placeholder',
-        }),
+        filename: 'clip.wav',
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
       }),
     );
 
+    // 重新挂接缺音录音（Relink）：显式选择这一条 | Relink the missing recording explicitly
     const blob2 = new Blob(['y'], { type: 'audio/wav' });
     await LinguisticService.media.importAudio({
       textId: 'text_media_roundtrip',
       audioBlob: blob2,
       filename: 'reimport.wav',
       duration: 30,
+      importMode: 'replace',
+      replaceMediaId: 'media_media_rt',
     });
 
     await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(
@@ -2754,9 +2795,12 @@ describe('LinguisticService smoke tests', () => {
     );
     await expect(db.media_items.get('media_media_rt')).resolves.toEqual(
       expect.objectContaining({
-        filename: 'reimport.wav',
+        filename: 'clip.wav',
         duration: 30,
-        details: expect.objectContaining({ audioBlob: blob2, timelineKind: 'acoustic' }),
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
+        availability: 'available',
+        details: expect.objectContaining({ audioBlob: blob2 }),
       }),
     );
   });
@@ -2782,6 +2826,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 8,
       details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }) },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: now,
     });
     await LinguisticService.units.save({
@@ -2813,7 +2860,7 @@ describe('LinguisticService smoke tests', () => {
     );
   });
 
-  it('createPlaceholderMedia writes details.timelineKind placeholder', async () => {
+  it('createPlaceholderMedia writes the placeholder state fields', async () => {
     const now = new Date().toISOString();
     await db.texts.put({
       id: 'text_ph_timeline_kind',
@@ -2831,11 +2878,10 @@ describe('LinguisticService smoke tests', () => {
     });
     await expect(db.media_items.get(media.id)).resolves.toEqual(
       expect.objectContaining({
-        details: expect.objectContaining({
-          placeholder: true,
-          timelineMode: 'document',
-          timelineKind: 'placeholder',
-        }),
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
+        details: expect.objectContaining({ timelineMode: 'document' }),
       }),
     );
   });
@@ -2883,65 +2929,6 @@ describe('LinguisticService smoke tests', () => {
     );
   });
 
-  it('getMediaItemsByTextId backfills explicit timelineKind for legacy media rows', async () => {
-    const now = new Date().toISOString();
-    const textId = 'text_media_kind_backfill';
-    await db.texts.put({
-      id: textId,
-      title: { default: 'Backfill timeline kind' },
-      createdAt: now,
-      updatedAt: now,
-    });
-    await seedDefaultTranscriptionLayerForText(textId, 'layer_trc_media_kind_backfill', now);
-    await db.media_items.bulkPut([
-      {
-        id: 'media_backfill_placeholder',
-        textId,
-        filename: 'document-placeholder.track',
-        duration: 100,
-        details: { placeholder: true, timelineMode: 'document' },
-        isOfflineCached: true,
-        createdAt: now,
-      },
-      {
-        id: 'media_backfill_acoustic',
-        textId,
-        filename: 'document-placeholder.track',
-        duration: 12,
-        details: {
-          placeholder: true,
-          timelineMode: 'document',
-          audioBlob: new Blob(['legacy'], { type: 'audio/wav' }),
-        },
-        isOfflineCached: true,
-        createdAt: now,
-      },
-    ]);
-
-    const mediaItems = await LinguisticService.media.listByTextId(textId);
-    expect(mediaItems.find((row) => row.id === 'media_backfill_placeholder')).toEqual(
-      expect.objectContaining({
-        details: expect.objectContaining({ timelineKind: 'placeholder' }),
-      }),
-    );
-    expect(mediaItems.find((row) => row.id === 'media_backfill_acoustic')).toEqual(
-      expect.objectContaining({
-        details: expect.objectContaining({ timelineKind: 'acoustic' }),
-      }),
-    );
-
-    await expect(db.media_items.get('media_backfill_placeholder')).resolves.toEqual(
-      expect.objectContaining({
-        details: expect.objectContaining({ timelineKind: 'placeholder' }),
-      }),
-    );
-    await expect(db.media_items.get('media_backfill_acoustic')).resolves.toEqual(
-      expect.objectContaining({
-        details: expect.objectContaining({ timelineKind: 'acoustic' }),
-      }),
-    );
-  });
-
   it('importAudio rescales layer_units when first acoustic bind span exceeds file duration', async () => {
     const now = new Date().toISOString();
     const textId = 'text_import_no_rescale';
@@ -2965,6 +2952,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 400,
       details: { placeholder: true, timelineMode: 'document' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
     await LinguisticService.units.save({
@@ -2995,7 +2985,8 @@ describe('LinguisticService smoke tests', () => {
       expect.objectContaining({
         filename: 'short.wav',
         duration: 12,
-        details: expect.objectContaining({ timelineKind: 'acoustic' }),
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
       }),
     );
   });
@@ -3023,6 +3014,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 400,
       details: { placeholder: true, timelineMode: 'document' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
     await LinguisticService.units.save({
@@ -3075,6 +3069,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 200,
       details: { placeholder: true, timelineMode: 'document' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
     await LinguisticService.units.save({
@@ -3133,6 +3130,9 @@ describe('LinguisticService smoke tests', () => {
       duration: 1800,
       details: { placeholder: true, timelineMode: 'document' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
 
@@ -3167,8 +3167,11 @@ describe('LinguisticService smoke tests', () => {
       textId,
       filename: 'old.wav',
       duration: 60,
-      details: { audioBlob: new Blob(['old'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      details: { audioBlob: new Blob(['old'], { type: 'audio/wav' }) },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: now,
     });
 
@@ -3212,8 +3215,11 @@ describe('LinguisticService smoke tests', () => {
       textId,
       filename: 'document-placeholder.track',
       duration: 400,
-      details: { placeholder: true, timelineMode: 'document', timelineKind: 'placeholder' },
+      details: { placeholder: true, timelineMode: 'document' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
     await db.anchors.put({
@@ -3250,7 +3256,7 @@ describe('LinguisticService smoke tests', () => {
         expect.objectContaining({
           filename: 'document-placeholder.track',
           duration: 400,
-          details: expect.objectContaining({ placeholder: true, timelineKind: 'placeholder' }),
+          timelineKind: 'placeholder',
         }),
       );
       await expect(db.layer_units.get('utt_arch3_import_audio')).resolves.toEqual(
@@ -3287,8 +3293,11 @@ describe('LinguisticService smoke tests', () => {
       textId,
       filename: 'first.wav',
       duration: 50,
-      details: { audioBlob: new Blob(['a'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      details: { audioBlob: new Blob(['a'], { type: 'audio/wav' }) },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: now,
     });
     const blob = new Blob(['b'], { type: 'audio/wav' });
@@ -3307,7 +3316,8 @@ describe('LinguisticService smoke tests', () => {
       expect.objectContaining({
         filename: 'second.wav',
         duration: 40,
-        details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
+        timelineKind: 'acoustic',
+        details: expect.objectContaining({ audioBlob: blob }),
       }),
     );
     await expect(db.media_items.get('media_first_acoustic')).resolves.toEqual(
@@ -3334,8 +3344,11 @@ describe('LinguisticService smoke tests', () => {
       textId,
       filename: 'old.wav',
       duration: 60,
-      details: { audioBlob: new Blob(['old'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      details: { audioBlob: new Blob(['old'], { type: 'audio/wav' }) },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: now,
     });
     const blob = new Blob(['new'], { type: 'audio/wav' });
@@ -3353,7 +3366,8 @@ describe('LinguisticService smoke tests', () => {
       expect.objectContaining({
         filename: 'new.wav',
         duration: 22,
-        details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
+        timelineKind: 'acoustic',
+        details: expect.objectContaining({ audioBlob: blob }),
       }),
     );
   });
@@ -4317,6 +4331,9 @@ describe('Tier CRUD & batch save', () => {
       filename: 'batch.wav',
       details: {},
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     });
 
@@ -4642,6 +4659,9 @@ describe('Validated single-item CRUD', () => {
       filename: 'tier.wav',
       details: {},
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     });
     await LinguisticService.tiers.saveAnnotation(
@@ -4748,6 +4768,9 @@ describe('Validated single-item CRUD', () => {
       filename: 'remove.wav',
       details: {},
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: NOW,
     });
 

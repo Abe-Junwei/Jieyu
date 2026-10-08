@@ -124,6 +124,7 @@ export const LinguisticService = {
     listByTextId: linguisticServiceMediaReadWrite.getMediaItemsByTextId,
     save: linguisticServiceMediaReadWrite.saveMediaItem,
     importAudio: linguisticServiceMediaImport.importAudio,
+    relink: linguisticServiceMediaImport.relinkMedia,
     createPlaceholder: linguisticServiceMediaImport.createPlaceholderMedia,
     expandTextLogicalDurationToAtLeast:
       linguisticServiceMediaImport.expandTextLogicalDurationToAtLeast,

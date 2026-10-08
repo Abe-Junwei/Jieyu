@@ -6,15 +6,25 @@ const NOW = '2026-10-08T12:00:00.000Z';
 
 function media(
   id: string,
-  details: Record<string, unknown>,
+  timelineKind: MediaItemDocType['timelineKind'],
   filename = `${id}.wav`,
 ): MediaItemDocType {
-  return { id, textId: 'text-1', filename, details, isOfflineCached: true, createdAt: NOW };
+  return {
+    id,
+    textId: 'text-1',
+    filename,
+    details: {},
+    isOfflineCached: true,
+    timelineKind,
+    byteLocation: 'none',
+    availability: 'missing',
+    createdAt: NOW,
+  };
 }
 
-const placeholderA = media('ph-a', { timelineKind: 'placeholder' }, 'document-placeholder.track');
-const placeholderB = media('ph-b', { timelineKind: 'placeholder' }, 'document-placeholder.track');
-const missingAcoustic = media('missing', { timelineKind: 'acoustic' });
+const placeholderA = media('ph-a', 'placeholder', 'document-placeholder.track');
+const placeholderB = media('ph-b', 'placeholder', 'document-placeholder.track');
+const missingAcoustic = media('missing', 'acoustic');
 
 describe('computeAudioImportDisposition (rev5 Batch 1 / N4)', () => {
   it('passes the selected placeholder so only that timeline gets the audio', () => {

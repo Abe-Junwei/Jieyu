@@ -38,11 +38,7 @@ class FakeRuntime implements EmbeddingProvider {
 }
 
 async function clearEmbeddingTables(): Promise<void> {
-  await Promise.all([
-    db.ai_tasks.clear(),
-    db.embeddings.clear(),
-    db.media_items.clear(),
-  ]);
+  await Promise.all([db.ai_tasks.clear(), db.embeddings.clear(), db.media_items.clear()]);
 }
 
 describe('EmbeddingService', () => {
@@ -56,10 +52,12 @@ describe('EmbeddingService', () => {
   });
 
   it('builds embeddings and persists ai task done state', async () => {
-    const service = new EmbeddingService(new FakeRuntime([
-      [0.1, 0.2, 0.3],
-      [0.4, 0.5, 0.6],
-    ]));
+    const service = new EmbeddingService(
+      new FakeRuntime([
+        [0.1, 0.2, 0.3],
+        [0.4, 0.5, 0.6],
+      ]),
+    );
 
     const sources: EmbeddingBuildSource[] = [
       { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
@@ -85,10 +83,12 @@ describe('EmbeddingService', () => {
   });
 
   it('skips unchanged sources on re-run with same model/version', async () => {
-    const service = new EmbeddingService(new FakeRuntime([
-      [0.1, 0.2],
-      [0.3, 0.4],
-    ]));
+    const service = new EmbeddingService(
+      new FakeRuntime([
+        [0.1, 0.2],
+        [0.3, 0.4],
+      ]),
+    );
 
     const sources: EmbeddingBuildSource[] = [
       { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
@@ -115,12 +115,12 @@ describe('EmbeddingService', () => {
   it('marks ai task failed when runtime throws', async () => {
     const service = new EmbeddingService(new FakeRuntime([], true));
 
-    await expect(service.buildEmbeddings([
-      { sourceType: 'unit', sourceId: 'utt_1', text: 'x' },
-    ], {
-      modelId: 'test-model',
-      modelVersion: 'v-test',
-    })).rejects.toThrow('runtime preload failed');
+    await expect(
+      service.buildEmbeddings([{ sourceType: 'unit', sourceId: 'utt_1', text: 'x' }], {
+        modelId: 'test-model',
+        modelVersion: 'v-test',
+      }),
+    ).rejects.toThrow('runtime preload failed');
 
     const tasks = await db.ai_tasks.toArray();
     expect(tasks.length).toBe(1);
@@ -139,6 +139,9 @@ describe('EmbeddingService', () => {
           extractedText: 'This is a pdf summary about phonology and grammar.',
         },
         isOfflineCached: true,
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: now,
       },
       {
@@ -147,13 +150,14 @@ describe('EmbeddingService', () => {
         filename: 'session.wav',
         details: { mimeType: 'audio/wav' },
         isOfflineCached: true,
+        timelineKind: 'acoustic',
+        byteLocation: 'none',
+        availability: 'missing',
         createdAt: now,
       },
     ]);
 
-    const service = new EmbeddingService(new FakeRuntime([
-      [0.11, 0.21, 0.31],
-    ]));
+    const service = new EmbeddingService(new FakeRuntime([[0.11, 0.21, 0.31]]));
 
     const result = await service.buildPdfEmbeddings({
       modelId: 'test-model',
@@ -181,6 +185,9 @@ describe('EmbeddingService', () => {
         extractedText: longText,
       },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
 
@@ -209,13 +216,18 @@ describe('EmbeddingService', () => {
         pdfBlob: new Blob(['fake-pdf-bytes'], { type: 'application/pdf' }),
       },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: now,
     });
 
-    const service = new EmbeddingService(new FakeRuntime([
-      [0.2, 0.1, 0.3],
-      [0.4, 0.2, 0.1],
-    ]));
+    const service = new EmbeddingService(
+      new FakeRuntime([
+        [0.2, 0.1, 0.3],
+        [0.4, 0.2, 0.1],
+      ]),
+    );
 
     const result = await service.buildPdfEmbeddings({
       modelId: 'test-model',

@@ -556,7 +556,9 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     expect(mediaItemsState).toHaveLength(1);
     expect(mediaItemsState[0]).toEqual(
       expect.objectContaining({
-        details: expect.objectContaining({ timelineKind: 'acoustic' }),
+        timelineKind: 'acoustic',
+        byteLocation: 'managed',
+        availability: 'available',
       }),
     );
     expect(setSaveState).toHaveBeenCalledWith(

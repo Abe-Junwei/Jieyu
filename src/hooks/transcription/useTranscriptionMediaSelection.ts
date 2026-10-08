@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { MediaItemDocType } from '../../db';
-import { resolveMediaItemTimelineKind } from '../../utils/mediaItemTimelineKind';
 import {
   markWaveformDecodeAttempt,
   publishWaveformDecodeBlock,
@@ -112,7 +111,7 @@ export function useTranscriptionMediaSelection({
     const mediaSourceKey =
       blob instanceof Blob
         ? `${media.id}|blob|${media.filename}|${blob.size}|${blob.type}|${media.duration ?? ''}`
-        : `${media.id}|url|${media.url ?? ''}|${media.filename}|${resolveMediaItemTimelineKind(media)}`;
+        : `${media.id}|url|${media.url ?? ''}|${media.filename}|${media.timelineKind}|${media.availability}`;
     const force = isWaveformDecodeForced(media.id);
     const blockReason = waveformDecodeBlockReason({
       mediaId: media.id,

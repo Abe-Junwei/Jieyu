@@ -19,8 +19,11 @@ function placeholderRow(id: string): MediaItemDocType {
     textId: TEXT_ID,
     filename: 'document-placeholder.track',
     duration: 30,
-    details: { placeholder: true, timelineMode: 'document', timelineKind: 'placeholder' },
+    details: { placeholder: true, timelineMode: 'document' },
     isOfflineCached: true,
+    timelineKind: 'placeholder',
+    byteLocation: 'none',
+    availability: 'missing',
     createdAt: NOW,
   };
 }
@@ -31,8 +34,11 @@ function missingAcousticRow(id: string): MediaItemDocType {
     textId: TEXT_ID,
     filename: `${id}.wav`,
     duration: 12,
-    details: { timelineKind: 'acoustic' },
+    details: {},
     isOfflineCached: true,
+    timelineKind: 'acoustic',
+    byteLocation: 'none',
+    availability: 'missing',
     createdAt: NOW,
   };
 }
@@ -131,7 +137,9 @@ describe('importAudio placeholder scope (T11 / N4)', () => {
     const after = await snapshotRows();
     const promoted = await db.media_items.get('media_ph_b');
     expect(promoted?.filename).toBe('chosen.wav');
-    expect((promoted?.details as Record<string, unknown>)['timelineKind']).toBe('acoustic');
+    expect(promoted?.timelineKind).toBe('acoustic');
+    expect(promoted?.byteLocation).toBe('managed');
+    expect(promoted?.availability).toBe('available');
     expect((promoted?.details as Record<string, unknown>)['audioBlob']).toBeInstanceOf(Blob);
 
     // 其他行与句段逐项不变 | Every other row and unit is unchanged

@@ -1,10 +1,5 @@
 import type { LayerUnitDocType, MediaItemDocType } from '../db';
-import {
-  isAuxiliaryRecordingMediaRow,
-  isMediaItemPlaceholderRow,
-  MEDIA_TIMELINE_KIND_ACOUSTIC,
-  resolveMediaItemTimelineKind,
-} from './mediaItemTimelineKind';
+import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
 import { maxUnitEndTimeSec } from './timelineAxisStatus';
 
 function readPositiveLogical(metadata: Record<string, unknown> | undefined): number {
@@ -18,7 +13,6 @@ export function resolveEstablishedAcousticDurationSec(
   let maxDur = 0;
   for (const row of mediaRows) {
     if (isAuxiliaryRecordingMediaRow(row) || isMediaItemPlaceholderRow(row)) continue;
-    if (resolveMediaItemTimelineKind(row) !== MEDIA_TIMELINE_KIND_ACOUSTIC) continue;
     const d = row.duration;
     if (typeof d === 'number' && Number.isFinite(d) && d > maxDur) {
       maxDur = d;

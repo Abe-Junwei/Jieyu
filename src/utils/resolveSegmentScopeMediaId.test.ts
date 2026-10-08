@@ -13,6 +13,9 @@ function media(id: string): MediaItemDocType {
     textId: 't1',
     filename: 'x',
     isOfflineCached: false,
+    timelineKind: 'acoustic',
+    byteLocation: 'none',
+    availability: 'missing',
     createdAt: now,
   };
 }

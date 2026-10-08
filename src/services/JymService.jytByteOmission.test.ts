@@ -30,6 +30,9 @@ describe('JYT byte omission markers', () => {
         timelineKind: 'acoustic',
       },
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
       createdAt: NOW,
     });
   });

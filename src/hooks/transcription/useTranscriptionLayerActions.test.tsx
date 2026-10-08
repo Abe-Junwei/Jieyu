@@ -237,6 +237,9 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       duration: 10,
       details: { placeholder: true, timelineMode: 'document' },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: '2026-03-25T00:00:00.000Z',
     };
     const other = {
@@ -246,6 +249,9 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       duration: 5,
       details: {},
       isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: '2026-03-25T00:00:00.000Z',
     };
     const replacement = {

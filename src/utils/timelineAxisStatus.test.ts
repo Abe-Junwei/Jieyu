@@ -19,8 +19,7 @@ describe('timelineAxisStatus', () => {
         playerIsReady: true,
         playerDuration: 10,
         selectedTimelineMedia: {
-          filename: 'a.wav',
-          details: { audioBlob: new Blob(), timelineKind: 'acoustic' },
+          timelineKind: 'acoustic',
         },
         unitsOnCurrentMedia: [],
       }).kind,
@@ -35,8 +34,7 @@ describe('timelineAxisStatus', () => {
         playerIsReady: false,
         playerDuration: 0,
         selectedTimelineMedia: {
-          filename: 'a.wav',
-          details: { audioBlob: new Blob(), timelineKind: 'acoustic' },
+          timelineKind: 'acoustic',
         },
         unitsOnCurrentMedia: [],
       }),
@@ -50,7 +48,7 @@ describe('timelineAxisStatus', () => {
         selectedMediaUrl: 'blob:x',
         playerIsReady: true,
         playerDuration: 300,
-        selectedTimelineMedia: { filename: 'a.wav', details: {} },
+        selectedTimelineMedia: { timelineKind: 'acoustic' },
         unitsOnCurrentMedia: [{ endTime: 100 }],
       }),
     ).toEqual({ kind: 'acoustic_ok', acousticSec: 300 });
@@ -63,7 +61,7 @@ describe('timelineAxisStatus', () => {
         selectedMediaUrl: 'blob:x',
         playerIsReady: true,
         playerDuration: 300,
-        selectedTimelineMedia: { filename: 'a.wav', details: {} },
+        selectedTimelineMedia: { timelineKind: 'acoustic' },
         unitsOnCurrentMedia: [],
       }),
     ).toEqual({ kind: 'acoustic_ok', acousticSec: 300 });
@@ -76,7 +74,7 @@ describe('timelineAxisStatus', () => {
         selectedMediaUrl: 'blob:x',
         playerIsReady: true,
         playerDuration: 300,
-        selectedTimelineMedia: { filename: 'a.wav', details: {} },
+        selectedTimelineMedia: { timelineKind: 'acoustic' },
         unitsOnCurrentMedia: [{ endTime: 350 }],
       }),
     ).toEqual({ kind: 'duration_short', acousticSec: 300, maxUnitEndSec: 350 });
@@ -90,8 +88,7 @@ describe('timelineAxisStatus', () => {
         playerIsReady: true,
         playerDuration: 10,
         selectedTimelineMedia: {
-          filename: 'a.wav',
-          details: { audioBlob: new Blob(), timelineKind: 'acoustic' },
+          timelineKind: 'acoustic',
         },
         unitsOnCurrentMedia: [{ endTime: 50 }],
       }),
@@ -106,8 +103,7 @@ describe('timelineAxisStatus', () => {
         playerIsReady: true,
         playerDuration: 10,
         selectedTimelineMedia: {
-          filename: 'a.wav',
-          details: { audioBlob: new Blob(), timelineKind: 'acoustic' },
+          timelineKind: 'acoustic',
         },
         unitsOnCurrentMedia: [{ endTime: 9.9 }],
       }),
@@ -122,8 +118,7 @@ describe('timelineAxisStatus', () => {
         playerIsReady: false,
         playerDuration: 0,
         selectedTimelineMedia: {
-          filename: 'document-placeholder.track',
-          details: { placeholder: true, timelineMode: 'document' },
+          timelineKind: 'placeholder',
         },
         unitsOnCurrentMedia: [],
       }),
@@ -177,7 +172,7 @@ describe('timelineAxisStatus', () => {
           selectedMediaUrl: 'blob:x',
           playerIsReady: true,
           playerDuration: 6700,
-          selectedTimelineMedia: { filename: 'a.wav', details: {} },
+          selectedTimelineMedia: { timelineKind: 'acoustic' },
           unitsOnCurrentMedia: [{ endTime: 1500 }],
         }),
       ).toEqual({ kind: 'acoustic_ok', acousticSec: 6700 });

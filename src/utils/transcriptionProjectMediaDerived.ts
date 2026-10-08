@@ -1,6 +1,6 @@
 import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SearchableItem } from './searchReplaceUtils';
-import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
+import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
 
 export type AudioImportDisposition =
   /** `placeholderMediaId`：用户在时间轴上选中的占位轴；导入音频只晋升这一条。 */

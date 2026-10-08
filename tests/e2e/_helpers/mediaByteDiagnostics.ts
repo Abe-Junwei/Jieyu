@@ -6,7 +6,9 @@ export type MediaRowDiag = {
   textId: string;
   filename: string;
   timelineKind: string | null;
-  placeholderFlag: boolean;
+  byteLocation: string | null;
+  availability: string | null;
+  contentSha256: string | null;
   hasBlob: boolean;
   byteSize: number | null;
   mimeType: string | null;
@@ -23,6 +25,10 @@ export async function readMediaDiagnostics(page: Page, textId?: string): Promise
       filename: string;
       url?: string;
       details?: Record<string, unknown>;
+      timelineKind?: string;
+      byteLocation?: string;
+      availability?: string;
+      contentSha256?: string;
     };
     const dexie = (
       globalThis as unknown as {
@@ -47,9 +53,10 @@ export async function readMediaDiagnostics(page: Page, textId?: string): Promise
         id: row.id,
         textId: row.textId,
         filename: row.filename,
-        timelineKind:
-          typeof details['timelineKind'] === 'string' ? (details['timelineKind'] as string) : null,
-        placeholderFlag: details['placeholder'] === true,
+        timelineKind: row.timelineKind ?? null,
+        byteLocation: row.byteLocation ?? null,
+        availability: row.availability ?? null,
+        contentSha256: row.contentSha256 ?? null,
         hasBlob: blob instanceof Blob,
         byteSize: blob instanceof Blob ? blob.size : null,
         mimeType: blob instanceof Blob ? blob.type : null,

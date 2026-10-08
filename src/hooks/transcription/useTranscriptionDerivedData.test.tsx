@@ -17,6 +17,9 @@ function makeMedia(id: string): MediaItemDocType {
     filename: `${id}.wav`,
     mimeType: 'audio/wav',
     isOfflineCached: false,
+    timelineKind: 'acoustic',
+    byteLocation: 'none',
+    availability: 'missing',
     createdAt: '2026-04-02T00:00:00.000Z',
     updatedAt: '2026-04-02T00:00:00.000Z',
   } as MediaItemDocType;

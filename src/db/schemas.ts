@@ -113,17 +113,61 @@ const textDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const mediaItemDocSchema = z.object({
-  id: z.string().min(1),
-  textId: z.string().min(1),
-  filename: z.string().min(1),
-  url: z.string().optional(),
-  duration: z.number().finite().optional(),
-  details: z.record(z.string(), z.unknown()).optional(),
-  isOfflineCached: z.boolean(),
-  accessRights: accessRightsSchema.optional(),
-  createdAt: isoDateSchema,
-});
+const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
+
+/**
+ * 媒体状态字段的一致性规则（rev5 §4.1、§4.4；2B-C）| Consistency rules for the media state fields.
+ * 不做任何推断：缺字段或互相矛盾都直接拒绝。| No inference: missing or contradictory fields are rejected.
+ */
+const mediaItemDocSchema = z
+  .object({
+    id: z.string().min(1),
+    textId: z.string().min(1),
+    filename: z.string().min(1),
+    url: z.string().optional(),
+    duration: z.number().finite().optional(),
+    details: z.record(z.string(), z.unknown()).optional(),
+    isOfflineCached: z.boolean(),
+    accessRights: accessRightsSchema.optional(),
+    createdAt: isoDateSchema,
+    timelineKind: z.enum(['acoustic', 'placeholder']),
+    byteLocation: z.enum(['managed', 'url', 'none']),
+    availability: z.enum(['available', 'missing']),
+    contentSize: z.number().int().min(0).optional(),
+    contentSha256: z.string().regex(SHA256_HEX_PATTERN).optional(),
+  })
+  .superRefine((row, ctx) => {
+    const hasBlob = row.details?.['audioBlob'] instanceof Blob;
+    const hasUrl = typeof row.url === 'string' && row.url.trim().length > 0;
+    const issue = (path: string, message: string) =>
+      ctx.addIssue({ code: 'custom', path: [path], message });
+    if (row.timelineKind === 'placeholder' && row.byteLocation !== 'none') {
+      issue('byteLocation', 'placeholder rows must have byteLocation "none"');
+    }
+    switch (row.byteLocation) {
+      case 'managed':
+        if (!hasBlob) issue('byteLocation', 'byteLocation "managed" requires details.audioBlob');
+        else if (
+          row.contentSize !== undefined &&
+          row.contentSize !== (row.details?.['audioBlob'] as Blob).size
+        ) {
+          issue('contentSize', 'contentSize must equal the managed bytes');
+        }
+        if (row.availability !== 'available') {
+          issue('availability', 'managed bytes are always "available"');
+        }
+        break;
+      case 'url':
+        if (!hasUrl) issue('url', 'byteLocation "url" requires a non-empty url');
+        break;
+      case 'none':
+        if (hasBlob) issue('byteLocation', 'byteLocation "none" must not carry details.audioBlob');
+        if (row.availability !== 'missing') {
+          issue('availability', 'byteLocation "none" is always "missing"');
+        }
+        break;
+    }
+  });
 
 const anchorDocSchema = z.object({
   id: z.string().min(1),

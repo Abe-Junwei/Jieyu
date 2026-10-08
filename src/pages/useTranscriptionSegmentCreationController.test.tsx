@@ -91,6 +91,9 @@ function makeMedia(): MediaItemDocType {
     filename: 'demo.wav',
     duration: 10,
     isOfflineCached: false,
+    timelineKind: 'acoustic',
+    byteLocation: 'none',
+    availability: 'missing',
     createdAt: '2026-04-01T00:00:00.000Z',
   } as MediaItemDocType;
 }
@@ -378,8 +381,11 @@ describe('useTranscriptionSegmentCreationController', () => {
       textId: 'text-1',
       filename: 'document-placeholder.track',
       duration: 1800,
-      details: { placeholder: true, timelineKind: 'placeholder' },
+      details: { placeholder: true },
       isOfflineCached: true,
+      timelineKind: 'placeholder',
+      byteLocation: 'none',
+      availability: 'missing',
       createdAt: '2026-04-01T00:00:00.000Z',
     } as MediaItemDocType;
     const { result } = renderHook(() =>

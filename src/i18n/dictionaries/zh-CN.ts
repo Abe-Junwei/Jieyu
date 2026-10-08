@@ -1398,7 +1398,7 @@ export const zhCNDictionary = {
   'transcription.toast.lockConflictWithSpeakers': '锁定冲突 {count} 项：{speakers}',
   'transcription.toast.deepLinkTextNotFound': '链接中的项目不存在或已删除（textId：{textId}）',
   'transcription.action.confirmDeleteAudio':
-    '确定移除当前媒体「{filename}」中的可播放录音？时间轴上的句段与转写内容将保留，并以占位轨继续编辑。',
+    '确定删除当前媒体「{filename}」的录音字节？句段、时间码与转写内容都会保留，录音标为“缺失”并保留原名，之后可以重新挂接音频。',
   'transcription.action.audioDeleted': '当前媒体已删除。',
   'transcription.action.audioDeleteFailed': '删除当前媒体失败：{message}',
   'transcription.action.skipProcessingMarked': '已标记为跳过处理',
@@ -1411,6 +1411,10 @@ export const zhCNDictionary = {
   'transcription.action.audioImported': '媒体「{filename}」导入成功。',
   'transcription.action.audioImportSelectPlaceholder':
     '项目里有多条占位时间轴，请先在时间轴上选中要挂接音频的那一条，再导入。',
+  'transcription.action.relinkContentMismatchConfirm':
+    '所选文件与原录音内容不一致（SHA-256 不同）。仍要挂接到这条录音吗？句段时间不会改变。',
+  'transcription.action.relinkContentMismatchCancelled':
+    '已取消重新挂接：所选文件与原录音内容不一致。',
   'transcription.action.audioImportFailed': '导入媒体失败：{message}',
   'transcription.action.audioTooLong':
     '这条录音太长，导入后解码波形会让页面崩溃。已取消导入，文字时间轴不受影响。',
@@ -1577,7 +1581,7 @@ export const zhCNDictionary = {
     '当前仅剩一个转写层，删除后将自动级联删除其依赖翻译层，请确认是否继续。',
   'transcription.dialog.deleteAudioTitle': '删除当前媒体',
   'transcription.dialog.deleteAudioDescription':
-    '将移除「{filename}」中的可播放录音；句段与转写行及时间坐标保留，媒体行变为占位轨。此操作不可撤销。',
+    '将删除「{filename}」的录音字节；句段、转写与时间码都保留，录音保留原名并标为“缺失”，之后可以重新挂接。删除字节不可撤销。',
   'transcription.dialog.deleteProjectTitle': '删除项目',
   'transcription.dialog.focusModeExitBadge': '焦点模式 — 点击或 ⌘⇧F 退出',
   'transcription.aiSidebar.assistantTab': '助手',

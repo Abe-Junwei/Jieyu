@@ -1,20 +1,14 @@
 import { getDb, type MediaItemDocType } from '../db';
-import { withResolvedMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
 
+/** 只读：不再在读取时回填状态字段（2B-C）| Read only: no write-back of state fields on read (2B-C) */
 export async function getMediaItemsByTextId(textId: string): Promise<MediaItemDocType[]> {
   const db = await getDb();
   const docs = await db.collections.media_items.findByIndex('textId', textId);
-  const rows = docs.map((doc) => doc.toJSON());
-  const normalizedRows = rows.map((row) => withResolvedMediaItemTimelineKind(row));
-  const changedRows = normalizedRows.filter((row, index) => row !== rows[index]);
-  if (changedRows.length > 0) {
-    await db.dexie.media_items.bulkPut(changedRows);
-  }
-  return normalizedRows;
+  return docs.map((doc) => doc.toJSON());
 }
 
 export async function saveMediaItem(data: MediaItemDocType): Promise<string> {
   const db = await getDb();
-  const doc = await db.collections.media_items.insert(withResolvedMediaItemTimelineKind(data));
+  const doc = await db.collections.media_items.insert(data);
   return doc.primary;
 }

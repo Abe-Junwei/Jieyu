@@ -9,7 +9,7 @@ import { getDb } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { resolveDefaultTranscriptionLayerId } from '../services/LayerSegmentGraphService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
-import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
+import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
 import {
   collectSentences,
   progressFromSentences,

@@ -1,10 +1,7 @@
 import { getDb } from '../db';
 import type { Locale } from '../i18n';
 import { pickTextTitle } from '../utils/homeTranscriptionRecordProgress';
-import {
-  isAuxiliaryRecordingMediaRow,
-  isMediaItemPlaceholderRow,
-} from '../utils/mediaItemTimelineKind';
+import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from '../utils/mediaItemState';
 import { readProjectLanguageLists } from '../utils/projectLanguageLists';
 import {
   collectSentences,

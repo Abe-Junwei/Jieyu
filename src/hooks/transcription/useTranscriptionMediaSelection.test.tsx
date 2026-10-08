@@ -22,6 +22,9 @@ function makeBlobMedia(id: string, filename = 'demo.wav'): MediaItemDocType {
       audioBlob: new Blob(['demo'], { type: 'audio/wav' }),
     },
     isOfflineCached: true,
+    timelineKind: 'acoustic',
+    byteLocation: 'managed',
+    availability: 'available',
     createdAt: '2026-04-10T00:00:00.000Z',
   } as MediaItemDocType;
 }
@@ -161,7 +164,6 @@ describe('useTranscriptionMediaSelection', () => {
       details: {
         placeholder: true,
         timelineMode: 'document',
-        timelineKind: 'placeholder',
       },
     } as MediaItemDocType;
 

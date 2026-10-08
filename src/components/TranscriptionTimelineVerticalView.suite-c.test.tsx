@@ -158,6 +158,9 @@ describe('TranscriptionTimelineVerticalView', () => {
         url: 'https://example.com/a.webm',
         details: {},
         isOfflineCached: false,
+        timelineKind: 'acoustic',
+        byteLocation: 'url',
+        availability: 'available',
         createdAt: '2026-04-19T00:00:00.000Z',
       } as MediaItemDocType,
     ];
@@ -239,8 +242,11 @@ describe('TranscriptionTimelineVerticalView', () => {
         textId: 'text-1',
         filename: 'audio.webm',
         url: 'https://example.com/audio.webm',
-        details: { source: 'translation-recording', timelineKind: 'acoustic' },
+        details: { source: 'translation-recording' },
         isOfflineCached: false,
+        timelineKind: 'acoustic',
+        byteLocation: 'url',
+        availability: 'available',
         createdAt: '2026-04-19T00:00:00.000Z',
       } as MediaItemDocType,
     ];

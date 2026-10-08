@@ -13,7 +13,7 @@
  * 版本 4：Greenfield 移除 `jieyu:workspace-layout-contract-version` 与矩阵对应行；纵向偏好仅 `jieyu:workspace-vertical-view` + 读时归一。
  * 版本 5：视口单写者链路（`useTimelineViewport` → read model / orchestrator / stage zoomControls）。
  * 版本 6：`OrchestratorWaveformContent` 声学条入参收敛为 `AcousticStripContract`（read model + wave/tier DOM refs）。
- * 版本 7：P2 `timelineMode` 运行时占位/写路径收敛（`mediaItemTimelineKind` + `LinguisticService` / cleanup）。
+ * 版本 7：P2 `timelineMode` 运行时占位/写路径收敛（`mediaItemState` + `LinguisticService` / cleanup）。
  * 版本 8：P3 Project Hub 时间映射与导出提示不再依赖 `exportTimelineModeLabel`；预览公式 `timeMappingHubPreview`。
  * 版本 9：G3 `TimelineLaneDraftEditorCell` 共享壳（横向 `TimelineAnnotationItem` + 纵向对读草稿格）。
  * 版本 10：G3 草稿防抖 key 单点 `timelineDraftAutoSaveKeys`；侧栏译文行接入共享壳（`bubbleClick`）。
@@ -240,10 +240,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     id: 'timeline-mode-runtime-slim',
     ...rowParts('timeline-mode-runtime-slim'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
-    testAnchors: [
-      'src/utils/mediaItemTimelineKind.test.ts',
-      'src/services/LinguisticService.test.ts',
-    ],
+    testAnchors: ['src/utils/mediaItemState.test.ts', 'src/services/LinguisticService.test.ts'],
   },
   {
     id: 'project-hub-time-mapping-modeless',

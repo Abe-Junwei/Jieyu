@@ -101,6 +101,8 @@ export interface ImportAudioRequest {
   duration: number;
   importMode?: 'default' | 'replace' | 'add';
   replaceMediaId?: string;
+  /** Relink 时 sha256 不符、用户已确认 | User confirmed a relink sha256 mismatch (rev5 T20) */
+  acknowledgeContentMismatch?: boolean;
 }
 
 export interface ExpandTextLogicalDurationRequest {
