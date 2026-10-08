@@ -143,7 +143,9 @@ function toJsonBytes(value: unknown): Uint8Array {
   return strToU8(JSON.stringify(value, null, 2));
 }
 
-function normalizeImportPolicy(policy?: Partial<JieyuArchiveImportPolicy>): JieyuArchiveImportPolicy {
+function normalizeImportPolicy(
+  policy?: Partial<JieyuArchiveImportPolicy>,
+): JieyuArchiveImportPolicy {
   if (!policy) return DEFAULT_IMPORT_POLICY;
   return {
     ...DEFAULT_IMPORT_POLICY,
@@ -190,7 +192,11 @@ function randomBytes(length: number): Uint8Array {
   return bytes;
 }
 
-async function deriveArchiveKey(password: string, salt: Uint8Array, usage: KeyUsage): Promise<CryptoKey> {
+async function deriveArchiveKey(
+  password: string,
+  salt: Uint8Array,
+  usage: KeyUsage,
+): Promise<CryptoKey> {
   const cryptoApi = getWebCrypto();
   const baseKey = await cryptoApi.subtle.importKey(
     'raw',
@@ -293,7 +299,11 @@ async function resolveSnapshotPayloadBytes(
   return snapshotU8;
 }
 
-function validateJsonStructure(value: unknown, policy: JieyuArchiveImportPolicy, label: string): void {
+function validateJsonStructure(
+  value: unknown,
+  policy: JieyuArchiveImportPolicy,
+  label: string,
+): void {
   const stack: Array<{ value: unknown; depth: number }> = [{ value, depth: 1 }];
   let objectNodes = 0;
 
@@ -303,13 +313,17 @@ function validateJsonStructure(value: unknown, policy: JieyuArchiveImportPolicy,
     const { value: node, depth } = current;
 
     if (depth > policy.maxJsonDepth) {
-      throw new Error(`Invalid Jieyu archive: ${label} JSON depth exceeds limit (${policy.maxJsonDepth})`);
+      throw new Error(
+        `Invalid Jieyu archive: ${label} JSON depth exceeds limit (${policy.maxJsonDepth})`,
+      );
     }
     if (node === null || typeof node !== 'object') continue;
 
     objectNodes += 1;
     if (objectNodes > policy.maxJsonNodes) {
-      throw new Error(`Invalid Jieyu archive: ${label} JSON node count exceeds limit (${policy.maxJsonNodes})`);
+      throw new Error(
+        `Invalid Jieyu archive: ${label} JSON node count exceeds limit (${policy.maxJsonNodes})`,
+      );
     }
 
     if (Array.isArray(node)) {
@@ -326,7 +340,11 @@ function validateJsonStructure(value: unknown, policy: JieyuArchiveImportPolicy,
   }
 }
 
-function parseJsonWithGuard<T>(raw: Uint8Array, policy: JieyuArchiveImportPolicy, label: string): T {
+function parseJsonWithGuard<T>(
+  raw: Uint8Array,
+  policy: JieyuArchiveImportPolicy,
+  label: string,
+): T {
   try {
     const parsed = JSON.parse(toText(raw)) as T;
     validateJsonStructure(parsed, policy, label);
@@ -361,12 +379,17 @@ function extractSnapshotCollections(snapshot: unknown): Record<string, unknown[]
 async function countExistingDocIds(collectionName: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
 
-  const normalizedIds = Array.from(new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0)));
+  const normalizedIds = Array.from(
+    new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0)),
+  );
   if (normalizedIds.length === 0) return 0;
 
   const dbEngine = await loadDbEngineModule();
   const db = await dbEngine.getDb();
-  const dexieTables = db.dexie as unknown as Record<string, { bulkGet?: (keys: string[]) => Promise<unknown[]> }>;
+  const dexieTables = db.dexie as unknown as Record<
+    string,
+    { bulkGet?: (keys: string[]) => Promise<unknown[]> }
+  >;
   const table = dexieTables[collectionName];
   if (!table || typeof table.bulkGet !== 'function') return 0;
 
@@ -374,16 +397,21 @@ async function countExistingDocIds(collectionName: string, ids: string[]): Promi
   const chunkSize = 2000;
   for (let offset = 0; offset < normalizedIds.length; offset += chunkSize) {
     const chunk = normalizedIds.slice(offset, offset + chunkSize);
-    const rows = await table.bulkGet(chunk) as unknown[];
+    const rows = (await table.bulkGet(chunk)) as unknown[];
     existingCount += rows.reduce<number>((count, row) => (row ? count + 1 : count), 0);
   }
 
   return existingCount;
 }
 
-function unzipWithGuard(archiveBytes: Uint8Array, policy: JieyuArchiveImportPolicy): Record<string, Uint8Array> {
+function unzipWithGuard(
+  archiveBytes: Uint8Array,
+  policy: JieyuArchiveImportPolicy,
+): Record<string, Uint8Array> {
   if (archiveBytes.byteLength > policy.maxArchiveBytes) {
-    throw new Error(`Invalid Jieyu archive: archive size exceeds limit (${policy.maxArchiveBytes} bytes)`);
+    throw new Error(
+      `Invalid Jieyu archive: archive size exceeds limit (${policy.maxArchiveBytes} bytes)`,
+    );
   }
 
   let entryCount = 0;
@@ -394,20 +422,28 @@ function unzipWithGuard(archiveBytes: Uint8Array, policy: JieyuArchiveImportPoli
       filter(file) {
         entryCount += 1;
         if (entryCount > policy.maxEntryCount) {
-          throw new Error(`Invalid Jieyu archive: entry count exceeds limit (${policy.maxEntryCount})`);
+          throw new Error(
+            `Invalid Jieyu archive: entry count exceeds limit (${policy.maxEntryCount})`,
+          );
         }
 
         if (!Number.isFinite(file.originalSize) || file.originalSize < 0) {
-          throw new Error(`Invalid Jieyu archive: entry "${file.name}" has invalid original size metadata`);
+          throw new Error(
+            `Invalid Jieyu archive: entry "${file.name}" has invalid original size metadata`,
+          );
         }
 
         if (file.originalSize > policy.maxEntryBytes) {
-          throw new Error(`Invalid Jieyu archive: entry "${file.name}" exceeds size limit (${policy.maxEntryBytes} bytes)`);
+          throw new Error(
+            `Invalid Jieyu archive: entry "${file.name}" exceeds size limit (${policy.maxEntryBytes} bytes)`,
+          );
         }
 
         plannedExpandedBytes += file.originalSize;
         if (plannedExpandedBytes > policy.maxExpandedBytes) {
-          throw new Error(`Invalid Jieyu archive: total expanded size exceeds limit (${policy.maxExpandedBytes} bytes)`);
+          throw new Error(
+            `Invalid Jieyu archive: total expanded size exceeds limit (${policy.maxExpandedBytes} bytes)`,
+          );
         }
 
         return true;
@@ -431,12 +467,16 @@ function unzipWithGuard(archiveBytes: Uint8Array, policy: JieyuArchiveImportPoli
     if (!bytes) continue;
 
     if (bytes.byteLength > policy.maxEntryBytes) {
-      throw new Error(`Invalid Jieyu archive: entry "${name}" exceeds size limit (${policy.maxEntryBytes} bytes)`);
+      throw new Error(
+        `Invalid Jieyu archive: entry "${name}" exceeds size limit (${policy.maxEntryBytes} bytes)`,
+      );
     }
 
     actualExpandedBytes += bytes.byteLength;
     if (actualExpandedBytes > policy.maxExpandedBytes) {
-      throw new Error(`Invalid Jieyu archive: total expanded size exceeds limit (${policy.maxExpandedBytes} bytes)`);
+      throw new Error(
+        `Invalid Jieyu archive: total expanded size exceeds limit (${policy.maxExpandedBytes} bytes)`,
+      );
     }
   }
 
@@ -445,7 +485,9 @@ function unzipWithGuard(archiveBytes: Uint8Array, policy: JieyuArchiveImportPoli
 
 function sanitizeSnapshotForJyt(snapshot: DatabaseSnapshot): DatabaseSnapshot {
   const cloned = JSON.parse(JSON.stringify(snapshot)) as DatabaseSnapshot;
-  const mediaItems = cloned.collections['media_items'] as Array<Record<string, unknown>> | undefined;
+  const mediaItems = cloned.collections['media_items'] as
+    | Array<Record<string, unknown>>
+    | undefined;
 
   if (mediaItems) {
     for (const item of mediaItems) {
@@ -453,10 +495,11 @@ function sanitizeSnapshotForJyt(snapshot: DatabaseSnapshot): DatabaseSnapshot {
       if (!details) continue;
       if (typeof details.audioDataUrl === 'string') {
         delete details.audioDataUrl;
+        // JYT 不带字节：被剥离的内嵌音频也要显式标为省略 | JYT carries no bytes; mark stripped audio as omitted
+        details.audioExportOmitted = true;
       }
-      if (details.audioExportOmitted === true) {
-        delete details.audioExportOmitted;
-      }
+      // 保留 audioExportOmitted 等省略标记：入站时据此保留本机字节，而不是当成删除。
+      // Keep omission markers so inbound imports keep local bytes instead of treating them as deleted.
     }
   }
 
@@ -485,7 +528,10 @@ export async function exportToJieyuArchive(
 
   const snapshotBytes = toJsonBytes(payload);
   if (options?.encryption) {
-    const { encryptedBytes, metadata } = await encryptArchiveSnapshot(snapshotBytes, options.encryption);
+    const { encryptedBytes, metadata } = await encryptArchiveSnapshot(
+      snapshotBytes,
+      options.encryption,
+    );
     manifest.encryption = metadata;
     files[ARCHIVE_ENCRYPTED_SNAPSHOT_PATH] = encryptedBytes;
   } else {

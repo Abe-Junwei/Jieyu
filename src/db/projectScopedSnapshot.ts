@@ -4,7 +4,7 @@
  */
 import { exportDatabaseAsJson, importDatabaseFromJson } from './io';
 import type { ImportResult } from './types';
-import { getDb } from './engine';
+import { getDb, type JieyuDatabase } from './engine';
 import { dexieStoresForProjectScopedSnapshotPruneRw } from './dexieTranscriptionGraphStores';
 import { withTransaction } from './withTransaction';
 
@@ -244,9 +244,9 @@ export async function exportProjectScopedDatabaseAsJson(textId: string): Promise
   };
 }
 
-async function pruneProjectOwnedRows(textId: string): Promise<void> {
+async function pruneProjectOwnedRows(db: JieyuDatabase, textId: string): Promise<void> {
   const projectId = textId.trim();
-  const db = await getDb();
+  // 可嵌套在导入事务内执行（父事务须包含这些表）| May run nested inside the import transaction
   await withTransaction(
     db,
     'rw',
@@ -406,8 +406,17 @@ export async function importProjectScopedDatabaseFromJson(
     collections: filteredCollections,
   };
 
-  await pruneProjectOwnedRows(projectId);
-  const result = await importDatabaseFromJson(scopedSnapshot, { strategy: 'upsert' });
+  // N2：清理与写入放在同一个事务里；本机媒体/附件字节在清理前读出并保留，失败时整体回滚。
+  // N2: prune and write share one transaction; local media/asset bytes are read before the prune
+  // and kept, and any failure rolls everything back.
+  const db = await getDb();
+  const result = await importDatabaseFromJson(scopedSnapshot, {
+    strategy: 'upsert',
+    preWrite: {
+      tables: dexieStoresForProjectScopedSnapshotPruneRw(db),
+      run: () => pruneProjectOwnedRows(db, projectId),
+    },
+  });
   await dropLexemeLinksWithMissingTargets();
   return result;
 }

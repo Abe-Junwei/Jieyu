@@ -73,6 +73,11 @@ export {
   importDatabaseFromJson,
 } from './io';
 export {
+  InboundByteConflictError,
+  type InboundByteConflict,
+  type InboundByteConflictReason,
+} from './ioInboundBytePreservation';
+export {
   COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS,
   exportProjectScopedDatabaseAsJson,
   filterCollectionsForProject,

@@ -3,6 +3,7 @@
  *
  * JSON 格式快照的导出与导入，支持冲突策略与数据校验。
  * 导出不包含离线 `audioBlob`（仅结构化 + `details` 中 `audioExportOmitted` 标记）；导入仍接受 `audioDataUrl` 以灌回 Blob。
+ * 入站行不带字节时一律保留本机字节或中止（见 `ioInboundBytePreservation`）。
  */
 import type { Table } from 'dexie';
 import type {
@@ -23,6 +24,15 @@ import type {
   UserNoteDocType,
 } from './types';
 import { db, getDb } from './engine';
+import {
+  InboundByteConflictError,
+  isInboundByteCollection,
+  MEDIA_AUDIO_EXPORT_OMITTED_BYTE_SIZE_KEY,
+  MEDIA_AUDIO_EXPORT_OMITTED_KEY,
+  MEDIA_AUDIO_EXPORT_OMITTED_MIME_TYPE_KEY,
+  preserveLocalBytesForInbound,
+  type InboundByteConflict,
+} from './ioInboundBytePreservation';
 
 /** Import/export JSON snapshots must use this exact `schemaVersion` (no older/newer formats). */
 const SNAPSHOT_SCHEMA_VERSION = 4;
@@ -61,10 +71,15 @@ export async function exportDatabaseAsJson(): Promise<{
   if (mediaItems) {
     for (const item of mediaItems) {
       const details = item['details'] as Record<string, unknown> | undefined;
-      if (!details || !(details['audioBlob'] instanceof Blob)) continue;
+      const audioBlob = details?.['audioBlob'];
+      if (!details || !(audioBlob instanceof Blob)) continue;
       const copy = { ...details };
       delete copy['audioBlob'];
-      copy['audioExportOmitted'] = true;
+      copy[MEDIA_AUDIO_EXPORT_OMITTED_KEY] = true;
+      // 记录被省略字节的指纹，供入站时校验本机字节是否同一份 | Fingerprint for inbound checks
+      copy[MEDIA_AUDIO_EXPORT_OMITTED_BYTE_SIZE_KEY] = audioBlob.size;
+      if (audioBlob.type.length > 0)
+        copy[MEDIA_AUDIO_EXPORT_OMITTED_MIME_TYPE_KEY] = audioBlob.type;
       item['details'] = copy;
     }
   }
@@ -439,9 +454,19 @@ async function pruneOrphanUserNotes(): Promise<number> {
   return orphanIds.length;
 }
 
+/**
+ * 在导入写事务内、写入之前执行的步骤（例如协作 restore 的按项目清理）。
+ * A step that runs inside the import write transaction before any write (e.g. collab prune).
+ * 本机字节会在该步骤之前读出并保留。| Local bytes are read and kept before this step runs.
+ */
+export interface ImportPreWriteStep {
+  tables: readonly Table<any, any, any>[];
+  run: () => Promise<void>;
+}
+
 export async function importDatabaseFromJson(
   input: unknown,
-  options?: { strategy?: ImportConflictStrategy },
+  options?: { strategy?: ImportConflictStrategy; preWrite?: ImportPreWriteStep },
 ): Promise<ImportResult> {
   const validation = await loadValidationModule();
   const strategy = options?.strategy ?? 'upsert';
@@ -576,12 +601,17 @@ export async function importDatabaseFromJson(
   // ADR-0006: One `rw` Dexie transaction whose scope is the dynamic union of `tier_definitions` plus every
   // Dexie `Table` in `tableByCollection`. The callback only touches stores in that list; `layers` uses
   // RxDB (`dbInstance.collections.layers`), not additional IDB stores on this transaction.
-  const txTables = [
+  const txTablesByName = new Map<string, Table<any, any>>();
+  for (const table of [
     dbInstance.dexie.tier_definitions as Table<any, any>,
     ...Object.values(tableByCollection)
       .filter((table): table is Table<{ id: string }, string> => Boolean(table))
       .map((table) => table as Table<any, any>),
-  ];
+    ...(options?.preWrite?.tables ?? []),
+  ]) {
+    txTablesByName.set(table.name, table);
+  }
+  const txTables = [...txTablesByName.values()];
   const txTablesTuple = txTables as [Table<any, any>, ...Table<any, any>[]];
   const transactionAny = dbInstance.dexie.transaction as (...args: any[]) => Promise<void>;
 
@@ -589,6 +619,31 @@ export async function importDatabaseFromJson(
     'rw',
     ...txTablesTuple,
     async () => {
+      // N2：在任何删除/替换之前读出本机字节，入站缺字节时保留或整体中止。
+      // N2: read local bytes before any prune/replace; inbound rows without bytes keep them or abort.
+      if (strategy !== 'skip-existing') {
+        const conflicts: InboundByteConflict[] = [];
+        for (const prepared of preparedCollections) {
+          if (!isInboundByteCollection(prepared.collectionName)) continue;
+          const table = tableByCollection[prepared.collectionName];
+          if (!table) continue;
+          const kept = await preserveLocalBytesForInbound(
+            prepared.collectionName,
+            prepared.normalizedDocs,
+            table as Table<any, any>,
+          );
+          conflicts.push(...kept.conflicts);
+          prepared.normalizedDocs = kept.docs;
+        }
+        if (conflicts.length > 0) {
+          throw new InboundByteConflictError(conflicts);
+        }
+      }
+
+      if (options?.preWrite) {
+        await options.preWrite.run();
+      }
+
       for (const prepared of preparedCollections) {
         const { collectionName, normalizedDocs, received } = prepared;
         const resultCollectionName = (
