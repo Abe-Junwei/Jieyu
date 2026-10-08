@@ -10,6 +10,7 @@ import {
   type LayerUnitDocType,
   type LayerUnitContentDocType,
 } from '../../db';
+import { putTestDefaultTranscriptionLayer } from '../../db/putTestUnitAsLayerUnit';
 import { mapUnitToLayerUnit } from '../../utils/timelineUnitMapping';
 import {
   TranscriptionPersistenceConflictError,
@@ -55,6 +56,7 @@ describe('useTranscriptionPersistence', () => {
     };
 
     const hostLayerId = 'layer_trc';
+    await putTestDefaultTranscriptionLayer(db, 'text_1', hostLayerId);
     const { unit: hostUnit, content: hostContent } = mapUnitToLayerUnit(unit, hostLayerId);
     await db.layer_units.put(hostUnit);
     await db.layer_unit_contents.put(hostContent);
@@ -123,6 +125,7 @@ describe('useTranscriptionPersistence', () => {
     };
 
     const hostLayerId = 'layer_trc';
+    await putTestDefaultTranscriptionLayer(db, 'text_1', hostLayerId);
     const { unit: hostUnit, content: hostContent } = mapUnitToLayerUnit(unit, hostLayerId);
     await db.layer_units.put(hostUnit);
     await db.layer_unit_contents.put(hostContent);

@@ -10,7 +10,10 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import { db } from '../../db';
-import { putTestUnitAsLayerUnit } from '../../db/putTestUnitAsLayerUnit';
+import {
+  putTestDefaultTranscriptionLayer,
+  putTestUnitAsLayerUnit,
+} from '../../db/putTestUnitAsLayerUnit';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../../i18n';
 import { LinguisticService } from '../../services/LinguisticService';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
@@ -1206,6 +1209,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
   });
 
   it('createUnitFromSelection should select created unit with non-empty layerId', async () => {
+    await putTestDefaultTranscriptionLayer(db, 'text-1', 'trc-default');
     const now = new Date().toISOString();
     const selectedTimelineUnits: Array<{
       layerId: string;
@@ -1280,6 +1284,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
   });
 
   it('createUnitFromSelection keeps current selection when selectionBehavior is keep-current', async () => {
+    await putTestDefaultTranscriptionLayer(db, 'text-1', 'trc-default');
     const now = new Date().toISOString();
     const setSelectedTimelineUnit = vi.fn();
 

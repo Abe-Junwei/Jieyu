@@ -154,12 +154,26 @@ export async function bulkGetLayerUnits(
   );
 }
 
+/**
+ * JY-10：项目没有默认转写层时，单元写入显式失败（不静默跳过）；由调用方决定是否先建层。
+ * JY-10: unit writes fail explicitly when the project has no default transcription layer (no
+ * silent skip); the caller decides whether to create a layer first.
+ */
+export class DefaultTranscriptionLayerMissingError extends Error {
+  readonly textId: string;
+  constructor(textId: string) {
+    super(`project "${textId}" has no default transcription layer; unit was not saved`);
+    this.name = 'DefaultTranscriptionLayerMissingError';
+    this.textId = textId;
+  }
+}
+
 export async function upsertUnitLayerUnit(
   db: JieyuDatabase,
   unit: LayerUnitDocType,
 ): Promise<void> {
   const layerId = await resolveDefaultTranscriptionLayerId(db, unit.textId);
-  if (!layerId) return;
+  if (!layerId) throw new DefaultTranscriptionLayerMissingError(unit.textId);
   const { unit: mappedUnit, content } = mapUnitToLayerUnit(unit, layerId);
   await withTransaction(
     db,
@@ -186,9 +200,9 @@ export async function bulkUpsertUnitLayerUnits(
   for (const unit of units) {
     if (layerIdByTextId.has(unit.textId)) continue;
     const layerId = await resolveDefaultTranscriptionLayerId(db, unit.textId);
-    if (layerId) {
-      layerIdByTextId.set(unit.textId, layerId);
-    }
+    // JY-10：整批写入前先失败，不写一半 | Fail before writing anything (no partial batch)
+    if (!layerId) throw new DefaultTranscriptionLayerMissingError(unit.textId);
+    layerIdByTextId.set(unit.textId, layerId);
   }
 
   const mappedUnits: LayerUnitDocType[] = [];

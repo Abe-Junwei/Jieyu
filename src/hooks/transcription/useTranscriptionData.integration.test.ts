@@ -7,6 +7,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db, type LayerUnitDocType } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { putTestDefaultTranscriptionLayer } from '../../db/putTestUnitAsLayerUnit';
 
 async function clearDatabase(): Promise<void> {
   await Promise.all([
@@ -58,6 +59,7 @@ describe('Translation Write Flow - Integration Tests', () => {
       updatedAt: new Date().toISOString(),
     } as LayerUnitDocType;
 
+    await putTestDefaultTranscriptionLayer(db, testUnit.textId);
     await LinguisticService.units.save(testUnit);
   });
 

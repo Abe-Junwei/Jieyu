@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { LayerDocType } from '../db';
 import { db, getDb } from '../db';
+import { putTestDefaultTranscriptionLayer } from '../db/putTestUnitAsLayerUnit';
 import { LinguisticService } from './LinguisticService';
 
 async function clearTables(): Promise<void> {
@@ -75,6 +76,7 @@ describe('LinguisticService embedding invalidation', () => {
 
   it('removes unit embeddings when units are batch-deleted', async () => {
     const now = new Date().toISOString();
+    await putTestDefaultTranscriptionLayer(db, 'text_batch');
 
     await LinguisticService.units.saveBatch([
       {
