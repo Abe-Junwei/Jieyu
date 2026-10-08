@@ -631,7 +631,8 @@
   text-decoration: none;
 }
 
-.project-file-primary-action:hover {
+.project-file-primary-action:hover,
+.project-file-primary-action:focus-visible {
   background: color-mix(in srgb, var(--theme-accent-solid) 12%, var(--surface-header));
   color: var(--theme-accent-solid);
 }
