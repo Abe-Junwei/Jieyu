@@ -92,6 +92,18 @@ export function WorkbenchFilePane(props: {
   const units = graph.data?.units ?? [];
   const layers = graph.data?.layers ?? [];
   const translations = graph.data?.translations ?? [];
+  // 导入音频、导入项目、文件改名后统一刷新：概览（录音数/时长）也要失效，否则全局 5 分钟 staleTime 下会一直显示旧数。
+  // Refresh everything the board shows, including the overview (audio count/duration) that otherwise stays stale.
+  const refreshProject = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['homeProjectProgress'] }),
+      queryClient.invalidateQueries({ queryKey: ['project-overview', textId] }),
+      queryClient.invalidateQueries({ queryKey: ['workbench-graph', textId] }),
+      queryClient.invalidateQueries({ queryKey: ['project-source-files', textId] }),
+      queryClient.invalidateQueries({ queryKey: ['project-file-views', textId] }),
+    ]);
+    onChanged();
+  };
   const importExport = useImportExport({
     activeTextId: textId,
     getActiveTextId: async () => textId,
@@ -100,13 +112,7 @@ export function WorkbenchFilePane(props: {
     layers,
     translations,
     defaultTranscriptionLayerId,
-    loadSnapshot: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['homeProjectProgress'] });
-      await queryClient.invalidateQueries({ queryKey: ['workbench-graph', textId] });
-      await queryClient.invalidateQueries({ queryKey: ['project-source-files', textId] });
-      await queryClient.invalidateQueries({ queryKey: ['project-file-views', textId] });
-      onChanged();
-    },
+    loadSnapshot: refreshProject,
     setSaveState,
     promptForEafTierRoles: true,
   });
@@ -128,7 +134,7 @@ export function WorkbenchFilePane(props: {
       kind: 'done',
       message: tf(locale, 'transcription.action.audioImported', { filename: file.name }),
     });
-    onChanged();
+    await refreshProject();
   };
 
   const openMenu = (kind: 'import' | 'export', event: MouseEvent<HTMLButtonElement>) => {
@@ -190,7 +196,7 @@ export function WorkbenchFilePane(props: {
             annotationRate: row.annotationRate,
           }))}
         fallbackManuscript={records.some((row) => row.transcriptionUnitCount > 0)}
-        onChanged={onChanged}
+        onChanged={() => void refreshProject()}
       />
       <input
         ref={mediaInputRef}

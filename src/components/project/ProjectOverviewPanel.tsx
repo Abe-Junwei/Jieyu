@@ -51,6 +51,9 @@ export function ProjectOverviewPanel(props: {
     queryKey: ['project-overview', props.textId, locale],
     queryFn: () => loadProjectOverview(props.textId, locale),
     enabled: props.textId.trim().length > 0,
+    // 与首页进度一致：每次挂载都重读，避免在转写页导入/删除录音后回到首页仍显示旧的录音数。
+    // Match home progress: refetch on mount so counts changed on other pages are not served stale.
+    staleTime: 0,
   });
   const data = overview.data ?? null;
   const languageCodes = [...(data?.objectLanguages ?? []), ...(data?.workingLanguages ?? [])];
