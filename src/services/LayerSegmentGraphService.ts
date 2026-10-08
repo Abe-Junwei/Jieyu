@@ -11,10 +11,7 @@ import {
   type UnitRelationLinkType,
 } from '../db';
 import { annotationAnalysisGraphFingerprint } from '../annotation/analysisGraph';
-import {
-  mapUnitToLayerUnit,
-  projectUnitDocFromLayerUnit,
-} from '../db/migrations/timelineUnitMapping';
+import { mapUnitToLayerUnit, projectUnitDocFromLayerUnit } from '../utils/timelineUnitMapping';
 import {
   bulkUpsertLayerUnitContents,
   bulkUpsertLayerUnits,

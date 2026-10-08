@@ -1,5 +1,5 @@
 import type { LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../types';
-import { mapSegmentToLayerUnit, mapUnitToLayerUnit } from './timelineUnitMapping';
+import { mapSegmentToLayerUnit, mapUnitToLayerUnit } from '../../utils/timelineUnitMapping';
 
 export interface UnifiedUnitBackfillPayload {
   units: LayerUnitDocType[];
@@ -13,8 +13,12 @@ export function buildUnifiedUnitBackfill(input: {
   segmentContents?: readonly LayerUnitContentDocType[];
   defaultTranscriptionLayerId: string;
 }): UnifiedUnitBackfillPayload {
-  const contentsBySegmentId = new Map((input.segmentContents ?? []).map((content) => [content.segmentId, content] as const));
-  const unitRows = input.units.map((unit) => mapUnitToLayerUnit(unit, input.defaultTranscriptionLayerId));
+  const contentsBySegmentId = new Map(
+    (input.segmentContents ?? []).map((content) => [content.segmentId, content] as const),
+  );
+  const unitRows = input.units.map((unit) =>
+    mapUnitToLayerUnit(unit, input.defaultTranscriptionLayerId),
+  );
   const segmentRows = input.segments.map((segment) => {
     const content = contentsBySegmentId.get(segment.id);
     return mapSegmentToLayerUnit({

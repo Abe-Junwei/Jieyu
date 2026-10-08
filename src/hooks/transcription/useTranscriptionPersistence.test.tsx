@@ -10,7 +10,7 @@ import {
   type LayerUnitDocType,
   type LayerUnitContentDocType,
 } from '../../db';
-import { mapUnitToLayerUnit } from '../../db/migrations/timelineUnitMapping';
+import { mapUnitToLayerUnit } from '../../utils/timelineUnitMapping';
 import {
   TranscriptionPersistenceConflictError,
   useTranscriptionPersistence,

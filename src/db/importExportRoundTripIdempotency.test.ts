@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, exportDatabaseAsJson, importDatabaseFromJson, JIEYU_DEXIE_DB_NAME } from './index';
 import type { LayerUnitDocType } from './types';
-import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
+import { mapUnitToLayerUnit } from '../utils/timelineUnitMapping';
 
 const NOW = '2026-04-12T00:00:00.000Z';
 

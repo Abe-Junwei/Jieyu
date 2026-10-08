@@ -1,5 +1,5 @@
-import type { LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../types';
-import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
+import type { LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../db/types';
+import { pickDefaultTranscriptionText } from './transcriptionFormatters';
 
 export function mapUnitToLayerUnit(
   unit: LayerUnitDocType,

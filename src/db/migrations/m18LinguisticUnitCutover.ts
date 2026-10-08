@@ -9,7 +9,7 @@ import type {
   UnitMorphemeDocType,
   UnitTokenDocType,
 } from '../types';
-import { mapUnitToLayerUnit } from './timelineUnitMapping';
+import { mapUnitToLayerUnit } from '../../utils/timelineUnitMapping';
 
 function pickDefaultTranscriptionTierId(
   tiers: readonly TierDefinitionDocType[],

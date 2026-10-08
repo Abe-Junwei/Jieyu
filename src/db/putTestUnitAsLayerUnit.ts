@@ -1,6 +1,6 @@
 import type { JieyuDexie } from './engine';
 import type { LayerUnitDocType } from './types';
-import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
+import { mapUnitToLayerUnit } from '../utils/timelineUnitMapping';
 
 /** Test helper: persist an unit-shaped doc as canonical `layer_units` + primary_text content. */
 export async function putTestUnitAsLayerUnit(

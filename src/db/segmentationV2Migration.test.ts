@@ -11,7 +11,7 @@ import {
   type LayerUnitDocType,
   type LayerUnitContentDocType,
 } from './index';
-import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
+import { mapUnitToLayerUnit } from '../utils/timelineUnitMapping';
 
 const NOW = '2026-03-25T00:00:00.000Z';
 
