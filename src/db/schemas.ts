@@ -1437,6 +1437,9 @@ const tierDefinitionDocSchema = z.object({
   accessRights: accessRightsSchema.optional(),
   delimiter: z.string().optional(),
   sortOrder: z.number().int().optional(),
+  dialect: z.string().min(1).optional(),
+  vernacular: z.string().min(1).optional(),
+  displaySettings: layerDisplaySettingsSchema,
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });

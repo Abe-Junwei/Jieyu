@@ -1081,6 +1081,10 @@ export interface TierDefinitionDocType {
   sortOrder?: number;
   /** 所属标注文档（2B-E）；缺省 = 默认文档 | Owning annotation document; absent = default document */
   documentId?: string;
+  /** 桥接层的方言 / 土语名 / 显示样式（JY-01）| Bridged layer dialect / vernacular / display settings (JY-01) */
+  dialect?: string;
+  vernacular?: string;
+  displaySettings?: LayerDisplaySettings;
   createdAt: string;
   updatedAt: string;
 }

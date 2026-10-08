@@ -250,6 +250,9 @@ function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
       : {}),
     ...(tier.accessRights !== undefined && { accessRights: tier.accessRights }),
     ...(tier.documentId !== undefined && { documentId: tier.documentId }),
+    ...(tier.dialect !== undefined && { dialect: tier.dialect }),
+    ...(tier.vernacular !== undefined && { vernacular: tier.vernacular }),
+    ...(tier.displaySettings !== undefined && { displaySettings: { ...tier.displaySettings } }),
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
   };
@@ -274,6 +277,9 @@ function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
     ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
     ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
     ...(layer.documentId !== undefined && { documentId: layer.documentId }),
+    ...(layer.dialect !== undefined && { dialect: layer.dialect }),
+    ...(layer.vernacular !== undefined && { vernacular: layer.vernacular }),
+    ...(layer.displaySettings !== undefined && { displaySettings: { ...layer.displaySettings } }),
     createdAt: layer.createdAt,
     updatedAt: layer.updatedAt,
   };
