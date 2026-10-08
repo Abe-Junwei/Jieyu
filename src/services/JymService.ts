@@ -66,6 +66,57 @@ interface JieyuArchiveManifest {
   encryption?: JieyuArchiveEncryptionMetadata;
   /** 被引用的系统模板（rev5 7.2/7.3）：系统模板本身从不导出 | Referenced code-only system templates */
   systemRefs?: Array<{ id: string }>;
+  /**
+   * 每个项目的标注文档（rev5 7.2 `projects[].documents[]`，2B-E 数据层；完整 manifest 在第 3 批）。
+   * Annotation documents per project (rev5 7.2, 2B-E data level; the full manifest is Batch 3).
+   */
+  projects?: ArchiveProjectDocuments[];
+}
+
+export type ArchiveProjectDocuments = {
+  id: string;
+  defaultDocumentId?: string;
+  documents: Array<{
+    documentId: string;
+    isDefault: boolean;
+    layerIds: string[];
+    sourceIds: string[];
+  }>;
+};
+
+/** 快照里每个项目的文档清单；层没写 documentId 时归默认文档 | Per-project documents from a snapshot */
+export function collectArchiveProjectDocuments(snapshot: {
+  collections: Record<string, unknown[]>;
+}): ArchiveProjectDocuments[] {
+  type Row = Record<string, unknown>;
+  const str = (value: unknown): string | undefined =>
+    typeof value === 'string' && value.length > 0 ? value : undefined;
+  const texts = (snapshot.collections['texts'] ?? []) as Row[];
+  const documents = (snapshot.collections['annotation_documents'] ?? []) as Row[];
+  const tiers = (snapshot.collections['tier_definitions'] ?? []) as Row[];
+  return texts.map((text) => {
+    const textId = str(text.id) ?? '';
+    const defaultDocumentId = str(text.defaultDocumentId);
+    const ownDocuments = documents.filter((doc) => doc.textId === textId);
+    return {
+      id: textId,
+      ...(defaultDocumentId ? { defaultDocumentId } : {}),
+      documents: ownDocuments.map((doc) => {
+        const documentId = str(doc.id) ?? '';
+        const layerIds = tiers
+          .filter(
+            (tier) =>
+              tier.textId === textId &&
+              String(tier.key ?? '').startsWith('bridge_') &&
+              (str(tier.documentId) ?? defaultDocumentId) === documentId,
+          )
+          .map((tier) => String(tier.id))
+          .sort();
+        const sourceIds = Array.isArray(doc.sourceIds) ? doc.sourceIds.map(String) : [];
+        return { documentId, isDefault: documentId === defaultDocumentId, layerIds, sourceIds };
+      }),
+    };
+  });
 }
 
 /** 项目行引用到的系统模板 ID | System template ids referenced by stored rows */
@@ -539,6 +590,7 @@ export async function exportToJieyuArchive(
     exportedAt: snapshot.exportedAt,
     dbName: snapshot.dbName,
     systemRefs: collectArchiveSystemRefs(snapshot),
+    projects: collectArchiveProjectDocuments(snapshot),
   };
 
   const files: Record<string, Uint8Array> = {

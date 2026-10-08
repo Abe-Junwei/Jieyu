@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { db, getDb, isLexemeEntry } from '../../db';
 import type { LayerDocType } from '../../db';
+import { LinguisticService } from '../../services/LinguisticService';
 import { useImportExport } from './useImportExport';
 
 const mockReadFileAsText = vi.hoisted(() => vi.fn());
@@ -59,6 +60,35 @@ vi.mock('../../services/LayerConstraintService', async (importOriginal) => {
 
 const NOW = '2026-03-27T00:00:00.000Z';
 
+const SEEDED_PROJECT_IDS = [
+  'text-a',
+  'text-b',
+  'text-flex-a',
+  'text-flex-b',
+  'text-append',
+  'text-drop-trl',
+  'text-flex-map',
+  'text-flex-title',
+  'text-grid',
+  'text-grid-off',
+  'text-import',
+  'text-import-cap',
+  'text-import-greenfield',
+  'text-ipa-nomedia',
+  'text-ipa-prompt',
+  'text-lex',
+  'text-media',
+  'text-minimal',
+  'text-prompt',
+  'text-ref',
+  'text-ref-tx',
+  'text-reimport',
+  'text-roles-mismatch',
+  'text-trs',
+  'text-two-tx',
+  'text-two-tx-off',
+];
+
 async function seedProjectLayer(layer: LayerDocType): Promise<void> {
   const j = await getDb();
   await j.collections.layers.insert(layer);
@@ -88,7 +118,13 @@ describe('useImportExport - import success under stop-write', () => {
       db.user_notes.clear(),
       db.audit_logs.clear(),
       db.speakers.clear(),
+      db.source_records.clear(),
+      db.annotation_documents.clear(),
     ]);
+    // 2B-E：导入只写入已存在的项目（默认标注文档挂在 texts 上）| Imports only write into an existing project
+    await db.texts.bulkPut(
+      SEEDED_PROJECT_IDS.map((id) => ({ id, title: {}, createdAt: NOW, updatedAt: NOW })),
+    );
     vi.clearAllMocks();
   });
 
@@ -2018,6 +2054,148 @@ describe('useImportExport - import success under stop-write', () => {
       (row) => row.unitId !== undefined && relatedIds.has(row.unitId),
     );
     expect(contents.some((row) => row.text === 'Hello again')).toBe(true);
+  });
+
+  async function importReimportFixture(text: string, fileName: string) {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-reimport',
+      textId: 'text-reimport',
+      key: 'trc_reimport',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    if (!(await db.tier_definitions.get('trc-reimport'))) await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: eafFile(
+        'speech.wav',
+        `<TIER TIER_ID="TRC" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>${text}</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>`,
+      ),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter('text-reimport', [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File([text], fileName, { type: 'application/xml' }),
+      );
+    });
+  }
+
+  it('JY-12: re-import removes tokens, morphemes, links, notes and segment_meta of replaced units', async () => {
+    await importReimportFixture('Hello', 'once.eaf');
+    const [first] = await db.layer_units.where('textId').equals('text-reimport').toArray();
+    expect(first).toBeDefined();
+    const unitId = first!.id;
+    await db.unit_tokens.put({
+      id: 'tok-jy12',
+      textId: 'text-reimport',
+      unitId,
+      form: { default: 'hello' },
+      tokenIndex: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.unit_morphemes.put({
+      id: 'mor-jy12',
+      textId: 'text-reimport',
+      unitId,
+      tokenId: 'tok-jy12',
+      form: { default: 'hello' },
+      morphemeIndex: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.token_lexeme_links.put({
+      id: 'link-jy12',
+      targetType: 'token',
+      targetId: 'tok-jy12',
+      lexemeId: 'lex-jy12',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.user_notes.bulkPut([
+      {
+        id: 'note-unit-jy12',
+        targetType: 'unit',
+        targetId: unitId,
+        content: { eng: 'u' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'note-tok-jy12',
+        targetType: 'token',
+        targetId: 'tok-jy12',
+        content: { eng: 't' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await db.segment_meta.put({
+      id: `trc-reimport::${unitId}`,
+      segmentId: unitId,
+      textId: 'text-reimport',
+      mediaId: first!.mediaId ?? 'media-none',
+      layerId: 'trc-reimport',
+      hostUnitId: unitId,
+      startTime: 0,
+      endTime: 1,
+      text: 'Hello',
+      normalizedText: 'hello',
+      hasText: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await importReimportFixture('Hello again', 'twice.eaf');
+
+    expect(await db.layer_units.get(unitId)).toBeUndefined();
+    expect(await db.unit_tokens.get('tok-jy12')).toBeUndefined();
+    expect(await db.unit_morphemes.get('mor-jy12')).toBeUndefined();
+    expect(await db.token_lexeme_links.get('link-jy12')).toBeUndefined();
+    expect(await db.user_notes.get('note-unit-jy12')).toBeUndefined();
+    expect(await db.user_notes.get('note-tok-jy12')).toBeUndefined();
+    expect(await db.segment_meta.where('segmentId').equals(unitId).count()).toBe(0);
+  });
+
+  it('JY-11: a failed import commits neither content nor its source record', async () => {
+    await importReimportFixture('Hello', 'once.eaf');
+    const unitsBefore = (await db.layer_units.where('textId').equals('text-reimport').toArray())
+      .map((row) => row.id)
+      .sort();
+    const sourcesBefore = await db.source_records.where('textId').equals('text-reimport').toArray();
+    expect(sourcesBefore.map((row) => row.originalName)).toEqual(['once.eaf']);
+    expect(sourcesBefore[0]?.sha256).toMatch(/^[0-9a-f]{64}$/);
+
+    const saveSpy = vi
+      .spyOn(LinguisticService.units, 'save')
+      .mockRejectedValueOnce(new Error('simulated write failure'));
+    try {
+      await importReimportFixture('Broken', 'broken.eaf');
+    } catch {
+      // 导入失败可能抛出或在界面报告 | The failure may throw or be reported in the UI
+    } finally {
+      saveSpy.mockRestore();
+    }
+
+    const sourcesAfter = await db.source_records.where('textId').equals('text-reimport').toArray();
+    expect(sourcesAfter.map((row) => row.originalName)).toEqual(['once.eaf']);
+    expect(
+      (await db.layer_units.where('textId').equals('text-reimport').toArray())
+        .map((row) => row.id)
+        .sort(),
+    ).toEqual(unitsBefore);
   });
 
   it('does not update another text that happens to use the same annotation id', async () => {

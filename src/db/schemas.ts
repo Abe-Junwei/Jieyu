@@ -58,6 +58,7 @@ import type {
   AiTaskSnapshotDocType,
   TrackEntityDocType,
   SourceRecordDocType,
+  AnnotationDocumentDocType,
   AiSourceSetDoc,
 } from './types';
 
@@ -113,6 +114,7 @@ const textDocSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
   languageCode: z.string().optional(),
   accessRights: accessRightsSchema.optional(),
+  defaultDocumentId: z.string().min(1).optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -1198,6 +1200,7 @@ const layerDocBaseSchema = z.object({
   constraint: layerConstraintSchema.optional(),
   displaySettings: layerDisplaySettingsSchema,
   accessRights: accessRightsSchema.optional(),
+  documentId: z.string().min(1).optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -1414,6 +1417,7 @@ const tierContentTypeSchema = z.enum([
 ]);
 
 const tierDefinitionDocSchema = z.object({
+  documentId: z.string().min(1).optional(),
   id: z.string().min(1),
   textId: z.string().min(1),
   key: z.string().min(1),
@@ -1916,6 +1920,22 @@ const sourceRecordDocSchema = z.object({
 
 export function validateSourceRecordDoc(doc: SourceRecordDocType): void {
   sourceRecordDocSchema.parse(doc);
+}
+
+// ─── Annotation document doc (rev5 4.1 / 4.2-8 / slice 2B-E) ─────────────────
+
+const annotationDocumentDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  isDefault: z.boolean(),
+  title: multiLangStringSchema.optional(),
+  sourceIds: z.array(z.string().min(1)).optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+export function validateAnnotationDocumentDoc(doc: AnnotationDocumentDocType): void {
+  annotationDocumentDocSchema.parse(doc);
 }
 
 // ─── AI source set doc ────────────────────────────────────────────────────────

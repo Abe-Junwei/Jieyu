@@ -13,7 +13,9 @@ import {
   renameProjectSourceFile,
 } from '../../services/projectFileOps';
 import {
+  isSyntheticManuscriptId,
   linkManuscriptsToAudio,
+  syntheticManuscriptId,
   type ProjectAudioFile,
   type ProjectFileView,
 } from '../../utils/projectSourceFiles';
@@ -95,11 +97,7 @@ function SourceLinkSelect(props: {
 }) {
   const locale = useLocale();
   const { row, audioOptions } = props;
-  if (
-    row.kind !== 'manuscript' ||
-    row.id.startsWith('src-manuscript-') ||
-    audioOptions.length === 0
-  ) {
+  if (row.kind !== 'manuscript' || isSyntheticManuscriptId(row.id) || audioOptions.length === 0) {
     return null;
   }
   return (
@@ -483,7 +481,7 @@ export function ProjectFileBrowser(props: {
     audio !== undefined && !sources.isLoading && storedSources.length === 0 && fallbackManuscript
       ? [
           {
-            id: `src-manuscript-${textId}`,
+            id: syntheticManuscriptId(textId),
             name: t(locale, 'app.files.manuscript'),
             format: 'file',
             ...(audio.length === 1 && audio[0]
@@ -508,7 +506,7 @@ export function ProjectFileBrowser(props: {
     setEditingId('');
     if (next.length === 0 || next === row.name) return;
     if (row.kind === 'audio' && row.mediaId) await renameProjectAudio(row.mediaId, next);
-    else if (row.id.startsWith('src-manuscript-')) {
+    else if (isSyntheticManuscriptId(row.id)) {
       await rememberImportedSourceFile({
         textId,
         name: next,

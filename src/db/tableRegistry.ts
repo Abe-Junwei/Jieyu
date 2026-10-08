@@ -46,6 +46,7 @@ export const JIEYU_MAIN_TABLE_REGISTRY: Record<JieyuMainTableName, JieyuTableReg
   segment_meta: { dataClass: 'project_content' },
   track_entities: { dataClass: 'project_content' },
   source_records: { dataClass: 'project_content' },
+  annotation_documents: { dataClass: 'project_content' },
   // 项目目录（顺序即删除 / 快照裁剪顺序）| project catalog (order = prune order)
   speakers: { dataClass: 'project_catalog', ownerField: 'textId' },
   lexemes: { dataClass: 'project_catalog', ownerField: 'textId' },

@@ -1570,6 +1570,8 @@ export const zhCNDictionary = {
   'transcription.projectHub.sourcePlan.renamed':
     '项目里已有同名文件，这份将作为新文档显示为「{name}」。',
   'transcription.projectHub.sourcePlan.new': '将作为新文档登记。',
+  'transcription.projectHub.replacePreview':
+    '导入将替换当前文档中的 {units} 个语段（{layers} 个层）。取消则不做任何改动。',
   'transcription.importExport.sourcePreservationLayerSuffix': '原文',
   'transcription.projectHub.importing': '导入中…',
   'transcription.projectHub.importFailedHint': '导入失败，请检查上方错误提示后重试。',

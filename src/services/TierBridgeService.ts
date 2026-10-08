@@ -43,7 +43,7 @@ export async function removeLayerTierBridge(
   layer: Pick<LayerDocType, 'textId' | 'key'>,
   existingDb?: JieyuDatabase,
 ): Promise<number> {
-  const db = existingDb ?? await getDb();
+  const db = existingDb ?? (await getDb());
   return db.collections.tier_definitions.removeBySelector({
     textId: layer.textId,
     key: tierKeyForLayer(layer),
@@ -59,11 +59,12 @@ export async function syncLayerToTier(
   textId: string,
   existingDb?: JieyuDatabase,
 ): Promise<TierDefinitionDocType> {
-  const db = existingDb ?? await getDb();
+  const db = existingDb ?? (await getDb());
   const expectedKey = tierKeyForLayer(layer);
 
   const existingDoc = await db.collections.tier_definitions
-    .findOne({ selector: { textId, key: expectedKey } }).exec();
+    .findOne({ selector: { textId, key: expectedKey } })
+    .exec();
   const existing = existingDoc?.toJSON();
   const existingBridgeId = resolveBridgeId(existing);
   const layerBridgeId = resolveBridgeId(layer);
@@ -81,7 +82,8 @@ export async function syncLayerToTier(
       existing.modality !== layer.modality ||
       existing.acceptsAudio !== layer.acceptsAudio ||
       existing.isDefault !== layer.isDefault ||
-      existing.accessRights !== layer.accessRights;
+      existing.accessRights !== layer.accessRights ||
+      (layer.documentId !== undefined && existing.documentId !== layer.documentId);
 
     if (needsUpdate) {
       const updated: TierDefinitionDocType = {
@@ -93,6 +95,7 @@ export async function syncLayerToTier(
         ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
         ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
         ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
+        ...(layer.documentId !== undefined && { documentId: layer.documentId }),
         updatedAt: now,
       };
       if (layer.orthographyId !== undefined) {
@@ -127,6 +130,7 @@ export async function syncLayerToTier(
     ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
     ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
     ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
+    ...(layer.documentId !== undefined && { documentId: layer.documentId }),
     createdAt: now,
     updatedAt: now,
   };
@@ -138,16 +142,15 @@ export async function syncLayerToTier(
  * Ensure a matching TranslationLayer exists for the given TierDefinition.
  * Only applies to bridge-prefixed tiers (those managed by this service).
  */
-export async function syncTierToLayer(
-  tier: TierDefinitionDocType,
-): Promise<LayerDocType | null> {
+export async function syncTierToLayer(tier: TierDefinitionDocType): Promise<LayerDocType | null> {
   if (!tier.key.startsWith(TIER_KEY_PREFIX)) return null;
 
   const db = await getDb();
   const layerKey = tier.key.slice(TIER_KEY_PREFIX.length);
 
   const existingDoc = await db.collections.layers
-    .findOne({ selector: { textId: tier.textId, key: layerKey } }).exec();
+    .findOne({ selector: { textId: tier.textId, key: layerKey } })
+    .exec();
   const existing = existingDoc?.toJSON();
   const tierBridgeId = resolveBridgeId(tier);
   const existingBridgeId = resolveBridgeId(existing);
@@ -213,9 +216,7 @@ export async function syncTierToLayer(
  * Check consistency between all TranslationLayers and TierDefinitions.
  * Returns issues where one side exists without the other, or fields diverge.
  */
-export async function validateLayerTierConsistency(
-  textId: string,
-): Promise<ConsistencyIssue[]> {
+export async function validateLayerTierConsistency(textId: string): Promise<ConsistencyIssue[]> {
   const db = await getDb();
   const issues: ConsistencyIssue[] = [];
 

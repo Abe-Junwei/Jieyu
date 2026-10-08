@@ -9,6 +9,12 @@ import type { SaveState } from '../useTranscriptionData';
 import { dexieStoresForAnnotationImportRw, getDb, isLexemeEntry, withTransaction } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import { rememberImportedSourceFile } from '../../services/projectFileOps';
+import {
+  attachSourceToAnnotationDocument,
+  deleteAnnotationDocumentUnitGraph,
+  ensureDefaultAnnotationDocument,
+} from '../../services/annotationDocumentService';
+import { computeBlobSha256 } from '../../utils/blobSha256';
 import { sourceFormatFromName } from '../../utils/projectSourceFiles';
 import { validateLayerTierConsistency } from '../../services/TierBridgeService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
@@ -36,7 +42,6 @@ import {
 import { ImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
 import { resolvePostImportLogicalExpandTargetSec } from '../../utils/timelineImportPostApply';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
-import { deleteResidualLayerUnitGraphByTextId } from '../../services/LayerSegmentGraphService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { loadOrthographyRuntime } from '../../utils/loadOrthographyRuntime';
 import { normalizeUserNoteDocForStorage } from '../../utils/camDataUtils';
@@ -297,21 +302,14 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         throw new ImportMismatchRequiresAckError(file.name, mismatchNotices);
       }
 
-      const existingUnitCount = await withTransaction(
-        db,
-        'r',
-        [db.dexie.layer_units],
-        async () => db.dexie.layer_units.where('textId').equals(importTextId).count(),
-        { label: 'annotationImport.existingUnitCount' },
-      );
-      if (existingUnitCount > 0) {
-        // 只清 unit 图防止时间轴重复；既有层定义必须保留——导入按名称/语言复用或
-        // 新增层，而不是把用户已有的转写/翻译层连同配置一起删掉（993af34f 回归）。
-        // Clear only the unit graph to avoid duplicate timelines; keep existing
-        // layer definitions so import reuses or appends layers instead of wiping
-        // the user's transcription/translation layers (regression from 993af34f).
-        await deleteResidualLayerUnitGraphByTextId(db, importTextId);
-      }
+      // 2B-E（N1）：不再预先删除整个项目的单元图。先确保默认文档，删除放进下面的导入事务，
+      // 和新内容、来源登记同一次提交；中途失败则原内容完整。
+      // 2B-E (N1): no up-front wipe of the project's unit graph. Ensure the default document; the
+      // replace happens inside the import transaction below, committed with the new content and the
+      // source record, so a failure leaves the original content intact.
+      const importDocumentId = await ensureDefaultAnnotationDocument(importTextId);
+      // 4.2-3：来源哈希在事务外先算好 | Hash the source outside the transaction
+      const importSourceSha256 = await computeBlobSha256(file);
 
       const layersAfterImport: LayerDocType[] = [...layers];
       const layerById = new Map(layersAfterImport.map((layer) => [layer.id, layer] as const));
@@ -756,6 +754,8 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         'rw',
         [...dexieStoresForAnnotationImportRw(db)],
         async () => {
+          // 2B-E：在事务内按文档替换 | Replace by document inside the transaction
+          await deleteAnnotationDocumentUnitGraph(db, importTextId, importDocumentId);
           if (mediaId && eafResult?.secondaryMedia && eafResult.secondaryMedia.length > 0) {
             const mediaRow = await db.dexie.media_items.get(mediaId);
             if (mediaRow) {
@@ -1247,6 +1247,22 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               }
             }
           }
+          // 4.2-6：来源登记与导入内容同一次提交 | Source record commits together with the content
+          const registeredSource = await rememberImportedSourceFile({
+            textId: importTextId,
+            name: file.name,
+            format: sourceFormatFromName(file.name),
+            byteSize: file.size,
+            ...(importSourceSha256 ? { sha256: importSourceSha256 } : {}),
+            ...(eafResult?.documentUrn ? { externalDocId: eafResult.documentUrn } : {}),
+            ...(mediaId && mediaId.trim().length > 0 ? { mediaId } : {}),
+            ...(eafResult?.mediaFilename && eafResult.mediaFilename !== 'unknown.wav'
+              ? { linkedMediaFilename: eafResult.mediaFilename }
+              : {}),
+          });
+          if (registeredSource) {
+            await attachSourceToAnnotationDocument(db, importDocumentId, registeredSource.id);
+          }
         },
         { label: 'annotationImport.commit' },
       );
@@ -1306,19 +1322,6 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           });
         }
       }
-      // 2B-D：登记来源（UUID；URN 相同视为更新已有文档；哈希在事务外算）
-      // 2B-D: register the source (UUID; same URN updates the existing document; hashed outside tx)
-      await rememberImportedSourceFile({
-        textId: importTextId,
-        name: file.name,
-        format: sourceFormatFromName(file.name),
-        bytes: file,
-        ...(eafResult?.documentUrn ? { externalDocId: eafResult.documentUrn } : {}),
-        ...(mediaId && mediaId.trim().length > 0 ? { mediaId } : {}),
-        ...(eafResult?.mediaFilename && eafResult.mediaFilename !== 'unknown.wav'
-          ? { linkedMediaFilename: eafResult.mediaFilename }
-          : {}),
-      });
       await loadSnapshot();
       const hostRecoveryWarningCount = eafResult
         ? [...eafResult.tierConstraints.values()].filter(

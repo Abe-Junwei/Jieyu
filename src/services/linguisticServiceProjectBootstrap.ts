@@ -3,6 +3,7 @@ import { newId } from '../utils/transcriptionFormatters';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { normalizeProjectLanguageIds } from '../utils/projectLanguageLists';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
+import { ensureDefaultAnnotationDocument } from './annotationDocumentService';
 
 export async function createProject(input: {
   primaryTitle: string;
@@ -44,6 +45,8 @@ export async function createProject(input: {
     createdAt: now,
     updatedAt: now,
   } as TextDocType);
+  // 2B-E：每个新项目有一份默认标注文档（UUID）| Every new project gets one default document (UUID)
+  await ensureDefaultAnnotationDocument(textId);
 
   return { textId };
 }

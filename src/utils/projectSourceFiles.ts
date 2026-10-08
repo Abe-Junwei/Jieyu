@@ -52,6 +52,21 @@ export function sourceFormatFromName(name: string): string {
   return SOURCE_FORMATS.has(ext) ? ext : 'file';
 }
 
+const SYNTHETIC_MANUSCRIPT_PREFIX = 'synthetic:annotation-document:';
+
+/**
+ * 没有来源记录但有语段时显示的“合成文稿”行 id（N11）。来源 id 一律是 UUID，这个带命名空间的 id 不会和它们撞车。
+ * Id of the synthetic manuscript row shown when a project has units but no source record (N11). Source
+ * ids are UUIDs, so this namespaced id cannot collide with them.
+ */
+export function syntheticManuscriptId(textId: string): string {
+  return `${SYNTHETIC_MANUSCRIPT_PREFIX}${textId}`;
+}
+
+export function isSyntheticManuscriptId(id: string): boolean {
+  return id.startsWith(SYNTHETIC_MANUSCRIPT_PREFIX);
+}
+
 /** 来源记录 → 文件列表用的来源视图 | Source record → file-list source view */
 export function sourceFileFromRecord(record: {
   id: string;

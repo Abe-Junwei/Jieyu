@@ -46,6 +46,7 @@ import type {
   TierDefinitionDocType,
   TrackEntityDocType,
   SourceRecordDocType,
+  AnnotationDocumentDocType,
   TranslationStatusSnapshotDocType,
   UnitMorphemeDocType,
   UnitRelationDocType,
@@ -100,6 +101,7 @@ import {
   validateTokenLexemeLinkDoc,
   validateTrackEntityDoc,
   validateSourceRecordDoc,
+  validateAnnotationDocumentDoc,
   validateTranslationStatusSnapshotDoc,
   validateUnitMorphemeDoc,
   validateUnitRelationDoc,
@@ -182,6 +184,8 @@ const validatorByCollection = {
   ai_task_snapshots: (value: unknown) => validateAiTaskSnapshotDoc(value as AiTaskSnapshotDocType),
   track_entities: (value: unknown) => validateTrackEntityDoc(value as TrackEntityDocType),
   source_records: (value: unknown) => validateSourceRecordDoc(value as SourceRecordDocType),
+  annotation_documents: (value: unknown) =>
+    validateAnnotationDocumentDoc(value as AnnotationDocumentDocType),
   project_ai_memories: (value: unknown) => validateProjectAiMemoryDoc(value as ProjectAiMemoryDoc),
   mcp_tool_call_audits: (value: unknown) =>
     validateMcpToolCallAuditDoc(value as McpToolCallAuditDoc),

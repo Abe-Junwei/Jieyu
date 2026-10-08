@@ -168,6 +168,7 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
 
       await db.dexie.track_entities.where('textId').equals(textId).delete();
       await db.dexie.source_records.where('textId').equals(textId).delete();
+      await db.dexie.annotation_documents.where('textId').equals(textId).delete();
 
       await Promise.all([
         db.dexie.segment_meta.where('textId').equals(textId).delete(),

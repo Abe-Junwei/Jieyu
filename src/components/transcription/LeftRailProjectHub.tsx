@@ -43,6 +43,10 @@ import {
   previewSourceImportForFile,
   type SourceImportPlan,
 } from '../../services/sourceRecordService';
+import {
+  previewAnnotationDocumentReplace,
+  type AnnotationDocumentReplacePreview,
+} from '../../services/annotationDocumentService';
 
 interface ProjectImportState {
   file: File;
@@ -57,6 +61,8 @@ interface AnnotationImportState {
   importing: boolean;
   /** 2B-D 来源身份预览（只读）| 2B-D source identity preview (read-only) */
   sourcePlan?: SourceImportPlan | null;
+  /** 2B-E 替换预览（只读，N1）| 2B-E replace preview (read-only, N1) */
+  replacePreview?: AnnotationDocumentReplacePreview | null;
 }
 
 interface TimeMappingDialogState {
@@ -273,10 +279,24 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           );
         }),
         {
-          context: 'src/components/transcription/LeftRailProjectHub.tsx:previewSourceImport',
-          policy: 'background-quiet',
+          context: 'src/components/transcription/LeftRailProjectHub.tsx:L275',
+          policy: 'user-visible',
         },
       );
+      // 2B-E：预览将被替换的默认文档内容；确认前不写库 | Preview what the replace removes; no write before confirm
+      if (activeTextId) {
+        fireAndForget(
+          previewAnnotationDocumentReplace(activeTextId).then((replacePreview) => {
+            setAnnotationImportState((prev) =>
+              prev && prev.file === file ? { ...prev, replacePreview } : prev,
+            );
+          }),
+          {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L288',
+            policy: 'user-visible',
+          },
+        );
+      }
     },
     [activeTextId],
   );
@@ -1229,6 +1249,19 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                         name: annotationImportState.sourcePlan.displayName,
                       })
                     : t(locale, 'transcription.projectHub.sourcePlan.new')}
+            </p>
+          ) : null}
+          {annotationImportState.replacePreview &&
+          annotationImportState.replacePreview.unitCount > 0 ? (
+            <p
+              className="small-text left-rail-project-import-replace-preview"
+              data-testid="annotation-import-replace-preview"
+              data-unit-count={annotationImportState.replacePreview.unitCount}
+            >
+              {tf(locale, 'transcription.projectHub.replacePreview', {
+                units: annotationImportState.replacePreview.unitCount,
+                layers: annotationImportState.replacePreview.layerCount,
+              })}
             </p>
           ) : null}
 

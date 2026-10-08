@@ -1,9 +1,10 @@
-import { getDb, withTransaction } from '../db';
+import { getDb, withTransaction, type SourceRecordDocType } from '../db';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from '../utils/mediaItemState';
 import {
   audioDisplayName,
   linkManuscriptsToAudio,
   sourceFileFromRecord,
+  syntheticManuscriptId,
   type ProjectAudioFile,
   type ProjectFileView,
   type ProjectSourceFile,
@@ -63,7 +64,7 @@ export async function listProjectFileViews(textId: string): Promise<ProjectFileV
       const only = audio.length === 1 ? audio[0] : undefined;
       sources = [
         {
-          id: `src-manuscript-${textId}`,
+          id: syntheticManuscriptId(textId),
           name: '',
           format: 'file',
           ...(only ? { mediaId: only.id, linkedMediaFilename: only.filename } : {}),
@@ -83,26 +84,33 @@ export async function rememberImportedSourceFile(input: {
   name: string;
   format: string;
   bytes?: Blob;
+  /** 事务内调用时传入事务外算好的哈希 | Pass a hash computed outside when called inside a transaction */
+  sha256?: string;
+  byteSize?: number;
   externalDocId?: string;
   mediaId?: string;
   linkedMediaFilename?: string;
-}): Promise<void> {
+}): Promise<SourceRecordDocType | undefined> {
   const name = input.name.trim();
-  if (name.length === 0) return;
+  if (name.length === 0) return undefined;
   try {
-    await registerImportedSource({
+    const { record } = await registerImportedSource({
       textId: input.textId,
       originalName: name,
       format: input.format,
       ...(input.bytes ? { bytes: input.bytes } : {}),
-      ...(input.externalDocId ? { externalDocId: input.externalDocId } : {}),
-      ...(input.mediaId ? { mediaId: input.mediaId } : {}),
-      ...(input.linkedMediaFilename ? { linkedMediaFilename: input.linkedMediaFilename } : {}),
+      ...(input.sha256 !== undefined ? { sha256: input.sha256 } : {}),
+      ...(input.byteSize !== undefined ? { byteSize: input.byteSize } : {}),
+      ...(input.externalDocId !== undefined ? { externalDocId: input.externalDocId } : {}),
+      ...(input.mediaId !== undefined ? { mediaId: input.mediaId } : {}),
+      ...(input.linkedMediaFilename !== undefined
+        ? { linkedMediaFilename: input.linkedMediaFilename }
+        : {}),
     });
+    return record;
   } catch (error) {
-    // 与旧行为一致：项目行不存在时不登记（导入流程里项目总是先建好）
-    // Same as before: nothing to register when the project row does not exist
-    if (error instanceof SourceProjectNotFoundError) return;
+    // 与旧行为一致：项目行不存在时不登记 | Same as before: nothing to register without a project row
+    if (error instanceof SourceProjectNotFoundError) return undefined;
     throw error;
   }
 }

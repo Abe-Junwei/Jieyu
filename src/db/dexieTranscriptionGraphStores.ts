@@ -55,6 +55,9 @@ export function dexieStoresForAnnotationImportRw(db: JieyuDatabase) {
     db.dexie.audit_logs,
     db.dexie.orthographies,
     db.dexie.orthography_bridges,
+    // 2B-E：来源登记与文档替换和导入内容同一次提交 | Sources and document replace commit with the import
+    db.dexie.source_records,
+    db.dexie.annotation_documents,
   ] as const;
 }
 
@@ -209,6 +212,7 @@ export function dexieStoresForDeleteProjectByTextIdCascadeRw(db: JieyuDatabase) 
     db.dexie.ai_task_snapshots,
     db.dexie.track_entities,
     db.dexie.source_records,
+    db.dexie.annotation_documents,
     db.dexie.texts,
     db.dexie.speakers,
     db.dexie.lexemes,
@@ -253,6 +257,7 @@ export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
     db.dexie.translation_status_snapshots,
     db.dexie.track_entities,
     db.dexie.source_records,
+    db.dexie.annotation_documents,
     db.dexie.texts,
     db.dexie.speakers,
     db.dexie.lexemes,
@@ -278,4 +283,9 @@ export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
 /** RW: 导入来源登记、改名、关联录音（rev5 4.2-1~4，切片 2B-D）| Source record register / rename / link */
 export function dexieStoresForSourceRecordsRw(db: JieyuDatabase) {
   return [db.dexie.source_records, db.dexie.media_items, db.dexie.texts] as const;
+}
+
+/** RW: 标注文档（默认文档建立）| Annotation documents (default document bootstrap, 2B-E) */
+export function dexieStoresForAnnotationDocumentsRw(db: JieyuDatabase) {
+  return [db.dexie.annotation_documents, db.dexie.texts] as const;
 }

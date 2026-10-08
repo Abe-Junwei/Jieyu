@@ -1673,6 +1673,8 @@ export const enUSDictionary = {
   'transcription.projectHub.sourcePlan.renamed':
     'A file with this name already exists. This one becomes a new document shown as “{name}”.',
   'transcription.projectHub.sourcePlan.new': 'Will be registered as a new document.',
+  'transcription.projectHub.replacePreview':
+    'Importing replaces {units} segments ({layers} layers) in the current document. Cancel to keep everything as is.',
   'transcription.importExport.sourcePreservationLayerSuffix': 'Source',
   'transcription.projectHub.importing': 'Importing…',
   'transcription.projectHub.importFailedHint':

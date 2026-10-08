@@ -1453,6 +1453,7 @@ export const DICT_KEYS = [
   'transcription.projectHub.sourcePlan.sameContent',
   'transcription.projectHub.sourcePlan.renamed',
   'transcription.projectHub.sourcePlan.new',
+  'transcription.projectHub.replacePreview',
   'transcription.importExport.sourcePreservationLayerSuffix',
   'transcription.projectHub.importing',
   'transcription.projectHub.importFailedHint',

@@ -249,6 +249,7 @@ function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
       ? { parentLayerId: tier.parentTierId }
       : {}),
     ...(tier.accessRights !== undefined && { accessRights: tier.accessRights }),
+    ...(tier.documentId !== undefined && { documentId: tier.documentId }),
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
   };
@@ -272,6 +273,7 @@ function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
     ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
     ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
     ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
+    ...(layer.documentId !== undefined && { documentId: layer.documentId }),
     createdAt: layer.createdAt,
     updatedAt: layer.updatedAt,
   };

@@ -85,6 +85,8 @@ export interface TextDocType {
   metadata?: ProjectTextMetadata;
   languageCode?: string;
   accessRights?: 'open' | 'restricted' | 'confidential';
+  /** 默认标注文档（rev5 4.1 / 4.2-8，切片 2B-E）| Default annotation document (slice 2B-E) */
+  defaultDocumentId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -855,6 +857,11 @@ interface LayerDocBase {
   /** 层级显示样式 | Display style configuration */
   displaySettings?: LayerDisplaySettings;
   accessRights?: 'open' | 'restricted' | 'confidential';
+  /**
+   * 所属标注文档（2B-E）。缺省表示属于项目的默认文档。
+   * Owning annotation document (2B-E). Absent means the project's default document.
+   */
+  documentId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1072,6 +1079,8 @@ export interface TierDefinitionDocType {
   accessRights?: 'open' | 'restricted' | 'confidential';
   delimiter?: string;
   sortOrder?: number;
+  /** 所属标注文档（2B-E）；缺省 = 默认文档 | Owning annotation document; absent = default document */
+  documentId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1420,6 +1429,24 @@ export interface TrackEntityDocType {
  * Import source (rev5 4.1 / 4.2-1~4; slice 2B-D): one row per imported original file, replacing
  * `texts.metadata.sourceFiles`. Identity is always a UUID.
  */
+/**
+ * 标注文档（rev5 4.1 / 4.2-8 / D4，切片 2B-E）：documentId 是全局唯一的 UUID；`isDefault` 只是属性，
+ * 项目行上另存 `defaultDocumentId`。层归属于文档；本批每个项目只有一份默认文档，多文稿 UI 在第 5 批。
+ * Annotation document (rev5 4.1 / 4.2-8 / D4, slice 2B-E): globally unique UUID; `isDefault` is an
+ * attribute and the project row also stores `defaultDocumentId`. Layers belong to a document.
+ */
+export interface AnnotationDocumentDocType {
+  id: string;
+  /** 所属项目 | Owning project */
+  textId: string;
+  isDefault: boolean;
+  title?: MultiLangString;
+  /** 这份文档引用的来源记录 | Source records this document came from */
+  sourceIds?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SourceRecordDocType {
   id: string;
   /** 所属项目 | Owning project */
@@ -1518,6 +1545,7 @@ export type JieyuCollections = {
   ai_task_snapshots: CollectionAdapter<AiTaskSnapshotDocType>;
   track_entities: CollectionAdapter<TrackEntityDocType>;
   source_records: CollectionAdapter<SourceRecordDocType>;
+  annotation_documents: CollectionAdapter<AnnotationDocumentDocType>;
   ai_session_memories: CollectionAdapter<AiSessionMemoryDoc>;
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
   mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;
