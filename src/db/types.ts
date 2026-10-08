@@ -1571,4 +1571,6 @@ export type ImportResult = {
   strategy: ImportConflictStrategy;
   collections: Partial<Record<keyof JieyuCollections, ImportCollectionResult>>;
   ignoredCollections: string[];
+  /** JY-04：按数据分类丢弃的集合（只记表名和行数）| Collections dropped by data class (name + row count only) */
+  droppedCollections: Array<{ name: string; rows: number }>;
 };

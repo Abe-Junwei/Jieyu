@@ -24,6 +24,8 @@ import type {
   UserNoteDocType,
 } from './types';
 import { db, getDb } from './engine';
+import { createLogger } from '../observability/logger';
+import { isCollectionDroppedOnImport } from './tableRegistry';
 import {
   InboundByteConflictError,
   isInboundByteCollection,
@@ -34,6 +36,8 @@ import {
   preserveLocalBytesForInbound,
   type InboundByteConflict,
 } from './ioInboundBytePreservation';
+
+const log = createLogger('dbIo');
 
 /** Import/export JSON snapshots must use this exact `schemaVersion` (no older/newer formats). */
 const SNAPSHOT_SCHEMA_VERSION = 4;
@@ -512,6 +516,7 @@ export async function importDatabaseFromJson(
     strategy,
     collections: {},
     ignoredCollections: [],
+    droppedCollections: [],
   };
   const importStartedAt = result.importedAt;
 
@@ -538,6 +543,17 @@ export async function importDatabaseFromJson(
   }> = [];
 
   for (const [name, docs] of Object.entries(snapshot.collections)) {
+    // JY-04：凭据 / AI 记忆 / 审计日志类集合一律丢弃，且不清空本机同名表；日志只记表名和行数
+    // JY-04: drop credential / AI-memory / audit-log collections (local tables are not cleared);
+    // the warning records the table name and row count only, never row content
+    if (isCollectionDroppedOnImport(name)) {
+      const rows = Array.isArray(docs) ? docs.length : 0;
+      result.droppedCollections.push({ name, rows });
+      if (rows > 0) {
+        log.warn('Dropped collection from imported snapshot by data class', { table: name, rows });
+      }
+      continue;
+    }
     if (!knownCollectionNames.includes(name as KnownCollectionName)) {
       result.ignoredCollections.push(name);
       continue;

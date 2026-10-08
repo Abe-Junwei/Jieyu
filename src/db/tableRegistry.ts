@@ -103,6 +103,27 @@ export const JIEYU_DATA_CLASS_IN_JYB: Record<JieyuDataClass, boolean> = {
   private_log: false,
 };
 
+/**
+ * JY-04：任何导入 / 恢复入口都丢弃的数据类：凭据、AI 记忆与历史、审计日志。
+ * 外来文件不能预置信任决定或提示注入；本机已有的这些行保持不动。
+ * JY-04: data classes dropped by every import / restore entry point: credentials, AI memory and
+ * history, audit logs. An inbound file must not plant trust decisions or prompt content; local rows
+ * of these classes stay untouched.
+ */
+export const IMPORT_DROPPED_DATA_CLASSES: ReadonlySet<JieyuDataClass> = new Set<JieyuDataClass>([
+  'credential',
+  'project_ai',
+  'audit_log',
+]);
+
+/** 该集合名是否在导入时丢弃 | Whether an inbound collection with this name is dropped */
+export function isCollectionDroppedOnImport(collectionName: string): boolean {
+  const registration = (
+    JIEYU_MAIN_TABLE_REGISTRY as Record<string, JieyuTableRegistration | undefined>
+  )[collectionName];
+  return registration !== undefined && IMPORT_DROPPED_DATA_CLASSES.has(registration.dataClass);
+}
+
 /** 8.1 重置策略 | 8.1 reset policy */
 export type JieyuLocalDbResetPolicy = 'main' | 'prompt_delete' | 'keep';
 

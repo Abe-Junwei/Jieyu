@@ -18,6 +18,7 @@ const {
     strategy: 'upsert',
     collections: {},
     ignoredCollections: [],
+    droppedCollections: [],
   })),
 }));
 

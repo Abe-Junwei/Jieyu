@@ -1,6 +1,7 @@
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import type { ImportConflictStrategy, ImportResult } from '../db/types';
 import { isSystemTemplateId } from '../db/catalogOwnership';
+import { isCollectionDroppedOnImport } from '../db/tableRegistry';
 import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProfiles';
 
 const ARCHIVE_FORMAT_VERSION = 1;
@@ -665,6 +666,8 @@ export async function previewJieyuArchiveImport(
 
   const previewCollections: JieyuArchiveImportPreviewCollection[] = [];
   for (const [name, docs] of Object.entries(collections)) {
+    // JY-04：导入时会丢弃的分类不进预览 | Classes dropped on import are not previewed as inserts
+    if (isCollectionDroppedOnImport(name)) continue;
     const incoming = docs.length;
     const ids = docs
       .map((doc) => (doc && typeof doc === 'object' ? (doc as { id?: unknown }).id : undefined))
