@@ -57,11 +57,14 @@ describe('T1 greenfield baseline', () => {
     }
   });
 
-  it('is structurally equivalent to the former v54 final shape (orthography store renamed)', () => {
+  it('is the former v54 final shape (orthography store renamed) plus the 2B source_records store', () => {
     const expected: Record<string, string> = {};
     for (const [name, spec] of Object.entries(v54FinalStores as Record<string, string>)) {
       expected[name === 'orthography_transforms' ? 'orthography_bridges' : name] = spec;
     }
+    // 2B-D（rev5 4.1）：冻结前基线新增来源记录表 | 2B-D: pre-freeze baseline adds source records
+    expected.source_records =
+      'id, textId, [textId+externalDocId], [textId+sha256], importBatchId, mediaId';
     expect(JIEYU_BASELINE_STORES).toEqual(expected);
   });
 

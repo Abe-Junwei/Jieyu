@@ -208,6 +208,7 @@ export function dexieStoresForDeleteProjectByTextIdCascadeRw(db: JieyuDatabase) 
     db.dexie.translation_status_snapshots,
     db.dexie.ai_task_snapshots,
     db.dexie.track_entities,
+    db.dexie.source_records,
     db.dexie.texts,
     db.dexie.speakers,
     db.dexie.lexemes,
@@ -251,6 +252,7 @@ export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
     db.dexie.speaker_profile_snapshots,
     db.dexie.translation_status_snapshots,
     db.dexie.track_entities,
+    db.dexie.source_records,
     db.dexie.texts,
     db.dexie.speakers,
     db.dexie.lexemes,
@@ -271,4 +273,9 @@ export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
     db.dexie.tag_definitions,
     db.dexie.structural_rule_profiles,
   ] as const;
+}
+
+/** RW: 导入来源登记、改名、关联录音（rev5 4.2-1~4，切片 2B-D）| Source record register / rename / link */
+export function dexieStoresForSourceRecordsRw(db: JieyuDatabase) {
+  return [db.dexie.source_records, db.dexie.media_items, db.dexie.texts] as const;
 }

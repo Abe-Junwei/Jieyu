@@ -6,7 +6,11 @@
 export async function computeBlobSha256(blob: Blob): Promise<string | undefined> {
   const subtle = globalThis.crypto?.subtle;
   if (subtle === undefined) return undefined;
-  const bytes = await readBlobBytes(blob);
+  const raw = await readBlobBytes(blob);
+  // 复制到本 realm 的缓冲区：jsdom 等环境下 FileReader 给的 ArrayBuffer 可能来自另一个 realm
+  // Copy into a buffer of this realm: FileReader may hand back a foreign-realm ArrayBuffer (e.g. jsdom)
+  const bytes = new Uint8Array(raw.byteLength);
+  bytes.set(new Uint8Array(raw));
   const digest = await subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }

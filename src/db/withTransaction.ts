@@ -46,7 +46,8 @@ export async function withTransaction<T>(
     return await db.dexie.transaction(mode, [...dedupedStores], scope);
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(withTransactionErrorPrefix(error.message, options?.label));
+      // 保留原错误，调用方可据 cause 识别领域错误 | Keep the original as `cause` for typed callers
+      throw new Error(withTransactionErrorPrefix(error.message, options?.label), { cause: error });
     }
     throw error;
   }

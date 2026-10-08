@@ -1414,6 +1414,39 @@ export interface TrackEntityDocType {
   updatedAt: string;
 }
 
+/**
+ * 导入来源（rev5 4.1 SourceRecord / 4.2-1~4；切片 2B-D）：每次导入的原始文件登记一行，取代
+ * `texts.metadata.sourceFiles`。身份一律是 UUID；同名不同内容不会合并，改名后再导入也不会改回名字。
+ * Import source (rev5 4.1 / 4.2-1~4; slice 2B-D): one row per imported original file, replacing
+ * `texts.metadata.sourceFiles`. Identity is always a UUID.
+ */
+export interface SourceRecordDocType {
+  id: string;
+  /** 所属项目 | Owning project */
+  textId: string;
+  /** 导入时的原始文件名 | File name at import time */
+  originalName: string;
+  /** 界面显示名，可改；重新导入不会改回 | Display name (user-editable; never reset by re-import) */
+  displayName: string;
+  /** 来源格式（eaf / textgrid / …）| Source format */
+  format: string;
+  byteSize?: number;
+  /** 原件内容的 SHA-256（十六进制）| SHA-256 of the original bytes (hex) */
+  sha256?: string;
+  /** 外部文档身份，例如 EAF 的 URN | External document identity, e.g. EAF URN */
+  externalDocId?: string;
+  importedAt: string;
+  /** 同一次导入操作共享的批次 ID | Batch id shared by one import action */
+  importBatchId: string;
+  /** 是否保存了原件字节（本切片不保存）| Whether the original bytes are stored (not in this slice) */
+  storedBytes: boolean;
+  /** 显式关联的录音（必须属于本项目）| Explicitly linked recording (must belong to this project) */
+  mediaId?: string;
+  /** 原件里写的录音文件名，只用于提示匹配 | Recording file name written in the source; hint only */
+  linkedMediaFilename?: string;
+  updatedAt: string;
+}
+
 export type Selector<T> = Partial<{ [K in keyof T]: T[K] }>;
 
 export type JieyuDoc<T extends { id: string }> = T & {
@@ -1484,6 +1517,7 @@ export type JieyuCollections = {
   language_asset_overviews: CollectionAdapter<LanguageAssetOverviewDocType>;
   ai_task_snapshots: CollectionAdapter<AiTaskSnapshotDocType>;
   track_entities: CollectionAdapter<TrackEntityDocType>;
+  source_records: CollectionAdapter<SourceRecordDocType>;
   ai_session_memories: CollectionAdapter<AiSessionMemoryDoc>;
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
   mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;

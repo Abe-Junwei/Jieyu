@@ -158,6 +158,8 @@ export interface EafImportResult {
   }>;
   /** interlinear-text title items, keyed by language. Written only when the document title is empty. */
   documentTitle?: Record<string, string>;
+  /** HEADER `URN` property: the ELAN document identity used to match re-imports (rev5 4.2-2). */
+  documentUrn?: string;
   /** Non-empty participant-note bodies, keyed by PARTICIPANT. */
   speakerNotes?: Array<{ participant: string; text: string; lang?: string }>;
   /** Controlled vocabulary, speaker dialect, and addressee parked on the parent annotation. */

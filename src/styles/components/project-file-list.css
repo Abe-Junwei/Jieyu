@@ -737,3 +737,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 2B-D：来源手动关联录音 | Manual source → recording link */
+.project-file-link-select {
+  max-width: 12rem;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.125rem 0.25rem;
+}
+
+.project-file-doc > .project-file-link-select {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin-top: 4px;
+}

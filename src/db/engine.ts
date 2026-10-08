@@ -57,6 +57,7 @@ import type {
   LanguageAssetOverviewDocType,
   AiTaskSnapshotDocType,
   TrackEntityDocType,
+  SourceRecordDocType,
   AiSourceSetDoc,
   JieyuCollections,
 } from './types';
@@ -111,6 +112,7 @@ import {
   validateLanguageAssetOverviewDoc,
   validateAiTaskSnapshotDoc,
   validateTrackEntityDoc,
+  validateSourceRecordDoc,
   validateAiSourceSetDoc,
 } from './schemas';
 import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter } from './adapter';
@@ -197,6 +199,8 @@ export const JIEYU_BASELINE_STORES = {
   tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
   token_lexeme_links: 'id, [targetType+targetId], lexemeId, [lexemeId+targetType]',
   track_entities: 'id, textId, mediaId, [textId+mediaId]',
+  // 2B-D：导入来源（rev5 4.1），冻结点之前直接写进基线 | 2B-D import sources, added to the pre-freeze baseline
+  source_records: 'id, textId, [textId+externalDocId], [textId+sha256], importBatchId, mediaId',
   translation_status_snapshots:
     'id, unitId, textId, mediaId, layerId, status, [layerId+mediaId], [textId+layerId], updatedAt',
   unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
@@ -256,6 +260,7 @@ export class JieyuDexie extends Dexie {
   language_asset_overviews!: Table<LanguageAssetOverviewDocType, string>;
   ai_task_snapshots!: Table<AiTaskSnapshotDocType, string>;
   track_entities!: Table<TrackEntityDocType, string>;
+  source_records!: Table<SourceRecordDocType, string>;
   ai_source_sets!: Table<AiSourceSetDoc, string>;
 
   constructor(name: string) {
@@ -315,6 +320,7 @@ export const JIEYU_TABLE_VALIDATORS: JieyuTableValidators<keyof typeof JIEYU_BAS
   tier_definitions: validateTierDefinitionDoc,
   token_lexeme_links: validateTokenLexemeLinkDoc,
   track_entities: validateTrackEntityDoc,
+  source_records: validateSourceRecordDoc,
   translation_status_snapshots: validateTranslationStatusSnapshotDoc,
   unit_morphemes: validateUnitMorphemeDoc,
   unit_relations: validateUnitRelationDoc,
@@ -521,6 +527,7 @@ async function _createDb(): Promise<JieyuDatabase> {
       validateAiTaskSnapshotDoc,
     ),
     track_entities: new DexieCollectionAdapter(dexie.track_entities, validateTrackEntityDoc),
+    source_records: new DexieCollectionAdapter(dexie.source_records, validateSourceRecordDoc),
     ai_source_sets: new DexieCollectionAdapter(dexie.ai_source_sets, validateAiSourceSetDoc),
   };
 

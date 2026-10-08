@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { t, tf, useLocale, type Locale } from '../../i18n';
 import { LinguisticService } from '../../services/LinguisticService';
 import {
+  linkProjectSourceFileToAudio,
   listProjectFileViews,
   listProjectSourceFiles,
   rememberImportedSourceFile,
@@ -80,6 +81,47 @@ function kindLabel(locale: Locale, format: string): string {
   return FORMAT_LABEL[format] ?? format.toUpperCase();
 }
 
+type AudioOption = { id: string; name: string };
+
+/**
+ * 手动关联录音（rev5 4.2-4）：只列本项目的录音；文件名唯一匹配的那条标为“建议”，但不自动选中。
+ * Manual recording link (rev5 4.2-4): lists this project's recordings; a unique filename match is marked
+ * as a suggestion but never preselected.
+ */
+function SourceLinkSelect(props: {
+  row: ProjectFileView;
+  audioOptions: readonly AudioOption[];
+  onLink: (row: ProjectFileView, mediaId: string | null) => Promise<void>;
+}) {
+  const locale = useLocale();
+  const { row, audioOptions } = props;
+  if (
+    row.kind !== 'manuscript' ||
+    row.id.startsWith('src-manuscript-') ||
+    audioOptions.length === 0
+  ) {
+    return null;
+  }
+  return (
+    <select
+      className="project-file-link-select"
+      data-testid="project-file-link-select"
+      aria-label={t(locale, 'app.files.linkRecording')}
+      value={row.linkedAudioId ?? ''}
+      onChange={(event) => void props.onLink(row, event.target.value || null)}
+    >
+      <option value="">{t(locale, 'app.files.unlinked')}</option>
+      {audioOptions.map((option) => (
+        <option key={option.id} value={option.id}>
+          {option.id === row.suggestedAudioId
+            ? tf(locale, 'app.files.suggestedRecording', { name: option.name })
+            : option.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function FileLine(props: {
   row: ProjectFileView;
   textId: string;
@@ -100,6 +142,8 @@ function FileLine(props: {
   /** Narrow side-pane: hide duration/progress columns that break the 260px grid. */
   compact?: boolean;
   currentWorkspace?: 'transcription' | 'annotation';
+  audioOptions?: readonly AudioOption[];
+  onLink?: (row: ProjectFileView, mediaId: string | null) => Promise<void>;
 }) {
   const locale = useLocale();
   const { row, textId } = props;
@@ -157,6 +201,14 @@ function FileLine(props: {
         <span className="project-file-meta">
           {formatDuration(row.durationSec)}
           {stats ? ` · ${stats}` : ''}
+        </span>
+      ) : !props.compact && props.onLink && (props.audioOptions?.length ?? 0) > 0 ? (
+        <span className="project-file-meta">
+          <SourceLinkSelect
+            row={row}
+            audioOptions={props.audioOptions ?? []}
+            onLink={props.onLink}
+          />
         </span>
       ) : !props.compact && stats ? (
         <span className="project-file-progress">{stats}</span>
@@ -261,6 +313,8 @@ function BoardAudio(props: {
   setEditingId: (value: string) => void;
   commitRename: (row: ProjectFileView) => Promise<void>;
   docs: ProjectFileView[];
+  audioOptions?: readonly AudioOption[];
+  onLink?: (row: ProjectFileView, mediaId: string | null) => Promise<void>;
 }) {
   const locale = useLocale();
   const { transcriptionTo, annotationTo, rememberFile } = fileTargets(props.textId, props.row);
@@ -304,6 +358,8 @@ function BoardAudio(props: {
           setDraft={props.setDraft}
           setEditingId={props.setEditingId}
           commitRename={props.commitRename}
+          {...(props.audioOptions ? { audioOptions: props.audioOptions } : {})}
+          {...(props.onLink ? { onLink: props.onLink } : {})}
         />
       ))}
       <p className="project-file-audio-meta">
@@ -354,6 +410,8 @@ function BoardDoc(props: {
   setDraft: (value: string) => void;
   setEditingId: (value: string) => void;
   commitRename: (row: ProjectFileView) => Promise<void>;
+  audioOptions?: readonly AudioOption[];
+  onLink?: (row: ProjectFileView, mediaId: string | null) => Promise<void>;
 }) {
   const locale = useLocale();
   const { annotationTo, rememberFile } = fileTargets(props.textId, props.row);
@@ -373,6 +431,13 @@ function BoardDoc(props: {
           onNavigate={rememberFile}
         />
       </div>
+      {props.onLink ? (
+        <SourceLinkSelect
+          row={props.row}
+          audioOptions={props.audioOptions ?? []}
+          onLink={props.onLink}
+        />
+      ) : null}
     </div>
   );
 }
@@ -453,6 +518,14 @@ export function ProjectFileBrowser(props: {
     } else await renameProjectSourceFile(textId, row.id, next);
     await refresh();
   };
+
+  const linkAudio = async (row: ProjectFileView, mediaId: string | null) => {
+    await linkProjectSourceFileToAudio(textId, row.id, mediaId);
+    await refresh();
+  };
+  const audioOptions: AudioOption[] = files
+    .filter((row) => row.kind === 'audio')
+    .map((row) => ({ id: row.id, name: row.name }));
 
   if (textId.trim().length === 0) return null;
   if (audio === undefined && loaded.isLoading) return null;
@@ -541,6 +614,8 @@ export function ProjectFileBrowser(props: {
                     setEditingId={setEditingId}
                     commitRename={commitRename}
                     docs={group.docs}
+                    audioOptions={audioOptions}
+                    onLink={linkAudio}
                   />
                 ) : (
                   <FileLine
@@ -572,6 +647,8 @@ export function ProjectFileBrowser(props: {
                       setDraft={setDraft}
                       setEditingId={setEditingId}
                       commitRename={commitRename}
+                      audioOptions={audioOptions}
+                      onLink={linkAudio}
                     />
                   ) : (
                     <FileLine
@@ -586,6 +663,8 @@ export function ProjectFileBrowser(props: {
                       progressByMedia={progressByMedia}
                       showProgress={!pane}
                       compact={pane}
+                      audioOptions={audioOptions}
+                      onLink={linkAudio}
                       {...(props.currentWorkspace
                         ? { currentWorkspace: props.currentWorkspace }
                         : {})}

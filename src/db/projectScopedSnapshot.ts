@@ -43,6 +43,7 @@ const TEXT_ID_COLLECTIONS = [
   'speaker_profile_snapshots',
   'translation_status_snapshots',
   'track_entities',
+  'source_records',
 ] as const;
 
 type SnapshotCollections = Record<string, unknown[]>;
@@ -309,6 +310,7 @@ async function pruneProjectOwnedRows(db: JieyuDatabase, textId: string): Promise
       await db.dexie.speaker_profile_snapshots.where('textId').equals(projectId).delete();
       await db.dexie.translation_status_snapshots.where('textId').equals(projectId).delete();
       await db.dexie.track_entities.where('textId').equals(projectId).delete();
+      await db.dexie.source_records.where('textId').equals(projectId).delete();
       for (const name of PROJECT_CATALOG_TEXT_ID_TABLES) {
         const table = db.dexie.table<{ id: string; textId?: string }, string>(name);
         const stale = await table

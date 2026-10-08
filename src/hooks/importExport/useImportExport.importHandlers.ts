@@ -1306,10 +1306,14 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           });
         }
       }
+      // 2B-D：登记来源（UUID；URN 相同视为更新已有文档；哈希在事务外算）
+      // 2B-D: register the source (UUID; same URN updates the existing document; hashed outside tx)
       await rememberImportedSourceFile({
         textId: importTextId,
         name: file.name,
         format: sourceFormatFromName(file.name),
+        bytes: file,
+        ...(eafResult?.documentUrn ? { externalDocId: eafResult.documentUrn } : {}),
         ...(mediaId && mediaId.trim().length > 0 ? { mediaId } : {}),
         ...(eafResult?.mediaFilename && eafResult.mediaFilename !== 'unknown.wav'
           ? { linkedMediaFilename: eafResult.mediaFilename }

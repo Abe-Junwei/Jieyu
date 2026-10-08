@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getDb } from '../../db';
 import { mediaIdsRecordedForFilename } from '../../utils/eafImportAlign';
-import { readProjectSourceFiles } from '../../utils/projectSourceFiles';
+import { listSourceRecords } from '../../services/sourceRecordService';
 
 /**
  * Other media ids that hold this recording's sentences: same filename, or an
@@ -30,14 +29,13 @@ export function useRecordedMediaIds(
     let cancelled = false;
     void (async () => {
       try {
-        const db = await getDb();
-        const text = await db.dexie.texts.get(selected.textId);
-        const metadata = text?.metadata;
-        const sources = readProjectSourceFiles(
-          metadata !== null && typeof metadata === 'object'
-            ? (metadata as unknown as Record<string, unknown>)
-            : undefined,
-        );
+        const sources = (await listSourceRecords(selected.textId)).map((record) => ({
+          name: record.displayName,
+          ...(record.mediaId ? { mediaId: record.mediaId } : {}),
+          ...(record.linkedMediaFilename
+            ? { linkedMediaFilename: record.linkedMediaFilename }
+            : {}),
+        }));
         const next = mediaIdsRecordedForFilename({
           selectedMediaId: selected.id,
           selectedFilename: selected.filename,

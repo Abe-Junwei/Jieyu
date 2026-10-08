@@ -58,6 +58,7 @@ export {
   dexieStoresForSegmentMetaRebuildSourceRead,
   dexieStoresForSegmentMetaRw,
   dexieStoresForSegmentMetaSyncForUnitIdsRead,
+  dexieStoresForSourceRecordsRw,
   dexieStoresForStructuralRuleProfilesRw,
   dexieStoresForTierAnnotationAtomicRw,
   dexieStoresForTierDefinitionAtomicRw,

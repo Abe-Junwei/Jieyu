@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  linkManuscriptsToAudio,
-  readProjectSourceFiles,
-  upsertProjectSourceFile,
-} from './projectSourceFiles';
+import { linkManuscriptsToAudio, sourceFileFromRecord } from './projectSourceFiles';
 
 describe('projectSourceFiles', () => {
-  it('keeps an imported manuscript beside the audio it names', () => {
+  it('keeps an explicitly linked manuscript beside its audio', () => {
     const views = linkManuscriptsToAudio(
       [
         {
@@ -20,9 +16,10 @@ describe('projectSourceFiles', () => {
       ],
       [
         {
-          id: 'src-eaf-story.eaf',
+          id: 'src-uuid-1',
           name: 'story.eaf',
           format: 'eaf',
+          mediaId: 'media-1',
           linkedMediaFilename: 'field.wav',
         },
       ],
@@ -32,18 +29,19 @@ describe('projectSourceFiles', () => {
     expect(views[0]).toMatchObject({ audioFormat: 'WAV', sentenceCount: 12 });
   });
 
-  it('reads and replaces a source file by id', () => {
-    const stored = readProjectSourceFiles({
-      sourceFiles: [{ id: 'src-eaf-a.eaf', name: 'a.eaf', format: 'eaf' }],
-    });
-    const next = upsertProjectSourceFile(stored, {
-      id: 'src-eaf-a.eaf',
-      name: '改名.eaf',
-      format: 'eaf',
-      mediaId: 'media-1',
-    });
-    expect(next).toEqual([
-      { id: 'src-eaf-a.eaf', name: '改名.eaf', format: 'eaf', mediaId: 'media-1' },
-    ]);
+  it('a filename named in the source is only a suggestion (rev5 4.2-4)', () => {
+    const views = linkManuscriptsToAudio(
+      [{ id: 'media-1', name: '田野录音', filename: 'field.wav' }],
+      [{ id: 'src-uuid-1', name: 'story.eaf', format: 'eaf', linkedMediaFilename: 'field.wav' }],
+    );
+    const doc = views.find((row) => row.kind === 'manuscript');
+    expect(doc?.linkedAudioId).toBeUndefined();
+    expect(doc?.suggestedAudioId).toBe('media-1');
+  });
+
+  it('maps a source record to the file-list view by display name', () => {
+    expect(
+      sourceFileFromRecord({ id: 'u1', displayName: '改名.eaf', format: 'eaf', mediaId: 'm1' }),
+    ).toEqual({ id: 'u1', name: '改名.eaf', format: 'eaf', mediaId: 'm1' });
   });
 });

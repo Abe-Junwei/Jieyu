@@ -3,23 +3,22 @@ import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from '../util
 import {
   audioDisplayName,
   linkManuscriptsToAudio,
-  readProjectSourceFiles,
-  sourceFileId,
-  upsertProjectSourceFile,
+  sourceFileFromRecord,
   type ProjectAudioFile,
   type ProjectFileView,
   type ProjectSourceFile,
 } from '../utils/projectSourceFiles';
+import {
+  SourceProjectNotFoundError,
+  linkSourceRecordToMedia,
+  listSourceRecords,
+  registerImportedSource,
+  renameSourceRecord,
+} from './sourceRecordService';
 
-async function readTextMetadata(textId: string): Promise<Record<string, unknown>> {
-  const db = await getDb();
-  const text = await db.dexie.texts.get(textId);
-  const metadata = text?.metadata;
-  return metadata && typeof metadata === 'object' ? { ...metadata } : {};
-}
-
+/** 来源列表读 `source_records`（rev5 4.1，切片 2B-D）| Sources come from `source_records` (slice 2B-D) */
 export async function listProjectSourceFiles(textId: string): Promise<ProjectSourceFile[]> {
-  return readProjectSourceFiles(await readTextMetadata(textId));
+  return (await listSourceRecords(textId)).map(sourceFileFromRecord);
 }
 
 export async function listProjectAudioFiles(textId: string): Promise<ProjectAudioFile[]> {
@@ -75,33 +74,37 @@ export async function listProjectFileViews(textId: string): Promise<ProjectFileV
   return linkManuscriptsToAudio(audio, sources);
 }
 
+/**
+ * 登记一次导入的原始文件（UUID；见 `sourceRecordService`）。
+ * Register one imported original file (UUID identity; see `sourceRecordService`).
+ */
 export async function rememberImportedSourceFile(input: {
   textId: string;
   name: string;
   format: string;
+  bytes?: Blob;
+  externalDocId?: string;
   mediaId?: string;
   linkedMediaFilename?: string;
 }): Promise<void> {
   const name = input.name.trim();
   if (name.length === 0) return;
-  const db = await getDb();
-  const text = await db.dexie.texts.get(input.textId);
-  if (!text) return;
-  const metadata = text.metadata && typeof text.metadata === 'object' ? { ...text.metadata } : {};
-  const next = upsertProjectSourceFile(readProjectSourceFiles(metadata), {
-    id: sourceFileId(input.format, name),
-    name,
-    format: input.format,
-    ...(input.mediaId && input.mediaId.trim().length > 0 ? { mediaId: input.mediaId.trim() } : {}),
-    ...(input.linkedMediaFilename && input.linkedMediaFilename.trim().length > 0
-      ? { linkedMediaFilename: input.linkedMediaFilename.trim() }
-      : {}),
-  });
-  await db.dexie.texts.put({
-    ...text,
-    metadata: { ...metadata, sourceFiles: next },
-    updatedAt: new Date().toISOString(),
-  });
+  try {
+    await registerImportedSource({
+      textId: input.textId,
+      originalName: name,
+      format: input.format,
+      ...(input.bytes ? { bytes: input.bytes } : {}),
+      ...(input.externalDocId ? { externalDocId: input.externalDocId } : {}),
+      ...(input.mediaId ? { mediaId: input.mediaId } : {}),
+      ...(input.linkedMediaFilename ? { linkedMediaFilename: input.linkedMediaFilename } : {}),
+    });
+  } catch (error) {
+    // 与旧行为一致：项目行不存在时不登记（导入流程里项目总是先建好）
+    // Same as before: nothing to register when the project row does not exist
+    if (error instanceof SourceProjectNotFoundError) return;
+    throw error;
+  }
 }
 
 export async function renameProjectAudio(mediaId: string, name: string): Promise<void> {
@@ -122,18 +125,14 @@ export async function renameProjectSourceFile(
   fileId: string,
   name: string,
 ): Promise<void> {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) return;
-  const db = await getDb();
-  const text = await db.dexie.texts.get(textId);
-  if (!text) return;
-  const metadata = text.metadata && typeof text.metadata === 'object' ? { ...text.metadata } : {};
-  const files = readProjectSourceFiles(metadata).map((file) =>
-    file.id === fileId ? { ...file, name: trimmed } : file,
-  );
-  await db.dexie.texts.put({
-    ...text,
-    metadata: { ...metadata, sourceFiles: files },
-    updatedAt: new Date().toISOString(),
-  });
+  await renameSourceRecord(textId, fileId, name);
+}
+
+/** 手动关联 / 取消关联录音 | Manually link or unlink a recording */
+export async function linkProjectSourceFileToAudio(
+  textId: string,
+  fileId: string,
+  mediaId: string | null,
+): Promise<void> {
+  await linkSourceRecordToMedia(textId, fileId, mediaId);
 }

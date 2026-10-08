@@ -57,6 +57,7 @@ import type {
   LanguageAssetOverviewDocType,
   AiTaskSnapshotDocType,
   TrackEntityDocType,
+  SourceRecordDocType,
   AiSourceSetDoc,
 } from './types';
 
@@ -1889,6 +1890,32 @@ const trackEntityDocSchema = z.object({
 
 export function validateTrackEntityDoc(doc: TrackEntityDocType): void {
   trackEntityDocSchema.parse(doc);
+}
+
+// ─── Source record doc (rev5 4.1 / slice 2B-D) ───────────────────────────────
+
+const sourceRecordDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  originalName: z.string().min(1),
+  displayName: z.string().min(1),
+  format: z.string().min(1),
+  byteSize: z.number().int().nonnegative().optional(),
+  sha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/, 'sha256 must be 64 lowercase hex characters')
+    .optional(),
+  externalDocId: z.string().min(1).optional(),
+  importedAt: isoDateSchema,
+  importBatchId: z.string().min(1),
+  storedBytes: z.boolean(),
+  mediaId: z.string().min(1).optional(),
+  linkedMediaFilename: z.string().min(1).optional(),
+  updatedAt: isoDateSchema,
+});
+
+export function validateSourceRecordDoc(doc: SourceRecordDocType): void {
+  sourceRecordDocSchema.parse(doc);
 }
 
 // ─── AI source set doc ────────────────────────────────────────────────────────

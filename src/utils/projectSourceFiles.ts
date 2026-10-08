@@ -28,6 +28,8 @@ export interface ProjectFileView {
   audioFormat?: string;
   sentenceCount?: number;
   linkedAudioId?: string;
+  /** 文件名唯一匹配到的录音，只作提示，不算关联（rev5 4.2-4）| Unique filename match; a hint, not a link */
+  suggestedAudioId?: string;
   transcriptionRate?: number | null;
   translationRate?: number | null;
   annotationRate?: number | null;
@@ -50,42 +52,25 @@ export function sourceFormatFromName(name: string): string {
   return SOURCE_FORMATS.has(ext) ? ext : 'file';
 }
 
-export function readProjectSourceFiles(
-  metadata: Record<string, unknown> | undefined,
-): ProjectSourceFile[] {
-  const raw = metadata?.sourceFiles;
-  if (!Array.isArray(raw)) return [];
-  const files: ProjectSourceFile[] = [];
-  for (const item of raw) {
-    if (item === null || typeof item !== 'object') continue;
-    const row = item as Record<string, unknown>;
-    const id = typeof row.id === 'string' ? row.id.trim() : '';
-    const name = typeof row.name === 'string' ? row.name.trim() : '';
-    const format = typeof row.format === 'string' ? row.format.trim() : '';
-    if (id.length === 0 || name.length === 0 || format.length === 0) continue;
-    const mediaId = typeof row.mediaId === 'string' ? row.mediaId.trim() : '';
-    const linkedMediaFilename =
-      typeof row.linkedMediaFilename === 'string' ? row.linkedMediaFilename.trim() : '';
-    files.push({
-      id,
-      name,
-      format,
-      ...(mediaId.length > 0 ? { mediaId } : {}),
-      ...(linkedMediaFilename.length > 0 ? { linkedMediaFilename } : {}),
-    });
-  }
-  return files;
-}
-
-export function upsertProjectSourceFile(
-  files: readonly ProjectSourceFile[],
-  next: ProjectSourceFile,
-): ProjectSourceFile[] {
-  return [...files.filter((file) => file.id !== next.id), next];
-}
-
-export function sourceFileId(format: string, name: string): string {
-  return `src-${format}-${name.trim().toLowerCase()}`;
+/** 来源记录 → 文件列表用的来源视图 | Source record → file-list source view */
+export function sourceFileFromRecord(record: {
+  id: string;
+  displayName: string;
+  format: string;
+  mediaId?: string;
+  linkedMediaFilename?: string;
+}): ProjectSourceFile {
+  return {
+    id: record.id,
+    name: record.displayName,
+    format: record.format,
+    ...(record.mediaId !== undefined && record.mediaId.length > 0
+      ? { mediaId: record.mediaId }
+      : {}),
+    ...(record.linkedMediaFilename !== undefined && record.linkedMediaFilename.length > 0
+      ? { linkedMediaFilename: record.linkedMediaFilename }
+      : {}),
+  };
 }
 
 export function audioDisplayName(
@@ -118,13 +103,22 @@ export function orderProjectFiles(files: readonly ProjectFileView[]): ProjectFil
   return ordered;
 }
 
+/**
+ * 关联只认显式 mediaId（rev5 4.2-4）。原件里写的录音文件名只在恰好匹配一条录音时给出提示；
+ * 同名录音有多条时不提示，更不自动关联。
+ * Only an explicit mediaId links (rev5 4.2-4). A recording file name written in the source only yields a
+ * hint when exactly one recording matches; duplicates yield nothing and never auto-link.
+ */
 export function linkManuscriptsToAudio(
   audio: readonly ProjectAudioFile[],
   sources: readonly ProjectSourceFile[],
 ): ProjectFileView[] {
-  const audioByFilename = new Map(
-    audio.map((row) => [row.filename.trim().toLowerCase(), row.id] as const),
-  );
+  const audioIds = new Set(audio.map((row) => row.id));
+  const audioByFilename = new Map<string, string[]>();
+  for (const row of audio) {
+    const key = row.filename.trim().toLowerCase();
+    audioByFilename.set(key, [...(audioByFilename.get(key) ?? []), row.id]);
+  }
   const views: ProjectFileView[] = audio.map((row) => ({
     id: row.id,
     kind: 'audio',
@@ -139,19 +133,22 @@ export function linkManuscriptsToAudio(
     ...(row.annotationRate !== undefined ? { annotationRate: row.annotationRate } : {}),
   }));
   for (const source of sources) {
-    const linkedFromFilename =
-      source.linkedMediaFilename !== undefined && source.linkedMediaFilename.length > 0
-        ? audioByFilename.get(source.linkedMediaFilename.trim().toLowerCase())
-        : undefined;
-    const linkedFromName = source.mediaId ?? linkedFromFilename;
+    const linked =
+      source.mediaId !== undefined && audioIds.has(source.mediaId) ? source.mediaId : undefined;
+    const candidates =
+      linked === undefined &&
+      source.linkedMediaFilename !== undefined &&
+      source.linkedMediaFilename.trim().length > 0
+        ? (audioByFilename.get(source.linkedMediaFilename.trim().toLowerCase()) ?? [])
+        : [];
+    const suggested = candidates.length === 1 ? candidates[0] : undefined;
     views.push({
       id: source.id,
       kind: 'manuscript',
       format: source.format,
       name: source.name,
-      ...(linkedFromName !== undefined
-        ? { mediaId: linkedFromName, linkedAudioId: linkedFromName }
-        : {}),
+      ...(linked !== undefined ? { mediaId: linked, linkedAudioId: linked } : {}),
+      ...(suggested !== undefined ? { suggestedAudioId: suggested } : {}),
     });
   }
   return orderProjectFiles(views);

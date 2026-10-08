@@ -39,6 +39,10 @@ import { PanelButton } from '../ui/PanelButton';
 import { PanelChip } from '../ui/PanelChip';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
+import {
+  previewSourceImportForFile,
+  type SourceImportPlan,
+} from '../../services/sourceRecordService';
 
 interface ProjectImportState {
   file: File;
@@ -51,6 +55,8 @@ interface AnnotationImportState {
   file: File;
   strategy: AnnotationImportBridgeStrategy;
   importing: boolean;
+  /** 2B-D 来源身份预览（只读）| 2B-D source identity preview (read-only) */
+  sourcePlan?: SourceImportPlan | null;
 }
 
 interface TimeMappingDialogState {
@@ -251,14 +257,29 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     setIsOpen(false);
   }, [activeTextTimeMapping]);
 
-  const handleAnnotationImportPicked = useCallback((file: File) => {
-    setAnnotationImportState({
-      file,
-      strategy: DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
-      importing: false,
-    });
-    setIsOpen(false);
-  }, []);
+  const handleAnnotationImportPicked = useCallback(
+    (file: File) => {
+      setAnnotationImportState({
+        file,
+        strategy: DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+        importing: false,
+      });
+      setIsOpen(false);
+      // 先预览来源身份（rev5 4.2-2）：同 URN 会更新已有文档 | Preview source identity first (rev5 4.2-2)
+      fireAndForget(
+        previewSourceImportForFile(activeTextId, file).then((sourcePlan) => {
+          setAnnotationImportState((prev) =>
+            prev && prev.file === file ? { ...prev, sourcePlan } : prev,
+          );
+        }),
+        {
+          context: 'src/components/transcription/LeftRailProjectHub.tsx:previewSourceImport',
+          policy: 'background-quiet',
+        },
+      );
+    },
+    [activeTextId],
+  );
 
   const handleProjectArchivePicked = useCallback(
     async (file: File) => {
@@ -1188,6 +1209,28 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             title={annotationImportState.file.name}
             description={t(locale, 'transcription.projectHub.annotationImportDialogSummary')}
           />
+          {annotationImportState.sourcePlan ? (
+            <p
+              className="small-text left-rail-project-import-source-plan"
+              data-testid="annotation-import-source-plan"
+              data-plan={annotationImportState.sourcePlan.kind}
+            >
+              {annotationImportState.sourcePlan.kind === 'update-existing'
+                ? tf(locale, 'transcription.projectHub.sourcePlan.updateExisting', {
+                    name: annotationImportState.sourcePlan.record.displayName,
+                  })
+                : annotationImportState.sourcePlan.kind === 'same-content'
+                  ? tf(locale, 'transcription.projectHub.sourcePlan.sameContent', {
+                      name: annotationImportState.sourcePlan.record.displayName,
+                    })
+                  : annotationImportState.sourcePlan.displayName !==
+                      annotationImportState.file.name.trim()
+                    ? tf(locale, 'transcription.projectHub.sourcePlan.renamed', {
+                        name: annotationImportState.sourcePlan.displayName,
+                      })
+                    : t(locale, 'transcription.projectHub.sourcePlan.new')}
+            </p>
+          ) : null}
 
           <PanelSection
             className="left-rail-project-import-strategy-section"

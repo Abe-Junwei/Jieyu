@@ -115,8 +115,14 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
   });
   const tierMetadata = new Map<string, OrthographyInteropMetadata>();
   let timelineMetadata: TimelineInteropMetadata | undefined;
+  let documentUrn: string | undefined;
   doc.querySelectorAll('HEADER > PROPERTY').forEach((property) => {
     const name = property.getAttribute('NAME') ?? '';
+    if (name === 'URN') {
+      const urn = property.textContent?.trim() ?? '';
+      if (urn.length > 0) documentUrn = urn;
+      return;
+    }
     // Standard ELAN header properties (MEDIA_FILE, TIME_UNITS, …) are plain text —
     // only Jieyu interop properties carry JSON payloads.
     const isTimelineMeta = name === JIEYU_PROJECT_META_TIMELINE;
@@ -355,6 +361,7 @@ export function importFromEaf(xmlString: string, options?: EafImportOptions): Ea
     tierMetadata,
     ...(importedUserNotes.length > 0 ? { userNotes: importedUserNotes } : {}),
     ...(Object.keys(documentTitle).length > 0 ? { documentTitle } : {}),
+    ...(documentUrn ? { documentUrn } : {}),
     ...(speakerNotes.length > 0 ? { speakerNotes } : {}),
     ...(sideChannelNotes.length > 0 ? { sideChannelNotes } : {}),
     ...(extraTranscriptionTiers.length > 0 ? { extraTranscriptionTiers } : {}),

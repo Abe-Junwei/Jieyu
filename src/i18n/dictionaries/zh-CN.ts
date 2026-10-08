@@ -34,6 +34,9 @@ export const zhCNDictionary = {
   'app.files.audio': '音频',
   'app.files.manuscript': '文稿',
   'app.files.linked': '关联文稿',
+  'app.files.linkRecording': '关联录音',
+  'app.files.unlinked': '未关联录音',
+  'app.files.suggestedRecording': '{name}（建议）',
   'app.files.rename': '编辑名称',
   'app.files.recordings': '音频与转写语料看板',
   'app.files.recordingCount': '{count} 条录音',
@@ -1560,6 +1563,13 @@ export const zhCNDictionary = {
   'transcription.projectHub.annotationStrategy.preserveSourceAndBridgeHint':
     '来源层保留原文；若存在桥接规则，则目标层再写入桥接结果。',
   'transcription.projectHub.confirmAnnotationImport': '开始导入标注',
+  'transcription.projectHub.sourcePlan.updateExisting':
+    '这是项目里已有文档「{name}」的新版本（同一 URN），将更新该文档，显示名保持不变。',
+  'transcription.projectHub.sourcePlan.sameContent':
+    '内容与已有文档「{name}」完全相同，不会新增来源记录。',
+  'transcription.projectHub.sourcePlan.renamed':
+    '项目里已有同名文件，这份将作为新文档显示为「{name}」。',
+  'transcription.projectHub.sourcePlan.new': '将作为新文档登记。',
   'transcription.importExport.sourcePreservationLayerSuffix': '原文',
   'transcription.projectHub.importing': '导入中…',
   'transcription.projectHub.importFailedHint': '导入失败，请检查上方错误提示后重试。',

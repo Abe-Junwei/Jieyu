@@ -36,6 +36,9 @@ export const enUSDictionary = {
   'app.files.audio': 'Audio',
   'app.files.manuscript': 'Manuscript',
   'app.files.linked': 'Linked manuscript',
+  'app.files.linkRecording': 'Link recording',
+  'app.files.unlinked': 'No linked recording',
+  'app.files.suggestedRecording': '{name} (suggested)',
   'app.files.rename': 'Edit name',
   'app.files.recordings': 'Audio and transcription board',
   'app.files.recordingCount': '{count} recordings',
@@ -1663,6 +1666,13 @@ export const enUSDictionary = {
   'transcription.projectHub.annotationStrategy.preserveSourceAndBridgeHint':
     'Preserve the source text and also write a bridged target copy when a bridge rule is available.',
   'transcription.projectHub.confirmAnnotationImport': 'Start annotation import',
+  'transcription.projectHub.sourcePlan.updateExisting':
+    'This is a new version of “{name}” already in the project (same URN). It will update that document and keep its display name.',
+  'transcription.projectHub.sourcePlan.sameContent':
+    'Identical to “{name}” already in the project. No new source record will be added.',
+  'transcription.projectHub.sourcePlan.renamed':
+    'A file with this name already exists. This one becomes a new document shown as “{name}”.',
+  'transcription.projectHub.sourcePlan.new': 'Will be registered as a new document.',
   'transcription.importExport.sourcePreservationLayerSuffix': 'Source',
   'transcription.projectHub.importing': 'Importing…',
   'transcription.projectHub.importFailedHint':
