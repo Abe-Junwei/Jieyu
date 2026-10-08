@@ -215,3 +215,55 @@ describe('importDatabaseFromJson', () => {
     );
   });
 });
+
+describe('JY-05: pruneOrphanUserNotes during JSON import', () => {
+  const T = 'text-jy05';
+
+  beforeEach(async () => {
+    await db.open();
+    await Promise.all(db.tables.map((table) => table.clear()));
+    await db.texts.put({ id: T, title: { default: 'JY-05' }, createdAt: NOW, updatedAt: NOW });
+  });
+
+  it('keeps notes on units stored without unitType and on segment rows; still drops true orphans', async () => {
+    await db.layer_units.put({
+      id: 'u-plain',
+      textId: T,
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_units.put({
+      id: 'u-seg',
+      textId: T,
+      unitType: 'segment',
+      layerId: 'L',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    for (const id of ['u-plain', 'u-seg', 'u-gone']) {
+      await db.user_notes.put({
+        id: `note-${id}`,
+        targetType: 'unit',
+        targetId: id,
+        content: { default: 'keep me' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+    }
+    // 无关的导入（多一个文本）| Unrelated import (one extra text)
+    await importDatabaseFromJson({
+      schemaVersion: 4,
+      exportedAt: NOW,
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        texts: [{ id: 'other', title: { default: 'x' }, createdAt: NOW, updatedAt: NOW }],
+      },
+    });
+    const left = (await db.user_notes.toArray()).map((note) => note.id).sort();
+    expect(left).toEqual(['note-u-plain', 'note-u-seg']);
+  });
+});

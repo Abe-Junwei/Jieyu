@@ -396,15 +396,11 @@ async function pruneOrphanUserNotes(): Promise<number> {
     if (note.targetType === 'morpheme') morphemeIds.add(note.targetId);
   }
 
+  // JY-05：只看目标行是否存在；segment 行和缺 unitType 的单元同样可挂 'unit' 备注
+  // JY-05: existence only; notes may target segment rows and units stored without unitType
   const existingUnitIds = new Set(
     (await db.layer_units.bulkGet([...unitIds])).flatMap((d) =>
-      d !== undefined &&
-      d !== null &&
-      d.unitType === 'unit' &&
-      typeof d.id === 'string' &&
-      d.id.length > 0
-        ? [d.id]
-        : [],
+      d?.id !== undefined && d.id.length > 0 ? [d.id] : [],
     ),
   );
   const existingTextIds = new Set(
