@@ -119,6 +119,12 @@ export function LexiconEntryEditForm({ editor }: Props) {
             data-testid={`lexicon-entry-sense-${index}`}
           >
             <TextField
+              label={t(locale, 'workspace.lexicon.edit.indicatorLabel')}
+              testId={`lexicon-entry-sense-${index}-indicator`}
+              value={sense.indicator}
+              onChange={(value) => editor.onSenseChange(index, 'indicator', value)}
+            />
+            <TextField
               label={t(locale, 'workspace.lexicon.edit.translationLabel')}
               testId={
                 index === 0
@@ -157,6 +163,12 @@ export function LexiconEntryEditForm({ editor }: Props) {
               testId={`lexicon-entry-sense-${index}-example-segment`}
               value={sense.exampleSegmentId}
               onChange={(value) => editor.onSenseChange(index, 'exampleSegmentId', value)}
+            />
+            <TextField
+              label={t(locale, 'workspace.lexicon.edit.senseNoteLabel')}
+              testId={`lexicon-entry-sense-${index}-note`}
+              value={sense.note}
+              onChange={(value) => editor.onSenseChange(index, 'note', value)}
             />
             <div className="lexicon-entry-edit-actions">
               <button

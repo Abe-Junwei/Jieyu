@@ -459,6 +459,8 @@ export const zhCNDictionary = {
   'workspace.lexicon.edit.definitionLabel': '释义',
   'workspace.lexicon.edit.exampleLabel': '例句',
   'workspace.lexicon.edit.exampleSegmentLabel': '例句语段',
+  'workspace.lexicon.edit.indicatorLabel': '义项提示',
+  'workspace.lexicon.edit.senseNoteLabel': '义项注释',
   'workspace.lexicon.edit.lemmaLabel': '词元',
   'workspace.lexicon.edit.glossLabel': '主 gloss',
   'workspace.lexicon.edit.categoryLabel': '词类',
