@@ -1,0 +1,23 @@
+.catalog-project-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 520px;
+  margin: 48px auto;
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+
+.catalog-project-gate__title {
+  margin: 0;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
+}
+
+.catalog-project-gate__description {
+  margin: 0;
+  color: var(--text-secondary);
+}

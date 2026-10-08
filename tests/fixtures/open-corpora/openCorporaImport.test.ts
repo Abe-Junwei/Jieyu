@@ -165,7 +165,7 @@ describe('open corpora fixtures', () => {
         `${file.language} (${file.path}) imports lexemes`,
         () => {
           const raw = readFileSync(join(ROOT, file.path), 'utf-8');
-          const parsed = parseLiftXml(raw);
+          const parsed = parseLiftXml(raw, 'text-1');
           expect(parsed.ok).toBe(true);
           if (!parsed.ok) return;
           expect(parsed.lexemes.length).toBeGreaterThan(0);

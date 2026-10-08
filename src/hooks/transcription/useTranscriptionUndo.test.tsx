@@ -58,7 +58,7 @@ function makeSpeaker(id: string, name: string): SpeakerDocType {
   const now = new Date().toISOString();
   return {
     id,
-    projectId: 'proj-1',
+    textId: 'proj-1',
     name,
     createdAt: now,
     updatedAt: now,

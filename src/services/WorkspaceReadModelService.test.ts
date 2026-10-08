@@ -1,12 +1,29 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, type AiTaskDoc, type LanguageAliasDocType, type LanguageDisplayNameDocType, type LanguageDocType, type LayerDocType, type LayerLinkDocType, type LayerUnitContentDocType, type LayerUnitDocType, type OrthographyBridgeDocType, type OrthographyDocType, type SpeakerDocType, type UserNoteDocType } from '../db';
+import {
+  db,
+  getDb,
+  type AiTaskDoc,
+  type LanguageAliasDocType,
+  type LanguageDisplayNameDocType,
+  type LanguageDocType,
+  type LayerDocType,
+  type LayerLinkDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type OrthographyBridgeDocType,
+  type OrthographyDocType,
+  type SpeakerDocType,
+  type UserNoteDocType,
+} from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
 import { WorkspaceReadModelService } from './WorkspaceReadModelService';
 
 const NOW = '2026-04-16T00:00:00.000Z';
 
-function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'layerType'>): LayerDocType {
+function makeLayer(
+  overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'layerType'>,
+): LayerDocType {
   const layerType = overrides.layerType;
   const treeParent =
     layerType === 'transcription' && overrides.parentLayerId
@@ -27,7 +44,10 @@ function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 
   } as LayerDocType;
 }
 
-function makeUnit(overrides: Partial<LayerUnitDocType> & Pick<LayerUnitDocType, 'id' | 'layerId' | 'unitType' | 'startTime' | 'endTime'>): LayerUnitDocType {
+function makeUnit(
+  overrides: Partial<LayerUnitDocType> &
+    Pick<LayerUnitDocType, 'id' | 'layerId' | 'unitType' | 'startTime' | 'endTime'>,
+): LayerUnitDocType {
   return {
     id: overrides.id,
     textId: overrides.textId ?? 'text-1',
@@ -46,7 +66,10 @@ function makeUnit(overrides: Partial<LayerUnitDocType> & Pick<LayerUnitDocType, 
   };
 }
 
-function makeContent(overrides: Partial<LayerUnitContentDocType> & Pick<LayerUnitContentDocType, 'id' | 'unitId' | 'layerId'>): LayerUnitContentDocType {
+function makeContent(
+  overrides: Partial<LayerUnitContentDocType> &
+    Pick<LayerUnitContentDocType, 'id' | 'unitId' | 'layerId'>,
+): LayerUnitContentDocType {
   return {
     id: overrides.id,
     textId: overrides.textId ?? 'text-1',
@@ -64,10 +87,14 @@ function makeContent(overrides: Partial<LayerUnitContentDocType> & Pick<LayerUni
 }
 
 function makeSpeaker(id: string, name: string): SpeakerDocType {
-  return { id, name, createdAt: NOW, updatedAt: NOW };
+  return { id, textId: 'text-1', name, createdAt: NOW, updatedAt: NOW };
 }
 
-function makeNote(id: string, targetId: string, category: UserNoteDocType['category']): UserNoteDocType {
+function makeNote(
+  id: string,
+  targetId: string,
+  category: UserNoteDocType['category'],
+): UserNoteDocType {
   return {
     id,
     targetType: 'unit',
@@ -82,6 +109,7 @@ function makeNote(id: string, targetId: string, category: UserNoteDocType['categ
 function makeLanguage(id: string, name: string): LanguageDocType {
   return {
     id,
+    textId: 'text-1',
     name: { eng: name },
     languageCode: id,
     canonicalTag: id,
@@ -94,6 +122,7 @@ function makeLanguage(id: string, name: string): LanguageDocType {
 function makeAlias(id: string, languageId: string, alias: string): LanguageAliasDocType {
   return {
     id,
+    textId: 'text-1',
     languageId,
     alias,
     normalizedAlias: alias.toLowerCase(),
@@ -104,9 +133,14 @@ function makeAlias(id: string, languageId: string, alias: string): LanguageAlias
   };
 }
 
-function makeDisplayName(id: string, languageId: string, value: string): LanguageDisplayNameDocType {
+function makeDisplayName(
+  id: string,
+  languageId: string,
+  value: string,
+): LanguageDisplayNameDocType {
   return {
     id,
+    textId: 'text-1',
     languageId,
     locale: 'zh-CN',
     role: 'preferred',
@@ -120,6 +154,7 @@ function makeDisplayName(id: string, languageId: string, value: string): Languag
 function makeOrthography(id: string, languageId: string): OrthographyDocType {
   return {
     id,
+    textId: 'text-1',
     languageId,
     name: { eng: id },
     createdAt: NOW,
@@ -127,9 +162,14 @@ function makeOrthography(id: string, languageId: string): OrthographyDocType {
   };
 }
 
-function makeBridge(id: string, sourceOrthographyId: string, targetOrthographyId: string): OrthographyBridgeDocType {
+function makeBridge(
+  id: string,
+  sourceOrthographyId: string,
+  targetOrthographyId: string,
+): OrthographyBridgeDocType {
   return {
     id,
+    textId: 'text-1',
     sourceOrthographyId,
     targetOrthographyId,
     engine: 'table-map',
@@ -181,8 +221,17 @@ describe('WorkspaceReadModelService', () => {
   it('materializes quality, scope, speaker, and translation snapshots for a text', async () => {
     const rxDb = await getDb();
     await rxDb.collections.layers.bulkInsert([
-      makeLayer({ id: 'layer-seg', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'layer-trn', layerType: 'translation', constraint: 'symbolic_association', languageId: 'zho' }),
+      makeLayer({
+        id: 'layer-seg',
+        layerType: 'transcription',
+        constraint: 'independent_boundary',
+      }),
+      makeLayer({
+        id: 'layer-trn',
+        layerType: 'translation',
+        constraint: 'symbolic_association',
+        languageId: 'zho',
+      }),
     ]);
     const segLayerLink: LayerLinkDocType = {
       id: 'link-trn-seg',
@@ -197,20 +246,91 @@ describe('WorkspaceReadModelService', () => {
 
     await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
     await db.layer_units.bulkPut([
-      makeUnit({ id: 'utt-1', layerId: 'layer-seg', unitType: 'unit', startTime: 0, endTime: 1, speakerId: 'spk-1', selfCertainty: 'certain', status: 'verified' }),
-      makeUnit({ id: 'utt-2', layerId: 'layer-seg', unitType: 'unit', startTime: 1, endTime: 2, status: 'raw' }),
-      makeUnit({ id: 'seg-1', layerId: 'layer-seg', unitType: 'segment', parentUnitId: 'utt-1', rootUnitId: 'utt-1', startTime: 0, endTime: 1, status: 'verified' }),
-      makeUnit({ id: 'seg-2', layerId: 'layer-seg', unitType: 'segment', parentUnitId: 'utt-2', rootUnitId: 'utt-2', startTime: 1, endTime: 2, status: 'raw' }),
-      makeUnit({ id: 'trl-1', layerId: 'layer-trn', unitType: 'segment', parentUnitId: 'utt-1', rootUnitId: 'utt-1', startTime: 0, endTime: 1, status: 'translated' }),
-      makeUnit({ id: 'trl-2', layerId: 'layer-trn', unitType: 'segment', parentUnitId: 'utt-2', rootUnitId: 'utt-2', startTime: 1, endTime: 2, status: 'raw' }),
+      makeUnit({
+        id: 'utt-1',
+        layerId: 'layer-seg',
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        speakerId: 'spk-1',
+        selfCertainty: 'certain',
+        status: 'verified',
+      }),
+      makeUnit({
+        id: 'utt-2',
+        layerId: 'layer-seg',
+        unitType: 'unit',
+        startTime: 1,
+        endTime: 2,
+        status: 'raw',
+      }),
+      makeUnit({
+        id: 'seg-1',
+        layerId: 'layer-seg',
+        unitType: 'segment',
+        parentUnitId: 'utt-1',
+        rootUnitId: 'utt-1',
+        startTime: 0,
+        endTime: 1,
+        status: 'verified',
+      }),
+      makeUnit({
+        id: 'seg-2',
+        layerId: 'layer-seg',
+        unitType: 'segment',
+        parentUnitId: 'utt-2',
+        rootUnitId: 'utt-2',
+        startTime: 1,
+        endTime: 2,
+        status: 'raw',
+      }),
+      makeUnit({
+        id: 'trl-1',
+        layerId: 'layer-trn',
+        unitType: 'segment',
+        parentUnitId: 'utt-1',
+        rootUnitId: 'utt-1',
+        startTime: 0,
+        endTime: 1,
+        status: 'translated',
+      }),
+      makeUnit({
+        id: 'trl-2',
+        layerId: 'layer-trn',
+        unitType: 'segment',
+        parentUnitId: 'utt-2',
+        rootUnitId: 'utt-2',
+        startTime: 1,
+        endTime: 2,
+        status: 'raw',
+      }),
     ]);
     await db.layer_unit_contents.bulkPut([
       makeContent({ id: 'content-utt-1', unitId: 'utt-1', layerId: 'layer-seg', text: 'host one' }),
       makeContent({ id: 'content-utt-2', unitId: 'utt-2', layerId: 'layer-seg', text: '' }),
-      makeContent({ id: 'content-seg-1', unitId: 'seg-1', layerId: 'layer-seg', text: 'hello world', ai_metadata: { confidence: 0.9 } }),
+      makeContent({
+        id: 'content-seg-1',
+        unitId: 'seg-1',
+        layerId: 'layer-seg',
+        text: 'hello world',
+        ai_metadata: { confidence: 0.9 },
+      }),
       makeContent({ id: 'content-seg-2', unitId: 'seg-2', layerId: 'layer-seg', text: '' }),
-      makeContent({ id: 'content-trl-1', unitId: 'trl-1', layerId: 'layer-trn', contentRole: 'translation', text: '你好', isVerified: true }),
-      makeContent({ id: 'content-trl-2', unitId: 'trl-2', layerId: 'layer-trn', contentRole: 'translation', text: '' }),
+      makeContent({
+        id: 'content-trl-1',
+        unitId: 'trl-1',
+        layerId: 'layer-trn',
+        contentRole: 'translation',
+        text: '你好',
+        isVerified: true,
+      }),
+      makeContent({
+        id: 'content-trl-2',
+        unitId: 'trl-2',
+        layerId: 'layer-trn',
+        contentRole: 'translation',
+        text: '',
+      }),
     ]);
     await db.user_notes.put(makeNote('note-1', 'utt-2', 'todo'));
 

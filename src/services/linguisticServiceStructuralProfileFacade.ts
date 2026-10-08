@@ -1,5 +1,6 @@
 import { loadStructuralProfileService } from './linguisticServiceLazyLoaders';
 import type {
+  CopySystemStructuralRuleProfileInput,
   CreateStructuralRuleProfileAssetInput,
   PreviewStructuralRuleProfileInput,
   StructuralRuleProfileAssetSelector,
@@ -21,6 +22,15 @@ export async function createStructuralRuleProfileAsset(
   return (
     await loadStructuralProfileService()
   ).LinguisticStructuralProfileService.createStructuralRuleProfileAsset(input);
+}
+
+/** 系统模板复制到项目（rev5 4.2-9）| Copy a code-only system template into the project */
+export async function copySystemStructuralRuleProfileToProject(
+  input: CopySystemStructuralRuleProfileInput,
+) {
+  return (
+    await loadStructuralProfileService()
+  ).LinguisticStructuralProfileService.copySystemTemplateToProject(input);
 }
 
 export async function updateStructuralRuleProfileAsset(

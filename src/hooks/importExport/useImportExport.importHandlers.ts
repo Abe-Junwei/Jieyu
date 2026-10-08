@@ -729,7 +729,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         const explicit = explicitId?.trim();
         if (explicit) {
           const row = await db.dexie.lexemes.get(explicit);
-          if (row && isLexemeEntry(row)) return row.id;
+          if (row && isLexemeEntry(row) && row.textId === importTextId) return row.id;
         }
         const surface =
           (typeof form.default === 'string' && form.default.trim()) ||
@@ -744,6 +744,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         if (cached) return cached;
         const lexemeId = await LinguisticService.lexemes.matchOrCreateByForm({
           form: surface,
+          textId: importTextId,
           ...(lang ? { language: lang } : {}),
         });
         if (lexemeId) lexemeIdByFormKey.set(cacheKey, lexemeId);

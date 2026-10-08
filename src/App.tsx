@@ -60,6 +60,7 @@ import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
 import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
 import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMaterialIcon';
+import { CatalogProjectGate } from './components/CatalogProjectGate';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
@@ -831,7 +832,14 @@ export function App() {
                         <Route path="/analysis" element={<AnalysisPage />} />
                         <Route path="/writing" element={<Navigate to="/corpus" replace />} />
                         <Route path="/corpus" element={<CorpusLibraryPage />} />
-                        <Route path="/lexicon" element={<LexiconPage />} />
+                        <Route
+                          path="/lexicon"
+                          element={
+                            <CatalogProjectGate>
+                              <LexiconPage />
+                            </CatalogProjectGate>
+                          }
+                        />
                         <Route path="*" element={<NotFound locale={locale} />} />
                       </Routes>
                     </Suspense>
@@ -844,10 +852,12 @@ export function App() {
                         renderShell={false}
                         wide
                       >
-                        <LanguageMetadataWorkspacePage
-                          registerSidePane={false}
-                          onClose={handleAssetPanelClose}
-                        />
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <LanguageMetadataWorkspacePage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
                       </ModalPanel>
                       <ModalPanel
                         isOpen={openAssetPanel === 'structural-profiles'}
@@ -857,10 +867,12 @@ export function App() {
                         renderShell={false}
                         wide
                       >
-                        <StructuralProfileWorkspacePage
-                          registerSidePane={false}
-                          onClose={handleAssetPanelClose}
-                        />
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <StructuralProfileWorkspacePage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
                       </ModalPanel>
                       <ModalPanel
                         isOpen={openAssetPanel === 'orthographies'}
@@ -870,10 +882,12 @@ export function App() {
                         renderShell={false}
                         wide
                       >
-                        <OrthographyManagerPage
-                          registerSidePane={false}
-                          onClose={handleAssetPanelClose}
-                        />
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <OrthographyManagerPage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
                       </ModalPanel>
                       <ModalPanel
                         isOpen={openAssetPanel === 'orthography-bridges'}
@@ -883,10 +897,12 @@ export function App() {
                         renderShell={false}
                         wide
                       >
-                        <OrthographyBridgeWorkspacePage
-                          registerSidePane={false}
-                          onClose={handleAssetPanelClose}
-                        />
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <OrthographyBridgeWorkspacePage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
                       </ModalPanel>
                     </Suspense>
                   </AssetPanelProvider>

@@ -119,6 +119,10 @@ export const enUSDictionary = {
   'app.nav.summary.orthographies':
     'Orthography metadata with script, input, and rendering maintenance',
   'app.nav.summary.orthographyBridges': 'Conversion and bridge maintenance between orthographies',
+  'catalog.projectGate.title': 'Select a project first',
+  'catalog.projectGate.description':
+    'The lexicon, language catalog, orthographies and annotation templates all belong to a project. Open a project to view or edit them here.',
+  'catalog.projectGate.selectProject': 'Select project',
   'app.nav.summary.structuralProfiles':
     'Edit this project’s gloss abbreviations and parts of speech, and preview gloss segmentation',
   'app.featureAvailability.currentStatus': 'Current status',
@@ -1634,6 +1638,8 @@ export const enUSDictionary = {
   'transcription.projectHub.importDialogExportedAt': 'Exported at: {at}',
   'transcription.projectHub.importDialogStats':
     'Archive contains {incoming} records, {conflicts} potential conflicts, and this strategy is estimated to write {insertable} records.',
+  'transcription.projectHub.importDialogUnresolvedSystemRefs':
+    'Unresolved system template references: {ids}',
   'transcription.projectHub.importDialogStrategy': 'Import strategy',
   'transcription.projectHub.strategy.upsert': 'Overwrite conflicts (upsert)',
   'transcription.projectHub.strategy.skipExisting': 'Keep existing records (skip-existing)',

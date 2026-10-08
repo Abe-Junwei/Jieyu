@@ -1,5 +1,7 @@
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import type { ImportConflictStrategy, ImportResult } from '../db/types';
+import { isSystemTemplateId } from '../db/catalogOwnership';
+import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProfiles';
 
 const ARCHIVE_FORMAT_VERSION = 1;
 const MIMETYPE_JYM = 'application/x-jieyu-media';
@@ -62,6 +64,20 @@ interface JieyuArchiveManifest {
   exportedAt: string;
   dbName?: string;
   encryption?: JieyuArchiveEncryptionMetadata;
+  /** 被引用的系统模板（rev5 7.2/7.3）：系统模板本身从不导出 | Referenced code-only system templates */
+  systemRefs?: Array<{ id: string }>;
+}
+
+/** 项目行引用到的系统模板 ID | System template ids referenced by stored rows */
+export function collectArchiveSystemRefs(snapshot: {
+  collections: Record<string, unknown[]>;
+}): Array<{ id: string }> {
+  const ids = new Set<string>();
+  for (const row of snapshot.collections['structural_rule_profiles'] ?? []) {
+    const ref = (row as { derivedFromSystemId?: unknown } | null)?.derivedFromSystemId;
+    if (isSystemTemplateId(ref)) ids.add(ref);
+  }
+  return [...ids].sort().map((id) => ({ id }));
 }
 
 export interface JieyuArchiveEncryptionOptions {
@@ -93,6 +109,8 @@ export interface JieyuArchiveImportPreview {
   kind: ArchiveKind;
   manifest: JieyuArchiveManifest;
   collections: JieyuArchiveImportPreviewCollection[];
+  /** 当前代码里不存在的系统引用（rev5 4.2-9）| System refs the running code cannot resolve */
+  unresolvedSystemRefs: string[];
   totalIncoming: number;
   totalConflicts: number;
 }
@@ -520,6 +538,7 @@ export async function exportToJieyuArchive(
     schemaVersion: snapshot.schemaVersion,
     exportedAt: snapshot.exportedAt,
     dbName: snapshot.dbName,
+    systemRefs: collectArchiveSystemRefs(snapshot),
   };
 
   const files: Record<string, Uint8Array> = {
@@ -622,6 +641,9 @@ export async function previewJieyuArchiveImport(
     kind,
     manifest,
     collections: previewCollections,
+    unresolvedSystemRefs: listUnresolvedSystemRefs(
+      (manifest.systemRefs ?? []).map((ref) => ref.id),
+    ),
     totalIncoming: previewCollections.reduce((sum, item) => sum + item.incoming, 0),
     totalConflicts: previewCollections.reduce((sum, item) => sum + item.conflicts, 0),
   };

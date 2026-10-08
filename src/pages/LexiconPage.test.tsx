@@ -67,6 +67,7 @@ const now = '2026-04-04T00:00:00.000Z';
 function entry(id: string, headword: string, translation: string, definition = ''): LexemeEntryDoc {
   return {
     id,
+    textId: 'text-1',
     entry: {
       id,
       headword,

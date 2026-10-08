@@ -159,15 +159,10 @@ export function filterCollectionsForProject(
     next.user_notes = notes;
   }
 
-  const speakerIds = new Set<string>();
-  for (const unit of rowsOf(next, 'layer_units')) {
-    const speakerId = rowString(unit, 'speakerId');
-    if (speakerId !== null) speakerIds.add(speakerId);
-  }
-  const speakers = rowsOf(collections, 'speakers').filter((row) => {
-    const id = rowString(row, 'id');
-    return (id !== null && speakerIds.has(id)) || rowString(row, 'textId') === projectId;
-  });
+  // 2B-B：说话人和其他目录行一样只按归属取 | Speakers are filtered by owner like every catalog row
+  const speakers = rowsOf(collections, 'speakers').filter(
+    (row) => rowString(row, 'textId') === projectId,
+  );
   if (speakers.length > 0) {
     next.speakers = speakers;
   }

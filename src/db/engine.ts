@@ -114,12 +114,12 @@ import {
   validateAiSourceSetDoc,
 } from './schemas';
 import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter } from './adapter';
-import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
 import { markBackupDirtySinceLastExport } from '../utils/backupExportReminderState';
 import {
   createWriteValidationMiddleware,
   type JieyuTableValidators,
 } from './writeValidationMiddleware';
+import { withCatalogOwnershipRules } from './catalogOwnership';
 
 /**
  * IndexedDB 物理库名（D10）。旧库 `jieyudb_v2` 不再打开，由启动时的旧数据提示负责删除。
@@ -206,27 +206,6 @@ export const JIEYU_BASELINE_STORES = {
   user_notes: 'id, [targetType+targetId], [targetId+targetIndex], updatedAt',
 } as const satisfies Record<string, string>;
 
-/** Idempotent: greenfield DBs may jump to the target Dexie version without running per-version upgrade hooks, so this runs after `dexie.open()` in `_createDb`. */
-async function ensureSystemLeipzigStructuralProfileSeeded(dexie: JieyuDexie): Promise<void> {
-  const id = 'system.leipzig-structural.v1';
-  const existing = await dexie.structural_rule_profiles.get(id);
-  if (existing) {
-    return;
-  }
-  const now = new Date().toISOString();
-  const doc: StructuralRuleProfileAssetDocType = {
-    id,
-    scope: 'system',
-    enabled: true,
-    priority: 0,
-    profile: DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
-    createdAt: now,
-    updatedAt: now,
-  };
-  validateStructuralRuleProfileAssetDoc(doc);
-  await dexie.structural_rule_profiles.put(doc);
-}
-
 export class JieyuDexie extends Dexie {
   texts!: Table<TextDocType, string>;
   media_items!: Table<MediaItemDocType, string>;
@@ -284,7 +263,8 @@ export class JieyuDexie extends Dexie {
     this.version(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).stores(JIEYU_BASELINE_STORES);
     // 4.4 统一写入校验：所有经 Dexie 的写入（含 table.put/bulkPut/update/modify）逐行校验。
     // 4.4 unified write validation for every Dexie write path.
-    this.use(createWriteValidationMiddleware(JIEYU_TABLE_VALIDATORS));
+    // 2B-B：目录行必须带项目归属，且不接受 `system.*` ID。| Catalog ownership + no `system.*` ids.
+    this.use(createWriteValidationMiddleware(withCatalogOwnershipRules(JIEYU_TABLE_VALIDATORS)));
   }
 }
 
@@ -432,11 +412,6 @@ async function _createDb(): Promise<JieyuDatabase> {
     throw openError;
   }
   registerIndexedDbMutationBackupHooks(dexie);
-  try {
-    await ensureSystemLeipzigStructuralProfileSeeded(dexie);
-  } catch {
-    // Best-effort: seeding must not block app boot; callers still validate on write.
-  }
 
   const collections: JieyuCollections = {
     texts: new DexieCollectionAdapter(dexie.texts, validateTextDoc),

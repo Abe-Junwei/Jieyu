@@ -18,7 +18,7 @@ describe('parseLiftXml properties', () => {
   it('accepts any string without throwing, and keeps only non-empty headwords', () => {
     fc.assert(
       fc.property(fc.string({ maxLength: 2_000 }), (xml) => {
-        const parsed = parseLiftXml(xml);
+        const parsed = parseLiftXml(xml, 'text-1');
         if (!parsed.ok) {
           expect(parsed).not.toHaveProperty('lexemes');
           return;
@@ -35,7 +35,7 @@ describe('parseLiftXml properties', () => {
   it('projects a trimmed headword and drops a blank one', () => {
     fc.assert(
       fc.property(fc.stringMatching(/^[0-9a-f]{1,8}$/), xmlText, (id, headword) => {
-        const parsed = parseLiftXml(liftDocument(id, headword));
+        const parsed = parseLiftXml(liftDocument(id, headword), 'text-1');
         const trimmed = headword.trim();
         if (trimmed.length === 0) {
           expect(parsed).toEqual({ ok: false, reason: 'empty' });
@@ -53,7 +53,7 @@ describe('parseLiftXml properties', () => {
     const entry = `<entry id="lex"><lexical-unit><form lang="und"><text>pine</text></form></lexical-unit></entry>`;
     const xml = `<?xml version="1.0"?><lift version="0.13">${entry.repeat(400)}</lift>`;
     const started = performance.now();
-    const parsed = parseLiftXml(xml);
+    const parsed = parseLiftXml(xml, 'text-1');
     expect(performance.now() - started).toBeLessThan(5_000);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;

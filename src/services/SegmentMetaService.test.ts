@@ -1,6 +1,13 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, type LayerUnitContentDocType, type LayerUnitDocType, type SegmentMetaDocType, type SpeakerDocType, type UserNoteDocType } from '../db';
+import {
+  db,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type SegmentMetaDocType,
+  type SpeakerDocType,
+  type UserNoteDocType,
+} from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
 
 const NOW = '2026-04-16T00:00:00.000Z';
@@ -8,6 +15,7 @@ const NOW = '2026-04-16T00:00:00.000Z';
 function makeSpeaker(id: string, name: string): SpeakerDocType {
   return {
     id,
+    textId: 'text-1',
     name,
     createdAt: NOW,
     updatedAt: NOW,
@@ -31,7 +39,13 @@ function makeUnitUnit(id: string, layerId: string): LayerUnitDocType {
   };
 }
 
-function makeSegmentUnit(id: string, layerId: string, parentUnitId: string, startTime: number, endTime: number): LayerUnitDocType {
+function makeSegmentUnit(
+  id: string,
+  layerId: string,
+  parentUnitId: string,
+  startTime: number,
+  endTime: number,
+): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -47,7 +61,12 @@ function makeSegmentUnit(id: string, layerId: string, parentUnitId: string, star
   };
 }
 
-function makeContent(id: string, unitId: string, layerId: string, text: string): LayerUnitContentDocType {
+function makeContent(
+  id: string,
+  unitId: string,
+  layerId: string,
+  text: string,
+): LayerUnitContentDocType {
   return {
     id,
     textId: 'text-1',
@@ -63,7 +82,11 @@ function makeContent(id: string, unitId: string, layerId: string, text: string):
   };
 }
 
-function makeNote(id: string, targetId: string, category: UserNoteDocType['category']): UserNoteDocType {
+function makeNote(
+  id: string,
+  targetId: string,
+  category: UserNoteDocType['category'],
+): UserNoteDocType {
   return {
     id,
     targetType: 'unit',
@@ -75,7 +98,11 @@ function makeNote(id: string, targetId: string, category: UserNoteDocType['categ
   };
 }
 
-function makeTierAnnotationNote(id: string, targetId: string, category: UserNoteDocType['category']): UserNoteDocType {
+function makeTierAnnotationNote(
+  id: string,
+  targetId: string,
+  category: UserNoteDocType['category'],
+): UserNoteDocType {
   return {
     id,
     targetType: 'tier_annotation',
@@ -183,7 +210,9 @@ describe('SegmentMetaService', () => {
   it('rebuilds unified rows for unit-backed layers as well as segment-backed layers', async () => {
     await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
     await db.layer_units.put(makeUnitUnit('utt-standalone', 'layer-plain'));
-    await db.layer_unit_contents.put(makeContent('content-plain', 'utt-standalone', 'layer-plain', 'plain unit'));
+    await db.layer_unit_contents.put(
+      makeContent('content-plain', 'utt-standalone', 'layer-plain', 'plain unit'),
+    );
     await db.user_notes.put(makeNote('note-plain', 'utt-standalone', 'question'));
 
     const rows = await SegmentMetaService.rebuildForLayerMedia('layer-plain', 'media-1');
@@ -269,8 +298,12 @@ describe('SegmentMetaService', () => {
       makeUnitUnit('utt-tier', 'layer-utt'),
       makeSegmentUnit('seg-tier', 'layer-seg', 'utt-tier', 0, 1),
     ]);
-    await db.layer_unit_contents.put(makeContent('content-tier', 'seg-tier', 'layer-seg', 'hello tier note'));
-    await db.user_notes.put(makeTierAnnotationNote('note-tier', 'seg-tier::layer-seg', 'fieldwork'));
+    await db.layer_unit_contents.put(
+      makeContent('content-tier', 'seg-tier', 'layer-seg', 'hello tier note'),
+    );
+    await db.user_notes.put(
+      makeTierAnnotationNote('note-tier', 'seg-tier::layer-seg', 'fieldwork'),
+    );
 
     const rows = await SegmentMetaService.rebuildForLayerMedia('layer-seg', 'media-1');
 
@@ -286,7 +319,9 @@ describe('SegmentMetaService', () => {
       makeUnitUnit('utt-delete', 'layer-seg'),
       makeSegmentUnit('seg-delete', 'layer-seg', 'utt-delete', 0, 1),
     ]);
-    await db.layer_unit_contents.put(makeContent('content-delete', 'seg-delete', 'layer-seg', 'to remove'));
+    await db.layer_unit_contents.put(
+      makeContent('content-delete', 'seg-delete', 'layer-seg', 'to remove'),
+    );
 
     await SegmentMetaService.rebuildForLayerMedia('layer-seg', 'media-1');
 

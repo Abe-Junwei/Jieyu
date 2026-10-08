@@ -121,6 +121,7 @@ function renderSidebar(input?: {
   const speakerOptions: SpeakerDocType[] = [
     {
       id: 'spk-1',
+      textId: 'text-1',
       name: 'Alice',
       createdAt: '2026-03-23T00:00:00.000Z',
       updatedAt: '2026-03-23T00:00:00.000Z',
@@ -558,6 +559,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         speakerOptions: [
           {
             id: 'spk-1',
+            textId: 'text-1',
             name: 'Alice',
             createdAt: '2026-03-23T00:00:00.000Z',
             updatedAt: '2026-03-23T00:00:00.000Z',
@@ -672,6 +674,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         speakerOptions: [
           {
             id: 'spk-1',
+            textId: 'text-1',
             name: 'Alice',
             createdAt: '2026-03-23T00:00:00.000Z',
             updatedAt: '2026-03-23T00:00:00.000Z',

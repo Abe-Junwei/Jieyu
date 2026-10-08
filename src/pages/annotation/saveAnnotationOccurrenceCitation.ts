@@ -10,7 +10,7 @@ export async function saveAnnotationOccurrenceCitation(input: {
   lexemeId: string;
   senseId: string;
 }): Promise<void> {
-  const lexemes = await LinguisticService.lexemes.list();
+  const lexemes = await LinguisticService.lexemes.list(input.textId);
   const lexeme = lexemes.find((entry) => entry.id === input.lexemeId);
   if (!lexeme) return;
   const citation: OccurrenceCitation = {

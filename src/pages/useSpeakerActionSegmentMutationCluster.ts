@@ -12,6 +12,7 @@ import {
 } from '../hooks/speakerManagement/speakerI18n';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import { reportActionError } from '../utils/actionErrorReporter';
+import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 import {
   assertSpeakerAssignmentUpdatedCounts,
   findSpeakerOptionByNormalizedName,
@@ -145,7 +146,11 @@ export function useSpeakerActionSegmentMutationCluster({
         });
         undoPushed = true;
         const targetSpeaker =
-          existing ?? (await LinguisticService.speakers.create({ name: trimmedName }));
+          existing ??
+          (await LinguisticService.speakers.create({
+            name: trimmedName,
+            textId: getActiveProjectTextId(),
+          }));
         const updated = await LinguisticService.speakers.assignToSegments(
           targetIds,
           targetSpeaker.id,

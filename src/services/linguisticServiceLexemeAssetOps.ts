@@ -72,6 +72,8 @@ export async function attachLexemeFile(
   const lexeme = await db.collections.lexemes.findOne({ selector: { id: lexemeId } }).exec();
   if (!lexeme) throw new Error('NOT_FOUND');
 
+  // 附件归属跟随词条所属项目 | Attachments belong to the lexeme's project
+  const textId = lexeme.toJSON().textId;
   const now = new Date().toISOString();
   const assetId = newId('la');
   const linkId = newId('ll');
@@ -81,6 +83,7 @@ export async function attachLexemeFile(
 
   const asset: LexemeAssetDocType = {
     id: assetId,
+    textId,
     kind,
     mimeType,
     displayName,
@@ -93,6 +96,7 @@ export async function attachLexemeFile(
   };
   const link: LexemeAssetLinkDocType = {
     id: linkId,
+    textId,
     lexemeId,
     assetId,
     createdAt: now,

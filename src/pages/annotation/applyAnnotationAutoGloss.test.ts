@@ -19,7 +19,7 @@ describe('applyAnnotationAutoGloss', () => {
   it('previews without writing then apply readback writes gloss and link', async () => {
     await db.unit_tokens.put({
       id: 'tok-ag-1',
-      textId: 'text-ag-1',
+      textId: 'text-1',
       unitId: 'unit-ag-1',
       form: { default: 'dog' },
       tokenIndex: 0,
@@ -57,7 +57,7 @@ describe('applyAnnotationAutoGloss', () => {
   it('replaces prior links when apply runs twice for the same preview', async () => {
     await db.unit_tokens.put({
       id: 'tok-ag-2',
-      textId: 'text-ag-2',
+      textId: 'text-1',
       unitId: 'unit-ag-2',
       form: { default: 'dog' },
       tokenIndex: 0,
@@ -127,7 +127,7 @@ describe('applyAnnotationAutoGloss', () => {
   it('restores the old sense link when link creation fails mid-apply', async () => {
     await db.unit_tokens.put({
       id: 'tok-ag-rollback',
-      textId: 'text-ag-rollback',
+      textId: 'text-1',
       unitId: 'unit-ag-rollback',
       form: { default: 'dog' },
       tokenIndex: 0,
@@ -176,7 +176,7 @@ describe('applyAnnotationAutoGloss', () => {
     await db.unit_tokens.bulkPut([
       {
         id: 'tok-ag-a',
-        textId: 'text-ag-two',
+        textId: 'text-1',
         unitId: 'unit-ag-two',
         form: { default: 'dog' },
         tokenIndex: 0,
@@ -185,7 +185,7 @@ describe('applyAnnotationAutoGloss', () => {
       },
       {
         id: 'tok-ag-b',
-        textId: 'text-ag-two',
+        textId: 'text-1',
         unitId: 'unit-ag-two',
         form: { default: 'cat' },
         tokenIndex: 1,
@@ -261,7 +261,7 @@ describe('applyAnnotationAutoGloss', () => {
     await db.unit_tokens.bulkPut([
       {
         id: 'tok-ag-a',
-        textId: 'text-ag-two',
+        textId: 'text-1',
         unitId: 'unit-ag-two',
         form: { default: 'dog' },
         tokenIndex: 0,
@@ -270,7 +270,7 @@ describe('applyAnnotationAutoGloss', () => {
       },
       {
         id: 'tok-ag-b',
-        textId: 'text-ag-two',
+        textId: 'text-1',
         unitId: 'unit-ag-two',
         form: { default: 'cat' },
         tokenIndex: 1,
@@ -345,7 +345,7 @@ describe('applyAnnotationAutoGloss', () => {
   it('does not apply a preview after a human gloss was saved', async () => {
     await db.unit_tokens.put({
       id: 'tok-ag-human',
-      textId: 'text-ag-human',
+      textId: 'text-1',
       unitId: 'unit-ag-human',
       form: { default: 'dog' },
       tokenIndex: 0,
@@ -369,7 +369,7 @@ describe('applyAnnotationAutoGloss', () => {
 
     await db.unit_tokens.put({
       id: 'tok-ag-draft',
-      textId: 'text-ag-human',
+      textId: 'text-1',
       unitId: 'unit-ag-human',
       form: { default: 'cat' },
       tokenIndex: 1,

@@ -20,6 +20,7 @@ describe('lexeme_assets Dexie tables (v53+)', () => {
     const blob = new Blob(['png-bytes'], { type: 'image/png' });
     await jieyuDb.collections.lexeme_assets.insert({
       id: 'la_test_1',
+      textId: 'text-1',
       kind: 'image',
       mimeType: 'image/png',
       displayName: 'dog.png',
@@ -31,6 +32,7 @@ describe('lexeme_assets Dexie tables (v53+)', () => {
     });
     await jieyuDb.collections.lexeme_asset_links.insert({
       id: 'll_test_1',
+      textId: 'text-1',
       lexemeId: 'lex-dog',
       assetId: 'la_test_1',
       createdAt: '2026-09-05T00:00:00.000Z',
@@ -50,6 +52,7 @@ describe('lexeme_assets Dexie tables (v53+)', () => {
     const blob = new Blob(['keep-local'], { type: 'audio/wav' });
     await jieyuDb.collections.lexeme_assets.insert({
       id: 'la_export_1',
+      textId: 'text-1',
       kind: 'audio',
       mimeType: 'audio/wav',
       displayName: 'clip.wav',

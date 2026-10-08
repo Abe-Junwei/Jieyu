@@ -952,6 +952,13 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                     insertable: previewInsertEstimate,
                   })}
                 </PanelChip>
+                {projectImportState.preview.unresolvedSystemRefs.length > 0 ? (
+                  <PanelChip variant="warning">
+                    {tf(locale, 'transcription.projectHub.importDialogUnresolvedSystemRefs', {
+                      ids: projectImportState.preview.unresolvedSystemRefs.join(', '),
+                    })}
+                  </PanelChip>
+                ) : null}
               </div>
             }
           />

@@ -53,6 +53,7 @@ function makeUnit(overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
 function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
   return {
     id: 'speaker-1',
+    textId: 'text-1',
     name: '说话人甲',
     createdAt: '2026-03-23T00:00:00.000Z',
     updatedAt: '2026-03-23T00:00:00.000Z',

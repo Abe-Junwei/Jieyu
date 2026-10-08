@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import type { SpeakerDocType, LayerUnitDocType } from '../../db';
-import { applySpeakerAssignmentToUnits, buildSelectedSpeakerSummary, buildSpeakerFilterOptions, buildSpeakerFilterOptionsFromKeys, buildSpeakerVisualMap, buildSpeakerVisualMapFromKeys, getSpeakerDisplayNameByKey, getUnitSpeakerKey, normalizeSpeakerName, renameSpeakerInUnits, sortSpeakersByName, upsertSpeaker } from './speakerUtils';
+import {
+  applySpeakerAssignmentToUnits,
+  buildSelectedSpeakerSummary,
+  buildSpeakerFilterOptions,
+  buildSpeakerFilterOptionsFromKeys,
+  buildSpeakerVisualMap,
+  buildSpeakerVisualMapFromKeys,
+  getSpeakerDisplayNameByKey,
+  getUnitSpeakerKey,
+  normalizeSpeakerName,
+  renameSpeakerInUnits,
+  sortSpeakersByName,
+  upsertSpeaker,
+} from './speakerUtils';
 
 function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
   return {
     id: 'spk-1',
+    textId: 'text-1',
     name: 'Alice',
     createdAt: '2026-03-23T00:00:00.000Z',
     updatedAt: '2026-03-23T00:00:00.000Z',
@@ -31,7 +45,9 @@ describe('speakerUtils', () => {
   });
 
   it('builds unit speaker key from speakerId first and falls back to speaker name', () => {
-    expect(getUnitSpeakerKey({ speakerId: 'spk-1', speaker: 'Alice' } as LayerUnitDocType)).toBe('spk-1');
+    expect(getUnitSpeakerKey({ speakerId: 'spk-1', speaker: 'Alice' } as LayerUnitDocType)).toBe(
+      'spk-1',
+    );
     expect(getUnitSpeakerKey({ speakerId: '', speaker: ' 访客 ' } as LayerUnitDocType)).toBe('');
     expect(getUnitSpeakerKey({ speakerId: '', speaker: '  ' } as LayerUnitDocType)).toBe('');
   });
@@ -86,7 +102,9 @@ describe('speakerUtils', () => {
   });
 
   it('resolves speaker display names from entity keys and unknown speaker', () => {
-    const speakerById = new Map<string, SpeakerDocType>([['spk-1', makeSpeaker({ id: 'spk-1', name: 'Alice' })]]);
+    const speakerById = new Map<string, SpeakerDocType>([
+      ['spk-1', makeSpeaker({ id: 'spk-1', name: 'Alice' })],
+    ]);
 
     expect(getSpeakerDisplayNameByKey('spk-1', speakerById)).toBe('Alice');
     expect(getSpeakerDisplayNameByKey('unknown-speaker', speakerById)).toBe('未命名说话人');
@@ -96,15 +114,27 @@ describe('speakerUtils', () => {
     const speakerOptions = [makeSpeaker({ id: 'spk-1', name: 'Alice' })];
 
     expect(buildSelectedSpeakerSummary([], speakerOptions)).toBe('未选择句段');
-    expect(buildSelectedSpeakerSummary([makeUnit({ speakerId: '', speaker: '' })], speakerOptions)).toBe('当前句段均未标注说话人');
-    expect(buildSelectedSpeakerSummary([
-      makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
-    ], speakerOptions)).toBe('当前统一说话人：Alice');
-    expect(buildSelectedSpeakerSummary([
-      makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUnit({ speakerId: 'spk-2', speaker: '访客' }),
-    ], speakerOptions)).toBe('当前涉及 2 位说话人');
+    expect(
+      buildSelectedSpeakerSummary([makeUnit({ speakerId: '', speaker: '' })], speakerOptions),
+    ).toBe('当前句段均未标注说话人');
+    expect(
+      buildSelectedSpeakerSummary(
+        [
+          makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
+          makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
+        ],
+        speakerOptions,
+      ),
+    ).toBe('当前统一说话人：Alice');
+    expect(
+      buildSelectedSpeakerSummary(
+        [
+          makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
+          makeUnit({ speakerId: 'spk-2', speaker: '访客' }),
+        ],
+        speakerOptions,
+      ),
+    ).toBe('当前涉及 2 位说话人');
   });
 
   it('applies speaker assignment and supports clearing assignment', () => {
@@ -112,7 +142,10 @@ describe('speakerUtils', () => {
       makeUnit({ id: 'utt-1', speakerId: 'old', speaker: 'Old' }),
       makeUnit({ id: 'utt-2', speakerId: 'old', speaker: 'Old' }),
     ];
-    const assigned = applySpeakerAssignmentToUnits(units, ['utt-2'], { id: 'spk-1', name: 'Alice' });
+    const assigned = applySpeakerAssignmentToUnits(units, ['utt-2'], {
+      id: 'spk-1',
+      name: 'Alice',
+    });
     expect(assigned[0]?.speakerId).toBe('old');
     expect(assigned[1]?.speakerId).toBe('spk-1');
     expect(assigned[1]?.speaker).toBe('Alice');

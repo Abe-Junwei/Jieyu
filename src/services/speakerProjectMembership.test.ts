@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
 import { LinguisticService } from './LinguisticService';
+import { CatalogOwnershipMismatchError, CatalogProjectRequiredError } from './projectCatalogScope';
 
 const NOW = '2026-09-30T00:00:00.000Z';
 
@@ -42,24 +43,40 @@ describe('project speaker roster', () => {
     expect(await LinguisticService.speakers.list()).toHaveLength(3);
   });
 
-  it('keeps a speaker who is already assigned on a unit before the roster is written', async () => {
+  it('requires a project for every new speaker and never claims rows on read', async () => {
     await seedText('text-a');
-    const ada = await LinguisticService.speakers.create({ name: 'Ada' });
+    await expect(
+      LinguisticService.speakers.create({ name: 'Ada', textId: '' }),
+    ).rejects.toBeInstanceOf(CatalogProjectRequiredError);
+    expect(await db.speakers.count()).toBe(0);
+    expect(await LinguisticService.speakers.listForProject('text-a')).toEqual([]);
+    expect(await LinguisticService.speakers.listForProject('')).toEqual([]);
+    expect(await db.speakers.count()).toBe(0);
+  });
+
+  it('refuses to assign a speaker to units of another project', async () => {
+    await seedText('text-a');
+    await seedText('text-b');
+    const ada = await LinguisticService.speakers.create({ name: 'Ada', textId: 'text-a' });
     await db.layer_units.put({
-      id: 'unit-a',
-      textId: 'text-a',
+      id: 'unit-b',
+      textId: 'text-b',
+      unitType: 'unit',
+      layerId: 'layer-b',
+      mediaId: 'media-b',
       startTime: 0,
       endTime: 1,
-      speakerId: ada.id,
       createdAt: NOW,
       updatedAt: NOW,
     });
 
+    await expect(
+      LinguisticService.speakers.assignToUnits(['unit-b'], ada.id),
+    ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
+    expect((await db.layer_units.get('unit-b'))?.speakerId).toBeUndefined();
     expect(
       (await LinguisticService.speakers.listForProject('text-a')).map((row) => row.id),
     ).toEqual([ada.id]);
-    expect(
-      (await LinguisticService.speakers.listForProject('text-b')).map((row) => row.id),
-    ).toEqual([]);
+    expect(await LinguisticService.speakers.listForProject('text-b')).toEqual([]);
   });
 });

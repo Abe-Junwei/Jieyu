@@ -30,6 +30,10 @@ export function buildMinimalJymArchiveBytes(): Uint8Array {
           textId: 'text_r4_s1',
           filename: 'field-sample.wav',
           isOfflineCached: false,
+          // 2B-C 媒体状态字段（无旧格式兼容，D9）| 2B-C media state fields (no legacy shape, D9)
+          timelineKind: 'acoustic',
+          byteLocation: 'none',
+          availability: 'missing',
           details: { mimeType: 'audio/wav', audioExportOmitted: true },
           createdAt: NOW,
         },

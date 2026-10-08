@@ -56,8 +56,9 @@ test.describe('R4 场景矩阵 | Field scenario matrix', () => {
   });
 
   test('S5：深链进入转写后 sessionStorage 返回提示可往返 | Deep link return hint round-trips', async ({ page }) => {
+    // D11：没有活动项目时词典只显示“请先选择项目” | D11: without a project the lexicon shows the gate
     await page.goto('/lexicon');
-    await expect(page.locator('body')).toContainText(/词典工作台|Lexicon Workspace/);
+    await expect(page.getByTestId('catalog-project-gate')).toBeVisible();
 
     await page.evaluate(() => {
       sessionStorage.setItem(

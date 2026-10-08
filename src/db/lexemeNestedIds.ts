@@ -2,7 +2,7 @@
  * Assign stable ids on a DMLex entry and its senses.
  * Only fills missing or blank ids. Existing ids are kept.
  */
-import { DMLEX_RESOURCE_ID } from './dmlexTypes';
+import { DMLEX_RESOURCE_ID_PREFIX } from './dmlexTypes';
 import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from './types';
 import { newId } from '../utils/transcriptionFormatters';
 
@@ -60,5 +60,5 @@ export function ensureLexemeNestedIds(data: LexemeEntryDoc): LexemeEntryDoc {
 }
 
 export function isDmlexResourceId(id: string): boolean {
-  return id === DMLEX_RESOURCE_ID;
+  return id.startsWith(DMLEX_RESOURCE_ID_PREFIX);
 }

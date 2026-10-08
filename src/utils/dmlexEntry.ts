@@ -1,6 +1,6 @@
 import {
   DMLEX_HOMOGRAPH,
-  DMLEX_RESOURCE_ID,
+  dmlexResourceIdForProject,
   DMLEX_SUBSENSE,
   type DmlexEntry,
   type DmlexRelation,
@@ -161,10 +161,11 @@ export function lexemeMatchValues(lexeme: LexemeEntryDoc): string[] {
   return values.map((value) => value.trim().toLowerCase()).filter((value) => value.length > 0);
 }
 
-export function emptyDmlexResource(now: string): LexemeResourceDoc {
+export function emptyDmlexResource(now: string, textId: string): LexemeResourceDoc {
   return {
-    id: DMLEX_RESOURCE_ID,
+    id: dmlexResourceIdForProject(textId),
     kind: 'resource',
+    textId,
     resource: {
       langCode: 'und',
       translationLanguages: [DEFAULT_TRANSLATION_LANG],
@@ -350,6 +351,7 @@ export function applyLexiconEntryFields(
   fields: LexiconEntryFields,
   resource: LexemeResourceDoc | null,
   now: string,
+  textId: string,
 ): { entry: LexemeEntryDoc; resource: LexemeResourceDoc } {
   const headword = fields.headword.trim();
   if (headword.length === 0) throw new Error('empty headword');
@@ -418,6 +420,7 @@ export function applyLexiconEntryFields(
   const stored: LexemeEntryDoc = {
     ...(existing ?? { id, createdAt: now }),
     id,
+    textId,
     entry,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
@@ -425,7 +428,7 @@ export function applyLexiconEntryFields(
   };
   if (!jieyu) delete stored.jieyu;
 
-  const base = resource ?? emptyDmlexResource(now);
+  const base = resource ?? emptyDmlexResource(now, textId);
   const previousSenseIds = new Set((existing?.entry.senses ?? []).map((sense) => sense.id ?? ''));
   const owned = new Set([...previousSenseIds, ...senseIds]);
   const kept = (base.resource.relations ?? []).filter((relation) => {
@@ -476,8 +479,9 @@ export function applyLexiconEntryFields(
   if (langs.size === 0) langs.add(DEFAULT_TRANSLATION_LANG);
   const nextResource: LexemeResourceDoc = {
     ...base,
-    id: DMLEX_RESOURCE_ID,
+    id: dmlexResourceIdForProject(textId),
     kind: 'resource',
+    textId,
     resource: {
       langCode: langOrDefault(base.resource.langCode, 'und'),
       translationLanguages: [...langs],
@@ -495,6 +499,8 @@ export function applyLexiconEntryFields(
 
 export function entryDoc(input: {
   id: string;
+  /** 所属项目，默认测试项目 | Owning project; defaults to the test project */
+  textId?: string;
   headword: string;
   translation?: string;
   langCode?: string;
@@ -508,6 +514,7 @@ export function entryDoc(input: {
   const definition = input.definition?.trim() ?? '';
   return {
     id: input.id,
+    textId: input.textId ?? 'text-1',
     entry: {
       id: input.id,
       headword: input.headword,

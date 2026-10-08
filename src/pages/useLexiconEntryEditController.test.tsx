@@ -31,7 +31,12 @@ describe('useLexiconEntryEditController', () => {
     const onSaved = vi.fn();
     const { result } = renderHook(
       ({ selectedLexeme }) =>
-        useLexiconEntryEditController({ selectedLexeme, onSaved, onDeleted: vi.fn() }),
+        useLexiconEntryEditController({
+          selectedLexeme,
+          projectTextId: 'text-1',
+          onSaved,
+          onDeleted: vi.fn(),
+        }),
       { initialProps: { selectedLexeme: dog as LexemeEntryDoc | null } },
     );
 
@@ -75,6 +80,7 @@ describe('useLexiconEntryEditController', () => {
     const { result } = renderHook(() =>
       useLexiconEntryEditController({
         selectedLexeme: dog,
+        projectTextId: 'text-1',
         onSaved: vi.fn(),
         onDeleted: vi.fn(),
       }),
@@ -91,6 +97,7 @@ describe('useLexiconEntryEditController', () => {
       expect(saveSpy).toHaveBeenCalled();
     });
     expect(saveSpy.mock.calls[0]?.[0].fields.headword).toBe('hound');
+    expect(saveSpy.mock.calls[0]?.[0].textId).toBe('text-1');
     expect(saveSpy.mock.calls[0]?.[0].fields.senses[0]?.translation).toBe('hunting dog');
   });
 
@@ -99,6 +106,7 @@ describe('useLexiconEntryEditController', () => {
       ({ selectedLexeme }) =>
         useLexiconEntryEditController({
           selectedLexeme,
+          projectTextId: 'text-1',
           onSaved: vi.fn(),
           onDeleted: vi.fn(),
         }),
@@ -118,6 +126,7 @@ describe('useLexiconEntryEditController', () => {
       ({ selectedLexeme }) =>
         useLexiconEntryEditController({
           selectedLexeme,
+          projectTextId: 'text-1',
           onSaved: vi.fn(),
           onDeleted: vi.fn(),
         }),

@@ -114,8 +114,8 @@ export function LexiconPage() {
   });
   const lexemes = listed;
   const { data: dmlexResource } = useQuery({
-    queryKey: ['dmlex-resource'],
-    queryFn: () => LinguisticService.lexemes.getResource(),
+    queryKey: ['dmlex-resource', projectTextId],
+    queryFn: () => LinguisticService.lexemes.getResource(projectTextId),
   });
   const relations = dmlexResource?.resource.relations ?? [];
   const error =
@@ -190,6 +190,7 @@ export function LexiconPage() {
     ? readLexemePrimaryGloss(selectedLexeme, t(locale, 'workspace.lexicon.notSet'))
     : '';
   const editor = useLexiconEntryEditController({
+    projectTextId,
     selectedLexeme,
     relations,
     onSaved: (stored) => {
@@ -401,7 +402,7 @@ export function LexiconPage() {
                 const file = event.currentTarget.files?.[0];
                 event.currentTarget.value = '';
                 if (!file) return;
-                void importLexemesFromLiftFile(file).then((result) => {
+                void importLexemesFromLiftFile(file, projectTextId).then((result) => {
                   if (!result.ok) {
                     const key =
                       result.reason === 'empty'

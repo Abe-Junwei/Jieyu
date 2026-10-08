@@ -1,5 +1,5 @@
 import {
-  DMLEX_RESOURCE_ID,
+  dmlexResourceIdForProject,
   ensureLexemeNestedIds,
   getDb,
   isLexemeEntry,
@@ -19,9 +19,10 @@ import {
 } from '../utils/workspaceEvents';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import {
-  claimUnscopedCatalog,
+  activeCatalogProjectId,
+  CatalogOwnershipMismatchError,
   lexemeBelongsToProject,
-  resolveOwnedProjectTextId,
+  requireCatalogProjectId,
 } from './projectCatalogScope';
 
 /** 词典 → 转写深链：由 `token_lexeme_links` 解析出的可跳转时间轴单元 | Lexicon → transcription deep-link row */
@@ -49,19 +50,13 @@ function compareLexemeEntries(left: LexemeEntryDoc, right: LexemeEntryDoc): numb
   return lexemeHeadword(left).localeCompare(lexemeHeadword(right), 'zh-CN');
 }
 
+/** 只读：本项目词条；没有项目时为空（D11）| Read-only: this project's entries; empty without a project */
 export async function listLexemes(textId?: string): Promise<LexemeEntryDoc[]> {
-  const projectId = resolveOwnedProjectTextId(textId);
+  const projectId = activeCatalogProjectId(textId);
+  if (projectId.length === 0) return [];
   const db = await getDb();
   const docs = await db.collections.lexemes.find().exec();
-  const loaded = entryRows(docs.map((doc) => doc.toJSON()));
-  if (projectId.length === 0) {
-    return loaded
-      .filter((item) => (item.textId?.trim() ?? '').length === 0)
-      .sort(compareLexemeEntries);
-  }
-  await claimUnscopedCatalog(projectId);
-  const ownedDocs = await db.collections.lexemes.find().exec();
-  return entryRows(ownedDocs.map((doc) => doc.toJSON()))
+  return entryRows(docs.map((doc) => doc.toJSON()))
     .filter((item) => lexemeBelongsToProject(item, projectId))
     .sort(compareLexemeEntries);
 }
@@ -69,35 +64,39 @@ export async function listLexemes(textId?: string): Promise<LexemeEntryDoc[]> {
 export async function searchLexemes(query: string, textId?: string): Promise<LexemeEntryDoc[]> {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];
-  const projectId = resolveOwnedProjectTextId(textId);
+  const projectId = activeCatalogProjectId(textId);
+  if (projectId.length === 0) return [];
 
   const db = await getDb();
-  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
   const docs = await db.collections.lexemes.find().exec();
   return entryRows(docs.map((doc) => doc.toJSON())).filter(
     (item) =>
-      (projectId.length === 0
-        ? (item.textId?.trim() ?? '').length === 0
-        : lexemeBelongsToProject(item, projectId)) &&
+      lexemeBelongsToProject(item, projectId) &&
       lexemeMatchValues(item).some((value) => value.includes(normalized)),
   );
 }
 
-export async function getDmlexResource(): Promise<LexemeResourceDoc | null> {
+/** 本项目的 DMLex resource 行（每个项目一行）| This project's DMLex resource row (one per project) */
+export async function getDmlexResource(textId?: string): Promise<LexemeResourceDoc | null> {
+  const projectId = activeCatalogProjectId(textId);
+  if (projectId.length === 0) return null;
   const db = await getDb();
-  const doc = await db.collections.lexemes.findOne({ selector: { id: DMLEX_RESOURCE_ID } }).exec();
+  const doc = await db.collections.lexemes
+    .findOne({ selector: { id: dmlexResourceIdForProject(projectId) } })
+    .exec();
   if (!doc) return null;
   const json = doc.toJSON();
-  return isLexemeResource(json) ? json : null;
+  return isLexemeResource(json) && json.textId === projectId ? json : null;
 }
 
 export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const db = await getDb();
-  const projectId = data.textId?.trim() || resolveOwnedProjectTextId();
-  const stamped =
-    projectId.length > 0 && (data.textId?.trim() ?? '').length === 0
-      ? { ...data, textId: projectId }
-      : data;
+  const projectId = requireCatalogProjectId(data.textId);
+  const existing = await db.dexie.lexemes.get(data.id);
+  if (existing && existing.textId !== projectId) {
+    throw new CatalogOwnershipMismatchError('lexemes', data.id, existing.textId, projectId);
+  }
+  const stamped: LexemeDocType = { ...data, textId: projectId };
   const stored = isLexemeEntry(stamped) ? ensureLexemeNestedIds(stamped) : stamped;
   const doc = await db.collections.lexemes.insert(stored);
   dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
@@ -162,12 +161,16 @@ function headwordSurface(lexeme: LexemeDocType): string {
 export async function matchOrCreateLexemeByForm(input: {
   form: string;
   language?: string;
+  /** 所属项目（必填）| Owning project (required) */
+  textId: string;
 }): Promise<string | undefined> {
   const form = input.form.trim();
   if (!form) return undefined;
+  const projectId = requireCatalogProjectId(input.textId);
   const language = input.language?.trim();
   const db = await getDb();
   const existing = (await db.dexie.lexemes.toArray()).find((lexeme) => {
+    if (lexeme.textId !== projectId) return false;
     if (headwordSurface(lexeme) !== form) return false;
     if (!language) return true;
     if (!isLexemeEntry(lexeme)) return false;
@@ -191,6 +194,7 @@ export async function matchOrCreateLexemeByForm(input: {
         },
       ],
     },
+    textId: projectId,
     createdAt: now,
     updatedAt: now,
   });

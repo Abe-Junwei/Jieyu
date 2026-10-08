@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import Ajv from 'ajv/dist/2020';
-import { DMLEX_HOMOGRAPH, DMLEX_RESOURCE_ID } from '../db/dmlexTypes';
+import { DMLEX_HOMOGRAPH, dmlexResourceIdForProject } from '../db/dmlexTypes';
 import type { LexemeResourceDoc } from '../db/types';
 import { entryDoc } from './dmlexEntry';
 import { exportLexemesAsDmlex, serializeLexemesToDmlex } from './dmlexJsonExport';
@@ -37,7 +37,8 @@ describe('serializeLexemesToDmlex', () => {
 
   it('keeps resource relations and validates against the vendored schema', () => {
     const resource: LexemeResourceDoc = {
-      id: DMLEX_RESOURCE_ID,
+      id: dmlexResourceIdForProject('text-1'),
+      textId: 'text-1',
       kind: 'resource',
       resource: {
         langCode: 'und',

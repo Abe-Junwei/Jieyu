@@ -49,6 +49,7 @@ async function seedProjectWithBytes(): Promise<void> {
   const image = new Blob([IMAGE], { type: 'image/png' });
   await db.lexeme_assets.put({
     id: ASSET_ID,
+    textId: 'text-1',
     kind: 'image',
     mimeType: 'image/png',
     displayName: 'dog.png',

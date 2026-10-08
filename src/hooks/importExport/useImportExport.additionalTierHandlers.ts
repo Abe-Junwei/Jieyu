@@ -46,6 +46,7 @@ type AdditionalTierAnnotation = {
 };
 
 async function resolveFormLexemeId(
+  textId: string,
   form: Record<string, string>,
   language: string | undefined,
   cache: Map<string, string>,
@@ -55,7 +56,7 @@ async function resolveFormLexemeId(
   if (explicit) {
     const db = await getDb();
     const row = await db.dexie.lexemes.get(explicit);
-    if (row && isLexemeEntry(row)) return row.id;
+    if (row && isLexemeEntry(row) && row.textId === textId) return row.id;
   }
   const surface =
     (typeof form.default === 'string' && form.default.trim()) ||
@@ -70,6 +71,7 @@ async function resolveFormLexemeId(
   if (cached) return cached;
   const lexemeId = await LinguisticService.lexemes.matchOrCreateByForm({
     form: surface,
+    textId,
     ...(lang ? { language: lang } : {}),
   });
   if (lexemeId) cache.set(cacheKey, lexemeId);
@@ -90,6 +92,7 @@ export async function persistImportedTokensForHost(input: {
     if (!token.form || typeof token.form !== 'object') continue;
     const tokenId = newId('tok');
     const tokenLexemeId = await resolveFormLexemeId(
+      input.textId,
       token.form,
       input.language,
       input.lexemeIdByFormKey,
@@ -111,6 +114,7 @@ export async function persistImportedTokensForHost(input: {
     for (const [morphemeIndex, morph] of morphemes.entries()) {
       if (!morph?.form || typeof morph.form !== 'object') continue;
       const morphLexemeId = await resolveFormLexemeId(
+        input.textId,
         morph.form,
         input.language,
         input.lexemeIdByFormKey,

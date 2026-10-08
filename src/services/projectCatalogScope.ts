@@ -1,144 +1,62 @@
-import { getDb, withTransaction, type LexemeDocType, type SpeakerDocType } from '../db';
-import { newId } from '../utils/transcriptionFormatters';
+/**
+ * 目录归属（rev5 4.2-9 / D3 / D11；切片 2B-B）| Catalog ownership (rev5 4.2-9 / D3 / D11; slice 2B-B)
+ *
+ * - 每个目录行在写入时就带上所属项目；没有项目时 service 直接拒绝（`CatalogProjectRequiredError`）。
+ * - 读操作只按项目过滤，从不产生写入；没有项目时返回空（D11：页面先要求选择项目）。
+ * - 不再有“认领无主行”：统一写入校验保证库里不存在无主目录行。
+ * - Every catalog row is written with its owning project; services refuse writes without one.
+ * - Reads only filter by project and never write; without a project they return nothing (D11).
+ * - There is no "claim unscoped rows" step any more: write validation keeps such rows out.
+ */
+import type { LexemeDocType } from '../db';
 import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 
-export function resolveOwnedProjectTextId(explicit?: string): string {
+const CATALOG_PROJECT_REQUIRED_CODE = 'CATALOG_PROJECT_REQUIRED';
+
+/** 没有活动项目时写目录 | Catalog write attempted without an active project */
+export class CatalogProjectRequiredError extends Error {
+  readonly code = CATALOG_PROJECT_REQUIRED_CODE;
+
+  constructor() {
+    super('Select a project first: catalog data always belongs to a project.');
+    this.name = 'CatalogProjectRequiredError';
+  }
+}
+
+/** 目录行与操作对象属于不同项目 | Catalog row used with data of another project */
+export class CatalogOwnershipMismatchError extends Error {
+  constructor(
+    public readonly tableName: string,
+    public readonly rowId: string,
+    public readonly ownerProjectId: string,
+    public readonly otherProjectId: string,
+  ) {
+    super(
+      `${tableName} row "${rowId}" belongs to project "${ownerProjectId}" and cannot be used in project "${otherProjectId}"; copy it into that project instead`,
+    );
+    this.name = 'CatalogOwnershipMismatchError';
+  }
+}
+
+/** 目录读取用：显式项目优先，否则当前活动项目；可能为空 | For reads: explicit project, else the active one */
+export function activeCatalogProjectId(explicit?: string): string {
   const given = explicit?.trim() ?? '';
   if (given.length > 0) return given;
   return getActiveProjectTextId().trim();
 }
 
-export async function claimUnscopedCatalog(textId: string): Promise<void> {
-  const projectId = textId.trim();
-  if (!projectId) return;
-  const db = await getDb();
-  const tables = [
-    db.dexie.lexeme_assets,
-    db.dexie.lexeme_asset_links,
-    db.dexie.languages,
-    db.dexie.language_display_names,
-    db.dexie.language_aliases,
-    db.dexie.language_catalog_history,
-    db.dexie.orthographies,
-    db.dexie.orthography_bridges,
-    db.dexie.custom_field_definitions,
-    db.dexie.phonemes,
-    db.dexie.tag_definitions,
-    db.dexie.locations,
-    db.dexie.bibliographic_sources,
-    db.dexie.grammar_docs,
-    db.dexie.abbreviations,
-  ];
-  for (const table of tables) {
-    const rows = (await table.toArray()) as Array<{ id?: string; textId?: string }>;
-    for (const row of rows) {
-      if (!row.id) continue;
-      if (typeof row.textId === 'string' && row.textId.length > 0) continue;
-      await table.update(row.id, { textId: projectId });
-    }
-  }
-  const profileRows = await db.dexie.structural_rule_profiles.toArray();
-  for (const row of profileRows) {
-    if (typeof row.projectId === 'string' && row.projectId.length > 0) continue;
-    await db.dexie.structural_rule_profiles.update(row.id, { projectId });
-  }
-  await claimSpeakers(projectId);
-  await claimLexemes(projectId);
+/** 目录写入用：拿不到项目就抛错 | For writes: throws when no project is available */
+export function requireCatalogProjectId(explicit?: string): string {
+  const projectId = activeCatalogProjectId(explicit);
+  if (projectId.length === 0) throw new CatalogProjectRequiredError();
+  return projectId;
 }
 
-async function claimSpeakers(projectId: string): Promise<void> {
-  const db = await getDb();
-  const [speakers, units] = await Promise.all([
-    db.dexie.speakers.toArray(),
-    withTransaction(db, 'r', [db.dexie.layer_units], async () => db.dexie.layer_units.toArray(), {
-      label: 'projectCatalogScope.claimSpeakers',
-    }),
-  ]);
-  const textsBySpeaker = new Map<string, Set<string>>();
-  for (const unit of units) {
-    const speakerId = unit.speakerId?.trim() ?? '';
-    const owner = unit.textId?.trim() ?? '';
-    if (!speakerId || !owner) continue;
-    const texts = textsBySpeaker.get(speakerId) ?? new Set<string>();
-    texts.add(owner);
-    textsBySpeaker.set(speakerId, texts);
-  }
-  for (const speaker of speakers) {
-    const ownedBy = speaker.textId?.trim() ?? '';
-    const texts = [...(textsBySpeaker.get(speaker.id) ?? [])];
-    if (ownedBy.length > 0 && ownedBy !== projectId) {
-      if (texts.includes(projectId)) await cloneSpeakerForProject(speaker, projectId);
-      continue;
-    }
-    if (texts.length > 1 && texts.includes(projectId)) {
-      await cloneSpeakerForProject(speaker, projectId);
-      continue;
-    }
-    if (texts.length === 1 && texts[0] !== projectId) continue;
-    if (ownedBy.length > 0) continue;
-    await db.dexie.speakers.update(speaker.id, { textId: projectId });
-  }
-}
-
-async function cloneSpeakerForProject(speaker: SpeakerDocType, projectId: string): Promise<void> {
-  const db = await getDb();
-  const cloneId = newId('speaker');
-  const now = new Date().toISOString();
-  await db.dexie.speakers.put({
-    ...speaker,
-    id: cloneId,
-    textId: projectId,
-    updatedAt: now,
-  });
-  await withTransaction(
-    db,
-    'rw',
-    [db.dexie.layer_units],
-    async () => {
-      const units = await db.dexie.layer_units.where('textId').equals(projectId).toArray();
-      for (const unit of units) {
-        if (unit.speakerId !== speaker.id) continue;
-        await db.dexie.layer_units.update(unit.id, { speakerId: cloneId });
-      }
-    },
-    { label: 'projectCatalogScope.reassignSpeakerUnits' },
-  );
-}
-
-async function claimLexemes(projectId: string): Promise<void> {
-  const db = await getDb();
-  const [lexemes, links, tokens] = await Promise.all([
-    db.dexie.lexemes.toArray(),
-    db.dexie.token_lexeme_links.toArray(),
-    db.dexie.unit_tokens.toArray(),
-  ]);
-  const tokenText = new Map(tokens.map((token) => [token.id, token.textId]));
-  for (const lexeme of lexemes) {
-    const ownedBy = lexeme.textId?.trim() ?? '';
-    if (ownedBy.length > 0) continue;
-    const texts = new Set<string>();
-    for (const link of links) {
-      if (link.lexemeId !== lexeme.id) continue;
-      const owner = tokenText.get(link.targetId)?.trim() ?? '';
-      if (owner.length > 0) texts.add(owner);
-    }
-    const owners = [...texts];
-    if (owners.length === 0 || (owners.length === 1 && owners[0] === projectId)) {
-      await db.dexie.lexemes.update(lexeme.id, { textId: projectId });
-      continue;
-    }
-    if (!owners.includes(projectId)) continue;
-    const cloneId = newId('lex');
-    const now = new Date().toISOString();
-    await db.dexie.lexemes.put({ ...lexeme, id: cloneId, textId: projectId, updatedAt: now });
-    for (const link of links) {
-      if (link.lexemeId !== lexeme.id) continue;
-      if ((tokenText.get(link.targetId)?.trim() ?? '') !== projectId) continue;
-      await db.dexie.token_lexeme_links.update(link.id, { lexemeId: cloneId });
-    }
-  }
+/** 新目录行 ID（UUID）| New catalog row id (UUID) */
+export function newCatalogUuid(): string {
+  return globalThis.crypto.randomUUID();
 }
 
 export function lexemeBelongsToProject(lexeme: LexemeDocType, textId: string): boolean {
-  return (lexeme.textId?.trim() ?? '') === textId.trim();
+  return lexeme.textId.trim() === textId.trim();
 }

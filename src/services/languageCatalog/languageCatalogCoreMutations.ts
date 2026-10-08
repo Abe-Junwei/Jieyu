@@ -20,38 +20,39 @@ import {
 } from './languageCatalogUpsertPrep';
 import { filterLanguageCatalogEntriesBySearchText } from './languageCatalogListEntriesFilter';
 import { buildUpsertAliasRows, buildUpsertDisplayNameRows } from './languageCatalogUpsertRows';
-import { claimUnscopedCatalog, resolveOwnedProjectTextId } from '../projectCatalogScope';
+import {
+  activeCatalogProjectId,
+  CatalogOwnershipMismatchError,
+  requireCatalogProjectId,
+} from '../projectCatalogScope';
 
 const log = createLogger('LinguisticService.languageCatalog');
 
+/** 内置语言 + 本项目的自定义/覆盖行 | Built-in languages plus this project's custom/override rows */
 async function languageEntriesForProject(
   entries: LanguageCatalogEntry[],
   projectId: string,
 ): Promise<LanguageCatalogEntry[]> {
   const db = await getDb();
-  const languages = await db.dexie.languages.toArray();
-  if (projectId.length === 0) {
-    const unscoped = new Set(
-      languages
-        .filter((language) => (language.textId?.trim() ?? '').length === 0)
-        .map((language) => language.id),
-    );
-    return entries.filter((entry) => entry.entryKind === 'built-in' || unscoped.has(entry.id));
-  }
-  const owned = new Set(
-    languages.filter((language) => language.textId === projectId).map((language) => language.id),
-  );
+  const owned =
+    projectId.length === 0
+      ? new Set<string>()
+      : new Set(
+          (await db.dexie.languages.filter((row) => row.textId === projectId).primaryKeys()).map(
+            String,
+          ),
+        );
   return entries.filter((entry) => entry.entryKind === 'built-in' || owned.has(entry.id));
 }
 
+/** 只读：没有项目时只返回内置语言（D11），从不写入 | Read-only; built-ins only without a project */
 export async function listLanguageCatalogEntries(input: {
   locale: Locale;
   searchText?: string;
   includeHidden?: boolean;
   languageIds?: readonly string[];
 }): Promise<LanguageCatalogEntry[]> {
-  const projectId = resolveOwnedProjectTextId();
-  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
+  const projectId = activeCatalogProjectId();
   const entries = await lcProj.readLanguageCatalogProjection(
     input.locale,
     input.includeHidden,
@@ -75,9 +76,15 @@ export async function upsertLanguageCatalogEntry(
   input: UpsertLanguageCatalogEntryInput,
 ): Promise<LanguageCatalogEntry> {
   const db = await getDb();
+  const projectId = requireCatalogProjectId();
   const languageId = lcNorm.resolveStoredLanguageId(input);
   const now = new Date().toISOString();
   const existing = await db.dexie.languages.get(languageId);
+  // 同一语言 ID 在库里只有一行：别的项目已覆盖时拒绝，而不是悄悄改归属。
+  // One stored row per language id: refuse instead of silently re-owning another project's row.
+  if (existing && existing.textId !== projectId) {
+    throw new CatalogOwnershipMismatchError('languages', languageId, existing.textId, projectId);
+  }
   const nextSourceType: LanguageCatalogSourceType = languageId.startsWith('user:')
     ? 'user-custom'
     : (existing?.sourceType ?? 'user-override');
@@ -94,6 +101,7 @@ export async function upsertLanguageCatalogEntry(
     input,
     existing,
     languageId,
+    textId: projectId,
     now,
     nextSourceType,
     p: prep,
@@ -102,6 +110,7 @@ export async function upsertLanguageCatalogEntry(
   const aliasRows = buildUpsertAliasRows({
     normalizedAliases: prep.normalizedAliases,
     languageId,
+    textId: projectId,
     nextSourceType,
     upsertInput: input,
     now,
@@ -109,6 +118,7 @@ export async function upsertLanguageCatalogEntry(
 
   const displayRows = buildUpsertDisplayNameRows({
     languageId,
+    textId: projectId,
     locale,
     prep,
     nextSourceType,
@@ -169,6 +179,7 @@ export async function upsertLanguageCatalogEntry(
       await db.dexie.language_catalog_history.put(
         lcHist.buildHistoryRecord({
           languageId,
+          textId: projectId,
           action: existing ? 'update' : 'create',
           summary: t(
             locale,
@@ -246,6 +257,7 @@ export async function deleteLanguageCatalogEntry(input: {
       await db.dexie.language_catalog_history.put(
         lcHist.buildHistoryRecord({
           languageId: input.languageId,
+          textId: existing.textId,
           action: 'delete',
           summary: t(
             input.locale,
@@ -276,10 +288,14 @@ export async function deleteLanguageCatalogEntry(input: {
 export async function listLanguageCatalogHistory(
   languageId: string,
 ): Promise<LanguageCatalogHistoryDocType[]> {
+  // 只读本项目的历史；没有项目时为空（2B-B / D11）| Read-only, this project's history; empty without one
+  const projectId = activeCatalogProjectId();
+  if (projectId.length === 0) return [];
   const db = await getDb();
   return db.dexie.language_catalog_history
     .where('languageId')
     .equals(languageId)
+    .filter((row) => row.textId === projectId)
     .reverse()
     .sortBy('createdAt');
 }

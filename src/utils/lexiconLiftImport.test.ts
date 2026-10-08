@@ -27,7 +27,7 @@ const fox = `<?xml version="1.0" encoding="UTF-8"?>
 
 describe('parseLiftXml', () => {
   it('projects headword, translation, definition, and a subsense', () => {
-    const parsed = parseLiftXml(fox);
+    const parsed = parseLiftXml(fox, 'text-1');
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     const entry = parsed.lexemes[0]!;
@@ -56,7 +56,7 @@ describe('parseLiftXml', () => {
   <sense id="sense-money"><grammatical-info value="noun"/><gloss lang="en"><text>money</text></gloss></sense>
   <sense id="sense-verb"><grammatical-info value="verb"/><gloss lang="en"><text>tilt</text></gloss></sense>
 </entry></lift>`;
-    const parsed = parseLiftXml(xml);
+    const parsed = parseLiftXml(xml, 'text-1');
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.lexemes.map((row) => row.entry.partsOfSpeech?.[0])).toEqual(['noun', 'verb']);
@@ -67,8 +67,8 @@ describe('parseLiftXml', () => {
   });
 
   it('rejects a file that is not LIFT 0.13', () => {
-    expect(parseLiftXml('<not-lift/>').ok).toBe(false);
-    expect(parseLiftXml('<lift version="0.15"></lift>')).toMatchObject({
+    expect(parseLiftXml('<not-lift/>', 'text-1').ok).toBe(false);
+    expect(parseLiftXml('<lift version="0.15"></lift>', 'text-1')).toMatchObject({
       ok: false,
       reason: 'unsupported-version',
     });
@@ -78,7 +78,7 @@ describe('parseLiftXml', () => {
 describe('importLexemesFromLiftXml', () => {
   it('saves the entry and the resource, then readback matches the headword', async () => {
     const store = new Map<string, LexemeEntryDoc | LexemeResourceDoc>();
-    const result = await importLexemesFromLiftXml(fox, {
+    const result = await importLexemesFromLiftXml(fox, 'text-1', {
       save: async (doc) => {
         store.set(doc.id, doc);
         return doc.id;
@@ -124,8 +124,8 @@ describe('importLexemesFromLiftXml', () => {
         return doc.id;
       },
     };
-    const first = await importLexemesFromLiftXml(xml, deps);
-    const second = await importLexemesFromLiftXml(xml, deps);
+    const first = await importLexemesFromLiftXml(xml, 'text-1', deps);
+    const second = await importLexemesFromLiftXml(xml, 'text-1', deps);
     expect(first.ok && second.ok).toBe(true);
     if (!first.ok || !second.ok) return;
     expect(first.losses).toEqual([{ code: 'no-stable-id', count: 1 }]);
@@ -152,8 +152,8 @@ describe('importLexemesFromLiftXml', () => {
         return doc.id;
       },
     };
-    const first = await importLexemesFromLiftXml(fox, deps);
-    const second = await importLexemesFromLiftXml(fox, deps);
+    const first = await importLexemesFromLiftXml(fox, 'text-1', deps);
+    const second = await importLexemesFromLiftXml(fox, 'text-1', deps);
     expect(first.ok && second.ok).toBe(true);
     if (!first.ok || !second.ok) return;
     expect(first.losses).toEqual([]);

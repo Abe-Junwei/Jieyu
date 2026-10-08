@@ -1,9 +1,13 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { isLexemeEntry } from '../../db/lexemeNestedIds';
 import { LinguisticService } from '../../services/LinguisticService';
 import { entryDoc } from '../../utils/dmlexEntry';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 import {
   removeAnnotationTokenLexemeLink,
   saveAnnotationTokenLexemeLink,
@@ -12,7 +16,13 @@ import {
 describe('saveAnnotationLexemeLink', () => {
   const now = '2026-09-04T16:00:00.000Z';
 
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   beforeEach(async () => {
+    // 词条查找只在当前项目内（2B-B）| Lexeme lookup is scoped to the active project (2B-B)
+    publishActiveProjectTextId('text-1');
     await Promise.all([db.lexemes.clear(), db.token_lexeme_links.clear()]);
     await db.lexemes.put(
       entryDoc({ id: 'lex-hello', headword: 'hello', createdAt: now, updatedAt: now }),

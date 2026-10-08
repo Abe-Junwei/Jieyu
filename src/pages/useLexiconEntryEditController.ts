@@ -67,6 +67,8 @@ function removeSense(senses: LexiconSenseDraft[], index: number): LexiconSenseDr
 }
 
 export function useLexiconEntryEditController(input: {
+  /** 所属项目（D11：只在有活动项目时渲染）| Owning project (rendered only with an active project) */
+  projectTextId: string;
   selectedLexeme: LexemeEntryDoc | null;
   relations?: readonly DmlexRelation[];
   onSaved: (stored: LexemeEntryDoc) => void;
@@ -193,6 +195,7 @@ export function useLexiconEntryEditController(input: {
       void saveLexiconEntry({
         existing: wasCreating ? null : input.selectedLexeme,
         fields: current,
+        textId: input.projectTextId,
       })
         .then((stored) => {
           if (wasCreating) {

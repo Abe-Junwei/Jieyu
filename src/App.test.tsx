@@ -161,7 +161,44 @@ describe('App shell', () => {
     expect((await screen.findByTestId('home-page')).textContent).toContain('home-page');
   });
 
+  it('T48 shows the project gate instead of the lexicon when no project is active', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('catalog-project-gate')).toBeTruthy();
+    expect(screen.queryByText('lexicon-page')).toBeNull();
+    fireEvent.click(screen.getByTestId('catalog-project-gate-select'));
+    expect(await screen.findByText('home-page')).toBeTruthy();
+  });
+
+  it('T48 does not mount catalog modal pages without an active project', async () => {
+    render(
+      <MemoryRouter initialEntries={['/assets/language-metadata']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('catalog-project-gate')).toBeTruthy();
+    expect(screen.queryByText('language-metadata-page')).toBeNull();
+  });
+
+  it('T48 renders the lexicon once a project is active', async () => {
+    publishActiveProjectTextId('text-demo');
+    render(
+      <MemoryRouter initialEntries={['/lexicon']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('lexicon-page')).toBeTruthy();
+    expect(screen.queryByTestId('catalog-project-gate')).toBeNull();
+  });
+
   it('opens language metadata as a modal panel over the current page from the left rail button', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
@@ -178,6 +215,7 @@ describe('App shell', () => {
   });
 
   it('opens orthography bridges as a modal panel over the current page from the left rail button', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
         <App />
@@ -194,6 +232,7 @@ describe('App shell', () => {
   });
 
   it('opens orthography manager as a modal panel over the current page from the left rail button', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/orthographies']}>
         <App />
@@ -210,6 +249,7 @@ describe('App shell', () => {
   });
 
   it('closes language-asset modal directly to background page after modal-to-modal navigation', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
         <App />
@@ -230,6 +270,7 @@ describe('App shell', () => {
   });
 
   it('closes language-asset modal when pressing Escape', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
@@ -246,6 +287,7 @@ describe('App shell', () => {
   });
 
   it('closes language-asset modal when clicking overlay backdrop and keeps shared overlay style', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
@@ -268,6 +310,7 @@ describe('App shell', () => {
   });
 
   it('opens orthography manager as a modal over the transcription page and applies wide variant', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/orthographies']}>
         <App />
@@ -284,6 +327,7 @@ describe('App shell', () => {
   });
 
   it('opens language metadata as a modal over the transcription page and applies wide variant', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/language-metadata']}>
         <App />
@@ -300,6 +344,7 @@ describe('App shell', () => {
   });
 
   it('opens orthography bridges as a modal over the transcription page and applies wide variant', async () => {
+    publishActiveProjectTextId('text-demo');
     render(
       <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
         <App />

@@ -46,7 +46,13 @@ describe('T50 unified write validation', () => {
 
   it('accepts valid rows and rejects update / modify that make them invalid', async () => {
     await dexie.texts.put({ id: 't1', title: { default: 'T' }, createdAt: NOW, updatedAt: NOW });
-    await dexie.speakers.put({ id: 's1', name: 'Speaker', createdAt: NOW, updatedAt: NOW });
+    await dexie.speakers.put({
+      textId: 'text-1',
+      id: 's1',
+      name: 'Speaker',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
 
     await expect(
       dexie.texts.update('t1', { title: 42 as unknown as { default: string } }),
@@ -94,6 +100,7 @@ describe('T50 unified write validation', () => {
   it('records bulkPut validation cost for a large batch', async () => {
     const rows = Array.from({ length: 5000 }, (_, index) => ({
       id: `bulk-${index}`,
+      textId: 'text-1',
       name: `Speaker ${index}`,
       createdAt: NOW,
       updatedAt: NOW,

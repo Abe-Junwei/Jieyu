@@ -50,6 +50,14 @@ test.describe('关键路径 | Critical paths', () => {
   });
 
   test('词典页可加载（语言资产主路径烟测子集） | Lexicon page loads (ARCH-9 smoke)', async ({ page }) => {
+    // D11：词典属于项目，先选定一个活动项目 | D11: the lexicon belongs to a project, so pick one first
+    await page.goto('/');
+    await page.evaluate(() =>
+      sessionStorage.setItem(
+        'jieyu.workspace.transcriptionReturn.v1',
+        JSON.stringify({ textId: 'text-critical-lexicon' }),
+      ),
+    );
     await page.goto('/lexicon');
     await expect(page.locator('nav')).toBeVisible();
     // zh-CN: 词典工作台；en: Lexicon Workspace（默认 locale 可能因环境不同）

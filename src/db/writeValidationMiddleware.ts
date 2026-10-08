@@ -44,6 +44,9 @@ function fieldPathOf(cause: unknown): string {
     const first = cause.issues[0];
     if (first && first.path.length > 0) return first.path.map(String).join('.');
   }
+  const fieldPath =
+    cause instanceof Error ? (cause as Error & { fieldPath?: unknown }).fieldPath : undefined;
+  if (typeof fieldPath === 'string') return fieldPath;
   return '';
 }
 

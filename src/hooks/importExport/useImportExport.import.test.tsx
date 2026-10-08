@@ -416,6 +416,7 @@ describe('useImportExport - import success under stop-write', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_import',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Source Import' },
         scriptTag: 'Latn',
@@ -425,6 +426,7 @@ describe('useImportExport - import success under stop-write', () => {
       },
       {
         id: 'orth_target_import',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Target Import' },
         scriptTag: 'Latn',
@@ -435,6 +437,7 @@ describe('useImportExport - import success under stop-write', () => {
     ] as never[]);
     await db.orthography_bridges.put({
       id: 'orthxfm_import_trc',
+      textId: 'text-import',
       sourceOrthographyId: 'orth_source_import',
       targetOrthographyId: 'orth_target_import',
       engine: 'table-map',
@@ -517,6 +520,7 @@ describe('useImportExport - import success under stop-write', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_import',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Source Import' },
         scriptTag: 'Latn',
@@ -526,6 +530,7 @@ describe('useImportExport - import success under stop-write', () => {
       },
       {
         id: 'orth_target_import',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Target Import' },
         scriptTag: 'Latn',
@@ -536,6 +541,7 @@ describe('useImportExport - import success under stop-write', () => {
     ] as never[]);
     await db.orthography_bridges.put({
       id: 'orthxfm_import_trc_preserve_source',
+      textId: 'text-import',
       sourceOrthographyId: 'orth_source_import',
       targetOrthographyId: 'orth_target_import',
       engine: 'table-map',
@@ -639,6 +645,7 @@ describe('useImportExport - import success under stop-write', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_import',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Source Import' },
         scriptTag: 'Latn',
@@ -648,6 +655,7 @@ describe('useImportExport - import success under stop-write', () => {
       },
       {
         id: 'orth_target_import',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Target Import' },
         scriptTag: 'Latn',
@@ -658,6 +666,7 @@ describe('useImportExport - import success under stop-write', () => {
     ] as never[]);
     await db.orthography_bridges.put({
       id: 'orthxfm_import_trc_preserve_both',
+      textId: 'text-import',
       sourceOrthographyId: 'orth_source_import',
       targetOrthographyId: 'orth_target_import',
       engine: 'table-map',
@@ -773,6 +782,7 @@ describe('useImportExport - import success under stop-write', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_translation',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Source Translation' },
         scriptTag: 'Latn',
@@ -782,6 +792,7 @@ describe('useImportExport - import success under stop-write', () => {
       },
       {
         id: 'orth_target_translation',
+        textId: 'text-import',
         languageId: 'eng',
         name: { eng: 'Target Translation' },
         scriptTag: 'Latn',
@@ -792,6 +803,7 @@ describe('useImportExport - import success under stop-write', () => {
     ] as never[]);
     await db.orthography_bridges.put({
       id: 'orthxfm_import_translation',
+      textId: 'text-import',
       sourceOrthographyId: 'orth_source_translation',
       targetOrthographyId: 'orth_target_translation',
       engine: 'table-map',
@@ -872,6 +884,7 @@ describe('useImportExport - import success under stop-write', () => {
     await seedProjectLayer(defaultLayer);
     await db.speakers.put({
       id: 'speaker_existing_john',
+      textId: 'text-import',
       name: 'john',
       createdAt: NOW,
       updatedAt: NOW,
@@ -2159,6 +2172,7 @@ describe('useImportExport - import success under stop-write', () => {
     await seedProjectLayer(defaultLayer);
     await db.lexemes.put({
       id: 'lex-hello',
+      textId: 'text-lex',
       entry: {
         id: 'lex-hello',
         headword: 'hello',

@@ -57,6 +57,7 @@ function makePreview(): JieyuArchiveImportPreview {
     ],
     totalIncoming: 3,
     totalConflicts: 1,
+    unresolvedSystemRefs: [],
   };
 }
 

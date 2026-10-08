@@ -11,6 +11,7 @@ describe('saveLexiconEntry', () => {
     const stored = await saveLexiconEntry(
       {
         existing: null,
+        textId: 'text-1',
         fields: {
           ...emptyEntryFields(),
           headword: 'pine',
@@ -35,6 +36,7 @@ describe('saveLexiconEntry', () => {
     expect(stored.entry.senses?.[0]?.headwordTranslations?.[0]?.text).toBe('a conifer');
     expect(stored.createdAt.length).toBeGreaterThan(0);
     expect(rows.size).toBe(2);
+    expect(stored.textId).toBe('text-1');
     void now;
   });
 
@@ -42,7 +44,7 @@ describe('saveLexiconEntry', () => {
     const save = async () => 'x';
     await expect(
       saveLexiconEntry(
-        { existing: null, fields: emptyEntryFields() },
+        { existing: null, textId: 'text-1', fields: emptyEntryFields() },
         {
           save,
           list: async () => [],

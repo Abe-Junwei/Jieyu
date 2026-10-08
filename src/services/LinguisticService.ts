@@ -181,6 +181,8 @@ export const LinguisticService = {
   structuralProfiles: {
     listAssets: linguisticServiceStructuralProfileFacade.listStructuralRuleProfileAssets,
     createAsset: linguisticServiceStructuralProfileFacade.createStructuralRuleProfileAsset,
+    copySystemTemplate:
+      linguisticServiceStructuralProfileFacade.copySystemStructuralRuleProfileToProject,
     updateAsset: linguisticServiceStructuralProfileFacade.updateStructuralRuleProfileAsset,
     setAssetEnabled: linguisticServiceStructuralProfileFacade.setStructuralRuleProfileAssetEnabled,
     preview: linguisticServiceStructuralProfileFacade.previewStructuralRuleProfile,

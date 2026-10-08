@@ -56,6 +56,7 @@ describe('linguisticServiceLexemeAssetOps', () => {
     const db = await getDb();
     const asset: LexemeAssetDocType = {
       id: 'la_shared',
+      textId: 'text-1',
       kind: 'document',
       mimeType: 'application/pdf',
       displayName: 'note.pdf',
@@ -67,12 +68,14 @@ describe('linguisticServiceLexemeAssetOps', () => {
     };
     const linkA: LexemeAssetLinkDocType = {
       id: 'll_a',
+      textId: 'text-1',
       lexemeId: 'lex-attach-1',
       assetId: 'la_shared',
       createdAt: now,
     };
     const linkB: LexemeAssetLinkDocType = {
       id: 'll_b',
+      textId: 'text-1',
       lexemeId: 'lex-attach-1',
       assetId: 'la_shared',
       createdAt: now,

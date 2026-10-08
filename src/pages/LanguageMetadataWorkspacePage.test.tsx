@@ -514,6 +514,7 @@ describe('LanguageMetadataWorkspacePage', () => {
     currentFieldDefinitions = [
       {
         id: 'vitalityScore',
+        textId: 'text-1',
         name: { 'zh-CN': '活力评分' },
         fieldType: 'number',
         required: true,

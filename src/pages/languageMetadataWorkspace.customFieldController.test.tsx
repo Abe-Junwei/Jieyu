@@ -76,7 +76,10 @@ function createDeferred<T>() {
 
 describe('useLanguageMetadataCustomFieldController', () => {
   beforeEach(() => {
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
   });
 
   afterEach(() => {
@@ -86,15 +89,20 @@ describe('useLanguageMetadataCustomFieldController', () => {
   it('uses the latest custom field values after async field deletion resolves', async () => {
     const fieldDefinition = {
       id: 'field-a',
+      textId: 'text-1',
       name: { 'zh-CN': '字段 A' },
       fieldType: 'text' as const,
       sortOrder: 0,
       createdAt: '2026-04-07T00:00:00.000Z',
       updatedAt: '2026-04-07T00:00:00.000Z',
     };
-    vi.spyOn(languageCatalogService, 'listCustomFieldDefinitions').mockResolvedValue([fieldDefinition]);
+    vi.spyOn(languageCatalogService, 'listCustomFieldDefinitions').mockResolvedValue([
+      fieldDefinition,
+    ]);
     const deletion = createDeferred<void>();
-    vi.spyOn(languageCatalogService, 'deleteCustomFieldDefinition').mockImplementation(() => deletion.promise);
+    vi.spyOn(languageCatalogService, 'deleteCustomFieldDefinition').mockImplementation(
+      () => deletion.promise,
+    );
 
     const onDraftChange = vi.fn<(field: string, value: unknown) => void>();
     const { result, rerender } = renderHook(
@@ -129,6 +137,7 @@ describe('useLanguageMetadataCustomFieldController', () => {
   it('sanitizes incompatible constraints when switching field type', async () => {
     const fieldDefinition = {
       id: 'field-switch',
+      textId: 'text-1',
       name: { 'zh-CN': '评分字段' },
       fieldType: 'number' as const,
       minValue: 1,
@@ -140,13 +149,17 @@ describe('useLanguageMetadataCustomFieldController', () => {
       updatedAt: '2026-04-07T00:00:00.000Z',
     };
 
-    vi.spyOn(languageCatalogService, 'listCustomFieldDefinitions').mockResolvedValue([fieldDefinition]);
-    const upsertSpy = vi.spyOn(languageCatalogService, 'upsertCustomFieldDefinition').mockResolvedValue({
-      ...fieldDefinition,
-      fieldType: 'select',
-      options: ['单选 1'],
-      updatedAt: '2026-04-07T00:10:00.000Z',
-    });
+    vi.spyOn(languageCatalogService, 'listCustomFieldDefinitions').mockResolvedValue([
+      fieldDefinition,
+    ]);
+    const upsertSpy = vi
+      .spyOn(languageCatalogService, 'upsertCustomFieldDefinition')
+      .mockResolvedValue({
+        ...fieldDefinition,
+        fieldType: 'select',
+        options: ['单选 1'],
+        updatedAt: '2026-04-07T00:10:00.000Z',
+      });
 
     const onDraftChange = vi.fn<(field: string, value: unknown) => void>();
     const { result } = renderHook(() =>

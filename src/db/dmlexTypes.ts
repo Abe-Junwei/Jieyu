@@ -152,6 +152,11 @@ export interface JieyuLexemeExtras {
   occurrenceCitations?: JieyuOccurrenceCitation[];
 }
 
-export const DMLEX_RESOURCE_ID = 'dmlex-resource';
+/** 每个项目一行 DMLex resource，ID 带项目前缀 | One DMLex resource row per project */
+export const DMLEX_RESOURCE_ID_PREFIX = 'dmlex-resource:';
+
+export function dmlexResourceIdForProject(textId: string): string {
+  return `${DMLEX_RESOURCE_ID_PREFIX}${textId}`;
+}
 export const DMLEX_SUBSENSE = 'subsense';
 export const DMLEX_HOMOGRAPH = 'homograph';

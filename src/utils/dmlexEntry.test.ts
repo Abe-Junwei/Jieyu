@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import Ajv from 'ajv/dist/2020';
-import { DMLEX_HOMOGRAPH, DMLEX_RESOURCE_ID, DMLEX_SUBSENSE } from '../db/dmlexTypes';
+import { DMLEX_HOMOGRAPH, DMLEX_SUBSENSE, dmlexResourceIdForProject } from '../db/dmlexTypes';
 import { validateLexemeDoc } from '../db/schemas';
 import { applyLexiconEntryFields, emptyEntryFields, entryDoc, fieldsFromEntry } from './dmlexEntry';
 
@@ -37,6 +37,7 @@ describe('applyLexiconEntryFields', () => {
       },
       null,
       now,
+      'text-1',
     );
 
     expect(applied.entry.entry).toMatchObject({
@@ -97,8 +98,10 @@ describe('applyLexiconEntryFields', () => {
       },
       null,
       now,
+      'text-1',
     );
-    expect(applied.resource.id).toBe(DMLEX_RESOURCE_ID);
+    expect(applied.resource.id).toBe(dmlexResourceIdForProject('text-1'));
+    expect(applied.resource.textId).toBe('text-1');
     expect(applied.resource.resource.relations).toEqual([
       { type: DMLEX_SUBSENSE, members: [{ ref: 'sense-tree' }, { ref: 'sense-wood' }] },
     ]);
@@ -141,6 +144,7 @@ describe('applyLexiconEntryFields', () => {
       },
       null,
       now,
+      'text-1',
     );
     expect(applied.entry.entry.senses?.[0]?.examples ?? []).toEqual([]);
     expect(applied.entry.jieyu?.occurrenceCitations?.[0]?.tokenId).toBe('tok-1');
@@ -157,6 +161,7 @@ describe('applyLexiconEntryFields', () => {
       },
       null,
       now,
+      'text-1',
     );
     expect(applied.resource.resource.relations?.[0]).toEqual({
       type: DMLEX_HOMOGRAPH,
@@ -187,6 +192,7 @@ describe('dmlex.schema.json fixture', () => {
       },
       null,
       now,
+      'text-1',
     );
     const document = {
       langCode: applied.resource.resource.langCode,

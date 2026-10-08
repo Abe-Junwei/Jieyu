@@ -75,6 +75,7 @@ function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocT
 function makeSpeaker(id: string, name: string): SpeakerDocType {
   return {
     id,
+    textId: 'text-1',
     name,
     createdAt: '2026-04-16T00:00:00.000Z',
     updatedAt: '2026-04-16T00:00:00.000Z',

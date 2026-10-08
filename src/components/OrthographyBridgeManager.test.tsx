@@ -211,6 +211,7 @@ describe('OrthographyBridgeManager', () => {
     mockListOrthographyBridges.mockResolvedValue([
       {
         id: 'orthxfm-1',
+        textId: 'text-1',
         sourceOrthographyId: 'orth-source',
         targetOrthographyId: 'orth-target',
         name: { zho: '导入规则' },
@@ -257,6 +258,7 @@ describe('OrthographyBridgeManager', () => {
     mockListOrthographyBridges.mockResolvedValue([
       {
         id: 'orthxfm-clear-name',
+        textId: 'text-1',
         sourceOrthographyId: 'orth-source',
         targetOrthographyId: 'orth-target',
         name: { und: 'Primary name', eng: 'English name' },
@@ -340,6 +342,7 @@ describe('OrthographyBridgeManager', () => {
     mockListOrthographyBridges.mockResolvedValue([
       {
         id: 'orthxfm-built-in',
+        textId: 'text-1',
         sourceOrthographyId: 'eng-latn',
         targetOrthographyId: 'orth-target',
         engine: 'table-map',

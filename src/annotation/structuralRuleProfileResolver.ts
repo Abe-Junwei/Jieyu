@@ -1,4 +1,5 @@
 import type { StructuralRuleProfileAssetDocType } from '../db';
+import type { SystemStructuralRuleProfileTemplate } from './systemStructuralRuleProfiles';
 import {
   DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
   validateStructuralRuleProfile,
@@ -11,10 +12,17 @@ export type StructuralRuleProfileResolutionContext = {
   userOverrideProfile?: StructuralRuleProfile;
 };
 
+/** 解析输入：代码系统模板或项目行 | Resolver input: a code system template or a project row */
+export type StructuralRuleProfileResolvableAsset =
+  | SystemStructuralRuleProfileTemplate
+  | StructuralRuleProfileAssetDocType;
+
+type ResolverScope = 'system' | 'language' | 'project' | 'user';
+
 type StructuralRuleProfileResolverDiagnostic = {
   type: 'skipped_disabled' | 'skipped_scope_mismatch' | 'invalid_profile' | 'applied_profile';
   assetId?: string;
-  scope?: StructuralRuleProfileAssetDocType['scope'];
+  scope?: ResolverScope;
   message: string;
   severity: 'info' | 'warning';
 };
@@ -25,15 +33,19 @@ export type StructuralRuleProfileResolution = {
   diagnostics: StructuralRuleProfileResolverDiagnostic[];
 };
 
-const SCOPE_RANK: Record<StructuralRuleProfileAssetDocType['scope'], number> = {
+const SCOPE_RANK: Record<ResolverScope, number> = {
   system: 0,
   language: 1,
   project: 2,
   user: 3,
 };
 
+function assetUpdatedAt(asset: StructuralRuleProfileResolvableAsset): string {
+  return 'updatedAt' in asset ? asset.updatedAt : '';
+}
+
 function assetMatchesContext(
-  asset: StructuralRuleProfileAssetDocType,
+  asset: StructuralRuleProfileResolvableAsset,
   context: StructuralRuleProfileResolutionContext,
 ): boolean {
   if (asset.scope === 'language') {
@@ -46,14 +58,14 @@ function assetMatchesContext(
 }
 
 function sortAssetsForResolution(
-  assets: StructuralRuleProfileAssetDocType[],
-): StructuralRuleProfileAssetDocType[] {
+  assets: StructuralRuleProfileResolvableAsset[],
+): StructuralRuleProfileResolvableAsset[] {
   return [...assets].sort((a, b) => {
     const scopeDiff = SCOPE_RANK[a.scope] - SCOPE_RANK[b.scope];
     if (scopeDiff !== 0) return scopeDiff;
     const priorityDiff = a.priority - b.priority;
     if (priorityDiff !== 0) return priorityDiff;
-    const updatedDiff = a.updatedAt.localeCompare(b.updatedAt);
+    const updatedDiff = assetUpdatedAt(a).localeCompare(assetUpdatedAt(b));
     if (updatedDiff !== 0) return updatedDiff;
     return a.id.localeCompare(b.id);
   });
@@ -65,7 +77,7 @@ function sortAssetsForResolution(
  */
 export function resolveStructuralRuleProfile(
   systemProfile: StructuralRuleProfile = DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
-  assets: readonly StructuralRuleProfileAssetDocType[] = [],
+  assets: readonly StructuralRuleProfileResolvableAsset[] = [],
   context: StructuralRuleProfileResolutionContext = {},
 ): StructuralRuleProfileResolution {
   const diagnostics: StructuralRuleProfileResolverDiagnostic[] = [];
@@ -110,7 +122,10 @@ export function resolveStructuralRuleProfile(
         type: 'invalid_profile',
         assetId: asset.id,
         scope: asset.scope,
-        message: error instanceof Error ? error.message : `Invalid structural rule profile asset "${asset.id}".`,
+        message:
+          error instanceof Error
+            ? error.message
+            : `Invalid structural rule profile asset "${asset.id}".`,
         severity: 'warning',
       });
     }
@@ -129,7 +144,10 @@ export function resolveStructuralRuleProfile(
       diagnostics.push({
         type: 'invalid_profile',
         scope: 'user',
-        message: error instanceof Error ? error.message : 'Invalid user session structural rule profile override.',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Invalid user session structural rule profile override.',
         severity: 'warning',
       });
     }

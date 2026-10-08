@@ -57,12 +57,15 @@ export type LexiconLiftImportDeps = {
   saveResource: (doc: LexemeResourceDoc) => Promise<string>;
 };
 
-const defaultDeps: LexiconLiftImportDeps = {
-  save: (doc) => LinguisticService.lexemes.save(doc),
-  list: () => LinguisticService.lexemes.list(),
-  loadResource: () => LinguisticService.lexemes.getResource(),
-  saveResource: (doc) => LinguisticService.lexemes.save(doc),
-};
+/** 默认依赖：所有读写都显式带上项目 | Default deps: every read/write names the project */
+function defaultDepsFor(textId: string): LexiconLiftImportDeps {
+  return {
+    save: (doc) => LinguisticService.lexemes.save(doc),
+    list: () => LinguisticService.lexemes.list(textId),
+    loadResource: () => LinguisticService.lexemes.getResource(textId),
+    saveResource: (doc) => LinguisticService.lexemes.save(doc),
+  };
+}
 
 function directChildren(parent: Element, localName: string): Element[] {
   return Array.from(parent.children).filter((child) => child.localName === localName);
@@ -181,16 +184,17 @@ function collectSenses(
   return out;
 }
 
-function blankEntry(id: string, headword: string, now: string): LexemeEntryDoc {
+function blankEntry(id: string, headword: string, now: string, textId: string): LexemeEntryDoc {
   return {
     id,
+    textId,
     entry: { id, headword },
     createdAt: now,
     updatedAt: now,
   };
 }
 
-export function parseLiftXml(xml: string): LexiconLiftParseResult {
+export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResult {
   if (typeof DOMParser === 'undefined') return { ok: false, reason: 'invalid-xml' };
   const trimmed = xml.trim();
   if (trimmed.length === 0) return { ok: false, reason: 'empty' };
@@ -202,7 +206,7 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
   const now = new Date().toISOString();
   const diagnostics: LexiconLiftDiagnostic[] = [];
   const lexemes: LexemeEntryDoc[] = [];
-  let resource = emptyDmlexResource(now);
+  let resource = emptyDmlexResource(now, textId);
   let missingStableIds = 0;
   for (const entry of directChildren(lift, 'entry')) {
     const entryIdAttr = attr(entry, 'id');
@@ -253,7 +257,7 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
     const partners = groups.map((group) => group.id);
     for (const group of groups) {
       const applied = applyLexiconEntryFields(
-        blankEntry(group.id, forms[0]!.text, now),
+        blankEntry(group.id, forms[0]!.text, now, textId),
         {
           headword: forms[0]!.text,
           homographNumber: groups.length > 1 ? String(partners.indexOf(group.id) + 1) : '',
@@ -269,6 +273,7 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
         },
         resource,
         now,
+        textId,
       );
       lexemes.push(applied.entry);
       resource = applied.resource;
@@ -282,9 +287,10 @@ export function parseLiftXml(xml: string): LexiconLiftParseResult {
 
 export async function importLexemesFromLiftXml(
   xml: string,
-  deps: LexiconLiftImportDeps = defaultDeps,
+  textId: string,
+  deps: LexiconLiftImportDeps = defaultDepsFor(textId),
 ): Promise<LexiconLiftImportResult> {
-  const parsed = parseLiftXml(xml);
+  const parsed = parseLiftXml(xml, textId);
   if (!parsed.ok) return parsed;
   try {
     const existingIds = new Set((await deps.list()).map((row) => row.id));
@@ -340,7 +346,8 @@ export async function importLexemesFromLiftXml(
 
 export async function importLexemesFromLiftFile(
   file: File,
-  deps: LexiconLiftImportDeps = defaultDeps,
+  textId: string,
+  deps: LexiconLiftImportDeps = defaultDepsFor(textId),
 ): Promise<LexiconLiftImportResult> {
-  return importLexemesFromLiftXml(await file.text(), deps);
+  return importLexemesFromLiftXml(await file.text(), textId, deps);
 }

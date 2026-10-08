@@ -1,11 +1,15 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getLanguageLocalDisplayNameFromCatalog } from '../data/languageNameCatalog';
 import { clearLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
 import { db } from '../db';
 import type { AuditLogDocType, TierDefinitionDocType, TierAnnotationDocType } from '../db';
 import { LinguisticService, validateTierConstraints } from './LinguisticService';
 import { resolveLanguageQuery } from '../utils/langMapping';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../utils/transcriptionUrlDeepLink';
 
 async function clearDatabase(): Promise<void> {
   await Promise.all([
@@ -144,6 +148,13 @@ async function seedLinguisticServiceSmokeFixtures(nowIso: string): Promise<void>
 }
 
 describe('LinguisticService smoke tests', () => {
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
@@ -388,6 +399,7 @@ describe('LinguisticService smoke tests', () => {
   it('can update an existing orthography while preserving catalog metadata', async () => {
     await db.orthographies.put({
       id: 'orth_update_1',
+      textId: 'text-1',
       name: { eng: 'English Practical' },
       languageId: 'eng',
       scriptTag: 'Latn',
@@ -441,6 +453,7 @@ describe('LinguisticService smoke tests', () => {
   it('can update orthography catalog review metadata from the workspace', async () => {
     await db.orthographies.put({
       id: 'orth_update_catalog_1',
+      textId: 'text-1',
       name: { eng: 'Generated Orthography' },
       languageId: 'eng',
       scriptTag: 'Latn',
@@ -484,6 +497,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_scope_eng',
+        textId: 'text-1',
         name: { eng: 'English Practical' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -494,6 +508,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_scope_zho',
+        textId: 'text-1',
         name: { zho: '中文方案' },
         languageId: 'zho',
         scriptTag: 'Hans',
@@ -504,6 +519,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_scope_fra',
+        textId: 'text-1',
         name: { fra: 'Orthographe francaise' },
         languageId: 'fra',
         scriptTag: 'Latn',
@@ -586,6 +602,7 @@ describe('LinguisticService smoke tests', () => {
   it('can clone an orthography into another language as a new record', async () => {
     await db.orthographies.put({
       id: 'orth_source_1',
+      textId: 'text-1',
       name: { eng: 'English Practical' },
       languageId: 'eng',
       abbreviation: 'ENG-PRAC',
@@ -644,6 +661,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_transform',
+        textId: 'text-1',
         name: { eng: 'Source Orthography' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -653,6 +671,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_target_transform',
+        textId: 'text-1',
         name: { eng: 'Target Orthography' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -707,6 +726,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_create_source',
+        textId: 'text-1',
         name: { eng: 'Create Source' },
         languageId: 'eng',
         createdAt: NOW,
@@ -714,6 +734,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_create_target',
+        textId: 'text-1',
         name: { eng: 'Create Target' },
         languageId: 'cmn',
         createdAt: NOW,
@@ -723,6 +744,7 @@ describe('LinguisticService smoke tests', () => {
 
     await db.orthography_bridges.put({
       id: 'orthxfm_existing_active',
+      textId: 'text-1',
       sourceOrthographyId: 'orth_create_source',
       targetOrthographyId: 'orth_create_target',
       engine: 'table-map',
@@ -747,6 +769,7 @@ describe('LinguisticService smoke tests', () => {
   it('accepts built-in orthographies when creating bridge transforms', async () => {
     await db.orthographies.put({
       id: 'orth_runtime_target_user',
+      textId: 'text-1',
       name: { eng: 'Runtime Target User' },
       languageId: 'cmn',
       scriptTag: 'Latn',
@@ -773,6 +796,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_runtime_source',
+        textId: 'text-1',
         name: { eng: 'Runtime Source' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -782,6 +806,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_runtime_target',
+        textId: 'text-1',
         name: { eng: 'Runtime Target' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -793,6 +818,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthography_bridges.bulkPut([
       {
         id: 'orthxfm_runtime_draft',
+        textId: 'text-1',
         sourceOrthographyId: 'orth_runtime_source',
         targetOrthographyId: 'orth_runtime_target',
         engine: 'table-map',
@@ -805,6 +831,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orthxfm_runtime_active',
+        textId: 'text-1',
         sourceOrthographyId: 'orth_runtime_source',
         targetOrthographyId: 'orth_runtime_target',
         engine: 'table-map',
@@ -817,6 +844,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orthxfm_runtime_deprecated',
+        textId: 'text-1',
         sourceOrthographyId: 'orth_runtime_source',
         targetOrthographyId: 'orth_runtime_target',
         engine: 'table-map',
@@ -850,6 +878,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_runtime_draft_source',
+        textId: 'text-1',
         name: { eng: 'Runtime Draft Source' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -859,6 +888,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_runtime_draft_target',
+        textId: 'text-1',
         name: { eng: 'Runtime Draft Target' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -869,6 +899,7 @@ describe('LinguisticService smoke tests', () => {
     ]);
     await db.orthography_bridges.put({
       id: 'orthxfm_runtime_only_draft',
+      textId: 'text-1',
       sourceOrthographyId: 'orth_runtime_draft_source',
       targetOrthographyId: 'orth_runtime_draft_target',
       engine: 'table-map',
@@ -898,6 +929,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_runtime_icu_source',
+        textId: 'text-1',
         name: { eng: 'Runtime ICU Source' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -907,6 +939,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_runtime_icu_target',
+        textId: 'text-1',
         name: { eng: 'Runtime ICU Target' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -918,6 +951,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthography_bridges.bulkPut([
       {
         id: 'orthxfm_runtime_icu_active',
+        textId: 'text-1',
         sourceOrthographyId: 'orth_runtime_icu_source',
         targetOrthographyId: 'orth_runtime_icu_target',
         engine: 'icu-rule',
@@ -946,6 +980,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthographies.bulkPut([
       {
         id: 'orth_manage_source',
+        textId: 'text-1',
         name: { eng: 'Manage Source' },
         languageId: 'eng',
         scriptTag: 'Latn',
@@ -955,6 +990,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orth_manage_target',
+        textId: 'text-1',
         name: { eng: 'Manage Target' },
         languageId: 'cmn',
         scriptTag: 'Latn',
@@ -967,6 +1003,7 @@ describe('LinguisticService smoke tests', () => {
     await db.orthography_bridges.bulkPut([
       {
         id: 'orthxfm_manage_draft',
+        textId: 'text-1',
         sourceOrthographyId: 'orth_manage_source',
         targetOrthographyId: 'orth_manage_target',
         engine: 'table-map',
@@ -977,6 +1014,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'orthxfm_manage_old_active',
+        textId: 'text-1',
         sourceOrthographyId: 'orth_manage_source',
         targetOrthographyId: 'orth_manage_target',
         engine: 'table-map',
@@ -1345,7 +1383,10 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const speaker = await LinguisticService.speakers.create({ name: '说话人甲' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '说话人甲',
+      textId: 'text_spk_assign',
+    });
     const updatedCount = await LinguisticService.speakers.assignToUnits(
       ['utt_spk_assign_1'],
       speaker.id,
@@ -1373,7 +1414,10 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const speaker = await LinguisticService.speakers.create({ name: '旧名' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '旧名',
+      textId: 'text_spk_rename',
+    });
     await LinguisticService.speakers.assignToUnits(['utt_spk_rename_1'], speaker.id);
     const renamed = await LinguisticService.speakers.rename(speaker.id, '新名');
     const units = await LinguisticService.units.getAll();
@@ -1405,8 +1449,14 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const source = await LinguisticService.speakers.create({ name: '来源说话人' });
-    const target = await LinguisticService.speakers.create({ name: '目标说话人' });
+    const source = await LinguisticService.speakers.create({
+      name: '来源说话人',
+      textId: 'text_spk_merge',
+    });
+    const target = await LinguisticService.speakers.create({
+      name: '目标说话人',
+      textId: 'text_spk_merge',
+    });
     await LinguisticService.speakers.assignToUnits(
       ['utt_spk_merge_1', 'utt_spk_merge_2'],
       source.id,
@@ -1438,8 +1488,14 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const source = await LinguisticService.speakers.create({ name: '来源语段说话人' });
-    const target = await LinguisticService.speakers.create({ name: '目标语段说话人' });
+    const source = await LinguisticService.speakers.create({
+      name: '来源语段说话人',
+      textId: 'text_spk_merge_seg',
+    });
+    const target = await LinguisticService.speakers.create({
+      name: '目标语段说话人',
+      textId: 'text_spk_merge_seg',
+    });
     await LinguisticService.speakers.assignToSegments(['seg_spk_merge_1'], source.id);
 
     const moved = await LinguisticService.speakers.merge(source.id, target.id);
@@ -1462,7 +1518,10 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const speaker = await LinguisticService.speakers.create({ name: '待清空说话人' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '待清空说话人',
+      textId: 'text_spk_clear',
+    });
     await LinguisticService.speakers.assignToUnits(['utt_spk_clear_1'], speaker.id);
     const cleared = await LinguisticService.speakers.assignToUnits(['utt_spk_clear_1'], undefined);
     const units = await LinguisticService.units.getAll();
@@ -1487,7 +1546,10 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const speaker = await LinguisticService.speakers.create({ name: '独立语段说话人' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '独立语段说话人',
+      textId: 'text_spk_assign',
+    });
     const updatedCount = await LinguisticService.speakers.assignToSegments(
       ['seg_spk_assign_1'],
       speaker.id,
@@ -1513,7 +1575,10 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const speaker = await LinguisticService.speakers.create({ name: 'LayerUnit 语段说话人' });
+    const speaker = await LinguisticService.speakers.create({
+      name: 'LayerUnit 语段说话人',
+      textId: 'text_spk_assign_unit',
+    });
     const updatedCount = await LinguisticService.speakers.assignToSegments(
       ['seg_spk_assign_unit_1'],
       speaker.id,
@@ -1526,7 +1591,10 @@ describe('LinguisticService smoke tests', () => {
 
   it('clears segment speaker assignment when assigning undefined speaker id', async () => {
     const now = new Date().toISOString();
-    const speaker = await LinguisticService.speakers.create({ name: '待清空独立语段说话人' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '待清空独立语段说话人',
+      textId: 'text_spk_clear',
+    });
 
     await db.layer_units.put({
       id: 'seg_spk_clear_1',
@@ -1553,7 +1621,10 @@ describe('LinguisticService smoke tests', () => {
 
   it('deletes speaker with clear strategy and clears independent segment references', async () => {
     const now = new Date().toISOString();
-    const speaker = await LinguisticService.speakers.create({ name: '待删除独立语段说话人' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '待删除独立语段说话人',
+      textId: 'text_spk_delete',
+    });
 
     await db.layer_units.put({
       id: 'seg_spk_delete_1',
@@ -1577,7 +1648,10 @@ describe('LinguisticService smoke tests', () => {
 
   it('rejects deleting speaker when independent segments still reference it', async () => {
     const now = new Date().toISOString();
-    const speaker = await LinguisticService.speakers.create({ name: '被引用语段说话人' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '被引用语段说话人',
+      textId: 'text_spk_delete_reject',
+    });
 
     await db.layer_units.put({
       id: 'seg_spk_delete_reject_1',
@@ -1622,7 +1696,10 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const speaker = await LinguisticService.speakers.create({ name: '统计说话人' });
+    const speaker = await LinguisticService.speakers.create({
+      name: '统计说话人',
+      textId: 'text_stats',
+    });
     await LinguisticService.speakers.assignToUnits(['utt_stats_1'], speaker.id);
     await LinguisticService.speakers.assignToSegments(['seg_stats_1'], speaker.id);
 
@@ -4274,6 +4351,13 @@ describe('validateTierConstraints', () => {
 // ── Integration tests: tier CRUD + batch save ──────────────────
 
 describe('Tier CRUD & batch save', () => {
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
@@ -4368,6 +4452,13 @@ describe('Tier CRUD & batch save', () => {
 // ── Audit log tests ────────────────────────────────────────────
 
 describe('Audit logging', () => {
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
@@ -4519,6 +4610,13 @@ describe('Audit logging', () => {
 // ── Validated CRUD tests ───────────────────────────────────────
 
 describe('Validated single-item CRUD', () => {
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
@@ -4833,6 +4931,13 @@ describe('Validated single-item CRUD', () => {
 // ── Language catalog Service facade ───────────────────────────
 
 describe('searchLanguageCatalogEntries', () => {
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   it('returns matches for a known language name', () => {
     const results = LinguisticService.languageCatalog.searchEntries('English', 'en-US', 5);
     expect(results.length).toBeGreaterThan(0);
@@ -4892,6 +4997,13 @@ describe('searchLanguageCatalogEntries', () => {
 });
 
 describe('resolveLanguageQuery', () => {
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   it('resolves a known ISO 639-3 code directly', () => {
     expect(LinguisticService.languageCatalog.resolveQuery('eng')).toBe('eng');
   });
@@ -4906,6 +5018,13 @@ describe('resolveLanguageQuery', () => {
 });
 
 describe('listCustomFieldDefinitions', () => {
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   beforeEach(async () => {
     await db.open();
     await clearDatabase();

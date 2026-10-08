@@ -11,20 +11,21 @@ import { newId } from '../utils/transcriptionFormatters';
 import { validateCustomFieldDefinitionInput } from './LanguageMetadataCustomFields';
 import { createLogger } from '../observability/logger';
 import { refreshLanguageCatalogReadModelAfterMutation } from './LinguisticService.languageCatalog.refreshBridge';
-import { claimUnscopedCatalog, resolveOwnedProjectTextId } from './projectCatalogScope';
+import {
+  activeCatalogProjectId,
+  CatalogOwnershipMismatchError,
+  requireCatalogProjectId,
+} from './projectCatalogScope';
 
 const log = createLogger('LinguisticService.languageCatalog.customFieldAdmin');
 
 export async function listCustomFieldDefinitions(): Promise<CustomFieldDefinitionDocType[]> {
+  // 只读：本项目的定义；没有项目时为空（D11）| Read-only: this project's definitions; empty without a project
+  const projectId = activeCatalogProjectId();
+  if (projectId.length === 0) return [];
   const db = await getDb();
-  const projectId = resolveOwnedProjectTextId();
-  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
   const all = await db.dexie.custom_field_definitions.toArray();
-  const owned =
-    projectId.length === 0
-      ? all.filter((row) => (row.textId?.trim() ?? '').length === 0)
-      : all.filter((row) => row.textId === projectId);
-  return owned.sort((a, b) => a.sortOrder - b.sortOrder);
+  return all.filter((row) => row.textId === projectId).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export async function upsertCustomFieldDefinition(input: {
@@ -43,15 +44,23 @@ export async function upsertCustomFieldDefinition(input: {
   sortOrder?: number;
 }): Promise<CustomFieldDefinitionDocType> {
   const db = await getDb();
+  const projectId = requireCatalogProjectId();
   const now = new Date().toISOString();
   const existing = input.id ? await db.dexie.custom_field_definitions.get(input.id) : undefined;
+  if (existing && existing.textId !== projectId) {
+    throw new CatalogOwnershipMismatchError(
+      'custom_field_definitions',
+      existing.id,
+      existing.textId,
+      projectId,
+    );
+  }
   const normalized = validateCustomFieldDefinitionInput(input);
   const maxSort = existing
     ? existing.sortOrder
-    : (await db.dexie.custom_field_definitions.toArray()).reduce(
-        (max, d) => Math.max(max, d.sortOrder),
-        -1,
-      ) + 1;
+    : (await db.dexie.custom_field_definitions.toArray())
+        .filter((d) => d.textId === projectId)
+        .reduce((max, d) => Math.max(max, d.sortOrder), -1) + 1;
 
   const doc: CustomFieldDefinitionDocType = {
     id: normalized.id ?? newId('cfd'),
@@ -67,9 +76,7 @@ export async function upsertCustomFieldDefinition(input: {
     ...(normalized.maxValue !== undefined ? { maxValue: normalized.maxValue } : {}),
     ...(normalized.pattern ? { pattern: normalized.pattern } : {}),
     sortOrder: normalized.sortOrder ?? maxSort,
-    ...(existing?.textId || resolveOwnedProjectTextId()
-      ? { textId: existing?.textId || resolveOwnedProjectTextId() }
-      : {}),
+    textId: projectId,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };

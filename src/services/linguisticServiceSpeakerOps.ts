@@ -11,7 +11,7 @@ import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 import { attachSpeakerToProject, detachSpeakerFromProjects } from './speakerProjectMembership';
-import { claimUnscopedCatalog } from './projectCatalogScope';
+import { CatalogOwnershipMismatchError, requireCatalogProjectId } from './projectCatalogScope';
 
 export async function getSpeakers(): Promise<SpeakerDocType[]> {
   const db = await getDb();
@@ -25,12 +25,26 @@ export async function getSpeakers(): Promise<SpeakerDocType[]> {
     });
 }
 
+/** 只读：本项目的说话人；没有项目时为空（D11）| Read-only: this project's speakers; empty without a project */
 export async function listSpeakersForProject(textId: string): Promise<SpeakerDocType[]> {
   const id = textId.trim();
-  const speakers = await getSpeakers();
-  if (!id) return speakers;
-  await claimUnscopedCatalog(id);
+  if (!id) return [];
   return (await getSpeakers()).filter((speaker) => speaker.textId === id);
+}
+
+function assertSpeakerOwnsRows(
+  speaker: SpeakerDocType,
+  rows: ReadonlyArray<{ textId?: string | undefined }>,
+): void {
+  const foreign = rows.find((row) => (row.textId?.trim() ?? '') !== speaker.textId);
+  if (foreign) {
+    throw new CatalogOwnershipMismatchError(
+      'speakers',
+      speaker.id,
+      speaker.textId,
+      foreign.textId ?? '',
+    );
+  }
 }
 
 export async function getSpeakerReferenceStats(options?: {
@@ -99,7 +113,8 @@ export async function getSpeakerReferenceStats(options?: {
 
 export async function createSpeaker(input: {
   name: string;
-  textId?: string;
+  /** 所属项目（必填）| Owning project (required) */
+  textId: string;
   pseudonym?: string;
   role?: SpeakerDocType['role'];
   dialect?: string;
@@ -112,17 +127,14 @@ export async function createSpeaker(input: {
   if (!name) throw new Error('\u8bf4\u8bdd\u4eba\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a');
 
   const normalizedName = name.toLocaleLowerCase('zh-Hans-CN');
-  const projectTextId = input.textId?.trim() ?? '';
+  const projectTextId = requireCatalogProjectId(input.textId);
   const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
   const duplicate = existingSpeakers.find(
     (speaker) =>
       speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName &&
-      (speaker.textId ?? '') === projectTextId,
+      speaker.textId === projectTextId,
   );
-  if (duplicate) {
-    if (projectTextId.length > 0) return duplicate;
-    throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
-  }
+  if (duplicate) return duplicate;
 
   const now = new Date().toISOString();
   const dialect = input.dialect?.trim();
@@ -141,15 +153,13 @@ export async function createSpeaker(input: {
     ...(accent ? { accent } : {}),
     ...(languageIds && languageIds.length > 0 ? { languageIds } : {}),
     ...(notes ? { notes } : {}),
-    ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+    textId: projectTextId,
     createdAt: now,
     updatedAt: now,
   };
 
   await db.collections.speakers.insert(speaker);
-  if (projectTextId.length > 0) {
-    await attachSpeakerToProject(speaker.id, projectTextId);
-  }
+  await attachSpeakerToProject(speaker.id, projectTextId);
   return speaker;
 }
 
@@ -211,10 +221,13 @@ export async function renameSpeaker(speakerId: string, nextName: string): Promis
   if (!speakerDoc) throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${id}`);
 
   const normalizedName = name.toLocaleLowerCase('zh-Hans-CN');
+  const ownerTextId = speakerDoc.toJSON().textId;
   const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
   const duplicate = existingSpeakers.find(
     (speaker) =>
-      speaker.id !== id && speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
+      speaker.id !== id &&
+      speaker.textId === ownerTextId &&
+      speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
   );
   if (duplicate) throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
 
@@ -249,6 +262,10 @@ export async function mergeSpeakers(
   if (!targetDoc) throw new Error(`\u76ee\u6807\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${targetId}`);
 
   const target = targetDoc.toJSON();
+  const source = sourceDoc.toJSON();
+  if (source.textId !== target.textId) {
+    throw new CatalogOwnershipMismatchError('speakers', target.id, target.textId, source.textId);
+  }
   const now = new Date().toISOString();
   const unitRows = (await listUnitDocsFromCanonicalLayerUnits(db)).filter(
     (row) => row.speakerId?.trim() === sourceId,
@@ -418,6 +435,7 @@ export async function assignSpeakerToUnits(
     (row): row is LayerUnitDocType => Boolean(row),
   );
   if (rows.length === 0) return 0;
+  if (speaker) assertSpeakerOwnsRows(speaker, rows);
 
   const now = new Date().toISOString();
   const updates = rows.map((row) => {
@@ -460,7 +478,7 @@ export async function assignSpeakerToSegments(
   if (ids.length === 0) return 0;
 
   const selectedSpeakerId = speakerId?.trim();
-  let resolvedSpeakerId: string | undefined;
+  let resolvedSpeaker: SpeakerDocType | undefined;
   if (selectedSpeakerId) {
     const speakerDoc = await db.collections.speakers
       .findOne({ selector: { id: selectedSpeakerId } })
@@ -468,11 +486,13 @@ export async function assignSpeakerToSegments(
     if (!speakerDoc) {
       throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${selectedSpeakerId}`);
     }
-    resolvedSpeakerId = speakerDoc.toJSON().id;
+    resolvedSpeaker = speakerDoc.toJSON();
   }
+  const resolvedSpeakerId = resolvedSpeaker?.id;
 
   const rows = await LayerSegmentQueryService.listSegmentsByIds(ids);
   if (rows.length === 0) return 0;
+  if (resolvedSpeaker) assertSpeakerOwnsRows(resolvedSpeaker, rows);
 
   const now = new Date().toISOString();
   const updates = rows.map((row) => {

@@ -16,7 +16,8 @@ import { resolveAnnotationGlossWriteLang } from './annotationTokenDrafts';
 
 export type AnnotationAutoGlossDeps = {
   listTokensByUnitId: (unitId: string) => Promise<UnitTokenDocType[]>;
-  listLexemes: () => Promise<LexemeDocType[]>;
+  /** 词条只在所属项目内匹配（2B-B）| Lexemes match only inside their project (2B-B) */
+  listLexemes: (textId?: string) => Promise<LexemeDocType[]>;
   updateTokenGloss: (tokenId: string, gloss: string | null, lang?: string) => Promise<void>;
   saveTokenLexemeLink: (data: TokenLexemeLinkDocType) => Promise<string>;
   removeTokenLexemeLinks: (targetType: 'token', targetId: string) => Promise<void>;
@@ -30,7 +31,7 @@ export type AnnotationAutoGlossDeps = {
 
 const defaultDeps: AnnotationAutoGlossDeps = {
   listTokensByUnitId: (unitId) => LinguisticService.units.listTokensByUnitId(unitId),
-  listLexemes: () => LinguisticService.lexemes.list(),
+  listLexemes: (textId) => LinguisticService.lexemes.list(textId),
   updateTokenGloss: (tokenId, gloss, lang) =>
     LinguisticService.units.updateTokenGloss(tokenId, gloss, lang),
   saveTokenLexemeLink: (data) => LinguisticService.units.saveTokenLexemeLink(data),
@@ -52,10 +53,8 @@ export async function previewAnnotationAutoGloss(
   skipTokenIds: ReadonlySet<string> = new Set(),
   deps: AnnotationAutoGlossDeps = defaultDeps,
 ): Promise<AutoGlossPreviewResult> {
-  const [tokens, lexemes] = await Promise.all([
-    deps.listTokensByUnitId(unitId),
-    deps.listLexemes(),
-  ]);
+  const tokens = await deps.listTokensByUnitId(unitId);
+  const lexemes = await deps.listLexemes(tokens[0]?.textId);
   return previewAutoGlossMatches(tokens, lexemes, skipTokenIds);
 }
 

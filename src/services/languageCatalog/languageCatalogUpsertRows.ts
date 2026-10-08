@@ -12,12 +12,14 @@ import type { UpsertPreparedFields } from './languageCatalogUpsertPrep';
 export function buildUpsertAliasRows(input: {
   normalizedAliases: string[];
   languageId: string;
+  textId: string;
   nextSourceType: LanguageCatalogSourceType;
   upsertInput: UpsertLanguageCatalogEntryInput;
   now: string;
 }): LanguageAliasDocType[] {
   return input.normalizedAliases.map((alias) => ({
     id: newId('langalias'),
+    textId: input.textId,
     languageId: input.languageId,
     alias,
     normalizedAlias: normalizeLanguageCatalogRuntimeLabelKey(alias),
@@ -31,6 +33,7 @@ export function buildUpsertAliasRows(input: {
 
 export function buildUpsertDisplayNameRows(input: {
   languageId: string;
+  textId: string;
   locale: string;
   prep: UpsertPreparedFields;
   nextSourceType: LanguageCatalogSourceType;
@@ -40,6 +43,7 @@ export function buildUpsertDisplayNameRows(input: {
   const { prep, upsertInput, languageId, locale, nextSourceType, now } = input;
   return lcNorm.buildPersistedDisplayNameRows({
     languageId,
+    textId: input.textId,
     locale,
     ...(prep.englishName ? { englishName: prep.englishName } : {}),
     ...(prep.localName ? { localName: prep.localName } : {}),

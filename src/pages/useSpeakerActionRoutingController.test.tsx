@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import type { Dispatch, SetStateAction } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   LayerDocType,
   LayerUnitContentDocType,
@@ -15,6 +15,10 @@ import type {
 } from '../hooks/speakerManagement/types';
 import { isDictKey, t as translate, tf as formatMessage } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../utils/transcriptionUrlDeepLink';
 import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';
 
 function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDocType {
@@ -154,6 +158,14 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 }
 
 describe('useSpeakerActionRoutingController', () => {
+  // 新说话人归当前项目（2B-B）| New speakers belong to the active project (2B-B)
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   it('opens segment clear dialog for independent speaker layer actions', () => {
     const { result } = renderHook(() => useSpeakerActionRoutingController(createBaseInput()));
 
@@ -455,7 +467,7 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleCreateSpeakerAndAssignRouted();
     });
 
-    expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob' });
+    expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob', textId: 'text-1' });
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-new');
     expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-new');
     expect(setSpeakerDraftName).toHaveBeenCalledWith('');
@@ -513,7 +525,7 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleCreateSpeakerAndAssignRouted();
     });
 
-    expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob' });
+    expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob', textId: 'text-1' });
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-new');
     expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-new');
     expect(undo).toHaveBeenCalled();

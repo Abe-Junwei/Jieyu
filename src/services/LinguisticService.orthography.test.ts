@@ -2,10 +2,14 @@
  * 正字法与正字法桥接 CRUD 测试 | Orthography & bridge CRUD tests.
  */
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { clearLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
 import { db } from '../db';
 import { LinguisticService } from './LinguisticService';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../utils/transcriptionUrlDeepLink';
 
 // ── 辅助函数 | Helpers ──────────────────────────────────────────────────────
 
@@ -34,6 +38,14 @@ async function seedOrthography(overrides: Record<string, unknown> = {}) {
 // ── 测试套件 | Test suite ────────────────────────────────────────────────────
 
 describe('LinguisticService.orthography', () => {
+  // 目录数据总属于一个项目（2B-B）| Catalog data always belongs to a project (2B-B)
+  beforeEach(() => {
+    publishActiveProjectTextId('text-1');
+  });
+  afterEach(() => {
+    clearActiveProjectTextId();
+  });
+
   beforeEach(async () => {
     await db.open();
     await clearDatabase();

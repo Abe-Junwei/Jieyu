@@ -259,6 +259,7 @@ export function buildProjectedDisplayNames(input: {
 
 export function buildPersistedDisplayNameRows(input: {
   languageId: string;
+  textId: string;
   locale: string;
   englishName?: string;
   localName?: string;
@@ -288,6 +289,7 @@ export function buildPersistedDisplayNameRows(input: {
     seen.add(key);
     rows.push({
       id: newId('langname'),
+      textId: input.textId,
       languageId: input.languageId,
       locale,
       role: row.role,

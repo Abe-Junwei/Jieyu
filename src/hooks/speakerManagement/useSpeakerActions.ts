@@ -601,7 +601,7 @@ export function useSpeakerActions({
         existing ??
         (await LinguisticService.speakers.create({
           name,
-          ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+          textId: projectTextId,
         }));
       const updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
       if (!existing) {
@@ -667,7 +667,7 @@ export function useSpeakerActions({
           existing ??
           (await LinguisticService.speakers.create({
             name: trimmedName,
-            ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+            textId: projectTextId,
           }));
         const updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
         if (!existing) {
@@ -733,7 +733,7 @@ export function useSpeakerActions({
       }
       const created = await LinguisticService.speakers.create({
         name,
-        ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+        textId: projectTextId,
       });
       setSpeakers((prev) => upsertSpeaker(prev, created));
       setSpeakerDraftName('');

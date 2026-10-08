@@ -63,6 +63,9 @@ import type {
 export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
   message: 'Expected ISO date-time string',
 });
+/** 目录行的项目归属（2B-B，写入时强制）| Catalog row owner (2B-B, enforced on write) */
+const catalogOwnerIdSchema = z.string().min(1);
+
 const accessRightsSchema = z.enum(['open', 'restricted', 'confidential']);
 const multiLangStringSchema = z.record(z.string(), z.string());
 const transcriptionSchema = z.record(z.string(), z.string());
@@ -409,7 +412,7 @@ const lexemeEntryDocSchema = z
     provenance: provenanceSchema.optional(),
     usageCount: z.number().int().min(0).optional(),
     accessRights: accessRightsSchema.optional(),
-    textId: z.string().min(1).optional(),
+    textId: catalogOwnerIdSchema,
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
@@ -458,7 +461,7 @@ const lexemeResourceDocSchema = z
           .optional(),
       })
       .strict(),
-    textId: z.string().min(1).optional(),
+    textId: catalogOwnerIdSchema,
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
@@ -486,6 +489,7 @@ const lexemeAssetKindSchema = z.enum(['image', 'audio', 'document']);
 
 const lexemeAssetDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   kind: lexemeAssetKindSchema,
   mimeType: z.string().min(1),
   displayName: z.string().min(1),
@@ -500,6 +504,7 @@ const lexemeAssetDocSchema = z.object({
 
 const lexemeAssetLinkDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   lexemeId: z.string().min(1),
   assetId: z.string().min(1),
   createdAt: isoDateSchema,
@@ -743,6 +748,7 @@ const languageCatalogHistoryActionSchema = z.enum(['create', 'update', 'delete']
 
 const languageDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   name: multiLangStringSchema,
   languageCode: z.string().min(1).optional(),
   canonicalTag: z.string().min(1).optional(),
@@ -838,6 +844,7 @@ const customFieldValueTypeSchema = z.enum([
 
 const customFieldDefinitionDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   name: multiLangStringSchema,
   fieldType: customFieldValueTypeSchema,
   options: z.array(z.string()).optional(),
@@ -856,6 +863,7 @@ const customFieldDefinitionDocSchema = z.object({
 
 const languageDisplayNameDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   languageId: z.string().min(1),
   locale: z.string().min(1),
   role: languageDisplayNameRoleSchema,
@@ -869,6 +877,7 @@ const languageDisplayNameDocSchema = z.object({
 
 const languageAliasDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   languageId: z.string().min(1),
   alias: z.string().min(1),
   normalizedAlias: z.string().min(1),
@@ -882,6 +891,7 @@ const languageAliasDocSchema = z.object({
 
 const languageCatalogHistoryDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   languageId: z.string().min(1),
   action: languageCatalogHistoryActionSchema,
   summary: z.string().min(1),
@@ -912,7 +922,7 @@ const speakerDocSchema = z.object({
   accessRights: accessRightsSchema.optional(),
   address: z.string().optional(),
   notes: multiLangStringSchema.optional(),
-  textId: z.string().min(1).optional(),
+  textId: catalogOwnerIdSchema,
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -979,6 +989,7 @@ const orthographyBridgeRulesSchema = z.object({
 });
 const orthographyBridgeDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   sourceOrthographyId: z.string().min(1),
   targetOrthographyId: z.string().min(1),
   name: multiLangStringSchema.optional(),
@@ -1003,6 +1014,7 @@ const orthographyBridgeDocSchema = z.object({
 
 const orthographyDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   name: multiLangStringSchema,
   abbreviation: z.string().optional(),
   languageId: z.string().optional(),
@@ -1044,6 +1056,7 @@ const orthographyDocSchema = z.object({
 
 const locationDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   name: multiLangStringSchema,
   latitude: z.number().finite().optional(),
   longitude: z.number().finite().optional(),
@@ -1055,6 +1068,7 @@ const locationDocSchema = z.object({
 
 const bibliographicSourceDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   title: z.string().min(1),
   authors: z.array(z.string()).optional(),
   year: z.number().int().optional(),
@@ -1070,6 +1084,7 @@ const bibliographicSourceDocSchema = z.object({
 
 const grammarDocDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   title: z.string().min(1),
   content: z.string().min(1),
   parentId: z.string().optional(),
@@ -1084,6 +1099,7 @@ const grammarDocDocSchema = z.object({
 
 const abbreviationDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   abbreviation: z.string().min(1),
   name: multiLangStringSchema,
   category: z
@@ -1097,9 +1113,13 @@ const abbreviationDocSchema = z.object({
 const structuralRuleProfileAssetDocSchema = z
   .object({
     id: z.string().min(1),
-    scope: z.enum(['system', 'language', 'project', 'user']),
+    scope: z.enum(['language', 'project']),
     languageId: z.string().min(1).optional(),
-    projectId: z.string().min(1).optional(),
+    projectId: catalogOwnerIdSchema,
+    derivedFromSystemId: z
+      .string()
+      .regex(/^system\./, 'derivedFromSystemId must name a system template')
+      .optional(),
     enabled: z.boolean(),
     priority: z.number().int(),
     profile: structuralRuleProfileSchema,
@@ -1115,17 +1135,11 @@ const structuralRuleProfileAssetDocSchema = z
         message: 'language scoped structural rule profile requires languageId',
       });
     }
-    if (doc.scope === 'project' && (doc.projectId === undefined || doc.projectId.length === 0)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['projectId'],
-        message: 'project scoped structural rule profile requires projectId',
-      });
-    }
   });
 
 const phonemeDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   languageId: z.string().min(1),
   ipa: z.string().min(1),
   type: z.enum(['consonant', 'vowel', 'tone', 'diphthong', 'other']),
@@ -1141,6 +1155,7 @@ const phonemeDocSchema = z.object({
 
 const tagDefinitionDocSchema = z.object({
   id: z.string().min(1),
+  textId: catalogOwnerIdSchema,
   key: z.string().min(1),
   name: multiLangStringSchema,
   description: multiLangStringSchema.optional(),

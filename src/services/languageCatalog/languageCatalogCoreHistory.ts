@@ -137,6 +137,7 @@ export function computeHistoryDiff(
 
 export function buildHistoryRecord(input: {
   languageId: string;
+  textId: string;
   action: LanguageCatalogHistoryAction;
   summary: string;
   changedFields?: string[];
@@ -150,6 +151,7 @@ export function buildHistoryRecord(input: {
 }): LanguageCatalogHistoryDocType {
   return {
     id: newId('langhist'),
+    textId: input.textId,
     languageId: input.languageId,
     action: input.action,
     summary: input.summary,

@@ -183,7 +183,7 @@ export async function createImportSpeakerResolver(input: {
     }
     const speaker = await LinguisticService.speakers.create({
       name: displayName.trim(),
-      ...(projectTextId.length > 0 ? { textId: projectTextId } : {}),
+      textId: projectTextId,
       ...(attrs?.dialect ? { dialect: attrs.dialect } : {}),
       ...(attrs?.accent ? { accent: attrs.accent } : {}),
       ...(attrs?.languageIds?.length ? { languageIds: attrs.languageIds } : {}),

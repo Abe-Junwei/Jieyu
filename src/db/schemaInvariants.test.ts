@@ -322,6 +322,7 @@ const structuralRuleProfileAssetSuite: InvariantSuite<StructuralRuleProfileAsset
     id: 'srp_valid_1',
     scope: 'language',
     languageId: 'zho',
+    projectId: 'text-1',
     enabled: true,
     priority: 10,
     profile: {
@@ -341,6 +342,19 @@ const structuralRuleProfileAssetSuite: InvariantSuite<StructuralRuleProfileAsset
         return rest;
       },
       messageIncludes: 'requires languageId',
+    },
+    {
+      name: 'row without owning project',
+      mutate: (doc) => {
+        const { projectId: _removed, ...rest } = doc;
+        return rest as typeof doc;
+      },
+      messageIncludes: 'projectId',
+    },
+    {
+      name: 'system scope is code-only',
+      mutate: (doc) => ({ ...doc, scope: 'system' as never }),
+      messageIncludes: 'scope',
     },
     {
       name: 'duplicate structural markers',

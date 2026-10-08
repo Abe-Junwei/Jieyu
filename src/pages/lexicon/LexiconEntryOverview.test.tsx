@@ -9,6 +9,7 @@ import { LexiconEntryOverview } from './LexiconEntryOverview';
 
 const lexeme: LexemeEntryDoc = {
   id: 'lex-dog',
+  textId: 'text-1',
   entry: {
     id: 'lex-dog',
     headword: 'dog',

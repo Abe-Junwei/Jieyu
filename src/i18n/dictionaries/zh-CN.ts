@@ -112,6 +112,10 @@ export const zhCNDictionary = {
   'app.nav.summary.languageMetadata': '语言名称、别名、标准标识与治理状态',
   'app.nav.summary.orthographies': '脚本、输入渲染与正字法元数据维护',
   'app.nav.summary.orthographyBridges': '正字法之间的转换与桥接规则维护',
+  'catalog.projectGate.title': '请先选择项目',
+  'catalog.projectGate.description':
+    '词库、语言目录、正字法和标注模板都属于某个项目。打开一个项目后再来这里查看或编辑。',
+  'catalog.projectGate.selectProject': '选择项目',
   'app.nav.summary.structuralProfiles': '编辑本项目的标注缩略和词类，并预览 gloss 切分',
   'app.featureAvailability.currentStatus': '当前状态',
   'app.featureAvailability.planned': '计划覆盖',
@@ -1533,6 +1537,7 @@ export const zhCNDictionary = {
   'transcription.projectHub.importDialogExportedAt': '导出时间：{at}',
   'transcription.projectHub.importDialogStats':
     '归档记录 {incoming} 条，潜在冲突 {conflicts} 条，当前策略预计写入 {insertable} 条。',
+  'transcription.projectHub.importDialogUnresolvedSystemRefs': '未解析的系统模板引用：{ids}',
   'transcription.projectHub.importDialogStrategy': '导入策略',
   'transcription.projectHub.strategy.upsert': '覆盖冲突项（upsert）',
   'transcription.projectHub.strategy.skipExisting': '保留已有项（skip-existing）',

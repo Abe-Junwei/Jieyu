@@ -39,18 +39,22 @@ describe('filterCollectionsForProject', () => {
     expect(COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS.has('ai_tasks')).toBe(true);
   });
 
-  it('keeps only speakers referenced by the project units', () => {
+  it('keeps only speakers owned by the project (ownership, not unit references)', () => {
     const filtered = filterCollectionsForProject(
       {
         texts: [{ id: 'text-a' }],
         layer_units: [{ id: 'u-a', textId: 'text-a', speakerId: 'spk-1' }],
         speakers: [
-          { id: 'spk-1', name: 'Ada' },
-          { id: 'spk-other', name: 'Other' },
+          { id: 'spk-1', textId: 'text-a', name: 'Ada' },
+          { id: 'spk-roster', textId: 'text-a', name: 'Roster only' },
+          { id: 'spk-other', textId: 'text-b', name: 'Other' },
         ],
       },
       'text-a',
     );
-    expect(filtered.speakers).toEqual([{ id: 'spk-1', name: 'Ada' }]);
+    expect(filtered.speakers?.map((row) => (row as { id: string }).id)).toEqual([
+      'spk-1',
+      'spk-roster',
+    ]);
   });
 });

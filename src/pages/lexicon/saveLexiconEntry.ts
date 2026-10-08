@@ -16,15 +16,18 @@ export type LexiconEntrySaveDeps = {
   saveResource: (doc: LexemeResourceDoc) => Promise<string>;
 };
 
-const defaultDeps: LexiconEntrySaveDeps = {
-  save: (doc) => LinguisticService.lexemes.save(doc),
-  list: async () => {
-    const rows = await LinguisticService.lexemes.list();
-    return rows.filter(isLexemeEntry);
-  },
-  loadResource: () => LinguisticService.lexemes.getResource(),
-  saveResource: (doc) => LinguisticService.lexemes.save(doc),
-};
+/** 默认依赖：所有读写都显式带上项目 | Default deps: every read/write names the project */
+function defaultDepsFor(textId: string): LexiconEntrySaveDeps {
+  return {
+    save: (doc) => LinguisticService.lexemes.save(doc),
+    list: async () => {
+      const rows = await LinguisticService.lexemes.list(textId);
+      return rows.filter(isLexemeEntry);
+    },
+    loadResource: () => LinguisticService.lexemes.getResource(textId),
+    saveResource: (doc) => LinguisticService.lexemes.save(doc),
+  };
+}
 
 export function mergeLexemeIntoList(
   list: LexemeEntryDoc[],
@@ -38,12 +41,18 @@ export function mergeLexemeIntoList(
 }
 
 export async function saveLexiconEntry(
-  input: { existing: LexemeEntryDoc | null; fields: LexiconEntryFields },
-  deps: LexiconEntrySaveDeps = defaultDeps,
+  input: { existing: LexemeEntryDoc | null; fields: LexiconEntryFields; textId: string },
+  deps: LexiconEntrySaveDeps = defaultDepsFor(input.textId),
 ): Promise<LexemeEntryDoc> {
   const now = new Date().toISOString();
   const resource = await deps.loadResource();
-  const applied = applyLexiconEntryFields(input.existing, input.fields, resource, now);
+  const applied = applyLexiconEntryFields(
+    input.existing,
+    input.fields,
+    resource,
+    now,
+    input.textId,
+  );
   await deps.save(applied.entry);
   await deps.saveResource(applied.resource);
   const stored = (await deps.list()).find((row) => row.id === applied.entry.id);

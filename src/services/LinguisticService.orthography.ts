@@ -13,7 +13,11 @@ import {
   listAllBuiltInOrthographies,
 } from '../data/builtInOrthographies';
 import { getLanguageCatalogEntry as getLanguageCatalogWorkspaceEntry } from './LinguisticService.languageCatalog';
-import { claimUnscopedCatalog, resolveOwnedProjectTextId } from './projectCatalogScope';
+import {
+  activeCatalogProjectId,
+  CatalogOwnershipMismatchError,
+  requireCatalogProjectId,
+} from './projectCatalogScope';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import {
   buildOrthographyIdentityKey,
@@ -331,14 +335,10 @@ export async function listOrthographyRecords(
     listScopedBuiltInOrthographies(selector),
   ]);
   const dbRows = docs.map((doc) => doc.toJSON());
-  const projectId = resolveOwnedProjectTextId();
+  // 只读：本项目的行；没有项目时只有内置正字法（D11）| Read-only: project rows; built-ins only without a project
+  const projectId = activeCatalogProjectId();
   const scopedDbRows =
-    projectId.length === 0
-      ? dbRows.filter((row) => (row.textId?.trim() ?? '').length === 0)
-      : (await claimUnscopedCatalog(projectId),
-        (await db.collections.orthographies.find().exec())
-          .map((doc) => doc.toJSON())
-          .filter((row) => row.textId === projectId));
+    projectId.length === 0 ? [] : dbRows.filter((row) => row.textId === projectId);
   const rows = selector.includeBuiltIns
     ? mergeOrthographyCatalogRows(builtInRows, scopedDbRows)
     : scopedDbRows;
@@ -397,6 +397,7 @@ export async function createOrthographyRecord(
   input: CreateOrthographyInput,
 ): Promise<OrthographyDocType> {
   const db = await getDb();
+  const projectId = requireCatalogProjectId();
   const now = new Date().toISOString();
   const languageId = await normalizeRequiredLanguageId(input.languageId);
   const normalizedIdentity = normalizeOrthographyIdentity({
@@ -423,7 +424,7 @@ export async function createOrthographyRecord(
     id: newId('orth'),
     name: input.name,
     languageId: normalizedIdentity.languageId ?? languageId,
-    ...(resolveOwnedProjectTextId().length > 0 ? { textId: resolveOwnedProjectTextId() } : {}),
+    textId: projectId,
     ...(input.abbreviation ? { abbreviation: input.abbreviation } : {}),
     ...(input.type ? { type: input.type } : {}),
     catalogMetadata: {
@@ -454,10 +455,20 @@ export async function updateOrthographyRecord(
   input: UpdateOrthographyInput,
 ): Promise<OrthographyDocType> {
   const db = await getDb();
-  const existing =
-    (await db.dexie.orthographies.get(input.id)) ?? (await getBuiltInOrthographyById(input.id));
+  const stored = await db.dexie.orthographies.get(input.id);
+  const existing = stored ?? (await getBuiltInOrthographyById(input.id));
   if (!existing) {
     throw new Error('正字法不存在');
+  }
+  // 库内行保持原归属；内置正字法的覆盖行归当前项目 | Stored rows keep their owner; built-in overrides join the active project
+  const projectId = requireCatalogProjectId();
+  if (stored && stored.textId !== projectId) {
+    throw new CatalogOwnershipMismatchError(
+      'orthographies',
+      stored.id,
+      stored.textId ?? '',
+      projectId,
+    );
   }
 
   const languageId = await normalizeRequiredLanguageId(input.languageId);
@@ -493,6 +504,7 @@ export async function updateOrthographyRecord(
 
   const next: OrthographyDocType = {
     id: existing.id,
+    textId: projectId,
     name: input.name,
     languageId: normalizedIdentity.languageId ?? languageId,
     ...(input.abbreviation ? { abbreviation: input.abbreviation } : {}),
@@ -591,6 +603,7 @@ export async function createOrthographyBridgeRecord(
 
   const bridge: OrthographyBridgeDocType = {
     id: newId('orthxfm'),
+    textId: requireCatalogProjectId(),
     sourceOrthographyId,
     targetOrthographyId,
     engine: input.engine,
@@ -633,17 +646,13 @@ export async function listOrthographyBridgeRecords(
   selector: ListOrthographyBridgesSelector = {},
 ): Promise<OrthographyBridgeDocType[]> {
   const db = await getDb();
+  // 只读：本项目的变换；没有项目时为空（D11）| Read-only: this project's bridges; empty without a project
+  const projectId = activeCatalogProjectId();
+  if (projectId.length === 0) return [];
   const docs = await db.collections.orthography_bridges.find().exec();
-  const projectId = resolveOwnedProjectTextId();
-  if (projectId.length > 0) await claimUnscopedCatalog(projectId);
-  const owned =
-    projectId.length > 0
-      ? (await db.collections.orthography_bridges.find().exec()).map((doc) => doc.toJSON())
-      : docs.map((doc) => doc.toJSON());
-  return owned
-    .filter((doc) =>
-      projectId.length === 0 ? (doc.textId?.trim() ?? '').length === 0 : doc.textId === projectId,
-    )
+  return docs
+    .map((doc) => doc.toJSON())
+    .filter((doc) => doc.textId === projectId)
     .filter((doc) => {
       if (
         selector.sourceOrthographyId &&

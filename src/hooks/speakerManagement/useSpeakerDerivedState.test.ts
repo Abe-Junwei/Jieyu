@@ -7,6 +7,7 @@ import { useSpeakerDerivedState } from './useSpeakerDerivedState';
 function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
   return {
     id: 'spk-1',
+    textId: 'text-1',
     name: 'Alice',
     createdAt: '2026-03-23T00:00:00.000Z',
     updatedAt: '2026-03-23T00:00:00.000Z',

@@ -21,7 +21,12 @@ export type {
   JieyuLexemeExtras,
   JieyuNote,
 } from './dmlexTypes';
-export { DMLEX_HOMOGRAPH, DMLEX_RESOURCE_ID, DMLEX_SUBSENSE } from './dmlexTypes';
+export {
+  DMLEX_HOMOGRAPH,
+  DMLEX_RESOURCE_ID_PREFIX,
+  DMLEX_SUBSENSE,
+  dmlexResourceIdForProject,
+} from './dmlexTypes';
 
 /**
  * 层数量软上限（UI 警告，非硬限制）
@@ -215,7 +220,7 @@ export interface LexemeEntryDoc {
   usageCount?: number;
   accessRights?: 'open' | 'restricted' | 'confidential';
   /** Owning project. The same headword in another project is a different row. */
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -228,7 +233,7 @@ export interface LexemeResourceDoc {
   id: string;
   kind: 'resource';
   resource: DmlexLexicographicResource;
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -257,6 +262,8 @@ export type LexemeAssetKind = 'image' | 'audio' | 'document';
 
 export interface LexemeAssetDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   kind: LexemeAssetKind;
   mimeType: string;
   displayName: string;
@@ -271,6 +278,8 @@ export interface LexemeAssetDocType {
 
 export interface LexemeAssetLinkDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   lexemeId: string;
   assetId: string;
   createdAt: string;
@@ -496,7 +505,7 @@ export interface LanguageDocType {
   visibility?: LanguageCatalogVisibility;
   notes?: MultiLangString;
   customFields?: Record<string, string | number | boolean | string[]>;
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -518,7 +527,7 @@ export interface CustomFieldDefinitionDocType {
   maxValue?: number;
   pattern?: string;
   sortOrder: number;
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -532,7 +541,7 @@ export interface LanguageDisplayNameDocType {
   isPreferred?: boolean;
   sourceType: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -546,13 +555,15 @@ export interface LanguageAliasDocType {
   aliasType: LanguageAliasType;
   sourceType: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface LanguageCatalogHistoryDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   languageId: string;
   action: LanguageCatalogHistoryAction;
   summary: string;
@@ -586,7 +597,7 @@ export interface SpeakerDocType {
   address?: string;
   notes?: MultiLangString;
   /** Owning project. Another project with the same name has its own row. */
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -660,6 +671,10 @@ export interface OrthographyDocType {
   /** Transliteration / conversion rule definitions (F30 预留) */
   conversionRules?: Record<string, unknown>;
   notes?: MultiLangString;
+  /**
+   * 所属项目。库内行必填（写入校验强制）；代码内置正字法共用此类型，没有归属。
+   * Owning project: required for stored rows (enforced on write); built-in code rows have none.
+   */
   textId?: string;
   createdAt: string;
   updatedAt?: string;
@@ -686,13 +701,15 @@ export interface OrthographyBridgeDocType {
   isReversible?: boolean;
   status?: 'draft' | 'active' | 'deprecated';
   notes?: MultiLangString;
-  textId?: string;
+  textId: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface LocationDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   name: MultiLangString;
   latitude?: number;
   longitude?: number;
@@ -704,6 +721,8 @@ export interface LocationDocType {
 
 export interface BibliographicSourceDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   title: string;
   authors?: string[];
   year?: number;
@@ -719,6 +738,8 @@ export interface BibliographicSourceDocType {
 
 export interface GrammarDocDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   title: string;
   content: string;
   parentId?: string;
@@ -734,6 +755,8 @@ export interface GrammarDocDocType {
 /** Global catalog row. A project's gloss abbreviations live on `texts.metadata.annotationAbbreviations`. */
 export interface AbbreviationDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   abbreviation: string;
   name: MultiLangString;
   category?: 'person' | 'number' | 'tense' | 'aspect' | 'mood' | 'case' | 'voice' | 'other';
@@ -742,11 +765,18 @@ export interface AbbreviationDocType {
   createdAt: string;
 }
 
+/**
+ * 项目拥有的结构规则行（2B-B / ADR-0044）。系统模板只放在代码里（`system.*`），从不入库。
+ * Project-owned structural rule row. System templates (`system.*`) live in code only.
+ */
 export interface StructuralRuleProfileAssetDocType {
   id: string;
-  scope: 'system' | 'language' | 'project' | 'user';
+  scope: 'language' | 'project';
   languageId?: string;
-  projectId?: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  projectId: string;
+  /** “复制到项目”时记录来源系统模板 | Source system template when copied to the project */
+  derivedFromSystemId?: string;
   enabled: boolean;
   priority: number;
   profile: StructuralRuleProfile;
@@ -757,6 +787,8 @@ export interface StructuralRuleProfileAssetDocType {
 
 export interface PhonemeDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   languageId: string;
   ipa: string;
   type: 'consonant' | 'vowel' | 'tone' | 'diphthong' | 'other';
@@ -772,6 +804,8 @@ export interface PhonemeDocType {
 
 export interface TagDefinitionDocType {
   id: string;
+  /** 所属项目（写入校验强制）| Owning project (enforced on write) */
+  textId: string;
   key: string;
   name: MultiLangString;
   description?: MultiLangString;
