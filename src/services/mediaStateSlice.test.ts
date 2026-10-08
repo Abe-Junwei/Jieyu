@@ -3,7 +3,7 @@
  * rev5 slice 2B-C: media state fields (T6, T19, T20).
  */
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
 import type { MediaItemDocType } from '../db';
 import { exportDatabaseAsJson, importDatabaseFromJson } from '../db/io';
@@ -251,5 +251,66 @@ describe('T20: relinking a missing recording', () => {
     await expect(db.media_items.get(MEDIA_ID)).resolves.toEqual(
       expect.objectContaining({ filename: 'elicitation-01.wav', availability: 'available' }),
     );
+  });
+});
+
+describe('JY-19: replace keeps the original row; relink re-checks sha inside the transaction', () => {
+  it('importAudio replace on an available recording keeps fields it does not list', async () => {
+    const before = await db.media_items.get(MEDIA_ID);
+    await db.media_items.put({
+      ...before!,
+      accessRights: 'restricted',
+      isOfflineCached: false,
+      url: 'blob:old-bytes',
+      futureField: 'kept',
+    } as MediaItemDocType);
+    const next = new Blob(['RIFF-2bc-replacement'], { type: 'audio/wav' });
+    await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: next,
+      filename: 'replacement.wav',
+      duration: 9,
+      importMode: 'replace',
+      replaceMediaId: MEDIA_ID,
+    });
+    const after = (await db.media_items.get(MEDIA_ID)) as MediaItemDocType & {
+      futureField?: string;
+    };
+    expect(after).toEqual(
+      expect.objectContaining({
+        id: MEDIA_ID,
+        filename: 'replacement.wav',
+        duration: 9,
+        accessRights: 'restricted',
+        isOfflineCached: false,
+        createdAt: NOW,
+        availability: 'available',
+        contentSize: next.size,
+        contentSha256: await computeBlobSha256(next),
+        futureField: 'kept',
+      }),
+    );
+    // 描述旧字节的字段不保留 | Fields describing the old bytes are not carried over
+    expect(after.url).toBeUndefined();
+  });
+
+  it('relink compares sha against the row read inside the transaction (no TOCTOU)', async () => {
+    await LinguisticService.cleanup.deleteAudio(MEDIA_ID);
+    const stored = await db.media_items.get(MEDIA_ID);
+    const other = new Blob(['different-bytes'], { type: 'audio/wav' });
+    const otherSha = await computeBlobSha256(other);
+    // 事务外读到的是“已过期”的行（sha 恰好匹配）| The pre-transaction read sees a stale row
+    const getSpy = vi
+      .spyOn(db.media_items, 'get')
+      .mockResolvedValueOnce({ ...stored!, contentSha256: otherSha! });
+    try {
+      const error = await LinguisticService.media
+        .relink({ mediaId: MEDIA_ID, audioBlob: other })
+        .catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(MediaContentMismatchError);
+    } finally {
+      getSpy.mockRestore();
+    }
+    await expect(db.media_items.get(MEDIA_ID)).resolves.toEqual(stored);
   });
 });

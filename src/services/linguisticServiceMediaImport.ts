@@ -64,6 +64,24 @@ function stripStateDetails(details: Record<string, unknown> | undefined): Record
   return remainingDetails;
 }
 
+function assertRelinkTarget(
+  row: MediaItemDocType,
+  contentSha256: string | undefined,
+  acknowledged: boolean,
+): void {
+  if (row.timelineKind !== 'acoustic') {
+    throw new Error('relinkMedia: only acoustic recordings can be relinked');
+  }
+  if (
+    row.contentSha256 !== undefined &&
+    contentSha256 !== undefined &&
+    row.contentSha256 !== contentSha256 &&
+    !acknowledged
+  ) {
+    throw new MediaContentMismatchError(row.id, row.contentSha256, contentSha256);
+  }
+}
+
 /**
  * Relink：给一条缺音的声学录音挂回字节。ID、原名和句段时间都不变；
  * 新字节与已记录的 `contentSha256` 不符时，未确认就抛 `MediaContentMismatchError`。
@@ -87,38 +105,38 @@ export async function relinkMedia(input: {
   const contentSha256 = await computeBlobSha256(input.audioBlob);
   const row = await db.dexie.media_items.get(input.mediaId);
   if (!row) throw new Error(`relinkMedia: media ${input.mediaId} not found`);
-  if (row.timelineKind !== 'acoustic') {
-    throw new Error('relinkMedia: only acoustic recordings can be relinked');
+  // 事务前先快速失败；事务内还会再检查一次 | Fail fast before the tx; checked again inside it
+  assertRelinkTarget(row, contentSha256, input.acknowledgeContentMismatch === true);
+  try {
+    await withTransaction(
+      db,
+      'rw',
+      [db.dexie.media_items, ...(input.afterWrite?.tables ?? [])],
+      async () => {
+        const current = await db.dexie.media_items.get(input.mediaId);
+        if (!current) throw new Error(`relinkMedia: media ${input.mediaId} disappeared`);
+        // JY-19：在事务内对最新行再比一次 sha（防 TOCTOU）| Re-check sha on the row read in the tx
+        assertRelinkTarget(current, contentSha256, input.acknowledgeContentMismatch === true);
+        await db.dexie.media_items.put({
+          ...current,
+          ...(typeof input.duration === 'number' &&
+          Number.isFinite(input.duration) &&
+          input.duration > 0
+            ? { duration: input.duration }
+            : {}),
+          details: { ...stripStateDetails(current.details), audioBlob: input.audioBlob },
+          ...managedAcousticMediaState(input.audioBlob, contentSha256),
+        });
+        if (input.afterWrite) await input.afterWrite.run();
+      },
+      { label: 'LinguisticService.media.relink' },
+    );
+  } catch (error) {
+    // 事务内的 sha 不符保持原类型，界面才能弹确认 | Keep the typed mismatch so the UI can ask
+    const cause = error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined;
+    if (cause instanceof MediaContentMismatchError) throw cause;
+    throw error;
   }
-  if (
-    row.contentSha256 !== undefined &&
-    contentSha256 !== undefined &&
-    row.contentSha256 !== contentSha256 &&
-    input.acknowledgeContentMismatch !== true
-  ) {
-    throw new MediaContentMismatchError(row.id, row.contentSha256, contentSha256);
-  }
-  await withTransaction(
-    db,
-    'rw',
-    [db.dexie.media_items, ...(input.afterWrite?.tables ?? [])],
-    async () => {
-      const current = await db.dexie.media_items.get(input.mediaId);
-      if (!current) throw new Error(`relinkMedia: media ${input.mediaId} disappeared`);
-      await db.dexie.media_items.put({
-        ...current,
-        ...(typeof input.duration === 'number' &&
-        Number.isFinite(input.duration) &&
-        input.duration > 0
-          ? { duration: input.duration }
-          : {}),
-        details: { ...stripStateDetails(current.details), audioBlob: input.audioBlob },
-        ...managedAcousticMediaState(input.audioBlob, contentSha256),
-      });
-      if (input.afterWrite) await input.afterWrite.run();
-    },
-    { label: 'LinguisticService.media.relink' },
-  );
   return { mediaId: input.mediaId };
 }
 
@@ -206,24 +224,31 @@ export async function importAudio(input: {
     }
     if (!isMediaItemPlaceholderRow(targetRow)) {
       const contentSha256 = await computeBlobSha256(input.audioBlob);
-      const remainingDetails = stripStateDetails(targetRow.details);
       await withTransaction(
         db,
         'rw',
         [db.dexie.media_items, db.dexie.texts],
         async () => {
+          // JY-19：以原行为底（以后新增的字段不会被悄悄清掉），只去掉描述旧字节的字段
+          // JY-19: start from the original row (future fields survive); drop only the fields that
+          // describe the old bytes
+          const current = (await db.dexie.media_items.get(targetRow.id)) ?? targetRow;
+          const {
+            url: _oldUrl,
+            contentSha256: _oldSha256,
+            contentSize: _oldSize,
+            ...kept
+          } = current;
           await db.dexie.media_items.put({
+            ...kept,
             id: targetRow.id,
             textId: input.textId,
             filename: input.filename,
             duration: input.duration,
             details: {
-              ...remainingDetails,
+              ...stripStateDetails(current.details),
               audioBlob: input.audioBlob,
             },
-            isOfflineCached: targetRow.isOfflineCached,
-            ...(targetRow.accessRights ? { accessRights: targetRow.accessRights } : {}),
-            createdAt: targetRow.createdAt,
             ...managedAcousticMediaState(input.audioBlob, contentSha256),
           });
           await refreshMediaTimelineMetadata(targetRow.id);
