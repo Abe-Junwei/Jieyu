@@ -372,7 +372,7 @@
     "maplibre-gl": "^5.24.0",
     "minisearch": "^7.2.0",
     "onnxruntime-web": "1.27.0",
-    "pdfjs-dist": "6.0.227",
+    "pdfjs-dist": "6.2.108",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.80.0",
