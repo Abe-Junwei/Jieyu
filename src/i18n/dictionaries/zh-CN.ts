@@ -2137,7 +2137,9 @@ export const zhCNDictionary = {
     '检测到 {count} 个翻译层存在多宿主；EAF 仅导出主宿主链路（有损）。',
   'transcription.importExport.actionLabelImportFile': '导入文件',
   'transcription.importExport.unsupportedFormat':
-    '不支持的文件格式，请选择 .eaf / .TextGrid / .trs / .flextext / .txt / .jyt / .jym 文件。',
+    '不支持的文件格式，请选择 .eaf / .TextGrid / .trs / .flextext / .txt / .toolbox 文件。',
+  'transcription.importExport.archiveUseProjectImport':
+    '项目包（.jym / .jyt）不能通过「导入标注」导入，请使用「导入项目」。',
   'transcription.importExport.noProject': '请先创建项目。',
   'transcription.importExport.conflict': '导入失败：检测到数据已被其他操作更新，请刷新后重试。',
   'transcription.importExport.failed': '导入失败: {message}',

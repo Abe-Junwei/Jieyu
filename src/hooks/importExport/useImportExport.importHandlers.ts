@@ -135,15 +135,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
     if (isJieyuArchive) {
-      const { createImportExportArchiveHandlers } =
-        await import('./useImportExport.archiveHandlers');
-      const { importProjectArchive } = createImportExportArchiveHandlers({
-        activeTextId,
-        loadSnapshot,
-        locale,
-        setSaveState,
+      // N3：「导入标注」只处理标注文件；项目包必须走「导入项目」（带预览与策略选择），
+      // 绝不在这里整库替换。| Annotation import never routes project archives (no whole-DB replace).
+      setSaveState({
+        kind: 'error',
+        message: t(locale, 'transcription.importExport.archiveUseProjectImport'),
       });
-      await importProjectArchive(file, 'replace-all');
       return;
     }
     let text = '';

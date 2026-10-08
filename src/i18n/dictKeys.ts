@@ -2124,6 +2124,7 @@ export const DICT_KEYS = [
   'transcription.importExport.actionLabelImportFile',
   'transcription.importExport.unsupportedFormat',
   'transcription.importExport.toolboxFormatUnrecognized',
+  'transcription.importExport.archiveUseProjectImport',
   'transcription.importExport.noProject',
   'transcription.importExport.conflict',
   'transcription.importExport.failed',

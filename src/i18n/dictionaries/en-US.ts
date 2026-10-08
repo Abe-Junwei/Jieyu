@@ -2285,7 +2285,9 @@ export const enUSDictionary = {
     'Detected {count} translation layers with multiple hosts; EAF exported preferred-host links only (lossy).',
   'transcription.importExport.actionLabelImportFile': 'Import file',
   'transcription.importExport.unsupportedFormat':
-    'Unsupported file format. Please choose a .eaf / .TextGrid / .trs / .flextext / .txt / .jyt / .jym file.',
+    'Unsupported file format. Please choose a .eaf / .TextGrid / .trs / .flextext / .txt / .toolbox file.',
+  'transcription.importExport.archiveUseProjectImport':
+    'Project archives (.jym / .jyt) cannot be imported as annotations. Use "Import project" instead.',
   'transcription.importExport.noProject': 'Create a project first.',
   'transcription.importExport.conflict':
     'Import failed: data was modified by another operation. Refresh and try again.',

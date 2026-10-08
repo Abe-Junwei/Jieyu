@@ -214,7 +214,7 @@ export function WorkbenchFilePane(props: {
         type="file"
         className="home-file-input"
         tabIndex={-1}
-        accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox,.jyt,.jym"
+        accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"
         aria-label={t(locale, 'app.home.importAnnotation')}
         onChange={(event) => {
           const file = event.target.files?.[0];

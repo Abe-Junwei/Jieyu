@@ -102,6 +102,27 @@ describe('useImportExport - import error handling', () => {
     );
   });
 
+  it('annotation import rejects project archives instead of replacing the whole database (N3 / T10)', async () => {
+    const input = createInput();
+
+    const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
+
+    for (const name of ['demo.jym', 'demo.JYT']) {
+      await act(async () => {
+        await result.current.handleImportFile(
+          new File(['x'], name, { type: 'application/octet-stream' }),
+        );
+      });
+    }
+
+    expect(mockImportJieyuArchiveFile).not.toHaveBeenCalled();
+    expect(mockIngestTextFile).not.toHaveBeenCalled();
+    expect(input.setSaveState).toHaveBeenCalledWith({
+      kind: 'error',
+      message: t('zh-CN', 'transcription.importExport.archiveUseProjectImport'),
+    });
+  });
+
   it('should surface archive replace-all error via import failed message', async () => {
     const input = createInput();
     mockImportJieyuArchiveFile.mockRejectedValueOnce(new Error('archive broken'));
@@ -109,8 +130,9 @@ describe('useImportExport - import error handling', () => {
     const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
     await act(async () => {
-      await result.current.handleImportFile(
+      await result.current.importProjectArchive(
         new File(['x'], 'demo.jym', { type: 'application/octet-stream' }),
+        'replace-all',
       );
     });
 
@@ -135,8 +157,9 @@ describe('useImportExport - import error handling', () => {
     const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
     await act(async () => {
-      await result.current.handleImportFile(
+      await result.current.importProjectArchive(
         new File(['x'], 'demo.jym', { type: 'application/octet-stream' }),
+        'replace-all',
       );
     });
 
