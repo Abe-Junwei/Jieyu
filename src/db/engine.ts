@@ -124,6 +124,8 @@ import {
   type JieyuTableValidators,
 } from './writeValidationMiddleware';
 import { withCatalogOwnershipRules } from './catalogOwnership';
+import { createOwnershipImmutabilityMiddleware } from './ownershipImmutabilityMiddleware';
+import { JIEYU_OWNERSHIP_IMMUTABLE_FIELDS } from './ownershipImmutabilityRules';
 
 /**
  * IndexedDB 物理库名（D10）。旧库 `jieyudb_v2` 不再打开，由启动时的旧数据提示负责删除。
@@ -275,6 +277,9 @@ export class JieyuDexie extends Dexie {
     // 4.4 unified write validation for every Dexie write path.
     // 2B-B：目录行必须带项目归属，且不接受 `system.*` ID。| Catalog ownership + no `system.*` ids.
     this.use(createWriteValidationMiddleware(withCatalogOwnershipRules(JIEYU_TABLE_VALIDATORS)));
+    // 2B-G / JY-03：已有行的项目归属与父引用不可改写（level 1，位于 hooks 与 zod 校验之下）。
+    // 2B-G / JY-03: existing rows keep their project and parent refs (level 1, below hooks and zod).
+    this.use(createOwnershipImmutabilityMiddleware(JIEYU_OWNERSHIP_IMMUTABLE_FIELDS));
   }
 }
 

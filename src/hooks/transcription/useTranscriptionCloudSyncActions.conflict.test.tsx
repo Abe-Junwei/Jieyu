@@ -31,6 +31,9 @@ const {
   const mockAuditLogRows: Array<Record<string, unknown>> = [];
   const mockGetDb = vi.fn(async () => ({
     dexie: {
+      // 远端变更的项目归属检查读这两张表；这里本机都没有对应行 | Remote-change ownership check reads these; no local rows here
+      layer_units: { bulkGet: vi.fn(async (ids: string[]) => ids.map(() => undefined)) },
+      tier_definitions: { bulkGet: vi.fn(async (ids: string[]) => ids.map(() => undefined)) },
       audit_logs: {
         clear: vi.fn(async () => {
           mockAuditLogRows.length = 0;

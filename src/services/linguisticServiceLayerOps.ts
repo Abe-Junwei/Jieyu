@@ -38,12 +38,32 @@ export async function saveTranslationLayer(data: LayerDocType): Promise<string> 
   return doc.primary;
 }
 
+/** 已有图层属于另一个项目时拒绝替换（JY-03）| Refuse to replace a layer owned by another project */
+export class LayerOwnershipMismatchError extends Error {
+  constructor(
+    public readonly layerId: string,
+    public readonly ownerTextId: string,
+    public readonly incomingTextId: string,
+  ) {
+    super(
+      `Layer "${layerId}" belongs to project "${ownerTextId}" and cannot be replaced by a layer of project "${incomingTextId}"`,
+    );
+    this.name = 'LayerOwnershipMismatchError';
+  }
+}
+
 /** 协同远端 upsert：按 id 替换层并同步 tier 索引 | Replace layer by id for inbound collaboration */
 export async function upsertLayer(data: LayerDocType): Promise<void> {
   const db = await getDb();
   if (data.id) {
     const existingDoc = await db.collections.layers.findOne({ selector: { id: data.id } }).exec();
     if (existingDoc) {
+      // remove + insert 绕过了中间件的「改写已有行」检查，这里显式比对归属
+      // remove + insert bypasses the middleware's existing-row check, so compare owners explicitly
+      const existing = existingDoc.toJSON();
+      if (existing.textId !== data.textId) {
+        throw new LayerOwnershipMismatchError(data.id, existing.textId, data.textId);
+      }
       await db.collections.layers.remove(data.id);
     }
   }

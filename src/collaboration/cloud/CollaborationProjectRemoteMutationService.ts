@@ -3,6 +3,157 @@ import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import type { PerLayerRowFieldPatch } from '../../hooks/transcription/useTranscriptionUnitActions';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
 import { asNumber, asRecord, asString } from './cloudSyncConflictHelpers';
+import {
+  listForeignOwnedLayers,
+  listForeignOwnedUnits,
+} from '../../services/projectOwnershipQueries';
+
+/**
+ * 远端变更指向本机另一个项目的行，或要把行写进另一个项目时拒绝应用（JY-03）。
+ * A remote change that targets a row of another local project, or would write a row into another
+ * project, is refused (JY-03).
+ */
+export class CollaborationRemoteProjectScopeError extends Error {
+  constructor(
+    public readonly changeId: string,
+    public readonly opType: string,
+    public readonly entityKind: 'unit' | 'layer',
+    public readonly entityId: string,
+    public readonly ownerTextId: string,
+    public readonly projectTextId: string,
+  ) {
+    super(
+      `Refusing remote change ${changeId} (${opType}): ${entityKind} "${entityId}" belongs to local project "${ownerTextId}", not to the collaboration project "${projectTextId}"`,
+    );
+    this.name = 'CollaborationRemoteProjectScopeError';
+  }
+}
+
+function present(value: string | null | undefined): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function stringIds(values: unknown): string[] {
+  return Array.isArray(values) ? values.map((item) => asString(item)).filter(present) : [];
+}
+
+/** 收集这条变更会读写的单元 / 图层，以及载荷里声明的归属 | Units / layers a change touches */
+function collectChangeTargets(change: CollaborationProjectChangeRecord): {
+  unitIds: string[];
+  layerIds: string[];
+  declaredTextIds: Array<{ kind: 'unit' | 'layer'; id: string; textId: string | null }>;
+} {
+  const payload = asRecord(change.payload);
+  const unitIds: string[] = [];
+  const layerIds: string[] = [];
+  const declaredTextIds: Array<{ kind: 'unit' | 'layer'; id: string; textId: string | null }> = [];
+  const entityHead = asString(change.entityId?.split(':')[0]);
+  switch (change.opType) {
+    case 'upsert_unit_content': {
+      const unitId = asString(payload?.unitId) ?? entityHead;
+      if (present(unitId)) unitIds.push(unitId);
+      const layerId = asString(payload?.layerId);
+      if (present(layerId)) layerIds.push(layerId);
+      break;
+    }
+    case 'upsert_unit': {
+      const fullUnit = asRecord(payload?.unit);
+      const unitId =
+        asString(fullUnit?.id) ?? asString(payload?.unitId) ?? asString(change.entityId);
+      if (present(unitId)) unitIds.push(unitId);
+      if (fullUnit !== null && present(unitId)) {
+        declaredTextIds.push({ kind: 'unit', id: unitId, textId: asString(fullUnit.textId) });
+        const layerId = asString(fullUnit.layerId);
+        if (present(layerId)) layerIds.push(layerId);
+      }
+      break;
+    }
+    case 'batch_patch':
+      unitIds.push(...stringIds(payload?.unitIds));
+      break;
+    case 'upsert_layer': {
+      const fullLayer = asRecord(payload?.layer);
+      const layerId = asString(fullLayer?.id) ?? asString(change.entityId);
+      if (present(layerId)) layerIds.push(layerId);
+      if (fullLayer !== null && present(layerId)) {
+        declaredTextIds.push({ kind: 'layer', id: layerId, textId: asString(fullLayer.textId) });
+      }
+      break;
+    }
+    case 'upsert_relation': {
+      const [, entityLayerId] = change.entityId.split(':');
+      const layerId = asString(payload?.layerId) ?? asString(entityLayerId);
+      if (present(layerId)) layerIds.push(layerId);
+      const hostId = asString(payload?.hostTranscriptionLayerId);
+      if (present(hostId)) layerIds.push(hostId);
+      break;
+    }
+    case 'delete_entity': {
+      if (change.entityType === 'layer_unit') {
+        const unitId = asString(payload?.unitId) ?? asString(change.entityId);
+        if (present(unitId)) unitIds.push(unitId);
+      }
+      if (change.entityType === 'layer') {
+        const layerId = asString(payload?.layerId) ?? asString(change.entityId);
+        if (present(layerId) && layerId !== 'layer') layerIds.push(layerId);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return { unitIds, layerIds, declaredTextIds };
+}
+
+/**
+ * 服务层归属检查：载荷声明的 `textId` 必须是协同项目；目标单元 / 图层若已存在，必须属于协同项目。
+ * Service-level ownership check: declared `textId` must be the collaboration project, and existing
+ * target units / layers must belong to it.
+ */
+export async function assertRemoteChangeWithinProject(
+  change: CollaborationProjectChangeRecord,
+  projectTextId: string,
+): Promise<void> {
+  const { unitIds, layerIds, declaredTextIds } = collectChangeTargets(change);
+  for (const declared of declaredTextIds) {
+    if (declared.textId !== projectTextId) {
+      throw new CollaborationRemoteProjectScopeError(
+        change.id,
+        change.opType,
+        declared.kind,
+        declared.id,
+        declared.textId ?? '',
+        projectTextId,
+      );
+    }
+  }
+  const [foreignUnits, foreignLayers] = await Promise.all([
+    listForeignOwnedUnits(unitIds, projectTextId),
+    listForeignOwnedLayers(layerIds, projectTextId),
+  ]);
+  const foreignUnit = foreignUnits[0];
+  if (foreignUnit) {
+    throw new CollaborationRemoteProjectScopeError(
+      change.id,
+      change.opType,
+      'unit',
+      foreignUnit.id,
+      foreignUnit.textId,
+      projectTextId,
+    );
+  }
+  const foreignLayer = foreignLayers[0];
+  if (foreignLayer) {
+    throw new CollaborationRemoteProjectScopeError(
+      change.id,
+      change.opType,
+      'layer',
+      foreignLayer.id,
+      foreignLayer.textId,
+      projectTextId,
+    );
+  }
+}
 
 export interface CloudSyncRawActions {
   saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
@@ -43,6 +194,13 @@ export async function applyCollaborationRemoteMutation(
   deps: ApplyCollaborationRemoteMutationDeps,
 ): Promise<boolean> {
   const { runWithDbMutex, rawActions, layers, layerLinks, loadSnapshot } = deps;
+  const projectTextId = deps.projectTextId.trim();
+  if (projectTextId.length === 0) {
+    throw new Error(
+      `Refusing remote change ${change.id} (${change.opType}): no local collaboration project`,
+    );
+  }
+  await assertRemoteChangeWithinProject(change, projectTextId);
   const payload = asRecord(change.payload);
   let mutated = false;
 
@@ -184,7 +342,7 @@ export async function applyCollaborationRemoteMutation(
   }
 
   if (mutated && options?.skipLoadSnapshot !== true) {
-    await loadSnapshot(deps.projectTextId);
+    await loadSnapshot(projectTextId);
   }
 
   return mutated;
