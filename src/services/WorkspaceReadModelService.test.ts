@@ -352,9 +352,11 @@ describe('WorkspaceReadModelService', () => {
     expect(layerScope).toMatchObject({
       scopeType: 'layer',
       scopeKey: 'layer-seg',
-      unitCount: 4,
-      missingSpeakerCount: 2,
-      untranscribedCount: 2,
+      // utt-1/utt-2 在同层各自承载 seg-1/seg-2：segment_meta 只投影段行，不再重复计入宿主 unit。
+      // utt-1/utt-2 host seg-1/seg-2 on the same layer, so only the segment rows are counted.
+      unitCount: 2,
+      missingSpeakerCount: 1,
+      untranscribedCount: 1,
       translationLayerCount: 1,
     });
     expect(speakerProfile).toMatchObject({

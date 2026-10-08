@@ -1,3 +1,4 @@
+import { liveQuery } from 'dexie';
 import { getDb, withTransaction, type SourceRecordDocType } from '../db';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from '../utils/mediaItemState';
 import {
@@ -73,6 +74,42 @@ export async function listProjectFileViews(textId: string): Promise<ProjectFileV
     }
   }
   return linkManuscriptsToAudio(audio, sources);
+}
+
+/**
+ * 监听项目文件清单的来源表（录音 / 来源记录 / 是否已有转写单元）。首个结果及之后每次签名变化都回调（首个结果用于补上挂载与订阅之间的写入）。
+ * 导入、建项目、删媒体等路径都直接写库而不经过文件面板，这里让面板随库自动刷新，而不是靠各入口手动失效缓存。
+ *
+ * Observe the tables behind the project file list (media rows, source records, whether the text has
+ * units). Calls `onChange` for the first emission (covers writes between mount and subscribe) and whenever the signature changes. Imports,
+ * project creation and media deletion write the DB without going through the file pane, so the pane
+ * follows the DB instead of relying on every entry point to invalidate its cache.
+ */
+export function observeProjectFileSources(textId: string, onChange: () => void): () => void {
+  const normalizedTextId = textId.trim();
+  if (normalizedTextId.length === 0) return () => undefined;
+  let lastSignature: string | undefined;
+  const subscription = liveQuery(async () => {
+    const db = await getDb();
+    const [mediaIds, sourceIds, unitCount] = await Promise.all([
+      db.dexie.media_items.where('textId').equals(normalizedTextId).primaryKeys(),
+      db.dexie.source_records.where('textId').equals(normalizedTextId).primaryKeys(),
+      db.dexie.layer_units.where('textId').equals(normalizedTextId).limit(1).count(),
+    ]);
+    return [
+      [...mediaIds].map(String).sort().join(','),
+      [...sourceIds].map(String).sort().join(','),
+      unitCount > 0 ? 'units' : 'no-units',
+    ].join('|');
+  }).subscribe({
+    next: (signature) => {
+      if (signature === lastSignature) return;
+      lastSignature = signature;
+      onChange();
+    },
+    error: () => undefined,
+  });
+  return () => subscription.unsubscribe();
 }
 
 /**

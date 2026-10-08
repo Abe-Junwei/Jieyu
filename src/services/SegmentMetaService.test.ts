@@ -228,6 +228,27 @@ describe('SegmentMetaService', () => {
     });
   });
 
+  it('does not project a separate empty row for a unit that hosts a segment on the same layer', async () => {
+    // 回归：EAF 导入后默认转写层同时有 unit `utt-1` 与承载该层文本的 `segv2_<layer>_utt-1`，
+    // 侧栏曾多出一条「No content」行（eafWordTierImport e2e 偶发失败的根因）。
+    await db.layer_units.bulkPut([
+      makeUnitUnit('utt-1', 'layer-trc'),
+      makeSegmentUnit('segv2_layer-trc_utt-1', 'layer-trc', 'utt-1', 0, 2),
+      { ...makeUnitUnit('utt-plain', 'layer-trc'), startTime: 3, endTime: 4 },
+    ]);
+    await db.layer_unit_contents.put(
+      makeContent('content-seg', 'segv2_layer-trc_utt-1', 'layer-trc', 'aa'),
+    );
+
+    const rows = await SegmentMetaService.rebuildForLayerMedia('layer-trc', 'media-1');
+
+    expect(rows.map((row) => [row.segmentId, row.unitKind, row.hasText])).toEqual([
+      ['segv2_layer-trc_utt-1', 'segment', true],
+      ['utt-plain', 'unit', false],
+    ]);
+    expect(await SegmentMetaService.listByLayerMedia('layer-trc', 'media-1')).toHaveLength(2);
+  });
+
   it('refreshes affected layer-media scopes after metadata mutations', async () => {
     await db.speakers.bulkPut([makeSpeaker('spk-1', 'Alice'), makeSpeaker('spk-2', 'Beatrice')]);
     await db.layer_units.bulkPut([

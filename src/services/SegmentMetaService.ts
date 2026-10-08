@@ -402,8 +402,20 @@ export class SegmentMetaService {
       { label: 'SegmentMetaService.rebuildForLayerMedia.sourceRead' },
     );
 
+    // 同层同媒体上，若某 unit 已有以它为宿主的 segment 行（如 `segv2_<layer>_<unit>` 承载该层文本），
+    // 该 unit 自身不再单独投影一行：否则侧栏会对同一时间段出现一条「无内容」重复行。
+    // When a unit on this layer/media already hosts segment rows on the SAME layer (e.g. the
+    // `segv2_<layer>_<unit>` row that carries this layer's text), skip the unit's own row; otherwise
+    // the side pane lists a duplicate, empty entry for the same span.
+    const hostedOnThisLayer = new Set(
+      unitRows
+        .filter((row) => row.unitType === 'segment')
+        .map((row) => row.parentUnitId?.trim())
+        .filter((id): id is string => Boolean(id)),
+    );
     const metaRows = unitRows.filter(
-      (row) => row.unitType === 'segment' || row.unitType === 'unit',
+      (row) =>
+        row.unitType === 'segment' || (row.unitType === 'unit' && !hostedOnThisLayer.has(row.id)),
     );
     const hostIds = [
       ...new Set(

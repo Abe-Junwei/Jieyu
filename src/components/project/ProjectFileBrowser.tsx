@@ -1,6 +1,6 @@
 import '../../styles/components/project-file-list.css';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { t, tf, useLocale, type Locale } from '../../i18n';
 import { LinguisticService } from '../../services/LinguisticService';
@@ -8,6 +8,7 @@ import {
   linkProjectSourceFileToAudio,
   listProjectFileViews,
   listProjectSourceFiles,
+  observeProjectFileSources,
   rememberImportedSourceFile,
   renameProjectAudio,
   renameProjectSourceFile,
@@ -475,6 +476,15 @@ export function ProjectFileBrowser(props: {
     },
     enabled: textId.trim().length > 0 && audio === undefined,
   });
+  useEffect(
+    () =>
+      observeProjectFileSources(textId, () => {
+        void queryClient.invalidateQueries({ queryKey: ['project-source-files', textId] });
+        void queryClient.invalidateQueries({ queryKey: ['project-file-views', textId] });
+        void queryClient.invalidateQueries({ queryKey: ['project-file-progress', textId] });
+      }),
+    [queryClient, textId],
+  );
   const progressByMedia = new Map((progress.data ?? []).map((row) => [row.mediaId, row] as const));
   const storedSources = sources.data ?? [];
   const manuscriptSources =

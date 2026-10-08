@@ -203,5 +203,12 @@ test.describe('EAF word-tier annotation import', () => {
       page.getByTestId('transcription-workspace-screen').getByText('aa', { exact: true }),
     ).toBeVisible();
     await expect(page.getByText('G1', { exact: true })).toHaveCount(0);
+
+    // 项目文件面板须随导入刷新（录音 + 导入的 EAF），不能停在「暂无文件」。
+    // The project file pane must follow the import (recording + imported EAF), not stay empty.
+    const filePane = page.getByTestId('project-file-pane').first();
+    await expect(filePane).toContainText('phrase.eaf');
+    await expect(filePane).toContainText('e2e-field-sample');
+    await expect(page.getByText(/This project has no files yet\./)).toHaveCount(0);
   });
 });
