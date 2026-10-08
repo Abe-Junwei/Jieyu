@@ -1449,14 +1449,3 @@ export type ImportResult = {
   collections: Partial<Record<keyof JieyuCollections, ImportCollectionResult>>;
   ignoredCollections: string[];
 };
-
-export type SegmentationV2BackfillRows = {
-  segments: LayerUnitDocType[];
-  contents: LayerUnitContentDocType[];
-  links: UnitRelationDocType[];
-};
-
-export type V28BackfillPlan = {
-  segment: LayerUnitDocType;
-  content: LayerUnitContentDocType;
-};

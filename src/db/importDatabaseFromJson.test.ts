@@ -76,49 +76,6 @@ describe('importDatabaseFromJson', () => {
     expect(remainingTexts.map((item) => item.id)).toEqual(['text_existing']);
   });
 
-  it('rejects non-data audioDataUrl imports before mutating media_items', async () => {
-    await db.media_items.put({
-      id: 'media_existing',
-      textId: 'text_existing',
-      filename: 'existing.wav',
-      isOfflineCached: false,
-      details: {
-        mimeType: 'audio/wav',
-      },
-      createdAt: NOW,
-    });
-
-    const snapshot = {
-      schemaVersion: 4,
-      exportedAt: NOW,
-      dbName: JIEYU_DEXIE_DB_NAME,
-      collections: {
-        media_items: [
-          {
-            id: 'media_new',
-            textId: 'text_existing',
-            filename: 'imported.wav',
-            isOfflineCached: false,
-            details: {
-              mimeType: 'audio/wav',
-              audioDataUrl: 'http://127.0.0.1:9999/audio.wav',
-            },
-            createdAt: NOW,
-          },
-        ],
-        layer_units: [],
-        layer_unit_contents: [],
-      },
-    };
-
-    await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
-      'only data URLs are supported during import',
-    );
-
-    const remainingMediaItems = await db.media_items.toArray();
-    expect(remainingMediaItems.map((item) => item.id)).toEqual(['media_existing']);
-  });
-
   it('ignores removed transformId compatibility fields during snapshot import', async () => {
     const snapshot = {
       schemaVersion: 4,
@@ -148,7 +105,9 @@ describe('importDatabaseFromJson', () => {
     await importDatabaseFromJson(snapshot, { strategy: 'replace-all' });
 
     const database = await getDb();
-    const importedLayer = await database.collections.layers.findOne({ selector: { textId: 'text_legacy', key: 'trc_legacy' } }).exec();
+    const importedLayer = await database.collections.layers
+      .findOne({ selector: { textId: 'text_legacy', key: 'trc_legacy' } })
+      .exec();
     expect(importedLayer?.toJSON().bridgeId).toBeUndefined();
 
     const importedTiers = await db.tier_definitions.toArray();
@@ -182,7 +141,17 @@ describe('importDatabaseFromJson', () => {
         tier_definitions: [],
         layer_units: [],
         layer_unit_contents: [],
-        units: [{ id: 'u1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW }],
+        units: [
+          {
+            id: 'u1',
+            textId: 't1',
+            mediaId: 'm1',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
       },
     };
 

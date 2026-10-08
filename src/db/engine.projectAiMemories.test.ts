@@ -25,7 +25,9 @@ describe('project_ai_memories Dexie table (v47)', () => {
 
     const jieyuDb = await getDb();
     await jieyuDb.collections.project_ai_memories.insert(doc);
-    const retrieved = await jieyuDb.collections.project_ai_memories.findOne({ selector: { id: 'mem-001' } }).exec();
+    const retrieved = await jieyuDb.collections.project_ai_memories
+      .findOne({ selector: { id: 'mem-001' } })
+      .exec();
 
     expect(retrieved).not.toBeNull();
     expect(retrieved!.toJSON().fact).toBe('This language has 5 vowels.');
@@ -34,9 +36,30 @@ describe('project_ai_memories Dexie table (v47)', () => {
 
   it('can query by projectId index', async () => {
     const docs = [
-      { id: 'mem-001', projectId: 'proj-a', fact: 'A', confidence: 0.8, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'mem-002', projectId: 'proj-a', fact: 'B', confidence: 0.7, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'mem-003', projectId: 'proj-b', fact: 'C', confidence: 0.9, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      {
+        id: 'mem-001',
+        projectId: 'proj-a',
+        fact: 'A',
+        confidence: 0.8,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'mem-002',
+        projectId: 'proj-a',
+        fact: 'B',
+        confidence: 0.7,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'mem-003',
+        projectId: 'proj-b',
+        fact: 'C',
+        confidence: 0.9,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ];
 
     const jieyuDb = await getDb();
@@ -44,7 +67,10 @@ describe('project_ai_memories Dexie table (v47)', () => {
       await jieyuDb.collections.project_ai_memories.insert(doc);
     }
 
-    const results = await jieyuDb.collections.project_ai_memories.findByIndex('projectId', 'proj-a');
+    const results = await jieyuDb.collections.project_ai_memories.findByIndex(
+      'projectId',
+      'proj-a',
+    );
     expect(results).toHaveLength(2);
     expect(results.map((r) => r.fact).sort()).toEqual(['A', 'B']);
   });
@@ -61,9 +87,14 @@ describe('project_ai_memories Dexie table (v47)', () => {
 
     const jieyuDb = await getDb();
     await jieyuDb.collections.project_ai_memories.insert(doc);
-    await jieyuDb.collections.project_ai_memories.update('mem-004', { fact: 'Updated fact.', confidence: 0.95 });
+    await jieyuDb.collections.project_ai_memories.update('mem-004', {
+      fact: 'Updated fact.',
+      confidence: 0.95,
+    });
 
-    const retrieved = await jieyuDb.collections.project_ai_memories.findOne({ selector: { id: 'mem-004' } }).exec();
+    const retrieved = await jieyuDb.collections.project_ai_memories
+      .findOne({ selector: { id: 'mem-004' } })
+      .exec();
     expect(retrieved!.toJSON().fact).toBe('Updated fact.');
     expect(retrieved!.toJSON().confidence).toBe(0.95);
   });
@@ -82,12 +113,14 @@ describe('project_ai_memories Dexie table (v47)', () => {
     await jieyuDb.collections.project_ai_memories.insert(doc);
     await jieyuDb.collections.project_ai_memories.remove('mem-005');
 
-    const retrieved = await jieyuDb.collections.project_ai_memories.findOne({ selector: { id: 'mem-005' } }).exec();
+    const retrieved = await jieyuDb.collections.project_ai_memories
+      .findOne({ selector: { id: 'mem-005' } })
+      .exec();
     expect(retrieved).toBeNull();
   });
 
   it('schema version is at least 47', async () => {
     const jieyuDb = await getDb();
-    expect(jieyuDb.dexie.verno).toBeGreaterThanOrEqual(47);
+    expect(jieyuDb.dexie.verno).toBe(1);
   });
 });

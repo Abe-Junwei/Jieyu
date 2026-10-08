@@ -89,8 +89,6 @@ export async function probeJieyuDatabaseIntegrity(
   }
 }
 
-const SPOT_CHECK_SAMPLE_SIZE = 20;
-
 async function readReferenceRows(
   db: JieyuDatabase,
   tableName: DbIntegrityReferenceRule['sourceTable'],
@@ -176,19 +174,6 @@ function formatReferenceIssue(issue: DbIntegrityReferenceIssue): string {
 }
 
 /**
- * 迁移后引用完整性抽查。
- * 对关键外键关系抽样验证，确保 upgrade hook 没有破坏数据一致性。
- * Post-migration referential-integrity spot-check.
- */
-async function checkReferentialIntegritySpotCheck(db: JieyuDatabase): Promise<void> {
-  const diagnostics = await runReferenceDiagnostics(db, SPOT_CHECK_SAMPLE_SIZE);
-  const firstIssue = diagnostics.flatMap((diagnostic) => diagnostic.missingReferences)[0];
-  if (firstIssue) {
-    throw new Error(formatReferenceIssue(firstIssue));
-  }
-}
-
-/**
  * 手动/CI 深度诊断：只读扫描关键表引用关系，full 模式会遍历核心关系的全部源行。
  * Manual/CI deep diagnostics: read-only scan for core referential integrity.
  */
@@ -228,25 +213,6 @@ export async function runJieyuDatabaseDeepDiagnostics(
     references,
     failures,
   };
-}
-
-/**
- * 迁移后 spot-check：在基础可读性探测之上增加引用完整性抽查。
- * Post-migration spot-check: adds referential-integrity sampling on top of the base read probe.
- */
-export async function spotCheckJieyuDatabaseAfterMigration(
-  database: JieyuDatabase,
-): Promise<DbIntegrityProbeResult> {
-  const base = await probeJieyuDatabaseIntegrity(database);
-  if (!base.ok) {
-    return base;
-  }
-  try {
-    await checkReferentialIntegritySpotCheck(database);
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, reason: toReason(error) };
-  }
 }
 
 /** `getDb()` 单例上的轻量健康读（F-2 / ARCH-4）| Lightweight read health on the `getDb()` singleton. */

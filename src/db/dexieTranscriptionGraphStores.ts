@@ -263,7 +263,6 @@ export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
     db.dexie.custom_field_definitions,
     db.dexie.orthographies,
     db.dexie.orthography_bridges,
-    db.dexie.orthography_transforms,
     db.dexie.locations,
     db.dexie.bibliographic_sources,
     db.dexie.grammar_docs,

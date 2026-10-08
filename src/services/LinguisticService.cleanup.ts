@@ -25,6 +25,7 @@ import {
   resolveLogicalDurationSecAfterTimedContentChange,
 } from '../utils/timelineLogicalDurationSync';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
+import { PROJECT_CATALOG_TEXT_ID_TABLES } from '../db/tableRegistry';
 
 type JieyuDbInstance = Awaited<ReturnType<typeof getDb>>;
 
@@ -182,26 +183,8 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
       await db.dexie.ai_tasks.where('targetId').equals(textId).delete();
       await db.dexie.ai_task_snapshots.where('targetId').equals(textId).delete();
 
-      const catalogTables = [
-        db.dexie.speakers,
-        db.dexie.lexemes,
-        db.dexie.lexeme_assets,
-        db.dexie.lexeme_asset_links,
-        db.dexie.languages,
-        db.dexie.language_display_names,
-        db.dexie.language_aliases,
-        db.dexie.language_catalog_history,
-        db.dexie.custom_field_definitions,
-        db.dexie.orthographies,
-        db.dexie.orthography_bridges,
-        db.dexie.locations,
-        db.dexie.bibliographic_sources,
-        db.dexie.grammar_docs,
-        db.dexie.abbreviations,
-        db.dexie.phonemes,
-        db.dexie.tag_definitions,
-      ] as const;
-      for (const table of catalogTables) {
+      for (const name of PROJECT_CATALOG_TEXT_ID_TABLES) {
+        const table = db.dexie.table<{ id: string; textId?: string }, string>(name);
         const stale = await table
           .filter((row) => (row as { textId?: string }).textId === textId)
           .toArray();

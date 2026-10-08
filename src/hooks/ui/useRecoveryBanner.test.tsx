@@ -15,7 +15,7 @@ function makeRecoveryData(
     snapshot: {
       schemaVersion: 4,
       exportedAt: '2026-06-01T00:00:00.000Z',
-      dbName: 'jieyudb_v2',
+      dbName: 'jieyu',
       collections: {
         layer_units: units,
         layer_unit_contents: translations,

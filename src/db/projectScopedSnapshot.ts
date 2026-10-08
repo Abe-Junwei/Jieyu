@@ -7,6 +7,7 @@ import type { ImportResult } from './types';
 import { getDb, type JieyuDatabase } from './engine';
 import { dexieStoresForProjectScopedSnapshotPruneRw } from './dexieTranscriptionGraphStores';
 import { withTransaction } from './withTransaction';
+import { PROJECT_CATALOG_TEXT_ID_TABLES } from './tableRegistry';
 
 export const COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS = new Set<string>([
   'ai_tasks',
@@ -24,25 +25,10 @@ export const COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS = new Set<string>([
   'language_asset_overviews',
 ]);
 
-const PROJECT_OWNED_CATALOG_COLLECTIONS = [
-  'lexemes',
-  'lexeme_assets',
-  'lexeme_asset_links',
-  'languages',
-  'language_display_names',
-  'language_aliases',
-  'language_catalog_history',
-  'custom_field_definitions',
-  'orthographies',
-  'orthography_bridges',
-  'orthography_transforms',
-  'locations',
-  'bibliographic_sources',
-  'grammar_docs',
-  'abbreviations',
-  'phonemes',
-  'tag_definitions',
-] as const;
+/** 目录表清单来自 `tableRegistry`；说话人另按单元引用裁剪 | Catalog list comes from `tableRegistry`; speakers are pruned via unit refs */
+const PROJECT_OWNED_CATALOG_COLLECTIONS = PROJECT_CATALOG_TEXT_ID_TABLES.filter(
+  (name) => name !== 'speakers',
+);
 
 const TEXT_ID_COLLECTIONS = [
   'media_items',
@@ -328,27 +314,8 @@ async function pruneProjectOwnedRows(db: JieyuDatabase, textId: string): Promise
       await db.dexie.speaker_profile_snapshots.where('textId').equals(projectId).delete();
       await db.dexie.translation_status_snapshots.where('textId').equals(projectId).delete();
       await db.dexie.track_entities.where('textId').equals(projectId).delete();
-      const catalogTables = [
-        db.dexie.speakers,
-        db.dexie.lexemes,
-        db.dexie.lexeme_assets,
-        db.dexie.lexeme_asset_links,
-        db.dexie.languages,
-        db.dexie.language_display_names,
-        db.dexie.language_aliases,
-        db.dexie.language_catalog_history,
-        db.dexie.custom_field_definitions,
-        db.dexie.orthographies,
-        db.dexie.orthography_bridges,
-        db.dexie.orthography_transforms,
-        db.dexie.locations,
-        db.dexie.bibliographic_sources,
-        db.dexie.grammar_docs,
-        db.dexie.abbreviations,
-        db.dexie.phonemes,
-        db.dexie.tag_definitions,
-      ] as const;
-      for (const table of catalogTables) {
+      for (const name of PROJECT_CATALOG_TEXT_ID_TABLES) {
+        const table = db.dexie.table<{ id: string; textId?: string }, string>(name);
         const stale = await table
           .filter((row) => (row as { textId?: string }).textId === projectId)
           .toArray();

@@ -19,8 +19,8 @@ describe('ai_session_memories Dexie table (v50)', () => {
 
   it('schema version is at least 50', async () => {
     const jieyuDb = await getDb();
-    expect(jieyuDb.dexie.verno).toBeGreaterThanOrEqual(50);
-    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBeGreaterThanOrEqual(52);
+    expect(jieyuDb.dexie.verno).toBe(1);
+    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBe(1);
   });
 
   it('can insert and retrieve session memory by conversationId', async () => {

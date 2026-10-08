@@ -70,51 +70,29 @@ check(
   'project_ai_memories table declared in JieyuDexie',
   'Missing project_ai_memories in JieyuDexie',
 );
+// Batch 2A 绿场基线：单一 version(1)，AI 相关表都在基线 stores 中
+// Batch 2A greenfield baseline: single version(1); AI tables live in JIEYU_BASELINE_STORES
 check(
-  engineSrc.includes("this.version(47)") && engineSrc.includes("project_ai_memories"),
-  'v47 schema migration includes project_ai_memories',
-  'Missing v47 migration for project_ai_memories',
+  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 1') &&
+    !/this\.version\(\d/.test(engineSrc),
+  'Baseline declares a single Dexie version',
+  'Engine must declare only the baseline version(1)',
 );
-check(
-  engineSrc.includes("this.version(48)") && engineSrc.includes('mcp_tool_call_audits'),
-  'v48 schema migration includes mcp_tool_call_audits',
-  'Missing v48 migration for mcp_tool_call_audits',
-);
-check(
-  engineSrc.includes("this.version(49)") && engineSrc.includes('ai_source_sets'),
-  'v49 schema migration includes ai_source_sets',
-  'Missing v49 migration for ai_source_sets',
-);
-check(
-  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 54'),
-  'Target schema version is 54',
-  'Schema version not bumped to 54',
-);
-check(
-  engineSrc.includes("ai_session_memories: 'conversationId, updatedAt'"),
-  'v50 migration includes ai_session_memories',
-  'Missing v50 migration for ai_session_memories',
-);
-check(
-  engineSrc.includes("this.version(51)") && engineSrc.includes('external_mcp_trust'),
-  'v51 schema migration includes external_mcp_trust',
-  'Missing v51 migration for external_mcp_trust',
-);
-check(
-  engineSrc.includes("this.version(52)") && engineSrc.includes('agent_artifacts'),
-  'v52 schema migration includes agent_artifacts',
-  'Missing v52 migration for agent_artifacts',
-);
-check(
-  engineSrc.includes("this.version(53)") && engineSrc.includes('lexeme_assets'),
-  'v53 schema migration includes lexeme_assets',
-  'Missing v53 migration for lexeme_assets',
-);
-check(
-  engineSrc.includes('this.version(54)') && engineSrc.includes('upgradeV54LexemeNestedIds'),
-  'v54 schema migration backfills lexeme nested ids',
-  'Missing v54 migration for lexeme nested ids',
-);
+for (const [table, schema] of [
+  ['project_ai_memories', 'id, projectId'],
+  ['mcp_tool_call_audits', 'id, timestamp'],
+  ['ai_source_sets', 'id, status'],
+  ['ai_session_memories', 'conversationId, updatedAt'],
+  ['external_mcp_trust', 'id, origin'],
+  ['agent_artifacts', 'id, kind'],
+  ['lexeme_assets', 'id, kind'],
+]) {
+  check(
+    engineSrc.includes(`${table}: '${schema}`),
+    `baseline stores include ${table}`,
+    `Missing ${table} in JIEYU_BASELINE_STORES`,
+  );
+}
 
 // MCP Client 预留
 logInfo('Checking MCP Client reservation...');

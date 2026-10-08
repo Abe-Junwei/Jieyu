@@ -2,7 +2,7 @@
  * 数据库导入导出 | Database import/export
  *
  * JSON 格式快照的导出与导入，支持冲突策略与数据校验。
- * 导出不包含离线 `audioBlob`（仅结构化 + `details` 中 `audioExportOmitted` 标记）；导入仍接受 `audioDataUrl` 以灌回 Blob。
+ * 导出不包含离线 `audioBlob`（仅结构化 + `details` 中 `audioExportOmitted` 标记）。
  * 入站行不带字节时一律保留本机字节或中止（见 `ioInboundBytePreservation`）。
  */
 import type { Table } from 'dexie';
@@ -66,7 +66,7 @@ export async function exportDatabaseAsJson(): Promise<{
 
   const collections = Object.fromEntries(entries) as Record<string, unknown[]>;
 
-  // Omit offline audio blobs from JSON (keeps exports bounded); re-attach audio via app or `audioDataUrl` on import.
+  // Omit offline audio blobs from JSON (keeps exports bounded); re-attach audio via the app.
   const mediaItems = collections['media_items'] as Array<Record<string, unknown>> | undefined;
   if (mediaItems) {
     for (const item of mediaItems) {
@@ -184,7 +184,6 @@ const knownCollectionNames = [
   'speakers',
   'orthographies',
   'orthography_bridges',
-  'orthography_transforms',
   'locations',
   'bibliographic_sources',
   'grammar_docs',
@@ -241,7 +240,6 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   speakers: db.speakers,
   orthographies: db.orthographies,
   orthography_bridges: db.orthography_bridges,
-  orthography_transforms: db.orthography_bridges,
   locations: db.locations,
   bibliographic_sources: db.bibliographic_sources,
   grammar_docs: db.grammar_docs,
@@ -530,23 +528,6 @@ export async function importDatabaseFromJson(
 
   const dbInstance = await getDb();
 
-  // 合并遗留 orthography_transforms 到 orthography_bridges，避免双映射写入冲突
-  // Merge legacy orthography_transforms into orthography_bridges to avoid dual-mapping write conflicts
-  if (
-    'orthography_transforms' in snapshot.collections &&
-    'orthography_bridges' in snapshot.collections
-  ) {
-    const bridgeDocs = snapshot.collections['orthography_bridges'] as Array<{ id?: string }>;
-    const transformDocs = snapshot.collections['orthography_transforms'] as Array<{ id?: string }>;
-    const bridgeIds = new Set(bridgeDocs.map((d) => d.id));
-    const deduped = transformDocs.filter((d) => !bridgeIds.has(d.id));
-    snapshot.collections['orthography_bridges'] = [...bridgeDocs, ...deduped];
-    delete snapshot.collections['orthography_transforms'];
-  } else if ('orthography_transforms' in snapshot.collections) {
-    snapshot.collections['orthography_bridges'] = snapshot.collections['orthography_transforms']!;
-    delete snapshot.collections['orthography_transforms'];
-  }
-
   const preparedCollections: Array<{
     collectionName: KnownCollectionName;
     received: number;
@@ -568,24 +549,6 @@ export async function importDatabaseFromJson(
       const candidate = doc as { id?: unknown };
       if (typeof candidate.id !== 'string' || candidate.id.trim() === '') {
         throw new Error(`Invalid doc in ${collectionName}: missing non-empty id`);
-      }
-
-      if (collectionName === 'media_items') {
-        const details = (doc as Record<string, unknown>)['details'] as
-          | Record<string, unknown>
-          | undefined;
-        const audioDataUrl = details?.['audioDataUrl'];
-        if (details && typeof audioDataUrl === 'string') {
-          const trimmedAudioDataUrl = audioDataUrl.trim();
-          if (!/^data:/i.test(trimmedAudioDataUrl)) {
-            throw new Error(
-              `Invalid media_items.details.audioDataUrl in ${collectionName}: only data URLs are supported during import`,
-            );
-          }
-          const resp = await fetch(trimmedAudioDataUrl);
-          details['audioBlob'] = await resp.blob();
-          delete details['audioDataUrl'];
-        }
       }
 
       validation.validateCollectionDoc(collectionName, doc);
@@ -646,9 +609,7 @@ export async function importDatabaseFromJson(
 
       for (const prepared of preparedCollections) {
         const { collectionName, normalizedDocs, received } = prepared;
-        const resultCollectionName = (
-          collectionName === 'orthography_transforms' ? 'orthography_bridges' : collectionName
-        ) as keyof JieyuCollections;
+        const resultCollectionName = collectionName as keyof JieyuCollections;
 
         if (collectionName === 'layers') {
           const collection = dbInstance.collections.layers;

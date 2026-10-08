@@ -22,14 +22,16 @@ describe('deleteLexiconEntry', () => {
     await expect(deleteLexiconEntry('  ')).rejects.toThrow(/empty lexeme id/);
   });
 
-  it('list skips a row that has no DMLex entry', async () => {
-    await db.lexemes.put({
-      id: 'old-dog',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { default: 'canine' } }],
-      createdAt: now,
-      updatedAt: now,
-    } as never);
+  it('rejects a pre-DMLex row at write time, so list never sees it (2A write validation)', async () => {
+    await expect(
+      db.lexemes.put({
+        id: 'old-dog',
+        lemma: { default: 'dog' },
+        senses: [{ gloss: { default: 'canine' } }],
+        createdAt: now,
+        updatedAt: now,
+      } as never),
+    ).rejects.toThrow(/Write rejected for table "lexemes"/);
     const listed = await LinguisticService.lexemes.list();
     expect(listed.map((row) => row.id)).not.toContain('old-dog');
   });

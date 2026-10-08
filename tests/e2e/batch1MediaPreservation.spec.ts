@@ -334,7 +334,7 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
           };
         });
       },
-      { dbName: 'jieyudb_v2' },
+      { dbName: 'jieyu' },
     );
 
     await page.reload({ waitUntil: 'domcontentloaded' });

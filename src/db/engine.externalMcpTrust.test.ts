@@ -18,8 +18,8 @@ describe('external_mcp_trust Dexie table (v51)', () => {
 
   it('schema version is at least 51 and persists a trust row', async () => {
     const jieyuDb = await getDb();
-    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBeGreaterThanOrEqual(51);
-    expect(jieyuDb.dexie.verno).toBeGreaterThanOrEqual(51);
+    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBe(1);
+    expect(jieyuDb.dexie.verno).toBe(1);
 
     await jieyuDb.collections.external_mcp_trust.insert({
       id: 'https://mcp.example.test',

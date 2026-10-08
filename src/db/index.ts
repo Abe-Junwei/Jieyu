@@ -18,10 +18,9 @@ export {
   runDexieIndexedQueryOrElse,
 } from './adapterDexieQueryErrors';
 
-// ── Dexie 引擎、迁移与实例 | Dexie engine, migrations & instance ──
+// ── Dexie 引擎与实例 | Dexie engine & instance ──
 export {
-  buildSegmentationV2BackfillRows,
-  buildV28BackfillPlanForText,
+  JIEYU_BASELINE_STORES,
   JIEYU_DEXIE_DB_NAME,
   JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
   JieyuDexie,

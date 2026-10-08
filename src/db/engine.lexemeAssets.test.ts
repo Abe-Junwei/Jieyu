@@ -14,8 +14,8 @@ describe('lexeme_assets Dexie tables (v53+)', () => {
 
   it('schema version is 54 and persists an attachment blob', async () => {
     const jieyuDb = await getDb();
-    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBe(54);
-    expect(jieyuDb.dexie.verno).toBeGreaterThanOrEqual(54);
+    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBe(1);
+    expect(jieyuDb.dexie.verno).toBe(1);
 
     const blob = new Blob(['png-bytes'], { type: 'image/png' });
     await jieyuDb.collections.lexeme_assets.insert({

@@ -147,8 +147,6 @@ const validatorByCollection = {
   orthographies: (value: unknown) => validateOrthographyDoc(value as OrthographyDocType),
   orthography_bridges: (value: unknown) =>
     validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
-  orthography_transforms: (value: unknown) =>
-    validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
   locations: (value: unknown) => validateLocationDoc(value as LocationDocType),
   bibliographic_sources: (value: unknown) =>
     validateBibliographicSourceDoc(value as BibliographicSourceDocType),

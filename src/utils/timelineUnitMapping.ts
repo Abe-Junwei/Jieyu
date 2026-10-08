@@ -1,4 +1,4 @@
-import type { LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../db/types';
+import type { LayerUnitContentDocType, LayerUnitDocType } from '../db/types';
 import { pickDefaultTranscriptionText } from './transcriptionFormatters';
 
 export function mapUnitToLayerUnit(
@@ -109,81 +109,5 @@ export function projectUnitDocFromLayerUnit(
     ...(unit.analysisGraph !== undefined ? { analysisGraph: unit.analysisGraph } : {}),
     createdAt: unit.createdAt,
     updatedAt: unit.updatedAt,
-  };
-}
-
-export function mapSegmentToLayerUnit(input: {
-  segment: LayerUnitDocType;
-  content?: LayerUnitContentDocType;
-}): { unit: LayerUnitDocType; content?: LayerUnitContentDocType; relation?: UnitRelationDocType } {
-  const { segment, content } = input;
-  const segmentUnitId = segment.unitId;
-  const resolvedSegmentStatus = segment.status ?? segment.annotationStatus;
-  return {
-    unit: {
-      id: segment.id,
-      textId: segment.textId,
-      mediaId: segment.mediaId ?? '',
-      layerId: segment.layerId ?? '',
-      unitType: 'segment',
-      ...(segmentUnitId !== undefined && segmentUnitId.length > 0
-        ? { parentUnitId: segmentUnitId, rootUnitId: segmentUnitId }
-        : {}),
-      startTime: segment.startTime,
-      endTime: segment.endTime,
-      ...(segment.startAnchorId !== undefined && segment.startAnchorId.length > 0
-        ? { startAnchorId: segment.startAnchorId }
-        : {}),
-      ...(segment.endAnchorId !== undefined && segment.endAnchorId.length > 0
-        ? { endAnchorId: segment.endAnchorId }
-        : {}),
-      ...(segment.ordinal !== undefined ? { orderKey: String(segment.ordinal) } : {}),
-      ...(segment.speakerId !== undefined && segment.speakerId.length > 0
-        ? { speakerId: segment.speakerId }
-        : {}),
-      ...(segment.externalRef !== undefined && segment.externalRef.length > 0
-        ? { externalRef: segment.externalRef }
-        : {}),
-      ...(segment.selfCertainty !== undefined ? { selfCertainty: segment.selfCertainty } : {}),
-      ...(resolvedSegmentStatus !== undefined && resolvedSegmentStatus.length > 0
-        ? { status: resolvedSegmentStatus }
-        : {}),
-      ...(segment.provenance !== undefined ? { provenance: segment.provenance } : {}),
-      createdAt: segment.createdAt,
-      updatedAt: segment.updatedAt,
-    },
-    ...(content !== undefined
-      ? {
-          content: {
-            id: content.id,
-            textId: content.textId ?? segment.textId,
-            unitId: segment.id,
-            segmentId: segment.id,
-            layerId: content.layerId ?? segment.layerId,
-            contentRole: 'primary_text',
-            modality: content.modality ?? 'text',
-            ...(content.text !== undefined ? { text: content.text } : {}),
-            sourceType: content.sourceType ?? 'human',
-            ...(content.ai_metadata !== undefined ? { ai_metadata: content.ai_metadata } : {}),
-            ...(content.provenance !== undefined ? { provenance: content.provenance } : {}),
-            ...(content.accessRights !== undefined ? { accessRights: content.accessRights } : {}),
-            createdAt: content.createdAt,
-            updatedAt: content.updatedAt,
-          } satisfies LayerUnitContentDocType,
-        }
-      : {}),
-    ...(segmentUnitId !== undefined && segmentUnitId.length > 0
-      ? {
-          relation: {
-            id: `${segment.id}:derived_from:${segmentUnitId}`,
-            textId: segment.textId,
-            sourceUnitId: segment.id,
-            targetUnitId: segmentUnitId,
-            relationType: 'derived_from',
-            createdAt: segment.createdAt,
-            updatedAt: segment.updatedAt,
-          } satisfies UnitRelationDocType,
-        }
-      : {}),
   };
 }

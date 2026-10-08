@@ -64,7 +64,6 @@ export const architectureGuardPostCssPatternRules = [
     excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
     excludeFiles: [
       'src/db/engine.ts',
-      'src/db/migrations/m18LinguisticUnitCutover.ts',
     ],
     forbiddenRegexes: [
       /\bdb\.utterances\b/,
@@ -79,7 +78,6 @@ export const architectureGuardPostCssPatternRules = [
     excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
     excludeFiles: [
       'src/db/engine.ts',
-      'src/db/migrations/m18LinguisticUnitCutover.ts',
     ],
     forbiddenRegexes: [
       /utterance_tokens\.where\(\s*['"]utteranceId['"]/,

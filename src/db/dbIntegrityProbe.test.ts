@@ -4,7 +4,6 @@ import {
   jieyuDatabaseSingletonHealthCheck,
   probeJieyuDatabaseIntegrity,
   runJieyuDatabaseDeepDiagnostics,
-  spotCheckJieyuDatabaseAfterMigration,
 } from './dbIntegrityProbe';
 import { getDb } from './engine';
 import type { JieyuDatabase } from './engine';
@@ -69,7 +68,15 @@ describe('probeJieyuDatabaseIntegrity', () => {
   });
 });
 
-describe('spotCheckJieyuDatabaseAfterMigration', () => {
+/** 抽样引用检查（原迁移后 spot-check 的语义，2A 起由深度诊断 sample 模式承担）。 */
+async function sampledReferenceCheck(db: JieyuDatabase) {
+  const report = await runJieyuDatabaseDeepDiagnostics(db, { sampleSize: 20 });
+  return report.ok
+    ? { ok: true as const }
+    : { ok: false as const, reason: report.failures.join('\n') };
+}
+
+describe('sampled referential integrity check', () => {
   function makeSpotCheckDb(overrides: {
     texts?: Array<{ id: string }>;
     layer_units?: Array<{ id: string; textId: string }>;
@@ -103,12 +110,12 @@ describe('spotCheckJieyuDatabaseAfterMigration', () => {
       tier_annotations: [{ id: 'a1', tierId: 'td1' }],
       layer_unit_contents: [{ id: 'c1', unitId: 'u1' }],
     });
-    await expect(spotCheckJieyuDatabaseAfterMigration(db)).resolves.toEqual({ ok: true });
+    await expect(sampledReferenceCheck(db)).resolves.toEqual({ ok: true });
   });
 
   it('returns ok for empty tables (greenfield)', async () => {
     const db = makeSpotCheckDb({});
-    await expect(spotCheckJieyuDatabaseAfterMigration(db)).resolves.toEqual({ ok: true });
+    await expect(sampledReferenceCheck(db)).resolves.toEqual({ ok: true });
   });
 
   it('returns failure when layer_units references missing textId', async () => {
@@ -116,7 +123,7 @@ describe('spotCheckJieyuDatabaseAfterMigration', () => {
       texts: [{ id: 't1' }],
       layer_units: [{ id: 'u1', textId: 't-missing' }],
     });
-    const result = await spotCheckJieyuDatabaseAfterMigration(db);
+    const result = await sampledReferenceCheck(db);
     expect(result.ok).toBe(false);
     expect((result as { reason: string }).reason).toContain('layer_units.textId -> texts.id');
   });
@@ -127,7 +134,7 @@ describe('spotCheckJieyuDatabaseAfterMigration', () => {
       tier_definitions: [{ id: 'td1', textId: 't1' }],
       tier_annotations: [{ id: 'a1', tierId: 'td-missing' }],
     });
-    const result = await spotCheckJieyuDatabaseAfterMigration(db);
+    const result = await sampledReferenceCheck(db);
     expect(result.ok).toBe(false);
     expect((result as { reason: string }).reason).toContain(
       'tier_annotations.tierId -> tier_definitions.id',
@@ -140,7 +147,7 @@ describe('spotCheckJieyuDatabaseAfterMigration', () => {
       layer_units: [{ id: 'u1', textId: 't1' }],
       layer_unit_contents: [{ id: 'c1', unitId: 'u-missing' }],
     });
-    const result = await spotCheckJieyuDatabaseAfterMigration(db);
+    const result = await sampledReferenceCheck(db);
     expect(result.ok).toBe(false);
     expect((result as { reason: string }).reason).toContain(
       'layer_unit_contents.unitId -> layer_units.id',
@@ -157,7 +164,7 @@ describe('spotCheckJieyuDatabaseAfterMigration', () => {
       layer_units: [...firstTwentyUnits, { id: 'u21', textId: 't-missing' }],
     });
 
-    await expect(spotCheckJieyuDatabaseAfterMigration(db)).resolves.toEqual({ ok: true });
+    await expect(sampledReferenceCheck(db)).resolves.toEqual({ ok: true });
 
     const report = await runJieyuDatabaseDeepDiagnostics(db);
     expect(report.ok).toBe(false);

@@ -240,8 +240,12 @@ describe('inbound bytes: preserve or abort (N2)', () => {
 
   it('T8: bytes explicitly included in the snapshot replace local bytes', async () => {
     const snapshot = clone(await exportDatabaseAsJson());
-    const dataUrl = `data:audio/wav;base64,${Buffer.from('included-audio').toString('base64')}`;
-    mediaRow(snapshot)['details'] = { timelineKind: 'acoustic', audioDataUrl: dataUrl };
+    // 2A 删除了 `audioDataUrl` 回灌；“带字节”的行以内存 Blob 表示（第 3 批的新格式会打包媒体）
+    // 2A removed `audioDataUrl` rehydration; included bytes are an in-memory Blob (batch 3 packages media)
+    mediaRow(snapshot)['details'] = {
+      timelineKind: 'acoustic',
+      audioBlob: new Blob(['included-audio'], { type: 'audio/wav' }),
+    };
 
     await importDatabaseFromJson(snapshot, { strategy: 'upsert' });
 
