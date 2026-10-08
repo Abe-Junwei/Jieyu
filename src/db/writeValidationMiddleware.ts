@@ -56,11 +56,7 @@ function rowKeyOf(row: unknown): unknown {
 }
 
 /** 对一行执行校验，失败时包装为 `JieyuWriteValidationError`。 */
-export function validateRowForTable(
-  tableName: string,
-  validate: JieyuRowValidator,
-  row: unknown,
-): void {
+function validateRowForTable(tableName: string, validate: JieyuRowValidator, row: unknown): void {
   try {
     validate(row as never);
   } catch (cause) {
@@ -79,7 +75,7 @@ function validateMutation(
   }
 }
 
-export const JIEYU_WRITE_VALIDATION_MIDDLEWARE_NAME = 'jieyuWriteValidation';
+const JIEYU_WRITE_VALIDATION_MIDDLEWARE_NAME = 'jieyuWriteValidation';
 
 export function createWriteValidationMiddleware<TableName extends string>(
   validators: JieyuTableValidators<TableName>,

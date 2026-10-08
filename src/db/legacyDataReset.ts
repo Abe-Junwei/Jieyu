@@ -13,10 +13,10 @@
 import { LEGACY_RESET_DB_NAMES } from './tableRegistry';
 
 /** 只有 2A 之前的构建会创建的库 | Databases only pre-2A builds create */
-export const LEGACY_MARKER_DB_NAMES = ['jieyudb_v2', 'jieyu_pre_migration_backups'] as const;
+const LEGACY_MARKER_DB_NAMES = ['jieyudb_v2', 'jieyu_pre_migration_backups'] as const;
 
 /** 前缀匹配的 localStorage 键（旧迁移备份）| Prefix-matched localStorage keys (old migration backups) */
-export const LEGACY_RESET_LOCAL_STORAGE_PREFIXES = [
+const LEGACY_RESET_LOCAL_STORAGE_PREFIXES = [
   'jieyu.backup.preMigrationSnapshot:',
   'jieyu.backup.preMigrationSnapshotFailure:',
 ] as const;
@@ -36,9 +36,7 @@ export const LEGACY_RESET_LOCAL_STORAGE_KEYS = [
   'jieyu:waveform-decode-attempt',
 ] as const;
 
-export const LEGACY_RESET_SESSION_STORAGE_KEYS = [
-  'jieyu.workspace.transcriptionReturn.v1',
-] as const;
+const LEGACY_RESET_SESSION_STORAGE_KEYS = ['jieyu.workspace.transcriptionReturn.v1'] as const;
 
 export type LegacyDataEnvironment = {
   indexedDB?: IDBFactory | undefined;
