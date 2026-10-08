@@ -1500,6 +1500,8 @@ export const enUSDictionary = {
   'transcription.action.projectDeleteFailed': 'Failed to delete project: {message}',
   'transcription.action.projectCreated': 'Project "{title}" created. Import media next.',
   'transcription.action.audioImported': 'Media "{filename}" imported successfully.',
+  'transcription.action.audioImportSelectPlaceholder':
+    'This project has several placeholder timelines. Select the one to attach the audio to on the timeline, then import again.',
   'transcription.action.audioImportFailed': 'Failed to import media: {message}',
   'transcription.action.audioTooLong':
     'This recording is too long. Import was cancelled so decoding the waveform cannot crash the page. The text timeline is unchanged.',

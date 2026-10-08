@@ -2488,7 +2488,7 @@ describe('LinguisticService smoke tests', () => {
     );
   });
 
-  it('promotes payload-empty legacy timeline row in place so text-only created segments remain visible after import', async () => {
+  it('treats a payload-empty row without explicit placeholder kind as a missing acoustic recording (N4)', async () => {
     const now = new Date().toISOString();
 
     await seedDefaultTranscriptionLayerForText(
@@ -2498,7 +2498,7 @@ describe('LinguisticService smoke tests', () => {
     );
     await db.texts.put({
       id: 'text_doc_legacy_payload_empty',
-      title: { default: 'Legacy payload empty row' },
+      title: { default: 'Payload empty row' },
       metadata: {
         timelineMode: 'document',
         logicalDurationSec: 30,
@@ -2538,10 +2538,14 @@ describe('LinguisticService smoke tests', () => {
       duration: 18,
     });
 
-    expect(result.mediaId).toBe('media_doc_legacy_payload_empty');
+    // 缺音的声学行不是占位行：默认模式新建一条媒体，原行及其句段不变。
+    expect(result.mediaId).not.toBe('media_doc_legacy_payload_empty');
     await expect(
       db.media_items.where('textId').equals('text_doc_legacy_payload_empty').toArray(),
-    ).resolves.toHaveLength(1);
+    ).resolves.toHaveLength(2);
+    await expect(db.media_items.get('media_doc_legacy_payload_empty')).resolves.toEqual(
+      expect.objectContaining({ filename: 'legacy-doc-row.media', details: {} }),
+    );
     await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(
       expect.objectContaining({
         mediaId: 'media_doc_legacy_payload_empty',
@@ -2549,13 +2553,25 @@ describe('LinguisticService smoke tests', () => {
         endTime: 3,
       }),
     );
-    await expect(db.media_items.get('media_doc_legacy_payload_empty')).resolves.toEqual(
+
+    // 显式 replace 才会就地重新挂接这条缺音录音。
+    const relinked = await LinguisticService.media.importAudio({
+      textId: 'text_doc_legacy_payload_empty',
+      audioBlob: blob,
+      filename: 'relinked.wav',
+      duration: 18,
+      importMode: 'replace',
+      replaceMediaId: 'media_doc_legacy_payload_empty',
+    });
+    expect(relinked.mediaId).toBe('media_doc_legacy_payload_empty');
+    const relinkedRow = await db.media_items.get('media_doc_legacy_payload_empty');
+    expect(relinkedRow?.filename).toBe('relinked.wav');
+    expect((relinkedRow?.details as Record<string, unknown>)['audioBlob']).toBeInstanceOf(Blob);
+    await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(
       expect.objectContaining({
-        filename: 'imported-legacy.wav',
-        duration: 18,
-        details: expect.objectContaining({
-          timelineKind: 'acoustic',
-        }),
+        mediaId: 'media_doc_legacy_payload_empty',
+        startTime: 1,
+        endTime: 3,
       }),
     );
   });

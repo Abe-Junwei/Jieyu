@@ -1408,6 +1408,8 @@ export const zhCNDictionary = {
   'transcription.action.projectDeleteFailed': '删除项目失败：{message}',
   'transcription.action.projectCreated': '项目「{title}」创建成功，请导入媒体。',
   'transcription.action.audioImported': '媒体「{filename}」导入成功。',
+  'transcription.action.audioImportSelectPlaceholder':
+    '项目里有多条占位时间轴，请先在时间轴上选中要挂接音频的那一条，再导入。',
   'transcription.action.audioImportFailed': '导入媒体失败：{message}',
   'transcription.action.audioTooLong':
     '这条录音太长，导入后解码波形会让页面崩溃。已取消导入，文字时间轴不受影响。',

@@ -9,7 +9,8 @@ export type TranscriptionAudioImportOptions = {
 
 /** 控制导入对话框是否展示 Replace / Add（占位-only 项目为 simple）。 */
 export type AudioImportDisposition =
-  | { kind: 'simple' }
+  /** `placeholderMediaId`：用户在时间轴上选中的占位轴；导入音频只晋升这一条。 */
+  | { kind: 'simple'; placeholderMediaId?: string }
   | { kind: 'choose'; replaceMediaId: string; replaceLabel: string };
 
 /** 导入前时长不匹配感知（不阻止导入）。 */

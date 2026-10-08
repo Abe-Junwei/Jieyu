@@ -12,7 +12,22 @@ import {
   resolveLogicalDurationAfterAcousticImport,
 } from '../utils/timelineLogicalDurationSync';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
-import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
+
+/**
+ * 项目里有多条占位时间轴、调用方又没有指定要挂接哪一条时抛出；不会自动合并任何占位轴。
+ * Thrown when several placeholder timelines exist and the caller did not pick one; nothing is merged.
+ */
+export class AudioImportPlaceholderSelectionRequiredError extends Error {
+  readonly candidateMediaIds: readonly string[];
+
+  constructor(candidateMediaIds: readonly string[]) {
+    super(
+      `importAudio: ${candidateMediaIds.length} placeholder timelines exist; pass importMode 'replace' with replaceMediaId to choose one`,
+    );
+    this.name = 'AudioImportPlaceholderSelectionRequiredError';
+    this.candidateMediaIds = candidateMediaIds;
+  }
+}
 
 export async function importAudio(input: {
   textId: string;
@@ -20,9 +35,11 @@ export async function importAudio(input: {
   filename: string;
   duration: number;
   /**
-   * `default`：与既有行为一致——仅占位行时晋升占位；已存在非占位声学则新建 `mediaId`。
-   * `replace`：覆盖 `replaceMediaId` 指向的行（声学就地换源，或显式晋升某条占位）。
-   * `add`：在已存在非占位声学时强制新建一条媒体轨；若当前仅有占位则与 `default` 相同（仍晋升占位）。
+   * `default`：没有声学轨且恰好一条占位轴时晋升这条占位；有多条占位时必须用 `replace` 指定，否则抛出
+   *   `AudioImportPlaceholderSelectionRequiredError`；已存在声学轨（含缺音的声学轨）则新建 `mediaId`。
+   * `replace`：覆盖 `replaceMediaId` 指向的行（声学就地换源，或显式晋升这一条占位）。
+   * `add`：总是新增一条媒体轨；仅当没有声学轨且恰好一条占位时晋升这条占位。
+   * 任何模式都不会合并、删除其他占位轴或其他录音（rev5 §4.2-11）。
    */
   importMode?: 'default' | 'replace' | 'add';
   /** `importMode === 'replace'` 时必填，且须属于 `textId`。 */
@@ -37,18 +54,9 @@ export async function importAudio(input: {
     throw new Error('importAudio: replaceMediaId is required when importMode is replace');
   }
   const mediaRows = await db.dexie.media_items.where('textId').equals(input.textId).toArray();
-  const hasPlayablePayload = (row: MediaItemDocType): boolean => {
-    const details = (row.details as Record<string, unknown> | undefined) ?? {};
-    return (
-      details.audioBlob instanceof Blob ||
-      (typeof row.url === 'string' && row.url.trim().length > 0)
-    );
-  };
-  const placeholderRows = mediaRows.filter(
-    (row) =>
-      isMediaItemPlaceholderRow(row) ||
-      (!isAuxiliaryRecordingMediaRow(row) && !hasPlayablePayload(row)),
-  );
+  // 缺音的声学行（无字节，但 timelineKind 为 acoustic）不是占位行，不参与晋升。
+  // Acoustic rows whose bytes are missing are not placeholders and are never promoted.
+  const placeholderRows = mediaRows.filter((row) => isMediaItemPlaceholderRow(row));
   const timelineAcousticRows = mediaRows.filter(
     (row) =>
       !placeholderRows.some((candidate) => candidate.id === row.id) &&
@@ -123,11 +131,19 @@ export async function importAudio(input: {
     }
   }
 
-  const shouldPromotePlaceholders =
-    placeholderRows.length > 0 &&
-    ((mode === 'default' && timelineAcousticRows.length === 0) ||
-      (mode === 'replace' && placeholderRows.some((p) => p.id === replaceMediaIdTrimmed)) ||
-      (mode === 'add' && timelineAcousticRows.length === 0));
+  let primaryPlaceholder: MediaItemDocType | undefined;
+  if (mode === 'replace') {
+    primaryPlaceholder = placeholderRows.find((p) => p.id === replaceMediaIdTrimmed);
+  } else if (timelineAcousticRows.length === 0 && placeholderRows.length === 1) {
+    primaryPlaceholder = placeholderRows[0];
+  } else if (
+    mode === 'default' &&
+    timelineAcousticRows.length === 0 &&
+    placeholderRows.length > 1
+  ) {
+    throw new AudioImportPlaceholderSelectionRequiredError(placeholderRows.map((row) => row.id));
+  }
+  const shouldPromotePlaceholders = primaryPlaceholder !== undefined;
 
   let mediaId = newId('media');
   let createdAt = now;
@@ -135,20 +151,7 @@ export async function importAudio(input: {
   let accessRights: MediaItemDocType['accessRights'] | undefined;
   let isOfflineCached = true;
 
-  if (shouldPromotePlaceholders) {
-    let primaryPlaceholder: MediaItemDocType;
-    if (mode === 'replace' && placeholderRows.some((p) => p.id === replaceMediaIdTrimmed)) {
-      primaryPlaceholder = placeholderRows.find((p) => p.id === replaceMediaIdTrimmed)!;
-    } else {
-      const placeholderCounts = await Promise.all(
-        placeholderRows.map(async (row) => ({
-          row,
-          count: await LayerSegmentQueryService.countUnitsByMediaId(row.id),
-        })),
-      );
-      placeholderCounts.sort((a, b) => b.count - a.count);
-      primaryPlaceholder = placeholderCounts[0]?.row ?? placeholderRows[0]!;
-    }
+  if (primaryPlaceholder) {
     mediaId = primaryPlaceholder.id;
     createdAt = primaryPlaceholder.createdAt;
     accessRights = primaryPlaceholder.accessRights;
@@ -163,17 +166,6 @@ export async function importAudio(input: {
       ...remainingDetails
     } = previousDetails;
     mergedDetails = remainingDetails;
-
-    const stalePlaceholderIds = placeholderRows
-      .filter((row) => row.id !== mediaId)
-      .map((row) => row.id);
-    if (stalePlaceholderIds.length > 0) {
-      const staleUnits = await LayerSegmentQueryService.listUnitsByMediaIds(stalePlaceholderIds);
-      if (staleUnits.length > 0) {
-        await LayerUnitSegmentWriteService.reassignUnitsToMediaId(db, staleUnits, mediaId, now);
-      }
-      await db.dexie.media_items.bulkDelete(stalePlaceholderIds);
-    }
   }
 
   await withTransaction(

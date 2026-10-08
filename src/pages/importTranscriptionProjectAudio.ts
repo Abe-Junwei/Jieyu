@@ -64,6 +64,10 @@ export async function importTranscriptionProjectAudio(input: {
   }
   const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
   const choose = audioImportDisposition.kind === 'choose' ? audioImportDisposition : null;
+  const selectedPlaceholderId =
+    audioImportDisposition.kind === 'simple'
+      ? audioImportDisposition.placeholderMediaId
+      : undefined;
   const importPayload = {
     textId,
     audioBlob: blob,
@@ -73,9 +77,25 @@ export async function importTranscriptionProjectAudio(input: {
       ? { importMode: 'replace' as const, replaceMediaId: choose.replaceMediaId }
       : options?.mode === 'add' && choose
         ? { importMode: 'add' as const }
-        : {}),
+        : selectedPlaceholderId
+          ? { importMode: 'replace' as const, replaceMediaId: selectedPlaceholderId }
+          : {}),
   };
-  const { mediaId } = await transcriptionAppService.importAudio(importPayload);
+  let mediaId: string;
+  try {
+    ({ mediaId } = await transcriptionAppService.importAudio(importPayload));
+  } catch (error) {
+    // 多条占位轴且未选中任何一条：提示用户先在时间轴上选择，不自动合并。
+    // Several placeholder timelines and none selected: ask the user to pick one; never auto-merge.
+    if (error instanceof Error && error.name === 'AudioImportPlaceholderSelectionRequiredError') {
+      setSaveState({
+        kind: 'error',
+        message: t(locale, 'transcription.action.audioImportSelectPlaceholder'),
+      });
+      return;
+    }
+    throw error;
+  }
   addMediaItem(
     withResolvedMediaItemTimelineKind({
       id: mediaId,

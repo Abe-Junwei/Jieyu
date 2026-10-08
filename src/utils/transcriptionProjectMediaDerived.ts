@@ -3,7 +3,8 @@ import type { SearchableItem } from './searchReplaceUtils';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
 
 export type AudioImportDisposition =
-  | { kind: 'simple' }
+  /** `placeholderMediaId`：用户在时间轴上选中的占位轴；导入音频只晋升这一条。 */
+  | { kind: 'simple'; placeholderMediaId?: string }
   | { kind: 'choose'; replaceMediaId: string; replaceLabel: string };
 
 export function computeAudioImportDisposition(input: {
@@ -17,7 +18,17 @@ export function computeAudioImportDisposition(input: {
   const hasAcoustic = projectMedia.some(
     (m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m),
   );
-  if (!hasAcoustic) return { kind: 'simple' };
+  if (!hasAcoustic) {
+    const selectedPlaceholder =
+      selectedTimelineMedia != null &&
+      isMediaItemPlaceholderRow(selectedTimelineMedia) &&
+      projectMedia.some((m) => m.id === selectedTimelineMedia.id)
+        ? selectedTimelineMedia
+        : null;
+    return selectedPlaceholder
+      ? { kind: 'simple', placeholderMediaId: selectedPlaceholder.id }
+      : { kind: 'simple' };
+  }
   const replaceTarget =
     (selectedTimelineMedia != null && projectMedia.some((m) => m.id === selectedTimelineMedia.id)
       ? selectedTimelineMedia
