@@ -14,6 +14,7 @@ import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
 import type { ActionId } from '../types/intentActionId';
+import { resolveCurrentProjectTextId } from '../utils/transcriptionUrlDeepLink';
 
 const DISPLAY_MODE_TO_ACTION: Record<WaveformDisplayMode, ActionId> = {
   waveform: 'toolbarDisplayModeWaveform',
@@ -75,7 +76,8 @@ interface CreateTranscriptionToolbarPropsInput {
   showExportMenu: boolean;
   importFileRef: RefObject<HTMLInputElement | null>;
   exportMenuRef: RefObject<HTMLDivElement | null>;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   setShowProjectSetup: (value: boolean) => void;
@@ -173,7 +175,7 @@ export function createTranscriptionToolbarProps(
     exportMenuRef: input.exportMenuRef,
     onRefresh: () => {
       recordTranscriptionKeyboardAction('toolbarRefresh');
-      void input.loadSnapshot();
+      void input.loadSnapshot(resolveCurrentProjectTextId());
     },
     onUndo: () => {
       recordTranscriptionKeyboardAction('undo');

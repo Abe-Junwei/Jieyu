@@ -77,7 +77,8 @@ export interface UseTranscriptionCloudSyncActionsParams {
   rawActions: CloudSyncRawActions;
   wrappedActions: CloudSyncWrappedActions;
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   presenceDisplayName?: string;
   presenceFocus?: {
     entityType?: ProjectEntityType;
@@ -238,7 +239,7 @@ export function useTranscriptionCloudSyncActions({
           .importProjectScopedFromJSON(restored.payloadJson, collaborationProjectId)
           .then(() => undefined),
       );
-      await loadSnapshot();
+      await loadSnapshot(collaborationProjectId);
       return restored.record;
     },
     [collaborationProjectId, loadSnapshot, restoreProjectSnapshotById, runWithDbMutex],

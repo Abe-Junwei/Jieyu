@@ -133,6 +133,16 @@ export function getActiveProjectTextId(): string {
   return activeProjectTextId;
 }
 
+/**
+ * 工作台「当前项目」：调用方手里的 textId 优先，否则用已发布的活动项目。供 `loadSnapshot(textId)` 的调用方使用（JY-02）。
+ * The workspace's current project: the caller's textId when it has one, else the published active
+ * project. Used by `loadSnapshot(textId)` callers (JY-02).
+ */
+export function resolveCurrentProjectTextId(preferred?: string | null): string {
+  const explicit = typeof preferred === 'string' ? preferred.trim() : '';
+  return explicit.length > 0 ? explicit : getActiveProjectTextId();
+}
+
 export type TranscriptionWorkspaceReturnHint = {
   textId: string;
   mediaId?: string;

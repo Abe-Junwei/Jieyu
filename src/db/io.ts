@@ -54,7 +54,10 @@ function loadValidationModule(): Promise<ValidationModule> {
   return validationModulePromise;
 }
 
-export async function exportDatabaseAsJson(): Promise<{
+export async function exportDatabaseAsJson(options?: {
+  /** 不读取这些集合（项目快照用来跳过 AI / 向量等大表，JY-15）| Collections not read at all (JY-15) */
+  skipCollections?: ReadonlySet<string>;
+}): Promise<{
   schemaVersion: number;
   exportedAt: string;
   dbName: string;
@@ -62,11 +65,14 @@ export async function exportDatabaseAsJson(): Promise<{
 }> {
   // 使用 rxDb 避免遮蔽模块级 Dexie db | Use rxDb to avoid shadowing module-level Dexie db
   const rxDb = await getDb();
+  const skip = options?.skipCollections;
   const entries = await Promise.all(
-    Object.entries(rxDb.collections).map(async ([name, collection]) => {
-      const docs = await collection.find().exec();
-      return [name, docs.map((doc) => doc.toJSON())] as const;
-    }),
+    Object.entries(rxDb.collections)
+      .filter(([name]) => skip === undefined || !skip.has(name))
+      .map(async ([name, collection]) => {
+        const docs = await collection.find().exec();
+        return [name, docs.map((doc) => doc.toJSON())] as const;
+      }),
   );
 
   const collections = Object.fromEntries(entries) as Record<string, unknown[]>;

@@ -11,9 +11,9 @@ import type {
 } from '../../db';
 import type { UnitMorphemeDocType, UnitTokenDocType } from '../../db';
 import { mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
-import { listUnitTextsFromSegmentation } from '../../services/LayerSegmentationTextService';
+import { listUnitTextsFromSegmentationForText } from '../../services/LayerSegmentationTextService';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
-import { listUnitDocsFromCanonicalLayerUnits } from '../../services/LayerSegmentGraphService';
+import { listUnitDocsForText } from '../../services/LayerSegmentGraphService';
 import { LinguisticService } from '../../services/LinguisticService';
 import { createTimelineUnit, type DbState, type TimelineUnit } from './transcriptionTypes';
 import {
@@ -55,39 +55,65 @@ export function useTranscriptionSnapshotLoader({
   setUnitDrafts,
   setUnits,
 }: Params) {
+  /**
+   * 载入一个项目的工作台快照。`textId` 必填（JY-02）：不再按 `units[0]` 猜项目，也不再把其它项目的
+   * units / 段文本 / 媒体 / 关系装进状态；所有查询都按项目走索引（JY-15）。空 `textId` 表示当前没有项目，
+   * 清空工作台状态。
+   *
+   * Load the workspace snapshot of ONE project. `textId` is required (JY-02): the project is no
+   * longer guessed from `units[0]`, and other projects' units / segment texts / media / links never
+   * enter state; every query is project-indexed (JY-15). An empty `textId` means "no project" and
+   * clears the workspace state.
+   */
   const loadSnapshot = useCallback(
-    async (scopeTextId?: string) => {
+    async (textId: string) => {
       const db = await getDb();
-      const [unitRowsRaw, anchorDocs, layerDocs, mediaDocs, linkDocs] = await Promise.all([
-        listUnitDocsFromCanonicalLayerUnits(db),
-        db.collections.anchors.find().exec(),
-        db.collections.layers.find().exec(),
-        db.collections.media_items.find().exec(),
-        db.collections.layer_links.find().exec(),
-      ]);
-      const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
-      const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as LayerDocType);
-      const translationRows = await listUnitTextsFromSegmentation(db);
-      const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
-      const linkRows = linkDocs.map((doc) => doc.toJSON() as unknown as LayerLinkDocType);
+      const scopedTextId = typeof textId === 'string' ? textId.trim() : '';
+      const hasProject = scopedTextId.length > 0;
+      const [unitRows, layerDocs, mediaRows] = hasProject
+        ? await Promise.all([
+            listUnitDocsForText(db, scopedTextId),
+            db.collections.layers.findByIndex('textId', scopedTextId),
+            db.dexie.media_items.where('textId').equals(scopedTextId).toArray(),
+          ])
+        : [[] as LayerUnitDocType[], [], [] as MediaItemDocType[]];
+      const layerRows = layerDocs
+        .map((doc) => doc.toJSON() as unknown as LayerDocType)
+        .filter((layer) => layer.textId === scopedTextId);
+      const projectLayerIds = [...new Set(layerRows.map((l) => l.id))];
+      const projectMediaIds = mediaRows.map((row) => row.id);
+      const [anchorRows, linksByLayer, linksByHost, translationRows] = hasProject
+        ? await Promise.all([
+            projectMediaIds.length > 0
+              ? db.dexie.anchors.where('mediaId').anyOf(projectMediaIds).toArray()
+              : Promise.resolve([] as AnchorDocType[]),
+            projectLayerIds.length > 0
+              ? db.dexie.layer_links.where('layerId').anyOf(projectLayerIds).toArray()
+              : Promise.resolve([] as LayerLinkDocType[]),
+            projectLayerIds.length > 0
+              ? db.dexie.layer_links
+                  .where('hostTranscriptionLayerId')
+                  .anyOf(projectLayerIds)
+                  .toArray()
+              : Promise.resolve([] as LayerLinkDocType[]),
+            listUnitTextsFromSegmentationForText(scopedTextId),
+          ])
+        : [[] as AnchorDocType[], [], [], [] as LayerUnitContentDocType[]];
+      // 关系行没有 textId：按任一端落在本项目图层上取 | Links carry no textId: either end on a project layer
+      const linkRows = scopeLayerLinksToLayerIdSet(
+        [
+          ...new Map(
+            [...linksByLayer, ...linksByHost].map((row) => [row.id, row] as const),
+          ).values(),
+        ],
+        new Set(projectLayerIds),
+      );
+      const resolvedTextId = scopedTextId;
 
       // token/morpheme 延迟加载，不阻塞首屏 | Deferred to loadLinguisticAnnotations
-      const unitRows = unitRowsRaw;
-
-      const scopedTextId = typeof scopeTextId === 'string' ? scopeTextId.trim() : '';
-      const firstUnitTextId =
-        typeof unitRows[0]?.textId === 'string' ? unitRows[0].textId.trim() : '';
-      const resolvedTextId = scopedTextId.length > 0 ? scopedTextId : firstUnitTextId;
-      const layerRows =
-        resolvedTextId.length > 0
-          ? allLayerRows.filter((l) => l.textId === resolvedTextId)
-          : allLayerRows;
-
-      const projectLayerIds = new Set(layerRows.map((l) => l.id));
-      const scopedLinksForInvariant = scopeLayerLinksToLayerIdSet(linkRows, projectLayerIds);
       assertTranscriptionDependencyLayerInvariant({
         layers: layerRows,
-        layerLinks: scopedLinksForInvariant,
+        layerLinks: linkRows,
       });
 
       setUnits(unitRows);
@@ -102,16 +128,10 @@ export function useTranscriptionSnapshotLoader({
       );
       setLayerLinks(linkRows);
 
-      const scopedUnits =
-        resolvedTextId.length > 0
-          ? unitRows.filter((row) => row.textId === resolvedTextId)
-          : unitRows;
+      const scopedUnits = unitRows;
 
       if (setSelectedMediaId) {
-        const projectMedia =
-          resolvedTextId.length > 0
-            ? mediaRows.filter((m) => m.textId === resolvedTextId)
-            : mediaRows;
+        const projectMedia = mediaRows;
         const fromUnit = scopedUnits
           .map((u) => u.mediaId?.trim())
           .find(
@@ -237,73 +257,75 @@ export function useTranscriptionSnapshotLoader({
    * 延迟加载 token/morpheme 并合并到 units 的 words 缓存 |
    * Lazily load token/morpheme annotations and merge into unit words cache.
    */
-  const loadLinguisticAnnotations = useCallback(async () => {
-    const db = await getDb();
-    const [tokenDocs, morphemeDocs] = await Promise.all([
-      db.collections.unit_tokens.find().exec(),
-      db.collections.unit_morphemes.find().exec(),
-    ]);
-    const tokenRows = tokenDocs
-      .map((doc) => doc.toJSON() as unknown as UnitTokenDocType)
-      .sort((a, b) => {
+  const loadLinguisticAnnotations = useCallback(
+    async (textId: string) => {
+      const scopedTextId = textId.trim();
+      if (scopedTextId.length === 0) return;
+      const db = await getDb();
+      // 只取本项目的 token / morpheme（JY-15）| Only this project's tokens / morphemes (JY-15)
+      const [tokenDocs, morphemeDocs] = await Promise.all([
+        db.dexie.unit_tokens.where('textId').equals(scopedTextId).toArray(),
+        db.dexie.unit_morphemes.where('textId').equals(scopedTextId).toArray(),
+      ]);
+      const tokenRows = (tokenDocs as UnitTokenDocType[]).slice().sort((a, b) => {
         if (a.unitId === b.unitId) return a.tokenIndex - b.tokenIndex;
         return a.unitId.localeCompare(b.unitId);
       });
-    const morphemeRows = morphemeDocs
-      .map((doc) => doc.toJSON() as unknown as UnitMorphemeDocType)
-      .sort((a, b) => {
+      const morphemeRows = (morphemeDocs as UnitMorphemeDocType[]).slice().sort((a, b) => {
         if (a.tokenId === b.tokenId) return a.morphemeIndex - b.morphemeIndex;
         return a.tokenId.localeCompare(b.tokenId);
       });
 
-    if (tokenRows.length === 0) return;
+      if (tokenRows.length === 0) return;
 
-    const tokensByUnit = new Map<string, UnitTokenDocType[]>();
-    tokenRows.forEach((token) => {
-      const list = tokensByUnit.get(token.unitId) ?? [];
-      list.push(token);
-      tokensByUnit.set(token.unitId, list);
-    });
-    const morphemesByToken = new Map<string, UnitMorphemeDocType[]>();
-    morphemeRows.forEach((morpheme) => {
-      const list = morphemesByToken.get(morpheme.tokenId) ?? [];
-      list.push(morpheme);
-      morphemesByToken.set(morpheme.tokenId, list);
-    });
+      const tokensByUnit = new Map<string, UnitTokenDocType[]>();
+      tokenRows.forEach((token) => {
+        const list = tokensByUnit.get(token.unitId) ?? [];
+        list.push(token);
+        tokensByUnit.set(token.unitId, list);
+      });
+      const morphemesByToken = new Map<string, UnitMorphemeDocType[]>();
+      morphemeRows.forEach((morpheme) => {
+        const list = morphemesByToken.get(morpheme.tokenId) ?? [];
+        list.push(morpheme);
+        morphemesByToken.set(morpheme.tokenId, list);
+      });
 
-    setUnits((prev) =>
-      prev.map((row) => {
-        const canonicalTokens = tokensByUnit.get(row.id);
-        if (!canonicalTokens || canonicalTokens.length === 0) return row;
+      setUnits((prev) =>
+        prev.map((row) => {
+          const canonicalTokens = tokensByUnit.get(row.id);
+          if (!canonicalTokens || canonicalTokens.length === 0) return row;
 
-        const words = canonicalTokens.map((token) => {
-          const canonicalMorphemes = morphemesByToken.get(token.id) ?? [];
-          return {
-            id: token.id,
-            form: token.form,
-            ...(token.gloss ? { gloss: token.gloss } : {}),
-            ...(token.pos ? { pos: token.pos } : {}),
-            ...(token.lexemeId ? { lexemeId: token.lexemeId } : {}),
-            ...(token.provenance ? { provenance: token.provenance } : {}),
-            ...(canonicalMorphemes.length > 0
-              ? {
-                  morphemes: canonicalMorphemes.map((morph) => ({
-                    id: morph.id,
-                    form: morph.form,
-                    ...(morph.gloss ? { gloss: morph.gloss } : {}),
-                    ...(morph.pos ? { pos: morph.pos } : {}),
-                    ...(morph.lexemeId ? { lexemeId: morph.lexemeId } : {}),
-                    ...(morph.provenance ? { provenance: morph.provenance } : {}),
-                  })),
-                }
-              : {}),
-          };
-        });
+          const words = canonicalTokens.map((token) => {
+            const canonicalMorphemes = morphemesByToken.get(token.id) ?? [];
+            return {
+              id: token.id,
+              form: token.form,
+              ...(token.gloss ? { gloss: token.gloss } : {}),
+              ...(token.pos ? { pos: token.pos } : {}),
+              ...(token.lexemeId ? { lexemeId: token.lexemeId } : {}),
+              ...(token.provenance ? { provenance: token.provenance } : {}),
+              ...(canonicalMorphemes.length > 0
+                ? {
+                    morphemes: canonicalMorphemes.map((morph) => ({
+                      id: morph.id,
+                      form: morph.form,
+                      ...(morph.gloss ? { gloss: morph.gloss } : {}),
+                      ...(morph.pos ? { pos: morph.pos } : {}),
+                      ...(morph.lexemeId ? { lexemeId: morph.lexemeId } : {}),
+                      ...(morph.provenance ? { provenance: morph.provenance } : {}),
+                    })),
+                  }
+                : {}),
+            };
+          });
 
-        return { ...row, words };
-      }),
-    );
-  }, [setUnits]);
+          return { ...row, words };
+        }),
+      );
+    },
+    [setUnits],
+  );
 
   return {
     loadSnapshot,

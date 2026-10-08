@@ -10,6 +10,7 @@ import { toErrorMessage } from '../../utils/saveStateError';
 import { reportActionError } from '../../utils/actionErrorReporter';
 import { createLogger } from '../../observability/logger';
 import type { SaveState } from '../useTranscriptionData';
+import { resolveCurrentProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 
 const log = createLogger('useImportExport');
 
@@ -24,7 +25,8 @@ function getArchivePasswordCacheKey(file: File): string {
 
 interface CreateImportExportArchiveHandlersInput {
   activeTextId: string | null;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   locale: Locale;
   setSaveState: Dispatch<SetStateAction<SaveState>>;
 }
@@ -90,7 +92,8 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         }),
         { written: 0, skipped: 0 },
       );
-      await loadSnapshot();
+      // 归档导入后仍停留在当前项目（JY-02）| Stay on the current project after an archive import (JY-02)
+      await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
       setSaveState({
         kind: 'done',
         message: tf(locale, 'transcription.importExport.importDone.archive', {

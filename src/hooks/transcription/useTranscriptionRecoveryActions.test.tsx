@@ -28,7 +28,7 @@ vi.mock('../../db', () => ({
 }));
 
 vi.mock('../../services/LayerSegmentGraphService', () => ({
-  listUnitDocsFromCanonicalLayerUnits: mockListUnitDocsFromCanonicalLayerUnits,
+  listUnitDocsByIds: mockListUnitDocsFromCanonicalLayerUnits,
 }));
 
 vi.mock('../../services/SnapshotService', async () => {
@@ -96,7 +96,7 @@ describe('useTranscriptionRecoveryActions', () => {
 
     const dbNameRef = { current: JIEYU_DEXIE_DB_NAME };
     const unitsRef = { current: [currentUtt] };
-    const loadSnapshot = vi.fn(async () => undefined);
+    const loadSnapshot = vi.fn(async (_textId: string) => undefined);
     const setSaveState = vi.fn();
     const runWithDbMutex = async <T,>(task: () => Promise<T>) => task();
 
@@ -135,7 +135,7 @@ describe('useTranscriptionRecoveryActions', () => {
 
     const dbNameRef = { current: JIEYU_DEXIE_DB_NAME };
     const unitsRef = { current: [currentUtt] };
-    const loadSnapshot = vi.fn(async () => undefined);
+    const loadSnapshot = vi.fn(async (_textId: string) => undefined);
     const setSaveState = vi.fn();
     const runWithDbMutex = async <T,>(task: () => Promise<T>) => task();
 
@@ -159,6 +159,8 @@ describe('useTranscriptionRecoveryActions', () => {
       strategy: 'upsert',
     });
     expect(loadSnapshot).toHaveBeenCalledTimes(1);
+    // 恢复后重新载入当前项目（JY-02）| Reload the current project after recovery (JY-02)
+    expect(loadSnapshot).toHaveBeenCalledWith(currentUtt.textId);
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已从崩溃恢复数据中还原' });
     expect(mockClearRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME);
   });

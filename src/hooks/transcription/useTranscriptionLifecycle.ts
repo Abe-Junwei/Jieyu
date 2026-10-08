@@ -4,10 +4,16 @@ import type { SaveState, DbState } from './transcriptionTypes';
 import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '../../db';
 import { clearRecoverySnapshot, saveRecoverySnapshot } from '../../services/SnapshotService';
 import { fireAndForget } from '../../utils/fireAndForget';
+import { LinguisticService } from '../../services/LinguisticService';
+import {
+  getActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 
 type Params = {
-  loadSnapshot: () => Promise<void>;
-  loadLinguisticAnnotations: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
+  loadLinguisticAnnotations: (textId: string) => Promise<void>;
   setState: Dispatch<SetStateAction<DbState>>;
   dbNameRef: MutableRefObject<string | undefined>;
   dirtyRef: MutableRefObject<boolean>;
@@ -18,6 +24,20 @@ type Params = {
   recoveryCancel: () => void;
   saveState: SaveState;
 };
+
+/**
+ * 首屏要载入的项目：已发布的活动项目（深链 / 返回提示），否则第一个文本（与 `useDialogs` 的回退一致）。
+ * 不再整库载入后按 `units[0]` 猜项目（JY-02）。
+ * Project for the first load: the published active project (deep link / return hint), else the first
+ * text (same fallback as `useDialogs`). No more whole-DB load + `units[0]` guess (JY-02).
+ */
+async function resolveInitialWorkspaceTextId(): Promise<string> {
+  const active = getActiveProjectTextId();
+  if (active.length > 0) return active;
+  const first = (await LinguisticService.timeline.listTexts())[0]?.id?.trim() ?? '';
+  if (first.length > 0) publishActiveProjectTextId(first);
+  return first;
+}
 
 export function useTranscriptionLifecycle({
   loadSnapshot,
@@ -37,9 +57,11 @@ export function useTranscriptionLifecycle({
 
     const load = async () => {
       try {
-        await loadSnapshot();
+        const textId = await resolveInitialWorkspaceTextId();
+        if (cancelled) return;
+        await loadSnapshot(textId);
         // token/morpheme 延迟加载，不阻塞首屏 | Deferred linguistic load, non-blocking
-        fireAndForget(loadLinguisticAnnotations(), {
+        fireAndForget(loadLinguisticAnnotations(textId), {
           context: 'src/hooks/transcription/useTranscriptionLifecycle.ts:L42',
           policy: 'background-quiet',
         });

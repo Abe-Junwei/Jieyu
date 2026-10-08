@@ -6,7 +6,8 @@ type TextKeyed = { textId?: string };
 export function useTranscriptionDataTextTimeMapping(input: {
   units: readonly TextKeyed[];
   layers: readonly TextKeyed[];
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
 }) {
   const { units, layers, loadSnapshot } = input;
   const transcriptionAppService = getTranscriptionAppService();
@@ -28,7 +29,7 @@ export function useTranscriptionDataTextTimeMapping(input: {
         ...(params.scale !== undefined ? { scale: params.scale } : {}),
         ...(params.sourceMediaId?.trim() ? { sourceMediaId: params.sourceMediaId.trim() } : {}),
       });
-      await loadSnapshot();
+      await loadSnapshot(textId);
     },
     [layers, loadSnapshot, transcriptionAppService, units],
   );

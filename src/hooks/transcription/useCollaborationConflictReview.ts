@@ -48,7 +48,8 @@ export interface UseCollaborationConflictReviewParams {
   };
   rawActionsRef: { readonly current: CloudSyncRawActions };
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
 }
 
 export interface UseCollaborationConflictReviewResult {
@@ -131,13 +132,14 @@ export function useCollaborationConflictReview({
       options?: ApplyRemoteChangeOptions,
     ): Promise<boolean> =>
       applyCollaborationRemoteMutation(change, options, {
+        projectTextId: collaborationProjectId,
         runWithDbMutex,
         rawActions: rawActionsRef.current,
         layers: layersRef.current,
         layerLinks: layerLinksRef.current,
         loadSnapshot,
       }),
-    [layerLinksRef, layersRef, loadSnapshot, rawActionsRef, runWithDbMutex],
+    [collaborationProjectId, layerLinksRef, layersRef, loadSnapshot, rawActionsRef, runWithDbMutex],
   );
 
   const applyRemoteChangeToLocal = useCallback(

@@ -111,7 +111,8 @@ type UseImportExportImportHandlersInput = {
   segmentScopeMediaId?: string | undefined;
   layers: LayerDocType[];
   defaultTranscriptionLayerId: string | undefined;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   setSaveState: Dispatch<SetStateAction<SaveState>>;
   locale: Locale;
   normalizeSpeakerLookupKey: (value: string | undefined) => string;
@@ -1322,7 +1323,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           });
         }
       }
-      await loadSnapshot();
+      await loadSnapshot(importTextId);
       const hostRecoveryWarningCount = eafResult
         ? [...eafResult.tierConstraints.values()].filter(
             (constraintInfo) =>

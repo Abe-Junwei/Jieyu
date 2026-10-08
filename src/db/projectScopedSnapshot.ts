@@ -147,15 +147,47 @@ export function filterCollectionsForProject(
     next.tier_annotations = annotations;
   }
 
+  const annotationIds = idsOf(rowsOf(next, 'tier_annotations'));
+  const contentIds = idsOf(rowsOf(next, 'layer_unit_contents'));
+  const lexemeIds = idsOf(
+    rowsOf(collections, 'lexemes').filter((row) => rowString(row, 'textId') === projectId),
+  );
+  // 每种备注目标都按本项目的行判断（R-SCOPED-NOTES）：单元格备注 `unitId::layerId[::…]`、词条 / 义项备注等
+  // Every note target kind is matched against this project's rows (R-SCOPED-NOTES): cell notes
+  // `unitId::layerId[::…]`, lexeme / sense notes, etc.
   const notes = rowsOf(collections, 'user_notes').filter((row) => {
     const targetType = rowString(row, 'targetType');
     const targetId = rowString(row, 'targetId');
+    const parentTargetId = rowString(row, 'parentTargetId');
     if (targetId === null) return false;
-    if (targetType === 'text') return targetId === projectId;
-    if (targetType === 'unit') return unitIds.has(targetId);
-    if (targetType === 'token') return tokenIds.has(targetId);
-    if (targetType === 'morpheme') return morphemeIds.has(targetId);
-    return false;
+    switch (targetType) {
+      case 'text':
+        return targetId === projectId;
+      case 'unit':
+        return unitIds.has(targetId);
+      case 'token':
+        return tokenIds.has(targetId);
+      case 'morpheme':
+        return morphemeIds.has(targetId);
+      case 'translation':
+        return contentIds.has(targetId);
+      case 'annotation':
+        return annotationIds.has(targetId);
+      case 'lexeme':
+        return lexemeIds.has(targetId);
+      case 'sense':
+        return parentTargetId !== null && lexemeIds.has(parentTargetId);
+      case 'tier_annotation': {
+        if (annotationIds.has(targetId)) return true;
+        const [unitPart, layerPart] = targetId.split('::');
+        return (
+          (unitPart !== undefined && unitIds.has(unitPart)) ||
+          (layerPart !== undefined && layerIds.has(layerPart))
+        );
+      }
+      default:
+        return false;
+    }
   });
   if (notes.length > 0 || Array.isArray(collections.user_notes)) {
     next.user_notes = notes;
@@ -218,7 +250,10 @@ export async function exportProjectScopedDatabaseAsJson(textId: string): Promise
   dbName: string;
   collections: SnapshotCollections;
 }> {
-  const full = await exportDatabaseAsJson();
+  // 不读 AI / 向量 / 审计等与项目快照无关的大表（JY-15）| Skip AI / embedding / audit tables (JY-15)
+  const full = await exportDatabaseAsJson({
+    skipCollections: COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS,
+  });
   return {
     schemaVersion: full.schemaVersion,
     exportedAt: full.exportedAt,

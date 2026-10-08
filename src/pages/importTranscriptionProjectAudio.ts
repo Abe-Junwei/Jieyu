@@ -19,7 +19,8 @@ export async function importTranscriptionProjectAudio(input: {
   setSaveState: (state: SaveState) => void;
   audioImportDisposition: AudioImportDisposition;
   unitsOnCurrentMedia: LayerUnitDocType[];
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   clearPendingAudioImportSelection: () => void;
   locale: Locale;
   tfB: (key: string, opts?: Record<string, unknown>) => string;
@@ -143,7 +144,7 @@ export async function importTranscriptionProjectAudio(input: {
       logicalDurationSec: duration,
     });
   }
-  await loadSnapshot();
+  await loadSnapshot(textId);
   clearPendingAudioImportSelection();
   setSaveState({
     kind: 'done',

@@ -6,7 +6,7 @@ import { LinguisticService } from '../../services/LinguisticService';
 import { createAsyncMutex } from '../../utils/asyncMutex';
 import { createLogger } from '../../observability/logger';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
-import { listUnitDocsFromCanonicalLayerUnits } from '../../services/LayerSegmentGraphService';
+import { listUnitDocsByIds } from '../../services/LayerSegmentGraphService';
 import {
   removeUnitTextFromSegmentationV2,
   syncUnitTextToSegmentationV2,
@@ -80,7 +80,8 @@ export function useTranscriptionPersistence({ unitsRef, translationsRef, speaker
         try {
           await assertNoConflict('units', unitsRef.current, async () => {
             const ids = unitsRef.current.map((row) => row.id);
-            const projections = await listUnitDocsFromCanonicalLayerUnits(db);
+            // 只按 id 取（JY-15）| By id only (JY-15)
+            const projections = await listUnitDocsByIds(db, ids);
             const byId = new Map(projections.map((u) => [u.id, u] as const));
             return ids.flatMap((id) => {
               const doc = byId.get(id);

@@ -390,9 +390,24 @@ export async function listUnitTextsFromSegmentation(
   db: JieyuDatabase,
 ): Promise<LayerUnitContentViewDocType[]> {
   void db;
-  const segments = (await LayerSegmentQueryService.listAllSegments()).filter((segment) =>
-    Boolean(segment.unitId),
-  );
+  return unitTextsFromSegments(await LayerSegmentQueryService.listAllSegments());
+}
+
+/**
+ * 单个项目的段文本（走 `textId` 索引，JY-15）| Segment texts of one project via `textId` (JY-15)
+ */
+export async function listUnitTextsFromSegmentationForText(
+  textId: string,
+): Promise<LayerUnitContentViewDocType[]> {
+  const normalized = textId.trim();
+  if (normalized.length === 0) return [];
+  return unitTextsFromSegments(await LayerSegmentQueryService.listSegmentsByTextId(normalized));
+}
+
+async function unitTextsFromSegments(
+  allSegments: readonly LayerSegmentViewDocType[],
+): Promise<LayerUnitContentViewDocType[]> {
+  const segments = allSegments.filter((segment) => Boolean(segment.unitId));
   if (segments.length === 0) {
     return [];
   }

@@ -243,8 +243,16 @@ export async function bulkUpsertUnitLayerUnits(
   );
 }
 
-export async function listUnitDocsFromCanonicalLayerUnits(
+/** 选择要投影的 unit 行的范围 | Which unit rows to project */
+type CanonicalUnitScope =
+  | { kind: 'all' }
+  | { kind: 'text'; textId: string }
+  | { kind: 'media'; mediaId: string }
+  | { kind: 'ids'; ids: readonly string[] };
+
+async function listUnitDocsForScope(
   db: JieyuDatabase,
+  scope: CanonicalUnitScope,
 ): Promise<LayerUnitDocType[]> {
   // 兼容历史库：若 layer_units 尚未恢复，先返回空数组避免首屏崩溃。
   // Compatibility for older DBs: return an empty project view instead of crashing.
@@ -253,7 +261,17 @@ export async function listUnitDocsFromCanonicalLayerUnits(
   return runGraphReadWithCompatibleTransaction(
     ['layer_units', 'layer_unit_contents', 'speakers'],
     async () => {
-      const units = await db.dexie.layer_units.filter((u) => u.unitType === 'unit').toArray();
+      const candidates =
+        scope.kind === 'text'
+          ? await db.dexie.layer_units.where('textId').equals(scope.textId).toArray()
+          : scope.kind === 'media'
+            ? await db.dexie.layer_units.where('mediaId').equals(scope.mediaId).toArray()
+            : scope.kind === 'ids'
+              ? (await db.dexie.layer_units.bulkGet([...scope.ids])).filter(
+                  (row): row is LayerUnitDocType => Boolean(row),
+                )
+              : await db.dexie.layer_units.toArray();
+      const units = candidates.filter((u) => u.unitType === 'unit');
       if (units.length === 0) return [];
       const unitIds = units.map((u) => u.id);
       const allContents = await db.dexie.layer_unit_contents
@@ -267,7 +285,15 @@ export async function listUnitDocsFromCanonicalLayerUnits(
         const prev = primaryByUnit.get(unitId);
         if (!prev || c.updatedAt >= prev.updatedAt) primaryByUnit.set(unitId, c);
       }
-      const speakers = await db.dexie.speakers.toArray();
+      const speakerIds = [
+        ...new Set(units.map((u) => u.speakerId?.trim()).filter((id): id is string => Boolean(id))),
+      ];
+      const speakers =
+        speakerIds.length > 0
+          ? (await db.dexie.speakers.bulkGet(speakerIds)).filter(
+              (row): row is NonNullable<typeof row> => Boolean(row),
+            )
+          : [];
       const speakerNameById = new Map(speakers.map((s) => [s.id, s.name] as const));
       return units
         .sort((a, b) =>
@@ -282,6 +308,47 @@ export async function listUnitDocsFromCanonicalLayerUnits(
         );
     },
   );
+}
+
+/**
+ * 全库 unit 投影（跨项目）。工作台热路径请用按项目 / 媒体 / id 的变体（JY-15）。
+ * Whole-DB unit projection (all projects). Workspace hot paths use the per-text / per-media /
+ * by-id variants below (JY-15).
+ */
+export async function listUnitDocsFromCanonicalLayerUnits(
+  db: JieyuDatabase,
+): Promise<LayerUnitDocType[]> {
+  return listUnitDocsForScope(db, { kind: 'all' });
+}
+
+/** 单个项目的 unit 投影（走 `textId` 索引）| Units of one project via the `textId` index */
+export async function listUnitDocsForText(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<LayerUnitDocType[]> {
+  const normalized = textId.trim();
+  if (normalized.length === 0) return [];
+  return listUnitDocsForScope(db, { kind: 'text', textId: normalized });
+}
+
+/** 单条媒体上的 unit 投影（走 `mediaId` 索引）| Units on one media via the `mediaId` index */
+export async function listUnitDocsForMedia(
+  db: JieyuDatabase,
+  mediaId: string,
+): Promise<LayerUnitDocType[]> {
+  const normalized = mediaId.trim();
+  if (normalized.length === 0) return [];
+  return listUnitDocsForScope(db, { kind: 'media', mediaId: normalized });
+}
+
+/** 按 id 取 unit 投影（bulkGet）| Unit projections by id (bulkGet) */
+export async function listUnitDocsByIds(
+  db: JieyuDatabase,
+  ids: readonly string[],
+): Promise<LayerUnitDocType[]> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0))];
+  if (unique.length === 0) return [];
+  return listUnitDocsForScope(db, { kind: 'ids', ids: unique });
 }
 
 export async function getUnitDocProjectionById(

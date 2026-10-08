@@ -11,7 +11,8 @@ import { fireAndForget } from '../../utils/fireAndForget';
 import type { SaveState } from './transcriptionTypes';
 import { createLogger } from '../../observability/logger';
 import { reportActionError } from '../../utils/actionErrorReporter';
-import { listUnitDocsFromCanonicalLayerUnits } from '../../services/LayerSegmentGraphService';
+import { listUnitDocsByIds } from '../../services/LayerSegmentGraphService';
+import { resolveCurrentProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 
 const log = createLogger('useTranscriptionRecoveryActions');
 
@@ -25,7 +26,8 @@ class RecoveryApplyConflictError extends Error {
 type Params = {
   dbNameRef: React.MutableRefObject<string | undefined>;
   unitsRef: React.MutableRefObject<LayerUnitDocType[]>;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
   setSaveState: (s: SaveState) => void;
 };
@@ -60,13 +62,15 @@ export function useTranscriptionRecoveryActions({
 
   const applyRecovery = useCallback(
     async (data: RecoveryData): Promise<boolean> => {
+      const projectTextId = resolveCurrentProjectTextId(unitsRef.current[0]?.textId);
       try {
         await runWithDbMutex(async () => {
           if (unitsRef.current.length > 0) {
             const expectedById = new Map(unitsRef.current.map((u) => [u.id, u.updatedAt] as const));
             const ids = unitsRef.current.map((u) => u.id);
             const db = await getDb();
-            const persistedUnits = await listUnitDocsFromCanonicalLayerUnits(db);
+            // 只按 id 取，不扫全库（JY-15）| By id only, no whole-DB scan (JY-15)
+            const persistedUnits = await listUnitDocsByIds(db, ids);
             const persistedById = new Map(
               persistedUnits
                 .filter((u) => ids.includes(u.id))
@@ -89,7 +93,7 @@ export function useTranscriptionRecoveryActions({
           await importDatabaseFromJson(data.snapshot, { strategy: 'upsert' });
         });
 
-        await loadSnapshot();
+        await loadSnapshot(projectTextId);
         const name = dbNameRef.current;
         if (name) {
           fireAndForget(clearRecoverySnapshot(name), {

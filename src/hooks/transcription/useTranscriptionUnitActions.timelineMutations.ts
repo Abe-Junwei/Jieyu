@@ -112,10 +112,13 @@ export function createSaveUnitTiming(
 
     const minSpan = 0.05;
 
-    const allUnits = await (
-      await import('../../services/LayerSegmentGraphService')
-    ).listUnitDocsFromCanonicalLayerUnits(db);
-    const siblings = allUnits
+    // 只取同一媒体上的 unit（JY-15，原先每次拖动都扫全库）| Same-media units only (JY-15)
+    const sameMediaUnits = current.mediaId
+      ? await (
+          await import('../../services/LayerSegmentGraphService')
+        ).listUnitDocsForMedia(db, current.mediaId)
+      : [];
+    const siblings = sameMediaUnits
       .filter((item) => item.id !== unitId && item.mediaId === current.mediaId)
       .sort((a, b) => a.startTime - b.startTime);
 

@@ -23,6 +23,8 @@ export interface ApplyCollaborationRemoteMutationOptions {
 }
 
 export interface ApplyCollaborationRemoteMutationDeps {
+  /** 本机对应的协同项目 textId | Local textId of the collaboration project */
+  projectTextId: string;
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   rawActions: CloudSyncRawActions;
   layers: ReadonlyArray<{ id: string; key?: string; layerType?: string }>;
@@ -31,7 +33,8 @@ export interface ApplyCollaborationRemoteMutationDeps {
     hostTranscriptionLayerId?: string;
     layerId: string;
   }>;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
 }
 
 export async function applyCollaborationRemoteMutation(
@@ -181,7 +184,7 @@ export async function applyCollaborationRemoteMutation(
   }
 
   if (mutated && options?.skipLoadSnapshot !== true) {
-    await loadSnapshot();
+    await loadSnapshot(deps.projectTextId);
   }
 
   return mutated;

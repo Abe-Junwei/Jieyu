@@ -20,6 +20,7 @@ import { readMediaFileFromInput } from '~/hooks/media/readMediaFileFromInput';
 import {
   publishActiveProjectTextId,
   clearActiveProjectTextId,
+  resolveCurrentProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
 import {
   assessTimelineImportMismatch,
@@ -166,7 +167,7 @@ export function useTranscriptionProjectMediaController(
       (async () => {
         try {
           await transcriptionAppService.deleteAudio(media.id);
-          await loadSnapshot();
+          await loadSnapshot(resolveCurrentProjectTextId(media.textId ?? activeTextId));
           selectTimelineUnit(null);
           clearPendingAudioImportSelection();
           setShowAudioImport(false);
@@ -194,6 +195,7 @@ export function useTranscriptionProjectMediaController(
       },
     );
   }, [
+    activeTextId,
     clearPendingAudioImportSelection,
     loadSnapshot,
     locale,
@@ -223,7 +225,9 @@ export function useTranscriptionProjectMediaController(
           selectTimelineUnit(null);
           clearPendingAudioImportSelection();
           setShowAudioImport(false);
-          await loadSnapshot();
+          // 删除后没有当前项目：清空工作台，而不是跳到别的项目（JY-02）
+          // No current project after deletion: clear the workspace instead of jumping to another one (JY-02)
+          await loadSnapshot('');
           setSaveState({ kind: 'done', message: t(locale, 'transcription.action.projectDeleted') });
         } catch (error) {
           log.error('Failed to delete current project', {
@@ -277,7 +281,7 @@ export function useTranscriptionProjectMediaController(
         message: tfB('transcription.action.projectCreated', { title: projectInput.primaryTitle }),
       });
       setShowAudioImport(false);
-      await loadSnapshot();
+      await loadSnapshot(result.textId);
     },
     [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB, transcriptionAppService],
   );

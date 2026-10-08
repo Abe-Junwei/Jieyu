@@ -24,7 +24,7 @@ interface UseReadyWorkspaceDeepLinkEffectsInput {
   searchParams: URLSearchParams;
   setSearchParams: SetSearchParams;
   setActiveTextId: (textId: string) => void;
-  loadSnapshot: (scopeTextId?: string) => Promise<unknown>;
+  loadSnapshot: (textId: string) => Promise<unknown>;
   showToast: ToastContextValue['showToast'];
   tfB: (key: string, opts?: Record<string, unknown>) => string;
   phase: string;

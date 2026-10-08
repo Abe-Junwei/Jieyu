@@ -49,7 +49,8 @@ export interface UseTranscriptionSectionViewModelsInput {
   showExportMenu: boolean;
   importFileRef: RefObject<HTMLInputElement | null>;
   exportMenuRef: RefObject<HTMLDivElement | null>;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   setShowProjectSetup: (value: boolean) => void;

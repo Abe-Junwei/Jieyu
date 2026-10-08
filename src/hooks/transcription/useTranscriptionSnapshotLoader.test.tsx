@@ -155,7 +155,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     );
 
     await act(async () => {
-      await result.current.loadSnapshot();
+      await result.current.loadSnapshot('text-1');
     });
 
     expect(setSelectedMediaId).toHaveBeenCalled();
@@ -278,7 +278,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     );
 
     await act(async () => {
-      await result.current.loadSnapshot();
+      await result.current.loadSnapshot('text-1');
     });
 
     const readyPayload = setState.mock.calls
@@ -375,7 +375,7 @@ describe('useTranscriptionSnapshotLoader', () => {
 
     await expect(
       act(async () => {
-        await result.current.loadSnapshot();
+        await result.current.loadSnapshot('text-bad');
       }),
     ).rejects.toThrow(/transcription-dependency-invariant/);
   });
@@ -513,7 +513,8 @@ describe('useTranscriptionSnapshotLoader', () => {
     });
 
     expect(capturedLayers.map((layer) => layer.id)).toEqual(['layer-b']);
-    expect(capturedUnits.map((unit) => unit.id).sort()).toEqual(['unit-a', 'unit-b']);
+    // JY-02：其它项目的 unit 不再进入工作台状态 | Other projects' units no longer enter state
+    expect(capturedUnits.map((unit) => unit.id).sort()).toEqual(['unit-b']);
     expect([...capturedSelectedUnitIds]).toEqual(['unit-b']);
     expect(capturedMediaId).toBe('media-b');
     expect(capturedLayerId).toBe('layer-b');
@@ -527,7 +528,7 @@ describe('useTranscriptionSnapshotLoader', () => {
           'phase' in arg &&
           (arg as DbState).phase === 'ready',
       );
-    expect(readyPayload?.unitCount).toBe(2);
+    expect(readyPayload?.unitCount).toBe(1);
     expect(readyPayload?.unifiedUnitCount).toBe(1);
   });
 });

@@ -57,4 +57,42 @@ describe('filterCollectionsForProject', () => {
       'spk-roster',
     ]);
   });
+
+  it('R-SCOPED-NOTES: keeps cell (tier_annotation), lexeme and sense notes of the project only', () => {
+    const T = 'text-review';
+    const filtered = filterCollectionsForProject(
+      {
+        texts: [{ id: T }, { id: 'text-other' }],
+        layer_units: [
+          { id: 'u1', textId: T },
+          { id: 'u-other', textId: 'text-other' },
+        ],
+        tier_definitions: [
+          { id: 'L1', textId: T },
+          { id: 'L-other', textId: 'text-other' },
+        ],
+        lexemes: [
+          { id: 'lex1', textId: T },
+          { id: 'lex-other', textId: 'text-other' },
+        ],
+        user_notes: [
+          { id: 'n-unit', targetType: 'unit', targetId: 'u1' },
+          { id: 'n-cell', targetType: 'tier_annotation', targetId: 'u1::L1' },
+          { id: 'n-wave', targetType: 'tier_annotation', targetId: 'u1::L1::@waveform' },
+          { id: 'n-lex', targetType: 'lexeme', targetId: 'lex1' },
+          { id: 'n-sense', targetType: 'sense', targetId: 'sense-1', parentTargetId: 'lex1' },
+          { id: 'x-cell', targetType: 'tier_annotation', targetId: 'u-other::L-other' },
+          { id: 'x-lex', targetType: 'lexeme', targetId: 'lex-other' },
+        ],
+      },
+      T,
+    );
+    expect((filtered.user_notes as Array<{ id: string }>).map((note) => note.id).sort()).toEqual([
+      'n-cell',
+      'n-lex',
+      'n-sense',
+      'n-unit',
+      'n-wave',
+    ]);
+  });
 });

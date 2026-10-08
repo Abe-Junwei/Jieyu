@@ -27,7 +27,8 @@ export interface UseCollaborationProjectHydrationParams {
   }) => Promise<{ changes: CollaborationProjectChangeRecord[] }>;
   restoreProjectSnapshotById: (snapshotId: string) => Promise<{ payloadJson: string }>;
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
-  loadSnapshot: () => Promise<void>;
+  /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
+  loadSnapshot: (textId: string) => Promise<void>;
   markProjectRevisionSeen: (revision: number) => void;
 }
 
