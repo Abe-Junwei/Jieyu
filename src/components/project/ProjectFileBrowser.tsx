@@ -316,7 +316,7 @@ function BoardAudio(props: {
       </p>
       <div className="project-file-stages">
         {stages.map(({ label, rate }) => (
-          <div className="project-file-stage" key={label}>
+          <div key={label}>
             <div className="project-file-stage-label">
               <span>{label}</span>
               <strong>{formatRate(locale, rate)}</strong>

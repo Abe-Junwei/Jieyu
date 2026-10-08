@@ -112,15 +112,15 @@ export function ProjectOverviewPanel(props: {
         ) : null}
       </div>
       <div className="project-overview-facts">
-        <dl className="project-overview-fact">
+        <dl>
           <dt>{t(locale, 'app.overview.objectLanguages')}</dt>
           <dd>{formatLanguages(data?.objectLanguages ?? [])}</dd>
         </dl>
-        <dl className="project-overview-fact">
+        <dl>
           <dt>{t(locale, 'app.overview.workingLanguages')}</dt>
           <dd>{formatLanguages(data?.workingLanguages ?? [])}</dd>
         </dl>
-        <dl className="project-overview-fact project-overview-recordings">
+        <dl className="project-overview-recordings">
           <dt>{t(locale, 'app.overview.audioCount')}</dt>
           <dd>{audioCount}</dd>
           <dt>{t(locale, 'app.overview.audioDuration')}</dt>
