@@ -12,7 +12,6 @@ export type DbIntegrityBlockingOverlayProps = {
   onReload: () => void;
   onRetry: () => void;
   onContinueSession: () => void;
-  onRestoreFromBackup?: (() => Promise<void>) | undefined;
 };
 
 /**
@@ -45,17 +44,6 @@ export function DbIntegrityBlockingOverlay(props: DbIntegrityBlockingOverlayProp
           <strong>{msg.dbIntegrityReason}</strong> <code>{props.reason}</code>
         </p>
         <div className="db-integrity-overlay-actions">
-          {isOpenFailure && props.onRestoreFromBackup ? (
-            <button
-              type="button"
-              className="settings-primary-btn"
-              onClick={() => {
-                void props.onRestoreFromBackup!();
-              }}
-            >
-              {msg.dbOpenRestoreFromBackup}
-            </button>
-          ) : null}
           <button type="button" className="settings-danger-btn" onClick={props.onReload}>
             {msg.dbIntegrityReload}
           </button>

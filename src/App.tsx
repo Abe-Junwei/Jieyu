@@ -17,7 +17,8 @@ import { AppGlobalToastHost } from './components/AppGlobalToastHost';
 import { AppOfflineStatusBanner } from './components/AppOfflineStatusBanner';
 import { WorkspaceReturnBanner } from './components/WorkspaceReturnBanner';
 import { DbIntegrityBlockingOverlay } from './components/DbIntegrityBlockingOverlay';
-import { DbMigrationOverlay } from './components/DbMigrationOverlay';
+import { DevBuildBanner } from './components/DevBuildBanner';
+import { LegacyDataResetDialog } from './components/LegacyDataResetDialog';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
@@ -306,7 +307,7 @@ export function App() {
   const [iconEffect, setIconEffectState] = useState<IconEffect>(() => getIconEffect());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { uiFontScale, uiFontScaleMode } = useUiFontScaleRuntime(locale);
-  const { dbGate, dbMigration, dbOverlayHandlers } = useAppDataResilienceEffects(locale);
+  const { dbGate, dbOverlayHandlers } = useAppDataResilienceEffects(locale);
 
   const handleIconEffectChange = useCallback((next: IconEffect) => {
     setIconEffect(next);
@@ -730,6 +731,7 @@ export function App() {
             className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
             {...shellStyleProps}
           >
+            <DevBuildBanner locale={locale} />
             <AppOfflineStatusBanner locale={locale} />
             <WorkspaceReturnBanner locale={locale} />
             <div ref={shellBodyRef} className="app-shell-body">
@@ -893,13 +895,7 @@ export function App() {
             </div>
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
             <AppGlobalToastHost />
-            {dbMigration.kind === 'migrating' ? (
-              <DbMigrationOverlay
-                locale={locale}
-                fromVersion={dbMigration.from}
-                toVersion={dbMigration.to}
-              />
-            ) : null}
+            <LegacyDataResetDialog locale={locale} />
             {dbGate.kind === 'failed' ? (
               <DbIntegrityBlockingOverlay
                 locale={locale}
@@ -908,7 +904,6 @@ export function App() {
                 onReload={dbOverlayHandlers.onReload}
                 onRetry={dbOverlayHandlers.onRetry}
                 onContinueSession={dbOverlayHandlers.onContinueSession}
-                onRestoreFromBackup={dbOverlayHandlers.onRestoreFromBackup}
               />
             ) : null}
             <SettingsModal

@@ -75,6 +75,8 @@ export const enUSDictionary = {
   'app.errorBoundary.reload': 'Reload Page',
   'app.offlineStatus.message':
     'Offline. Local data remains available; cloud sync will resume after reconnection.',
+  'app.devBuildBanner.message':
+    'Development build: data may be reset. Do not store anything you need to keep.',
   'app.workspaceReturn.backToLexicon': 'Back to lexicon',
   'app.sidePane.defaultTitle': 'Workspace',
   'app.sidePane.defaultSubtitle': 'Unified workspace entry',
@@ -3321,21 +3323,23 @@ export const enUSDictionary = {
     'The browser could not open this app’s IndexedDB. Transcription and other local-data features may not work until the database opens.',
   'msg.appData.dbOpenRecovery':
     'Try: clear site data for this origin in browser settings, then reload; check free disk space; use a private window to rule out extensions; or use a supported desktop browser. If you rely on an exported .jym / .jyt, keep that backup in a safe place before clearing data.',
-  'msg.appData.dbOpenRestoreFromBackup': 'Restore from pre-migration backup',
-  'msg.appData.dbOpenRestoreSuccess': 'Restored successfully. Reloading…',
-  'msg.appData.dbOpenRestoreNotFound': 'No pre-migration backup found',
-  'msg.appData.dbOpenRestoreFailed': 'Restore failed; try another method',
   'msg.appData.settingsBackupReminderLabel': 'Periodic full backup reminder',
   'msg.appData.settingsBackupReminderHint':
     'When enabled, shows a toast if you have not exported a .jym/.jyt archive for a long time (at most about once per 24h while overdue).',
   'msg.appData.settingsDbIntegrityProbeLabel': 'Run local database sanity check after startup',
   'msg.appData.settingsDbIntegrityProbeHint':
     'When enabled, performs a lightweight read of critical tables after the DB opens; shows a recoverable prompt on failure.',
-  'msg.appData.dbMigrationTitle': 'Upgrading local database…',
-  'msg.appData.dbMigrationIntro':
-    'A schema migration is in progress. Please do not close this tab.',
-  'msg.appData.dbMigrationVersionHint': 'Version',
-  'msg.appData.dbMigrationWait': 'This usually takes a few seconds…',
+  'msg.appData.legacyResetTitle': 'Local data from an older version was found',
+  'msg.appData.legacyResetIntro':
+    'This version uses a new local database and no longer reads data left by older versions. Confirming deletes the databases below plus a few related storage entries (backup timestamps, collaboration state). Declining keeps the new database working, leaves the old data untouched, and asks again next launch.',
+  'msg.appData.legacyResetDatabasesLabel': 'Databases to delete:',
+  'msg.appData.legacyResetKeepNote':
+    'Voice sessions, usage-behavior records, the acoustic analysis cache, and settings such as AI settings and interface preferences are kept.',
+  'msg.appData.legacyResetConfirm': 'Delete old data',
+  'msg.appData.legacyResetDecline': 'Not now',
+  'msg.appData.legacyResetWorking': 'Deleting…',
+  'msg.appData.legacyResetFailed':
+    'Some databases could not be deleted (another tab may be using them). Close other Jieyu windows and try again:',
 
   'msg.aiReplayDetail.title': 'Replay / Compare',
   'msg.aiReplayDetail.hideDetail': 'Hide detail',

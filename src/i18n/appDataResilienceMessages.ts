@@ -12,18 +12,18 @@ export type AppDataResilienceMessages = {
   dbOpenTitle: string;
   dbOpenIntro: string;
   dbOpenRecovery: string;
-  dbOpenRestoreFromBackup: string;
-  dbOpenRestoreSuccess: string;
-  dbOpenRestoreNotFound: string;
-  dbOpenRestoreFailed: string;
-  dbMigrationTitle: string;
-  dbMigrationIntro: string;
-  dbMigrationVersionHint: string;
-  dbMigrationWait: string;
   settingsBackupReminderLabel: string;
   settingsBackupReminderHint: string;
   settingsDbIntegrityProbeLabel: string;
   settingsDbIntegrityProbeHint: string;
+  legacyResetTitle: string;
+  legacyResetIntro: string;
+  legacyResetDatabasesLabel: string;
+  legacyResetKeepNote: string;
+  legacyResetConfirm: string;
+  legacyResetDecline: string;
+  legacyResetWorking: string;
+  legacyResetFailed: string;
 };
 
 function dictLocale(locale: Locale): 'zh-CN' | 'en-US' {
@@ -44,17 +44,17 @@ export function getAppDataResilienceMessages(locale: Locale): AppDataResilienceM
     dbOpenTitle: t(l, 'msg.appData.dbOpenTitle'),
     dbOpenIntro: t(l, 'msg.appData.dbOpenIntro'),
     dbOpenRecovery: t(l, 'msg.appData.dbOpenRecovery'),
-    dbOpenRestoreFromBackup: t(l, 'msg.appData.dbOpenRestoreFromBackup'),
-    dbOpenRestoreSuccess: t(l, 'msg.appData.dbOpenRestoreSuccess'),
-    dbOpenRestoreNotFound: t(l, 'msg.appData.dbOpenRestoreNotFound'),
-    dbOpenRestoreFailed: t(l, 'msg.appData.dbOpenRestoreFailed'),
-    dbMigrationTitle: t(l, 'msg.appData.dbMigrationTitle'),
-    dbMigrationIntro: t(l, 'msg.appData.dbMigrationIntro'),
-    dbMigrationVersionHint: t(l, 'msg.appData.dbMigrationVersionHint'),
-    dbMigrationWait: t(l, 'msg.appData.dbMigrationWait'),
     settingsBackupReminderLabel: t(l, 'msg.appData.settingsBackupReminderLabel'),
     settingsBackupReminderHint: t(l, 'msg.appData.settingsBackupReminderHint'),
     settingsDbIntegrityProbeLabel: t(l, 'msg.appData.settingsDbIntegrityProbeLabel'),
     settingsDbIntegrityProbeHint: t(l, 'msg.appData.settingsDbIntegrityProbeHint'),
+    legacyResetTitle: t(l, 'msg.appData.legacyResetTitle'),
+    legacyResetIntro: t(l, 'msg.appData.legacyResetIntro'),
+    legacyResetDatabasesLabel: t(l, 'msg.appData.legacyResetDatabasesLabel'),
+    legacyResetKeepNote: t(l, 'msg.appData.legacyResetKeepNote'),
+    legacyResetConfirm: t(l, 'msg.appData.legacyResetConfirm'),
+    legacyResetDecline: t(l, 'msg.appData.legacyResetDecline'),
+    legacyResetWorking: t(l, 'msg.appData.legacyResetWorking'),
+    legacyResetFailed: t(l, 'msg.appData.legacyResetFailed'),
   };
 }

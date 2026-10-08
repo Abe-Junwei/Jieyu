@@ -72,6 +72,7 @@ export const zhCNDictionary = {
   'app.errorBoundary.retry': '重试',
   'app.errorBoundary.reload': '重载页面',
   'app.offlineStatus.message': '当前离线。本地数据仍可使用，云同步会在恢复联网后继续。',
+  'app.devBuildBanner.message': '开发期版本：数据可能被重置，请勿存放需要保留的资料。',
   'app.workspaceReturn.backToLexicon': '返回词典',
   'app.sidePane.defaultTitle': '工作台',
   'app.sidePane.defaultSubtitle': '统一工作台入口',
@@ -3053,21 +3054,23 @@ export const zhCNDictionary = {
     '浏览器未能打开本应用的 IndexedDB。在未成功打开前，转写等依赖本地数据的功能可能无法使用。',
   'msg.appData.dbOpenRecovery':
     '可尝试：在浏览器设置中为本站点清理存储/站点数据后重试；检查磁盘空间是否不足；在无痕窗口排除扩展干扰；或换用支持的桌面浏览器。若已导出过 .jym / .jyt，清理前请先备份到安全位置。',
-  'msg.appData.dbOpenRestoreFromBackup': '从迁移前备份恢复',
-  'msg.appData.dbOpenRestoreSuccess': '恢复成功，正在重载页面…',
-  'msg.appData.dbOpenRestoreNotFound': '未找到迁移前备份',
-  'msg.appData.dbOpenRestoreFailed': '恢复失败，请尝试其他方式',
   'msg.appData.settingsBackupReminderLabel': '定期提醒导出全量备份',
   'msg.appData.settingsBackupReminderHint':
     '开启后，若长期未导出 .jym/.jyt，将以 Toast 提示（每条约 24 小时最多一次）。',
   'msg.appData.settingsDbIntegrityProbeLabel': '启动后自检本地数据库',
   'msg.appData.settingsDbIntegrityProbeHint':
     '开启后，在首次打开数据库时轻量读取关键表；失败时显示可恢复提示。',
-  'msg.appData.dbMigrationTitle': '本地数据库正在升级',
-  'msg.appData.dbMigrationIntro':
-    '检测到数据结构版本需要更新，正在自动迁移中，请勿关闭浏览器标签页。',
-  'msg.appData.dbMigrationVersionHint': '版本',
-  'msg.appData.dbMigrationWait': '升级通常在数秒内完成，请耐心等待……',
+  'msg.appData.legacyResetTitle': '检测到旧版本的本地数据',
+  'msg.appData.legacyResetIntro':
+    '本版本使用新的本地数据库，不再读取旧版本留下的数据。确认后将删除下列旧数据库，以及与其相关的备份时间、协作状态等少量存储项；拒绝则新数据库照常工作，旧数据原样保留，下次启动时会再次询问。',
+  'msg.appData.legacyResetDatabasesLabel': '将被删除的数据库：',
+  'msg.appData.legacyResetKeepNote':
+    '语音会话、使用行为记录、声学分析缓存，以及 AI 设置、界面偏好等设置不会被删除。',
+  'msg.appData.legacyResetConfirm': '删除旧数据',
+  'msg.appData.legacyResetDecline': '暂不删除',
+  'msg.appData.legacyResetWorking': '正在删除…',
+  'msg.appData.legacyResetFailed':
+    '部分数据库未能删除（可能被其他标签页占用），请关闭其他 Jieyu 窗口后重试：',
 
   'msg.aiReplayDetail.title': '回放 / 对比',
   'msg.aiReplayDetail.hideDetail': '收起详情',

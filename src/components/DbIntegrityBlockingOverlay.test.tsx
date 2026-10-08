@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 describe('DbIntegrityBlockingOverlay', () => {
-  it('does not show restore button when onRestoreFromBackup is absent', () => {
+  it('shows no pre-migration restore button (removed in Batch 2A)', () => {
     render(
       <DbIntegrityBlockingOverlay
         locale="zh-CN"
@@ -52,7 +52,6 @@ describe('DbIntegrityBlockingOverlay', () => {
           onReload={vi.fn()}
           onRetry={vi.fn()}
           onContinueSession={vi.fn()}
-          onRestoreFromBackup={vi.fn()}
         />
       </>,
     );
