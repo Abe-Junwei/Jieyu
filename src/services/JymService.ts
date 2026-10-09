@@ -136,6 +136,8 @@ export interface JieyuArchiveRestoreAsNewPreview {
   includedBytesCount: number;
   includedBytesTotal: number;
   skippedLanguageIds: string[];
+  /** 父行不在包里、恢复时跳过的行（BF1-N3）| Rows skipped because their parent is not in the package */
+  skippedOrphanRows: Array<{ collection: string; count: number }>;
   /** 只在当前项目从未协作过时出现（D5、D6、T33）| Present only for a never-collaborated current project */
   overwriteCurrentProject?: {
     targetProjectId: string;

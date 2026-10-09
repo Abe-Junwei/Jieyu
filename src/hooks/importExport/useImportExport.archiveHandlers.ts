@@ -165,6 +165,16 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         includedBytesCount: preview.includedBytes.count,
         includedBytesTotal: preview.includedBytes.totalBytes,
         skippedLanguageIds: [],
+        // 各项目的孤儿行按表合计 | Orphan rows summed per table across projects
+        skippedOrphanRows: [
+          ...preview.projects
+            .flatMap((project) => project.skippedOrphanRows)
+            .reduce(
+              (sums, { collection, count }) =>
+                sums.set(collection, (sums.get(collection) ?? 0) + count),
+              new Map<string, number>(),
+            ),
+        ].map(([collection, count]) => ({ collection, count })),
       },
       libraryBackup: {
         mediaIncluded: preview.manifest.media === 'included',
@@ -220,6 +230,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         includedBytesCount: preview.includedBytes.count,
         includedBytesTotal: preview.includedBytes.totalBytes,
         skippedLanguageIds: preview.skippedLanguageIds,
+        skippedOrphanRows: preview.skippedOrphanRows,
         ...(overwrite
           ? {
               overwriteCurrentProject: {

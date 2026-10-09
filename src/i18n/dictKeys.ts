@@ -1467,6 +1467,7 @@ export const DICT_KEYS = [
   'transcription.projectHub.restoreMediaMissing',
   'transcription.projectHub.restoreBytesIncluded',
   'transcription.projectHub.restoreSkippedLanguages',
+  'transcription.projectHub.restoreSkippedOrphanRows',
   'transcription.projectHub.confirmRestoreAsNew',
   'transcription.projectHub.restoreModeNew',
   'transcription.projectHub.restoreModeOverwrite',

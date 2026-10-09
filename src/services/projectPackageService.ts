@@ -25,6 +25,8 @@ import type { ImportResult } from '../db/types';
 import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { JIEYU_MAIN_TABLE_REGISTRY, type JieyuDataClass } from '../db/tableRegistry';
+import { JIEYU_PARENT_CONSISTENCY_RULES } from '../db/ownershipImmutabilityMiddleware';
+import { createLogger } from '../observability/logger';
 import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProfiles';
 import {
   createArchiveDecryptor,
@@ -235,6 +237,8 @@ export type PackageEntity = z.infer<typeof entitySchema>;
 export type PackageFile = z.infer<typeof fileSchema>;
 
 type Row = Record<string, unknown>;
+
+const log = createLogger('projectPackageService');
 type DbIoModule = typeof import('../db/io');
 type DbEngineModule = typeof import('../db/engine');
 type ProjectSnapshotModule = typeof import('../db/projectScopedSnapshot');
@@ -688,6 +692,8 @@ interface InspectedPackage {
   sourceProjectId: string;
   /** `type:id` → 字节（只有 included 的实体）| `type:id` → bytes (included entities only) */
   bytesByEntity: Map<string, InboundBytes>;
+  /** 父行不在包里、已从 snapshot 丢弃的行（BF1-N3）| Rows dropped because their parent is not in the package */
+  skippedOrphanRows: SkippedOrphanRows;
 }
 
 /**
@@ -973,7 +979,16 @@ async function inspectProjectPackage(
     problems,
   );
   if (problems.length > 0) throw invalidPackage(kind, problems);
-  return { kind, manifest, snapshot, sourceProjectId, bytesByEntity };
+  // 预览和每条写入路径都用 inspected，孤儿只在这里丢一次 | Preview and every commit path consume this
+  const orphans = dropOrphanRows(snapshot.collections);
+  return {
+    kind,
+    manifest,
+    snapshot: { ...snapshot, collections: orphans.collections },
+    sourceProjectId,
+    bytesByEntity,
+    skippedOrphanRows: orphans.skipped,
+  };
 }
 
 /**
@@ -1059,6 +1074,59 @@ export function dropCollidingLanguages(
     next[name] = rowsOf(collections, name).filter((row) => !skipped.has(String(row.languageId)));
   }
   return next;
+}
+
+/** 每张表因父行不在包里而跳过的行数 | Rows skipped per table because their parent is not in the package */
+export type SkippedOrphanRows = Array<{ collection: string; count: number }>;
+
+/**
+ * 丢弃父行不在包里的行（BF1-N3），父行规则与归属中间件同一套；指向包外词条的链接也丢。循环到
+ * 不再有新的孤儿（丢掉的句段带走它的子句段、内容、token、morpheme、链接）。在 id 重新映射之前调用。
+ * Drop rows whose parent is not in the package (BF1-N3), using the ownership middleware's parent
+ * rules; links to lexemes outside the package are dropped too. Repeats until no new orphan appears
+ * (a dropped unit takes its segments, contents, tokens, morphemes and links). Call before id remap.
+ * shortcut: orphans are dropped, not repaired/re-parented; upgrade if users need to recover rows from damaged backups.
+ */
+export function dropOrphanRows(collections: ProjectCollections): {
+  collections: ProjectCollections;
+  skipped: SkippedOrphanRows;
+} {
+  const rules = Object.entries(JIEYU_PARENT_CONSISTENCY_RULES).filter(([name]) =>
+    Array.isArray(collections[name]),
+  );
+  const counts = new Map<string, number>();
+  let next = collections;
+  for (;;) {
+    const current = next;
+    const idSets = new Map<string, Set<string>>();
+    const idsOf = (table: string): Set<string> => {
+      let ids = idSets.get(table);
+      if (ids === undefined) {
+        ids = new Set(rowsOf(current, table).map((row) => String(row.id)));
+        idSets.set(table, ids);
+      }
+      return ids;
+    };
+    const pass: ProjectCollections = { ...current };
+    let dropped = 0;
+    for (const [name, rule] of rules) {
+      const rows = rowsOf(current, name);
+      const kept = rows.filter((row) =>
+        rule.extract(row).parents.every((ref) => idsOf(ref.table).has(ref.key)),
+      );
+      if (kept.length === rows.length) continue;
+      pass[name] = kept;
+      counts.set(name, (counts.get(name) ?? 0) + rows.length - kept.length);
+      dropped += rows.length - kept.length;
+    }
+    if (dropped === 0) break;
+    next = pass;
+  }
+  const skipped = [...counts.entries()]
+    .map(([collection, count]) => ({ collection, count }))
+    .sort((a, b) => a.collection.localeCompare(b.collection, 'en'));
+  if (skipped.length > 0) log.warn('Dropped orphan rows from archive import', { skipped });
+  return { collections: next, skipped };
 }
 
 /** 覆盖当前项目这一选项的情况（D5、T33）| The "overwrite current project" option (D5, T33) */
@@ -1226,6 +1294,7 @@ export interface ProjectPackageRestorePreview {
   includedBytes: { count: number; totalBytes: number };
   /** 本机已被别的项目使用、恢复时跳过的语言 id | Language ids skipped because another local project owns them */
   skippedLanguageIds: string[];
+  skippedOrphanRows: SkippedOrphanRows;
   unresolvedSystemRefs: string[];
   /** 只有当前项目从未协作过时才有（D5、D6）| Present only when the current project never collaborated */
   overwrite?: ProjectOverwriteOption;
@@ -1273,6 +1342,7 @@ export async function previewProjectPackageRestore(
       totalBytes: included.reduce((sum, item) => sum + item.blob.size, 0),
     },
     skippedLanguageIds,
+    skippedOrphanRows: inspected.skippedOrphanRows,
     unresolvedSystemRefs: listUnresolvedSystemRefs(
       inspected.manifest.systemRefs.map((ref) => ref.id),
     ),
@@ -1287,6 +1357,7 @@ export interface ProjectPackageRestoreResult {
   sourceProjectId: string;
   importResult: ImportResult;
   skippedLanguageIds: string[];
+  skippedOrphanRows: SkippedOrphanRows;
 }
 
 /**
@@ -1320,6 +1391,7 @@ export async function restoreProjectPackageAsNew(
     sourceProjectId: inspected.sourceProjectId,
     importResult,
     skippedLanguageIds: prepared.skippedLanguageIds,
+    skippedOrphanRows: inspected.skippedOrphanRows,
   };
 }
 
@@ -1388,6 +1460,7 @@ export interface ProjectPackageOverwriteResult {
   snapshotSeq: number;
   importResult: ImportResult;
   skippedLanguageIds: string[];
+  skippedOrphanRows: SkippedOrphanRows;
 }
 
 /**
@@ -1498,5 +1571,6 @@ export async function overwriteProjectWithPackage(
     snapshotSeq,
     importResult,
     skippedLanguageIds: plan.option.skippedLanguageIds,
+    skippedOrphanRows: inspected.skippedOrphanRows,
   };
 }

@@ -1695,6 +1695,8 @@ export const enUSDictionary = {
     'With audio: {count} recording(s) or attachment(s) are restored from the package ({sizeMb} MB); every sha256 was checked.',
   'transcription.projectHub.restoreSkippedLanguages':
     'These language entries are already used by another local project and are skipped: {ids}',
+  'transcription.projectHub.restoreSkippedOrphanRows':
+    '{count} row(s) reference records that are not in this package and are skipped: {collections}',
   'transcription.projectHub.confirmRestoreAsNew': 'Restore as new project',
   'transcription.projectHub.restoreModeNew': 'Restore as a new project (recommended)',
   'transcription.projectHub.restoreModeOverwrite': 'Overwrite the current project "{title}"',

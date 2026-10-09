@@ -1176,6 +1176,21 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                         })}
                       </PanelChip>
                     ) : null}
+                    {projectImportState.preview.restoreAsNewProject.skippedOrphanRows.length > 0 ? (
+                      <PanelChip variant="warning">
+                        {tf(locale, 'transcription.projectHub.restoreSkippedOrphanRows', {
+                          count:
+                            projectImportState.preview.restoreAsNewProject.skippedOrphanRows.reduce(
+                              (sum, item) => sum + item.count,
+                              0,
+                            ),
+                          collections:
+                            projectImportState.preview.restoreAsNewProject.skippedOrphanRows
+                              .map((item) => `${item.collection} (${item.count})`)
+                              .join(', '),
+                        })}
+                      </PanelChip>
+                    ) : null}
                   </>
                 ) : null}
                 {projectImportState.preview.unresolvedSystemRefs.length > 0 ? (

@@ -1587,6 +1587,8 @@ export const zhCNDictionary = {
     '含音频：{count} 个录音或附件随包恢复（共 {sizeMb} MB），字节已逐个核对 sha256。',
   'transcription.projectHub.restoreSkippedLanguages':
     '这些语言条目已被本机其他项目使用，恢复时跳过：{ids}',
+  'transcription.projectHub.restoreSkippedOrphanRows':
+    '{count} 条记录引用了包中不存在的上级记录，恢复时跳过：{collections}',
   'transcription.projectHub.confirmRestoreAsNew': '恢复为新项目',
   'transcription.projectHub.restoreModeNew': '恢复为新项目（推荐）',
   'transcription.projectHub.restoreModeOverwrite': '覆盖当前项目「{title}」',

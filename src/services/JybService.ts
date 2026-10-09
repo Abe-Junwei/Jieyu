@@ -75,6 +75,7 @@ import {
   attachIncludedBytes,
   checkFileTable,
   collectOmittedEntities,
+  dropOrphanRows,
   findBytesAtRisk,
   findIdenticalLocalBytes,
   invalidPackage,
@@ -90,6 +91,7 @@ import {
   type PackageEntity,
   type PackedByteFile,
   type ProjectPackageManifest,
+  type SkippedOrphanRows,
   rowsOf,
   byteGuardTables,
 } from './projectPackageService';
@@ -372,6 +374,8 @@ interface InspectedLibrary {
   data: LibraryData;
   bytesByEntity: Map<string, InboundBytes>;
   preferences: { entries: UserPreferenceEntry[]; ignoredKeys: string[] };
+  /** 项目 id → 父行不在本项目包里、已丢弃的行（BF1-N3）| Project id → dropped orphan rows */
+  skippedOrphanRows: Map<string, SkippedOrphanRows>;
 }
 
 export interface JybReadOptions {
@@ -539,7 +543,20 @@ async function inspectJyb(
     problems,
   );
   if (problems.length > 0) throw invalidPackage('jyb', problems);
-  return { manifest, data, bytesByEntity, preferences: readPackagedUserPreferences(data.settings) };
+  // 逐项目丢孤儿：父行必须在同一项目里 | Per project: parents must be in the same project
+  const skippedOrphanRows = new Map<string, SkippedOrphanRows>();
+  data.projects = data.projects.map((project) => {
+    const orphans = dropOrphanRows(project.collections);
+    skippedOrphanRows.set(project.id, orphans.skipped);
+    return { ...project, collections: orphans.collections };
+  });
+  return {
+    manifest,
+    data,
+    bytesByEntity,
+    preferences: readPackagedUserPreferences(data.settings),
+    skippedOrphanRows,
+  };
 }
 
 // ─── 灾难恢复的前提 | Disaster restore preconditions (D7, T34) ────────────────
@@ -625,6 +642,7 @@ export interface JybProjectPreview {
   includedBytesCount: number;
   /** 其中项目 AI 记忆与历史的行数 | Of which project AI memory / history rows */
   aiRows: number;
+  skippedOrphanRows: SkippedOrphanRows;
 }
 
 export interface JybRestorePreview {
@@ -674,6 +692,7 @@ export async function previewJybRestore(
       mediaWithoutBytes: own.filter((e) => e.type === 'media' && e.bytes === 'omitted').length,
       includedBytesCount: own.filter((e) => e.bytes === 'included').length,
       aiRows: countProjectAiRows(project.collections, PROJECT_AI_TABLES),
+      skippedOrphanRows: inspected.skippedOrphanRows.get(project.id) ?? [],
     };
   });
   const byName = new Map<string, number>();
@@ -717,6 +736,7 @@ export interface JybImportedProject {
   sourceProjectId: string;
   projectId: string;
   title?: Record<string, string>;
+  skippedOrphanRows: SkippedOrphanRows;
 }
 
 export interface JybProjectImportResult {
@@ -781,6 +801,7 @@ export async function importJybProjectsAsNew(
       sourceProjectId: project.id,
       projectId: prepared.projectId,
       ...(prepared.title !== undefined ? { title: prepared.title } : {}),
+      skippedOrphanRows: inspected.skippedOrphanRows.get(project.id) ?? [],
     });
   }
   const importResult = await dbIo.importDatabaseFromJson(

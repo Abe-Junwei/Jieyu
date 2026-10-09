@@ -64,6 +64,7 @@ function makePreview(): JieyuArchiveImportPreview {
       includedBytesCount: 2,
       includedBytesTotal: 3 * 1024 * 1024,
       skippedLanguageIds: [],
+      skippedOrphanRows: [],
     },
   };
 }
@@ -185,6 +186,24 @@ describe('LeftRailProjectHub project import dialog', () => {
     });
   });
 
+  it('lists orphan rows the restore will skip (BF1-N3)', async () => {
+    const preview = makePreview();
+    preview.restoreAsNewProject!.skippedOrphanRows = [
+      { collection: 'unit_morphemes', count: 2 },
+      { collection: 'unit_tokens', count: 1 },
+    ];
+    renderHub({ onPreviewProjectArchiveImport: vi.fn(async () => preview) });
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['archive'], 'demo.jyt')] } });
+
+    await screen.findByRole('dialog', { name: '导入项目预览' });
+    expect(
+      screen.getByText(
+        '3 条记录引用了包中不存在的上级记录，恢复时跳过：unit_morphemes (2), unit_tokens (1)',
+      ),
+    ).toBeTruthy();
+  });
+
   it('JYT restores as a new project by default; overwrite needs a second click (D5, T33)', async () => {
     const jytPreview = (available: boolean) => ({
       ...makePreview(),
@@ -196,6 +215,7 @@ describe('LeftRailProjectHub project import dialog', () => {
         includedBytesCount: 0,
         includedBytesTotal: 0,
         skippedLanguageIds: [],
+        skippedOrphanRows: [],
         overwriteCurrentProject: {
           targetProjectId: 'p1',
           targetTitle: 'Current',
@@ -235,6 +255,7 @@ describe('LeftRailProjectHub project import dialog', () => {
           includedBytesCount: 0,
           includedBytesTotal: 0,
           skippedLanguageIds: [],
+          skippedOrphanRows: [],
           overwriteCurrentProject: {
             targetProjectId: 'p1',
             targetTitle: 'Current',
