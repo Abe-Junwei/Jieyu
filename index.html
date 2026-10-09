@@ -69,7 +69,15 @@
       // shortcut: 自定义 AI 源在下次加载页面后才放行；同源脚本能改 localStorage 加一个源（与它能改 AI 设置等价）；IPv6 源不支持。要改成响应头下发 CSP 时升级。
       // shortcut: a new custom AI origin takes effect on the next page load; same-origin script can add one origin via localStorage (as it can edit AI settings); IPv6 origins unsupported. Upgrade if CSP moves to a response header.
       (function () {
-        var meta = document.importNode(document.getElementById('jieyu-csp').content.firstElementChild, false);
+        var meta;
+        try {
+          meta = document.importNode(document.getElementById('jieyu-csp').content.firstElementChild, false);
+        } catch (e) {
+          // PF-H1：模板取不到时插入最严格的兜底策略，页面永远不会没有 CSP | fail closed: never leave the page without a CSP
+          meta = document.createElement('meta');
+          meta.httpEquiv = 'Content-Security-Policy';
+          meta.content = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'";
+        }
         try {
           var origin = localStorage.getItem('jieyu.csp.aiOrigin');
           if (origin && /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/.test(origin) && new URL(origin).origin === origin) {

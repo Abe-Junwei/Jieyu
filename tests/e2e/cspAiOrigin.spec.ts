@@ -55,3 +55,20 @@ for (const injected of [
     expect(await probe(page, injected)).toEqual(STRICT);
   });
 }
+
+test('if the template cannot be imported, a strict fallback policy is still inserted (PF-H1)', async ({
+  page,
+}) => {
+  await page.route('**/*', async (route) => {
+    if (route.request().resourceType() !== 'document') return route.fallback();
+    const response = await route.fetch();
+    const body = (await response.text()).replace('id="jieyu-csp"', 'id="jieyu-csp-gone"');
+    return route.fulfill({ response, body });
+  });
+  const result = await probe(page, null);
+  expect(await page.evaluate(() => document.getElementById('jieyu-csp'))).toBeNull();
+  expect(result[OTHER]).toBe('blocked');
+  expect(
+    await page.evaluate(() => document.querySelectorAll('meta[http-equiv="Content-Security-Policy"]').length),
+  ).toBe(1);
+});
