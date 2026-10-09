@@ -1,14 +1,14 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { getLayerMetadataAppService } from '../app/LayerMetadataAppService';
-import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
-import {
-  getDb,
-  stripForbiddenTranslationParentLayerId,
-  withTransaction,
-} from '../app/jieyuDbPageAccess';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  TierDefinitionDocType,
+} from '../types/jieyuDbDocTypes';
+import { stripForbiddenTranslationParentLayerId } from '../app/jieyuDbPageAccess';
 import type { LayerMetadataUpdateInput } from '../types/layerMetadata';
-import { newId } from '../utils/transcriptionFormatters';
-import { saveTierDefinition } from '../app/transcriptionServicesPageAccess';
+import { getLayerLabelParts, newId } from '../utils/transcriptionFormatters';
+import { nextLayerNameForAlias } from '../utils/layerAliasName';
 
 type UseTranscriptionLayerMetadataControllerInput = {
   layers: LayerDocType[];
@@ -69,14 +69,19 @@ export function useTranscriptionLayerMetadataController(
       const nextDataCategory = trimOptionalText(updates.dataCategory);
       const nextDelimiter = updates.delimiter ?? '';
       const nextParentLayerId = trimOptionalText(updates.parentLayerId);
-      const typeLabel = targetLayer.layerType === 'translation' ? '翻译' : '转写';
-      const nextName = nextAlias ? `${typeLabel} · ${nextAlias}` : typeLabel;
+      // 只有别名真的改了才动名称，且不写入界面语言的固定文字（JY-18）
+      // Only touch the name when the alias really changed, without fixed UI-language text (JY-18)
+      const nextName =
+        updates.alias === undefined
+          ? null
+          : nextLayerNameForAlias(
+              targetLayer.name,
+              getLayerLabelParts(targetLayer).alias,
+              nextAlias,
+            );
       let updatedLayer: LayerDocType = {
         ...targetLayer,
-        name: {
-          ...(targetLayer.name ?? {}),
-          zho: nextName,
-        },
+        ...(nextName !== null ? { name: nextName } : {}),
         updatedAt: new Date().toISOString(),
       } as LayerDocType;
 
@@ -144,125 +149,106 @@ export function useTranscriptionLayerMetadataController(
         updatedLayer = stripForbiddenTranslationParentLayerId(updatedLayer);
       }
 
+      const resolvedPreferredHostTranscriptionLayerId =
+        updates.preferredHostTranscriptionLayerId &&
+        normalizedHostTranscriptionLayerIds.includes(updates.preferredHostTranscriptionLayerId)
+          ? updates.preferredHostTranscriptionLayerId
+          : (normalizedHostTranscriptionLayerIds[0] ?? '');
+      const replacementLinks: LayerLinkDocType[] | null =
+        shouldUpdateTranslationLinks && updatedLayer.layerType === 'translation'
+          ? (() => {
+              const existingLayerLinks = input.layerLinks.filter(
+                (link) => link.layerId === layerId,
+              );
+              const existingPreferredLink =
+                existingLayerLinks.find((link) => link.isPreferred) ?? existingLayerLinks[0];
+              const resolvedLinkType =
+                updates.linkType ?? existingPreferredLink?.linkType ?? 'free';
+              const now = new Date().toISOString();
+              return normalizedHostTranscriptionLayerIds
+                .map((hostTranscriptionLayerId) =>
+                  transcriptionLayerById.get(hostTranscriptionLayerId),
+                )
+                .filter((hostLayer): hostLayer is LayerDocType & { layerType: 'transcription' } =>
+                  Boolean(hostLayer && hostLayer.layerType === 'transcription'),
+                )
+                .map((hostLayer) => ({
+                  id: newId('link'),
+                  transcriptionLayerKey: hostLayer.key,
+                  hostTranscriptionLayerId: hostLayer.id,
+                  layerId,
+                  linkType: resolvedLinkType,
+                  isPreferred: hostLayer.id === resolvedPreferredHostTranscriptionLayerId,
+                  createdAt: now,
+                }));
+            })()
+          : null;
+
+      const currentTranslationLinks =
+        replacementLinks !== null
+          ? replacementLinks.map((link) => ({
+              hostId: link.hostTranscriptionLayerId,
+              isPreferred: link.isPreferred,
+            }))
+          : input.layerLinks
+              .filter((link) => link.layerId === updatedLayer.id)
+              .map((link) => ({
+                hostId: link.hostTranscriptionLayerId,
+                isPreferred: link.isPreferred,
+              }));
+      const preferredTierParentId =
+        updatedLayer.layerType === 'translation'
+          ? replacementLinks !== null
+            ? resolvedPreferredHostTranscriptionLayerId
+            : (currentTranslationLinks.find((link) => link.isPreferred)?.hostId ??
+              currentTranslationLinks[0]?.hostId ??
+              '')
+          : nextParentLayerId;
+      const extraParentTierIds =
+        updatedLayer.layerType === 'translation'
+          ? currentTranslationLinks
+              .map((link) => link.hostId)
+              .filter((hostId) => hostId && hostId !== preferredTierParentId)
+          : [];
+
+      const patchTier = (tier: TierDefinitionDocType): TierDefinitionDocType => {
+        const nextTier = {
+          ...tier,
+          ...(preferredTierParentId ? { parentTierId: preferredTierParentId } : {}),
+          ...(extraParentTierIds.length > 0 ? { extraParentTierIds } : {}),
+          ...(updates.sortOrder !== undefined ? { sortOrder: updates.sortOrder } : {}),
+          updatedAt: new Date().toISOString(),
+        };
+        if (!preferredTierParentId) delete nextTier.parentTierId;
+        if (extraParentTierIds.length === 0) delete nextTier.extraParentTierIds;
+        if (updates.participantId !== undefined) {
+          if (nextParticipantId) nextTier.participantId = nextParticipantId;
+          else delete nextTier.participantId;
+        }
+        if (updates.dataCategory !== undefined) {
+          if (nextDataCategory) nextTier.dataCategory = nextDataCategory;
+          else delete nextTier.dataCategory;
+        }
+        if (updates.delimiter !== undefined) {
+          if (nextDelimiter) nextTier.delimiter = nextDelimiter;
+          else delete nextTier.delimiter;
+        }
+        return nextTier;
+      };
+
       try {
-        await layerMetadataAppService.updateLayer(updatedLayer);
+        // 层、链接、层定义一个事务（JY-18）| Layer, links and tier in one transaction (JY-18)
+        await layerMetadataAppService.applyMetadataUpdate({
+          layer: updatedLayer,
+          replaceLinks: replacementLinks,
+          patchTier,
+        });
 
-        if (shouldUpdateTranslationLinks && updatedLayer.layerType === 'translation') {
-          const existingLayerLinks = input.layerLinks.filter((link) => link.layerId === layerId);
-          const existingPreferredLink =
-            existingLayerLinks.find((link) => link.isPreferred) ?? existingLayerLinks[0];
-          const resolvedPreferredHostTranscriptionLayerId =
-            updates.preferredHostTranscriptionLayerId &&
-            normalizedHostTranscriptionLayerIds.includes(updates.preferredHostTranscriptionLayerId)
-              ? updates.preferredHostTranscriptionLayerId
-              : normalizedHostTranscriptionLayerIds[0]!;
-          const resolvedLinkType = updates.linkType ?? existingPreferredLink?.linkType ?? 'free';
-
-          const now = new Date().toISOString();
-          const replacementLinks: LayerLinkDocType[] = normalizedHostTranscriptionLayerIds
-            .map((hostTranscriptionLayerId) => transcriptionLayerById.get(hostTranscriptionLayerId))
-            .filter((hostLayer): hostLayer is LayerDocType & { layerType: 'transcription' } =>
-              Boolean(hostLayer && hostLayer.layerType === 'transcription'),
-            )
-            .map((hostLayer) => ({
-              id: newId('link'),
-              transcriptionLayerKey: hostLayer.key,
-              hostTranscriptionLayerId: hostLayer.id,
-              layerId,
-              linkType: resolvedLinkType,
-              isPreferred: hostLayer.id === resolvedPreferredHostTranscriptionLayerId,
-              createdAt: now,
-            }));
-
-          const db = await getDb();
-          await withTransaction(
-            db,
-            'rw',
-            [db.dexie.layer_links],
-            async () => {
-              await db.collections.layer_links.removeBySelector({ layerId });
-              for (const link of replacementLinks) {
-                await db.collections.layer_links.insert(link);
-              }
-            },
-            { label: 'update-layer-metadata-links' },
-          );
-
+        if (replacementLinks !== null) {
           input.setLayerLinks((prev) => [
             ...prev.filter((link) => link.layerId !== layerId),
             ...replacementLinks,
           ]);
-        }
-
-        const db = await getDb();
-        const tier = await db.dexie.tier_definitions.get(updatedLayer.id);
-        if (tier) {
-          const currentTranslationLinks = shouldUpdateTranslationLinks
-            ? normalizedHostTranscriptionLayerIds.map((hostId) => ({
-                hostId,
-                isPreferred:
-                  hostId ===
-                  (updates.preferredHostTranscriptionLayerId &&
-                  normalizedHostTranscriptionLayerIds.includes(
-                    updates.preferredHostTranscriptionLayerId,
-                  )
-                    ? updates.preferredHostTranscriptionLayerId
-                    : normalizedHostTranscriptionLayerIds[0]),
-              }))
-            : input.layerLinks
-                .filter((link) => link.layerId === updatedLayer.id)
-                .map((link) => ({
-                  hostId: link.hostTranscriptionLayerId,
-                  isPreferred: link.isPreferred,
-                }));
-          const preferredTierParentId =
-            updatedLayer.layerType === 'translation'
-              ? shouldUpdateTranslationLinks
-                ? updates.preferredHostTranscriptionLayerId &&
-                  normalizedHostTranscriptionLayerIds.includes(
-                    updates.preferredHostTranscriptionLayerId,
-                  )
-                  ? updates.preferredHostTranscriptionLayerId
-                  : (normalizedHostTranscriptionLayerIds[0] ?? '')
-                : (currentTranslationLinks.find((link) => link.isPreferred)?.hostId ??
-                  currentTranslationLinks[0]?.hostId ??
-                  '')
-              : nextParentLayerId;
-          const extraParentTierIds =
-            updatedLayer.layerType === 'translation'
-              ? currentTranslationLinks
-                  .map((link) => link.hostId)
-                  .filter((hostId) => hostId && hostId !== preferredTierParentId)
-              : [];
-
-          const nextTier = {
-            ...tier,
-            ...(preferredTierParentId ? { parentTierId: preferredTierParentId } : {}),
-            ...(extraParentTierIds.length > 0 ? { extraParentTierIds } : {}),
-            ...(updates.sortOrder !== undefined ? { sortOrder: updates.sortOrder } : {}),
-            updatedAt: new Date().toISOString(),
-          };
-
-          if (!preferredTierParentId) {
-            delete nextTier.parentTierId;
-          }
-          if (extraParentTierIds.length === 0) {
-            delete nextTier.extraParentTierIds;
-          }
-          if (updates.participantId !== undefined) {
-            if (nextParticipantId) nextTier.participantId = nextParticipantId;
-            else delete nextTier.participantId;
-          }
-          if (updates.dataCategory !== undefined) {
-            if (nextDataCategory) nextTier.dataCategory = nextDataCategory;
-            else delete nextTier.dataCategory;
-          }
-          if (updates.delimiter !== undefined) {
-            if (nextDelimiter) nextTier.delimiter = nextDelimiter;
-            else delete nextTier.delimiter;
-          }
-
-          await saveTierDefinition(nextTier, 'human');
         }
 
         input.setLayers((prev) =>

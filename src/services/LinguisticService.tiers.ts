@@ -132,12 +132,13 @@ async function persistTierDefinition(
   source: AuditSource,
 ): Promise<string> {
   const db = await getDb();
-  const existing = await db.dexie.tier_definitions.get(data.id);
   return withTransaction(
     db,
     'rw',
     [...dexieStoresForTierDefinitionAtomicRw(db)],
     async () => {
+      // 旧行在同一事务里读，审计差异不会基于过期数据 | Read the old row in the same transaction
+      const existing = await db.dexie.tier_definitions.get(data.id);
       await db.dexie.tier_definitions.put(data);
       if (existing) {
         const changes = diffTrackedFields(
@@ -162,20 +163,29 @@ export async function saveTierDefinition(
   source: AuditSource = 'human',
 ): Promise<TierSaveResult> {
   const db = await getDb();
-  const allDocs = await db.collections.tier_definitions.findByIndex('textId', data.textId);
-  const allTiers = allDocs.map((doc) => doc.toJSON());
-  const merged = allTiers.filter((tier) => tier.id !== data.id);
-  merged.push(data);
+  // 约束检查与写入在同一事务里（可嵌套在调用方事务中）| Constraint check and write share one (nestable) transaction
+  return withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForTierDefinitionAtomicRw(db)],
+    async (): Promise<TierSaveResult> => {
+      const allDocs = await db.collections.tier_definitions.findByIndex('textId', data.textId);
+      const allTiers = allDocs.map((doc) => doc.toJSON());
+      const merged = allTiers.filter((tier) => tier.id !== data.id);
+      merged.push(data);
 
-  const violations = validateTierConstraints(merged, []);
-  const errors = violations.filter((violation) => violation.severity === 'error');
-  if (errors.length > 0) {
-    return { id: '', errors, warnings: [] };
-  }
+      const violations = validateTierConstraints(merged, []);
+      const errors = violations.filter((violation) => violation.severity === 'error');
+      if (errors.length > 0) {
+        return { id: '', errors, warnings: [] };
+      }
 
-  const id = await persistTierDefinition(data, source);
-  const warnings = violations.filter((violation) => violation.severity === 'warning');
-  return { id, errors: [], warnings };
+      const id = await persistTierDefinition(data, source);
+      const warnings = violations.filter((violation) => violation.severity === 'warning');
+      return { id, errors: [], warnings };
+    },
+    { label: 'LinguisticService.saveTierDefinition' },
+  );
 }
 
 export async function removeTierDefinition(
