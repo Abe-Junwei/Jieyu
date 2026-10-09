@@ -267,25 +267,23 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         barRadius: visualStylePreset.barRadius,
       });
 
-      // Fix: wavesurfer.js SpectrogramPlugin.onInit() always appends its wrapper to
-      // wavesurfer's own container, ignoring the user-specified `container` option.
-      // Relocate the wrapper to the dedicated spectrogram container and synchronise
-      // scroll position via CSS transform so it stays aligned with the waveform.
+      // The spectrogram plugin renders its wrapper into the dedicated spectrogram container
+      // (outside wavesurfer's scroll container), so synchronise scroll via CSS transform.
       //
       // The plugin also sets `width:100%; overflow:hidden` on its wrapper via the
-      // fillParent path.  After relocation "100%" resolves to the viewport-sized
-      // spectrogram container, which clips absolute-positioned canvases that extend
-      // beyond the viewport.  Override to `overflow:visible` so canvases are only
-      // clipped by the outer spectrogramContainer and translateX works correctly.
+      // fillParent path.  "100%" resolves to the viewport-sized spectrogram container,
+      // which clips absolute-positioned canvases that extend beyond the viewport.
+      // Override to `overflow:visible` so canvases are only clipped by the outer
+      // spectrogramContainer and translateX works correctly.
       if (disposed) {
         ws.destroy();
         return;
       }
 
       if (spectrogramPlugin && liveSpectrogram) {
-        const specWrapper = (spectrogramPlugin as unknown as { wrapper?: HTMLElement }).wrapper;
+        // v8 has no public wrapper accessor; the plugin appends it to our container during create().
+        const specWrapper = liveSpectrogram.lastElementChild;
         if (specWrapper instanceof HTMLElement) {
-          liveSpectrogram.appendChild(specWrapper);
           specWrapper.style.overflow = 'visible';
           const syncScroll = () => {
             if (disposed) return;
@@ -357,7 +355,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       ws.setVolume(volRef.current);
       ws.setPlaybackRate(rateRef.current);
       void ws.load(mediaUrl).catch((err: unknown) => {
-        if (disposed) return;
+        // v8: a load superseded by a newer load() rejects with AbortError; not a media error.
+        if (disposed || (err instanceof Error && err.name === 'AbortError')) return;
         const msg = err instanceof Error ? err.message : String(err);
         log.warn('WaveSurfer load rejected', { mediaUrl, error: msg });
         setLoadError(msg);

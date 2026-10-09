@@ -78,12 +78,6 @@ export function AnnotationSentenceAcousticFigure({
           autoCenter: false,
           plugins: spectrogram ? [spectrogram] : [],
         });
-        const wrapper = (spectrogram as unknown as { wrapper?: HTMLElement } | null)?.wrapper;
-        if (wrapper instanceof HTMLElement && spectrumRef.current) {
-          spectrumRef.current.appendChild(wrapper);
-          wrapper.style.overflow = 'hidden';
-          wrapper.style.maxWidth = '100%';
-        }
         await ws.load(audioUrl);
       } catch {
         if (!disposed) setLoadFailed(true);
