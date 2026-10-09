@@ -26,7 +26,7 @@ import type { ImportResult } from '../db/types';
 import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { JIEYU_MAIN_TABLE_REGISTRY, type JieyuDataClass } from '../db/tableRegistry';
-import { JIEYU_PARENT_CONSISTENCY_RULES } from '../db/ownershipImmutabilityMiddleware';
+import { dropOrphanRows, rowsOf, type SkippedOrphanRows } from '../db/dropOrphanRows';
 import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProfiles';
 import {
   createArchiveDecryptor,
@@ -53,6 +53,8 @@ import {
   remapProjectCollections,
   type ProjectCollections,
 } from './projectPackageIdRemap';
+
+export { dropOrphanRows, rowsOf, type SkippedOrphanRows };
 
 export type ProjectPackageKind = 'jyt' | 'jym';
 /** 含整库备份 JYB 的全部包类型 | Every package kind, whole-database JYB included */
@@ -249,13 +251,6 @@ export function appVersion(): string {
   return typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim().length > 0
     ? __APP_VERSION__.trim()
     : 'dev';
-}
-
-export function rowsOf(collections: ProjectCollections, name: string): Row[] {
-  const rows = collections[name];
-  return Array.isArray(rows)
-    ? rows.filter((row): row is Row => row !== null && typeof row === 'object')
-    : [];
 }
 
 /** 导入前读本机字节用的表（P5）| Tables read for local-byte guards before import (P5) */
@@ -1071,58 +1066,6 @@ export function dropCollidingLanguages(
     next[name] = rowsOf(collections, name).filter((row) => !skipped.has(String(row.languageId)));
   }
   return next;
-}
-
-/** 每张表因父行不在包里而跳过的行数 | Rows skipped per table because their parent is not in the package */
-export type SkippedOrphanRows = Array<{ collection: string; count: number }>;
-
-/**
- * 丢弃父行不在包里的行（BF1-N3），父行规则与归属中间件同一套；指向包外词条的链接也丢。循环到
- * 不再有新的孤儿（丢掉的句段带走它的子句段、内容、token、morpheme、链接）。在 id 重新映射之前调用。
- * Drop rows whose parent is not in the package (BF1-N3), using the ownership middleware's parent
- * rules; links to lexemes outside the package are dropped too. Repeats until no new orphan appears
- * (a dropped unit takes its segments, contents, tokens, morphemes and links). Call before id remap.
- * shortcut: orphans are dropped, not repaired/re-parented; upgrade if users need to recover rows from damaged backups.
- */
-export function dropOrphanRows(collections: ProjectCollections): {
-  collections: ProjectCollections;
-  skipped: SkippedOrphanRows;
-} {
-  const rules = Object.entries(JIEYU_PARENT_CONSISTENCY_RULES).filter(([name]) =>
-    Array.isArray(collections[name]),
-  );
-  const counts = new Map<string, number>();
-  let next = collections;
-  for (;;) {
-    const current = next;
-    const idSets = new Map<string, Set<string>>();
-    const idsOf = (table: string): Set<string> => {
-      let ids = idSets.get(table);
-      if (ids === undefined) {
-        ids = new Set(rowsOf(current, table).map((row) => String(row.id)));
-        idSets.set(table, ids);
-      }
-      return ids;
-    };
-    const pass: ProjectCollections = { ...current };
-    let dropped = 0;
-    for (const [name, rule] of rules) {
-      const rows = rowsOf(current, name);
-      const kept = rows.filter((row) =>
-        rule.extract(row).parents.every((ref) => idsOf(ref.table).has(ref.key)),
-      );
-      if (kept.length === rows.length) continue;
-      pass[name] = kept;
-      counts.set(name, (counts.get(name) ?? 0) + rows.length - kept.length);
-      dropped += rows.length - kept.length;
-    }
-    if (dropped === 0) break;
-    next = pass;
-  }
-  const skipped = [...counts.entries()]
-    .map(([collection, count]) => ({ collection, count }))
-    .sort((a, b) => a.collection.localeCompare(b.collection, 'en'));
-  return { collections: next, skipped };
 }
 
 /** 覆盖当前项目这一选项的情况（D5、T33）| The "overwrite current project" option (D5, T33) */
