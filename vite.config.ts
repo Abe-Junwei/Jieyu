@@ -10,7 +10,6 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('.', import.meta.url));
-const zodCoreConfigEntry = resolve(repoRoot, 'node_modules/zod/v4/core/core.js');
 import type { Plugin as RolldownPlugin } from 'rolldown';
 
 // CI 环境提供 SENTRY_AUTH_TOKEN 时自动上传 source map 并删除本地产物 | Upload source maps in CI when SENTRY_AUTH_TOKEN is present
@@ -245,8 +244,6 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
-      // 包 exports 未列出该子路径；供 index.html 与 Vitest 在 classic zod 加载前写入 jitless
-      'zod/v4/core/core.js': zodCoreConfigEntry,
       // wavesurfer spectrogram probes Node worker_threads at module scope; map to browser shim to avoid externalization warnings
       worker_threads: resolve(repoRoot, 'src/workerThreads.browser.ts'),
       // 支持 ~/hooks/... 等绝对路径别名（与 tsconfig paths 对齐）| Align with tsconfig paths for Vitest resolution

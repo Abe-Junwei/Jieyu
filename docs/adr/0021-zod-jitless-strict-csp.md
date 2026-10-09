@@ -17,7 +17,8 @@ source_of_truth: architecture-decision
 
 ## 决策
 
-1. **`src/zodJitlessBootstrap.ts`**：仅从 **`zod/v4/core/core.js`**（Vite `resolve.alias` → `node_modules/zod/v4/core/core.js`）导入 `globalConfig` 并 `Object.assign(globalConfig, { jitless: true })`。**禁止**仅在 `main.tsx` 内 `import { config } from 'zod'` 再设置。
+1. **`src/zodJitlessBootstrap.ts`**：**不 import zod**，直接写 `globalThis.__zod_globalConfig`（Zod 4 的全局配置对象，`core.js` 用 `??=` 取用）并置 `jitless: true`。**禁止**仅在 `main.tsx` 内 `import { config } from 'zod'` 再设置。
+   - 2026-10-09 修订：原做法从 `zod/v4/core/core.js` 导入 `globalConfig`，但 Rolldown 把 zod 打进了含顶层 schema 的业务 chunk（`TranscriptionPage.ImportExport.archive-*`），bootstrap 一 import 就先执行该 chunk，顶层 `ZodObject` 在 jitless 生效前已构造并触发 `Function('')` 探测（DOM `securitypolicyviolation`）。现在 bootstrap 零依赖，不受分包影响；`criticalPaths` 的 CSP e2e 同时断言 DOM 违规事件。
 2. **Vite 生产**：默认会把 `index.html` 里多段 `type="module"` 与 `main` **打成单 chunk**，静态 `import` 仍先于同 chunk 内任何「后置」逻辑，故仅靠「在 HTML 里先于 main 写另一段 `<script type="module" src=…bootstrap>`」**不可靠**。采用 **`build.rollupOptions.input.zodJitlessBootstrap`** 产出固定名 **`assets/zod-jitless-bootstrap.js`**（`output.entryFileNames`），并由插件 **`injectZodBootstrapExecBeforeMain`** 在 **`transformIndexHtml`（`order: 'post'`）** 于 **`main-*.js` 之前**插入可执行的 `<script type="module" src="/assets/zod-jitless-bootstrap.js">`。**开发**：同一插件在 `ctx.server` 下于 `/src/main.tsx` 之前插入 `/src/zodJitlessBootstrap.ts`。
 3. **Vitest**：`vite.config.ts` → `setupFiles` 首项为 `src/zodJitlessBootstrap.ts`。
 4. **`manualChunks`**：将 **`node_modules/zod/**` 归入 `zod-vendor`**，避免业务异步 chunk 再打进第二份 Zod 与第二份 `globalConfig`。
@@ -42,7 +43,7 @@ source_of_truth: architecture-decision
 
 1. `npm run regression:vite-zod-csp`（即 `typecheck` → `build` → `test:e2e` 三引擎）。
 2. 核对 **`dist/index.html`**：存在 **先于** `main-*.js` 的 **`/assets/zod-jitless-bootstrap.js`** 可执行脚本标签，且 **`vite.config.ts`** 中 `injectZodBootstrapExecBeforeMain` 仍作用于 `transformIndexHtml` **post**。
-3. 若升级 **Vite**：重点确认多入口 `rollupOptions.input` 与 `output.entryFileNames` 行为未变；若升级 **Zod**：确认 `globalConfig` / `jitless` 语义与 `zod/v4/core/core.js` 路径仍有效。
+3. 若升级 **Vite**：重点确认多入口 `rollupOptions.input` 与 `output.entryFileNames` 行为未变；若升级 **Zod**：确认 `core.js` 仍从 `globalThis.__zod_globalConfig` 取全局配置、`jitless` 语义不变。
 
 ## 回顾点
 

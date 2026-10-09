@@ -89,8 +89,17 @@ test.describe('关键路径 | Critical paths', () => {
         cspViolations.push(msg.text());
       }
     });
+    // try/catch 吞掉的违规（如 Zod 的 Function('') 探测）不进控制台，只发 DOM 事件 | Swallowed violations (e.g. Zod's Function('') probe) only fire the DOM event
+    await page.addInitScript(() => {
+      const w = window as Window & { __cspEvents?: string[] };
+      w.__cspEvents = [];
+      document.addEventListener('securitypolicyviolation', (event) => {
+        w.__cspEvents!.push(`${event.violatedDirective} ${event.blockedURI} ${event.sourceFile}:${event.lineNumber}`);
+      });
+    });
     const response = await page.goto('/transcription');
     await page.waitForTimeout(3000);
+    const domViolations = await page.evaluate(() => (window as Window & { __cspEvents?: string[] }).__cspEvents ?? []);
     expect(response).not.toBeNull();
     const headers = response!.headers();
     expect(headers['content-security-policy']).toContain("frame-ancestors 'none'");
@@ -105,6 +114,7 @@ test.describe('关键路径 | Critical paths', () => {
       )
       : cspViolations;
     expect(normalizedViolations).toHaveLength(0);
+    expect(domViolations).toEqual([]);
   });
 
   test('ARCH-9：创建语言层与翻译层并导出 Toolbox | ARCH-9: create language layer + translation and export Toolbox', async ({ page }) => {
