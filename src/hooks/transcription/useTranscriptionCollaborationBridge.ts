@@ -33,6 +33,12 @@ import {
   getSupabaseUserId,
   hasSupabaseBrowserClientConfig,
 } from '../../collaboration/cloud/collaborationSupabaseFacade';
+import { getCollaborationClientId } from '../../collaboration/cloud/collaborationClientIdentity';
+import {
+  isProjectSyncBlockedLocally,
+  markProjectCollaborationBound,
+  markProjectOutboundRecorded,
+} from '../../collaboration/cloud/collaborationLocalProjectRegistry';
 import { createLogger } from '../../observability/logger';
 
 interface UseTranscriptionCollaborationBridgeParams {
@@ -63,6 +69,8 @@ interface CollaborationChangeInsertRow {
 
 interface LoadProtocolGuardFromCloudResult {
   guard: CollaborationProtocolGuardEvaluation;
+  /** 云端有这个项目行（即存在协作绑定，D6）| The cloud project row exists (a binding, D6) */
+  projectExists: boolean;
   error: unknown | null;
 }
 
@@ -111,7 +119,16 @@ async function loadProtocolGuardFromCloud(
         }
       : null,
   );
-  return { guard, error };
+  return { guard, projectExists: Boolean(projectRow), error };
+}
+
+/** 本机协作记录写失败不阻断协同，只记日志 | Registry write failures never block sync */
+function recordLocally(action: () => void, label: string): void {
+  try {
+    action();
+  } catch (error) {
+    log.warn(`collaboration local registry update failed: ${label}`, { err: error });
+  }
 }
 
 function assertCloudWritesAllowed(writeGuard: CollaborationProtocolGuardEvaluation): void {
@@ -119,13 +136,6 @@ function assertCloudWritesAllowed(writeGuard: CollaborationProtocolGuardEvaluati
   const detail =
     writeGuard.reasons.length > 0 ? writeGuard.reasons.join('; ') : 'cloud-writes-disabled';
   throw new Error(`Collaboration cloud writes are disabled: ${detail}`);
-}
-
-function createClientId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return `web-${crypto.randomUUID()}`;
-  }
-  return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function toChangeInsertRow(
@@ -160,7 +170,8 @@ export function useTranscriptionCollaborationBridge({
   const normalizedProjectId = useMemo(() => projectId.trim(), [projectId]);
   const bridgeRef = useRef<CollaborationSyncBridge | null>(null);
   const codecRef = useRef<ProjectChangeCodec | null>(null);
-  const clientIdRef = useRef<string>(createClientId());
+  // 每个安装实例一个 clientId（9.4）| One clientId per installation (9.4)
+  const clientIdRef = useRef<string>(getCollaborationClientId());
   const latestRevisionRef = useRef<number>(0);
   const writeGuardRef = useRef<CollaborationProtocolGuardEvaluation>(DEFAULT_PROTOCOL_GUARD);
   const [isBridgeReady, setIsBridgeReady] = useState(false);
@@ -208,7 +219,13 @@ export function useTranscriptionCollaborationBridge({
   useEffect(() => {
     let disposed = false;
 
-    if (!enabled || !normalizedProjectId || !hasSupabaseBrowserClientConfig()) {
+    if (
+      !enabled ||
+      !normalizedProjectId ||
+      !hasSupabaseBrowserClientConfig() ||
+      // 已从本机移除或云端已删除的项目不再自动同步（9.1、9.2）| No auto-sync for removed / tombstoned projects
+      isProjectSyncBlockedLocally(normalizedProjectId)
+    ) {
       void stopBridgeRuntime();
       return () => {
         disposed = true;
@@ -228,12 +245,18 @@ export function useTranscriptionCollaborationBridge({
 
       latestRevisionRef.current = Math.max(0, loadProjectLastSeenRevision(normalizedProjectId));
 
-      const { guard, error: projectGuardError } =
-        await loadProtocolGuardFromCloud(normalizedProjectId);
+      const {
+        guard,
+        projectExists,
+        error: projectGuardError,
+      } = await loadProtocolGuardFromCloud(normalizedProjectId);
       if (projectGuardError) {
         log.warn('failed to load project protocol guard', { err: projectGuardError });
       }
       if (disposed) return;
+      if (projectExists) {
+        recordLocally(() => markProjectCollaborationBound(normalizedProjectId), 'bound');
+      }
       applyProtocolGuard(guard);
 
       const codec = new ProjectChangeCodec({
@@ -376,6 +399,8 @@ export function useTranscriptionCollaborationBridge({
         sourceKind: 'user',
       });
 
+      // 先记下“有过出站记录”，再入队（D6）| Record outbound history before queueing (D6)
+      recordLocally(() => markProjectOutboundRecorded(normalizedProjectId), 'outbound');
       bridge.enqueueLocalChange(record);
     },
     [normalizedProjectId],

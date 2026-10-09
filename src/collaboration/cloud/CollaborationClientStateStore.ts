@@ -107,6 +107,23 @@ function loadBaseStateMapFromStorage(target: Storage): CollaborationClientStateM
   }
 }
 
+/**
+ * 协同客户端状态能否读出（D6：读不出就判定不了）。没有记录也算能读。
+ * Whether the client state can be read (D6: unreadable = undecidable). No record counts as readable.
+ */
+export function probeCollabClientStateReadable(storage?: Storage): boolean {
+  const target = storage ?? getDefaultStorage();
+  if (target === undefined) return false;
+  try {
+    const raw = target.getItem(COLLAB_CLIENT_STATE_STORAGE_KEY);
+    if (raw === null || raw.length === 0) return true;
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
+  } catch {
+    return false;
+  }
+}
+
 function loadStateMap(storage?: Storage): CollaborationClientStateMap {
   const target = storage ?? getDefaultStorage();
   if (target === undefined) return {};
