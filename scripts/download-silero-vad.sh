@@ -43,9 +43,15 @@ if [ -f "${DEST}" ]; then
     echo "[Silero-VAD] 模型已存在且校验通过（${SILERO_VERSION}）| Model present and verified (${SILERO_VERSION}): ${DEST}"
     exit 0
   fi
-  echo "[Silero-VAD] 现有模型 sha256 不符，重新下载 | Existing model sha256 mismatch, re-downloading" >&2
-  echo "  expected: ${EXPECTED_SHA256}" >&2
-  echo "  actual  : ${ACTUAL}" >&2
+  # 先把坏文件隔离（改名，不再是 .onnx），即使重新下载失败，运行时也不会加载它（BF1-N4）
+  # Quarantine the bad file first (renamed, no longer *.onnx) so the runtime never loads it,
+  # even when the re-download below fails (BF1-N4)
+  QUARANTINE="${DEST}.sha256-mismatch.$(date +%Y%m%d%H%M%S)"
+  mv -f "${DEST}" "${QUARANTINE}"
+  echo "[Silero-VAD] 现有模型 sha256 不符，已隔离并重新下载 | Existing model sha256 mismatch, quarantined and re-downloading" >&2
+  echo "  expected  : ${EXPECTED_SHA256}" >&2
+  echo "  actual    : ${ACTUAL}" >&2
+  echo "  quarantine: ${QUARANTINE}" >&2
 fi
 
 TMP="$(mktemp "${MODEL_DIR}/.silero_vad.XXXXXX")"
@@ -56,9 +62,12 @@ echo "  来源 | Source : ${SOURCE_URL}"
 echo "  目标 | Target : ${DEST}"
 echo ""
 
-curl -fL --progress-bar --retry 3 --retry-delay 5 \
+if ! curl -fL --progress-bar --retry 3 --retry-delay 5 \
   -o "${TMP}" \
-  "${SOURCE_URL}"
+  "${SOURCE_URL}"; then
+  echo "[Silero-VAD] 下载失败，未写入模型（${DEST} 不存在）| Download failed, no model written (${DEST} absent)" >&2
+  exit 1
+fi
 
 ACTUAL="$(sha256_of "${TMP}")"
 if [ "${ACTUAL}" != "${EXPECTED_SHA256}" ]; then
