@@ -31,17 +31,32 @@ test.describe('R4 S1 full field round-trip | Full JYM UI chain', () => {
       await importJymArchive(fresh, archive);
       await waitForDexie(fresh);
 
-      const textAfterImport = await readSegmentText(fresh, 'seg_e2e_c', project.layerId);
-      expect(textAfterImport).toBe('gamma');
-
-      const mediaCount = await fresh.evaluate(async () => {
+      // 第 3 批：JYM 恢复为新项目（新 id、restoredFrom），录音字节随包带回
+      // Batch 3: restored as a new project (new ids, restoredFrom) with the recording bytes
+      const restored = await fresh.evaluate(async (sourceId) => {
+        type Row = Record<string, unknown> & { id: string; textId?: string };
         const dexie = (globalThis as unknown as {
-          __jieyuDexie__: { open: () => Promise<unknown>; media_items: { count: () => Promise<number> } };
+          __jieyuDexie__: {
+            open: () => Promise<unknown>;
+            table: (n: string) => { toArray: () => Promise<Row[]> };
+          };
         }).__jieyuDexie__;
         await dexie.open();
-        return dexie.media_items.count();
-      });
-      expect(mediaCount).toBeGreaterThanOrEqual(1);
+        const text = (await dexie.table('texts').toArray()).find(
+          (row) => (row.restoredFrom as { projectId?: string } | undefined)?.projectId === sourceId,
+        );
+        if (!text) return null;
+        const contents = (await dexie.table('layer_unit_contents').toArray())
+          .filter((r) => r.textId === text.id)
+          .map((r) => String(r.text ?? ''));
+        const media = (await dexie.table('media_items').toArray()).filter((r) => r.textId === text.id);
+        const blob = (media[0]?.details as { audioBlob?: unknown } | undefined)?.audioBlob;
+        return { id: text.id, contents, mediaCount: media.length, hasBlob: blob instanceof Blob };
+      }, project.textId);
+      expect(restored).not.toBeNull();
+      expect(restored!.id).not.toBe(project.textId);
+      expect(restored!.contents).toEqual(expect.arrayContaining(['alpha', 'beta', 'gamma']));
+      expect(restored).toMatchObject({ mediaCount: 1, hasBlob: true });
     } finally {
       await fresh.close();
     }

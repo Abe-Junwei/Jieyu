@@ -9,8 +9,7 @@ import { test, expect } from '@playwright/test';
 import {
   exportArchiveFromProjectHub,
   handleArchiveExportDialogs,
-  importArchiveViaProjectHub,
-  importJytViaProjectHub,
+  importProjectPackageViaProjectHub,
   readMediaDiagnostics,
 } from './_helpers/mediaByteDiagnostics';
 import { buildMinimalWavBytes, buildMinimalWavFile } from './_helpers/minimalWav';
@@ -23,7 +22,7 @@ import {
 const NO_PLAYABLE = '.timeline-axis-status-strip__no-playable-media';
 
 test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', () => {
-  test('real audio bytes survive JYT overwrite / restore-as-new and JYM re-import (replace-all)', async ({
+  test('real audio bytes survive JYT overwrite / restore-as-new and a JYM overwrite with the same bytes', async ({
     page,
   }) => {
     test.setTimeout(240_000);
@@ -48,7 +47,7 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
 
     // 第 3 批：JYT 只能恢复为新项目或覆盖当前项目；两种都不能动本机字节 | Batch 3 JYT modes
     for (const mode of ['restore-as-new', 'overwrite-current'] as const) {
-      await importJytViaProjectHub(page, jyt, 'roundtrip.jyt', mode);
+      await importProjectPackageViaProjectHub(page, jyt, 'roundtrip.jyt', mode);
       const after = (await readMediaDiagnostics(page, project.textId)).find(
         (r) => r.id === project.mediaId,
       );
@@ -61,8 +60,9 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
       });
     }
 
+    // JYM 带着同样的字节覆盖当前项目：允许，且字节不变 | JYM overwrite with identical bytes
     const jym = await exportArchiveFromProjectHub(page, 'JYM');
-    await importArchiveViaProjectHub(page, jym, 'roundtrip.jym', 'replace-all');
+    await importProjectPackageViaProjectHub(page, jym, 'roundtrip.jym', 'overwrite-current');
     const afterJym = (await readMediaDiagnostics(page, project.textId)).find(
       (r) => r.id === project.mediaId,
     );

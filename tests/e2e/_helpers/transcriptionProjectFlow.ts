@@ -180,10 +180,10 @@ export async function importJymArchive(page: Page, archive: Buffer): Promise<voi
     buffer: archive,
   });
 
+  // 第 3 批：JYM 默认恢复为新项目 | Batch 3: a JYM restores as a new project by default
   const importDialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
   await expect(importDialog).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('radio', { name: /Replace all records|replace-all|全部替换/i }).click();
-  await page.getByRole('button', { name: /Start project import|开始导入项目/i }).click();
+  await importDialog.getByRole('button', { name: /Restore as new project|恢复为新项目/i }).click();
   await expect(importDialog).toBeHidden({ timeout: 60_000 });
 }
 

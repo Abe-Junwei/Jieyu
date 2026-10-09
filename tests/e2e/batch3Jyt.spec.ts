@@ -9,7 +9,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import {
   exportArchiveFromProjectHub,
   handleArchiveExportDialogs,
-  importJytViaProjectHub,
+  importProjectPackageViaProjectHub,
   readMediaDiagnostics,
 } from './_helpers/mediaByteDiagnostics';
 import {
@@ -100,7 +100,7 @@ test.describe('Batch 3 JYT | 第三批 JYT', () => {
     expect(mediaEntity?.contentSize ?? 0).toBeGreaterThan(44);
 
     const textsBefore = await readTable(page, 'texts');
-    await importJytViaProjectHub(page, jyt, 'field.jyt', 'restore-as-new');
+    await importProjectPackageViaProjectHub(page, jyt, 'field.jyt', 'restore-as-new');
     await expect
       .poll(async () => (await readTable(page, 'texts')).length, { timeout: 15_000 })
       .toBe(textsBefore.length + 1);
@@ -157,7 +157,7 @@ test.describe('Batch 3 JYT | 第三批 JYT', () => {
       await dexie.layer_unit_contents.update(id, { text: 'edited after export' });
     }, edited.id);
 
-    await importJytViaProjectHub(page, jyt, 'field.jyt', 'overwrite-current');
+    await importProjectPackageViaProjectHub(page, jyt, 'field.jyt', 'overwrite-current');
 
     const after = (await readTable(page, 'layer_unit_contents')).find((c) => c.id === edited.id);
     expect(after?.text).toBe(edited.text);

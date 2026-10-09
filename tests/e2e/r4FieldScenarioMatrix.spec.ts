@@ -38,21 +38,49 @@ test.describe('R4 场景矩阵 | Field scenario matrix', () => {
       buffer: Buffer.from(buildMinimalJymArchiveBytes()),
     });
 
+    // 第 3 批：JYM 恢复为新项目，id 重新分配，restoredFrom 指回原项目
+    // Batch 3: the JYM restores as a new project with new ids and restoredFrom
     const importDialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
     await expect(importDialog).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('radio', { name: /Replace all records|replace-all|全部替换/i }).click();
-    await page.getByRole('button', { name: /Start project import|开始导入项目/i }).click();
+    await expect(importDialog.getByTestId('project-import-bytes-included')).toBeVisible();
+    await importDialog.getByRole('button', { name: /Restore as new project|恢复为新项目/i }).click();
     await expect(importDialog).toBeHidden({ timeout: 60_000 });
 
     await expect.poll(() => countLayerUnits(page)).toBeGreaterThanOrEqual(4);
-    const textExists = await page.evaluate(async () => {
+    const restored = await page.evaluate(async () => {
+      type Row = Record<string, unknown> & { id: string; textId?: string };
       const dexie = (globalThis as unknown as {
-        __jieyuDexie__: { texts: { get: (id: string) => Promise<{ id: string } | undefined> } };
+        __jieyuDexie__: {
+          open: () => Promise<unknown>;
+          table: (n: string) => { toArray: () => Promise<Row[]> };
+        };
       }).__jieyuDexie__;
-      const row = await dexie.texts.get('text_r4_s1');
-      return row?.id === 'text_r4_s1';
+      await dexie.open();
+      const text = (await dexie.table('texts').toArray()).find(
+        (row) => (row.restoredFrom as { projectId?: string } | undefined)?.projectId === 'text_r4_s1',
+      );
+      if (!text) return null;
+      const media = (await dexie.table('media_items').toArray()).filter((r) => r.textId === text.id);
+      const segments = (await dexie.table('layer_units').toArray()).filter(
+        (r) => r.textId === text.id && r.unitType === 'segment',
+      );
+      const blob = (media[0]?.details as { audioBlob?: unknown } | undefined)?.audioBlob;
+      return {
+        id: text.id,
+        segments: segments.length,
+        mediaCount: media.length,
+        hasBlob: blob instanceof Blob,
+        byteLocation: media[0]?.byteLocation,
+      };
     });
-    expect(textExists).toBe(true);
+    expect(restored).not.toBeNull();
+    expect(restored!.id).not.toBe('text_r4_s1');
+    expect(restored).toMatchObject({
+      segments: 3,
+      mediaCount: 1,
+      hasBlob: true,
+      byteLocation: 'managed',
+    });
   });
 
   test('S5：深链进入转写后 sessionStorage 返回提示可往返 | Deep link return hint round-trips', async ({ page }) => {

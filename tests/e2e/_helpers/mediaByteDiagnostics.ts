@@ -101,30 +101,11 @@ export async function exportArchiveFromProjectHub(
   return Buffer.concat(chunks);
 }
 
-export async function importArchiveViaProjectHub(
-  page: Page,
-  archive: Buffer,
-  name: string,
-  strategy: 'upsert' | 'replace-all',
-): Promise<void> {
-  const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
-  await input.setInputFiles({ name, mimeType: 'application/octet-stream', buffer: archive });
-  const dialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
-  await expect(dialog).toBeVisible({ timeout: 15_000 });
-  const radioName =
-    strategy === 'upsert'
-      ? /Overwrite conflicts|覆盖冲突项|upsert/i
-      : /Replace all records|全量替换|replace-all/i;
-  await page.getByRole('radio', { name: radioName }).click();
-  await page.getByRole('button', { name: /Start project import|开始导入项目/i }).click();
-  await expect(dialog).toBeHidden({ timeout: 60_000 });
-}
-
 /**
- * 第 3 批 JYT：通过项目中心恢复为新项目，或覆盖当前项目（覆盖要点两次）。
- * Batch 3 JYT through the project hub: restore as a new project, or overwrite (two clicks).
+ * 第 3 批 JYT / JYM：通过项目中心恢复为新项目，或覆盖当前项目（覆盖要点两次）。
+ * Batch 3 JYT / JYM through the project hub: restore as a new project, or overwrite (two clicks).
  */
-export async function importJytViaProjectHub(
+export async function importProjectPackageViaProjectHub(
   page: Page,
   archive: Buffer,
   name: string,
