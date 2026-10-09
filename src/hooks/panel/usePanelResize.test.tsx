@@ -252,4 +252,78 @@ describe('usePanelResize', () => {
       window.dispatchEvent(new PointerEvent('pointerup'));
     });
   });
+
+  describe('side pane keyboard / double-click (research-connected handle)', () => {
+    function renderSidePane(initialWidth: number, isCollapsed = false) {
+      return renderHook(() => {
+        const [width, setWidth] = useState(initialWidth);
+        const boundary = document.createElement('div');
+        boundary.getBoundingClientRect = () =>
+          ({ width: 1000, height: 600, left: 0, top: 0, right: 1000, bottom: 600 }) as DOMRect;
+        const boundaryRef = useRef<HTMLElement | null>(boundary);
+        const dragCleanupRef = useRef<(() => void) | null>(null);
+        const handlers = usePanelResize({
+          sidePane: {
+            isCollapsed,
+            width,
+            setWidth,
+            boundaryRef,
+            dragCleanupRef,
+            side: 'left',
+            minWidth: 240,
+            maxWidth: 420,
+            maxWidthRatio: 0.45,
+            defaultWidth: 272,
+          },
+        });
+        return { ...handlers, width };
+      });
+    }
+
+    function key(k: string, shiftKey = false) {
+      return {
+        key: k,
+        shiftKey,
+        preventDefault: vi.fn(),
+        stopPropagation: vi.fn(),
+      } as unknown as React.KeyboardEvent<HTMLDivElement>;
+    }
+
+    it('ArrowRight widens a left sidebar by 24px, Shift+ArrowLeft narrows by 80px, clamped', () => {
+      const { result } = renderSidePane(300);
+      const right = key('ArrowRight');
+      act(() => result.current.handleSidePaneResizeKeyDown(right));
+      expect(result.current.width).toBe(324);
+      expect(right.preventDefault).toHaveBeenCalled();
+
+      act(() => result.current.handleSidePaneResizeKeyDown(key('ArrowLeft', true)));
+      expect(result.current.width).toBe(244);
+      act(() => result.current.handleSidePaneResizeKeyDown(key('ArrowLeft', true)));
+      expect(result.current.width).toBe(240);
+    });
+
+    it('Home and double-click restore the default width', () => {
+      const { result } = renderSidePane(400);
+      act(() => result.current.handleSidePaneResizeKeyDown(key('Home')));
+      expect(result.current.width).toBe(272);
+
+      act(() => result.current.handleSidePaneResizeKeyDown(key('ArrowRight', true)));
+      expect(result.current.width).toBe(352);
+      act(() => result.current.handleSidePaneResizeReset());
+      expect(result.current.width).toBe(272);
+    });
+
+    it('ignores other keys and does nothing while collapsed', () => {
+      const { result } = renderSidePane(300);
+      const other = key('Enter');
+      act(() => result.current.handleSidePaneResizeKeyDown(other));
+      expect(other.preventDefault).not.toHaveBeenCalled();
+      expect(result.current.width).toBe(300);
+
+      const collapsed = renderSidePane(300, true);
+      act(() => collapsed.result.current.handleSidePaneResizeKeyDown(key('ArrowRight')));
+      act(() => collapsed.result.current.handleSidePaneResizeReset());
+      expect(collapsed.result.current.width).toBe(300);
+    });
+  });
 });

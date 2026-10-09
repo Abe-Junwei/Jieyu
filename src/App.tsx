@@ -158,6 +158,8 @@ type NavGroup = {
 const SIDE_PANE_COLLAPSED_KEY = 'jieyu-side-pane-collapsed';
 const SIDE_PANE_WIDTH_KEY = 'jieyu-side-pane-width';
 const SIDE_PANE_DEFAULT_WIDTH = 272;
+const SIDE_PANE_MIN_WIDTH = 240;
+const SIDE_PANE_MAX_WIDTH = 420;
 
 function readLocalStorageValue(key: string): string | null {
   try {
@@ -172,7 +174,8 @@ function readPersistedSidePaneWidth(): number {
     const raw = readLocalStorageValue(SIDE_PANE_WIDTH_KEY);
     if (raw) {
       const next = Number(raw);
-      if (Number.isFinite(next) && next >= 240 && next <= 420) return next;
+      if (Number.isFinite(next) && next >= SIDE_PANE_MIN_WIDTH && next <= SIDE_PANE_MAX_WIDTH)
+        return next;
     }
   } catch {
     // 忽略存储读取失败，回退默认值 | Ignore storage read failures and fall back to default width
@@ -205,14 +208,20 @@ function AppShellSidePane({
   activeNavItem,
   isTranscriptionRoute,
   isSidePaneCollapsed,
+  sidePaneWidth,
   handleSidePaneResizeStart,
+  handleSidePaneResizeKeyDown,
+  handleSidePaneResizeReset,
   handleSidePaneToggle,
 }: {
   locale: ReturnType<typeof detectLocale>;
   activeNavItem: NavItem | undefined;
   isTranscriptionRoute: boolean;
   isSidePaneCollapsed: boolean;
+  sidePaneWidth: number;
   handleSidePaneResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
+  handleSidePaneResizeKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+  handleSidePaneResizeReset: () => void;
   handleSidePaneToggle: (event?: React.SyntheticEvent<HTMLElement>) => void;
 }) {
   const sidePaneRegistration = useAppSidePaneRegistrationSnapshot();
@@ -263,17 +272,24 @@ function AppShellSidePane({
         className={`app-side-pane-handle-cluster ${isTranscriptionRoute ? 'app-side-pane-handle-cluster-transcription' : ''}`}
       >
         <div
-          className="app-side-pane-resizer"
+          className="app-side-pane-resizer sidebar-handle-resizer"
           onPointerDown={handleSidePaneResizeStart}
+          onKeyDown={handleSidePaneResizeKeyDown}
+          onDoubleClick={handleSidePaneResizeReset}
           role="separator"
+          tabIndex={isSidePaneCollapsed ? -1 : 0}
           aria-orientation="vertical"
+          aria-valuemin={SIDE_PANE_MIN_WIDTH}
+          aria-valuemax={SIDE_PANE_MAX_WIDTH}
+          aria-valuenow={sidePaneWidth}
           aria-label={t(locale, 'app.sidePane.aria.resize')}
         />
         <button
           type="button"
-          className="app-side-pane-collapse-toggle"
+          className="app-side-pane-collapse-toggle sidebar-handle-toggle is-left"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={handleSidePaneToggle}
+          aria-expanded={!isSidePaneCollapsed}
           aria-label={
             isSidePaneCollapsed
               ? t(locale, 'app.sidePane.expand')
@@ -284,9 +300,7 @@ function AppShellSidePane({
               ? t(locale, 'app.sidePane.expand')
               : t(locale, 'app.sidePane.collapse')
           }
-        >
-          <span aria-hidden="true">{isSidePaneCollapsed ? '›' : '‹'}</span>
-        </button>
+        />
       </div>
     </>
   );
@@ -712,19 +726,21 @@ export function App() {
     ignoreSelectors: ['.app-left-rail'],
   });
 
-  const { handleSidePaneResizeStart } = usePanelResize({
-    sidePane: {
-      isCollapsed: isSidePaneCollapsed,
-      width: sidePaneWidth,
-      setWidth: setSidePaneWidth,
-      boundaryRef: shellBodyRef,
-      dragCleanupRef: shellDragCleanupRef,
-      side: 'left',
-      minWidth: 240,
-      maxWidth: 420,
-      maxWidthRatio: 0.45,
-    },
-  });
+  const { handleSidePaneResizeStart, handleSidePaneResizeKeyDown, handleSidePaneResizeReset } =
+    usePanelResize({
+      sidePane: {
+        isCollapsed: isSidePaneCollapsed,
+        width: sidePaneWidth,
+        setWidth: setSidePaneWidth,
+        boundaryRef: shellBodyRef,
+        dragCleanupRef: shellDragCleanupRef,
+        side: 'left',
+        minWidth: SIDE_PANE_MIN_WIDTH,
+        maxWidth: SIDE_PANE_MAX_WIDTH,
+        maxWidthRatio: 0.45,
+        defaultWidth: SIDE_PANE_DEFAULT_WIDTH,
+      },
+    });
 
   return (
     <ErrorBoundary>
@@ -815,7 +831,10 @@ export function App() {
                 activeNavItem={activeNavItem}
                 isTranscriptionRoute={isTranscriptionRoute}
                 isSidePaneCollapsed={isSidePaneCollapsed}
+                sidePaneWidth={sidePaneWidth}
                 handleSidePaneResizeStart={handleSidePaneResizeStart}
+                handleSidePaneResizeKeyDown={handleSidePaneResizeKeyDown}
+                handleSidePaneResizeReset={handleSidePaneResizeReset}
                 handleSidePaneToggle={handleSidePaneToggle}
               />
 

@@ -11,6 +11,8 @@ type HorizontalPanelResizeConfig = {
   maxWidth?: number;
   maxWidthRatio?: number;
   minRemainingSpace?: number;
+  /** Home / 双击回到的宽度 | Width restored by Home / double-click */
+  defaultWidth?: number;
 };
 
 type VerticalPanelResizeConfig = {
@@ -27,6 +29,31 @@ type UsePanelResizeParams = {
   hub?: VerticalPanelResizeConfig;
 };
 
+function resolveHorizontalBounds(
+  config: HorizontalPanelResizeConfig,
+): { minWidth: number; maxWidth: number } | null {
+  const root = config.boundaryRef.current;
+  if (!root) return null;
+
+  const rect = root.getBoundingClientRect();
+  const minRemainingSpace = Math.max(0, config.minRemainingSpace ?? 24);
+  const maxWidthFromViewport = Math.max(180, rect.width - minRemainingSpace);
+  const minWidth = Math.min(config.minWidth ?? 240, maxWidthFromViewport);
+  const maxWidthFromConfig = Math.min(config.maxWidth ?? 560, maxWidthFromViewport);
+  const maxWidthFromRatio =
+    config.maxWidthRatio !== undefined
+      ? rect.width * config.maxWidthRatio
+      : Number.POSITIVE_INFINITY;
+  const maxWidth = Math.max(minWidth, Math.min(maxWidthFromConfig, maxWidthFromRatio));
+  return { minWidth, maxWidth };
+}
+
+function applyHorizontalWidth(config: HorizontalPanelResizeConfig, rawNextWidth: number) {
+  const bounds = resolveHorizontalBounds(config);
+  if (!bounds) return;
+  config.setWidth(Math.max(bounds.minWidth, Math.min(bounds.maxWidth, Math.round(rawNextWidth))));
+}
+
 function startHorizontalResize(
   event: React.PointerEvent<HTMLDivElement>,
   config: HorizontalPanelResizeConfig | undefined,
@@ -38,20 +65,12 @@ function startHorizontalResize(
   if (config.isCollapsed) return;
 
   const root = config.boundaryRef.current;
-  if (!root) return;
+  const bounds = resolveHorizontalBounds(config);
+  if (!root || !bounds) return;
 
-  const rect = root.getBoundingClientRect();
   const startX = event.clientX;
   const startWidth = config.width;
-  const minRemainingSpace = Math.max(0, config.minRemainingSpace ?? 24);
-  const maxWidthFromViewport = Math.max(180, rect.width - minRemainingSpace);
-  const minWidth = Math.min(config.minWidth ?? 240, maxWidthFromViewport);
-  const maxWidthFromConfig = Math.min(config.maxWidth ?? 560, maxWidthFromViewport);
-  const maxWidthFromRatio =
-    config.maxWidthRatio !== undefined
-      ? rect.width * config.maxWidthRatio
-      : Number.POSITIVE_INFINITY;
-  const maxWidth = Math.max(minWidth, Math.min(maxWidthFromConfig, maxWidthFromRatio));
+  const { minWidth, maxWidth } = bounds;
 
   // 拖拽期间禁用过渡动画，避免 220ms 延迟 | Suppress transitions during drag to avoid 220ms lag
   root.classList.add('is-panel-resizing');
@@ -72,6 +91,40 @@ function startHorizontalResize(
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   config.dragCleanupRef.current = onUp;
+}
+
+// 键盘与双击沿用 research-connected 的侧栏把手（src/sidebar-resize.ts）：方向键 24px、Shift 80px，
+// 朝侧栏外侧的方向键加宽；Home 与双击回到默认宽度。
+// Keyboard and double-click follow research-connected's sidebar handle (src/sidebar-resize.ts):
+// arrows step 24px (Shift: 80px), the arrow pointing away from the sidebar widens it; Home and
+// double-click restore the default width.
+const KEYBOARD_RESIZE_STEP = 24;
+const KEYBOARD_RESIZE_STEP_LARGE = 80;
+
+function keyboardHorizontalResize(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  config: HorizontalPanelResizeConfig | undefined,
+) {
+  if (!config || config.isCollapsed) return;
+  let nextWidth: number;
+  if (event.key === 'Home') {
+    if (config.defaultWidth === undefined) return;
+    nextWidth = config.defaultWidth;
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
+    const widens = (event.key === 'ArrowRight') === (config.side === 'left');
+    nextWidth = config.width + (widens ? step : -step);
+  } else {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  applyHorizontalWidth(config, nextWidth);
+}
+
+function resetHorizontalWidth(config: HorizontalPanelResizeConfig | undefined) {
+  if (!config || config.isCollapsed || config.defaultWidth === undefined) return;
+  applyHorizontalWidth(config, config.defaultWidth);
 }
 
 export function usePanelResize({ aiPanel, sidePane, hub }: UsePanelResizeParams) {
@@ -107,6 +160,14 @@ export function usePanelResize({ aiPanel, sidePane, hub }: UsePanelResizeParams)
 
   const handleSidePaneResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     startHorizontalResize(event, sidePaneRef.current);
+  }, []);
+
+  const handleSidePaneResizeKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    keyboardHorizontalResize(event, sidePaneRef.current);
+  }, []);
+
+  const handleSidePaneResizeReset = useCallback(() => {
+    resetHorizontalWidth(sidePaneRef.current);
   }, []);
 
   const handleHubResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -145,6 +206,8 @@ export function usePanelResize({ aiPanel, sidePane, hub }: UsePanelResizeParams)
   return {
     handleAiPanelResizeStart,
     handleSidePaneResizeStart,
+    handleSidePaneResizeKeyDown,
+    handleSidePaneResizeReset,
     handleHubResizeStart,
   };
 }
