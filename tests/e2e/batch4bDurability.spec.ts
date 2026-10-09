@@ -47,7 +47,13 @@ async function exportRawFromProjectHub(page: Page): Promise<Buffer> {
 test.describe('Batch 4b durability | 第 4b 批存储耐久', () => {
   test('T44: persist on first import, quota error changes nothing, diagnostics and backup rotation', async ({
     page,
+    browserName,
   }) => {
+    // Firefox 的 persist() 要用户授权，测试里拿不到回应（R2-4）| Firefox persist() needs a gesture the harness cannot grant
+    test.fixme(
+      browserName === 'firefox',
+      'Firefox persist() never settles without a real user permission prompt',
+    );
     test.setTimeout(240_000);
     handleArchiveExportDialogs(page);
     const project = await setupFieldProjectWithMediaAndSegments(page);
