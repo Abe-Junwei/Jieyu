@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { getTranscriptionAppService } from '../app/TranscriptionAppService';
+import { runProjectRemovalWithPrompts } from '../app/projectRemovalFlow';
 import { useMediaImport } from '~/hooks/media/useMediaImport';
-import { t } from '../i18n';
+import { t, tf } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -219,7 +220,19 @@ export function useTranscriptionProjectMediaController(
     fireAndForget(
       (async () => {
         try {
-          await transcriptionAppService.deleteProject(currentActiveTextId);
+          const outcome = await runProjectRemovalWithPrompts(
+            transcriptionAppService,
+            currentActiveTextId,
+            {
+              confirmRemoveLocally: () =>
+                window.confirm(t(locale, 'transcription.action.confirmRemoveProjectLocally')),
+              confirmDiscardUnsynced: (count) =>
+                window.confirm(
+                  tf(locale, 'transcription.action.confirmDiscardUnsyncedChanges', { count }),
+                ),
+            },
+          );
+          if (outcome === 'cancelled') return;
           clearActiveProjectTextId();
           setActiveTextId(null);
           selectTimelineUnit(null);
@@ -228,7 +241,15 @@ export function useTranscriptionProjectMediaController(
           // 删除后没有当前项目：清空工作台，而不是跳到别的项目（JY-02）
           // No current project after deletion: clear the workspace instead of jumping to another one (JY-02)
           await loadSnapshot('');
-          setSaveState({ kind: 'done', message: t(locale, 'transcription.action.projectDeleted') });
+          setSaveState({
+            kind: 'done',
+            message: t(
+              locale,
+              outcome === 'remove-local'
+                ? 'transcription.action.projectRemovedLocally'
+                : 'transcription.action.projectDeleted',
+            ),
+          });
         } catch (error) {
           log.error('Failed to delete current project', {
             textId: currentActiveTextId,

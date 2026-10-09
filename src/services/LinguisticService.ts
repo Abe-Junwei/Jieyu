@@ -189,6 +189,12 @@ export const LinguisticService = {
   },
   cleanup: {
     deleteProject: linguisticServiceCollaborationCleanupFacade.deleteProject,
+    planDeleteProject: linguisticServiceCollaborationCleanupFacade.planDeleteProject,
+    listLocallyRemovedCloudProjects:
+      linguisticServiceCollaborationCleanupFacade.listLocallyRemovedCloudProjects,
+    redownloadLocallyRemovedCloudProject:
+      linguisticServiceCollaborationCleanupFacade.redownloadLocallyRemovedCloudProject,
+    resumeProjectCleanupJobs: linguisticServiceCollaborationCleanupFacade.resumeProjectCleanupJobs,
     deleteAudio: linguisticServiceCollaborationCleanupFacade.deleteAudio,
     removeUnit: linguisticServiceCollaborationCleanupFacade.removeUnit,
     removeUnitsBatch: linguisticServiceCollaborationCleanupFacade.removeUnitsBatch,

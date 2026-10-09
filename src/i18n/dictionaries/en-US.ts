@@ -17,6 +17,18 @@ export const enUSDictionary = {
   'app.home.loading': 'Aggregating project progress…',
   'app.home.errorPrefix': 'Failed to load: ',
   'app.home.noProjects': 'No projects yet.',
+  'app.home.removedCloudProjects.title': 'Cloud projects removed from this device',
+  'app.home.removedCloudProjects.hint':
+    'These projects were only removed from this device; the cloud copy and other collaborators are unaffected. They are not downloaded automatically.',
+  'app.home.removedCloudProjects.redownload': 'Download again',
+  'app.home.removedCloudProjects.redownloading': 'Downloading…',
+  'app.home.removedCloudProjects.unnamed': 'Untitled project',
+  'app.home.removedCloudProjects.failed': 'Download failed: {message}',
+  'app.home.removedCloudProjects.reason.cloudNotConfigured': 'Cloud sync is not configured.',
+  'app.home.removedCloudProjects.reason.projectNotFound':
+    'The cloud project was not found, or you no longer have access.',
+  'app.home.removedCloudProjects.reason.projectDeleted': 'The owner deleted the cloud project.',
+  'app.home.removedCloudProjects.reason.noSnapshot': 'The cloud project has no snapshot yet.',
   'app.home.noProgressData':
     'No transcription record or text-layer progress yet (transcription layer may be missing).',
   'app.home.openProject': 'Open project',
@@ -1506,6 +1518,12 @@ export const enUSDictionary = {
   'transcription.action.confirmDeleteProject':
     'Delete this project, including its transcription, annotation, media, lexicon, speakers, orthographies, and language records? This cannot be undone.',
   'transcription.action.projectDeleted': 'Project deleted.',
+  'transcription.action.confirmRemoveProjectLocally':
+    'This project has been shared. It will only be removed from this device; the cloud copy and other collaborators are unaffected, and you can download it again later from “Cloud projects removed from this device”. Remove it?',
+  'transcription.action.confirmDiscardUnsyncedChanges':
+    '{count} change(s) in this project have not been synced to the cloud. Choose OK to discard them and continue, or Cancel to keep the project and remove it after syncing.',
+  'transcription.action.projectRemovedLocally':
+    'Project removed from this device. The cloud copy and other collaborators are unaffected.',
   'transcription.action.projectDeleteFailed': 'Failed to delete project: {message}',
   'transcription.action.projectCreated': 'Project "{title}" created. Import media next.',
   'transcription.action.audioImported': 'Media "{filename}" imported successfully.',

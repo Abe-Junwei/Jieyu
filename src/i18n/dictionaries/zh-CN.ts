@@ -16,6 +16,18 @@ export const zhCNDictionary = {
   'app.home.loading': '正在汇总各项目进度…',
   'app.home.errorPrefix': '加载失败：',
   'app.home.noProjects': '还没有项目。',
+  'app.home.removedCloudProjects.title': '已从本机移除的云端项目',
+  'app.home.removedCloudProjects.hint':
+    '这些项目只从本机移除了，云端和其他协作者不受影响；不会自动下载，需要时手动重新下载。',
+  'app.home.removedCloudProjects.redownload': '重新下载',
+  'app.home.removedCloudProjects.redownloading': '正在下载…',
+  'app.home.removedCloudProjects.unnamed': '未命名项目',
+  'app.home.removedCloudProjects.failed': '重新下载失败：{message}',
+  'app.home.removedCloudProjects.reason.cloudNotConfigured': '没有配置云端，无法重新下载。',
+  'app.home.removedCloudProjects.reason.projectNotFound':
+    '云端找不到这个项目，或者你已经没有访问权限。',
+  'app.home.removedCloudProjects.reason.projectDeleted': '云端项目已被所有者删除。',
+  'app.home.removedCloudProjects.reason.noSnapshot': '云端还没有快照，暂时无法重新下载。',
   'app.home.noProgressData': '暂无声文稿或文本层进度（可能尚未创建转写层）。',
   'app.home.openProject': '打开项目',
   'app.home.openTranscriptionRecord': '打开该声文稿（定位到对应媒体）',
@@ -1413,6 +1425,11 @@ export const zhCNDictionary = {
   'transcription.action.confirmDeleteProject':
     '确定删除当前项目及其转写、标注、媒体、词条、说话人、正字法和语言记录？此操作不可撤销。',
   'transcription.action.projectDeleted': '项目已删除。',
+  'transcription.action.confirmRemoveProjectLocally':
+    '这个项目参与过协作。只会从本机移除，云端和其他协作者不受影响；之后可以在“已从本机移除的云端项目”里重新下载。确定移除吗？',
+  'transcription.action.confirmDiscardUnsyncedChanges':
+    '这个项目还有 {count} 条修改没有同步到云端。选“确定”放弃这些修改并继续；选“取消”保留项目，等同步完成后再移除。',
+  'transcription.action.projectRemovedLocally': '项目已从本机移除，云端和其他协作者不受影响。',
   'transcription.action.projectDeleteFailed': '删除项目失败：{message}',
   'transcription.action.projectCreated': '项目「{title}」创建成功，请导入媒体。',
   'transcription.action.audioImported': '媒体「{filename}」导入成功。',

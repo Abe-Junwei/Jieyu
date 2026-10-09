@@ -44,6 +44,17 @@ initTheme(); // 初始化配色主题 | Initialize appearance theme
 initIconEffect(); // 图标效果 material / motion | Icon effect preference
 void requestPersistentStorage();
 
+// 上次没做完的项目清理（删除 / 仅从本机移除 / 云端已删除）在启动时接着做完（rev5 9.1，T24）
+// Finish project cleanup jobs interrupted by a closed page (rev5 9.1, T24)
+void import('./services/projectLocalCleanupJobs')
+  .then(({ resumeProjectCleanupJobs }) => resumeProjectCleanupJobs())
+  .then(({ failed }) => {
+    if (failed.length > 0) log.warn('project cleanup jobs still pending after resume', { failed });
+  })
+  .catch((error: unknown) => {
+    log.warn('failed to resume project cleanup jobs', { err: error });
+  });
+
 void (async () => {
   try {
     const [{ ensureIso6393SeedsLoaded }, langCache] = await Promise.all([

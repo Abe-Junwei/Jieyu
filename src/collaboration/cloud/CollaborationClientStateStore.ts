@@ -291,3 +291,12 @@ export function saveProjectPendingOutboundChanges(
     storage,
   );
 }
+
+/**
+ * 删除项目在本机的协同状态（游标与待发队列），清理任务用（rev5 9.1）。
+ * Drop a project's local sync state (cursor and pending queue); used by the cleanup job (rev5 9.1).
+ */
+export function clearProjectCollabClientState(projectId: string, storage?: Storage): void {
+  if (projectId.trim().length === 0) return;
+  upsertProjectState(projectId, () => null, storage);
+}

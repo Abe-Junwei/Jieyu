@@ -8,7 +8,9 @@ import { FormField, ModalPanel, PanelButton } from '../components/ui';
 import { useAppSidePaneHostOptional, useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import { LinguisticService } from '../app/languageAssetPageAccess';
-import { t, useLocale, type Locale } from '../i18n';
+import { t, tf, useLocale, type Locale } from '../i18n';
+import { runProjectRemovalWithPrompts } from '../app/projectRemovalFlow';
+import { RemovedCloudProjectsSection } from './RemovedCloudProjectsSection';
 import {
   loadAllHomeProjectProgressBundles,
   type HomeProjectProgressBundle,
@@ -57,6 +59,7 @@ export function HomePage() {
   const [rowMenu, setRowMenu] = useState<{ textId: string; x: number; y: number } | null>(null);
   const [edit, setEdit] = useState<EditDraft | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [removedListToken, setRemovedListToken] = useState(0);
   const activeTextId = useSyncExternalStore(
     subscribeActiveProjectTextId,
     getActiveProjectTextId,
@@ -148,8 +151,21 @@ export function HomePage() {
 
   const deleteProject = async (textId: string) => {
     setRowMenu(null);
-    if (!window.confirm(t(locale, 'transcription.action.confirmDeleteProject'))) return;
-    await LinguisticService.cleanup.deleteProject(textId);
+    const appService = getTranscriptionAppService();
+    // 协作过的项目只从本机移除（rev5 9.1、D6）| Collaborated projects are only removed locally
+    const plan = appService.planDeleteProject(textId);
+    const confirmKey =
+      plan.mode === 'remove-local'
+        ? 'transcription.action.confirmRemoveProjectLocally'
+        : 'transcription.action.confirmDeleteProject';
+    if (!window.confirm(t(locale, confirmKey))) return;
+    const outcome = await runProjectRemovalWithPrompts(appService, textId, {
+      confirmRemoveLocally: () => true,
+      confirmDiscardUnsynced: (count) =>
+        window.confirm(tf(locale, 'transcription.action.confirmDiscardUnsyncedChanges', { count })),
+    });
+    if (outcome === 'cancelled') return;
+    if (outcome === 'remove-local') setRemovedListToken((value) => value + 1);
     if (getActiveProjectTextId() === textId) clearActiveProjectTextId();
     if (selectedTextId === textId) setSelectedTextId('');
     await refreshProjects();
@@ -225,6 +241,14 @@ export function HomePage() {
           </button>
         </div>
       ))}
+      <RemovedCloudProjectsSection
+        locale={locale}
+        refreshToken={removedListToken}
+        onRedownloaded={(projectId) => {
+          setSelectedTextId(projectId);
+          void refreshProjects();
+        }}
+      />
     </div>
   );
 

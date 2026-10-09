@@ -43,6 +43,12 @@ export function assessProjectCollaborationHistory(
   const id = projectId.trim();
   if (id.length === 0) return { verdict: 'unknown', evidence: ['empty-project-id'] };
   const storage = sources.storage ?? getDefaultStorage();
+  // 运行环境根本没有 localStorage（非浏览器）：协同状态和记录都无处存放，不可能协作过。
+  // 浏览器里 localStorage 读失败仍按“判定不了”处理。
+  // No localStorage API at all (non-browser runtime): no sync state can exist here. A browser whose
+  // storage throws is still "unknown".
+  if (storage === undefined)
+    return { verdict: 'never-collaborated', evidence: ['no-local-storage-api'] };
 
   const registry = readCollaborationLocalRegistry(storage);
   if (!registry.ok) return { verdict: 'unknown', evidence: [`registry-${registry.reason}`] };

@@ -14,6 +14,11 @@
  * - 页面通过 hook 调用本服务，不直接操作底层
  */
 import { LinguisticService } from '../services/LinguisticService';
+import type {
+  ProjectRemovalMode,
+  ProjectRemovalPlan,
+  RemoveProjectOptions,
+} from '../services/projectRemoval';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
 import {
@@ -140,7 +145,10 @@ export interface ITranscriptionAppServiceGateway {
   previewTextTimeMapping(
     request: Parameters<typeof LinguisticService.timeline.previewTimeMapping>[0],
   ): ReturnType<typeof LinguisticService.timeline.previewTimeMapping>;
-  deleteProject(textId: string): Promise<void>;
+  /** 从未协作的项目删除；协作过的只从本机移除（rev5 9.1）| Delete, or remove from this device only */
+  deleteProject(textId: string, options?: RemoveProjectOptions): Promise<ProjectRemovalMode>;
+  /** 删除前判断方式与未同步修改数 | Removal mode and unsynced change count */
+  planDeleteProject(textId: string): ProjectRemovalPlan;
   deleteAudio(mediaId: string): Promise<void>;
   deleteSegments(segmentIds: readonly string[]): Promise<void>;
   splitSegment(segmentId: string, splitTime: number): Promise<TranscriptionSplitResult>;
@@ -264,8 +272,17 @@ export function createTranscriptionAppService(
       return deps.previewTextTimeMapping(request);
     },
 
-    async deleteProject(textId: string): Promise<void> {
-      await deps.deleteProject(textId);
+    async deleteProject(
+      textId: string,
+      options?: RemoveProjectOptions,
+    ): Promise<ProjectRemovalMode> {
+      return options === undefined
+        ? deps.deleteProject(textId)
+        : deps.deleteProject(textId, options);
+    },
+
+    planDeleteProject(textId: string): ProjectRemovalPlan {
+      return LinguisticService.cleanup.planDeleteProject(textId);
     },
 
     async deleteAudio(mediaId: string): Promise<void> {
@@ -297,3 +314,6 @@ export function getTranscriptionAppService(): ITranscriptionAppServiceGateway {
   transcriptionAppServiceSingleton = createTranscriptionAppService();
   return transcriptionAppServiceSingleton;
 }
+
+/** 页面通过应用层拿到这个错误类型（M3：页面不直连 services）| Pages reach the error via the app layer */
+export { ProjectHasUnsyncedChangesError } from '../services/projectRemoval';

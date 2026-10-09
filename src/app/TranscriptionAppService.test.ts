@@ -24,7 +24,7 @@ function createDeps(
     importAudio: vi.fn(async () => ({ mediaId: 'media-1' })),
     expandTextLogicalDurationToAtLeast: vi.fn(async () => undefined),
     setTextLogicalDurationSec: vi.fn(async () => undefined),
-    deleteProject: vi.fn(async () => undefined),
+    deleteProject: vi.fn(async () => 'delete' as const),
     deleteAudio: vi.fn(async () => undefined),
     deleteSegments: vi.fn(async () => undefined),
     splitSegment: vi.fn(
