@@ -78,9 +78,7 @@ class FakeWorker {
           data: {
             type: 'result',
             id: streamId,
-            segments: [
-              { start: 0.3, end: 1.8, confidence: 0.90 },
-            ],
+            segments: [{ start: 0.3, end: 1.8, confidence: 0.9 }],
           },
         } as unknown as MessageEvent);
       });
@@ -89,7 +87,9 @@ class FakeWorker {
     }
   }
 
-  terminate(): void { /* no-op */ }
+  terminate(): void {
+    /* no-op */
+  }
 }
 
 // ── 用 FakeWorker 替换全局 Worker | Inject FakeWorker globally ────────────────
@@ -177,6 +177,57 @@ describe('WhisperXVadService', () => {
 
   // ── resetState ────────────────────────────────────────────────────────────
 
+  it('能量降级时本次检测引擎为 energy | per-call engine is energy on fallback', async () => {
+    const svc = new WhisperXVadService();
+    const result = await svc.detectSpeechSegmentsWithEngine(makeAudioBuffer(2));
+    expect(result.engine).toBe('energy');
+    expect(result.segments).toEqual([
+      { start: 0.1, end: 1.5 },
+      { start: 2.0, end: 3.8 },
+    ]);
+    expect(svc.getLastDetectionEngine()).toBe('energy');
+  });
+
+  it('Silero 成功时本次检测引擎为 silero | per-call engine is silero when the worker answers', async () => {
+    const svc = new WhisperXVadService();
+    await svc.init();
+    const result = await svc.detectSpeechSegmentsWithEngine(makeAudioBuffer(2));
+    expect(result.engine).toBe('silero');
+    expect(result.segments[0]?.confidence).toBe(0.87);
+    expect(svc.getLastDetectionEngine()).toBe('silero');
+  });
+
+  it('Worker 中途崩溃降级后即使重新 init，结果仍标 energy | mid-detect worker crash keeps the energy label even after re-init', async () => {
+    class CrashingWorker extends FakeWorker {
+      override postMessage(data: unknown): void {
+        const msg = data as { type: string };
+        if (msg.type === 'detect') {
+          queueMicrotask(() => this.onerror?.({ message: 'wasm trap' } as ErrorEvent));
+          return;
+        }
+        super.postMessage(data);
+      }
+    }
+    // @ts-expect-error — 测试环境下替换全局 Worker
+    globalThis.Worker = CrashingWorker;
+    const svc = new WhisperXVadService();
+    await svc.init();
+    expect(svc.getRuntimeEngine()).toBe('silero');
+
+    const result = await svc.detectSpeechSegmentsWithEngine(makeAudioBuffer(2));
+    expect(result.engine).toBe('energy');
+    expect(detectVadSegments).toHaveBeenCalledTimes(1);
+
+    // 并发重新初始化后，运行时状态回到 silero，但上一次结果的标签不变
+    // After a re-init the runtime state is silero again, but the previous result's label stays energy
+    // @ts-expect-error — 测试环境下替换全局 Worker
+    globalThis.Worker = FakeWorker;
+    await svc.init();
+    expect(svc.getRuntimeEngine()).toBe('silero');
+    expect(result.engine).toBe('energy');
+    expect(svc.getLastDetectionEngine()).toBe('energy');
+  });
+
   it('init 前调用 resetState 不抛出 | resetState before init does not throw', () => {
     const svc = new WhisperXVadService();
     expect(() => svc.resetState()).not.toThrow();
@@ -189,8 +240,12 @@ describe('WhisperXVadService', () => {
     class SilentWorker {
       onmessage: MessageHandler | null = null;
       onerror: ((e: ErrorEvent) => void) | null = null;
-      postMessage(): void { /* 不响应 | No response */ }
-      terminate(): void { /* no-op */ }
+      postMessage(): void {
+        /* 不响应 | No response */
+      }
+      terminate(): void {
+        /* no-op */
+      }
     }
     // @ts-expect-error — 测试环境下替换全局 Worker
     globalThis.Worker = SilentWorker;
@@ -223,14 +278,18 @@ describe('WhisperXVadService', () => {
           });
         }
       }
-      terminate(): void { /* no-op */ }
+      terminate(): void {
+        /* no-op */
+      }
     }
     // @ts-expect-error — 测试环境下替换全局 Worker
     globalThis.Worker = ErrorWorker;
 
     const svc = new WhisperXVadService();
     await svc.init();
-    await expect(svc.detectSpeechSegments(makeAudioBuffer(2))).rejects.toThrow('ONNX inference failed');
+    await expect(svc.detectSpeechSegments(makeAudioBuffer(2))).rejects.toThrow(
+      'ONNX inference failed',
+    );
   });
 
   it('abort signal 会取消对应检测请求 | abort signal cancels in-flight detection', async () => {
@@ -248,7 +307,9 @@ describe('WhisperXVadService', () => {
           });
         }
       }
-      terminate(): void { /* no-op */ }
+      terminate(): void {
+        /* no-op */
+      }
     }
 
     // @ts-expect-error — 测试环境下替换全局 Worker
@@ -261,7 +322,10 @@ describe('WhisperXVadService', () => {
 
     controller.abort();
 
-    await expect(promise).rejects.toMatchObject({ name: 'AbortError', message: 'VAD detect aborted' });
+    await expect(promise).rejects.toMatchObject({
+      name: 'AbortError',
+      message: 'VAD detect aborted',
+    });
     expect(seenMessages.some((message) => message.type === 'detect')).toBe(true);
     expect(seenMessages.some((message) => message.type === 'cancel')).toBe(true);
   });
@@ -270,7 +334,11 @@ describe('WhisperXVadService', () => {
 
   it('Worker 构造函数抛出 → init 拒绝 | Worker constructor throws → init rejects', async () => {
     // @ts-expect-error — 测试环境下替换全局 Worker
-    globalThis.Worker = class { constructor() { throw new Error('CSP blocked'); } };
+    globalThis.Worker = class {
+      constructor() {
+        throw new Error('CSP blocked');
+      }
+    };
 
     const svc = new WhisperXVadService();
     await expect(svc.init()).rejects.toThrow(/CSP blocked/);
@@ -298,7 +366,7 @@ describe('WhisperXVadService', () => {
     const segs = await session.finish();
 
     expect(segs).toHaveLength(1);
-    expect(segs[0]).toMatchObject({ start: 0.3, end: 1.8, confidence: 0.90 });
+    expect(segs[0]).toMatchObject({ start: 0.3, end: 1.8, confidence: 0.9 });
   });
 
   it('流式检测：Worker 未就绪时抛出异常 | streaming throws when Worker not ready', () => {

@@ -232,9 +232,10 @@ export class RecordingExecutor {
         const { vadCache } = await import('./vad/VadCacheService');
         let segments = vadCache.get(mediaId)?.segments;
         if (!segments) {
-          segments = await this._vadService.detectSpeechSegments(audioBuffer);
+          const detection = await this._vadService.detectSpeechSegmentsWithEngine(audioBuffer);
+          segments = detection.segments;
           vadCache.set(mediaId, {
-            engine: this._vadService.getRuntimeEngine?.() ?? 'energy',
+            engine: detection.engine,
             segments,
             durationSec: audioBuffer.duration,
             cachedAt: Date.now(),

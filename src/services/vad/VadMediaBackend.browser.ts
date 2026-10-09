@@ -105,12 +105,14 @@ class BrowserVadMediaBackend implements VadMediaBackend {
       // 解码 + VAD 推理 | Decode + VAD inference
       audioContext = createBrowserAudioContext();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
-      const segments = await vadRuntime.detectSpeechSegments(audioBuffer, {
+      // 引擎标签取自本次检测的真实结果（写入 provenance）| Engine label comes from this call's real result (flows into provenance)
+      const detection = await vadRuntime.detectSpeechSegmentsWithEngine(audioBuffer, {
         ...(options?.signal !== undefined && { signal: options.signal }),
         ...(options?.onProgress !== undefined && {
           onProgress: (progress: import('./WhisperXVadService').WhisperXVadProgress) => {
             options.onProgress!({
-              engine: vadRuntime.getRuntimeEngine?.(),
+              // 进度事件只来自 Silero Worker | Progress events only come from the Silero worker
+              engine: 'silero',
               processedFrames: progress.processedFrames,
               totalFrames: progress.totalFrames,
               ratio: progress.ratio,
@@ -120,8 +122,8 @@ class BrowserVadMediaBackend implements VadMediaBackend {
       });
 
       return {
-        engine: vadRuntime.getRuntimeEngine?.() ?? 'energy',
-        segments,
+        engine: detection.engine,
+        segments: detection.segments,
         durationSec: audioBuffer.duration,
       };
     } finally {

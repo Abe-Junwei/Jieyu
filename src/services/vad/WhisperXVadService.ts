@@ -33,6 +33,15 @@ export interface SpeechSegment {
   confidence?: number;
 }
 
+/** 实际产出语音段的引擎 | Engine that actually produced a set of speech segments */
+export type VadRuntimeEngine = 'silero' | 'energy';
+
+export interface SpeechSegmentsWithEngine {
+  segments: SpeechSegment[];
+  /** 本次检测真实使用的引擎（能量降级时为 'energy'）| Engine really used for this call ('energy' on fallback) */
+  engine: VadRuntimeEngine;
+}
+
 export interface WhisperXVadProgress {
   phase: 'detecting' | 'done';
   processedFrames: number;
@@ -77,6 +86,7 @@ export class WhisperXVadService {
   private worker: Worker | null = null;
   private vadWorkerTrackingRelease: (() => void) | null = null;
   private ready = false;
+  private lastDetectionEngine: VadRuntimeEngine | null = null;
   private readonly pendingRequests = new PendingWorkerRequestStore<
     SpeechSegment[],
     WhisperXVadProgress
@@ -218,9 +228,24 @@ export class WhisperXVadService {
     buffer: AudioBuffer,
     options: DetectSpeechSegmentsOptions = {},
   ): Promise<SpeechSegment[]> {
+    return (await this.detectSpeechSegmentsWithEngine(buffer, options)).segments;
+  }
+
+  /**
+   * 同 detectSpeechSegments，但同时返回本次真实使用的引擎，供 provenance / 缓存记录使用。
+   * 不要在检测完成后再调用 getRuntimeEngine() 推断：Worker 状态可能已在期间变化。
+   *
+   * Like detectSpeechSegments, but also returns the engine that really produced the segments, for
+   * provenance / cache records. Do not infer it afterwards via getRuntimeEngine(): the worker state can
+   * change in between (e.g. a fallback followed by a concurrent re-init would read 'silero').
+   */
+  async detectSpeechSegmentsWithEngine(
+    buffer: AudioBuffer,
+    options: DetectSpeechSegmentsOptions = {},
+  ): Promise<SpeechSegmentsWithEngine> {
     if (!this.ready || !this.worker) {
       log.debug('VAD Worker not ready, falling back to energy-based VAD');
-      return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+      return this.energyFallback(buffer);
     }
 
     if (options.signal?.aborted) {
@@ -239,7 +264,7 @@ export class WhisperXVadService {
 
     getWorkerPool().markBusy('vadWhisperX');
     try {
-      return await this.pendingRequests.track(
+      const segments = await this.pendingRequests.track(
         id,
         () => {
           this.worker!.postMessage({ type: 'detect', id, pcm, sampleRate: buffer.sampleRate }, [
@@ -250,6 +275,8 @@ export class WhisperXVadService {
           ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
         },
       );
+      this.lastDetectionEngine = 'silero';
+      return { segments, engine: 'silero' };
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         throw error;
@@ -262,16 +289,33 @@ export class WhisperXVadService {
         error: error instanceof Error ? error.message : String(error),
       });
       this.resetWorker();
-      return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+      return this.energyFallback(buffer);
     } finally {
       getWorkerPool().markIdle('vadWhisperX');
       options.signal?.removeEventListener('abort', abortListener);
     }
   }
 
-  /** 返回当前实际运行引擎 | Report the currently active runtime engine */
-  getRuntimeEngine(): 'silero' | 'energy' {
+  /**
+   * 返回下一次检测将使用的引擎（取决于 Worker 是否就绪）。
+   * 记录某次结果的引擎请用 detectSpeechSegmentsWithEngine().engine 或 getLastDetectionEngine()。
+   *
+   * Engine the next detection would use (depends on worker readiness). To label a result, use
+   * detectSpeechSegmentsWithEngine().engine or getLastDetectionEngine().
+   */
+  getRuntimeEngine(): VadRuntimeEngine {
     return this.ready && this.worker ? 'silero' : 'energy';
+  }
+
+  /** 最近一次 detectSpeechSegments* 真实使用的引擎 | Engine really used by the most recent detection */
+  getLastDetectionEngine(): VadRuntimeEngine | null {
+    return this.lastDetectionEngine;
+  }
+
+  private energyFallback(buffer: AudioBuffer): SpeechSegmentsWithEngine {
+    const segments = detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+    this.lastDetectionEngine = 'energy';
+    return { segments, engine: 'energy' };
   }
 
   /**
