@@ -7,12 +7,12 @@ export function buildMinimalJymArchiveBytes(): Uint8Array {
   const manifest = {
     formatVersion: 1,
     kind: 'jym' as const,
-    schemaVersion: 4,
+    schemaVersion: 5,
     exportedAt: NOW,
     dbName: 'jieyu',
   };
   const snapshot = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     exportedAt: NOW,
     dbName: 'jieyu',
     collections: {

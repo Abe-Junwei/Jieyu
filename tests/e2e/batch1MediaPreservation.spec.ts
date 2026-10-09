@@ -299,7 +299,7 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
           row['unitId'] === 'seg_e2e_c' ? { ...row, text: 'gamma-recovered' } : row,
         );
         const snapshot = {
-          schemaVersion: 4,
+          schemaVersion: 5,
           exportedAt: new Date().toISOString(),
           dbName,
           collections: {

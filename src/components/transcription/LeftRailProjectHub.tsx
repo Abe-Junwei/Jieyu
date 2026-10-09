@@ -39,6 +39,7 @@ import { PanelButton } from '../ui/PanelButton';
 import { PanelChip } from '../ui/PanelChip';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
+import { describeArchiveImportError } from '../../utils/archiveImportErrorMessage';
 import {
   previewSourceImportForFile,
   type SourceImportPlan,
@@ -314,7 +315,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         });
         setIsOpen(false);
       } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
+        // RD-1：旧库导出、版本不符、记录不合格都给出明确的一句话 | RD-1: readable format errors
+        const detail = describeArchiveImportError(locale, error);
         showToast(
           tf(locale, 'transcription.projectHub.previewFailed', { message: detail }),
           'error',

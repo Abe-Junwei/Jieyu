@@ -7,7 +7,7 @@ const log = createLogger('SnapshotService');
 
 export const RECOVERY_SCHEMA_VERSION = 2;
 
-/** Matches `exportDatabaseAsJson` / `importDatabaseFromJson` snapshot shape (schemaVersion 4). */
+/** Matches `exportDatabaseAsJson` / `importDatabaseFromJson` snapshot shape (`SNAPSHOT_SCHEMA_VERSION`). */
 export type RecoveryDatabaseSnapshot = Awaited<ReturnType<typeof exportRecoveryDatabaseAsJson>>;
 
 export interface RecoveryData {

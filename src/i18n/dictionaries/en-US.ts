@@ -2353,6 +2353,12 @@ export const enUSDictionary = {
   'transcription.importExport.conflict':
     'Import failed: data was modified by another operation. Refresh and try again.',
   'transcription.importExport.failed': 'Import failed: {message}',
+  'transcription.importExport.snapshotLegacyDatabase':
+    'This file was exported by the old version before the data reset ({dbName}). This version cannot import it and does not convert old data. Nothing was written.',
+  'transcription.importExport.snapshotUnsupportedVersion':
+    "This file's data version ({version}) is not supported by this version. Nothing was written.",
+  'transcription.importExport.snapshotInvalidRecords':
+    '{count} record(s) in this file do not match the current data structure ({collections}). Nothing was written.',
   'transcription.importExport.exportFailed': 'Export failed: {message}',
   'transcription.error.action.assignSpeakerFailed': 'Failed to assign speaker: {message}',
   'transcription.error.action.createSpeakerFailed': 'Failed to create speaker: {message}',

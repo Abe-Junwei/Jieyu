@@ -26,6 +26,12 @@ import type {
 import { db, getDb } from './engine';
 import { createLogger } from '../observability/logger';
 import { isCollectionDroppedOnImport } from './tableRegistry';
+import { withTransaction } from './withTransaction';
+import {
+  LEGACY_MAIN_DB_NAME,
+  SnapshotFormatError,
+  type SnapshotInvalidCollection,
+} from './snapshotFormatError';
 import {
   InboundByteConflictError,
   isInboundByteCollection,
@@ -39,8 +45,12 @@ import {
 
 const log = createLogger('dbIo');
 
-/** Import/export JSON snapshots must use this exact `schemaVersion` (no older/newer formats). */
-const SNAPSHOT_SCHEMA_VERSION = 4;
+/**
+ * 导入导出快照必须正好是这个版本（D9：不兼容旧格式）。5 = 2A/2B 之后的结构（RD-1）。
+ * Import/export JSON snapshots must use this exact `schemaVersion` (D9: no older/newer formats).
+ * 5 = the structure after 2A/2B (RD-1).
+ */
+export const SNAPSHOT_SCHEMA_VERSION = 5;
 const SNAPSHOT_IMPORT_MAX_JSON_BYTES = 32 * 1024 * 1024;
 const SNAPSHOT_IMPORT_MAX_JSON_DEPTH = 64;
 const SNAPSHOT_IMPORT_MAX_JSON_NODES = 500_000;
@@ -66,13 +76,23 @@ export async function exportDatabaseAsJson(options?: {
   // 使用 rxDb 避免遮蔽模块级 Dexie db | Use rxDb to avoid shadowing module-level Dexie db
   const rxDb = await getDb();
   const skip = options?.skipCollections;
-  const entries = await Promise.all(
-    Object.entries(rxDb.collections)
-      .filter(([name]) => skip === undefined || !skip.has(name))
-      .map(async ([name, collection]) => {
-        const docs = await collection.find().exec();
-        return [name, docs.map((doc) => doc.toJSON())] as const;
-      }),
+  // JY-13：所有集合在同一个只读事务里读出，导出期间的自动保存不会让快照前后不一致。
+  // JY-13: every collection is read in one read-only transaction, so an autosave during the export
+  // cannot produce a half-old, half-new snapshot.
+  const entries = await withTransaction(
+    rxDb,
+    'r',
+    rxDb.dexie.tables,
+    () =>
+      Promise.all(
+        Object.entries(rxDb.collections)
+          .filter(([name]) => skip === undefined || !skip.has(name))
+          .map(async ([name, collection]) => {
+            const docs = await collection.find().exec();
+            return [name, docs.map((doc) => doc.toJSON())] as const;
+          }),
+      ),
+    { label: 'exportDatabaseAsJson' },
   );
 
   const collections = Object.fromEntries(entries) as Record<string, unknown[]>;
@@ -475,11 +495,170 @@ export interface ImportPreWriteStep {
   run: () => Promise<void>;
 }
 
+/** 只取字段路径和原因，不带行内容 | Field path and reason only, never row content */
+function describeValidationIssue(error: unknown): string {
+  const issues = (error as { issues?: Array<{ path?: unknown[]; message?: string }> } | null)
+    ?.issues;
+  if (Array.isArray(issues) && issues.length > 0) {
+    const first = issues[0]!;
+    const path =
+      Array.isArray(first.path) && first.path.length > 0 ? first.path.join('.') : '(row)';
+    return `${path}: ${first.message ?? 'invalid'}`;
+  }
+  return error instanceof Error ? error.message.slice(0, 200) : 'invalid';
+}
+
+/**
+ * RD-1：版本闸门。旧库（jieyudb_v2）导出或更早的快照版本给出明确的“旧版本”错误，其他版本不符给出
+ * “不支持的版本”；不做任何转换（D9）。
+ * RD-1: version gate. Exports of the old database (jieyudb_v2) or older snapshot versions get a
+ * clear "legacy" error; any other mismatch is "unsupported version". Nothing is converted (D9).
+ */
+export function assertSupportedSnapshotVersion(raw: unknown): void {
+  const record = (raw !== null && typeof raw === 'object' ? raw : {}) as {
+    schemaVersion?: unknown;
+    dbName?: unknown;
+  };
+  const schemaVersion = typeof record.schemaVersion === 'number' ? record.schemaVersion : null;
+  const dbName = typeof record.dbName === 'string' ? record.dbName : null;
+  if (
+    dbName === LEGACY_MAIN_DB_NAME ||
+    (schemaVersion !== null && schemaVersion < SNAPSHOT_SCHEMA_VERSION)
+  ) {
+    throw new SnapshotFormatError({
+      code: 'legacy-database',
+      message: `Snapshot comes from the database before the data reset (dbName=${dbName ?? '?'}, schemaVersion=${schemaVersion ?? '?'}); this version does not import it.`,
+      schemaVersion,
+      dbName,
+    });
+  }
+  if (schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
+    throw new SnapshotFormatError({
+      code: 'unsupported-version',
+      message: `Unsupported snapshot schemaVersion=${String(record.schemaVersion)}; only schemaVersion=${SNAPSHOT_SCHEMA_VERSION} (current app export) is accepted.`,
+      schemaVersion,
+      dbName,
+    });
+  }
+}
+
+type PreparedCollection = {
+  collectionName: KnownCollectionName;
+  received: number;
+  normalizedDocs: unknown[];
+};
+
+/**
+ * 写入前的整体预检：版本、结构、逐条记录校验（RD-1）。预览和导入共用，结论一致。
+ * 有任何不合格的行就抛出 `invalid-records`，并按集合列出行数。
+ * Whole pre-check before any write: version, structure and every record (RD-1). Shared by preview
+ * and import so both reach the same verdict. Any invalid row throws `invalid-records` with per-
+ * collection counts.
+ */
+export async function prepareSnapshotImport(
+  parsedRaw: unknown,
+  importStartedAt: string,
+): Promise<{
+  preparedCollections: PreparedCollection[];
+  ignoredCollections: string[];
+  droppedCollections: Array<{ name: string; rows: number }>;
+}> {
+  validateSnapshotJsonStructure(parsedRaw);
+  assertSupportedSnapshotVersion(parsedRaw);
+  const validation = await loadValidationModule();
+  const snapshot = validation.parseDatabaseSnapshot(parsedRaw);
+
+  if ('unit_texts' in snapshot.collections) {
+    throw new Error(
+      'Legacy collection "unit_texts" is no longer supported; import a LayerUnit snapshot.',
+    );
+  }
+
+  const cols = snapshot.collections as Record<string, unknown[]>;
+  if (!Array.isArray(cols['layer_units'])) cols['layer_units'] = [];
+  if (!Array.isArray(cols['layer_unit_contents'])) cols['layer_unit_contents'] = [];
+
+  const legacyUnits = cols['units'];
+  if (Array.isArray(legacyUnits) && legacyUnits.length > 0) {
+    throw new Error(
+      'Legacy snapshot key "units" is not supported; import layer_units + layer_unit_contents from a current app export.',
+    );
+  }
+  if ('units' in cols) {
+    delete cols['units'];
+  }
+
+  const preparedCollections: PreparedCollection[] = [];
+  const ignoredCollections: string[] = [];
+  const droppedCollections: Array<{ name: string; rows: number }> = [];
+  const invalidCollections: SnapshotInvalidCollection[] = [];
+
+  for (const [name, docs] of Object.entries(snapshot.collections)) {
+    // JY-04：凭据 / AI 记忆 / 审计日志类集合一律丢弃，且不清空本机同名表；日志只记表名和行数
+    // JY-04: drop credential / AI-memory / audit-log collections (local tables are not cleared);
+    // the warning records the table name and row count only, never row content
+    if (isCollectionDroppedOnImport(name)) {
+      droppedCollections.push({ name, rows: Array.isArray(docs) ? docs.length : 0 });
+      continue;
+    }
+    if (!knownCollectionNames.includes(name as KnownCollectionName)) {
+      ignoredCollections.push(name);
+      continue;
+    }
+
+    const collectionName = name as KnownCollectionName;
+    const normalizedDocs = docs.map((doc) =>
+      normalizeImportedDoc(collectionName, doc, importStartedAt),
+    );
+
+    let invalid = 0;
+    let firstIssue: string | null = null;
+    for (const doc of normalizedDocs) {
+      const candidate = doc as { id?: unknown } | null;
+      if (typeof candidate?.id !== 'string' || candidate.id.trim() === '') {
+        invalid += 1;
+        firstIssue ??= 'id: missing non-empty id';
+        continue;
+      }
+      try {
+        validation.validateCollectionDoc(collectionName, doc);
+      } catch (error) {
+        invalid += 1;
+        firstIssue ??= describeValidationIssue(error);
+      }
+    }
+    if (invalid > 0) {
+      invalidCollections.push({
+        collection: collectionName,
+        invalid,
+        firstIssue: firstIssue ?? '',
+      });
+      continue;
+    }
+
+    preparedCollections.push({ collectionName, received: docs.length, normalizedDocs });
+  }
+
+  if (invalidCollections.length > 0) {
+    const total = invalidCollections.reduce((sum, item) => sum + item.invalid, 0);
+    throw new SnapshotFormatError({
+      code: 'invalid-records',
+      message: `Snapshot has ${total} invalid record(s): ${invalidCollections
+        .map((item) => `${item.collection} ×${item.invalid} (${item.firstIssue})`)
+        .join('; ')}`,
+      schemaVersion: snapshot.schemaVersion,
+      dbName: snapshot.dbName ?? null,
+      invalidCollections,
+    });
+  }
+
+  return { preparedCollections, ignoredCollections, droppedCollections };
+}
+
 export async function importDatabaseFromJson(
   input: unknown,
   options?: { strategy?: ImportConflictStrategy; preWrite?: ImportPreWriteStep },
 ): Promise<ImportResult> {
-  const validation = await loadValidationModule();
   const strategy = options?.strategy ?? 'upsert';
   let parsedRaw: unknown;
   try {
@@ -502,89 +681,27 @@ export async function importDatabaseFromJson(
       `Invalid JSON input: ${e instanceof Error ? e.message : 'unknown parse error'}`,
     );
   }
-  validateSnapshotJsonStructure(parsedRaw);
-  const snapshot = validation.parseDatabaseSnapshot(parsedRaw);
-
-  if (snapshot.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
-    throw new Error(
-      `Unsupported snapshot schemaVersion=${snapshot.schemaVersion}; only schemaVersion=${SNAPSHOT_SCHEMA_VERSION} (current app export) is accepted.`,
-    );
-  }
-
-  if ('unit_texts' in snapshot.collections) {
-    throw new Error(
-      'Legacy collection "unit_texts" is no longer supported; import a LayerUnit snapshot.',
-    );
-  }
+  const importedAt = new Date().toISOString();
+  const prepared = await prepareSnapshotImport(parsedRaw, importedAt);
+  const preparedCollections = prepared.preparedCollections;
 
   const result: ImportResult = {
-    importedAt: new Date().toISOString(),
+    importedAt,
     strategy,
     collections: {},
-    ignoredCollections: [],
-    droppedCollections: [],
+    ignoredCollections: [...prepared.ignoredCollections],
+    droppedCollections: [...prepared.droppedCollections],
   };
-  const importStartedAt = result.importedAt;
-
-  const cols = snapshot.collections as Record<string, unknown[]>;
-  if (!Array.isArray(cols['layer_units'])) cols['layer_units'] = [];
-  if (!Array.isArray(cols['layer_unit_contents'])) cols['layer_unit_contents'] = [];
-
-  const legacyUnits = cols['units'];
-  if (Array.isArray(legacyUnits) && legacyUnits.length > 0) {
-    throw new Error(
-      'Legacy snapshot key "units" is not supported; import layer_units + layer_unit_contents from a current app export.',
-    );
-  }
-  if ('units' in cols) {
-    delete cols['units'];
+  for (const dropped of prepared.droppedCollections) {
+    if (dropped.rows > 0) {
+      log.warn('Dropped collection from imported snapshot by data class', {
+        table: dropped.name,
+        rows: dropped.rows,
+      });
+    }
   }
 
   const dbInstance = await getDb();
-
-  const preparedCollections: Array<{
-    collectionName: KnownCollectionName;
-    received: number;
-    normalizedDocs: unknown[];
-  }> = [];
-
-  for (const [name, docs] of Object.entries(snapshot.collections)) {
-    // JY-04：凭据 / AI 记忆 / 审计日志类集合一律丢弃，且不清空本机同名表；日志只记表名和行数
-    // JY-04: drop credential / AI-memory / audit-log collections (local tables are not cleared);
-    // the warning records the table name and row count only, never row content
-    if (isCollectionDroppedOnImport(name)) {
-      const rows = Array.isArray(docs) ? docs.length : 0;
-      result.droppedCollections.push({ name, rows });
-      if (rows > 0) {
-        log.warn('Dropped collection from imported snapshot by data class', { table: name, rows });
-      }
-      continue;
-    }
-    if (!knownCollectionNames.includes(name as KnownCollectionName)) {
-      result.ignoredCollections.push(name);
-      continue;
-    }
-
-    const collectionName = name as KnownCollectionName;
-    const normalizedDocs = docs.map((doc) =>
-      normalizeImportedDoc(collectionName, doc, importStartedAt),
-    );
-
-    for (const doc of normalizedDocs) {
-      const candidate = doc as { id?: unknown };
-      if (typeof candidate.id !== 'string' || candidate.id.trim() === '') {
-        throw new Error(`Invalid doc in ${collectionName}: missing non-empty id`);
-      }
-
-      validation.validateCollectionDoc(collectionName, doc);
-    }
-
-    preparedCollections.push({
-      collectionName,
-      received: docs.length,
-      normalizedDocs,
-    });
-  }
 
   // ADR-0006: One `rw` Dexie transaction whose scope is the dynamic union of `tier_definitions` plus every
   // Dexie `Table` in `tableByCollection`. The callback only touches stores in that list; `layers` uses

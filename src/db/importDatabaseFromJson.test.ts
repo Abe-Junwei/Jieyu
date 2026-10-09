@@ -27,7 +27,7 @@ describe('importDatabaseFromJson', () => {
     });
 
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
@@ -69,7 +69,7 @@ describe('importDatabaseFromJson', () => {
     };
 
     await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
-      'Invalid doc in layer_units: missing non-empty id',
+      /layer_units ×1 \(id: missing non-empty id\)/,
     );
 
     const remainingTexts = await db.texts.toArray();
@@ -78,7 +78,7 @@ describe('importDatabaseFromJson', () => {
 
   it('ignores removed transformId compatibility fields during snapshot import', async () => {
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
@@ -128,12 +128,12 @@ describe('importDatabaseFromJson', () => {
         },
         { strategy: 'replace-all' },
       ),
-    ).rejects.toThrow(/Unsupported snapshot schemaVersion=3/);
+    ).rejects.toThrow(/before the data reset .*schemaVersion=3/);
   });
 
   it('rejects snapshots that still include a non-empty legacy units collection', async () => {
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
@@ -167,7 +167,7 @@ describe('importDatabaseFromJson', () => {
     }
 
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
@@ -193,7 +193,7 @@ describe('importDatabaseFromJson', () => {
   it('rejects raw JSON string imports whose byte size exceeds the safety limit', async () => {
     const oversizedTitle = 'x'.repeat(33 * 1024 * 1024);
     const snapshot = JSON.stringify({
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
@@ -256,7 +256,7 @@ describe('JY-05: pruneOrphanUserNotes during JSON import', () => {
     }
     // 无关的导入（多一个文本）| Unrelated import (one extra text)
     await importDatabaseFromJson({
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {

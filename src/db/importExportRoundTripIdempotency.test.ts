@@ -154,7 +154,7 @@ describe('import/export round-trip idempotency', () => {
     });
 
     const invalidSnapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
@@ -190,10 +190,10 @@ describe('import/export round-trip idempotency', () => {
 
     await expect(
       importDatabaseFromJson(invalidSnapshot, { strategy: 'replace-all' }),
-    ).rejects.toThrow('Invalid doc in layer_unit_contents: missing non-empty id');
+    ).rejects.toThrow('layer_unit_contents ×1 (id: missing non-empty id)');
     await expect(
       importDatabaseFromJson(invalidSnapshot, { strategy: 'replace-all' }),
-    ).rejects.toThrow('Invalid doc in layer_unit_contents: missing non-empty id');
+    ).rejects.toThrow('layer_unit_contents ×1 (id: missing non-empty id)');
 
     const texts = await db.texts.toArray();
     expect(texts.map((item) => item.id)).toEqual(['text_existing']);

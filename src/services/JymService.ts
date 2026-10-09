@@ -632,9 +632,10 @@ export async function importFromJieyuArchive(
     throw new Error(`Unsupported Jieyu archive formatVersion=${manifest.formatVersion}`);
   }
 
+  const dbIo = await loadDbIoModule();
+  dbIo.assertSupportedSnapshotVersion(manifest);
   const snapshotU8 = await resolveSnapshotPayloadBytes(files, manifest, options?.password);
   const snapshot = parseJsonWithGuard<unknown>(snapshotU8, policy, 'snapshot');
-  const dbIo = await loadDbIoModule();
   const importResult = await dbIo.importDatabaseFromJson(snapshot, {
     ...(options?.strategy ? { strategy: options.strategy } : {}),
   });
@@ -660,9 +661,16 @@ export async function previewJieyuArchiveImport(
     throw new Error(`Unsupported Jieyu archive formatVersion=${manifest.formatVersion}`);
   }
 
+  const dbIo = await loadDbIoModule();
+  // RD-1：旧库导出在解密 / 解析之前就按 manifest 拒绝 | Reject old-database exports from the manifest first
+  dbIo.assertSupportedSnapshotVersion(manifest);
   const snapshotU8 = await resolveSnapshotPayloadBytes(files, manifest, options?.password);
   const snapshot = parseJsonWithGuard<unknown>(snapshotU8, policy, 'snapshot');
   const collections = extractSnapshotCollections(snapshot);
+  // RD-1：预览与导入用同一套逐条校验，预览通过就不会在导入时才报结构错误。
+  // RD-1: preview runs the same per-record validation as import, so a clean preview cannot end in
+  // a schema error at import time.
+  await dbIo.prepareSnapshotImport(snapshot, new Date().toISOString());
 
   const previewCollections: JieyuArchiveImportPreviewCollection[] = [];
   for (const [name, docs] of Object.entries(collections)) {

@@ -7,6 +7,7 @@ import {
 } from '../../services/JymService';
 import { t, tf, type Locale } from '../../i18n';
 import { toErrorMessage } from '../../utils/saveStateError';
+import { describeArchiveImportError } from '../../utils/archiveImportErrorMessage';
 import { reportActionError } from '../../utils/actionErrorReporter';
 import { createLogger } from '../../observability/logger';
 import type { SaveState } from '../useTranscriptionData';
@@ -104,7 +105,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       });
       return true;
     } catch (err) {
-      const rawMessage = toErrorMessage(err);
+      const rawMessage = describeArchiveImportError(locale, err);
       log.error('Import archive failed', {
         fileName: file.name,
         strategy,

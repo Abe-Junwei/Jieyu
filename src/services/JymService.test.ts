@@ -11,7 +11,7 @@ import { exportDatabaseAsJson, importDatabaseFromJson } from '../db/io';
 /** JymService loads db I/O via dynamic import('../db/io'); mock that module, not ../db. */
 vi.mock('../db/io', () => ({
   exportDatabaseAsJson: vi.fn(async () => ({
-    schemaVersion: 4,
+    schemaVersion: 5,
     exportedAt: '2026-04-01T00:00:00.000Z',
     dbName: 'jieyu-test',
     collections: {},
@@ -19,6 +19,12 @@ vi.mock('../db/io', () => ({
   importDatabaseFromJson: vi.fn(async () => ({
     written: 1,
     skipped: 0,
+  })),
+  assertSupportedSnapshotVersion: vi.fn(),
+  prepareSnapshotImport: vi.fn(async () => ({
+    preparedCollections: [],
+    ignoredCollections: [],
+    droppedCollections: [],
   })),
 }));
 
@@ -34,7 +40,7 @@ function createValidArchive(snapshot: unknown): Uint8Array {
   const manifest = {
     formatVersion: 1,
     kind: 'jym',
-    schemaVersion: 4,
+    schemaVersion: 5,
     exportedAt: '2026-04-01T00:00:00.000Z',
     dbName: 'jieyu-test',
   };
@@ -90,7 +96,7 @@ describe('JymService import hard guards', () => {
 
   it('rejects archive when any single entry exceeds size limit', async () => {
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {
@@ -109,7 +115,7 @@ describe('JymService import hard guards', () => {
 
   it('rejects archive when total expanded size exceeds limit before import', async () => {
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {
@@ -131,7 +137,7 @@ describe('JymService import hard guards', () => {
 
   it('rejects archive when snapshot json depth exceeds limit', async () => {
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {
@@ -150,7 +156,7 @@ describe('JymService import hard guards', () => {
 
   it('imports valid archive and forwards strategy to database importer', async () => {
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {},
@@ -177,7 +183,7 @@ describe('JymService import hard guards', () => {
     expect(result.kind).toBe('jym');
     expect(importDatabaseFromJson).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        schemaVersion: 4,
+        schemaVersion: 5,
         dbName: 'jieyu-test',
       }),
       {
@@ -212,7 +218,7 @@ describe('T51 archive system template references', () => {
 
   it('exports systemRefs in the manifest and never the template itself', async () => {
     vi.mocked(exportDatabaseAsJson).mockResolvedValueOnce({
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: { structural_rule_profiles: [copyRow] },
@@ -237,7 +243,7 @@ describe('T51 archive system template references', () => {
       'META-INF/manifest.json': JSON.stringify({
         formatVersion: 1,
         kind: 'jym',
-        schemaVersion: 4,
+        schemaVersion: 5,
         exportedAt: '2026-04-01T00:00:00.000Z',
         systemRefs: [{ id: 'system.leipzig-structural.v1' }, { id: 'system.future-template.v9' }],
       }),

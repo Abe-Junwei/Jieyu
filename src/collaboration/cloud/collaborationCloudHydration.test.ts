@@ -43,7 +43,7 @@ describe('hydrateCollaborationProjectFromCloud', () => {
 
   it('restores the latest snapshot with project-scoped import, not replace-all', async () => {
     const payload = JSON.stringify({
-      schemaVersion: 4,
+      schemaVersion: 5,
       collections: { texts: [{ id: 'text-a' }] },
     });
     const result = await hydrateCollaborationProjectFromCloud({

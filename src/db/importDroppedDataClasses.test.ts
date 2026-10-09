@@ -41,7 +41,7 @@ function hostileCollections(textId: string): Record<string, unknown[]> {
 }
 
 function snapshotOf(collections: Record<string, unknown[]>) {
-  return { schemaVersion: 4, exportedAt: NOW, dbName: JIEYU_DEXIE_DB_NAME, collections };
+  return { schemaVersion: 5, exportedAt: NOW, dbName: JIEYU_DEXIE_DB_NAME, collections };
 }
 
 let logs: LogEntry[] = [];
@@ -70,7 +70,7 @@ describe('JY-04: dropped data classes on import / restore', () => {
         JSON.stringify({
           formatVersion: 1,
           kind: 'jym',
-          schemaVersion: 4,
+          schemaVersion: 5,
           exportedAt: NOW,
           dbName: JIEYU_DEXIE_DB_NAME,
         }),

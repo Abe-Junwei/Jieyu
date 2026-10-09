@@ -58,7 +58,7 @@ function makeRecoveryDataWithTranslation(units: LayerUnitDocType[]): RecoveryDat
     schemaVersion: RECOVERY_SCHEMA_VERSION,
     timestamp: Date.now(),
     snapshot: {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-06-01T00:00:00.000Z',
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {

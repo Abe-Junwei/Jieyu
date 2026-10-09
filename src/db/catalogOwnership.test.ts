@@ -241,7 +241,7 @@ describe('T4 catalog ownership is required on every write', () => {
   it('rejects a snapshot import whose catalog rows have no owner, and writes nothing', async () => {
     const rows = validCatalogRows();
     const snapshot = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: NOW,
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
