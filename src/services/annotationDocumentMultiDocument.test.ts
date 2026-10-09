@@ -190,6 +190,97 @@ describe('Batch 5 / T46: deleting one document leaves the other', () => {
     expect(await db.tier_definitions.get('L1')).toBeUndefined();
   });
 
+  it('B5-1: rows of the deleted layers go even on units the other document keeps', async () => {
+    const { d2 } = await seedTwoDocuments();
+    const put = (table: string, row: Record<string, unknown>) =>
+      (db as unknown as Record<string, { put: (r: unknown) => Promise<unknown> }>)[table]!.put(row);
+    const content = (id: string, unitId: string, layerId: string) => ({
+      id,
+      textId: A,
+      unitId,
+      layerId,
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: id,
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await put('layer_unit_contents', content('c1', 'u1', 'L1'));
+    // L2 的内容挂在 d1 的单元 u1 上 | L2 content on d1's unit u1
+    await put('layer_unit_contents', content('c_cross', 'u1', 'L2'));
+    await put('user_notes', {
+      id: 'n_cross',
+      targetType: 'translation',
+      targetId: 'c_cross',
+      content: { und: 'n' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const keyed = { textId: A, mediaId: 'm', createdAt: NOW, updatedAt: NOW };
+    const meta = (id: string, layerId: string) => ({
+      id,
+      segmentId: 'u1',
+      unitKind: 'unit',
+      layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'z',
+      normalizedText: 'z',
+      hasText: true,
+      ...keyed,
+    });
+    await put('segment_meta', meta('sm_cross', 'L2'));
+    await put('segment_meta', meta('sm1', 'L1'));
+    await put('segment_quality_snapshots', {
+      id: 'q2',
+      segmentId: 'u1',
+      layerId: 'L2',
+      emptyText: false,
+      missingSpeaker: false,
+      lowAiConfidence: false,
+      hasTodoNote: false,
+      issueKeys: [],
+      issueCount: 0,
+      severity: 'ok',
+      ...keyed,
+    });
+    await put('scope_stats_snapshots', {
+      id: 's2',
+      scopeType: 'layer',
+      scopeKey: 'L2',
+      layerId: 'L2',
+      unitCount: 1,
+      segmentCount: 1,
+      speakerCount: 0,
+      translationLayerCount: 0,
+      noteFlaggedCount: 0,
+      untranscribedCount: 0,
+      missingSpeakerCount: 0,
+      ...keyed,
+    });
+    await put('translation_status_snapshots', {
+      id: 't2',
+      unitId: 'u1',
+      layerId: 'L2',
+      status: 'draft',
+      hasText: true,
+      textLength: 1,
+      ...keyed,
+    });
+    await deleteAnnotationDocument(A, d2);
+    expect(await db.layer_unit_contents.get('c_cross')).toBeUndefined();
+    expect(await db.user_notes.get('n_cross')).toBeUndefined();
+    expect(await db.segment_meta.get('sm_cross')).toBeUndefined();
+    expect(await db.segment_quality_snapshots.get('q2')).toBeUndefined();
+    expect(await db.scope_stats_snapshots.get('s2')).toBeUndefined();
+    expect(await db.translation_status_snapshots.get('t2')).toBeUndefined();
+    // 保留文稿自己的行不动 | The kept document's rows stay
+    expect(await db.layer_unit_contents.get('c1')).toBeDefined();
+    expect(await db.segment_meta.get('sm1')).toBeDefined();
+    expect(await unitIds(A)).toEqual(['u1']);
+  });
+
   it('B5-4: a layer of an unknown document belongs to the current one everywhere (shown, counted, deleted)', async () => {
     const { d1, d2 } = await seedTwoDocuments();
     // 协作同步来的层：documentId 指向本机没有的文稿 | A synced layer pointing at an unknown document

@@ -579,6 +579,34 @@ export async function switchAnnotationDocument(textId: string, documentId: strin
   }
 }
 
+/**
+ * B5-1：被删层上的行，即使挂在其他文稿保留的单元上（无层宿主、跨文稿父子）也一起删：内容（及其备注）、
+ * segment_meta 和派生统计快照。在调用方事务里执行。
+ * B5-1: rows on the deleted layers, even on units another document keeps (layer-less hosts, cross-document
+ * parents): contents (and their notes), segment_meta and derived statistics snapshots. Caller's transaction.
+ */
+async function deleteLayerScopedRowsIn(
+  db: JieyuDatabase,
+  layerIds: readonly string[],
+): Promise<void> {
+  const ids = [...layerIds];
+  const contentIds = (await db.dexie.layer_unit_contents
+    .where('layerId')
+    .anyOf(ids)
+    .primaryKeys()) as string[];
+  if (contentIds.length > 0) {
+    await db.dexie.user_notes
+      .where('[targetType+targetId]')
+      .anyOf(targetPairs('translation', contentIds))
+      .delete();
+    await db.dexie.layer_unit_contents.bulkDelete(contentIds);
+  }
+  await db.dexie.segment_meta.where('layerId').anyOf(ids).delete();
+  await db.dexie.segment_quality_snapshots.where('layerId').anyOf(ids).delete();
+  await db.dexie.scope_stats_snapshots.where('layerId').anyOf(ids).delete();
+  await db.dexie.translation_status_snapshots.where('layerId').anyOf(ids).delete();
+}
+
 export type AnnotationDocumentDeleteResult = {
   currentDocumentId: string;
   deletedUnitIds: string[];
@@ -635,7 +663,13 @@ export async function deleteAnnotationDocument(
     return await withTransaction(
       db,
       'rw',
-      [...dexieStoresForAnnotationImportRw(db), db.dexie.tier_annotations],
+      [
+        ...dexieStoresForAnnotationImportRw(db),
+        db.dexie.tier_annotations,
+        db.dexie.segment_quality_snapshots,
+        db.dexie.scope_stats_snapshots,
+        db.dexie.translation_status_snapshots,
+      ],
       async () => {
         await requireDocumentIn(db, owner, documentId);
         const documents = await db.dexie.annotation_documents
@@ -663,6 +697,7 @@ export async function deleteAnnotationDocument(
           await db.dexie.layer_links.where('layerId').anyOf(layerIds).delete();
           await db.dexie.layer_links.where('hostTranscriptionLayerId').anyOf(layerIds).delete();
           await db.dexie.tier_definitions.bulkDelete(layerIds);
+          await deleteLayerScopedRowsIn(db, layerIds);
         }
         await db.dexie.annotation_documents.delete(documentId);
         return {
