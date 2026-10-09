@@ -52,8 +52,24 @@ export function clientMeetsAppMinVersion(clientVersion: string, appMinVersion: s
   return cmp >= 0;
 }
 
-function resolveCollaborationClientAppVersion(): string {
+/** 当前客户端应用版本（随每次共享写入发给服务器，9.3）| Client app version sent with every shared write (9.3) */
+export function resolveCollaborationClientAppVersion(): string {
   return getMetricVersionTag();
+}
+
+/** 共享写入行必须带的协议与版本列（服务器端检查，rev5 9.3）| Protocol + version columns on every shared write row */
+export interface CollaborationWriteStamp {
+  protocol_version: number;
+  client_app_version: string;
+}
+
+export function collaborationWriteStamp(
+  protocolVersion: number = SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
+): CollaborationWriteStamp {
+  return {
+    protocol_version: protocolVersion,
+    client_app_version: resolveCollaborationClientAppVersion(),
+  };
 }
 
 const DEFAULT_EVALUATION: CollaborationProtocolGuardEvaluation = {

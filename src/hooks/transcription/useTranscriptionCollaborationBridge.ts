@@ -8,6 +8,7 @@ import type {
 } from '../../collaboration/cloud/syncTypes';
 import {
   evaluateCollaborationProtocolGuard,
+  resolveCollaborationClientAppVersion,
   SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
   type CollaborationProtocolGuardEvaluation,
 } from '../../collaboration/cloud/collaborationProtocolGuard';
@@ -47,6 +48,7 @@ interface CollaborationChangeInsertRow {
   client_op_id: string;
   session_id?: string;
   protocol_version: number;
+  client_app_version: string;
   project_revision: number;
   base_revision: number;
   entity_type: ProjectEntityType;
@@ -136,6 +138,7 @@ function toChangeInsertRow(
     client_op_id: record.clientOpId,
     ...(record.sessionId ? { session_id: record.sessionId } : {}),
     protocol_version: record.protocolVersion,
+    client_app_version: resolveCollaborationClientAppVersion(),
     project_revision: record.projectRevision,
     base_revision: record.baseRevision,
     entity_type: record.entityType,

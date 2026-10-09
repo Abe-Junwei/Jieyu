@@ -17,7 +17,7 @@ const requiredFiles = [
   'src/hooks/transcription/useTranscriptionCollaborationBridge.ts',
   'src/hooks/transcription/useTranscriptionCloudSyncActions.ts',
   'src/components/transcription/CollaborationCloudPanel.tsx',
-  'supabase/sql/001_collaboration_foundation.sql',
+  'supabase/sql/001_collaboration_baseline.sql',
   'docs/execution/plans/托管实时协同-Supabase完整落地方案-2026-04-17.md',
   'scripts/report-collaboration-cloud-gate.mjs',
 ];

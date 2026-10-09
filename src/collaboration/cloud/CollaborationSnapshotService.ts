@@ -4,6 +4,7 @@ import {
   type CollaborationStorageBucket,
 } from '../../integrations/supabase/storage';
 import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
+import { collaborationWriteStamp } from './collaborationProtocolGuard';
 import type { CollaborationProjectSnapshotRecord } from './syncTypes';
 
 export interface UploadSnapshotInput {
@@ -187,6 +188,8 @@ export class CollaborationSnapshotService {
       size_bytes: input.storage.sizeBytes,
       change_cursor: input.changeCursor,
       note: input.note ?? null,
+      // 服务器按这两列检查协议与客户端版本（9.3）| Server checks protocol + client version (9.3)
+      ...collaborationWriteStamp(),
     };
 
     const { data, error } = await client.from('project_snapshots').insert(row).select().single();

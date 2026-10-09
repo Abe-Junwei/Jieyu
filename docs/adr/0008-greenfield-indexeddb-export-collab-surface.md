@@ -50,5 +50,5 @@ source_of_truth: decision
 
 - 执行计划：`docs/execution/plans/无历史数据-本地库与协同单轨化落地方案-2026-04-19.md`
 - 协同基线：`docs/architecture/collaboration-cloud.md`
-- SQL：`supabase/sql/002_collaboration_rls_identity_bind.sql`、`supabase/sql/003_project_changes_client_op_unique.sql`（可选）
+- SQL：`supabase/sql/001_collaboration_baseline.sql`（rev5 第 2C 批把原 001–004 合并为唯一基线，含审计列绑定与 `(project_id, client_id, client_op_id)` 去重键）
 - **无云端验收**：`npm run gate:greenfield-local`（文档治理 + 架构守卫 + Dexie/导入/轨道/恢复快照单测 + 协作云 **mock 契约**；不连真实 Supabase）
