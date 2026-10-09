@@ -15,19 +15,29 @@ import { serializeLexemesToLift } from './lexiconLiftExport';
 
 const NOW = '2026-10-09T00:00:00.000Z';
 
-// fox 放在最后：现有导入在处理后续词条时会丢掉前面词条的 subsense 关系（预先存在，留给互通保真切片）
-// fox goes last: the existing import drops earlier entries' subsense relations while handling later
-// entries (pre-existing, left for the interop-fidelity slice)
+// fox 在前、owl 在后：后面的词条不能删掉前面词条的 subsense 关系
+// fox first, owl after it: a later entry must not drop an earlier entry's subsense relations
 const foxXml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="Jieyu">
-  <entry id="lex-owl">
-    <lexical-unit><form lang="eng"><text>owl</text></form></lexical-unit>
-  </entry>
   <entry id="lex-fox">
     <lexical-unit><form lang="eng"><text>fox</text></form></lexical-unit>
     <sense id="sense-fox">
       <gloss lang="en"><text>vulpine</text></gloss>
       <subsense id="sense-kit"><gloss lang="en"><text>young fox</text></gloss></subsense>
+    </sense>
+  </entry>
+  <entry id="lex-owl">
+    <lexical-unit><form lang="eng"><text>owl</text></form></lexical-unit>
+  </entry>
+</lift>`;
+
+const henXml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="Jieyu">
+  <entry id="lex-hen">
+    <lexical-unit><form lang="eng"><text>hen</text></form></lexical-unit>
+    <sense id="sense-hen">
+      <gloss lang="en"><text>bird</text></gloss>
+      <subsense id="sense-chick"><gloss lang="en"><text>young hen</text></gloss></subsense>
     </sense>
   </entry>
 </lift>`;
@@ -121,5 +131,21 @@ describe('R-LIFT-XPROJ: LIFT exported from project A imported into project B', (
     expect(result).toEqual({ ok: false, reason: 'save-failed' });
     expect(saves).toBe(2);
     expect((await db.lexemes.toArray()).filter((row) => row.textId === 'proj-B')).toEqual([]);
+  });
+
+  it('keeps the subsense relations of every entry in the file and of other project entries', async () => {
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-A')).ok).toBe(true);
+    expect((await importLexemesFromLiftXml(henXml, 'proj-A')).ok).toBe(true);
+    // 再次导入 fox 文件只替换 fox 的关系 | Re-importing the fox file only replaces fox's relations
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-A')).ok).toBe(true);
+
+    const resource = await LinguisticService.lexemes.getResource('proj-A');
+    const subsenses = (resource?.resource.relations ?? [])
+      .filter((relation) => relation.type === DMLEX_SUBSENSE)
+      .map((relation) => relation.members.map((member) => member.ref));
+    expect(subsenses.sort()).toEqual([
+      ['sense-fox', 'sense-kit'],
+      ['sense-hen', 'sense-chick'],
+    ]);
   });
 });

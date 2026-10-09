@@ -6,6 +6,7 @@ import { withTransaction } from '../db/withTransaction';
 import { LinguisticService } from '../services/LinguisticService';
 import { DMLEX_HOMOGRAPH, DMLEX_SUBSENSE } from '../db/dmlexTypes';
 import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from '../db/types';
+import type { DmlexRelation } from '../db/dmlexTypes';
 import { isLexemeEntry } from '../db/lexemeNestedIds';
 import { newId } from './transcriptionFormatters';
 import { applyLexiconEntryFields, emptyDmlexResource, type LexiconSenseDraft } from './dmlexEntry';
@@ -124,6 +125,73 @@ function regenerateForeignIds(
     resource: { ...parsed.resource.resource, ...(relations ? { relations } : {}) },
   };
   return { lexemes, resource, regenerated: foreignIds.size };
+}
+
+function relationKey(relation: DmlexRelation): string {
+  return `${relation.type}\u0000${relation.members.map((member) => member.ref).join('\u0000')}`;
+}
+
+/**
+ * 把文件里的关系并入项目已有的词典资源，整次导入只算一次。
+ * 只替换被导入词条（及其被覆盖的旧版本）拥有的 subsense / homograph 关系；项目里其他词条的关系、
+ * 文件里每一条词条的关系都保留（以前逐条循环时，后一条会把前面几条的 subsense 关系删掉）。
+ * Merge the file's relations into the project's resource once per import. Only subsense /
+ * homograph relations owned by the imported entries (and the versions they replace) are replaced;
+ * relations of other project entries and of every entry in the file are kept (the per-entry loop
+ * used to drop earlier entries' subsense relations).
+ */
+function mergeImportedResource(
+  existing: LexemeResourceDoc | null,
+  imported: LexemeResourceDoc,
+  lexemes: readonly LexemeEntryDoc[],
+  replaced: readonly LexemeEntryDoc[],
+): LexemeResourceDoc {
+  if (!existing) return imported;
+  const importedEntryIds = new Set(lexemes.map((lexeme) => lexeme.id));
+  const ownedSenseIds = new Set(
+    [...lexemes, ...replaced].flatMap((row) =>
+      (row.entry.senses ?? []).flatMap((sense) =>
+        typeof sense.id === 'string' && sense.id.length > 0 ? [sense.id] : [],
+      ),
+    ),
+  );
+  const kept = (existing.resource.relations ?? []).filter((relation) => {
+    if (relation.type === DMLEX_SUBSENSE) {
+      return !relation.members.every((member) => ownedSenseIds.has(member.ref));
+    }
+    if (relation.type === DMLEX_HOMOGRAPH) {
+      return !relation.members.some((member) => importedEntryIds.has(member.ref));
+    }
+    return true;
+  });
+  const relations: DmlexRelation[] = [];
+  const seen = new Set<string>();
+  for (const relation of [...kept, ...(imported.resource.relations ?? [])]) {
+    const key = relationKey(relation);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    relations.push(relation);
+  }
+  const relationTypes = [...(existing.resource.relationTypes ?? [])];
+  for (const type of imported.resource.relationTypes ?? []) {
+    if (!relationTypes.some((row) => row.type === type.type)) relationTypes.push(type);
+  }
+  const translationLanguages = [
+    ...new Set([
+      ...existing.resource.translationLanguages,
+      ...imported.resource.translationLanguages,
+    ]),
+  ];
+  return {
+    ...existing,
+    resource: {
+      ...existing.resource,
+      translationLanguages,
+      ...(relations.length > 0 ? { relations } : {}),
+      ...(relationTypes.length > 0 ? { relationTypes } : {}),
+    },
+    updatedAt: imported.updatedAt,
+  };
 }
 
 function directChildren(parent: Element, localName: string): Element[] {
@@ -359,39 +427,17 @@ export async function importLexemesFromLiftXml(
           ? await deps.listForeignIds(parsed.lexemes.map((lexeme) => lexeme.id))
           : new Set<string>();
       const target = regenerateForeignIds(parsed, foreignIds);
-      const existingIds = new Set((await deps.list()).map((row) => row.id));
-      let replacedById = 0;
-      const existingResource = await deps.loadResource();
-      let resource = existingResource ?? target.resource;
+      const existingRows = await deps.list();
+      const importedIds = new Set(target.lexemes.map((lexeme) => lexeme.id));
+      const replacedRows = existingRows.filter((row) => importedIds.has(row.id));
+      const replacedById = replacedRows.length;
+      const resource = mergeImportedResource(
+        await deps.loadResource(),
+        target.resource,
+        target.lexemes,
+        replacedRows,
+      );
       for (const lexeme of target.lexemes) {
-        if (existingIds.has(lexeme.id)) replacedById += 1;
-        const relations = [
-          ...(resource.resource.relations ?? []).filter(
-            (relation) =>
-              relation.type !== DMLEX_SUBSENSE &&
-              !(
-                relation.type === DMLEX_HOMOGRAPH &&
-                relation.members.some((member) => member.ref === lexeme.id)
-              ),
-          ),
-          ...(target.resource.resource.relations ?? []).filter((relation) =>
-            relation.members.some(
-              (member) =>
-                member.ref === lexeme.id ||
-                (lexeme.entry.senses ?? []).some((sense) => sense.id === member.ref),
-            ),
-          ),
-        ];
-        const relationTypes = target.resource.resource.relationTypes;
-        resource = {
-          ...target.resource,
-          resource: {
-            ...target.resource.resource,
-            relations,
-            ...(relationTypes ? { relationTypes } : {}),
-          },
-          createdAt: resource.createdAt,
-        };
         await deps.save(lexeme);
       }
       await deps.saveResource(resource);
