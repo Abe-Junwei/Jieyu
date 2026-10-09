@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { requestPersistOnGesture } from '../../utils/storageDurability';
 import { getDb } from '../../db';
 import { useClickOutside } from '../ui/useClickOutside';
 import type {
@@ -244,6 +245,8 @@ export function useImportExport(input: UseImportExportInput) {
   const confirmArchiveExport = useCallback(
     (kind: 'jyt' | 'jym') => {
       if (typeof window === 'undefined') return {};
+      // 第一次保存项目包时伴随手势申请 persist（6.2）| persist() on the first save gesture (6.2)
+      void requestPersistOnGesture('save');
 
       const confirmed = window.confirm(
         tf(locale, 'transcription.importExport.archiveExportConfirm', {
@@ -1053,6 +1056,7 @@ export function useImportExport(input: UseImportExportInput) {
       file: File,
       importWriteStrategy?: import('./useImportExport.annotationImport').AnnotationImportBridgeStrategy,
     ) => {
+      void requestPersistOnGesture('import');
       const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
       const { handleImportFile: importFile } =
         importHandlersModule.createImportExportImportHandlers({

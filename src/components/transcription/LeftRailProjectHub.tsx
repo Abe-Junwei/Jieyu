@@ -1,4 +1,5 @@
 import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { requestPersistOnGesture } from '../../utils/storageDurability';
 import { JIEYU_MATERIAL_NAV } from '../../utils/jieyuMaterialIcon';
 import {
   useCallback,
@@ -349,6 +350,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
 
   const handleProjectArchivePicked = useCallback(
     async (file: File) => {
+      void requestPersistOnGesture('import');
       setPreviewBusy(true);
       try {
         const preview = await onPreviewProjectArchiveImport(file);

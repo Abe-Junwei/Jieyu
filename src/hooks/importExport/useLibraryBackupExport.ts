@@ -4,6 +4,7 @@
  * Export entry for the whole-library JYB backup (rev5 D1, 7.5; batch 3, third slice): confirm,
  * optional encryption, with or without audio stated explicitly; the result is shown as a toast.
  */
+import { requestPersistOnGesture } from '../../utils/storageDurability';
 import { useCallback } from 'react';
 import { t, tf, type Locale } from '../../i18n';
 import { createLogger } from '../../observability/logger';
@@ -45,6 +46,7 @@ export function useLibraryBackupExport(input: { locale: Locale; notify: Notify }
   const { locale, notify } = input;
   return useCallback(
     async (includeMedia: boolean): Promise<void> => {
+      void requestPersistOnGesture('save');
       const options = promptJybExportOptions(locale, notify);
       if (options === null) return;
       const jyb = await import('../../services/JybService');

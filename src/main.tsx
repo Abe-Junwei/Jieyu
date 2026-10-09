@@ -9,7 +9,7 @@ import { initLcpMetricObserver } from './observability/webVitals';
 import { createLogger } from './observability/logger';
 import { initIconEffect } from './utils/iconEffect';
 import { initTheme } from './utils/theme';
-import { requestPersistentStorage } from './utils/requestPersistentStorage';
+import { requestPersistAtStartup } from './utils/storageDurability';
 import './styles/app-foundation.css';
 
 const log = createLogger('main');
@@ -42,7 +42,9 @@ void initSentryForReleaseStage();
 initLcpMetricObserver();
 initTheme(); // 初始化配色主题 | Initialize appearance theme
 initIconEffect(); // 图标效果 material / motion | Icon effect preference
-void requestPersistentStorage();
+// 启动时的申请只记录结果；第一次导入 / 保存时再伴随手势申请（6.2）
+// Startup attempt is recorded; the first import / save gesture asks again (6.2)
+void requestPersistAtStartup();
 
 // 4a：浏览器自动化下加载迁移框架探针（只操作合成库）| 4a: migration probe under webdriver only
 if (typeof navigator !== 'undefined' && navigator.webdriver) {

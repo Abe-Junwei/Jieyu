@@ -4,6 +4,7 @@
  */
 import { findSnapshotFormatError, ProjectOverwriteBlockedError } from '../db/snapshotFormatError';
 import { t, tf, type Locale } from '../i18n';
+import { classifyStorageFailure } from '../db/migration/storageFailure';
 import { toErrorMessage } from './saveStateError';
 
 function findOverwriteBlockedError(error: unknown): ProjectOverwriteBlockedError | null {
@@ -28,6 +29,10 @@ export function describeArchiveImportError(locale: Locale, error: unknown): stri
       case 'snapshot-failed':
         return t(locale, 'transcription.importExport.overwriteSnapshotFailed');
     }
+  }
+  // 6.2 / T44：配额不足只如实提示，不删原件 | Quota: report honestly, never delete originals
+  if (classifyStorageFailure(error).kind === 'quota-exceeded') {
+    return t(locale, 'msg.appData.importQuotaExceeded');
   }
   const formatError = findSnapshotFormatError(error);
   if (formatError === null) return toErrorMessage(error);

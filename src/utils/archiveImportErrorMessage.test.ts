@@ -57,6 +57,17 @@ describe('describeArchiveImportError (RD-1)', () => {
     ).toContain('cannot be overwritten');
   });
 
+  it('T44: a quota error, even wrapped in AbortError, says nothing was changed or deleted', () => {
+    const quota = new DOMException('full', 'QuotaExceededError');
+    const wrapped = Object.assign(new Error('Transaction aborted'), {
+      name: 'AbortError',
+      inner: quota,
+    });
+    const text = describeArchiveImportError('zh-CN', wrapped);
+    expect(text).toContain('存储空间不足');
+    expect(text).toContain('没有删除任何原件');
+  });
+
   it('keeps other errors as they are', () => {
     expect(describeArchiveImportError('en-US', new Error('disk full'))).toBe('disk full');
   });

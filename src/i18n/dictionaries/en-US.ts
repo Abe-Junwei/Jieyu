@@ -3497,6 +3497,37 @@ export const enUSDictionary = {
     'Export a whole-library backup (JYB, .jyb) periodically from the Transcription workspace export menu to guard against browser storage loss or device changes.',
   'msg.appData.backupElapsedReminderToast':
     'You have worked for about {hours} hour(s). Export a database backup to reduce the risk of data loss.',
+  'msg.appData.storageTitle': 'Storage diagnostics and backup',
+  'msg.appData.storageUsage': 'Storage used',
+  'msg.appData.storageUsageValue': '{usage} MiB / {quota} MiB ({percent}%)',
+  'msg.appData.storageUnknown': 'Unknown',
+  'msg.appData.storagePersisted': 'Persistent storage',
+  'msg.appData.storagePersistedYes': 'On',
+  'msg.appData.storagePersistedNo':
+    "Off (the browser may clear this site's data when space runs low)",
+  'msg.appData.storageLastRequest': 'Last request',
+  'msg.appData.storageLastRequestValue': '{outcome} ({trigger}, {at})',
+  'msg.appData.storageLastRequestNone': 'not requested yet',
+  'msg.appData.storageOutcomeGranted': 'granted',
+  'msg.appData.storageOutcomeDenied': 'not granted',
+  'msg.appData.storageOutcomeUnsupported': 'not supported',
+  'msg.appData.storageOutcomeError': 'error',
+  'msg.appData.storageRequestPersist': 'Request persistent storage',
+  'msg.appData.storageSafariNote':
+    "Per WebKit's 2020 ITP notes, Safari may delete script-writable storage such as IndexedDB after 7 days of use without interaction with this site; Home Screen web apps are counted separately. Not yet tested in this version.",
+  'msg.appData.storageBackupFolder':
+    'Back up to a folder… (whole library with audio, keeps the newest 3)',
+  'msg.appData.storageBackupDone':
+    'Wrote {folder}/{file} ({size} MiB), removed {count} older backup(s)',
+  'msg.appData.storageBackupFailed': 'Backup failed: {message} (existing backups were not touched)',
+  'msg.appData.storageBackupUnsupported':
+    'This browser cannot write to a backup folder. Download a whole-library JYB backup from the project hub (Export) regularly; you will be reminded when one is due.',
+  'msg.appData.importQuotaExceeded':
+    'Not enough storage space, so the import did not finish. Existing data is unchanged and no originals were deleted. See Settings → Data for storage usage.',
+  'msg.appData.storageTriggerStartup': 'at startup',
+  'msg.appData.storageTriggerImport': 'on import',
+  'msg.appData.storageTriggerSave': 'on save',
+  'msg.appData.storageTriggerManual': 'manual',
   'msg.appData.collabLocalStorageQuotaToast':
     'Browser storage quota exceeded: collaboration sync state is using a memory overlay mirrored to IndexedDB. Export a backup or free site data soon.',
   'msg.appData.dbIntegrityTitle': 'Local database self-check failed',

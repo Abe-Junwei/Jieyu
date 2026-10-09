@@ -23,6 +23,7 @@ import {
 } from '../../utils/dbIntegrityPreference';
 import type { AppDataResilienceMessages, SettingsModalMessages } from '../../i18n/messages';
 import type { Locale } from '../../i18n';
+import { StorageDiagnosticsPanel } from './StorageDiagnosticsPanel';
 import type { MapProviderKind, MapProviderPreference } from './settingsConstants';
 
 interface SettingsDataTabProps {
@@ -31,7 +32,7 @@ interface SettingsDataTabProps {
   resilienceMsg: AppDataResilienceMessages;
 }
 
-export function SettingsDataTab({ locale: _locale, msg, resilienceMsg }: SettingsDataTabProps) {
+export function SettingsDataTab({ locale, msg, resilienceMsg }: SettingsDataTabProps) {
   const [backupReminderEnabled, setBackupReminderEnabled] = useState(() =>
     readBackupReminderEnabled(),
   );
@@ -134,6 +135,8 @@ export function SettingsDataTab({ locale: _locale, msg, resilienceMsg }: Setting
           <div className="settings-data-cleared">{msg.dataCleared}</div>
         ) : null}
       </SettingsSection>
+
+      <StorageDiagnosticsPanel locale={locale} />
 
       <SettingsSection title={msg.dataResilienceSectionTitle}>
         <SettingRow label={resilienceMsg.settingsBackupReminderLabel}>
