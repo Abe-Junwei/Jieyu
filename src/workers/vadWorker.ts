@@ -20,8 +20,13 @@
  */
 
 import {
+  createSileroStreamState,
   frameProbsToSegments,
   resampleLinear,
+  runSileroFrame,
+  SILERO_FRAME_SAMPLES,
+  type SileroOrtLike,
+  type SileroSessionLike,
   type VadWorkerSegment,
 } from '../utils/vadWorkerInferenceUtils';
 
@@ -30,22 +35,14 @@ export type { VadWorkerSegment } from '../utils/vadWorkerInferenceUtils';
 // ── Silero VAD 配置 | Silero VAD configuration ──────────────────────────────
 
 const SILERO_SAMPLE_RATE = 16_000; // Silero 仅支持 16kHz | Silero only supports 16 kHz
-const FRAME_SIZE = 512; // Silero 标准帧大小 | Standard Silero frame size
+const FRAME_SIZE = SILERO_FRAME_SAMPLES; // Silero 标准帧大小 | Standard Silero frame size
 
 // ── ONNX Runtime 运行时（动态导入）| ONNX Runtime (dynamic import) ─────────────
 
-type OnnxSession = {
-  run: (feeds: Record<string, OnnxTensor>) => Promise<Record<string, OnnxTensor>>;
-};
-type OnnxTensor = {
-  data: Float32Array;
-  dims: number[];
-};
-
-let session: OnnxSession | null = null;
+let session: SileroSessionLike | null = null;
 let ort: typeof import('onnxruntime-web') | null = null;
-let h0: Float32Array = new Float32Array(2 * 1 * 64); // hidden state
-let c0: Float32Array = new Float32Array(2 * 1 * 64); // cell state
+// Silero v5+ 循环状态与 64 采样上下文 | Silero v5+ recurrent state and 64-sample context
+let sileroStream = createSileroStreamState();
 const cancelledRequestIds = new Set<string>();
 
 // ── 流式推理会话状态 | Streaming inference session state ─────────────────────
@@ -62,8 +59,7 @@ let streamSession: StreamingSessionState | null = null;
 let streamProcessQueue: Promise<void> = Promise.resolve();
 
 function resetState(): void {
-  h0.fill(0);
-  c0.fill(0);
+  sileroStream = createSileroStreamState();
 }
 
 // ── Worker 消息处理 | Worker message handler ─────────────────────────────────
@@ -91,7 +87,7 @@ self.onmessage = async (event: MessageEvent) => {
         ort.env.wasm.wasmPaths = '/onnx-wasm/';
         session = (await ort.InferenceSession.create(msg.modelUrl ?? '/models/silero_vad.onnx', {
           executionProviders: ['wasm'],
-        })) as unknown as OnnxSession;
+        })) as unknown as SileroSessionLike;
         resetState();
         self.postMessage({ type: 'ready' });
       } catch (err) {
@@ -221,29 +217,18 @@ self.onmessage = async (event: MessageEvent) => {
 // ── Silero VAD 推理 | Silero VAD inference ───────────────────────────────────
 
 /**
- * 对单帧 PCM 运行 Silero VAD ONNX 推理，返回语音概率。
- * Runs Silero VAD ONNX inference on a single frame, returning speech probability.
+ * 对单帧 PCM 运行 Silero VAD ONNX 推理（v5+ 接口：input + state + sr），返回语音概率。
+ * Runs Silero VAD ONNX inference on a single frame (v5+ interface: input + state + sr).
  */
 async function runSingleFrame(frame: Float32Array): Promise<number> {
-  if (!ort) throw new Error('onnxruntime-web not loaded');
-  const inputTensor = new ort.Tensor('float32', frame, [1, FRAME_SIZE]);
-  const srTensor = new ort.Tensor('int64', BigInt64Array.from([BigInt(SILERO_SAMPLE_RATE)]), [1]);
-  const hTensor = new ort.Tensor('float32', h0, [2, 1, 64]);
-  const cTensor = new ort.Tensor('float32', c0, [2, 1, 64]);
-
-  const outputs = await session!.run({
-    input: inputTensor as unknown as OnnxTensor,
-    sr: srTensor as unknown as OnnxTensor,
-    h: hTensor as unknown as OnnxTensor,
-    c: cTensor as unknown as OnnxTensor,
-  });
-
-  const prob = (outputs['output']?.data as Float32Array)[0] ?? 0;
-  const newH = outputs['hn']?.data as Float32Array;
-  const newC = outputs['cn']?.data as Float32Array;
-  if (newH !== undefined) h0 = new Float32Array(newH);
-  if (newC !== undefined) c0 = new Float32Array(newC);
-  return prob;
+  if (!ort || !session) throw new Error('onnxruntime-web not loaded');
+  return runSileroFrame(
+    ort as unknown as SileroOrtLike,
+    session,
+    sileroStream,
+    frame,
+    SILERO_SAMPLE_RATE,
+  );
 }
 
 /**
