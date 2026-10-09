@@ -250,3 +250,108 @@ describe('GAP-1 cascade deletes stay inside the project', () => {
     expect(await db.unit_morphemes.get('m-B-on-A')).toBeDefined();
   });
 });
+
+/**
+ * BF1-N2：句段父链（parentUnitId / rootUnitId）与句段内容（unitId）同样不能跨项目；
+ * 删除句段时级联不越过项目。（移植自复审用例 bugfix1.review.test.ts）
+ * BF1-N2: the segment parent chain and unit contents cannot cross projects either, and segment
+ * cascades stay inside the project. (Ported from the review repro bugfix1.review.test.ts.)
+ */
+function segment(
+  id: string,
+  textId: string,
+  layerId: string,
+  parentUnitId: string,
+): LayerUnitDocType {
+  return {
+    ...unit(id, textId, layerId),
+    unitType: 'segment',
+    parentUnitId,
+    rootUnitId: parentUnitId,
+  } as LayerUnitDocType;
+}
+function content(id: string, textId: string, unitId: string, layerId: string) {
+  return {
+    id,
+    textId,
+    unitId,
+    layerId,
+    contentRole: 'primary_text',
+    modality: 'text',
+    text: id,
+    sourceType: 'human',
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+}
+
+describe('BF1-N2 segments and unit contents reject cross-project parents', () => {
+  it('JSON import (upsert) refuses a project-B segment whose parentUnitId is a project-A unit', async () => {
+    const snapshot = JSON.parse(JSON.stringify(await exportDatabaseAsJson())) as {
+      collections: Record<string, unknown[]>;
+    };
+    snapshot.collections.layer_units = [segment('seg-B', B, 'L-B', 'unit-A')];
+    await expect(importDatabaseFromJson(snapshot, { strategy: 'upsert' })).rejects.toThrow(
+      MISMATCH,
+    );
+    expect(await db.layer_units.get('seg-B')).toBeUndefined();
+  });
+
+  it('direct writes check parentUnitId, rootUnitId and layer_unit_contents.unitId', async () => {
+    await expect(db.layer_units.put(segment('seg-B', B, 'L-B', 'unit-A'))).rejects.toThrow(
+      JieyuParentOwnershipMismatchError,
+    );
+    await expect(
+      db.layer_units.put({
+        ...unit('seg-B2', B, 'L-B'),
+        unitType: 'segment',
+        parentUnitId: 'unit-B',
+        rootUnitId: 'unit-A',
+      } as LayerUnitDocType),
+    ).rejects.toThrow(MISMATCH);
+    await expect(
+      db.layer_unit_contents.put(content('cnt-B', B, 'unit-A', 'L-B') as never),
+    ).rejects.toThrow(JieyuParentOwnershipMismatchError);
+    // Table.update 也走同一检查 | Table.update is checked as well
+    await db.layer_units.put(segment('seg-B3', B, 'L-B', 'unit-B'));
+    await expect(db.layer_units.update('seg-B3', { parentUnitId: 'unit-A' })).rejects.toThrow(
+      MISMATCH,
+    );
+  });
+
+  it('same-project segments and contents are accepted', async () => {
+    await db.layer_units.put(segment('seg-A', A, 'L-A', 'unit-A'));
+    await db.layer_unit_contents.put(content('cnt-A', A, 'seg-A', 'L-A') as never);
+    expect(await db.layer_units.get('seg-A')).toBeDefined();
+    expect(await db.layer_unit_contents.get('cnt-A')).toBeDefined();
+  });
+});
+
+describe('BF1-N2 segment cascades stay inside the project', () => {
+  async function plantForeignSegment(): Promise<void> {
+    // 修复前的坏数据：父行不存在时写入 | pre-fix bad data, written while the parent is absent
+    await db.layer_units.delete('unit-A');
+    await db.layer_units.put(segment('seg-B-stray', B, 'L-B', 'unit-A'));
+    await db.layer_unit_contents.put(content('cnt-B-stray', B, 'seg-B-stray', 'L-B') as never);
+    await db.layer_units.put(unit('unit-A', A, 'L-A'));
+    await db.layer_units.put(segment('seg-A', A, 'L-A', 'unit-A'));
+    await db.layer_unit_contents.put(content('cnt-A', A, 'seg-A', 'L-A') as never);
+  }
+
+  it('removeUnitCascade deletes the unit own segments but not a project-B segment', async () => {
+    await plantForeignSegment();
+    await removeUnitCascade('unit-A');
+    expect(await db.layer_units.get('seg-A')).toBeUndefined();
+    expect(await db.layer_unit_contents.get('cnt-A')).toBeUndefined();
+    expect(await db.layer_units.get('seg-B-stray')).toBeDefined();
+    expect(await db.layer_unit_contents.get('cnt-B-stray')).toBeDefined();
+  });
+
+  it('removeUnitsBatchCascade does the same', async () => {
+    await plantForeignSegment();
+    await removeUnitsBatchCascade(['unit-A']);
+    expect(await db.layer_units.get('seg-A')).toBeUndefined();
+    expect(await db.layer_units.get('seg-B-stray')).toBeDefined();
+    expect(await db.layer_unit_contents.get('cnt-B-stray')).toBeDefined();
+  });
+});

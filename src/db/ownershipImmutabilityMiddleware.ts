@@ -103,8 +103,30 @@ function refsOf(entries: Array<[string, string | undefined]>): ParentOwnerRef[] 
   return entries.flatMap(([table, key]) => (key === undefined ? [] : [{ table, key }]));
 }
 
-/** GAP-1 的间接表：token、morpheme、词条链接 | GAP-1 indirect tables */
+/**
+ * GAP-1 的间接表：token、morpheme、词条链接；BF1-N2 补上句段父链（parentUnitId / rootUnitId）与
+ * 句段内容（unitId）。
+ * GAP-1 indirect tables (tokens, morphemes, lexeme links); BF1-N2 adds the segment parent chain
+ * (parentUnitId / rootUnitId) and unit contents (unitId).
+ */
 export const JIEYU_PARENT_CONSISTENCY_RULES: ParentConsistencyRules = {
+  layer_units: {
+    parentTables: ['layer_units'],
+    extract: (row) => ({
+      ...ownTextIdOf(row),
+      parents: refsOf([
+        ['layer_units', stringField(row, 'parentUnitId')],
+        ['layer_units', stringField(row, 'rootUnitId')],
+      ]),
+    }),
+  },
+  layer_unit_contents: {
+    parentTables: ['layer_units'],
+    extract: (row) => ({
+      ...ownTextIdOf(row),
+      parents: refsOf([['layer_units', stringField(row, 'unitId')]]),
+    }),
+  },
   unit_tokens: {
     parentTables: ['layer_units'],
     extract: (row) => ({
