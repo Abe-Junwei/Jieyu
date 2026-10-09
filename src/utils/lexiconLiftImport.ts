@@ -88,26 +88,66 @@ export function defaultLiftImportDeps(textId: string): LexiconLiftImportDeps {
 }
 
 /**
- * 跨项目导入（JY-07）：文件里的词条 id 已被本机另一个项目占用时，换成新 id，义项 id 一并换新，
- * DMLex 关系里的引用按同一张映射表改写。目标项目自己的同 id 词条仍按 id 覆盖。
- * Cross-project import (JY-07): entry ids already owned by another local project get new ids
- * (their sense ids too), and DMLex relation refs are rewritten through the same map. Same-id
- * entries of the target project are still replaced by id.
+ * 128 位确定性哈希（四路 FNV-1a，按 UTF-16 码元），只用于生成稳定 id，不用于安全场景。
+ * 128-bit deterministic hash (four FNV-1a lanes over UTF-16 code units); for stable ids only,
+ * not for security.
+ */
+function stableHash128(input: string): string {
+  const seeds = [0x811c9dc5, 0x01000193, 0x9e3779b9, 0x85ebca6b];
+  return seeds
+    .map((seed, lane) => {
+      let hash = (seed ^ Math.imul(lane + 1, 0x27d4eb2d)) >>> 0;
+      for (let index = 0; index < input.length; index += 1) {
+        hash ^= input.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193) >>> 0;
+        hash ^= hash >>> (13 + lane);
+      }
+      return hash.toString(16).padStart(8, '0');
+    })
+    .join('');
+}
+
+/**
+ * 外来词条在目标项目里的副本 id：由（目标项目, 类型, 文件里的 id）确定，同一文件重复导入同一项目
+ * 得到同一批 id，于是按 id 覆盖而不是翻倍（GAP-4）。
+ * Copy id of a foreign entry in the target project: derived from (target project, kind, file id),
+ * so importing the same file into the same project again yields the same ids and replaces by id
+ * instead of doubling (GAP-4).
+ */
+export function liftCopyId(kind: 'lex' | 'sense', textId: string, sourceId: string): string {
+  return `${kind}_${stableHash128(`${textId}\u0000${kind}\u0000${sourceId}`)}`;
+}
+
+/**
+ * 跨项目导入（JY-07）：文件里的词条 id 已被本机另一个项目占用时，换成确定性的副本 id（GAP-4），
+ * 义项 id 一并换，DMLex 关系里的引用按同一张映射表改写。目标项目里已有该副本时（例如源项目后来
+ * 删了这条）也继续用副本 id。目标项目自己的同 id 词条仍按 id 覆盖。
+ * Cross-project import (JY-07): entry ids already owned by another local project get deterministic
+ * copy ids (GAP-4), their sense ids too, and DMLex relation refs are rewritten through the same map.
+ * An entry whose copy already exists in the target (e.g. the source project later dropped it)
+ * keeps using the copy id. Same-id entries of the target project are still replaced by id.
  */
 function regenerateForeignIds(
   parsed: Extract<LexiconLiftParseResult, { ok: true }>,
+  textId: string,
   foreignIds: ReadonlySet<string>,
+  existingIds: ReadonlySet<string>,
 ): { lexemes: LexemeEntryDoc[]; resource: LexemeResourceDoc; regenerated: number } {
-  if (foreignIds.size === 0) {
-    return { lexemes: parsed.lexemes, resource: parsed.resource, regenerated: 0 };
-  }
   const idMap = new Map<string, string>();
+  let regenerated = 0;
   for (const lexeme of parsed.lexemes) {
-    if (!foreignIds.has(lexeme.id)) continue;
-    idMap.set(lexeme.id, newId('lex'));
+    const copyId = liftCopyId('lex', textId, lexeme.id);
+    if (!foreignIds.has(lexeme.id) && !existingIds.has(copyId)) continue;
+    regenerated += 1;
+    idMap.set(lexeme.id, copyId);
     for (const sense of lexeme.entry.senses ?? []) {
-      if (typeof sense.id === 'string' && sense.id.length > 0) idMap.set(sense.id, newId('sense'));
+      if (typeof sense.id === 'string' && sense.id.length > 0) {
+        idMap.set(sense.id, liftCopyId('sense', textId, sense.id));
+      }
     }
+  }
+  if (idMap.size === 0) {
+    return { lexemes: parsed.lexemes, resource: parsed.resource, regenerated: 0 };
   }
   const mapId = (id: string): string => idMap.get(id) ?? id;
   const lexemes = parsed.lexemes.map((lexeme) => {
@@ -126,7 +166,7 @@ function regenerateForeignIds(
     ...parsed.resource,
     resource: { ...parsed.resource.resource, ...(relations ? { relations } : {}) },
   };
-  return { lexemes, resource, regenerated: foreignIds.size };
+  return { lexemes, resource, regenerated };
 }
 
 function relationKey(relation: DmlexRelation): string {
@@ -514,8 +554,13 @@ export async function importLexemesFromLiftXml(
         deps.listForeignIds !== undefined
           ? await deps.listForeignIds(parsed.lexemes.map((lexeme) => lexeme.id))
           : new Set<string>();
-      const target = regenerateForeignIds(parsed, foreignIds);
       const existingRows = await deps.list();
+      const target = regenerateForeignIds(
+        parsed,
+        textId,
+        foreignIds,
+        new Set(existingRows.map((row) => row.id)),
+      );
       const importedIds = new Set(target.lexemes.map((lexeme) => lexeme.id));
       const replacedRows = existingRows.filter((row) => importedIds.has(row.id));
       const replacedById = replacedRows.length;

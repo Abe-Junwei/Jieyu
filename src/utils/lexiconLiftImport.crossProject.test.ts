@@ -149,3 +149,52 @@ describe('R-LIFT-XPROJ: LIFT exported from project A imported into project B', (
     ]);
   });
 });
+
+describe('GAP-4: re-importing the same foreign LIFT into B is idempotent', () => {
+  it('second import of the same file replaces the copies instead of adding more', async () => {
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-A')).ok).toBe(true);
+    const first = await importLexemesFromLiftXml(foxXml, 'proj-B');
+    expect(first.ok).toBe(true);
+    const afterFirst = await rowsOf('proj-B');
+    const resourceFirst = await LinguisticService.lexemes.getResource('proj-B');
+
+    const second = await importLexemesFromLiftXml(foxXml, 'proj-B');
+    expect(second.ok).toBe(true);
+    const afterSecond = await rowsOf('proj-B');
+    expect(afterSecond.map((row) => row.id)).toEqual(afterFirst.map((row) => row.id));
+    expect(afterSecond.map((row) => (row.entry.senses ?? []).map((sense) => sense.id))).toEqual(
+      afterFirst.map((row) => (row.entry.senses ?? []).map((sense) => sense.id)),
+    );
+    const resourceSecond = await LinguisticService.lexemes.getResource('proj-B');
+    expect(resourceSecond?.resource.relations).toEqual(resourceFirst?.resource.relations);
+    if (second.ok) {
+      // 第二次是按 id 覆盖，损失报告如实显示 | The second run replaces by id and says so
+      expect(second.losses).toContainEqual({ code: 'replaced-by-id', count: 2 });
+    }
+  });
+
+  it('the copy ids depend on the target project, so B and C get different ids', async () => {
+    await db.texts.put({
+      id: 'proj-C',
+      title: { default: 'proj-C' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-A')).ok).toBe(true);
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-B')).ok).toBe(true);
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-C')).ok).toBe(true);
+    const idsB = (await rowsOf('proj-B')).map((row) => row.id);
+    const idsC = (await rowsOf('proj-C')).map((row) => row.id);
+    expect(idsB).toHaveLength(2);
+    expect(idsC).toHaveLength(2);
+    expect(idsB.filter((id) => idsC.includes(id))).toEqual([]);
+  });
+
+  it('still replaces the earlier copy after the source project dropped the entry', async () => {
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-A')).ok).toBe(true);
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-B')).ok).toBe(true);
+    await db.lexemes.filter((row) => row.textId === 'proj-A').delete();
+    expect((await importLexemesFromLiftXml(foxXml, 'proj-B')).ok).toBe(true);
+    expect(await rowsOf('proj-B')).toHaveLength(2);
+  });
+});
