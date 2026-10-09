@@ -28,10 +28,9 @@ if [ -f "${DEST}" ]; then
     echo "[whisper-model] already present and verified: ${DEST}"
     exit 0
   fi
-  # 先隔离坏文件，重新下载失败时也不会留下可被加载的模型 | Quarantine first so a failed re-download leaves no loadable model
-  QUARANTINE="${DEST}.sha256-mismatch.$(date +%Y%m%d%H%M%S)"
-  mv -f "${DEST}" "${QUARANTINE}"
-  echo "[whisper-model] existing file has a different sha256; quarantined to ${QUARANTINE}, re-downloading" >&2
+  # 先删掉坏文件，重新下载失败时也不会留下可被加载的模型（不留 ~574 MB 隔离副本）| Delete first so a failed re-download leaves no loadable model (no ~574 MB quarantine copy)
+  rm -f "${DEST}"
+  echo "[whisper-model] existing file has a different sha256; removed, re-downloading" >&2
 fi
 
 TMP="$(mktemp "${MODEL_DIR}/.${MODEL_FILE}.XXXXXX")"

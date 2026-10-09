@@ -43,15 +43,13 @@ if [ -f "${DEST}" ]; then
     echo "[Silero-VAD] 模型已存在且校验通过（${SILERO_VERSION}）| Model present and verified (${SILERO_VERSION}): ${DEST}"
     exit 0
   fi
-  # 先把坏文件隔离（改名，不再是 .onnx），即使重新下载失败，运行时也不会加载它（BF1-N4）
-  # Quarantine the bad file first (renamed, no longer *.onnx) so the runtime never loads it,
-  # even when the re-download below fails (BF1-N4)
-  QUARANTINE="${DEST}.sha256-mismatch.$(date +%Y%m%d%H%M%S)"
-  mv -f "${DEST}" "${QUARANTINE}"
-  echo "[Silero-VAD] 现有模型 sha256 不符，已隔离并重新下载 | Existing model sha256 mismatch, quarantined and re-downloading" >&2
+  # 先删掉坏文件，即使重新下载失败，运行时也不会加载它（BF1-N4）；不留隔离副本，免得被打进 dist 或提交（BF2-3）
+  # Delete the bad file first so the runtime never loads it even if the re-download fails (BF1-N4);
+  # no quarantine copy, which would ship in dist/models and show up in git (BF2-3)
+  rm -f "${DEST}"
+  echo "[Silero-VAD] 现有模型 sha256 不符，已删除并重新下载 | Existing model sha256 mismatch, removed and re-downloading" >&2
   echo "  expected  : ${EXPECTED_SHA256}" >&2
   echo "  actual    : ${ACTUAL}" >&2
-  echo "  quarantine: ${QUARANTINE}" >&2
 fi
 
 TMP="$(mktemp "${MODEL_DIR}/.silero_vad.XXXXXX")"
