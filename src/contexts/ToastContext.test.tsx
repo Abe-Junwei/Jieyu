@@ -10,13 +10,11 @@ const TOAST_FADE_OUT_MS = 260;
 
 // ── Test component that uses the toast context ──────────────────────────────────
 
-function TestConsumer({
-  onMount,
-}: {
-  onMount?: (ctx: ReturnType<typeof useToast>) => void;
-}) {
+function TestConsumer({ onMount }: { onMount?: (ctx: ReturnType<typeof useToast>) => void }) {
   const ctx = useToast();
-  React.useEffect(() => { onMount?.(ctx); }, [onMount, ctx]);
+  React.useEffect(() => {
+    onMount?.(ctx);
+  }, [onMount, ctx]);
   return null;
 }
 
@@ -30,12 +28,7 @@ afterEach(() => {
 describe('ToastContext', () => {
   // Helper to render inside ToastProvider
   function renderInProvider(element: React.ReactElement, locale: 'zh-CN' | 'en-US' = 'zh-CN') {
-    return renderWithLocale(
-      <ToastProvider>
-        {element}
-      </ToastProvider>,
-      locale,
-    );
+    return renderWithLocale(<ToastProvider>{element}</ToastProvider>, locale);
   }
 
   describe('useToast throws outside provider', () => {
@@ -43,7 +36,9 @@ describe('ToastContext', () => {
       const nativeConsole = globalThis['console'];
       const orig = nativeConsole.error;
       nativeConsole.error = vi.fn();
-      expect(() => render(<TestConsumer />)).toThrow('useToast must be used within <ToastProvider>');
+      expect(() => render(<TestConsumer />)).toThrow(
+        'useToast must be used within <ToastProvider>',
+      );
       nativeConsole.error = orig;
     });
   });
@@ -56,97 +51,203 @@ describe('ToastContext', () => {
 
     it('renders a toast when showToast is called', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('hello world', 'info'); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('hello world', 'info');
+      });
       expect(screen.getByRole('status').textContent).toBe('hello world');
     });
 
     it('renders with correct variant class', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('test', 'success'); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('test', 'success');
+      });
       expect(document.querySelector('.toast-success')).not.toBeNull();
     });
 
     it('dismisses on click', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('click me', 'info'); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('click me', 'info');
+      });
       // Click the inner toast div (which has onClick={dismiss}), not the container
-      act(() => { fireEvent.click(screen.getByText('click me')); });
-      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
+      act(() => {
+        fireEvent.click(screen.getByText('click me'));
+      });
+      act(() => {
+        vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('auto-dismisses after default delay for info toast', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('auto', 'info'); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('auto', 'info');
+      });
       expect(screen.getByRole('status').textContent).toBe('auto');
-      act(() => { vi.advanceTimersByTime(3500); });
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('auto-dismisses after error delay for error toast', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('error', 'error'); });
-      act(() => { vi.advanceTimersByTime(1739); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('error', 'error');
+      });
+      act(() => {
+        vi.advanceTimersByTime(1739);
+      });
       expect(screen.queryByRole('status')).not.toBeNull(); // not yet
-      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS + 1); });
+      act(() => {
+        vi.advanceTimersByTime(TOAST_FADE_OUT_MS + 1);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('does NOT auto-dismiss for recording variant (persistent)', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('recording', 'recording'); });
-      act(() => { vi.advanceTimersByTime(10000); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('recording', 'recording');
+      });
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
       expect(screen.getByRole('status').textContent).toBe('recording');
     });
 
     it('does NOT auto-dismiss for listening variant (persistent)', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('listening', 'listening'); });
-      act(() => { vi.advanceTimersByTime(10000); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('listening', 'listening');
+      });
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
       expect(screen.getByRole('status').textContent).toBe('listening');
     });
 
     it('respects explicit autoDismissMs=0 (persistent)', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('persistent', 'info', 0); });
-      act(() => { vi.advanceTimersByTime(10000); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('persistent', 'info', 0);
+      });
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
       expect(screen.getByRole('status').textContent).toBe('persistent');
     });
 
     it('respects explicit autoDismissMs override', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('short', 'info', 500); });
-      act(() => { vi.advanceTimersByTime(499); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('short', 'info', 500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(499);
+      });
       expect(screen.queryByRole('status')).not.toBeNull();
-      act(() => { vi.advanceTimersByTime(2); });
+      act(() => {
+        vi.advanceTimersByTime(2);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('dedupes same message+variant in throttle window and does not reset dismiss timer', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
 
-      act(() => { ctx!.showToast('dedupe', 'info'); });
-      act(() => { vi.advanceTimersByTime(1500); });
-      act(() => { ctx!.showToast('dedupe', 'info'); });
-      act(() => { vi.advanceTimersByTime(500); });
+      act(() => {
+        ctx!.showToast('dedupe', 'info');
+      });
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      act(() => {
+        ctx!.showToast('dedupe', 'info');
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
 
       expect(screen.queryByRole('status')).toBeNull();
     });
@@ -154,11 +255,23 @@ describe('ToastContext', () => {
     it('allows same message+variant again after dedupe window', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
 
-      act(() => { ctx!.showToast('dedupe-window', 'info'); });
-      act(() => { vi.advanceTimersByTime(2600); });
-      act(() => { ctx!.showToast('dedupe-window', 'info'); });
+      act(() => {
+        ctx!.showToast('dedupe-window', 'info');
+      });
+      act(() => {
+        vi.advanceTimersByTime(2600);
+      });
+      act(() => {
+        ctx!.showToast('dedupe-window', 'info');
+      });
 
       expect(screen.getByRole('status').textContent).toBe('dedupe-window');
     });
@@ -167,77 +280,157 @@ describe('ToastContext', () => {
   describe('showSaveState', () => {
     it('renders saving toast', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showSaveState({ kind: 'saving' }); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({ kind: 'saving' });
+      });
       expect(screen.getByRole('status').textContent).toBe(t('zh-CN', 'transcription.toast.saving'));
     });
 
     it('renders done toast with custom message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showSaveState({ kind: 'done', message: '自定义保存完成' }); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({ kind: 'done', message: '自定义保存完成' });
+      });
       expect(screen.getByRole('status').textContent).toBe('自定义保存完成');
     });
 
     it('renders error toast with custom message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showSaveState({ kind: 'error', message: '保存失败原因' }); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({ kind: 'error', message: '保存失败原因' });
+      });
       expect(screen.getByRole('status').textContent).toBe('保存失败原因');
     });
 
     it('dismisses on idle saveState', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('some toast', 'info'); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('some toast', 'info');
+      });
       expect(screen.getByRole('status').textContent).toBe('some toast');
-      act(() => { ctx!.showSaveState({ kind: 'idle' }); });
-      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
+      act(() => {
+        ctx!.showSaveState({ kind: 'idle' });
+      });
+      act(() => {
+        vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('done uses default message when none provided', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成' }); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({ kind: 'done', message: '保存完成' });
+      });
       expect(screen.getByRole('status').textContent).toBe('保存完成');
     });
 
     it('throttles done save toasts within cooldown window', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
 
-      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 A' }); });
+      act(() => {
+        ctx!.showSaveState({ kind: 'done', message: '保存完成 A' });
+      });
       expect(screen.getByRole('status').textContent).toBe('保存完成 A');
 
-      act(() => { vi.advanceTimersByTime(1500); });
-      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 B' }); });
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      act(() => {
+        ctx!.showSaveState({ kind: 'done', message: '保存完成 B' });
+      });
       expect(screen.getByRole('status').textContent).toBe('保存完成 A');
 
-      act(() => { vi.advanceTimersByTime(500); });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('allows done save toast again after cooldown window', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
 
-      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 A' }); });
-      act(() => { vi.advanceTimersByTime(6100); });
-      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 B' }); });
+      act(() => {
+        ctx!.showSaveState({ kind: 'done', message: '保存完成 A' });
+      });
+      act(() => {
+        vi.advanceTimersByTime(6100);
+      });
+      act(() => {
+        ctx!.showSaveState({ kind: 'done', message: '保存完成 B' });
+      });
 
       expect(screen.getByRole('status').textContent).toBe('保存完成 B');
     });
 
     it('does not throttle save error toast even after done toast', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
 
-      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成' }); });
-      act(() => { ctx!.showSaveState({ kind: 'error', message: '保存失败' }); });
+      act(() => {
+        ctx!.showSaveState({ kind: 'done', message: '保存完成' });
+      });
+      act(() => {
+        ctx!.showSaveState({ kind: 'error', message: '保存失败' });
+      });
 
       expect(screen.getByRole('status').textContent).toBe('保存失败');
       expect(document.querySelector('.toast-error')).not.toBeNull();
@@ -245,14 +438,28 @@ describe('ToastContext', () => {
 
     it('error uses default message when none provided', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showSaveState({ kind: 'error', message: '保存失败' }); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({ kind: 'error', message: '保存失败' });
+      });
       expect(screen.getByRole('status').textContent).toBe('保存失败');
     });
 
     it('maps validation errors to info toast variant', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
       act(() => {
         ctx!.showSaveState({
           kind: 'error',
@@ -267,7 +474,13 @@ describe('ToastContext', () => {
 
     it('appends refresh hint for conflict errors when message has no refresh text', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
       act(() => {
         ctx!.showSaveState({
           kind: 'error',
@@ -276,13 +489,21 @@ describe('ToastContext', () => {
         });
       });
 
-      expect(screen.getByRole('status').textContent).toMatch(/导入文件失败：外部写入冲突（建议刷新后重试）|导入文件失败：外部写入冲突（Refresh and try again）/);
+      expect(screen.getByRole('status').textContent).toMatch(
+        /导入文件失败：外部写入冲突（建议刷新后重试）|导入文件失败：外部写入冲突（Refresh and try again）/,
+      );
       expect(document.querySelector('.toast-error')).not.toBeNull();
     });
 
     it('keeps conflict message unchanged when it already includes refresh hint', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
       act(() => {
         ctx!.showSaveState({
           kind: 'error',
@@ -291,12 +512,20 @@ describe('ToastContext', () => {
         });
       });
 
-      expect(screen.getByRole('status').textContent).toBe('导入文件失败：检测到数据已被其他操作更新，请刷新后重试');
+      expect(screen.getByRole('status').textContent).toBe(
+        '导入文件失败：检测到数据已被其他操作更新，请刷新后重试',
+      );
     });
 
     it('prefers i18nKey message when key is provided on save error', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
       act(() => {
         ctx!.showSaveState({
           kind: 'error',
@@ -310,84 +539,201 @@ describe('ToastContext', () => {
         });
       });
 
-      expect(screen.getByRole('status').textContent).toMatch(/导入失败：检测到数据已被其他操作更新，请刷新后重试|Import failed: data was modified by another operation\. Refresh and try again\./);
+      expect(screen.getByRole('status').textContent).toMatch(
+        /导入失败：检测到数据已被其他操作更新，请刷新后重试|Import failed: data was modified by another operation\. Refresh and try again\./,
+      );
+    });
+
+    it('keeps the filled message when the i18nKey has placeholders (no "{message}" in the toast)', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({
+          kind: 'error',
+          message: '导入失败：存储空间不足',
+          errorMeta: {
+            category: 'action',
+            action: '导入文件',
+            recoverable: true,
+            i18nKey: 'transcription.importExport.failed',
+          },
+        });
+      });
+
+      expect(screen.getByRole('status').textContent).toContain('存储空间不足');
+      expect(screen.getByRole('status').textContent).not.toContain('{message}');
     });
   });
 
   describe('showVoiceState', () => {
     it('shows command mode waiting message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('command', false); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('command', false);
+      });
       expect(screen.getByRole('status').textContent).toBe('🎤 等待语音指令…');
     });
 
     it('shows command mode listening message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('command', true); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('command', true);
+      });
       expect(screen.getByRole('status').textContent).toBe('🎤 正在听…');
     });
 
     it('shows dictation mode waiting message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('dictation', false); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('dictation', false);
+      });
       expect(screen.getByRole('status').textContent).toBe('🎤 听写模式 — 说话即写入');
     });
 
     it('shows dictation mode listening message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('dictation', true); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('dictation', true);
+      });
       expect(screen.getByRole('status').textContent).toBe('🎤 正在听写…');
     });
 
     it('shows analysis mode waiting message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('analysis', false); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('analysis', false);
+      });
       expect(screen.getByRole('status').textContent).toBe('🎤 分析模式 — 说话即分析');
     });
 
     it('shows analysis mode listening message', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('analysis', true); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('analysis', true);
+      });
       expect(screen.getByRole('status').textContent).toBe('🎤 正在分析…');
     });
 
     it('uses locale-aware english voice message when locale is en-US', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />, 'en-US');
-      act(() => { ctx!.showVoiceState('dictation', false); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+        'en-US',
+      );
+      act(() => {
+        ctx!.showVoiceState('dictation', false);
+      });
       expect(screen.getByRole('status').textContent).toBe('🎤 Dictation mode — speak to insert');
     });
 
     it('dismisses voice toast when mode is null', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('command', true); });
-      act(() => { ctx!.showVoiceState(null); });
-      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('command', true);
+      });
+      act(() => {
+        ctx!.showVoiceState(null);
+      });
+      act(() => {
+        vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('does not dismiss non-voice toast when mode is null', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('some toast', 'info', 0); });
-      act(() => { ctx!.showVoiceState(null); });
-      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('some toast', 'info', 0);
+      });
+      act(() => {
+        ctx!.showVoiceState(null);
+      });
+      act(() => {
+        vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
+      });
       expect(screen.getByRole('status').textContent).toBe('some toast');
     });
 
     it('renders with listening variant class', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showVoiceState('command', true); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showVoiceState('command', true);
+      });
       expect(document.querySelector('.toast-listening')).not.toBeNull();
     });
   });
@@ -396,39 +742,89 @@ describe('ToastContext', () => {
     it('dismisses the current toast immediately', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('to dismiss', 'info'); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('to dismiss', 'info');
+      });
       expect(screen.getByRole('status').textContent).toBe('to dismiss');
-      act(() => { ctx!.dismiss(); });
-      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
+      act(() => {
+        ctx!.dismiss();
+      });
+      act(() => {
+        vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('clears pending auto-dismiss timer', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('timer test', 'info'); });
-      act(() => { ctx!.dismiss(); });
-      act(() => { vi.advanceTimersByTime(10000); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showToast('timer test', 'info');
+      });
+      act(() => {
+        ctx!.dismiss();
+      });
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('uses locale-aware dismiss title when locale is en-US', () => {
       let ctx: ReturnType<typeof useToast>;
-      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />, 'en-US');
-      act(() => { ctx!.showToast('dismiss me', 'info'); });
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+        'en-US',
+      );
+      act(() => {
+        ctx!.showToast('dismiss me', 'info');
+      });
       expect(screen.getByText('dismiss me').getAttribute('title')).toBe('Dismiss toast');
     });
   });
 
   describe('variant CSS classes', () => {
-    const variants: ToastVariant[] = ['info', 'success', 'error', 'recording', 'listening', 'routing', 'executing', 'ai-thinking'];
+    const variants: ToastVariant[] = [
+      'info',
+      'success',
+      'error',
+      'recording',
+      'listening',
+      'routing',
+      'executing',
+      'ai-thinking',
+    ];
     for (const variant of variants) {
       it(`renders .toast-${variant} for variant=${variant}`, () => {
         let ctx: ReturnType<typeof useToast>;
-        renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-        act(() => { ctx!.showToast(variant, variant); });
+        renderInProvider(
+          <TestConsumer
+            onMount={(c) => {
+              ctx = c;
+            }}
+          />,
+        );
+        act(() => {
+          ctx!.showToast(variant, variant);
+        });
         expect(document.querySelector(`.toast-${variant}`)).not.toBeNull();
       });
     }

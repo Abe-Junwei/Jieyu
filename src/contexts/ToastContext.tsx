@@ -97,7 +97,10 @@ function normalizeErrorToast(
       ? t(locale, state.errorMeta.i18nKey)
       : undefined;
   const rawMessage =
-    translatedMessage !== undefined && translatedMessage.length > 0
+    // 带占位符的键没法不带参数翻译，用调用方已填好的消息 | A key with placeholders needs params; use the caller's filled message
+    translatedMessage !== undefined &&
+    translatedMessage.length > 0 &&
+    !/\{\w+\}/.test(translatedMessage)
       ? translatedMessage
       : state.message !== undefined && state.message.length > 0
         ? state.message
