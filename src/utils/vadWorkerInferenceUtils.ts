@@ -72,10 +72,45 @@ export interface VadWorkerSegment {
   confidence: number;
 }
 
-const SPEECH_THRESHOLD = 0.5;
-const MERGE_GAP_SEC = 0.3;
-const MIN_DURATION_SEC = 0.2;
-const MAX_DURATION_SEC = 30.0;
+/**
+ * VAD 后处理参数 | VAD post-processing parameters
+ */
+export interface VadSegmentationParams {
+  /** 进入语音的概率阈值 | Probability to enter speech */
+  onsetThreshold: number;
+  /** 退出语音的概率阈值（迟滞，≤ onset）| Probability below which speech ends (hysteresis, ≤ onset) */
+  offsetThreshold: number;
+  /** 间隔不超过此值的语段合并 | Merge segments separated by at most this gap */
+  mergeGapSec: number;
+  /** 短于此值的语段丢弃 | Drop segments shorter than this */
+  minDurationSec: number;
+  /** 长于此值的语段在静音处切开 | Split segments longer than this at the quietest frame */
+  maxDurationSec: number;
+}
+
+/**
+ * 默认值偏保守（ComputEL-9：田野录音里 VAD 常把环境噪声判成人声）。
+ * - onset 0.5 → 0.6：短促噪声（风声、碰麦、鸡叫）更难触发新语段。
+ * - offset 0.45（新增迟滞，≈ Silero 官方 neg_threshold = threshold − 0.15）：已在说话时概率
+ *   短暂下探不会把一句话切碎，句尾也不会被过早截掉，抵消提高 onset 对边界的影响。
+ * - minDuration 0.2 → 0.3 s：约一个音节以下的片段多为噪声，不再作为语段输出。
+ * - mergeGap 0.3 s、maxDuration 30 s 不变（Whisper 窗口上限）。
+ * Defaults lean conservative (ComputEL-9: VADs routinely label field-recording noise as speech).
+ * - onset 0.5 → 0.6: short noise bursts (wind, mic bumps, animals) are less likely to open a
+ *   segment.
+ * - offset 0.45 (new hysteresis, ≈ Silero's own neg_threshold = threshold − 0.15): brief dips
+ *   inside speech no longer fragment an utterance and endings are not clipped early, offsetting
+ *   the higher onset at the boundaries.
+ * - minDuration 0.2 → 0.3 s: sub-syllable blips are mostly noise and are no longer emitted.
+ * - mergeGap 0.3 s and maxDuration 30 s unchanged (Whisper window limit).
+ */
+export const DEFAULT_VAD_SEGMENTATION_PARAMS: Readonly<VadSegmentationParams> = Object.freeze({
+  onsetThreshold: 0.6,
+  offsetThreshold: 0.45,
+  mergeGapSec: 0.3,
+  minDurationSec: 0.3,
+  maxDurationSec: 30.0,
+});
 
 function splitLongSegmentAtSilence(
   seg: { start: number; end: number; probs: number[] },
@@ -83,7 +118,9 @@ function splitLongSegmentAtSilence(
   frameDuration: number,
   avgConf: number,
   result: VadWorkerSegment[],
+  params: VadSegmentationParams,
 ): void {
+  const { minDurationSec: MIN_DURATION_SEC, maxDurationSec: MAX_DURATION_SEC } = params;
   let cursor = seg.start;
 
   while (cursor < seg.end) {
@@ -127,10 +164,24 @@ export function frameProbsToSegments(
   probs: number[],
   frameSize: number,
   sampleRate: number,
+  params: VadSegmentationParams = DEFAULT_VAD_SEGMENTATION_PARAMS,
 ): VadWorkerSegment[] {
   const frameDuration = frameSize / sampleRate;
+  const {
+    onsetThreshold,
+    mergeGapSec: MERGE_GAP_SEC,
+    minDurationSec: MIN_DURATION_SEC,
+    maxDurationSec: MAX_DURATION_SEC,
+  } = params;
+  const offsetThreshold = Math.min(params.offsetThreshold, onsetThreshold);
 
-  const isSpeech = probs.map((p) => p >= SPEECH_THRESHOLD);
+  // 迟滞：≥ onset 进入语音，< offset 才退出 | Hysteresis: enter at ≥ onset, leave below offset
+  const isSpeech: boolean[] = [];
+  let speaking = false;
+  for (const p of probs) {
+    speaking = speaking ? p >= offsetThreshold : p >= onsetThreshold;
+    isSpeech.push(speaking);
+  }
 
   const raw: { start: number; end: number; probs: number[] }[] = [];
   let inSpeech = false;
@@ -179,7 +230,7 @@ export function frameProbsToSegments(
     if (dur <= MAX_DURATION_SEC) {
       result.push({ start: seg.start, end: seg.end, confidence: avgConf });
     } else {
-      splitLongSegmentAtSilence(seg, probs, frameDuration, avgConf, result);
+      splitLongSegmentAtSilence(seg, probs, frameDuration, avgConf, result, params);
     }
   }
 
