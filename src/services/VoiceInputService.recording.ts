@@ -12,7 +12,7 @@ import {
   createTranscriptionTimeoutController,
 } from './VoiceInputService.probes';
 import type { WhisperXVadService } from './vad/WhisperXVadService';
-import { tryParseVerboseResponse, computeWhisperConfidence } from './stt/sttConfidence';
+import { whisperJsonToSttResult } from './stt/sttConfidence';
 import { createLogger } from '../observability/logger';
 import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 import {
@@ -398,17 +398,11 @@ export class RecordingExecutor {
           continue;
         }
 
-        const json = (await resp.json()) as Record<string, unknown>;
-        const verbose = tryParseVerboseResponse(json);
-        const confidence = verbose ? computeWhisperConfidence(verbose) : 1.0;
-        return {
-          text: (json.text as string | undefined) ?? '',
-          lang: lang ?? 'unknown',
-          isFinal: true,
-          confidence,
-          engine: 'whisper-local',
+        return whisperJsonToSttResult(
+          (await resp.json()) as Record<string, unknown>,
+          lang ?? 'unknown',
           audioBlob,
-        };
+        );
       } catch (error) {
         const message = controller.signal.aborted
           ? `timed out after ${STT_TRANSCRIPTION_TIMEOUT_MS}ms`

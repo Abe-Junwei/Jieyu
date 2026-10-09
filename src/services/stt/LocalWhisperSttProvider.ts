@@ -13,7 +13,7 @@
  */
 
 import type { CommercialSttProvider, SttResult } from '../VoiceInputService.types';
-import { computeWhisperConfidence, tryParseVerboseResponse } from './sttConfidence';
+import { whisperJsonToSttResult } from './sttConfidence';
 import { createLogger } from '../../observability/logger';
 import {
   LOCAL_WHISPER_DEFAULT_BASE_URL,
@@ -76,17 +76,6 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
       throw new Error(`Local Whisper failed: ${resp.status} ${text}`);
     }
 
-    const json = (await resp.json()) as Record<string, unknown>;
-    const verbose = tryParseVerboseResponse(json);
-    const confidence = verbose ? computeWhisperConfidence(verbose) : 1.0;
-
-    return {
-      text: verbose?.text ?? (json.text as string | undefined) ?? '',
-      lang: verbose?.language ?? (json.language as string | null | undefined) ?? lang,
-      isFinal: true,
-      confidence,
-      engine: 'whisper-local',
-      audioBlob,
-    };
+    return whisperJsonToSttResult((await resp.json()) as Record<string, unknown>, lang, audioBlob);
   }
 }

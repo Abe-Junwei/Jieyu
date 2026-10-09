@@ -5,6 +5,8 @@
  * 验证链路 | Verified chain:
  *   setVadService() → stopRecording() → VAD detectSpeechSegments → emit / skip
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── mock 依赖 | mock dependencies ──────────────────────────────────────────
@@ -343,6 +345,34 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     });
 
     expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it('maps whisper-server word timestamps and detected language into the result (BF2-2)', async () => {
+    const body = readFileSync(
+      fileURLToPath(
+        new URL(
+          '../tools/whisper-server/__fixtures__/whisper-server-zh-tiny.resp.json',
+          import.meta.url,
+        ),
+      ),
+      'utf8',
+    );
+    const server = JSON.parse(body) as { words: unknown[] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(body, { status: 200 })),
+    );
+
+    const executor = new RecordingExecutor(callbacks);
+    await executor.startRecording();
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'zh-CN',
+    });
+
+    const result = emitResult.mock.calls.at(-1)?.[0] as { lang: string; wordTimings?: unknown[] };
+    expect(result.lang).toBe('zh');
+    expect(result.wordTimings).toHaveLength(server.words.length);
   });
 
   it('applies configured STT enhancement metadata after successful transcription', async () => {
