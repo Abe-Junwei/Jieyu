@@ -30,6 +30,9 @@ import {
 } from './LayerUnitSegmentWritePrimitives';
 import { newCatalogUuid } from './projectCatalogScope';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('annotationDocumentService');
 
 export class AnnotationDocumentProjectNotFoundError extends Error {
   readonly textId: string;
@@ -659,6 +662,20 @@ export async function deleteAnnotationDocument(
     throw new AnnotationDocumentLastDocumentError();
   }
   const snapshotSeq = await savePreDeleteSnapshot(owner);
+  return { ...(await deleteDocumentRows(db, owner, documentId)), snapshotSeq };
+}
+
+/**
+ * 删除文稿的写入部分（一个事务）。只有 `deleteAnnotationDocument`（先存快照）和“导入为新文稿”丢弃本次
+ * 刚建的文稿时调用。
+ * The write part of a document delete (one transaction). Only `deleteAnnotationDocument` (after its
+ * snapshot) and "import as a new document" discarding the document it just created call it.
+ */
+async function deleteDocumentRows(
+  db: JieyuDatabase,
+  owner: string,
+  documentId: string,
+): Promise<Omit<AnnotationDocumentDeleteResult, 'snapshotSeq'>> {
   try {
     return await withTransaction(
       db,
@@ -704,7 +721,6 @@ export async function deleteAnnotationDocument(
           currentDocumentId: next.id,
           deletedUnitIds,
           deletedLayerIds: layerIds,
-          snapshotSeq,
         };
       },
       { label: 'annotationDocument.delete' },
@@ -773,32 +789,46 @@ export async function readOtherDocumentLayerIds(
 }
 
 /**
- * 第 5 批：把一次导入写进新建的文稿。导入结束（成功、失败或被导入流程自己吞掉的错误）后新文稿若仍是空的，
- * 就删掉并切回原文稿；已经写进内容的新文稿保留，不删导入的数据。返回值 `kept` 表示新文稿是否留下。
- * Batch 5: run an import inside a freshly created document. Afterwards (success, failure, or an error the
- * import handled itself) a still-empty new document is removed and the previous document becomes current
- * again; a new document that holds content is kept (imported data is never deleted). `kept` tells which.
+ * 第 5 批：把一次导入写进新建的文稿。导入抛错、或 `isFailed(result)` 为真（导入流程自己吞掉的错误）时，
+ * 新文稿连同写了一半的内容一律删掉并切回原文稿（B5-3）；成功但没写进内容时同样删掉；成功且有内容时保留。
+ * 返回值 `kept` 表示新文稿是否留下。
+ * Batch 5: run an import inside a freshly created document. If the import throws or `isFailed(result)`
+ * (an error the import handled itself), the new document and its half-written rows are removed and the
+ * previous document becomes current again (B5-3); an empty successful import is removed too; a successful
+ * import with content is kept. `kept` tells which.
  */
 export async function runInNewAnnotationDocument<T>(
   textId: string,
   run: () => Promise<T>,
+  isFailed?: (result: T) => boolean,
 ): Promise<{ result: T; kept: boolean }> {
   const owner = textId.trim();
   const previous = await ensureDefaultAnnotationDocument(owner);
   const created = await createAnnotationDocument(owner);
-  const rollBackIfEmpty = async (): Promise<boolean> => {
-    const left = await previewAnnotationDocumentReplace(owner, created);
-    if (left.unitCount > 0 || left.layerCount > 0) return true;
-    await deleteAnnotationDocument(owner, created);
+  // 丢弃本次刚建的文稿（只含这次导入写的内容，源文件还在），不占用户的删除前快照名额
+  // Discard the document this call created (only this import's rows; the source file still exists),
+  // without spending one of the user's pre-delete snapshot slots
+  const discard = async (): Promise<void> => {
+    await deleteDocumentRows(await getDb(), owner, created);
     await switchAnnotationDocument(owner, previous);
-    return false;
   };
   let result: T;
   try {
     result = await run();
   } catch (error) {
-    await rollBackIfEmpty();
+    // B5-3：导入中途失败，半成品文稿一律丢弃；回滚失败也不盖掉原错误
+    // B5-3: a failed import always discards the half-written document; a failed rollback keeps the error
+    await discard().catch((rollbackError: unknown) =>
+      log.error('discarding the new document failed', { rollbackError }),
+    );
     throw error;
   }
-  return { result, kept: await rollBackIfEmpty() };
+  if (isFailed?.(result) === true) {
+    await discard();
+    return { result, kept: false };
+  }
+  const left = await previewAnnotationDocumentReplace(owner, created);
+  if (left.unitCount > 0 || left.layerCount > 0) return { result, kept: true };
+  await discard();
+  return { result, kept: false };
 }

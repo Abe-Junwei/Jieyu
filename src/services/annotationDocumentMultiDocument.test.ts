@@ -24,8 +24,10 @@ import {
   readAnnotationDocumentScope,
   renameAnnotationDocument,
   resolveLayerOwner,
+  runInNewAnnotationDocument,
   switchAnnotationDocument,
 } from './annotationDocumentService';
+import { listProjectOverwriteSnapshots } from '../db/projectOverwriteSnapshotStore';
 
 const A = 'text_b5_a';
 const B = 'text_b5_b';
@@ -333,5 +335,56 @@ describe('Batch 5: ownership middleware checks a layer document', () => {
     ).rejects.toThrow();
     expect(await db.tier_definitions.get('L_bad')).toBeUndefined();
     expect(await db.tier_definitions.get('L_bad2')).toBeUndefined();
+  });
+});
+
+describe('Batch 5 / B5-3: a failed "import as a new document" discards the half-written document', () => {
+  async function halfImport(): Promise<void> {
+    await LayerTierUnifiedService.createLayer(layer('L_new', A));
+    await db.layer_units.put(unit('u_new', A, 'L_new'));
+  }
+
+  it('an import that throws midway leaves no document behind and switches back', async () => {
+    const d1 = await ensureDefaultAnnotationDocument(A);
+    const seqs = async () => (await listProjectOverwriteSnapshots(A)).map((row) => row.seq);
+    const snapshotsBefore = await seqs();
+    await expect(
+      runInNewAnnotationDocument(A, async () => {
+        await halfImport();
+        throw new Error('parser blew up');
+      }),
+    ).rejects.toThrow('parser blew up');
+    expect(
+      (await db.annotation_documents.where('textId').equals(A).toArray()).map((d) => d.id),
+    ).toEqual([d1]);
+    expect((await db.texts.get(A))?.defaultDocumentId).toBe(d1);
+    expect(await db.tier_definitions.get('L_new')).toBeUndefined();
+    expect(await unitIds(A)).toEqual([]);
+    // 丢弃自己刚建的文稿不占用户的快照名额 | Discarding it spends no snapshot slot
+    expect(await seqs()).toEqual(snapshotsBefore);
+  });
+
+  it('an error the import handled itself (isFailed) also discards it', async () => {
+    const d1 = await ensureDefaultAnnotationDocument(A);
+    const outcome = await runInNewAnnotationDocument(
+      A,
+      async () => {
+        await halfImport();
+        return 'reported-error';
+      },
+      (result) => result === 'reported-error',
+    );
+    expect(outcome.kept).toBe(false);
+    expect((await db.texts.get(A))?.defaultDocumentId).toBe(d1);
+    expect(await db.annotation_documents.where('textId').equals(A).count()).toBe(1);
+    expect(await db.tier_definitions.get('L_new')).toBeUndefined();
+  });
+
+  it('a successful import with content keeps the new document', async () => {
+    const d1 = await ensureDefaultAnnotationDocument(A);
+    const outcome = await runInNewAnnotationDocument(A, halfImport, () => false);
+    expect(outcome.kept).toBe(true);
+    expect((await db.texts.get(A))?.defaultDocumentId).not.toBe(d1);
+    expect(await db.tier_definitions.get('L_new')).toBeDefined();
   });
 });
