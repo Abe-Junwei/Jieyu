@@ -15,18 +15,22 @@ const {
   mockIsRawIdbSnapshot,
   mockDetectProjectPackageKind,
   mockRestoreProjectPackageAsNew,
+  mockImportJybProjectsAsNew,
+  mockDisasterRestoreFromJyb,
 } = vi.hoisted(() => ({
   mockIsJybPackage: vi.fn(async () => false),
   mockIsRawIdbSnapshot: vi.fn(async () => false),
   mockDetectProjectPackageKind: vi.fn(async () => 'jyt' as const),
   mockRestoreProjectPackageAsNew: vi.fn(),
+  mockImportJybProjectsAsNew: vi.fn(),
+  mockDisasterRestoreFromJyb: vi.fn(),
 }));
 
 vi.mock('../../services/JybService', () => ({
   isJybPackage: mockIsJybPackage,
   previewJybRestore: vi.fn(),
-  disasterRestoreFromJyb: vi.fn(),
-  importJybProjectsAsNew: vi.fn(),
+  disasterRestoreFromJyb: mockDisasterRestoreFromJyb,
+  importJybProjectsAsNew: mockImportJybProjectsAsNew,
 }));
 
 vi.mock('../../services/rawSnapshotConverter', () => ({
@@ -93,5 +97,63 @@ describe('RD-3: archive import with no current project', () => {
 
     const explicit = await runImport('text-explicit', 'text-imported');
     expect(explicit.loadSnapshot).toHaveBeenCalledWith('text-explicit');
+  });
+});
+
+describe('RD-3: JYB import with no current project (R2-1)', () => {
+  const importResult = { collections: { texts: { received: 1, written: 1, skipped: 0 } } };
+  const runJyb = async (restoreMode?: 'disaster-restore') => {
+    const loadSnapshot = vi.fn(async (_textId: string) => undefined);
+    const handlers = createImportExportArchiveHandlers({
+      activeTextId: null,
+      loadSnapshot,
+      locale: 'zh-CN',
+      setSaveState: vi.fn(),
+    });
+    const ok = await handlers.importProjectArchive(
+      new File(['x'], 'lib.jyb'),
+      'upsert',
+      restoreMode,
+    );
+    return { ok, loadSnapshot };
+  };
+
+  beforeEach(() => {
+    clearActiveProjectTextId();
+    mockIsJybPackage.mockReset().mockResolvedValue(true);
+    mockIsRawIdbSnapshot.mockReset().mockResolvedValue(false);
+    mockImportJybProjectsAsNew.mockReset().mockResolvedValue({
+      projects: [{ projectId: 'new-1', sourceProjectId: 's1', title: { default: 'A' } }],
+      importResult,
+      skippedLanguageIds: [],
+    });
+    mockDisasterRestoreFromJyb.mockReset().mockResolvedValue({
+      projectIds: ['p1', 'p2'],
+      snapshotSeq: 1,
+      importResult,
+      restoredPreferenceKeys: [],
+    });
+  });
+  afterEach(() => clearActiveProjectTextId());
+
+  it('per-project import opens and publishes the first imported project', async () => {
+    const { ok, loadSnapshot } = await runJyb();
+    expect(ok).toBe(true);
+    expect(loadSnapshot).toHaveBeenCalledWith('new-1');
+    expect(getActiveProjectTextId()).toBe('new-1');
+  });
+
+  it('per-project import stays on the published current project', async () => {
+    publishActiveProjectTextId('text-current');
+    const { loadSnapshot } = await runJyb();
+    expect(loadSnapshot).toHaveBeenCalledWith('text-current');
+    expect(getActiveProjectTextId()).toBe('text-current');
+  });
+
+  it('disaster restore publishes the opened project as active', async () => {
+    const { ok, loadSnapshot } = await runJyb('disaster-restore');
+    expect(ok).toBe(true);
+    expect(loadSnapshot).toHaveBeenCalledWith('p1');
+    expect(getActiveProjectTextId()).toBe('p1');
   });
 });

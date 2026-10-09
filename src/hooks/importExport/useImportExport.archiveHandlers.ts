@@ -338,8 +338,10 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         count: result.projects.length,
         written: countWritten(result.importResult),
       }),
-      // 仍停留在当前项目（JY-02）| Stay on the current project (JY-02)
-      openTextId: activeTextId,
+      // 仍停留在当前项目（JY-02）；没有当前项目时打开第一个导入的（RD-3）
+      // Stay on the current project (JY-02); with none, open the first imported one (RD-3).
+      openTextId:
+        resolveCurrentProjectTextId(activeTextId) || (result.projects[0]?.projectId ?? null),
     };
   };
 
@@ -362,6 +364,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
           selection,
         );
         resolvedTextId = openTextId;
+        if (openTextId && openTextId !== activeTextId) publishActiveProjectTextId(openTextId);
         await loadSnapshot(resolveCurrentProjectTextId(openTextId));
         setSaveState({ kind: 'done', message });
         return true;
