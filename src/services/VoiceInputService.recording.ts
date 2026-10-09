@@ -15,6 +15,10 @@ import type { WhisperXVadService } from './vad/WhisperXVadService';
 import { tryParseVerboseResponse, computeWhisperConfidence } from './stt/sttConfidence';
 import { createLogger } from '../observability/logger';
 import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
+import {
+  LOCAL_WHISPER_DEFAULT_BASE_URL,
+  LOCAL_WHISPER_DEFAULT_MODEL,
+} from './stt/localWhisperDefaults';
 
 const log = createLogger('VoiceInputService.recording');
 const STT_TRANSCRIPTION_TIMEOUT_MS = 20_000;
@@ -309,8 +313,8 @@ export class RecordingExecutor {
       commercialFallback?: CommercialSttProvider;
     },
   ): Promise<void> {
-    const baseUrl = config.whisperServerUrl?.replace(/\/+$/, '') ?? 'http://localhost:3040';
-    const model = config.whisperServerModel ?? 'ggml-distil-whisper-large-v3.bin';
+    const baseUrl = config.whisperServerUrl?.replace(/\/+$/, '') ?? LOCAL_WHISPER_DEFAULT_BASE_URL;
+    const model = config.whisperServerModel ?? LOCAL_WHISPER_DEFAULT_MODEL;
 
     try {
       const result = await this.transcribeWithWhisperServer(audioBlob, baseUrl, model, config.lang);

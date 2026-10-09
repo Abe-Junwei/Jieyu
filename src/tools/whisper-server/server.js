@@ -8,7 +8,7 @@
  *   node server.js [--model <path>] [--port <port>] [--language <lang>]
  *
  * Environment variables (alternative to flags):
- *   WHISPER_MODEL   - Path to GGML model file (default: ~/.whisper-models/ggml-base.bin)
+ *   WHISPER_MODEL   - Path to GGML model file (default: ~/.whisper-models/<modelFile from whisperModelDefaults.json>)
  *   WHISPER_PORT    - HTTP port (default: 3040)
  *   WHISPER_LANG    - Default language code e.g. 'zh' (default: 'auto')
  *   WHISPER_CLI     - Path to whisper-cli binary (default: whisper-cli on PATH)
@@ -17,7 +17,7 @@
 import { createServer } from 'http';
 import { spawn } from 'child_process';
 import { readFile, unlink, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,12 +25,16 @@ import { basename } from 'path';
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
+// 与浏览器端共用同一份默认配置 | Same defaults file as the browser app (src/services/stt/localWhisperDefaults.ts)
+const MODEL_DEFAULTS = JSON.parse(
+  readFileSync(new URL('./whisperModelDefaults.json', import.meta.url), 'utf8'),
+);
 const DEFAULT_MODEL = path.join(
   process.env.HOME ?? tmpdir(),
   '.whisper-models',
-  'ggml-small-q5_k.bin'
+  MODEL_DEFAULTS.modelFile,
 );
-const DEFAULT_PORT = 3040;
+const DEFAULT_PORT = Number(new URL(MODEL_DEFAULTS.baseUrl).port) || 3040;
 const DEFAULT_LANG = 'auto';
 
 // ── CLI args ──────────────────────────────────────────────────────────────────

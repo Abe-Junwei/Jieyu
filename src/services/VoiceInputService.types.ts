@@ -84,7 +84,7 @@ export interface VoiceInputConfig {
   maxSilenceMs?: number;
   /** Whisper-server URL for whisper-local engine (OpenAI-compatible), e.g. 'http://localhost:3040' */
   whisperServerUrl?: string;
-  /** Whisper-server model name, e.g. 'ggml-small-q5_k.bin' */
+  /** Whisper-server model name; default LOCAL_WHISPER_DEFAULT_MODEL (stt/localWhisperDefaults) */
   whisperServerModel?: string;
   /** Optional alignment/diarization enhancement that runs after STT returns text. */
   sttEnhancement?: SttEnhancementProvider;
@@ -116,7 +116,13 @@ export interface CommercialSttProvider {
 }
 
 /** Built-in commercial provider kinds for UI display. */
-export type CommercialProviderKind = 'gemini' | 'openai-audio' | 'groq' | 'custom-http' | 'minimax' | 'volcengine';
+export type CommercialProviderKind =
+  | 'gemini'
+  | 'openai-audio'
+  | 'groq'
+  | 'custom-http'
+  | 'minimax'
+  | 'volcengine';
 
 export type SttProviderCapability = 'browser-native' | 'local-http' | 'cloud-api';
 export type SttBillingKind = 'free' | 'metered' | 'self-hosted';

@@ -3,6 +3,10 @@ import { fireAndForget } from '../../utils/fireAndForget';
 import { createLogger } from '../../observability/logger';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../../services/stt';
 import { setCommercialSttRuntimeSnapshot } from '../../services/stt/voiceCommercialSttRuntime';
+import {
+  LOCAL_WHISPER_DEFAULT_BASE_URL,
+  LOCAL_WHISPER_DEFAULT_MODEL,
+} from '../../services/stt/localWhisperDefaults';
 
 export type CommercialProviderKind =
   | 'groq'
@@ -108,7 +112,7 @@ export function loadLocalWhisperConfig(): VoiceLocalWhisperConfig {
       error: error instanceof Error ? error.message : String(error),
     });
   }
-  return { baseUrl: 'http://localhost:3040', model: 'ggml-small-q5_k.bin' };
+  return { baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL, model: LOCAL_WHISPER_DEFAULT_MODEL };
 }
 
 function sanitizeEnhancementConfig(

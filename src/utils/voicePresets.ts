@@ -14,6 +14,10 @@
 
 import type { SttEngine, CommercialProviderKind } from '../services/VoiceInputService';
 import type { CommercialProviderCreateConfig } from '../services/stt';
+import {
+  LOCAL_WHISPER_DEFAULT_BASE_URL,
+  LOCAL_WHISPER_DEFAULT_MODEL,
+} from '../services/stt/localWhisperDefaults';
 
 export interface VoicePreset {
   /** Shown in the UI dropdown */
@@ -60,7 +64,7 @@ export const VOICE_PRESETS: VoicePreset[] = [
   {
     label: '\ud83d\udcbb \u5b8c\u5168\u79bb\u7ebf',
     engine: 'whisper-local',
-    config: { baseUrl: 'http://localhost:3040', model: 'ggml-base.bin' },
+    config: { baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL, model: LOCAL_WHISPER_DEFAULT_MODEL },
     hint: 'Whisper.cpp \u672c\u5730\u670d\u52a1 \u00b7 \u65e0\u9700\u7f51\u7edc \u00b7 \u9700\u542f\u52a8 whisper-server',
   },
 ];

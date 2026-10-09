@@ -663,7 +663,7 @@ describe('useVoiceInteraction', () => {
       }),
     );
 
-    expect(result.current.voiceEnvironmentSummary).toContain('Distil-Whisper');
+    expect(result.current.voiceEnvironmentSummary).toContain('Whisper.cpp');
   });
 
   it('surfaces analysis writeback failure in voice status and external error', async () => {

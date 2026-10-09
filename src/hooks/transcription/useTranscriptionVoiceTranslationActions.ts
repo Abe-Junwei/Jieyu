@@ -30,6 +30,10 @@ import {
   readNonEmptyAudioBlobFromMediaItem,
 } from '../../utils/translationRecordingMediaBlob';
 import { createLogger } from '../../observability/logger';
+import {
+  LOCAL_WHISPER_DEFAULT_BASE_URL,
+  LOCAL_WHISPER_DEFAULT_MODEL,
+} from '../../services/stt/localWhisperDefaults';
 
 /** 与 `useVoiceDock` 一致，避免 action 依赖 UI hook | Mirrors useVoiceDock keys */
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
@@ -150,12 +154,14 @@ function loadLocalWhisperConfigFromStorage(): { baseUrl: string; model: string }
         baseUrl:
           typeof p.baseUrl === 'string' && p.baseUrl.trim()
             ? p.baseUrl.trim()
-            : 'http://localhost:3040',
+            : LOCAL_WHISPER_DEFAULT_BASE_URL,
         model:
-          typeof p.model === 'string' && p.model.trim() ? p.model.trim() : 'ggml-small-q5_k.bin',
+          typeof p.model === 'string' && p.model.trim()
+            ? p.model.trim()
+            : LOCAL_WHISPER_DEFAULT_MODEL,
       };
     },
-    { baseUrl: 'http://localhost:3040', model: 'ggml-small-q5_k.bin' },
+    { baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL, model: LOCAL_WHISPER_DEFAULT_MODEL },
   );
 }
 

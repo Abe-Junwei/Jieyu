@@ -322,10 +322,10 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     expect(mockDetectSpeechSegments).not.toHaveBeenCalled();
   });
 
-  it('uses the Distil-Whisper default model when no explicit model is configured', async () => {
+  it('uses the shared multilingual default model when no explicit model is configured', async () => {
     const fetchMock = vi.fn(async (_input: unknown, init?: { body?: unknown }) => {
       const body = init?.body as { get: (key: string) => unknown } | undefined;
-      expect(body?.get('model')).toBe('ggml-distil-whisper-large-v3.bin');
+      expect(body?.get('model')).toBe('ggml-large-v3-turbo-q5_0.bin');
       return {
         ok: true,
         json: async () => ({ text: 'transcribed' }),

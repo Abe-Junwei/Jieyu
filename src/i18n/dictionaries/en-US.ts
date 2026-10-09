@@ -1961,7 +1961,7 @@ export const enUSDictionary = {
   'transcription.voiceWidget.settings.commercialCredentialsHint':
     'Commercial STT is selected: add an API key or App ID (and token if required) below, otherwise recording cannot start.',
   'transcription.voiceWidget.engine.webSpeech': 'Web Speech',
-  'transcription.voiceWidget.engine.whisperLocal': 'Distil-Whisper (local)',
+  'transcription.voiceWidget.engine.whisperLocal': 'Whisper.cpp (local)',
   'transcription.voiceWidget.engine.commercial': 'Commercial model',
   'transcription.voiceWidget.signal.speaking': 'Speech detected',
   'transcription.voiceWidget.signal.silent': 'Silent',
@@ -1987,7 +1987,7 @@ export const enUSDictionary = {
     'https://api.minimax.chat/v1 (default if empty)',
   'transcription.voiceWidget.placeholder.baseUrlGroq': '(leave empty to use official Groq)',
   'transcription.voiceWidget.placeholder.baseUrlOptional': 'Base URL (optional)',
-  'transcription.voiceWidget.placeholder.whisperModel': 'ggml-distil-whisper-large-v3.bin',
+  'transcription.voiceWidget.placeholder.whisperModel': 'ggml-large-v3-turbo-q5_0.bin',
   'transcription.voiceWidget.placeholder.enhancementEndpoint': 'http://localhost:8765/enhance',
   'transcription.voiceWidget.placeholder.enhancementModel':
     'Alignment / diarization model (optional)',
