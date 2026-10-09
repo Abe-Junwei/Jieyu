@@ -15,6 +15,7 @@ import { idbDeleteDatabase } from './rawIdb';
 import { createRawSourceDb, RAW_SOURCE_ITEM_COUNT, readAllRaw } from './__fixtures__/rawSourceDb';
 import { canonicalSha256 } from './canonicalValue';
 import { detectInstalledDatabase } from './versionDetection';
+import { JYB_PACKAGE_POLICY } from '../../services/JybService';
 
 const SOURCE = 'raw-export-source';
 const TARGET = 'raw-export-target';
@@ -72,7 +73,7 @@ describe('raw recovery export', () => {
   it('round-trips into a new database at the same version with identical rows, keys and indexes', async () => {
     await createRawSourceDb(indexedDB, SOURCE, 20);
     const result = await exportRawIdbSnapshot({ factory: indexedDB, dbName: SOURCE });
-    const parsed = await parseRawIdbSnapshot(result.blob);
+    const parsed = await parseRawIdbSnapshot(result.blob, JYB_PACKAGE_POLICY);
     await writeRawIdbSnapshotToNewDatabase({
       factory: indexedDB,
       snapshot: parsed,
@@ -103,7 +104,9 @@ describe('raw recovery export', () => {
       ...entries,
       'manifest.json': strToU8(JSON.stringify({ ...manifest, kind: 'jyb' })),
     });
-    await expect(parseRawIdbSnapshot(wrongKind)).rejects.toThrow(/unexpected kind/);
+    await expect(parseRawIdbSnapshot(wrongKind, JYB_PACKAGE_POLICY)).rejects.toThrow(
+      /unexpected kind/,
+    );
     const stores = (manifest.stores as Array<Record<string, unknown>>).map((store) =>
       store.name === 'items' ? { ...store, rowCount: 99 } : store,
     );
@@ -111,6 +114,8 @@ describe('raw recovery export', () => {
       ...entries,
       'manifest.json': strToU8(JSON.stringify({ ...manifest, stores })),
     });
-    await expect(parseRawIdbSnapshot(wrongCount)).rejects.toThrow(/manifest says 99/);
+    await expect(parseRawIdbSnapshot(wrongCount, JYB_PACKAGE_POLICY)).rejects.toThrow(
+      /manifest says 99/,
+    );
   });
 });

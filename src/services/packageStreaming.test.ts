@@ -8,11 +8,24 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
-import { exportRawIdbSnapshot, parseRawIdbSnapshot } from '../db/migration/rawRecoveryExport';
-import { exportDatabaseToJybBlob, importJybProjectsAsNew } from './JybService';
+import {
+  exportRawIdbSnapshot,
+  isRawIdbSnapshot,
+  parseRawIdbSnapshot,
+} from '../db/migration/rawRecoveryExport';
+import {
+  exportDatabaseToJybBlob,
+  importJybProjectsAsNew,
+  isJybPackage,
+  JYB_PACKAGE_POLICY,
+} from './JybService';
 import { restoreJymAsNewProject } from './JymService';
 import { sha256Hex, unzipWithGuard } from './projectArchiveContainer';
-import { exportProjectPackage, JYM_PACKAGE_POLICY } from './projectPackageService';
+import {
+  detectProjectPackageKind,
+  exportProjectPackage,
+  JYM_PACKAGE_POLICY,
+} from './projectPackageService';
 import { blobBytes, openZipBlob, zipToBlob } from './zipBlob';
 
 vi.mock('../collaboration/cloud/projectCollaborationHistory', () => ({
@@ -141,7 +154,7 @@ describe('large packages are streamed as Blobs (4b)', () => {
     const reads = trackBlobReads();
     const result = await exportRawIdbSnapshot({ dbName: 'jieyu' });
     expect(result.blob.size).toBeGreaterThan(MEDIA_COUNT * MEDIA_BYTES);
-    const parsed = await parseRawIdbSnapshot(result.blob);
+    const parsed = await parseRawIdbSnapshot(result.blob, JYB_PACKAGE_POLICY);
     expect(reads.largest()).toBeLessThanOrEqual(MEDIA_BYTES);
     vi.restoreAllMocks();
     const media = parsed.stores.find((store) => store.schema.name === 'media_items')!;
@@ -175,5 +188,40 @@ describe('large packages are streamed as Blobs (4b)', () => {
     await expect(
       unzipWithGuard(zip, { ...JYM_PACKAGE_POLICY, maxExpandedBytes: 512 * MiB }),
     ).rejects.toThrow(/total expanded size exceeds limit/);
+  });
+
+  it('REV5-N7: telling package kinds apart reads only the directory and mimetype', async () => {
+    await seedLargeProject('pBig');
+    const jym = await exportProjectPackage('jym', 'pBig');
+    const jyb = await exportDatabaseToJybBlob({ includeMedia: true });
+    const reads = trackBlobReads();
+    expect(await isRawIdbSnapshot(jyb)).toBe(false);
+    expect(await isJybPackage(jyb)).toBe(true);
+    expect(await isJybPackage(jym)).toBe(false);
+    expect(await detectProjectPackageKind(jym)).toBe('jym');
+    expect(reads.largest()).toBeLessThan(128 * 1024);
+  });
+
+  it('REV5-N6: a raw snapshot whose header declares a huge entry is refused before reading', async () => {
+    const zip = await blobBytes(
+      await zipToBlob([
+        { name: 'manifest.json', data: new TextEncoder().encode('{"kind":"raw-idb"}') },
+        { name: 'stores/000.ndjson', data: new Uint8Array(1) },
+      ]),
+    );
+    const view = new DataView(zip.buffer);
+    const central = view.getUint32(zip.length - 22 + 16, true);
+    const second = central + 46 + 'manifest.json'.length;
+    view.setUint32(second + 20, 2048 * MiB, true);
+    view.setUint32(second + 24, 2048 * MiB, true);
+    const reads = trackBlobReads();
+    await expect(parseRawIdbSnapshot(zip, JYB_PACKAGE_POLICY)).rejects.toThrow(
+      /exceeds size limit/,
+    );
+    expect(reads.largest()).toBeLessThan(128 * 1024);
+    vi.restoreAllMocks();
+    // manifest 自己声明很大时，识别直接返回 false | A huge declared manifest is simply "not raw"
+    view.setUint32(central + 24, 512 * MiB, true);
+    expect(await isRawIdbSnapshot(zip)).toBe(false);
   });
 });

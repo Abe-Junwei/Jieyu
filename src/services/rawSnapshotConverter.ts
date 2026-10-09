@@ -28,7 +28,7 @@ import {
   latestSchemaVersion,
   type JieyuSchemaVersion,
 } from '../db/migration/schemaVersions';
-import { exportDatabaseToJybBlob } from './JybService';
+import { exportDatabaseToJybBlob, JYB_PACKAGE_POLICY } from './JybService';
 
 export { isRawIdbSnapshot };
 
@@ -93,7 +93,7 @@ export async function convertRawSnapshotToJyb(
 
   let snapshot;
   try {
-    snapshot = await parseRawIdbSnapshot(rawZip);
+    snapshot = await parseRawIdbSnapshot(rawZip, JYB_PACKAGE_POLICY);
   } catch (error) {
     throw new RawSnapshotConversionError(
       'not-raw-snapshot',

@@ -20,6 +20,10 @@
  */
 import { strFromU8, strToU8 } from 'fflate';
 import {
+  unzipWithGuard,
+  type JieyuArchiveImportPolicy,
+} from '../../services/projectArchiveContainer';
+import {
   blobBytes,
   bytesBlob,
   openZipBlob,
@@ -161,6 +165,8 @@ export async function exportRawIdbSnapshot(
   return { blob: await zipToBlob(files), manifest, fileName: rawRecoveryFileName(manifest) };
 }
 
+const RAW_MANIFEST_MAX_BYTES = 4 * 1024 * 1024;
+
 /**
  * 只看 `manifest.json` 判断是不是原始快照 ZIP；不解压其他条目，坏文件返回 false。
  * Whether the bytes are a raw snapshot ZIP, judged by `manifest.json` alone; false on bad input.
@@ -172,7 +178,8 @@ export async function isRawIdbSnapshot(source: Uint8Array | Blob): Promise<boole
   try {
     const zip = await openZipBlob(blob);
     const entry = zip.entries.find((item) => item.name === 'manifest.json');
-    if (!entry) return false;
+    // 只读一个小条目：头里声明很大的 manifest 直接当作不是 | Only a small entry is read
+    if (!entry || entry.size > RAW_MANIFEST_MAX_BYTES) return false;
     const manifest = JSON.parse(strFromU8(await zip.read(entry))) as { kind?: unknown };
     return manifest.kind === RAW_IDB_SNAPSHOT_KIND;
   } catch {
@@ -190,18 +197,17 @@ export type ParsedRawIdbSnapshot = {
 };
 
 /**
- * 解析原始快照 ZIP（转换器与原版本还原共用）。结构不对就抛错，不做任何写入。
+ * 解析原始快照 ZIP（转换器与原版本还原共用）。结构不对就抛错，不做任何写入。条目数和大小先按
+ * `policy` 检查，再读任何条目（REV5-N6）。
  * Parse a raw snapshot ZIP (shared by the converter and same-version restore). Throws on bad shape.
+ * Entry count and sizes are checked against `policy` before any entry is read (REV5-N6).
  */
 export async function parseRawIdbSnapshot(
   source: Uint8Array | Blob,
+  policy: JieyuArchiveImportPolicy,
 ): Promise<ParsedRawIdbSnapshot> {
-  const zip = await openZipBlob(toBlob(source));
-  const entries = new Map(zip.entries.map((entry) => [entry.name, entry]));
-  const read = async (path: string) => {
-    const entry = entries.get(path);
-    return entry ? zip.read(entry) : undefined;
-  };
+  const files = await unzipWithGuard(source, policy);
+  const read = (path: string) => files.read(path);
   const manifestBytes = await read('manifest.json');
   if (!manifestBytes) throw new Error('raw snapshot: manifest.json missing');
   const manifest = JSON.parse(strFromU8(manifestBytes)) as RawIdbSnapshotManifest;
@@ -238,9 +244,9 @@ export async function parseRawIdbSnapshot(
     }
   }
   for (const [path, placeholder] of binaries) {
-    const entry = entries.get(path);
-    if (!entry) throw new Error(`raw snapshot: binary file ${path} missing`);
-    binaries.set(path, placeholder instanceof Blob ? await zip.blob(entry) : await zip.read(entry));
+    const data = placeholder instanceof Blob ? await files.blob(path) : await files.read(path);
+    if (!data) throw new Error(`raw snapshot: binary file ${path} missing`);
+    binaries.set(path, data);
   }
   const decodeBinary = (tag: Record<string, unknown>): unknown =>
     rebuildBinary(binaries.get(String(tag.$file ?? ''))!, tag);
