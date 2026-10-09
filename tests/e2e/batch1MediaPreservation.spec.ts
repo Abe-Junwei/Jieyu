@@ -10,6 +10,7 @@ import {
   exportArchiveFromProjectHub,
   handleArchiveExportDialogs,
   importArchiveViaProjectHub,
+  importJytViaProjectHub,
   readMediaDiagnostics,
 } from './_helpers/mediaByteDiagnostics';
 import { buildMinimalWavBytes, buildMinimalWavFile } from './_helpers/minimalWav';
@@ -22,7 +23,9 @@ import {
 const NO_PLAYABLE = '.timeline-axis-status-strip__no-playable-media';
 
 test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', () => {
-  test('real audio bytes survive JYT/JYM re-import (upsert + replace-all)', async ({ page }) => {
+  test('real audio bytes survive JYT overwrite / restore-as-new and JYM re-import (replace-all)', async ({
+    page,
+  }) => {
     test.setTimeout(240_000);
     handleArchiveExportDialogs(page);
 
@@ -43,12 +46,13 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
     const jyt = await exportArchiveFromProjectHub(page, 'JYT');
     expect(jyt.byteLength).toBeGreaterThan(100);
 
-    for (const strategy of ['upsert', 'replace-all'] as const) {
-      await importArchiveViaProjectHub(page, jyt, 'roundtrip.jyt', strategy);
+    // 第 3 批：JYT 只能恢复为新项目或覆盖当前项目；两种都不能动本机字节 | Batch 3 JYT modes
+    for (const mode of ['restore-as-new', 'overwrite-current'] as const) {
+      await importJytViaProjectHub(page, jyt, 'roundtrip.jyt', mode);
       const after = (await readMediaDiagnostics(page, project.textId)).find(
         (r) => r.id === project.mediaId,
       );
-      expect(after, `JYT ${strategy}`).toMatchObject({
+      expect(after, `JYT ${mode}`).toMatchObject({
         hasBlob: true,
         byteSize: before?.byteSize,
         mimeType: before?.mimeType,

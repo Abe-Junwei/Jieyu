@@ -119,3 +119,30 @@ export async function importArchiveViaProjectHub(
   await page.getByRole('button', { name: /Start project import|开始导入项目/i }).click();
   await expect(dialog).toBeHidden({ timeout: 60_000 });
 }
+
+/**
+ * 第 3 批 JYT：通过项目中心恢复为新项目，或覆盖当前项目（覆盖要点两次）。
+ * Batch 3 JYT through the project hub: restore as a new project, or overwrite (two clicks).
+ */
+export async function importJytViaProjectHub(
+  page: Page,
+  archive: Buffer,
+  name: string,
+  mode: 'restore-as-new' | 'overwrite-current',
+): Promise<void> {
+  const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+  await input.setInputFiles({ name, mimeType: 'application/octet-stream', buffer: archive });
+  const dialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  if (mode === 'restore-as-new') {
+    await dialog.getByRole('button', { name: /Restore as new project|恢复为新项目/i }).click();
+  } else {
+    await dialog.getByTestId('project-import-overwrite-current').check();
+    await dialog
+      .getByRole('button', { name: /^(Overwrite current project|覆盖当前项目)$/i })
+      .click();
+    await expect(dialog.getByTestId('project-import-overwrite-warning')).toBeVisible();
+    await dialog.getByRole('button', { name: /Confirm overwrite|确认覆盖/i }).click();
+  }
+  await expect(dialog).toBeHidden({ timeout: 60_000 });
+}
