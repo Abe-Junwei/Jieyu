@@ -102,6 +102,22 @@ const { applyTombstone } = vi.hoisted(() => ({
     .mockResolvedValue({ projectId: 'project-1', cancelledOutboundCount: 0 }),
 }));
 
+const { multiDocument } = vi.hoisted(() => ({ multiDocument: { current: false } }));
+
+vi.mock('../../services/annotationDocumentCollaborationGate', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../services/annotationDocumentCollaborationGate')>();
+  return {
+    ...actual,
+    isMultiDocumentProject: () => multiDocument.current,
+    refreshMultiDocumentGate: async () => multiDocument.current,
+    assertCollaborationAllowed: (textId: string) => {
+      if (multiDocument.current)
+        throw new actual.AnnotationDocumentCollaborationBlockedError(textId);
+    },
+  };
+});
+
 vi.mock('../../services/projectCloudTombstone', () => ({
   applyCloudProjectTombstone: applyTombstone,
 }));
@@ -147,6 +163,45 @@ describe('useTranscriptionCollaborationBridge', () => {
     window.localStorage.clear();
     applyTombstone.mockClear();
     resetCollaborationLifecycleBroadcastForTests();
+    multiDocument.current = false;
+  });
+
+  it('第 5 批反向门：多份文稿的项目不启动桥接 | batch 5: no bridge for a project with several documents', async () => {
+    multiDocument.current = true;
+    renderHook(() =>
+      useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+    );
+    await waitFor(() => expect(getUserId).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(bridgeCtorCalls).toHaveLength(0);
+    expect(bridgeStart).not.toHaveBeenCalled();
+  });
+
+  it('第 5 批反向门：运行中有了第二份文稿就不再上传 | batch 5: no upload once a second document exists', async () => {
+    const { result } = renderHook(() =>
+      useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+    );
+    await waitFor(() => expect(bridgeStart).toHaveBeenCalledTimes(1));
+    multiDocument.current = true;
+    act(() => {
+      result.current.enqueueMutation({
+        entityType: 'layer_unit_content',
+        entityId: 'unit-1:layer-1',
+        opType: 'upsert_unit_content',
+        payload: { unitId: 'unit-1', layerId: 'layer-1', value: 'hello' },
+      });
+    });
+    expect(bridgeEnqueue).not.toHaveBeenCalled();
+    await expect(
+      result.current.createProjectSnapshot({
+        version: 1,
+        payloadJson: '{}',
+        schemaVersion: 1,
+        createdBy: 'user-1',
+        changeCursor: 0,
+      }),
+    ).rejects.toThrow(/several annotation documents/);
+    expect(bridgeCreateSnapshot).not.toHaveBeenCalled();
   });
 
   it('启动后创建桥接，停用时停止桥接 | starts bridge when enabled and stops when disabled', async () => {

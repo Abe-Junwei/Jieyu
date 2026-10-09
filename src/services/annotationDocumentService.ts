@@ -31,6 +31,7 @@ import {
 import { newCatalogUuid } from './projectCatalogScope';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { createLogger } from '../observability/logger';
+import { refreshMultiDocumentGate } from './annotationDocumentCollaborationGate';
 
 const log = createLogger('annotationDocumentService');
 
@@ -507,8 +508,9 @@ export async function createAnnotationDocument(textId: string, title?: string): 
   if (!canCreateAnnotationDocument(owner))
     throw new AnnotationDocumentCollaboratedProjectError(owner);
   const db = await getDb();
+  let id: string;
   try {
-    return await withTransaction(
+    id = await withTransaction(
       db,
       'rw',
       [...documentWriteStores(db)],
@@ -533,6 +535,9 @@ export async function createAnnotationDocument(textId: string, title?: string): 
   } catch (error) {
     throw unwrapDocumentError(error);
   }
+  // 反向门：现在有多份文稿，协作与上传关闭 | Reverse gate: several documents now, collaboration off
+  await refreshMultiDocumentGate(owner);
+  return id;
 }
 
 /** 改名（只改 title；空名清除 title，界面回退到序号名）| Rename (title only; empty clears it) */
@@ -676,8 +681,9 @@ async function deleteDocumentRows(
   owner: string,
   documentId: string,
 ): Promise<Omit<AnnotationDocumentDeleteResult, 'snapshotSeq'>> {
+  let result: Omit<AnnotationDocumentDeleteResult, 'snapshotSeq'>;
   try {
-    return await withTransaction(
+    result = await withTransaction(
       db,
       'rw',
       [
@@ -728,6 +734,8 @@ async function deleteDocumentRows(
   } catch (error) {
     throw unwrapDocumentError(error);
   }
+  await refreshMultiDocumentGate(owner);
+  return result;
 }
 
 export type AnnotationDocumentScope = {

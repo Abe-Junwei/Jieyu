@@ -48,6 +48,11 @@ import {
   isOutdatedClientRejection,
 } from '../../collaboration/cloud/collaborationServerRejection';
 import { applyCloudProjectTombstone } from '../../services/projectCloudTombstone';
+import {
+  assertCollaborationAllowed,
+  isMultiDocumentProject,
+  refreshMultiDocumentGate,
+} from '../../services/annotationDocumentCollaborationGate';
 import { createLogger } from '../../observability/logger';
 
 interface UseTranscriptionCollaborationBridgeParams {
@@ -336,6 +341,12 @@ export function useTranscriptionCollaborationBridge({
         return;
       }
       if (disposed) return;
+      // 第 5 批反向门：多份文稿的项目不开启协作 | Batch 5 reverse gate: no collaboration with several documents
+      if (await refreshMultiDocumentGate(normalizedProjectId)) {
+        log.warn('skip bridge bootstrap: project has several annotation documents');
+        return;
+      }
+      if (disposed) return;
 
       latestRevisionRef.current = Math.max(0, loadProjectLastSeenRevision(normalizedProjectId));
 
@@ -526,6 +537,11 @@ export function useTranscriptionCollaborationBridge({
         });
         return;
       }
+      // 运行中新建了第二份文稿：不再上传 | A second document was created while running: no upload
+      if (isMultiDocumentProject(normalizedProjectId)) {
+        log.warn('suppressed local collaboration mutation (several annotation documents)');
+        return;
+      }
 
       const record = codec.encode({
         projectId: normalizedProjectId,
@@ -559,6 +575,7 @@ export function useTranscriptionCollaborationBridge({
   const registerProjectAsset = useCallback(
     async (input: RegisterProjectAssetInput): Promise<CollaborationAssetRecord> => {
       assertCloudWritesAllowed(writeGuardRef.current);
+      assertCollaborationAllowed(normalizedProjectId);
       const uid = await getSupabaseUserId();
       if (!uid) {
         throw new Error('Collaboration asset registration requires an authenticated Supabase user');
@@ -568,7 +585,7 @@ export function useTranscriptionCollaborationBridge({
         uploadedBy: uid,
       });
     },
-    [],
+    [normalizedProjectId],
   );
 
   const listProjectAssets = useCallback(
@@ -602,6 +619,7 @@ export function useTranscriptionCollaborationBridge({
   const createProjectSnapshot = useCallback(
     async (input: CreateProjectSnapshotInput): Promise<CollaborationProjectSnapshotRecord> => {
       assertCloudWritesAllowed(writeGuardRef.current);
+      assertCollaborationAllowed(normalizedProjectId);
       const uid = await getSupabaseUserId();
       if (!uid) {
         throw new Error('Collaboration snapshot creation requires an authenticated Supabase user');
@@ -611,7 +629,7 @@ export function useTranscriptionCollaborationBridge({
         createdBy: uid,
       });
     },
-    [],
+    [normalizedProjectId],
   );
 
   const listProjectSnapshots = useCallback(
