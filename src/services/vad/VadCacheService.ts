@@ -12,12 +12,15 @@
  * localStorage 对这类小体量缓存（通常 <100 条 × <5 KB/条）足够。
  */
 
+import type { ProvenanceParams } from '../../db';
+import { vadRunParams } from './autoSegmentationProvenance';
 import type { SpeechSegment } from './WhisperXVadService';
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'jieyu:vad-cache';
-const CACHE_VERSION = 1;
+/** 2：条目带 params（N9），没有 params 的 v1 条目作废重算 | 2: entries carry params (N9); v1 entries are dropped */
+const CACHE_VERSION = 2;
 const MAX_ENTRIES = 200;
 /** 缓存有效期（毫秒）：7 天 | Cache TTL: 7 days */
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -33,6 +36,8 @@ export interface VadCacheEntry {
   durationSec: number;
   /** 缓存时间戳 | Timestamp when cached */
   cachedAt: number;
+  /** 生成这些句段时实际用的参数（N9）| Params actually used to produce the segments (N9) */
+  params: ProvenanceParams;
 }
 
 interface StoragePayload {
@@ -77,14 +82,16 @@ export class VadCacheService {
    * 存入 VAD 缓存
    * Store a VAD result in cache.
    */
-  set(mediaId: string, entry: VadCacheEntry): void {
+  set(mediaId: string, run: Omit<VadCacheEntry, 'params'>): VadCacheEntry {
     this.ensureLoaded();
+    const entry = { ...run, params: vadRunParams(run.engine) };
     this.memoryCache.set(mediaId, entry);
     this.accessOrder = this.accessOrder.filter((id) => id !== mediaId);
     this.accessOrder.push(mediaId);
     this.evictIfNeeded();
     this.persist();
     this.emitChange();
+    return entry;
   }
 
   /**

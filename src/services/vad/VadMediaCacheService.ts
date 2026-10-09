@@ -55,7 +55,10 @@ export function getVadCacheWarmupStatus(mediaId: string | undefined): VadCacheWa
   return warmupStatusByMediaId.get(mediaId) ?? null;
 }
 
-export function subscribeVadCacheWarmupStatus(mediaId: string | undefined, onStoreChange: () => void): () => void {
+export function subscribeVadCacheWarmupStatus(
+  mediaId: string | undefined,
+  onStoreChange: () => void,
+): () => void {
   if (!mediaId) {
     return () => {};
   }
@@ -74,7 +77,9 @@ export function subscribeVadCacheWarmupStatus(mediaId: string | undefined, onSto
   };
 }
 
-export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOptions): Promise<VadCacheEntry | null> {
+export async function ensureVadCacheForMedia(
+  options: EnsureVadCacheForMediaOptions,
+): Promise<VadCacheEntry | null> {
   const { mediaId, mediaUrl } = options;
   if (!mediaId || !mediaUrl) return null;
 
@@ -90,9 +95,16 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
     return null;
   }
 
-  const ref: VadMediaRef = { mediaId, mediaUrl, ...(options.mediaBlobSize !== undefined && { byteSize: options.mediaBlobSize }) };
+  const ref: VadMediaRef = {
+    mediaId,
+    mediaUrl,
+    ...(options.mediaBlobSize !== undefined && { byteSize: options.mediaBlobSize }),
+  };
   if (!backend.canProcess(ref)) {
-    log.debug('VAD backend cannot process media (size/format gate)', { mediaId, byteSize: options.mediaBlobSize });
+    log.debug('VAD backend cannot process media (size/format gate)', {
+      mediaId,
+      byteSize: options.mediaBlobSize,
+    });
     return null;
   }
 
@@ -120,13 +132,12 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
         },
       });
 
-      const entry: VadCacheEntry = {
+      const entry = vadCache.set(mediaId, {
         engine: result.engine,
         segments: result.segments,
         durationSec: result.durationSec,
         cachedAt: now(),
-      };
-      vadCache.set(mediaId, entry);
+      });
       clearWarmupStatus(mediaId);
       return entry;
     } catch (error) {
