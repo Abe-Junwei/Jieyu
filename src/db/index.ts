@@ -43,8 +43,6 @@ export {
   dexieStoresForAnnotationImportRw,
   dexieStoresForCustomFieldDefinitionDeleteCascadeRw,
   dexieStoresForDeleteAudioKeepTimeline,
-  dexieStoresForDeleteProjectByTextIdCascadeRw,
-  dexieStoresForProjectScopedSnapshotPruneRw,
   dexieStoresForGetUnitLinguisticMemoryRead,
   dexieStoresForLanguageAssetOverviewRw,
   dexieStoresForLanguageCatalogMutateRw,

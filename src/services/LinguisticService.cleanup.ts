@@ -1,6 +1,5 @@
 import {
   dexieStoresForDeleteAudioKeepTimeline,
-  dexieStoresForDeleteProjectByTextIdCascadeRw,
   dexieStoresForRemoveUnitCascadeRw,
   getDb,
   withTransaction,
@@ -10,7 +9,6 @@ import {
 import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import {
   deleteLayerSegmentGraphByUnitIds,
-  deleteResidualLayerUnitGraphByTextId,
   deleteUnitLayerUnitCascade,
 } from './LayerSegmentGraphService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
@@ -21,7 +19,7 @@ import {
   resolveLogicalDurationSecAfterTimedContentChange,
 } from '../utils/timelineLogicalDurationSync';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
-import { PROJECT_CATALOG_TEXT_ID_TABLES } from '../db/tableRegistry';
+import { projectPurgeStores, purgeProjectRows } from '../db/projectLocalPurge';
 
 type JieyuDbInstance = Awaited<ReturnType<typeof getDb>>;
 
@@ -105,97 +103,19 @@ async function removeNotesForUnitIds(
   );
 }
 
+/**
+ * 删除项目（本地部分）：唯一入口是 `purgeProjectRows(…, 'delete-project')`，一个事务（rev5 N6，T21）。
+ * Delete a project (local part): the single entry is `purgeProjectRows(…, 'delete-project')`, in
+ * one transaction (rev5 N6, T21).
+ */
 export async function deleteProjectCascade(textId: string): Promise<void> {
   const db = await getDb();
-
   await withTransaction(
     db,
     'rw',
-    [...dexieStoresForDeleteProjectByTextIdCascadeRw(db)],
+    projectPurgeStores(db.dexie, 'delete-project'),
     async () => {
-      const allUtts = await db.dexie.layer_units
-        .where('textId')
-        .equals(textId)
-        .filter((u) => u.unitType === 'unit')
-        .toArray();
-      const uttIds = allUtts.map((u) => u.id);
-
-      await removeNotesForUnitIds(db, uttIds);
-      await invalidateUnitEmbeddings(db, uttIds);
-
-      for (const uttId of uttIds) {
-        const tokens = await db.dexie.unit_tokens.where('unitId').equals(uttId).toArray();
-        const tokenIds = tokens.map((t) => t.id);
-        const morphemeIds = (
-          await db.dexie.unit_morphemes.where('unitId').equals(uttId).toArray()
-        ).map((m) => m.id);
-        await deleteLayerSegmentGraphByUnitIds(db, [uttId]);
-        if (tokenIds.length > 0 || morphemeIds.length > 0) {
-          const targets: Array<[string, string]> = [
-            ...tokenIds.map((id) => ['token', id] as [string, string]),
-            ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-          ];
-          await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
-        }
-        await db.dexie.unit_tokens.where('unitId').equals(uttId).delete();
-        await db.dexie.unit_morphemes.where('unitId').equals(uttId).delete();
-      }
-
-      await deleteResidualLayerUnitGraphByTextId(db, textId);
-
-      const tierDefs = await db.dexie.tier_definitions.where('textId').equals(textId).toArray();
-      for (const td of tierDefs) {
-        await db.dexie.tier_annotations.where('tierId').equals(td.id).delete();
-      }
-
-      await db.dexie.tier_definitions.where('textId').equals(textId).delete();
-
-      const mediaItems = await db.dexie.media_items.where('textId').equals(textId).toArray();
-      for (const media of mediaItems) {
-        await db.dexie.anchors.where('mediaId').equals(media.id).delete();
-      }
-
-      await db.dexie.media_items.where('textId').equals(textId).delete();
-
-      const convos = await db.dexie.ai_conversations.where('textId').equals(textId).toArray();
-      const convoIds = convos.map((c) => c.id);
-      for (const convoId of convoIds) {
-        await db.dexie.ai_messages.where('conversationId').equals(convoId).delete();
-      }
-      if (convoIds.length > 0) {
-        await db.dexie.ai_conversations.bulkDelete(convoIds);
-      }
-
-      await db.dexie.track_entities.where('textId').equals(textId).delete();
-      await db.dexie.source_records.where('textId').equals(textId).delete();
-      await db.dexie.annotation_documents.where('textId').equals(textId).delete();
-
-      await Promise.all([
-        db.dexie.segment_meta.where('textId').equals(textId).delete(),
-        db.dexie.segment_quality_snapshots.where('textId').equals(textId).delete(),
-        db.dexie.scope_stats_snapshots.where('textId').equals(textId).delete(),
-        db.dexie.speaker_profile_snapshots.where('textId').equals(textId).delete(),
-        db.dexie.translation_status_snapshots.where('textId').equals(textId).delete(),
-      ]);
-
-      await db.dexie.ai_tasks.where('targetId').equals(textId).delete();
-      await db.dexie.ai_task_snapshots.where('targetId').equals(textId).delete();
-
-      for (const name of PROJECT_CATALOG_TEXT_ID_TABLES) {
-        const table = db.dexie.table<{ id: string; textId?: string }, string>(name);
-        const stale = await table
-          .filter((row) => (row as { textId?: string }).textId === textId)
-          .toArray();
-        if (stale.length > 0) await table.bulkDelete(stale.map((row) => row.id));
-      }
-      const staleProfiles = await db.dexie.structural_rule_profiles
-        .filter((row) => row.projectId === textId)
-        .toArray();
-      if (staleProfiles.length > 0) {
-        await db.dexie.structural_rule_profiles.bulkDelete(staleProfiles.map((row) => row.id));
-      }
-
-      await db.dexie.texts.delete(textId);
+      await purgeProjectRows(db.dexie, textId, 'delete-project');
     },
     { label: 'LinguisticService.cleanup.deleteProjectCascade' },
   );

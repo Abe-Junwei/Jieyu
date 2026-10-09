@@ -3,9 +3,9 @@
  * User whole-DB backup (`exportDatabaseAsJson`) stays on a separate path (ADR-0008 / ADR-0034).
  */
 import { exportDatabaseAsJson, importDatabaseFromJson } from './io';
-import type { ImportResult } from './types';
+import type { ImportResult, UserNoteDocType } from './types';
 import { getDb, type JieyuDatabase } from './engine';
-import { dexieStoresForProjectScopedSnapshotPruneRw } from './dexieTranscriptionGraphStores';
+import { noteBelongsToProject, projectPurgeStores, purgeProjectRows } from './projectLocalPurge';
 import { withTransaction } from './withTransaction';
 import { PROJECT_CATALOG_TEXT_ID_TABLES } from './tableRegistry';
 
@@ -155,39 +155,29 @@ export function filterCollectionsForProject(
   // 每种备注目标都按本项目的行判断（R-SCOPED-NOTES）：单元格备注 `unitId::layerId[::…]`、词条 / 义项备注等
   // Every note target kind is matched against this project's rows (R-SCOPED-NOTES): cell notes
   // `unitId::layerId[::…]`, lexeme / sense notes, etc.
+  const owned = {
+    projectId,
+    unitIds,
+    tokenIds,
+    morphemeIds,
+    contentIds,
+    annotationIds,
+    lexemeIds,
+    layerIds,
+  };
   const notes = rowsOf(collections, 'user_notes').filter((row) => {
     const targetType = rowString(row, 'targetType');
     const targetId = rowString(row, 'targetId');
+    if (targetType === null || targetId === null) return false;
     const parentTargetId = rowString(row, 'parentTargetId');
-    if (targetId === null) return false;
-    switch (targetType) {
-      case 'text':
-        return targetId === projectId;
-      case 'unit':
-        return unitIds.has(targetId);
-      case 'token':
-        return tokenIds.has(targetId);
-      case 'morpheme':
-        return morphemeIds.has(targetId);
-      case 'translation':
-        return contentIds.has(targetId);
-      case 'annotation':
-        return annotationIds.has(targetId);
-      case 'lexeme':
-        return lexemeIds.has(targetId);
-      case 'sense':
-        return parentTargetId !== null && lexemeIds.has(parentTargetId);
-      case 'tier_annotation': {
-        if (annotationIds.has(targetId)) return true;
-        const [unitPart, layerPart] = targetId.split('::');
-        return (
-          (unitPart !== undefined && unitIds.has(unitPart)) ||
-          (layerPart !== undefined && layerIds.has(layerPart))
-        );
-      }
-      default:
-        return false;
-    }
+    return noteBelongsToProject(
+      {
+        targetType: targetType as UserNoteDocType['targetType'],
+        targetId,
+        ...(parentTargetId !== null ? { parentTargetId } : {}),
+      },
+      owned,
+    );
   });
   if (notes.length > 0 || Array.isArray(collections.user_notes)) {
     next.user_notes = notes;
@@ -263,106 +253,12 @@ export async function exportProjectScopedDatabaseAsJson(textId: string): Promise
 }
 
 async function pruneProjectOwnedRows(db: JieyuDatabase, textId: string): Promise<void> {
-  const projectId = textId.trim();
-  // 可嵌套在导入事务内执行（父事务须包含这些表）| May run nested inside the import transaction
+  // 与删除项目共用同一入口（rev5 N6）；可嵌套在导入事务内 | Same entry as project deletion; may nest
   await withTransaction(
     db,
     'rw',
-    [...dexieStoresForProjectScopedSnapshotPruneRw(db)],
-    async () => {
-      const units = await db.dexie.layer_units.where('textId').equals(projectId).toArray();
-      const unitIds = units.map((row) => row.id);
-      const tokens = await db.dexie.unit_tokens.where('textId').equals(projectId).toArray();
-      const morphemes = await db.dexie.unit_morphemes.where('textId').equals(projectId).toArray();
-      const tokenIds = tokens.map((row) => row.id);
-      const morphemeIds = morphemes.map((row) => row.id);
-      const tiers = await db.dexie.tier_definitions.where('textId').equals(projectId).toArray();
-      const layerIds = tiers.map((row) => row.id);
-      const mediaItems = await db.dexie.media_items.where('textId').equals(projectId).toArray();
-      const mediaIds = mediaItems.map((row) => row.id);
-
-      const linkTargets: Array<[string, string]> = [
-        ...tokenIds.map((id) => ['token', id] as [string, string]),
-        ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-      ];
-      if (linkTargets.length > 0) {
-        await db.dexie.token_lexeme_links
-          .where('[targetType+targetId]')
-          .anyOf(linkTargets)
-          .delete();
-      }
-
-      if (unitIds.length > 0) {
-        await db.dexie.user_notes
-          .where('[targetType+targetId]')
-          .anyOf(unitIds.map((id) => ['unit', id] as [string, string]))
-          .delete();
-      }
-      if (tokenIds.length > 0) {
-        await db.dexie.user_notes
-          .where('[targetType+targetId]')
-          .anyOf(tokenIds.map((id) => ['token', id] as [string, string]))
-          .delete();
-      }
-      if (morphemeIds.length > 0) {
-        await db.dexie.user_notes
-          .where('[targetType+targetId]')
-          .anyOf(morphemeIds.map((id) => ['morpheme', id] as [string, string]))
-          .delete();
-      }
-      await db.dexie.user_notes.where('[targetType+targetId]').equals(['text', projectId]).delete();
-
-      await db.dexie.layer_unit_contents.where('textId').equals(projectId).delete();
-      if (unitIds.length > 0) {
-        await db.dexie.layer_unit_contents.where('unitId').anyOf(unitIds).delete();
-      }
-      await db.dexie.unit_relations.where('textId').equals(projectId).delete();
-      await db.dexie.unit_tokens.where('textId').equals(projectId).delete();
-      await db.dexie.unit_morphemes.where('textId').equals(projectId).delete();
-      await db.dexie.layer_units.where('textId').equals(projectId).delete();
-
-      if (layerIds.length > 0) {
-        await db.dexie.tier_annotations.where('tierId').anyOf(layerIds).delete();
-        const links = await db.dexie.layer_links.toArray();
-        const staleLinkIds = links
-          .filter(
-            (link) =>
-              layerIds.includes(link.hostTranscriptionLayerId) || layerIds.includes(link.layerId),
-          )
-          .map((link) => link.id);
-        if (staleLinkIds.length > 0) {
-          await db.dexie.layer_links.bulkDelete(staleLinkIds);
-        }
-      }
-      await db.dexie.tier_definitions.where('textId').equals(projectId).delete();
-
-      if (mediaIds.length > 0) {
-        await db.dexie.anchors.where('mediaId').anyOf(mediaIds).delete();
-      }
-      await db.dexie.media_items.where('textId').equals(projectId).delete();
-      await db.dexie.segment_meta.where('textId').equals(projectId).delete();
-      await db.dexie.segment_quality_snapshots.where('textId').equals(projectId).delete();
-      await db.dexie.scope_stats_snapshots.where('textId').equals(projectId).delete();
-      await db.dexie.speaker_profile_snapshots.where('textId').equals(projectId).delete();
-      await db.dexie.translation_status_snapshots.where('textId').equals(projectId).delete();
-      await db.dexie.track_entities.where('textId').equals(projectId).delete();
-      await db.dexie.source_records.where('textId').equals(projectId).delete();
-      await db.dexie.annotation_documents.where('textId').equals(projectId).delete();
-      for (const name of PROJECT_CATALOG_TEXT_ID_TABLES) {
-        const table = db.dexie.table<{ id: string; textId?: string }, string>(name);
-        const stale = await table
-          .filter((row) => (row as { textId?: string }).textId === projectId)
-          .toArray();
-        if (stale.length > 0) await table.bulkDelete(stale.map((row) => row.id));
-      }
-      const staleProfiles = await db.dexie.structural_rule_profiles
-        .filter((row) => row.projectId === projectId)
-        .toArray();
-      if (staleProfiles.length > 0) {
-        await db.dexie.structural_rule_profiles.bulkDelete(staleProfiles.map((row) => row.id));
-      }
-      await db.dexie.texts.delete(projectId);
-    },
+    projectPurgeStores(db.dexie, 'replace-content'),
+    () => purgeProjectRows(db.dexie, textId, 'replace-content'),
     { label: 'projectScopedSnapshot.prune' },
   );
 }
@@ -414,7 +310,7 @@ export async function importProjectScopedDatabaseFromJson(
   const result = await importDatabaseFromJson(scopedSnapshot, {
     strategy: 'upsert',
     preWrite: {
-      tables: dexieStoresForProjectScopedSnapshotPruneRw(db),
+      tables: projectPurgeStores(db.dexie, 'replace-content'),
       run: () => pruneProjectOwnedRows(db, projectId),
     },
   });
