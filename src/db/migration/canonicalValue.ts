@@ -9,8 +9,9 @@
  * always produce the same string.
  */
 
+/** Blob 原样交给编码器，需要字节的编码器自己读 | Blobs are passed as-is; encoders read them if needed */
 export type BinaryEncoder = (
-  bytes: Uint8Array,
+  data: Uint8Array | Blob,
   meta: { kind: 'blob' | 'bytes'; type?: string; name?: string; ctor?: string },
 ) => unknown;
 
@@ -38,14 +39,16 @@ async function blobBytes(blob: Blob): Promise<Uint8Array> {
 }
 
 /** 内联 base64 的二进制编码器 | Inline base64 binary encoder */
-export const inlineBinaryEncoder: BinaryEncoder = (bytes, meta) =>
-  meta.kind === 'blob'
+export const inlineBinaryEncoder: BinaryEncoder = async (data, meta) => {
+  const bytes = data instanceof Blob ? await blobBytes(data) : data;
+  return meta.kind === 'blob'
     ? {
         $blob: bytesToBase64(bytes),
         type: meta.type ?? '',
         ...(meta.name !== undefined ? { name: meta.name } : {}),
       }
     : { $bytes: bytesToBase64(bytes), ctor: meta.ctor ?? 'Uint8Array' };
+};
 
 /** 把值转成可 JSON 化的标签树 | Convert a value into a JSON-safe tagged tree */
 export async function toTaggedTree(
@@ -61,7 +64,7 @@ export async function toTaggedTree(
     return { $date: Number.isNaN(value.getTime()) ? 'Invalid' : value.toISOString() };
   if (typeof Blob !== 'undefined' && value instanceof Blob) {
     const name = typeof File !== 'undefined' && value instanceof File ? value.name : undefined;
-    return encodeBinary(await blobBytes(value), {
+    return encodeBinary(value, {
       kind: 'blob',
       type: value.type,
       ...(name !== undefined ? { name } : {}),
@@ -134,7 +137,7 @@ const TYPED_ARRAY_CTORS: Record<string, (buffer: ArrayBuffer) => unknown> = {
 };
 
 /** 由字节和元数据还原二进制值 | Rebuild a binary value from bytes + meta */
-export function rebuildBinary(bytes: Uint8Array, tag: Record<string, unknown>): unknown {
+export function rebuildBinary(bytes: Uint8Array | Blob, tag: Record<string, unknown>): unknown {
   if ('$blob' in tag || tag.kind === 'blob') {
     const type = typeof tag.type === 'string' ? tag.type : '';
     const part = bytes as unknown as BlobPart;
@@ -142,6 +145,7 @@ export function rebuildBinary(bytes: Uint8Array, tag: Record<string, unknown>): 
       return new File([part], tag.name, { type });
     return new Blob([part], { type });
   }
+  if (bytes instanceof Blob) throw new Error('binary value: bytes expected, got a Blob');
   const ctor = typeof tag.ctor === 'string' ? tag.ctor : 'Uint8Array';
   const copy = bytes.slice().buffer;
   return (TYPED_ARRAY_CTORS[ctor] ?? TYPED_ARRAY_CTORS.Uint8Array!)(copy);

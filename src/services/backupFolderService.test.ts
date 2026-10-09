@@ -60,9 +60,9 @@ function memoryFolder(
         return {
           async createWritable() {
             return {
-              async write(bytes: Uint8Array) {
+              async write(blob: Blob) {
                 if (opts.failWrite) throw new DOMException('quota', 'QuotaExceededError');
-                files.set(name, bytes);
+                files.set(name, new Uint8Array(await blob.arrayBuffer()));
               },
               async close() {},
               async abort() {},
@@ -81,7 +81,7 @@ function memoryFolder(
 }
 
 const store = new Map<string, string>();
-const bytes = async () => new Uint8Array([1, 2, 3]);
+const bytes = async () => new Blob([new Uint8Array([1, 2, 3])]);
 const OLD = [
   'jieyu-backup-20261001-090000-000.jyb',
   'jieyu-backup-20261002-090000-000.jyb',

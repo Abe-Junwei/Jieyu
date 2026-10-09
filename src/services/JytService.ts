@@ -17,7 +17,8 @@ import {
   type ProjectPackageRestorePreview,
   type ProjectPackageRestoreResult,
 } from './projectPackageService';
-import type { JieyuArchiveEncryptionOptions } from './projectArchiveContainer';
+import { blobBytes } from './zipBlob';
+import type { ArchiveSource, JieyuArchiveEncryptionOptions } from './projectArchiveContainer';
 
 export const JYT_MIMETYPE = PROJECT_PACKAGE_MIMETYPES.jyt;
 /** 第 3 批之前的整库 JYT（只用来给出明确的拒绝）| Pre-batch-3 whole-DB JYT (only to reject clearly) */
@@ -29,11 +30,12 @@ export interface JytExportOptions {
   encryption?: JieyuArchiveEncryptionOptions;
 }
 
-export function exportProjectToJyt(
+/** 整包字节（测试与小包用；下载走 Blob，不进内存）| Whole-package bytes (tests, small packages; downloads stay Blobs) */
+export async function exportProjectToJyt(
   textId: string,
   options?: JytExportOptions,
 ): Promise<Uint8Array> {
-  return exportProjectPackage('jyt', textId, options);
+  return blobBytes(await exportProjectPackage('jyt', textId, options));
 }
 
 export function downloadProjectJyt(
@@ -45,21 +47,21 @@ export function downloadProjectJyt(
 }
 
 export function previewJytRestore(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: JytReadOptions & { overwriteTargetProjectId?: string },
 ): Promise<ProjectPackageRestorePreview> {
   return previewProjectPackageRestore(archiveBytes, { ...options, expectedKind: 'jyt' });
 }
 
 export function restoreJytAsNewProject(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: JytReadOptions,
 ): Promise<ProjectPackageRestoreResult> {
   return restoreProjectPackageAsNew(archiveBytes, { ...options, expectedKind: 'jyt' });
 }
 
 export function overwriteProjectWithJyt(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options: JytReadOptions & { targetProjectId: string },
 ): Promise<ProjectPackageOverwriteResult> {
   return overwriteProjectWithPackage(archiveBytes, { ...options, expectedKind: 'jyt' });

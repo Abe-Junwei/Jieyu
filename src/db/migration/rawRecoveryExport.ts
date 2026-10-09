@@ -13,8 +13,19 @@
  * - `manifest.json`
  * - `stores/<nnn>.ndjson`：每行 `{"k": 主键, "v": 值}`（规范化标签编码，二进制换成 `$file` 引用）
  * - `blobs/<nnnnnn>.bin`：Blob / ArrayBuffer / TypedArray 的原始字节
+ *
+ * 4b 流式处理：导出时 Blob 只被引用、不读进内存（ZIP 是一个 Blob）；解析时按条目读取，Blob 值是
+ * 快照文件的切片。| 4b streaming: export only references Blobs (the ZIP is a Blob); parsing reads
+ * per entry and Blob values are slices of the snapshot file.
  */
-import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
+import { strFromU8, strToU8 } from 'fflate';
+import {
+  blobBytes,
+  bytesBlob,
+  openZipBlob,
+  zipToBlob,
+  type ZipBlobEntry,
+} from '../../services/zipBlob';
 import { fromTaggedTree, rebuildBinary, toTaggedTree, type BinaryEncoder } from './canonicalValue';
 import {
   createStoreFromSchema,
@@ -45,7 +56,7 @@ export type RawIdbSnapshotManifest = {
 };
 
 export type RawIdbExportResult = {
-  bytes: Uint8Array;
+  blob: Blob;
   manifest: RawIdbSnapshotManifest;
   fileName: string;
 };
@@ -95,12 +106,12 @@ export async function exportRawIdbSnapshot(
     db.close();
   }
 
-  const files: Zippable = {};
+  const files: ZipBlobEntry[] = [];
   let binaryCount = 0;
-  const encodeBinary: BinaryEncoder = (bytes, meta) => {
+  const encodeBinary: BinaryEncoder = (data, meta) => {
     binaryCount += 1;
     const path = `blobs/${pad(binaryCount, 6)}.bin`;
-    files[path] = [bytes, { level: 0 }];
+    files.push({ name: path, data });
     return {
       $file: path,
       kind: meta.kind,
@@ -120,7 +131,11 @@ export async function exportRawIdbSnapshot(
       lines.push(JSON.stringify({ k, v }));
     }
     const file = `stores/${pad(i, 3)}.ndjson`;
-    files[file] = strToU8(lines.length > 0 ? `${lines.join('\n')}\n` : '');
+    files.push({
+      name: file,
+      data: strToU8(lines.length > 0 ? `${lines.join('\n')}\n` : ''),
+      deflate: true,
+    });
     stores.push({ ...dump.schema, rowCount: dump.values.length, file });
   }
 
@@ -138,24 +153,35 @@ export async function exportRawIdbSnapshot(
     stores,
     binaryFileCount: binaryCount,
   };
-  files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2));
-  return { bytes: zipSync(files), manifest, fileName: rawRecoveryFileName(manifest) };
+  files.push({
+    name: 'manifest.json',
+    data: strToU8(JSON.stringify(manifest, null, 2)),
+    deflate: true,
+  });
+  return { blob: await zipToBlob(files), manifest, fileName: rawRecoveryFileName(manifest) };
 }
 
 /**
  * 只看 `manifest.json` 判断是不是原始快照 ZIP；不解压其他条目，坏文件返回 false。
  * Whether the bytes are a raw snapshot ZIP, judged by `manifest.json` alone; false on bad input.
  */
-export function isRawIdbSnapshot(bytes: Uint8Array): boolean {
-  if (bytes.byteLength < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) return false;
+export async function isRawIdbSnapshot(source: Uint8Array | Blob): Promise<boolean> {
+  const blob = toBlob(source);
+  const head = await blobBytes(blob.slice(0, 2));
+  if (head[0] !== 0x50 || head[1] !== 0x4b) return false;
   try {
-    const entries = unzipSync(bytes, { filter: (file) => file.name === 'manifest.json' });
-    const manifest = entries['manifest.json'];
-    if (!manifest) return false;
-    return (JSON.parse(strFromU8(manifest)) as { kind?: unknown }).kind === RAW_IDB_SNAPSHOT_KIND;
+    const zip = await openZipBlob(blob);
+    const entry = zip.entries.find((item) => item.name === 'manifest.json');
+    if (!entry) return false;
+    const manifest = JSON.parse(strFromU8(await zip.read(entry))) as { kind?: unknown };
+    return manifest.kind === RAW_IDB_SNAPSHOT_KIND;
   } catch {
     return false;
   }
+}
+
+function toBlob(source: Uint8Array | Blob): Blob {
+  return source instanceof Blob ? source : bytesBlob(source);
 }
 
 export type ParsedRawIdbSnapshot = {
@@ -167,9 +193,16 @@ export type ParsedRawIdbSnapshot = {
  * 解析原始快照 ZIP（转换器与原版本还原共用）。结构不对就抛错，不做任何写入。
  * Parse a raw snapshot ZIP (shared by the converter and same-version restore). Throws on bad shape.
  */
-export function parseRawIdbSnapshot(bytes: Uint8Array): ParsedRawIdbSnapshot {
-  const entries = unzipSync(bytes);
-  const manifestBytes = entries['manifest.json'];
+export async function parseRawIdbSnapshot(
+  source: Uint8Array | Blob,
+): Promise<ParsedRawIdbSnapshot> {
+  const zip = await openZipBlob(toBlob(source));
+  const entries = new Map(zip.entries.map((entry) => [entry.name, entry]));
+  const read = async (path: string) => {
+    const entry = entries.get(path);
+    return entry ? zip.read(entry) : undefined;
+  };
+  const manifestBytes = await read('manifest.json');
   if (!manifestBytes) throw new Error('raw snapshot: manifest.json missing');
   const manifest = JSON.parse(strFromU8(manifestBytes)) as RawIdbSnapshotManifest;
   if (manifest.kind !== RAW_IDB_SNAPSHOT_KIND)
@@ -177,14 +210,9 @@ export function parseRawIdbSnapshot(bytes: Uint8Array): ParsedRawIdbSnapshot {
   if (manifest.formatVersion !== RAW_IDB_SNAPSHOT_FORMAT_VERSION) {
     throw new Error(`raw snapshot: unsupported format version ${String(manifest.formatVersion)}`);
   }
-  const decodeBinary = (tag: Record<string, unknown>): unknown => {
-    const path = String(tag.$file ?? '');
-    const data = entries[path];
-    if (!data) throw new Error(`raw snapshot: binary file ${path} missing`);
-    return rebuildBinary(data, tag);
-  };
-  const stores = manifest.stores.map((store) => {
-    const data = entries[store.file];
+  const rows: Array<{ k: unknown; v: unknown }[]> = [];
+  for (const store of manifest.stores) {
+    const data = await read(store.file);
     if (!data) throw new Error(`raw snapshot: ${store.file} missing`);
     const lines = strFromU8(data)
       .split('\n')
@@ -194,12 +222,34 @@ export function parseRawIdbSnapshot(bytes: Uint8Array): ParsedRawIdbSnapshot {
         `raw snapshot: ${store.name} has ${lines.length} rows, manifest says ${store.rowCount}`,
       );
     }
+    rows.push(lines.map((line) => JSON.parse(line) as { k: unknown; v: unknown }));
+  }
+  // 先收集二进制引用：Blob 值取快照文件的切片（不读字节），其余二进制读出字节
+  // Collect binary refs first: Blob values become slices of the snapshot file, other binaries bytes
+  const binaries = new Map<string, Uint8Array | Blob>();
+  const collect = (tag: Record<string, unknown>): unknown => {
+    binaries.set(String(tag.$file ?? ''), tag.kind === 'blob' ? new Blob() : new Uint8Array());
+    return null;
+  };
+  for (const storeRows of rows) {
+    for (const row of storeRows) {
+      fromTaggedTree(row.k, collect);
+      fromTaggedTree(row.v, collect);
+    }
+  }
+  for (const [path, placeholder] of binaries) {
+    const entry = entries.get(path);
+    if (!entry) throw new Error(`raw snapshot: binary file ${path} missing`);
+    binaries.set(path, placeholder instanceof Blob ? await zip.blob(entry) : await zip.read(entry));
+  }
+  const decodeBinary = (tag: Record<string, unknown>): unknown =>
+    rebuildBinary(binaries.get(String(tag.$file ?? ''))!, tag);
+  const stores = manifest.stores.map((store, i) => {
     const keys: IDBValidKey[] = [];
     const values: unknown[] = [];
-    for (const line of lines) {
-      const parsed = JSON.parse(line) as { k: unknown; v: unknown };
-      keys.push(fromTaggedTree(parsed.k, decodeBinary) as IDBValidKey);
-      values.push(fromTaggedTree(parsed.v, decodeBinary));
+    for (const row of rows[i]!) {
+      keys.push(fromTaggedTree(row.k, decodeBinary) as IDBValidKey);
+      values.push(fromTaggedTree(row.v, decodeBinary));
     }
     const { rowCount: _rowCount, file: _file, ...schema } = store;
     return { schema, keys, values };
@@ -255,8 +305,7 @@ export async function writeRawIdbSnapshotToNewDatabase(options: {
  * Trigger a browser download (used by the blocked-upgrade UI).
  */
 export function downloadRawRecoveryExport(result: RawIdbExportResult): void {
-  const blob = new Blob([result.bytes as unknown as BlobPart], { type: 'application/zip' });
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(result.blob);
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = result.fileName;

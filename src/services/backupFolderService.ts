@@ -151,7 +151,7 @@ export function writeBackupIntervalHours(hours: number): void {
  */
 export async function backupLibraryToFolder(options: {
   interactive: boolean;
-  exportJyb?: () => Promise<Uint8Array>;
+  exportJyb?: () => Promise<Blob>;
 }): Promise<BackupSuccess> {
   try {
     const folder = await readBackupFolder();
@@ -166,13 +166,13 @@ export async function backupLibraryToFolder(options: {
     }
     const exportJyb =
       options.exportJyb ??
-      (async () => (await import('./JybService')).exportDatabaseToJyb({ includeMedia: true }));
-    const bytes = await exportJyb();
+      (async () => (await import('./JybService')).exportDatabaseToJybBlob({ includeMedia: true }));
+    const blob = await exportJyb();
     const fileName = backupFileName();
     const file = await folder.getFileHandle(fileName, { create: true });
     const writable = await file.createWritable();
     try {
-      await writable.write(bytes as Uint8Array<ArrayBuffer>);
+      await writable.write(blob);
       await writable.close();
     } catch (error) {
       await writable.abort().catch(() => undefined);
@@ -188,7 +188,7 @@ export async function backupLibraryToFolder(options: {
     const success = {
       at: new Date().toISOString(),
       fileName,
-      sizeBytes: bytes.byteLength,
+      sizeBytes: blob.size,
       removed,
     };
     writeStatus({ lastSuccess: success });
@@ -210,7 +210,7 @@ export async function backupLibraryToFolder(options: {
  */
 export async function runScheduledBackupIfDue(
   now: number = Date.now(),
-  exportJyb?: () => Promise<Uint8Array>,
+  exportJyb?: () => Promise<Blob>,
 ): Promise<BackupSuccess | BackupFolderError | Error | null> {
   const hours = readBackupIntervalHours();
   if (hours <= 0 || !isBackupFolderSupported()) return null;

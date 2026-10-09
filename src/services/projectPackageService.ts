@@ -18,7 +18,8 @@
  *   每一条记录（7.4-1）；默认恢复为新项目，所有 id 重新映射，记录 restoredFrom（7.4-2）；
  *   覆盖当前项目只对从未协作过的项目开放（7.4-3）。
  */
-import { strToU8, zipSync, type Zippable } from 'fflate';
+import { strToU8 } from 'fflate';
+import { blobBytes, bytesBlob, zipToBlob, type ZipBlobEntry } from './zipBlob';
 import { z } from 'zod';
 import type { ImportResult } from '../db/types';
 import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
@@ -35,6 +36,8 @@ import {
   readArchiveMimetype,
   toText,
   unzipWithGuard,
+  type ArchiveSource,
+  type GuardedArchive,
   type JieyuArchiveEncryptionMetadata,
   type JieyuArchiveEncryptionOptions,
   type JieyuArchiveImportPolicy,
@@ -66,16 +69,22 @@ export const PROJECT_PACKAGE_FORMAT_VERSION = 1;
 
 const MiB = 1024 * 1024;
 /**
- * JYM 带字节，上限比 JYT 大；导出用同一组上限（7.4-8 对称）。整个包在内存里处理，所以先取保守值，
- * 流式处理留到 4b。| JYM carries bytes, so its limits are larger than JYT's; export checks the same
- * limits (7.4-8, symmetric). The package is handled in memory, so the values are conservative;
- * streaming is left to 4b.
+ * JYM 带字节，上限比 JYT 大；导出用同一组上限（7.4-8 对称）。包按 Blob 处理（4b 流式处理），
+ * 整包不进内存，总量只受 ZIP32 的 4 GiB 限制。
+ * JYM carries bytes, so its limits are larger than JYT's; export checks the same limits (7.4-8,
+ * symmetric). Packages are handled as Blobs (4b streaming), never whole in memory; the total is only
+ * bounded by ZIP32's 4 GiB.
+ *
+ * shortcut: 单个字节文件仍整份读进内存算 SHA-256（WebCrypto 不能分段），所以每条 1 GiB；
+ * 单个录音超过 1 GiB 成为真实需求时，换成分段 SHA-256 再放开。
+ * shortcut: one byte file is still read whole for SHA-256 (WebCrypto is not incremental), hence
+ * 1 GiB per entry; switch to an incremental SHA-256 when single recordings above 1 GiB are real.
  */
 export const JYM_PACKAGE_POLICY: JieyuArchiveImportPolicy = {
-  maxArchiveBytes: 512 * MiB,
+  maxArchiveBytes: 4095 * MiB,
   maxEntryCount: 4096,
-  maxEntryBytes: 512 * MiB,
-  maxExpandedBytes: 512 * MiB,
+  maxEntryBytes: 1024 * MiB,
+  maxExpandedBytes: 4095 * MiB,
   maxJsonDepth: 64,
   maxJsonNodes: 500_000,
 };
@@ -339,12 +348,13 @@ export interface PackedByteFile {
   entityKey: string;
   path: string;
   role: EntityType;
-  bytes: Uint8Array;
+  /** 原 Blob 的引用，打包时不复制 | Reference to the original Blob; not copied when zipping */
+  blob: Blob;
 }
 
 /**
  * JYM：把受管媒体与附件的 Blob 取出成字节文件，行里不留 Blob；没有本机字节的照常省略。
- * 先按 Blob 大小检查上限，再逐个读字节，避免先读满内存。
+ * 先按 Blob 大小检查上限；之后逐个读一次算哈希，打包时只引用 Blob。
  * JYM: turn managed media / attachment Blobs into byte files and leave no Blob in the rows; rows
  * without local bytes stay omitted. Sizes are checked against the limit before any bytes are read.
  */
@@ -389,8 +399,8 @@ export async function packIncludedBytes(
 
   const packed: PackedByteFile[] = [];
   for (const item of pending) {
-    const bytes = new Uint8Array(await item.blob.arrayBuffer());
-    const sha = await sha256Hex(bytes);
+    const sha = await sha256Hex(await blobBytes(item.blob));
+    const size = item.blob.size;
     const path = bytePathFor(item.type, String(item.row.id));
     const mimeType = item.blob.type || str(item.row.mimeType);
     const entity = byKey.get(item.key);
@@ -398,7 +408,7 @@ export async function packIncludedBytes(
     entity.bytes = 'included';
     entity.fileRef = path;
     entity.contentSha256 = sha;
-    entity.contentSize = bytes.byteLength;
+    entity.contentSize = size;
     if (mimeType !== undefined) entity.mimeType = mimeType;
     if (item.type === 'media') {
       const details = { ...asRecord(item.row.details) };
@@ -406,12 +416,12 @@ export async function packIncludedBytes(
       item.row.details = details;
       // 数据行与字节一致 | The data row matches its bytes
       item.row.contentSha256 = sha;
-      item.row.contentSize = bytes.byteLength;
+      item.row.contentSize = size;
     } else {
       delete item.row.blob;
-      item.row.byteSize = bytes.byteLength;
+      item.row.byteSize = size;
     }
-    packed.push({ entityKey: item.key, path, role: item.type, bytes });
+    packed.push({ entityKey: item.key, path, role: item.type, blob: item.blob });
   }
   return packed;
 }
@@ -432,7 +442,7 @@ export async function exportProjectPackage(
   kind: ProjectPackageKind,
   textId: string,
   options?: ProjectPackageExportOptions,
-): Promise<Uint8Array> {
+): Promise<Blob> {
   const projectId = textId.trim();
   if (projectId.length === 0) throw new Error(`export ${kind} requires a project textId`);
   const includeMedia = kind === 'jym' && options?.includeMedia !== false;
@@ -519,8 +529,10 @@ export function omittedBytesSummary(
 }
 
 /**
- * 加密（可选）、写 `files[]`、检查容量上限并打成 ZIP；JYT / JYM / JYB 共用。
- * Encrypt (optional), fill `files[]`, check the size limit and zip; shared by JYT / JYM / JYB.
+ * 加密（可选）、写 `files[]`、检查容量上限并打成 ZIP Blob；JYT / JYM / JYB 共用。不加密时字节文件
+ * 直接引用原 Blob；加密时一次只有一个文件在内存里。
+ * Encrypt (optional), fill `files[]`, check the size limit and zip into a Blob; shared by JYT / JYM /
+ * JYB. Unencrypted byte files reference the original Blobs; encrypted ones are in memory one at a time.
  */
 export async function assemblePackage(input: {
   kind: PackageKind;
@@ -532,10 +544,9 @@ export async function assemblePackage(input: {
   policy: JieyuArchiveImportPolicy;
   encryption?: JieyuArchiveEncryptionOptions;
   manifest: Omit<ProjectPackageManifest, 'entities' | 'files' | 'encryption'>;
-}): Promise<Uint8Array> {
+}): Promise<Blob> {
   const { entities, policy } = input;
   const encryptor = input.encryption ? await createArchiveEncryptor(input.encryption) : null;
-  const zipFiles: Zippable = {};
   const files: PackageFile[] = [];
   const storedPath = encryptor ? input.dataPaths.encrypted : input.dataPaths.plain;
   const storedData = encryptor ? await encryptor.encryptData(input.dataBytes) : input.dataBytes;
@@ -546,22 +557,20 @@ export async function assemblePackage(input: {
     role: 'data',
   });
   let totalBytes = storedData.byteLength;
-  const storedByteFiles: Array<{ path: string; bytes: Uint8Array }> = [];
+  const storedByteFiles: ZipBlobEntry[] = [];
   for (const file of input.byteFiles) {
-    const stored = encryptor ? await encryptor.encryptFile(file.bytes) : file.bytes;
-    totalBytes += stored.byteLength;
-    files.push({
-      path: file.path,
-      sha256: encryptor
-        ? await sha256Hex(stored)
-        : String(
-            entities.find((entity) => `${entity.type}:${entity.id}` === file.entityKey)
-              ?.contentSha256,
-          ),
-      size: stored.byteLength,
-      role: file.role,
-    });
-    storedByteFiles.push({ path: file.path, bytes: stored });
+    let stored = file.blob;
+    let sha256 = String(
+      entities.find((entity) => `${entity.type}:${entity.id}` === file.entityKey)?.contentSha256,
+    );
+    if (encryptor) {
+      const encrypted = await encryptor.encryptFile(await blobBytes(file.blob));
+      sha256 = await sha256Hex(encrypted);
+      stored = bytesBlob(encrypted);
+    }
+    totalBytes += stored.size;
+    files.push({ path: file.path, sha256, size: stored.size, role: file.role });
+    storedByteFiles.push({ name: file.path, data: stored });
   }
   if (totalBytes > policy.maxArchiveBytes) {
     throw new ProjectPackageTooLargeError(totalBytes, policy.maxArchiveBytes);
@@ -575,11 +584,12 @@ export async function assemblePackage(input: {
   };
 
   // mimetype 放第一条且不压缩，便于识别；字节文件不压缩 | mimetype first and stored; bytes stored
-  zipFiles['mimetype'] = [strToU8(input.mimetype), { level: 0 }];
-  zipFiles[MANIFEST_PATH] = toJsonBytes(manifest);
-  zipFiles[storedPath] = storedData;
-  for (const file of storedByteFiles) zipFiles[file.path] = [file.bytes, { level: 0 }];
-  return zipSync(zipFiles);
+  return zipToBlob([
+    { name: 'mimetype', data: strToU8(input.mimetype) },
+    { name: MANIFEST_PATH, data: toJsonBytes(manifest), deflate: true },
+    { name: storedPath, data: storedData, deflate: true },
+    ...storedByteFiles,
+  ]);
 }
 
 export async function downloadProjectPackage(
@@ -591,10 +601,7 @@ export async function downloadProjectPackage(
   if (typeof window === 'undefined') {
     throw new Error('downloadProjectPackage can only run in browser context');
   }
-  const bytes = await exportProjectPackage(kind, textId, options);
-  const url = URL.createObjectURL(
-    new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
-  );
+  const url = URL.createObjectURL(await exportProjectPackage(kind, textId, options));
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${baseName}.${kind}`;
@@ -609,8 +616,10 @@ export async function downloadProjectPackage(
  * Detect the project package kind (old whole-DB JYT / JYM included, so they get a clear refusal);
  * null when the bytes are not a project package.
  */
-export function detectProjectPackageKind(archiveBytes: Uint8Array): ProjectPackageKind | null {
-  const mimetype = readArchiveMimetype(archiveBytes, JYM_PACKAGE_POLICY);
+export async function detectProjectPackageKind(
+  archiveBytes: ArchiveSource,
+): Promise<ProjectPackageKind | null> {
+  const mimetype = await readArchiveMimetype(archiveBytes, JYM_PACKAGE_POLICY);
   for (const kind of ['jyt', 'jym'] as const) {
     if (
       mimetype === PROJECT_PACKAGE_MIMETYPES[kind] ||
@@ -650,7 +659,8 @@ export function readLegacyManifestOrNull(raw: Uint8Array | undefined): Row | nul
 
 /** 已核对的字节（原始内容）| Verified bytes (original content) */
 export interface InboundBytes {
-  bytes: Uint8Array;
+  /** 不加密时是包文件的切片（不复制）| Unencrypted: a slice of the package file (no copy) */
+  blob: Blob;
   mimeType?: string;
   sha256: string;
 }
@@ -676,7 +686,7 @@ interface InspectedPackage {
 export async function checkFileTable(
   kind: PackageKind,
   manifest: ProjectPackageManifest,
-  files: Record<string, Uint8Array>,
+  files: GuardedArchive,
   entryNames: readonly string[],
   problems: string[],
   dataPaths: PackageDataPaths = PROJECT_DATA_PATHS,
@@ -698,16 +708,17 @@ export async function checkFileTable(
     if (file.role !== 'data' && !file.path.startsWith(BYTE_DIR[file.role])) {
       problems.push(`byte file "${file.path}" is outside ${BYTE_DIR[file.role]}`);
     }
-    const bytes = files[file.path];
-    if (!bytes) {
+    // 逐个文件读出算哈希，同一时间只有一个文件在内存里 | One file in memory at a time
+    const size = files.size(file.path);
+    if (size === undefined) {
       problems.push(`files[] entry "${file.path}" is missing from the package`);
       continue;
     }
-    if (bytes.byteLength !== file.size) problems.push(`size mismatch for "${file.path}"`);
-    else if ((await sha256Hex(bytes)) !== file.sha256)
+    if (size !== file.size) problems.push(`size mismatch for "${file.path}"`);
+    else if ((await sha256Hex((await files.read(file.path))!)) !== file.sha256)
       problems.push(`sha256 mismatch for "${file.path}"`);
   }
-  for (const name of Object.keys(files)) {
+  for (const name of files.names) {
     if (name === 'mimetype' || name === MANIFEST_PATH) continue;
     if (!listed.has(name)) problems.push(`orphan file "${name}" is not listed in files[]`);
   }
@@ -825,23 +836,30 @@ function checkProjectScope(
 /** 读出、解密并核对 included 实体的字节 | Read, decrypt and verify the bytes of included entities */
 export async function readIncludedBytes(
   manifest: ProjectPackageManifest,
-  files: Record<string, Uint8Array>,
+  files: GuardedArchive,
   decryptFile: ((bytes: Uint8Array) => Promise<Uint8Array>) | null,
   problems: string[],
 ): Promise<Map<string, InboundBytes>> {
   const out = new Map<string, InboundBytes>();
   for (const entity of manifest.entities) {
     if (entity.bytes !== 'included' || entity.fileRef === undefined) continue;
-    const stored = files[entity.fileRef];
-    if (stored === undefined) continue;
-    const bytes = decryptFile ? await decryptFile(stored) : stored;
-    const sha256 = decryptFile ? await sha256Hex(bytes) : String(entity.contentSha256);
-    if (sha256 !== entity.contentSha256 || bytes.byteLength !== entity.contentSize) {
+    if (!files.has(entity.fileRef)) continue;
+    let blob: Blob;
+    let sha256 = String(entity.contentSha256);
+    if (decryptFile) {
+      const bytes = await decryptFile((await files.read(entity.fileRef))!);
+      sha256 = await sha256Hex(bytes);
+      blob = bytesBlob(bytes);
+    } else {
+      // 明文文件的哈希已在 checkFileTable 核对过 | Plain files were hashed in checkFileTable
+      blob = (await files.blob(entity.fileRef))!;
+    }
+    if (sha256 !== entity.contentSha256 || blob.size !== entity.contentSize) {
       problems.push(`content of ${entity.type}:${entity.id} does not match its sha256 / size`);
       continue;
     }
     out.set(`${entity.type}:${entity.id}`, {
-      bytes,
+      blob,
       sha256,
       ...(entity.mimeType !== undefined ? { mimeType: entity.mimeType } : {}),
     });
@@ -850,7 +868,7 @@ export async function readIncludedBytes(
 }
 
 async function inspectProjectPackage(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options:
     | {
         policy?: Partial<JieyuArchiveImportPolicy>;
@@ -860,12 +878,14 @@ async function inspectProjectPackage(
     | undefined,
   dbIo: DbIoModule,
 ): Promise<InspectedPackage> {
-  const sniffed = detectProjectPackageKind(archiveBytes) ?? options?.expectedKind ?? 'jyt';
+  const sniffed = (await detectProjectPackageKind(archiveBytes)) ?? options?.expectedKind ?? 'jyt';
   const policy = packagePolicy(sniffed, options?.policy);
   const entryNames: string[] = [];
-  const files = unzipWithGuard(archiveBytes, policy, (name) => entryNames.push(name));
-  const mimetype = files['mimetype'] ? toText(files['mimetype']).trim() : null;
-  const rawManifest = readLegacyManifestOrNull(files[MANIFEST_PATH]);
+  const files = await unzipWithGuard(archiveBytes, policy, (name) => entryNames.push(name));
+  const mimetypeBytes = await files.read('mimetype');
+  const mimetype = mimetypeBytes ? toText(mimetypeBytes).trim() : null;
+  const manifestBytes = await files.read(MANIFEST_PATH);
+  const rawManifest = readLegacyManifestOrNull(manifestBytes);
 
   const legacyKind = (['jyt', 'jym'] as const).find(
     (kind) => mimetype === LEGACY_PACKAGE_MIMETYPES[kind],
@@ -898,7 +918,7 @@ async function inspectProjectPackage(
       message: `Unsupported ${kind.toUpperCase()} formatVersion=${String(rawManifest.formatVersion)}`,
     });
   }
-  const manifestRaw = parseJsonWithGuard<unknown>(files[MANIFEST_PATH]!, policy, 'manifest');
+  const manifestRaw = parseJsonWithGuard<unknown>(manifestBytes!, policy, 'manifest');
   const parsed = manifestSchema.safeParse(manifestRaw);
   if (!parsed.success) {
     throw invalidPackage(
@@ -924,7 +944,8 @@ async function inspectProjectPackage(
       )
     : null;
   const dataPath = manifest.encryption ? DATA_ENCRYPTED_PATH : DATA_PATH;
-  const dataBytes = decryptor ? await decryptor.decryptData(files[dataPath]!) : files[dataPath]!;
+  const storedData = (await files.read(dataPath))!;
+  const dataBytes = decryptor ? await decryptor.decryptData(storedData) : storedData;
   const snapshot = parseJsonWithGuard<InspectedPackage['snapshot']>(
     dataBytes,
     policy,
@@ -966,15 +987,13 @@ export function attachIncludedBytes(
     ]) {
       delete details[key];
     }
-    details.audioBlob = new Blob([inbound.bytes as Uint8Array<ArrayBuffer>], {
-      type: inbound.mimeType ?? '',
-    });
+    details.audioBlob = new Blob([inbound.blob], { type: inbound.mimeType ?? '' });
     return {
       ...row,
       details,
       byteLocation: 'managed',
       availability: 'available',
-      contentSize: inbound.bytes.byteLength,
+      contentSize: inbound.blob.size,
       contentSha256: inbound.sha256,
     };
   });
@@ -983,10 +1002,8 @@ export function attachIncludedBytes(
     if (inbound === undefined) return row;
     const copy: Row = {
       ...row,
-      blob: new Blob([inbound.bytes as Uint8Array<ArrayBuffer>], {
-        type: inbound.mimeType ?? str(row.mimeType) ?? '',
-      }),
-      byteSize: inbound.bytes.byteLength,
+      blob: new Blob([inbound.blob], { type: inbound.mimeType ?? str(row.mimeType) ?? '' }),
+      byteSize: inbound.blob.size,
     };
     delete copy.blobExportOmitted;
     return copy;
@@ -1128,7 +1145,7 @@ export async function findIdenticalLocalBytes(
     const collection = ENTITY_COLLECTION[type as EntityType];
     const row = (await dexie.table(collection).get(id)) as Row | undefined;
     const local = row ? localBlobOf(collection, row) : null;
-    if (local === null || local.size !== inbound.bytes.byteLength) continue;
+    if (local === null || local.size !== inbound.blob.size) continue;
     const localSha = await sha256Hex(new Uint8Array(await local.arrayBuffer()));
     if (localSha === inbound.sha256) identical.set(`${collection}:${id}`, local.size);
   }
@@ -1212,7 +1229,7 @@ export interface ProjectPackageReadOptions {
 
 /** 预览：做完所有写入前检查（含字节哈希），不写任何数据 | Preview: every pre-write check, no writes */
 export async function previewProjectPackageRestore(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: ProjectPackageReadOptions & {
     /** 当前项目；给出时一并评估能否覆盖它 | Current project; when given, overwrite is assessed */
     overwriteTargetProjectId?: string;
@@ -1242,7 +1259,7 @@ export async function previewProjectPackageRestore(
     ).length,
     includedBytes: {
       count: included.length,
-      totalBytes: included.reduce((sum, item) => sum + item.bytes.byteLength, 0),
+      totalBytes: included.reduce((sum, item) => sum + item.blob.size, 0),
     },
     skippedLanguageIds,
     unresolvedSystemRefs: listUnresolvedSystemRefs(
@@ -1269,7 +1286,7 @@ export interface ProjectPackageRestoreResult {
  * transaction and rolls back on failure.
  */
 export async function restoreProjectPackageAsNew(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: ProjectPackageReadOptions,
 ): Promise<ProjectPackageRestoreResult> {
   const dbIo = (await import('../db/io')) as DbIoModule;
@@ -1372,7 +1389,7 @@ export interface ProjectPackageOverwriteResult {
  * and catalog rows and writes the package. Any failure leaves the project as it was.
  */
 export async function overwriteProjectWithPackage(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options: ProjectPackageReadOptions & { targetProjectId: string },
 ): Promise<ProjectPackageOverwriteResult> {
   const [dbIo, scoped, purge, tx, snapshots, engine] = await Promise.all([

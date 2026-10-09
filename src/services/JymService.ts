@@ -19,6 +19,8 @@ import {
   type ProjectPackageRestorePreview,
   type ProjectPackageRestoreResult,
 } from './projectPackageService';
+import { blobBytes } from './zipBlob';
+import type { ArchiveSource } from './projectArchiveContainer';
 
 export {
   JYM_PACKAGE_POLICY,
@@ -29,11 +31,12 @@ export {
 
 type JymReadOptions = Omit<ProjectPackageReadOptions, 'expectedKind'>;
 
-export function exportProjectToJym(
+/** 整包字节（测试与小包用；下载走 Blob，不进内存）| Whole-package bytes (tests, small packages; downloads stay Blobs) */
+export async function exportProjectToJym(
   textId: string,
   options?: ProjectPackageExportOptions,
 ): Promise<Uint8Array> {
-  return exportProjectPackage('jym', textId, options);
+  return blobBytes(await exportProjectPackage('jym', textId, options));
 }
 
 export function downloadProjectJym(
@@ -45,21 +48,21 @@ export function downloadProjectJym(
 }
 
 export function previewJymRestore(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: JymReadOptions & { overwriteTargetProjectId?: string },
 ): Promise<ProjectPackageRestorePreview> {
   return previewProjectPackageRestore(archiveBytes, { ...options, expectedKind: 'jym' });
 }
 
 export function restoreJymAsNewProject(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: JymReadOptions,
 ): Promise<ProjectPackageRestoreResult> {
   return restoreProjectPackageAsNew(archiveBytes, { ...options, expectedKind: 'jym' });
 }
 
 export function overwriteProjectWithJym(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options: JymReadOptions & { targetProjectId: string },
 ): Promise<ProjectPackageOverwriteResult> {
   return overwriteProjectWithPackage(archiveBytes, { ...options, expectedKind: 'jym' });

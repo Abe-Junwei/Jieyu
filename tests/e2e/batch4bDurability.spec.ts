@@ -166,4 +166,95 @@ test.describe('Batch 4b durability | 第 4b 批存储耐久', () => {
       .not.toBe(afterManual.join());
     expect(await listBackups()).toHaveLength(3);
   });
+
+  test('#5: a large JYM (160 MiB recording) streams through export and restore with sha256 intact', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(300_000);
+    handleArchiveExportDialogs(page);
+    const project = await setupFieldProjectWithMediaAndSegments(page);
+    await page.goto(`/transcription?textId=${project.textId}&mediaId=${project.mediaId}`);
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({
+      timeout: 25_000,
+    });
+    await waitForDexie(page);
+    // 页面里合成一段 160 MiB 的录音换进去 | Swap in a synthetic 160 MiB recording inside the page
+    const bigSha = await page.evaluate(
+      async ({ id, size }) => {
+        const dexie = (
+          globalThis as unknown as {
+            __jieyuDexie__: {
+              open: () => Promise<unknown>;
+              media_items: {
+                get: (k: string) => Promise<Record<string, unknown>>;
+                put: (row: Record<string, unknown>) => Promise<unknown>;
+              };
+            };
+          }
+        ).__jieyuDexie__;
+        await dexie.open();
+        const bytes = new Uint8Array(size);
+        const words = new Uint32Array(bytes.buffer);
+        for (let i = 0; i < words.length; i += 1) words[i] = Math.imul(i + 1, 2654435761);
+        const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('');
+        const row = await dexie.media_items.get(id);
+        await dexie.media_items.put({
+          ...row,
+          details: {
+            ...(row.details as Record<string, unknown>),
+            audioBlob: new Blob([bytes], { type: 'audio/wav' }),
+          },
+          contentSize: size,
+          contentSha256: digest,
+        });
+        return digest;
+      },
+      { id: project.mediaId, size: 160 * 1024 * 1024 },
+    );
+
+    await page.locator('.left-rail-project-hub-btn').click();
+    await page.getByRole('menuitem', { name: /导出|Export/ }).hover();
+    const downloadPromise = page.waitForEvent('download', { timeout: 120_000 });
+    await page
+      .locator('.context-menu-submenu-export')
+      .getByRole('menuitem', { name: /JYM/i })
+      .click();
+    const jymPath = testInfo.outputPath('large.jym');
+    await (await downloadPromise).saveAs(jymPath);
+    const { statSync } = await import('node:fs');
+    expect(statSync(jymPath).size).toBeGreaterThan(160 * 1024 * 1024);
+
+    const textsBefore = await countTexts(page);
+    await page
+      .locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]')
+      .setInputFiles(jymPath);
+    const dialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
+    await expect(dialog).toBeVisible({ timeout: 60_000 });
+    await dialog.getByRole('button', { name: /Restore as new project|恢复为新项目/i }).click();
+    await expect(dialog).toBeHidden({ timeout: 120_000 });
+    await expect.poll(() => countTexts(page), { timeout: 30_000 }).toBe(textsBefore + 1);
+
+    const restored = (await readMediaDiagnostics(page)).filter(
+      (row) => row.contentSha256 === bigSha && row.id !== project.mediaId,
+    );
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).toMatchObject({ hasBlob: true, byteSize: 160 * 1024 * 1024 });
+    const restoredSha = await page.evaluate(async (id) => {
+      const dexie = (
+        globalThis as unknown as {
+          __jieyuDexie__: {
+            media_items: { get: (k: string) => Promise<{ details?: { audioBlob?: Blob } }> };
+          };
+        }
+      ).__jieyuDexie__;
+      const blob = (await dexie.media_items.get(id)).details!.audioBlob!;
+      const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    }, restored[0]!.id);
+    expect(restoredSha).toBe(bigSha);
+  });
 });

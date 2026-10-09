@@ -3,7 +3,8 @@
  * Shared container layer of Jieyu archives: zip limits, JSON limits and password encryption, used by
  * both JYM and JYT (rev5 7.4-1, 7.4-8).
  */
-import { strToU8, unzipSync } from 'fflate';
+import { strToU8 } from 'fflate';
+import { bytesBlob, openZipBlob, type ZipBlobEntryInfo, type ZipBlobReader } from './zipBlob';
 
 /** Web Crypto typings expect `ArrayBuffer`-backed views; copy into a dedicated `ArrayBuffer`. */
 function webCryptoBufferSource(bytes: Uint8Array): BufferSource {
@@ -303,86 +304,85 @@ export function parseJsonWithGuard<T>(
   }
 }
 
-export function unzipWithGuard(
-  archiveBytes: Uint8Array,
+/** 包的来源：文件（Blob / File）或内存字节 | Package source: a file (Blob / File) or bytes in memory */
+export type ArchiveSource = Uint8Array | Blob;
+
+export function archiveSourceBlob(source: ArchiveSource): Blob {
+  return source instanceof Blob ? source : bytesBlob(source);
+}
+
+/**
+ * 已过上限检查的包：条目按需读取，整个包不进内存（4b 流式处理）。
+ * A package that passed the limit checks; entries are read on demand, never the whole package.
+ */
+export interface GuardedArchive {
+  /** 去重后的条目名 | Entry names, deduplicated */
+  names: readonly string[];
+  has(name: string): boolean;
+  /** 声明的原始大小 | Declared original size */
+  size(name: string): number | undefined;
+  read(name: string): Promise<Uint8Array | undefined>;
+  /** 不压缩的条目是零拷贝切片 | Stored entries are zero-copy slices */
+  blob(name: string): Promise<Blob | undefined>;
+}
+
+const UNZIP_FAILED = 'Invalid Jieyu archive: failed to unzip archive payload';
+
+async function guardZipRead<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch {
+    throw new Error(UNZIP_FAILED);
+  }
+}
+
+export async function unzipWithGuard(
+  source: ArchiveSource,
   policy: JieyuArchiveImportPolicy,
-  /** 每个条目名都报一次（重复条目在解压结果里会被覆盖，只能在这里发现）| Called per entry name (duplicates are only visible here) */
+  /** 每个条目名都报一次（重复条目只能在这里发现）| Called per entry name (duplicates are only visible here) */
   onEntry?: (name: string) => void,
-): Record<string, Uint8Array> {
-  if (archiveBytes.byteLength > policy.maxArchiveBytes) {
+): Promise<GuardedArchive> {
+  const blob = archiveSourceBlob(source);
+  if (blob.size > policy.maxArchiveBytes) {
     throw new Error(
       `Invalid Jieyu archive: archive size exceeds limit (${policy.maxArchiveBytes} bytes)`,
     );
   }
-
-  let entryCount = 0;
-  let plannedExpandedBytes = 0;
-  let files: Record<string, Uint8Array>;
-  try {
-    files = unzipSync(archiveBytes, {
-      filter(file) {
-        entryCount += 1;
-        onEntry?.(file.name);
-        if (entryCount > policy.maxEntryCount) {
-          throw new Error(
-            `Invalid Jieyu archive: entry count exceeds limit (${policy.maxEntryCount})`,
-          );
-        }
-
-        if (!Number.isFinite(file.originalSize) || file.originalSize < 0) {
-          throw new Error(
-            `Invalid Jieyu archive: entry "${file.name}" has invalid original size metadata`,
-          );
-        }
-
-        if (file.originalSize > policy.maxEntryBytes) {
-          throw new Error(
-            `Invalid Jieyu archive: entry "${file.name}" exceeds size limit (${policy.maxEntryBytes} bytes)`,
-          );
-        }
-
-        plannedExpandedBytes += file.originalSize;
-        if (plannedExpandedBytes > policy.maxExpandedBytes) {
-          throw new Error(
-            `Invalid Jieyu archive: total expanded size exceeds limit (${policy.maxExpandedBytes} bytes)`,
-          );
-        }
-
-        return true;
-      },
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith('Invalid Jieyu archive:')) {
-      throw error;
+  const zip: ZipBlobReader = await guardZipRead(() => openZipBlob(blob));
+  const byName = new Map<string, ZipBlobEntryInfo>();
+  let expandedBytes = 0;
+  for (const [index, entry] of zip.entries.entries()) {
+    onEntry?.(entry.name);
+    if (index + 1 > policy.maxEntryCount) {
+      throw new Error(`Invalid Jieyu archive: entry count exceeds limit (${policy.maxEntryCount})`);
     }
-    throw new Error('Invalid Jieyu archive: failed to unzip archive payload');
-  }
-
-  const names = Object.keys(files);
-  if (names.length > policy.maxEntryCount || entryCount > policy.maxEntryCount) {
-    throw new Error(`Invalid Jieyu archive: entry count exceeds limit (${policy.maxEntryCount})`);
-  }
-
-  let actualExpandedBytes = 0;
-  for (const name of names) {
-    const bytes = files[name];
-    if (!bytes) continue;
-
-    if (bytes.byteLength > policy.maxEntryBytes) {
+    if (entry.size > policy.maxEntryBytes) {
       throw new Error(
-        `Invalid Jieyu archive: entry "${name}" exceeds size limit (${policy.maxEntryBytes} bytes)`,
+        `Invalid Jieyu archive: entry "${entry.name}" exceeds size limit (${policy.maxEntryBytes} bytes)`,
       );
     }
-
-    actualExpandedBytes += bytes.byteLength;
-    if (actualExpandedBytes > policy.maxExpandedBytes) {
+    expandedBytes += entry.size;
+    if (expandedBytes > policy.maxExpandedBytes) {
       throw new Error(
         `Invalid Jieyu archive: total expanded size exceeds limit (${policy.maxExpandedBytes} bytes)`,
       );
     }
+    // 重名时后一个生效（与此前的解压结果一致）| Later duplicates win (as before)
+    byName.set(entry.name, entry);
   }
-
-  return files;
+  return {
+    names: [...byName.keys()],
+    has: (name) => byName.has(name),
+    size: (name) => byName.get(name)?.size,
+    async read(name) {
+      const entry = byName.get(name);
+      return entry ? guardZipRead(() => zip.read(entry)) : undefined;
+    },
+    async blob(name) {
+      const entry = byName.get(name);
+      return entry ? guardZipRead(() => zip.blob(entry)) : undefined;
+    },
+  };
 }
 
 /** 字节的 sha256（小写十六进制）| sha256 of bytes (lowercase hex) */
@@ -392,17 +392,16 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
 }
 
 /** 只读出 mimetype 条目（用来分派 JYM / JYT）| Read only the mimetype entry (to dispatch JYM / JYT) */
-export function readArchiveMimetype(
-  archiveBytes: Uint8Array,
+export async function readArchiveMimetype(
+  source: ArchiveSource,
   policy: JieyuArchiveImportPolicy,
-): string | null {
-  if (archiveBytes.byteLength > policy.maxArchiveBytes) return null;
+): Promise<string | null> {
+  const blob = archiveSourceBlob(source);
+  if (blob.size > policy.maxArchiveBytes) return null;
   try {
-    const files = unzipSync(archiveBytes, {
-      filter: (file) => file.name === 'mimetype' && file.originalSize <= 256,
-    });
-    const raw = files['mimetype'];
-    return raw ? toText(raw).trim() : null;
+    const zip = await openZipBlob(blob);
+    const entry = zip.entries.find((item) => item.name === 'mimetype' && item.size <= 256);
+    return entry ? toText(await zip.read(entry)).trim() : null;
   } catch {
     return null;
   }

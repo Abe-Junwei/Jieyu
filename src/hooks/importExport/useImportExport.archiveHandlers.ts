@@ -34,11 +34,12 @@ function loadJybModule() {
  * Read the file; a JYB comes with the JYB module. A raw recovery snapshot (raw-idb ZIP) is first
  * converted into a current-version JYB (8.2, T41) and then handled as a JYB; once per file.
  */
-async function readArchiveFile(file: File, converted: Map<string, Uint8Array>) {
-  const bytes = new Uint8Array(await file.arrayBuffer());
+async function readArchiveFile(file: File, converted: Map<string, Blob>) {
+  // 文件本身就是 Blob：包按条目读取，不整份读进内存（4b）| The File is the Blob; read per entry (4b)
+  const bytes: Blob = file;
   const jyb = await loadJybModule();
   const raw = await import('../../services/rawSnapshotConverter');
-  if (raw.isRawIdbSnapshot(bytes)) {
+  if (await raw.isRawIdbSnapshot(bytes)) {
     const key = getArchivePasswordCacheKey(file);
     let jybBytes = converted.get(key);
     if (!jybBytes) {
@@ -47,14 +48,14 @@ async function readArchiveFile(file: File, converted: Map<string, Uint8Array>) {
     }
     return { bytes: jybBytes, jyb };
   }
-  return { bytes, jyb: jyb.isJybPackage(bytes) ? jyb : null };
+  return { bytes, jyb: (await jyb.isJybPackage(bytes)) ? jyb : null };
 }
 
 /** 不是 JYT / JYM 时给出明确的拒绝（T32）| Not a JYT / JYM: refuse clearly (T32) */
-async function readProjectPackageBytes(file: File, alreadyRead?: Uint8Array) {
-  const bytes = alreadyRead ?? new Uint8Array(await file.arrayBuffer());
+async function readProjectPackageBytes(file: File, alreadyRead?: Blob) {
+  const bytes = alreadyRead ?? file;
   const packages = await loadProjectPackageModule();
-  if (packages.detectProjectPackageKind(bytes) === null) {
+  if ((await packages.detectProjectPackageKind(bytes)) === null) {
     const { SnapshotFormatError } = await import('../../db/snapshotFormatError');
     throw new SnapshotFormatError({
       code: 'unsupported-package',
@@ -84,7 +85,7 @@ interface CreateImportExportArchiveHandlersInput {
 export function createImportExportArchiveHandlers(input: CreateImportExportArchiveHandlersInput) {
   const { activeTextId, loadSnapshot, locale, setSaveState } = input;
   const passwordCache = new Map<string, string>();
-  const convertedRawSnapshots = new Map<string, Uint8Array>();
+  const convertedRawSnapshots = new Map<string, Blob>();
 
   const withArchivePasswordRetry = async <T>(
     file: File,
@@ -120,7 +121,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
   /** JYB：逐项目导入（默认）或灾难恢复（rev5 7.5）| JYB: per-project import or disaster restore */
   const previewLibraryBackup = async (
     file: File,
-    bytes: Uint8Array,
+    bytes: Blob,
     jyb: Awaited<ReturnType<typeof loadJybModule>>,
   ): Promise<JieyuArchiveImportPreview> => {
     const preview = await withArchivePasswordRetry(file, (password) =>
@@ -230,7 +231,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     };
   };
 
-  const restoreProjectPackage = async (file: File, alreadyRead?: Uint8Array): Promise<string> => {
+  const restoreProjectPackage = async (file: File, alreadyRead?: Blob): Promise<string> => {
     const { bytes, packages } = await readProjectPackageBytes(file, alreadyRead);
     const restored = await withArchivePasswordRetry(file, (password) =>
       packages.restoreProjectPackageAsNew(bytes, password ? { password } : undefined),
@@ -248,7 +249,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
   const overwriteWithProjectPackage = async (
     file: File,
     targetProjectId: string,
-    alreadyRead?: Uint8Array,
+    alreadyRead?: Blob,
   ): Promise<string> => {
     const { bytes, packages } = await readProjectPackageBytes(file, alreadyRead);
     const result = await withArchivePasswordRetry(file, (password) =>
@@ -271,7 +272,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
   /** JYB 导入；返回提示与之后要打开的项目 | JYB import; returns the message and the project to open */
   const importLibraryBackup = async (
     file: File,
-    bytes: Uint8Array,
+    bytes: Blob,
     jyb: Awaited<ReturnType<typeof loadJybModule>>,
     restoreMode: ProjectArchiveRestoreMode,
     selection: ProjectArchiveImportSelection | undefined,

@@ -48,13 +48,16 @@ import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProf
 import {
   createArchiveDecryptor,
   parseJsonWithGuard,
+  readArchiveMimetype,
   toJsonBytes,
   toText,
   unzipWithGuard,
+  type ArchiveSource,
   type JieyuArchiveEncryptionMetadata,
   type JieyuArchiveEncryptionOptions,
   type JieyuArchiveImportPolicy,
 } from './projectArchiveContainer';
+import { blobBytes } from './zipBlob';
 import {
   collectArchiveProjectDocuments,
   collectArchiveSystemRefs,
@@ -94,9 +97,9 @@ const JYB_DATA_PATHS: PackageDataPaths = {
 };
 
 /**
- * JYB 上限：字节部分与 JYM 相同（整包在内存里处理，流式留到 4b）；条目更多。数据 JSON 受导入上限
+ * JYB 上限：字节部分与 JYM 相同（按 Blob 流式处理，见 JYM_PACKAGE_POLICY）；条目更多。数据 JSON 受导入上限
  * 约束（32 MiB），导出时同样检查（7.4-8 对称）。
- * JYB limits: bytes as for JYM (in memory; streaming is 4b); more entries. The data JSON is bound by
+ * JYB limits: bytes as for JYM (streamed as Blobs, see JYM_PACKAGE_POLICY); more entries. The data JSON is bound by
  * the import limit (32 MiB), checked on export too (7.4-8 symmetric).
  */
 export const JYB_PACKAGE_POLICY: JieyuArchiveImportPolicy = {
@@ -188,7 +191,16 @@ function localByteTotal(collections: ProjectCollections): number {
  * 导出整库为 JYB。所有行在一个只读事务里读出（JY-13）。
  * Export the whole database as a JYB; all rows are read in one read-only transaction (JY-13).
  */
+/** 整库 JYB 的整包字节（测试与小库用）| Whole-JYB bytes (tests, small libraries) */
 export async function exportDatabaseToJyb(options: JybExportOptions = {}): Promise<Uint8Array> {
+  return blobBytes(await exportDatabaseToJybBlob(options));
+}
+
+/**
+ * 整库导出成 JYB Blob；字节文件引用库里的 Blob，整包不进内存（4b 流式处理）。
+ * Export the whole library as a JYB Blob; byte files reference the stored Blobs (4b streaming).
+ */
+export async function exportDatabaseToJybBlob(options: JybExportOptions = {}): Promise<Blob> {
   const includeMedia = options.includeMedia !== false;
   const policy: JieyuArchiveImportPolicy = { ...JYB_PACKAGE_POLICY, ...options.policy };
   const [dbIo, scoped, engine] = await Promise.all([
@@ -339,10 +351,7 @@ export async function downloadDatabaseJyb(
   if (typeof window === 'undefined') {
     throw new Error('downloadDatabaseJyb can only run in browser context');
   }
-  const bytes = await exportDatabaseToJyb(options);
-  const url = URL.createObjectURL(
-    new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
-  );
+  const url = URL.createObjectURL(await exportDatabaseToJybBlob(options));
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${baseName}.jyb`;
@@ -370,13 +379,8 @@ export interface JybReadOptions {
 }
 
 /** 是否 JYB（看 mimetype）| Whether the bytes are a JYB (by mimetype) */
-export function isJybPackage(archiveBytes: Uint8Array): boolean {
-  try {
-    const files = unzipWithGuard(archiveBytes, JYB_PACKAGE_POLICY, () => undefined);
-    return files['mimetype'] !== undefined && toText(files['mimetype']).trim() === JYB_MIMETYPE;
-  } catch {
-    return false;
-  }
+export async function isJybPackage(archiveBytes: ArchiveSource): Promise<boolean> {
+  return (await readArchiveMimetype(archiveBytes, JYB_PACKAGE_POLICY)) === JYB_MIMETYPE;
 }
 
 function checkLibraryScope(
@@ -453,21 +457,23 @@ function checkLibraryScope(
  * Every pre-write check (7.4-1).
  */
 async function inspectJyb(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options: JybReadOptions | undefined,
   dbIo: DbIoModule,
 ): Promise<InspectedLibrary> {
   const policy: JieyuArchiveImportPolicy = { ...JYB_PACKAGE_POLICY, ...options?.policy };
   const entryNames: string[] = [];
-  const files = unzipWithGuard(archiveBytes, policy, (name) => entryNames.push(name));
-  const mimetype = files['mimetype'] ? toText(files['mimetype']).trim() : null;
+  const files = await unzipWithGuard(archiveBytes, policy, (name) => entryNames.push(name));
+  const mimetypeBytes = await files.read('mimetype');
+  const mimetype = mimetypeBytes ? toText(mimetypeBytes).trim() : null;
   if (mimetype !== JYB_MIMETYPE) {
     throw new SnapshotFormatError({
       code: 'unsupported-package',
       message: `Not a JYB backup (mimetype ${mimetype ?? '(missing)'})`,
     });
   }
-  const rawManifest = readLegacyManifestOrNull(files[MANIFEST_PATH]);
+  const manifestBytes = await files.read(MANIFEST_PATH);
+  const rawManifest = readLegacyManifestOrNull(manifestBytes);
   if (!rawManifest) throw invalidPackage('jyb', [`missing or unreadable ${MANIFEST_PATH}`]);
   if (
     rawManifest.formatVersion !== PROJECT_PACKAGE_FORMAT_VERSION ||
@@ -480,7 +486,7 @@ async function inspectJyb(
     });
   }
   const parsed = manifestSchema.safeParse(
-    parseJsonWithGuard<unknown>(files[MANIFEST_PATH]!, policy, 'manifest'),
+    parseJsonWithGuard<unknown>(manifestBytes!, policy, 'manifest'),
   );
   if (!parsed.success) {
     throw invalidPackage(
@@ -506,7 +512,8 @@ async function inspectJyb(
       )
     : null;
   const dataPath = manifest.encryption ? JYB_DATA_PATHS.encrypted : JYB_DATA_PATHS.plain;
-  const dataBytes = decryptor ? await decryptor.decryptData(files[dataPath]!) : files[dataPath]!;
+  const storedData = (await files.read(dataPath))!;
+  const dataBytes = decryptor ? await decryptor.decryptData(storedData) : storedData;
   const data = parseJsonWithGuard<LibraryData>(dataBytes, policy, 'library data');
   if (!Array.isArray(data?.projects)) throw invalidPackage('jyb', ['data has no projects list']);
   // 版本 + 逐条记录校验，与导入同一套（RD-1）| Version + per-record checks shared with import
@@ -636,7 +643,7 @@ function countRows(collections: ProjectCollections): number {
 
 /** 预览：做完全部写入前检查，不写任何数据 | Preview: every pre-write check, no writes */
 export async function previewJybRestore(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: JybReadOptions,
 ): Promise<JybRestorePreview> {
   const dbIo = (await import('../db/io')) as DbIoModule;
@@ -686,7 +693,7 @@ export async function previewJybRestore(
     ).length,
     includedBytes: {
       count: included.length,
-      totalBytes: included.reduce((sum, item) => sum + item.bytes.byteLength, 0),
+      totalBytes: included.reduce((sum, item) => sum + item.blob.size, 0),
     },
     unresolvedSystemRefs: listUnresolvedSystemRefs(
       inspected.manifest.systemRefs.map((ref) => ref.id),
@@ -720,7 +727,7 @@ export interface JybProjectImportResult {
  * recorded, local data untouched. Written in one transaction; any failure rolls back.
  */
 export async function importJybProjectsAsNew(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: JybReadOptions & {
     projectIds?: readonly string[];
     /** 随项目导入 AI 记忆与历史，默认是（7.5）| Import project AI with the project (default yes, 7.5) */
@@ -805,7 +812,7 @@ export interface JybDisasterRestoreResult {
  * clears the JYB tables and writes. The double confirm happens in the UI.
  */
 export async function disasterRestoreFromJyb(
-  archiveBytes: Uint8Array,
+  archiveBytes: ArchiveSource,
   options?: JybReadOptions & {
     /** 同时写回包里的用户偏好（询问后还原，7.5）；默认否 | Also restore packaged preferences (default no) */
     restorePreferences?: boolean;

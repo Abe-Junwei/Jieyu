@@ -35,23 +35,32 @@ source_of_truth: tests/e2e/batch4bRawSnapshot.spec.ts
 - 站点外备份：支持 File System Access 的浏览器在诊断面板里“选择文件夹…”，目录句柄存在 IndexedDB（`jieyu_backup_folder`）。“立即备份”和自动备份都写一份整库 JYB（含音频）`jieyu-backup-YYYYMMDD-HHmmss-SSS.jyb`，写好后只保留最近 3 份；只删本功能写的文件；写入失败时删掉没写完的这一份，旧备份不动。不支持的浏览器显示说明，沿用已有的下载提醒（`backupExportReminderState`，JYB 导出已计入）。
 - 自动备份：设置 → 数据 可选关闭 / 每 6 小时 / 每天（默认）/ 每周。应用每小时检查一次，距上次成功满间隔才写，失败后一小时内不重试；多个标签页用 Web Locks（`jieyu-backup-folder`）只跑一个。浏览器要求重新授权时，自动备份不弹申请（没有用户手势），记为“需要重新授权”，弹出一次不阻塞的提醒；点“立即备份”时才申请授权。上次成功、上次失败（时间、原因）都显示在诊断面板。
 
-## 流式处理评估（4a 遗留）
+## 大包流式处理（用户决定 #5，2026-10-09）
 
-- 现状：恢复快照（8 MiB 上限）、迁移快照、原始导出、JYM/JYB 导出与导入都是整份读进内存；fflate 在内存里打包。字节（音频）是主要体积。
-- 结论：本批不改。理由：（1）IndexedDB 读本身按事务整表取，真正的流式需要游标分批 + 分段写 ZIP（fflate 的 `Zip` 流式 API 可用）+ 下载端 `showSaveFilePicker`/`createWritable` 或 Service Worker 流，改动面覆盖 4a 快照校验与 3 批导入预览；（2）恢复快照现在按项目且有 8 MiB 上限，超限会显示“已跳过”，不再是静默风险；（3）当前数据量（开发期、单项目音频几十 MiB）在桌面浏览器内存内可完成。
-- 触发条件（任一满足就做）：单库 JYB 超过约 500 MiB；出现导出 / 快照时的内存不足报告；要支持移动端 Safari。做法：原始导出与 JYB 导出先改为逐表游标 + fflate 流式 `Zip` + `createWritable` 写盘，导入端用 `Unzip` 流式解析 manifest 后逐条写入。
+- 做法：包一律按 Blob 处理，整包不进 JS 内存。新增 `src/services/zipBlob.ts`（约 250 行，无新依赖）：写 ZIP 时字节文件直接引用库里的 Blob（不复制），CRC 按 8 MiB 分块读；JSON 用 fflate `deflateSync` 压缩。读 ZIP 时只读末尾的中央目录，条目按需读取，不压缩的条目直接切成 Blob。没有用 fflate 的流式 `Zip` / `Unzip`：它们让每个字节都经过 JS 数据块，做不到零拷贝；fflate 没有导出 CRC，所以 CRC 表自己写了 10 行。
+- JYM / JYT / JYB 导出：`exportProjectPackage`、`exportDatabaseToJybBlob` 返回 Blob，下载、备份文件夹（`createWritable().write(blob)`）、原始快照转换都用 Blob。`exportProjectToJym` / `exportProjectToJyt` / `exportDatabaseToJyb` 保留为返回字节的薄封装（测试与小包用）。
+- 导入：项目中心直接把选中的 File 交给导入（不再 `arrayBuffer()` 整份读出）。`unzipWithGuard` 先按中央目录检查条目数、单条和总大小，再逐条读：sha256 照旧逐个文件核对（同一时间只有一个文件在内存里）；不加密的音频 / 附件写库时用包文件的切片；加密的逐个解密。
+- 原始快照：导出时 Blob 值只被引用；解析时 Blob 值是快照文件的切片，其余二进制读成字节。原始快照转 JYB 也全程用 Blob。
+- 快照：覆盖前快照只存 JSON、不带字节（3 批设计）；迁移快照是 IndexedDB 到 IndexedDB 的复制，Blob 以句柄形式复制，抽样核对时才读字节；两者都不经过包，不需要改。按项目的恢复快照仍有 8 MiB 上限（只含 JSON）。
+- 上限：JYM / JYB 的包总大小与展开总大小 512 MiB → 4095 MiB（ZIP32 上限，不写 ZIP64；超过时导出前就报“太大”）；单个文件 512 MiB → 1 GiB。`shortcut:` 单个文件仍整份读进内存算 SHA-256（WebCrypto 不能分段），单条录音超过 1 GiB 成为真实需求时改成分段 SHA-256 再放开。JYT 上限不变。
+- 兼容：旧包（fflate 写的）照常读；新包 fflate 也能读（单元测试互相验证）。不支持 ZIP64 和加密 ZIP 条目，遇到时报“无法解压”。
+- 注意：导入时音频按切片引用选中的文件，预览后、确认前若文件在磁盘上被改动，浏览器读取会失败，导入在事务里整体不写。
 
 ## 自动化验证
 
-| 项           | 命令                                                                                                                                                                         | 结果                 |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
-| T41 单元测试 | `npx vitest run src/services/rawSnapshotConverter.test.ts`                                                                                                                   | 4 用例通过           |
-| 相关单元测试 | `npx vitest run src/components/transcription/LeftRailProjectHub.test.tsx src/hooks/importExport src/db/migration src/services/JybService`                                    | 17 文件 182 用例通过 |
-| T43 单元测试 | `npx vitest run src/services/SnapshotService.test.ts src/components/RecoverySnapshotSkippedNotice.test.tsx src/hooks/transcription`                                          | 通过                 |
-| T44 单元测试 | `npx vitest run src/utils/storageDurability.test.ts src/services/backupFolderService.test.ts src/utils/archiveImportErrorMessage.test.ts src/contexts/ToastContext.test.tsx` | 通过                 |
-| T44 e2e      | `npx playwright test --project=chromium tests/e2e/batch4bDurability.spec.ts`                                                                                                 | 1/1 通过             |
-| T41 e2e      | `npx playwright test --project=chromium tests/e2e/batch4bRawSnapshot.spec.ts tests/e2e/batch3Jyb.spec.ts`                                                                    | 5/5 通过             |
+| 项           | 命令                                                                                                                                                                                                  | 结果                 |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| T41 单元测试 | `npx vitest run src/services/rawSnapshotConverter.test.ts`                                                                                                                                            | 4 用例通过           |
+| 相关单元测试 | `npx vitest run src/components/transcription/LeftRailProjectHub.test.tsx src/hooks/importExport src/db/migration src/services/JybService`                                                             | 17 文件 182 用例通过 |
+| T43 单元测试 | `npx vitest run src/services/SnapshotService.test.ts src/components/RecoverySnapshotSkippedNotice.test.tsx src/hooks/transcription`                                                                   | 通过                 |
+| T44 单元测试 | `npx vitest run src/utils/storageDurability.test.ts src/services/backupFolderService.test.ts src/utils/archiveImportErrorMessage.test.ts src/contexts/ToastContext.test.tsx`                          | 通过                 |
+| T44 e2e      | `npx playwright test --project=chromium tests/e2e/batch4bDurability.spec.ts`                                                                                                                          | 1/1 通过             |
+| T41 e2e      | `npx playwright test --project=chromium tests/e2e/batch4bRawSnapshot.spec.ts tests/e2e/batch3Jyb.spec.ts`                                                                                             | 5/5 通过             |
+| #5 单元测试  | `npx vitest run src/services/zipBlob.test.ts src/services/packageStreaming.test.ts`                                                                                                                   | 9 用例通过           |
+| #5 e2e       | `npx playwright test --project=chromium tests/e2e/batch4bDurability.spec.ts tests/e2e/batch3Jym.spec.ts tests/e2e/batch3Jyb.spec.ts tests/e2e/batch3Jyt.spec.ts tests/e2e/batch4bRawSnapshot.spec.ts` | 14/14 通过           |
 
 全量（Node 22，提交 `e76f90d6`，同一次运行）：`npm run test:vitest:dot` 882 文件通过、2 跳过，6268 用例通过、57 跳过；`npx playwright test --project=chromium --retries=0` 73 通过、2 跳过。
 
 测试编号对应：T41 `rawSnapshotConverter.test.ts`（转换后逐项目导入字节完整、原始 ZIP 不变、合成 v2 upgrader 被执行、upgrader 失败时原始数据和主库不变且临时库被删、比应用新 / 其他库 / 非原始快照被拒绝）+ e2e；T43 `SnapshotService.test.ts`（超限返回已跳过并清理旧快照、按项目存取、升级前整库快照按项目读取并一并清除）、`RecoverySnapshotSkippedNotice.test.tsx`；T44 `storageDurability.test.ts`（只在第一次导入 / 保存时申请、启动申请不覆盖手势记录、不支持与出错都记录）、`backupFolderService.test.ts`（保留最近 3 份、不动其他文件、写入失败不动旧备份并记录失败、只有交互时才申请授权、自动备份到期 / 未到期 / 失败退避 / 关闭、自动备份缺授权时记为需要重新授权）+ e2e（主库写入全部报 QuotaExceededError 时导入只提示、项目数和音频字节不变；persist 记录为导入时；诊断面板；OPFS 目录代替用户文件夹，选择后立即备份 4 次剩 3 份；把上次成功改成两天前再打开应用，自动备份写入新的一份，仍剩 3 份）。
+
+#5 测试：`zipBlob.test.ts`（与 fflate 互相读写、UTF-8 文件名、20 MiB Blob 分块 CRC 与 zlib 一致、不读字节的切片、非 ZIP / ZIP64 / 实际比声明大时拒绝）；`packageStreaming.test.ts`（合成 4 条 12 MiB 录音共 48 MiB：JYM 导出与恢复中最大的一次读取正好是一条录音，从不整包读取，恢复后每条 sha256 一致；录音中改一个字节被 sha256 拒绝；JYB 整库导出导入同样；原始快照导出 / 解析不整包读取且 Blob 值字节一致；中央目录声明两条 600 MiB 的条目通过新上限检查，旧上限拒绝）；e2e 在页面里合成 160 MiB 录音，经项目中心导出 JYM（下载到磁盘）、以文件导入恢复为新项目，恢复后的音频 sha256 与原来一致（约 23 秒）。

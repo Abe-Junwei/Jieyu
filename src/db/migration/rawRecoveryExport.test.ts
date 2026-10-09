@@ -51,7 +51,7 @@ describe('raw recovery export', () => {
       items: RAW_SOURCE_ITEM_COUNT,
     });
     expect(result.fileName).toBe(rawRecoveryFileName(result.manifest));
-    const entries = unzipSync(result.bytes);
+    const entries = unzipSync(new Uint8Array(await result.blob.arrayBuffer()));
     expect(Object.keys(entries).filter((path) => path.startsWith('blobs/'))).toHaveLength(2);
     // 字节原样在包里 | raw bytes are in the archive
     expect([...entries['blobs/000001.bin']!]).toEqual([1, 2, 3, 250]);
@@ -72,7 +72,7 @@ describe('raw recovery export', () => {
   it('round-trips into a new database at the same version with identical rows, keys and indexes', async () => {
     await createRawSourceDb(indexedDB, SOURCE, 20);
     const result = await exportRawIdbSnapshot({ factory: indexedDB, dbName: SOURCE });
-    const parsed = parseRawIdbSnapshot(result.bytes);
+    const parsed = await parseRawIdbSnapshot(result.blob);
     await writeRawIdbSnapshotToNewDatabase({
       factory: indexedDB,
       snapshot: parsed,
@@ -97,13 +97,13 @@ describe('raw recovery export', () => {
     await createRawSourceDb(indexedDB, SOURCE, 10, 3);
     const result = await exportRawIdbSnapshot({ factory: indexedDB, dbName: SOURCE });
     const { zipSync, strToU8, strFromU8 } = await import('fflate');
-    const entries = unzipSync(result.bytes);
+    const entries = unzipSync(new Uint8Array(await result.blob.arrayBuffer()));
     const manifest = JSON.parse(strFromU8(entries['manifest.json']!)) as Record<string, unknown>;
     const wrongKind = zipSync({
       ...entries,
       'manifest.json': strToU8(JSON.stringify({ ...manifest, kind: 'jyb' })),
     });
-    expect(() => parseRawIdbSnapshot(wrongKind)).toThrow(/unexpected kind/);
+    await expect(parseRawIdbSnapshot(wrongKind)).rejects.toThrow(/unexpected kind/);
     const stores = (manifest.stores as Array<Record<string, unknown>>).map((store) =>
       store.name === 'items' ? { ...store, rowCount: 99 } : store,
     );
@@ -111,6 +111,6 @@ describe('raw recovery export', () => {
       ...entries,
       'manifest.json': strToU8(JSON.stringify({ ...manifest, stores })),
     });
-    expect(() => parseRawIdbSnapshot(wrongCount)).toThrow(/manifest says 99/);
+    await expect(parseRawIdbSnapshot(wrongCount)).rejects.toThrow(/manifest says 99/);
   });
 });

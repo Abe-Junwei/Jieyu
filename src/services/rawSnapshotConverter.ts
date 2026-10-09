@@ -28,7 +28,7 @@ import {
   latestSchemaVersion,
   type JieyuSchemaVersion,
 } from '../db/migration/schemaVersions';
-import { exportDatabaseToJyb } from './JybService';
+import { exportDatabaseToJybBlob } from './JybService';
 
 export { isRawIdbSnapshot };
 
@@ -52,7 +52,7 @@ export class RawSnapshotConversionError extends Error {
 }
 
 export interface RawSnapshotConversionResult {
-  jyb: Uint8Array;
+  jyb: Blob;
   source: Pick<RawIdbSnapshotManifest, 'dbName' | 'nativeVersion' | 'dexieVersion' | 'exportedAt'>;
   /** 升级到的 Dexie 版本 | Dexie version the data was upgraded to */
   upgradedToVersion: number;
@@ -84,7 +84,7 @@ function tempName(): string {
  * Convert a raw snapshot into a current-version JYB (bytes included, no local preferences).
  */
 export async function convertRawSnapshotToJyb(
-  rawZip: Uint8Array,
+  rawZip: Uint8Array | Blob,
   options: RawSnapshotConversionOptions = {},
 ): Promise<RawSnapshotConversionResult> {
   const factory = options.factory ?? defaultFactory();
@@ -93,7 +93,7 @@ export async function convertRawSnapshotToJyb(
 
   let snapshot;
   try {
-    snapshot = parseRawIdbSnapshot(rawZip);
+    snapshot = await parseRawIdbSnapshot(rawZip);
   } catch (error) {
     throw new RawSnapshotConversionError(
       'not-raw-snapshot',
@@ -138,7 +138,7 @@ export async function convertRawSnapshotToJyb(
       );
     }
     try {
-      const jyb = await exportDatabaseToJyb({
+      const jyb = await exportDatabaseToJybBlob({
         source: upgraded,
         includeMedia: true,
         includePreferences: false,

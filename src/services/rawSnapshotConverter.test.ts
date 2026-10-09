@@ -106,7 +106,7 @@ async function clearAll(): Promise<void> {
 
 async function rawExport(): Promise<Uint8Array> {
   const result = await exportRawIdbSnapshot({ dbName: 'jieyu', reason: 'migration-blocked' });
-  return result.bytes;
+  return new Uint8Array(await result.blob.arrayBuffer());
 }
 
 async function databaseNames(): Promise<string[]> {
@@ -148,13 +148,13 @@ describe('T41: raw snapshot → JYB converter', () => {
     };
     expect(manifest).toMatchObject({ kind: 'raw-idb', nativeVersion: 10 });
     expect(manifest.binaryFileCount).toBeGreaterThanOrEqual(2);
-    expect(isRawIdbSnapshot(raw)).toBe(true);
+    expect(await isRawIdbSnapshot(raw)).toBe(true);
 
     const result = await convertRawSnapshotToJyb(raw);
     expect(result.source).toMatchObject({ dbName: 'jieyu', nativeVersion: 10, dexieVersion: 1 });
     expect(result.upgradedToVersion).toBe(1);
     expect(raw).toEqual(before);
-    expect(isRawIdbSnapshot(result.jyb)).toBe(false);
+    expect(await isRawIdbSnapshot(result.jyb)).toBe(false);
     expect((await databaseNames()).filter((name) => name.startsWith('jieyu-raw-convert-'))).toEqual(
       [],
     );
