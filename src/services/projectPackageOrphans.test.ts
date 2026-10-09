@@ -84,6 +84,37 @@ function link(id: string, targetId: string, lexemeId: string) {
   return { id, targetType: 'token', targetId, lexemeId, createdAt: NOW, updatedAt: NOW } as never;
 }
 
+
+function segment(id: string, textId: string, parentUnitId: string) {
+  return {
+    id,
+    textId,
+    layerId: `${textId}-layer`,
+    unitType: 'segment',
+    parentUnitId,
+    rootUnitId: parentUnitId,
+    startTime: 0,
+    endTime: 1,
+    createdAt: NOW,
+    updatedAt: NOW,
+  } as never;
+}
+
+function content(id: string, textId: string, unitId: string) {
+  return {
+    id,
+    textId,
+    unitId,
+    layerId: `${textId}-layer`,
+    contentRole: 'primary_text',
+    modality: 'text',
+    text: 'orphan-seg',
+    sourceType: 'human',
+    createdAt: NOW,
+    updatedAt: NOW,
+  } as never;
+}
+
 /**
  * 修复前留下的坏数据（中间件拦不住先写子行、后补父行）：pA 的 token 挂在 pB 的句段上，带一个
  * morpheme 和一个链接；pA 自己的 token 还有一个指向 pB 词条的链接。
@@ -226,6 +257,36 @@ describe('JYT / JYM (inspectProjectPackage)', () => {
     const result = await overwriteProjectWithJyt(archive, { targetProjectId: 'pC' });
     expect(result.skippedOrphanRows).toEqual(EXPECTED_SKIPPED);
     await expectNoOrphansIn('pC');
+  });
+
+  it('drops a segment whose parentUnitId points outside the package', async () => {
+    // 修复前坏数据：pA 的句段挂在 pB 的单元上（先写子行再补父行）
+    // Pre-fix: a pA segment whose parentUnitId points at pB's unit
+    await db.layer_units.delete('pB-unit');
+    await db.layer_units.put(segment('pA-stray-seg', 'pA', 'pB-unit'));
+    await db.layer_unit_contents.put(content('pA-stray-seg-content', 'pA', 'pA-stray-seg'));
+    await db.layer_units.put(unit('pB-unit', 'pB'));
+
+    const archive = await exportProjectToJyt('pA');
+    const preview = await previewJytRestore(archive);
+    expect(preview.skippedOrphanRows).toEqual([
+      { collection: 'layer_unit_contents', count: 1 },
+      { collection: 'layer_units', count: 1 },
+      ...EXPECTED_SKIPPED,
+    ]);
+
+    const restored = await restoreJytAsNewProject(archive);
+    expect(restored.skippedOrphanRows).toEqual([
+      { collection: 'layer_unit_contents', count: 1 },
+      { collection: 'layer_units', count: 1 },
+      ...EXPECTED_SKIPPED,
+    ]);
+    const units = await db.layer_units.where('textId').equals(restored.projectId).toArray();
+    expect(units.every((row) => !row.parentUnitId || units.some((u) => u.id === row.parentUnitId))).toBe(
+      true,
+    );
+    expect(units.some((row) => row.unitType === 'segment')).toBe(false);
+    expect(await db.layer_unit_contents.where('textId').equals(restored.projectId).count()).toBe(0);
   });
 });
 
