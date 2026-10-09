@@ -18,6 +18,7 @@
  *   每一条记录（7.4-1）；默认恢复为新项目，所有 id 重新映射，记录 restoredFrom（7.4-2）；
  *   覆盖当前项目只对从未协作过的项目开放（7.4-3）。
  */
+import type { Dexie, Table } from 'dexie';
 import { strToU8 } from 'fflate';
 import { blobBytes, bytesBlob, zipToBlob, type ZipBlobEntry } from './zipBlob';
 import { z } from 'zod';
@@ -260,12 +261,10 @@ export function rowsOf(collections: ProjectCollections, name: string): Row[] {
 }
 
 /** 导入前读本机字节用的表（P5）| Tables read for local-byte guards before import (P5) */
-export function byteGuardTables<T extends { table: (name: string) => unknown }>(
-  dexie: T,
-): Array<ReturnType<T['table']>> {
+export function byteGuardTables(dexie: Dexie): Table[] {
   return (['media_items', 'lexeme_assets', 'source_records', 'texts'] as const).map((name) =>
     dexie.table(name),
-  ) as Array<ReturnType<T['table']>>;
+  );
 }
 
 function str(value: unknown): string | undefined {

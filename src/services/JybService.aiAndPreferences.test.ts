@@ -174,11 +174,14 @@ describe('JYB user preferences (settings entry)', () => {
   it('per-project import never writes preferences; disaster restore only when asked', async () => {
     const archive = await exportDatabaseToJyb({ includeMedia: false });
     localStorage.setItem('jieyu.locale', 'en-US');
-    localStorage.setItem(
-      'jieyu.aiChat.settings',
-      JSON.stringify({ providerKind: 'mock', apiKey: 'sk-LOCAL' }),
-    );
     localStorage.removeItem('jieyu-theme');
+    // 本机 vault 里放密钥；明文键清掉（R2-5）| Local vault holds the secret; plain key cleared
+    const { persistAiChatSettings, loadAiChatSettingsFromStorage } =
+      await import('../ai/config/aiChatSettingsStorage');
+    const { normalizeAiChatSettings } = await import('../ai/providers/providerCatalog');
+    await persistAiChatSettings(
+      normalizeAiChatSettings({ providerKind: 'mock', apiKey: 'sk-LOCAL', model: 'local-m' }),
+    );
 
     await importJybProjectsAsNew(archive);
     expect(localStorage.getItem('jieyu.locale')).toBe('en-US');
@@ -191,16 +194,12 @@ describe('JYB user preferences (settings entry)', () => {
     expect(withPrefs.restoredPreferenceKeys).toHaveLength(3);
     expect(localStorage.getItem('jieyu.locale')).toBe('zh-CN');
     expect(localStorage.getItem('jieyu-theme')).toBe('dark');
-    // 只恢复 provider/model；本机密钥在无地址冲突时保留（REV5-N2）
-    // Only provider/model restored; local secret kept when addresses do not conflict (REV5-N2)
-    expect(JSON.parse(localStorage.getItem('jieyu.aiChat.settings')!)).toMatchObject({
+    const restored = await loadAiChatSettingsFromStorage();
+    expect(restored).toMatchObject({
       providerKind: 'openai-compatible',
       model: 'gpt',
       apiKey: 'sk-LOCAL',
     });
-    expect(JSON.parse(localStorage.getItem('jieyu.aiChat.settings')!)).not.toHaveProperty(
-      'temperature',
-    );
     // 旧值记在整库快照里 | Old values kept in the whole-library snapshot
     const [snapshot] = await listProjectOverwriteSnapshots(LIBRARY_SNAPSHOT_KEY);
     expect(JSON.parse(snapshot!.snapshotJson).preferences).toEqual(
@@ -249,7 +248,7 @@ describe('REV5-N2: AI chat settings pack provider/model without keys or URLs', (
 describe('REV5-N1: a packaged service address never receives local secrets', () => {
   beforeEach(() => localStorage.clear());
 
-  it('never carries or applies the URL-bearing keys', () => {
+  it('never carries or applies the URL-bearing keys', async () => {
     for (const key of [
       'jieyu.embeddingProvider',
       'jieyu.voiceAgent.localWhisper',
@@ -262,32 +261,44 @@ describe('REV5-N1: a packaged service address never receives local secrets', () 
       expect(read.entries).toEqual([]);
       expect(read.ignoredKeys).toEqual([key]);
       expect(
-        applyUserPreferences([{ key, value: '{"baseUrl":"https://attacker.example"}' }]),
+        await applyUserPreferences([{ key, value: '{"baseUrl":"https://attacker.example"}' }]),
       ).toEqual([]);
       expect(localStorage.getItem(key)).toContain('trusted.example');
     }
   });
 
-  it('keeps the local apiKey only when every address field is unchanged', () => {
-    const key = 'jieyu.aiChat.settings';
-    localStorage.setItem(
-      key,
-      JSON.stringify({ baseUrl: 'https://api.trusted.example', apiKey: 'sk-LOCAL-SECRET' }),
+  it('merges allow-listed AI fields into the vault and keeps local secrets and URLs (R2-5/7)', async () => {
+    const { persistAiChatSettings, loadAiChatSettingsFromStorage } =
+      await import('../ai/config/aiChatSettingsStorage');
+    const { normalizeAiChatSettings } = await import('../ai/providers/providerCatalog');
+    await persistAiChatSettings(
+      normalizeAiChatSettings({
+        baseUrl: 'https://api.trusted.example',
+        apiKey: 'sk-LOCAL-SECRET',
+        model: 'm1',
+      }),
     );
-    applyUserPreferences([{ key, value: JSON.stringify({ baseUrl: 'https://attacker.example' }) }]);
-    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({ baseUrl: 'https://attacker.example' });
-
-    localStorage.setItem(
-      key,
-      JSON.stringify({ baseUrl: 'https://api.trusted.example', apiKey: 'sk-LOCAL-SECRET' }),
-    );
-    applyUserPreferences([
-      { key, value: JSON.stringify({ baseUrl: 'https://api.trusted.example', model: 'm2' }) },
+    // 包里的地址字段被白名单丢掉，合进去的只有 model | Packaged URLs are dropped; only model merges in
+    await applyUserPreferences([
+      {
+        key: 'jieyu.aiChat.settings',
+        value: JSON.stringify({
+          baseUrl: 'https://attacker.example',
+          model: 'm2',
+          apiKey: 'sk-ATTACKER',
+        }),
+      },
     ]);
-    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({
-      baseUrl: 'https://api.trusted.example',
-      model: 'm2',
-      apiKey: 'sk-LOCAL-SECRET',
-    });
+    const loaded = await loadAiChatSettingsFromStorage();
+    expect(loaded.model).toBe('m2');
+    expect(loaded.apiKey).toBe('sk-LOCAL-SECRET');
+    expect(loaded.baseUrl).toBe('https://api.trusted.example');
+  });
+
+  it('does not pack AI settings that equal the never-configured defaults (R2-6)', async () => {
+    const { collectUserPreferences } = await import('./userPreferencesBackup');
+    localStorage.setItem('jieyu.locale', 'zh-CN');
+    const packed = await collectUserPreferences();
+    expect(packed.entries.map((e) => e.key)).toEqual(['jieyu.locale']);
   });
 });

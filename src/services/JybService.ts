@@ -928,7 +928,9 @@ export async function disasterRestoreFromJyb(
     },
   );
   const restoredPreferenceKeys =
-    options?.restorePreferences === true ? applyUserPreferences(inspected.preferences.entries) : [];
+    options?.restorePreferences === true
+      ? await applyUserPreferences(inspected.preferences.entries)
+      : [];
   return {
     projectIds: inspected.data.projects.map((p) => p.id),
     snapshotSeq,

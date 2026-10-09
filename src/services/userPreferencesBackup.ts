@@ -3,22 +3,26 @@
  * User preferences inside a JYB (rev5 7.5 "separate settings entry"; user decision 2026-10-09).
  *
  * - 只收白名单里的 localStorage 键：界面、语言、播放与波形、AI 参数。凭据、会话、协作状态、缓存、
- *   日志一律不收；值是 JSON 对象时，再去掉名字像密钥或服务地址的字段。
+ *   日志一律不收。
  * - 带服务地址的键（向量服务、本地 Whisper、语音增强）不收（REV5-N1）。
- * - AI 聊天设置（REV5-N2）：明文键常被 keyVault 删掉；导出时从 vault 读出，只保留 provider / model
- *   等非敏感字段，不带 apiKey 和任何 URL。
- * - 只在整库还原时、用户勾选后才写回；写回时只有服务地址类字段与本机完全相同，才保留本机密钥。
- * - Allow-listed keys only. Secret- and URL-looking JSON fields are scrubbed. AI chat settings are
- *   loaded from the vault when the plain key is gone, and only non-sensitive fields are packaged
- *   (REV5-N2). Restored only by an opted-in disaster restore.
+ * - AI 聊天设置（REV5-N2 / R2-5/6/7）：从未配置过就不打包；打包与恢复都只过类型化白名单字段，
+ *   不靠字段名启发式；恢复时合进 vault，本机密钥与地址不动。
+ * - AI chat settings (REV5-N2 / R2-5/6/7): never pack defaults; pack and restore only typed
+ *   allow-listed fields (no field-name heuristics); restore merges into the vault so local secrets
+ *   and URLs stay put.
+ * - 其他偏好值若是 JSON，再按名字去掉像密钥或地址的嵌套字段（防御）。
+ * - 只在整库还原时、用户勾选后才写回。
  */
 
-import { loadAiChatSettingsFromStorage } from '../ai/config/aiChatSettingsStorage';
-import type { AiChatSettings } from '../ai/providers/providerCatalog';
+import {
+  loadAiChatSettingsFromStorage,
+  persistAiChatSettings,
+} from '../ai/config/aiChatSettingsStorage';
+import { browserAiChatKeyVault } from '../ai/config/keyVault';
+import { normalizeAiChatSettings, type AiChatSettings } from '../ai/providers/providerCatalog';
 
 /** 进 JYB 的偏好键（白名单）| Preference keys a JYB carries (allow-list) */
 export const USER_PREFERENCE_KEYS: readonly string[] = [
-  // 界面与无障碍 | UI and accessibility
   'jieyu.locale',
   'jieyu-theme',
   'jieyu-theme-accent',
@@ -32,7 +36,6 @@ export const USER_PREFERENCE_KEYS: readonly string[] = [
   'jieyu:ui-font-scale',
   'jieyu:accessibility-reduced-motion',
   'jieyu:accessibility-high-contrast',
-  // 工作台、波形与播放 | Workspace, waveform and playback
   'jieyu:lane-label-width',
   'jieyu:waveform-height',
   'jieyu:waveform-visual-style',
@@ -53,10 +56,8 @@ export const USER_PREFERENCE_KEYS: readonly string[] = [
   'jieyu:paired-reading-editor-min-height',
   'jieyu:paired-reading-column-left-grow',
   'jieyu:map-provider',
-  // 设置开关 | Settings toggles
   'jieyu.settings.backupReminderEnabled',
   'jieyu.settings.dbIntegrityProbeEnabled',
-  // AI 与语音参数（不含凭据）| AI and voice parameters (no credentials)
   'jieyu.aiChat.settings',
   'jieyu.aiChat.sessionTokenBudget',
   'jieyu.aiChat.outputTokenCap',
@@ -71,15 +72,11 @@ export const USER_PREFERENCE_KEYS: readonly string[] = [
 ];
 
 const ALLOWED = new Set(USER_PREFERENCE_KEYS);
-/** 单个值的上限 | Per-value size limit */
 const MAX_VALUE_CHARS = 256 * 1024;
 
-/** 名字像服务地址的字段 | Field names that look like a service address */
-const ENDPOINT_FIELD_RE = /(url|endpoint|host|origin|server)/i;
-
-/** 名字像密钥的字段 | Field names that look like secrets */
-const SECRET_FIELD_RE =
-  /(api[-_]?keys?|secret|password|passphrase|credential|authorization|bearer|access[-_]?token|refresh[-_]?token|session[-_]?token|^token$)/i;
+/** 嵌套 JSON 里按名字丢掉的字段（非 AI 偏好的防御）| Nested JSON fields dropped by name (non-AI prefs only) */
+const NESTED_SECRET_OR_URL_RE =
+  /(api[-_]?keys?|secret|password|passphrase|credential|authorization|bearer|access[-_]?token|refresh[-_]?token|session[-_]?token|^token$|url|endpoint|host|origin|server)/i;
 
 export interface UserPreferenceEntry {
   key: string;
@@ -104,18 +101,18 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function scrubSecrets(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(scrubSecrets);
+function scrubNestedFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(scrubNestedFields);
   if (!isPlainObject(value)) return value;
   const next: Record<string, unknown> = {};
   for (const [key, inner] of Object.entries(value)) {
-    if (SECRET_FIELD_RE.test(key)) continue;
-    next[key] = scrubSecrets(inner);
+    if (NESTED_SECRET_OR_URL_RE.test(key)) continue;
+    next[key] = scrubNestedFields(inner);
   }
   return next;
 }
 
-/** AI 聊天设置里可进 JYB 的非敏感字段（无密钥、无地址）| Non-sensitive AI chat fields for a JYB */
+/** AI 聊天设置里可进 JYB 的非敏感字段（类型化白名单，R2-7）| Typed allow-list of AI chat fields (R2-7) */
 const AI_CHAT_SAFE_FIELDS = [
   'providerKind',
   'model',
@@ -126,7 +123,7 @@ const AI_CHAT_SAFE_FIELDS = [
   'outputTokenCap',
   'outputTokenRetryCap',
   'modelsByProvider',
-] as const;
+] as const satisfies ReadonlyArray<keyof AiChatSettings>;
 
 /** 从完整设置抽出可备份字段（REV5-N2）| Pick backup-safe fields from full settings (REV5-N2) */
 export function packAiChatSettingsForBackup(settings: AiChatSettings): Record<string, unknown> {
@@ -138,23 +135,11 @@ export function packAiChatSettingsForBackup(settings: AiChatSettings): Record<st
   return out;
 }
 
-function scrubEndpoints(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(scrubEndpoints);
-  if (!isPlainObject(value)) return value;
-  const next: Record<string, unknown> = {};
-  for (const [key, inner] of Object.entries(value)) {
-    if (ENDPOINT_FIELD_RE.test(key)) continue;
-    next[key] = scrubEndpoints(inner);
-  }
-  return next;
-}
-
-/** 去掉 JSON 值里的密钥与服务地址字段 | Strip secret and endpoint fields from a JSON value */
 function scrubValue(raw: string): string {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (isPlainObject(parsed) || Array.isArray(parsed)) {
-      return JSON.stringify(scrubEndpoints(scrubSecrets(parsed)));
+      return JSON.stringify(scrubNestedFields(parsed));
     }
   } catch {
     // 非 JSON：原样 | not JSON: as is
@@ -162,9 +147,16 @@ function scrubValue(raw: string): string {
   return raw;
 }
 
+function isDefaultAiChatPack(packed: Record<string, unknown>): boolean {
+  return (
+    JSON.stringify(packed) ===
+    JSON.stringify(packAiChatSettingsForBackup(normalizeAiChatSettings()))
+  );
+}
+
 /**
- * 收集本机偏好（白名单、去密钥与地址；AI 设置走 vault，REV5-N2）。
- * Collect local preferences (allow-listed, scrubbed; AI settings via vault, REV5-N2).
+ * 收集本机偏好（白名单；AI 从未配置就不打包，R2-6；AI 只过类型化白名单，R2-7）。
+ * Collect local preferences (allow-listed; skip never-configured AI, R2-6; typed AI fields, R2-7).
  */
 export async function collectUserPreferences(
   storage: StorageLike | null = defaultStorage(),
@@ -172,27 +164,32 @@ export async function collectUserPreferences(
   const entries: UserPreferenceEntry[] = [];
   if (!storage) return { entries };
   for (const key of USER_PREFERENCE_KEYS) {
-    if (key === 'jieyu.aiChat.settings') continue; // 下面单独从 vault 取 | filled from vault below
+    if (key === 'jieyu.aiChat.settings') continue;
     const raw = storage.getItem(key);
     if (raw === null || raw.length > MAX_VALUE_CHARS) continue;
     entries.push({ key, value: scrubValue(raw) });
   }
   try {
-    const settings = await loadAiChatSettingsFromStorage();
+    // vault.load() 为 null 且明文键也不在 = 从未配置（R2-6）| null vault and no plain key = never configured
+    const fromVault = await browserAiChatKeyVault.load();
+    const plain = storage.getItem('jieyu.aiChat.settings');
+    if (fromVault === null && plain === null) return { entries };
+    const settings = fromVault ?? (await loadAiChatSettingsFromStorage());
     const packed = packAiChatSettingsForBackup(settings);
+    if (isDefaultAiChatPack(packed)) return { entries };
     const value = JSON.stringify(packed);
     if (value.length <= MAX_VALUE_CHARS && Object.keys(packed).length > 0) {
       entries.push({ key: 'jieyu.aiChat.settings', value });
     }
   } catch {
-    // vault 读失败时跳过 AI 设置，其他偏好照常 | skip AI settings if vault fails
+    // vault 读失败时跳过 AI 设置 | skip AI settings if vault fails
   }
   return { entries };
 }
 
 /**
- * 读入包里的偏好：只认白名单里的键，值必须是字符串；其他键忽略并列出。
- * Read packaged preferences: allow-listed keys with string values only; others are ignored and listed.
+ * 读入包里的偏好：只认白名单里的键；AI 设置再过类型化字段白名单。
+ * Read packaged preferences: allow-listed keys; AI settings re-filtered to typed fields.
  */
 export function readPackagedUserPreferences(raw: unknown): {
   entries: UserPreferenceEntry[];
@@ -211,6 +208,18 @@ export function readPackagedUserPreferences(raw: unknown): {
       continue;
     }
     seen.add(key);
+    if (key === 'jieyu.aiChat.settings') {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        const packed = isPlainObject(parsed)
+          ? packAiChatSettingsForBackup(parsed as unknown as AiChatSettings)
+          : {};
+        entries.push({ key, value: JSON.stringify(packed) });
+      } catch {
+        ignoredKeys.push(key);
+      }
+      continue;
+    }
     entries.push({ key, value: scrubValue(value) });
   }
   return { entries, ignoredKeys: [...new Set(ignoredKeys)].sort() };
@@ -224,47 +233,38 @@ export function readCurrentUserPreferences(
   return keys.map((key) => ({ key, value: storage?.getItem(key) ?? null }));
 }
 
-function sameEndpoints(local: Record<string, unknown>, incoming: Record<string, unknown>): boolean {
-  return [...new Set([...Object.keys(local), ...Object.keys(incoming)])]
-    .filter((field) => ENDPOINT_FIELD_RE.test(field))
-    .every((field) => JSON.stringify(local[field]) === JSON.stringify(incoming[field]));
-}
-
 /**
- * 写回偏好；服务地址类字段与本机完全相同时，才保留本机同名 JSON 值里的密钥字段（REV5-N1：
- * 密钥不能跟着包里给的新地址走）。返回写入的键。
- * Write preferences back. Local secret fields under the same key are kept only when every URL-like
- * field matches the local value (REV5-N1: a key must never follow a packaged address).
+ * 写回偏好。AI 设置合进 vault（R2-5）：只应用类型化白名单字段，本机密钥与地址保留。
+ * Write preferences back. AI settings merge into the vault (R2-5): only typed allow-listed fields
+ * apply; local secrets and URLs stay put.
  */
-export function applyUserPreferences(
+export async function applyUserPreferences(
   entries: readonly UserPreferenceEntry[],
   storage: StorageLike | null = defaultStorage(),
-): string[] {
+): Promise<string[]> {
   if (!storage) return [];
   const applied: string[] = [];
   for (const { key, value } of entries) {
     if (!ALLOWED.has(key)) continue;
-    let next = value;
-    const local = storage.getItem(key);
-    if (local !== null) {
+    if (key === 'jieyu.aiChat.settings') {
       try {
-        const localParsed = JSON.parse(local) as unknown;
         const incoming = JSON.parse(value) as unknown;
-        if (
-          isPlainObject(localParsed) &&
-          isPlainObject(incoming) &&
-          sameEndpoints(localParsed, incoming)
-        ) {
-          const secrets = Object.fromEntries(
-            Object.entries(localParsed).filter(([field]) => SECRET_FIELD_RE.test(field)),
-          );
-          next = JSON.stringify({ ...incoming, ...secrets });
+        if (!isPlainObject(incoming)) continue;
+        const current = await loadAiChatSettingsFromStorage();
+        const patch: Partial<AiChatSettings> = {};
+        for (const field of AI_CHAT_SAFE_FIELDS) {
+          if (field in incoming) {
+            (patch as Record<string, unknown>)[field] = incoming[field];
+          }
         }
+        await persistAiChatSettings(normalizeAiChatSettings({ ...current, ...patch }));
+        applied.push(key);
       } catch {
-        // 非 JSON：直接写 | not JSON: write as is
+        // 坏 JSON 或 vault 失败：跳过这一项 | bad JSON or vault failure: skip this entry
       }
+      continue;
     }
-    storage.setItem(key, next);
+    storage.setItem(key, value);
     applied.push(key);
   }
   return applied;

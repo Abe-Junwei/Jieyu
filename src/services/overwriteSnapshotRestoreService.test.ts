@@ -254,10 +254,10 @@ describe('recovery snapshots: whole-database pre-restore snapshot', () => {
     expect(entry).toMatchObject({ scope: 'library', projectId: null, projectCount: 1 });
     const preview = await previewOverwriteSnapshot(restored.snapshotSeq);
     expect(preview.available).toBe(true);
-    expect(preview.preferenceKeys).toEqual(expect.arrayContaining(['jieyu.locale']));
+    expect(preview.preferenceKeys).toEqual(['jieyu.locale']);
 
     const result = await restoreOverwriteSnapshot(restored.snapshotSeq);
-    expect(result.restoredPreferenceKeys).toEqual(expect.arrayContaining(['jieyu.locale']));
+    expect(result.restoredPreferenceKeys).toEqual(['jieyu.locale']);
     expect(localStorage.getItem('jieyu.locale')).toBe('en-US');
     expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Edited' });
     expect((await db.project_ai_memories.get('pA-mem'))?.fact).toBe('later-fact');
@@ -269,8 +269,8 @@ describe('recovery snapshots: whole-database pre-restore snapshot', () => {
       (s) => s.seq === result.preRestoreSnapshotSeq,
     );
     expect(pre).toMatchObject({ scope: 'library', packageKind: 'snapshot-restore' });
-    expect((await previewOverwriteSnapshot(result.preRestoreSnapshotSeq)).preferenceKeys).toEqual(
-      expect.arrayContaining(['jieyu.locale']),
-    );
+    expect((await previewOverwriteSnapshot(result.preRestoreSnapshotSeq)).preferenceKeys).toEqual([
+      'jieyu.locale',
+    ]);
   });
 });
