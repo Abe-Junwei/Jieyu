@@ -4,8 +4,10 @@ import { createLogger } from '../../observability/logger';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../../services/stt';
 import { setCommercialSttRuntimeSnapshot } from '../../services/stt/voiceCommercialSttRuntime';
 import {
-  LOCAL_WHISPER_DEFAULT_BASE_URL,
-  LOCAL_WHISPER_DEFAULT_MODEL,
+  LOCAL_WHISPER_STORAGE_KEY,
+  loadLocalWhisperConfig,
+  saveLocalWhisperConfig,
+  type LocalWhisperConfig,
 } from '../../services/stt/localWhisperDefaults';
 
 export type CommercialProviderKind =
@@ -24,15 +26,9 @@ export type CommercialProviderConfig = {
   accessToken?: string;
 };
 
-export type VoiceLocalWhisperConfig = {
-  baseUrl?: string;
-  model?: string;
-};
-
 export type VoiceSttEnhancementConfig = SttEnhancementConfig;
 
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
-const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
 const VOICE_STT_ENHANCEMENT_STORAGE_KEY = 'jieyu.voiceAgent.sttEnhancement';
 export const VOICE_SETTINGS_UPDATED_EVENT = 'jieyu:voice-settings-storage-updated';
 const log = createLogger('useVoiceDock');
@@ -102,19 +98,6 @@ export function saveCommercialSttConfig(
   }
 }
 
-export function loadLocalWhisperConfig(): VoiceLocalWhisperConfig {
-  try {
-    const raw = window.localStorage.getItem(VOICE_LOCAL_WHISPER_STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as VoiceLocalWhisperConfig;
-  } catch (error) {
-    log.warn('Failed to load local Whisper config from localStorage', {
-      key: VOICE_LOCAL_WHISPER_STORAGE_KEY,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  return { baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL, model: LOCAL_WHISPER_DEFAULT_MODEL };
-}
-
 function sanitizeEnhancementConfig(
   config: VoiceSttEnhancementConfig | undefined,
 ): VoiceSttEnhancementConfig {
@@ -173,17 +156,6 @@ export function saveSttEnhancementSelection(
   }
 }
 
-export function saveLocalWhisperConfig(config: VoiceLocalWhisperConfig): void {
-  try {
-    window.localStorage.setItem(VOICE_LOCAL_WHISPER_STORAGE_KEY, JSON.stringify(config));
-  } catch (error) {
-    log.warn('Failed to save local Whisper config to localStorage', {
-      key: VOICE_LOCAL_WHISPER_STORAGE_KEY,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
 type UseVoiceDockParams = {
   activeTextPrimaryLanguageId?: string | null;
   getActiveTextPrimaryLanguageId: () => Promise<string | null>;
@@ -216,7 +188,7 @@ export function useVoiceDock({
   );
   const [commercialProviderConfig, setCommercialProviderConfig] =
     useState<CommercialProviderConfig>(() => loadCommercialSttConfig().config);
-  const [localWhisperConfig, setLocalWhisperConfig] = useState<VoiceLocalWhisperConfig>(() =>
+  const [localWhisperConfig, setLocalWhisperConfig] = useState<LocalWhisperConfig>(() =>
     loadLocalWhisperConfig(),
   );
   const [sttEnhancementKind, setSttEnhancementKind] = useState<SttEnhancementSelectionKind>(
@@ -296,7 +268,7 @@ export function useVoiceDock({
     const handleStorage = (event: StorageEvent) => {
       if (
         event.key !== VOICE_COMMERCIAL_STT_STORAGE_KEY &&
-        event.key !== VOICE_LOCAL_WHISPER_STORAGE_KEY &&
+        event.key !== LOCAL_WHISPER_STORAGE_KEY &&
         event.key !== VOICE_STT_ENHANCEMENT_STORAGE_KEY
       ) {
         return;
@@ -327,7 +299,7 @@ export function useVoiceDock({
     setCommercialProviderConfig(config);
   }, []);
 
-  const handleLocalWhisperConfigChange = useCallback((config: VoiceLocalWhisperConfig) => {
+  const handleLocalWhisperConfigChange = useCallback((config: LocalWhisperConfig) => {
     setLocalWhisperConfig(config);
   }, []);
 

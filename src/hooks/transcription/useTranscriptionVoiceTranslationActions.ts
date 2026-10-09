@@ -30,14 +30,10 @@ import {
   readNonEmptyAudioBlobFromMediaItem,
 } from '../../utils/translationRecordingMediaBlob';
 import { createLogger } from '../../observability/logger';
-import {
-  LOCAL_WHISPER_DEFAULT_BASE_URL,
-  LOCAL_WHISPER_DEFAULT_MODEL,
-} from '../../services/stt/localWhisperDefaults';
+import { loadLocalWhisperConfig } from '../../services/stt/localWhisperDefaults';
 
 /** 与 `useVoiceDock` 一致，避免 action 依赖 UI hook | Mirrors useVoiceDock keys */
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
-const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
 const log = createLogger('useTranscriptionVoiceTranslationActions');
 
 type CommercialProviderConfig = {
@@ -141,27 +137,6 @@ function loadCommercialSttConfigFromStorage(): {
       };
     },
     { kind: 'groq', config: {} },
-  );
-}
-
-function loadLocalWhisperConfigFromStorage(): { baseUrl: string; model: string } {
-  return readJsonFromLocalStorage(
-    VOICE_LOCAL_WHISPER_STORAGE_KEY,
-    (parsed) => {
-      if (!parsed || typeof parsed !== 'object') return null;
-      const p = parsed as { baseUrl?: string; model?: string };
-      return {
-        baseUrl:
-          typeof p.baseUrl === 'string' && p.baseUrl.trim()
-            ? p.baseUrl.trim()
-            : LOCAL_WHISPER_DEFAULT_BASE_URL,
-        model:
-          typeof p.model === 'string' && p.model.trim()
-            ? p.model.trim()
-            : LOCAL_WHISPER_DEFAULT_MODEL,
-      };
-    },
-    { baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL, model: LOCAL_WHISPER_DEFAULT_MODEL },
   );
 }
 
@@ -482,7 +457,7 @@ export function useTranscriptionVoiceTranslationActions({
       const langSource = targetLayer.languageId?.trim() || 'und';
       const sttLang = toBcp47(langSource) ?? langSource;
 
-      const whisperCfg = loadLocalWhisperConfigFromStorage();
+      const whisperCfg = loadLocalWhisperConfig();
       const whisper = new LocalWhisperSttProvider({
         baseUrl: whisperCfg.baseUrl,
         model: whisperCfg.model,

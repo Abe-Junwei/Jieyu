@@ -25,16 +25,18 @@ import {
 import {
   VOICE_SETTINGS_UPDATED_EVENT,
   loadCommercialSttConfig,
-  loadLocalWhisperConfig,
   loadSttEnhancementSelection,
   saveCommercialSttConfig,
-  saveLocalWhisperConfig,
   saveSttEnhancementSelection,
   type CommercialProviderKind,
   type CommercialProviderConfig,
-  type VoiceLocalWhisperConfig,
   type VoiceSttEnhancementConfig,
 } from '../../hooks/voice/useVoiceDock';
+import {
+  loadLocalWhisperConfig,
+  saveLocalWhisperConfig,
+  type LocalWhisperConfig,
+} from '../../services/stt/localWhisperDefaults';
 import {
   EMBEDDING_PROVIDER_OPTIONS,
   VOICE_COMMERCIAL_PROVIDER_OPTIONS,
@@ -114,8 +116,8 @@ export function SettingsAiTab({ locale: _locale, msg }: SettingsAiTabProps) {
     kind: CommercialProviderKind;
     config: CommercialProviderConfig;
   }>(() => loadCommercialSttConfig());
-  const [voiceLocalWhisperConfig, setVoiceLocalWhisperConfig] = useState<VoiceLocalWhisperConfig>(
-    () => loadLocalWhisperConfig(),
+  const [voiceLocalWhisperConfig, setLocalWhisperConfig] = useState<LocalWhisperConfig>(() =>
+    loadLocalWhisperConfig(),
   );
   const [voiceEnhancementSelection, setVoiceEnhancementSelection] = useState<{
     kind: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize';
@@ -252,8 +254,8 @@ export function SettingsAiTab({ locale: _locale, msg }: SettingsAiTabProps) {
   );
 
   const handleVoiceLocalWhisperPatch = useCallback(
-    (patch: Partial<VoiceLocalWhisperConfig>) => {
-      setVoiceLocalWhisperConfig((prev) => {
+    (patch: Partial<LocalWhisperConfig>) => {
+      setLocalWhisperConfig((prev) => {
         const next = { ...prev, ...patch };
         saveLocalWhisperConfig(next);
         notifyVoiceSettingsUpdated();

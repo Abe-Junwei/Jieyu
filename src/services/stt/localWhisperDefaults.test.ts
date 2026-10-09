@@ -3,6 +3,7 @@
  * 本地 Whisper 默认配置：唯一来源、多语、各处一致（S-1）
  * Local Whisper defaults: single source, multilingual, consistent everywhere (S-1).
  */
+import { renderHook } from '@testing-library/react';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,13 +12,15 @@ import whisperModelDefaults from '../../tools/whisper-server/whisperModelDefault
 import { zhCNDictionary as zhCN } from '../../i18n/dictionaries/zh-CN';
 import { enUSDictionary as enUS } from '../../i18n/dictionaries/en-US';
 import { VOICE_PRESETS } from '../../utils/voicePresets';
-import { loadLocalWhisperConfig } from '../../hooks/voice/useVoiceDock';
+import { useVoiceDock } from '../../hooks/voice/useVoiceDock';
 import { resolveVoiceAgentRuntimeConfig } from '../config/voiceAgentRuntimeConfig';
 import { LocalWhisperSttProvider } from './LocalWhisperSttProvider';
 import {
   LOCAL_WHISPER_DEFAULT_BASE_URL,
   LOCAL_WHISPER_DEFAULT_MODEL,
-  LOCAL_WHISPER_DEFAULT_MODEL_MULTILINGUAL,
+  LOCAL_WHISPER_STORAGE_KEY,
+  loadLocalWhisperConfig,
+  saveLocalWhisperConfig,
 } from './localWhisperDefaults';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
@@ -30,7 +33,7 @@ describe('local whisper defaults (S-1)', () => {
 
   it('默认模型是多语 whisper.cpp 模型 | default model is a multilingual whisper.cpp model', () => {
     expect(LOCAL_WHISPER_DEFAULT_MODEL).toBe(whisperModelDefaults.modelFile);
-    expect(LOCAL_WHISPER_DEFAULT_MODEL_MULTILINGUAL).toBe(true);
+    expect(whisperModelDefaults.multilingual).toBe(true);
     expect(LOCAL_WHISPER_DEFAULT_MODEL).toMatch(/^ggml-.+\.bin$/);
     // whisper.cpp 的英语专用模型以 .en 结尾；distil-whisper 系列只支持英语
     // whisper.cpp English-only models carry a ".en" suffix; the distil-whisper family is English-only
@@ -103,5 +106,45 @@ describe('local whisper defaults (S-1)', () => {
     };
     walk(path.join(REPO_ROOT, 'src'));
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('local whisper settings storage (BF2-1)', () => {
+  afterEach(() => window.localStorage.clear());
+
+  it('挂载语音面板不会把默认模型写入存储 | mounting the voice dock does not persist the built-in defaults', () => {
+    renderHook(() =>
+      useVoiceDock({
+        activeTextPrimaryLanguageId: 'cmn',
+        getActiveTextPrimaryLanguageId: async () => null,
+      }),
+    );
+    expect(window.localStorage.getItem(LOCAL_WHISPER_STORAGE_KEY)).toBeNull();
+  });
+
+  it('旧键里自动写入的旧默认模型被丢弃 | the old key (auto-saved ggml-small-q5_k.bin) is dropped', () => {
+    window.localStorage.setItem(
+      'jieyu.voiceAgent.localWhisper',
+      JSON.stringify({ baseUrl: 'http://localhost:3040', model: 'ggml-small-q5_k.bin' }),
+    );
+    expect(loadLocalWhisperConfig().model).toBe(LOCAL_WHISPER_DEFAULT_MODEL);
+    expect(window.localStorage.getItem('jieyu.voiceAgent.localWhisper')).toBeNull();
+  });
+
+  it('只保存用户改过的字段，空白回落默认 | only user-changed fields persist; blanks fall back to defaults', () => {
+    saveLocalWhisperConfig({ baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL, model: ' ggml-medium.bin ' });
+    expect(JSON.parse(window.localStorage.getItem(LOCAL_WHISPER_STORAGE_KEY)!)).toEqual({
+      model: 'ggml-medium.bin',
+    });
+    expect(loadLocalWhisperConfig()).toEqual({
+      baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL,
+      model: 'ggml-medium.bin',
+    });
+
+    window.localStorage.setItem(LOCAL_WHISPER_STORAGE_KEY, JSON.stringify({ model: '  ' }));
+    expect(loadLocalWhisperConfig().model).toBe(LOCAL_WHISPER_DEFAULT_MODEL);
+
+    saveLocalWhisperConfig({ model: LOCAL_WHISPER_DEFAULT_MODEL });
+    expect(window.localStorage.getItem(LOCAL_WHISPER_STORAGE_KEY)).toBeNull();
   });
 });
