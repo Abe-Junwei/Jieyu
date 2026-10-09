@@ -4,11 +4,15 @@
  *
  * - 只收白名单里的 localStorage 键：界面、语言、播放与波形、AI 参数。凭据、会话、协作状态、缓存、
  *   日志一律不收；值是 JSON 对象时，再去掉名字像密钥的字段（apiKey、token、secret…）。
- * - 只在整库还原时、用户勾选后才写回（逐项目导入不导入）；写回时保留本机同名键里的密钥字段。
+ * - 带服务地址的键（向量服务、本地 Whisper、语音增强）不收：恶意包可借它把本机密钥或录音导向别处
+ *   （REV5-N1）。
+ * - 只在整库还原时、用户勾选后才写回（逐项目导入不导入）；写回时只有服务地址类字段与本机完全相同，
+ *   才保留本机同名键里的密钥字段。
  * - Only allow-listed localStorage keys (UI, locale, playback / waveform, AI parameters). Credentials,
  *   sessions, collaboration state, caches and logs are never collected; JSON object values are
- *   additionally scrubbed of secret-looking fields. Restored only by a disaster restore the user
- *   opted into; local secret fields under the same key are kept.
+ *   additionally scrubbed of secret-looking fields. Keys that carry a service URL (embedding provider,
+ *   local Whisper, speech enhancement) are never carried (REV5-N1). Restored only by a disaster
+ *   restore the user opted into; local secret fields are kept only when every URL-like field matches.
  */
 
 /** 进 JYB 的偏好键（白名单）| Preference keys a JYB carries (allow-list) */
@@ -60,17 +64,17 @@ export const USER_PREFERENCE_KEYS: readonly string[] = [
   'jieyu.aiChat.streamPersistIntervalMs',
   'jieyu.aiChat.autoProbeIntervalMs',
   'jieyu.ai.promptTemplates.v1',
-  'jieyu.embeddingProvider',
   'jieyu.acoustic.routingStrategy',
   'jieyu.voice.region',
   'jieyu.voice.intent.aliases',
-  'jieyu.voiceAgent.localWhisper',
-  'jieyu.voiceAgent.sttEnhancement',
 ];
 
 const ALLOWED = new Set(USER_PREFERENCE_KEYS);
 /** 单个值的上限 | Per-value size limit */
 const MAX_VALUE_CHARS = 256 * 1024;
+
+/** 名字像服务地址的字段 | Field names that look like a service address */
+const ENDPOINT_FIELD_RE = /(url|endpoint|host|origin|server)/i;
 
 /** 名字像密钥的字段 | Field names that look like secrets */
 const SECRET_FIELD_RE =
@@ -171,9 +175,17 @@ export function readCurrentUserPreferences(
   return keys.map((key) => ({ key, value: storage?.getItem(key) ?? null }));
 }
 
+function sameEndpoints(local: Record<string, unknown>, incoming: Record<string, unknown>): boolean {
+  return [...new Set([...Object.keys(local), ...Object.keys(incoming)])]
+    .filter((field) => ENDPOINT_FIELD_RE.test(field))
+    .every((field) => JSON.stringify(local[field]) === JSON.stringify(incoming[field]));
+}
+
 /**
- * 写回偏好；本机同名 JSON 值里的密钥字段保留。返回写入的键。
- * Write preferences back, keeping secret fields of the local JSON value under the same key.
+ * 写回偏好；服务地址类字段与本机完全相同时，才保留本机同名 JSON 值里的密钥字段（REV5-N1：
+ * 密钥不能跟着包里给的新地址走）。返回写入的键。
+ * Write preferences back. Local secret fields under the same key are kept only when every URL-like
+ * field matches the local value (REV5-N1: a key must never follow a packaged address).
  */
 export function applyUserPreferences(
   entries: readonly UserPreferenceEntry[],
@@ -189,7 +201,11 @@ export function applyUserPreferences(
       try {
         const localParsed = JSON.parse(local) as unknown;
         const incoming = JSON.parse(value) as unknown;
-        if (isPlainObject(localParsed) && isPlainObject(incoming)) {
+        if (
+          isPlainObject(localParsed) &&
+          isPlainObject(incoming) &&
+          sameEndpoints(localParsed, incoming)
+        ) {
           const secrets = Object.fromEntries(
             Object.entries(localParsed).filter(([field]) => SECRET_FIELD_RE.test(field)),
           );

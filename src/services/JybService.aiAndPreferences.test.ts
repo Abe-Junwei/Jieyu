@@ -16,6 +16,7 @@ import {
   previewJybRestore,
 } from './JybService';
 import { exportProjectToJym, restoreJymAsNewProject } from './JymService';
+import { applyUserPreferences, readPackagedUserPreferences } from './userPreferencesBackup';
 
 vi.mock('../collaboration/cloud/projectCollaborationHistory', () => ({
   isProjectNeverCollaborated: () => true,
@@ -198,5 +199,51 @@ describe('JYB user preferences (settings entry)', () => {
         { key: 'jieyu-theme', value: null },
       ]),
     );
+  });
+});
+
+describe('REV5-N1: a packaged service address never receives local secrets', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('never carries or applies the URL-bearing keys', () => {
+    for (const key of [
+      'jieyu.embeddingProvider',
+      'jieyu.voiceAgent.localWhisper',
+      'jieyu.voiceAgent.sttEnhancement',
+    ]) {
+      localStorage.setItem(key, JSON.stringify({ baseUrl: 'https://trusted.example' }));
+      const read = readPackagedUserPreferences({
+        entries: [{ key, value: JSON.stringify({ baseUrl: 'https://attacker.example' }) }],
+      });
+      expect(read.entries).toEqual([]);
+      expect(read.ignoredKeys).toEqual([key]);
+      expect(
+        applyUserPreferences([{ key, value: '{"baseUrl":"https://attacker.example"}' }]),
+      ).toEqual([]);
+      expect(localStorage.getItem(key)).toContain('trusted.example');
+    }
+  });
+
+  it('keeps the local apiKey only when every address field is unchanged', () => {
+    const key = 'jieyu.aiChat.settings';
+    localStorage.setItem(
+      key,
+      JSON.stringify({ baseUrl: 'https://api.trusted.example', apiKey: 'sk-LOCAL-SECRET' }),
+    );
+    applyUserPreferences([{ key, value: JSON.stringify({ baseUrl: 'https://attacker.example' }) }]);
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({ baseUrl: 'https://attacker.example' });
+
+    localStorage.setItem(
+      key,
+      JSON.stringify({ baseUrl: 'https://api.trusted.example', apiKey: 'sk-LOCAL-SECRET' }),
+    );
+    applyUserPreferences([
+      { key, value: JSON.stringify({ baseUrl: 'https://api.trusted.example', model: 'm2' }) },
+    ]);
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({
+      baseUrl: 'https://api.trusted.example',
+      model: 'm2',
+      apiKey: 'sk-LOCAL-SECRET',
+    });
   });
 });

@@ -17,7 +17,7 @@ source_of_truth: tests/e2e/batch3Jyb.spec.ts
   - `data/library.json`（加密时 `data/library.enc`）：`{ schemaVersion, exportedAt, dbName, projects: [{ id, collections }], settings? }`，按项目分组。
   - 收哪些表由 `tableRegistry` 的数据类决定（`JIEYU_DATA_CLASS_IN_JYB`）：项目内容、目录、项目 AI 记忆与历史；凭据、审计、派生、协作状态、恢复快照不收。
   - 项目 AI（用户决定 2026-10-09，7.5）按项目切分：对话按 `textId`，消息与会话记忆跟对话走；记忆、资料集按 `projectId`（资料集也可按媒体 / 层归属）；任务按 `targetId`，任务快照跟任务走。`agent_artifacts` 无项目归属，不打包，计入 `unowned-rows`。
-  - 用户偏好（用户决定 2026-10-09）放在 `settings` 条目：只收白名单里的 localStorage 键（`userPreferencesBackup.ts`），字段名像密钥 / 令牌 / 密码的一律清掉；商业 STT、地图服务密钥、外部声学 API key、AI 设置的加密部分不在白名单里。
+  - 用户偏好（用户决定 2026-10-09）放在 `settings` 条目：只收白名单里的 localStorage 键（`userPreferencesBackup.ts`），字段名像密钥 / 令牌 / 密码的一律清掉；商业 STT、地图服务密钥、外部声学 API key、AI 设置的加密部分不在白名单里。带服务地址的三个键（向量服务 `jieyu.embeddingProvider`、本地 Whisper `jieyu.voiceAgent.localWhisper`、语音增强 `jieyu.voiceAgent.sttEnhancement`）也不收（复审 REV5-N1）。
   - 导出时写明带不带音频（菜单两项）；默认、排在第一位的是“含音频”（用户决定 2026-10-09），“仅数据，不含音频”保留。含音频时字节放在 `bytes/` 下，规则同 JYM。
   - 清单 `excluded` 列出没打包的数据类及条数（`never-packaged`），以及不属于任何项目的行（`unowned-rows`）。
 - T53：任何导出都不读凭据、审计表。`exportDatabaseAsJson` 统一过滤；项目 AI 表只有 JYB 显式传 `includeProjectAi: true` 才读，整库 JSON 导出、`LinguisticService.exportToJSON`、JYT、JYM 仍不带。
@@ -31,7 +31,7 @@ source_of_truth: tests/e2e/batch3Jyb.spec.ts
   - 界面二次确认：第一次点击只显示警告，第二次才写入。
   - 写入前把整库存一份快照到 `jieyu_overwrite_snapshots`（键 `*library*`，不含字节，含项目 AI；勾选了写回偏好时也存这些偏好的旧值）；快照失败就中止。
   - 清空备份里出现的表再写入（replace-all），沿用原 id；项目 AI 表一起替换。
-  - 用户偏好：预览列出包里的偏好键（以及被忽略的非白名单键），默认不写回；勾选“同时还原用户偏好”才在写库成功后写回，本机已有的密钥字段保留。逐项目导入从不写回偏好。
+  - 用户偏好：预览列出包里的偏好键（以及被忽略的非白名单键），默认不写回；勾选“同时还原用户偏好”才在写库成功后写回，只有地址类字段（url / endpoint / host…）与本机完全相同时才保留本机已有的密钥字段，否则包里的地址拿不到本机密钥（REV5-N1）。逐项目导入从不写回偏好。
 - 文案：“全量备份”统一改为“整库备份 JYB（.jyb）”，项目中心导入入口接受 `.jyt / .jym / .jyb`。
 - 不包含：第 4b 批（流式、暂存区）。
 
