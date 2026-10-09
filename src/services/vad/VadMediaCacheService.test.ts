@@ -70,6 +70,7 @@ describe('VadMediaCacheService', () => {
       })),
     });
 
+    mockCacheSet.mockImplementation((_id: string, run: object) => ({ ...run, params: {} }));
     const result = await ensureVadCacheForMedia({
       mediaId: 'media-2',
       mediaUrl: 'blob:media-2',
@@ -94,6 +95,7 @@ describe('VadMediaCacheService', () => {
       segments: [{ start: 0.1, end: 1.4, confidence: 0.93 }],
       durationSec: 3.2,
       cachedAt: 456,
+      params: {},
     });
   });
 

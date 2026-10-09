@@ -40,13 +40,14 @@
  * single-table writes (Table.update / bulkUpdate / Collection.modify / collection.insert) are covered
  * too. Repointing within a project is unaffected.
  *
- * shortcut: 父行不存在时不检查。归档导入（JYT / JYM / JYB）已在 inspector 里用 dropOrphanRows 丢弃
- * 父行不在包里的行（BF1-N3）；仍未兜底的是正常使用中先写子行、之后在别的项目写同 id 父行，以及纯 JSON
- * 导入（db/io.ts importDatabaseFromJson）。若出现这类坏数据的报告，再在写入时要求父行存在。
- * shortcut: missing parents are not checked. Archive imports (JYT / JYM / JYB) drop rows whose
- * parent is not in the package via dropOrphanRows in the inspectors (BF1-N3); still uncovered: a
- * live child written before its parent with a same-id parent later written in another project, and
- * the plain JSON import (db/io.ts importDatabaseFromJson). Upgrade to requiring the parent at write
+ * shortcut: 父行不存在时不检查。归档导入（JYT / JYM / JYB）在 inspector 里、纯 JSON 导入在
+ * importDatabaseFromJson 里（对照包 + preWrite 清理后的本机库，含项目级导入）用 dropOrphanRows 丢弃孤儿行（BF1-N3、BF1N3-1）；仍未兜底的
+ * 是正常使用中先写子行、之后在别的项目写同 id 父行。若出现这类坏数据的报告，再在写入时要求父行存在。
+ * shortcut: missing parents are not checked. Archive imports (JYT / JYM / JYB, in the inspectors)
+ * and the plain JSON import (importDatabaseFromJson, against snapshot + local DB after the preWrite
+ * prune, incl. project-scoped imports) drop orphan rows
+ * via dropOrphanRows (BF1-N3, BF1N3-1); still uncovered: a live child written before its parent
+ * with a same-id parent later written in another project. Upgrade to requiring the parent at write
  * time if such bad data is reported.
  */
 import type { DBCore, DBCoreMutateRequest, DBCoreTable, Middleware } from 'dexie';

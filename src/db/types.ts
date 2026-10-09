@@ -1610,4 +1610,6 @@ export type ImportResult = {
   ignoredCollections: string[];
   /** JY-04：按数据分类丢弃的集合（只记表名和行数）| Collections dropped by data class (name + row count only) */
   droppedCollections: Array<{ name: string; rows: number }>;
+  /** BF1N3-1：父行既不在包里也不在本机库里、已丢弃的行（按表）| Orphan rows dropped per table */
+  skippedOrphanRows?: Array<{ collection: string; count: number }>;
 };

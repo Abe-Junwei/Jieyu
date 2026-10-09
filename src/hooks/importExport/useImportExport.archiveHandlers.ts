@@ -73,6 +73,18 @@ function pickProjectTitle(title: Record<string, string> | undefined, fallback: s
   return value && value.trim().length > 0 ? value.trim() : fallback;
 }
 
+/** 完成提示后面补一句跳过了多少孤儿行（BF1N3-2）| Append the dropped orphan count (BF1N3-2) */
+function withSkippedOrphans(
+  locale: Locale,
+  message: string,
+  rows: ReadonlyArray<{ count: number }>,
+): string {
+  const count = rows.reduce((sum, item) => sum + item.count, 0);
+  return count > 0
+    ? `${message} ${tf(locale, 'transcription.importExport.importDone.skippedOrphanRows', { count })}`
+    : message;
+}
+
 function getArchivePasswordCacheKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
@@ -137,6 +149,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       mediaWithoutBytes: project.mediaWithoutBytes,
       includedBytesCount: project.includedBytesCount,
       aiRows: project.aiRows,
+      skippedOrphanRows: project.skippedOrphanRows,
     }));
     return {
       kind: 'jyb',
@@ -165,16 +178,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         includedBytesCount: preview.includedBytes.count,
         includedBytesTotal: preview.includedBytes.totalBytes,
         skippedLanguageIds: [],
-        // 各项目的孤儿行按表合计 | Orphan rows summed per table across projects
-        skippedOrphanRows: [
-          ...preview.projects
-            .flatMap((project) => project.skippedOrphanRows)
-            .reduce(
-              (sums, { collection, count }) =>
-                sums.set(collection, (sums.get(collection) ?? 0) + count),
-              new Map<string, number>(),
-            ),
-        ].map(([collection, count]) => ({ collection, count })),
+        skippedOrphanRows: projects.flatMap((project) => project.skippedOrphanRows),
       },
       libraryBackup: {
         mediaIncluded: preview.manifest.media === 'included',
@@ -258,10 +262,14 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       0,
     );
     return {
-      message: tf(locale, 'transcription.importExport.importDone.restoredAsNew', {
-        title: pickProjectTitle(restored.title, restored.projectId),
-        written,
-      }),
+      message: withSkippedOrphans(
+        locale,
+        tf(locale, 'transcription.importExport.importDone.restoredAsNew', {
+          title: pickProjectTitle(restored.title, restored.projectId),
+          written,
+        }),
+        restored.skippedOrphanRows,
+      ),
       projectId: restored.projectId,
     };
   };
@@ -282,11 +290,15 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       (sum, c) => sum + (c?.written ?? 0),
       0,
     );
-    return tf(locale, 'transcription.importExport.importDone.overwritten', {
-      kind: result.kind.toUpperCase(),
-      title: pickProjectTitle(result.title, result.projectId),
-      written,
-    });
+    return withSkippedOrphans(
+      locale,
+      tf(locale, 'transcription.importExport.importDone.overwritten', {
+        kind: result.kind.toUpperCase(),
+        title: pickProjectTitle(result.title, result.projectId),
+        written,
+      }),
+      result.skippedOrphanRows,
+    );
   };
 
   /** JYB 导入；返回提示与之后要打开的项目 | JYB import; returns the message and the project to open */
@@ -309,10 +321,14 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         }),
       );
       const keepCurrent = activeTextId !== null && result.projectIds.includes(activeTextId);
-      const doneMessage = tf(locale, 'transcription.importExport.importDone.jybDisaster', {
-        count: result.projectIds.length,
-        written: countWritten(result.importResult),
-      });
+      const doneMessage = withSkippedOrphans(
+        locale,
+        tf(locale, 'transcription.importExport.importDone.jybDisaster', {
+          count: result.projectIds.length,
+          written: countWritten(result.importResult),
+        }),
+        result.skippedOrphanRows,
+      );
       return {
         message:
           result.restoredPreferenceKeys.length > 0
@@ -334,10 +350,15 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       }),
     );
     return {
-      message: tf(locale, 'transcription.importExport.importDone.jybProjects', {
-        count: result.projects.length,
-        written: countWritten(result.importResult),
-      }),
+      // result.projects 只含勾选的项目 | result.projects holds the checked projects only
+      message: withSkippedOrphans(
+        locale,
+        tf(locale, 'transcription.importExport.importDone.jybProjects', {
+          count: result.projects.length,
+          written: countWritten(result.importResult),
+        }),
+        result.projects.flatMap((project) => project.skippedOrphanRows),
+      ),
       // 仍停留在当前项目（JY-02）；没有当前项目时打开第一个导入的（RD-3）
       // Stay on the current project (JY-02); with none, open the first imported one (RD-3).
       openTextId:

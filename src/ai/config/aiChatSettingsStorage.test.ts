@@ -13,6 +13,26 @@ describe('aiChatSettingsStorage', () => {
     vi.unstubAllGlobals();
   });
 
+  it('remembers the base URL origin for the index.html CSP script (BF3-1)', async () => {
+    await persistAiChatSettings(
+      normalizeAiChatSettings({
+        providerKind: 'openai-compatible',
+        baseUrl: 'https://llm.example.org:8443/v1/',
+        model: 'm',
+      }),
+    );
+    expect(window.localStorage.getItem('jieyu.csp.aiOrigin')).toBe('https://llm.example.org:8443');
+
+    await persistAiChatSettings(
+      normalizeAiChatSettings({
+        providerKind: 'openai-compatible',
+        baseUrl: 'not a url',
+        model: 'm',
+      }),
+    );
+    expect(window.localStorage.getItem('jieyu.csp.aiOrigin')).toBeNull();
+  });
+
   it('redacts secrets when secure crypto is unavailable', async () => {
     const cryptoWithoutSubtle = {
       ...window.crypto,
@@ -21,18 +41,22 @@ describe('aiChatSettingsStorage', () => {
 
     vi.stubGlobal('crypto', cryptoWithoutSubtle);
 
-    await persistAiChatSettings(normalizeAiChatSettings({
-      providerKind: 'deepseek',
-      baseUrl: 'https://api.deepseek.com/v1',
-      model: 'deepseek-chat',
-      apiKey: 'sk-plain-fallback',
-      apiKeysByProvider: {
-        deepseek: 'sk-plain-fallback',
-      },
-    }));
+    await persistAiChatSettings(
+      normalizeAiChatSettings({
+        providerKind: 'deepseek',
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-chat',
+        apiKey: 'sk-plain-fallback',
+        apiKeysByProvider: {
+          deepseek: 'sk-plain-fallback',
+        },
+      }),
+    );
 
     expect(window.localStorage.getItem('jieyu.aiChat.settings.secure')).toBeNull();
-    const plainPayload = JSON.parse(window.localStorage.getItem('jieyu.aiChat.settings') ?? '{}') as {
+    const plainPayload = JSON.parse(
+      window.localStorage.getItem('jieyu.aiChat.settings') ?? '{}',
+    ) as {
       providerKind?: string;
       baseUrl?: string;
       model?: string;
@@ -52,13 +76,16 @@ describe('aiChatSettingsStorage', () => {
   });
 
   it('loads redacted plaintext fallback without reintroducing secrets', async () => {
-    window.localStorage.setItem('jieyu.aiChat.settings', JSON.stringify({
-      providerKind: 'deepseek',
-      baseUrl: 'https://api.deepseek.com/v1',
-      model: 'deepseek-chat',
-      apiKey: '',
-      apiKeysByProvider: {},
-    }));
+    window.localStorage.setItem(
+      'jieyu.aiChat.settings',
+      JSON.stringify({
+        providerKind: 'deepseek',
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-chat',
+        apiKey: '',
+        apiKeysByProvider: {},
+      }),
+    );
 
     const loaded = await loadAiChatSettingsFromStorage();
 

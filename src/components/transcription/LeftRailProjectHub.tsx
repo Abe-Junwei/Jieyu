@@ -164,14 +164,33 @@ interface LeftRailProjectHubProps {
 
 const log = createLogger('LeftRailProjectHub');
 
+/** 按表合计（JYB 多个项目会有同名表）| Summed per table (JYB projects repeat table names) */
 function formatSkippedOrphans(rows: Array<{ collection: string; count: number }>): {
   count: number;
   collections: string;
 } {
+  const byTable = new Map<string, number>();
+  for (const { collection, count } of rows) {
+    byTable.set(collection, (byTable.get(collection) ?? 0) + count);
+  }
   return {
     count: rows.reduce((sum, item) => sum + item.count, 0),
-    collections: rows.map((item) => `${item.collection} (${item.count})`).join(', '),
+    collections: [...byTable].map(([collection, count]) => `${collection} (${count})`).join(', '),
   };
+}
+
+/** JYB 逐项目导入只算勾选的项目（BF1N3-2）| JYB per-project import counts checked projects only */
+function skippedOrphanRowsFor(
+  state: ProjectImportState,
+): Array<{ collection: string; count: number }> {
+  const { libraryBackup, restoreAsNewProject } = state.preview;
+  if (!libraryBackup || state.restoreMode === 'disaster-restore') {
+    return restoreAsNewProject.skippedOrphanRows;
+  }
+  const selected = new Set(state.selectedProjectIds ?? []);
+  return libraryBackup.projects
+    .filter((project) => selected.has(project.id))
+    .flatMap((project) => project.skippedOrphanRows);
 }
 
 function pickInsertEstimate(
@@ -1216,14 +1235,12 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                         })}
                       </PanelChip>
                     ) : null}
-                    {projectImportState.preview.restoreAsNewProject.skippedOrphanRows.length > 0 ? (
+                    {skippedOrphanRowsFor(projectImportState).length > 0 ? (
                       <PanelChip variant="warning">
                         {tf(
                           locale,
                           'transcription.projectHub.restoreSkippedOrphanRows',
-                          formatSkippedOrphans(
-                            projectImportState.preview.restoreAsNewProject.skippedOrphanRows,
-                          ),
+                          formatSkippedOrphans(skippedOrphanRowsFor(projectImportState)),
                         )}
                       </PanelChip>
                     ) : null}

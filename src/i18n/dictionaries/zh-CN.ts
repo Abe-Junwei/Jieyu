@@ -2340,6 +2340,8 @@ export const zhCNDictionary = {
     '已从 JYB 整库还原 {count} 个项目，写入 {written} 条；还原前的整库快照已保存。',
   'transcription.importExport.importDone.jybPreferences':
     '已还原 {count} 项用户偏好，刷新页面后生效。',
+  'transcription.importExport.importDone.skippedOrphanRows':
+    '另有 {count} 条记录的上级记录不在包里，已跳过。',
   'transcription.importExport.jybNoProjectSelected': '请至少勾选一个项目。',
   'transcription.importExport.importDone.overwritten':
     '已用 {kind} 覆盖当前项目「{title}」，写入 {written} 条；覆盖前快照已保存。',

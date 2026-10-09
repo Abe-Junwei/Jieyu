@@ -68,6 +68,7 @@ describe('TranscriptionAppService', () => {
         segments: [{ start: 1.0, end: 2.0 }],
         durationSec: 3,
         cachedAt: 1,
+        params: {},
       })),
     });
     const service = createTranscriptionAppService(deps);
@@ -86,11 +87,14 @@ describe('TranscriptionAppService', () => {
   it('resolveAutoSegmentRun records engine, source and params for provenance', async () => {
     const cached = createTranscriptionAppService(
       createDeps({
+        // N9：缓存是用旧参数算的，来源记录必须写缓存里的参数，不是今天的默认值
+        // N9: the cache was computed with older params; provenance must carry those, not today's
         ensureVadCacheForMedia: vi.fn(async () => ({
           engine: 'silero' as const,
           segments: [{ start: 1.0, end: 2.0 }],
           durationSec: 3,
           cachedAt: 1,
+          params: { engine: 'silero', vadModel: 'silero_vad.onnx', onsetThreshold: 0.5 },
         })),
       }),
     );
@@ -104,13 +108,12 @@ describe('TranscriptionAppService', () => {
       method: 'auto-segmentation',
       model: 'silero_vad.onnx',
       reviewStatus: 'suggested',
-      params: {
-        engine: 'silero',
-        source: 'cache',
-        onsetThreshold: 0.6,
-        offsetThreshold: 0.45,
-        minDurationSec: 0.3,
-      },
+    });
+    expect(fromCache.provenance.params).toEqual({
+      engine: 'silero',
+      source: 'cache',
+      vadModel: 'silero_vad.onnx',
+      onsetThreshold: 0.5,
     });
 
     const fresh = createTranscriptionAppService(

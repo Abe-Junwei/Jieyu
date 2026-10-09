@@ -30,7 +30,7 @@ import {
   VAD_AUTO_WARM_MAX_BYTES,
 } from '../services/vad/VadMediaCacheService';
 import type { AppServiceMeta, AppServiceResult } from './contracts';
-import type { MediaItemDocType, ProvenanceEnvelope, TextDocType } from '../db';
+import type { MediaItemDocType, ProvenanceEnvelope, ProvenanceParams, TextDocType } from '../db';
 
 export const TranscriptionAppServiceMeta: AppServiceMeta = {
   domain: 'transcription',
@@ -223,10 +223,11 @@ export function createTranscriptionAppService(
   const withProvenance = (
     segments: Array<{ start: number; end: number }>,
     run: AutoSegmentationRun,
+    usedParams?: ProvenanceParams,
   ): AutoSegmentRunResult => ({
     segments,
     run,
-    provenance: buildAutoSegmentationProvenance(run, new Date().toISOString()),
+    provenance: buildAutoSegmentationProvenance(run, new Date().toISOString(), usedParams),
   });
 
   const resolveAutoSegmentRun = async (
@@ -238,7 +239,11 @@ export function createTranscriptionAppService(
       ...(request.mediaBlobSize !== undefined ? { mediaBlobSize: request.mediaBlobSize } : {}),
     });
     if (cachedEntry) {
-      return withProvenance(cachedEntry.segments, { engine: cachedEntry.engine, source: 'cache' });
+      return withProvenance(
+        cachedEntry.segments,
+        { engine: cachedEntry.engine, source: 'cache' },
+        cachedEntry.params,
+      );
     }
     const freshEnergyRun: AutoSegmentationRun = { engine: 'energy', source: 'fresh' };
 

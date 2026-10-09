@@ -34,11 +34,14 @@ export interface AutoSegmentationRun {
   source: AutoSegmentationSource;
 }
 
-function buildAutoSegmentationParams(run: AutoSegmentationRun): ProvenanceParams {
-  if (run.engine === 'silero') {
+/**
+ * 当前代码对这个引擎用的参数（不含 source）；VAD 缓存写入时存下这份（N9）。
+ * Params the current code uses for this engine (no source); the VAD cache stores them on write (N9).
+ */
+export function vadRunParams(engine: AutoSegmentationEngine): ProvenanceParams {
+  if (engine === 'silero') {
     return {
       engine: 'silero',
-      source: run.source,
       vadModel: SILERO_VAD_MODEL_ID,
       vadModelVersion: SILERO_VAD_MODEL_VERSION,
       vadModelSha256: SILERO_VAD_MODEL_SHA256,
@@ -47,7 +50,6 @@ function buildAutoSegmentationParams(run: AutoSegmentationRun): ProvenanceParams
   }
   return {
     engine: 'energy',
-    source: run.source,
     vadModel: ENERGY_VAD_MODEL_ID,
     vadModelVersion: ENERGY_VAD_MODEL_VERSION,
     ...ENERGY_VAD_DEFAULTS,
@@ -61,8 +63,10 @@ function buildAutoSegmentationParams(run: AutoSegmentationRun): ProvenanceParams
 export function buildAutoSegmentationProvenance(
   run: AutoSegmentationRun,
   nowIso: string,
+  /** 缓存命中时传缓存条目里存的参数（N9）| On a cache hit, the params stored with the entry (N9) */
+  usedParams: ProvenanceParams = vadRunParams(run.engine),
 ): ProvenanceEnvelope {
-  const params = buildAutoSegmentationParams(run);
+  const params: ProvenanceParams = { ...usedParams, source: run.source };
   return {
     actorType: 'ai',
     method: 'auto-segmentation',

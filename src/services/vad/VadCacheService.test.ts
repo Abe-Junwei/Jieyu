@@ -11,22 +11,38 @@ function withLocalStorage(fn: () => void) {
   const store: Record<string, string> = {};
   const mockStorage = {
     getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
   };
   const original = globalThis.localStorage;
-  Object.defineProperty(globalThis, 'localStorage', { value: mockStorage, writable: true, configurable: true });
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: mockStorage,
+    writable: true,
+    configurable: true,
+  });
   try {
     fn();
   } finally {
-    Object.defineProperty(globalThis, 'localStorage', { value: original, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: original,
+      writable: true,
+      configurable: true,
+    });
   }
 }
 
 describe('VadCacheService', () => {
   beforeEach(() => {
     // 清除可能残留的 localStorage key
-    try { localStorage.removeItem('jieyu:vad-cache'); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem('jieyu:vad-cache');
+    } catch {
+      /* ignore */
+    }
   });
 
   it('returns null for unknown mediaId', () => {
@@ -38,7 +54,10 @@ describe('VadCacheService', () => {
     const svc = makeService();
     const entry = {
       engine: 'silero' as const,
-      segments: [{ start: 1, end: 2 }, { start: 3.5, end: 5 }],
+      segments: [
+        { start: 1, end: 2 },
+        { start: 3.5, end: 5 },
+      ],
       durationSec: 10,
       cachedAt: Date.now(),
     };
@@ -114,6 +133,25 @@ describe('VadCacheService', () => {
       const result = svc2.get('persist-test');
       expect(result).not.toBeNull();
       expect(result!.segments).toEqual([{ start: 2, end: 3 }]);
+      // N9：参数随条目一起存下 | Params are stored with the entry
+      expect(result!.params).toMatchObject({ engine: 'energy', vadModel: 'jieyu-rms-energy-vad' });
+    });
+  });
+
+  it('drops and deletes v1 entries, which carry no params (N9)', () => {
+    withLocalStorage(() => {
+      localStorage.setItem(
+        'jieyu:vad-cache',
+        JSON.stringify({
+          version: 1,
+          entries: {
+            old: { engine: 'silero', segments: [], durationSec: 1, cachedAt: Date.now() },
+          },
+          accessOrder: ['old'],
+        }),
+      );
+      expect(new VadCacheService().get('old')).toBeNull();
+      expect(localStorage.getItem('jieyu:vad-cache')).toBeNull();
     });
   });
 

@@ -84,7 +84,6 @@ function link(id: string, targetId: string, lexemeId: string) {
   return { id, targetType: 'token', targetId, lexemeId, createdAt: NOW, updatedAt: NOW } as never;
 }
 
-
 function segment(id: string, textId: string, parentUnitId: string) {
   return {
     id,
@@ -282,9 +281,9 @@ describe('JYT / JYM (inspectProjectPackage)', () => {
       ...EXPECTED_SKIPPED,
     ]);
     const units = await db.layer_units.where('textId').equals(restored.projectId).toArray();
-    expect(units.every((row) => !row.parentUnitId || units.some((u) => u.id === row.parentUnitId))).toBe(
-      true,
-    );
+    expect(
+      units.every((row) => !row.parentUnitId || units.some((u) => u.id === row.parentUnitId)),
+    ).toBe(true);
     expect(units.some((row) => row.unitType === 'segment')).toBe(false);
     expect(await db.layer_unit_contents.where('textId').equals(restored.projectId).count()).toBe(0);
   });
@@ -308,7 +307,8 @@ describe('JYB (inspectJyb)', () => {
   it('disaster restore leaves no orphan behind', async () => {
     const archive = await exportDatabaseToJyb();
     await Promise.all(db.tables.map((table) => table.clear()));
-    await disasterRestoreFromJyb(archive);
+    const result = await disasterRestoreFromJyb(archive);
+    expect(result.skippedOrphanRows).toEqual(EXPECTED_SKIPPED);
     expect(await db.unit_tokens.get('pA-stray-tok')).toBeUndefined();
     expect(await db.unit_morphemes.get('pA-stray-mor')).toBeUndefined();
     expect(await db.token_lexeme_links.get('pA-stray-link')).toBeUndefined();

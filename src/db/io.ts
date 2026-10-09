@@ -34,6 +34,8 @@ import {
   type SnapshotInvalidCollection,
 } from './snapshotFormatError';
 import { withLexemeNestedIds } from './lexemeNestedIds';
+import { dropOrphanRows } from './dropOrphanRows';
+import { JIEYU_PARENT_CONSISTENCY_RULES } from './ownershipImmutabilityMiddleware';
 import {
   InboundByteConflictError,
   isInboundByteCollection,
@@ -825,6 +827,48 @@ export async function importDatabaseFromJson(
 
       if (options?.preWrite) {
         await options.preWrite.run();
+      }
+
+      // BF1N3-1：父行既不在包里、也不在本机库里的行丢掉（replace-all 会清空的表不算本机；放在 preWrite 之后，被项目清理删掉的父行也不算）
+      // BF1N3-1: drop rows whose parent is neither in the snapshot nor in the local DB
+      // (tables replace-all is about to clear do not count as local). Runs after preWrite (PF-1),
+      // so local parents a project-scoped prune just deleted do not count either.
+      const inbound = Object.fromEntries(
+        preparedCollections.map((p) => [p.collectionName, p.normalizedDocs as unknown[]]),
+      );
+      const inboundIds = new Map<string, Set<string>>();
+      const inInbound = (table: string, id: string) => {
+        if (!inboundIds.has(table)) {
+          const rows = (inbound[table] ?? []) as Array<{ id?: unknown }>;
+          inboundIds.set(table, new Set(rows.map((row) => String(row.id))));
+        }
+        return inboundIds.get(table)!.has(id);
+      };
+      const missing = new Map<string, Set<string>>();
+      for (const [name, rule] of Object.entries(JIEYU_PARENT_CONSISTENCY_RULES)) {
+        for (const row of (inbound[name] ?? []) as Array<Record<string, unknown>>) {
+          for (const ref of rule.extract(row).parents) {
+            if (inInbound(ref.table, ref.key)) continue;
+            if (strategy === 'replace-all' && inbound[ref.table]) continue;
+            if (!missing.has(ref.table)) missing.set(ref.table, new Set());
+            missing.get(ref.table)!.add(ref.key);
+          }
+        }
+      }
+      const localParentIds = new Map<string, Set<string>>();
+      for (const [table, keys] of missing) {
+        const ids = [...keys];
+        const found = await tableByCollection[table as KnownCollectionName]?.bulkGet(ids);
+        localParentIds.set(table, new Set(ids.filter((_, i) => found?.[i] !== undefined)));
+      }
+      const orphans = dropOrphanRows(inbound, localParentIds);
+      if (orphans.skipped.length > 0) {
+        for (const prepared of preparedCollections) {
+          prepared.normalizedDocs = (orphans.collections[prepared.collectionName] ??
+            prepared.normalizedDocs) as typeof prepared.normalizedDocs;
+        }
+        result.skippedOrphanRows = orphans.skipped;
+        log.warn('Dropped orphan rows from JSON import', { skipped: orphans.skipped });
       }
 
       for (const prepared of preparedCollections) {
