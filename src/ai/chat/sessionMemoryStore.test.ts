@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AiSessionMemory } from './chatDomain.types';
 import * as dbModule from '../../db';
 import {
   bindSessionMemoryConversation,
@@ -125,7 +126,9 @@ describe('loadSessionMemoryAsync', () => {
       const rowB = await db.collections.ai_session_memories
         .findOne({ selector: { conversationId: conversationB } })
         .exec();
-      expect(rowB?.toJSON().payload.preferences?.lastLanguage).toBe('eng');
+      expect(
+        (rowB?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastLanguage,
+      ).toBe('eng');
     });
   });
 });

@@ -1,4 +1,4 @@
-import type { AiChatToolName } from '../chat/chatDomain.types';
+import type { AiChatToolName } from '../chat/aiChatToolName.types';
 
 type AiToolRiskTier = 'low' | 'medium' | 'high';
 type AiToolConfirmationMode = 'none' | 'pending_propose_changes' | 'host_modal';

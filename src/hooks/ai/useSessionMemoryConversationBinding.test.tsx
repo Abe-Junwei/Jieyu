@@ -35,7 +35,9 @@ describe('useSessionMemoryConversationBinding', () => {
     const row = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId } })
       .exec();
-    expect(row?.toJSON().payload.preferences?.lastLanguage).toBe('eng');
+    expect((row?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastLanguage).toBe(
+      'eng',
+    );
   });
 
   it('clears stale ref on conversation switch before hydrating the next conversation', async () => {
@@ -63,7 +65,9 @@ describe('useSessionMemoryConversationBinding', () => {
     const row = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId: 'conv-b' } })
       .exec();
-    expect(row?.toJSON().payload.preferences?.lastLanguage).toBe('eng');
+    expect((row?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastLanguage).toBe(
+      'eng',
+    );
   });
 
   it('clears bind and ref when conversationId becomes null', async () => {

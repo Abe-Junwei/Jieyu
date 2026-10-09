@@ -8,7 +8,13 @@ import { acceptAnnotationGlossSuggestion } from './annotation/acceptAnnotationGl
 import { saveAnnotationTokenLanguage } from './annotation/saveAnnotationTokenLanguage';
 import { saveAnnotationOccurrenceCitation } from './annotation/saveAnnotationOccurrenceCitation';
 import { LinguisticService } from '../app/languageAssetPageAccess';
-import type { AnnotationIgtRow, AnnotationSaveNotice } from './useAnnotationWorkspaceController';
+import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
+
+/** 保存提示状态（定义在此以免与控制器循环依赖，JY-24）| Save notice (lives here to avoid a cycle). */
+export type AnnotationSaveNotice = {
+  kind: 'idle' | 'saving' | 'saved' | 'error';
+  message: string;
+};
 
 /** Ignore a finished write when a later write has already taken the notice. */
 export function finishAnnotationSaveNotice(

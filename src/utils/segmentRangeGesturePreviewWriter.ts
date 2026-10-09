@@ -2,29 +2,19 @@ import type { SetStateAction } from 'react';
 import type { SnapGuide } from '../hooks/transcription/transcriptionTypes';
 import {
   buildSegmentRangeGesturePreviewReadModel,
+  type LassoSurfacePreview,
   type SegmentRangeGesturePreviewMode,
+  type TierLassoPreviewRect,
+  type WaveLassoPreviewRect,
   type SegmentRangeGesturePreviewReadModel,
   type TimeRangeDragPreview,
 } from './segmentRangeGesturePreviewReadModel';
 
 export const initialSegmentRangeGestureSnapGuide: SnapGuide = { visible: false };
 
-export type TierLassoPreviewRect = { x: number; y: number; w: number; h: number };
-
-export type WaveLassoPreviewRect = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  mode: 'select' | 'create';
-  hitCount: number;
-};
-
-/** 波形 / tier 套索预览互斥（与 `useLasso` 内状态一致）。 */
-export type LassoSurfacePreview =
-  | { surface: 'none' }
-  | { surface: 'tier'; rect: TierLassoPreviewRect }
-  | { surface: 'wave'; rect: WaveLassoPreviewRect; hintCount: number };
+// 套索预览类型定义在读模型里，这里转出，避免读模型 ↔ writer 循环依赖（JY-24）。
+// Lasso preview types live in the read model and are re-exported here (JY-24 cycle cut).
+export type { LassoSurfacePreview, TierLassoPreviewRect, WaveLassoPreviewRect };
 
 export type SubSelectPreviewRange = { start: number; end: number };
 

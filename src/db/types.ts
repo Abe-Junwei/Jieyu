@@ -349,11 +349,21 @@ export interface AiConversationDoc {
   updatedAt: string;
 }
 
+/**
+ * 会话记忆载荷在 db 层是不透明对象：形状归 AI 层（`AiSessionMemory`），读取方先经
+ * `normalizeSessionMemory` 再用；写入时由 `aiSessionMemoryPayloadSchema` 校验。
+ * db 层不再引用 AI 类型，切断 db → ai 的类型依赖（JY-24）。
+ * The session-memory payload is opaque at the db layer: its shape belongs to the AI layer
+ * (`AiSessionMemory`); readers go through `normalizeSessionMemory`, writes are checked by
+ * `aiSessionMemoryPayloadSchema`. Keeps db free of AI type imports (JY-24).
+ */
+export type AiSessionMemoryPayload = object;
+
 /** Per-conversation session memory row (G1a); Dexie PK is `conversationId` (`id` mirrors it for adapters). */
 export interface AiSessionMemoryDoc {
   id: string;
   conversationId: string;
-  payload: import('../ai/chat/chatDomain.types').AiSessionMemory;
+  payload: AiSessionMemoryPayload;
   updatedAt: string;
 }
 
