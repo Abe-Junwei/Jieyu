@@ -20,6 +20,7 @@ import { DbIntegrityBlockingOverlay } from './components/DbIntegrityBlockingOver
 import { DevBuildBanner } from './components/DevBuildBanner';
 import { LegacyDataResetDialog } from './components/LegacyDataResetDialog';
 import { DbMigrationGateOverlay } from './components/DbMigrationGateOverlay';
+import { CollaborationLifecycleNotices } from './components/CollaborationLifecycleNotices';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
@@ -914,6 +915,7 @@ export function App() {
             <AppGlobalToastHost />
             <LegacyDataResetDialog locale={locale} />
             <DbMigrationGateOverlay locale={locale} />
+            <CollaborationLifecycleNotices locale={locale} />
             {dbGate.kind === 'failed' ? (
               <DbIntegrityBlockingOverlay
                 locale={locale}

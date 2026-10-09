@@ -173,6 +173,30 @@ class ProjectMemoryStore {
     return this._memory;
   }
 
+  /**
+   * 删除一个项目的记忆（删除项目 / 从本机移除的清理任务用，rev5 9.1）。失败时抛错，由清理任务重试。
+   * Delete one project's memory (project deletion / local removal cleanup). Throws on failure so
+   * the cleanup job retries.
+   */
+  async deleteProjectMemory(projectId: string): Promise<void> {
+    if (this._currentProjectId === projectId) {
+      this._memory = null;
+      this._currentProjectId = null;
+      this._invalidateRagSearchIndex();
+    }
+    if (typeof indexedDB === 'undefined') return;
+    await this._withDb(
+      async (db) =>
+        new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('projectMemory', 'readwrite');
+          tx.objectStore('projectMemory').delete(projectId);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        }),
+    );
+  }
+
   /** Get current memory (null if not loaded) */
   getMemory(): ProjectMemory | null {
     return this._memory;

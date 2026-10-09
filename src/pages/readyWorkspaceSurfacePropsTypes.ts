@@ -93,6 +93,7 @@ export interface UseReadyWorkspaceSurfacePropsInput {
   queryProjectChangeTimeline: unknown;
   listAccessibleCloudProjects: unknown;
   listCloudProjectMembers: unknown;
+  deleteCurrentCloudProject: unknown;
   getUnitTextForLayer: unknown;
   selectTimelineUnit: unknown;
   reorderLayers: unknown;

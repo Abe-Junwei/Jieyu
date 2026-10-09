@@ -5,6 +5,7 @@
  * Manages asset metadata records alongside Storage upload/signed-url/remove.
  */
 import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
+import { collaborationWriteStamp } from './collaborationProtocolGuard';
 import {
   uploadProjectAsset,
   createSignedProjectAssetUrl,
@@ -115,6 +116,8 @@ export class CollaborationAssetService {
       size_bytes: sizeBytes,
       checksum: input.checksum ?? null,
       uploaded_by: input.uploadedBy,
+      // 服务器按这两列检查协议与客户端版本（9.3）| Server checks protocol + client version (9.3)
+      ...collaborationWriteStamp(),
     };
 
     const { data, error } = await client.from('project_assets').insert(row).select().single();

@@ -59,7 +59,9 @@ const {
   const supabaseInsert = vi
     .fn<(rows: unknown[]) => Promise<{ error: null }>>()
     .mockResolvedValue({ error: null });
-  const projectGuardRow = { current: { protocol_version: 1, app_min_version: '0.1.0' } };
+  const projectGuardRow: {
+    current: { protocol_version: number; app_min_version: string; deleted_at?: string | null };
+  } = { current: { protocol_version: 1, app_min_version: '0.1.0' } };
   const projectSelectMaybeSingle = vi.fn().mockImplementation(async () => ({
     data: projectGuardRow.current,
     error: null,
@@ -94,6 +96,16 @@ const {
   };
 });
 
+const { applyTombstone } = vi.hoisted(() => ({
+  applyTombstone: vi
+    .fn<(projectId: string, input?: { deletedAt?: string | null }) => Promise<unknown>>()
+    .mockResolvedValue({ projectId: 'project-1', cancelledOutboundCount: 0 }),
+}));
+
+vi.mock('../../services/projectCloudTombstone', () => ({
+  applyCloudProjectTombstone: applyTombstone,
+}));
+
 vi.mock('../../collaboration/cloud/CollaborationSyncBridge', () => ({
   CollaborationSyncBridge: BridgeMock,
 }));
@@ -107,6 +119,12 @@ vi.mock('../../collaboration/cloud/collaborationSupabaseFacade', () => ({
 import { useTranscriptionCollaborationBridge } from './useTranscriptionCollaborationBridge';
 import { loadProjectLastSeenRevision } from '../../collaboration/cloud/CollaborationClientStateStore';
 import type { CollaborationProjectChangeRecord } from '../../collaboration/cloud/syncTypes';
+import {
+  broadcastCollaborationLifecycle,
+  resetCollaborationLifecycleBroadcastForTests,
+  subscribeCollaborationLifecycle,
+} from '../../collaboration/cloud/collaborationLifecycleBroadcast';
+import { markProjectRemovedLocally } from '../../collaboration/cloud/collaborationLocalProjectRegistry';
 
 describe('useTranscriptionCollaborationBridge', () => {
   beforeEach(() => {
@@ -127,6 +145,8 @@ describe('useTranscriptionCollaborationBridge', () => {
     lastBridgeOptions.current = null;
     bridgeCtorCalls.length = 0;
     window.localStorage.clear();
+    applyTombstone.mockClear();
+    resetCollaborationLifecycleBroadcastForTests();
   });
 
   it('启动后创建桥接，停用时停止桥接 | starts bridge when enabled and stops when disabled', async () => {
@@ -423,5 +443,135 @@ describe('useTranscriptionCollaborationBridge', () => {
 
     await expect(options.onApplyRemoteChange(change)).rejects.toThrow('apply-failed');
     expect(loadProjectLastSeenRevision('project-1')).toBe(0);
+  });
+
+  describe('rev5 2C deletion safety', () => {
+    type SendOptions = { onSendLocalChanges: (changes: unknown[]) => Promise<void> };
+    const outbound = [
+      {
+        projectId: 'project-1',
+        actorId: 'user-1',
+        clientId: 'c',
+        clientOpId: 'c:1',
+        protocolVersion: 1,
+        projectRevision: 0,
+        baseRevision: 0,
+        entityType: 'layer_unit',
+        entityId: 'u1',
+        opType: 'upsert_unit',
+        sourceKind: 'user',
+        createdAt: '2026-10-09T00:00:00.000Z',
+      },
+    ];
+
+    it('T23: tombstoned at start → bridge never starts, local cleanup runs', async () => {
+      projectGuardRow.current = {
+        protocol_version: 1,
+        app_min_version: '0.1.0',
+        deleted_at: '2026-10-09T01:00:00.000Z',
+      };
+      const { result } = renderHook(() =>
+        useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+      );
+      await waitFor(() => {
+        expect(applyTombstone).toHaveBeenCalledWith('project-1', {
+          deletedAt: '2026-10-09T01:00:00.000Z',
+        });
+      });
+      expect(bridgeCtorCalls).toHaveLength(0);
+      expect(result.current.collaborationProtocolGuard.cloudWritesDisabled).toBe(true);
+      expect(result.current.collaborationProtocolGuard.projectDeleted).toBe(true);
+    });
+
+    it('T23: tombstone appearing before a push → no insert, outbound cancelled via cleanup', async () => {
+      renderHook(() =>
+        useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+      );
+      await waitFor(() => expect(bridgeStart).toHaveBeenCalledTimes(1));
+      projectGuardRow.current = {
+        protocol_version: 1,
+        app_min_version: '0.1.0',
+        deleted_at: '2026-10-09T02:00:00.000Z',
+      };
+      const options = lastBridgeOptions.current as SendOptions;
+      await expect(options.onSendLocalChanges(outbound)).rejects.toThrow(/deleted in the cloud/);
+      expect(supabaseInsert).not.toHaveBeenCalled();
+      await waitFor(() => expect(applyTombstone).toHaveBeenCalledTimes(1));
+      expect(bridgeStop).toHaveBeenCalled();
+    });
+
+    it('JYDEL rejection from the server is handled as a tombstone', async () => {
+      renderHook(() =>
+        useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+      );
+      await waitFor(() => expect(bridgeStart).toHaveBeenCalledTimes(1));
+      supabaseInsert.mockResolvedValueOnce({
+        error: { code: 'JYDEL', message: 'JIEYU_PROJECT_DELETED: project-1' },
+      } as never);
+      const options = lastBridgeOptions.current as SendOptions;
+      await expect(options.onSendLocalChanges(outbound)).rejects.toMatchObject({ code: 'JYDEL' });
+      await waitFor(() =>
+        expect(applyTombstone).toHaveBeenCalledWith('project-1', { deletedAt: null }),
+      );
+    });
+
+    it('T52a: JYPRT / JYVER rejection → read-only and other tabs are told to re-check', async () => {
+      const seen: string[] = [];
+      const unsubscribe = subscribeCollaborationLifecycle((message) => seen.push(message.type));
+      const { result } = renderHook(() =>
+        useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+      );
+      await waitFor(() => expect(bridgeStart).toHaveBeenCalledTimes(1));
+      supabaseInsert.mockResolvedValueOnce({
+        error: { code: 'JYPRT', message: 'JIEYU_PROTOCOL_MISMATCH' },
+      } as never);
+      const options = lastBridgeOptions.current as SendOptions;
+      await expect(options.onSendLocalChanges(outbound)).rejects.toMatchObject({ code: 'JYPRT' });
+      await waitFor(() => {
+        expect(result.current.collaborationProtocolGuard).toMatchObject({
+          cloudWritesDisabled: true,
+          reasons: ['server-rejected-protocol-mismatch'],
+        });
+      });
+      expect(seen).toContain('protocol-changed');
+      act(() => {
+        result.current.enqueueMutation({
+          entityType: 'layer_unit',
+          entityId: 'u2',
+          opType: 'upsert_unit',
+        });
+      });
+      expect(bridgeEnqueue).not.toHaveBeenCalled();
+      unsubscribe();
+    });
+
+    it('re-reads the project row before every push', async () => {
+      renderHook(() =>
+        useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+      );
+      await waitFor(() => expect(bridgeStart).toHaveBeenCalledTimes(1));
+      const before = projectSelectMaybeSingle.mock.calls.length;
+      projectGuardRow.current = { protocol_version: 2, app_min_version: '0.1.0' };
+      const options = lastBridgeOptions.current as SendOptions;
+      await expect(options.onSendLocalChanges(outbound)).rejects.toThrow(
+        /cloud writes are disabled/,
+      );
+      expect(projectSelectMaybeSingle.mock.calls.length).toBeGreaterThan(before);
+      expect(supabaseInsert).not.toHaveBeenCalled();
+    });
+
+    it("removal in another tab stops this tab's bridge and keeps it stopped", async () => {
+      renderHook(() =>
+        useTranscriptionCollaborationBridge({ enabled: true, projectId: 'project-1' }),
+      );
+      await waitFor(() => expect(bridgeStart).toHaveBeenCalledTimes(1));
+      markProjectRemovedLocally('project-1');
+      bridgeStop.mockClear();
+      act(() => {
+        broadcastCollaborationLifecycle('project-removed-locally', 'project-1');
+      });
+      await waitFor(() => expect(bridgeStop).toHaveBeenCalled());
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
   });
 });

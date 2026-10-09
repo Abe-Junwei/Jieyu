@@ -133,4 +133,49 @@ describe('CollaborationCloudPanel', () => {
       expect(screen.getByText(/upsert_unit_content/)).toBeTruthy();
     });
   });
+
+  it('cloud delete needs two confirmations and reports owner-only rejections (rev5 9.2)', async () => {
+    const deleteProjectFromCloud = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('JIEYU_OWNER_ONLY'), { rejection: 'owner-only' }),
+      )
+      .mockResolvedValueOnce(undefined);
+    const confirm = vi.spyOn(window, 'confirm');
+    renderWithLocale(
+      <CollaborationCloudPanel
+        listProjectAssets={vi.fn(async () => [])}
+        removeProjectAsset={vi.fn(async () => undefined)}
+        getProjectAssetSignedUrl={vi.fn(async () => '')}
+        listProjectSnapshots={vi.fn(async () => [])}
+        restoreProjectSnapshotToLocalById={vi.fn(async () => {
+          throw new Error('not-used');
+        })}
+        queryProjectChangeTimeline={vi.fn(async () => ({ changes: [], total: 0 }))}
+        directory={{
+          workspaceProjectId: 'project-1',
+          listAccessibleProjects: vi.fn(async () => []),
+          listProjectMembers: vi.fn(async () => []),
+          deleteProjectFromCloud,
+        }}
+      />,
+      'zh-CN',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /云项目与成员/ }));
+    const button = await screen.findByRole('button', { name: '删除云端项目（所有协作者）' });
+
+    confirm.mockReturnValueOnce(true).mockReturnValueOnce(false);
+    fireEvent.click(button);
+    expect(deleteProjectFromCloud).not.toHaveBeenCalled();
+
+    confirm.mockReturnValueOnce(true).mockReturnValueOnce(true);
+    fireEvent.click(button);
+    await screen.findByText('只有项目所有者可以删除云端项目。');
+
+    confirm.mockReturnValueOnce(true).mockReturnValueOnce(true);
+    fireEvent.click(button);
+    await screen.findByText('云端项目已删除，本机副本已清理。');
+    expect(deleteProjectFromCloud).toHaveBeenCalledTimes(2);
+    confirm.mockRestore();
+  });
 });

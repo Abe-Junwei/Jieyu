@@ -14,6 +14,8 @@ export async function listAccessibleCloudProjects(): Promise<CollaborationCloudD
   const { data, error } = await client
     .from('projects')
     .select('id, name, visibility, updated_at, latest_revision')
+    // 已删除（墓碑）的项目不再列出（9.2）| Tombstoned projects are not listed (9.2)
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
     .limit(100);
   if (error) throw error;

@@ -93,6 +93,7 @@ export type ReadyWorkspaceSurfaceFlatLayeredContext = {
     | 'queryProjectChangeTimeline'
     | 'listAccessibleCloudProjects'
     | 'listCloudProjectMembers'
+    | 'deleteCurrentCloudProject'
     | 'getUnitTextForLayer'
     | 'selectTimelineUnit'
     | 'reorderLayers'

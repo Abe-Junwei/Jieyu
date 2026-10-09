@@ -8,6 +8,7 @@ import type {
 } from '../../collaboration/cloud/syncTypes';
 import {
   evaluateCollaborationProtocolGuard,
+  resolveCollaborationClientAppVersion,
   SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
   type CollaborationProtocolGuardEvaluation,
 } from '../../collaboration/cloud/collaborationProtocolGuard';
@@ -32,6 +33,21 @@ import {
   getSupabaseUserId,
   hasSupabaseBrowserClientConfig,
 } from '../../collaboration/cloud/collaborationSupabaseFacade';
+import { getCollaborationClientId } from '../../collaboration/cloud/collaborationClientIdentity';
+import {
+  isProjectSyncBlockedLocally,
+  markProjectCollaborationBound,
+  markProjectOutboundRecorded,
+} from '../../collaboration/cloud/collaborationLocalProjectRegistry';
+import {
+  broadcastCollaborationLifecycle,
+  subscribeCollaborationLifecycle,
+} from '../../collaboration/cloud/collaborationLifecycleBroadcast';
+import {
+  classifyCollaborationServerRejection,
+  isOutdatedClientRejection,
+} from '../../collaboration/cloud/collaborationServerRejection';
+import { applyCloudProjectTombstone } from '../../services/projectCloudTombstone';
 import { createLogger } from '../../observability/logger';
 
 interface UseTranscriptionCollaborationBridgeParams {
@@ -47,6 +63,7 @@ interface CollaborationChangeInsertRow {
   client_op_id: string;
   session_id?: string;
   protocol_version: number;
+  client_app_version: string;
   project_revision: number;
   base_revision: number;
   entity_type: ProjectEntityType;
@@ -61,6 +78,10 @@ interface CollaborationChangeInsertRow {
 
 interface LoadProtocolGuardFromCloudResult {
   guard: CollaborationProtocolGuardEvaluation;
+  /** 云端有这个项目行（即存在协作绑定，D6）| The cloud project row exists (a binding, D6) */
+  projectExists: boolean;
+  /** 墓碑时间（9.2）| Tombstone time (9.2) */
+  deletedAt: string | null;
   error: unknown | null;
 }
 
@@ -97,19 +118,41 @@ async function loadProtocolGuardFromCloud(
   const client = getSupabaseBrowserClient();
   const { data: projectRow, error } = await client
     .from('projects')
-    .select('protocol_version, app_min_version')
+    .select('protocol_version, app_min_version, deleted_at')
     .eq('id', projectId)
     .maybeSingle();
 
+  const deletedAt =
+    projectRow && typeof projectRow.deleted_at === 'string' && projectRow.deleted_at.length > 0
+      ? projectRow.deleted_at
+      : null;
   const guard = evaluateCollaborationProtocolGuard(
     projectRow
       ? {
           protocolVersion: projectRow.protocol_version,
           appMinVersion: projectRow.app_min_version,
+          deletedAt,
         }
       : null,
   );
-  return { guard, error };
+  return { guard, projectExists: Boolean(projectRow), deletedAt, error };
+}
+
+/** 服务器拒绝后进入只读（9.3）| Read-only after a server rejection (9.3) */
+function serverRejectedGuard(
+  reason: string,
+  outboundProtocolVersion: number,
+): CollaborationProtocolGuardEvaluation {
+  return { cloudWritesDisabled: true, reasons: [reason], outboundProtocolVersion };
+}
+
+/** 本机协作记录写失败不阻断协同，只记日志 | Registry write failures never block sync */
+function recordLocally(action: () => void, label: string): void {
+  try {
+    action();
+  } catch (error) {
+    log.warn(`collaboration local registry update failed: ${label}`, { err: error });
+  }
 }
 
 function assertCloudWritesAllowed(writeGuard: CollaborationProtocolGuardEvaluation): void {
@@ -117,13 +160,6 @@ function assertCloudWritesAllowed(writeGuard: CollaborationProtocolGuardEvaluati
   const detail =
     writeGuard.reasons.length > 0 ? writeGuard.reasons.join('; ') : 'cloud-writes-disabled';
   throw new Error(`Collaboration cloud writes are disabled: ${detail}`);
-}
-
-function createClientId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return `web-${crypto.randomUUID()}`;
-  }
-  return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function toChangeInsertRow(
@@ -136,6 +172,7 @@ function toChangeInsertRow(
     client_op_id: record.clientOpId,
     ...(record.sessionId ? { session_id: record.sessionId } : {}),
     protocol_version: record.protocolVersion,
+    client_app_version: resolveCollaborationClientAppVersion(),
     project_revision: record.projectRevision,
     base_revision: record.baseRevision,
     entity_type: record.entityType,
@@ -157,7 +194,8 @@ export function useTranscriptionCollaborationBridge({
   const normalizedProjectId = useMemo(() => projectId.trim(), [projectId]);
   const bridgeRef = useRef<CollaborationSyncBridge | null>(null);
   const codecRef = useRef<ProjectChangeCodec | null>(null);
-  const clientIdRef = useRef<string>(createClientId());
+  // 每个安装实例一个 clientId（9.4）| One clientId per installation (9.4)
+  const clientIdRef = useRef<string>(getCollaborationClientId());
   const latestRevisionRef = useRef<number>(0);
   const writeGuardRef = useRef<CollaborationProtocolGuardEvaluation>(DEFAULT_PROTOCOL_GUARD);
   const [isBridgeReady, setIsBridgeReady] = useState(false);
@@ -166,11 +204,33 @@ export function useTranscriptionCollaborationBridge({
   const [outboundPendingCount, setOutboundPendingCount] = useState(0);
   /** 云端从禁写切到允许写时递增，用于重启桥接以灌入持久化 pending | Bump when cloud flips disabled→enabled writes */
   const [writeGateEpoch, setWriteGateEpoch] = useState(0);
+  /** 已处理过墓碑的项目，避免重复清理 | Projects whose tombstone was already handled */
+  const tombstoneHandledRef = useRef<Set<string>>(new Set());
+
+  /**
+   * 服务器拒绝或墓碑之后的守卫在本页面内保持不变，直到刷新或切换项目（9.3）。
+   * After a server rejection or a tombstone the guard stays until reload or project switch (9.3).
+   */
+  const stickyGuardRef = useRef<CollaborationProtocolGuardEvaluation | null>(null);
+  const stickyProjectIdRef = useRef<string>(normalizedProjectId);
+  if (stickyProjectIdRef.current !== normalizedProjectId) {
+    stickyProjectIdRef.current = normalizedProjectId;
+    stickyGuardRef.current = null;
+  }
 
   const applyProtocolGuard = useCallback((next: CollaborationProtocolGuardEvaluation): void => {
-    writeGuardRef.current = next;
-    setProtocolGuard(next);
+    const effective = stickyGuardRef.current ?? next;
+    writeGuardRef.current = effective;
+    setProtocolGuard(effective);
   }, []);
+
+  const applyStickyProtocolGuard = useCallback(
+    (next: CollaborationProtocolGuardEvaluation): void => {
+      stickyGuardRef.current = next;
+      applyProtocolGuard(next);
+    },
+    [applyProtocolGuard],
+  );
 
   const resetBridgeRuntimeState = useCallback(() => {
     bridgeRef.current = null;
@@ -202,10 +262,64 @@ export function useTranscriptionCollaborationBridge({
     [normalizedProjectId],
   );
 
+  /**
+   * 看到墓碑：停止桥接（不再落盘待发队列），然后作废出站队列并清理本机副本（9.2）。
+   * Tombstone seen: stop the bridge first, then cancel outbound and clean up the local copy (9.2).
+   */
+  const handleCloudTombstone = useCallback(
+    (projectIdToHandle: string, deletedAt: string | null): void => {
+      if (tombstoneHandledRef.current.has(projectIdToHandle)) return;
+      tombstoneHandledRef.current.add(projectIdToHandle);
+      applyStickyProtocolGuard(
+        evaluateCollaborationProtocolGuard({
+          protocolVersion: SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
+          appMinVersion: '0.0.0',
+          deletedAt: deletedAt ?? new Date().toISOString(),
+        }),
+      );
+      // 不在桥接的发送回调里等待 stop | Never await stop inside the bridge's send callback
+      setTimeout(() => {
+        void stopBridgeRuntime()
+          .then(() => applyCloudProjectTombstone(projectIdToHandle, { deletedAt }))
+          .catch((error: unknown) => {
+            log.warn('failed to apply cloud tombstone locally', { err: error });
+          });
+      }, 0);
+    },
+    [applyStickyProtocolGuard, stopBridgeRuntime],
+  );
+
+  /** 写入被服务器拒绝时的处理（9.2、9.3）| Handle a server-side write rejection (9.2, 9.3) */
+  const handleServerWriteRejection = useCallback(
+    (error: unknown): void => {
+      const rejection = classifyCollaborationServerRejection(error);
+      if (rejection === 'project-deleted') {
+        handleCloudTombstone(normalizedProjectId, null);
+        return;
+      }
+      if (isOutdatedClientRejection(rejection)) {
+        applyStickyProtocolGuard(
+          serverRejectedGuard(
+            `server-rejected-${rejection}`,
+            writeGuardRef.current.outboundProtocolVersion,
+          ),
+        );
+        broadcastCollaborationLifecycle('protocol-changed', normalizedProjectId);
+      }
+    },
+    [applyStickyProtocolGuard, handleCloudTombstone, normalizedProjectId],
+  );
+
   useEffect(() => {
     let disposed = false;
 
-    if (!enabled || !normalizedProjectId || !hasSupabaseBrowserClientConfig()) {
+    if (
+      !enabled ||
+      !normalizedProjectId ||
+      !hasSupabaseBrowserClientConfig() ||
+      // 已从本机移除或云端已删除的项目不再自动同步（9.1、9.2）| No auto-sync for removed / tombstoned projects
+      isProjectSyncBlockedLocally(normalizedProjectId)
+    ) {
       void stopBridgeRuntime();
       return () => {
         disposed = true;
@@ -225,12 +339,23 @@ export function useTranscriptionCollaborationBridge({
 
       latestRevisionRef.current = Math.max(0, loadProjectLastSeenRevision(normalizedProjectId));
 
-      const { guard, error: projectGuardError } =
-        await loadProtocolGuardFromCloud(normalizedProjectId);
+      const {
+        guard,
+        projectExists,
+        deletedAt,
+        error: projectGuardError,
+      } = await loadProtocolGuardFromCloud(normalizedProjectId);
       if (projectGuardError) {
         log.warn('failed to load project protocol guard', { err: projectGuardError });
       }
       if (disposed) return;
+      if (projectExists) {
+        recordLocally(() => markProjectCollaborationBound(normalizedProjectId), 'bound');
+      }
+      if (guard.projectDeleted === true) {
+        handleCloudTombstone(normalizedProjectId, deletedAt);
+        return;
+      }
       applyProtocolGuard(guard);
 
       const codec = new ProjectChangeCodec({
@@ -262,6 +387,15 @@ export function useTranscriptionCollaborationBridge({
         },
         onSendLocalChanges: async (changes) => {
           if (changes.length === 0) return;
+          // 每次推送前重新读取项目行（9.3）| Re-read the project row before every push (9.3)
+          const fresh = await loadProtocolGuardFromCloud(normalizedProjectId);
+          if (!fresh.error) {
+            if (fresh.guard.projectDeleted === true) {
+              handleCloudTombstone(normalizedProjectId, fresh.deletedAt);
+              throw new Error('Collaboration project was deleted in the cloud');
+            }
+            applyProtocolGuard(fresh.guard);
+          }
           if (writeGuardRef.current.cloudWritesDisabled) {
             const detail =
               writeGuardRef.current.reasons.length > 0
@@ -274,7 +408,10 @@ export function useTranscriptionCollaborationBridge({
           }
           const rows = changes.map(toChangeInsertRow);
           const { error } = await client.from('project_changes').insert(rows);
-          if (error) throw error;
+          if (error) {
+            handleServerWriteRejection(error);
+            throw error;
+          }
         },
         onError: (error, context) => {
           log.warn('CollaborationSyncBridge runtime error', { context, err: error });
@@ -304,6 +441,8 @@ export function useTranscriptionCollaborationBridge({
     applyProtocolGuard,
     commitLatestRevision,
     enabled,
+    handleCloudTombstone,
+    handleServerWriteRejection,
     normalizedProjectId,
     onApplyRemoteChange,
     stopBridgeRuntime,
@@ -318,8 +457,16 @@ export function useTranscriptionCollaborationBridge({
 
     const refreshGuardFromCloud = async () => {
       try {
-        const { guard: next, error } = await loadProtocolGuardFromCloud(normalizedProjectId);
+        const {
+          guard: next,
+          deletedAt,
+          error,
+        } = await loadProtocolGuardFromCloud(normalizedProjectId);
         if (cancelled || error) return;
+        if (next.projectDeleted === true) {
+          handleCloudTombstone(normalizedProjectId, deletedAt);
+          return;
+        }
         const prev = writeGuardRef.current;
         applyProtocolGuard(next);
         if (!cancelled && prev.cloudWritesDisabled && !next.cloudWritesDisabled) {
@@ -340,14 +487,32 @@ export function useTranscriptionCollaborationBridge({
       }
     };
     document.addEventListener('visibilitychange', onVisible);
+    // 标签页获得焦点时也重新检查（9.3）| Re-check on window focus too (9.3)
+    const onFocus = () => {
+      if (!cancelled) void refreshGuardFromCloud();
+    };
+    window.addEventListener('focus', onFocus);
+    // 其他标签页的通知：本机移除、云端删除、协议变化（9.3）| Notices from other tabs (9.3)
+    const unsubscribe = subscribeCollaborationLifecycle((message) => {
+      if (cancelled || message.projectId !== normalizedProjectId) return;
+      if (message.type === 'protocol-changed') {
+        void refreshGuardFromCloud();
+        return;
+      }
+      // 重新走启动判断：本机记录会让桥接保持停止 | Re-run start-up; the local record keeps it stopped
+      void stopBridgeRuntime();
+      setWriteGateEpoch((n) => n + 1);
+    });
     void refreshGuardFromCloud();
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+      unsubscribe();
     };
-  }, [applyProtocolGuard, enabled, normalizedProjectId]);
+  }, [applyProtocolGuard, enabled, handleCloudTombstone, normalizedProjectId, stopBridgeRuntime]);
 
   const enqueueMutation = useCallback(
     (input: TranscriptionCollaborationMutationInput): void => {
@@ -373,6 +538,8 @@ export function useTranscriptionCollaborationBridge({
         sourceKind: 'user',
       });
 
+      // 先记下“有过出站记录”，再入队（D6）| Record outbound history before queueing (D6)
+      recordLocally(() => markProjectOutboundRecorded(normalizedProjectId), 'outbound');
       bridge.enqueueLocalChange(record);
     },
     [normalizedProjectId],

@@ -1,6 +1,11 @@
 import { normalizeLocale, type Locale } from './index';
 import { formatCatalogTemplate, readMessageCatalog } from './messageCatalog';
-import type { CollaborationAssetRecord, CollaborationProjectSnapshotRecord, ProjectEntityType, ProjectChangeOperation } from '../collaboration/cloud/syncTypes';
+import type {
+  CollaborationAssetRecord,
+  CollaborationProjectSnapshotRecord,
+  ProjectEntityType,
+  ProjectChangeOperation,
+} from '../collaboration/cloud/syncTypes';
 
 export type CollaborationCloudPanelMessages = {
   title: string;
@@ -25,7 +30,11 @@ export type CollaborationCloudPanelMessages = {
   emptyTimeline: string;
   assetTypeLabel: (assetType: CollaborationAssetRecord['assetType']) => string;
   snapshotVersionLabel: (version: number) => string;
-  timelineRecordLabel: (opType: ProjectChangeOperation, entityType: ProjectEntityType, entityId: string) => string;
+  timelineRecordLabel: (
+    opType: ProjectChangeOperation,
+    entityType: ProjectEntityType,
+    entityId: string,
+  ) => string;
   sizeLabel: (sizeBytes: number) => string;
   createdAtLabel: (value: string) => string;
   changedAtLabel: (value: string) => string;
@@ -45,6 +54,11 @@ export type CollaborationCloudPanelMessages = {
   memberRoleLabel: (role: string) => string;
   memberUserLabel: (userId: string) => string;
   directoryHint: string;
+  deleteCloudProject: string;
+  confirmDeleteCloudProject: string;
+  confirmDeleteCloudProjectFinal: string;
+  cloudProjectDeleted: string;
+  deleteCloudProjectOwnerOnly: string;
   currentProjectHeading: (projectId: string) => string;
 };
 
@@ -106,7 +120,9 @@ type CollaborationCloudPanelCatalog = Omit<
   currentProjectHeading: string;
 };
 
-export function getCollaborationCloudPanelMessages(locale: Locale): CollaborationCloudPanelMessages {
+export function getCollaborationCloudPanelMessages(
+  locale: Locale,
+): CollaborationCloudPanelMessages {
   const normalizedLocale = normalizeLocale(locale) ?? 'zh-CN';
   const {
     assetTypeAudio,
@@ -132,7 +148,10 @@ export function getCollaborationCloudPanelMessages(locale: Locale): Collaboratio
     memberUserLabel,
     currentProjectHeading,
     ...rest
-  } = readMessageCatalog<CollaborationCloudPanelCatalog>(normalizedLocale, 'msg.collabCloud.catalog');
+  } = readMessageCatalog<CollaborationCloudPanelCatalog>(
+    normalizedLocale,
+    'msg.collabCloud.catalog',
+  );
   return {
     ...rest,
     assetTypeLabel: (assetType) => {
@@ -141,8 +160,10 @@ export function getCollaborationCloudPanelMessages(locale: Locale): Collaboratio
       return assetTypeAttachment;
     },
     snapshotVersionLabel: (version) => formatCatalogTemplate(snapshotVersionLabel, { version }),
-    timelineRecordLabel: (opType, entityType, entityId) => formatCatalogTemplate(timelineRecordLabel, { opType, entityType, entityId }),
-    sizeLabel: (sizeBytes) => formatCatalogTemplate(sizeLabel, { size: formatReadableSize(sizeBytes) }),
+    timelineRecordLabel: (opType, entityType, entityId) =>
+      formatCatalogTemplate(timelineRecordLabel, { opType, entityType, entityId }),
+    sizeLabel: (sizeBytes) =>
+      formatCatalogTemplate(sizeLabel, { size: formatReadableSize(sizeBytes) }),
     createdAtLabel: (value) => formatCatalogTemplate(createdAtLabel, { value }),
     changedAtLabel: (value) => formatCatalogTemplate(changedAtLabel, { value }),
     loadFailed: (reason) => formatCatalogTemplate(loadFailed, { reason }),
@@ -150,14 +171,17 @@ export function getCollaborationCloudPanelMessages(locale: Locale): Collaboratio
     snapshotsLoaded: (count) => formatCatalogTemplate(snapshotsLoaded, { count }),
     timelineLoaded: (count) => formatCatalogTemplate(timelineLoaded, { count }),
     assetRemoved: (assetId) => formatCatalogTemplate(assetRemoved, { assetId }),
-    snapshotRestored: (snapshot) => formatCatalogTemplate(snapshotRestored, { version: snapshot.version }),
+    snapshotRestored: (snapshot) =>
+      formatCatalogTemplate(snapshotRestored, { version: snapshot.version }),
     projectsLoaded: (count) => formatCatalogTemplate(projectsLoaded, { count }),
     membersLoaded: (count) => formatCatalogTemplate(membersLoaded, { count }),
     projectNameLabel: (name) => formatCatalogTemplate(projectNameLabel, { name }),
-    projectVisibilityLabel: (visibility) => formatCatalogTemplate(projectVisibilityLabel, { visibility }),
+    projectVisibilityLabel: (visibility) =>
+      formatCatalogTemplate(projectVisibilityLabel, { visibility }),
     projectUpdatedLabel: (value) => formatCatalogTemplate(projectUpdatedLabel, { value }),
     memberRoleLabel: (role) => formatCatalogTemplate(memberRoleLabel, { role }),
     memberUserLabel: (userId) => formatCatalogTemplate(memberUserLabel, { userId }),
-    currentProjectHeading: (projectId) => formatCatalogTemplate(currentProjectHeading, { projectId }),
+    currentProjectHeading: (projectId) =>
+      formatCatalogTemplate(currentProjectHeading, { projectId }),
   };
 }

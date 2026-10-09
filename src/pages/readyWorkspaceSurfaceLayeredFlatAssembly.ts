@@ -86,6 +86,7 @@ export function buildReadyWorkspaceSurfaceLayeredFlatAssembly(
     queryProjectChangeTimeline: deps.data.queryProjectChangeTimeline,
     listAccessibleCloudProjects: deps.data.listAccessibleCloudProjects,
     listCloudProjectMembers: deps.data.listCloudProjectMembers,
+    deleteCurrentCloudProject: deps.data.deleteCurrentCloudProject,
     getUnitTextForLayer: deps.data.getUnitTextForLayer,
     selectTimelineUnit: deps.data.selectTimelineUnit,
     reorderLayers: deps.data.reorderLayers,

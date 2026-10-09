@@ -112,6 +112,7 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       activeTextId: input.activeTextId,
       listAccessibleCloudProjects: input.listAccessibleCloudProjects,
       listCloudProjectMembers: input.listCloudProjectMembers,
+      deleteCurrentCloudProject: input.deleteCurrentCloudProject,
       getUnitTextForLayer: input.getUnitTextForLayer,
       onSelectTimelineUnit: input.selectTimelineUnit,
       onSegmentContextMenu: (

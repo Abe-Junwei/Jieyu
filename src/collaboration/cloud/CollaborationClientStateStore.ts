@@ -107,6 +107,23 @@ function loadBaseStateMapFromStorage(target: Storage): CollaborationClientStateM
   }
 }
 
+/**
+ * 协同客户端状态能否读出（D6：读不出就判定不了）。没有记录也算能读。
+ * Whether the client state can be read (D6: unreadable = undecidable). No record counts as readable.
+ */
+export function probeCollabClientStateReadable(storage?: Storage): boolean {
+  const target = storage ?? getDefaultStorage();
+  if (target === undefined) return false;
+  try {
+    const raw = target.getItem(COLLAB_CLIENT_STATE_STORAGE_KEY);
+    if (raw === null || raw.length === 0) return true;
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
+  } catch {
+    return false;
+  }
+}
+
 function loadStateMap(storage?: Storage): CollaborationClientStateMap {
   const target = storage ?? getDefaultStorage();
   if (target === undefined) return {};
@@ -273,4 +290,13 @@ export function saveProjectPendingOutboundChanges(
     },
     storage,
   );
+}
+
+/**
+ * 删除项目在本机的协同状态（游标与待发队列），清理任务用（rev5 9.1）。
+ * Drop a project's local sync state (cursor and pending queue); used by the cleanup job (rev5 9.1).
+ */
+export function clearProjectCollabClientState(projectId: string, storage?: Storage): void {
+  if (projectId.trim().length === 0) return;
+  upsertProjectState(projectId, () => null, storage);
 }
