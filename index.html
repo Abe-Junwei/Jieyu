@@ -73,10 +73,10 @@
         try {
           meta = document.importNode(document.getElementById('jieyu-csp').content.firstElementChild, false);
         } catch (e) {
-          // PF-H1：模板取不到时插入最严格的兜底策略，页面永远不会没有 CSP | fail closed: never leave the page without a CSP
+          // PF-H1：模板取不到时插入模板规则去掉外部主机后的兜底策略，页面永远不会没有 CSP | fail closed: the template's rules minus external hosts, never no CSP
           meta = document.createElement('meta');
           meta.httpEquiv = 'Content-Security-Policy';
-          meta.content = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'";
+          meta.content = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
         }
         try {
           var origin = localStorage.getItem('jieyu.csp.aiOrigin');
