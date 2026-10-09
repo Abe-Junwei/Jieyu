@@ -74,6 +74,7 @@ export type BuildReadyWorkspaceSidePanePropsInputFromControllers = {
   activeTextId?: string | null;
   listAccessibleCloudProjects: SidePaneCollaborationDirectory['listAccessibleProjects'];
   listCloudProjectMembers: SidePaneCollaborationDirectory['listProjectMembers'];
+  deleteCurrentCloudProject: SidePaneCollaborationDirectory['deleteProjectFromCloud'];
   getUnitTextForLayer: BuildReadyWorkspaceSidePanePropsInput['getUnitTextForLayer'];
   onSelectTimelineUnit: BuildReadyWorkspaceSidePanePropsInput['onSelectTimelineUnit'];
   onSegmentContextMenu?: BuildReadyWorkspaceSidePanePropsInput['onSegmentContextMenu'];
@@ -103,6 +104,7 @@ export function buildReadyWorkspaceSidePanePropsInput(
             workspaceProjectId: input.activeTextId,
             listAccessibleProjects: input.listAccessibleCloudProjects,
             listProjectMembers: input.listCloudProjectMembers,
+            deleteProjectFromCloud: input.deleteCurrentCloudProject,
           },
         }
       : {}),

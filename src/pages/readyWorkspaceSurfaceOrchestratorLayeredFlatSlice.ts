@@ -105,6 +105,7 @@ export function buildReadyWorkspaceSurfaceOrchestratorLayeredFlatFromAssemblyInp
       queryProjectChangeTimeline: d.queryProjectChangeTimeline,
       listAccessibleCloudProjects: d.listAccessibleCloudProjects,
       listCloudProjectMembers: d.listCloudProjectMembers,
+      deleteCurrentCloudProject: d.deleteCurrentCloudProject,
       getUnitTextForLayer: d.getUnitTextForLayer,
       selectTimelineUnit: d.selectTimelineUnit,
       reorderLayers: d.reorderLayers,

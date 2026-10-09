@@ -33,7 +33,9 @@ interface CollaborationCloudPanelProps {
     limit?: number;
     offset?: number;
   }) => Promise<CollaborationProjectSnapshotRecord[]>;
-  restoreProjectSnapshotToLocalById: (snapshotId: string) => Promise<CollaborationProjectSnapshotRecord>;
+  restoreProjectSnapshotToLocalById: (
+    snapshotId: string,
+  ) => Promise<CollaborationProjectSnapshotRecord>;
   queryProjectChangeTimeline: (input?: {
     entityType?: ProjectEntityType;
     opType?: ProjectChangeOperation;
@@ -49,6 +51,8 @@ interface CollaborationCloudPanelProps {
     workspaceProjectId: string;
     listAccessibleProjects: () => Promise<CollaborationCloudDirectoryProject[]>;
     listProjectMembers: (projectId: string) => Promise<CollaborationCloudDirectoryMember[]>;
+    /** owner 删除云端项目（9.2，服务器只允许 owner）| Owner-only cloud delete (9.2) */
+    deleteProjectFromCloud: () => Promise<void>;
   };
 }
 
@@ -153,49 +157,80 @@ export function CollaborationCloudPanel({
     }
   }, [clearFeedback, directory, messages]);
 
-  const handleOpenAsset = useCallback(async (asset: CollaborationAssetRecord) => {
+  /** 两次确认后删除云端项目（9.2）| Delete the cloud project after two confirmations (9.2) */
+  const handleDeleteCloudProject = useCallback(async () => {
+    if (!directory) return;
+    if (!window.confirm(messages.confirmDeleteCloudProject)) return;
+    if (!window.confirm(messages.confirmDeleteCloudProjectFinal)) return;
     clearFeedback();
     setIsBusy(true);
     try {
-      const url = await getProjectAssetSignedUrl({
-        storageBucket: asset.storageBucket,
-        storagePath: asset.storagePath,
-      });
-      window.open(url, '_blank', 'noopener,noreferrer');
+      await directory.deleteProjectFromCloud();
+      setStatusMessage(messages.cloudProjectDeleted);
     } catch (error) {
-      setErrorMessage(messages.loadFailed(normalizeErrorMessage(error)));
+      const rejection = (error as { rejection?: unknown } | null)?.rejection;
+      setErrorMessage(
+        rejection === 'owner-only'
+          ? messages.deleteCloudProjectOwnerOnly
+          : messages.loadFailed(normalizeErrorMessage(error)),
+      );
     } finally {
       setIsBusy(false);
     }
-  }, [clearFeedback, getProjectAssetSignedUrl, messages]);
+  }, [clearFeedback, directory, messages]);
 
-  const handleRemoveAsset = useCallback(async (asset: CollaborationAssetRecord) => {
-    clearFeedback();
-    setIsBusy(true);
-    try {
-      await removeProjectAsset(asset.id);
-      setStatusMessage(messages.assetRemoved(asset.id));
-      const rows = await listProjectAssets({ limit: 20, offset: 0 });
-      setAssets(rows);
-    } catch (error) {
-      setErrorMessage(messages.loadFailed(normalizeErrorMessage(error)));
-    } finally {
-      setIsBusy(false);
-    }
-  }, [clearFeedback, listProjectAssets, messages, removeProjectAsset]);
+  const handleOpenAsset = useCallback(
+    async (asset: CollaborationAssetRecord) => {
+      clearFeedback();
+      setIsBusy(true);
+      try {
+        const url = await getProjectAssetSignedUrl({
+          storageBucket: asset.storageBucket,
+          storagePath: asset.storagePath,
+        });
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } catch (error) {
+        setErrorMessage(messages.loadFailed(normalizeErrorMessage(error)));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [clearFeedback, getProjectAssetSignedUrl, messages],
+  );
 
-  const handleRestoreSnapshot = useCallback(async (snapshotId: string) => {
-    clearFeedback();
-    setIsBusy(true);
-    try {
-      const restored = await restoreProjectSnapshotToLocalById(snapshotId);
-      setStatusMessage(messages.snapshotRestored(restored));
-    } catch (error) {
-      setErrorMessage(messages.loadFailed(normalizeErrorMessage(error)));
-    } finally {
-      setIsBusy(false);
-    }
-  }, [clearFeedback, messages, restoreProjectSnapshotToLocalById]);
+  const handleRemoveAsset = useCallback(
+    async (asset: CollaborationAssetRecord) => {
+      clearFeedback();
+      setIsBusy(true);
+      try {
+        await removeProjectAsset(asset.id);
+        setStatusMessage(messages.assetRemoved(asset.id));
+        const rows = await listProjectAssets({ limit: 20, offset: 0 });
+        setAssets(rows);
+      } catch (error) {
+        setErrorMessage(messages.loadFailed(normalizeErrorMessage(error)));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [clearFeedback, listProjectAssets, messages, removeProjectAsset],
+  );
+
+  const handleRestoreSnapshot = useCallback(
+    async (snapshotId: string) => {
+      clearFeedback();
+      setIsBusy(true);
+      try {
+        const restored = await restoreProjectSnapshotToLocalById(snapshotId);
+        setStatusMessage(messages.snapshotRestored(restored));
+      } catch (error) {
+        setErrorMessage(messages.loadFailed(normalizeErrorMessage(error)));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [clearFeedback, messages, restoreProjectSnapshotToLocalById],
+  );
 
   const currentRefreshLabel = useMemo(() => {
     if (activeTab === 'assets') return messages.refreshAssets;
@@ -226,7 +261,10 @@ export function CollaborationCloudPanel({
       aria-label={messages.title}
     >
       {hideHeader ? null : (
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
+        <div
+          className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+          role="presentation"
+        >
           <div className="app-side-pane-collaboration-title-wrap">
             <span className="app-side-pane-section-title">{messages.title}</span>
             <span className="app-side-pane-collaboration-subtitle">{messages.subtitle}</span>
@@ -234,9 +272,17 @@ export function CollaborationCloudPanel({
         </div>
       )}
 
-      <div className={`app-side-pane-nav app-side-pane-collaboration-wrap${hideHeader ? ' app-side-pane-collaboration-wrap-settings settings-layout' : ''}`}>
-        <div className={`app-side-pane-collaboration-tabs panel-edge-nav${hideHeader ? ' app-side-pane-collaboration-tabs-settings settings-tab-bar' : ''}`} role="tablist" aria-label={messages.title}>
-          <div className={`panel-edge-nav-row ${activeTab === 'assets' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+      <div
+        className={`app-side-pane-nav app-side-pane-collaboration-wrap${hideHeader ? ' app-side-pane-collaboration-wrap-settings settings-layout' : ''}`}
+      >
+        <div
+          className={`app-side-pane-collaboration-tabs panel-edge-nav${hideHeader ? ' app-side-pane-collaboration-tabs-settings settings-tab-bar' : ''}`}
+          role="tablist"
+          aria-label={messages.title}
+        >
+          <div
+            className={`panel-edge-nav-row ${activeTab === 'assets' ? 'panel-edge-nav-row-active' : ''}`.trim()}
+          >
             <button
               type="button"
               role="tab"
@@ -244,10 +290,14 @@ export function CollaborationCloudPanel({
               className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'assets' ? ' is-active' : ''}`}
               onClick={() => setActiveTab('assets')}
             >
-              <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabAssets}</strong></span>
+              <span className="panel-edge-nav-label">
+                <strong className="panel-edge-nav-title">{messages.tabAssets}</strong>
+              </span>
             </button>
           </div>
-          <div className={`panel-edge-nav-row ${activeTab === 'snapshots' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+          <div
+            className={`panel-edge-nav-row ${activeTab === 'snapshots' ? 'panel-edge-nav-row-active' : ''}`.trim()}
+          >
             <button
               type="button"
               role="tab"
@@ -255,10 +305,14 @@ export function CollaborationCloudPanel({
               className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'snapshots' ? ' is-active' : ''}`}
               onClick={() => setActiveTab('snapshots')}
             >
-              <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabSnapshots}</strong></span>
+              <span className="panel-edge-nav-label">
+                <strong className="panel-edge-nav-title">{messages.tabSnapshots}</strong>
+              </span>
             </button>
           </div>
-          <div className={`panel-edge-nav-row ${activeTab === 'timeline' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+          <div
+            className={`panel-edge-nav-row ${activeTab === 'timeline' ? 'panel-edge-nav-row-active' : ''}`.trim()}
+          >
             <button
               type="button"
               role="tab"
@@ -266,11 +320,15 @@ export function CollaborationCloudPanel({
               className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'timeline' ? ' is-active' : ''}`}
               onClick={() => setActiveTab('timeline')}
             >
-              <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabTimeline}</strong></span>
+              <span className="panel-edge-nav-label">
+                <strong className="panel-edge-nav-title">{messages.tabTimeline}</strong>
+              </span>
             </button>
           </div>
           {directory ? (
-            <div className={`panel-edge-nav-row ${activeTab === 'directory' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+            <div
+              className={`panel-edge-nav-row ${activeTab === 'directory' ? 'panel-edge-nav-row-active' : ''}`.trim()}
+            >
               <button
                 type="button"
                 role="tab"
@@ -278,13 +336,17 @@ export function CollaborationCloudPanel({
                 className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'directory' ? ' is-active' : ''}`}
                 onClick={() => setActiveTab('directory')}
               >
-                <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabDirectory}</strong></span>
+                <span className="panel-edge-nav-label">
+                  <strong className="panel-edge-nav-title">{messages.tabDirectory}</strong>
+                </span>
               </button>
             </div>
           ) : null}
         </div>
 
-        <div className={`app-side-pane-collaboration-content${hideHeader ? ' app-side-pane-collaboration-content-settings' : ''}`}>
+        <div
+          className={`app-side-pane-collaboration-content${hideHeader ? ' app-side-pane-collaboration-content-settings' : ''}`}
+        >
           <div className="app-side-pane-collaboration-actions">
             <button
               type="button"
@@ -298,85 +360,101 @@ export function CollaborationCloudPanel({
             </button>
           </div>
 
-          {statusMessage ? <p className="app-side-pane-collaboration-status">{statusMessage}</p> : null}
-          {errorMessage ? <p className="app-side-pane-collaboration-error">{errorMessage}</p> : null}
+          {statusMessage ? (
+            <p className="app-side-pane-collaboration-status">{statusMessage}</p>
+          ) : null}
+          {errorMessage ? (
+            <p className="app-side-pane-collaboration-error">{errorMessage}</p>
+          ) : null}
 
           {activeTab === 'assets' ? (
-          <ul className="app-side-pane-collaboration-list">
-            {assets.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyAssets}</li> : null}
-            {assets.map((asset) => (
-              <li key={asset.id} className="app-side-pane-collaboration-item">
-                <div className="app-side-pane-collaboration-item-main">
-                  <strong>{messages.assetTypeLabel(asset.assetType)}</strong>
-                  <span>{messages.sizeLabel(asset.sizeBytes)}</span>
-                  <span>{messages.createdAtLabel(formatDateTime(asset.createdAt))}</span>
-                </div>
-                <div className="app-side-pane-collaboration-item-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={isBusy}
-                    onClick={() => {
-                      void handleOpenAsset(asset);
-                    }}
-                  >
-                    {messages.openAsset}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={isBusy}
-                    onClick={() => {
-                      void handleRemoveAsset(asset);
-                    }}
-                  >
-                    {messages.removeAsset}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+            <ul className="app-side-pane-collaboration-list">
+              {assets.length === 0 ? (
+                <li className="app-side-pane-collaboration-empty">{messages.emptyAssets}</li>
+              ) : null}
+              {assets.map((asset) => (
+                <li key={asset.id} className="app-side-pane-collaboration-item">
+                  <div className="app-side-pane-collaboration-item-main">
+                    <strong>{messages.assetTypeLabel(asset.assetType)}</strong>
+                    <span>{messages.sizeLabel(asset.sizeBytes)}</span>
+                    <span>{messages.createdAtLabel(formatDateTime(asset.createdAt))}</span>
+                  </div>
+                  <div className="app-side-pane-collaboration-item-actions">
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={isBusy}
+                      onClick={() => {
+                        void handleOpenAsset(asset);
+                      }}
+                    >
+                      {messages.openAsset}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={isBusy}
+                      onClick={() => {
+                        void handleRemoveAsset(asset);
+                      }}
+                    >
+                      {messages.removeAsset}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
-        {activeTab === 'snapshots' ? (
-          <ul className="app-side-pane-collaboration-list">
-            {snapshots.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptySnapshots}</li> : null}
-            {snapshots.map((snapshot) => (
-              <li key={snapshot.id} className="app-side-pane-collaboration-item">
-                <div className="app-side-pane-collaboration-item-main">
-                  <strong>{messages.snapshotVersionLabel(snapshot.version)}</strong>
-                  <span>{messages.createdAtLabel(formatDateTime(snapshot.createdAt))}</span>
-                </div>
-                <div className="app-side-pane-collaboration-item-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={isBusy}
-                    onClick={() => {
-                      void handleRestoreSnapshot(snapshot.id);
-                    }}
-                  >
-                    {messages.restoreSnapshot}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+          {activeTab === 'snapshots' ? (
+            <ul className="app-side-pane-collaboration-list">
+              {snapshots.length === 0 ? (
+                <li className="app-side-pane-collaboration-empty">{messages.emptySnapshots}</li>
+              ) : null}
+              {snapshots.map((snapshot) => (
+                <li key={snapshot.id} className="app-side-pane-collaboration-item">
+                  <div className="app-side-pane-collaboration-item-main">
+                    <strong>{messages.snapshotVersionLabel(snapshot.version)}</strong>
+                    <span>{messages.createdAtLabel(formatDateTime(snapshot.createdAt))}</span>
+                  </div>
+                  <div className="app-side-pane-collaboration-item-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={isBusy}
+                      onClick={() => {
+                        void handleRestoreSnapshot(snapshot.id);
+                      }}
+                    >
+                      {messages.restoreSnapshot}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
-        {activeTab === 'timeline' ? (
-          <ul className="app-side-pane-collaboration-list">
-            {timeline.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyTimeline}</li> : null}
-            {timeline.map((change) => (
-              <li key={change.id} className="app-side-pane-collaboration-item">
-                <div className="app-side-pane-collaboration-item-main">
-                  <strong>{messages.timelineRecordLabel(change.opType, change.entityType, change.entityId)}</strong>
-                  <span>{messages.changedAtLabel(formatDateTime(change.createdAt))}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+          {activeTab === 'timeline' ? (
+            <ul className="app-side-pane-collaboration-list">
+              {timeline.length === 0 ? (
+                <li className="app-side-pane-collaboration-empty">{messages.emptyTimeline}</li>
+              ) : null}
+              {timeline.map((change) => (
+                <li key={change.id} className="app-side-pane-collaboration-item">
+                  <div className="app-side-pane-collaboration-item-main">
+                    <strong>
+                      {messages.timelineRecordLabel(
+                        change.opType,
+                        change.entityType,
+                        change.entityId,
+                      )}
+                    </strong>
+                    <span>{messages.changedAtLabel(formatDateTime(change.createdAt))}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           {activeTab === 'directory' && directory ? (
             <div className="app-side-pane-collaboration-directory">
@@ -384,9 +462,21 @@ export function CollaborationCloudPanel({
               <p className="app-side-pane-collaboration-directory-current">
                 {messages.currentProjectHeading(directory.workspaceProjectId)}
               </p>
-              <h4 className="app-side-pane-collaboration-subheading">{messages.directoryProjectsHeading}</h4>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={isBusy}
+                onClick={() => void handleDeleteCloudProject()}
+              >
+                {messages.deleteCloudProject}
+              </button>
+              <h4 className="app-side-pane-collaboration-subheading">
+                {messages.directoryProjectsHeading}
+              </h4>
               <ul className="app-side-pane-collaboration-list">
-                {cloudProjects.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyProjects}</li> : null}
+                {cloudProjects.length === 0 ? (
+                  <li className="app-side-pane-collaboration-empty">{messages.emptyProjects}</li>
+                ) : null}
                 {cloudProjects.map((project) => (
                   <li key={project.id} className="app-side-pane-collaboration-item">
                     <div className="app-side-pane-collaboration-item-main">
@@ -397,11 +487,18 @@ export function CollaborationCloudPanel({
                   </li>
                 ))}
               </ul>
-              <h4 className="app-side-pane-collaboration-subheading">{messages.directoryMembersHeading}</h4>
+              <h4 className="app-side-pane-collaboration-subheading">
+                {messages.directoryMembersHeading}
+              </h4>
               <ul className="app-side-pane-collaboration-list">
-                {cloudMembers.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyMembers}</li> : null}
+                {cloudMembers.length === 0 ? (
+                  <li className="app-side-pane-collaboration-empty">{messages.emptyMembers}</li>
+                ) : null}
                 {cloudMembers.map((member) => (
-                  <li key={`${member.userId}:${member.joinedAt}`} className="app-side-pane-collaboration-item">
+                  <li
+                    key={`${member.userId}:${member.joinedAt}`}
+                    className="app-side-pane-collaboration-item"
+                  >
                     <div className="app-side-pane-collaboration-item-main">
                       <strong>{messages.memberUserLabel(member.userId)}</strong>
                       <span>{messages.memberRoleLabel(member.role)}</span>

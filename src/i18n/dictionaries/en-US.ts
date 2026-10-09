@@ -17,6 +17,13 @@ export const enUSDictionary = {
   'app.home.loading': 'Aggregating project progress…',
   'app.home.errorPrefix': 'Failed to load: ',
   'app.home.noProjects': 'No projects yet.',
+  'app.collabNotice.protocolRejected':
+    'The server rejected collaboration writes from this page (outdated client or upgraded protocol). Collaboration is now read-only. Please reload the page.',
+  'app.collabNotice.projectDeletedInCloud':
+    'The owner deleted this project in the cloud; the copy on this device was cleaned up.',
+  'app.collabNotice.projectRemovedInOtherTab':
+    'This project was removed from this device in another tab.',
+  'app.collabNotice.appUpdated': 'A new version is ready. Reload the page to use it.',
   'app.home.removedCloudProjects.title': 'Cloud projects removed from this device',
   'app.home.removedCloudProjects.hint':
     'These projects were only removed from this device; the cloud copy and other collaborators are unaffected. They are not downloaded automatically.',
@@ -3812,6 +3819,12 @@ export const enUSDictionary = {
     directoryHint:
       'This list follows Supabase RLS for your account. Invites and role changes are handled in Supabase or a future admin UI.',
     currentProjectHeading: 'Current project id: {projectId}',
+    deleteCloudProject: 'Delete cloud project (all collaborators)',
+    confirmDeleteCloudProject:
+      'After deletion no collaborator can sync this project, and the copies on their devices are cleaned up. This cannot be undone. Continue?',
+    confirmDeleteCloudProjectFinal: 'Confirm once more: permanently delete this cloud project?',
+    cloudProjectDeleted: 'Cloud project deleted; the copy on this device was cleaned up.',
+    deleteCloudProjectOwnerOnly: 'Only the project owner can delete the cloud project.',
   }),
   'msg.layerConstraint.catalog': JSON.stringify({
     issueConstraintUnsupported:

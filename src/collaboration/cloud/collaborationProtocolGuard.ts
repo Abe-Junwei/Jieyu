@@ -10,6 +10,8 @@ export interface CollaborationProtocolGuardEvaluation {
   reasons: string[];
   /** 出站变更使用的 protocol_version（与 projects.protocol_version 对齐） | Outbound protocol version */
   outboundProtocolVersion: number;
+  /** 云端项目已删除（墓碑，9.2）；只在为 true 时出现 | Cloud project is tombstoned (9.2); present only when true */
+  projectDeleted?: true;
 }
 
 function parseSemverCore(version: string): [number, number, number] | null {
@@ -84,9 +86,19 @@ const DEFAULT_EVALUATION: CollaborationProtocolGuardEvaluation = {
  * @param project null 表示云端尚无该项目行（首期本地建项）| null when no cloud project row yet
  */
 export function evaluateCollaborationProtocolGuard(
-  project: { protocolVersion: unknown; appMinVersion: unknown } | null,
+  project: { protocolVersion: unknown; appMinVersion: unknown; deletedAt?: unknown } | null,
 ): CollaborationProtocolGuardEvaluation {
   if (!project) return { ...DEFAULT_EVALUATION };
+
+  // 墓碑优先于其他一切判断（9.2：冲突时删除优先）| A tombstone wins over everything (9.2)
+  if (project.deletedAt !== undefined && project.deletedAt !== null && project.deletedAt !== '') {
+    return {
+      cloudWritesDisabled: true,
+      reasons: ['project-deleted-in-cloud'],
+      outboundProtocolVersion: SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
+      projectDeleted: true,
+    };
+  }
 
   const protocolVersion =
     typeof project.protocolVersion === 'number' && Number.isFinite(project.protocolVersion)

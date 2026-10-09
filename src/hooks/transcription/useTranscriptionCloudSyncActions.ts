@@ -15,6 +15,7 @@ import { useCollaborationConflictReview } from './useCollaborationConflictReview
 import { useCollaborationPresence } from './useCollaborationPresence';
 import { useCollaborationProjectHydration } from './useCollaborationProjectHydration';
 import { LinguisticService } from '../../services/LinguisticService';
+import { deleteProjectFromCloud } from '../../services/projectCloudTombstone';
 import {
   listAccessibleCloudProjects as fetchAccessibleCloudProjects,
   listCloudProjectMembers as fetchCloudProjectMembers,
@@ -231,6 +232,12 @@ export function useTranscriptionCloudSyncActions({
     [],
   );
 
+  /** owner 删除云端项目（全局墓碑，9.2）；本机副本随后被清理 | Owner deletes the cloud project (9.2) */
+  const deleteCurrentCloudProject = useCallback(async (): Promise<void> => {
+    if (!featureFlags.collaborationCloudEnabled) return;
+    await deleteProjectFromCloud(collaborationProjectId);
+  }, [collaborationProjectId]);
+
   const restoreProjectSnapshotToLocalById = useCallback(
     async (snapshotId: string): Promise<CollaborationProjectSnapshotRecord> => {
       const restored = await restoreProjectSnapshotById(snapshotId);
@@ -270,6 +277,7 @@ export function useTranscriptionCloudSyncActions({
     collaborationSyncBadge,
     listAccessibleCloudProjects,
     listCloudProjectMembers,
+    deleteCurrentCloudProject,
     saveUnitText: cloudSyncedWriteActions.saveUnitText,
     saveUnitSelfCertainty: cloudSyncedWriteActions.saveUnitSelfCertainty,
     saveUnitLayerFields: cloudSyncedWriteActions.saveUnitLayerFields,

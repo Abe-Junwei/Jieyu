@@ -16,6 +16,8 @@ export interface CollaborationLifecycleMessage {
   type: CollaborationLifecycleEvent;
   projectId: string;
   at: string;
+  /** 来自其他标签页（本标签页自己发出的为 false）| From another tab (false for this tab's own) */
+  fromOtherTab?: boolean;
 }
 
 export const COLLAB_LIFECYCLE_CHANNEL = 'jieyu-collab-lifecycle';
@@ -32,7 +34,7 @@ function getChannel(): BroadcastChannel | null {
     channel.onmessage = (event: MessageEvent<unknown>) => {
       const message = parseMessage(event.data);
       if (message === null) return;
-      for (const listener of localListeners) listener(message);
+      for (const listener of localListeners) listener({ ...message, fromOtherTab: true });
     };
   }
   return channel;
@@ -63,7 +65,7 @@ export function broadcastCollaborationLifecycle(
   projectId: string,
 ): void {
   const message: CollaborationLifecycleMessage = { type, projectId, at: new Date().toISOString() };
-  for (const listener of localListeners) listener(message);
+  for (const listener of localListeners) listener({ ...message, fromOtherTab: false });
   try {
     getChannel()?.postMessage(message);
   } catch {

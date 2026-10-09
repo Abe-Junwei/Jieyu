@@ -16,6 +16,11 @@ export const zhCNDictionary = {
   'app.home.loading': '正在汇总各项目进度…',
   'app.home.errorPrefix': '加载失败：',
   'app.home.noProjects': '还没有项目。',
+  'app.collabNotice.protocolRejected':
+    '服务器拒绝了这个页面的协作写入（客户端版本过旧或协议已升级），协作已切换为只读。请刷新页面。',
+  'app.collabNotice.projectDeletedInCloud': '当前项目已被所有者在云端删除，本机副本已清理。',
+  'app.collabNotice.projectRemovedInOtherTab': '当前项目已在另一个标签页中从本机移除。',
+  'app.collabNotice.appUpdated': '新版本已就绪，刷新页面后生效。',
   'app.home.removedCloudProjects.title': '已从本机移除的云端项目',
   'app.home.removedCloudProjects.hint':
     '这些项目只从本机移除了，云端和其他协作者不受影响；不会自动下载，需要时手动重新下载。',
@@ -3532,6 +3537,12 @@ export const zhCNDictionary = {
     directoryHint:
       '列表仅包含当前账号在 RLS 下可读的项目。邀请与角色分配请在 Supabase 或后续管理界面完成。',
     currentProjectHeading: '当前项目 ID：{projectId}',
+    deleteCloudProject: '删除云端项目（所有协作者）',
+    confirmDeleteCloudProject:
+      '删除后，所有协作者都无法再同步这个项目，各自设备上的副本也会被清理。这个操作不能撤销。继续吗？',
+    confirmDeleteCloudProjectFinal: '再确认一次：确定永久删除这个云端项目吗？',
+    cloudProjectDeleted: '云端项目已删除，本机副本已清理。',
+    deleteCloudProjectOwnerOnly: '只有项目所有者可以删除云端项目。',
   }),
   'msg.layerConstraint.catalog': JSON.stringify({
     issueConstraintUnsupported: '层 {layerKey} 使用了当前运行时未启用的约束：{constraint}',

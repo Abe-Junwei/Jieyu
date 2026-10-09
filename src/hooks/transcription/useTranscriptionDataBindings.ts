@@ -499,6 +499,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     collaborationSyncBadge: cloudSyncActions.collaborationSyncBadge,
     listAccessibleCloudProjects: cloudSyncActions.listAccessibleCloudProjects,
     listCloudProjectMembers: cloudSyncActions.listCloudProjectMembers,
+    deleteCurrentCloudProject: cloudSyncActions.deleteCurrentCloudProject,
   };
 
   const actionApi = {
