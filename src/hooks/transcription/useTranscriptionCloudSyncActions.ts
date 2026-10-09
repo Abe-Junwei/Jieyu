@@ -5,7 +5,7 @@
  * 保持 useTranscriptionData 为薄组合层。
  * Keeps useTranscriptionData as a thin composition layer.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { isCollaborationCloudSurfaceActive } from '../../collaboration/cloud/collaborationCloudFeatureGate';
 import { useTranscriptionCollaborationBridge } from './useTranscriptionCollaborationBridge';
@@ -15,6 +15,10 @@ import { useCollaborationConflictReview } from './useCollaborationConflictReview
 import { useCollaborationPresence } from './useCollaborationPresence';
 import { useCollaborationProjectHydration } from './useCollaborationProjectHydration';
 import { LinguisticService } from '../../services/LinguisticService';
+import {
+  getActiveProjectTextId,
+  subscribeActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 import {
   listAccessibleCloudProjects as fetchAccessibleCloudProjects,
   listCloudProjectMembers as fetchCloudProjectMembers,
@@ -105,10 +109,21 @@ export function useTranscriptionCloudSyncActions({
   const wrappedActionsRef = useRef(wrappedActions);
   wrappedActionsRef.current = wrappedActions;
 
-  const collaborationProjectId = useMemo(
-    () => (units[0]?.textId ?? layers[0]?.textId ?? '').trim(),
-    [layers, units],
+  // GAP-5：协同项目取工作台已发布的当前项目（与 JY-02 一致），不再从 units[0] / layers[0] 推断；
+  // 否则还没有单元和图层的空项目会得到 ''，所有远端变更都被拒收。数据行只作为未发布时的兜底。
+  // GAP-5: the collaboration project is the published current workspace project (as in JY-02), not
+  // inferred from units[0] / layers[0]; an empty project used to get '' and reject every remote
+  // change. Data rows are only a fallback when nothing is published.
+  const publishedProjectTextId = useSyncExternalStore(
+    subscribeActiveProjectTextId,
+    getActiveProjectTextId,
+    () => '',
   );
+  const collaborationProjectId = useMemo(() => {
+    const published = publishedProjectTextId.trim();
+    if (published.length > 0) return published;
+    return (units[0]?.textId ?? layers[0]?.textId ?? '').trim();
+  }, [layers, publishedProjectTextId, units]);
 
   const collaborationSupabaseConfigured = useMemo(() => isCollaborationCloudSurfaceActive(), []);
 

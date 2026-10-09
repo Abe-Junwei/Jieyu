@@ -6,6 +6,10 @@ import {
   useTranscriptionCloudSyncActions,
   type UseTranscriptionCloudSyncActionsParams,
 } from './useTranscriptionCloudSyncActions';
+import {
+  clearActiveProjectTextId,
+  publishActiveProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 
 const {
   bridgeState,
@@ -212,6 +216,27 @@ describe('useTranscriptionCloudSyncActions applyRemote + conflict audit chain', 
     await waitFor(() => {
       expect(mockRawToggleLayerLink).toHaveBeenCalledWith('trc_1', 'trl-1');
     });
+  });
+
+  it('GAP-5: an empty current project (no units / layers yet) still applies remote changes', async () => {
+    publishActiveProjectTextId('project-1');
+    try {
+      renderHook(() => useTranscriptionCloudSyncActions(buildParams({ units: [], layers: [] })));
+      await act(async () => {
+        await triggerRemote(
+          createRemoteRelationChange({
+            hostTranscriptionLayerId: 'trc-1',
+            layerId: 'trl-1',
+            enabled: true,
+          }),
+        );
+      });
+      await waitFor(() => {
+        expect(mockRawToggleLayerLink).toHaveBeenCalledWith('trc_1', 'trl-1');
+      });
+    } finally {
+      clearActiveProjectTextId();
+    }
   });
 
   it('emits host-id-first relation payload when toggling layer link locally', async () => {
