@@ -17,7 +17,7 @@
 import { detectVadSegments } from '../VadService';
 import type { VadWorkerSegment } from '../../workers/vadWorker';
 import { createLogger } from '../../observability/logger';
-import { createManagedBrowserWorker } from '../../observability/managedBrowserWorkerFactory';
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
 import { getWorkerPool } from '../../workers/WorkerPool';
 import { PendingWorkerRequestStore } from '../PendingWorkerRequestStore';
@@ -110,24 +110,16 @@ export class WhisperXVadService {
       }, timeoutMs);
 
       try {
-        const spawned = createManagedBrowserWorker({
-          url: new URL('../../workers/vadWorker.ts', import.meta.url),
-          options: { type: 'module' },
-          tracking: {
-            id: nextPhysicalWorkerId('vadWhisperX'),
-            source: 'WhisperXVadService',
-          },
-        });
-        this.worker = spawned.worker;
+        const createVadWorker = () =>
+          new Worker(new URL('../../workers/vadWorker.ts', import.meta.url), { type: 'module' });
+        const worker = createVadWorker();
+        this.worker = worker;
         this.vadWorkerTrackingRelease?.();
-        this.vadWorkerTrackingRelease = spawned.release;
-        getWorkerPool().register(
-          'vadWhisperX',
-          'VAD (Silero)',
-          () =>
-            new Worker(new URL('../../workers/vadWorker.ts', import.meta.url), { type: 'module' }),
-          spawned.worker,
-        );
+        this.vadWorkerTrackingRelease = trackBrowserWorkerLifecycle(worker, {
+          id: nextPhysicalWorkerId('vadWhisperX'),
+          source: 'WhisperXVadService',
+        });
+        getWorkerPool().register('vadWhisperX', 'VAD (Silero)', createVadWorker, worker);
       } catch (err) {
         clearTimeout(timer);
         reject(
