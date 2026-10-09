@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
+import {
+  scheduleSegmentMetaSyncForUnitIds,
+  settleSegmentMetaSync,
+} from './segmentMetaSyncBestEffort';
 import { SegmentMetaService } from './SegmentMetaService';
 
 const warnMock = vi.hoisted(() => vi.fn());
@@ -61,5 +64,43 @@ describe('scheduleSegmentMetaSyncForUnitIds', () => {
       unitIdCount: 1,
       error: 'sync boom',
     });
+  });
+
+  it('settleSegmentMetaSync flushes pending ids and waits for the in-flight sync (BF1-N7)', async () => {
+    let finish: () => void = () => {};
+    let done = false;
+    vi.mocked(SegmentMetaService.syncForUnitIds).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            done = true;
+            resolve();
+          };
+        }),
+    );
+    scheduleSegmentMetaSyncForUnitIds(['unit-9'], 'settle-context');
+
+    const settled = settleSegmentMetaSync();
+    // 不等 50ms 定时器即已发起 | started without waiting for the 50 ms timer
+    expect(SegmentMetaService.syncForUnitIds).toHaveBeenCalledWith(['unit-9']);
+    let settledYet = false;
+    void settled.then(() => {
+      settledYet = true;
+    });
+    await Promise.resolve();
+    expect(settledYet).toBe(false);
+    finish();
+    await settled;
+    expect(done).toBe(true);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(SegmentMetaService.syncForUnitIds).toHaveBeenCalledTimes(1);
+  });
+
+  it('settleSegmentMetaSync resolves immediately when idle and survives a failed sync', async () => {
+    await settleSegmentMetaSync();
+    vi.mocked(SegmentMetaService.syncForUnitIds).mockRejectedValueOnce(new Error('boom'));
+    scheduleSegmentMetaSyncForUnitIds(['unit-1'], 'fail-context');
+    await expect(settleSegmentMetaSync()).resolves.toBeUndefined();
+    expect(warnMock).toHaveBeenCalled();
   });
 });
