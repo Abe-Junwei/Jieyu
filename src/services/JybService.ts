@@ -21,6 +21,7 @@
  *   界面二次确认；先做整库快照，失败就中止；会丢本机字节时中止（4.2-7）；保留原 id。
  */
 import type { ImportResult } from '../db/types';
+import type { JieyuDatabase } from '../db/engine';
 import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import {
@@ -163,6 +164,11 @@ export interface JybExportOptions {
   encryption?: JieyuArchiveEncryptionOptions;
   /** 覆盖容量上限（测试用）| Override the size limits (tests) */
   policy?: Partial<JieyuArchiveImportPolicy>;
+  /**
+   * 从别的库导出（原始快照转换器的临时库）；默认主库。
+   * Export another database (the raw-snapshot converter's temp DB); defaults to the main DB.
+   */
+  source?: JieyuDatabase;
 }
 
 /** 本机字节的总大小（读字节之前先检查上限）| Total size of local bytes, checked before any read */
@@ -194,6 +200,7 @@ export async function exportDatabaseToJyb(options: JybExportOptions = {}): Promi
     skipCollections: JYB_SKIPPED_COLLECTIONS,
     retainByteBlobs: includeMedia,
     includeProjectAi: true,
+    ...(options.source ? { source: options.source } : {}),
   });
   const contentCollections: ProjectCollections = Object.fromEntries(
     Object.entries(full.collections).filter(([name]) => !PROJECT_AI_TABLE_SET.has(name)),
@@ -256,7 +263,7 @@ export async function exportDatabaseToJyb(options: JybExportOptions = {}): Promi
   }
 
   // 没进包的数据类按行数记在清单里 | Data classes left out, with their row counts
-  const db = await engine.getDb();
+  const db = options.source ?? (await engine.getDb());
   const excludedClasses = new Map<JieyuDataClass, number>();
   for (const name of JYB_SKIPPED_COLLECTIONS) {
     const dataClass = JIEYU_MAIN_TABLE_REGISTRY[name as JieyuMainTableName].dataClass;

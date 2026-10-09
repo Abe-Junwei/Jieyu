@@ -216,6 +216,21 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     [showToast],
   );
   const exportLibraryBackup = useLibraryBackupExport({ locale, notify: notifyLibraryBackup });
+  const exportRawSnapshot = useCallback(async () => {
+    try {
+      const { downloadMainDatabaseRawSnapshot } =
+        await import('../../services/rawSnapshotConverter');
+      await downloadMainDatabaseRawSnapshot();
+      showToast(t(locale, 'transcription.importExport.exportDone.rawSnapshot'), 'success');
+    } catch (error) {
+      showToast(
+        tf(locale, 'transcription.importExport.exportFailed.rawSnapshot', {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+        'error',
+      );
+    }
+  }, [locale, showToast]);
   const [snapshotRestoreOpen, setOverwriteSnapshotsOpen] = useState(false);
   const [hostElement, setHostElement] = useState<HTMLElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -230,6 +245,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
 
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const projectArchiveInputRef = useRef<HTMLInputElement | null>(null);
+  const rawSnapshotInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -628,10 +644,18 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         label: t(locale, 'transcription.toolbar.importAudio'),
         onClick: onOpenAudioImport,
       },
+      // 原始恢复快照（迁移被阻止时导出的 ZIP）转换后按 JYB 导入（8.2，T41）| Raw snapshot → JYB (T41)
+      {
+        label: t(locale, 'transcription.projectHub.rawSnapshotImport'),
+        separatorBefore: true,
+        onClick: () => {
+          recordTranscriptionKeyboardAction('toolbarOpenProjectArchivePicker');
+          rawSnapshotInputRef.current?.click();
+        },
+      },
       // 覆盖前快照与整库快照的恢复入口（用户决定 2026-10-09）| Snapshot restore entry
       {
         label: t(locale, 'transcription.projectHub.snapshotRestore.menu'),
-        separatorBefore: true,
         onClick: () => {
           setIsOpen(false);
           setOverwriteSnapshotsOpen(true);
@@ -780,6 +804,16 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           });
         },
       },
+      // 原始恢复快照：旧 schema 原样数据，不是 JYB（8.2）| Raw recovery snapshot (not a JYB, 8.2)
+      {
+        label: t(locale, 'transcription.toolbar.export.rawSnapshot'),
+        onClick: () => {
+          fireAndForget(exportRawSnapshot(), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L812',
+            policy: 'user-visible',
+          });
+        },
+      },
     ];
 
     return [
@@ -900,6 +934,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onExportJym,
     onExportJyt,
     exportLibraryBackup,
+    exportRawSnapshot,
     onExportLite,
     onExportTextGrid,
     onExportToolbox,
@@ -980,6 +1015,23 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           if (file) {
             fireAndForget(handleProjectArchivePicked(file), {
               context: 'src/components/transcription/LeftRailProjectHub.tsx:L634',
+              policy: 'user-visible',
+            });
+          }
+          event.target.value = '';
+        }}
+      />
+      <input
+        ref={rawSnapshotInputRef}
+        type="file"
+        accept=".zip"
+        aria-label={t(locale, 'transcription.projectHub.rawSnapshotImport')}
+        className="left-rail-project-hub-file-input left-rail-project-hub-raw-snapshot-input"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            fireAndForget(handleProjectArchivePicked(file), {
+              context: 'src/components/transcription/LeftRailProjectHub.tsx:L1034',
               policy: 'user-visible',
             });
           }

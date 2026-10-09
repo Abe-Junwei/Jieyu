@@ -28,10 +28,25 @@ function loadJybModule() {
   return import('../../services/JybService');
 }
 
-/** 读出文件；是 JYB 时带上 JYB 模块 | Read the file; a JYB comes with the JYB module */
-async function readArchiveFile(file: File) {
+/**
+ * 读出文件；是 JYB 时带上 JYB 模块。原始恢复快照（raw-idb ZIP）先转换成当前版本的 JYB（8.2，
+ * T41），之后按 JYB 处理；同一个文件只转换一次。
+ * Read the file; a JYB comes with the JYB module. A raw recovery snapshot (raw-idb ZIP) is first
+ * converted into a current-version JYB (8.2, T41) and then handled as a JYB; once per file.
+ */
+async function readArchiveFile(file: File, converted: Map<string, Uint8Array>) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const jyb = await loadJybModule();
+  const raw = await import('../../services/rawSnapshotConverter');
+  if (raw.isRawIdbSnapshot(bytes)) {
+    const key = getArchivePasswordCacheKey(file);
+    let jybBytes = converted.get(key);
+    if (!jybBytes) {
+      jybBytes = (await raw.convertRawSnapshotToJyb(bytes)).jyb;
+      converted.set(key, jybBytes);
+    }
+    return { bytes: jybBytes, jyb };
+  }
   return { bytes, jyb: jyb.isJybPackage(bytes) ? jyb : null };
 }
 
@@ -69,6 +84,7 @@ interface CreateImportExportArchiveHandlersInput {
 export function createImportExportArchiveHandlers(input: CreateImportExportArchiveHandlersInput) {
   const { activeTextId, loadSnapshot, locale, setSaveState } = input;
   const passwordCache = new Map<string, string>();
+  const convertedRawSnapshots = new Map<string, Uint8Array>();
 
   const withArchivePasswordRetry = async <T>(
     file: File,
@@ -161,7 +177,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
   };
 
   const previewProjectArchiveImport = async (file: File): Promise<JieyuArchiveImportPreview> => {
-    const read = await readArchiveFile(file);
+    const read = await readArchiveFile(file, convertedRawSnapshots);
     if (read.jyb) return previewLibraryBackup(file, read.bytes, read.jyb);
     const { bytes, packages } = await readProjectPackageBytes(file, read.bytes);
     // JYT / JYM：恢复为新项目（D5 默认），预览里没有冲突和策略 | Restore as a new project (D5)
@@ -315,7 +331,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     let resolvedTextId: string | null = activeTextId;
 
     try {
-      const read = await readArchiveFile(file);
+      const read = await readArchiveFile(file, convertedRawSnapshots);
       if (read.jyb) {
         const { message, openTextId } = await importLibraryBackup(
           file,

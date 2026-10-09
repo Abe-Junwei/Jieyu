@@ -1,8 +1,8 @@
 /**
- * 第 3 批第三个切片（JYB 整库备份）浏览器端验收：T53 整库备份不含凭据 / AI 表、T30 含音频与
+ * 第 3 批第三个切片（JYB 整库备份）浏览器端验收：T53 整库备份不含凭据 / 审计表、T30 含音频与
  * 不含音频两种导出并逐项目导入为新项目、T34 整库还原要点两次且还原后数据回到备份时的样子、
  * 协作过的项目不能整库还原。
- * Batch 3 slice 3 (JYB whole-library backup) browser acceptance: T53 no credential / AI tables,
+ * Batch 3 slice 3 (JYB whole-library backup) browser acceptance: T53 no credential / audit tables,
  * T30 export with and without audio and per-project import as new projects, T34 disaster restore
  * needs two clicks and brings data back to the backup, collaborated projects block disaster restore.
  */
@@ -111,20 +111,14 @@ test.describe('Batch 3 JYB | 第三批 JYB 整库备份', () => {
     expect(entity).toMatchObject({ type: 'media', bytes: 'included' });
     expect(sha256(files[entity!.fileRef!]!)).toBe(entity!.contentSha256);
 
-    // T53：数据里没有凭据 / AI / 审计表 | T53: no credential / AI / audit tables in the data
+    // T53：数据里没有凭据 / 审计表（项目 AI 按用户决定 2026-10-09 可以进包）
+    // T53: no credential / audit tables in the data (project AI may be packed, user decision 2026-10-09)
     const data = JSON.parse(strFromU8(files['data/library.json']!)) as {
       projects: Array<{ id: string; collections: Record<string, unknown[]> }>;
     };
     const tables = new Set(data.projects.flatMap((p) => Object.keys(p.collections)));
     for (const forbidden of [
-      'ai_conversations',
-      'ai_messages',
-      'ai_session_memories',
-      'project_ai_memories',
-      'ai_tasks',
-      'ai_task_snapshots',
       'agent_artifacts',
-      'ai_source_sets',
       'audit_logs',
       'mcp_tool_call_audits',
       'external_mcp_trust',

@@ -1463,6 +1463,7 @@ export const zhCNDictionary = {
   'transcription.toolbar.export.jym': '导出当前项目为 JYM（含音频）',
   'transcription.toolbar.export.jybWithMedia': '导出整库备份 JYB（含音频，默认）',
   'transcription.toolbar.export.jybWithoutMedia': '导出整库备份 JYB（仅数据，不含音频）',
+  'transcription.toolbar.export.rawSnapshot': '导出原始恢复快照（.zip，含音频）',
   'transcription.toolbar.export.srt': '导出为字幕 SRT (.srt)',
   'transcription.toolbar.export.vtt': '导出为字幕 WebVTT (.vtt)',
   'transcription.toolbar.export.csv': '导出为表格 CSV (.csv)',
@@ -1608,6 +1609,7 @@ export const zhCNDictionary = {
   'transcription.projectHub.jybRestorePreferences':
     '同时还原备份里的 {count} 项用户偏好（界面、语言、AI 参数；不含密钥）',
   'transcription.projectHub.snapshotRestore.menu': '从快照恢复…',
+  'transcription.projectHub.rawSnapshotImport': '从原始恢复快照导入（.zip）…',
   'transcription.projectHub.snapshotRestore.title': '从快照恢复',
   'transcription.projectHub.snapshotRestore.listTitle': '本机快照',
   'transcription.projectHub.snapshotRestore.intro':
@@ -2217,6 +2219,9 @@ export const zhCNDictionary = {
   'transcription.importExport.exportDone.jym': 'JYM 已导出：只含当前项目，含录音与附件。',
   'transcription.importExport.exportDone.jybWithMedia': '整库备份 JYB 已导出（含音频）。',
   'transcription.importExport.exportDone.jybWithoutMedia': '整库备份 JYB 已导出（不含音频）。',
+  'transcription.importExport.exportDone.rawSnapshot':
+    '原始恢复快照已导出（整库原样数据，不是 JYB；可从“导入 → 从原始恢复快照导入”转换后导入）。',
+  'transcription.importExport.exportFailed.rawSnapshot': '原始恢复快照导出失败：{message}',
   'transcription.importExport.exportDone.srt': 'SRT 已导出。',
   'transcription.importExport.exportDone.vtt': 'WebVTT 已导出。',
   'transcription.importExport.exportDone.csv': 'CSV 已导出。',

@@ -131,6 +131,7 @@ import {
   applyJieyuSchemaVersions,
   JIEYU_DEXIE_TARGET_SCHEMA_VERSION as SCHEMA_TARGET,
   JIEYU_SCHEMA_VERSIONS,
+  type JieyuSchemaVersion,
 } from './migration/schemaVersions';
 import { JIEYU_DATA_FROZEN } from '../config/dataFreeze';
 import { resolveMigrationPolicy } from './migration/migrationPolicy';
@@ -208,11 +209,20 @@ export class JieyuDexie extends Dexie {
   annotation_documents!: Table<AnnotationDocumentDocType, string>;
   ai_source_sets!: Table<AiSourceSetDoc, string>;
 
-  constructor(name: string, options?: DexieOptions) {
+  /**
+   * `versions` 只给原始快照转换器的测试用（合成账本）；主库永远用 `JIEYU_SCHEMA_VERSIONS`。
+   * `versions` exists for raw-snapshot converter tests (synthetic ledgers); the main DB always uses
+   * `JIEYU_SCHEMA_VERSIONS`.
+   */
+  constructor(
+    name: string,
+    options?: DexieOptions,
+    versions: readonly JieyuSchemaVersion[] = JIEYU_SCHEMA_VERSIONS,
+  ) {
     super(name, options);
     // 4a：版本声明集中在 schemaVersions 账本（分级、冻结检查都从那里读）。
     // 4a: version declarations live in the schemaVersions ledger (tiering + freeze check read it).
-    applyJieyuSchemaVersions(this, JIEYU_SCHEMA_VERSIONS);
+    applyJieyuSchemaVersions(this, versions);
     // 4.4 统一写入校验：所有经 Dexie 的写入（含 table.put/bulkPut/update/modify）逐行校验。
     // 4.4 unified write validation for every Dexie write path.
     // 2B-B：目录行必须带项目归属，且不接受 `system.*` ID。| Catalog ownership + no `system.*` ids.
@@ -444,7 +454,14 @@ async function _createDb(): Promise<JieyuDatabase> {
     throw openError;
   }
   registerIndexedDbMutationBackupHooks(dexie);
+  return wrapJieyuDexie(dexie);
+}
 
+/**
+ * 给一个已打开的 `JieyuDexie` 配上集合适配器（主库与原始快照转换器的临时库共用）。
+ * Attach the collection adapters to an opened `JieyuDexie` (main DB and the converter's temp DB).
+ */
+export function wrapJieyuDexie(dexie: JieyuDexie): JieyuDatabase {
   const collections: JieyuCollections = {
     texts: new DexieCollectionAdapter(dexie.texts, validateTextDoc),
     media_items: new DexieCollectionAdapter(dexie.media_items, validateMediaItemDoc),

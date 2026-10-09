@@ -1561,6 +1561,7 @@ export const enUSDictionary = {
     'Export whole-library backup JYB (with audio, default)',
   'transcription.toolbar.export.jybWithoutMedia':
     'Export whole-library backup JYB (data only, without audio)',
+  'transcription.toolbar.export.rawSnapshot': 'Export a raw recovery snapshot (.zip, with audio)',
   'transcription.toolbar.export.srt': 'Export as SRT (.srt)',
   'transcription.toolbar.export.vtt': 'Export as WebVTT (.vtt)',
   'transcription.toolbar.export.csv': 'Export as CSV (.csv)',
@@ -1716,6 +1717,7 @@ export const enUSDictionary = {
   'transcription.projectHub.jybRestorePreferences':
     'Also restore {count} user preferences from the backup (UI, language, AI parameters; no keys)',
   'transcription.projectHub.snapshotRestore.menu': 'Restore from a snapshot…',
+  'transcription.projectHub.rawSnapshotImport': 'Import from a raw recovery snapshot (.zip)…',
   'transcription.projectHub.snapshotRestore.title': 'Restore from a snapshot',
   'transcription.projectHub.snapshotRestore.listTitle': 'Snapshots on this device',
   'transcription.projectHub.snapshotRestore.intro':
@@ -2376,6 +2378,10 @@ export const enUSDictionary = {
     'Whole-library backup JYB exported (with audio).',
   'transcription.importExport.exportDone.jybWithoutMedia':
     'Whole-library backup JYB exported (without audio).',
+  'transcription.importExport.exportDone.rawSnapshot':
+    'Raw recovery snapshot exported (the whole database as-is, not a JYB; import it via Import > Import from a raw recovery snapshot).',
+  'transcription.importExport.exportFailed.rawSnapshot':
+    'Raw recovery snapshot export failed: {message}',
   'transcription.importExport.exportDone.srt': 'SRT exported.',
   'transcription.importExport.exportDone.vtt': 'WebVTT exported.',
   'transcription.importExport.exportDone.csv': 'CSV exported.',

@@ -142,6 +142,22 @@ export async function exportRawIdbSnapshot(
   return { bytes: zipSync(files), manifest, fileName: rawRecoveryFileName(manifest) };
 }
 
+/**
+ * 只看 `manifest.json` 判断是不是原始快照 ZIP；不解压其他条目，坏文件返回 false。
+ * Whether the bytes are a raw snapshot ZIP, judged by `manifest.json` alone; false on bad input.
+ */
+export function isRawIdbSnapshot(bytes: Uint8Array): boolean {
+  if (bytes.byteLength < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) return false;
+  try {
+    const entries = unzipSync(bytes, { filter: (file) => file.name === 'manifest.json' });
+    const manifest = entries['manifest.json'];
+    if (!manifest) return false;
+    return (JSON.parse(strFromU8(manifest)) as { kind?: unknown }).kind === RAW_IDB_SNAPSHOT_KIND;
+  } catch {
+    return false;
+  }
+}
+
 export type ParsedRawIdbSnapshot = {
   manifest: RawIdbSnapshotManifest;
   stores: Array<{ schema: RawStoreSchema; keys: IDBValidKey[]; values: unknown[] }>;

@@ -23,7 +23,7 @@ import type {
   UnitTokenDocType,
   UserNoteDocType,
 } from './types';
-import { db, getDb } from './engine';
+import { db, getDb, type JieyuDatabase } from './engine';
 import { createLogger } from '../observability/logger';
 import { isCollectionDroppedOnImport, type ImportDropOptions } from './tableRegistry';
 import { withTransaction } from './withTransaction';
@@ -113,6 +113,11 @@ export async function exportDatabaseAsJson(options?: {
    * Read project AI memory and history (JYB and whole-library snapshots only; never credentials or audit).
    */
   includeProjectAi?: boolean;
+  /**
+   * 从别的库读（原始快照转换器的临时库）；默认主库。
+   * Read from another database (the raw-snapshot converter's temp DB); defaults to the main DB.
+   */
+  source?: JieyuDatabase;
 }): Promise<{
   schemaVersion: number;
   exportedAt: string;
@@ -120,7 +125,7 @@ export async function exportDatabaseAsJson(options?: {
   collections: Record<string, unknown[]>;
 }> {
   // 使用 rxDb 避免遮蔽模块级 Dexie db | Use rxDb to avoid shadowing module-level Dexie db
-  const rxDb = await getDb();
+  const rxDb = options?.source ?? (await getDb());
   const skip = options?.skipCollections;
   // JY-13：所有集合在同一个只读事务里读出，导出期间的自动保存不会让快照前后不一致。
   // JY-13: every collection is read in one read-only transaction, so an autosave during the export
