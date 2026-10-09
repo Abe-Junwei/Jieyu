@@ -26,7 +26,6 @@ import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapsho
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { JIEYU_MAIN_TABLE_REGISTRY, type JieyuDataClass } from '../db/tableRegistry';
 import { JIEYU_PARENT_CONSISTENCY_RULES } from '../db/ownershipImmutabilityMiddleware';
-import { createLogger } from '../observability/logger';
 import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProfiles';
 import {
   createArchiveDecryptor,
@@ -238,7 +237,6 @@ export type PackageFile = z.infer<typeof fileSchema>;
 
 type Row = Record<string, unknown>;
 
-const log = createLogger('projectPackageService');
 type DbIoModule = typeof import('../db/io');
 type DbEngineModule = typeof import('../db/engine');
 type ProjectSnapshotModule = typeof import('../db/projectScopedSnapshot');
@@ -1125,7 +1123,6 @@ export function dropOrphanRows(collections: ProjectCollections): {
   const skipped = [...counts.entries()]
     .map(([collection, count]) => ({ collection, count }))
     .sort((a, b) => a.collection.localeCompare(b.collection, 'en'));
-  if (skipped.length > 0) log.warn('Dropped orphan rows from archive import', { skipped });
   return { collections: next, skipped };
 }
 

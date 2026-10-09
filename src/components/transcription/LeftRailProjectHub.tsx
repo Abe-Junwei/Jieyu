@@ -152,6 +152,15 @@ interface LeftRailProjectHubProps {
 
 const log = createLogger('LeftRailProjectHub');
 
+function formatSkippedOrphans(
+  rows: Array<{ collection: string; count: number }>,
+): { count: number; collections: string } {
+  return {
+    count: rows.reduce((sum, item) => sum + item.count, 0),
+    collections: rows.map((item) => `${item.collection} (${item.count})`).join(', '),
+  };
+}
+
 function pickInsertEstimate(
   preview: JieyuArchiveImportPreview,
   strategy: ImportConflictStrategy,
@@ -1178,17 +1187,13 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                     ) : null}
                     {projectImportState.preview.restoreAsNewProject.skippedOrphanRows.length > 0 ? (
                       <PanelChip variant="warning">
-                        {tf(locale, 'transcription.projectHub.restoreSkippedOrphanRows', {
-                          count:
-                            projectImportState.preview.restoreAsNewProject.skippedOrphanRows.reduce(
-                              (sum, item) => sum + item.count,
-                              0,
-                            ),
-                          collections:
-                            projectImportState.preview.restoreAsNewProject.skippedOrphanRows
-                              .map((item) => `${item.collection} (${item.count})`)
-                              .join(', '),
-                        })}
+                        {tf(
+                          locale,
+                          'transcription.projectHub.restoreSkippedOrphanRows',
+                          formatSkippedOrphans(
+                            projectImportState.preview.restoreAsNewProject.skippedOrphanRows,
+                          ),
+                        )}
                       </PanelChip>
                     ) : null}
                   </>
