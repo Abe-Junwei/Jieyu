@@ -167,13 +167,21 @@ export async function readDefaultAnnotationDocumentId(textId: string): Promise<s
   return id !== undefined && id.length > 0 ? id : undefined;
 }
 
-/** 层所属文档：层上没写时归默认文档 | A layer's document; absent means the default document */
-export function resolveLayerDocumentId(
+/**
+ * 层归属哪份文稿——全模块唯一的规则（显示、删除、替换、清单共用）：documentId 指向本项目存在的文稿时
+ * 归它；没写、或指向本机不存在的文稿（协作同步不带文稿行）时归当前（默认）文稿，不会凭空消失。
+ * The one rule for which document owns a layer (display, delete, replace and manifest share it): the
+ * layer's documentId when that document exists in the project; otherwise (absent, or a document that
+ * does not exist locally) the current (default) document, so the layer never disappears.
+ */
+export function resolveLayerOwner(
   layer: Pick<LayerDocType, 'documentId'>,
-  defaultDocumentId: string | undefined,
+  scope: AnnotationDocumentScope,
 ): string | undefined {
   const own = layer.documentId;
-  return own !== undefined && own.length > 0 ? own : defaultDocumentId;
+  return own !== undefined && own.length > 0 && scope.documentIds.has(own)
+    ? own
+    : scope.defaultDocumentId;
 }
 
 export type ProjectDocumentsManifest = {
@@ -204,10 +212,14 @@ export async function buildProjectDocumentsManifest(
     text?.defaultDocumentId !== undefined && text.defaultDocumentId.length > 0
       ? text.defaultDocumentId
       : undefined;
+  const scope: AnnotationDocumentScope = {
+    defaultDocumentId,
+    documentIds: new Set(documents.map((doc) => doc.id)),
+  };
   const layerIdsByDocument = new Map<string, string[]>();
   for (const layerDoc of layers) {
     const layer = layerDoc.toJSON();
-    const documentId = resolveLayerDocumentId(layer, defaultDocumentId);
+    const documentId = resolveLayerOwner(layer, scope);
     if (documentId === undefined) continue;
     layerIdsByDocument.set(documentId, [...(layerIdsByDocument.get(documentId) ?? []), layer.id]);
   }
@@ -233,17 +245,15 @@ async function collectDocumentUnitIds(
   db: JieyuDatabase,
   textId: string,
   documentId: string,
-  defaultDocumentId: string | undefined,
+  scope: AnnotationDocumentScope,
+  forDocumentDelete = false,
 ): Promise<{ unitIds: string[]; wholeProject: boolean }> {
   const tiers = await db.dexie.tier_definitions.where('textId').equals(textId).toArray();
-  const ownerOf = (tier: { documentId?: string }) =>
-    tier.documentId !== undefined && tier.documentId.length > 0
-      ? tier.documentId
-      : defaultDocumentId;
   const foreignLayerIds = new Set(
-    tiers.filter((tier) => ownerOf(tier) !== documentId).map((t) => t.id),
+    tiers.filter((tier) => resolveLayerOwner(tier, scope) !== documentId).map((t) => t.id),
   );
-  const isDefault = documentId === defaultDocumentId;
+  // 删除文稿从不整项目替换（无层宿主留给剩下的文稿）| A document delete never replaces the whole project
+  const isDefault = documentId === scope.defaultDocumentId && !forDocumentDelete;
   if (isDefault && foreignLayerIds.size === 0) return { unitIds: [], wholeProject: true };
   const units = await db.dexie.layer_units.where('textId').equals(textId).toArray();
   // 有多份文稿时，无层宿主归属不明，一律保留 | With several documents layer-less hosts are ambiguous: keep
@@ -315,18 +325,22 @@ async function deleteUnitDependentsIn(
  * 调用方事务须包含 `dexieStoresForAnnotationImportRw` 的各表。
  * Delete one document's unit graph and its dependent rows inside the caller's transaction (the
  * transaction must cover `dexieStoresForAnnotationImportRw`); layer definitions are kept.
+ * `forDelete`：删除文稿时传删除前的归属范围；此时不会整项目替换。
+ * `forDelete`: on a document delete, the pre-delete ownership scope; never replaces the whole project.
  */
 export async function deleteAnnotationDocumentUnitGraph(
   db: JieyuDatabase,
   textId: string,
   documentId: string,
+  forDelete?: { ownershipScope: AnnotationDocumentScope },
 ): Promise<{ deletedUnitIds: string[] }> {
-  const text = await db.dexie.texts.get(textId);
-  const defaultDocumentId =
-    text?.defaultDocumentId !== undefined && text.defaultDocumentId.length > 0
-      ? text.defaultDocumentId
-      : undefined;
-  const scope = await collectDocumentUnitIds(db, textId, documentId, defaultDocumentId);
+  const scope = await collectDocumentUnitIds(
+    db,
+    textId,
+    documentId,
+    forDelete?.ownershipScope ?? (await readAnnotationDocumentScope(db, textId)),
+    forDelete !== undefined,
+  );
   if (scope.wholeProject) {
     const graph = await collectLayerUnitGraphIdsByTextId(db, textId);
     await deleteUnitDependentsIn(db, graph.unitIds);
@@ -390,21 +404,16 @@ export async function previewAnnotationDocumentReplace(
   const owner = textId.trim();
   const db = await getDb();
   const text = await db.dexie.texts.get(owner);
-  const defaultDocumentId =
-    text?.defaultDocumentId !== undefined && text.defaultDocumentId.length > 0
-      ? text.defaultDocumentId
-      : undefined;
-  const documentId = targetDocumentId ?? defaultDocumentId;
   if (!text) return { documentId: undefined, unitCount: 0, layerCount: 0 };
+  const ownershipScope = await readAnnotationDocumentScope(db, owner);
+  const documentId = targetDocumentId ?? ownershipScope.defaultDocumentId;
   const tiers = await db.dexie.tier_definitions.where('textId').equals(owner).toArray();
-  const ownLayers = tiers.filter(
-    (tier) => resolveLayerDocumentId(tier, defaultDocumentId) === documentId,
-  );
+  const ownLayers = tiers.filter((tier) => resolveLayerOwner(tier, ownershipScope) === documentId);
   if (documentId === undefined) {
     const unitCount = await db.dexie.layer_units.where('textId').equals(owner).count();
     return { documentId, unitCount, layerCount: ownLayers.length };
   }
-  const scope = await collectDocumentUnitIds(db, owner, documentId, defaultDocumentId);
+  const scope = await collectDocumentUnitIds(db, owner, documentId, ownershipScope);
   const unitCount = scope.wholeProject
     ? await db.dexie.layer_units.where('textId').equals(owner).count()
     : scope.unitIds.length;
@@ -638,12 +647,17 @@ export async function deleteAnnotationDocument(
           .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
         const next = remaining.find((doc) => doc.isDefault) ?? remaining[0];
         if (!next) throw new AnnotationDocumentLastDocumentError();
-        // 先让层归属显式化并换掉当前文稿，此后层的归属不再依赖默认文档
-        // Make layer ownership explicit and move the default away; ownership no longer depends on it
-        await setDefaultDocumentIn(db, owner, next.id);
-        const { deletedUnitIds } = await deleteAnnotationDocumentUnitGraph(db, owner, documentId);
+        // 归属按删除前的范围判（与确认框、工作台一致），再换掉当前文稿
+        // Ownership is judged in the pre-delete scope (as the dialog and workspace show it)
+        const ownershipScope = await readAnnotationDocumentScope(db, owner);
         const tiers = await db.dexie.tier_definitions.where('textId').equals(owner).toArray();
-        const layerIds = tiers.filter((tier) => tier.documentId === documentId).map((t) => t.id);
+        const layerIds = tiers
+          .filter((tier) => resolveLayerOwner(tier, ownershipScope) === documentId)
+          .map((t) => t.id);
+        await setDefaultDocumentIn(db, owner, next.id);
+        const { deletedUnitIds } = await deleteAnnotationDocumentUnitGraph(db, owner, documentId, {
+          ownershipScope,
+        });
         if (layerIds.length > 0) {
           await db.dexie.tier_annotations.where('tierId').anyOf(layerIds).delete();
           await db.dexie.layer_links.where('layerId').anyOf(layerIds).delete();
@@ -700,9 +714,7 @@ export function isLayerInCurrentDocument(
   layer: { documentId?: string },
   scope: AnnotationDocumentScope,
 ): boolean {
-  const own = layer.documentId;
-  if (own === undefined || own.length === 0 || !scope.documentIds.has(own)) return true;
-  return own === scope.defaultDocumentId;
+  return resolveLayerOwner(layer, scope) === scope.defaultDocumentId;
 }
 
 /**

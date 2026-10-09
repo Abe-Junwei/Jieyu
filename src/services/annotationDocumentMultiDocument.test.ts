@@ -23,6 +23,7 @@ import {
   previewAnnotationDocumentReplace,
   readAnnotationDocumentScope,
   renameAnnotationDocument,
+  resolveLayerOwner,
   switchAnnotationDocument,
 } from './annotationDocumentService';
 
@@ -187,6 +188,33 @@ describe('Batch 5 / T46: deleting one document leaves the other', () => {
     expect(result.currentDocumentId).toBe(d2);
     expect(await unitIds(A)).toEqual(['u2']);
     expect(await db.tier_definitions.get('L1')).toBeUndefined();
+  });
+
+  it('B5-4: a layer of an unknown document belongs to the current one everywhere (shown, counted, deleted)', async () => {
+    const { d1, d2 } = await seedTwoDocuments();
+    // 协作同步来的层：documentId 指向本机没有的文稿 | A synced layer pointing at an unknown document
+    await (await getDb()).collections.layers.insert(layer('Lx', A, 'remote-doc'));
+    await db.layer_units.put(unit('ux', A, 'Lx'));
+    const scope = await readAnnotationDocumentScope(await getDb(), A);
+    expect(resolveLayerOwner({ documentId: 'remote-doc' }, scope)).toBe(d2);
+    expect(await previewAnnotationDocumentReplace(A, d2)).toMatchObject({
+      unitCount: 2,
+      layerCount: 2,
+    });
+    // 删掉它所在的当前文稿时一起删，不会“搬”到下一份 | Deleting its (current) document removes it
+    const result = await deleteAnnotationDocument(A, d2);
+    expect(result.deletedLayerIds.sort()).toEqual(['L2', 'Lx']);
+    expect(await unitIds(A)).toEqual(['u1']);
+    expect(result.currentDocumentId).toBe(d1);
+  });
+
+  it('B5-4: deleting a non-current document keeps the unknown-document layer on the current one', async () => {
+    const { d1 } = await seedTwoDocuments();
+    await (await getDb()).collections.layers.insert(layer('Lx', A, 'remote-doc'));
+    await db.layer_units.put(unit('ux', A, 'Lx'));
+    const result = await deleteAnnotationDocument(A, d1);
+    expect(result.deletedLayerIds).toEqual(['L1']);
+    expect(await unitIds(A)).toEqual(['u2', 'ux']);
   });
 
   it('the last document cannot be deleted and nothing is written', async () => {
