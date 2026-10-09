@@ -1579,6 +1579,14 @@ export const zhCNDictionary = {
   'transcription.projectHub.restoreSkippedLanguages':
     '这些语言条目已被本机其他项目使用，恢复时跳过：{ids}',
   'transcription.projectHub.confirmRestoreAsNew': '恢复为新项目',
+  'transcription.projectHub.restoreModeNew': '恢复为新项目（推荐）',
+  'transcription.projectHub.restoreModeOverwrite': '覆盖当前项目「{title}」',
+  'transcription.projectHub.overwriteBlockedBytes':
+    '不能覆盖：会丢掉本机 {count} 个录音、附件或原件的字节。请改为恢复为新项目。',
+  'transcription.projectHub.overwriteWarning':
+    '覆盖会替换当前项目的全部内容和目录（本机录音字节保留）。覆盖前会自动保存一份快照。请再点一次按钮确认。',
+  'transcription.projectHub.confirmOverwrite': '覆盖当前项目',
+  'transcription.projectHub.confirmOverwriteAgain': '确认覆盖',
   'transcription.projectHub.annotationImportDialogTitle': '导入标注文件',
   'transcription.projectHub.annotationImportDialogSummary': '选择这次标注导入的写入策略。',
   'transcription.projectHub.annotationImportDialogStrategy': '写入策略',
@@ -2220,6 +2228,14 @@ export const zhCNDictionary = {
   'transcription.importExport.jytNeedsProject': '请先打开一个项目，再导出 JYT。',
   'transcription.importExport.importDone.restoredAsNew':
     '已恢复为新项目「{title}」，写入 {written} 条记录。可在项目列表里打开它。',
+  'transcription.importExport.importDone.overwritten':
+    '已用 JYT 覆盖当前项目「{title}」，写入 {written} 条；覆盖前快照已保存。',
+  'transcription.importExport.overwriteNotAllowed':
+    '这个项目不能覆盖：它不存在、协作过，或者无法确认是否协作过。请改为恢复为新项目。',
+  'transcription.importExport.overwriteBytesAtRisk':
+    '已中止覆盖：会丢掉本机 {count} 个录音、附件或原件的字节。本机数据没有改动。',
+  'transcription.importExport.overwriteSnapshotFailed':
+    '已中止覆盖：覆盖前快照保存失败。本机数据没有改动。',
   'transcription.importExport.exportFailed': '导出失败: {message}',
   'transcription.error.action.assignSpeakerFailed': '说话人指派失败：{message}',
   'transcription.error.action.createSpeakerFailed': '创建说话人失败：{message}',

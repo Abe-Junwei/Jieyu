@@ -16,7 +16,8 @@
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { z } from 'zod';
 import type { ImportResult } from '../db/types';
-import { SnapshotFormatError } from '../db/snapshotFormatError';
+import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
+import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { JIEYU_MAIN_TABLE_REGISTRY, type JieyuDataClass } from '../db/tableRegistry';
 import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProfiles';
 import {
@@ -163,6 +164,9 @@ type Row = Record<string, unknown>;
 type DbIoModule = typeof import('../db/io');
 type DbEngineModule = typeof import('../db/engine');
 type ProjectSnapshotModule = typeof import('../db/projectScopedSnapshot');
+type ProjectPurgeModule = typeof import('../db/projectLocalPurge');
+type WithTransactionModule = typeof import('../db/withTransaction');
+type OverwriteSnapshotModule = typeof import('../db/projectOverwriteSnapshotStore');
 
 function appVersion(): string {
   return typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim().length > 0
@@ -585,7 +589,11 @@ async function inspectJytPackage(
 }
 
 /** 本机已有、属于别的项目的语言行（自然键冲突）| Language rows already present locally (natural-key collisions) */
-async function findCollidingLanguageIds(collections: ProjectCollections): Promise<string[]> {
+async function findCollidingLanguageIds(
+  collections: ProjectCollections,
+  /** 覆盖时，目标项目自己的语言行会被清掉，不算冲突 | On overwrite the target's own rows are replaced */
+  replacedProjectId?: string,
+): Promise<string[]> {
   const ids = rowsOf(collections, 'languages')
     .map((row) => str(row.id))
     .filter((id): id is string => id !== undefined);
@@ -593,7 +601,13 @@ async function findCollidingLanguageIds(collections: ProjectCollections): Promis
   const engine = (await import('../db/engine')) as DbEngineModule;
   const db = await engine.getDb();
   const existing = await db.dexie.languages.bulkGet(ids);
-  return ids.filter((_, index) => existing[index] !== undefined).sort();
+  return ids
+    .filter((_, index) => {
+      const row = existing[index] as Row | undefined;
+      if (row === undefined) return false;
+      return replacedProjectId === undefined || row.textId !== replacedProjectId;
+    })
+    .sort();
 }
 
 /** 跳过冲突语言及其显示名、别名、历史 | Drop colliding languages with their names, aliases, history */
@@ -613,6 +627,109 @@ function dropCollidingLanguages(
   return next;
 }
 
+/** 覆盖当前项目这一选项的情况（D5、T33）| The "overwrite current project" option (D5, T33) */
+export interface JytOverwriteOption {
+  targetProjectId: string;
+  targetTitle?: Record<string, string>;
+  /** 包来自这个项目本身：沿用原 id；否则全部重新映射 | Package came from this project: ids kept */
+  keepsIds: boolean;
+  /** false：覆盖会丢本机字节，不能执行（4.2-7）| false: local bytes would be lost (4.2-7) */
+  available: boolean;
+  /** 会丢字节的行（collection:id）| Rows whose local bytes would be lost */
+  bytesAtRisk: string[];
+  skippedLanguageIds: string[];
+}
+
+interface JytOverwritePlan {
+  option: JytOverwriteOption;
+  collections: ProjectCollections;
+}
+
+type ByteCollection = 'media_items' | 'lexeme_assets' | 'source_records';
+const BYTE_COLLECTIONS: readonly ByteCollection[] = [
+  'media_items',
+  'lexeme_assets',
+  'source_records',
+];
+
+function rowHasLocalBytes(collection: ByteCollection, row: Row): boolean {
+  if (collection === 'media_items') {
+    const details = row.details as Row | undefined;
+    if (details?.['audioBlob'] instanceof Blob) return true;
+    return row.byteLocation === 'managed' && row.availability === 'available';
+  }
+  if (collection === 'lexeme_assets') return row.blob instanceof Blob;
+  return row.storedBytes === true;
+}
+
+/**
+ * 目标项目里带本机字节、但入站数据里没有同一 id 的行：覆盖会把它们删掉，所以必须中止。
+ * Target rows that hold local bytes but have no inbound row with the same id; an overwrite would
+ * delete them, so it must abort. Reads only; callable inside the write transaction.
+ */
+async function findBytesAtRisk(
+  dexie: Awaited<ReturnType<DbEngineModule['getDb']>>['dexie'],
+  targetProjectId: string,
+  inbound: ProjectCollections,
+): Promise<string[]> {
+  const atRisk: string[] = [];
+  for (const collection of BYTE_COLLECTIONS) {
+    const inboundIds = new Set(rowsOf(inbound, collection).map((row) => String(row.id)));
+    const locals = (await dexie
+      .table(collection)
+      .filter((row: Row) => row.textId === targetProjectId)
+      .toArray()) as Row[];
+    for (const row of locals) {
+      if (rowHasLocalBytes(collection, row) && !inboundIds.has(String(row.id))) {
+        atRisk.push(`${collection}:${String(row.id)}`);
+      }
+    }
+  }
+  return atRisk.sort();
+}
+
+/**
+ * 覆盖计划；目标不存在、协作过或判定不了时返回 null（T33(b)：不出现覆盖选项）。
+ * Plan an overwrite; null when the target is missing, collaborated or unknown (T33(b)).
+ */
+async function planJytOverwrite(
+  inspected: Awaited<ReturnType<typeof inspectJytPackage>>,
+  targetProjectId: string | undefined,
+): Promise<JytOverwritePlan | null> {
+  const target = targetProjectId?.trim() ?? '';
+  if (target.length === 0) return null;
+  if (!isProjectNeverCollaborated(target)) return null;
+  const engine = (await import('../db/engine')) as DbEngineModule;
+  const db = await engine.getDb();
+  const targetText = (await db.dexie.table('texts').get(target)) as Row | undefined;
+  if (targetText === undefined) return null;
+
+  const keepsIds = inspected.sourceProjectId === target;
+  const skippedLanguageIds = await findCollidingLanguageIds(inspected.snapshot.collections, target);
+  const kept = dropCollidingLanguages(inspected.snapshot.collections, new Set(skippedLanguageIds));
+  let collections = kept;
+  if (!keepsIds) {
+    // 来自别的项目：全部重新映射，项目 id 换成当前项目 | From another project: remap, keep target id
+    const remap = buildProjectIdRemap(kept);
+    remap.set(inspected.sourceProjectId, target);
+    collections = remapProjectCollections(kept, remap);
+  }
+  const bytesAtRisk = await findBytesAtRisk(db.dexie, target, collections);
+  return {
+    option: {
+      targetProjectId: target,
+      ...(targetText.title !== undefined
+        ? { targetTitle: targetText.title as Record<string, string> }
+        : {}),
+      keepsIds,
+      available: bytesAtRisk.length === 0,
+      bytesAtRisk,
+      skippedLanguageIds,
+    },
+    collections,
+  };
+}
+
 export interface JytRestorePreview {
   manifest: JytManifest;
   sourceProject: { id: string; title?: Record<string, string> };
@@ -623,15 +740,23 @@ export interface JytRestorePreview {
   /** 本机已被别的项目使用、恢复时跳过的语言 id | Language ids skipped because another local project owns them */
   skippedLanguageIds: string[];
   unresolvedSystemRefs: string[];
+  /** 只有当前项目从未协作过时才有（D5、D6）| Present only when the current project never collaborated */
+  overwrite?: JytOverwriteOption;
 }
 
 /** 预览：做完所有写入前检查，不写任何数据 | Preview: run every pre-write check, write nothing */
 export async function previewJytRestore(
   archiveBytes: Uint8Array,
-  options?: { policy?: Partial<JieyuArchiveImportPolicy>; password?: string },
+  options?: {
+    policy?: Partial<JieyuArchiveImportPolicy>;
+    password?: string;
+    /** 当前项目；给出时一并评估能否覆盖它 | Current project; when given, overwrite is assessed */
+    overwriteTargetProjectId?: string;
+  },
 ): Promise<JytRestorePreview> {
   const dbIo = (await import('../db/io')) as DbIoModule;
   const inspected = await inspectJytPackage(archiveBytes, options, dbIo);
+  const overwritePlan = await planJytOverwrite(inspected, options?.overwriteTargetProjectId);
   const skippedLanguageIds = await findCollidingLanguageIds(inspected.snapshot.collections);
   const collections = Object.entries(
     dropCollidingLanguages(inspected.snapshot.collections, new Set(skippedLanguageIds)),
@@ -652,6 +777,7 @@ export async function previewJytRestore(
     unresolvedSystemRefs: listUnresolvedSystemRefs(
       inspected.manifest.systemRefs.map((ref) => ref.id),
     ),
+    ...(overwritePlan ? { overwrite: overwritePlan.option } : {}),
   };
 }
 
@@ -702,5 +828,126 @@ export async function restoreJytAsNewProject(
     sourceProjectId: inspected.sourceProjectId,
     importResult,
     skippedLanguageIds,
+  };
+}
+
+export interface JytOverwriteResult {
+  projectId: string;
+  title?: Record<string, string>;
+  sourceProjectId: string;
+  keptIds: boolean;
+  /** 覆盖前快照的序号 | Sequence number of the pre-overwrite snapshot */
+  snapshotSeq: number;
+  importResult: ImportResult;
+  skippedLanguageIds: string[];
+}
+
+/**
+ * 覆盖当前项目（D5，7.4-3，T33）。只对从未协作过的本地项目开放；二次确认在界面上完成。
+ * 顺序：全部包检查 → 重新判定 D6 → 覆盖前快照（失败就中止）→ 一个事务里：再查一遍会丢的字节、
+ * 清空项目内容与目录、写入包内容（本机同 id 的字节保留）。任何一步失败，项目保持原样。
+ * Overwrite the current project (D5, 7.4-3, T33); only for never-collaborated local projects, the
+ * double confirm happens in the UI. Order: package checks → D6 again → pre-overwrite snapshot
+ * (abort on failure) → one transaction that re-checks bytes at risk, clears the project's content
+ * and catalog rows and writes the package (local bytes of the same ids are kept). Any failure
+ * leaves the project as it was.
+ */
+export async function overwriteProjectWithJyt(
+  archiveBytes: Uint8Array,
+  options: {
+    targetProjectId: string;
+    policy?: Partial<JieyuArchiveImportPolicy>;
+    password?: string;
+  },
+): Promise<JytOverwriteResult> {
+  const [dbIo, scoped, purge, tx, snapshots, engine] = await Promise.all([
+    import('../db/io') as Promise<DbIoModule>,
+    import('../db/projectScopedSnapshot') as Promise<ProjectSnapshotModule>,
+    import('../db/projectLocalPurge') as Promise<ProjectPurgeModule>,
+    import('../db/withTransaction') as Promise<WithTransactionModule>,
+    import('../db/projectOverwriteSnapshotStore') as Promise<OverwriteSnapshotModule>,
+    import('../db/engine') as Promise<DbEngineModule>,
+  ]);
+  const inspected = await inspectJytPackage(archiveBytes, options, dbIo);
+  const plan = await planJytOverwrite(inspected, options.targetProjectId);
+  if (plan === null) {
+    throw new ProjectOverwriteBlockedError({
+      reason: 'not-allowed',
+      message: `Project ${options.targetProjectId} cannot be overwritten: it does not exist, has collaboration history, or its history cannot be read.`,
+    });
+  }
+  if (!plan.option.available) {
+    throw new ProjectOverwriteBlockedError({
+      reason: 'local-bytes-would-be-lost',
+      message: `Overwrite aborted: ${plan.option.bytesAtRisk.length} local recording/attachment byte(s) would be lost.`,
+      bytesAtRisk: plan.option.bytesAtRisk,
+    });
+  }
+  const target = plan.option.targetProjectId;
+  const collections = plan.collections;
+  const restoredAt = new Date().toISOString();
+  const text = rowsOf(collections, 'texts')[0]!;
+  text.restoredFrom = {
+    projectId: inspected.sourceProjectId,
+    packageKind: 'jyt',
+    exportedAt: inspected.manifest.created,
+    restoredAt,
+  };
+  text.updatedAt = restoredAt;
+
+  let snapshotSeq: number;
+  try {
+    const before = await scoped.exportProjectScopedDatabaseAsJson(target);
+    snapshotSeq = await snapshots.saveProjectOverwriteSnapshot({
+      projectId: target,
+      packageKind: 'jyt',
+      snapshot: { schemaVersion: before.schemaVersion, collections: before.collections },
+    });
+  } catch (error) {
+    throw new ProjectOverwriteBlockedError({
+      reason: 'snapshot-failed',
+      message: `Overwrite aborted: the pre-overwrite snapshot failed (${error instanceof Error ? error.message : String(error)}).`,
+      cause: error,
+    });
+  }
+
+  const db = await engine.getDb();
+  const purgeStores = purge.projectPurgeStores(db.dexie, 'replace-content');
+  const importResult = await dbIo.importDatabaseFromJson(
+    { ...inspected.snapshot, collections },
+    {
+      strategy: 'upsert',
+      preWrite: {
+        tables: purgeStores,
+        run: async () => {
+          // 快照之后可能又有写入：在写事务里再判定一次 | Re-check inside the write transaction
+          const atRisk = await findBytesAtRisk(db.dexie, target, collections);
+          if (atRisk.length > 0 || !isProjectNeverCollaborated(target)) {
+            throw new ProjectOverwriteBlockedError({
+              reason: atRisk.length > 0 ? 'local-bytes-would-be-lost' : 'not-allowed',
+              message: 'Overwrite aborted: the project changed after the preview.',
+              bytesAtRisk: atRisk,
+            });
+          }
+          await tx.withTransaction(
+            db,
+            'rw',
+            purgeStores,
+            () => purge.purgeProjectRows(db.dexie, target, 'replace-content'),
+            { label: 'JytService.overwrite.purge' },
+          );
+        },
+      },
+    },
+  );
+  await scoped.dropLexemeLinksWithMissingTargets();
+  return {
+    projectId: target,
+    ...(text.title !== undefined ? { title: text.title as Record<string, string> } : {}),
+    sourceProjectId: inspected.sourceProjectId,
+    keptIds: plan.option.keepsIds,
+    snapshotSeq,
+    importResult,
+    skippedLanguageIds: plan.option.skippedLanguageIds,
   };
 }

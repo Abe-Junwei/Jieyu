@@ -147,10 +147,21 @@ export interface JieyuArchiveImportPreviewCollection {
 }
 
 /** JYT 恢复为新项目时预览里额外显示的内容 | Extra preview facts when a JYT restores as a new project */
+/** 项目包的恢复方式（D5）| How a project package is restored (D5) */
+export type ProjectArchiveRestoreMode = 'restore-as-new' | 'overwrite-current';
+
 export interface JieyuArchiveRestoreAsNewPreview {
   sourceProjectTitle: string;
   mediaWithoutBytes: number;
   skippedLanguageIds: string[];
+  /** 只在当前项目从未协作过时出现（D5、D6、T33）| Present only for a never-collaborated current project */
+  overwriteCurrentProject?: {
+    targetProjectId: string;
+    targetTitle: string;
+    /** false：会丢本机字节，不能覆盖（4.2-7）| false: local bytes would be lost */
+    available: boolean;
+    bytesAtRiskCount: number;
+  };
 }
 
 export interface JieyuArchiveImportPreview {

@@ -172,8 +172,74 @@ describe('LeftRailProjectHub project import dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: '开始导入项目' }));
 
     await waitFor(() => {
-      expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'skip-existing');
+      expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'skip-existing', 'restore-as-new');
     });
+  });
+
+  it('JYT restores as a new project by default; overwrite needs a second click (D5, T33)', async () => {
+    const jytPreview = (available: boolean) => ({
+      ...makePreview(),
+      kind: 'jyt' as const,
+      totalConflicts: 0,
+      restoreAsNewProject: {
+        sourceProjectTitle: 'Field notes',
+        mediaWithoutBytes: 1,
+        skippedLanguageIds: [],
+        overwriteCurrentProject: {
+          targetProjectId: 'p1',
+          targetTitle: 'Current',
+          available,
+          bytesAtRiskCount: available ? 0 : 2,
+        },
+      },
+    });
+    const { onImportProjectArchive } = renderHub({
+      onPreviewProjectArchiveImport: vi.fn(async () => jytPreview(true)),
+    });
+    const file = new File(['archive'], 'demo.jyt', { type: 'application/octet-stream' });
+    const input = document.querySelector('input[accept=".jyt,.jym"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await screen.findByRole('dialog', { name: '导入项目预览' });
+    expect(screen.queryByText('导入策略')).toBeTruthy();
+    expect(screen.getByTestId('project-import-restore-as-new')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('project-import-overwrite-current'));
+    expect(screen.getByTestId('project-import-overwrite-warning')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '覆盖当前项目' }));
+    expect(onImportProjectArchive).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '确认覆盖' }));
+    await waitFor(() => {
+      expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'upsert', 'overwrite-current');
+    });
+  });
+
+  it('JYT overwrite is disabled when local bytes would be lost', async () => {
+    renderHub({
+      onPreviewProjectArchiveImport: vi.fn(async () => ({
+        ...makePreview(),
+        kind: 'jyt' as const,
+        restoreAsNewProject: {
+          sourceProjectTitle: 'Field notes',
+          mediaWithoutBytes: 0,
+          skippedLanguageIds: [],
+          overwriteCurrentProject: {
+            targetProjectId: 'p1',
+            targetTitle: 'Current',
+            available: false,
+            bytesAtRiskCount: 2,
+          },
+        },
+      })),
+    });
+    const file = new File(['archive'], 'demo.jyt', { type: 'application/octet-stream' });
+    const input = document.querySelector('input[accept=".jyt,.jym"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole('dialog', { name: '导入项目预览' });
+    expect(
+      (screen.getByTestId('project-import-overwrite-current') as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect(screen.getByTestId('project-import-overwrite-blocked').textContent).toContain('2');
+    expect(screen.getByRole('button', { name: '恢复为新项目' })).toBeTruthy();
   });
 
   it('opens annotation import strategy dialog and passes the selected strategy', async () => {

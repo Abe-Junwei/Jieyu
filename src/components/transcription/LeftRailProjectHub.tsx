@@ -21,7 +21,10 @@ import {
   type AnnotationImportBridgeStrategy,
 } from '../../hooks/importExport/useImportExport.annotationImport';
 import { getSidePaneSidebarMessages } from '../../i18n/messages';
-import type { JieyuArchiveImportPreview } from '../../services/JymService';
+import type {
+  JieyuArchiveImportPreview,
+  ProjectArchiveRestoreMode,
+} from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
@@ -53,6 +56,10 @@ interface ProjectImportState {
   file: File;
   preview: JieyuArchiveImportPreview;
   strategy: ImportConflictStrategy;
+  /** JYT：恢复为新项目（默认）或覆盖当前项目（D5）| JYT: restore as new (default) or overwrite (D5) */
+  restoreMode: ProjectArchiveRestoreMode;
+  /** 覆盖的第一次确认已点过（二次确认）| First overwrite confirm clicked (double confirm) */
+  overwriteArmed: boolean;
   importing: boolean;
 }
 
@@ -115,7 +122,11 @@ interface LeftRailProjectHubProps {
   onOpenSpeakerManagementPanel: () => void;
   onImportAnnotationFile: (file: File, strategy: AnnotationImportBridgeStrategy) => Promise<void>;
   onPreviewProjectArchiveImport: (file: File) => Promise<JieyuArchiveImportPreview>;
-  onImportProjectArchive: (file: File, strategy: ImportConflictStrategy) => Promise<boolean>;
+  onImportProjectArchive: (
+    file: File,
+    strategy: ImportConflictStrategy,
+    restoreMode?: ProjectArchiveRestoreMode,
+  ) => Promise<boolean>;
   onApplyTextTimeMapping?: (input: { offsetSec: number; scale: number }) => Promise<void>;
   onExportEaf: () => void;
   onExportTextGrid: () => void;
@@ -311,6 +322,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           file,
           preview,
           strategy: 'upsert',
+          restoreMode: 'restore-as-new',
+          overwriteArmed: false,
           importing: false,
         });
         setIsOpen(false);
@@ -330,11 +343,20 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   );
 
   const handleConfirmProjectImport = useCallback(async () => {
-    setProjectImportState((prev) => (prev ? { ...prev, importing: true } : null));
     const current = projectImportState;
     if (!current) return;
+    // D5：覆盖需要二次确认；第一次点击只显示警告 | D5: overwrite needs a second click
+    if (current.restoreMode === 'overwrite-current' && !current.overwriteArmed) {
+      setProjectImportState((prev) => (prev ? { ...prev, overwriteArmed: true } : null));
+      return;
+    }
+    setProjectImportState((prev) => (prev ? { ...prev, importing: true } : null));
 
-    const success = await onImportProjectArchive(current.file, current.strategy);
+    const success = await onImportProjectArchive(
+      current.file,
+      current.strategy,
+      current.restoreMode,
+    );
     if (success) {
       setProjectImportState(null);
       setIsOpen(false);
@@ -965,9 +987,13 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             >
               {projectImportState.importing
                 ? t(locale, 'transcription.projectHub.importing')
-                : projectImportState.preview.restoreAsNewProject
-                  ? t(locale, 'transcription.projectHub.confirmRestoreAsNew')
-                  : t(locale, 'transcription.projectHub.confirmImport')}
+                : projectImportState.restoreMode === 'overwrite-current'
+                  ? projectImportState.overwriteArmed
+                    ? t(locale, 'transcription.projectHub.confirmOverwriteAgain')
+                    : t(locale, 'transcription.projectHub.confirmOverwrite')
+                  : projectImportState.preview.restoreAsNewProject
+                    ? t(locale, 'transcription.projectHub.confirmRestoreAsNew')
+                    : t(locale, 'transcription.projectHub.confirmImport')}
             </PanelButton>
           </>
         ) : undefined
@@ -1039,9 +1065,71 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
               className="left-rail-project-import-strategy-section"
               title={t(locale, 'transcription.projectHub.importDialogStrategy')}
             >
-              <p data-testid="project-import-restore-as-new">
-                {t(locale, 'transcription.projectHub.restoreAsNewProject')}
-              </p>
+              {projectImportState.preview.restoreAsNewProject.overwriteCurrentProject ? (
+                <fieldset className="left-rail-project-import-strategy">
+                  <label>
+                    <input
+                      type="radio"
+                      name="project-import-restore-mode"
+                      checked={projectImportState.restoreMode === 'restore-as-new'}
+                      onChange={() =>
+                        setProjectImportState((prev) =>
+                          prev
+                            ? { ...prev, restoreMode: 'restore-as-new', overwriteArmed: false }
+                            : prev,
+                        )
+                      }
+                    />
+                    <span>{t(locale, 'transcription.projectHub.restoreModeNew')}</span>
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="project-import-restore-mode"
+                      data-testid="project-import-overwrite-current"
+                      disabled={
+                        !projectImportState.preview.restoreAsNewProject.overwriteCurrentProject
+                          .available
+                      }
+                      checked={projectImportState.restoreMode === 'overwrite-current'}
+                      onChange={() =>
+                        setProjectImportState((prev) =>
+                          prev
+                            ? { ...prev, restoreMode: 'overwrite-current', overwriteArmed: false }
+                            : prev,
+                        )
+                      }
+                    />
+                    <span>
+                      {tf(locale, 'transcription.projectHub.restoreModeOverwrite', {
+                        title:
+                          projectImportState.preview.restoreAsNewProject.overwriteCurrentProject
+                            .targetTitle,
+                      })}
+                    </span>
+                  </label>
+                </fieldset>
+              ) : null}
+              {projectImportState.restoreMode === 'restore-as-new' ? (
+                <p data-testid="project-import-restore-as-new">
+                  {t(locale, 'transcription.projectHub.restoreAsNewProject')}
+                </p>
+              ) : null}
+              {projectImportState.preview.restoreAsNewProject.overwriteCurrentProject &&
+              !projectImportState.preview.restoreAsNewProject.overwriteCurrentProject.available ? (
+                <p data-testid="project-import-overwrite-blocked">
+                  {tf(locale, 'transcription.projectHub.overwriteBlockedBytes', {
+                    count:
+                      projectImportState.preview.restoreAsNewProject.overwriteCurrentProject
+                        .bytesAtRiskCount,
+                  })}
+                </p>
+              ) : null}
+              {projectImportState.restoreMode === 'overwrite-current' ? (
+                <p role="alert" data-testid="project-import-overwrite-warning">
+                  {t(locale, 'transcription.projectHub.overwriteWarning')}
+                </p>
+              ) : null}
             </PanelSection>
           ) : (
             <PanelSection

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SnapshotFormatError } from '../db/snapshotFormatError';
+import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
 import { describeArchiveImportError } from './archiveImportErrorMessage';
 
 describe('describeArchiveImportError (RD-1)', () => {
@@ -32,6 +32,29 @@ describe('describeArchiveImportError (RD-1)', () => {
     );
     expect(text).toContain('4 record(s)');
     expect(text).toContain('media_items ×3');
+  });
+
+  it('explains why an overwrite was refused (D5, 4.2-7, 7.4-3)', () => {
+    const bytes = describeArchiveImportError(
+      'en-US',
+      new ProjectOverwriteBlockedError({
+        reason: 'local-bytes-would-be-lost',
+        message: 'raw',
+        bytesAtRisk: ['media_items:m1', 'lexeme_assets:a1'],
+      }),
+    );
+    expect(bytes).toContain('2 local');
+    expect(bytes).toContain('Nothing was changed');
+    const wrapped = new Error('[db.transaction:x] wrapped', {
+      cause: new ProjectOverwriteBlockedError({ reason: 'snapshot-failed', message: 'raw' }),
+    });
+    expect(describeArchiveImportError('zh-CN', wrapped)).toContain('快照');
+    expect(
+      describeArchiveImportError(
+        'en-US',
+        new ProjectOverwriteBlockedError({ reason: 'not-allowed', message: 'raw' }),
+      ),
+    ).toContain('cannot be overwritten');
   });
 
   it('keeps other errors as they are', () => {

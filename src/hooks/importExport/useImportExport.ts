@@ -1014,6 +1014,7 @@ export function useImportExport(input: UseImportExportInput) {
       importProjectArchive: async (
         file: File,
         strategy: import('../../db').ImportConflictStrategy,
+        restoreMode?: import('../../services/JymService').ProjectArchiveRestoreMode,
       ) => {
         const archiveHandlersModule = await loadArchiveHandlersModule(archiveHandlersModuleRef);
         const { importProjectArchive: importArchive } =
@@ -1023,7 +1024,7 @@ export function useImportExport(input: UseImportExportInput) {
             locale,
             setSaveState,
           });
-        return importArchive(file, strategy);
+        return importArchive(file, strategy, restoreMode);
       },
     }),
     [activeTextId, loadSnapshot, locale, setSaveState],

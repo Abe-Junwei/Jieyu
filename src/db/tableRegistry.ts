@@ -145,6 +145,8 @@ export const JIEYU_LOCAL_DB_REGISTRY = {
   'jieyu-acoustic-analysis': { dataClass: 'derived', resetPolicy: 'keep' },
   // 4a：升级前快照（两槽位，rev5 8.2）；不进任何包 | 4a: pre-migration snapshots; never packaged
   jieyu_migration_snapshots: { dataClass: 'recovery', resetPolicy: 'keep' },
+  // 第 3 批：覆盖当前项目前的快照（rev5 7.4-3）；不进任何包 | Batch 3: pre-overwrite snapshots; never packaged
+  jieyu_overwrite_snapshots: { dataClass: 'recovery', resetPolicy: 'keep' },
 } as const satisfies Record<string, JieyuLocalDbRegistration>;
 
 export type JieyuLocalDbName = keyof typeof JIEYU_LOCAL_DB_REGISTRY;

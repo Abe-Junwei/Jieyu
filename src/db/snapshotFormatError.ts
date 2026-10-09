@@ -65,3 +65,34 @@ export function findSnapshotFormatError(error: unknown): SnapshotFormatError | n
   }
   return null;
 }
+
+export type ProjectOverwriteBlockedReason =
+  /** 没有当前项目、项目不存在，或协作过 / 判定不了（D5、D6）| No such project, or collaborated / unknown */
+  | 'not-allowed'
+  /** 覆盖会丢掉本机媒体、附件或原件字节（4.2-7）| Local media / attachment / original bytes would be lost */
+  | 'local-bytes-would-be-lost'
+  /** 覆盖前快照写入或核对失败（7.4-3）| The pre-overwrite snapshot failed */
+  | 'snapshot-failed';
+
+/**
+ * 覆盖当前项目被拒绝；抛出时本机数据没有任何改动。
+ * Overwriting the current project was refused; nothing local has changed.
+ */
+export class ProjectOverwriteBlockedError extends Error {
+  readonly reason: ProjectOverwriteBlockedReason;
+  /** 会丢字节的行（collection:id）| Rows whose bytes would be lost (collection:id) */
+  readonly bytesAtRisk: readonly string[];
+
+  constructor(input: {
+    reason: ProjectOverwriteBlockedReason;
+    message: string;
+    bytesAtRisk?: readonly string[];
+    cause?: unknown;
+  }) {
+    super(input.message);
+    this.name = 'ProjectOverwriteBlockedError';
+    if (input.cause !== undefined) (this as { cause?: unknown }).cause = input.cause;
+    this.reason = input.reason;
+    this.bytesAtRisk = input.bytesAtRisk ?? [];
+  }
+}

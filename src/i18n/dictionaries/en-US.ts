@@ -1684,6 +1684,14 @@ export const enUSDictionary = {
   'transcription.projectHub.restoreSkippedLanguages':
     'These language entries are already used by another local project and are skipped: {ids}',
   'transcription.projectHub.confirmRestoreAsNew': 'Restore as new project',
+  'transcription.projectHub.restoreModeNew': 'Restore as a new project (recommended)',
+  'transcription.projectHub.restoreModeOverwrite': 'Overwrite the current project "{title}"',
+  'transcription.projectHub.overwriteBlockedBytes':
+    'Cannot overwrite: {count} local recording, attachment or original file byte(s) would be lost. Restore as a new project instead.',
+  'transcription.projectHub.overwriteWarning':
+    'Overwriting replaces all content and catalog entries of the current project (local recording bytes are kept). A snapshot is saved first. Click the button again to confirm.',
+  'transcription.projectHub.confirmOverwrite': 'Overwrite current project',
+  'transcription.projectHub.confirmOverwriteAgain': 'Confirm overwrite',
   'transcription.projectHub.annotationImportDialogTitle': 'Import annotation files',
   'transcription.projectHub.annotationImportDialogSummary':
     'Choose how imported annotation text should be written.',
@@ -2375,6 +2383,14 @@ export const enUSDictionary = {
   'transcription.importExport.jytNeedsProject': 'Open a project first, then export it as JYT.',
   'transcription.importExport.importDone.restoredAsNew':
     'Restored as the new project "{title}" ({written} records). Open it from the project list.',
+  'transcription.importExport.importDone.overwritten':
+    'Overwrote the current project "{title}" from the JYT ({written} written); a snapshot was saved first.',
+  'transcription.importExport.overwriteNotAllowed':
+    'This project cannot be overwritten: it does not exist, has been collaborated on, or its history cannot be confirmed. Restore as a new project instead.',
+  'transcription.importExport.overwriteBytesAtRisk':
+    'Overwrite aborted: {count} local recording, attachment or original file byte(s) would be lost. Nothing was changed.',
+  'transcription.importExport.overwriteSnapshotFailed':
+    'Overwrite aborted: the pre-overwrite snapshot could not be saved. Nothing was changed.',
   'transcription.importExport.exportFailed': 'Export failed: {message}',
   'transcription.error.action.assignSpeakerFailed': 'Failed to assign speaker: {message}',
   'transcription.error.action.createSpeakerFailed': 'Failed to create speaker: {message}',
