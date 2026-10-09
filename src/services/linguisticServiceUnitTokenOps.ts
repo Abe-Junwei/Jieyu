@@ -351,7 +351,12 @@ export async function removeToken(tokenId: string): Promise<void> {
     'rw',
     [db.dexie.unit_morphemes, db.dexie.unit_tokens, db.dexie.token_lexeme_links],
     async () => {
-      await db.collections.unit_morphemes.removeBySelector({ tokenId });
+      // 只删与 token 同项目的 morpheme（GAP-1）| Only morphemes of the token's own project (GAP-1)
+      const token = await db.dexie.unit_tokens.get(tokenId);
+      const morphemeIds = (await db.dexie.unit_morphemes.where('tokenId').equals(tokenId).toArray())
+        .filter((row) => token === undefined || row.textId === token.textId)
+        .map((row) => row.id);
+      if (morphemeIds.length > 0) await db.dexie.unit_morphemes.bulkDelete(morphemeIds);
       await db.collections.unit_tokens.remove(tokenId);
       await db.collections.token_lexeme_links.removeBySelector({
         targetType: 'token',

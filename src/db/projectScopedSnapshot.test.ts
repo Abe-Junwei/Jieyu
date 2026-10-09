@@ -96,9 +96,21 @@ describe('project-scoped snapshot export/import', () => {
   it('keeps local lexeme links for tokens the snapshot still contains', async () => {
     await seedText('text-a', 'unit-a');
     await seedText('text-b', 'unit-b');
+    // 词条按项目归属（GAP-1：链接两端必须同项目）| Lexemes are per project (GAP-1)
+    await db.lexemes.put(
+      entryDoc({
+        id: 'lex-dog-b',
+        textId: 'text-b',
+        headword: 'dog',
+        definition: 'dog',
+        createdAt: NOW,
+        updatedAt: NOW,
+      }),
+    );
     await db.lexemes.put(
       entryDoc({
         id: 'lex-dog',
+        textId: 'text-a',
         headword: 'dog',
         definition: 'dog',
         createdAt: NOW,
@@ -135,7 +147,7 @@ describe('project-scoped snapshot export/import', () => {
       id: 'link-b',
       targetType: 'token',
       targetId: 'tok-b',
-      lexemeId: 'lex-dog',
+      lexemeId: 'lex-dog-b',
       createdAt: NOW,
       updatedAt: NOW,
     });

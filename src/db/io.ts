@@ -588,6 +588,18 @@ export async function importDatabaseFromJson(
     });
   }
 
+  // GAP-1：父表先于子表写入，归属一致性检查才能在同一事务里读到本次导入的父行
+  // GAP-1: write parent tables before their children so the parent-ownership check sees the
+  // parents of this import (stable sort; all other collections keep the snapshot order)
+  const childWriteRank: Partial<Record<KnownCollectionName, number>> = {
+    unit_tokens: 1,
+    unit_morphemes: 2,
+    token_lexeme_links: 3,
+  };
+  preparedCollections.sort(
+    (a, b) => (childWriteRank[a.collectionName] ?? 0) - (childWriteRank[b.collectionName] ?? 0),
+  );
+
   // ADR-0006: One `rw` Dexie transaction whose scope is the dynamic union of `tier_definitions` plus every
   // Dexie `Table` in `tableByCollection`. The callback only touches stores in that list; `layers` uses
   // RxDB (`dbInstance.collections.layers`), not additional IDB stores on this transaction.

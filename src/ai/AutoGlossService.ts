@@ -75,7 +75,13 @@ export class AutoGlossService {
     const tokens = (await db.collections.unit_tokens.findByIndex('unitId', unitId)).map((doc) =>
       doc.toJSON(),
     );
-    const lexemes = (await db.collections.lexemes.find().exec()).map((doc) => doc.toJSON());
+    // 只用这些 token 所属项目的词条：词条按项目归属，跨项目链接会被归属中间件拒绝（GAP-1）
+    // Only lexemes of the tokens' own project: lexemes are per project and cross-project links
+    // are rejected by the ownership middleware (GAP-1)
+    const tokenTextIds = new Set(tokens.map((token) => token.textId.trim()));
+    const lexemes = (await db.collections.lexemes.find().exec())
+      .map((doc) => doc.toJSON())
+      .filter((lexeme) => tokenTextIds.has(lexeme.textId.trim()));
     const preview = previewAutoGlossMatches(tokens, lexemes);
 
     const matched: AutoGlossMatch[] = [];
