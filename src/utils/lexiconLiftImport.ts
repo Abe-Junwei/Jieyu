@@ -9,6 +9,7 @@ import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from '../db/typ
 import type { DmlexRelation } from '../db/dmlexTypes';
 import { isLexemeEntry } from '../db/lexemeNestedIds';
 import { newId } from './transcriptionFormatters';
+import { dispatchWorkspaceLexemeUpdated } from './workspaceEvents';
 import { applyLexiconEntryFields, emptyDmlexResource, type LexiconSenseDraft } from './dmlexEntry';
 import { LIFT_VERSION } from './lexiconLiftExport';
 import type { InterchangeLoss } from './interchangeLossReport';
@@ -64,15 +65,23 @@ export type LexiconLiftImportDeps = {
   listForeignIds?: (ids: string[]) => Promise<Set<string>>;
   /** 整次导入在一个读写事务里完成 | Run the whole import in one read-write transaction */
   runAtomic?: <T>(work: () => Promise<T>) => Promise<T>;
+  /**
+   * 导入提交之后广播保存过的 id；save / saveResource 本身不广播（GAP-3）。
+   * Announce the saved ids once the import committed; save / saveResource stay silent (GAP-3).
+   */
+  announce?: (ids: readonly string[]) => void;
 };
 
 /** 默认依赖：所有读写都显式带上项目 | Default deps: every read/write names the project */
 export function defaultLiftImportDeps(textId: string): LexiconLiftImportDeps {
   return {
-    save: (doc) => LinguisticService.lexemes.save(doc),
+    save: (doc) => LinguisticService.lexemes.save(doc, { announce: false }),
     list: () => LinguisticService.lexemes.list(textId),
     loadResource: () => LinguisticService.lexemes.getResource(textId),
-    saveResource: (doc) => LinguisticService.lexemes.save(doc),
+    saveResource: (doc) => LinguisticService.lexemes.save(doc, { announce: false }),
+    announce: (ids) => {
+      for (const lexemeId of ids) dispatchWorkspaceLexemeUpdated({ lexemeId });
+    },
     listForeignIds: async (ids) => {
       const db = await getDb();
       const rows = await db.dexie.lexemes.bulkGet(ids);
@@ -548,8 +557,10 @@ export async function importLexemesFromLiftXml(
   const parsed = parseLiftXml(xml, textId);
   if (!parsed.ok) return parsed;
   const runAtomic = deps.runAtomic ?? (<T>(work: () => Promise<T>) => work());
+  const savedIds: string[] = [];
+  let result: LexiconLiftImportResult;
   try {
-    return await runAtomic(async () => {
+    result = await runAtomic(async () => {
       const foreignIds =
         deps.listForeignIds !== undefined
           ? await deps.listForeignIds(parsed.lexemes.map((lexeme) => lexeme.id))
@@ -571,9 +582,9 @@ export async function importLexemesFromLiftXml(
         replacedRows,
       );
       for (const lexeme of target.lexemes) {
-        await deps.save(lexeme);
+        savedIds.push(await deps.save(lexeme));
       }
-      await deps.saveResource(resource);
+      savedIds.push(await deps.saveResource(resource));
       const readback = (await deps.list()).filter(isLexemeEntry);
       const losses = [...parsed.losses];
       if (replacedById > 0) losses.push({ code: 'replaced-by-id', count: replacedById });
@@ -598,6 +609,10 @@ export async function importLexemesFromLiftXml(
   } catch {
     return { ok: false, reason: 'save-failed' };
   }
+  // 只在事务提交后广播，回滚时 UI 什么都收不到（GAP-3）
+  // Announce only after the transaction committed; a rollback announces nothing (GAP-3)
+  deps.announce?.(savedIds);
+  return result;
 }
 
 export async function importLexemesFromLiftFile(

@@ -6,12 +6,13 @@
  * project B as copies: no failure, no partial write, A untouched.
  */
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db, type LexemeEntryDoc } from '../db';
 import { DMLEX_SUBSENSE } from '../db/dmlexTypes';
 import { LinguisticService } from '../services/LinguisticService';
 import { defaultLiftImportDeps, importLexemesFromLiftXml } from './lexiconLiftImport';
 import { serializeLexemesToLift } from './lexiconLiftExport';
+import { WORKSPACE_LEXEME_UPDATED_EVENT } from './workspaceEvents';
 
 const NOW = '2026-10-09T00:00:00.000Z';
 
@@ -196,5 +197,47 @@ describe('GAP-4: re-importing the same foreign LIFT into B is idempotent', () =>
     await db.lexemes.filter((row) => row.textId === 'proj-A').delete();
     expect((await importLexemesFromLiftXml(foxXml, 'proj-B')).ok).toBe(true);
     expect(await rowsOf('proj-B')).toHaveLength(2);
+  });
+});
+
+describe('GAP-3: lexeme-updated events only after the import committed', () => {
+  const events: string[] = [];
+  const listener = (event: Event) =>
+    events.push((event as CustomEvent<{ lexemeId: string }>).detail.lexemeId);
+  beforeEach(() => {
+    events.length = 0;
+    window.addEventListener(WORKSPACE_LEXEME_UPDATED_EVENT, listener);
+  });
+  afterEach(() => window.removeEventListener(WORKSPACE_LEXEME_UPDATED_EVENT, listener));
+
+  it('announces nothing when the import rolls back', async () => {
+    const base = defaultLiftImportDeps('proj-B');
+    let saves = 0;
+    const result = await importLexemesFromLiftXml(foxXml, 'proj-B', {
+      ...base,
+      save: async (doc) => {
+        saves += 1;
+        if (saves === 2) throw new Error('disk full');
+        return base.save(doc);
+      },
+    });
+    expect(result).toEqual({ ok: false, reason: 'save-failed' });
+    expect(events, 'UI was told about lexemes that do not exist').toEqual([]);
+  });
+
+  it('announces every saved entry once the import committed', async () => {
+    let announcedInsideTransaction = false;
+    const base = defaultLiftImportDeps('proj-B');
+    const result = await importLexemesFromLiftXml(foxXml, 'proj-B', {
+      ...base,
+      runAtomic: async (work) => {
+        const out = await base.runAtomic!(work);
+        announcedInsideTransaction = events.length > 0;
+        return out;
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(announcedInsideTransaction).toBe(false);
+    expect(events).toEqual(expect.arrayContaining(['lex-fox', 'lex-owl']));
   });
 });

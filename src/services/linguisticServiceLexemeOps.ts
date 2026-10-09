@@ -89,7 +89,21 @@ export async function getDmlexResource(textId?: string): Promise<LexemeResourceD
   return isLexemeResource(json) && json.textId === projectId ? json : null;
 }
 
-export async function saveLexeme(data: LexemeDocType): Promise<string> {
+export type SaveLexemeOptions = {
+  /**
+   * 默认 true：保存后立即广播“词条已更新”。在外层事务里批量保存时传 false，由调用方在事务提交后
+   * 统一广播（GAP-3），否则回滚后 UI 仍会收到不存在的词条。
+   * Default true: announce "lexeme updated" right after the save. Batch saves inside an outer
+   * transaction pass false and announce after commit (GAP-3); otherwise the UI hears about
+   * lexemes a rollback removed.
+   */
+  announce?: boolean;
+};
+
+export async function saveLexeme(
+  data: LexemeDocType,
+  options: SaveLexemeOptions = {},
+): Promise<string> {
   const db = await getDb();
   const projectId = requireCatalogProjectId(data.textId);
   const existing = await db.dexie.lexemes.get(data.id);
@@ -99,7 +113,7 @@ export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const stamped: LexemeDocType = { ...data, textId: projectId };
   const stored = isLexemeEntry(stamped) ? ensureLexemeNestedIds(stamped) : stamped;
   const doc = await db.collections.lexemes.insert(stored);
-  dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
+  if (options.announce !== false) dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
   return doc.primary;
 }
 
