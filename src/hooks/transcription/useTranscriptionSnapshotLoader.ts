@@ -15,6 +15,10 @@ import { listUnitTextsFromSegmentationForText } from '../../services/LayerSegmen
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { listUnitDocsForText } from '../../services/LayerSegmentGraphService';
 import { LinguisticService } from '../../services/LinguisticService';
+import {
+  isLayerInCurrentDocument,
+  readAnnotationDocumentScope,
+} from '../../services/annotationDocumentService';
 import { createTimelineUnit, type DbState, type TimelineUnit } from './transcriptionTypes';
 import {
   assertTranscriptionDependencyLayerInvariant,
@@ -37,6 +41,12 @@ type Params = {
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
+  /**
+   * 第 5 批：每次载入后报告“项目 + 当前文稿”范围键；范围变了，撤销栈里的旧条目不能再写回。
+   * Batch 5: reports the "project + current document" scope key after each load; when it changes,
+   * old undo entries must not be written back.
+   */
+  onScopeLoaded?: (scopeKey: string) => void;
 };
 
 export function useTranscriptionSnapshotLoader({
@@ -54,6 +64,7 @@ export function useTranscriptionSnapshotLoader({
   setTranslations,
   setUnitDrafts,
   setUnits,
+  onScopeLoaded,
 }: Params) {
   /**
    * 载入一个项目的工作台快照。`textId` 必填（JY-02）：不再按 `units[0]` 猜项目，也不再把其它项目的
@@ -70,16 +81,28 @@ export function useTranscriptionSnapshotLoader({
       const db = await getDb();
       const scopedTextId = typeof textId === 'string' ? textId.trim() : '';
       const hasProject = scopedTextId.length > 0;
-      const [unitRows, layerDocs, mediaRows] = hasProject
+      const [layerDocs, mediaRows, documentScope] = hasProject
         ? await Promise.all([
-            listUnitDocsForText(db, scopedTextId),
             db.collections.layers.findByIndex('textId', scopedTextId),
             db.dexie.media_items.where('textId').equals(scopedTextId).toArray(),
+            readAnnotationDocumentScope(db, scopedTextId),
           ])
-        : [[] as LayerUnitDocType[], [], [] as MediaItemDocType[]];
-      const layerRows = layerDocs
+        : [[], [] as MediaItemDocType[], undefined];
+      const projectLayerRows = layerDocs
         .map((doc) => doc.toJSON() as unknown as LayerDocType)
         .filter((layer) => layer.textId === scopedTextId);
+      // 第 5 批：工作台只装当前文稿的层与其上的单元 | Batch 5: only the current document's layers / units
+      const layerRows = documentScope
+        ? projectLayerRows.filter((layer) => isLayerInCurrentDocument(layer, documentScope))
+        : projectLayerRows;
+      const otherDocumentLayerIds = new Set(
+        projectLayerRows.filter((layer) => !layerRows.includes(layer)).map((layer) => layer.id),
+      );
+      const inCurrentDocument = (row: { layerId?: string | undefined }) =>
+        row.layerId === undefined || !otherDocumentLayerIds.has(row.layerId);
+      const unitRows = hasProject
+        ? await listUnitDocsForText(db, scopedTextId, otherDocumentLayerIds)
+        : ([] as LayerUnitDocType[]);
       const projectLayerIds = [...new Set(layerRows.map((l) => l.id))];
       const projectMediaIds = mediaRows.map((row) => row.id);
       const [anchorRows, linksByLayer, linksByHost, translationRows] = hasProject
@@ -96,7 +119,9 @@ export function useTranscriptionSnapshotLoader({
                   .anyOf(projectLayerIds)
                   .toArray()
               : Promise.resolve([] as LayerLinkDocType[]),
-            listUnitTextsFromSegmentationForText(scopedTextId),
+            listUnitTextsFromSegmentationForText(scopedTextId).then((rows) =>
+              rows.filter(inCurrentDocument),
+            ),
           ])
         : [[] as AnchorDocType[], [], [], [] as LayerUnitContentDocType[]];
       // 关系行没有 textId：按任一端落在本项目图层上取 | Links carry no textId: either end on a project layer
@@ -211,7 +236,7 @@ export function useTranscriptionSnapshotLoader({
         ]);
         unifiedUnitCount = mergedTimelineUnitSemanticKeyCount({
           unitIds: scopedUnits.map((row) => row.id),
-          segments: projectSegments,
+          segments: projectSegments.filter(inCurrentDocument),
         });
         const m = textDoc?.metadata as { logicalDurationSec?: unknown } | undefined;
         if (
@@ -223,6 +248,7 @@ export function useTranscriptionSnapshotLoader({
         }
       }
 
+      onScopeLoaded?.(`${scopedTextId}\u0000${documentScope?.defaultDocumentId ?? ''}`);
       setState({
         phase: 'ready',
         dbName: db.name,
@@ -250,6 +276,7 @@ export function useTranscriptionSnapshotLoader({
       setTranslations,
       setUnitDrafts,
       setUnits,
+      onScopeLoaded,
     ],
   );
 

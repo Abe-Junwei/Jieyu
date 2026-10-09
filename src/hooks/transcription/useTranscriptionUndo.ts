@@ -420,6 +420,21 @@ export function useTranscriptionUndo({
     persistUndoEntryToDb,
   ]);
 
+  /**
+   * 第 5 批：载入的“项目 + 当前文稿”范围变了就清空撤销 / 重做栈——旧条目按旧范围写回会删掉新范围的单元。
+   * Batch 5: when the loaded "project + current document" scope changes, drop undo / redo; writing an
+   * old entry back would delete the new scope's units.
+   */
+  const scopeKeyRef = useRef<string | null>(null);
+  const resetHistoryOnScopeChange = useCallback((scopeKey: string) => {
+    const previous = scopeKeyRef.current;
+    scopeKeyRef.current = scopeKey;
+    if (previous === null || previous === scopeKey) return;
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setUndoRedoVersion((v) => v + 1);
+  }, []);
+
   const canUndo = useMemo(() => {
     void _undoRedoVersion;
     return undoStackRef.current.length > 0;
@@ -451,6 +466,7 @@ export function useTranscriptionUndo({
     undo,
     undoToHistoryIndex,
     redo,
+    resetHistoryOnScopeChange,
     canUndo,
     canRedo,
     undoLabel,

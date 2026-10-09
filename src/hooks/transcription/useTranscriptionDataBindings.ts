@@ -48,6 +48,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     undo,
     undoToHistoryIndex,
     redo,
+    resetHistoryOnScopeChange,
     canUndo,
     canRedo,
     undoLabel,
@@ -161,6 +162,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
   });
 
   const { loadSnapshot, loadLinguisticAnnotations } = useTranscriptionSnapshotLoader({
+    onScopeLoaded: resetHistoryOnScopeChange,
     dbNameRef,
     setAnchors,
     setLayerLinks,

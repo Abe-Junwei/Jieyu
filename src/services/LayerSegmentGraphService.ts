@@ -23,6 +23,7 @@ import {
   normalizeMediaId,
 } from './LayerUnitSegmentWritePrimitives';
 import { LayerSegmentQueryService, runDexieScopedReadTask } from './LayerSegmentQueryService';
+import { isLayerInCurrentDocument, readAnnotationDocumentScope } from './annotationDocumentService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { newId } from '../utils/transcriptionFormatters';
@@ -146,10 +147,17 @@ export async function resolveDefaultTranscriptionLayerId(
   db: JieyuDatabase,
   textId: string,
 ): Promise<string | undefined> {
-  const layers = (await db.collections.layers.findByIndex('textId', textId)).map((doc) =>
-    doc.toJSON(),
-  );
-  const transcriptionLayers = layers.filter((layer) => layer.layerType === 'transcription');
+  const [layers, documentScope] = await Promise.all([
+    db.collections.layers.findByIndex('textId', textId),
+    readAnnotationDocumentScope(db, textId),
+  ]);
+  // 第 5 批：只在当前文稿的层里找 | Batch 5: only among the current document's layers
+  const transcriptionLayers = layers
+    .map((doc) => doc.toJSON())
+    .filter(
+      (layer) =>
+        layer.layerType === 'transcription' && isLayerInCurrentDocument(layer, documentScope),
+    );
   if (transcriptionLayers.length === 0) return undefined;
   const exactDefault = transcriptionLayers.find((layer) => layer.isDefault === true);
   if (exactDefault) return exactDefault.id;
@@ -159,10 +167,15 @@ export async function resolveDefaultTranscriptionLayerId(
   )[0]?.id;
 }
 
-/** Primary keys of unit-type `layer_units` scoped to a text (e.g. last-transcription-layer delete). */
+/**
+ * Primary keys of unit-type `layer_units` scoped to a text (e.g. last-transcription-layer delete).
+ * `layerIds`（第 5 批）：只取挂在这些层上（或无层）的单元，其他文稿的单元不动。
+ * `layerIds` (Batch 5): only units on these layers (or layer-less); other documents' units stay.
+ */
 export async function listUnitUnitPrimaryKeysByTextId(
   db: JieyuDatabase,
   textId: string,
+  layerIds?: ReadonlySet<string>,
 ): Promise<string[]> {
   return runGraphReadWithCompatibleTransaction(
     ['layer_units'],
@@ -170,7 +183,11 @@ export async function listUnitUnitPrimaryKeysByTextId(
       (await db.dexie.layer_units
         .where('textId')
         .equals(textId)
-        .filter((u) => u.unitType === 'unit')
+        .filter(
+          (u) =>
+            u.unitType === 'unit' &&
+            (layerIds === undefined || u.layerId === undefined || layerIds.has(u.layerId)),
+        )
         .primaryKeys()) as string[],
   );
 }
@@ -277,7 +294,7 @@ export async function bulkUpsertUnitLayerUnits(
 /** 选择要投影的 unit 行的范围 | Which unit rows to project */
 type CanonicalUnitScope =
   | { kind: 'all' }
-  | { kind: 'text'; textId: string }
+  | { kind: 'text'; textId: string; excludeLayerIds?: ReadonlySet<string> }
   | { kind: 'media'; mediaId: string }
   | { kind: 'ids'; ids: readonly string[] };
 
@@ -302,7 +319,12 @@ async function listUnitDocsForScope(
                   (row): row is LayerUnitDocType => Boolean(row),
                 )
               : await db.dexie.layer_units.toArray();
-      const units = candidates.filter((u) => u.unitType === 'unit');
+      const excluded = scope.kind === 'text' ? scope.excludeLayerIds : undefined;
+      const units = candidates.filter(
+        (u) =>
+          u.unitType === 'unit' &&
+          (excluded === undefined || u.layerId === undefined || !excluded.has(u.layerId)),
+      );
       if (units.length === 0) return [];
       const unitIds = units.map((u) => u.id);
       const allContents = await db.dexie.layer_unit_contents
@@ -353,13 +375,19 @@ export async function listUnitDocsFromCanonicalLayerUnits(
 }
 
 /** 单个项目的 unit 投影（走 `textId` 索引）| Units of one project via the `textId` index */
+/** `excludeLayerIds`（第 5 批）：跳过其他文稿的层上的单元 | Batch 5: skip units on other documents' layers */
 export async function listUnitDocsForText(
   db: JieyuDatabase,
   textId: string,
+  excludeLayerIds?: ReadonlySet<string>,
 ): Promise<LayerUnitDocType[]> {
   const normalized = textId.trim();
   if (normalized.length === 0) return [];
-  return listUnitDocsForScope(db, { kind: 'text', textId: normalized });
+  return listUnitDocsForScope(db, {
+    kind: 'text',
+    textId: normalized,
+    ...(excludeLayerIds !== undefined ? { excludeLayerIds } : {}),
+  });
 }
 
 /** 单条媒体上的 unit 投影（走 `mediaId` 索引）| Units on one media via the `mediaId` index */

@@ -575,7 +575,11 @@ export function useTranscriptionLayerActions({
 
         const affectedByProjectScope =
           !keepUnits && isDeletingLastTranscription
-            ? await listUnitUnitPrimaryKeysByTextId(db, targetLayer.textId)
+            ? await listUnitUnitPrimaryKeysByTextId(
+                db,
+                targetLayer.textId,
+                new Set(layers.map((item) => item.id)),
+              )
             : [];
         const { affectedUnitIds: affectedByLayerTexts } = await deleteLayerSegmentGraphByLayerId(
           db,

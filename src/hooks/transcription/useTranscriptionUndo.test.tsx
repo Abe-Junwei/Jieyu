@@ -327,4 +327,23 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     expect(harness.syncToDbCore).toHaveBeenCalledTimes(1);
     expect(restoreLayerSegments).toHaveBeenCalledTimes(1);
   });
+  it('batch 5: a new project / current-document scope drops undo history; the same scope keeps it', async () => {
+    const harness = setupHarness({ units: [makeUnit('utt-1')], speakers: [] });
+    await act(async () => {
+      harness.hook.result.current.resetHistoryOnScopeChange('proj-1\u0000doc-1');
+      harness.hook.result.current.pushUndo('编辑');
+    });
+    await act(async () => {
+      harness.hook.result.current.resetHistoryOnScopeChange('proj-1\u0000doc-1');
+    });
+    expect(harness.hook.result.current.canUndo).toBe(true);
+    await act(async () => {
+      harness.hook.result.current.resetHistoryOnScopeChange('proj-1\u0000doc-2');
+    });
+    expect(harness.hook.result.current.canUndo).toBe(false);
+    await act(async () => {
+      await harness.hook.result.current.undo();
+    });
+    expect(harness.syncToDbCore).not.toHaveBeenCalled();
+  });
 });
