@@ -379,7 +379,7 @@
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.80.0",
     "react-router-dom": "^7.18.4",
-    "wavesurfer.js": "^7.12.8",
+    "wavesurfer.js": "^8.0.2",
     "zod": "^4.4.3",
     "zod-to-json-schema": "^3.25.2"
   },
