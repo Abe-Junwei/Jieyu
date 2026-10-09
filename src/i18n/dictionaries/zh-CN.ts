@@ -1678,6 +1678,18 @@ export const zhCNDictionary = {
   'transcription.projectHub.sourcePlan.new': '将作为新文档登记。',
   'transcription.projectHub.replacePreview':
     '导入将替换当前文档中的 {units} 个语段（{layers} 个层）。取消则不做任何改动。',
+  'transcription.projectHub.group.documents': '标注文稿',
+  'transcription.projectHub.documents.untitled': '文稿 {index}',
+  'transcription.projectHub.documents.create': '新建文稿…',
+  'transcription.projectHub.documents.createPrompt': '新文稿的名称（可留空）',
+  'transcription.projectHub.documents.rename': '重命名当前文稿…',
+  'transcription.projectHub.documents.renamePrompt': '当前文稿的新名称（留空则显示序号名）',
+  'transcription.projectHub.documents.delete': '删除当前文稿',
+  'transcription.projectHub.documents.deleteConfirm':
+    '删除文稿「{name}」？其中 {units} 个语段和 {layers} 个层会一起删除，无法撤销。',
+  'transcription.projectHub.documents.collaboratedHint': '协作过的项目暂不能新建文稿',
+  'transcription.projectHub.documents.failed': '文稿操作失败：{message}',
+  'transcription.projectHub.annotationImportTarget.newDocument': '导入为新文稿（不替换当前文稿）',
   'transcription.importExport.sourcePreservationLayerSuffix': '原文',
   'transcription.projectHub.importing': '导入中…',
   'transcription.projectHub.importFailedHint': '导入失败，请检查上方错误提示后重试。',

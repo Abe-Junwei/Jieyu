@@ -9,6 +9,7 @@ import type { LayerDocType } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import { settleSegmentMetaSync } from '../../services/segmentMetaSyncBestEffort';
 import { useImportExport } from './useImportExport';
+import { ensureDefaultAnnotationDocument } from '../../services/annotationDocumentService';
 
 const mockReadFileAsText = vi.hoisted(() => vi.fn());
 const mockIngestTextFile = vi.hoisted(() => vi.fn());
@@ -2055,6 +2056,91 @@ describe('useImportExport - import success under stop-write', () => {
       (row) => row.unitId !== undefined && relatedIds.has(row.unitId),
     );
     expect(contents.some((row) => row.text === 'Hello again')).toBe(true);
+  });
+
+  it('batch 5: imports into a new document and leaves the current one untouched', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-reimport',
+      textId: 'text-reimport',
+      key: 'trc_reimport',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    const utterance = (text: string) =>
+      eafFile(
+        'speech.wav',
+        `<TIER TIER_ID="TRC" LINGUISTIC_TYPE_REF="default-lt">
+          <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+              <ANNOTATION_VALUE>${text}</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+          </ANNOTATION>
+        </TIER>`,
+      );
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: utterance('First'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter('text-reimport', [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(new File(['1'], 'first.eaf'));
+    });
+    const firstDocId = (await db.texts.get('text-reimport'))?.defaultDocumentId;
+    expect(firstDocId).toBeTruthy();
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: utterance('Second'),
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['2'], 'second.eaf'),
+        undefined,
+        'new-document',
+      );
+    });
+    const docs = await db.annotation_documents.where('textId').equals('text-reimport').toArray();
+    expect(docs).toHaveLength(2);
+    const secondDocId = (await db.texts.get('text-reimport'))?.defaultDocumentId;
+    expect(secondDocId).not.toBe(firstDocId);
+    // 原文稿的层和语段都还在 | The first document keeps its layer and unit
+    expect((await db.tier_definitions.get('trc-reimport'))?.documentId).toBe(firstDocId);
+    const tiers = await db.tier_definitions.where('textId').equals('text-reimport').toArray();
+    const newTiers = tiers.filter((tier) => tier.id !== 'trc-reimport');
+    expect(newTiers.length).toBeGreaterThan(0);
+    expect(newTiers.every((tier) => tier.documentId !== firstDocId)).toBe(true);
+    const units = await db.layer_units.where('unitType').equals('unit').toArray();
+    expect(units).toHaveLength(2);
+    const texts = (await db.layer_unit_contents.toArray()).map((row) => row.text);
+    expect(texts).toEqual(expect.arrayContaining(['First', 'Second']));
+  });
+
+  it('batch 5: a new-document import that writes nothing removes the empty document again', async () => {
+    const before = await ensureDefaultAnnotationDocument('text-reimport');
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: 'not an annotation file',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter('text-reimport', []);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'broken.eaf'),
+        undefined,
+        'new-document',
+      );
+    });
+    const docs = await db.annotation_documents.where('textId').equals('text-reimport').toArray();
+    expect(docs.map((doc) => doc.id)).toEqual([before]);
+    expect((await db.texts.get('text-reimport'))?.defaultDocumentId).toBe(before);
   });
 
   async function importReimportFixture(text: string, fileName: string) {

@@ -23,7 +23,12 @@ import {
   type EafRolePromptTier,
   type EafTierRole,
 } from '../../utils/eafTierRole';
-import type { AnnotationImportBridgeStrategy } from './useImportExport.annotationImport';
+import type {
+  AnnotationImportBridgeStrategy,
+  AnnotationImportTarget,
+} from './useImportExport.annotationImport';
+import { runInNewAnnotationDocument } from '../../services/annotationDocumentService';
+import type { ImportExportImportHandlerOptions } from './useImportExport.importHandlers';
 import {
   downloadTranscriptionExportText,
   serializeTranscriptionLiteExport,
@@ -126,6 +131,7 @@ type PendingAnnotationImport =
       file: File;
       fileName: string;
       strategy?: AnnotationImportBridgeStrategy;
+      target?: AnnotationImportTarget;
       notices: TimelineImportMismatchNotice[];
       /** Roles confirmed before the timeline dialog replaced the role dialog. */
       tierRoles?: Record<string, EafTierRole>;
@@ -135,6 +141,7 @@ type PendingAnnotationImport =
       file: File;
       fileName: string;
       strategy?: AnnotationImportBridgeStrategy;
+      target?: AnnotationImportTarget;
       tiers: EafRolePromptTier[];
     };
 
@@ -1055,12 +1062,18 @@ export function useImportExport(input: UseImportExportInput) {
     [activeTextId, loadSnapshot, locale, setSaveState],
   );
 
-  const handleImportFile = useCallback(
+  /**
+   * 第 5 批：`new-document` 先建一份空文稿再导入，导入只看到新文稿（没有现成的层）。
+   * Batch 5: `new-document` creates an empty document first; the import sees no existing layers.
+   */
+  const runAnnotationImport = useCallback(
     async (
       file: File,
-      importWriteStrategy?: import('./useImportExport.annotationImport').AnnotationImportBridgeStrategy,
+      strategy: AnnotationImportBridgeStrategy | undefined,
+      target: AnnotationImportTarget | undefined,
+      options: ImportExportImportHandlerOptions,
     ) => {
-      void requestPersistOnGesture('import');
+      const asNewDocument = target === 'new-document';
       const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
       const { handleImportFile: importFile } =
         importHandlersModule.createImportExportImportHandlers({
@@ -1069,38 +1082,24 @@ export function useImportExport(input: UseImportExportInput) {
           selectedUnitMedia,
           activeTimelineMediaItem,
           segmentScopeMediaId,
-          layers,
-          defaultTranscriptionLayerId,
+          layers: asNewDocument ? [] : layers,
+          defaultTranscriptionLayerId: asNewDocument ? undefined : defaultTranscriptionLayerId,
           loadSnapshot,
           setSaveState,
           locale,
           normalizeSpeakerLookupKey,
         });
+      if (!asNewDocument) return importFile(file, strategy, options);
+      const textId = activeTextId ?? (await getActiveTextId());
+      if (!textId) return importFile(file, strategy, options);
       try {
-        return await importFile(file, importWriteStrategy, {
-          ...(promptForEafTierRoles ? { promptForEafTierRoles: true } : {}),
-        });
+        const { kept } = await runInNewAnnotationDocument(textId, () =>
+          importFile(file, strategy, options),
+        );
+        // 新文稿没留下（导入没写进内容）时切回了原文稿，重载 | Rolled back to the previous document
+        if (!kept) await loadSnapshot(textId);
       } catch (err) {
-        if (isImportMismatchRequiresAckError(err)) {
-          setPendingAnnotationImport({
-            kind: 'mismatch',
-            file,
-            ...(importWriteStrategy !== undefined ? { strategy: importWriteStrategy } : {}),
-            notices: [...err.notices],
-            fileName: err.fileName,
-          });
-          return;
-        }
-        if (isEafTierRolesRequiredError(err)) {
-          setPendingAnnotationImport({
-            kind: 'tier-roles',
-            file,
-            ...(importWriteStrategy !== undefined ? { strategy: importWriteStrategy } : {}),
-            fileName: err.fileName,
-            tiers: [...err.tiers],
-          });
-          return;
-        }
+        await loadSnapshot(textId);
         throw err;
       }
     },
@@ -1112,11 +1111,51 @@ export function useImportExport(input: UseImportExportInput) {
       layers,
       loadSnapshot,
       locale,
-      promptForEafTierRoles,
       segmentScopeMediaId,
       selectedUnitMedia,
       setSaveState,
     ],
+  );
+
+  const handleImportFile = useCallback(
+    async (
+      file: File,
+      importWriteStrategy?: AnnotationImportBridgeStrategy,
+      target?: AnnotationImportTarget,
+    ) => {
+      void requestPersistOnGesture('import');
+      const retry = {
+        file,
+        ...(importWriteStrategy !== undefined ? { strategy: importWriteStrategy } : {}),
+        ...(target !== undefined ? { target } : {}),
+      };
+      try {
+        return await runAnnotationImport(file, importWriteStrategy, target, {
+          ...(promptForEafTierRoles ? { promptForEafTierRoles: true } : {}),
+        });
+      } catch (err) {
+        if (isImportMismatchRequiresAckError(err)) {
+          setPendingAnnotationImport({
+            kind: 'mismatch',
+            ...retry,
+            notices: [...err.notices],
+            fileName: err.fileName,
+          });
+          return;
+        }
+        if (isEafTierRolesRequiredError(err)) {
+          setPendingAnnotationImport({
+            kind: 'tier-roles',
+            ...retry,
+            fileName: err.fileName,
+            tiers: [...err.tiers],
+          });
+          return;
+        }
+        throw err;
+      }
+    },
+    [promptForEafTierRoles, runAnnotationImport],
   );
 
   const cancelAnnotationImportMismatch = useCallback(() => {
@@ -1127,22 +1166,8 @@ export function useImportExport(input: UseImportExportInput) {
     async (tierRoles?: Record<string, EafTierRole>) => {
       if (!pendingAnnotationImport) return;
       setAnnotationImportMismatchBusy(true);
+      const { file, strategy, target } = pendingAnnotationImport;
       try {
-        const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
-        const { handleImportFile: importFile } =
-          importHandlersModule.createImportExportImportHandlers({
-            activeTextId,
-            getActiveTextId,
-            selectedUnitMedia,
-            activeTimelineMediaItem,
-            segmentScopeMediaId,
-            layers,
-            defaultTranscriptionLayerId,
-            loadSnapshot,
-            setSaveState,
-            locale,
-            normalizeSpeakerLookupKey,
-          });
         if (pendingAnnotationImport.kind === 'tier-roles') {
           const roles =
             tierRoles ??
@@ -1150,7 +1175,7 @@ export function useImportExport(input: UseImportExportInput) {
               pendingAnnotationImport.tiers.map((tier) => [tier.tierId, tier.role]),
             );
           try {
-            await importFile(pendingAnnotationImport.file, pendingAnnotationImport.strategy, {
+            await runAnnotationImport(file, strategy, target, {
               tierRoles: roles,
               tierRolesAcknowledged: true,
               promptForEafTierRoles: true,
@@ -1160,10 +1185,9 @@ export function useImportExport(input: UseImportExportInput) {
             if (isImportMismatchRequiresAckError(err)) {
               setPendingAnnotationImport({
                 kind: 'mismatch',
-                file: pendingAnnotationImport.file,
-                ...(pendingAnnotationImport.strategy !== undefined
-                  ? { strategy: pendingAnnotationImport.strategy }
-                  : {}),
+                file,
+                ...(strategy !== undefined ? { strategy } : {}),
+                ...(target !== undefined ? { target } : {}),
                 notices: [...err.notices],
                 fileName: err.fileName,
                 tierRoles: roles,
@@ -1174,7 +1198,7 @@ export function useImportExport(input: UseImportExportInput) {
           }
           return;
         }
-        await importFile(pendingAnnotationImport.file, pendingAnnotationImport.strategy, {
+        await runAnnotationImport(file, strategy, target, {
           mismatchAcknowledged: true,
           ...(promptForEafTierRoles ? { promptForEafTierRoles: true } : {}),
           ...(pendingAnnotationImport.tierRoles
@@ -1189,21 +1213,14 @@ export function useImportExport(input: UseImportExportInput) {
         setAnnotationImportMismatchBusy(false);
       }
     },
-    [
-      activeTextId,
-      activeTimelineMediaItem,
-      defaultTranscriptionLayerId,
-      getActiveTextId,
-      layers,
-      loadSnapshot,
-      locale,
-      pendingAnnotationImport,
-      promptForEafTierRoles,
-      segmentScopeMediaId,
-      selectedUnitMedia,
-      setSaveState,
-    ],
+    [pendingAnnotationImport, promptForEafTierRoles, runAnnotationImport],
   );
+
+  /** 第 5 批：文稿新建/切换/删除后重载当前项目 | Batch 5: reload after a document change */
+  const reloadAfterAnnotationDocumentChange = useCallback(async () => {
+    const textId = activeTextId ?? (await getActiveTextId());
+    if (textId) await loadSnapshot(textId);
+  }, [activeTextId, getActiveTextId, loadSnapshot]);
 
   return {
     importFileRef,
@@ -1221,6 +1238,7 @@ export function useImportExport(input: UseImportExportInput) {
     previewProjectArchiveImport: archiveImportActions.previewProjectArchiveImport,
     importProjectArchive: archiveImportActions.importProjectArchive,
     handleImportFile,
+    reloadAfterAnnotationDocumentChange,
     annotationImportMismatchDialog:
       pendingAnnotationImport?.kind === 'mismatch'
         ? {

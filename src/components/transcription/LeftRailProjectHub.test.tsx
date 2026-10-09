@@ -94,6 +94,7 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
             onDeleteCurrentAudio={vi.fn()}
             onOpenSpeakerManagementPanel={vi.fn()}
             onImportAnnotationFile={onImportAnnotationFile}
+            onAnnotationDocumentsChanged={vi.fn(async () => undefined)}
             onPreviewProjectArchiveImport={onPreviewProjectArchiveImport}
             onImportProjectArchive={onImportProjectArchive}
             onApplyTextTimeMapping={onApplyTextTimeMapping}
@@ -401,7 +402,11 @@ describe('LeftRailProjectHub project import dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: '开始导入标注' }));
 
     await waitFor(() => {
-      expect(onImportAnnotationFile).toHaveBeenCalledWith(file, 'bridge-target');
+      expect(onImportAnnotationFile).toHaveBeenCalledWith(
+        file,
+        'bridge-target',
+        'current-document',
+      );
     });
   });
 
@@ -668,6 +673,7 @@ describe('LeftRailProjectHub project import dialog', () => {
               onDeleteCurrentAudio={vi.fn()}
               onOpenSpeakerManagementPanel={vi.fn()}
               onImportAnnotationFile={vi.fn()}
+              onAnnotationDocumentsChanged={vi.fn(async () => undefined)}
               onPreviewProjectArchiveImport={vi.fn(async () => makePreview())}
               onImportProjectArchive={vi.fn(async () => true)}
               onExportEaf={vi.fn()}

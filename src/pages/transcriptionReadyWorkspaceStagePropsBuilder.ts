@@ -61,6 +61,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   onDeleteCurrentAudio: BuildReadyWorkspaceProjectHubPropsInput['onDeleteCurrentAudio'];
   importFileRef: BuildReadyWorkspaceProjectHubPropsInput['importFileRef'];
   handleImportFile: BuildReadyWorkspaceProjectHubPropsInput['handleImportFile'];
+  onAnnotationDocumentsChanged: BuildReadyWorkspaceProjectHubPropsInput['onAnnotationDocumentsChanged'];
   onPreviewProjectArchiveImport: BuildReadyWorkspaceProjectHubPropsInput['onPreviewProjectArchiveImport'];
   onImportProjectArchive: BuildReadyWorkspaceProjectHubPropsInput['onImportProjectArchive'];
   onApplyTextTimeMapping: BuildReadyWorkspaceProjectHubPropsInput['onApplyTextTimeMapping'];
@@ -246,6 +247,7 @@ export function buildReadyWorkspaceStageProps(
       onDeleteCurrentProject: input.onDeleteCurrentProject,
       onDeleteCurrentAudio: input.onDeleteCurrentAudio,
       handleImportFile: input.handleImportFile,
+      onAnnotationDocumentsChanged: input.onAnnotationDocumentsChanged,
       onPreviewProjectArchiveImport: input.onPreviewProjectArchiveImport,
       onImportProjectArchive: input.onImportProjectArchive,
       onApplyTextTimeMapping: input.onApplyTextTimeMapping,

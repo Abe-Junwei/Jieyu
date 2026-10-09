@@ -1,4 +1,7 @@
-import type { AnnotationImportBridgeStrategy } from '~/hooks/importExport/useImportExport.annotationImport';
+import type {
+  AnnotationImportBridgeStrategy,
+  AnnotationImportTarget,
+} from '~/hooks/importExport/useImportExport.annotationImport';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 import { outboundExportActionId } from './transcriptionExportCallbacks';
@@ -19,7 +22,12 @@ export type BuildReadyWorkspaceProjectHubPropsInput = {
   onOpenSpeakerManagementPanel: ReadyWorkspaceProjectHubProps['onOpenSpeakerManagementPanel'];
   onDeleteCurrentProject: ReadyWorkspaceProjectHubProps['onDeleteCurrentProject'];
   onDeleteCurrentAudio: ReadyWorkspaceProjectHubProps['onDeleteCurrentAudio'];
-  handleImportFile: (file: File, strategy: AnnotationImportBridgeStrategy) => Promise<void>;
+  handleImportFile: (
+    file: File,
+    strategy: AnnotationImportBridgeStrategy,
+    target?: AnnotationImportTarget,
+  ) => Promise<void>;
+  onAnnotationDocumentsChanged: ReadyWorkspaceProjectHubProps['onAnnotationDocumentsChanged'];
   onPreviewProjectArchiveImport: ReadyWorkspaceProjectHubProps['onPreviewProjectArchiveImport'];
   onImportProjectArchive: ReadyWorkspaceProjectHubProps['onImportProjectArchive'];
   onApplyTextTimeMapping: ReadyWorkspaceProjectHubProps['onApplyTextTimeMapping'];
@@ -64,10 +72,11 @@ export function buildReadyWorkspaceProjectHubProps(
       recordTranscriptionKeyboardAction('deleteTimelineAudio');
       input.onDeleteCurrentAudio();
     },
-    onImportAnnotationFile: async (file: File, strategy: AnnotationImportBridgeStrategy) => {
+    onImportAnnotationFile: async (file, strategy, target) => {
       recordTranscriptionKeyboardAction('toolbarImportAnnotationFile');
-      await input.handleImportFile(file, strategy);
+      await input.handleImportFile(file, strategy, target);
     },
+    onAnnotationDocumentsChanged: input.onAnnotationDocumentsChanged,
     onPreviewProjectArchiveImport: async (file: File) => {
       recordTranscriptionKeyboardAction('toolbarPreviewProjectArchiveImport');
       return input.onPreviewProjectArchiveImport(file);

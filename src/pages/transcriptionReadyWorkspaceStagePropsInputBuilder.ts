@@ -12,6 +12,7 @@ export type BuildReadyWorkspaceStagePropsInputFromControllers = Omit<
   | 'onDeleteCurrentAudio'
   | 'importFileRef'
   | 'handleImportFile'
+  | 'onAnnotationDocumentsChanged'
   | 'onPreviewProjectArchiveImport'
   | 'onImportProjectArchive'
   | 'onApplyTextTimeMapping'
@@ -43,6 +44,7 @@ export type BuildReadyWorkspaceStagePropsInputFromControllers = Omit<
   importExportController: {
     importFileRef: BuildReadyWorkspaceStagePropsInput['importFileRef'];
     handleImportFile: BuildReadyWorkspaceStagePropsInput['handleImportFile'];
+    reloadAfterAnnotationDocumentChange: BuildReadyWorkspaceStagePropsInput['onAnnotationDocumentsChanged'];
     previewProjectArchiveImport: BuildReadyWorkspaceStagePropsInput['onPreviewProjectArchiveImport'];
     importProjectArchive: BuildReadyWorkspaceStagePropsInput['onImportProjectArchive'];
     handleExportEaf: BuildReadyWorkspaceStagePropsInput['onExportEaf'];
@@ -90,6 +92,7 @@ export function buildReadyWorkspaceStagePropsInput(
     onDeleteCurrentAudio: projectMediaController.handleDeleteCurrentAudio,
     importFileRef: importExportController.importFileRef,
     handleImportFile: importExportController.handleImportFile,
+    onAnnotationDocumentsChanged: importExportController.reloadAfterAnnotationDocumentChange,
     onPreviewProjectArchiveImport: importExportController.previewProjectArchiveImport,
     onImportProjectArchive: importExportController.importProjectArchive,
     onApplyTextTimeMapping: async (mappingInput) => {

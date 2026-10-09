@@ -1792,6 +1792,21 @@ export const enUSDictionary = {
   'transcription.projectHub.sourcePlan.new': 'Will be registered as a new document.',
   'transcription.projectHub.replacePreview':
     'Importing replaces {units} segments ({layers} layers) in the current document. Cancel to keep everything as is.',
+  'transcription.projectHub.group.documents': 'Annotation documents',
+  'transcription.projectHub.documents.untitled': 'Document {index}',
+  'transcription.projectHub.documents.create': 'New document…',
+  'transcription.projectHub.documents.createPrompt': 'Name of the new document (optional)',
+  'transcription.projectHub.documents.rename': 'Rename current document…',
+  'transcription.projectHub.documents.renamePrompt':
+    'New name for the current document (leave empty for a numbered name)',
+  'transcription.projectHub.documents.delete': 'Delete current document',
+  'transcription.projectHub.documents.deleteConfirm':
+    'Delete the document “{name}”? Its {units} segments and {layers} layers are deleted with it. This cannot be undone.',
+  'transcription.projectHub.documents.collaboratedHint':
+    'Projects that have collaborated cannot add documents yet',
+  'transcription.projectHub.documents.failed': 'Document action failed: {message}',
+  'transcription.projectHub.annotationImportTarget.newDocument':
+    'Import as a new document (keeps the current document)',
   'transcription.importExport.sourcePreservationLayerSuffix': 'Source',
   'transcription.projectHub.importing': 'Importing…',
   'transcription.projectHub.importFailedHint':

@@ -20,6 +20,7 @@ import { t, tf, useLocale } from '../../i18n';
 import {
   DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
   type AnnotationImportBridgeStrategy,
+  type AnnotationImportTarget,
 } from '../../hooks/importExport/useImportExport.annotationImport';
 import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import type {
@@ -53,9 +54,11 @@ import {
   type SourceImportPlan,
 } from '../../services/sourceRecordService';
 import {
+  canCreateAnnotationDocument,
   previewAnnotationDocumentReplace,
   type AnnotationDocumentReplacePreview,
 } from '../../services/annotationDocumentService';
+import { useAnnotationDocumentMenu } from './useAnnotationDocumentMenu';
 
 interface ProjectImportState {
   file: File;
@@ -77,6 +80,8 @@ interface ProjectImportState {
 interface AnnotationImportState {
   file: File;
   strategy: AnnotationImportBridgeStrategy;
+  /** 第 5 批：替换当前文稿（默认）或导入为新文稿 | Batch 5: replace the current document or add one */
+  target: AnnotationImportTarget;
   importing: boolean;
   /** 2B-D 来源身份预览（只读）| 2B-D source identity preview (read-only) */
   sourcePlan?: SourceImportPlan | null;
@@ -131,7 +136,13 @@ interface LeftRailProjectHubProps {
   onDeleteCurrentProject: () => void;
   onDeleteCurrentAudio: () => void;
   onOpenSpeakerManagementPanel: () => void;
-  onImportAnnotationFile: (file: File, strategy: AnnotationImportBridgeStrategy) => Promise<void>;
+  onImportAnnotationFile: (
+    file: File,
+    strategy: AnnotationImportBridgeStrategy,
+    target?: AnnotationImportTarget,
+  ) => Promise<void>;
+  /** 第 5 批：文稿新建/切换/删除后重载工作台 | Batch 5: reload the workspace after a document change */
+  onAnnotationDocumentsChanged: () => Promise<void>;
   onPreviewProjectArchiveImport: (file: File) => Promise<JieyuArchiveImportPreview>;
   onImportProjectArchive: (
     file: File,
@@ -152,9 +163,10 @@ interface LeftRailProjectHubProps {
 
 const log = createLogger('LeftRailProjectHub');
 
-function formatSkippedOrphans(
-  rows: Array<{ collection: string; count: number }>,
-): { count: number; collections: string } {
+function formatSkippedOrphans(rows: Array<{ collection: string; count: number }>): {
+  count: number;
+  collections: string;
+} {
   return {
     count: rows.reduce((sum, item) => sum + item.count, 0),
     collections: rows.map((item) => `${item.collection} (${item.count})`).join(', '),
@@ -186,6 +198,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onDeleteCurrentAudio,
     onOpenSpeakerManagementPanel,
     onImportAnnotationFile,
+    onAnnotationDocumentsChanged,
     onPreviewProjectArchiveImport,
     onImportProjectArchive,
     onApplyTextTimeMapping,
@@ -324,6 +337,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       setAnnotationImportState({
         file,
         strategy: DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+        target: 'current-document',
         importing: false,
       });
       setIsOpen(false);
@@ -434,7 +448,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     if (!current) return;
 
     try {
-      await onImportAnnotationFile(current.file, current.strategy);
+      await onImportAnnotationFile(current.file, current.strategy, current.target);
       setAnnotationImportState(null);
       setIsOpen(false);
     } catch (e) {
@@ -637,6 +651,20 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       );
     }
   }, [locale, onApplyTextTimeMapping, showToast]);
+
+  const closeMenu = useCallback(() => setIsOpen(false), []);
+  const notifyDocumentError = useCallback(
+    (message: string) => showToast(message, 'error', 0),
+    [showToast],
+  );
+  const documentMenu = useAnnotationDocumentMenu({
+    locale,
+    textId: activeTextId,
+    isOpen,
+    closeMenu,
+    onDocumentsChanged: onAnnotationDocumentsChanged,
+    notifyError: notifyDocumentError,
+  });
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
     const importItems: ContextMenuItem[] = [
@@ -899,6 +927,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           },
         ],
       },
+      ...(canDeleteProject ? [documentMenu] : []),
       {
         label: t(locale, 'transcription.projectHub.exchange.importTitle'),
         variant: 'category',
@@ -930,6 +959,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   }, [
     canDeleteAudio,
     canDeleteProject,
+    documentMenu,
     currentProjectLabel,
     activeProjectTitle,
     activeTextId,
@@ -1513,7 +1543,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                     : t(locale, 'transcription.projectHub.sourcePlan.new')}
             </p>
           ) : null}
-          {annotationImportState.replacePreview &&
+          {annotationImportState.target === 'current-document' &&
+          annotationImportState.replacePreview &&
           annotationImportState.replacePreview.unitCount > 0 ? (
             <p
               className="small-text left-rail-project-import-replace-preview"
@@ -1525,6 +1556,25 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                 layers: annotationImportState.replacePreview.layerCount,
               })}
             </p>
+          ) : null}
+
+          {activeTextId && canCreateAnnotationDocument(activeTextId) ? (
+            <label className="left-rail-project-import-target">
+              <input
+                type="checkbox"
+                data-testid="annotation-import-as-new-document"
+                checked={annotationImportState.target === 'new-document'}
+                onChange={(event) => {
+                  const target: AnnotationImportTarget = event.target.checked
+                    ? 'new-document'
+                    : 'current-document';
+                  setAnnotationImportState((prev) => (prev ? { ...prev, target } : prev));
+                }}
+              />
+              <span>
+                {t(locale, 'transcription.projectHub.annotationImportTarget.newDocument')}
+              </span>
+            </label>
           ) : null}
 
           <PanelSection

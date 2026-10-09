@@ -652,3 +652,34 @@ export function isLayerInCurrentDocument(
   if (own === undefined || own.length === 0 || !scope.documentIds.has(own)) return true;
   return own === scope.defaultDocumentId;
 }
+
+/**
+ * 第 5 批：把一次导入写进新建的文稿。导入结束（成功、失败或被导入流程自己吞掉的错误）后新文稿若仍是空的，
+ * 就删掉并切回原文稿；已经写进内容的新文稿保留，不删导入的数据。返回值 `kept` 表示新文稿是否留下。
+ * Batch 5: run an import inside a freshly created document. Afterwards (success, failure, or an error the
+ * import handled itself) a still-empty new document is removed and the previous document becomes current
+ * again; a new document that holds content is kept (imported data is never deleted). `kept` tells which.
+ */
+export async function runInNewAnnotationDocument<T>(
+  textId: string,
+  run: () => Promise<T>,
+): Promise<{ result: T; kept: boolean }> {
+  const owner = textId.trim();
+  const previous = await ensureDefaultAnnotationDocument(owner);
+  const created = await createAnnotationDocument(owner);
+  const rollBackIfEmpty = async (): Promise<boolean> => {
+    const left = await previewAnnotationDocumentReplace(owner, created);
+    if (left.unitCount > 0 || left.layerCount > 0) return true;
+    await deleteAnnotationDocument(owner, created);
+    await switchAnnotationDocument(owner, previous);
+    return false;
+  };
+  let result: T;
+  try {
+    result = await run();
+  } catch (error) {
+    await rollBackIfEmpty();
+    throw error;
+  }
+  return { result, kept: await rollBackIfEmpty() };
+}
