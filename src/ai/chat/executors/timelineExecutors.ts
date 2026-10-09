@@ -6,6 +6,7 @@
 import type { TimelineUnitView } from '../../../hooks/transcription/timelineUnitView';
 import type { AiPromptContext } from '../chatDomain.types';
 import { SegmentMetaService } from '../../../services/SegmentMetaService';
+import { keepCurrentDocumentRows } from '../../../services/annotationDocumentService';
 import {
   listSegmentSummaries,
   type SegmentReadQueryScope,
@@ -261,7 +262,30 @@ async function listAllSegmentSummariesForScope(
   return rows;
 }
 
+/**
+ * 第 5 批：只留当前文稿的 segment_meta 行；归属判断失败时原样返回，不让查询或统计整体失败。
+ * Batch 5: keep current-document segment_meta rows only; if the ownership lookup fails the rows pass
+ * through unchanged so the query or statistic still answers.
+ */
+export async function keepCurrentDocumentSegmentMetaRows(
+  rows: SegmentMetaDocType[],
+): Promise<SegmentMetaDocType[]> {
+  try {
+    return await keepCurrentDocumentRows(rows);
+  } catch {
+    return rows;
+  }
+}
+
 export async function loadScopedSegmentMetaRows(
+  context: AiPromptContext,
+  scope: LocalUnitScope,
+): Promise<SegmentMetaDocType[] | null> {
+  const rows = await loadScopedSegmentMetaRowsAllDocuments(context, scope);
+  return rows ? keepCurrentDocumentSegmentMetaRows(rows) : rows;
+}
+
+async function loadScopedSegmentMetaRowsAllDocuments(
   context: AiPromptContext,
   scope: LocalUnitScope,
 ): Promise<SegmentMetaDocType[] | null> {

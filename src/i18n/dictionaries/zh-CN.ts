@@ -62,6 +62,7 @@ export const zhCNDictionary = {
   'app.files.enterTranscription': '进入转写工作区',
   'app.home.templateRules': '选用模板与语言规范设置',
   'app.home.lastUpdated': '最后更新：{date}',
+  'app.home.documentScope': '统计范围：当前文稿「{name}」（本项目有多份文稿）',
   'app.home.projectActive': '活跃',
   'app.overview.leipzigNote': '遵循通用 Leipzig 标注规约 (Leipzig Glossing Rules)',
   'app.overview.title': '项目语言架构与调查概览',
@@ -2569,6 +2570,8 @@ export const zhCNDictionary = {
   'transcription.aiTool.voice.analyzeSegmentQualityUnavailable':
     '质量分析请通过 AI 助手面板（右上角）发送“分析第X句质量”获取。',
   'transcription.aiTool.voice.unknownTool': '未知语音工具：{toolName}',
+  'transcription.aiTool.segment.segmentNotWritten':
+    '没有写入：句段 {segmentId} 不在当前文稿的工作台里（可能属于另一份文稿）。',
   'transcription.aiTool.segment.segmentNotFound': '未找到目标句段：{segmentId}',
   'transcription.aiTool.segment.translationLayerNotFound': '未找到目标翻译层：{layerId}',
   'transcription.aiTool.segment.createMissingUnitId':

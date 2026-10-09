@@ -17,6 +17,7 @@ import {
   renameAnnotationDocument,
   switchAnnotationDocument,
 } from '../../services/annotationDocumentService';
+import { annotationDocumentLabel } from '../../utils/annotationDocumentLabel';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import { fireAndForget } from '../../utils/fireAndForget';
 import type {
@@ -33,18 +34,6 @@ type UseAnnotationDocumentMenuInput = {
   onDocumentsChanged: () => Promise<void>;
   notifyError: (message: string) => void;
 };
-
-/** 文稿显示名：有标题用标题，否则按建立顺序「文稿 N」| Title, else "Document N" by creation order */
-export function annotationDocumentLabel(
-  locale: Locale,
-  doc: AnnotationDocumentDocType,
-  index: number,
-): string {
-  const title = doc.title ? readAnyMultiLangLabel(doc.title)?.trim() : undefined;
-  return title && title.length > 0
-    ? title
-    : tf(locale, 'transcription.projectHub.documents.untitled', { index: index + 1 });
-}
 
 export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput): {
   menu: ContextMenuItem;

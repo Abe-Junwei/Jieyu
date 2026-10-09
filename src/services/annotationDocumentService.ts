@@ -797,6 +797,23 @@ export async function readOtherDocumentLayerIds(
 }
 
 /**
+ * 第 5 批：去掉属于非当前文稿的层的行（按 textId 分组判断归属），供工作台之外的按项目读取使用。
+ * Batch 5: drop rows whose layer belongs to a non-current document (ownership is judged per textId);
+ * used by per-project reads outside the workbench.
+ */
+export async function keepCurrentDocumentRows<T extends { textId: string; layerId: string }>(
+  rows: readonly T[],
+): Promise<T[]> {
+  if (rows.length === 0) return [];
+  const db = await getDb();
+  const excluded = new Set<string>();
+  for (const textId of new Set(rows.map((row) => row.textId))) {
+    for (const layerId of await readOtherDocumentLayerIds(db, textId)) excluded.add(layerId);
+  }
+  return excluded.size === 0 ? [...rows] : rows.filter((row) => !excluded.has(row.layerId));
+}
+
+/**
  * 第 5 批：把一次导入写进新建的文稿。导入抛错、或 `isFailed(result)` 为真（导入流程自己吞掉的错误）时，
  * 新文稿连同写了一半的内容一律删掉并切回原文稿（B5-3）；成功但没写进内容时同样删掉；成功且有内容时保留。
  * 返回值 `kept` 表示新文稿是否留下。

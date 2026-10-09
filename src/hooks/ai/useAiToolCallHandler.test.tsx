@@ -954,9 +954,25 @@ describe('useAiToolCallHandler — auto_gloss_unit', () => {
 
 describe('useAiToolCallHandler — strict target requirements', () => {
   it('writes segment-backed transcription text via saveSegmentContentForLayer', async () => {
-    const saveSegmentContentForLayer = vi
-      .fn<(segmentId: string, layerId: string, value: string) => Promise<void>>()
-      .mockResolvedValue(undefined);
+    // 模拟真实保存：写进 layer_unit_contents，工具读回核对 | Mimic a real save; the tool reads it back
+    const saveSegmentContentForLayer = vi.fn(
+      async (segmentId: string, layerId: string, value: string) => {
+        const now = new Date().toISOString();
+        await (
+          await getDb()
+        ).dexie.layer_unit_contents.put({
+          id: `segc_${layerId}_${segmentId}`,
+          textId: 't1',
+          unitId: segmentId,
+          layerId,
+          modality: 'text',
+          text: value,
+          sourceType: 'human',
+          createdAt: now,
+          updatedAt: now,
+        });
+      },
+    );
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(

@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { addAiTraceObserver } from '../../observability/aiTrace';
 import { addMetricObserver } from '../../observability/metrics';
-import { clearListUnitsSnapshotsForTests, LIST_UNITS_SNAPSHOT_ROW_THRESHOLD } from './localContextListUnitsSnapshotStore';
+import {
+  clearListUnitsSnapshotsForTests,
+  LIST_UNITS_SNAPSHOT_ROW_THRESHOLD,
+} from './localContextListUnitsSnapshotStore';
 
 const mockGetDb = vi.fn();
 const mockListUnitTextsByUnit = vi.fn();
@@ -16,6 +19,11 @@ const mockWorkspaceReadModelSummarizeQuality = vi.fn();
 const mockSegmentReadListSummaries = vi.fn();
 const mockSegmentReadGetDetail = vi.fn();
 const mockSegmentReadDiagnose = vi.fn();
+const mockKeepCurrentDocumentRows = vi.fn(async (rows: unknown[]) => rows);
+vi.mock('../../services/annotationDocumentService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/annotationDocumentService')>()),
+  keepCurrentDocumentRows: (rows: unknown[]) => mockKeepCurrentDocumentRows(rows),
+}));
 vi.mock('../../db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../db')>();
   return {
@@ -48,7 +56,14 @@ vi.mock('../queries/segmentReadQueries', () => ({
   diagnoseProjectQuality: (...args: unknown[]) => mockSegmentReadDiagnose(...args),
 }));
 
-import { executeLocalContextToolCall, formatLocalContextToolBatchResultMessage, formatLocalContextToolResultMessage, LOCAL_TOOL_RESULT_CHAR_BUDGET, parseLocalContextToolCallFromText, parseLocalContextToolCallsFromText } from './localContextTools';
+import {
+  executeLocalContextToolCall,
+  formatLocalContextToolBatchResultMessage,
+  formatLocalContextToolResultMessage,
+  LOCAL_TOOL_RESULT_CHAR_BUDGET,
+  parseLocalContextToolCallFromText,
+  parseLocalContextToolCallsFromText,
+} from './localContextTools';
 
 describe('localContextTools parseLocalContextToolCallFromText', () => {
   it('parses fenced json tool call payload', () => {
@@ -80,7 +95,8 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
   });
 
   it('parses get_unit_linguistic_memory call', () => {
-    const raw = '{"tool_call":{"name":"GET_UNIT_LINGUISTIC_MEMORY","arguments":{"unitId":"utt-1"}}}';
+    const raw =
+      '{"tool_call":{"name":"GET_UNIT_LINGUISTIC_MEMORY","arguments":{"unitId":"utt-1"}}}';
     const parsed = parseLocalContextToolCallFromText(raw);
 
     expect(parsed).toEqual({
@@ -108,9 +124,7 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
 
   it('parses single-item tool_calls payload', () => {
     const raw = JSON.stringify({
-      tool_calls: [
-        { name: 'get_current_selection', arguments: {} },
-      ],
+      tool_calls: [{ name: 'get_current_selection', arguments: {} }],
     });
 
     const parsed = parseLocalContextToolCallsFromText(raw);
@@ -129,35 +143,59 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
   });
 
   it('parses workspace state tool calls', () => {
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_layers","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText('{"tool_call":{"name":"list_layers","arguments":{}}}'),
+    ).toEqual({
       name: 'list_layers',
       arguments: {},
     });
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_layer_links","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText('{"tool_call":{"name":"list_layer_links","arguments":{}}}'),
+    ).toEqual({
       name: 'list_layer_links',
       arguments: {},
     });
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"get_unsaved_drafts","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText(
+        '{"tool_call":{"name":"get_unsaved_drafts","arguments":{}}}',
+      ),
+    ).toEqual({
       name: 'get_unsaved_drafts',
       arguments: {},
     });
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_speakers","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText('{"tool_call":{"name":"list_speakers","arguments":{}}}'),
+    ).toEqual({
       name: 'list_speakers',
       arguments: {},
     });
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_notes","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText('{"tool_call":{"name":"list_notes","arguments":{}}}'),
+    ).toEqual({
       name: 'list_notes',
       arguments: {},
     });
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"get_visible_timeline_state","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText(
+        '{"tool_call":{"name":"get_visible_timeline_state","arguments":{}}}',
+      ),
+    ).toEqual({
       name: 'get_visible_timeline_state',
       arguments: {},
     });
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_notes_detail","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText(
+        '{"tool_call":{"name":"list_notes_detail","arguments":{}}}',
+      ),
+    ).toEqual({
       name: 'list_notes_detail',
       arguments: {},
     });
-    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"get_speaker_breakdown","arguments":{}}}')).toEqual({
+    expect(
+      parseLocalContextToolCallFromText(
+        '{"tool_call":{"name":"get_speaker_breakdown","arguments":{}}}',
+      ),
+    ).toEqual({
       name: 'get_speaker_breakdown',
       arguments: {},
     });
@@ -167,6 +205,8 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
 describe('executeLocalContextToolCall with localUnitIndex', () => {
   beforeEach(() => {
     mockGetDb.mockReset();
+    mockKeepCurrentDocumentRows.mockReset();
+    mockKeepCurrentDocumentRows.mockImplementation(async (rows: unknown[]) => rows);
     mockListUnitTextsByUnit.mockReset();
     mockSegmentMetaListByLayerMedia.mockReset();
     mockSegmentMetaListByMediaId.mockReset();
@@ -204,9 +244,15 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       totalUnitsInScope: 0,
       completionRate: 1,
     });
-    mockSegmentReadListSummaries.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
-    mockSegmentReadGetDetail.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
-    mockSegmentReadDiagnose.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
+    mockSegmentReadListSummaries.mockRejectedValue(
+      new Error('segmentReadQueries not configured in this test'),
+    );
+    mockSegmentReadGetDetail.mockRejectedValue(
+      new Error('segmentReadQueries not configured in this test'),
+    );
+    mockSegmentReadDiagnose.mockRejectedValue(
+      new Error('segmentReadQueries not configured in this test'),
+    );
   });
 
   it('list_units reads localUnitIndex without touching the database', async () => {
@@ -215,8 +261,24 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         page: 'transcription',
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
-          { id: 'b', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+          },
+          {
+            id: 'b',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'two',
+          },
         ],
       },
       longTerm: {},
@@ -230,7 +292,11 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
 
     expect(result.ok).toBe(true);
     expect(result.name).toBe('list_units');
-    const payload = result.result as { total: number; matches: unknown[]; _readModel: { unitIndexComplete: boolean; capturedAtMs: number } };
+    const payload = result.result as {
+      total: number;
+      matches: unknown[];
+      _readModel: { unitIndexComplete: boolean; capturedAtMs: number };
+    };
     expect(payload.total).toBe(2);
     expect(payload.matches).toHaveLength(2);
     expect(payload._readModel.unitIndexComplete).toBe(true);
@@ -243,8 +309,23 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     const context = {
       shortTerm: {
         layerIndex: [
-          { id: 'trc-main', key: 'main', label: 'Main', layerType: 'transcription' as const, languageId: 'zho', unitCount: 4, isSelected: true },
-          { id: 'trl-en', key: 'en', label: 'English', layerType: 'translation' as const, languageId: 'eng', unitCount: 0 },
+          {
+            id: 'trc-main',
+            key: 'main',
+            label: 'Main',
+            layerType: 'transcription' as const,
+            languageId: 'zho',
+            unitCount: 4,
+            isSelected: true,
+          },
+          {
+            id: 'trl-en',
+            key: 'en',
+            label: 'English',
+            layerType: 'translation' as const,
+            languageId: 'eng',
+            unitCount: 0,
+          },
         ],
       },
       longTerm: {},
@@ -257,7 +338,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { count: number; layers: Array<{ id: string; isSelected?: boolean; unitCount?: number }> };
+    const payload = result.result as {
+      count: number;
+      layers: Array<{ id: string; isSelected?: boolean; unitCount?: number }>;
+    };
     expect(payload.count).toBe(2);
     expect(payload.layers[0]).toMatchObject({ id: 'trc-main', isSelected: true, unitCount: 4 });
   });
@@ -280,7 +364,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { count: number; links: Array<{ translationLayerId: string; isPreferred?: boolean }> };
+    const payload = result.result as {
+      count: number;
+      links: Array<{ translationLayerId: string; isPreferred?: boolean }>;
+    };
     expect(payload.count).toBe(1);
     expect(payload.links[0]).toMatchObject({ translationLayerId: 'trl-en', isPreferred: true });
   });
@@ -290,8 +377,19 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     const context = {
       shortTerm: {
         unsavedDrafts: [
-          { rawKey: 'utt-layer-u1', draftType: 'unit' as const, textPreview: 'draft source', textLength: 12 },
-          { rawKey: 'tr-layer-u1', draftType: 'translation' as const, textPreview: 'draft translation', textLength: 17, isFocused: true },
+          {
+            rawKey: 'utt-layer-u1',
+            draftType: 'unit' as const,
+            textPreview: 'draft source',
+            textLength: 12,
+          },
+          {
+            rawKey: 'tr-layer-u1',
+            draftType: 'translation' as const,
+            textPreview: 'draft translation',
+            textLength: 17,
+            isFocused: true,
+          },
         ],
       },
       longTerm: {},
@@ -304,7 +402,11 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { count: number; unitDraftCount: number; translationDraftCount: number };
+    const payload = result.result as {
+      count: number;
+      unitDraftCount: number;
+      translationDraftCount: number;
+    };
     expect(payload).toMatchObject({ count: 2, unitDraftCount: 1, translationDraftCount: 1 });
   });
 
@@ -380,7 +482,11 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       ref,
     );
     expect(result.ok).toBe(true);
-    const payload = result.result as { currentMediaFilename?: string; selectedUnitCount?: number; zoomPercent?: number };
+    const payload = result.result as {
+      currentMediaFilename?: string;
+      selectedUnitCount?: number;
+      zoomPercent?: number;
+    };
     expect(payload.currentMediaFilename).toBe('demo.wav');
     expect(payload.selectedUnitCount).toBe(2);
     expect(payload.zoomPercent).toBe(120);
@@ -394,9 +500,35 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         selectedLayerId: 'layer-1',
         speakerIndex: [{ id: 'sp1', name: 'One' }],
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'x', speakerId: 'sp1' },
-          { id: 'b', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'y' },
-          { id: 'c', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'z', speakerId: 'sp1' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'x',
+            speakerId: 'sp1',
+          },
+          {
+            id: 'b',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'y',
+          },
+          {
+            id: 'c',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 2,
+            endTime: 3,
+            text: 'z',
+            speakerId: 'sp1',
+          },
         ],
       },
       longTerm: {},
@@ -455,7 +587,16 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         workspaceTextId: 'text-1',
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', textId: 'text-1', startTime: 0, endTime: 1, text: 'x' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            textId: 'text-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'x',
+          },
         ],
       },
       longTerm: {},
@@ -538,7 +679,11 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   });
 
   it('emits tool-execution span on successful call', async () => {
-    const removeObserverCalls: Array<{ kind: string; error?: string; tags?: Record<string, unknown> }> = [];
+    const removeObserverCalls: Array<{
+      kind: string;
+      error?: string;
+      tags?: Record<string, unknown>;
+    }> = [];
     const removeObserver = addAiTraceObserver((span) => {
       removeObserverCalls.push({
         kind: span.kind,
@@ -599,8 +744,24 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     const context = {
       shortTerm: {
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello world' },
-          { id: 'b', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'nope' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'hello world',
+          },
+          {
+            id: 'b',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'nope',
+          },
         ],
       },
       longTerm: {},
@@ -624,8 +785,24 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     const context = {
       shortTerm: {
         localUnitIndex: [
-          { id: 'best', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'consonant tone checklist' },
-          { id: 'weak', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'tone only example' },
+          {
+            id: 'best',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'consonant tone checklist',
+          },
+          {
+            id: 'weak',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'tone only example',
+          },
         ],
       },
       longTerm: {},
@@ -638,7 +815,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { matches: Array<{ id: string }>; ranking?: { strategy?: string } };
+    const payload = result.result as {
+      matches: Array<{ id: string }>;
+      ranking?: { strategy?: string };
+    };
     expect(payload.matches.map((row) => row.id)).toEqual(['best', 'weak']);
     expect(payload.ranking?.strategy).toBe('hybrid_local');
     expect(mockGetDb).not.toHaveBeenCalled();
@@ -649,7 +829,15 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     const context = {
       shortTerm: {
         localUnitIndex: [
-          { id: 'x1', kind: 'segment' as const, layerId: 'layer-1', mediaId: 'm9', startTime: 3, endTime: 5, text: 'body' },
+          {
+            id: 'x1',
+            kind: 'segment' as const,
+            layerId: 'layer-1',
+            mediaId: 'm9',
+            startTime: 3,
+            endTime: 5,
+            text: 'body',
+          },
         ],
       },
       longTerm: {},
@@ -738,7 +926,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'search_units', arguments: { query: 'morphology', scope: 'current_scope', speakerId: 'spk-1' } },
+      {
+        name: 'search_units',
+        arguments: { query: 'morphology', scope: 'current_scope', speakerId: 'spk-1' },
+      },
       context,
       ref,
     );
@@ -750,12 +941,14 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       matches: [{ id: 'seg-1' }],
       _readModel: { source: 'segment_meta' },
     });
-    expect(mockSegmentMetaSearchSegmentMeta).toHaveBeenCalledWith(expect.objectContaining({
-      layerId: 'layer-1',
-      mediaId: 'm1',
-      query: 'morphology',
-      speakerId: 'spk-1',
-    }));
+    expect(mockSegmentMetaSearchSegmentMeta).toHaveBeenCalledWith(
+      expect.objectContaining({
+        layerId: 'layer-1',
+        mediaId: 'm1',
+        query: 'morphology',
+        speakerId: 'spk-1',
+      }),
+    );
   });
 
   it('get_unit_detail falls back to segment_meta when the local snapshot misses the row', async () => {
@@ -807,7 +1000,15 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         page: 'transcription',
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'leak test' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'leak test',
+          },
         ],
         currentMediaUnitCount: 1,
       },
@@ -857,7 +1058,17 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         currentMediaId: 'm1',
         selectedLayerId: 'layer-1',
         localUnitIndex: [
-          { id: 'a', kind: 'segment' as const, textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one', speakerId: 'spk-1' },
+          {
+            id: 'a',
+            kind: 'segment' as const,
+            textId: 'text-1',
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+            speakerId: 'spk-1',
+          },
         ],
         currentScopeUnitCount: 4,
       },
@@ -904,14 +1115,26 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         currentMediaId: 'm1',
         selectedLayerId: 'layer-1',
         localUnitIndex: [
-          { id: 'a', kind: 'segment' as const, textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+          {
+            id: 'a',
+            kind: 'segment' as const,
+            textId: 'text-1',
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+          },
         ],
       },
       longTerm: {},
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'diagnose_quality', arguments: { scope: 'current_scope', metric: 'missing_speaker_count' } },
+      {
+        name: 'diagnose_quality',
+        arguments: { scope: 'current_scope', metric: 'missing_speaker_count' },
+      },
       context,
       ref,
     );
@@ -937,9 +1160,53 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   it('find_incomplete_units prefers segment_meta snapshot path for current_scope', async () => {
     const ref = { current: 0 };
     mockSegmentMetaRebuildForLayerMedia.mockResolvedValue([
-      { id: 'l1::seg-1', segmentId: 'seg-1', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'done', normalizedText: 'done', hasText: true, annotationStatus: 'verified', createdAt: '', updatedAt: '' },
-      { id: 'l1::seg-2', segmentId: 'seg-2', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: '', normalizedText: '', hasText: false, createdAt: '', updatedAt: '' },
-      { id: 'l1::seg-3', segmentId: 'seg-3', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'draft', normalizedText: 'draft', hasText: true, annotationStatus: 'transcribed', createdAt: '', updatedAt: '' },
+      {
+        id: 'l1::seg-1',
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'done',
+        normalizedText: 'done',
+        hasText: true,
+        annotationStatus: 'verified',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'l1::seg-2',
+        segmentId: 'seg-2',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 1,
+        endTime: 2,
+        text: '',
+        normalizedText: '',
+        hasText: false,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'l1::seg-3',
+        segmentId: 'seg-3',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 2,
+        endTime: 3,
+        text: 'draft',
+        normalizedText: 'draft',
+        hasText: true,
+        annotationStatus: 'transcribed',
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
       shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
@@ -953,7 +1220,12 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { count: number; items: Array<{ id: string; status: string }>; meta: { totalIncomplete: number }; _readModel: { source: string } };
+    const payload = result.result as {
+      count: number;
+      items: Array<{ id: string; status: string }>;
+      meta: { totalIncomplete: number };
+      _readModel: { source: string };
+    };
     expect(payload.count).toBe(2);
     expect(payload.items[0]!.id).toBe('seg-2');
     expect(payload.items[0]!.status).toBe('raw');
@@ -972,8 +1244,25 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         currentMediaId: 'm1',
         selectedLayerId: 'layer-1',
         localUnitIndex: [
-          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'ok', annotationStatus: 'verified' },
-          { id: 'b', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: '' },
+          {
+            id: 'a',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'ok',
+            annotationStatus: 'verified',
+          },
+          {
+            id: 'b',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: '',
+          },
         ],
       },
       longTerm: {},
@@ -986,7 +1275,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { count: number; items: Array<{ id: string; status: string }> };
+    const payload = result.result as {
+      count: number;
+      items: Array<{ id: string; status: string }>;
+    };
     expect(payload.count).toBe(1);
     expect(payload.items[0]!.id).toBe('b');
     expect(payload.items[0]!.status).toBe('raw');
@@ -995,8 +1287,36 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   it('batch_apply prefers segment_meta snapshot path for unit validation', async () => {
     const ref = { current: 0 };
     mockSegmentMetaRebuildForLayerMedia.mockResolvedValue([
-      { id: 'l1::seg-1', segmentId: 'seg-1', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one', normalizedText: 'one', hasText: true, createdAt: '', updatedAt: '' },
-      { id: 'l1::seg-2', segmentId: 'seg-2', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two', normalizedText: 'two', hasText: true, createdAt: '', updatedAt: '' },
+      {
+        id: 'l1::seg-1',
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'one',
+        normalizedText: 'one',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'l1::seg-2',
+        segmentId: 'seg-2',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 1,
+        endTime: 2,
+        text: 'two',
+        normalizedText: 'two',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
       shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
@@ -1004,13 +1324,21 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'batch_apply', arguments: { unitIds: ['seg-1', 'seg-missing'], action: 'mark_verified' } },
+      {
+        name: 'batch_apply',
+        arguments: { unitIds: ['seg-1', 'seg-missing'], action: 'mark_verified' },
+      },
       context,
       ref,
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { count: number; items: Array<{ id: string }>; meta: { matchedUnitIdCount: number; unresolvedUnitIds?: string[] }; _readModel: { source: string } };
+    const payload = result.result as {
+      count: number;
+      items: Array<{ id: string }>;
+      meta: { matchedUnitIdCount: number; unresolvedUnitIds?: string[] };
+      _readModel: { source: string };
+    };
     expect(payload.count).toBe(1);
     expect(payload.items[0]!.id).toBe('seg-1');
     expect(payload.meta.matchedUnitIdCount).toBe(1);
@@ -1021,8 +1349,36 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   it('list_units with project scope uses segment_meta listAll', async () => {
     const ref = { current: 0 };
     mockSegmentMetaListAll.mockResolvedValue([
-      { id: 'l1::seg-1', segmentId: 'seg-1', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello', normalizedText: 'hello', hasText: true, createdAt: '', updatedAt: '' },
-      { id: 'l2::seg-2', segmentId: 'seg-2', unitKind: 'segment', textId: 'text-1', mediaId: 'm2', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'world', normalizedText: 'world', hasText: true, createdAt: '', updatedAt: '' },
+      {
+        id: 'l1::seg-1',
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'hello',
+        normalizedText: 'hello',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'l2::seg-2',
+        segmentId: 'seg-2',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm2',
+        layerId: 'layer-1',
+        startTime: 1,
+        endTime: 2,
+        text: 'world',
+        normalizedText: 'world',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
       shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
@@ -1037,7 +1393,11 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
 
     expect(result.ok).toBe(true);
     expect(mockSegmentMetaListAll).toHaveBeenCalled();
-    const payload = result.result as { scope: string; total: number; _readModel: { source: string } };
+    const payload = result.result as {
+      scope: string;
+      total: number;
+      _readModel: { source: string };
+    };
     expect(payload.scope).toBe('project');
     expect(payload.total).toBe(2);
     expect(payload._readModel.source).toBe('segment_meta');
@@ -1046,7 +1406,21 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   it('list_units with current_track scope uses segment_meta listByMediaId', async () => {
     const ref = { current: 0 };
     mockSegmentMetaListByMediaId.mockResolvedValue([
-      { id: 'l1::seg-1', segmentId: 'seg-1', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello', normalizedText: 'hello', hasText: true, createdAt: '', updatedAt: '' },
+      {
+        id: 'l1::seg-1',
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'hello',
+        normalizedText: 'hello',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
       shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
@@ -1061,7 +1435,11 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
 
     expect(result.ok).toBe(true);
     expect(mockSegmentMetaListByMediaId).toHaveBeenCalledWith('m1');
-    const payload = result.result as { scope: string; total: number; _readModel: { source: string } };
+    const payload = result.result as {
+      scope: string;
+      total: number;
+      _readModel: { source: string };
+    };
     expect(payload.scope).toBe('current_track');
     expect(payload.total).toBe(1);
     expect(payload._readModel.source).toBe('segment_meta');
@@ -1070,7 +1448,21 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   it('search_units with project scope uses segment_meta searchSegmentMeta', async () => {
     const ref = { current: 0 };
     mockSegmentMetaSearchSegmentMeta.mockResolvedValue([
-      { id: 'l1::seg-1', segmentId: 'seg-1', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello world', normalizedText: 'hello world', hasText: true, createdAt: '', updatedAt: '' },
+      {
+        id: 'l1::seg-1',
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'hello world',
+        normalizedText: 'hello world',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
       shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
@@ -1084,21 +1476,92 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(mockSegmentMetaSearchSegmentMeta).toHaveBeenCalledWith(expect.objectContaining({ query: 'hello' }));
+    expect(mockSegmentMetaSearchSegmentMeta).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'hello' }),
+    );
     // project scope: 不应传 layerId/mediaId 给 searchSegmentMeta | should not pass layerId/mediaId
-    const searchCall = mockSegmentMetaSearchSegmentMeta.mock.calls[0]![0] as Record<string, unknown>;
+    const searchCall = mockSegmentMetaSearchSegmentMeta.mock.calls[0]![0] as Record<
+      string,
+      unknown
+    >;
     expect(searchCall.layerId).toBeUndefined();
     expect(searchCall.mediaId).toBeUndefined();
-    const payload = result.result as { scope: string; count: number; _readModel: { source: string } };
+    const payload = result.result as {
+      scope: string;
+      count: number;
+      _readModel: { source: string };
+    };
     expect(payload.scope).toBe('project');
     expect(payload.count).toBe(1);
     expect(payload._readModel.source).toBe('segment_meta');
   });
 
+  it('search_units keeps only current-document segment_meta matches and labels the scope', async () => {
+    const ref = { current: 0 };
+    const row = (segmentId: string, layerId: string) => ({
+      id: `${layerId}::${segmentId}`,
+      segmentId,
+      unitKind: 'segment',
+      textId: 'text-1',
+      mediaId: 'm1',
+      layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'hello',
+      normalizedText: 'hello',
+      hasText: true,
+      createdAt: '',
+      updatedAt: '',
+    });
+    mockSegmentMetaSearchSegmentMeta.mockResolvedValue([
+      row('seg-1', 'layer-1'),
+      row('seg-2', 'layer-other-doc'),
+    ]);
+    mockKeepCurrentDocumentRows.mockImplementation(async (rows: unknown[]) =>
+      (rows as Array<{ layerId: string }>).filter((item) => item.layerId !== 'layer-other-doc'),
+    );
+    const context = {
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'search_units', arguments: { scope: 'project', query: 'hello' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as {
+      count: number;
+      matches: Array<{ id: string }>;
+      _readModel: { documentScope?: string };
+    };
+    expect(payload.count).toBe(1);
+    expect(payload.matches.map((match) => match.id)).toEqual(['seg-1']);
+    expect(payload._readModel.documentScope).toBe('current_document');
+  });
+
   it('get_unit_detail with project scope resolves from segment_meta listAll', async () => {
     const ref = { current: 0 };
     mockSegmentMetaListAll.mockResolvedValue([
-      { id: 'l1::seg-1', segmentId: 'seg-1', unitKind: 'segment', textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello', normalizedText: 'hello', hasText: true, effectiveSpeakerId: 'spk-1', annotationStatus: 'transcribed', createdAt: '', updatedAt: '' },
+      {
+        id: 'l1::seg-1',
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'hello',
+        normalizedText: 'hello',
+        hasText: true,
+        effectiveSpeakerId: 'spk-1',
+        annotationStatus: 'transcribed',
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
       shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
@@ -1125,9 +1588,36 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         currentMediaId: 'm1',
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one', speakerId: 'spk-1' },
-          { id: 'b', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two', speakerId: 'spk-2' },
-          { id: 'c', kind: 'unit' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'three', speakerId: 'spk-3' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+            speakerId: 'spk-1',
+          },
+          {
+            id: 'b',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'two',
+            speakerId: 'spk-2',
+          },
+          {
+            id: 'c',
+            kind: 'unit' as const,
+            mediaId: 'm2',
+            layerId: 'layer-1',
+            startTime: 2,
+            endTime: 3,
+            text: 'three',
+            speakerId: 'spk-3',
+          },
         ],
         currentMediaUnitCount: 2,
       },
@@ -1163,9 +1653,33 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         currentMediaId: 'm1',
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
-          { id: 'b', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two' },
-          { id: 'c', kind: 'unit' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'three' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+          },
+          {
+            id: 'b',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'two',
+          },
+          {
+            id: 'c',
+            kind: 'unit' as const,
+            mediaId: 'm2',
+            layerId: 'layer-1',
+            startTime: 2,
+            endTime: 3,
+            text: 'three',
+          },
         ],
       },
       longTerm: {
@@ -1198,9 +1712,33 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         currentMediaId: 'm1',
         localUnitIndex: [
-          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: '' },
-          { id: 'b', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'done' },
-          { id: 'c', kind: 'unit' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: '' },
+          {
+            id: 'a',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: '',
+          },
+          {
+            id: 'b',
+            kind: 'unit' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'done',
+          },
+          {
+            id: 'c',
+            kind: 'unit' as const,
+            mediaId: 'm2',
+            layerId: 'layer-1',
+            startTime: 2,
+            endTime: 3,
+            text: '',
+          },
         ],
       },
       longTerm: {
@@ -1214,7 +1752,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'diagnose_quality', arguments: { scope: 'current_track', metric: 'untranscribed_count' } },
+      {
+        name: 'diagnose_quality',
+        arguments: { scope: 'current_track', metric: 'untranscribed_count' },
+      },
       context,
       ref,
     );
@@ -1239,9 +1780,33 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         selectedLayerId: 'layer-1',
         currentScopeUnitCount: 1,
         localUnitIndex: [
-          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
-          { id: 'b', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-2', startTime: 1, endTime: 2, text: 'two' },
-          { id: 'c', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'three' },
+          {
+            id: 'a',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+          },
+          {
+            id: 'b',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-2',
+            startTime: 1,
+            endTime: 2,
+            text: 'two',
+          },
+          {
+            id: 'c',
+            kind: 'segment' as const,
+            mediaId: 'm2',
+            layerId: 'layer-1',
+            startTime: 2,
+            endTime: 3,
+            text: 'three',
+          },
         ],
       },
       longTerm: {},
@@ -1254,7 +1819,11 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { scope: string; total: number; matches: Array<{ id: string }> };
+    const payload = result.result as {
+      scope: string;
+      total: number;
+      matches: Array<{ id: string }>;
+    };
     expect(payload.scope).toBe('current_scope');
     expect(payload.total).toBe(1);
     expect(payload.matches.map((row) => row.id)).toEqual(['a']);
@@ -1266,8 +1835,24 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         currentMediaId: 'm-missing',
         localUnitIndex: [
-          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
-          { id: 'b', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two' },
+          {
+            id: 'a',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+          },
+          {
+            id: 'b',
+            kind: 'segment' as const,
+            mediaId: 'm2',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'two',
+          },
         ],
       },
       longTerm: {},
@@ -1280,7 +1865,12 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { scope: string; total: number; count: number; matches: Array<{ id: string }> };
+    const payload = result.result as {
+      scope: string;
+      total: number;
+      count: number;
+      matches: Array<{ id: string }>;
+    };
     expect(payload.scope).toBe('current_track');
     expect(payload.total).toBe(0);
     expect(payload.count).toBe(0);
@@ -1294,8 +1884,24 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         currentMediaId: 'm1',
         selectedLayerId: 'layer-missing',
         localUnitIndex: [
-          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
-          { id: 'b', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-missing', startTime: 1, endTime: 2, text: 'two' },
+          {
+            id: 'a',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+          },
+          {
+            id: 'b',
+            kind: 'segment' as const,
+            mediaId: 'm2',
+            layerId: 'layer-missing',
+            startTime: 1,
+            endTime: 2,
+            text: 'two',
+          },
         ],
       },
       longTerm: {},
@@ -1308,7 +1914,12 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { scope: string; total: number; count: number; matches: Array<{ id: string }> };
+    const payload = result.result as {
+      scope: string;
+      total: number;
+      count: number;
+      matches: Array<{ id: string }>;
+    };
     expect(payload.scope).toBe('current_scope');
     expect(payload.total).toBe(0);
     expect(payload.count).toBe(0);
@@ -1321,8 +1932,24 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       shortTerm: {
         currentMediaId: 'm-missing',
         localUnitIndex: [
-          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello one' },
-          { id: 'b', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'hello two' },
+          {
+            id: 'a',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'hello one',
+          },
+          {
+            id: 'b',
+            kind: 'segment' as const,
+            mediaId: 'm2',
+            layerId: 'layer-1',
+            startTime: 1,
+            endTime: 2,
+            text: 'hello two',
+          },
         ],
       },
       longTerm: {},
@@ -1335,7 +1962,12 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    const payload = result.result as { scope: string; query: string; count: number; matches: Array<{ id: string }> };
+    const payload = result.result as {
+      scope: string;
+      query: string;
+      count: number;
+      matches: Array<{ id: string }>;
+    };
     expect(payload.scope).toBe('current_track');
     expect(payload.query).toBe('hello');
     expect(payload.count).toBe(0);
@@ -1349,8 +1981,24 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         currentMediaId: 'm1',
         selectedLayerId: 'layer-1',
         localUnitIndex: [
-          { id: 'in-scope', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
-          { id: 'out-scope', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-2', startTime: 1, endTime: 2, text: 'two' },
+          {
+            id: 'in-scope',
+            kind: 'segment' as const,
+            mediaId: 'm1',
+            layerId: 'layer-1',
+            startTime: 0,
+            endTime: 1,
+            text: 'one',
+          },
+          {
+            id: 'out-scope',
+            kind: 'segment' as const,
+            mediaId: 'm2',
+            layerId: 'layer-2',
+            startTime: 1,
+            endTime: 2,
+            text: 'two',
+          },
         ],
       },
       longTerm: {},
@@ -1374,9 +2022,15 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
     mockSegmentReadListSummaries.mockReset();
     mockSegmentReadGetDetail.mockReset();
     mockSegmentReadDiagnose.mockReset();
-    mockSegmentReadListSummaries.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
-    mockSegmentReadGetDetail.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
-    mockSegmentReadDiagnose.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
+    mockSegmentReadListSummaries.mockRejectedValue(
+      new Error('segmentReadQueries not configured in this test'),
+    );
+    mockSegmentReadGetDetail.mockRejectedValue(
+      new Error('segmentReadQueries not configured in this test'),
+    );
+    mockSegmentReadDiagnose.mockRejectedValue(
+      new Error('segmentReadQueries not configured in this test'),
+    );
   });
 
   it('loads sentence translations, token/morpheme annotations and notes by unitId', async () => {
@@ -1430,18 +2084,43 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
       { id: 'layer-en', layerType: 'translation' as const },
     ];
     const noteRowsByTarget: Record<string, unknown[]> = {
-      'unit:utt-1': [{ id: 'note-u', content: { zho: '整句注释' }, category: 'linguistic', updatedAt: '2026-04-15T00:00:00.000Z' }],
-      'translation:txt-zh': [{ id: 'note-t', content: { zho: '中文译文备注' }, category: 'comment', updatedAt: '2026-04-15T00:01:00.000Z' }],
-      'token:tok-1': [{ id: 'note-tok', content: { zho: '词注释' }, category: 'linguistic', updatedAt: '2026-04-15T00:02:00.000Z' }],
-      'morpheme:morph-1': [{ id: 'note-m', content: { zho: '词素注释' }, category: 'linguistic', updatedAt: '2026-04-15T00:03:00.000Z' }],
+      'unit:utt-1': [
+        {
+          id: 'note-u',
+          content: { zho: '整句注释' },
+          category: 'linguistic',
+          updatedAt: '2026-04-15T00:00:00.000Z',
+        },
+      ],
+      'translation:txt-zh': [
+        {
+          id: 'note-t',
+          content: { zho: '中文译文备注' },
+          category: 'comment',
+          updatedAt: '2026-04-15T00:01:00.000Z',
+        },
+      ],
+      'token:tok-1': [
+        {
+          id: 'note-tok',
+          content: { zho: '词注释' },
+          category: 'linguistic',
+          updatedAt: '2026-04-15T00:02:00.000Z',
+        },
+      ],
+      'morpheme:morph-1': [
+        {
+          id: 'note-m',
+          content: { zho: '词素注释' },
+          category: 'linguistic',
+          updatedAt: '2026-04-15T00:03:00.000Z',
+        },
+      ],
     };
 
     const mockDb = {
       dexie: {
-        transaction: vi.fn(async (
-          _mode: unknown,
-          ...args: Array<unknown>
-        ) => {
+        transaction: vi.fn(async (_mode: unknown, ...args: Array<unknown>) => {
           const callback = args[args.length - 1];
           if (typeof callback !== 'function') {
             throw new Error('transaction callback missing');
@@ -1449,7 +2128,15 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
           return callback();
         }),
         layer_units: {
-          get: vi.fn(async () => ({ id: 'utt-1', layerId: 'layer-tr', textId: 'text-1', mediaId: 'media-1', startTime: 1, endTime: 3, unitType: 'unit' })),
+          get: vi.fn(async () => ({
+            id: 'utt-1',
+            layerId: 'layer-tr',
+            textId: 'text-1',
+            mediaId: 'media-1',
+            startTime: 1,
+            endTime: 3,
+            unitType: 'unit',
+          })),
         },
         unit_tokens: {
           where: vi.fn(() => ({
@@ -1518,7 +2205,10 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
     ]);
 
     const result = await executeLocalContextToolCall(
-      { name: 'get_unit_linguistic_memory', arguments: { unitId: 'utt-1', includeNotes: true, includeMorphemes: true } },
+      {
+        name: 'get_unit_linguistic_memory',
+        arguments: { unitId: 'utt-1', includeNotes: true, includeMorphemes: true },
+      },
       context,
       ref,
     );
@@ -1529,7 +2219,12 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
       unit: { id: string; notes: unknown[] };
       sentence: { translations: Array<{ text?: string }> };
       tokens: Array<{ pos?: string; morphemes?: Array<{ pos?: string }>; notes?: unknown[] }>;
-      coverage: { translationCount: number; tokenCount: number; tokenWithPosCount: number; morphemeCount: number };
+      coverage: {
+        translationCount: number;
+        tokenCount: number;
+        tokenWithPosCount: number;
+        morphemeCount: number;
+      };
       _readModel: { unitIndexComplete: boolean };
     };
     expect(payload.unit.id).toBe('utt-1');
@@ -1558,7 +2253,15 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
           return callback();
         }),
         layer_units: {
-          get: vi.fn(async () => ({ id: 'utt-safe', layerId: 'layer-tr', textId: 'text-1', mediaId: 'media-1', startTime: 0, endTime: 1, unitType: 'unit' })),
+          get: vi.fn(async () => ({
+            id: 'utt-safe',
+            layerId: 'layer-tr',
+            textId: 'text-1',
+            mediaId: 'media-1',
+            startTime: 0,
+            endTime: 1,
+            unitType: 'unit',
+          })),
         },
         unit_tokens: {
           where: vi.fn(() => ({ equals: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })),
@@ -1567,7 +2270,11 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
           where: vi.fn(() => ({ equals: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })),
         },
         tier_definitions: {
-          where: vi.fn(() => ({ anyOf: vi.fn(() => ({ toArray: vi.fn(async () => ([{ id: 'layer-tr', contentType: 'transcription' }])) })) })),
+          where: vi.fn(() => ({
+            anyOf: vi.fn(() => ({
+              toArray: vi.fn(async () => [{ id: 'layer-tr', contentType: 'transcription' }]),
+            })),
+          })),
         },
         user_notes: {
           where: vi.fn(() => ({ equals: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })),
@@ -1591,7 +2298,10 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
     ]);
 
     const result = await executeLocalContextToolCall(
-      { name: 'get_unit_linguistic_memory', arguments: { unitId: 'utt-safe', includeNotes: true, includeMorphemes: true } },
+      {
+        name: 'get_unit_linguistic_memory',
+        arguments: { unitId: 'utt-safe', includeNotes: true, includeMorphemes: true },
+      },
       context,
       ref,
     );
@@ -1703,7 +2413,10 @@ describe('list_units snapshot paging', () => {
     expect(first.ok).toBe(true);
     const handle = (first.result as { resultHandle: string }).resultHandle;
     const second = await executeLocalContextToolCall(
-      { name: 'list_units', arguments: { resultHandle: handle, limit: 5, offset: 0, scope: 'project' } },
+      {
+        name: 'list_units',
+        arguments: { resultHandle: handle, limit: 5, offset: 0, scope: 'project' },
+      },
       context,
       ref,
     );
@@ -1746,13 +2459,19 @@ describe('list_units snapshot paging', () => {
     const rows = makeLocalUnitIndexRows(n);
     const first = await executeLocalContextToolCall(
       { name: 'list_units', arguments: { limit: 3, offset: 0 } },
-      { shortTerm: { timelineReadModelEpoch: 5, unitIndexComplete: true, localUnitIndex: rows }, longTerm: {} },
+      {
+        shortTerm: { timelineReadModelEpoch: 5, unitIndexComplete: true, localUnitIndex: rows },
+        longTerm: {},
+      },
       ref,
     );
     const handle = (first.result as { resultHandle: string }).resultHandle;
     const stale = await executeLocalContextToolCall(
       { name: 'list_units', arguments: { resultHandle: handle, limit: 3, offset: 0 } },
-      { shortTerm: { timelineReadModelEpoch: 99, unitIndexComplete: true, localUnitIndex: rows }, longTerm: {} },
+      {
+        shortTerm: { timelineReadModelEpoch: 99, unitIndexComplete: true, localUnitIndex: rows },
+        longTerm: {},
+      },
       ref,
     );
     expect(stale.ok).toBe(false);
@@ -1762,8 +2481,14 @@ describe('list_units snapshot paging', () => {
   it('returns invalid_or_expired_handle for unknown handle', async () => {
     const ref = { current: 0 };
     const bad = await executeLocalContextToolCall(
-      { name: 'list_units', arguments: { resultHandle: '00000000-0000-4000-8000-000000000000', limit: 5, offset: 0 } },
-      { shortTerm: { unitIndexComplete: true, localUnitIndex: makeLocalUnitIndexRows(3) }, longTerm: {} },
+      {
+        name: 'list_units',
+        arguments: { resultHandle: '00000000-0000-4000-8000-000000000000', limit: 5, offset: 0 },
+      },
+      {
+        shortTerm: { unitIndexComplete: true, localUnitIndex: makeLocalUnitIndexRows(3) },
+        longTerm: {},
+      },
       ref,
     );
     expect(bad.ok).toBe(false);
@@ -1773,45 +2498,56 @@ describe('list_units snapshot paging', () => {
 
 describe('local context tool result char budget', () => {
   it('formats speaker-count clarification without exposing raw json blocks', () => {
-    const msg = formatLocalContextToolResultMessage({
-      ok: true,
-      name: 'get_current_selection',
-      result: {
-        currentMediaUnitCount: 6,
-        currentScopeUnitCount: 6,
-        projectUnitCount: 6,
-        _readModel: { unitIndexComplete: true, capturedAtMs: 1 },
+    const msg = formatLocalContextToolResultMessage(
+      {
+        ok: true,
+        name: 'get_current_selection',
+        result: {
+          currentMediaUnitCount: 6,
+          currentScopeUnitCount: 6,
+          projectUnitCount: 6,
+          _readModel: { unitIndexComplete: true, capturedAtMs: 1 },
+        },
       },
-    }, 'zh-CN', '当前有多少说话人？');
+      'zh-CN',
+      '当前有多少说话人？',
+    );
     expect(msg).not.toContain('```json');
     expect(msg).toContain('说话人');
     expect(msg).toContain('当前音频');
   });
 
   it('formats unfinished transcription count from diagnose_quality as a direct answer', () => {
-    const msg = formatLocalContextToolResultMessage({
-      ok: true,
-      name: 'diagnose_quality',
-      result: {
-        count: 1,
-        items: [{ category: 'empty_text', count: 5 }],
+    const msg = formatLocalContextToolResultMessage(
+      {
+        ok: true,
+        name: 'diagnose_quality',
+        result: {
+          count: 1,
+          items: [{ category: 'empty_text', count: 5 }],
+        },
       },
-    }, 'zh-CN', '还有多少未转写？');
+      'zh-CN',
+      '还有多少未转写？',
+    );
     expect(msg).not.toContain('```json');
     expect(msg).toContain('5');
     expect(msg).toContain('未转写');
   });
 
   it('uses unavailable wording for acoustic tools when playable media is missing', () => {
-    const msg = formatLocalContextToolResultMessage({
-      ok: true,
-      name: 'get_acoustic_summary',
-      result: {
-        ok: false,
-        reason: 'no_playable_media',
-        _readModel: { unitIndexComplete: true, capturedAtMs: 1 },
+    const msg = formatLocalContextToolResultMessage(
+      {
+        ok: true,
+        name: 'get_acoustic_summary',
+        result: {
+          ok: false,
+          reason: 'no_playable_media',
+          _readModel: { unitIndexComplete: true, capturedAtMs: 1 },
+        },
       },
-    }, 'zh-CN');
+      'zh-CN',
+    );
 
     expect(msg).toContain('当前没有可播放媒体');
     expect(msg).toContain('无法读取声学摘要');
@@ -1824,7 +2560,12 @@ describe('local context tool result char budget', () => {
       const msg = formatLocalContextToolResultMessage({
         ok: true,
         name: 'get_project_stats',
-        result: { unitCount: 3, translationLayerCount: 1, aiConfidenceAvg: null, _readModel: { unitIndexComplete: true, capturedAtMs: 1 } },
+        result: {
+          unitCount: 3,
+          translationLayerCount: 1,
+          aiConfidenceAvg: null,
+          _readModel: { unitIndexComplete: true, capturedAtMs: 1 },
+        },
       });
       expect(msg).not.toContain('DATA TRUNCATED');
       expect(msg).not.toContain('```json');
@@ -1836,7 +2577,12 @@ describe('local context tool result char budget', () => {
 
   it('truncates and records ai.local_tool_result_truncated when payload exceeds budget', () => {
     const recorded: Array<{ id: string; tags?: Record<string, unknown> }> = [];
-    const dispose = addMetricObserver((event) => recorded.push({ id: event.id, ...(event.tags ? { tags: event.tags as Record<string, unknown> } : {}) }));
+    const dispose = addMetricObserver((event) =>
+      recorded.push({
+        id: event.id,
+        ...(event.tags ? { tags: event.tags as Record<string, unknown> } : {}),
+      }),
+    );
     try {
       const filler = 'y'.repeat(LOCAL_TOOL_RESULT_CHAR_BUDGET + 400);
       const msg = formatLocalContextToolResultMessage({
@@ -1859,12 +2605,25 @@ describe('local context tool result char budget', () => {
 
   it('batch formatter uses the same budget and metric scope batch', () => {
     const recorded: Array<{ id: string; tags?: Record<string, unknown> }> = [];
-    const dispose = addMetricObserver((event) => recorded.push({ id: event.id, ...(event.tags ? { tags: event.tags as Record<string, unknown> } : {}) }));
+    const dispose = addMetricObserver((event) =>
+      recorded.push({
+        id: event.id,
+        ...(event.tags ? { tags: event.tags as Record<string, unknown> } : {}),
+      }),
+    );
     try {
       const chunk = 'z'.repeat(Math.ceil(LOCAL_TOOL_RESULT_CHAR_BUDGET / 2) + 100);
       const msg = formatLocalContextToolBatchResultMessage([
-        { ok: true, name: 'get_project_stats', result: { a: chunk, _readModel: { unitIndexComplete: true, capturedAtMs: 1 } } },
-        { ok: true, name: 'get_project_stats', result: { b: chunk, _readModel: { unitIndexComplete: true, capturedAtMs: 2 } } },
+        {
+          ok: true,
+          name: 'get_project_stats',
+          result: { a: chunk, _readModel: { unitIndexComplete: true, capturedAtMs: 1 } },
+        },
+        {
+          ok: true,
+          name: 'get_project_stats',
+          result: { b: chunk, _readModel: { unitIndexComplete: true, capturedAtMs: 2 } },
+        },
       ]);
       expect(msg).toContain('internal details were omitted');
       expect(msg).not.toContain('```json');

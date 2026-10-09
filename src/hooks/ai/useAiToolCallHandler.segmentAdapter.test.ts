@@ -3,6 +3,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as AppIndex from '../../app/TranscriptionAppService';
 import { getAiToolSegmentExecutionToolNames } from '../../ai/policy/aiToolPolicyMatrix';
 import { segmentAdapter } from './useAiToolCallHandler.segmentAdapter';
+import { getDb } from '../../db';
+
+/** 模拟真实保存：把文本写进 layer_unit_contents | Mimic a real save: write the text to layer_unit_contents */
+async function storeSegmentText(segmentId: string, layerId: string, text: string): Promise<void> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  await db.dexie.layer_unit_contents.put({
+    id: `segc_${layerId}_${segmentId}`,
+    textId: 'text-1',
+    unitId: segmentId,
+    layerId,
+    modality: 'text',
+    text,
+    sourceType: 'human',
+    createdAt: now,
+    updatedAt: now,
+  });
+}
 
 describe('segmentAdapter', () => {
   afterEach(() => {
@@ -155,7 +173,7 @@ describe('segmentAdapter', () => {
   });
 
   it('writes transcription text through saveSegmentContentForLayer when segmentId is provided', async () => {
-    const saveSegmentContentForLayer = vi.fn(async () => {});
+    const saveSegmentContentForLayer = vi.fn(storeSegmentText);
 
     const result = await segmentAdapter.execute({
       call: {
@@ -176,8 +194,32 @@ describe('segmentAdapter', () => {
     expect(result.rollback).toBeUndefined();
   });
 
-  it('set_transcription_text exposes rollback that restores prior segment text when readSegmentLayerText is provided', async () => {
+  it('does not report success when the segment save wrote nothing (segment outside the current document)', async () => {
     const saveSegmentContentForLayer = vi.fn(async () => {});
+
+    const result = await segmentAdapter.execute({
+      call: {
+        name: 'set_transcription_text',
+        arguments: { segmentId: 'seg-other-document', text: 'updated text' },
+      },
+      locale: 'zh-CN',
+      selectedLayerId: 'trl-1',
+      transcriptionLayers: [{ id: 'trl-1' }],
+      saveSegmentContentForLayer,
+    } as any);
+
+    expect(saveSegmentContentForLayer).toHaveBeenCalledWith(
+      'seg-other-document',
+      'trl-1',
+      'updated text',
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('没有写入');
+    expect(result.message).toContain('seg-other-document');
+  });
+
+  it('set_transcription_text exposes rollback that restores prior segment text when readSegmentLayerText is provided', async () => {
+    const saveSegmentContentForLayer = vi.fn(storeSegmentText);
 
     const result = await segmentAdapter.execute({
       call: {

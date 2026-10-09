@@ -52,6 +52,8 @@ export function WorkbenchFilePane(props: {
   textId: string;
   title: string;
   updatedLabel: string;
+  /** 第 5 批：多文稿项目里统计所覆盖的当前文稿名 | Batch 5: current document the stats cover in a multi-document project */
+  currentDocumentLabel?: string;
   languageCode?: string;
   records: TranscriptionRecordProgressRow[];
   defaultTranscriptionLayerId?: string;
@@ -63,6 +65,7 @@ export function WorkbenchFilePane(props: {
     textId,
     title,
     updatedLabel,
+    currentDocumentLabel,
     records,
     defaultTranscriptionLayerId,
     onConfigureLanguages,
@@ -158,6 +161,11 @@ export function WorkbenchFilePane(props: {
             <WorkbenchGlyph name="clock" />
             {updatedLabel ? tf(locale, 'app.home.lastUpdated', { date: updatedLabel }) : ''}
           </p>
+          {currentDocumentLabel ? (
+            <p className="home-file-updated" data-testid="home-file-document-scope">
+              {tf(locale, 'app.home.documentScope', { name: currentDocumentLabel })}
+            </p>
+          ) : null}
         </div>
         <div className="home-file-actions">
           <button

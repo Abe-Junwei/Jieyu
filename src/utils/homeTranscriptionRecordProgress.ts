@@ -9,6 +9,8 @@ import { getDb } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { resolveDefaultTranscriptionLayerId } from '../services/LayerSegmentGraphService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
+import { listAnnotationDocuments } from '../services/annotationDocumentService';
+import { annotationDocumentLabel } from './annotationDocumentLabel';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
 import {
   collectSentences,
@@ -50,6 +52,8 @@ export interface HomeProjectProgressBundle {
   languageCode?: string;
   defaultTranscriptionLayerId?: string;
   hasTranslationLayers: boolean;
+  /** 第 5 批：项目有多份文稿时，统计只覆盖这一份（当前文稿）的名称 | Batch 5: set when the project has several documents; the stats cover only this (current) one */
+  currentDocumentLabel?: string;
   records: TranscriptionRecordProgressRow[];
 }
 
@@ -228,6 +232,12 @@ export async function loadHomeProjectProgressBundle(
   // 第 5 批：只看当前文稿的层 | Batch 5: only the current document's layers
   const layers = await LinguisticService.layers.listByTextId(text.id);
   const hasTranslationLayers = layers.some((layer) => layer.layerType === 'translation');
+  // 与文稿菜单同一编号：按建立时间排序 | Same numbering as the document menu: creation order
+  const documents = (await listAnnotationDocuments(text.id)).sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  );
+  const currentIndex = documents.findIndex((doc) => doc.isDefault);
+  const currentDocument = documents.length > 1 ? documents[currentIndex] : undefined;
 
   const rawMedia = await LinguisticService.media.listByTextId(text.id);
   /** 与转写项目中枢一致：排除逻辑占位行与译文/转写附属录音行，避免首页「声文稿」与主时间轴条数错位 | Align with project hub: drop placeholders + auxiliary recording rows */
@@ -259,6 +269,9 @@ export async function loadHomeProjectProgressBundle(
       : {}),
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     hasTranslationLayers,
+    ...(currentDocument
+      ? { currentDocumentLabel: annotationDocumentLabel(locale, currentDocument, currentIndex) }
+      : {}),
     records,
   };
 }

@@ -66,6 +66,8 @@ export const enUSDictionary = {
   'app.files.enterTranscription': 'Open transcription workspace',
   'app.home.templateRules': 'Templates and language conventions',
   'app.home.lastUpdated': 'Last updated: {date}',
+  'app.home.documentScope':
+    'Statistics cover the current document “{name}” (this project has several documents)',
   'app.home.projectActive': 'Active',
   'app.overview.leipzigNote': 'Follows the Leipzig Glossing Rules',
   'app.overview.title': 'Project language architecture & field survey overview',
@@ -2781,6 +2783,8 @@ export const enUSDictionary = {
   'transcription.aiTool.voice.analyzeSegmentQualityUnavailable':
     'For quality analysis, ask the AI assistant panel (top-right) to "analyze segment X quality".',
   'transcription.aiTool.voice.unknownTool': 'Unknown voice tool: {toolName}',
+  'transcription.aiTool.segment.segmentNotWritten':
+    "Nothing was written: segment {segmentId} is not in the current document's workspace (it may belong to another document).",
   'transcription.aiTool.segment.segmentNotFound': 'Target segment not found: {segmentId}',
   'transcription.aiTool.segment.translationLayerNotFound':
     'Target translation layer not found: {layerId}',

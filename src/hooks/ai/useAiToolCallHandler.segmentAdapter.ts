@@ -21,6 +21,35 @@ import type {
   ToolObjectAdapter,
 } from './useAiToolCallHandler.types';
 
+/**
+ * 第 5 批：按语段写文本后读库核对。语段不在工作台（例如属于另一份文稿）时保存会静默跳过，
+ * 这时不能回报“完成”。读不了库（没有 IndexedDB 的环境）时返回 undefined，不拦。
+ * Batch 5: after a per-segment text write, read the stored text back. The save silently skips a segment
+ * that is not in the workspace (e.g. another document's), and the tool must not report success then.
+ * Returns undefined when the database cannot be read (no IndexedDB), which does not block.
+ */
+async function segmentLayerTextLanded(
+  segmentId: string,
+  layerId: string,
+  expected: string,
+): Promise<boolean | undefined> {
+  try {
+    const db = await getDb();
+    const rows = await db.dexie.layer_unit_contents.where('unitId').equals(segmentId).toArray();
+    const stored = rows.find((row) => row.layerId === layerId)?.text?.trim() ?? '';
+    return stored === expected.trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function segmentNotWritten(locale: Parameters<typeof tf>[0], segmentId: string) {
+  return {
+    ok: false as const,
+    message: tf(locale, 'transcription.aiTool.segment.segmentNotWritten', { segmentId }),
+  };
+}
+
 function segmentMergeBoundarySplitTime(leftEnd: number, rightStart: number): number {
   return Number(((leftEnd + rightStart) / 2).toFixed(3));
 }
@@ -531,6 +560,12 @@ export const segmentAdapter: ToolObjectAdapter = {
             })
           : text;
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, transformedText);
+        if (
+          (await segmentLayerTextLanded(requestedSegmentId, targetLayerId, transformedText)) ===
+          false
+        ) {
+          return segmentNotWritten(locale, requestedSegmentId);
+        }
         const save = ctx.saveSegmentContentForLayer;
         return {
           ok: true,
@@ -627,6 +662,12 @@ export const segmentAdapter: ToolObjectAdapter = {
             })
           : text;
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, transformedText);
+        if (
+          (await segmentLayerTextLanded(requestedSegmentId, targetLayerId, transformedText)) ===
+          false
+        ) {
+          return segmentNotWritten(locale, requestedSegmentId);
+        }
         const save = ctx.saveSegmentContentForLayer;
         return {
           ok: true,
@@ -713,6 +754,9 @@ export const segmentAdapter: ToolObjectAdapter = {
         }
         const previous = ctx.readSegmentLayerText?.(requestedSegmentId, targetLayerId) ?? '';
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, '');
+        if ((await segmentLayerTextLanded(requestedSegmentId, targetLayerId, '')) === false) {
+          return segmentNotWritten(locale, requestedSegmentId);
+        }
         const save = ctx.saveSegmentContentForLayer;
         const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
         return {

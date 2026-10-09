@@ -12,6 +12,7 @@ export function buildReadModelMetaWithSource(
 ): AiLocalToolReadModelMeta {
   return {
     ...buildLocalToolReadModelMeta(context),
+    documentScope: 'current_document',
     ...(source ? { source } : {}),
   };
 }

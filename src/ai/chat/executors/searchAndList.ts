@@ -14,6 +14,7 @@ import {
 import {
   loadNormalizedUnitRows,
   filterRowsByScope,
+  keepCurrentDocumentSegmentMetaRows,
   loadScopedSegmentMetaRows,
   mapSegmentMetaRows,
   resolveExpectedTotalForScope,
@@ -60,7 +61,7 @@ export async function searchUnits(
           segmentMetaScope.mediaId,
         );
       }
-      const rows = await SegmentMetaService.searchSegmentMeta({
+      const allDocumentRows = await SegmentMetaService.searchSegmentMeta({
         ...(segmentMetaScope.kind === 'layer_media'
           ? { layerId: segmentMetaScope.layerId, mediaId: segmentMetaScope.mediaId }
           : {}),
@@ -73,6 +74,9 @@ export async function searchUnits(
         ...(typeof hasText === 'boolean' ? { hasText } : {}),
         limit,
       });
+      // 第 5 批：只保留当前文稿的命中 | Batch 5: keep current-document matches only
+      // shortcut: limit 在过滤前生效，多文稿项目可能少返回几条 | the limit applies before filtering
+      const rows = await keepCurrentDocumentSegmentMetaRows(allDocumentRows);
       const matches = mapSegmentMetaRows(rows);
       if (matches.length > 0 || loadNormalizedUnitRows(context).length === 0) {
         return {

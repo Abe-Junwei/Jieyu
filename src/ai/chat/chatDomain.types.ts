@@ -658,6 +658,8 @@ export interface AiLocalToolReadModelMeta {
     | 'segment_quality_snapshot'
     | 'hybrid'
     | 'user_notes';
+  /** 第 5 批：统计与查询只覆盖当前文稿 | Batch 5: stats and queries cover the current document only */
+  documentScope?: 'current_document';
 }
 
 export interface AiContextDebugSnapshot {

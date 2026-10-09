@@ -12,9 +12,11 @@ import { isDefaultTranscriptionLayerForUnitText } from '../ai/embeddings/Embeddi
 import { LayerTierUnifiedService } from './LayerTierUnifiedService';
 import { LinguisticService } from './LinguisticService';
 import { WorkspaceReadModelService } from './WorkspaceReadModelService';
+import { loadHomeProjectProgressBundle } from '../utils/homeTranscriptionRecordProgress';
 import {
   createAnnotationDocument,
   ensureDefaultAnnotationDocument,
+  keepCurrentDocumentRows,
   readOtherDocumentLayerIds,
   switchAnnotationDocument,
 } from './annotationDocumentService';
@@ -107,6 +109,27 @@ describe('Batch 5: reads outside the workbench follow the current document', () 
     expect(stats.filter((row) => row.scopeType === 'layer').map((row) => row.layerId)).toEqual([
       'L2',
     ]);
+  });
+
+  it('AI segment_meta rows keep the current document only; other projects pass through', async () => {
+    await seedTwoDocuments();
+    const rows = [
+      { textId: A, layerId: 'L1', id: 'a' },
+      { textId: A, layerId: 'L2', id: 'b' },
+      { textId: 'text_other_project', layerId: 'L9', id: 'c' },
+    ];
+    expect(ids(await keepCurrentDocumentRows(rows))).toEqual(['b', 'c']);
+    expect(await keepCurrentDocumentRows([])).toEqual([]);
+  });
+
+  it('home statistics name the current document only when the project has several', async () => {
+    await ensureDefaultAnnotationDocument(A);
+    const text = (await db.texts.get(A))!;
+    expect(
+      (await loadHomeProjectProgressBundle(text, 'zh-CN')).currentDocumentLabel,
+    ).toBeUndefined();
+    await createAnnotationDocument(A);
+    expect((await loadHomeProjectProgressBundle(text, 'zh-CN')).currentDocumentLabel).toBeTruthy();
   });
 
   it('the AI default transcription layer is the current document one', async () => {
