@@ -41,10 +41,11 @@
  * too. Repointing within a project is unaffected.
  *
  * shortcut: 父行不存在时不检查。归档导入（JYT / JYM / JYB）在 inspector 里、纯 JSON 导入在
- * importDatabaseFromJson 里（对照包 + 本机库）用 dropOrphanRows 丢弃孤儿行（BF1-N3、BF1N3-1）；仍未兜底的
+ * importDatabaseFromJson 里（对照包 + preWrite 清理后的本机库，含项目级导入）用 dropOrphanRows 丢弃孤儿行（BF1-N3、BF1N3-1）；仍未兜底的
  * 是正常使用中先写子行、之后在别的项目写同 id 父行。若出现这类坏数据的报告，再在写入时要求父行存在。
  * shortcut: missing parents are not checked. Archive imports (JYT / JYM / JYB, in the inspectors)
- * and the plain JSON import (importDatabaseFromJson, against snapshot + local DB) drop orphan rows
+ * and the plain JSON import (importDatabaseFromJson, against snapshot + local DB after the preWrite
+ * prune, incl. project-scoped imports) drop orphan rows
  * via dropOrphanRows (BF1-N3, BF1N3-1); still uncovered: a live child written before its parent
  * with a same-id parent later written in another project. Upgrade to requiring the parent at write
  * time if such bad data is reported.

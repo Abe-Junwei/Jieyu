@@ -804,9 +804,35 @@ export async function importDatabaseFromJson(
     'rw',
     ...txTablesTuple,
     async () => {
-      // BF1N3-1：父行既不在包里、也不在本机库里的行丢掉（replace-all 会清空的表不算本机）
+      // N2：在任何删除/替换之前读出本机字节，入站缺字节时保留或整体中止。
+      // N2: read local bytes before any prune/replace; inbound rows without bytes keep them or abort.
+      if (strategy !== 'skip-existing') {
+        const conflicts: InboundByteConflict[] = [];
+        for (const prepared of preparedCollections) {
+          if (!isInboundByteCollection(prepared.collectionName)) continue;
+          const table = tableByCollection[prepared.collectionName];
+          if (!table) continue;
+          const kept = await preserveLocalBytesForInbound(
+            prepared.collectionName,
+            prepared.normalizedDocs,
+            table as Table<any, any>,
+          );
+          conflicts.push(...kept.conflicts);
+          prepared.normalizedDocs = kept.docs;
+        }
+        if (conflicts.length > 0) {
+          throw new InboundByteConflictError(conflicts);
+        }
+      }
+
+      if (options?.preWrite) {
+        await options.preWrite.run();
+      }
+
+      // BF1N3-1：父行既不在包里、也不在本机库里的行丢掉（replace-all 会清空的表不算本机；放在 preWrite 之后，被项目清理删掉的父行也不算）
       // BF1N3-1: drop rows whose parent is neither in the snapshot nor in the local DB
-      // (tables replace-all is about to clear do not count as local)
+      // (tables replace-all is about to clear do not count as local). Runs after preWrite (PF-1),
+      // so local parents a project-scoped prune just deleted do not count either.
       const inbound = Object.fromEntries(
         preparedCollections.map((p) => [p.collectionName, p.normalizedDocs as unknown[]]),
       );
@@ -843,31 +869,6 @@ export async function importDatabaseFromJson(
         }
         result.skippedOrphanRows = orphans.skipped;
         log.warn('Dropped orphan rows from JSON import', { skipped: orphans.skipped });
-      }
-
-      // N2：在任何删除/替换之前读出本机字节，入站缺字节时保留或整体中止。
-      // N2: read local bytes before any prune/replace; inbound rows without bytes keep them or abort.
-      if (strategy !== 'skip-existing') {
-        const conflicts: InboundByteConflict[] = [];
-        for (const prepared of preparedCollections) {
-          if (!isInboundByteCollection(prepared.collectionName)) continue;
-          const table = tableByCollection[prepared.collectionName];
-          if (!table) continue;
-          const kept = await preserveLocalBytesForInbound(
-            prepared.collectionName,
-            prepared.normalizedDocs,
-            table as Table<any, any>,
-          );
-          conflicts.push(...kept.conflicts);
-          prepared.normalizedDocs = kept.docs;
-        }
-        if (conflicts.length > 0) {
-          throw new InboundByteConflictError(conflicts);
-        }
-      }
-
-      if (options?.preWrite) {
-        await options.preWrite.run();
       }
 
       for (const prepared of preparedCollections) {

@@ -6,6 +6,10 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, importDatabaseFromJson, JIEYU_DEXIE_DB_NAME } from './index';
+import {
+  exportProjectScopedDatabaseAsJson,
+  importProjectScopedDatabaseFromJson,
+} from './projectScopedSnapshot';
 
 const NOW = '2026-10-09T01:00:00.000Z';
 
@@ -77,5 +81,33 @@ describe('importDatabaseFromJson drops orphan rows (BF1N3-1)', () => {
     );
     expect(result.skippedOrphanRows).toEqual([{ collection: 'unit_tokens', count: 1 }]);
     expect(await db.unit_tokens.count()).toBe(0);
+  });
+});
+
+describe('project-scoped JSON import checks orphans after the prune (PF-1)', () => {
+  beforeEach(async () => {
+    await db.open();
+    await Promise.all(db.tables.map((table) => table.clear()));
+  });
+
+  it('a parent that exists only locally and is pruned by preWrite does not keep its child alive', async () => {
+    await db.layer_units.put(unit('pA-unit', 'pA'));
+    await db.unit_tokens.put(token('pA-tok', 'pA', 'pA-unit'));
+    const exported = (await exportProjectScopedDatabaseAsJson('pA')) as unknown as {
+      snapshot?: { collections: Record<string, unknown[]> };
+    };
+    const snap = JSON.parse(JSON.stringify(exported.snapshot ?? exported)) as {
+      collections: Record<string, unknown[]>;
+    };
+    expect(snap.collections.unit_tokens).toHaveLength(1);
+    snap.collections.layer_units = (snap.collections.layer_units ?? []).filter(
+      (row) => (row as { id: string }).id !== 'pA-unit',
+    );
+
+    const result = await importProjectScopedDatabaseFromJson(snap, 'pA');
+
+    expect(await db.layer_units.get('pA-unit')).toBeUndefined();
+    expect(await db.unit_tokens.get('pA-tok')).toBeUndefined();
+    expect(result.skippedOrphanRows).toEqual([{ collection: 'unit_tokens', count: 1 }]);
   });
 });
