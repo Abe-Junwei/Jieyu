@@ -351,6 +351,7 @@
       "protobufjs": "^8.6.5"
     },
     "onnxruntime-web": {
+      ".": "1.30.0",
       "protobufjs": "^7.6.4"
     }
   },
