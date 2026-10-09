@@ -98,8 +98,10 @@ export function defaultLiftImportDeps(textId: string): LexiconLiftImportDeps {
 
 /**
  * 128 位确定性哈希（四路 FNV-1a，按 UTF-16 码元），只用于生成稳定 id，不用于安全场景。
+ * **D14 冻结（ADR-0045 / P3）：算法不得更换**；已写入用户数据的副本 id 依赖本实现。
  * 128-bit deterministic hash (four FNV-1a lanes over UTF-16 code units); for stable ids only,
- * not for security.
+ * not for security. **Frozen at D14 (ADR-0045 / P3): do not replace**; copy ids in user data
+ * depend on this exact implementation.
  */
 function stableHash128(input: string): string {
   const seeds = [0x811c9dc5, 0x01000193, 0x9e3779b9, 0x85ebca6b];

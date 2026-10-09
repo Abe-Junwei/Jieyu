@@ -64,6 +64,7 @@ source_of_truth: decision-index
 - [0042-eaf-unnamed-date-tier.md](./0042-eaf-unnamed-date-tier.md)（层名对不上时，闭集日期记入丢失，不进翻译行，也不当转写）
 - [0043-speaker-roster-on-project-text.md](./0043-speaker-roster-on-project-text.md)（说话人名单写在项目上；档案行的归属见 ADR-0044）
 - [0044-project-owned-catalogs.md](./0044-project-owned-catalogs.md)（词条、说话人、正字法、语言记录等按 `textId` 分开，跨项目不共用）
+- [0045-lift-copy-id-hash-freeze.md](./0045-lift-copy-id-hash-freeze.md)（LIFT 跨项目副本 id 的四路 FNV-1a 哈希冻结，GAP-4 / P3）
 
 ## 建议格式
 
