@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType } from '../db';
 import { exportToEaf, importFromEaf } from './EafService';
 import { exportToTrs, importFromTrs } from './TranscriberService';
+import { exportToTextGrid, importFromTextGrid } from './TextGridService';
 import type { XmlSanitizeReport } from '../utils/xmlSafeText';
 import { serializeLexemesToLift } from '../utils/lexiconLiftExport';
 import { parseLiftXml } from '../utils/lexiconLiftImport';
@@ -163,4 +164,20 @@ describe('LIFT round trip keeps headwords, IPA and comma-bearing variants (JY-09
       });
     });
   }
+});
+
+describe('TextGrid keeps every code point, including multi-line text (JY-16)', () => {
+  for (const [name, text] of Object.entries(UNICODE_SAMPLES)) {
+    it(`textgrid: ${name}`, () => {
+      const exported = exportToTextGrid(buildUnicodeExportInput(text) as never);
+      const out = importFromTextGrid(exported).units[0]?.transcription ?? '';
+      expect(codePoints(out)).toEqual(codePoints(text));
+    });
+  }
+
+  it('reads quotes and blank lines inside a multi-line Praat string', () => {
+    const text = 'say ""hi""\n\n  indented "q"\nend';
+    const exported = exportToTextGrid(buildUnicodeExportInput(text) as never);
+    expect(importFromTextGrid(exported).units[0]?.transcription).toBe(text);
+  });
 });

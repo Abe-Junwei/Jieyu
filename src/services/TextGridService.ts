@@ -342,10 +342,43 @@ export function importFromTextGrid(text: string): TextGridImportResult {
       throw new Error(`TextGrid parse error: invalid number for "${prefix}"`);
     return val;
   }
+  /**
+   * 读 Praat 字符串：引号内 `""` 是一个引号，换行原样属于字符串，所以要跨行读到闭合引号（JY-16）。
+   * Read a Praat string: `""` inside quotes is one quote and newlines belong to the string, so read
+   * across lines until the closing quote (JY-16).
+   */
   function readQuotedString(prefix: string): string {
-    const raw = readValue(prefix);
-    // remove surrounding quotes and unescape
-    return raw.replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
+    if (idx >= lines.length) {
+      throw new Error(`TextGrid parse error: unexpected end of file at line ${idx + 1}`);
+    }
+    const opening = lines[idx]!.match(new RegExp(`^\\s*${prefix}\\s*=\\s*"`));
+    if (!opening) {
+      // 没有引号的旧写法 | Unquoted legacy value
+      return readValue(prefix);
+    }
+    let rest = lines[idx]!.slice(opening[0].length);
+    idx += 1;
+    let value = '';
+    for (;;) {
+      let pos = 0;
+      while (pos < rest.length) {
+        const quote = rest.indexOf('"', pos);
+        if (quote < 0) break;
+        if (rest[quote + 1] === '"') {
+          value += rest.slice(pos, quote + 1);
+          pos = quote + 2;
+          continue;
+        }
+        return value + rest.slice(pos, quote);
+      }
+      value += rest.slice(pos);
+      if (idx >= lines.length) {
+        throw new Error(`TextGrid parse error: unterminated string for "${prefix}"`);
+      }
+      value += '\n';
+      rest = lines[idx]!;
+      idx += 1;
+    }
   }
 
   // Header
