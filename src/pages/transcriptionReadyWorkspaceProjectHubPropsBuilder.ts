@@ -72,9 +72,9 @@ export function buildReadyWorkspaceProjectHubProps(
       recordTranscriptionKeyboardAction('toolbarPreviewProjectArchiveImport');
       return input.onPreviewProjectArchiveImport(file);
     },
-    onImportProjectArchive: async (file: File, strategy, restoreMode) => {
+    onImportProjectArchive: async (file: File, strategy, restoreMode, selection) => {
       recordTranscriptionKeyboardAction('toolbarImportProjectArchive');
-      return input.onImportProjectArchive(file, strategy, restoreMode);
+      return input.onImportProjectArchive(file, strategy, restoreMode, selection);
     },
     ...(input.onApplyTextTimeMapping
       ? {

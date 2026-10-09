@@ -1032,6 +1032,7 @@ export function useImportExport(input: UseImportExportInput) {
         file: File,
         strategy: import('../../db').ImportConflictStrategy,
         restoreMode?: import('../../services/JymService').ProjectArchiveRestoreMode,
+        selection?: import('../../services/JymService').ProjectArchiveImportSelection,
       ) => {
         const archiveHandlersModule = await loadArchiveHandlersModule(archiveHandlersModuleRef);
         const { importProjectArchive: importArchive } =
@@ -1041,7 +1042,7 @@ export function useImportExport(input: UseImportExportInput) {
             locale,
             setSaveState,
           });
-        return importArchive(file, strategy, restoreMode);
+        return importArchive(file, strategy, restoreMode, selection);
       },
     }),
     [activeTextId, loadSnapshot, locale, setSaveState],

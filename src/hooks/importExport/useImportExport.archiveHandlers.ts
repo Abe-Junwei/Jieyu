@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { ImportConflictStrategy } from '../../db';
 import type {
   JieyuArchiveImportPreview,
+  ProjectArchiveImportSelection,
   ProjectArchiveRestoreMode,
 } from '../../services/JymService';
 import { t, tf, type Locale } from '../../i18n';
@@ -23,9 +24,20 @@ function loadProjectPackageModule() {
   return import('../../services/projectPackageService');
 }
 
-/** 不是 JYT / JYM 时给出明确的拒绝（T32）| Not a JYT / JYM: refuse clearly (T32) */
-async function readProjectPackageBytes(file: File) {
+function loadJybModule() {
+  return import('../../services/JybService');
+}
+
+/** 读出文件；是 JYB 时带上 JYB 模块 | Read the file; a JYB comes with the JYB module */
+async function readArchiveFile(file: File) {
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const jyb = await loadJybModule();
+  return { bytes, jyb: jyb.isJybPackage(bytes) ? jyb : null };
+}
+
+/** 不是 JYT / JYM 时给出明确的拒绝（T32）| Not a JYT / JYM: refuse clearly (T32) */
+async function readProjectPackageBytes(file: File, alreadyRead?: Uint8Array) {
+  const bytes = alreadyRead ?? new Uint8Array(await file.arrayBuffer());
   const packages = await loadProjectPackageModule();
   if (packages.detectProjectPackageKind(bytes) === null) {
     const { SnapshotFormatError } = await import('../../db/snapshotFormatError');
@@ -89,8 +101,67 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     }
   };
 
+  /** JYB：逐项目导入（默认）或灾难恢复（rev5 7.5）| JYB: per-project import or disaster restore */
+  const previewLibraryBackup = async (
+    file: File,
+    bytes: Uint8Array,
+    jyb: Awaited<ReturnType<typeof loadJybModule>>,
+  ): Promise<JieyuArchiveImportPreview> => {
+    const preview = await withArchivePasswordRetry(file, (password) =>
+      jyb.previewJybRestore(bytes, password ? { password } : undefined),
+    );
+    const projects = preview.projects.map((project) => ({
+      id: project.id,
+      title: pickProjectTitle(project.title, project.id),
+      incoming: project.incoming,
+      mediaWithoutBytes: project.mediaWithoutBytes,
+      includedBytesCount: project.includedBytesCount,
+    }));
+    return {
+      kind: 'jyb',
+      manifest: {
+        formatVersion: preview.manifest.formatVersion,
+        kind: 'jyb',
+        schemaVersion: preview.manifest.dataSchemaVersion,
+        exportedAt: preview.manifest.created,
+        systemRefs: preview.manifest.systemRefs,
+      },
+      collections: preview.collections.map((item) => ({
+        name: item.name,
+        incoming: item.incoming,
+        conflicts: 0,
+        existing: 0,
+        willInsertUpsert: item.incoming,
+        willInsertSkipExisting: item.incoming,
+        willInsertReplaceAll: item.incoming,
+      })),
+      unresolvedSystemRefs: preview.unresolvedSystemRefs,
+      totalIncoming: preview.totalIncoming,
+      totalConflicts: 0,
+      restoreAsNewProject: {
+        sourceProjectTitle: projects.map((project) => project.title).join(', '),
+        mediaWithoutBytes: preview.mediaWithoutBytes,
+        includedBytesCount: preview.includedBytes.count,
+        includedBytesTotal: preview.includedBytes.totalBytes,
+        skippedLanguageIds: [],
+      },
+      libraryBackup: {
+        mediaIncluded: preview.manifest.media === 'included',
+        projects,
+        disasterRestore: {
+          available: preview.disasterRestore.available,
+          ...(preview.disasterRestore.reason ? { reason: preview.disasterRestore.reason } : {}),
+          localProjectCount: preview.disasterRestore.localProjectCount,
+          bytesAtRiskCount: preview.disasterRestore.bytesAtRisk.length,
+        },
+      },
+    };
+  };
+
   const previewProjectArchiveImport = async (file: File): Promise<JieyuArchiveImportPreview> => {
-    const { bytes, packages } = await readProjectPackageBytes(file);
+    const read = await readArchiveFile(file);
+    if (read.jyb) return previewLibraryBackup(file, read.bytes, read.jyb);
+    const { bytes, packages } = await readProjectPackageBytes(file, read.bytes);
     // JYT / JYM：恢复为新项目（D5 默认），预览里没有冲突和策略 | Restore as a new project (D5)
     const preview = await withArchivePasswordRetry(file, (password) =>
       packages.previewProjectPackageRestore(bytes, {
@@ -141,8 +212,8 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     };
   };
 
-  const restoreProjectPackage = async (file: File): Promise<string> => {
-    const { bytes, packages } = await readProjectPackageBytes(file);
+  const restoreProjectPackage = async (file: File, alreadyRead?: Uint8Array): Promise<string> => {
+    const { bytes, packages } = await readProjectPackageBytes(file, alreadyRead);
     const restored = await withArchivePasswordRetry(file, (password) =>
       packages.restoreProjectPackageAsNew(bytes, password ? { password } : undefined),
     );
@@ -159,8 +230,9 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
   const overwriteWithProjectPackage = async (
     file: File,
     targetProjectId: string,
+    alreadyRead?: Uint8Array,
   ): Promise<string> => {
-    const { bytes, packages } = await readProjectPackageBytes(file);
+    const { bytes, packages } = await readProjectPackageBytes(file, alreadyRead);
     const result = await withArchivePasswordRetry(file, (password) =>
       packages.overwriteProjectWithPackage(bytes, {
         targetProjectId,
@@ -178,25 +250,87 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     });
   };
 
+  /** JYB 导入；返回提示与之后要打开的项目 | JYB import; returns the message and the project to open */
+  const importLibraryBackup = async (
+    file: File,
+    bytes: Uint8Array,
+    jyb: Awaited<ReturnType<typeof loadJybModule>>,
+    restoreMode: ProjectArchiveRestoreMode,
+    selection: ProjectArchiveImportSelection | undefined,
+  ): Promise<{ message: string; openTextId: string | null }> => {
+    const countWritten = (result: {
+      collections: Record<string, { written?: number } | undefined>;
+    }) => Object.values(result.collections).reduce((sum, c) => sum + (c?.written ?? 0), 0);
+    if (restoreMode === 'disaster-restore') {
+      // D7：界面已经做了二次确认 | D7: the UI did the double confirm
+      const result = await withArchivePasswordRetry(file, (password) =>
+        jyb.disasterRestoreFromJyb(bytes, password ? { password } : undefined),
+      );
+      const keepCurrent = activeTextId !== null && result.projectIds.includes(activeTextId);
+      return {
+        message: tf(locale, 'transcription.importExport.importDone.jybDisaster', {
+          count: result.projectIds.length,
+          written: countWritten(result.importResult),
+        }),
+        openTextId: keepCurrent ? activeTextId : (result.projectIds[0] ?? null),
+      };
+    }
+    if (selection?.projectIds !== undefined && selection.projectIds.length === 0) {
+      throw new Error(t(locale, 'transcription.importExport.jybNoProjectSelected'));
+    }
+    const result = await withArchivePasswordRetry(file, (password) =>
+      jyb.importJybProjectsAsNew(bytes, {
+        ...(password ? { password } : {}),
+        ...(selection?.projectIds !== undefined ? { projectIds: selection.projectIds } : {}),
+      }),
+    );
+    return {
+      message: tf(locale, 'transcription.importExport.importDone.jybProjects', {
+        count: result.projects.length,
+        written: countWritten(result.importResult),
+      }),
+      // 仍停留在当前项目（JY-02）| Stay on the current project (JY-02)
+      openTextId: activeTextId,
+    };
+  };
+
   const importProjectArchive = async (
     file: File,
     strategy: ImportConflictStrategy,
     restoreMode: ProjectArchiveRestoreMode = 'restore-as-new',
+    selection?: ProjectArchiveImportSelection,
   ): Promise<boolean> => {
     let resolvedTextId: string | null = activeTextId;
 
     try {
+      const read = await readArchiveFile(file);
+      if (read.jyb) {
+        const { message, openTextId } = await importLibraryBackup(
+          file,
+          read.bytes,
+          read.jyb,
+          restoreMode,
+          selection,
+        );
+        resolvedTextId = openTextId;
+        await loadSnapshot(resolveCurrentProjectTextId(openTextId));
+        setSaveState({ kind: 'done', message });
+        return true;
+      }
+      if (restoreMode === 'disaster-restore') {
+        throw new Error(t(locale, 'transcription.importExport.overwriteNotAllowed'));
+      }
       if (restoreMode === 'overwrite-current') {
         // D5：覆盖只针对当前项目；界面已经做了二次确认 | D5: overwrite targets the current project only
         if (!resolvedTextId) {
           throw new Error(t(locale, 'transcription.importExport.overwriteNotAllowed'));
         }
-        const message = await overwriteWithProjectPackage(file, resolvedTextId);
+        const message = await overwriteWithProjectPackage(file, resolvedTextId, read.bytes);
         await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
         setSaveState({ kind: 'done', message });
         return true;
       }
-      const message = await restoreProjectPackage(file);
+      const message = await restoreProjectPackage(file, read.bytes);
       // 仍停留在当前项目（JY-02）；新项目在项目列表里 | Stay on the current project (JY-02)
       await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
       setSaveState({ kind: 'done', message });

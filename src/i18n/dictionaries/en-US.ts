@@ -1557,6 +1557,8 @@ export const enUSDictionary = {
   'transcription.toolbar.export.toolbox': 'Export as Toolbox (.txt)',
   'transcription.toolbar.export.jyt': 'Export current project as JYT (no audio)',
   'transcription.toolbar.export.jym': 'Export current project as JYM (with audio)',
+  'transcription.toolbar.export.jybWithMedia': 'Export whole-library backup JYB (with audio)',
+  'transcription.toolbar.export.jybWithoutMedia': 'Export whole-library backup JYB (without audio)',
   'transcription.toolbar.export.srt': 'Export as SRT (.srt)',
   'transcription.toolbar.export.vtt': 'Export as WebVTT (.vtt)',
   'transcription.toolbar.export.csv': 'Export as CSV (.csv)',
@@ -1655,7 +1657,7 @@ export const enUSDictionary = {
   'transcription.projectHub.timeMappingRollbackSucceeded': 'Rolled back to the previous mapping.',
   'transcription.projectHub.timeMappingDialogSaveFailed': 'Failed to save time mapping: {message}',
   'transcription.projectHub.currentProject': 'Current project: {name}',
-  'transcription.projectHub.importProject': 'Import project (.jyt / .jym)',
+  'transcription.projectHub.importProject': 'Import project or backup (.jyt / .jym / .jyb)',
   'transcription.projectHub.importAnnotation':
     'Import annotation files (EAF/TextGrid/TRS/FLEx/Toolbox)',
   'transcription.projectHub.previewing': 'Preparing conflict preview…',
@@ -1694,6 +1696,24 @@ export const enUSDictionary = {
     'Overwriting replaces all content and catalog entries of the current project (local recording bytes are kept). A snapshot is saved first. Click the button again to confirm.',
   'transcription.projectHub.confirmOverwrite': 'Overwrite current project',
   'transcription.projectHub.confirmOverwriteAgain': 'Confirm overwrite',
+  'transcription.projectHub.jybProjectsTitle':
+    'Projects in the backup (per-project import adds the checked ones)',
+  'transcription.projectHub.jybProjectRow': '{title} ({incoming} records)',
+  'transcription.projectHub.jybMediaIncluded': 'With audio',
+  'transcription.projectHub.jybMediaExcluded': 'Without audio',
+  'transcription.projectHub.jybModeProjects':
+    'Per-project import: the selected projects are added as new projects; local data stays as it is',
+  'transcription.projectHub.jybModeDisaster':
+    'Disaster restore: bring the whole library back to the backup (replaces all {count} local project(s))',
+  'transcription.projectHub.jybDisasterBlockedCollaborated':
+    'A local or backed-up project has collaboration history, so the whole library cannot be restored; use per-project import.',
+  'transcription.projectHub.jybDisasterBlockedBytes':
+    'A whole-library restore would lose {count} local recording or attachment byte file(s), so it is disabled. Export a JYB or JYM with audio first.',
+  'transcription.projectHub.jybDisasterWarning':
+    'A whole-library restore replaces every local project. A whole-library snapshot is saved first and the restore stops if it fails. Collaboration bindings are not restored. Click again to confirm.',
+  'transcription.projectHub.confirmJybImport': 'Import selected projects',
+  'transcription.projectHub.confirmJybDisaster': 'Restore whole library',
+  'transcription.projectHub.confirmJybDisasterAgain': 'Confirm whole-library restore',
   'transcription.projectHub.annotationImportDialogTitle': 'Import annotation files',
   'transcription.projectHub.annotationImportDialogSummary':
     'Choose how imported annotation text should be written.',
@@ -2307,6 +2327,10 @@ export const enUSDictionary = {
     'JYT exported: the current project only, without audio.',
   'transcription.importExport.exportDone.jym':
     'JYM exported: the current project with its recordings and attachments.',
+  'transcription.importExport.exportDone.jybWithMedia':
+    'Whole-library backup JYB exported (with audio).',
+  'transcription.importExport.exportDone.jybWithoutMedia':
+    'Whole-library backup JYB exported (without audio).',
   'transcription.importExport.exportDone.srt': 'SRT exported.',
   'transcription.importExport.exportDone.vtt': 'WebVTT exported.',
   'transcription.importExport.exportDone.csv': 'CSV exported.',
@@ -2385,8 +2409,15 @@ export const enUSDictionary = {
   'transcription.importExport.jymNeedsProject': 'Open a project first, then export it as JYM.',
   'transcription.importExport.jymTooLarge':
     'The JYM is too large (about {sizeMb} MB, limit {limitMb} MB) and was not exported. Export a JYT (no audio) instead.',
+  'transcription.importExport.jybTooLarge':
+    'The whole-library backup is too large (about {sizeMb} MB, limit {limitMb} MB) and was not exported. Export a JYB without audio, or export projects one by one as JYM.',
   'transcription.importExport.importDone.restoredAsNew':
     'Restored as the new project "{title}" ({written} records). Open it from the project list.',
+  'transcription.importExport.importDone.jybProjects':
+    'Imported {count} project(s) from the JYB as new projects ({written} written).',
+  'transcription.importExport.importDone.jybDisaster':
+    'Restored the whole library from the JYB: {count} project(s), {written} written; a whole-library snapshot was saved first.',
+  'transcription.importExport.jybNoProjectSelected': 'Check at least one project.',
   'transcription.importExport.importDone.overwritten':
     'Overwrote the current project "{title}" from the {kind} ({written} written); a snapshot was saved first.',
   'transcription.importExport.overwriteNotAllowed':
@@ -3405,14 +3436,14 @@ export const enUSDictionary = {
   'msg.noteHandlers.confidenceSuffix': ' (confidence {pct}%)',
 
   'msg.appData.backupReminderToast':
-    'Export a full .jym / .jyt archive periodically from the Transcription workspace export menu to guard against browser storage loss or device changes.',
+    'Export a whole-library backup (JYB, .jyb) periodically from the Transcription workspace export menu to guard against browser storage loss or device changes.',
   'msg.appData.backupElapsedReminderToast':
     'You have worked for about {hours} hour(s). Export a database backup to reduce the risk of data loss.',
   'msg.appData.collabLocalStorageQuotaToast':
     'Browser storage quota exceeded: collaboration sync state is using a memory overlay mirrored to IndexedDB. Export a backup or free site data soon.',
   'msg.appData.dbIntegrityTitle': 'Local database self-check failed',
   'msg.appData.dbIntegrityIntro':
-    'A critical table could not be read; your data may be damaged. Export a full backup (.jym), then try reloading the page.',
+    'A critical table could not be read; your data may be damaged. Export a whole-library backup JYB (.jyb), then try reloading the page.',
   'msg.appData.dbIntegrityReason': 'Details',
   'msg.appData.dbIntegrityReload': 'Reload page',
   'msg.appData.dbIntegrityRetry': 'Run check again',
@@ -3421,10 +3452,10 @@ export const enUSDictionary = {
   'msg.appData.dbOpenIntro':
     'The browser could not open this app’s IndexedDB. Transcription and other local-data features may not work until the database opens.',
   'msg.appData.dbOpenRecovery':
-    'Try: clear site data for this origin in browser settings, then reload; check free disk space; use a private window to rule out extensions; or use a supported desktop browser. If you rely on an exported .jym / .jyt, keep that backup in a safe place before clearing data.',
-  'msg.appData.settingsBackupReminderLabel': 'Periodic full backup reminder',
+    'Try: clear site data for this origin in browser settings, then reload; check free disk space; use a private window to rule out extensions; or use a supported desktop browser. If you rely on an exported JYB (.jyb) or a .jym / .jyt package, keep it in a safe place before clearing data.',
+  'msg.appData.settingsBackupReminderLabel': 'Periodic JYB backup reminder',
   'msg.appData.settingsBackupReminderHint':
-    'When enabled, shows a toast if you have not exported a .jym/.jyt archive for a long time (at most about once per 24h while overdue).',
+    'When enabled, shows a toast if you have not exported a JYB backup or a project package (.jyb / .jym / .jyt) for a long time (at most about once per 24h while overdue).',
   'msg.appData.settingsDbIntegrityProbeLabel': 'Run local database sanity check after startup',
   'msg.appData.settingsDbIntegrityProbeHint':
     'When enabled, performs a lightweight read of critical tables after the DB opens; shows a recoverable prompt on failure.',

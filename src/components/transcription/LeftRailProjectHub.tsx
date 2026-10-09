@@ -23,8 +23,11 @@ import {
 import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import type {
   JieyuArchiveImportPreview,
+  ProjectArchiveImportSelection,
   ProjectArchiveRestoreMode,
 } from '../../services/JymService';
+import { useLibraryBackupExport } from '../../hooks/importExport/useLibraryBackupExport';
+import { LibraryBackupImportOptions } from './LibraryBackupImportOptions';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
@@ -60,6 +63,8 @@ interface ProjectImportState {
   restoreMode: ProjectArchiveRestoreMode;
   /** 覆盖的第一次确认已点过（二次确认）| First overwrite confirm clicked (double confirm) */
   overwriteArmed: boolean;
+  /** JYB：逐项目导入时勾选的项目 | JYB: projects checked for per-project import */
+  selectedProjectIds?: string[];
   importing: boolean;
 }
 
@@ -126,6 +131,7 @@ interface LeftRailProjectHubProps {
     file: File,
     strategy: ImportConflictStrategy,
     restoreMode?: ProjectArchiveRestoreMode,
+    selection?: ProjectArchiveImportSelection,
   ) => Promise<boolean>;
   onApplyTextTimeMapping?: (input: { offsetSec: number; scale: number }) => Promise<void>;
   onExportEaf: () => void;
@@ -199,6 +205,12 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const activeProjectTitle = roster.find((project) => project.textId === activeTextId)?.title ?? '';
   const sidePaneMessages = getSidePaneSidebarMessages(locale);
   const { showToast } = useToast();
+  const notifyLibraryBackup = useCallback(
+    (message: string, variant: 'success' | 'error') =>
+      showToast(message, variant, variant === 'error' ? 0 : undefined),
+    [showToast],
+  );
+  const exportLibraryBackup = useLibraryBackupExport({ locale, notify: notifyLibraryBackup });
   const [hostElement, setHostElement] = useState<HTMLElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState({ top: 88, left: 88 });
@@ -324,6 +336,9 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           strategy: 'upsert',
           restoreMode: 'restore-as-new',
           overwriteArmed: false,
+          ...(preview.libraryBackup
+            ? { selectedProjectIds: preview.libraryBackup.projects.map((project) => project.id) }
+            : {}),
           importing: false,
         });
         setIsOpen(false);
@@ -345,18 +360,19 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const handleConfirmProjectImport = useCallback(async () => {
     const current = projectImportState;
     if (!current) return;
-    // D5：覆盖需要二次确认；第一次点击只显示警告 | D5: overwrite needs a second click
-    if (current.restoreMode === 'overwrite-current' && !current.overwriteArmed) {
+    // D5 / D7：覆盖与整库还原需要二次确认；第一次点击只显示警告 | Overwrite / disaster: second click
+    if (current.restoreMode !== 'restore-as-new' && !current.overwriteArmed) {
       setProjectImportState((prev) => (prev ? { ...prev, overwriteArmed: true } : null));
       return;
     }
     setProjectImportState((prev) => (prev ? { ...prev, importing: true } : null));
 
-    const success = await onImportProjectArchive(
-      current.file,
-      current.strategy,
-      current.restoreMode,
-    );
+    const success =
+      current.selectedProjectIds !== undefined
+        ? await onImportProjectArchive(current.file, current.strategy, current.restoreMode, {
+            projectIds: current.selectedProjectIds,
+          })
+        : await onImportProjectArchive(current.file, current.strategy, current.restoreMode);
     if (success) {
       setProjectImportState(null);
       setIsOpen(false);
@@ -723,6 +739,26 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           });
         },
       },
+      // 整库备份 JYB：必须写明带不带音频（D1）| Whole-library JYB: with or without audio (D1)
+      {
+        label: t(locale, 'transcription.toolbar.export.jybWithMedia'),
+        separatorBefore: true,
+        onClick: () => {
+          fireAndForget(exportLibraryBackup(true), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L747',
+            policy: 'user-visible',
+          });
+        },
+      },
+      {
+        label: t(locale, 'transcription.toolbar.export.jybWithoutMedia'),
+        onClick: () => {
+          fireAndForget(exportLibraryBackup(false), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L756',
+            policy: 'user-visible',
+          });
+        },
+      },
     ];
 
     return [
@@ -842,6 +878,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onExportFlextext,
     onExportJym,
     onExportJyt,
+    exportLibraryBackup,
     onExportLite,
     onExportTextGrid,
     onExportToolbox,
@@ -914,7 +951,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       <input
         ref={projectArchiveInputRef}
         type="file"
-        accept=".jyt,.jym"
+        accept=".jyt,.jym,.jyb"
         aria-label={t(locale, 'transcription.projectHub.importProject')}
         className="left-rail-project-hub-file-input"
         onChange={(event) => {
@@ -987,13 +1024,19 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             >
               {projectImportState.importing
                 ? t(locale, 'transcription.projectHub.importing')
-                : projectImportState.restoreMode === 'overwrite-current'
+                : projectImportState.restoreMode === 'disaster-restore'
                   ? projectImportState.overwriteArmed
-                    ? t(locale, 'transcription.projectHub.confirmOverwriteAgain')
-                    : t(locale, 'transcription.projectHub.confirmOverwrite')
-                  : projectImportState.preview.restoreAsNewProject
-                    ? t(locale, 'transcription.projectHub.confirmRestoreAsNew')
-                    : t(locale, 'transcription.projectHub.confirmImport')}
+                    ? t(locale, 'transcription.projectHub.confirmJybDisasterAgain')
+                    : t(locale, 'transcription.projectHub.confirmJybDisaster')
+                  : projectImportState.preview.libraryBackup
+                    ? t(locale, 'transcription.projectHub.confirmJybImport')
+                    : projectImportState.restoreMode === 'overwrite-current'
+                      ? projectImportState.overwriteArmed
+                        ? t(locale, 'transcription.projectHub.confirmOverwriteAgain')
+                        : t(locale, 'transcription.projectHub.confirmOverwrite')
+                      : projectImportState.preview.restoreAsNewProject
+                        ? t(locale, 'transcription.projectHub.confirmRestoreAsNew')
+                        : t(locale, 'transcription.projectHub.confirmImport')}
             </PanelButton>
           </>
         ) : undefined
@@ -1071,7 +1114,28 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             }
           />
 
-          {projectImportState.preview.restoreAsNewProject ? (
+          {projectImportState.preview.libraryBackup ? (
+            <PanelSection
+              className="left-rail-project-import-strategy-section"
+              title={t(locale, 'transcription.projectHub.importDialogStrategy')}
+            >
+              <LibraryBackupImportOptions
+                locale={locale}
+                backup={projectImportState.preview.libraryBackup}
+                restoreMode={projectImportState.restoreMode}
+                selectedProjectIds={projectImportState.selectedProjectIds ?? []}
+                disabled={projectImportState.importing}
+                onRestoreModeChange={(restoreMode) =>
+                  setProjectImportState((prev) =>
+                    prev ? { ...prev, restoreMode, overwriteArmed: false } : prev,
+                  )
+                }
+                onSelectedProjectIdsChange={(selectedProjectIds) =>
+                  setProjectImportState((prev) => (prev ? { ...prev, selectedProjectIds } : prev))
+                }
+              />
+            </PanelSection>
+          ) : projectImportState.preview.restoreAsNewProject ? (
             <PanelSection
               className="left-rail-project-import-strategy-section"
               title={t(locale, 'transcription.projectHub.importDialogStrategy')}

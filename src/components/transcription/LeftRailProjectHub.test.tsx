@@ -145,7 +145,7 @@ describe('LeftRailProjectHub project import dialog', () => {
   it('opens the import preview dialog through the archive input with DialogShell wide layout', async () => {
     const { onPreviewProjectArchiveImport } = renderHub();
     const file = new File(['archive'], 'demo.jym', { type: 'application/octet-stream' });
-    const input = document.querySelector('input[accept=".jyt,.jym"]') as HTMLInputElement;
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
 
     fireEvent.change(input, { target: { files: [file] } });
 
@@ -170,7 +170,7 @@ describe('LeftRailProjectHub project import dialog', () => {
   it('JYM restores as a new project with its bytes; there is no import strategy (D1, D5)', async () => {
     const { onImportProjectArchive } = renderHub();
     const file = new File(['archive'], 'demo.jym', { type: 'application/octet-stream' });
-    const input = document.querySelector('input[accept=".jyt,.jym"]') as HTMLInputElement;
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
 
     fireEvent.change(input, { target: { files: [file] } });
 
@@ -208,7 +208,7 @@ describe('LeftRailProjectHub project import dialog', () => {
       onPreviewProjectArchiveImport: vi.fn(async () => jytPreview(true)),
     });
     const file = new File(['archive'], 'demo.jyt', { type: 'application/octet-stream' });
-    const input = document.querySelector('input[accept=".jyt,.jym"]') as HTMLInputElement;
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
     await screen.findByRole('dialog', { name: '导入项目预览' });
@@ -245,7 +245,7 @@ describe('LeftRailProjectHub project import dialog', () => {
       })),
     });
     const file = new File(['archive'], 'demo.jyt', { type: 'application/octet-stream' });
-    const input = document.querySelector('input[accept=".jyt,.jym"]') as HTMLInputElement;
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
     await screen.findByRole('dialog', { name: '导入项目预览' });
     expect(
@@ -253,6 +253,92 @@ describe('LeftRailProjectHub project import dialog', () => {
     ).toBe(true);
     expect(screen.getByTestId('project-import-overwrite-blocked').textContent).toContain('2');
     expect(screen.getByRole('button', { name: '恢复为新项目' })).toBeTruthy();
+  });
+
+  const jybPreview = (disaster: {
+    available: boolean;
+    reason?: 'collaborated' | 'local-bytes-would-be-lost';
+    bytesAtRiskCount?: number;
+  }) => ({
+    ...makePreview(),
+    kind: 'jyb' as const,
+    libraryBackup: {
+      mediaIncluded: true,
+      projects: [
+        { id: 'pA', title: 'Alpha', incoming: 10, mediaWithoutBytes: 0, includedBytesCount: 1 },
+        { id: 'pB', title: 'Beta', incoming: 5, mediaWithoutBytes: 0, includedBytesCount: 1 },
+      ],
+      disasterRestore: {
+        available: disaster.available,
+        ...(disaster.reason ? { reason: disaster.reason } : {}),
+        localProjectCount: 3,
+        bytesAtRiskCount: disaster.bytesAtRiskCount ?? 0,
+      },
+    },
+  });
+
+  it('JYB imports the checked projects as new projects by default (T30)', async () => {
+    const { onImportProjectArchive } = renderHub({
+      onPreviewProjectArchiveImport: vi.fn(async () => jybPreview({ available: true })),
+    });
+    const file = new File(['archive'], 'library.jyb', { type: 'application/octet-stream' });
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole('dialog', { name: '导入项目预览' });
+    expect(screen.getByTestId('jyb-media-chip').textContent).toBe('含音频');
+    expect((screen.getByTestId('jyb-mode-projects') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByTestId('jyb-project-pA'));
+    fireEvent.click(screen.getByRole('button', { name: '导入所选项目' }));
+    await waitFor(() => {
+      expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'upsert', 'restore-as-new', {
+        projectIds: ['pB'],
+      });
+    });
+  });
+
+  it('JYB disaster restore needs a second click (D7, T34)', async () => {
+    const { onImportProjectArchive } = renderHub({
+      onPreviewProjectArchiveImport: vi.fn(async () => jybPreview({ available: true })),
+    });
+    const file = new File(['archive'], 'library.jyb', { type: 'application/octet-stream' });
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole('dialog', { name: '导入项目预览' });
+    fireEvent.click(screen.getByTestId('jyb-mode-disaster'));
+    expect(screen.getByTestId('jyb-disaster-warning')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '整库还原' }));
+    expect(onImportProjectArchive).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '确认整库还原' }));
+    await waitFor(() => {
+      expect(onImportProjectArchive).toHaveBeenCalledWith(
+        file,
+        'upsert',
+        'disaster-restore',
+        expect.anything(),
+      );
+    });
+  });
+
+  it('JYB disaster restore is not offered when a project was collaborated (T34c)', async () => {
+    renderHub({
+      onPreviewProjectArchiveImport: vi.fn(async () =>
+        jybPreview({ available: false, reason: 'collaborated' }),
+      ),
+    });
+    const file = new File(['archive'], 'library.jyb', { type: 'application/octet-stream' });
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole('dialog', { name: '导入项目预览' });
+    expect((screen.getByTestId('jyb-mode-disaster') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByTestId('jyb-disaster-blocked').textContent).toContain('协作');
+  });
+
+  it('offers JYB exports with and without audio', async () => {
+    renderHub();
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    fireEvent.mouseEnter((await screen.findByText('导出')).closest('button') as HTMLButtonElement);
+    expect(await screen.findByText('导出整库备份 JYB（含音频）')).toBeTruthy();
+    expect(screen.getByText('导出整库备份 JYB（不含音频）')).toBeTruthy();
   });
 
   it('opens annotation import strategy dialog and passes the selected strategy', async () => {

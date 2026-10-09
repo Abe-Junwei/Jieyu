@@ -1461,6 +1461,8 @@ export const zhCNDictionary = {
   'transcription.toolbar.export.toolbox': '导出为 Toolbox (.txt)',
   'transcription.toolbar.export.jyt': '导出当前项目为 JYT（不含音频）',
   'transcription.toolbar.export.jym': '导出当前项目为 JYM（含音频）',
+  'transcription.toolbar.export.jybWithMedia': '导出整库备份 JYB（含音频）',
+  'transcription.toolbar.export.jybWithoutMedia': '导出整库备份 JYB（不含音频）',
   'transcription.toolbar.export.srt': '导出为字幕 SRT (.srt)',
   'transcription.toolbar.export.vtt': '导出为字幕 WebVTT (.vtt)',
   'transcription.toolbar.export.csv': '导出为表格 CSV (.csv)',
@@ -1552,7 +1554,7 @@ export const zhCNDictionary = {
   'transcription.projectHub.timeMappingRollbackSucceeded': '已回滚到上一版映射。',
   'transcription.projectHub.timeMappingDialogSaveFailed': '保存时间映射失败：{message}',
   'transcription.projectHub.currentProject': '当前项目：{name}',
-  'transcription.projectHub.importProject': '导入项目（.jyt / .jym）',
+  'transcription.projectHub.importProject': '导入项目或备份（.jyt / .jym / .jyb）',
   'transcription.projectHub.importAnnotation': '导入标注文件（EAF/TextGrid/TRS/FLEx/Toolbox）',
   'transcription.projectHub.previewing': '正在预览导入冲突…',
   'transcription.projectHub.morePlaceholder': '更多项目能力即将接入',
@@ -1589,6 +1591,23 @@ export const zhCNDictionary = {
     '覆盖会替换当前项目的全部内容和目录（本机录音字节保留）。覆盖前会自动保存一份快照。请再点一次按钮确认。',
   'transcription.projectHub.confirmOverwrite': '覆盖当前项目',
   'transcription.projectHub.confirmOverwriteAgain': '确认覆盖',
+  'transcription.projectHub.jybProjectsTitle': '备份里的项目（逐项目导入时只导入勾选的）',
+  'transcription.projectHub.jybProjectRow': '{title}（{incoming} 条记录）',
+  'transcription.projectHub.jybMediaIncluded': '含音频',
+  'transcription.projectHub.jybMediaExcluded': '不含音频',
+  'transcription.projectHub.jybModeProjects':
+    '逐项目导入：所选项目作为新项目加入，本机现有数据不动',
+  'transcription.projectHub.jybModeDisaster':
+    '灾难恢复：整库还原到备份时的状态（替换本机全部 {count} 个项目）',
+  'transcription.projectHub.jybDisasterBlockedCollaborated':
+    '本机或备份里有协作过的项目，不能整库还原，只能逐项目导入。',
+  'transcription.projectHub.jybDisasterBlockedBytes':
+    '整库还原会丢掉本机 {count} 段录音或附件字节，已禁用。请先导出含音频的 JYB 或 JYM。',
+  'transcription.projectHub.jybDisasterWarning':
+    '整库还原会替换本机全部项目；开始前会自动保存一份整库快照，快照失败就不还原。协作绑定不会还原。再点一次确认。',
+  'transcription.projectHub.confirmJybImport': '导入所选项目',
+  'transcription.projectHub.confirmJybDisaster': '整库还原',
+  'transcription.projectHub.confirmJybDisasterAgain': '确认整库还原',
   'transcription.projectHub.annotationImportDialogTitle': '导入标注文件',
   'transcription.projectHub.annotationImportDialogSummary': '选择这次标注导入的写入策略。',
   'transcription.projectHub.annotationImportDialogStrategy': '写入策略',
@@ -2157,6 +2176,8 @@ export const zhCNDictionary = {
   'transcription.importExport.exportDone.toolbox': 'Toolbox 已导出。',
   'transcription.importExport.exportDone.jyt': 'JYT 已导出：只含当前项目，不含音频。',
   'transcription.importExport.exportDone.jym': 'JYM 已导出：只含当前项目，含录音与附件。',
+  'transcription.importExport.exportDone.jybWithMedia': '整库备份 JYB 已导出（含音频）。',
+  'transcription.importExport.exportDone.jybWithoutMedia': '整库备份 JYB 已导出（不含音频）。',
   'transcription.importExport.exportDone.srt': 'SRT 已导出。',
   'transcription.importExport.exportDone.vtt': 'WebVTT 已导出。',
   'transcription.importExport.exportDone.csv': 'CSV 已导出。',
@@ -2229,8 +2250,15 @@ export const zhCNDictionary = {
   'transcription.importExport.jymNeedsProject': '请先打开一个项目，再导出 JYM。',
   'transcription.importExport.jymTooLarge':
     'JYM 太大（约 {sizeMb} MB，上限 {limitMb} MB），未导出。请改导出 JYT（不含音频）。',
+  'transcription.importExport.jybTooLarge':
+    '整库备份太大（约 {sizeMb} MB，上限 {limitMb} MB），未导出。请改导出不含音频的 JYB，或逐个项目导出 JYM。',
   'transcription.importExport.importDone.restoredAsNew':
     '已恢复为新项目「{title}」，写入 {written} 条记录。可在项目列表里打开它。',
+  'transcription.importExport.importDone.jybProjects':
+    '已从 JYB 导入 {count} 个项目（作为新项目），写入 {written} 条。',
+  'transcription.importExport.importDone.jybDisaster':
+    '已从 JYB 整库还原 {count} 个项目，写入 {written} 条；还原前的整库快照已保存。',
+  'transcription.importExport.jybNoProjectSelected': '请至少勾选一个项目。',
   'transcription.importExport.importDone.overwritten':
     '已用 {kind} 覆盖当前项目「{title}」，写入 {written} 条；覆盖前快照已保存。',
   'transcription.importExport.overwriteNotAllowed':
@@ -3130,14 +3158,14 @@ export const zhCNDictionary = {
   'msg.noteHandlers.confidenceSuffix': '（置信度 {pct}%）',
 
   'msg.appData.backupReminderToast':
-    '建议定期在「转写」工作台通过导出菜单保存 .jym / .jyt 全量备份，以防浏览器存储损坏或换机。',
+    '建议定期在「转写」工作台通过导出菜单保存整库备份 JYB（.jyb），以防浏览器存储损坏或换机。',
   'msg.appData.backupElapsedReminderToast':
     '已连续工作约 {hours} 小时，建议导出数据库备份以防数据丢失。',
   'msg.appData.collabLocalStorageQuotaToast':
     '浏览器存储配额已满：协作同步状态已临时改用内存并镜像到 IndexedDB。请尽快导出备份或清理站点数据。',
   'msg.appData.dbIntegrityTitle': '本地数据库自检未通过',
   'msg.appData.dbIntegrityIntro':
-    '关键表读取失败，数据可能已损坏。建议先导出全量备份（.jym），再尝试刷新页面。',
+    '关键表读取失败，数据可能已损坏。建议先导出整库备份 JYB（.jyb），再尝试刷新页面。',
   'msg.appData.dbIntegrityReason': '错误信息',
   'msg.appData.dbIntegrityReload': '刷新页面',
   'msg.appData.dbIntegrityRetry': '重新检测',
@@ -3146,10 +3174,10 @@ export const zhCNDictionary = {
   'msg.appData.dbOpenIntro':
     '浏览器未能打开本应用的 IndexedDB。在未成功打开前，转写等依赖本地数据的功能可能无法使用。',
   'msg.appData.dbOpenRecovery':
-    '可尝试：在浏览器设置中为本站点清理存储/站点数据后重试；检查磁盘空间是否不足；在无痕窗口排除扩展干扰；或换用支持的桌面浏览器。若已导出过 .jym / .jyt，清理前请先备份到安全位置。',
-  'msg.appData.settingsBackupReminderLabel': '定期提醒导出全量备份',
+    '可尝试：在浏览器设置中为本站点清理存储/站点数据后重试；检查磁盘空间是否不足；在无痕窗口排除扩展干扰；或换用支持的桌面浏览器。若已导出过整库备份 JYB（.jyb）或项目包 .jym / .jyt，清理前请先备份到安全位置。',
+  'msg.appData.settingsBackupReminderLabel': '定期提醒导出整库备份 JYB',
   'msg.appData.settingsBackupReminderHint':
-    '开启后，若长期未导出 .jym/.jyt，将以 Toast 提示（每条约 24 小时最多一次）。',
+    '开启后，若长期未导出整库备份 JYB 或项目包（.jyb / .jym / .jyt），将以 Toast 提示（每条约 24 小时最多一次）。',
   'msg.appData.settingsDbIntegrityProbeLabel': '启动后自检本地数据库',
   'msg.appData.settingsDbIntegrityProbeHint':
     '开启后，在首次打开数据库时轻量读取关键表；失败时显示可恢复提示。',
