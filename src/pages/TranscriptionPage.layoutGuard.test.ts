@@ -15,6 +15,10 @@ describe('Transcription layout guard', () => {
     expect(appCode).toContain('app-main-transcription');
     expect(appCode).toContain('id="app-side-pane-body-slot"');
     expect(appCode).toContain('app-side-pane-handle-cluster');
+    // 侧栏把手复用 research-connected 样式（styles/pages/app-shell-layout.css 共享类）| Shared handle classes
+    expect(appCode).toContain('sidebar-handle-toggle is-left');
+    expect(appCode).toContain('sidebar-handle-resizer');
+    expect(appCode).toContain('aria-expanded={!isSidePaneCollapsed}');
     expect(appCode).not.toContain('className="app-side-pane-hover-zone"');
     expect(appCode).toMatch(
       /isSidePaneCollapsed[\s\S]{0,200}\?[\s\S]{0,40}'0px'[\s\S]{0,200}:\s*`\$\{sidePaneWidth\}px`/,

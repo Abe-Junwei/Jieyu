@@ -5,7 +5,7 @@
   --timeline-paired-reading-right-grow: 50;
   --timeline-paired-reading-separator-size: 10px;
   --timeline-paired-reading-editor-min-height: 63px;
-  /* 与设置 `.settings-tab-bar` 右缘、主壳 `.app-side-pane-resizer` 中线同一套分隔语义 | Shared divider tokens */
+  /* 与设置 `.settings-tab-bar` 右缘同一套分隔语义 | Shared divider tokens */
   --timeline-paired-reading-column-rail: color-mix(in srgb, var(--border-soft) 42%, transparent);
   --timeline-paired-reading-resizer-stem: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
   display: flex;
@@ -211,7 +211,7 @@
       var(--timeline-paired-reading-left-grow) / 100 + var(--timeline-paired-reading-block-gap) / 2
   );
   z-index: 5;
-  /* 宽命中、窄笔画：主壳 `.app-side-pane-resizer` + AI 侧栏 `.transcription-ai-panel-resizer` 的握点槽 */
+  /* 宽命中、窄笔画的握点槽 | Wide hit area, thin stroke */
   width: 22px;
   margin-left: -11px;
   cursor: col-resize;

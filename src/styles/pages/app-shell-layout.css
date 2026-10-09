@@ -222,30 +222,107 @@
   pointer-events: none;
 }
 
-.app-side-pane-collapse-toggle {
+/*
+ * 侧栏把手（外观与行为移植自 research-connected：styles.css `.cpo-panel-toggle` /
+ * `.cpo-sidebar-resizer`，行为见 hooks/panel/usePanelResize）。新侧栏复用这两个类，勿另写一套。
+ * 折叠钮：贴在侧栏外缘的 12×40 梯形小舌，描边用侧栏边线色、填充用侧栏底色并压住 1px 边线，
+ * 箭头指向点击后侧栏移动的方向；缩放条：不可见、8px 命中区、col-resize。
+ * Sidebar handle (look and behavior ported from research-connected: styles.css `.cpo-panel-toggle`
+ * / `.cpo-sidebar-resizer`; behavior in hooks/panel/usePanelResize). New sidebars reuse these two
+ * classes. Toggle: a 12×40 tab on the sidebar's outer edge, outlined in the sidebar border colour,
+ * filled with the sidebar background over the 1px border; the chevron points where the sidebar
+ * will move. Resizer: invisible, 8px hit area, col-resize.
+ */
+.sidebar-handle-toggle {
+  --sidebar-handle-w: 12px;
+  --sidebar-handle-h: 40px;
   position: absolute;
   top: 50%;
-  right: 0;
-  transform: translate(50%, -50%);
-  width: 12px;
-  height: 48px;
-  border: 1px solid var(--header-border);
-  border-left: 0;
-  border-radius: 0 6px 6px 0;
-  background: color-mix(in srgb, var(--surface-header) 94%, var(--surface-panel));
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  width: var(--sidebar-handle-w);
+  height: var(--sidebar-handle-h);
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: transparent;
+  font-size: 0;
+  line-height: 1;
   cursor: pointer;
+  transform: translateY(-50%);
+  box-shadow: none;
+}
+
+/* ::before = 梯形描边；::after = 同色填充 + 箭头 | ::before = outline, ::after = fill + chevron */
+.sidebar-handle-toggle::before,
+.sidebar-handle-toggle::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.sidebar-handle-toggle::before {
+  inset: 0;
+  background: var(--header-border);
+  clip-path: path('M 0 10 Q 0 0 8 0 H 12 V 40 H 8 Q 0 40 0 30 Z');
+}
+
+.sidebar-handle-toggle::after {
+  content: '›';
+  inset: 1px 0 1px 1px;
+  clip-path: path('M 0 9 Q 0 0 7 0 H 11 V 38 H 7 Q 0 38 0 29 Z');
+  display: grid;
+  place-items: center;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sidebar-handle-toggle[aria-expanded='false']::after {
+  content: '‹';
+}
+
+.sidebar-handle-toggle:hover::after,
+.sidebar-handle-toggle:active::after {
+  color: var(--text-primary);
+}
+
+.sidebar-handle-toggle:focus-visible {
+  outline: 2px solid var(--state-info-solid);
+  outline-offset: 1px;
+}
+
+/* 左侧栏：小舌在右缘外，伸进侧栏 1px | Left sidebar: tab outside the right edge, 1px inside */
+.sidebar-handle-toggle.is-left {
+  left: -1px;
+  right: auto;
+}
+
+.sidebar-handle-toggle.is-left::before {
+  transform: scaleX(-1);
+}
+
+.sidebar-handle-toggle.is-left::after {
+  right: 1px;
+  left: 0;
+  transform: scaleX(-1);
+}
+
+.sidebar-handle-resizer {
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.sidebar-handle-resizer:focus-visible {
+  outline: 2px solid var(--state-info-solid);
+  outline-offset: -2px;
+}
+
+.app-side-pane-collapse-toggle {
   z-index: calc(var(--z-popover) + 1);
-  opacity: 0.92;
-  transition:
-    transform var(--shell-motion-base) ease,
-    background-color var(--shell-motion-fast) ease,
-    border-color var(--shell-motion-fast) ease,
-    color var(--shell-motion-fast) ease,
-    opacity var(--shell-motion-fast) ease;
 }
 
 .app-side-pane-handle-cluster {
@@ -279,17 +356,14 @@
   top: 0;
   bottom: 0;
   right: 0;
-  width: 12px;
   transform: translateX(50%);
-  cursor: col-resize;
-  touch-action: none;
   z-index: calc(var(--z-popover) + 1);
   pointer-events: auto;
 }
 
+/* 收起后整颗小舌落在可视区内 | Collapsed: keep the whole tab in view */
 .app-shell-side-pane-collapsed .app-side-pane-collapse-toggle {
-  transform: translate(22%, -50%);
-  opacity: 0.98;
+  left: 0;
 }
 
 .app-shell-side-pane-collapsed .app-side-pane-resizer {
@@ -300,49 +374,6 @@
 .app-shell-side-pane-collapsed .app-side-pane-hover-zone {
   right: -6px;
   width: 20px;
-}
-
-/* 折入时隐藏拖拽条中线；展开钮保留边框便于发现 | Hide resizer stem when collapsed; keep toggle border visible */
-.app-shell-side-pane-collapsed .app-side-pane-resizer::before {
-  content: none;
-}
-
-.app-side-pane-resizer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
-  transition:
-    background-color var(--shell-motion-fast) ease,
-    box-shadow var(--shell-motion-fast) ease;
-}
-
-.app-side-pane-resizer:hover::before {
-  background: var(--focus-ring-strong);
-  box-shadow: 0 0 0 3px var(--focus-ring-glow);
-}
-
-.app-side-pane-collapse-toggle:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-  background: color-mix(in srgb, var(--tab-active) 98%, transparent);
-  opacity: 1;
-}
-
-.app-side-pane-collapse-toggle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
-  opacity: 1;
-}
-
-.app-side-pane-collapse-toggle span {
-  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
-  font-weight: 650;
-  line-height: 1;
 }
 
 .app-side-pane-header {
