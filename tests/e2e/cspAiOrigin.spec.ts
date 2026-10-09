@@ -39,8 +39,19 @@ test('Ollama and the stored AI origin are allowed, others blocked', async ({ pag
   });
 });
 
+const STRICT = { [OLLAMA[0]!]: 'ok', [OLLAMA[1]!]: 'ok', [CUSTOM]: 'blocked', [OTHER]: 'blocked' };
+
 test('without a stored origin, or with a wildcard, the policy stays strict', async ({ page }) => {
-  const strict = { [OLLAMA[0]!]: 'ok', [OLLAMA[1]!]: 'ok', [CUSTOM]: 'blocked', [OTHER]: 'blocked' };
-  expect(await probe(page, null)).toEqual(strict);
-  expect(await probe(page, 'https://*.example.org')).toEqual(strict);
+  expect(await probe(page, null)).toEqual(STRICT);
+  expect(await probe(page, 'https://*.example.org')).toEqual(STRICT);
 });
+
+for (const injected of [
+  `${CUSTOM}; script-src 'unsafe-inline'`,
+  `${CUSTOM} 'unsafe-eval'`,
+  `${CUSTOM}\nscript-src *`,
+]) {
+  test(`directive injection is rejected: ${JSON.stringify(injected)}`, async ({ page }) => {
+    expect(await probe(page, injected)).toEqual(STRICT);
+  });
+}
