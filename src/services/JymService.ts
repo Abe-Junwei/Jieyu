@@ -110,6 +110,8 @@ export interface JieyuLibraryBackupPreview {
     includedBytesCount: number;
     /** 项目 AI 记忆与历史的行数 | Project AI memory / history rows */
     aiRows: number;
+    /** 只算勾选的项目（BF1N3-2）| Summed for the checked projects only (BF1N3-2) */
+    skippedOrphanRows: SkippedOrphanRows;
   }>;
   /** 包里的用户偏好键（只在整库还原时可选写回）| Packaged preference keys (disaster restore only) */
   preferenceKeys: string[];

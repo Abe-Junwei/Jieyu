@@ -2246,6 +2246,7 @@ export const DICT_KEYS = [
   'transcription.importExport.importDone.jybProjects',
   'transcription.importExport.importDone.jybDisaster',
   'transcription.importExport.importDone.jybPreferences',
+  'transcription.importExport.importDone.skippedOrphanRows',
   'transcription.importExport.jybNoProjectSelected',
   'transcription.importExport.importDone.overwritten',
   'transcription.importExport.overwriteNotAllowed',

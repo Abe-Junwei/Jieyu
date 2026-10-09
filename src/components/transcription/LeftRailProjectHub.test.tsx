@@ -293,6 +293,7 @@ describe('LeftRailProjectHub project import dialog', () => {
           mediaWithoutBytes: 0,
           includedBytesCount: 1,
           aiRows: 2,
+          skippedOrphanRows: [{ collection: 'unit_tokens', count: 2 }],
         },
         {
           id: 'pB',
@@ -301,6 +302,7 @@ describe('LeftRailProjectHub project import dialog', () => {
           mediaWithoutBytes: 0,
           includedBytesCount: 1,
           aiRows: 0,
+          skippedOrphanRows: [{ collection: 'unit_tokens', count: 3 }],
         },
       ],
       preferenceKeys: ['jieyu.locale', 'jieyu-theme'],
@@ -335,6 +337,22 @@ describe('LeftRailProjectHub project import dialog', () => {
         restorePreferences: false,
       });
     });
+  });
+
+  it('JYB orphan warning counts only the checked projects (BF1N3-2)', async () => {
+    renderHub({
+      onPreviewProjectArchiveImport: vi.fn(async () => jybPreview({ available: true })),
+    });
+    const input = document.querySelector('input[accept=".jyt,.jym,.jyb"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['archive'], 'library.jyb')] } });
+    await screen.findByRole('dialog', { name: '导入项目预览' });
+    expect(
+      screen.getByText(/^5 条记录引用了包中不存在的上级记录.*unit_tokens \(5\)$/),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByTestId('jyb-project-pA'));
+    expect(
+      screen.getByText(/^3 条记录引用了包中不存在的上级记录.*unit_tokens \(3\)$/),
+    ).toBeTruthy();
   });
 
   it('JYB disaster restore needs a second click (D7, T34)', async () => {

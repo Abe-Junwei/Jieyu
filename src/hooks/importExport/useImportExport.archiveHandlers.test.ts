@@ -55,11 +55,16 @@ function restoreResult(projectId: string) {
     sourceProjectId: 'source',
     importResult: { collections: { texts: { received: 1, written: 1, skipped: 0 } } },
     skippedLanguageIds: [],
+    skippedOrphanRows: [] as Array<{ collection: string; count: number }>,
   };
 }
 
-async function runImport(activeTextId: string | null, projectId: string) {
-  mockRestoreProjectPackageAsNew.mockResolvedValueOnce(restoreResult(projectId));
+async function runImport(
+  activeTextId: string | null,
+  projectId: string,
+  result = restoreResult(projectId),
+) {
+  mockRestoreProjectPackageAsNew.mockResolvedValueOnce(result);
   const loadSnapshot = vi.fn(async (_textId: string) => undefined);
   const setSaveState = vi.fn();
   const handlers = createImportExportArchiveHandlers({
@@ -98,24 +103,38 @@ describe('RD-3: archive import with no current project', () => {
     const explicit = await runImport('text-explicit', 'text-imported');
     expect(explicit.loadSnapshot).toHaveBeenCalledWith('text-explicit');
   });
+
+  it('the completion message says how many orphan rows were dropped (BF1N3-2)', async () => {
+    const result = restoreResult('text-imported');
+    result.skippedOrphanRows = [
+      { collection: 'unit_tokens', count: 2 },
+      { collection: 'unit_morphemes', count: 1 },
+    ];
+    const { setSaveState } = await runImport(null, 'text-imported', result);
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'done',
+      message: expect.stringContaining('另有 3 条记录的上级记录不在包里，已跳过。'),
+    });
+  });
 });
 
 describe('RD-3: JYB import with no current project (R2-1)', () => {
   const importResult = { collections: { texts: { received: 1, written: 1, skipped: 0 } } };
   const runJyb = async (restoreMode?: 'disaster-restore') => {
     const loadSnapshot = vi.fn(async (_textId: string) => undefined);
+    const setSaveState = vi.fn();
     const handlers = createImportExportArchiveHandlers({
       activeTextId: null,
       loadSnapshot,
       locale: 'zh-CN',
-      setSaveState: vi.fn(),
+      setSaveState,
     });
     const ok = await handlers.importProjectArchive(
       new File(['x'], 'lib.jyb'),
       'upsert',
       restoreMode,
     );
-    return { ok, loadSnapshot };
+    return { ok, loadSnapshot, setSaveState };
   };
 
   beforeEach(() => {
@@ -123,7 +142,14 @@ describe('RD-3: JYB import with no current project (R2-1)', () => {
     mockIsJybPackage.mockReset().mockResolvedValue(true);
     mockIsRawIdbSnapshot.mockReset().mockResolvedValue(false);
     mockImportJybProjectsAsNew.mockReset().mockResolvedValue({
-      projects: [{ projectId: 'new-1', sourceProjectId: 's1', title: { default: 'A' } }],
+      projects: [
+        {
+          projectId: 'new-1',
+          sourceProjectId: 's1',
+          title: { default: 'A' },
+          skippedOrphanRows: [],
+        },
+      ],
       importResult,
       skippedLanguageIds: [],
     });
@@ -148,6 +174,31 @@ describe('RD-3: JYB import with no current project (R2-1)', () => {
     const { loadSnapshot } = await runJyb();
     expect(loadSnapshot).toHaveBeenCalledWith('text-current');
     expect(getActiveProjectTextId()).toBe('text-current');
+  });
+
+  it('per-project import counts dropped orphans of the imported projects only (BF1N3-2)', async () => {
+    // importJybProjectsAsNew 只返回勾选的项目 | importJybProjectsAsNew returns the checked projects only
+    mockImportJybProjectsAsNew.mockResolvedValueOnce({
+      projects: [
+        {
+          projectId: 'n1',
+          sourceProjectId: 's1',
+          skippedOrphanRows: [{ collection: 'unit_tokens', count: 2 }],
+        },
+        {
+          projectId: 'n2',
+          sourceProjectId: 's2',
+          skippedOrphanRows: [{ collection: 'unit_tokens', count: 1 }],
+        },
+      ],
+      importResult,
+      skippedLanguageIds: [],
+    });
+    const { setSaveState } = await runJyb();
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'done',
+      message: expect.stringContaining('另有 3 条记录的上级记录不在包里，已跳过。'),
+    });
   });
 
   it('disaster restore publishes the opened project as active', async () => {

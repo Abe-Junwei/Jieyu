@@ -2477,6 +2477,8 @@ export const enUSDictionary = {
     'Restored the whole library from the JYB: {count} project(s), {written} written; a whole-library snapshot was saved first.',
   'transcription.importExport.importDone.jybPreferences':
     'Restored {count} user preferences; reload the page to apply them.',
+  'transcription.importExport.importDone.skippedOrphanRows':
+    'Skipped {count} rows whose parent record is not in the package.',
   'transcription.importExport.jybNoProjectSelected': 'Check at least one project.',
   'transcription.importExport.importDone.overwritten':
     'Overwrote the current project "{title}" from the {kind} ({written} written); a snapshot was saved first.',
