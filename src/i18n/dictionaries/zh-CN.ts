@@ -2155,6 +2155,8 @@ export const zhCNDictionary = {
   'transcription.importExport.importDone.guessedTier': '转写层按正文选为 {name}。',
   'transcription.importExport.importDone.noStableId': '有 {count} 条没有稳定 id，已新建。',
   'transcription.importExport.importDone.replacedById': '有 {count} 条按稳定 id 覆盖了已有内容。',
+  'transcription.importExport.importDone.regeneratedId':
+    '有 {count} 条的 id 已被其它项目占用，已换成新 id 导入。',
   'transcription.importExport.importDone.appendedWithoutId':
     '文稿里已有语段，这次又追加了 {count} 条没有稳定标注 id 的内容。',
   'transcription.importExport.exportDone.eafMultiHostWarning':

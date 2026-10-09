@@ -1,6 +1,8 @@
 /**
  * LIFT 0.13 → DMLex JSON projection. Unmapped FLEx fields become diagnostics.
  */
+import { getDb } from '../db';
+import { withTransaction } from '../db/withTransaction';
 import { LinguisticService } from '../services/LinguisticService';
 import { DMLEX_HOMOGRAPH, DMLEX_SUBSENSE } from '../db/dmlexTypes';
 import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from '../db/types';
@@ -55,16 +57,73 @@ export type LexiconLiftImportDeps = {
   list: () => Promise<LexemeEntryDoc[]>;
   loadResource: () => Promise<LexemeResourceDoc | null>;
   saveResource: (doc: LexemeResourceDoc) => Promise<string>;
+  /** 给定 id 中已被其它项目占用的那些 | Ids among these already owned by another project */
+  listForeignIds?: (ids: string[]) => Promise<Set<string>>;
+  /** 整次导入在一个读写事务里完成 | Run the whole import in one read-write transaction */
+  runAtomic?: <T>(work: () => Promise<T>) => Promise<T>;
 };
 
 /** 默认依赖：所有读写都显式带上项目 | Default deps: every read/write names the project */
-function defaultDepsFor(textId: string): LexiconLiftImportDeps {
+export function defaultLiftImportDeps(textId: string): LexiconLiftImportDeps {
   return {
     save: (doc) => LinguisticService.lexemes.save(doc),
     list: () => LinguisticService.lexemes.list(textId),
     loadResource: () => LinguisticService.lexemes.getResource(textId),
     saveResource: (doc) => LinguisticService.lexemes.save(doc),
+    listForeignIds: async (ids) => {
+      const db = await getDb();
+      const rows = await db.dexie.lexemes.bulkGet(ids);
+      return new Set(
+        rows.flatMap((row) => (row !== undefined && row.textId !== textId ? [row.id] : [])),
+      );
+    },
+    runAtomic: async (work) => {
+      const db = await getDb();
+      return withTransaction(db, 'rw', [db.dexie.lexemes], work, { label: 'lift-import' });
+    },
   };
+}
+
+/**
+ * 跨项目导入（JY-07）：文件里的词条 id 已被本机另一个项目占用时，换成新 id，义项 id 一并换新，
+ * DMLex 关系里的引用按同一张映射表改写。目标项目自己的同 id 词条仍按 id 覆盖。
+ * Cross-project import (JY-07): entry ids already owned by another local project get new ids
+ * (their sense ids too), and DMLex relation refs are rewritten through the same map. Same-id
+ * entries of the target project are still replaced by id.
+ */
+function regenerateForeignIds(
+  parsed: Extract<LexiconLiftParseResult, { ok: true }>,
+  foreignIds: ReadonlySet<string>,
+): { lexemes: LexemeEntryDoc[]; resource: LexemeResourceDoc; regenerated: number } {
+  if (foreignIds.size === 0) {
+    return { lexemes: parsed.lexemes, resource: parsed.resource, regenerated: 0 };
+  }
+  const idMap = new Map<string, string>();
+  for (const lexeme of parsed.lexemes) {
+    if (!foreignIds.has(lexeme.id)) continue;
+    idMap.set(lexeme.id, newId('lex'));
+    for (const sense of lexeme.entry.senses ?? []) {
+      if (typeof sense.id === 'string' && sense.id.length > 0) idMap.set(sense.id, newId('sense'));
+    }
+  }
+  const mapId = (id: string): string => idMap.get(id) ?? id;
+  const lexemes = parsed.lexemes.map((lexeme) => {
+    if (!idMap.has(lexeme.id)) return lexeme;
+    const id = mapId(lexeme.id);
+    const senses = lexeme.entry.senses?.map((sense) =>
+      typeof sense.id === 'string' ? { ...sense, id: mapId(sense.id) } : sense,
+    );
+    return { ...lexeme, id, entry: { ...lexeme.entry, id, ...(senses ? { senses } : {}) } };
+  });
+  const relations = parsed.resource.resource.relations?.map((relation) => ({
+    ...relation,
+    members: relation.members.map((member) => ({ ...member, ref: mapId(member.ref) })),
+  }));
+  const resource: LexemeResourceDoc = {
+    ...parsed.resource,
+    resource: { ...parsed.resource.resource, ...(relations ? { relations } : {}) },
+  };
+  return { lexemes, resource, regenerated: foreignIds.size };
 }
 
 function directChildren(parent: Element, localName: string): Element[] {
@@ -288,57 +347,68 @@ export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResul
 export async function importLexemesFromLiftXml(
   xml: string,
   textId: string,
-  deps: LexiconLiftImportDeps = defaultDepsFor(textId),
+  deps: LexiconLiftImportDeps = defaultLiftImportDeps(textId),
 ): Promise<LexiconLiftImportResult> {
   const parsed = parseLiftXml(xml, textId);
   if (!parsed.ok) return parsed;
+  const runAtomic = deps.runAtomic ?? (<T>(work: () => Promise<T>) => work());
   try {
-    const existingIds = new Set((await deps.list()).map((row) => row.id));
-    let replacedById = 0;
-    const existingResource = await deps.loadResource();
-    let resource = existingResource ?? parsed.resource;
-    for (const lexeme of parsed.lexemes) {
-      if (existingIds.has(lexeme.id)) replacedById += 1;
-      const relations = [
-        ...(resource.resource.relations ?? []).filter(
-          (relation) =>
-            relation.type !== DMLEX_SUBSENSE &&
-            !(
-              relation.type === DMLEX_HOMOGRAPH &&
-              relation.members.some((member) => member.ref === lexeme.id)
-            ),
-        ),
-        ...(parsed.resource.resource.relations ?? []).filter((relation) =>
-          relation.members.some(
-            (member) =>
-              member.ref === lexeme.id ||
-              (lexeme.entry.senses ?? []).some((sense) => sense.id === member.ref),
+    return await runAtomic(async () => {
+      const foreignIds =
+        deps.listForeignIds !== undefined
+          ? await deps.listForeignIds(parsed.lexemes.map((lexeme) => lexeme.id))
+          : new Set<string>();
+      const target = regenerateForeignIds(parsed, foreignIds);
+      const existingIds = new Set((await deps.list()).map((row) => row.id));
+      let replacedById = 0;
+      const existingResource = await deps.loadResource();
+      let resource = existingResource ?? target.resource;
+      for (const lexeme of target.lexemes) {
+        if (existingIds.has(lexeme.id)) replacedById += 1;
+        const relations = [
+          ...(resource.resource.relations ?? []).filter(
+            (relation) =>
+              relation.type !== DMLEX_SUBSENSE &&
+              !(
+                relation.type === DMLEX_HOMOGRAPH &&
+                relation.members.some((member) => member.ref === lexeme.id)
+              ),
           ),
-        ),
-      ];
-      const relationTypes = parsed.resource.resource.relationTypes;
-      resource = {
-        ...parsed.resource,
-        resource: {
-          ...parsed.resource.resource,
-          relations,
-          ...(relationTypes ? { relationTypes } : {}),
-        },
-        createdAt: resource.createdAt,
+          ...(target.resource.resource.relations ?? []).filter((relation) =>
+            relation.members.some(
+              (member) =>
+                member.ref === lexeme.id ||
+                (lexeme.entry.senses ?? []).some((sense) => sense.id === member.ref),
+            ),
+          ),
+        ];
+        const relationTypes = target.resource.resource.relationTypes;
+        resource = {
+          ...target.resource,
+          resource: {
+            ...target.resource.resource,
+            relations,
+            ...(relationTypes ? { relationTypes } : {}),
+          },
+          createdAt: resource.createdAt,
+        };
+        await deps.save(lexeme);
+      }
+      await deps.saveResource(resource);
+      const readback = (await deps.list()).filter(isLexemeEntry);
+      const losses = [...parsed.losses];
+      if (replacedById > 0) losses.push({ code: 'replaced-by-id', count: replacedById });
+      if (target.regenerated > 0) {
+        losses.push({ code: 'regenerated-id', count: target.regenerated });
+      }
+      return {
+        ok: true as const,
+        savedCount: target.lexemes.length,
+        readback,
+        diagnostics: parsed.diagnostics,
+        losses,
       };
-      await deps.save(lexeme);
-    }
-    await deps.saveResource(resource);
-    const readback = (await deps.list()).filter(isLexemeEntry);
-    const losses = [...parsed.losses];
-    if (replacedById > 0) losses.push({ code: 'replaced-by-id', count: replacedById });
-    return {
-      ok: true,
-      savedCount: parsed.lexemes.length,
-      readback,
-      diagnostics: parsed.diagnostics,
-      losses,
-    };
+    });
   } catch {
     return { ok: false, reason: 'save-failed' };
   }
@@ -347,7 +417,7 @@ export async function importLexemesFromLiftXml(
 export async function importLexemesFromLiftFile(
   file: File,
   textId: string,
-  deps: LexiconLiftImportDeps = defaultDepsFor(textId),
+  deps: LexiconLiftImportDeps = defaultLiftImportDeps(textId),
 ): Promise<LexiconLiftImportResult> {
   return importLexemesFromLiftXml(await file.text(), textId, deps);
 }
