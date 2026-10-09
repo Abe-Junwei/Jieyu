@@ -131,6 +131,21 @@ describe('local whisper settings storage (BF2-1)', () => {
     expect(window.localStorage.getItem('jieyu.voiceAgent.localWhisper')).toBeNull();
   });
 
+  it('迁移保留用户设的 baseUrl，只丢旧模型名 | migration keeps a user-set baseUrl and drops only the old model', () => {
+    window.localStorage.setItem(
+      'jieyu.voiceAgent.localWhisper',
+      JSON.stringify({ baseUrl: 'http://192.168.1.20:3040', model: 'ggml-small-q5_k.bin' }),
+    );
+    expect(loadLocalWhisperConfig()).toEqual({
+      baseUrl: 'http://192.168.1.20:3040',
+      model: LOCAL_WHISPER_DEFAULT_MODEL,
+    });
+    expect(window.localStorage.getItem('jieyu.voiceAgent.localWhisper')).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem(LOCAL_WHISPER_STORAGE_KEY)!)).toEqual({
+      baseUrl: 'http://192.168.1.20:3040',
+    });
+  });
+
   it('只保存用户改过的字段，空白回落默认 | only user-changed fields persist; blanks fall back to defaults', () => {
     saveLocalWhisperConfig({ baseUrl: LOCAL_WHISPER_DEFAULT_BASE_URL, model: ' ggml-medium.bin ' });
     expect(JSON.parse(window.localStorage.getItem(LOCAL_WHISPER_STORAGE_KEY)!)).toEqual({

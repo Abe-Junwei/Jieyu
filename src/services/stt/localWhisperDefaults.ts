@@ -40,7 +40,17 @@ function pickNonDefault(value: unknown, fallback: string): string | undefined {
 export function loadLocalWhisperConfig(): { baseUrl: string; model: string } {
   let stored: LocalWhisperConfig = {};
   try {
-    window.localStorage.removeItem(LEGACY_LOCAL_WHISPER_STORAGE_KEY);
+    const legacy = window.localStorage.getItem(LEGACY_LOCAL_WHISPER_STORAGE_KEY);
+    if (legacy !== null) {
+      // 一次性迁移：保留用户设的 baseUrl；旧 model 分不清是自动写入还是用户选的，丢弃（BF3-2）
+      // One-time migration: keep a user-set baseUrl; drop the old model, which can't be told apart
+      // from the auto-saved default (BF3-2)
+      window.localStorage.removeItem(LEGACY_LOCAL_WHISPER_STORAGE_KEY);
+      const { baseUrl } = (JSON.parse(legacy) ?? {}) as LocalWhisperConfig;
+      if (baseUrl && window.localStorage.getItem(LOCAL_WHISPER_STORAGE_KEY) === null) {
+        saveLocalWhisperConfig({ baseUrl });
+      }
+    }
     const raw = window.localStorage.getItem(LOCAL_WHISPER_STORAGE_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     if (parsed && typeof parsed === 'object') stored = parsed as LocalWhisperConfig;
