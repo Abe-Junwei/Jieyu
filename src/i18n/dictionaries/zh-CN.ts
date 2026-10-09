@@ -1459,7 +1459,7 @@ export const zhCNDictionary = {
   'transcription.toolbar.export.trs': '导出为 Transcriber (.trs)',
   'transcription.toolbar.export.flextext': '导出为 FLEx (.flextext)',
   'transcription.toolbar.export.toolbox': '导出为 Toolbox (.txt)',
-  'transcription.toolbar.export.jyt': '导出为 Jieyu Text (.jyt)',
+  'transcription.toolbar.export.jyt': '导出当前项目为 JYT（不含音频）',
   'transcription.toolbar.export.jym': '导出为 Jieyu Media (.jym)',
   'transcription.toolbar.export.srt': '导出为字幕 SRT (.srt)',
   'transcription.toolbar.export.vtt': '导出为字幕 WebVTT (.vtt)',
@@ -1571,6 +1571,14 @@ export const zhCNDictionary = {
   'transcription.projectHub.importDialogTableIncoming': '归档条数',
   'transcription.projectHub.importDialogTableConflict': '冲突条数',
   'transcription.projectHub.confirmImport': '开始导入项目',
+  'transcription.projectHub.restoreAsNewProject':
+    '将作为新项目恢复：所有 ID 重新生成，本机现有项目都不会改动。',
+  'transcription.projectHub.restoreSourceProject': '来源项目：{title}',
+  'transcription.projectHub.restoreMediaMissing':
+    '不含音频：{count} 条录音恢复后显示为缺失，需要重新关联音频。',
+  'transcription.projectHub.restoreSkippedLanguages':
+    '这些语言条目已被本机其他项目使用，恢复时跳过：{ids}',
+  'transcription.projectHub.confirmRestoreAsNew': '恢复为新项目',
   'transcription.projectHub.annotationImportDialogTitle': '导入标注文件',
   'transcription.projectHub.annotationImportDialogSummary': '选择这次标注导入的写入策略。',
   'transcription.projectHub.annotationImportDialogStrategy': '写入策略',
@@ -2137,7 +2145,7 @@ export const zhCNDictionary = {
   'transcription.importExport.exportDone.trs': 'TRS 已导出。',
   'transcription.importExport.exportDone.flextext': 'FLEx 已导出。',
   'transcription.importExport.exportDone.toolbox': 'Toolbox 已导出。',
-  'transcription.importExport.exportDone.jyt': 'JYT 项目文件已导出。',
+  'transcription.importExport.exportDone.jyt': 'JYT 已导出：只含当前项目，不含音频。',
   'transcription.importExport.exportDone.jym': 'JYM 项目文件已导出。',
   'transcription.importExport.exportDone.srt': 'SRT 已导出。',
   'transcription.importExport.exportDone.vtt': 'WebVTT 已导出。',
@@ -2205,6 +2213,13 @@ export const zhCNDictionary = {
     '文件的数据版本（{version}）当前版本不支持，未写入任何数据。',
   'transcription.importExport.snapshotInvalidRecords':
     '文件里有 {count} 条记录不符合当前的数据结构（{collections}），未写入任何数据。',
+  'transcription.importExport.packageUnsupported':
+    '这个包的格式或版本当前版本不支持（例如第 3 批之前导出的整库 JYT），未写入任何数据。请用当前版本重新导出。',
+  'transcription.importExport.packageInvalid':
+    '包的内容不一致，已拒绝导入，未写入任何数据（共 {count} 处问题）：{problems}',
+  'transcription.importExport.jytNeedsProject': '请先打开一个项目，再导出 JYT。',
+  'transcription.importExport.importDone.restoredAsNew':
+    '已恢复为新项目「{title}」，写入 {written} 条记录。可在项目列表里打开它。',
   'transcription.importExport.exportFailed': '导出失败: {message}',
   'transcription.error.action.assignSpeakerFailed': '说话人指派失败：{message}',
   'transcription.error.action.createSpeakerFailed': '创建说话人失败：{message}',

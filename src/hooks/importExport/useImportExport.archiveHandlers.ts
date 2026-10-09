@@ -20,6 +20,16 @@ function isArchivePasswordError(error: unknown): boolean {
   return message.includes('password required') || message.includes('decrypt jieyu archive');
 }
 
+async function isJytFile(file: File): Promise<boolean> {
+  const jyt = await import('../../services/JytService');
+  return jyt.isJytPackage(new Uint8Array(await file.arrayBuffer()));
+}
+
+function pickProjectTitle(title: Record<string, string> | undefined, fallback: string): string {
+  const value = title?.['default'] ?? Object.values(title ?? {}).find((item) => item.trim());
+  return value && value.trim().length > 0 ? value.trim() : fallback;
+}
+
 function getArchivePasswordCacheKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
@@ -68,9 +78,61 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
   };
 
   const previewProjectArchiveImport = async (file: File): Promise<JieyuArchiveImportPreview> => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const jyt = await import('../../services/JytService');
+    if (jyt.isJytPackage(bytes)) {
+      // JYT：恢复为新项目（D5 默认），预览里没有冲突和策略 | JYT restores as a new project (D5)
+      const preview = await withArchivePasswordRetry(file, (password) =>
+        jyt.previewJytRestore(bytes, password ? { password } : undefined),
+      );
+      const title = pickProjectTitle(preview.sourceProject.title, preview.sourceProject.id);
+      return {
+        kind: 'jyt',
+        manifest: {
+          formatVersion: preview.manifest.formatVersion,
+          kind: 'jyt',
+          schemaVersion: preview.manifest.dataSchemaVersion,
+          exportedAt: preview.manifest.created,
+          systemRefs: preview.manifest.systemRefs,
+        },
+        collections: preview.collections.map((item) => ({
+          name: item.name,
+          incoming: item.incoming,
+          conflicts: 0,
+          existing: 0,
+          willInsertUpsert: item.incoming,
+          willInsertSkipExisting: item.incoming,
+          willInsertReplaceAll: item.incoming,
+        })),
+        unresolvedSystemRefs: preview.unresolvedSystemRefs,
+        totalIncoming: preview.totalIncoming,
+        totalConflicts: 0,
+        restoreAsNewProject: {
+          sourceProjectTitle: title,
+          mediaWithoutBytes: preview.mediaWithoutBytes,
+          skippedLanguageIds: preview.skippedLanguageIds,
+        },
+      };
+    }
     return withArchivePasswordRetry(file, (password) =>
       previewJieyuArchiveFile(file, password ? { password } : undefined),
     );
+  };
+
+  const restoreJytArchive = async (file: File): Promise<string> => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const jyt = await import('../../services/JytService');
+    const restored = await withArchivePasswordRetry(file, (password) =>
+      jyt.restoreJytAsNewProject(bytes, password ? { password } : undefined),
+    );
+    const written = Object.values(restored.importResult.collections).reduce(
+      (sum, c) => sum + (c?.written ?? 0),
+      0,
+    );
+    return tf(locale, 'transcription.importExport.importDone.restoredAsNew', {
+      title: pickProjectTitle(restored.title, restored.projectId),
+      written,
+    });
   };
 
   const importProjectArchive = async (
@@ -80,6 +142,13 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     let resolvedTextId: string | null = activeTextId;
 
     try {
+      if (await isJytFile(file)) {
+        const message = await restoreJytArchive(file);
+        // 仍停留在当前项目（JY-02）；新项目在项目列表里 | Stay on the current project (JY-02)
+        await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
+        setSaveState({ kind: 'done', message });
+        return true;
+      }
       const imported = await withArchivePasswordRetry(file, (password) =>
         importJieyuArchiveFile(file, {
           strategy,

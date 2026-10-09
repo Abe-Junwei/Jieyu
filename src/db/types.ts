@@ -87,8 +87,18 @@ export interface TextDocType {
   accessRights?: 'open' | 'restricted' | 'confidential';
   /** 默认标注文档（rev5 4.1 / 4.2-8，切片 2B-E）| Default annotation document (slice 2B-E) */
   defaultDocumentId?: string;
+  /** 从项目包恢复而来（rev5 7.4-2，第 3 批）| Restored from a project package (rev5 7.4-2, batch 3) */
+  restoredFrom?: ProjectRestoredFrom;
   createdAt: string;
   updatedAt: string;
+}
+
+/** 恢复来源：原项目 id、包类型和导出时间 | Restore origin: source project id, package kind, export time */
+export interface ProjectRestoredFrom {
+  projectId: string;
+  packageKind: 'jyt' | 'jym' | 'jyb';
+  exportedAt: string;
+  restoredAt: string;
 }
 
 /** 媒体行的时间线类别 | Timeline kind of a media row (rev5 §4.1, required) */

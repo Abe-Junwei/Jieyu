@@ -115,6 +115,14 @@ const textDocSchema = z.object({
   languageCode: z.string().optional(),
   accessRights: accessRightsSchema.optional(),
   defaultDocumentId: z.string().min(1).optional(),
+  restoredFrom: z
+    .object({
+      projectId: z.string().min(1),
+      packageKind: z.enum(['jyt', 'jym', 'jyb']),
+      exportedAt: isoDateSchema,
+      restoredAt: isoDateSchema,
+    })
+    .optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });

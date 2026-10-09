@@ -3,7 +3,7 @@
  * Turn inbound format errors into a readable sentence (RD-1); other errors keep their message.
  */
 import { findSnapshotFormatError } from '../db/snapshotFormatError';
-import { tf, type Locale } from '../i18n';
+import { t, tf, type Locale } from '../i18n';
 import { toErrorMessage } from './saveStateError';
 
 export function describeArchiveImportError(locale: Locale, error: unknown): string {
@@ -24,6 +24,13 @@ export function describeArchiveImportError(locale: Locale, error: unknown): stri
         collections: formatError.invalidCollections
           .map((item) => `${item.collection} ×${item.invalid}`)
           .join(', '),
+      });
+    case 'unsupported-package':
+      return t(locale, 'transcription.importExport.packageUnsupported');
+    case 'invalid-package':
+      return tf(locale, 'transcription.importExport.packageInvalid', {
+        problems: formatError.problems.slice(0, 5).join('; '),
+        count: formatError.problems.length,
       });
   }
 }

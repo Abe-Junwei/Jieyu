@@ -317,6 +317,7 @@ export function useImportExport(input: UseImportExportInput) {
 
   const loadArchiveExportModule = () =>
     loadCachedModule(archiveExportModuleRef, () => import('../../services/JymService'));
+  const loadJytModule = () => import('../../services/JytService');
 
   // Use centralized click-outside pattern to avoid race condition with click handlers
   useClickOutside(
@@ -852,7 +853,12 @@ export function useImportExport(input: UseImportExportInput) {
 
       handleExportJyt: async () => {
         await runExport('jyt', async () => {
-          const jymService = await loadArchiveExportModule();
+          // JYT 只含当前项目、不含音频（rev5 D1）| JYT holds the current project only, no audio (D1)
+          const textId = activeTextId ?? (await getActiveTextId());
+          if (!textId) {
+            throw new Error(t(locale, 'transcription.importExport.jytNeedsProject'));
+          }
+          const jytService = await loadJytModule();
           const baseName = exportNamingMediaItem
             ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
             : 'jieyu-project';
@@ -861,7 +867,7 @@ export function useImportExport(input: UseImportExportInput) {
             setShowExportMenu(false);
             return;
           }
-          await jymService.downloadJieyuArchive('jyt', baseName, exportOptions);
+          await jytService.downloadProjectJyt(textId, baseName, exportOptions);
           recordFullProjectArchiveExportCompleted();
           setSaveState({
             kind: 'done',
@@ -971,6 +977,7 @@ export function useImportExport(input: UseImportExportInput) {
       },
     };
   }, [
+    activeTextId,
     anchors,
     buildOrthographyAwareExportUnits,
     confirmArchiveExport,
@@ -984,6 +991,7 @@ export function useImportExport(input: UseImportExportInput) {
     orthographies,
     segmentExportMediaId,
     exportNamingMediaItem,
+    getActiveTextId,
     serviceLoaders,
     setSaveState,
     translations,

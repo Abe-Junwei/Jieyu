@@ -1555,7 +1555,7 @@ export const enUSDictionary = {
   'transcription.toolbar.export.trs': 'Export as Transcriber (.trs)',
   'transcription.toolbar.export.flextext': 'Export as FLEx (.flextext)',
   'transcription.toolbar.export.toolbox': 'Export as Toolbox (.txt)',
-  'transcription.toolbar.export.jyt': 'Export as Jieyu Text (.jyt)',
+  'transcription.toolbar.export.jyt': 'Export current project as JYT (no audio)',
   'transcription.toolbar.export.jym': 'Export as Jieyu Media (.jym)',
   'transcription.toolbar.export.srt': 'Export as SRT (.srt)',
   'transcription.toolbar.export.vtt': 'Export as WebVTT (.vtt)',
@@ -1676,6 +1676,14 @@ export const enUSDictionary = {
   'transcription.projectHub.importDialogTableIncoming': 'Incoming',
   'transcription.projectHub.importDialogTableConflict': 'Conflicts',
   'transcription.projectHub.confirmImport': 'Start project import',
+  'transcription.projectHub.restoreAsNewProject':
+    'Restores as a new project: every ID is regenerated and no existing local project is changed.',
+  'transcription.projectHub.restoreSourceProject': 'Source project: {title}',
+  'transcription.projectHub.restoreMediaMissing':
+    'No audio: {count} recording(s) will show as missing and need their audio relinked.',
+  'transcription.projectHub.restoreSkippedLanguages':
+    'These language entries are already used by another local project and are skipped: {ids}',
+  'transcription.projectHub.confirmRestoreAsNew': 'Restore as new project',
   'transcription.projectHub.annotationImportDialogTitle': 'Import annotation files',
   'transcription.projectHub.annotationImportDialogSummary':
     'Choose how imported annotation text should be written.',
@@ -2285,7 +2293,8 @@ export const enUSDictionary = {
   'transcription.importExport.exportDone.trs': 'TRS exported.',
   'transcription.importExport.exportDone.flextext': 'FLEx exported.',
   'transcription.importExport.exportDone.toolbox': 'Toolbox exported.',
-  'transcription.importExport.exportDone.jyt': 'JYT project file exported.',
+  'transcription.importExport.exportDone.jyt':
+    'JYT exported: the current project only, without audio.',
   'transcription.importExport.exportDone.jym': 'JYM project file exported.',
   'transcription.importExport.exportDone.srt': 'SRT exported.',
   'transcription.importExport.exportDone.vtt': 'WebVTT exported.',
@@ -2359,6 +2368,13 @@ export const enUSDictionary = {
     "This file's data version ({version}) is not supported by this version. Nothing was written.",
   'transcription.importExport.snapshotInvalidRecords':
     '{count} record(s) in this file do not match the current data structure ({collections}). Nothing was written.',
+  'transcription.importExport.packageUnsupported':
+    'This package format or version is not supported (for example a whole-database JYT exported before batch 3). Nothing was written. Export it again with the current version.',
+  'transcription.importExport.packageInvalid':
+    'The package is inconsistent and was rejected; nothing was written ({count} problem(s)): {problems}',
+  'transcription.importExport.jytNeedsProject': 'Open a project first, then export it as JYT.',
+  'transcription.importExport.importDone.restoredAsNew':
+    'Restored as the new project "{title}" ({written} records). Open it from the project list.',
   'transcription.importExport.exportFailed': 'Export failed: {message}',
   'transcription.error.action.assignSpeakerFailed': 'Failed to assign speaker: {message}',
   'transcription.error.action.createSpeakerFailed': 'Failed to create speaker: {message}',

@@ -16,7 +16,11 @@ export type SnapshotFormatErrorCode =
   /** 版本号比当前应用新，或不是数字 | Newer than this app, or not a number */
   | 'unsupported-version'
   /** 有记录不符合当前结构 | Some records fail the current schema */
-  | 'invalid-records';
+  | 'invalid-records'
+  /** 不认识的包格式或包版本（例如第 3 批之前的整库 JYT）| Unknown package format or version (e.g. the pre-batch-3 whole-DB JYT) */
+  | 'unsupported-package'
+  /** 包的清单、文件或引用不一致（rev5 7.2，T31）| Package manifest, files or references are inconsistent (rev5 7.2, T31) */
+  | 'invalid-package';
 
 export interface SnapshotInvalidCollection {
   collection: string;
@@ -31,6 +35,8 @@ export class SnapshotFormatError extends Error {
   readonly schemaVersion: number | null;
   readonly dbName: string | null;
   readonly invalidCollections: readonly SnapshotInvalidCollection[];
+  /** 包检查发现的全部问题（不含正文）| Every problem found by the package check (no row content) */
+  readonly problems: readonly string[];
 
   constructor(input: {
     code: SnapshotFormatErrorCode;
@@ -38,6 +44,7 @@ export class SnapshotFormatError extends Error {
     schemaVersion?: number | null;
     dbName?: string | null;
     invalidCollections?: readonly SnapshotInvalidCollection[];
+    problems?: readonly string[];
   }) {
     super(input.message);
     this.name = 'SnapshotFormatError';
@@ -45,6 +52,7 @@ export class SnapshotFormatError extends Error {
     this.schemaVersion = input.schemaVersion ?? null;
     this.dbName = input.dbName ?? null;
     this.invalidCollections = input.invalidCollections ?? [];
+    this.problems = input.problems ?? [];
   }
 }
 
