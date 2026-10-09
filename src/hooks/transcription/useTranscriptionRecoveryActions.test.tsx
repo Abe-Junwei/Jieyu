@@ -162,6 +162,7 @@ describe('useTranscriptionRecoveryActions', () => {
     // 恢复后重新载入当前项目（JY-02）| Reload the current project after recovery (JY-02)
     expect(loadSnapshot).toHaveBeenCalledWith(currentUtt.textId);
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已从崩溃恢复数据中还原' });
-    expect(mockClearRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME);
+    // 只清当前项目的恢复快照（方案 8.3）| Only the current project's recovery snapshot (plan 8.3)
+    expect(mockClearRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME, currentUtt.textId);
   });
 });

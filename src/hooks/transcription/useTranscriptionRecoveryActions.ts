@@ -42,7 +42,8 @@ export function useTranscriptionRecoveryActions({
   const checkRecovery = useCallback(async (): Promise<RecoveryData | null> => {
     const name = dbNameRef.current;
     if (!name) return null;
-    const snap = await getRecoverySnapshot(name);
+    const projectId = resolveCurrentProjectTextId(unitsRef.current[0]?.textId);
+    const snap = await getRecoverySnapshot(name, projectId);
     const recoveryUnits = snap ? getRecoveryLayerUnits(snap) : [];
     if (!snap || recoveryUnits.length === 0) return null;
 
@@ -53,7 +54,7 @@ export function useTranscriptionRecoveryActions({
 
     if (snap.timestamp > latestUpdatedAt + 2000) return snap;
 
-    fireAndForget(clearRecoverySnapshot(name), {
+    fireAndForget(clearRecoverySnapshot(name, projectId), {
       context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L50',
       policy: 'background',
     });
@@ -96,7 +97,7 @@ export function useTranscriptionRecoveryActions({
         await loadSnapshot(projectTextId);
         const name = dbNameRef.current;
         if (name) {
-          fireAndForget(clearRecoverySnapshot(name), {
+          fireAndForget(clearRecoverySnapshot(name, projectTextId), {
             context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L88',
             policy: 'background',
           });
@@ -127,8 +128,10 @@ export function useTranscriptionRecoveryActions({
 
   const dismissRecovery = useCallback(async () => {
     const name = dbNameRef.current;
-    if (name) await clearRecoverySnapshot(name);
-  }, [dbNameRef]);
+    if (name) {
+      await clearRecoverySnapshot(name, resolveCurrentProjectTextId(unitsRef.current[0]?.textId));
+    }
+  }, [dbNameRef, unitsRef]);
 
   return {
     checkRecovery,

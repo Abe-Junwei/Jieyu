@@ -3,6 +3,7 @@ import type { MutableRefObject } from 'react';
 import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
 import { saveRecoverySnapshot } from '../../services/SnapshotService';
 import { fireAndForget } from '../../utils/fireAndForget';
+import { resolveCurrentProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 import { useDebouncedCallback } from '../ui/useDebouncedCallback';
 
 type Params = {
@@ -25,6 +26,7 @@ export function useTranscriptionRecoverySnapshotScheduler({
     if (!name) return;
     fireAndForget(
       saveRecoverySnapshot(name, {
+        projectId: resolveCurrentProjectTextId(unitsRef.current[0]?.textId),
         liveLayerGraph: {
           layer_units: unitsRef.current,
           layer_unit_contents: translationsRef.current,

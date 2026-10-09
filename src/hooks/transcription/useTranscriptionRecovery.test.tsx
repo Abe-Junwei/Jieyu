@@ -56,6 +56,7 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
     });
 
     expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME, {
+      projectId: expect.any(String),
       liveLayerGraph: {
         layer_units: refs.unitsRef.current,
         layer_unit_contents: refs.translationsRef.current,

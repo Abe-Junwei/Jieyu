@@ -1215,6 +1215,11 @@ export const enUSDictionary = {
     '(Estimated restore: +{units} segments / +{translations} translations / +{layers} layers)',
   'transcription.recovery.apply': 'Restore',
   'transcription.recovery.dismiss': 'Ignore',
+  'transcription.recovery.skipped':
+    'Crash-recovery snapshot skipped: this project is about {size} MiB, over the {limit} MiB limit. Unsaved changes cannot be recovered from a snapshot after an unexpected close, so save or export a backup soon.',
+  'transcription.recovery.skippedStaleCleared':
+    'The older recovery snapshot was cleared so it cannot restore outdated content.',
+  'transcription.recovery.skippedDismiss': 'Got it',
   'transcription.media.unbound': 'No media bound',
   'transcription.wave.overviewTooltip': 'Minimap: click or drag to seek',
   'transcription.wave.emptyTextOnly':

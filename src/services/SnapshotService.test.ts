@@ -6,8 +6,10 @@ import { JIEYU_DEXIE_DB_NAME } from '../db/engine';
 import {
   RECOVERY_SCHEMA_VERSION,
   clearRecoverySnapshot,
+  dismissRecoverySnapshotSkip,
   getRecoveryLayerUnits,
   getRecoverySnapshot,
+  getRecoverySnapshotSkip,
   saveRecoverySnapshot,
 } from './SnapshotService';
 
@@ -34,6 +36,9 @@ describe('SnapshotService', () => {
   beforeEach(async () => {
     mockExportRecoveryDatabaseAsJson.mockClear();
     await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+    await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
+    await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2');
+    dismissRecoverySnapshotSkip();
   });
 
   it('drops a corrupted recovery snapshot instead of surfacing a parse error', async () => {
@@ -112,11 +117,13 @@ describe('SnapshotService', () => {
       },
     });
 
-    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { maxSerializedUtf8Bytes: 120 });
+    await expect(
+      saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { maxSerializedUtf8Bytes: 120 }),
+    ).resolves.toMatchObject({ status: 'skipped-too-large', staleCleared: false });
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
   });
 
-  it('preserves an existing recovery snapshot when a new save exceeds the size limit', async () => {
+  it('T43: an over-limit save is reported as skipped and clears the stale snapshot', async () => {
     const smallUnit: LayerUnitDocType = {
       id: 'u-small',
       textId: 't1',
@@ -154,8 +161,129 @@ describe('SnapshotService', () => {
       },
     });
 
-    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { maxSerializedUtf8Bytes: 120 });
-    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toEqual(existing);
+    const result = await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { maxSerializedUtf8Bytes: 120 });
+    expect(result).toMatchObject({
+      status: 'skipped-too-large',
+      maxBytes: 120,
+      staleCleared: true,
+    });
+    // 旧快照比当前数据旧，不能再被当成可恢复 | The stale snapshot must not be offered any more
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
+    expect(getRecoverySnapshotSkip()).toMatchObject({
+      dbName: JIEYU_DEXIE_DB_NAME,
+      projectId: null,
+      maxBytes: 120,
+      staleCleared: true,
+    });
+
+    // 下一次成功保存后“已跳过”提示消失 | The next successful save clears the skipped notice
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: { layer_units: [smallUnit] },
+    });
+    await expect(saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toMatchObject({
+      status: 'saved',
+    });
+    expect(getRecoverySnapshotSkip()).toBeNull();
+  });
+
+  it('T43: stores and reads recovery snapshots per project, keeping only that project', async () => {
+    const unitOf = (id: string, textId: string): LayerUnitDocType => ({
+      id,
+      textId,
+      mediaId: `m-${textId}`,
+      layerId: `l-${textId}`,
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    const whole = {
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        texts: [
+          { id: 't1', title: { default: 'one' } },
+          { id: 't2', title: { default: 'two' } },
+        ],
+        layer_units: [unitOf('u1', 't1'), unitOf('u2', 't2')],
+        layer_unit_contents: [],
+        layers: [],
+      },
+    };
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce(whole);
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't1' });
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce(whole);
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't2' });
+
+    const one = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
+    expect(getRecoveryLayerUnits(one!).map((u) => u.id)).toEqual(['u1']);
+    expect(one!.snapshot.collections.texts).toEqual([{ id: 't1', title: { default: 'one' } }]);
+    const two = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2');
+    expect(getRecoveryLayerUnits(two!).map((u) => u.id)).toEqual(['u2']);
+    // 没有整库键 | No whole-database row is written
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
+
+    // 一个项目超限只清自己的快照 | One project over the cap only clears its own snapshot
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce(whole);
+    const skipped = await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, {
+      projectId: 't1',
+      maxSerializedUtf8Bytes: 50,
+    });
+    expect(skipped).toMatchObject({ status: 'skipped-too-large', staleCleared: true });
+    expect(getRecoverySnapshotSkip()).toMatchObject({ projectId: 't1' });
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1')).resolves.toBeNull();
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2')).resolves.not.toBeNull();
+
+    await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2');
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2')).resolves.toBeNull();
+  });
+
+  it('T43: a pre-upgrade whole-database snapshot is read per project and cleared with it', async () => {
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        texts: [{ id: 't1' }, { id: 't2' }],
+        layer_units: [
+          {
+            id: 'u1',
+            textId: 't1',
+            mediaId: 'm1',
+            layerId: 'l1',
+            unitType: 'unit',
+            startTime: 0,
+            endTime: 1,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'u2',
+            textId: 't2',
+            mediaId: 'm2',
+            layerId: 'l2',
+            unitType: 'unit',
+            startTime: 0,
+            endTime: 1,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+    // 旧版本按库名保存整库 | Older builds stored the whole database under the db name
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+
+    const one = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
+    expect(getRecoveryLayerUnits(one!).map((u) => u.id)).toEqual(['u1']);
+    await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1')).resolves.toBeNull();
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
   });
 
   it('persists v2 recovery snapshots from exportRecoveryDatabaseAsJson', async () => {

@@ -8,6 +8,7 @@ import { LinguisticService } from '../../services/LinguisticService';
 import {
   getActiveProjectTextId,
   publishActiveProjectTextId,
+  resolveCurrentProjectTextId,
 } from '../../utils/transcriptionUrlDeepLink';
 
 type Params = {
@@ -87,6 +88,7 @@ export function useTranscriptionLifecycle({
         // Instead, start the async save — the browser usually allows short IDB writes.
         fireAndForget(
           saveRecoverySnapshot(name, {
+            projectId: resolveCurrentProjectTextId(unitsRef.current[0]?.textId),
             liveLayerGraph: {
               layer_units: unitsRef.current,
               layer_unit_contents: translationsRef.current,
@@ -127,10 +129,11 @@ export function useTranscriptionLifecycle({
     dirtyRef.current = false;
     const name = dbNameRef.current;
     if (name) {
-      fireAndForget(clearRecoverySnapshot(name), {
+      const projectId = resolveCurrentProjectTextId(unitsRef.current[0]?.textId);
+      fireAndForget(clearRecoverySnapshot(name, projectId), {
         context: 'src/hooks/transcription/useTranscriptionLifecycle.ts:L94',
         policy: 'background',
       });
     }
-  }, [dbNameRef, dirtyRef, saveState.kind]);
+  }, [dbNameRef, dirtyRef, saveState.kind, unitsRef]);
 }

@@ -20,6 +20,7 @@ import {
 } from '../components/transcription/TranscriptionLayoutSections';
 import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
+import { RecoverySnapshotSkippedNotice } from '../components/RecoverySnapshotSkippedNotice';
 import { CollaborationConflictReviewDrawer } from '../components/transcription/CollaborationConflictReviewDrawer';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { AiPanelContext } from '../contexts/AiPanelContext';
@@ -208,6 +209,7 @@ function ReadyStageContent({
           />
         </Suspense>
       ) : null}
+      <RecoverySnapshotSkippedNotice locale={locale} />
 
       {collaborationCloudStatusSlot}
 

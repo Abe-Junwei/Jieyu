@@ -1138,6 +1138,10 @@ export const zhCNDictionary = {
     '（预计恢复 +{units} 句段 / +{translations} 翻译 / +{layers} 层）',
   'transcription.recovery.apply': '恢复',
   'transcription.recovery.dismiss': '忽略',
+  'transcription.recovery.skipped':
+    '已跳过崩溃恢复快照：当前项目约 {size} MiB，超过 {limit} MiB 上限。意外关闭时无法从恢复快照找回未保存的修改，请及时保存或导出备份。',
+  'transcription.recovery.skippedStaleCleared': '旧的恢复快照已清理，避免恢复成过时的内容。',
+  'transcription.recovery.skippedDismiss': '知道了',
   'transcription.media.unbound': '未绑定媒体',
   'transcription.wave.overviewTooltip': '鸟瞰导航：点击或拖动定位',
   'transcription.wave.emptyTextOnly': '当前为无波形时间轴视图；若要波形编辑请先导入可解码媒体。',
