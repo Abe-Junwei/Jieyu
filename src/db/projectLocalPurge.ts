@@ -23,7 +23,7 @@
  */
 import type { Table } from 'dexie';
 import type { JieyuDatabase } from './engine';
-import type { UserNoteDocType } from './types';
+import type { NoteTargetType, UserNoteDocType } from './types';
 import {
   JIEYU_MAIN_TABLE_REGISTRY,
   PROJECT_CATALOG_TEXT_ID_TABLES,
@@ -83,43 +83,48 @@ export type ProjectOwnedIds = {
   layerIds: ReadonlySet<string>;
 };
 
+type NoteOwnershipInput = Pick<UserNoteDocType, 'targetType' | 'targetId' | 'parentTargetId'>;
+type NoteOwnerResolver = (note: NoteOwnershipInput, owned: ProjectOwnedIds) => boolean;
+
 /**
- * 备注归属（R-SCOPED-NOTES）：快照导出与删除项目共用。
- * Note ownership (R-SCOPED-NOTES), shared by snapshot export and project deletion.
+ * 每种备注目标的归属解析（JY-06）。用 Record 定义：新增目标类型而不在这里补解析器会编译失败。
+ * Per-target ownership resolvers (JY-06). A Record: adding a target type without a resolver fails
+ * to compile.
  */
-export function noteBelongsToProject(
-  note: Pick<UserNoteDocType, 'targetType' | 'targetId' | 'parentTargetId'>,
-  owned: ProjectOwnedIds,
-): boolean {
-  const targetId = note.targetId;
-  switch (note.targetType) {
-    case 'text':
-      return targetId === owned.projectId;
-    case 'unit':
-      return owned.unitIds.has(targetId);
-    case 'token':
-      return owned.tokenIds.has(targetId);
-    case 'morpheme':
-      return owned.morphemeIds.has(targetId);
-    case 'translation':
-      return owned.contentIds.has(targetId);
-    case 'annotation':
-      return owned.annotationIds.has(targetId);
-    case 'lexeme':
-      return owned.lexemeIds.has(targetId);
-    case 'sense':
-      return note.parentTargetId !== undefined && owned.lexemeIds.has(note.parentTargetId);
-    case 'tier_annotation': {
-      if (owned.annotationIds.has(targetId)) return true;
-      const [unitPart, layerPart] = targetId.split('::');
-      return (
-        (unitPart !== undefined && owned.unitIds.has(unitPart)) ||
-        (layerPart !== undefined && owned.layerIds.has(layerPart))
-      );
-    }
-    default:
-      return false;
-  }
+export const NOTE_OWNER_RESOLVERS: Readonly<Record<NoteTargetType, NoteOwnerResolver>> = {
+  text: (note, owned) => note.targetId === owned.projectId,
+  unit: (note, owned) => owned.unitIds.has(note.targetId),
+  token: (note, owned) => owned.tokenIds.has(note.targetId),
+  morpheme: (note, owned) => owned.morphemeIds.has(note.targetId),
+  translation: (note, owned) => owned.contentIds.has(note.targetId),
+  annotation: (note, owned) => owned.annotationIds.has(note.targetId),
+  lexeme: (note, owned) => owned.lexemeIds.has(note.targetId),
+  sense: (note, owned) =>
+    note.parentTargetId !== undefined && owned.lexemeIds.has(note.parentTargetId),
+  // 单元格备注：'unitId::layerId[::@waveform]'，或直接是标注 id | Cell notes: composite id or annotation id
+  tier_annotation: (note, owned) => {
+    if (owned.annotationIds.has(note.targetId)) return true;
+    const [unitPart, layerPart] = note.targetId.split('::');
+    return (
+      (unitPart !== undefined && owned.unitIds.has(unitPart)) ||
+      (layerPart !== undefined && owned.layerIds.has(layerPart))
+    );
+  },
+};
+
+/** 全部备注目标类型（测试逐个检查）| Every note target type (checked one by one in tests) */
+export const NOTE_TARGET_TYPES = Object.keys(NOTE_OWNER_RESOLVERS) as NoteTargetType[];
+
+/**
+ * 备注归属（R-SCOPED-NOTES）：快照导出与删除项目共用。未知的目标类型不算属于项目。
+ * Note ownership (R-SCOPED-NOTES), shared by snapshot export and project deletion. Unknown target
+ * types never count as owned.
+ */
+export function noteBelongsToProject(note: NoteOwnershipInput, owned: ProjectOwnedIds): boolean {
+  const resolver = Object.prototype.hasOwnProperty.call(NOTE_OWNER_RESOLVERS, note.targetType)
+    ? NOTE_OWNER_RESOLVERS[note.targetType]
+    : undefined;
+  return resolver !== undefined && resolver(note, owned);
 }
 
 function idSet(rows: ReadonlyArray<{ id: string }>): Set<string> {
