@@ -6,12 +6,24 @@ import { buildMinimalWavFile } from './_helpers/minimalWav';
 /**
  * BF1-N1 冒烟：生产构建（vite preview）下 maplibre-gl 6 的 worker 必须以 JS 形式加载，地图触发 load。
  * BF1-N1 smoke: in the production build (vite preview) the maplibre-gl 6 worker must load as JavaScript
- * and the map must fire `load`. Tiles are not asserted (OSM tiles are external and blocked by connect-src CSP).
+ * and the map must fire `load`. OSM tiles are answered locally (no network); CSP is enforced before routing, so a
+ * fulfilled tile proves the app CSP allows the tile host.
  */
+const TILE_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  'base64',
+);
+
 test.describe('语言地图冒烟 | Language map smoke', () => {
   test('maplibre worker 加载且地图触发 load | maplibre worker loads and the map fires load', async ({ page }) => {
     const workerResponses: Array<{ url: string; status: number; contentType: string }> = [];
     const errors: string[] = [];
+    const cspViolations: string[] = [];
+    let tilesServed = 0;
+    await page.route('https://tile.openstreetmap.org/**', (route) => {
+      tilesServed += 1;
+      return route.fulfill({ status: 200, contentType: 'image/png', body: TILE_PNG });
+    });
     page.on('response', (response) => {
       if (/maplibre-gl-worker[^/]*\.mjs/.test(response.url())) {
         workerResponses.push({
@@ -23,6 +35,7 @@ test.describe('语言地图冒烟 | Language map smoke', () => {
     });
     page.on('console', (message) => {
       if (message.type() === 'error' && /worker/i.test(message.text())) errors.push(message.text());
+      if (/Content Security Policy/i.test(message.text())) cspViolations.push(message.text());
     });
     page.on('pageerror', (error) => {
       if (/worker/i.test(error.message)) errors.push(error.message);
@@ -57,5 +70,7 @@ test.describe('语言地图冒烟 | Language map smoke', () => {
       expect(response.contentType).toMatch(/javascript/);
     }
     expect(errors).toEqual([]);
+    await expect.poll(() => tilesServed, { timeout: 15_000 }).toBeGreaterThan(0);
+    expect(cspViolations).toEqual([]);
   });
 });
