@@ -1715,6 +1715,45 @@ export const enUSDictionary = {
     'A whole-library restore replaces every local project. A whole-library snapshot is saved first and the restore stops if it fails. Collaboration bindings are not restored. Click again to confirm.',
   'transcription.projectHub.jybRestorePreferences':
     'Also restore {count} user preferences from the backup (UI, language, AI parameters; no keys)',
+  'transcription.projectHub.snapshotRestore.menu': 'Restore from a snapshot…',
+  'transcription.projectHub.snapshotRestore.title': 'Restore from a snapshot',
+  'transcription.projectHub.snapshotRestore.listTitle': 'Snapshots on this device',
+  'transcription.projectHub.snapshotRestore.intro':
+    'Before a project is overwritten, the library is restored, or a snapshot is restored, the data at that moment is saved here (without audio bytes; local bytes are always kept).',
+  'transcription.projectHub.snapshotRestore.empty': 'No snapshots yet.',
+  'transcription.projectHub.snapshotRestore.colTime': 'Time',
+  'transcription.projectHub.snapshotRestore.colProject': 'Project',
+  'transcription.projectHub.snapshotRestore.colTrigger': 'Saved before',
+  'transcription.projectHub.snapshotRestore.colSize': 'Size',
+  'transcription.projectHub.snapshotRestore.colTable': 'Table',
+  'transcription.projectHub.snapshotRestore.colInSnapshot': 'In snapshot',
+  'transcription.projectHub.snapshotRestore.colNow': 'On this device now',
+  'transcription.projectHub.snapshotRestore.rows': '{count} rows',
+  'transcription.projectHub.snapshotRestore.libraryLabel': 'Whole library ({count} projects)',
+  'transcription.projectHub.snapshotRestore.kindBeforeImport': 'Before a {kind} overwrite',
+  'transcription.projectHub.snapshotRestore.kindBeforeRestore': 'Before a snapshot restore',
+  'transcription.projectHub.snapshotRestore.preview': 'Preview',
+  'transcription.projectHub.snapshotRestore.previewTitle': 'Preview: {name}',
+  'transcription.projectHub.snapshotRestore.preferences':
+    'These user preferences are put back to their recorded values: {keys}',
+  'transcription.projectHub.snapshotRestore.effectProject':
+    "Restoring replaces this project's current content with the snapshot; audio and attachments with the same id keep their local bytes.",
+  'transcription.projectHub.snapshotRestore.effectLibrary':
+    'Restoring replaces every table in the snapshot across the whole library; audio and attachments with the same id keep their local bytes.',
+  'transcription.projectHub.snapshotRestore.blockedCollaborated':
+    'Cannot restore: a project involved has collaboration history.',
+  'transcription.projectHub.snapshotRestore.blockedVersion':
+    'Cannot restore: the snapshot comes from an unsupported data version.',
+  'transcription.projectHub.snapshotRestore.blockedBytes':
+    'Cannot restore: {count} local recording or attachment byte(s) are not in the snapshot and would be lost.',
+  'transcription.projectHub.snapshotRestore.restore': 'Restore this snapshot',
+  'transcription.projectHub.snapshotRestore.confirmRestore': 'Confirm restore',
+  'transcription.projectHub.snapshotRestore.warning':
+    'Click “Confirm restore” again to write. The current data is saved as a snapshot first.',
+  'transcription.projectHub.snapshotRestore.done':
+    'Restored and verified {rows} records. The data before the restore is kept as snapshot #{seq}. Reload to see the restored data.',
+  'transcription.projectHub.snapshotRestore.reload': 'Reload',
+  'transcription.projectHub.snapshotRestore.failed': 'Restore failed: {message}',
   'transcription.projectHub.jybIncludeProjectAi':
     'Import project AI memory and history with the projects ({count} rows)',
   'transcription.projectHub.confirmJybImport': 'Import selected projects',

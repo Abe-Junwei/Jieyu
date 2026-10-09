@@ -87,7 +87,7 @@ export interface PackagedUserPreferences {
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
-function defaultStorage(): StorageLike | null {
+function defaultStorage(): Storage | null {
   try {
     return typeof localStorage === 'undefined' ? null : localStorage;
   } catch {
@@ -203,4 +203,25 @@ export function applyUserPreferences(
     applied.push(key);
   }
   return applied;
+}
+
+/**
+ * 把偏好写回快照里记下的原值（null = 原来没有，删掉）；返回写过的键。只用于从整库快照恢复。
+ * Put preferences back to the raw values a snapshot recorded (null = absent, removed); returns the
+ * keys touched. Only used when restoring a library snapshot.
+ */
+export function restoreRecordedUserPreferences(
+  recorded: ReadonlyArray<{ key: string; value: string | null }>,
+  storage: Pick<Storage, 'setItem' | 'removeItem'> | null = defaultStorage(),
+): string[] {
+  if (!storage) return [];
+  const allowed = new Set(USER_PREFERENCE_KEYS);
+  const touched: string[] = [];
+  for (const { key, value } of recorded) {
+    if (!allowed.has(key)) continue;
+    if (value === null) storage.removeItem(key);
+    else storage.setItem(key, value);
+    touched.push(key);
+  }
+  return touched;
 }

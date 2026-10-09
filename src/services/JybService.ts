@@ -121,7 +121,7 @@ const MAIN_TABLE_NAMES = Object.keys(JIEYU_MAIN_TABLE_REGISTRY) as JieyuMainTabl
 export const JYB_MAIN_TABLES: readonly JieyuMainTableName[] = MAIN_TABLE_NAMES.filter((name) =>
   isDataClassPackagedInJyb(JIEYU_MAIN_TABLE_REGISTRY[name].dataClass),
 );
-const JYB_SKIPPED_COLLECTIONS: ReadonlySet<string> = new Set(
+export const JYB_SKIPPED_COLLECTIONS: ReadonlySet<string> = new Set(
   MAIN_TABLE_NAMES.filter((name) => !JYB_MAIN_TABLES.includes(name)),
 );
 
@@ -790,7 +790,7 @@ export interface JybDisasterRestoreResult {
 /**
  * 灾难恢复：让本机回到备份时的状态，保留原 id。前提与顺序：全部包检查 → 本机与包里的项目都从未
  * 协作过（D7）→ 不会丢本机字节（4.2-7）→ 整库快照（失败就中止）→ 一个事务里再判定一次、清空 JYB
- * 涉及的表并写入。二次确认在界面上完成。凭据、AI 记忆与历史、审计日志、派生数据不在包里，本机的
+ * 涉及的表（含项目 AI）并写入。二次确认在界面上完成。凭据、审计日志、派生数据不在包里，本机的
  * 这些行保持不动；协作绑定不还原。
  * Disaster restore: bring this device back to the backup, original ids kept. Preconditions and
  * order: package checks → every local and packaged project never collaborated (D7) → no local

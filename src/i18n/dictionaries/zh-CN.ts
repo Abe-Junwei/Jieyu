@@ -1607,6 +1607,42 @@ export const zhCNDictionary = {
     '整库还原会替换本机全部项目；开始前会自动保存一份整库快照，快照失败就不还原。协作绑定不会还原。再点一次确认。',
   'transcription.projectHub.jybRestorePreferences':
     '同时还原备份里的 {count} 项用户偏好（界面、语言、AI 参数；不含密钥）',
+  'transcription.projectHub.snapshotRestore.menu': '从快照恢复…',
+  'transcription.projectHub.snapshotRestore.title': '从快照恢复',
+  'transcription.projectHub.snapshotRestore.listTitle': '本机快照',
+  'transcription.projectHub.snapshotRestore.intro':
+    '覆盖项目、整库还原或从快照恢复之前，都会先把当时的数据存一份快照（不含音频字节，本机字节始终保留）。',
+  'transcription.projectHub.snapshotRestore.empty': '还没有快照。',
+  'transcription.projectHub.snapshotRestore.colTime': '时间',
+  'transcription.projectHub.snapshotRestore.colProject': '项目',
+  'transcription.projectHub.snapshotRestore.colTrigger': '存于',
+  'transcription.projectHub.snapshotRestore.colSize': '大小',
+  'transcription.projectHub.snapshotRestore.colTable': '表',
+  'transcription.projectHub.snapshotRestore.colInSnapshot': '快照里',
+  'transcription.projectHub.snapshotRestore.colNow': '本机现有',
+  'transcription.projectHub.snapshotRestore.rows': '{count} 条',
+  'transcription.projectHub.snapshotRestore.libraryLabel': '整库（{count} 个项目）',
+  'transcription.projectHub.snapshotRestore.kindBeforeImport': '{kind} 导入覆盖前',
+  'transcription.projectHub.snapshotRestore.kindBeforeRestore': '从快照恢复前',
+  'transcription.projectHub.snapshotRestore.preview': '预览',
+  'transcription.projectHub.snapshotRestore.previewTitle': '预览：{name}',
+  'transcription.projectHub.snapshotRestore.preferences': '同时写回这些用户偏好的原值：{keys}',
+  'transcription.projectHub.snapshotRestore.effectProject':
+    '恢复会用快照替换这个项目的当前内容；同 id 的音频与附件沿用本机字节。',
+  'transcription.projectHub.snapshotRestore.effectLibrary':
+    '恢复会用快照替换整库里快照包含的表；同 id 的音频与附件沿用本机字节。',
+  'transcription.projectHub.snapshotRestore.blockedCollaborated': '不能恢复：相关项目有协作记录。',
+  'transcription.projectHub.snapshotRestore.blockedVersion': '不能恢复：快照来自不支持的数据版本。',
+  'transcription.projectHub.snapshotRestore.blockedBytes':
+    '不能恢复：会丢失本机 {count} 个录音或附件的字节（它们不在快照里）。',
+  'transcription.projectHub.snapshotRestore.restore': '恢复此快照',
+  'transcription.projectHub.snapshotRestore.confirmRestore': '确认恢复',
+  'transcription.projectHub.snapshotRestore.warning':
+    '再点一次“确认恢复”才会写入。当前数据会先另存为一份快照。',
+  'transcription.projectHub.snapshotRestore.done':
+    '已恢复并核对 {rows} 条记录。恢复前的数据已存为快照 #{seq}。请重新加载以显示恢复后的数据。',
+  'transcription.projectHub.snapshotRestore.reload': '重新加载',
+  'transcription.projectHub.snapshotRestore.failed': '恢复失败：{message}',
   'transcription.projectHub.jybIncludeProjectAi': '随项目导入 AI 记忆与历史（{count} 条）',
   'transcription.projectHub.confirmJybImport': '导入所选项目',
   'transcription.projectHub.confirmJybDisaster': '整库还原',

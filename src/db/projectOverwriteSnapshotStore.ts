@@ -21,8 +21,11 @@ export interface ProjectOverwriteSnapshotRow {
   seq?: number;
   projectId: string;
   createdAt: string;
-  /** 触发覆盖的包类型 | Package kind that triggered the overwrite */
-  packageKind: 'jyt' | 'jym' | 'jyb';
+  /**
+   * 触发覆盖的操作：包类型，或从快照恢复（恢复前也存一份）。
+   * What triggered the overwrite: a package kind, or a restore from a snapshot (saved before it too).
+   */
+  packageKind: 'jyt' | 'jym' | 'jyb' | 'snapshot-restore';
   /** 快照结构版本（SNAPSHOT_SCHEMA_VERSION）| Snapshot schema version */
   schemaVersion: number;
   rowCount: number;
@@ -89,4 +92,17 @@ export async function listProjectOverwriteSnapshots(
 ): Promise<ProjectOverwriteSnapshotRow[]> {
   const rows = await getStore().snapshots.where('projectId').equals(projectId).sortBy('seq');
   return rows.reverse();
+}
+
+/** 列出全部覆盖前快照与整库快照（新的在前）| List every pre-overwrite and library snapshot, newest first */
+export async function listAllOverwriteSnapshots(): Promise<ProjectOverwriteSnapshotRow[]> {
+  const rows = await getStore().snapshots.orderBy('seq').toArray();
+  return rows.reverse();
+}
+
+/** 按序号读一份快照 | Read one snapshot by seq */
+export async function getOverwriteSnapshot(
+  seq: number,
+): Promise<ProjectOverwriteSnapshotRow | undefined> {
+  return getStore().snapshots.get(seq);
 }

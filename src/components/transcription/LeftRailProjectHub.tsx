@@ -28,6 +28,7 @@ import type {
 } from '../../services/JymService';
 import { useLibraryBackupExport } from '../../hooks/importExport/useLibraryBackupExport';
 import { LibraryBackupImportOptions } from './LibraryBackupImportOptions';
+import { SnapshotRestoreDialog } from './SnapshotRestoreDialog';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
@@ -215,6 +216,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     [showToast],
   );
   const exportLibraryBackup = useLibraryBackupExport({ locale, notify: notifyLibraryBackup });
+  const [snapshotRestoreOpen, setOverwriteSnapshotsOpen] = useState(false);
   const [hostElement, setHostElement] = useState<HTMLElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState({ top: 88, left: 88 });
@@ -625,6 +627,15 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       {
         label: t(locale, 'transcription.toolbar.importAudio'),
         onClick: onOpenAudioImport,
+      },
+      // 覆盖前快照与整库快照的恢复入口（用户决定 2026-10-09）| Snapshot restore entry
+      {
+        label: t(locale, 'transcription.projectHub.snapshotRestore.menu'),
+        separatorBefore: true,
+        onClick: () => {
+          setIsOpen(false);
+          setOverwriteSnapshotsOpen(true);
+        },
       },
     ];
 
@@ -1516,6 +1527,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       {projectImportDialogNode}
       {timeMappingDialogNode}
       {annotationImportDialogNode}
+      <SnapshotRestoreDialog
+        locale={locale}
+        isOpen={snapshotRestoreOpen}
+        onClose={() => setOverwriteSnapshotsOpen(false)}
+      />
     </>
   );
 }
