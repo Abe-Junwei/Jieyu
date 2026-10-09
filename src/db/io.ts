@@ -845,7 +845,14 @@ export async function importDatabaseFromJson(
         return inboundIds.get(table)!.has(id);
       };
       const missing = new Map<string, Set<string>>();
-      for (const [name, rule] of Object.entries(JIEYU_PARENT_CONSISTENCY_RULES)) {
+      // B5-5：`layers` 别名与 tier_definitions 是同一张表，它的文稿引用也查本机 | the `layers` alias is the
+      // same table as tier_definitions, so its document refs are looked up locally too
+      const layerRule = JIEYU_PARENT_CONSISTENCY_RULES.tier_definitions;
+      const ruleEntries = [
+        ...Object.entries(JIEYU_PARENT_CONSISTENCY_RULES),
+        ...(layerRule ? [['layers', layerRule] as const] : []),
+      ];
+      for (const [name, rule] of ruleEntries) {
         for (const row of (inbound[name] ?? []) as Array<Record<string, unknown>>) {
           for (const ref of rule.extract(row).parents) {
             if (inInbound(ref.table, ref.key)) continue;
@@ -862,13 +869,16 @@ export async function importDatabaseFromJson(
         localParentIds.set(table, new Set(ids.filter((_, i) => found?.[i] !== undefined)));
       }
       const orphans = dropOrphanRows(inbound, localParentIds);
-      if (orphans.skipped.length > 0) {
+      if (orphans.skipped.length > 0 || orphans.detachedDocumentRefs > 0) {
         for (const prepared of preparedCollections) {
           prepared.normalizedDocs = (orphans.collections[prepared.collectionName] ??
             prepared.normalizedDocs) as typeof prepared.normalizedDocs;
         }
-        result.skippedOrphanRows = orphans.skipped;
-        log.warn('Dropped orphan rows from JSON import', { skipped: orphans.skipped });
+        if (orphans.skipped.length > 0) result.skippedOrphanRows = orphans.skipped;
+        log.warn('Dropped orphan rows from JSON import', {
+          skipped: orphans.skipped,
+          detachedDocumentRefs: orphans.detachedDocumentRefs,
+        });
       }
 
       for (const prepared of preparedCollections) {

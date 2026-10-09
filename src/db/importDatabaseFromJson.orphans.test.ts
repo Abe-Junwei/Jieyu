@@ -110,4 +110,55 @@ describe('project-scoped JSON import checks orphans after the prune (PF-1)', () 
     expect(await db.unit_tokens.get('pA-tok')).toBeUndefined();
     expect(result.skippedOrphanRows).toEqual([{ collection: 'unit_tokens', count: 1 }]);
   });
+
+  it('B5-5: a layer whose document is missing keeps the layer, drops the documentId, and is not reported as skipped', async () => {
+    await db.texts.put({ id: 'pA', title: { default: 'A' }, createdAt: NOW, updatedAt: NOW });
+    await db.annotation_documents.put({
+      id: 'doc-local',
+      textId: 'pA',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const layer = (id: string, documentId: string) =>
+      ({
+        id,
+        textId: 'pA',
+        key: id,
+        name: { default: id },
+        tierType: 'time-aligned',
+        contentType: 'transcription',
+        languageId: 'user:demo',
+        documentId,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }) as never;
+    const viewLayer = (id: string, documentId: string) =>
+      ({
+        id,
+        textId: 'pA',
+        key: id,
+        name: { default: id },
+        layerType: 'transcription',
+        languageId: 'user:demo',
+        modality: 'text',
+        documentId,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }) as never;
+    // 评审 R5-5：同一批层既在 tier_definitions 里，也在 `layers` 别名里 | the R5-5 shape: both names
+    const result = await importDatabaseFromJson(
+      snapshot({
+        tier_definitions: [layer('L-missing', 'doc-gone'), layer('L-local', 'doc-local')],
+        layers: [viewLayer('L-missing', 'doc-gone'), viewLayer('L-local', 'doc-local')],
+      }),
+    );
+    expect(result.skippedOrphanRows).toBeUndefined();
+    const missing = await db.tier_definitions.get('L-missing');
+    expect(missing).toBeDefined();
+    expect((missing as { documentId?: string }).documentId).toBeUndefined();
+    expect(((await db.tier_definitions.get('L-local')) as { documentId?: string }).documentId).toBe(
+      'doc-local',
+    );
+  });
 });

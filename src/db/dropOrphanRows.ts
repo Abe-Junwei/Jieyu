@@ -26,6 +26,47 @@ export type SkippedOrphanRows = Array<{ collection: string; count: number }>;
  * (a dropped unit takes its segments, contents, tokens, morphemes and links). Call before id remap.
  * shortcut: orphans are dropped, not repaired/re-parented; upgrade if users need to recover rows from damaged backups.
  */
+/** 层所在的两个集合名：`tier_definitions` 与 RxDB 别名 `layers` 是同一张表 | Both names of the layer table */
+const LAYER_COLLECTIONS = ['tier_definitions', 'layers'] as const;
+
+/**
+ * 第 5 批（B5-5）：层的 documentId 指向包里和本机都没有的文稿时，只去掉 documentId（层归项目的默认 /
+ * 当前文稿，与工作台“不凭空消失”一致），不把整层当孤儿丢掉。`layers` 别名同样处理，所以两个集合写进的
+ * 是同一份层，跳过报告里也不会出现实际没丢的层。
+ * Batch 5 (B5-5): a layer whose documentId names a document that is neither in the package nor local
+ * keeps the layer and only loses the documentId (it falls back to the project's default / current
+ * document, matching the workbench rule). The `layers` alias gets the same treatment, so both names write
+ * the same layer and the skip report never lists layers that were in fact written.
+ */
+function detachMissingDocumentRefs(
+  collections: ProjectCollections,
+  localParentIds?: ReadonlyMap<string, ReadonlySet<string>>,
+): { collections: ProjectCollections; detached: number } {
+  const documentIds = new Set(
+    rowsOf(collections, 'annotation_documents').map((row) => String(row.id)),
+  );
+  for (const id of localParentIds?.get('annotation_documents') ?? []) documentIds.add(id);
+  let next = collections;
+  let detached = 0;
+  for (const name of LAYER_COLLECTIONS) {
+    const rows = collections[name];
+    if (!Array.isArray(rows)) continue;
+    let changed = false;
+    const mapped = rows.map((row: unknown) => {
+      if (row === null || typeof row !== 'object') return row;
+      const { documentId, ...rest } = row as Row;
+      if (typeof documentId !== 'string' || documentId === '' || documentIds.has(documentId)) {
+        return row;
+      }
+      changed = true;
+      detached += 1;
+      return rest;
+    });
+    if (changed) next = { ...next, [name]: mapped };
+  }
+  return { collections: next, detached };
+}
+
 export function dropOrphanRows(
   collections: ProjectCollections,
   /** 本机库里已有的父行 id（按表），也算父行在（BF1N3-1）| Parent ids already in the local DB (BF1N3-1) */
@@ -33,12 +74,15 @@ export function dropOrphanRows(
 ): {
   collections: ProjectCollections;
   skipped: SkippedOrphanRows;
+  /** 去掉了 documentId 的层行数（B5-5），不算跳过 | Layer rows whose documentId was dropped (B5-5); not skips */
+  detachedDocumentRefs: number;
 } {
+  const repaired = detachMissingDocumentRefs(collections, localParentIds);
   const rules = Object.entries(JIEYU_PARENT_CONSISTENCY_RULES).filter(([name]) =>
-    Array.isArray(collections[name]),
+    Array.isArray(repaired.collections[name]),
   );
   const counts = new Map<string, number>();
-  let next = collections;
+  let next = repaired.collections;
   for (;;) {
     const current = next;
     const idSets = new Map<string, Set<string>>();
@@ -69,5 +113,5 @@ export function dropOrphanRows(
   const skipped = [...counts.entries()]
     .map(([collection, count]) => ({ collection, count }))
     .sort((a, b) => a.collection.localeCompare(b.collection, 'en'));
-  return { collections: next, skipped };
+  return { collections: next, skipped, detachedDocumentRefs: repaired.detached };
 }

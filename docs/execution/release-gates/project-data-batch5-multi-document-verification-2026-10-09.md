@@ -27,7 +27,7 @@ source_of_truth: tests/e2e/batch5MultiDocument.spec.ts
 - `runInNewAnnotationDocument`：“导入为新文稿”。导入中途抛错、或导入流程自己报告失败（`isFailed`，导入钩子把吞掉的错误记成 `saveState.kind === 'error'`）时，删掉新文稿连同写了一半的内容并切回原文稿（B5-3）；回滚本身出错只记日志，不掩盖原错误。成功但没写进任何内容的新文稿同样删掉；成功且有内容的保留。丢弃刚建的文稿不存删除前快照，不占用户的 3 个快照位。
 - 崩溃恢复快照：新建、切换、删除文稿以及“导入为新文稿”之后清掉该项目的崩溃恢复快照（`clearRecoverySnapshot`，B5-2）。恢复快照不带文稿行，文稿变动后再应用旧快照会复活已删的层、让当前文稿指向已删的文稿。
 - 协作反向门（`annotationDocumentCollaborationGate.ts`）：有多份文稿的项目不能开启协作、也不能上传——协作桥不启动、出站变更不入队，`registerProjectAsset` / `createProjectSnapshot` 抛 `AnnotationDocumentCollaborationBlockedError`。正向门照旧：协作过的项目不能新建文稿。
-- 归属中间件 `JIEYU_PARENT_CONSISTENCY_RULES` 新增 `tier_definitions → annotation_documents`：层的 documentId 必须是同一项目的文稿（父行不存在时照旧跳过）。包导入的 BF1-N3 `dropOrphanRows` 用同一份规则。
+- 归属中间件 `JIEYU_PARENT_CONSISTENCY_RULES` 新增 `tier_definitions → annotation_documents`：层的 documentId 必须是同一项目的文稿（父行不存在时照旧跳过）。包导入（BF1-N3）与 JSON 导入（BF1N3-1）的 `dropOrphanRows`（`src/db/dropOrphanRows.ts`）用同一份规则，但层缺文稿时先去掉 documentId 再查孤儿（B5-5），不丢层。
 
 ## 工作台
 
@@ -56,10 +56,9 @@ source_of_truth: tests/e2e/batch5MultiDocument.spec.ts
 ## 已知限制（未在本次处理）
 
 - 协作（保留，用户决定 2026-10-09）：同步不带文稿行，所以只有从未协作的项目能新建额外文稿，有多份文稿的项目也不能开启协作或上传（反向门）。shortcut：反向门用内存缓存，在协作桥启动和文稿新建 / 删除后刷新；用 JYT / JYB 覆盖导入把多份文稿带进一个正在同步的项目时，要到下次协作桥启动（切换项目或重新打开）才拦住出站写入。
-- 包里层的 documentId 指向包中不存在的文稿时，`dropOrphanRows` 会丢掉这些层，但它们的单元还在（单元的父规则是项目）。
+- 包或 JSON 里层的 documentId 指向包里和本机都没有的文稿时，导入只去掉 documentId，层归项目的默认 / 当前文稿（B5-5，`detachMissingDocumentRefs`；`tier_definitions` 与 `layers` 别名一样处理，跳过报告里不再列出实际写入了的层）。
 - 跨文稿的父子单元（评审 R5-2：d1 的子单元指向 d2 的单元）：删掉 d2 时 d2 的那个单元因被引用而保留，它的层和层上的行已删（B5-1），单元本身留作无层单元。
 - AI `search_units` 的 `limit` 在按文稿过滤之前生效，多文稿项目里可能少返回几条（shortcut）。归属判断读库失败时 AI 读取原样返回，不让工具整体失败。
-- 合并 postfreeze 后才出现的 B5-5（层规则进了 BF1N3-1 的 JSON 孤儿检查，`layers` 别名不受管）留到合并时处理。
 - 删除文稿不能撤销（撤销历史在文稿变化时清空）；找回靠删除前快照，每个项目只保留最近 3 份（与覆盖前快照共用）。
 - 没有层的宿主单元归属不明，多文稿下的替换与删除都保留它们。
 
