@@ -86,7 +86,6 @@ export class WhisperXVadService {
   private worker: Worker | null = null;
   private vadWorkerTrackingRelease: (() => void) | null = null;
   private ready = false;
-  private lastDetectionEngine: VadRuntimeEngine | null = null;
   private readonly pendingRequests = new PendingWorkerRequestStore<
     SpeechSegment[],
     WhisperXVadProgress
@@ -225,10 +224,10 @@ export class WhisperXVadService {
 
   /**
    * 同 detectSpeechSegments，但同时返回本次真实使用的引擎，供 provenance / 缓存记录使用。
-   * 不要在检测完成后再调用 getRuntimeEngine() 推断：Worker 状态可能已在期间变化。
+   * 不要在检测完成后再按 Worker 状态推断：Worker 状态可能已在期间变化。
    *
    * Like detectSpeechSegments, but also returns the engine that really produced the segments, for
-   * provenance / cache records. Do not infer it afterwards via getRuntimeEngine(): the worker state can
+   * provenance / cache records. Do not infer it afterwards from the worker state: it can
    * change in between (e.g. a fallback followed by a concurrent re-init would read 'silero').
    */
   async detectSpeechSegmentsWithEngine(
@@ -267,7 +266,6 @@ export class WhisperXVadService {
           ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
         },
       );
-      this.lastDetectionEngine = 'silero';
       return { segments, engine: 'silero' };
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -288,25 +286,8 @@ export class WhisperXVadService {
     }
   }
 
-  /**
-   * 返回下一次检测将使用的引擎（取决于 Worker 是否就绪）。
-   * 记录某次结果的引擎请用 detectSpeechSegmentsWithEngine().engine 或 getLastDetectionEngine()。
-   *
-   * Engine the next detection would use (depends on worker readiness). To label a result, use
-   * detectSpeechSegmentsWithEngine().engine or getLastDetectionEngine().
-   */
-  getRuntimeEngine(): VadRuntimeEngine {
-    return this.ready && this.worker ? 'silero' : 'energy';
-  }
-
-  /** 最近一次 detectSpeechSegments* 真实使用的引擎 | Engine really used by the most recent detection */
-  getLastDetectionEngine(): VadRuntimeEngine | null {
-    return this.lastDetectionEngine;
-  }
-
   private energyFallback(buffer: AudioBuffer): SpeechSegmentsWithEngine {
     const segments = detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
-    this.lastDetectionEngine = 'energy';
     return { segments, engine: 'energy' };
   }
 

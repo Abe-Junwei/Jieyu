@@ -13,8 +13,6 @@ vi.mock('./WhisperXVadService', () => ({
   WhisperXVadService: class MockWhisperXVadService {
     init = initMock;
     detectSpeechSegmentsWithEngine = detectWithEngine;
-    // 故意与真实结果相反 | Deliberately contradicts the real result
-    getRuntimeEngine = vi.fn(() => 'silero');
     dispose = vi.fn();
   },
 }));

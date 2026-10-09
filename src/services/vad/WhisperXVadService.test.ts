@@ -185,7 +185,6 @@ describe('WhisperXVadService', () => {
       { start: 0.1, end: 1.5 },
       { start: 2.0, end: 3.8 },
     ]);
-    expect(svc.getLastDetectionEngine()).toBe('energy');
   });
 
   it('Silero 成功时本次检测引擎为 silero | per-call engine is silero when the worker answers', async () => {
@@ -194,7 +193,6 @@ describe('WhisperXVadService', () => {
     const result = await svc.detectSpeechSegmentsWithEngine(makeAudioBuffer(2));
     expect(result.engine).toBe('silero');
     expect(result.segments[0]?.confidence).toBe(0.87);
-    expect(svc.getLastDetectionEngine()).toBe('silero');
   });
 
   it('Worker 中途崩溃降级后即使重新 init，结果仍标 energy | mid-detect worker crash keeps the energy label even after re-init', async () => {
@@ -212,20 +210,16 @@ describe('WhisperXVadService', () => {
     globalThis.Worker = CrashingWorker;
     const svc = new WhisperXVadService();
     await svc.init();
-    expect(svc.getRuntimeEngine()).toBe('silero');
 
     const result = await svc.detectSpeechSegmentsWithEngine(makeAudioBuffer(2));
     expect(result.engine).toBe('energy');
     expect(detectVadSegments).toHaveBeenCalledTimes(1);
 
-    // 并发重新初始化后，运行时状态回到 silero，但上一次结果的标签不变
-    // After a re-init the runtime state is silero again, but the previous result's label stays energy
+    // 并发重新初始化后，上一次结果的标签不变 | After a re-init the previous result's label stays energy
     // @ts-expect-error — 测试环境下替换全局 Worker
     globalThis.Worker = FakeWorker;
     await svc.init();
-    expect(svc.getRuntimeEngine()).toBe('silero');
     expect(result.engine).toBe('energy');
-    expect(svc.getLastDetectionEngine()).toBe('energy');
   });
 
   it('init 前调用 resetState 不抛出 | resetState before init does not throw', () => {

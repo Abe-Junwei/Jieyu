@@ -33,10 +33,6 @@ vi.mock('./vad/WhisperXVadService', () => ({
       segments: await mockDetectSpeechSegments(...args),
       engine: mockDetectionEngine.current,
     }));
-    // 故意与真实结果相反：缓存标签必须来自本次检测结果 | Deliberately contradicts the real result
-    getRuntimeEngine = vi.fn(() =>
-      mockDetectionEngine.current === 'energy' ? 'silero' : 'energy',
-    );
     init = vi.fn(async () => undefined);
     dispose = vi.fn();
   },
