@@ -143,8 +143,11 @@ export async function convertRawSnapshotToJyb(
         includeMedia: true,
         includePreferences: false,
       });
+      // Firefox 的 Blob 可能仍引用临时库里的媒体，删库前先读进内存（R2-4）| Firefox Blobs may still point into the temp DB; materialize before it is deleted
+      // shortcut: 整包进内存，单包大到放不下时改成延后删库到导入完成 | whole package in memory; defer the temp-DB delete until import completes if that gets too big
+      const bytes = new Blob([await jyb.arrayBuffer()], { type: jyb.type });
       return {
-        jyb,
+        jyb: bytes,
         source: {
           dbName: manifest.dbName,
           nativeVersion: manifest.nativeVersion,
