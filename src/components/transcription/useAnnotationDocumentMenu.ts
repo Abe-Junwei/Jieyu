@@ -8,7 +8,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ContextMenuItem } from '../ContextMenu';
 import type { AnnotationDocumentDocType } from '../../db';
 import { t, tf, type Locale } from '../../i18n';
+import { createLogger } from '../../observability/logger';
 import {
+  AnnotationDocumentCollaboratedProjectError,
+  AnnotationDocumentLastDocumentError,
+  AnnotationDocumentNotFoundError,
+  AnnotationDocumentProjectNotFoundError,
+  AnnotationDocumentSnapshotFailedError,
   canCreateAnnotationDocument,
   createAnnotationDocument,
   deleteAnnotationDocument,
@@ -35,6 +41,32 @@ type UseAnnotationDocumentMenuInput = {
   notifyError: (message: string) => void;
 };
 
+const log = createLogger('useAnnotationDocumentMenu');
+
+/**
+ * 已知的文稿错误换成本地化说明，不把内部 id 和英文原文给用户看；其余错误给通用说明（原文进日志）。
+ * Known document errors become localized text without internal ids; anything else gets a generic
+ * text (the raw error goes to the log).
+ */
+export function annotationDocumentErrorMessage(locale: Locale, error: unknown): string {
+  if (error instanceof AnnotationDocumentProjectNotFoundError) {
+    return t(locale, 'transcription.projectHub.documents.error.projectNotFound');
+  }
+  if (error instanceof AnnotationDocumentNotFoundError) {
+    return t(locale, 'transcription.projectHub.documents.error.notFound');
+  }
+  if (error instanceof AnnotationDocumentLastDocumentError) {
+    return t(locale, 'transcription.projectHub.documents.error.lastDocument');
+  }
+  if (error instanceof AnnotationDocumentSnapshotFailedError) {
+    return t(locale, 'transcription.projectHub.documents.error.snapshotFailed');
+  }
+  if (error instanceof AnnotationDocumentCollaboratedProjectError) {
+    return t(locale, 'transcription.projectHub.documents.error.collaborated');
+  }
+  return t(locale, 'transcription.projectHub.documents.error.unknown');
+}
+
 export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput): {
   menu: ContextMenuItem;
   dialog: AnnotationDocumentDialogProps;
@@ -59,12 +91,14 @@ export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput)
   }, [isOpen, refresh]);
 
   const reportError = useCallback(
-    (error: unknown) =>
+    (error: unknown) => {
+      log.warn('annotation document action failed', { error: String(error) });
       notifyError(
         tf(locale, 'transcription.projectHub.documents.failed', {
-          message: error instanceof Error ? error.message : String(error),
+          message: annotationDocumentErrorMessage(locale, error),
         }),
-      ),
+      );
+    },
     [locale, notifyError],
   );
 

@@ -1698,6 +1698,15 @@ export const zhCNDictionary = {
   'transcription.projectHub.documents.confirmCreate': '新建',
   'transcription.projectHub.documents.confirmRename': '保存',
   'transcription.projectHub.documents.confirmDelete': '删除',
+  'transcription.projectHub.documents.error.projectNotFound': '找不到这个项目，可能已被删除。',
+  'transcription.projectHub.documents.error.notFound':
+    '这份文稿已不存在，可能已在别处删除。请刷新文稿列表。',
+  'transcription.projectHub.documents.error.lastDocument':
+    '项目至少要保留一份文稿，最后一份不能删除。',
+  'transcription.projectHub.documents.error.snapshotFailed':
+    '删除前的快照没能保存，为了不丢数据，文稿没有删除。',
+  'transcription.projectHub.documents.error.collaborated': '这个项目参与过协作，不能再新建文稿。',
+  'transcription.projectHub.documents.error.unknown': '发生了意外错误，请重试。',
   'transcription.projectHub.annotationImportTarget.newDocument': '导入为新文稿（不替换当前文稿）',
   'transcription.importExport.sourcePreservationLayerSuffix': '原文',
   'transcription.projectHub.importing': '导入中…',

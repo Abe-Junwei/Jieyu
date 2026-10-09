@@ -1816,6 +1816,18 @@ export const enUSDictionary = {
   'transcription.projectHub.documents.confirmCreate': 'Create',
   'transcription.projectHub.documents.confirmRename': 'Save',
   'transcription.projectHub.documents.confirmDelete': 'Delete',
+  'transcription.projectHub.documents.error.projectNotFound':
+    'This project no longer exists; it may have been deleted.',
+  'transcription.projectHub.documents.error.notFound':
+    'This document no longer exists; it may have been deleted elsewhere. Refresh the document list.',
+  'transcription.projectHub.documents.error.lastDocument':
+    'A project keeps at least one document; the last one cannot be deleted.',
+  'transcription.projectHub.documents.error.snapshotFailed':
+    'The pre-delete snapshot could not be saved, so the document was not deleted to keep your data safe.',
+  'transcription.projectHub.documents.error.collaborated':
+    'This project has been collaborated on, so no more documents can be created.',
+  'transcription.projectHub.documents.error.unknown':
+    'Something unexpected went wrong. Please try again.',
   'transcription.projectHub.annotationImportTarget.newDocument':
     'Import as a new document (keeps the current document)',
   'transcription.importExport.sourcePreservationLayerSuffix': 'Source',

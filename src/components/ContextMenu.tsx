@@ -284,6 +284,7 @@ export const ContextMenu = memo(function ContextMenu({
           disabled={item.disabled}
           {...(item.testId !== undefined ? { 'data-testid': item.testId } : {})}
           role="menuitem"
+          aria-current={item.selectionState === 'selected' ? 'true' : undefined}
           aria-haspopup={item.children && item.children.length > 0 ? 'menu' : undefined}
           aria-expanded={
             item.children && item.children.length > 0

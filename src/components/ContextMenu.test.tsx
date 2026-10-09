@@ -8,6 +8,30 @@ afterEach(() => {
 });
 
 describe('ContextMenu', () => {
+  it('marks the selected item of a selection group with aria-current', () => {
+    render(
+      <ContextMenu
+        x={0}
+        y={0}
+        onClose={vi.fn()}
+        items={[
+          { label: '文稿 1', selectionState: 'selected', selectionVariant: 'check' },
+          { label: '文稿 2', selectionState: 'unselected', selectionVariant: 'check' },
+          { label: '新建文稿' },
+        ]}
+      />,
+    );
+    expect(screen.getByRole('menuitem', { name: '文稿 1' }).getAttribute('aria-current')).toBe(
+      'true',
+    );
+    expect(screen.getByRole('menuitem', { name: '文稿 2' }).hasAttribute('aria-current')).toBe(
+      false,
+    );
+    expect(screen.getByRole('menuitem', { name: '新建文稿' }).hasAttribute('aria-current')).toBe(
+      false,
+    );
+  });
+
   it('renders fixed menu shell with clamped position and submenu structure', () => {
     const onClose = vi.fn();
     const onChange = vi.fn();
@@ -56,12 +80,18 @@ describe('ContextMenu', () => {
     expect(rootMenu.style.position).toBe('fixed');
     expect(rootMenu.style.left).toBe('8px');
     expect(rootMenu.style.top).toBe('8px');
-    expect(selectedItem.querySelector('.context-menu-item-selection-check.context-menu-item-selection-selected')).toBeTruthy();
+    expect(
+      selectedItem.querySelector(
+        '.context-menu-item-selection-check.context-menu-item-selection-selected',
+      ),
+    ).toBeTruthy();
     expect(selectedItem.querySelector('.context-menu-item-meta')?.textContent).toContain('已启用');
 
     fireEvent.mouseEnter(screen.getByRole('menuitem', { name: /^导出/ }));
 
-    const submenu = document.querySelector('.context-menu-submenu.context-menu-submenu-export') as HTMLDivElement;
+    const submenu = document.querySelector(
+      '.context-menu-submenu.context-menu-submenu-export',
+    ) as HTMLDivElement;
     const searchInput = screen.getByRole('searchbox') as HTMLInputElement;
     const dangerItem = screen.getByRole('menuitem', { name: /删除导出项/ });
 
