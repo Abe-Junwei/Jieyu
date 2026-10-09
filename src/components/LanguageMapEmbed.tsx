@@ -13,6 +13,8 @@ import type {
   StyleSpecification,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+// maplibre-gl 6 为纯 ESM，默认在自身 chunk 旁找 worker；Vite 不会产出该文件，需显式指向打包后的 worker
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { buildMapStyle, type MapProviderConfig } from './languageMapEmbed.shared';
 import type { GeocodeSuggestion } from './languageGeocoder';
 
@@ -104,6 +106,8 @@ export function LanguageMapEmbed({
       const maplibregl = await import('maplibre-gl');
       if (cancelled) return;
       maplibreglRef.current = maplibregl;
+      if (maplibregl.getWorkerUrl() !== maplibreWorkerUrl)
+        maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
       const currentLatitude = latitudeRef.current;
       const currentLongitude = longitudeRef.current;
@@ -115,6 +119,11 @@ export function LanguageMapEmbed({
         center: [currentLongitude, currentLatitude],
         zoom: 5,
         attributionControl: false,
+      });
+
+      // 样式与 worker 就绪后打标，供 e2e 冒烟判断地图真正加载 | Mark the container once the style/worker are ready (e2e smoke hook)
+      map.on('load', () => {
+        container.dataset.mapLoaded = 'true';
       });
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
