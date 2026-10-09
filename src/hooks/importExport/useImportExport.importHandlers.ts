@@ -1281,9 +1281,14 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       );
 
       const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));
-      const importLayerLinks: LayerLinkDocType[] = (await db.dexie.layer_links.toArray()).filter(
-        (link) => layerIdSet.has(link.layerId),
-      );
+      // 走 `layerId` 索引，不整表读出（JY-15）| Indexed by layerId instead of a full scan (JY-15)
+      const importLayerLinks: LayerLinkDocType[] =
+        layerIdSet.size > 0
+          ? await db.dexie.layer_links
+              .where('layerId')
+              .anyOf([...layerIdSet])
+              .toArray()
+          : [];
 
       const repairedResult = repairExistingLayerConstraints(
         layersAfterImport,

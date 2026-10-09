@@ -15,6 +15,7 @@ import {
 import {
   bulkUpsertUnitLayerUnits,
   getUnitDocProjectionById,
+  listUnitDocsForText,
   listUnitDocsFromCanonicalLayerUnits,
   upsertUnitLayerUnit,
 } from './LayerSegmentGraphService';
@@ -421,8 +422,8 @@ export async function getUnitAtTime(time: number): Promise<LayerUnitDocType | un
   return docs.find((u) => u.startTime <= time && u.endTime >= time);
 }
 
+/** 单个项目的 unit（走 `textId` 索引，不再整表读出再过滤，JY-15）| One project's units via the index (JY-15) */
 export async function getUnitsByTextId(textId: string): Promise<LayerUnitDocType[]> {
   const db = await getDb();
-  const all = await listUnitDocsFromCanonicalLayerUnits(db);
-  return all.filter((u) => u.textId === textId);
+  return listUnitDocsForText(db, textId);
 }
