@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
-import { exportRecoveryDatabaseAsJson, RECOVERY_EXPORT_COLLECTIONS } from '../db/io';
+import { exportRecoveryDatabaseAsJson } from '../db/io';
 import { filterCollectionsForProject } from '../db/projectScopedSnapshot';
 import { createLogger } from '../observability/logger';
 
@@ -224,19 +224,8 @@ export async function saveRecoverySnapshot(
   // N3 / P10：有项目时走按项目导出，避免每 3 秒读整库 | Scoped export when a project is set
   let snapshot: RecoveryDatabaseSnapshot;
   if (projectId.length > 0) {
-    const { exportProjectScopedDatabaseAsJson } = await import('../db/projectScopedSnapshot');
-    const scoped = await exportProjectScopedDatabaseAsJson(projectId);
-    const collections: Record<string, unknown[]> = {};
-    for (const name of RECOVERY_EXPORT_COLLECTIONS) {
-      const rows = scoped.collections[name];
-      if (Array.isArray(rows)) collections[name] = rows;
-    }
-    snapshot = {
-      schemaVersion: scoped.schemaVersion,
-      exportedAt: scoped.exportedAt,
-      dbName: scoped.dbName,
-      collections,
-    };
+    const { exportProjectRecoveryDatabaseAsJson } = await import('../db/projectScopedSnapshot');
+    snapshot = await exportProjectRecoveryDatabaseAsJson(projectId);
   } else {
     snapshot = await exportRecoveryDatabaseAsJson();
   }

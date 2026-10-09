@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerUnitDocType } from '../db';
+import { db, type LayerUnitDocType } from '../db';
 import { JIEYU_DEXIE_DB_NAME } from '../db/engine';
 import {
   RECOVERY_SCHEMA_VERSION,
@@ -13,60 +13,60 @@ import {
   saveRecoverySnapshot,
 } from './SnapshotService';
 
-const { mockExportRecoveryDatabaseAsJson, mockExportProjectScopedDatabaseAsJson } = vi.hoisted(
-  () => ({
-    mockExportRecoveryDatabaseAsJson: vi.fn<
-      () => Promise<Awaited<ReturnType<typeof import('../db/io').exportRecoveryDatabaseAsJson>>>
-    >(async () => ({
-      schemaVersion: 5,
-      exportedAt: '2026-06-01T00:00:00.000Z',
-      dbName: JIEYU_DEXIE_DB_NAME,
-      collections: {
-        layer_units: [],
-        layer_unit_contents: [],
-        layers: [],
-      },
-    })),
-    mockExportProjectScopedDatabaseAsJson: vi.fn<
-      (
-        textId: string,
-      ) => Promise<
-        Awaited<
-          ReturnType<typeof import('../db/projectScopedSnapshot').exportProjectScopedDatabaseAsJson>
-        >
-      >
-    >(async (_textId) => {
-      throw new Error('exportProjectScopedDatabaseAsJson mock not configured');
-    }),
-  }),
-);
-
-vi.mock('../db/io', () => ({
-  exportRecoveryDatabaseAsJson: mockExportRecoveryDatabaseAsJson,
-  RECOVERY_EXPORT_COLLECTIONS: [
-    'texts',
-    'media_items',
-    'layers',
-    'layer_links',
-    'layer_units',
-    'layer_unit_contents',
-    'segment_meta',
-    'unit_relations',
-    'unit_tokens',
-    'unit_morphemes',
-    'speakers',
-    'user_notes',
-    'anchors',
-  ],
+const { mockExportRecoveryDatabaseAsJson } = vi.hoisted(() => ({
+  mockExportRecoveryDatabaseAsJson: vi.fn<
+    () => Promise<Awaited<ReturnType<typeof import('../db/io').exportRecoveryDatabaseAsJson>>>
+  >(async () => ({
+    schemaVersion: 5,
+    exportedAt: '2026-06-01T00:00:00.000Z',
+    dbName: JIEYU_DEXIE_DB_NAME,
+    collections: {
+      layer_units: [],
+      layer_unit_contents: [],
+      layers: [],
+    },
+  })),
 }));
 
-vi.mock('../db/projectScopedSnapshot', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../db/projectScopedSnapshot')>();
-  return {
-    ...actual,
-    exportProjectScopedDatabaseAsJson: mockExportProjectScopedDatabaseAsJson,
+vi.mock('../db/io', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../db/io')>()),
+  exportRecoveryDatabaseAsJson: mockExportRecoveryDatabaseAsJson,
+}));
+
+/** 统计每张 IndexedDB 表实际读出的行 | Records every row IndexedDB actually hands back, per store */
+function recordIdbReads(): { rows: Map<string, unknown[]>; stop: () => void } {
+  const rows = new Map<string, unknown[]>();
+  const add = (store: string, values: unknown[]) =>
+    rows.set(store, [...(rows.get(store) ?? []), ...values]);
+  const storeName = (source: IDBObjectStore | IDBIndex) =>
+    source instanceof IDBIndex ? source.objectStore.name : source.name;
+  const restore: Array<() => void> = [];
+  const wrap = (proto: IDBObjectStore | IDBIndex, method: 'get' | 'getAll' | 'openCursor') => {
+    const original = proto[method] as (...args: unknown[]) => IDBRequest;
+    (proto as unknown as Record<string, unknown>)[method] = function (
+      this: IDBObjectStore | IDBIndex,
+      ...args: unknown[]
+    ) {
+      const request = original.apply(this, args);
+      const store = storeName(this);
+      request.addEventListener('success', () => {
+        const result: unknown = request.result;
+        if (method === 'getAll') add(store, result as unknown[]);
+        else if (method === 'openCursor') {
+          if (result) add(store, [(result as IDBCursorWithValue).value]);
+        } else if (result !== undefined) add(store, [result]);
+      });
+      return request;
+    };
+    restore.push(() => {
+      (proto as unknown as Record<string, unknown>)[method] = original;
+    });
   };
-});
+  for (const proto of [IDBObjectStore.prototype, IDBIndex.prototype]) {
+    for (const method of ['get', 'getAll', 'openCursor'] as const) wrap(proto, method);
+  }
+  return { rows, stop: () => restore.forEach((undo) => undo()) };
+}
 
 describe('SnapshotService', () => {
   beforeEach(async () => {
@@ -225,7 +225,8 @@ describe('SnapshotService', () => {
     expect(getRecoverySnapshotSkip()).toBeNull();
   });
 
-  it('T43: stores and reads recovery snapshots per project, keeping only that project', async () => {
+  it('T43 / N3: per-project snapshots read only that project through indexes (real Dexie)', async () => {
+    const NOW = '2026-01-01T00:00:00.000Z';
     const unitOf = (id: string, textId: string): LayerUnitDocType => ({
       id,
       textId,
@@ -234,47 +235,47 @@ describe('SnapshotService', () => {
       unitType: 'unit',
       startTime: 0,
       endTime: 1,
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
+      createdAt: NOW,
+      updatedAt: NOW,
     });
-    const whole = {
-      schemaVersion: 5,
-      exportedAt: '2026-06-01T00:00:00.000Z',
-      dbName: JIEYU_DEXIE_DB_NAME,
-      collections: {
-        texts: [
-          { id: 't1', title: { default: 'one' } },
-          { id: 't2', title: { default: 'two' } },
-        ],
-        layer_units: [unitOf('u1', 't1'), unitOf('u2', 't2')],
-        layer_unit_contents: [],
-        layers: [],
-      },
-    };
-    const scopedOf = (textId: string) => ({
-      ...whole,
-      collections: {
-        texts: whole.collections.texts.filter((row) => row.id === textId),
-        layer_units: whole.collections.layer_units.filter((row) => row.textId === textId),
-        layer_unit_contents: [],
-        layers: [],
-      },
-    });
-    mockExportProjectScopedDatabaseAsJson.mockResolvedValueOnce(scopedOf('t1'));
-    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't1' });
-    mockExportProjectScopedDatabaseAsJson.mockResolvedValueOnce(scopedOf('t2'));
-    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't2' });
+    await Promise.all(db.tables.map((table) => table.clear()));
+    await db.texts.bulkPut([
+      { id: 't1', title: { default: 'one' }, createdAt: NOW, updatedAt: NOW },
+      { id: 't2', title: { default: 'two' }, createdAt: NOW, updatedAt: NOW },
+    ] as never);
+    await db.layer_units.bulkPut([
+      unitOf('u1', 't1'),
+      ...Array.from({ length: 300 }, (_, index) => unitOf(`u2-${index}`, 't2')),
+    ]);
 
+    const reads = recordIdbReads();
+    try {
+      await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't1' });
+    } finally {
+      reads.stop();
+    }
+    // 另一个项目的行一条都没读 | Not a single row of the other project was read
+    const mainStores = db.tables.map((table) => table.name);
+    const foreign = [...reads.rows]
+      .filter(([store]) => mainStores.includes(store))
+      .flatMap(([, values]) => values as Array<Record<string, unknown>>)
+      .filter((row) => row.textId === 't2' || row.id === 't2');
+    expect(foreign).toEqual([]);
+    expect(reads.rows.get('layer_units')).toHaveLength(1);
+    expect(mockExportRecoveryDatabaseAsJson).not.toHaveBeenCalled();
+
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't2' });
     const one = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
     expect(getRecoveryLayerUnits(one!).map((u) => u.id)).toEqual(['u1']);
-    expect(one!.snapshot.collections.texts).toEqual([{ id: 't1', title: { default: 'one' } }]);
+    expect(one!.snapshot.collections.texts).toEqual([
+      { id: 't1', title: { default: 'one' }, createdAt: NOW, updatedAt: NOW },
+    ]);
     const two = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2');
-    expect(getRecoveryLayerUnits(two!).map((u) => u.id)).toEqual(['u2']);
+    expect(getRecoveryLayerUnits(two!)).toHaveLength(300);
     // 没有整库键 | No whole-database row is written
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
 
     // 一个项目超限只清自己的快照 | One project over the cap only clears its own snapshot
-    mockExportProjectScopedDatabaseAsJson.mockResolvedValueOnce(scopedOf('t1'));
     const skipped = await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, {
       projectId: 't1',
       maxSerializedUtf8Bytes: 50,
@@ -286,6 +287,7 @@ describe('SnapshotService', () => {
 
     await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2');
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't2')).resolves.toBeNull();
+    await Promise.all(db.tables.map((table) => table.clear()));
   });
 
   it('T43: a pre-upgrade whole-database snapshot is read per project and cleared with it', async () => {

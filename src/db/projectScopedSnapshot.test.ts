@@ -1,9 +1,13 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db } from './engine';
+import { db, getDb } from './engine';
+import type { LayerDocType } from './types';
 import { entryDoc } from '../utils/dmlexEntry';
+import { exportDatabaseAsJson, RECOVERY_EXPORT_COLLECTIONS } from './io';
 import {
+  exportProjectRecoveryDatabaseAsJson,
   exportProjectScopedDatabaseAsJson,
+  filterCollectionsForProject,
   importProjectScopedDatabaseFromJson,
 } from './projectScopedSnapshot';
 
@@ -181,5 +185,88 @@ describe('project-scoped snapshot export/import', () => {
     expect(await db.token_lexeme_links.get('link-b')).toBeTruthy();
     expect(await db.token_lexeme_links.get('link-stale')).toBeUndefined();
     expect(await db.lexemes.get('lex-dog')).toBeTruthy();
+  });
+
+  it('N3: indexed recovery export equals the whole-DB export filtered to the project', async () => {
+    const jdb = await getDb();
+    for (const textId of ['text-a', 'text-b']) {
+      await seedText(textId, `unit-${textId}`);
+      for (const kind of ['trc', 'trl']) {
+        await jdb.collections.layers.insert({
+          id: `${kind}-${textId}`,
+          textId,
+          key: `${kind}_${textId}`,
+          name: { eng: kind },
+          layerType: kind === 'trc' ? 'transcription' : 'translation',
+          languageId: 'eng',
+          modality: 'text',
+          createdAt: NOW,
+          updatedAt: NOW,
+        } as LayerDocType);
+      }
+      await db.layer_links.put({
+        id: `link-${textId}`,
+        transcriptionLayerKey: `trc_${textId}`,
+        hostTranscriptionLayerId: `trc-${textId}`,
+        layerId: `trl-${textId}`,
+        linkType: 'free',
+        isPreferred: true,
+        createdAt: NOW,
+      });
+      await db.unit_tokens.put({
+        id: `tok-${textId}`,
+        textId,
+        unitId: `unit-${textId}`,
+        form: { default: 'x' },
+        tokenIndex: 0,
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      // 没有 textId 的内容行按 unitId 归属 | A content row without textId belongs via its unitId
+      await db.layer_unit_contents.put({
+        id: `cnt-${textId}`,
+        unitId: `unit-${textId}`,
+        layerId: `trl-${textId}`,
+        text: 'hi',
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as never);
+      await db.anchors.put({
+        id: `anc-${textId}`,
+        mediaId: `media-${textId}`,
+        time: 1,
+        createdAt: NOW,
+      });
+      await db.user_notes.put({
+        id: `note-${textId}`,
+        targetType: 'unit',
+        targetId: `unit-${textId}`,
+        content: { default: 'n' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      await db.speakers.put({
+        id: `spk-${textId}`,
+        name: 'S',
+        textId,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as never);
+    }
+
+    const scoped = await exportProjectRecoveryDatabaseAsJson('text-a');
+    const whole = filterCollectionsForProject((await exportDatabaseAsJson()).collections, 'text-a');
+    const expected = Object.fromEntries(
+      RECOVERY_EXPORT_COLLECTIONS.filter((name) => Array.isArray(whole[name])).map((name) => [
+        name,
+        whole[name],
+      ]),
+    );
+    expect(scoped.collections).toEqual(expected);
+    expect(scoped.collections.layer_unit_contents).toHaveLength(1);
+    expect(scoped.collections.layer_links).toHaveLength(1);
+    expect(scoped.collections.anchors).toHaveLength(1);
+    expect(scoped.collections.user_notes).toHaveLength(1);
+    expect(scoped.collections.speakers).toHaveLength(1);
   });
 });

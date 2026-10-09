@@ -2,7 +2,13 @@
  * Collaboration project snapshots are a textId-scoped subset of the Dexie dump.
  * User whole-DB backup (`exportDatabaseAsJson`) stays on a separate path (ADR-0008 / ADR-0034).
  */
-import { exportDatabaseAsJson, importDatabaseFromJson } from './io';
+import {
+  exportDatabaseAsJson,
+  importDatabaseFromJson,
+  markMediaBytesOmitted,
+  RECOVERY_EXPORT_COLLECTIONS,
+  SNAPSHOT_SCHEMA_VERSION,
+} from './io';
 import type { ImportResult, UserNoteDocType } from './types';
 import { getDb, type JieyuDatabase } from './engine';
 import { noteBelongsToProject, projectPurgeStores, purgeProjectRows } from './projectLocalPurge';
@@ -249,6 +255,108 @@ export async function exportProjectScopedDatabaseAsJson(textId: string): Promise
     exportedAt: full.exportedAt,
     dbName: full.dbName,
     collections: filterCollectionsForProject(full.collections, textId),
+  };
+}
+
+/**
+ * 单个项目的崩溃恢复快照：只按 textId / 父行 id 索引读本项目的行，不读整表（N3 / R2-2）。
+ * One project's crash-recovery snapshot: reads only this project's rows through textId / parent-id
+ * indexes, never whole tables (N3 / R2-2).
+ */
+export async function exportProjectRecoveryDatabaseAsJson(textId: string): Promise<{
+  schemaVersion: number;
+  exportedAt: string;
+  dbName: string;
+  collections: SnapshotCollections;
+}> {
+  const db = await getDb();
+  const d = db.dexie;
+  const raw = await withTransaction(
+    db,
+    'r',
+    [
+      d.texts,
+      d.media_items,
+      d.tier_definitions,
+      d.layer_links,
+      d.layer_units,
+      d.layer_unit_contents,
+      d.segment_meta,
+      d.unit_relations,
+      d.unit_tokens,
+      d.unit_morphemes,
+      d.speakers,
+      d.user_notes,
+      d.anchors,
+    ],
+    async () => {
+      const [text, media, layers, units, contents, metas, relations, tokens, morphemes] =
+        await Promise.all([
+          d.texts.get(textId),
+          d.media_items.where('textId').equals(textId).toArray(),
+          db.collections.layers.findByIndex('textId', textId),
+          d.layer_units.where('textId').equals(textId).toArray(),
+          d.layer_unit_contents.where('textId').equals(textId).toArray(),
+          d.segment_meta.where('textId').equals(textId).toArray(),
+          d.unit_relations.where('textId').equals(textId).toArray(),
+          d.unit_tokens.where('textId').equals(textId).toArray(),
+          d.unit_morphemes.where('textId').equals(textId).toArray(),
+        ]);
+      const layerIds = layers.map((layer) => layer.id);
+      const [linksByLayer, linksByHost, contentsByUnit, anchors, speakers, notes] =
+        await Promise.all([
+          d.layer_links.where('layerId').anyOf(layerIds).toArray(),
+          d.layer_links.where('hostTranscriptionLayerId').anyOf(layerIds).toArray(),
+          // textId 在内容行上是可选的 | textId is optional on content rows
+          d.layer_unit_contents
+            .where('unitId')
+            .anyOf(units.map((unit) => unit.id))
+            .toArray(),
+          d.anchors
+            .where('mediaId')
+            .anyOf(media.map((item) => item.id))
+            .toArray(),
+          // shortcut: speakers / user_notes 没有项目索引，整表读（两张小表），变大时加 textId 索引
+          // shortcut: speakers / user_notes have no project index and are read whole (small tables); add a textId index if they grow
+          d.speakers.toArray(),
+          d.user_notes.toArray(),
+        ]);
+      const byId = <T extends { id: string }>(...lists: T[][]) => [
+        ...new Map(lists.flat().map((row) => [row.id, row])).values(),
+      ];
+      return {
+        texts: text ? [text] : [],
+        media_items: media,
+        layers: layers.map((layer) => layer.toJSON()),
+        layer_links: byId(linksByLayer, linksByHost),
+        layer_units: units,
+        layer_unit_contents: byId(contents, contentsByUnit),
+        segment_meta: metas,
+        unit_relations: relations,
+        unit_tokens: tokens,
+        unit_morphemes: morphemes,
+        speakers,
+        user_notes: notes,
+        anchors,
+      } as SnapshotCollections;
+    },
+    { label: 'exportProjectRecoveryDatabaseAsJson' },
+  );
+  const filtered = filterCollectionsForProject(raw, textId);
+  const collections: SnapshotCollections = {};
+  for (const name of RECOVERY_EXPORT_COLLECTIONS) {
+    const rows = filtered[name];
+    if (Array.isArray(rows)) collections[name] = rows;
+  }
+  // 与整库导出一样不带媒体字节 | No media bytes, same as the whole-DB export
+  for (const item of (collections.media_items ?? []) as Record<string, unknown>[]) {
+    markMediaBytesOmitted(item);
+  }
+  return {
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    dbName: db.name,
+    collections,
   };
 }
 
