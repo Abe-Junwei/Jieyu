@@ -51,4 +51,6 @@ source_of_truth: tests/e2e/batch4bRawSnapshot.spec.ts
 | T44 e2e      | `npx playwright test --project=chromium tests/e2e/batch4bDurability.spec.ts`                                                                                                 | 1/1 通过             |
 | T41 e2e      | `npx playwright test --project=chromium tests/e2e/batch4bRawSnapshot.spec.ts tests/e2e/batch3Jyb.spec.ts`                                                                    | 5/5 通过             |
 
+全量（Node 22，提交 `e76f90d6`，同一次运行）：`npm run test:vitest:dot` 882 文件通过、2 跳过，6268 用例通过、57 跳过；`npx playwright test --project=chromium --retries=0` 73 通过、2 跳过。
+
 测试编号对应：T41 `rawSnapshotConverter.test.ts`（转换后逐项目导入字节完整、原始 ZIP 不变、合成 v2 upgrader 被执行、upgrader 失败时原始数据和主库不变且临时库被删、比应用新 / 其他库 / 非原始快照被拒绝）+ e2e；T43 `SnapshotService.test.ts`（超限返回已跳过并清理旧快照、按项目存取、升级前整库快照按项目读取并一并清除）、`RecoverySnapshotSkippedNotice.test.tsx`；T44 `storageDurability.test.ts`（只在第一次导入 / 保存时申请、启动申请不覆盖手势记录、不支持与出错都记录）、`backupFolderService.test.ts`（保留最近 3 份、不动其他文件、写入失败不动旧备份）+ e2e（主库写入全部报 QuotaExceededError 时导入只提示、项目数和音频字节不变；persist 记录为导入时；诊断面板；OPFS 目录代替用户文件夹轮换 4 次后剩 3 份）。
