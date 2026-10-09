@@ -2,6 +2,9 @@
  * 第 5 批（D4、T46）：一个项目多份标注文稿——新建、切换、导入到当前文稿、删除，以及 JYT 往返。
  * Batch 5 (D4, T46): several annotation documents per project — create, switch, import into the
  * current document, delete, and a JYT round trip.
+ * 新建 / 删除走应用内对话框；删除前存一份快照，可从「从快照恢复」找回。
+ * Create / delete use in-app dialogs; a delete saves a snapshot first that "Restore from a snapshot"
+ * brings back.
  */
 import { test, expect, type Page } from '@playwright/test';
 
@@ -83,6 +86,51 @@ async function listTextIds(page: Page): Promise<string[]> {
   });
 }
 
+/** 快照库里本项目的快照种类（新的在后）| Snapshot kinds of a project, oldest first */
+async function listSnapshotKinds(
+  page: Page,
+  projectId: string,
+): Promise<Array<{ seq: number; packageKind: string }>> {
+  return page.evaluate(
+    (id) =>
+      new Promise<Array<{ seq: number; packageKind: string }>>((resolve, reject) => {
+        const open = indexedDB.open('jieyu_overwrite_snapshots');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const idb = open.result;
+          if (!idb.objectStoreNames.contains('snapshots')) {
+            idb.close();
+            resolve([]);
+            return;
+          }
+          const req = idb.transaction('snapshots', 'readonly').objectStore('snapshots').getAll();
+          req.onsuccess = () => {
+            idb.close();
+            resolve(
+              (req.result as Array<{ seq: number; projectId: string; packageKind: string }>)
+                .filter((row) => row.projectId === id)
+                .sort((a, b) => a.seq - b.seq)
+                .map(({ seq, packageKind }) => ({ seq, packageKind })),
+            );
+          };
+          req.onerror = () => reject(req.error);
+        };
+      }),
+    projectId,
+  );
+}
+
+/** 菜单「删除当前文稿」→ 应用内确认对话框 → 删除 | Menu delete → in-app confirm dialog → delete */
+async function deleteCurrentDocument(page: Page): Promise<void> {
+  await openDocumentsMenu(page);
+  await expect(page.getByTestId('annotation-document-delete')).toBeEnabled();
+  await page.getByTestId('annotation-document-delete').click();
+  const dialog = page.getByRole('dialog', { name: /^(删除文稿|Delete document)$/ });
+  await expect(dialog).toContainText(/从快照恢复|Restore from a snapshot/);
+  await dialog.getByTestId('annotation-document-dialog-confirm').click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+}
+
 async function openDocumentsMenu(page: Page): Promise<void> {
   await page.locator('.left-rail-project-hub-btn').click();
   await page.getByRole('menuitem', { name: /标注文稿|Annotation documents/ }).hover();
@@ -113,11 +161,14 @@ function eaf(value: string): string {
 test.describe('Batch 5: multiple annotation documents | 第五批：多份标注文稿', () => {
   test('T46: create, import into, switch, round-trip and delete documents', async ({ page }) => {
     test.setTimeout(300_000);
-    // 新建文稿的名字走 prompt，删除走 confirm | Names via prompt, delete via confirm
+    // 文稿操作不再弹浏览器对话框；导出流程的密码提示照旧跳过 | Document actions raise no browser dialogs
+    const documentBrowserDialogs: string[] = [];
     page.on('dialog', (dialog) => {
-      if (dialog.type() === 'prompt') void dialog.accept('Second');
-      else if (/password|密码/i.test(dialog.message())) void dialog.dismiss();
-      else void dialog.accept();
+      if (/password|密码/i.test(dialog.message())) void dialog.dismiss();
+      else {
+        if (/文稿|document/i.test(dialog.message())) documentBrowserDialogs.push(dialog.message());
+        void dialog.accept();
+      }
     });
     const project = await setupFieldProjectWithMediaAndSegments(page);
     await waitForDexie(page);
@@ -131,6 +182,9 @@ test.describe('Batch 5: multiple annotation documents | 第五批：多份标注
     // 新建：成为当前文稿，原文稿的语段不动 | Create: becomes current; the first keeps its units
     await openDocumentsMenu(page);
     await page.getByTestId('annotation-document-create').click();
+    const createDialog = page.getByRole('dialog', { name: /^(新建文稿|New document)$/ });
+    await createDialog.getByTestId('annotation-document-dialog-name').fill('Second');
+    await createDialog.getByTestId('annotation-document-dialog-confirm').click();
     await expect.poll(async () => (await readDocs(page, project.textId)).docs.length).toBe(2);
     const created = await readDocs(page, project.textId);
     const secondId = created.docs[1]!.id;
@@ -190,19 +244,22 @@ test.describe('Batch 5: multiple annotation documents | 第五批：多份标注
       timeout: 25_000,
     });
     await waitForDexie(page);
-    await openDocumentsMenu(page);
-    await expect(page.getByTestId('annotation-document-delete')).toBeEnabled();
-    await page.getByTestId('annotation-document-delete').click();
+    await deleteCurrentDocument(page);
     await expect.poll(async () => (await readDocs(page, project.textId)).docs.length).toBe(1);
     const afterDelete = await readDocs(page, project.textId);
     expect(afterDelete.current).toBe(secondId);
     expect(afterDelete.docs[0]).toMatchObject({ id: secondId, units: secondUnits });
+    expect((await listSnapshotKinds(page, project.textId)).map((s) => s.packageKind)).toEqual([
+      'document-delete',
+    ]);
+    expect(documentBrowserDialogs).toEqual([]);
   });
 
   test('T46: two EAF files imported "as a new document" coexist; deleting one keeps the other', async ({
     page,
   }) => {
     test.setTimeout(300_000);
+    // 导入流程自己的浏览器确认照旧接受 | The import flow's own browser confirms are accepted as before
     page.on('dialog', (dialog) => void dialog.accept());
     const project = await setupFieldProjectWithMediaAndSegments(page);
     await waitForDexie(page);
@@ -238,13 +295,38 @@ test.describe('Batch 5: multiple annotation documents | 第五批：多份标注
     await openDocumentsMenu(page);
     await page.getByTestId('annotation-document-2').click();
     await expect.poll(async () => (await readDocs(page, project.textId)).current).toBe(docA!.id);
-    await openDocumentsMenu(page);
-    await page.getByTestId('annotation-document-delete').click();
+    await deleteCurrentDocument(page);
     await expect.poll(async () => (await readDocs(page, project.textId)).docs.length).toBe(2);
     const after = await readDocs(page, project.textId);
     expect(after.docs.map((d) => ({ id: d.id, units: d.units }))).toEqual([
       { id: three.docs[0]!.id, units: seededUnits },
       { id: docB!.id, units: docB!.units },
     ]);
+
+    // 删除前的快照可在「从快照恢复」里找回 A | The pre-delete snapshot brings A back
+    const [snapshot] = await listSnapshotKinds(page, project.textId);
+    expect(snapshot).toMatchObject({ packageKind: 'document-delete' });
+    await page.locator('.left-rail-project-hub-btn').click();
+    await page.getByRole('menuitem', { name: /^(导入|Import)/ }).hover();
+    await page.getByRole('menuitem', { name: /从快照恢复|Restore from a snapshot/ }).click();
+    const recovery = page.getByRole('dialog', { name: /^(从快照恢复|Restore from a snapshot)$/ });
+    const row = recovery.getByTestId(`snapshot-restore-row-${snapshot!.seq}`);
+    await expect(row).toContainText(/删除标注文稿前|Before deleting an annotation document/, {
+      timeout: 15_000,
+    });
+    await row.getByTestId(`snapshot-restore-preview-${snapshot!.seq}`).click();
+    await recovery.getByTestId('snapshot-restore-restore').click();
+    await recovery.getByRole('button', { name: /确认恢复|Confirm restore/ }).click();
+    await expect(recovery.getByTestId('snapshot-restore-done')).toBeVisible({ timeout: 30_000 });
+    await recovery.getByTestId('snapshot-restore-reload').click();
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({
+      timeout: 25_000,
+    });
+    await waitForDexie(page);
+    const restored = await readDocs(page, project.textId);
+    expect(restored.current).toBe(docA!.id);
+    expect(restored.docs.map((d) => ({ id: d.id, units: d.units }))).toEqual(
+      three.docs.map((d) => ({ id: d.id, units: d.units })),
+    );
   });
 });

@@ -59,6 +59,7 @@ import {
   type AnnotationDocumentReplacePreview,
 } from '../../services/annotationDocumentService';
 import { useAnnotationDocumentMenu } from './useAnnotationDocumentMenu';
+import { AnnotationDocumentDialog } from './AnnotationDocumentDialog';
 
 interface ProjectImportState {
   file: File;
@@ -657,7 +658,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     (message: string) => showToast(message, 'error', 0),
     [showToast],
   );
-  const documentMenu = useAnnotationDocumentMenu({
+  const { menu: documentMenu, dialog: documentDialog } = useAnnotationDocumentMenu({
     locale,
     textId: activeTextId,
     isOpen,
@@ -1651,6 +1652,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       {projectImportDialogNode}
       {timeMappingDialogNode}
       {annotationImportDialogNode}
+      <AnnotationDocumentDialog {...documentDialog} />
       <SnapshotRestoreDialog
         locale={locale}
         isOpen={snapshotRestoreOpen}

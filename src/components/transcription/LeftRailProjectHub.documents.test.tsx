@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../db';
+import { listProjectOverwriteSnapshots } from '../../db/projectOverwriteSnapshotStore';
 import { LocaleProvider } from '../../i18n';
 import { LeftRailProjectHub } from './LeftRailProjectHub';
 import { ensureDefaultAnnotationDocument } from '../../services/annotationDocumentService';
@@ -106,44 +107,73 @@ describe('LeftRailProjectHub annotation documents (batch 5)', () => {
       true,
     );
 
-    vi.spyOn(window, 'prompt').mockReturnValue('访谈二');
+    const prompt = vi.spyOn(window, 'prompt');
     fireEvent.click(screen.getByTestId('annotation-document-create'));
+    await screen.findByRole('dialog', { name: '新建文稿' });
+    fireEvent.change(screen.getByTestId('annotation-document-dialog-name'), {
+      target: { value: '访谈二' },
+    });
+    fireEvent.click(screen.getByTestId('annotation-document-dialog-confirm'));
     await waitFor(() => expect(onAnnotationDocumentsChanged).toHaveBeenCalledTimes(1));
     const docs = await db.annotation_documents.where('textId').equals(P).toArray();
     expect(docs).toHaveLength(2);
     const second = docs.find((doc) => doc.id !== first)!;
     expect(second.title).toEqual({ und: '访谈二' });
     expect((await db.texts.get(P))?.defaultDocumentId).toBe(second.id);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '新建文稿' })).toBeNull());
+
+    await openDocumentsMenu();
+    fireEvent.click(screen.getByTestId('annotation-document-rename'));
+    await screen.findByRole('dialog', { name: '重命名文稿' });
+    const nameInput = screen.getByTestId('annotation-document-dialog-name') as HTMLInputElement;
+    expect(nameInput.value).toBe('访谈二');
+    fireEvent.change(nameInput, { target: { value: '访谈 2' } });
+    fireEvent.keyDown(nameInput, { key: 'Enter' });
+    await waitFor(() => expect(onAnnotationDocumentsChanged).toHaveBeenCalledTimes(2));
+    expect((await db.annotation_documents.get(second.id))?.title).toEqual({ und: '访谈 2' });
 
     await openDocumentsMenu();
     fireEvent.click(await screen.findByText('文稿 1'));
-    await waitFor(() => expect(onAnnotationDocumentsChanged).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onAnnotationDocumentsChanged).toHaveBeenCalledTimes(3));
     expect((await db.texts.get(P))?.defaultDocumentId).toBe(first);
 
     await openDocumentsMenu();
-    await screen.findByText('访谈二');
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await screen.findByText('访谈 2');
+    const confirm = vi.spyOn(window, 'confirm');
     await waitFor(() =>
       expect((screen.getByTestId('annotation-document-delete') as HTMLButtonElement).disabled).toBe(
         false,
       ),
     );
     fireEvent.click(screen.getByTestId('annotation-document-delete'));
-    await waitFor(() => expect(onAnnotationDocumentsChanged).toHaveBeenCalledTimes(3));
-    expect(confirm).toHaveBeenCalled();
+    const deleteDialog = await screen.findByRole('dialog', { name: '删除文稿' });
+    expect(deleteDialog.textContent).toContain('删除文稿「文稿 1」？其中 0 个语段和 0 个层');
+    expect(deleteDialog.textContent).toContain('从快照恢复');
+    fireEvent.click(screen.getByTestId('annotation-document-dialog-confirm'));
+    await waitFor(() => expect(onAnnotationDocumentsChanged).toHaveBeenCalledTimes(4));
+    expect(prompt).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+    // 删除前存了一份可恢复的项目快照 | A restorable project snapshot was saved first
+    expect((await listProjectOverwriteSnapshots(P)).map((row) => row.packageKind)).toEqual([
+      'document-delete',
+    ]);
     const left = await db.annotation_documents.where('textId').equals(P).toArray();
     expect(left.map((doc) => doc.id)).toEqual([second.id]);
     expect((await db.texts.get(P))?.defaultDocumentId).toBe(second.id);
   });
 
-  it('cancelled prompts and confirms change nothing', async () => {
+  it('a cancelled dialog changes nothing', async () => {
     await ensureDefaultAnnotationDocument(P);
     const { onAnnotationDocumentsChanged } = renderHub();
     await openDocumentsMenu();
     await screen.findByText('文稿 1');
-    vi.spyOn(window, 'prompt').mockReturnValue(null);
     fireEvent.click(screen.getByTestId('annotation-document-create'));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await screen.findByRole('dialog', { name: '新建文稿' });
+    fireEvent.change(screen.getByTestId('annotation-document-dialog-name'), {
+      target: { value: '不要' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '新建文稿' })).toBeNull());
     expect(onAnnotationDocumentsChanged).not.toHaveBeenCalled();
     expect(await db.annotation_documents.where('textId').equals(P).count()).toBe(1);
   });

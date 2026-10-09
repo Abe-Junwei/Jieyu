@@ -1,9 +1,8 @@
 /**
  * 第 5 批（D4）：项目中心里的「标注文稿」菜单——列出文稿、切换、新建、重命名、删除当前文稿。
  * Batch 5 (D4): the project hub "Annotation documents" menu — list, switch, create, rename and delete.
- *
- * shortcut: 名称与删除确认用浏览器自带的 prompt / confirm，没有专门的对话框。
- * shortcut: names and the delete confirmation use the browser's prompt / confirm, not a custom dialog.
+ * 名称输入与删除确认走应用内对话框（AnnotationDocumentDialog），不用浏览器 prompt / confirm。
+ * Names and the delete confirmation use the in-app AnnotationDocumentDialog, not browser prompt / confirm.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ContextMenuItem } from '../ContextMenu';
@@ -20,6 +19,10 @@ import {
 } from '../../services/annotationDocumentService';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import { fireAndForget } from '../../utils/fireAndForget';
+import type {
+  AnnotationDocumentDialogProps,
+  AnnotationDocumentDialogRequest,
+} from './AnnotationDocumentDialog';
 
 type UseAnnotationDocumentMenuInput = {
   locale: Locale;
@@ -43,9 +46,14 @@ export function annotationDocumentLabel(
     : tf(locale, 'transcription.projectHub.documents.untitled', { index: index + 1 });
 }
 
-export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput): ContextMenuItem {
+export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput): {
+  menu: ContextMenuItem;
+  dialog: AnnotationDocumentDialogProps;
+} {
   const { locale, textId, isOpen, closeMenu, onDocumentsChanged, notifyError } = input;
   const [documents, setDocuments] = useState<AnnotationDocumentDocType[]>([]);
+  const [request, setRequest] = useState<AnnotationDocumentDialogRequest | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     const rows = textId ? await listAnnotationDocuments(textId) : [];
@@ -56,11 +64,22 @@ export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput)
   useEffect(() => {
     if (!isOpen) return;
     fireAndForget(refresh(), {
-      context: 'src/components/transcription/useAnnotationDocumentMenu.ts:L58',
+      context: 'src/components/transcription/useAnnotationDocumentMenu.ts:L66',
       policy: 'user-visible',
     });
   }, [isOpen, refresh]);
 
+  const reportError = useCallback(
+    (error: unknown) =>
+      notifyError(
+        tf(locale, 'transcription.projectHub.documents.failed', {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      ),
+    [locale, notifyError],
+  );
+
+  /** 菜单项：关菜单后执行；返回 true 表示文稿变了 | Menu action after closing the menu; true = changed */
   const run = useCallback(
     (action: () => Promise<boolean>) => {
       closeMenu();
@@ -71,23 +90,56 @@ export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput)
             await onDocumentsChanged();
             await refresh();
           } catch (error) {
-            notifyError(
-              tf(locale, 'transcription.projectHub.documents.failed', {
-                message: error instanceof Error ? error.message : String(error),
-              }),
-            );
+            reportError(error);
           }
         })(),
         {
-          context: 'src/components/transcription/useAnnotationDocumentMenu.ts:L67',
+          context: 'src/components/transcription/useAnnotationDocumentMenu.ts:L86',
           policy: 'user-visible',
         },
       );
     },
-    [closeMenu, locale, notifyError, onDocumentsChanged, refresh],
+    [closeMenu, onDocumentsChanged, refresh, reportError],
   );
 
-  return useMemo<ContextMenuItem>(() => {
+  /** 对话框确认：成功才关；失败留着对话框并提示 | Dialog confirm: closes on success, stays open on failure */
+  const confirmDialog = useCallback(
+    async (confirmed: AnnotationDocumentDialogRequest) => {
+      setBusy(true);
+      try {
+        if (confirmed.kind === 'create') await createAnnotationDocument(textId, confirmed.name);
+        else if (confirmed.kind === 'rename')
+          await renameAnnotationDocument(textId, confirmed.documentId, confirmed.name);
+        else await deleteAnnotationDocument(textId, confirmed.documentId);
+        setRequest(null);
+        await onDocumentsChanged();
+        await refresh();
+      } catch (error) {
+        reportError(error);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [onDocumentsChanged, refresh, reportError, textId],
+  );
+
+  const dialog = useMemo<AnnotationDocumentDialogProps>(
+    () => ({
+      locale,
+      request,
+      busy,
+      onChange: setRequest,
+      onCancel: () => setRequest(null),
+      onConfirm: (confirmed) =>
+        fireAndForget(confirmDialog(confirmed), {
+          context: 'src/components/transcription/useAnnotationDocumentMenu.ts:L134',
+          policy: 'user-visible',
+        }),
+    }),
+    [busy, confirmDialog, locale, request],
+  );
+
+  const menu = useMemo<ContextMenuItem>(() => {
     const currentIndex = documents.findIndex((doc) => doc.isDefault);
     const current = currentIndex >= 0 ? documents[currentIndex] : undefined;
     const currentLabel = current ? annotationDocumentLabel(locale, current, currentIndex) : '';
@@ -116,32 +168,24 @@ export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput)
           testId: 'annotation-document-create',
           separatorBefore: documents.length > 0,
           disabled: !canCreate,
-          onClick: () =>
-            run(async () => {
-              const name = window.prompt(
-                t(locale, 'transcription.projectHub.documents.createPrompt'),
-                '',
-              );
-              if (name === null) return false;
-              await createAnnotationDocument(textId, name);
-              return true;
-            }),
+          onClick: () => {
+            closeMenu();
+            setRequest({ kind: 'create', name: '' });
+          },
         },
         {
           label: t(locale, 'transcription.projectHub.documents.rename'),
           testId: 'annotation-document-rename',
           disabled: !current,
-          onClick: () =>
-            run(async () => {
-              if (!current) return false;
-              const name = window.prompt(
-                t(locale, 'transcription.projectHub.documents.renamePrompt'),
-                current.title ? (readAnyMultiLangLabel(current.title) ?? '') : '',
-              );
-              if (name === null) return false;
-              await renameAnnotationDocument(textId, current.id, name);
-              return true;
-            }),
+          onClick: () => {
+            if (!current) return;
+            closeMenu();
+            setRequest({
+              kind: 'rename',
+              documentId: current.id,
+              name: current.title ? (readAnyMultiLangLabel(current.title) ?? '') : '',
+            });
+          },
         },
         {
           label: t(locale, 'transcription.projectHub.documents.delete'),
@@ -152,19 +196,19 @@ export function useAnnotationDocumentMenu(input: UseAnnotationDocumentMenuInput)
             run(async () => {
               if (!current) return false;
               const preview = await previewAnnotationDocumentReplace(textId, current.id);
-              const confirmed = window.confirm(
-                tf(locale, 'transcription.projectHub.documents.deleteConfirm', {
-                  name: currentLabel,
-                  units: preview.unitCount,
-                  layers: preview.layerCount,
-                }),
-              );
-              if (!confirmed) return false;
-              await deleteAnnotationDocument(textId, current.id);
-              return true;
+              setRequest({
+                kind: 'delete',
+                documentId: current.id,
+                label: currentLabel,
+                units: preview.unitCount,
+                layers: preview.layerCount,
+              });
+              return false;
             }),
         },
       ],
     };
-  }, [documents, locale, run, textId]);
+  }, [closeMenu, documents, locale, run, textId]);
+
+  return { menu, dialog };
 }

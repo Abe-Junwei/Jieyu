@@ -1807,6 +1807,13 @@ export const enUSDictionary = {
   'transcription.projectHub.documents.collaboratedHint':
     'Projects that have collaborated cannot add documents yet',
   'transcription.projectHub.documents.failed': 'Document action failed: {message}',
+  'transcription.projectHub.documents.createTitle': 'New document',
+  'transcription.projectHub.documents.renameTitle': 'Rename document',
+  'transcription.projectHub.documents.deleteTitle': 'Delete document',
+  'transcription.projectHub.documents.nameLabel': 'Name',
+  'transcription.projectHub.documents.confirmCreate': 'Create',
+  'transcription.projectHub.documents.confirmRename': 'Save',
+  'transcription.projectHub.documents.confirmDelete': 'Delete',
   'transcription.projectHub.annotationImportTarget.newDocument':
     'Import as a new document (keeps the current document)',
   'transcription.importExport.sourcePreservationLayerSuffix': 'Source',
