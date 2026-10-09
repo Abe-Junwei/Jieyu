@@ -10,6 +10,7 @@ import { LinguisticService } from '../../services/LinguisticService';
 import { settleSegmentMetaSync } from '../../services/segmentMetaSyncBestEffort';
 import { useImportExport } from './useImportExport';
 import { ensureDefaultAnnotationDocument } from '../../services/annotationDocumentService';
+import { getRecoverySnapshot, saveRecoverySnapshot } from '../../services/SnapshotService';
 
 const mockReadFileAsText = vi.hoisted(() => vi.fn());
 const mockIngestTextFile = vi.hoisted(() => vi.fn());
@@ -2141,6 +2142,18 @@ describe('useImportExport - import success under stop-write', () => {
     const docs = await db.annotation_documents.where('textId').equals('text-reimport').toArray();
     expect(docs.map((doc) => doc.id)).toEqual([before]);
     expect((await db.texts.get('text-reimport'))?.defaultDocumentId).toBe(before);
+  });
+
+  it('batch 5 (B5-2): a document change clears the crash-recovery snapshot', async () => {
+    await ensureDefaultAnnotationDocument('text-reimport');
+    const name = (await getDb()).name;
+    await saveRecoverySnapshot(name, { projectId: 'text-reimport' });
+    expect(await getRecoverySnapshot(name, 'text-reimport')).not.toBeNull();
+    const { result } = renderImporter('text-reimport', []);
+    await act(async () => {
+      await result.current.reloadAfterAnnotationDocumentChange();
+    });
+    expect(await getRecoverySnapshot(name, 'text-reimport')).toBeNull();
   });
 
   async function importReimportFixture(text: string, fileName: string) {

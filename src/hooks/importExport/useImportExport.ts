@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestPersistOnGesture } from '../../utils/storageDurability';
 import { getDb } from '../../db';
+import { clearRecoverySnapshot } from '../../services/SnapshotService';
 import { useClickOutside } from '../ui/useClickOutside';
 import type {
   AnchorDocType,
@@ -1092,6 +1093,8 @@ export function useImportExport(input: UseImportExportInput) {
       if (!asNewDocument) return importFile(file, strategy, options);
       const textId = activeTextId ?? (await getActiveTextId());
       if (!textId) return importFile(file, strategy, options);
+      // B5-2：要换文稿了，旧范围的恢复快照作废 | B5-2: the document changes; drop the old recovery snapshot
+      await clearRecoverySnapshot((await getDb()).name, textId);
       try {
         const { kept } = await runInNewAnnotationDocument(textId, () =>
           importFile(file, strategy, options),
@@ -1216,10 +1219,17 @@ export function useImportExport(input: UseImportExportInput) {
     [pendingAnnotationImport, promptForEafTierRoles, runAnnotationImport],
   );
 
-  /** 第 5 批：文稿新建/切换/删除后重载当前项目 | Batch 5: reload after a document change */
+  /**
+   * 第 5 批：文稿新建/切换/删除后重载当前项目。B5-2：先清掉崩溃恢复快照——它是旧文稿范围的，
+   * 恢复它会把已删文稿的层带回来、把当前文稿指回已删的文稿。
+   * Batch 5: reload after a document change. B5-2: clear the crash-recovery snapshot first; it belongs
+   * to the old document scope and restoring it would bring deleted layers back.
+   */
   const reloadAfterAnnotationDocumentChange = useCallback(async () => {
     const textId = activeTextId ?? (await getActiveTextId());
-    if (textId) await loadSnapshot(textId);
+    if (!textId) return;
+    await clearRecoverySnapshot((await getDb()).name, textId);
+    await loadSnapshot(textId);
   }, [activeTextId, getActiveTextId, loadSnapshot]);
 
   return {
