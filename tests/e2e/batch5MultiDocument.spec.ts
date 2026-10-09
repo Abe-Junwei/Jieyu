@@ -198,4 +198,53 @@ test.describe('Batch 5: multiple annotation documents | 第五批：多份标注
     expect(afterDelete.current).toBe(secondId);
     expect(afterDelete.docs[0]).toMatchObject({ id: secondId, units: secondUnits });
   });
+
+  test('T46: two EAF files imported "as a new document" coexist; deleting one keeps the other', async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    page.on('dialog', (dialog) => void dialog.accept());
+    const project = await setupFieldProjectWithMediaAndSegments(page);
+    await waitForDexie(page);
+    const seeded = await readDocs(page, project.textId);
+    const seededUnits = seeded.docs[0]!.units;
+
+    const input = page.locator(
+      'input.left-rail-project-hub-file-input[accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"]',
+    );
+    for (const [index, name] of ['A.eaf', 'B.eaf'].entries()) {
+      await input.setInputFiles({
+        name,
+        mimeType: 'application/xml',
+        buffer: Buffer.from(eaf(`document ${name}`)),
+      });
+      await page.getByTestId('annotation-import-as-new-document').check();
+      // 作为新文稿时不显示替换预览 | No replace preview for a new document
+      await expect(page.getByTestId('annotation-import-replace-preview')).toBeHidden();
+      await page.getByRole('button', { name: /开始导入标注|Start annotation import/i }).click();
+      await expect
+        .poll(async () => (await readDocs(page, project.textId)).docs[index + 1]?.units ?? 0, {
+          timeout: 60_000,
+        })
+        .toBeGreaterThan(0);
+    }
+    const three = await readDocs(page, project.textId);
+    expect(three.docs).toHaveLength(3);
+    expect(three.docs[0]!.units).toBe(seededUnits);
+    expect(three.current).toBe(three.docs[2]!.id);
+    const [, docA, docB] = three.docs;
+
+    // 切到 A 再删除：B 与原文稿都不受影响 | Switch to A and delete it; B and the seeded one stay
+    await openDocumentsMenu(page);
+    await page.getByTestId('annotation-document-2').click();
+    await expect.poll(async () => (await readDocs(page, project.textId)).current).toBe(docA!.id);
+    await openDocumentsMenu(page);
+    await page.getByTestId('annotation-document-delete').click();
+    await expect.poll(async () => (await readDocs(page, project.textId)).docs.length).toBe(2);
+    const after = await readDocs(page, project.textId);
+    expect(after.docs.map((d) => ({ id: d.id, units: d.units }))).toEqual([
+      { id: three.docs[0]!.id, units: seededUnits },
+      { id: docB!.id, units: docB!.units },
+    ]);
+  });
 });
