@@ -5,10 +5,11 @@
  */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { strToU8, zipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { db, importDatabaseFromJson, JIEYU_DEXIE_DB_NAME } from '.';
 import { addLogObserver, type LogEntry } from '../observability/logger';
-import { importFromJieyuArchive } from '../services/JymService';
+import { exportProjectToJym, restoreJymAsNewProject } from '../services/JymService';
+import { sha256Hex } from '../services/projectArchiveContainer';
 import {
   COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS,
   importProjectScopedDatabaseFromJson,
@@ -64,22 +65,31 @@ async function expectNothingPlanted(): Promise<void> {
 
 describe('JY-04: dropped data classes on import / restore', () => {
   it('R-JYM-TRUST: a .jym cannot plant external_mcp_trust, AI memory or audit rows', async () => {
-    const archive = zipSync({
-      mimetype: strToU8('application/x-jieyu-media'),
-      'META-INF/manifest.json': strToU8(
-        JSON.stringify({
-          formatVersion: 1,
-          kind: 'jym',
-          schemaVersion: 5,
-          exportedAt: NOW,
-          dbName: JIEYU_DEXIE_DB_NAME,
-        }),
-      ),
-      'data/snapshot.json': strToU8(JSON.stringify(snapshotOf(hostileCollections('evil-proj')))),
+    await db.texts.put({
+      id: 'evil-proj',
+      title: { default: 'Field notes' },
+      createdAt: NOW,
+      updatedAt: NOW,
     });
-    const { importResult } = await importFromJieyuArchive(archive, { strategy: 'upsert' });
+    const files = unzipSync(await exportProjectToJym('evil-proj'));
+    await db.texts.clear();
+    // 往合法 JYM 的数据里塞进凭据 / AI / 审计集合，并改好清单哈希 | Plant hostile collections
+    const data = JSON.parse(strFromU8(files['data/project.json']!));
+    const hostile = hostileCollections('evil-proj');
+    for (const name of ['external_mcp_trust', 'project_ai_memories', 'audit_logs']) {
+      data.collections[name] = hostile[name];
+    }
+    const dataBytes = strToU8(JSON.stringify(data));
+    const manifest = JSON.parse(strFromU8(files['META-INF/manifest.json']!));
+    manifest.files[0].sha256 = await sha256Hex(dataBytes);
+    manifest.files[0].size = dataBytes.byteLength;
+    files['data/project.json'] = dataBytes;
+    files['META-INF/manifest.json'] = strToU8(JSON.stringify(manifest));
+    const archive = zipSync(files as Zippable);
+
+    const { importResult, projectId } = await restoreJymAsNewProject(archive);
     await expectNothingPlanted();
-    expect(await db.texts.get('evil-proj')).toBeDefined();
+    expect(await db.texts.get(projectId)).toBeDefined();
     expect(importResult.droppedCollections).toEqual([
       { name: 'external_mcp_trust', rows: 1 },
       { name: 'project_ai_memories', rows: 1 },

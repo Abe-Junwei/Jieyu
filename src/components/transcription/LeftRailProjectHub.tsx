@@ -1037,6 +1037,17 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                         })}
                       </PanelChip>
                     ) : null}
+                    {projectImportState.preview.restoreAsNewProject.includedBytesCount > 0 ? (
+                      <PanelChip data-testid="project-import-bytes-included">
+                        {tf(locale, 'transcription.projectHub.restoreBytesIncluded', {
+                          count: projectImportState.preview.restoreAsNewProject.includedBytesCount,
+                          sizeMb: (
+                            projectImportState.preview.restoreAsNewProject.includedBytesTotal /
+                            (1024 * 1024)
+                          ).toFixed(1),
+                        })}
+                      </PanelChip>
+                    ) : null}
                     {projectImportState.preview.restoreAsNewProject.skippedLanguageIds.length >
                     0 ? (
                       <PanelChip variant="warning">
@@ -1131,54 +1142,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                 </p>
               ) : null}
             </PanelSection>
-          ) : (
-            <PanelSection
-              className="left-rail-project-import-strategy-section"
-              title={t(locale, 'transcription.projectHub.importDialogStrategy')}
-            >
-              <fieldset className="left-rail-project-import-strategy">
-                <label>
-                  <input
-                    type="radio"
-                    name="project-import-strategy"
-                    checked={projectImportState.strategy === 'upsert'}
-                    onChange={() =>
-                      setProjectImportState((prev) =>
-                        prev ? { ...prev, strategy: 'upsert' } : prev,
-                      )
-                    }
-                  />
-                  <span>{t(locale, 'transcription.projectHub.strategy.upsert')}</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="project-import-strategy"
-                    checked={projectImportState.strategy === 'skip-existing'}
-                    onChange={() =>
-                      setProjectImportState((prev) =>
-                        prev ? { ...prev, strategy: 'skip-existing' } : prev,
-                      )
-                    }
-                  />
-                  <span>{t(locale, 'transcription.projectHub.strategy.skipExisting')}</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="project-import-strategy"
-                    checked={projectImportState.strategy === 'replace-all'}
-                    onChange={() =>
-                      setProjectImportState((prev) =>
-                        prev ? { ...prev, strategy: 'replace-all' } : prev,
-                      )
-                    }
-                  />
-                  <span>{t(locale, 'transcription.projectHub.strategy.replaceAll')}</span>
-                </label>
-              </fieldset>
-            </PanelSection>
-          )}
+          ) : null}
 
           <PanelSection
             className="left-rail-project-import-table-section"

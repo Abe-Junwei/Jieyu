@@ -13,7 +13,7 @@ import {
   type LayerUnitDocType,
 } from '../db';
 import { isSyntheticManuscriptId, syntheticManuscriptId } from '../utils/projectSourceFiles';
-import { collectArchiveProjectDocuments } from './JymService';
+import { collectArchiveProjectDocuments } from './archiveProjectDocuments';
 import { LayerTierUnifiedService } from './LayerTierUnifiedService';
 import {
   AnnotationDocumentProjectNotFoundError,

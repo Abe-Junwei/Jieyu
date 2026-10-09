@@ -64,9 +64,40 @@ function loadValidationModule(): Promise<ValidationModule> {
   return validationModulePromise;
 }
 
+/**
+ * 去掉媒体行的音频 Blob 并写省略标记与指纹（入站时据此保留或核对本机字节）。就地修改。
+ * Strip a media row's audio Blob and write the omission marker and fingerprint (inbound uses them
+ * to keep or check local bytes). Mutates the row.
+ */
+export function markMediaBytesOmitted(item: Record<string, unknown>): void {
+  const details = item['details'] as Record<string, unknown> | undefined;
+  const audioBlob = details?.['audioBlob'];
+  if (!details || !(audioBlob instanceof Blob)) return;
+  const copy = { ...details };
+  delete copy['audioBlob'];
+  copy[MEDIA_AUDIO_EXPORT_OMITTED_KEY] = true;
+  // 记录被省略字节的指纹，供入站时校验本机字节是否同一份 | Fingerprint for inbound checks
+  copy[MEDIA_AUDIO_EXPORT_OMITTED_BYTE_SIZE_KEY] = audioBlob.size;
+  if (audioBlob.type.length > 0) copy[MEDIA_AUDIO_EXPORT_OMITTED_MIME_TYPE_KEY] = audioBlob.type;
+  item['details'] = copy;
+}
+
+/** 去掉附件行的 Blob 并标为省略。就地修改 | Strip an attachment row's Blob and mark it omitted (mutates) */
+export function markAssetBytesOmitted(item: Record<string, unknown>): void {
+  if (!(item['blob'] instanceof Blob)) return;
+  delete item['blob'];
+  item['blobExportOmitted'] = true;
+}
+
 export async function exportDatabaseAsJson(options?: {
   /** 不读取这些集合（项目快照用来跳过 AI / 向量等大表，JY-15）| Collections not read at all (JY-15) */
   skipCollections?: ReadonlySet<string>;
+  /**
+   * 保留媒体 / 附件的 Blob（JYM 打包字节用；Blob 与行出自同一个只读事务）。默认去掉并打省略标记。
+   * Keep media / attachment Blobs (JYM packs the bytes; Blobs come from the same read-only
+   * transaction as the rows). By default they are stripped and marked omitted.
+   */
+  retainByteBlobs?: boolean;
 }): Promise<{
   schemaVersion: number;
   exportedAt: string;
@@ -98,29 +129,12 @@ export async function exportDatabaseAsJson(options?: {
   const collections = Object.fromEntries(entries) as Record<string, unknown[]>;
 
   // Omit offline audio blobs from JSON (keeps exports bounded); re-attach audio via the app.
-  const mediaItems = collections['media_items'] as Array<Record<string, unknown>> | undefined;
-  if (mediaItems) {
-    for (const item of mediaItems) {
-      const details = item['details'] as Record<string, unknown> | undefined;
-      const audioBlob = details?.['audioBlob'];
-      if (!details || !(audioBlob instanceof Blob)) continue;
-      const copy = { ...details };
-      delete copy['audioBlob'];
-      copy[MEDIA_AUDIO_EXPORT_OMITTED_KEY] = true;
-      // 记录被省略字节的指纹，供入站时校验本机字节是否同一份 | Fingerprint for inbound checks
-      copy[MEDIA_AUDIO_EXPORT_OMITTED_BYTE_SIZE_KEY] = audioBlob.size;
-      if (audioBlob.type.length > 0)
-        copy[MEDIA_AUDIO_EXPORT_OMITTED_MIME_TYPE_KEY] = audioBlob.type;
-      item['details'] = copy;
+  if (options?.retainByteBlobs !== true) {
+    for (const item of (collections['media_items'] ?? []) as Array<Record<string, unknown>>) {
+      markMediaBytesOmitted(item);
     }
-  }
-
-  const lexemeAssets = collections['lexeme_assets'] as Array<Record<string, unknown>> | undefined;
-  if (lexemeAssets) {
-    for (const item of lexemeAssets) {
-      if (!(item['blob'] instanceof Blob)) continue;
-      delete item['blob'];
-      item['blobExportOmitted'] = true;
+    for (const item of (collections['lexeme_assets'] ?? []) as Array<Record<string, unknown>>) {
+      markAssetBytesOmitted(item);
     }
   }
 

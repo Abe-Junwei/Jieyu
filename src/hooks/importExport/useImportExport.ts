@@ -953,6 +953,11 @@ export function useImportExport(input: UseImportExportInput) {
 
       handleExportJym: async () => {
         await runExport('jym', async () => {
+          // JYM 只含当前项目，默认带录音与附件字节（rev5 D1）| JYM: current project, bytes included (D1)
+          const textId = activeTextId ?? (await getActiveTextId());
+          if (!textId) {
+            throw new Error(t(locale, 'transcription.importExport.jymNeedsProject'));
+          }
           const jymService = await loadArchiveExportModule();
           const baseName = exportNamingMediaItem
             ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
@@ -962,7 +967,19 @@ export function useImportExport(input: UseImportExportInput) {
             setShowExportMenu(false);
             return;
           }
-          await jymService.downloadJieyuArchive('jym', baseName, exportOptions);
+          try {
+            await jymService.downloadProjectJym(textId, baseName, exportOptions);
+          } catch (error) {
+            if (error instanceof jymService.ProjectPackageTooLargeError) {
+              throw new Error(
+                tf(locale, 'transcription.importExport.jymTooLarge', {
+                  sizeMb: Math.ceil(error.totalBytes / (1024 * 1024)),
+                  limitMb: Math.floor(error.limitBytes / (1024 * 1024)),
+                }),
+              );
+            }
+            throw error;
+          }
           recordFullProjectArchiveExportCompleted();
           setSaveState({
             kind: 'done',

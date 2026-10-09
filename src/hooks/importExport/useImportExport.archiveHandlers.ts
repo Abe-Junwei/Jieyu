@@ -1,10 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { ImportConflictStrategy } from '../../db';
-import {
-  importJieyuArchiveFile,
-  previewJieyuArchiveFile,
-  type JieyuArchiveImportPreview,
-  type ProjectArchiveRestoreMode,
+import type {
+  JieyuArchiveImportPreview,
+  ProjectArchiveRestoreMode,
 } from '../../services/JymService';
 import { t, tf, type Locale } from '../../i18n';
 import { toErrorMessage } from '../../utils/saveStateError';
@@ -21,9 +19,22 @@ function isArchivePasswordError(error: unknown): boolean {
   return message.includes('password required') || message.includes('decrypt jieyu archive');
 }
 
-async function isJytFile(file: File): Promise<boolean> {
-  const jyt = await import('../../services/JytService');
-  return jyt.isJytPackage(new Uint8Array(await file.arrayBuffer()));
+function loadProjectPackageModule() {
+  return import('../../services/projectPackageService');
+}
+
+/** 不是 JYT / JYM 时给出明确的拒绝（T32）| Not a JYT / JYM: refuse clearly (T32) */
+async function readProjectPackageBytes(file: File) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const packages = await loadProjectPackageModule();
+  if (packages.detectProjectPackageKind(bytes) === null) {
+    const { SnapshotFormatError } = await import('../../db/snapshotFormatError');
+    throw new SnapshotFormatError({
+      code: 'unsupported-package',
+      message: 'Not a Jieyu project package (JYT / JYM).',
+    });
+  }
+  return { bytes, packages };
 }
 
 function pickProjectTitle(title: Record<string, string> | undefined, fallback: string): string {
@@ -79,66 +90,61 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
   };
 
   const previewProjectArchiveImport = async (file: File): Promise<JieyuArchiveImportPreview> => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const jyt = await import('../../services/JytService');
-    if (jyt.isJytPackage(bytes)) {
-      // JYT：恢复为新项目（D5 默认），预览里没有冲突和策略 | JYT restores as a new project (D5)
-      const preview = await withArchivePasswordRetry(file, (password) =>
-        jyt.previewJytRestore(bytes, {
-          ...(password ? { password } : {}),
-          ...(activeTextId ? { overwriteTargetProjectId: activeTextId } : {}),
-        }),
-      );
-      const title = pickProjectTitle(preview.sourceProject.title, preview.sourceProject.id);
-      const overwrite = preview.overwrite;
-      return {
-        kind: 'jyt',
-        manifest: {
-          formatVersion: preview.manifest.formatVersion,
-          kind: 'jyt',
-          schemaVersion: preview.manifest.dataSchemaVersion,
-          exportedAt: preview.manifest.created,
-          systemRefs: preview.manifest.systemRefs,
-        },
-        collections: preview.collections.map((item) => ({
-          name: item.name,
-          incoming: item.incoming,
-          conflicts: 0,
-          existing: 0,
-          willInsertUpsert: item.incoming,
-          willInsertSkipExisting: item.incoming,
-          willInsertReplaceAll: item.incoming,
-        })),
-        unresolvedSystemRefs: preview.unresolvedSystemRefs,
-        totalIncoming: preview.totalIncoming,
-        totalConflicts: 0,
-        restoreAsNewProject: {
-          sourceProjectTitle: title,
-          mediaWithoutBytes: preview.mediaWithoutBytes,
-          skippedLanguageIds: preview.skippedLanguageIds,
-          ...(overwrite
-            ? {
-                overwriteCurrentProject: {
-                  targetProjectId: overwrite.targetProjectId,
-                  targetTitle: pickProjectTitle(overwrite.targetTitle, overwrite.targetProjectId),
-                  available: overwrite.available,
-                  bytesAtRiskCount: overwrite.bytesAtRisk.length,
-                },
-              }
-            : {}),
-        },
-      };
-    }
-    return withArchivePasswordRetry(file, (password) =>
-      previewJieyuArchiveFile(file, password ? { password } : undefined),
+    const { bytes, packages } = await readProjectPackageBytes(file);
+    // JYT / JYM：恢复为新项目（D5 默认），预览里没有冲突和策略 | Restore as a new project (D5)
+    const preview = await withArchivePasswordRetry(file, (password) =>
+      packages.previewProjectPackageRestore(bytes, {
+        ...(password ? { password } : {}),
+        ...(activeTextId ? { overwriteTargetProjectId: activeTextId } : {}),
+      }),
     );
+    const title = pickProjectTitle(preview.sourceProject.title, preview.sourceProject.id);
+    const overwrite = preview.overwrite;
+    return {
+      kind: preview.kind,
+      manifest: {
+        formatVersion: preview.manifest.formatVersion,
+        kind: preview.kind,
+        schemaVersion: preview.manifest.dataSchemaVersion,
+        exportedAt: preview.manifest.created,
+        systemRefs: preview.manifest.systemRefs,
+      },
+      collections: preview.collections.map((item) => ({
+        name: item.name,
+        incoming: item.incoming,
+        conflicts: 0,
+        existing: 0,
+        willInsertUpsert: item.incoming,
+        willInsertSkipExisting: item.incoming,
+        willInsertReplaceAll: item.incoming,
+      })),
+      unresolvedSystemRefs: preview.unresolvedSystemRefs,
+      totalIncoming: preview.totalIncoming,
+      totalConflicts: 0,
+      restoreAsNewProject: {
+        sourceProjectTitle: title,
+        mediaWithoutBytes: preview.mediaWithoutBytes,
+        includedBytesCount: preview.includedBytes.count,
+        includedBytesTotal: preview.includedBytes.totalBytes,
+        skippedLanguageIds: preview.skippedLanguageIds,
+        ...(overwrite
+          ? {
+              overwriteCurrentProject: {
+                targetProjectId: overwrite.targetProjectId,
+                targetTitle: pickProjectTitle(overwrite.targetTitle, overwrite.targetProjectId),
+                available: overwrite.available,
+                bytesAtRiskCount: overwrite.bytesAtRisk.length,
+              },
+            }
+          : {}),
+      },
+    };
   };
 
-  const restoreJytArchive = async (file: File): Promise<string> => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const jyt = await import('../../services/JytService');
+  const restoreProjectPackage = async (file: File): Promise<string> => {
+    const { bytes, packages } = await readProjectPackageBytes(file);
     const restored = await withArchivePasswordRetry(file, (password) =>
-      jyt.restoreJytAsNewProject(bytes, password ? { password } : undefined),
+      packages.restoreProjectPackageAsNew(bytes, password ? { password } : undefined),
     );
     const written = Object.values(restored.importResult.collections).reduce(
       (sum, c) => sum + (c?.written ?? 0),
@@ -150,11 +156,13 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     });
   };
 
-  const overwriteWithJytArchive = async (file: File, targetProjectId: string): Promise<string> => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const jyt = await import('../../services/JytService');
+  const overwriteWithProjectPackage = async (
+    file: File,
+    targetProjectId: string,
+  ): Promise<string> => {
+    const { bytes, packages } = await readProjectPackageBytes(file);
     const result = await withArchivePasswordRetry(file, (password) =>
-      jyt.overwriteProjectWithJyt(bytes, {
+      packages.overwriteProjectWithPackage(bytes, {
         targetProjectId,
         ...(password ? { password } : {}),
       }),
@@ -164,6 +172,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       0,
     );
     return tf(locale, 'transcription.importExport.importDone.overwritten', {
+      kind: result.kind.toUpperCase(),
       title: pickProjectTitle(result.title, result.projectId),
       written,
     });
@@ -182,41 +191,15 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         if (!resolvedTextId) {
           throw new Error(t(locale, 'transcription.importExport.overwriteNotAllowed'));
         }
-        const message = await overwriteWithJytArchive(file, resolvedTextId);
+        const message = await overwriteWithProjectPackage(file, resolvedTextId);
         await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
         setSaveState({ kind: 'done', message });
         return true;
       }
-      if (await isJytFile(file)) {
-        const message = await restoreJytArchive(file);
-        // 仍停留在当前项目（JY-02）；新项目在项目列表里 | Stay on the current project (JY-02)
-        await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
-        setSaveState({ kind: 'done', message });
-        return true;
-      }
-      const imported = await withArchivePasswordRetry(file, (password) =>
-        importJieyuArchiveFile(file, {
-          strategy,
-          ...(password ? { password } : {}),
-        }),
-      );
-      const totals = Object.values(imported.importResult.collections).reduce(
-        (acc, c) => ({
-          written: acc.written + (c?.written ?? 0),
-          skipped: acc.skipped + (c?.skipped ?? 0),
-        }),
-        { written: 0, skipped: 0 },
-      );
-      // 归档导入后仍停留在当前项目（JY-02）| Stay on the current project after an archive import (JY-02)
+      const message = await restoreProjectPackage(file);
+      // 仍停留在当前项目（JY-02）；新项目在项目列表里 | Stay on the current project (JY-02)
       await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
-      setSaveState({
-        kind: 'done',
-        message: tf(locale, 'transcription.importExport.importDone.archive', {
-          kind: imported.kind.toUpperCase(),
-          written: totals.written,
-          skipped: totals.skipped,
-        }),
-      });
+      setSaveState({ kind: 'done', message });
       return true;
     } catch (err) {
       const rawMessage = describeArchiveImportError(locale, err);

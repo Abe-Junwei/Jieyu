@@ -1556,7 +1556,7 @@ export const enUSDictionary = {
   'transcription.toolbar.export.flextext': 'Export as FLEx (.flextext)',
   'transcription.toolbar.export.toolbox': 'Export as Toolbox (.txt)',
   'transcription.toolbar.export.jyt': 'Export current project as JYT (no audio)',
-  'transcription.toolbar.export.jym': 'Export as Jieyu Media (.jym)',
+  'transcription.toolbar.export.jym': 'Export current project as JYM (with audio)',
   'transcription.toolbar.export.srt': 'Export as SRT (.srt)',
   'transcription.toolbar.export.vtt': 'Export as WebVTT (.vtt)',
   'transcription.toolbar.export.csv': 'Export as CSV (.csv)',
@@ -1681,6 +1681,8 @@ export const enUSDictionary = {
   'transcription.projectHub.restoreSourceProject': 'Source project: {title}',
   'transcription.projectHub.restoreMediaMissing':
     'No audio: {count} recording(s) will show as missing and need their audio relinked.',
+  'transcription.projectHub.restoreBytesIncluded':
+    'With audio: {count} recording(s) or attachment(s) are restored from the package ({sizeMb} MB); every sha256 was checked.',
   'transcription.projectHub.restoreSkippedLanguages':
     'These language entries are already used by another local project and are skipped: {ids}',
   'transcription.projectHub.confirmRestoreAsNew': 'Restore as new project',
@@ -2303,7 +2305,8 @@ export const enUSDictionary = {
   'transcription.importExport.exportDone.toolbox': 'Toolbox exported.',
   'transcription.importExport.exportDone.jyt':
     'JYT exported: the current project only, without audio.',
-  'transcription.importExport.exportDone.jym': 'JYM project file exported.',
+  'transcription.importExport.exportDone.jym':
+    'JYM exported: the current project with its recordings and attachments.',
   'transcription.importExport.exportDone.srt': 'SRT exported.',
   'transcription.importExport.exportDone.vtt': 'WebVTT exported.',
   'transcription.importExport.exportDone.csv': 'CSV exported.',
@@ -2317,8 +2320,6 @@ export const enUSDictionary = {
   'transcription.importExport.archivePasswordPrompt': 'Enter the archive password.',
   'transcription.importExport.archivePasswordHintPrompt': 'Optional: add a password hint.',
   'transcription.importExport.archivePasswordRequired': 'Archive password must not be empty.',
-  'transcription.importExport.importDone.archive':
-    '{kind} project imported: wrote {written}, skipped {skipped}.',
   'transcription.importExport.importDone.segments': 'Imported {count} segments.',
   'transcription.importExport.importDone.segmentsWithLayers':
     'Imported {count} segments with {layers} extra layers.',
@@ -2377,14 +2378,17 @@ export const enUSDictionary = {
   'transcription.importExport.snapshotInvalidRecords':
     '{count} record(s) in this file do not match the current data structure ({collections}). Nothing was written.',
   'transcription.importExport.packageUnsupported':
-    'This package format or version is not supported (for example a whole-database JYT exported before batch 3). Nothing was written. Export it again with the current version.',
+    'This package format or version is not supported (for example a whole-database JYT / JYM exported before batch 3). Nothing was written. Export it again with the current version.',
   'transcription.importExport.packageInvalid':
     'The package is inconsistent and was rejected; nothing was written ({count} problem(s)): {problems}',
   'transcription.importExport.jytNeedsProject': 'Open a project first, then export it as JYT.',
+  'transcription.importExport.jymNeedsProject': 'Open a project first, then export it as JYM.',
+  'transcription.importExport.jymTooLarge':
+    'The JYM is too large (about {sizeMb} MB, limit {limitMb} MB) and was not exported. Export a JYT (no audio) instead.',
   'transcription.importExport.importDone.restoredAsNew':
     'Restored as the new project "{title}" ({written} records). Open it from the project list.',
   'transcription.importExport.importDone.overwritten':
-    'Overwrote the current project "{title}" from the JYT ({written} written); a snapshot was saved first.',
+    'Overwrote the current project "{title}" from the {kind} ({written} written); a snapshot was saved first.',
   'transcription.importExport.overwriteNotAllowed':
     'This project cannot be overwritten: it does not exist, has been collaborated on, or its history cannot be confirmed. Restore as a new project instead.',
   'transcription.importExport.overwriteBytesAtRisk':

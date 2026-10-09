@@ -39,10 +39,10 @@ function makePreview(): JieyuArchiveImportPreview {
       {
         name: 'projects',
         incoming: 2,
-        conflicts: 1,
-        existing: 1,
+        conflicts: 0,
+        existing: 0,
         willInsertUpsert: 2,
-        willInsertSkipExisting: 1,
+        willInsertSkipExisting: 2,
         willInsertReplaceAll: 2,
       },
       {
@@ -56,8 +56,15 @@ function makePreview(): JieyuArchiveImportPreview {
       },
     ],
     totalIncoming: 3,
-    totalConflicts: 1,
+    totalConflicts: 0,
     unresolvedSystemRefs: [],
+    restoreAsNewProject: {
+      sourceProjectTitle: 'Field notes',
+      mediaWithoutBytes: 0,
+      includedBytesCount: 2,
+      includedBytesTotal: 3 * 1024 * 1024,
+      skippedLanguageIds: [],
+    },
   };
 }
 
@@ -148,7 +155,7 @@ describe('LeftRailProjectHub project import dialog', () => {
 
     const dialog = await screen.findByRole('dialog', { name: '导入项目预览' });
     const cancelButton = screen.getByRole('button', { name: '取消' });
-    const confirmButton = screen.getByRole('button', { name: '开始导入项目' });
+    const confirmButton = screen.getByRole('button', { name: '恢复为新项目' });
 
     expect(dialog.className).toContain('dialog-card');
     expect(dialog.className).toContain('dialog-card-wide');
@@ -160,7 +167,7 @@ describe('LeftRailProjectHub project import dialog', () => {
     expect(screen.getByText('projects')).toBeTruthy();
   });
 
-  it('passes the selected strategy when confirming archive import', async () => {
+  it('JYM restores as a new project with its bytes; there is no import strategy (D1, D5)', async () => {
     const { onImportProjectArchive } = renderHub();
     const file = new File(['archive'], 'demo.jym', { type: 'application/octet-stream' });
     const input = document.querySelector('input[accept=".jyt,.jym"]') as HTMLInputElement;
@@ -168,11 +175,13 @@ describe('LeftRailProjectHub project import dialog', () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await screen.findByRole('dialog', { name: '导入项目预览' });
-    fireEvent.click(screen.getByLabelText('保留已有项（skip-existing）'));
-    fireEvent.click(screen.getByRole('button', { name: '开始导入项目' }));
+    expect(screen.getByTestId('project-import-bytes-included').textContent).toContain('3.0 MB');
+    expect(screen.getByTestId('project-import-restore-as-new')).toBeTruthy();
+    expect(screen.queryByLabelText('保留已有项（skip-existing）')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '恢复为新项目' }));
 
     await waitFor(() => {
-      expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'skip-existing', 'restore-as-new');
+      expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'upsert', 'restore-as-new');
     });
   });
 
@@ -184,6 +193,8 @@ describe('LeftRailProjectHub project import dialog', () => {
       restoreAsNewProject: {
         sourceProjectTitle: 'Field notes',
         mediaWithoutBytes: 1,
+        includedBytesCount: 0,
+        includedBytesTotal: 0,
         skippedLanguageIds: [],
         overwriteCurrentProject: {
           targetProjectId: 'p1',
@@ -221,6 +232,8 @@ describe('LeftRailProjectHub project import dialog', () => {
         restoreAsNewProject: {
           sourceProjectTitle: 'Field notes',
           mediaWithoutBytes: 0,
+          includedBytesCount: 0,
+          includedBytesTotal: 0,
           skippedLanguageIds: [],
           overwriteCurrentProject: {
             targetProjectId: 'p1',

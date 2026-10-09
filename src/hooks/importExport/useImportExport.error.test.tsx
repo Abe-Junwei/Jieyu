@@ -6,8 +6,9 @@ import { createLocaleWrapper } from '../../test/localeTestUtils';
 import { useImportExport } from './useImportExport';
 
 const mockIngestTextFile = vi.hoisted(() => vi.fn());
-const mockImportJieyuArchiveFile = vi.hoisted(() => vi.fn());
-const mockDownloadJieyuArchive = vi.hoisted(() => vi.fn(async () => undefined));
+const mockRestoreProjectPackageAsNew = vi.hoisted(() => vi.fn());
+const mockDetectProjectPackageKind = vi.hoisted(() => vi.fn(() => 'jym'));
+const mockDownloadProjectJym = vi.hoisted(() => vi.fn(async () => undefined));
 const mockUseOrthographies = vi.hoisted(() => vi.fn(() => []));
 
 vi.mock('../ui/useClickOutside', () => ({
@@ -18,12 +19,20 @@ vi.mock('../../utils/textIngestion', () => ({
   ingestTextFile: mockIngestTextFile,
 }));
 
+vi.mock('../../services/projectPackageService', async () => {
+  const actual = await vi.importActual('../../services/projectPackageService');
+  return {
+    ...actual,
+    detectProjectPackageKind: mockDetectProjectPackageKind,
+    restoreProjectPackageAsNew: mockRestoreProjectPackageAsNew,
+  };
+});
+
 vi.mock('../../services/JymService', async () => {
   const actual = await vi.importActual('../../services/JymService');
   return {
     ...actual,
-    importJieyuArchiveFile: mockImportJieyuArchiveFile,
-    downloadJieyuArchive: mockDownloadJieyuArchive,
+    downloadProjectJym: mockDownloadProjectJym,
   };
 });
 
@@ -51,8 +60,10 @@ const localeWrapper = createLocaleWrapper('zh-CN');
 describe('useImportExport - import error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockImportJieyuArchiveFile.mockReset();
-    mockDownloadJieyuArchive.mockReset();
+    mockRestoreProjectPackageAsNew.mockReset();
+    mockDetectProjectPackageKind.mockReset();
+    mockDetectProjectPackageKind.mockReturnValue('jym');
+    mockDownloadProjectJym.mockReset();
     mockUseOrthographies.mockReturnValue([]);
   });
 
@@ -115,7 +126,7 @@ describe('useImportExport - import error handling', () => {
       });
     }
 
-    expect(mockImportJieyuArchiveFile).not.toHaveBeenCalled();
+    expect(mockRestoreProjectPackageAsNew).not.toHaveBeenCalled();
     expect(mockIngestTextFile).not.toHaveBeenCalled();
     expect(input.setSaveState).toHaveBeenCalledWith({
       kind: 'error',
@@ -123,9 +134,9 @@ describe('useImportExport - import error handling', () => {
     });
   });
 
-  it('should surface archive replace-all error via import failed message', async () => {
+  it('should surface archive restore error via import failed message', async () => {
     const input = createInput();
-    mockImportJieyuArchiveFile.mockRejectedValueOnce(new Error('archive broken'));
+    mockRestoreProjectPackageAsNew.mockRejectedValueOnce(new Error('archive broken'));
 
     const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
@@ -152,7 +163,7 @@ describe('useImportExport - import error handling', () => {
     const input = createInput();
     const conflict = new Error('external write conflict');
     conflict.name = 'RecoveryApplyConflictError';
-    mockImportJieyuArchiveFile.mockRejectedValueOnce(conflict);
+    mockRestoreProjectPackageAsNew.mockRejectedValueOnce(conflict);
 
     const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
@@ -188,7 +199,7 @@ describe('useImportExport - import error handling', () => {
       await result.current.handleExportJym();
     });
 
-    expect(mockDownloadJieyuArchive).toHaveBeenCalledWith('jym', 'jieyu-project', {
+    expect(mockDownloadProjectJym).toHaveBeenCalledWith('text-1', 'jieyu-project', {
       encryption: {
         password: 'secret-pass',
         passwordHint: 'team-shared',

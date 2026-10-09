@@ -135,26 +135,38 @@ async function deriveArchiveKey(
   );
 }
 
-export async function encryptArchiveSnapshot(
-  payloadBytes: Uint8Array,
+/**
+ * 一次派生密钥、可加密多个条目的加密器（JYM 的字节文件也加密）。数据文件用 metadata 里的 IV；
+ * 每个字节文件用新的随机 IV，写在密文前 12 字节。
+ * Encryptor that derives the key once and encrypts several entries (JYM byte files are encrypted
+ * too). The data file uses the IV in the metadata; each byte file gets a fresh random IV stored as
+ * the first 12 bytes of its ciphertext.
+ */
+export interface ArchiveEncryptor {
+  metadata: JieyuArchiveEncryptionMetadata;
+  encryptData(bytes: Uint8Array): Promise<Uint8Array>;
+  encryptFile(bytes: Uint8Array): Promise<Uint8Array>;
+}
+
+export interface ArchiveDecryptor {
+  decryptData(bytes: Uint8Array): Promise<Uint8Array>;
+  decryptFile(bytes: Uint8Array): Promise<Uint8Array>;
+}
+
+const FILE_IV_BYTES = 12;
+
+export async function createArchiveEncryptor(
   options: JieyuArchiveEncryptionOptions,
-): Promise<{ encryptedBytes: Uint8Array; metadata: JieyuArchiveEncryptionMetadata }> {
+): Promise<ArchiveEncryptor> {
   const password = options.password.trim();
   if (!password) {
     throw new Error('Archive encryption password must not be empty');
   }
-
   const salt = randomBytes(16);
   const iv = randomBytes(12);
   const key = await deriveArchiveKey(password, salt, 'encrypt');
-  const encrypted = await getWebCrypto().subtle.encrypt(
-    { name: 'AES-GCM', iv: webCryptoBufferSource(iv) },
-    key,
-    webCryptoBufferSource(payloadBytes),
-  );
-
+  const subtle = getWebCrypto().subtle;
   return {
-    encryptedBytes: new Uint8Array(encrypted),
     metadata: {
       mode: 'aes-256-gcm',
       kdf: 'PBKDF2-SHA-256',
@@ -163,32 +175,74 @@ export async function encryptArchiveSnapshot(
       ivBase64: encodeBase64(iv),
       ...(options.passwordHint?.trim() ? { passwordHint: options.passwordHint.trim() } : {}),
     },
+    async encryptData(bytes) {
+      const out = await subtle.encrypt(
+        { name: 'AES-GCM', iv: webCryptoBufferSource(iv) },
+        key,
+        webCryptoBufferSource(bytes),
+      );
+      return new Uint8Array(out);
+    },
+    async encryptFile(bytes) {
+      const fileIv = randomBytes(FILE_IV_BYTES);
+      const out = new Uint8Array(
+        await subtle.encrypt(
+          { name: 'AES-GCM', iv: webCryptoBufferSource(fileIv) },
+          key,
+          webCryptoBufferSource(bytes),
+        ),
+      );
+      const combined = new Uint8Array(FILE_IV_BYTES + out.byteLength);
+      combined.set(fileIv, 0);
+      combined.set(out, FILE_IV_BYTES);
+      return combined;
+    },
   };
 }
 
-export async function decryptArchiveSnapshot(
-  payloadBytes: Uint8Array,
+export async function createArchiveDecryptor(
   encryption: JieyuArchiveEncryptionMetadata,
   password: string | undefined,
-): Promise<Uint8Array> {
+): Promise<ArchiveDecryptor> {
   const normalizedPassword = password?.trim();
   if (!normalizedPassword) {
     throw new Error('Encrypted Jieyu archive password required');
   }
-
+  const failed = () =>
+    new Error('Failed to decrypt Jieyu archive. Check the password and try again.');
+  let key: CryptoKey;
+  let iv: Uint8Array;
   try {
-    const salt = decodeBase64(encryption.saltBase64);
-    const iv = decodeBase64(encryption.ivBase64);
-    const key = await deriveArchiveKey(normalizedPassword, salt, 'decrypt');
-    const decrypted = await getWebCrypto().subtle.decrypt(
-      { name: 'AES-GCM', iv: webCryptoBufferSource(iv) },
-      key,
-      webCryptoBufferSource(payloadBytes),
+    iv = decodeBase64(encryption.ivBase64);
+    key = await deriveArchiveKey(
+      normalizedPassword,
+      decodeBase64(encryption.saltBase64),
+      'decrypt',
     );
-    return new Uint8Array(decrypted);
   } catch {
-    throw new Error('Failed to decrypt Jieyu archive. Check the password and try again.');
+    throw failed();
   }
+  const subtle = getWebCrypto().subtle;
+  const decrypt = async (ivBytes: Uint8Array, payload: Uint8Array) => {
+    try {
+      return new Uint8Array(
+        await subtle.decrypt(
+          { name: 'AES-GCM', iv: webCryptoBufferSource(ivBytes) },
+          key,
+          webCryptoBufferSource(payload),
+        ),
+      );
+    } catch {
+      throw failed();
+    }
+  };
+  return {
+    decryptData: (bytes) => decrypt(iv, bytes),
+    decryptFile: (bytes) => {
+      if (bytes.byteLength < FILE_IV_BYTES) return Promise.reject(failed());
+      return decrypt(bytes.subarray(0, FILE_IV_BYTES), bytes.subarray(FILE_IV_BYTES));
+    },
+  };
 }
 
 function validateJsonStructure(

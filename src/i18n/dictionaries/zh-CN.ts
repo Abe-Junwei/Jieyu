@@ -1460,7 +1460,7 @@ export const zhCNDictionary = {
   'transcription.toolbar.export.flextext': '导出为 FLEx (.flextext)',
   'transcription.toolbar.export.toolbox': '导出为 Toolbox (.txt)',
   'transcription.toolbar.export.jyt': '导出当前项目为 JYT（不含音频）',
-  'transcription.toolbar.export.jym': '导出为 Jieyu Media (.jym)',
+  'transcription.toolbar.export.jym': '导出当前项目为 JYM（含音频）',
   'transcription.toolbar.export.srt': '导出为字幕 SRT (.srt)',
   'transcription.toolbar.export.vtt': '导出为字幕 WebVTT (.vtt)',
   'transcription.toolbar.export.csv': '导出为表格 CSV (.csv)',
@@ -1576,6 +1576,8 @@ export const zhCNDictionary = {
   'transcription.projectHub.restoreSourceProject': '来源项目：{title}',
   'transcription.projectHub.restoreMediaMissing':
     '不含音频：{count} 条录音恢复后显示为缺失，需要重新关联音频。',
+  'transcription.projectHub.restoreBytesIncluded':
+    '含音频：{count} 个录音或附件随包恢复（共 {sizeMb} MB），字节已逐个核对 sha256。',
   'transcription.projectHub.restoreSkippedLanguages':
     '这些语言条目已被本机其他项目使用，恢复时跳过：{ids}',
   'transcription.projectHub.confirmRestoreAsNew': '恢复为新项目',
@@ -2154,7 +2156,7 @@ export const zhCNDictionary = {
   'transcription.importExport.exportDone.flextext': 'FLEx 已导出。',
   'transcription.importExport.exportDone.toolbox': 'Toolbox 已导出。',
   'transcription.importExport.exportDone.jyt': 'JYT 已导出：只含当前项目，不含音频。',
-  'transcription.importExport.exportDone.jym': 'JYM 项目文件已导出。',
+  'transcription.importExport.exportDone.jym': 'JYM 已导出：只含当前项目，含录音与附件。',
   'transcription.importExport.exportDone.srt': 'SRT 已导出。',
   'transcription.importExport.exportDone.vtt': 'WebVTT 已导出。',
   'transcription.importExport.exportDone.csv': 'CSV 已导出。',
@@ -2167,8 +2169,6 @@ export const zhCNDictionary = {
   'transcription.importExport.archivePasswordPrompt': '请输入归档密码。',
   'transcription.importExport.archivePasswordHintPrompt': '可选：输入一个密码提示。',
   'transcription.importExport.archivePasswordRequired': '归档密码不能为空。',
-  'transcription.importExport.importDone.archive':
-    '{kind} 项目已导入：写入 {written}，跳过 {skipped}。',
   'transcription.importExport.importDone.segments': '已导入 {count} 条句段。',
   'transcription.importExport.importDone.segmentsWithLayers':
     '已导入 {count} 条句段，含 {layers} 个额外层。',
@@ -2222,14 +2222,17 @@ export const zhCNDictionary = {
   'transcription.importExport.snapshotInvalidRecords':
     '文件里有 {count} 条记录不符合当前的数据结构（{collections}），未写入任何数据。',
   'transcription.importExport.packageUnsupported':
-    '这个包的格式或版本当前版本不支持（例如第 3 批之前导出的整库 JYT），未写入任何数据。请用当前版本重新导出。',
+    '这个包的格式或版本当前版本不支持（例如第 3 批之前导出的整库 JYT / JYM），未写入任何数据。请用当前版本重新导出。',
   'transcription.importExport.packageInvalid':
     '包的内容不一致，已拒绝导入，未写入任何数据（共 {count} 处问题）：{problems}',
   'transcription.importExport.jytNeedsProject': '请先打开一个项目，再导出 JYT。',
+  'transcription.importExport.jymNeedsProject': '请先打开一个项目，再导出 JYM。',
+  'transcription.importExport.jymTooLarge':
+    'JYM 太大（约 {sizeMb} MB，上限 {limitMb} MB），未导出。请改导出 JYT（不含音频）。',
   'transcription.importExport.importDone.restoredAsNew':
     '已恢复为新项目「{title}」，写入 {written} 条记录。可在项目列表里打开它。',
   'transcription.importExport.importDone.overwritten':
-    '已用 JYT 覆盖当前项目「{title}」，写入 {written} 条；覆盖前快照已保存。',
+    '已用 {kind} 覆盖当前项目「{title}」，写入 {written} 条；覆盖前快照已保存。',
   'transcription.importExport.overwriteNotAllowed':
     '这个项目不能覆盖：它不存在、协作过，或者无法确认是否协作过。请改为恢复为新项目。',
   'transcription.importExport.overwriteBytesAtRisk':
