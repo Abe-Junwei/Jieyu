@@ -1740,6 +1740,8 @@ export const enUSDictionary = {
   'transcription.projectHub.snapshotRestore.rows': '{count} rows',
   'transcription.projectHub.snapshotRestore.libraryLabel': 'Whole library ({count} projects)',
   'transcription.projectHub.snapshotRestore.kindBeforeImport': 'Before a {kind} overwrite',
+  'transcription.projectHub.snapshotRestore.kindBeforeDocumentDelete':
+    'Before deleting an annotation document',
   'transcription.projectHub.snapshotRestore.kindBeforeRestore': 'Before a snapshot restore',
   'transcription.projectHub.snapshotRestore.preview': 'Preview',
   'transcription.projectHub.snapshotRestore.previewTitle': 'Preview: {name}',
@@ -1801,7 +1803,7 @@ export const enUSDictionary = {
     'New name for the current document (leave empty for a numbered name)',
   'transcription.projectHub.documents.delete': 'Delete current document',
   'transcription.projectHub.documents.deleteConfirm':
-    'Delete the document “{name}”? Its {units} segments and {layers} layers are deleted with it. This cannot be undone.',
+    'Delete the document “{name}”? Its {units} segments and {layers} layers are deleted with it. A project snapshot is saved first; use Import → Restore from a snapshot… to get it back.',
   'transcription.projectHub.documents.collaboratedHint':
     'Projects that have collaborated cannot add documents yet',
   'transcription.projectHub.documents.failed': 'Document action failed: {message}',

@@ -59,6 +59,20 @@ export class AnnotationDocumentLastDocumentError extends Error {
 }
 
 /**
+ * 删除文稿前的快照没有存成功（或读回核对失败），删除已中止，什么都没改。
+ * The pre-delete snapshot could not be saved or verified; the delete was aborted and nothing changed.
+ */
+export class AnnotationDocumentSnapshotFailedError extends Error {
+  constructor(cause: unknown) {
+    super(
+      `pre-delete snapshot failed; the document was not deleted (${cause instanceof Error ? cause.message : String(cause)})`,
+      { cause },
+    );
+    this.name = 'AnnotationDocumentSnapshotFailedError';
+  }
+}
+
+/**
  * 协作过（或判定不了，D6）的项目不能新建文稿：协作同步不携带 annotation_documents。
  * Collaborated (or undecidable, D6) projects cannot add documents: sync does not carry them.
  */
@@ -560,7 +574,31 @@ export type AnnotationDocumentDeleteResult = {
   currentDocumentId: string;
   deletedUnitIds: string[];
   deletedLayerIds: string[];
+  /** 删除前快照的序号（jieyu_overwrite_snapshots）| Seq of the pre-delete snapshot */
+  snapshotSeq: number;
 };
+
+/**
+ * 删除前把整个项目存一份覆盖前快照（复用第 3 批的快照库与“从快照恢复”界面），写后读回核对。
+ * Save a verified project snapshot before the delete (reuses the Batch 3 snapshot store and its
+ * restore UI).
+ */
+async function savePreDeleteSnapshot(textId: string): Promise<number> {
+  try {
+    const [scoped, store] = await Promise.all([
+      import('../db/projectScopedSnapshot'),
+      import('../db/projectOverwriteSnapshotStore'),
+    ]);
+    const before = await scoped.exportProjectScopedDatabaseAsJson(textId);
+    return await store.saveProjectOverwriteSnapshot({
+      projectId: textId,
+      packageKind: 'document-delete',
+      snapshot: { schemaVersion: before.schemaVersion, collections: before.collections },
+    });
+  } catch (error) {
+    throw new AnnotationDocumentSnapshotFailedError(error);
+  }
+}
 
 /**
  * 删除一份文稿：它的层（含桥接行、层关系、层标注）和单元图一起删，同一次提交；其他文稿不动。
@@ -568,6 +606,8 @@ export type AnnotationDocumentDeleteResult = {
  * Delete one document: its layers (bridge rows, layer links, tier annotations) and unit graph go in one
  * commit; other documents are untouched. Deleting the current document makes the oldest remaining one
  * current. The last document cannot be deleted. Source records stay (they belong to the project).
+ * 删除前先存一份核对过的项目快照，快照失败就不删（AnnotationDocumentSnapshotFailedError）。
+ * A verified project snapshot is saved first; if it fails nothing is deleted.
  */
 export async function deleteAnnotationDocument(
   textId: string,
@@ -575,6 +615,13 @@ export async function deleteAnnotationDocument(
 ): Promise<AnnotationDocumentDeleteResult> {
   const owner = textId.trim();
   const db = await getDb();
+  // 先做不写库的检查，免得为注定失败的删除留快照 | Cheap checks first, so a doomed delete leaves no snapshot
+  const target = await db.dexie.annotation_documents.get(documentId);
+  if (!target || target.textId !== owner) throw new AnnotationDocumentNotFoundError(documentId);
+  if ((await db.dexie.annotation_documents.where('textId').equals(owner).count()) < 2) {
+    throw new AnnotationDocumentLastDocumentError();
+  }
+  const snapshotSeq = await savePreDeleteSnapshot(owner);
   try {
     return await withTransaction(
       db,
@@ -604,7 +651,12 @@ export async function deleteAnnotationDocument(
           await db.dexie.tier_definitions.bulkDelete(layerIds);
         }
         await db.dexie.annotation_documents.delete(documentId);
-        return { currentDocumentId: next.id, deletedUnitIds, deletedLayerIds: layerIds };
+        return {
+          currentDocumentId: next.id,
+          deletedUnitIds,
+          deletedLayerIds: layerIds,
+          snapshotSeq,
+        };
       },
       { label: 'annotationDocument.delete' },
     );

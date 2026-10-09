@@ -1501,6 +1501,7 @@ export const DICT_KEYS = [
   'transcription.projectHub.snapshotRestore.rows',
   'transcription.projectHub.snapshotRestore.libraryLabel',
   'transcription.projectHub.snapshotRestore.kindBeforeImport',
+  'transcription.projectHub.snapshotRestore.kindBeforeDocumentDelete',
   'transcription.projectHub.snapshotRestore.kindBeforeRestore',
   'transcription.projectHub.snapshotRestore.preview',
   'transcription.projectHub.snapshotRestore.previewTitle',

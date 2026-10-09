@@ -44,6 +44,9 @@ function snapshotLabel(locale: Locale, snapshot: OverwriteSnapshotSummary): stri
 }
 
 function kindLabel(locale: Locale, kind: OverwriteSnapshotSummary['packageKind']): string {
+  if (kind === 'document-delete') {
+    return t(locale, 'transcription.projectHub.snapshotRestore.kindBeforeDocumentDelete');
+  }
   return kind === 'snapshot-restore'
     ? t(locale, 'transcription.projectHub.snapshotRestore.kindBeforeRestore')
     : tf(locale, 'transcription.projectHub.snapshotRestore.kindBeforeImport', {

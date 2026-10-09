@@ -24,8 +24,9 @@ export interface ProjectOverwriteSnapshotRow {
   /**
    * 触发覆盖的操作：包类型，或从快照恢复（恢复前也存一份）。
    * What triggered the overwrite: a package kind, or a restore from a snapshot (saved before it too).
+   * `document-delete`：删除标注文稿前（第 5 批）| before an annotation document is deleted (Batch 5)
    */
-  packageKind: 'jyt' | 'jym' | 'jyb' | 'snapshot-restore';
+  packageKind: 'jyt' | 'jym' | 'jyb' | 'snapshot-restore' | 'document-delete';
   /** 快照结构版本（SNAPSHOT_SCHEMA_VERSION）| Snapshot schema version */
   schemaVersion: number;
   rowCount: number;

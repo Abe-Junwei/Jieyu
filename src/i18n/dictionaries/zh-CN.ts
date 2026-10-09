@@ -1631,6 +1631,7 @@ export const zhCNDictionary = {
   'transcription.projectHub.snapshotRestore.rows': '{count} 条',
   'transcription.projectHub.snapshotRestore.libraryLabel': '整库（{count} 个项目）',
   'transcription.projectHub.snapshotRestore.kindBeforeImport': '{kind} 导入覆盖前',
+  'transcription.projectHub.snapshotRestore.kindBeforeDocumentDelete': '删除标注文稿前',
   'transcription.projectHub.snapshotRestore.kindBeforeRestore': '从快照恢复前',
   'transcription.projectHub.snapshotRestore.preview': '预览',
   'transcription.projectHub.snapshotRestore.previewTitle': '预览：{name}',
@@ -1686,7 +1687,7 @@ export const zhCNDictionary = {
   'transcription.projectHub.documents.renamePrompt': '当前文稿的新名称（留空则显示序号名）',
   'transcription.projectHub.documents.delete': '删除当前文稿',
   'transcription.projectHub.documents.deleteConfirm':
-    '删除文稿「{name}」？其中 {units} 个语段和 {layers} 个层会一起删除，无法撤销。',
+    '删除文稿「{name}」？其中 {units} 个语段和 {layers} 个层会一起删除。删除前会先保存一份项目快照，可在「导入 → 从快照恢复…」找回。',
   'transcription.projectHub.documents.collaboratedHint': '协作过的项目暂不能新建文稿',
   'transcription.projectHub.documents.failed': '文稿操作失败：{message}',
   'transcription.projectHub.annotationImportTarget.newDocument': '导入为新文稿（不替换当前文稿）',
