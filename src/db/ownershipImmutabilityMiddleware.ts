@@ -28,8 +28,8 @@
  * 每行引用的父行 id，按父表分组，在同一事务里用下层 `getMany` 批量读一次（不逐行查、不扫表），
  * 要求子行自己的 `textId` 与各父行的 `textId` 一致（词条链接：目标 token / morpheme 与词条同项目）。
  * 中间件不能开第二个事务，所以它在创建读写事务时把子表的父表并入 IDB 作用域，隐式单表写
- * （Table.update / bulkUpdate / Collection.modify / collection.insert）也能读到父行。父行不存在时
- * 不检查（孤儿行由别处处理）。同项目内改指父行不受影响。
+ * （Table.update / bulkUpdate / Collection.modify / collection.insert）也能读到父行。同项目内改指父行
+ * 不受影响。
  *
  * Parent consistency (GAP-1): tokens / morphemes / lexeme links cannot hang off another
  * project's parent rows. For add / put, parent ids are grouped per parent table and read with ONE
@@ -38,7 +38,15 @@
  * the same project). The middleware cannot open a second transaction, so when a readwrite
  * transaction is created it widens the IDB scope with the child tables' parents; implicit
  * single-table writes (Table.update / bulkUpdate / Collection.modify / collection.insert) are covered
- * too. Missing parents are not checked. Repointing within a project is unaffected.
+ * too. Repointing within a project is unaffected.
+ *
+ * shortcut: 父行不存在时不检查，目前没有别处兜底；先写孤儿子行、之后在别的项目写同 id 父行不会被拦（BF1-N3）。
+ * 下一个数据完整性批次在归档导入的 inspector 里拒绝孤儿行，方案见
+ * docs/execution/plans/BF1-N3-归档导入拒绝孤儿行-2026-10-09.md。
+ * shortcut: missing parents are not checked and nothing else catches them, so an orphan child
+ * written first and a same-id parent later written in another project slips through (BF1-N3).
+ * Upgrade in the next data-integrity batch: reject orphan rows in the archive-import inspectors
+ * (plan: docs/execution/plans/BF1-N3-归档导入拒绝孤儿行-2026-10-09.md).
  */
 import type { DBCore, DBCoreMutateRequest, DBCoreTable, Middleware } from 'dexie';
 
