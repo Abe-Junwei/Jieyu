@@ -820,6 +820,7 @@ export function useImportExport(input: UseImportExportInput) {
             tokens.map((token) => token.id),
           );
           const timelineMetadata = await loadProjectTimelineMetadata();
+          let flattenedFields = 0;
           const toolbox = toolboxService.exportToToolbox({
             units: exportUnits,
             layers,
@@ -830,6 +831,9 @@ export function useImportExport(input: UseImportExportInput) {
             ...(timelineMetadata ? { timelineMetadata } : {}),
             ...(segmentsByLayer ? { segmentsByLayer } : {}),
             ...(segmentContents ? { segmentContents } : {}),
+            onFieldsFlattened: (count) => {
+              flattenedFields = count;
+            },
           });
           const baseName = exportNamingMediaItem
             ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
@@ -837,7 +841,10 @@ export function useImportExport(input: UseImportExportInput) {
           toolboxService.downloadToolbox(toolbox, baseName);
           setSaveState({
             kind: 'done',
-            message: t(locale, 'transcription.importExport.exportDone.toolbox'),
+            message:
+              flattenedFields > 0
+                ? `${t(locale, 'transcription.importExport.exportDone.toolbox')} ${tf(locale, 'transcription.importExport.exportDone.toolboxFieldsFlattened', { count: flattenedFields })}`
+                : t(locale, 'transcription.importExport.exportDone.toolbox'),
           });
           setShowExportMenu(false);
         });

@@ -2313,6 +2313,8 @@ export const enUSDictionary = {
     'This text already had segments. This import appended {count} more with no stable annotation id.',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     'Detected {count} translation layers with multiple hosts; EAF exported preferred-host links only (lossy).',
+  'transcription.importExport.exportDone.toolboxFieldsFlattened':
+    '{count} fields had line breaks or edge whitespace that Toolbox cannot store: they were written on one line without edge whitespace.',
   'transcription.importExport.exportDone.xmlSoftLineBreaks':
     '{count} soft line breaks (U+000B) were written as normal line breaks.',
   'transcription.importExport.exportDone.xmlIllegalCharsRemoved':

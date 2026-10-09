@@ -125,6 +125,17 @@ function getText(el: Element | null | undefined): string {
   return el?.textContent?.trim() ?? '';
 }
 
+/**
+ * 正文类 item（句子、译文、直译、备注）的文本原样保留，只有全空白才算空（JY-17）。
+ * 词 / 语素形式、编号、标题仍用 getText（首尾空白没有意义）。
+ * Content items (phrase text, glosses, literal, note) keep their text as is; whitespace-only counts
+ * as empty (JY-17). Word / morph forms, ids and titles still use getText.
+ */
+function getContentText(el: Element | null | undefined): string {
+  const text = el?.textContent ?? '';
+  return text.trim().length > 0 ? text : '';
+}
+
 const FLEX_OMIT_ITEM_TYPES = new Set(['cf', 'hn', 'varianttypes', 'text-is-translation']);
 const FLEX_KNOWN_ITEM_TYPES = new Set([
   'txt',
@@ -439,20 +450,20 @@ function parseFlexPhrase(
   const sourceLang = txtItem?.getAttribute('lang') ?? undefined;
   const firstGloss = glsItems[0];
   const glossLang = firstGloss?.getAttribute('lang') ?? undefined;
-  const transcription = stripPlainTextBidiIsolation(getText(txtItem));
-  const phraseGloss = stripPlainTextBidiIsolation(getText(firstGloss));
+  const transcription = stripPlainTextBidiIsolation(getContentText(txtItem));
+  const phraseGloss = stripPlainTextBidiIsolation(getContentText(firstGloss));
   const extraGlosses = glsItems.slice(1).flatMap((el) => {
-    const text = stripPlainTextBidiIsolation(getText(el));
+    const text = stripPlainTextBidiIsolation(getContentText(el));
     return text.length > 0 ? [{ lang: itemLang(el), text }] : [];
   });
   const literals = phraseItems.flatMap((el) => {
     if (el.getAttribute('type') !== 'lit') return [];
-    const text = stripPlainTextBidiIsolation(getText(el));
+    const text = stripPlainTextBidiIsolation(getContentText(el));
     return text.length > 0 ? [{ lang: itemLang(el), text }] : [];
   });
   const notes = phraseItems.flatMap((el) => {
     if (el.getAttribute('type') !== 'note') return [];
-    const text = stripPlainTextBidiIsolation(getText(el));
+    const text = stripPlainTextBidiIsolation(getContentText(el));
     return text.length > 0 ? [{ lang: itemLang(el), text }] : [];
   });
   const segnums = phraseItems.flatMap((el) => {

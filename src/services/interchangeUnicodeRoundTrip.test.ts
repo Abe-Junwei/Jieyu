@@ -11,6 +11,8 @@ import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType } from '..
 import { exportToEaf, importFromEaf } from './EafService';
 import { exportToTrs, importFromTrs } from './TranscriberService';
 import { exportToTextGrid, importFromTextGrid } from './TextGridService';
+import { exportToFlextext, importFromFlextext } from './FlexService';
+import { exportToToolbox, importFromToolbox } from './ToolboxService';
 import type { XmlSanitizeReport } from '../utils/xmlSafeText';
 import { serializeLexemesToLift } from '../utils/lexiconLiftExport';
 import { parseLiftXml } from '../utils/lexiconLiftImport';
@@ -88,6 +90,10 @@ const xmlCodecs: Record<string, XmlCodec> = {
   eaf: (text, onXmlSanitized) =>
     importFromEaf(exportToEaf({ ...buildUnicodeExportInput(text), onXmlSanitized })).units[0]
       ?.transcription ?? '',
+  flex: (text, onXmlSanitized) =>
+    importFromFlextext(
+      exportToFlextext({ ...buildUnicodeExportInput(text), languageTag: 'und', onXmlSanitized }),
+    ).units[0]?.transcription ?? '',
   trs: (text, onXmlSanitized) => {
     const input = buildUnicodeExportInput(text);
     return (
@@ -179,5 +185,37 @@ describe('TextGrid keeps every code point, including multi-line text (JY-16)', (
     const text = 'say ""hi""\n\n  indented "q"\nend';
     const exported = exportToTextGrid(buildUnicodeExportInput(text) as never);
     expect(importFromTextGrid(exported).units[0]?.transcription).toBe(text);
+  });
+});
+
+describe('Toolbox keeps what the format can carry and reports the rest (JY-17)', () => {
+  // Toolbox 没有转义：换行写成空格，首尾空白不保留，但会计数告诉用户
+  // Toolbox has no escape: line breaks become spaces and edge whitespace is not kept, but counted
+  const expectedToolbox = (text: string) =>
+    text.replace(/\s*(?:\r\n?|[\n\u000B\u000C\u0085\u2028\u2029])\s*/g, ' ').trim();
+  for (const [name, text] of Object.entries(UNICODE_SAMPLES)) {
+    it(`toolbox: ${name}`, () => {
+      const counts: number[] = [];
+      const exported = exportToToolbox({
+        ...buildUnicodeExportInput(text),
+        onFieldsFlattened: (count: number) => counts.push(count),
+      } as never);
+      const out = importFromToolbox(exported).units[0]?.transcription ?? '';
+      expect(codePoints(out)).toEqual(codePoints(expectedToolbox(text)));
+      expect(counts).toEqual(out === text ? [] : [1]);
+    });
+  }
+
+  it('never drops the text after a blank line or turns a line into a marker', () => {
+    const text = 'first\n\n\\tx second';
+    const counts: number[] = [];
+    const exported = exportToToolbox({
+      ...buildUnicodeExportInput(text),
+      onFieldsFlattened: (count: number) => counts.push(count),
+    } as never);
+    expect(importFromToolbox(exported).units.map((unit) => unit.transcription)).toEqual([
+      'first \\tx second',
+    ]);
+    expect(counts).toEqual([1]);
   });
 });

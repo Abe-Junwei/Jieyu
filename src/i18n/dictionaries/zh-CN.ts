@@ -2163,6 +2163,8 @@ export const zhCNDictionary = {
     '文稿里已有语段，这次又追加了 {count} 条没有稳定标注 id 的内容。',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     '检测到 {count} 个翻译层存在多宿主；EAF 仅导出主宿主链路（有损）。',
+  'transcription.importExport.exportDone.toolboxFieldsFlattened':
+    '{count} 个字段含换行或首尾空白，Toolbox 格式存不下：已写成单行，首尾空白不保留。',
   'transcription.importExport.exportDone.xmlSoftLineBreaks':
     '{count} 处软换行（U+000B）在导出文件里写成了普通换行。',
   'transcription.importExport.exportDone.xmlIllegalCharsRemoved':

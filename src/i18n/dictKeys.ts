@@ -2141,6 +2141,7 @@ export const DICT_KEYS = [
   'transcription.importExport.exportDone.eafMultiHostWarning',
   'transcription.importExport.exportDone.xmlSoftLineBreaks',
   'transcription.importExport.exportDone.xmlIllegalCharsRemoved',
+  'transcription.importExport.exportDone.toolboxFieldsFlattened',
   'transcription.importExport.actionLabelImportFile',
   'transcription.importExport.unsupportedFormat',
   'transcription.importExport.toolboxFormatUnrecognized',

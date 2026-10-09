@@ -46,6 +46,12 @@ export interface ToolboxExportInput {
   segmentsByLayer?: Map<string, LayerUnitDocType[]>;
   /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
   segmentContents?: Map<string, Map<string, LayerUnitContentDocType>>;
+  /**
+   * 有字段因 Toolbox 格式限制被改成单行 / 去掉首尾空白时回调，参数是字段数（JY-17）
+   * Called with the number of fields the Toolbox format forced onto one line / without edge
+   * whitespace (JY-17)
+   */
+  onFieldsFlattened?: (count: number) => void;
 }
 
 export interface ToolboxImportResult {
@@ -372,6 +378,22 @@ function buildWordMarkers(
   };
 }
 
+// 换行类字符：Toolbox 没有转义，续行读回来是空格，空行会截断字段，行首的反斜杠会被当成标记
+// Line-break characters: Toolbox has no escape; a continuation line reads back as a space, a blank
+// line ends the field and a leading backslash starts a new marker
+const TOOLBOX_LINE_BREAK_RE = /\s*(?:\r\n?|[\n\u000B\u000C\u0085\u2028\u2029])\s*/g;
+
+/**
+ * 把字段写成一行（换行改成空格）；读回来会和原文不同时计数，导出后告诉用户（JY-17）。
+ * Write a field on one line (line breaks become spaces); count it when it will not read back as
+ * the original so the user is told after export (JY-17).
+ */
+function toolboxFieldText(text: string, onChanged: () => void): string {
+  const singleLine = text.replace(TOOLBOX_LINE_BREAK_RE, ' ');
+  if (singleLine.trim() !== text) onChanged();
+  return singleLine;
+}
+
 export function exportToToolbox(input: ToolboxExportInput): string {
   const {
     units,
@@ -441,11 +463,16 @@ export function exportToToolbox(input: ToolboxExportInput): string {
 
   const lines: string[] = [];
   appendTimelineHeaderMarkers(lines, timelineMetadata);
+  let flattenedFields = 0;
+  const field = (text: string) =>
+    toolboxFieldText(text, () => {
+      flattenedFields += 1;
+    });
 
   sorted.forEach((u, i) => {
     const ref = u.id || `r${i + 1}`;
     const tx = wrapLayerText(
-      transcriptionByUnitId.get(u.id) ?? u.transcription?.default ?? '',
+      field(transcriptionByUnitId.get(u.id) ?? u.transcription?.default ?? ''),
       defaultTranscriptionLayer,
     );
     const unitTokens = tokensByUnitId.get(u.id) ?? [];
@@ -456,7 +483,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
             t.unitId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text',
         )?.text ?? '')
       : '';
-    const wrappedFt = wrapLayerText(ft, firstTranslationLayer);
+    const wrappedFt = ft.length > 0 ? wrapLayerText(field(ft), firstTranslationLayer) : '';
 
     lines.push(`\\ref ${ref}`);
     lines.push(`\\ts ${u.startTime.toFixed(3)}`);
@@ -482,7 +509,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
         lines.push(`\\ref ${seg.id}`);
         lines.push(`\\ts ${seg.startTime.toFixed(3)}`);
         lines.push(`\\te ${seg.endTime.toFixed(3)}`);
-        lines.push(`\\tx ${wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer)}`);
+        lines.push(`\\tx ${wrapLayerText(field(contentMap?.get(seg.id)?.text ?? ''), layer)}`);
         const segTokens = tokensByUnitId.get(seg.id) ?? [];
         const segMarkers = buildWordMarkers(segTokens, morphemesByTokenId);
         if (segMarkers.mb) lines.push(`\\mb ${segMarkers.mb}`);
@@ -493,6 +520,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
     }
   }
 
+  if (flattenedFields > 0) input.onFieldsFlattened?.(flattenedFields);
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
