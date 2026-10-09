@@ -111,7 +111,7 @@ export async function importProjectPackageViaProjectHub(
   name: string,
   mode: 'restore-as-new' | 'overwrite-current',
 ): Promise<void> {
-  const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+  const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
   await input.setInputFiles({ name, mimeType: 'application/octet-stream', buffer: archive });
   const dialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
   await expect(dialog).toBeVisible({ timeout: 15_000 });

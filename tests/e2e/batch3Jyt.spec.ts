@@ -189,7 +189,7 @@ test.describe('Batch 3 JYT | 第三批 JYT', () => {
       );
     }, project.textId);
 
-    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
     await input.setInputFiles({
       name: 'field.jyt',
       mimeType: 'application/octet-stream',
@@ -218,7 +218,7 @@ test.describe('Batch 3 JYT | 第三批 JYT', () => {
       ),
       'data/snapshot.json': strToU8(JSON.stringify({ schemaVersion: 3, collections: {} })),
     });
-    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
     await input.setInputFiles({
       name: 'old.jyt',
       mimeType: 'application/octet-stream',

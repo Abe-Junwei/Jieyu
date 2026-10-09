@@ -31,7 +31,7 @@ test.describe('R4 场景矩阵 | Field scenario matrix', () => {
     await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
     await waitForDexie(page);
 
-    const archiveInput = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+    const archiveInput = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
     await archiveInput.setInputFiles({
       name: 'r4-field-sample.jym',
       mimeType: 'application/octet-stream',

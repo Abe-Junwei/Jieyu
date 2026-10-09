@@ -173,7 +173,7 @@ export async function exportJymArchive(page: Page): Promise<Buffer> {
 
 export async function importJymArchive(page: Page, archive: Buffer): Promise<void> {
   await waitForDexie(page);
-  const archiveInput = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+  const archiveInput = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
   await archiveInput.setInputFiles({
     name: 'roundtrip.jym',
     mimeType: 'application/octet-stream',

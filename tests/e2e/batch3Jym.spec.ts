@@ -108,7 +108,7 @@ test.describe('Batch 3 JYM | 第三批 JYM', () => {
     expect(byteFile!.byteLength).toBe(entity!.contentSize);
 
     const textsBefore = await readTable(page, 'texts');
-    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
     await input.setInputFiles({ name: 'field.jym', mimeType: 'application/octet-stream', buffer: jym });
     const dialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
     await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -189,7 +189,7 @@ test.describe('Batch 3 JYM | 第三批 JYM', () => {
     const changedSha = await readLocalMediaSha(page, project.mediaId);
     expect(changedSha).not.toBe(localSha);
 
-    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
     await input.setInputFiles({ name: 'field.jym', mimeType: 'application/octet-stream', buffer: jym });
     const dialog = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
     await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -215,7 +215,7 @@ test.describe('Batch 3 JYM | 第三批 JYM', () => {
       ),
       'data/snapshot.json': strToU8(JSON.stringify({ schemaVersion: 3, collections: {} })),
     });
-    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym"]');
+    const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
     await input.setInputFiles({
       name: 'old.jym',
       mimeType: 'application/octet-stream',
