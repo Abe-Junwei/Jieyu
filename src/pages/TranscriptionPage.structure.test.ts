@@ -1004,7 +1004,7 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(
       actionCode.includes(
-        'const createUnitFromSelectionRouted = async (start: number, end: number) => {',
+        'const createUnitFromSelectionRouted = async (\n    start: number,\n    end: number,\n    extras?: CreateFromSelectionExtras,\n  ) => {',
       ),
     ).toBe(true);
     expect(actionCode.includes('await input.createAdjacentUnit(targetUnit, mediaDuration);')).toBe(
