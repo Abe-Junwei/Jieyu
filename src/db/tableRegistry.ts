@@ -116,13 +116,34 @@ export const IMPORT_DROPPED_DATA_CLASSES: ReadonlySet<JieyuDataClass> = new Set<
   'audit_log',
 ]);
 
+/**
+ * 用户决定（2026-10-09）：JYB 是用户自己的整库备份，项目 AI 记忆与历史随 JYB 导出、导入和还原（7.5）。
+ * 只有 JYB 的入口传 `keepProjectAi`；JYT / JYM 与其他导入仍按 JY-04 丢弃。凭据与审计任何时候都丢弃。
+ * User decision (2026-10-09): a JYB is the user's own whole-library backup, so project AI memory and
+ * history travel with it (7.5). Only JYB entry points pass `keepProjectAi`; JYT / JYM and every other
+ * import still drop it (JY-04). Credentials and audit logs are always dropped.
+ */
+export interface ImportDropOptions {
+  keepProjectAi?: boolean;
+}
+
 /** 该集合名是否在导入时丢弃 | Whether an inbound collection with this name is dropped */
-export function isCollectionDroppedOnImport(collectionName: string): boolean {
+export function isCollectionDroppedOnImport(
+  collectionName: string,
+  options?: ImportDropOptions,
+): boolean {
   const registration = (
     JIEYU_MAIN_TABLE_REGISTRY as Record<string, JieyuTableRegistration | undefined>
   )[collectionName];
-  return registration !== undefined && IMPORT_DROPPED_DATA_CLASSES.has(registration.dataClass);
+  if (registration === undefined) return false;
+  if (options?.keepProjectAi === true && registration.dataClass === 'project_ai') return false;
+  return IMPORT_DROPPED_DATA_CLASSES.has(registration.dataClass);
 }
+
+/** 项目 AI 表 | Project AI tables */
+export const PROJECT_AI_TABLES: readonly JieyuMainTableName[] = (
+  Object.keys(JIEYU_MAIN_TABLE_REGISTRY) as JieyuMainTableName[]
+).filter((name) => JIEYU_MAIN_TABLE_REGISTRY[name].dataClass === 'project_ai');
 
 /** 8.1 重置策略 | 8.1 reset policy */
 export type JieyuLocalDbResetPolicy = 'main' | 'prompt_delete' | 'keep';

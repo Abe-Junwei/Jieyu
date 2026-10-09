@@ -9,10 +9,13 @@
  *                               （加密时为 data/library.enc）；每个项目的行已按项目切好
  *   media/<id>、attachments/<id> 带音频时的原始字节（与 JYM 相同）
  *
- * - 带哪些表由 `tableRegistry` 派生：分类表里进 JYB、且不是“任何导入都丢弃”的数据类（JY-04）。
- *   所以凭据、AI 记忆与历史、审计日志、派生数据、协作状态、恢复快照都不在包里（T53）。
- * - 用户偏好（`settings` 条目）本切片不放进包：方案 8.1 把“用户偏好是否放进 JYB”列为待冻结。
- * - 导出时必须选择带不带音频（D1：必须写明是否含音频）。
+ * - 带哪些表由 `tableRegistry` 派生：分类表里进 JYB 的数据类。凭据、审计日志、派生数据、协作状态、
+ *   恢复快照都不在包里（T53）。
+ * - 项目 AI 记忆与历史按项目切分进包（用户决定 2026-10-09，7.5）；只有 JYB 的导入 / 还原保留它们，
+ *   JYT / JYM 仍按 JY-04 丢弃。
+ * - 用户偏好放在 `data/library.json` 的 `settings` 条目里（白名单、去密钥）；只在整库还原时、用户
+ *   勾选后写回。
+ * - 导出时写明带不带音频（D1）；默认带音频（用户决定 2026-10-09）。
  * - 逐项目导入（默认）：选中的项目作为新项目加入，全部 id 重新生成，记录 restoredFrom（T30）。
  * - 灾难恢复（整库还原）：只在本机没有项目，或者本机和包里的项目都从未协作过时提供（D7、T34）；
  *   界面二次确认；先做整库快照，失败就中止；会丢本机字节时中止（4.2-7）；保留原 id。
@@ -21,12 +24,25 @@ import type { ImportResult } from '../db/types';
 import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import {
-  IMPORT_DROPPED_DATA_CLASSES,
   JIEYU_DATA_CLASS_IN_JYB,
   JIEYU_MAIN_TABLE_REGISTRY,
+  PROJECT_AI_TABLES,
   type JieyuDataClass,
   type JieyuMainTableName,
 } from '../db/tableRegistry';
+import {
+  PROJECT_AI_PROJECT_ID_OWNED,
+  countProjectAiRows,
+  projectAiCollectionsFor,
+} from './jybProjectAi';
+import {
+  applyUserPreferences,
+  collectUserPreferences,
+  readCurrentUserPreferences,
+  readPackagedUserPreferences,
+  type PackagedUserPreferences,
+  type UserPreferenceEntry,
+} from './userPreferencesBackup';
 import { listUnresolvedSystemRefs } from '../annotation/systemStructuralRuleProfiles';
 import {
   createArchiveDecryptor,
@@ -91,9 +107,12 @@ export const JYB_PACKAGE_POLICY: JieyuArchiveImportPolicy = {
 /** 整库快照在覆盖前快照库里的键 | Key of whole-database snapshots in the pre-overwrite snapshot store */
 export const LIBRARY_SNAPSHOT_KEY = '*library*';
 
-/** 进 JYB 的数据类：分类表允许、且不是任何导入都丢弃的类（JY-04）| Data classes a JYB carries */
+/**
+ * 进 JYB 的数据类：分类表允许的类（7.5）。项目 AI 也在内（用户决定 2026-10-09）；凭据、审计不在。
+ * Data classes a JYB carries (7.5), project AI included (user decision 2026-10-09).
+ */
 export function isDataClassPackagedInJyb(dataClass: JieyuDataClass): boolean {
-  return JIEYU_DATA_CLASS_IN_JYB[dataClass] && !IMPORT_DROPPED_DATA_CLASSES.has(dataClass);
+  return JIEYU_DATA_CLASS_IN_JYB[dataClass];
 }
 
 const MAIN_TABLE_NAMES = Object.keys(JIEYU_MAIN_TABLE_REGISTRY) as JieyuMainTableName[];
@@ -125,13 +144,22 @@ interface LibraryData {
   exportedAt: string;
   dbName: string;
   projects: Array<{ id: string; collections: ProjectCollections }>;
+  /** 用户偏好（7.5 的单独 settings 条目）| User preferences (7.5 separate settings entry) */
+  settings?: PackagedUserPreferences;
 }
+
+const PROJECT_AI_TABLE_SET: ReadonlySet<string> = new Set(PROJECT_AI_TABLES);
 
 // ─── 导出 | Export ───────────────────────────────────────────────────────────
 
 export interface JybExportOptions {
-  /** 必须写明（D1）：true 带受管音频与附件字节，false 不带 | Required (D1): with or without bytes */
-  includeMedia: boolean;
+  /**
+   * 带不带受管音频与附件字节，清单里如实写明（D1）。默认带（用户决定 2026-10-09）。
+   * With or without managed audio / attachment bytes, stated in the manifest (D1); default: with.
+   */
+  includeMedia?: boolean;
+  /** 带不带用户偏好，默认带 | Whether to carry user preferences (default: yes) */
+  includePreferences?: boolean;
   encryption?: JieyuArchiveEncryptionOptions;
   /** 覆盖容量上限（测试用）| Override the size limits (tests) */
   policy?: Partial<JieyuArchiveImportPolicy>;
@@ -154,8 +182,8 @@ function localByteTotal(collections: ProjectCollections): number {
  * 导出整库为 JYB。所有行在一个只读事务里读出（JY-13）。
  * Export the whole database as a JYB; all rows are read in one read-only transaction (JY-13).
  */
-export async function exportDatabaseToJyb(options: JybExportOptions): Promise<Uint8Array> {
-  const includeMedia = options.includeMedia;
+export async function exportDatabaseToJyb(options: JybExportOptions = {}): Promise<Uint8Array> {
+  const includeMedia = options.includeMedia !== false;
   const policy: JieyuArchiveImportPolicy = { ...JYB_PACKAGE_POLICY, ...options.policy };
   const [dbIo, scoped, engine] = await Promise.all([
     import('../db/io') as Promise<DbIoModule>,
@@ -165,16 +193,21 @@ export async function exportDatabaseToJyb(options: JybExportOptions): Promise<Ui
   const full = await dbIo.exportDatabaseAsJson({
     skipCollections: JYB_SKIPPED_COLLECTIONS,
     retainByteBlobs: includeMedia,
+    includeProjectAi: true,
   });
+  const contentCollections: ProjectCollections = Object.fromEntries(
+    Object.entries(full.collections).filter(([name]) => !PROJECT_AI_TABLE_SET.has(name)),
+  );
 
   const projects: LibraryData['projects'] = [];
   const packagedIds = new Map<string, Set<string>>();
   for (const text of rowsOf(full.collections, 'texts')) {
     const id = String(text.id);
-    const collections = scoped.filterCollectionsForProject(full.collections, id);
+    const collections = scoped.filterCollectionsForProject(contentCollections, id);
     for (const name of Object.keys(collections)) {
       if (JYB_SKIPPED_COLLECTIONS.has(name)) delete collections[name];
     }
+    Object.assign(collections, projectAiCollectionsFor(full.collections, id, collections));
     stripInlineMediaBytes(collections);
     for (const [name, rows] of Object.entries(collections)) {
       const ids = packagedIds.get(name) ?? new Set<string>();
@@ -212,6 +245,7 @@ export async function exportDatabaseToJyb(options: JybExportOptions): Promise<Ui
     exportedAt: full.exportedAt,
     dbName: full.dbName,
     projects,
+    ...(options.includePreferences !== false ? { settings: collectUserPreferences() } : {}),
   };
   const dataBytes = toJsonBytes(data);
   if (dataBytes.byteLength > dbIo.SNAPSHOT_IMPORT_MAX_JSON_BYTES) {
@@ -293,7 +327,7 @@ export async function exportDatabaseToJyb(options: JybExportOptions): Promise<Ui
 
 export async function downloadDatabaseJyb(
   baseName: string,
-  options: JybExportOptions,
+  options: JybExportOptions = {},
 ): Promise<void> {
   if (typeof window === 'undefined') {
     throw new Error('downloadDatabaseJyb can only run in browser context');
@@ -320,6 +354,7 @@ interface InspectedLibrary {
   manifest: ProjectPackageManifest;
   data: LibraryData;
   bytesByEntity: Map<string, InboundBytes>;
+  preferences: { entries: UserPreferenceEntry[]; ignoredKeys: string[] };
 }
 
 export interface JybReadOptions {
@@ -368,7 +403,10 @@ function checkLibraryScope(
       }
       let foreign = 0;
       for (const row of rowsOf(project.collections, name)) {
-        const owner = name === 'structural_rule_profiles' ? row.projectId : row.textId;
+        const owner =
+          name === 'structural_rule_profiles' || PROJECT_AI_PROJECT_ID_OWNED.has(name)
+            ? row.projectId
+            : row.textId;
         if (typeof owner === 'string' && owner !== project.id) foreign += 1;
         const key = `${name}:${String(row.id)}`;
         const other = seen.get(key);
@@ -475,6 +513,7 @@ async function inspectJyb(
         collections: project.collections,
       },
       new Date().toISOString(),
+      { keepProjectAi: true },
     );
   }
   checkLibraryScope(manifest, data, problems);
@@ -485,7 +524,7 @@ async function inspectJyb(
     problems,
   );
   if (problems.length > 0) throw invalidPackage('jyb', problems);
-  return { manifest, data, bytesByEntity };
+  return { manifest, data, bytesByEntity, preferences: readPackagedUserPreferences(data.settings) };
 }
 
 // ─── 灾难恢复的前提 | Disaster restore preconditions (D7, T34) ────────────────
@@ -565,6 +604,8 @@ export interface JybProjectPreview {
   incoming: number;
   mediaWithoutBytes: number;
   includedBytesCount: number;
+  /** 其中项目 AI 记忆与历史的行数 | Of which project AI memory / history rows */
+  aiRows: number;
 }
 
 export interface JybRestorePreview {
@@ -576,6 +617,8 @@ export interface JybRestorePreview {
   includedBytes: { count: number; totalBytes: number };
   unresolvedSystemRefs: string[];
   disasterRestore: JybDisasterRestoreOption;
+  /** 包里的用户偏好（只在整库还原时可选写回）| Packaged user preferences (disaster restore only) */
+  preferences: { keys: string[]; ignoredKeys: string[] };
 }
 
 function countRows(collections: ProjectCollections): number {
@@ -611,6 +654,7 @@ export async function previewJybRestore(
       incoming: countRows(project.collections),
       mediaWithoutBytes: own.filter((e) => e.type === 'media' && e.bytes === 'omitted').length,
       includedBytesCount: own.filter((e) => e.bytes === 'included').length,
+      aiRows: countProjectAiRows(project.collections, PROJECT_AI_TABLES),
     };
   });
   const byName = new Map<string, number>();
@@ -641,6 +685,10 @@ export async function previewJybRestore(
       inspected.manifest.systemRefs.map((ref) => ref.id),
     ),
     disasterRestore: plan.option,
+    preferences: {
+      keys: inspected.preferences.entries.map((entry) => entry.key),
+      ignoredKeys: inspected.preferences.ignoredKeys,
+    },
   };
 }
 
@@ -666,7 +714,11 @@ export interface JybProjectImportResult {
  */
 export async function importJybProjectsAsNew(
   archiveBytes: Uint8Array,
-  options?: JybReadOptions & { projectIds?: readonly string[] },
+  options?: JybReadOptions & {
+    projectIds?: readonly string[];
+    /** 随项目导入 AI 记忆与历史，默认是（7.5）| Import project AI with the project (default yes, 7.5) */
+    includeProjectAi?: boolean;
+  },
 ): Promise<JybProjectImportResult> {
   const dbIo = (await import('../db/io')) as DbIoModule;
   const inspected = await inspectJyb(archiveBytes, options, dbIo);
@@ -685,12 +737,18 @@ export async function importJybProjectsAsNew(
   const imported: JybImportedProject[] = [];
   const takenLanguageIds = new Set<string>();
   const skipped = new Set<string>();
+  const includeProjectAi = options?.includeProjectAi !== false;
   for (const project of selected) {
+    const collections = includeProjectAi
+      ? project.collections
+      : Object.fromEntries(
+          Object.entries(project.collections).filter(([name]) => !PROJECT_AI_TABLE_SET.has(name)),
+        );
     const prepared = await prepareRestoreAsNew({
       kind: 'jyb',
       sourceProjectId: project.id,
       exportedAt: inspected.manifest.created,
-      collections: project.collections,
+      collections,
       bytesByEntity: inspected.bytesByEntity,
       takenLanguageIds,
     });
@@ -713,7 +771,7 @@ export async function importJybProjectsAsNew(
       dbName: inspected.data.dbName,
       collections: merged,
     },
-    { strategy: 'upsert' },
+    { strategy: 'upsert', keepProjectAi: includeProjectAi },
   );
   return { projects: imported, importResult, skippedLanguageIds: [...skipped].sort() };
 }
@@ -725,6 +783,8 @@ export interface JybDisasterRestoreResult {
   /** 整库快照的序号 | Sequence number of the whole-database snapshot */
   snapshotSeq: number;
   importResult: ImportResult;
+  /** 写回的用户偏好键（没勾选时为空）| Preference keys written back (empty unless opted in) */
+  restoredPreferenceKeys: string[];
 }
 
 /**
@@ -739,7 +799,10 @@ export interface JybDisasterRestoreResult {
  */
 export async function disasterRestoreFromJyb(
   archiveBytes: Uint8Array,
-  options?: JybReadOptions,
+  options?: JybReadOptions & {
+    /** 同时写回包里的用户偏好（询问后还原，7.5）；默认否 | Also restore packaged preferences (default no) */
+    restorePreferences?: boolean;
+  },
 ): Promise<JybDisasterRestoreResult> {
   const [dbIo, snapshots, engine] = await Promise.all([
     import('../db/io') as Promise<DbIoModule>,
@@ -761,11 +824,26 @@ export async function disasterRestoreFromJyb(
 
   let snapshotSeq: number;
   try {
-    const before = await dbIo.exportDatabaseAsJson({ skipCollections: JYB_SKIPPED_COLLECTIONS });
+    const before = await dbIo.exportDatabaseAsJson({
+      skipCollections: JYB_SKIPPED_COLLECTIONS,
+      includeProjectAi: true,
+    });
+    const restorePreferences = options?.restorePreferences === true;
     snapshotSeq = await snapshots.saveProjectOverwriteSnapshot({
       projectId: LIBRARY_SNAPSHOT_KEY,
       packageKind: 'jyb',
-      snapshot: { schemaVersion: before.schemaVersion, collections: before.collections },
+      snapshot: {
+        schemaVersion: before.schemaVersion,
+        collections: before.collections,
+        // 会被覆盖的偏好的旧值，供从快照恢复 | Old values of preferences about to be overwritten
+        ...(restorePreferences
+          ? {
+              preferences: readCurrentUserPreferences(
+                inspected.preferences.entries.map((entry) => entry.key),
+              ),
+            }
+          : {}),
+      },
     });
   } catch (error) {
     throw new ProjectOverwriteBlockedError({
@@ -788,6 +866,7 @@ export async function disasterRestoreFromJyb(
     },
     {
       strategy: 'replace-all',
+      keepProjectAi: true,
       preWrite: {
         tables: byteTables,
         run: async () => {
@@ -810,9 +889,12 @@ export async function disasterRestoreFromJyb(
       },
     },
   );
+  const restoredPreferenceKeys =
+    options?.restorePreferences === true ? applyUserPreferences(inspected.preferences.entries) : [];
   return {
     projectIds: inspected.data.projects.map((p) => p.id),
     snapshotSeq,
     importResult,
+    restoredPreferenceKeys,
   };
 }

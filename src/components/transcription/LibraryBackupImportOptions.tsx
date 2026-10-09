@@ -18,6 +18,10 @@ interface LibraryBackupImportOptionsProps {
   disabled: boolean;
   onRestoreModeChange: (mode: ProjectArchiveRestoreMode) => void;
   onSelectedProjectIdsChange: (ids: string[]) => void;
+  includeProjectAi: boolean;
+  onIncludeProjectAiChange: (value: boolean) => void;
+  restorePreferences: boolean;
+  onRestorePreferencesChange: (value: boolean) => void;
 }
 
 export function LibraryBackupImportOptions({
@@ -28,9 +32,15 @@ export function LibraryBackupImportOptions({
   disabled,
   onRestoreModeChange,
   onSelectedProjectIdsChange,
+  includeProjectAi,
+  onIncludeProjectAiChange,
+  restorePreferences,
+  onRestorePreferencesChange,
 }: LibraryBackupImportOptionsProps) {
   const disaster = backup.disasterRestore;
   const isDisaster = restoreMode === 'disaster-restore';
+  const aiRows = backup.projects.reduce((sum, project) => sum + project.aiRows, 0);
+  const preferenceKeys = backup.preferenceKeys;
   return (
     <div className="left-rail-project-import-jyb" data-testid="jyb-import-options">
       <div className="panel-meta">
@@ -81,9 +91,36 @@ export function LibraryBackupImportOptions({
         </p>
       ) : null}
       {isDisaster ? (
-        <p role="alert" data-testid="jyb-disaster-warning">
-          {t(locale, 'transcription.projectHub.jybDisasterWarning')}
-        </p>
+        <>
+          <p role="alert" data-testid="jyb-disaster-warning">
+            {t(locale, 'transcription.projectHub.jybDisasterWarning')}
+          </p>
+          {preferenceKeys.length > 0 ? (
+            <div className="left-rail-project-import-jyb-preferences">
+              <label>
+                <input
+                  type="checkbox"
+                  data-testid="jyb-restore-preferences"
+                  disabled={disabled}
+                  checked={restorePreferences}
+                  onChange={(event) => onRestorePreferencesChange(event.target.checked)}
+                />
+                <span>
+                  {tf(locale, 'transcription.projectHub.jybRestorePreferences', {
+                    count: preferenceKeys.length,
+                  })}
+                </span>
+              </label>
+              <ul data-testid="jyb-preference-keys">
+                {preferenceKeys.map((key) => (
+                  <li key={key}>
+                    <code>{key}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
       ) : (
         <fieldset className="left-rail-project-import-jyb-projects">
           <legend>{t(locale, 'transcription.projectHub.jybProjectsTitle')}</legend>
@@ -110,6 +147,20 @@ export function LibraryBackupImportOptions({
               </span>
             </label>
           ))}
+          {aiRows > 0 ? (
+            <label>
+              <input
+                type="checkbox"
+                data-testid="jyb-include-ai"
+                disabled={disabled}
+                checked={includeProjectAi}
+                onChange={(event) => onIncludeProjectAiChange(event.target.checked)}
+              />
+              <span>
+                {tf(locale, 'transcription.projectHub.jybIncludeProjectAi', { count: aiRows })}
+              </span>
+            </label>
+          ) : null}
         </fieldset>
       )}
     </div>

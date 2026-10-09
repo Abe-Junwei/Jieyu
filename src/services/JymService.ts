@@ -104,7 +104,11 @@ export interface JieyuLibraryBackupPreview {
     incoming: number;
     mediaWithoutBytes: number;
     includedBytesCount: number;
+    /** 项目 AI 记忆与历史的行数 | Project AI memory / history rows */
+    aiRows: number;
   }>;
+  /** 包里的用户偏好键（只在整库还原时可选写回）| Packaged preference keys (disaster restore only) */
+  preferenceKeys: string[];
   disasterRestore: {
     available: boolean;
     reason?: 'collaborated' | 'local-bytes-would-be-lost';
@@ -116,6 +120,10 @@ export interface JieyuLibraryBackupPreview {
 /** 导入时的选择（JYB 逐项目导入选哪些项目）| Import selection (which JYB projects to import) */
 export interface ProjectArchiveImportSelection {
   projectIds?: readonly string[];
+  /** JYB 逐项目导入：随项目导入 AI 记忆与历史（默认是）| JYB per-project: import project AI (default yes) */
+  includeProjectAi?: boolean;
+  /** JYB 整库还原：同时写回用户偏好（默认否）| JYB disaster restore: restore preferences (default no) */
+  restorePreferences?: boolean;
 }
 
 export interface JieyuArchiveRestoreAsNewPreview {

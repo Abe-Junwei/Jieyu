@@ -65,6 +65,10 @@ interface ProjectImportState {
   overwriteArmed: boolean;
   /** JYB：逐项目导入时勾选的项目 | JYB: projects checked for per-project import */
   selectedProjectIds?: string[];
+  /** JYB 逐项目导入：随项目导入 AI 记忆与历史（默认是）| JYB: import project AI (default yes) */
+  includeProjectAi?: boolean;
+  /** JYB 整库还原：同时写回用户偏好（默认否）| JYB disaster restore: restore preferences (default no) */
+  restorePreferences?: boolean;
   importing: boolean;
 }
 
@@ -337,7 +341,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           restoreMode: 'restore-as-new',
           overwriteArmed: false,
           ...(preview.libraryBackup
-            ? { selectedProjectIds: preview.libraryBackup.projects.map((project) => project.id) }
+            ? {
+                selectedProjectIds: preview.libraryBackup.projects.map((project) => project.id),
+                includeProjectAi: true,
+                restorePreferences: false,
+              }
             : {}),
           importing: false,
         });
@@ -371,6 +379,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       current.selectedProjectIds !== undefined
         ? await onImportProjectArchive(current.file, current.strategy, current.restoreMode, {
             projectIds: current.selectedProjectIds,
+            includeProjectAi: current.includeProjectAi !== false,
+            restorePreferences: current.restorePreferences === true,
           })
         : await onImportProjectArchive(current.file, current.strategy, current.restoreMode);
     if (success) {
@@ -1132,6 +1142,14 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                 }
                 onSelectedProjectIdsChange={(selectedProjectIds) =>
                   setProjectImportState((prev) => (prev ? { ...prev, selectedProjectIds } : prev))
+                }
+                includeProjectAi={projectImportState.includeProjectAi !== false}
+                onIncludeProjectAiChange={(includeProjectAi) =>
+                  setProjectImportState((prev) => (prev ? { ...prev, includeProjectAi } : prev))
+                }
+                restorePreferences={projectImportState.restorePreferences === true}
+                onRestorePreferencesChange={(restorePreferences) =>
+                  setProjectImportState((prev) => (prev ? { ...prev, restorePreferences } : prev))
                 }
               />
             </PanelSection>

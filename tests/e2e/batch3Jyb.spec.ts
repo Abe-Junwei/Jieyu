@@ -61,7 +61,7 @@ async function exportJybFromProjectHub(page: Page, withMedia: boolean): Promise<
   await page.locator('.left-rail-project-hub-btn').click();
   await page.getByRole('menuitem', { name: /导出|Export/ }).hover();
   const entry = page.locator('.context-menu-submenu-export').getByRole('menuitem', {
-    name: withMedia ? /JYB.*(含音频|with audio)/i : /JYB.*(不含音频|without audio)/i,
+    name: withMedia ? /JYB.*(（含音频|with audio)/i : /JYB.*(不含音频|without audio)/i,
   });
   await expect(entry).toBeVisible({ timeout: 15_000 });
   const downloadPromise = page.waitForEvent('download', { timeout: 60_000 });

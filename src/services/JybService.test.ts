@@ -187,19 +187,20 @@ beforeEach(async () => {
 });
 
 describe('T53: JYB classification', () => {
-  it('derives its tables from the registry; credentials, AI, audit, derived never included', () => {
-    const excludedClasses = new Set(['credential', 'project_ai', 'audit_log', 'derived']);
+  it('derives its tables from the registry; credentials, audit, derived never included; project AI is (7.5)', () => {
+    const excludedClasses = new Set(['credential', 'audit_log', 'derived']);
     for (const name of Object.keys(JIEYU_MAIN_TABLE_REGISTRY) as JieyuMainTableName[]) {
       const dataClass = JIEYU_MAIN_TABLE_REGISTRY[name].dataClass;
       expect(JYB_MAIN_TABLES.includes(name), name).toBe(!excludedClasses.has(dataClass));
     }
     expect(JYB_MAIN_TABLES).toContain('texts');
     expect(JYB_MAIN_TABLES).toContain('lexemes');
+    expect(JYB_MAIN_TABLES).toContain('ai_messages');
     expect(JYB_MAIN_TABLES).not.toContain('external_mcp_trust');
-    expect(JYB_MAIN_TABLES).not.toContain('ai_messages');
+    expect(JYB_MAIN_TABLES).not.toContain('audit_logs');
   });
 
-  it('the package carries no credential, AI, audit or derived rows and lists them as excluded', async () => {
+  it('the package carries project AI but no credential, audit or derived rows, and lists those as excluded', async () => {
     await seedProject('pA');
     await seedNeverPackaged('pA');
     const { files, manifest, data } = readArchive(
@@ -208,21 +209,27 @@ describe('T53: JYB classification', () => {
     expect(strFromU8(files['mimetype']!)).toBe('application/vnd.jieyu.jyb');
     expect(manifest).toMatchObject({ package: 'jyb', kind: 'library', media: 'excluded' });
     const text = strFromU8(files['data/library.json']!);
-    for (const secret of ['secret.example', 'secret-ai-fact', 'pA-audit', 'pA-emb']) {
+    for (const secret of ['secret.example', 'pA-audit', 'pA-emb']) {
       expect(text).not.toContain(secret);
     }
+    expect(text).toContain('secret-ai-fact');
     const names = new Set(data.projects.flatMap((p) => Object.keys(p.collections)));
-    for (const name of ['external_mcp_trust', 'project_ai_memories', 'audit_logs', 'embeddings']) {
+    for (const name of ['external_mcp_trust', 'audit_logs', 'embeddings']) {
       expect(names.has(name), name).toBe(false);
     }
+    expect(names.has('project_ai_memories')).toBe(true);
     expect(manifest.excluded).toEqual(
       expect.arrayContaining([
         { kind: 'data-class:credential', count: 1, reason: 'never-packaged' },
-        { kind: 'data-class:project_ai', count: 1, reason: 'never-packaged' },
         { kind: 'data-class:audit_log', count: 1, reason: 'never-packaged' },
         { kind: 'data-class:derived', count: 1, reason: 'never-packaged' },
       ]),
     );
+    expect(
+      (manifest.excluded as Array<{ kind: string }>).some(
+        (e) => e.kind === 'data-class:project_ai',
+      ),
+    ).toBe(false);
   });
 
   it('the whole-database JSON export no longer reads credential, AI or audit tables', async () => {
@@ -347,9 +354,13 @@ describe('T34: JYB disaster restore', () => {
     expect(await blobText((await db.media_items.get('pA-media'))?.details?.['audioBlob'])).toBe(
       AUDIO,
     );
-    // JY-04：凭据 / AI / 审计不在包里，本机的这些行保持不动 | Local rows of dropped classes untouched
+    // 凭据、审计不在包里，本机的这些行保持不动 | Local credential / audit rows untouched
     expect(await db.external_mcp_trust.count()).toBe(1);
-    expect(await db.project_ai_memories.count()).toBe(1);
+    expect(await db.audit_logs.count()).toBe(1);
+    // 项目 AI 随整库还原回到备份时的状态（7.5）；旧行在整库快照里 | Project AI is restored too (7.5)
+    expect(await db.project_ai_memories.count()).toBe(0);
+    const [snapshot] = await listProjectOverwriteSnapshots(LIBRARY_SNAPSHOT_KEY);
+    expect(snapshot!.snapshotJson).toContain('secret-ai-fact');
   });
 
   it('(b) aborts before any write when local bytes would be lost', async () => {

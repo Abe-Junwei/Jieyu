@@ -265,9 +265,24 @@ describe('LeftRailProjectHub project import dialog', () => {
     libraryBackup: {
       mediaIncluded: true,
       projects: [
-        { id: 'pA', title: 'Alpha', incoming: 10, mediaWithoutBytes: 0, includedBytesCount: 1 },
-        { id: 'pB', title: 'Beta', incoming: 5, mediaWithoutBytes: 0, includedBytesCount: 1 },
+        {
+          id: 'pA',
+          title: 'Alpha',
+          incoming: 10,
+          mediaWithoutBytes: 0,
+          includedBytesCount: 1,
+          aiRows: 2,
+        },
+        {
+          id: 'pB',
+          title: 'Beta',
+          incoming: 5,
+          mediaWithoutBytes: 0,
+          includedBytesCount: 1,
+          aiRows: 0,
+        },
       ],
+      preferenceKeys: ['jieyu.locale', 'jieyu-theme'],
       disasterRestore: {
         available: disaster.available,
         ...(disaster.reason ? { reason: disaster.reason } : {}),
@@ -287,11 +302,16 @@ describe('LeftRailProjectHub project import dialog', () => {
     await screen.findByRole('dialog', { name: '导入项目预览' });
     expect(screen.getByTestId('jyb-media-chip').textContent).toBe('含音频');
     expect((screen.getByTestId('jyb-mode-projects') as HTMLInputElement).checked).toBe(true);
+    // 项目 AI 默认随项目导入（7.5）| Project AI is imported by default (7.5)
+    expect((screen.getByTestId('jyb-include-ai') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByTestId('jyb-include-ai'));
     fireEvent.click(screen.getByTestId('jyb-project-pA'));
     fireEvent.click(screen.getByRole('button', { name: '导入所选项目' }));
     await waitFor(() => {
       expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'upsert', 'restore-as-new', {
         projectIds: ['pB'],
+        includeProjectAi: false,
+        restorePreferences: false,
       });
     });
   });
@@ -306,6 +326,11 @@ describe('LeftRailProjectHub project import dialog', () => {
     await screen.findByRole('dialog', { name: '导入项目预览' });
     fireEvent.click(screen.getByTestId('jyb-mode-disaster'));
     expect(screen.getByTestId('jyb-disaster-warning')).toBeTruthy();
+    // 偏好：列出键，默认不还原（询问后还原）| Preferences listed, not restored unless asked
+    expect(screen.getByTestId('jyb-preference-keys').textContent).toContain('jieyu.locale');
+    const restorePrefs = screen.getByTestId('jyb-restore-preferences') as HTMLInputElement;
+    expect(restorePrefs.checked).toBe(false);
+    fireEvent.click(restorePrefs);
     fireEvent.click(screen.getByRole('button', { name: '整库还原' }));
     expect(onImportProjectArchive).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '确认整库还原' }));
@@ -314,7 +339,7 @@ describe('LeftRailProjectHub project import dialog', () => {
         file,
         'upsert',
         'disaster-restore',
-        expect.anything(),
+        expect.objectContaining({ restorePreferences: true }),
       );
     });
   });
@@ -337,8 +362,8 @@ describe('LeftRailProjectHub project import dialog', () => {
     renderHub();
     fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
     fireEvent.mouseEnter((await screen.findByText('导出')).closest('button') as HTMLButtonElement);
-    expect(await screen.findByText('导出整库备份 JYB（含音频）')).toBeTruthy();
-    expect(screen.getByText('导出整库备份 JYB（不含音频）')).toBeTruthy();
+    expect(await screen.findByText('导出整库备份 JYB（含音频，默认）')).toBeTruthy();
+    expect(screen.getByText('导出整库备份 JYB（仅数据，不含音频）')).toBeTruthy();
   });
 
   it('opens annotation import strategy dialog and passes the selected strategy', async () => {

@@ -25,7 +25,7 @@ import type {
 } from './types';
 import { db, getDb } from './engine';
 import { createLogger } from '../observability/logger';
-import { isCollectionDroppedOnImport } from './tableRegistry';
+import { isCollectionDroppedOnImport, type ImportDropOptions } from './tableRegistry';
 import { withTransaction } from './withTransaction';
 import {
   LEGACY_MAIN_DB_NAME,
@@ -95,8 +95,8 @@ export function markAssetBytesOmitted(item: Record<string, unknown>): void {
  * Collections no export ever reads: credentials, AI memory and history, audit logs (the same data
  * classes JY-04 drops on import). No whole-DB JSON, JYB or project package carries them.
  */
-function isNeverExported(collectionName: string): boolean {
-  return isCollectionDroppedOnImport(collectionName);
+function isNeverExported(collectionName: string, includeProjectAi: boolean): boolean {
+  return isCollectionDroppedOnImport(collectionName, { keepProjectAi: includeProjectAi });
 }
 
 export async function exportDatabaseAsJson(options?: {
@@ -108,6 +108,11 @@ export async function exportDatabaseAsJson(options?: {
    * transaction as the rows). By default they are stripped and marked omitted.
    */
   retainByteBlobs?: boolean;
+  /**
+   * 读出项目 AI 记忆与历史（只有 JYB 与整库快照使用；凭据、审计仍然不读）。
+   * Read project AI memory and history (JYB and whole-library snapshots only; never credentials or audit).
+   */
+  includeProjectAi?: boolean;
 }): Promise<{
   schemaVersion: number;
   exportedAt: string;
@@ -127,7 +132,11 @@ export async function exportDatabaseAsJson(options?: {
     () =>
       Promise.all(
         Object.entries(rxDb.collections)
-          .filter(([name]) => !isNeverExported(name) && (skip === undefined || !skip.has(name)))
+          .filter(
+            ([name]) =>
+              !isNeverExported(name, options?.includeProjectAi === true) &&
+              (skip === undefined || !skip.has(name)),
+          )
           .map(async ([name, collection]) => {
             const docs = await collection.find().exec();
             return [name, docs.map((doc) => doc.toJSON())] as const;
@@ -582,6 +591,7 @@ type PreparedCollection = {
 export async function prepareSnapshotImport(
   parsedRaw: unknown,
   importStartedAt: string,
+  dropOptions?: ImportDropOptions,
 ): Promise<{
   preparedCollections: PreparedCollection[];
   ignoredCollections: string[];
@@ -621,7 +631,7 @@ export async function prepareSnapshotImport(
     // JY-04：凭据 / AI 记忆 / 审计日志类集合一律丢弃，且不清空本机同名表；日志只记表名和行数
     // JY-04: drop credential / AI-memory / audit-log collections (local tables are not cleared);
     // the warning records the table name and row count only, never row content
-    if (isCollectionDroppedOnImport(name)) {
+    if (isCollectionDroppedOnImport(name, dropOptions)) {
       droppedCollections.push({ name, rows: Array.isArray(docs) ? docs.length : 0 });
       continue;
     }
@@ -681,7 +691,12 @@ export async function prepareSnapshotImport(
 
 export async function importDatabaseFromJson(
   input: unknown,
-  options?: { strategy?: ImportConflictStrategy; preWrite?: ImportPreWriteStep },
+  options?: {
+    strategy?: ImportConflictStrategy;
+    preWrite?: ImportPreWriteStep;
+    /** 只有 JYB 入口传 true（见 `ImportDropOptions`）| Only JYB entry points pass true */
+    keepProjectAi?: boolean;
+  },
 ): Promise<ImportResult> {
   const strategy = options?.strategy ?? 'upsert';
   let parsedRaw: unknown;
@@ -706,7 +721,9 @@ export async function importDatabaseFromJson(
     );
   }
   const importedAt = new Date().toISOString();
-  const prepared = await prepareSnapshotImport(parsedRaw, importedAt);
+  const prepared = await prepareSnapshotImport(parsedRaw, importedAt, {
+    keepProjectAi: options?.keepProjectAi === true,
+  });
   const preparedCollections = prepared.preparedCollections;
 
   const result: ImportResult = {

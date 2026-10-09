@@ -14,36 +14,43 @@ source_of_truth: tests/e2e/batch3Jyb.spec.ts
 ## 范围
 
 - 新 JYB 格式 `application/vnd.jieyu.jyb`，与 JYT / JYM 共用项目包路径：
-  - `data/library.json`（加密时 `data/library.enc`）：`{ schemaVersion, exportedAt, dbName, projects: [{ id, collections }] }`，按项目分组。
-  - 收哪些表由 `tableRegistry` 的数据类决定：JYB 数据类且不在导入丢弃类（凭据、项目 AI、审计）里的表。
-  - 导出时必须写明带不带音频（菜单两项：含音频 / 不含音频）；含音频时字节放在 `bytes/` 下，规则同 JYM。
+  - `data/library.json`（加密时 `data/library.enc`）：`{ schemaVersion, exportedAt, dbName, projects: [{ id, collections }], settings? }`，按项目分组。
+  - 收哪些表由 `tableRegistry` 的数据类决定（`JIEYU_DATA_CLASS_IN_JYB`）：项目内容、目录、项目 AI 记忆与历史；凭据、审计、派生、协作状态、恢复快照不收。
+  - 项目 AI（用户决定 2026-10-09，7.5）按项目切分：对话按 `textId`，消息与会话记忆跟对话走；记忆、资料集按 `projectId`（资料集也可按媒体 / 层归属）；任务按 `targetId`，任务快照跟任务走。`agent_artifacts` 无项目归属，不打包，计入 `unowned-rows`。
+  - 用户偏好（用户决定 2026-10-09）放在 `settings` 条目：只收白名单里的 localStorage 键（`userPreferencesBackup.ts`），字段名像密钥 / 令牌 / 密码的一律清掉；商业 STT、地图服务密钥、外部声学 API key、AI 设置的加密部分不在白名单里。
+  - 导出时写明带不带音频（菜单两项）；默认、排在第一位的是“含音频”（用户决定 2026-10-09），“仅数据，不含音频”保留。含音频时字节放在 `bytes/` 下，规则同 JYM。
   - 清单 `excluded` 列出没打包的数据类及条数（`never-packaged`），以及不属于任何项目的行（`unowned-rows`）。
-- T53：任何导出都不读凭据、AI、审计表。`exportDatabaseAsJson` 统一过滤，同时修好整库 JSON 导出和 `LinguisticService.exportToJSON` 里仍带凭据 / AI 表的问题（评审意见）。
+- T53：任何导出都不读凭据、审计表。`exportDatabaseAsJson` 统一过滤；项目 AI 表只有 JYB 显式传 `includeProjectAi: true` 才读，整库 JSON 导出、`LinguisticService.exportToJSON`、JYT、JYM 仍不带。
 - 入站检查（预览阶段，全部通过才写入）：清单与版本、路径安全、`files[]` 核对、解密、每个项目逐条校验、不得出现未打包的表、行不得属于别的项目、同一行不得出现在两个项目里、实体集合与数据行一致、字节文件 sha256 与大小。JYT / JYM 文件不会被当成 JYB。
-- 逐项目导入（默认，T30）：预览列出备份里的每个项目，勾选的项目在一个事务里作为新项目写入，id 全部重新生成，记 `restoredFrom.packageKind = 'jyb'`。没勾选任何项目时提示并不写入。
+- 逐项目导入（默认，T30）：预览列出备份里的每个项目（含项目 AI 行数），勾选的项目在一个事务里作为新项目写入，id 全部重新生成（AI 行里引用的旧 id 一起改），记 `restoredFrom.packageKind = 'jyb'`。没勾选任何项目时提示并不写入。
+  - 项目 AI 默认随项目导入，可取消勾选“同时导入项目 AI 记忆与历史”。
+- JY-04 调整：只有 JYB 的两条导入路径保留项目 AI（`keepProjectAi`）；JYT / JYM 和普通 JSON 导入照旧丢弃项目 AI；凭据、审计任何路径都丢弃。
 - 整库还原（T34，只在条件满足时可选）：
   - 只有本机为空，或本机和备份里的项目都从未协作过，才可选；否则选项禁用并说明原因，服务层也拒绝。
   - 会丢本机任何媒体、附件或原件字节时禁用并中止（预览里提前说明，写事务里再查一次）。
   - 界面二次确认：第一次点击只显示警告，第二次才写入。
-  - 写入前把整库存一份快照到 `jieyu_overwrite_snapshots`（键 `*library*`，不含字节）；快照失败就中止。
-  - 清空备份里出现的表再写入（replace-all），沿用原 id。
+  - 写入前把整库存一份快照到 `jieyu_overwrite_snapshots`（键 `*library*`，不含字节，含项目 AI；勾选了写回偏好时也存这些偏好的旧值）；快照失败就中止。
+  - 清空备份里出现的表再写入（replace-all），沿用原 id；项目 AI 表一起替换。
+  - 用户偏好：预览列出包里的偏好键（以及被忽略的非白名单键），默认不写回；勾选“同时还原用户偏好”才在写库成功后写回，本机已有的密钥字段保留。逐项目导入从不写回偏好。
 - 文案：“全量备份”统一改为“整库备份 JYB（.jyb）”，项目中心导入入口接受 `.jyt / .jym / .jyb`。
-- 不包含：第 4b 批（流式、暂存区）、ProvenanceEnvelope 参数。
+- 不包含：第 4b 批（流式、暂存区）。
 
 ## 保守决定（方案未写明或与方案有出入）
 
-| 问题                                | 当前做法                                                                                        |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| 项目 AI 表（7.5 表列为 JYB）        | 不打包。JY-04 规定所有导入都丢弃项目 AI，且本批要求导出不含 AI 表；在 `excluded` 里计数。待确认 |
-| 用户偏好（`settings`）              | 不打包；方案 8.1 仍是“待冻结”                                                                   |
-| 默认带不带音频                      | 不设默认，菜单分两项让用户选                                                                    |
-| 整库还原的协作判定                  | 本机和备份里的项目都必须从未协作过                                                              |
-| 整库还原会丢本机字节                | 整体中止，不提供“仍然继续”                                                                      |
-| 整库还原时本机的 AI / 派生 / 审计行 | 不动（可能与还原后的数据对不上）；协作绑定不还原                                                |
-| 不属于任何项目的行                  | 不打包，计数                                                                                    |
-| 逐项目导入时语言代码冲突            | 同 JYT：跳过冲突的语言并列出                                                                    |
-| 导出入口                            | 项目中心内部的 `useLibraryBackupExport`，用提示条反馈，不经页面层传递                           |
-| 整库快照的恢复入口                  | 只保存，不提供界面恢复入口                                                                      |
+| 问题                          | 当前做法                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| 项目 AI 表（7.5 表列为 JYB）  | 已定（用户 2026-10-09）：按项目打包；只在 JYB 导入 / 还原路径保留，JYT / JYM 仍丢弃 |
+| 用户偏好（`settings`）        | 已定（用户 2026-10-09）：白名单打包、去密钥；只在整库还原时、预览列出并勾选后写回   |
+| 默认带不带音频                | 已定（用户 2026-10-09）：默认含音频，保留“不含音频”选项                             |
+| `jieyu-project-memory` 独立库 | 不在主库里，本批不打包（待定）                                                      |
+| `agent_artifacts`             | 没有项目归属，不打包，计入 `unowned-rows`                                           |
+| 整库还原的协作判定            | 本机和备份里的项目都必须从未协作过                                                  |
+| 整库还原会丢本机字节          | 整体中止，不提供“仍然继续”                                                          |
+| 整库还原时本机的派生 / 审计行 | 不动（可能与还原后的数据对不上）；协作绑定不还原                                    |
+| 不属于任何项目的行            | 不打包，计数                                                                        |
+| 逐项目导入时语言代码冲突      | 同 JYT：跳过冲突的语言并列出                                                        |
+| 导出入口                      | 项目中心内部的 `useLibraryBackupExport`，用提示条反馈，不经页面层传递               |
+| 整库快照的恢复入口            | 只保存，不提供界面恢复入口                                                          |
 
 ## 容量
 
@@ -63,9 +70,11 @@ source_of_truth: tests/e2e/batch3Jyb.spec.ts
 | 全量单元测试                                                   | `npm run test:vitest:dot`                                                                                                                                              | 874 文件通过、2 跳过；6225 用例通过、57 跳过（该脚本排除 `TranscriptionTimelineVerticalView.suite-*`，与 JYT 记录的 `npx vitest run` 口径不同） |
 | Chromium 全量 e2e                                              | `npx playwright test --project=chromium --retries=0`                                                                                                                   | 69 通过、2 跳过（同一轮，含 JYT / JYM / JYB 三个 batch3 spec）                                                                                  |
 
+用户决定（2026-10-09）的补充测试：`JybService.aiAndPreferences.test.ts`（项目 AI 切分与 id 重映射、取消导入 AI、JYM 仍丢 AI、默认含音频、偏好打包与去密钥、整库还原写回偏好）、`LeftRailProjectHub.test.tsx`（AI 勾选、偏好列表与勾选）。
+
 测试编号对应：T53 `JybService.test.ts`（含整库 JSON 导出）+ e2e；T30 `JybService.test.ts`、`LeftRailProjectHub.test.tsx` + e2e；T34 `JybService.test.ts`（空库、替换、字节会丢中止、本机协作过、备份里的项目协作过）、`LeftRailProjectHub.test.tsx` + e2e。
 
 ## 已知限制
 
-- 整库还原后本机 AI、派生数据可能过期，需要重新生成。
+- 整库还原后本机派生数据可能过期，需要重新生成。
 - 整库快照没有界面恢复入口。

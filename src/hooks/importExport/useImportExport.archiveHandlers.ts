@@ -116,6 +116,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       incoming: project.incoming,
       mediaWithoutBytes: project.mediaWithoutBytes,
       includedBytesCount: project.includedBytesCount,
+      aiRows: project.aiRows,
     }));
     return {
       kind: 'jyb',
@@ -148,6 +149,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       libraryBackup: {
         mediaIncluded: preview.manifest.media === 'included',
         projects,
+        preferenceKeys: preview.preferences.keys,
         disasterRestore: {
           available: preview.disasterRestore.available,
           ...(preview.disasterRestore.reason ? { reason: preview.disasterRestore.reason } : {}),
@@ -264,14 +266,23 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     if (restoreMode === 'disaster-restore') {
       // D7：界面已经做了二次确认 | D7: the UI did the double confirm
       const result = await withArchivePasswordRetry(file, (password) =>
-        jyb.disasterRestoreFromJyb(bytes, password ? { password } : undefined),
+        jyb.disasterRestoreFromJyb(bytes, {
+          ...(password ? { password } : {}),
+          restorePreferences: selection?.restorePreferences === true,
+        }),
       );
       const keepCurrent = activeTextId !== null && result.projectIds.includes(activeTextId);
+      const doneMessage = tf(locale, 'transcription.importExport.importDone.jybDisaster', {
+        count: result.projectIds.length,
+        written: countWritten(result.importResult),
+      });
       return {
-        message: tf(locale, 'transcription.importExport.importDone.jybDisaster', {
-          count: result.projectIds.length,
-          written: countWritten(result.importResult),
-        }),
+        message:
+          result.restoredPreferenceKeys.length > 0
+            ? `${doneMessage} ${tf(locale, 'transcription.importExport.importDone.jybPreferences', {
+                count: result.restoredPreferenceKeys.length,
+              })}`
+            : doneMessage,
         openTextId: keepCurrent ? activeTextId : (result.projectIds[0] ?? null),
       };
     }
@@ -282,6 +293,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       jyb.importJybProjectsAsNew(bytes, {
         ...(password ? { password } : {}),
         ...(selection?.projectIds !== undefined ? { projectIds: selection.projectIds } : {}),
+        includeProjectAi: selection?.includeProjectAi !== false,
       }),
     );
     return {

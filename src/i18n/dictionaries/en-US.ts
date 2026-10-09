@@ -1557,8 +1557,10 @@ export const enUSDictionary = {
   'transcription.toolbar.export.toolbox': 'Export as Toolbox (.txt)',
   'transcription.toolbar.export.jyt': 'Export current project as JYT (no audio)',
   'transcription.toolbar.export.jym': 'Export current project as JYM (with audio)',
-  'transcription.toolbar.export.jybWithMedia': 'Export whole-library backup JYB (with audio)',
-  'transcription.toolbar.export.jybWithoutMedia': 'Export whole-library backup JYB (without audio)',
+  'transcription.toolbar.export.jybWithMedia':
+    'Export whole-library backup JYB (with audio, default)',
+  'transcription.toolbar.export.jybWithoutMedia':
+    'Export whole-library backup JYB (data only, without audio)',
   'transcription.toolbar.export.srt': 'Export as SRT (.srt)',
   'transcription.toolbar.export.vtt': 'Export as WebVTT (.vtt)',
   'transcription.toolbar.export.csv': 'Export as CSV (.csv)',
@@ -1711,6 +1713,10 @@ export const enUSDictionary = {
     'A whole-library restore would lose {count} local recording or attachment byte file(s), so it is disabled. Export a JYB or JYM with audio first.',
   'transcription.projectHub.jybDisasterWarning':
     'A whole-library restore replaces every local project. A whole-library snapshot is saved first and the restore stops if it fails. Collaboration bindings are not restored. Click again to confirm.',
+  'transcription.projectHub.jybRestorePreferences':
+    'Also restore {count} user preferences from the backup (UI, language, AI parameters; no keys)',
+  'transcription.projectHub.jybIncludeProjectAi':
+    'Import project AI memory and history with the projects ({count} rows)',
   'transcription.projectHub.confirmJybImport': 'Import selected projects',
   'transcription.projectHub.confirmJybDisaster': 'Restore whole library',
   'transcription.projectHub.confirmJybDisasterAgain': 'Confirm whole-library restore',
@@ -2417,6 +2423,8 @@ export const enUSDictionary = {
     'Imported {count} project(s) from the JYB as new projects ({written} written).',
   'transcription.importExport.importDone.jybDisaster':
     'Restored the whole library from the JYB: {count} project(s), {written} written; a whole-library snapshot was saved first.',
+  'transcription.importExport.importDone.jybPreferences':
+    'Restored {count} user preferences; reload the page to apply them.',
   'transcription.importExport.jybNoProjectSelected': 'Check at least one project.',
   'transcription.importExport.importDone.overwritten':
     'Overwrote the current project "{title}" from the {kind} ({written} written); a snapshot was saved first.',

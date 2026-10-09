@@ -1461,8 +1461,8 @@ export const zhCNDictionary = {
   'transcription.toolbar.export.toolbox': '导出为 Toolbox (.txt)',
   'transcription.toolbar.export.jyt': '导出当前项目为 JYT（不含音频）',
   'transcription.toolbar.export.jym': '导出当前项目为 JYM（含音频）',
-  'transcription.toolbar.export.jybWithMedia': '导出整库备份 JYB（含音频）',
-  'transcription.toolbar.export.jybWithoutMedia': '导出整库备份 JYB（不含音频）',
+  'transcription.toolbar.export.jybWithMedia': '导出整库备份 JYB（含音频，默认）',
+  'transcription.toolbar.export.jybWithoutMedia': '导出整库备份 JYB（仅数据，不含音频）',
   'transcription.toolbar.export.srt': '导出为字幕 SRT (.srt)',
   'transcription.toolbar.export.vtt': '导出为字幕 WebVTT (.vtt)',
   'transcription.toolbar.export.csv': '导出为表格 CSV (.csv)',
@@ -1605,6 +1605,9 @@ export const zhCNDictionary = {
     '整库还原会丢掉本机 {count} 段录音或附件字节，已禁用。请先导出含音频的 JYB 或 JYM。',
   'transcription.projectHub.jybDisasterWarning':
     '整库还原会替换本机全部项目；开始前会自动保存一份整库快照，快照失败就不还原。协作绑定不会还原。再点一次确认。',
+  'transcription.projectHub.jybRestorePreferences':
+    '同时还原备份里的 {count} 项用户偏好（界面、语言、AI 参数；不含密钥）',
+  'transcription.projectHub.jybIncludeProjectAi': '随项目导入 AI 记忆与历史（{count} 条）',
   'transcription.projectHub.confirmJybImport': '导入所选项目',
   'transcription.projectHub.confirmJybDisaster': '整库还原',
   'transcription.projectHub.confirmJybDisasterAgain': '确认整库还原',
@@ -2258,6 +2261,8 @@ export const zhCNDictionary = {
     '已从 JYB 导入 {count} 个项目（作为新项目），写入 {written} 条。',
   'transcription.importExport.importDone.jybDisaster':
     '已从 JYB 整库还原 {count} 个项目，写入 {written} 条；还原前的整库快照已保存。',
+  'transcription.importExport.importDone.jybPreferences':
+    '已还原 {count} 项用户偏好，刷新页面后生效。',
   'transcription.importExport.jybNoProjectSelected': '请至少勾选一个项目。',
   'transcription.importExport.importDone.overwritten':
     '已用 {kind} 覆盖当前项目「{title}」，写入 {written} 条；覆盖前快照已保存。',

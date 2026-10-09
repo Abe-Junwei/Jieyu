@@ -50,7 +50,12 @@ function getStore(): OverwriteSnapshotDexie {
 export async function saveProjectOverwriteSnapshot(input: {
   projectId: string;
   packageKind: ProjectOverwriteSnapshotRow['packageKind'];
-  snapshot: { schemaVersion: number; collections: Record<string, unknown[]> };
+  snapshot: {
+    schemaVersion: number;
+    collections: Record<string, unknown[]>;
+    /** 整库还原前被覆盖的偏好旧值（null = 原来没有）| Preference values before a disaster restore */
+    preferences?: Array<{ key: string; value: string | null }>;
+  };
 }): Promise<number> {
   const snapshotJson = JSON.stringify(input.snapshot);
   const rowCount = Object.values(input.snapshot.collections).reduce(
