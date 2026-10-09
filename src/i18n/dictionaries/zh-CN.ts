@@ -3102,6 +3102,27 @@ export const zhCNDictionary = {
   'msg.appData.legacyResetWorking': '正在删除…',
   'msg.appData.legacyResetFailed':
     '部分数据库未能删除（可能被其他标签页占用），请关闭其他 Jieyu 窗口后重试：',
+  'msg.appData.migrationGateNewerTitle': '本地数据来自更新的版本',
+  'msg.appData.migrationGateNewerIntro':
+    '本地数据库的版本比当前应用新，为避免损坏，应用没有打开它。请更新到最新版本后再使用；如需保留一份原样数据，可先导出恢复快照。',
+  'msg.appData.migrationGateBlockedTitle': '数据库升级已暂停',
+  'msg.appData.migrationGateBlockedIntro':
+    '这次升级会改写已有数据，但升级前快照没有成功保存并通过验证，因此数据库保持在旧版本，没有任何数据被改动。请先导出恢复快照并妥善保存，再释放磁盘空间后刷新重试。',
+  'msg.appData.migrationGateTabsTitle': '请关闭其他解语标签页',
+  'msg.appData.migrationGateTabsIntro':
+    '其他标签页仍在使用本地数据库，升级已中止，数据库保持在旧版本。请关闭其他解语标签页或窗口后刷新本页。',
+  'msg.appData.migrationGateStaleTitle': '应用已更新，请刷新',
+  'msg.appData.migrationGateStaleIntro':
+    '另一个标签页正在升级本地数据库。本页已断开数据库连接以免写入冲突，刷新后即可继续使用。',
+  'msg.appData.migrationGateDetails': '详情',
+  'msg.appData.migrationGateReload': '刷新页面',
+  'msg.appData.migrationGateExportRaw': '导出恢复快照',
+  'msg.appData.migrationGateExporting': '正在导出…',
+  'msg.appData.migrationGateExportDone':
+    '已导出恢复快照（原样数据，不是 JYB 备份）。请妥善保存该文件。',
+  'msg.appData.migrationGateExportFailed': '恢复快照导出失败：',
+  'msg.appData.migrationGateWarningToast':
+    '数据库已升级，但升级前快照未能保存并通过验证，这次升级没有恢复点。建议尽快导出一份备份。',
 
   'msg.aiReplayDetail.title': '回放 / 对比',
   'msg.aiReplayDetail.hideDetail': '收起详情',

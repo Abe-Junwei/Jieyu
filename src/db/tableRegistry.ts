@@ -143,6 +143,8 @@ export const JIEYU_LOCAL_DB_REGISTRY = {
   'jieyu-voice-sessions': { dataClass: 'private_log', resetPolicy: 'keep' },
   'jieyu-user-behavior': { dataClass: 'private_log', resetPolicy: 'keep' },
   'jieyu-acoustic-analysis': { dataClass: 'derived', resetPolicy: 'keep' },
+  // 4a：升级前快照（两槽位，rev5 8.2）；不进任何包 | 4a: pre-migration snapshots; never packaged
+  jieyu_migration_snapshots: { dataClass: 'recovery', resetPolicy: 'keep' },
 } as const satisfies Record<string, JieyuLocalDbRegistration>;
 
 export type JieyuLocalDbName = keyof typeof JIEYU_LOCAL_DB_REGISTRY;

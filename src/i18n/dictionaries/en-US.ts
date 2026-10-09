@@ -3372,6 +3372,27 @@ export const enUSDictionary = {
   'msg.appData.legacyResetWorking': 'Deleting…',
   'msg.appData.legacyResetFailed':
     'Some databases could not be deleted (another tab may be using them). Close other Jieyu windows and try again:',
+  'msg.appData.migrationGateNewerTitle': 'Local data comes from a newer version',
+  'msg.appData.migrationGateNewerIntro':
+    'The local database is newer than this app, so it was not opened to avoid damage. Update to the latest version; to keep an as-is copy first, export a recovery snapshot.',
+  'msg.appData.migrationGateBlockedTitle': 'Database upgrade paused',
+  'msg.appData.migrationGateBlockedIntro':
+    'This upgrade rewrites existing data, but the pre-upgrade snapshot could not be saved and verified, so the database stays at the old version and nothing was changed. Export a recovery snapshot and keep it safe, free up disk space, then refresh to retry.',
+  'msg.appData.migrationGateTabsTitle': 'Close other Jieyu tabs',
+  'msg.appData.migrationGateTabsIntro':
+    'Another tab is still using the local database, so the upgrade was aborted and the database stays at the old version. Close other Jieyu tabs or windows, then refresh this page.',
+  'msg.appData.migrationGateStaleTitle': 'The app was updated — please refresh',
+  'msg.appData.migrationGateStaleIntro':
+    'Another tab is upgrading the local database. This page has disconnected from it to avoid conflicting writes; refresh to continue.',
+  'msg.appData.migrationGateDetails': 'Details',
+  'msg.appData.migrationGateReload': 'Refresh page',
+  'msg.appData.migrationGateExportRaw': 'Export recovery snapshot',
+  'msg.appData.migrationGateExporting': 'Exporting…',
+  'msg.appData.migrationGateExportDone':
+    'Recovery snapshot exported (as-is data, not a JYB backup). Keep the file safe.',
+  'msg.appData.migrationGateExportFailed': 'Recovery snapshot export failed:',
+  'msg.appData.migrationGateWarningToast':
+    'The database was upgraded, but the pre-upgrade snapshot could not be saved and verified, so this upgrade has no restore point. Export a backup soon.',
 
   'msg.aiReplayDetail.title': 'Replay / Compare',
   'msg.aiReplayDetail.hideDetail': 'Hide detail',

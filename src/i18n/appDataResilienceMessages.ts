@@ -24,6 +24,21 @@ export type AppDataResilienceMessages = {
   legacyResetDecline: string;
   legacyResetWorking: string;
   legacyResetFailed: string;
+  migrationGateNewerTitle: string;
+  migrationGateNewerIntro: string;
+  migrationGateBlockedTitle: string;
+  migrationGateBlockedIntro: string;
+  migrationGateTabsTitle: string;
+  migrationGateTabsIntro: string;
+  migrationGateStaleTitle: string;
+  migrationGateStaleIntro: string;
+  migrationGateDetails: string;
+  migrationGateReload: string;
+  migrationGateExportRaw: string;
+  migrationGateExporting: string;
+  migrationGateExportDone: string;
+  migrationGateExportFailed: string;
+  migrationGateWarningToast: string;
 };
 
 function dictLocale(locale: Locale): 'zh-CN' | 'en-US' {
@@ -56,5 +71,20 @@ export function getAppDataResilienceMessages(locale: Locale): AppDataResilienceM
     legacyResetDecline: t(l, 'msg.appData.legacyResetDecline'),
     legacyResetWorking: t(l, 'msg.appData.legacyResetWorking'),
     legacyResetFailed: t(l, 'msg.appData.legacyResetFailed'),
+    migrationGateNewerTitle: t(l, 'msg.appData.migrationGateNewerTitle'),
+    migrationGateNewerIntro: t(l, 'msg.appData.migrationGateNewerIntro'),
+    migrationGateBlockedTitle: t(l, 'msg.appData.migrationGateBlockedTitle'),
+    migrationGateBlockedIntro: t(l, 'msg.appData.migrationGateBlockedIntro'),
+    migrationGateTabsTitle: t(l, 'msg.appData.migrationGateTabsTitle'),
+    migrationGateTabsIntro: t(l, 'msg.appData.migrationGateTabsIntro'),
+    migrationGateStaleTitle: t(l, 'msg.appData.migrationGateStaleTitle'),
+    migrationGateStaleIntro: t(l, 'msg.appData.migrationGateStaleIntro'),
+    migrationGateDetails: t(l, 'msg.appData.migrationGateDetails'),
+    migrationGateReload: t(l, 'msg.appData.migrationGateReload'),
+    migrationGateExportRaw: t(l, 'msg.appData.migrationGateExportRaw'),
+    migrationGateExporting: t(l, 'msg.appData.migrationGateExporting'),
+    migrationGateExportDone: t(l, 'msg.appData.migrationGateExportDone'),
+    migrationGateExportFailed: t(l, 'msg.appData.migrationGateExportFailed'),
+    migrationGateWarningToast: t(l, 'msg.appData.migrationGateWarningToast'),
   };
 }

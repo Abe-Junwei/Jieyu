@@ -6,7 +6,7 @@
  * Greenfield baseline (Batch 2A): main DB `jieyu` declares only `version(1)`, structurally
  * equivalent to the former v54 final shape. No upgraders before the freeze point (D14).
  */
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type DexieOptions, type Table } from 'dexie';
 import type {
   TextDocType,
   MediaItemDocType,
@@ -126,6 +126,22 @@ import {
 import { withCatalogOwnershipRules } from './catalogOwnership';
 import { createOwnershipImmutabilityMiddleware } from './ownershipImmutabilityMiddleware';
 import { JIEYU_OWNERSHIP_IMMUTABLE_FIELDS } from './ownershipImmutabilityRules';
+import { JIEYU_BASELINE_STORES } from './baselineStores';
+import {
+  applyJieyuSchemaVersions,
+  JIEYU_DEXIE_TARGET_SCHEMA_VERSION as SCHEMA_TARGET,
+  JIEYU_SCHEMA_VERSIONS,
+} from './migration/schemaVersions';
+import { JIEYU_DATA_FROZEN } from '../config/dataFreeze';
+import { resolveMigrationPolicy } from './migration/migrationPolicy';
+import { JieyuMigrationGateError, openThroughMigrationGate } from './migration/migrationGate';
+import { publishMigrationGateStatus } from './migration/migrationGateStatus';
+import {
+  createUpgradeGuardedFactory,
+  defaultChannelFactory,
+  installStaleConnectionHandlers,
+  UpgradeGuard,
+} from './migration/upgradeCoordinator';
 
 /**
  * IndexedDB 物理库名（D10）。旧库 `jieyudb_v2` 不再打开，由启动时的旧数据提示负责删除。
@@ -133,88 +149,10 @@ import { JIEYU_OWNERSHIP_IMMUTABLE_FIELDS } from './ownershipImmutabilityRules';
  */
 export const JIEYU_DEXIE_DB_NAME = 'jieyu' as const;
 
-/**
- * 须与 `JieyuDexie` 构造器内唯一的 `this.version(…)` 号一致。
- * Must match the single `this.version(…)` declared in `JieyuDexie`.
- */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 1;
-
-/**
- * 基线 stores（与旧 v54 最终结构等价；物理表 `orthography_transforms` 更名为 `orthography_bridges`）。
- * Baseline stores (≡ former v54 final shape; physical `orthography_transforms` renamed to `orthography_bridges`).
- */
-export const JIEYU_BASELINE_STORES = {
-  abbreviations: 'id, abbreviation',
-  agent_artifacts: 'id, kind, uri, createdAt, adoptionItemId',
-  ai_conversations: 'id, textId, updatedAt, archived',
-  ai_messages: 'id, conversationId, [conversationId+createdAt], status, updatedAt',
-  ai_session_memories: 'conversationId, updatedAt',
-  ai_source_sets: 'id, status, boundSessionId, updatedAt',
-  ai_task_snapshots: 'id, taskId, taskType, status, targetId, updatedAt',
-  ai_tasks: 'id, taskType, status, targetId, createdAt, updatedAt',
-  anchors: 'id, mediaId, [mediaId+time], time',
-  audit_logs:
-    'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp], requestId, [collection+field+requestId]',
-  bibliographic_sources: 'id, citationKey',
-  custom_field_definitions: 'id, sortOrder, updatedAt',
-  embeddings: 'id, sourceType, sourceId, [sourceType+model], model, contentHash, createdAt',
-  external_mcp_trust: 'id, origin, enabled, updatedAt',
-  grammar_docs: 'id, updatedAt, parentId',
-  language_aliases:
-    'id, languageId, normalizedAlias, aliasType, locale, [languageId+normalizedAlias], [normalizedAlias+languageId], [languageId+aliasType], updatedAt',
-  language_asset_overviews:
-    'id, languageId, displayName, aliasCount, orthographyCount, bridgeCount, updatedAt',
-  language_catalog_history: 'id, languageId, action, createdAt, [languageId+createdAt]',
-  language_display_names:
-    'id, languageId, locale, role, [languageId+locale], [languageId+role], [languageId+locale+role], [locale+value], updatedAt',
-  languages:
-    'id, languageCode, canonicalTag, iso6393, sourceType, reviewStatus, visibility, family, macrolanguage, updatedAt',
-  layer_links:
-    'id, transcriptionLayerKey, hostTranscriptionLayerId, layerId, [layerId+hostTranscriptionLayerId]',
-  layer_unit_contents:
-    'id, textId, unitId, layerId, contentRole, [unitId+contentRole], [contentRole+updatedAt], sourceType, [layerId+updatedAt], updatedAt',
-  layer_units:
-    'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
-  lexeme_asset_links: 'id, lexemeId, assetId, [lexemeId+assetId], createdAt',
-  lexeme_assets:
-    'id, kind, mimeType, displayName, languageCode, byteSize, refCount, createdAt, updatedAt',
-  lexemes: 'id, updatedAt',
-  locations: 'id, country, region',
-  mcp_tool_call_audits: 'id, timestamp, toolName, outcome, [toolName+timestamp]',
-  media_items: 'id, textId, createdAt',
-  orthographies: 'id, languageId',
-  orthography_bridges:
-    'id, sourceOrthographyId, targetOrthographyId, [sourceOrthographyId+targetOrthographyId], engine, status, updatedAt',
-  phonemes: 'id, languageId, type',
-  project_ai_memories: 'id, projectId, [projectId+updatedAt], createdAt, updatedAt',
-  scope_stats_snapshots:
-    'id, scopeType, scopeKey, textId, mediaId, layerId, speakerId, [scopeType+scopeKey], [textId+scopeType], updatedAt',
-  segment_meta:
-    'id, segmentId, unitKind, textId, mediaId, layerId, hostUnitId, effectiveSpeakerId, effectiveSelfCertainty, annotationStatus, *noteCategoryKeys, [layerId+mediaId], [textId+layerId], [layerId+updatedAt], updatedAt',
-  segment_quality_snapshots:
-    'id, segmentId, textId, mediaId, layerId, severity, [layerId+mediaId], [textId+layerId], [layerId+severity], updatedAt',
-  speaker_profile_snapshots: 'id, textId, speakerId, [textId+speakerId], updatedAt',
-  speakers: 'id, updatedAt',
-  structural_rule_profiles: 'id, scope, languageId, projectId, enabled, priority, updatedAt',
-  tag_definitions: 'id, key',
-  texts: 'id, updatedAt, languageCode',
-  tier_annotations:
-    'id, tierId, parentAnnotationId, [tierId+startTime], startTime, endTime, startAnchorId, endAnchorId',
-  tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
-  token_lexeme_links: 'id, [targetType+targetId], lexemeId, [lexemeId+targetType]',
-  track_entities: 'id, textId, mediaId, [textId+mediaId]',
-  // 2B-D：导入来源（rev5 4.1），冻结点之前直接写进基线 | 2B-D import sources, added to the pre-freeze baseline
-  source_records: 'id, textId, [textId+externalDocId], [textId+sha256], importBatchId, mediaId',
-  // 2B-E：标注文档（rev5 4.1 / 4.2-8）| 2B-E annotation documents
-  annotation_documents: 'id, textId',
-  translation_status_snapshots:
-    'id, unitId, textId, mediaId, layerId, status, [layerId+mediaId], [textId+layerId], updatedAt',
-  unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
-  unit_relations:
-    'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
-  unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
-  user_notes: 'id, [targetType+targetId], [targetId+targetIndex], updatedAt',
-} as const satisfies Record<string, string>;
+export {
+  JIEYU_BASELINE_STORES,
+  JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
+} from './migration/schemaVersions';
 
 export class JieyuDexie extends Dexie {
   texts!: Table<TextDocType, string>;
@@ -270,9 +208,11 @@ export class JieyuDexie extends Dexie {
   annotation_documents!: Table<AnnotationDocumentDocType, string>;
   ai_source_sets!: Table<AiSourceSetDoc, string>;
 
-  constructor(name: string) {
-    super(name);
-    this.version(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).stores(JIEYU_BASELINE_STORES);
+  constructor(name: string, options?: DexieOptions) {
+    super(name, options);
+    // 4a：版本声明集中在 schemaVersions 账本（分级、冻结检查都从那里读）。
+    // 4a: version declarations live in the schemaVersions ledger (tiering + freeze check read it).
+    applyJieyuSchemaVersions(this, JIEYU_SCHEMA_VERSIONS);
     // 4.4 统一写入校验：所有经 Dexie 的写入（含 table.put/bulkPut/update/modify）逐行校验。
     // 4.4 unified write validation for every Dexie write path.
     // 2B-B：目录行必须带项目归属，且不接受 `system.*` ID。| Catalog ownership + no `system.*` ids.
@@ -342,13 +282,72 @@ export const JIEYU_TABLE_VALIDATORS: JieyuTableValidators<keyof typeof JIEYU_BAS
 type GlobalWithJieyuDb = typeof globalThis & {
   __jieyuDbPromise__?: Promise<JieyuDatabase>;
   __jieyuDexie__?: JieyuDexie;
+  __jieyuUpgradeGuard__?: UpgradeGuard;
 };
 
 const globalWithDb = globalThis as GlobalWithJieyuDb;
 
+/** 原生 IDBFactory（与 Dexie 默认依赖一致）| Native IDBFactory (same as Dexie's default dependency) */
+function nativeIndexedDb(): IDBFactory {
+  const factory = Dexie.dependencies.indexedDB as IDBFactory | undefined;
+  if (factory === undefined) throw new Dexie.MissingAPIError('IndexedDB API missing');
+  return factory;
+}
+
+/** 4a：主库升级守卫，只有迁移闸门放行的升级才能执行 | 4a: only gate-armed upgrades may run */
+function getUpgradeGuard(): UpgradeGuard {
+  if (!globalWithDb.__jieyuUpgradeGuard__) {
+    globalWithDb.__jieyuUpgradeGuard__ = new UpgradeGuard({
+      dbName: JIEYU_DEXIE_DB_NAME,
+      codeTargetVersion: SCHEMA_TARGET,
+      frozen: JIEYU_DATA_FROZEN,
+    });
+  }
+  return globalWithDb.__jieyuUpgradeGuard__;
+}
+
+function dataNewerThanAppError(installedVersion: number): JieyuMigrationGateError {
+  return new JieyuMigrationGateError({
+    reason: 'data-newer-than-app',
+    dbName: JIEYU_DEXIE_DB_NAME,
+    installedVersion,
+    targetVersion: SCHEMA_TARGET,
+    message: `Local data is at schema v${installedVersion}, newer than this app (v${SCHEMA_TARGET}). Update the app; the database was not opened.`,
+    offerRawExport: resolveMigrationPolicy().rawRecoveryExport,
+  });
+}
+
+function installMainDbSafetyHandlers(dexie: JieyuDexie): void {
+  // 绕过闸门的自动打开也不能使用比代码新的数据 | auto-open must not use data newer than the code
+  dexie.on(
+    'ready',
+    () => {
+      const native = dexie.backendDB()?.version ?? 0;
+      const installed = Math.floor(native / 10);
+      if (installed > SCHEMA_TARGET) {
+        const error = dataNewerThanAppError(installed);
+        publishMigrationGateStatus({ kind: 'gate-failed', detail: error.detail });
+        throw error;
+      }
+    },
+    true,
+  );
+  if (resolveMigrationPolicy().versionChangeHandler) {
+    installStaleConnectionHandlers(dexie, {
+      onStale: (reason) => publishMigrationGateStatus({ kind: 'stale', reason }),
+      channelFactory: (name) =>
+        typeof window === 'undefined' ? null : defaultChannelFactory(name),
+    });
+  }
+}
+
 function getOrCreateDexie(): JieyuDexie {
   if (!globalWithDb.__jieyuDexie__) {
-    globalWithDb.__jieyuDexie__ = new JieyuDexie(JIEYU_DEXIE_DB_NAME);
+    const dexie = new JieyuDexie(JIEYU_DEXIE_DB_NAME, {
+      indexedDB: createUpgradeGuardedFactory(nativeIndexedDb, getUpgradeGuard()),
+    });
+    installMainDbSafetyHandlers(dexie);
+    globalWithDb.__jieyuDexie__ = dexie;
   }
   return globalWithDb.__jieyuDexie__;
 }
@@ -407,8 +406,24 @@ function dispatchDatabaseOpenFailureEvent(reason: JieyuDatabaseOpenError): void 
 async function _createDb(): Promise<JieyuDatabase> {
   const dexie = getOrCreateDexie();
   try {
-    await dexie.open();
+    // 4a：经过迁移闸门打开（版本检测、分级、快照、多标签页协调）| open through the 4a migration gate
+    const outcome = await openThroughMigrationGate({
+      dexie,
+      dbName: JIEYU_DEXIE_DB_NAME,
+      versions: JIEYU_SCHEMA_VERSIONS,
+      guard: getUpgradeGuard(),
+      factory: nativeIndexedDb(),
+      policy: resolveMigrationPolicy(),
+    });
+    if (outcome.warning !== undefined) {
+      publishMigrationGateStatus({ kind: 'warning', warning: outcome.warning });
+    }
   } catch (err) {
+    if (err instanceof JieyuMigrationGateError) {
+      publishMigrationGateStatus({ kind: 'gate-failed', detail: err.detail });
+      delete globalWithDb.__jieyuDbPromise__;
+      throw err;
+    }
     let recoveryHint: JieyuDatabaseOpenError['recoveryHint'] = 'unknown';
     let message = 'Unable to open the local database; stored data may be corrupted.';
     if (err instanceof DOMException) {
