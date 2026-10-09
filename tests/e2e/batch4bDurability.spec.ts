@@ -125,23 +125,45 @@ test.describe('Batch 4b durability | 第 4b 批存储耐久', () => {
       (window as unknown as { showDirectoryPicker: () => Promise<unknown> }).showDirectoryPicker =
         async () => folder;
     });
-    const backupButton = panel.getByRole('button', { name: /备份到文件夹|Back up to a folder/ });
+    await panel.getByRole('button', { name: /选择文件夹|Choose folder/ }).click();
+    await expect(panel.getByTestId('backup-folder-name')).toHaveText('e2e-backups');
+    await expect(panel.getByTestId('backup-folder-interval')).toHaveValue('24');
+    const listBackups = () =>
+      page.evaluate(async () => {
+        const root = await navigator.storage.getDirectory();
+        const folder = await root.getDirectoryHandle('e2e-backups');
+        const out: string[] = [];
+        for await (const name of (
+          folder as unknown as { keys: () => AsyncIterable<string> }
+        ).keys())
+          if (/^jieyu-backup-.*\.jyb$/.test(name)) out.push(name);
+        return out.sort();
+      });
+    const backupButton = panel.getByRole('button', { name: /立即备份|Back up now/ });
     for (let i = 0; i < 4; i += 1) {
       await backupButton.click();
-      await expect(panel.getByTestId('storage-backup-result')).toContainText(
-        i === 3 ? /删除旧备份 1 份|removed 1 older/ : /jieyu-backup-/,
-        { timeout: 60_000 },
-      );
-      await page.waitForTimeout(5);
+      await expect
+        .poll(async () => (await listBackups()).length, { timeout: 60_000 })
+        .toBe(Math.min(i + 1, 3));
+      await expect(backupButton).toBeEnabled({ timeout: 60_000 });
     }
-    const names = await page.evaluate(async () => {
-      const root = await navigator.storage.getDirectory();
-      const folder = await root.getDirectoryHandle('e2e-backups');
-      const out: string[] = [];
-      for await (const name of (folder as unknown as { keys: () => AsyncIterable<string> }).keys())
-        out.push(name);
-      return out;
+    await expect(panel.getByTestId('backup-folder-last-success')).toContainText(
+      /删除旧备份 1 份|removed 1 older/,
+    );
+    const afterManual = await listBackups();
+
+    // 自动备份：上次成功是两天前，重新打开页面后到期即写，仍只保留 3 份
+    // Scheduled backup: last success two days ago, so reopening the app writes one, still keeping 3
+    await page.evaluate(() => {
+      const key = 'jieyu.backup.folder.status.v1';
+      const status = JSON.parse(localStorage.getItem(key) ?? '{}');
+      status.lastSuccess.at = new Date(Date.now() - 48 * 3_600_000).toISOString();
+      localStorage.setItem(key, JSON.stringify(status));
     });
-    expect(names.filter((n) => /^jieyu-backup-.*\.jyb$/.test(n))).toHaveLength(3);
+    await page.reload();
+    await expect
+      .poll(async () => (await listBackups()).join(), { timeout: 60_000 })
+      .not.toBe(afterManual.join());
+    expect(await listBackups()).toHaveLength(3);
   });
 });

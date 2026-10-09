@@ -9,7 +9,16 @@ import {
   type PersistTrigger,
   type StorageDiagnostics,
 } from '../../utils/storageDurability';
-import { backupLibraryToFolder, isBackupFolderSupported } from '../../services/backupFolderService';
+import {
+  BACKUP_FOLDER_EVENT,
+  backupLibraryToFolder,
+  chooseBackupFolder,
+  isBackupFolderSupported,
+  readBackupFolder,
+  readBackupFolderStatus,
+  readBackupIntervalHours,
+  writeBackupIntervalHours,
+} from '../../services/backupFolderService';
 import { SettingRow, SettingsSection } from '../settingsModalPrimitives';
 
 const MIB = 1024 * 1024;
@@ -31,7 +40,6 @@ const TRIGGER_KEYS: Record<PersistTrigger, DictKey> = {
 /** 诊断面板：estimate()、persist 结果、Safari 提示、备份文件夹（方案 6.2 / T44）| Diagnostics panel (plan 6.2 / T44) */
 export function StorageDiagnosticsPanel({ locale }: { locale: Locale }) {
   const [diag, setDiag] = useState<StorageDiagnostics | null>(null);
-  const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const refresh = useCallback(() => {
     void readStorageDiagnostics().then(setDiag);
   }, []);
@@ -41,30 +49,6 @@ export function StorageDiagnosticsPanel({ locale }: { locale: Locale }) {
     window.addEventListener(STORAGE_DURABILITY_EVENT, refresh);
     return () => window.removeEventListener(STORAGE_DURABILITY_EVENT, refresh);
   }, [refresh]);
-
-  const backup = useCallback(async () => {
-    setBackupMessage(null);
-    try {
-      const result = await backupLibraryToFolder();
-      if (result) {
-        setBackupMessage(
-          tf(locale, 'msg.appData.storageBackupDone', {
-            folder: result.folderName,
-            file: result.fileName,
-            size: mib(result.sizeBytes),
-            count: result.removed.length,
-          }),
-        );
-      }
-    } catch (error) {
-      setBackupMessage(
-        tf(locale, 'msg.appData.storageBackupFailed', {
-          message: error instanceof Error ? error.message : String(error),
-        }),
-      );
-    }
-    refresh();
-  }, [locale, refresh]);
 
   const last = diag?.lastPersistRequest ?? null;
   return (
@@ -117,22 +101,110 @@ export function StorageDiagnosticsPanel({ locale }: { locale: Locale }) {
           {t(locale, 'msg.appData.storageSafariNote')}
         </p>
         {isBackupFolderSupported() ? (
-          <div className="settings-data-row">
-            <button type="button" className="settings-link-btn" onClick={() => void backup()}>
-              {t(locale, 'msg.appData.storageBackupFolder')}
-            </button>
-          </div>
+          <BackupFolderSection locale={locale} />
         ) : (
           <p className="small-text settings-icon-effect-hint">
             {t(locale, 'msg.appData.storageBackupUnsupported')}
           </p>
         )}
-        {backupMessage ? (
-          <p className="small-text" role="status" data-testid="storage-backup-result">
-            {backupMessage}
-          </p>
-        ) : null}
       </div>
     </SettingsSection>
+  );
+}
+
+const INTERVAL_OPTIONS: Array<[number, DictKey]> = [
+  [0, 'msg.appData.storageBackupIntervalOff'],
+  [6, 'msg.appData.storageBackupInterval6h'],
+  [24, 'msg.appData.storageBackupIntervalDaily'],
+  [168, 'msg.appData.storageBackupIntervalWeekly'],
+];
+
+/** 备份文件夹：选择、自动备份间隔、立即备份、上次成功 / 失败 | Backup folder controls and status */
+function BackupFolderSection({ locale }: { locale: Locale }) {
+  const [folderName, setFolderName] = useState<string | null>(null);
+  const [status, setStatus] = useState(readBackupFolderStatus);
+  const [interval, setIntervalHours] = useState(readBackupIntervalHours);
+  const [busy, setBusy] = useState(false);
+  const refresh = useCallback(() => {
+    setStatus(readBackupFolderStatus());
+    setIntervalHours(readBackupIntervalHours());
+    void readBackupFolder().then((folder) => setFolderName(folder?.name ?? null));
+  }, []);
+  useEffect(() => {
+    refresh();
+    window.addEventListener(BACKUP_FOLDER_EVENT, refresh);
+    return () => window.removeEventListener(BACKUP_FOLDER_EVENT, refresh);
+  }, [refresh]);
+
+  const backupNow = () => {
+    setBusy(true);
+    // 状态与失败原因都由服务记录并通过事件刷新 | Outcome is recorded by the service and refreshed via the event
+    void backupLibraryToFolder({ interactive: true })
+      .catch(() => undefined)
+      .finally(() => setBusy(false));
+  };
+  const when = (iso: string) => new Date(iso).toLocaleString(locale);
+  const success = status.lastSuccess;
+  const failure = status.lastFailure;
+  return (
+    <>
+      <SettingRow label={t(locale, 'msg.appData.storageBackupFolderLabel')}>
+        <span data-testid="backup-folder-name">
+          {folderName ?? t(locale, 'msg.appData.storageBackupFolderNone')}
+        </span>{' '}
+        <button
+          type="button"
+          className="settings-link-btn"
+          onClick={() => void chooseBackupFolder().catch(() => undefined)}
+        >
+          {t(locale, 'msg.appData.storageBackupChoose')}
+        </button>
+      </SettingRow>
+      <SettingRow label={t(locale, 'msg.appData.storageBackupInterval')}>
+        <select
+          aria-label={t(locale, 'msg.appData.storageBackupInterval')}
+          data-testid="backup-folder-interval"
+          value={interval}
+          onChange={(event) => writeBackupIntervalHours(Number(event.target.value))}
+        >
+          {INTERVAL_OPTIONS.map(([hours, key]) => (
+            <option key={hours} value={hours}>
+              {t(locale, key)}
+            </option>
+          ))}
+        </select>
+      </SettingRow>
+      <div className="settings-data-row">
+        <button
+          type="button"
+          className="settings-link-btn"
+          disabled={busy || folderName === null}
+          onClick={backupNow}
+        >
+          {t(locale, 'msg.appData.storageBackupFolder')}
+        </button>
+      </div>
+      {success ? (
+        <p className="small-text" data-testid="backup-folder-last-success">
+          {tf(locale, 'msg.appData.storageBackupDone', {
+            at: when(success.at),
+            file: success.fileName,
+            size: mib(success.sizeBytes),
+            count: success.removed.length,
+          })}
+        </p>
+      ) : null}
+      {failure ? (
+        <p className="small-text" role="alert" data-testid="backup-folder-last-failure">
+          {tf(locale, 'msg.appData.storageBackupFailed', {
+            at: when(failure.at),
+            message:
+              failure.reason === 'permission-needed'
+                ? t(locale, 'msg.appData.storageBackupPermissionNeeded')
+                : failure.message,
+          })}
+        </p>
+      ) : null}
+    </>
   );
 }

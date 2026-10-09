@@ -3515,11 +3515,23 @@ export const enUSDictionary = {
   'msg.appData.storageRequestPersist': 'Request persistent storage',
   'msg.appData.storageSafariNote':
     "Per WebKit's 2020 ITP notes, Safari may delete script-writable storage such as IndexedDB after 7 days of use without interaction with this site; Home Screen web apps are counted separately. Not yet tested in this version.",
-  'msg.appData.storageBackupFolder':
-    'Back up to a folder… (whole library with audio, keeps the newest 3)',
+  'msg.appData.storageBackupFolder': 'Back up now (whole library with audio, keeps the newest 3)',
   'msg.appData.storageBackupDone':
-    'Wrote {folder}/{file} ({size} MiB), removed {count} older backup(s)',
-  'msg.appData.storageBackupFailed': 'Backup failed: {message} (existing backups were not touched)',
+    'Last success: {at}, {file} ({size} MiB), removed {count} older backup(s)',
+  'msg.appData.storageBackupFailed':
+    'Last failure: {at}, {message} (existing backups were not touched)',
+  'msg.appData.storageBackupScheduledFailed':
+    'The scheduled folder backup did not succeed; see Settings → Data for the reason. Existing backups were not touched.',
+  'msg.appData.storageBackupFolderLabel': 'Backup folder',
+  'msg.appData.storageBackupFolderNone': 'Not chosen',
+  'msg.appData.storageBackupChoose': 'Choose folder…',
+  'msg.appData.storageBackupInterval': 'Automatic backup',
+  'msg.appData.storageBackupIntervalOff': 'Off',
+  'msg.appData.storageBackupInterval6h': 'Every 6 hours',
+  'msg.appData.storageBackupIntervalDaily': 'Daily',
+  'msg.appData.storageBackupIntervalWeekly': 'Weekly',
+  'msg.appData.storageBackupPermissionNeeded':
+    'The browser needs permission for the backup folder again. Open Settings → Data and click “Back up now” to grant it; scheduled backups then continue.',
   'msg.appData.storageBackupUnsupported':
     'This browser cannot write to a backup folder. Download a whole-library JYB backup from the project hub (Export) regularly; you will be reminded when one is due.',
   'msg.appData.importQuotaExceeded':

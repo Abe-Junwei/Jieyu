@@ -19,6 +19,7 @@ import {
   writeDbIntegritySessionSkip,
 } from '../utils/dbIntegrityPreference';
 import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
+import { t } from '../i18n';
 
 const BACKUP_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const E2E_DB_OPEN_FAILED_EVENT = 'jieyu:e2e-db-open-failed';
@@ -95,6 +96,31 @@ export function useAppDataResilienceEffects(locale: Locale): {
       recordBackupReminderToastShown();
     };
 
+    tick();
+    const id = window.setInterval(tick, BACKUP_CHECK_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [locale]);
+
+  // 备份文件夹自动备份（6.2）：到期才写；需要重新授权时只提醒，不在没有手势时弹申请
+  // Scheduled folder backup (6.2): writes only when due; a permission need is only reminded about
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test') return;
+    let reminded = false;
+    const tick = () => {
+      void import('../services/backupFolderService').then(async (service) => {
+        const outcome = await service.runScheduledBackupIfDue();
+        if (!(outcome instanceof Error) || reminded) return;
+        reminded = true;
+        dispatchAppGlobalToast({
+          message:
+            outcome instanceof service.BackupFolderError && outcome.reason === 'permission-needed'
+              ? t(locale, 'msg.appData.storageBackupPermissionNeeded')
+              : t(locale, 'msg.appData.storageBackupScheduledFailed'),
+          variant: 'warning',
+          autoDismissMs: 14_000,
+        });
+      });
+    };
     tick();
     const id = window.setInterval(tick, BACKUP_CHECK_INTERVAL_MS);
     return () => window.clearInterval(id);

@@ -3228,9 +3228,21 @@ export const zhCNDictionary = {
   'msg.appData.storageRequestPersist': '申请持久存储',
   'msg.appData.storageSafariNote':
     '按 WebKit 2020 年的 ITP 说明，在 Safari 中使用满 7 天、期间没有与本站交互的，可能删除 IndexedDB 等脚本可写存储；添加到主屏幕的 Web App 单独计数。当前版本未实测。',
-  'msg.appData.storageBackupFolder': '备份到文件夹…（整库含音频，保留最近 3 份）',
-  'msg.appData.storageBackupDone': '已写入 {folder}/{file}（{size} MiB），删除旧备份 {count} 份',
-  'msg.appData.storageBackupFailed': '备份失败：{message}（已有备份未改动）',
+  'msg.appData.storageBackupFolder': '立即备份（整库含音频，保留最近 3 份）',
+  'msg.appData.storageBackupDone': '上次成功：{at}，{file}（{size} MiB），删除旧备份 {count} 份',
+  'msg.appData.storageBackupFailed': '上次失败：{at}，{message}（已有备份未改动）',
+  'msg.appData.storageBackupScheduledFailed':
+    '自动备份到文件夹没有成功，原因见“设置 → 数据”。已有备份未改动。',
+  'msg.appData.storageBackupFolderLabel': '备份文件夹',
+  'msg.appData.storageBackupFolderNone': '未选择',
+  'msg.appData.storageBackupChoose': '选择文件夹…',
+  'msg.appData.storageBackupInterval': '自动备份',
+  'msg.appData.storageBackupIntervalOff': '关闭',
+  'msg.appData.storageBackupInterval6h': '每 6 小时',
+  'msg.appData.storageBackupIntervalDaily': '每天',
+  'msg.appData.storageBackupIntervalWeekly': '每周',
+  'msg.appData.storageBackupPermissionNeeded':
+    '浏览器需要重新授权备份文件夹。请到“设置 → 数据”点“立即备份”授权，之后自动备份会继续。',
   'msg.appData.storageBackupUnsupported':
     '此浏览器不支持备份文件夹。请定期在项目中心“导出 → 整库备份 JYB”下载备份，到期会提醒你。',
   'msg.appData.importQuotaExceeded':
