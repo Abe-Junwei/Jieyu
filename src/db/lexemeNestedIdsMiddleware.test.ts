@@ -124,7 +124,7 @@ describe('JY-23: Dexie writes still store nested ids (explicit middleware)', () 
   it('JSON import fills nested ids explicitly before validation and write', async () => {
     await importDatabaseFromJson(
       {
-        schemaVersion: 4,
+        schemaVersion: 5,
         collections: {
           texts: [{ id: TEXT_ID, title: { default: 'Lex' }, createdAt: NOW, updatedAt: NOW }],
           lexemes: [entryWithoutNestedIds('lex-imported')],

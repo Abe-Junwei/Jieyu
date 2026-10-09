@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
-import { exportRecoveryDatabaseAsJson } from '../db/io';
+import { exportRecoveryDatabaseAsJson, RECOVERY_EXPORT_COLLECTIONS } from '../db/io';
 import { filterCollectionsForProject } from '../db/projectScopedSnapshot';
 import { createLogger } from '../observability/logger';
 
@@ -225,7 +225,6 @@ export async function saveRecoverySnapshot(
   let snapshot: RecoveryDatabaseSnapshot;
   if (projectId.length > 0) {
     const { exportProjectScopedDatabaseAsJson } = await import('../db/projectScopedSnapshot');
-    const { RECOVERY_EXPORT_COLLECTIONS } = await import('../db/io');
     const scoped = await exportProjectScopedDatabaseAsJson(projectId);
     const collections: Record<string, unknown[]> = {};
     for (const name of RECOVERY_EXPORT_COLLECTIONS) {

@@ -13,24 +13,60 @@ import {
   saveRecoverySnapshot,
 } from './SnapshotService';
 
-const { mockExportRecoveryDatabaseAsJson } = vi.hoisted(() => ({
-  mockExportRecoveryDatabaseAsJson: vi.fn<
-    () => Promise<Awaited<ReturnType<typeof import('../db/io').exportRecoveryDatabaseAsJson>>>
-  >(async () => ({
-    schemaVersion: 4,
-    exportedAt: '2026-06-01T00:00:00.000Z',
-    dbName: JIEYU_DEXIE_DB_NAME,
-    collections: {
-      layer_units: [],
-      layer_unit_contents: [],
-      layers: [],
-    },
-  })),
-}));
+const { mockExportRecoveryDatabaseAsJson, mockExportProjectScopedDatabaseAsJson } = vi.hoisted(
+  () => ({
+    mockExportRecoveryDatabaseAsJson: vi.fn<
+      () => Promise<Awaited<ReturnType<typeof import('../db/io').exportRecoveryDatabaseAsJson>>>
+    >(async () => ({
+      schemaVersion: 5,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        layer_units: [],
+        layer_unit_contents: [],
+        layers: [],
+      },
+    })),
+    mockExportProjectScopedDatabaseAsJson: vi.fn<
+      (
+        textId: string,
+      ) => Promise<
+        Awaited<
+          ReturnType<typeof import('../db/projectScopedSnapshot').exportProjectScopedDatabaseAsJson>
+        >
+      >
+    >(async (_textId) => {
+      throw new Error('exportProjectScopedDatabaseAsJson mock not configured');
+    }),
+  }),
+);
 
 vi.mock('../db/io', () => ({
   exportRecoveryDatabaseAsJson: mockExportRecoveryDatabaseAsJson,
+  RECOVERY_EXPORT_COLLECTIONS: [
+    'texts',
+    'media_items',
+    'layers',
+    'layer_links',
+    'layer_units',
+    'layer_unit_contents',
+    'segment_meta',
+    'unit_relations',
+    'unit_tokens',
+    'unit_morphemes',
+    'speakers',
+    'user_notes',
+    'anchors',
+  ],
 }));
+
+vi.mock('../db/projectScopedSnapshot', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../db/projectScopedSnapshot')>();
+  return {
+    ...actual,
+    exportProjectScopedDatabaseAsJson: mockExportProjectScopedDatabaseAsJson,
+  };
+});
 
 describe('SnapshotService', () => {
   beforeEach(async () => {
@@ -202,7 +238,7 @@ describe('SnapshotService', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     });
     const whole = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-06-01T00:00:00.000Z',
       dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
@@ -215,9 +251,18 @@ describe('SnapshotService', () => {
         layers: [],
       },
     };
-    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce(whole);
+    const scopedOf = (textId: string) => ({
+      ...whole,
+      collections: {
+        texts: whole.collections.texts.filter((row) => row.id === textId),
+        layer_units: whole.collections.layer_units.filter((row) => row.textId === textId),
+        layer_unit_contents: [],
+        layers: [],
+      },
+    });
+    mockExportProjectScopedDatabaseAsJson.mockResolvedValueOnce(scopedOf('t1'));
     await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't1' });
-    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce(whole);
+    mockExportProjectScopedDatabaseAsJson.mockResolvedValueOnce(scopedOf('t2'));
     await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { projectId: 't2' });
 
     const one = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
@@ -229,7 +274,7 @@ describe('SnapshotService', () => {
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
 
     // 一个项目超限只清自己的快照 | One project over the cap only clears its own snapshot
-    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce(whole);
+    mockExportProjectScopedDatabaseAsJson.mockResolvedValueOnce(scopedOf('t1'));
     const skipped = await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, {
       projectId: 't1',
       maxSerializedUtf8Bytes: 50,
@@ -310,7 +355,7 @@ describe('SnapshotService', () => {
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toMatchObject({
       schemaVersion: RECOVERY_SCHEMA_VERSION,
       snapshot: {
-        schemaVersion: 4,
+        schemaVersion: 5,
         dbName: JIEYU_DEXIE_DB_NAME,
       },
     });
