@@ -114,9 +114,9 @@ function refsOf(entries: Array<[string, string | undefined]>): ParentOwnerRef[] 
 
 /**
  * GAP-1 的间接表：token、morpheme、词条链接；BF1-N2 补上句段父链（parentUnitId / rootUnitId）与
- * 句段内容（unitId）。
+ * 句段内容（unitId）；第 5 批补上层的所属文稿（documentId）。
  * GAP-1 indirect tables (tokens, morphemes, lexeme links); BF1-N2 adds the segment parent chain
- * (parentUnitId / rootUnitId) and unit contents (unitId).
+ * (parentUnitId / rootUnitId) and unit contents (unitId); Batch 5 adds a layer's documentId.
  */
 export const JIEYU_PARENT_CONSISTENCY_RULES: ParentConsistencyRules = {
   layer_units: {
@@ -151,6 +151,14 @@ export const JIEYU_PARENT_CONSISTENCY_RULES: ParentConsistencyRules = {
         ['layer_units', stringField(row, 'unitId')],
         ['unit_tokens', stringField(row, 'tokenId')],
       ]),
+    }),
+  },
+  // 第 5 批：层只能归属本项目的标注文档 | Batch 5: a layer may only belong to a document of its project
+  tier_definitions: {
+    parentTables: ['annotation_documents'],
+    extract: (row) => ({
+      ...ownTextIdOf(row),
+      parents: refsOf([['annotation_documents', stringField(row, 'documentId')]]),
     }),
   },
   token_lexeme_links: {
