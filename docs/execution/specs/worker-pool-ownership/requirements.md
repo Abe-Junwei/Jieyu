@@ -11,7 +11,7 @@ source_of_truth: worker-pool-ownership-spec
 
 ## 1. What & Why
 
-- **要做什么**：WorkerPool 成为浏览器 Worker 的**唯一创建/注册点**；业务层不再「先 createManagedBrowserWorker 再 register 内二次 factory()」。
+- **要做什么**：WorkerPool 成为浏览器 Worker 的**唯一创建/注册点**；业务层用字面量 `new Worker(new URL('./x.ts', import.meta.url))` 创建一次，把同一实例交给 `register`，不再在 register 内二次 factory()。
 - **为什么现在做**：每次 VAD/声学/Embedding init 泄漏 1 个孤儿 Worker + registry 条目永不删除。
 - **不做什么**：不改 Worker 业务协议；不合并 unrelated worker 类型。
 

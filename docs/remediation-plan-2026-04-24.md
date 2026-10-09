@@ -349,7 +349,7 @@
   1. **Dexie / `getDb()`**：`resetJieyuDatabaseSingletonForTests`（`src/db/engine.ts`，导出自 `src/db/index.ts`）— 释放 `JieyuDatabase` Promise、关闭 `__jieyuDexie__`；`import { db }` 仍指向同 Dexie 单例，测试侧通常再 `await db.open()`。健康：`jieyuDatabaseSingletonHealthCheck`（`src/db/dbIntegrityProbe.ts`）= `getDb()` + `probeJieyuDatabaseIntegrity`。
   2. **Supabase 浏览器单例**：`getSupabaseBrowserClientHealth`（无网络、仅配置 + 是否已缓存 client）、`resetSupabaseBrowserClientForTests`（同既有 `…ForTest`），`src/integrations/supabase/client.ts`；`collaborationSupabaseFacade` 统一再导出，协作层仍不直接 `import` `integrations/…`。
   3. **AcousticAnalysisService**：`dispose()` 清空静态单例，保证后续 `getInstance()` 为全新实例；`resetSingletonForTests`（`dispose` 的测试别名）、`getHealthSnapshot` / `getResourceHealthSnapshot` 轻量资源计数；子 Worker 由 `dispose`/`resetWorker` 路径终止。
-  4. **Worker 直建收敛**：新增统一工厂 `src/observability/managedBrowserWorkerFactory.ts`，并落到 `useDeferredAiRuntimeBridge.ts`、`aiAnalysisPanelAcousticUtils.ts`、`WhisperXVadService.ts`、`EmbeddingRuntime.ts`，统一浏览器 Worker 的生命周期登记与释放。
+  4. **Worker 直建收敛**：`useDeferredAiRuntimeBridge.ts`、`aiAnalysisPanelAcousticUtils.ts`、`WhisperXVadService.ts`、`EmbeddingRuntime.ts` 统一用 `trackBrowserWorkerLifecycle` 登记与释放。worker 只能用字面量 `new Worker(new URL('./x.ts', import.meta.url))` 创建；曾经的统一工厂 `managedBrowserWorkerFactory.ts` 让 Vite 不再打包 worker（生产发出 `.ts`），已于 2026-10-09 删除。
   5. **健康聚合**：新增 `src/observability/runtimeSingletonHealth.ts`，聚合 DB（`jieyuDatabaseSingletonHealthCheck`）、Supabase（`getSupabaseBrowserClientHealth`）、声学单例（`AcousticAnalysisService.getHealthSnapshot`）、WorkerPool 统计与 managed worker 注册表快照；测试见 `src/observability/runtimeSingletonHealth.test.ts`。
 - **后续**：全量 DI 容器仍按模块成本收益评估，不作为当前收口阻塞项。
 - **编号**：ARCH-4 | **范围**：DB、Supabase Client、AcousticAnalysisService、Workers
