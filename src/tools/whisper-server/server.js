@@ -8,7 +8,7 @@
  *   node server.js [--model <path>] [--port <port>] [--language <lang>]
  *
  * Environment variables (alternative to flags):
- *   WHISPER_MODEL   - Path to GGML model file (default: ~/.whisper-models/ggml-base.bin)
+ *   WHISPER_MODEL   - Path to GGML model file (default: ~/.whisper-models/<modelFile from whisperModelDefaults.json>)
  *   WHISPER_PORT    - HTTP port (default: 3040)
  *   WHISPER_LANG    - Default language code e.g. 'zh' (default: 'auto')
  *   WHISPER_CLI     - Path to whisper-cli binary (default: whisper-cli on PATH)
@@ -17,20 +17,25 @@
 import { createServer } from 'http';
 import { spawn } from 'child_process';
 import { readFile, unlink, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { basename } from 'path';
+import { buildTranscriptionResponse, buildWhisperCliArgs, parseWhisperCliJson } from './whisperCliJson.js';
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
+// 与浏览器端共用同一份默认配置 | Same defaults file as the browser app (src/services/stt/localWhisperDefaults.ts)
+const MODEL_DEFAULTS = JSON.parse(
+  readFileSync(new URL('./whisperModelDefaults.json', import.meta.url), 'utf8'),
+);
 const DEFAULT_MODEL = path.join(
   process.env.HOME ?? tmpdir(),
   '.whisper-models',
-  'ggml-small-q5_k.bin'
+  MODEL_DEFAULTS.modelFile,
 );
-const DEFAULT_PORT = 3040;
+const DEFAULT_PORT = Number(new URL(MODEL_DEFAULTS.baseUrl).port) || 3040;
 const DEFAULT_LANG = 'auto';
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
@@ -138,43 +143,39 @@ function parseMultipart(buffer, boundary) {
 }
 
 /**
- * Spawn whisper-cli and return the transcription text.
+ * Spawn whisper-cli with JSON output (-ojf) and return the parsed whisper-cli JSON.
+ * 以 JSON（-ojf，含 token 级时间戳）运行 whisper-cli，返回解析后的 JSON。
  */
 function runWhisper({ audioPath, model, language, signal }) {
+  const outputBase = path.join(tmpdir(), `whisper-result-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const jsonPath = `${outputBase}.json`;
   return new Promise((resolve, reject) => {
-    const args = [
-      '-m', model,
-      '-l', language,
-      '-f', audioPath,
-      '-otxt',     // plain text output
-      '-np',       // no prints except result
-      '-t', String(CONFIG.threads),
-    ];
-    if (language !== 'auto') args.push('--language', language);
+    const args = buildWhisperCliArgs({
+      model,
+      language,
+      audioPath,
+      outputBase,
+      threads: CONFIG.threads,
+    });
 
     const proc = spawn(CONFIG.whisperCli, args);
-    let stdout = '';
     let stderr = '';
-    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stdout.on('data', () => {});
     proc.stderr.on('data', (d) => { stderr += d.toString(); });
     signal?.addEventListener('abort', () => proc.kill('SIGTERM'));
 
-    proc.on('close', (code) => {
-      if (code !== 0 && !stdout) {
-        return reject(new Error(`whisper-cli exited ${code}: ${stderr}`));
+    proc.on('close', async (code) => {
+      try {
+        if (code !== 0) {
+          throw new Error(`whisper-cli exited ${code}: ${stderr}`);
+        }
+        const raw = await readFile(jsonPath, 'utf8');
+        resolve(parseWhisperCliJson(raw));
+      } catch (err) {
+        reject(err);
+      } finally {
+        await unlink(jsonPath).catch(() => {});
       }
-      // whisper-cli v1.8 outputs VTT-formatted text lines:
-      //   [00:00:00.000 --> 00:00:00.500]  播放
-      // Strip VTT/WebVTT timestamp brackets from each line.
-      const trimmed = stdout.trim();
-      const vttPattern = /^\[[\d:.,\->\s]+\]\s*/;
-      const text = trimmed
-        .split('\n')
-        .map((line) => line.replace(vttPattern, '').trim())
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-      resolve(text || trimmed);
     });
     proc.on('error', reject);
   });
@@ -206,16 +207,6 @@ async function convertToWav(inputBuffer, inputMimeType) {
   } finally {
     await unlink(tmpIn).catch(() => {});
   }
-}
-
-/**
- * OpenAI /v1/audio/transcriptions response shape.
- */
-function buildResponse(text, language) {
-  return {
-    text,
-    language: language !== 'auto' ? language : null,
-  };
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
@@ -297,7 +288,7 @@ async function handleRequest(req, res) {
       // Convert to wav if needed (webm from MediaRecorder)
       const tmpWav = await convertToWav(audioBuffer, inputMime);
 
-      const text = await runWhisper({
+      const cliJson = await runWhisper({
         audioPath: tmpWav,
         model: modelPath,
         language,
@@ -307,7 +298,8 @@ async function handleRequest(req, res) {
       await unlink(tmpWav).catch(() => {});
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(buildResponse(text, language)));
+      // verbose_json 风格：text + language（向后兼容）+ segments/words（秒）| text + language (back-compat) + segments/words (seconds)
+      res.end(JSON.stringify(buildTranscriptionResponse(cliJson, language)));
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('SIGTERM')) {
         res.writeHead(499, { 'Content-Type': 'application/json' });

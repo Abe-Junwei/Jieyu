@@ -43,6 +43,10 @@ import type {
   VoiceAgentState,
   VoicePendingConfirm,
 } from './useVoiceAgent.types';
+import {
+  LOCAL_WHISPER_DEFAULT_BASE_URL,
+  LOCAL_WHISPER_DEFAULT_MODEL,
+} from '../../services/stt/localWhisperDefaults';
 export type {
   UseVoiceAgentOptions,
   VoiceAgentMode,
@@ -64,8 +68,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     initialSafeMode = false,
     resolveIntentWithLlm,
     executeVoiceToolCall,
-    whisperServerUrl = 'http://localhost:3040',
-    whisperServerModel = 'ggml-small-q5_k.bin',
+    whisperServerUrl = LOCAL_WHISPER_DEFAULT_BASE_URL,
+    whisperServerModel = LOCAL_WHISPER_DEFAULT_MODEL,
     commercialProviderKind = 'groq',
     commercialProviderConfig,
     sttEnhancementKind = 'none',

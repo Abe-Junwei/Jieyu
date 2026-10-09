@@ -7,7 +7,7 @@
  */
 
 import type { ProvenanceEnvelope, ProvenanceParams } from '../../db';
-import { SILERO_SEGMENTATION_PARAMS } from '../../utils/vadWorkerInferenceUtils';
+import { DEFAULT_VAD_SEGMENTATION_PARAMS } from '../../utils/vadWorkerInferenceUtils';
 import { ENERGY_VAD_DEFAULTS } from '../VadService';
 
 export type AutoSegmentationEngine = 'silero' | 'energy';
@@ -18,10 +18,12 @@ export type AutoSegmentationSource = 'cache' | 'fresh';
 /** Silero 模型文件（`scripts/download-silero-vad.sh`）| Silero model file */
 const SILERO_VAD_MODEL_ID = 'silero_vad.onnx';
 /**
- * 下载脚本目前未钉版本；钉版本后在此同步。
- * The download script is not pinned yet; update here once it is.
+ * 与 `scripts/download-silero-vad.sh` 钉死的版本一致（P11）。
+ * Matches the pin in `scripts/download-silero-vad.sh` (P11).
  */
-const SILERO_VAD_MODEL_VERSION = 'unpinned';
+const SILERO_VAD_MODEL_VERSION = 'v6.2.3';
+/** 与下载脚本 EXPECTED_SHA256 一致 | Matches the download script EXPECTED_SHA256 */
+const SILERO_VAD_MODEL_SHA256 = '1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3';
 /** 能量 VAD 是内置算法，版本随代码 | Built-in energy VAD, versioned with the code */
 const ENERGY_VAD_MODEL_ID = 'jieyu-rms-energy-vad';
 const ENERGY_VAD_MODEL_VERSION = '1';
@@ -39,7 +41,8 @@ function buildAutoSegmentationParams(run: AutoSegmentationRun): ProvenanceParams
       source: run.source,
       vadModel: SILERO_VAD_MODEL_ID,
       vadModelVersion: SILERO_VAD_MODEL_VERSION,
-      ...SILERO_SEGMENTATION_PARAMS,
+      vadModelSha256: SILERO_VAD_MODEL_SHA256,
+      ...DEFAULT_VAD_SEGMENTATION_PARAMS,
     };
   }
   return {

@@ -1,4 +1,9 @@
-import type { CommercialProviderKind, SttBillingKind, SttEngine, SttProviderCapability } from '../VoiceInputService.types';
+import type {
+  CommercialProviderKind,
+  SttBillingKind,
+  SttEngine,
+  SttProviderCapability,
+} from '../VoiceInputService.types';
 
 type BuiltinSttProviderKind = Extract<SttEngine, 'web-speech' | 'whisper-local'>;
 export type SttProviderKind = BuiltinSttProviderKind | CommercialProviderKind;
@@ -46,7 +51,7 @@ export const builtinProviderDefinitions: BuiltinProviderMetadata[] = [
     kind: 'whisper-local',
     engine: 'whisper-local',
     providerType: 'builtin',
-    label: 'Distil-Whisper (本地)',
+    label: 'Whisper.cpp (本地)',
     description: '本地 whisper.cpp HTTP 服务，适合离线或私有数据场景。',
     capability: 'local-http',
     billing: 'self-hosted',
@@ -123,9 +128,11 @@ export const sttProviderDefinitions: SttProviderMetadata[] = [
 ];
 
 export function getSttProviderMetadataByKind(kind: SttProviderKind): SttProviderMetadata {
-  return sttProviderDefinitions.find((definition) => definition.kind === kind)
-    ?? commercialProviderDefinitions.find((definition) => definition.kind === 'groq')
-    ?? builtinProviderDefinitions[0]!;
+  return (
+    sttProviderDefinitions.find((definition) => definition.kind === kind) ??
+    commercialProviderDefinitions.find((definition) => definition.kind === 'groq') ??
+    builtinProviderDefinitions[0]!
+  );
 }
 
 export function getActiveSttProviderMetadata(

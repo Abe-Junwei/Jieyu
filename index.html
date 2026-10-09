@@ -5,12 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- 安全基线：限制资源来源，降低 XSS 后数据外泄面 | Security baseline: restrict resource origins to reduce XSS exfiltration surface -->
     <!-- HIGH-13：connect-src 仅枚举已知默认域（无 https:/wss: 通配符）；自托管 OTEL/BYO API 需在部署层追加 connect-src 或通过 HTTP 响应头覆盖 meta。`frame-ancestors` 只能走 HTTP 响应头。本机环回：Whisper 3040、Zotero MCP HTTP 8765（B15）。 | connect-src lists known hosts only; custom OTLP/BYO endpoints need deploy-time CSP extension. Loopback: Whisper 3040, Zotero MCP HTTP 8765. -->
+    <!-- 地图瓦片/样式/字形（LanguageMapEmbed：OSM 栅格、MapTiler 样式+矢量瓦片+glyph+sprite、天地图 t0–t7）同时列在 connect-src 与 img-src（maplibre 用 fetch，部分路径用 <img>）| Map tiles/styles/glyphs used by LanguageMapEmbed, in connect-src and img-src (maplibre fetches, some paths use <img>). VITE_MAP_PROXY_BASE_URL deployments add their proxy origin at deploy time. -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src  'self' 'wasm-unsafe-eval';
       style-src   'self' 'unsafe-inline';
       font-src    'self';
-      img-src     'self' data: blob:;
+      img-src     'self' data: blob:
+        https://tile.openstreetmap.org
+        https://api.maptiler.com
+        https://t0.tianditu.gov.cn
+        https://t1.tianditu.gov.cn
+        https://t2.tianditu.gov.cn
+        https://t3.tianditu.gov.cn
+        https://t4.tianditu.gov.cn
+        https://t5.tianditu.gov.cn
+        https://t6.tianditu.gov.cn
+        https://t7.tianditu.gov.cn;
       media-src   'self' blob: data:;
       connect-src 'self' blob:
         http://127.0.0.1:3040
@@ -32,7 +43,17 @@
         https://dashscope.aliyuncs.com
         https://webservice.bas.uni-muenchen.de
         https://huggingface.co
-        https://cdn-lfs.huggingface.co;
+        https://cdn-lfs.huggingface.co
+        https://tile.openstreetmap.org
+        https://api.maptiler.com
+        https://t0.tianditu.gov.cn
+        https://t1.tianditu.gov.cn
+        https://t2.tianditu.gov.cn
+        https://t3.tianditu.gov.cn
+        https://t4.tianditu.gov.cn
+        https://t5.tianditu.gov.cn
+        https://t6.tianditu.gov.cn
+        https://t7.tianditu.gov.cn;
       worker-src  'self' blob:;
       child-src   'self' blob:;
       object-src  'none';

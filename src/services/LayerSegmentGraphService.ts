@@ -46,6 +46,37 @@ function uniqueIds(ids: readonly string[]): string[] {
   return [...new Set(ids.filter((id) => id.trim().length > 0))];
 }
 
+/**
+ * 只保留与父句段同项目的子句段（BF1-N2，与 GAP-1 的 token 级联一致）：子行 `textId` 与其父行不同则不在
+ * 本次级联范围；父行已不存在时保持旧行为（全取）。
+ * Keep only child units in their parent's project (BF1-N2, same rule as the GAP-1 token cascade):
+ * a child whose `textId` differs from its parent's is not part of this cascade; when no parent row
+ * exists any more, every child is kept (previous behaviour).
+ */
+async function filterChildUnitIdsToParentProject(
+  db: JieyuDatabase,
+  parentIds: readonly string[],
+  childIds: readonly string[],
+): Promise<string[]> {
+  if (childIds.length === 0) return [];
+  const [parents, children] = await Promise.all([
+    db.dexie.layer_units.bulkGet([...parentIds]),
+    db.dexie.layer_units.bulkGet([...childIds]),
+  ]);
+  const ownerByParentId = new Map<string, string>();
+  for (const parent of parents) {
+    if (parent?.textId) ownerByParentId.set(parent.id, parent.textId);
+  }
+  if (ownerByParentId.size === 0) return [...childIds];
+  const owners = new Set(ownerByParentId.values());
+  return childIds.filter((_childId, index) => {
+    const child = children[index];
+    if (!child?.textId) return true;
+    const directOwner = child.parentUnitId ? ownerByParentId.get(child.parentUnitId) : undefined;
+    return directOwner !== undefined ? child.textId === directOwner : owners.has(child.textId);
+  });
+}
+
 const warnedGraphScopeFallbacks = new Set<string>();
 
 function warnGraphScopeFallback(tableNames: readonly string[]): void {
@@ -477,10 +508,11 @@ export async function deleteLayerSegmentGraphByUnitIds(
     LayerSegmentQueryService.listSegmentsByParentUnitIds(ids),
     LayerUnitRelationQueryService.listTimeSubdivisionChildUnitIds(ids, db),
   ]);
-  const segmentIds = uniqueIds([
-    ...indexedSegments.map((segment) => segment.id),
-    ...subdivisionChildIds,
-  ]);
+  const segmentIds = await filterChildUnitIdsToParentProject(
+    db,
+    ids,
+    uniqueIds([...indexedSegments.map((segment) => segment.id), ...subdivisionChildIds]),
+  );
   return deleteLayerSegmentGraphBySegmentIds(db, segmentIds);
 }
 
@@ -691,10 +723,11 @@ export async function deleteUnitLayerUnitCascade(
   const ids = uniqueIds(unitIds);
   if (ids.length === 0) return;
 
-  const childUnitIds = (await db.dexie.layer_units
-    .where('parentUnitId')
-    .anyOf(ids)
-    .primaryKeys()) as string[];
+  const childUnitIds = await filterChildUnitIdsToParentProject(
+    db,
+    ids,
+    (await db.dexie.layer_units.where('parentUnitId').anyOf(ids).primaryKeys()) as string[],
+  );
   if (childUnitIds.length > 0) {
     await deleteLayerUnitCascade(db, childUnitIds);
   }

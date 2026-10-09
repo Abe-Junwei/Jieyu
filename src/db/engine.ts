@@ -125,6 +125,7 @@ import {
 } from './writeValidationMiddleware';
 import { withCatalogOwnershipRules } from './catalogOwnership';
 import { createOwnershipImmutabilityMiddleware } from './ownershipImmutabilityMiddleware';
+import { createLexemeNestedIdsMiddleware } from './lexemeNestedIdsMiddleware';
 import { JIEYU_OWNERSHIP_IMMUTABLE_FIELDS } from './ownershipImmutabilityRules';
 import { JIEYU_BASELINE_STORES } from './baselineStores';
 import {
@@ -227,6 +228,9 @@ export class JieyuDexie extends Dexie {
     // 4.4 unified write validation for every Dexie write path.
     // 2B-B：目录行必须带项目归属，且不接受 `system.*` ID。| Catalog ownership + no `system.*` ids.
     this.use(createWriteValidationMiddleware(withCatalogOwnershipRules(JIEYU_TABLE_VALIDATORS)));
+    // JY-23：词条嵌套 id 由独立中间件显式补齐（level 11，位于 zod 校验之上）；校验器本身无副作用。
+    // JY-23: lexeme nested ids are filled by a dedicated middleware above zod; validators stay pure.
+    this.use(createLexemeNestedIdsMiddleware());
     // 2B-G / JY-03：已有行的项目归属与父引用不可改写（level 1，位于 hooks 与 zod 校验之下）。
     // 2B-G / JY-03: existing rows keep their project and parent refs (level 1, below hooks and zod).
     this.use(createOwnershipImmutabilityMiddleware(JIEYU_OWNERSHIP_IMMUTABLE_FIELDS));

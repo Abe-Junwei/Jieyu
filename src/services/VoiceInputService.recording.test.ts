@@ -5,16 +5,21 @@
  * 验证链路 | Verified chain:
  *   setVadService() → stopRecording() → VAD detectSpeechSegments → emit / skip
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── mock 依赖 | mock dependencies ──────────────────────────────────────────
 
-const { mockDetectSpeechSegments } = vi.hoisted(() => ({
+const { mockDetectSpeechSegments, mockDetectionEngine } = vi.hoisted(() => ({
   mockDetectSpeechSegments: vi.fn(),
+  mockDetectionEngine: { current: 'silero' as 'silero' | 'energy' },
 }));
 
 vi.mock('./VoiceInputService.probes', () => ({
-  buildWhisperTranscriptionEndpoints: vi.fn(() => ['http://localhost:8080/v1/audio/transcriptions']),
+  buildWhisperTranscriptionEndpoints: vi.fn(() => [
+    'http://localhost:8080/v1/audio/transcriptions',
+  ]),
   createTranscriptionTimeoutController: vi.fn(() => ({
     controller: new AbortController(),
     clear: vi.fn(),
@@ -24,6 +29,10 @@ vi.mock('./VoiceInputService.probes', () => ({
 vi.mock('./vad/WhisperXVadService', () => ({
   WhisperXVadService: class MockWhisperXVadService {
     detectSpeechSegments = mockDetectSpeechSegments;
+    detectSpeechSegmentsWithEngine = vi.fn(async (...args: unknown[]) => ({
+      segments: await mockDetectSpeechSegments(...args),
+      engine: mockDetectionEngine.current,
+    }));
     init = vi.fn(async () => undefined);
     dispose = vi.fn();
   },
@@ -52,6 +61,7 @@ vi.mock('../utils/decodeEscapedUnicode', () => ({
 import type { SttResult } from './VoiceInputService';
 import { RecordingExecutor, type RecordingCallbacks } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
+import { vadCache } from './vad/VadCacheService';
 
 // ── 辅助 | helpers ──────────────────────────────────────────────────────────
 
@@ -81,26 +91,29 @@ function installMediaStubs(options?: { audioChunks?: Blob[] }) {
   // MediaRecorder
   let dataHandler: ((e: BlobEvent) => void) | null = null;
   let stopHandler: (() => void) | null = null;
-  vi.stubGlobal('MediaRecorder', class FakeMediaRecorder {
-    static isTypeSupported = () => true;
-    state = 'inactive' as string;
-    ondataavailable: ((e: BlobEvent) => void) | null = null;
-    onerror: ((e: Event) => void) | null = null;
-    start = vi.fn(() => {
-      this.state = 'recording';
-      emitChunks(this.ondataavailable, dataHandler);
-    });
-    stop = vi.fn(() => {
-      this.state = 'inactive';
-      emitChunks(this.ondataavailable, dataHandler);
-      stopHandler?.();
-    });
-    addEventListener = vi.fn((type: string, handler: (...args: unknown[]) => void) => {
-      if (type === 'dataavailable') dataHandler = handler as never;
-      if (type === 'stop') stopHandler = handler as never;
-    });
-    removeEventListener = vi.fn();
-  });
+  vi.stubGlobal(
+    'MediaRecorder',
+    class FakeMediaRecorder {
+      static isTypeSupported = () => true;
+      state = 'inactive' as string;
+      ondataavailable: ((e: BlobEvent) => void) | null = null;
+      onerror: ((e: Event) => void) | null = null;
+      start = vi.fn(() => {
+        this.state = 'recording';
+        emitChunks(this.ondataavailable, dataHandler);
+      });
+      stop = vi.fn(() => {
+        this.state = 'inactive';
+        emitChunks(this.ondataavailable, dataHandler);
+        stopHandler?.();
+      });
+      addEventListener = vi.fn((type: string, handler: (...args: unknown[]) => void) => {
+        if (type === 'dataavailable') dataHandler = handler as never;
+        if (type === 'stop') stopHandler = handler as never;
+      });
+      removeEventListener = vi.fn();
+    },
+  );
 
   // navigator.mediaDevices
   vi.stubGlobal('navigator', {
@@ -115,14 +128,20 @@ function installMediaStubs(options?: { audioChunks?: Blob[] }) {
     numberOfChannels: 1,
     getChannelData: () => new Float32Array(16000),
   } as unknown as AudioBuffer;
-  const audioContexts: Array<{ decodeAudioData: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> }> = [];
-  vi.stubGlobal('AudioContext', class FakeAudioContext {
-    decodeAudioData = vi.fn(async () => fakeAudioBuffer);
-    close = vi.fn(async () => undefined);
-    constructor() {
-      audioContexts.push({ decodeAudioData: this.decodeAudioData, close: this.close });
-    }
-  });
+  const audioContexts: Array<{
+    decodeAudioData: ReturnType<typeof vi.fn>;
+    close: ReturnType<typeof vi.fn>;
+  }> = [];
+  vi.stubGlobal(
+    'AudioContext',
+    class FakeAudioContext {
+      decodeAudioData = vi.fn(async () => fakeAudioBuffer);
+      close = vi.fn(async () => undefined);
+      constructor() {
+        audioContexts.push({ decodeAudioData: this.decodeAudioData, close: this.close });
+      }
+    },
+  );
 
   return { fakeStream, fakeTrack, fakeAudioBuffer, audioContexts };
 }
@@ -143,16 +162,26 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     installMediaStubs();
 
     // 提供通用的 fetch / FormData 环境 | Provide universal fetch/FormData stubs for whisper-server path
-    vi.stubGlobal('FormData', class MockFormData {
-      private entries: [string, unknown][] = [];
-      append(key: string, value: unknown) { this.entries.push([key, value]); }
-      get(key: string) { return this.entries.find(([entryKey]) => entryKey === key)?.[1] ?? null; }
-    });
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ text: 'transcribed' }),
-      text: async () => 'transcribed',
-    })));
+    vi.stubGlobal(
+      'FormData',
+      class MockFormData {
+        private entries: [string, unknown][] = [];
+        append(key: string, value: unknown) {
+          this.entries.push([key, value]);
+        }
+        get(key: string) {
+          return this.entries.find(([entryKey]) => entryKey === key)?.[1] ?? null;
+        }
+      },
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ text: 'transcribed' }),
+        text: async () => 'transcribed',
+      })),
+    );
   });
 
   afterEach(() => {
@@ -160,9 +189,7 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
   });
 
   it('VAD 检测到语音段时正常走 STT 路径 | proceeds to STT when VAD detects speech', async () => {
-    mockDetectSpeechSegments.mockResolvedValue([
-      { start: 0.0, end: 0.8, confidence: 0.91 },
-    ]);
+    mockDetectSpeechSegments.mockResolvedValue([{ start: 0.0, end: 0.8, confidence: 0.91 }]);
 
     const executor = new RecordingExecutor(callbacks);
     const vadService = new WhisperXVadService();
@@ -181,6 +208,27 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     // VAD 通过后应继续到 STT 路径（产出结果或错误）| After VAD passes, pipeline should complete (result or error)
     const callbackInvoked = emitResult.mock.calls.length > 0 || emitError.mock.calls.length > 0;
     expect(callbackInvoked).toBe(true);
+  });
+
+  it('VAD 缓存记录本次检测真实引擎（能量降级为 energy）| VAD cache records the engine really used (energy on fallback)', async () => {
+    mockDetectSpeechSegments.mockResolvedValue([{ start: 0, end: 0.8 }]);
+    mockDetectionEngine.current = 'energy';
+    try {
+      const executor = new RecordingExecutor(callbacks);
+      executor.setVadService(new WhisperXVadService());
+      await executor.startRecording();
+      await executor.stopRecording('whisper-local', {
+        whisperServerUrl: 'http://localhost:8080',
+        lang: 'en',
+      });
+
+      expect(vadCache.set).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ engine: 'energy', segments: [{ start: 0, end: 0.8 }] }),
+      );
+    } finally {
+      mockDetectionEngine.current = 'silero';
+    }
   });
 
   it('VAD 未检测到语音时跳过 STT 并返回空结果 | skips STT and returns empty result when VAD detects no speech', async () => {
@@ -226,7 +274,6 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
   });
 
   it('非 whisper-local 引擎不触发 VAD | non-whisper-local engine does not trigger VAD', async () => {
-
     const executor = new RecordingExecutor(callbacks);
     executor.setVadService(new WhisperXVadService());
 
@@ -241,7 +288,6 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
   });
 
   it('无 VAD 服务时直接走 STT | no VAD service proceeds to STT directly', async () => {
-
     const executor = new RecordingExecutor(callbacks);
     // 不设置 VAD | No VAD set
 
@@ -274,10 +320,10 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     expect(mockDetectSpeechSegments).not.toHaveBeenCalled();
   });
 
-  it('uses the Distil-Whisper default model when no explicit model is configured', async () => {
+  it('uses the shared multilingual default model when no explicit model is configured', async () => {
     const fetchMock = vi.fn(async (_input: unknown, init?: { body?: unknown }) => {
       const body = init?.body as { get: (key: string) => unknown } | undefined;
-      expect(body?.get('model')).toBe('ggml-distil-whisper-large-v3.bin');
+      expect(body?.get('model')).toBe('ggml-large-v3-turbo-q5_0.bin');
       return {
         ok: true,
         json: async () => ({ text: 'transcribed' }),
@@ -295,6 +341,34 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     });
 
     expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it('maps whisper-server word timestamps and detected language into the result (BF2-2)', async () => {
+    const body = readFileSync(
+      fileURLToPath(
+        new URL(
+          '../tools/whisper-server/__fixtures__/whisper-server-zh-tiny.resp.json',
+          import.meta.url,
+        ),
+      ),
+      'utf8',
+    );
+    const server = JSON.parse(body) as { words: unknown[] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(body, { status: 200 })),
+    );
+
+    const executor = new RecordingExecutor(callbacks);
+    await executor.startRecording();
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'zh-CN',
+    });
+
+    const result = emitResult.mock.calls.at(-1)?.[0] as { lang: string; wordTimings?: unknown[] };
+    expect(result.lang).toBe('zh');
+    expect(result.wordTimings).toHaveLength(server.words.length);
   });
 
   it('applies configured STT enhancement metadata after successful transcription', async () => {
@@ -318,20 +392,18 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     });
 
     expect(enhancementProvider.enhance).toHaveBeenCalledTimes(1);
-    expect(emitResult).toHaveBeenCalledWith(expect.objectContaining({
-      text: 'transcribed',
-      enhancement: expect.objectContaining({
-        kind: 'whisperx-align',
-        applied: true,
-        wordTimingCount: 1,
-        speakerTurnCount: 1,
+    expect(emitResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'transcribed',
+        enhancement: expect.objectContaining({
+          kind: 'whisperx-align',
+          applied: true,
+          wordTimingCount: 1,
+          speakerTurnCount: 1,
+        }),
+        wordTimings: expect.arrayContaining([expect.objectContaining({ word: 'transcribed' })]),
+        speakerTurns: expect.arrayContaining([expect.objectContaining({ speaker: 'S1' })]),
       }),
-      wordTimings: expect.arrayContaining([
-        expect.objectContaining({ word: 'transcribed' }),
-      ]),
-      speakerTurns: expect.arrayContaining([
-        expect.objectContaining({ speaker: 'S1' }),
-      ]),
-    }));
+    );
   });
 });

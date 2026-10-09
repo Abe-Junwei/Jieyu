@@ -1,6 +1,19 @@
-import { createManagedBrowserWorker } from '../../observability/managedBrowserWorkerFactory';
-import { serializeAcousticPanelBatchDetailCsv, serializeAcousticPanelBatchDetailJson, serializeAcousticPanelBatchDetailJsonResearch, serializeAcousticPanelDetailCsv, serializeAcousticPanelDetailJson, serializeAcousticPanelDetailJsonResearch, serializeAcousticPitchTierText, type AcousticPanelBatchDetail, type AcousticPanelDetail } from '../../utils/acousticPanelDetail';
-import { ACOUSTIC_ANALYSIS_PRESETS, type AcousticAnalysisPresetKey } from '../../utils/acousticAnalysisPresets';
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
+import {
+  serializeAcousticPanelBatchDetailCsv,
+  serializeAcousticPanelBatchDetailJson,
+  serializeAcousticPanelBatchDetailJsonResearch,
+  serializeAcousticPanelDetailCsv,
+  serializeAcousticPanelDetailJson,
+  serializeAcousticPanelDetailJsonResearch,
+  serializeAcousticPitchTierText,
+  type AcousticPanelBatchDetail,
+  type AcousticPanelDetail,
+} from '../../utils/acousticPanelDetail';
+import {
+  ACOUSTIC_ANALYSIS_PRESETS,
+  type AcousticAnalysisPresetKey,
+} from '../../utils/acousticAnalysisPresets';
 import { type AcousticAnalysisConfig } from '../../utils/acousticOverlayTypes';
 
 export function formatDb(value: number | null | undefined, digits = 1): string | null {
@@ -25,11 +38,18 @@ export function formatScalar(value: number | null | undefined, digits = 3): stri
 
 export function formatCoefficients(values: number[] | null | undefined, count = 3): string | null {
   if (!Array.isArray(values) || values.length === 0) return null;
-  return values.slice(0, count).map((value) => value.toFixed(2)).join(' / ');
+  return values
+    .slice(0, count)
+    .map((value) => value.toFixed(2))
+    .join(' / ');
 }
 
 export function buildNormalizedPath(
-  points: Array<{ timeRatio: number; normalizedF0?: number | null; normalizedIntensity?: number | null }>,
+  points: Array<{
+    timeRatio: number;
+    normalizedF0?: number | null;
+    normalizedIntensity?: number | null;
+  }>,
   key: 'normalizedF0' | 'normalizedIntensity',
   width = 120,
   height = 42,
@@ -39,14 +59,17 @@ export function buildNormalizedPath(
 
   return plotted
     .map((point, index) => {
-      const x = 2 + (point.timeRatio * (width - 4));
-      const y = 2 + ((1 - (point[key] as number)) * (height - 4));
+      const x = 2 + point.timeRatio * (width - 4);
+      const y = 2 + (1 - (point[key] as number)) * (height - 4);
       return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
     })
     .join(' ');
 }
 
-export function findNearestFrameByTime<T extends { timeSec: number }>(frames: T[], timeSec: number | undefined): T | null {
+export function findNearestFrameByTime<T extends { timeSec: number }>(
+  frames: T[],
+  timeSec: number | undefined,
+): T | null {
   if (timeSec === undefined || frames.length === 0) return null;
   let low = 0;
   let high = frames.length - 1;
@@ -108,8 +131,9 @@ export function measureAcousticExportPayloadStats(
     return {
       frameCount,
       toneBinCount,
-      estimatedBytes: (frameCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_FRAME)
-        + (toneBinCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_TONE_BIN),
+      estimatedBytes:
+        frameCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_FRAME +
+        toneBinCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_TONE_BIN,
     };
   }
 
@@ -119,8 +143,9 @@ export function measureAcousticExportPayloadStats(
   return {
     frameCount,
     toneBinCount,
-    estimatedBytes: (frameCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_FRAME)
-      + (toneBinCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_TONE_BIN),
+    estimatedBytes:
+      frameCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_FRAME +
+      toneBinCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_TONE_BIN,
   };
 }
 
@@ -172,16 +197,13 @@ export async function serializeAcousticExportWithWorker(
 
   return new Promise<string | null>((resolve, reject) => {
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const spawned = createManagedBrowserWorker({
-      url: new URL('../../workers/acousticExport.worker.ts', import.meta.url),
-      options: { type: 'module' },
-      tracking: {
-        id: `acousticExport-${requestId}`,
-        source: 'serializeAcousticExportWithWorker',
-      },
+    const worker = new Worker(new URL('../../workers/acousticExport.worker.ts', import.meta.url), {
+      type: 'module',
     });
-    const worker = spawned.worker;
-    const releaseTrack = spawned.release;
+    const releaseTrack = trackBrowserWorkerLifecycle(worker, {
+      id: `acousticExport-${requestId}`,
+      source: 'serializeAcousticExportWithWorker',
+    });
     let settled = false;
     let timeoutId: number | undefined;
     const rejectAndCleanup = (error: Error) => {
@@ -256,8 +278,11 @@ export function formatDelta(
 }
 
 export const ACOUSTIC_NUMERIC_BOUNDS: Record<
-keyof Pick<AcousticAnalysisConfig, 'pitchFloorHz' | 'pitchCeilingHz' | 'analysisWindowSec' | 'frameStepSec' | 'silenceRmsThreshold'>,
-{ min: number; max: number }
+  keyof Pick<
+    AcousticAnalysisConfig,
+    'pitchFloorHz' | 'pitchCeilingHz' | 'analysisWindowSec' | 'frameStepSec' | 'silenceRmsThreshold'
+  >,
+  { min: number; max: number }
 > = {
   pitchFloorHz: { min: 30, max: 500 },
   pitchCeilingHz: { min: 80, max: 1200 },
@@ -295,7 +320,9 @@ export function downloadTextPayload(filename: string, content: string, mimeType:
 export const PROVIDER_PREFERENCE_AUTO = '__auto__';
 export type AcousticConfigOverride = Partial<AcousticAnalysisConfig> | null;
 
-export function pruneAcousticConfigOverride(override: AcousticConfigOverride): AcousticConfigOverride {
+export function pruneAcousticConfigOverride(
+  override: AcousticConfigOverride,
+): AcousticConfigOverride {
   if (!override) return null;
   const entries = Object.entries(override)
     .filter(([, value]) => value !== undefined)
@@ -314,8 +341,12 @@ export function areAcousticConfigOverridesEqual(
     return normalizedLeft === normalizedRight;
   }
 
-  const leftEntries = Object.entries(normalizedLeft).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
-  const rightEntries = Object.entries(normalizedRight).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  const leftEntries = Object.entries(normalizedLeft).sort(([leftKey], [rightKey]) =>
+    leftKey.localeCompare(rightKey),
+  );
+  const rightEntries = Object.entries(normalizedRight).sort(([leftKey], [rightKey]) =>
+    leftKey.localeCompare(rightKey),
+  );
   if (leftEntries.length !== rightEntries.length) return false;
   return leftEntries.every(([key, value], index) => {
     const [rightKey, rightValue] = rightEntries[index] ?? [];
@@ -326,7 +357,10 @@ export function areAcousticConfigOverridesEqual(
 export function shouldRejectAcousticExportPayload(
   stats: AcousticExportPayloadStats,
 ): { frameCount: number; toneBinCount: number; estimatedBytes: number } | null {
-  if (stats.frameCount > MAX_ACOUSTIC_EXPORT_FRAME_COUNT || stats.estimatedBytes > MAX_ACOUSTIC_EXPORT_ESTIMATED_BYTES) {
+  if (
+    stats.frameCount > MAX_ACOUSTIC_EXPORT_FRAME_COUNT ||
+    stats.estimatedBytes > MAX_ACOUSTIC_EXPORT_ESTIMATED_BYTES
+  ) {
     return {
       frameCount: stats.frameCount,
       toneBinCount: stats.toneBinCount,

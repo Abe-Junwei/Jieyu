@@ -3,8 +3,6 @@
  * 单一判定入口 | Single precedence gate for preview SSOT.
  */
 
-import type { LassoSurfacePreview } from './segmentRangeGesturePreviewWriter';
-
 export type WaveLassoPreviewRect = {
   x: number;
   y: number;
@@ -15,6 +13,12 @@ export type WaveLassoPreviewRect = {
 };
 
 export type TierLassoPreviewRect = { x: number; y: number; w: number; h: number };
+
+/** 波形 / tier 套索预览互斥（与 `useLasso` 内状态一致）。 */
+export type LassoSurfacePreview =
+  | { surface: 'none' }
+  | { surface: 'tier'; rect: TierLassoPreviewRect }
+  | { surface: 'wave'; rect: WaveLassoPreviewRect; hintCount: number };
 
 export type TimeRangeDragPreview = { id: string; start: number; end: number };
 

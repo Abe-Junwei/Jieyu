@@ -32,6 +32,7 @@ import {
   SnapshotFormatError,
   type SnapshotInvalidCollection,
 } from './snapshotFormatError';
+import { withLexemeNestedIds } from './lexemeNestedIds';
 import {
   InboundByteConflictError,
   isInboundByteCollection,
@@ -431,7 +432,8 @@ function normalizeImportedDoc(
     case 'track_entities':
       return doc;
     case 'lexemes':
-      return ensureImportProvenance(doc as LexemeDocType, fallbackCreatedAt);
+      // JY-23：导入时显式补齐嵌套 id（校验器不再原地补）| Fill nested ids explicitly (validator is pure)
+      return withLexemeNestedIds(ensureImportProvenance(doc as LexemeDocType, fallbackCreatedAt));
     case 'token_lexeme_links':
       return ensureImportProvenance(doc as TokenLexemeLinkDocType, fallbackCreatedAt);
     case 'phonemes':
@@ -748,6 +750,18 @@ export async function importDatabaseFromJson(
   }
 
   const dbInstance = await getDb();
+
+  // GAP-1：父表先于子表写入，归属一致性检查才能在同一事务里读到本次导入的父行
+  // GAP-1: write parent tables before their children so the parent-ownership check sees the
+  // parents of this import (stable sort; all other collections keep the snapshot order)
+  const childWriteRank: Partial<Record<KnownCollectionName, number>> = {
+    unit_tokens: 1,
+    unit_morphemes: 2,
+    token_lexeme_links: 3,
+  };
+  preparedCollections.sort(
+    (a, b) => (childWriteRank[a.collectionName] ?? 0) - (childWriteRank[b.collectionName] ?? 0),
+  );
 
   // ADR-0006: One `rw` Dexie transaction whose scope is the dynamic union of `tier_definitions` plus every
   // Dexie `Table` in `tableByCollection`. The callback only touches stores in that list; `layers` uses

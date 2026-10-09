@@ -10,7 +10,6 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('.', import.meta.url));
-const zodCoreConfigEntry = resolve(repoRoot, 'node_modules/zod/v4/core/core.js');
 import type { Plugin as RolldownPlugin } from 'rolldown';
 
 // CI 环境提供 SENTRY_AUTH_TOKEN 时自动上传 source map 并删除本地产物 | Upload source maps in CI when SENTRY_AUTH_TOKEN is present
@@ -190,6 +189,24 @@ function copyOnnxWasm(): Plugin {
 }
 
 /**
+ * 产物里出现原始 `.ts` 说明 Vite 没打包某个 worker（`new URL(...)` 被包进 helper），生产里 worker 起不来：直接让构建失败（BF3-3）。
+ * A raw `.ts` in the output means Vite did not bundle a worker (`new URL(...)` hidden behind a helper) and it
+ * never starts in production: fail the build (BF3-3).
+ */
+function failOnRawTsAssets(): Plugin {
+  return {
+    name: 'fail-on-raw-ts-assets',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const raw = Object.keys(bundle).filter((fileName) => fileName.endsWith('.ts'));
+      if (raw.length > 0) {
+        this.error(`Unbundled TypeScript in build output: ${raw.join(', ')}. Create workers with a literal new Worker(new URL('./x.ts', import.meta.url)).`);
+      }
+    },
+  };
+}
+
+/**
  * wavesurfer.js 频谱图插件在模块顶层 require("worker_threads")，Vite 将其外部化后
  * 访问 .Worker 会产生浏览器兼容警告。此 esbuild 插件在依赖预构建阶段将该 require
  * 替换为 undefined，使其在 try/catch 中安全失败且不再输出警告。
@@ -227,8 +244,6 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
-      // 包 exports 未列出该子路径；供 index.html 与 Vitest 在 classic zod 加载前写入 jitless
-      'zod/v4/core/core.js': zodCoreConfigEntry,
       // wavesurfer spectrogram probes Node worker_threads at module scope; map to browser shim to avoid externalization warnings
       worker_threads: resolve(repoRoot, 'src/workerThreads.browser.ts'),
       // 支持 ~/hooks/... 等绝对路径别名（与 tsconfig paths 对齐）| Align with tsconfig paths for Vitest resolution
@@ -237,6 +252,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    failOnRawTsAssets(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],

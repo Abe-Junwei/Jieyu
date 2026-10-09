@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AiSessionMemory } from './chatDomain.types';
 import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
 import { updateSessionMemoryWithPrompt } from './adaptiveInputProfile';
 import { buildUserDirectivePrompt } from './userDirectivePrompt';
@@ -56,8 +57,12 @@ describe('sessionMemory Dexie store (G1a)', () => {
     const row = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId } })
       .exec();
-    expect(row?.toJSON().payload.preferences?.lastLanguage).toBe('yue');
-    expect(row?.toJSON().payload.responsePreferences?.style).toBe('concise');
+    expect((row?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastLanguage).toBe(
+      'yue',
+    );
+    expect((row?.toJSON().payload as AiSessionMemory | undefined)?.responsePreferences?.style).toBe(
+      'concise',
+    );
   });
 
   it('migrates legacy localStorage into Dexie for active conversation', async () => {
@@ -125,8 +130,12 @@ describe('sessionMemory Dexie store (G1a)', () => {
       const rowA = await db.collections.ai_session_memories
         .findOne({ selector: { conversationId: conversationA } })
         .exec();
-      expect(rowA?.toJSON().payload.preferences?.lastLanguage).toBe('yue');
-      expect(rowA?.toJSON().payload.responsePreferences?.style).toBe('concise');
+      expect(
+        (rowA?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastLanguage,
+      ).toBe('yue');
+      expect(
+        (rowA?.toJSON().payload as AiSessionMemory | undefined)?.responsePreferences?.style,
+      ).toBe('concise');
     });
   });
 
@@ -180,8 +189,12 @@ describe('sessionMemory Dexie store (G1a)', () => {
     const rowB = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId: conversationB } })
       .exec();
-    expect(rowB?.toJSON().payload.preferences?.lastLanguage).toBe('yue');
-    expect(rowB?.toJSON().payload.responsePreferences?.style).toBe('concise');
+    expect((rowB?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastLanguage).toBe(
+      'yue',
+    );
+    expect(
+      (rowB?.toJSON().payload as AiSessionMemory | undefined)?.responsePreferences?.style,
+    ).toBe('concise');
   });
 
   it('serializes concurrent persistSessionMemoryAsync so Dexie keeps latest snapshot', async () => {
@@ -231,8 +244,14 @@ describe('sessionMemory Dexie store (G1a)', () => {
     const rowBeforeHydration = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId } })
       .exec();
-    expect(rowBeforeHydration?.toJSON().payload.preferences?.lastLanguage).toBe('cmn');
-    expect(rowBeforeHydration?.toJSON().payload.responsePreferences?.style).toBe('concise');
+    expect(
+      (rowBeforeHydration?.toJSON().payload as AiSessionMemory | undefined)?.preferences
+        ?.lastLanguage,
+    ).toBe('cmn');
+    expect(
+      (rowBeforeHydration?.toJSON().payload as AiSessionMemory | undefined)?.responsePreferences
+        ?.style,
+    ).toBe('concise');
 
     const loaded = await loadSessionMemoryAsync(conversationId);
     expect(loaded.preferences?.lastLanguage).toBe('cmn');
@@ -241,8 +260,14 @@ describe('sessionMemory Dexie store (G1a)', () => {
     const rowAfterHydration = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId } })
       .exec();
-    expect(rowAfterHydration?.toJSON().payload.preferences?.lastLanguage).toBe('cmn');
-    expect(rowAfterHydration?.toJSON().payload.responsePreferences?.style).toBe('concise');
+    expect(
+      (rowAfterHydration?.toJSON().payload as AiSessionMemory | undefined)?.preferences
+        ?.lastLanguage,
+    ).toBe('cmn');
+    expect(
+      (rowAfterHydration?.toJSON().payload as AiSessionMemory | undefined)?.responsePreferences
+        ?.style,
+    ).toBe('concise');
   });
 
   it('merges pre-hydration prompt updates without clobbering stored preferences', async () => {
@@ -263,9 +288,15 @@ describe('sessionMemory Dexie store (G1a)', () => {
       const row = await db.collections.ai_session_memories
         .findOne({ selector: { conversationId } })
         .exec();
-      expect(row?.toJSON().payload.preferences?.lastLanguage).toBe('cmn');
-      expect(row?.toJSON().payload.preferences?.lastToolName).toBe('set_transcription_text');
-      expect(row?.toJSON().payload.responsePreferences?.style).toBe('concise');
+      expect(
+        (row?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastLanguage,
+      ).toBe('cmn');
+      expect(
+        (row?.toJSON().payload as AiSessionMemory | undefined)?.preferences?.lastToolName,
+      ).toBe('set_transcription_text');
+      expect(
+        (row?.toJSON().payload as AiSessionMemory | undefined)?.responsePreferences?.style,
+      ).toBe('concise');
     });
   });
 });

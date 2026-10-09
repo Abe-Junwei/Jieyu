@@ -7,6 +7,7 @@ import { act, renderHook } from '@testing-library/react';
 import { db, getDb, isLexemeEntry } from '../../db';
 import type { LayerDocType } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { settleSegmentMetaSync } from '../../services/segmentMetaSyncBestEffort';
 import { useImportExport } from './useImportExport';
 
 const mockReadFileAsText = vi.hoisted(() => vi.fn());
@@ -2094,6 +2095,10 @@ describe('useImportExport - import success under stop-write', () => {
 
   it('JY-12: re-import removes tokens, morphemes, links, notes and segment_meta of replaced units', async () => {
     await importReimportFixture('Hello', 'once.eaf');
+    // segment_meta 同步是后台批处理：先等首轮导入的同步落定，避免它与下面的写入/断言竞争（BF1-N7）
+    // segment_meta sync is a background batch: let the first import's sync settle so it cannot race
+    // the rows planted below or the final assertion (BF1-N7)
+    await settleSegmentMetaSync();
     const [first] = await db.layer_units.where('textId').equals('text-reimport').toArray();
     expect(first).toBeDefined();
     const unitId = first!.id;
@@ -2159,6 +2164,7 @@ describe('useImportExport - import success under stop-write', () => {
     });
 
     await importReimportFixture('Hello again', 'twice.eaf');
+    await settleSegmentMetaSync();
 
     expect(await db.layer_units.get(unitId)).toBeUndefined();
     expect(await db.unit_tokens.get('tok-jy12')).toBeUndefined();

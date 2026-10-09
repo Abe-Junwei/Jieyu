@@ -1,5 +1,6 @@
 import type { EvidencePacketV0 } from './evidencePacket';
 import { evaluateWorkflowCompletionChecklist } from './workflowCompletionChecklist';
+import type { VerticalWorkflowOutputEnvelopeV0 } from './verticalWorkflowOutputEnvelope.types';
 import {
   getVerticalWorkflowV0,
   type VerticalWorkflowId,
@@ -15,15 +16,7 @@ export interface VerticalWorkflowSelectionV0 {
   matchedKeyword: string;
 }
 
-export interface VerticalWorkflowOutputEnvelopeV0 {
-  schemaVersion: 0;
-  workflowId: VerticalWorkflowId;
-  writeMode: VerticalWorkflowV0['writeMode'];
-  outputKind: VerticalWorkflowV0['outputKind'];
-  evidencePackets: ReadonlyArray<EvidencePacketV0>;
-  generatedAt: string;
-  status: 'ready' | 'degraded';
-}
+export type { VerticalWorkflowOutputEnvelopeV0 };
 
 type VerticalWorkflowKeywordRule = {
   workflowId: VerticalWorkflowId;

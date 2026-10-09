@@ -265,3 +265,95 @@ describe('R-COLLAB-SCOPE-LAYER: remote upsert_layer stays inside the collaborati
     expect(d.rawActions.deleteLayer).not.toHaveBeenCalled();
   });
 });
+
+describe('GAP-2: remote upsert_unit references stay inside the collaboration project', () => {
+  beforeEach(async () => {
+    await db.media_items.put({
+      id: 'private-media',
+      textId: PRIVATE,
+      filename: 'a.wav',
+      isOfflineCached: false,
+      timelineKind: 'acoustic',
+      byteLocation: 'none',
+      availability: 'missing',
+      createdAt: NOW,
+    } as never);
+  });
+
+  function sharedUnit(extra: Record<string, unknown>) {
+    return change({
+      entityType: 'layer_unit',
+      entityId: 'shared-new',
+      opType: 'upsert_unit',
+      payload: {
+        unit: {
+          id: 'shared-new',
+          textId: SHARED,
+          layerId: 'L-shared',
+          unitType: 'unit',
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+          ...extra,
+        },
+      },
+    });
+  }
+
+  it('refuses a new shared unit that points at media of another project', async () => {
+    const error = await applyCollaborationRemoteMutation(
+      sharedUnit({ mediaId: 'private-media' }),
+      { skipLoadSnapshot: true },
+      deps(),
+    ).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(CollaborationRemoteProjectScopeError);
+    expect((error as CollaborationRemoteProjectScopeError).entityKind).toBe('media');
+    expect(await db.layer_units.get('shared-new')).toBeUndefined();
+  });
+
+  it('refuses parent / root unit references into another project', async () => {
+    for (const ref of ['parentUnitId', 'rootUnitId']) {
+      const error = await applyCollaborationRemoteMutation(
+        sharedUnit({ [ref]: 'private-unit' }),
+        { skipLoadSnapshot: true },
+        deps(),
+      ).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(CollaborationRemoteProjectScopeError);
+      expect((error as CollaborationRemoteProjectScopeError).entityId).toBe('private-unit');
+    }
+    expect(await db.layer_units.get('shared-new')).toBeUndefined();
+  });
+});
+
+describe('GAP-6: the ownership check runs under the DB mutex', () => {
+  it('a row that becomes foreign right before the lock is taken is still refused', async () => {
+    const d = deps();
+    d.runWithDbMutex = async (fn) => {
+      // 另一个写入者抢在锁之前把该单元写进了私有项目 | Another writer lands just before the lock
+      await db.layer_units.put({
+        id: 'race-unit',
+        textId: PRIVATE,
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as LayerUnitDocType);
+      return fn();
+    };
+    await expect(
+      applyCollaborationRemoteMutation(
+        change({
+          entityType: 'layer_unit_content',
+          entityId: 'race-unit:L-shared',
+          opType: 'upsert_unit_content',
+          payload: { unitId: 'race-unit', layerId: 'L-shared', value: 'x' },
+        }),
+        { skipLoadSnapshot: true },
+        d,
+      ),
+    ).rejects.toBeInstanceOf(CollaborationRemoteProjectScopeError);
+    expect(d.rawActions.saveUnitText).not.toHaveBeenCalled();
+  });
+});

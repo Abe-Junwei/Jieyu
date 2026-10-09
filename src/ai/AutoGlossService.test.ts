@@ -10,6 +10,7 @@ const NOW = new Date().toISOString();
 function lexeme(id: string, headword: string, gloss?: string, inflected: string[] = []) {
   const doc = entryDoc({
     id,
+    textId: 't1',
     headword,
     ...(gloss ? { translation: gloss, langCode: 'eng' } : {}),
     createdAt: NOW,
@@ -89,6 +90,24 @@ describe('AutoGlossService', () => {
     const task = await db.ai_tasks.get(result.taskId!);
     expect(task?.taskType).toBe('gloss');
     expect(task?.status).toBe('done');
+  });
+
+  it('ignores lexemes of another project (GAP-1)', async () => {
+    await db.unit_tokens.put({
+      id: 'tok_1',
+      textId: 't1',
+      unitId: 'utt_1',
+      form: { default: 'dog' },
+      tokenIndex: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.lexemes.put({ ...lexeme('lex_other', 'dog', 'canine'), textId: 't2' });
+
+    const result = await new AutoGlossService().glossUnit('utt_1');
+
+    expect(result.matched).toEqual([]);
+    expect(await db.token_lexeme_links.count()).toBe(0);
   });
 
   it('skips tokens that already have a gloss', async () => {

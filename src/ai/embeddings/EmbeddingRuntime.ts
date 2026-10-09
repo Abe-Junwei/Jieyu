@@ -1,5 +1,5 @@
 import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
-import { createManagedBrowserWorker } from '../../observability/managedBrowserWorkerFactory';
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { getWorkerPool } from '../../workers/WorkerPool';
 import { PendingWorkerRequestStore } from '../../services/PendingWorkerRequestStore';
 
@@ -190,22 +190,14 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   private createWorker(): Worker {
     this.workerTrackingRelease?.();
     this.workerTrackingRelease = null;
-    const spawned = createManagedBrowserWorker({
-      url: new URL('./embedding.worker.ts', import.meta.url),
-      options: { type: 'module' },
-      tracking: {
-        id: nextPhysicalWorkerId('embedding'),
-        source: 'WorkerEmbeddingRuntime',
-      },
+    const createEmbeddingWorker = () =>
+      new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' });
+    const worker = createEmbeddingWorker();
+    this.workerTrackingRelease = trackBrowserWorkerLifecycle(worker, {
+      id: nextPhysicalWorkerId('embedding'),
+      source: 'WorkerEmbeddingRuntime',
     });
-    const worker = spawned.worker;
-    this.workerTrackingRelease = spawned.release;
-    getWorkerPool().register(
-      'embedding',
-      'Embedding',
-      () => new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' }),
-      worker,
-    );
+    getWorkerPool().register('embedding', 'Embedding', createEmbeddingWorker, worker);
     worker.onmessage = (event: MessageEvent<WorkerResponseMessage | WorkerPoolPongMessage>) => {
       const payload = event.data;
       if (payload.type === 'workerpool:pong') return;

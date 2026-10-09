@@ -92,15 +92,21 @@ function normalizeErrorToast(
   message: string;
   variant: ToastVariant;
 } {
-  const translatedMessage =
+  const translatedTemplate =
     state.errorMeta?.i18nKey !== undefined && isDictKey(state.errorMeta.i18nKey)
       ? t(locale, state.errorMeta.i18nKey)
       : undefined;
+  // RD-2：带占位符的文案（如 "{message}"）在这里拿不到参数；调用方已插好参数的 message 优先。
+  // RD-2: parametrised templates (e.g. "{message}") cannot be filled here; prefer the caller's
+  // already-interpolated message instead of showing literal placeholders.
+  const hasUnfilledPlaceholder =
+    translatedTemplate !== undefined && /\{[A-Za-z_][\w]*\}/.test(translatedTemplate);
+  const translatedMessage =
+    hasUnfilledPlaceholder && state.message !== undefined && state.message.length > 0
+      ? state.message
+      : translatedTemplate;
   const rawMessage =
-    // 带占位符的键没法不带参数翻译，用调用方已填好的消息 | A key with placeholders needs params; use the caller's filled message
-    translatedMessage !== undefined &&
-    translatedMessage.length > 0 &&
-    !/\{\w+\}/.test(translatedMessage)
+    translatedMessage !== undefined && translatedMessage.length > 0
       ? translatedMessage
       : state.message !== undefined && state.message.length > 0
         ? state.message

@@ -8,6 +8,8 @@
  * plus fallback estimation for non-Whisper services.
  */
 
+import type { SttResult } from '../VoiceInputService.types';
+
 // ── Whisper verbose_json 类型 | Whisper verbose_json types ──────────────────
 
 interface WhisperVerboseSegment {
@@ -57,10 +59,7 @@ export function logprobToConfidence(avgLogprob: number): number {
  * 如果 segments 为空或不存在，返回 fallback（默认 1.0，即无数据时兼容旧行为）。
  * Returns fallback (default 1.0) if segments are empty or absent.
  */
-export function computeWhisperConfidence(
-  response: WhisperVerboseResponse,
-  fallback = 1.0,
-): number {
+export function computeWhisperConfidence(response: WhisperVerboseResponse, fallback = 1.0): number {
   const segments = response.segments;
   if (!segments || segments.length === 0) return fallback;
 
@@ -74,9 +73,7 @@ export function computeWhisperConfidence(
     const conf = logprobToConfidence(seg.avg_logprob);
     // no_speech_prob 高说明该段可能不是语音，降低置信度
     // High no_speech_prob indicates likely non-speech, penalise confidence
-    const nsPenalty = seg.no_speech_prob != null
-      ? Math.max(0, 1 - seg.no_speech_prob)
-      : 1;
+    const nsPenalty = seg.no_speech_prob != null ? Math.max(0, 1 - seg.no_speech_prob) : 1;
 
     weightedSum += duration * conf * nsPenalty;
     totalDuration += duration;
@@ -110,5 +107,38 @@ export function tryParseVerboseResponse(
     ...(typeof json.language === 'string' && { language: json.language }),
     ...(typeof json.duration === 'number' && { duration: json.duration }),
     segments: segments as WhisperVerboseSegment[],
+  };
+}
+
+/**
+ * 把 whisper-server 的 JSON 响应映射为 SttResult（两个本地 Whisper 入口共用，P6）。
+ * Maps a whisper-server JSON response to an SttResult; shared by both local-Whisper entry points (P6).
+ * 服务端返回的词级时间戳映射到 wordTimings（BF2-2）| Server word timestamps become wordTimings (BF2-2).
+ */
+export function whisperJsonToSttResult(
+  json: Record<string, unknown>,
+  lang: string,
+  audioBlob: Blob,
+): SttResult {
+  const verbose = tryParseVerboseResponse(json);
+  const words = Array.isArray(json.words) ? (json.words as Array<Record<string, unknown>>) : [];
+  const wordTimings = words
+    .filter(
+      (w) => typeof w.word === 'string' && typeof w.start === 'number' && typeof w.end === 'number',
+    )
+    .map((w) => ({
+      word: w.word as string,
+      start: w.start as number,
+      end: w.end as number,
+      ...(typeof w.probability === 'number' ? { confidence: w.probability } : {}),
+    }));
+  return {
+    text: typeof json.text === 'string' ? json.text : '',
+    lang: typeof json.language === 'string' && json.language ? json.language : lang,
+    isFinal: true,
+    confidence: verbose ? computeWhisperConfidence(verbose) : 1.0,
+    engine: 'whisper-local',
+    audioBlob,
+    ...(wordTimings.length > 0 ? { wordTimings } : {}),
   };
 }

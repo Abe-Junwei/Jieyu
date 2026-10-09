@@ -15,6 +15,7 @@
  */
 
 import MiniSearch from 'minisearch';
+import { foldSearchText, tokenizeMixedScriptForSearch } from '../utils/searchTextNormalization';
 import { createLogger } from '../observability/logger';
 
 const log = createLogger('ProjectMemoryStore');
@@ -280,9 +281,10 @@ class ProjectMemoryStore {
    */
   searchTerms(query: string, lang: string, limit = 10): TermEntry[] {
     if (!this._memory) return [];
-    const q = query.toLowerCase();
+    // NFC + 小写只用于比较，不改存储（RADAR-BUG-1）| Fold for comparison only (RADAR-BUG-1)
+    const q = foldSearchText(query);
     return this._memory.terms
-      .filter((t) => t.lang === lang && t.term.toLowerCase().includes(q))
+      .filter((t) => t.lang === lang && foldSearchText(t.term).includes(q))
       .sort((a, b) => b.useCount - a.useCount)
       .slice(0, limit);
   }
@@ -505,13 +507,8 @@ class ProjectMemoryStore {
           fuzzy: 0.2,
           boost: { text: 2 },
         },
-        tokenize: (text) => {
-          const lowered = text.toLowerCase();
-          const cjkChars = lowered.match(/[\u4e00-\u9fff]/g) ?? [];
-          const latinWords = lowered.split(/[^\p{L}\p{N}]+/u).filter((item) => item.length >= 2);
-          return [...new Set([...cjkChars, ...latinWords])];
-        },
-        processTerm: (term) => term.trim(),
+        tokenize: tokenizeMixedScriptForSearch,
+        processTerm: (term) => foldSearchText(term.trim()),
       });
 
       miniSearch.addAll(docs);

@@ -11,7 +11,10 @@ import { describeArchiveImportError } from '../../utils/archiveImportErrorMessag
 import { reportActionError } from '../../utils/actionErrorReporter';
 import { createLogger } from '../../observability/logger';
 import type { SaveState } from '../useTranscriptionData';
-import { resolveCurrentProjectTextId } from '../../utils/transcriptionUrlDeepLink';
+import {
+  publishActiveProjectTextId,
+  resolveCurrentProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 
 const log = createLogger('useImportExport');
 
@@ -231,7 +234,10 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     };
   };
 
-  const restoreProjectPackage = async (file: File, alreadyRead?: Blob): Promise<string> => {
+  const restoreProjectPackage = async (
+    file: File,
+    alreadyRead?: Blob,
+  ): Promise<{ message: string; projectId: string }> => {
     const { bytes, packages } = await readProjectPackageBytes(file, alreadyRead);
     const restored = await withArchivePasswordRetry(file, (password) =>
       packages.restoreProjectPackageAsNew(bytes, password ? { password } : undefined),
@@ -240,10 +246,13 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
       (sum, c) => sum + (c?.written ?? 0),
       0,
     );
-    return tf(locale, 'transcription.importExport.importDone.restoredAsNew', {
-      title: pickProjectTitle(restored.title, restored.projectId),
-      written,
-    });
+    return {
+      message: tf(locale, 'transcription.importExport.importDone.restoredAsNew', {
+        title: pickProjectTitle(restored.title, restored.projectId),
+        written,
+      }),
+      projectId: restored.projectId,
+    };
   };
 
   const overwriteWithProjectPackage = async (
@@ -359,10 +368,17 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         setSaveState({ kind: 'done', message });
         return true;
       }
-      const message = await restoreProjectPackage(file, read.bytes);
-      // 仍停留在当前项目（JY-02）；新项目在项目列表里 | Stay on the current project (JY-02)
-      await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
-      setSaveState({ kind: 'done', message });
+      const restored = await restoreProjectPackage(file, read.bytes);
+      // 仍停留在当前项目（JY-02）；没有当前项目时切到刚恢复的那一个（RD-3）
+      // Stay on the current project (JY-02); with none, switch to the restored one (RD-3).
+      let targetTextId = resolveCurrentProjectTextId(resolvedTextId);
+      if (targetTextId.length === 0 && restored.projectId) {
+        targetTextId = restored.projectId;
+        resolvedTextId = targetTextId;
+        publishActiveProjectTextId(targetTextId);
+      }
+      await loadSnapshot(targetTextId);
+      setSaveState({ kind: 'done', message: restored.message });
       return true;
     } catch (err) {
       const rawMessage = describeArchiveImportError(locale, err);

@@ -1,6 +1,6 @@
 import type { EvidencePacketV0 } from './evidencePacket';
 import type { VerticalWorkflowId } from './verticalWorkflowRegistry';
-import type { VerticalWorkflowOutputEnvelopeV0 } from './verticalWorkflowSelection';
+import type { VerticalWorkflowOutputEnvelopeV0 } from './verticalWorkflowOutputEnvelope.types';
 
 export type WorkflowCompletionStepId =
   | 'workflow_resolved'

@@ -12,9 +12,13 @@ import {
   createTranscriptionTimeoutController,
 } from './VoiceInputService.probes';
 import type { WhisperXVadService } from './vad/WhisperXVadService';
-import { tryParseVerboseResponse, computeWhisperConfidence } from './stt/sttConfidence';
+import { whisperJsonToSttResult } from './stt/sttConfidence';
 import { createLogger } from '../observability/logger';
 import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
+import {
+  LOCAL_WHISPER_DEFAULT_BASE_URL,
+  LOCAL_WHISPER_DEFAULT_MODEL,
+} from './stt/localWhisperDefaults';
 
 const log = createLogger('VoiceInputService.recording');
 const STT_TRANSCRIPTION_TIMEOUT_MS = 20_000;
@@ -232,9 +236,10 @@ export class RecordingExecutor {
         const { vadCache } = await import('./vad/VadCacheService');
         let segments = vadCache.get(mediaId)?.segments;
         if (!segments) {
-          segments = await this._vadService.detectSpeechSegments(audioBuffer);
+          const detection = await this._vadService.detectSpeechSegmentsWithEngine(audioBuffer);
+          segments = detection.segments;
           vadCache.set(mediaId, {
-            engine: this._vadService.getRuntimeEngine?.() ?? 'energy',
+            engine: detection.engine,
             segments,
             durationSec: audioBuffer.duration,
             cachedAt: Date.now(),
@@ -308,8 +313,8 @@ export class RecordingExecutor {
       commercialFallback?: CommercialSttProvider;
     },
   ): Promise<void> {
-    const baseUrl = config.whisperServerUrl?.replace(/\/+$/, '') ?? 'http://localhost:3040';
-    const model = config.whisperServerModel ?? 'ggml-distil-whisper-large-v3.bin';
+    const baseUrl = config.whisperServerUrl?.replace(/\/+$/, '') ?? LOCAL_WHISPER_DEFAULT_BASE_URL;
+    const model = config.whisperServerModel ?? LOCAL_WHISPER_DEFAULT_MODEL;
 
     try {
       const result = await this.transcribeWithWhisperServer(audioBlob, baseUrl, model, config.lang);
@@ -393,17 +398,11 @@ export class RecordingExecutor {
           continue;
         }
 
-        const json = (await resp.json()) as Record<string, unknown>;
-        const verbose = tryParseVerboseResponse(json);
-        const confidence = verbose ? computeWhisperConfidence(verbose) : 1.0;
-        return {
-          text: (json.text as string | undefined) ?? '',
-          lang: lang ?? 'unknown',
-          isFinal: true,
-          confidence,
-          engine: 'whisper-local',
+        return whisperJsonToSttResult(
+          (await resp.json()) as Record<string, unknown>,
+          lang ?? 'unknown',
           audioBlob,
-        };
+        );
       } catch (error) {
         const message = controller.signal.aborted
           ? `timed out after ${STT_TRANSCRIPTION_TIMEOUT_MS}ms`

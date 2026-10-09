@@ -55,7 +55,8 @@ export interface TransformersEmbeddingRuntimeConfig {
   device: TransformersEmbeddingDevice;
   cacheDir: string;
   browserCacheEnabled: boolean;
-  wasmPaths?: string;
+  /** 是否清除了 transformers 的 CDN wasmPaths 默认值 | Whether transformers' CDN wasmPaths default was cleared */
+  bundledWasmRuntime: boolean;
 }
 
 export interface CreateFeatureExtractionPipelineWithFallbackOptions {
@@ -74,15 +75,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-export function resolveTransformersWorkerWasmPath(workerHref?: string): string | undefined {
-  if (!workerHref) return undefined;
-  const normalizedHref = workerHref.split('?')[0]?.split('#')[0] ?? workerHref;
-  if (!normalizedHref || normalizedHref.includes('node_modules')) return undefined;
-  const slashIndex = normalizedHref.lastIndexOf('/');
-  if (slashIndex < 0) return undefined;
-  return normalizedHref.slice(0, slashIndex + 1);
-}
-
 export function detectTransformersBrowserCacheAvailability(
   browserCacheAvailable: boolean | undefined = typeof globalThis.caches !== 'undefined',
 ): boolean {
@@ -96,9 +88,11 @@ export function detectTransformersBrowserRuntime(
       self?: unknown;
       postMessage?: unknown;
     };
-    return typeof runtimeGlobal.self === 'object'
-      && runtimeGlobal.self === globalThis
-      && typeof runtimeGlobal.postMessage === 'function';
+    return (
+      typeof runtimeGlobal.self === 'object' &&
+      runtimeGlobal.self === globalThis &&
+      typeof runtimeGlobal.postMessage === 'function'
+    );
   })(),
 ): boolean {
   return browserRuntime;
@@ -113,7 +107,7 @@ export async function detectTransformersEmbeddingDevice(
     const gpu = navigatorLike?.gpu;
     if (!gpu) return browserRuntime ? 'wasm' : 'cpu';
     const adapter = await gpu.requestAdapter();
-    return adapter ? 'webgpu' : (browserRuntime ? 'wasm' : 'cpu');
+    return adapter ? 'webgpu' : browserRuntime ? 'wasm' : 'cpu';
   } catch {
     return browserRuntime ? 'wasm' : 'cpu';
   }
@@ -125,20 +119,31 @@ export async function configureTransformersEmbeddingRuntime(
 ): Promise<TransformersEmbeddingRuntimeConfig> {
   const browserRuntime = detectTransformersBrowserRuntime(options.browserRuntime);
   const device = await detectTransformersEmbeddingDevice(options.navigatorLike, browserRuntime);
-  const cacheDir = options.cacheDir ?? (browserRuntime ? DEFAULT_BROWSER_CACHE_DIR : DEFAULT_NODE_CACHE_DIR);
-  const browserCacheEnabled = detectTransformersBrowserCacheAvailability(options.browserCacheAvailable);
+  const cacheDir =
+    options.cacheDir ?? (browserRuntime ? DEFAULT_BROWSER_CACHE_DIR : DEFAULT_NODE_CACHE_DIR);
+  const browserCacheEnabled = detectTransformersBrowserCacheAvailability(
+    options.browserCacheAvailable,
+  );
   const env = asRecord(options.transformers.env);
-  const wasmPaths = resolveTransformersWorkerWasmPath(options.workerHref);
+  let bundledWasmRuntime = false;
 
   if (env) {
     env.cacheDir = cacheDir;
     env.useBrowserCache = browserCacheEnabled;
 
+    // transformers 在导入时把 wasmPaths 默认指向 jsDelivr CDN（被 CSP script-src 'self' 拦截，且离线不可用）。
+    // 以前这里改成 Worker 所在目录，但构建产物里没有未哈希的 ort-wasm-simd-threaded.asyncify.mjs，加载必然失败并静默回退到哈希嵌入。
+    // 清除 wasmPaths 后，ORT bundle 使用内嵌的 wasm 工厂，并通过 new URL(..., import.meta.url) 加载打包器产出的同版本 .wasm。
+    // transformers sets wasmPaths to the jsDelivr CDN on import (blocked by CSP script-src 'self', unavailable offline).
+    // Pointing it at the worker directory never worked either: the build emits no unhashed asyncify .mjs, so session
+    // creation failed and the worker silently fell back to hash embeddings. Clearing wasmPaths lets the ORT bundle use its
+    // embedded wasm factory and the bundler-emitted, version-matched .wasm asset (new URL(..., import.meta.url)).
     const backends = asRecord(env.backends);
     const onnx = asRecord(backends?.onnx);
     const wasm = asRecord(onnx?.wasm);
-    if (wasm && wasmPaths) {
-      wasm.wasmPaths = wasmPaths;
+    if (wasm && browserRuntime) {
+      delete wasm.wasmPaths;
+      bundledWasmRuntime = true;
     }
   }
 
@@ -146,7 +151,7 @@ export async function configureTransformersEmbeddingRuntime(
     device,
     cacheDir,
     browserCacheEnabled,
-    ...(wasmPaths ? { wasmPaths } : {}),
+    bundledWasmRuntime,
   };
 }
 
@@ -160,15 +165,12 @@ export async function createFeatureExtractionPipelineWithFallback(
     throw new Error('Transformers pipeline is unavailable');
   }
 
-  const loadPipeline = async (device: TransformersEmbeddingDevice) => options.transformers.pipeline!(
-    'feature-extraction',
-    options.modelId,
-    {
+  const loadPipeline = async (device: TransformersEmbeddingDevice) =>
+    options.transformers.pipeline!('feature-extraction', options.modelId, {
       device,
       dtype: 'q4',
       ...(options.progressCallback ? { progress_callback: options.progressCallback } : {}),
-    },
-  );
+    });
 
   try {
     return {

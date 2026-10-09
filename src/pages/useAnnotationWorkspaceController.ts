@@ -1,4 +1,7 @@
-import { annotationWorkspaceWriteActions } from './annotationWorkspaceController.actions';
+import {
+  annotationWorkspaceWriteActions,
+  type AnnotationSaveNotice,
+} from './annotationWorkspaceController.actions';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -40,10 +43,7 @@ import { saveAnnotationIgtRowTokens } from './annotation/saveAnnotationIgtRowTok
 
 export type { AnnotationIgtToken, AnnotationIgtRow };
 
-export type AnnotationSaveNotice = {
-  kind: 'idle' | 'saving' | 'saved' | 'error';
-  message: string;
-};
+export type { AnnotationSaveNotice };
 
 export function useAnnotationWorkspaceController() {
   const locale = useLocale();

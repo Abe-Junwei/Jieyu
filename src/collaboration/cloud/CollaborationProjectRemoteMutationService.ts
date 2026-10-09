@@ -5,6 +5,7 @@ import type { CollaborationProjectChangeRecord } from './syncTypes';
 import { asNumber, asRecord, asString } from './cloudSyncConflictHelpers';
 import {
   listForeignOwnedLayers,
+  listForeignOwnedMedia,
   listForeignOwnedUnits,
 } from '../../services/projectOwnershipQueries';
 
@@ -17,7 +18,7 @@ export class CollaborationRemoteProjectScopeError extends Error {
   constructor(
     public readonly changeId: string,
     public readonly opType: string,
-    public readonly entityKind: 'unit' | 'layer',
+    public readonly entityKind: 'unit' | 'layer' | 'media',
     public readonly entityId: string,
     public readonly ownerTextId: string,
     public readonly projectTextId: string,
@@ -41,11 +42,13 @@ function stringIds(values: unknown): string[] {
 function collectChangeTargets(change: CollaborationProjectChangeRecord): {
   unitIds: string[];
   layerIds: string[];
+  mediaIds: string[];
   declaredTextIds: Array<{ kind: 'unit' | 'layer'; id: string; textId: string | null }>;
 } {
   const payload = asRecord(change.payload);
   const unitIds: string[] = [];
   const layerIds: string[] = [];
+  const mediaIds: string[] = [];
   const declaredTextIds: Array<{ kind: 'unit' | 'layer'; id: string; textId: string | null }> = [];
   const entityHead = asString(change.entityId?.split(':')[0]);
   switch (change.opType) {
@@ -65,6 +68,14 @@ function collectChangeTargets(change: CollaborationProjectChangeRecord): {
         declaredTextIds.push({ kind: 'unit', id: unitId, textId: asString(fullUnit.textId) });
         const layerId = asString(fullUnit.layerId);
         if (present(layerId)) layerIds.push(layerId);
+        // GAP-2：单元引用的媒体与父 / 根单元也必须属于协同项目（parent / root 目前会被 saveUnit
+        // 剥掉，仍一并检查以防将来放开）。
+        // GAP-2: media and parent / root units a unit references must belong to the project too.
+        const mediaId = asString(fullUnit.mediaId);
+        if (present(mediaId)) mediaIds.push(mediaId);
+        for (const refId of [asString(fullUnit.parentUnitId), asString(fullUnit.rootUnitId)]) {
+          if (present(refId) && refId !== unitId) unitIds.push(refId);
+        }
       }
       break;
     }
@@ -102,7 +113,7 @@ function collectChangeTargets(change: CollaborationProjectChangeRecord): {
     default:
       break;
   }
-  return { unitIds, layerIds, declaredTextIds };
+  return { unitIds, layerIds, mediaIds, declaredTextIds };
 }
 
 /**
@@ -114,7 +125,7 @@ export async function assertRemoteChangeWithinProject(
   change: CollaborationProjectChangeRecord,
   projectTextId: string,
 ): Promise<void> {
-  const { unitIds, layerIds, declaredTextIds } = collectChangeTargets(change);
+  const { unitIds, layerIds, mediaIds, declaredTextIds } = collectChangeTargets(change);
   for (const declared of declaredTextIds) {
     if (declared.textId !== projectTextId) {
       throw new CollaborationRemoteProjectScopeError(
@@ -127,9 +138,10 @@ export async function assertRemoteChangeWithinProject(
       );
     }
   }
-  const [foreignUnits, foreignLayers] = await Promise.all([
+  const [foreignUnits, foreignLayers, foreignMedia] = await Promise.all([
     listForeignOwnedUnits(unitIds, projectTextId),
     listForeignOwnedLayers(layerIds, projectTextId),
+    listForeignOwnedMedia(mediaIds, projectTextId),
   ]);
   const foreignUnit = foreignUnits[0];
   if (foreignUnit) {
@@ -150,6 +162,17 @@ export async function assertRemoteChangeWithinProject(
       'layer',
       foreignLayer.id,
       foreignLayer.textId,
+      projectTextId,
+    );
+  }
+  const foreignMediaRow = foreignMedia[0];
+  if (foreignMediaRow) {
+    throw new CollaborationRemoteProjectScopeError(
+      change.id,
+      change.opType,
+      'media',
+      foreignMediaRow.id,
+      foreignMediaRow.textId,
       projectTextId,
     );
   }
@@ -193,14 +216,27 @@ export async function applyCollaborationRemoteMutation(
   options: ApplyCollaborationRemoteMutationOptions | undefined,
   deps: ApplyCollaborationRemoteMutationDeps,
 ): Promise<boolean> {
-  const { runWithDbMutex, rawActions, layers, layerLinks, loadSnapshot } = deps;
+  const { rawActions, layers, layerLinks, loadSnapshot } = deps;
   const projectTextId = deps.projectTextId.trim();
   if (projectTextId.length === 0) {
     throw new Error(
       `Refusing remote change ${change.id} (${change.opType}): no local collaboration project`,
     );
   }
-  await assertRemoteChangeWithinProject(change, projectTextId);
+  // GAP-6：归属检查与写入在同一个 mutex 回调里，检查和写入之间没有时间窗（TOCTOU）。
+  // 一条变更可能写多次（batch_patch），每次都在锁内重查；没有写入时也在最后检查一次，
+  // 保证越界变更总会被明确拒绝。
+  // GAP-6: the ownership check runs inside the same mutex callback as the write, so nothing can
+  // slip in between. A change may write several times (batch_patch); each write re-checks under the
+  // lock. When nothing is written the check still runs once at the end so out-of-scope changes are
+  // always refused explicitly.
+  let checkedUnderLock = false;
+  const runWithDbMutex = <T>(fn: () => Promise<T>): Promise<T> =>
+    deps.runWithDbMutex(async () => {
+      await assertRemoteChangeWithinProject(change, projectTextId);
+      checkedUnderLock = true;
+      return fn();
+    });
   const payload = asRecord(change.payload);
   let mutated = false;
 
@@ -339,6 +375,10 @@ export async function applyCollaborationRemoteMutation(
         mutated = true;
       }
     }
+  }
+
+  if (!checkedUnderLock) {
+    await assertRemoteChangeWithinProject(change, projectTextId);
   }
 
   if (mutated && options?.skipLoadSnapshot !== true) {

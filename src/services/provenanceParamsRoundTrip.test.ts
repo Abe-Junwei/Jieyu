@@ -63,9 +63,12 @@ describe('provenance.params round trip', () => {
       engine: 'silero',
       source: 'cache',
       vadModel: 'silero_vad.onnx',
-      speechThreshold: 0.5,
+      vadModelVersion: 'v6.2.3',
+      vadModelSha256: '1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3',
+      onsetThreshold: 0.6,
+      offsetThreshold: 0.45,
       mergeGapSec: 0.3,
-      minDurationSec: 0.2,
+      minDurationSec: 0.3,
       maxDurationSec: 30,
     });
   });

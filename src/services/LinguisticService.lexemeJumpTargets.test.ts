@@ -71,7 +71,13 @@ describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
       updatedAt: now,
     });
     await db.lexemes.put(
-      entryDoc({ id: 'lex-jt-1', headword: 'hello', createdAt: now, updatedAt: now }),
+      entryDoc({
+        id: 'lex-jt-1',
+        textId: 'text-jt-1',
+        headword: 'hello',
+        createdAt: now,
+        updatedAt: now,
+      }),
     );
     await db.token_lexeme_links.put({
       id: 'link-jt-1',
@@ -146,7 +152,13 @@ describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
       updatedAt: now,
     });
     await db.lexemes.put(
-      entryDoc({ id: 'lex-jt-2', headword: 'ya', createdAt: now, updatedAt: now }),
+      entryDoc({
+        id: 'lex-jt-2',
+        textId: 'text-jt-2',
+        headword: 'ya',
+        createdAt: now,
+        updatedAt: now,
+      }),
     );
     await db.token_lexeme_links.put({
       id: 'link-jt-2',
@@ -214,7 +226,13 @@ describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
       updatedAt: now,
     });
     await db.lexemes.put(
-      entryDoc({ id: 'lex-jt-3', headword: 'hello', createdAt: now, updatedAt: now }),
+      entryDoc({
+        id: 'lex-jt-3',
+        textId: 'text-jt-3',
+        headword: 'hello',
+        createdAt: now,
+        updatedAt: now,
+      }),
     );
     await db.token_lexeme_links.put({
       id: 'link-jt-3',

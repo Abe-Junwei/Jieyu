@@ -37,3 +37,17 @@ export async function listForeignOwnedLayers(
     row && row.textId !== textId ? [{ id: row.id, textId: row.textId }] : [],
   );
 }
+
+/** 已存在、且 `textId` 不是 `textId` 的媒体（GAP-2）| Existing media whose `textId` differs (GAP-2) */
+export async function listForeignOwnedMedia(
+  mediaIds: Iterable<string>,
+  textId: string,
+): Promise<ForeignOwnedRow[]> {
+  const ids = uniqueIds(mediaIds);
+  if (ids.length === 0) return [];
+  const db = await getDb();
+  const rows = await db.dexie.media_items.bulkGet(ids);
+  return rows.flatMap((row) =>
+    row && row.textId !== textId ? [{ id: row.id, textId: row.textId }] : [],
+  );
+}

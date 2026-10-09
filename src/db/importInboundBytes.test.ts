@@ -230,6 +230,26 @@ describe('inbound bytes: preserve or abort (N2)', () => {
     expect(await dumpTables()).toEqual(before);
   });
 
+  it('JY-23: a placeholder row that also carries the omission marker aborts with a byte conflict', async () => {
+    const snapshot = clone(await exportDatabaseAsJson());
+    // 导出带省略标记；入站同时声明为占位行（字节不能挂在占位行上）
+    // Export marked the bytes omitted; inbound also declares a placeholder (cannot hold bytes)
+    expect(mediaRow(snapshot)['details']).toMatchObject({ audioExportOmitted: true });
+    mediaRow(snapshot)['timelineKind'] = 'placeholder';
+    mediaRow(snapshot)['byteLocation'] = 'none';
+    mediaRow(snapshot)['availability'] = 'missing';
+    const before = await dumpTables();
+
+    const error = await importDatabaseFromJson(snapshot, { strategy: 'upsert' }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(InboundByteConflictError);
+    expect((error as InboundByteConflictError).conflicts).toEqual([
+      { collection: 'media_items', id: MEDIA_ID, reason: 'placeholder-over-local-bytes' },
+    ]);
+    expect(await dumpTables()).toEqual(before);
+  });
+
   it('T8: a row without bytes and without an omission marker still keeps local bytes', async () => {
     const snapshot = clone(await exportDatabaseAsJson());
     mediaRow(snapshot)['details'] = {};

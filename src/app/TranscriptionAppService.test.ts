@@ -104,7 +104,13 @@ describe('TranscriptionAppService', () => {
       method: 'auto-segmentation',
       model: 'silero_vad.onnx',
       reviewStatus: 'suggested',
-      params: { engine: 'silero', source: 'cache', speechThreshold: 0.5, minDurationSec: 0.2 },
+      params: {
+        engine: 'silero',
+        source: 'cache',
+        onsetThreshold: 0.6,
+        offsetThreshold: 0.45,
+        minDurationSec: 0.3,
+      },
     });
 
     const fresh = createTranscriptionAppService(

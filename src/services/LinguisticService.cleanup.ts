@@ -5,6 +5,8 @@ import {
   withTransaction,
   type LayerUnitDocType,
   type MediaItemDocType,
+  type UnitMorphemeDocType,
+  type UnitTokenDocType,
 } from '../db';
 import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import {
@@ -69,6 +71,56 @@ async function syncTextLogicalDurationFromTimedUnitsInTransaction(
   }
 }
 
+/**
+ * 一批句段名下、且与句段同项目的 token / morpheme（GAP-1）。挂错项目的子行（`textId` 与句段不同）
+ * 不属于这个句段的级联范围，留给它自己的项目处理；句段已不存在时按 `unitId` 全取（旧行为）。
+ * Tokens / morphemes under the given units that belong to the unit's own project (GAP-1). Child
+ * rows whose `textId` differs from the unit's are not part of this cascade; when the unit is gone,
+ * every row with that `unitId` is taken (previous behaviour).
+ */
+async function listOwnedUnitChildren(
+  db: JieyuDbInstance,
+  unitIds: readonly string[],
+): Promise<{ tokens: UnitTokenDocType[]; morphemes: UnitMorphemeDocType[] }> {
+  if (unitIds.length === 0) return { tokens: [], morphemes: [] };
+  const [units, tokens, morphemes] = await Promise.all([
+    db.dexie.layer_units.bulkGet([...unitIds]),
+    db.dexie.unit_tokens
+      .where('unitId')
+      .anyOf([...unitIds])
+      .toArray(),
+    db.dexie.unit_morphemes
+      .where('unitId')
+      .anyOf([...unitIds])
+      .toArray(),
+  ]);
+  const ownerByUnitId = new Map<string, string>();
+  for (const unit of units) {
+    if (unit !== undefined) ownerByUnitId.set(unit.id, unit.textId);
+  }
+  const owned = (row: { unitId: string; textId: string }): boolean => {
+    const owner = ownerByUnitId.get(row.unitId);
+    return owner === undefined || row.textId === owner;
+  };
+  return { tokens: tokens.filter(owned), morphemes: morphemes.filter(owned) };
+}
+
+async function deleteOwnedUnitChildren(
+  db: JieyuDbInstance,
+  children: { tokens: readonly UnitTokenDocType[]; morphemes: readonly UnitMorphemeDocType[] },
+): Promise<void> {
+  const tokenIds = children.tokens.map((t) => t.id);
+  const morphemeIds = children.morphemes.map((m) => m.id);
+  if (tokenIds.length === 0 && morphemeIds.length === 0) return;
+  const targets: Array<[string, string]> = [
+    ...tokenIds.map((id) => ['token', id] as [string, string]),
+    ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
+  ];
+  await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
+  if (tokenIds.length > 0) await db.dexie.unit_tokens.bulkDelete(tokenIds);
+  if (morphemeIds.length > 0) await db.dexie.unit_morphemes.bulkDelete(morphemeIds);
+}
+
 async function removeNotesForUnitIds(
   db: JieyuDbInstance,
   unitIds: readonly string[],
@@ -76,10 +128,7 @@ async function removeNotesForUnitIds(
   const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
   if (ids.length === 0) return;
 
-  const [tokens, morphemes] = await Promise.all([
-    db.dexie.unit_tokens.where('unitId').anyOf(ids).toArray(),
-    db.dexie.unit_morphemes.where('unitId').anyOf(ids).toArray(),
-  ]);
+  const { tokens, morphemes } = await listOwnedUnitChildren(db, ids);
 
   const deleteByTarget = async (
     targetType: 'unit' | 'token' | 'morpheme',
@@ -218,22 +267,10 @@ export async function removeUnitCascade(unitId: string): Promise<void> {
       await invalidateUnitEmbeddings(db, [unitId]);
 
       const utt = await db.dexie.layer_units.get(unitId);
-      const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
-      const tokenIds = tokens.map((t) => t.id);
-      const morphemeIds = (
-        await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
-      ).map((m) => m.id);
+      const children = await listOwnedUnitChildren(db, [unitId]);
 
       await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
-      if (tokenIds.length > 0 || morphemeIds.length > 0) {
-        const targets: Array<[string, string]> = [
-          ...tokenIds.map((id) => ['token', id] as [string, string]),
-          ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-        ];
-        await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
-      }
-      await db.dexie.unit_tokens.where('unitId').equals(unitId).delete();
-      await db.dexie.unit_morphemes.where('unitId').equals(unitId).delete();
+      await deleteOwnedUnitChildren(db, children);
       await deleteUnitLayerUnitCascade(db, [unitId]);
 
       if (utt?.unitType === 'unit') {
@@ -286,23 +323,11 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
       await removeNotesForUnitIds(db, ids);
       await invalidateUnitEmbeddings(db, ids);
 
+      const children = await listOwnedUnitChildren(db, ids);
       for (const unitId of ids) {
-        const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
-        const tokenIds = tokens.map((t) => t.id);
-        const morphemeIds = (
-          await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
-        ).map((m) => m.id);
         await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
-        if (tokenIds.length > 0 || morphemeIds.length > 0) {
-          const targets: Array<[string, string]> = [
-            ...tokenIds.map((id) => ['token', id] as [string, string]),
-            ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-          ];
-          await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
-        }
-        await db.dexie.unit_tokens.where('unitId').equals(unitId).delete();
-        await db.dexie.unit_morphemes.where('unitId').equals(unitId).delete();
       }
+      await deleteOwnedUnitChildren(db, children);
 
       await deleteUnitLayerUnitCascade(db, ids);
 

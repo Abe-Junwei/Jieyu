@@ -6,7 +6,7 @@
 import type { AiMessageCitation } from '../../db';
 import type { EmbeddingSearchService } from '../embeddings/EmbeddingSearchService';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
-import type { VoiceActionToolName } from '../voice/VoiceActionTools';
+import type { AiChatToolName } from './aiChatToolName.types';
 import type { TimelineUnitView } from '../../hooks/transcription/timelineUnitView';
 import type { ComposedWorkflowState } from '../vertical/composedWorkflowTemplates';
 import type { DegradationScenario } from './degradationManualOverride';
@@ -402,27 +402,7 @@ export interface AiMemoryRecallShapeTelemetry {
   freshnessBucket: string;
 }
 
-export type AiChatToolName =
-  | 'create_transcription_segment'
-  | 'split_transcription_segment'
-  | 'merge_transcription_segments'
-  | 'delete_transcription_segment'
-  | 'clear_translation_segment'
-  | 'set_transcription_text'
-  | 'set_translation_text'
-  | 'create_transcription_layer'
-  | 'create_translation_layer'
-  | 'delete_layer'
-  | 'link_translation_layer'
-  | 'unlink_translation_layer'
-  | 'add_host'
-  | 'remove_host'
-  | 'switch_preferred_host'
-  | 'auto_gloss_unit'
-  | 'set_token_pos'
-  | 'set_token_gloss'
-  | 'propose_changes'
-  | VoiceActionToolName;
+export type { AiChatToolName };
 
 export interface AiChatToolCall {
   name: AiChatToolName;

@@ -4,33 +4,37 @@
  * Calls the whisper-server HTTP wrapper (OpenAI-compatible endpoint)
  * running at localhost:3040 by default.
  *
- * 默认模型已更新为 Distil-Whisper（知识蒸馏版，5.8× 推理加速）。
- * Default model updated to Distil-Whisper (knowledge-distilled, 5.8× faster inference).
- * 运行前需先下载模型： npm run data:download-distil-whisper
- * Download the model first: npm run data:download-distil-whisper
+ * 默认模型来自 localWhisperDefaults（多语 large-v3-turbo q5_0）。
+ * Default model comes from localWhisperDefaults (multilingual large-v3-turbo q5_0).
+ * 运行前需先下载模型： npm run data:download-whisper-model
+ * Download the model first: npm run data:download-whisper-model
  *
  * @see src/tools/whisper-server/
  */
 
 import type { CommercialSttProvider, SttResult } from '../VoiceInputService.types';
-import { computeWhisperConfidence, tryParseVerboseResponse } from './sttConfidence';
+import { whisperJsonToSttResult } from './sttConfidence';
 import { createLogger } from '../../observability/logger';
+import {
+  LOCAL_WHISPER_DEFAULT_BASE_URL,
+  LOCAL_WHISPER_DEFAULT_MODEL,
+} from './localWhisperDefaults';
 
 const log = createLogger('LocalWhisperSttProvider');
 
 export interface LocalWhisperConfig {
-  baseUrl: string;   // defaults to 'http://localhost:3040'
-  model: string;     // model file name, e.g. 'ggml-base.bin'
+  baseUrl: string; // defaults to LOCAL_WHISPER_DEFAULT_BASE_URL
+  model: string; // model file name; defaults to LOCAL_WHISPER_DEFAULT_MODEL
 }
 
 export class LocalWhisperSttProvider implements CommercialSttProvider {
-  readonly label = 'Distil-Whisper (本地)';
+  readonly label = 'Whisper.cpp (本地)';
   private readonly baseUrl: string;
   private readonly model: string;
 
   constructor(config: Partial<LocalWhisperConfig> = {}) {
-    this.baseUrl = (config.baseUrl ?? 'http://localhost:3040').replace(/\/+$/, '');
-    this.model = config.model ?? 'ggml-distil-whisper-large-v3.bin';
+    this.baseUrl = (config.baseUrl ?? LOCAL_WHISPER_DEFAULT_BASE_URL).replace(/\/+$/, '');
+    this.model = config.model ?? LOCAL_WHISPER_DEFAULT_MODEL;
   }
 
   async isAvailable(): Promise<boolean> {
@@ -45,7 +49,11 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
     }
   }
 
-  async transcribe(audioBlob: Blob, lang: string, options?: { signal?: AbortSignal }): Promise<SttResult> {
+  async transcribe(
+    audioBlob: Blob,
+    lang: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<SttResult> {
     const formData = new FormData();
     formData.append('file', audioBlob, 'recording.webm');
     formData.append('model', this.model);
@@ -68,17 +76,6 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
       throw new Error(`Local Whisper failed: ${resp.status} ${text}`);
     }
 
-    const json = await resp.json() as Record<string, unknown>;
-    const verbose = tryParseVerboseResponse(json);
-    const confidence = verbose ? computeWhisperConfidence(verbose) : 1.0;
-
-    return {
-      text: (verbose?.text ?? (json.text as string | undefined)) ?? '',
-      lang: (verbose?.language ?? (json.language as string | null | undefined)) ?? lang,
-      isFinal: true,
-      confidence,
-      engine: 'whisper-local',
-      audioBlob,
-    };
+    return whisperJsonToSttResult((await resp.json()) as Record<string, unknown>, lang, audioBlob);
   }
 }

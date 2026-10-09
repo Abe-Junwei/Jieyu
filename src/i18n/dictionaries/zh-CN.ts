@@ -1940,7 +1940,7 @@ export const zhCNDictionary = {
   'transcription.voiceWidget.settings.commercialCredentialsHint':
     '当前引擎为商业 STT：请在下方的 API Key / AppId 等字段中填写凭据，否则无法开始转写。',
   'transcription.voiceWidget.engine.webSpeech': 'Web Speech',
-  'transcription.voiceWidget.engine.whisperLocal': 'Distil-Whisper（本地）',
+  'transcription.voiceWidget.engine.whisperLocal': 'Whisper.cpp（本地）',
   'transcription.voiceWidget.engine.commercial': '商业模型',
   'transcription.voiceWidget.signal.speaking': '检测到说话',
   'transcription.voiceWidget.signal.silent': '静默',
@@ -1964,7 +1964,7 @@ export const zhCNDictionary = {
   'transcription.voiceWidget.placeholder.baseUrlMinimax': 'https://api.minimax.chat/v1（留空默认）',
   'transcription.voiceWidget.placeholder.baseUrlGroq': '（留空使用 groq 官方）',
   'transcription.voiceWidget.placeholder.baseUrlOptional': 'Base URL（可选）',
-  'transcription.voiceWidget.placeholder.whisperModel': 'ggml-distil-whisper-large-v3.bin',
+  'transcription.voiceWidget.placeholder.whisperModel': 'ggml-large-v3-turbo-q5_0.bin',
   'transcription.voiceWidget.placeholder.enhancementEndpoint': 'http://localhost:8765/enhance',
   'transcription.voiceWidget.placeholder.enhancementModel': '对齐/分离模型（可选）',
   'transcription.voiceWidget.placeholder.enhancementLanguage': '留空沿用识别语言',

@@ -115,6 +115,19 @@ function renderLexiconPage() {
   );
 }
 
+/**
+ * 等编辑器把选中词条填进表单（重置 effect 已执行）再交互；只等元素出现时，挂起的重置 effect
+ * 可能在下一次事件前才运行，冲掉刚输入的值或刚打开的删除确认框（偶发失败的根因）。
+ * Wait until the editor has loaded the selected entry (its reset effect has run) before
+ * interacting. Waiting only for the element lets a pending reset effect run right before the next
+ * event and wipe the typed value or the just-opened delete confirm (the flake's root cause).
+ */
+async function waitForEditorLoaded(headword = 'dog'): Promise<void> {
+  await waitFor(() => {
+    expect((screen.getByTestId('lexicon-entry-headword') as HTMLInputElement).value).toBe(headword);
+  });
+}
+
 describe('LexiconPage', () => {
   beforeEach(() => {
     mockListLexemes.mockReset();
@@ -173,7 +186,9 @@ describe('LexiconPage', () => {
       renderLexiconPage();
       await screen.findByText('domesticated canine');
       fireEvent.click(screen.getByTestId('lexicon-dmlex-export'));
-      expect(captured).toBeInstanceOf(Blob);
+      await waitFor(() => {
+        expect(captured).toBeInstanceOf(Blob);
+      });
       if (!(captured instanceof Blob)) return;
       const parsed = JSON.parse(await captured.text()) as {
         entries: Array<{ headword: string }>;
@@ -195,7 +210,7 @@ describe('LexiconPage', () => {
       expect(screen.getByTestId('side-pane-subtitle').textContent).toBe('dog');
     });
     expect(screen.getByTestId('side-pane-content').textContent).toContain('canine');
-    expect((screen.getByTestId('lexicon-entry-headword') as HTMLInputElement).value).toBe('dog');
+    await waitForEditorLoaded();
     expect((screen.getByTestId('lexicon-entry-translation') as HTMLInputElement).value).toBe(
       'canine',
     );
@@ -265,7 +280,7 @@ describe('LexiconPage', () => {
 
   it('saves an edited headword and translation, then readback lists them', async () => {
     renderLexiconPage();
-    await screen.findByTestId('lexicon-entry-headword');
+    await waitForEditorLoaded();
     fireEvent.change(screen.getByTestId('lexicon-entry-headword'), { target: { value: 'hound' } });
     fireEvent.change(screen.getByTestId('lexicon-entry-translation'), {
       target: { value: 'hunting dog' },
@@ -283,22 +298,23 @@ describe('LexiconPage', () => {
       expect(screen.getByTestId('lexicon-workspace-list').textContent).toContain('hound');
       expect(screen.getAllByText('hunting dog').length).toBeGreaterThan(0);
     });
-    expect(screen.getByText('已保存')).toBeTruthy();
+    expect(await screen.findByText('已保存')).toBeTruthy();
   });
 
   it('does not write when the headword is empty', async () => {
     renderLexiconPage();
-    await screen.findByTestId('lexicon-entry-headword');
+    await waitForEditorLoaded();
     fireEvent.change(screen.getByTestId('lexicon-entry-headword'), { target: { value: '   ' } });
     fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    expect(await screen.findByText('词头必填。')).toBeTruthy();
     expect(mockSaveLexeme).not.toHaveBeenCalled();
-    expect(screen.getByText('词头必填。')).toBeTruthy();
   });
 
   it('creates a new entry then selects it from list readback', async () => {
     renderLexiconPage();
-    await screen.findByTestId('lexicon-entry-create');
+    await waitForEditorLoaded();
     fireEvent.click(screen.getByTestId('lexicon-entry-create'));
+    await waitForEditorLoaded('');
     fireEvent.change(screen.getByTestId('lexicon-entry-headword'), { target: { value: 'cat' } });
     fireEvent.change(screen.getByTestId('lexicon-entry-translation'), {
       target: { value: 'feline' },
@@ -312,9 +328,9 @@ describe('LexiconPage', () => {
 
   it('saves a subsense relation on the resource row', async () => {
     renderLexiconPage();
-    await screen.findByDisplayValue('dog');
+    await waitForEditorLoaded();
     fireEvent.click(screen.getByTestId('lexicon-entry-add-subsense-0'));
-    fireEvent.change(screen.getByTestId('lexicon-entry-sense-1-translation'), {
+    fireEvent.change(await screen.findByTestId('lexicon-entry-sense-1-translation'), {
       target: { value: 'timber' },
     });
     fireEvent.click(screen.getByTestId('lexicon-entry-save'));
@@ -359,9 +375,9 @@ describe('LexiconPage', () => {
 
   it('deletes the selected entry after confirm', async () => {
     renderLexiconPage();
-    await screen.findByTestId('lexicon-entry-delete');
+    await waitForEditorLoaded();
     fireEvent.click(screen.getByTestId('lexicon-entry-delete'));
-    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认删除' }));
     await waitFor(() => {
       expect(mockDeleteLexeme).toHaveBeenCalledWith('lex-dog');
       expect(screen.queryByRole('button', { name: /dog/i })).toBeNull();

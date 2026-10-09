@@ -1,34 +1,43 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createFeatureExtractionPipelineWithFallback, configureTransformersEmbeddingRuntime, detectTransformersBrowserCacheAvailability, detectTransformersBrowserRuntime, detectTransformersEmbeddingDevice, resolveTransformersWorkerWasmPath } from './transformersRuntimeConfig';
+import {
+  createFeatureExtractionPipelineWithFallback,
+  configureTransformersEmbeddingRuntime,
+  detectTransformersBrowserCacheAvailability,
+  detectTransformersBrowserRuntime,
+  detectTransformersEmbeddingDevice,
+} from './transformersRuntimeConfig';
 
 describe('transformersRuntimeConfig', () => {
   it('prefers webgpu when navigator.gpu returns an adapter', async () => {
-    await expect(detectTransformersEmbeddingDevice({
-      gpu: {
-        requestAdapter: async () => ({ name: 'mock-adapter' }),
-      },
-    }, true)).resolves.toBe('webgpu');
+    await expect(
+      detectTransformersEmbeddingDevice(
+        {
+          gpu: {
+            requestAdapter: async () => ({ name: 'mock-adapter' }),
+          },
+        },
+        true,
+      ),
+    ).resolves.toBe('webgpu');
   });
 
   it('falls back to wasm when browser runtime has no gpu', async () => {
     await expect(detectTransformersEmbeddingDevice(undefined, true)).resolves.toBe('wasm');
-    await expect(detectTransformersEmbeddingDevice({
-      gpu: {
-        requestAdapter: async () => null,
-      },
-    }, true)).resolves.toBe('wasm');
+    await expect(
+      detectTransformersEmbeddingDevice(
+        {
+          gpu: {
+            requestAdapter: async () => null,
+          },
+        },
+        true,
+      ),
+    ).resolves.toBe('wasm');
   });
 
   it('falls back to cpu when non-browser runtime has no gpu', async () => {
     await expect(detectTransformersEmbeddingDevice(undefined, false)).resolves.toBe('cpu');
-  });
-
-  it('derives same-origin wasm path from worker href', () => {
-    expect(resolveTransformersWorkerWasmPath('https://example.com/assets/embedding.worker.js?hash=1')).toBe(
-      'https://example.com/assets/',
-    );
-    expect(resolveTransformersWorkerWasmPath('/node_modules/pkg/embedding.worker.js')).toBeUndefined();
   });
 
   it('applies cache and wasm runtime settings to transformers env', async () => {
@@ -39,7 +48,7 @@ describe('transformersRuntimeConfig', () => {
         backends: {
           onnx: {
             wasm: {
-              wasmPaths?: string;
+              wasmPaths?: string | { mjs: string; wasm: string };
             };
           };
         };
@@ -48,7 +57,13 @@ describe('transformersRuntimeConfig', () => {
       env: {
         backends: {
           onnx: {
-            wasm: {},
+            // transformers 导入时设置的 CDN 默认值 | CDN default set by transformers on import
+            wasm: {
+              wasmPaths: {
+                mjs: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@x/dist/ort-wasm-simd-threaded.asyncify.mjs',
+                wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@x/dist/ort-wasm-simd-threaded.asyncify.wasm',
+              },
+            },
           },
         },
       },
@@ -70,11 +85,11 @@ describe('transformersRuntimeConfig', () => {
       device: 'webgpu',
       cacheDir: '/jieyu-models',
       browserCacheEnabled: true,
-      wasmPaths: 'https://example.com/assets/',
+      bundledWasmRuntime: true,
     });
     expect(transformers.env.cacheDir).toBe('/jieyu-models');
     expect(transformers.env.useBrowserCache).toBe(true);
-    expect(transformers.env.backends.onnx.wasm.wasmPaths).toBe('https://example.com/assets/');
+    expect(transformers.env.backends.onnx.wasm).not.toHaveProperty('wasmPaths');
   });
 
   it('disables browser cache when cache storage is unavailable', async () => {
@@ -156,18 +171,22 @@ describe('transformersRuntimeConfig', () => {
     expect(calls).toEqual(['webgpu', 'wasm']);
     expect(fallbackSpy).toHaveBeenCalledTimes(1);
     expect(result.device).toBe('wasm');
-    await expect(result.pipeline('hello', { pooling: 'mean', normalize: true })).resolves.toEqual({ data: [1, 2, 3] });
+    await expect(result.pipeline('hello', { pooling: 'mean', normalize: true })).resolves.toEqual({
+      data: [1, 2, 3],
+    });
   });
 
   it('does not fall back when preferred device is already wasm', async () => {
-    await expect(createFeatureExtractionPipelineWithFallback({
-      modelId: 'test-model',
-      preferredDevice: 'wasm',
-      transformers: {
-        pipeline: async () => {
-          throw new Error('wasm init failed');
+    await expect(
+      createFeatureExtractionPipelineWithFallback({
+        modelId: 'test-model',
+        preferredDevice: 'wasm',
+        transformers: {
+          pipeline: async () => {
+            throw new Error('wasm init failed');
+          },
         },
-      },
-    })).rejects.toThrow('wasm init failed');
+      }),
+    ).rejects.toThrow('wasm init failed');
   });
 });

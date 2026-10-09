@@ -17,7 +17,7 @@
 import { detectVadSegments } from '../VadService';
 import type { VadWorkerSegment } from '../../workers/vadWorker';
 import { createLogger } from '../../observability/logger';
-import { createManagedBrowserWorker } from '../../observability/managedBrowserWorkerFactory';
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
 import { getWorkerPool } from '../../workers/WorkerPool';
 import { PendingWorkerRequestStore } from '../PendingWorkerRequestStore';
@@ -31,6 +31,15 @@ export interface SpeechSegment {
   end: number;
   /** 置信度 [0, 1]，能量降级时为 undefined | Confidence [0, 1]; undefined when using energy fallback */
   confidence?: number;
+}
+
+/** 实际产出语音段的引擎 | Engine that actually produced a set of speech segments */
+export type VadRuntimeEngine = 'silero' | 'energy';
+
+export interface SpeechSegmentsWithEngine {
+  segments: SpeechSegment[];
+  /** 本次检测真实使用的引擎（能量降级时为 'energy'）| Engine really used for this call ('energy' on fallback) */
+  engine: VadRuntimeEngine;
 }
 
 export interface WhisperXVadProgress {
@@ -100,24 +109,16 @@ export class WhisperXVadService {
       }, timeoutMs);
 
       try {
-        const spawned = createManagedBrowserWorker({
-          url: new URL('../../workers/vadWorker.ts', import.meta.url),
-          options: { type: 'module' },
-          tracking: {
-            id: nextPhysicalWorkerId('vadWhisperX'),
-            source: 'WhisperXVadService',
-          },
-        });
-        this.worker = spawned.worker;
+        const createVadWorker = () =>
+          new Worker(new URL('../../workers/vadWorker.ts', import.meta.url), { type: 'module' });
+        const worker = createVadWorker();
+        this.worker = worker;
         this.vadWorkerTrackingRelease?.();
-        this.vadWorkerTrackingRelease = spawned.release;
-        getWorkerPool().register(
-          'vadWhisperX',
-          'VAD (Silero)',
-          () =>
-            new Worker(new URL('../../workers/vadWorker.ts', import.meta.url), { type: 'module' }),
-          spawned.worker,
-        );
+        this.vadWorkerTrackingRelease = trackBrowserWorkerLifecycle(worker, {
+          id: nextPhysicalWorkerId('vadWhisperX'),
+          source: 'WhisperXVadService',
+        });
+        getWorkerPool().register('vadWhisperX', 'VAD (Silero)', createVadWorker, worker);
       } catch (err) {
         clearTimeout(timer);
         reject(
@@ -218,9 +219,24 @@ export class WhisperXVadService {
     buffer: AudioBuffer,
     options: DetectSpeechSegmentsOptions = {},
   ): Promise<SpeechSegment[]> {
+    return (await this.detectSpeechSegmentsWithEngine(buffer, options)).segments;
+  }
+
+  /**
+   * 同 detectSpeechSegments，但同时返回本次真实使用的引擎，供 provenance / 缓存记录使用。
+   * 不要在检测完成后再按 Worker 状态推断：Worker 状态可能已在期间变化。
+   *
+   * Like detectSpeechSegments, but also returns the engine that really produced the segments, for
+   * provenance / cache records. Do not infer it afterwards from the worker state: it can
+   * change in between (e.g. a fallback followed by a concurrent re-init would read 'silero').
+   */
+  async detectSpeechSegmentsWithEngine(
+    buffer: AudioBuffer,
+    options: DetectSpeechSegmentsOptions = {},
+  ): Promise<SpeechSegmentsWithEngine> {
     if (!this.ready || !this.worker) {
       log.debug('VAD Worker not ready, falling back to energy-based VAD');
-      return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+      return this.energyFallback(buffer);
     }
 
     if (options.signal?.aborted) {
@@ -239,7 +255,7 @@ export class WhisperXVadService {
 
     getWorkerPool().markBusy('vadWhisperX');
     try {
-      return await this.pendingRequests.track(
+      const segments = await this.pendingRequests.track(
         id,
         () => {
           this.worker!.postMessage({ type: 'detect', id, pcm, sampleRate: buffer.sampleRate }, [
@@ -250,6 +266,7 @@ export class WhisperXVadService {
           ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
         },
       );
+      return { segments, engine: 'silero' };
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         throw error;
@@ -262,16 +279,16 @@ export class WhisperXVadService {
         error: error instanceof Error ? error.message : String(error),
       });
       this.resetWorker();
-      return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+      return this.energyFallback(buffer);
     } finally {
       getWorkerPool().markIdle('vadWhisperX');
       options.signal?.removeEventListener('abort', abortListener);
     }
   }
 
-  /** 返回当前实际运行引擎 | Report the currently active runtime engine */
-  getRuntimeEngine(): 'silero' | 'energy' {
-    return this.ready && this.worker ? 'silero' : 'energy';
+  private energyFallback(buffer: AudioBuffer): SpeechSegmentsWithEngine {
+    const segments = detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+    return { segments, engine: 'energy' };
   }
 
   /**

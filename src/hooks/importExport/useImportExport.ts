@@ -575,9 +575,13 @@ export function useImportExport(input: UseImportExportInput) {
           const layerSegments = exportData.segmentsByLayer;
           const layerSegmentContents = exportData.segmentContents;
           const db = await getDb();
+          // 只读本项目图层的链接（走 `layerId` 索引，JY-15）| Only this project's links (indexed, JY-15)
           const layerLinks =
-            typeof db.dexie.layer_links?.toArray === 'function'
-              ? await db.dexie.layer_links.toArray()
+            typeof db.dexie.layer_links?.where === 'function' && layers.length > 0
+              ? await db.dexie.layer_links
+                  .where('layerId')
+                  .anyOf(layers.map((layer) => layer.id))
+                  .toArray()
               : [];
           const relevantSpeakerIds = resolveRelevantExportSpeakerIds(
             unitsOnCurrentMedia,

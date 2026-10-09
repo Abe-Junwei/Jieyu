@@ -14,8 +14,22 @@ import { createLogger } from '../observability/logger';
 import { VadMonitorRuntime } from './VoiceInputService.vad';
 import { RecordingExecutor } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
-import type { SttEngine, SttEnhancementConfig, SttEnhancementProvider, SttResult, VoiceInputConfig } from './VoiceInputService.types';
-export type { CommercialProviderKind, CommercialSttProvider, SttBillingKind, SttEngine, SttProviderCapability, SttResult, VoiceInputConfig } from './VoiceInputService.types';
+import type {
+  SttEngine,
+  SttEnhancementConfig,
+  SttEnhancementProvider,
+  SttResult,
+  VoiceInputConfig,
+} from './VoiceInputService.types';
+export type {
+  CommercialProviderKind,
+  CommercialSttProvider,
+  SttBillingKind,
+  SttEngine,
+  SttProviderCapability,
+  SttResult,
+  VoiceInputConfig,
+} from './VoiceInputService.types';
 import type { SpeechRecognition } from './VoiceInputService.webSpeechSupport';
 import {
   buildSttFallbackChain,
@@ -81,7 +95,7 @@ const DEFAULT_CONFIG: VoiceInputConfig = {
  * Usage (whisper-local — push-to-talk):
  *   const svc = new VoiceInputService();
  *   svc.onResult(result => { ... });
- *   svc.start({ lang: 'ja-JP', preferredEngine: 'whisper-local', whisperServerUrl: 'http://localhost:3040', whisperServerModel: 'ggml-small-q5_k.bin' });
+ *   svc.start({ lang: 'ja-JP', preferredEngine: 'whisper-local', whisperServerUrl: 'http://localhost:3040', whisperServerModel: 'ggml-large-v3-turbo-q5_0.bin' });
  *   // Press-and-hold:
  *   svc.startRecording();  // begins MediaRecorder capture
  *   svc.stopRecording();   // stops capture, sends to whisper-server, emits result via onResult
@@ -160,7 +174,9 @@ export class VoiceInputService {
     this.vadMonitor = new VadMonitorRuntime({
       createAnalysisCloneStream: () => this.createAnalysisCloneStream(),
       setSpeaking: (v) => this.setSpeaking(v),
-      emitEnergyLevel: (rms) => { for (const l of this.energyListeners) l(rms); },
+      emitEnergyLevel: (rms) => {
+        for (const l of this.energyListeners) l(rms);
+      },
       stop: () => this.stop(),
       isDisposed: () => this._disposed,
       isListening: () => this._listening,
@@ -182,27 +198,37 @@ export class VoiceInputService {
 
   onResult(fn: VoiceInputListener): () => void {
     this.resultListeners.push(fn);
-    return () => { this.resultListeners = this.resultListeners.filter((l) => l !== fn); };
+    return () => {
+      this.resultListeners = this.resultListeners.filter((l) => l !== fn);
+    };
   }
 
   onError(fn: VoiceInputErrorListener): () => void {
     this.errorListeners.push(fn);
-    return () => { this.errorListeners = this.errorListeners.filter((l) => l !== fn); };
+    return () => {
+      this.errorListeners = this.errorListeners.filter((l) => l !== fn);
+    };
   }
 
   onStateChange(fn: VoiceInputStateListener): () => void {
     this.stateListeners.push(fn);
-    return () => { this.stateListeners = this.stateListeners.filter((l) => l !== fn); };
+    return () => {
+      this.stateListeners = this.stateListeners.filter((l) => l !== fn);
+    };
   }
 
   onVadStateChange(fn: VoiceInputVadListener): () => void {
     this.vadListeners.push(fn);
-    return () => { this.vadListeners = this.vadListeners.filter((l) => l !== fn); };
+    return () => {
+      this.vadListeners = this.vadListeners.filter((l) => l !== fn);
+    };
   }
 
   onEnergyLevel(fn: VoiceInputEnergyListener): () => void {
     this.energyListeners.push(fn);
-    return () => { this.energyListeners = this.energyListeners.filter((l) => l !== fn); };
+    return () => {
+      this.energyListeners = this.energyListeners.filter((l) => l !== fn);
+    };
   }
 
   /** Returns the most recent RMS energy level (0–1 normalised). */
@@ -241,32 +267,39 @@ export class VoiceInputService {
    * Stops the current engine and starts the new one.
    * Optional config can be passed to update settings (e.g., when switching to whisper-local).
    */
-  switchEngine(engine: SttEngine, config?: { whisperServerUrl?: string; whisperServerModel?: string }): void {
+  switchEngine(
+    engine: SttEngine,
+    config?: { whisperServerUrl?: string; whisperServerModel?: string },
+  ): void {
     log.debug('switchEngine', { engine, config, currentUrl: this._config.whisperServerUrl });
     if (!this._listening) return;
     // Update config if provided (e.g., whisper config when switching to whisper-local)
     if (config) {
       this._config = { ...this._config, ...config };
-      log.debug('switchEngine updated whisperServerUrl', { whisperServerUrl: this._config.whisperServerUrl });
+      log.debug('switchEngine updated whisperServerUrl', {
+        whisperServerUrl: this._config.whisperServerUrl,
+      });
     }
     const switchToken = this.engineSwitchCoordinator.beginSwitch();
     this._stopCurrentEngine();
     this._currentEngine = engine;
     this.engineSwitchCoordinator.scheduleDebounced(switchToken, () => {
       if (
-        this._disposed
-        || !this._listening
-        || !this.engineSwitchCoordinator.isSwitchingEngine
-        || !this.engineSwitchCoordinator.tokenMatches(switchToken)
+        this._disposed ||
+        !this._listening ||
+        !this.engineSwitchCoordinator.isSwitchingEngine ||
+        !this.engineSwitchCoordinator.tokenMatches(switchToken)
       ) {
         return;
       }
       this._intentionalStop = false;
-      this._attemptEngineWithFallback(engine).catch((err) => {
-        log.error('switchEngine error', { err });
-      }).finally(() => {
-        this.engineSwitchCoordinator.clearSwitchingIfTokenCurrent(switchToken);
-      });
+      this._attemptEngineWithFallback(engine)
+        .catch((err) => {
+          log.error('switchEngine error', { err });
+        })
+        .finally(() => {
+          this.engineSwitchCoordinator.clearSwitchingIfTokenCurrent(switchToken);
+        });
     });
   }
 
@@ -293,8 +326,12 @@ export class VoiceInputService {
   private _syncVadForEngine(engine: SttEngine): void {
     syncVoiceInputVadForEngine(engine, this._config.vadEnabled, {
       getVadService: () => this._vadService,
-      setVadService: (v) => { this._vadService = v; },
-      setRecordingVad: (v) => { this.recordingExecutor.setVadService(v); },
+      setVadService: (v) => {
+        this._vadService = v;
+      },
+      setRecordingVad: (v) => {
+        this.recordingExecutor.setVadService(v);
+      },
       isDisposed: () => this._disposed,
       getCurrentEngine: () => this._currentEngine,
     });
@@ -405,7 +442,11 @@ export class VoiceInputService {
   private _stopCurrentEngine(): void {
     this._intentionalStop = true;
     if (this.recognition) {
-      try { this.recognition.stop(); } catch (err) { log.debug('recognition.stop() failed during engine stop', { err }); }
+      try {
+        this.recognition.stop();
+      } catch (err) {
+        log.debug('recognition.stop() failed during engine stop', { err });
+      }
       this.recognition = null;
     }
     this.vadMonitor.stop();
@@ -416,11 +457,17 @@ export class VoiceInputService {
     this.engineSwitchCoordinator.invalidate();
     this._intentionalStop = true;
     if (this.recognition) {
-      try { this.recognition.stop(); } catch (err) { log.debug('recognition.stop() failed during stop()', { err }); }
+      try {
+        this.recognition.stop();
+      } catch (err) {
+        log.debug('recognition.stop() failed during stop()', { err });
+      }
     }
     if (this.recordingExecutor.isRecording) {
       void this.stopRecording().catch((error) => {
-        this.emitError(error instanceof Error ? error.message : '\u5f55\u97f3\u505c\u6b62\u5931\u8d25');
+        this.emitError(
+          error instanceof Error ? error.message : '\u5f55\u97f3\u505c\u6b62\u5931\u8d25',
+        );
       });
     }
     this.setListening(false);
@@ -445,12 +492,22 @@ export class VoiceInputService {
    */
   async stopRecording(): Promise<void> {
     return this.recordingExecutor.stopRecording(this._currentEngine, {
-      ...(this._config.whisperServerUrl !== undefined && { whisperServerUrl: this._config.whisperServerUrl }),
-      ...(this._config.whisperServerModel !== undefined && { whisperServerModel: this._config.whisperServerModel }),
+      ...(this._config.whisperServerUrl !== undefined && {
+        whisperServerUrl: this._config.whisperServerUrl,
+      }),
+      ...(this._config.whisperServerModel !== undefined && {
+        whisperServerModel: this._config.whisperServerModel,
+      }),
       lang: this._config.lang,
-      ...(this._config.sttEnhancement !== undefined && { sttEnhancement: this._config.sttEnhancement }),
-      ...(this._config.sttEnhancementConfig !== undefined && { sttEnhancementConfig: this._config.sttEnhancementConfig }),
-      ...(this._config.commercialFallback !== undefined && { commercialFallback: this._config.commercialFallback }),
+      ...(this._config.sttEnhancement !== undefined && {
+        sttEnhancement: this._config.sttEnhancement,
+      }),
+      ...(this._config.sttEnhancementConfig !== undefined && {
+        sttEnhancementConfig: this._config.sttEnhancementConfig,
+      }),
+      ...(this._config.commercialFallback !== undefined && {
+        commercialFallback: this._config.commercialFallback,
+      }),
     });
   }
 

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import MiniSearch from 'minisearch';
+import { foldSearchText } from '../../utils/searchTextNormalization';
 import type { LexemeEntryDoc } from '../../db';
 
 type LexiconSearchDocument = {
@@ -58,6 +59,9 @@ export function useLexiconSearch(lexemes: LexemeEntryDoc[], query: string): Lexe
         'notes',
       ],
       storeFields: ['id'],
+      // NFC + 小写，NFD / NFC 互相可搜；只影响索引词，不改词条（RADAR-BUG-1）
+      // NFC + lower case so NFD / NFC spellings match; index terms only, entries untouched
+      processTerm: (term) => foldSearchText(term),
       searchOptions: {
         boost: { lemma: 3, citation: 2, gloss: 1.5 },
         fuzzy: 0.2,
