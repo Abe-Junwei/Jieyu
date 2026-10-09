@@ -40,6 +40,8 @@ export type LexiconLiftParseResult =
       resource: LexemeResourceDoc;
       diagnostics: LexiconLiftDiagnostic[];
       losses: InterchangeLoss[];
+      /** 每个词条 lexical-unit 的语言（按解析出的词条 id）| Headword language per parsed entry id */
+      headwordLangs: ReadonlyMap<string, string>;
     }
   | { ok: false; reason: Exclude<LexiconLiftImportReason, 'save-failed'> };
 
@@ -182,16 +184,80 @@ function mergeImportedResource(
       ...imported.resource.translationLanguages,
     ]),
   ];
+  const existingLang = existing.resource.langCode.trim();
+  const langCode =
+    existingLang.length > 0 && existingLang !== 'und' ? existingLang : imported.resource.langCode;
   return {
     ...existing,
     resource: {
       ...existing.resource,
+      langCode,
       translationLanguages,
       ...(relations.length > 0 ? { relations } : {}),
       ...(relationTypes.length > 0 ? { relationTypes } : {}),
     },
     updatedAt: imported.updatedAt,
   };
+}
+
+/**
+ * LIFT 原文直接写进词条：词头、变体形式、发音原样保留（不 trim、不按逗号拆分），
+ * 发音语言与词头不同时记成 DMLex transcription scheme（如 `seh-fonipa`）。
+ * Write LIFT text straight into the entry: headword, variant forms and pronunciation are kept as is
+ * (no trim, no comma split); a pronunciation language other than the headword's becomes the DMLex
+ * transcription scheme (e.g. `seh-fonipa`).
+ */
+function withLiftForms(
+  doc: LexemeEntryDoc,
+  forms: {
+    headword: string;
+    variantForms: readonly string[];
+    pronunciation: string;
+    pronunciationScheme: string;
+  },
+): LexemeEntryDoc {
+  const { inflectedForms: _dropped, pronunciations: _replaced, ...rest } = doc.entry;
+  const entry: LexemeEntryDoc['entry'] = {
+    ...rest,
+    headword: forms.headword,
+    ...(forms.pronunciation.length > 0
+      ? {
+          pronunciations: [
+            {
+              transcriptions: [
+                {
+                  text: forms.pronunciation,
+                  ...(forms.pronunciationScheme.length > 0
+                    ? { scheme: forms.pronunciationScheme }
+                    : {}),
+                },
+              ],
+            },
+          ],
+        }
+      : {}),
+    ...(forms.variantForms.length > 0
+      ? { inflectedForms: forms.variantForms.map((text) => ({ text })) }
+      : {}),
+  };
+  return { ...doc, entry };
+}
+
+function mostCommonLang(langs: ReadonlyMap<string, string>): string {
+  const counts = new Map<string, number>();
+  for (const lang of langs.values()) {
+    if (lang === 'und') continue;
+    counts.set(lang, (counts.get(lang) ?? 0) + 1);
+  }
+  let best = 'und';
+  let bestCount = 0;
+  for (const [lang, count] of counts) {
+    if (count > bestCount) {
+      best = lang;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 function directChildren(parent: Element, localName: string): Element[] {
@@ -206,8 +272,9 @@ function formText(parent: Element | undefined): Array<{ lang: string; text: stri
   if (!parent) return [];
   const out: Array<{ lang: string; text: string }> = [];
   for (const form of directChildren(parent, 'form')) {
-    const text = (directChildren(form, 'text')[0]?.textContent ?? '').trim();
-    if (text.length === 0) continue;
+    // 文本原样保留（含首尾空白）；只有全空白才算空 | Keep the text as is; whitespace-only counts as empty
+    const text = directChildren(form, 'text')[0]?.textContent ?? '';
+    if (text.trim().length === 0) continue;
     const lang = attr(form, 'lang');
     out.push({ lang: lang.length > 0 ? lang : 'und', text });
   }
@@ -247,9 +314,10 @@ function parseSense(
   const otherLang = definitions.find((item) => item.lang !== headLang && item.lang.length > 0);
   const example = directChildren(sense, 'example')[0];
   const exampleForms = formText(example);
-  const exampleTranslation = example
-    ? firstText(formText(directChildren(example, 'translation')[0]))
-    : '';
+  const exampleTranslationForm = example
+    ? formText(directChildren(example, 'translation')[0])[0]
+    : undefined;
+  const exampleTranslation = exampleTranslationForm?.text ?? '';
   const labels = directChildren(sense, 'trait')
     .map((trait) => attr(trait, 'value'))
     .filter((value) => value.length > 0);
@@ -272,7 +340,10 @@ function parseSense(
     definition: sameLang?.text ?? (otherLang ? '' : (definitions[0]?.text ?? '')),
     example: firstText(exampleForms),
     exampleTranslation,
-    exampleTranslationLang: 'zh',
+    exampleTranslationLang:
+      exampleTranslationForm && exampleTranslationForm.lang !== 'und'
+        ? exampleTranslationForm.lang
+        : 'zh',
     exampleSegmentId: '',
     labels: labels.join(', '),
     note: '',
@@ -335,6 +406,7 @@ export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResul
   const lexemes: LexemeEntryDoc[] = [];
   let resource = emptyDmlexResource(now, textId);
   let missingStableIds = 0;
+  const headwordLangs = new Map<string, string>();
   for (const entry of directChildren(lift, 'entry')) {
     const entryIdAttr = attr(entry, 'id');
     const id = entryIdAttr.length > 0 ? entryIdAttr : newId('lex');
@@ -358,7 +430,8 @@ export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResul
     const posValues = [
       ...new Set(senses.map((sense) => sense.pos).filter((pos) => pos.length > 0)),
     ];
-    const pronunciation = firstText(formText(directChildren(entry, 'pronunciation')[0]));
+    const pronunciationForm = formText(directChildren(entry, 'pronunciation')[0])[0];
+    const pronunciation = pronunciationForm?.text ?? '';
     const etymology = directChildren(entry, 'etymology')[0];
     const etymon = firstText(formText(etymology));
     const variants = directChildren(entry, 'variant');
@@ -367,10 +440,9 @@ export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResul
         diagnostics.push({ code: 'variant-with-sense', entryId: id });
       }
     }
-    const inflected = variants
-      .flatMap((variant) => formText(variant))
-      .map((form) => form.text)
-      .join(', ');
+    // 变体形式直接成为数组，不经过逗号分隔的表单字符串（JY-09）
+    // Variant forms become the array directly, never through a comma-separated form string (JY-09)
+    const variantForms = variants.flatMap((variant) => formText(variant)).map((form) => form.text);
     const groups =
       posValues.length <= 1
         ? [{ id, pos: posValues[0] ?? '', senses }]
@@ -391,7 +463,7 @@ export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResul
           partsOfSpeech: group.pos,
           labels: '',
           pronunciation,
-          inflectedForms: inflected,
+          inflectedForms: '',
           etymon,
           etymonLang: etymology ? attr(etymology, 'source') : '',
           note: '',
@@ -402,14 +474,30 @@ export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResul
         now,
         textId,
       );
-      lexemes.push(applied.entry);
+      lexemes.push(
+        withLiftForms(applied.entry, {
+          headword: forms[0]!.text,
+          variantForms,
+          pronunciation,
+          pronunciationScheme:
+            pronunciationForm &&
+            pronunciationForm.lang !== 'und' &&
+            pronunciationForm.lang !== forms[0]!.lang
+              ? pronunciationForm.lang
+              : '',
+        }),
+      );
+      headwordLangs.set(group.id, forms[0]!.lang);
       resource = applied.resource;
     }
   }
   if (lexemes.length === 0) return { ok: false, reason: 'empty' };
   const losses: InterchangeLoss[] =
     missingStableIds > 0 ? [{ code: 'no-stable-id', count: missingStableIds }] : [];
-  return { ok: true, lexemes, resource, diagnostics, losses };
+  // 词典的对象语言取文件里最常见的词头语言（JY-09）| Dictionary language = most common headword language
+  const objectLang = mostCommonLang(headwordLangs);
+  resource = { ...resource, resource: { ...resource.resource, langCode: objectLang } };
+  return { ok: true, lexemes, resource, diagnostics, losses, headwordLangs };
 }
 
 export async function importLexemesFromLiftXml(
@@ -447,6 +535,13 @@ export async function importLexemesFromLiftXml(
       if (target.regenerated > 0) {
         losses.push({ code: 'regenerated-id', count: target.regenerated });
       }
+      // 词头语言与词典语言不同的词条：LIFT 每条有自己的语言，DMLex 只有一种（JY-09）
+      // Entries whose headword language differs from the dictionary's: LIFT has one per entry,
+      // DMLex one per dictionary (JY-09)
+      const mixedLang = [...parsed.headwordLangs.values()].filter(
+        (lang) => lang !== 'und' && lang !== resource.resource.langCode,
+      ).length;
+      if (mixedLang > 0) losses.push({ code: 'mixed-headword-lang', count: mixedLang });
       return {
         ok: true as const,
         savedCount: target.lexemes.length,

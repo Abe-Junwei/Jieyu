@@ -2136,6 +2136,7 @@ export const DICT_KEYS = [
   'transcription.importExport.importDone.noStableId',
   'transcription.importExport.importDone.replacedById',
   'transcription.importExport.importDone.regeneratedId',
+  'transcription.importExport.importDone.mixedHeadwordLang',
   'transcription.importExport.importDone.appendedWithoutId',
   'transcription.importExport.exportDone.eafMultiHostWarning',
   'transcription.importExport.exportDone.xmlSoftLineBreaks',

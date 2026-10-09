@@ -2157,6 +2157,8 @@ export const zhCNDictionary = {
   'transcription.importExport.importDone.replacedById': '有 {count} 条按稳定 id 覆盖了已有内容。',
   'transcription.importExport.importDone.regeneratedId':
     '有 {count} 条的 id 已被其它项目占用，已换成新 id 导入。',
+  'transcription.importExport.importDone.mixedHeadwordLang':
+    '有 {count} 条词头的语言与词典语言不同；词典只记一种对象语言，这些词条的语言标记没有保留。',
   'transcription.importExport.importDone.appendedWithoutId':
     '文稿里已有语段，这次又追加了 {count} 条没有稳定标注 id 的内容。',
   'transcription.importExport.exportDone.eafMultiHostWarning':

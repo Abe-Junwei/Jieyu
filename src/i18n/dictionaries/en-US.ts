@@ -2307,6 +2307,8 @@ export const enUSDictionary = {
     '{count} items matched a stable id and replaced existing rows.',
   'transcription.importExport.importDone.regeneratedId':
     '{count} items had ids already used by another project and were imported with new ids.',
+  'transcription.importExport.importDone.mixedHeadwordLang':
+    '{count} headwords use a language other than the dictionary language; the dictionary keeps one object language, so their language tags were not kept.',
   'transcription.importExport.importDone.appendedWithoutId':
     'This text already had segments. This import appended {count} more with no stable annotation id.',
   'transcription.importExport.exportDone.eafMultiHostWarning':

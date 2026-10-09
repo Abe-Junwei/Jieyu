@@ -13,6 +13,7 @@ export const INTERCHANGE_LOSS_CODES = [
   'no-stable-id',
   'replaced-by-id',
   'regenerated-id',
+  'mixed-headword-lang',
   'appended-without-id',
   'guessed-tier',
 ] as const;
@@ -41,6 +42,7 @@ const LOSS_MESSAGE_KEYS: Record<InterchangeLossCode, string> = {
   'no-stable-id': 'transcription.importExport.importDone.noStableId',
   'replaced-by-id': 'transcription.importExport.importDone.replacedById',
   'regenerated-id': 'transcription.importExport.importDone.regeneratedId',
+  'mixed-headword-lang': 'transcription.importExport.importDone.mixedHeadwordLang',
   'appended-without-id': 'transcription.importExport.importDone.appendedWithoutId',
   'guessed-tier': 'transcription.importExport.importDone.guessedTier',
 };
@@ -68,6 +70,7 @@ const LOSSES_AFTER_HOST_RECOVERY: readonly InterchangeLossCode[] = [
   'no-stable-id',
   'replaced-by-id',
   'regenerated-id',
+  'mixed-headword-lang',
   'appended-without-id',
   'guessed-tier',
 ];
@@ -211,6 +214,7 @@ export function formatLexiconImportNotice(
       loss.code !== 'no-stable-id' &&
       loss.code !== 'replaced-by-id' &&
       loss.code !== 'regenerated-id' &&
+      loss.code !== 'mixed-headword-lang' &&
       loss.code !== 'unmapped-field'
     ) {
       continue;

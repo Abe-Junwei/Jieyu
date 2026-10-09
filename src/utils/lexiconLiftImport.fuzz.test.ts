@@ -32,18 +32,18 @@ describe('parseLiftXml properties', () => {
     );
   });
 
-  it('projects a trimmed headword and drops a blank one', () => {
+  // 词头原样保留（不 trim，JY-09 / JY-17）| The headword is kept as is (no trim, JY-09 / JY-17)
+  it('keeps the headword text as is and drops a blank one', () => {
     fc.assert(
       fc.property(fc.stringMatching(/^[0-9a-f]{1,8}$/), xmlText, (id, headword) => {
         const parsed = parseLiftXml(liftDocument(id, headword), 'text-1');
-        const trimmed = headword.trim();
-        if (trimmed.length === 0) {
+        if (headword.trim().length === 0) {
           expect(parsed).toEqual({ ok: false, reason: 'empty' });
           return;
         }
         expect(parsed.ok).toBe(true);
         if (!parsed.ok) return;
-        expect(parsed.lexemes.map((lexeme) => lexeme.entry.headword)).toEqual([trimmed]);
+        expect(parsed.lexemes.map((lexeme) => lexeme.entry.headword)).toEqual([headword]);
       }),
       { numRuns: 40 },
     );

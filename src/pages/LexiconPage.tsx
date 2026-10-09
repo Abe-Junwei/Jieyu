@@ -36,7 +36,7 @@ import { LexiconSenseList } from './lexicon/LexiconSenseList';
 import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
 import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 import { exportLexemesAsDmlex } from '../utils/dmlexJsonExport';
-import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
+import { exportLexemesAsLift, resolveLiftObjectLang } from '../utils/lexiconLiftExport';
 import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
 import { formatLexiconImportNotice } from '../utils/interchangeLossReport';
 import { formatXmlSanitizeNotice } from '../utils/xmlSafeText';
@@ -119,6 +119,11 @@ export function LexiconPage() {
     queryFn: () => LinguisticService.lexemes.getResource(projectTextId),
   });
   const relations = dmlexResource?.resource.relations ?? [];
+  const { data: projectText } = useQuery({
+    queryKey: ['project-text', projectTextId],
+    queryFn: () => LinguisticService.timeline.getTextById(projectTextId),
+    enabled: projectTextId.length > 0,
+  });
   const error =
     queryError instanceof Error
       ? queryError.message
@@ -388,7 +393,14 @@ export function LexiconPage() {
               data-testid="lexicon-lift-export"
               disabled={lexemes.length === 0}
               onClick={() => {
-                const exported = exportLexemesAsLift(lexemes, relations);
+                const exported = exportLexemesAsLift(
+                  lexemes,
+                  relations,
+                  resolveLiftObjectLang(
+                    dmlexResource?.resource.langCode,
+                    projectText?.languageCode,
+                  ),
+                );
                 // 有 XML 非法字符被处理时告诉用户（JY-08）| Tell the user about XML-illegal characters (JY-08)
                 setImportError(
                   exported.ok

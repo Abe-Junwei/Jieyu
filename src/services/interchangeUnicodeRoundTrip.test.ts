@@ -11,6 +11,8 @@ import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType } from '..
 import { exportToEaf, importFromEaf } from './EafService';
 import { exportToTrs, importFromTrs } from './TranscriberService';
 import type { XmlSanitizeReport } from '../utils/xmlSafeText';
+import { serializeLexemesToLift } from '../utils/lexiconLiftExport';
+import { parseLiftXml } from '../utils/lexiconLiftImport';
 
 const NOW = '2026-10-09T00:00:00.000Z';
 
@@ -121,5 +123,44 @@ describe('XML interchange keeps every legal code point and only rewrites illegal
         }
       });
     }
+  }
+});
+
+describe('LIFT round trip keeps headwords, IPA and comma-bearing variants (JY-09)', () => {
+  for (const [name, text] of Object.entries(UNICODE_SAMPLES)) {
+    it(`lift headword: ${name}`, () => {
+      const xml = serializeLexemesToLift([
+        {
+          id: 'lex1',
+          textId: 'text_1',
+          createdAt: NOW,
+          updatedAt: NOW,
+          entry: {
+            id: 'lex1',
+            headword: text,
+            senses: [
+              { id: 's1', headwordTranslations: [{ langCode: 'en', text: 'gloss, with comma' }] },
+            ],
+            pronunciations: [{ transcriptions: [{ text: UNICODE_SAMPLES.ipaTone! }] }],
+            inflectedForms: [{ text: 'form, a' }, { text: 'form b' }],
+          },
+        },
+      ]);
+      const parsed = parseLiftXml(xml, 'text_1');
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      const entry = parsed.lexemes[0]!.entry;
+      expect({
+        headword: codePoints(entry.headword),
+        pron: entry.pronunciations?.[0]?.transcriptions?.[0]?.text,
+        inflected: entry.inflectedForms?.map((form) => form.text),
+        gloss: entry.senses?.[0]?.headwordTranslations?.[0]?.text,
+      }).toEqual({
+        headword: codePoints(expectedXmlText(text)),
+        pron: UNICODE_SAMPLES.ipaTone,
+        inflected: ['form, a', 'form b'],
+        gloss: 'gloss, with comma',
+      });
+    });
   }
 });

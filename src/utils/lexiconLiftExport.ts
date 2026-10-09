@@ -40,6 +40,7 @@ function senseXml(
   relations: readonly DmlexRelation[],
   pos: string,
   tag: 'sense' | 'subsense',
+  objectLang: string,
 ): string {
   const id = sense.id ?? '';
   const glosses = (sense.headwordTranslations ?? [])
@@ -49,7 +50,7 @@ function senseXml(
     })
     .join('');
   const definitions = (sense.definitions ?? [])
-    .map((item) => `<definition>${xmlForm('und', item.text)}</definition>`)
+    .map((item) => `<definition>${xmlForm(objectLang, item.text)}</definition>`)
     .join('');
   const explanations = (sense.headwordExplanations ?? [])
     .map((item) => {
@@ -65,7 +66,7 @@ function senseXml(
           return `<translation>${xmlForm(lang, item.text)}</translation>`;
         })
         .join('');
-      return `<example>${xmlForm('und', example.text)}${translations}</example>`;
+      return `<example>${xmlForm(objectLang, example.text)}${translations}</example>`;
     })
     .join('');
   const labels = (sense.labels ?? [])
@@ -75,13 +76,34 @@ function senseXml(
   const nested = childrenOf(id, relations)
     .map((childId) => senses.find((row) => row.id === childId))
     .filter((row): row is DmlexSense => Boolean(row))
-    .map((row) => senseXml(row, senses, relations, pos, 'subsense'))
+    .map((row) => senseXml(row, senses, relations, pos, 'subsense', objectLang))
     .join('');
   const idAttr = id.length > 0 ? ` id="${escapeXml(id)}"` : '';
   return `<${tag}${idAttr}>${grammatical}${glosses}${definitions}${explanations}${examples}${labels}${nested}</${tag}>`;
 }
 
+/**
+ * LIFT 对象语言：先用词典自己的语言，未知时用项目语言，都没有才是 'und'（JY-09）
+ * LIFT object language: the dictionary's own language, else the project language, else 'und' (JY-09)
+ */
+export function resolveLiftObjectLang(
+  resourceLang: string | undefined,
+  projectLang: string | undefined,
+): string {
+  for (const candidate of [resourceLang, projectLang]) {
+    const trimmed = candidate?.trim() ?? '';
+    if (trimmed.length > 0 && trimmed !== 'und') return trimmed;
+  }
+  return 'und';
+}
+
 export type LiftSerializeOptions = {
+  /**
+   * 词典对象语言（DMLex resource.langCode），写到词头、变体、释义、例句和发音上；缺省才写 'und'（JY-09）
+   * Dictionary object language (DMLex resource.langCode) for headwords, variants, definitions,
+   * examples and pronunciations; 'und' only when unknown (JY-09)
+   */
+  langCode?: string;
   /** 删除 / 替换了 XML 非法字符时回调（JY-08）| Called when XML-illegal characters were replaced (JY-08) */
   onXmlSanitized?: (report: XmlSanitizeReport) => void;
 };
@@ -91,6 +113,7 @@ export function serializeLexemesToLift(
   relations: readonly DmlexRelation[] = [],
   options: LiftSerializeOptions = {},
 ): string {
+  const objectLang = langOrUnd(options.langCode);
   const entries = lexemes
     .map((lexeme) => {
       const entry = lexeme.entry;
@@ -108,15 +131,17 @@ export function serializeLexemesToLift(
       });
       const pos = entry.partsOfSpeech?.[0] ?? '';
       const senseBody = (roots.length > 0 ? roots : senses)
-        .map((sense) => senseXml(sense, senses, relations, pos, 'sense'))
+        .map((sense) => senseXml(sense, senses, relations, pos, 'sense', objectLang))
         .join('');
       const variants = (entry.inflectedForms ?? [])
-        .map((form) => `<variant>${xmlForm('und', form.text)}</variant>`)
+        .map((form) => `<variant>${xmlForm(objectLang, form.text)}</variant>`)
         .join('');
-      const pronunciation = entry.pronunciations?.[0]?.transcriptions?.[0]?.text ?? '';
+      const transcription = entry.pronunciations?.[0]?.transcriptions?.[0];
+      const pronunciation = transcription?.text ?? '';
+      const pronunciationLang = langOrUnd(transcription?.scheme ?? objectLang);
       const pronunciationXml =
         pronunciation.length > 0
-          ? `<pronunciation>${xmlForm('und', pronunciation)}</pronunciation>`
+          ? `<pronunciation>${xmlForm(pronunciationLang, pronunciation)}</pronunciation>`
           : '';
       const etymon = entry.etymologies?.[0]?.etymons?.[0];
       const etymonText = etymon?.etymonUnits?.[0]?.text ?? '';
@@ -125,7 +150,7 @@ export function serializeLexemesToLift(
         etymonText.length > 0
           ? `<etymology type="proto" source="${escapeXml(etymonLang)}">${xmlForm(etymonLang, etymonText)}</etymology>`
           : '';
-      return `<entry id="${escapeXml(lexeme.id)}"><lexical-unit>${xmlForm('und', entry.headword)}</lexical-unit>${variants}${pronunciationXml}${etymologyXml}${senseBody}</entry>`;
+      return `<entry id="${escapeXml(lexeme.id)}"><lexical-unit>${xmlForm(objectLang, entry.headword)}</lexical-unit>${variants}${pronunciationXml}${etymologyXml}${senseBody}</entry>`;
     })
     .join('');
   return finalizeXmlExport(
@@ -154,10 +179,12 @@ export function downloadLexiconLift(
 export function exportLexemesAsLift(
   lexemes: readonly LexemeEntryDoc[],
   relations: readonly DmlexRelation[] = [],
+  langCode?: string,
 ): LexiconLiftExportResult {
   if (lexemes.length === 0) return { ok: false, reason: 'empty' };
   let xmlSanitized: XmlSanitizeReport | null = null;
   const xml = serializeLexemesToLift(lexemes, relations, {
+    ...(langCode !== undefined ? { langCode } : {}),
     onXmlSanitized: (report) => {
       xmlSanitized = report;
     },
