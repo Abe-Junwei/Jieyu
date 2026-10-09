@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -18,7 +19,8 @@ import {
   parseWhisperCliJson,
 } from './whisperCliJson.js';
 
-const HERE = path.dirname(new URL(import.meta.url).pathname);
+// fileURLToPath：路径含非 ASCII（如 ~/开发）时 URL.pathname 会是百分号编码 | URL.pathname is percent-encoded for non-ASCII paths
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 // whisper.cpp v1.9.5 `whisper-cli -m ggml-tiny.bin -l auto -f samples/jfk.wav -ojf -of out -np` 的原样输出
 // Verbatim output of whisper.cpp v1.9.5 `whisper-cli ... -ojf` on samples/jfk.wav
 const REAL_FIXTURE = readFileSync(
