@@ -1,4 +1,10 @@
-import type { ActorType, CreationMethod, ProvenanceEnvelope, ReviewStatus } from '../db';
+import type {
+  ActorType,
+  CreationMethod,
+  ProvenanceEnvelope,
+  ProvenanceParams,
+  ReviewStatus,
+} from '../db';
 
 const PROVENANCE_ACTOR_TYPES = new Set<ActorType>(['human', 'ai', 'system', 'importer']);
 
@@ -29,6 +35,36 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function readText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+/** 与 `src/db/schemas.ts` 的 provenance.params 上限一致 | Mirrors the provenance.params limits in `src/db/schemas.ts` */
+const PARAMS_MAX_KEYS = 32;
+const PARAMS_MAX_KEY_LENGTH = 64;
+const PARAMS_MAX_STRING_LENGTH = 256;
+
+/** undefined = absent. null = present but malformed. */
+function readProvenanceParams(value: unknown): ProvenanceParams | undefined | null {
+  if (value === undefined) return undefined;
+  const record = readRecord(value);
+  if (!record) return null;
+  const entries = Object.entries(record);
+  if (entries.length > PARAMS_MAX_KEYS) return null;
+  const params: ProvenanceParams = {};
+  for (const [key, raw] of entries) {
+    if (key.length === 0 || key.length > PARAMS_MAX_KEY_LENGTH) return null;
+    if (typeof raw === 'string') {
+      if (raw.length > PARAMS_MAX_STRING_LENGTH) return null;
+      params[key] = raw;
+    } else if (typeof raw === 'number') {
+      if (!Number.isFinite(raw)) return null;
+      params[key] = raw;
+    } else if (typeof raw === 'boolean') {
+      params[key] = raw;
+    } else {
+      return null;
+    }
+  }
+  return params;
 }
 
 /** undefined = absent. null = present but malformed, so callers must not treat it as usable. */
@@ -73,5 +109,8 @@ export function readProvenance(value: unknown): ProvenanceEnvelope | undefined |
   if (typeof confidence === 'number' && Number.isFinite(confidence)) {
     provenance.confidence = confidence;
   }
+  const params = readProvenanceParams(record.params);
+  if (params === null) return null;
+  if (params !== undefined) provenance.params = params;
   return provenance;
 }

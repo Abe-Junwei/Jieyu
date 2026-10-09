@@ -35,7 +35,9 @@ vi.mock('../services/vad/VadMediaCacheService', () => ({
   VAD_AUTO_WARM_MAX_BYTES: 100 * 1024 * 1024,
 }));
 
-vi.mock('../services/VadService', () => ({
+vi.mock('../services/VadService', async (importOriginal) => ({
+  ENERGY_VAD_DEFAULTS: (await importOriginal<typeof import('../services/VadService')>())
+    .ENERGY_VAD_DEFAULTS,
   loadAudioBuffer: (mediaUrl: string) => mockLoadAudioBuffer(mediaUrl),
   detectVadSegments: (buffer: AudioBuffer) => mockDetectVadSegments(buffer),
 }));
@@ -141,7 +143,13 @@ describe('useTranscriptionProjectMediaController', () => {
       mediaId: 'media-1',
       mediaUrl: 'blob:media-1',
     });
-    expect(createUnitFromSelectionRouted).toHaveBeenCalledWith(0.1, 0.9);
+    expect(createUnitFromSelectionRouted).toHaveBeenCalledWith(0.1, 0.9, {
+      provenance: expect.objectContaining({
+        method: 'auto-segmentation',
+        reviewStatus: 'suggested',
+        params: expect.objectContaining({ engine: 'silero', source: 'cache' }),
+      }),
+    });
     expect(mockLoadAudioBuffer).not.toHaveBeenCalled();
     expect(mockDetectVadSegments).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenLastCalledWith({
@@ -184,8 +192,14 @@ describe('useTranscriptionProjectMediaController', () => {
     });
 
     expect(mockDetectVadSegments).toHaveBeenCalledWith(audioBuffer);
-    expect(createUnitFromSelectionRouted).toHaveBeenNthCalledWith(1, 0.2, 0.7);
-    expect(createUnitFromSelectionRouted).toHaveBeenNthCalledWith(2, 1.1, 2.2);
+    const energyProvenance = {
+      provenance: expect.objectContaining({
+        method: 'auto-segmentation',
+        params: expect.objectContaining({ engine: 'energy', source: 'fresh' }),
+      }),
+    };
+    expect(createUnitFromSelectionRouted).toHaveBeenNthCalledWith(1, 0.2, 0.7, energyProvenance);
+    expect(createUnitFromSelectionRouted).toHaveBeenNthCalledWith(2, 1.1, 2.2, energyProvenance);
     expect(setSaveState).toHaveBeenLastCalledWith({
       kind: 'done',
       message: 'transcription.projectMedia.vadDone:2',

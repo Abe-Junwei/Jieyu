@@ -3,6 +3,7 @@ import type {
   LayerUnitDocType,
   LayerUnitContentDocType,
   MediaItemDocType,
+  ProvenanceEnvelope,
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { Locale } from '../i18n';
@@ -27,7 +28,11 @@ export interface UseTranscriptionProjectMediaControllerInput {
   selectedMediaUrl: string | null;
   selectedTimelineMedia: MediaItemDocType | null;
   unitsOnCurrentMedia: LayerUnitDocType[];
-  createUnitFromSelectionRouted: (start: number, end: number) => Promise<void>;
+  createUnitFromSelectionRouted: (
+    start: number,
+    end: number,
+    extras?: { provenance?: ProvenanceEnvelope },
+  ) => Promise<void>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
   loadSnapshot: (textId: string) => Promise<void>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;

@@ -6,6 +6,7 @@ import type {
   LayerUnitDocType,
   LayerUnitContentDocType,
   MediaItemDocType,
+  ProvenanceEnvelope,
 } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import { newId, formatTime } from '../../utils/transcriptionFormatters';
@@ -319,6 +320,8 @@ export function createCreateUnitFromSelection(
       speakerId?: string;
       focusedLayerId?: string;
       selectionBehavior?: 'select-created' | 'keep-current';
+      /** 机器生成时的来源记录（如自动切分）| Provenance for machine-created rows (e.g. auto segmentation) */
+      provenance?: ProvenanceEnvelope;
     },
   ) => {
     const perfDebugEnabled = isTranscriptionPerfDebugEnabled();
@@ -396,6 +399,7 @@ export function createCreateUnitFromSelection(
       createdAt: now,
       updatedAt: now,
       ...(options?.speakerId ? { speakerId: options.speakerId } : {}),
+      ...(options?.provenance ? { provenance: options.provenance } : {}),
     } as LayerUnitDocType;
     await LinguisticService.units.save(newUnit);
 

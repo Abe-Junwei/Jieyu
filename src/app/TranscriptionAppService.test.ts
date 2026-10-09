@@ -83,6 +83,51 @@ describe('TranscriptionAppService', () => {
     expect(deps.detectVadSegments).not.toHaveBeenCalled();
   });
 
+  it('resolveAutoSegmentRun records engine, source and params for provenance', async () => {
+    const cached = createTranscriptionAppService(
+      createDeps({
+        ensureVadCacheForMedia: vi.fn(async () => ({
+          engine: 'silero' as const,
+          segments: [{ start: 1.0, end: 2.0 }],
+          durationSec: 3,
+          cachedAt: 1,
+        })),
+      }),
+    );
+    const fromCache = await cached.resolveAutoSegmentRun({
+      mediaUrl: 'blob:demo',
+      mediaBlobSize: 16,
+    });
+    expect(fromCache.run).toEqual({ engine: 'silero', source: 'cache' });
+    expect(fromCache.provenance).toMatchObject({
+      actorType: 'ai',
+      method: 'auto-segmentation',
+      model: 'silero_vad.onnx',
+      reviewStatus: 'suggested',
+      params: { engine: 'silero', source: 'cache', speechThreshold: 0.5, minDurationSec: 0.2 },
+    });
+
+    const fresh = createTranscriptionAppService(
+      createDeps({
+        ensureVadCacheForMedia: vi.fn(async () => null),
+        loadAudioBuffer: vi.fn(async () => ({ duration: 5 }) as AudioBuffer),
+        detectVadSegments: vi.fn(() => [{ start: 0.2, end: 0.8 }]),
+      }),
+    );
+    const fromEnergy = await fresh.resolveAutoSegmentRun({
+      mediaUrl: 'https://example.com/demo.wav',
+      mediaBlobSize: 24,
+    });
+    expect(fromEnergy.segments).toEqual([{ start: 0.2, end: 0.8 }]);
+    expect(fromEnergy.provenance.params).toMatchObject({
+      engine: 'energy',
+      source: 'fresh',
+      thresholdFactor: 0.05,
+      mergeGapSec: 0.3,
+      paddingEndSec: 0.1,
+    });
+  });
+
   it('skips fallback decode for oversized media', async () => {
     const deps = createDeps({
       ensureVadCacheForMedia: vi.fn(async () => null),

@@ -5,6 +5,7 @@
  * the line-count budget. This is a plain function (not a hook) because it
  * only reads refs and calls stable callbacks.
  */
+import type { ProvenanceEnvelope } from '../../db';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
 import type { PerLayerRowFieldPatch } from './useTranscriptionUnitActions';
@@ -26,7 +27,7 @@ interface CloudSyncWrappedActions {
   createUnitFromSelection: (
     start: number,
     end: number,
-    options?: { speakerId?: string; focusedLayerId?: string },
+    options?: { speakerId?: string; focusedLayerId?: string; provenance?: ProvenanceEnvelope },
   ) => Promise<void>;
   deleteUnit: (unitId: string) => Promise<void>;
   deleteSelectedUnits: (ids: Set<string>) => Promise<void>;
@@ -159,7 +160,7 @@ export function createCloudSyncedWriteActions({
     createUnitFromSelection: async (
       start: number,
       end: number,
-      options?: { speakerId?: string; focusedLayerId?: string },
+      options?: { speakerId?: string; focusedLayerId?: string; provenance?: ProvenanceEnvelope },
     ) => {
       const beforeUnitIds = new Set(unitsRef.current.map((row) => row.id));
       await wrappedActionsRef.current.createUnitFromSelection(start, end, options);

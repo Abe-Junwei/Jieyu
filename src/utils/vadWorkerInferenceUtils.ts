@@ -9,10 +9,21 @@ export interface VadWorkerSegment {
   confidence: number;
 }
 
-const SPEECH_THRESHOLD = 0.5;
-const MERGE_GAP_SEC = 0.3;
-const MIN_DURATION_SEC = 0.2;
-const MAX_DURATION_SEC = 30.0;
+/**
+ * Silero 帧概率 → 语段的切分参数（写入自动切分来源记录）。
+ * Silero frame-probability → segment parameters (recorded in auto-segmentation provenance).
+ */
+export const SILERO_SEGMENTATION_PARAMS = {
+  speechThreshold: 0.5,
+  mergeGapSec: 0.3,
+  minDurationSec: 0.2,
+  maxDurationSec: 30.0,
+} as const;
+
+const SPEECH_THRESHOLD = SILERO_SEGMENTATION_PARAMS.speechThreshold;
+const MERGE_GAP_SEC = SILERO_SEGMENTATION_PARAMS.mergeGapSec;
+const MIN_DURATION_SEC = SILERO_SEGMENTATION_PARAMS.minDurationSec;
+const MAX_DURATION_SEC = SILERO_SEGMENTATION_PARAMS.maxDurationSec;
 
 function splitLongSegmentAtSilence(
   seg: { start: number; end: number; probs: number[] },

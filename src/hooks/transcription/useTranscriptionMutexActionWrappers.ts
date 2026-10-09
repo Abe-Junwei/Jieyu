@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LayerDocType, LayerUnitDocType } from '../../db';
+import type { LayerDocType, LayerUnitDocType, ProvenanceEnvelope } from '../../db';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
 import type { PerLayerRowFieldPatch } from './useTranscriptionUnitActions';
@@ -35,7 +35,7 @@ type Params = {
   createUnitFromSelectionRaw: (
     start: number,
     end: number,
-    options?: { speakerId?: string; focusedLayerId?: string },
+    options?: { speakerId?: string; focusedLayerId?: string; provenance?: ProvenanceEnvelope },
   ) => Promise<void>;
   deleteUnitRaw: (unitId: string) => Promise<void>;
   mergeWithPreviousRaw: (unitId: string) => Promise<void>;

@@ -93,6 +93,16 @@ const creationMethodSchema = z.enum([
   'split',
   'migration',
 ]);
+/** 生成参数：扁平键值，限制规模 | Generation params: flat key-value with bounded size */
+const PROVENANCE_PARAMS_MAX_KEYS = 32;
+const provenanceParamsSchema = z
+  .record(
+    z.string().min(1).max(64),
+    z.union([z.string().max(256), z.number().finite(), z.boolean()]),
+  )
+  .refine((value) => Object.keys(value).length <= PROVENANCE_PARAMS_MAX_KEYS, {
+    message: `provenance.params allows at most ${PROVENANCE_PARAMS_MAX_KEYS} keys`,
+  });
 const provenanceSchema = z.object({
   actorType: actorTypeSchema,
   actorId: z.string().optional(),
@@ -106,6 +116,7 @@ const provenanceSchema = z.object({
   reviewStatus: reviewStatusSchema.optional(),
   reviewedBy: z.string().optional(),
   reviewedAt: isoDateSchema.optional(),
+  params: provenanceParamsSchema.optional(),
 });
 
 const textDocSchema = z.object({

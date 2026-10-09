@@ -103,7 +103,7 @@ export function useTranscriptionProjectMediaController(
     fireAndForget(
       (async () => {
         try {
-          const segments = await transcriptionAppService.resolveAutoSegmentCandidates({
+          const { segments, provenance } = await transcriptionAppService.resolveAutoSegmentRun({
             ...(selectedTimelineMedia?.id !== undefined
               ? { mediaId: selectedTimelineMedia.id }
               : {}),
@@ -119,7 +119,7 @@ export function useTranscriptionProjectMediaController(
               ),
           );
           for (const seg of newSegs) {
-            await createUnitFromSelectionRouted(seg.start, seg.end);
+            await createUnitFromSelectionRouted(seg.start, seg.end, { provenance });
           }
           setSaveState({
             kind: 'done',

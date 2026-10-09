@@ -22,11 +22,15 @@ import type {
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
 import {
+  buildAutoSegmentationProvenance,
+  type AutoSegmentationRun,
+} from '../services/vad/autoSegmentationProvenance';
+import {
   ensureVadCacheForMedia,
   VAD_AUTO_WARM_MAX_BYTES,
 } from '../services/vad/VadMediaCacheService';
 import type { AppServiceMeta, AppServiceResult } from './contracts';
-import type { MediaItemDocType, TextDocType } from '../db';
+import type { MediaItemDocType, ProvenanceEnvelope, TextDocType } from '../db';
 
 export const TranscriptionAppServiceMeta: AppServiceMeta = {
   domain: 'transcription',
@@ -90,6 +94,13 @@ export interface ResolveAutoSegmentCandidatesRequest {
   mediaBlobSize?: number;
 }
 
+export interface AutoSegmentRunResult {
+  segments: Array<{ start: number; end: number }>;
+  run: AutoSegmentationRun;
+  /** 写入这批句段的来源记录（含参数）| Provenance (with params) for rows created from this run */
+  provenance: ProvenanceEnvelope;
+}
+
 export interface CreateProjectRequest {
   primaryTitle: string;
   englishFallbackTitle: string;
@@ -134,6 +145,10 @@ export interface ITranscriptionAppServiceGateway {
   resolveAutoSegmentCandidates(
     request: ResolveAutoSegmentCandidatesRequest,
   ): Promise<Array<{ start: number; end: number }>>;
+  /** 同上，并带回生成这批候选的引擎与来源（写入来源记录）| Same, plus the engine/source for provenance */
+  resolveAutoSegmentRun(
+    request: ResolveAutoSegmentCandidatesRequest,
+  ): Promise<AutoSegmentRunResult>;
   createProject(request: CreateProjectRequest): Promise<{ textId: string }>;
   createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType>;
   importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
@@ -208,29 +223,51 @@ export function createTranscriptionAppService(
     ...overrides,
   };
 
+  const withProvenance = (
+    segments: Array<{ start: number; end: number }>,
+    run: AutoSegmentationRun,
+  ): AutoSegmentRunResult => ({
+    segments,
+    run,
+    provenance: buildAutoSegmentationProvenance(run, new Date().toISOString()),
+  });
+
+  const resolveAutoSegmentRun = async (
+    request: ResolveAutoSegmentCandidatesRequest,
+  ): Promise<AutoSegmentRunResult> => {
+    const cachedEntry = await deps.ensureVadCacheForMedia({
+      ...(request.mediaId !== undefined ? { mediaId: request.mediaId } : {}),
+      mediaUrl: request.mediaUrl,
+      ...(request.mediaBlobSize !== undefined ? { mediaBlobSize: request.mediaBlobSize } : {}),
+    });
+    if (cachedEntry) {
+      return withProvenance(cachedEntry.segments, { engine: cachedEntry.engine, source: 'cache' });
+    }
+    const freshEnergyRun: AutoSegmentationRun = { engine: 'energy', source: 'fresh' };
+
+    if (request.mediaBlobSize !== undefined && request.mediaBlobSize > deps.vadAutoWarmMaxBytes) {
+      return withProvenance([], freshEnergyRun);
+    }
+
+    if (request.mediaBlobSize === undefined && request.mediaUrl.startsWith('blob:')) {
+      return withProvenance([], freshEnergyRun);
+    }
+
+    const audioBuffer = await deps.loadAudioBuffer(request.mediaUrl);
+    return withProvenance(deps.detectVadSegments(audioBuffer), freshEnergyRun);
+  };
+
   return {
     async resolveAutoSegmentCandidates(
       request: ResolveAutoSegmentCandidatesRequest,
     ): Promise<Array<{ start: number; end: number }>> {
-      const cachedEntry = await deps.ensureVadCacheForMedia({
-        ...(request.mediaId !== undefined ? { mediaId: request.mediaId } : {}),
-        mediaUrl: request.mediaUrl,
-        ...(request.mediaBlobSize !== undefined ? { mediaBlobSize: request.mediaBlobSize } : {}),
-      });
-      if (cachedEntry) {
-        return cachedEntry.segments;
-      }
+      return (await resolveAutoSegmentRun(request)).segments;
+    },
 
-      if (request.mediaBlobSize !== undefined && request.mediaBlobSize > deps.vadAutoWarmMaxBytes) {
-        return [];
-      }
-
-      if (request.mediaBlobSize === undefined && request.mediaUrl.startsWith('blob:')) {
-        return [];
-      }
-
-      const audioBuffer = await deps.loadAudioBuffer(request.mediaUrl);
-      return deps.detectVadSegments(audioBuffer);
+    async resolveAutoSegmentRun(
+      request: ResolveAutoSegmentCandidatesRequest,
+    ): Promise<AutoSegmentRunResult> {
+      return resolveAutoSegmentRun(request);
     },
 
     async createProject(request: CreateProjectRequest): Promise<{ textId: string }> {

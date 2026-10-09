@@ -63,6 +63,21 @@ export type CreationMethod =
   | 'split'
   | 'migration';
 
+/**
+ * 生成参数的单个取值（扁平、可 JSON 序列化）| One flat, JSON-safe generation parameter value
+ */
+export type ProvenanceParamValue = string | number | boolean;
+
+/**
+ * 自动切分 / VAD / ASR 等生成步骤所用参数（扁平键值；rev5 冻结前登记）。
+ * Parameters used by auto segmentation / VAD / ASR (flat key-value; registered before the rev5 freeze).
+ *
+ * 约定键 | Conventional keys: `engine`、`source`、`vadModel`、`vadModelVersion`、`speechThreshold`、
+ * `thresholdFactor`、`mergeGapSec`、`minDurationSec`、`maxDurationSec`、`paddingStartSec`、
+ * `paddingEndSec`、`frameDurationSec`、`hopDurationSec`、`asrModel`、`asrModelVersion`、`language`。
+ */
+export type ProvenanceParams = Record<string, ProvenanceParamValue>;
+
 export interface ProvenanceEnvelope {
   actorType: ActorType;
   actorId?: string;
@@ -76,6 +91,8 @@ export interface ProvenanceEnvelope {
   reviewStatus?: ReviewStatus;
   reviewedBy?: string;
   reviewedAt?: string;
+  /** 生成参数（自动切分 / VAD / ASR）| Generation parameters (auto segmentation / VAD / ASR) */
+  params?: ProvenanceParams;
 }
 
 export interface TextDocType {

@@ -5,6 +5,7 @@
  * 保持 useTranscriptionData 为薄组合层。
  * Keeps useTranscriptionData as a thin composition layer.
  */
+import type { ProvenanceEnvelope } from '../../db';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { isCollaborationCloudSurfaceActive } from '../../collaboration/cloud/collaborationCloudFeatureGate';
@@ -49,7 +50,7 @@ interface CloudSyncWrappedActions {
   createUnitFromSelection: (
     start: number,
     end: number,
-    options?: { speakerId?: string; focusedLayerId?: string },
+    options?: { speakerId?: string; focusedLayerId?: string; provenance?: ProvenanceEnvelope },
   ) => Promise<void>;
   deleteUnit: (unitId: string) => Promise<void>;
   deleteSelectedUnits: (ids: Set<string>) => Promise<void>;

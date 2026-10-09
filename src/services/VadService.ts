@@ -38,28 +38,37 @@ export interface VadSegment {
   end: number;
 }
 
+/** 能量 VAD 默认参数（写入自动切分来源记录）| Energy VAD defaults (recorded in auto-segmentation provenance) */
+export const ENERGY_VAD_DEFAULTS = {
+  frameDurationSec: 0.03,
+  hopDurationSec: 0.01,
+  thresholdFactor: 0.05,
+  mergeGapSec: 0.3,
+  minDurationSec: 0.2,
+  maxDurationSec: 30.0,
+  paddingStartSec: 0.05,
+  paddingEndSec: 0.1,
+} as const satisfies Required<VadOptions>;
+
 // ---- 核心算法 | Core algorithm ----
 
 /**
  * 分析 AudioBuffer，返回语音活动时间段列表。
  * Analyses an AudioBuffer and returns a list of voice-activity segments.
  */
-export function detectVadSegments(
-  buffer: AudioBuffer,
-  options: VadOptions = {},
-): VadSegment[] {
+export function detectVadSegments(buffer: AudioBuffer, options: VadOptions = {}): VadSegment[] {
   const {
-    frameDurationSec = 0.03,
-    hopDurationSec   = 0.01,
-    thresholdFactor  = 0.05,
-    mergeGapSec      = 0.30,
-    minDurationSec   = 0.20,
-    maxDurationSec   = 30.0,
-    paddingStartSec  = 0.05,
-    paddingEndSec    = 0.10,
+    frameDurationSec = ENERGY_VAD_DEFAULTS.frameDurationSec,
+    hopDurationSec = ENERGY_VAD_DEFAULTS.hopDurationSec,
+    thresholdFactor = ENERGY_VAD_DEFAULTS.thresholdFactor,
+    mergeGapSec = ENERGY_VAD_DEFAULTS.mergeGapSec,
+    minDurationSec = ENERGY_VAD_DEFAULTS.minDurationSec,
+    maxDurationSec = ENERGY_VAD_DEFAULTS.maxDurationSec,
+    paddingStartSec = ENERGY_VAD_DEFAULTS.paddingStartSec,
+    paddingEndSec = ENERGY_VAD_DEFAULTS.paddingEndSec,
   } = options;
 
-  const sr   = buffer.sampleRate;
+  const sr = buffer.sampleRate;
   const total = buffer.length;
 
   // 混合所有声道为单声道 | Downmix all channels to mono
@@ -75,8 +84,8 @@ export function detectVadSegments(
     for (let i = 0; i < total; i++) mono[i] = (mono[i] as number) * inv;
   }
 
-  const frameLen  = Math.round(frameDurationSec * sr);
-  const hopLen    = Math.round(hopDurationSec   * sr);
+  const frameLen = Math.round(frameDurationSec * sr);
+  const hopLen = Math.round(hopDurationSec * sr);
 
   // 计算每帧 RMS | Compute per-frame RMS energy
   const frameCount = Math.floor((total - frameLen) / hopLen) + 1;
@@ -86,15 +95,15 @@ export function detectVadSegments(
     const start = fi * hopLen;
     let sum = 0;
     for (let si = start; si < start + frameLen; si++) {
-        const v = mono[si] as number;
-        sum += v * v;
+      const v = mono[si] as number;
+      sum += v * v;
     }
-      const rmsFi = Math.sqrt(sum / frameLen);
-      rms[fi] = rmsFi;
-      if (rmsFi > peakRms) peakRms = rmsFi;
+    const rmsFi = Math.sqrt(sum / frameLen);
+    rms[fi] = rmsFi;
+    if (rmsFi > peakRms) peakRms = rmsFi;
   }
 
-  if (peakRms === 0) return [];   // 纯静音 | Completely silent
+  if (peakRms === 0) return []; // 纯静音 | Completely silent
 
   const threshold = peakRms * thresholdFactor;
 
@@ -116,8 +125,8 @@ export function detectVadSegments(
     } else if (inSpeech && !speaking) {
       inSpeech = false;
       raw.push({
-        start: (segStartFrame as number) * hopLen / sr,
-        end:   fi           * hopLen / sr,
+        start: ((segStartFrame as number) * hopLen) / sr,
+        end: (fi * hopLen) / sr,
       });
     }
   }
@@ -139,7 +148,7 @@ export function detectVadSegments(
   const result: VadSegment[] = [];
   for (const seg of merged) {
     const padStart = Math.max(0, seg.start - paddingStartSec);
-    const padEnd   = Math.min(totalDuration, seg.end + paddingEndSec);
+    const padEnd = Math.min(totalDuration, seg.end + paddingEndSec);
 
     if (padEnd - padStart < minDurationSec) continue;
 

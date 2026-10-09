@@ -1,4 +1,8 @@
-import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
+import type {
+  LayerUnitDocType,
+  MediaItemDocType,
+  ProvenanceEnvelope,
+} from '../types/jieyuDbDocTypes';
 import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import { t, tf, type Locale } from '../i18n';
@@ -26,6 +30,13 @@ interface CreateUnitOptions {
   speakerId?: string;
   focusedLayerId?: string;
   selectionBehavior?: NewSegmentSelectionBehavior;
+  provenance?: ProvenanceEnvelope;
+}
+
+/** 选区建段的附加信息 | Extra info for creating a segment from a selection */
+export interface CreateFromSelectionExtras {
+  /** 机器生成时的来源记录（如自动切分）| Provenance for machine-created rows (e.g. auto segmentation) */
+  provenance?: ProvenanceEnvelope;
 }
 
 export interface UseTranscriptionSegmentCreationControllerInput {
@@ -282,7 +293,11 @@ export function createTranscriptionSegmentCreationActions(
       : undefined;
   };
 
-  const createUnitFromSelectionRouted = async (start: number, end: number) => {
+  const createUnitFromSelectionRouted = async (
+    start: number,
+    end: number,
+    extras?: CreateFromSelectionExtras,
+  ) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
       const selectedMedia = await resolveTimelineMediaForMutation();
@@ -324,6 +339,7 @@ export function createTranscriptionSegmentCreationActions(
         layerId: routing.sourceLayerId,
         startTime: finalStart,
         endTime: finalEnd,
+        ...(extras?.provenance ? { provenance: extras.provenance } : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -361,6 +377,7 @@ export function createTranscriptionSegmentCreationActions(
     await input.createUnitFromSelection(start, end, {
       ...(input.activeLayerIdForEdits ? { focusedLayerId: input.activeLayerIdForEdits } : {}),
       selectionBehavior: readStoredNewSegmentSelectionBehavior(),
+      ...(extras?.provenance ? { provenance: extras.provenance } : {}),
     });
   };
 
