@@ -114,11 +114,13 @@ export function mergeInboundMediaRow(incoming: Row, local: Row | undefined): Mer
     return { kind: 'conflict', reason: 'project-mismatch' };
   }
 
-  const markedOmitted = incomingDetails[MEDIA_AUDIO_EXPORT_OMITTED_KEY] === true;
   const declaresPlaceholder = incoming['timelineKind'] === 'placeholder';
-  if (!markedOmitted && declaresPlaceholder) {
-    // 入站明确声明「无音频的占位行」，而本机有字节：不静默丢弃，也不强行复活。
-    // Inbound explicitly says placeholder while local holds bytes: neither drop nor resurrect.
+  if (declaresPlaceholder) {
+    // 入站声明「无音频的占位行」，而本机有字节：不静默丢弃，也不强行复活。带省略标记时也一样：
+    // 占位行不能持有字节（schema 要求 byteLocation "none"），保留本机字节只会得到看不懂的校验错误（JY-23）。
+    // Inbound says placeholder while local holds bytes: neither drop nor resurrect. Same with the
+    // omission marker: placeholder rows cannot hold bytes (schema requires byteLocation "none"), so
+    // keeping local bytes would only surface as an opaque validation error (JY-23).
     return { kind: 'conflict', reason: 'placeholder-over-local-bytes' };
   }
 

@@ -26,6 +26,7 @@ import type {
 import { db, getDb } from './engine';
 import { createLogger } from '../observability/logger';
 import { isCollectionDroppedOnImport } from './tableRegistry';
+import { withLexemeNestedIds } from './lexemeNestedIds';
 import {
   InboundByteConflictError,
   isInboundByteCollection,
@@ -373,7 +374,8 @@ function normalizeImportedDoc(
     case 'track_entities':
       return doc;
     case 'lexemes':
-      return ensureImportProvenance(doc as LexemeDocType, fallbackCreatedAt);
+      // JY-23：导入时显式补齐嵌套 id（校验器不再原地补）| Fill nested ids explicitly (validator is pure)
+      return withLexemeNestedIds(ensureImportProvenance(doc as LexemeDocType, fallbackCreatedAt));
     case 'token_lexeme_links':
       return ensureImportProvenance(doc as TokenLexemeLinkDocType, fallbackCreatedAt);
     case 'phonemes':

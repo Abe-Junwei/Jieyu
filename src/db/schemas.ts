@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
-import { assignLexemeNestedIdsInPlace } from './lexemeNestedIds';
 import type {
   TextDocType,
   MediaItemDocType,
@@ -1693,8 +1692,13 @@ export function validateMediaItemDoc(doc: MediaItemDocType): void {
   mediaItemDocSchema.parse(doc);
 }
 
+/**
+ * 纯校验，不改动入参（JY-23）。嵌套 id 的补齐见 `withLexemeNestedIds`：服务层 saveLexeme、
+ * 导入归一化与 `lexemeNestedIdsMiddleware` 显式调用。
+ * Pure validation that never mutates its input (JY-23). Nested ids are filled explicitly by
+ * saveLexeme, import normalization and `lexemeNestedIdsMiddleware` via `withLexemeNestedIds`.
+ */
 export function validateLexemeDoc(doc: LexemeDocType): void {
-  assignLexemeNestedIdsInPlace(doc);
   lexemeDocSchema.parse(doc);
 }
 
