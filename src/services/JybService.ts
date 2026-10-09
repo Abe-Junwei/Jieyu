@@ -825,7 +825,7 @@ export interface JybDisasterRestoreResult {
   importResult: ImportResult;
   /** 写回的用户偏好键（没勾选时为空）| Preference keys written back (empty unless opted in) */
   restoredPreferenceKeys: string[];
-  /** 全部项目按表合计的孤儿行（BF1N3-2）| Orphan rows across all projects, summed per table */
+  /** 全部项目的孤儿行，未按表合计（BF1N3-2）| Orphan rows of all projects, not summed per table */
   skippedOrphanRows: SkippedOrphanRows;
 }
 
@@ -933,15 +933,12 @@ export async function disasterRestoreFromJyb(
     options?.restorePreferences === true
       ? await applyUserPreferences(inspected.preferences.entries)
       : [];
-  const orphanSums = new Map<string, number>();
-  for (const { collection, count } of [...inspected.skippedOrphanRows.values()].flat()) {
-    orphanSums.set(collection, (orphanSums.get(collection) ?? 0) + count);
-  }
   return {
     projectIds: inspected.data.projects.map((p) => p.id),
     snapshotSeq,
     importResult,
     restoredPreferenceKeys,
-    skippedOrphanRows: [...orphanSums].map(([collection, count]) => ({ collection, count })),
+    // 按表合计只在显示层做一次 | per-table totals are computed once, in the display layer
+    skippedOrphanRows: [...inspected.skippedOrphanRows.values()].flat(),
   };
 }
