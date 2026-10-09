@@ -23,7 +23,10 @@
 import type { ImportResult } from '../db/types';
 import type { JieyuDatabase } from '../db/engine';
 import { ProjectOverwriteBlockedError, SnapshotFormatError } from '../db/snapshotFormatError';
-import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
+import {
+  isProjectNeverCollaborated,
+  listCollaboratedIds,
+} from '../collaboration/cloud/projectCollaborationHistory';
 import {
   JIEYU_DATA_CLASS_IN_JYB,
   JIEYU_MAIN_TABLE_REGISTRY,
@@ -87,6 +90,8 @@ import {
   type PackageEntity,
   type PackedByteFile,
   type ProjectPackageManifest,
+  rowsOf,
+  byteGuardTables,
 } from './projectPackageService';
 import type { ProjectCollections } from './projectPackageIdRemap';
 
@@ -135,13 +140,6 @@ type DbEngineModule = typeof import('../db/engine');
 type ProjectSnapshotModule = typeof import('../db/projectScopedSnapshot');
 type OverwriteSnapshotModule = typeof import('../db/projectOverwriteSnapshotStore');
 type Dexie = Awaited<ReturnType<DbEngineModule['getDb']>>['dexie'];
-
-function rowsOf(collections: ProjectCollections, name: string): Row[] {
-  const rows = collections[name];
-  return Array.isArray(rows)
-    ? rows.filter((row): row is Row => row !== null && typeof row === 'object')
-    : [];
-}
 
 interface LibraryData {
   schemaVersion: number;
@@ -264,7 +262,7 @@ export async function exportDatabaseToJybBlob(options: JybExportOptions = {}): P
     exportedAt: full.exportedAt,
     dbName: full.dbName,
     projects,
-    ...(options.includePreferences !== false ? { settings: collectUserPreferences() } : {}),
+    ...(options.includePreferences !== false ? { settings: await collectUserPreferences() } : {}),
   };
   const dataBytes = toJsonBytes(data);
   if (dataBytes.byteLength > dbIo.SNAPSHOT_IMPORT_MAX_JSON_BYTES) {
@@ -579,12 +577,7 @@ async function collaboratedProjectIds(
   const packageFlagged = inspected.manifest.projects
     .filter((project) => project.collaborated !== false)
     .map((project) => project.id);
-  return [
-    ...new Set([
-      ...[...localIds, ...packageIds].filter((id) => !isProjectNeverCollaborated(id)),
-      ...packageFlagged,
-    ]),
-  ];
+  return [...new Set([...listCollaboratedIds([...localIds, ...packageIds]), ...packageFlagged])];
 }
 
 async function planDisasterRestore(inspected: InspectedLibrary): Promise<{
@@ -880,9 +873,7 @@ export async function disasterRestoreFromJyb(
   }
 
   const db = await engine.getDb();
-  const byteTables = (['media_items', 'lexeme_assets', 'source_records', 'texts'] as const).map(
-    (name) => db.dexie.table(name),
-  );
+  const byteTables = byteGuardTables(db.dexie);
   const importResult = await dbIo.importDatabaseFromJson(
     {
       schemaVersion: inspected.data.schemaVersion,

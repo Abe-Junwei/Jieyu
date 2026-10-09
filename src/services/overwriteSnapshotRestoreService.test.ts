@@ -21,6 +21,8 @@ import {
 const flags = vi.hoisted(() => ({ collaborated: new Set<string>() }));
 vi.mock('../collaboration/cloud/projectCollaborationHistory', () => ({
   isProjectNeverCollaborated: (id: string) => !flags.collaborated.has(id),
+  listCollaboratedIds: (ids: readonly string[]) =>
+    [...new Set(ids)].filter((id) => flags.collaborated.has(id)),
 }));
 
 // node 环境（jsdom 的 Blob 与 fake-indexeddb 不兼容）；偏好用内存 localStorage
@@ -251,10 +253,11 @@ describe('recovery snapshots: whole-database pre-restore snapshot', () => {
     const entry = (await listOverwriteSnapshots()).find((s) => s.seq === restored.snapshotSeq);
     expect(entry).toMatchObject({ scope: 'library', projectId: null, projectCount: 1 });
     const preview = await previewOverwriteSnapshot(restored.snapshotSeq);
-    expect(preview).toMatchObject({ available: true, preferenceKeys: ['jieyu.locale'] });
+    expect(preview.available).toBe(true);
+    expect(preview.preferenceKeys).toEqual(expect.arrayContaining(['jieyu.locale']));
 
     const result = await restoreOverwriteSnapshot(restored.snapshotSeq);
-    expect(result.restoredPreferenceKeys).toEqual(['jieyu.locale']);
+    expect(result.restoredPreferenceKeys).toEqual(expect.arrayContaining(['jieyu.locale']));
     expect(localStorage.getItem('jieyu.locale')).toBe('en-US');
     expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Edited' });
     expect((await db.project_ai_memories.get('pA-mem'))?.fact).toBe('later-fact');
@@ -266,8 +269,8 @@ describe('recovery snapshots: whole-database pre-restore snapshot', () => {
       (s) => s.seq === result.preRestoreSnapshotSeq,
     );
     expect(pre).toMatchObject({ scope: 'library', packageKind: 'snapshot-restore' });
-    expect((await previewOverwriteSnapshot(result.preRestoreSnapshotSeq)).preferenceKeys).toEqual([
-      'jieyu.locale',
-    ]);
+    expect((await previewOverwriteSnapshot(result.preRestoreSnapshotSeq)).preferenceKeys).toEqual(
+      expect.arrayContaining(['jieyu.locale']),
+    );
   });
 });

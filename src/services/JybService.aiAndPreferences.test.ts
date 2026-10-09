@@ -20,6 +20,7 @@ import { applyUserPreferences, readPackagedUserPreferences } from './userPrefere
 
 vi.mock('../collaboration/cloud/projectCollaborationHistory', () => ({
   isProjectNeverCollaborated: () => true,
+  listCollaboratedIds: () => [],
 }));
 
 const NOW = '2026-10-09T01:00:00.000Z';
@@ -146,7 +147,12 @@ describe('JYB user preferences (settings entry)', () => {
     localStorage.setItem('jieyu-theme', 'dark');
     localStorage.setItem(
       'jieyu.aiChat.settings',
-      JSON.stringify({ providerKind: 'openai', model: 'gpt', apiKey: 'sk-LEAK', temperature: 0.2 }),
+      JSON.stringify({
+        providerKind: 'openai-compatible',
+        model: 'gpt',
+        apiKey: 'sk-LEAK',
+        temperature: 0.2,
+      }),
     );
     localStorage.setItem('jieyu.acoustic.external.apiKey', 'sk-NEVER');
     localStorage.setItem('jieyu.voiceAgent.commercialStt', JSON.stringify({ apiKey: 'sk-STT' }));
@@ -185,12 +191,16 @@ describe('JYB user preferences (settings entry)', () => {
     expect(withPrefs.restoredPreferenceKeys).toHaveLength(3);
     expect(localStorage.getItem('jieyu.locale')).toBe('zh-CN');
     expect(localStorage.getItem('jieyu-theme')).toBe('dark');
-    // 本机密钥保留 | Local secret kept
+    // 只恢复 provider/model；本机密钥在无地址冲突时保留（REV5-N2）
+    // Only provider/model restored; local secret kept when addresses do not conflict (REV5-N2)
     expect(JSON.parse(localStorage.getItem('jieyu.aiChat.settings')!)).toMatchObject({
-      providerKind: 'openai',
-      temperature: 0.2,
+      providerKind: 'openai-compatible',
+      model: 'gpt',
       apiKey: 'sk-LOCAL',
     });
+    expect(JSON.parse(localStorage.getItem('jieyu.aiChat.settings')!)).not.toHaveProperty(
+      'temperature',
+    );
     // 旧值记在整库快照里 | Old values kept in the whole-library snapshot
     const [snapshot] = await listProjectOverwriteSnapshots(LIBRARY_SNAPSHOT_KEY);
     expect(JSON.parse(snapshot!.snapshotJson).preferences).toEqual(
@@ -199,6 +209,40 @@ describe('JYB user preferences (settings entry)', () => {
         { key: 'jieyu-theme', value: null },
       ]),
     );
+  });
+});
+
+describe('REV5-N2: AI chat settings pack provider/model without keys or URLs', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('collects provider and model from the vault when the plain key was removed', async () => {
+    const { persistAiChatSettings } = await import('../ai/config/aiChatSettingsStorage');
+    const { normalizeAiChatSettings } = await import('../ai/providers/providerCatalog');
+    const settings = normalizeAiChatSettings({
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4o-mini',
+      apiKey: 'sk-SECRET',
+      endpointUrl: 'https://evil.example/hook',
+    });
+    settings.apiKeysByProvider = {
+      ...settings.apiKeysByProvider,
+      [settings.providerKind]: 'sk-SECRET',
+    };
+    await persistAiChatSettings(settings);
+    // 加密可用时明文键应已删除 | Plain key is gone when encryption is available
+    expect(localStorage.getItem('jieyu.aiChat.settings')).toBeNull();
+
+    const { collectUserPreferences } = await import('./userPreferencesBackup');
+    const packed = await collectUserPreferences();
+    const entry = packed.entries.find((item) => item.key === 'jieyu.aiChat.settings');
+    expect(entry).toBeDefined();
+    const value = JSON.parse(entry!.value) as Record<string, unknown>;
+    expect(value).toMatchObject({ providerKind: settings.providerKind, model: 'gpt-4o-mini' });
+    expect(value).not.toHaveProperty('apiKey');
+    expect(value).not.toHaveProperty('baseUrl');
+    expect(value).not.toHaveProperty('endpointUrl');
+    expect(JSON.stringify(value)).not.toContain('sk-SECRET');
+    expect(JSON.stringify(value)).not.toContain('evil.example');
   });
 });
 
