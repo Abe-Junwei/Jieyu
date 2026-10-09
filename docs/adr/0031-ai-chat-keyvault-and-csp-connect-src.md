@@ -28,6 +28,7 @@ source_of_truth: architecture-decision
 1. 从 `index.html` meta CSP **移除** `https:` / `wss:` 通配符。
 2. 保留并维护**显式枚举**：Supabase、Sentry、常用 LLM/TTS 供应商、OpenStreetMap Nominatim、BAS WebServices、Hugging Face 模型 CDN，以及本机环回 Whisper `3040` 与 Zotero MCP HTTP `8765` 等。
 3. **自托管 OTLP / 自定义 API 基址**：部署时在反向代理 HTTP 响应头扩展 `Content-Security-Policy`，或 fork 构建时追加 host；不在 meta 中恢复全局通配符。
+4. **BF3-1（2026-10-09）**：本机 Ollama（`localhost` / `127.0.0.1` 的 11434）列入 connect-src。用户在 AI 设置里填的 base URL 只放行它的那一个源：`persistAiChatSettings` 把源写进 `jieyu.csp.aiOrigin`，`index.html` 的启动脚本校验后把它加进 connect-src 再插入 meta。下次加载页面才生效；不接受通配符。
 
 ### 3. protobufjs 供应链
 

@@ -6,60 +6,79 @@
     <!-- 安全基线：限制资源来源，降低 XSS 后数据外泄面 | Security baseline: restrict resource origins to reduce XSS exfiltration surface -->
     <!-- HIGH-13：connect-src 仅枚举已知默认域（无 https:/wss: 通配符）；自托管 OTEL/BYO API 需在部署层追加 connect-src 或通过 HTTP 响应头覆盖 meta。`frame-ancestors` 只能走 HTTP 响应头。本机环回：Whisper 3040、Zotero MCP HTTP 8765（B15）。 | connect-src lists known hosts only; custom OTLP/BYO endpoints need deploy-time CSP extension. Loopback: Whisper 3040, Zotero MCP HTTP 8765. -->
     <!-- 地图瓦片/样式/字形（LanguageMapEmbed：OSM 栅格、MapTiler 样式+矢量瓦片+glyph+sprite、天地图 t0–t7）同时列在 connect-src 与 img-src（maplibre 用 fetch，部分路径用 <img>）| Map tiles/styles/glyphs used by LanguageMapEmbed, in connect-src and img-src (maplibre fetches, some paths use <img>). VITE_MAP_PROXY_BASE_URL deployments add their proxy origin at deploy time. -->
-    <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self';
-      script-src  'self' 'wasm-unsafe-eval';
-      style-src   'self' 'unsafe-inline';
-      font-src    'self';
-      img-src     'self' data: blob:
-        https://tile.openstreetmap.org
-        https://api.maptiler.com
-        https://t0.tianditu.gov.cn
-        https://t1.tianditu.gov.cn
-        https://t2.tianditu.gov.cn
-        https://t3.tianditu.gov.cn
-        https://t4.tianditu.gov.cn
-        https://t5.tianditu.gov.cn
-        https://t6.tianditu.gov.cn
-        https://t7.tianditu.gov.cn;
-      media-src   'self' blob: data:;
-      connect-src 'self' blob:
-        http://127.0.0.1:3040
-        http://localhost:3040
-        http://127.0.0.1:8765
-        http://localhost:8765
-        https://*.supabase.co
-        wss://*.supabase.co
-        https://*.ingest.sentry.io
-        https://*.ingest.de.sentry.io
-        https://*.ingest.sentry.com
-        https://generativelanguage.googleapis.com
-        https://openspeech.bytedance.com
-        https://api.minimax.chat
-        https://nominatim.openstreetmap.org
-        https://api.deepseek.com
-        https://api.openai.com
-        https://api.anthropic.com
-        https://dashscope.aliyuncs.com
-        https://webservice.bas.uni-muenchen.de
-        https://huggingface.co
-        https://cdn-lfs.huggingface.co
-        https://tile.openstreetmap.org
-        https://api.maptiler.com
-        https://t0.tianditu.gov.cn
-        https://t1.tianditu.gov.cn
-        https://t2.tianditu.gov.cn
-        https://t3.tianditu.gov.cn
-        https://t4.tianditu.gov.cn
-        https://t5.tianditu.gov.cn
-        https://t6.tianditu.gov.cn
-        https://t7.tianditu.gov.cn;
-      worker-src  'self' blob:;
-      child-src   'self' blob:;
-      object-src  'none';
-      base-uri    'self';
-      form-action 'self';
-    " />
+    <!-- BF3-1：策略写在 template 里（不生效），由下面的脚本插入；脚本只额外放行用户在 AI 设置里填的那一个源（jieyu.csp.aiOrigin，由 persistAiChatSettings 写入）。本机 Ollama 11434 直接列在 connect-src。 | BF3-1: the policy lives in an inert template and the script below inserts it, adding only the one origin the user set as AI base URL (jieyu.csp.aiOrigin, written by persistAiChatSettings). Local Ollama 11434 is listed in connect-src. -->
+    <template id="jieyu-csp">
+      <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src  'self' 'wasm-unsafe-eval';
+        style-src   'self' 'unsafe-inline';
+        font-src    'self';
+        img-src     'self' data: blob:
+          https://tile.openstreetmap.org
+          https://api.maptiler.com
+          https://t0.tianditu.gov.cn
+          https://t1.tianditu.gov.cn
+          https://t2.tianditu.gov.cn
+          https://t3.tianditu.gov.cn
+          https://t4.tianditu.gov.cn
+          https://t5.tianditu.gov.cn
+          https://t6.tianditu.gov.cn
+          https://t7.tianditu.gov.cn;
+        media-src   'self' blob: data:;
+        connect-src 'self' blob:
+          http://127.0.0.1:3040
+          http://localhost:3040
+          http://127.0.0.1:8765
+          http://localhost:8765
+          http://127.0.0.1:11434
+          http://localhost:11434
+          https://*.supabase.co
+          wss://*.supabase.co
+          https://*.ingest.sentry.io
+          https://*.ingest.de.sentry.io
+          https://*.ingest.sentry.com
+          https://generativelanguage.googleapis.com
+          https://openspeech.bytedance.com
+          https://api.minimax.chat
+          https://nominatim.openstreetmap.org
+          https://api.deepseek.com
+          https://api.openai.com
+          https://api.anthropic.com
+          https://dashscope.aliyuncs.com
+          https://webservice.bas.uni-muenchen.de
+          https://huggingface.co
+          https://cdn-lfs.huggingface.co
+          https://tile.openstreetmap.org
+          https://api.maptiler.com
+          https://t0.tianditu.gov.cn
+          https://t1.tianditu.gov.cn
+          https://t2.tianditu.gov.cn
+          https://t3.tianditu.gov.cn
+          https://t4.tianditu.gov.cn
+          https://t5.tianditu.gov.cn
+          https://t6.tianditu.gov.cn
+          https://t7.tianditu.gov.cn;
+        worker-src  'self' blob:;
+        child-src   'self' blob:;
+        object-src  'none';
+        base-uri    'self';
+        form-action 'self';
+      " />
+    </template>
+    <script>
+      // shortcut: 自定义 AI 源在下次加载页面后才放行；同源脚本能改 localStorage 加一个源（与它能改 AI 设置等价）；IPv6 源不支持。要改成响应头下发 CSP 时升级。
+      // shortcut: a new custom AI origin takes effect on the next page load; same-origin script can add one origin via localStorage (as it can edit AI settings); IPv6 origins unsupported. Upgrade if CSP moves to a response header.
+      (function () {
+        var meta = document.importNode(document.getElementById('jieyu-csp').content.firstElementChild, false);
+        try {
+          var origin = localStorage.getItem('jieyu.csp.aiOrigin');
+          if (origin && /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/.test(origin) && new URL(origin).origin === origin) {
+            meta.content = meta.content.replace('connect-src', 'connect-src ' + origin);
+          }
+        } catch (e) {}
+        document.head.appendChild(meta);
+      })();
+    </script>
     <!-- B-2：同源 preload（不引入第三方、不放宽 CSP）。`preconnect href="/"` 会在 Vite 构建阶段被当成目录解析，故省略 | Same-origin preloads; omit root preconnect (Vite resolves "/" as FS dir) -->
     <link rel="preload" href="/fonts/material-symbols.css" as="style" />
     <link rel="preload" href="/fonts/MaterialSymbolsOutlined.woff2" as="font" type="font/woff2" crossorigin />
