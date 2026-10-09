@@ -51,7 +51,7 @@ const log = createLogger('dbIo');
  * 5 = the structure after 2A/2B (RD-1).
  */
 export const SNAPSHOT_SCHEMA_VERSION = 5;
-const SNAPSHOT_IMPORT_MAX_JSON_BYTES = 32 * 1024 * 1024;
+export const SNAPSHOT_IMPORT_MAX_JSON_BYTES = 32 * 1024 * 1024;
 const SNAPSHOT_IMPORT_MAX_JSON_DEPTH = 64;
 const SNAPSHOT_IMPORT_MAX_JSON_NODES = 500_000;
 type ValidationModule = typeof import('./ioImportValidation');
@@ -89,6 +89,16 @@ export function markAssetBytesOmitted(item: Record<string, unknown>): void {
   item['blobExportOmitted'] = true;
 }
 
+/**
+ * 任何导出都不读的集合：凭据、AI 记忆与历史、审计日志（与 JY-04 的导入丢弃是同一组数据类）。
+ * 整库 JSON、JYB、项目包都不会带出 API 信任决定或 AI 内容。
+ * Collections no export ever reads: credentials, AI memory and history, audit logs (the same data
+ * classes JY-04 drops on import). No whole-DB JSON, JYB or project package carries them.
+ */
+function isNeverExported(collectionName: string): boolean {
+  return isCollectionDroppedOnImport(collectionName);
+}
+
 export async function exportDatabaseAsJson(options?: {
   /** 不读取这些集合（项目快照用来跳过 AI / 向量等大表，JY-15）| Collections not read at all (JY-15) */
   skipCollections?: ReadonlySet<string>;
@@ -117,7 +127,7 @@ export async function exportDatabaseAsJson(options?: {
     () =>
       Promise.all(
         Object.entries(rxDb.collections)
-          .filter(([name]) => skip === undefined || !skip.has(name))
+          .filter(([name]) => !isNeverExported(name) && (skip === undefined || !skip.has(name)))
           .map(async ([name, collection]) => {
             const docs = await collection.find().exec();
             return [name, docs.map((doc) => doc.toJSON())] as const;

@@ -50,6 +50,8 @@ import {
 } from './projectPackageIdRemap';
 
 export type ProjectPackageKind = 'jyt' | 'jym';
+/** 含整库备份 JYB 的全部包类型 | Every package kind, whole-database JYB included */
+export type PackageKind = ProjectPackageKind | 'jyb';
 
 export const PROJECT_PACKAGE_MIMETYPES: Readonly<Record<ProjectPackageKind, string>> = {
   jyt: 'application/vnd.jieyu.jyt',
@@ -85,9 +87,15 @@ function packagePolicy(
   return kind === 'jym' ? { ...JYM_PACKAGE_POLICY, ...override } : normalizeImportPolicy(override);
 }
 
-const MANIFEST_PATH = 'META-INF/manifest.json';
+export const MANIFEST_PATH = 'META-INF/manifest.json';
 const DATA_PATH = 'data/project.json';
 const DATA_ENCRYPTED_PATH = 'data/project.enc';
+/** 包内数据文件的路径（明文 / 加密）| Data file paths (plain / encrypted) */
+export interface PackageDataPaths {
+  plain: string;
+  encrypted: string;
+}
+const PROJECT_DATA_PATHS: PackageDataPaths = { plain: DATA_PATH, encrypted: DATA_ENCRYPTED_PATH };
 
 type EntityType = 'media' | 'attachment' | 'source-original';
 const BYTE_DIR: Readonly<Record<EntityType, string>> = {
@@ -162,13 +170,13 @@ const encryptionSchema = z
   })
   .strict();
 
-const manifestSchema = z
+export const manifestSchema = z
   .object({
-    package: z.enum(['jyt', 'jym']),
+    package: z.enum(['jyt', 'jym', 'jyb']),
     formatVersion: z.literal(PROJECT_PACKAGE_FORMAT_VERSION),
     appVersion: z.string().min(1),
     created: isoSchema,
-    kind: z.literal('project'),
+    kind: z.enum(['project', 'library']),
     digestAlgorithm: z.literal('sha256'),
     media: z.enum(['included', 'excluded', 'partial']),
     dataSchemaVersion: z.number().int().positive(),
@@ -212,8 +220,8 @@ const manifestSchema = z
   .strict();
 
 export type ProjectPackageManifest = z.infer<typeof manifestSchema>;
-type PackageEntity = z.infer<typeof entitySchema>;
-type PackageFile = z.infer<typeof fileSchema>;
+export type PackageEntity = z.infer<typeof entitySchema>;
+export type PackageFile = z.infer<typeof fileSchema>;
 
 type Row = Record<string, unknown>;
 type DbIoModule = typeof import('../db/io');
@@ -223,7 +231,7 @@ type ProjectPurgeModule = typeof import('../db/projectLocalPurge');
 type WithTransactionModule = typeof import('../db/withTransaction');
 type OverwriteSnapshotModule = typeof import('../db/projectOverwriteSnapshotStore');
 
-function appVersion(): string {
+export function appVersion(): string {
   return typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim().length > 0
     ? __APP_VERSION__.trim()
     : 'dev';
@@ -244,7 +252,7 @@ function asRecord(value: unknown): Row {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Row) : {};
 }
 
-function invalidPackage(kind: ProjectPackageKind, problems: string[]): SnapshotFormatError {
+export function invalidPackage(kind: PackageKind, problems: string[]): SnapshotFormatError {
   return new SnapshotFormatError({
     code: 'invalid-package',
     message: `Invalid ${kind.toUpperCase()} package: ${problems.join('; ')}`,
@@ -317,7 +325,7 @@ export function collectOmittedEntities(collections: ProjectCollections): Package
 }
 
 /** 去掉内嵌的 data URL 音频并标为省略 | Strip inline audio data URLs and mark them omitted */
-function stripInlineMediaBytes(collections: ProjectCollections): void {
+export function stripInlineMediaBytes(collections: ProjectCollections): void {
   for (const media of rowsOf(collections, 'media_items')) {
     const details = media.details as Row | undefined;
     if (details && typeof details.audioDataUrl === 'string') {
@@ -327,7 +335,7 @@ function stripInlineMediaBytes(collections: ProjectCollections): void {
   }
 }
 
-interface PackedByteFile {
+export interface PackedByteFile {
   entityKey: string;
   path: string;
   role: EntityType;
@@ -340,7 +348,7 @@ interface PackedByteFile {
  * JYM: turn managed media / attachment Blobs into byte files and leave no Blob in the rows; rows
  * without local bytes stay omitted. Sizes are checked against the limit before any bytes are read.
  */
-async function packIncludedBytes(
+export async function packIncludedBytes(
   collections: ProjectCollections,
   entities: PackageEntity[],
   dbIo: DbIoModule,
@@ -456,11 +464,81 @@ export async function exportProjectPackage(
     collections,
   });
 
-  const encryptor = options?.encryption ? await createArchiveEncryptor(options.encryption) : null;
+  const [project] = collectArchiveProjectDocuments({ collections });
+  const omittedReason =
+    kind === 'jyt' ? 'jyt-carries-no-bytes' : includeMedia ? 'no-local-bytes' : 'media-excluded';
+  return assemblePackage({
+    kind,
+    mimetype: PROJECT_PACKAGE_MIMETYPES[kind],
+    dataBytes,
+    dataPaths: PROJECT_DATA_PATHS,
+    entities,
+    byteFiles,
+    policy,
+    ...(options?.encryption ? { encryption: options.encryption } : {}),
+    manifest: {
+      package: kind,
+      formatVersion: PROJECT_PACKAGE_FORMAT_VERSION,
+      appVersion: appVersion(),
+      created: full.exportedAt,
+      kind: 'project',
+      digestAlgorithm: 'sha256',
+      media: includeMedia ? 'included' : 'excluded',
+      dataSchemaVersion: full.schemaVersion,
+      projects: [
+        {
+          id: projectId,
+          ...(text.title !== undefined ? { title: text.title as Record<string, string> } : {}),
+          ...(text.restoredFrom !== undefined
+            ? { restoredFrom: text.restoredFrom as { projectId: string } }
+            : {}),
+          ...(project?.defaultDocumentId !== undefined
+            ? { defaultDocumentId: project.defaultDocumentId }
+            : {}),
+          documents: project?.documents ?? [],
+        },
+      ],
+      systemRefs: collectArchiveSystemRefs({ collections }),
+      excluded: omittedBytesSummary(entities, omittedReason),
+    },
+  });
+}
+
+/** 省略字节的条目按类型计数（manifest.excluded）| Omitted byte entities counted per type */
+export function omittedBytesSummary(
+  entities: readonly PackageEntity[],
+  reason: string,
+): ProjectPackageManifest['excluded'] {
+  return (['media', 'attachment', 'source-original'] as const)
+    .map((type) => ({
+      kind: `${type}-bytes`,
+      count: entities.filter((entity) => entity.type === type && entity.bytes === 'omitted').length,
+      reason,
+    }))
+    .filter((item) => item.count > 0);
+}
+
+/**
+ * 加密（可选）、写 `files[]`、检查容量上限并打成 ZIP；JYT / JYM / JYB 共用。
+ * Encrypt (optional), fill `files[]`, check the size limit and zip; shared by JYT / JYM / JYB.
+ */
+export async function assemblePackage(input: {
+  kind: PackageKind;
+  mimetype: string;
+  dataBytes: Uint8Array;
+  dataPaths: PackageDataPaths;
+  entities: PackageEntity[];
+  byteFiles: readonly PackedByteFile[];
+  policy: JieyuArchiveImportPolicy;
+  encryption?: JieyuArchiveEncryptionOptions;
+  manifest: Omit<ProjectPackageManifest, 'entities' | 'files' | 'encryption'>;
+}): Promise<Uint8Array> {
+  const { entities, policy } = input;
+  const encryptor = input.encryption ? await createArchiveEncryptor(input.encryption) : null;
   const zipFiles: Zippable = {};
   const files: PackageFile[] = [];
-  const storedPath = encryptor ? DATA_ENCRYPTED_PATH : DATA_PATH;
-  const storedData = encryptor ? await encryptor.encryptData(dataBytes) : dataBytes;
+  const storedPath = encryptor ? input.dataPaths.encrypted : input.dataPaths.plain;
+  const storedData = encryptor ? await encryptor.encryptData(input.dataBytes) : input.dataBytes;
   files.push({
     path: storedPath,
     sha256: await sha256Hex(storedData),
@@ -469,7 +547,7 @@ export async function exportProjectPackage(
   });
   let totalBytes = storedData.byteLength;
   const storedByteFiles: Array<{ path: string; bytes: Uint8Array }> = [];
-  for (const file of byteFiles) {
+  for (const file of input.byteFiles) {
     const stored = encryptor ? await encryptor.encryptFile(file.bytes) : file.bytes;
     totalBytes += stored.byteLength;
     files.push({
@@ -489,47 +567,15 @@ export async function exportProjectPackage(
     throw new ProjectPackageTooLargeError(totalBytes, policy.maxArchiveBytes);
   }
 
-  const [project] = collectArchiveProjectDocuments({ collections });
-  const omittedReason =
-    kind === 'jyt' ? 'jyt-carries-no-bytes' : includeMedia ? 'no-local-bytes' : 'media-excluded';
   const manifest: ProjectPackageManifest = {
-    package: kind,
-    formatVersion: PROJECT_PACKAGE_FORMAT_VERSION,
-    appVersion: appVersion(),
-    created: full.exportedAt,
-    kind: 'project',
-    digestAlgorithm: 'sha256',
-    media: includeMedia ? 'included' : 'excluded',
-    dataSchemaVersion: full.schemaVersion,
-    projects: [
-      {
-        id: projectId,
-        ...(text.title !== undefined ? { title: text.title as Record<string, string> } : {}),
-        ...(text.restoredFrom !== undefined
-          ? { restoredFrom: text.restoredFrom as { projectId: string } }
-          : {}),
-        ...(project?.defaultDocumentId !== undefined
-          ? { defaultDocumentId: project.defaultDocumentId }
-          : {}),
-        documents: project?.documents ?? [],
-      },
-    ],
+    ...input.manifest,
     entities,
     files,
-    systemRefs: collectArchiveSystemRefs({ collections }),
-    excluded: (['media', 'attachment', 'source-original'] as const)
-      .map((type) => ({
-        kind: `${type}-bytes`,
-        count: entities.filter((entity) => entity.type === type && entity.bytes === 'omitted')
-          .length,
-        reason: omittedReason,
-      }))
-      .filter((item) => item.count > 0),
     ...(encryptor ? { encryption: encryptor.metadata } : {}),
   };
 
   // mimetype 放第一条且不压缩，便于识别；字节文件不压缩 | mimetype first and stored; bytes stored
-  zipFiles['mimetype'] = [strToU8(PROJECT_PACKAGE_MIMETYPES[kind]), { level: 0 }];
+  zipFiles['mimetype'] = [strToU8(input.mimetype), { level: 0 }];
   zipFiles[MANIFEST_PATH] = toJsonBytes(manifest);
   zipFiles[storedPath] = storedData;
   for (const file of storedByteFiles) zipFiles[file.path] = [file.bytes, { level: 0 }];
@@ -592,7 +638,7 @@ function unsafePathReason(path: string): string | null {
   return null;
 }
 
-function readLegacyManifestOrNull(raw: Uint8Array | undefined): Row | null {
+export function readLegacyManifestOrNull(raw: Uint8Array | undefined): Row | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(toText(raw)) as unknown;
@@ -603,7 +649,7 @@ function readLegacyManifestOrNull(raw: Uint8Array | undefined): Row | null {
 }
 
 /** 已核对的字节（原始内容）| Verified bytes (original content) */
-interface InboundBytes {
+export interface InboundBytes {
   bytes: Uint8Array;
   mimeType?: string;
   sha256: string;
@@ -623,12 +669,17 @@ interface InspectedPackage {
   bytesByEntity: Map<string, InboundBytes>;
 }
 
-async function checkFileTable(
-  kind: ProjectPackageKind,
+/**
+ * 路径、`files[]`、实体与字节文件的一致性（7.2）；JYB 也用。
+ * Paths, `files[]`, entities and byte files are consistent (7.2); shared with JYB.
+ */
+export async function checkFileTable(
+  kind: PackageKind,
   manifest: ProjectPackageManifest,
   files: Record<string, Uint8Array>,
   entryNames: readonly string[],
   problems: string[],
+  dataPaths: PackageDataPaths = PROJECT_DATA_PATHS,
 ): Promise<void> {
   const seen = new Set<string>();
   for (const name of entryNames) {
@@ -662,7 +713,7 @@ async function checkFileTable(
   }
 
   const dataFiles = manifest.files.filter((file) => file.role === 'data');
-  const expectedDataPath = manifest.encryption ? DATA_ENCRYPTED_PATH : DATA_PATH;
+  const expectedDataPath = manifest.encryption ? dataPaths.encrypted : dataPaths.plain;
   if (dataFiles.length !== 1 || dataFiles[0]?.path !== expectedDataPath) {
     problems.push(`exactly one data file "${expectedDataPath}" is required`);
   }
@@ -715,7 +766,7 @@ async function checkFileTable(
     if (count !== 1) problems.push(`byte file "${file.path}" is referenced by ${count} entities`);
   }
 
-  if (manifest.projects.length !== 1)
+  if (kind !== 'jyb' && manifest.projects.length !== 1)
     problems.push(`a ${kind.toUpperCase()} holds exactly one project`);
   const anyIncluded = manifest.entities.some((entity) => entity.bytes === 'included');
   if (kind === 'jyt') {
@@ -725,7 +776,7 @@ async function checkFileTable(
       problems.push('a JYT carries no byte files');
     if (anyIncluded) problems.push('every JYT entity must be "omitted"');
   } else if (manifest.media === 'excluded' && anyIncluded) {
-    problems.push('a JYM with media "excluded" must not include bytes');
+    problems.push(`a ${kind.toUpperCase()} with media "excluded" must not include bytes`);
   }
 }
 
@@ -772,7 +823,7 @@ function checkProjectScope(
 }
 
 /** 读出、解密并核对 included 实体的字节 | Read, decrypt and verify the bytes of included entities */
-async function readIncludedBytes(
+export async function readIncludedBytes(
   manifest: ProjectPackageManifest,
   files: Record<string, Uint8Array>,
   decryptFile: ((bytes: Uint8Array) => Promise<Uint8Array>) | null,
@@ -898,7 +949,7 @@ async function inspectProjectPackage(
  * Put included bytes back into their rows as Blobs, with matching state and fingerprint (4.2-7).
  * Called before ids are remapped.
  */
-function attachIncludedBytes(
+export function attachIncludedBytes(
   collections: ProjectCollections,
   bytesByEntity: ReadonlyMap<string, InboundBytes>,
 ): ProjectCollections {
@@ -944,7 +995,7 @@ function attachIncludedBytes(
 }
 
 /** 本机已有、属于别的项目的语言行（自然键冲突）| Language rows already present locally (natural-key collisions) */
-async function findCollidingLanguageIds(
+export async function findCollidingLanguageIds(
   collections: ProjectCollections,
   /** 覆盖时，目标项目自己的语言行会被清掉，不算冲突 | On overwrite the target's own rows are replaced */
   replacedProjectId?: string,
@@ -966,7 +1017,7 @@ async function findCollidingLanguageIds(
 }
 
 /** 跳过冲突语言及其显示名、别名、历史 | Drop colliding languages with their names, aliases, history */
-function dropCollidingLanguages(
+export function dropCollidingLanguages(
   collections: ProjectCollections,
   skipped: ReadonlySet<string>,
 ): ProjectCollections {
@@ -1032,9 +1083,10 @@ function rowHasLocalBytes(collection: ByteCollection, row: Row): boolean {
  * or the inbound row brings different bytes. Must abort. Reads only; callable inside the write
  * transaction.
  */
-async function findBytesAtRisk(
+export async function findBytesAtRisk(
   dexie: Awaited<ReturnType<DbEngineModule['getDb']>>['dexie'],
-  targetProjectId: string,
+  /** null：整库（JYB 灾难恢复）| null: the whole database (JYB disaster restore) */
+  targetProjectId: string | null,
   inbound: ProjectCollections,
   identicalLocalBytes: ReadonlyMap<string, number>,
 ): Promise<string[]> {
@@ -1043,7 +1095,7 @@ async function findBytesAtRisk(
     const inboundById = new Map(rowsOf(inbound, collection).map((row) => [String(row.id), row]));
     const locals = (await dexie
       .table(collection)
-      .filter((row: Row) => row.textId === targetProjectId)
+      .filter((row: Row) => targetProjectId === null || row.textId === targetProjectId)
       .toArray()) as Row[];
     for (const row of locals) {
       if (!rowHasLocalBytes(collection, row)) continue;
@@ -1063,14 +1115,14 @@ async function findBytesAtRisk(
 }
 
 /** 事务外：哪些本机字节与包里同一 id 的字节完全相同 | Outside any transaction: identical local bytes */
-async function findIdenticalLocalBytes(
+export async function findIdenticalLocalBytes(
   dexie: Awaited<ReturnType<DbEngineModule['getDb']>>['dexie'],
-  inspected: InspectedPackage,
+  bytesByEntity: ReadonlyMap<string, InboundBytes>,
   keepsIds: boolean,
 ): Promise<Map<string, number>> {
   const identical = new Map<string, number>();
   if (!keepsIds) return identical;
-  for (const [entityKey, inbound] of inspected.bytesByEntity) {
+  for (const [entityKey, inbound] of bytesByEntity) {
     const [type, ...rest] = entityKey.split(':');
     const id = rest.join(':');
     const collection = ENTITY_COLLECTION[type as EntityType];
@@ -1112,7 +1164,11 @@ async function planOverwrite(
     remap.set(inspected.sourceProjectId, target);
     collections = remapProjectCollections(kept, remap);
   }
-  const identicalLocalBytes = await findIdenticalLocalBytes(db.dexie, inspected, keepsIds);
+  const identicalLocalBytes = await findIdenticalLocalBytes(
+    db.dexie,
+    inspected.bytesByEntity,
+    keepsIds,
+  );
   const bytesAtRisk = await findBytesAtRisk(db.dexie, target, collections, identicalLocalBytes);
   return {
     option: {
@@ -1218,36 +1274,78 @@ export async function restoreProjectPackageAsNew(
 ): Promise<ProjectPackageRestoreResult> {
   const dbIo = (await import('../db/io')) as DbIoModule;
   const inspected = await inspectProjectPackage(archiveBytes, options, dbIo);
-  const skippedLanguageIds = await findCollidingLanguageIds(inspected.snapshot.collections);
-  const kept = attachIncludedBytes(
-    dropCollidingLanguages(inspected.snapshot.collections, new Set(skippedLanguageIds)),
-    inspected.bytesByEntity,
-  );
-
-  const remap = buildProjectIdRemap(kept);
-  const collections = remapProjectCollections(kept, remap);
-  const newProjectId = remap.get(inspected.sourceProjectId);
-  if (newProjectId === undefined) throw new Error('Restore failed to allocate a project id');
-  const restoredAt = new Date().toISOString();
-  const text = rowsOf(collections, 'texts')[0]!;
-  text.restoredFrom = {
-    projectId: inspected.sourceProjectId,
-    packageKind: inspected.kind,
+  const prepared = await prepareRestoreAsNew({
+    kind: inspected.kind,
+    sourceProjectId: inspected.sourceProjectId,
     exportedAt: inspected.manifest.created,
-    restoredAt,
-  };
-  text.updatedAt = restoredAt;
-
+    collections: inspected.snapshot.collections,
+    bytesByEntity: inspected.bytesByEntity,
+  });
   const importResult = await dbIo.importDatabaseFromJson(
-    { ...inspected.snapshot, collections },
+    { ...inspected.snapshot, collections: prepared.collections },
     { strategy: 'upsert' },
   );
   return {
     kind: inspected.kind,
-    projectId: newProjectId,
-    ...(text.title !== undefined ? { title: text.title as Record<string, string> } : {}),
+    projectId: prepared.projectId,
+    ...(prepared.title !== undefined ? { title: prepared.title } : {}),
     sourceProjectId: inspected.sourceProjectId,
     importResult,
+    skippedLanguageIds: prepared.skippedLanguageIds,
+  };
+}
+
+/** 一个项目恢复为新项目前的准备结果（还没写入）| One project prepared for restore-as-new (not written) */
+export interface PreparedRestoreAsNew {
+  projectId: string;
+  title?: Record<string, string>;
+  collections: ProjectCollections;
+  skippedLanguageIds: string[];
+}
+
+/**
+ * 恢复为新项目的准备：跳过冲突语言、挂回字节、全部 id 重新映射、记 restoredFrom。不写库；JYB
+ * 逐项目导入也用它（多个项目一起写）。
+ * Prepare restore-as-new: skip colliding languages, attach bytes, remap every id, record
+ * restoredFrom. No write; JYB per-project import uses it too (several projects written together).
+ */
+export async function prepareRestoreAsNew(input: {
+  kind: PackageKind;
+  sourceProjectId: string;
+  exportedAt: string;
+  collections: ProjectCollections;
+  bytesByEntity: ReadonlyMap<string, InboundBytes>;
+  /** 这一批里别的项目已经占用的语言 id | Language ids already taken by other projects in this batch */
+  takenLanguageIds?: ReadonlySet<string>;
+}): Promise<PreparedRestoreAsNew> {
+  const colliding = await findCollidingLanguageIds(input.collections);
+  const taken = input.takenLanguageIds ?? new Set<string>();
+  const inBatch = rowsOf(input.collections, 'languages')
+    .map((row) => String(row.id))
+    .filter((id) => taken.has(id));
+  const skippedLanguageIds = [...new Set([...colliding, ...inBatch])].sort();
+  const kept = attachIncludedBytes(
+    dropCollidingLanguages(input.collections, new Set(skippedLanguageIds)),
+    input.bytesByEntity,
+  );
+
+  const remap = buildProjectIdRemap(kept);
+  const collections = remapProjectCollections(kept, remap);
+  const projectId = remap.get(input.sourceProjectId);
+  if (projectId === undefined) throw new Error('Restore failed to allocate a project id');
+  const restoredAt = new Date().toISOString();
+  const text = rowsOf(collections, 'texts')[0]!;
+  text.restoredFrom = {
+    projectId: input.sourceProjectId,
+    packageKind: input.kind,
+    exportedAt: input.exportedAt,
+    restoredAt,
+  };
+  text.updatedAt = restoredAt;
+  return {
+    projectId,
+    ...(text.title !== undefined ? { title: text.title as Record<string, string> } : {}),
+    collections,
     skippedLanguageIds,
   };
 }

@@ -67,7 +67,7 @@ export function overwriteProjectWithJym(
 
 // ─── 项目中心预览用的类型 | Project-hub preview types ─────────────────────────
 
-type ArchiveKind = ProjectPackageKind;
+type ArchiveKind = ProjectPackageKind | 'jyb';
 
 interface JieyuArchiveManifest {
   formatVersion: number;
@@ -87,8 +87,36 @@ export interface JieyuArchiveImportPreviewCollection {
   willInsertReplaceAll: number;
 }
 
-/** 项目包的恢复方式（D5）| How a project package is restored (D5) */
-export type ProjectArchiveRestoreMode = 'restore-as-new' | 'overwrite-current';
+/**
+ * 恢复方式：JYT / JYM 恢复为新项目或覆盖当前项目（D5）；JYB 逐项目导入（同 restore-as-new）或
+ * 灾难恢复（D7）。
+ * Restore mode: JYT / JYM restore as new or overwrite the current project (D5); JYB per-project
+ * import (restore-as-new) or disaster restore (D7).
+ */
+export type ProjectArchiveRestoreMode = 'restore-as-new' | 'overwrite-current' | 'disaster-restore';
+
+/** JYB 预览：包里的项目与灾难恢复是否可用 | JYB preview: packaged projects and disaster restore */
+export interface JieyuLibraryBackupPreview {
+  mediaIncluded: boolean;
+  projects: Array<{
+    id: string;
+    title: string;
+    incoming: number;
+    mediaWithoutBytes: number;
+    includedBytesCount: number;
+  }>;
+  disasterRestore: {
+    available: boolean;
+    reason?: 'collaborated' | 'local-bytes-would-be-lost';
+    localProjectCount: number;
+    bytesAtRiskCount: number;
+  };
+}
+
+/** 导入时的选择（JYB 逐项目导入选哪些项目）| Import selection (which JYB projects to import) */
+export interface ProjectArchiveImportSelection {
+  projectIds?: readonly string[];
+}
 
 export interface JieyuArchiveRestoreAsNewPreview {
   sourceProjectTitle: string;
@@ -112,6 +140,8 @@ export interface JieyuArchiveImportPreview {
   manifest: JieyuArchiveManifest;
   /** JYT / JYM 一律恢复为新项目（或覆盖当前项目），没有导入策略可选（D5）| Always restore-as-new (D5) */
   restoreAsNewProject: JieyuArchiveRestoreAsNewPreview;
+  /** 只有 JYB 才有 | JYB only */
+  libraryBackup?: JieyuLibraryBackupPreview;
   collections: JieyuArchiveImportPreviewCollection[];
   /** 当前代码里不存在的系统引用（rev5 4.2-9）| System refs the running code cannot resolve */
   unresolvedSystemRefs: string[];
