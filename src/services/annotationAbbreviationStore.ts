@@ -2,6 +2,11 @@ import { listStandardLeipzigAbbreviations } from '../ai/LeipzigValidator';
 import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
 import { getDb, type TextDocType } from '../db';
 import { projectTextMetadataKey } from '../types/projectTextMetadata';
+import {
+  ProjectNotFoundError,
+  patchProjectMetadata,
+  requireProjectPatch,
+} from './projectMetadataPatch';
 
 export type AnnotationAbbreviation = {
   abbreviation: string;
@@ -53,25 +58,9 @@ export function readAnnotationAbbreviations(metadata: unknown): AnnotationAbbrev
 
 async function readText(textId: string): Promise<TextDocType> {
   const database = await getDb();
-  const existing = await database.collections.texts.findOne({ selector: { id: textId } }).exec();
-  if (!existing) throw new Error(`文本不存在: ${textId}`);
-  return existing.toJSON();
-}
-
-async function writeAbbreviations(textId: string, rows: AnnotationAbbreviation[]): Promise<void> {
-  const database = await getDb();
-  const existing = await readText(textId);
-  const metadata = (existing.metadata as Record<string, unknown> | undefined) ?? {};
-  const updated: TextDocType = {
-    ...existing,
-    metadata: {
-      ...metadata,
-      [METADATA_KEY]: rows,
-    },
-    updatedAt: new Date().toISOString(),
-  };
-  await database.collections.texts.remove(textId);
-  await database.collections.texts.insert(updated);
+  const existing = await database.dexie.texts.get(textId);
+  if (!existing) throw new ProjectNotFoundError(textId);
+  return existing;
 }
 
 export async function listAnnotationAbbreviations(
@@ -81,16 +70,28 @@ export async function listAnnotationAbbreviations(
   return readAnnotationAbbreviations(text.metadata) ?? buildLeipzigAbbreviationSeed();
 }
 
+/**
+ * 在项目行的事务里读出当前列表、编辑、写回，避免并发编辑互相覆盖（F3）。
+ * Read, edit and write the list inside the project-row transaction (F3).
+ */
 async function saveEditedList(
   textId: string,
   edit: (rows: AnnotationAbbreviation[]) => AnnotationAbbreviation[] | 'duplicate' | 'empty',
 ): Promise<'added' | 'duplicate' | 'empty' | 'saved'> {
-  const current = await listAnnotationAbbreviations(textId);
-  const next = edit(current);
-  if (next === 'duplicate') return 'duplicate';
-  if (next === 'empty') return 'empty';
-  await writeAbbreviations(textId, next);
-  return 'saved';
+  let outcome: 'duplicate' | 'empty' | 'saved' = 'saved';
+  requireProjectPatch(
+    textId,
+    await patchProjectMetadata(textId, (metadata) => {
+      const current = readAnnotationAbbreviations(metadata) ?? buildLeipzigAbbreviationSeed();
+      const next = edit(current);
+      if (typeof next === 'string') {
+        outcome = next;
+        return null;
+      }
+      return { ...metadata, [METADATA_KEY]: next };
+    }),
+  );
+  return outcome;
 }
 
 export async function addAnnotationAbbreviation(

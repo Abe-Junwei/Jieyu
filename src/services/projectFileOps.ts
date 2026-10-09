@@ -156,13 +156,22 @@ export async function renameProjectAudio(mediaId: string, name: string): Promise
   const trimmed = name.trim();
   if (trimmed.length === 0) return;
   const db = await getDb();
-  const row = await db.dexie.media_items.get(mediaId);
-  if (!row) return;
-  const details = row.details && typeof row.details === 'object' ? row.details : {};
-  await db.dexie.media_items.put({
-    ...row,
-    details: { ...details, displayName: trimmed },
-  });
+  // 读和写在同一事务里，不覆盖并发的其他修改（F3）| Read and write in one transaction (F3)
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.media_items],
+    async () => {
+      const row = await db.dexie.media_items.get(mediaId);
+      if (!row) return;
+      const details = row.details && typeof row.details === 'object' ? row.details : {};
+      await db.dexie.media_items.put({
+        ...row,
+        details: { ...details, displayName: trimmed },
+      });
+    },
+    { label: 'projectFileOps.renameProjectAudio' },
+  );
 }
 
 export async function renameProjectSourceFile(

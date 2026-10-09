@@ -21,6 +21,13 @@ import {
   type UpdateTextTimeMappingInput,
 } from './LinguisticService.timeMapping';
 import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
+import { patchProjectText, requireProjectPatch } from './projectMetadataPatch';
+
+function metadataOf(text: TextDocType): Record<string, unknown> {
+  return text.metadata !== null && typeof text.metadata === 'object'
+    ? (text.metadata as Record<string, unknown>)
+    : {};
+}
 
 export async function getUnitTexts(unitId: string): Promise<LayerUnitContentDocType[]> {
   const db = await getDb();
@@ -76,17 +83,12 @@ export async function updateProjectLanguageLists(input: {
   objectLanguageIds: readonly string[];
   workingLanguageIds: readonly string[];
 }): Promise<TextDocType> {
-  const db = await getDb();
   const textId = input.textId.trim();
   if (!textId) throw new Error('textId 不能为空');
-  const existingDoc = await db.collections.texts.findOne({ selector: { id: textId } }).exec();
-  if (!existingDoc) throw new Error(`文本不存在: ${textId}`);
-  const existing = existingDoc.toJSON();
-  const metadata = (existing.metadata as Record<string, unknown> | undefined) ?? {};
   const objectLanguageIds = [...input.objectLanguageIds];
   const primary = objectLanguageIds[0];
   if (!primary) throw new Error('至少保留一种目标语言');
-  const updated: TextDocType = {
+  const result = await patchProjectText(textId, (existing) => ({
     ...existing,
     title: buildPrimaryAndEnglishLabels({
       primaryLabel: input.primaryTitle,
@@ -94,16 +96,13 @@ export async function updateProjectLanguageLists(input: {
       existing: existing.title,
     }),
     metadata: {
-      ...metadata,
+      ...metadataOf(existing),
       primaryLanguageId: primary,
       objectLanguageIds,
       workingLanguageIds: [...input.workingLanguageIds],
     },
-    updatedAt: new Date().toISOString(),
-  };
-  await db.collections.texts.remove(textId);
-  await db.collections.texts.insert(updated);
-  return updated;
+  }));
+  return requireProjectPatch(textId, result);
 }
 
 export async function saveText(data: TextDocType): Promise<string> {
@@ -119,97 +118,82 @@ export async function ensureDocumentTimeline(input: {
   textId: string;
   logicalDurationSec?: number;
 }): Promise<TextDocType> {
-  const db = await getDb();
   const textId = input.textId.trim();
   if (!textId) throw new Error('textId 不能为空');
 
-  const existingDoc = await db.collections.texts.findOne({ selector: { id: textId } }).exec();
-  if (!existingDoc) throw new Error(`文本不存在: ${textId}`);
-
-  const existing = existingDoc.toJSON();
-  const metadata = (existing.metadata as Record<string, unknown> | undefined) ?? {};
-  const logicalDurationSec =
-    Number.isFinite(input.logicalDurationSec) && (input.logicalDurationSec ?? 0) > 0
-      ? (input.logicalDurationSec as number)
-      : typeof metadata.logicalDurationSec === 'number' &&
-          Number.isFinite(metadata.logicalDurationSec)
-        ? metadata.logicalDurationSec
-        : 1800;
-  const now = new Date().toISOString();
-
-  const updated: TextDocType = {
-    ...existing,
-    metadata: {
-      ...metadata,
-      timelineMode: 'document',
-      logicalDurationSec,
-      timebaseLabel: 'logical-second',
-    },
-    updatedAt: now,
-  };
-
-  await db.collections.texts.remove(textId);
-  await db.collections.texts.insert(updated);
-  return updated;
+  const result = await patchProjectText(textId, (existing) => {
+    const metadata = metadataOf(existing);
+    const logicalDurationSec =
+      Number.isFinite(input.logicalDurationSec) && (input.logicalDurationSec ?? 0) > 0
+        ? (input.logicalDurationSec as number)
+        : typeof metadata.logicalDurationSec === 'number' &&
+            Number.isFinite(metadata.logicalDurationSec)
+          ? metadata.logicalDurationSec
+          : 1800;
+    return {
+      ...existing,
+      metadata: {
+        ...metadata,
+        timelineMode: 'document',
+        logicalDurationSec,
+        timebaseLabel: 'logical-second',
+      },
+    };
+  });
+  return requireProjectPatch(textId, result);
 }
 
 export async function updateTextTimeMapping(
   input: UpdateTextTimeMappingInput,
 ): Promise<TextDocType> {
-  const db = await getDb();
   const textId = input.textId.trim();
   if (!textId) throw new Error('textId 不能为空');
 
-  const existingDoc = await db.collections.texts.findOne({ selector: { id: textId } }).exec();
-  if (!existingDoc) throw new Error(`文本不存在: ${textId}`);
+  const result = await patchProjectText(textId, (existing) => {
+    const now = new Date().toISOString();
+    const metadata =
+      existing.metadata && typeof existing.metadata === 'object'
+        ? (existing.metadata as Record<string, unknown>)
+        : {};
+    const currentMapping = normalizeTextTimeMapping(metadata.timeMapping);
+    const mappingHistory = mergeTextTimeMappingHistory(currentMapping, metadata.timeMappingHistory);
+    const nextOffsetSec = input.offsetSec ?? currentMapping?.offsetSec ?? 0;
+    const nextScale = input.scale ?? currentMapping?.scale ?? 1;
 
-  const existing = existingDoc.toJSON();
-  const now = new Date().toISOString();
-  const metadata =
-    existing.metadata && typeof existing.metadata === 'object'
-      ? (existing.metadata as Record<string, unknown>)
-      : {};
-  const currentMapping = normalizeTextTimeMapping(metadata.timeMapping);
-  const mappingHistory = mergeTextTimeMappingHistory(currentMapping, metadata.timeMappingHistory);
-  const nextOffsetSec = input.offsetSec ?? currentMapping?.offsetSec ?? 0;
-  const nextScale = input.scale ?? currentMapping?.scale ?? 1;
+    if (!Number.isFinite(nextOffsetSec)) {
+      throw new Error('offsetSec 必须是有限数字');
+    }
+    if (nextOffsetSec < 0) {
+      throw new Error('offsetSec 不能小于 0');
+    }
+    if (!Number.isFinite(nextScale) || nextScale <= 0) {
+      throw new Error('scale 必须是大于 0 的有限数字');
+    }
 
-  if (!Number.isFinite(nextOffsetSec)) {
-    throw new Error('offsetSec 必须是有限数字');
-  }
-  if (nextOffsetSec < 0) {
-    throw new Error('offsetSec 不能小于 0');
-  }
-  if (!Number.isFinite(nextScale) || nextScale <= 0) {
-    throw new Error('scale 必须是大于 0 的有限数字');
-  }
+    const nextMapping: TextTimeMapping = {
+      offsetSec: nextOffsetSec,
+      scale: nextScale,
+      revision: (currentMapping?.revision ?? 0) + 1,
+      updatedAt: now,
+      ...(input.sourceMediaId?.trim()
+        ? { sourceMediaId: input.sourceMediaId.trim() }
+        : currentMapping?.sourceMediaId
+          ? { sourceMediaId: currentMapping.sourceMediaId }
+          : {}),
+    };
 
-  const nextMapping: TextTimeMapping = {
-    offsetSec: nextOffsetSec,
-    scale: nextScale,
-    revision: (currentMapping?.revision ?? 0) + 1,
-    updatedAt: now,
-    ...(input.sourceMediaId?.trim()
-      ? { sourceMediaId: input.sourceMediaId.trim() }
-      : currentMapping?.sourceMediaId
-        ? { sourceMediaId: currentMapping.sourceMediaId }
-        : {}),
-  };
-
-  const updated: TextDocType = {
-    ...existing,
-    metadata: {
-      ...metadata,
-      timeMapping: nextMapping,
-      ...(currentMapping ? { timeMappingRollback: currentMapping } : {}),
-      ...(mappingHistory ? { timeMappingHistory: mappingHistory } : {}),
-    },
-    updatedAt: now,
-  };
-
-  await db.collections.texts.remove(textId);
-  await db.collections.texts.insert(updated);
-  return updated;
+    return {
+      ...existing,
+      metadata: {
+        ...metadata,
+        timeMapping: nextMapping,
+        ...(currentMapping ? { timeMappingRollback: currentMapping } : {}),
+        ...(mappingHistory ? { timeMappingHistory: mappingHistory } : {}),
+      },
+      updatedAt: now,
+    };
+  });
+  return requireProjectPatch(textId, result);
 }
 
 export function previewTextTimeMapping(

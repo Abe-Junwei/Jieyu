@@ -1,4 +1,4 @@
-import { getDb, type LayerDocType } from '../db';
+import { getDb, withTransaction, type LayerDocType } from '../db';
 import { syncLayerToTier } from './TierBridgeService';
 
 export async function listDistinctProjectLanguageIds(): Promise<string[]> {
@@ -38,35 +38,24 @@ export async function saveTranslationLayer(data: LayerDocType): Promise<string> 
   return doc.primary;
 }
 
-/** 已有图层属于另一个项目时拒绝替换（JY-03）| Refuse to replace a layer owned by another project */
-export class LayerOwnershipMismatchError extends Error {
-  constructor(
-    public readonly layerId: string,
-    public readonly ownerTextId: string,
-    public readonly incomingTextId: string,
-  ) {
-    super(
-      `Layer "${layerId}" belongs to project "${ownerTextId}" and cannot be replaced by a layer of project "${incomingTextId}"`,
-    );
-    this.name = 'LayerOwnershipMismatchError';
-  }
-}
-
-/** 协同远端 upsert：按 id 替换层并同步 tier 索引 | Replace layer by id for inbound collaboration */
+/**
+ * 协同远端 upsert：按 id 覆盖层并同步 tier 索引，整体一个事务（N5）。
+ * 覆盖用 `put` 而不是先删再插，所以项目归属由 DBCore 归属中间件把关：已有层属于别的项目时
+ * 抛 `JieyuOwnershipImmutabilityError` 并回滚。
+ * Inbound collaboration upsert: overwrite the layer by id and sync the tier index in one
+ * transaction (N5). Overwriting with `put` (not delete + insert) lets the ownership middleware
+ * reject a layer that belongs to another project, rolling everything back.
+ */
 export async function upsertLayer(data: LayerDocType): Promise<void> {
   const db = await getDb();
-  if (data.id) {
-    const existingDoc = await db.collections.layers.findOne({ selector: { id: data.id } }).exec();
-    if (existingDoc) {
-      // remove + insert 绕过了中间件的「改写已有行」检查，这里显式比对归属
-      // remove + insert bypasses the middleware's existing-row check, so compare owners explicitly
-      const existing = existingDoc.toJSON();
-      if (existing.textId !== data.textId) {
-        throw new LayerOwnershipMismatchError(data.id, existing.textId, data.textId);
-      }
-      await db.collections.layers.remove(data.id);
-    }
-  }
-  await db.collections.layers.insert(data);
-  await syncLayerToTier(data, data.textId);
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.tier_definitions, db.dexie.layer_links],
+    async () => {
+      await db.collections.layers.insert(data);
+      await syncLayerToTier(data, data.textId, db);
+    },
+    { label: 'linguisticServiceLayerOps.upsertLayer' },
+  );
 }

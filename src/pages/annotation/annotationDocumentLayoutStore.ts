@@ -1,5 +1,4 @@
-import { getDb } from '../../app/jieyuDbPageAccess';
-import type { TextDocType } from '../../types/jieyuDbDocTypes';
+import { getDb, patchProjectMetadata } from '../../app/jieyuDbPageAccess';
 import { projectTextMetadataKey } from '../../types/projectTextMetadata';
 import {
   ANNOTATION_LINE_ORDER,
@@ -84,21 +83,8 @@ export async function saveAnnotationDocumentLayout(
 ): Promise<void> {
   const id = textId.trim();
   if (id.length === 0) return;
-  const database = await getDb();
-  const existingDoc = await database.collections.texts.findOne({ selector: { id } }).exec();
-  if (!existingDoc) return;
-  const existing = existingDoc.toJSON();
-  const metadata = (existing.metadata as Record<string, unknown> | undefined) ?? {};
-  const updated: TextDocType = {
-    ...existing,
-    metadata: {
-      ...metadata,
-      [METADATA_KEY]: layout,
-    },
-    updatedAt: new Date().toISOString(),
-  };
-  await database.collections.texts.remove(id);
-  await database.collections.texts.insert(updated);
+  // 项目不存在时什么也不写 | Nothing to write without a project row
+  await patchProjectMetadata(id, (metadata) => ({ ...metadata, [METADATA_KEY]: layout }));
 }
 
 export async function saveAnnotationTranslationLayerChoice(

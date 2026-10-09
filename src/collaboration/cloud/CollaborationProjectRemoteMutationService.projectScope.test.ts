@@ -9,7 +9,6 @@ import { db, type LayerDocType, type LayerUnitDocType } from '../../db';
 import { JieyuOwnershipImmutabilityError } from '../../db/ownershipImmutabilityMiddleware';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { LinguisticService } from '../../services/LinguisticService';
-import { LayerOwnershipMismatchError } from '../../services/linguisticServiceLayerOps';
 import {
   CollaborationRemoteProjectScopeError,
   applyCollaborationRemoteMutation,
@@ -237,10 +236,15 @@ describe('R-COLLAB-SCOPE-LAYER: remote upsert_layer stays inside the collaborati
     expect(row?.textId).toBe(PRIVATE);
   });
 
-  it('LinguisticService.layers.upsert refuses a cross-project replace (remove + insert path)', async () => {
-    await expect(
-      LinguisticService.layers.upsert(layer('L-private', SHARED, 'Hijacked')),
-    ).rejects.toBeInstanceOf(LayerOwnershipMismatchError);
+  it('LinguisticService.layers.upsert is a transactional put that the ownership middleware guards', async () => {
+    const error = await LinguisticService.layers
+      .upsert(layer('L-private', SHARED, 'Hijacked'))
+      .then(() => null)
+      .catch((caught: unknown) => caught);
+    // withTransaction 把领域错误放在 cause 里 | withTransaction keeps the domain error as `cause`
+    expect(error instanceof Error ? error.cause : null).toBeInstanceOf(
+      JieyuOwnershipImmutabilityError,
+    );
     expect((await db.tier_definitions.get('L-private'))?.textId).toBe(PRIVATE);
   });
 

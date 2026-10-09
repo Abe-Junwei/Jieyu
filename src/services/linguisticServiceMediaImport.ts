@@ -1,5 +1,6 @@
 import type { Table } from 'dexie';
 import { getDb, withTransaction, type MediaItemDocType } from '../db';
+import { patchProjectMetadata } from './projectMetadataPatch';
 import { newId } from '../utils/transcriptionFormatters';
 import { computeBlobSha256 } from '../utils/blobSha256';
 import {
@@ -391,29 +392,16 @@ export async function expandTextLogicalDurationToAtLeast(input: {
   textId: string;
   minLogicalDurationSec: number;
 }): Promise<void> {
-  const db = await getDb();
-  const textRow = await db.dexie.texts.get(input.textId);
-  if (!textRow) return;
   const minSec =
     Number.isFinite(input.minLogicalDurationSec) && input.minLogicalDurationSec > 0
       ? input.minLogicalDurationSec
       : 0;
   if (minSec <= 0) return;
-  const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
-  const prev =
-    typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
-      ? rowMeta.logicalDurationSec
-      : 0;
-  const next = Math.max(prev, minSec);
-  if (next <= prev) return;
-  const now = new Date().toISOString();
-  await db.dexie.texts.put({
-    ...textRow,
-    metadata: {
-      ...rowMeta,
-      logicalDurationSec: next,
-    },
-    updatedAt: now,
+  // 读、比较、写在同一事务里（F3）| Read, compare and write in one transaction (F3)
+  await patchProjectMetadata(input.textId, (rowMeta) => {
+    const prev = finiteLogicalDurationSec(rowMeta);
+    const next = Math.max(prev, minSec);
+    return next <= prev ? null : { ...rowMeta, logicalDurationSec: next };
   });
 }
 
@@ -422,27 +410,21 @@ export async function setTextLogicalDurationSec(input: {
   textId: string;
   logicalDurationSec: number;
 }): Promise<void> {
-  const db = await getDb();
-  const textRow = await db.dexie.texts.get(input.textId);
-  if (!textRow) return;
   const nextSec =
     Number.isFinite(input.logicalDurationSec) && input.logicalDurationSec > 0
       ? input.logicalDurationSec
       : 0;
   if (nextSec <= 0) return;
-  const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
-  const prev =
-    typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
-      ? rowMeta.logicalDurationSec
-      : 0;
-  if (nextSec === prev) return;
-  const now = new Date().toISOString();
-  await db.dexie.texts.put({
-    ...textRow,
-    metadata: {
-      ...rowMeta,
-      logicalDurationSec: nextSec,
-    },
-    updatedAt: now,
-  });
+  await patchProjectMetadata(input.textId, (rowMeta) =>
+    nextSec === finiteLogicalDurationSec(rowMeta)
+      ? null
+      : { ...rowMeta, logicalDurationSec: nextSec },
+  );
+}
+
+function finiteLogicalDurationSec(metadata: Record<string, unknown>): number {
+  return typeof metadata.logicalDurationSec === 'number' &&
+    Number.isFinite(metadata.logicalDurationSec)
+    ? metadata.logicalDurationSec
+    : 0;
 }

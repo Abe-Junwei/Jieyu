@@ -4,6 +4,7 @@
  */
 
 export { db, getDb, withTransaction } from '../db';
+export { patchProjectMetadata } from '../services/projectMetadataPatch';
 export { stripForbiddenTranslationParentLayerId } from '../db';
 export { isLexemeEntry } from '../db';
 export { brandLayerUnitWriteTarget, type LayerUnitWriteTarget } from '../db/unitIdBrands';
