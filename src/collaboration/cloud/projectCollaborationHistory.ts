@@ -79,3 +79,16 @@ export function isProjectNeverCollaborated(
 ): boolean {
   return assessProjectCollaborationHistory(projectId, sources).verdict === 'never-collaborated';
 }
+
+/**
+ * 从一组项目 id 里筛出“协作过或判定不了”的（D6；P4）。
+ * From a set of project ids, keep those that collaborated or are undecidable (D6; P4).
+ */
+export function listCollaboratedIds(
+  ids: readonly string[],
+  sources: ProjectCollaborationHistorySources = {},
+): string[] {
+  return [...new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0))].filter(
+    (id) => !isProjectNeverCollaborated(id, sources),
+  );
+}

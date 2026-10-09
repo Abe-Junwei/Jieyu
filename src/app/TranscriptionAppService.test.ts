@@ -72,13 +72,13 @@ describe('TranscriptionAppService', () => {
     });
     const service = createTranscriptionAppService(deps);
 
-    const segments = await service.resolveAutoSegmentCandidates({
+    const result = await service.resolveAutoSegmentRun({
       mediaId: 'media-1',
       mediaUrl: 'blob:demo',
       mediaBlobSize: 16,
     });
 
-    expect(segments).toEqual([{ start: 1.0, end: 2.0 }]);
+    expect(result.segments).toEqual([{ start: 1.0, end: 2.0 }]);
     expect(deps.loadAudioBuffer).not.toHaveBeenCalled();
     expect(deps.detectVadSegments).not.toHaveBeenCalled();
   });
@@ -140,13 +140,13 @@ describe('TranscriptionAppService', () => {
     });
     const service = createTranscriptionAppService(deps);
 
-    const segments = await service.resolveAutoSegmentCandidates({
+    const result = await service.resolveAutoSegmentRun({
       mediaId: 'media-1',
       mediaUrl: 'https://example.com/demo.wav',
       mediaBlobSize: 101,
     });
 
-    expect(segments).toEqual([]);
+    expect(result.segments).toEqual([]);
     expect(deps.loadAudioBuffer).not.toHaveBeenCalled();
     expect(deps.detectVadSegments).not.toHaveBeenCalled();
   });
@@ -157,12 +157,12 @@ describe('TranscriptionAppService', () => {
     });
     const service = createTranscriptionAppService(deps);
 
-    const segments = await service.resolveAutoSegmentCandidates({
+    const result = await service.resolveAutoSegmentRun({
       mediaId: 'media-1',
       mediaUrl: 'blob:demo',
     });
 
-    expect(segments).toEqual([]);
+    expect(result.segments).toEqual([]);
     expect(deps.loadAudioBuffer).not.toHaveBeenCalled();
   });
 
@@ -177,13 +177,13 @@ describe('TranscriptionAppService', () => {
     });
     const service = createTranscriptionAppService(deps);
 
-    const segments = await service.resolveAutoSegmentCandidates({
+    const result = await service.resolveAutoSegmentRun({
       mediaUrl: 'https://example.com/demo.wav',
       mediaBlobSize: 24,
     });
 
     expect(deps.loadAudioBuffer).toHaveBeenCalledWith('https://example.com/demo.wav');
-    expect(segments).toEqual([
+    expect(result.segments).toEqual([
       { start: 0.2, end: 0.8 },
       { start: 1.1, end: 2.4 },
     ]);

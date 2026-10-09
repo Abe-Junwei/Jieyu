@@ -24,6 +24,8 @@ import { sha256Hex } from './projectArchiveContainer';
 const flags = vi.hoisted(() => ({ collaborated: new Set<string>() }));
 vi.mock('../collaboration/cloud/projectCollaborationHistory', () => ({
   isProjectNeverCollaborated: (id: string) => !flags.collaborated.has(id),
+  listCollaboratedIds: (ids: readonly string[]) =>
+    [...new Set(ids)].filter((id) => flags.collaborated.has(id)),
 }));
 
 const NOW = '2026-10-09T01:00:00.000Z';

@@ -13,7 +13,7 @@ import { useTranscriptionProjectMediaController } from './useTranscriptionProjec
 const {
   mockCreateProject,
   mockCreatePlaceholderMedia,
-  mockResolveAutoSegmentCandidates,
+  mockResolveAutoSegmentRun,
   mockImportAudio,
   mockDeleteAudio,
   mockDeleteProject,
@@ -37,7 +37,11 @@ const {
         createdAt: '2026-04-17T00:00:00.000Z',
       }) as MediaItemDocType,
   ),
-  mockResolveAutoSegmentCandidates: vi.fn(async () => []),
+  mockResolveAutoSegmentRun: vi.fn(async () => ({
+    segments: [],
+    provenance: {},
+    run: { engine: 'energy', source: 'fresh' },
+  })),
   mockImportAudio: vi.fn(async () => ({ mediaId: 'media-1' })),
   mockDeleteAudio: vi.fn(async () => undefined),
   mockDeleteProject: vi.fn(async () => undefined),
@@ -47,7 +51,7 @@ vi.mock('../app/TranscriptionAppService', () => ({
   getTranscriptionAppService: () => ({
     createProject: mockCreateProject,
     createPlaceholderMedia: mockCreatePlaceholderMedia,
-    resolveAutoSegmentCandidates: mockResolveAutoSegmentCandidates,
+    resolveAutoSegmentRun: mockResolveAutoSegmentRun,
     importAudio: mockImportAudio,
     deleteAudio: mockDeleteAudio,
     deleteProject: mockDeleteProject,

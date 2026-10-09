@@ -142,10 +142,7 @@ export interface TranscriptionMergeResult {
 }
 
 export interface ITranscriptionAppServiceGateway {
-  resolveAutoSegmentCandidates(
-    request: ResolveAutoSegmentCandidatesRequest,
-  ): Promise<Array<{ start: number; end: number }>>;
-  /** 同上，并带回生成这批候选的引擎与来源（写入来源记录）| Same, plus the engine/source for provenance */
+  /** 自动切分候选，并带回生成这批候选的引擎与来源（写入来源记录）| Auto-segment candidates plus engine/source for provenance */
   resolveAutoSegmentRun(
     request: ResolveAutoSegmentCandidatesRequest,
   ): Promise<AutoSegmentRunResult>;
@@ -258,12 +255,6 @@ export function createTranscriptionAppService(
   };
 
   return {
-    async resolveAutoSegmentCandidates(
-      request: ResolveAutoSegmentCandidatesRequest,
-    ): Promise<Array<{ start: number; end: number }>> {
-      return (await resolveAutoSegmentRun(request)).segments;
-    },
-
     async resolveAutoSegmentRun(
       request: ResolveAutoSegmentCandidatesRequest,
     ): Promise<AutoSegmentRunResult> {

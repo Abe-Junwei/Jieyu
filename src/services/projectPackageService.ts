@@ -248,11 +248,20 @@ export function appVersion(): string {
     : 'dev';
 }
 
-function rowsOf(collections: ProjectCollections, name: string): Row[] {
+export function rowsOf(collections: ProjectCollections, name: string): Row[] {
   const rows = collections[name];
   return Array.isArray(rows)
     ? rows.filter((row): row is Row => row !== null && typeof row === 'object')
     : [];
+}
+
+/** 导入前读本机字节用的表（P5）| Tables read for local-byte guards before import (P5) */
+export function byteGuardTables<T extends { table: (name: string) => unknown }>(
+  dexie: T,
+): Array<ReturnType<T['table']>> {
+  return (['media_items', 'lexeme_assets', 'source_records', 'texts'] as const).map((name) =>
+    dexie.table(name),
+  ) as Array<ReturnType<T['table']>>;
 }
 
 function str(value: unknown): string | undefined {

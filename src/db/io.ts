@@ -24,6 +24,7 @@ import type {
   UserNoteDocType,
 } from './types';
 import { db, getDb, type JieyuDatabase } from './engine';
+import { ZodError } from 'zod';
 import { createLogger } from '../observability/logger';
 import { isCollectionDroppedOnImport, type ImportDropOptions } from './tableRegistry';
 import { withTransaction } from './withTransaction';
@@ -607,7 +608,24 @@ export async function prepareSnapshotImport(
   validateSnapshotJsonStructure(parsedRaw);
   assertSupportedSnapshotVersion(parsedRaw);
   const validation = await loadValidationModule();
-  const snapshot = validation.parseDatabaseSnapshot(parsedRaw);
+  let snapshot: Awaited<ReturnType<typeof validation.parseDatabaseSnapshot>>;
+  try {
+    snapshot = validation.parseDatabaseSnapshot(parsedRaw);
+  } catch (error) {
+    // REV5-N5：外壳 ZodError 改成可读的 SnapshotFormatError | Surface ZodError as SnapshotFormatError
+    if (error instanceof ZodError) {
+      const problems = error.issues.map((issue) => {
+        const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+        return `${path}: ${issue.message}`;
+      });
+      throw new SnapshotFormatError({
+        code: 'invalid-package',
+        message: `Snapshot envelope is invalid: ${problems.length > 0 ? problems.join('; ') : error.message}`,
+        problems,
+      });
+    }
+    throw error;
+  }
 
   if ('unit_texts' in snapshot.collections) {
     throw new Error(

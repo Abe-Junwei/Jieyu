@@ -221,9 +221,25 @@ export async function saveRecoverySnapshot(
 ): Promise<RecoverySnapshotSaveResult> {
   const projectId = options?.projectId?.trim() ?? '';
   const key = recoveryKey(dbName, projectId);
-  let snapshot = await exportRecoveryDatabaseAsJson();
+  // N3 / P10：有项目时走按项目导出，避免每 3 秒读整库 | Scoped export when a project is set
+  let snapshot: RecoveryDatabaseSnapshot;
   if (projectId.length > 0) {
-    snapshot = filterSnapshotForProject(snapshot, projectId);
+    const { exportProjectScopedDatabaseAsJson } = await import('../db/projectScopedSnapshot');
+    const { RECOVERY_EXPORT_COLLECTIONS } = await import('../db/io');
+    const scoped = await exportProjectScopedDatabaseAsJson(projectId);
+    const collections: Record<string, unknown[]> = {};
+    for (const name of RECOVERY_EXPORT_COLLECTIONS) {
+      const rows = scoped.collections[name];
+      if (Array.isArray(rows)) collections[name] = rows;
+    }
+    snapshot = {
+      schemaVersion: scoped.schemaVersion,
+      exportedAt: scoped.exportedAt,
+      dbName: scoped.dbName,
+      collections,
+    };
+  } else {
+    snapshot = await exportRecoveryDatabaseAsJson();
   }
   if (options?.liveLayerGraph) {
     snapshot = withLiveLayerGraphOverlay(snapshot, options.liveLayerGraph);

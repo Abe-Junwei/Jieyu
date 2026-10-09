@@ -9,15 +9,9 @@
  * - agent_artifacts 没有归属字段：不进包，记为“不属于任何项目”
  */
 import type { ProjectCollections } from './projectPackageIdRemap';
+import { rowsOf } from './projectPackageService';
 
 type Row = Record<string, unknown>;
-
-function rowsOf(collections: ProjectCollections, name: string): Row[] {
-  const rows = collections[name];
-  return Array.isArray(rows)
-    ? rows.filter((row): row is Row => row !== null && typeof row === 'object')
-    : [];
-}
 
 function str(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;

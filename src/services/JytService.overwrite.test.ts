@@ -13,6 +13,8 @@ const flags = vi.hoisted(() => ({ neverCollaborated: true, failSnapshot: false }
 
 vi.mock('../collaboration/cloud/projectCollaborationHistory', () => ({
   isProjectNeverCollaborated: () => flags.neverCollaborated,
+  listCollaboratedIds: (ids: readonly string[]) =>
+    flags.neverCollaborated ? [] : [...new Set(ids)],
 }));
 
 vi.mock('../db/projectOverwriteSnapshotStore', async (importOriginal) => {

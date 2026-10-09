@@ -17,8 +17,8 @@
  * re-checks, and the result is read back and compared.
  */
 import { ProjectOverwriteBlockedError } from '../db/snapshotFormatError';
-import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
-import { findBytesAtRisk } from './projectPackageService';
+import { listCollaboratedIds } from '../collaboration/cloud/projectCollaborationHistory';
+import { byteGuardTables, findBytesAtRisk } from './projectPackageService';
 import { JYB_SKIPPED_COLLECTIONS, LIBRARY_SNAPSHOT_KEY } from './JybService';
 import {
   readCurrentUserPreferences,
@@ -179,16 +179,14 @@ async function collaboratedIds(
   projectId: string | null,
   parsed: ParsedSnapshot,
 ): Promise<string[]> {
-  if (projectId !== null) return isProjectNeverCollaborated(projectId) ? [] : [projectId];
+  if (projectId !== null) return listCollaboratedIds([projectId]);
   const engine = (await import('../db/engine')) as DbEngineModule;
   const db = await engine.getDb();
   const localIds = ((await db.dexie.table('texts').toArray()) as Row[]).map((row) =>
     String(row.id),
   );
   const snapshotIds = (parsed.collections.texts ?? []).map((row) => String(row.id));
-  return [...new Set([...localIds, ...snapshotIds])].filter(
-    (id) => !isProjectNeverCollaborated(id),
-  );
+  return listCollaboratedIds([...localIds, ...snapshotIds]);
 }
 
 async function evaluate(
@@ -320,9 +318,7 @@ export async function restoreOverwriteSnapshot(
   };
   const input = { schemaVersion: parsed.schemaVersion, collections: parsed.collections };
   if (projectId === null) {
-    const byteTables = (['media_items', 'lexeme_assets', 'source_records', 'texts'] as const).map(
-      (name) => db.dexie.table(name),
-    );
+    const byteTables = byteGuardTables(db.dexie);
     // 只替换快照里出现的表 | Only the tables present in the snapshot are replaced
     await dbIo.importDatabaseFromJson(input, {
       strategy: 'replace-all',

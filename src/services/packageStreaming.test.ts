@@ -30,6 +30,7 @@ import { blobBytes, openZipBlob, zipToBlob } from './zipBlob';
 
 vi.mock('../collaboration/cloud/projectCollaborationHistory', () => ({
   isProjectNeverCollaborated: () => true,
+  listCollaboratedIds: () => [],
 }));
 
 const NOW = '2026-10-09T01:00:00.000Z';
