@@ -310,6 +310,33 @@ describe('ProjectMemoryStore', () => {
     });
   });
 
+  // ── RADAR-BUG-1: NFC / NFD ──────────────────────────────────────────────
+
+  describe('NFC / NFD retrieval (RADAR-BUG-1)', () => {
+    it.each([
+      ['NFC', 'NFD'],
+      ['NFD', 'NFC'],
+    ] as const)(
+      'finds %s-stored terms with a %s query, stored term unchanged',
+      async (stored, query) => {
+        const { projectMemoryStore: store } = await freshModule();
+        await store.loadProject('p1');
+        const words = ['ŋǎ', 'pʰǒ', 'mǎ', 'lê'];
+        for (const word of words) await store.confirmTerm(word.normalize(stored), 'gloss', 'und');
+        for (const word of words) {
+          const hits = store.searchTerms(word.normalize(query), 'und');
+          expect(hits.map((hit) => hit.term)).toContain(word.normalize(stored));
+          const rag = store.getRagContextVector(word.normalize(query), { topK: 5, minScore: 0 });
+          expect(rag.map((match) => match.text)).toContain(word.normalize(stored));
+        }
+        expect(store.getMemory()!.terms.map((term) => term.term)).toEqual(
+          words.map((word) => word.normalize(stored)),
+        );
+        store.dispose();
+      },
+    );
+  });
+
   // ── Phrase patterns ──────────────────────────────────────────────────────
 
   describe('recordPhrase', () => {

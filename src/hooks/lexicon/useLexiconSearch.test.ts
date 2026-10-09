@@ -34,4 +34,27 @@ describe('useLexiconSearch', () => {
     rerender({ query: 'dog' });
     expect(result.current.map((row) => row.id)).toEqual(['lex-dog']);
   });
+
+  // RADAR-BUG-1：NFC / NFD 双向 | NFC / NFD both directions
+  it.each([
+    ['NFC', 'NFD'],
+    ['NFD', 'NFC'],
+  ] as const)('finds %s-stored headwords with a %s query, entries unchanged', (stored, query) => {
+    const words = ['ŋǎ', 'pʰǒ', 'mǎ', 'lê'];
+    const entries = words.map((word, index) =>
+      entryDoc({
+        id: `lex-${index}`,
+        headword: word.normalize(stored),
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
+    const before = entries.map((row) => row.entry.headword);
+    for (const [index, word] of words.entries()) {
+      const { result } = renderHook(() => useLexiconSearch(entries, word.normalize(query)));
+      expect(result.current.map((row) => row.id)).toContain(`lex-${index}`);
+      expect(result.current[0]?.entry.headword).toBe(word.normalize(stored));
+    }
+    expect(entries.map((row) => row.entry.headword)).toEqual(before);
+  });
 });

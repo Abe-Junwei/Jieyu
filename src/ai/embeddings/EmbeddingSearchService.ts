@@ -2,6 +2,7 @@ import { getDb } from '../../db';
 import type { EmbeddingDoc, EmbeddingSourceType, JieyuDatabase } from '../../db';
 import type { EmbeddingProvider } from './EmbeddingProvider';
 import MiniSearch from 'minisearch';
+import { foldSearchText, tokenizeMixedScriptForSearch } from '../../utils/searchTextNormalization';
 import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
 import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './searchFusionProfiles';
@@ -89,11 +90,8 @@ function normalizeText(text: string): string {
 }
 
 function tokenizeQuery(text: string): string[] {
-  const lowered = text.toLowerCase();
-  // 中文按字 + 拉丁文本按词的混合轻量切分 | Lightweight mixed tokenizer for CJK + latin words.
-  const cjkChars = lowered.match(/[\u4e00-\u9fff]/g) ?? [];
-  const latinWords = lowered.split(/[^\p{L}\p{N}]+/u).filter((item) => item.length >= 2);
-  return [...new Set([...cjkChars, ...latinWords])];
+  // 中文按字 + 其他文字按词，先 NFC（RADAR-BUG-1）| Mixed tokenizer, NFC first (RADAR-BUG-1)
+  return tokenizeMixedScriptForSearch(text);
 }
 
 function clamp01(value: number): number {
@@ -119,7 +117,7 @@ function extractNoteText(content: Record<string, string> | undefined): string {
 }
 
 function calcKeywordScore(rawText: string, queryTokens: readonly string[]): number {
-  const lowered = rawText.trim().toLowerCase();
+  const lowered = foldSearchText(rawText.trim());
   if (!lowered || queryTokens.length === 0) return 0;
   let hitCount = 0;
   for (const token of queryTokens) {
@@ -146,13 +144,8 @@ function buildFullTextScoreMap(
       fuzzy: 0.2,
       boost: { text: 2 },
     },
-    tokenize: (text) => {
-      const lowered = text.toLowerCase();
-      const cjkChars = lowered.match(/[\u4e00-\u9fff]/g) ?? [];
-      const latinWords = lowered.split(/[^\p{L}\p{N}]+/u).filter((item) => item.length >= 2);
-      return [...new Set([...cjkChars, ...latinWords])];
-    },
-    processTerm: (term) => term.trim(),
+    tokenize: tokenizeMixedScriptForSearch,
+    processTerm: (term) => foldSearchText(term.trim()),
   });
 
   miniSearch.addAll(docs);

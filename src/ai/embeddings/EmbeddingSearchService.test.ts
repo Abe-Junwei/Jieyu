@@ -598,6 +598,68 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     expect(result.matches[0]?.sourceId).toBe('utt_ft_1');
   });
 
+  // RADAR-BUG-1：全文 / 关键词重排对 NFC / NFD 双向生效 | NFC / NFD both directions
+  it.each([
+    ['NFC', 'NFD'],
+    ['NFD', 'NFC'],
+  ] as const)('hybrid rerank matches %s-stored text with a %s query', async (stored, query) => {
+    const now = new Date().toISOString();
+    await db.embeddings.bulkPut([
+      {
+        id: 'unit::utt_nfc_1::test-model::v-test',
+        sourceType: 'unit',
+        sourceId: 'utt_nfc_1',
+        model: 'test-model',
+        modelVersion: 'v-test',
+        contentHash: 'hnfc1',
+        vector: [0.45, 0.55],
+        createdAt: now,
+      },
+      {
+        id: 'note::note_nfc_1::test-model::v-test',
+        sourceType: 'note',
+        sourceId: 'note_nfc_1',
+        model: 'test-model',
+        modelVersion: 'v-test',
+        contentHash: 'hnfc2',
+        vector: [0.95, 0.05],
+        createdAt: now,
+      },
+    ]);
+    const storedText = 'ŋǎ pʰǒ lê'.normalize(stored);
+    await putCanonicalUnitSegmentation({
+      unitId: 'utt_nfc_1',
+      segmentId: 'segv2_tier_1_utt_nfc_1',
+      contentId: 'utxt_nfc_1',
+      layerId: 'tier_1',
+      text: storedText,
+      now,
+    });
+    await db.user_notes.put({
+      id: 'note_nfc_1',
+      targetType: 'unit',
+      targetId: 'utt_nfc_1',
+      content: { en: 'generic note' },
+      category: 'linguistic',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
+    for (const weights of [
+      { keywordWeight: 0, fullTextWeight: 0.9 },
+      { keywordWeight: 0.9, fullTextWeight: 0 },
+    ]) {
+      const result = await service.searchMultiSourceHybrid(
+        'ŋǎ pʰǒ'.normalize(query),
+        ['unit', 'note'],
+        { modelId: 'test-model', modelVersion: 'v-test', topK: 2, ...weights },
+      );
+      expect(result.matches[0]?.sourceId).toBe('utt_nfc_1');
+    }
+    expect((await db.layer_unit_contents.get('utxt_nfc_1'))?.text).toBe(storedText);
+  });
+
   it('hybrid mode recalls lexical candidates when vector candidates are missing', async () => {
     const now = new Date().toISOString();
     await putCanonicalUnitSegmentation({
