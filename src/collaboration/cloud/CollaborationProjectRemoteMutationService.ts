@@ -216,14 +216,27 @@ export async function applyCollaborationRemoteMutation(
   options: ApplyCollaborationRemoteMutationOptions | undefined,
   deps: ApplyCollaborationRemoteMutationDeps,
 ): Promise<boolean> {
-  const { runWithDbMutex, rawActions, layers, layerLinks, loadSnapshot } = deps;
+  const { rawActions, layers, layerLinks, loadSnapshot } = deps;
   const projectTextId = deps.projectTextId.trim();
   if (projectTextId.length === 0) {
     throw new Error(
       `Refusing remote change ${change.id} (${change.opType}): no local collaboration project`,
     );
   }
-  await assertRemoteChangeWithinProject(change, projectTextId);
+  // GAP-6：归属检查与写入在同一个 mutex 回调里，检查和写入之间没有时间窗（TOCTOU）。
+  // 一条变更可能写多次（batch_patch），每次都在锁内重查；没有写入时也在最后检查一次，
+  // 保证越界变更总会被明确拒绝。
+  // GAP-6: the ownership check runs inside the same mutex callback as the write, so nothing can
+  // slip in between. A change may write several times (batch_patch); each write re-checks under the
+  // lock. When nothing is written the check still runs once at the end so out-of-scope changes are
+  // always refused explicitly.
+  let checkedUnderLock = false;
+  const runWithDbMutex = <T>(fn: () => Promise<T>): Promise<T> =>
+    deps.runWithDbMutex(async () => {
+      await assertRemoteChangeWithinProject(change, projectTextId);
+      checkedUnderLock = true;
+      return fn();
+    });
   const payload = asRecord(change.payload);
   let mutated = false;
 
@@ -362,6 +375,10 @@ export async function applyCollaborationRemoteMutation(
         mutated = true;
       }
     }
+  }
+
+  if (!checkedUnderLock) {
+    await assertRemoteChangeWithinProject(change, projectTextId);
   }
 
   if (mutated && options?.skipLoadSnapshot !== true) {

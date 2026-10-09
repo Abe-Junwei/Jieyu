@@ -325,3 +325,35 @@ describe('GAP-2: remote upsert_unit references stay inside the collaboration pro
     expect(await db.layer_units.get('shared-new')).toBeUndefined();
   });
 });
+
+describe('GAP-6: the ownership check runs under the DB mutex', () => {
+  it('a row that becomes foreign right before the lock is taken is still refused', async () => {
+    const d = deps();
+    d.runWithDbMutex = async (fn) => {
+      // 另一个写入者抢在锁之前把该单元写进了私有项目 | Another writer lands just before the lock
+      await db.layer_units.put({
+        id: 'race-unit',
+        textId: PRIVATE,
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as LayerUnitDocType);
+      return fn();
+    };
+    await expect(
+      applyCollaborationRemoteMutation(
+        change({
+          entityType: 'layer_unit_content',
+          entityId: 'race-unit:L-shared',
+          opType: 'upsert_unit_content',
+          payload: { unitId: 'race-unit', layerId: 'L-shared', value: 'x' },
+        }),
+        { skipLoadSnapshot: true },
+        d,
+      ),
+    ).rejects.toBeInstanceOf(CollaborationRemoteProjectScopeError);
+    expect(d.rawActions.saveUnitText).not.toHaveBeenCalled();
+  });
+});
