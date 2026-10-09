@@ -281,6 +281,24 @@ describe('SnapshotService', () => {
 
     const one = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
     expect(getRecoveryLayerUnits(one!).map((u) => u.id)).toEqual(['u1']);
+
+    // 较旧的项目快照不会盖过较新的整库快照 | An older project snapshot does not shadow a newer whole-db one
+    const db = new Dexie('jieyu_recovery');
+    db.version(1).stores({ snapshots: 'dbName' });
+    await db.table('snapshots').put({
+      dbName: `${JIEYU_DEXIE_DB_NAME}::project::t1`,
+      schemaVersion: RECOVERY_SCHEMA_VERSION,
+      timestamp: one!.timestamp - 1000,
+      snapshotJson: JSON.stringify({
+        schemaVersion: 4,
+        exportedAt: '',
+        dbName: 'x',
+        collections: {},
+      }),
+    });
+    db.close();
+    const newer = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
+    expect(getRecoveryLayerUnits(newer!).map((u) => u.id)).toEqual(['u1']);
     await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1');
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME, 't1')).resolves.toBeNull();
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();

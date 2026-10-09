@@ -305,9 +305,9 @@ async function readRecoveryRow(key: string): Promise<RecoveryData | null> {
 }
 
 /**
- * 读恢复快照。给出项目时先读本项目的快照；没有时退回到升级前留下的整库快照，并只取本项目的行。
- * Read the recovery snapshot. With a project, read its own snapshot first; otherwise fall back to a
- * pre-upgrade whole-database snapshot, keeping only this project's rows.
+ * 读恢复快照。给出项目时读本项目的快照和升级前留下的整库快照（只取本项目的行），取较新的一份。
+ * Read the recovery snapshot. With a project, read its own snapshot and any pre-upgrade
+ * whole-database one (this project's rows only) and return the newer.
  */
 export async function getRecoverySnapshot(
   dbName: string,
@@ -316,9 +316,9 @@ export async function getRecoverySnapshot(
   const project = projectId?.trim() ?? '';
   if (project.length === 0) return readRecoveryRow(dbName);
   const own = await readRecoveryRow(recoveryKey(dbName, project));
-  if (own) return own;
   const legacy = await readRecoveryRow(dbName);
-  if (!legacy) return null;
+  // 两份都在时取较新的（整库键可能是旧版本在升级后才写下的）| Newer wins when both exist
+  if (!legacy || (own && own.timestamp >= legacy.timestamp)) return own;
   return { ...legacy, snapshot: filterSnapshotForProject(legacy.snapshot, project) };
 }
 
