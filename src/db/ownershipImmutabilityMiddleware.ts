@@ -40,13 +40,14 @@
  * single-table writes (Table.update / bulkUpdate / Collection.modify / collection.insert) are covered
  * too. Repointing within a project is unaffected.
  *
- * shortcut: 父行不存在时不检查，目前没有别处兜底；先写孤儿子行、之后在别的项目写同 id 父行不会被拦（BF1-N3）。
- * 下一个数据完整性批次在归档导入的 inspector 里拒绝孤儿行，方案见
- * docs/execution/plans/BF1-N3-归档导入拒绝孤儿行-2026-10-09.md。
- * shortcut: missing parents are not checked and nothing else catches them, so an orphan child
- * written first and a same-id parent later written in another project slips through (BF1-N3).
- * Upgrade in the next data-integrity batch: reject orphan rows in the archive-import inspectors
- * (plan: docs/execution/plans/BF1-N3-归档导入拒绝孤儿行-2026-10-09.md).
+ * shortcut: 父行不存在时不检查。归档导入（JYT / JYM / JYB）已在 inspector 里用 dropOrphanRows 丢弃
+ * 父行不在包里的行（BF1-N3）；仍未兜底的是正常使用中先写子行、之后在别的项目写同 id 父行，以及纯 JSON
+ * 导入（db/io.ts importDatabaseFromJson）。若出现这类坏数据的报告，再在写入时要求父行存在。
+ * shortcut: missing parents are not checked. Archive imports (JYT / JYM / JYB) drop rows whose
+ * parent is not in the package via dropOrphanRows in the inspectors (BF1-N3); still uncovered: a
+ * live child written before its parent with a same-id parent later written in another project, and
+ * the plain JSON import (db/io.ts importDatabaseFromJson). Upgrade to requiring the parent at write
+ * time if such bad data is reported.
  */
 import type { DBCore, DBCoreMutateRequest, DBCoreTable, Middleware } from 'dexie';
 
