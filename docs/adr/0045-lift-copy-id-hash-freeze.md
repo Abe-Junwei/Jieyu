@@ -1,3 +1,12 @@
+---
+title: '0045 — LIFT 副本 id 哈希算法冻结'
+doc_type: adr
+status: active
+owner: transcription
+last_reviewed: 2026-10-09
+source_of_truth: decision
+---
+
 # ADR 0045：LIFT 副本 id 哈希算法冻结（GAP-4 / P3）
 
 - 状态：已接受（D14 冻结前定稿）
@@ -12,12 +21,12 @@
 **算法冻结在 `src/utils/lexiconLiftImport.ts` 的 `stableHash128` / `liftCopyId`，D14 之后不得更换。**
 
 - 输入：`${textId}\u0000${kind}\u0000${sourceId}`（`kind` 为 `lex` 或 `sense`；`sourceId` 是文件里的原 id）。
-- 哈希：四路 FNV-1a（种子 `0x811c9dc5`、`0x01000193`、`0x9e3779b9`、`0x85ebca6b`），对 UTF-16 码元逐个异或与乘；每路再与 `hash >>> (13 + lane)` 异或；每路输出 8 位小写十六进制，拼接为 32 个十六进制字符（128 bit）。
+- 哈希：四路 FNV-1a（种子 `0x811c9dc5`、`0x01000193`、`0x9e3779b9`、`0x85ebca6b`），对 UTF-16 码元逐个异或与乘；每路再与 `hash >>> (13 + lane)` 异或；每一步都 `>>> 0` 保持无符号 32 位；每路用 `toString(16).padStart(8, '0')` 输出 8 位小写十六进制，拼接为 32 个十六进制字符（128 bit）。
 - 输出 id：`` `${kind}_${stableHash128(...)}` ``。
 
-不改为 `sha256Hex` 或其他摘要：仓库里虽有别的哈希工具，但已有用户数据按本算法生成；换算法等于格式变更。
+不改为 `sha256Hex` 或其他摘要：仓库里虽有别的哈希工具，但冻结后用户数据会按本算法生成；换算法等于格式变更。
 
 ## 后果
 
-- 实现与测试必须以本算法为准；审查用例 GAP-2BG-4 覆盖“重复导入不翻倍”。
+- 实现与测试必须以本算法为准；审查用例 GAP-2BG-4 覆盖“重复导入不翻倍”；`lexiconLiftImport.test.ts` 用固定输入断言精确 id（R2-3）。
 - 若将来必须换算法，需要新的 schema / 包格式版本，并做显式迁移，不能静默替换。

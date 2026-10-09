@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { importLexemesFromLiftXml, parseLiftXml } from './lexiconLiftImport';
+import { importLexemesFromLiftXml, liftCopyId, parseLiftXml } from './lexiconLiftImport';
 import { serializeLexemesToLift } from './lexiconLiftExport';
 import type { LexemeEntryDoc, LexemeResourceDoc } from '../db/types';
 
@@ -160,5 +160,20 @@ describe('importLexemesFromLiftXml', () => {
     expect(second.losses).toEqual([{ code: 'replaced-by-id', count: 1 }]);
     expect(second.readback).toHaveLength(1);
     expect(second.readback[0]?.id).toBe('lex-fox');
+  });
+});
+
+// ADR-0045 冻结：副本 id 会写进用户数据，固定值一变就说明算法被改了 | frozen by ADR-0045: a changed value means the algorithm changed
+describe('liftCopyId (ADR-0045)', () => {
+  it('yields the exact frozen ids for fixed inputs', () => {
+    expect(liftCopyId('lex', 'text_b', 'lex_1')).toBe('lex_e0e613575c31378af45a302f205ed8d5');
+    expect(liftCopyId('sense', 'text_b', 'sense_1')).toBe('sense_e4f84222597b832310d358b37f8bf8d7');
+    expect(liftCopyId('lex', 'text_b', 'lex_e\u0301')).toBe('lex_b408ee60a2c381b6571a26a2ca9f8b44');
+  });
+
+  it('is always 32 lowercase hex chars after the prefix', () => {
+    for (let index = 0; index < 500; index += 1) {
+      expect(liftCopyId('lex', `t${index}`, `s${index * 7919}`)).toMatch(/^lex_[0-9a-f]{32}$/);
+    }
   });
 });

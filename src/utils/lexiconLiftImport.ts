@@ -111,7 +111,7 @@ function stableHash128(input: string): string {
       for (let index = 0; index < input.length; index += 1) {
         hash ^= input.charCodeAt(index);
         hash = Math.imul(hash, 0x01000193) >>> 0;
-        hash ^= hash >>> (13 + lane);
+        hash = (hash ^ (hash >>> (13 + lane))) >>> 0;
       }
       return hash.toString(16).padStart(8, '0');
     })
