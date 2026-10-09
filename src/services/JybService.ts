@@ -302,6 +302,9 @@ export async function exportDatabaseToJybBlob(options: JybExportOptions = {}): P
         ...(doc?.defaultDocumentId !== undefined
           ? { defaultDocumentId: doc.defaultDocumentId }
           : {}),
+        // 导出设备上的协作判定随包走，换设备做灾难恢复时也能看到（D7、REV5-N4）
+        // This device's collaboration verdict travels with the package (D7, REV5-N4)
+        collaborated: !isProjectNeverCollaborated(String(text.id)),
         documents: doc?.documents ?? [],
       };
     },
@@ -572,7 +575,16 @@ async function collaboratedProjectIds(
 ): Promise<string[]> {
   const localIds = ((await dexie.table('texts').toArray()) as Row[]).map((row) => String(row.id));
   const packageIds = inspected.data.projects.map((p) => p.id);
-  return [...new Set([...localIds, ...packageIds])].filter((id) => !isProjectNeverCollaborated(id));
+  // 包里标为协作过或没有标记的项目，按协作过处理（REV5-N4）| Flagged or unflagged: collaborated
+  const packageFlagged = inspected.manifest.projects
+    .filter((project) => project.collaborated !== false)
+    .map((project) => project.id);
+  return [
+    ...new Set([
+      ...[...localIds, ...packageIds].filter((id) => !isProjectNeverCollaborated(id)),
+      ...packageFlagged,
+    ]),
+  ];
 }
 
 async function planDisasterRestore(inspected: InspectedLibrary): Promise<{

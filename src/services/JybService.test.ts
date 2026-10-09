@@ -407,6 +407,40 @@ describe('T34: JYB disaster restore', () => {
     const preview = await previewJybRestore(archive);
     expect(preview.disasterRestore).toMatchObject({ available: false, reason: 'collaborated' });
   });
+
+  it('REV5-N4: a project collaborated on the exporting device is refused on a fresh device', async () => {
+    await seedProject('pA');
+    await seedProject('pB');
+    flags.collaborated.add('pA');
+    const archive = await exportDatabaseToJyb({ includeMedia: true });
+    expect(
+      Object.fromEntries(
+        readArchive(archive).manifest.projects.map((p: { id: string; collaborated: boolean }) => [
+          p.id,
+          p.collaborated,
+        ]),
+      ),
+    ).toEqual({ pA: true, pB: false });
+    // 新设备：本机没有任何协作记录 | Fresh device: no local collaboration history
+    await clearAll();
+    flags.collaborated.clear();
+    const preview = await previewJybRestore(archive);
+    expect(preview.disasterRestore).toMatchObject({ available: false, reason: 'collaborated' });
+    const error = await blockedErrorOf(() => disasterRestoreFromJyb(archive));
+    expect(error.reason).toBe('not-allowed');
+    expect(await db.texts.count()).toBe(0);
+  });
+
+  it('REV5-N4: a JYB without the flag counts as collaborated', async () => {
+    await seedProject('pA');
+    const files = unzipSync(await exportDatabaseToJyb({ includeMedia: true }));
+    const manifest = JSON.parse(strFromU8(files['META-INF/manifest.json']!)) as Record<string, any>;
+    for (const project of manifest.projects) delete project.collaborated;
+    files['META-INF/manifest.json'] = strToU8(JSON.stringify(manifest));
+    await clearAll();
+    const preview = await previewJybRestore(zipSync(files as Zippable));
+    expect(preview.disasterRestore).toMatchObject({ available: false, reason: 'collaborated' });
+  });
 });
 
 describe('JYB inbound checks', () => {

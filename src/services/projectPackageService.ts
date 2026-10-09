@@ -199,6 +199,8 @@ export const manifestSchema = z
             .passthrough()
             .optional(),
           defaultDocumentId: z.string().min(1).optional(),
+          /** 只在 JYB：导出设备上是否协作过（不确定按 true）；缺失按协作过（D7、REV5-N4）| JYB only */
+          collaborated: z.boolean().optional(),
           documents: z.array(
             z
               .object({
