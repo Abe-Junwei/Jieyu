@@ -321,10 +321,14 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         }),
       );
       const keepCurrent = activeTextId !== null && result.projectIds.includes(activeTextId);
-      const doneMessage = tf(locale, 'transcription.importExport.importDone.jybDisaster', {
-        count: result.projectIds.length,
-        written: countWritten(result.importResult),
-      });
+      const doneMessage = withSkippedOrphans(
+        locale,
+        tf(locale, 'transcription.importExport.importDone.jybDisaster', {
+          count: result.projectIds.length,
+          written: countWritten(result.importResult),
+        }),
+        result.skippedOrphanRows,
+      );
       return {
         message:
           result.restoredPreferenceKeys.length > 0

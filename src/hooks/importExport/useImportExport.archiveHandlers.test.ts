@@ -158,6 +158,7 @@ describe('RD-3: JYB import with no current project (R2-1)', () => {
       snapshotSeq: 1,
       importResult,
       restoredPreferenceKeys: [],
+      skippedOrphanRows: [],
     });
   });
   afterEach(() => clearActiveProjectTextId());
@@ -198,6 +199,21 @@ describe('RD-3: JYB import with no current project (R2-1)', () => {
     expect(setSaveState).toHaveBeenLastCalledWith({
       kind: 'done',
       message: expect.stringContaining('另有 3 条记录的上级记录不在包里，已跳过。'),
+    });
+  });
+
+  it('disaster restore message counts the dropped orphan rows (BF1N3-2)', async () => {
+    mockDisasterRestoreFromJyb.mockResolvedValueOnce({
+      projectIds: ['p1'],
+      snapshotSeq: 1,
+      importResult,
+      restoredPreferenceKeys: [],
+      skippedOrphanRows: [{ collection: 'unit_tokens', count: 4 }],
+    });
+    const { setSaveState } = await runJyb('disaster-restore');
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'done',
+      message: expect.stringContaining('另有 4 条记录的上级记录不在包里，已跳过。'),
     });
   });
 

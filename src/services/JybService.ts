@@ -825,6 +825,8 @@ export interface JybDisasterRestoreResult {
   importResult: ImportResult;
   /** 写回的用户偏好键（没勾选时为空）| Preference keys written back (empty unless opted in) */
   restoredPreferenceKeys: string[];
+  /** 全部项目按表合计的孤儿行（BF1N3-2）| Orphan rows across all projects, summed per table */
+  skippedOrphanRows: SkippedOrphanRows;
 }
 
 /**
@@ -931,10 +933,15 @@ export async function disasterRestoreFromJyb(
     options?.restorePreferences === true
       ? await applyUserPreferences(inspected.preferences.entries)
       : [];
+  const orphanSums = new Map<string, number>();
+  for (const { collection, count } of [...inspected.skippedOrphanRows.values()].flat()) {
+    orphanSums.set(collection, (orphanSums.get(collection) ?? 0) + count);
+  }
   return {
     projectIds: inspected.data.projects.map((p) => p.id),
     snapshotSeq,
     importResult,
     restoredPreferenceKeys,
+    skippedOrphanRows: [...orphanSums].map(([collection, count]) => ({ collection, count })),
   };
 }
