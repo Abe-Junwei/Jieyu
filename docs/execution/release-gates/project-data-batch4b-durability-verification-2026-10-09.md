@@ -61,6 +61,8 @@ source_of_truth: tests/e2e/batch4bRawSnapshot.spec.ts
 
 全量（Node 22，提交 `e76f90d6`，同一次运行）：`npm run test:vitest:dot` 882 文件通过、2 跳过，6268 用例通过、57 跳过；`npx playwright test --project=chromium --retries=0` 73 通过、2 跳过。
 
+全量（Node 22，#4 + #5 + REV5-N1/N6/N7/N4 全部在内，同一次运行，2026-10-09 13:26）：`npm run test:vitest:dot` 884 文件通过、2 跳过，6286 用例通过、57 跳过；`npx vite build` 通过；`npx playwright test --project=chromium --retries=0` 74 通过、2 跳过（含 160 MiB JYM e2e）。
+
 测试编号对应：T41 `rawSnapshotConverter.test.ts`（转换后逐项目导入字节完整、原始 ZIP 不变、合成 v2 upgrader 被执行、upgrader 失败时原始数据和主库不变且临时库被删、比应用新 / 其他库 / 非原始快照被拒绝）+ e2e；T43 `SnapshotService.test.ts`（超限返回已跳过并清理旧快照、按项目存取、升级前整库快照按项目读取并一并清除）、`RecoverySnapshotSkippedNotice.test.tsx`；T44 `storageDurability.test.ts`（只在第一次导入 / 保存时申请、启动申请不覆盖手势记录、不支持与出错都记录）、`backupFolderService.test.ts`（保留最近 3 份、不动其他文件、写入失败不动旧备份并记录失败、只有交互时才申请授权、自动备份到期 / 未到期 / 失败退避 / 关闭、自动备份缺授权时记为需要重新授权）+ e2e（主库写入全部报 QuotaExceededError 时导入只提示、项目数和音频字节不变；persist 记录为导入时；诊断面板；OPFS 目录代替用户文件夹，选择后立即备份 4 次剩 3 份；把上次成功改成两天前再打开应用，自动备份写入新的一份，仍剩 3 份）。
 
 #5 测试：`zipBlob.test.ts`（与 fflate 互相读写、UTF-8 文件名、20 MiB Blob 分块 CRC 与 zlib 一致、不读字节的切片、非 ZIP / ZIP64 / 实际比声明大时拒绝）；`packageStreaming.test.ts`（合成 4 条 12 MiB 录音共 48 MiB：JYM 导出与恢复中最大的一次读取正好是一条录音，从不整包读取，恢复后每条 sha256 一致；录音中改一个字节被 sha256 拒绝；JYB 整库导出导入同样；原始快照导出 / 解析不整包读取且 Blob 值字节一致；中央目录声明两条 600 MiB 的条目通过新上限检查，旧上限拒绝）；e2e 在页面里合成 160 MiB 录音，经项目中心导出 JYM（下载到磁盘）、以文件导入恢复为新项目，恢复后的音频 sha256 与原来一致（约 23 秒）。
