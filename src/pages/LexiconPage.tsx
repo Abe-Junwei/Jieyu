@@ -39,6 +39,7 @@ import { exportLexemesAsDmlex } from '../utils/dmlexJsonExport';
 import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
 import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
 import { formatLexiconImportNotice } from '../utils/interchangeLossReport';
+import { formatXmlSanitizeNotice } from '../utils/xmlSafeText';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -387,7 +388,15 @@ export function LexiconPage() {
               data-testid="lexicon-lift-export"
               disabled={lexemes.length === 0}
               onClick={() => {
-                exportLexemesAsLift(lexemes, relations);
+                const exported = exportLexemesAsLift(lexemes, relations);
+                // 有 XML 非法字符被处理时告诉用户（JY-08）| Tell the user about XML-illegal characters (JY-08)
+                setImportError(
+                  exported.ok
+                    ? formatXmlSanitizeNotice(exported.xmlSanitized, (key, params) =>
+                        tf(locale, key as DictKey, params),
+                      )
+                    : '',
+                );
               }}
             >
               {t(locale, 'workspace.lexicon.exportLift')}

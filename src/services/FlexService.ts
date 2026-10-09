@@ -19,6 +19,7 @@ import type {
   OrthographyDocType,
 } from '../db';
 import type { InterchangeLoss } from '../utils/interchangeLossReport';
+import { escapeXml, finalizeXmlExport, type XmlSanitizeReport } from '../utils/xmlSafeText';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
@@ -49,6 +50,8 @@ export interface FlexExportInput {
   segmentsByLayer?: Map<string, LayerSegmentViewDocType[]>;
   /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
   segmentContents?: Map<string, Map<string, LayerUnitContentDocType>>;
+  /** 删除 / 替换了 XML 非法字符时回调（JY-08）| Called when XML-illegal characters were replaced (JY-08) */
+  onXmlSanitized?: (report: XmlSanitizeReport) => void;
 }
 
 export interface FlexImportResult {
@@ -116,15 +119,6 @@ export interface FlexImportResult {
   glossLanguage?: string;
   /** Losses known at parse time. */
   losses?: InterchangeLoss[];
-}
-
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 function getText(el: Element | null | undefined): string {
@@ -391,7 +385,8 @@ export function exportToFlextext(input: FlexExportInput): string {
 
   const additionalItsXml = additionalIts.length > 0 ? `\n${additionalIts.join('\n')}` : '';
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  return finalizeXmlExport(
+    `<?xml version="1.0" encoding="UTF-8"?>
 <document version="2"${buildTimelineAttributeFragment(timelineMetadata)}>
   <interlinear-text guid="it1">
     <item type="title" lang="en">Jieyu Export</item>
@@ -404,7 +399,9 @@ ${phraseXml}
     </paragraphs>
   </interlinear-text>${additionalItsXml}
 </document>
-`;
+`,
+    input.onXmlSanitized,
+  );
 }
 
 // ── Import ───────────────────────────────────────────────────

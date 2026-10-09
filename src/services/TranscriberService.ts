@@ -33,6 +33,7 @@ import type {
   LayerUnitDocType,
 } from '../db';
 import type { InterchangeLoss } from '../utils/interchangeLossReport';
+import { escapeXml, finalizeXmlExport, type XmlSanitizeReport } from '../utils/xmlSafeText';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
@@ -73,6 +74,8 @@ export interface TrsExportInput {
   programTitle?: string;
   /** 逻辑时间元数据（文献项目导出声明）| Logical timeline metadata for document-mode export */
   timelineMetadata?: TimelineInteropMetadata;
+  /** 删除 / 替换了 XML 非法字符时回调（JY-08）| Called when XML-illegal characters were replaced (JY-08) */
+  onXmlSanitized?: (report: XmlSanitizeReport) => void;
 }
 
 export interface TrsImportResult {
@@ -97,15 +100,6 @@ export interface TrsImportResult {
 }
 
 // ── Helpers ─────────────────────────────────────────────────
-
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 function formatTime(seconds: number): string {
   // Transcriber uses decimal seconds, e.g. "3.456"
@@ -248,7 +242,8 @@ ${segments}
 
   const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  return finalizeXmlExport(
+    `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Trans SYSTEM "trans-14.dtd">
 <Trans program="${escapeXml(programTitle)}" air_date="${date}" scribe="" version="1" version_date="${date}"${buildTimelineAttributeFragment(timelineMetadata)}>
   <Speakers>
@@ -260,7 +255,9 @@ ${turnsXml}
     </Section>
   </Episode>
 </Trans>
-`;
+`,
+    input.onXmlSanitized,
+  );
 }
 
 // ── Import ───────────────────────────────────────────────────

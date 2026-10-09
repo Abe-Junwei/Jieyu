@@ -5,6 +5,7 @@
 import type { DmlexRelation, DmlexSense } from '../db/dmlexTypes';
 import { DMLEX_SUBSENSE } from '../db/dmlexTypes';
 import type { LexemeEntryDoc } from '../db/types';
+import { escapeXml, finalizeXmlExport, type XmlSanitizeReport } from './xmlSafeText';
 
 export const LIFT_VERSION = '0.13';
 export const LIFT_PRODUCER = 'Jieyu';
@@ -12,17 +13,8 @@ export const LIFT_MIME = 'application/xml';
 export const LIFT_FILENAME = 'jieyu-lexicon.lift';
 
 export type LexiconLiftExportResult =
-  | { ok: true; xml: string }
+  | { ok: true; xml: string; xmlSanitized: XmlSanitizeReport | null }
   | { ok: false; reason: 'empty' | 'download-unavailable' };
-
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 function langOrUnd(langCode: string | undefined): string {
   const trimmed = langCode?.trim() ?? '';
@@ -89,9 +81,15 @@ function senseXml(
   return `<${tag}${idAttr}>${grammatical}${glosses}${definitions}${explanations}${examples}${labels}${nested}</${tag}>`;
 }
 
+export type LiftSerializeOptions = {
+  /** 删除 / 替换了 XML 非法字符时回调（JY-08）| Called when XML-illegal characters were replaced (JY-08) */
+  onXmlSanitized?: (report: XmlSanitizeReport) => void;
+};
+
 export function serializeLexemesToLift(
   lexemes: readonly LexemeEntryDoc[],
   relations: readonly DmlexRelation[] = [],
+  options: LiftSerializeOptions = {},
 ): string {
   const entries = lexemes
     .map((lexeme) => {
@@ -130,10 +128,16 @@ export function serializeLexemesToLift(
       return `<entry id="${escapeXml(lexeme.id)}"><lexical-unit>${xmlForm('und', entry.headword)}</lexical-unit>${variants}${pronunciationXml}${etymologyXml}${senseBody}</entry>`;
     })
     .join('');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<lift version="${LIFT_VERSION}" producer="${LIFT_PRODUCER}">${entries}</lift>\n`;
+  return finalizeXmlExport(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<lift version="${LIFT_VERSION}" producer="${LIFT_PRODUCER}">${entries}</lift>\n`,
+    options.onXmlSanitized,
+  );
 }
 
-export function downloadLexiconLift(xml: string): LexiconLiftExportResult {
+export function downloadLexiconLift(
+  xml: string,
+  xmlSanitized: XmlSanitizeReport | null = null,
+): LexiconLiftExportResult {
   if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function') {
     return { ok: false, reason: 'download-unavailable' };
   }
@@ -144,7 +148,7 @@ export function downloadLexiconLift(xml: string): LexiconLiftExportResult {
   link.download = LIFT_FILENAME;
   link.click();
   URL.revokeObjectURL(url);
-  return { ok: true, xml };
+  return { ok: true, xml, xmlSanitized };
 }
 
 export function exportLexemesAsLift(
@@ -152,5 +156,11 @@ export function exportLexemesAsLift(
   relations: readonly DmlexRelation[] = [],
 ): LexiconLiftExportResult {
   if (lexemes.length === 0) return { ok: false, reason: 'empty' };
-  return downloadLexiconLift(serializeLexemesToLift(lexemes, relations));
+  let xmlSanitized: XmlSanitizeReport | null = null;
+  const xml = serializeLexemesToLift(lexemes, relations, {
+    onXmlSanitized: (report) => {
+      xmlSanitized = report;
+    },
+  });
+  return downloadLexiconLift(xml, xmlSanitized);
 }

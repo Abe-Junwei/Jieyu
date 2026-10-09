@@ -10,7 +10,8 @@ import type {
 } from '../../db';
 import type { SaveState } from '../useTranscriptionData';
 import { LinguisticService } from '../../services/LinguisticService';
-import { t, tf, useLocale } from '../../i18n';
+import { t, tf, useLocale, type DictKey, type Locale } from '../../i18n';
+import { formatXmlSanitizeNotice, type XmlSanitizeReport } from '../../utils/xmlSafeText';
 import { createLogger } from '../../observability/logger';
 import { recordFullProjectArchiveExportCompleted } from '../../utils/backupExportReminderState';
 import { useOrthographies } from '../orthography/useOrthographies';
@@ -144,6 +145,11 @@ function loadCachedModule<T>(
     ref.current = importer();
   }
   return ref.current;
+}
+
+/** 导出时 XML 非法字符的提示（JY-08）| Notice for XML-illegal characters on export (JY-08) */
+function xmlSanitizeNotice(locale: Locale, report: XmlSanitizeReport | null): string {
+  return formatXmlSanitizeNotice(report, (key, params) => tf(locale, key as DictKey, params));
 }
 
 export function useImportExport(input: UseImportExportInput) {
@@ -591,6 +597,7 @@ export function useImportExport(input: UseImportExportInput) {
           );
           const timelineMetadata = await loadProjectTimelineMetadata();
           const exportWarnings: Array<{ code: string }> = [];
+          let xmlSanitized: XmlSanitizeReport | null = null;
           const xml = eafService.exportToEaf({
             ...(exportNamingMediaItem ? { mediaItem: exportNamingMediaItem } : {}),
             units: exportUnits,
@@ -610,6 +617,9 @@ export function useImportExport(input: UseImportExportInput) {
             onWarning: (warning) => {
               exportWarnings.push(warning);
             },
+            onXmlSanitized: (report) => {
+              xmlSanitized = report;
+            },
           });
           const baseName = exportNamingMediaItem
             ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
@@ -624,8 +634,12 @@ export function useImportExport(input: UseImportExportInput) {
               : '';
           setSaveState({
             kind: 'done',
-            message:
+            message: [
               `${t(locale, 'transcription.importExport.exportDone.eaf')}${warningSuffix}`.trim(),
+              xmlSanitizeNotice(locale, xmlSanitized),
+            ]
+              .filter((part) => part.length > 0)
+              .join(' '),
           });
           setShowExportMenu(false);
         });
@@ -701,6 +715,7 @@ export function useImportExport(input: UseImportExportInput) {
                     ...(speaker.dialect ? { dialect: speaker.dialect } : {}),
                     ...(speaker.accent ? { accent: speaker.accent } : {}),
                   }));
+          let xmlSanitized: XmlSanitizeReport | null = null;
           const trs = transcriberService.exportToTrs({
             units: exportUnits,
             speakers,
@@ -708,6 +723,9 @@ export function useImportExport(input: UseImportExportInput) {
             translations,
             ...(timelineMetadata ? { timelineMetadata } : {}),
             ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
+            onXmlSanitized: (report) => {
+              xmlSanitized = report;
+            },
           });
           const baseName = exportNamingMediaItem
             ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
@@ -715,7 +733,12 @@ export function useImportExport(input: UseImportExportInput) {
           transcriberService.downloadTrs(trs, baseName);
           setSaveState({
             kind: 'done',
-            message: t(locale, 'transcription.importExport.exportDone.trs'),
+            message: [
+              t(locale, 'transcription.importExport.exportDone.trs'),
+              xmlSanitizeNotice(locale, xmlSanitized),
+            ]
+              .filter((part) => part.length > 0)
+              .join(' '),
           });
           setShowExportMenu(false);
         });
@@ -743,6 +766,7 @@ export function useImportExport(input: UseImportExportInput) {
             tokens.map((token) => token.id),
           );
           const timelineMetadata = await loadProjectTimelineMetadata();
+          let xmlSanitized: XmlSanitizeReport | null = null;
           const flex = flexService.exportToFlextext({
             units: exportUnits,
             layers,
@@ -753,6 +777,9 @@ export function useImportExport(input: UseImportExportInput) {
             ...(timelineMetadata ? { timelineMetadata } : {}),
             ...(segmentsByLayer ? { segmentsByLayer } : {}),
             ...(segmentContents ? { segmentContents } : {}),
+            onXmlSanitized: (report) => {
+              xmlSanitized = report;
+            },
           });
           const baseName = exportNamingMediaItem
             ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
@@ -760,7 +787,12 @@ export function useImportExport(input: UseImportExportInput) {
           flexService.downloadFlextext(flex, baseName);
           setSaveState({
             kind: 'done',
-            message: t(locale, 'transcription.importExport.exportDone.flextext'),
+            message: [
+              t(locale, 'transcription.importExport.exportDone.flextext'),
+              xmlSanitizeNotice(locale, xmlSanitized),
+            ]
+              .filter((part) => part.length > 0)
+              .join(' '),
           });
           setShowExportMenu(false);
         });

@@ -2138,6 +2138,8 @@ export const DICT_KEYS = [
   'transcription.importExport.importDone.regeneratedId',
   'transcription.importExport.importDone.appendedWithoutId',
   'transcription.importExport.exportDone.eafMultiHostWarning',
+  'transcription.importExport.exportDone.xmlSoftLineBreaks',
+  'transcription.importExport.exportDone.xmlIllegalCharsRemoved',
   'transcription.importExport.actionLabelImportFile',
   'transcription.importExport.unsupportedFormat',
   'transcription.importExport.toolboxFormatUnrecognized',

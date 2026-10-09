@@ -2311,6 +2311,10 @@ export const enUSDictionary = {
     'This text already had segments. This import appended {count} more with no stable annotation id.',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     'Detected {count} translation layers with multiple hosts; EAF exported preferred-host links only (lossy).',
+  'transcription.importExport.exportDone.xmlSoftLineBreaks':
+    '{count} soft line breaks (U+000B) were written as normal line breaks.',
+  'transcription.importExport.exportDone.xmlIllegalCharsRemoved':
+    '{count} control characters that XML does not allow were left out of the exported file.',
   'transcription.importExport.actionLabelImportFile': 'Import file',
   'transcription.importExport.unsupportedFormat':
     'Unsupported file format. Please choose a .eaf / .TextGrid / .trs / .flextext / .txt / .toolbox file.',

@@ -10,14 +10,7 @@ export const JIEYU_PROJECT_META_TIMELINE = 'jieyu:project-meta:timeline';
 
 // ── Export ───────────────────────────────────────────────────
 
-export function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
+export { escapeXml } from '../../utils/xmlSafeText';
 
 export function readMultiLangDefault(value: Record<string, string> | undefined): string {
   if (!value) return '';

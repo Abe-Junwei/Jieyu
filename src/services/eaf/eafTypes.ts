@@ -1,3 +1,4 @@
+import type { XmlSanitizeReport } from '../../utils/xmlSafeText';
 import type {
   LayerUnitDocType,
   AnchorDocType,
@@ -46,6 +47,8 @@ export interface EafExportInput {
   morphemes?: UnitMorphemeDocType[];
   /** 导出告警回调（如多宿主有损导出）| Export warning callback (e.g. lossy multi-host export) */
   onWarning?: (warning: EafExportWarning) => void;
+  /** 删除 / 替换了 XML 非法字符时回调（JY-08）| Called when XML-illegal characters were replaced (JY-08) */
+  onXmlSanitized?: (report: XmlSanitizeReport) => void;
 }
 
 export type EafExportWarning = {

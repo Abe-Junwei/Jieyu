@@ -17,6 +17,8 @@ import { buildEafAdditionalTierXml } from './eafExportAdditionalTiers';
 import { buildNoteTierXml } from './eafExportNotes';
 import { buildEafWordTierXml } from './eafExportWords';
 
+import { finalizeXmlExport } from '../../utils/xmlSafeText';
+
 export function exportToEaf(input: EafExportInput): string {
   const {
     mediaItem,
@@ -34,6 +36,7 @@ export function exportToEaf(input: EafExportInput): string {
     tokens = [],
     morphemes = [],
     onWarning,
+    onXmlSanitized,
   } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const unitById = new Map(units.map((unit) => [unit.id, unit] as const));
@@ -341,7 +344,8 @@ ${headerLines.join('\n')}
     );
   }
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  return finalizeXmlExport(
+    `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${new Date().toISOString()}" FORMAT="3.0" VERSION="3.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.mpi.nl/tools/elan/EAFv3.0.xsd">
 ${mediaHeader}
@@ -361,7 +365,9 @@ ${translationTierXml.join('\n')}
 ${buildNoteTierXml(sorted, uttSlotMap, userNotes ?? [], annCounter, uttAnnotationIdMap, speakers ?? [], defaultTierId)}
 ${footerLines.join('\n')}
 </ANNOTATION_DOCUMENT>
-`;
+`,
+    onXmlSanitized,
+  );
 }
 
 export function downloadEaf(content: string, filename: string): void {

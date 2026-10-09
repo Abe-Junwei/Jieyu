@@ -2161,6 +2161,10 @@ export const zhCNDictionary = {
     '文稿里已有语段，这次又追加了 {count} 条没有稳定标注 id 的内容。',
   'transcription.importExport.exportDone.eafMultiHostWarning':
     '检测到 {count} 个翻译层存在多宿主；EAF 仅导出主宿主链路（有损）。',
+  'transcription.importExport.exportDone.xmlSoftLineBreaks':
+    '{count} 处软换行（U+000B）在导出文件里写成了普通换行。',
+  'transcription.importExport.exportDone.xmlIllegalCharsRemoved':
+    '{count} 个 XML 不允许的控制字符没有写入导出文件。',
   'transcription.importExport.actionLabelImportFile': '导入文件',
   'transcription.importExport.unsupportedFormat':
     '不支持的文件格式，请选择 .eaf / .TextGrid / .trs / .flextext / .txt / .toolbox 文件。',
