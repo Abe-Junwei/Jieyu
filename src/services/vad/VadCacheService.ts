@@ -145,7 +145,10 @@ export class VadCacheService {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const payload: StoragePayload = JSON.parse(raw);
-      if (payload.version !== CACHE_VERSION) return;
+      if (payload.version !== CACHE_VERSION) {
+        localStorage.removeItem(STORAGE_KEY); // 旧版本条目不再使用，直接删掉 | stale version: delete instead of keeping it around
+        return;
+      }
       const now = Date.now();
       for (const [id, entry] of Object.entries(payload.entries)) {
         if (now - entry.cachedAt <= TTL_MS) {

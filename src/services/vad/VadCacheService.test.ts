@@ -138,7 +138,7 @@ describe('VadCacheService', () => {
     });
   });
 
-  it('drops v1 entries, which carry no params (N9)', () => {
+  it('drops and deletes v1 entries, which carry no params (N9)', () => {
     withLocalStorage(() => {
       localStorage.setItem(
         'jieyu:vad-cache',
@@ -151,6 +151,7 @@ describe('VadCacheService', () => {
         }),
       );
       expect(new VadCacheService().get('old')).toBeNull();
+      expect(localStorage.getItem('jieyu:vad-cache')).toBeNull();
     });
   });
 
