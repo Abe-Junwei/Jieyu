@@ -74,7 +74,6 @@
     "data:iso6393-country-baselines": "node scripts/build-iso6393-country-baselines.mjs",
     "verify:iso6393-country-baselines": "node scripts/verify-iso6393-country-baselines.mjs",
     "acoustic:calibrate": "node scripts/evaluate-acoustic-calibration.mjs",
-    "data:download-distil-whisper": "bash scripts/download-distil-whisper.sh",
     "data:download-whisper-model": "bash scripts/download-whisper-model.sh",
     "data:download-silero-vad": "bash scripts/download-silero-vad.sh",
     "// === CSS Checks ===": "",
