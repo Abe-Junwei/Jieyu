@@ -44,6 +44,13 @@ initTheme(); // 初始化配色主题 | Initialize appearance theme
 initIconEffect(); // 图标效果 material / motion | Icon effect preference
 void requestPersistentStorage();
 
+// 4a：浏览器自动化下加载迁移框架探针（只操作合成库）| 4a: migration probe under webdriver only
+if (typeof navigator !== 'undefined' && navigator.webdriver) {
+  void import('./db/migration/e2eMigrationHarness').then((module) =>
+    module.installE2eMigrationHarness(),
+  );
+}
+
 void (async () => {
   try {
     const [{ ensureIso6393SeedsLoaded }, langCache] = await Promise.all([

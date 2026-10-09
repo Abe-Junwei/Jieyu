@@ -19,6 +19,7 @@ import { WorkspaceReturnBanner } from './components/WorkspaceReturnBanner';
 import { DbIntegrityBlockingOverlay } from './components/DbIntegrityBlockingOverlay';
 import { DevBuildBanner } from './components/DevBuildBanner';
 import { LegacyDataResetDialog } from './components/LegacyDataResetDialog';
+import { DbMigrationGateOverlay } from './components/DbMigrationGateOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
@@ -912,6 +913,7 @@ export function App() {
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
             <AppGlobalToastHost />
             <LegacyDataResetDialog locale={locale} />
+            <DbMigrationGateOverlay locale={locale} />
             {dbGate.kind === 'failed' ? (
               <DbIntegrityBlockingOverlay
                 locale={locale}

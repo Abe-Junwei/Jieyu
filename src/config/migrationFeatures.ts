@@ -40,11 +40,17 @@ export const JIEYU_MIGRATION_FEATURES: Readonly<JieyuMigrationFeatures> = {
  * 多标签页协调的等待上限（rev5 第 12 节“待冻结”参数，先取保守值）。
  * Multi-tab coordination timeouts (rev5 §12 "to be frozen"; conservative defaults).
  */
-export const JIEYU_MIGRATION_TIMEOUTS = {
+export interface JieyuMigrationTimeouts {
+  upgradeLockMs: number;
+  broadcastGraceMs: number;
+  upgradeOpenMs: number;
+}
+
+export const JIEYU_MIGRATION_TIMEOUTS: Readonly<JieyuMigrationTimeouts> = {
   /** 等待 `jieyu-db-upgrade` 独占锁 | Waiting for the exclusive upgrade lock */
   upgradeLockMs: 10_000,
   /** 广播“暂停写入”后给其他标签页关闭连接的时间 | Grace period after broadcasting pause */
   broadcastGraceMs: 300,
   /** 升级打开请求的总等待上限（超时即中止）| Max wait for the upgrading open request */
   upgradeOpenMs: 8_000,
-} as const;
+};

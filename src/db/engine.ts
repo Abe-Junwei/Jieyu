@@ -6,7 +6,7 @@
  * Greenfield baseline (Batch 2A): main DB `jieyu` declares only `version(1)`, structurally
  * equivalent to the former v54 final shape. No upgraders before the freeze point (D14).
  */
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type DexieOptions, type Table } from 'dexie';
 import type {
   TextDocType,
   MediaItemDocType,
@@ -127,7 +127,21 @@ import { withCatalogOwnershipRules } from './catalogOwnership';
 import { createOwnershipImmutabilityMiddleware } from './ownershipImmutabilityMiddleware';
 import { JIEYU_OWNERSHIP_IMMUTABLE_FIELDS } from './ownershipImmutabilityRules';
 import { JIEYU_BASELINE_STORES } from './baselineStores';
-import { applyJieyuSchemaVersions, JIEYU_SCHEMA_VERSIONS } from './migration/schemaVersions';
+import {
+  applyJieyuSchemaVersions,
+  JIEYU_DEXIE_TARGET_SCHEMA_VERSION as SCHEMA_TARGET,
+  JIEYU_SCHEMA_VERSIONS,
+} from './migration/schemaVersions';
+import { JIEYU_DATA_FROZEN } from '../config/dataFreeze';
+import { resolveMigrationPolicy } from './migration/migrationPolicy';
+import { JieyuMigrationGateError, openThroughMigrationGate } from './migration/migrationGate';
+import { publishMigrationGateStatus } from './migration/migrationGateStatus';
+import {
+  createUpgradeGuardedFactory,
+  defaultChannelFactory,
+  installStaleConnectionHandlers,
+  UpgradeGuard,
+} from './migration/upgradeCoordinator';
 
 /**
  * IndexedDB 物理库名（D10）。旧库 `jieyudb_v2` 不再打开，由启动时的旧数据提示负责删除。
@@ -194,8 +208,8 @@ export class JieyuDexie extends Dexie {
   annotation_documents!: Table<AnnotationDocumentDocType, string>;
   ai_source_sets!: Table<AiSourceSetDoc, string>;
 
-  constructor(name: string) {
-    super(name);
+  constructor(name: string, options?: DexieOptions) {
+    super(name, options);
     // 4a：版本声明集中在 schemaVersions 账本（分级、冻结检查都从那里读）。
     // 4a: version declarations live in the schemaVersions ledger (tiering + freeze check read it).
     applyJieyuSchemaVersions(this, JIEYU_SCHEMA_VERSIONS);
@@ -268,13 +282,72 @@ export const JIEYU_TABLE_VALIDATORS: JieyuTableValidators<keyof typeof JIEYU_BAS
 type GlobalWithJieyuDb = typeof globalThis & {
   __jieyuDbPromise__?: Promise<JieyuDatabase>;
   __jieyuDexie__?: JieyuDexie;
+  __jieyuUpgradeGuard__?: UpgradeGuard;
 };
 
 const globalWithDb = globalThis as GlobalWithJieyuDb;
 
+/** 原生 IDBFactory（与 Dexie 默认依赖一致）| Native IDBFactory (same as Dexie's default dependency) */
+function nativeIndexedDb(): IDBFactory {
+  const factory = Dexie.dependencies.indexedDB as IDBFactory | undefined;
+  if (factory === undefined) throw new Dexie.MissingAPIError('IndexedDB API missing');
+  return factory;
+}
+
+/** 4a：主库升级守卫，只有迁移闸门放行的升级才能执行 | 4a: only gate-armed upgrades may run */
+function getUpgradeGuard(): UpgradeGuard {
+  if (!globalWithDb.__jieyuUpgradeGuard__) {
+    globalWithDb.__jieyuUpgradeGuard__ = new UpgradeGuard({
+      dbName: JIEYU_DEXIE_DB_NAME,
+      codeTargetVersion: SCHEMA_TARGET,
+      frozen: JIEYU_DATA_FROZEN,
+    });
+  }
+  return globalWithDb.__jieyuUpgradeGuard__;
+}
+
+function dataNewerThanAppError(installedVersion: number): JieyuMigrationGateError {
+  return new JieyuMigrationGateError({
+    reason: 'data-newer-than-app',
+    dbName: JIEYU_DEXIE_DB_NAME,
+    installedVersion,
+    targetVersion: SCHEMA_TARGET,
+    message: `Local data is at schema v${installedVersion}, newer than this app (v${SCHEMA_TARGET}). Update the app; the database was not opened.`,
+    offerRawExport: resolveMigrationPolicy().rawRecoveryExport,
+  });
+}
+
+function installMainDbSafetyHandlers(dexie: JieyuDexie): void {
+  // 绕过闸门的自动打开也不能使用比代码新的数据 | auto-open must not use data newer than the code
+  dexie.on(
+    'ready',
+    () => {
+      const native = dexie.backendDB()?.version ?? 0;
+      const installed = Math.floor(native / 10);
+      if (installed > SCHEMA_TARGET) {
+        const error = dataNewerThanAppError(installed);
+        publishMigrationGateStatus({ kind: 'gate-failed', detail: error.detail });
+        throw error;
+      }
+    },
+    true,
+  );
+  if (resolveMigrationPolicy().versionChangeHandler) {
+    installStaleConnectionHandlers(dexie, {
+      onStale: (reason) => publishMigrationGateStatus({ kind: 'stale', reason }),
+      channelFactory: (name) =>
+        typeof window === 'undefined' ? null : defaultChannelFactory(name),
+    });
+  }
+}
+
 function getOrCreateDexie(): JieyuDexie {
   if (!globalWithDb.__jieyuDexie__) {
-    globalWithDb.__jieyuDexie__ = new JieyuDexie(JIEYU_DEXIE_DB_NAME);
+    const dexie = new JieyuDexie(JIEYU_DEXIE_DB_NAME, {
+      indexedDB: createUpgradeGuardedFactory(nativeIndexedDb, getUpgradeGuard()),
+    });
+    installMainDbSafetyHandlers(dexie);
+    globalWithDb.__jieyuDexie__ = dexie;
   }
   return globalWithDb.__jieyuDexie__;
 }
@@ -333,8 +406,24 @@ function dispatchDatabaseOpenFailureEvent(reason: JieyuDatabaseOpenError): void 
 async function _createDb(): Promise<JieyuDatabase> {
   const dexie = getOrCreateDexie();
   try {
-    await dexie.open();
+    // 4a：经过迁移闸门打开（版本检测、分级、快照、多标签页协调）| open through the 4a migration gate
+    const outcome = await openThroughMigrationGate({
+      dexie,
+      dbName: JIEYU_DEXIE_DB_NAME,
+      versions: JIEYU_SCHEMA_VERSIONS,
+      guard: getUpgradeGuard(),
+      factory: nativeIndexedDb(),
+      policy: resolveMigrationPolicy(),
+    });
+    if (outcome.warning !== undefined) {
+      publishMigrationGateStatus({ kind: 'warning', warning: outcome.warning });
+    }
   } catch (err) {
+    if (err instanceof JieyuMigrationGateError) {
+      publishMigrationGateStatus({ kind: 'gate-failed', detail: err.detail });
+      delete globalWithDb.__jieyuDbPromise__;
+      throw err;
+    }
     let recoveryHint: JieyuDatabaseOpenError['recoveryHint'] = 'unknown';
     let message = 'Unable to open the local database; stored data may be corrupted.';
     if (err instanceof DOMException) {
