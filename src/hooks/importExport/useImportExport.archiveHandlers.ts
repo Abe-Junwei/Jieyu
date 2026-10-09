@@ -10,7 +10,10 @@ import { toErrorMessage } from '../../utils/saveStateError';
 import { reportActionError } from '../../utils/actionErrorReporter';
 import { createLogger } from '../../observability/logger';
 import type { SaveState } from '../useTranscriptionData';
-import { resolveCurrentProjectTextId } from '../../utils/transcriptionUrlDeepLink';
+import {
+  publishActiveProjectTextId,
+  resolveCurrentProjectTextId,
+} from '../../utils/transcriptionUrlDeepLink';
 
 const log = createLogger('useImportExport');
 
@@ -92,8 +95,19 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         }),
         { written: 0, skipped: 0 },
       );
-      // 归档导入后仍停留在当前项目（JY-02）| Stay on the current project after an archive import (JY-02)
-      await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
+      // 归档导入后仍停留在当前项目（JY-02）；没有当前项目且包里只有一个项目时切到它（RD-3），
+      // 否则首次使用时工作区会停在空白页。多个项目时不猜，由用户在项目中心选择。
+      // Stay on the current project after an archive import (JY-02). With no current project and
+      // exactly one project in the archive, switch to it (RD-3) instead of leaving a blank workspace.
+      // With several projects we do not guess; the user picks one in the project hub.
+      let targetTextId = resolveCurrentProjectTextId(resolvedTextId);
+      const importedTextIds = imported.importedTextIds ?? [];
+      if (targetTextId.length === 0 && importedTextIds.length === 1) {
+        targetTextId = importedTextIds[0]!;
+        resolvedTextId = targetTextId;
+        publishActiveProjectTextId(targetTextId);
+      }
+      await loadSnapshot(targetTextId);
       setSaveState({
         kind: 'done',
         message: tf(locale, 'transcription.importExport.importDone.archive', {

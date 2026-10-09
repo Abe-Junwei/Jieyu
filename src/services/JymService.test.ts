@@ -167,6 +167,17 @@ describe('JymService import hard guards', () => {
     });
   });
 
+  it('RD-3: reports the project ids carried in the archive texts collection', async () => {
+    const snapshot = {
+      schemaVersion: 4,
+      exportedAt: '2026-04-01T00:00:00.000Z',
+      dbName: 'jieyu-test',
+      collections: { texts: [{ id: 'text-a' }, { id: ' text-b ' }, { id: 'text-a' }, { id: 3 }] },
+    };
+    const result = await importFromJieyuArchive(createValidArchive(snapshot));
+    expect(result.importedTextIds).toEqual(['text-a', 'text-b']);
+  });
+
   it('exports a standard archive that importFromJieyuArchive can ingest', async () => {
     const archive = await exportToJieyuArchive('jym');
 

@@ -145,6 +145,19 @@ export interface JieyuArchiveImportResult {
   kind: ArchiveKind;
   importResult: ImportResult;
   manifest: JieyuArchiveManifest;
+  /** 包内 texts 集合的项目 id（RD-3：无当前项目时据此切换）| Project ids in the archive's texts (RD-3) */
+  importedTextIds: string[];
+}
+
+function textIdsInSnapshot(snapshot: unknown): string[] {
+  const collections = (snapshot as { collections?: Record<string, unknown> } | null)?.collections;
+  const texts = collections?.['texts'];
+  if (!Array.isArray(texts)) return [];
+  const ids = texts
+    .map((row) => (row as { id?: unknown } | null)?.id)
+    .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    .map((id) => id.trim());
+  return [...new Set(ids)];
 }
 
 export interface JieyuArchiveImportPreviewCollection {
@@ -639,7 +652,7 @@ export async function importFromJieyuArchive(
     ...(options?.strategy ? { strategy: options.strategy } : {}),
   });
 
-  return { kind, importResult, manifest };
+  return { kind, importResult, manifest, importedTextIds: textIdsInSnapshot(snapshot) };
 }
 
 export async function previewJieyuArchiveImport(
