@@ -12,19 +12,12 @@ test.describe('VAD worker 冒烟 | VAD worker smoke', () => {
   test('Silero VAD worker 以 JS 加载并产出 silero 结果 | Silero VAD worker loads as JS and produces silero results', async ({
     page,
   }) => {
-    const rawTsAssets: string[] = [];
-    const vadWorkerResponses: Array<{ url: string; status: number; contentType: string }> = [];
+    const vadWorkerUrls: string[] = [];
     const workerErrors: string[] = [];
-    page.on('response', (response) => {
-      const { pathname } = new URL(response.url());
-      if (pathname.startsWith('/assets/') && pathname.endsWith('.ts')) rawTsAssets.push(pathname);
-      if (/\/vadWorker[^/]*$/.test(pathname)) {
-        vadWorkerResponses.push({
-          url: pathname,
-          status: response.status(),
-          contentType: response.headers()['content-type'] ?? '',
-        });
-      }
+    // 与地图冒烟相同：用 worker 事件拿 URL 再主动请求 | Same as the map smoke: worker event URL, then fetch it
+    page.on('worker', (worker) => {
+      if (/\/vadWorker[^/]*$/.test(new URL(worker.url()).pathname))
+        vadWorkerUrls.push(worker.url());
     });
     page.on('console', (message) => {
       if (/VAD Worker onerror|VAD runtime init failed/.test(message.text()))
@@ -53,12 +46,10 @@ test.describe('VAD worker 冒烟 | VAD worker smoke', () => {
     await expect.poll(readEngines, { timeout: 60_000 }).not.toEqual([]);
 
     expect(await readEngines()).toEqual(['silero']);
-    expect(vadWorkerResponses.length).toBeGreaterThan(0);
-    for (const response of vadWorkerResponses) {
-      expect(response.status).toBe(200);
-      expect(response.contentType).toMatch(/javascript/);
-    }
-    expect(rawTsAssets).toEqual([]);
+    expect(vadWorkerUrls.length).toBeGreaterThan(0);
+    const workerScript = await page.request.get(vadWorkerUrls[0]!);
+    expect(workerScript.status()).toBe(200);
+    expect(workerScript.headers()['content-type'] ?? '').toMatch(/javascript/);
     expect(workerErrors).toEqual([]);
   });
 });

@@ -15,8 +15,10 @@ const TILE_PNG = Buffer.from(
 );
 
 test.describe('语言地图冒烟 | Language map smoke', () => {
-  test('maplibre worker 加载且地图触发 load | maplibre worker loads and the map fires load', async ({ page }) => {
-    const workerResponses: Array<{ url: string; status: number; contentType: string }> = [];
+  test('maplibre worker 加载且地图触发 load | maplibre worker loads and the map fires load', async ({
+    page,
+  }) => {
+    const workerUrls: string[] = [];
     const errors: string[] = [];
     const cspViolations: string[] = [];
     let tilesServed = 0;
@@ -24,14 +26,10 @@ test.describe('语言地图冒烟 | Language map smoke', () => {
       tilesServed += 1;
       return route.fulfill({ status: 200, contentType: 'image/png', body: TILE_PNG });
     });
-    page.on('response', (response) => {
-      if (/maplibre-gl-worker[^/]*\.mjs/.test(response.url())) {
-        workerResponses.push({
-          url: response.url(),
-          status: response.status(),
-          contentType: response.headers()['content-type'] ?? '',
-        });
-      }
+    // 用 worker 事件拿 URL 再主动请求：response 事件偶发收不到 worker 脚本（BF2-4）
+    // Take the URL from the worker event and fetch it: the response event occasionally misses the worker script (BF2-4)
+    page.on('worker', (worker) => {
+      if (/maplibre-gl-worker[^/]*\.mjs/.test(worker.url())) workerUrls.push(worker.url());
     });
     page.on('console', (message) => {
       if (message.type() === 'error' && /worker/i.test(message.text())) errors.push(message.text());
@@ -43,16 +41,23 @@ test.describe('语言地图冒烟 | Language map smoke', () => {
 
     // 语言元数据页需要当前项目：导入一段音频即可建项目 | The metadata page needs a project: importing audio creates one
     await page.goto('/transcription');
-    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({
+      timeout: 25_000,
+    });
     await waitForDexie(page);
     await importMediaViaDialog(page, buildMinimalWavFile());
 
     await page.goto('/assets/language-metadata?languageId=cmn');
     const selectProject = page.getByRole('button', { name: /Select project|选择项目/ });
     await expect
-      .poll(async () => (await selectProject.count()) > 0 || (await page.locator('input[placeholder="-90 ~ 90"]').count()) > 0, {
-        timeout: 25_000,
-      })
+      .poll(
+        async () =>
+          (await selectProject.count()) > 0 ||
+          (await page.locator('input[placeholder="-90 ~ 90"]').count()) > 0,
+        {
+          timeout: 25_000,
+        },
+      )
       .toBe(true);
     if (await selectProject.count()) await selectProject.first().click();
 
@@ -62,13 +67,14 @@ test.describe('语言地图冒烟 | Language map smoke', () => {
     await page.locator('input[placeholder="-180 ~ 180"]').first().fill('116.4074');
 
     await expect(page.locator('canvas.maplibregl-canvas').first()).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('[data-map-loaded="true"]').first()).toBeAttached({ timeout: 30_000 });
+    await expect(page.locator('[data-map-loaded="true"]').first()).toBeAttached({
+      timeout: 30_000,
+    });
 
-    expect(workerResponses.length).toBeGreaterThan(0);
-    for (const response of workerResponses) {
-      expect(response.status).toBe(200);
-      expect(response.contentType).toMatch(/javascript/);
-    }
+    expect(workerUrls.length).toBeGreaterThan(0);
+    const workerScript = await page.request.get(workerUrls[0]!);
+    expect(workerScript.status()).toBe(200);
+    expect(workerScript.headers()['content-type'] ?? '').toMatch(/javascript/);
     expect(errors).toEqual([]);
     await expect.poll(() => tilesServed, { timeout: 15_000 }).toBeGreaterThan(0);
     expect(cspViolations).toEqual([]);
