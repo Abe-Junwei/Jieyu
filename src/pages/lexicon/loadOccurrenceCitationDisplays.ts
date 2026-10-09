@@ -28,8 +28,15 @@ export async function loadOccurrenceCitationDisplays(
     Awaited<ReturnType<typeof LinguisticService.layers.listByTextId>>
   >();
   for (const textId of textIds) {
-    unitsByText.set(textId, await LinguisticService.units.listByTextId(textId));
-    layersByText.set(textId, await LinguisticService.layers.listByTextId(textId));
+    // 引用可能来自任一文稿 | Citations may come from any document
+    unitsByText.set(
+      textId,
+      await LinguisticService.units.listByTextId(textId, { allDocuments: true }),
+    );
+    layersByText.set(
+      textId,
+      await LinguisticService.layers.listByTextId(textId, { allDocuments: true }),
+    );
   }
   const displays: OccurrenceCitationDisplay[] = [];
   for (const citation of citations) {

@@ -21,6 +21,7 @@ import {
   type TranslationStatusSnapshotDocType,
 } from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
+import { readOtherDocumentLayerIds } from './annotationDocumentService';
 
 const LOW_AI_CONFIDENCE_THRESHOLD = 0.6;
 
@@ -77,10 +78,18 @@ function average(values: number[]): number | null {
 }
 
 function uniqueNonEmpty(values: Array<string | undefined>): string[] {
-  return [...new Set(values.map((value) => normalizeTextValue(value)).filter((value) => value.length > 0))];
+  return [
+    ...new Set(
+      values.map((value) => normalizeTextValue(value)).filter((value) => value.length > 0),
+    ),
+  ];
 }
 
-function buildScopeDocId(scopeType: ScopeStatsSnapshotScopeType, scopeKey: string, textId?: string): string {
+function buildScopeDocId(
+  scopeType: ScopeStatsSnapshotScopeType,
+  scopeKey: string,
+  textId?: string,
+): string {
   if (scopeType === 'project') return `project::${textId ?? scopeKey}`;
   if (scopeType === 'speaker' && textId) return `speaker::${scopeKey}::${textId}`;
   return `${scopeType}::${scopeKey}`;
@@ -103,7 +112,9 @@ function resolveSeverity(issueCount: number): SegmentQualitySeverity {
   return 'ok';
 }
 
-function buildSegmentQualityDocs(rows: readonly SegmentMetaDocType[]): SegmentQualitySnapshotDocType[] {
+function buildSegmentQualityDocs(
+  rows: readonly SegmentMetaDocType[],
+): SegmentQualitySnapshotDocType[] {
   return rows.map((row) => {
     const issueKeys = detectIssueKeys(row);
     return {
@@ -117,7 +128,8 @@ function buildSegmentQualityDocs(rows: readonly SegmentMetaDocType[]): SegmentQu
       ...(row.effectiveSpeakerName ? { speakerName: row.effectiveSpeakerName } : {}),
       emptyText: !row.hasText,
       missingSpeaker: !normalizeTextValue(row.effectiveSpeakerId),
-      lowAiConfidence: typeof row.aiConfidence === 'number' && row.aiConfidence < LOW_AI_CONFIDENCE_THRESHOLD,
+      lowAiConfidence:
+        typeof row.aiConfidence === 'number' && row.aiConfidence < LOW_AI_CONFIDENCE_THRESHOLD,
       hasTodoNote: row.noteCategoryKeys?.includes('todo') ?? false,
       issueKeys,
       issueCount: issueKeys.length,
@@ -141,8 +153,9 @@ function buildScopeStatsDocs(
     extra: Partial<Pick<ScopeStatsSnapshotDocType, 'mediaId' | 'layerId' | 'speakerId'>> = {},
   ): ScopeStatsSnapshotDocType => {
     const speakerIds = uniqueNonEmpty(scopedRows.map((row) => row.effectiveSpeakerId));
-    const aiConfidenceValues = scopedRows
-      .flatMap((row) => (typeof row.aiConfidence === 'number' ? [row.aiConfidence] : []));
+    const aiConfidenceValues = scopedRows.flatMap((row) =>
+      typeof row.aiConfidence === 'number' ? [row.aiConfidence] : [],
+    );
     return {
       id: buildScopeDocId(scopeType, scopeKey, textId),
       scopeType,
@@ -157,8 +170,11 @@ function buildScopeStatsDocs(
       translationLayerCount,
       noteFlaggedCount: scopedRows.filter((row) => (row.noteCategoryKeys?.length ?? 0) > 0).length,
       untranscribedCount: scopedRows.filter((row) => !row.hasText).length,
-      missingSpeakerCount: scopedRows.filter((row) => !normalizeTextValue(row.effectiveSpeakerId)).length,
-      ...(average(aiConfidenceValues) !== null ? { avgAiConfidence: average(aiConfidenceValues) } : { avgAiConfidence: null }),
+      missingSpeakerCount: scopedRows.filter((row) => !normalizeTextValue(row.effectiveSpeakerId))
+        .length,
+      ...(average(aiConfidenceValues) !== null
+        ? { avgAiConfidence: average(aiConfidenceValues) }
+        : { avgAiConfidence: null }),
       createdAt: nowIso(),
       updatedAt: resolveLatestIso(...scopedRows.map((row) => row.updatedAt)),
     };
@@ -208,7 +224,10 @@ function buildScopeStatsDocs(
   return docs;
 }
 
-function buildSpeakerProfileDocs(rows: readonly SegmentMetaDocType[], textId: string): SpeakerProfileSnapshotDocType[] {
+function buildSpeakerProfileDocs(
+  rows: readonly SegmentMetaDocType[],
+  textId: string,
+): SpeakerProfileSnapshotDocType[] {
   const bySpeaker = new Map<string, SegmentMetaDocType[]>();
   for (const row of rows) {
     const speakerId = normalizeTextValue(row.effectiveSpeakerId);
@@ -227,7 +246,10 @@ function buildSpeakerProfileDocs(rows: readonly SegmentMetaDocType[], textId: st
       ...(speakerName ? { speakerName } : {}),
       unitCount: scopedRows.length,
       segmentCount: scopedRows.filter((row) => row.unitKind === 'segment').length,
-      totalDurationSec: roundTo(scopedRows.reduce((sum, row) => sum + Math.max(0, row.endTime - row.startTime), 0), 3),
+      totalDurationSec: roundTo(
+        scopedRows.reduce((sum, row) => sum + Math.max(0, row.endTime - row.startTime), 0),
+        3,
+      ),
       noteFlaggedCount: scopedRows.filter((row) => (row.noteCategoryKeys?.length ?? 0) > 0).length,
       emptyTextCount: scopedRows.filter((row) => !row.hasText).length,
       createdAt: nowIso(),
@@ -259,9 +281,10 @@ function buildTranslationStatusDocs(
     .filter((row) => Boolean(row.layerId && translationLayerIds.has(row.layerId)))
     .map((row) => {
       const candidateContents = contentsByUnitId.get(row.id) ?? [];
-      const content = candidateContents.find((item) => item.contentRole === 'translation')
-        ?? candidateContents.find((item) => item.contentRole === 'primary_text')
-        ?? candidateContents[0];
+      const content =
+        candidateContents.find((item) => item.contentRole === 'translation') ??
+        candidateContents.find((item) => item.contentRole === 'primary_text') ??
+        candidateContents[0];
       const text = normalizeTextValue(content?.text);
       const hasText = text.length > 0;
       let status: TranslationSnapshotStatus = 'draft';
@@ -302,32 +325,49 @@ export class WorkspaceReadModelService {
     }
 
     const db = await getDb();
-    const [unitRows, contentRows] = await withTransaction(
+    // 第 5 批：统计只算当前文稿 | Batch 5: statistics cover the current document only
+    const otherDocumentLayerIds = await readOtherDocumentLayerIds(db, normalizedTextId);
+    const inCurrentDocument = (row: { layerId?: string | undefined }) =>
+      row.layerId === undefined || !otherDocumentLayerIds.has(row.layerId);
+    const [projectUnitRows, projectContentRows] = await withTransaction(
       db,
       'r',
       [...dexieStoresForLayerUnitsAndContentsRw(db)],
-      async () => Promise.all([
-        db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray(),
-        db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).toArray(),
-      ]),
+      async () =>
+        Promise.all([
+          db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray(),
+          db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).toArray(),
+        ]),
       { label: 'WorkspaceReadModelService.rebuildForText.sourceRead' },
     );
+    const unitRows = projectUnitRows.filter(inCurrentDocument);
+    const contentRows = projectContentRows.filter(inCurrentDocument);
     const layerDocsWrapped = await db.collections.layers.find().exec();
 
     const layers = layerDocsWrapped
       .map((doc) => doc.toJSON())
-      .filter((row) => row.textId === normalizedTextId);
+      .filter((row) => row.textId === normalizedTextId && !otherDocumentLayerIds.has(row.id));
 
-    const scopes = [...new Map(
-      unitRows
-        .filter((row) => row.layerId && row.mediaId)
-        .map((row) => [`${row.layerId}::${row.mediaId}`, { layerId: row.layerId!, mediaId: row.mediaId! }] as const),
-    ).values()];
+    const scopes = [
+      ...new Map(
+        unitRows
+          .filter((row) => row.layerId && row.mediaId)
+          .map(
+            (row) =>
+              [
+                `${row.layerId}::${row.mediaId}`,
+                { layerId: row.layerId!, mediaId: row.mediaId! },
+              ] as const,
+          ),
+      ).values(),
+    ];
     if (scopes.length > 0) {
       await SegmentMetaService.rebuildScopes(scopes);
     }
 
-    const segmentMetaRows = await db.dexie.segment_meta.where('textId').equals(normalizedTextId).toArray();
+    const segmentMetaRows = (
+      await db.dexie.segment_meta.where('textId').equals(normalizedTextId).toArray()
+    ).filter(inCurrentDocument);
     const qualityDocs = buildSegmentQualityDocs(segmentMetaRows);
     const scopeStatsDocs = buildScopeStatsDocs(segmentMetaRows, layers, normalizedTextId);
     const speakerProfileDocs = buildSpeakerProfileDocs(segmentMetaRows, normalizedTextId);
@@ -347,8 +387,10 @@ export class WorkspaceReadModelService {
 
         if (qualityDocs.length > 0) await db.dexie.segment_quality_snapshots.bulkPut(qualityDocs);
         if (scopeStatsDocs.length > 0) await db.dexie.scope_stats_snapshots.bulkPut(scopeStatsDocs);
-        if (speakerProfileDocs.length > 0) await db.dexie.speaker_profile_snapshots.bulkPut(speakerProfileDocs);
-        if (translationStatusDocs.length > 0) await db.dexie.translation_status_snapshots.bulkPut(translationStatusDocs);
+        if (speakerProfileDocs.length > 0)
+          await db.dexie.speaker_profile_snapshots.bulkPut(speakerProfileDocs);
+        if (translationStatusDocs.length > 0)
+          await db.dexie.translation_status_snapshots.bulkPut(translationStatusDocs);
       },
       { label: 'WorkspaceReadModelService.rebuildForText.write' },
     );
@@ -391,7 +433,10 @@ export class WorkspaceReadModelService {
     for (const bridge of bridges) {
       const relatedLanguageIds = new Set<string>();
       for (const [languageId, orthographyIds] of orthographyIdsByLanguageId.entries()) {
-        if (orthographyIds.has(bridge.sourceOrthographyId) || orthographyIds.has(bridge.targetOrthographyId)) {
+        if (
+          orthographyIds.has(bridge.sourceOrthographyId) ||
+          orthographyIds.has(bridge.targetOrthographyId)
+        ) {
           relatedLanguageIds.add(languageId);
         }
       }
@@ -407,23 +452,29 @@ export class WorkspaceReadModelService {
       const languageAliases = aliases.filter((row) => row.languageId === language.id);
       const languageOrthographies = orthographies.filter((row) => row.languageId === language.id);
       const languageOrthographyIds = new Set(languageOrthographies.map((row) => row.id));
-      const languageBridges = bridges.filter((row) => (
-        languageOrthographyIds.has(row.sourceOrthographyId)
-        || languageOrthographyIds.has(row.targetOrthographyId)
-      ));
+      const languageBridges = bridges.filter(
+        (row) =>
+          languageOrthographyIds.has(row.sourceOrthographyId) ||
+          languageOrthographyIds.has(row.targetOrthographyId),
+      );
       const aliasCount = languageAliases.length;
       const orthographyCount = orthographyIdsByLanguageId.get(language.id)?.size ?? 0;
       const bridgeCount = bridgeIdsByLanguageId.get(language.id)?.size ?? 0;
-      const displayName = normalizeTextValue(displayNameByLanguageId.get(language.id))
-        || normalizeTextValue(language.autonym)
-        || Object.values(language.name).map((value) => normalizeTextValue(value)).find((value) => value.length > 0)
-        || language.id;
+      const displayName =
+        normalizeTextValue(displayNameByLanguageId.get(language.id)) ||
+        normalizeTextValue(language.autonym) ||
+        Object.values(language.name)
+          .map((value) => normalizeTextValue(value))
+          .find((value) => value.length > 0) ||
+        language.id;
       const completenessParts = [
-        normalizeTextValue(language.languageCode || language.canonicalTag || language.iso6393).length > 0,
+        normalizeTextValue(language.languageCode || language.canonicalTag || language.iso6393)
+          .length > 0,
         displayName.length > 0,
         orthographyCount > 0,
         bridgeCount > 0,
-        Boolean(language.customFields && Object.keys(language.customFields).length > 0) || aliasCount > 0,
+        Boolean(language.customFields && Object.keys(language.customFields).length > 0) ||
+          aliasCount > 0,
       ];
       return {
         id: language.id,
@@ -432,8 +483,13 @@ export class WorkspaceReadModelService {
         aliasCount,
         orthographyCount,
         bridgeCount,
-        hasCustomFields: Boolean(language.customFields && Object.keys(language.customFields).length > 0),
-        completenessScore: roundTo(completenessParts.filter(Boolean).length / completenessParts.length, 2),
+        hasCustomFields: Boolean(
+          language.customFields && Object.keys(language.customFields).length > 0,
+        ),
+        completenessScore: roundTo(
+          completenessParts.filter(Boolean).length / completenessParts.length,
+          2,
+        ),
         createdAt: language.createdAt,
         updatedAt: resolveLatestIso(
           language.updatedAt,
@@ -445,12 +501,18 @@ export class WorkspaceReadModelService {
       };
     });
 
-    await withTransaction(db, 'rw', [...dexieStoresForLanguageAssetOverviewRw(db)], async () => {
-      await db.dexie.language_asset_overviews.clear();
-      if (docs.length > 0) {
-        await db.dexie.language_asset_overviews.bulkPut(docs);
-      }
-    }, { label: 'WorkspaceReadModelService.rebuildLanguageAssetOverview' });
+    await withTransaction(
+      db,
+      'rw',
+      [...dexieStoresForLanguageAssetOverviewRw(db)],
+      async () => {
+        await db.dexie.language_asset_overviews.clear();
+        if (docs.length > 0) {
+          await db.dexie.language_asset_overviews.bulkPut(docs);
+        }
+      },
+      { label: 'WorkspaceReadModelService.rebuildLanguageAssetOverview' },
+    );
 
     return docs;
   }
@@ -479,17 +541,27 @@ export class WorkspaceReadModelService {
       updatedAt: task.updatedAt,
     }));
 
-    await withTransaction(db, 'rw', [...dexieStoresForAiTaskSnapshotsRw(db)], async () => {
-      await db.dexie.ai_task_snapshots.clear();
-      if (docs.length > 0) {
-        await db.dexie.ai_task_snapshots.bulkPut(docs);
-      }
-    }, { label: 'WorkspaceReadModelService.rebuildAiTaskSnapshots' });
+    await withTransaction(
+      db,
+      'rw',
+      [...dexieStoresForAiTaskSnapshotsRw(db)],
+      async () => {
+        await db.dexie.ai_task_snapshots.clear();
+        if (docs.length > 0) {
+          await db.dexie.ai_task_snapshots.bulkPut(docs);
+        }
+      },
+      { label: 'WorkspaceReadModelService.rebuildAiTaskSnapshots' },
+    );
 
     return docs;
   }
 
-  static async getScopeStats(scopeType: ScopeStatsSnapshotScopeType, scopeKey: string, textId?: string): Promise<ScopeStatsSnapshotDocType | null> {
+  static async getScopeStats(
+    scopeType: ScopeStatsSnapshotScopeType,
+    scopeKey: string,
+    textId?: string,
+  ): Promise<ScopeStatsSnapshotDocType | null> {
     const db = await getDb();
     const rows = await db.dexie.scope_stats_snapshots
       .where('[scopeType+scopeKey]')
@@ -511,11 +583,20 @@ export class WorkspaceReadModelService {
     const db = await getDb();
     let rows: SegmentQualitySnapshotDocType[];
     if (filters.layerId && filters.mediaId) {
-      rows = await db.dexie.segment_quality_snapshots.where('[layerId+mediaId]').equals([filters.layerId, filters.mediaId]).toArray();
+      rows = await db.dexie.segment_quality_snapshots
+        .where('[layerId+mediaId]')
+        .equals([filters.layerId, filters.mediaId])
+        .toArray();
     } else if (filters.textId) {
-      rows = await db.dexie.segment_quality_snapshots.where('textId').equals(filters.textId).toArray();
+      rows = await db.dexie.segment_quality_snapshots
+        .where('textId')
+        .equals(filters.textId)
+        .toArray();
     } else if (filters.layerId) {
-      rows = await db.dexie.segment_quality_snapshots.where('layerId').equals(filters.layerId).toArray();
+      rows = await db.dexie.segment_quality_snapshots
+        .where('layerId')
+        .equals(filters.layerId)
+        .toArray();
     } else {
       rows = await db.dexie.segment_quality_snapshots.toArray();
     }
@@ -545,9 +626,10 @@ export class WorkspaceReadModelService {
     ].filter((item) => item.count > 0);
 
     const totalUnitsInScope = rows.length;
-    const completionRate = totalUnitsInScope > 0
-      ? Math.max(0, Math.min(1, (totalUnitsInScope - emptyTextCount) / totalUnitsInScope))
-      : 1;
+    const completionRate =
+      totalUnitsInScope > 0
+        ? Math.max(0, Math.min(1, (totalUnitsInScope - emptyTextCount) / totalUnitsInScope))
+        : 1;
 
     return {
       count: items.length,

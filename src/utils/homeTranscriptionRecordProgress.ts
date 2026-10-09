@@ -225,8 +225,8 @@ export async function loadHomeProjectProgressBundle(
   await WorkspaceReadModelService.rebuildForText(text.id);
   const db = await getDb();
   const defaultTranscriptionLayerId = await resolveDefaultTranscriptionLayerId(db, text.id);
-  const layerDocs = await db.collections.layers.find().exec();
-  const layers = layerDocs.map((doc) => doc.toJSON()).filter((layer) => layer.textId === text.id);
+  // 第 5 批：只看当前文稿的层 | Batch 5: only the current document's layers
+  const layers = await LinguisticService.layers.listByTextId(text.id);
   const hasTranslationLayers = layers.some((layer) => layer.layerType === 'translation');
 
   const rawMedia = await LinguisticService.media.listByTextId(text.id);

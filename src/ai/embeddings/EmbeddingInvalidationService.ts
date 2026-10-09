@@ -1,5 +1,6 @@
 import type { JieyuDatabase, LayerDocType, LayerUnitDocType } from '../../db';
 import { getUnitDocProjectionById } from '../../services/LayerSegmentGraphService';
+import { readOtherDocumentLayerIds } from '../../services/annotationDocumentService';
 
 function normalizeEmbeddedDefaultText(text: string | null | undefined): string {
   return (text ?? '').trim();
@@ -18,24 +19,28 @@ export function hasEmbeddedDefaultTextChanged(
   previous: Pick<LayerUnitDocType, 'transcription'> | null | undefined,
   next: Pick<LayerUnitDocType, 'transcription'>,
 ): boolean {
-  return normalizeEmbeddedDefaultText(previous?.transcription?.default)
-    !== normalizeEmbeddedDefaultText(next.transcription?.default);
+  return (
+    normalizeEmbeddedDefaultText(previous?.transcription?.default) !==
+    normalizeEmbeddedDefaultText(next.transcription?.default)
+  );
 }
 
 export async function invalidateUnitEmbeddings(
   db: JieyuDatabase,
   unitIds: Iterable<string>,
 ): Promise<string[]> {
-  const normalizedIds = [...new Set(Array.from(unitIds)
-    .map((id) => id.trim())
-    .filter((id) => id.length > 0))];
+  const normalizedIds = [
+    ...new Set(
+      Array.from(unitIds)
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0),
+    ),
+  ];
 
   if (normalizedIds.length === 0) return [];
 
   const rows = await db.dexie.embeddings.where('sourceId').anyOf(normalizedIds).toArray();
-  const embeddingIds = rows
-    .filter((row) => row.sourceType === 'unit')
-    .map((row) => row.id);
+  const embeddingIds = rows.filter((row) => row.sourceType === 'unit').map((row) => row.id);
 
   if (embeddingIds.length > 0) {
     await db.dexie.embeddings.bulkDelete(embeddingIds);
@@ -48,9 +53,14 @@ async function resolveDefaultTranscriptionLayerIdForText(
   db: JieyuDatabase,
   textId: string,
 ): Promise<string | undefined> {
-  const layers = (await db.collections.layers.findByIndex('textId', textId))
+  // 第 5 批：默认转写层在当前文稿里找 | Batch 5: the default transcription layer of the current document
+  const [layerDocs, otherDocumentLayerIds] = await Promise.all([
+    db.collections.layers.findByIndex('textId', textId),
+    readOtherDocumentLayerIds(db, textId),
+  ]);
+  const layers = layerDocs
     .map((doc) => doc.toJSON())
-    .filter((layer) => layer.layerType === 'transcription');
+    .filter((layer) => layer.layerType === 'transcription' && !otherDocumentLayerIds.has(layer.id));
 
   if (layers.length === 0) return undefined;
 

@@ -706,6 +706,26 @@ export function isLayerInCurrentDocument(
 }
 
 /**
+ * 第 5 批：项目里属于其他（非当前）文稿的层 id。工作台之外按当前文稿列层、单元、统计时用它排除。
+ * Batch 5: ids of the project's layers that belong to another (non-current) document. Used outside the
+ * workbench to leave other documents' layers, units and statistics out.
+ */
+export async function readOtherDocumentLayerIds(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<Set<string>> {
+  const owner = textId.trim();
+  if (owner.length === 0) return new Set();
+  const [scope, tiers] = await Promise.all([
+    readAnnotationDocumentScope(db, owner),
+    db.dexie.tier_definitions.where('textId').equals(owner).toArray(),
+  ]);
+  return new Set(
+    tiers.filter((tier) => !isLayerInCurrentDocument(tier, scope)).map((tier) => tier.id),
+  );
+}
+
+/**
  * 第 5 批：把一次导入写进新建的文稿。导入结束（成功、失败或被导入流程自己吞掉的错误）后新文稿若仍是空的，
  * 就删掉并切回原文稿；已经写进内容的新文稿保留，不删导入的数据。返回值 `kept` 表示新文稿是否留下。
  * Batch 5: run an import inside a freshly created document. Afterwards (success, failure, or an error the

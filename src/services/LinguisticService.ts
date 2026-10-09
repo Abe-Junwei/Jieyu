@@ -98,8 +98,8 @@ export const LinguisticService = {
   layers: {
     listDistinctProjectLanguageIds: linguisticServiceLayerOps.listDistinctProjectLanguageIds,
     listTranslation: linguisticServiceLayerOps.getTranslationLayers,
-    listByTextId: (textId: string) =>
-      linguisticServiceLayerOps.getTranslationLayers(undefined, textId),
+    listByTextId: (textId: string, options?: linguisticServiceLayerOps.ProjectLayerListOptions) =>
+      linguisticServiceLayerOps.getTranslationLayers(undefined, textId, options),
     saveTranslation: linguisticServiceLayerOps.saveTranslationLayer,
     upsert: linguisticServiceLayerOps.upsertLayer,
   },

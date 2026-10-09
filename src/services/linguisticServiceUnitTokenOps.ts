@@ -20,6 +20,7 @@ import {
   upsertUnitLayerUnit,
 } from './LayerSegmentGraphService';
 import { enforceTimeSubdivisionParentBounds } from './LayerSegmentationTextService';
+import { readOtherDocumentLayerIds } from './annotationDocumentService';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 import {
   dispatchWorkspaceLexemeUpdated,
@@ -428,7 +429,20 @@ export async function getUnitAtTime(time: number): Promise<LayerUnitDocType | un
 }
 
 /** 单个项目的 unit（走 `textId` 索引，不再整表读出再过滤，JY-15）| One project's units via the index (JY-15) */
-export async function getUnitsByTextId(textId: string): Promise<LayerUnitDocType[]> {
+/**
+ * 项目的单元。第 5 批：默认不含其他文稿层上的单元；`allDocuments` 取全部。
+ * A project's units. Batch 5: units on another document's layers are left out unless `allDocuments`.
+ */
+export async function getUnitsByTextId(
+  textId: string,
+  options?: { allDocuments?: boolean },
+): Promise<LayerUnitDocType[]> {
   const db = await getDb();
-  return listUnitDocsForText(db, textId);
+  if (options?.allDocuments === true) return listUnitDocsForText(db, textId);
+  const otherDocumentLayerIds = await readOtherDocumentLayerIds(db, textId);
+  return listUnitDocsForText(
+    db,
+    textId,
+    otherDocumentLayerIds.size > 0 ? otherDocumentLayerIds : undefined,
+  );
 }

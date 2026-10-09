@@ -1,5 +1,9 @@
 import { getDb, withTransaction, type LayerDocType } from '../db';
 import { syncLayerToTier } from './TierBridgeService';
+import { readOtherDocumentLayerIds } from './annotationDocumentService';
+
+/** 第 5 批：`allDocuments` 才列出项目所有文稿的层 | Batch 5: `allDocuments` lists every document's layers */
+export type ProjectLayerListOptions = { allDocuments?: boolean };
 
 export async function listDistinctProjectLanguageIds(): Promise<string[]> {
   const db = await getDb();
@@ -17,11 +21,18 @@ export async function listDistinctProjectLanguageIds(): Promise<string[]> {
 export async function getTranslationLayers(
   layerType?: LayerDocType['layerType'],
   textId?: string,
+  options?: ProjectLayerListOptions,
 ): Promise<LayerDocType[]> {
   const db = await getDb();
   if (textId) {
-    const docs = await db.collections.layers.findByIndex('textId', textId);
-    const layers = docs.map((doc) => doc.toJSON());
+    // 第 5 批：按项目列层时默认只给当前文稿的层 | Batch 5: per-project lists default to the current document
+    const [docs, otherDocumentLayerIds] = await Promise.all([
+      db.collections.layers.findByIndex('textId', textId),
+      options?.allDocuments === true ? new Set<string>() : readOtherDocumentLayerIds(db, textId),
+    ]);
+    const layers = docs
+      .map((doc) => doc.toJSON())
+      .filter((layer) => !otherDocumentLayerIds.has(layer.id));
     return layerType ? layers.filter((l) => l.layerType === layerType) : layers;
   }
   if (layerType) {
