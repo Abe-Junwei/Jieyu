@@ -1,20 +1,29 @@
 // @vitest-environment jsdom
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticFeatureResult } from '../utils/acousticOverlayTypes';
+import {
+  DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+  type AcousticFeatureResult,
+} from '../utils/acousticOverlayTypes';
 import { useWaveformAcousticOverlay } from './useWaveformAcousticOverlay';
 
 const { mockAnalyzeMedia } = vi.hoisted(() => ({
   mockAnalyzeMedia: vi.fn<(...args: unknown[]) => Promise<AcousticFeatureResult>>(),
 }));
 
-vi.mock('../services/acoustic/AcousticAnalysisService', () => ({
-  AcousticAnalysisService: {
-    getInstance: () => ({
-      analyzeMedia: mockAnalyzeMedia,
-    }),
-  },
-}));
+vi.mock('../services/acoustic/AcousticAnalysisService', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../services/acoustic/AcousticAnalysisService')>();
+  return {
+    ...actual,
+    AcousticAnalysisService: {
+      ...actual.AcousticAnalysisService,
+      getInstance: () => ({
+        analyzeMedia: mockAnalyzeMedia,
+      }),
+    },
+  };
+});
 
 function makeAnalysisResult(): AcousticFeatureResult {
   return {
@@ -48,25 +57,29 @@ describe('useWaveformAcousticOverlay', () => {
     mockAnalyzeMedia.mockReset();
     mockAnalyzeMedia.mockResolvedValue(makeAnalysisResult());
 
-    const { result } = renderHook(() => useWaveformAcousticOverlay({
-      selectedMediaUrl: '/media/demo.wav',
-      mediaId: 'media-1',
-      acousticOverlayMode: 'f0',
-      waveformDisplayMode: 'waveform',
-      containerWidth: 240,
-      waveformScrollLeft: 0,
-      zoomPxPerSec: 100,
-      hoverTime: null,
-      playerDuration: 2,
-      seekTo: vi.fn(),
-    }));
+    const { result } = renderHook(() =>
+      useWaveformAcousticOverlay({
+        selectedMediaUrl: '/media/demo.wav',
+        mediaId: 'media-1',
+        acousticOverlayMode: 'f0',
+        waveformDisplayMode: 'waveform',
+        containerWidth: 240,
+        waveformScrollLeft: 0,
+        zoomPxPerSec: 100,
+        hoverTime: null,
+        playerDuration: 2,
+        seekTo: vi.fn(),
+      }),
+    );
 
     await waitFor(() => {
       expect(result.current.acousticOverlayLoading).toBe(false);
       expect(result.current.acousticOverlayF0Path).toContain('M');
     });
 
-    expect(mockAnalyzeMedia).toHaveBeenCalledWith(expect.objectContaining({ mediaKey: 'media-1', mediaUrl: '/media/demo.wav' }));
+    expect(mockAnalyzeMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ mediaKey: 'media-1', mediaUrl: '/media/demo.wav' }),
+    );
     expect(mockAnalyzeMedia.mock.calls[0]?.[0]).toHaveProperty('signal');
     expect(result.current.acousticOverlayIntensityPath).toBeNull();
     expect(result.current.acousticOverlayVisibleSummary).toEqual({

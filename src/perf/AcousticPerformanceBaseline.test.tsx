@@ -97,11 +97,17 @@ const { mockAnalyzeMedia, mockResolveProviderState, mockAcousticService } = vi.h
 mockAcousticService.analyzeMedia = mockAnalyzeMedia;
 mockAcousticService.resolveProviderState = mockResolveProviderState;
 
-vi.mock('../services/acoustic/AcousticAnalysisService', () => ({
-  AcousticAnalysisService: {
-    getInstance: () => mockAcousticService,
-  },
-}));
+vi.mock('../services/acoustic/AcousticAnalysisService', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../services/acoustic/AcousticAnalysisService')>();
+  return {
+    ...actual,
+    AcousticAnalysisService: {
+      ...actual.AcousticAnalysisService,
+      getInstance: () => mockAcousticService,
+    },
+  };
+});
 
 function makeProviderState() {
   return {
