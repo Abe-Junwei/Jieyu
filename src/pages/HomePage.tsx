@@ -266,9 +266,7 @@ export function HomePage() {
             textId={opened.textId}
             title={opened.titleLabel}
             updatedLabel={formatUpdated(locale, opened.updatedAt)}
-            {...(opened.currentDocumentLabel !== undefined
-              ? { currentDocumentLabel: opened.currentDocumentLabel }
-              : {})}
+            {...(opened.documentCount !== undefined ? { documentCount: opened.documentCount } : {})}
             {...(opened.languageCode !== undefined && opened.languageCode.length > 0
               ? { languageCode: opened.languageCode }
               : {})}

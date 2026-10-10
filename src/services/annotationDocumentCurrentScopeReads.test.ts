@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * 第 5 批：工作台之外的读取（按项目列层 / 单元、项目统计、AI 默认转写层）只看当前文稿；
+ * 第 5 批：工作台之外的读取（按项目列层 / 单元、AI 默认转写层）只看当前文稿；项目统计与首页按全项目；
  * 词库引用用 `allDocuments` 看全部文稿。
  * Batch 5: reads outside the workbench (per-project layer / unit lists, project statistics, the AI
  * default transcription layer) cover the current document only; lexicon citations use `allDocuments`.
@@ -13,6 +13,7 @@ import { LayerTierUnifiedService } from './LayerTierUnifiedService';
 import { LinguisticService } from './LinguisticService';
 import { WorkspaceReadModelService } from './WorkspaceReadModelService';
 import { loadHomeProjectProgressBundle } from '../utils/homeTranscriptionRecordProgress';
+import { resolveDefaultTranscriptionLayerIdsPerDocument } from './LayerSegmentGraphService';
 import {
   createAnnotationDocument,
   ensureDefaultAnnotationDocument,
@@ -101,14 +102,17 @@ describe('Batch 5: reads outside the workbench follow the current document', () 
     expect(ids(await LinguisticService.units.listByTextId(A))).toEqual(['u1']);
   });
 
-  it('project statistics count the current document only', async () => {
+  it('project statistics count the whole project (all documents)', async () => {
     await seedTwoDocuments();
     await WorkspaceReadModelService.rebuildForText(A);
     const stats = await db.scope_stats_snapshots.where('textId').equals(A).toArray();
-    expect(stats.find((row) => row.scopeType === 'project')?.unitCount).toBe(1);
-    expect(stats.filter((row) => row.scopeType === 'layer').map((row) => row.layerId)).toEqual([
-      'L2',
-    ]);
+    expect(stats.find((row) => row.scopeType === 'project')?.unitCount).toBe(2);
+    expect(
+      stats
+        .filter((row) => row.scopeType === 'layer')
+        .map((row) => row.layerId)
+        .sort(),
+    ).toEqual(['L1', 'L2']);
   });
 
   it('AI segment_meta rows keep the current document only; other projects pass through', async () => {
@@ -122,14 +126,17 @@ describe('Batch 5: reads outside the workbench follow the current document', () 
     expect(await keepCurrentDocumentRows([])).toEqual([]);
   });
 
-  it('home statistics name the current document only when the project has several', async () => {
+  it('home statistics cover every document and say so when the project has several', async () => {
     await ensureDefaultAnnotationDocument(A);
+    await LayerTierUnifiedService.createLayer(layer('L1'));
     const text = (await db.texts.get(A))!;
-    expect(
-      (await loadHomeProjectProgressBundle(text, 'zh-CN')).currentDocumentLabel,
-    ).toBeUndefined();
+    expect((await loadHomeProjectProgressBundle(text, 'zh-CN')).documentCount).toBeUndefined();
     await createAnnotationDocument(A);
-    expect((await loadHomeProjectProgressBundle(text, 'zh-CN')).currentDocumentLabel).toBeTruthy();
+    await LayerTierUnifiedService.createLayer(layer('L2'));
+    expect((await resolveDefaultTranscriptionLayerIdsPerDocument(await getDb(), A)).sort()).toEqual(
+      ['L1', 'L2'],
+    );
+    expect((await loadHomeProjectProgressBundle(text, 'zh-CN')).documentCount).toBe(2);
   });
 
   it('the AI default transcription layer is the current document one', async () => {

@@ -7,10 +7,12 @@ import type {
 } from '../db/types';
 import { getDb } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
-import { resolveDefaultTranscriptionLayerId } from '../services/LayerSegmentGraphService';
+import {
+  resolveDefaultTranscriptionLayerId,
+  resolveDefaultTranscriptionLayerIdsPerDocument,
+} from '../services/LayerSegmentGraphService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
 import { listAnnotationDocuments } from '../services/annotationDocumentService';
-import { annotationDocumentLabel } from './annotationDocumentLabel';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
 import {
   collectSentences,
@@ -52,8 +54,8 @@ export interface HomeProjectProgressBundle {
   languageCode?: string;
   defaultTranscriptionLayerId?: string;
   hasTranslationLayers: boolean;
-  /** 第 5 批：项目有多份文稿时，统计只覆盖这一份（当前文稿）的名称 | Batch 5: set when the project has several documents; the stats cover only this (current) one */
-  currentDocumentLabel?: string;
+  /** 第 5 批：项目有多份文稿时的文稿数，统计覆盖全部文稿 | Batch 5: set when there are several documents; stats cover all */
+  documentCount?: number;
   records: TranscriptionRecordProgressRow[];
 }
 
@@ -155,7 +157,7 @@ function countsFromRows(
 async function loadRecordRow(
   textId: string,
   media: MediaItemDocType,
-  defaultTxLayerId: string | undefined,
+  txLayerIds: readonly string[],
   hasTranslationLayers: boolean,
 ): Promise<TranscriptionRecordProgressRow> {
   const mediaId = media.id;
@@ -169,7 +171,7 @@ async function loadRecordRow(
   const displayName = typeof details?.displayName === 'string' ? details.displayName.trim() : '';
   const filename = displayName.length > 0 ? displayName : storageFilename;
 
-  if (defaultTxLayerId === undefined || defaultTxLayerId.length === 0) {
+  if (txLayerIds.length === 0) {
     const durationSec = recordDurationSec(media.duration, []);
     return {
       kind: 'transcription_record',
@@ -183,7 +185,10 @@ async function loadRecordRow(
 
   const db = await getDb();
   const [metaRows, trAll] = await Promise.all([
-    db.dexie.segment_meta.where('[layerId+mediaId]').equals([defaultTxLayerId, mediaId]).toArray(),
+    db.dexie.segment_meta
+      .where('[layerId+mediaId]')
+      .anyOf(txLayerIds.map((layerId) => [layerId, mediaId]))
+      .toArray(),
     hasTranslationLayers
       ? db.dexie.translation_status_snapshots.where('mediaId').equals(mediaId).toArray()
       : Promise.resolve([] as TranslationStatusSnapshotDocType[]),
@@ -203,12 +208,15 @@ async function loadRecordRow(
 
 async function loadTextRecordOnlyRow(
   textId: string,
-  defaultTxLayerId: string,
+  txLayerIds: readonly string[],
   hasTranslationLayers: boolean,
 ): Promise<TranscriptionRecordProgressRow> {
   const db = await getDb();
   const [metaRows, trAll] = await Promise.all([
-    db.dexie.segment_meta.where('[textId+layerId]').equals([textId, defaultTxLayerId]).toArray(),
+    db.dexie.segment_meta
+      .where('[textId+layerId]')
+      .anyOf(txLayerIds.map((layerId) => [textId, layerId]))
+      .toArray(),
     hasTranslationLayers
       ? db.dexie.translation_status_snapshots.where('textId').equals(textId).toArray()
       : Promise.resolve([] as TranslationStatusSnapshotDocType[]),
@@ -229,15 +237,12 @@ export async function loadHomeProjectProgressBundle(
   await WorkspaceReadModelService.rebuildForText(text.id);
   const db = await getDb();
   const defaultTranscriptionLayerId = await resolveDefaultTranscriptionLayerId(db, text.id);
-  // 第 5 批：只看当前文稿的层 | Batch 5: only the current document's layers
-  const layers = await LinguisticService.layers.listByTextId(text.id);
+  // 第 5 批：首页按全项目（所有文稿）统计：每份文稿的默认转写层都算（用户决定 2026-10-10）
+  // Batch 5: the home page counts the whole project — every document's default transcription layer
+  const txLayerIds = await resolveDefaultTranscriptionLayerIdsPerDocument(db, text.id);
+  const layers = await LinguisticService.layers.listByTextId(text.id, { allDocuments: true });
   const hasTranslationLayers = layers.some((layer) => layer.layerType === 'translation');
-  // 与文稿菜单同一编号：按建立时间排序 | Same numbering as the document menu: creation order
-  const documents = (await listAnnotationDocuments(text.id)).sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt),
-  );
-  const currentIndex = documents.findIndex((doc) => doc.isDefault);
-  const currentDocument = documents.length > 1 ? documents[currentIndex] : undefined;
+  const documentCount = (await listAnnotationDocuments(text.id)).length;
 
   const rawMedia = await LinguisticService.media.listByTextId(text.id);
   /** 与转写项目中枢一致：排除逻辑占位行与译文/转写附属录音行，避免首页「声文稿」与主时间轴条数错位 | Align with project hub: drop placeholders + auxiliary recording rows */
@@ -245,19 +250,11 @@ export async function loadHomeProjectProgressBundle(
     (m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m),
   );
   let records: TranscriptionRecordProgressRow[] = await Promise.all(
-    mediaItems.map((media) =>
-      loadRecordRow(text.id, media, defaultTranscriptionLayerId, hasTranslationLayers),
-    ),
+    mediaItems.map((media) => loadRecordRow(text.id, media, txLayerIds, hasTranslationLayers)),
   );
 
-  if (
-    records.length === 0 &&
-    defaultTranscriptionLayerId !== undefined &&
-    defaultTranscriptionLayerId.length > 0
-  ) {
-    records = [
-      await loadTextRecordOnlyRow(text.id, defaultTranscriptionLayerId, hasTranslationLayers),
-    ];
+  if (records.length === 0 && txLayerIds.length > 0) {
+    records = [await loadTextRecordOnlyRow(text.id, txLayerIds, hasTranslationLayers)];
   }
 
   return {
@@ -269,9 +266,7 @@ export async function loadHomeProjectProgressBundle(
       : {}),
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     hasTranslationLayers,
-    ...(currentDocument
-      ? { currentDocumentLabel: annotationDocumentLabel(locale, currentDocument, currentIndex) }
-      : {}),
+    ...(documentCount > 1 ? { documentCount } : {}),
     records,
   };
 }

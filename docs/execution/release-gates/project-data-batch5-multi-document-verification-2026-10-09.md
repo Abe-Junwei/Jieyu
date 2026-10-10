@@ -44,7 +44,7 @@ source_of_truth: tests/e2e/batch5MultiDocument.spec.ts
 都按当前文稿过滤（`readOtherDocumentLayerIds`：属于其他文稿的层 id；只有一份文稿时为空，结果不变）：
 
 - `getTranslationLayers(layerType?, textId)` / `LinguisticService.layers.listByTextId` 与 `units.listByTextId`：标注页（`annotationWorkspaceController.data`、`ensureAnnotationLiteralLayer`、`writeAnnotationFormsToSurface`、`saveAnnotationUnit*`）、工作台文件面板、语料索引都只看当前文稿；新建的层因此只参考当前文稿里的宿主与同类层。
-- 项目级统计：`WorkspaceReadModelService.rebuildForText`（层、单元、译文、语段元数据快照）与首页项目进度（`loadHomeProjectProgressBundle`）。项目有多份文稿时，首页文件面板写明“统计范围：当前文稿「…」（本项目有多份文稿）”（编号与文稿菜单一致）。
+- 例外（用户决定 2026-10-10）：项目级统计与首页按**全项目（所有文稿）**算，不按当前文稿过滤。`WorkspaceReadModelService.rebuildForText`（层、单元、译文、语段元数据快照）覆盖所有文稿；首页项目进度（`loadHomeProjectProgressBundle`）的语段数取每份文稿各自的默认转写层（`resolveDefaultTranscriptionLayerIdsPerDocument`），译文看所有文稿。项目有多份文稿时，首页文件面板写明“统计范围：全项目（N 份文稿）”。标注工作台仍只显示当前文稿。
 - AI：嵌入失效判断用的默认转写层（`EmbeddingInvalidationService`）只在当前文稿内找。读 `segment_meta` 的对话工具（`search_units`，以及经 `loadScopedSegmentMetaRows` 的项目统计、备注、语言记忆）只留当前文稿的行（`keepCurrentDocumentRows`），结果的 `_readModel.documentScope` 为 `'current_document'`。按语段写文本的工具（`set_transcription_text`、`set_translation_text`、`clear_translation_segment`）写完读库核对，语段不在当前文稿的工作台里（保存静默跳过）时返回“没有写入”，不报完成。
 - 例外：词库的出现位置引用（`loadOccurrenceCitationDisplays`）传 `allDocuments: true`，因为引用可能来自任一文稿。项目包 JYT / JYM / JYB 走 `projectScopedSnapshot` / 项目包服务，不经过这些读取，仍包含所有文稿。
 

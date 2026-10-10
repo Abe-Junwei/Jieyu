@@ -21,7 +21,6 @@ import {
   type TranslationStatusSnapshotDocType,
 } from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
-import { readOtherDocumentLayerIds } from './annotationDocumentService';
 
 const LOW_AI_CONFIDENCE_THRESHOLD = 0.6;
 
@@ -325,11 +324,8 @@ export class WorkspaceReadModelService {
     }
 
     const db = await getDb();
-    // 第 5 批：统计只算当前文稿 | Batch 5: statistics cover the current document only
-    const otherDocumentLayerIds = await readOtherDocumentLayerIds(db, normalizedTextId);
-    const inCurrentDocument = (row: { layerId?: string | undefined }) =>
-      row.layerId === undefined || !otherDocumentLayerIds.has(row.layerId);
-    const [projectUnitRows, projectContentRows] = await withTransaction(
+    // 第 5 批：统计按全项目（所有文稿）算（用户决定 2026-10-10）| Batch 5: whole project, all documents
+    const [unitRows, contentRows] = await withTransaction(
       db,
       'r',
       [...dexieStoresForLayerUnitsAndContentsRw(db)],
@@ -340,13 +336,11 @@ export class WorkspaceReadModelService {
         ]),
       { label: 'WorkspaceReadModelService.rebuildForText.sourceRead' },
     );
-    const unitRows = projectUnitRows.filter(inCurrentDocument);
-    const contentRows = projectContentRows.filter(inCurrentDocument);
     const layerDocsWrapped = await db.collections.layers.find().exec();
 
     const layers = layerDocsWrapped
       .map((doc) => doc.toJSON())
-      .filter((row) => row.textId === normalizedTextId && !otherDocumentLayerIds.has(row.id));
+      .filter((row) => row.textId === normalizedTextId);
 
     const scopes = [
       ...new Map(
@@ -365,9 +359,10 @@ export class WorkspaceReadModelService {
       await SegmentMetaService.rebuildScopes(scopes);
     }
 
-    const segmentMetaRows = (
-      await db.dexie.segment_meta.where('textId').equals(normalizedTextId).toArray()
-    ).filter(inCurrentDocument);
+    const segmentMetaRows = await db.dexie.segment_meta
+      .where('textId')
+      .equals(normalizedTextId)
+      .toArray();
     const qualityDocs = buildSegmentQualityDocs(segmentMetaRows);
     const scopeStatsDocs = buildScopeStatsDocs(segmentMetaRows, layers, normalizedTextId);
     const speakerProfileDocs = buildSpeakerProfileDocs(segmentMetaRows, normalizedTextId);

@@ -66,8 +66,7 @@ export const enUSDictionary = {
   'app.files.enterTranscription': 'Open transcription workspace',
   'app.home.templateRules': 'Templates and language conventions',
   'app.home.lastUpdated': 'Last updated: {date}',
-  'app.home.documentScope':
-    'Statistics cover the current document “{name}” (this project has several documents)',
+  'app.home.documentScope': 'Statistics cover the whole project ({count} documents)',
   'app.home.projectActive': 'Active',
   'app.overview.leipzigNote': 'Follows the Leipzig Glossing Rules',
   'app.overview.title': 'Project language architecture & field survey overview',

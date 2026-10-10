@@ -62,7 +62,7 @@ export const zhCNDictionary = {
   'app.files.enterTranscription': '进入转写工作区',
   'app.home.templateRules': '选用模板与语言规范设置',
   'app.home.lastUpdated': '最后更新：{date}',
-  'app.home.documentScope': '统计范围：当前文稿「{name}」（本项目有多份文稿）',
+  'app.home.documentScope': '统计范围：全项目（{count} 份文稿）',
   'app.home.projectActive': '活跃',
   'app.overview.leipzigNote': '遵循通用 Leipzig 标注规约 (Leipzig Glossing Rules)',
   'app.overview.title': '项目语言架构与调查概览',

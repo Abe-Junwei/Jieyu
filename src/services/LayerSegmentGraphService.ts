@@ -3,6 +3,7 @@ import {
   dexieStoresForLayerSegmentGraphRw,
   withTransaction,
   type JieyuDatabase,
+  type LayerDocType,
   type LayerUnitContentDocType,
   type LayerUnitContentViewDocType,
   type LayerUnitDocType,
@@ -23,7 +24,11 @@ import {
   normalizeMediaId,
 } from './LayerUnitSegmentWritePrimitives';
 import { LayerSegmentQueryService, runDexieScopedReadTask } from './LayerSegmentQueryService';
-import { isLayerInCurrentDocument, readAnnotationDocumentScope } from './annotationDocumentService';
+import {
+  isLayerInCurrentDocument,
+  readAnnotationDocumentScope,
+  resolveLayerOwner,
+} from './annotationDocumentService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { newId } from '../utils/transcriptionFormatters';
@@ -143,6 +148,18 @@ async function listSegmentLinksBySegmentIds(
   return [...byId.values()];
 }
 
+function pickDefaultTranscriptionLayerId(
+  transcriptionLayers: readonly LayerDocType[],
+): string | undefined {
+  if (transcriptionLayers.length === 0) return undefined;
+  const exactDefault = transcriptionLayers.find((layer) => layer.isDefault === true);
+  if (exactDefault) return exactDefault.id;
+  return [...transcriptionLayers].sort(
+    (left, right) =>
+      (left.sortOrder ?? Number.MAX_SAFE_INTEGER) - (right.sortOrder ?? Number.MAX_SAFE_INTEGER),
+  )[0]?.id;
+}
+
 export async function resolveDefaultTranscriptionLayerId(
   db: JieyuDatabase,
   textId: string,
@@ -152,19 +169,38 @@ export async function resolveDefaultTranscriptionLayerId(
     readAnnotationDocumentScope(db, textId),
   ]);
   // 第 5 批：只在当前文稿的层里找 | Batch 5: only among the current document's layers
-  const transcriptionLayers = layers
-    .map((doc) => doc.toJSON())
-    .filter(
-      (layer) =>
-        layer.layerType === 'transcription' && isLayerInCurrentDocument(layer, documentScope),
-    );
-  if (transcriptionLayers.length === 0) return undefined;
-  const exactDefault = transcriptionLayers.find((layer) => layer.isDefault === true);
-  if (exactDefault) return exactDefault.id;
-  return [...transcriptionLayers].sort(
-    (left, right) =>
-      (left.sortOrder ?? Number.MAX_SAFE_INTEGER) - (right.sortOrder ?? Number.MAX_SAFE_INTEGER),
-  )[0]?.id;
+  return pickDefaultTranscriptionLayerId(
+    layers
+      .map((doc) => doc.toJSON())
+      .filter(
+        (layer) =>
+          layer.layerType === 'transcription' && isLayerInCurrentDocument(layer, documentScope),
+      ),
+  );
+}
+
+/**
+ * 第 5 批：每份文稿各自的默认转写层（首页按全项目统计用）。
+ * Batch 5: each document's default transcription layer (for whole-project home statistics).
+ */
+export async function resolveDefaultTranscriptionLayerIdsPerDocument(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<string[]> {
+  const [layers, documentScope] = await Promise.all([
+    db.collections.layers.findByIndex('textId', textId),
+    readAnnotationDocumentScope(db, textId),
+  ]);
+  const byDocument = new Map<string | undefined, LayerDocType[]>();
+  for (const layer of layers.map((doc) => doc.toJSON())) {
+    if (layer.layerType !== 'transcription') continue;
+    const owner = resolveLayerOwner(layer, documentScope);
+    byDocument.set(owner, [...(byDocument.get(owner) ?? []), layer]);
+  }
+  return [...byDocument.values()].flatMap((group) => {
+    const id = pickDefaultTranscriptionLayerId(group);
+    return id !== undefined ? [id] : [];
+  });
 }
 
 /**
