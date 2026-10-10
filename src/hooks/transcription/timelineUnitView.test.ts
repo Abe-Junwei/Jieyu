@@ -134,6 +134,38 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.byId.get('s1')!.kind).toBe('segment');
   });
 
+  it('WS8-X3: keeps every referring segment that shares one parent unit (one waveform region each)', () => {
+    const parent: LayerUnitDocType = {
+      id: 'utt-long',
+      textId: 't1',
+      mediaId: 'm1',
+      startTime: 0,
+      endTime: 30,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const segments = [0, 1, 2].map((i) =>
+      seg(`s${i}`, 'layer-a', 'm1', i * 10, i * 10 + 8, 'utt-long'),
+    );
+    const index = buildTimelineUnitViewIndex({
+      units: [parent],
+      unitsOnCurrentMedia: [parent],
+      segmentsByLayer: new Map([['layer-a', segments]]),
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: 'layer-a',
+      defaultTranscriptionLayerId: 'layer-a',
+    });
+    // 语段遮住父 unit，但三个语段都在 | the segments shadow the parent unit, and all three stay
+    expect(index.currentMediaUnits.map((unit) => unit.id)).toEqual(['s0', 's1', 's2']);
+    expect(
+      mergedTimelineUnitSemanticKeyCount({
+        unitIds: ['utt-long'],
+        segments: segments.map((row) => ({ id: row.id, unitId: 'utt-long' })),
+      }),
+    ).toBe(3);
+  });
+
   it('keeps unbound segments on the current recording so waveform boundaries stay visible', () => {
     const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       [

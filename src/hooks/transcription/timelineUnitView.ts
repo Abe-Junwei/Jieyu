@@ -160,9 +160,12 @@ export function mergedTimelineUnitSemanticKeyCount(input: {
     const id = rawId.trim();
     if (id) mergedBySemanticKey.set(id, true);
   }
+  const claimedParents = new Set<string>();
   for (const seg of input.segments) {
     const parent = seg.unitId?.trim();
-    const key = parent && parent.length > 0 ? parent : seg.id;
+    // WS8-X3：同一父 unit 下只有第一个语段占父键，其余各占自己的 id | only the first segment takes the parent key
+    const key = parent && parent.length > 0 && !claimedParents.has(parent) ? parent : seg.id;
+    if (parent) claimedParents.add(parent);
     mergedBySemanticKey.set(key, true);
   }
   return mergedBySemanticKey.size;
@@ -228,13 +231,23 @@ export function buildTimelineUnitViewIndex(
   for (const unitView of unitProjectViews) {
     mergedBySemanticKey.set(unitView.id, unitView);
   }
+  const claimedParentKeys = new Set<string>();
   for (const segmentView of segmentViews) {
     // Independent segments must keep distinct keys so multiple rows on one media are not collapsed
     // when legacy unit rows still exist for speaker overlap / import.
+    // WS8-X3：多个语段指向同一父 unit 时，只有第一个用父键遮住 unit，其余用自己的 id，不再互相覆盖
+    // （以前长项目里只剩最后一个语段，波形上也只有一个 region）。
+    // WS8-X3: when several segments share one parent unit, only the first takes the parent key (and
+    // shadows the unit); the rest keep their own ids instead of overwriting each other (previously a
+    // long project kept only the last segment, so the waveform showed a single region).
+    const parentKey = segmentView.parentUnitId?.trim() ?? '';
     const semanticKey =
-      segmentView.kind === 'segment' && segmentView.layerRole === 'independent'
+      (segmentView.kind === 'segment' && segmentView.layerRole === 'independent') ||
+      parentKey.length === 0 ||
+      claimedParentKeys.has(parentKey)
         ? segmentView.id
-        : segmentView.parentUnitId?.trim() || segmentView.id;
+        : parentKey;
+    if (parentKey.length > 0) claimedParentKeys.add(parentKey);
     // Segment rows shadow unit rows for the same semantic unit (referring / id-collision paths).
     mergedBySemanticKey.set(semanticKey, segmentView);
   }
