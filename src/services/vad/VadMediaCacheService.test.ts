@@ -14,7 +14,11 @@ vi.mock('./VadCacheService', () => ({
   },
 }));
 
-import { ensureVadCacheForMedia, getVadCacheWarmupStatus } from './VadMediaCacheService';
+import {
+  ensureVadCacheForMedia,
+  getVadCacheWarmupStatus,
+  subscribeVadCacheWarmupStatus,
+} from './VadMediaCacheService';
 
 /** 创建可注入的 mock 后端 | Create an injectable mock backend */
 function createMockBackend(overrides?: Partial<VadMediaBackend>): VadMediaBackend {
@@ -37,6 +41,7 @@ describe('VadMediaCacheService', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -132,6 +137,54 @@ describe('VadMediaCacheService', () => {
 
     expect(result).not.toBeNull();
     expect(getVadCacheWarmupStatus('media-progress')).toBeNull();
+  });
+
+  it('coalesces dense warmup progress notifies to one listener pulse per animation frame (WS8-X1)', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number,
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+
+    const listener = vi.fn();
+    const unsubscribe = subscribeVadCacheWarmupStatus('media-coalesce', listener);
+    try {
+      const backend = createMockBackend({
+        run: vi.fn(async (_ref: VadMediaRef, opts?: VadMediaBackendRunOptions) => {
+          for (let i = 1; i <= 64; i += 1) {
+            opts?.onProgress?.({
+              engine: 'silero',
+              processedFrames: i * 16,
+              totalFrames: 1024,
+              ratio: (i * 16) / 1024,
+            });
+          }
+          // Snapshot updates immediately; listener stays coalesced until the frame.
+          expect(getVadCacheWarmupStatus('media-coalesce')?.processedFrames).toBe(1024);
+          expect(listener).not.toHaveBeenCalled();
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(getVadCacheWarmupStatus('media-coalesce')?.processedFrames).toBe(1024);
+          return {
+            engine: 'silero' as const,
+            segments: [{ start: 0, end: 1 }],
+            durationSec: 1,
+          };
+        }),
+      });
+
+      await ensureVadCacheForMedia({
+        mediaId: 'media-coalesce',
+        mediaUrl: 'blob:media-coalesce',
+        backend,
+        now: () => 1,
+      });
+
+      expect(getVadCacheWarmupStatus('media-coalesce')).toBeNull();
+    } finally {
+      unsubscribe();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('deduplicates concurrent warmup requests for the same media', async () => {

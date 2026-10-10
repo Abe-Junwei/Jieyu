@@ -33,21 +33,62 @@ export interface EnsureVadCacheForMediaOptions {
 const inflightByMediaId = new Map<string, Promise<VadCacheEntry | null>>();
 const warmupStatusByMediaId = new Map<string, VadCacheWarmupStatus>();
 const warmupListenersByMediaId = new Map<string, Set<() => void>>();
+/** Coalesce useSyncExternalStore notifies to ≤1/frame — sync emit during render causes React #185 (WS8-X1). */
+const pendingWarmupEmitByMediaId = new Map<string, number>();
 
-function emitWarmupStatus(mediaId: string): void {
+function cancelPendingWarmupEmit(mediaId: string): void {
+  const handle = pendingWarmupEmitByMediaId.get(mediaId);
+  if (handle === undefined) return;
+  pendingWarmupEmitByMediaId.delete(mediaId);
+  if (typeof cancelAnimationFrame === 'function') {
+    cancelAnimationFrame(handle);
+  } else {
+    clearTimeout(handle);
+  }
+}
+
+function emitWarmupStatusNow(mediaId: string): void {
   warmupListenersByMediaId.get(mediaId)?.forEach((listener) => {
     listener();
   });
 }
 
+function scheduleWarmupStatusEmit(mediaId: string): void {
+  if (pendingWarmupEmitByMediaId.has(mediaId)) return;
+  const run = () => {
+    pendingWarmupEmitByMediaId.delete(mediaId);
+    emitWarmupStatusNow(mediaId);
+  };
+  const handle =
+    typeof requestAnimationFrame === 'function' ? requestAnimationFrame(run) : setTimeout(run, 0);
+  pendingWarmupEmitByMediaId.set(mediaId, handle as number);
+}
+
+function warmupStatusUnchanged(
+  prev: VadCacheWarmupStatus | undefined,
+  next: VadCacheWarmupStatus,
+): boolean {
+  return (
+    prev !== undefined &&
+    prev.state === next.state &&
+    prev.engine === next.engine &&
+    prev.progressRatio === next.progressRatio &&
+    prev.processedFrames === next.processedFrames &&
+    prev.totalFrames === next.totalFrames
+  );
+}
+
 function setWarmupStatus(mediaId: string, status: VadCacheWarmupStatus): void {
+  if (warmupStatusUnchanged(warmupStatusByMediaId.get(mediaId), status)) return;
   warmupStatusByMediaId.set(mediaId, status);
-  emitWarmupStatus(mediaId);
+  scheduleWarmupStatusEmit(mediaId);
 }
 
 function clearWarmupStatus(mediaId: string): void {
+  cancelPendingWarmupEmit(mediaId);
   if (!warmupStatusByMediaId.delete(mediaId)) return;
-  emitWarmupStatus(mediaId);
+  // Flush immediately so UI leaves "warming" without waiting a frame after cache is ready.
+  emitWarmupStatusNow(mediaId);
 }
 
 export function getVadCacheWarmupStatus(mediaId: string | undefined): VadCacheWarmupStatus | null {
