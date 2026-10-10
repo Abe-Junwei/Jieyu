@@ -14,6 +14,7 @@ export {
   AcousticAnalysisService,
   AcousticAnalysisPayloadTooLargeError,
   isAcousticAnalysisPayloadTooLargeError,
+  isAcousticAnalysisPayloadTooLargeSkip,
 } from '../services/acoustic/AcousticAnalysisService';
 export { vadCache } from '../services/vad/VadCacheService';
 export {

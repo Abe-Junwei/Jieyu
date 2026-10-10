@@ -670,14 +670,17 @@ describe('useTranscriptionAiAcousticRuntime', () => {
   });
 
   it('soft-degrades to idle when analysis PCM exceeds the byte cap (WS8-X2)', async () => {
-    const { AcousticAnalysisPayloadTooLargeError } =
-      await import('../services/acoustic/AcousticAnalysisService');
     mockAnalyzeMedia.mockReset();
     mockResolveProviderState.mockReset();
     mockResolveProviderState.mockReturnValue(makeProviderState());
-    mockAnalyzeMedia.mockRejectedValueOnce(
-      new AcousticAnalysisPayloadTooLargeError(64 * 1024 * 1024 + 4),
-    );
+    mockAnalyzeMedia.mockResolvedValueOnce({
+      ...makeAnalysisResult(),
+      frames: [],
+      hotspots: [],
+      sampleRate: 0,
+      durationSec: 0,
+      skippedReason: 'payload_too_large' as const,
+    });
 
     const seekToTimeRef = { current: vi.fn() };
     const { result } = renderHook(() =>

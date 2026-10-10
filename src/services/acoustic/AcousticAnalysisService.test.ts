@@ -570,7 +570,13 @@ describe('AcousticAnalysisService', () => {
     service.dispose();
   });
 
-  it('throws AcousticAnalysisPayloadTooLargeError when local mono PCM exceeds the byte cap (WS8-X2)', async () => {
+  it('resolves a payload_too_large skip instead of rejecting when mono PCM exceeds the cap (WS8-X2)', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+
     const service = new AcousticAnalysisService({
       workerFactory: () => createMockWorker({ count: 0 }),
     });
@@ -587,13 +593,51 @@ describe('AcousticAnalysisService', () => {
       },
     } as unknown as AudioBuffer;
 
-    await expect(
-      service.analyzeAudioBuffer({
+    try {
+      const result = await service.analyzeAudioBuffer({
         mediaKey: 'media-local-oversized',
         audioBuffer,
-      }),
-    ).rejects.toBeInstanceOf(AcousticAnalysisPayloadTooLargeError);
+      });
+      expect(result.skippedReason).toBe('payload_too_large');
+      expect(result.frames).toEqual([]);
+      // Let any stray rejection microtasks flush.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+      service.dispose();
+    }
+  });
 
+  it('does not fall back to local worker when external provider hits PayloadTooLarge (WS8-X2)', async () => {
+    const sampleRate = 16000;
+    const pcm = buildSineWave({ frequencyHz: 220, durationSec: 0.2, sampleRate });
+    const audioBuffer = buildAudioBuffer(pcm, sampleRate);
+    const workerCounter = { count: 0 };
+    const runtimeConfig: AcousticProviderRuntimeConfig = {
+      routingStrategy: 'prefer-external',
+      externalProvider: {
+        enabled: true,
+        endpoint: 'https://provider.example.dev/analyze',
+        timeoutMs: 5000,
+      },
+    };
+
+    const service = new AcousticAnalysisService({
+      workerFactory: () => createMockWorker(workerCounter),
+      providerRuntimeConfigResolver: () => runtimeConfig,
+      externalProviderAnalyze: async () => {
+        throw new AcousticAnalysisPayloadTooLargeError(64 * 1024 * 1024 + 4);
+      },
+    });
+
+    const result = await service.analyzeAudioBuffer({
+      mediaKey: 'media-external-oversize',
+      audioBuffer,
+      providerId: 'enhanced-provider',
+    });
+    expect(result.skippedReason).toBe('payload_too_large');
+    expect(workerCounter.count).toBe(0);
     service.dispose();
   });
 

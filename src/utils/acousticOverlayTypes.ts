@@ -83,6 +83,8 @@ export interface AcousticFeatureResult {
   frames: AcousticFrame[];
   hotspots: AcousticHotspot[];
   summary: AcousticAnalysisSummary;
+  /** Soft-skip marker: analysis was not run (e.g. PCM over the byte cap). */
+  skippedReason?: 'payload_too_large';
 }
 
 export interface AcousticAnalysisRequest {

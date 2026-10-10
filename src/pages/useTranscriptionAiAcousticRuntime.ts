@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AcousticAnalysisService,
   isAcousticAnalysisPayloadTooLargeError,
+  isAcousticAnalysisPayloadTooLargeSkip,
 } from '../app/transcriptionServicesPageAccess';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import {
@@ -129,6 +130,12 @@ export function useTranscriptionAiAcousticRuntime(
       })
       .then((result) => {
         if (controller.signal.aborted) return;
+        // Soft-skip (resolved, not rejected): disable analysis only (WS8-X2).
+        if (isAcousticAnalysisPayloadTooLargeSkip(result)) {
+          setAcousticAnalysis(null);
+          setAcousticRuntimeStatus({ state: 'idle' });
+          return;
+        }
         setAcousticAnalysis(result);
         progressSnapshotRef.current = {
           phase: 'done',
