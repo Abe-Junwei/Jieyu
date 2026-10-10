@@ -153,22 +153,47 @@ export function unitToView(u: LayerUnitDocType, defaultLayerId: string): Timelin
  */
 export function mergedTimelineUnitSemanticKeyCount(input: {
   unitIds: readonly string[];
-  segments: ReadonlyArray<{ id: string; unitId?: string | undefined }>;
+  segments: ReadonlyArray<{
+    id: string;
+    layerId?: string | undefined;
+    parentUnitId?: string | undefined;
+    unitId?: string | undefined;
+  }>;
 }): number {
   const mergedBySemanticKey = new Map<string, true>();
   for (const rawId of input.unitIds) {
     const id = rawId.trim();
     if (id) mergedBySemanticKey.set(id, true);
   }
-  const claimedParents = new Set<string>();
+  const claimedParentKeys = new Set<string>();
   for (const seg of input.segments) {
-    const parent = seg.unitId?.trim();
-    // WS8-X3：同一父 unit 下只有第一个语段占父键，其余各占自己的 id | only the first segment takes the parent key
-    const key = parent && parent.length > 0 && !claimedParents.has(parent) ? parent : seg.id;
-    if (parent) claimedParents.add(parent);
-    mergedBySemanticKey.set(key, true);
+    const parentKey = (seg.parentUnitId ?? seg.unitId)?.trim() ?? '';
+    mergedBySemanticKey.set(
+      claimSegmentSemanticKey(claimedParentKeys, seg.id, seg.layerId ?? '', parentKey),
+      true,
+    );
   }
   return mergedBySemanticKey.size;
+}
+
+/**
+ * WS8-X3：同一层里多个语段指向同一父 unit 时，只有第一个用父键（遮住 unit），其余用自己的 id；
+ * 不同层（每个文本层的投影语段）指向同一父 unit 仍合并为一条。
+ * WS8-X3: within one layer only the first segment of a parent unit takes the parent key (shadowing
+ * the unit) and the rest keep their own ids; segments on different layers (per-layer projections)
+ * that share a parent still merge into one.
+ */
+function claimSegmentSemanticKey(
+  claimedParentKeys: Set<string>,
+  segmentId: string,
+  layerId: string,
+  parentKey: string,
+): string {
+  if (parentKey.length === 0) return segmentId;
+  const claim = `${layerId}\u0000${parentKey}`;
+  if (claimedParentKeys.has(claim)) return segmentId;
+  claimedParentKeys.add(claim);
+  return parentKey;
 }
 
 export function segmentToView(
@@ -233,21 +258,12 @@ export function buildTimelineUnitViewIndex(
   }
   const claimedParentKeys = new Set<string>();
   for (const segmentView of segmentViews) {
-    // Independent segments must keep distinct keys so multiple rows on one media are not collapsed
-    // when legacy unit rows still exist for speaker overlap / import.
-    // WS8-X3：多个语段指向同一父 unit 时，只有第一个用父键遮住 unit，其余用自己的 id，不再互相覆盖
-    // （以前长项目里只剩最后一个语段，波形上也只有一个 region）。
-    // WS8-X3: when several segments share one parent unit, only the first takes the parent key (and
-    // shadows the unit); the rest keep their own ids instead of overwriting each other (previously a
-    // long project kept only the last segment, so the waveform showed a single region).
-    const parentKey = segmentView.parentUnitId?.trim() ?? '';
-    const semanticKey =
-      (segmentView.kind === 'segment' && segmentView.layerRole === 'independent') ||
-      parentKey.length === 0 ||
-      claimedParentKeys.has(parentKey)
-        ? segmentView.id
-        : parentKey;
-    if (parentKey.length > 0) claimedParentKeys.add(parentKey);
+    const semanticKey = claimSegmentSemanticKey(
+      claimedParentKeys,
+      segmentView.id,
+      segmentView.layerId,
+      segmentView.parentUnitId?.trim() ?? '',
+    );
     // Segment rows shadow unit rows for the same semantic unit (referring / id-collision paths).
     mergedBySemanticKey.set(semanticKey, segmentView);
   }

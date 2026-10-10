@@ -161,7 +161,56 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(
       mergedTimelineUnitSemanticKeyCount({
         unitIds: ['utt-long'],
-        segments: segments.map((row) => ({ id: row.id, unitId: 'utt-long' })),
+        segments: segments.map((row) => ({ id: row.id, layerId: 'layer-a', unitId: 'utt-long' })),
+      }),
+    ).toBe(3);
+  });
+
+  it('WS8-X3: one segment per layer with the same parent unit merges into one unit', () => {
+    const parent: LayerUnitDocType = {
+      id: 'utt-1',
+      textId: 't1',
+      mediaId: 'm1',
+      startTime: 0,
+      endTime: 2,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const tx = seg('s-tx', 'layer-tx', 'm1', 0, 2, 'utt-1');
+    const tl = seg('s-tl', 'layer-tl', 'm1', 0, 2, 'utt-1');
+    const index = buildTimelineUnitViewIndex({
+      units: [parent],
+      unitsOnCurrentMedia: [parent],
+      segmentsByLayer: new Map([
+        ['layer-tx', [tx]],
+        ['layer-tl', [tl]],
+      ]),
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: 'layer-tx',
+      defaultTranscriptionLayerId: 'layer-tx',
+    });
+    expect(index.currentMediaUnits).toHaveLength(1);
+    expect(
+      mergedTimelineUnitSemanticKeyCount({
+        unitIds: ['utt-1'],
+        segments: [
+          { id: 's-tx', layerId: 'layer-tx', parentUnitId: 'utt-1' },
+          { id: 's-tl', layerId: 'layer-tl', unitId: 'utt-1' },
+        ],
+      }),
+    ).toBe(1);
+  });
+
+  it('WS8-X3: three segments on the same layer with one parent stay three in the count', () => {
+    expect(
+      mergedTimelineUnitSemanticKeyCount({
+        unitIds: ['utt-long'],
+        segments: ['s0', 's1', 's2'].map((id) => ({
+          id,
+          layerId: 'layer-a',
+          parentUnitId: 'utt-long',
+        })),
       }),
     ).toBe(3);
   });
