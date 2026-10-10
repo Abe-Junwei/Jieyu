@@ -3,7 +3,7 @@ title: 项目数据第 5 批（多份标注文稿）验证记录
 doc_type: release-gate
 status: active
 owner: repo
-last_reviewed: 2026-10-09
+last_reviewed: 2026-10-10
 source_of_truth: tests/e2e/batch5MultiDocument.spec.ts
 ---
 
@@ -81,6 +81,6 @@ source_of_truth: tests/e2e/batch5MultiDocument.spec.ts
 | 包往返            | `npx vitest run src/services/projectPackageMultiDocument.test.ts`                                                                                    | 4 用例通过 |
 | e2e（T46）        | `npx playwright test --project=chromium tests/e2e/batch5MultiDocument.spec.ts tests/e2e/batch2bAnnotationDocuments.spec.ts`                          | 3/3 通过   |
 
-全量（Node 22，提交 `567a4cc1`：第 5 批后续修复、合并 `origin/main`（`53fa8295`，post-freeze cleanup）与 B5-5 之后，新克隆 `npm ci` 后同一次运行，2026-10-09 23:59–2026-10-10 00:04）：`npm run test:vitest:dot` 907 文件通过、2 跳过，6456 用例通过、58 跳过；`npm run build` 通过（dist 里没有 .ts 文件）；对新启动的 `vite preview`（空闲端口）`npx playwright test --project=chromium --retries=0` 85 通过、2 跳过。
+全量（Node 22，提交 `f452e513`：第 5 批后续修复、合并 `origin/main`（`53fa8295`）、B5-5、首页与项目统计改为全项目之后，同一次运行，2026-10-10 08:51–08:57）：`npm run test:vitest:dot` 907 文件通过、2 跳过，6456 用例通过、58 跳过；`npm run build` 通过（dist 里没有 .ts 文件）；对新启动的 `vite preview`（空闲端口）`npx playwright test --project=chromium --retries=0` 85 通过、2 跳过。
 
 测试编号对应：T46 `batch5MultiDocument.spec.ts`（两份 EAF 用“导入为新文稿”并存于原文稿旁，删除其中一份不影响其他，再从“删除标注文稿前”快照恢复出被删的那份；新建、导入到当前文稿、切换后工作台只显示当前文稿的层、JYT 往返恢复两份文稿与当前文稿、删除当前文稿后切到剩下的一份并留下 `document-delete` 快照；新建 / 重命名 / 删除都走应用内对话框，不弹浏览器对话框）+ `useImportExport.import.test.tsx`（batch 5 两条）+ `annotationDocumentMultiDocument.test.ts`；工作台范围 `useTranscriptionSnapshotLoader.documentScope.test.tsx`；包往返 `projectPackageMultiDocument.test.ts`。
