@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe('ContextMenu', () => {
-  it('marks the selected item of a selection group with aria-current', () => {
+  it('marks selection-group items as menuitemradio with aria-checked', () => {
     render(
       <ContextMenu
         x={0}
@@ -21,13 +21,14 @@ describe('ContextMenu', () => {
         ]}
       />,
     );
-    expect(screen.getByRole('menuitem', { name: '文稿 1' }).getAttribute('aria-current')).toBe(
+    expect(screen.getByRole('menuitemradio', { name: '文稿 1' }).getAttribute('aria-checked')).toBe(
       'true',
     );
-    expect(screen.getByRole('menuitem', { name: '文稿 2' }).hasAttribute('aria-current')).toBe(
-      false,
+    expect(screen.getByRole('menuitemradio', { name: '文稿 2' }).getAttribute('aria-checked')).toBe(
+      'false',
     );
-    expect(screen.getByRole('menuitem', { name: '新建文稿' }).hasAttribute('aria-current')).toBe(
+    expect(screen.getByRole('menuitem', { name: '新建文稿' }).getAttribute('role')).toBe('menuitem');
+    expect(screen.getByRole('menuitem', { name: '新建文稿' }).hasAttribute('aria-checked')).toBe(
       false,
     );
   });
@@ -73,7 +74,7 @@ describe('ContextMenu', () => {
     );
 
     const rootMenu = screen.getAllByRole('menu')[0] as HTMLDivElement;
-    const selectedItem = screen.getByRole('menuitem', { name: /当前方案/ });
+    const selectedItem = screen.getByRole('menuitemradio', { name: /当前方案/ });
 
     expect(rootMenu).toBeTruthy();
     expect(rootMenu.getAttribute('role')).toBe('menu');

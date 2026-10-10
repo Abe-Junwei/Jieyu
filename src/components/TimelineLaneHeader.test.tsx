@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerLinkDocType } from '../db';
 import { LocaleProvider } from '../i18n';
@@ -107,11 +107,16 @@ async function findMenuButton(label: string): Promise<HTMLButtonElement> {
 }
 
 async function findMenuButtonByPattern(pattern: RegExp): Promise<HTMLButtonElement> {
-  const button = await screen.findByRole('menuitem', { name: pattern });
-  if (!(button instanceof HTMLButtonElement)) {
-    throw new Error(`Menu button not found for pattern: ${pattern.source}`);
-  }
-  return button;
+  // selectionState items render as menuitemradio; categories stay menuitem.
+  return waitFor(() => {
+    const button =
+      screen.queryByRole('menuitemradio', { name: pattern }) ??
+      screen.queryByRole('menuitem', { name: pattern });
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error(`Menu button not found for pattern: ${pattern.source}`);
+    }
+    return button;
+  });
 }
 
 afterEach(() => {

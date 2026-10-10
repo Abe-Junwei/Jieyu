@@ -249,6 +249,7 @@ describe('segmentAdapter', () => {
         arguments: { layerId: 'tl-1', segmentId: 'seg-1' },
       },
       locale: 'zh-CN',
+      units: [{ id: 'seg-1' }],
       translationLayers: [{ id: 'tl-1', key: 'en', name: { default: 'EN' } }],
       resolveRequestedTranslationLayerId: () => 'tl-1',
       saveSegmentContentForLayer,
@@ -260,6 +261,28 @@ describe('segmentAdapter', () => {
     expect(typeof result.rollback).toBe('function');
     await result.rollback!();
     expect(saveSegmentContentForLayer).toHaveBeenLastCalledWith('seg-1', 'tl-1', 'was-filled');
+  });
+
+  it('clear_translation_segment rejects segment ids absent from the workbench units list', async () => {
+    const saveSegmentContentForLayer = vi.fn(async () => {});
+
+    const result = await segmentAdapter.execute({
+      call: {
+        name: 'clear_translation_segment',
+        arguments: { layerId: 'tl-1', segmentId: 'seg-other-doc' },
+      },
+      locale: 'zh-CN',
+      units: [{ id: 'seg-1' }],
+      translationLayers: [{ id: 'tl-1', key: 'en', name: { default: 'EN' } }],
+      resolveRequestedTranslationLayerId: () => 'tl-1',
+      saveSegmentContentForLayer,
+      readSegmentLayerText: () => '',
+    } as any);
+
+    expect(result.ok).toBe(false);
+    expect(String(result.message)).toContain('seg-other-doc');
+    expect(String(result.message)).toMatch(/不在当前文稿|工作台/);
+    expect(saveSegmentContentForLayer).not.toHaveBeenCalled();
   });
 
   it('clear_translation_segment exposes rollback for unit path when readUnitLayerText is provided', async () => {

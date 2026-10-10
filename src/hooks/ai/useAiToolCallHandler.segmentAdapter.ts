@@ -752,6 +752,11 @@ export const segmentAdapter: ToolObjectAdapter = {
             message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUnitId'),
           };
         }
+        // 清空写空串时读回仍是空，segmentLayerTextLanded 挡不住「语段不在当前工作台」的假成功。
+        // Clearing writes ''; an absent segment still reads back '', so membership must be checked first.
+        if (!(ctx.units ?? []).some((unit) => unit.id === requestedSegmentId)) {
+          return segmentNotWritten(locale, requestedSegmentId);
+        }
         const previous = ctx.readSegmentLayerText?.(requestedSegmentId, targetLayerId) ?? '';
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, '');
         if ((await segmentLayerTextLanded(requestedSegmentId, targetLayerId, '')) === false) {

@@ -1022,6 +1022,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
+          units: [makeUnit('seg-9')],
           selectedLayerId: 'layer-tr',
           translationLayers: [layer],
           saveSegmentContentForLayer,
@@ -1039,6 +1040,37 @@ describe('useAiToolCallHandler — strict target requirements', () => {
 
     expect(response?.ok).toBe(true);
     expect(saveSegmentContentForLayer).toHaveBeenCalledWith('seg-9', 'layer-tr', '');
+  });
+
+  it('rejects clear_translation_segment when segmentId is not in the workbench units', async () => {
+    const saveSegmentContentForLayer = vi
+      .fn<(segmentId: string, layerId: string, value: string) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const layer = makeTranslationLayer('layer-tr', '普通话');
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          units: [makeUnit('seg-in-doc')],
+          selectedLayerId: 'layer-tr',
+          translationLayers: [layer],
+          saveSegmentContentForLayer,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'clear_translation_segment',
+        arguments: { segmentId: 'seg-other-doc', layerId: 'layer-tr' },
+      });
+    });
+
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('seg-other-doc');
+    expect(response?.message).toMatch(/不在当前文稿|工作台/);
+    expect(saveSegmentContentForLayer).not.toHaveBeenCalled();
   });
 
   it('rejects set_transcription_text without segmentId', async () => {
