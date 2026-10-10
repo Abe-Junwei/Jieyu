@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AcousticAnalysisService } from '../app/transcriptionServicesPageAccess';
+import {
+  AcousticAnalysisService,
+  isAcousticAnalysisPayloadTooLargeError,
+  isAcousticAnalysisPayloadTooLargeSkip,
+} from '../app/transcriptionServicesPageAccess';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import {
   buildAcousticPromptSummary,
@@ -126,6 +130,12 @@ export function useTranscriptionAiAcousticRuntime(
       })
       .then((result) => {
         if (controller.signal.aborted) return;
+        // Soft-skip (resolved, not rejected): disable analysis only (WS8-X2).
+        if (isAcousticAnalysisPayloadTooLargeSkip(result)) {
+          setAcousticAnalysis(null);
+          setAcousticRuntimeStatus({ state: 'idle' });
+          return;
+        }
         setAcousticAnalysis(result);
         progressSnapshotRef.current = {
           phase: 'done',
@@ -147,6 +157,11 @@ export function useTranscriptionAiAcousticRuntime(
       .catch((error) => {
         if (controller.signal.aborted) return;
         setAcousticAnalysis(null);
+        // Oversize PCM: skip analysis only — do not show "Analysis failed" or disturb waveform (WS8-X2).
+        if (isAcousticAnalysisPayloadTooLargeError(error)) {
+          setAcousticRuntimeStatus({ state: 'idle' });
+          return;
+        }
         setAcousticRuntimeStatus({
           state: 'error',
           errorMessage: error instanceof Error ? error.message : String(error),

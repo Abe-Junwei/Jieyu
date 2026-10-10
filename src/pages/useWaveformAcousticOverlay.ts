@@ -5,7 +5,10 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { AcousticAnalysisService } from '../app/transcriptionServicesPageAccess';
+import {
+  AcousticAnalysisService,
+  isAcousticAnalysisPayloadTooLargeSkip,
+} from '../app/transcriptionServicesPageAccess';
 import type { AcousticFeatureResult, AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type {
@@ -77,7 +80,7 @@ export function useWaveformAcousticOverlay(
       .analyzeMedia({ mediaKey, mediaUrl: input.selectedMediaUrl, signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
-        setAcousticAnalysis(result);
+        setAcousticAnalysis(isAcousticAnalysisPayloadTooLargeSkip(result) ? null : result);
       })
       .catch(() => {
         if (controller.signal.aborted) return;

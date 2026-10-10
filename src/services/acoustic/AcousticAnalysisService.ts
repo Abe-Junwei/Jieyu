@@ -131,6 +131,61 @@ interface CacheEntry {
 const MAX_CACHE_ENTRIES = 8;
 const MAX_EXTERNAL_PROVIDER_PCM_BYTES = 64 * 1024 * 1024;
 
+/**
+ * Local / worker / external PCM payload is larger than the hard byte cap.
+ * Callers should soft-degrade (skip analysis) rather than treat this as a hard failure (WS8-X2).
+ */
+export class AcousticAnalysisPayloadTooLargeError extends Error {
+  readonly byteLength: number;
+  readonly maxBytes: number;
+
+  constructor(byteLength: number, maxBytes: number = MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+    super(`Local acoustic analysis payload exceeds limit (${maxBytes} bytes)`);
+    this.name = 'AcousticAnalysisPayloadTooLargeError';
+    this.byteLength = byteLength;
+    this.maxBytes = maxBytes;
+  }
+}
+
+export function isAcousticAnalysisPayloadTooLargeError(
+  error: unknown,
+): error is AcousticAnalysisPayloadTooLargeError {
+  if (error instanceof AcousticAnalysisPayloadTooLargeError) return true;
+  if (!(error instanceof Error)) return false;
+  return (
+    error.name === 'AcousticAnalysisPayloadTooLargeError' ||
+    /payload exceeds limit \(\d+ bytes\)/i.test(error.message)
+  );
+}
+
+export function isAcousticAnalysisPayloadTooLargeSkip(result: AcousticFeatureResult): boolean {
+  return result.skippedReason === 'payload_too_large';
+}
+
+function createAcousticPayloadTooLargeSkipResult(mediaKey: string): AcousticFeatureResult {
+  return {
+    mediaKey,
+    sampleRate: 0,
+    durationSec: 0,
+    config: DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+    frames: [],
+    hotspots: [],
+    summary: {
+      selectionStartSec: 0,
+      selectionEndSec: 0,
+      f0MinHz: null,
+      f0MaxHz: null,
+      f0MeanHz: null,
+      intensityMinDb: null,
+      intensityPeakDb: null,
+      reliabilityMean: null,
+      voicedFrameCount: 0,
+      frameCount: 0,
+    },
+    skippedReason: 'payload_too_large',
+  };
+}
+
 function createBrowserAudioContext(): AudioContextLike {
   const AudioContextCtor =
     window.AudioContext ??
@@ -216,6 +271,14 @@ export class AcousticAnalysisService {
   static getInstance(): AcousticAnalysisService {
     if (!AcousticAnalysisService.instance) {
       AcousticAnalysisService.instance = new AcousticAnalysisService();
+    }
+    // E2E hook (same idea as __jieyuDexie__): allow forced oversize checks without long media.
+    if (typeof window !== 'undefined') {
+      (
+        window as unknown as {
+          __jieyuAcousticAnalysisService__?: typeof AcousticAnalysisService;
+        }
+      ).__jieyuAcousticAnalysisService__ = AcousticAnalysisService;
     }
     return AcousticAnalysisService.instance;
   }
@@ -433,19 +496,30 @@ export class AcousticAnalysisService {
     if (pending) return wrapPromiseWithSignal(pending, options.signal);
 
     const task = (async () => {
-      const result = await runner(options);
-      if (!this.disposed) {
-        await this.setCached(cacheKey, mediaKey, result);
+      try {
+        const result = await runner(options);
+        if (!this.disposed && result.skippedReason === undefined) {
+          await this.setCached(cacheKey, mediaKey, result);
+        }
+        return result;
+      } catch (error) {
+        // Resolve (do not reject) so shared pending / wrapPromiseWithSignal / async wrappers
+        // never surface PayloadTooLarge as unhandledrejection or pageerror (WS8-X2 / Firefox).
+        if (isAcousticAnalysisPayloadTooLargeError(error)) {
+          log.warn('Acoustic analysis skipped: PCM exceeds limit', {
+            mediaKey,
+            byteLength: error.byteLength,
+            maxBytes: error.maxBytes,
+          });
+          return createAcousticPayloadTooLargeSkipResult(mediaKey);
+        }
+        throw error;
       }
-      return result;
     })().finally(() => {
       this.pending.delete(cacheKey);
     });
 
     this.pending.set(cacheKey, task);
-    if (options.signal) {
-      task.catch(() => undefined);
-    }
     return task;
   }
 
@@ -473,9 +547,7 @@ export class AcousticAnalysisService {
         () => {
           try {
             if (request.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-              throw new Error(
-                `Local acoustic worker payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
-              );
+              throw new AcousticAnalysisPayloadTooLargeError(request.pcm.byteLength);
             }
             worker.postMessage(request, [request.pcm.buffer]);
           } catch (error) {
@@ -499,12 +571,18 @@ export class AcousticAnalysisService {
     const config = normalizeConfig(input.config);
     const runtimeConfig = input.runtimeConfig;
     const providerState = input.providerState;
-    const mono = downmixToMono(input.audioBuffer);
-    if (mono.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-      throw new Error(
-        `Local acoustic analysis payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
-      );
+    // Gate on mono Float32 size before allocating the downmix copy (WS8-X2).
+    // Return a resolved skip (do not throw) so Firefox never surfaces this as pageerror.
+    const estimatedMonoBytes = input.audioBuffer.length * 4;
+    if (estimatedMonoBytes > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+      log.warn('Acoustic analysis skipped: PCM exceeds limit', {
+        mediaKey: input.mediaKey,
+        byteLength: estimatedMonoBytes,
+        maxBytes: MAX_EXTERNAL_PROVIDER_PCM_BYTES,
+      });
+      return createAcousticPayloadTooLargeSkipResult(input.mediaKey);
     }
+    const mono = downmixToMono(input.audioBuffer);
 
     if (providerState.effectiveProviderId !== LOCAL_ACOUSTIC_PROVIDER_DEFINITION.id) {
       try {
@@ -529,6 +607,8 @@ export class AcousticAnalysisService {
             : {}),
         });
       } catch (error) {
+        // Oversize is definitive — do not spend another local worker pass (WS8-X2).
+        if (isAcousticAnalysisPayloadTooLargeError(error)) throw error;
         log.warn('External acoustic provider failed, falling back to local provider', {
           requestedProviderId: providerState.requestedProviderId,
           effectiveProviderId: providerState.effectiveProviderId,
@@ -585,9 +665,7 @@ export class AcousticAnalysisService {
     };
     try {
       if (input.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-        throw new Error(
-          `External provider payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
-        );
+        throw new AcousticAnalysisPayloadTooLargeError(input.pcm.byteLength);
       }
 
       const pcmArrayBuffer = new ArrayBuffer(input.pcm.byteLength);
