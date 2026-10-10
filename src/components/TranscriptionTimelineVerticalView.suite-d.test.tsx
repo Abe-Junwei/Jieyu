@@ -19,7 +19,7 @@ vi.mock('../contexts/ToastContext', () => ({
   }),
 }));
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { LocaleProvider } from '../i18n';
@@ -35,6 +35,20 @@ afterEach(() => {
   cleanup();
   mockShowToast.mockReset();
 });
+
+
+/** selectionState items are menuitemradio; categories stay menuitem. */
+async function findMenuItem(name: string | RegExp): Promise<HTMLElement> {
+  return waitFor(() => {
+    const item =
+      screen.queryByRole('menuitemradio', { name }) ??
+      screen.queryByRole('menuitem', { name });
+    if (!item) {
+      throw new Error(`Menu item not found: ${String(name)}`);
+    }
+    return item;
+  });
+}
 
 describe('TranscriptionTimelineVerticalView', () => {
   it('opens the vertical layer header context menu and exposes enabled layer operation entries', async () => {
@@ -69,7 +83,7 @@ describe('TranscriptionTimelineVerticalView', () => {
 
     const viewCategory = screen.getByRole('menuitem', { name: /^视图/ });
     fireEvent.mouseEnter(viewCategory);
-    const sourceOnlyItem = await screen.findByRole('menuitem', { name: '仅原文' });
+    const sourceOnlyItem = await findMenuItem('仅原文');
     fireEvent.click(sourceOnlyItem);
     expect(comparisonView.getAttribute('data-compact-mode')).toBe('source');
 

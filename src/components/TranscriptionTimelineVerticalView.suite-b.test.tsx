@@ -35,6 +35,15 @@ afterEach(() => {
   mockShowToast.mockReset();
 });
 
+
+/** selectionState items are menuitemradio; categories stay menuitem. */
+function getMenuItem(name: string | RegExp): HTMLElement {
+  return (
+    screen.queryByRole('menuitemradio', { name }) ??
+    screen.getByRole('menuitem', { name })
+  );
+}
+
 describe('TranscriptionTimelineVerticalView', () => {
   it('shows per-row layer rails, focuses layers from the rail, and only reveals bundle chips when multiple bundles exist', () => {
     const handleAnnotationClick = vi.fn();
@@ -165,16 +174,16 @@ describe('TranscriptionTimelineVerticalView', () => {
     expect(screen.getByTestId('paired-reading-bundle-filter-btn')).toBeTruthy();
     fireEvent.click(screen.getByTestId('paired-reading-bundle-filter-btn'));
     expect(await screen.findByRole('menu')).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: '全部组块' })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: /普通话转写/ })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: /第二转写/ })).toBeTruthy();
+    expect(getMenuItem('全部组块')).toBeTruthy();
+    expect(getMenuItem(/普通话转写/)).toBeTruthy();
+    expect(getMenuItem(/第二转写/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('menuitem', { name: /第二转写/ }));
+    fireEvent.click(getMenuItem(/第二转写/));
     expect(document.querySelectorAll('[data-paired-reading-group-id]')).toHaveLength(1);
 
     fireEvent.click(screen.getByTestId('paired-reading-bundle-filter-btn'));
     expect(await screen.findByRole('menu')).toBeTruthy();
-    fireEvent.click(screen.getByRole('menuitem', { name: '全部组块' }));
+    fireEvent.click(getMenuItem('全部组块'));
     expect(document.querySelectorAll('[data-paired-reading-group-id]')).toHaveLength(2);
   });
 
