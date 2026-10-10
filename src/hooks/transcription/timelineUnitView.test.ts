@@ -215,6 +215,53 @@ describe('buildTimelineUnitViewIndex', () => {
     ).toBe(3);
   });
 
+  it.each([
+    ['subdivided layer first', ['layer-l1', 'layer-l2']],
+    ['projection layer first', ['layer-l2', 'layer-l1']],
+  ] as const)(
+    'WS8-X3: a subdivided layer next to a projection layer loses no segment (%s)',
+    (_label, order) => {
+      const parent: LayerUnitDocType = {
+        id: 'utt-mix',
+        textId: 't1',
+        mediaId: 'm1',
+        startTime: 0,
+        endTime: 3,
+        createdAt: '',
+        updatedAt: '',
+      };
+      const byLayer: Record<string, LayerUnitDocType[]> = {
+        'layer-l1': [0, 1, 2].map((i) => seg(`s${i}`, 'layer-l1', 'm1', i, i + 1, 'utt-mix')),
+        'layer-l2': [seg('p1', 'layer-l2', 'm1', 0, 3, 'utt-mix')],
+      };
+      const index = buildTimelineUnitViewIndex({
+        units: [parent],
+        unitsOnCurrentMedia: [parent],
+        segmentsByLayer: new Map(order.map((layerId) => [layerId, byLayer[layerId]!])),
+        segmentContentByLayer: new Map(),
+        currentMediaId: 'm1',
+        activeLayerIdForEdits: 'layer-l1',
+        defaultTranscriptionLayerId: 'layer-l1',
+      });
+      // L1 细分的 3 个各占自己的 id；L2 的投影 p1 用父键遮住 unit → 共 4 条
+      // L1's three subdivisions keep their ids; L2's projection p1 takes the parent key → 4 entries
+      expect(index.currentMediaUnits.map((unit) => unit.id).sort()).toEqual([
+        'p1',
+        's0',
+        's1',
+        's2',
+      ]);
+      expect(
+        mergedTimelineUnitSemanticKeyCount({
+          unitIds: ['utt-mix'],
+          segments: order.flatMap((layerId) =>
+            byLayer[layerId]!.map((row) => ({ id: row.id, layerId, unitId: 'utt-mix' })),
+          ),
+        }),
+      ).toBe(4);
+    },
+  );
+
   it('keeps unbound segments on the current recording so waveform boundaries stay visible', () => {
     const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       [
@@ -561,7 +608,7 @@ describe('mergedTimelineUnitSemanticKeyCount', () => {
     expect(
       mergedTimelineUnitSemanticKeyCount({
         unitIds: ['u1'],
-        segments: [{ id: 's1', unitId: 'u1' }],
+        segments: [{ id: 's1', layerId: 'l1', unitId: 'u1' }],
       }),
     ).toBe(1);
   });
@@ -570,7 +617,7 @@ describe('mergedTimelineUnitSemanticKeyCount', () => {
     expect(
       mergedTimelineUnitSemanticKeyCount({
         unitIds: ['u1'],
-        segments: [{ id: 's1' }],
+        segments: [{ id: 's1', layerId: 'l1' }],
       }),
     ).toBe(2);
   });

@@ -236,7 +236,9 @@ export function useTranscriptionSnapshotLoader({
         ]);
         unifiedUnitCount = mergedTimelineUnitSemanticKeyCount({
           unitIds: scopedUnits.map((row) => row.id),
-          segments: projectSegments.filter(inCurrentDocument),
+          segments: projectSegments
+            .filter(inCurrentDocument)
+            .map((row) => ({ ...row, layerId: row.layerId ?? '' })),
         });
         const m = textDoc?.metadata as { logicalDurationSec?: unknown } | undefined;
         if (

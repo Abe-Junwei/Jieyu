@@ -155,45 +155,48 @@ export function mergedTimelineUnitSemanticKeyCount(input: {
   unitIds: readonly string[];
   segments: ReadonlyArray<{
     id: string;
-    layerId?: string | undefined;
+    layerId: string;
     parentUnitId?: string | undefined;
     unitId?: string | undefined;
   }>;
 }): number {
+  const rows = input.segments.map((seg) => ({
+    id: seg.id,
+    layerId: seg.layerId,
+    parentKey: (seg.parentUnitId ?? seg.unitId)?.trim() ?? '',
+  }));
+  // 被语段引用的父 unit 由语段代表（遮住）| a parent unit referenced by segments is shadowed by them
+  const referencedParents = new Set(rows.map((row) => row.parentKey).filter(Boolean));
   const mergedBySemanticKey = new Map<string, true>();
   for (const rawId of input.unitIds) {
     const id = rawId.trim();
-    if (id) mergedBySemanticKey.set(id, true);
+    if (id && !referencedParents.has(id)) mergedBySemanticKey.set(id, true);
   }
-  const claimedParentKeys = new Set<string>();
-  for (const seg of input.segments) {
-    const parentKey = (seg.parentUnitId ?? seg.unitId)?.trim() ?? '';
-    mergedBySemanticKey.set(
-      claimSegmentSemanticKey(claimedParentKeys, seg.id, seg.layerId ?? '', parentKey),
-      true,
-    );
-  }
+  const segmentSemanticKey = buildSegmentSemanticKeyResolver(rows);
+  for (const row of rows) mergedBySemanticKey.set(segmentSemanticKey(row), true);
   return mergedBySemanticKey.size;
 }
 
 /**
- * WS8-X3：同一层里多个语段指向同一父 unit 时，只有第一个用父键（遮住 unit），其余用自己的 id；
- * 不同层（每个文本层的投影语段）指向同一父 unit 仍合并为一条。
- * WS8-X3: within one layer only the first segment of a parent unit takes the parent key (shadowing
- * the unit) and the rest keep their own ids; segments on different layers (per-layer projections)
- * that share a parent still merge into one.
+ * WS8-X3：先按 (层, 父 unit) 数语段。某层在该父 unit 下只有 1 个语段（投影）时用父键，跨层合并并遮住
+ * unit；有 2 个及以上（细分）时每个语段用自己的 id。结果与层的顺序无关，也不会丢语段。
+ * WS8-X3: count segments per (layer, parent unit). A layer with exactly one segment under that parent
+ * (a projection) uses the parent key, merging across layers and shadowing the unit; a layer with two or
+ * more (a subdivision) keeps each segment's own id. Order-independent and never drops a segment.
  */
-function claimSegmentSemanticKey(
-  claimedParentKeys: Set<string>,
-  segmentId: string,
-  layerId: string,
-  parentKey: string,
-): string {
-  if (parentKey.length === 0) return segmentId;
-  const claim = `${layerId}\u0000${parentKey}`;
-  if (claimedParentKeys.has(claim)) return segmentId;
-  claimedParentKeys.add(claim);
-  return parentKey;
+function buildSegmentSemanticKeyResolver(
+  rows: ReadonlyArray<{ layerId: string; parentKey: string }>,
+): (row: { id: string; layerId: string; parentKey: string }) => string {
+  const perLayerParent = (row: { layerId: string; parentKey: string }) =>
+    `${row.layerId}\u0000${row.parentKey}`;
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.parentKey.length === 0) continue;
+    const key = perLayerParent(row);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return (row) =>
+    row.parentKey.length > 0 && counts.get(perLayerParent(row)) === 1 ? row.parentKey : row.id;
 }
 
 export function segmentToView(
@@ -253,20 +256,22 @@ export function buildTimelineUnitViewIndex(
 
   const fallbackToSegments = input.units.length === 0 && segmentViews.length > 0;
   const mergedBySemanticKey = new Map<string, TimelineUnitView>();
+  const segmentKeyRows = segmentViews.map((view) => ({
+    id: view.id,
+    layerId: view.layerId,
+    parentKey: view.parentUnitId?.trim() ?? '',
+  }));
+  // Segment rows shadow the unit rows they refer to (projection or subdivision alike).
+  const referencedParents = new Set(segmentKeyRows.map((row) => row.parentKey).filter(Boolean));
   for (const unitView of unitProjectViews) {
-    mergedBySemanticKey.set(unitView.id, unitView);
+    if (!referencedParents.has(unitView.id)) mergedBySemanticKey.set(unitView.id, unitView);
   }
-  const claimedParentKeys = new Set<string>();
-  for (const segmentView of segmentViews) {
-    const semanticKey = claimSegmentSemanticKey(
-      claimedParentKeys,
-      segmentView.id,
-      segmentView.layerId,
-      segmentView.parentUnitId?.trim() ?? '',
-    );
+  const segmentSemanticKey = buildSegmentSemanticKeyResolver(segmentKeyRows);
+  segmentViews.forEach((segmentView, index) => {
+    const semanticKey = segmentSemanticKey(segmentKeyRows[index]!);
     // Segment rows shadow unit rows for the same semantic unit (referring / id-collision paths).
     mergedBySemanticKey.set(semanticKey, segmentView);
-  }
+  });
 
   const allUnits = Array.from(mergedBySemanticKey.values()).sort((a, b) =>
     a.startTime !== b.startTime ? a.startTime - b.startTime : a.endTime - b.endTime,
