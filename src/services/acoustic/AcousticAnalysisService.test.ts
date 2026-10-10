@@ -1,15 +1,29 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computeAcousticAnalysis } from './acousticAnalysisCore';
-import { AcousticAnalysisService } from './AcousticAnalysisService';
+import {
+  AcousticAnalysisPayloadTooLargeError,
+  AcousticAnalysisService,
+} from './AcousticAnalysisService';
 import { acousticAnalysisCacheDB } from './AcousticAnalysisCacheDB';
-import { buildAcousticCacheKey, DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticAnalysisConfig } from '../../utils/acousticOverlayTypes';
+import {
+  buildAcousticCacheKey,
+  DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+  type AcousticAnalysisConfig,
+} from '../../utils/acousticOverlayTypes';
 import type { AcousticProviderRuntimeConfig } from './acousticProviderContract';
 
 type TestWorker = {
   onmessage: ((event: MessageEvent<unknown>) => void) | null;
   onerror: ((event: ErrorEvent) => void) | null;
-  postMessage: (message: { requestId: string; type: 'analyze' | 'cancel'; mediaKey?: string; pcm?: Float32Array; sampleRate?: number; config?: AcousticAnalysisConfig }) => void;
+  postMessage: (message: {
+    requestId: string;
+    type: 'analyze' | 'cancel';
+    mediaKey?: string;
+    pcm?: Float32Array;
+    sampleRate?: number;
+    config?: AcousticAnalysisConfig;
+  }) => void;
   terminate: () => void;
 };
 
@@ -178,8 +192,12 @@ describe('AcousticAnalysisService', () => {
     });
 
     const entries = await acousticAnalysisCacheDB.listEntriesForMedia('media-stale');
-    const staleEntry = entries.find((entry) => entry.cacheKey === buildAcousticCacheKey('media-stale', configA));
-    const freshEntry = entries.find((entry) => entry.cacheKey === buildAcousticCacheKey('media-stale', configB));
+    const staleEntry = entries.find(
+      (entry) => entry.cacheKey === buildAcousticCacheKey('media-stale', configA),
+    );
+    const freshEntry = entries.find(
+      (entry) => entry.cacheKey === buildAcousticCacheKey('media-stale', configB),
+    );
 
     expect(staleEntry?.status).toBe('stale');
     expect(freshEntry?.status).toBe('fresh');
@@ -192,20 +210,29 @@ describe('AcousticAnalysisService', () => {
       workerFactory: () => createMockWorker(workerCounter),
     });
 
-    const firstAudioBuffer = buildAudioBuffer(buildSineWave({
-      frequencyHz: 180,
-      durationSec: 1,
+    const firstAudioBuffer = buildAudioBuffer(
+      buildSineWave({
+        frequencyHz: 180,
+        durationSec: 1,
+        sampleRate,
+      }),
       sampleRate,
-    }), sampleRate);
-    const secondAudioBuffer = buildAudioBuffer(buildSineWave({
-      frequencyHz: 240,
-      durationSec: 1,
+    );
+    const secondAudioBuffer = buildAudioBuffer(
+      buildSineWave({
+        frequencyHz: 240,
+        durationSec: 1,
+        sampleRate,
+      }),
       sampleRate,
-    }), sampleRate);
+    );
 
     const resultsPromise = Promise.all([
       service.analyzeAudioBuffer({ mediaKey: 'media-concurrent-a', audioBuffer: firstAudioBuffer }),
-      service.analyzeAudioBuffer({ mediaKey: 'media-concurrent-b', audioBuffer: secondAudioBuffer }),
+      service.analyzeAudioBuffer({
+        mediaKey: 'media-concurrent-b',
+        audioBuffer: secondAudioBuffer,
+      }),
     ]);
 
     const [firstResult, secondResult] = await Promise.race([
@@ -265,7 +292,10 @@ describe('AcousticAnalysisService', () => {
 
     await service.analyzeAudioBuffer({
       mediaKey: 'media-progress',
-      audioBuffer: buildAudioBuffer(buildSineWave({ frequencyHz: 200, durationSec: 1, sampleRate: 16000 }), 16000),
+      audioBuffer: buildAudioBuffer(
+        buildSineWave({ frequencyHz: 200, durationSec: 1, sampleRate: 16000 }),
+        16000,
+      ),
       onProgress: (entry) => {
         progress.push(entry.ratio);
       },
@@ -278,20 +308,24 @@ describe('AcousticAnalysisService', () => {
   it('cancels an in-flight worker request when the signal aborts', async () => {
     const messages: Array<{ requestId: string; type: 'analyze' | 'cancel' }> = [];
     const service = new AcousticAnalysisService({
-      workerFactory: () => ({
-        onmessage: null,
-        onerror: null,
-        postMessage(message: { requestId: string; type: 'analyze' | 'cancel' }) {
-          messages.push(message);
-        },
-        terminate() {},
-      } as unknown as TestWorker),
+      workerFactory: () =>
+        ({
+          onmessage: null,
+          onerror: null,
+          postMessage(message: { requestId: string; type: 'analyze' | 'cancel' }) {
+            messages.push(message);
+          },
+          terminate() {},
+        }) as unknown as TestWorker,
     });
     const controller = new AbortController();
 
     const promise = service.analyzeAudioBuffer({
       mediaKey: 'media-abort',
-      audioBuffer: buildAudioBuffer(buildSineWave({ frequencyHz: 220, durationSec: 1, sampleRate: 16000 }), 16000),
+      audioBuffer: buildAudioBuffer(
+        buildSineWave({ frequencyHz: 220, durationSec: 1, sampleRate: 16000 }),
+        16000,
+      ),
       signal: controller.signal,
     });
 
@@ -308,7 +342,10 @@ describe('AcousticAnalysisService', () => {
     });
     controller.abort();
 
-    await expect(promise).rejects.toMatchObject({ name: 'AbortError', message: 'Acoustic analysis aborted' });
+    await expect(promise).rejects.toMatchObject({
+      name: 'AbortError',
+      message: 'Acoustic analysis aborted',
+    });
     expect(messages[0]?.type).toBe('analyze');
     expect(messages[1]?.type).toBe('cancel');
     expect(messages[1]?.requestId).toBe(messages[0]?.requestId);
@@ -411,8 +448,12 @@ describe('AcousticAnalysisService', () => {
     const call = fetchSpy.mock.calls[0];
     const requestInit = call?.[1] as RequestInit | undefined;
     expect(requestInit?.body).toBeInstanceOf(FormData);
-    expect((requestInit?.headers as Record<string, string>)?.authorization).toBe('Bearer test-api-key');
-    expect((requestInit?.headers as Record<string, string>)?.['x-jieyu-acoustic-wire-format']).toBe('multipart-f32-v1');
+    expect((requestInit?.headers as Record<string, string>)?.authorization).toBe(
+      'Bearer test-api-key',
+    );
+    expect((requestInit?.headers as Record<string, string>)?.['x-jieyu-acoustic-wire-format']).toBe(
+      'multipart-f32-v1',
+    );
     expect((requestInit?.headers as Record<string, string>)?.['content-type']).toBeUndefined();
 
     const form = requestInit?.body as FormData;
@@ -529,6 +570,33 @@ describe('AcousticAnalysisService', () => {
     service.dispose();
   });
 
+  it('throws AcousticAnalysisPayloadTooLargeError when local mono PCM exceeds the byte cap (WS8-X2)', async () => {
+    const service = new AcousticAnalysisService({
+      workerFactory: () => createMockWorker({ count: 0 }),
+    });
+    const sampleRate = 16000;
+    const oversizedLength = Math.floor((64 * 1024 * 1024) / 4) + 8;
+    // Avoid allocating a 64MB buffer: only `length` is consulted before downmix.
+    const audioBuffer = {
+      length: oversizedLength,
+      numberOfChannels: 1,
+      sampleRate,
+      duration: oversizedLength / sampleRate,
+      getChannelData: () => {
+        throw new Error('downmix should not run for oversized buffers');
+      },
+    } as unknown as AudioBuffer;
+
+    await expect(
+      service.analyzeAudioBuffer({
+        mediaKey: 'media-local-oversized',
+        audioBuffer,
+      }),
+    ).rejects.toBeInstanceOf(AcousticAnalysisPayloadTooLargeError);
+
+    service.dispose();
+  });
+
   it('cleans up timeout and abort listener when external payload exceeds size limit', async () => {
     const service = new AcousticAnalysisService();
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
@@ -540,19 +608,21 @@ describe('AcousticAnalysisService', () => {
       removeEventListener,
     } as unknown as AbortSignal;
 
-    await expect((service as any).analyzeWithExternalProvider({
-      mediaKey: 'media-oversized-payload',
-      pcm: { byteLength: (64 * 1024 * 1024) + 4 } as Float32Array,
-      sampleRate: 16000,
-      config: DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
-      providerId: 'enhanced-provider',
-      externalConfig: {
-        enabled: true,
-        endpoint: 'https://provider.example.dev/analyze',
-        timeoutMs: 5000,
-      },
-      signal,
-    })).rejects.toThrow(/payload exceeds limit/i);
+    await expect(
+      (service as any).analyzeWithExternalProvider({
+        mediaKey: 'media-oversized-payload',
+        pcm: { byteLength: 64 * 1024 * 1024 + 4 } as Float32Array,
+        sampleRate: 16000,
+        config: DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+        providerId: 'enhanced-provider',
+        externalConfig: {
+          enabled: true,
+          endpoint: 'https://provider.example.dev/analyze',
+          timeoutMs: 5000,
+        },
+        signal,
+      }),
+    ).rejects.toThrow(/payload exceeds limit/i);
 
     expect(addEventListener).toHaveBeenCalledWith('abort', expect.any(Function), { once: true });
     expect(removeEventListener).toHaveBeenCalledWith('abort', expect.any(Function));

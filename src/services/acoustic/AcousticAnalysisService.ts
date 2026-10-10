@@ -131,6 +131,31 @@ interface CacheEntry {
 const MAX_CACHE_ENTRIES = 8;
 const MAX_EXTERNAL_PROVIDER_PCM_BYTES = 64 * 1024 * 1024;
 
+/**
+ * Local / worker / external PCM payload is larger than the hard byte cap.
+ * Callers should soft-degrade (skip analysis) rather than treat this as a hard failure (WS8-X2).
+ */
+export class AcousticAnalysisPayloadTooLargeError extends Error {
+  readonly byteLength: number;
+  readonly maxBytes: number;
+
+  constructor(byteLength: number, maxBytes: number = MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+    super(`Local acoustic analysis payload exceeds limit (${maxBytes} bytes)`);
+    this.name = 'AcousticAnalysisPayloadTooLargeError';
+    this.byteLength = byteLength;
+    this.maxBytes = maxBytes;
+  }
+}
+
+export function isAcousticAnalysisPayloadTooLargeError(
+  error: unknown,
+): error is AcousticAnalysisPayloadTooLargeError {
+  return (
+    error instanceof AcousticAnalysisPayloadTooLargeError ||
+    (error instanceof Error && error.name === 'AcousticAnalysisPayloadTooLargeError')
+  );
+}
+
 function createBrowserAudioContext(): AudioContextLike {
   const AudioContextCtor =
     window.AudioContext ??
@@ -443,9 +468,9 @@ export class AcousticAnalysisService {
     });
 
     this.pending.set(cacheKey, task);
-    if (options.signal) {
-      task.catch(() => undefined);
-    }
+    // Always swallow on the shared pending handle so a rejecting analysis cannot surface as an
+    // unhandledrejection / pageerror while callers attach their own .catch (WS8-X2 / Firefox).
+    task.catch(() => undefined);
     return task;
   }
 
@@ -473,9 +498,7 @@ export class AcousticAnalysisService {
         () => {
           try {
             if (request.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-              throw new Error(
-                `Local acoustic worker payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
-              );
+              throw new AcousticAnalysisPayloadTooLargeError(request.pcm.byteLength);
             }
             worker.postMessage(request, [request.pcm.buffer]);
           } catch (error) {
@@ -499,12 +522,12 @@ export class AcousticAnalysisService {
     const config = normalizeConfig(input.config);
     const runtimeConfig = input.runtimeConfig;
     const providerState = input.providerState;
-    const mono = downmixToMono(input.audioBuffer);
-    if (mono.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-      throw new Error(
-        `Local acoustic analysis payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
-      );
+    // Gate on mono Float32 size before allocating the downmix copy (WS8-X2).
+    const estimatedMonoBytes = input.audioBuffer.length * 4;
+    if (estimatedMonoBytes > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+      throw new AcousticAnalysisPayloadTooLargeError(estimatedMonoBytes);
     }
+    const mono = downmixToMono(input.audioBuffer);
 
     if (providerState.effectiveProviderId !== LOCAL_ACOUSTIC_PROVIDER_DEFINITION.id) {
       try {
@@ -585,9 +608,7 @@ export class AcousticAnalysisService {
     };
     try {
       if (input.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-        throw new Error(
-          `External provider payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
-        );
+        throw new AcousticAnalysisPayloadTooLargeError(input.pcm.byteLength);
       }
 
       const pcmArrayBuffer = new ArrayBuffer(input.pcm.byteLength);
