@@ -320,9 +320,11 @@ export async function exportProjectRecoveryDatabaseAsJson(textId: string): Promi
             .where('mediaId')
             .anyOf(media.map((item) => item.id))
             .toArray(),
-          // shortcut: speakers / user_notes 没有项目索引，整表读（两张小表），变大时加 textId 索引
-          // shortcut: speakers / user_notes have no project index and are read whole (small tables); add a textId index if they grow
-          d.speakers.toArray(),
+          // FS-O4：说话人走 textId 索引 | speakers use the textId index
+          d.speakers.where('textId').equals(textId).toArray(),
+          // shortcut: user_notes 没有项目键（归属按目标推算，含 unitId::layerId 组合 id），仍整表读后按归属过滤
+          // shortcut: user_notes carry no project key (ownership is derived from the target, incl. composite
+          // unitId::layerId ids), so they are still read whole and filtered by ownership
           d.user_notes.toArray(),
         ]);
       const byId = <T extends { id: string }>(...lists: T[][]) => [

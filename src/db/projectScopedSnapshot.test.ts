@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db, getDb } from './engine';
 import type { LayerDocType } from './types';
 import { entryDoc } from '../utils/dmlexEntry';
@@ -254,7 +254,11 @@ describe('project-scoped snapshot export/import', () => {
       } as never);
     }
 
+    // FS-O4：说话人按 textId 索引读，不整表读 | speakers are read via the textId index, not whole
+    const speakerTableRead = vi.spyOn((await getDb()).dexie.speakers, 'toArray');
     const scoped = await exportProjectRecoveryDatabaseAsJson('text-a');
+    expect(speakerTableRead).not.toHaveBeenCalled();
+    speakerTableRead.mockRestore();
     const whole = filterCollectionsForProject((await exportDatabaseAsJson()).collections, 'text-a');
     const expected = Object.fromEntries(
       RECOVERY_EXPORT_COLLECTIONS.filter((name) => Array.isArray(whole[name])).map((name) => [

@@ -72,11 +72,11 @@ export async function searchUnits(
         ...(selfCertainty ? { selfCertainty: selfCertainty as UnitSelfCertainty } : {}),
         ...(annotationStatus ? { annotationStatus: annotationStatus as LayerUnitStatus } : {}),
         ...(typeof hasText === 'boolean' ? { hasText } : {}),
-        limit,
       });
-      // 第 5 批：只保留当前文稿的命中 | Batch 5: keep current-document matches only
-      // shortcut: limit 在过滤前生效，多文稿项目可能少返回几条 | the limit applies before filtering
-      const rows = await keepCurrentDocumentSegmentMetaRows(allDocumentRows);
+      // 第 5 批：先只保留当前文稿的命中，再截 limit（FS-O2）；searchSegmentMeta 本就在内存里过滤，不多读库
+      // Batch 5: keep current-document matches first, then apply the limit (FS-O2). searchSegmentMeta
+      // already filters in memory, so dropping its limit reads no extra rows.
+      const rows = (await keepCurrentDocumentSegmentMetaRows(allDocumentRows)).slice(0, limit);
       const matches = mapSegmentMetaRows(rows);
       if (matches.length > 0 || loadNormalizedUnitRows(context).length === 0) {
         return {

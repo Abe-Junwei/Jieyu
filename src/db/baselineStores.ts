@@ -55,7 +55,7 @@ export const JIEYU_BASELINE_STORES = {
   segment_quality_snapshots:
     'id, segmentId, textId, mediaId, layerId, severity, [layerId+mediaId], [textId+layerId], [layerId+severity], updatedAt',
   speaker_profile_snapshots: 'id, textId, speakerId, [textId+speakerId], updatedAt',
-  speakers: 'id, updatedAt',
+  speakers: 'id, textId, updatedAt',
   structural_rule_profiles: 'id, scope, languageId, projectId, enabled, priority, updatedAt',
   tag_definitions: 'id, key',
   texts: 'id, updatedAt, languageCode',

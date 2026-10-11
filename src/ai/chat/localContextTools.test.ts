@@ -1542,6 +1542,55 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(payload._readModel.documentScope).toBe('current_document');
   });
 
+  it('FS-O2: search_units applies the limit after the current-document filter', async () => {
+    const ref = { current: 0 };
+    const row = (segmentId: string, layerId: string) => ({
+      id: `${layerId}::${segmentId}`,
+      segmentId,
+      unitKind: 'segment',
+      textId: 'text-1',
+      mediaId: 'm1',
+      layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'hello',
+      normalizedText: 'hello',
+      hasText: true,
+      createdAt: '',
+      updatedAt: '',
+    });
+    // 其他文稿的行排在前面，占满 limit | other-document rows come first and fill the limit
+    const stored = [
+      row('seg-o1', 'layer-other-doc'),
+      row('seg-o2', 'layer-other-doc'),
+      row('seg-1', 'layer-1'),
+      row('seg-2', 'layer-1'),
+      row('seg-3', 'layer-1'),
+    ];
+    // 与真实服务一致：有 limit 时在内存过滤后截断 | like the real service: slice when a limit is given
+    mockSegmentMetaSearchSegmentMeta.mockImplementation(async (options: { limit?: number }) =>
+      typeof options.limit === 'number' ? stored.slice(0, options.limit) : stored,
+    );
+    mockKeepCurrentDocumentRows.mockImplementation(async (rows: unknown[]) =>
+      (rows as Array<{ layerId: string }>).filter((item) => item.layerId !== 'layer-other-doc'),
+    );
+    const context = {
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'search_units', arguments: { scope: 'project', query: 'hello', limit: 2 } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { count: number; matches: Array<{ id: string }> };
+    expect(payload.matches.map((match) => match.id)).toEqual(['seg-1', 'seg-2']);
+    expect(payload.count).toBe(2);
+  });
+
   it('get_unit_detail with project scope resolves from segment_meta listAll', async () => {
     const ref = { current: 0 };
     mockSegmentMetaListAll.mockResolvedValue([
