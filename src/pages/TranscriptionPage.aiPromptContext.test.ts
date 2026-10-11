@@ -251,6 +251,52 @@ describe('buildTranscriptionAiPromptContext', () => {
     expect(block).toContain('projectStats(units=4, translationLayers=1, aiConfidenceAvg=0.912)');
   });
 
+  it('FS-O1: renders subdivided parent gaps for the current media only, without touching unit counts', () => {
+    const gap = (parentUnitId: string, mediaId: string) => ({
+      parentUnitId,
+      layerId: 'layer-1',
+      mediaId,
+      parentStartTime: 0,
+      parentEndTime: 10,
+      parentText: 'parent words',
+      gaps: [{ startTime: 2, endTime: 8 }],
+    });
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUnitId: '',
+        selectedUnit: null,
+        selectedRowMeta: null,
+        timelineUnit: null,
+        selectedUnitKind: null,
+        selectedLayerId: '',
+        selectedText: '',
+      },
+      selectedUnitIds: [],
+      selectedUnitCount: 0,
+      currentMediaUnits: MOCK_CURRENT_MEDIA_UNITS,
+      unitCount: 6,
+      translationLayerCount: 0,
+      aiConfidenceAvg: 0,
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+      currentMediaId: 'media-1',
+      timelineUnitViewIndex: {
+        byLayer: new Map(),
+        subdividedParentGaps: [gap('utt-here', 'media-1'), gap('utt-other', 'media-2')],
+      },
+    });
+    expect(context.shortTerm?.subdividedParentGaps?.map((row) => row.parentUnitId)).toEqual([
+      'utt-here',
+    ]);
+    const block = buildPromptContextBlock(context, 4000);
+    expect(block).toContain('subdividedParentGaps=');
+    expect(block).toContain('utt-here@layer-1 0.00-10.00 "parent words" uncovered=2.00-8.00');
+    expect(block).not.toContain('utt-other');
+    expect(block).toContain('projectUnitCount=6 [authoritative');
+    expect(block).toContain('currentTrack.unitCount=6 [current audio track only');
+  });
+
   it('exposes speakerCount in project stats when speaker ids exist', () => {
     const context = buildTranscriptionAiPromptContext({
       selectionSnapshot: {

@@ -78,6 +78,72 @@ export function pickTimelineUnitsForTranscriptionLayer(
   return index.byLayer.get(k) ?? [];
 }
 
+/**
+ * FS-O1：某层对父 unit 有 2 个及以上语段（细分）时，父 unit 被遮住。这里把父 unit 的文本和
+ * 细分没覆盖到的时间段单独交给 AI 读取；不进入 allUnits / byLayer / 计数，所以波形 region 与计数不变。
+ * FS-O1: when a layer subdivides a parent unit (2+ segments), the parent is shadowed. This keeps the
+ * parent's text and the uncovered time ranges readable for AI only; it never enters allUnits / byLayer /
+ * counts, so waveform regions and counts stay as WS8-X3 defines them.
+ */
+export interface SubdividedParentGap {
+  parentUnitId: string;
+  layerId: string;
+  mediaId: string;
+  parentStartTime: number;
+  parentEndTime: number;
+  parentText: string;
+  /** Parts of the parent span that no segment of this layer covers. */
+  gaps: ReadonlyArray<{ startTime: number; endTime: number }>;
+}
+
+const GAP_EPSILON_SEC = 0.001;
+
+export function buildSubdividedParentGaps(
+  units: ReadonlyArray<LayerUnitDocType>,
+  segmentViews: ReadonlyArray<TimelineUnitView>,
+): SubdividedParentGap[] {
+  const byLayerParent = new Map<string, TimelineUnitView[]>();
+  for (const seg of segmentViews) {
+    const parentId = seg.parentUnitId?.trim() ?? '';
+    if (!parentId) continue;
+    const key = `${seg.layerId}\u0000${parentId}`;
+    const bucket = byLayerParent.get(key);
+    if (bucket) bucket.push(seg);
+    else byLayerParent.set(key, [seg]);
+  }
+  const unitById = new Map(units.map((u) => [u.id, u] as const));
+  const out: SubdividedParentGap[] = [];
+  for (const segs of byLayerParent.values()) {
+    if (segs.length < 2) continue; // projection: the segment stands in for the parent
+    const parent = unitById.get(segs[0]!.parentUnitId!.trim());
+    if (!parent) continue;
+    const gaps: Array<{ startTime: number; endTime: number }> = [];
+    let cursor = parent.startTime;
+    for (const seg of [...segs].sort((a, b) => a.startTime - b.startTime)) {
+      if (seg.startTime - cursor > GAP_EPSILON_SEC) {
+        gaps.push({ startTime: cursor, endTime: Math.min(seg.startTime, parent.endTime) });
+      }
+      cursor = Math.max(cursor, seg.endTime);
+      if (cursor >= parent.endTime) break;
+    }
+    if (parent.endTime - cursor > GAP_EPSILON_SEC) {
+      gaps.push({ startTime: cursor, endTime: parent.endTime });
+    }
+    const parentText = pickDefaultTranscriptionText(parent.transcription).trim();
+    if (gaps.length === 0 && parentText.length === 0) continue;
+    out.push({
+      parentUnitId: parent.id,
+      layerId: segs[0]!.layerId,
+      mediaId: parent.mediaId ?? '',
+      parentStartTime: parent.startTime,
+      parentEndTime: parent.endTime,
+      parentText,
+      gaps,
+    });
+  }
+  return out.sort((a, b) => a.parentStartTime - b.parentStartTime);
+}
+
 export interface TimelineUnitViewIndex {
   /** Project-scoped rows for tools (same semantics as former effectiveProjectRows). */
   allUnits: ReadonlyArray<TimelineUnitView>;
@@ -100,6 +166,8 @@ export interface TimelineUnitViewIndex {
    */
   fallbackToSegments: boolean;
   isComplete: boolean;
+  /** FS-O1: AI-only view of shadowed subdivided parents (not part of allUnits / counts / regions). */
+  subdividedParentGaps?: ReadonlyArray<SubdividedParentGap>;
 }
 
 const UNBOUND_TIMELINE_MEDIA_ID = '__unknown_media__';
@@ -380,6 +448,7 @@ export function buildTimelineUnitViewIndex(
     epoch: input.epoch ?? 0,
     fallbackToSegments,
     isComplete: segmentsLoadComplete,
+    subdividedParentGaps: buildSubdividedParentGaps(input.units, segmentViews),
   };
 }
 

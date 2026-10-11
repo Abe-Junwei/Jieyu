@@ -370,7 +370,12 @@ export function useTranscriptionAiController(
       locale,
       currentMediaUnits: effectiveUnitIndex.currentMediaUnits,
       ...(projectUnitsForTools ? { projectUnitsForTools } : {}),
-      timelineUnitViewIndex: { byLayer: effectiveUnitIndex.byLayer },
+      timelineUnitViewIndex: {
+        byLayer: effectiveUnitIndex.byLayer,
+        ...(effectiveUnitIndex.subdividedParentGaps
+          ? { subdividedParentGaps: effectiveUnitIndex.subdividedParentGaps }
+          : {}),
+      },
       unitIndexComplete: effectiveUnitIndex.isComplete,
       waveformAnalysis: buildWaveformAnalysisPromptSummary(waveformRows, {
         ...(input.selectionSnapshot.selectedUnitStartSec !== undefined

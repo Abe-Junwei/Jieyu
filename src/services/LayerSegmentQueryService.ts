@@ -296,6 +296,13 @@ export class LayerSegmentQueryService {
     });
   }
 
+  /** 单条媒体上的句段（走 `mediaId` 索引）| Segments on one media via the `mediaId` index */
+  static async listSegmentsByMediaId(mediaId: string): Promise<LayerSegmentViewDocType[]> {
+    const normalized = mediaId.trim();
+    if (!normalized) return [];
+    return toSegmentViews(await LayerSegmentQueryService.listUnitsByMediaId(normalized));
+  }
+
   static async listAllSegments(): Promise<LayerSegmentViewDocType[]> {
     return runQueryWithCompatibleTransaction(['layer_units'], async () => {
       const db = await getDb();

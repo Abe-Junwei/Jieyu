@@ -11,6 +11,7 @@ import {
   type LexemeResourceDoc,
 } from '../db';
 import { lexemeHeadword, lexemeMatchValues } from '../utils/dmlexEntry';
+import { foldSearchText } from '../utils/searchTextNormalization';
 import { pickTranscriptionTextForLanguage } from '../utils/transcriptionFormatters';
 import { newId } from '../utils/transcriptionFormatters';
 import {
@@ -21,7 +22,6 @@ import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import {
   activeCatalogProjectId,
   CatalogOwnershipMismatchError,
-  lexemeBelongsToProject,
   requireCatalogProjectId,
 } from './projectCatalogScope';
 
@@ -55,24 +55,20 @@ export async function listLexemes(textId?: string): Promise<LexemeEntryDoc[]> {
   const projectId = activeCatalogProjectId(textId);
   if (projectId.length === 0) return [];
   const db = await getDb();
-  const docs = await db.collections.lexemes.find().exec();
-  return entryRows(docs.map((doc) => doc.toJSON()))
-    .filter((item) => lexemeBelongsToProject(item, projectId))
-    .sort(compareLexemeEntries);
+  const docs = await db.collections.lexemes.findByIndex('textId', projectId);
+  return entryRows(docs.map((doc) => doc.toJSON())).sort(compareLexemeEntries);
 }
 
 export async function searchLexemes(query: string, textId?: string): Promise<LexemeEntryDoc[]> {
-  const normalized = query.trim().toLowerCase();
+  const normalized = foldSearchText(query.trim());
   if (!normalized) return [];
   const projectId = activeCatalogProjectId(textId);
   if (projectId.length === 0) return [];
 
   const db = await getDb();
-  const docs = await db.collections.lexemes.find().exec();
-  return entryRows(docs.map((doc) => doc.toJSON())).filter(
-    (item) =>
-      lexemeBelongsToProject(item, projectId) &&
-      lexemeMatchValues(item).some((value) => value.includes(normalized)),
+  const docs = await db.collections.lexemes.findByIndex('textId', projectId);
+  return entryRows(docs.map((doc) => doc.toJSON())).filter((item) =>
+    lexemeMatchValues(item).some((value) => value.includes(normalized)),
   );
 }
 
@@ -183,14 +179,15 @@ export async function matchOrCreateLexemeByForm(input: {
   const projectId = requireCatalogProjectId(input.textId);
   const language = input.language?.trim();
   const db = await getDb();
-  const existing = (await db.dexie.lexemes.toArray()).find((lexeme) => {
-    if (lexeme.textId !== projectId) return false;
-    if (headwordSurface(lexeme) !== form) return false;
-    if (!language) return true;
-    if (!isLexemeEntry(lexeme)) return false;
-    const lang = lexeme.entry.senses?.[0]?.headwordTranslations?.[0]?.langCode ?? '';
-    return lang === language;
-  });
+  const existing = (await db.dexie.lexemes.where('textId').equals(projectId).toArray()).find(
+    (lexeme) => {
+      if (headwordSurface(lexeme) !== form) return false;
+      if (!language) return true;
+      if (!isLexemeEntry(lexeme)) return false;
+      const lang = lexeme.entry.senses?.[0]?.headwordTranslations?.[0]?.langCode ?? '';
+      return lang === language;
+    },
+  );
   if (existing) return existing.id;
 
   const now = new Date().toISOString();

@@ -24,6 +24,10 @@ export function foldSearchText(text: string): string {
 export function tokenizeMixedScriptForSearch(text: string): string[] {
   const folded = foldSearchText(text);
   const cjkChars = folded.match(/[\u4e00-\u9fff]/g) ?? [];
-  const words = folded.split(/[^\p{L}\p{M}\p{N}]+/u).filter((item) => item.length >= 2);
+  // IPA tone letters ˥˦˧˨˩ (U+02E5–U+02E9) are Sk, not Letter/Mark; keep them inside tokens
+  // so ma˥ and ma˩ stay distinct for embedding / search indexing.
+  const words = folded
+    .split(/[^\p{L}\p{M}\p{N}\u02E5-\u02E9]+/u)
+    .filter((item) => item.length >= 2);
   return [...new Set([...cjkChars, ...words])];
 }

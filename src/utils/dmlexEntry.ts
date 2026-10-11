@@ -13,6 +13,7 @@ import {
 } from '../db/dmlexTypes';
 import type { LexemeEntryDoc, LexemeResourceDoc, MultiLangString } from '../db/types';
 import { newId } from './transcriptionFormatters';
+import { foldSearchText } from './searchTextNormalization';
 
 export const DEFAULT_TRANSLATION_LANG = 'zh';
 
@@ -158,7 +159,7 @@ export function lexemeGlossProjection(lexeme: LexemeEntryDoc): MultiLangString {
 export function lexemeMatchValues(lexeme: LexemeEntryDoc): string[] {
   const values = [lexeme.entry.headword];
   for (const form of lexeme.entry.inflectedForms ?? []) values.push(form.text);
-  return values.map((value) => value.trim().toLowerCase()).filter((value) => value.length > 0);
+  return values.map((value) => foldSearchText(value.trim())).filter((value) => value.length > 0);
 }
 
 export function emptyDmlexResource(now: string, textId: string): LexemeResourceDoc {
