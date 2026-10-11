@@ -7,7 +7,10 @@ import type { AiMessageCitation } from '../../db';
 import type { EmbeddingSearchService } from '../embeddings/EmbeddingSearchService';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import type { AiChatToolName } from './aiChatToolName.types';
-import type { TimelineUnitView } from '../../hooks/transcription/timelineUnitView';
+import type {
+  SubdividedParentGap,
+  TimelineUnitView,
+} from '../../hooks/transcription/timelineUnitView';
 import type { ComposedWorkflowState } from '../vertical/composedWorkflowTemplates';
 import type { DegradationScenario } from './degradationManualOverride';
 import type { WorkflowExplainabilityV0 } from './workflowExplainability';
@@ -594,6 +597,11 @@ interface AiShortTermContext {
   segmentMetaStorageLayerId?: string;
   recentEdits?: string[];
   recentActions?: string[];
+  /**
+   * FS-O1: parents shadowed by a 2+ segment subdivision on some layer, with the parent text and the
+   * time ranges no segment covers. AI read only; not part of unit counts or waveform regions.
+   */
+  subdividedParentGaps?: ReadonlyArray<SubdividedParentGap>;
   /** Tier-2 rolling conversation digest from session memory (not a substitute for [CONTEXT] counts). */
   sessionMemoryDigest?: string;
 }
