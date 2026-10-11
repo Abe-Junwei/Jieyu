@@ -3,7 +3,7 @@ title: execution/plans 文档索引（自动生成）
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-09-30
+last_reviewed: 2026-10-11
 source_of_truth: execution-plan-index
 ---
 
@@ -12,10 +12,12 @@ source_of_truth: execution-plan-index
 > 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。
 > SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。
 
-## Active（73）
+## Active（75）
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| active | [整库代码审查与治理完整方案](./repository-review-and-governance-2026-10-11.md) | 2026-10-11 |
+| proposed | [项目、资料与持久化架构完整改进方案（修订五）](./project-data-architecture-improvement-2026-10-08.md) | 2026-10-08 |
 | active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-09-30 |
 | active | [转写、标注、词典联动需求](./转写标注词典联动需求-2026-09-29.md) | 2026-09-30 |
 | active | [标注页与词典页开发路线图（重构版）](./标注页与词典页开发路线图-2026-04-25.md) | 2026-09-29 |
@@ -105,3 +107,7 @@ source_of_truth: execution-plan-index
 | completed | [react-hooks/exhaustive-deps 剩余收口计划（2026-05-08）](./exhaustive-deps收口计划-2026-05-08.md) | 2026-05-09 | — |
 | superseded | [技术债修复方案（2026-05-08 审查修订版）](./技术债修复方案-2026-05-08.md) | 2026-05-08 | `../../architecture/code-governance-plan-2026-05-06.md` |
 | superseded | [标注页与词典页开发路线图（对标 FLEx）](./标注页与词典页开发路线图-2026-04-22.md) | 2026-04-25 | `./标注页与词典页开发路线图-2026-04-25.md` |
+
+## Unknown status（1） — 守卫应已拦截，重跑 `check:plans-frontmatter`
+
+- [BF1-N3-归档导入拒绝孤儿行-2026-10-09](./BF1-N3-归档导入拒绝孤儿行-2026-10-09.md) — status=`archive-import-complete`
