@@ -5,6 +5,7 @@ import { newId } from '../utils/transcriptionFormatters';
 import {
   bulkUpsertUnitLayerUnits,
   getUnitDocProjectionById,
+  listUnitDocsForMedia,
   listUnitDocsFromCanonicalLayerUnits,
 } from './LayerSegmentGraphService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
@@ -51,20 +52,13 @@ export async function getSpeakerReferenceStats(options?: {
   mediaId?: string | null;
 }): Promise<SpeakerReferenceStatsBundle> {
   const db = await getDb();
-  const [unitRowsRaw, allSegments] = await Promise.all([
-    listUnitDocsFromCanonicalLayerUnits(db),
-    LayerSegmentQueryService.listAllSegments(),
-  ]);
-
   const mediaKey = typeof options?.mediaId === 'string' ? options.mediaId.trim() : '';
-  const unitRows =
+  // FS-4: with a media id, read through the mediaId index instead of projecting the whole library.
+  const [unitRows, segments] = await Promise.all(
     mediaKey.length > 0
-      ? unitRowsRaw.filter((row) => (row.mediaId ?? '').trim() === mediaKey)
-      : unitRowsRaw;
-  const segments =
-    mediaKey.length > 0
-      ? allSegments.filter((row) => (row.mediaId?.trim() ?? '') === mediaKey)
-      : allSegments;
+      ? [listUnitDocsForMedia(db, mediaKey), LayerSegmentQueryService.listSegmentsByMediaId(mediaKey)]
+      : [listUnitDocsFromCanonicalLayerUnits(db), LayerSegmentQueryService.listAllSegments()],
+  );
 
   const stats = new Map<
     string,

@@ -5,6 +5,7 @@ import { clearLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntime
 import { db } from '../db';
 import type { AuditLogDocType, TierDefinitionDocType, TierAnnotationDocType } from '../db';
 import { LinguisticService, validateTierConstraints } from './LinguisticService';
+import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { resolveLanguageQuery } from '../utils/langMapping';
 import {
   clearActiveProjectTextId,
@@ -1760,10 +1761,38 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
       updatedAt: now,
     });
+    for (const [id, mediaId, speakerId] of [
+      ['seg_m_a1', 'media_a', 'spk_m'],
+      ['seg_m_a2', 'media_a', undefined],
+      ['seg_m_b1', 'media_b', 'spk_m'],
+    ] as const) {
+      await db.layer_units.put({
+        id,
+        textId: 'text_m',
+        mediaId,
+        layerId: 'layer_m',
+        unitType: 'segment',
+        startTime: 0,
+        endTime: 1,
+        ...(speakerId ? { speakerId } : {}),
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    // FS-4: the media path must use the mediaId index, not the whole-library segment scan.
+    const allSegmentsSpy = vi.spyOn(LayerSegmentQueryService, 'listAllSegments');
     const bundleA = await LinguisticService.speakers.getReferenceStats({ mediaId: 'media_a' });
-    expect(bundleA.unassigned.transcriptionUnitCount).toBe(1);
+    expect(allSegmentsSpy).not.toHaveBeenCalled();
+    allSegmentsSpy.mockRestore();
+    expect(bundleA).toEqual({
+      perSpeaker: { spk_m: { transcriptionUnitCount: 0, segmentCount: 1, totalCount: 1 } },
+      unassigned: { transcriptionUnitCount: 1, segmentCount: 1, totalCount: 2 },
+    });
     const bundleAll = await LinguisticService.speakers.getReferenceStats();
-    expect(bundleAll.unassigned.transcriptionUnitCount).toBe(2);
+    expect(bundleAll).toEqual({
+      perSpeaker: { spk_m: { transcriptionUnitCount: 0, segmentCount: 2, totalCount: 2 } },
+      unassigned: { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 },
+    });
   });
 
   it('supports token/morpheme lexeme links lifecycle', async () => {
