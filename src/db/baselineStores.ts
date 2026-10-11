@@ -39,7 +39,7 @@ export const JIEYU_BASELINE_STORES = {
   lexeme_asset_links: 'id, lexemeId, assetId, [lexemeId+assetId], createdAt',
   lexeme_assets:
     'id, kind, mimeType, displayName, languageCode, byteSize, refCount, createdAt, updatedAt',
-  lexemes: 'id, updatedAt',
+  lexemes: 'id, textId, updatedAt',
   locations: 'id, country, region',
   mcp_tool_call_audits: 'id, timestamp, toolName, outcome, [toolName+timestamp]',
   media_items: 'id, textId, createdAt',
