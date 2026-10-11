@@ -14,6 +14,7 @@ import {
   type LexemeSenseChoice,
 } from '../../utils/dmlexEntry';
 import { newId } from '../../utils/transcriptionFormatters';
+import { foldSearchText } from '../../utils/searchTextNormalization';
 
 export type AnnotationLexemeLinkDeps = {
   transaction?: <T>(action: () => Promise<T>) => Promise<T>;
@@ -63,7 +64,7 @@ export function resolveLexemeForLinkQuery(
   query: string,
   hits: readonly LexemeDocType[],
 ): LexemeEntryDoc | undefined {
-  const normalized = query.trim().toLowerCase();
+  const normalized = foldSearchText(query.trim());
   if (normalized.length === 0) return undefined;
   const entries = hits.filter(isLexemeEntry);
   const exactId = entries.find((hit) => hit.id.toLowerCase() === normalized);

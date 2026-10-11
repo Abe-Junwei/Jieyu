@@ -176,7 +176,7 @@ export async function purgeProjectRows(
           .toArray()
       : [];
   const annotationIds = idSet(annotations);
-  const lexemeIds = idSet(await dexie.lexemes.filter((row) => row.textId === projectId).toArray());
+  const lexemeIds = idSet(await dexie.lexemes.where('textId').equals(projectId).toArray());
   const owned: ProjectOwnedIds = {
     projectId,
     unitIds,

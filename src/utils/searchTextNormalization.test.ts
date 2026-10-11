@@ -28,4 +28,18 @@ describe('searchTextNormalization', () => {
     expect(nfd).toBe(copy);
     expect(nfd.normalize('NFC')).not.toBe(nfd);
   });
+
+  it('keeps IPA tone bars ˥˩ inside a word token (FS-1)', () => {
+    const tokens = tokenizeMixedScriptForSearch('ˈʔa˥˩');
+    expect(tokens.some((t) => t.includes('˥') && t.includes('˩'))).toBe(true);
+    expect(tokenizeMixedScriptForSearch('a˥˩b').join('|')).toBe(foldSearchText('a˥˩b'));
+  });
+
+  it('does not collapse tone-only contrasts (FS-1)', () => {
+    const high = tokenizeMixedScriptForSearch('ma˥');
+    const low = tokenizeMixedScriptForSearch('ma˩');
+    expect(high).not.toEqual(low);
+    expect(high.some((t) => t.includes('˥'))).toBe(true);
+    expect(low.some((t) => t.includes('˩'))).toBe(true);
+  });
 });

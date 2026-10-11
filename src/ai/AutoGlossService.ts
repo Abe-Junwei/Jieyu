@@ -1,4 +1,4 @@
-import { getDb } from '../db';
+import { getDb, withTransaction } from '../db';
 import type {
   MultiLangString,
   TokenLexemeLinkDocType,
@@ -78,58 +78,70 @@ export class AutoGlossService {
     // 只用这些 token 所属项目的词条：词条按项目归属，跨项目链接会被归属中间件拒绝（GAP-1）
     // Only lexemes of the tokens' own project: lexemes are per project and cross-project links
     // are rejected by the ownership middleware (GAP-1)
-    const tokenTextIds = new Set(tokens.map((token) => token.textId.trim()));
-    const lexemes = (await db.collections.lexemes.find().exec())
-      .map((doc) => doc.toJSON())
-      .filter((lexeme) => tokenTextIds.has(lexeme.textId.trim()));
+    const tokenTextIds = [
+      ...new Set(tokens.map((token) => token.textId.trim()).filter((id) => id.length > 0)),
+    ];
+    const lexemeDocs =
+      tokenTextIds.length === 0
+        ? []
+        : await db.collections.lexemes.findByIndexAnyOf('textId', tokenTextIds);
+    const lexemes = lexemeDocs.map((doc) => doc.toJSON());
     const preview = previewAutoGlossMatches(tokens, lexemes);
 
     const matched: AutoGlossMatch[] = [];
     const leipzigHints: AutoGlossLeipzigHint[] = [];
 
-    for (const item of preview.matches) {
-      const now = new Date().toISOString();
-      await db.collections.unit_tokens.update(item.tokenId, {
-        gloss: item.gloss,
-        updatedAt: now,
-      });
-
-      const role: TokenLexemeLinkRole = item.matchType;
-      const link: TokenLexemeLinkDocType = {
-        id: makeId('tll'),
-        targetType: 'token',
-        targetId: item.tokenId,
-        lexemeId: item.lexemeId,
-        ...(item.senseId ? { senseId: item.senseId } : {}),
-        role,
-        confidence: item.confidence,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await db.collections.token_lexeme_links.insert(link);
-
-      matched.push({
-        tokenId: item.tokenId,
-        tokenForm: item.tokenForm,
-        lexemeId: item.lexemeId,
-        lexemeLemma: item.lexemeLemma,
-        gloss: item.gloss,
-        confidence: item.confidence,
-        matchType: item.matchType,
-        linkId: link.id,
-      });
-
-      for (const glossVal of Object.values(item.gloss)) {
-        const validation = this.leipzigValidator.validateGloss(glossVal);
-        if (!validation.valid) {
-          leipzigHints.push({
-            tokenId: item.tokenId,
-            glossText: glossVal,
-            warnings: validation.warnings,
+    await withTransaction(
+      db,
+      'rw',
+      [db.dexie.unit_tokens, db.dexie.token_lexeme_links],
+      async () => {
+        for (const item of preview.matches) {
+          const now = new Date().toISOString();
+          await db.collections.unit_tokens.update(item.tokenId, {
+            gloss: item.gloss,
+            updatedAt: now,
           });
+
+          const role: TokenLexemeLinkRole = item.matchType;
+          const link: TokenLexemeLinkDocType = {
+            id: makeId('tll'),
+            targetType: 'token',
+            targetId: item.tokenId,
+            lexemeId: item.lexemeId,
+            ...(item.senseId ? { senseId: item.senseId } : {}),
+            role,
+            confidence: item.confidence,
+            createdAt: now,
+            updatedAt: now,
+          };
+          await db.collections.token_lexeme_links.insert(link);
+
+          matched.push({
+            tokenId: item.tokenId,
+            tokenForm: item.tokenForm,
+            lexemeId: item.lexemeId,
+            lexemeLemma: item.lexemeLemma,
+            gloss: item.gloss,
+            confidence: item.confidence,
+            matchType: item.matchType,
+            linkId: link.id,
+          });
+
+          for (const glossVal of Object.values(item.gloss)) {
+            const validation = this.leipzigValidator.validateGloss(glossVal);
+            if (!validation.valid) {
+              leipzigHints.push({
+                tokenId: item.tokenId,
+                glossText: glossVal,
+                warnings: validation.warnings,
+              });
+            }
+          }
         }
-      }
-    }
+      },
+      { label: 'ai-autogloss' },
+    );
 
     return {
       unitId,
