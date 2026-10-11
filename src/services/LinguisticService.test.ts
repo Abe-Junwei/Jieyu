@@ -1060,25 +1060,6 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.orthography_bridges.get('orthxfm_manage_old_active')).toBeUndefined();
   });
 
-  it('can save unit and query by media time', async () => {
-    const now = new Date().toISOString();
-
-    await LinguisticService.units.save({
-      id: 'utt_1',
-      textId: 'text_1',
-      startTime: 2.5,
-      endTime: 6.5,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    const hit = await LinguisticService.units.getAtTime(3.2);
-    const miss = await LinguisticService.units.getAtTime(9.9);
-
-    expect(hit?.id).toBe('utt_1');
-    expect(miss).toBeUndefined();
-  });
-
   it('syncs default transcription unit into layer_units', async () => {
     await LinguisticService.layers.saveTranslation({
       id: 'layer_default_sync',
@@ -1913,9 +1894,41 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
+    // FS-O3: another project's unit, token and layer stay out of the scoped report
+    await LinguisticService.layers.saveTranslation({
+      id: 'layer_trc_other',
+      textId: 'text_other',
+      key: 'trc_other',
+      name: { eng: 'Other' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await LinguisticService.units.save({
+      id: 'utt_other_1',
+      textId: 'text_other',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await LinguisticService.units.saveToken({
+      id: 'tok_other_1',
+      textId: 'text_other',
+      unitId: 'utt_other_1',
+      tokenIndex: 0,
+      form: { default: 'x' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
     const report = await LinguisticService.imports.generateQualityReport('text_quality');
 
     expect(report.totals.units).toBe(1);
+    expect(report.totals.canonicalTokens).toBe(1);
+    expect(report.totals.transcriptionLayers).toBe(1);
     expect(report.coverage.transcribedUnits).toBe(1);
     expect(report.coverage.translatedUnits).toBe(1);
     expect(report.coverage.glossedUnits).toBe(1);

@@ -58,7 +58,6 @@ export const LinguisticService = {
   },
   units: {
     getAll: linguisticServiceUnitTokenOps.getAllUnits,
-    getAtTime: linguisticServiceUnitTokenOps.getUnitAtTime,
     save: linguisticServiceUnitTokenOps.saveUnit,
     listByTextId: linguisticServiceUnitTokenOps.getUnitsByTextId,
     listCorpusIndexByTextId: listCorpusUnitIndexByTextId,
