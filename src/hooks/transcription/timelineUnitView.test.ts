@@ -166,6 +166,73 @@ describe('buildTimelineUnitViewIndex', () => {
     ).toBe(3);
   });
 
+  it('FS-O1: a subdivided parent exposes its text and uncovered spans to AI without changing regions or counts', () => {
+    const parent: LayerUnitDocType = {
+      id: 'utt-p',
+      textId: 't1',
+      mediaId: 'm1',
+      startTime: 0,
+      endTime: 10,
+      createdAt: '',
+      updatedAt: '',
+      transcription: { default: 'whole parent text' },
+    };
+    const segments = [
+      seg('s-a', 'layer-a', 'm1', 0, 2, 'utt-p'),
+      seg('s-b', 'layer-a', 'm1', 8, 10, 'utt-p'),
+    ];
+    const index = buildTimelineUnitViewIndex({
+      units: [parent],
+      unitsOnCurrentMedia: [parent],
+      segmentsByLayer: new Map([['layer-a', segments]]),
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: 'layer-a',
+      defaultTranscriptionLayerId: 'layer-a',
+    });
+    // WS8-X3 unchanged: two regions, parent still shadowed, counts = 2
+    expect(index.currentMediaUnits.map((unit) => unit.id)).toEqual(['s-a', 's-b']);
+    expect(index.allUnits.some((unit) => unit.id === 'utt-p')).toBe(false);
+    expect(index.totalCount).toBe(2);
+    expect(index.currentMediaCount).toBe(2);
+    expect(index.byLayer.get('layer-a')?.map((unit) => unit.id)).toEqual(['s-a', 's-b']);
+    // FS-O1: the hidden middle and the parent text are visible to AI
+    expect(index.subdividedParentGaps).toEqual([
+      {
+        parentUnitId: 'utt-p',
+        layerId: 'layer-a',
+        mediaId: 'm1',
+        parentStartTime: 0,
+        parentEndTime: 10,
+        parentText: 'whole parent text',
+        gaps: [{ startTime: 2, endTime: 8 }],
+      },
+    ]);
+  });
+
+  it('FS-O1: projections (one segment per layer) report no subdivided parent gaps', () => {
+    const parent: LayerUnitDocType = {
+      id: 'utt-q',
+      textId: 't1',
+      mediaId: 'm1',
+      startTime: 0,
+      endTime: 10,
+      createdAt: '',
+      updatedAt: '',
+      transcription: { default: 'x' },
+    };
+    const index = buildTimelineUnitViewIndex({
+      units: [parent],
+      unitsOnCurrentMedia: [parent],
+      segmentsByLayer: new Map([['layer-a', [seg('s-only', 'layer-a', 'm1', 2, 4, 'utt-q')]]]),
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: 'layer-a',
+      defaultTranscriptionLayerId: 'layer-a',
+    });
+    expect(index.subdividedParentGaps).toEqual([]);
+  });
+
   it('WS8-X3: one segment per layer with the same parent unit merges into one unit', () => {
     const parent: LayerUnitDocType = {
       id: 'utt-1',

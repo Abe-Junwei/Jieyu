@@ -7,9 +7,10 @@ import type {
   AiPromptSpeakerSnapshot,
   AiPromptVisibleTimelineState,
 } from '../hooks/ai/useAiChat.types';
-import type {
-  TimelineUnitView,
-  TimelineUnitViewIndex,
+import {
+  isUnboundTimelineMedia,
+  type TimelineUnitView,
+  type TimelineUnitViewIndex,
 } from '../hooks/transcription/timelineUnitView';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
@@ -139,7 +140,7 @@ interface BuildTranscriptionAiPromptContextParams {
   /** Timeline read-model epoch for destructive tool stale guards. */
   timelineReadModelEpoch?: number;
   /** When set, AI shortTerm receives `timelineUnitsByLayerId` for layer-scoped tools (ADR 0020). */
-  timelineUnitViewIndex?: Pick<TimelineUnitViewIndex, 'byLayer'>;
+  timelineUnitViewIndex?: Pick<TimelineUnitViewIndex, 'byLayer' | 'subdividedParentGaps'>;
 }
 
 export function buildTranscriptionAiPromptContext({
@@ -191,6 +192,11 @@ export function buildTranscriptionAiPromptContext({
     const resolved = (source?.id ?? selectedLayerKey).trim();
     return resolved || undefined;
   })();
+
+  // FS-O1: shadowed subdivided parents on the current media (AI read only; regions/counts unchanged).
+  const subdividedParentGaps = (timelineUnitViewIndex?.subdividedParentGaps ?? []).filter(
+    (row) => !currentMediaId || row.mediaId === currentMediaId || isUnboundTimelineMedia(row.mediaId),
+  );
 
   const localUnitIndex =
     (unitIndexComplete || (projectUnitsForTools?.length ?? 0) > 0) &&
@@ -308,6 +314,7 @@ export function buildTranscriptionAiPromptContext({
         ? { timelineUnitsByLayerId: timelineUnitViewIndex.byLayer }
         : {}),
       ...(recentActions && recentActions.length > 0 ? { recentActions } : {}),
+      ...(subdividedParentGaps.length > 0 ? { subdividedParentGaps } : {}),
     },
     longTerm: {
       projectStats: {

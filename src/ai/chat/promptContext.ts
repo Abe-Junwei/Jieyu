@@ -155,6 +155,30 @@ const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
   { key: 'selectedText', tier: 1, render: (v) => `selectedText=${v}` },
   { key: 'recentActions', tier: 1, render: (v) => `recentActions=${(v as string[]).join(' | ')}` },
   {
+    // FS-O1: parent text + uncovered spans hidden behind a subdivision (not counted as units).
+    key: 'subdividedParentGaps',
+    tier: 2,
+    render: (v) => {
+      const rows = v as ReadonlyArray<{
+        parentUnitId: string;
+        layerId: string;
+        parentStartTime: number;
+        parentEndTime: number;
+        parentText: string;
+        gaps: ReadonlyArray<{ startTime: number; endTime: number }>;
+      }>;
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const max = 8;
+      const lines = rows.slice(0, max).map((row) => {
+        const text = row.parentText.length > 30 ? `${row.parentText.slice(0, 30)}…` : row.parentText;
+        const gaps = row.gaps.map((g: { startTime: number; endTime: number }) => `${g.startTime.toFixed(2)}-${g.endTime.toFixed(2)}`).join(',');
+        return `${row.parentUnitId}@${row.layerId} ${row.parentStartTime.toFixed(2)}-${row.parentEndTime.toFixed(2)}${text ? ` "${text}"` : ''} uncovered=${gaps || 'none'}`;
+      });
+      if (rows.length > max) lines.push(`(+${rows.length - max} more)`);
+      return `subdividedParentGaps=[shadowed parent units under 2+ segments; not counted as units] ${lines.join(' | ')}`;
+    },
+  },
+  {
     key: 'sessionMemoryDigest',
     tier: 2,
     render: (v) => (typeof v === 'string' && v.trim().length > 0 ? `sessionMemoryDigest=\n${v.trim()}` : null),
