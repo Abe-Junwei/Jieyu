@@ -1,10 +1,10 @@
 /**
  * 入站字节保留 | Inbound byte preservation
  *
- * 导入、恢复与协作 restore 时，入站行若不带字节（导出时省略、或本就未携带），
- * 永远不能被理解为「删除本机字节」：要么保留本机同 id 行的字节，要么中止整个操作。
- * Inbound rows without bytes never mean "delete local bytes": either keep the local bytes
- * of the same id or abort the whole operation (rev5 §4.2-7, Batch 1 / N2).
+ * 导入、恢复与协作 restore 时，入站行不带字节或整行缺席，
+ * 都不能被理解为「删除本机字节」：要么保留本机同 id 行的字节，要么中止整个操作。
+ * Inbound rows without bytes, or absent rows, never mean "delete local bytes":
+ * keep same-id local bytes or abort the operation (rev5 §4.2-7, Batch 1 / N2).
  *
  * 必须在导入写事务内调用，以保证「读本机字节 → 删除/替换 → 写回」原子。
  * Must run inside the import write transaction so read → prune/replace → write is atomic.
@@ -28,7 +28,8 @@ export type InboundByteConflictReason =
   | 'project-mismatch'
   | 'size-mismatch'
   | 'type-mismatch'
-  | 'placeholder-over-local-bytes';
+  | 'placeholder-over-local-bytes'
+  | 'row-omitted';
 
 export interface InboundByteConflict {
   collection: 'media_items' | 'lexeme_assets';
@@ -49,7 +50,7 @@ export class InboundByteConflictError extends Error {
       .map((c) => `${c.collection}:${c.id}(${c.reason})`)
       .join(', ');
     super(
-      `Import aborted: ${conflicts.length} row(s) arrive without bytes but cannot safely keep local bytes [${summary}${conflicts.length > 5 ? ', …' : ''}]; local data unchanged.`,
+      `Import aborted: ${conflicts.length} row(s) would discard local bytes [${summary}${conflicts.length > 5 ? ', …' : ''}]; local data unchanged.`,
     );
     this.name = 'InboundByteConflictError';
     this.conflicts = conflicts;
@@ -179,6 +180,26 @@ export function isInboundByteCollection(name: string): name is InboundByteCollec
   return name === 'media_items' || name === 'lexeme_assets';
 }
 
+/** 在清表或清项目内容前，找出未列入入站数据的本机字节。须在写事务内调用。 */
+export async function findOmittedLocalByteConflicts(
+  collection: InboundByteCollection,
+  docs: readonly unknown[],
+  table: Table<any, any, any>,
+  projectId?: string,
+): Promise<InboundByteConflict[]> {
+  const incomingIds = new Set((docs as Row[]).map((row) => row.id));
+  const conflicts: InboundByteConflict[] = [];
+  await table.each((local: Row) => {
+    if (projectId !== undefined && local['textId'] !== projectId) return;
+    const blob =
+      collection === 'media_items' ? asRecord(local['details'])['audioBlob'] : local['blob'];
+    if (!incomingIds.has(local.id) && blob instanceof Blob) {
+      conflicts.push({ collection, id: local.id, reason: 'row-omitted' });
+    }
+  });
+  return conflicts;
+}
+
 /**
  * 读取本机同 id 行，生成保留了本机字节的入站文档；任何冲突都抛出 InboundByteConflictError。
  * Reads local rows with the same ids and returns inbound docs with local bytes kept;
@@ -188,8 +209,8 @@ export async function preserveLocalBytesForInbound(
   collection: InboundByteCollection,
   docs: readonly unknown[],
   table: Table<any, any, any>,
+  replaceAll = false,
 ): Promise<{ docs: unknown[]; preserved: number; conflicts: InboundByteConflict[] }> {
-  if (docs.length === 0) return { docs: [], preserved: 0, conflicts: [] };
   const rows = docs as Row[];
   const locals = (await table.bulkGet(rows.map((row) => row.id))) as Array<Row | undefined>;
   const merge = collection === 'media_items' ? mergeInboundMediaRow : mergeInboundLexemeAssetRow;
@@ -208,5 +229,8 @@ export async function preserveLocalBytesForInbound(
       out.push(row);
     }
   });
+  if (replaceAll) {
+    conflicts.push(...(await findOmittedLocalByteConflicts(collection, rows, table)));
+  }
   return { docs: out, preserved, conflicts };
 }

@@ -194,6 +194,26 @@ describe('inbound bytes: preserve or abort (N2)', () => {
     });
   }
 
+  it('replace-all aborts when a local byte-bearing row is omitted entirely', async () => {
+    const snapshot = clone(await exportDatabaseAsJson());
+    snapshot.collections['media_items'] = [];
+    snapshot.collections['lexeme_assets'] = [];
+    (snapshot.collections['texts'] as Array<Record<string, unknown>>)[0]!['title'] = {
+      default: 'should not land',
+    };
+    const before = await dumpTables();
+
+    const error = await importDatabaseFromJson(snapshot, { strategy: 'replace-all' }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(InboundByteConflictError);
+    expect((error as InboundByteConflictError).conflicts).toEqual([
+      { collection: 'media_items', id: MEDIA_ID, reason: 'row-omitted' },
+      { collection: 'lexeme_assets', id: ASSET_ID, reason: 'row-omitted' },
+    ]);
+    expect(await dumpTables()).toEqual(before);
+  });
+
   it('T8: an inbound row of another project with the same id aborts', async () => {
     const snapshot = clone(await exportDatabaseAsJson());
     mediaRow(snapshot)['textId'] = 'text-other';
@@ -324,6 +344,75 @@ describe('inbound bytes: preserve or abort (N2)', () => {
     expect(state.details['audioExportOmitted']).toBeUndefined();
     expect(await db.layer_units.get('unit-bytes')).toBeDefined();
     expect(await db.layer_units.get('unit-local-stale')).toBeUndefined();
+  });
+
+  it('T9: collaboration restore aborts if pruning would remove a newly added recording', async () => {
+    const snapshot = await exportProjectScopedDatabaseAsJson(TEXT_ID);
+    await db.media_items.put({
+      id: 'media-added-after-snapshot',
+      textId: TEXT_ID,
+      filename: 'new.wav',
+      duration: 1,
+      details: { audioBlob: new Blob(['new-audio'], { type: 'audio/wav' }) },
+      isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
+      contentSize: 9,
+      createdAt: NOW,
+    });
+    await db.lexeme_assets.put({
+      id: 'asset-added-after-snapshot',
+      textId: TEXT_ID,
+      kind: 'image',
+      mimeType: 'image/png',
+      displayName: 'new.png',
+      byteSize: 9,
+      refCount: 1,
+      blob: new Blob(['new-image'], { type: 'image/png' }),
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const before = await dumpTables();
+
+    const error = await importProjectScopedDatabaseFromJson(snapshot, TEXT_ID).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(InboundByteConflictError);
+    expect((error as InboundByteConflictError).conflicts).toEqual([
+      { collection: 'media_items', id: 'media-added-after-snapshot', reason: 'row-omitted' },
+      { collection: 'lexeme_assets', id: 'asset-added-after-snapshot', reason: 'row-omitted' },
+    ]);
+    expect(await dumpTables()).toEqual(before);
+  });
+
+  it('T9: collaboration restore does not treat another project’s bytes as a conflict', async () => {
+    const snapshot = await exportProjectScopedDatabaseAsJson(TEXT_ID);
+    await db.texts.put({
+      id: 'text-other',
+      title: { default: 'Other' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.media_items.put({
+      id: 'media-other',
+      textId: 'text-other',
+      filename: 'other.wav',
+      duration: 1,
+      details: { audioBlob: new Blob(['other-audio'], { type: 'audio/wav' }) },
+      isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
+      contentSize: 11,
+      createdAt: NOW,
+    });
+
+    await importProjectScopedDatabaseFromJson(snapshot, TEXT_ID);
+
+    const other = await db.media_items.get('media-other');
+    await expect((other?.details?.audioBlob as Blob).text()).resolves.toBe('other-audio');
+    await expectLocalBytesKeptAndConsistent();
   });
 
   it('T9: a failing collaboration restore rolls back the prune as well', async () => {

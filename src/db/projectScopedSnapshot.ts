@@ -14,6 +14,10 @@ import { getDb, type JieyuDatabase } from './engine';
 import { noteBelongsToProject, projectPurgeStores, purgeProjectRows } from './projectLocalPurge';
 import { withTransaction } from './withTransaction';
 import { PROJECT_CATALOG_TEXT_ID_TABLES } from './tableRegistry';
+import {
+  findOmittedLocalByteConflicts,
+  InboundByteConflictError,
+} from './ioInboundBytePreservation';
 
 export const COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS = new Set<string>([
   'ai_tasks',
@@ -419,7 +423,22 @@ export async function importProjectScopedDatabaseFromJson(
     strategy: 'upsert',
     preWrite: {
       tables: projectPurgeStores(db.dexie, 'replace-content'),
-      run: () => pruneProjectOwnedRows(db, projectId),
+      run: async () => {
+        const conflicts = (
+          await Promise.all(
+            (['media_items', 'lexeme_assets'] as const).map((collection) =>
+              findOmittedLocalByteConflicts(
+                collection,
+                filteredCollections[collection] ?? [],
+                db.dexie.table(collection),
+                projectId,
+              ),
+            ),
+          )
+        ).flat();
+        if (conflicts.length > 0) throw new InboundByteConflictError(conflicts);
+        await pruneProjectOwnedRows(db, projectId);
+      },
     },
   });
   await dropLexemeLinksWithMissingTargets();

@@ -816,6 +816,7 @@ export async function importDatabaseFromJson(
             prepared.collectionName,
             prepared.normalizedDocs,
             table as Table<any, any>,
+            strategy === 'replace-all',
           );
           conflicts.push(...kept.conflicts);
           prepared.normalizedDocs = kept.docs;
