@@ -13,11 +13,20 @@ const IdString = z.string().trim().min(1, 'ID \u4e0d\u80fd\u4e3a\u7a7a').max(128
 const IdStringArray = z.array(IdString).min(1, '\u81f3\u5c11\u63d0\u4f9b 1 \u4e2a ID').max(200);
 const TextString = z.string().trim().min(1, '\u6587\u672c\u4e0d\u80fd\u4e3a\u7a7a').max(5000);
 const AMBIGUOUS_LANGUAGE_TARGETS = ['und', 'unknown', 'auto', 'default'];
-const LanguageId = z.string().trim().min(1).max(32).superRefine((val, ctx) => {
-  if (AMBIGUOUS_LANGUAGE_TARGETS.includes(val.toLowerCase())) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'languageId \u4e0d\u80fd\u662f und/unknown/auto/default\uff0c\u8bf7\u63d0\u4f9b\u660e\u786e\u8bed\u8a00\u3002' });
-  }
-});
+const LanguageId = z
+  .string()
+  .trim()
+  .min(1)
+  .max(32)
+  .superRefine((val, ctx) => {
+    if (AMBIGUOUS_LANGUAGE_TARGETS.includes(val.toLowerCase())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'languageId \u4e0d\u80fd\u662f und/unknown/auto/default\uff0c\u8bf7\u63d0\u4f9b\u660e\u786e\u8bed\u8a00\u3002',
+      });
+    }
+  });
 const Alias = z.string().trim().max(64).optional();
 const Modality = z.enum(['text', 'audio', 'mixed']).optional();
 const SplitTime = z.number().finite().nonnegative().optional();
@@ -55,56 +64,75 @@ function refineSegmentTarget(
 
 // ─── Per-tool argument schemas ────────────────────────────────────────────────
 
-export const createTranscriptionSegmentSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
+export const createTranscriptionSegmentSchema = z
+  .object(SegmentTargetShape)
+  .superRefine(refineSegmentTarget);
 
-export const splitTranscriptionSegmentSchema = z.object({
-  ...SegmentTargetShape,
-  splitTime: SplitTime,
-}).superRefine(refineSegmentTarget);
+export const splitTranscriptionSegmentSchema = z
+  .object({
+    ...SegmentTargetShape,
+    splitTime: SplitTime,
+  })
+  .superRefine(refineSegmentTarget);
 
-export const mergeTranscriptionSegmentsSchema = z.object({
-  segmentIds: IdStringArray.optional(),
-}).superRefine((args, ctx) => {
-  const targetCount = args.segmentIds?.length ?? 0;
-  if (targetCount < 2) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: decodeEscapedUnicode('\u9700\u8981\u81f3\u5c11 2 \u4e2a\u53e5\u6bb5 ID \u624d\u80fd\u5408\u5e76\u3002'),
-    });
-  }
-});
+export const mergeTranscriptionSegmentsSchema = z
+  .object({
+    segmentIds: IdStringArray.optional(),
+  })
+  .superRefine((args, ctx) => {
+    const targetCount = args.segmentIds?.length ?? 0;
+    if (targetCount < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: decodeEscapedUnicode(
+          '\u9700\u8981\u81f3\u5c11 2 \u4e2a\u53e5\u6bb5 ID \u624d\u80fd\u5408\u5e76\u3002',
+        ),
+      });
+    }
+  });
 
-export const deleteTranscriptionSegmentSchema = z.object({
-  ...SegmentTargetShape,
-  segmentIds: IdStringArray.optional(),
-  allSegments: z.boolean().optional(),
-}).superRefine((args, ctx) => {
-  const hasSingleTarget = Boolean(args.segmentId) || typeof args.segmentIndex === 'number' || Boolean(args.segmentPosition);
-  const hasBatchTarget = Boolean(args.segmentIds?.length);
-  const hasGlobalTarget = args.allSegments === true;
-  if (!hasSingleTarget && !hasBatchTarget && !hasGlobalTarget) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: '\u9700\u8981 segmentId / segmentIds / allSegments \u4e4b\u4e00\u3002',
-    });
-  }
-});
+export const deleteTranscriptionSegmentSchema = z
+  .object({
+    ...SegmentTargetShape,
+    segmentIds: IdStringArray.optional(),
+    allSegments: z.boolean().optional(),
+  })
+  .superRefine((args, ctx) => {
+    const hasSingleTarget =
+      Boolean(args.segmentId) ||
+      typeof args.segmentIndex === 'number' ||
+      Boolean(args.segmentPosition);
+    const hasBatchTarget = Boolean(args.segmentIds?.length);
+    const hasGlobalTarget = args.allSegments === true;
+    if (!hasSingleTarget && !hasBatchTarget && !hasGlobalTarget) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '\u9700\u8981 segmentId / segmentIds / allSegments \u4e4b\u4e00\u3002',
+      });
+    }
+  });
 
-export const clearTranslationSegmentSchema = z.object({
-  ...SegmentTargetShape,
-  layerId: IdString,
-}).superRefine(refineSegmentTarget);
+export const clearTranslationSegmentSchema = z
+  .object({
+    ...SegmentTargetShape,
+    layerId: IdString,
+  })
+  .superRefine(refineSegmentTarget);
 
-export const setTranscriptionTextSchema = z.object({
-  ...SegmentTargetShape,
-  text: TextString,
-}).superRefine(refineSegmentTarget);
+export const setTranscriptionTextSchema = z
+  .object({
+    ...SegmentTargetShape,
+    text: TextString,
+  })
+  .superRefine(refineSegmentTarget);
 
-export const setTranslationTextSchema = z.object({
-  ...SegmentTargetShape,
-  layerId: IdString,
-  text: TextString,
-}).superRefine(refineSegmentTarget);
+export const setTranslationTextSchema = z
+  .object({
+    ...SegmentTargetShape,
+    layerId: IdString,
+    text: TextString,
+  })
+  .superRefine(refineSegmentTarget);
 
 export const createTranscriptionLayerSchema = z.object({
   languageId: LanguageId,
@@ -117,37 +145,49 @@ export const createTranslationLayerSchema = z.object({
   modality: Modality,
 });
 
-export const deleteLayerSchema = z.object({
-  layerId: IdString.optional(),
-  layerType: LayerType,
-  languageQuery: LanguageQuery,
-}).superRefine((args, ctx) => {
-  const hasLayerId = Boolean(args.layerId);
-  const hasTypeAndQuery = Boolean(args.layerType) && Boolean(args.languageQuery);
-  if (!hasLayerId && !hasTypeAndQuery) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: '\u9700\u8981 layerId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b layerType + languageQuery',
-    });
-  }
-});
+export const deleteLayerSchema = z
+  .object({
+    layerId: IdString.optional(),
+    layerType: LayerType,
+    languageQuery: LanguageQuery,
+  })
+  .superRefine((args, ctx) => {
+    const hasLayerId = Boolean(args.layerId);
+    const hasTypeAndQuery = Boolean(args.layerType) && Boolean(args.languageQuery);
+    if (!hasLayerId && !hasTypeAndQuery) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          '\u9700\u8981 layerId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b layerType + languageQuery',
+      });
+    }
+  });
 
-const translationLayerHostLinkArgsSchema = z.object({
-  transcriptionLayerId: IdString.optional(),
-  /** 兼容字段：仅入口兼容，执行层会优先归一化到 transcriptionLayerId | Compatibility-only field, normalized to transcriptionLayerId in execution paths. */
-  transcriptionLayerKey: z.string().optional(),
-  translationLayerId: IdString.optional(),
-  layerId: IdString.optional(),
-}).superRefine((args, ctx) => {
-  const hasTranscription = Boolean(args.transcriptionLayerId) || Boolean(args.transcriptionLayerKey);
-  const hasTranslation = Boolean(args.translationLayerId) || Boolean(args.layerId);
-  if (!hasTranscription) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 transcriptionLayerId（兼容：transcriptionLayerKey）' });
-  }
-  if (!hasTranslation) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 translationLayerId/layerId' });
-  }
-});
+const translationLayerHostLinkArgsSchema = z
+  .object({
+    transcriptionLayerId: IdString.optional(),
+    /** 兼容字段：仅入口兼容，执行层会优先归一化到 transcriptionLayerId | Compatibility-only field, normalized to transcriptionLayerId in execution paths. */
+    transcriptionLayerKey: z.string().optional(),
+    translationLayerId: IdString.optional(),
+    layerId: IdString.optional(),
+  })
+  .superRefine((args, ctx) => {
+    const hasTranscription =
+      Boolean(args.transcriptionLayerId) || Boolean(args.transcriptionLayerKey);
+    const hasTranslation = Boolean(args.translationLayerId) || Boolean(args.layerId);
+    if (!hasTranscription) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '\u7f3a\u5c11 transcriptionLayerId（兼容：transcriptionLayerKey）',
+      });
+    }
+    if (!hasTranslation) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '\u7f3a\u5c11 translationLayerId/layerId',
+      });
+    }
+  });
 
 export const linkTranslationLayerSchema = translationLayerHostLinkArgsSchema;
 export const unlinkTranslationLayerSchema = translationLayerHostLinkArgsSchema;
@@ -158,21 +198,23 @@ const switchPreferredHostSchema = linkTranslationLayerSchema;
 
 export const autoGlossUnitSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
 
-export const setTokenPosSchema = z.object({
-  tokenId: IdString.optional(),
-  unitId: IdString.optional(),
-  form: Form.optional(),
-  pos: Pos.optional(),
-}).superRefine((args, ctx) => {
-  const hasTokenId = Boolean(args.tokenId);
-  const hasBatch = Boolean(args.unitId) && Boolean(args.form) && Boolean(args.pos);
-  if (!hasTokenId && !hasBatch) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: '\u9700\u8981 tokenId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b unitId + form + pos',
-    });
-  }
-});
+export const setTokenPosSchema = z
+  .object({
+    tokenId: IdString.optional(),
+    unitId: IdString.optional(),
+    form: Form.optional(),
+    pos: Pos.optional(),
+  })
+  .superRefine((args, ctx) => {
+    const hasTokenId = Boolean(args.tokenId);
+    const hasBatch = Boolean(args.unitId) && Boolean(args.form) && Boolean(args.pos);
+    if (!hasTokenId && !hasBatch) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '\u9700\u8981 tokenId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b unitId + form + pos',
+      });
+    }
+  });
 
 export const setTokenGlossSchema = z.object({
   tokenId: IdString,
@@ -192,27 +234,36 @@ const SEARCH_SEGMENTS_SCHEMA = z.object({
   layers: z.array(z.enum(['transcription', 'translation', 'gloss'])).optional(),
 });
 const OPTIONAL_SEGMENT_TARGET_SCHEMA = z.object({ segmentId: IdString.optional() });
-const SEGMENT_OR_UNIT_TARGET_SCHEMA = z.object({
-  segmentId: IdString.optional(),
-  unitId: IdString.optional(),
-}).superRefine((args, ctx) => {
-  if (!args.segmentId && !args.unitId) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u9700\u8981 segmentId \u6216 unitId\u3002' });
-  }
-});
+const SEGMENT_OR_UNIT_TARGET_SCHEMA = z
+  .object({
+    segmentId: IdString.optional(),
+    unitId: IdString.optional(),
+  })
+  .superRefine((args, ctx) => {
+    if (!args.segmentId && !args.unitId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '\u9700\u8981 segmentId \u6216 unitId\u3002',
+      });
+    }
+  });
 
-const proposeChangeItemSchema = z.object({
-  tool: z.string().trim().min(1).max(64).optional(),
-  name: z.string().trim().min(1).max(64).optional(),
-  arguments: z.record(z.string(), z.unknown()).optional(),
-}).superRefine((row, ctx) => {
-  if (!row.tool && !row.name) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: decodeEscapedUnicode('\\u6bcf\\u6761 changes \\u9700\\u8981 tool \\u6216 name\\u3002'),
-    });
-  }
-});
+const proposeChangeItemSchema = z
+  .object({
+    tool: z.string().trim().min(1).max(64).optional(),
+    name: z.string().trim().min(1).max(64).optional(),
+    arguments: z.record(z.string(), z.unknown()).optional(),
+  })
+  .superRefine((row, ctx) => {
+    if (!row.tool && !row.name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: decodeEscapedUnicode(
+          '\\u6bcf\\u6761 changes \\u9700\\u8981 tool \\u6216 name\\u3002',
+        ),
+      });
+    }
+  });
 
 export const proposeChangesArgsSchema = z.object({
   description: z.string().trim().max(2000).optional(),
@@ -253,7 +304,10 @@ export const toolArgumentSchemas = {
   nav_to_segment: NAV_TARGET_SCHEMA,
   nav_to_time: TIME_TARGET_SCHEMA,
   focus_segment: SEGMENT_TARGET_SCHEMA,
-  zoom_to_segment: z.object({ segmentId: IdString, zoomLevel: z.number().int().min(1).max(20).optional() }),
+  zoom_to_segment: z.object({
+    segmentId: IdString,
+    zoomLevel: z.number().int().min(1).max(20).optional(),
+  }),
   split_at_time: TIME_TARGET_SCHEMA,
   merge_prev: OPTIONAL_SEGMENT_TARGET_SCHEMA,
   merge_next: OPTIONAL_SEGMENT_TARGET_SCHEMA,
@@ -268,6 +322,15 @@ export const toolArgumentSchemas = {
  * Extract the first balanced JSON object from text.
  * Falls back gracefully when the model outputs partial JSON mid-stream.
  */
+function isParsableJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function extractFirstBalancedJson(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed.includes('{')) return null;
@@ -282,33 +345,28 @@ export function extractFirstBalancedJson(text: string): string | null {
     for (let cursor = start; cursor < trimmed.length; cursor++) {
       const ch = trimmed[cursor]!;
 
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (ch === '\\') {
-        escaped = true;
+      if (inString) {
+        // 反斜杠只在字符串里转义 | Backslash escapes only inside strings
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
         continue;
       }
 
       if (ch === '"') {
-        inString = !inString;
-        continue;
-      }
-
-      if (inString) continue;
-
-      if (ch === '{') {
+        inString = true;
+      } else if (ch === '{') {
         depth++;
       } else if (ch === '}') {
         depth--;
         if (depth === 0) {
-          return trimmed.slice(start, cursor + 1);
+          const candidate = trimmed.slice(start, cursor + 1);
+          if (isParsableJson(candidate)) return candidate;
+          break;
         }
       }
     }
-    break;
+    // 没闭合或不是 JSON：从下一个 `{` 再找 | Unclosed or not JSON: try the next `{`
   }
 
   return null;
@@ -402,9 +460,7 @@ export function parseToolCallFromTextZod(
   return null;
 }
 
-function tryParseCandidate(
-  candidate: string,
-): ToolCallParseResult | null {
+function tryParseCandidate(candidate: string): ToolCallParseResult | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(candidate);
@@ -413,11 +469,7 @@ function tryParseCandidate(
   }
 
   // Unwrap { tool_call: { name, arguments } } if present
-  if (
-    typeof parsed === 'object' &&
-    parsed !== null &&
-    'tool_call' in parsed
-  ) {
+  if (typeof parsed === 'object' && parsed !== null && 'tool_call' in parsed) {
     const holder = (parsed as { tool_call: unknown }).tool_call;
     if (typeof holder !== 'object' || holder === null) return null;
     parsed = holder;
@@ -436,7 +488,7 @@ function tryParseCandidate(
   const rawArgs = obj.arguments;
   const args: Record<string, unknown> =
     typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs)
-      ? rawArgs as Record<string, unknown>
+      ? (rawArgs as Record<string, unknown>)
       : {};
 
   return { name: nameResult.data, arguments: args };
