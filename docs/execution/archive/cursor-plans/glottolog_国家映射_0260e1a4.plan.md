@@ -46,7 +46,7 @@ isProject: false
 
 ### 已有 Glottolog CLDF 消费
 
-- [`scripts/inject-glottolog-coordinates.mjs`](scripts/inject-glottolog-coordinates.mjs) 已从 **Glottolog CLDF** [`languages.csv`](https://raw.githubusercontent.com/glottolog/glottolog-cldf/master/cldf/languages.csv) 拉取数据，解析 `ID`、`Latitude`、`Longitude`、`ISO639P3code`、`Level`（仅 `language` 级），写入 [`top500-language-orthography-seeds.json`](public/data/language-support/top500-language-orthography-seeds.json)。  
+- `scripts/inject-glottolog-coordinates.mjs`（已删除） 已从 **Glottolog CLDF** [`languages.csv`](https://raw.githubusercontent.com/glottolog/glottolog-cldf/master/cldf/languages.csv) 拉取数据，解析 `ID`、`Latitude`、`Longitude`、`ISO639P3code`、`Level`（仅 `language` 级），写入 [`top500-language-orthography-seeds.json`](public/data/language-support/top500-language-orthography-seeds.json)。  
 - 同源 CSV 表头含 **`Countries`**（示例为 **单 ISO2**，如 `PG`、`US`）；**分布国 baseline 应复用该列与同一套 ISO639P3code→行的映射逻辑**，可与坐标脚本 **共享下载/解析**（合并脚本或 `import` 共用函数），避免第二套 Glottolog 解析。  
 - **缺口**：脚本使用 **`master` 分支 raw URL，未钉 commit**——与「可复现构建」不一致；新流水线应 **钉版本**（并建议 **顺带** 将 inject 坐标脚本改为同钉版，或统一由 `build-country-baselines` 产出坐标补丁，减少漂移）。
 
