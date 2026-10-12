@@ -1544,6 +1544,7 @@ const noteCategorySchema = z.enum([
 
 const userNoteDocSchema = z.object({
   id: z.string().min(1),
+  textId: z.string().min(1),
   targetType: noteTargetTypeSchema,
   targetId: z.string().min(1),
   targetIndex: z.number().int().min(0).optional(),

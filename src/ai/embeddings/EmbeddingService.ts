@@ -97,33 +97,6 @@ function buildContentHash(sourceText: string, modelId: string, modelVersion: str
   return fnv1a(`${modelId}::${modelVersion}::${sourceText}`);
 }
 
-type NoteTargetRef = { targetType: string; targetId: string };
-
-/** Resolve a note's owning project from its target. */
-async function resolveNoteTextId(
-  db: Awaited<ReturnType<typeof getDb>>,
-  note: NoteTargetRef,
-): Promise<string | undefined> {
-  const d = db.dexie;
-  switch (note.targetType) {
-    case 'text':
-      return note.targetId;
-    case 'unit':
-      return (await d.layer_units.get(note.targetId))?.textId;
-    case 'translation':
-      return (await d.layer_unit_contents.get(note.targetId))?.textId;
-    case 'token':
-      return (await d.unit_tokens.get(note.targetId))?.textId;
-    case 'morpheme':
-      return (await d.unit_morphemes.get(note.targetId))?.textId;
-    case 'lexeme':
-      return (await d.lexemes.get(note.targetId))?.textId;
-    // shortcut: sense / tier_annotation / annotation notes have no cheap textId path; skipped until user_notes carries textId.
-    default:
-      return undefined;
-  }
-}
-
 function chunkArray<T>(input: T[], batchSize: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < input.length; i += batchSize) {
@@ -159,8 +132,7 @@ export class EmbeddingService {
         ''
       ).trim();
       if (!text) continue;
-      const textId = await resolveNoteTextId(db, note);
-      if (!textId) continue;
+      const { textId } = note;
 
       // 长笔记（> 300 字）走语义分块 | Long notes (>300 chars) use semantic chunking
       if (text.length > 300) {

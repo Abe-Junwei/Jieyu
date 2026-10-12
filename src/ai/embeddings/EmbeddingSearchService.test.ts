@@ -583,6 +583,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     await db.user_notes.put({
       id: 'note_kw_1',
+      textId: 'text_1',
       targetType: 'unit',
       targetId: 'utt_kw_1',
       content: { en: 'irrelevant note text' },
@@ -648,6 +649,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     await db.user_notes.put({
       id: 'note_ft_1',
+      textId: 'text_1',
       targetType: 'unit',
       targetId: 'utt_ft_1',
       content: { en: 'generic note' },
@@ -714,6 +716,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     });
     await db.user_notes.put({
       id: 'note_nfc_1',
+      textId: 'text_1',
       targetType: 'unit',
       targetId: 'utt_nfc_1',
       content: { en: 'generic note' },

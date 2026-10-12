@@ -1,6 +1,11 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
 import { dispatchWorkspaceUnitUpdated } from '../../utils/workspaceEvents';
-import type { LayerUnitDocType, NoteCategory, UserNoteDocType } from '../../types/jieyuDbDocTypes';
+import type {
+  LayerUnitDocType,
+  NoteCategory,
+  UserNoteDocType,
+  UserNoteDraft,
+} from '../../types/jieyuDbDocTypes';
 import { newId } from '../../utils/transcriptionFormatters';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../../utils/unitSelfCertainty';
@@ -22,7 +27,7 @@ export type AnnotationUnitNoteView = {
 
 export type AnnotationNoteDeps = {
   listNotes: (unitId: string) => Promise<UserNoteDocType[]>;
-  putNote: (doc: UserNoteDocType) => Promise<void>;
+  putNote: (doc: UserNoteDraft) => Promise<void>;
 };
 
 export type AnnotationSelfCertaintyDeps = {
@@ -83,6 +88,8 @@ export async function saveAnnotationUnitNote(
     content: string;
     category: NoteCategory;
     noteId?: string;
+    /** 缺省时按 unitId 反查 | Resolved from unitId when omitted */
+    textId?: string;
   },
   deps: AnnotationNoteDeps = defaultNoteDeps,
 ): Promise<AnnotationUnitNoteView> {
@@ -92,7 +99,7 @@ export async function saveAnnotationUnitNote(
     (input.noteId ? notes.find((note) => note.id === input.noteId) : undefined);
   const now = new Date().toISOString();
   const id = existing?.id || newId('note');
-  const doc: UserNoteDocType = {
+  const doc: UserNoteDraft = {
     ...(existing ?? {
       id,
       targetType: 'unit',
@@ -102,6 +109,7 @@ export async function saveAnnotationUnitNote(
     id,
     targetType: 'unit',
     targetId: input.unitId,
+    ...(input.textId !== undefined ? { textId: input.textId } : {}),
     content: { default: input.content },
     category: input.category,
     createdAt: existing?.createdAt ?? now,

@@ -43,6 +43,7 @@ async function seedProject(p: string): Promise<void> {
   });
   await db.user_notes.put({
     id: `${p}-note`,
+    textId: p,
     targetType: 'text',
     targetId: p,
     content: { default: 'x' },

@@ -213,6 +213,7 @@ describe('Batch 5 / T46: deleting one document leaves the other', () => {
     await put('layer_unit_contents', content('c_cross', 'u1', 'L2'));
     await put('user_notes', {
       id: 'n_cross',
+      textId: A,
       targetType: 'translation',
       targetId: 'c_cross',
       content: { und: 'n' },

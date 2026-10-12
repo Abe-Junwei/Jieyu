@@ -89,6 +89,7 @@ function makeNote(
 ): UserNoteDocType {
   return {
     id,
+    textId: 'text_1',
     targetType: 'unit',
     targetId,
     content: { 'zh-CN': '待确认' },
@@ -105,6 +106,7 @@ function makeTierAnnotationNote(
 ): UserNoteDocType {
   return {
     id,
+    textId: 'text_1',
     targetType: 'tier_annotation',
     targetId,
     content: { 'zh-CN': '层级备注' },

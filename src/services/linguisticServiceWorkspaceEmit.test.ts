@@ -171,6 +171,7 @@ describe('B2 workspace emit completeness', () => {
 
     await LinguisticService.notes.save({
       id: 'note-unit',
+      textId: 'text-emit',
       targetType: 'unit',
       targetId: 'unit-note',
       content: { default: 'unit note' },
@@ -179,6 +180,7 @@ describe('B2 workspace emit completeness', () => {
     });
     await LinguisticService.notes.save({
       id: 'note-tok',
+      textId: 'text-emit',
       targetType: 'token',
       targetId: 'tok-note',
       parentTargetId: 'unit-note',
@@ -188,6 +190,7 @@ describe('B2 workspace emit completeness', () => {
     });
     await LinguisticService.notes.save({
       id: 'note-lex',
+      textId: 'text-emit',
       targetType: 'lexeme',
       targetId: 'lex-other',
       content: { default: 'lexeme note' },

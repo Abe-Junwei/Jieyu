@@ -1905,6 +1905,7 @@ describe('LinguisticService smoke tests', () => {
     });
     await db.user_notes.put({
       id: 'note_orphan_quality',
+      textId: 'text_quality',
       targetType: 'token',
       targetId: 'non_existing_token',
       parentTargetId: 'utt_quality_1',
@@ -2112,6 +2113,7 @@ describe('LinguisticService smoke tests', () => {
     await db.user_notes.bulkPut([
       {
         id: 'note_u_batch_1',
+        textId: 'text_batch',
         targetType: 'unit',
         targetId: 'utt_batch_1',
         content: { eng: 'u1' },
@@ -2120,6 +2122,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'note_t_batch_1',
+        textId: 'text_batch',
         targetType: 'token',
         targetId: 'tok_batch_1',
         parentTargetId: 'utt_batch_1',
@@ -2129,6 +2132,7 @@ describe('LinguisticService smoke tests', () => {
       },
       {
         id: 'note_m_batch_2',
+        textId: 'text_batch',
         targetType: 'morpheme',
         targetId: 'mor_batch_2',
         parentTargetId: 'tok_batch_2',

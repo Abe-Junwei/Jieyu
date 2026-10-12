@@ -75,5 +75,5 @@ export const JIEYU_BASELINE_STORES = {
   unit_relations:
     'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
   unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
-  user_notes: 'id, [targetType+targetId], [targetId+targetIndex], updatedAt',
+  user_notes: 'id, textId, [targetType+targetId], [targetId+targetIndex], updatedAt',
 } as const satisfies Record<string, string>;

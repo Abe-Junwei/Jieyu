@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { db as dexieDb } from '../../db';
-import type { UserNoteDocType, NoteTargetType, NoteCategory, MultiLangString } from '../../db';
+import { db as dexieDb, withNoteTextId } from '../../db';
+import type {
+  UserNoteDocType,
+  UserNoteDraft,
+  NoteTargetType,
+  NoteCategory,
+  MultiLangString,
+} from '../../db';
 import { createLogger } from '../../observability/logger';
 import { scheduleSegmentMetaSyncForUnitIds } from '../../services/segmentMetaSyncBestEffort';
 import { newId } from '../../utils/transcriptionFormatters';
@@ -119,7 +125,7 @@ export function useNotes(target: NoteTarget | null) {
       const now = new Date().toISOString();
       const isCanonicalWordTarget = resolvedTarget.targetType === 'token';
       const isCanonicalMorphemeTarget = resolvedTarget.targetType === 'morpheme';
-      const doc: UserNoteDocType = {
+      const doc: UserNoteDraft = {
         id: newId('note'),
         targetType: resolvedTarget.targetType,
         targetId: resolvedTarget.targetId,
@@ -134,7 +140,9 @@ export function useNotes(target: NoteTarget | null) {
         createdAt: now,
         updatedAt: now,
       };
-      await dexieDb.user_notes.put(normalizeUserNoteDocForStorage(doc));
+      await dexieDb.user_notes.put(
+        normalizeUserNoteDocForStorage(await withNoteTextId(dexieDb, doc)),
+      );
       scheduleSegmentMetaSyncForUnitIds(
         [
           resolvedTarget.targetId,

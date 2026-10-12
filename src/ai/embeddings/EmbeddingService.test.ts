@@ -38,7 +38,12 @@ class FakeRuntime implements EmbeddingProvider {
 }
 
 async function clearEmbeddingTables(): Promise<void> {
-  await Promise.all([db.ai_tasks.clear(), db.embeddings.clear(), db.media_items.clear()]);
+  await Promise.all([
+    db.ai_tasks.clear(),
+    db.embeddings.clear(),
+    db.media_items.clear(),
+    db.user_notes.clear(),
+  ]);
 }
 
 describe('EmbeddingService', () => {
@@ -80,6 +85,36 @@ describe('EmbeddingService', () => {
     expect(rows.length).toBe(2);
     expect(rows[0]?.model).toBe('test-model');
     expect(rows[0]?.modelVersion).toBe('v-test');
+  });
+
+  it('P0-2b: embeds sense / annotation / tier_annotation notes under their textId', async () => {
+    const now = new Date().toISOString();
+    const targets = [
+      ['sense', 'sense_1'],
+      ['annotation', 'ann_1'],
+      ['tier_annotation', 'unit_1::layer_1'],
+    ] as const;
+    await db.user_notes.bulkPut(
+      targets.map(([targetType, targetId]) => ({
+        id: `note_${targetType}`,
+        textId: 'text_notes',
+        targetType,
+        targetId,
+        content: { und: `${targetType} note` },
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
+    const service = new EmbeddingService(new FakeRuntime(targets.map(() => [1, 0])));
+    const result = await service.buildNotesEmbeddings({ modelId: 'm', modelVersion: 'v' });
+
+    expect(result.generated).toBe(3);
+    const rows = await db.embeddings.toArray();
+    expect(rows.map((row) => [row.sourceId, row.textId]).sort()).toEqual([
+      ['note_annotation', 'text_notes'],
+      ['note_sense', 'text_notes'],
+      ['note_tier_annotation', 'text_notes'],
+    ]);
   });
 
   it('skips unchanged sources on re-run with same model/version', async () => {

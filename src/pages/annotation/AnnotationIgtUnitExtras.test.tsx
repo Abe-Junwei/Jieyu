@@ -34,7 +34,7 @@ function renderNotes(unitId: string, notes: AnnotationUnitMetaController['notes'
     onNoteCategoryChange: () => undefined,
     onSaveNote: () => undefined,
     onSaveCategorizedNote: (category: 'comment' | 'topic', content: string) => {
-      void saveAnnotationUnitNote({ unitId, content, category });
+      void saveAnnotationUnitNote({ textId: 'text-note', unitId, content, category });
     },
     onSaveTurn: () => undefined,
     onSelfCertaintyChange: () => undefined,
@@ -63,8 +63,18 @@ describe('AnnotationIgtUnitExtras notes', () => {
   });
 
   it('does not copy the previous unit note onto the next unit', async () => {
-    await saveAnnotationUnitNote({ unitId: 'unit-a', content: 'A original', category: 'comment' });
-    await saveAnnotationUnitNote({ unitId: 'unit-b', content: 'B original', category: 'comment' });
+    await saveAnnotationUnitNote({
+      textId: 'text-note',
+      unitId: 'unit-a',
+      content: 'A original',
+      category: 'comment',
+    });
+    await saveAnnotationUnitNote({
+      textId: 'text-note',
+      unitId: 'unit-b',
+      content: 'B original',
+      category: 'comment',
+    });
     const view = renderNotes('unit-a', [
       { id: 'note-a', content: 'A original', category: 'comment' },
     ]);
@@ -93,7 +103,12 @@ describe('AnnotationIgtUnitExtras notes', () => {
               onNoteCategoryChange: () => undefined,
               onSaveNote: () => undefined,
               onSaveCategorizedNote: (category: 'comment' | 'topic', content: string) => {
-                void saveAnnotationUnitNote({ unitId: 'unit-b', content, category });
+                void saveAnnotationUnitNote({
+                  textId: 'text-note',
+                  unitId: 'unit-b',
+                  content,
+                  category,
+                });
               },
               onSaveTurn: () => undefined,
               onSelfCertaintyChange: () => undefined,

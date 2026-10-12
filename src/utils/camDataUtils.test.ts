@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { assertReviewProtection, assertStableId, createDefaultProvenance, normalizeTierAnnotationDocForStorage, normalizeUserNoteDocForStorage, normalizeUnitTextDocForStorage } from './camDataUtils';
+import {
+  assertReviewProtection,
+  assertStableId,
+  createDefaultProvenance,
+  normalizeTierAnnotationDocForStorage,
+  normalizeUserNoteDocForStorage,
+  normalizeUnitTextDocForStorage,
+} from './camDataUtils';
 
 describe('camDataUtils', () => {
   it('creates default provenance envelope', () => {
@@ -43,6 +50,7 @@ describe('camDataUtils', () => {
   it('adds default provenance to user notes', () => {
     const normalized = normalizeUserNoteDocForStorage({
       id: 'note_1',
+      textId: 'text_1',
       targetType: 'unit',
       targetId: 'utt_1',
       content: { zho: '备注' },

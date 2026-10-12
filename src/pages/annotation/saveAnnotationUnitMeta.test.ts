@@ -24,6 +24,7 @@ describe('saveAnnotationUnitMeta', () => {
 
   it('writes a unit note then readback matches content and category', async () => {
     const saved = await saveAnnotationUnitNote({
+      textId: 'text-note',
       unitId: 'unit-note-1',
       content: 'field reminder',
       category: 'fieldwork',
@@ -38,6 +39,7 @@ describe('saveAnnotationUnitMeta', () => {
     expect(requery[0]?.category).toBe('fieldwork');
 
     const updated = await saveAnnotationUnitNote({
+      textId: 'text-note',
       unitId: 'unit-note-1',
       noteId: saved.id,
       content: 'revised note',
@@ -53,6 +55,7 @@ describe('saveAnnotationUnitMeta', () => {
   it('updates the latest note when multiple notes already exist for a unit', async () => {
     await LinguisticService.notes.save({
       id: 'note-old',
+      textId: 'text-note',
       targetType: 'unit',
       targetId: 'unit-note-2',
       content: { default: 'older note' },
@@ -62,6 +65,7 @@ describe('saveAnnotationUnitMeta', () => {
     });
     await LinguisticService.notes.save({
       id: 'note-new',
+      textId: 'text-note',
       targetType: 'unit',
       targetId: 'unit-note-2',
       content: { default: 'newer note' },
@@ -71,6 +75,7 @@ describe('saveAnnotationUnitMeta', () => {
     });
 
     const saved = await saveAnnotationUnitNote({
+      textId: 'text-note',
       unitId: 'unit-note-2',
       content: 'translation note',
       category: 'topic',
@@ -197,11 +202,13 @@ describe('saveAnnotationUnitMeta', () => {
 
   it('keeps a translation topic note distinct from a transcription comment', async () => {
     await saveAnnotationUnitNote({
+      textId: 'text-note',
       unitId: 'unit-topic-1',
       content: 'transcription',
       category: 'comment',
     });
     await saveAnnotationUnitNote({
+      textId: 'text-note',
       unitId: 'unit-topic-1',
       content: 'translation',
       category: 'topic',
@@ -211,6 +218,7 @@ describe('saveAnnotationUnitMeta', () => {
     expect(loaded.find((note) => note.category === 'topic')?.content).toBe('translation');
 
     await saveAnnotationUnitNote({
+      textId: 'text-note',
       unitId: 'unit-topic-1',
       content: 'translation edited',
       category: 'topic',
@@ -223,6 +231,7 @@ describe('saveAnnotationUnitMeta', () => {
   it('notifies an open annotation page after a transcription note is saved', async () => {
     const notify = vi.spyOn(workspaceEvents, 'dispatchWorkspaceUnitUpdated');
     await saveAnnotationUnitNote({
+      textId: 'text-note',
       unitId: 'unit-live-1',
       content: 'heard on the tape',
       category: 'comment',

@@ -16,6 +16,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof NotePanel>> 
   const onDelete = vi.fn(async () => undefined);
   const note = {
     id: 'note-1',
+    textId: 'text_1',
     targetType: 'text',
     targetId: 'target-1',
     content: { default: '已有备注' },
