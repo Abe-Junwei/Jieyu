@@ -28,16 +28,7 @@ source_of_truth: current-state
 ## 门禁 / 契约测试（非云生产主路径）
 
 
-| 模块                                       | 角色                                           |
-| ---------------------------------------- | -------------------------------------------- |
-| `collaborationBetaRuntime.ts`            | M10 beta 契约与 gate 报告                         |
-| `collaborationCrossDeviceRuntime.ts`     | M11 跨设备 gate                                 |
-| `collaborationMultiReplicaRuntime.ts`    | M12 多副本 gate                                 |
-| `collaborationTransactionSyncRuntime.ts` | M13 事务同步 gate                                |
-| `collaborationPromotionRuntime.ts`       | M14 汇总 gate（现已串联 `gate:collaboration-cloud`） |
-
-
-上述 Runtime **不**被 `useTranscriptionCloudSyncActions` 直接 import；其价值在 **Vitest + `gate:m8`–`gate:m14` 脚本链** 中的回归契约。
+`collaborationBetaRuntime` / `CrossDevice` / `MultiReplica` / `TransactionSync` / `PromotionRuntime`（M10–M14 模拟契约）及 `gate:m10`–`gate:m14` 已于 2026-10 删除（删除批 D-1）；现存门禁链为 `gate:m8`–`gate:m9`。
 
 ## 相关执行方案
 

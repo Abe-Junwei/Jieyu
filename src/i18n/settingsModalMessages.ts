@@ -165,7 +165,6 @@ export type SettingsModalMessages = {
   /** 桌面浏览器支持摘要（与架构文档一致） | Desktop browser support summary */
   aboutBrowserSupportTitle: string;
   aboutBrowserSupportBody: string;
-  // 扩展 | Extensions (Phase A shell)
 };
 
 export function getSettingsModalMessages(locale: Locale): SettingsModalMessages {
