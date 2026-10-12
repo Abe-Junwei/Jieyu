@@ -575,6 +575,7 @@ const embeddingSourceTypeSchema = z.enum([
 
 const embeddingDocSchema = z.object({
   id: z.string().min(1),
+  textId: z.string().min(1),
   sourceType: embeddingSourceTypeSchema,
   sourceId: z.string().min(1),
   model: z.string().min(1),

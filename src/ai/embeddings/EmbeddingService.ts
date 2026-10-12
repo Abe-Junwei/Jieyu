@@ -4,11 +4,19 @@ import type { EmbeddingRuntimeProgress } from './EmbeddingRuntime';
 import { TaskRunner } from '../tasks/TaskRunner';
 import { getGlobalTaskRunner } from '../tasks/taskRunnerSingleton';
 import { createLogger } from '../../observability/logger';
-import { buildPdfEmbeddingSourceId, extractPdfDetailsPatch, extractPdfTextFragments, extractPdfTextFragmentsFromSource, isPdfMediaItem } from './pdfTextUtils';
+import {
+  buildPdfEmbeddingSourceId,
+  extractPdfDetailsPatch,
+  extractPdfTextFragments,
+  extractPdfTextFragmentsFromSource,
+  isPdfMediaItem,
+} from './pdfTextUtils';
 import { semanticChunk } from './semanticChunker';
 import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 
 export interface EmbeddingBuildSource {
+  /** Owning project (text); search is scoped by it. */
+  textId: string;
   sourceType: EmbeddingSourceType;
   sourceId: string;
   text: string;
@@ -76,12 +84,44 @@ function normalizeSourceText(text: string): string {
   return text.trim().replace(/\s+/g, ' ');
 }
 
-function buildEmbeddingId(sourceType: EmbeddingSourceType, sourceId: string, modelId: string, modelVersion: string): string {
+function buildEmbeddingId(
+  sourceType: EmbeddingSourceType,
+  sourceId: string,
+  modelId: string,
+  modelVersion: string,
+): string {
   return `${sourceType}::${sourceId}::${modelId}::${modelVersion}`;
 }
 
 function buildContentHash(sourceText: string, modelId: string, modelVersion: string): string {
   return fnv1a(`${modelId}::${modelVersion}::${sourceText}`);
+}
+
+type NoteTargetRef = { targetType: string; targetId: string };
+
+/** Resolve a note's owning project from its target. */
+async function resolveNoteTextId(
+  db: Awaited<ReturnType<typeof getDb>>,
+  note: NoteTargetRef,
+): Promise<string | undefined> {
+  const d = db.dexie;
+  switch (note.targetType) {
+    case 'text':
+      return note.targetId;
+    case 'unit':
+      return (await d.layer_units.get(note.targetId))?.textId;
+    case 'translation':
+      return (await d.layer_unit_contents.get(note.targetId))?.textId;
+    case 'token':
+      return (await d.unit_tokens.get(note.targetId))?.textId;
+    case 'morpheme':
+      return (await d.unit_morphemes.get(note.targetId))?.textId;
+    case 'lexeme':
+      return (await d.lexemes.get(note.targetId))?.textId;
+    // shortcut: sense / tier_annotation / annotation notes have no cheap textId path; skipped until user_notes carries textId.
+    default:
+      return undefined;
+  }
 }
 
 function chunkArray<T>(input: T[], batchSize: number): T[][] {
@@ -112,8 +152,15 @@ export class EmbeddingService {
       const note = row.toJSON();
       // MultiLangString: prefer 'und' → 'en' → first available key | 优先取 'und'，其次 'en'，最后第一个非空值
       const content = note.content as Record<string, string>;
-      const text = (content['und'] ?? content['en'] ?? Object.values(content).find((v) => v.trim()) ?? '').trim();
+      const text = (
+        content['und'] ??
+        content['en'] ??
+        Object.values(content).find((v) => v.trim()) ??
+        ''
+      ).trim();
       if (!text) continue;
+      const textId = await resolveNoteTextId(db, note);
+      if (!textId) continue;
 
       // 长笔记（> 300 字）走语义分块 | Long notes (>300 chars) use semantic chunking
       if (text.length > 300) {
@@ -122,6 +169,7 @@ export class EmbeddingService {
           const chunkText = chunks[ci];
           if (chunkText && chunkText.trim()) {
             sources.push({
+              textId,
               sourceType: 'note',
               sourceId: chunks.length > 1 ? `${note.id}#chunk=${ci + 1}` : note.id,
               text: chunkText.trim(),
@@ -129,7 +177,7 @@ export class EmbeddingService {
           }
         }
       } else {
-        sources.push({ sourceType: 'note', sourceId: note.id, text });
+        sources.push({ textId, sourceType: 'note', sourceId: note.id, text });
       }
     }
     return this.buildEmbeddings(sources, options);
@@ -150,7 +198,7 @@ export class EmbeddingService {
     const sources: EmbeddingBuildSource[] = [];
     for (const row of mediaRows) {
       const media = row.toJSON();
-      if (!isPdfMediaItem(media)) continue;
+      if (!isPdfMediaItem(media) || !media.textId) continue;
 
       const details = media.details as Record<string, unknown> | undefined;
       const preExtracted = extractPdfTextFragments(details);
@@ -193,6 +241,7 @@ export class EmbeddingService {
           if (!chunkText.trim()) continue;
           globalChunkIndex += 1;
           sources.push({
+            textId: media.textId,
             sourceType: 'pdf',
             sourceId: buildPdfEmbeddingSourceId(media.id, fragment.page, globalChunkIndex),
             text: chunkText,
@@ -230,13 +279,14 @@ export class EmbeddingService {
         targetType: 'batch',
         modelId,
         maxAttempts: 1,
-        run: async ({ taskId }) => this.executeBuild(taskId, sources, {
-          ...options,
-          modelId,
-          modelVersion,
-          batchSize,
-          retries,
-        }),
+        run: async ({ taskId }) =>
+          this.executeBuild(taskId, sources, {
+            ...options,
+            modelId,
+            modelVersion,
+            batchSize,
+            retries,
+          }),
       });
 
       return enqueued.result;
@@ -269,7 +319,10 @@ export class EmbeddingService {
   private async executeBuild(
     taskId: string,
     sources: EmbeddingBuildSource[],
-    options: Required<Pick<BuildEmbeddingsOptions, 'modelId' | 'modelVersion' | 'batchSize' | 'retries'>> & BuildEmbeddingsOptions,
+    options: Required<
+      Pick<BuildEmbeddingsOptions, 'modelId' | 'modelVersion' | 'batchSize' | 'retries'>
+    > &
+      BuildEmbeddingsOptions,
   ): Promise<BuildEmbeddingsResult> {
     const modelId = options.modelId;
     const modelVersion = options.modelVersion;
@@ -317,16 +370,22 @@ export class EmbeddingService {
       const batchTexts = batch.map((item) => normalizeSourceText(item.text));
       const vectors = await this.embedWithRetry(batchTexts, options.retries);
 
-      options.onProgress?.({ stage: 'persisting', processed: processed + batch.length, total, usingFallback });
+      options.onProgress?.({
+        stage: 'persisting',
+        processed: processed + batch.length,
+        total,
+        usingFallback,
+      });
 
-      const batchIds = batch.map((source) => (
-        buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion)
-      ));
+      const batchIds = batch.map((source) =>
+        buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion),
+      );
       const existingRows = await db.collections.embeddings.findByIndexAnyOf('id', batchIds);
       const existingHashById = new Map<string, string>(
         existingRows.map((row) => {
           const item = row.toJSON();
-          return [item.id, item.contentHash] as const;
+          // textId in the key: legacy rows without textId get rewritten
+          return [item.id, `${item.textId ?? ''}::${item.contentHash}`] as const;
         }),
       );
 
@@ -340,13 +399,14 @@ export class EmbeddingService {
         const id = buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion);
         const contentHash = buildContentHash(normalizedText, modelId, modelVersion);
         const existingHash = existingHashById.get(id);
-        if (existingHash && existingHash === contentHash) {
+        if (existingHash && existingHash === `${source.textId}::${contentHash}`) {
           skipped += 1;
           continue;
         }
 
         upserts.push({
           id,
+          textId: source.textId,
           sourceType: source.sourceType,
           sourceId: source.sourceId,
           model: modelId,
@@ -387,14 +447,19 @@ export class EmbeddingService {
     options: { modelId: string; modelVersion: string; batchSize: number; retries: number },
   ): string {
     const sourceSignature = sources
-      .map((source) => `${source.sourceType}:${source.sourceId}:${fnv1a(normalizeSourceText(source.text))}`)
+      .map(
+        (source) =>
+          `${source.sourceType}:${source.sourceId}:${fnv1a(normalizeSourceText(source.text))}`,
+      )
       .join('|');
-    return fnv1a([
-      options.modelId,
-      options.modelVersion,
-      String(options.batchSize),
-      String(options.retries),
-      sourceSignature,
-    ].join('::'));
+    return fnv1a(
+      [
+        options.modelId,
+        options.modelVersion,
+        String(options.batchSize),
+        String(options.retries),
+        sourceSignature,
+      ].join('::'),
+    );
   }
 }

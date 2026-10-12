@@ -223,6 +223,7 @@ describe('AI performance baseline', () => {
   it('embedding baseline reports elapsed and average batch durations', async () => {
     const service = new EmbeddingService(new TimedRuntime());
     const sources: EmbeddingBuildSource[] = Array.from({ length: 120 }, (_, index) => ({
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: `utt_${index + 1}`,
       text: `sample text ${index + 1}`,

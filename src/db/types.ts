@@ -351,6 +351,8 @@ export type EmbeddingSourceType =
 
 export interface EmbeddingDoc {
   id: string;
+  /** Owning project (text) — embeddings are searched per project only. */
+  textId: string;
   sourceType: EmbeddingSourceType;
   sourceId: string;
   model: string;

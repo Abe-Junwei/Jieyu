@@ -51,6 +51,7 @@ describe('Embedding candidate-set performance baseline', () => {
 
       const embeddings = Array.from({ length: total }, (_, index) => ({
         id: `unit::utt_perf_${index + 1}::test-model::v-test`,
+        textId: 'text_1',
         sourceType: 'unit' as const,
         sourceId: `utt_perf_${index + 1}`,
         model: 'test-model',
@@ -98,6 +99,7 @@ describe('Embedding candidate-set performance baseline', () => {
       > = {};
       const startedAt = performance.now();
       const result = await service.searchMultiSourceHybrid('morphology keyword', ['unit'], {
+        textId: 'text_1',
         modelId: 'test-model',
         modelVersion: 'v-test',
         topK: 20,

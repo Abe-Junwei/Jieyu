@@ -60,8 +60,8 @@ describe('EmbeddingService', () => {
     );
 
     const sources: EmbeddingBuildSource[] = [
-      { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
-      { sourceType: 'note', sourceId: 'note_1', text: 'linguistic note' },
+      { textId: 'text_1', sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
+      { textId: 'text_1', sourceType: 'note', sourceId: 'note_1', text: 'linguistic note' },
     ];
 
     const result = await service.buildEmbeddings(sources, {
@@ -91,8 +91,8 @@ describe('EmbeddingService', () => {
     );
 
     const sources: EmbeddingBuildSource[] = [
-      { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
-      { sourceType: 'schema', sourceId: 'tier_def_1', text: 'tier description' },
+      { textId: 'text_1', sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
+      { textId: 'text_1', sourceType: 'schema', sourceId: 'tier_def_1', text: 'tier description' },
     ];
 
     await service.buildEmbeddings(sources, {
@@ -116,10 +116,13 @@ describe('EmbeddingService', () => {
     const service = new EmbeddingService(new FakeRuntime([], true));
 
     await expect(
-      service.buildEmbeddings([{ sourceType: 'unit', sourceId: 'utt_1', text: 'x' }], {
-        modelId: 'test-model',
-        modelVersion: 'v-test',
-      }),
+      service.buildEmbeddings(
+        [{ textId: 'text_1', sourceType: 'unit', sourceId: 'utt_1', text: 'x' }],
+        {
+          modelId: 'test-model',
+          modelVersion: 'v-test',
+        },
+      ),
     ).rejects.toThrow('runtime preload failed');
 
     const tasks = await db.ai_tasks.toArray();

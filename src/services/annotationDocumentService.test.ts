@@ -307,6 +307,7 @@ describe('JY-12: replace leaves no orphaned dependent rows', () => {
     });
     await db.embeddings.put({
       id: `unit::${unitId}::m::v`,
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: unitId,
       model: 'm',

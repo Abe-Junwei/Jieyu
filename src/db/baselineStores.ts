@@ -18,7 +18,8 @@ export const JIEYU_BASELINE_STORES = {
     'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp], requestId, [collection+field+requestId]',
   bibliographic_sources: 'id, citationKey',
   custom_field_definitions: 'id, sortOrder, updatedAt',
-  embeddings: 'id, sourceType, sourceId, [sourceType+model], model, contentHash, createdAt',
+  embeddings:
+    'id, textId, sourceType, sourceId, [sourceType+model], [textId+sourceType+model], model, contentHash, createdAt',
   external_mcp_trust: 'id, origin, enabled, updatedAt',
   grammar_docs: 'id, updatedAt, parentId',
   language_aliases:

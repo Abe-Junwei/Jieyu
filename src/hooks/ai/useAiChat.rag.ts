@@ -15,6 +15,7 @@ import { evaluateRagQuality } from '../../ai/embeddings/ragQualityEvaluator';
 import { shouldRetrieve } from '../../ai/ragReflection';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { withTimeout } from './useAiChat.config';
+import { getActiveProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 import { createLogger } from '../../observability/logger';
 import { createMetricTags, recordMetric } from '../../observability/metrics';
 import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
@@ -69,6 +70,8 @@ interface EnrichContextWithRagParams {
   promptContext?: AiPromptContext | null;
   /** PR-7b: optional corpus-bound ids for hybrid search (e.g. current segment units). */
   candidateSourceIds?: readonly string[];
+  /** Project to retrieve from; defaults to the active project. Empty → nothing is retrieved. */
+  textId?: string;
 }
 
 type RagSourceRow = {
@@ -177,12 +180,14 @@ export async function enrichContextWithRag({
   maxContextChars,
   promptContext,
   candidateSourceIds,
+  textId,
 }: EnrichContextWithRagParams): Promise<RagEnrichmentResult> {
   if (!embeddingSearchService) {
     return { contextBlock, citations: [] };
   }
 
   const hybridOptsBase = {
+    textId: textId ?? getActiveProjectTextId(),
     ...(candidateSourceIds && candidateSourceIds.length > 0 ? { candidateSourceIds } : {}),
   };
 

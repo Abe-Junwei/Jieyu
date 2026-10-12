@@ -14,6 +14,7 @@
  */
 
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
+import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 import type { ActionId } from './IntentRouter';
 import { DEFAULT_VOICE_MODE, type VoiceMode } from './voiceMode';
 import { createLogger } from '../observability/logger';
@@ -175,11 +176,15 @@ class GlobalContextService {
    * Search across corpus (segments + documents) for relevant context.
    * Returns top-K results ranked by embedding similarity.
    */
-  async searchCorpus(query: string, topK = 5): Promise<CorpusSearchResult[]> {
+  async searchCorpus(
+    query: string,
+    topK = 5,
+    textId: string = getActiveProjectTextId(),
+  ): Promise<CorpusSearchResult[]> {
     if (!this._embeddingSearchService) return [];
 
     try {
-      const result = await this._embeddingSearchService.searchSimilarUnits(query, { topK });
+      const result = await this._embeddingSearchService.searchSimilarUnits(query, { textId, topK });
       // searchSimilarUnits returns { query, matches[] } where matches contain sourceId (segment ID) and sourceType
       // We need to look up the actual text from corpus segments
       const corpus = this._corpusContext;

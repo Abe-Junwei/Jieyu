@@ -51,6 +51,7 @@ describe('LinguisticService embedding invalidation', () => {
 
     await db.embeddings.put({
       id: 'unit::utt_embed_1::model::v1',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_embed_1',
       model: 'model',
@@ -104,6 +105,7 @@ describe('LinguisticService embedding invalidation', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_batch_1::model::v1',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_batch_1',
         model: 'model',
@@ -114,6 +116,7 @@ describe('LinguisticService embedding invalidation', () => {
       },
       {
         id: 'unit::utt_batch_2::model::v1',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_batch_2',
         model: 'model',

@@ -91,7 +91,7 @@ describe('useAiEmbeddingState', () => {
       }),
     );
 
-    const unit = { id: 'utt-1', startTime: 0, endTime: 1 };
+    const unit = { id: 'utt-1', textId: 'text_1', startTime: 0, endTime: 1 };
     const { result, rerender } = renderHook(
       ({ services }) =>
         useAiEmbeddingState({
@@ -136,7 +136,7 @@ describe('useAiEmbeddingState', () => {
   it('terminates all seen embedding service instances on unmount', () => {
     const firstServices = makeServices();
     const nextServices = makeServices();
-    const unit = { id: 'utt-1', startTime: 0, endTime: 1 };
+    const unit = { id: 'utt-1', textId: 'text_1', startTime: 0, endTime: 1 };
     const { rerender, unmount } = renderHook(
       ({ services }) =>
         useAiEmbeddingState({
@@ -193,7 +193,7 @@ describe('useAiEmbeddingState', () => {
       warningCode: 'query-embedding-unavailable',
     });
 
-    const unit = { id: 'utt-1', startTime: 0, endTime: 1 };
+    const unit = { id: 'utt-1', textId: 'text_1', startTime: 0, endTime: 1 };
     const { result } = renderHook(() =>
       useAiEmbeddingState({
         locale: 'zh-CN',

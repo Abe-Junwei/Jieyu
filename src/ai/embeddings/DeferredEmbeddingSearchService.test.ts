@@ -21,14 +21,16 @@ vi.mock('./EmbeddingProviderCatalog', () => ({
 }));
 
 vi.mock('./EmbeddingSearchService', () => ({
-  EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(function MockEmbeddingSearchService() {
-    return {
-      terminate: mockTerminate,
-      searchSimilarUnits: mockSearchSimilarUnits,
-      searchMultiSource: mockSearchMultiSource,
-      searchMultiSourceHybrid: mockSearchMultiSourceHybrid,
-    };
-  }),
+  EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(
+    function MockEmbeddingSearchService() {
+      return {
+        terminate: mockTerminate,
+        searchSimilarUnits: mockSearchSimilarUnits,
+        searchMultiSource: mockSearchMultiSource,
+        searchMultiSourceHybrid: mockSearchMultiSourceHybrid,
+      };
+    },
+  ),
 }));
 
 import { createDeferredEmbeddingSearchService } from './DeferredEmbeddingSearchService';
@@ -49,12 +51,18 @@ describe('createDeferredEmbeddingSearchService', () => {
     mockSearchMultiSourceHybrid.mockResolvedValue(expected);
 
     const service = createDeferredEmbeddingSearchService(() => ({ kind: 'local' }));
-    const result = await service.searchMultiSourceHybrid('hello', ['unit', 'note'], { topK: 5 });
+    const result = await service.searchMultiSourceHybrid('hello', ['unit', 'note'], {
+      textId: 'text_1',
+      topK: 5,
+    });
 
     expect(result).toEqual(expected);
     expect(mockCreateEmbeddingProvider).toHaveBeenCalledTimes(1);
     expect(mockEmbeddingSearchServiceCtor).toHaveBeenCalledTimes(1);
-    expect(mockSearchMultiSourceHybrid).toHaveBeenCalledWith('hello', ['unit', 'note'], { topK: 5 });
+    expect(mockSearchMultiSourceHybrid).toHaveBeenCalledWith('hello', ['unit', 'note'], {
+      textId: 'text_1',
+      topK: 5,
+    });
   });
 
   it('reuses the same lazily created service across search methods', async () => {
@@ -63,13 +71,16 @@ describe('createDeferredEmbeddingSearchService', () => {
 
     const service = createDeferredEmbeddingSearchService(() => ({ kind: 'local' }));
 
-    await service.searchSimilarUnits('a', { topK: 3 });
-    await service.searchMultiSource('b', ['unit'], { topK: 4 });
+    await service.searchSimilarUnits('a', { textId: 'text_1', topK: 3 });
+    await service.searchMultiSource('b', ['unit'], { textId: 'text_1', topK: 4 });
     service.terminate();
 
     expect(mockEmbeddingSearchServiceCtor).toHaveBeenCalledTimes(1);
-    expect(mockSearchSimilarUnits).toHaveBeenCalledWith('a', { topK: 3 });
-    expect(mockSearchMultiSource).toHaveBeenCalledWith('b', ['unit'], { topK: 4 });
+    expect(mockSearchSimilarUnits).toHaveBeenCalledWith('a', { textId: 'text_1', topK: 3 });
+    expect(mockSearchMultiSource).toHaveBeenCalledWith('b', ['unit'], {
+      textId: 'text_1',
+      topK: 4,
+    });
     expect(mockTerminate).toHaveBeenCalledTimes(1);
   });
 });

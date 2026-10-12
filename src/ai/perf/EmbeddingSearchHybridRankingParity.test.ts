@@ -90,6 +90,7 @@ describe('EmbeddingSearchService hybrid ranking parity (perf / regression)', () 
     const now = new Date().toISOString();
     await db.embeddings.put({
       id: 'unit::utt_phase::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_phase',
       model: 'test-model',
@@ -110,6 +111,7 @@ describe('EmbeddingSearchService hybrid ranking parity (perf / regression)', () 
     const phases: Partial<Record<EmbeddingSearchHybridPerfPhase, number>> = {};
     const service = new EmbeddingSearchService(new ParityQueryRuntime());
     await service.searchMultiSourceHybrid('morphology keyword', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 5,
@@ -135,6 +137,7 @@ describe('EmbeddingSearchService hybrid ranking parity (perf / regression)', () 
       const filler = 180;
       const embeddings = Array.from({ length: filler }, (_, index) => ({
         id: `unit::utt_fill_${index}::test-model::v-test`,
+        textId: 'text_1',
         sourceType: 'unit' as const,
         sourceId: `utt_fill_${index}`,
         model: 'test-model',
@@ -145,6 +148,7 @@ describe('EmbeddingSearchService hybrid ranking parity (perf / regression)', () 
       }));
       embeddings.push({
         id: 'unit::utt_parity_unique::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_parity_unique',
         model: 'test-model',
@@ -171,6 +175,7 @@ describe('EmbeddingSearchService hybrid ranking parity (perf / regression)', () 
 
       const service = new EmbeddingSearchService(new ParityQueryRuntime());
       const hybrid = await service.searchMultiSourceHybrid('zzparityfixturetoken99', ['unit'], {
+        textId: 'text_1',
         modelId: 'test-model',
         modelVersion: 'v-test',
         topK: 5,
@@ -182,6 +187,7 @@ describe('EmbeddingSearchService hybrid ranking parity (perf / regression)', () 
       expect(hybrid.matches[0]?.sourceId).toBe('utt_parity_unique');
 
       const vectorOnly = await service.searchMultiSource('zzparityfixturetoken99', ['unit'], {
+        textId: 'text_1',
         modelId: 'test-model',
         modelVersion: 'v-test',
         topK: 5,
@@ -193,6 +199,7 @@ describe('EmbeddingSearchService hybrid ranking parity (perf / regression)', () 
       const perfBudgetMs = coverageRelaxed ? 120_000 : 12_000;
       const started = performance.now();
       await service.searchMultiSourceHybrid('zzparityfixturetoken99', ['unit'], {
+        textId: 'text_1',
         modelId: 'test-model',
         modelVersion: 'v-test',
         topK: 8,

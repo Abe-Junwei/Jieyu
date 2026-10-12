@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getActiveProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 import { getDb, type AiTaskDoc } from '../../db';
 import {
   buildEmbeddingFallbackWarning,
@@ -74,7 +75,7 @@ async function retryDurableAgentLoopTask(taskId: string): Promise<string | null>
 type EmbeddingServiceLike = {
   terminate: () => void;
   buildEmbeddings: (
-    sources: Array<{ sourceType: 'unit'; sourceId: string; text: string }>,
+    sources: Array<{ textId: string; sourceType: 'unit'; sourceId: string; text: string }>,
     options: {
       onProgress: (progress: {
         stage: string;
@@ -136,6 +137,7 @@ type EmbeddingSearchServiceLike = Pick<
 
 type UnitLike = {
   id: string;
+  textId?: string;
   startTime: number;
   endTime: number;
 };
@@ -400,11 +402,12 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     const requestId = beginRequest();
     const sources = unitsOnCurrentMedia
       .map((unit) => ({
+        textId: unit.textId ?? getActiveProjectTextId(),
         sourceType: 'unit' as const,
         sourceId: unit.id,
         text: getUnitTextForLayer(unit).trim(),
       }))
-      .filter((item) => item.text.length > 0);
+      .filter((item) => item.text.length > 0 && item.textId.length > 0);
 
     if (sources.length === 0) {
       if (isRequestActive(requestId)) {
@@ -582,6 +585,7 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
       );
 
       const result = await embeddingSearchService.searchSimilarUnits(queryText, {
+        textId: unitsOnCurrentMedia[0]?.textId ?? getActiveProjectTextId(),
         topK: 5,
         candidateSourceIds: unitsOnCurrentMedia.map((item) => item.id),
       });
