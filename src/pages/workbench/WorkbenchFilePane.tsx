@@ -126,13 +126,25 @@ export function WorkbenchFilePane(props: {
       setSaveState({ kind: 'error', message: t(locale, 'transcription.action.audioTooLong') });
       return;
     }
-    await LinguisticService.media.importAudio({
-      textId,
-      audioBlob: file,
-      filename: file.name,
-      duration,
-      importMode: 'add',
-    });
+    try {
+      await LinguisticService.media.importAudio({
+        textId,
+        audioBlob: file,
+        filename: file.name,
+        duration,
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Error && error.name === 'AudioImportPlaceholderSelectionRequiredError')
+      ) {
+        throw error;
+      }
+      setSaveState({
+        kind: 'error',
+        message: t(locale, 'transcription.action.audioImportSelectPlaceholder'),
+      });
+      return;
+    }
     setSaveState({
       kind: 'done',
       message: tf(locale, 'transcription.action.audioImported', { filename: file.name }),

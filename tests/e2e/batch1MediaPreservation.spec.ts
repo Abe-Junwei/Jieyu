@@ -151,6 +151,54 @@ test.describe('Batch 1 media byte preservation | 第一批媒体字节保护', (
     await expect(audioCount).toHaveText('4');
   });
 
+  test('workbench asks for a placeholder selection instead of adding a third track', async ({ page }) => {
+    test.setTimeout(180_000);
+    const project = await setupFieldProjectWithMediaAndSegments(page);
+
+    await page.evaluate(async ({ textId, mediaId }) => {
+      type Row = { id: string; details?: Record<string, unknown> } & Record<string, unknown>;
+      const dexie = (globalThis as unknown as {
+        __jieyuDexie__: {
+          open: () => Promise<unknown>;
+          media_items: {
+            get: (id: string) => Promise<Row | undefined>;
+            put: (row: Row) => Promise<string>;
+          };
+        };
+      }).__jieyuDexie__;
+      await dexie.open();
+      const real = await dexie.media_items.get(mediaId);
+      if (!real) throw new Error('media missing');
+      const { contentSize: _size, contentSha256: _sha, ...withoutContent } = real;
+      const placeholder = {
+        ...withoutContent,
+        filename: 'document-placeholder.track',
+        timelineKind: 'placeholder',
+        byteLocation: 'none',
+        availability: 'missing',
+        details: { timelineMode: 'document' },
+      };
+      await dexie.media_items.put(placeholder);
+      await dexie.media_items.put({ ...placeholder, id: 'media_ph_b', textId });
+    }, project);
+
+    await page.goto('/');
+    await expect(page.locator('input.home-file-input[accept^=".mp3"]')).toBeAttached();
+    await page
+      .locator('input.home-file-input[accept^=".mp3"]')
+      .setInputFiles(buildMinimalWavFile('workbench-ambiguous.wav'));
+
+    await expect(page.locator('.home-workbench-files [role="alert"]')).toContainText(
+      /先在时间轴上选中|select the one to attach/i,
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const rows = await readMediaDiagnostics(page, project.textId);
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toMatchObject({ timelineKind: 'placeholder', hasBlob: false });
+    }
+  });
+
   test('with two placeholder timelines, importing audio promotes only the selected one', async ({
     page,
   }) => {
