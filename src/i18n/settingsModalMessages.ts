@@ -10,7 +10,6 @@ export type SettingsModalMessages = {
   tabAi: string;
   tabPlayback: string;
   tabData: string;
-  tabExtensions: string;
   tabAbout: string;
   // 外观 | Appearance
   themeLabel: string;
@@ -167,23 +166,6 @@ export type SettingsModalMessages = {
   aboutBrowserSupportTitle: string;
   aboutBrowserSupportBody: string;
   // 扩展 | Extensions (Phase A shell)
-  extensionsHostTitle: string;
-  extensionsHostVersionLabel: string;
-  extensionsBlurb: string;
-  extensionsLoading: string;
-  extensionsLoadFailed: string;
-  extensionsNone: string;
-  extensionsColExtension: string;
-  extensionsColVersion: string;
-  extensionsColState: string;
-  extensionsColCapabilities: string;
-  extensionsColCompatible: string;
-  extensionsColCompatNote: string;
-  extensionsColEntry: string;
-  extensionsYes: string;
-  extensionsNo: string;
-  extensionsAuditTitle: string;
-  extensionsAuditEmpty: string;
 };
 
 export function getSettingsModalMessages(locale: Locale): SettingsModalMessages {

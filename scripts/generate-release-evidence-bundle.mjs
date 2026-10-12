@@ -18,7 +18,6 @@ const PROFILE_PIPELINES = {
     { id: 'check.architecture-guard', script: 'check:architecture-guard', module: 'architecture' },
     { id: 'report.m5-trend', script: 'report:m5-trend', module: 'observability' },
     { id: 'gate.m6-release', script: 'gate:m6-release', module: 'release' },
-    { id: 'check.m7-extension-foundation', script: 'check:m7-extension-foundation', module: 'extension' },
     { id: 'perf.track', script: 'perf:track', module: 'performance' },
     { id: 'perf.ai', script: 'perf:ai', module: 'performance' },
   ],
@@ -27,7 +26,6 @@ const PROFILE_PIPELINES = {
     { id: 'check.architecture-guard', script: 'check:architecture-guard', module: 'architecture' },
     { id: 'report.m5-trend', script: 'report:m5-trend', module: 'observability' },
     { id: 'gate.m6-release', script: 'gate:m6-release', module: 'release' },
-    { id: 'check.m7-extension-foundation', script: 'check:m7-extension-foundation', module: 'extension' },
     { id: 'gate.collaboration-cloud', script: 'gate:collaboration-cloud', module: 'collaboration' },
   ],
   full: [
@@ -35,7 +33,6 @@ const PROFILE_PIPELINES = {
     { id: 'check.architecture-guard', script: 'check:architecture-guard', module: 'architecture' },
     { id: 'report.m5-trend', script: 'report:m5-trend', module: 'observability' },
     { id: 'gate.m6-release', script: 'gate:m6-release', module: 'release' },
-    { id: 'check.m7-extension-foundation', script: 'check:m7-extension-foundation', module: 'extension' },
     { id: 'perf.track', script: 'perf:track', module: 'performance' },
     { id: 'perf.ai', script: 'perf:ai', module: 'performance' },
     { id: 'test.timeline-cqrs-phase9', script: 'test:timeline-cqrs-phase9', module: 'performance' },

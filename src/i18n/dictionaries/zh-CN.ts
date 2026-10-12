@@ -3497,7 +3497,6 @@ export const zhCNDictionary = {
     tabAi: 'AI',
     tabPlayback: '播放',
     tabData: '数据',
-    tabExtensions: '扩展',
     tabAbout: '关于',
     themeLabel: '主题',
     themeLight: '浅色',
@@ -3648,24 +3647,6 @@ export const zhCNDictionary = {
     aboutBrowserSupportTitle: '受支持的浏览器（桌面）',
     aboutBrowserSupportBody:
       'Chrome、Edge、Firefox、Safari 各稳定渠道最近两个大版本；Windows 上 360 / QQ / 搜狗须使用 Chromium 极速（高速）模式，且内核不低于上述 Chrome 下限。不包含手机、平板与 App 内嵌浏览器。完整条款见开源仓库 docs/architecture/桌面端浏览器支持策略.md。',
-    extensionsHostTitle: '宿主与兼容',
-    extensionsHostVersionLabel: '宿主版本（semver）',
-    extensionsBlurb:
-      '当前为受控扩展框架 Phase A：仅展示已注册扩展、能力与兼容结果；不开放任意第三方安装。内置探针在首次打开本页时注册，用于验证运行时契约。',
-    extensionsLoading: '正在加载扩展信息…',
-    extensionsLoadFailed: '扩展信息加载失败',
-    extensionsNone: '暂无已注册扩展。',
-    extensionsColExtension: '扩展',
-    extensionsColVersion: '版本',
-    extensionsColState: '状态',
-    extensionsColCapabilities: '能力',
-    extensionsColCompatible: '兼容',
-    extensionsColCompatNote: '兼容说明',
-    extensionsColEntry: '入口声明',
-    extensionsYes: '是',
-    extensionsNo: '否',
-    extensionsAuditTitle: '最近能力调用（审计摘要）',
-    extensionsAuditEmpty: '尚无能力调用记录。',
   }),
 
   'msg.orthoBridge.catalog': JSON.stringify({

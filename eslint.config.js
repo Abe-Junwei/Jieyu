@@ -43,7 +43,6 @@ export default [
       'src/config/**/*.{ts,tsx}',
       'src/contexts/**/*.{ts,tsx}',
       'src/db/**/*.{ts,tsx}',
-      'src/extensions/**/*.{ts,tsx}',
       'src/i18n/**/*.{ts,tsx}',
       'src/integrations/**/*.{ts,tsx}',
       'src/observability/**/*.{ts,tsx}',

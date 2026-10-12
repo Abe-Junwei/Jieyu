@@ -3798,7 +3798,6 @@ export const enUSDictionary = {
     tabAi: 'AI',
     tabPlayback: 'Playback',
     tabData: 'Data',
-    tabExtensions: 'Extensions',
     tabAbout: 'About',
     themeLabel: 'Theme',
     themeLight: 'Light',
@@ -3952,24 +3951,6 @@ export const enUSDictionary = {
     aboutBrowserSupportTitle: 'Supported browsers (desktop)',
     aboutBrowserSupportBody:
       'Recent two stable major releases of Chrome, Edge, Firefox, and Safari. On Windows, 360 / QQ / Sogou are supported only in Chromium speed mode with a kernel version at least matching the Chrome floor. Mobile, tablet, and in-app WebViews are out of scope. Full policy: docs/architecture/桌面端浏览器支持策略.md in the repository.',
-    extensionsHostTitle: 'Host & compatibility',
-    extensionsHostVersionLabel: 'Host version (semver)',
-    extensionsBlurb:
-      'Phase A host-governed extensions: lists registered extensions, capabilities, and compatibility only. Third-party install is not enabled. A built-in probe registers the first time you open this tab to validate runtime contracts.',
-    extensionsLoading: 'Loading extensions…',
-    extensionsLoadFailed: 'Failed to load extension details',
-    extensionsNone: 'No extensions registered.',
-    extensionsColExtension: 'Extension',
-    extensionsColVersion: 'Version',
-    extensionsColState: 'State',
-    extensionsColCapabilities: 'Capabilities',
-    extensionsColCompatible: 'Compatible',
-    extensionsColCompatNote: 'Compatibility note',
-    extensionsColEntry: 'Declared entry',
-    extensionsYes: 'Yes',
-    extensionsNo: 'No',
-    extensionsAuditTitle: 'Recent capability calls (audit)',
-    extensionsAuditEmpty: 'No capability invocations yet.',
   }),
 
   'msg.orthoBridge.catalog': JSON.stringify({
