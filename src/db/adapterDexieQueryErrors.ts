@@ -160,3 +160,24 @@ export function reportIfUnexpectedDexieDegradation(
   }
   log.debug(debugMessage, { err });
 }
+
+/** P2-3：选择器没有可用索引、只能整表扫描 | P2-3: selector has no usable index, only a full scan is left */
+export class DexieNonIndexedQueryError extends Error {
+  constructor(context: string, fields: readonly string[]) {
+    super(`[${context}] non-indexed selector (${fields.join(', ')}) would scan the whole table`);
+    this.name = 'DexieNonIndexedQueryError';
+  }
+}
+
+const warnedNonIndexedScanContexts = new Set<string>();
+
+/**
+ * P2-3：非索引的整表扫描在开发和测试里直接抛错，生产里每个调用点只警告一次再继续。
+ * P2-3: a non-indexed full scan throws in dev and tests; production warns once per call site and continues.
+ */
+export function guardNonIndexedScan(context: string, fields: readonly string[]): void {
+  if (import.meta.env.DEV) throw new DexieNonIndexedQueryError(context, fields);
+  if (warnedNonIndexedScanContexts.has(context)) return;
+  warnedNonIndexedScanContexts.add(context);
+  log.warn('Dexie selector has no index; scanning the whole table', { context, fields });
+}

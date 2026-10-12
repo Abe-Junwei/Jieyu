@@ -331,6 +331,7 @@ export async function listOrthographyRecords(
   const normalizedSearchText = selector.searchText?.trim().toLowerCase() || '';
   const normalizedSearchLanguageIds = normalizeLanguageSelectorValues(selector.searchLanguageIds);
   const [docs, builtInRows] = await Promise.all([
+    // shortcut(P2-3): 全局正字法目录，量小 | global orthography catalog, small
     db.collections.orthographies.find().exec(),
     listScopedBuiltInOrthographies(selector),
   ]);
@@ -649,6 +650,7 @@ export async function listOrthographyBridgeRecords(
   // 只读：本项目的变换；没有项目时为空（D11）| Read-only: this project's bridges; empty without a project
   const projectId = activeCatalogProjectId();
   if (projectId.length === 0) return [];
+  // shortcut(P2-3): 全局正字法目录，量小 | global orthography catalog, small
   const docs = await db.collections.orthography_bridges.find().exec();
   return docs
     .map((doc) => doc.toJSON())

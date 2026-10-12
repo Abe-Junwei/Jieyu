@@ -251,6 +251,7 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
 
   const refreshEmbeddingTasksNow = useCallback(async () => {
     const db = await getDb();
+    // shortcut(P2-3): 全局表，量小 | global table, small
     const rows = await db.collections.ai_tasks.find().exec();
     const normalized = rows
       .map((item) => item.toJSON())

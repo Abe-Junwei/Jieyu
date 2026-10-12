@@ -22,6 +22,7 @@ export function runAiChatClearPersistenceCleanup(
         const db = await getDb();
         let targetConversationId = request.conversationId;
         if (!targetConversationId) {
+          // shortcut(P2-3): 全局表，量小 | global table, small
           const existingRows = (await db.collections.ai_conversations.find().exec())
             .map((doc) => doc.toJSON())
             .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

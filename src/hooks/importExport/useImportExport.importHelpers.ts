@@ -76,6 +76,7 @@ export function createImportLanguageResolvers(input: {
 }
 
 export async function buildImportLanguageNameMap(db: JieyuDatabase): Promise<Map<string, string>> {
+  // shortcut(P2-3): 全局语言目录，量小 | global language catalog, small
   const languageDocs = await db.collections.languages.find().exec();
   const languageNameByIso = new Map<string, string>();
   for (const doc of languageDocs) {

@@ -63,6 +63,7 @@ export async function saveUnitText(data: LayerUnitContentDocType): Promise<strin
 
 export async function getAllTexts(): Promise<TextDocType[]> {
   const db = await getDb();
+  // shortcut(P2-3): 项目列表本来就是全部项目 | the project list is every project
   const docs = await db.collections.texts.find().exec();
   return docs.map((doc) => doc.toJSON());
 }
