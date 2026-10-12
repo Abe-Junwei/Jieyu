@@ -85,6 +85,8 @@ export interface UseTranscriptionCloudSyncActionsParams {
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
   loadSnapshot: (textId: string) => Promise<void>;
+  /** P1-2：远端变更写进本地后调用（作废撤销）| Called after a remote change lands locally (drops undo) */
+  onRemoteChangeApplied?: (changedIds: readonly string[]) => void;
   presenceDisplayName?: string;
   presenceFocus?: {
     entityType?: ProjectEntityType;
@@ -103,6 +105,7 @@ export function useTranscriptionCloudSyncActions({
   wrappedActions,
   runWithDbMutex,
   loadSnapshot,
+  onRemoteChangeApplied,
   presenceDisplayName,
   presenceFocus,
 }: UseTranscriptionCloudSyncActionsParams) {
@@ -163,6 +166,7 @@ export function useTranscriptionCloudSyncActions({
     rawActionsRef,
     runWithDbMutex,
     loadSnapshot,
+    ...(onRemoteChangeApplied ? { onRemoteChangeApplied } : {}),
   });
 
   const {
@@ -263,9 +267,16 @@ export function useTranscriptionCloudSyncActions({
           .then(() => undefined),
       );
       await loadSnapshot(collaborationProjectId);
+      onRemoteChangeApplied?.([]);
       return restored.record;
     },
-    [collaborationProjectId, loadSnapshot, restoreProjectSnapshotById, runWithDbMutex],
+    [
+      collaborationProjectId,
+      loadSnapshot,
+      onRemoteChangeApplied,
+      restoreProjectSnapshotById,
+      runWithDbMutex,
+    ],
   );
 
   useCloudSyncAutoSnapshot({

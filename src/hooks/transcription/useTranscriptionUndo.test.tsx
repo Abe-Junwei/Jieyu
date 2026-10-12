@@ -347,3 +347,55 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     expect(harness.syncToDbCore).not.toHaveBeenCalled();
   });
 });
+
+describe('useTranscriptionUndo - remote collaboration changes (P1-2)', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+  });
+  afterEach(() => {
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
+  });
+
+  it('after a remote edit on B, undo does not write the stale B back', async () => {
+    const a = makeUnit('A');
+    const b = makeUnit('B');
+    const h = setupHarness({ units: [a, b], speakers: [] });
+    await act(async () => {
+      h.hook.result.current.pushUndo('edit A');
+    });
+    const mineA = { ...a, transcription: { default: 'A-mine' } } as LayerUnitDocType;
+    const remoteB = { ...b, transcription: { default: 'B-remote' } } as LayerUnitDocType;
+    h.units.setDirect([mineA, remoteB]);
+    await act(async () => {
+      h.hook.result.current.invalidateUndoForRemoteChange(['B']);
+    });
+    expect(h.hook.result.current.canUndo).toBe(false);
+    await act(async () => {
+      await h.hook.result.current.undo();
+    });
+    expect(h.syncToDbCore).not.toHaveBeenCalled();
+    expect(h.units.get().find((u) => u.id === 'B')?.transcription).toEqual({
+      default: 'B-remote',
+    });
+    expect(h.setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'done', message: '协作者修改了相关内容，撤销记录已清空' }),
+    );
+  });
+
+  it('keeps newer entries that do not touch the changed ids', async () => {
+    const a = makeUnit('A');
+    const h = setupHarness({ units: [a], speakers: [] });
+    await act(async () => {
+      h.hook.result.current.pushUndo('edit A');
+    });
+    const c = makeUnit('C');
+    h.units.setDirect([c]);
+    await act(async () => {
+      h.hook.result.current.pushUndo('replace with C');
+    });
+    await act(async () => {
+      h.hook.result.current.invalidateUndoForRemoteChange(['A']);
+    });
+    expect(h.hook.result.current.undoHistory).toEqual(['replace with C']);
+  });
+});

@@ -1311,6 +1311,7 @@ export const DICT_KEYS = [
   'transcription.undo.current',
   'transcription.undo.historyTitle',
   'transcription.undo.jumpTo',
+  'transcription.undo.clearedByRemote',
   'transcription.undo.done',
   'transcription.undo.doneMultiple',
   'transcription.redo.done',

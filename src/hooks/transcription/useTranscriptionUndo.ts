@@ -435,6 +435,47 @@ export function useTranscriptionUndo({
     setUndoRedoVersion((v) => v + 1);
   }, []);
 
+  /**
+   * P1-2：协作者的修改写进本地后，作废涉及这些 id 的撤销条目（以及更早的条目）和全部重做条目——
+   * 快照式撤销会把旧快照整份写回、覆盖对方的修改。
+   * P1-2: after a collaborator's change lands locally, drop every undo entry touching those ids (and
+   * all older ones) plus the redo stack; snapshot undo would write the stale copy back over theirs.
+   */
+  const invalidateUndoForRemoteChange = useCallback(
+    (changedIds: readonly string[]) => {
+      const ids = new Set(changedIds);
+      const touches = (entry: UndoEntry): boolean =>
+        ids.size === 0 ||
+        [
+          entry.units,
+          entry.translations,
+          entry.layers,
+          entry.layerLinks,
+          entry.speakers,
+          entry.layerSegmentUnits,
+          entry.layerSegmentUnitContents,
+          entry.segmentLinks,
+        ].some((rows) => rows?.some((row) => ids.has(row.id)));
+      const stack = undoStackRef.current;
+      let cut = -1;
+      for (let i = stack.length - 1; i >= 0; i -= 1) {
+        if (touches(stack[i]!)) {
+          cut = i;
+          break;
+        }
+      }
+      const hadRedo = redoStackRef.current.length > 0;
+      if (cut < 0 && !hadRedo) return;
+      undoStackRef.current = stack.slice(cut + 1);
+      redoStackRef.current = [];
+      setUndoRedoVersion((v) => v + 1);
+      if (cut >= 0) {
+        setSaveState({ kind: 'done', message: t(locale, 'transcription.undo.clearedByRemote') });
+      }
+    },
+    [locale, setSaveState],
+  );
+
   const canUndo = useMemo(() => {
     void _undoRedoVersion;
     return undoStackRef.current.length > 0;
@@ -467,6 +508,7 @@ export function useTranscriptionUndo({
     undoToHistoryIndex,
     redo,
     resetHistoryOnScopeChange,
+    invalidateUndoForRemoteChange,
     canUndo,
     canRedo,
     undoLabel,

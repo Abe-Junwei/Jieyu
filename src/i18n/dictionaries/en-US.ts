@@ -1497,6 +1497,8 @@ export const enUSDictionary = {
   'transcription.undo.current': 'Undo: {label}',
   'transcription.undo.historyTitle': 'Edit history (latest 15)',
   'transcription.undo.jumpTo': 'Rewind to this step: {label}',
+  'transcription.undo.clearedByRemote':
+    'A collaborator changed related content; undo history was cleared',
   'transcription.undo.done': 'Undid: {label}',
   'transcription.undo.doneMultiple': 'Undid {count} step(s): {label}',
   'transcription.redo.done': 'Redid: {label}',

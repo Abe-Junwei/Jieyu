@@ -50,6 +50,8 @@ export interface UseCollaborationConflictReviewParams {
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
   loadSnapshot: (textId: string) => Promise<void>;
+  /** P1-2：远端变更写进本地后调用（空数组 = 全部作废）| After a remote change lands ([] = drop all) */
+  onRemoteChangeApplied?: (changedIds: readonly string[]) => void;
 }
 
 export interface UseCollaborationConflictReviewResult {
@@ -78,6 +80,7 @@ export function useCollaborationConflictReview({
   rawActionsRef,
   runWithDbMutex,
   loadSnapshot,
+  onRemoteChangeApplied,
 }: UseCollaborationConflictReviewParams): UseCollaborationConflictReviewResult {
   const [conflictReviewTickets, setConflictReviewTickets] = useState<
     CloudSyncConflictReviewTicket[]
@@ -130,16 +133,27 @@ export function useCollaborationConflictReview({
     async (
       change: CollaborationProjectChangeRecord,
       options?: ApplyRemoteChangeOptions,
-    ): Promise<boolean> =>
-      applyCollaborationRemoteMutation(change, options, {
+    ): Promise<boolean> => {
+      const applied = await applyCollaborationRemoteMutation(change, options, {
         projectTextId: collaborationProjectId,
         runWithDbMutex,
         rawActions: rawActionsRef.current,
         layers: layersRef.current,
         layerLinks: layerLinksRef.current,
         loadSnapshot,
-      }),
-    [collaborationProjectId, layerLinksRef, layersRef, loadSnapshot, rawActionsRef, runWithDbMutex],
+      });
+      if (applied) onRemoteChangeApplied?.([change.entityId]);
+      return applied;
+    },
+    [
+      collaborationProjectId,
+      layerLinksRef,
+      layersRef,
+      loadSnapshot,
+      onRemoteChangeApplied,
+      rawActionsRef,
+      runWithDbMutex,
+    ],
   );
 
   const applyRemoteChangeToLocal = useCallback(
