@@ -139,7 +139,6 @@ export async function generateImportQualityReport(textId?: string): Promise<Impo
 
   const transcriptionLayers = layersAll.filter((l) => l.layerType === 'transcription');
   const translationLayers = layersAll.filter((l) => l.layerType === 'translation');
-  const inScopeTextIds = new Set(inScopeUnits.map((u) => u.textId));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -147,8 +146,8 @@ export async function generateImportQualityReport(textId?: string): Promise<Impo
     totals: {
       units: totalUnits,
       unitTexts: inScopeUnitTexts.length,
-      transcriptionLayers: transcriptionLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
-      translationLayers: translationLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
+      transcriptionLayers: transcriptionLayers.length,
+      translationLayers: translationLayers.length,
       canonicalTokens: inScopeTokens.length,
       canonicalMorphemes: inScopeMorphemes.length,
       userNotes: inScopeNotes.length,

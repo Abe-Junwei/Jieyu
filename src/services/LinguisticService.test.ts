@@ -1937,6 +1937,27 @@ describe('LinguisticService smoke tests', () => {
     expect(report.integrity.orphanAnchors).toBe(1);
   });
 
+  it('counts layers of a project that has layers but no units (FS-O3 I-1)', async () => {
+    for (const layerType of ['transcription', 'translation'] as const) {
+      await LinguisticService.layers.saveTranslation({
+        id: `layer_${layerType}_empty`,
+        textId: 'text_layers_only',
+        key: `${layerType}_empty`,
+        name: { eng: layerType },
+        layerType,
+        languageId: 'und',
+        modality: 'text',
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+    }
+
+    const report = await LinguisticService.imports.generateQualityReport('text_layers_only');
+
+    expect(report.totals.units).toBe(0);
+    expect(report.totals.transcriptionLayers + report.totals.translationLayers).toBe(2);
+  });
+
   it('can export and re-import snapshot', async () => {
     const now = new Date().toISOString();
 
