@@ -1,21 +1,34 @@
 import { getDb } from '../db';
-import { listUnitTextsFromSegmentation } from './LayerSegmentationTextService';
-import { listUnitDocsFromCanonicalLayerUnits } from './LayerSegmentGraphService';
+import {
+  listUnitTextsFromSegmentation,
+  listUnitTextsFromSegmentationForText,
+} from './LayerSegmentationTextService';
+import {
+  listUnitDocsFromCanonicalLayerUnits,
+  listUnitDocsForText,
+} from './LayerSegmentGraphService';
 import type { ImportQualityReport } from './LinguisticService.constraints';
 
 export async function generateImportQualityReport(textId?: string): Promise<ImportQualityReport> {
   const db = await getDb();
 
+  // FS-O3：有 textId 时走索引；无 textId 是全库报告。
+  // FS-O3: with a textId read through indexes; without one the report is library-wide.
   const [unitsAll, unitTextsAll, layersAll, tokensAll, morphemesAll, userNotesAll, anchorsAll] =
     await Promise.all([
-      listUnitDocsFromCanonicalLayerUnits(db),
-      listUnitTextsFromSegmentation(db),
-      db.collections.layers
-        .find()
-        .exec()
-        .then((docs) => docs.map((doc) => doc.toJSON())),
-      db.dexie.unit_tokens.toArray(),
-      db.dexie.unit_morphemes.toArray(),
+      textId ? listUnitDocsForText(db, textId) : listUnitDocsFromCanonicalLayerUnits(db),
+      textId ? listUnitTextsFromSegmentationForText(textId) : listUnitTextsFromSegmentation(db),
+      (textId
+        ? db.collections.layers.findByIndex('textId', textId)
+        : db.collections.layers.find().exec()
+      ).then((docs) => docs.map((doc) => doc.toJSON())),
+      textId
+        ? db.dexie.unit_tokens.where('textId').equals(textId).toArray()
+        : db.dexie.unit_tokens.toArray(),
+      textId
+        ? db.dexie.unit_morphemes.where('textId').equals(textId).toArray()
+        : db.dexie.unit_morphemes.toArray(),
+      // shortcut: user_notes / anchors have no project index; read whole and filtered below.
       db.dexie.user_notes.toArray(),
       db.dexie.anchors.toArray(),
     ]);
@@ -126,7 +139,6 @@ export async function generateImportQualityReport(textId?: string): Promise<Impo
 
   const transcriptionLayers = layersAll.filter((l) => l.layerType === 'transcription');
   const translationLayers = layersAll.filter((l) => l.layerType === 'translation');
-  const inScopeTextIds = new Set(inScopeUnits.map((u) => u.textId));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -134,8 +146,8 @@ export async function generateImportQualityReport(textId?: string): Promise<Impo
     totals: {
       units: totalUnits,
       unitTexts: inScopeUnitTexts.length,
-      transcriptionLayers: transcriptionLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
-      translationLayers: translationLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
+      transcriptionLayers: transcriptionLayers.length,
+      translationLayers: translationLayers.length,
       canonicalTokens: inScopeTokens.length,
       canonicalMorphemes: inScopeMorphemes.length,
       userNotes: inScopeNotes.length,

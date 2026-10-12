@@ -422,12 +422,6 @@ export async function getAllUnits(): Promise<LayerUnitDocType[]> {
   return listUnitDocsFromCanonicalLayerUnits(db);
 }
 
-export async function getUnitAtTime(time: number): Promise<LayerUnitDocType | undefined> {
-  const db = await getDb();
-  const docs = await listUnitDocsFromCanonicalLayerUnits(db);
-  return docs.find((u) => u.startTime <= time && u.endTime >= time);
-}
-
 /** 单个项目的 unit（走 `textId` 索引，不再整表读出再过滤，JY-15）| One project's units via the index (JY-15) */
 /**
  * 项目的单元。第 5 批：默认不含其他文稿层上的单元；`allDocuments` 取全部。

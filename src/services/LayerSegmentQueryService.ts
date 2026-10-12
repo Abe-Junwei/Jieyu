@@ -203,7 +203,10 @@ export class LayerSegmentQueryService {
     });
   }
 
-  static async listUnitsByLayerMedia(layerId: string, mediaId: string): Promise<LayerUnitDocType[]> {
+  static async listUnitsByLayerMedia(
+    layerId: string,
+    mediaId: string,
+  ): Promise<LayerUnitDocType[]> {
     const normalizedLayerId = layerId.trim();
     const normalizedMediaId = mediaId.trim();
     if (!normalizedLayerId || !normalizedMediaId) return [];
@@ -303,6 +306,11 @@ export class LayerSegmentQueryService {
     return toSegmentViews(await LayerSegmentQueryService.listUnitsByMediaId(normalized));
   }
 
+  /**
+   * shortcut: 全库句段（走 unitType 索引）。调用方是跨项目的说话人合并/删除、孤儿扫描、无媒体统计。
+   * shortcut: library-wide segments via the unitType index; callers are cross-project speaker
+   * merge/delete, orphan scans and media-less stats. Scope by textId/mediaId when a caller can.
+   */
   static async listAllSegments(): Promise<LayerSegmentViewDocType[]> {
     return runQueryWithCompatibleTransaction(['layer_units'], async () => {
       const db = await getDb();
