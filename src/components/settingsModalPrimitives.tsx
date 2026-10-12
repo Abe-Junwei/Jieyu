@@ -1,18 +1,4 @@
 import type { ReactNode } from 'react';
-import type { ExtensionCapabilityInvocationRecord, ExtensionListItem } from '../extensions/extensionRegistry';
-
-export type SettingsModalMessagesLike = {
-  tabExtensions: string;
-  extensionsColExtension: string;
-  extensionsColVersion: string;
-  extensionsColState: string;
-  extensionsColCapabilities: string;
-  extensionsColCompatible: string;
-  extensionsColCompatNote: string;
-  extensionsColEntry: string;
-  extensionsYes: string;
-  extensionsNo: string;
-};
 
 export function SettingsTabBar<T extends string>({
   activeTab,
@@ -101,75 +87,7 @@ export function SettingsSection({
           <span className="settings-section-title-text">{title}</span>
         </span>
       </div>
-      <div className="settings-section-body">
-        {children}
-      </div>
+      <div className="settings-section-body">{children}</div>
     </section>
-  );
-}
-
-export function ExtensionsItemsTable({
-  items,
-  msg,
-}: {
-  items: ExtensionListItem[];
-  msg: SettingsModalMessagesLike;
-}) {
-  return (
-    <table className="shortcuts-panel-table" aria-label={msg.tabExtensions}>
-      <thead>
-        <tr>
-          <th scope="col">{msg.extensionsColExtension}</th>
-          <th scope="col">{msg.extensionsColVersion}</th>
-          <th scope="col">{msg.extensionsColState}</th>
-          <th scope="col">{msg.extensionsColCapabilities}</th>
-          <th scope="col">{msg.extensionsColCompatible}</th>
-          <th scope="col">{msg.extensionsColCompatNote}</th>
-          <th scope="col">{msg.extensionsColEntry}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((row) => (
-          <tr key={row.id}>
-            <td>
-              <span className="settings-data-value">{row.name}</span>
-              <div className="small-text">{row.id}</div>
-            </td>
-            <td>{row.version}</td>
-            <td><code>{row.state}</code></td>
-            <td>{row.capabilities.join(', ')}</td>
-            <td>{row.compatible ? msg.extensionsYes : msg.extensionsNo}</td>
-            <td className="small-text">{row.compatibilityReason}</td>
-            <td className="small-text"><code>{row.entryActivate}</code></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-export function ExtensionsAuditList({
-  audit,
-  msg,
-}: {
-  audit: ExtensionCapabilityInvocationRecord[];
-  msg: SettingsModalMessagesLike;
-}) {
-  return (
-    <ul className="small-text settings-modal-list">
-      {audit.map((entry, idx) => (
-        <li key={`${entry.at}-${idx}`} className="small-text">
-          <code>{entry.extensionId}</code>
-          {' · '}
-          <code>{entry.capability}</code>
-          {' · '}
-          {entry.ok ? msg.extensionsYes : msg.extensionsNo}
-          {' · '}
-          {entry.durationMs}
-          ms
-          {entry.errorMessage ? ` — ${entry.errorMessage}` : ''}
-        </li>
-      ))}
-    </ul>
   );
 }

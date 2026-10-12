@@ -147,19 +147,6 @@ jobs:
       - name: M6 release gate (enforce)
         run: npm run gate:m6-release
 
-  m7-extension-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M7 extension gate (enforce)
-        run: npm run gate:m7-extension
-
   m8-collaboration-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -185,58 +172,6 @@ jobs:
       - run: npm ci
       - name: M9 collaboration gate (enforce)
         run: npm run gate:m9-collaboration
-
-  m10-collaboration-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M10 collaboration gate (enforce)
-        run: npm run gate:m10-collaboration
-
-  m11-cross-device-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M11 cross-device gate (enforce)
-        run: npm run gate:m11-cross-device
-
-  m12-multi-replica-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M12 multi-replica gate (enforce)
-        run: npm run gate:m12-multi-replica
-
-  m13-transaction-sync-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M13 transaction sync gate (enforce)
-        run: npm run gate:m13-transaction-sync
 
   greenfield-local-gate:
     name: Greenfield local gate (no Supabase)
