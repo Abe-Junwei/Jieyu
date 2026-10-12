@@ -64,6 +64,24 @@ describe('observeProjectFileSources', () => {
     expect(onChange).toHaveBeenCalledTimes(3);
   });
 
+  it('refreshes when another entry point edits visible metadata without changing row ids', async () => {
+    await db.media_items.put(media('media_obs_1', TEXT_ID));
+    const source = await registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'phrase.eaf',
+      format: 'eaf',
+    });
+    const onChange = vi.fn();
+    stop = observeProjectFileSources(TEXT_ID, onChange);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+
+    await db.media_items.update('media_obs_1', { filename: 'renamed.wav' });
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+
+    await db.source_records.update(source.record.id, { displayName: 'renamed.eaf' });
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(3));
+  });
+
   it('does nothing for an empty textId', () => {
     const onChange = vi.fn();
     stop = observeProjectFileSources('  ', onChange);
