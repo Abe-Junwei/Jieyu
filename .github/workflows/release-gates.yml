@@ -219,11 +219,6 @@ jobs:
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
         run: npm run export:release-evidence:ai-audit
 
-      - name: Export release evidence extension capability audit input
-        env:
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
-        run: npm run export:release-evidence:extension-audit
-
       - name: Export release evidence AI task snapshots input
         env:
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
@@ -234,7 +229,6 @@ jobs:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:core
 
@@ -279,11 +273,6 @@ jobs:
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
         run: npm run export:release-evidence:ai-audit
 
-      - name: Export release evidence extension capability audit input
-        env:
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
-        run: npm run export:release-evidence:extension-audit
-
       - name: Export release evidence AI task snapshots input
         env:
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
@@ -294,7 +283,6 @@ jobs:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:full
 
