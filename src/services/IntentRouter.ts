@@ -541,7 +541,10 @@ function isShortCommand(cleaned: string): boolean {
 }
 
 /** 否定开头（“不要删除”“取消删除”）交给 AI | Negated commands go to chat */
-const NEGATION_PREFIX = /^(不要|别|取消|不用|don't|dont|do not)/;
+const NEGATION_PREFIX = /^(不要|别|取消|不用|don[’']?t|do not)/;
+
+/** 疑问句不做模糊匹配 | Questions skip fuzzy matching */
+const QUESTION_GUARD = /(怎么|如何|为什么|什么|吗|呢)/;
 
 function fuzzyKeywordMatches(cleaned: string, kw: string): boolean {
   // 英文关键词按词边界匹配 | English keywords match on word boundaries
@@ -617,13 +620,13 @@ export function routeIntent(
   }
 
   // Try fuzzy rules for non-dictation modes (command + analysis)
-  const isCancelPhrase = FUZZY_RULES.some(
-    (rule) => rule.actionId === 'cancel' && rule.keywords.split(' ').includes(cleaned),
-  );
+  // Exact keyword match skips negation (e.g. 「取消操作」 matches fuzzy despite 取消 prefix)
+  const isExactKeyword = FUZZY_RULES.some((rule) => rule.keywords.split(' ').includes(cleaned));
   const allowFuzzy =
     mode !== 'dictation' &&
     isShortCommand(cleaned) &&
-    (isCancelPhrase || !NEGATION_PREFIX.test(cleaned));
+    !QUESTION_GUARD.test(cleaned) &&
+    (isExactKeyword || !NEGATION_PREFIX.test(cleaned));
   if (allowFuzzy) {
     for (const rule of SORTED_FUZZY_RULES) {
       const kwList = rule.keywords.split(' ').filter(Boolean);

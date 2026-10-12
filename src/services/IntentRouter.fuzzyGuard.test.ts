@@ -8,6 +8,8 @@ describe('IntentRouter fuzzy guard (P0-1)', () => {
     '取消删除',
     '解释一下下一步的计划',
     '这个词切分对吗',
+    '怎么标注',
+    '标注吗',
   ])('"%s" stays chat', (text) => {
     expect(routeIntent(text, 'command', { detectedLang: 'zh' }).type).toBe('chat');
   });
@@ -15,6 +17,7 @@ describe('IntentRouter fuzzy guard (P0-1)', () => {
   it('does not match English keywords inside other words or negated', () => {
     expect(routeIntent('nextdoor', 'command').type).toBe('chat');
     expect(routeIntent("don't split it", 'command').type).toBe('chat');
+    expect(routeIntent('don’t undo', 'command').type).toBe('chat');
   });
 
   it.each([
@@ -23,6 +26,7 @@ describe('IntentRouter fuzzy guard (P0-1)', () => {
     ['下一个', 'navNext'],
     ['撤一下', 'undo'],
     ['算了', 'cancel'],
+    ['取消操作', 'cancel'],
   ])('short command "%s" still routes to %s', (text, actionId) => {
     const intent = routeIntent(text, 'command', { detectedLang: 'zh' });
     expect(intent).toMatchObject({ type: 'action', actionId });
