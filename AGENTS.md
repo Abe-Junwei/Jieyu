@@ -26,6 +26,7 @@ Behavioral guidelines below are adapted from [forrestchang/andrej-karpathy-skill
 - **UI / Stitch handoff**：视觉工作先读 [DESIGN.md](DESIGN.md) 与 [src/styles/tokens.css](src/styles/tokens.css)；颜色映射语义 token；用户可见文案走 `dictKeys` / 字典，不留设计稿原文。
 - **AI formatter 文案 vs UI 文案分层**：模型/工具输出固定句式放 `src/ai/messages/`，与界面字典不混命名空间。
 - **单人合并门槛（拍板 2A）**：完成前必跑 `npm run typecheck` + 触及域的 `vitest`；交互 / ReadyWorkspace / 侧栏 / 时间轴改动还要 `npm run test:e2e:chromium`；完整改进决策见 [docs/execution/plans/单人AI协作改进计划-拍板决策-2026-05-11.md](docs/execution/plans/单人AI协作改进计划-拍板决策-2026-05-11.md)。
+- **数据访问（P2-3）**：新代码直接用 Dexie Table API（`db.dexie.<table>.where(index)…`），不再新增 `db.collections.*` 调用；`findOne` / `removeBySelector` 遇到没有索引的选择器在开发和测试里会抛 `DexieNonIndexedQueryError`。整表读必须显式（`toArray()` 或 `find().exec()` 加 `shortcut:` 注释说明为什么可以）。
 - **Feature flag**：高风险或 UI 觉察大改默认套 flag，`false` 合并、自用 1 周后切默认 `true`；见 [src/featureFlags.ts](src/featureFlags.ts) 与 [copilot-instructions.md](copilot-instructions.md) §五。
 
 ## 通用代理基线（Karpathy 4 rules）

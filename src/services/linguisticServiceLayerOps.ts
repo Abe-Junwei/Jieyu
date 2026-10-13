@@ -7,6 +7,7 @@ export type ProjectLayerListOptions = { allDocuments?: boolean };
 
 export async function listDistinctProjectLanguageIds(): Promise<string[]> {
   const db = await getDb();
+  // shortcut(P2-3): 跨项目列层（调用方要的就是全部）| cross-project layer list by intent
   const docs = await db.collections.layers.find().exec();
   const seen = new Set<string>();
   docs.forEach((doc) => {
@@ -39,6 +40,7 @@ export async function getTranslationLayers(
     const docs = await db.collections.layers.findByIndex('layerType', layerType);
     return docs.map((doc) => doc.toJSON());
   }
+  // shortcut(P2-3): 跨项目列层（调用方要的就是全部）| cross-project layer list by intent
   const docs = await db.collections.layers.find().exec();
   return docs.map((doc) => doc.toJSON());
 }

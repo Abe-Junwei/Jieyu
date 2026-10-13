@@ -7,6 +7,7 @@
  */
 import type { Table } from 'dexie';
 import {
+  guardNonIndexedScan,
   isDexieIndexedQueryFallbackError,
   reportDexieIndexedQueryFallback,
   reportUnexpectedDexieQueryError,
@@ -46,30 +47,55 @@ export class DexieCollectionAdapter<T extends { id: string }> {
     };
   }
 
+  /**
+   * 选择器能用上的索引：主键、单字段索引，或字段全在选择器里的复合索引。
+   * Usable index for the selector: primary key, a single-field index, or a fully covered compound one.
+   */
+  private pickIndex(
+    selector: Record<string, unknown>,
+  ): { index: string; value: string | number | Array<string | number> } | null {
+    const isKey = (value: unknown): value is string | number =>
+      typeof value === 'string' || typeof value === 'number';
+    const primKey = this.table.schema.primKey;
+    for (const [key, value] of Object.entries(selector)) {
+      if (!isKey(value)) continue;
+      if (key === 'id' || key === primKey.keyPath) return { index: ':id', value };
+      const idx = this.table.schema.idxByName[key];
+      if (idx !== undefined && idx.compound !== true) return { index: key, value };
+    }
+    for (const idx of this.table.schema.indexes) {
+      const paths = Array.isArray(idx.keyPath) ? idx.keyPath : null;
+      if (idx.compound !== true || paths === null) continue;
+      const values = paths.map((path) => selector[path]);
+      if (values.every(isKey)) return { index: idx.name, value: values };
+    }
+    return null;
+  }
+
+  /**
+   * 先按索引收窄，再在内存里核对其余字段；空选择器是显式的“全部”；其余走 guardNonIndexedScan（P2-3）。
+   * Narrow by an index, then check the remaining fields; an empty selector means "all" explicitly;
+   * anything else goes through guardNonIndexedScan (P2-3).
+   */
+  private selectCollection(selector: Selector<T>, context: string) {
+    const entries = Object.entries(selector) as Array<[keyof T, unknown]>;
+    if (entries.length === 0) return this.table.toCollection();
+    const matches = (row: T) => entries.every(([key, expected]) => row[key] === expected);
+    const indexed = this.pickIndex(selector as Record<string, unknown>);
+    if (!indexed) {
+      guardNonIndexedScan(
+        `${this.table.name}.${context}`,
+        entries.map(([key]) => String(key)),
+      );
+      return this.table.filter(matches);
+    }
+    return this.table.where(indexed.index).equals(indexed.value).filter(matches);
+  }
+
   findOne(args: { selector: Selector<T> }) {
     return {
       exec: async (): Promise<JieyuDoc<T> | null> => {
-        const entries = Object.entries(args.selector) as Array<[keyof T, unknown]>;
-        if (entries.length === 1) {
-          const [key, expected] = entries[0]!;
-          try {
-            const indexed = await this.table
-              .where(String(key))
-              .equals(expected as string | number)
-              .first();
-            return indexed ? wrapDoc(indexed) : null;
-          } catch (err) {
-            if (isDexieIndexedQueryFallbackError(err)) {
-              reportDexieIndexedQueryFallback('findOne:where', err);
-            } else {
-              reportUnexpectedDexieQueryError('findOne:where', err);
-            }
-            // Fall through to generic filter path for non-indexed fields.
-          }
-        }
-        const found = await this.table
-          .filter((row) => entries.every(([key, expected]) => row[key] === expected))
-          .first();
+        const found = await this.selectCollection(args.selector, 'findOne').first();
         return found ? wrapDoc(found) : null;
       },
     };
@@ -111,61 +137,11 @@ export class DexieCollectionAdapter<T extends { id: string }> {
   }
 
   async removeBySelector(selector: Selector<T>): Promise<number> {
-    const entries = Object.entries(selector) as Array<[keyof T, unknown]>;
-    let keys: string[] = [];
-
-    // 优先使用任一可索引字段先收窄候选，再做内存二次过滤 | Narrow candidates via indexed field first, then in-memory refine.
-    const firstIndexedEntry = entries.find(([rawKey, rawExpected]) => {
-      const key = String(rawKey);
-      const expected = rawExpected;
-      const isPrimitive =
-        typeof expected === 'string' ||
-        typeof expected === 'number' ||
-        typeof expected === 'boolean';
-      const hasIndex = key === 'id' || key in this.table.schema.idxByName;
-      return isPrimitive && hasIndex;
-    });
-
-    if (firstIndexedEntry) {
-      const [rawKey, rawExpected] = firstIndexedEntry;
-      const key = String(rawKey);
-      const expected = rawExpected as string | number;
-      try {
-        const indexedKeys = (await this.table
-          .where(key)
-          .equals(expected)
-          .primaryKeys()) as string[];
-        if (entries.length === 1) {
-          keys = indexedKeys;
-        } else if (indexedKeys.length > 0) {
-          const indexedRows = await this.table.bulkGet(indexedKeys);
-          keys = indexedRows
-            .filter((row): row is T => Boolean(row))
-            .filter((row) =>
-              entries.every(([entryKey, entryExpected]) => row[entryKey] === entryExpected),
-            )
-            .map((row) => row.id);
-        }
-      } catch (err) {
-        if (isDexieIndexedQueryFallbackError(err)) {
-          reportDexieIndexedQueryFallback('removeBySelector:indexed', err);
-        } else {
-          reportUnexpectedDexieQueryError('removeBySelector:indexed', err);
-        }
-        // 非索引或不支持 equals 的字段，回退 filter 扫描 | Fall back to filter scan for unsupported selectors.
-      }
-    }
-
-    if (keys.length === 0) {
-      keys = (await this.table
-        .filter((row) => entries.every(([key, expected]) => row[key] === expected))
-        .primaryKeys()) as string[];
-    }
-
-    if (keys.length === 0) {
-      return 0;
-    }
-
+    const keys = (await this.selectCollection(
+      selector,
+      'removeBySelector',
+    ).primaryKeys()) as string[];
+    if (keys.length === 0) return 0;
     await this.table.bulkDelete(keys);
     return keys.length;
   }
@@ -311,12 +287,41 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
     };
   }
 
+  /**
+   * P2-3：按 id 或 textId 走索引取候选层，再核对其余字段；都没有就整表（开发和测试里抛错）。
+   * P2-3: candidates via the id or textId index, then match the rest; otherwise a guarded full scan.
+   */
+  private async selectLayers(
+    selector: Selector<LayerDocType>,
+    context: string,
+  ): Promise<LayerDocType[]> {
+    const entries = Object.entries(selector) as Array<[keyof LayerDocType, unknown]>;
+    const id = selector.id;
+    const textId = selector.textId;
+    let candidates: LayerDocType[];
+    if (typeof id === 'string') {
+      const tier = await this.tierTable.get(id);
+      const layer = tier ? bridgeTierToLayer(tier) : null;
+      candidates = layer ? [layer] : [];
+    } else if (typeof textId === 'string') {
+      candidates = (await this.findByIndex('textId', textId)).map((doc) => doc.toJSON());
+    } else if (entries.length === 0) {
+      // 空选择器是显式的“全部” | An empty selector means "all" explicitly
+      candidates = await this.loadLayers();
+    } else {
+      guardNonIndexedScan(
+        `layers.${context}`,
+        entries.map(([key]) => String(key)),
+      );
+      candidates = await this.loadLayers();
+    }
+    return candidates.filter((row) => entries.every(([key, expected]) => row[key] === expected));
+  }
+
   findOne(args: { selector: Selector<LayerDocType> }) {
     return {
       exec: async (): Promise<JieyuDoc<LayerDocType> | null> => {
-        const rows = await this.loadLayers();
-        const entries = Object.entries(args.selector) as Array<[keyof LayerDocType, unknown]>;
-        const found = rows.find((row) => entries.every(([key, expected]) => row[key] === expected));
+        const [found] = await this.selectLayers(args.selector, 'findOne');
         return found ? wrapDoc(found) : null;
       },
     };
@@ -360,11 +365,14 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
         if (isDexieIndexedQueryFallbackError(err)) {
           reportDexieIndexedQueryFallback('TierBackedLayerCollectionAdapter:findByIndex', err);
         } else {
+          // P2-3：意外错误（如事务已中止）直接抛出，不再退化成扫表 | Unexpected errors propagate
           reportUnexpectedDexieQueryError('TierBackedLayerCollectionAdapter:findByIndex', err);
+          throw err;
         }
       }
     }
 
+    guardNonIndexedScan('layers.findByIndex', [indexName]);
     const rows = await this.loadLayers();
     return rows
       .filter((row) => (row as unknown as Record<string, unknown>)[indexName] === value)
@@ -402,11 +410,7 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
   }
 
   async removeBySelector(selector: Selector<LayerDocType>): Promise<number> {
-    const rows = await this.loadLayers();
-    const entries = Object.entries(selector) as Array<[keyof LayerDocType, unknown]>;
-    const ids = rows
-      .filter((row) => entries.every(([key, expected]) => row[key] === expected))
-      .map((row) => row.id);
+    const ids = (await this.selectLayers(selector, 'removeBySelector')).map((row) => row.id);
     if (ids.length === 0) return 0;
     await this.tierTable.bulkDelete(ids);
     return ids.length;

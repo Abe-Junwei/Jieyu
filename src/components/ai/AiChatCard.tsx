@@ -197,6 +197,7 @@ export function AiChatCard({
   useEffect(() => {
     let cancelled = false;
     const promise = getDb().then(async (db) => {
+      // shortcut(P2-3): 全局表，量小 | global table, small
       const rows = await db.collections.ai_source_sets.find().exec();
       if (cancelled) return;
       let sets = rows.map((r) => r.toJSON());
@@ -281,6 +282,7 @@ export function AiChatCard({
   const persistSourceSets = useCallback((sets: SavedCorpusSourceSet[]) => {
     persistQueueRef.current = persistQueueRef.current.then(async () => {
       const db = await getDb();
+      // shortcut(P2-3): 全局表，量小 | global table, small
       const existing = await db.collections.ai_source_sets.find().exec();
       const existingIds = new Set(existing.map((r) => r.id));
       await Promise.all(

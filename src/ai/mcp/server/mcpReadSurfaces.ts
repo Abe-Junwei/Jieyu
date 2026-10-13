@@ -44,6 +44,7 @@ function isVerticalWorkflowId(name: string): name is VerticalWorkflowId {
 
 async function listSourceSetResources(): Promise<McpReadSurfaceOutcome> {
   const db = await getDb();
+  // shortcut(P2-3): 全局表，量小 | global table, small
   const rows = await db.collections.ai_source_sets.find().exec();
   const resources = rows
     .map((row) => row.toJSON())
