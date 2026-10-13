@@ -4,7 +4,7 @@ label: wayfinder:task
 mode: AFK
 status: open
 assignee:
-blocked_by: []
+blocked_by: [001]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/272
 ---
 
@@ -12,4 +12,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/272
 
 ## Question
 
-index.html 的 CSP 只列已知域，BF3-1 脚本只额外放行用户填的那一个 AI 源（jieyu.csp.aiOrigin）。在盒子里用本地预览实际填 DeepSeek 与 Qwen 的默认地址，验证请求不被 CSP/CORS 拦截，记录结果以及启动器若加 HTTP 头是否与 meta 冲突。只读验证，不改代码。
+index.html 的 CSP 只列已知域，BF3-1 只额外放行用户填的那一个 AI 源（jieyu.csp.aiOrigin）。按 [#251](https://github.com/Abe-Junwei/Jieyu/issues/251) 选定的外壳，核对外壳自己的 CSP 配置（Tauri `security.csp` 或 Electron 头）与 meta 是否冲突，并实际填 DeepSeek 与 Qwen 默认地址验证不被 CSP/CORS 拦截。只读验证，不改代码。

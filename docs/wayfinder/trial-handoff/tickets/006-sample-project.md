@@ -1,5 +1,5 @@
 ---
-title: 是否随安装包附带示例项目及其内容
+title: 是否在桌面版内置示例项目及其内容
 label: wayfinder:grilling
 mode: HITL
 status: open
@@ -8,7 +8,7 @@ blocked_by: [005]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/256
 ---
 
-# 是否随安装包附带示例项目及其内容
+# 是否在桌面版内置示例项目及其内容
 
 ## Question
 
