@@ -16,8 +16,8 @@ const TOOLS = [
 ];
 
 const CONFIGS = [
-  { id: 'deepseek-chat', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
-  { id: 'deepseek-reasoner', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: 'https://api.deepseek.com/v1', model: 'deepseek-reasoner' },
+  { id: 'deepseek-chat', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  { id: 'deepseek-reasoner', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1', model: 'deepseek-reasoner' },
   { id: 'qwen-thinking-on', kind: 'openai', env: 'DASHSCOPE_API_KEY', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: process.env.QWEN_MODEL ?? 'qwen-plus', extra: { enable_thinking: true } },
   { id: 'qwen-thinking-off', kind: 'openai', env: 'DASHSCOPE_API_KEY', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: process.env.QWEN_MODEL ?? 'qwen-plus', extra: { enable_thinking: false } },
   { id: 'minimax', kind: 'openai', env: 'MINIMAX_API_KEY', base: process.env.MINIMAX_BASE_URL ?? 'https://api.minimaxi.com/v1', model: process.env.MINIMAX_MODEL ?? 'MiniMax-M2' },
@@ -52,6 +52,13 @@ async function stream(c, messages, abortAfterBytes) {
   const ac = new AbortController();
   const started = Date.now();
   const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body), signal: ac.signal });
+  if (!res.ok) {
+    // 非 2xx 直接失败，不写 fixture | non-2xx: fail loudly, no fixture
+    const text = await res.text().catch(() => '');
+    let msg = text;
+    try { const j = JSON.parse(text); msg = j?.error?.message ?? j?.message ?? text; } catch { /* keep raw text */ }
+    throw new Error(`HTTP ${res.status}: ${String(msg).slice(0, 500) || res.statusText}`);
+  }
   let raw = '';
   let aborted = false;
   const reader = res.body.getReader();
@@ -100,6 +107,7 @@ function followUp(c, call, approved) {
   ];
 }
 
+let failures = 0;
 mkdirSync(OUT, { recursive: true });
 for (const c of CONFIGS) {
   if (only.length && !only.includes(c.id)) continue;
@@ -117,7 +125,12 @@ for (const c of CONFIGS) {
       writeFileSync(file, redact(JSON.stringify({ config: c.id, model: c.model, scenario, recordedAt: new Date().toISOString(), turns }, null, 2)));
       console.log(`✓ ${file}（${turns.map((t) => `${t.status}/${t.elapsedMs}ms`).join(', ')}）`);
     } catch (e) {
-      console.log(`✗ ${c.id}.${scenario}: ${redact(String(e?.message ?? e))}`);
+      failures += 1;
+      console.error(`✗ 失败 FAILED ${c.id}.${scenario}: ${redact(String(e?.message ?? e))}`);
     }
   }
+}
+if (failures) {
+  console.error(`✗ ${failures} 个录制失败，未写入对应 fixture | ${failures} recording(s) failed`);
+  process.exit(1);
 }
