@@ -21,6 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
+import { expireApprovalIfStale, resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
 import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
 import type {
@@ -66,6 +67,11 @@ interface UseAiChatPendingToolCallOptions {
   conversationIdRef: { readonly current: string | null };
 }
 
+/** S4：只认恢复时显式写入的 restored 标记，不按 epoch 缺失推断 | explicit flag, not a missing epoch */
+export function isRestoredV2Card(pending: PendingAiToolCall): boolean {
+  return Boolean(pending.runtimeV2) && pending.restored === true;
+}
+
 export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOptions) {
   const {
     providerId,
@@ -95,7 +101,10 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     const assistantMessageId = pending.assistantMessageId;
     const changeSet = buildAiChangeSetFromPendingToolCall(pending);
     const currentEpoch = getTimelineReadModelEpochRef.current?.();
-    if (!validateChangeSetEpoch(changeSet, currentEpoch)) {
+    // S2：同页内 v2 卡片同样走 epoch；重载恢复的卡片不带 epoch，由 resolveApproval 的库指纹核对 |
+    // in-page epoch for v2 too; restored cards (no epoch) are guarded by DB fingerprints in resolveApproval
+    const restoredV2 = isRestoredV2Card(pending);
+    if (!restoredV2 && !validateChangeSetEpoch(changeSet, currentEpoch)) {
       const staleCall = pending.executionCall ?? pending.call;
       const staleAuditContext =
         pending.auditContext ??
@@ -194,6 +203,44 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       updatedAt: nowIso(),
     });
 
+    // v2：确认 = 原生 tool-approval-response；本页内立即经决策管线执行，重载后留到下一回合开头
+    // v2: confirm records a native approval response; executes now through the pipeline when the turn is live
+    if (pending.runtimeV2 && pending.call.name !== 'propose_changes') {
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `approved:${call.name}:tool_approval`,
+        'human',
+        call.requestId ?? pending.requestId,
+      );
+      const r = await resolveApproval(
+        pending.runtimeV2.conversationId,
+        pending.runtimeV2.approvalId,
+        true,
+        Date.now(),
+      );
+      if (r?.stale) {
+        // S1：目标在审批期间变了 → 过期，不执行 | target changed → expired, not executed
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${call.name}`,
+          `expired_stale:${call.name}`,
+          'system',
+          call.requestId ?? pending.requestId,
+        );
+      }
+      setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
+      await applyAssistantMessageResult(
+        assistantMessageId,
+        r?.stale
+          ? t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale')
+          : (r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
+        r?.outcome?.status === 'error' ? 'error' : 'done',
+      );
+      if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
+      return;
+    }
+
     // 注入 requestId | Inject requestId
     const callWithRequestId: AiChatToolCall & { requestId: string } = {
       ...call,
@@ -201,6 +248,35 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     };
 
     if (pending.call.name === 'propose_changes' && pending.proposedChildCalls?.length) {
+      // S2：先核对指纹再跑批处理 | check fingerprints before running the batch
+      if (
+        pending.runtimeV2 &&
+        (await expireApprovalIfStale(
+          pending.runtimeV2.conversationId,
+          pending.runtimeV2.approvalId,
+          Date.now(),
+        ))
+      ) {
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${call.name}`,
+          `expired_stale:${call.name}`,
+          'system',
+          callWithRequestId.requestId,
+        );
+        setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
+        await applyAssistantMessageResult(
+          assistantMessageId,
+          t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale'),
+          'done',
+        );
+        return;
+      }
+      // 记下批处理最后写给用户的结果，原样回给模型 | capture the batch's real outcome for the model
+      let batchOutcome: { status: 'done' | 'error'; message: string } = {
+        status: 'error',
+        message: 'proposed changes produced no result',
+      };
       await executeConfirmedProposedChangeBatch({
         assistantMessageId,
         parentCall: callWithRequestId,
@@ -209,7 +285,10 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         locale: toolFeedbackLocale,
         toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
         hasPersistedExecutionForRequest,
-        applyAssistantMessageResult,
+        applyAssistantMessageResult: async (id, content, status, errorMessage) => {
+          batchOutcome = { status: status === 'error' ? 'error' : 'done', message: content };
+          await applyAssistantMessageResult(id, content, status, errorMessage);
+        },
         ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
         writeToolDecisionAuditLog,
         setTaskSession,
@@ -223,6 +302,17 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         bumpMetric,
         shouldApplyTurnSideEffects,
       });
+      // shortcut: v2 下 propose_changes 仍用旧批处理执行，结果记回原生审批消息 | batch path, outcome recorded
+      if (pending.runtimeV2) {
+        const r = await resolveApproval(
+          pending.runtimeV2.conversationId,
+          pending.runtimeV2.approvalId,
+          true,
+          Date.now(),
+          batchOutcome,
+        );
+        if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
+      }
       return;
     }
 
@@ -318,6 +408,16 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         ? { requestId: pending.call.requestId ?? pending.requestId }
         : {}),
     });
+    // v2：取消 = 原生拒绝 response + execution-denied；有下一张卡片则接着显示 | native denial, show next card
+    if (pending.runtimeV2) {
+      const r = await resolveApproval(
+        pending.runtimeV2.conversationId,
+        pending.runtimeV2.approvalId,
+        false,
+        Date.now(),
+      );
+      if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
+    }
   }, [
     applyAssistantMessageResult,
     bumpMetric,

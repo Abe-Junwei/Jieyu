@@ -191,7 +191,7 @@ beforeEach(async () => {
 
 describe('T53: JYB classification', () => {
   it('derives its tables from the registry; credentials, audit, derived never included; project AI is (7.5)', () => {
-    const excludedClasses = new Set(['credential', 'audit_log', 'derived']);
+    const excludedClasses = new Set(['credential', 'audit_log', 'derived', 'private_log']);
     for (const name of Object.keys(JIEYU_MAIN_TABLE_REGISTRY) as JieyuMainTableName[]) {
       const dataClass = JIEYU_MAIN_TABLE_REGISTRY[name].dataClass;
       expect(JYB_MAIN_TABLES.includes(name), name).toBe(!excludedClasses.has(dataClass));

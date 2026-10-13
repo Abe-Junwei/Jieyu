@@ -76,4 +76,6 @@ export const JIEYU_BASELINE_STORES = {
     'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
   unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
   user_notes: 'id, textId, [targetType+targetId], [targetId+targetIndex], updatedAt',
+  // AI runtime v2 回合消息 + 待审批（24 h 临时数据，不进导出/导入）| AI runtime v2 turn messages + pending approvals (24 h ephemeral, excluded from export/import)
+  ai_runtime_v2_turns: 'conversationId, expiresAt',
 } as const satisfies Record<string, string>;

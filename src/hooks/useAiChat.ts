@@ -51,7 +51,9 @@ import {
 } from './ai/useAiChat.persistenceCleanup';
 import { scheduleClearPersistenceCleanup } from '../ai/chat/scheduleClearPersistenceCleanup';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
-import { featureFlags } from '../ai/config/featureFlags';
+import { featureFlags, resolveAiAgentRuntimeV2Enabled } from '../ai/config/featureFlags';
+import { t } from '../i18n';
+import { restoreFirstUnanswered, sweepExpiredTurnStates } from '../ai/runtime/aiRuntimeV2Pending';
 import { createAssistantStream } from './ai/useAiChat.streamFactory';
 import { useAiChatToolAudit } from './ai/useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './ai/useAiChat.pendingToolCall';
@@ -421,6 +423,52 @@ export function useAiChat(options?: UseAiChatOptions) {
     getTimelineReadModelEpoch: () => getTimelineReadModelEpochRef.current?.(),
     conversationIdRef,
   });
+
+  // v2 重载恢复：Dexie 里第一张未答复的审批卡片重新渲染 | reload: re-render the first unanswered approval card
+  useEffect(() => {
+    if (!conversationId || isBootstrapping) return;
+    if (!(featureFlags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled())) return;
+    let stale = false;
+    // N3：顺手按 expiresAt 清掉过期行（含已删会话/项目留下的）| sweep expired rows
+    void sweepExpiredTurnStates(Date.now()).catch(() => undefined);
+    // S1：目标指纹一致才恢复，并换上本次页面的 read-model epoch；否则审批过期 | verify, then restamp epoch
+    void restoreFirstUnanswered(conversationId, Date.now())
+      .then(async (r) => {
+        if (stale || !r) return;
+        const card = r.card as PendingAiToolCall | undefined;
+        if (r.kind === 'stale') {
+          await writeToolDecisionAuditLog(
+            card?.assistantMessageId ?? '',
+            `pending:${r.toolName}`,
+            `expired_stale:${r.toolName}`,
+            'system',
+            r.requestId,
+          );
+          if (card?.assistantMessageId) {
+            const msg = t(toolFeedbackLocaleRef.current, 'ai.runtimeV2.approvalStale');
+            await applyAssistantMessageResultWrapper(card.assistantMessageId, msg, 'done');
+          }
+          return;
+        }
+        if (!card) return;
+        // 旧页面的 epoch 无意义且本页 epoch 加载期间还会变：恢复卡片不带 epoch，由库指纹把关（恢复时 + 批准时）|
+        // restored cards carry no epoch (this page's epoch still moves while loading); DB fingerprints guard them
+        const restored: PendingAiToolCall = { ...card, restored: true };
+        delete restored.readModelEpochCaptured;
+        setPendingToolCall((cur) => cur ?? restored);
+      })
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [
+    conversationId,
+    isBootstrapping,
+    applyAssistantMessageResultWrapper,
+    getTimelineReadModelEpochRef,
+    toolFeedbackLocaleRef,
+    writeToolDecisionAuditLog,
+  ]);
 
   const send = useCallback(
     async (userText: string) => {

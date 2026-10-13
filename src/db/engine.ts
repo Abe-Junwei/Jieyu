@@ -81,6 +81,7 @@ import {
   validateProjectAiMemoryDoc,
   validateMcpToolCallAuditDoc,
   validateExternalMcpTrustDoc,
+  validateAiRuntimeV2TurnDoc,
   validateAgentArtifactDoc,
   validateLanguageDoc,
   validateLanguageDisplayNameDoc,
@@ -292,6 +293,7 @@ export const JIEYU_TABLE_VALIDATORS: JieyuTableValidators<keyof typeof JIEYU_BAS
   unit_relations: validateUnitRelationDoc,
   unit_tokens: validateUnitTokenDoc,
   user_notes: validateUserNoteDoc,
+  ai_runtime_v2_turns: validateAiRuntimeV2TurnDoc,
 };
 
 type GlobalWithJieyuDb = typeof globalThis & {

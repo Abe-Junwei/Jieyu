@@ -2916,6 +2916,11 @@ export const enUSDictionary = {
   'ai.toolWriteGate.destructiveDenied':
     'Destructive actions are disabled for this session, so this tool call was blocked automatically.',
   'ai.toolWriteGate.genericBlocked': 'This tool call was blocked by the safety policy.',
+  'ai.runtimeV2.approvedRunsNextTurn': 'Approved; it will run when you send your next message.',
+  'ai.runtimeV2.approvalStale':
+    'The target of this pending action changed meanwhile, so the approval expired. Please ask again.',
+  'ai.runtimeV2.pendingNoAutoContinue':
+    'After you confirm, I will not continue automatically; send another message to let me proceed.',
   'ai.toolWriteGate.localPolicyBlocked':
     'Local tool execution was blocked by your directive preferences. If you want to continue, explicitly authorize this turn.',
   'ai.toolWriteGate.localPolicyConfirm':
@@ -2985,6 +2990,9 @@ export const enUSDictionary = {
   'ai.chat.provider': 'Service provider',
   'ai.chat.back': 'Back',
   'ai.chat.configNote': '{provider} configuration is saved locally in your browser only.',
+  'ai.chat.noNativeToolsThisSession': 'Disable native tools for this session',
+  'ai.chat.noNativeToolsThisSessionHint':
+    'Emergency degrade: stop attaching tools for the current model this session (same set as M2 tools-rejected). Cleared on page reload; re-check after refresh.',
   'ai.chat.testConnection': 'Test connection',
   'ai.chat.testing': 'Testing...',
   'ai.chat.noMessages': 'No messages yet. Type and press Enter to send.',

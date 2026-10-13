@@ -87,6 +87,8 @@ export const JIEYU_MAIN_TABLE_REGISTRY: Record<JieyuMainTableName, JieyuTableReg
   mcp_tool_call_audits: { dataClass: 'audit_log' },
   // 安全信任决定，按凭据处理（不进 JYB）| trust decisions are treated like credentials
   external_mcp_trust: { dataClass: 'credential' },
+  // AI runtime v2 回合临时数据（24 h），不进 JYB | ephemeral AI runtime v2 turn state, never packaged
+  ai_runtime_v2_turns: { dataClass: 'private_log' },
 };
 
 /** 是否进入 JYB（第 3 批实现，T53 验证）| Included in JYB (batch 3, verified by T53) */

@@ -9,7 +9,16 @@
 import type { SttResult } from './VoiceInputService.types';
 import type { VoiceAgentMode, VoiceAgentServiceState } from './VoiceAgentService.types';
 import type { Locale } from '../i18n';
-import { routeIntent, isDestructiveAction, shouldConfirmFuzzyAction, learnVoiceIntentAlias, bumpAliasUsage, type ActionId, type VoiceIntent, type VoiceSession } from './IntentRouter';
+import {
+  routeIntent,
+  isDestructiveAction,
+  shouldConfirmFuzzyAction,
+  learnVoiceIntentAlias,
+  bumpAliasUsage,
+  type ActionId,
+  type VoiceIntent,
+  type VoiceSession,
+} from './IntentRouter';
 import { refineLlmFallbackIntent } from './voiceIntentRefine';
 import { resolveVoiceIntent } from './voiceIntentResolution';
 import { runVoiceFinalSttAfterIntentResolution } from './assistantVoiceSttOrchestrate';
@@ -39,13 +48,23 @@ export interface CommandBridgeContext {
   onExecuteAction?: (actionId: ActionId, params?: { segmentIndex?: number }) => void;
   onInsertDictation?: (text: string) => void;
   onSendToAiChat?: (text: string) => void;
-  onToolCall?: (call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>;
+  onToolCall?: (call: {
+    name: string;
+    arguments: Record<string, unknown>;
+  }) => Promise<{ ok: boolean; message: string }>;
 }
 
 /** Fields VoiceAgentService supplies before `handleFinalSttResult` (ADR-0028 thin edge). */
 export type CommandBridgeContextFields = Pick<
   CommandBridgeContext,
-  'mode' | 'safeMode' | 'session' | 'locale' | 'corpusLang' | 'intentAliasMap' | 'setState' | 'emitStateChange'
+  | 'mode'
+  | 'safeMode'
+  | 'session'
+  | 'locale'
+  | 'corpusLang'
+  | 'intentAliasMap'
+  | 'setState'
+  | 'emitStateChange'
 > &
   Partial<
     Pick<
@@ -69,7 +88,9 @@ export function buildCommandBridgeContext(input: CommandBridgeContextFields): Co
     intentAliasMap: input.intentAliasMap,
     setState: input.setState,
     emitStateChange: input.emitStateChange,
-    ...(input.resolveIntentWithLlm !== undefined && { resolveIntentWithLlm: input.resolveIntentWithLlm }),
+    ...(input.resolveIntentWithLlm !== undefined && {
+      resolveIntentWithLlm: input.resolveIntentWithLlm,
+    }),
     ...(input.onExecuteAction !== undefined && { onExecuteAction: input.onExecuteAction }),
     ...(input.onInsertDictation !== undefined && { onInsertDictation: input.onInsertDictation }),
     ...(input.onSendToAiChat !== undefined && { onSendToAiChat: input.onSendToAiChat }),
@@ -93,7 +114,12 @@ export async function handleFinalSttResult(
   ctx: CommandBridgeContext,
   result: SttResult,
 ): Promise<CommandBridgeMutations> {
-  ctx.setState({ interimText: '', finalText: result.text, confidence: result.confidence, agentState: 'routing' });
+  ctx.setState({
+    interimText: '',
+    finalText: result.text,
+    confidence: result.confidence,
+    agentState: 'routing',
+  });
 
   const resolutionResult = await resolveVoiceIntent(
     { routeIntent, learnVoiceIntentAlias, bumpAliasUsage, refineLlmFallbackIntent },
@@ -103,15 +129,22 @@ export async function handleFinalSttResult(
       session: ctx.session,
       aliasMap: ctx.intentAliasMap,
       locale: ctx.locale,
-      ...(ctx.resolveIntentWithLlm !== undefined && { resolveIntentWithLlm: ctx.resolveIntentWithLlm }),
+      ...(ctx.resolveIntentWithLlm !== undefined && {
+        resolveIntentWithLlm: ctx.resolveIntentWithLlm,
+      }),
     },
   );
-  const { intent, llmFallbackFailed, nextAliasMap, errorMessage: resolutionError } = resolutionResult;
+  const {
+    intent,
+    llmFallbackFailed,
+    nextAliasMap,
+    errorMessage: resolutionError,
+  } = resolutionResult;
   log.debug('resolveVoiceIntent', { text: result.text, mode: ctx.mode, intentType: intent.type });
   if (resolutionError) {
     ctx.setState({ error: resolutionError });
   }
-  const intentAliasMap = nextAliasMap ?? ctx.intentAliasMap;
+  let learnedAfterExecution: Record<string, ActionId> | undefined;
 
   const { session } = await runVoiceFinalSttAfterIntentResolution({
     corpusLang: ctx.corpusLang,
@@ -147,7 +180,16 @@ export async function handleFinalSttResult(
       ctx.setState({ pendingConfirm: p });
     },
     inputModality: 'voice',
+    llmResolvedAction: resolutionResult.llmResolvedAction,
+    ...(resolutionResult.learnAliasAfterExecution
+      ? {
+          learnAliasAfterExecution: () => {
+            learnedAfterExecution = resolutionResult.learnAliasAfterExecution?.();
+          },
+        }
+      : {}),
   });
 
+  const intentAliasMap = nextAliasMap ?? learnedAfterExecution ?? ctx.intentAliasMap;
   return { session, intentAliasMap };
 }

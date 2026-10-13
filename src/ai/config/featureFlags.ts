@@ -122,6 +122,22 @@ const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'staging' ||
   featureFlagDeploymentEnvironment === 'prod';
 
+/** R1/R2：ToolLoopAgent 运行时（默认关）| ToolLoopAgent runtime, default off */
+const aiAgentRuntimeV2EnabledFromEnv =
+  readOptionalBooleanFlag(import.meta.env.VITE_AI_AGENT_RUNTIME_V2_ENABLED) ?? false;
+
+/** Dogfood / e2e：localStorage `jieyu.aiAgentRuntimeV2Enabled=1` 可在不改构建的情况下打开 | session override without rebuild */
+export const AI_AGENT_RUNTIME_V2_LS_KEY = 'jieyu.aiAgentRuntimeV2Enabled';
+
+export function resolveAiAgentRuntimeV2Enabled(): boolean {
+  if (aiAgentRuntimeV2EnabledFromEnv) return true;
+  try {
+    return globalThis.localStorage?.getItem(AI_AGENT_RUNTIME_V2_LS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 const aiToolWriteGateDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' || featureFlagDeploymentEnvironment === 'staging';
 
@@ -195,7 +211,15 @@ export const featureFlags = {
    * A7 Last Mile write gate: readonly local tools auto-allow; write tools scope-checked at executor.
    * 默认 false；dogfood/staging 可经 env 开启。见 spec agent-runtime-security-write-gate。
    */
-  aiToolWriteGateEnabled: aiToolWriteGateEnabledFromEnv ?? aiToolWriteGateDefaultEnabled,
+  /** 开 v2（env）时强制打开；localStorage 覆盖见 resolveAiAgentRuntimeV2Enabled | forced on with env v2 */
+  aiToolWriteGateEnabled:
+    aiAgentRuntimeV2EnabledFromEnv ||
+    (aiToolWriteGateEnabledFromEnv ?? aiToolWriteGateDefaultEnabled),
+  /**
+   * R2：ToolLoopAgent 运行时（构建 env 默认关）。
+   * 运行时 localStorage 覆盖请用 resolveAiAgentRuntimeV2Enabled()（e2e/dogfood）。
+   */
+  aiAgentRuntimeV2Enabled: aiAgentRuntimeV2EnabledFromEnv,
   /**
    * Agent loop 历史中的旧 tool result / 长 assistant 回合压缩（P1 compaction）。默认与可靠性 flags 同环境矩阵。
    */

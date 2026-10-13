@@ -90,3 +90,121 @@ describe('useAiChat.toolDecisionPipeline directive policy', () => {
     );
   });
 });
+
+describe('useAiChat.toolDecisionPipeline runtime v2 native approval', () => {
+  const writeCall = (requestId: string): AiChatToolCall => ({
+    name: 'set_transcription_text',
+    arguments: { segmentId: 'unit-1', text: 'hello' },
+    requestId,
+  });
+
+  it('request mode only shows the confirm card and a pending audit; never executes', async () => {
+    const onToolCall = vi.fn(async () => ({ ok: true, message: 'written' }));
+    const params = {
+      ...baseParams({ toolCall: writeCall('req-r') }),
+      onToolCall,
+      runtimeV2Approval: 'request' as const,
+    };
+    await resolveToolDecisionPipeline(params);
+    expect(onToolCall).not.toHaveBeenCalled();
+    expect(params.setPendingToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: 'req-r' }),
+    );
+    expect(params.writeToolDecisionAuditLog).toHaveBeenCalledWith(
+      'ast-1',
+      'auto:set_transcription_text',
+      expect.stringMatching(/^policy_pending:set_transcription_text:/),
+      'system',
+      'req-r',
+      expect.anything(),
+    );
+  });
+
+  it('approved mode skips the confirm branches, executes once and writes its own decision audit', async () => {
+    const onToolCall = vi.fn(async () => ({ ok: true, message: 'written' }));
+    const a = {
+      ...baseParams({ toolCall: writeCall('req-a') }),
+      onToolCall,
+      runtimeV2Approval: 'approved' as const,
+    };
+    const b = {
+      ...baseParams({
+        toolCall: { ...writeCall('req-b'), arguments: { segmentId: 'unit-2', text: 'x' } },
+      }),
+      onToolCall,
+      runtimeV2Approval: 'approved' as const,
+    };
+    await resolveToolDecisionPipeline(a);
+    await resolveToolDecisionPipeline(b);
+    expect(onToolCall).toHaveBeenCalledTimes(2);
+    expect(a.setPendingToolCall).not.toHaveBeenCalled();
+    for (const [p, id] of [
+      [a, 'req-a'],
+      [b, 'req-b'],
+    ] as const) {
+      expect(p.writeToolDecisionAuditLog).toHaveBeenCalledWith(
+        'ast-1',
+        expect.any(String),
+        expect.stringContaining('set_transcription_text'),
+        expect.any(String),
+        id,
+        expect.anything(),
+      );
+    }
+  });
+
+  it('request mode keeps the destructive risk check: impact summary on the card, ambiguous target goes to clarify', async () => {
+    const onToolCall = vi.fn(async () => ({ ok: true, message: 'deleted' }));
+    const onToolRiskCheck = vi.fn(async () => ({
+      requiresConfirmation: true,
+      riskSummary: 'will delete unit-1',
+      impactPreview: ['unit-1'],
+    }));
+    const req = {
+      ...baseParams({
+        toolCall: {
+          name: 'delete_transcription_segment',
+          arguments: { segmentId: 'unit-1' },
+          requestId: 'req-d',
+        },
+      }),
+      allowDestructiveToolCalls: false,
+      onToolCall,
+      onToolRiskCheck,
+      runtimeV2Approval: 'request' as const,
+    };
+    await resolveToolDecisionPipeline(req);
+    expect(onToolRiskCheck).toHaveBeenCalledTimes(1);
+    expect(onToolCall).not.toHaveBeenCalled();
+    expect(req.setPendingToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({ riskSummary: 'will delete unit-1', requestId: 'req-d' }),
+    );
+
+    const ambiguous = vi.fn(async () => ({
+      requiresConfirmation: true,
+      riskSummary: 'ambiguous target: multiple segments',
+    }));
+    const amb = {
+      ...baseParams(),
+      allowDestructiveToolCalls: false,
+      onToolCall,
+      onToolRiskCheck: ambiguous,
+      runtimeV2Approval: 'request' as const,
+    };
+    const r = await resolveToolDecisionPipeline(amb);
+    expect(r.finalStatus).toBe('error');
+    expect(amb.setPendingToolCall).not.toHaveBeenCalled();
+    expect(onToolCall).not.toHaveBeenCalled();
+  });
+
+  it('approved mode still honours the user directive block', async () => {
+    const onToolCall = vi.fn(async () => ({ ok: true, message: 'deleted' }));
+    const params = {
+      ...baseParams({ sessionMemory: { safetyPreferences: { denyDestructive: true } } }),
+      onToolCall,
+      runtimeV2Approval: 'approved' as const,
+    };
+    await resolveToolDecisionPipeline(params);
+    expect(onToolCall).not.toHaveBeenCalled();
+  });
+});

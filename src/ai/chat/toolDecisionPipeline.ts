@@ -12,7 +12,7 @@ import {
   toNaturalToolRollbackSkipped,
   validateToolCallArguments,
 } from './toolCallHelpers';
-import { featureFlags } from '../config/featureFlags';
+import { resolveAiAgentRuntimeV2Enabled, featureFlags } from '../config/featureFlags';
 import { resolveUserDirectivePolicyDecision } from '../policy/resolveExecutionPolicy';
 import { formatToolWriteGateUserMessage } from '../messages/toolWriteGateFeedback';
 import { isAiToolWritePreviewRequired } from '../policy/aiToolPolicyMatrix';
@@ -59,6 +59,11 @@ export interface ResolveToolDecisionPipelineParams {
   planner?: Parameters<typeof buildToolAuditContext>[5];
   memoryRecallShape?: AiMemoryRecallShapeTelemetry;
   allowDestructiveToolCalls: boolean;
+  /**
+   * v2 SDK 原生审批：request=只出确认卡片与 pending 审计，绝不执行；approved=用户已批准，跳过确认分支，
+   * 仍过策略拦截、写入门禁、去重与决策审计。| v2 native approval: request never executes; approved skips confirm branches.
+   */
+  runtimeV2Approval?: 'request' | 'approved';
   onToolRiskCheck?:
     | ((
         call: AiChatToolCall,
@@ -160,7 +165,13 @@ export async function resolveToolDecisionPipeline({
   shouldApplyTurnSideEffects,
   turnConversationId,
   agentRunId,
+  runtimeV2Approval,
 }: ResolveToolDecisionPipelineParams): Promise<ResolveToolDecisionPipelineResult> {
+  const v2Approved = runtimeV2Approval === 'approved';
+  const v2Request = runtimeV2Approval === 'request';
+  // 批准后才放行破坏性执行；request 模式保留原值，让风险检查与影响摘要照常运行 |
+  // only an approved call bypasses the destructive gate; request mode keeps the risk check.
+  if (v2Approved) allowDestructiveToolCalls = true;
   const baseAuditContext = buildToolAuditContext(
     userText,
     providerId,
@@ -221,21 +232,24 @@ export async function resolveToolDecisionPipeline({
     }
   };
 
-  const intentOutcome = resolveToolIntentOutcome({
-    intentAssessment,
-    ...(planner?.decision ? { plannerDecision: planner.decision } : {}),
-    ...(planner?.reason ? { plannerReason: planner.reason } : {}),
-    toolCallName: toolCall.name,
-    userText,
-    locale,
-    toolFeedbackStyle,
-    aiContext,
-    sessionMemory,
-    taskSessionId,
-    bumpMetric,
-    setTaskSession,
-    setPendingToolCall,
-  });
+  // v2 已批准：用户已明确决定，不再做意图澄清 | approved by the user: skip intent clarification
+  const intentOutcome = v2Approved
+    ? null
+    : resolveToolIntentOutcome({
+        intentAssessment,
+        ...(planner?.decision ? { plannerDecision: planner.decision } : {}),
+        ...(planner?.reason ? { plannerReason: planner.reason } : {}),
+        toolCallName: toolCall.name,
+        userText,
+        locale,
+        toolFeedbackStyle,
+        aiContext,
+        sessionMemory,
+        taskSessionId,
+        bumpMetric,
+        setTaskSession,
+        setPendingToolCall,
+      });
 
   if (intentOutcome !== null) {
     return {
@@ -375,10 +389,11 @@ export async function resolveToolDecisionPipeline({
     return { finalContent, finalStatus: 'done' };
   }
 
-  if (featureFlags.aiToolWriteGateEnabled) {
+  if (featureFlags.aiToolWriteGateEnabled || resolveAiAgentRuntimeV2Enabled()) {
     const writeGateDecision = assertAiChatToolWriteAllowed(toolCall, aiContext, {
       gateEnabled: true,
-      destructiveAllowed: allowDestructiveToolCalls,
+      // v2 request：用户审批即授权，写门只查作用域 | v2 request: approval is the authorization
+      destructiveAllowed: allowDestructiveToolCalls || v2Request,
     });
     if (!writeGateDecision.allowed) {
       const gateMessage = formatToolWriteGateUserMessage(locale, writeGateDecision.reasonCode);
@@ -415,7 +430,7 @@ export async function resolveToolDecisionPipeline({
     }
   }
 
-  if (policyDecision.action === 'confirm') {
+  if (policyDecision.action === 'confirm' && !v2Approved) {
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;
@@ -472,7 +487,62 @@ export async function resolveToolDecisionPipeline({
     };
   }
 
-  if (featureFlags.aiToolWriteGateEnabled && isAiToolWritePreviewRequired(toolCall.name)) {
+  // v2 request：先过破坏性门（风险检查、歧义目标澄清、具体化目标与影响摘要），卡片即用户批准的那个调用 |
+  // v2 request: run the destructive gate first so the card carries the risk check and resolved target.
+  if (v2Request) {
+    const v2Gate = await resolveDestructiveGate({
+      assistantMessageId,
+      toolCall,
+      aiContext,
+      auditContext,
+      locale,
+      toolFeedbackStyle,
+      allowDestructiveToolCalls,
+      ...(onToolRiskCheck ? { onToolRiskCheck } : {}),
+      ...(preparePendingToolCall ? { preparePendingToolCall } : {}),
+      writeToolDecisionAuditLog,
+      setTaskSession,
+      setPendingToolCall: (value) => {
+        setPendingWritePreview(value);
+      },
+      taskSessionId,
+      bumpFailureMetric: () => bumpMetric('failureCount'),
+      ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
+      ...(turnConversationId ? { turnConversationId } : {}),
+    });
+    if (v2Gate.kind === 'error') {
+      return {
+        finalContent: v2Gate.finalContent,
+        finalStatus: 'error',
+        finalErrorMessage: v2Gate.finalErrorMessage,
+      };
+    }
+    if (v2Gate.kind === 'pending') {
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `auto:${toolCall.name}`,
+        `policy_pending:${toolCall.name}:tool_approval`,
+        'system',
+        toolCall.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          toolCall,
+          auditContext,
+          'system',
+          'policy_pending',
+          false,
+        ),
+      );
+      return { finalContent: v2Gate.finalContent, finalStatus: 'done' };
+    }
+  }
+
+  if (
+    v2Request ||
+    (!v2Approved &&
+      (featureFlags.aiToolWriteGateEnabled || resolveAiAgentRuntimeV2Enabled()) &&
+      isAiToolWritePreviewRequired(toolCall.name))
+  ) {
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;

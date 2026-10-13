@@ -1779,6 +1779,15 @@ export function validateExternalMcpTrustDoc(doc: ExternalMcpTrustDoc): void {
   externalMcpTrustDocSchema.parse(doc);
 }
 
+// AI runtime v2 回合临时数据：只校验键与过期时间，messages 读取时再检查 | shortcut: shallow check, messages checked on read
+const aiRuntimeV2TurnDocSchema = z
+  .object({ conversationId: z.string().min(1), expiresAt: z.number(), createdAt: z.number() })
+  .passthrough();
+
+export function validateAiRuntimeV2TurnDoc(doc: unknown): void {
+  aiRuntimeV2TurnDocSchema.parse(doc);
+}
+
 export function validateAgentArtifactDoc(doc: AgentArtifactDoc): void {
   agentArtifactDocSchema.parse(doc);
 }

@@ -67,6 +67,8 @@ describe('T1 greenfield baseline', () => {
       'id, textId, [textId+externalDocId], [textId+sha256], importBatchId, mediaId';
     // 2B-E（rev5 4.1 / 4.2-8）：标注文档 | 2B-E: annotation documents
     expected.annotation_documents = 'id, textId';
+    // AI runtime v2 回合 + 待审批（冻结前直接进基线）| AI runtime v2 turns (pre-freeze baseline)
+    expected.ai_runtime_v2_turns = 'conversationId, expiresAt';
     expect(JIEYU_BASELINE_STORES).toEqual(expected);
   });
 

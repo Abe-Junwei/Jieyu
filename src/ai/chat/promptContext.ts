@@ -24,17 +24,17 @@ const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '【\\u591a\\u8f6e\\u4e0e\\u5de5\\u5177\\u56de\\u5305\\u3011\\u7eed\\u8dd1\\u6216\\u5df2\\u6536\\u5230\\u672c\\u5730\\u5de5\\u5177 JSON \\u7ed3\\u679c\\u65f6\\uff0c\\u987b\\u4ee5\\u4e0a\\u4e00\\u8f6e\\u8fd4\\u56de\\u7684 ok/\\u9519\\u8bef/\\u6570\\u636e\\u4e3a\\u51c6\\u7ee7\\u7eed\\u63a8\\u7406\\uff0c\\u4e0d\\u5f97\\u5ffd\\u89c6\\u6216\\u4e0e\\u4e0a\\u8f6e\\u77db\\u76fe\\u3002',
   '\\u53ef\\u7528 tool_name \\u53ca\\u8bed\\u4e49（\\u4e25\\u683c\\u533a\\u5206，\\u52ff\\u6df7\\u7528）：',
   '  \\u53e5\\u6bb5\\u64cd\\u4f5c（segment = \\u4e00\\u6761\\u5e26\\u65f6\\u95f4\\u533a\\u95f4\\u7684\\u8f6c\\u5199\\u5355\\u5143，\\u65e0\\u8bed\\u8a00\\u5f52\\u5c5e）：',
-    '    create_transcription_segment — \\u5728\\u76ee\\u6807\\u53e5\\u6bb5\\u540e\\u63d2\\u5165\\u65b0\\u7684\\u65f6\\u95f4\\u533a\\u95f4（\\u65b0\\u5efa\\u53e5\\u6bb5），\\u5fc5\\u987b\\u63d0\\u4f9b segmentId',
-    '    split_transcription_segment  — \\u5207\\u5206\\u76ee\\u6807\\u53e5\\u6bb5；\\u5fc5\\u987b\\u63d0\\u4f9b segmentId，\\u53ef\\u9009 splitTime（\\u79d2，\\u4f4d\\u4e8e\\u53e5\\u6bb5\\u5185\\u90e8）',
-    '    merge_transcription_segments — \\u5408\\u5e76\\u591a\\u4e2a\\u5df2\\u9009\\u53e5\\u6bb5；\\u5fc5\\u987b\\u63d0\\u4f9b segmentIds，\\u4e14\\u6570\\u91cf\\u81f3\\u5c11\\u4e3a 2',
+  '    create_transcription_segment — \\u5728\\u76ee\\u6807\\u53e5\\u6bb5\\u540e\\u63d2\\u5165\\u65b0\\u7684\\u65f6\\u95f4\\u533a\\u95f4（\\u65b0\\u5efa\\u53e5\\u6bb5），\\u5fc5\\u987b\\u63d0\\u4f9b segmentId',
+  '    split_transcription_segment  — \\u5207\\u5206\\u76ee\\u6807\\u53e5\\u6bb5；\\u5fc5\\u987b\\u63d0\\u4f9b segmentId，\\u53ef\\u9009 splitTime（\\u79d2，\\u4f4d\\u4e8e\\u53e5\\u6bb5\\u5185\\u90e8）',
+  '    merge_transcription_segments — \\u5408\\u5e76\\u591a\\u4e2a\\u5df2\\u9009\\u53e5\\u6bb5；\\u5fc5\\u987b\\u63d0\\u4f9b segmentIds，\\u4e14\\u6570\\u91cf\\u81f3\\u5c11\\u4e3a 2',
   '    delete_transcription_segment — ⚠️ \\u5220\\u9664\\u5f53\\u524d\\u8fd9\\u4e00\\u6761\\u53e5\\u6bb5（\\u65f6\\u95f4\\u533a\\u95f4 + \\u6587\\u672c\\u5168\\u90e8\\u79fb\\u9664，\\u53ef\\u901a\\u8fc7\\u64a4\\u9500\\u6062\\u590d）',
   '    clear_translation_segment    — \\u4ec5\\u6e05\\u7a7a\\u6307\\u5b9a\\u53e5\\u6bb5\\u5728\\u67d0\\u7ffb\\u8bd1\\u5c42\\u4e0a\\u7684\\u7ffb\\u8bd1\\u6587\\u672c（\\u53e5\\u6bb5\\u672c\\u8eab\\u4fdd\\u7559，\\u4ec5\\u5185\\u5bb9\\u53d8\\u4e3a\\u7a7a）',
   '  \\u5feb\\u6377\\u5408\\u5e76\\u64cd\\u4f5c：',
-    '    merge_prev                  — \\u5c06\\u5f53\\u524d\\u53e5\\u6bb5\\u4e0e\\u4e0a\\u4e00\\u53e5\\u6bb5\\u5408\\u5e76；\\u53ef\\u9009 segmentId，\\u82e5\\u7f3a\\u7701\\u5219\\u4f7f\\u7528\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5',
-    '    merge_next                  — \\u5c06\\u5f53\\u524d\\u53e5\\u6bb5\\u4e0e\\u4e0b\\u4e00\\u53e5\\u6bb5\\u5408\\u5e76；\\u53ef\\u9009 segmentId，\\u82e5\\u7f3a\\u7701\\u5219\\u4f7f\\u7528\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5',
+  '    merge_prev                  — \\u5c06\\u5f53\\u524d\\u53e5\\u6bb5\\u4e0e\\u4e0a\\u4e00\\u53e5\\u6bb5\\u5408\\u5e76；\\u53ef\\u9009 segmentId，\\u82e5\\u7f3a\\u7701\\u5219\\u4f7f\\u7528\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5',
+  '    merge_next                  — \\u5c06\\u5f53\\u524d\\u53e5\\u6bb5\\u4e0e\\u4e0b\\u4e00\\u53e5\\u6bb5\\u5408\\u5e76；\\u53ef\\u9009 segmentId，\\u82e5\\u7f3a\\u7701\\u5219\\u4f7f\\u7528\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5',
   '  \\u6587\\u672c\\u64cd\\u4f5c：',
-    '    set_transcription_text — \\u5199\\u5165/\\u8986\\u76d6\\u8f6c\\u5199\\u6587\\u672c，\\u9700\\u8981 text，\\u4e14\\u5fc5\\u987b\\u63d0\\u4f9b segmentId',
-    '    set_translation_text   — \\u5199\\u5165/\\u8986\\u76d6\\u7ffb\\u8bd1\\u6587\\u672c，\\u9700\\u8981 text，\\u4e14\\u5fc5\\u987b\\u63d0\\u4f9b segmentId、layerId',
+  '    set_transcription_text — \\u5199\\u5165/\\u8986\\u76d6\\u8f6c\\u5199\\u6587\\u672c，\\u9700\\u8981 text，\\u4e14\\u5fc5\\u987b\\u63d0\\u4f9b segmentId',
+  '    set_translation_text   — \\u5199\\u5165/\\u8986\\u76d6\\u7ffb\\u8bd1\\u6587\\u672c，\\u9700\\u8981 text，\\u4e14\\u5fc5\\u987b\\u63d0\\u4f9b segmentId、layerId',
   '  \\u5c42\\u64cd\\u4f5c（layer = \\u6574\\u6761\\u8f6c\\u5199\\u5c42\\u6216\\u7ffb\\u8bd1\\u5c42，\\u901a\\u5e38\\u6709\\u8bed\\u8a00\\u5f52\\u5c5e，\\u5982"\\u65e5\\u8bed\\u8f6c\\u5199\\u5c42"）：',
   '    create_transcription_layer — \\u65b0\\u5efa\\u8f6c\\u5199\\u5c42，\\u9700\\u8981 languageId（ISO 639-3 \\u4e09\\u5b57\\u6bcd\\u4ee3\\u7801\\u5982 eng/jpn/cmn，\\u4e5f\\u63a5\\u53d7\\u4e2d\\u82f1\\u6587\\u540d\\u5982\\u82f1\\u8bed/English），\\u53ef\\u9009 alias',
   '    create_translation_layer   — \\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42，\\u9700\\u8981 languageId（\\u540c\\u4e0a\\u683c\\u5f0f），\\u53ef\\u9009 alias、modality(text/audio/mixed)',
@@ -56,7 +56,9 @@ const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '\\u5982\\u679c\\u7528\\u6237\\u4e0d\\u662f\\u5728\\u8bf7\\u6c42\\u6267\\u884c\\u52a8\\u4f5c\\uff0c\\u5219\\u6b63\\u5e38\\u81ea\\u7136\\u8bed\\u8a00\\u56de\\u590d\\u3002',
   '\\u3010\\u53cd\\u5e7b\\u89c9\\u89c4\\u5219\\u3011\\u5f53\\u4f60\\u9700\\u8981\\u5217\\u4e3e\\u5177\\u4f53\\u6761\\u76ee\\uff08\\u8bed\\u6bb5\\u5217\\u8868\\u3001\\u65f6\\u95f4\\u8303\\u56f4\\u3001ID\\u3001\\u6587\\u672c\\u5185\\u5bb9\\u3001\\u58f0\\u5b66\\u7ec6\\u8282\\uff09\\u5374\\u6ca1\\u6709\\u8db3\\u591f\\u6570\\u636e\\u65f6\\uff0c\\u5fc5\\u987b\\u5148\\u8c03\\u7528\\u67e5\\u8be2\\u5de5\\u5177\\u83b7\\u53d6\\u771f\\u5b9e\\u6570\\u636e\\uff0c\\u7981\\u6b62\\u51ed\\u805a\\u5408\\u6570\\u5b57\\u63a8\\u6d4b\\u6216\\u7f16\\u9020\\u3002\\u82e5\\u5de5\\u5177\\u4e0d\\u53ef\\u7528\\u6216\\u7ed3\\u679c\\u88ab\\u622a\\u65ad\\uff0c\\u660e\\u786e\\u544a\\u77e5\\u7528\\u6237\\u6570\\u636e\\u4e0d\\u5b8c\\u6574\\u3002\\u4e0a\\u4e0b\\u6587\\u4e2d\\u7684 worldModelSnapshot \\u662f\\u771f\\u5b9e\\u5feb\\u7167\\uff0c\\u53ef\\u76f4\\u63a5\\u5f15\\u7528\\uff1b\\u7ec6\\u8282\\u7528 list_units \\u7b49\\u5de5\\u5177\\u8865\\u9f50\\u3002',
   '\\u3010\\u4e0a\\u4e0b\\u6587\\u4f18\\u5148\\u89c4\\u5219\\u3011[CONTEXT] \\u662f\\u5b9e\\u65f6\\u5feb\\u7167\\uff0c\\u59cb\\u7ec8\\u53cd\\u6620\\u6700\\u65b0\\u72b6\\u6001\\u3002\\u82e5 [CONTEXT] \\u4e2d\\u7684\\u6570\\u636e\\uff08\\u5982 currentMediaUnitCount\\u3001worldModelSnapshot\\u3001projectStats\\uff09\\u4e0e\\u4e4b\\u524d\\u5bf9\\u8bdd\\u4e2d\\u7684\\u56de\\u7b54\\u77db\\u76fe\\uff0c\\u59cb\\u7ec8\\u4ee5 [CONTEXT] \\u4e3a\\u51c6\\u2014\\u2014\\u7528\\u6237\\u53ef\\u80fd\\u5df2\\u589e\\u5220\\u8bed\\u6bb5\\u6216\\u4fee\\u6539\\u9879\\u76ee\\u3002\\u4e0d\\u8981\\u91cd\\u590d\\u65e7\\u7684\\u56de\\u7b54\\u3002',
-].map(decodeEscapedUnicode).join('\n');
+]
+  .map(decodeEscapedUnicode)
+  .join('\n');
 
 /** Persona \\u5b9a\\u4e49 */
 const AI_SYSTEM_PERSONAS: Record<AiSystemPersonaKey, string> = {
@@ -67,15 +69,21 @@ const AI_SYSTEM_PERSONAS: Record<AiSystemPersonaKey, string> = {
     'projectUnitCount = total units in the whole project (authoritative). currentTrack.unitCount = units on the currently selected audio track. currentScope.unitCount = units in the active AI operation scope (active layer + current media). For count questions about current/this waveform or segment scope, prioritize currentScope.unitCount, then currentTrack.unitCount. Only when user explicitly asks about whole-project/global totals, use projectUnitCount. list_units/search_units cover the whole project. selectedUnitCount = full multi-select cardinality; selectedUnitIds may be capped for prompt size. waveformAnalysis gaps count track gap segments, not unit count.',
     'Answer ordering (natural-language replies): If the user asks how many segments/units/rows exist in the project — including Chinese like 几个语段/多少条/几条/一共几条 — the FIRST sentence must state projectUnitCount (or the total from get_project_stats/list_units if you used those tools). Do not open with trackGaps, gapCount, or other waveform silence metrics unless the user explicitly asks about gaps, silence between waveform bars, or waveform diagnostics.',
     'When sessionMemoryDigest is present, treat it as a lossy summary of earlier chat turns. Detailed acoustics may be omitted from [CONTEXT] under budget pressure — use get_acoustic_summary (and other local query tools) for authoritative metrics.',
-  ].map(decodeEscapedUnicode).join('\n'),
+  ]
+    .map(decodeEscapedUnicode)
+    .join('\n'),
   glossing: [
     '\\u4f60\\u5f53\\u524d\\u626e\\u6f14\\u5f62\\u6001\\u5b66\\u4e0e\\u8bed\\u4e49\\u6807\\u6ce8\\u52a9\\u624b。',
     '\\u4f18\\u5148\\u5173\\u6ce8 gloss \\u4e00\\u81f4\\u6027、\\u8bcd\\u7d20\\u5207\\u5206、\\u672f\\u8bed\\u89c4\\u8303\\u4e0e\\u8de8\\u53e5\\u4e00\\u81f4\\u6027。',
-  ].map(decodeEscapedUnicode).join('\n'),
+  ]
+    .map(decodeEscapedUnicode)
+    .join('\n'),
   review: [
     '\\u4f60\\u5f53\\u524d\\u626e\\u6f14\\u8d28\\u91cf\\u5ba1\\u6821\\u52a9\\u624b。',
     '\\u4f18\\u5148\\u8bc6\\u522b\\u98ce\\u9669\\u9879、\\u4f4e\\u7f6e\\u4fe1\\u5ea6\\u7247\\u6bb5、\\u5c42\\u5173\\u8054\\u51b2\\u7a81\\u548c\\u53ef\\u8ffd\\u6eaf\\u6027\\u95ee\\u9898。',
-  ].map(decodeEscapedUnicode).join('\n'),
+  ]
+    .map(decodeEscapedUnicode)
+    .join('\n'),
 };
 
 const AI_RESPONSE_STYLE_PROMPT: Record<AiToolFeedbackStyle, string> = {
@@ -83,12 +91,16 @@ const AI_RESPONSE_STYLE_PROMPT: Record<AiToolFeedbackStyle, string> = {
     '\\u81ea\\u7136\\u8bed\\u8a00\\u56de\\u590d\\u98ce\\u683c：\\u7b80\\u6d01\\u6a21\\u5f0f。',
     '\\u4ec5\\u5728\\u81ea\\u7136\\u8bed\\u8a00\\u56de\\u590d\\u65f6\\u751f\\u6548：\\u4f18\\u5148\\u7ed9\\u7ed3\\u8bba\\u4e0e\\u53ef\\u6267\\u884c\\u4e0b\\u4e00\\u6b65，\\u63a7\\u5236\\u5728 1-3 \\u53e5，\\u907f\\u514d\\u5197\\u957f\\u94fa\\u57ab\\u4e0e\\u91cd\\u590d。',
     '\\u5c11\\u7528\\u300c\\u4f5c\\u4e3a\\u4f60\\u7684\\u52a9\\u624b\\u300d\\u7b49\\u5957\\u8bdd\\u8d77\\u7b14\\uff1b\\u5f00\\u53e5\\u76f4\\u7ed9\\u7ed3\\u8bba\\u6216\\u4e0b\\u4e00\\u6b65\\u3002',
-  ].map(decodeEscapedUnicode).join('\n'),
+  ]
+    .map(decodeEscapedUnicode)
+    .join('\n'),
   detailed: [
     '\\u81ea\\u7136\\u8bed\\u8a00\\u56de\\u590d\\u98ce\\u683c：\\u8be6\\u7ec6\\u6a21\\u5f0f。',
     '\\u4ec5\\u5728\\u81ea\\u7136\\u8bed\\u8a00\\u56de\\u590d\\u65f6\\u751f\\u6548：\\u5728\\u7ed9\\u51fa\\u7ed3\\u8bba\\u540e\\u8865\\u5145\\u5173\\u952e\\u4f9d\\u636e、\\u8fb9\\u754c\\u6761\\u4ef6\\u4e0e\\u5efa\\u8bae，\\u4fdd\\u6301\\u7ed3\\u6784\\u6e05\\u6670。',
     '\\u907f\\u514d\\u7a7a\\u6d1e\\u5ba2\\u5957\\u8d77\\u7b14\\uff1b\\u5148\\u7ed9\\u7ed3\\u8bba\\u6216\\u5224\\u65ad\\uff0c\\u518d\\u5206\\u70b9\\u5c55\\u5f00\\u3002',
-  ].map(decodeEscapedUnicode).join('\n'),
+  ]
+    .map(decodeEscapedUnicode)
+    .join('\n'),
 };
 
 /** Context block \\u7684\\u683c\\u5f0f\\u6a21\\u677f */
@@ -103,30 +115,34 @@ const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
   {
     key: 'projectUnitCount',
     tier: 1,
-    render: (v) => (typeof v === 'number' && Number.isFinite(v)
-      ? `projectUnitCount=${v} [authoritative — total units in project]`
-      : null),
+    render: (v) =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? `projectUnitCount=${v} [authoritative — total units in project]`
+        : null,
   },
   {
     key: 'currentMediaUnitCount',
     tier: 1,
-    render: (v) => (typeof v === 'number' && Number.isFinite(v)
-      ? `currentTrack.unitCount=${v} [current audio track only, may differ from projectUnitCount]`
-      : null),
+    render: (v) =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? `currentTrack.unitCount=${v} [current audio track only, may differ from projectUnitCount]`
+        : null,
   },
   {
     key: 'currentScopeUnitCount',
     tier: 1,
-    render: (v) => (typeof v === 'number' && Number.isFinite(v)
-      ? `currentScope.unitCount=${v} [active layer + current media for segment operations]`
-      : null),
+    render: (v) =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? `currentScope.unitCount=${v} [active layer + current media for segment operations]`
+        : null,
   },
   {
     key: 'unitIndexComplete',
     tier: 1,
-    render: (v) => (v === false
-      ? 'unitIndexComplete=false [segment-backed unit index still loading; empty unit lists are not authoritative]'
-      : null),
+    render: (v) =>
+      v === false
+        ? 'unitIndexComplete=false [segment-backed unit index still loading; empty unit lists are not authoritative]'
+        : null,
   },
   {
     key: 'worldModelSnapshot',
@@ -139,19 +155,47 @@ const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
   {
     key: 'selectedUnitCount',
     tier: 1,
-    render: (v) => (typeof v === 'number' && Number.isFinite(v)
-      ? `selectedUnitCount=${v} [full selection size; selectedUnitIds list may be truncated]`
-      : null),
+    render: (v) =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? `selectedUnitCount=${v} [full selection size; selectedUnitIds list may be truncated]`
+        : null,
   },
-  { key: 'selectedUnitIds', tier: 1, render: (v) => `selectedUnitIds=${(v as string[]).join(',')}` },
-  { key: 'selectedUnitStartSec', tier: 1, render: (v) => Number.isFinite(v as number) ? `selectedUnitStartSec=${(v as number).toFixed(2)} [unit or segment per selectedUnitKind]` : null },
-  { key: 'selectedUnitEndSec', tier: 1, render: (v) => Number.isFinite(v as number) ? `selectedUnitEndSec=${(v as number).toFixed(2)} [unit or segment per selectedUnitKind]` : null },
+  {
+    key: 'selectedUnitIds',
+    tier: 1,
+    render: (v) => `selectedUnitIds=${(v as string[]).join(',')}`,
+  },
+  {
+    key: 'selectedUnitStartSec',
+    tier: 1,
+    render: (v) =>
+      Number.isFinite(v as number)
+        ? `selectedUnitStartSec=${(v as number).toFixed(2)} [unit or segment per selectedUnitKind]`
+        : null,
+  },
+  {
+    key: 'selectedUnitEndSec',
+    tier: 1,
+    render: (v) =>
+      Number.isFinite(v as number)
+        ? `selectedUnitEndSec=${(v as number).toFixed(2)} [unit or segment per selectedUnitKind]`
+        : null,
+  },
   { key: 'selectedLayerId', tier: 1, render: (v) => `selectedLayerId=${v}` },
   { key: 'selectedLayerType', tier: 1, render: (v) => `selectedLayerType=${v}` },
   { key: 'selectedTranslationLayerId', tier: 1, render: (v) => `selectedTranslationLayerId=${v}` },
-  { key: 'selectedTranscriptionLayerId', tier: 1, render: (v) => `selectedTranscriptionLayerId=${v}` },
+  {
+    key: 'selectedTranscriptionLayerId',
+    tier: 1,
+    render: (v) => `selectedTranscriptionLayerId=${v}`,
+  },
   { key: 'selectionTimeRange', tier: 1, render: (v) => `selectionTimeRange=${v}` },
-  { key: 'audioTimeSec', tier: 1, render: (v) => Number.isFinite(v as number) ? `audioTimeSec=${(v as number).toFixed(2)}` : null },
+  {
+    key: 'audioTimeSec',
+    tier: 1,
+    render: (v) =>
+      Number.isFinite(v as number) ? `audioTimeSec=${(v as number).toFixed(2)}` : null,
+  },
   { key: 'selectedText', tier: 1, render: (v) => `selectedText=${v}` },
   { key: 'recentActions', tier: 1, render: (v) => `recentActions=${(v as string[]).join(' | ')}` },
   {
@@ -170,8 +214,14 @@ const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
       if (!Array.isArray(rows) || rows.length === 0) return null;
       const max = 8;
       const lines = rows.slice(0, max).map((row) => {
-        const text = row.parentText.length > 30 ? `${row.parentText.slice(0, 30)}…` : row.parentText;
-        const gaps = row.gaps.map((g: { startTime: number; endTime: number }) => `${g.startTime.toFixed(2)}-${g.endTime.toFixed(2)}`).join(',');
+        const text =
+          row.parentText.length > 30 ? `${row.parentText.slice(0, 30)}…` : row.parentText;
+        const gaps = row.gaps
+          .map(
+            (g: { startTime: number; endTime: number }) =>
+              `${g.startTime.toFixed(2)}-${g.endTime.toFixed(2)}`,
+          )
+          .join(',');
         return `${row.parentUnitId}@${row.layerId} ${row.parentStartTime.toFixed(2)}-${row.parentEndTime.toFixed(2)}${text ? ` "${text}"` : ''} uncovered=${gaps || 'none'}`;
       });
       if (rows.length > max) lines.push(`(+${rows.length - max} more)`);
@@ -181,7 +231,8 @@ const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
   {
     key: 'sessionMemoryDigest',
     tier: 2,
-    render: (v) => (typeof v === 'string' && v.trim().length > 0 ? `sessionMemoryDigest=\n${v.trim()}` : null),
+    render: (v) =>
+      typeof v === 'string' && v.trim().length > 0 ? `sessionMemoryDigest=\n${v.trim()}` : null,
   },
 ];
 
@@ -196,9 +247,10 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
         translationLayerCount?: number;
         aiConfidenceAvg?: number | null;
       };
-      const speakerSegment = typeof s.speakerCount === 'number' && Number.isFinite(s.speakerCount)
-        ? `, speakers=${s.speakerCount}`
-        : '';
+      const speakerSegment =
+        typeof s.speakerCount === 'number' && Number.isFinite(s.speakerCount)
+          ? `, speakers=${s.speakerCount}`
+          : '';
       return `projectStats(units=${s.unitCount ?? 0}${speakerSegment}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
     },
   },
@@ -222,10 +274,14 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
         `trackGaps=${summary.gapCount ?? 0}`,
         `trackMaxGapSec=${typeof summary.maxGapSeconds === 'number' ? summary.maxGapSeconds.toFixed(1) : '0.0'}`,
       ];
-      if (summary.selectionLowConfidenceCount !== undefined) segments.push(`selectionLowConfidence=${summary.selectionLowConfidenceCount}`);
-      if (summary.selectionOverlapCount !== undefined) segments.push(`selectionOverlaps=${summary.selectionOverlapCount}`);
-      if (summary.selectionGapCount !== undefined) segments.push(`selectionGaps=${summary.selectionGapCount}`);
-      if (summary.activeSignals && summary.activeSignals.length > 0) segments.push(`activeSignals=${summary.activeSignals.join(' | ')}`);
+      if (summary.selectionLowConfidenceCount !== undefined)
+        segments.push(`selectionLowConfidence=${summary.selectionLowConfidenceCount}`);
+      if (summary.selectionOverlapCount !== undefined)
+        segments.push(`selectionOverlaps=${summary.selectionOverlapCount}`);
+      if (summary.selectionGapCount !== undefined)
+        segments.push(`selectionGaps=${summary.selectionGapCount}`);
+      if (summary.activeSignals && summary.activeSignals.length > 0)
+        segments.push(`activeSignals=${summary.activeSignals.join(' | ')}`);
       return `waveformAnalysis(${segments.join(', ')}, note=trackGaps_not_unit_count)`;
     },
   },
@@ -258,20 +314,33 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
         frameCount?: number;
         hotspots?: Array<{ kind: string; timeSec: number; score: number }>;
       };
-      const hotspots = summary.hotspots && summary.hotspots.length > 0
-        ? `, hotspots=${summary.hotspots.map((item) => `${item.kind}@${item.timeSec.toFixed(2)}s`).join('|')}`
-        : '';
-      return `acousticSummary(selectionSec=${summary.selectionStartSec.toFixed(2)}-${summary.selectionEndSec.toFixed(2)}, f0Min=${typeof summary.f0MinHz === 'number' ? Math.round(summary.f0MinHz) : 'n/a'}, f0Max=${typeof summary.f0MaxHz === 'number' ? Math.round(summary.f0MaxHz) : 'n/a'}, f0Mean=${typeof summary.f0MeanHz === 'number' ? Math.round(summary.f0MeanHz) : 'n/a'}, intensityPeak=${typeof summary.intensityPeakDb === 'number' ? `${summary.intensityPeakDb.toFixed(1)}dB` : 'n/a'}, reliability=${typeof summary.reliabilityMean === 'number' ? summary.reliabilityMean.toFixed(2) : 'n/a'}, centroidMean=${typeof summary.spectralCentroidMeanHz === 'number' ? Math.round(summary.spectralCentroidMeanHz) : 'n/a'}, rolloffMean=${typeof summary.spectralRolloffMeanHz === 'number' ? Math.round(summary.spectralRolloffMeanHz) : 'n/a'}, zcrMean=${typeof summary.zeroCrossingRateMean === 'number' ? `${(summary.zeroCrossingRateMean * 100).toFixed(1)}%` : 'n/a'}, flatnessMean=${typeof summary.spectralFlatnessMean === 'number' ? summary.spectralFlatnessMean.toFixed(3) : 'n/a'}, loudnessMean=${typeof summary.loudnessMeanDb === 'number' ? `${summary.loudnessMeanDb.toFixed(1)}dB` : 'n/a'}, mfcc=${Array.isArray(summary.mfccMeanCoefficients) && summary.mfccMeanCoefficients.length > 0 ? summary.mfccMeanCoefficients.slice(0, 3).map((value) => value.toFixed(2)).join('/') : 'n/a'}, formantF1Mean=${typeof summary.formantF1MeanHz === 'number' ? Math.round(summary.formantF1MeanHz) : 'n/a'}, formantF2Mean=${typeof summary.formantF2MeanHz === 'number' ? Math.round(summary.formantF2MeanHz) : 'n/a'}, vowelSpread=${typeof summary.vowelSpaceSpread === 'number' ? Math.round(summary.vowelSpaceSpread) : 'n/a'}, runtime=${summary.algorithmVersion ?? 'unknown'}@${typeof summary.sampleRateHz === 'number' ? `${summary.sampleRateHz}Hz` : 'n/a'}, win=${typeof summary.analysisWindowSec === 'number' ? summary.analysisWindowSec.toFixed(3) : 'n/a'}s, step=${typeof summary.frameStepSec === 'number' ? summary.frameStepSec.toFixed(3) : 'n/a'}s, voicedFrames=${summary.voicedFrameCount ?? 0}/${summary.frameCount ?? 0}${hotspots})`;
+      const hotspots =
+        summary.hotspots && summary.hotspots.length > 0
+          ? `, hotspots=${summary.hotspots.map((item) => `${item.kind}@${item.timeSec.toFixed(2)}s`).join('|')}`
+          : '';
+      return `acousticSummary(selectionSec=${summary.selectionStartSec.toFixed(2)}-${summary.selectionEndSec.toFixed(2)}, f0Min=${typeof summary.f0MinHz === 'number' ? Math.round(summary.f0MinHz) : 'n/a'}, f0Max=${typeof summary.f0MaxHz === 'number' ? Math.round(summary.f0MaxHz) : 'n/a'}, f0Mean=${typeof summary.f0MeanHz === 'number' ? Math.round(summary.f0MeanHz) : 'n/a'}, intensityPeak=${typeof summary.intensityPeakDb === 'number' ? `${summary.intensityPeakDb.toFixed(1)}dB` : 'n/a'}, reliability=${typeof summary.reliabilityMean === 'number' ? summary.reliabilityMean.toFixed(2) : 'n/a'}, centroidMean=${typeof summary.spectralCentroidMeanHz === 'number' ? Math.round(summary.spectralCentroidMeanHz) : 'n/a'}, rolloffMean=${typeof summary.spectralRolloffMeanHz === 'number' ? Math.round(summary.spectralRolloffMeanHz) : 'n/a'}, zcrMean=${typeof summary.zeroCrossingRateMean === 'number' ? `${(summary.zeroCrossingRateMean * 100).toFixed(1)}%` : 'n/a'}, flatnessMean=${typeof summary.spectralFlatnessMean === 'number' ? summary.spectralFlatnessMean.toFixed(3) : 'n/a'}, loudnessMean=${typeof summary.loudnessMeanDb === 'number' ? `${summary.loudnessMeanDb.toFixed(1)}dB` : 'n/a'}, mfcc=${
+        Array.isArray(summary.mfccMeanCoefficients) && summary.mfccMeanCoefficients.length > 0
+          ? summary.mfccMeanCoefficients
+              .slice(0, 3)
+              .map((value) => value.toFixed(2))
+              .join('/')
+          : 'n/a'
+      }, formantF1Mean=${typeof summary.formantF1MeanHz === 'number' ? Math.round(summary.formantF1MeanHz) : 'n/a'}, formantF2Mean=${typeof summary.formantF2MeanHz === 'number' ? Math.round(summary.formantF2MeanHz) : 'n/a'}, vowelSpread=${typeof summary.vowelSpaceSpread === 'number' ? Math.round(summary.vowelSpaceSpread) : 'n/a'}, runtime=${summary.algorithmVersion ?? 'unknown'}@${typeof summary.sampleRateHz === 'number' ? `${summary.sampleRateHz}Hz` : 'n/a'}, win=${typeof summary.analysisWindowSec === 'number' ? summary.analysisWindowSec.toFixed(3) : 'n/a'}s, step=${typeof summary.frameStepSec === 'number' ? summary.frameStepSec.toFixed(3) : 'n/a'}s, voicedFrames=${summary.voicedFrameCount ?? 0}/${summary.frameCount ?? 0}${hotspots})`;
     },
   },
   { key: 'observerStage', tier: 2, render: (v) => `observerStage=${v}` },
   { key: 'topLexemes', tier: 2, render: (v) => `topLexemes=${(v as string[]).join(', ')}` },
-  { key: 'recommendations', tier: 2, render: (v) => `recommendations=${(v as string[]).join(' | ')}` },
+  {
+    key: 'recommendations',
+    tier: 2,
+    render: (v) => `recommendations=${(v as string[]).join(' | ')}`,
+  },
 ];
 
 // ─── Context block builder (Phase 14 — tiered assembly) ─────────────────────
 
-const CONTEXT_SNAPSHOT_HEADER = '[CONTEXT — real-time snapshot, overrides any prior conversation data]';
+const CONTEXT_SNAPSHOT_HEADER =
+  '[CONTEXT — real-time snapshot, overrides any prior conversation data]';
 const WORLD_SNAPSHOT_PREFIX = 'worldModelSnapshot=\n';
 
 /** Tier-1 keys dropped only if the block still overflows after snapshot compression. */
@@ -486,13 +555,38 @@ export function buildAiSystemPrompt(
   userDirectiveBlock = '',
   externalMcpToolGuide = '',
 ): string {
-  const activeToolGuide = Array.isArray(activeQueryTools) && activeQueryTools.length > 0
-    ? `\nThis turn, prefer these local reads inside tool_call JSON only: ${activeQueryTools.join(', ')}.\nDo not paste these identifiers into natural-language replies to the user. Use them first for counts/lists unless the user only needs clarification.\n`
-    : '';
-  const directiveBlock = userDirectiveBlock.trim().length > 0 ? `\n${userDirectiveBlock.trim()}` : '';
+  const activeToolGuide =
+    Array.isArray(activeQueryTools) && activeQueryTools.length > 0
+      ? `\nThis turn, prefer these local reads inside tool_call JSON only: ${activeQueryTools.join(', ')}.\nDo not paste these identifiers into natural-language replies to the user. Use them first for counts/lists unless the user only needs clarification.\n`
+      : '';
+  const directiveBlock =
+    userDirectiveBlock.trim().length > 0 ? `\n${userDirectiveBlock.trim()}` : '';
   const externalGuide =
     externalMcpToolGuide.trim().length > 0 ? `\n${externalMcpToolGuide.trim()}\n` : '';
   const base = `${AI_FUNCTION_CALLING_SYSTEM_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}${directiveBlock}\n${buildLocalContextToolGuide()}${activeToolGuide}${externalGuide}`;
+  return contextBlock.trim().length > 0 ? `${base}\n${contextBlock}` : base;
+}
+
+/**
+ * B4：v2 原生 function calling 专用系统提示，不含文本 tool_call JSON 指令；工具语义来自工具定义。
+ * v2-only prompt without text tool_call instructions; tool semantics come from tool definitions.
+ */
+const AI_RUNTIME_V2_TOOLS_PROMPT = [
+  '你是语音标注工作流助手。',
+  '需要读取或修改数据时，直接调用提供的工具（原生 function calling）；不要在回复正文里输出 tool_call JSON。',
+  '回复用户时不要写出内部工具名或 snake_case 标识；先查后写，勿凭记忆猜 id；不确定时向用户说明缺什么。',
+  '用户只是闲聊、提问或问原理时，用自然语言回答，不发写入类工具调用。',
+].join('\n');
+
+export function buildAiRuntimeV2SystemPrompt(
+  personaKey: AiSystemPersonaKey,
+  contextBlock: string,
+  style: AiToolFeedbackStyle = 'detailed',
+  userDirectiveBlock = '',
+): string {
+  const directiveBlock =
+    userDirectiveBlock.trim().length > 0 ? `\n${userDirectiveBlock.trim()}` : '';
+  const base = `${AI_RUNTIME_V2_TOOLS_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}${directiveBlock}`;
   return contextBlock.trim().length > 0 ? `${base}\n${contextBlock}` : base;
 }
 
@@ -500,6 +594,8 @@ export function isAiContextDebugEnabled(): boolean {
   if (typeof window === 'undefined') return false;
   if (!import.meta.env.DEV) return false;
   const byStorage = window.localStorage.getItem('jieyu.aiChat.debugContext') === '1';
-  const byGlobal = (window as unknown as { __JIEYU_AI_DEBUG_CONTEXT__?: boolean }).__JIEYU_AI_DEBUG_CONTEXT__ === true;
+  const byGlobal =
+    (window as unknown as { __JIEYU_AI_DEBUG_CONTEXT__?: boolean }).__JIEYU_AI_DEBUG_CONTEXT__ ===
+    true;
   return byStorage || byGlobal;
 }
