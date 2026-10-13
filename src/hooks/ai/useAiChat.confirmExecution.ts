@@ -48,6 +48,12 @@ export async function raceWithTimeout<T>(primary: T | Promise<T>, timeoutMs: num
   }
 }
 
+const PURE_READ_TOOL_NAMES: ReadonlySet<AiChatToolCall['name']> = new Set([
+  'get_current_segment',
+  'get_project_summary',
+  'get_recent_history',
+]);
+
 interface ExecuteConfirmedToolCallParams {
   assistantMessageId: string;
   call: AiChatToolCall & { requestId: string };
@@ -425,7 +431,13 @@ export async function executeConfirmedToolCall({
 
       const result = await runWithToolCallbacks(
         call.name,
-        () => raceWithTimeout(onToolCall(call), TOOL_EXEC_TIMEOUT_MS),
+        () => {
+          const execution = onToolCall(call);
+          // shortcut: mutation adapters have no cancellable commit boundary; wait for completion instead of reporting a false timeout.
+          return PURE_READ_TOOL_NAMES.has(call.name)
+            ? raceWithTimeout(execution, TOOL_EXEC_TIMEOUT_MS)
+            : Promise.resolve(execution);
+        },
         {
           ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
           resultOk: (item) => item.ok,
@@ -489,7 +501,8 @@ export async function executeConfirmedToolCall({
     } catch (error) {
       lastThrow = error;
       const mayRetry = shouldRetryToolCallExecutorThrow({
-        enabled: featureFlags.aiToolCallExecutorAutoRetryEnabled,
+        enabled:
+          featureFlags.aiToolCallExecutorAutoRetryEnabled && PURE_READ_TOOL_NAMES.has(call.name),
         attemptIndex: attempt,
         toolName: call.name,
         isDestructive: (name) => isDestructiveToolCall(name as (typeof call)['name']),
@@ -870,7 +883,12 @@ export async function executeConfirmedProposedChangeBatch({
 
       const result = await runWithToolCallbacks(
         childWithRequestId.name,
-        () => raceWithTimeout(onToolCall(childWithRequestId), TOOL_EXEC_TIMEOUT_MS),
+        () => {
+          const execution = onToolCall(childWithRequestId);
+          return PURE_READ_TOOL_NAMES.has(childWithRequestId.name)
+            ? raceWithTimeout(execution, TOOL_EXEC_TIMEOUT_MS)
+            : Promise.resolve(execution);
+        },
         {
           ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
           resultOk: (item) => item.ok,

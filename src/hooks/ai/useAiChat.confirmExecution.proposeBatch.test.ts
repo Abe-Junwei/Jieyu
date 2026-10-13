@@ -33,7 +33,7 @@ function makeDeps(overrides?: {
   onToolCall?: (call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult;
 }) {
   const applyAssistantMessageResult = vi.fn(async () => {});
-  const writeToolDecisionAuditLog = vi.fn(async () => {});
+  const writeToolDecisionAuditLog = vi.fn(async (..._args: unknown[]) => {});
   const setTaskSession = vi.fn();
   const markExecutedRequestId = vi.fn();
   const updateSessionMemory = vi.fn();
@@ -58,6 +58,45 @@ function makeDeps(overrides?: {
 }
 
 describe('executeConfirmedProposedChangeBatch', () => {
+  it('waits for an in-flight child write past 30 seconds before confirming the parent', async () => {
+    vi.useFakeTimers();
+    try {
+      let finishWrite!: (value: AiChatToolResult) => void;
+      const write = new Promise<AiChatToolResult>((resolve) => {
+        finishWrite = resolve;
+      });
+      const d = makeDeps({ onToolCall: vi.fn(() => write) });
+      const execution = executeConfirmedProposedChangeBatch({
+        assistantMessageId: 'asst-slow-batch',
+        parentCall: baseParentCall('req-slow-batch'),
+        childCalls: [validSetText('a', 'ta')],
+        auditContext: buildToolAuditContext('', 'p', 'm', 'enabled', 'concise'),
+        locale: TEST_LOCALE,
+        toolFeedbackStyle: 'concise',
+        hasPersistedExecutionForRequest: d.hasPersistedExecutionForRequest,
+        applyAssistantMessageResult: d.applyAssistantMessageResult,
+        onToolCall: d.onToolCall,
+        writeToolDecisionAuditLog: d.writeToolDecisionAuditLog,
+        setTaskSession: d.setTaskSession,
+        taskSessionId: 'ts-1',
+        markExecutedRequestId: d.markExecutedRequestId,
+        sessionMemory: {},
+        updateSessionMemory: d.updateSessionMemory,
+        persistSessionMemory: d.persistSessionMemory,
+        bumpMetric: d.bumpMetric,
+      });
+
+      await vi.advanceTimersByTimeAsync(30_001);
+      expect(d.writeToolDecisionAuditLog).not.toHaveBeenCalled();
+      finishWrite({ ok: true, message: 'saved' });
+      await execution;
+      expect(d.markExecutedRequestId).toHaveBeenCalledWith('req-slow-batch');
+      expect(d.writeToolDecisionAuditLog.mock.calls.at(-1)?.[2]).toBe('confirmed:propose_changes');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('runs applyAssistant then confirmed audit then markExecuted (T3-c order)', async () => {
     const seq: string[] = [];
     const d = makeDeps({
