@@ -47,7 +47,7 @@ source_of_truth: ai-chat-tool-audit
 ### T4-c：确认路径执行器自动重试（默认关）
 
 - **开关：** `featureFlags.aiToolCallExecutorAutoRetryEnabled`（`src/ai/config/featureFlags.ts`）。
-- **行为：** `executeConfirmedToolCall`（`useAiChat.confirmExecution.ts`）在 **非破坏性** 工具上，对 **`onToolCall` 抛错/超时** 最多再调用 **一次**；**不**重试 `result.ok === false`；**不**覆盖 `propose_changes` 父级批量路径。
+- **行为：** `executeConfirmedToolCall`（`useAiChat.confirmExecution.ts`）只对 `get_current_segment`、`get_project_summary`、`get_recent_history` 三个明确只读查询的 **`onToolCall` 抛错/超时** 最多再调用 **一次**；**不**重试 `result.ok === false`，也**不**重试写入/删除工具或 `propose_changes` 父级批量路径。写入执行器无可取消的提交边界，超过 30 秒仍须等待其返回；抛错后的提交状态尚需另行读回核实。
 
 ## 子工具 `requestId`
 
