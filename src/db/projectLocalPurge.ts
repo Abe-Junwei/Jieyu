@@ -40,6 +40,8 @@ export const PROJECT_PURGE_UNATTRIBUTABLE_TABLES: ReadonlySet<JieyuMainTableName
   'agent_artifacts',
   'mcp_tool_call_audits',
   'external_mcp_trust',
+  // 按 conversationId 存、按 expiresAt 清理 | keyed by conversation, swept by expiresAt
+  'ai_runtime_v2_turns',
 ]);
 
 /** 快照导入前清空时保留的数据类 | Data classes kept when clearing before a snapshot import */

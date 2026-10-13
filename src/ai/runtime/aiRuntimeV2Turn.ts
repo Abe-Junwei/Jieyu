@@ -27,6 +27,7 @@ import {
   clearTurnState,
   loadTurnState,
   registerApprovalExecutor,
+  type ApprovedCallSnapshot,
   saveTurnState,
   unansweredApprovals,
   withApprovalResponse,
@@ -110,6 +111,8 @@ export interface RuntimeV2ApprovalRequestOutcome {
   pending: boolean;
   text: string;
   card?: unknown;
+  /** 卡片上的具体调用（批准后原样执行）| resolved call on the card, executed verbatim on approval */
+  executionCall?: ApprovedCallSnapshot;
 }
 
 /**
@@ -151,6 +154,8 @@ export interface RunAiRuntimeV2TurnParams {
     toolName: string,
     reason: 'expired' | 'unanswered',
   ) => Promise<void>;
+  /** 执行后、写 Dexie 前关页：已有执行审计的不当作未答复 | executed before the tab closed */
+  hasPersistedExecutionForRequest?: (requestId: string) => Promise<boolean>;
   /** B2：参数无法解析时进入澄清（写 invalid_args 审计），返回给用户的澄清文案 | clarification text */
   onInvalidArgs?: (call: AiChatToolCall, raw: unknown) => Promise<string>;
   /** B4：模型在正文输出了文本 tool_call | model emitted a text tool_call */
@@ -178,6 +183,17 @@ const toCall = (name: string, input: unknown, requestId: string): AiChatToolCall
   requestId,
 });
 
+/** N1：有卡片快照就执行快照，否则退回模型原始 input | the approved snapshot wins over raw input */
+const approvedCall = (item: {
+  toolName: string;
+  input: unknown;
+  requestId: string;
+  executionCall?: ApprovedCallSnapshot | undefined;
+}): AiChatToolCall =>
+  item.executionCall
+    ? toCall(item.executionCall.name, item.executionCall.arguments, item.requestId)
+    : toCall(item.toolName, item.input, item.requestId);
+
 /**
  * 跨回合/重载续跑：读 Dexie 中上回合的消息；未答复的审批按拒绝补 response（新消息即放弃），
  * 已批准未执行的经管线执行并补 tool-result（与 SDK collectToolApprovals 同语义；用户新消息须排在 tool 消息之后）。
@@ -191,6 +207,7 @@ async function resolveStartMessages(
     toolName: string;
     input: unknown;
     requestId: string;
+    executionCall?: ApprovedCallSnapshot | undefined;
   }) => Promise<PilotToolOutcome>,
 ): Promise<ModelMessage[]> {
   const fresh: ModelMessage[] = p.history.map(
@@ -211,11 +228,17 @@ async function resolveStartMessages(
   await clearTurnState(p.conversationId);
   let messages = loaded.state.messages;
   for (const a of unansweredApprovals(messages)) {
-    await p.onApprovalClosed?.(
-      loaded.state.approvals[a.approvalId]?.requestId ?? '',
-      a.toolName,
-      'unanswered',
-    );
+    const rid = loaded.state.approvals[a.approvalId]?.requestId ?? '';
+    if (rid && (await p.hasPersistedExecutionForRequest?.(rid))) {
+      // 已执行（关页发生在写 Dexie 之前）：按已批准已执行补齐，不告诉模型“被拒绝”
+      messages = withApprovalResponse(messages, a.approvalId, true);
+      messages = withToolResult(messages, a, {
+        status: 'done',
+        message: 'executed before the page closed',
+      });
+      continue;
+    }
+    await p.onApprovalClosed?.(rid, a.toolName, 'unanswered');
     messages = withApprovalResponse(
       messages,
       a.approvalId,
@@ -225,10 +248,13 @@ async function resolveStartMessages(
     messages = withToolResult(messages, a, { denied: 'no decision before the next message' });
   }
   for (const a of approvedWithoutResult(messages)) {
-    const requestId =
-      loaded.state.approvals[a.approvalId]?.requestId ??
-      p.genRequestId(toCall(a.toolName, a.input, ''));
-    messages = withToolResult(messages, a, await execute({ ...a, requestId }));
+    const meta = loaded.state.approvals[a.approvalId];
+    const requestId = meta?.requestId ?? p.genRequestId(toCall(a.toolName, a.input, ''));
+    messages = withToolResult(
+      messages,
+      a,
+      await execute({ ...a, requestId, executionCall: meta?.executionCall }),
+    );
   }
   return [...messages, { role: 'user', content: p.userText }];
 }
@@ -272,12 +298,10 @@ export async function* runAiRuntimeV2Turn(
   });
 
   // 本页内确认卡片批准即执行（重载后则留到下一回合开头）| live executor for the confirm card
-  registerApprovalExecutor(p.conversationId, (item) =>
-    executeCall(toCall(item.toolName, item.input, item.requestId), 'approved'),
-  );
+  registerApprovalExecutor(p.conversationId, (item) => executeCall(approvedCall(item), 'approved'));
 
   const messages = await resolveStartMessages(p, now(), (item) =>
-    executeCall(toCall(item.toolName, item.input, item.requestId), 'approved'),
+    executeCall(approvedCall(item), 'approved'),
   );
   let yieldedAny = false;
   // 护栏 6（M2）：未输出任何内容前遇到“拒收 tools”，记入本会话集合，由调用方改走旧路径
@@ -348,6 +372,7 @@ export async function* runAiRuntimeV2Turn(
           approvals[req.approvalId] = {
             requestId: call.requestId,
             ...(outcome.card !== undefined ? { card: outcome.card } : {}),
+            ...(outcome.executionCall ? { executionCall: outcome.executionCall } : {}),
           };
         } else {
           saved = withApprovalResponse(saved, req.approvalId, false, outcome.text);

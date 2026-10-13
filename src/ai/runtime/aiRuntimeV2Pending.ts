@@ -21,9 +21,16 @@ export interface AiRuntimeV2TurnState {
   expiresAt: number;
 }
 
+/** 卡片上展示、用户批准的具体调用（N1：批准后原样执行，不再按当时选区重新解析）| resolved call shown on the card */
+export interface ApprovedCallSnapshot {
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
 export interface ApprovalMeta {
   requestId: string;
   card?: unknown;
+  executionCall?: ApprovedCallSnapshot;
 }
 
 export interface ToolOutcomeLike {
@@ -139,7 +146,7 @@ export function withToolResult(
 
 /** 本页内由 v2 回合注册的执行器：批准即经决策管线执行 | executor registered by the live v2 turn */
 export type ApprovalExecutor = (
-  item: UnansweredApproval & { requestId: string },
+  item: UnansweredApproval & { requestId: string; executionCall?: ApprovedCallSnapshot },
 ) => Promise<ToolOutcomeLike>;
 const executors = new Map<string, ApprovalExecutor>();
 export function registerApprovalExecutor(conversationId: string, fn: ApprovalExecutor): void {
@@ -174,7 +181,13 @@ export async function resolveApproval(
   let outcome: ToolOutcomeLike | undefined;
   const executor = executors.get(conversationId);
   if (approved && (outcomeOverride || executor)) {
-    outcome = outcomeOverride ?? (await executor!({ ...item, requestId: meta.requestId }));
+    outcome =
+      outcomeOverride ??
+      (await executor!({
+        ...item,
+        requestId: meta.requestId,
+        ...(meta.executionCall ? { executionCall: meta.executionCall } : {}),
+      }));
     messages = withToolResult(messages, item, outcome);
   } else if (!approved) {
     messages = withToolResult(messages, item, { denied: 'rejected by the user' });
@@ -185,6 +198,11 @@ export async function resolveApproval(
     ...(outcome ? { outcome } : {}),
     ...(next ? { nextCard: loaded.state.approvals[next.approvalId]?.card } : {}),
   };
+}
+
+/** N3：打开 AI 面板时清理过期行 | sweep expired rows when the AI panel opens */
+export async function sweepExpiredTurnStates(now: number): Promise<void> {
+  await table().where('expiresAt').below(now).delete();
 }
 
 /** 重载后：第一个未答复审批的卡片 | first unanswered card after reload */

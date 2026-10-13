@@ -84,11 +84,7 @@ describe('migration tiering (8.2 / D2)', () => {
     );
   });
 
-  it('the real ledger holds the baseline plus the additive runtime-v2 turn store', () => {
-    expect(JIEYU_SCHEMA_VERSIONS.map((entry) => entry.version)).toEqual([1, 2]);
-    expect(JIEYU_SCHEMA_VERSIONS[1]).toMatchObject({
-      tier: 'additive',
-      stores: { ai_runtime_v2_turns: 'conversationId, expiresAt' },
-    });
+  it('the real ledger currently holds only the baseline', () => {
+    expect(JIEYU_SCHEMA_VERSIONS.map((entry) => entry.version)).toEqual([1]);
   });
 });

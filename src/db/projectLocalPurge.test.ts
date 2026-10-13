@@ -122,11 +122,14 @@ function seed(p: string): Record<JieyuMainTableName, Row[]> {
     agent_artifacts: [{ id: k('artifact') }],
     mcp_tool_call_audits: [{ id: k('mcp-audit') }],
     external_mcp_trust: [{ id: k('trust') }],
+    ai_runtime_v2_turns: [{ conversationId: k('turn'), expiresAt: 0 }],
   };
 }
 
 function keyOf(name: string, row: Row): string {
-  return String(name === 'ai_session_memories' ? row.conversationId : row.id);
+  return String(
+    name === 'ai_session_memories' || name === 'ai_runtime_v2_turns' ? row.conversationId : row.id,
+  );
 }
 
 let dexie: Dexie;

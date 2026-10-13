@@ -13,7 +13,6 @@ import {
   JIEYU_TABLE_VALIDATORS,
   JieyuDexie,
 } from './engine';
-import { JIEYU_SCHEMA_VERSIONS, cumulativeStoresAt } from './migration/schemaVersions';
 import v54FinalStores from './engine.baseline.v54-final-stores.fixture.json';
 
 const TEST_DB_NAME = 'jieyu-baseline-t1';
@@ -36,25 +35,24 @@ describe('T1 greenfield baseline', () => {
     await Dexie.delete(TEST_DB_NAME);
   });
 
-  it('opens the new main DB name at the ledger target (baseline 1 + additive v2)', () => {
+  it('opens the new main DB name at version 1', () => {
     expect(JIEYU_DEXIE_DB_NAME).toBe('jieyu');
-    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBe(2);
-    expect(dexie.verno).toBe(2);
+    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBe(1);
+    expect(dexie.verno).toBe(1);
   });
 
-  it('declares the baseline plus additive versions, none with an upgrader', () => {
+  it('declares exactly one version and no upgrader', () => {
     const versions = (
       dexie as unknown as { _versions: Array<{ _cfg: { contentUpgrade: unknown } }> }
     )._versions;
-    expect(versions).toHaveLength(JIEYU_SCHEMA_VERSIONS.length);
-    for (const v of versions) expect(v._cfg.contentUpgrade ?? null).toBeNull();
+    expect(versions).toHaveLength(1);
+    expect(versions[0]!._cfg.contentUpgrade ?? null).toBeNull();
   });
 
-  it('opened stores and indexes match the declared ledger', () => {
+  it('opened stores and indexes match the declared baseline', () => {
     const opened = Object.fromEntries(dexie.tables.map((table) => [table.name, storeSpec(table)]));
-    const declared = cumulativeStoresAt(JIEYU_SCHEMA_VERSIONS, JIEYU_DEXIE_TARGET_SCHEMA_VERSION);
-    expect(Object.keys(opened).sort()).toEqual(Object.keys(declared).sort());
-    for (const [name, spec] of Object.entries(declared)) {
+    expect(Object.keys(opened).sort()).toEqual(Object.keys(JIEYU_BASELINE_STORES).sort());
+    for (const [name, spec] of Object.entries(JIEYU_BASELINE_STORES)) {
       expect(opened[name], name).toBe(spec);
     }
   });
@@ -69,10 +67,12 @@ describe('T1 greenfield baseline', () => {
       'id, textId, [textId+externalDocId], [textId+sha256], importBatchId, mediaId';
     // 2B-E（rev5 4.1 / 4.2-8）：标注文档 | 2B-E: annotation documents
     expected.annotation_documents = 'id, textId';
+    // AI runtime v2 回合 + 待审批（冻结前直接进基线）| AI runtime v2 turns (pre-freeze baseline)
+    expected.ai_runtime_v2_turns = 'conversationId, expiresAt';
     expect(JIEYU_BASELINE_STORES).toEqual(expected);
   });
 
-  it('native IndexedDB has only the declared object stores (no legacy stores)', async () => {
+  it('native IndexedDB has only the baseline object stores (no legacy stores)', async () => {
     const native = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(TEST_DB_NAME);
       request.onsuccess = () => resolve(request.result);
@@ -80,9 +80,7 @@ describe('T1 greenfield baseline', () => {
     });
     try {
       expect([...native.objectStoreNames].sort()).toEqual(
-        Object.keys(
-          cumulativeStoresAt(JIEYU_SCHEMA_VERSIONS, JIEYU_DEXIE_TARGET_SCHEMA_VERSION),
-        ).sort(),
+        Object.keys(JIEYU_BASELINE_STORES).sort(),
       );
       expect(native.objectStoreNames.contains('orthography_transforms')).toBe(false);
       expect(native.objectStoreNames.contains('utterances')).toBe(false);

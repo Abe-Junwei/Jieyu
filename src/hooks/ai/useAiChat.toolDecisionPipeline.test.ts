@@ -153,6 +153,50 @@ describe('useAiChat.toolDecisionPipeline runtime v2 native approval', () => {
     }
   });
 
+  it('request mode keeps the destructive risk check: impact summary on the card, ambiguous target goes to clarify', async () => {
+    const onToolCall = vi.fn(async () => ({ ok: true, message: 'deleted' }));
+    const onToolRiskCheck = vi.fn(async () => ({
+      requiresConfirmation: true,
+      riskSummary: 'will delete unit-1',
+      impactPreview: ['unit-1'],
+    }));
+    const req = {
+      ...baseParams({
+        toolCall: {
+          name: 'delete_transcription_segment',
+          arguments: { segmentId: 'unit-1' },
+          requestId: 'req-d',
+        },
+      }),
+      allowDestructiveToolCalls: false,
+      onToolCall,
+      onToolRiskCheck,
+      runtimeV2Approval: 'request' as const,
+    };
+    await resolveToolDecisionPipeline(req);
+    expect(onToolRiskCheck).toHaveBeenCalledTimes(1);
+    expect(onToolCall).not.toHaveBeenCalled();
+    expect(req.setPendingToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({ riskSummary: 'will delete unit-1', requestId: 'req-d' }),
+    );
+
+    const ambiguous = vi.fn(async () => ({
+      requiresConfirmation: true,
+      riskSummary: 'ambiguous target: multiple segments',
+    }));
+    const amb = {
+      ...baseParams(),
+      allowDestructiveToolCalls: false,
+      onToolCall,
+      onToolRiskCheck: ambiguous,
+      runtimeV2Approval: 'request' as const,
+    };
+    const r = await resolveToolDecisionPipeline(amb);
+    expect(r.finalStatus).toBe('error');
+    expect(amb.setPendingToolCall).not.toHaveBeenCalled();
+    expect(onToolCall).not.toHaveBeenCalled();
+  });
+
   it('approved mode still honours the user directive block', async () => {
     const onToolCall = vi.fn(async () => ({ ok: true, message: 'deleted' }));
     const params = {

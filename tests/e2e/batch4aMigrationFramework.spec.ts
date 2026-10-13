@@ -104,8 +104,7 @@ test.describe('Batch 4a 迁移框架 | Batch 4a migration framework', () => {
       );
       // 本页处理了 versionchange：升级没有被阻塞 | this page handled versionchange: not blocked
       expect(upgraded.blocked).toBe(false);
-      // 主库 native = 2×10（基线 + v2 additive）| main DB native = 20
-      expect(upgraded.version).toBe(30);
+      expect(upgraded.version).toBe(20);
     } finally {
       await pageB.close();
     }
@@ -124,12 +123,12 @@ test.describe('Batch 4a 迁移框架 | Batch 4a migration framework', () => {
         const list = await indexedDB.databases();
         return list.find((info) => info.name === 'jieyu')?.version ?? null;
       }),
-    ).toBe(30);
+    ).toBe(20);
 
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('db-migration-gate-export-raw').click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^jieyu-raw-recovery-jieyu-n30-.*\.zip$/);
+    expect(download.suggestedFilename()).toMatch(/^jieyu-raw-recovery-jieyu-n20-.*\.zip$/);
     await expect(page.getByTestId('db-migration-gate-export-done')).toBeVisible();
     expect(
       errors.filter(

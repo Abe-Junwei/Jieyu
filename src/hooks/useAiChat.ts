@@ -52,7 +52,7 @@ import {
 import { scheduleClearPersistenceCleanup } from '../ai/chat/scheduleClearPersistenceCleanup';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import { featureFlags, resolveAiAgentRuntimeV2Enabled } from '../ai/config/featureFlags';
-import { firstUnansweredCard } from '../ai/runtime/aiRuntimeV2Pending';
+import { firstUnansweredCard, sweepExpiredTurnStates } from '../ai/runtime/aiRuntimeV2Pending';
 import { createAssistantStream } from './ai/useAiChat.streamFactory';
 import { useAiChatToolAudit } from './ai/useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './ai/useAiChat.pendingToolCall';
@@ -428,6 +428,8 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (!conversationId || isBootstrapping) return;
     if (!(featureFlags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled())) return;
     let stale = false;
+    // N3：顺手按 expiresAt 清掉过期行（含已删会话/项目留下的）| sweep expired rows
+    void sweepExpiredTurnStates(Date.now()).catch(() => undefined);
     void firstUnansweredCard(conversationId, Date.now())
       .then((card) => {
         if (!stale && card) setPendingToolCall((cur) => cur ?? (card as PendingAiToolCall));

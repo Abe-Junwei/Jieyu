@@ -94,7 +94,9 @@ export async function runAiChatSendTurnStreamPhase(
       ) => {
         const env = buildStreamCompletionEnv();
         let card: PendingAiToolCall | undefined;
-        const planner = planToolCallTargets(call, effectiveUserText, aiContext);
+        // N1：已批准的是卡片快照，原样执行，不按当前选区重新解析 | approved = card snapshot, no re-planning
+        const planner =
+          approval === 'approved' ? null : planToolCallTargets(call, effectiveUserText, aiContext);
         const result = await runToolDecisionForCall(
           {
             ...env,
@@ -133,6 +135,8 @@ export async function runAiChatSendTurnStreamPhase(
           userText: effectiveUserText,
           signal: controller.signal,
           genRequestId: (call) => buildStreamCompletionEnv().genRequestId(call, assistantId),
+          hasPersistedExecutionForRequest: (requestId) =>
+            buildStreamCompletionEnv().hasPersistedExecutionForRequest(requestId),
           onApprovalClosed: (requestId, toolName, reason) =>
             input.writeToolDecisionAuditLog(
               assistantId,
@@ -171,10 +175,12 @@ export async function runAiChatSendTurnStreamPhase(
               conversationId: input.sendTurnConversationId,
               approvalId,
             });
+            const snap = r.card ? (r.card.executionCall ?? r.card.call) : undefined;
             return {
               pending: r.pending,
               text: r.finalContent,
               ...(r.card ? { card: r.card } : {}),
+              ...(snap ? { executionCall: { name: snap.name, arguments: snap.arguments } } : {}),
             };
           },
         }),

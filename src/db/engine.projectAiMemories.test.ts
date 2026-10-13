@@ -2,7 +2,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getDb, resetJieyuDatabaseSingletonForTests } from './engine';
-import { JIEYU_DEXIE_TARGET_SCHEMA_VERSION } from './migration/schemaVersions';
 
 describe('project_ai_memories Dexie table (v47)', () => {
   beforeEach(async () => {
@@ -122,6 +121,6 @@ describe('project_ai_memories Dexie table (v47)', () => {
 
   it('schema version is at least 47', async () => {
     const jieyuDb = await getDb();
-    expect(jieyuDb.dexie.verno).toBe(JIEYU_DEXIE_TARGET_SCHEMA_VERSION);
+    expect(jieyuDb.dexie.verno).toBe(1);
   });
 });

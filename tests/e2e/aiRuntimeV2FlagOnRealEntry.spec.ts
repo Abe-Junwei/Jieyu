@@ -170,31 +170,36 @@ test.describe('AI runtime v2 flag on — real chat entry', () => {
       )
       .toBe(true);
   });
-  test('pending approval survives page reload via Dexie and re-renders the card', async ({ page }) => {
+  test('pending approval survives reload; approving after reload deletes exactly the card target once (N1/N2)', async ({ page }) => {
     test.setTimeout(240_000);
     await seedV2DeepSeek(page);
     await setupFieldProjectWithMediaAndSegments(page);
-    const unitId = await page.evaluate(async () => {
-      const dexie = (globalThis as unknown as {
-        __jieyuDexie__: { open: () => Promise<unknown>; layer_units: { toArray: () => Promise<Array<{ id: string }>> } };
-      }).__jieyuDexie__;
-      await dexie.open();
-      return (await dexie.layer_units.toArray())[0]?.id ?? '';
-    });
-    expect(unitId).not.toBe('');
-    await installSmartCompletionsRoute(page, 'delete_transcription_segment', '已删除', { segmentId: unitId });
+    const readUnits = () =>
+      page.evaluate(async () => {
+        const dexie = (globalThis as unknown as {
+          __jieyuDexie__: { open: () => Promise<unknown>; layer_units: { toArray: () => Promise<Array<{ id: string }>> } };
+        }).__jieyuDexie__;
+        await dexie.open();
+        return (await dexie.layer_units.toArray()).map((u) => u.id);
+      });
+    const unitsBefore = await readUnits();
+    expect(unitsBefore).toContain('seg_e2e_a');
+    expect(unitsBefore).toContain('seg_e2e_b');
+    // 模型只说“删当前句段”（无 id）：目标由卡片按当时选区解析 | target resolved from the selection
+    await installSmartCompletionsRoute(page, 'delete_transcription_segment', '已删除', {});
 
     await openTranscriptionChatWindow(page);
     await page.getByRole('button', { name: /00:00\.0.*alpha/ }).first().click();
-    const input = page.locator('.transcription-chat-window').getByTestId('ai-chat-composer-input');
+    const chat = page.locator('.transcription-chat-window');
+    const input = chat.getByTestId('ai-chat-composer-input');
     await expect(input).toBeVisible({ timeout: 60_000 });
-    await input.fill(`删除句段 ${unitId}`);
+    await input.fill('删除当前句段');
     await input.press('Enter');
 
     const readTurns = () =>
       page.evaluate(async () => {
         const dexie = (globalThis as unknown as {
-          __jieyuDexie__: { open: () => Promise<unknown>; table: (n: string) => { toArray: () => Promise<Array<{ approvals: Record<string, unknown> }>> } };
+          __jieyuDexie__: { open: () => Promise<unknown>; table: (n: string) => { toArray: () => Promise<Array<{ approvals: Record<string, { requestId: string; executionCall?: { arguments: Record<string, unknown> } }> }>> } };
         }).__jieyuDexie__;
         await dexie.open();
         return dexie.table('ai_runtime_v2_turns').toArray();
@@ -202,11 +207,40 @@ test.describe('AI runtime v2 flag on — real chat entry', () => {
     await expect
       .poll(async () => (await readTurns()).some((t) => Object.keys(t.approvals).length > 0), { timeout: 60_000 })
       .toBe(true);
-    expect((await readToolAudits(page)).some((r) => (r.newValue ?? '').startsWith('policy_pending:delete_transcription_segment'))).toBe(true);
+    const meta = Object.values((await readTurns())[0]!.approvals)[0]!;
+    expect(JSON.stringify(meta.executionCall)).toContain('seg_e2e_a');
 
     await page.reload();
     expect((await readTurns()).length).toBe(1);
     await openTranscriptionChatWindow(page);
-    await expect(page.getByTestId('ai-chat-alerts-region')).toContainText(/delete_transcription_segment|删除/, { timeout: 60_000 });
+    // 重载后先把选区换到 beta，再批准 | move the selection to beta, then approve
+    await page.getByRole('button', { name: /00:01\.0.*beta/ }).first().click();
+    const alerts = page.getByTestId('ai-chat-alerts-region');
+    const approve = alerts.locator('.ai-chat-alerts-actions .ai-chat-alerts-action-btn').first();
+    await expect(approve).toBeEnabled({ timeout: 60_000 });
+    await approve.click();
+    // 等审批落盘、卡片关闭后再发下一条（否则输入框仍在忙，Enter 不发送）| wait until the card closes
+    await expect(approve).toBeHidden({ timeout: 30_000 });
+
+    // 重载后批准：下一回合开头执行 | after reload the approved call runs at the next turn
+    const input2 = page.locator('.transcription-chat-window').getByTestId('ai-chat-composer-input');
+    await expect(input2).toBeVisible({ timeout: 60_000 });
+    await input2.fill('继续');
+    await expect(async () => {
+      await input2.press('Enter');
+      await expect(input2).toHaveValue('', { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+
+    await expect.poll(async () => (await readUnits()).includes('seg_e2e_a'), { timeout: 60_000 }).toBe(false);
+    const unitsAfter = await readUnits();
+    expect(unitsAfter).toContain('seg_e2e_b');
+    expect(unitsAfter.length).toBe(unitsBefore.length - 1);
+
+    const rows = await readToolAudits(page);
+    const rid = meta.requestId;
+    const mine = rows.filter((r) => r.requestId === rid && r.field === 'ai_tool_call_decision').map((r) => r.newValue ?? '');
+    expect(mine.some((v) => v.startsWith('policy_pending:delete_transcription_segment'))).toBe(true);
+    expect(mine.some((v) => v.startsWith('approved:delete_transcription_segment'))).toBe(true);
+    expect(mine.filter((v) => /^(auto_|confirmed:|executed)/.test(v) && !v.includes('failed')).length).toBe(1);
   });
 });

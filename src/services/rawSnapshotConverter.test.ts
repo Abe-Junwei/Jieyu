@@ -9,11 +9,7 @@ import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
 import { exportRawIdbSnapshot, isRawIdbSnapshot } from '../db/migration/rawRecoveryExport';
-import {
-  JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
-  JIEYU_SCHEMA_VERSIONS,
-  type JieyuSchemaVersion,
-} from '../db/migration/schemaVersions';
+import { JIEYU_SCHEMA_VERSIONS, type JieyuSchemaVersion } from '../db/migration/schemaVersions';
 import { exportDatabaseToJyb, importJybProjectsAsNew, previewJybRestore } from './JybService';
 import { sha256Hex } from './projectArchiveContainer';
 import { convertRawSnapshotToJyb, RawSnapshotConversionError } from './rawSnapshotConverter';
@@ -151,20 +147,13 @@ describe('T41: raw snapshot → JYB converter', () => {
       nativeVersion: number;
       binaryFileCount: number;
     };
-    expect(manifest).toMatchObject({
-      kind: 'raw-idb',
-      nativeVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION * 10,
-    });
+    expect(manifest).toMatchObject({ kind: 'raw-idb', nativeVersion: 10 });
     expect(manifest.binaryFileCount).toBeGreaterThanOrEqual(2);
     expect(await isRawIdbSnapshot(raw)).toBe(true);
 
     const result = await convertRawSnapshotToJyb(raw);
-    expect(result.source).toMatchObject({
-      dbName: 'jieyu',
-      nativeVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION * 10,
-      dexieVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
-    });
-    expect(result.upgradedToVersion).toBe(JIEYU_DEXIE_TARGET_SCHEMA_VERSION);
+    expect(result.source).toMatchObject({ dbName: 'jieyu', nativeVersion: 10, dexieVersion: 1 });
+    expect(result.upgradedToVersion).toBe(1);
     expect(raw).toEqual(before);
     expect(await isRawIdbSnapshot(result.jyb)).toBe(false);
     expect((await databaseNames()).filter((name) => name.startsWith('jieyu-raw-convert-'))).toEqual(
@@ -191,7 +180,7 @@ describe('T41: raw snapshot → JYB converter', () => {
     const versions: JieyuSchemaVersion[] = [
       ...JIEYU_SCHEMA_VERSIONS,
       {
-        version: JIEYU_DEXIE_TARGET_SCHEMA_VERSION + 1,
+        version: 2,
         stores: {},
         tier: 'rewriting',
         upgrade: (tx) =>
@@ -204,7 +193,7 @@ describe('T41: raw snapshot → JYB converter', () => {
       },
     ];
     const result = await convertRawSnapshotToJyb(raw, { versions });
-    expect(result.upgradedToVersion).toBe(JIEYU_DEXIE_TARGET_SCHEMA_VERSION + 1);
+    expect(result.upgradedToVersion).toBe(2);
     const preview = await previewJybRestore(result.jyb);
     expect(preview.projects[0]!.title).toEqual({ default: 'Project pA (v2)' });
   });
@@ -215,7 +204,7 @@ describe('T41: raw snapshot → JYB converter', () => {
     const versions: JieyuSchemaVersion[] = [
       ...JIEYU_SCHEMA_VERSIONS,
       {
-        version: JIEYU_DEXIE_TARGET_SCHEMA_VERSION + 1,
+        version: 2,
         stores: {},
         tier: 'rewriting',
         upgrade: () => {

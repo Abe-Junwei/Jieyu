@@ -168,7 +168,10 @@ export async function resolveToolDecisionPipeline({
   runtimeV2Approval,
 }: ResolveToolDecisionPipelineParams): Promise<ResolveToolDecisionPipelineResult> {
   const v2Approved = runtimeV2Approval === 'approved';
-  if (runtimeV2Approval) allowDestructiveToolCalls = true;
+  const v2Request = runtimeV2Approval === 'request';
+  // 批准后才放行破坏性执行；request 模式保留原值，让风险检查与影响摘要照常运行 |
+  // only an approved call bypasses the destructive gate; request mode keeps the risk check.
+  if (v2Approved) allowDestructiveToolCalls = true;
   const baseAuditContext = buildToolAuditContext(
     userText,
     providerId,
@@ -389,7 +392,8 @@ export async function resolveToolDecisionPipeline({
   if (featureFlags.aiToolWriteGateEnabled || resolveAiAgentRuntimeV2Enabled()) {
     const writeGateDecision = assertAiChatToolWriteAllowed(toolCall, aiContext, {
       gateEnabled: true,
-      destructiveAllowed: allowDestructiveToolCalls,
+      // v2 request：用户审批即授权，写门只查作用域 | v2 request: approval is the authorization
+      destructiveAllowed: allowDestructiveToolCalls || v2Request,
     });
     if (!writeGateDecision.allowed) {
       const gateMessage = formatToolWriteGateUserMessage(locale, writeGateDecision.reasonCode);
@@ -483,8 +487,58 @@ export async function resolveToolDecisionPipeline({
     };
   }
 
+  // v2 request：先过破坏性门（风险检查、歧义目标澄清、具体化目标与影响摘要），卡片即用户批准的那个调用 |
+  // v2 request: run the destructive gate first so the card carries the risk check and resolved target.
+  if (v2Request) {
+    const v2Gate = await resolveDestructiveGate({
+      assistantMessageId,
+      toolCall,
+      aiContext,
+      auditContext,
+      locale,
+      toolFeedbackStyle,
+      allowDestructiveToolCalls,
+      ...(onToolRiskCheck ? { onToolRiskCheck } : {}),
+      ...(preparePendingToolCall ? { preparePendingToolCall } : {}),
+      writeToolDecisionAuditLog,
+      setTaskSession,
+      setPendingToolCall: (value) => {
+        setPendingWritePreview(value);
+      },
+      taskSessionId,
+      bumpFailureMetric: () => bumpMetric('failureCount'),
+      ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
+      ...(turnConversationId ? { turnConversationId } : {}),
+    });
+    if (v2Gate.kind === 'error') {
+      return {
+        finalContent: v2Gate.finalContent,
+        finalStatus: 'error',
+        finalErrorMessage: v2Gate.finalErrorMessage,
+      };
+    }
+    if (v2Gate.kind === 'pending') {
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `auto:${toolCall.name}`,
+        `policy_pending:${toolCall.name}:tool_approval`,
+        'system',
+        toolCall.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          toolCall,
+          auditContext,
+          'system',
+          'policy_pending',
+          false,
+        ),
+      );
+      return { finalContent: v2Gate.finalContent, finalStatus: 'done' };
+    }
+  }
+
   if (
-    runtimeV2Approval === 'request' ||
+    v2Request ||
     (!v2Approved &&
       (featureFlags.aiToolWriteGateEnabled || resolveAiAgentRuntimeV2Enabled()) &&
       isAiToolWritePreviewRequired(toolCall.name))

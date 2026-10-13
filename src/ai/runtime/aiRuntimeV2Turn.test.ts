@@ -12,6 +12,7 @@ import {
   loadTurnState,
   resolveApproval,
   saveTurnState,
+  sweepExpiredTurnStates,
 } from './aiRuntimeV2Pending';
 import {
   createAiSdkModelFromSettings,
@@ -244,6 +245,123 @@ describe('runAiRuntimeV2Turn', () => {
     expect(prompt).toContain('继续');
     expect(prompt).toContain('c1');
     expect((await loadTurnState('conv-reload', 2_000)).kind).toBe('none');
+  });
+
+  it('N1: approving executes the card snapshot, even if the selection changed after the card appeared (same page)', async () => {
+    const model = new MockLanguageModelV4({
+      doStream: [toolCallStream('delete_transcription_segment', '{}'), textStream('x')],
+    });
+    // 卡片按当时选区解析为 seg-A | the card resolved the selection to seg-A
+    const p = params(model, {
+      conversationId: 'conv-n1',
+      requestApproval: vi.fn(async (call) => ({
+        pending: true,
+        text: 'confirm',
+        card: { call },
+        executionCall: { name: call.name, arguments: { segmentId: 'seg-A' } },
+      })),
+    });
+    await collect(runAiRuntimeV2Turn(p));
+    const loaded = await loadTurnState('conv-n1', 2_000);
+    if (loaded.kind !== 'active') throw new Error('state missing');
+    const [approvalId] = Object.keys(loaded.state.approvals);
+    // 选区随后切到 seg-B：执行仍不得重新解析 | selection moves to seg-B; no re-resolution allowed
+    await resolveApproval('conv-n1', approvalId!, true, 2_000);
+    const approved = vi.mocked(p.decide).mock.calls.filter((c) => c[1] === 'approved');
+    expect(approved).toHaveLength(1);
+    expect(approved[0]![0]).toMatchObject({
+      name: 'delete_transcription_segment',
+      arguments: { segmentId: 'seg-A' },
+      requestId: 'req-delete_transcription_segment-{}',
+    });
+  });
+
+  it('N1: after reload, the approved card snapshot is what runs at the next turn', async () => {
+    await saveTurnState({
+      conversationId: 'conv-n1-reload',
+      createdAt: 0,
+      approvals: {
+        a1: {
+          requestId: 'req-a1',
+          executionCall: {
+            name: 'delete_transcription_segment',
+            arguments: { segmentId: 'seg-A' },
+          },
+        },
+      },
+      messages: [
+        { role: 'user', content: 'delete this' },
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call',
+              toolCallId: 'c1',
+              toolName: 'delete_transcription_segment',
+              input: {},
+            },
+            { type: 'tool-approval-request', approvalId: 'a1', toolCallId: 'c1' },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [{ type: 'tool-approval-response', approvalId: 'a1', approved: true }],
+        },
+      ],
+    });
+    const model = new MockLanguageModelV4({ doStream: [textStream('ok')] });
+    const p = params(model, { conversationId: 'conv-n1-reload', userText: 'go on' });
+    await collect(runAiRuntimeV2Turn(p));
+    expect(p.decide).toHaveBeenCalledTimes(1);
+    expect(p.decide).toHaveBeenCalledWith(
+      expect.objectContaining({ arguments: { segmentId: 'seg-A' }, requestId: 'req-a1' }),
+      'approved',
+    );
+  });
+
+  it('an unanswered approval whose execution was already persisted is reported as executed, not denied', async () => {
+    await saveTurnState({
+      conversationId: 'conv-crash',
+      createdAt: 0,
+      approvals: { a1: { requestId: 'req-done' } },
+      messages: [
+        { role: 'user', content: 'delete s1' },
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call',
+              toolCallId: 'c1',
+              toolName: 'delete_transcription_segment',
+              input: { segmentId: 's1' },
+            },
+            { type: 'tool-approval-request', approvalId: 'a1', toolCallId: 'c1' },
+          ],
+        },
+      ],
+    });
+    const onApprovalClosed = vi.fn(async () => {});
+    const model = new MockLanguageModelV4({ doStream: [textStream('ok')] });
+    const p = params(model, {
+      conversationId: 'conv-crash',
+      userText: 'next',
+      onApprovalClosed,
+      hasPersistedExecutionForRequest: async (rid) => rid === 'req-done',
+    });
+    await collect(runAiRuntimeV2Turn(p));
+    expect(onApprovalClosed).not.toHaveBeenCalled();
+    expect(p.decide).not.toHaveBeenCalled();
+    const prompt = JSON.stringify(model.doStreamCalls[0]!.prompt);
+    expect(prompt).toContain('executed before the page closed');
+    expect(prompt).not.toContain('execution-denied');
+  });
+
+  it('N3: sweepExpiredTurnStates removes only expired rows', async () => {
+    await saveTurnState({ conversationId: 'old', createdAt: 0, approvals: {}, messages: [] });
+    await saveTurnState({ conversationId: 'new', createdAt: 10_000, approvals: {}, messages: [] });
+    await sweepExpiredTurnStates(PENDING_APPROVAL_TTL_MS + 1);
+    const keys = (await db.table('ai_runtime_v2_turns').toCollection().primaryKeys()).sort();
+    expect(keys).toEqual(['new']);
   });
 
   it('expired approvals (24 h) are dropped and reported as expired', async () => {

@@ -228,6 +228,11 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     };
 
     if (pending.call.name === 'propose_changes' && pending.proposedChildCalls?.length) {
+      // 记下批处理最后写给用户的结果，原样回给模型 | capture the batch's real outcome for the model
+      let batchOutcome: { status: 'done' | 'error'; message: string } = {
+        status: 'error',
+        message: 'proposed changes produced no result',
+      };
       await executeConfirmedProposedChangeBatch({
         assistantMessageId,
         parentCall: callWithRequestId,
@@ -236,7 +241,10 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         locale: toolFeedbackLocale,
         toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
         hasPersistedExecutionForRequest,
-        applyAssistantMessageResult,
+        applyAssistantMessageResult: async (id, content, status, errorMessage) => {
+          batchOutcome = { status: status === 'error' ? 'error' : 'done', message: content };
+          await applyAssistantMessageResult(id, content, status, errorMessage);
+        },
         ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
         writeToolDecisionAuditLog,
         setTaskSession,
@@ -257,7 +265,7 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
           pending.runtimeV2.approvalId,
           true,
           Date.now(),
-          { status: 'done', message: 'proposed changes applied' },
+          batchOutcome,
         );
         if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
       }
