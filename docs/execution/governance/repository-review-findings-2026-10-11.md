@@ -3,7 +3,7 @@ title: 整库审查发现与修复台账
 doc_type: execution-governance
 status: active
 owner: repo
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # 整库审查发现与修复台账
@@ -24,5 +24,7 @@ last_reviewed: 2026-10-13
 | B5 文本导入大小 | `ingestTextFile` 原先在大小检查前读取整个文件；修前红测、修后共享入口 32 MiB 预检与本地化提示。`d42c2363`；Chromium 超限导入后项目读回未变。 | 只关闭文本文件内存上界；AI provider 与日志议题按用户要求暂停。 |
 | B7 无障碍第一段 | 首页/转写页整页 axe 修前缺 H1，另发现无名称装饰图标和 landmark/ARIA 问题；`c3cfa938` 后整页 axe、侧栏键盘与完整 Chromium E2E 无重试通过。 | 真实读屏、200% 缩放及其他路由未验，V24 不整体关闭。 |
 | B6 冷离线 | Service Worker 接管后仅预热首页，断网新开 `/transcription` 返回 200 但空白，多个 JS chunk 失败；与离线架构文档的转写主路径预期不一致。 | 用户确认维持转写主路径承诺；已补齐应用 JS/CSS 预缓存，Chromium 冷启动回归修前红、修后绿。Firefox/WebKit 本机二进制缺失，媒体实际兼容性未验；缓存被清除或配额淘汰不在承诺内。 |
+| B6 本地项目离线编辑 | 带录音和语段的本地项目可断网冷开，但配对阅读来源语段编辑经 `saveUnitText` 后未写入 `segment_content`；原 UI 只显示草稿，未覆盖关闭重开读回。 | 对 `unitType=segment` 复用既有语段内容保存入口；Chromium 从 UI 编辑后核 Dexie，再关闭并离线重开核 UI 和 Dexie。旧版 Service Worker 升级、Firefox/WebKit 与缓存淘汰仍未验。 |
+| B8 CSS 构建预算 | 正字法页 CSS 曾超过 36 KiB 上限 70 字节。 | 清除重复/无效规则后构建预算通过，当前 35.92 KiB，余量很小；独立的 `check:css-unused-selectors` 仍因未触及的 `settings-primary-btn` 失败。 |
 
 未获用户风险接受；本表没有发布批准含义。后续逐域登记入口、写入、读回及发现，不能用测试文件名代替行为证据。

@@ -766,9 +766,16 @@ export function TranscriptionTimelineVerticalView({
 
   const persistSourceText = useCallback(
     async (unitId: string, value: string, layerId?: string) => {
+      if (unitByIdForSpeaker.get(unitId)?.unitType === 'segment') {
+        if (!layerId || !saveSegmentContentForLayer) {
+          throw new Error('Segment text save unavailable');
+        }
+        await saveSegmentContentForLayer(unitId, layerId, value);
+        return;
+      }
       await saveUnitText(unitId, value, layerId);
     },
-    [saveUnitText],
+    [saveSegmentContentForLayer, saveUnitText, unitByIdForSpeaker],
   );
 
   const {

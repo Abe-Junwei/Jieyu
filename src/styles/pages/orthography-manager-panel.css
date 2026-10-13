@@ -18,7 +18,11 @@
 
 /* Shell + Header 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
-.om-body { display: grid; gap: var(--space-stack-page, 16px); min-height: 0; }
+.om-body {
+  display: grid;
+  gap: var(--space-stack-page, 16px);
+  min-height: 0;
+}
 
 /* ── Embedded builder primitives ── */
 
@@ -118,7 +122,9 @@
   color: var(--text-secondary);
 }
 
-.om-panel-link { text-decoration: none; }
+.om-panel-link {
+  text-decoration: none;
+}
 
 .om-context-note {
   margin: 0;
@@ -130,10 +136,16 @@
 
 /* ── Summary ── */
 
-.om-summary .ws-summary-fact-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
-.om-summary .ws-summary-fact-note { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
+.om-summary :is(.ws-summary-fact-label, .ws-summary-fact-note) {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
 
-.om-summary-meta { display: flex; flex-wrap: wrap; gap: var(--space-row-gap, 8px); justify-content: flex-end; }
+.om-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-row-gap, 8px);
+  justify-content: flex-end;
+}
 
 /* ── Browser（与 LM master 区一致：栈式分区，无套卡） | Browser stack — flat like LM master column ── */
 
@@ -144,7 +156,12 @@
   min-width: 0;
 }
 
-.om-browser-header { display: grid; gap: var(--space-title-content, 8px); justify-items: start; text-align: left; }
+.om-browser-header {
+  display: grid;
+  gap: var(--space-title-content, 8px);
+  justify-items: start;
+  text-align: left;
+}
 
 .om-shell .om-browser .panel-section__description {
   max-width: 58ch;
@@ -155,12 +172,10 @@
   margin-top: var(--space-stack-page, 16px);
 }
 
-
-.om-toolbar { display: grid; gap: var(--space-row-gap, 8px); }
-
-.om-search { min-width: 0; }
-
-.om-search { width: 100%; }
+.om-toolbar {
+  display: grid;
+  gap: var(--space-row-gap, 8px);
+}
 
 .om-shell .om-list {
   display: flex;
@@ -218,10 +233,6 @@
   font-weight: 600;
 }
 
-.om-shell .om-list .om-list-item.om-list-item-active::before {
-  display: none;
-}
-
 .om-shell .om-list .om-list-item.om-list-item-highlight {
   outline: 2px solid var(--focus-ring);
   outline-offset: -1px;
@@ -235,7 +246,11 @@
   white-space: nowrap;
 }
 
-.om-filter-toggle { display: flex; flex-wrap: wrap; gap: var(--space-row-gap, 8px); }
+.om-filter-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-row-gap, 8px);
+}
 
 .om-callout {
   display: grid;
@@ -251,11 +266,16 @@
 
 .om-form-stack,
 .om-list,
-.om-search,
 .om-subsection,
-.om-subsection-title { min-width: 0; }
+.om-subsection-title {
+  min-width: 0;
+}
 
-.om-list-label { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); line-height: 1.45; font-weight: 600; }
+.om-list-label {
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  line-height: 1.45;
+  font-weight: 600;
+}
 
 .om-list-meta {
   display: flex;
@@ -273,7 +293,6 @@
 
 /* ── 6-column form grid ── */
 
-
 .om-form-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -282,12 +301,23 @@
 }
 
 .om-form-grid > *,
-.om-form-grid :is(.dialog-field, .language-iso-input .dialog-field, .panel-input, input, select, textarea) { min-width: 0; }
+.om-form-grid
+  :is(.dialog-field, .language-iso-input .dialog-field, .panel-input, input, select, textarea) {
+  min-width: 0;
+}
 
-.om-form-span-2 { grid-column: 1 / -1; }
-.om-form-span-third { grid-column: span 2; }
-.om-form-span-half { grid-column: span 3; }
-.om-form-span-two-thirds { grid-column: span 4; }
+.om-form-span-2 {
+  grid-column: 1 / -1;
+}
+.om-form-span-third {
+  grid-column: span 2;
+}
+.om-form-span-half {
+  grid-column: span 3;
+}
+.om-form-span-two-thirds {
+  grid-column: span 4;
+}
 
 .om-form-pair {
   display: grid;
@@ -295,12 +325,18 @@
   gap: var(--space-stack-section, 12px);
 }
 
-
-.om-checkbox-row { display: flex; flex-wrap: wrap; gap: var(--space-row-gap, 8px) var(--space-stack-page, 16px); }
+.om-checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-row-gap, 8px) var(--space-stack-page, 16px);
+}
 
 /* ── Array editor ── */
 
-.om-array-list { display: grid; gap: var(--space-row-gap, 8px); }
+.om-array-list {
+  display: grid;
+  gap: var(--space-row-gap, 8px);
+}
 
 .om-array-row {
   display: grid;
@@ -309,13 +345,23 @@
   align-items: end;
 }
 
-.om-array-value { min-width: 0; }
-.om-array-add { justify-self: start; }
+.om-array-value {
+  min-width: 0;
+}
+.om-array-add {
+  justify-self: start;
+}
 
 /* ── Textarea ── */
 
-.om-textarea { min-height: 72px; resize: vertical; }
-.om-codearea { min-height: 120px; font-family: var(--font-mono); }
+.om-textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+.om-codearea {
+  min-height: 120px;
+  font-family: var(--font-mono);
+}
 
 /* ── Advanced collapse ── */
 
@@ -338,7 +384,9 @@
   padding-inline-end: var(--space-8, 32px);
 }
 
-.om-advanced-summary::-webkit-details-marker { display: none; }
+.om-advanced-summary::-webkit-details-marker {
+  display: none;
+}
 
 .om-advanced-summary::after {
   content: '';
@@ -356,7 +404,6 @@
 .om-advanced:not([open]) > .om-advanced-summary::after {
   transform: translateY(-50%) rotate(-90deg);
 }
-
 
 .om-advanced-meta {
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
@@ -389,10 +436,6 @@
   background: transparent;
 }
 
-.om-basic-grid dt {
-  margin: 0;
-}
-
 .om-basic-grid dd {
   margin: 0;
   font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
@@ -402,7 +445,9 @@
 }
 
 /* State 已收入 .la-shell 合约层（OM 对齐全站文本流） | unified via contract */
-.om-state { text-align: left; }
+.om-state {
+  text-align: left;
+}
 
 /* ── Responsive ── */
 
@@ -410,13 +455,19 @@
   .om-form-grid,
   .om-basic-grid,
   .om-array-row,
-  .om-summary .ws-summary-facts { grid-template-columns: minmax(0, 1fr); }
+  .om-summary .ws-summary-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
   .om-form-span-third,
   .om-form-span-half,
-  .om-form-span-two-thirds { grid-column: 1 / -1; }
+  .om-form-span-two-thirds {
+    grid-column: 1 / -1;
+  }
 
-  .om-form-pair { grid-template-columns: minmax(0, 1fr); }
+  .om-form-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
   .om-shell .orthography-builder-panel-compact .language-iso-input-grid,
   .om-shell .orthography-builder-script-type-row {
@@ -427,15 +478,23 @@
 @media (max-width: 1180px) and (min-width: 721px) {
   .om-form-grid,
   .om-basic-grid,
-  .om-summary .ws-summary-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .om-summary .ws-summary-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
   .om-form-span-third,
   .om-form-span-half,
-  .om-form-span-two-thirds { grid-column: span 1; }
+  .om-form-span-two-thirds {
+    grid-column: span 1;
+  }
 
-  .om-form-span-2 { grid-column: 1 / -1; }
+  .om-form-span-2 {
+    grid-column: 1 / -1;
+  }
 
-  .om-form-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .om-form-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
   .om-array-row {
     grid-template-columns: minmax(140px, 200px) minmax(0, 1fr) auto;

@@ -269,7 +269,7 @@ export function OrthographyManagerPanel({
         <div className="om-toolbar orthography-builder-group-body">
           <div className="om-search-combobox">
             <input
-              className="input panel-input om-search"
+              className="input panel-input"
               type="search"
               role="combobox"
               value={searchText}

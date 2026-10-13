@@ -10,6 +10,43 @@ import {
 } from './_helpers/transcriptionProjectFlow';
 
 test.describe('R4 S6 offline edit persistence | Offline segment edit', () => {
+  test('cold-opens a local project offline, edits a segment, and reads it back after reopening', async ({ page, context }) => {
+    test.setTimeout(120_000);
+
+    const project = await setupFieldProjectWithMediaAndSegments(page);
+    await page.goto('/');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    await page.close();
+
+    await context.setOffline(true);
+    try {
+      const url = `/transcription?textId=${project.textId}&mediaId=${project.mediaId}&unitId=seg_e2e_a&unitKind=segment`;
+      const offlinePage = await context.newPage();
+      await offlinePage.goto(url);
+      await expect(offlinePage.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+      await waitForDexie(offlinePage);
+      expect(await readSegmentText(offlinePage, 'seg_e2e_a', project.layerId)).toBe('alpha');
+
+      await offlinePage.getByTestId('left-rail-workspace-layout-toggle').click();
+      const editor = offlinePage.locator('textarea.timeline-paired-reading-source-input').first();
+      await expect(editor).toHaveValue('alpha');
+      await editor.fill('offline-cold-edit');
+      await editor.press('Tab');
+      await expect.poll(() => readSegmentText(offlinePage, 'seg_e2e_a', project.layerId)).toBe('offline-cold-edit');
+
+      await offlinePage.close();
+      const reopened = await context.newPage();
+      await reopened.goto(url);
+      await expect(reopened.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+      await waitForDexie(reopened);
+      await expect(reopened.getByRole('region', { name: 'Segment list' }).getByRole('button', { name: /offline-cold-edit/ })).toBeVisible();
+      expect(await readSegmentText(reopened, 'seg_e2e_a', project.layerId)).toBe('offline-cold-edit');
+    } finally {
+      await context.setOffline(false);
+    }
+  });
+
   test('persists segment text to Dexie while offline', async ({ page, context }) => {
     test.setTimeout(120_000);
 
