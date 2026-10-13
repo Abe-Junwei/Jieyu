@@ -1645,12 +1645,16 @@ export const zhCNDictionary = {
   'transcription.projectHub.snapshotRestore.blockedVersion': '不能恢复：快照来自不支持的数据版本。',
   'transcription.projectHub.snapshotRestore.blockedBytes':
     '不能恢复：会丢失本机 {count} 个录音或附件的字节（它们不在快照里）。',
+  'transcription.projectHub.snapshotRestore.blockedSnapshotBytes':
+    '不能恢复：快照需要的 {count} 个录音或附件字节在本机缺失或已变化。',
   'transcription.projectHub.snapshotRestore.restore': '恢复此快照',
   'transcription.projectHub.snapshotRestore.confirmRestore': '确认恢复',
   'transcription.projectHub.snapshotRestore.warning':
     '再点一次“确认恢复”才会写入。当前数据会先另存为一份快照。',
   'transcription.projectHub.snapshotRestore.done':
     '已恢复并核对 {rows} 条记录。恢复前的数据已存为快照 #{seq}。请重新加载以显示恢复后的数据。',
+  'transcription.projectHub.snapshotRestore.pending':
+    '恢复数据已写入，但后续处理或核对未完成，不能确认最终状态。恢复前的数据保存在快照 #{seq}。请重新加载并检查数据，暂勿重复恢复。',
   'transcription.projectHub.snapshotRestore.reload': '重新加载',
   'transcription.projectHub.snapshotRestore.failed': '恢复失败：{message}',
   'transcription.projectHub.jybIncludeProjectAi': '随项目导入 AI 记忆与历史（{count} 条）',

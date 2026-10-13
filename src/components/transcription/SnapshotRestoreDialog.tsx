@@ -61,6 +61,11 @@ function blockedText(locale: Locale, preview: OverwriteSnapshotPreview): string 
   if (preview.reason === 'unsupported-version') {
     return t(locale, 'transcription.projectHub.snapshotRestore.blockedVersion');
   }
+  if (preview.reason === 'snapshot-bytes-unavailable') {
+    return tf(locale, 'transcription.projectHub.snapshotRestore.blockedSnapshotBytes', {
+      count: preview.bytesAtRisk.length,
+    });
+  }
   return tf(locale, 'transcription.projectHub.snapshotRestore.blockedBytes', {
     count: preview.bytesAtRisk.length,
   });
@@ -68,6 +73,18 @@ function blockedText(locale: Locale, preview: OverwriteSnapshotPreview): string 
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function committedRestoreSeq(error: unknown): number | null {
+  if (!(error instanceof Error)) return null;
+  if (
+    error.name !== 'OverwriteSnapshotVerifyError' &&
+    error.name !== 'OverwriteSnapshotPostCommitError'
+  ) {
+    return null;
+  }
+  const seq = (error as Error & { preRestoreSnapshotSeq?: unknown }).preRestoreSnapshotSeq;
+  return typeof seq === 'number' ? seq : null;
 }
 
 export function SnapshotRestoreDialog({
@@ -81,6 +98,7 @@ export function SnapshotRestoreDialog({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [postCommitSeq, setPostCommitSeq] = useState<number | null>(null);
   const [result, setResult] = useState<OverwriteSnapshotRestoreResult | null>(null);
 
   useEffect(() => {
@@ -88,6 +106,7 @@ export function SnapshotRestoreDialog({
     setSelected(null);
     setConfirming(false);
     setError(null);
+    setPostCommitSeq(null);
     setResult(null);
     refresh().catch((err: unknown) => setError(errorText(err)));
   }, [isOpen, refresh]);
@@ -96,6 +115,7 @@ export function SnapshotRestoreDialog({
     async (seq: number) => {
       setBusy(true);
       setError(null);
+      setPostCommitSeq(null);
       setConfirming(false);
       setResult(null);
       try {
@@ -118,12 +138,20 @@ export function SnapshotRestoreDialog({
     }
     setBusy(true);
     setError(null);
+    setPostCommitSeq(null);
     try {
       setResult(await restore(selected.summary.seq));
       setConfirming(false);
-      await refresh();
+      // 列表刷新失败不能把已核对的恢复误报为失败；用户仍可重新加载。
+      void refresh().catch(() => undefined);
     } catch (err) {
-      setError(errorText(err));
+      const seq = committedRestoreSeq(err);
+      if (seq !== null) {
+        setPostCommitSeq(seq);
+        setConfirming(false);
+      } else {
+        setError(errorText(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -144,7 +172,7 @@ export function SnapshotRestoreDialog({
           <PanelButton variant="ghost" disabled={busy} onClick={onClose}>
             {t(locale, 'transcription.dialog.cancel')}
           </PanelButton>
-          {result ? (
+          {result || postCommitSeq !== null ? (
             <PanelButton
               variant="primary"
               data-testid="snapshot-restore-reload"
@@ -271,6 +299,13 @@ export function SnapshotRestoreDialog({
           {tf(locale, 'transcription.projectHub.snapshotRestore.done', {
             rows: result.verifiedRows,
             seq: result.preRestoreSnapshotSeq,
+          })}
+        </p>
+      ) : null}
+      {postCommitSeq !== null ? (
+        <p role="alert" data-testid="snapshot-restore-pending">
+          {tf(locale, 'transcription.projectHub.snapshotRestore.pending', {
+            seq: postCommitSeq,
           })}
         </p>
       ) : null}

@@ -17,6 +17,8 @@
  * re-checks, and the result is read back and compared.
  */
 import { ProjectOverwriteBlockedError } from '../db/snapshotFormatError';
+import { toCanonicalJson } from '../db/migration/canonicalValue';
+import { computeBlobSha256 } from '../utils/blobSha256';
 import { listCollaboratedIds } from '../collaboration/cloud/projectCollaborationHistory';
 import { byteGuardTables, findBytesAtRisk } from './projectPackageService';
 import { JYB_SKIPPED_COLLECTIONS, LIBRARY_SNAPSHOT_KEY } from './JybService';
@@ -54,6 +56,7 @@ export interface OverwriteSnapshotSummary {
 export type OverwriteSnapshotBlockedReason =
   | 'collaborated'
   | 'local-bytes-would-be-lost'
+  | 'snapshot-bytes-unavailable'
   | 'unsupported-version';
 
 export interface OverwriteSnapshotPreview {
@@ -83,10 +86,23 @@ export class OverwriteSnapshotVerifyError extends Error {
   readonly preRestoreSnapshotSeq: number;
   constructor(missing: readonly string[], preRestoreSnapshotSeq: number) {
     super(
-      `Snapshot restore wrote data but ${missing.length} row(s) could not be read back; the state before the restore is kept as snapshot ${preRestoreSnapshotSeq}.`,
+      `Snapshot restore wrote data but ${missing.length} item(s) did not match read-back; the state before the restore is kept as snapshot ${preRestoreSnapshotSeq}.`,
     );
     this.name = 'OverwriteSnapshotVerifyError';
     this.missing = missing;
+    this.preRestoreSnapshotSeq = preRestoreSnapshotSeq;
+  }
+}
+
+/** 写事务已提交，但后处理或核对未完成 | Write committed, post-processing or verification incomplete */
+export class OverwriteSnapshotPostCommitError extends Error {
+  readonly preRestoreSnapshotSeq: number;
+  constructor(preRestoreSnapshotSeq: number, cause: unknown) {
+    super(
+      `Snapshot restore wrote data but could not finish verification; the state before the restore is kept as snapshot ${preRestoreSnapshotSeq}.`,
+      { cause },
+    );
+    this.name = 'OverwriteSnapshotPostCommitError';
     this.preRestoreSnapshotSeq = preRestoreSnapshotSeq;
   }
 }
@@ -205,8 +221,10 @@ async function evaluate(
   const engine = (await import('../db/engine')) as DbEngineModule;
   const db = await engine.getDb();
   const bytesAtRisk = await findBytesAtRisk(db.dexie, projectId, parsed.collections, new Map());
-  return bytesAtRisk.length > 0
-    ? { reason: 'local-bytes-would-be-lost', bytesAtRisk }
+  if (bytesAtRisk.length > 0) return { reason: 'local-bytes-would-be-lost', bytesAtRisk };
+  const unavailable = await findMismatchedBytes(parsed.collections);
+  return unavailable.length > 0
+    ? { reason: 'snapshot-bytes-unavailable', bytesAtRisk: unavailable }
     : { bytesAtRisk: [] };
 }
 
@@ -235,19 +253,85 @@ function rowKey(row: Row): string | null {
   return typeof row.id === 'string' || typeof row.id === 'number' ? String(row.id) : null;
 }
 
-/** 快照里每一行都要读得回来 | Every snapshot row must be readable afterwards */
-function findMissingRows(snapshot: Collections, after: Collections): string[] {
-  const missing: string[] = [];
+function expectedFields(expected: unknown, actual: unknown): unknown {
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual) && actual.length === expected.length
+      ? expected.map((value, index) => expectedFields(value, actual[index]))
+      : actual;
+  }
+  if (expected !== null && typeof expected === 'object') {
+    if (actual === null || typeof actual !== 'object' || Array.isArray(actual)) return actual;
+    const actualRow = actual as Row;
+    return Object.fromEntries(
+      Object.entries(expected as Row).map(([key, value]) => [
+        key,
+        expectedFields(value, actualRow[key]),
+      ]),
+    );
+  }
+  return actual;
+}
+
+/** 核对快照原有字段；导入可合法补 provenance 等新字段 | Compare stored fields, allowing import-added fields */
+async function findMismatchedRows(snapshot: Collections, after: Collections): Promise<string[]> {
+  const mismatched: string[] = [];
   for (const [name, rows] of Object.entries(snapshot)) {
-    const present = new Set((after[name] ?? []).map(rowKey));
+    const present = new Map((after[name] ?? []).map((row) => [rowKey(row), row]));
     const unkeyed = rows.filter((row) => rowKey(row) === null).length;
-    if (unkeyed > 0 && (after[name]?.length ?? 0) < rows.length) missing.push(`${name}:*`);
+    if (unkeyed > 0 && (after[name]?.length ?? 0) < rows.length) mismatched.push(`${name}:*`);
     for (const row of rows) {
       const key = rowKey(row);
-      if (key !== null && !present.has(key)) missing.push(`${name}:${key}`);
+      if (key === null) continue;
+      const actual = present.get(key);
+      if (
+        actual === undefined ||
+        (await toCanonicalJson(row)) !== (await toCanonicalJson(expectedFields(row, actual)))
+      ) {
+        mismatched.push(`${name}:${key}`);
+      }
     }
   }
-  return missing;
+  return mismatched;
+}
+
+async function findMismatchedBytes(snapshot: Collections): Promise<string[]> {
+  const engine = (await import('../db/engine')) as DbEngineModule;
+  const db = await engine.getDb();
+  const mismatched: string[] = [];
+  const media = (snapshot.media_items ?? []).filter(
+    (row) => (row.details as Row | undefined)?.audioExportOmitted === true,
+  );
+  // shortcut: legacy media without contentSha256 can only be checked by size/type; add a digest to every export before detecting same-size changes.
+  const mediaRows = await db.dexie.media_items.bulkGet(media.map((row) => String(row.id)));
+  for (const [index, expected] of media.entries()) {
+    const actual = mediaRows[index];
+    const blob = actual?.details?.audioBlob;
+    const details = expected.details as Row;
+    if (
+      !(blob instanceof Blob) ||
+      blob.size !== details.audioExportOmittedByteSize ||
+      (typeof details.audioExportOmittedMimeType === 'string' &&
+        blob.type.toLowerCase() !== details.audioExportOmittedMimeType.toLowerCase()) ||
+      (typeof expected.contentSha256 === 'string' &&
+        (await computeBlobSha256(blob)) !== expected.contentSha256)
+    ) {
+      mismatched.push(`media_items:${String(expected.id)}`);
+    }
+  }
+  // shortcut: asset snapshots have no digest; add one to the export format before checking same-size changes.
+  const assets = (snapshot.lexeme_assets ?? []).filter((row) => row.blobExportOmitted === true);
+  const assetRows = await db.dexie.lexeme_assets.bulkGet(assets.map((row) => String(row.id)));
+  for (const [index, expected] of assets.entries()) {
+    const blob = assetRows[index]?.blob;
+    if (
+      !(blob instanceof Blob) ||
+      blob.size !== expected.byteSize ||
+      blob.type.toLowerCase() !== String(expected.mimeType).toLowerCase()
+    ) {
+      mismatched.push(`lexeme_assets:${String(expected.id)}`);
+    }
+  }
+  return mismatched;
 }
 
 function blockedError(reason: OverwriteSnapshotBlockedReason, bytesAtRisk: string[]): Error {
@@ -258,7 +342,9 @@ function blockedError(reason: OverwriteSnapshotBlockedReason, bytesAtRisk: strin
         ? 'Snapshot restore is only offered for projects that have never been collaborated on.'
         : reason === 'unsupported-version'
           ? 'Snapshot restore aborted: the snapshot comes from an unsupported data version.'
-          : `Snapshot restore aborted: ${bytesAtRisk.length} local recording/attachment byte(s) would be lost.`,
+          : reason === 'snapshot-bytes-unavailable'
+            ? `Snapshot restore aborted: ${bytesAtRisk.length} recording/attachment byte(s) required by the snapshot are missing or different on this device.`
+            : `Snapshot restore aborted: ${bytesAtRisk.length} local recording/attachment byte(s) would be lost.`,
     bytesAtRisk,
   });
 }
@@ -344,20 +430,36 @@ export async function restoreOverwriteSnapshot(
       },
     });
   }
-  await scoped.dropLexemeLinksWithMissingTargets();
-  const restoredPreferenceKeys =
-    projectId === null ? restoreRecordedUserPreferences(parsed.preferences) : [];
+  try {
+    await scoped.dropLexemeLinksWithMissingTargets();
+    const restoredPreferenceKeys =
+      projectId === null ? restoreRecordedUserPreferences(parsed.preferences) : [];
 
-  // 写完读回核对 | Read back and compare
-  const after = await exportCurrent(projectId);
-  const missing = findMissingRows(parsed.collections, after.collections);
-  if (missing.length > 0) throw new OverwriteSnapshotVerifyError(missing, preRestoreSnapshotSeq);
-  return {
-    restoredSeq: seq,
-    scope: summary.scope,
-    projectId,
-    preRestoreSnapshotSeq,
-    verifiedRows: Object.values(parsed.collections).reduce((sum, rows) => sum + rows.length, 0),
-    restoredPreferenceKeys,
-  };
+    // 写完读回核对 | Read back and compare
+    const after = await exportCurrent(projectId);
+    const missing = [
+      ...(await findMismatchedRows(parsed.collections, after.collections)),
+      ...(await findMismatchedBytes(parsed.collections)),
+    ];
+    if (restoredPreferenceKeys.length > 0) {
+      const expected = new Map(parsed.preferences.map((entry) => [entry.key, entry.value]));
+      for (const entry of readCurrentUserPreferences(restoredPreferenceKeys)) {
+        if (entry.value !== expected.get(entry.key)) missing.push(`preferences:${entry.key}`);
+      }
+    }
+    const mismatched = [...new Set(missing)];
+    if (mismatched.length > 0)
+      throw new OverwriteSnapshotVerifyError(mismatched, preRestoreSnapshotSeq);
+    return {
+      restoredSeq: seq,
+      scope: summary.scope,
+      projectId,
+      preRestoreSnapshotSeq,
+      verifiedRows: Object.values(parsed.collections).reduce((sum, rows) => sum + rows.length, 0),
+      restoredPreferenceKeys,
+    };
+  } catch (error) {
+    if (error instanceof OverwriteSnapshotVerifyError) throw error;
+    throw new OverwriteSnapshotPostCommitError(preRestoreSnapshotSeq, error);
+  }
 }

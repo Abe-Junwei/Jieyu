@@ -224,4 +224,57 @@ test.describe('Recovery snapshots | 从快照恢复', () => {
       (await listSnapshotRows(page)).filter((s) => s.projectId === project.textId),
     ).toHaveLength(1);
   });
+
+  test('refuses same-size changed audio bytes before writing the snapshot', async ({ page }) => {
+    test.setTimeout(240_000);
+    handleArchiveExportDialogs(page);
+    const project = await setupFieldProjectWithMediaAndSegments(page);
+    await openProject(page, project.textId, project.mediaId);
+    const edited = await overwriteAfterEdit(page, project.textId);
+
+    await page.evaluate(async (mediaId) => {
+      const dexie = (
+        globalThis as unknown as {
+          __jieyuDexie__: {
+            open: () => Promise<unknown>;
+            media_items: {
+              get: (id: string) => Promise<Row | undefined>;
+              put: (row: Row) => Promise<unknown>;
+            };
+          };
+        }
+      ).__jieyuDexie__;
+      await dexie.open();
+      const row = await dexie.media_items.get(mediaId);
+      const details = row?.details as { audioBlob?: Blob } | undefined;
+      if (!row || !(details?.audioBlob instanceof Blob) || typeof row.contentSha256 !== 'string') {
+        throw new Error('fingerprinted audio missing');
+      }
+      await dexie.media_items.put({
+        ...row,
+        details: {
+          ...details,
+          audioBlob: new Blob([new Uint8Array(details.audioBlob.size).fill(0x5a)], {
+            type: details.audioBlob.type,
+          }),
+        },
+      });
+    }, project.mediaId);
+    await page.reload();
+    await waitForDexie(page);
+
+    const [snapshot] = (await listSnapshotRows(page)).filter((s) => s.projectId === project.textId);
+    const dialog = await openRecoveryDialog(page);
+    await dialog.getByTestId(`snapshot-restore-preview-${snapshot!.seq}`).click();
+    await expect(dialog.getByTestId('snapshot-restore-blocked')).toContainText(
+      /缺失或已变化|missing or different/i,
+    );
+    await expect(dialog.getByTestId('snapshot-restore-restore')).toBeDisabled();
+    expect((await readContents(page, project.textId)).find((c) => c.id === edited.id)?.text).toBe(
+      edited.text,
+    );
+    expect(
+      (await listSnapshotRows(page)).filter((s) => s.projectId === project.textId),
+    ).toHaveLength(1);
+  });
 });

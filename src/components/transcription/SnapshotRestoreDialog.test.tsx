@@ -130,6 +130,22 @@ describe('SnapshotRestoreDialog', () => {
     );
   });
 
+  it('explains when the bytes needed by a snapshot differ on this device', async () => {
+    service.listOverwriteSnapshots.mockResolvedValue([projectSnapshot]);
+    service.previewOverwriteSnapshot.mockResolvedValue(
+      previewOf(projectSnapshot, {
+        available: false,
+        reason: 'snapshot-bytes-unavailable',
+        bytesAtRisk: ['media_items:m1'],
+      }),
+    );
+    renderDialog();
+    fireEvent.click(await screen.findByTestId('snapshot-restore-preview-7'));
+    expect((await screen.findByTestId('snapshot-restore-blocked')).textContent).toContain(
+      '字节在本机缺失或已变化',
+    );
+  });
+
   it('shows the error when the restore fails', async () => {
     service.listOverwriteSnapshots.mockResolvedValue([projectSnapshot]);
     service.previewOverwriteSnapshot.mockResolvedValue(previewOf(projectSnapshot));
@@ -142,5 +158,46 @@ describe('SnapshotRestoreDialog', () => {
       'changed after preview',
     );
     expect(screen.queryByTestId('snapshot-restore-reload')).toBeNull();
+  });
+
+  it('reports a committed but unverified restore and offers reload', async () => {
+    service.listOverwriteSnapshots.mockResolvedValue([projectSnapshot]);
+    service.previewOverwriteSnapshot.mockResolvedValue(previewOf(projectSnapshot));
+    service.restoreOverwriteSnapshot.mockRejectedValue(
+      Object.assign(new Error('cleanup unavailable'), {
+        name: 'OverwriteSnapshotPostCommitError',
+        preRestoreSnapshotSeq: 9,
+      }),
+    );
+    const { onReload } = renderDialog();
+    fireEvent.click(await screen.findByTestId('snapshot-restore-preview-7'));
+    fireEvent.click(await screen.findByTestId('snapshot-restore-restore'));
+    fireEvent.click(screen.getByTestId('snapshot-restore-restore'));
+    expect((await screen.findByTestId('snapshot-restore-pending')).textContent).toContain('#9');
+    expect(screen.queryByTestId('snapshot-restore-error')).toBeNull();
+    fireEvent.click(screen.getByTestId('snapshot-restore-reload'));
+    expect(onReload).toHaveBeenCalled();
+  });
+
+  it('keeps a verified restore successful when the snapshot list refresh fails', async () => {
+    service.listOverwriteSnapshots
+      .mockResolvedValueOnce([projectSnapshot])
+      .mockRejectedValueOnce(new Error('list refresh unavailable'));
+    service.previewOverwriteSnapshot.mockResolvedValue(previewOf(projectSnapshot));
+    service.restoreOverwriteSnapshot.mockResolvedValue({
+      restoredSeq: 7,
+      scope: 'project',
+      projectId: 'pA',
+      preRestoreSnapshotSeq: 9,
+      verifiedRows: 12,
+      restoredPreferenceKeys: [],
+    });
+    renderDialog();
+    fireEvent.click(await screen.findByTestId('snapshot-restore-preview-7'));
+    fireEvent.click(await screen.findByTestId('snapshot-restore-restore'));
+    fireEvent.click(screen.getByTestId('snapshot-restore-restore'));
+    expect(await screen.findByTestId('snapshot-restore-done')).toBeTruthy();
+    expect(screen.queryByTestId('snapshot-restore-error')).toBeNull();
+    expect(screen.getByTestId('snapshot-restore-reload')).toBeTruthy();
   });
 });

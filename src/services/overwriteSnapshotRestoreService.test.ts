@@ -8,12 +8,15 @@ import 'fake-indexeddb/auto';
 import { strFromU8, strToU8 } from 'fflate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
+import * as scopedSnapshot from '../db/projectScopedSnapshot';
 import { ProjectOverwriteBlockedError } from '../db/snapshotFormatError';
 import { disasterRestoreFromJyb, exportDatabaseToJyb } from './JybService';
 import { exportProjectToJyt, overwriteProjectWithJyt } from './JytService';
 import { sha256Hex } from './projectArchiveContainer';
 import {
   listOverwriteSnapshots,
+  OverwriteSnapshotPostCommitError,
+  OverwriteSnapshotVerifyError,
   previewOverwriteSnapshot,
   restoreOverwriteSnapshot,
 } from './overwriteSnapshotRestoreService';
@@ -199,6 +202,89 @@ describe('recovery snapshots: project pre-overwrite snapshot', () => {
     expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Project pA' });
   });
 
+  it('rejects a committed restore when a same-id field differs on readback', async () => {
+    const seq = await overwriteEditedProject();
+    const cleanup = vi
+      .spyOn(scopedSnapshot, 'dropLexemeLinksWithMissingTargets')
+      .mockImplementation(async () => {
+        await db.texts.update('pA', { title: { default: 'Corrupted after write' } });
+      });
+    try {
+      await expect(restoreOverwriteSnapshot(seq)).rejects.toBeInstanceOf(
+        OverwriteSnapshotVerifyError,
+      );
+      expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Corrupted after write' });
+    } finally {
+      cleanup.mockRestore();
+    }
+  });
+
+  it('rejects a committed restore when same-size audio bytes differ from the snapshot fingerprint', async () => {
+    const seq = await overwriteEditedProject();
+    const cleanup = vi
+      .spyOn(scopedSnapshot, 'dropLexemeLinksWithMissingTargets')
+      .mockImplementation(async () => {
+        const row = await db.media_items.get('pA-media');
+        if (!row) throw new Error('media missing');
+        await db.media_items.put({
+          ...row,
+          details: {
+            ...row.details,
+            audioBlob: new Blob(['X'.repeat(AUDIO.length)], { type: 'audio/wav' }),
+          },
+        });
+      });
+    try {
+      await expect(restoreOverwriteSnapshot(seq)).rejects.toBeInstanceOf(
+        OverwriteSnapshotVerifyError,
+      );
+      expect(await blobText((await db.media_items.get('pA-media'))?.details?.['audioBlob'])).toBe(
+        'X'.repeat(AUDIO.length),
+      );
+    } finally {
+      cleanup.mockRestore();
+    }
+  });
+
+  it('rejects a committed restore when attachment byte length differs', async () => {
+    const seq = await overwriteEditedProject();
+    const cleanup = vi
+      .spyOn(scopedSnapshot, 'dropLexemeLinksWithMissingTargets')
+      .mockImplementation(async () => {
+        const row = await db.lexeme_assets.get('pA-asset');
+        if (!row) throw new Error('asset missing');
+        await db.lexeme_assets.put({ ...row, blob: new Blob(['short'], { type: 'image/png' }) });
+      });
+    try {
+      await expect(restoreOverwriteSnapshot(seq)).rejects.toBeInstanceOf(
+        OverwriteSnapshotVerifyError,
+      );
+    } finally {
+      cleanup.mockRestore();
+    }
+  });
+
+  it('identifies cleanup failure as post-commit and keeps the pre-restore snapshot', async () => {
+    const seq = await overwriteEditedProject();
+    const cleanup = vi
+      .spyOn(scopedSnapshot, 'dropLexemeLinksWithMissingTargets')
+      .mockRejectedValue(new Error('cleanup unavailable'));
+    try {
+      const error = await restoreOverwriteSnapshot(seq).catch((cause: unknown) => cause);
+      expect(error).toBeInstanceOf(OverwriteSnapshotPostCommitError);
+      if (!(error instanceof OverwriteSnapshotPostCommitError)) throw error;
+      expect(error.preRestoreSnapshotSeq).toBeGreaterThan(seq);
+      expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Edited' });
+      expect(
+        (await listOverwriteSnapshots()).some(
+          (snapshot) => snapshot.seq === error.preRestoreSnapshotSeq,
+        ),
+      ).toBe(true);
+    } finally {
+      cleanup.mockRestore();
+    }
+  });
+
   it('refuses a collaborated project without writing anything', async () => {
     const seq = await overwriteEditedProject();
     flags.collaborated.add('pA');
@@ -225,6 +311,29 @@ describe('recovery snapshots: project pre-overwrite snapshot', () => {
       'new-recording',
     );
     expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Project pA' });
+  });
+
+  it('blocks before writing when snapshot audio bytes cannot be reproduced', async () => {
+    const seq = await overwriteEditedProject();
+    const row = await db.media_items.get('pA-media');
+    if (!row) throw new Error('media missing');
+    await db.media_items.put({
+      ...row,
+      details: {
+        ...row.details,
+        audioBlob: new Blob(['X'.repeat(AUDIO.length)], { type: 'audio/wav' }),
+      },
+    });
+    const before = (await listOverwriteSnapshots()).length;
+    expect(await previewOverwriteSnapshot(seq)).toMatchObject({
+      available: false,
+      reason: 'snapshot-bytes-unavailable',
+      bytesAtRisk: ['media_items:pA-media'],
+    });
+    const error = await blockedErrorOf(() => restoreOverwriteSnapshot(seq));
+    expect(error.reason).toBe('not-allowed');
+    expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Project pA' });
+    expect(await listOverwriteSnapshots()).toHaveLength(before);
   });
 });
 
@@ -272,5 +381,25 @@ describe('recovery snapshots: whole-database pre-restore snapshot', () => {
     expect((await previewOverwriteSnapshot(result.preRestoreSnapshotSeq)).preferenceKeys).toEqual([
       'jieyu.locale',
     ]);
+  });
+
+  it('does not count an unwritten preference as verified', async () => {
+    await seedProject('pA');
+    localStorage.setItem('jieyu.locale', 'en-US');
+    const archive = await exportDatabaseToJyb({ includeMedia: false });
+    localStorage.setItem('jieyu.locale', 'zh-CN');
+    const restored = await disasterRestoreFromJyb(archive, { restorePreferences: true });
+    const originalSetItem = memoryStorage.setItem.bind(memoryStorage);
+    const write = vi.spyOn(memoryStorage, 'setItem').mockImplementation((key, value) => {
+      if (key !== 'jieyu.locale') originalSetItem(key, value);
+    });
+    try {
+      await expect(restoreOverwriteSnapshot(restored.snapshotSeq)).rejects.toBeInstanceOf(
+        OverwriteSnapshotVerifyError,
+      );
+      expect(localStorage.getItem('jieyu.locale')).toBe('en-US');
+    } finally {
+      write.mockRestore();
+    }
   });
 });

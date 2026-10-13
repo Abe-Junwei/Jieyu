@@ -1758,12 +1758,16 @@ export const enUSDictionary = {
     'Cannot restore: the snapshot comes from an unsupported data version.',
   'transcription.projectHub.snapshotRestore.blockedBytes':
     'Cannot restore: {count} local recording or attachment byte(s) are not in the snapshot and would be lost.',
+  'transcription.projectHub.snapshotRestore.blockedSnapshotBytes':
+    'Cannot restore: {count} recording or attachment byte(s) required by the snapshot are missing or different on this device.',
   'transcription.projectHub.snapshotRestore.restore': 'Restore this snapshot',
   'transcription.projectHub.snapshotRestore.confirmRestore': 'Confirm restore',
   'transcription.projectHub.snapshotRestore.warning':
     'Click “Confirm restore” again to write. The current data is saved as a snapshot first.',
   'transcription.projectHub.snapshotRestore.done':
     'Restored and verified {rows} records. The data before the restore is kept as snapshot #{seq}. Reload to see the restored data.',
+  'transcription.projectHub.snapshotRestore.pending':
+    'Restore data was written, but post-processing or verification did not finish. The previous state is in snapshot #{seq}. Reload and check the data before trying again.',
   'transcription.projectHub.snapshotRestore.reload': 'Reload',
   'transcription.projectHub.snapshotRestore.failed': 'Restore failed: {message}',
   'transcription.projectHub.jybIncludeProjectAi':
