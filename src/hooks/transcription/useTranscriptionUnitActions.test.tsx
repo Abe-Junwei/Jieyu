@@ -353,6 +353,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     await putTestUnitAsLayerUnit(db, unit, 'trc-default');
     await db.embeddings.put({
       id: 'unit::utt-default::model::v1',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt-default',
       model: 'model',
@@ -419,6 +420,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     await putTestUnitAsLayerUnit(db, unit, 'trc-default');
     await db.embeddings.put({
       id: 'unit::utt-translation::model::v1',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt-translation',
       model: 'model',

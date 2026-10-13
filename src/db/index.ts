@@ -5,6 +5,7 @@
 
 // ── 纯类型 | Pure types ──
 export * from './types';
+export { resolveNoteTextId, withNoteTextId } from './noteTextId';
 
 // ── Zod 校验 | Zod schemas & validators ──
 export * from './schemas';

@@ -104,6 +104,7 @@ async function seedProject(p: string): Promise<void> {
   );
   await db.user_notes.put({
     id: `${p}-note`,
+    textId: p,
     targetType: 'tier_annotation',
     targetId: `${unit}::${layer}`,
     content: { default: 'cell note' },

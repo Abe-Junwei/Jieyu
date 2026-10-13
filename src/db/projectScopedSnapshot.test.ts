@@ -239,6 +239,7 @@ describe('project-scoped snapshot export/import', () => {
       });
       await db.user_notes.put({
         id: `note-${textId}`,
+        textId: textId,
         targetType: 'unit',
         targetId: `unit-${textId}`,
         content: { default: 'n' },

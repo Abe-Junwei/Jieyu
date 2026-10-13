@@ -278,6 +278,7 @@ describe('JY-12: replace leaves no orphaned dependent rows', () => {
     ]);
     const note = (targetType: 'unit' | 'token' | 'morpheme' | 'translation', targetId: string) => ({
       id: `note_${targetType}_${suffix}`,
+      textId: TEXT_A,
       targetType,
       targetId,
       content: { eng: `${targetType} note` },
@@ -307,6 +308,7 @@ describe('JY-12: replace leaves no orphaned dependent rows', () => {
     });
     await db.embeddings.put({
       id: `unit::${unitId}::m::v`,
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: unitId,
       model: 'm',

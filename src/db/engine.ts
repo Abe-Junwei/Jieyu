@@ -6,6 +6,7 @@
  * Greenfield baseline (Batch 2A): main DB `jieyu` declares only `version(1)`, structurally
  * equivalent to the former v54 final shape. No upgraders before the freeze point (D14).
  */
+import { backfillUserNoteTextIds } from './noteTextId';
 import Dexie, { type DexieOptions, type Table } from 'dexie';
 import type {
   TextDocType,
@@ -458,6 +459,14 @@ async function _createDb(): Promise<JieyuDatabase> {
     throw openError;
   }
   registerIndexedDbMutationBackupHooks(dexie);
+  // P0-2b：旧备注补 textId；失败不阻断打开，补不上的只记日志 | legacy notes get textId; never blocks open, orphans only logged
+  try {
+    const { unresolved } = await backfillUserNoteTextIds(dexie);
+    if (unresolved.length > 0)
+      console.warn('[db] user_notes without resolvable textId kept as-is', unresolved);
+  } catch (error) {
+    console.warn('[db] user_notes textId backfill failed', error);
+  }
   return wrapJieyuDexie(dexie);
 }
 

@@ -1,4 +1,10 @@
-import { getDb, type NoteTargetType, type UserNoteDocType } from '../db';
+import {
+  getDb,
+  withNoteTextId,
+  type NoteTargetType,
+  type UserNoteDocType,
+  type UserNoteDraft,
+} from '../db';
 import { normalizeUserNoteDocForStorage } from '../utils/camDataUtils';
 import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
@@ -31,9 +37,9 @@ export async function listNotesByTarget(
     .sortBy('updatedAt');
 }
 
-export async function saveUserNote(doc: UserNoteDocType): Promise<string> {
+export async function saveUserNote(doc: UserNoteDraft): Promise<string> {
   const db = await getDb();
-  const stored = normalizeUserNoteDocForStorage(doc);
+  const stored = normalizeUserNoteDocForStorage(await withNoteTextId(db.dexie, doc));
   await db.dexie.user_notes.put(stored);
   scheduleSegmentMetaSyncForUnitIds(
     [stored.targetId, ...(stored.parentTargetId ? [stored.parentTargetId] : [])],

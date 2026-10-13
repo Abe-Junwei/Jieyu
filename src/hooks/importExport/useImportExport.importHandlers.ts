@@ -817,6 +817,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                 if (text.length === 0) continue;
                 await db.dexie.user_notes.put(
                   normalizeUserNoteDocForStorage({
+                    textId: importTextId,
                     id: newId('note'),
                     targetType: 'text',
                     targetId: importTextId,
@@ -1167,6 +1168,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               if ('targetType' in note && note.targetType === 'text') {
                 await db.dexie.user_notes.put(
                   normalizeUserNoteDocForStorage({
+                    textId: importTextId,
                     id: newId('note'),
                     targetType: 'text',
                     targetId: importTextId,
@@ -1191,6 +1193,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               }
               await db.dexie.user_notes.put(
                 normalizeUserNoteDocForStorage({
+                  textId: importTextId,
                   id: newId('note'),
                   targetType: 'unit',
                   targetId: match.id,
@@ -1213,6 +1216,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               }
               await db.dexie.user_notes.put(
                 normalizeUserNoteDocForStorage({
+                  textId: importTextId,
                   id: newId('note'),
                   targetType: 'unit',
                   targetId: match.id,
@@ -1236,6 +1240,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               for (const match of matches) {
                 await db.dexie.user_notes.put(
                   normalizeUserNoteDocForStorage({
+                    textId: importTextId,
                     id: newId('note'),
                     targetType: 'unit',
                     targetId: match.id,

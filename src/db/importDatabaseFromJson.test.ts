@@ -247,6 +247,7 @@ describe('JY-05: pruneOrphanUserNotes during JSON import', () => {
     for (const id of ['u-plain', 'u-seg', 'u-gone']) {
       await db.user_notes.put({
         id: `note-${id}`,
+        textId: T,
         targetType: 'unit',
         targetId: id,
         content: { default: 'keep me' },

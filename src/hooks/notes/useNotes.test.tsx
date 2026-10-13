@@ -90,6 +90,7 @@ describe('useNotes canonical target resolution', () => {
 
     await db.user_notes.put({
       id: 'note_1',
+      textId: 'text_1',
       targetType: 'token',
       targetId: 'utt_read::w1',
       parentTargetId: 'utt_read',

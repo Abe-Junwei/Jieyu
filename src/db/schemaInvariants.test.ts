@@ -423,6 +423,7 @@ const userNoteSuite: InvariantSuite<UserNoteDocType> = {
   name: 'user note invariants',
   createValid: () => ({
     id: 'note_valid_1',
+    textId: 'text_valid_1',
     targetType: 'unit',
     targetId: 'utt_valid_1',
     content: { default: 'note content' },

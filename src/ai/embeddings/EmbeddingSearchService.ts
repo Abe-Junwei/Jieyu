@@ -7,7 +7,7 @@ import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
 import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './searchFusionProfiles';
 import {
-  listUnitTextsFromSegmentation,
+  listUnitTextsFromSegmentationForText,
   listUnitTextsByUnits,
 } from '../../services/LayerSegmentationTextService';
 import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
@@ -19,6 +19,8 @@ export type EmbeddingSearchHybridPerfPhase =
   | 'minisearch-and-rerank';
 
 export interface SearchSimilarUnitsOptions {
+  /** Project (text) to search in; rows from other projects are never scored. */
+  textId: string;
   modelId?: string;
   modelVersion?: string;
   topK?: number;
@@ -55,22 +57,26 @@ const DEFAULT_MODEL_VERSION = '2026-03';
 const DEFAULT_MIN_SCORE = 0.3;
 
 /**
- * Vector-stage rows: compound `[sourceType+model]` seek, then `modelVersion` filter and optional
+ * Vector-stage rows: compound `[textId+sourceType+model]` seek (project-scoped), then `modelVersion` filter and optional
  * `candidateSourceIds` filter. Explicit empty candidate set short-circuits (avoids a useless full read).
  */
 async function loadEmbeddingRowsForVectorScan(
   db: JieyuDatabase,
+  textId: string,
   sourceType: EmbeddingSourceType,
   modelId: string,
   modelVersion: string,
   candidateSourceIds: ReadonlySet<string> | null,
 ): Promise<EmbeddingDoc[]> {
-  if (candidateSourceIds !== null && candidateSourceIds.size === 0) {
+  if (!textId || (candidateSourceIds !== null && candidateSourceIds.size === 0)) {
     return [];
   }
 
   const table = db.dexie.embeddings;
-  const rows = await table.where('[sourceType+model]').equals([sourceType, modelId]).toArray();
+  const rows = await table
+    .where('[textId+sourceType+model]')
+    .equals([textId, sourceType, modelId])
+    .toArray();
   const matchesModelVersion = (row: EmbeddingDoc) =>
     (row.modelVersion ?? DEFAULT_MODEL_VERSION) === modelVersion;
 
@@ -163,8 +169,10 @@ function buildFullTextScoreMap(
   return scoreMap;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  const size = Math.min(a.length, b.length);
+/** Null when dimensions differ (vector from another model/config): not comparable, skip the row. */
+function cosineSimilarity(a: number[], b: number[]): number | null {
+  if (a.length !== b.length) return null;
+  const size = a.length;
   if (size === 0) return 0;
 
   let dot = 0;
@@ -201,7 +209,7 @@ export class EmbeddingSearchService {
 
   async searchSimilarUnits(
     query: string,
-    options?: SearchSimilarUnitsOptions,
+    options: SearchSimilarUnitsOptions,
   ): Promise<SearchSimilarUnitsResult> {
     const normalizedQuery = normalizeText(query);
     if (!normalizedQuery) {
@@ -226,6 +234,7 @@ export class EmbeddingSearchService {
 
     const embeddingRows = await loadEmbeddingRowsForVectorScan(
       db,
+      options.textId,
       'unit',
       modelId,
       modelVersion,
@@ -235,7 +244,7 @@ export class EmbeddingSearchService {
     const scored: SimilarUnitMatch[] = [];
     for (const item of embeddingRows) {
       const score = cosineSimilarity(queryVector, item.vector);
-      if (!Number.isFinite(score)) continue;
+      if (score === null || !Number.isFinite(score)) continue;
       scored.push({
         sourceType: item.sourceType,
         sourceId: item.sourceId,
@@ -262,7 +271,7 @@ export class EmbeddingSearchService {
   async searchMultiSource(
     query: string,
     sourceTypes: readonly EmbeddingSourceType[],
-    options?: SearchSimilarUnitsOptions,
+    options: SearchSimilarUnitsOptions,
   ): Promise<SearchSimilarUnitsResult> {
     const normalizedQuery = normalizeText(query);
     if (!normalizedQuery || sourceTypes.length === 0) {
@@ -289,6 +298,7 @@ export class EmbeddingSearchService {
     for (const sourceType of sourceTypes) {
       const rows = await loadEmbeddingRowsForVectorScan(
         db,
+        options.textId,
         sourceType,
         modelId,
         modelVersion,
@@ -296,7 +306,7 @@ export class EmbeddingSearchService {
       );
       for (const item of rows) {
         const score = cosineSimilarity(queryVector, item.vector);
-        if (!Number.isFinite(score)) continue;
+        if (score === null || !Number.isFinite(score)) continue;
         scored.push({
           sourceType: item.sourceType,
           sourceId: item.sourceId,
@@ -322,7 +332,7 @@ export class EmbeddingSearchService {
   async searchMultiSourceHybrid(
     query: string,
     sourceTypes: readonly EmbeddingSourceType[],
-    options?: SearchSimilarUnitsOptions,
+    options: SearchSimilarUnitsOptions,
   ): Promise<SearchSimilarUnitsResult> {
     const topK = normalizeTopK(options?.topK);
     const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
@@ -459,7 +469,7 @@ export class EmbeddingSearchService {
     if (sourceTypes.includes('unit')) {
       const unitRows = candidateSet
         ? await listUnitTextsByUnits(db, candidateSet)
-        : await listUnitTextsFromSegmentation(db);
+        : await listUnitTextsFromSegmentationForText(options.textId);
       const merged = new Map<string, string[]>();
       for (const row of unitRows) {
         const item = row;
@@ -535,7 +545,7 @@ export class EmbeddingSearchService {
           ? await db.dexie.media_items.where('id').anyOf(uniquePdfIds).toArray()
           : candidateSet
             ? []
-            : await db.dexie.media_items.toArray();
+            : await db.dexie.media_items.where('textId').equals(options.textId).toArray();
       for (const media of mediaRows) {
         if (!isPdfMediaItem(media)) continue;
         if (candidateSet && !candidateSet.has(media.id)) continue;

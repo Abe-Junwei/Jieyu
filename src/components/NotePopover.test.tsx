@@ -64,7 +64,7 @@ describe('NotePopover', () => {
       target: { value: '新备注' },
     });
 
-      fireEvent.click(screen.getByRole('button', { name: /\u65b0\u589e|\u6dfb\u52a0/ }));
+    fireEvent.click(screen.getByRole('button', { name: /\u65b0\u589e|\u6dfb\u52a0/ }));
 
     await waitFor(() => {
       expect(onAdd).toHaveBeenCalledWith({ default: '新备注' }, 'comment');
@@ -75,6 +75,7 @@ describe('NotePopover', () => {
   it('provides accessible names for composer, edit, and delete controls', async () => {
     const note = {
       id: 'note-1',
+      textId: 'text_1',
       content: { default: '已有备注' },
       targetType: 'unit',
       targetId: 'utt-1',
@@ -101,7 +102,9 @@ describe('NotePopover', () => {
     expect(screen.getByRole('textbox', { name: '新备注内容' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '编辑备注' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '删除备注' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '新备注分类: 评论' }).getAttribute('aria-pressed')).toBe('true');
+    expect(
+      screen.getByRole('button', { name: '新备注分类: 评论' }).getAttribute('aria-pressed'),
+    ).toBe('true');
 
     fireEvent.click(screen.getByRole('button', { name: '编辑备注' }));
 

@@ -18,7 +18,8 @@ export const JIEYU_BASELINE_STORES = {
     'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp], requestId, [collection+field+requestId]',
   bibliographic_sources: 'id, citationKey',
   custom_field_definitions: 'id, sortOrder, updatedAt',
-  embeddings: 'id, sourceType, sourceId, [sourceType+model], model, contentHash, createdAt',
+  embeddings:
+    'id, textId, sourceType, sourceId, [sourceType+model], [textId+sourceType+model], model, contentHash, createdAt',
   external_mcp_trust: 'id, origin, enabled, updatedAt',
   grammar_docs: 'id, updatedAt, parentId',
   language_aliases:
@@ -74,5 +75,5 @@ export const JIEYU_BASELINE_STORES = {
   unit_relations:
     'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
   unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
-  user_notes: 'id, [targetType+targetId], [targetId+targetIndex], updatedAt',
+  user_notes: 'id, textId, [targetType+targetId], [targetId+targetIndex], updatedAt',
 } as const satisfies Record<string, string>;

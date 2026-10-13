@@ -2231,6 +2231,7 @@ describe('useImportExport - import success under stop-write', () => {
     await db.user_notes.bulkPut([
       {
         id: 'note-unit-jy12',
+        textId: 'text-reimport',
         targetType: 'unit',
         targetId: unitId,
         content: { eng: 'u' },
@@ -2239,6 +2240,7 @@ describe('useImportExport - import success under stop-write', () => {
       },
       {
         id: 'note-tok-jy12',
+        textId: 'text-reimport',
         targetType: 'token',
         targetId: 'tok-jy12',
         content: { eng: 't' },

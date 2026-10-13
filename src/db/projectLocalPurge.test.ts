@@ -97,6 +97,14 @@ function seed(p: string): Record<JieyuMainTableName, Row[]> {
     embeddings: [
       { id: k('emb-unit'), sourceType: 'unit', sourceId: k('unit') },
       { id: k('emb-note'), sourceType: 'note', sourceId: k('note-unit') },
+      // P0-2b：分块备注和 pdf 页的 sourceId 不等于被删行 id，只能按 textId 删 | Only textId reaches these
+      {
+        id: k('emb-note-chunk'),
+        textId: p,
+        sourceType: 'note',
+        sourceId: `${k('note-unit')}#chunk=2`,
+      },
+      { id: k('emb-pdf'), textId: p, sourceType: 'pdf', sourceId: `${k('media')}#page=1` },
     ],
     segment_quality_snapshots: [{ id: k('sq'), textId: p }],
     scope_stats_snapshots: [

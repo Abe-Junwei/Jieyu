@@ -97,6 +97,7 @@ describe('EmbeddingSearchService', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'test-model',
@@ -107,6 +108,7 @@ describe('EmbeddingSearchService', () => {
       },
       {
         id: 'unit::utt_2::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_2',
         model: 'test-model',
@@ -117,6 +119,7 @@ describe('EmbeddingSearchService', () => {
       },
       {
         id: 'unit::utt_3::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_3',
         model: 'test-model',
@@ -129,6 +132,7 @@ describe('EmbeddingSearchService', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 2,
@@ -144,6 +148,7 @@ describe('EmbeddingSearchService', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'test-model',
@@ -154,6 +159,7 @@ describe('EmbeddingSearchService', () => {
       },
       {
         id: 'unit::utt_2::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_2',
         model: 'test-model',
@@ -166,6 +172,7 @@ describe('EmbeddingSearchService', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 5,
@@ -178,6 +185,7 @@ describe('EmbeddingSearchService', () => {
   it('returns no matches when candidate source id list is empty', async () => {
     await db.embeddings.put({
       id: 'unit::utt_1::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_1',
       model: 'test-model',
@@ -189,6 +197,7 @@ describe('EmbeddingSearchService', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       candidateSourceIds: [],
@@ -200,6 +209,7 @@ describe('EmbeddingSearchService', () => {
   it('returns empty when query is blank', async () => {
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchSimilarUnits('   ', {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
     });
@@ -210,6 +220,7 @@ describe('EmbeddingSearchService', () => {
   it('forwards runtime progress from preload/embed', async () => {
     await db.embeddings.put({
       id: 'unit::utt_1::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_1',
       model: 'test-model',
@@ -221,6 +232,7 @@ describe('EmbeddingSearchService', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
     });
@@ -229,6 +241,7 @@ describe('EmbeddingSearchService', () => {
   it('skips preload on repeated searches with same model', async () => {
     await db.embeddings.put({
       id: 'unit::utt_1::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_1',
       model: 'test-model',
@@ -240,8 +253,16 @@ describe('EmbeddingSearchService', () => {
 
     const runtime = new QueryRuntime([1, 0]);
     const service = new EmbeddingSearchService(runtime);
-    await service.searchSimilarUnits('hello', { modelId: 'test-model', modelVersion: 'v-test' });
-    await service.searchSimilarUnits('world', { modelId: 'test-model', modelVersion: 'v-test' });
+    await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+    });
+    await service.searchSimilarUnits('world', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+    });
 
     expect(runtime.preloadCount).toBe(1);
   });
@@ -250,6 +271,7 @@ describe('EmbeddingSearchService', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_1::model-a::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'model-a',
@@ -260,6 +282,7 @@ describe('EmbeddingSearchService', () => {
       },
       {
         id: 'unit::utt_1::model-b::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'model-b',
@@ -272,8 +295,16 @@ describe('EmbeddingSearchService', () => {
 
     const runtime = new QueryRuntime([1, 0]);
     const service = new EmbeddingSearchService(runtime);
-    await service.searchSimilarUnits('hello', { modelId: 'model-a', modelVersion: 'v-test' });
-    await service.searchSimilarUnits('hello', { modelId: 'model-b', modelVersion: 'v-test' });
+    await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
+      modelId: 'model-a',
+      modelVersion: 'v-test',
+    });
+    await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
+      modelId: 'model-b',
+      modelVersion: 'v-test',
+    });
 
     expect(runtime.preloadCount).toBe(2);
   });
@@ -281,6 +312,7 @@ describe('EmbeddingSearchService', () => {
   it('resets preload cache on terminate', async () => {
     await db.embeddings.put({
       id: 'unit::utt_1::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_1',
       model: 'test-model',
@@ -292,9 +324,17 @@ describe('EmbeddingSearchService', () => {
 
     const runtime = new QueryRuntime([1, 0]);
     const service = new EmbeddingSearchService(runtime);
-    await service.searchSimilarUnits('hello', { modelId: 'test-model', modelVersion: 'v-test' });
+    await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+    });
     service.terminate();
-    await service.searchSimilarUnits('again', { modelId: 'test-model', modelVersion: 'v-test' });
+    await service.searchSimilarUnits('again', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+    });
 
     expect(runtime.preloadCount).toBe(2);
   });
@@ -303,6 +343,7 @@ describe('EmbeddingSearchService', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_1::test-model::v1',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'test-model',
@@ -313,6 +354,7 @@ describe('EmbeddingSearchService', () => {
       },
       {
         id: 'unit::utt_1::test-model::v2',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'test-model',
@@ -325,8 +367,16 @@ describe('EmbeddingSearchService', () => {
 
     const runtime = new QueryRuntime([1, 0]);
     const service = new EmbeddingSearchService(runtime);
-    await service.searchSimilarUnits('hello', { modelId: 'test-model', modelVersion: 'v1' });
-    await service.searchSimilarUnits('hello', { modelId: 'test-model', modelVersion: 'v2' });
+    await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v1',
+    });
+    await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v2',
+    });
 
     expect(runtime.preloadCount).toBe(2);
   });
@@ -334,6 +384,7 @@ describe('EmbeddingSearchService', () => {
   it('caches preload even when provider reports fallback mode', async () => {
     await db.embeddings.put({
       id: 'unit::utt_1::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_1',
       model: 'test-model',
@@ -346,8 +397,16 @@ describe('EmbeddingSearchService', () => {
     const runtime = new QueryRuntime([1, 0]);
     runtime.usingFallback = true;
     const service = new EmbeddingSearchService(runtime);
-    await service.searchSimilarUnits('hello', { modelId: 'test-model', modelVersion: 'v-test' });
-    await service.searchSimilarUnits('world', { modelId: 'test-model', modelVersion: 'v-test' });
+    await service.searchSimilarUnits('hello', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+    });
+    await service.searchSimilarUnits('world', {
+      textId: 'text_1',
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+    });
 
     expect(runtime.preloadCount).toBe(1);
   });
@@ -371,6 +430,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'test-model',
@@ -381,6 +441,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       },
       {
         id: 'note::note_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'note',
         sourceId: 'note_1',
         model: 'test-model',
@@ -393,6 +454,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSource('hello', ['unit', 'note'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 5,
@@ -406,6 +468,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
   it('returns empty when source types array is empty', async () => {
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSource('hello', [], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
     });
@@ -416,6 +479,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
   it('returns no matches when candidate source ids are empty', async () => {
     await db.embeddings.put({
       id: 'unit::utt_1::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_1',
       model: 'test-model',
@@ -427,6 +491,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSource('hello', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       candidateSourceIds: [],
@@ -437,7 +502,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
   it('returns empty when query is blank', async () => {
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
-    const result = await service.searchMultiSource('  ', ['unit']);
+    const result = await service.searchMultiSource('  ', ['unit'], { textId: 'text_1' });
 
     expect(result.matches).toEqual([]);
   });
@@ -446,6 +511,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'test-model',
@@ -456,6 +522,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       },
       {
         id: 'note::note_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'note',
         sourceId: 'note_1',
         model: 'test-model',
@@ -468,6 +535,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSource('hello', ['unit', 'note'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
     });
@@ -482,6 +550,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_kw_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_kw_1',
         model: 'test-model',
@@ -492,6 +561,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       },
       {
         id: 'note::note_kw_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'note',
         sourceId: 'note_kw_1',
         model: 'test-model',
@@ -513,6 +583,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     await db.user_notes.put({
       id: 'note_kw_1',
+      textId: 'text_1',
       targetType: 'unit',
       targetId: 'utt_kw_1',
       content: { en: 'irrelevant note text' },
@@ -523,6 +594,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const vectorOnly = await service.searchMultiSource('hello world', ['unit', 'note'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 2,
@@ -530,6 +602,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     expect(vectorOnly.matches[0]?.sourceId).toBe('note_kw_1');
 
     const hybrid = await service.searchMultiSourceHybrid('hello world', ['unit', 'note'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 2,
@@ -543,6 +616,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_ft_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_ft_1',
         model: 'test-model',
@@ -553,6 +627,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       },
       {
         id: 'note::note_ft_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'note',
         sourceId: 'note_ft_1',
         model: 'test-model',
@@ -574,6 +649,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     await db.user_notes.put({
       id: 'note_ft_1',
+      textId: 'text_1',
       targetType: 'unit',
       targetId: 'utt_ft_1',
       content: { en: 'generic note' },
@@ -587,6 +663,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       'morphology elicitation',
       ['unit', 'note'],
       {
+        textId: 'text_1',
         modelId: 'test-model',
         modelVersion: 'v-test',
         topK: 2,
@@ -607,6 +684,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_nfc_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_nfc_1',
         model: 'test-model',
@@ -617,6 +695,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       },
       {
         id: 'note::note_nfc_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'note',
         sourceId: 'note_nfc_1',
         model: 'test-model',
@@ -637,6 +716,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     });
     await db.user_notes.put({
       id: 'note_nfc_1',
+      textId: 'text_1',
       targetType: 'unit',
       targetId: 'utt_nfc_1',
       content: { en: 'generic note' },
@@ -653,7 +733,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       const result = await service.searchMultiSourceHybrid(
         'ŋǎ pʰǒ'.normalize(query),
         ['unit', 'note'],
-        { modelId: 'test-model', modelVersion: 'v-test', topK: 2, ...weights },
+        { textId: 'text_1', modelId: 'test-model', modelVersion: 'v-test', topK: 2, ...weights },
       );
       expect(result.matches[0]?.sourceId).toBe('utt_nfc_1');
     }
@@ -673,6 +753,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSourceHybrid('morphology methods', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 3,
@@ -702,6 +783,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSourceHybrid('morphology methods', ['pdf'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 3,
@@ -718,6 +800,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.embeddings.bulkPut([
       {
         id: 'unit::utt_1::test-model::v-test',
+        textId: 'text_1',
         sourceType: 'unit',
         sourceId: 'utt_1',
         model: 'test-model',
@@ -732,6 +815,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     // 测试 QA 模式 | Test QA profile
     const qaResult = await service.searchMultiSourceHybrid('hello world', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 1,
@@ -741,6 +825,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     // 测试术语模式 | Test terminology profile
     const termResult = await service.searchMultiSourceHybrid('hello world', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 1,
@@ -750,6 +835,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     // 验证手动参数覆盖模板 | Verify manual parameters override profile
     const overrideResult = await service.searchMultiSourceHybrid('hello world', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 1,
@@ -768,6 +854,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     // 向量分数低的候选 | Low vector score candidate
     await db.embeddings.put({
       id: 'unit::utt_low::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_low',
       model: 'test-model',
@@ -789,6 +876,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     // 高 minScore → 过滤掉低分结果 | High minScore filters them out
     const highMin = await service.searchMultiSourceHybrid('phonology', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 5,
@@ -798,6 +886,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     // minScore=0 → 保留所有 | minScore=0 keeps all
     const noMin = await service.searchMultiSourceHybrid('phonology', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 5,
@@ -829,6 +918,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSourceHybrid('elicitation morphology', ['pdf'], {
+      textId: 'text_scan',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 3,
@@ -848,6 +938,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     const now = new Date().toISOString();
     await db.embeddings.put({
       id: 'unit::utt_any::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_any',
       model: 'test-model',
@@ -859,6 +950,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSourceHybrid('', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
     });
@@ -873,6 +965,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     // 一个向量匹配弱但关键词匹配强的候选 | Weak vector but strong keyword candidate
     await db.embeddings.put({
       id: 'unit::utt_kw_strong::test-model::v-test',
+      textId: 'text_1',
       sourceType: 'unit',
       sourceId: 'utt_kw_strong',
       model: 'test-model',
@@ -894,6 +987,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
     // queryExpansion: keywordWeight=0.45 | queryExpansion profile
     const result = await service.searchMultiSourceHybrid('consonant tonal', ['unit'], {
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 3,

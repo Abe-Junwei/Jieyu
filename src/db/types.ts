@@ -351,6 +351,8 @@ export type EmbeddingSourceType =
 
 export interface EmbeddingDoc {
   id: string;
+  /** Owning project (text) — embeddings are searched per project only. */
+  textId: string;
   sourceType: EmbeddingSourceType;
   sourceId: string;
   model: string;
@@ -1226,6 +1228,8 @@ export type NoteCategory =
 
 export interface UserNoteDocType {
   id: string;
+  /** 所属项目 | Owning project */
+  textId: string;
   targetType: NoteTargetType;
   targetId: string;
   targetIndex?: number;
@@ -1236,6 +1240,9 @@ export interface UserNoteDocType {
   createdAt: string;
   updatedAt: string;
 }
+
+/** user_notes 写入前尚未补 textId 的形态 | A note before its owning textId is resolved. */
+export type UserNoteDraft = Omit<UserNoteDocType, 'textId'> & { textId?: string };
 
 /**
  * 统一语段元信息读模型 | Unified segment metadata read model

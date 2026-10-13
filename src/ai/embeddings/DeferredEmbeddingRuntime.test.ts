@@ -40,14 +40,16 @@ vi.mock('./EmbeddingService', () => ({
 }));
 
 vi.mock('./EmbeddingSearchService', () => ({
-  EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(function MockEmbeddingSearchService() {
-    return {
-      terminate: mockTerminate,
-      searchSimilarUnits: mockSearchSimilarUnits,
-      searchMultiSource: mockSearchMultiSource,
-      searchMultiSourceHybrid: mockSearchMultiSourceHybrid,
-    };
-  }),
+  EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(
+    function MockEmbeddingSearchService() {
+      return {
+        terminate: mockTerminate,
+        searchSimilarUnits: mockSearchSimilarUnits,
+        searchMultiSource: mockSearchMultiSource,
+        searchMultiSourceHybrid: mockSearchMultiSourceHybrid,
+      };
+    },
+  ),
 }));
 
 import { createDeferredEmbeddingRuntime } from './DeferredEmbeddingRuntime';
@@ -80,10 +82,16 @@ describe('createDeferredEmbeddingRuntime', () => {
       retry: vi.fn(),
     } as never);
 
-    const result = await runtime.embeddingSearchService.searchMultiSource('hello', ['unit'], { topK: 5 });
+    const result = await runtime.embeddingSearchService.searchMultiSource('hello', ['unit'], {
+      textId: 'text_1',
+      topK: 5,
+    });
 
     expect(result).toEqual(expected);
     expect(mockEmbeddingSearchServiceCtor).toHaveBeenCalledTimes(1);
-    expect(mockSearchMultiSource).toHaveBeenCalledWith('hello', ['unit'], { topK: 5 });
+    expect(mockSearchMultiSource).toHaveBeenCalledWith('hello', ['unit'], {
+      textId: 'text_1',
+      topK: 5,
+    });
   });
 });

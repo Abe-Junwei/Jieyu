@@ -97,6 +97,7 @@ function makeNote(
 ): UserNoteDocType {
   return {
     id,
+    textId: 'text_1',
     targetType: 'unit',
     targetId,
     ...(category ? { category } : {}),

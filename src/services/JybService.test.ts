@@ -142,6 +142,7 @@ async function seedNeverPackaged(p: string): Promise<void> {
   } as never);
   await db.embeddings.put({
     id: `${p}-emb`,
+    textId: p,
     sourceType: 'unit',
     sourceId: `${p}-unit`,
     model: 'm',

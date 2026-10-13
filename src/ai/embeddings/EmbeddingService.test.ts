@@ -38,7 +38,12 @@ class FakeRuntime implements EmbeddingProvider {
 }
 
 async function clearEmbeddingTables(): Promise<void> {
-  await Promise.all([db.ai_tasks.clear(), db.embeddings.clear(), db.media_items.clear()]);
+  await Promise.all([
+    db.ai_tasks.clear(),
+    db.embeddings.clear(),
+    db.media_items.clear(),
+    db.user_notes.clear(),
+  ]);
 }
 
 describe('EmbeddingService', () => {
@@ -60,8 +65,8 @@ describe('EmbeddingService', () => {
     );
 
     const sources: EmbeddingBuildSource[] = [
-      { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
-      { sourceType: 'note', sourceId: 'note_1', text: 'linguistic note' },
+      { textId: 'text_1', sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
+      { textId: 'text_1', sourceType: 'note', sourceId: 'note_1', text: 'linguistic note' },
     ];
 
     const result = await service.buildEmbeddings(sources, {
@@ -82,6 +87,40 @@ describe('EmbeddingService', () => {
     expect(rows[0]?.modelVersion).toBe('v-test');
   });
 
+  it('P0-2b: embeds sense / annotation / tier_annotation notes under their textId', async () => {
+    const now = new Date().toISOString();
+    const targets = [
+      ['sense', 'sense_1'],
+      ['annotation', 'ann_1'],
+      ['tier_annotation', 'unit_1::layer_1'],
+    ] as const;
+    await db.user_notes.bulkPut(
+      targets.map(([targetType, targetId]) => ({
+        id: `note_${targetType}`,
+        textId: 'text_notes',
+        targetType,
+        targetId,
+        content: { und: `${targetType} note` },
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
+    const service = new EmbeddingService(new FakeRuntime(targets.map(() => [1, 0])));
+    const result = await service.buildNotesEmbeddings({
+      textId: 'text_notes',
+      modelId: 'm',
+      modelVersion: 'v',
+    });
+
+    expect(result.generated).toBe(3);
+    const rows = await db.embeddings.toArray();
+    expect(rows.map((row) => [row.sourceId, row.textId]).sort()).toEqual([
+      ['note_annotation', 'text_notes'],
+      ['note_sense', 'text_notes'],
+      ['note_tier_annotation', 'text_notes'],
+    ]);
+  });
+
   it('skips unchanged sources on re-run with same model/version', async () => {
     const service = new EmbeddingService(
       new FakeRuntime([
@@ -91,8 +130,8 @@ describe('EmbeddingService', () => {
     );
 
     const sources: EmbeddingBuildSource[] = [
-      { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
-      { sourceType: 'schema', sourceId: 'tier_def_1', text: 'tier description' },
+      { textId: 'text_1', sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
+      { textId: 'text_1', sourceType: 'schema', sourceId: 'tier_def_1', text: 'tier description' },
     ];
 
     await service.buildEmbeddings(sources, {
@@ -116,10 +155,13 @@ describe('EmbeddingService', () => {
     const service = new EmbeddingService(new FakeRuntime([], true));
 
     await expect(
-      service.buildEmbeddings([{ sourceType: 'unit', sourceId: 'utt_1', text: 'x' }], {
-        modelId: 'test-model',
-        modelVersion: 'v-test',
-      }),
+      service.buildEmbeddings(
+        [{ textId: 'text_1', sourceType: 'unit', sourceId: 'utt_1', text: 'x' }],
+        {
+          modelId: 'test-model',
+          modelVersion: 'v-test',
+        },
+      ),
     ).rejects.toThrow('runtime preload failed');
 
     const tasks = await db.ai_tasks.toArray();
@@ -160,6 +202,7 @@ describe('EmbeddingService', () => {
     const service = new EmbeddingService(new FakeRuntime([[0.11, 0.21, 0.31]]));
 
     const result = await service.buildPdfEmbeddings({
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       batchSize: 2,
@@ -194,6 +237,7 @@ describe('EmbeddingService', () => {
     const vectors = Array.from({ length: 12 }, () => [0.3, 0.2]);
     const service = new EmbeddingService(new FakeRuntime(vectors));
     const result = await service.buildPdfEmbeddings({
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       chunkSizeChars: 80,
@@ -230,6 +274,7 @@ describe('EmbeddingService', () => {
     );
 
     const result = await service.buildPdfEmbeddings({
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       batchSize: 2,
@@ -237,5 +282,66 @@ describe('EmbeddingService', () => {
 
     // 无真实 pdf.js 解析时本用例至少保证流程不抛错 | Ensures blob fallback path is non-breaking even without real parser output.
     expect(result.total).toBeGreaterThanOrEqual(0);
+  });
+
+  it('builds note embeddings for one project only (P0-2b review)', async () => {
+    const now = new Date().toISOString();
+    await db.user_notes.bulkPut(
+      ['proj_a', 'proj_b'].map((textId) => ({
+        id: `note_${textId}`,
+        textId,
+        targetType: 'text' as const,
+        targetId: textId,
+        content: { und: `${textId} note` },
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
+    const service = new EmbeddingService(
+      new FakeRuntime([
+        [1, 0],
+        [1, 0],
+      ]),
+    );
+    const result = await service.buildNotesEmbeddings({
+      textId: 'proj_a',
+      modelId: 'm',
+      modelVersion: 'v',
+    });
+    expect(result.total).toBe(1);
+    expect((await db.embeddings.toArray()).map((row) => row.sourceId)).toEqual(['note_proj_a']);
+  });
+
+  it('builds pdf embeddings for one project only (P0-2b review)', async () => {
+    const now = new Date().toISOString();
+    await db.media_items.bulkPut(
+      ['proj_a', 'proj_b'].map((textId) => ({
+        id: `pdf_${textId}`,
+        textId,
+        filename: `${textId}.pdf`,
+        details: {
+          mimeType: 'application/pdf',
+          extractedText: `${textId} pdf text about phonology.`,
+        },
+        isOfflineCached: true,
+        timelineKind: 'acoustic' as const,
+        byteLocation: 'none' as const,
+        availability: 'missing' as const,
+        createdAt: now,
+      })),
+    );
+    const service = new EmbeddingService(
+      new FakeRuntime([
+        [1, 0],
+        [1, 0],
+      ]),
+    );
+    const result = await service.buildPdfEmbeddings({
+      textId: 'proj_a',
+      modelId: 'm',
+      modelVersion: 'v',
+    });
+    expect(result.total).toBe(1);
+    expect((await db.embeddings.toArray()).every((row) => row.textId === 'proj_a')).toBe(true);
   });
 });

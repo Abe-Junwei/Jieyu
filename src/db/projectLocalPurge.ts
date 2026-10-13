@@ -326,6 +326,8 @@ async function purgeProjectAiAndDerived(
   await dexie.ai_tasks.where('targetId').anyOf(deletedIds).delete();
   await dexie.ai_task_snapshots.where('targetId').anyOf(deletedIds).delete();
   await dexie.embeddings.where('sourceId').anyOf(deletedIds).delete();
+  // note 分块（id#chunk=n）和 pdf 页的 sourceId 对不上删除 id，按项目删 | Note chunks and pdf pages don't match by sourceId
+  await dexie.embeddings.where('textId').equals(projectId).delete();
   if (scope.languageIds.size > 0) {
     await dexie.language_asset_overviews
       .where('languageId')
