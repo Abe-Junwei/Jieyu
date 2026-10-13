@@ -213,9 +213,9 @@ export const featureFlags = {
   aiAgentUiPreviewEnabled: aiAgentUiPreviewEnabledFromEnv ?? false,
   /**
    * A9: local inbound injection block + outbound PII/secret redact.
-   * 默认 false；开启后挂 before_model / before_client。见 spec agent-runtime-security-semantic-guard。
+   * 默认 true（#283：试用版/prod 默认开）；挂 before_model / before_client。env 可显式关闭。见 spec agent-runtime-security-semantic-guard。
    */
-  aiSemanticGuardEnabled: aiSemanticGuardEnabledFromEnv ?? false,
+  aiSemanticGuardEnabled: aiSemanticGuardEnabledFromEnv ?? true,
   /**
    * B11: outbound MCP origin allowlist. Default false; untrusted schema never reaches the LLM.
    */
