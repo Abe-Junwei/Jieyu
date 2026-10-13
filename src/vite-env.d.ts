@@ -38,7 +38,7 @@ interface ImportMetaEnv {
   readonly VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED?: string;
   /** E2E / dogfood only: `readonly` | `restricted_write` | `deny_by_default`; default production build omits. */
   readonly VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE?: string;
-  /** Optional override for `aiSemanticGuardEnabled` (true/false, 1/0). Default off. */
+  /** Optional override for `aiSemanticGuardEnabled` (true/false, 1/0). Default on (#283). */
   readonly VITE_AI_SEMANTIC_GUARD_ENABLED?: string;
   /** Optional override for `aiExternalMcpTrustEnabled` (true/false, 1/0). Default off. */
   readonly VITE_AI_EXTERNAL_MCP_TRUST_ENABLED?: string;
@@ -51,7 +51,7 @@ interface ImportMetaEnv {
   /** Optional override for `aiExternalMcpProviderAdaptersEnabled` (true/false, 1/0). Default off. */
   readonly VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED?: string;
   readonly VITE_ANNOTATION_PAGE_ENABLED?: string;
-  /** Optional override for `corpusLibraryPageEnabled` (true/false, 1/0). Default off. */
+  /** Optional override for `corpusLibraryPageEnabled` (true/false, 1/0). Default on. */
   readonly VITE_CORPUS_LIBRARY_PAGE_ENABLED?: string;
   /** Optional override for `lexiconAttachmentsEnabled` (true/false, 1/0). Default off. */
   readonly VITE_LEXICON_ATTACHMENTS_ENABLED?: string;

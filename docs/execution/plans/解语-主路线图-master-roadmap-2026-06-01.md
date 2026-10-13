@@ -3,11 +3,12 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-30
+last_reviewed: 2026-10-13
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
 > 现状事实以 [仓库现状与代码地图](../../architecture/仓库现状与代码地图.md) 为准；流程纪律以 [单人 AI 协作拍板决策](./单人AI协作改进计划-拍板决策-2026-05-11.md) 与 [AI_QUICKSTART](../../../AI_QUICKSTART.md) 为准。
+> **当前阶段计划（2026-10-13 起）**：试用交付以 [#250 地图](../../wayfinder/trial-handoff/map.md) 为准，下一程见 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)；与本文冲突时**以较新的拍板为准**。
 > 取代旧的索引式 roadmap 与时间盒型 [16 周路线图（已 superseded）](./16周执行版路线图-2026-04-12.md)。
 
 ## 0. 如何使用本文
@@ -24,10 +25,12 @@ last_reviewed: 2026-09-30
 
 ## 1. North Star（产品定位）
 
-解语是 **本地优先（local-first）的桌面浏览器多工作台**，面向濒危语言研究与协作。
+解语是 **本地优先（local-first）的桌面多工作台**，面向濒危语言研究与协作。
 
-- **形态**：纯 Web 应用（React + Vite + Dexie/IndexedDB + Worker/WASM）；桌面浏览器窗口，非移动 / 非 WebView。
-- **数据真源**：用户浏览器本地（IndexedDB）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
+- **长期目标**：田野录音 → 转写标注 → 词典/语料 → 出版与存档，在一台机器上闭环完成。
+
+- **形态**：Electron 桌面应用（路线 C；React + Vite 渲染层 + Worker/WASM），非移动。原纯 Web 形态（浏览器 + Dexie/IndexedDB）为历史基线。
+- **数据真源**：本机 SQLite 项目文件夹（ADR-0046）。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
 - **独立性**：与 Rushi（如是我闻）**无运行时依赖、无能力互补承诺**；解语缺口在本仓内解决或显式标为非目标。
 - **刻意不做**（拍板决策 §四）：每 PR 全量重型 gate、高频依赖自动化、多角色评审路由、为形式的全量 E2E、通用多智能体 swarm / 云端多租户。
 
@@ -44,8 +47,8 @@ A2 声学readout打磨     │
 A3 声学inspector冻结   │   B1 深链+滚动(✅) ┄已接入┄┐
 A4 AI agent-loop收口   │   B3 词典三栏(基本✓·回归已补)─┤
 A4b Context JIT/步数   │   B2 事件合同(已接线)          ┄┘
-A5 时间轴稳定收尾     ─┤   ├─► B4a/B4b 标注（代码已落地·flag 关）
-Agent 架构轨（§2.2）：  │   ├─► B5a/B5b 语料（代码已落地·flag 关；B5c 未合入）
+A5 时间轴稳定收尾     ─┤   ├─► B4a/B4b 标注（已落地·flag 开）
+Agent 架构轨（§2.2）：  │   ├─► B5a/b/c 语料（已落地·flag 开，含试用）
 A6 F4 B/C + 工业开关   ─┤   ├─► B6 引用断裂态 ✅
 A7 Last Mile + policy  ─┤   ├─► B7 语料 AI（adapter 未建；须 ChatWindow 会话隔离）
 A8 agentRunId 审计     ─┤   ├─► B8 词典附件（flag 关）
@@ -60,7 +63,7 @@ A14 Eval trajectory   ─┘
               C1 对外检查(+Agent架构) · C2 i18n · C3 导出 · C4 协作云
 ```
 
-> **代码核对校准（2026-09-11）**：详见 [主路线图代码核对](../audits/主路线图代码核对-2026-09-11.md)。`main` 已含 B1 滚动、B2 接线、B3 回归、B4a/B4b 与 B5a/B5b（flag 默认 false）、B6、B8、B10。**不要**再把「开放 B4/B5 占位页」或「可选 B2」当成下一刀。2026-06-01 校准块仅作历史。
+> **代码核对校准（2026-09-11）**：详见 [主路线图代码核对](../audits/主路线图代码核对-2026-09-11.md)。`main` 已含 B1 滚动、B2 接线、B3 回归、B4a/B4b 与 B5a/B5b/B5c（2026-10-13 起 flag 默认开）、B6、B8、B10。**不要**再把「开放 B4/B5 占位页」或「可选 B2」当成下一刀。2026-06-01 校准块仅作历史。
 
 依赖硬约束（经 [主路线图合理性审计](../audits/主路线图合理性审计-2026-06-01.md) 修正，2026-09-11 按代码刷新）：
 - **B1（深链+滚动，✅）= 软地基**：标注 `?unitId=`、词典 `lexiconReturn`、列表 `listScrollTop` 已进 `main`。
@@ -111,7 +114,7 @@ Wave 3 — Workflow 编排 + 人在环写路径（A11/A12 已进 main）
   A11  Preview UI → confirm → commitToolEffects（flag `aiAgentUiPreviewEnabled` 默认 false）
 
 Wave 4 — 安全外连 + 评测/长程 harness（B15 已收口）
-  A9   semantic guard（flag `aiSemanticGuardEnabled` 默认 false；已进 main）→ B11 已复用 inspectInbound
+  A9   semantic guard（flag `aiSemanticGuardEnabled`；#283 定试用版/prod 默认开，代码见 `feat/a9-default-on`；已进 main）→ B11 已复用 inspectInbound
   A14  按 agentRunId 强化 trajectory 断言（承接 A8；已进 main）
   A13  TaskRunner + checkpoint 合同 + parallel readonly 样本（已进 main；send-turn 仍串行）
   B11  外部 MCP trust allowlist（flag `aiExternalMcpTrustEnabled` 默认 false）
@@ -149,10 +152,10 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 每个切片"完全落地"必须同时满足（本地闭环口径）：
 
-1. **数据层**：Dexie schema / Service / Worker 写路径就位；**写 → reload/requery → readback 验证**（不止字段存在）。
+1. **数据层**：经存储接口写入并读回校验。**SQLite 与 Dexie 两实现均读回**自 #274/#275 落地（SQLite 实现存在）后生效；在此之前沿用 Dexie schema / Service / Worker 写路径就位；**写 → reload/requery → readback 验证**（不止字段存在）。
 2. **UI 层**：入口、状态、交互闭环接线完成；用户可见文案走 `dictKeys` / 字典，不留硬编码。
 3. **编排纪律**：重逻辑下沉 controller/service/纯函数；不在页面层堆业务（copilot-instructions §一/§三）。
-4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；触交互/ReadyWorkspace/侧栏/时间轴加 `npm run test:e2e:chromium`；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`。
+4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；触交互/ReadyWorkspace/侧栏/时间轴加 `npm run test:e2e:chromium`；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`；触桌面壳/存储加 Electron 构建与主进程测试。
 5. **可回滚**：高风险或 UI 觉察大改套 feature flag（`src/ai/config/featureFlags.ts`），`false` 合并、自用后切默认。
 6. **SDD**：中等以上复杂度（≥1 新 controller / ≥1 新 service / 跨 ≥3 controller）先写 `docs/execution/specs/<slug>/` 三件套再编码。
 
@@ -164,7 +167,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-30）**：标注页 **B4u–B4aa** 与 **B4ab**、词典 **B3an** 已落地。词菜单上的有限分析图标记（不连续两段、声调标签；替换/删除/异干沿用既有动作）已落地。这一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15。行动与验收见 [转写标注词典联动需求 §6](./转写标注词典联动需求-2026-09-29.md)。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / 任意图编辑 / 依存共指 / R6 / R15 / flag 放量宣告；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-30）**：标注页 **B4u–B4aa** 与 **B4ab**、词典 **B3an** 已落地。词菜单上的有限分析图标记（不连续两段、声调标签；替换/删除/异干沿用既有动作）已落地。这一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15。行动与验收见 [转写标注词典联动需求 §6](./转写标注词典联动需求-2026-09-29.md)。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / 任意图编辑 / 依存共指 / R6 / R15 / flag 放量宣告；语料库页 flag 2026-10-13 起默认开（含试用；导航说明只写现有能力：当前文本浏览、临时工作集、文本导出）。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -258,9 +261,9 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4z** | 删改前搬走附着分析（R5） | M | **【✅ 已落地】** 删除带语素或词典链接的 token 之前，改挂到保留的 token，或在确认里写出将失去的条数。只改一种语言的转写正文时，保留其他语言键、语素多语言表、链接上的 `senseId` 和 confidence。无新 flag | 删右词前语素和链接已在左词；另一种语言键还在；定向 vitest | 是 |
 | **B4aa** | 导出留下整句和媒体参照（R8） | M | **【✅ 已落地】** 导出的每一句包含转写层正文、选定译文层、词和语素的 form / gloss / pos、`senseId`、说话人、起止时间、`unitId`。整词词类和语素词类分列，靠 id 相连，不靠列位置。不改作者 gloss，不写回 | 往返后句子、`unitId`、时间和 `senseId` 还在；只改语素词类不改整词词类；定向 vitest | 是 |
 | **B3an** | 义项例句引用出现处（R4） | M | **【✅ 已落地】** `/lexicon` 义项可增加一条引用：`textId`、`unitId`、token 或语素 id、`lexemeId`、`senseId`。打开时读转写层句子和当前译文层，不另存句子副本。链接改挂后标失效，仍可删除。手写例证不覆盖。无新 flag。SDD：`lexicon-sense-citation/` | 重开仍指向同一 token；改挂后标失效；清空手写原文不影响引用；定向 vitest | 是 |
-| **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
-| **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
-| **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
+| **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟢 已落地·flag 开（2026-10-13 默认 true，含试用）】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 2026-10-13 起默认 **true**（原默认 false）。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
+| **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟢 已落地·flag 开（2026-10-13 默认 true，含试用）】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled`（2026-10-13 起默认 **true**）。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
+| **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟢 已落地·flag 开（2026-10-13 默认 true，含试用）】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled`（2026-10-13 起默认 **true**）。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【🟡 已落地】** `citationResolver.resolveUnitCitation` + `citationJump` 对缺失 unit 报 `CITATION_UNIT_NOT_FOUND` 且不跳转；RAG footer 在 `readModelIndexHit === false` 时省略 snippet；悬空 lexeme 链接 `CITATION_LEXEME_NOT_FOUND`。无软删列；残留 segment 不得复活已删 unit。SDD：`citation-broken-state/`。`removeUnit` 经 B2 `unit-updated` 通知消费方增量 refetch | 删 unit 后 resolve 断裂码；jump 不盲跳；footer 无旧摘录；定向 vitest | 是 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | **【⬜ 未开始】** `corpusBridgeAdapter` / corpus 专用 `useAiToolCallHandler.adapters` **仓库中不存在**。A6 ✅；A7/A9/A12 主体已进 `main`（A9/A11 flag 默认 false）——**不再**把「缺 A7/A9/A12 代码」当阻塞。真正阻塞：转写 ChatWindow **会话隔离**（`TranscriptionPage.ChatWindow.tsx` 现 127 行，禁止再堆 corpus 写路径） | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
 | **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量。Outbound HTTP 见 **B13**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
@@ -276,15 +279,15 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | ID | 切片 | 粒度 | 目标 / 落位锚点 | 验收 | SDD |
 | --- | --- | --- | --- | --- | --- |
-| **C1** | 对外前最小检查执行 | M | [对外前最小检查](../release-gates/对外前最小检查-2026-05-11.md)：隐私/导出范围说明、发布 smoke、**Agent 架构节（A8 + A9 + A11 + A14 抽样）** | 检查单逐项过；`test:e2e:chromium` 全绿；单次 send turn 可串联 audit + trajectory | 否 |
+| **C1** | 对外前最小检查执行 | M | **桌面试用版以 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 发布检查单为准**（本行浏览器口径仅作历史）。[对外前最小检查](../release-gates/对外前最小检查-2026-05-11.md)：隐私/导出范围说明、发布 smoke、**Agent 架构节（A8 + A9 + A11 + A14 抽样）** | 检查单逐项过；`test:e2e:chromium` 全绿；单次 send turn 可串联 audit + trajectory | 否 |
 | **C2** | i18n 基线计划性消减（6B） | M | 拍板 6B；`check:i18n-hardcoded:guard` 不新增债 + 按目录消减；AI 文案走 `src/ai/messages/` 与 UI `dictKeys` 分离 | 基线 hits 按目标下降；guard 绿 | 否 |
 | **C3a** | 字幕导出（SRT + WebVTT） | M | **【已落地】** 同一 `layer_units` 读模型（`buildOrthographyAwareExportUnits`）→ `transcriptionLiteExport` 序列化 SubRip + WebVTT（无 STYLE/NOTE/定位）→ 项目中心导出菜单 + `handleExportLite`；不写回编辑模型。锚点：`src/utils/transcriptionLiteExport.ts`、`useImportExport.handleExportLite`、`transcriptionExportCallbacks` | golden 对拍 + 定向 vitest；空语段不下载 | 否 |
 | **C3b** | 表格转写导出（CSV / TSV） | M | **【已落地】** 与 C3a 同一读模型与单一 `onExportLite(format)`；RFC 4180 CSV（UTF-8 BOM）+ TSV（tab 净化）；逐语段 start/end/speaker/text/gloss | golden 对拍 + 定向 vitest | 否 |
 | **C3c** | 学术 IGT LaTeX 导出（Leipzig） | L | **【已落地】** 同一 `layer_units` 读模型 + 首个翻译层 → `transcriptionIgtLatexExport` 序列化 gb4e `\gll`/`\glt`（不写回、不调 `AutoGlossService.glossUnit`）；`onExportLite('tex')` + 项目中心菜单。锚点：`src/utils/transcriptionIgtLatexExport.ts`、`LeipzigValidator`（测试断言） | golden 对拍 + Leipzig 校验通过 + 定向 vitest | 是 |
 | **C3d** | Word/docx 导出 | — | **待定**：需引入 docx 生成依赖（体积/维护/许可成本需评估）。**默认不排期**，按真实诉求再决定复用方案 | — | 是（先 Research） |
-| **C4** | 协作云增强（独立切片） | — | 协议与转写 bridge **已接线**；项目快照按 `textId` 裁剪、restore 禁止整库 replace-all、入站 apply 成功后再推进 cursor（ADR-0034）。词库仍不同步。增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
+| **C4** | 协作云增强（独立切片） | — | **桌面构建剔除协作（ADR-0047）**；本行只适用于 Web 构建。协议与转写 bridge **已接线**；项目快照按 `textId` 裁剪、restore 禁止整库 replace-all、入站 apply 成功后再推进 cursor（ADR-0034）。词库仍不同步。增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
 
-> **导出现状（2026-09-13 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 默认关）、转写字幕 SRT/WebVTT、语段表 CSV/TSV（**C3a/C3b**）与 Leipzig IGT LaTeX/`gb4e`（**C3c**，只出站不 round-trip）；**缺口** = Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
+> **导出现状（2026-09-13 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 2026-10-13 起默认开）、转写字幕 SRT/WebVTT、语段表 CSV/TSV（**C3a/C3b**）与 Leipzig IGT LaTeX/`gb4e`（**C3c**，只出站不 round-trip）；**缺口** = Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
 
 ### 各域子计划真源（切片内细节以此为准，本文不复制正文）
 
@@ -304,6 +307,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | [16 周执行版路线图（已 superseded）](./16周执行版路线图-2026-04-12.md) | 历史：工程四层架构 | 已 supersede 至本文；工程滚动排期看代码治理计划 v2 |
 | [规划-完整开发计划书 2026-03-16（已归档）](../archive/historical-root-docs/规划-完整开发计划书-2026-03-16.md) | 历史愿景 / 功能清单 | 基线滞后（DB 版本、"无协作后端"等）；仅作上下文 |
 | [仓库现状与代码地图](../../architecture/仓库现状与代码地图.md) | 现状盘点 | 现状真源，不是计划书；新排期写本文或子计划 |
+| [#250 试用地图](../../wayfinder/trial-handoff/map.md) | 当前阶段计划 | 与本文冲突时以 #250 的较新拍板为准；完成切片后两边都更新 |
 | 各域子计划 | 域内落位 / 验收真源 | 与本文冲突时：**域内细节以子计划为准，全局优先级与切片序以本文为准** |
 
 ## 5. 对账规则（保持不过期）
@@ -317,6 +321,8 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-13 | **审查对账（21:57 拍板）**：语料库页 flag 默认开（8b74991b，含试用），B5 三行、§2 图、§3 文首、导出现状同步；导航说明改为如实描述（7b81ea8f）；C1 桌面版以 #282 为准；C4 标桌面构建剔除（ADR-0047）；§2.1 DoD「SQLite/Dexie 双读回」改为 #274/#275 落地后生效；A9 按 #283 改默认开（`feat/a9-default-on`）。 |
+| 2026-10-13 | **#278 对账**：§1 由「纯 Web」改为 Electron 桌面应用（路线 C）、SQLite 项目文件夹（ADR-0046）、桌面版剥离协作/密钥/遥测（ADR-0047）；文首指向当前阶段计划 #250 与下一程 #285（冲突以较新拍板为准）；增长期目标（田野到出版单机闭环）。 |
 | 2026-06-01 | 初稿：建立产品级 master 索引（North Star + 域优先级 + 适用边界 + 对账）。 |
 | 2026-06-01 | 收编 16 周路线图（superseded）。 |
 | 2026-06-01 | 重写为单一可执行 master plan：新增切片化 backlog（Stage A 稳主线 / B 开占位 / C 对外协作）、切片落地定义（DoD，本地闭环口径）、依赖序；取代旧索引式结构。切片锚点取自三页联动 P0/P1、声学现状 §3、AI 战略下一步。 |

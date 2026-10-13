@@ -72,7 +72,9 @@ test.describe('关键路径 | Critical paths', () => {
   test('语料库页可加载（规划页烟测子集） | Corpus page loads (ARCH-9 smoke)', async ({ page }) => {
     await page.goto('/corpus');
     await expect(page.locator('nav')).toBeVisible();
-    await expect(page.locator('body')).toContainText(/语料库未开放|Corpus library is not open yet/);
+    await expect(page.getByTestId('corpus-library-workspace')).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/语料库未开放|Corpus library is not open yet/);
+    await expect(page.locator('nav a[href="/corpus"]')).toBeVisible();
   });
 
   test('标注页打开工作台 | Annotation workspace opens', async ({ page }) => {

@@ -101,7 +101,7 @@ Parallel:
 | 入站 | `inspectInbound` → persist `createAssistantStream` 前 | 用户 prompt 越狱 / `untrusted` RAG（pdf/note）注入 → `SemanticGuardBlockedError`，不调 LLM |
 | 出站 | `inspectOutbound` → finalize / stream fallback | 邮箱 + query/赋值密钥 redact；复用 `sensitiveKeyPolicy` |
 | Callback | `before_model` / `before_client` | 相位触发；改写仍由 pipeline 显式调用（handler 为 void） |
-| Flag | `aiSemanticGuardEnabled` / `VITE_AI_SEMANTIC_GUARD_ENABLED` | **全部环境默认 false** |
+| Flag | `aiSemanticGuardEnabled` / `VITE_AI_SEMANTIC_GUARD_ENABLED` | **全部环境默认 true**（2026-10-13 #283：试用版默认开；env 可关） |
 
 工作区语段 snippet 不按越狱扫描。流式 delta 可能先于 redact 上屏；终稿与落盘走 redact 后文本。
 

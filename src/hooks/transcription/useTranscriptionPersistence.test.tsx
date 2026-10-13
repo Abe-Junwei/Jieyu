@@ -3,9 +3,10 @@
 import 'fake-indexeddb/auto';
 import { renderHook } from '@testing-library/react';
 import type { MutableRefObject } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   db,
+  getDb,
   type SpeakerDocType,
   type LayerUnitDocType,
   type LayerUnitContentDocType,
@@ -165,5 +166,42 @@ describe('useTranscriptionPersistence', () => {
     await expect(
       result.current.syncToDb([unit], [translation], [], { conflictGuard: true }),
     ).rejects.toThrow(TranscriptionPersistenceConflictError);
+  });
+
+  it('P1-2: rolls back earlier writes when a later write fails', async () => {
+    await putTestDefaultTranscriptionLayer(db, 'text_tx', 'layer_tx');
+    const unit: LayerUnitDocType = {
+      id: 'utt_tx_1',
+      textId: 'text_tx',
+      mediaId: 'media_tx',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const speaker = {
+      id: 'spk_tx_1',
+      textId: 'text_tx',
+      name: 'A',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as SpeakerDocType;
+    const { result } = renderHook(() =>
+      useTranscriptionPersistence({
+        unitsRef: toRef<LayerUnitDocType[]>([]),
+        translationsRef: toRef<LayerUnitContentDocType[]>([]),
+        speakersRef: toRef<SpeakerDocType[]>([]),
+      }),
+    );
+    const jieyuDb = await getDb();
+    const spy = vi
+      .spyOn(jieyuDb.collections.speakers, 'insert')
+      .mockRejectedValueOnce(new Error('boom'));
+    try {
+      await expect(result.current.syncToDb([unit], [], [speaker])).rejects.toThrow('boom');
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await db.layer_units.get('utt_tx_1')).toBeUndefined();
   });
 });

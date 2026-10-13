@@ -110,8 +110,8 @@ describe('featureFlags environment matrix', () => {
     expect(dogfood.aiAgentLoopEffortScalingEnabled).toBe(false);
     expect(prod.aiAgentUiPreviewEnabled).toBe(false);
     expect(dogfood.aiAgentUiPreviewEnabled).toBe(false);
-    expect(prod.aiSemanticGuardEnabled).toBe(false);
-    expect(dogfood.aiSemanticGuardEnabled).toBe(false);
+    expect(prod.aiSemanticGuardEnabled).toBe(true);
+    expect(dogfood.aiSemanticGuardEnabled).toBe(true);
     expect(prod.aiExternalMcpTrustEnabled).toBe(false);
     expect(dogfood.aiExternalMcpTrustEnabled).toBe(false);
     expect(prod.aiMcpResourcesArtifactsEnabled).toBe(false);
@@ -124,8 +124,8 @@ describe('featureFlags environment matrix', () => {
     expect(dogfood.aiExternalMcpProviderAdaptersEnabled).toBe(false);
     expect(prod.annotationPageEnabled).toBe(true);
     expect(dogfood.annotationPageEnabled).toBe(true);
-    expect(prod.corpusLibraryPageEnabled).toBe(false);
-    expect(dogfood.corpusLibraryPageEnabled).toBe(false);
+    expect(prod.corpusLibraryPageEnabled).toBe(true);
+    expect(dogfood.corpusLibraryPageEnabled).toBe(true);
     expect(prod.lexiconAttachmentsEnabled).toBe(false);
     expect(dogfood.lexiconAttachmentsEnabled).toBe(false);
   });
@@ -139,14 +139,14 @@ describe('featureFlags environment matrix', () => {
       VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED: 'false',
       VITE_AI_AGENT_LOOP_EFFORT_SCALING_ENABLED: 'true',
       VITE_AI_AGENT_UI_PREVIEW_ENABLED: 'true',
-      VITE_AI_SEMANTIC_GUARD_ENABLED: 'true',
+      VITE_AI_SEMANTIC_GUARD_ENABLED: 'false',
       VITE_AI_EXTERNAL_MCP_TRUST_ENABLED: 'true',
       VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED: 'true',
       VITE_ANNOTATION_PAGE_ENABLED: 'false',
-      VITE_CORPUS_LIBRARY_PAGE_ENABLED: 'true',
+      VITE_CORPUS_LIBRARY_PAGE_ENABLED: 'false',
       VITE_LEXICON_ATTACHMENTS_ENABLED: 'true',
     });
 
@@ -155,14 +155,14 @@ describe('featureFlags environment matrix', () => {
     expect(flags.aiToolCallExecutorAutoRetryEnabled).toBe(false);
     expect(flags.aiAgentLoopEffortScalingEnabled).toBe(true);
     expect(flags.aiAgentUiPreviewEnabled).toBe(true);
-    expect(flags.aiSemanticGuardEnabled).toBe(true);
+    expect(flags.aiSemanticGuardEnabled).toBe(false);
     expect(flags.aiExternalMcpTrustEnabled).toBe(true);
     expect(flags.aiMcpResourcesArtifactsEnabled).toBe(true);
     expect(flags.aiExternalMcpHttpClientEnabled).toBe(true);
     expect(flags.aiExternalMcpSendTurnEnabled).toBe(true);
     expect(flags.aiExternalMcpProviderAdaptersEnabled).toBe(true);
     expect(flags.annotationPageEnabled).toBe(false);
-    expect(flags.corpusLibraryPageEnabled).toBe(true);
+    expect(flags.corpusLibraryPageEnabled).toBe(false);
     expect(flags.lexiconAttachmentsEnabled).toBe(true);
   });
 });

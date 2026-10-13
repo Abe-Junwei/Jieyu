@@ -14,23 +14,27 @@ import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 import { attachSpeakerToProject, detachSpeakerFromProjects } from './speakerProjectMembership';
 import { CatalogOwnershipMismatchError, requireCatalogProjectId } from './projectCatalogScope';
 
+function sortSpeakers(rows: SpeakerDocType[]): SpeakerDocType[] {
+  return rows.sort((a, b) => {
+    const byName = a.name.localeCompare(b.name, 'zh-Hans-CN');
+    if (byName !== 0) return byName;
+    return a.id.localeCompare(b.id, 'en');
+  });
+}
+
+/** 全库说话人（跨项目，显式整表）| Every speaker in the library (cross-project, explicit full read) */
 export async function getSpeakers(): Promise<SpeakerDocType[]> {
   const db = await getDb();
-  const docs = await db.collections.speakers.find().exec();
-  return docs
-    .map((doc) => doc.toJSON())
-    .sort((a, b) => {
-      const byName = a.name.localeCompare(b.name, 'zh-Hans-CN');
-      if (byName !== 0) return byName;
-      return a.id.localeCompare(b.id, 'en');
-    });
+  return sortSpeakers(await db.dexie.speakers.toArray());
 }
 
 /** 只读：本项目的说话人；没有项目时为空（D11）| Read-only: this project's speakers; empty without a project */
 export async function listSpeakersForProject(textId: string): Promise<SpeakerDocType[]> {
   const id = textId.trim();
   if (!id) return [];
-  return (await getSpeakers()).filter((speaker) => speaker.textId === id);
+  // P2-3：走 textId 索引 | P2-3: via the textId index
+  const db = await getDb();
+  return sortSpeakers(await db.dexie.speakers.where('textId').equals(id).toArray());
 }
 
 function assertSpeakerOwnsRows(
@@ -56,7 +60,10 @@ export async function getSpeakerReferenceStats(options?: {
   // FS-4: with a media id, read through the mediaId index instead of projecting the whole library.
   const [unitRows, segments] = await Promise.all(
     mediaKey.length > 0
-      ? [listUnitDocsForMedia(db, mediaKey), LayerSegmentQueryService.listSegmentsByMediaId(mediaKey)]
+      ? [
+          listUnitDocsForMedia(db, mediaKey),
+          LayerSegmentQueryService.listSegmentsByMediaId(mediaKey),
+        ]
       : [listUnitDocsFromCanonicalLayerUnits(db), LayerSegmentQueryService.listAllSegments()],
   );
 
@@ -122,11 +129,9 @@ export async function createSpeaker(input: {
 
   const normalizedName = name.toLocaleLowerCase('zh-Hans-CN');
   const projectTextId = requireCatalogProjectId(input.textId);
-  const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
+  const existingSpeakers = await listSpeakersForProject(projectTextId);
   const duplicate = existingSpeakers.find(
-    (speaker) =>
-      speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName &&
-      speaker.textId === projectTextId,
+    (speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
   );
   if (duplicate) return duplicate;
 
@@ -216,12 +221,10 @@ export async function renameSpeaker(speakerId: string, nextName: string): Promis
 
   const normalizedName = name.toLocaleLowerCase('zh-Hans-CN');
   const ownerTextId = speakerDoc.toJSON().textId;
-  const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
+  const existingSpeakers = await listSpeakersForProject(ownerTextId);
   const duplicate = existingSpeakers.find(
     (speaker) =>
-      speaker.id !== id &&
-      speaker.textId === ownerTextId &&
-      speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
+      speaker.id !== id && speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
   );
   if (duplicate) throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
 
