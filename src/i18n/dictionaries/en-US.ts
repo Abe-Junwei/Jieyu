@@ -135,7 +135,7 @@ export const enUSDictionary = {
   'app.nav.summary.home': 'Project overview and per–transcription record progress',
   'app.nav.summary.annotation': 'Semantic annotation with entity and structure labels',
   'app.nav.summary.analysis': 'Statistics, quality assessment, and insights',
-  'app.nav.summary.corpus': 'Search, bundle, and export project corpus to external editors',
+  'app.nav.summary.corpus': 'Browse current-text corpus, temporary worksets, and text export',
   'app.nav.summary.lexicon': 'Entries, senses, and lexicon review workflow',
   'app.nav.summary.languageMetadata':
     'Language names, aliases, standard identifiers, and governance status',
@@ -374,7 +374,7 @@ export const enUSDictionary = {
     'Clipboard and bundle export (Word / Markdown / HTML)',
   'workspace.corpus.unavailable.scope.agent':
     'Existing agents for analysis and drafting (copy-first; no silent write-back to transcription)',
-  'workspace.corpus.badge': 'Read-only workset',
+  'workspace.corpus.badge': 'Temporary workset (not saved)',
   'workspace.corpus.title': 'Corpus library',
   'workspace.corpus.summary':
     'Browse units across all media in the current transcription record and multi-select a workset isolated from transcription selection. Copy as plain text or Markdown.',
