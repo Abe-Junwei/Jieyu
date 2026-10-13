@@ -122,6 +122,10 @@ const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'staging' ||
   featureFlagDeploymentEnvironment === 'prod';
 
+/** R1 试点：ToolLoopAgent 运行时（默认关）| R1 pilot: ToolLoopAgent runtime, default off */
+const aiAgentRuntimeV2Enabled =
+  readOptionalBooleanFlag(import.meta.env.VITE_AI_AGENT_RUNTIME_V2_ENABLED) ?? false;
+
 const aiToolWriteGateDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' || featureFlagDeploymentEnvironment === 'staging';
 
@@ -195,7 +199,11 @@ export const featureFlags = {
    * A7 Last Mile write gate: readonly local tools auto-allow; write tools scope-checked at executor.
    * 默认 false；dogfood/staging 可经 env 开启。见 spec agent-runtime-security-write-gate。
    */
-  aiToolWriteGateEnabled: aiToolWriteGateEnabledFromEnv ?? aiToolWriteGateDefaultEnabled,
+  /** 开 v2 试点时强制打开（用户批准）| forced on with the v2 pilot (user-approved) */
+  aiToolWriteGateEnabled:
+    aiAgentRuntimeV2Enabled || (aiToolWriteGateEnabledFromEnv ?? aiToolWriteGateDefaultEnabled),
+  /** R1：ToolLoopAgent 运行时，见迁移方案 v4.2 §3 | R1 ToolLoopAgent runtime (plan v4.2 §3) */
+  aiAgentRuntimeV2Enabled,
   /**
    * Agent loop 历史中的旧 tool result / 长 assistant 回合压缩（P1 compaction）。默认与可靠性 flags 同环境矩阵。
    */

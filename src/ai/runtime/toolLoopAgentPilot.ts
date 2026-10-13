@@ -1,9 +1,7 @@
 /**
  * R1 试点：ToolLoopAgent 骨架（flag `aiAgentRuntimeV2Enabled` 之后接入，见迁移方案 v4.2 §3）。
- * 只读工具由框架执行；写工具一律 `user-approval`，批准后交给注入的 `runWriteDecision`
- * （生产接线 = resolveToolDecisionPipeline → toolWriteGate → commitToolEffects）。
- * R1 pilot: ToolLoopAgent skeleton. Read tools execute in the SDK; write tools always require user
- * approval and then delegate to the injected `runWriteDecision` (prod: the existing decision pipeline).
+ * 所有工具调用交给注入的 `runToolDecision`（生产 = resolveToolDecisionPipeline → toolWriteGate → commitToolEffects）。
+ * R1 pilot: every tool call delegates to the injected `runToolDecision` (prod: the existing decision pipeline).
  *
  * shortcut: mock-provider only, upgrade when user-recorded fixtures land (scripts/record-ai-fixtures.mjs).
  */
@@ -23,12 +21,21 @@ export interface PilotToolSpec {
   inputSchema: z.ZodType;
 }
 
+/** 工具决策结果：pending = 已交给现有确认界面，等用户批准 | pending = handed to the existing confirm UI */
+export interface PilotToolOutcome {
+  status: 'done' | 'error' | 'pending_user_confirmation';
+  message: string;
+  requestId?: string;
+}
+
 export interface PilotAgentOptions {
   model: LanguageModel;
-  readTools: Record<string, PilotToolSpec & { execute: (input: unknown) => Promise<unknown> }>;
-  writeTools: Record<string, PilotToolSpec>;
-  /** 写工具批准后的唯一执行入口 | the only execution path for approved write tools */
-  runWriteDecision: (name: string, input: unknown, toolCallId: string) => Promise<unknown>;
+  tools: Record<string, PilotToolSpec>;
+  /**
+   * 每个工具调用的唯一执行入口（生产 = resolveToolDecisionPipeline：策略、确认、写入门禁、审计）。
+   * The only execution path for every tool call (prod: the existing decision pipeline).
+   */
+  runToolDecision: (name: string, input: unknown, toolCallId: string) => Promise<PilotToolOutcome>;
   instructions?: string;
   maxSteps?: number;
 }
@@ -44,42 +51,43 @@ export function assertProviderInstance(
   }
 }
 
+const isPendingOutcome = (output: unknown) =>
+  (output as PilotToolOutcome | undefined)?.status === 'pending_user_confirmation';
+
+/**
+ * 审批走现有 toolDecisionPipeline 的确认界面（聊天与语音共用），不用 SDK toolApproval，避免双重确认；
+ * 有 pending 结果时停止循环，等用户决定后由下一回合续跑。
+ * shortcut: pipeline-owned approval, upgrade to SDK toolApproval if the confirm UI moves onto approval parts.
+ */
 export function createPilotAgent(options: PilotAgentOptions) {
   assertProviderInstance(options.model);
   const tools: ToolSet = {};
-  for (const [name, spec] of Object.entries(options.readTools)) {
+  for (const [name, spec] of Object.entries(options.tools)) {
     tools[name] = tool({
       description: spec.description,
       inputSchema: spec.inputSchema,
-      execute: spec.execute,
+      execute: (input, { toolCallId }) => options.runToolDecision(name, input, toolCallId),
     });
-  }
-  const toolApproval: Record<string, 'user-approval'> = {};
-  for (const [name, spec] of Object.entries(options.writeTools)) {
-    tools[name] = tool({
-      description: spec.description,
-      inputSchema: spec.inputSchema,
-      execute: (input, { toolCallId }) => options.runWriteDecision(name, input, toolCallId),
-    });
-    toolApproval[name] = 'user-approval';
   }
   return new ToolLoopAgent({
     model: options.model,
     tools,
-    toolApproval,
     // 护栏 7：重试只由上层控制 | retries are owned by the caller
     maxRetries: 0,
-    stopWhen: isStepCount(options.maxSteps ?? 6),
+    stopWhen: [
+      isStepCount(options.maxSteps ?? 6),
+      ({ steps }) => (steps.at(-1)?.toolResults ?? []).some((r) => isPendingOutcome(r.output)),
+    ],
     ...(options.instructions ? { instructions: options.instructions } : {}),
   });
 }
 
 export type PilotEvent =
   | { type: 'text'; text: string }
+  | { type: 'reasoning'; text: string }
   | { type: 'tool-input-ui'; toolCallId: string }
   | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
   | { type: 'invalid-args'; toolCallId: string; toolName: string; raw: unknown }
-  | { type: 'approval-request'; approvalId: string; toolCallId: string; toolName: string }
   | { type: 'provider-error'; error: unknown };
 
 /**
@@ -92,6 +100,8 @@ export function mapStreamPart(part: TextStreamPart<ToolSet>): PilotEvent | null 
   switch (part.type) {
     case 'text-delta':
       return { type: 'text', text: part.text };
+    case 'reasoning-delta':
+      return { type: 'reasoning', text: part.text };
     case 'tool-input-start':
     case 'tool-input-delta':
       return { type: 'tool-input-ui', toolCallId: part.id };
@@ -108,13 +118,6 @@ export function mapStreamPart(part: TextStreamPart<ToolSet>): PilotEvent | null 
         toolCallId: part.toolCallId,
         toolName: part.toolName,
         input: part.input,
-      };
-    case 'tool-approval-request':
-      return {
-        type: 'approval-request',
-        approvalId: part.approvalId,
-        toolCallId: part.toolCall.toolCallId,
-        toolName: part.toolCall.toolName,
       };
     case 'error':
       return { type: 'provider-error', error: part.error };

@@ -259,43 +259,30 @@ function canApplyTurnSideEffects(shouldApplyTurnSideEffects?: () => boolean): bo
   return shouldApplyTurnSideEffects === undefined || shouldApplyTurnSideEffects();
 }
 
-export async function resolveAiChatStreamCompletion({
-  assistantId,
-  assistantContent,
-  userText,
-  aiContext,
-  memoryRecallShape,
-  messages,
-  providerId,
-  model,
-  toolFeedbackLocale,
-  toolDecisionMode,
-  toolFeedbackStyle,
-  allowDestructiveToolCalls,
-  onToolRiskCheck,
-  preparePendingToolCall,
-  onToolCall,
-  hasPersistedExecutionForRequest,
-  writeToolDecisionAuditLog,
-  writeToolIntentAuditLog,
-  sessionMemory,
-  updateSessionMemory,
-  persistSessionMemory,
-  setTaskSession,
-  getTaskSession,
-  setPendingToolCall,
-  taskSessionId,
-  markExecutedRequestId,
-  bumpMetric,
-  shouldBumpRecovery,
-  genRequestId,
-  localToolCallCountRef,
-  localToolTraceOptions,
-  resolveFreshAiContext,
-  shouldApplyTurnSideEffects,
-  turnConversationId,
-  agentRunId,
-}: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
+export async function resolveAiChatStreamCompletion(
+  params: ResolveAiChatStreamCompletionParams,
+): Promise<ResolveAiChatStreamCompletionResult> {
+  const {
+    assistantId,
+    assistantContent,
+    userText,
+    aiContext,
+    toolFeedbackLocale,
+    toolFeedbackStyle,
+    sessionMemory,
+    updateSessionMemory,
+    persistSessionMemory,
+    setTaskSession,
+    getTaskSession,
+    taskSessionId,
+    bumpMetric,
+    genRequestId,
+    localToolCallCountRef,
+    localToolTraceOptions,
+    resolveFreshAiContext,
+    shouldApplyTurnSideEffects,
+    agentRunId,
+  } = params;
   if (assistantContent.trim().length === 0) {
     const finalErrorMessage = formatEmptyModelResponseError(toolFeedbackLocale);
     return {
@@ -593,39 +580,7 @@ export async function resolveAiChatStreamCompletion({
       toolCall.requestId = genRequestId(toolCall, assistantId);
     }
 
-    const toolDecisionResult = await resolveToolDecisionPipeline({
-      assistantMessageId: assistantId,
-      toolCall,
-      userText,
-      aiContext,
-      messageHistory: messages,
-      providerId,
-      model,
-      locale: toolFeedbackLocale,
-      toolDecisionMode,
-      toolFeedbackStyle,
-      planner,
-      ...(memoryRecallShape ? { memoryRecallShape } : {}),
-      allowDestructiveToolCalls,
-      ...(onToolRiskCheck ? { onToolRiskCheck } : {}),
-      ...(preparePendingToolCall ? { preparePendingToolCall } : {}),
-      ...(onToolCall ? { onToolCall } : {}),
-      hasPersistedExecutionForRequest,
-      writeToolDecisionAuditLog,
-      writeToolIntentAuditLog,
-      sessionMemory,
-      updateSessionMemory,
-      persistSessionMemory,
-      setTaskSession,
-      setPendingToolCall,
-      taskSessionId,
-      markExecutedRequestId,
-      bumpMetric,
-      shouldBumpRecovery,
-      ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
-      ...(turnConversationId ? { turnConversationId } : {}),
-      ...(agentRunId ? { agentRunId } : {}),
-    });
+    const toolDecisionResult = await runToolDecisionForCall(params, toolCall, userText, planner);
     finalContent = toolDecisionResult.finalContent;
     finalStatus = toolDecisionResult.finalStatus;
     finalErrorMessage = toolDecisionResult.finalErrorMessage;
@@ -722,4 +677,79 @@ function appendHallucinationWarningIfSuspicious(
   }
 
   return content;
+}
+
+/**
+ * 单个工具调用走现有决策管线（旧文本路径与 AI runtime v2 共用）。
+ * One tool call through the existing decision pipeline; shared by the legacy text path and runtime v2.
+ */
+export function runToolDecisionForCall(
+  params: Omit<ResolveAiChatStreamCompletionParams, 'assistantContent'>,
+  toolCall: AiChatToolCall,
+  userText: string,
+  planner?: Parameters<typeof resolveToolDecisionPipeline>[0]['planner'],
+) {
+  const {
+    assistantId,
+    aiContext,
+    memoryRecallShape,
+    messages,
+    providerId,
+    model,
+    toolFeedbackLocale,
+    toolDecisionMode,
+    toolFeedbackStyle,
+    allowDestructiveToolCalls,
+    onToolRiskCheck,
+    preparePendingToolCall,
+    onToolCall,
+    hasPersistedExecutionForRequest,
+    writeToolDecisionAuditLog,
+    writeToolIntentAuditLog,
+    sessionMemory,
+    updateSessionMemory,
+    persistSessionMemory,
+    setTaskSession,
+    setPendingToolCall,
+    taskSessionId,
+    markExecutedRequestId,
+    bumpMetric,
+    shouldBumpRecovery,
+    shouldApplyTurnSideEffects,
+    turnConversationId,
+    agentRunId,
+  } = params;
+  return resolveToolDecisionPipeline({
+    assistantMessageId: assistantId,
+    toolCall,
+    userText,
+    aiContext,
+    messageHistory: messages,
+    providerId,
+    model,
+    locale: toolFeedbackLocale,
+    toolDecisionMode,
+    toolFeedbackStyle,
+    planner,
+    ...(memoryRecallShape ? { memoryRecallShape } : {}),
+    allowDestructiveToolCalls,
+    ...(onToolRiskCheck ? { onToolRiskCheck } : {}),
+    ...(preparePendingToolCall ? { preparePendingToolCall } : {}),
+    ...(onToolCall ? { onToolCall } : {}),
+    hasPersistedExecutionForRequest,
+    writeToolDecisionAuditLog,
+    writeToolIntentAuditLog,
+    sessionMemory,
+    updateSessionMemory,
+    persistSessionMemory,
+    setTaskSession,
+    setPendingToolCall,
+    taskSessionId,
+    markExecutedRequestId,
+    bumpMetric,
+    shouldBumpRecovery,
+    ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
+    ...(turnConversationId ? { turnConversationId } : {}),
+    ...(agentRunId ? { agentRunId } : {}),
+  });
 }

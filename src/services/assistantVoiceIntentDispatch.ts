@@ -10,6 +10,8 @@ import { tf, type Locale } from '../i18n';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { ActionId, VoiceIntent, VoiceSession, VoiceSessionEntry } from './IntentRouter';
 import type { SttResult } from './VoiceInputService.types';
+import { featureFlags } from '../ai/config/featureFlags';
+import { writeVoiceActionAudit } from './voiceActionAudit';
 
 export type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 
@@ -36,13 +38,19 @@ export interface DispatchResolvedVoiceIntentInput {
   queueAiThinking: () => void;
   setError: (e: string | null) => void;
   setAgentState: (s: AgentState) => void;
-  setPendingConfirm: (p: {
-    actionId: ActionId;
-    label: string;
-    fromFuzzy?: boolean;
-    params?: { segmentIndex?: number };
-  } | null) => void;
+  setPendingConfirm: (
+    p: {
+      actionId: ActionId;
+      label: string;
+      fromFuzzy?: boolean;
+      params?: { segmentIndex?: number };
+    } | null,
+  ) => void;
   inputModality: 'voice' | 'text';
+  /** R1：动作执行后才学别名（来自 resolveVoiceIntent）| R1: learn alias only after execution */
+  learnAliasAfterExecution?: () => void;
+  /** R1：本次意图由模型解析 | R1: intent came from the LLM fallback */
+  llmResolvedAction?: boolean;
 }
 
 function toolArgumentsFromIntentParams(params: Record<string, string>): Record<string, unknown> {
@@ -69,7 +77,9 @@ export function appendTurnToVoiceSession(
 /**
  * 在 `resolveVoiceIntent` 与会话条目追加之后调用；不修改 session / 别名表。
  */
-export async function dispatchResolvedVoiceIntent(input: DispatchResolvedVoiceIntentInput): Promise<void> {
+export async function dispatchResolvedVoiceIntent(
+  input: DispatchResolvedVoiceIntentInput,
+): Promise<void> {
   const {
     locale,
     safeMode,
@@ -87,7 +97,10 @@ export async function dispatchResolvedVoiceIntent(input: DispatchResolvedVoiceIn
     setAgentState,
     setPendingConfirm,
     inputModality,
+    learnAliasAfterExecution,
+    llmResolvedAction,
   } = input;
+  const runtimeV2 = featureFlags.aiAgentRuntimeV2Enabled;
 
   if (llmFallbackFailed && intent.type === 'chat') {
     return;
@@ -96,12 +109,23 @@ export async function dispatchResolvedVoiceIntent(input: DispatchResolvedVoiceIn
   switch (intent.type) {
     case 'action': {
       const needsConfirm =
-        (intent.fromFuzzy && intentRouter.shouldConfirmFuzzyAction(intent.actionId))
-        || (safeMode && intentRouter.isDestructiveAction(intent.actionId));
+        (intent.fromFuzzy && intentRouter.shouldConfirmFuzzyAction(intent.actionId)) ||
+        // R1：破坏性动作一律确认，不再只在 safeMode 下 | destructive always confirms under v2
+        ((runtimeV2 || safeMode) && intentRouter.isDestructiveAction(intent.actionId));
       if (needsConfirm) {
         const label = intent.fromFuzzy
-          ? tf(locale, 'transcription.voice.confirmLabel.fuzzyAction', { action: getActionLabel(intent.actionId, locale) })
+          ? tf(locale, 'transcription.voice.confirmLabel.fuzzyAction', {
+              action: getActionLabel(intent.actionId, locale),
+            })
           : getActionLabel(intent.actionId, locale);
+        if (runtimeV2 && llmResolvedAction) {
+          void writeVoiceActionAudit({
+            sessionId,
+            actionId: intent.actionId,
+            decision: 'pending',
+            ...(intent.params ? { params: intent.params } : {}),
+          });
+        }
         setPendingConfirm({
           actionId: intent.actionId,
           label,
@@ -114,6 +138,15 @@ export async function dispatchResolvedVoiceIntent(input: DispatchResolvedVoiceIn
       }
       setError(null);
       executeAction(intent.actionId, intent.params);
+      learnAliasAfterExecution?.();
+      if (runtimeV2 && llmResolvedAction) {
+        void writeVoiceActionAudit({
+          sessionId,
+          actionId: intent.actionId,
+          decision: 'auto_confirmed',
+          ...(intent.params ? { params: intent.params } : {}),
+        });
+      }
       applyVoiceConfirmedPendingTelemetry({
         actionId: intent.actionId,
         sessionId,
@@ -123,6 +156,12 @@ export async function dispatchResolvedVoiceIntent(input: DispatchResolvedVoiceIn
       return;
     }
     case 'tool': {
+      // R1：语音工具调用交给聊天回合，走同一决策管线的确认、写入门禁与审计 | same pipeline as chat
+      if (runtimeV2 && sendToAiChat) {
+        queueAiThinking();
+        sendToAiChat(intent.raw);
+        return;
+      }
       if (executeVoiceToolCall) {
         try {
           const toolResult = await executeVoiceToolCall({
@@ -130,23 +169,29 @@ export async function dispatchResolvedVoiceIntent(input: DispatchResolvedVoiceIn
             arguments: toolArgumentsFromIntentParams(intent.params),
           });
           if (toolResult.ok) {
-            sendToAiChat?.(tf(locale, 'transcription.voice.chatPrefix.toolSuccess', {
-              toolName: intent.toolName,
-              message: toolResult.message,
-            }));
+            sendToAiChat?.(
+              tf(locale, 'transcription.voice.chatPrefix.toolSuccess', {
+                toolName: intent.toolName,
+                message: toolResult.message,
+              }),
+            );
             Earcon.playSuccess();
           } else {
-            sendToAiChat?.(tf(locale, 'transcription.voice.chatPrefix.toolFailure', {
-              toolName: intent.toolName,
-              message: toolResult.message,
-            }));
+            sendToAiChat?.(
+              tf(locale, 'transcription.voice.chatPrefix.toolFailure', {
+                toolName: intent.toolName,
+                message: toolResult.message,
+              }),
+            );
             Earcon.playError();
           }
         } catch (err) {
-          sendToAiChat?.(tf(locale, 'transcription.voice.chatPrefix.toolException', {
-            toolName: intent.toolName,
-            message: err instanceof Error ? err.message : String(err),
-          }));
+          sendToAiChat?.(
+            tf(locale, 'transcription.voice.chatPrefix.toolException', {
+              toolName: intent.toolName,
+              message: err instanceof Error ? err.message : String(err),
+            }),
+          );
           Earcon.playError();
         }
       } else if (sendToAiChat) {
@@ -168,10 +213,12 @@ export async function dispatchResolvedVoiceIntent(input: DispatchResolvedVoiceIn
       }
       setError(null);
       queueAiThinking();
-      sendToAiChat(tf(locale, 'transcription.voice.chatPrefix.slotFill', {
-        slotName: intent.slotName,
-        value: intent.value,
-      }));
+      sendToAiChat(
+        tf(locale, 'transcription.voice.chatPrefix.slotFill', {
+          slotName: intent.slotName,
+          value: intent.value,
+        }),
+      );
       return;
     }
     case 'chat': {

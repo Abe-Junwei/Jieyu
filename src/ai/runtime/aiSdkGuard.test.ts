@@ -1,7 +1,7 @@
 /**
  * 护栏 2 / 9：源码扫描守卫（迁移方案 v4.2 §3.3）。
  * Source-scan guard: no gateway, no provider built-in tools, no deprecated generateObject,
- * and write tools in the pilot must be approval-gated.
+ * and pilot tools execute only through the decision pipeline.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -37,9 +37,9 @@ describe('aiSdkGuard', () => {
     expect(hits).toEqual([]);
   });
 
-  it('pilot write tools are always user-approval gated', () => {
+  it('pilot tools execute only through runToolDecision (the existing decision pipeline)', () => {
     const text = readFileSync(join(__dirname, 'toolLoopAgentPilot.ts'), 'utf8');
-    expect(text).toMatch(/toolApproval\[name\] = 'user-approval'/);
-    expect(text).toMatch(/execute: \(input, \{ toolCallId \}\) => options\.runWriteDecision/);
+    expect(text.match(/execute:/g)).toHaveLength(1);
+    expect(text).toMatch(/execute: \(input, \{ toolCallId \}\) => options\.runToolDecision/);
   });
 });

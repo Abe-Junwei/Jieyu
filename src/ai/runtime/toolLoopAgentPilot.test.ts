@@ -1,4 +1,4 @@
-import { APICallError, type ModelMessage, type ToolApprovalResponse } from 'ai';
+import { APICallError } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -7,6 +7,7 @@ import {
   createPilotAgent,
   isToolsRejectedError,
   mapStreamPart,
+  type PilotToolOutcome,
 } from './toolLoopAgentPilot';
 
 const usage = {
@@ -26,78 +27,69 @@ const textTurn = (text: string) => ({
   warnings: [],
 });
 
-function buildAgent(turns: ReturnType<typeof toolCallTurn | typeof textTurn>[]) {
+function buildAgent(
+  turns: ReturnType<typeof toolCallTurn | typeof textTurn>[],
+  decide: (name: string) => PilotToolOutcome = () => ({ status: 'done', message: 'ok' }),
+) {
   const model = new MockLanguageModelV4({ doGenerate: turns as never });
-  const readExec = vi.fn(async (input: unknown) => ({ ok: true, input }));
-  const runWriteDecision = vi.fn(async () => ({ committed: true }));
+  const runToolDecision = vi.fn(async (name: string) => decide(name));
   const agent = createPilotAgent({
     model,
-    readTools: {
-      search_segments: {
-        description: 'search',
-        inputSchema: z.object({ q: z.string() }),
-        execute: readExec,
-      },
-      list_layers: { description: 'layers', inputSchema: z.object({}), execute: readExec },
-    },
-    writeTools: {
+    tools: {
+      search_segments: { description: 'search', inputSchema: z.object({ q: z.string() }) },
+      list_layers: { description: 'layers', inputSchema: z.object({}) },
       delete_transcription_segment: {
         description: 'delete',
         inputSchema: z.object({ segmentId: z.string() }),
       },
     },
-    runWriteDecision,
+    runToolDecision,
   });
-  return { agent, model, readExec, runWriteDecision };
+  return { agent, model, runToolDecision };
 }
+
+const pendingForDelete = (name: string): PilotToolOutcome =>
+  name === 'delete_transcription_segment'
+    ? { status: 'pending_user_confirmation', message: '请确认删除', requestId: 'r1' }
+    : { status: 'done', message: 'ok' };
 
 describe('toolLoopAgentPilot guardrails (§3.3)', () => {
   it('G1: rejects string model ids', () => {
     expect(() => assertProviderInstance('openai/gpt-4o')).toThrow(/string model ids/);
   });
 
-  it('loop: two read tools, then write needs approval; reject => zero writes', async () => {
-    const { agent, readExec, runWriteDecision } = buildAgent([
-      toolCallTurn('search_segments', '{"q":"a"}'),
-      toolCallTurn('list_layers', '{}'),
-      toolCallTurn('delete_transcription_segment', '{"segmentId":"s1"}'),
-      textTurn('ok, not deleted'),
+  it('loop: two reads, then a write pending confirmation stops the loop', async () => {
+    const { agent, model, runToolDecision } = buildAgent(
+      [
+        toolCallTurn('search_segments', '{"q":"a"}'),
+        toolCallTurn('list_layers', '{}'),
+        toolCallTurn('delete_transcription_segment', '{"segmentId":"s1"}'),
+        textTurn('should not be reached'),
+      ],
+      pendingForDelete,
+    );
+    const result = await agent.generate({
+      messages: [{ role: 'user', content: 'find and delete s1' }],
+    });
+    expect(runToolDecision.mock.calls.map((c) => c[0])).toEqual([
+      'search_segments',
+      'list_layers',
+      'delete_transcription_segment',
     ]);
-    const messages: ModelMessage[] = [{ role: 'user', content: 'find and delete s1' }];
-    const first = await agent.generate({ messages });
-    expect(readExec).toHaveBeenCalledTimes(2);
-    const req = first.content.find((p) => p.type === 'tool-approval-request');
-    expect(req).toBeDefined();
-    expect(runWriteDecision).not.toHaveBeenCalled();
-
-    messages.push(...first.responseMessages);
-    const deny: ToolApprovalResponse = {
-      type: 'tool-approval-response',
-      approvalId: (req as { approvalId: string }).approvalId,
-      approved: false,
-    };
-    messages.push({ role: 'tool', content: [deny] });
-    await agent.generate({ messages });
-    expect(runWriteDecision).not.toHaveBeenCalled();
+    expect(model.doGenerateCalls).toHaveLength(3);
+    expect(result.steps.at(-1)!.toolResults[0]!.output).toMatchObject({
+      status: 'pending_user_confirmation',
+    });
   });
 
-  it('approve => write goes only through runWriteDecision, with the call id', async () => {
-    const { agent, runWriteDecision } = buildAgent([
+  it('every tool call goes only through runToolDecision, with the parsed input and call id', async () => {
+    const { agent, runToolDecision } = buildAgent([
       toolCallTurn('delete_transcription_segment', '{"segmentId":"s1"}', 'call-9'),
       textTurn('deleted'),
     ]);
-    const messages: ModelMessage[] = [{ role: 'user', content: 'delete s1' }];
-    const first = await agent.generate({ messages });
-    const req = first.content.find((p) => p.type === 'tool-approval-request') as {
-      approvalId: string;
-    };
-    messages.push(...first.responseMessages, {
-      role: 'tool',
-      content: [{ type: 'tool-approval-response', approvalId: req.approvalId, approved: true }],
-    });
-    await agent.generate({ messages });
-    expect(runWriteDecision).toHaveBeenCalledTimes(1);
-    expect(runWriteDecision).toHaveBeenCalledWith(
+    await agent.generate({ messages: [{ role: 'user', content: 'delete s1' }] });
+    expect(runToolDecision).toHaveBeenCalledTimes(1);
+    expect(runToolDecision).toHaveBeenCalledWith(
       'delete_transcription_segment',
       { segmentId: 's1' },
       'call-9',
@@ -105,13 +97,12 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
   });
 
   it('G5: invalid args never execute and never become {}', async () => {
-    const { agent, runWriteDecision } = buildAgent([
+    const { agent, runToolDecision } = buildAgent([
       toolCallTurn('delete_transcription_segment', '{"segmentId":'),
       textTurn('need clarification'),
     ]);
     const result = await agent.generate({ messages: [{ role: 'user', content: 'x' }] });
-    expect(runWriteDecision).not.toHaveBeenCalled();
-    expect(result.content.some((p) => p.type === 'tool-approval-request')).toBe(false);
+    expect(runToolDecision).not.toHaveBeenCalled();
     const invalid = result.steps[0]!.toolCalls[0] as { invalid?: boolean; input: unknown };
     expect(invalid.invalid).toBe(true);
     expect(invalid.input).not.toEqual({});
@@ -134,9 +125,8 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
     });
     const agent = createPilotAgent({
       model,
-      readTools: {},
-      writeTools: {},
-      runWriteDecision: vi.fn(),
+      tools: {},
+      runToolDecision: vi.fn(),
     });
     await expect(agent.generate({ messages: [{ role: 'user', content: 'hi' }] })).rejects.toThrow();
     expect(model.doGenerateCalls).toHaveLength(1);

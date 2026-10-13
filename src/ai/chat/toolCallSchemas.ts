@@ -408,7 +408,7 @@ export function extractJsonCandidates(text: string): string[] {
  * 与 `normalizeToolCallName` 输出一致；用于 `z.enum` 收紧类型，避免解析结果漂移。
  * Must stay in sync with every non-null return of `normalizeToolCallName`.
  */
-const AI_CHAT_TOOL_NAMES_FROM_PARSER = [
+export const AI_CHAT_TOOL_NAMES_FROM_PARSER = [
   'create_transcription_segment',
   'split_transcription_segment',
   'merge_transcription_segments',

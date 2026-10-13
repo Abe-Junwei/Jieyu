@@ -99,7 +99,14 @@ async function resolveVoiceIntentFromResult(options: {
   const intentRouter = await loadIntentRouterRuntime();
   const { refineLlmFallbackIntent } = await loadVoiceIntentRefineRuntime();
 
-  const { intent, llmFallbackFailed, nextAliasMap, errorMessage } = await resolveVoiceIntent(
+  const {
+    intent,
+    llmFallbackFailed,
+    llmResolvedAction,
+    nextAliasMap,
+    errorMessage,
+    learnAliasAfterExecution,
+  } = await resolveVoiceIntent(
     {
       routeIntent: intentRouter.routeIntent,
       learnVoiceIntentAlias: intentRouter.learnVoiceIntentAlias,
@@ -125,7 +132,9 @@ async function resolveVoiceIntentFromResult(options: {
     intentRouter,
     intent,
     llmFallbackFailed,
+    llmResolvedAction,
     nextAliasMap,
+    learnAliasAfterExecution,
   };
 }
 
@@ -184,16 +193,22 @@ export function useVoiceAgentResultHandler({
       setAgentState('routing');
 
       const currentMode = modeRef.current;
-      const { intentRouter, intent, llmFallbackFailed, nextAliasMap } =
-        await resolveVoiceIntentFromResult({
-          result,
-          currentMode,
-          session: sessionRef.current,
-          aliasMap: aliasMapRef.current,
-          resolveIntentWithLlm: resolveIntentWithLlmRef.current,
-          locale,
-          setError,
-        });
+      const {
+        intentRouter,
+        intent,
+        llmFallbackFailed,
+        llmResolvedAction,
+        nextAliasMap,
+        learnAliasAfterExecution,
+      } = await resolveVoiceIntentFromResult({
+        result,
+        currentMode,
+        session: sessionRef.current,
+        aliasMap: aliasMapRef.current,
+        resolveIntentWithLlm: resolveIntentWithLlmRef.current,
+        locale,
+        setError,
+      });
       if (nextAliasMap) {
         aliasMapRef.current = nextAliasMap;
       }
@@ -234,6 +249,15 @@ export function useVoiceAgentResultHandler({
         setAgentState,
         setPendingConfirm,
         inputModality: 'voice',
+        llmResolvedAction,
+        ...(learnAliasAfterExecution
+          ? {
+              learnAliasAfterExecution: () => {
+                const learned = learnAliasAfterExecution();
+                if (learned) aliasMapRef.current = learned;
+              },
+            }
+          : {}),
       });
     },
     [
