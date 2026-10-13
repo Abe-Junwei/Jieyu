@@ -55,3 +55,33 @@ export async function withNoteTextId(
     throw new Error(`user_notes: cannot resolve textId for ${note.targetType}:${note.targetId}`);
   return { ...note, textId };
 }
+
+/**
+ * 给缺 textId 的旧备注补齐（打开数据库 / 导入旧备份时）；补不上的只返回 id，由调用方记日志，不删除。
+ * Backfill textId on legacy notes (DB open / legacy backup import). Unresolvable ids are returned, never deleted.
+ */
+export async function fillLegacyNoteTextIds(
+  d: JieyuDatabase,
+  notes: Array<Partial<UserNoteDocType> & NoteTargetRef>,
+): Promise<{ filled: UserNoteDocType[]; unresolved: string[] }> {
+  const filled: UserNoteDocType[] = [];
+  const unresolved: string[] = [];
+  for (const note of notes) {
+    if (present(note.textId)) continue;
+    const textId = await resolveNoteTextId(d, note);
+    if (present(textId)) filled.push({ ...note, textId } as UserNoteDocType);
+    else unresolved.push(String(note.id));
+  }
+  return { filled, unresolved };
+}
+
+/** 打开数据库后一次性回填 | One-time backfill after the DB opens. */
+export async function backfillUserNoteTextIds(
+  d: JieyuDatabase,
+): Promise<{ filled: number; unresolved: string[] }> {
+  const legacy = await d.user_notes.filter((note) => !present(note.textId)).toArray();
+  if (legacy.length === 0) return { filled: 0, unresolved: [] };
+  const { filled, unresolved } = await fillLegacyNoteTextIds(d, legacy);
+  if (filled.length > 0) await d.user_notes.bulkPut(filled);
+  return { filled: filled.length, unresolved };
+}

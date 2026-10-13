@@ -34,6 +34,7 @@ import {
   type SnapshotInvalidCollection,
 } from './snapshotFormatError';
 import { withLexemeNestedIds } from './lexemeNestedIds';
+import { fillLegacyNoteTextIds } from './noteTextId';
 import { dropOrphanRows } from './dropOrphanRows';
 import { JIEYU_PARENT_CONSISTENCY_RULES } from './ownershipImmutabilityMiddleware';
 import {
@@ -647,6 +648,33 @@ export async function prepareSnapshotImport(
   }
   if ('units' in cols) {
     delete cols['units'];
+  }
+
+  // P0-2b：旧备份的备注缺 textId，按本包（再退回本机库）的目标行补齐；补不上的记日志后跳过
+  // Legacy backups: fill note textId from this payload (falling back to local DB); unresolvable notes are logged and skipped
+  if (
+    Array.isArray(cols['user_notes']) &&
+    cols['user_notes'].some((n) => ((n as { textId?: string }).textId ?? '') === '')
+  ) {
+    const local = await getDb();
+    const payloadLookup = new Proxy({} as JieyuDatabase['dexie'], {
+      get: (_target, table: string) => ({
+        get: async (id: string) =>
+          (cols[table] as Array<{ id?: string }> | undefined)?.find((row) => row?.id === id) ??
+          (await (
+            local.dexie as unknown as Record<string, { get: (id: string) => Promise<unknown> }>
+          )[table]?.get(id)),
+      }),
+    });
+    const notes = cols['user_notes'] as Array<UserNoteDocType>;
+    const { filled, unresolved } = await fillLegacyNoteTextIds(payloadLookup, notes);
+    const byId = new Map(filled.map((note) => [note.id, note]));
+    if (unresolved.length > 0)
+      log.warn('Skipped legacy notes without resolvable textId', { unresolved });
+    const skip = new Set(unresolved);
+    cols['user_notes'] = notes
+      .filter((note) => !skip.has(note.id))
+      .map((note) => byId.get(note.id) ?? note);
   }
 
   const preparedCollections: PreparedCollection[] = [];
