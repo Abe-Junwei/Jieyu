@@ -80,6 +80,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   13. 显示 AI token 用量；可选设每月上限，超出后停用 AI（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)）。
   14. 试用版转写走云端 OpenAI 兼容转写接口，用试用者自己的密钥；本地 Whisper 放第二程（新单 [#303](https://github.com/Abe-Junwei/Jieyu/issues/303)）。
   15. 媒体：WAV/MP3/M4A/FLAC 原样复制；支持视频，抽出音轨，音轨与原视频都存进 media/，播放与波形用音轨（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
+- 2026-10-13 21:06 用户拍板（模型接口，方案见 [model-interface-plan.md](model-interface-plan.md)）：
+  1. `model_runs` 表在 D14 冻结前定进项目格式（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
+  2. [#303](https://github.com/Abe-Junwei/Jieyu/issues/303) 本地 Whisper 改为模型接口的第一个实现，用自带 whisper-server，不用 whisper.cpp 官方 `/inference`。
+  3. 首片只做转写，对齐放后面。
+  4. 用户模型服务不支持令牌也能接，只显示警告。
+  5. 现在在 #285 下开 N1–N3 占位：[#304](https://github.com/Abe-Junwei/Jieyu/issues/304)、[#305](https://github.com/Abe-Junwei/Jieyu/issues/305)、[#306](https://github.com/Abe-Junwei/Jieyu/issues/306)。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
 
 ## Next leg
@@ -103,7 +109,10 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#300](https://github.com/Abe-Junwei/Jieyu/issues/300) 进行中 spec 复核（ai-conversation-management 等，受 AI SDK 迁移影响）
 - [#301](https://github.com/Abe-Junwei/Jieyu/issues/301) C2 i18n 基线消减
 - [#302](https://github.com/Abe-Junwei/Jieyu/issues/302) C3d Word/docx 导出
-- [#303](https://github.com/Abe-Junwei/Jieyu/issues/303) 本地 Whisper 转写
+- [#303](https://github.com/Abe-Junwei/Jieyu/issues/303) 本地 Whisper 转写（模型接口第一个实现）
+- [#304](https://github.com/Abe-Junwei/Jieyu/issues/304) N1 ADR：模型接口（转写、合同 v1、安全、model_runs）
+- [#305](https://github.com/Abe-Junwei/Jieyu/issues/305) N2 主进程本机 HTTP 模型宿主（依赖 #276、#304、whisper-server 回环修复）
+- [#306](https://github.com/Abe-Junwei/Jieyu/issues/306) N3 统一模型候选面板 + 模拟模型 + 自测脚本 + e2e（依赖 #305、#284）
 
 ## Not yet specified
 
