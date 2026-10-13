@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import type { GenericPlugin } from 'wavesurfer.js/dist/base-plugin.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
@@ -110,7 +110,23 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   // Mirror callbacks in a ref so the heavy init effect doesn't re-run when they change.
   const cbRef = useLatest(options);
 
-  const waveformRef = useRef<HTMLDivElement | null>(null);
+  // WS8-X1：宿主节点可能在生命周期 effect 之后才挂上（effect 读到 null 就再也不建实例，卡在“解码中”）。
+  // 用 ref 对象的 setter 记下非空宿主，作为 effect 依赖，挂上后重跑。
+  // WS8-X1: the host can attach after the lifecycle effect ran (null → no instance, stuck "decoding").
+  // The ref setter records non-null hosts as state so the effect re-runs once the host attaches.
+  const [waveformHost, setWaveformHost] = useState<HTMLDivElement | null>(null);
+  const waveformRef = useMemo<MutableRefObject<HTMLDivElement | null>>(() => {
+    let element: HTMLDivElement | null = null;
+    return {
+      get current() {
+        return element;
+      },
+      set current(next: HTMLDivElement | null) {
+        element = next;
+        if (next) setWaveformHost(next);
+      },
+    };
+  }, []);
   const spectrogramRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
@@ -495,7 +511,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       regionAbortRef.current.forEach((ac) => ac.abort());
       regionAbortRef.current = new Map();
     };
-  }, [cbRef, mediaUrl, showSpectrogram]);
+  }, [cbRef, mediaUrl, showSpectrogram, waveformHost, waveformRef]);
 
   // ---- Incremental sync (no instance recreation) ----
   useEffect(() => {
