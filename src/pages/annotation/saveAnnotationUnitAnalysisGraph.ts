@@ -64,13 +64,14 @@ async function writeAnalysisGraph(
 function enqueueGraphWrite<T>(unitId: string, action: () => Promise<T>): Promise<T> {
   const previous = graphWriteTail.get(unitId) ?? Promise.resolve();
   const run = previous.then(action, action);
-  graphWriteTail.set(
-    unitId,
-    run.then(
-      () => undefined,
-      () => undefined,
-    ),
+  const tail = run.then(
+    () => undefined,
+    () => undefined,
   );
+  graphWriteTail.set(unitId, tail);
+  void tail.then(() => {
+    if (graphWriteTail.get(unitId) === tail) graphWriteTail.delete(unitId);
+  });
   return run;
 }
 

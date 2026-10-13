@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { addAlternativePos, selectAlternativeAnalysis } from '../../annotation/alternativeAnalysis';
 import { assignPartOfMwe } from '../../annotation/partOfMwe';
 import { projectUtteranceAnalysisGraph } from '../../annotation/projectUtteranceAnalysisGraph';
@@ -267,5 +267,57 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
       (unit) => unit.id === 'unit-base',
     );
     expect(stored?.analysisGraph).toEqual(first);
+  });
+
+  it('releases the per-unit queue after concurrent writes settle', async () => {
+    const unitId = 'unit-queue-release';
+    const firstGraph = projectUtteranceAnalysisGraph({
+      id: unitId,
+      text: 'run',
+      tokens: [{ id: 'token-queue-release', form: 'run', pos: 'N' }],
+    });
+    const secondGraph = addAlternativePos(firstGraph, 'token-queue-release', 'VERB');
+    let stored: LayerUnitDocType = {
+      id: unitId,
+      textId: 'text-queue-release',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const deps = {
+      listByTextId: async () => [stored],
+      saveBatch: async (items: LayerUnitDocType[]) => {
+        stored = items[0]!;
+      },
+    };
+    let queue: Map<string, Promise<unknown>> | undefined;
+    let lastTail: Promise<unknown> | undefined;
+    const originalSet = Map.prototype.set;
+    const setSpy = vi.spyOn(Map.prototype, 'set').mockImplementation(function (
+      this: Map<unknown, unknown>,
+      key,
+      value,
+    ) {
+      if (key === unitId && value instanceof Promise) {
+        queue = this as Map<string, Promise<unknown>>;
+        lastTail = value;
+      }
+      return originalSet.call(this, key, value);
+    });
+    try {
+      await Promise.all([
+        saveAnnotationUnitAnalysisGraph({ textId: stored.textId, unitId, graph: firstGraph }, deps),
+        saveAnnotationUnitAnalysisGraph(
+          { textId: stored.textId, unitId, graph: secondGraph, expectedBase: firstGraph },
+          deps,
+        ),
+      ]);
+      await lastTail;
+      expect(stored.analysisGraph).toEqual(secondGraph);
+      expect(queue?.has(unitId)).toBe(false);
+    } finally {
+      setSpy.mockRestore();
+    }
   });
 });
