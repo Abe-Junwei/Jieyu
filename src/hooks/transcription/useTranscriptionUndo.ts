@@ -435,6 +435,25 @@ export function useTranscriptionUndo({
     setUndoRedoVersion((v) => v + 1);
   }, []);
 
+  /**
+   * P1-2：任何远端变更落地后清空撤销和重做。快照式撤销会把整份旧快照写回，
+   * 覆盖协作者的修改、删掉协作者新建的行；远端 entityId 也不一定是行 id，所以不做按 id 精细作废。
+   * P1-2: any landed remote change clears undo and redo entirely. Snapshot undo writes the whole old
+   * snapshot back (overwriting collaborator edits, deleting rows they created), and remote entityIds
+   * are not always row ids, so there is no per-id invalidation.
+   */
+  const invalidateUndoForRemoteChange = useCallback(() => {
+    if (undoStackRef.current.length === 0 && redoStackRef.current.length === 0) return;
+    const hadUndo = undoStackRef.current.length > 0;
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setUndoRedoVersion((v) => v + 1);
+    // 提示而非报错 | Informational, not an error
+    if (hadUndo) {
+      setSaveState({ kind: 'done', message: t(locale, 'transcription.undo.clearedByRemote') });
+    }
+  }, [locale, setSaveState]);
+
   const canUndo = useMemo(() => {
     void _undoRedoVersion;
     return undoStackRef.current.length > 0;
@@ -467,6 +486,7 @@ export function useTranscriptionUndo({
     undoToHistoryIndex,
     redo,
     resetHistoryOnScopeChange,
+    invalidateUndoForRemoteChange,
     canUndo,
     canRedo,
     undoLabel,

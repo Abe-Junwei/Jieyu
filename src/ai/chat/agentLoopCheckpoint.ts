@@ -159,6 +159,7 @@ export async function loadLatestPendingAgentLoopCheckpoint(
 ): Promise<AiSessionMemoryPendingAgentLoopCheckpoint | undefined> {
   const scopedConversationId = options?.conversationId?.trim();
   const db = await getDb();
+  // shortcut(P2-3): 全局表，量小 | global table, small
   const pendingTasks = (await db.collections.ai_tasks.find().exec())
     .map((item) => item.toJSON())
     .filter((row) => isPendingResumableAgentLoopTask(row))

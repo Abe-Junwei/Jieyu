@@ -49,6 +49,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     undoToHistoryIndex,
     redo,
     resetHistoryOnScopeChange,
+    invalidateUndoForRemoteChange,
     canUndo,
     canRedo,
     undoLabel,
@@ -352,6 +353,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
   );
 
   const cloudSyncActions = useTranscriptionCloudSyncActions({
+    onRemoteChangeApplied: invalidateUndoForRemoteChange,
     phase: state.phase,
     units,
     layers,

@@ -148,6 +148,7 @@ export async function exportDatabaseAsJson(options?: {
               (skip === undefined || !skip.has(name)),
           )
           .map(async ([name, collection]) => {
+            // shortcut(P2-3): 整库导入导出，按设计读整表 | whole-DB import/export reads every row by design
             const docs = await collection.find().exec();
             return [name, docs.map((doc) => doc.toJSON())] as const;
           }),
@@ -940,6 +941,7 @@ export async function importDatabaseFromJson(
           let skipped = 0;
 
           if (strategy === 'replace-all') {
+            // shortcut(P2-3): 整库导入导出，按设计读整表 | whole-DB import/export reads every row by design
             const existing = await collection.find().exec();
             for (const row of existing) {
               await collection.remove(row.primary);

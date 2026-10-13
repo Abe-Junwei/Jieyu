@@ -336,11 +336,10 @@ export class WorkspaceReadModelService {
         ]),
       { label: 'WorkspaceReadModelService.rebuildForText.sourceRead' },
     );
-    const layerDocsWrapped = await db.collections.layers.find().exec();
-
-    const layers = layerDocsWrapped
-      .map((doc) => doc.toJSON())
-      .filter((row) => row.textId === normalizedTextId);
+    // P2-3：按 textId 索引取层，不再读全部项目的层 | P2-3: layers via the textId index
+    const layers = (await db.collections.layers.findByIndex('textId', normalizedTextId)).map(
+      (doc) => doc.toJSON(),
+    );
 
     const scopes = [
       ...new Map(

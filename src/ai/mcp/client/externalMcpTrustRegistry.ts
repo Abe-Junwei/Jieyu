@@ -112,6 +112,7 @@ async function persistTrustAudit(input: {
 
 export async function listExternalMcpTrustEntries(): Promise<ExternalMcpTrustDoc[]> {
   const db = await getDb();
+  // shortcut(P2-3): 全局表，量小 | global table, small
   const rows = await db.collections.external_mcp_trust.find().exec();
   return rows.map((row) => row.toJSON()).sort((a, b) => a.origin.localeCompare(b.origin));
 }
