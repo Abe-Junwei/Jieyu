@@ -152,10 +152,10 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 每个切片"完全落地"必须同时满足（本地闭环口径）：
 
-1. **数据层**：Dexie schema / Service / Worker 写路径就位；**写 → reload/requery → readback 验证**（不止字段存在）。
+1. **数据层**：经存储接口写入，SQLite 与 Dexie 两实现均读回校验（2026-10-13 起；此前为 Dexie schema / Service / Worker 写路径就位）；**写 → reload/requery → readback 验证**（不止字段存在）。
 2. **UI 层**：入口、状态、交互闭环接线完成；用户可见文案走 `dictKeys` / 字典，不留硬编码。
 3. **编排纪律**：重逻辑下沉 controller/service/纯函数；不在页面层堆业务（copilot-instructions §一/§三）。
-4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；触交互/ReadyWorkspace/侧栏/时间轴加 `npm run test:e2e:chromium`；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`。
+4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；触交互/ReadyWorkspace/侧栏/时间轴加 `npm run test:e2e:chromium`；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`；触桌面壳/存储加 Electron 构建与主进程测试。
 5. **可回滚**：高风险或 UI 觉察大改套 feature flag（`src/ai/config/featureFlags.ts`），`false` 合并、自用后切默认。
 6. **SDD**：中等以上复杂度（≥1 新 controller / ≥1 新 service / 跨 ≥3 controller）先写 `docs/execution/specs/<slug>/` 三件套再编码。
 
@@ -307,6 +307,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | [16 周执行版路线图（已 superseded）](./16周执行版路线图-2026-04-12.md) | 历史：工程四层架构 | 已 supersede 至本文；工程滚动排期看代码治理计划 v2 |
 | [规划-完整开发计划书 2026-03-16（已归档）](../archive/historical-root-docs/规划-完整开发计划书-2026-03-16.md) | 历史愿景 / 功能清单 | 基线滞后（DB 版本、"无协作后端"等）；仅作上下文 |
 | [仓库现状与代码地图](../../architecture/仓库现状与代码地图.md) | 现状盘点 | 现状真源，不是计划书；新排期写本文或子计划 |
+| [#250 试用地图](../../wayfinder/trial-handoff/map.md) | 当前阶段计划 | 与本文冲突时以 #250 的较新拍板为准；完成切片后两边都更新 |
 | 各域子计划 | 域内落位 / 验收真源 | 与本文冲突时：**域内细节以子计划为准，全局优先级与切片序以本文为准** |
 
 ## 5. 对账规则（保持不过期）

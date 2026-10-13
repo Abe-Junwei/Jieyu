@@ -19,7 +19,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284 及 #303–#306（2026-10-13 从第二程提入）；第二程 #285（子单 #286–#302））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#306 及 #307（2026-10-13 从第二程提入）；第二程 #285（子单 #286–#302））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -97,6 +97,15 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   8. [#304](https://github.com/Abe-Junwei/Jieyu/issues/304)–[#306](https://github.com/Abe-Junwei/Jieyu/issues/306) 与 #303 一起提到第一程（改挂 #250）。
   9. 桌面版功能开关固定用 prod 环境，另加一份试用白名单（[#265](https://github.com/Abe-Junwei/Jieyu/issues/265)）。
   10. 现在做 [#278](https://github.com/Abe-Junwei/Jieyu/issues/278)，更新主路线图。
+- 2026-10-13 21:18–21:20 用户拍板（路线图拷问，续）：
+  1. 应用内反馈按钮打开邮件，预填版本、系统与脱敏日志（[#264](https://github.com/Abe-Junwei/Jieyu/issues/264)）。
+  2. 应用版本从 0.x 起，走 beta 渠道；数据格式版本另用一个整数（[#271](https://github.com/Abe-Junwei/Jieyu/issues/271)、[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
+  3. 解语改用 GPL-3.0-or-later（现为 ISC，著作权人沂南灵创技术服务中心）；暂不改 LICENSE/package.json，由新单 [#307](https://github.com/Abe-Junwei/Jieyu/issues/307) 负责许可切换、依赖兼容核对、安装包第三方许可清单、中文隐私说明。
+  4. 示例语料：撒都话（Sadu，CC BY 4.0），截短文本，另加明确标注的演示 gloss（[#256](https://github.com/Abe-Junwei/Jieyu/issues/256)）。
+  5. 数据恢复：应用内导出诊断包；用户自己从快照恢复（[#269](https://github.com/Abe-Junwei/Jieyu/issues/269)）。
+  6. 首次用云端转写弹专门的伦理/隐私对话框；可按项目关闭云端转写（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)、[#283](https://github.com/Abe-Junwei/Jieyu/issues/283)）。
+  7. 手册写明换电脑靠导出 JYM；性能只记录不设门槛，用一段 2 小时录音实测（[#263](https://github.com/Abe-Junwei/Jieyu/issues/263)）。
+  8. 顺序：先做调研 [#252](https://github.com/Abe-Junwei/Jieyu/issues/252)、[#284](https://github.com/Abe-Junwei/Jieyu/issues/284)，再把 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276)+[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)+[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 作为一个里程碑。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
 
 ## Next leg
