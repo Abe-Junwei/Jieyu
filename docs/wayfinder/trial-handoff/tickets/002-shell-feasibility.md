@@ -1,5 +1,5 @@
 ---
-title: 调研：Tauri 2 与 Electron 跑现有 Vite 应用的可行性
+title: 调研：Electron 跑现有 Vite 应用的事实清单
 label: wayfinder:research
 mode: AFK
 status: open
@@ -8,14 +8,15 @@ blocked_by: []
 issue: https://github.com/Abe-Junwei/Jieyu/issues/252
 ---
 
-# 调研：Tauri 2 与 Electron 跑现有 Vite 应用的可行性
+# 调研：Electron 跑现有 Vite 应用的事实清单
 
 ## Question
 
-收集 2026 年事实，不做决定（输入：盒子 `/workspace/jieyu-review/RESEARCH_DISTRIBUTION.md`；吸收已关闭的 [#268](https://github.com/Abe-Junwei/Jieyu/issues/268)）：
-- 运行现有构建：Tauri 2（macOS WKWebView / Windows WebView2）与 Electron（Chromium）下的 IndexedDB 配额与持久化、是否会被系统清理、数据目录位置、`navigator.storage.persist()`；AudioContext 解码、Worker、严格 CSP（zod jitless）、文件选择与拖放、大文件。
-- Windows 中文输入法：WebView2 的已知问题报告与 Electron 对照。
-- 自动更新：Tauri updater、electron-updater 的现状、是否强制签名、可否用 GitHub Releases。
-- 签名成本：Apple Developer 年费与公证流程、Windows 代码签名证书（OV/EV/Azure Trusted Signing）价格与 SmartScreen 表现。
-- 云端 AI：DeepSeek、Qwen（DashScope）从 `tauri://`/`app://` 或 localhost 来源直连是否被 CORS 拦。
-- 包体大小。
+外壳已定 Electron（Tauri 对比不再需要）。收集 2026 年事实，不做决定：
+- Windows 中文输入法在 Electron 下的已知问题。
+- electron-updater + GitHub Releases：Mac 必须签名公证；Windows 不签名时能否自动更新、SmartScreen 表现。
+- Apple Developer 年费与公证流程在 CI 中的做法。
+- 系统钥匙串：keytar 已停维，2026 可用替代（safeStorage 等）。
+- 主进程发 AI 请求：流式响应经 IPC 回传的常见做法。
+- 包体大小、最低 macOS/Windows 版本（供 [#270](https://github.com/Abe-Junwei/Jieyu/issues/270)）。
+- 主进程读写大音频文件与渲染进程播放（wavesurfer）的路径方式。

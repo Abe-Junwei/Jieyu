@@ -1,15 +1,15 @@
 ---
-title: 试用版功能面：哪些功能隐藏或标为实验
-label: wayfinder:grilling
-mode: HITL
+title: 试用版功能面：列出核心流程之外要隐藏或标实验的功能
+label: wayfinder:task
+mode: AFK
 status: open
 assignee:
 blocked_by: []
 issue: https://github.com/Abe-Junwei/Jieyu/issues/265
 ---
 
-# 试用版功能面：哪些功能隐藏或标为实验
+# 试用版功能面：列出核心流程之外要隐藏或标实验的功能
 
 ## Question
 
-应用功能很多（写作工作区、语音、AI 背景工具、云协作面板、WebLLM/Ollama 本地模型等）。试用版里哪些要隐藏或关闭（例如 Supabase 云协作、本地模型），哪些标为实验？用现有特性开关还是构建变体？
+用户 2026-10-13 定：试用版只露核心流程——导入录音、切分/标注、词库、导出 EAF/JYM、AI 辅助；其余隐藏或标为实验。逐项盘点现有功能与特性开关，列出隐藏/实验清单和用哪个开关实现。只盘点，不改代码。

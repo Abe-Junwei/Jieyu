@@ -1,15 +1,15 @@
 ---
-title: 是否在桌面版内置示例项目及其内容
-label: wayfinder:grilling
-mode: HITL
+title: 调研：可内置为示例项目的开放许可语料
+label: wayfinder:research
+mode: AFK
 status: open
 assignee:
 blocked_by: [005]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/256
 ---
 
-# 是否在桌面版内置示例项目及其内容
+# 调研：可内置为示例项目的开放许可语料
 
 ## Question
 
-是否内置一个示例项目（含短录音、几层转写、词库）让试用者先看效果？用哪种语言/哪段录音（版权与伦理许可）？以 JYM 包形式导入还是首次启动时生成？
+用户 2026-10-13 定：桌面版内置一个示例项目，用现成的开放许可语料。找候选（ELAN/EAF 格式最好，含短录音与几层转写），记录许可证（是否允许再分发与改动）、署名要求、语言、时长与大小。产出候选清单，不做最终选择。

@@ -4,7 +4,7 @@ label: wayfinder:prototype
 mode: HITL
 status: open
 assignee:
-blocked_by: []
+blocked_by: [025]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/258
 ---
 
