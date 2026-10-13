@@ -451,12 +451,10 @@ export function useAiChat(options?: UseAiChatOptions) {
           return;
         }
         if (!card) return;
-        // 旧页面的 epoch 无意义：换成本页当前值；真正的把关是库指纹（恢复时 + 批准时各核对一次）|
-        // restamp with this page's epoch; DB fingerprints are the real guard (on restore and on approval)
-        const epoch = getTimelineReadModelEpochRef.current?.();
+        // 旧页面的 epoch 无意义且本页 epoch 加载期间还会变：恢复卡片不带 epoch，由库指纹把关（恢复时 + 批准时）|
+        // restored cards carry no epoch (this page's epoch still moves while loading); DB fingerprints guard them
         const restored: PendingAiToolCall = { ...card };
         delete restored.readModelEpochCaptured;
-        if (epoch !== undefined) restored.readModelEpochCaptured = epoch;
         setPendingToolCall((cur) => cur ?? restored);
       })
       .catch(() => undefined);

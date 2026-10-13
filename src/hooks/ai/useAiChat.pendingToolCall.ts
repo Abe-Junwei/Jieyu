@@ -96,8 +96,10 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     const assistantMessageId = pending.assistantMessageId;
     const changeSet = buildAiChangeSetFromPendingToolCall(pending);
     const currentEpoch = getTimelineReadModelEpochRef.current?.();
-    // S2：同页内 epoch 判断对 v2 卡片同样生效；跨重载由指纹核对 + 换 epoch | epoch in-page, fingerprints across reloads
-    if (!validateChangeSetEpoch(changeSet, currentEpoch)) {
+    // S2：同页内 v2 卡片同样走 epoch；重载恢复的卡片不带 epoch，由 resolveApproval 的库指纹核对 |
+    // in-page epoch for v2 too; restored cards (no epoch) are guarded by DB fingerprints in resolveApproval
+    const restoredV2 = Boolean(pending.runtimeV2) && pending.readModelEpochCaptured === undefined;
+    if (!restoredV2 && !validateChangeSetEpoch(changeSet, currentEpoch)) {
       const staleCall = pending.executionCall ?? pending.call;
       const staleAuditContext =
         pending.auditContext ??
