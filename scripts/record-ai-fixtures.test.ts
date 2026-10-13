@@ -38,6 +38,7 @@ describe('record-ai-fixtures', () => {
 
 describe('firstToolCall / followUp reasoning_content', () => {
   it('echoes accumulated reasoning_content on OpenAI-compatible follow-up', async () => {
+    // @ts-expect-error recorder ships as plain .mjs without declarations
     const { firstToolCall, followUp } = await import('./record-ai-fixtures.mjs');
     const sse = [
       'data: {"choices":[{"delta":{"reasoning_content":"先想"}}]}',
