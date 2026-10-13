@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: []
+issue: https://github.com/Abe-Junwei/Jieyu/issues/262
 ---
 
 # 界面语言：中文为主还是中英都要

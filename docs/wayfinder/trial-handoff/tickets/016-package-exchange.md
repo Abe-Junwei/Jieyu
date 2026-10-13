@@ -5,6 +5,7 @@ mode: AFK
 status: open
 assignee:
 blocked_by: []
+issue: https://github.com/Abe-Junwei/Jieyu/issues/266
 ---
 
 # 项目包互传的试用流程是否已够用

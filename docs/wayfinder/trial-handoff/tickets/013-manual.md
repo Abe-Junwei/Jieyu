@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: [005]
+issue: https://github.com/Abe-Junwei/Jieyu/issues/263
 ---
 
 # 用户手册的形式与范围

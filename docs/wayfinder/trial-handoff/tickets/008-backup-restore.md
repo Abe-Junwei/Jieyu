@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: []
+issue: https://github.com/Abe-Junwei/Jieyu/issues/258
 ---
 
 # 备份与恢复对非开发者的呈现

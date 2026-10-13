@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: []
+issue: https://github.com/Abe-Junwei/Jieyu/issues/265
 ---
 
 # 试用版功能面：哪些功能隐藏或标为实验

@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: []
+issue: https://github.com/Abe-Junwei/Jieyu/issues/255
 ---
 
 # 首次启动与上手流程长什么样

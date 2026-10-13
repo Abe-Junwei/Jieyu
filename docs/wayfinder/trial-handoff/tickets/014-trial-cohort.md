@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: []
+issue: https://github.com/Abe-Junwei/Jieyu/issues/264
 ---
 
 # 试用名单、节奏与反馈闭环

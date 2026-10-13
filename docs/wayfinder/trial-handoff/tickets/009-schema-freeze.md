@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: [010]
+issue: https://github.com/Abe-Junwei/Jieyu/issues/259
 ---
 
 # 冻结 schema 的时机与冻结前清单

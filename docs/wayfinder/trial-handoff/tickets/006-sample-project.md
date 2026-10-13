@@ -5,6 +5,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: [005]
+issue: https://github.com/Abe-Junwei/Jieyu/issues/256
 ---
 
 # 是否随安装包附带示例项目及其内容
