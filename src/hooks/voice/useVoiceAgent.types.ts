@@ -19,6 +19,8 @@ export interface VoicePendingConfirm {
   label: string;
   fromFuzzy?: boolean;
   params?: { segmentIndex?: number };
+  /** v2：pending 审计行的 requestId，confirm/reject 复用 | v2 pending audit requestId */
+  auditRequestId?: string;
 }
 
 export interface VoiceAgentState {

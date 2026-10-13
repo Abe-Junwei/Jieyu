@@ -9,6 +9,7 @@
 
 import type { SttResult } from './VoiceInputService.types';
 import type { ActionId, VoiceIntent, VoiceSession } from './IntentRouter';
+import { writeVoiceActionAudit } from './voiceActionAudit';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import type { VoiceMode } from './voiceMode';
@@ -111,6 +112,13 @@ export async function resolveVoiceIntent(
           ? await raceVoiceLlmTimeout(llmRequest)
           : await llmRequest;
       if (fallbackIntent === VOICE_LLM_TIMED_OUT) {
+        // shortcut: 超时时动作未知，用占位 actionId 记 timeout_discarded | placeholder actionId; action unknown at timeout
+        void writeVoiceActionAudit({
+          sessionId: input.session.id,
+          actionId: 'llm_intent' as ActionId,
+          decision: 'timeout_discarded',
+          turnIndex: input.session.entries.length,
+        }).catch(() => undefined);
         return {
           intent,
           llmFallbackFailed: true,
@@ -169,7 +177,11 @@ export async function resolveVoiceIntent(
 
 const VOICE_LLM_TIMED_OUT = Symbol('voiceLlmTimedOut');
 
-/** 超时即返回标记；请求本身不重试，迟到的结果被忽略（不执行、不学别名）| late results are ignored */
+/**
+ * 超时即返回标记；请求本身不重试，迟到的结果被忽略（不执行、不学别名）| late results are ignored
+ * 注意：不会取消底层请求（无 AbortSignal），迟到请求仍会跑完并计费 |
+ * NOTE: does NOT cancel the underlying request (no AbortSignal); it still runs to completion.
+ */
 async function raceVoiceLlmTimeout<T>(
   request: Promise<T>,
 ): Promise<T | typeof VOICE_LLM_TIMED_OUT> {

@@ -24,7 +24,7 @@ function textChunk(text: string) {
   };
 }
 
-function toolCallChunk(name: string, args: Record<string, unknown>, id = 'call_r2_1') {
+function toolCallChunk(name: string, args: Record<string, unknown> | string, id = 'call_r2_1') {
   return {
     id: 'chatcmpl-tool',
     object: 'chat.completion.chunk',
@@ -38,7 +38,7 @@ function toolCallChunk(name: string, args: Record<string, unknown>, id = 'call_r
               index: 0,
               id,
               type: 'function',
-              function: { name, arguments: JSON.stringify(args) },
+              function: { name, arguments: typeof args === 'string' ? args : JSON.stringify(args) },
             },
           ],
         },
@@ -72,7 +72,12 @@ async function seedV2DeepSeek(page: Page) {
   });
 }
 
-function installSmartCompletionsRoute(page: Page, toolName: string, afterToolText: string) {
+function installSmartCompletionsRoute(
+  page: Page,
+  toolName: string,
+  afterToolText: string,
+  args: Record<string, unknown> | string = {},
+) {
   return page.route('**/chat/completions', async (route) => {
     const body = JSON.parse(route.request().postData() || '{}') as {
       tools?: unknown[];
@@ -91,7 +96,7 @@ function installSmartCompletionsRoute(page: Page, toolName: string, afterToolTex
       await fulfillSse(route, textChunk(afterToolText));
       return;
     }
-    await fulfillSse(route, toolCallChunk(toolName, {}));
+    await fulfillSse(route, toolCallChunk(toolName, args));
   });
 }
 
@@ -143,4 +148,26 @@ test.describe('AI runtime v2 flag on — real chat entry', () => {
     expect(rows.some((r) => r.requestId === decision!.requestId && r.field === 'ai_tool_call_intent')).toBe(true);
   });
 
+  test('unparseable tool args go to clarification with an invalid_args audit row (B2)', async ({ page }) => {
+    test.setTimeout(180_000);
+    await seedV2DeepSeek(page);
+    await installSmartCompletionsRoute(page, 'create_transcription_segment', 'unused', '{"segmentId":');
+
+    await setupFieldProjectWithMediaAndSegments(page);
+    await openTranscriptionChatWindow(page);
+    const input = page.locator('.transcription-chat-window').getByTestId('ai-chat-composer-input');
+    await expect(input).toBeVisible({ timeout: 60_000 });
+    await input.fill('创建一个句段');
+    await input.press('Enter');
+
+    await expect
+      .poll(
+        async () =>
+          (await readToolAudits(page)).some(
+            (r) => r.field === 'ai_tool_call_decision' && (r.newValue ?? '').endsWith(':invalid_args'),
+          ),
+        { timeout: 60_000 },
+      )
+      .toBe(true);
+  });
 });

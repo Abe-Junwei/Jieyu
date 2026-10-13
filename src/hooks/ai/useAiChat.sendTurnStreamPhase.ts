@@ -18,6 +18,9 @@ import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat
 import { applyOutboundSemanticGuard } from '../../ai/security/semanticGuard';
 import { planToolCallTargets } from '../../ai/chat/toolCallHelpers';
 import { runToolDecisionForCall } from './useAiChat.streamCompletion';
+import { buildToolAuditContext } from '../../ai/chat/toolCallHelpers';
+import { handleInvalidToolArguments } from './useAiChat.argsValidation';
+import { t } from '../../i18n';
 import type { AssistantStreamChunk } from './useAiChat.streamFactory';
 
 export type {
@@ -90,7 +93,8 @@ export async function runAiChatSendTurnStreamPhase(
           modelId: settings.model,
           conversationId: input.sendTurnConversationId,
           history: opening.history,
-          systemPrompt: opening.systemPrompt,
+          systemPrompt: opening.runtimeV2SystemPrompt ?? opening.systemPrompt,
+          pendingHint: `\n\n${t(toolFeedbackLocaleRef.current, 'ai.runtimeV2.pendingNoAutoContinue')}`,
           userText: effectiveUserText,
           signal: controller.signal,
           genRequestId: (call) => buildStreamCompletionEnv().genRequestId(call, assistantId),
@@ -103,6 +107,28 @@ export async function runAiChatSendTurnStreamPhase(
               'system',
               requestId,
             ),
+          // B2：参数不可解析 → 与旧路径同一 invalid_args 审计 + 澄清文案
+          onInvalidArgs: async (call) => {
+            const env = buildStreamCompletionEnv();
+            const { finalContent } = await handleInvalidToolArguments({
+              assistantMessageId: assistantId,
+              toolCall: call,
+              argsValidationError: 'arguments are not valid JSON',
+              locale: env.toolFeedbackLocale,
+              toolFeedbackStyle: env.toolFeedbackStyle,
+              source: 'ai',
+              decision: 'auto_failed',
+              auditContext: buildToolAuditContext(
+                effectiveUserText,
+                env.providerId,
+                env.model,
+                env.toolDecisionMode,
+                env.toolFeedbackStyle,
+              ),
+              writeToolDecisionAuditLog: env.writeToolDecisionAuditLog,
+            });
+            return finalContent;
+          },
           decide: async (call) => {
             const env = buildStreamCompletionEnv();
             let pending = false;

@@ -7,13 +7,27 @@ import { buildAiToolRequestId } from '../ai/toolRequestId';
 import { newAuditLogId, nowIso } from '../hooks/ai/useAiChat.helpers';
 import type { ActionId } from './IntentRouter';
 
-export type VoiceActionDecision = 'auto_confirmed' | 'pending' | 'confirmed' | 'timeout_discarded';
+export type VoiceActionDecision =
+  | 'auto_confirmed'
+  | 'pending'
+  | 'confirmed'
+  | 'rejected'
+  | 'timeout_discarded';
 
 /** toolName 用点号，避免与 `decision:tool:reason` 的冒号分隔冲突 | dot-separated tool name */
 export const voiceToolName = (actionId: ActionId) => `voice.${actionId}`;
 
-export function voiceActionRequestId(actionId: ActionId, params?: Record<string, unknown>): string {
-  return buildAiToolRequestId({ name: voiceToolName(actionId), arguments: params ?? {} });
+/** 混入 session + turn，避免同会话/跨会话同参数动作撞同一 requestId | mix session+turn so repeats don't collide */
+export function voiceActionRequestId(
+  actionId: ActionId,
+  params?: Record<string, unknown>,
+  sessionId?: string,
+  turnIndex?: number,
+): string {
+  return buildAiToolRequestId({
+    name: voiceToolName(actionId),
+    arguments: { ...(params ?? {}), __voiceSession: sessionId ?? '', __voiceTurn: turnIndex ?? 0 },
+  });
 }
 
 export async function writeVoiceActionAudit(input: {
@@ -21,8 +35,13 @@ export async function writeVoiceActionAudit(input: {
   actionId: ActionId;
   decision: VoiceActionDecision;
   params?: Record<string, unknown>;
+  turnIndex?: number;
+  /** confirm/reject 复用 pending 行的 requestId | confirm/reject reuse the pending row's requestId */
+  requestId?: string;
 }): Promise<string> {
-  const requestId = voiceActionRequestId(input.actionId, input.params);
+  const requestId =
+    input.requestId ??
+    voiceActionRequestId(input.actionId, input.params, input.sessionId, input.turnIndex);
   const toolName = voiceToolName(input.actionId);
   const db = await getDb();
   await db.collections.audit_logs.insert({

@@ -1,3 +1,4 @@
+import { writeVoiceActionAudit } from '../../services/voiceActionAudit';
 /** useVoiceAgent — 语音智能体核心 hook */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -284,24 +285,40 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     confirmPendingAction(pendingConfirm);
   }, [confirmPendingAction, pendingConfirm]);
 
-  const { cancelPending, selectDisambiguation, dismissDisambiguation, switchMode } =
-    useVoiceAgentModeController({
-      locale,
-      listening,
-      dictationPipeline,
-      safeModeRef,
-      sessionRef,
-      executeActionRef,
-      loadIntentRouterRuntime,
-      clearInteractionPrompts,
-      startDictationPipeline,
-      stopDictationPipeline,
-      setMode,
-      setInterimText,
-      setAgentState,
-      setDisambiguationOptions,
-      setPendingConfirm,
-    });
+  const {
+    cancelPending: cancelPendingPrompt,
+    selectDisambiguation,
+    dismissDisambiguation,
+    switchMode,
+  } = useVoiceAgentModeController({
+    locale,
+    listening,
+    dictationPipeline,
+    safeModeRef,
+    sessionRef,
+    executeActionRef,
+    loadIntentRouterRuntime,
+    clearInteractionPrompts,
+    startDictationPipeline,
+    stopDictationPipeline,
+    setMode,
+    setInterimText,
+    setAgentState,
+    setDisambiguationOptions,
+    setPendingConfirm,
+  });
+
+  const cancelPending = useCallback(() => {
+    if (pendingConfirm?.auditRequestId) {
+      void writeVoiceActionAudit({
+        sessionId: sessionRef.current.id,
+        actionId: pendingConfirm.actionId,
+        decision: 'rejected',
+        requestId: pendingConfirm.auditRequestId,
+      });
+    }
+    cancelPendingPrompt();
+  }, [cancelPendingPrompt, pendingConfirm, sessionRef]);
 
   useEffect(() => {
     const override = langOverride;

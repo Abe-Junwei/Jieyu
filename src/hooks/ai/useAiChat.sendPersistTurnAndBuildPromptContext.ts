@@ -20,6 +20,7 @@ import {
 import { resolveContextCharBudgets } from '../../ai/chat/contextBudget';
 import {
   buildAiSystemPrompt,
+  buildAiRuntimeV2SystemPrompt,
   buildPromptContextBlock,
   isAiContextDebugEnabled,
 } from '../../ai/chat/promptContext';
@@ -122,6 +123,8 @@ export interface PersistOpeningTurnAndBuildPromptContextResult {
     | undefined;
   clarifyFastPathCall: ClarifyFastPathCall | null;
   systemPrompt: string;
+  /** B4：v2 专用系统提示（无文本 tool_call 指令）| v2 prompt without text tool_call instructions */
+  runtimeV2SystemPrompt?: string;
   verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null;
 }
 
@@ -349,6 +352,7 @@ export async function persistOpeningTurnAndBuildPromptContext(
     buildUserDirectivePrompt(input.sessionMemoryRef.current),
     featureFlags.aiExternalMcpSendTurnEnabled ? await buildExternalMcpToolCallGuide() : '',
   );
+  const legacySystemPromptBase = systemPrompt;
 
   // PR-7b: explicit EvidencePacket list for vertical workflows (esp. segment_qa) so the model can ground [n] markers.
   if (input.verticalWorkflowSelection && ragCitations.length > 0) {
@@ -420,6 +424,14 @@ export async function persistOpeningTurnAndBuildPromptContext(
     memoryRecallShape,
     clarifyFastPathCall,
     systemPrompt,
+    // 附录（证据包/组合工作流/ELAN）沿用，只替换基础段 | keep appendices, swap the base
+    runtimeV2SystemPrompt:
+      buildAiRuntimeV2SystemPrompt(
+        input.getSystemPersonaKey(),
+        contextBlock,
+        responsePolicy.style,
+        buildUserDirectivePrompt(input.sessionMemoryRef.current),
+      ) + systemPrompt.slice(legacySystemPromptBase.length),
     verticalOutputEnvelopeSeed,
   };
 }

@@ -11,7 +11,7 @@ import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolC
 import type { ActionId, VoiceIntent, VoiceSession, VoiceSessionEntry } from './IntentRouter';
 import type { SttResult } from './VoiceInputService.types';
 import { featureFlags, resolveAiAgentRuntimeV2Enabled } from '../ai/config/featureFlags';
-import { writeVoiceActionAudit } from './voiceActionAudit';
+import { voiceActionRequestId, writeVoiceActionAudit } from './voiceActionAudit';
 
 export type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 
@@ -26,6 +26,8 @@ export interface DispatchResolvedVoiceIntentInput {
   locale: Locale;
   safeMode: boolean;
   sessionId: string;
+  /** 会话内回合序号，混入语音 requestId | turn index mixed into the voice requestId */
+  turnIndex?: number;
   intent: VoiceIntent;
   sttResult: SttResult;
   llmFallbackFailed: boolean;
@@ -44,6 +46,7 @@ export interface DispatchResolvedVoiceIntentInput {
       label: string;
       fromFuzzy?: boolean;
       params?: { segmentIndex?: number };
+      auditRequestId?: string;
     } | null,
   ) => void;
   inputModality: 'voice' | 'text';
@@ -84,6 +87,7 @@ export async function dispatchResolvedVoiceIntent(
     locale,
     safeMode,
     sessionId,
+    turnIndex,
     intent,
     sttResult,
     llmFallbackFailed,
@@ -118,12 +122,16 @@ export async function dispatchResolvedVoiceIntent(
               action: getActionLabel(intent.actionId, locale),
             })
           : getActionLabel(intent.actionId, locale);
-        if (runtimeV2 && llmResolvedAction) {
+        const auditRequestId =
+          runtimeV2 && llmResolvedAction
+            ? voiceActionRequestId(intent.actionId, intent.params, sessionId, turnIndex)
+            : undefined;
+        if (auditRequestId) {
           void writeVoiceActionAudit({
             sessionId,
             actionId: intent.actionId,
             decision: 'pending',
-            ...(intent.params ? { params: intent.params } : {}),
+            requestId: auditRequestId,
           });
         }
         setPendingConfirm({
@@ -131,6 +139,7 @@ export async function dispatchResolvedVoiceIntent(
           label,
           ...(intent.fromFuzzy !== undefined ? { fromFuzzy: intent.fromFuzzy } : {}),
           ...(intent.params !== undefined ? { params: intent.params } : {}),
+          ...(auditRequestId ? { auditRequestId } : {}),
         });
         Earcon.playTick();
         setAgentState('idle');
@@ -145,6 +154,7 @@ export async function dispatchResolvedVoiceIntent(
           actionId: intent.actionId,
           decision: 'auto_confirmed',
           ...(intent.params ? { params: intent.params } : {}),
+          ...(turnIndex !== undefined ? { turnIndex } : {}),
         });
       }
       applyVoiceConfirmedPendingTelemetry({

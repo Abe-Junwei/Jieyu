@@ -5,12 +5,15 @@
  * through the existing decision pipeline.
  */
 import type { LanguageModel, ModelMessage } from 'ai';
+import { jsonSchema } from 'ai';
 import { z } from 'zod';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { AiChatSettings } from '../providers/providerCatalog';
 import type { ChatMessage } from '../providers/LLMProvider';
 import type { AiChatToolCall } from '../chat/chatDomain.types';
-import { AI_CHAT_TOOL_NAMES_FROM_PARSER } from '../chat/toolCallSchemas';
+import { AI_CHAT_TOOL_NAMES_FROM_PARSER, toolArgumentSchemas } from '../chat/toolCallSchemas';
+import { TOOL_STRATEGY_TABLE } from '../chat/toolCallStrategy';
+import { createThinkTagStripper } from '../providers/streamUtils';
 import {
   createPilotAgent,
   isToolsRejectedError,
@@ -49,15 +52,43 @@ export function createAiSdkModelFromSettings(settings: AiChatSettings): Language
   return provider(settings.model);
 }
 
+const decodeEscapedLabel = (label: string) =>
+  label.replace(/\\u([0-9a-f]{4})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+
+/**
+ * 工具定义由现有 zod schema 派生（参数 + 描述）给模型看；SDK 边界不校验（jsonSchema 无 validate），
+ * 严格校验仍在 toolDecisionPipeline，invalid_args 走澄清。
+ * Tool definitions derived from the zod schemas; no validation at the SDK boundary.
+ */
 export function buildRuntimeV2ToolSpecs(): Record<string, PilotToolSpec> {
-  // 边界放宽：模型常省略可由选区/上下文补全的字段；严格校验仍在 toolDecisionPipeline。
-  // Loose at the SDK boundary so execute always reaches the decision pipeline (legacy parity).
   const specs: Record<string, PilotToolSpec> = {};
   for (const name of AI_CHAT_TOOL_NAMES_FROM_PARSER) {
-    specs[name] = { description: name, inputSchema: z.object({}).passthrough() };
+    const zodSchema = (toolArgumentSchemas as Record<string, z.ZodType | undefined>)[name];
+    const label = (TOOL_STRATEGY_TABLE as Record<string, { label?: string } | undefined>)[name]
+      ?.label;
+    let schema: Record<string, unknown> = { type: 'object', properties: {} };
+    if (zodSchema) {
+      try {
+        schema = z.toJSONSchema(zodSchema, { io: 'input', unrepresentable: 'any' }) as Record<
+          string,
+          unknown
+        >;
+      } catch {
+        // shortcut: 不可转换的 schema 退回空对象，管线仍会严格校验 | fall back to open object
+      }
+    }
+    // shortcut: 去掉顶层 required，可由选区/上下文补全的字段让模型可省略 | context-fill fields may be omitted
+    const { required: _required, $schema: _s, ...loose } = schema;
+    specs[name] = {
+      description: label ? `${decodeEscapedLabel(label)} (${name})` : name,
+      inputSchema: jsonSchema(loose),
+    };
   }
   return specs;
 }
+
+/** B4：v2 走原生 function calling，正文里出现旧式 tool_call JSON 视为泄漏 | legacy text tool-call leak */
+export const hasTextToolCallLeak = (text: string) => /"tool_call"\s*:\s*\{/.test(text);
 
 export interface RuntimeV2Decision {
   finalContent: string;
@@ -79,6 +110,12 @@ export interface RunAiRuntimeV2TurnParams {
   decide: (call: AiChatToolCall) => Promise<RuntimeV2Decision>;
   hasPersistedExecutionForRequest: (requestId: string) => Promise<boolean>;
   onExpired?: (requestId: string, toolName: string) => Promise<void>;
+  /** B2：参数无法解析时进入澄清（写 invalid_args 审计），返回给用户的澄清文案 | clarification text */
+  onInvalidArgs?: (call: AiChatToolCall, raw: unknown) => Promise<string>;
+  /** B4：模型在正文输出了文本 tool_call | model emitted a text tool_call */
+  onTextToolCallLeak?: (text: string) => void;
+  /** 待确认提示后缀：确认后不会自动继续 | appended to pending text */
+  pendingHint?: string;
   now?: () => number;
 }
 
@@ -118,32 +155,46 @@ export async function* runAiRuntimeV2Turn(
 ): AsyncGenerator<RuntimeV2Chunk> {
   const now = p.now ?? Date.now;
   let pendingRequest: { requestId: string; toolName: string } | null = null;
+  // B1：并行调用串行化；一步内已有待确认时，其余调用直接拒绝，不进管线，避免孤儿 pending 审计
+  let decisionChain: Promise<unknown> = Promise.resolve();
   const agent = createPilotAgent({
     model: p.model,
     tools: buildRuntimeV2ToolSpecs(),
     instructions: p.systemPrompt,
-    runToolDecision: async (name, input): Promise<PilotToolOutcome> => {
-      const call: AiChatToolCall = {
-        name: name as AiChatToolCall['name'],
-        arguments: (input ?? {}) as Record<string, unknown>,
-      };
-      call.requestId = p.genRequestId(call);
-      const decision = await p.decide(call);
-      if (decision.pending) {
-        pendingRequest = { requestId: call.requestId, toolName: name };
-        return {
-          status: 'pending_user_confirmation',
-          message: decision.finalContent,
-          requestId: call.requestId,
-        };
-      }
+    runToolDecision: (name, input) => {
+      const run = decisionChain.then(() => decideOne(name, input));
+      decisionChain = run.catch(() => undefined);
+      return run;
+    },
+  });
+
+  async function decideOne(name: string, input: unknown): Promise<PilotToolOutcome> {
+    if (pendingRequest) {
       return {
-        status: decision.finalStatus,
+        status: 'error',
+        message: `skipped: another action (${pendingRequest.toolName}) is awaiting user confirmation`,
+      };
+    }
+    const call: AiChatToolCall = {
+      name: name as AiChatToolCall['name'],
+      arguments: (input ?? {}) as Record<string, unknown>,
+    };
+    call.requestId = p.genRequestId(call);
+    const decision = await p.decide(call);
+    if (decision.pending) {
+      pendingRequest = { requestId: call.requestId, toolName: name };
+      return {
+        status: 'pending_user_confirmation',
         message: decision.finalContent,
         requestId: call.requestId,
       };
-    },
-  });
+    }
+    return {
+      status: decision.finalStatus,
+      message: decision.finalContent,
+      requestId: call.requestId,
+    };
+  }
 
   const messages = await resolveStartMessages(p, now());
   let yieldedAny = false;
@@ -153,6 +204,9 @@ export async function* runAiRuntimeV2Turn(
     markNoToolsThisSession(p.providerId, p.modelId);
     return true;
   };
+  // 可见正文剥离 <think> | strip <think> from visible text
+  const thinkStripper = createThinkTagStripper();
+  let visibleText = '';
   try {
     const result = await agent.stream({ messages, abortSignal: p.signal });
     for await (const part of result.fullStream) {
@@ -160,7 +214,15 @@ export async function* runAiRuntimeV2Turn(
       if (!ev) continue;
       if (ev.type === 'text') {
         yieldedAny = true;
-        yield { delta: ev.text };
+        const visible = thinkStripper.feed(ev.text);
+        visibleText += visible;
+        if (visible) yield { delta: visible };
+      } else if (ev.type === 'invalid-args') {
+        yieldedAny = true;
+        const call: AiChatToolCall = { name: ev.toolName as AiChatToolCall['name'], arguments: {} };
+        call.requestId = p.genRequestId(call);
+        const clarify = await p.onInvalidArgs?.(call, ev.raw);
+        if (clarify) yield { delta: clarify };
       } else if (ev.type === 'reasoning') {
         yieldedAny = true;
         yield { reasoningContent: ev.text };
@@ -171,6 +233,13 @@ export async function* runAiRuntimeV2Turn(
         };
         return;
       }
+    }
+    const tail = thinkStripper.feed('', true);
+    visibleText += tail;
+    if (tail) yield { delta: tail };
+    if (hasTextToolCallLeak(visibleText)) {
+      console.warn('[aiRuntimeV2] model emitted a text tool_call; ignored (native tools only)');
+      p.onTextToolCallLeak?.(visibleText);
     }
     const usage = await result.totalUsage;
     const pending = pendingRequest as { requestId: string; toolName: string } | null;
@@ -184,7 +253,8 @@ export async function* runAiRuntimeV2Turn(
       });
       const toolResults = (await result.steps).flatMap((s) => s.toolResults);
       const pendingText = (toolResults.at(-1)?.output as PilotToolOutcome | undefined)?.message;
-      if (pendingText) yield { delta: pendingText };
+      // 确认后不自动续跑，需用户再发一条消息 | the loop does not auto-continue after confirmation
+      if (pendingText) yield { delta: `${pendingText}${p.pendingHint ?? ''}` };
     }
     yield {
       usage: {

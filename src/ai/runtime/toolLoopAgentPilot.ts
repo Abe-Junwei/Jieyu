@@ -12,13 +12,14 @@ import {
   tool,
   type LanguageModel,
   type TextStreamPart,
+  type Schema,
   type ToolSet,
 } from 'ai';
 import type { z } from 'zod';
 
 export interface PilotToolSpec {
   description: string;
-  inputSchema: z.ZodType;
+  inputSchema: z.ZodType | Schema;
 }
 
 /** 工具决策结果：pending = 已交给现有确认界面，等用户批准 | pending = handed to the existing confirm UI */
@@ -77,6 +78,9 @@ export function createPilotAgent(options: PilotAgentOptions) {
     stopWhen: [
       isStepCount(options.maxSteps ?? 6),
       ({ steps }) => (steps.at(-1)?.toolResults ?? []).some((r) => isPendingOutcome(r.output)),
+      // B2：参数不可解析即停，交给澄清，不让模型盲重试 | stop on invalid args, clarification takes over
+      ({ steps }) =>
+        (steps.at(-1)?.toolCalls ?? []).some((c) => (c as { invalid?: boolean }).invalid === true),
     ],
     ...(options.instructions ? { instructions: options.instructions } : {}),
   });

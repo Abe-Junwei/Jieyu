@@ -5,7 +5,8 @@ vi.mock('../ai/config/featureFlags', async (orig) => {
   return { ...mod, featureFlags: { ...mod.featureFlags, aiAgentRuntimeV2Enabled: true } };
 });
 const auditSpy = vi.fn(async () => 'req');
-vi.mock('./voiceActionAudit', () => ({
+vi.mock('./voiceActionAudit', async (orig) => ({
+  voiceActionRequestId: (await orig<typeof import('./voiceActionAudit')>()).voiceActionRequestId,
   writeVoiceActionAudit: (...a: unknown[]) => auditSpy(...(a as [])),
 }));
 vi.mock('./EarconService', () => ({ playTick: vi.fn(), playSuccess: vi.fn(), playError: vi.fn() }));
@@ -96,6 +97,24 @@ describe('voice under aiAgentRuntimeV2Enabled', () => {
     expect(out.learnAliasAfterExecution).toBeUndefined();
     expect(llm).toHaveBeenCalledTimes(1);
     expect(d.learnVoiceIntentAlias).not.toHaveBeenCalled();
+    expect(auditSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 's', decision: 'timeout_discarded' }),
+    );
+  });
+
+  it('voice requestId mixes session and turn, and pending carries it for confirm/reject', async () => {
+    const { voiceActionRequestId } = await import('./voiceActionAudit');
+    const a = voiceActionRequestId('deleteSegment' as never, {}, 's1', 1);
+    expect(voiceActionRequestId('deleteSegment' as never, {}, 's1', 2)).not.toBe(a);
+    expect(voiceActionRequestId('deleteSegment' as never, {}, 's2', 1)).not.toBe(a);
+    const setPendingConfirm = vi.fn();
+    await dispatchResolvedVoiceIntent(
+      dispatchInput({ setPendingConfirm, llmResolvedAction: true, sessionId: 's1', turnIndex: 1 }),
+    );
+    expect(setPendingConfirm).toHaveBeenCalledWith(expect.objectContaining({ auditRequestId: a }));
+    expect(auditSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ decision: 'pending', requestId: a }),
+    );
   });
 
   it('alias is not learned during resolution, only when the dispatcher executes', async () => {

@@ -4,7 +4,11 @@
  */
 
 import type { VoiceSession } from './IntentRouter';
-import { appendTurnToVoiceSession, dispatchResolvedVoiceIntent, type DispatchResolvedVoiceIntentInput } from './assistantVoiceIntentDispatch';
+import {
+  appendTurnToVoiceSession,
+  dispatchResolvedVoiceIntent,
+  type DispatchResolvedVoiceIntentInput,
+} from './assistantVoiceIntentDispatch';
 import { detectAndRecordMemoryPattern } from './voiceMemoryPattern';
 
 export type VoiceSttResolutionTailInput = Omit<DispatchResolvedVoiceIntentInput, 'sessionId'> & {
@@ -51,6 +55,7 @@ export async function runVoiceFinalSttResolutionTail(
   await dispatchResolvedVoiceIntent({
     ...dispatchFields,
     sessionId: nextSession.id,
+    turnIndex: nextSession.entries.length,
     intent,
     sttResult,
     llmFallbackFailed,

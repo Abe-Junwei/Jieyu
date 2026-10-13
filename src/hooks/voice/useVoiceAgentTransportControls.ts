@@ -1,3 +1,4 @@
+import { writeVoiceActionAudit } from '../../services/voiceActionAudit';
 import { useCallback } from 'react';
 import * as Earcon from '../../services/EarconService';
 import { globalContext } from '../../services/GlobalContextService';
@@ -197,10 +198,19 @@ export function useVoiceAgentTransportControls({
         label: string;
         fromFuzzy?: boolean;
         params?: { segmentIndex?: number };
+        auditRequestId?: string;
       } | null,
     ) => {
       if (!pendingConfirm) return;
       executeActionRef.current(pendingConfirm.actionId, pendingConfirm.params);
+      if (pendingConfirm.auditRequestId) {
+        void writeVoiceActionAudit({
+          sessionId: sessionRef.current.id,
+          actionId: pendingConfirm.actionId,
+          decision: 'confirmed',
+          requestId: pendingConfirm.auditRequestId,
+        });
+      }
       clearInteractionPrompts();
       applyVoiceConfirmedPendingTelemetry({
         actionId: pendingConfirm.actionId,
