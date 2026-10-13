@@ -71,7 +71,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   4. 存储接口按领域分仓库、暴露业务操作，不做通用表级增删改查（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)）。
   5. 用户暂不开工任何单子。
   6. 三个已评审分支正在合进 main，P2-1 分支删除（用户已同意；[#260](https://github.com/Abe-Junwei/Jieyu/issues/260) 已注明）。
-  7. 最低系统版本：macOS 11+、Windows 10+；Electron 实际支持的最低 macOS 版本在 [#252](https://github.com/Abe-Junwei/Jieyu/issues/252) 核实（关闭 [#270](https://github.com/Abe-Junwei/Jieyu/issues/270)）。
+  7. ~~最低系统版本：macOS 11+、Windows 10+~~（2026-10-14 被取代：macOS 13+、Windows 10+，见下）（[#270](https://github.com/Abe-Junwei/Jieyu/issues/270)）。
   8. 项目位置：首次启动由用户选；选在百度网盘、iCloud、OneDrive 等同步文件夹里时警告（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
   9. 单写者：项目文件夹里放锁文件，第二个窗口打开同一项目时提示「已在别处打开」（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
   10. 导入同一 textId 的 JYM：默认导入为新项目；覆盖要二次确认，并先存覆盖前快照（[#266](https://github.com/Abe-Junwei/Jieyu/issues/266)）。
@@ -164,3 +164,9 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 移动端。
 - 试用名单与节奏：用户本人安排。
 - Tauri：已选 Electron。
+- 2026-10-14 用户（#252/#284 调研拍板，报告见 [research/RESEARCH_252_284.md](research/RESEARCH_252_284.md)）：
+  1. 最低 macOS 13，Electron 44（取代 #270 的 macOS 11+）；Windows 10+。
+  2. SQLite 驱动 = better-sqlite3（不用 node:sqlite），放主进程，界面经 IPC 调用；随 Electron 升级的原生模块重建在打包流程处理（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
+  3. Windows 不签名的自动更新：关闭签名校验，依靠 HTTPS + electron-updater sha512；试用手册说明 SmartScreen（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)、[#282](https://github.com/Abe-Junwei/Jieyu/issues/282)）。API 密钥用 Electron safeStorage。
+  4. e2e：浏览器 e2e 仍是主回归；另加 5–8 条 Electron 冒烟，每个 PR 在 Linux、macOS、Windows 三平台跑（[#284](https://github.com/Abe-Junwei/Jieyu/issues/284)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
+  5. [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 存储接口只暴露业务操作方法，禁止任意表名与泛型查询；auditLogStore 与 aiRuntimeV2TurnStore 的 fingerprint 统一走该接口。

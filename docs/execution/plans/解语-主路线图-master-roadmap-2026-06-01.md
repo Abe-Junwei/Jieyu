@@ -321,6 +321,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-14 | **#252/#284 调研拍板**：最低 macOS 13 + Electron 44（取代 macOS 11+）；SQLite 驱动 better-sqlite3（主进程，IPC）；Windows 不签名、自动更新靠 HTTPS + sha512，手册写 SmartScreen；Electron 冒烟 5–8 条三平台每 PR 跑，浏览器 e2e 仍为主回归；#274 存储接口仅业务操作、禁泛型查询，auditLogStore 与 aiRuntimeV2TurnStore fingerprint 统一走接口。报告：`docs/wayfinder/trial-handoff/research/RESEARCH_252_284.md`。 |
 | 2026-10-13 | **审查对账（21:57 拍板）**：语料库页 flag 默认开（8b74991b，含试用），B5 三行、§2 图、§3 文首、导出现状同步；导航说明改为如实描述（7b81ea8f）；C1 桌面版以 #282 为准；C4 标桌面构建剔除（ADR-0047）；§2.1 DoD「SQLite/Dexie 双读回」改为 #274/#275 落地后生效；A9 按 #283 改默认开（`feat/a9-default-on`）。 |
 | 2026-10-13 | **#278 对账**：§1 由「纯 Web」改为 Electron 桌面应用（路线 C）、SQLite 项目文件夹（ADR-0046）、桌面版剥离协作/密钥/遥测（ADR-0047）；文首指向当前阶段计划 #250 与下一程 #285（冲突以较新拍板为准）；增长期目标（田野到出版单机闭环）。 |
 | 2026-06-01 | 初稿：建立产品级 master 索引（North Star + 域优先级 + 适用边界 + 对账）。 |
