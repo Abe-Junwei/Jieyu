@@ -5,11 +5,13 @@
  * and GET /v1/models for health checks.
  *
  * Usage:
- *   node server.js [--model <path>] [--port <port>] [--language <lang>]
+ *   node server.js [--model <path>] [--host <addr>] [--port <port>] [--language <lang>]
  *
  * Environment variables (alternative to flags):
  *   WHISPER_MODEL   - Path to GGML model file (default: ~/.whisper-models/<modelFile from whisperModelDefaults.json>)
  *   WHISPER_PORT    - HTTP port (default: 3040)
+ *   WHISPER_HOST    - Bind address (default: 127.0.0.1, local only). Set e.g. your LAN IP to expose it;
+ *                     requests must then use that IP or localhost/127.0.0.1 as Host (others get 403).
  *   WHISPER_LANG    - Default language code e.g. 'zh' (default: 'auto')
  *   WHISPER_CLI     - Path to whisper-cli binary (default: whisper-cli on PATH)
  */
@@ -22,6 +24,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { basename } from 'path';
+import { isAllowedHostHeader } from './hostGuard.js';
 import { buildTranscriptionResponse, buildWhisperCliArgs, parseWhisperCliJson } from './whisperCliJson.js';
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
@@ -49,6 +52,7 @@ const cliArgs = Object.fromEntries(
 
 const CONFIG = {
   model: cliArgs.model ?? process.env.WHISPER_MODEL ?? DEFAULT_MODEL,
+  host: cliArgs.host ?? process.env.WHISPER_HOST ?? '127.0.0.1',
   port: parseInt(cliArgs.port ?? process.env.WHISPER_PORT ?? String(DEFAULT_PORT), 10),
   defaultLang: cliArgs.language ?? process.env.WHISPER_LANG ?? DEFAULT_LANG,
   whisperCli: cliArgs['whisper-cli'] ?? process.env.WHISPER_CLI ?? '/opt/homebrew/bin/whisper-cli',
@@ -212,6 +216,11 @@ async function convertToWav(inputBuffer, inputMimeType) {
 // ── Router ────────────────────────────────────────────────────────────────────
 
 async function handleRequest(req, res) {
+  if (!isAllowedHostHeader(req.headers.host, CONFIG.host)) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: { message: 'Forbidden host' } }));
+    return;
+  }
   const { pathname } = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
 
   // CORS preflight
@@ -327,8 +336,8 @@ if (!existsSync(CONFIG.model)) {
 }
 
 const server = createServer(handleRequest);
-server.listen(CONFIG.port, () => {
-  logInfo(`[whisper-server] listening on http://localhost:${CONFIG.port}`);
+server.listen(CONFIG.port, CONFIG.host, () => {
+  logInfo(`[whisper-server] listening on http://${CONFIG.host}:${CONFIG.port}`);
   logInfo(`[whisper-server] model: ${CONFIG.model}`);
   logInfo(`[whisper-server] default language: ${CONFIG.defaultLang}`);
   logInfo('[whisper-server] endpoints:');
