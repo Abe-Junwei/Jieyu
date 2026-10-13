@@ -22,6 +22,7 @@ import { buildToolAuditContext } from '../../ai/chat/toolCallHelpers';
 import { handleInvalidToolArguments } from './useAiChat.argsValidation';
 import { t } from '../../i18n';
 import type { AssistantStreamChunk } from './useAiChat.streamFactory';
+import type { AiChatToolCall, PendingAiToolCall } from './useAiChat.types';
 
 export type {
   RunAiChatSendTurnStreamPhaseInput,
@@ -86,6 +87,40 @@ export async function runAiChatSendTurnStreamPhase(
       : v2.createAiSdkModelFromSettings(settings);
     if (model) {
       runtimeV2 = true;
+      const runV2Pipeline = async (
+        call: AiChatToolCall,
+        approval: 'request' | 'approved' | undefined,
+        runtimeV2Card?: PendingAiToolCall['runtimeV2'],
+      ) => {
+        const env = buildStreamCompletionEnv();
+        let card: PendingAiToolCall | undefined;
+        const planner = planToolCallTargets(call, effectiveUserText, aiContext);
+        const result = await runToolDecisionForCall(
+          {
+            ...env,
+            assistantId,
+            userText: effectiveUserText,
+            aiContext,
+            ...(memoryRecallShape ? { memoryRecallShape } : {}),
+            setPendingToolCall: (value) => {
+              const tagged =
+                value && runtimeV2Card ? { ...value, runtimeV2: runtimeV2Card } : value;
+              if (tagged) card = tagged;
+              env.setPendingToolCall(tagged);
+            },
+          },
+          { ...(planner?.call ?? call), ...(call.requestId ? { requestId: call.requestId } : {}) },
+          effectiveUserText,
+          planner ?? undefined,
+          approval,
+        );
+        return {
+          finalContent: result.finalContent,
+          finalStatus: result.finalStatus,
+          pending: card !== undefined,
+          card,
+        };
+      };
       stream = v2.withLegacyFallback(
         v2.runAiRuntimeV2Turn({
           model,
@@ -98,12 +133,11 @@ export async function runAiChatSendTurnStreamPhase(
           userText: effectiveUserText,
           signal: controller.signal,
           genRequestId: (call) => buildStreamCompletionEnv().genRequestId(call, assistantId),
-          hasPersistedExecutionForRequest: input.hasPersistedExecutionForRequest,
-          onExpired: (requestId, toolName) =>
+          onApprovalClosed: (requestId, toolName, reason) =>
             input.writeToolDecisionAuditLog(
               assistantId,
               `pending:${toolName}`,
-              `expired:${toolName}`,
+              `${reason === 'expired' ? 'expired' : 'abandoned'}:${toolName}`,
               'system',
               requestId,
             ),
@@ -129,27 +163,19 @@ export async function runAiChatSendTurnStreamPhase(
             });
             return finalContent;
           },
-          decide: async (call) => {
-            const env = buildStreamCompletionEnv();
-            let pending = false;
-            const planner = planToolCallTargets(call, effectiveUserText, aiContext);
-            const result = await runToolDecisionForCall(
-              {
-                ...env,
-                assistantId,
-                userText: effectiveUserText,
-                aiContext,
-                ...(memoryRecallShape ? { memoryRecallShape } : {}),
-                setPendingToolCall: (value) => {
-                  if (value) pending = true;
-                  env.setPendingToolCall(value);
-                },
-              },
-              planner?.call ?? call,
-              effectiveUserText,
-              planner ?? undefined,
-            );
-            return { finalContent: result.finalContent, finalStatus: result.finalStatus, pending };
+          // 执行与审批请求都走同一决策管线（策略、写入门禁、审计）| one pipeline for both
+          decide: async (call, mode) =>
+            runV2Pipeline(call, mode === 'approved' ? 'approved' : undefined),
+          requestApproval: async (call, approvalId) => {
+            const r = await runV2Pipeline(call, 'request', {
+              conversationId: input.sendTurnConversationId,
+              approvalId,
+            });
+            return {
+              pending: r.pending,
+              text: r.finalContent,
+              ...(r.card ? { card: r.card } : {}),
+            };
           },
         }),
         input.stream,

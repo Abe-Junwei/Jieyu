@@ -30,6 +30,7 @@ const textTurn = (text: string) => ({
 function buildAgent(
   turns: ReturnType<typeof toolCallTurn | typeof textTurn>[],
   decide: (name: string) => PilotToolOutcome = () => ({ status: 'done', message: 'ok' }),
+  toolApproval?: (name: string) => 'user-approval' | 'not-applicable',
 ) {
   const model = new MockLanguageModelV4({ doGenerate: turns as never });
   const runToolDecision = vi.fn(async (name: string) => decide(name));
@@ -44,21 +45,22 @@ function buildAgent(
       },
     },
     runToolDecision,
+    ...(toolApproval ? { toolApproval } : {}),
   });
   return { agent, model, runToolDecision };
 }
 
-const pendingForDelete = (name: string): PilotToolOutcome =>
+const approveDeletes = (name: string) =>
   name === 'delete_transcription_segment'
-    ? { status: 'pending_user_confirmation', message: '请确认删除', requestId: 'r1' }
-    : { status: 'done', message: 'ok' };
+    ? ('user-approval' as const)
+    : ('not-applicable' as const);
 
 describe('toolLoopAgentPilot guardrails (§3.3)', () => {
   it('G1: rejects string model ids', () => {
     expect(() => assertProviderInstance('openai/gpt-4o')).toThrow(/string model ids/);
   });
 
-  it('loop: two reads, then a write pending confirmation stops the loop', async () => {
+  it('loop: two reads, then a write needing approval stops with a native approval request', async () => {
     const { agent, model, runToolDecision } = buildAgent(
       [
         toolCallTurn('search_segments', '{"q":"a"}'),
@@ -66,20 +68,16 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
         toolCallTurn('delete_transcription_segment', '{"segmentId":"s1"}'),
         textTurn('should not be reached'),
       ],
-      pendingForDelete,
+      undefined,
+      approveDeletes,
     );
     const result = await agent.generate({
       messages: [{ role: 'user', content: 'find and delete s1' }],
     });
-    expect(runToolDecision.mock.calls.map((c) => c[0])).toEqual([
-      'search_segments',
-      'list_layers',
-      'delete_transcription_segment',
-    ]);
+    // 写工具未执行，只发出 tool-approval-request | the write never ran
+    expect(runToolDecision.mock.calls.map((c) => c[0])).toEqual(['search_segments', 'list_layers']);
     expect(model.doGenerateCalls).toHaveLength(3);
-    expect(result.steps.at(-1)!.toolResults[0]!.output).toMatchObject({
-      status: 'pending_user_confirmation',
-    });
+    expect(result.content.some((p) => p.type === 'tool-approval-request')).toBe(true);
   });
 
   it('every tool call goes only through runToolDecision, with the parsed input and call id', async () => {

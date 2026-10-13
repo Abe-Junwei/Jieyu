@@ -21,6 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
+import { resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
 import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
 import type {
@@ -194,6 +195,32 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       updatedAt: nowIso(),
     });
 
+    // v2：确认 = 原生 tool-approval-response；本页内立即经决策管线执行，重载后留到下一回合开头
+    // v2: confirm records a native approval response; executes now through the pipeline when the turn is live
+    if (pending.runtimeV2 && pending.call.name !== 'propose_changes') {
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `approved:${call.name}:tool_approval`,
+        'human',
+        call.requestId ?? pending.requestId,
+      );
+      const r = await resolveApproval(
+        pending.runtimeV2.conversationId,
+        pending.runtimeV2.approvalId,
+        true,
+        Date.now(),
+      );
+      setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
+      await applyAssistantMessageResult(
+        assistantMessageId,
+        r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn'),
+        r?.outcome?.status === 'error' ? 'error' : 'done',
+      );
+      if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
+      return;
+    }
+
     // 注入 requestId | Inject requestId
     const callWithRequestId: AiChatToolCall & { requestId: string } = {
       ...call,
@@ -223,6 +250,17 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         bumpMetric,
         shouldApplyTurnSideEffects,
       });
+      // shortcut: v2 下 propose_changes 仍用旧批处理执行，结果记回原生审批消息 | batch path, outcome recorded
+      if (pending.runtimeV2) {
+        const r = await resolveApproval(
+          pending.runtimeV2.conversationId,
+          pending.runtimeV2.approvalId,
+          true,
+          Date.now(),
+          { status: 'done', message: 'proposed changes applied' },
+        );
+        if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
+      }
       return;
     }
 
@@ -318,6 +356,16 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         ? { requestId: pending.call.requestId ?? pending.requestId }
         : {}),
     });
+    // v2：取消 = 原生拒绝 response + execution-denied；有下一张卡片则接着显示 | native denial, show next card
+    if (pending.runtimeV2) {
+      const r = await resolveApproval(
+        pending.runtimeV2.conversationId,
+        pending.runtimeV2.approvalId,
+        false,
+        Date.now(),
+      );
+      if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
+    }
   }, [
     applyAssistantMessageResult,
     bumpMetric,

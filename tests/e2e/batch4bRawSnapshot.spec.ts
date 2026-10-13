@@ -47,7 +47,7 @@ async function exportRawFromProjectHub(page: Page): Promise<Buffer> {
   const downloadPromise = page.waitForEvent('download', { timeout: 60_000 });
   await entry.click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/^jieyu-raw-recovery-jieyu-n10-.*\.zip$/);
+  expect(download.suggestedFilename()).toMatch(/^jieyu-raw-recovery-jieyu-n20-.*\.zip$/);
   const stream = await download.createReadStream();
   if (!stream) throw new Error('raw snapshot download stream missing');
   const chunks: Buffer[] = [];
@@ -76,7 +76,7 @@ test.describe('Batch 4b raw snapshot | 第 4b 批原始快照', () => {
     expect(manifest).toMatchObject({
       kind: 'raw-idb',
       dbName: 'jieyu',
-      nativeVersion: 10,
+      nativeVersion: 20,
       reason: 'manual',
     });
     expect(manifest.binaryFileCount).toBeGreaterThan(0);

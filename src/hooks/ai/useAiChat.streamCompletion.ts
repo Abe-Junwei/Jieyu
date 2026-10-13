@@ -688,6 +688,7 @@ export function runToolDecisionForCall(
   toolCall: AiChatToolCall,
   userText: string,
   planner?: Parameters<typeof resolveToolDecisionPipeline>[0]['planner'],
+  runtimeV2Approval?: 'request' | 'approved',
 ) {
   const {
     assistantId,
@@ -751,5 +752,6 @@ export function runToolDecisionForCall(
     ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
     ...(turnConversationId ? { turnConversationId } : {}),
     ...(agentRunId ? { agentRunId } : {}),
+    ...(runtimeV2Approval ? { runtimeV2Approval } : {}),
   });
 }

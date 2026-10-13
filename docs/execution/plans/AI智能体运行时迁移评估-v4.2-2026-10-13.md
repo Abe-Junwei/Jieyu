@@ -1,0 +1,170 @@
+# 解语 AI 智能体运行时迁移评估（第 4.2 版，待试点决策）
+
+> 第 4.2 版修订（2026-10-13 晚，依 `REVIEW_AGENT_ARCH_SOTA.md`）：审批改用 ToolLoopAgent 内置 `toolApproval`；写工具永不 not-applicable 护栏；待审批持久化改 Dexie（24 h 规则不变）；MCP 按 2026-07-28 规范重写；语音模型层改枚举 + none + 三档阈值；列明不采用清单（§2.1）。
+> 第 4.2 版（2026-10-13）：写入用户拷问后的决定（见 §6），删除旧会话兼容、31facd92 排查，语音并入聊天审批与审计，R1 任一不达标即开对照。
+> 更新：2026-10-13。第 4.1 版按 `REVIEW_PLAN_V4.md` 的 H1–H5、M1–M3 修订第 4 版：恢复具体安全护栏、给试点加量化标准、修正事实、路径改为仓库相对路径加行号。结构和方向沿用第 4 版。
+> 依据：前两轮业内架构与框架调查；`REVIEW_AI_FRAMEWORK_MIGRATION.md`（R1、R2 E1–E6）；`REVIEW_P2_1.md`（M1、M2）；`REVIEW_PLAN_V4.md`。
+>
+> 基线：`origin/main` = `1d65fef8`（2026-10-13 fetch 核对）。P2-1 分支 `origin/feat/p2-1-native-tool-calling` 现为 `87eae300`，`7a07ee38` 不是 main 的祖先，**从未合入**。用户 Mac 上 `~/开发/Jieyu` main 的 `31facd92` 是本机未推提交，只修同一毫秒文件夹备份互相覆盖（`backupFolderService` 及文档），**与 AI 无关**，不计入基线。实施前重新核对，不得覆盖未提交改动。
+
+## 0. 结论和决策边界
+
+**建议启动有限试点，暂不批准全面迁移。** 用户希望复用成熟智能体框架，而不是从零搭通用 agent。因此第 3 版的“AI SDK 仅替换 provider、保留自研循环和文本化工具结果”不能作为目标架构；它只减少供应商协议代码，仍把最复杂的运行时留给项目自己维护。
+
+试点**只做 Vercel AI SDK `ToolLoopAgent`**（`ai@7.0.138`，Apache-2.0），时间盒 ≤3 个工作日：由它负责模型调用、工具调用与结果配对、多步循环和停止条件；解语继续负责领域工具、项目作用域、审批、写入保护、持久化和审计。若 ToolLoopAgent 在 R1 **任一**通过条件上不达标，即另开 OpenAI Agents SDK TypeScript（`@openai/agents@0.20.0`，MIT，仍为 0.x）对照，同样限时。LangGraph.js 只在证明必须要持久图状态和复杂分支时再评估。Mastra 当前以连接 Mastra server 为前提，不适合直接替代浏览器内运行时。
+
+是否迁移以同一条真实产品路径的证据决定。试点不得把工具调用再编码成 `{"tool_call":...}` 文本后交给原 `agentLoop`；也不得让框架的自动 `execute` 越过解语的最终写入门禁。
+
+**P2-1：按用户已定，放弃、不合 main**（dr eggbot 转达）。迁移中只摘取其测试与思路（如 `src/ai/providers/nativeToolCalls.ts` 的分片拼接、`__invalidArgumentsJson` 标记）。若要重开合并，须用户明确改判。
+
+## 1. 已核实的当前系统（`origin/main@1d65fef8`）
+
+| 观察 | 对迁移的含义 |
+|---|---|
+| `src/ai/chat/toolCallSchemas.ts:276` 起的 `toolArgumentSchemas` 有 **40 个**工具名（去重键计数）；`src/ai/chat/localContextToolTypes.ts:1` 的 `LocalContextToolName` 有 **20 个**；`src/ai/mcp/server/tools.ts` 暴露 **3 个只读工具**；解析器枚举 `AI_CHAT_TOOL_NAMES_FROM_PARSER`（`toolCallSchemas.ts:411`）有 **21 个**，main 上本就存在，P2-1 只是 export 后在 `nativeChatTools.ts:29` 复用 | 这些是不同层的**定义和可见面**，不能相加当调用次数，也不能用 21 个覆盖全部工具。试点要列出真实可达工具及策略。 |
+| `src/ai/chat/agentLoop.ts:36` 默认 `maxSteps: 6`，实际值经 `agentLoopRunner.ts:207` `resolveEffectiveMaxSteps` 按 queryFamily 缩放（`agentLoop.ts:41`，A4b 开关）；工具结果以 `tool_result_payload:` 文本回灌（`agentLoop.ts:241`） | 目标试点要用框架的结构化 tool call/result 消息完成同一任务，再比较暂停、恢复与成本。 |
+| `src/ai/providers/LLMProvider.ts` 的 `ChatMessage` 只有 system/user/assistant 三种文本角色 | 只加 provider 适配器仍会把工具历史压回文本。迁移要定义新的运行时消息边界（无旧会话，不做兼容）。 |
+| 聊天工具经 catalog → `toolDecisionPipeline` → `toolWriteGate`/`commitToolEffects` → `toolDecisionLog`。语音 `resolveVoiceIntent`（`src/services/voiceIntentResolution.ts:72` 起）只在规则结果为 `chat` 且非听写模式时调用模型兜底（:88–90）；模型解析出动作后**在解析阶段**就调用 `learnVoiceIntentAlias`（:114–118），早于确认，用户拒绝也已学到 | 聊天和语音不是同一执行入口。框架迁移不能宣称修复语音审计；语音要单列验收，别名学习时机必须改。 |
+| `src/services/assistantVoiceIntentDispatch.ts:96–100`：仅“模糊命中且需确认的动作”或“safeMode 下的破坏性动作”才确认，其余直接执行；整条路径不经 `toolDecisionPipeline`、`toolWriteGate` | 任何语音写动作须用真实入口验证“解析 → 确认 → 执行 → 持久化 → 重载读回 → 日志”。 |
+
+本节是静态代码盘点，**不是调用频率统计**。量化“工具调用多不多”在 R0 用本地 `toolDecisionLog` 按会话聚合取数。相关既有架构文档：`docs/architecture/ai-agent-runtime-runner-model.md`、`docs/architecture/ai-agent-runtime-security-local-first.md`，R0 核对试点与其边界是否冲突。
+
+## 2. 成熟方案调查与取舍
+
+| 候选 | 能复用的核心 | 本项目要验证的限制 | 本轮结论 |
+|---|---|---|---|
+| [AI SDK `ToolLoopAgent`](https://ai-sdk.dev/docs/agents/building-agents) | 多步循环、工具结果传递、停止条件；[工具 API](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling) 支持 schema、执行与审批（`ai@7.0.138` 导出 `ToolApprovalRequest`/`ToolApprovalResponse`） | 浏览器打包、CSP、对现有审批/审计的接线；无 `execute` 的工具会使循环停止，不能照搬第 3 版“所有工具都不给 execute” | **唯一首轮试点**，≤3 天。 |
+| [OpenAI Agents SDK TypeScript](https://openai.github.io/openai-agents-js/) | agent loop、[session](https://openai.github.io/openai-agents-js/guides/sessions/)、可序列化的 [human-in-the-loop 状态](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/)；可用 [AI SDK 适配非 OpenAI 模型](https://openai.github.io/openai-agents-js/extensions/ai-sdk/) | 0.x 版本；浏览器下默认 tracing 须关闭；状态存放 | **备选**：ToolLoopAgent 任一 R1 条件不达标即开对照。 |
+| [LangGraph.js](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph) | 状态图、checkpoint、interrupt/resume | 图状态与持久化工作量 | 仅当线性循环和暂停机制被证明不足时评估。 |
+| [Mastra](https://mastra.ai/en/docs/deployment/client) | 完整 agent 平台 | 以 Mastra server 为前提 | 不作为运行时。 |
+
+[Anthropic 的工程文章](https://www.anthropic.com/engineering/building-effective-agents)也把简单 workflow、可控工具和评估放在复杂自治之前。取舍是**复用通用运行时，保留产品规则**。第 3 版 80–154 KB gz 只是 provider-only 的实测，**不代表完整 agent runtime**，R1 重测。
+
+### 2.1 明确不采用（理由：需要后端，或对单用户离线场景无收益）
+
+| 方案 | 不采用理由 |
+|---|---|
+| AI SDK WorkflowAgent / durable execution | 依赖服务端持久化工作流；本地 Dexie + 24 h 过期已够 |
+| LangGraph.js | 图状态 + checkpointer 偏服务端；线性循环 + 审批暂停已满足 |
+| OpenAI Agents SDK 服务器端 `RunState` | 文档要求快照存服务器端；仅保留为 R1 中止时的对照 |
+| Mastra / Google ADK / Claude Agent SDK / Pydantic AI | 以服务端或 Python/Node 进程为前提，不适合浏览器内运行时 |
+| AG-UI / CopilotKit / A2A | 前后端或多 agent 间协议，单用户本地应用没有对端 |
+| OpenTelemetry 依赖 | 本地 `toolDecisionLog` + `auditReplay` 已覆盖，无上报端 |
+
+## 3. 目标边界与最小试点
+
+```text
+用户聊天入口 / 会话恢复
+  → Agent runtime（ToolLoopAgent）：模型、结构化消息、tool call/result、多步循环、停止/暂停
+  → 解语工具适配层：schema 校验、作用域、权限、幂等 requestId
+  → 解语决策与确认：风险分类、用户批准/拒绝、超时处理
+  → toolWriteGate / commitToolEffects → 本地持久化 → 重载读回 → toolDecisionLog / auditReplay
+```
+
+### 3.1 执行与审批
+- **只读工具**：可给受控 `execute`。
+- **写工具**：用 ToolLoopAgent 内置 `toolApproval` 回调挂起（不用工具级 `needsApproval`，不再由 pipeline 自己持有 pending/stopWhen）。回调复用现有写策略：未知工具名 → `denied`，只读 → `not-applicable`，其余写工具 → `user-approval`。用户批准后，handler 仍先过 `toolDecisionPipeline` 策略（directive 拦截、写入门禁、requestId 去重、决策审计），再执行既有 domain command 与 `src/ai/runtime/toolWriteGate.ts` / `commitToolEffects.ts`。框架不得持有 Dexie 写入口。同一步多个待批写调用各自批准、各自审计。
+- **待审批状态跨重载**：会话消息（含 `tool-approval-request`/`tool-approval-response` 片段）存 Dexie 新增表 `ai_runtime_v2_turns`（追加式 schema 版本，不改基线表），24 h 过期即视为拒绝并记审计；重载后从消息中找出未响应的 approval-request 重新渲染卡片。不上传服务端，**不做跨设备续跑**。
+- `requestId` 只由 `src/ai/toolRequestId.ts` 的 `buildAiToolRequestId` 生成；AI SDK `toolCallId` 只作附加字段写进审计 metadata。测试：重试/恢复不重复写入。
+
+### 3.2 消息历史（放弃扁平化后的必然约束）
+采用原生消息历史后，**每个 tool-call 必须在后续请求中配上 tool-result**（含被拒绝的审批结果），否则报错，见 <https://ai-sdk.dev/docs/troubleshooting/missing-tool-results-error>。当前没有需要保留的旧会话，**不做向后兼容**。
+
+### 3.3 必须保留的安全护栏（每条都要有测试）
+1. **Gateway**：只传 provider 实例。字符串模型 id 会走全局默认 provider，即 Vercel AI Gateway（<https://ai-sdk.dev/docs/ai-sdk-core/provider-management>）。适配层 `typeof model === 'string'` 直接抛错；不设 `AI_SDK_DEFAULT_PROVIDER`；断言请求只发往配置的 baseURL。
+2. **守卫测试 `aiSdkGuard.test.ts`**：`src/` 中出现 `@ai-sdk/gateway`、`AI_SDK_DEFAULT_PROVIDER`、`createGateway`、`anthropic.tools.`、`google.tools.`、`openai.tools.`、`generateObject(` 任一即失败；写工具定义带 `execute` 而不带审批即失败。
+3. **`providerExecuted: true` 的片段一律丢弃**，不进入执行和审计。
+4. **工具错误不是 provider 故障**：`tool-error` / `tool-result` 片段不映射成流错误，不触发 `ChatOrchestrator` 切备用服务；工具错误作为 tool-result 回给模型。
+5. **M1 坏参数**：参数无法解析或不符合 schema 时（AI SDK `invalid` 调用），走现有“参数无效、需要澄清”路径，零写入，决策日志记 `invalid_args`；**不得默认成 `{}`**。不开启 `experimental_repairToolCall`（会掩盖 M1）。
+6. **M2 拒收 tools 降级**：抛出的 `APICallError` 和流内 `error` 片段都检查；4xx（不含 401/403/429）且文案匹配 `/tool|function|工具|函数/i` 时，去掉 tools 重试一次，并记住 `providerId+model` 本会话不再带 tools；仅在尚未输出内容时重试。
+7. **重试**：`maxRetries: 0`，重试只由上层控制。
+8. **流式参数片段**（`tool-input-start/delta`）只供 UI，不完整输入不进入执行管线。
+9. **结构化输出**：用 [`generateText` + `Output.object`](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)，不用已弃用的 `generateObject`。
+10. **写工具永不 not-applicable**：`toolApproval` 回调对任何写工具（含未知工具名）不得返回 `not-applicable`；测试遍历全部写工具名断言。
+
+### 3.4 试点任务
+同一试点任务至少覆盖：一次用户问题触发**连续两个只读工具**，随后提出**一个真实可达写动作**；分别批准和拒绝；中断后重载恢复；成功写入后重新查询读回；在审计中定位模型提议、风险判定、用户决定与最终写入。每一步经用户可达入口，不以 mock 调用次数或 demo 代替。另以 Ollama 或无原生 tool-call 的 provider 跑降级路径，写明用户看到的能力差异。
+
+### 3.5 端到端审计（必验，仅解析器测试不算）
+原生 tool-call → `src/ai/chat/toolDecisionPipeline.ts` → 确认（破坏性）/ `toolWriteGate` + `commitToolEffects` → `src/ai/toolDecisionLog.ts` 写入 → `src/ai/auditReplay.ts` **读回同一 requestId 与参数**。拒绝确认时零写入且回放可见。
+
+**写入门禁开关**：`assertAiChatToolWriteAllowed` 只在 `featureFlags.aiToolWriteGateEnabled` 为真时生效（`src/ai/chat/toolDecisionPipeline.ts:378`）；该开关 dogfood 默认开、prod 默认关（`src/ai/config/featureFlags.ts:198`，`featureFlags.environmentMatrix.test.ts:91,107`）。用户已批准 R1 试点期间打开；“写入门禁绕过数 = 0”只在该开关为真时统计。
+
+**API 名称**：`ai@7.0.138` 中写工具审批用 `ToolLoopAgent` 的 `toolApproval` 回调（`({toolCall}) => 'not-applicable'|'approved'|'denied'|'user-approval'`），批准/拒绝以 `tool-approval-response` 消息回传（`node_modules/ai/docs/03-agents/06-tool-approvals.mdx`）；下文“审批”均指此机制，不用工具级 `needsApproval`。
+
+## 4. 分阶段执行与门槛
+
+**统一门禁**（每次推分支前）：全量 vitest、`npm run build`、`npm run test:e2e:chromium -- --retries=0` 一次全绿，hooks 开启；另跑 `npm run typecheck`、`npm run check:architecture-guard`。试点代码在独立分支，**R2 之前不进 main**；进 main 须代码审查复审和用户确认。
+
+### R0 — 锁定基线和验收样本（≤1 天）
+- 重新核对 `origin/main` 与 P2-1 分支；登记需要保留的未提交文件。读 §1 所列架构文档，列出真实聊天入口及完整写入/读回路径。
+- 选 3 个现有用户任务（含 1 个写动作、1 个失败样本），在旧实现上记录：步数、工具调用次数、成功与否、P50/P95 延迟、token、错误类型，作为对照基线。
+- 依仓库 Explore → Research → Plan 流程写 Research 结论与 `check:spec-research-filled` 要求的规格文件。
+
+**通过条件**：3 个样本在旧实现上可复现，入口、决策、持久化和日志位置都已定位（文件:行号）。
+
+### R1 — ToolLoopAgent 同题试点（≤3 天，独立分支，不进 main）
+- 3 个样本 × 4 个 provider fixture（DeepSeek chat/reasoner、Qwen thinking 开/关、MiniMax、Anthropic）× 批准 / 拒绝 / 中断后重载恢复。fixture 由用户本机录制并脱敏，盒子只回放。
+- 覆盖 §3.3 全部 10 条护栏测试和 §3.5 端到端审计。
+- 记录：首开包体增量（gz）、CSP 下运行结果、网络目标、各 provider 差异。
+
+**通过条件（全部满足）**：
+- 成功率 ≥ R0 旧实现（同样本）；
+- 写入门禁绕过数 = 0；审计关联缺失数 = 0（每次写入都能从 `auditReplay` 读回提议、风险判定、用户决定、最终写入）；
+- 跨重载恢复：12 次中 12 次正确恢复或按过期规则拒绝，无重复写入；
+- P95 延迟增量 ≤ 300 ms（不含模型本身耗时差异）；
+- AI 面板首开包体增量 ≤ 200 KB gz，主包首屏不变；CSP 无需加 `unsafe-eval`。
+
+**中止条件（任一即中止）**：上述任一不达标且 3 天内无法用框架配置解决；或必须重建 loop/checkpoint 才能用（判为不满足“不要从头搭 agent”）。中止后：开 OpenAI Agents SDK 对照（≤3 天，同一套标准）；对照也不达标 → 停止 agent 迁移，provider 层改进另立议题。
+
+**回滚**：实验分支直接关闭，main 零影响。
+
+### R2 — 一个用户可达路径的受控接入（≤3 天）
+- 用 R1 胜出的运行时，在 feature flag `aiAgentRuntimeV2Enabled` 默认 `false` 下接入一条聊天路径。不把 tool call 塞回文本 parser。
+- 用真实入口验证批准、拒绝、取消、超时、重复回调、跨重载恢复和最终读回；补审计关联测试和本地存储迁移测试。
+- 设置页加“本次会话不带原生工具”开关，复用 §3.3-6 的同一个会话集合（约 10 行，紧急降级用）。
+
+**通过条件**：R1 的数值标准在真实入口上复现；关闭 flag 后行为与 `1d65fef8` 一致（e2e 断言）。
+**回滚**：关闭 flag；仍有问题则 revert 单个合并提交。本地存储只追加新表/字段，不改旧数据。
+
+### R3 — 扩供应商和工具覆盖
+- 按 R0 取得的调用频率和风险排序逐批扩工具，每批 ≤5 个，不按“40 + 20”一次性迁移。明确 MCP 与本地上下文工具的路由，逐个测 schema、权限、错误和恢复。
+- 每批重跑 R1 数值标准；对不支持原生工具的 provider 公开降级行为。
+
+**通过条件**：每批达到 R1 标准。**回滚**：按批 revert；flag 仍可整体关闭。
+
+### R4 — 决定旧代码处置
+- dogfood：用户本人，≥7 天、≥20 次 AI 会话，覆盖 OpenAI 兼容、DeepSeek、Qwen、MiniMax、Anthropic 各 ≥3 次、Ollama 降级 ≥2 次。须为 0 的计数：`createLogger('AiSdkProvider')` 的 error、`ChatOrchestrator` 非预期回退、写入门禁绕过、审计关联缺失。
+- 达标后才决定默认开 flag 和删除旧 parser/loop 的范围；删除只在所有可达调用方和历史会话覆盖后进行，保留仍被语音或不支持原生工具的模型使用的部分。
+
+**通过条件**：上述计数全部为 0。此前不宣称“迁移完成”。**回滚**：flag 默认关；删除旧代码的提交单独可 revert。
+
+## 5. 独立风险项，不随框架迁移自动消失
+
+1. **MCP client（独立变更，不与试点同发）**。当前规范为 **2026-07-28**：核心无状态（无握手、无会话）；服务器需要用户输入时用 MRTR，返回 `resultType: "input_required"`，取代服务器主动发起的 elicitation/sampling；Tasks 移到扩展 `io.modelcontextprotocol/tasks`。
+   - 开工前先核实目标外部服务器支持的协议版本，再选 SDK：支持 2026-07-28 的选新版 SDK（v2 分包）；v1（`@modelcontextprotocol/sdk@1.32.1`）只用于兼容旧服务器。
+   - client 必须识别 `resultType`；`input_required` 走解语自己的确认 UI。elicitation 与 tasks 扩展暂不使用。
+   - **仅旧服务器适用**：跨域暴露 `mcp-session-id` 响应头、CORS 会话头处理；v1 下 `validation/cfworker` 入口、Ajv 仍被静态导入、`@cfworker/json-schema` 须显式依赖等实测结论。
+   - 验收证据：构建产物实际导入路径、浏览器实际使用的校验器、真实 CSP 下运行结果、包体增量。
+2. **语音动作（与聊天共用审批和审计）**：语音写动作走与聊天相同的 `toolApproval` 审批和 `toolDecisionPipeline` → `toolWriteGate` → `toolDecisionLog`，requestId 同样由 `buildAiToolRequestId` 生成。另加四条硬规则：
+   - 模型意图解析用 `AbortSignal.timeout(1500)`，请求只发 1 次（`maxRetries: 0`，测试断言）；
+   - **超时后迟到的结果整个丢弃**：不执行、不学别名、不重试，记 `timeout_discarded`；
+   - **别名只在动作已执行（含用户确认后执行）时学**，把 `voiceIntentResolution.ts:114–118` 的学习挪到执行之后；被拒绝/被丢弃的不学；
+   - 确认规则与聊天一致：`isDestructiveAction` 为真时**一律确认**，不再只在 safeMode 下（`assistantVoiceIntentDispatch.ts:98–100`）；审计记 `toolName = voice:<actionId>`，`auditReplay` 可读回。
+   - 模型层改为结构化输出「ActionId 枚举 + `none`」，按校准置信度分三档阈值：执行 / 确认 / 拒绝；破坏性动作不论置信度一律确认。
+   - 可选实验（不阻塞）：Chrome 148+ 上用 Prompt API + `responseConstraint` 做离线意图识别（只做枚举分类，不做工具调用）。
+   聊天试点成功不代表语音安全。
+3. **领域能力**：Leipzig/AutoGloss、项目和语言作用域、检索来源、工具风险级别及审计继续由解语维护。框架的内置 memory、server session、hosted tool 只在逐项证明符合本地优先边界后才引入。
+4. **成本和版本漂移**：实施时重新核对锁定版本并记录实测值。本文件的时间盒（R0 1 天、R1 3 天、R2 3 天）是上限；第 3 版的行数和天数估算不再沿用。
+
+## 6. 已决定事项（2026-10-13 用户拷问确认）
+
+- **基线**：`1d65fef8`；`31facd92` 是 Mac 本机未推的备份修复，与 AI 无关。
+- **旧会话**：没有，不做向后兼容。
+- **语音与聊天**：共用 `toolApproval` 审批和同一 requestId 审计；语音保留 1.5 s 超时和迟到结果丢弃；别名只在动作执行后学习。
+- **数值**：P95 延迟增量 ≤300 ms、首开包体增量 ≤200 KB gz、待审批 24 h 过期均确认；flag 名 `aiAgentRuntimeV2Enabled`。
+- **对照触发**：ToolLoopAgent 任一 R1 条件不达标即开 OpenAI Agents SDK 对照。
+- **跨设备续跑**：不做，状态只存本地 Dexie。
+- **审批机制**：ToolLoopAgent 内置 `toolApproval` 取代 pipeline 自持审批（替代 B1 串行拒绝补丁）。
+
+本计划建议先完成**研究与受控试点**，其结果不等于依赖选型或全量替换的验收。进入实现时遵循仓库 Explore → Research → Plan → Implement → Commit 流程和 §4 统一门禁。

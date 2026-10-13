@@ -2686,6 +2686,7 @@ export const zhCNDictionary = {
   'ai.toolWriteGate.scopeTargetUnresolved': '写入目标不在当前范围内，或尚未解析到具体句段/层。',
   'ai.toolWriteGate.destructiveDenied': '本会话已禁用破坏性操作，该工具调用已被自动阻止。',
   'ai.toolWriteGate.genericBlocked': '该工具调用已被安全策略阻止。',
+  'ai.runtimeV2.approvedRunsNextTurn': '已批准，将在你发送下一条消息时执行。',
   'ai.runtimeV2.pendingNoAutoContinue': '确认后不会自动继续，请在确认后再发一条消息让我接着做。',
   'ai.toolWriteGate.localPolicyBlocked':
     '已按你的偏好阻止本地工具自动执行。若你希望继续，请明确授权本轮执行。',

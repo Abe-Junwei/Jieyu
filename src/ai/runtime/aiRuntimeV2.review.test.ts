@@ -2,7 +2,8 @@
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadPendingApproval } from './aiRuntimeV2Pending';
+import { db } from '../../db';
+import { loadTurnState } from './aiRuntimeV2Pending';
 import {
   runAiRuntimeV2Turn,
   type RunAiRuntimeV2TurnParams,
@@ -74,18 +75,21 @@ const base = (
       pending: false,
     }),
   ),
-  hasPersistedExecutionForRequest: vi.fn(async () => false),
+  requestApproval: vi.fn(async () => ({ pending: true, text: 'confirm?' })),
   ...over,
 });
-beforeEach(() => localStorage.clear());
+beforeEach(async () => {
+  await db.table('ai_runtime_v2_turns').clear();
+});
 
-describe('R2 review probes (after B1/B2/B4 fixes)', () => {
-  it('P1 bypass: every tool call goes through decide (unknown tool name too)', async () => {
+describe('R2 review probes (after native toolApproval)', () => {
+  it('P1: writes never reach decide before approval; unknown tools never execute', async () => {
     const decide = vi.fn(async () => ({
       finalContent: 'ok',
       finalStatus: 'done' as const,
       pending: false,
     }));
+    const requestApproval = vi.fn(async () => ({ pending: true, text: 'confirm?' }));
     await run(
       base(
         seq(
@@ -95,21 +99,14 @@ describe('R2 review probes (after B1/B2/B4 fixes)', () => {
           ),
           text('x'),
         ),
-        { decide },
+        { decide, requestApproval },
       ),
     );
-    console.warn(
-      'P1 decide calls',
-      decide.mock.calls.map((c) => ((c as unknown[])[0] as { name: string }).name),
-    );
-    expect(decide).toHaveBeenCalledTimes(1);
+    expect(decide).not.toHaveBeenCalled();
+    expect(requestApproval).toHaveBeenCalledTimes(1);
   });
-  it('P2 two pending calls in one step: both saved?', async () => {
-    const decide = vi.fn(async () => ({
-      finalContent: 'confirm?',
-      finalStatus: 'done' as const,
-      pending: true,
-    }));
+  it('P2: two pending writes in one step are both kept (was: last one wins)', async () => {
+    const requestApproval = vi.fn(async () => ({ pending: true, text: 'confirm?' }));
     await run(
       base(
         seq(
@@ -119,21 +116,23 @@ describe('R2 review probes (after B1/B2/B4 fixes)', () => {
           ),
           text('x'),
         ),
-        { decide },
+        { requestApproval },
       ),
     );
-    const st = loadPendingApproval('c', Date.now());
-    console.warn(
-      'P2 decide',
-      decide.mock.calls.length,
-      'saved',
-      st.kind === 'active' ? st.state.requestId : st.kind,
-    );
-    // B1：第二个需确认的调用被拒，不进管线，只保存第一个 pending
-    expect(decide).toHaveBeenCalledTimes(1);
-    expect(st.kind === 'active' ? st.state.toolName : st.kind).toBe('delete_transcription_segment');
+    const st = await loadTurnState('c', Date.now());
+    expect(requestApproval).toHaveBeenCalledTimes(2);
+    expect(
+      st.kind === 'active'
+        ? Object.values(st.state.approvals)
+            .map((a) => a.requestId)
+            .sort()
+        : st.kind,
+    ).toEqual([
+      'req-delete_layer-{"layerId":"L"}',
+      'req-delete_transcription_segment-{"segmentId":"s1"}',
+    ]);
   });
-  it('P3 invalid JSON args: decide not called, any invalid_args signal?', async () => {
+  it('P3: invalid JSON args go to clarification, never decide', async () => {
     const decide = vi.fn(async () => ({
       finalContent: 'ok',
       finalStatus: 'done' as const,
@@ -146,51 +145,28 @@ describe('R2 review probes (after B1/B2/B4 fixes)', () => {
         onInvalidArgs,
       }),
     );
-    console.warn('P3 decide', decide.mock.calls.length, JSON.stringify(out));
     expect(decide).not.toHaveBeenCalled();
-    // B2：进入澄清（invalid_args 审计由 onInvalidArgs 写），且循环停止
     expect(onInvalidArgs).toHaveBeenCalledTimes(1);
     expect(out.map((c) => c.delta ?? '').join('')).toBe('clarify-me');
   });
-  it('P4 resume after reload, model re-proposes same tool: decide again (dup confirm risk)', async () => {
-    const decide = vi.fn(async () => ({
-      finalContent: 'confirm?',
-      finalStatus: 'done' as const,
-      pending: true,
-    }));
-    await run(base(seq(calls(['a', 'delete_layer', '{"layerId":"L"}']), text('x')), { decide }));
-    expect(loadPendingApproval('c', Date.now()).kind).toBe('active');
-    // "reload": new turn, user has NOT confirmed yet, model re-calls
-    const decide2 = vi.fn(async () => ({
-      finalContent: 'confirm?',
-      finalStatus: 'done' as const,
-      pending: true,
-    }));
+  it('P4: a new message while an approval is unanswered denies it, then the model may ask again', async () => {
+    await run(base(seq(calls(['a', 'delete_layer', '{"layerId":"L"}']), text('x'))));
+    expect((await loadTurnState('c', Date.now())).kind).toBe('active');
+    const onApprovalClosed = vi.fn(async () => {});
+    const requestApproval = vi.fn(async () => ({ pending: true, text: 'confirm?' }));
     await run(
       base(seq(calls(['a2', 'delete_layer', '{"layerId":"L"}']), text('x')), {
-        decide: decide2,
         userText: 'ok go',
+        onApprovalClosed,
+        requestApproval,
       }),
     );
-    console.warn('P4 second-turn decide calls', decide2.mock.calls.length);
-  });
-  it('P5 abort mid-execute: pending not saved, decide still completes', async () => {
-    const ac = new AbortController();
-    let finished = false;
-    const decide = vi.fn(async () => {
-      ac.abort();
-      await new Promise((r) => setTimeout(r, 20));
-      finished = true;
-      return { finalContent: 'c', finalStatus: 'done' as const, pending: true };
-    });
-    await run(
-      base(seq(calls(['a', 'delete_layer', '{"layerId":"L"}']), text('x')), {
-        decide,
-        signal: ac.signal,
-      }),
+    expect(onApprovalClosed).toHaveBeenCalledWith(
+      'req-delete_layer-{"layerId":"L"}',
+      'delete_layer',
+      'unanswered',
     );
-    await new Promise((r) => setTimeout(r, 40));
-    console.warn('P5 finished', finished, 'saved', loadPendingApproval('c', Date.now()).kind);
+    expect(requestApproval).toHaveBeenCalledTimes(1);
   });
   it('strips <think> from visible text and reports a leaked text tool_call (B4)', async () => {
     const onTextToolCallLeak = vi.fn();

@@ -51,7 +51,8 @@ import {
 } from './ai/useAiChat.persistenceCleanup';
 import { scheduleClearPersistenceCleanup } from '../ai/chat/scheduleClearPersistenceCleanup';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
-import { featureFlags } from '../ai/config/featureFlags';
+import { featureFlags, resolveAiAgentRuntimeV2Enabled } from '../ai/config/featureFlags';
+import { firstUnansweredCard } from '../ai/runtime/aiRuntimeV2Pending';
 import { createAssistantStream } from './ai/useAiChat.streamFactory';
 import { useAiChatToolAudit } from './ai/useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './ai/useAiChat.pendingToolCall';
@@ -421,6 +422,21 @@ export function useAiChat(options?: UseAiChatOptions) {
     getTimelineReadModelEpoch: () => getTimelineReadModelEpochRef.current?.(),
     conversationIdRef,
   });
+
+  // v2 重载恢复：Dexie 里第一张未答复的审批卡片重新渲染 | reload: re-render the first unanswered approval card
+  useEffect(() => {
+    if (!conversationId || isBootstrapping) return;
+    if (!(featureFlags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled())) return;
+    let stale = false;
+    void firstUnansweredCard(conversationId, Date.now())
+      .then((card) => {
+        if (!stale && card) setPendingToolCall((cur) => cur ?? (card as PendingAiToolCall));
+      })
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [conversationId, isBootstrapping]);
 
   const send = useCallback(
     async (userText: string) => {

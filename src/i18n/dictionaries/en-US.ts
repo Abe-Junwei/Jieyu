@@ -2914,6 +2914,7 @@ export const enUSDictionary = {
   'ai.toolWriteGate.destructiveDenied':
     'Destructive actions are disabled for this session, so this tool call was blocked automatically.',
   'ai.toolWriteGate.genericBlocked': 'This tool call was blocked by the safety policy.',
+  'ai.runtimeV2.approvedRunsNextTurn': 'Approved; it will run when you send your next message.',
   'ai.runtimeV2.pendingNoAutoContinue':
     'After you confirm, I will not continue automatically; send another message to let me proceed.',
   'ai.toolWriteGate.localPolicyBlocked':

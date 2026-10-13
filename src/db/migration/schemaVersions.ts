@@ -47,6 +47,13 @@ export const JIEYU_SCHEMA_BASELINE_VERSION = 1;
  */
 export const JIEYU_SCHEMA_VERSIONS: readonly JieyuSchemaVersion[] = [
   { version: JIEYU_SCHEMA_BASELINE_VERSION, stores: JIEYU_BASELINE_STORES },
+  // v2（additive）：AI runtime v2 会话消息 + 工具审批请求（取代 localStorage）；不改基线块 |
+  // v2 (additive): AI runtime v2 turn messages + tool approval requests (replaces localStorage).
+  {
+    version: 2,
+    tier: 'additive',
+    stores: { ai_runtime_v2_turns: 'conversationId, expiresAt' },
+  },
 ];
 
 /** 账本中的最新版本 | Latest version in a ledger */

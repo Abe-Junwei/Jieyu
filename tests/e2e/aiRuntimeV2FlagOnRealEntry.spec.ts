@@ -111,7 +111,7 @@ async function readToolAudits(page: Page): Promise<AuditRow[]> {
 }
 
 test.describe('AI runtime v2 flag on — real chat entry', () => {
-  // 破坏性批准/拒绝/取消/重载：见 aiRuntimeV2Turn.test / AlertsPanel / R1 measure（浮窗 alerts 区域不稳定）
+  // 批准/拒绝/取消：见 aiRuntimeV2Turn.test / AlertsPanel；重载见下方 Dexie 用例（须先选中句段，否则写目标越出作用域）
 
   test('native tool path loads v2 chunk, executes create, audit by requestId', async ({ page }) => {
     test.setTimeout(180_000);
@@ -169,5 +169,44 @@ test.describe('AI runtime v2 flag on — real chat entry', () => {
         { timeout: 60_000 },
       )
       .toBe(true);
+  });
+  test('pending approval survives page reload via Dexie and re-renders the card', async ({ page }) => {
+    test.setTimeout(240_000);
+    await seedV2DeepSeek(page);
+    await setupFieldProjectWithMediaAndSegments(page);
+    const unitId = await page.evaluate(async () => {
+      const dexie = (globalThis as unknown as {
+        __jieyuDexie__: { open: () => Promise<unknown>; layer_units: { toArray: () => Promise<Array<{ id: string }>> } };
+      }).__jieyuDexie__;
+      await dexie.open();
+      return (await dexie.layer_units.toArray())[0]?.id ?? '';
+    });
+    expect(unitId).not.toBe('');
+    await installSmartCompletionsRoute(page, 'delete_transcription_segment', '已删除', { segmentId: unitId });
+
+    await openTranscriptionChatWindow(page);
+    await page.getByRole('button', { name: /00:00\.0.*alpha/ }).first().click();
+    const input = page.locator('.transcription-chat-window').getByTestId('ai-chat-composer-input');
+    await expect(input).toBeVisible({ timeout: 60_000 });
+    await input.fill(`删除句段 ${unitId}`);
+    await input.press('Enter');
+
+    const readTurns = () =>
+      page.evaluate(async () => {
+        const dexie = (globalThis as unknown as {
+          __jieyuDexie__: { open: () => Promise<unknown>; table: (n: string) => { toArray: () => Promise<Array<{ approvals: Record<string, unknown> }>> } };
+        }).__jieyuDexie__;
+        await dexie.open();
+        return dexie.table('ai_runtime_v2_turns').toArray();
+      });
+    await expect
+      .poll(async () => (await readTurns()).some((t) => Object.keys(t.approvals).length > 0), { timeout: 60_000 })
+      .toBe(true);
+    expect((await readToolAudits(page)).some((r) => (r.newValue ?? '').startsWith('policy_pending:delete_transcription_segment'))).toBe(true);
+
+    await page.reload();
+    expect((await readTurns()).length).toBe(1);
+    await openTranscriptionChatWindow(page);
+    await expect(page.getByTestId('ai-chat-alerts-region')).toContainText(/delete_transcription_segment|删除/, { timeout: 60_000 });
   });
 });

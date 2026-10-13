@@ -12,9 +12,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
   PENDING_APPROVAL_TTL_MS,
-  clearPendingApproval,
-  loadPendingApproval,
-  savePendingApproval,
+  clearTurnState,
+  loadTurnState,
+  saveTurnState,
+  withApprovalResponse,
+  withToolResult,
 } from './aiRuntimeV2Pending';
 import { runAiRuntimeV2Turn, type RuntimeV2Decision } from './aiRuntimeV2Turn';
 import { createPilotAgent, type PilotToolOutcome } from './toolLoopAgentPilot';
@@ -150,13 +152,13 @@ describe('R1 DeepSeek fixture measurement (v4.2)', () => {
             // destructive denied is expected when pending; not a bypass
             if (!gate.allowed) {
               audit.set(requestId, { ...audit.get(requestId)!, decision: true, executed: false });
-              return { status: 'pending_user_confirmation', message: gate.message, requestId };
+              return { status: 'error', message: gate.message, requestId };
             }
           }
           const approved = f.scenario === 'approve';
           if (isWrite && !approved) {
             audit.set(requestId, { ...audit.get(requestId)!, decision: true, executed: false });
-            return { status: 'pending_user_confirmation', message: '用户拒绝', requestId };
+            return { status: 'error', message: '用户拒绝', requestId };
           }
           audit.set(requestId, { ...audit.get(requestId)!, decision: true, executed: true });
           return { status: 'done', message: 'ok', requestId };
@@ -272,21 +274,49 @@ describe('R1 DeepSeek fixture measurement (v4.2)', () => {
 
     for (const c of cases) {
       const conv = `reload-${c.kind}-${c.i}`;
-      clearPendingApproval(conv);
+      await clearTurnState(conv);
       const requestId = `req_${c.kind}_${c.i}`;
       const createdAt = 1_000;
-      savePendingApproval(conv, {
-        requestId,
-        toolName: 'delete_transcription_segment',
-        messages: [{ role: 'user', content: 'delete' }],
+      const base = [
+        { role: 'user' as const, content: 'delete' },
+        {
+          role: 'assistant' as const,
+          content: [
+            {
+              type: 'tool-call' as const,
+              toolCallId: 'c1',
+              toolName: 'delete_transcription_segment',
+              input: { segmentId: 's1' },
+            },
+            { type: 'tool-approval-request' as const, approvalId: 'a1', toolCallId: 'c1' },
+          ],
+        },
+      ];
+      const item = { toolCallId: 'c1', toolName: 'delete_transcription_segment' };
+      // executed = 本页内批准即执行（已有 tool-result）；rejected = 用户取消（execution-denied）
+      const messages =
+        c.kind === 'executed'
+          ? withToolResult(withApprovalResponse(base, 'a1', true), item, {
+              status: 'done',
+              message: 'ok',
+            })
+          : c.kind === 'rejected'
+            ? withToolResult(withApprovalResponse(base, 'a1', false), item, {
+                denied: 'rejected by the user',
+              })
+            : base;
+      await saveTurnState({
+        conversationId: conv,
+        messages,
+        approvals: { a1: { requestId } },
         createdAt,
       });
 
       if (c.kind === 'expired') {
-        const loaded = loadPendingApproval(conv, createdAt + PENDING_APPROVAL_TTL_MS);
+        const loaded = await loadTurnState(conv, createdAt + PENDING_APPROVAL_TTL_MS);
         expect(loaded.kind).toBe('expired');
         // expired cleared — no execute
-        expect(loadPendingApproval(conv, createdAt + PENDING_APPROVAL_TTL_MS + 1).kind).toBe(
+        expect((await loadTurnState(conv, createdAt + PENDING_APPROVAL_TTL_MS + 1)).kind).toBe(
           'none',
         );
         ok += 1;
@@ -329,19 +359,19 @@ describe('R1 DeepSeek fixture measurement (v4.2)', () => {
           decideCalls += 1;
           return { finalContent: 'should-not-run', finalStatus: 'done', pending: false };
         },
-        hasPersistedExecutionForRequest: async (id) => id === requestId && executed,
+        requestApproval: async () => ({ pending: true, text: 'confirm?' }),
         now: () => createdAt + 60_000,
       })) {
         chunks.push(ch);
       }
       // resume path must not re-enter decide for the pending tool
       expect(decideCalls).toBe(0);
-      expect(loadPendingApproval(conv, createdAt + 60_000).kind).toBe('none');
+      expect((await loadTurnState(conv, createdAt + 60_000)).kind).toBe('none');
       const text = chunks.map((x) => (x as { delta?: string }).delta ?? '').join('');
       expect(text).toContain(executed ? '已执行' : '已拒绝');
       const prompt = JSON.stringify(model.doStreamCalls[0]!.prompt);
-      expect(prompt).toContain(`requestId=${requestId}:`);
-      expect(prompt).toContain(executed ? 'confirmed and executed' : 'not executed');
+      expect(prompt).toContain('c1');
+      expect(prompt).toContain(executed ? '"ok"' : 'rejected by the user');
       ok += 1;
     }
 

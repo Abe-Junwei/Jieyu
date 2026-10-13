@@ -12,6 +12,7 @@ import {
   tool,
   type LanguageModel,
   type TextStreamPart,
+  type ToolApprovalStatus,
   type Schema,
   type ToolSet,
 } from 'ai';
@@ -22,9 +23,9 @@ export interface PilotToolSpec {
   inputSchema: z.ZodType | Schema;
 }
 
-/** 工具决策结果：pending = 已交给现有确认界面，等用户批准 | pending = handed to the existing confirm UI */
+/** 工具决策结果（审批由 SDK toolApproval 完成，这里只有执行结果）| execution outcome */
 export interface PilotToolOutcome {
-  status: 'done' | 'error' | 'pending_user_confirmation';
+  status: 'done' | 'error';
   message: string;
   requestId?: string;
 }
@@ -37,6 +38,11 @@ export interface PilotAgentOptions {
    * The only execution path for every tool call (prod: the existing decision pipeline).
    */
   runToolDecision: (name: string, input: unknown, toolCallId: string) => Promise<PilotToolOutcome>;
+  /**
+   * SDK 原生审批（toolApproval 回调）；'user-approval' 时循环停下并发出 tool-approval-request。
+   * Native SDK approval; 'user-approval' stops the loop and emits tool-approval-request parts.
+   */
+  toolApproval?: (name: string, input: unknown) => ToolApprovalStatus | Promise<ToolApprovalStatus>;
   instructions?: string;
   maxSteps?: number;
 }
@@ -52,13 +58,9 @@ export function assertProviderInstance(
   }
 }
 
-const isPendingOutcome = (output: unknown) =>
-  (output as PilotToolOutcome | undefined)?.status === 'pending_user_confirmation';
-
 /**
- * 审批走现有 toolDecisionPipeline 的确认界面（聊天与语音共用），不用 SDK toolApproval，避免双重确认；
- * 有 pending 结果时停止循环，等用户决定后由下一回合续跑。
- * shortcut: pipeline-owned approval, upgrade to SDK toolApproval if the confirm UI moves onto approval parts.
+ * 审批用 SDK 原生 toolApproval（回调内用现有写入策略）；批准后 execute 仍走决策管线、写入门禁与审计。
+ * Approval via native toolApproval; approved calls still execute through the decision pipeline.
  */
 export function createPilotAgent(options: PilotAgentOptions) {
   assertProviderInstance(options.model);
@@ -77,11 +79,16 @@ export function createPilotAgent(options: PilotAgentOptions) {
     maxRetries: 0,
     stopWhen: [
       isStepCount(options.maxSteps ?? 6),
-      ({ steps }) => (steps.at(-1)?.toolResults ?? []).some((r) => isPendingOutcome(r.output)),
       // B2：参数不可解析即停，交给澄清，不让模型盲重试 | stop on invalid args, clarification takes over
       ({ steps }) =>
         (steps.at(-1)?.toolCalls ?? []).some((c) => (c as { invalid?: boolean }).invalid === true),
     ],
+    ...(options.toolApproval
+      ? {
+          toolApproval: ({ toolCall }: { toolCall: { toolName: string; input: unknown } }) =>
+            options.toolApproval!(toolCall.toolName, toolCall.input),
+        }
+      : {}),
     ...(options.instructions ? { instructions: options.instructions } : {}),
   });
 }
@@ -92,6 +99,13 @@ export type PilotEvent =
   | { type: 'tool-input-ui'; toolCallId: string }
   | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
   | { type: 'invalid-args'; toolCallId: string; toolName: string; raw: unknown }
+  | {
+      type: 'approval-request';
+      approvalId: string;
+      toolCallId: string;
+      toolName: string;
+      input: unknown;
+    }
   | { type: 'provider-error'; error: unknown };
 
 /**
@@ -122,6 +136,15 @@ export function mapStreamPart(part: TextStreamPart<ToolSet>): PilotEvent | null 
         toolCallId: part.toolCallId,
         toolName: part.toolName,
         input: part.input,
+      };
+    case 'tool-approval-request':
+      if (part.isAutomatic) return null;
+      return {
+        type: 'approval-request',
+        approvalId: part.approvalId,
+        toolCallId: part.toolCall.toolCallId,
+        toolName: part.toolCall.toolName,
+        input: part.toolCall.input,
       };
     case 'error':
       return { type: 'provider-error', error: part.error };
