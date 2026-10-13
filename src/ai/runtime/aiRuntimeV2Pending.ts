@@ -217,7 +217,36 @@ export interface ApprovalResolution {
   stale?: true;
 }
 
+// S3：重载后可恢复的工具（指纹覆盖完整）；其余一律过期。merge_prev/next 不含邻居指纹，不在内 |
+// tools whose fingerprints fully cover their targets; everything else expires after a reload
+const RESTORE_SAFE_TOOLS = new Set([
+  'create_transcription_segment',
+  'split_transcription_segment',
+  'merge_transcription_segments',
+  'delete_transcription_segment',
+  'clear_translation_segment',
+  'set_transcription_text',
+  'set_translation_text',
+  'delete_layer',
+  'set_token_pos',
+  'set_token_gloss',
+  'propose_changes',
+]);
+function restoreSafe(call: ApprovedCallSnapshot): boolean {
+  if (!RESTORE_SAFE_TOOLS.has(call.name)) return false;
+  if (call.name !== 'propose_changes') return true;
+  const changes = (call.arguments as { changes?: unknown }).changes;
+  return (
+    Array.isArray(changes) &&
+    changes.every((c: { tool?: unknown; name?: unknown }) => {
+      const n = String(c?.tool ?? c?.name ?? '').trim();
+      return n !== 'propose_changes' && RESTORE_SAFE_TOOLS.has(n);
+    })
+  );
+}
+
 async function targetsChanged(meta: ApprovalMeta, failClosed = false): Promise<boolean> {
+  if (failClosed && meta.executionCall && !restoreSafe(meta.executionCall)) return true;
   // S2：重载后写工具没有可核对的目标 → 安全优先按过期（同页仍由 epoch 保护）| fail closed after reload
   if (failClosed && meta.executionCall && Object.keys(meta.targets ?? {}).length === 0) return true;
   for (const [id, fp] of Object.entries(meta.targets ?? {})) {

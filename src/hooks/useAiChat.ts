@@ -453,7 +453,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (!card) return;
         // 旧页面的 epoch 无意义且本页 epoch 加载期间还会变：恢复卡片不带 epoch，由库指纹把关（恢复时 + 批准时）|
         // restored cards carry no epoch (this page's epoch still moves while loading); DB fingerprints guard them
-        const restored: PendingAiToolCall = { ...card };
+        const restored: PendingAiToolCall = { ...card, restored: true };
         delete restored.readModelEpochCaptured;
         setPendingToolCall((cur) => cur ?? restored);
       })

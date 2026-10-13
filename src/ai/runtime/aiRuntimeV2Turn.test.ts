@@ -371,8 +371,8 @@ describe('runAiRuntimeV2Turn', () => {
         approvals: {
           a1: {
             requestId: 'req-s1',
-            card: { call: { name: 'delete_text' }, readModelEpochCaptured: 7 },
-            executionCall: { name: 'delete_text', arguments: { textId: 't-s1' } },
+            card: { call: { name: 'delete_layer' }, readModelEpochCaptured: 7 },
+            executionCall: { name: 'delete_layer', arguments: { layerId: 't-s1' } },
           },
         },
         messages: [
@@ -380,7 +380,7 @@ describe('runAiRuntimeV2Turn', () => {
           {
             role: 'assistant',
             content: [
-              { type: 'tool-call', toolCallId: 'c1', toolName: 'delete_text', input: {} },
+              { type: 'tool-call', toolCallId: 'c1', toolName: 'delete_layer', input: {} },
               { type: 'tool-approval-request', approvalId: 'a1', toolCallId: 'c1' },
             ],
           },
@@ -400,7 +400,7 @@ describe('runAiRuntimeV2Turn', () => {
       await seedPending('conv-s1-stale');
       await db.table('texts').update('t-s1', { updatedAt: '2026-10-13T01:00:00.000Z' });
       const r = await restoreFirstUnanswered('conv-s1-stale', 2_000);
-      expect(r).toMatchObject({ kind: 'stale', requestId: 'req-s1', toolName: 'delete_text' });
+      expect(r).toMatchObject({ kind: 'stale', requestId: 'req-s1', toolName: 'delete_layer' });
       const loaded = await loadTurnState('conv-s1-stale', 2_000);
       if (loaded.kind !== 'active') throw new Error('state missing');
       expect(unansweredApprovals(loaded.state.messages)).toHaveLength(0);
@@ -489,6 +489,22 @@ describe('runAiRuntimeV2Turn', () => {
       expect(await expireApprovalIfStale('conv-s2-nest', 'a1', 2_000)).toBe(false);
       await db.table('layer_units').delete('u-s2n');
       expect(await expireApprovalIfStale('conv-s2-nest', 'a1', 2_000)).toBe(true);
+    });
+
+    it('S3: after reload, tools outside the restore-safe allowlist expire (merge_prev, nested child)', async () => {
+      await db
+        .table('layer_units')
+        .put({ id: 'u-s3', textId: 't', startTime: 0, endTime: 1, createdAt: T0, updatedAt: T0 });
+      await seed('conv-s3-prev', 'merge_prev', { segmentId: 'u-s3' });
+      expect((await restoreFirstUnanswered('conv-s3-prev', 2_000))?.kind).toBe('stale');
+      await seed('conv-s3-nest', 'propose_changes', {
+        changes: [{ tool: 'merge_next', arguments: { segmentId: 'u-s3' } }],
+      });
+      expect((await restoreFirstUnanswered('conv-s3-nest', 2_000))?.kind).toBe('stale');
+      await seed('conv-s3-ok', 'propose_changes', {
+        changes: [{ tool: 'delete_transcription_segment', arguments: { segmentId: 'u-s3' } }],
+      });
+      expect((await restoreFirstUnanswered('conv-s3-ok', 2_000))?.kind).toBe('card');
     });
 
     it('after reload a write tool with no checkable target expires', async () => {

@@ -67,6 +67,11 @@ interface UseAiChatPendingToolCallOptions {
   conversationIdRef: { readonly current: string | null };
 }
 
+/** S4：只认恢复时显式写入的 restored 标记，不按 epoch 缺失推断 | explicit flag, not a missing epoch */
+export function isRestoredV2Card(pending: PendingAiToolCall): boolean {
+  return Boolean(pending.runtimeV2) && pending.restored === true;
+}
+
 export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOptions) {
   const {
     providerId,
@@ -98,7 +103,7 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     const currentEpoch = getTimelineReadModelEpochRef.current?.();
     // S2：同页内 v2 卡片同样走 epoch；重载恢复的卡片不带 epoch，由 resolveApproval 的库指纹核对 |
     // in-page epoch for v2 too; restored cards (no epoch) are guarded by DB fingerprints in resolveApproval
-    const restoredV2 = Boolean(pending.runtimeV2) && pending.readModelEpochCaptured === undefined;
+    const restoredV2 = isRestoredV2Card(pending);
     if (!restoredV2 && !validateChangeSetEpoch(changeSet, currentEpoch)) {
       const staleCall = pending.executionCall ?? pending.call;
       const staleAuditContext =

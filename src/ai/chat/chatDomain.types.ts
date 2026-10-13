@@ -427,6 +427,8 @@ export interface PendingAiToolCall {
   call: AiChatToolCall;
   /** v2：该卡片对应的 SDK 原生审批请求 | v2: the native SDK approval request behind this card */
   runtimeV2?: { conversationId: string; approvalId: string };
+  /** S4：重载后从 Dexie 恢复的卡片（不带 epoch，由库指纹把关）| restored from Dexie after a reload */
+  restored?: true;
   executionCall?: AiChatToolCall;
   /** When `call.name === 'propose_changes'`, child tools to run after the user confirms (preview-only parent). */
   proposedChildCalls?: ReadonlyArray<AiChatToolCall>;
