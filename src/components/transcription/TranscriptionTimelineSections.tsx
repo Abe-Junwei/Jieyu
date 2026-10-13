@@ -293,6 +293,7 @@ export function TimelineScrollSection({
   return (
     <div
       className="timeline-scroll"
+      tabIndex={0}
       ref={containerRef}
       onPointerDownCapture={onPointerDownCapture}
       onPointerMove={onPointerMove}

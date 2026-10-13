@@ -163,6 +163,7 @@ export function OrthographyManagerPanel({
       bodyClassName="ws-flow om-body la-panel-stack"
       footerClassName="om-footer"
       title={t(locale, 'workspace.orthography.title')}
+      titleHeadingLevel={2}
       actions={panelActions}
       footer={
         selectedOrthography ? (
@@ -387,7 +388,7 @@ export function OrthographyManagerPanel({
 
         <div
           className="om-list la-list-scroll"
-          role="list"
+          role="group"
           ref={listRef}
           aria-label={t(locale, 'workspace.orthography.listTitle')}
         >

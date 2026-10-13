@@ -4,13 +4,15 @@
 
 /* ── 统一 focus-visible 规则 | Unified focus-visible rules ── */
 .timeline-annotation:focus-visible,
+.timeline-scroll:focus-visible,
 .timeline-annotation-active:focus-visible,
 .timeline-annotation-selected:focus-visible,
 .timeline-annotation-resize-handle:focus-visible,
 .timeline-empty-actions-row:focus-visible,
 .timeline-translation-audio-btn:focus-visible,
 .timeline-translation-audio-btn-delete:focus-visible {
-  outline: 2px solid var(--focus-ring-strong, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline: 2px solid
+    var(--focus-ring-strong, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
 }
 

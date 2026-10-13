@@ -150,7 +150,6 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         <div
           className="timeline-annotation-body-move"
           title={t(locale, 'transcription.timeline.annotation.bodyMove')}
-          aria-label={t(locale, 'transcription.timeline.annotation.bodyMove')}
           onPointerDown={onBodyMovePointerDown}
         />
       ) : null}

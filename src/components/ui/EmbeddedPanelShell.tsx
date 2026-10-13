@@ -9,6 +9,7 @@ interface EmbeddedPanelShellProps extends Omit<HTMLAttributes<HTMLDivElement>, '
   bodyClassName?: string;
   footerClassName?: string;
   title?: ReactNode;
+  titleHeadingLevel?: 2 | 3;
   titleClassName?: string;
   actions?: ReactNode;
   footer?: ReactNode;
@@ -23,6 +24,7 @@ export function EmbeddedPanelShell({
   bodyClassName,
   footerClassName,
   title,
+  titleHeadingLevel = 3,
   titleClassName,
   actions,
   footer,
@@ -30,6 +32,7 @@ export function EmbeddedPanelShell({
   ...divProps
 }: EmbeddedPanelShellProps) {
   const hasHeader = title !== undefined || actions !== undefined;
+  const TitleHeading = `h${titleHeadingLevel}` as const;
   const embeddedPanelLayoutStyleProps = layoutStyle !== undefined ? { style: layoutStyle } : {};
 
   return (
@@ -46,7 +49,9 @@ export function EmbeddedPanelShell({
       {hasHeader ? (
         <div className={joinClassNames('dialog-header', headerClassName)} {...headerProps}>
           {title !== undefined ? (
-            <h3 className={joinClassNames('dialog-shell__title', titleClassName)}>{title}</h3>
+            <TitleHeading className={joinClassNames('dialog-shell__title', titleClassName)}>
+              {title}
+            </TitleHeading>
           ) : (
             <span />
           )}
