@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom';
 import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
 import { formatConnectionHealthyMessage } from '../../ai/messages';
 import { mergeTokenUsage } from '../../ai/providers/tokenUsage';
+import { resolveAiAgentRuntimeV2Enabled } from '../../ai/config/featureFlags';
 import { recordDurationMetric } from '../../observability/metrics';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
@@ -71,7 +72,10 @@ export async function runAiChatSendTurnStreamPhase(
   // R1：flag 开且 provider 支持时，本回合由 ToolLoopAgent 运行；flag 关时完全走旧路径（懒加载，不进主包）
   let stream: AsyncGenerator<AssistantStreamChunk> = input.stream;
   let runtimeV2 = false;
-  if (input.flags.aiAgentRuntimeV2Enabled && !opening.clarifyFastPathCall) {
+  if (
+    (input.flags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled()) &&
+    !opening.clarifyFastPathCall
+  ) {
     const v2 = await import('../../ai/runtime/aiRuntimeV2Turn');
     const settings = input.settingsRef.current;
     const model = v2.isNoToolsThisSession(provider.id, settings.model)

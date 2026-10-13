@@ -12,7 +12,7 @@ import {
   toNaturalToolRollbackSkipped,
   validateToolCallArguments,
 } from './toolCallHelpers';
-import { featureFlags } from '../config/featureFlags';
+import { resolveAiAgentRuntimeV2Enabled, featureFlags } from '../config/featureFlags';
 import { resolveUserDirectivePolicyDecision } from '../policy/resolveExecutionPolicy';
 import { formatToolWriteGateUserMessage } from '../messages/toolWriteGateFeedback';
 import { isAiToolWritePreviewRequired } from '../policy/aiToolPolicyMatrix';
@@ -375,7 +375,7 @@ export async function resolveToolDecisionPipeline({
     return { finalContent, finalStatus: 'done' };
   }
 
-  if (featureFlags.aiToolWriteGateEnabled) {
+  if (featureFlags.aiToolWriteGateEnabled || resolveAiAgentRuntimeV2Enabled()) {
     const writeGateDecision = assertAiChatToolWriteAllowed(toolCall, aiContext, {
       gateEnabled: true,
       destructiveAllowed: allowDestructiveToolCalls,
@@ -472,7 +472,10 @@ export async function resolveToolDecisionPipeline({
     };
   }
 
-  if (featureFlags.aiToolWriteGateEnabled && isAiToolWritePreviewRequired(toolCall.name)) {
+  if (
+    (featureFlags.aiToolWriteGateEnabled || resolveAiAgentRuntimeV2Enabled()) &&
+    isAiToolWritePreviewRequired(toolCall.name)
+  ) {
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;

@@ -2749,6 +2749,9 @@ export const zhCNDictionary = {
   'ai.chat.provider': '服务提供方',
   'ai.chat.back': '返回',
   'ai.chat.configNote': '{provider} 配置仅保存在当前浏览器本地。',
+  'ai.chat.noNativeToolsThisSession': '本次会话不带原生工具',
+  'ai.chat.noNativeToolsThisSessionHint':
+    '紧急降级：本会话当前模型不再附带 tools（与 M2 拒收 tools 同一集合）。仅当前页面会话有效，刷新后需重新勾选。',
   'ai.chat.testConnection': '测试连接',
   'ai.chat.testing': '测试中...',
   'ai.chat.noMessages': '还没有消息，输入后回车发送。',

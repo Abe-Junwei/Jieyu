@@ -2451,6 +2451,8 @@ export const DICT_KEYS = [
   'ai.chat.provider',
   'ai.chat.back',
   'ai.chat.configNote',
+  'ai.chat.noNativeToolsThisSession',
+  'ai.chat.noNativeToolsThisSessionHint',
   'ai.chat.testConnection',
   'ai.chat.testing',
   'ai.chat.noMessages',

@@ -12,7 +12,7 @@ import type { ActionId, VoiceIntent, VoiceSession } from './IntentRouter';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import type { VoiceMode } from './voiceMode';
-import { featureFlags } from '../ai/config/featureFlags';
+import { featureFlags, resolveAiAgentRuntimeV2Enabled } from '../ai/config/featureFlags';
 
 /** R1：模型意图解析上限；超时后迟到结果整个丢弃 | LLM intent timeout; late results are discarded */
 export const VOICE_LLM_INTENT_TIMEOUT_MS = 1500;
@@ -106,9 +106,10 @@ export async function resolveVoiceIntent(
         mode: input.mode,
         session: input.session,
       });
-      const fallbackIntent = featureFlags.aiAgentRuntimeV2Enabled
-        ? await raceVoiceLlmTimeout(llmRequest)
-        : await llmRequest;
+      const fallbackIntent =
+        featureFlags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled()
+          ? await raceVoiceLlmTimeout(llmRequest)
+          : await llmRequest;
       if (fallbackIntent === VOICE_LLM_TIMED_OUT) {
         return {
           intent,
@@ -140,7 +141,7 @@ export async function resolveVoiceIntent(
   let learnAliasAfterExecution: VoiceIntentResolutionOutput['learnAliasAfterExecution'];
   if (llmResolvedAction && intent.type === 'action') {
     const { actionId } = intent;
-    if (featureFlags.aiAgentRuntimeV2Enabled) {
+    if (featureFlags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled()) {
       learnAliasAfterExecution = () => {
         const learned = deps.learnVoiceIntentAlias(input.result.text, actionId);
         return learned.applied ? learned.aliasMap : undefined;

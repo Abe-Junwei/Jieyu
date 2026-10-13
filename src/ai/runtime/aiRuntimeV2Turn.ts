@@ -10,15 +10,15 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { AiChatSettings } from '../providers/providerCatalog';
 import type { ChatMessage } from '../providers/LLMProvider';
 import type { AiChatToolCall } from '../chat/chatDomain.types';
-import { AI_CHAT_TOOL_NAMES_FROM_PARSER, toolArgumentSchemas } from '../chat/toolCallSchemas';
+import { AI_CHAT_TOOL_NAMES_FROM_PARSER } from '../chat/toolCallSchemas';
 import {
   createPilotAgent,
   isToolsRejectedError,
   mapStreamPart,
-  markNoToolsThisSession,
   type PilotToolOutcome,
   type PilotToolSpec,
 } from './toolLoopAgentPilot';
+import { markNoToolsThisSession } from './noToolsThisSession';
 import {
   clearPendingApproval,
   loadPendingApproval,
@@ -50,10 +50,11 @@ export function createAiSdkModelFromSettings(settings: AiChatSettings): Language
 }
 
 export function buildRuntimeV2ToolSpecs(): Record<string, PilotToolSpec> {
-  const schemas = toolArgumentSchemas as Record<string, z.ZodType | undefined>;
+  // 边界放宽：模型常省略可由选区/上下文补全的字段；严格校验仍在 toolDecisionPipeline。
+  // Loose at the SDK boundary so execute always reaches the decision pipeline (legacy parity).
   const specs: Record<string, PilotToolSpec> = {};
   for (const name of AI_CHAT_TOOL_NAMES_FROM_PARSER) {
-    specs[name] = { description: name, inputSchema: schemas[name] ?? z.object({}).loose() };
+    specs[name] = { description: name, inputSchema: z.object({}).passthrough() };
   }
   return specs;
 }
@@ -199,7 +200,11 @@ export async function* runAiRuntimeV2Turn(
   }
 }
 
-export { isNoToolsThisSession } from './toolLoopAgentPilot';
+export {
+  clearNoToolsThisSession,
+  isNoToolsThisSession,
+  markNoToolsThisSession,
+} from './noToolsThisSession';
 
 /** M2：v2 首个片段即“拒收 tools”时，本回合改用尚未消费的旧路径流 | fall back to the untouched legacy stream */
 export async function* withLegacyFallback<T>(

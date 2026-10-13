@@ -146,9 +146,9 @@ export function isToolsRejectedError(error: unknown): boolean {
 }
 
 /** 本会话不再带 tools 的 provider+model 集合（R2 设置开关复用）| per-session no-tools set */
-const noToolsThisSession = new Set<string>();
-export const markNoToolsThisSession = (providerId: string, model: string) =>
-  noToolsThisSession.add(`${providerId}:${model}`);
-export const isNoToolsThisSession = (providerId: string, model: string) =>
-  noToolsThisSession.has(`${providerId}:${model}`);
-export const resetNoToolsThisSessionForTests = () => noToolsThisSession.clear();
+export {
+  clearNoToolsThisSession,
+  isNoToolsThisSession,
+  markNoToolsThisSession,
+  resetNoToolsThisSessionForTests,
+} from './noToolsThisSession';

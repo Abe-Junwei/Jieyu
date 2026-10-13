@@ -10,7 +10,7 @@ import { tf, type Locale } from '../i18n';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { ActionId, VoiceIntent, VoiceSession, VoiceSessionEntry } from './IntentRouter';
 import type { SttResult } from './VoiceInputService.types';
-import { featureFlags } from '../ai/config/featureFlags';
+import { featureFlags, resolveAiAgentRuntimeV2Enabled } from '../ai/config/featureFlags';
 import { writeVoiceActionAudit } from './voiceActionAudit';
 
 export type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
@@ -100,7 +100,7 @@ export async function dispatchResolvedVoiceIntent(
     learnAliasAfterExecution,
     llmResolvedAction,
   } = input;
-  const runtimeV2 = featureFlags.aiAgentRuntimeV2Enabled;
+  const runtimeV2 = featureFlags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled();
 
   if (llmFallbackFailed && intent.type === 'chat') {
     return;

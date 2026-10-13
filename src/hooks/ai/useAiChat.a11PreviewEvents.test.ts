@@ -10,6 +10,7 @@ async function loadWithPreviewFlag() {
       aiToolWriteGateEnabled: false,
       aiToolCallExecutorAutoRetryEnabled: false,
     },
+    resolveAiAgentRuntimeV2Enabled: () => false,
   }));
   const events = await import('../../ai/runtime/agentUiEvents');
   const pipeline = await import('./useAiChat.toolDecisionPipeline');
