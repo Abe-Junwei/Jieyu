@@ -186,7 +186,7 @@ describe('T20: relinking a missing recording', () => {
     const blob = new Blob([AUDIO], { type: 'audio/wav' });
     await expect(
       LinguisticService.media.relink({ mediaId: MEDIA_ID, audioBlob: blob }),
-    ).resolves.toEqual({ mediaId: MEDIA_ID });
+    ).resolves.toEqual({ mediaId: MEDIA_ID, contentSha256: await computeBlobSha256(blob) });
     const media = await db.media_items.get(MEDIA_ID);
     expect(media).toEqual(
       expect.objectContaining({

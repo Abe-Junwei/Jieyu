@@ -151,6 +151,48 @@ describe('useTranscriptionMediaSelection', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:media-1-url');
   });
 
+  it('refreshes playback after replacing same-size audio on the same media row', async () => {
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:old-audio')
+      .mockReturnValueOnce('blob:new-audio');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const setSelectedMediaId = vi.fn();
+    const oldMedia = {
+      ...makeBlobMedia('media-1'),
+      contentSha256: 'a'.repeat(64),
+    };
+    const newMedia = {
+      ...oldMedia,
+      contentSha256: 'b'.repeat(64),
+      details: { audioBlob: new Blob(['next'], { type: 'audio/wav' }) },
+    };
+
+    const { result, rerender } = renderHook(
+      (props: HookProps) => useTranscriptionMediaSelection({ ...props, setSelectedMediaId }),
+      {
+        initialProps: {
+          mediaItems: [oldMedia],
+          selectedMediaId: 'media-1',
+          selectedUnitMediaId: undefined,
+          selectedUnitMedia: oldMedia,
+        },
+      },
+    );
+    expect(result.current.selectedMediaUrl).toBe('blob:old-audio');
+
+    rerender({
+      mediaItems: [newMedia],
+      selectedMediaId: 'media-1',
+      selectedUnitMediaId: undefined,
+      selectedUnitMedia: newMedia,
+    });
+
+    await waitFor(() => expect(result.current.selectedMediaUrl).toBe('blob:new-audio'));
+    expect(createObjectURL).toHaveBeenCalledTimes(2);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:old-audio');
+  });
+
   it('clears the stale blob URL when the same media id becomes a document placeholder after deletion', async () => {
     const createObjectURL = vi
       .spyOn(URL, 'createObjectURL')

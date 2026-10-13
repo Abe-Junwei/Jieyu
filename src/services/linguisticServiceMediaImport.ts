@@ -100,7 +100,7 @@ export async function relinkMedia(input: {
     tables: readonly Table<any, any>[];
     run: () => Promise<void>;
   };
-}): Promise<{ mediaId: string }> {
+}): Promise<{ mediaId: string; contentSha256?: string }> {
   const db = await getDb();
   // 哈希在事务外先算好（rev5 §4.2-3）| Hash outside the transaction
   const contentSha256 = await computeBlobSha256(input.audioBlob);
@@ -138,7 +138,10 @@ export async function relinkMedia(input: {
     if (cause instanceof MediaContentMismatchError) throw cause;
     throw error;
   }
-  return { mediaId: input.mediaId };
+  return {
+    mediaId: input.mediaId,
+    ...(contentSha256 !== undefined ? { contentSha256 } : {}),
+  };
 }
 
 export async function importAudio(input: {
@@ -158,7 +161,7 @@ export async function importAudio(input: {
   replaceMediaId?: string;
   /** 替换目标是缺音录音（即 Relink）且 sha256 不符时，用户已确认继续 | User confirmed a relink sha256 mismatch */
   acknowledgeContentMismatch?: boolean;
-}): Promise<{ mediaId: string }> {
+}): Promise<{ mediaId: string; contentSha256?: string }> {
   const db = await getDb();
   const now = new Date().toISOString();
   const mode = input.importMode ?? 'default';
@@ -211,7 +214,7 @@ export async function importAudio(input: {
     }
     if (!isMediaItemPlaceholderRow(targetRow) && targetRow.availability === 'missing') {
       // 缺音录音的替换就是 Relink：保留 ID 与原名 | Replacing a missing recording is a relink
-      await relinkMedia({
+      return relinkMedia({
         mediaId: targetRow.id,
         audioBlob: input.audioBlob,
         duration: input.duration,
@@ -221,7 +224,6 @@ export async function importAudio(input: {
           run: () => refreshMediaTimelineMetadata(targetRow.id),
         },
       });
-      return { mediaId: targetRow.id };
     }
     if (!isMediaItemPlaceholderRow(targetRow)) {
       const contentSha256 = await computeBlobSha256(input.audioBlob);
@@ -256,7 +258,10 @@ export async function importAudio(input: {
         },
         { label: 'LinguisticService.media.importAudio.replace' },
       );
-      return { mediaId: targetRow.id };
+      return {
+        mediaId: targetRow.id,
+        ...(contentSha256 !== undefined ? { contentSha256 } : {}),
+      };
     }
   }
 
@@ -350,7 +355,7 @@ export async function importAudio(input: {
     { label: 'LinguisticService.media.importAudio' },
   );
 
-  return { mediaId };
+  return { mediaId, ...(contentSha256 !== undefined ? { contentSha256 } : {}) };
 }
 
 export async function createPlaceholderMedia(input: {

@@ -110,7 +110,7 @@ export function useTranscriptionMediaSelection({
     const durationSec = typeof media.duration === 'number' ? media.duration : undefined;
     const mediaSourceKey =
       blob instanceof Blob
-        ? `${media.id}|blob|${media.filename}|${blob.size}|${blob.type}|${media.duration ?? ''}`
+        ? `${media.id}|blob|${media.filename}|${blob.size}|${blob.type}|${media.duration ?? ''}|${media.contentSha256 ?? ''}`
         : `${media.id}|url|${media.url ?? ''}|${media.filename}|${media.timelineKind}|${media.availability}`;
     const force = isWaveformDecodeForced(media.id);
     const blockReason = waveformDecodeBlockReason({

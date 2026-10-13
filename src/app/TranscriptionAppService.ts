@@ -148,7 +148,7 @@ export interface ITranscriptionAppServiceGateway {
   ): Promise<AutoSegmentRunResult>;
   createProject(request: CreateProjectRequest): Promise<{ textId: string }>;
   createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType>;
-  importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
+  importAudio(request: ImportAudioRequest): Promise<{ mediaId: string; contentSha256?: string }>;
   expandTextLogicalDurationToAtLeast(request: ExpandTextLogicalDurationRequest): Promise<void>;
   setTextLogicalDurationSec(request: { textId: string; logicalDurationSec: number }): Promise<void>;
   updateTextTimeMapping(
@@ -276,7 +276,9 @@ export function createTranscriptionAppService(
       return deps.createPlaceholderMedia(request);
     },
 
-    async importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }> {
+    async importAudio(
+      request: ImportAudioRequest,
+    ): Promise<{ mediaId: string; contentSha256?: string }> {
       return deps.importAudio(request);
     },
 

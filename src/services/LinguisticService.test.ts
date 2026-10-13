@@ -2529,6 +2529,7 @@ describe('LinguisticService smoke tests', () => {
     });
 
     expect(result.mediaId).toBe('media_doc_placeholder');
+    expect(result.contentSha256).toMatch(/^[a-f0-9]{64}$/);
     await expect(
       db.media_items.where('textId').equals('text_doc_import').toArray(),
     ).resolves.toHaveLength(1);
