@@ -31,6 +31,8 @@ export interface ApprovalMeta {
   requestId: string;
   card?: unknown;
   executionCall?: ApprovedCallSnapshot;
+  /** S1：目标 id → 指纹（updatedAt），重载恢复时比对 | target fingerprints checked on restore */
+  targets?: Record<string, string>;
 }
 
 export interface ToolOutcomeLike {
@@ -47,8 +49,41 @@ export interface UnansweredApproval {
 
 const table = () => db.table<AiRuntimeV2TurnState, string>(TABLE);
 
+// shortcut: 目标按 *Id/*Ids 参数在常见表里按主键查 | targets = *Id/*Ids args looked up by primary key
+const TARGET_TABLES = ['layer_units', 'tier_definitions', 'layer_unit_contents', 'texts'];
+function targetIdsOf(call?: ApprovedCallSnapshot): string[] {
+  const ids: string[] = [];
+  for (const [k, v] of Object.entries(call?.arguments ?? {})) {
+    if (/Id$/.test(k) && typeof v === 'string') ids.push(v);
+    if (/Ids$/.test(k) && Array.isArray(v))
+      ids.push(...v.filter((x): x is string => typeof x === 'string'));
+  }
+  return ids;
+}
+async function fingerprintOf(id: string): Promise<string | undefined> {
+  for (const name of TARGET_TABLES) {
+    const row = (await db.table(name).get(id)) as Record<string, unknown> | undefined;
+    if (row) return `${name}:${String(row.updatedAt ?? JSON.stringify(row))}`;
+  }
+  return undefined;
+}
+async function fingerprintTargets(call?: ApprovedCallSnapshot): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const id of targetIdsOf(call)) {
+    const fp = await fingerprintOf(id);
+    if (fp) out[id] = fp;
+  }
+  return out;
+}
+
 export async function saveTurnState(state: Omit<AiRuntimeV2TurnState, 'expiresAt'>): Promise<void> {
-  await table().put({ ...state, expiresAt: state.createdAt + PENDING_APPROVAL_TTL_MS });
+  const approvals: Record<string, ApprovalMeta> = {};
+  for (const [id, meta] of Object.entries(state.approvals)) {
+    approvals[id] = meta.executionCall
+      ? { ...meta, targets: await fingerprintTargets(meta.executionCall) }
+      : meta;
+  }
+  await table().put({ ...state, approvals, expiresAt: state.createdAt + PENDING_APPROVAL_TTL_MS });
 }
 
 export async function clearTurnState(conversationId: string): Promise<void> {
@@ -158,6 +193,15 @@ export interface ApprovalResolution {
   outcome?: ToolOutcomeLike;
   /** 下一个待确认卡片快照 | next confirm card */
   nextCard?: unknown;
+  /** S1：目标已变，审批按过期关闭 | target changed, approval expired */
+  stale?: true;
+}
+
+async function targetsChanged(meta: ApprovalMeta): Promise<boolean> {
+  for (const [id, fp] of Object.entries(meta.targets ?? {})) {
+    if ((await fingerprintOf(id)) !== fp) return true;
+  }
+  return false;
 }
 
 /**
@@ -177,6 +221,18 @@ export async function resolveApproval(
   const item = unansweredApprovals(loaded.state.messages).find((a) => a.approvalId === approvalId);
   const meta = loaded.state.approvals[approvalId];
   if (!item || !meta) return null;
+  if (approved && (await targetsChanged(meta))) {
+    // S1：批准那一刻再核对一次目标指纹 | re-check fingerprints at approval time
+    const reason = 'target changed since the approval was requested';
+    let closed = withApprovalResponse(loaded.state.messages, approvalId, false, reason);
+    closed = withToolResult(closed, item, { denied: reason });
+    await table().put({ ...loaded.state, messages: closed });
+    const after = unansweredApprovals(closed)[0];
+    return {
+      stale: true,
+      ...(after ? { nextCard: loaded.state.approvals[after.approvalId]?.card } : {}),
+    };
+  }
   let messages = withApprovalResponse(loaded.state.messages, approvalId, approved);
   let outcome: ToolOutcomeLike | undefined;
   const executor = executors.get(conversationId);
@@ -203,6 +259,33 @@ export async function resolveApproval(
 /** N3：打开 AI 面板时清理过期行 | sweep expired rows when the AI panel opens */
 export async function sweepExpiredTurnStates(now: number): Promise<void> {
   await table().where('expiresAt').below(now).delete();
+}
+
+export type RestoredApproval =
+  | { kind: 'card'; card: unknown }
+  | { kind: 'stale'; requestId: string; toolName: string; card: unknown };
+
+/**
+ * S1：重载后恢复第一张未答复卡片前，按库核对目标指纹；目标消失或已变则按拒绝关闭该审批。
+ * S1: on restore, verify target fingerprints; a missing/changed target expires the approval.
+ */
+export async function restoreFirstUnanswered(
+  conversationId: string,
+  now: number,
+): Promise<RestoredApproval | undefined> {
+  const loaded = await loadTurnState(conversationId, now);
+  if (loaded.kind !== 'active') return undefined;
+  const next = unansweredApprovals(loaded.state.messages)[0];
+  const meta = next ? loaded.state.approvals[next.approvalId] : undefined;
+  if (!next || !meta) return undefined;
+  if (await targetsChanged(meta)) {
+    const reason = 'target changed since the approval was requested';
+    let messages = withApprovalResponse(loaded.state.messages, next.approvalId, false, reason);
+    messages = withToolResult(messages, next, { denied: reason });
+    await table().put({ ...loaded.state, messages });
+    return { kind: 'stale', requestId: meta.requestId, toolName: next.toolName, card: meta.card };
+  }
+  return { kind: 'card', card: meta.card };
 }
 
 /** 重载后：第一个未答复审批的卡片 | first unanswered card after reload */

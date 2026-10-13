@@ -96,7 +96,9 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     const assistantMessageId = pending.assistantMessageId;
     const changeSet = buildAiChangeSetFromPendingToolCall(pending);
     const currentEpoch = getTimelineReadModelEpochRef.current?.();
-    if (!validateChangeSetEpoch(changeSet, currentEpoch)) {
+    // S1：v2 卡片不靠内存 epoch（重载即归零），由 resolveApproval 在批准时核对库内目标指纹 |
+    // v2 cards are guarded by DB target fingerprints at approval time, not the per-page epoch
+    if (!pending.runtimeV2 && !validateChangeSetEpoch(changeSet, currentEpoch)) {
       const staleCall = pending.executionCall ?? pending.call;
       const staleAuditContext =
         pending.auditContext ??
@@ -211,10 +213,22 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         true,
         Date.now(),
       );
+      if (r?.stale) {
+        // S1：目标在审批期间变了 → 过期，不执行 | target changed → expired, not executed
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${call.name}`,
+          `expired_stale:${call.name}`,
+          'system',
+          call.requestId ?? pending.requestId,
+        );
+      }
       setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
       await applyAssistantMessageResult(
         assistantMessageId,
-        r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn'),
+        r?.stale
+          ? t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale')
+          : (r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
         r?.outcome?.status === 'error' ? 'error' : 'done',
       );
       if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);

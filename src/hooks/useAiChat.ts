@@ -52,7 +52,8 @@ import {
 import { scheduleClearPersistenceCleanup } from '../ai/chat/scheduleClearPersistenceCleanup';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import { featureFlags, resolveAiAgentRuntimeV2Enabled } from '../ai/config/featureFlags';
-import { firstUnansweredCard, sweepExpiredTurnStates } from '../ai/runtime/aiRuntimeV2Pending';
+import { t } from '../i18n';
+import { restoreFirstUnanswered, sweepExpiredTurnStates } from '../ai/runtime/aiRuntimeV2Pending';
 import { createAssistantStream } from './ai/useAiChat.streamFactory';
 import { useAiChatToolAudit } from './ai/useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './ai/useAiChat.pendingToolCall';
@@ -430,15 +431,46 @@ export function useAiChat(options?: UseAiChatOptions) {
     let stale = false;
     // N3：顺手按 expiresAt 清掉过期行（含已删会话/项目留下的）| sweep expired rows
     void sweepExpiredTurnStates(Date.now()).catch(() => undefined);
-    void firstUnansweredCard(conversationId, Date.now())
-      .then((card) => {
-        if (!stale && card) setPendingToolCall((cur) => cur ?? (card as PendingAiToolCall));
+    // S1：目标指纹一致才恢复，并换上本次页面的 read-model epoch；否则审批过期 | verify, then restamp epoch
+    void restoreFirstUnanswered(conversationId, Date.now())
+      .then(async (r) => {
+        if (stale || !r) return;
+        const card = r.card as PendingAiToolCall | undefined;
+        if (r.kind === 'stale') {
+          await writeToolDecisionAuditLog(
+            card?.assistantMessageId ?? '',
+            `pending:${r.toolName}`,
+            `expired_stale:${r.toolName}`,
+            'system',
+            r.requestId,
+          );
+          if (card?.assistantMessageId) {
+            const msg = t(toolFeedbackLocaleRef.current, 'ai.runtimeV2.approvalStale');
+            await applyAssistantMessageResultWrapper(card.assistantMessageId, msg, 'done');
+          }
+          return;
+        }
+        if (!card) return;
+        // 旧页面的 epoch 无意义：换成本页当前值；真正的把关是库指纹（恢复时 + 批准时各核对一次）|
+        // restamp with this page's epoch; DB fingerprints are the real guard (on restore and on approval)
+        const epoch = getTimelineReadModelEpochRef.current?.();
+        const restored: PendingAiToolCall = { ...card };
+        delete restored.readModelEpochCaptured;
+        if (epoch !== undefined) restored.readModelEpochCaptured = epoch;
+        setPendingToolCall((cur) => cur ?? restored);
       })
       .catch(() => undefined);
     return () => {
       stale = true;
     };
-  }, [conversationId, isBootstrapping]);
+  }, [
+    conversationId,
+    isBootstrapping,
+    applyAssistantMessageResultWrapper,
+    getTimelineReadModelEpochRef,
+    toolFeedbackLocaleRef,
+    writeToolDecisionAuditLog,
+  ]);
 
   const send = useCallback(
     async (userText: string) => {

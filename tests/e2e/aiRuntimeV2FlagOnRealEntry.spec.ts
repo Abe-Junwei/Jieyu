@@ -236,11 +236,18 @@ test.describe('AI runtime v2 flag on — real chat entry', () => {
     expect(unitsAfter).toContain('seg_e2e_b');
     expect(unitsAfter.length).toBe(unitsBefore.length - 1);
 
-    const rows = await readToolAudits(page);
     const rid = meta.requestId;
-    const mine = rows.filter((r) => r.requestId === rid && r.field === 'ai_tool_call_decision').map((r) => r.newValue ?? '');
+    const decisionsFor = async () =>
+      (await readToolAudits(page))
+        .filter((r) => r.requestId === rid && r.field === 'ai_tool_call_decision')
+        .map((r) => r.newValue ?? '');
+    const executedCount = (vs: string[]) =>
+      vs.filter((v) => /^(auto_|confirmed:|executed)/.test(v) && !v.includes('failed')).length;
+    // 删除先于执行审计落盘：等审计写完再断言 | the delete lands before its audit row
+    await expect.poll(async () => executedCount(await decisionsFor()), { timeout: 30_000 }).toBe(1);
+    const mine = await decisionsFor();
     expect(mine.some((v) => v.startsWith('policy_pending:delete_transcription_segment'))).toBe(true);
     expect(mine.some((v) => v.startsWith('approved:delete_transcription_segment'))).toBe(true);
-    expect(mine.filter((v) => /^(auto_|confirmed:|executed)/.test(v) && !v.includes('failed')).length).toBe(1);
+    expect(executedCount(mine)).toBe(1);
   });
 });

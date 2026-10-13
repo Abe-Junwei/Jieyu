@@ -13,6 +13,8 @@ import {
   resolveApproval,
   saveTurnState,
   sweepExpiredTurnStates,
+  restoreFirstUnanswered,
+  unansweredApprovals,
 } from './aiRuntimeV2Pending';
 import {
   createAiSdkModelFromSettings,
@@ -354,6 +356,63 @@ describe('runAiRuntimeV2Turn', () => {
     const prompt = JSON.stringify(model.doStreamCalls[0]!.prompt);
     expect(prompt).toContain('executed before the page closed');
     expect(prompt).not.toContain('execution-denied');
+  });
+
+  describe('S1: restored cards are verified against the database, not the old read-model epoch', () => {
+    const T0 = '2026-10-13T00:00:00.000Z';
+    async function seedPending(conversationId: string) {
+      await db
+        .table('texts')
+        .put({ id: 't-s1', title: { default: 'T' }, createdAt: T0, updatedAt: T0 });
+      await saveTurnState({
+        conversationId,
+        createdAt: 1_000,
+        approvals: {
+          a1: {
+            requestId: 'req-s1',
+            card: { call: { name: 'delete_text' }, readModelEpochCaptured: 7 },
+            executionCall: { name: 'delete_text', arguments: { textId: 't-s1' } },
+          },
+        },
+        messages: [
+          { role: 'user', content: 'x' },
+          {
+            role: 'assistant',
+            content: [
+              { type: 'tool-call', toolCallId: 'c1', toolName: 'delete_text', input: {} },
+              { type: 'tool-approval-request', approvalId: 'a1', toolCallId: 'c1' },
+            ],
+          },
+        ],
+      });
+    }
+
+    it('right after a reload with no data change, the card is restored and can be approved', async () => {
+      await seedPending('conv-s1-ok');
+      const r = await restoreFirstUnanswered('conv-s1-ok', 2_000);
+      expect(r?.kind).toBe('card');
+      const resolved = await resolveApproval('conv-s1-ok', 'a1', true, 2_000);
+      expect(resolved).not.toBeNull();
+    });
+
+    it('after the target changes, the approval expires and is closed as denied', async () => {
+      await seedPending('conv-s1-stale');
+      await db.table('texts').update('t-s1', { updatedAt: '2026-10-13T01:00:00.000Z' });
+      const r = await restoreFirstUnanswered('conv-s1-stale', 2_000);
+      expect(r).toMatchObject({ kind: 'stale', requestId: 'req-s1', toolName: 'delete_text' });
+      const loaded = await loadTurnState('conv-s1-stale', 2_000);
+      if (loaded.kind !== 'active') throw new Error('state missing');
+      expect(unansweredApprovals(loaded.state.messages)).toHaveLength(0);
+      expect(await resolveApproval('conv-s1-stale', 'a1', true, 2_000)).toBeNull();
+    });
+
+    it('a target that changes after the card was restored still expires at approval time', async () => {
+      await seedPending('conv-s1-late');
+      expect((await restoreFirstUnanswered('conv-s1-late', 2_000))?.kind).toBe('card');
+      await db.table('texts').update('t-s1', { updatedAt: '2026-10-13T02:00:00.000Z' });
+      const r = await resolveApproval('conv-s1-late', 'a1', true, 2_000);
+      expect(r).toMatchObject({ stale: true });
+    });
   });
 
   it('N3: sweepExpiredTurnStates removes only expired rows', async () => {

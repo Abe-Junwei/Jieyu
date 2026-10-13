@@ -2392,6 +2392,7 @@ export const DICT_KEYS = [
   'ai.toolWriteGate.destructiveDenied',
   'ai.toolWriteGate.genericBlocked',
   'ai.runtimeV2.approvedRunsNextTurn',
+  'ai.runtimeV2.approvalStale',
   'ai.runtimeV2.pendingNoAutoContinue',
   'ai.toolWriteGate.localPolicyBlocked',
   'ai.toolWriteGate.localPolicyConfirm',
