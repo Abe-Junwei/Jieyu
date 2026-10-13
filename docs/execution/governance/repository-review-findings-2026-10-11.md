@@ -25,6 +25,8 @@ last_reviewed: 2026-10-14
 | B7 无障碍第一段 | 首页/转写页整页 axe 修前缺 H1，另发现无名称装饰图标和 landmark/ARIA 问题；`c3cfa938` 后整页 axe、侧栏键盘与完整 Chromium E2E 无重试通过。 | 真实读屏、200% 缩放及其他路由未验，V24 不整体关闭。 |
 | B6 冷离线 | Service Worker 接管后仅预热首页，断网新开 `/transcription` 返回 200 但空白，多个 JS chunk 失败；与离线架构文档的转写主路径预期不一致。 | 用户确认维持转写主路径承诺；已补齐应用 JS/CSS 预缓存，Chromium 冷启动回归修前红、修后绿。Firefox/WebKit 本机二进制缺失，媒体实际兼容性未验；缓存被清除或配额淘汰不在承诺内。 |
 | B6 本地项目离线编辑 | 带录音和语段的本地项目可断网冷开，但配对阅读来源语段编辑经 `saveUnitText` 后未写入 `segment_content`；原 UI 只显示草稿，未覆盖关闭重开读回。 | 对 `unitType=segment` 复用既有语段内容保存入口；Chromium 从 UI 编辑后核 Dexie，再关闭并离线重开核 UI 和 Dexie。旧版 Service Worker 升级、Firefox/WebKit 与缓存淘汰仍未验。 |
-| B8 CSS 构建预算 | 正字法页 CSS 曾超过 36 KiB 上限 70 字节。 | 清除重复/无效规则后构建预算通过，当前 35.92 KiB，余量很小；独立的 `check:css-unused-selectors` 仍因未触及的 `settings-primary-btn` 失败。 |
+| B8 CSS 构建预算 | 正字法页 CSS 曾超过 36 KiB 上限 70 字节。 | 清除重复/无效规则后构建预算通过，当前 35.92 KiB，余量很小；当时独立的未使用选择器门禁仍待处理，见下方 B8 行。 |
+| B6 旧版离线升级 | 旧生产构建的 Service Worker 只预缓存 14 项；仅验证新版首次安装不能证明旧版升级后项目可断网使用。 | 同一 Chromium 配置先装 `6c2636cb`，保留本地项目与录音 Blob，再切换当前构建并确认 `controllerchange`；断网冷开、编辑、重开后语段读回，录音 Blob 大小/MIME 保持一致。仅单次历史版本升级，未测听播、其他旧版或缓存淘汰。 |
+| B8 未使用 CSS | `.settings-primary-btn` 只存在于 CSS，`check:css-unused-selectors` 报未使用。 | 删除三条失效规则；未使用选择器、CSS lint 和 CSS 架构检查通过。`test:visual-css` 尚有 5 处既有漂移和本批 1 处哈希差异，待视觉复核后再更新基线。 |
 
 未获用户风险接受；本表没有发布批准含义。后续逐域登记入口、写入、读回及发现，不能用测试文件名代替行为证据。
