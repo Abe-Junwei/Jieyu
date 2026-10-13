@@ -3,11 +3,12 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-30
+last_reviewed: 2026-10-13
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
 > 现状事实以 [仓库现状与代码地图](../../architecture/仓库现状与代码地图.md) 为准；流程纪律以 [单人 AI 协作拍板决策](./单人AI协作改进计划-拍板决策-2026-05-11.md) 与 [AI_QUICKSTART](../../../AI_QUICKSTART.md) 为准。
+> **当前阶段计划（2026-10-13 起）**：试用交付以 [#250 地图](../../wayfinder/trial-handoff/map.md) 为准，下一程见 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)；与本文冲突时**以较新的拍板为准**。
 > 取代旧的索引式 roadmap 与时间盒型 [16 周路线图（已 superseded）](./16周执行版路线图-2026-04-12.md)。
 
 ## 0. 如何使用本文
@@ -24,10 +25,12 @@ last_reviewed: 2026-09-30
 
 ## 1. North Star（产品定位）
 
-解语是 **本地优先（local-first）的桌面浏览器多工作台**，面向濒危语言研究与协作。
+解语是 **本地优先（local-first）的桌面多工作台**，面向濒危语言研究与协作。
 
-- **形态**：纯 Web 应用（React + Vite + Dexie/IndexedDB + Worker/WASM）；桌面浏览器窗口，非移动 / 非 WebView。
-- **数据真源**：用户浏览器本地（IndexedDB）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
+- **长期目标**：田野录音 → 转写标注 → 词典/语料 → 出版与存档，在一台机器上闭环完成。
+
+- **形态**：Electron 桌面应用（路线 C；React + Vite 渲染层 + Worker/WASM），非移动。原纯 Web 形态（浏览器 + Dexie/IndexedDB）为历史基线。
+- **数据真源**：本机 SQLite 项目文件夹（ADR-0046）。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
 - **独立性**：与 Rushi（如是我闻）**无运行时依赖、无能力互补承诺**；解语缺口在本仓内解决或显式标为非目标。
 - **刻意不做**（拍板决策 §四）：每 PR 全量重型 gate、高频依赖自动化、多角色评审路由、为形式的全量 E2E、通用多智能体 swarm / 云端多租户。
 
@@ -317,6 +320,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-13 | **#278 对账**：§1 由「纯 Web」改为 Electron 桌面应用（路线 C）、SQLite 项目文件夹（ADR-0046）、桌面版剥离协作/密钥/遥测（ADR-0047）；文首指向当前阶段计划 #250 与下一程 #285（冲突以较新拍板为准）；增长期目标（田野到出版单机闭环）。 |
 | 2026-06-01 | 初稿：建立产品级 master 索引（North Star + 域优先级 + 适用边界 + 对账）。 |
 | 2026-06-01 | 收编 16 周路线图（superseded）。 |
 | 2026-06-01 | 重写为单一可执行 master plan：新增切片化 backlog（Stage A 稳主线 / B 开占位 / C 对外协作）、切片落地定义（DoD，本地闭环口径）、依赖序；取代旧索引式结构。切片锚点取自三页联动 P0/P1、声学现状 §3、AI 战略下一步。 |

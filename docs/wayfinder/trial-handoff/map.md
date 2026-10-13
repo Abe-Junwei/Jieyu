@@ -19,7 +19,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284；第二程 #285（子单 #286–#303））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284 及 #303–#306（2026-10-13 从第二程提入）；第二程 #285（子单 #286–#302））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -86,6 +86,17 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   3. 首片只做转写，对齐放后面。
   4. 用户模型服务不支持令牌也能接，只显示警告。
   5. 现在在 #285 下开 N1–N3 占位：[#304](https://github.com/Abe-Junwei/Jieyu/issues/304)、[#305](https://github.com/Abe-Junwei/Jieyu/issues/305)、[#306](https://github.com/Abe-Junwei/Jieyu/issues/306)。
+- 2026-10-13 21:14–21:17 用户拍板（路线图拷问）：
+  1. `model_runs` 每次运行记一行；语段 `provenance.params.modelRunId` 指向它（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304)、[#306](https://github.com/Abe-Junwei/Jieyu/issues/306)）。
+  2. D14 冻结门槛：约 297 个直连数据库的模块**全部**迁到存储接口后才冻结（不只是格式定稿）（[#259](https://github.com/Abe-Junwei/Jieyu/issues/259)、[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)、[#280](https://github.com/Abe-Junwei/Jieyu/issues/280)）。
+  3. 视频抽音轨：随包带 LGPL 版 ffmpeg，音轨统一存 WAV（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)、[#277](https://github.com/Abe-Junwei/Jieyu/issues/277)）。
+  4. `provenance` 枚举与 `params` 键名随 D14 一起冻结（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
+  5. 冻结前加项目元数据、发音人、知情同意、许可证空表，字段参照 IMDI/OLAC（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)、[#281](https://github.com/Abe-Junwei/Jieyu/issues/281)）。
+  6. 冻结后每次格式迁移带一个旧版测试项目，迁移后核对，列为发布硬门槛（[#281](https://github.com/Abe-Junwei/Jieyu/issues/281) 演练、[#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 发布检查单）。
+  7. 试用版本机与云端转写都保留；[#303](https://github.com/Abe-Junwei/Jieyu/issues/303) 提到第一程，试用版正式支持本机转写（覆盖上面第 14 条“本地 Whisper 放第二程”）。
+  8. [#304](https://github.com/Abe-Junwei/Jieyu/issues/304)–[#306](https://github.com/Abe-Junwei/Jieyu/issues/306) 与 #303 一起提到第一程（改挂 #250）。
+  9. 桌面版功能开关固定用 prod 环境，另加一份试用白名单（[#265](https://github.com/Abe-Junwei/Jieyu/issues/265)）。
+  10. 现在做 [#278](https://github.com/Abe-Junwei/Jieyu/issues/278)，更新主路线图。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
 
 ## Next leg
@@ -109,10 +120,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#300](https://github.com/Abe-Junwei/Jieyu/issues/300) 进行中 spec 复核（ai-conversation-management 等，受 AI SDK 迁移影响）
 - [#301](https://github.com/Abe-Junwei/Jieyu/issues/301) C2 i18n 基线消减
 - [#302](https://github.com/Abe-Junwei/Jieyu/issues/302) C3d Word/docx 导出
-- [#303](https://github.com/Abe-Junwei/Jieyu/issues/303) 本地 Whisper 转写（模型接口第一个实现）
-- [#304](https://github.com/Abe-Junwei/Jieyu/issues/304) N1 ADR：模型接口（转写、合同 v1、安全、model_runs）
-- [#305](https://github.com/Abe-Junwei/Jieyu/issues/305) N2 主进程本机 HTTP 模型宿主（依赖 #276、#304、whisper-server 回环修复）
-- [#306](https://github.com/Abe-Junwei/Jieyu/issues/306) N3 统一模型候选面板 + 模拟模型 + 自测脚本 + e2e（依赖 #305、#284）
+- （#303–#306 已于 2026-10-13 提到第一程，见 Decisions 21:14–21:17 第 7–8 条。）
 
 ## Not yet specified
 

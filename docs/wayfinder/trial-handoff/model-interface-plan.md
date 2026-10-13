@@ -223,12 +223,12 @@
 - **转写页发起，不在标注页发起。** 转写文字住在转写层的语段上，标注页（`src/pages/AnnotationPage.tsx` / `AnnotationWorkspace.tsx`）处理的是由这些文字切出的词元。本机 Whisper 现有入口也在转写页（`src/hooks/transcription/useTranscriptionVoiceTranslationActions.ts:460` `loadLocalWhisperConfig()`），N3 在同一处换成走 ModelHost。
 - 范围：**当前语段 / 选中的几个语段 / 当前媒体全部空语段**三档。批量跨文件放以后。
 - 审：§8 候选面板做成“预览 → 采纳”，形状照抄 B4e AutoGloss（`src/ai/autoGlossPreview.ts` `previewAutoGlossMatches` → `src/pages/annotation/applyAnnotationAutoGloss.ts`）和 B4f/B4g 二次分词（`src/pages/annotation/annotationRetokenize.ts` `previewAnnotationRetokenize`，`useAnnotationRetokenizeController.ts`）：先算出预览，用户勾选，再一次性写入。
-- **待审候选不落库**（同 AutoGloss 预览）；面板关掉即丢，`model_runs.pendingCount` 归零、记为放弃。这样首片不用新表存候选正文。
+- **待审候选不落库**（同 AutoGloss 预览）；面板关掉即丢，`model_runs.pendingCount` 归零、记为放弃。这样首片不用新表存候选正文（指候选正文；`model_runs` 表本身照 §7 新增，每次运行一行，用户 2026-10-13 21:14 确认）。
 
 ### 13.2 接受后写到哪里、怎么往下游走（首片 N3）
 
 - 只写进用户选的目标转写层的语段文字；**语段已有文字时不覆盖**，并排显示由用户选（同 §8）。
-- 来源直接用已有的 `provenance`（`src/db/schemas.ts:105`）：`actorType:'ai'`、`model`/`modelVersion`、`confidence`、`params.modelRunId`、`reviewStatus`（已有枚举 `draft|suggested|confirmed|rejected`，`schemas.ts:81`）。**不加新字段**，`modelRunId` 走 `params`。
+- 来源直接用已有的 `provenance`（`src/db/schemas.ts:105`）：`actorType:'ai'`、`model`/`modelVersion`、`confidence`、`params.modelRunId`、`reviewStatus`（已有枚举 `draft|suggested|confirmed|rejected`，`schemas.ts:81`）。**语段上不加新字段**，`params.modelRunId` 指向 `model_runs` 的那一行（每次运行一行，§7）。
   - 逐条接受 → `reviewStatus:'confirmed'`，记 `reviewedAt`。
   - “置信度 ≥ 阈值全部接受” → `reviewStatus:'suggested'`，即“机器生成·未确认”。
 - 写完发 `WORKSPACE_UNIT_UPDATED_EVENT`（`src/utils/workspaceEvents`，订阅方 `src/hooks/useWorkspaceEventRefresh.ts`），标注页和侧栏照现有逻辑刷新；有未存草稿时走已有的 `onUnitRefreshBlocked`。
