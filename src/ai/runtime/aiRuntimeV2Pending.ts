@@ -6,10 +6,13 @@
  * shortcut: 每会话一行，整段消息覆盖写；历史变大再拆只追加表 | one row per conversation, overwrite.
  */
 import type { ModelMessage, ToolApprovalResponse } from 'ai';
-import { db } from '../../db';
+import {
+  aiRuntimeV2TurnsTable,
+  findRowInTables,
+  listUnitContentRows,
+} from '../../db/aiRuntimeV2TurnStore';
 
 export const PENDING_APPROVAL_TTL_MS = 24 * 60 * 60 * 1000;
-const TABLE = 'ai_runtime_v2_turns';
 
 export interface AiRuntimeV2TurnState {
   conversationId: string;
@@ -47,7 +50,7 @@ export interface UnansweredApproval {
   input: unknown;
 }
 
-const table = () => db.table<AiRuntimeV2TurnState, string>(TABLE);
+const table = () => aiRuntimeV2TurnsTable<AiRuntimeV2TurnState>();
 
 // shortcut: 目标按 *Id/*Ids 参数在常见表里按主键查 | targets = *Id/*Ids args looked up by primary key
 const TARGET_TABLES = [
@@ -71,21 +74,19 @@ function targetIdsOf(value: unknown, ids: string[] = []): string[] {
   return ids;
 }
 async function fingerprintOf(id: string): Promise<string | undefined> {
-  for (const name of TARGET_TABLES) {
-    const row = (await db.table(name).get(id)) as Record<string, unknown> | undefined;
-    if (!row) continue;
-    let fp = `${name}:${String(row.updatedAt ?? JSON.stringify(row))}`;
-    if (name === 'layer_units') {
-      // S2：句段指纹并入其文本内容行 | include the segment's content rows
-      const contents = await db.table('layer_unit_contents').where('unitId').equals(id).toArray();
-      fp += `|${contents
-        .map((c) => `${String(c.id)}@${String(c.updatedAt)}`)
-        .sort()
-        .join(',')}`;
-    }
-    return fp;
+  const found = await findRowInTables(TARGET_TABLES, id);
+  if (!found) return undefined;
+  const { table: name, row } = found;
+  let fp = `${name}:${String(row.updatedAt ?? JSON.stringify(row))}`;
+  if (name === 'layer_units') {
+    // S2：句段指纹并入其文本内容行 | include the segment's content rows
+    const contents = await listUnitContentRows(id);
+    fp += `|${contents
+      .map((c) => `${String(c.id)}@${String(c.updatedAt)}`)
+      .sort()
+      .join(',')}`;
   }
-  return undefined;
+  return fp;
 }
 async function fingerprintTargets(call?: ApprovedCallSnapshot): Promise<Record<string, string>> {
   const out: Record<string, string> = {};

@@ -2,7 +2,7 @@
  * R1：语音动作写入与聊天相同的工具决策审计（同一 requestId 规则，auditReplay 可读回）。
  * Voice actions write the same tool-decision audit rows as chat (same requestId rule).
  */
-import { getDb } from '../db';
+import { insertAuditLog } from '../db/auditLogStore';
 import { buildAiToolRequestId } from '../ai/toolRequestId';
 import { newAuditLogId, nowIso } from '../hooks/ai/useAiChat.helpers';
 import type { ActionId } from './IntentRouter';
@@ -43,8 +43,7 @@ export async function writeVoiceActionAudit(input: {
     input.requestId ??
     voiceActionRequestId(input.actionId, input.params, input.sessionId, input.turnIndex);
   const toolName = voiceToolName(input.actionId);
-  const db = await getDb();
-  await db.collections.audit_logs.insert({
+  await insertAuditLog({
     id: newAuditLogId(),
     collection: 'ai_messages',
     documentId: `voice_${input.sessionId}`,
