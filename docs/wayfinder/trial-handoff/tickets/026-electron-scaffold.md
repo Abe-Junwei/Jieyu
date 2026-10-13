@@ -21,3 +21,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/276
 - `userData` 目录布局：偏好、缓存、`backups/<项目>/`。
 - Electron e2e 冒烟与 CI 跑法（事实见 [#284](https://github.com/Abe-Junwei/Jieyu/issues/284)）。
 - electron-builder 打包配置、开发时怎么跑。
+
+已定，骨架要覆盖：
+- 项目位置：首次启动由用户选；选在同步文件夹（百度网盘、iCloud、OneDrive 等）里时给出警告。
+- 单写者：项目文件夹放锁文件，第二个窗口打开同一项目时提示「已在别处打开」。
+

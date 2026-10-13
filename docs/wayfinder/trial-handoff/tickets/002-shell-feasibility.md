@@ -20,3 +20,6 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/252
 - 主进程发 AI 请求：流式响应经 IPC 回传的常见做法。
 - 包体大小、最低 macOS/Windows 版本（供 [#270](https://github.com/Abe-Junwei/Jieyu/issues/270)）。
 - 主进程读写大音频文件与渲染进程播放（wavesurfer）的路径方式。
+
+补充：核实当前 Electron 版本实际支持的最低 macOS 版本（用户定的是 macOS 11+，见 #270）。
+

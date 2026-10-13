@@ -19,7 +19,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284；第二程 #285（子单 #286–#302））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284；第二程 #285（子单 #286–#303））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -64,6 +64,22 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   12. 文档：D14 原文保留，补「冻结对象 = 项目文件夹格式（SQLite + media/）」；[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 改主路线图 §1 与浏览器支持策略。
 - 2026-10-13 20:07 用户：主路线图里与试用相关的 5 条并进本图——新单 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 桌面试用版发布检查单（门槛由用户挑）、[#283](https://github.com/Abe-Junwei/Jieyu/issues/283) 发往云端 AI 前的隐私脱敏（A9）、[#284](https://github.com/Abe-Junwei/Jieyu/issues/284) Electron e2e 冒烟调研（喂 #276）；DoD 改写并入 [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 验收与 [#278](https://github.com/Abe-Junwei/Jieyu/issues/278)，对账规则并入 #278。以后再做的条目开单放进 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)。
 - 2026-10-13 20:08 用户：长期目的地 = 从田野到出版的单机闭环（见上）。
+- 2026-10-13 20:16–20:23 用户拍板：
+  1. 试用版默认开启 A9 出站脱敏，第一次使用 AI 时说明（关闭 [#283](https://github.com/Abe-Junwei/Jieyu/issues/283)）。
+  2. 发布检查硬门槛只有三条：不丢数据（读回校验、升级前与覆盖前快照）；Mac 与 Windows 上能安装、启动、自动更新；用示例项目走通核心流程。其余只记录（[#282](https://github.com/Abe-Junwei/Jieyu/issues/282)）。
+  3. 示例语料：调研 2–3 个开放许可的汉藏语系候选交用户挑（[#256](https://github.com/Abe-Junwei/Jieyu/issues/256)，调研进行中）。
+  4. 存储接口按领域分仓库、暴露业务操作，不做通用表级增删改查（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)）。
+  5. 用户暂不开工任何单子。
+  6. 三个已评审分支正在合进 main，P2-1 分支删除（用户已同意；[#260](https://github.com/Abe-Junwei/Jieyu/issues/260) 已注明）。
+  7. 最低系统版本：macOS 11+、Windows 10+；Electron 实际支持的最低 macOS 版本在 [#252](https://github.com/Abe-Junwei/Jieyu/issues/252) 核实（关闭 [#270](https://github.com/Abe-Junwei/Jieyu/issues/270)）。
+  8. 项目位置：首次启动由用户选；选在百度网盘、iCloud、OneDrive 等同步文件夹里时警告（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
+  9. 单写者：项目文件夹里放锁文件，第二个窗口打开同一项目时提示「已在别处打开」（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
+  10. 导入同一 textId 的 JYM：默认导入为新项目；覆盖要二次确认，并先存覆盖前快照（[#266](https://github.com/Abe-Junwei/Jieyu/issues/266)）。
+  11. 跨版本 JYM：新版应用自动升级旧包（原文件不动）；旧版应用拒绝新包并提示升级（[#266](https://github.com/Abe-Junwei/Jieyu/issues/266)、[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
+  12. AI 服务：预置 DeepSeek 与 Qwen，另可填自定义 OpenAI 兼容地址；本阶段不接本地模型（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)）。
+  13. 显示 AI token 用量；可选设每月上限，超出后停用 AI（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)）。
+  14. 试用版转写走云端 OpenAI 兼容转写接口，用试用者自己的密钥；本地 Whisper 放第二程（新单 [#303](https://github.com/Abe-Junwei/Jieyu/issues/303)）。
+  15. 媒体：WAV/MP3/M4A/FLAC 原样复制；支持视频，抽出音轨，音轨与原视频都存进 media/，播放与波形用音轨（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
 
 ## Next leg
@@ -87,6 +103,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#300](https://github.com/Abe-Junwei/Jieyu/issues/300) 进行中 spec 复核（ai-conversation-management 等，受 AI SDK 迁移影响）
 - [#301](https://github.com/Abe-Junwei/Jieyu/issues/301) C2 i18n 基线消减
 - [#302](https://github.com/Abe-Junwei/Jieyu/issues/302) C3d Word/docx 导出
+- [#303](https://github.com/Abe-Junwei/Jieyu/issues/303) 本地 Whisper 转写
 
 ## Not yet specified
 
