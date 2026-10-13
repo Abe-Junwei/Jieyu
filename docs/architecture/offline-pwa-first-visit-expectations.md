@@ -3,7 +3,7 @@ title: PWA / 离线壳与首次访问预期
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-04-24
+last_reviewed: 2026-10-13
 source_of_truth: pwa-offline-ux-boundary
 ---
 
@@ -20,7 +20,7 @@ source_of_truth: pwa-offline-ux-boundary
 
 ## 与产品文案的关系
 
-对外说明（帮助页 / 田野工作指南）应写清：**「离线可用」指壳层与已 precache 的转写主路径在 SW 生效后可用**，而非整包 AI / 声学模型在无网时仍可用。
+对外说明（帮助页 / 田野工作指南）应写清：**「离线可用」指壳层与已 precache 的转写主路径在 SW 生效后可用**，而非整包 AI / 声学模型在无网时仍可用。生产构建预缓存应用 JS/CSS（含共享 chunk）及必要字体/语言资料，不缓存模型或 WASM；只在已成功安装并接管的 Service Worker 版本上作此保证。浏览器缓存被清除、配额淘汰或首次安装未完成时仍需联网。
 
 ## 相关实现锚点
 

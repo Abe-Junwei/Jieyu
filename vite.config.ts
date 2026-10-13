@@ -278,31 +278,18 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        /**
-         * Precache：壳层 + **冷启动直达 `/transcription` 所需** chunk（含语言子标签 / 语系 / 波形 / 自托管图标字体）。
-         * 仍排除 ONNX/WASM 与模型目录，避免安装包膨胀到数十 MB。
-         * Shell + chunks needed for cold `/transcription`; ONNX/WASM/models stay out of precache.
-         */
-        /**
-         * Precaching: 壳层最小集使得冷启动离线可用。
-         * 其他运行时加载的页面/面板/AI/Voice chunk 由 runtimeCaching StaleWhileRevalidate 覆盖。
-         * Shell minimum for cold offline launch; everything else covered by runtimeCaching.
-         */
+        /** Vite chunks share hashed dependencies; cache app JS/CSS for cold offline launch, but not models/WASM. */
         globPatterns: [
           'index.html',
           'favicon.svg',
+          'registerSW.js',
           'fonts/**/*.css',
           'fonts/**/*.woff2',
           'data/language-support/iso6393-seed-rows.json',
           'data/language-support/language-display-names.core.json',
           'data/language-support/language-query-aliases.json',
-          'assets/zod-jitless-bootstrap.js',
-          'assets/main-*.js',
-          'assets/main-*.css',
-          'assets/react-vendor-*.js',
-          'assets/sentry-vendor-*.js',
-          'assets/useQuery-*.js',
-          'assets/useLatest-*.js',
+          'assets/*.js',
+          'assets/*.css',
         ],
         globIgnores: [
           '**/onnx-wasm/**',
