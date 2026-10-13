@@ -605,6 +605,8 @@ export async function prepareSnapshotImport(
   dropOptions?: ImportDropOptions,
 ): Promise<{
   preparedCollections: PreparedCollection[];
+  /** 旧备注补不上 textId 而跳过的条数 | Legacy notes skipped for an unresolvable textId */
+  skippedNotes: number;
   ignoredCollections: string[];
   droppedCollections: Array<{ name: string; rows: number }>;
 }> {
@@ -650,6 +652,7 @@ export async function prepareSnapshotImport(
     delete cols['units'];
   }
 
+  let skippedNotes = 0;
   // P0-2b：旧备份的备注缺 textId，按本包（再退回本机库）的目标行补齐；补不上的记日志后跳过
   // Legacy backups: fill note textId from this payload (falling back to local DB); unresolvable notes are logged and skipped
   if (
@@ -657,10 +660,21 @@ export async function prepareSnapshotImport(
     cols['user_notes'].some((n) => ((n as { textId?: string }).textId ?? '') === '')
   ) {
     const local = await getDb();
+    const byTable = new Map<string, Map<string, unknown>>();
+    const rowsById = (table: string) => {
+      if (!byTable.has(table))
+        byTable.set(
+          table,
+          new Map(
+            ((cols[table] ?? []) as Array<{ id?: string }>).map((row) => [String(row?.id), row]),
+          ),
+        );
+      return byTable.get(table)!;
+    };
     const payloadLookup = new Proxy({} as JieyuDatabase['dexie'], {
       get: (_target, table: string) => ({
         get: async (id: string) =>
-          (cols[table] as Array<{ id?: string }> | undefined)?.find((row) => row?.id === id) ??
+          rowsById(table).get(id) ??
           (await (
             local.dexie as unknown as Record<string, { get: (id: string) => Promise<unknown> }>
           )[table]?.get(id)),
@@ -671,6 +685,7 @@ export async function prepareSnapshotImport(
     const byId = new Map(filled.map((note) => [note.id, note]));
     if (unresolved.length > 0)
       log.warn('Skipped legacy notes without resolvable textId', { unresolved });
+    skippedNotes = unresolved.length;
     const skip = new Set(unresolved);
     cols['user_notes'] = notes
       .filter((note) => !skip.has(note.id))
@@ -741,7 +756,7 @@ export async function prepareSnapshotImport(
     });
   }
 
-  return { preparedCollections, ignoredCollections, droppedCollections };
+  return { preparedCollections, ignoredCollections, droppedCollections, skippedNotes };
 }
 
 export async function importDatabaseFromJson(
@@ -910,6 +925,11 @@ export async function importDatabaseFromJson(
         });
       }
 
+      if (prepared.skippedNotes > 0)
+        result.skippedOrphanRows = [
+          ...(result.skippedOrphanRows ?? []),
+          { collection: 'user_notes', count: prepared.skippedNotes },
+        ];
       for (const prepared of preparedCollections) {
         const { collectionName, normalizedDocs, received } = prepared;
         const resultCollectionName = collectionName as keyof JieyuCollections;

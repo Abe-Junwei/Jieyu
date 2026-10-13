@@ -51,7 +51,7 @@ describe('legacy user_notes without textId (P0-2b)', () => {
   });
 
   it('imports a legacy backup whose notes lack textId', async () => {
-    await importDatabaseFromJson(
+    const result = await importDatabaseFromJson(
       {
         schemaVersion: 5,
         exportedAt: NOW,
@@ -67,6 +67,14 @@ describe('legacy user_notes without textId (P0-2b)', () => {
               createdAt: NOW,
               updatedAt: NOW,
             },
+            {
+              id: 'n_lost',
+              targetType: 'unit',
+              targetId: 'missing_unit',
+              content: { und: 'x' },
+              createdAt: NOW,
+              updatedAt: NOW,
+            },
           ],
         },
       },
@@ -74,5 +82,6 @@ describe('legacy user_notes without textId (P0-2b)', () => {
     );
 
     expect((await db.user_notes.get('n_old'))?.textId).toBe('t_backup');
+    expect(result.skippedOrphanRows).toEqual([{ collection: 'user_notes', count: 1 }]);
   });
 });
