@@ -8,7 +8,8 @@
  * thinking model from DeepSeek docs.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const OUT = join(process.cwd(), 'tests/fixtures/ai-runtime');
 const PROMPT = '在当前项目里先搜索包含 "kata" 的句段，再列出所有层，然后删除句段 seg_demo_1。';
@@ -78,23 +79,26 @@ async function stream(c, messages, abortAfterBytes) {
 }
 
 /** 从 SSE 里取出第一个工具调用（只用于构造第二轮）| first tool call, for the follow-up turn */
-function firstToolCall(c, sse) {
+export function firstToolCall(c, sse) {
   const lines = sse.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).filter((l) => l && l !== '[DONE]');
-  let id = null, name = null, args = '';
+  let id = null, name = null, args = '', reasoning = '';
   for (const l of lines) {
     let j; try { j = JSON.parse(l); } catch { continue; }
     if (c.kind === 'anthropic') {
       if (j.type === 'content_block_start' && j.content_block?.type === 'tool_use' && !id) { id = j.content_block.id; name = j.content_block.name; }
       if (j.type === 'content_block_delta' && j.delta?.type === 'input_json_delta' && id) args += j.delta.partial_json;
     } else {
-      const tc = j.choices?.[0]?.delta?.tool_calls?.[0];
+      // DeepSeek thinking：第二轮必须回传 reasoning_content | must echo reasoning_content on follow-up
+      const delta = j.choices?.[0]?.delta;
+      if (delta?.reasoning_content) reasoning += delta.reasoning_content;
+      const tc = delta?.tool_calls?.[0];
       if (tc) { id ??= tc.id; name ??= tc.function?.name; args += tc.function?.arguments ?? ''; }
     }
   }
-  return id ? { id, name, args: args || '{}' } : null;
+  return id ? { id, name, args: args || '{}', ...(reasoning ? { reasoning } : {}) } : null;
 }
 
-function followUp(c, call, approved) {
+export function followUp(c, call, approved) {
   const result = approved ? JSON.stringify({ ok: true }) : JSON.stringify({ denied: true, reason: '用户拒绝' });
   if (c.kind === 'anthropic') {
     return [
@@ -103,13 +107,21 @@ function followUp(c, call, approved) {
       { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, content: result }] },
     ];
   }
+  const assistant = {
+    role: 'assistant',
+    content: null,
+    tool_calls: [{ id: call.id, type: 'function', function: { name: call.name, arguments: call.args } }],
+  };
+  if (call.reasoning) assistant.reasoning_content = call.reasoning;
   return [
     { role: 'user', content: PROMPT },
-    { role: 'assistant', content: null, tool_calls: [{ id: call.id, type: 'function', function: { name: call.name, arguments: call.args } }] },
+    assistant,
     { role: 'tool', tool_call_id: call.id, content: result },
   ];
 }
 
+const isMain = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+if (isMain) {
 let failures = 0;
 mkdirSync(OUT, { recursive: true });
 for (const c of CONFIGS) {
@@ -136,4 +148,5 @@ for (const c of CONFIGS) {
 if (failures) {
   console.error(`✗ ${failures} 个录制失败，未写入对应 fixture | ${failures} recording(s) failed`);
   process.exit(1);
+}
 }

@@ -35,3 +35,25 @@ describe('record-ai-fixtures', () => {
     expect(existsSync(join(cwd, 'tests/fixtures/ai-runtime/deepseek-chat.approve.json'))).toBe(false);
   }, 20000);
 });
+
+describe('firstToolCall / followUp reasoning_content', () => {
+  it('echoes accumulated reasoning_content on OpenAI-compatible follow-up', async () => {
+    const { firstToolCall, followUp } = await import('./record-ai-fixtures.mjs');
+    const sse = [
+      'data: {"choices":[{"delta":{"reasoning_content":"先想"}}]}',
+      'data: {"choices":[{"delta":{"reasoning_content":"一下","tool_calls":[{"id":"call_1","type":"function","function":{"name":"list_layers","arguments":""}}]}}]}',
+      'data: {"choices":[{"delta":{"tool_calls":[{"function":{"arguments":"{}"}}]}}]}',
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    const call = firstToolCall({ kind: 'openai' }, sse);
+    expect(call).toMatchObject({ id: 'call_1', name: 'list_layers', args: '{}', reasoning: '先想一下' });
+    const messages = followUp({ kind: 'openai' }, call, true);
+    const assistant = messages.find((m: { role: string }) => m.role === 'assistant') as {
+      reasoning_content?: string;
+      tool_calls?: unknown[];
+    };
+    expect(assistant.reasoning_content).toBe('先想一下');
+    expect(assistant.tool_calls).toHaveLength(1);
+  });
+});
