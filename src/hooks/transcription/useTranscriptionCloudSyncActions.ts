@@ -86,7 +86,7 @@ export interface UseTranscriptionCloudSyncActionsParams {
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
   loadSnapshot: (textId: string) => Promise<void>;
   /** P1-2：远端变更写进本地后调用（作废撤销）| Called after a remote change lands locally (drops undo) */
-  onRemoteChangeApplied?: (changedIds: readonly string[]) => void;
+  onRemoteChangeApplied?: () => void;
   presenceDisplayName?: string;
   presenceFocus?: {
     entityType?: ProjectEntityType;
@@ -267,7 +267,7 @@ export function useTranscriptionCloudSyncActions({
           .then(() => undefined),
       );
       await loadSnapshot(collaborationProjectId);
-      onRemoteChangeApplied?.([]);
+      onRemoteChangeApplied?.();
       return restored.record;
     },
     [

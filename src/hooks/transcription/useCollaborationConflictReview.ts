@@ -50,8 +50,8 @@ export interface UseCollaborationConflictReviewParams {
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
   loadSnapshot: (textId: string) => Promise<void>;
-  /** P1-2：远端变更写进本地后调用（空数组 = 全部作废）| After a remote change lands ([] = drop all) */
-  onRemoteChangeApplied?: (changedIds: readonly string[]) => void;
+  /** P1-2：远端变更写进本地后调用（清空撤销）| After a remote change lands (clears undo) */
+  onRemoteChangeApplied?: () => void;
 }
 
 export interface UseCollaborationConflictReviewResult {
@@ -142,7 +142,7 @@ export function useCollaborationConflictReview({
         layerLinks: layerLinksRef.current,
         loadSnapshot,
       });
-      if (applied) onRemoteChangeApplied?.([change.entityId]);
+      if (applied) onRemoteChangeApplied?.();
       return applied;
     },
     [
