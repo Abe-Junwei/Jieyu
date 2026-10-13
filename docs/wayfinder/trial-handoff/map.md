@@ -78,7 +78,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   11. 跨版本 JYM：新版应用自动升级旧包（原文件不动）；旧版应用拒绝新包并提示升级（[#266](https://github.com/Abe-Junwei/Jieyu/issues/266)、[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
   12. AI 服务：预置 DeepSeek 与 Qwen，另可填自定义 OpenAI 兼容地址；本阶段不接本地模型（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)）。
   13. 显示 AI token 用量；可选设每月上限，超出后停用 AI（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)）。
-  14. 试用版转写走云端 OpenAI 兼容转写接口，用试用者自己的密钥；本地 Whisper 放第二程（新单 [#303](https://github.com/Abe-Junwei/Jieyu/issues/303)）。
+  14. 试用版转写走云端 OpenAI 兼容转写接口，用试用者自己的密钥；~~本地 Whisper 放第二程~~（新单 [#303](https://github.com/Abe-Junwei/Jieyu/issues/303)；21:16 第 7 条已改为本机与云端都保留，#303 在第一程）。
   15. 媒体：WAV/MP3/M4A/FLAC 原样复制；支持视频，抽出音轨，音轨与原视频都存进 media/，播放与波形用音轨（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
 - 2026-10-13 21:06 用户拍板（模型接口，方案见 [model-interface-plan.md](model-interface-plan.md)）：
   1. `model_runs` 表在 D14 冻结前定进项目格式（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
@@ -148,7 +148,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Not yet specified
 
-- 与主路线图冲突：§1 North Star 写着「纯 Web 应用、非 WebView」、数据真源是浏览器 IndexedDB，与 ADR-0046 冲突（浏览器支持策略也要改），待按 [#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 改。
+- ~~与主路线图冲突：§1 纯 Web~~ 已按 [#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 改为 Electron 桌面版；本分支合进 main 后冲突消除。
 - 多台电脑：同一试用者换设备时项目文件夹怎么迁（拷文件夹还是导出 JYM）。
 - 冻结之后的迁移演练：试用期间若必须改结构，升级路径如何验证。
 - 试用者隐私与伦理：录音数据不出本机的承诺怎么写（与崩溃上报、AI 调用相关）。
