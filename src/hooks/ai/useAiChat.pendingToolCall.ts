@@ -21,7 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
-import { resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
+import { expireApprovalIfStale, resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
 import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
 import type {
@@ -96,9 +96,8 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     const assistantMessageId = pending.assistantMessageId;
     const changeSet = buildAiChangeSetFromPendingToolCall(pending);
     const currentEpoch = getTimelineReadModelEpochRef.current?.();
-    // S1：v2 卡片不靠内存 epoch（重载即归零），由 resolveApproval 在批准时核对库内目标指纹 |
-    // v2 cards are guarded by DB target fingerprints at approval time, not the per-page epoch
-    if (!pending.runtimeV2 && !validateChangeSetEpoch(changeSet, currentEpoch)) {
+    // S2：同页内 epoch 判断对 v2 卡片同样生效；跨重载由指纹核对 + 换 epoch | epoch in-page, fingerprints across reloads
+    if (!validateChangeSetEpoch(changeSet, currentEpoch)) {
       const staleCall = pending.executionCall ?? pending.call;
       const staleAuditContext =
         pending.auditContext ??
@@ -242,6 +241,30 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     };
 
     if (pending.call.name === 'propose_changes' && pending.proposedChildCalls?.length) {
+      // S2：先核对指纹再跑批处理 | check fingerprints before running the batch
+      if (
+        pending.runtimeV2 &&
+        (await expireApprovalIfStale(
+          pending.runtimeV2.conversationId,
+          pending.runtimeV2.approvalId,
+          Date.now(),
+        ))
+      ) {
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${call.name}`,
+          `expired_stale:${call.name}`,
+          'system',
+          callWithRequestId.requestId,
+        );
+        setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
+        await applyAssistantMessageResult(
+          assistantMessageId,
+          t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale'),
+          'done',
+        );
+        return;
+      }
       // 记下批处理最后写给用户的结果，原样回给模型 | capture the batch's real outcome for the model
       let batchOutcome: { status: 'done' | 'error'; message: string } = {
         status: 'error',

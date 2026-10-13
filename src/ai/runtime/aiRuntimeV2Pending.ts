@@ -50,26 +50,46 @@ export interface UnansweredApproval {
 const table = () => db.table<AiRuntimeV2TurnState, string>(TABLE);
 
 // shortcut: 目标按 *Id/*Ids 参数在常见表里按主键查 | targets = *Id/*Ids args looked up by primary key
-const TARGET_TABLES = ['layer_units', 'tier_definitions', 'layer_unit_contents', 'texts'];
-function targetIdsOf(call?: ApprovedCallSnapshot): string[] {
-  const ids: string[] = [];
-  for (const [k, v] of Object.entries(call?.arguments ?? {})) {
-    if (/Id$/.test(k) && typeof v === 'string') ids.push(v);
-    if (/Ids$/.test(k) && Array.isArray(v))
-      ids.push(...v.filter((x): x is string => typeof x === 'string'));
+const TARGET_TABLES = [
+  'layer_units',
+  'tier_definitions',
+  'layer_unit_contents',
+  'texts',
+  'unit_tokens',
+];
+// S2：递归收集（覆盖 propose_changes 的 changes[].arguments）| recurse into nested args
+function targetIdsOf(value: unknown, ids: string[] = []): string[] {
+  if (Array.isArray(value)) value.forEach((v) => targetIdsOf(v, ids));
+  else if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      if (/Id$/.test(k) && typeof v === 'string') ids.push(v);
+      else if (/Ids$/.test(k) && Array.isArray(v))
+        ids.push(...v.filter((x): x is string => typeof x === 'string'));
+      else targetIdsOf(v, ids);
+    }
   }
   return ids;
 }
 async function fingerprintOf(id: string): Promise<string | undefined> {
   for (const name of TARGET_TABLES) {
     const row = (await db.table(name).get(id)) as Record<string, unknown> | undefined;
-    if (row) return `${name}:${String(row.updatedAt ?? JSON.stringify(row))}`;
+    if (!row) continue;
+    let fp = `${name}:${String(row.updatedAt ?? JSON.stringify(row))}`;
+    if (name === 'layer_units') {
+      // S2：句段指纹并入其文本内容行 | include the segment's content rows
+      const contents = await db.table('layer_unit_contents').where('unitId').equals(id).toArray();
+      fp += `|${contents
+        .map((c) => `${String(c.id)}@${String(c.updatedAt)}`)
+        .sort()
+        .join(',')}`;
+    }
+    return fp;
   }
   return undefined;
 }
 async function fingerprintTargets(call?: ApprovedCallSnapshot): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
-  for (const id of targetIdsOf(call)) {
+  for (const id of targetIdsOf(call?.arguments)) {
     const fp = await fingerprintOf(id);
     if (fp) out[id] = fp;
   }
@@ -197,7 +217,9 @@ export interface ApprovalResolution {
   stale?: true;
 }
 
-async function targetsChanged(meta: ApprovalMeta): Promise<boolean> {
+async function targetsChanged(meta: ApprovalMeta, failClosed = false): Promise<boolean> {
+  // S2：重载后写工具没有可核对的目标 → 安全优先按过期（同页仍由 epoch 保护）| fail closed after reload
+  if (failClosed && meta.executionCall && Object.keys(meta.targets ?? {}).length === 0) return true;
   for (const [id, fp] of Object.entries(meta.targets ?? {})) {
     if ((await fingerprintOf(id)) !== fp) return true;
   }
@@ -256,6 +278,27 @@ export async function resolveApproval(
   };
 }
 
+/**
+ * S2：只核对不执行；目标已变则按过期关闭（供 propose_changes 批处理执行前调用）。
+ * check-only: close as expired when targets changed (used before the propose_changes batch).
+ */
+export async function expireApprovalIfStale(
+  conversationId: string,
+  approvalId: string,
+  now: number,
+): Promise<boolean> {
+  const loaded = await loadTurnState(conversationId, now);
+  if (loaded.kind !== 'active') return false;
+  const item = unansweredApprovals(loaded.state.messages).find((a) => a.approvalId === approvalId);
+  const meta = loaded.state.approvals[approvalId];
+  if (!item || !meta || !(await targetsChanged(meta))) return false;
+  const reason = 'target changed since the approval was requested';
+  let messages = withApprovalResponse(loaded.state.messages, approvalId, false, reason);
+  messages = withToolResult(messages, item, { denied: reason });
+  await table().put({ ...loaded.state, messages });
+  return true;
+}
+
 /** N3：打开 AI 面板时清理过期行 | sweep expired rows when the AI panel opens */
 export async function sweepExpiredTurnStates(now: number): Promise<void> {
   await table().where('expiresAt').below(now).delete();
@@ -278,7 +321,7 @@ export async function restoreFirstUnanswered(
   const next = unansweredApprovals(loaded.state.messages)[0];
   const meta = next ? loaded.state.approvals[next.approvalId] : undefined;
   if (!next || !meta) return undefined;
-  if (await targetsChanged(meta)) {
+  if (await targetsChanged(meta, true)) {
     const reason = 'target changed since the approval was requested';
     let messages = withApprovalResponse(loaded.state.messages, next.approvalId, false, reason);
     messages = withToolResult(messages, next, { denied: reason });

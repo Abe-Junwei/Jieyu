@@ -14,6 +14,7 @@ import {
   saveTurnState,
   sweepExpiredTurnStates,
   restoreFirstUnanswered,
+  expireApprovalIfStale,
   unansweredApprovals,
 } from './aiRuntimeV2Pending';
 import {
@@ -412,6 +413,87 @@ describe('runAiRuntimeV2Turn', () => {
       await db.table('texts').update('t-s1', { updatedAt: '2026-10-13T02:00:00.000Z' });
       const r = await resolveApproval('conv-s1-late', 'a1', true, 2_000);
       expect(r).toMatchObject({ stale: true });
+    });
+  });
+
+  describe('S2: fingerprints cover content rows, tokens, nested targets; reload fails closed', () => {
+    const T0 = '2026-10-13T00:00:00.000Z';
+    const T1 = '2026-10-13T03:00:00.000Z';
+    async function seed(conversationId: string, name: string, args: Record<string, unknown>) {
+      await saveTurnState({
+        conversationId,
+        createdAt: 1_000,
+        approvals: {
+          a1: {
+            requestId: `req-${conversationId}`,
+            card: { call: { name } },
+            executionCall: { name, arguments: args },
+          },
+        },
+        messages: [
+          { role: 'user', content: 'x' },
+          {
+            role: 'assistant',
+            content: [
+              { type: 'tool-call', toolCallId: 'c1', toolName: name, input: {} },
+              { type: 'tool-approval-request', approvalId: 'a1', toolCallId: 'c1' },
+            ],
+          },
+        ],
+      });
+    }
+
+    it('a text-only change (layer_unit_contents) expires a segment approval', async () => {
+      await db
+        .table('layer_units')
+        .put({ id: 'u-s2', textId: 't', startTime: 0, endTime: 1, createdAt: T0, updatedAt: T0 });
+      await db.table('layer_unit_contents').put({
+        id: 'c-s2',
+        unitId: 'u-s2',
+        textId: 't',
+        startTime: 0,
+        endTime: 1,
+        createdAt: T0,
+        updatedAt: T0,
+      });
+      await seed('conv-s2-text', 'set_transcription_text', { segmentId: 'u-s2', text: 'new' });
+      await db.table('layer_unit_contents').update('c-s2', { updatedAt: T1 });
+      expect((await restoreFirstUnanswered('conv-s2-text', 2_000))?.kind).toBe('stale');
+    });
+
+    it('a token change (unit_tokens) expires set_token_gloss', async () => {
+      await db.table('unit_tokens').put({
+        id: 'tok-s2',
+        unitId: 'u',
+        textId: 't',
+        tokenIndex: 0,
+        form: { default: 'w' },
+        createdAt: T0,
+        updatedAt: T0,
+      });
+      await seed('conv-s2-tok', 'set_token_gloss', { tokenId: 'tok-s2', gloss: 'g' });
+      expect((await restoreFirstUnanswered('conv-s2-tok', 2_000))?.kind).toBe('card');
+      await db.table('unit_tokens').delete('tok-s2');
+      expect(await resolveApproval('conv-s2-tok', 'a1', true, 2_000)).toMatchObject({
+        stale: true,
+      });
+    });
+
+    it('a nested propose_changes target is checked before the batch runs', async () => {
+      await db
+        .table('layer_units')
+        .put({ id: 'u-s2n', textId: 't', startTime: 0, endTime: 1, createdAt: T0, updatedAt: T0 });
+      await seed('conv-s2-nest', 'propose_changes', {
+        changes: [{ tool: 'delete_transcription_segment', arguments: { segmentId: 'u-s2n' } }],
+      });
+      expect(await expireApprovalIfStale('conv-s2-nest', 'a1', 2_000)).toBe(false);
+      await db.table('layer_units').delete('u-s2n');
+      expect(await expireApprovalIfStale('conv-s2-nest', 'a1', 2_000)).toBe(true);
+    });
+
+    it('after reload a write tool with no checkable target expires', async () => {
+      await seed('conv-s2-none', 'create_transcription_layer', { languageId: 'zho' });
+      expect((await restoreFirstUnanswered('conv-s2-none', 2_000))?.kind).toBe('stale');
     });
   });
 

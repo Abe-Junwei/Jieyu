@@ -127,9 +127,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
     () => (aiPendingToolCall ? buildAiChangeSetFromPendingToolCall(aiPendingToolCall) : null),
     [aiPendingToolCall],
   );
-  // v2 卡片由库内目标指纹把关（S1），不看内存 epoch | v2 cards use DB fingerprints, not the epoch
   const readModelStale = Boolean(
-    !aiPendingToolCall?.runtimeV2 &&
     aiPendingToolCall?.readModelEpochCaptured !== undefined &&
     timelineReadModelEpoch !== undefined &&
     aiPendingToolCall.readModelEpochCaptured !== timelineReadModelEpoch,
