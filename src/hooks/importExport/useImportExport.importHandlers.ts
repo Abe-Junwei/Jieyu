@@ -1375,6 +1375,13 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         throw err;
       }
       const rawMessage = toErrorMessage(err);
+      if (rawMessage === 'TEXT_FILE_TOO_LARGE') {
+        setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.importExport.fileTooLarge'),
+        });
+        return;
+      }
       if (rawMessage === 'TOOLBOX_FORMAT_UNRECOGNIZED') {
         setSaveState({
           kind: 'error',

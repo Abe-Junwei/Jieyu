@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { ingestTextFile } from './textIngestion';
+import { describe, it, expect, vi } from 'vitest';
+import { ingestTextFile, TEXT_INGESTION_MAX_BYTES } from './textIngestion';
 
 // ── helpers ──────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ function concat(...arrays: Uint8Array[]): Uint8Array {
 
 describe('textIngestion: BOM detection', () => {
   it('UTF-8 BOM', async () => {
-    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
     const r = await ingestTextFile(concat(bom, utf8('hello')));
     expect(r.detectedEncoding).toBe('utf-8');
     expect(r.text).toBe('hello');
@@ -32,7 +32,7 @@ describe('textIngestion: BOM detection', () => {
   });
 
   it('UTF-16 LE BOM', async () => {
-    const bom = new Uint8Array([0xFF, 0xFE]);
+    const bom = new Uint8Array([0xff, 0xfe]);
     // "AB" in UTF-16 LE
     const body = new Uint8Array([0x41, 0x00, 0x42, 0x00]);
     const r = await ingestTextFile(concat(bom, body));
@@ -42,7 +42,7 @@ describe('textIngestion: BOM detection', () => {
   });
 
   it('UTF-16 BE BOM', async () => {
-    const bom = new Uint8Array([0xFE, 0xFF]);
+    const bom = new Uint8Array([0xfe, 0xff]);
     // "AB" in UTF-16 BE
     const body = new Uint8Array([0x00, 0x41, 0x00, 0x42]);
     const r = await ingestTextFile(concat(bom, body));
@@ -60,7 +60,7 @@ describe('textIngestion: XML declaration', () => {
     const xmlDecl = '<?xml version="1.0" encoding="GBK"?>\n';
     const encoder = new TextEncoder();
     const declBytes = encoder.encode(xmlDecl);
-    const gbkBody = new Uint8Array([0xB2, 0xE2, 0xCA, 0xD4]);
+    const gbkBody = new Uint8Array([0xb2, 0xe2, 0xca, 0xd4]);
     const bytes = concat(declBytes, gbkBody);
 
     const r = await ingestTextFile(bytes, { xmlMode: true });
@@ -73,7 +73,7 @@ describe('textIngestion: XML declaration', () => {
     // GBK encoded text with XML declaration — without xmlMode should NOT detect GBK via XML
     const xmlDecl = '<?xml version="1.0" encoding="GBK"?>\n';
     const declBytes = new TextEncoder().encode(xmlDecl);
-    const gbkBody = new Uint8Array([0xB2, 0xE2, 0xCA, 0xD4]);
+    const gbkBody = new Uint8Array([0xb2, 0xe2, 0xca, 0xd4]);
     const bytes = concat(declBytes, gbkBody);
 
     const r = await ingestTextFile(bytes);
@@ -106,7 +106,7 @@ describe('textIngestion: UTF-8', () => {
 describe('textIngestion: candidate fallback', () => {
   it('GBK 回退 | GBK fallback', async () => {
     // "中文" in GBK = 0xD6, 0xD0, 0xCE, 0xC4
-    const gbk = new Uint8Array([0xD6, 0xD0, 0xCE, 0xC4]);
+    const gbk = new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]);
     const r = await ingestTextFile(gbk);
     expect(r.text).toBe('中文');
     expect(r.detectedEncoding).toBe('gbk');
@@ -118,7 +118,7 @@ describe('textIngestion: candidate fallback', () => {
 
 describe('textIngestion: forceEncoding', () => {
   it('强制 GBK 编码 | Force GBK encoding', async () => {
-    const gbk = new Uint8Array([0xD6, 0xD0, 0xCE, 0xC4]);
+    const gbk = new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]);
     const r = await ingestTextFile(gbk, { forceEncoding: 'gbk' });
     expect(r.text).toBe('中文');
     expect(r.detectedEncoding).toBe('gbk');
@@ -135,5 +135,14 @@ describe('textIngestion: File input', () => {
     const r = await ingestTextFile(file);
     expect(r.text).toBe('hello world');
     expect(r.detectedEncoding).toBe('utf-8');
+  });
+
+  it('rejects an oversized file before reading its bytes', async () => {
+    const file = new File(['small fixture'], 'too-large.eaf');
+    Object.defineProperty(file, 'size', { value: TEXT_INGESTION_MAX_BYTES + 1 });
+    const read = vi.spyOn(file, 'arrayBuffer');
+
+    await expect(ingestTextFile(file, { xmlMode: true })).rejects.toThrow('TEXT_FILE_TOO_LARGE');
+    expect(read).not.toHaveBeenCalled();
   });
 });

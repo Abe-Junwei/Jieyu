@@ -2284,6 +2284,7 @@ export const zhCNDictionary = {
     '有 {count} 条附加层条目因时间未对齐主层而未导入。',
   'transcription.importExport.toolboxFormatUnrecognized':
     '无法识别为 Toolbox/SFM 文件：内容缺少 \\tx / \\ts / \\te / \\ref 等标记。',
+  'transcription.importExport.fileTooLarge': '标注文件超过 32 MB 上限。',
   'transcription.importExport.importDone.constraintRepaired': '已自动修复 {count} 条层约束问题。',
   'transcription.importExport.importDone.constraintWarning':
     '检测到 {count} 条层约束兼容性问题，请在层管理中检查并修复。',

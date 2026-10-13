@@ -89,6 +89,22 @@ describe('useImportExport - import error handling', () => {
     );
   });
 
+  it('shows a localized size error without loading project data', async () => {
+    const input = createInput();
+    mockIngestTextFile.mockRejectedValueOnce(new Error('TEXT_FILE_TOO_LARGE'));
+    const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
+
+    await act(async () => {
+      await result.current.handleImportFile(new File(['x'], 'too-large.eaf', { type: 'text/xml' }));
+    });
+
+    expect(input.setSaveState).toHaveBeenCalledWith({
+      kind: 'error',
+      message: t('zh-CN', 'transcription.importExport.fileTooLarge'),
+    });
+    expect(input.loadSnapshot).not.toHaveBeenCalled();
+  });
+
   it('should map conflict-like read error to conflict i18n message', async () => {
     const input = createInput();
     const conflict = new Error('row changed externally');

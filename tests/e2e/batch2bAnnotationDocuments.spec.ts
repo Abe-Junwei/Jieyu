@@ -103,6 +103,26 @@ async function pickAnnotationFile(page: Page, name: string, body: string): Promi
 }
 
 test.describe('Slice 2B-E: annotation documents', () => {
+  test('oversized annotation is rejected before changing the project', async ({ page }) => {
+    const project = await setupFieldProjectWithMediaAndSegments(page);
+    await waitForDexie(page);
+    const before = await readDocState(page, project.textId);
+    const input = page.locator(
+      'input.left-rail-project-hub-file-input[accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"]',
+    );
+    await input.setInputFiles({
+      name: 'too-large.eaf',
+      mimeType: 'application/xml',
+      buffer: Buffer.alloc(32 * 1024 * 1024 + 1),
+    });
+    await page.getByRole('button', { name: /开始导入标注|Start annotation import/i }).click();
+
+    await expect(
+      page.getByText(/标注文件超过 32 MB 上限|annotation file exceeds the 32 MB limit/i),
+    ).toBeVisible();
+    expect(await readDocState(page, project.textId)).toEqual(before);
+  });
+
   test('T18/T22: re-import previews the replace; cancel keeps everything; confirm replaces in place', async ({
     page,
   }) => {

@@ -18,6 +18,7 @@ export interface TextIngestionResult {
 
 /** 候选编码回退列表（按区域使用频率排序）| Fallback encoding candidates */
 const FALLBACK_ENCODINGS = ['gbk', 'big5', 'shift_jis', 'euc-kr', 'iso-8859-1'] as const;
+export const TEXT_INGESTION_MAX_BYTES = 32 * 1024 * 1024;
 
 // ── BOM detection | BOM 检测 ─────────────────────────────────
 
@@ -102,6 +103,9 @@ export async function ingestTextFile(
     xmlMode?: boolean;
   },
 ): Promise<TextIngestionResult> {
+  if ((input instanceof Uint8Array ? input.byteLength : input.size) > TEXT_INGESTION_MAX_BYTES) {
+    throw new Error('TEXT_FILE_TOO_LARGE');
+  }
   // 将 File 转为 Uint8Array | Convert File to Uint8Array
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(await input.arrayBuffer());
 

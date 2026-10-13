@@ -2454,6 +2454,7 @@ export const enUSDictionary = {
     'Skipped {count} additional-tier entries that did not align with primary-tier timing.',
   'transcription.importExport.toolboxFormatUnrecognized':
     'Not recognized as Toolbox/SFM: content lacks \\tx / \\ts / \\te / \\ref markers.',
+  'transcription.importExport.fileTooLarge': 'The annotation file exceeds the 32 MB limit.',
   'transcription.importExport.importDone.constraintRepaired':
     'Auto-repaired {count} layer-constraint issues.',
   'transcription.importExport.importDone.constraintWarning':
