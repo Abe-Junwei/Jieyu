@@ -40,6 +40,9 @@ export interface BuildEmbeddingsOptions {
   onProgress?: (progress: EmbeddingBuildProgress) => void;
 }
 
+/** Per-project build: only rows of this textId are read. */
+export type ProjectBuildOptions = BuildEmbeddingsOptions & { textId: string };
+
 export interface BuildEmbeddingsResult {
   taskId: string;
   total: number;
@@ -114,12 +117,14 @@ export class EmbeddingService {
   ) {}
 
   /**
-   * 从 user_notes 表拉取全部笔记并向量化 | Vectorize all user notes from the user_notes table.
+   * 按项目从 user_notes 拉取笔记并向量化 | Vectorize the notes of one project (user_notes.textId index).
    * 自动过滤无文字内容的笔记 | Skips notes with empty text.
    */
-  async buildNotesEmbeddings(options?: BuildEmbeddingsOptions): Promise<BuildEmbeddingsResult> {
+  async buildNotesEmbeddings(options: ProjectBuildOptions): Promise<BuildEmbeddingsResult> {
     const db = await getDb();
-    const noteRows = await db.collections.user_notes.find().exec();
+    const noteRows = options.textId
+      ? await db.collections.user_notes.findByIndex('textId', options.textId)
+      : [];
     const sources: EmbeddingBuildSource[] = [];
     for (const row of noteRows) {
       const note = row.toJSON();
@@ -160,9 +165,11 @@ export class EmbeddingService {
    * 阶段 A：使用语义感知分块（句子边界 + 滑动窗口重叠）替代硬字符数切分。
    * Phase A: uses semantic-aware chunking (sentence boundary + sliding overlap) instead of hard char truncation.
    */
-  async buildPdfEmbeddings(options?: BuildEmbeddingsOptions): Promise<BuildEmbeddingsResult> {
+  async buildPdfEmbeddings(options: ProjectBuildOptions): Promise<BuildEmbeddingsResult> {
     const db = await getDb();
-    const mediaRows = await db.collections.media_items.find().exec();
+    const mediaRows = options.textId
+      ? await db.collections.media_items.findByIndex('textId', options.textId)
+      : [];
     const maxChars = Number.isFinite(options?.chunkSizeChars)
       ? Math.max(160, Math.floor(options?.chunkSizeChars ?? 600))
       : 600;

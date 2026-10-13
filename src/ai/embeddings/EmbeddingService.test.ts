@@ -106,7 +106,11 @@ describe('EmbeddingService', () => {
       })),
     );
     const service = new EmbeddingService(new FakeRuntime(targets.map(() => [1, 0])));
-    const result = await service.buildNotesEmbeddings({ modelId: 'm', modelVersion: 'v' });
+    const result = await service.buildNotesEmbeddings({
+      textId: 'text_notes',
+      modelId: 'm',
+      modelVersion: 'v',
+    });
 
     expect(result.generated).toBe(3);
     const rows = await db.embeddings.toArray();
@@ -198,6 +202,7 @@ describe('EmbeddingService', () => {
     const service = new EmbeddingService(new FakeRuntime([[0.11, 0.21, 0.31]]));
 
     const result = await service.buildPdfEmbeddings({
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       batchSize: 2,
@@ -232,6 +237,7 @@ describe('EmbeddingService', () => {
     const vectors = Array.from({ length: 12 }, () => [0.3, 0.2]);
     const service = new EmbeddingService(new FakeRuntime(vectors));
     const result = await service.buildPdfEmbeddings({
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       chunkSizeChars: 80,
@@ -268,6 +274,7 @@ describe('EmbeddingService', () => {
     );
 
     const result = await service.buildPdfEmbeddings({
+      textId: 'text_1',
       modelId: 'test-model',
       modelVersion: 'v-test',
       batchSize: 2,
@@ -275,5 +282,66 @@ describe('EmbeddingService', () => {
 
     // 无真实 pdf.js 解析时本用例至少保证流程不抛错 | Ensures blob fallback path is non-breaking even without real parser output.
     expect(result.total).toBeGreaterThanOrEqual(0);
+  });
+
+  it('builds note embeddings for one project only (P0-2b review)', async () => {
+    const now = new Date().toISOString();
+    await db.user_notes.bulkPut(
+      ['proj_a', 'proj_b'].map((textId) => ({
+        id: `note_${textId}`,
+        textId,
+        targetType: 'text' as const,
+        targetId: textId,
+        content: { und: `${textId} note` },
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
+    const service = new EmbeddingService(
+      new FakeRuntime([
+        [1, 0],
+        [1, 0],
+      ]),
+    );
+    const result = await service.buildNotesEmbeddings({
+      textId: 'proj_a',
+      modelId: 'm',
+      modelVersion: 'v',
+    });
+    expect(result.total).toBe(1);
+    expect((await db.embeddings.toArray()).map((row) => row.sourceId)).toEqual(['note_proj_a']);
+  });
+
+  it('builds pdf embeddings for one project only (P0-2b review)', async () => {
+    const now = new Date().toISOString();
+    await db.media_items.bulkPut(
+      ['proj_a', 'proj_b'].map((textId) => ({
+        id: `pdf_${textId}`,
+        textId,
+        filename: `${textId}.pdf`,
+        details: {
+          mimeType: 'application/pdf',
+          extractedText: `${textId} pdf text about phonology.`,
+        },
+        isOfflineCached: true,
+        timelineKind: 'acoustic' as const,
+        byteLocation: 'none' as const,
+        availability: 'missing' as const,
+        createdAt: now,
+      })),
+    );
+    const service = new EmbeddingService(
+      new FakeRuntime([
+        [1, 0],
+        [1, 0],
+      ]),
+    );
+    const result = await service.buildPdfEmbeddings({
+      textId: 'proj_a',
+      modelId: 'm',
+      modelVersion: 'v',
+    });
+    expect(result.total).toBe(1);
+    expect((await db.embeddings.toArray()).every((row) => row.textId === 'proj_a')).toBe(true);
   });
 });

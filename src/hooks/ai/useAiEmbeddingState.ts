@@ -95,6 +95,7 @@ type EmbeddingServiceLike = {
     averageBatchMs?: number;
   }>;
   buildNotesEmbeddings: (options: {
+    textId: string;
     onProgress: (progress: {
       stage: string;
       processed: number;
@@ -112,6 +113,7 @@ type EmbeddingServiceLike = {
     averageBatchMs?: number;
   }>;
   buildPdfEmbeddings: (options: {
+    textId: string;
     onProgress: (progress: {
       stage: string;
       processed: number;
@@ -476,6 +478,7 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     }
     try {
       const result = await embeddingService.buildNotesEmbeddings({
+        textId: getActiveProjectTextId(),
         onProgress: (progress) => {
           if (!isRequestActive(requestId)) return;
           const fallbackReason = readFallbackReason(
@@ -518,6 +521,7 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     }
     try {
       const result = await embeddingService.buildPdfEmbeddings({
+        textId: getActiveProjectTextId(),
         onProgress: (progress) => {
           if (!isRequestActive(requestId)) return;
           const fallbackReason = readFallbackReason(
