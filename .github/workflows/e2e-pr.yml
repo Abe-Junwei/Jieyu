@@ -11,6 +11,8 @@ on:
       - 'src/components/**'
       - 'src/pages/**'
       - 'src/hooks/**'
+      - 'src/services/**'
+      - 'src/db/**'
       - 'src/app/**'
       - 'src/styles/**'
       - 'tests/e2e/**'
@@ -19,6 +21,7 @@ on:
       - 'vite.config.ts'
       - 'package.json'
       - 'package-lock.json'
+      - '.github/workflows/e2e-pr.yml'
   workflow_dispatch:
 
 concurrency:
