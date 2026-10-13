@@ -101,6 +101,8 @@ export const zhCNDictionary = {
   'app.sidePane.aria.panel': '功能面板',
   'app.sidePane.aria.content': '功能面板内容区',
   'app.sidePane.aria.resize': '调整左侧功能面板宽度',
+  'app.sidePane.aria.controls': '功能面板控制区',
+  'app.shell.aria.notices': '应用提示',
   'app.sidePane.expand': '展开功能面板',
   'app.sidePane.collapse': '折叠功能面板',
   'app.locale.switchToChinese': '切换到中文',

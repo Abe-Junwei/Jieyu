@@ -108,6 +108,8 @@ export const enUSDictionary = {
   'app.sidePane.aria.panel': 'Feature panel',
   'app.sidePane.aria.content': 'Feature panel content area',
   'app.sidePane.aria.resize': 'Resize left feature panel width',
+  'app.sidePane.aria.controls': 'Feature panel controls',
+  'app.shell.aria.notices': 'Application notices',
   'app.sidePane.expand': 'Expand feature panel',
   'app.sidePane.collapse': 'Collapse feature panel',
   'app.locale.switchToChinese': 'Switch to Chinese',

@@ -49,7 +49,13 @@ function buildIconProps({
 function IconBase({ className, style, title, ariaLabel, children }: IconBaseProps) {
   const iconStyleProps = style !== undefined ? { style } : {};
   return (
-    <svg className={className} {...iconStyleProps} aria-label={ariaLabel} {...common}>
+    <svg
+      className={className}
+      {...iconStyleProps}
+      aria-label={ariaLabel}
+      aria-hidden={title || ariaLabel ? undefined : true}
+      {...common}
+    >
       {title ? <title>{title}</title> : null}
       {children}
     </svg>

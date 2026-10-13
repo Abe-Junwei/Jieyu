@@ -99,6 +99,8 @@ export const DICT_KEYS = [
   'app.sidePane.aria.panel',
   'app.sidePane.aria.content',
   'app.sidePane.aria.resize',
+  'app.sidePane.aria.controls',
+  'app.shell.aria.notices',
   'app.sidePane.expand',
   'app.sidePane.collapse',
   'app.locale.switchToChinese',

@@ -12,6 +12,23 @@ import { expect, test } from '@playwright/test';
 import { openTranscriptionChatWindow } from './_helpers/openTranscriptionChatWindow';
 
 test.describe('Accessibility smoke | Axe', () => {
+  test('home and transcription expose a page heading and no unnamed image icons', async ({
+    page,
+  }) => {
+    for (const route of ['/', '/transcription']) {
+      await page.goto(route);
+      await expect(page.locator('main')).toBeVisible({ timeout: 25_000 });
+      await expect(page.locator('main h1')).toHaveCount(1);
+      await expect(
+        page.locator(
+          'svg[role="img"]:not([aria-hidden="true"]):not([aria-label]):not(:has(title))',
+        ),
+      ).toHaveCount(0);
+      const { violations } = await new AxeBuilder({ page }).analyze();
+      expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
+    }
+  });
+
   test('home: primary nav has no axe violations', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('nav')).toBeVisible({ timeout: 15_000 });

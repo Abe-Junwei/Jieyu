@@ -270,6 +270,8 @@ function AppShellSidePane({
 
       <div
         className={`app-side-pane-handle-cluster ${isTranscriptionRoute ? 'app-side-pane-handle-cluster-transcription' : ''}`}
+        role="region"
+        aria-label={t(locale, 'app.sidePane.aria.controls')}
       >
         <div
           className="app-side-pane-resizer sidebar-handle-resizer"
@@ -750,9 +752,11 @@ export function App() {
             className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
             {...shellStyleProps}
           >
-            <DevBuildBanner locale={locale} />
-            <AppOfflineStatusBanner locale={locale} />
-            <WorkspaceReturnBanner locale={locale} />
+            <div role="region" aria-label={t(locale, 'app.shell.aria.notices')}>
+              <DevBuildBanner locale={locale} />
+              <AppOfflineStatusBanner locale={locale} />
+              <WorkspaceReturnBanner locale={locale} />
+            </div>
             <div ref={shellBodyRef} className="app-shell-body">
               <aside
                 className="app-left-rail"
@@ -780,6 +784,7 @@ export function App() {
                 </nav>
                 <div
                   className="app-left-rail-bottom-slot"
+                  role="group"
                   aria-hidden={!isTranscriptionRoute}
                   {...(isTranscriptionRoute
                     ? { 'aria-label': t(locale, 'app.leftRail.aria.contextSlot') }
@@ -839,6 +844,7 @@ export function App() {
               />
 
               <main className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}>
+                <h1 className="app-main-screen-reader-heading">{activeNavItem?.label}</h1>
                 <AiPanelProvider>
                   <AssetPanelProvider value={assetPanelCtx}>
                     <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
