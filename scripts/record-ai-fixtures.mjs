@@ -3,6 +3,9 @@
  * R1 fixture 录制（用户本机运行，用自己的 key）。key 只从环境变量读，不落盘。
  * Records raw SSE for the ToolLoopAgent pilot: 6 provider configs × approve / reject / interrupt.
  * Output: tests/fixtures/ai-runtime/<config>.<scenario>.json (redacted, synthetic prompt only).
+ * DeepSeek: config id deepseek-chat sends model deepseek-flash; deepseek-reasoner uses
+ * DEEPSEEK_REASONER_MODEL (default deepseek-reasoner). If reasoner 404s, try the current
+ * thinking model from DeepSeek docs.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,8 +19,8 @@ const TOOLS = [
 ];
 
 const CONFIGS = [
-  { id: 'deepseek-chat', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
-  { id: 'deepseek-reasoner', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1', model: 'deepseek-reasoner' },
+  { id: 'deepseek-chat', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1', model: 'deepseek-flash' },
+  { id: 'deepseek-reasoner', kind: 'openai', env: 'DEEPSEEK_API_KEY', base: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1', model: process.env.DEEPSEEK_REASONER_MODEL ?? 'deepseek-reasoner' },
   { id: 'qwen-thinking-on', kind: 'openai', env: 'DASHSCOPE_API_KEY', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: process.env.QWEN_MODEL ?? 'qwen-plus', extra: { enable_thinking: true } },
   { id: 'qwen-thinking-off', kind: 'openai', env: 'DASHSCOPE_API_KEY', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: process.env.QWEN_MODEL ?? 'qwen-plus', extra: { enable_thinking: false } },
   { id: 'minimax', kind: 'openai', env: 'MINIMAX_API_KEY', base: process.env.MINIMAX_BASE_URL ?? 'https://api.minimaxi.com/v1', model: process.env.MINIMAX_MODEL ?? 'MiniMax-M2' },
@@ -42,7 +45,7 @@ function buildRequest(c, messages) {
   }
   return {
     url: `${c.base}/chat/completions`,
-    headers: { authorization: `Bearer ${process.env[c.env]}`, 'content-type': 'application/json' },
+    headers: { Authorization: `Bearer ${process.env[c.env]}`, 'content-type': 'application/json' },
     body: { model: c.model, stream: true, messages, tools: TOOLS.map((t) => ({ type: 'function', function: t })), ...(c.extra ?? {}) },
   };
 }
