@@ -5,13 +5,21 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 # 地图：解语交给语言学者试用
 
+## Long-term destination
+
+从田野到出版的单机闭环（用户 2026-10-13 20:08）：一个人在桌面版里完成录音、转写、标注、词典、语料库建库，再导出出版和存档格式。
+
+- 第一程 = 本图 #250（交给语言学者试用）。
+- 第二程 = [#285 下一程（试用之后）](https://github.com/Abe-Junwei/Jieyu/issues/285)。
+- 语料库建库（主路线图 B5/B7）现在在路上：B5/B8 在第一程按 #265 隐藏或标实验，B7 与语料库标准格式在第二程。
+
 ## Destination
 
 解语可以交给不懂开发的语言学者试用：在 Mac 或 Windows 上装好桌面版就能用、自己上手、靠互传项目包协作。到达时所有试用前需要拍板的问题都已定，剩下的只是去做。
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#281）。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284；第二程 #285（子单 #286–#302））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -54,7 +62,31 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   10. keyVault 只在浏览器构建；偏好备份不含密钥；桌面渲染进程 CSP `connect-src` 只放行本地来源。（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）
   11. Sentry：首启同意弹窗、默认关；`@sentry/electron` 接渲染与主进程；强制 `sendDefaultPii=false`、字段白名单；用用户本人的 Sentry 账户与 DSN。（[#261](https://github.com/Abe-Junwei/Jieyu/issues/261) 决定已补全）
   12. 文档：D14 原文保留，补「冻结对象 = 项目文件夹格式（SQLite + media/）」；[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 改主路线图 §1 与浏览器支持策略。
+- 2026-10-13 20:07 用户：主路线图里与试用相关的 5 条并进本图——新单 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 桌面试用版发布检查单（门槛由用户挑）、[#283](https://github.com/Abe-Junwei/Jieyu/issues/283) 发往云端 AI 前的隐私脱敏（A9）、[#284](https://github.com/Abe-Junwei/Jieyu/issues/284) Electron e2e 冒烟调研（喂 #276）；DoD 改写并入 [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 验收与 [#278](https://github.com/Abe-Junwei/Jieyu/issues/278)，对账规则并入 #278。以后再做的条目开单放进 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)。
+- 2026-10-13 20:08 用户：长期目的地 = 从田野到出版的单机闭环（见上）。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
+
+## Next leg
+
+第二程父单 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)，子单来自主路线图中试用阶段外的条目（盒子 `/workspace/jieyu-review/MASTER_ROADMAP_MERGE.md` 的 (d) 类），每张链回原切片。试用结束前不开工。
+
+- [#286](https://github.com/Abe-Junwei/Jieyu/issues/286) A1 ReadyWorkspace 类型合同（剩余域）
+- [#287](https://github.com/Abe-Junwei/Jieyu/issues/287) A2 声学 hover readout 信息层级打磨
+- [#288](https://github.com/Abe-Junwei/Jieyu/issues/288) A3 声学冻结点持久化与多点比较（冻结后需加法迁移）
+- [#289](https://github.com/Abe-Junwei/Jieyu/issues/289) A4b Context JIT 默认参数与步数缩放
+- [#290](https://github.com/Abe-Junwei/Jieyu/issues/290) A5 时间轴 §9 backlog（lane 行 DOM、选集撤销批处理、非线性渲染）
+- [#291](https://github.com/Abe-Junwei/Jieyu/issues/291) A7 写 gate 剩余项：超 scope 写拦截与工具政策矩阵
+- [#292](https://github.com/Abe-Junwei/Jieyu/issues/292) A8 agentRunId 审计链剩余项
+- [#293](https://github.com/Abe-Junwei/Jieyu/issues/293) A10 Runner 基座剩余项
+- [#294](https://github.com/Abe-Junwei/Jieyu/issues/294) A11 AgentUiEvent 与 Preview 放量
+- [#295](https://github.com/Abe-Junwei/Jieyu/issues/295) A12 Workflow 强化剩余项
+- [#296](https://github.com/Abe-Junwei/Jieyu/issues/296) A13 TaskRunner 与并行只读剩余项
+- [#297](https://github.com/Abe-Junwei/Jieyu/issues/297) A14 Eval trajectory 剩余项（可选 pass@k）
+- [#298](https://github.com/Abe-Junwei/Jieyu/issues/298) B7 语料库 AI（需 ChatWindow 会话隔离）
+- [#299](https://github.com/Abe-Junwei/Jieyu/issues/299) 语料库接入 EAF 等标准格式
+- [#300](https://github.com/Abe-Junwei/Jieyu/issues/300) 进行中 spec 复核（ai-conversation-management 等，受 AI SDK 迁移影响）
+- [#301](https://github.com/Abe-Junwei/Jieyu/issues/301) C2 i18n 基线消减
+- [#302](https://github.com/Abe-Junwei/Jieyu/issues/302) C3d Word/docx 导出
 
 ## Not yet specified
 

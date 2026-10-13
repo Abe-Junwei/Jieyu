@@ -4,7 +4,7 @@ label: wayfinder:grilling
 mode: HITL
 status: open
 assignee:
-blocked_by: [002,024]
+blocked_by: [002,024,034]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/276
 ---
 
@@ -19,4 +19,5 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/276
 - 编译期剔除协作 / Supabase 代码（[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/docs/wayfinder-trial-map/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)）。
 - `@sentry/electron` 接入渲染与主进程、首启同意弹窗（[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/docs/wayfinder-trial-map/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)）。
 - `userData` 目录布局：偏好、缓存、`backups/<项目>/`。
+- Electron e2e 冒烟与 CI 跑法（事实见 [#284](https://github.com/Abe-Junwei/Jieyu/issues/284)）。
 - electron-builder 打包配置、开发时怎么跑。
