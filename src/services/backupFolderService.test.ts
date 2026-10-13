@@ -104,6 +104,63 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('backupFolderService', () => {
+  it('keeps both backups when two writes occur in the same millisecond', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 9, 13, 9, 0, 0, 123));
+      const folder = memoryFolder([]);
+      await useFolder(folder);
+      const first = await backupLibraryToFolder({
+        interactive: false,
+        exportJyb: async () => new Blob(['first']),
+      });
+      const second = await backupLibraryToFolder({
+        interactive: false,
+        exportJyb: async () => new Blob(['second']),
+      });
+
+      expect(first.fileName).not.toBe(second.fileName);
+      expect(new TextDecoder().decode(folder.files.get(first.fileName))).toBe('first');
+      expect(new TextDecoder().decode(folder.files.get(second.fileName))).toBe('second');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not delete the earlier backup if a same-millisecond write fails', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 9, 13, 9, 0, 0, 123));
+      const folder = memoryFolder([]);
+      await useFolder(folder);
+      const first = await backupLibraryToFolder({
+        interactive: false,
+        exportJyb: async () => new Blob(['first']),
+      });
+      const failingFolder = memoryFolder([...folder.files.keys()], { failWrite: true });
+      failingFolder.files.set(first.fileName, folder.files.get(first.fileName)!);
+      await useFolder(failingFolder);
+      await expect(backupLibraryToFolder({ interactive: false, exportJyb: bytes })).rejects.toThrow(
+        'quota',
+      );
+
+      expect(new TextDecoder().decode(failingFolder.files.get(first.fileName))).toBe('first');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails before creating a backup when secure random IDs are unavailable', async () => {
+    const folder = memoryFolder([]);
+    await useFolder(folder);
+    vi.stubGlobal('crypto', undefined);
+
+    await expect(backupLibraryToFolder({ interactive: false, exportJyb: bytes })).rejects.toThrow(
+      'secure random backup IDs unavailable',
+    );
+    expect(folder.files.size).toBe(0);
+  });
+
   it('writes a backup into the remembered folder and keeps the newest three of its own files', async () => {
     const folder = memoryFolder([...OLD, 'notes.txt', 'jieyu-library-2026-10-01.jyb']);
     await useFolder(folder);
@@ -176,8 +233,8 @@ describe('backupFolderService', () => {
   });
 
   it('names sort by time', () => {
-    expect(backupFileName(new Date(2026, 9, 9, 7, 5, 3, 42))).toBe(
-      'jieyu-backup-20261009-070503-042.jyb',
+    expect(backupFileName(new Date(2026, 9, 9, 7, 5, 3, 42))).toMatch(
+      /^jieyu-backup-20261009-070503-042-[0-9a-f-]{36}\.jyb$/,
     );
   });
 });

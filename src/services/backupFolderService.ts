@@ -10,7 +10,8 @@ import { recordFullProjectArchiveExportCompleted } from '../utils/backupExportRe
 export const BACKUP_FOLDER_KEEP = 3;
 /** 默认每天一次；0 = 关闭自动备份 | Daily by default; 0 = automatic backup off */
 export const DEFAULT_BACKUP_INTERVAL_HOURS = 24;
-const BACKUP_FILE_PATTERN = /^jieyu-backup-\d{8}-\d{6}-\d{3}\.jyb$/;
+const BACKUP_FILE_PATTERN =
+  /^jieyu-backup-\d{8}-\d{6}-\d{3}(?:-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\.jyb$/;
 const STATUS_KEY = 'jieyu.backup.folder.status.v1';
 const INTERVAL_KEY = 'jieyu.backup.folder.intervalHours';
 const HANDLE_DB = 'jieyu_backup_folder';
@@ -51,8 +52,10 @@ export function isBackupFolderSupported(): boolean {
 }
 
 export function backupFileName(now: Date = new Date()): string {
+  const id = globalThis.crypto?.randomUUID?.();
+  if (!id) throw new BackupFolderError('failed', 'secure random backup IDs unavailable');
   const p = (value: number, width = 2) => String(value).padStart(width, '0');
-  return `jieyu-backup-${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}-${p(now.getMilliseconds(), 3)}.jyb`;
+  return `jieyu-backup-${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}-${p(now.getMilliseconds(), 3)}-${id}.jyb`;
 }
 
 // —— 句柄（IndexedDB）| Handle (IndexedDB) ——

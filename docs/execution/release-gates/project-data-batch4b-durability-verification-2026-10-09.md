@@ -32,7 +32,7 @@ source_of_truth: tests/e2e/batch4bRawSnapshot.spec.ts
 - 诊断面板：设置 → 数据 → “存储诊断与备份”，显示 `estimate()` 的已用 / 配额、`persisted()`、最近一次申请的结果与触发方式、Safari ITP 提示（原文见方案 6.2）。
 - 写入失败：归档导入的错误说明复用 4a 的 `classifyStorageFailure`；配额不足（包括被包在 AbortError 里的）显示“存储空间不足，导入没有完成；已有数据没有改动，也没有删除任何原件”。导入在事务里，失败时什么都不写。
 - 顺带修复：保存状态出错的提示条以前用 `errorMeta.i18nKey` 不带参数翻译，带占位符的键会显示成“导入失败：{message}”，所有导入失败的原因都看不到；现在键里有占位符时用调用方已填好的消息。
-- 站点外备份：支持 File System Access 的浏览器在诊断面板里“选择文件夹…”，目录句柄存在 IndexedDB（`jieyu_backup_folder`）。“立即备份”和自动备份都写一份整库 JYB（含音频）`jieyu-backup-YYYYMMDD-HHmmss-SSS.jyb`，写好后只保留最近 3 份；只删本功能写的文件；写入失败时删掉没写完的这一份，旧备份不动。不支持的浏览器显示说明，沿用已有的下载提醒（`backupExportReminderState`，JYB 导出已计入）。
+- 站点外备份：支持 File System Access 的浏览器在诊断面板里“选择文件夹…”，目录句柄存在 IndexedDB（`jieyu_backup_folder`）。“立即备份”和自动备份都写一份整库 JYB（含音频）；新文件名为 `jieyu-backup-YYYYMMDD-HHmmss-SSS-UUID.jyb`，旧的无 UUID 文件名仍参与轮转。写好后只保留最近 3 份；只删本功能写的文件；写入失败时删掉没写完的这一份，旧备份不动。不支持的浏览器显示说明，沿用已有的下载提醒（`backupExportReminderState`，JYB 导出已计入）。
 - 自动备份：设置 → 数据 可选关闭 / 每 6 小时 / 每天（默认）/ 每周。应用每小时检查一次，距上次成功满间隔才写，失败后一小时内不重试；多个标签页用 Web Locks（`jieyu-backup-folder`）只跑一个。浏览器要求重新授权时，自动备份不弹申请（没有用户手势），记为“需要重新授权”，弹出一次不阻塞的提醒；点“立即备份”时才申请授权。上次成功、上次失败（时间、原因）都显示在诊断面板。
 
 ## 大包流式处理（用户决定 #5，2026-10-09）
