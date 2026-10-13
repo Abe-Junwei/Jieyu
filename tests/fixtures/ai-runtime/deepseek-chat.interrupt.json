@@ -1,0 +1,76 @@
+{
+  "config": "deepseek-chat",
+  "model": "deepseek-flash",
+  "scenario": "interrupt",
+  "recordedAt": "2026-10-13T08:44:56.326Z",
+  "turns": [
+    {
+      "request": {
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "body": {
+          "model": "deepseek-flash",
+          "stream": true,
+          "messages": [
+            {
+              "role": "user",
+              "content": "在当前项目里先搜索包含 \"kata\" 的句段，再列出所有层，然后删除句段 seg_demo_1。"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "search_segments",
+                "description": "搜索句段",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "q": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "q"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "list_layers",
+                "description": "列出层",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "delete_transcription_segment",
+                "description": "删除句段（需用户确认）",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "segmentId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "segmentId"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "status": 200,
+      "elapsedMs": 518,
+      "aborted": true,
+      "sse": "data: {\"id\":\"82d1d065-2228-457f-8173-39812ad89d0b\",\"object\":\"chat.completion.chunk\",\"created\":1791881095,\"model\":\"deepseek-flash\",\"system_fingerprint\":\"aeb56401ca74e127821c4f9126dcb669\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"\"},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"82d1d065-2228-457f-8173-39812ad89d0b\",\"object\":\"chat.completion.chunk\",\"created\":1791881095,\"model\":\"deepseek-flash\",\"system_fingerprint\":\"aeb56401ca74e127821c4f9126dcb669\",\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"reasoning_content\":\"The\"},\"logprobs\":null,\"finish_reason\":null}]}\n\n"
+    }
+  ]
+}
