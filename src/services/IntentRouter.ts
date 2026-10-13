@@ -509,16 +509,16 @@ const FUZZY_RULES: FuzzyRule[] = [
     priority: 50,
   },
   {
-    keywords: '删除 删掉 删一下 删除一下 删除这句 删了 删',
+    keywords: '删除 删掉 删一下 删除一下 删除这句 删了',
     actionId: 'deleteSegment',
     priority: 50,
   },
   { keywords: '合并上 合并上一个 合并上 合并前', actionId: 'mergePrev', priority: 50 },
   { keywords: '合并下 合并下一个 合并下 合并后', actionId: 'mergeNext', priority: 50 },
-  { keywords: '分割 split 分割一下 分一下 切开 切', actionId: 'splitSegment', priority: 50 },
+  { keywords: '分割 split 分割一下 分一下 切开', actionId: 'splitSegment', priority: 50 },
   // Cancel / undo — multiple forms
   { keywords: '取消 算了 不要了 算了算了 取消吧 不做了', actionId: 'cancel', priority: 50 },
-  { keywords: '撤销 撤一下 撤销一下 撤销 撤  undo 取消操作', actionId: 'undo', priority: 50 },
+  { keywords: '撤销 撤一下 撤销一下 撤销 undo 取消操作', actionId: 'undo', priority: 50 },
   { keywords: '重做 重来 再做一遍 重试 重新做 再做', actionId: 'redo', priority: 50 },
   // Selection
   { keywords: '全选 select all 选中全部 全部选中', actionId: 'selectAll', priority: 50 },
@@ -533,6 +533,28 @@ const FUZZY_RULES: FuzzyRule[] = [
   { keywords: 'tab下一个 下一个tab 切到下tab', actionId: 'tabNext', priority: 50 },
   { keywords: 'tab上一个 上一个tab 切到上tab', actionId: 'tabPrev', priority: 50 },
 ];
+
+/** 模糊匹配只用于短指令：中文 ≤ 6 字，其他 ≤ 3 词 | Fuzzy only for short commands */
+function isShortCommand(cleaned: string): boolean {
+  if (/\p{Script=Han}/u.test(cleaned)) return cleaned.replace(/\s+/g, '').length <= 6;
+  return cleaned.split(/\s+/).filter(Boolean).length <= 3;
+}
+
+/** 否定开头（“不要删除”“取消删除”）交给 AI | Negated commands go to chat */
+const NEGATION_PREFIX = /^(不要|别|取消|不用|don[’']?t|do not)/;
+
+/** 疑问句不做模糊匹配 | Questions skip fuzzy matching */
+const QUESTION_GUARD = /(怎么|如何|为什么|什么|吗|呢)/;
+const EN_QUESTION_GUARD =
+  /^(what|how|why|when|where|which|who|is|are|can|could|should|do|does|did)\b|[?？]\s*$/i;
+
+function fuzzyKeywordMatches(cleaned: string, kw: string): boolean {
+  // 英文关键词按词边界匹配 | English keywords match on word boundaries
+  if (/^[a-z\s-]+$/i.test(kw)) {
+    return new RegExp(`\\b${kw.replace(/[-\s]/g, '\\s*')}\\b`).test(cleaned);
+  }
+  return cleaned.includes(kw);
+}
 
 // Sort fuzzy rules by priority descending
 const SORTED_FUZZY_RULES = [...FUZZY_RULES].sort((a, b) => b.priority - a.priority);
@@ -600,13 +622,20 @@ export function routeIntent(
   }
 
   // Try fuzzy rules for non-dictation modes (command + analysis)
-  const allowFuzzy = mode !== 'dictation';
+  // Exact keyword match skips negation (e.g. 「取消操作」 matches fuzzy despite 取消 prefix)
+  const isExactKeyword = FUZZY_RULES.some((rule) => rule.keywords.split(' ').includes(cleaned));
+  const allowFuzzy =
+    mode !== 'dictation' &&
+    isShortCommand(cleaned) &&
+    !QUESTION_GUARD.test(cleaned) &&
+    !EN_QUESTION_GUARD.test(trimmed) &&
+    (isExactKeyword || !NEGATION_PREFIX.test(cleaned));
   if (allowFuzzy) {
     for (const rule of SORTED_FUZZY_RULES) {
       const kwList = rule.keywords.split(' ').filter(Boolean);
       const matched = kwList.some((kw) => {
         if (locale.startsWith('zh') && /^[a-z\s-]+$/i.test(kw)) return false;
-        return cleaned.includes(kw);
+        return fuzzyKeywordMatches(cleaned, kw);
       });
       if (matched) {
         return {
