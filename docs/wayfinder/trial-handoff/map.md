@@ -19,7 +19,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#306 及 #307（2026-10-13 从第二程提入）；第二程 #285（子单 #286–#302））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#306 及 #307（2026-10-13 从第二程提入）；第二程 #285（子单 #286–#302、#308–#311））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -106,6 +106,15 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   6. 首次用云端转写弹专门的伦理/隐私对话框；可按项目关闭云端转写（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)、[#283](https://github.com/Abe-Junwei/Jieyu/issues/283)）。
   7. 手册写明换电脑靠导出 JYM；性能只记录不设门槛，用一段 2 小时录音实测（[#263](https://github.com/Abe-Junwei/Jieyu/issues/263)）。
   8. 顺序：先做调研 [#252](https://github.com/Abe-Junwei/Jieyu/issues/252)、[#284](https://github.com/Abe-Junwei/Jieyu/issues/284)，再把 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276)+[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)+[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 作为一个里程碑。
+- 2026-10-13 21:21–21:23 用户拍板（第二程与收尾）：
+  1. 第二程做应用内简单录音（单声道 WAV + 元数据）：[#308](https://github.com/Abe-Junwei/Jieyu/issues/308)。
+  2. 出版格式先完善 Leipzig 隔行注释导出（LaTeX gb4e/expex + HTML），在 C3c 之上：[#309](https://github.com/Abe-Junwei/Jieyu/issues/309)；[#302](https://github.com/Abe-Junwei/Jieyu/issues/302) Word 仍不排期。
+  3. 存档包导出（媒体 + EAF + LIFT + 元数据 XML，IMDI/CMDI/OLAC）：[#310](https://github.com/Abe-Junwei/Jieyu/issues/310)，依赖冻结前元数据表。
+  4. 词典用 FLEx 做 LIFT 往返验证：[#311](https://github.com/Abe-Junwei/Jieyu/issues/311)。
+  5. 第二程按页面闭环排：先词典页闭环，再语料库页闭环；A 系列 AI 打磨（#286–#297）按需再做。缺口清单见盒子 `/workspace/jieyu-review/PAGE_LOOP_GAPS.md`。
+  6. 训练集导出：知情同意只提示，不强制数据卡；沿用缺授权记录的说话人默认不导出、可覆盖并记日志（[#304](https://github.com/Abe-Junwei/Jieyu/issues/304)、[model-interface-plan](model-interface-plan.md)）。
+  7. 试用结束后的衔接与收费：以后再定。
+  8. 补 #278：rev5 方案 D14 处注明冻结对象 = 项目文件夹格式（SQLite + media/）。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
 
 ## Next leg
@@ -130,6 +139,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#301](https://github.com/Abe-Junwei/Jieyu/issues/301) C2 i18n 基线消减
 - [#302](https://github.com/Abe-Junwei/Jieyu/issues/302) C3d Word/docx 导出
 - （#303–#306 已于 2026-10-13 提到第一程，见 Decisions 21:14–21:17 第 7–8 条。）
+- [#308](https://github.com/Abe-Junwei/Jieyu/issues/308) 应用内简单录音（单声道 WAV + 元数据）
+- [#309](https://github.com/Abe-Junwei/Jieyu/issues/309) 完善 Leipzig IGT 导出（gb4e/expex + HTML）
+- [#310](https://github.com/Abe-Junwei/Jieyu/issues/310) 存档包导出（媒体 + EAF + LIFT + 元数据 XML）
+- [#311](https://github.com/Abe-Junwei/Jieyu/issues/311) FLEx LIFT 往返验证
+
+排序（2026-10-13 21:23）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），A 系列 #286–#297 按需。
 
 ## Not yet specified
 
@@ -138,7 +153,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 冻结之后的迁移演练：试用期间若必须改结构，升级路径如何验证。
 - 试用者隐私与伦理：录音数据不出本机的承诺怎么写（与崩溃上报、AI 调用相关）。
 - 性能底线：试用者常见电脑上的大录音/长项目表现。
-- 试用结束后的去向：数据保留与转正式版。
+- 试用结束后的去向：数据保留、转正式版与收费（2026-10-13 用户：以后再定）。
 
 ## Out of scope
 
