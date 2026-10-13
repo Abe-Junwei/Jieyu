@@ -1403,6 +1403,7 @@ export const zhCNDictionary = {
   'transcription.undo.current': '撤销: {label}',
   'transcription.undo.historyTitle': '编辑历史（最近 15 条）',
   'transcription.undo.jumpTo': '回退到这一步：{label}',
+  'transcription.undo.clearedByRemote': '协作者修改了相关内容，撤销记录已清空',
   'transcription.undo.done': '已撤销: {label}',
   'transcription.undo.doneMultiple': '已撤销 {count} 步: {label}',
   'transcription.redo.done': '已重做: {label}',

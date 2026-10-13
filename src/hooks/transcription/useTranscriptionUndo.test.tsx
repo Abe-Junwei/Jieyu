@@ -347,3 +347,89 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     expect(harness.syncToDbCore).not.toHaveBeenCalled();
   });
 });
+
+describe('useTranscriptionUndo - remote collaboration changes (P1-2)', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+  });
+  afterEach(() => {
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
+  });
+
+  it('after a remote edit on B, undo does not write the stale B back', async () => {
+    const a = makeUnit('A');
+    const b = makeUnit('B');
+    const h = setupHarness({ units: [a, b], speakers: [] });
+    await act(async () => {
+      h.hook.result.current.pushUndo('edit A');
+    });
+    const mineA = { ...a, transcription: { default: 'A-mine' } } as LayerUnitDocType;
+    const remoteB = { ...b, transcription: { default: 'B-remote' } } as LayerUnitDocType;
+    h.units.setDirect([mineA, remoteB]);
+    await act(async () => {
+      h.hook.result.current.invalidateUndoForRemoteChange();
+    });
+    expect(h.hook.result.current.canUndo).toBe(false);
+    await act(async () => {
+      await h.hook.result.current.undo();
+    });
+    expect(h.syncToDbCore).not.toHaveBeenCalled();
+    expect(h.units.get().find((u) => u.id === 'B')?.transcription).toEqual({
+      default: 'B-remote',
+    });
+    expect(h.setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'done', message: '协作者修改了相关内容，撤销记录已清空' }),
+    );
+  });
+
+  // 复审 R-U1：upsert_unit_content 的 entityId 是 "unitId:layerId"，不是行 id
+  it('R-U1: a remote content change (entityId "B:L1") clears undo', async () => {
+    const h = setupHarness({ units: [makeUnit('A'), makeUnit('B')], speakers: [] });
+    await act(async () => {
+      h.hook.result.current.pushUndo('edit A');
+    });
+    await act(async () => {
+      h.hook.result.current.invalidateUndoForRemoteChange();
+    });
+    expect(h.hook.result.current.canUndo).toBe(false);
+  });
+
+  // 复审 R-U2：batch_patch 的 entityId 是 "batch:…"
+  it('R-U2: a remote batch patch clears undo and redo', async () => {
+    const h = setupHarness({ units: [makeUnit('A'), makeUnit('B')], speakers: [] });
+    await act(async () => {
+      h.hook.result.current.pushUndo('edit A');
+      h.hook.result.current.pushUndo('edit B');
+    });
+    await act(async () => {
+      await h.hook.result.current.undo();
+    });
+    expect(h.hook.result.current.canRedo).toBe(true);
+    await act(async () => {
+      h.hook.result.current.invalidateUndoForRemoteChange();
+    });
+    expect(h.hook.result.current.canUndo).toBe(false);
+    expect(h.hook.result.current.canRedo).toBe(false);
+  });
+
+  // 复审 R-U3：协作者新建的 C 不能被我的撤销删掉
+  it('R-U3: remote creates unit C; my undo must not delete C', async () => {
+    const a = makeUnit('A');
+    const h = setupHarness({ units: [a], speakers: [] });
+    await act(async () => {
+      h.hook.result.current.pushUndo('edit A');
+    });
+    h.units.setDirect([
+      { ...a, transcription: { default: 'A-mine' } } as LayerUnitDocType,
+      makeUnit('C'),
+    ]);
+    await act(async () => {
+      h.hook.result.current.invalidateUndoForRemoteChange();
+    });
+    await act(async () => {
+      await h.hook.result.current.undo();
+    });
+    expect(h.units.get().map((u) => u.id)).toContain('C');
+    expect(h.syncToDbCore).not.toHaveBeenCalled();
+  });
+});
