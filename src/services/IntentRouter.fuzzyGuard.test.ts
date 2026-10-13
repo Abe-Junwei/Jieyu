@@ -31,4 +31,11 @@ describe('IntentRouter fuzzy guard (P0-1)', () => {
     const intent = routeIntent(text, 'command', { detectedLang: 'zh' });
     expect(intent).toMatchObject({ type: 'action', actionId });
   });
+
+  it.each(['what is next', 'how do I undo', 'can you split it', 'undo it now?'])(
+    'English question "%s" skips fuzzy',
+    (text) => {
+      expect(routeIntent(text, 'command', { detectedLang: 'en' }).type).toBe('chat');
+    },
+  );
 });

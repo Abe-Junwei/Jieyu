@@ -545,6 +545,8 @@ const NEGATION_PREFIX = /^(不要|别|取消|不用|don[’']?t|do not)/;
 
 /** 疑问句不做模糊匹配 | Questions skip fuzzy matching */
 const QUESTION_GUARD = /(怎么|如何|为什么|什么|吗|呢)/;
+const EN_QUESTION_GUARD =
+  /^(what|how|why|when|where|which|who|is|are|can|could|should|do|does|did)\b|[?？]\s*$/i;
 
 function fuzzyKeywordMatches(cleaned: string, kw: string): boolean {
   // 英文关键词按词边界匹配 | English keywords match on word boundaries
@@ -626,6 +628,7 @@ export function routeIntent(
     mode !== 'dictation' &&
     isShortCommand(cleaned) &&
     !QUESTION_GUARD.test(cleaned) &&
+    !EN_QUESTION_GUARD.test(trimmed) &&
     (isExactKeyword || !NEGATION_PREFIX.test(cleaned));
   if (allowFuzzy) {
     for (const rule of SORTED_FUZZY_RULES) {
