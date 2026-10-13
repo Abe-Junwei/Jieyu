@@ -7,9 +7,11 @@
  */
 import type { ModelMessage, ToolApprovalResponse } from 'ai';
 import {
-  aiRuntimeV2TurnsTable,
-  findRowInTables,
-  listUnitContentRows,
+  deleteTurn,
+  fingerprintTarget,
+  getTurn,
+  putTurn,
+  sweepExpiredTurns,
 } from '../../db/aiRuntimeV2TurnStore';
 
 export const PENDING_APPROVAL_TTL_MS = 24 * 60 * 60 * 1000;
@@ -50,16 +52,6 @@ export interface UnansweredApproval {
   input: unknown;
 }
 
-const table = () => aiRuntimeV2TurnsTable<AiRuntimeV2TurnState>();
-
-// shortcut: 目标按 *Id/*Ids 参数在常见表里按主键查 | targets = *Id/*Ids args looked up by primary key
-const TARGET_TABLES = [
-  'layer_units',
-  'tier_definitions',
-  'layer_unit_contents',
-  'texts',
-  'unit_tokens',
-];
 // S2：递归收集（覆盖 propose_changes 的 changes[].arguments）| recurse into nested args
 function targetIdsOf(value: unknown, ids: string[] = []): string[] {
   if (Array.isArray(value)) value.forEach((v) => targetIdsOf(v, ids));
@@ -73,25 +65,10 @@ function targetIdsOf(value: unknown, ids: string[] = []): string[] {
   }
   return ids;
 }
-async function fingerprintOf(id: string): Promise<string | undefined> {
-  const found = await findRowInTables(TARGET_TABLES, id);
-  if (!found) return undefined;
-  const { table: name, row } = found;
-  let fp = `${name}:${String(row.updatedAt ?? JSON.stringify(row))}`;
-  if (name === 'layer_units') {
-    // S2：句段指纹并入其文本内容行 | include the segment's content rows
-    const contents = await listUnitContentRows(id);
-    fp += `|${contents
-      .map((c) => `${String(c.id)}@${String(c.updatedAt)}`)
-      .sort()
-      .join(',')}`;
-  }
-  return fp;
-}
 async function fingerprintTargets(call?: ApprovedCallSnapshot): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   for (const id of targetIdsOf(call?.arguments)) {
-    const fp = await fingerprintOf(id);
+    const fp = await fingerprintTarget(id);
     if (fp) out[id] = fp;
   }
   return out;
@@ -104,11 +81,11 @@ export async function saveTurnState(state: Omit<AiRuntimeV2TurnState, 'expiresAt
       ? { ...meta, targets: await fingerprintTargets(meta.executionCall) }
       : meta;
   }
-  await table().put({ ...state, approvals, expiresAt: state.createdAt + PENDING_APPROVAL_TTL_MS });
+  await putTurn({ ...state, approvals, expiresAt: state.createdAt + PENDING_APPROVAL_TTL_MS });
 }
 
 export async function clearTurnState(conversationId: string): Promise<void> {
-  await table().delete(conversationId);
+  await deleteTurn(conversationId);
 }
 
 export type LoadedTurnState =
@@ -118,7 +95,7 @@ export type LoadedTurnState =
 
 /** 读取；过期或损坏的行被删除 | load; expired or corrupt rows are removed */
 export async function loadTurnState(conversationId: string, now: number): Promise<LoadedTurnState> {
-  const state = await table().get(conversationId);
+  const state = await getTurn<AiRuntimeV2TurnState>(conversationId);
   if (!state) return { kind: 'none' };
   if (!Array.isArray(state.messages)) {
     await clearTurnState(conversationId);
@@ -251,7 +228,7 @@ async function targetsChanged(meta: ApprovalMeta, failClosed = false): Promise<b
   // S2：重载后写工具没有可核对的目标 → 安全优先按过期（同页仍由 epoch 保护）| fail closed after reload
   if (failClosed && meta.executionCall && Object.keys(meta.targets ?? {}).length === 0) return true;
   for (const [id, fp] of Object.entries(meta.targets ?? {})) {
-    if ((await fingerprintOf(id)) !== fp) return true;
+    if ((await fingerprintTarget(id)) !== fp) return true;
   }
   return false;
 }
@@ -278,7 +255,7 @@ export async function resolveApproval(
     const reason = 'target changed since the approval was requested';
     let closed = withApprovalResponse(loaded.state.messages, approvalId, false, reason);
     closed = withToolResult(closed, item, { denied: reason });
-    await table().put({ ...loaded.state, messages: closed });
+    await putTurn({ ...loaded.state, messages: closed });
     const after = unansweredApprovals(closed)[0];
     return {
       stale: true,
@@ -300,7 +277,7 @@ export async function resolveApproval(
   } else if (!approved) {
     messages = withToolResult(messages, item, { denied: 'rejected by the user' });
   }
-  await table().put({ ...loaded.state, messages });
+  await putTurn({ ...loaded.state, messages });
   const next = unansweredApprovals(messages)[0];
   return {
     ...(outcome ? { outcome } : {}),
@@ -325,13 +302,13 @@ export async function expireApprovalIfStale(
   const reason = 'target changed since the approval was requested';
   let messages = withApprovalResponse(loaded.state.messages, approvalId, false, reason);
   messages = withToolResult(messages, item, { denied: reason });
-  await table().put({ ...loaded.state, messages });
+  await putTurn({ ...loaded.state, messages });
   return true;
 }
 
 /** N3：打开 AI 面板时清理过期行 | sweep expired rows when the AI panel opens */
 export async function sweepExpiredTurnStates(now: number): Promise<void> {
-  await table().where('expiresAt').below(now).delete();
+  await sweepExpiredTurns(now);
 }
 
 export type RestoredApproval =
@@ -355,7 +332,7 @@ export async function restoreFirstUnanswered(
     const reason = 'target changed since the approval was requested';
     let messages = withApprovalResponse(loaded.state.messages, next.approvalId, false, reason);
     messages = withToolResult(messages, next, { denied: reason });
-    await table().put({ ...loaded.state, messages });
+    await putTurn({ ...loaded.state, messages });
     return { kind: 'stale', requestId: meta.requestId, toolName: next.toolName, card: meta.card };
   }
   return { kind: 'card', card: meta.card };
