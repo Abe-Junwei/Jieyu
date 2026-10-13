@@ -249,7 +249,7 @@ export const featureFlags = {
    * Owner: corpus. Default false; flag off keeps FeatureAvailabilityPanel.
    * Expiry: revisit after B5b dogfood (do not default true in this slice).
    */
-  corpusLibraryPageEnabled: corpusLibraryPageEnabledFromEnv ?? false,
+  corpusLibraryPageEnabled: corpusLibraryPageEnabledFromEnv ?? true,
   /**
    * B8: lexicon entry image/audio/document attachments (referenced IndexedDB blobs).
    * Default false; flag off hides the attachment section on the live lexicon page.

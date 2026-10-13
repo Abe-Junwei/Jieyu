@@ -51,7 +51,7 @@ interface ImportMetaEnv {
   /** Optional override for `aiExternalMcpProviderAdaptersEnabled` (true/false, 1/0). Default off. */
   readonly VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED?: string;
   readonly VITE_ANNOTATION_PAGE_ENABLED?: string;
-  /** Optional override for `corpusLibraryPageEnabled` (true/false, 1/0). Default off. */
+  /** Optional override for `corpusLibraryPageEnabled` (true/false, 1/0). Default on. */
   readonly VITE_CORPUS_LIBRARY_PAGE_ENABLED?: string;
   /** Optional override for `lexiconAttachmentsEnabled` (true/false, 1/0). Default off. */
   readonly VITE_LEXICON_ATTACHMENTS_ENABLED?: string;
