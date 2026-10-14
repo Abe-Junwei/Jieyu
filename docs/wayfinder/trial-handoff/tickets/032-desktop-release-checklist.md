@@ -17,5 +17,5 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/282
 已定（用户 2026-10-13）硬门槛只有三条，其余项只记录不拦发布：
 1. 不丢数据：写入后读回校验，升级前快照、覆盖前快照都在；反馈邮件按钮与诊断包导出可用（[#312](https://github.com/Abe-Junwei/Jieyu/issues/312)，用户 2026-10-14 定；Sentry 不挡）。
 2. Mac（Apple 芯片）与 Windows x64 上能安装、启动、自动更新。
-3. 用示例项目走通核心流程，含本机转写（[#303](https://github.com/Abe-Junwei/Jieyu/issues/303)–[#306](https://github.com/Abe-Junwei/Jieyu/issues/306) 挡首发，用户 2026-10-14 定）。
+3. 用示例项目走通核心流程，含本机转写（[#303](https://github.com/Abe-Junwei/Jieyu/issues/303)–[#306](https://github.com/Abe-Junwei/Jieyu/issues/306) 挡首发）；示例 = 木雅语 JYM（[#313](https://github.com/Abe-Junwei/Jieyu/issues/313)，用户 2026-10-14 定）。
 

@@ -17,4 +17,4 @@ alwaysApply: true
 禁止：
 
 - 不要用 SuperMemory 代替 `src/ai/chat/sessionMemory.ts` 或 `ProjectMemoryStore`
-- 不要上传或粘贴 EAF、FlexText、LIFT、录音、转写原文。木雅语料只留在本机
+- 不要上传或粘贴 EAF、FlexText、LIFT、录音、转写原文。木雅语料只留在本机。唯一例外：已获发音人公开授权的示例片段（CC BY 4.0），由用户本人打包成 JYM、上传为 GitHub Releases 资产 `sample-muya-v*`。即便如此，代理仍不读取、不上传、不粘贴任何木雅语料内容（包括这段示例），只处理文件名、大小和 sha256

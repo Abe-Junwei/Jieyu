@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -167,7 +167,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-30）**：标注页 **B4u–B4aa** 与 **B4ab**、词典 **B3an** 已落地。词菜单上的有限分析图标记（不连续两段、声调标签；替换/删除/异干沿用既有动作）已落地。这一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15。行动与验收见 [转写标注词典联动需求 §6](./转写标注词典联动需求-2026-09-29.md)。**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / 任意图编辑 / 依存共指 / R6 / R15 / flag 放量宣告；语料库页 flag 2026-10-13 起默认开（含试用；导航说明只写现有能力：当前文本浏览、临时工作集、文本导出）。Dogfood ≠ 产品开放。详见 [ADR 0022](../../adr/0022-annotation-analysis-graph-typed-relations.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-10-14）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）优先——[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) ADR-0048 存储接口、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) 模型接口 ADR、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) IndexedDB 归层盘点；随后 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架 + [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 模块迁移。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -322,6 +322,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 日期 | 说明 |
 | --- | --- |
 | 2026-10-14 | **#252/#284 调研拍板**：最低 macOS 13 + Electron 44（取代 macOS 11+）；SQLite 驱动 better-sqlite3（主进程，IPC）；Windows 不签名、自动更新靠 HTTPS + sha512，手册写 SmartScreen；Electron 冒烟 5–8 条三平台每 PR 跑，浏览器 e2e 仍为主回归；#274 存储接口仅业务操作、禁泛型查询，auditLogStore 与 aiRuntimeV2TurnStore fingerprint 统一走接口。报告：`docs/wayfinder/trial-handoff/research/RESEARCH_252_284.md`。 |
+| 2026-10-14 | **路线图拷问 + 审查**：#303–#306 挡首发；Whisper 权重应用内下载（Releases→HF→hf-mirror）；`whisper-cli` 随包、Apple 芯片 Mac + Win x64；#312 诊断与反馈；#280 = 计划+逐批执行；#274 交付 ADR-0048；公开示例改木雅语 JYM（#313，CC BY 4.0，Releases 资产）；§3「当前下一刀」改指试用线。细节见 [#250 map](../../wayfinder/trial-handoff/map.md) Decisions 2026-10-14。 |
 | 2026-10-13 | **审查对账（21:57 拍板）**：语料库页 flag 默认开（8b74991b，含试用），B5 三行、§2 图、§3 文首、导出现状同步；导航说明改为如实描述（7b81ea8f）；C1 桌面版以 #282 为准；C4 标桌面构建剔除（ADR-0047）；§2.1 DoD「SQLite/Dexie 双读回」改为 #274/#275 落地后生效；A9 按 #283 改默认开（`feat/a9-default-on`）。 |
 | 2026-10-13 | **#278 对账**：§1 由「纯 Web」改为 Electron 桌面应用（路线 C）、SQLite 项目文件夹（ADR-0046）、桌面版剥离协作/密钥/遥测（ADR-0047）；文首指向当前阶段计划 #250 与下一程 #285（冲突以较新拍板为准）；增长期目标（田野到出版单机闭环）。 |
 | 2026-06-01 | 初稿：建立产品级 master 索引（North Star + 域优先级 + 适用边界 + 对账）。 |

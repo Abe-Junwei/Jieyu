@@ -1,10 +1,11 @@
-> 用户 2026-10-13 21:06 拍板（覆盖 §12 建议）：1 model_runs 冻结前定进格式（#275）；2 #303 = 第一个实现，用自带 whisper-server；3 首片只做转写；4 **令牌可选**，服务不支持令牌也能接，只显示警告；5 N1–N3 已开占位：#304、#305、#306（挂 #285）。
+> 用户 2026-10-13 21:06 拍板（覆盖 §12 建议）：1 model_runs 冻结前定进格式（#275）；2 #303 = 第一个实现，用自带 whisper-server；3 首片只做转写；4 **令牌可选**，服务不支持令牌也能接，只显示警告；5 N1–N3 = #304、#305、#306。
+> 2026-10-13 21:16：#303–#306 提到第一程 #250。2026-10-14：四张全部挡首个试用版；whisper-server 默认只监听 127.0.0.1 已合进 main（`bb5fb2a4`），Origin 校验与回环 IP 判定留给 #303。
 
 # 方案 v2：解语接入用户自带的语音/NLP 模型
 
 日期：2026-10-13 · 版本：v2（按 `REVIEW_NLP_MODEL_INTERFACE.md` 修订；v1 原文未动）
 代码基准：`origin/main` @ `1713321b`（只读核对，`git show origin/main:<path>`）
-状态：方案稿。没开单，没改代码。挂 #285（第二程），**试用（#250）结束后再排**。
+状态：方案稿，挂第一程 #250。#304 ADR 待写；#303/#305/#306 挡首发。
 
 ## 0. 结论
 
@@ -33,7 +34,7 @@
 
 ## 2. 更正的事实
 
-- **whisper.cpp 官方 server 不兼容 OpenAI 格式。** 它的端点是 `POST /inference` 和 `POST /load`，默认 `--host 127.0.0.1`（https://github.com/ggml-org/whisper.cpp/tree/master/examples/server ）。兼容 OpenAI `/v1/audio/transcriptions` 的是**解语自己写的 Node 包装** `src/tools/whisper-server/server.js`（第 4、231 行），它内部调用 `whisper-cli`。所以 #303 选 whisper.cpp 官方 server 还是自带包装，要写明适配差异。
+- **whisper.cpp 官方 server 不兼容 OpenAI 格式。** 它的端点是 `POST /inference` 和 `POST /load`，默认 `--host 127.0.0.1`（https://github.com/ggml-org/whisper.cpp/tree/master/examples/server ）。兼容 OpenAI `/v1/audio/transcriptions` 的是**解语自己写的 Node 包装** `src/tools/whisper-server/server.js`，它内部调用 `whisper-cli`。**已定（2026-10-13）：#303 用自带包装，不用官方 `/inference`。**
 - **ELAN：** v1 链接 `archive.mpi.nl/tla/elan/recognizers` 已 404（本次复核仍是 404）。接口规格见 https://www.mpi.nl/tools/elan/docs/Avatech-interface-spec-2014-03-06.pdf ，手册见 https://www.mpi.nl/tools/elan/docs/manual/Sec_Audio_video_recognizer.html 。手册原话：AVATecH/AUVIS 的识别器“已不再作为 web 服务提供”，扩展也已从识别器页移除。v1 写的“Web 识别器走 CLARIN/BAS WebServices”已过时。
 - **sherpa-onnx 不能做强制对齐。** 它提供 ASR、TTS、VAD、说话人分离、语音增强等（https://github.com/k2-fsa/sherpa-onnx ，Apache-2.0）。
 - **对齐结果目前没有调用方。** `src/types/alignmentTask.ts` 和 `src/services/alignment/AlignmentTaskContract.ts` 除了自身的测试，全仓没人引用。没有写回词级时间的代码，没有冲突处理，也没有界面。v1 说“只缺执行器”说过了头。

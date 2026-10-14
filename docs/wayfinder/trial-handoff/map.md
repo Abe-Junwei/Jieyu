@@ -19,7 +19,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#306 及 #307（2026-10-13 从第二程提入，本地单子 035–039）、#312（本地 040）；第二程 #285（子单 #286–#302、#308–#311））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）；第二程 #285（子单 #286–#302、#308–#311））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -27,8 +27,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   - AI：不附带、不推荐通用大模型（WebLLM、Ollama）；AI 对话与分析用试用者自填的云端密钥（DeepSeek、Qwen 等）。本机语音转写例外：随包带 `whisper-cli`，模型权重在应用内下载（2026-10-14 改）。
   - 按 D14，交给非开发者即 schema 冻结点。
 - 输入：盒子 `/workspace/jieyu-review/RESEARCH_DISTRIBUTION.md`（本地运行网页应用的同类调研，C 只作对照，#252 补全）。
-- 背景：AI SDK 迁移由「解语修bug」在 `feat/ai-runtime-r1-toolloop` 进行；三个已评审修复待合：`fix/p1-2-undo-collab`、`fix/p2-3-adapter-indexed`、`fix/ws8x1-e2e-region-wait`。
-- 默认只做决策，不做实现。代码改动遵守 ponytail 原则。
+- ~~背景：AI SDK 迁移……三个已评审修复待合~~（已合进 main）。代码改动遵守 ponytail 原则；决策与实现并行（#274/#280 已开工）。
 
 ## Decisions so far
 
@@ -44,7 +43,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   8. D14 冻结的是磁盘项目文件夹格式，在第一个试用版发布之前（[#259](https://github.com/Abe-Junwei/Jieyu/issues/259) 改为冻结前清单）。
   9. 试用版只做中文界面，保留 i18n 结构（关闭 [#262](https://github.com/Abe-Junwei/Jieyu/issues/262)）。
   10. 试用版只露核心流程：导入录音、切分/标注、词库、导出 EAF/JYM、AI 辅助；其余隐藏或标实验（[#265](https://github.com/Abe-Junwei/Jieyu/issues/265) 转为盘点任务）。
-  11. 内置示例项目，用现成的开放许可语料（[#256](https://github.com/Abe-Junwei/Jieyu/issues/256) 转为找语料的调研）。
+  11. 内置示例项目（[#256](https://github.com/Abe-Junwei/Jieyu/issues/256) 调研；2026-10-14 改用木雅语公开示例，见 [#313](https://github.com/Abe-Junwei/Jieyu/issues/313)）。
   12. 崩溃上报：试用者选择开启的自动上报（如 Sentry），按主路线图 C1 脱敏（关闭 [#261](https://github.com/Abe-Junwei/Jieyu/issues/261)）。
   13. 试用名单与节奏由用户本人决定，不进路线图（关闭 [#264](https://github.com/Abe-Junwei/Jieyu/issues/264)）。
   14. 用户手册：图文中文快速上手，应用内帮助 + PDF（[#263](https://github.com/Abe-Junwei/Jieyu/issues/263) 转为任务）。
@@ -67,7 +66,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-13 20:16–20:23 用户拍板：
   1. 试用版默认开启 A9 出站脱敏，第一次使用 AI 时说明（关闭 [#283](https://github.com/Abe-Junwei/Jieyu/issues/283)）。
   2. 发布检查硬门槛只有三条：不丢数据（读回校验、升级前与覆盖前快照）；Mac 与 Windows 上能安装、启动、自动更新；用示例项目走通核心流程。其余只记录（[#282](https://github.com/Abe-Junwei/Jieyu/issues/282)）。
-  3. 示例语料：调研 2–3 个开放许可的汉藏语系候选交用户挑（[#256](https://github.com/Abe-Junwei/Jieyu/issues/256)，调研进行中）。
+  3. ~~示例语料：调研 2–3 个汉藏语系候选~~（21:18 第 4 条曾定撒都话；2026-10-14 改用木雅语，见 [#313](https://github.com/Abe-Junwei/Jieyu/issues/313)）。
   4. 存储接口按领域分仓库、暴露业务操作，不做通用表级增删改查（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)）。
   5. ~~用户暂不开工任何单子。~~（已被取代：21:20 第 8 条排了开工顺序，#274 已在 main 上开工。）
   6. 三个已评审分支正在合进 main，P2-1 分支删除（用户已同意；[#260](https://github.com/Abe-Junwei/Jieyu/issues/260) 已注明）。
@@ -101,7 +100,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   1. 应用内反馈按钮打开邮件，预填版本、系统与脱敏日志（[#264](https://github.com/Abe-Junwei/Jieyu/issues/264)）。
   2. 应用版本从 0.x 起，走 beta 渠道；数据格式版本另用一个整数（[#271](https://github.com/Abe-Junwei/Jieyu/issues/271)、[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
   3. 解语改用 GPL-3.0-or-later（现为 ISC，著作权人沂南灵创技术服务中心）；暂不改 LICENSE/package.json，由新单 [#307](https://github.com/Abe-Junwei/Jieyu/issues/307) 负责许可切换、依赖兼容核对、安装包第三方许可清单、中文隐私说明。
-  4. 示例语料：撒都话（Sadu，CC BY 4.0），截短文本，另加明确标注的演示 gloss（[#256](https://github.com/Abe-Junwei/Jieyu/issues/256)）。
+  4. ~~示例语料：撒都话（Sadu，CC BY 4.0）~~（2026-10-14 被木雅语公开示例取代，见 [#313](https://github.com/Abe-Junwei/Jieyu/issues/313)）。
   5. 数据恢复：应用内导出诊断包；用户自己从快照恢复（[#269](https://github.com/Abe-Junwei/Jieyu/issues/269)）。
   6. 首次用云端转写弹专门的伦理/隐私对话框；可按项目关闭云端转写（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)、[#283](https://github.com/Abe-Junwei/Jieyu/issues/283)）。
   7. 手册写明换电脑靠导出 JYM；性能只记录不设门槛，用一段 2 小时录音实测（[#263](https://github.com/Abe-Junwei/Jieyu/issues/263)）。
@@ -132,10 +131,19 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   7. 「不附带本地模型」收窄为不附带通用大模型，本机语音转写例外（见 Notes、Out of scope）。
   8. 新单 [#312](https://github.com/Abe-Junwei/Jieyu/issues/312) 诊断与反馈（反馈邮件按钮、诊断包导出、Sentry），依赖 #276；Sentry 从 #276 移过去。
   9. 反馈按钮与诊断包导出挡首发，写进 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282)「不丢数据」验收项；Sentry 不挡。
-  10. whisper-server 只监听本机的修复：评审 `fix/whisper-server-bind-localhost` 后合进 main，#305 链到该合并。
+  10. whisper-server 只监听本机的修复已合进 main（`bb5fb2a4`）；Origin 校验与回环 IP 判定留给 [#303](https://github.com/Abe-Junwei/Jieyu/issues/303)。
   11. 维持「297 个模块全部迁完才冻结」；[#259](https://github.com/Abe-Junwei/Jieyu/issues/259) 依赖补 #280、#304，[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 依赖补 #304。
   12. 本地单子只补第一程（035–040）；第二程开工前只放 GitHub（见 [README](README.md)）。
   13. 链接统一改指 `blob/main/`，之后删除 `docs/wayfinder-trial-map` 分支。
+- 2026-10-14 用户（路线图审查拷问，第二轮）：
+  1. [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 改成「计划 + 逐批执行」；每批一 PR，基线降到 0（或只剩写明白名单的接口实现模块）时关闭。
+  2. [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 交付 ADR-0048 存储接口（事务、归属校验侧、IPC 粒度、异步约定；样例 `aiRuntimeV2TurnStore`）。ADR 确认前 #280 只迁不涉及事务的纯读模块。
+  3. 公开示例改用木雅语料，取代撒都话；关闭 [#256](https://github.com/Abe-Junwei/Jieyu/issues/256)，新单 [#313](https://github.com/Abe-Junwei/Jieyu/issues/313)。
+  4. 发音人知情同意已覆盖公开发布；元数据留「授权记录」字段由用户填写。
+  5. 示例数据许可证 = CC BY 4.0。
+  6. 示例放 GitHub Releases 资产 `sample-muya-v*`，构建时下载并校验 sha256；录音不进 git。
+  7. 内置形式 = JYM 项目包，用户在解语里制作并导出；首启自动导入（依赖 #255、#275）。
+  8. 两处 `supermemory-agent-memory.mdc`：木雅语料只留在本机，唯一例外为授权示例片段；代理仍不读、不上传、不粘贴任何木雅语料内容。
 
 ## Next leg
 
