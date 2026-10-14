@@ -3,7 +3,9 @@ import {
   toNaturalToolFailure,
   toNaturalToolSuccess,
 } from '../../ai/chat/toolCallHelpers';
+import { auditReasonForExecutorThrow } from '../../ai/chat/toolDecisionFailureReason';
 import {
+  formatCommitUnverifiedDetail,
   formatNoExecutorInternalError,
   formatNoExecutorToolFailureDetail,
   formatToolExecutionFallbackError,
@@ -226,8 +228,11 @@ export async function executeAutoToolCall({
       : { finalContent, finalStatus: 'error', finalErrorMessage: result.message };
   } catch (error) {
     const autoExecDurationMsErr = Math.round(performance.now() - autoExecStart);
-    const toolErrorText =
+    const thrownText =
       error instanceof Error ? error.message : formatToolExecutionFallbackError(locale);
+    const reason = auditReasonForExecutorThrow(toolCall.name);
+    const toolErrorText =
+      reason === 'commit_unverified' ? formatCommitUnverifiedDetail(locale) : thrownText;
     const finalContent = toNaturalToolFailure(
       locale,
       toolCall.name,
@@ -238,7 +243,7 @@ export async function executeAutoToolCall({
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
-      `auto_failed:${toolCall.name}:exception`,
+      `auto_failed:${toolCall.name}:${reason}`,
       'ai',
       toolCall.requestId,
       buildToolDecisionAuditMetadata(
@@ -249,7 +254,7 @@ export async function executeAutoToolCall({
         'auto_failed',
         false,
         toolErrorText,
-        'exception',
+        reason,
         autoExecDurationMsErr,
       ),
     );

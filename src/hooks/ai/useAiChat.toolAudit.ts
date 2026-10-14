@@ -12,7 +12,10 @@ import type {
   ToolIntentAuditMetadata,
   ToolDecisionAuditMetadata,
 } from '../../ai/chat/toolCallHelpers';
-import { NON_PERSISTED_TOOL_DECISION_REASONS } from '../../ai/chat/toolDecisionFailureReason';
+import {
+  decisionMetadataCountsAsPersisted,
+  NON_PERSISTED_TOOL_DECISION_REASONS,
+} from '../../ai/chat/toolDecisionFailureReason';
 import { createLogger } from '../../observability/logger';
 
 const log = createLogger('useAiChat.toolAudit');
@@ -116,9 +119,13 @@ export function useAiChatToolAudit() {
       const hasExecuted = rows.some((row) => {
         if (typeof row.metadataJson === 'string' && row.metadataJson.trim().length > 0) {
           try {
-            const parsed = JSON.parse(row.metadataJson) as { phase?: unknown; executed?: unknown };
+            const parsed = JSON.parse(row.metadataJson) as {
+              phase?: unknown;
+              executed?: unknown;
+              reason?: unknown;
+            };
             if (parsed.phase === 'decision') {
-              return parsed.executed === true;
+              return decisionMetadataCountsAsPersisted(parsed);
             }
           } catch (err) {
             log.error('failed to parse tool decision metadata, falling back to compact parsing', {

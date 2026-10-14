@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  auditReasonForExecutorThrow,
+  decisionMetadataCountsAsPersisted,
   getToolDecisionFailureTriage,
   isKnownToolDecisionMetadataReasonCode,
   isNonPersistedToolDecisionReason,
@@ -24,12 +26,34 @@ describe('toolDecisionFailureReason', () => {
   });
 
   it('parses compact newValue third segment for failed decisions only', () => {
-    expect(parseCompactToolDecisionReasonFromNewValue('confirm_failed:set_text:invalid_args')).toBe('invalid_args');
-    expect(parseCompactToolDecisionReasonFromNewValue('auto_failed:delete_segment:duplicate_requestId')).toBe(
-      'duplicate_requestId',
+    expect(parseCompactToolDecisionReasonFromNewValue('confirm_failed:set_text:invalid_args')).toBe(
+      'invalid_args',
     );
+    expect(
+      parseCompactToolDecisionReasonFromNewValue('auto_failed:delete_segment:duplicate_requestId'),
+    ).toBe('duplicate_requestId');
     expect(parseCompactToolDecisionReasonFromNewValue('confirmed:foo')).toBeUndefined();
     expect(parseCompactToolDecisionReasonFromNewValue('')).toBeUndefined();
+  });
+
+  it('does not treat an unverified write throw as a safe retry', () => {
+    expect(auditReasonForExecutorThrow('get_project_summary')).toBe('exception');
+    expect(auditReasonForExecutorThrow('set_transcription_text')).toBe('commit_unverified');
+    expect(isNonPersistedToolDecisionReason('commit_unverified')).toBe(false);
+    expect(
+      decisionMetadataCountsAsPersisted({
+        phase: 'decision',
+        executed: false,
+        reason: 'commit_unverified',
+      }),
+    ).toBe(true);
+    expect(
+      decisionMetadataCountsAsPersisted({
+        phase: 'decision',
+        executed: false,
+        reason: 'exception',
+      }),
+    ).toBe(false);
   });
 
   it('maps representative reasons to expected triage', () => {

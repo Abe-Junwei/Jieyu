@@ -168,5 +168,11 @@ describe('executeConfirmedToolCall — T4-c executor auto-retry', () => {
 
     expect(onToolCall).toHaveBeenCalledTimes(1);
     expect(writeToolDecisionAuditLog).toHaveBeenCalledTimes(1);
+    expect(writeToolDecisionAuditLog.mock.calls[0]?.[2]).toBe(
+      'confirm_failed:set_transcription_text:commit_unverified',
+    );
+    expect(writeToolDecisionAuditLog.mock.calls[0]?.[5]).toEqual(
+      expect.objectContaining({ reason: 'commit_unverified', executed: false }),
+    );
   });
 });

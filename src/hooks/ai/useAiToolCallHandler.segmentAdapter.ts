@@ -50,6 +50,39 @@ function segmentNotWritten(locale: Parameters<typeof tf>[0], segmentId: string) 
   };
 }
 
+type SegmentLayerSave = (segmentId: string, layerId: string, text: string) => Promise<unknown>;
+
+/** 保存抛错后再读库：行已是目标文本则提交已落地，行仍是旧值则未写入，库读不了则把原错误抛回去。 */
+async function commitSegmentLayerText(
+  save: SegmentLayerSave,
+  segmentId: string,
+  layerId: string,
+  text: string,
+): Promise<'landed' | 'absent'> {
+  try {
+    await save(segmentId, layerId, text);
+  } catch (error) {
+    const landed = await segmentLayerTextLanded(segmentId, layerId, text);
+    if (landed === true) return 'landed';
+    if (landed === false) return 'absent';
+    throw error;
+  }
+  if ((await segmentLayerTextLanded(segmentId, layerId, text)) === false) return 'absent';
+  return 'landed';
+}
+
+async function restoreSegmentLayerText(
+  save: SegmentLayerSave,
+  segmentId: string,
+  layerId: string,
+  previous: string,
+): Promise<void> {
+  await save(segmentId, layerId, previous);
+  if ((await segmentLayerTextLanded(segmentId, layerId, previous)) !== true) {
+    throw new Error('rollback readback mismatch');
+  }
+}
+
 function segmentMergeBoundarySplitTime(leftEnd: number, rightStart: number): number {
   return Number(((leftEnd + rightStart) / 2).toFixed(3));
 }
@@ -559,21 +592,24 @@ export const segmentAdapter: ToolObjectAdapter = {
               selectedLayerId: ctx.selectedLayerId,
             })
           : text;
-        await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, transformedText);
+        const save = ctx.saveSegmentContentForLayer;
         if (
-          (await segmentLayerTextLanded(requestedSegmentId, targetLayerId, transformedText)) ===
-          false
+          (await commitSegmentLayerText(
+            save,
+            requestedSegmentId,
+            targetLayerId,
+            transformedText,
+          )) === 'absent'
         ) {
           return segmentNotWritten(locale, requestedSegmentId);
         }
-        const save = ctx.saveSegmentContentForLayer;
         return {
           ok: true,
           message: t(locale, 'transcription.aiTool.segment.setTranscriptionDone'),
-          ...(ctx.readSegmentLayerText && save
+          ...(ctx.readSegmentLayerText
             ? {
                 rollback: async () => {
-                  await save(requestedSegmentId, targetLayerId, previous);
+                  await restoreSegmentLayerText(save, requestedSegmentId, targetLayerId, previous);
                 },
               }
             : {}),
@@ -661,21 +697,24 @@ export const segmentAdapter: ToolObjectAdapter = {
               selectedLayerId: ctx.selectedLayerId,
             })
           : text;
-        await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, transformedText);
+        const save = ctx.saveSegmentContentForLayer;
         if (
-          (await segmentLayerTextLanded(requestedSegmentId, targetLayerId, transformedText)) ===
-          false
+          (await commitSegmentLayerText(
+            save,
+            requestedSegmentId,
+            targetLayerId,
+            transformedText,
+          )) === 'absent'
         ) {
           return segmentNotWritten(locale, requestedSegmentId);
         }
-        const save = ctx.saveSegmentContentForLayer;
         return {
           ok: true,
           message: t(locale, 'transcription.aiTool.segment.setTranslationDone'),
-          ...(ctx.readSegmentLayerText && save
+          ...(ctx.readSegmentLayerText
             ? {
                 rollback: async () => {
-                  await save(requestedSegmentId, targetLayerId, previous);
+                  await restoreSegmentLayerText(save, requestedSegmentId, targetLayerId, previous);
                 },
               }
             : {}),
@@ -758,11 +797,12 @@ export const segmentAdapter: ToolObjectAdapter = {
           return segmentNotWritten(locale, requestedSegmentId);
         }
         const previous = ctx.readSegmentLayerText?.(requestedSegmentId, targetLayerId) ?? '';
-        await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, '');
-        if ((await segmentLayerTextLanded(requestedSegmentId, targetLayerId, '')) === false) {
+        const save = ctx.saveSegmentContentForLayer;
+        if (
+          (await commitSegmentLayerText(save, requestedSegmentId, targetLayerId, '')) === 'absent'
+        ) {
           return segmentNotWritten(locale, requestedSegmentId);
         }
-        const save = ctx.saveSegmentContentForLayer;
         const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
         return {
           ok: true,
@@ -770,10 +810,10 @@ export const segmentAdapter: ToolObjectAdapter = {
             segmentId: requestedSegmentId,
             layerLabel,
           }),
-          ...(ctx.readSegmentLayerText && save
+          ...(ctx.readSegmentLayerText
             ? {
                 rollback: async () => {
-                  await save(requestedSegmentId, targetLayerId, previous);
+                  await restoreSegmentLayerText(save, requestedSegmentId, targetLayerId, previous);
                 },
               }
             : {}),

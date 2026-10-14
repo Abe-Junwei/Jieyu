@@ -21,6 +21,7 @@ const NON_PERSISTED_ORDERED = [
 ];
 
 const ADDITIONAL_METADATA_REASON_ORDERED = [
+  'commit_unverified',
   'user_directive_confirmation_required',
   'propose_changes_requires_confirmation',
   'explicit_target_write_requires_confirmation',
@@ -53,6 +54,7 @@ const TOOL_DECISION_REASON_FAILURE_TRIAGE = {
   ambiguous_target: 'clarify',
   unresolved_delete_segment_target: 'clarify',
   unresolved_write_target: 'clarify',
+  commit_unverified: 'human',
   user_directive_confirmation_required: 'human',
   propose_changes_requires_confirmation: 'human',
   explicit_target_write_requires_confirmation: 'human',

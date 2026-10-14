@@ -23,6 +23,7 @@ const NON_PERSISTED_ORDERED = [
 
 /** 可出现于 `ToolDecisionAuditMetadata.reason` 的其它已知码（门控 / UI policy 文案对齐；不必属于非持久化白名单）。 */
 const ADDITIONAL_METADATA_REASON_ORDERED = [
+  'commit_unverified',
   'user_directive_confirmation_required',
   'propose_changes_requires_confirmation',
   'explicit_target_write_requires_confirmation',
@@ -69,6 +70,7 @@ export const TOOL_DECISION_REASON_FAILURE_TRIAGE: Record<
   ambiguous_target: 'clarify',
   unresolved_delete_segment_target: 'clarify',
   unresolved_write_target: 'clarify',
+  commit_unverified: 'human',
   user_directive_confirmation_required: 'human',
   propose_changes_requires_confirmation: 'human',
   explicit_target_write_requires_confirmation: 'human',
@@ -78,6 +80,32 @@ export const TOOL_DECISION_REASON_FAILURE_TRIAGE: Record<
   destructive_denied: 'abandon',
   context_unavailable: 'clarify',
 };
+
+/** 确认路径里仍允许 30 秒超时和一次自动重试的只读查询。 */
+export const TIMED_READ_ONLY_TOOL_NAMES: ReadonlySet<string> = new Set([
+  'get_current_segment',
+  'get_project_summary',
+  'get_recent_history',
+]);
+
+/**
+ * 结构化决策审计是否应挡住同一 requestId 再执行。
+ * `executed: true` 是已核实提交；`commit_unverified` 是写入抛错后读回不了，不能当成未写入再跑一遍。
+ */
+export function decisionMetadataCountsAsPersisted(metadata: {
+  phase?: unknown;
+  executed?: unknown;
+  reason?: unknown;
+}): boolean {
+  if (metadata.phase !== 'decision') return false;
+  if (metadata.executed === true) return true;
+  return metadata.reason === 'commit_unverified';
+}
+
+/** 只读查询抛错仍是 `exception`（未写入）。其余工具抛错记为待核实，避免把可能已提交的写入标成未写入。 */
+export function auditReasonForExecutorThrow(toolName: string): 'exception' | 'commit_unverified' {
+  return TIMED_READ_ONLY_TOOL_NAMES.has(toolName) ? 'exception' : 'commit_unverified';
+}
 
 export function isNonPersistedToolDecisionReason(reason: string | undefined | null): boolean {
   const code = (reason ?? '').trim();

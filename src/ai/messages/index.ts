@@ -28,6 +28,7 @@ export {
 
 export {
   formatAiChatDisabledError,
+  formatCommitUnverifiedDetail,
   formatDuplicateRequestIgnoredDetail,
   formatDuplicateRequestIgnoredError,
   formatHistoryLoadFailedFallbackError,

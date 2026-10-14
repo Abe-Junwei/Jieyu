@@ -60,6 +60,32 @@ describe('useAiChatToolAudit', () => {
     await expect(result.current.hasPersistedExecutionForRequest('req-2')).resolves.toBe(true);
   });
 
+  it('blocks the same requestId when a write throw is commit_unverified even if executed is false', async () => {
+    await db.audit_logs.put({
+      id: 'audit-unverified',
+      collection: 'ai_messages',
+      documentId: 'assistant-1',
+      action: 'update',
+      field: 'ai_tool_call_decision',
+      oldValue: 'pending:set_transcription_text',
+      newValue: 'confirm_failed:set_transcription_text:commit_unverified',
+      source: 'human',
+      timestamp: NOW,
+      requestId: 'req-unverified',
+      metadataJson: JSON.stringify({
+        phase: 'decision',
+        executed: false,
+        reason: 'commit_unverified',
+      }),
+    });
+
+    const { result } = renderHook(() => useAiChatToolAudit());
+
+    await expect(result.current.hasPersistedExecutionForRequest('req-unverified')).resolves.toBe(
+      true,
+    );
+  });
+
   it('returns false for propose_changes partial-failure audit when metadata.executed is false (retry same parent requestId)', async () => {
     await db.audit_logs.put({
       id: 'audit-propose-partial',

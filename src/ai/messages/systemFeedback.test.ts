@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatAiChatDisabledError,
+  formatCommitUnverifiedDetail,
   formatDuplicateRequestIgnoredDetail,
   formatDuplicateRequestIgnoredError,
   formatHistoryLoadFailedFallbackError,
@@ -19,6 +20,7 @@ describe('systemFeedback', () => {
     expect(formatRecoveredInterruptedMessage('en-US')).toContain('interrupted');
     expect(formatNoExecutorToolFailureDetail('en-US')).toContain('executor');
     expect(formatNoExecutorInternalError('en-US')).toContain('executor');
+    expect(formatCommitUnverifiedDetail('en-US')).toContain('could not be verified');
     expect(formatToolExecutionFallbackError('en-US')).toContain('failed');
     expect(formatDuplicateRequestIgnoredDetail('en-US')).toContain('idempotency');
     expect(formatDuplicateRequestIgnoredError('en-US')).toContain('Duplicate');

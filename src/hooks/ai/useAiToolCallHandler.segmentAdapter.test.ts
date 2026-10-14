@@ -240,8 +240,73 @@ describe('segmentAdapter', () => {
     expect(saveSegmentContentForLayer).toHaveBeenLastCalledWith('seg-1', 'trl-1', 'prior');
   });
 
+  it('treats a post-write throw as landed when the segment row already has the new text', async () => {
+    const saveSegmentContentForLayer = vi.fn(
+      async (segmentId: string, layerId: string, text: string) => {
+        await storeSegmentText(segmentId, layerId, text);
+        throw new Error('post-commit');
+      },
+    );
+
+    const result = await segmentAdapter.execute({
+      call: {
+        name: 'set_transcription_text',
+        arguments: { segmentId: 'seg-landed-throw', text: 'kept' },
+      },
+      locale: 'zh-CN',
+      selectedLayerId: 'trl-1',
+      transcriptionLayers: [{ id: 'trl-1' }],
+      saveSegmentContentForLayer,
+    } as any);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('reports not written when save throws and the segment row is absent', async () => {
+    const saveSegmentContentForLayer = vi.fn(async () => {
+      throw new Error('rolled back');
+    });
+
+    const result = await segmentAdapter.execute({
+      call: {
+        name: 'set_transcription_text',
+        arguments: { segmentId: 'seg-absent-throw', text: 'lost' },
+      },
+      locale: 'zh-CN',
+      selectedLayerId: 'trl-1',
+      transcriptionLayers: [{ id: 'trl-1' }],
+      saveSegmentContentForLayer,
+    } as any);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('seg-absent-throw');
+  });
+
+  it('rollback throws when the restored segment text is not read back', async () => {
+    const saveSegmentContentForLayer = vi.fn(
+      async (segmentId: string, layerId: string, text: string) => {
+        if (text === 'prior') return;
+        await storeSegmentText(segmentId, layerId, text);
+      },
+    );
+
+    const result = await segmentAdapter.execute({
+      call: {
+        name: 'set_transcription_text',
+        arguments: { segmentId: 'seg-rollback-miss', text: 'next' },
+      },
+      locale: 'zh-CN',
+      selectedLayerId: 'trl-1',
+      transcriptionLayers: [{ id: 'trl-1' }],
+      saveSegmentContentForLayer,
+      readSegmentLayerText: () => 'prior',
+    } as any);
+
+    await expect(result.rollback!()).rejects.toThrow(/readback/);
+  });
+
   it('clear_translation_segment exposes rollback for segment path when readSegmentLayerText is provided', async () => {
-    const saveSegmentContentForLayer = vi.fn(async () => {});
+    const saveSegmentContentForLayer = vi.fn(storeSegmentText);
 
     const result = await segmentAdapter.execute({
       call: {
