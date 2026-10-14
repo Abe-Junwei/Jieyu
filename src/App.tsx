@@ -726,6 +726,7 @@ export function App() {
     toggleSelector: '.app-side-pane-collapse-toggle',
     resizerSelector: '.app-side-pane-resizer',
     ignoreSelectors: ['.app-left-rail'],
+    ignoreInteractiveElements: true,
   });
 
   const { handleSidePaneResizeStart, handleSidePaneResizeKeyDown, handleSidePaneResizeReset } =

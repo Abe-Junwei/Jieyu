@@ -4,6 +4,7 @@
  * resizer supports arrow keys, Home and double-click.
  */
 import { expect, test } from '@playwright/test';
+import { setupFieldProjectWithMediaAndSegments } from './_helpers/transcriptionProjectFlow';
 
 test('side pane handle: toggle aria-expanded, keyboard and double-click resize', async ({
   page,
@@ -33,4 +34,76 @@ test('side pane handle: toggle aria-expanded, keyboard and double-click resize',
   await expect(page.locator('.app-shell-side-pane-collapsed')).toHaveCount(1);
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('paired reading editor stays clear of the expanded left pane', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const project = await setupFieldProjectWithMediaAndSegments(page);
+  await page.goto(`/transcription?textId=${project.textId}&mediaId=${project.mediaId}`);
+  await page.getByTestId('left-rail-workspace-layout-toggle').click();
+
+  const editor = page.locator('textarea.timeline-paired-reading-source-input').first();
+  await expect(editor).toBeVisible();
+  await expect(page.locator('.app-side-pane-collapse-toggle')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  const bounds = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) throw new Error(`Missing ${selector}`);
+      const { left, right } = element.getBoundingClientRect();
+      return { left, right };
+    };
+    return {
+      outerPane: rect('.app-side-pane'),
+      editor: rect('textarea.timeline-paired-reading-source-input'),
+    };
+  });
+  expect(bounds.editor.left, JSON.stringify(bounds)).toBeGreaterThanOrEqual(
+    bounds.outerPane.right - 2,
+  );
+  await editor.click();
+  await expect(editor).toBeFocused();
+  await expect(page.locator('.app-side-pane-collapse-toggle')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+
+  const resizer = page.locator('.app-side-pane-resizer');
+  await resizer.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '296');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const pane = document.querySelector('.app-side-pane')?.getBoundingClientRect();
+        const input = document
+          .querySelector('textarea.timeline-paired-reading-source-input')
+          ?.getBoundingClientRect();
+        if (!pane || !input) throw new Error('Missing pane or editor');
+        return input.left - pane.right;
+      }),
+    )
+    .toBeGreaterThanOrEqual(-2);
+
+  await page.locator('.app-side-pane-collapse-toggle').click();
+  await expect(page.locator('.app-side-pane-collapse-toggle')).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await expect(editor).toBeVisible();
+  await expect
+    .poll(() => editor.boundingBox().then((box) => box?.x ?? Infinity))
+    .toBeLessThan(bounds.editor.left - 200);
+
+  await page.locator('.app-side-pane-collapse-toggle').click();
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(page.locator('.app-side-pane')).toBeHidden();
+  await expect(editor).toBeVisible();
+  expect(
+    await page
+      .locator('.app-main-transcription')
+      .evaluate((element) => getComputedStyle(element).paddingLeft),
+  ).toBe('0px');
 });
