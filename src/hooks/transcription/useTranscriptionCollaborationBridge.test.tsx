@@ -133,7 +133,13 @@ vi.mock('../../collaboration/cloud/collaborationSupabaseFacade', () => ({
 }));
 
 import { useTranscriptionCollaborationBridge } from './useTranscriptionCollaborationBridge';
-import { loadProjectLastSeenRevision } from '../../collaboration/cloud/CollaborationClientStateStore';
+import {
+  flushCollabClientStateWritesForTests,
+  loadProjectLastSeenRevision,
+  loadUnverifiedCollabMutations,
+  resetCollabClientStateVolatileOverlayForTests,
+} from '../../collaboration/cloud/CollaborationClientStateStore';
+import { resetCollaborationClientStateIdbForTests } from '../../collaboration/cloud/CollaborationClientStateStore.idb';
 import type { CollaborationProjectChangeRecord } from '../../collaboration/cloud/syncTypes';
 import {
   broadcastCollaborationLifecycle,
@@ -143,7 +149,7 @@ import {
 import { markProjectRemovedLocally } from '../../collaboration/cloud/collaborationLocalProjectRegistry';
 
 describe('useTranscriptionCollaborationBridge', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     bridgeStart.mockClear();
     bridgeStop.mockClear();
     bridgeEnqueue.mockClear();
@@ -160,7 +166,10 @@ describe('useTranscriptionCollaborationBridge', () => {
     getUserId.mockResolvedValue('user-1');
     lastBridgeOptions.current = null;
     bridgeCtorCalls.length = 0;
+    await flushCollabClientStateWritesForTests();
     window.localStorage.clear();
+    resetCollabClientStateVolatileOverlayForTests(window.localStorage);
+    await resetCollaborationClientStateIdbForTests();
     applyTombstone.mockClear();
     resetCollaborationLifecycleBroadcastForTests();
     multiDocument.current = false;
@@ -262,6 +271,33 @@ describe('useTranscriptionCollaborationBridge', () => {
       expect(bridgeCtorCalls).toHaveLength(0);
       expect(bridgeStart).not.toHaveBeenCalled();
     });
+  });
+
+  it('桥接还没就绪时留下可恢复记录 | keeps a recovery record when the bridge is not ready', async () => {
+    const { result } = renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+      }),
+    );
+
+    act(() => {
+      result.current.enqueueMutation({
+        entityType: 'layer_unit_content',
+        entityId: 'unit-1:layer-1',
+        opType: 'upsert_unit_content',
+      });
+    });
+
+    expect(bridgeEnqueue).not.toHaveBeenCalled();
+    expect(loadUnverifiedCollabMutations('project-1')).toEqual([
+      expect.objectContaining({ entityId: 'unit-1:layer-1' }),
+    ]);
+
+    await waitFor(() => {
+      expect(bridgeEnqueue).toHaveBeenCalledTimes(1);
+    });
+    expect(loadUnverifiedCollabMutations('project-1')).toEqual([]);
   });
 
   it('enqueueMutation 生成并投递变更记录 | enqueueMutation builds and enqueues change records', async () => {

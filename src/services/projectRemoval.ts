@@ -11,7 +11,10 @@
  * are only removed from this device: a local "removed" record is written (never sent) and the same
  * cleanup job runs. Unsynced outbound changes raise `ProjectHasUnsyncedChangesError` first.
  */
-import { loadProjectPendingOutboundChanges } from '../collaboration/cloud/CollaborationClientStateStore';
+import {
+  loadProjectPendingOutboundChanges,
+  loadUnverifiedCollabMutations,
+} from '../collaboration/cloud/CollaborationClientStateStore';
 import { broadcastCollaborationLifecycle } from '../collaboration/cloud/collaborationLifecycleBroadcast';
 import { markProjectRemovedLocally } from '../collaboration/cloud/collaborationLocalProjectRegistry';
 import {
@@ -57,7 +60,9 @@ export function planProjectRemoval(projectId: string, storage?: Storage): Projec
   return {
     projectId: id,
     mode: collaboration.verdict === 'never-collaborated' ? 'delete' : 'remove-local',
-    pendingOutboundCount: loadProjectPendingOutboundChanges(id, storage).length,
+    pendingOutboundCount:
+      loadProjectPendingOutboundChanges(id, storage).length +
+      loadUnverifiedCollabMutations(id, storage).length,
     collaboration,
   };
 }

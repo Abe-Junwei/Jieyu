@@ -24,6 +24,8 @@ export const enUSDictionary = {
   'app.collabNotice.projectRemovedInOtherTab':
     'This project was removed from this device in another tab.',
   'app.collabNotice.appUpdated': 'A new version is ready. Reload the page to use it.',
+  'app.collabNotice.syncNotGuaranteed':
+    'Saved on this device. Cloud sync is not guaranteed yet. Keep this page open; it will keep trying once you are back online.',
   'app.home.removedCloudProjects.title': 'Cloud projects removed from this device',
   'app.home.removedCloudProjects.hint':
     'These projects were only removed from this device; the cloud copy and other collaborators are unaffected. They are not downloaded automatically.',

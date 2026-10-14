@@ -19,8 +19,10 @@ import {
   type QueryChangeTimelineInput,
 } from './CollaborationAuditLogService';
 import {
+  deleteProjectPendingOutboundByKey,
   loadProjectPendingOutboundChanges,
-  saveProjectPendingOutboundChanges,
+  outboundOpStorageKey,
+  putProjectPendingOutboundChange,
 } from './CollaborationClientStateStore';
 import type {
   CollaborationAssetRecord,
@@ -29,8 +31,6 @@ import type {
   ProjectEntityType,
 } from './syncTypes';
 import { parsePostgresProjectChangeRow } from './projectChangeRowParse';
-
-const OUTBOUND_PENDING_SAVE_DEBOUNCE_MS = 500;
 
 export interface CollaborationSyncBridgeOptions {
   projectId: string;
@@ -64,37 +64,28 @@ export class CollaborationSyncBridge {
   private readonly auditLogService = new CollaborationAuditLogService();
   private channel: RealtimeChannel | null = null;
   private started = false;
-  private outboundSaveDebounce: ReturnType<typeof setTimeout> | null = null;
-  private lastOutboundPendingSnapshot: CollaborationProjectChangeRecord[] = [];
+  private readonly persistedOpKeys = new Set<string>();
+  private persistTail: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: CollaborationSyncBridgeOptions) {
     this.inbound = new CollaborationInboundApplier({
       applier: options.onApplyRemoteChange,
     });
-    const initialPendingChanges = options.initialOutboundPending
-      ?? loadProjectPendingOutboundChanges(options.projectId);
-    this.lastOutboundPendingSnapshot = initialPendingChanges.slice();
+    const initialPendingChanges =
+      options.initialOutboundPending ?? loadProjectPendingOutboundChanges(options.projectId);
+    for (const change of initialPendingChanges) {
+      this.persistedOpKeys.add(outboundOpStorageKey(change));
+    }
     this.outbound = new CollaborationOutboundQueue({
       sender: options.onSendLocalChanges,
       initialPending: initialPendingChanges,
       onPendingChanged: (pending) => {
-        this.lastOutboundPendingSnapshot = pending;
         options.onOutboundPendingSizeChanged?.(pending.length);
-        if (this.outboundSaveDebounce !== null) {
-          clearTimeout(this.outboundSaveDebounce);
-          this.outboundSaveDebounce = null;
-        }
-        // 空队列必须立刻落盘（flush 成功后的清空），避免 debounce 导致测试/崩溃前仍为旧值 |
-        if (pending.length === 0) {
-          saveProjectPendingOutboundChanges(options.projectId, this.lastOutboundPendingSnapshot);
-        } else {
-          this.outboundSaveDebounce = setTimeout(() => {
-            this.outboundSaveDebounce = null;
-            saveProjectPendingOutboundChanges(options.projectId, this.lastOutboundPendingSnapshot);
-          }, OUTBOUND_PENDING_SAVE_DEBOUNCE_MS);
-        }
+        this.persistPendingDiff(pending);
       },
-      ...(options.flushIntervalMs !== undefined ? { flushIntervalMs: options.flushIntervalMs } : {}),
+      ...(options.flushIntervalMs !== undefined
+        ? { flushIntervalMs: options.flushIntervalMs }
+        : {}),
       ...(options.maxBatchSize !== undefined ? { maxBatchSize: options.maxBatchSize } : {}),
     });
   }
@@ -117,7 +108,10 @@ export class CollaborationSyncBridge {
       (payload) => {
         const change = parsePostgresProjectChangeRow(payload.new);
         if (!change) {
-          this.options.onError?.(new Error('Failed to parse project change row from realtime payload'), 'inbound parse entityId=N/A');
+          this.options.onError?.(
+            new Error('Failed to parse project change row from realtime payload'),
+            'inbound parse entityId=N/A',
+          );
           return;
         }
         this.inbound.apply(change).catch((error) => {
@@ -128,7 +122,9 @@ export class CollaborationSyncBridge {
 
     await subscribeRealtimeChannel(channel, {
       channelLabel: 'Change channel',
-      ...(this.options.subscribeTimeoutMs !== undefined ? { timeoutMs: this.options.subscribeTimeoutMs } : {}),
+      ...(this.options.subscribeTimeoutMs !== undefined
+        ? { timeoutMs: this.options.subscribeTimeoutMs }
+        : {}),
     });
 
     this.channel = channel;
@@ -138,12 +134,8 @@ export class CollaborationSyncBridge {
   }
 
   async stop(): Promise<void> {
-    if (this.outboundSaveDebounce !== null) {
-      clearTimeout(this.outboundSaveDebounce);
-      this.outboundSaveDebounce = null;
-      saveProjectPendingOutboundChanges(this.options.projectId, this.lastOutboundPendingSnapshot);
-    }
     this.outbound.stop();
+    await this.persistTail;
     if (this.channel) {
       await this.channel.unsubscribe();
       this.channel = null;
@@ -152,8 +144,31 @@ export class CollaborationSyncBridge {
     this.options.onOutboundPendingSizeChanged?.(this.outbound.size());
   }
 
-  enqueueLocalChange(change: CollaborationProjectChangeRecord): void {
+  enqueueLocalChange(change: CollaborationProjectChangeRecord): Promise<void> {
     this.outbound.enqueue(change);
+    return this.persistTail;
+  }
+
+  private persistPendingDiff(pending: CollaborationProjectChangeRecord[]): void {
+    const nextKeys = new Set(pending.map((change) => outboundOpStorageKey(change)));
+    const jobs: Promise<void>[] = [];
+    for (const change of pending) {
+      const key = outboundOpStorageKey(change);
+      if (this.persistedOpKeys.has(key)) continue;
+      this.persistedOpKeys.add(key);
+      jobs.push(putProjectPendingOutboundChange(change));
+    }
+    for (const key of this.persistedOpKeys) {
+      if (nextKeys.has(key)) continue;
+      this.persistedOpKeys.delete(key);
+      jobs.push(deleteProjectPendingOutboundByKey(key));
+    }
+    if (jobs.length === 0) return;
+    const run = Promise.all(jobs).then(() => undefined);
+    this.persistTail = this.persistTail.then(
+      () => run,
+      () => run,
+    );
   }
 
   async applyRemoteChanges(changes: CollaborationProjectChangeRecord[]): Promise<void> {
@@ -162,6 +177,7 @@ export class CollaborationSyncBridge {
 
   async flushLocalChanges(): Promise<void> {
     await this.outbound.flush();
+    await this.persistTail;
   }
 
   pendingLocalChangeCount(): number {
@@ -208,7 +224,9 @@ export class CollaborationSyncBridge {
   /**
    * 创建项目快照版本（上传+落表） | Create project snapshot version (upload + metadata)
    */
-  async createProjectSnapshot(input: CreateProjectSnapshotInput): Promise<CollaborationProjectSnapshotRecord> {
+  async createProjectSnapshot(
+    input: CreateProjectSnapshotInput,
+  ): Promise<CollaborationProjectSnapshotRecord> {
     return this.snapshotService.createSnapshotVersion({
       projectId: this.options.projectId,
       ...input,
@@ -218,7 +236,9 @@ export class CollaborationSyncBridge {
   /**
    * 列出项目快照历史 | List project snapshot history
    */
-  async listProjectSnapshots(input: ListProjectSnapshotsInput = {}): Promise<CollaborationProjectSnapshotRecord[]> {
+  async listProjectSnapshots(
+    input: ListProjectSnapshotsInput = {},
+  ): Promise<CollaborationProjectSnapshotRecord[]> {
     return this.snapshotService.listSnapshots({
       projectId: this.options.projectId,
       ...input,
@@ -237,7 +257,9 @@ export class CollaborationSyncBridge {
   /**
    * 查询项目变更时间线 | Query project change timeline
    */
-  async queryProjectChangeTimeline(input: QueryProjectTimelineInput = {}): Promise<ChangeTimelineResult> {
+  async queryProjectChangeTimeline(
+    input: QueryProjectTimelineInput = {},
+  ): Promise<ChangeTimelineResult> {
     return this.auditLogService.queryTimeline({
       projectId: this.options.projectId,
       ...input,
@@ -252,6 +274,11 @@ export class CollaborationSyncBridge {
     limit = 50,
     entityType?: ProjectEntityType,
   ): Promise<CollaborationProjectChangeRecord[]> {
-    return this.auditLogService.queryEntityHistory(this.options.projectId, entityId, limit, entityType);
+    return this.auditLogService.queryEntityHistory(
+      this.options.projectId,
+      entityId,
+      limit,
+      entityType,
+    );
   }
 }

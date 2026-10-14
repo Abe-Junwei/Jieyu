@@ -4,16 +4,38 @@ import { getAppDataResilienceMessages } from '../../i18n/messages';
 import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
 import {
+  advanceOutboundCursorInIdb,
+  deleteCollabClientStateBlobFromIdb,
+  deleteOutboundCursorFromIdb,
+  deleteOutboundOpFromIdb,
+  listAllOutboundOpsFromIdb,
+  listOutboundCursorsFromIdb,
   loadCollabClientStateBlobFromIdb,
-  saveCollabClientStateBlobToIdb,
+  mirrorOutboundOpToIdb,
 } from './CollaborationClientStateStore.idb';
 
 const log = createLogger('CollaborationClientStateStore');
 
 let lastCollabQuotaToastAt = 0;
+let idbTail: Promise<void> = Promise.resolve();
+
+function trackIdb(work: Promise<void>): void {
+  idbTail = idbTail.then(
+    () => work,
+    () => work,
+  );
+}
+
+/** Vitest: wait until cursor/op mirrors have hit IndexedDB. */
+export function flushCollabClientStateWritesForTests(): Promise<void> {
+  return idbTail;
+}
 const COLLAB_QUOTA_TOAST_COOLDOWN_MS = 90_000;
 
 const COLLAB_CLIENT_STATE_STORAGE_KEY = 'jieyu:collab-client-state:v1';
+const MIGRATED_FLAG_KEY = 'jieyu:collab-client-state:v1-migrated';
+const CURSOR_KEY_PREFIX = 'jieyu:collab-cursor:v2:';
+const OP_KEY_PREFIX = 'jieyu:collab-op:v2:';
 
 interface CollaborationClientProjectState {
   lastSeenRevision?: number;
@@ -23,8 +45,8 @@ interface CollaborationClientProjectState {
 
 type CollaborationClientStateMap = Record<string, CollaborationClientProjectState>;
 
-/** In-memory overlay when `localStorage.setItem` hits quota; keyed by the same Storage object (incl. tests). */
-const volatileByStorage = new WeakMap<Storage, CollaborationClientStateMap>();
+/** Per-key overlay when `setItem` hits quota. Whole-map overlay rewrote every project. */
+const volatileByStorage = new WeakMap<Storage, Map<string, string>>();
 
 function getDefaultStorage(): Storage | undefined {
   if (typeof window === 'undefined' || window.localStorage === undefined) return undefined;
@@ -97,14 +119,110 @@ function parseRawToStateMap(raw: string): CollaborationClientStateMap {
   return next;
 }
 
-function loadBaseStateMapFromStorage(target: Storage): CollaborationClientStateMap {
-  try {
-    const raw = target.getItem(COLLAB_CLIENT_STATE_STORAGE_KEY);
-    if (raw === null || raw.length === 0) return {};
-    return parseRawToStateMap(raw);
-  } catch {
-    return {};
+function cursorStorageKey(projectId: string): string {
+  return `${CURSOR_KEY_PREFIX}${encodeURIComponent(projectId)}`;
+}
+
+function opStoragePrefix(projectId: string): string {
+  return `${OP_KEY_PREFIX}${encodeURIComponent(projectId)}:`;
+}
+
+export function outboundOpStorageKey(change: CollaborationProjectChangeRecord): string {
+  const clientId = typeof change.clientId === 'string' ? change.clientId : '';
+  return `${opStoragePrefix(change.projectId)}${encodeURIComponent(clientId)}:${encodeURIComponent(change.clientOpId)}`;
+}
+
+function overlayFor(storage: Storage): Map<string, string> {
+  let overlay = volatileByStorage.get(storage);
+  if (overlay === undefined) {
+    overlay = new Map();
+    volatileByStorage.set(storage, overlay);
   }
+  return overlay;
+}
+
+function readItem(storage: Storage, key: string): string | null {
+  const overlay = volatileByStorage.get(storage)?.get(key);
+  if (overlay !== undefined) return overlay;
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function noteQuota(storage: Storage): void {
+  log.warn('collab client state localStorage quota exceeded; volatile overlay + IndexedDB mirror');
+  if (storage !== getDefaultStorage()) return;
+  const now = Date.now();
+  if (now - lastCollabQuotaToastAt < COLLAB_QUOTA_TOAST_COOLDOWN_MS) return;
+  lastCollabQuotaToastAt = now;
+  const toastMsg = getAppDataResilienceMessages(
+    resolveCollabToastLocale(),
+  ).collabLocalStorageQuotaToast;
+  dispatchAppGlobalToast({ message: toastMsg, variant: 'error', autoDismissMs: 14_000 });
+}
+
+function writeItem(storage: Storage, key: string, value: string): void {
+  try {
+    storage.setItem(key, value);
+    volatileByStorage.get(storage)?.delete(key);
+  } catch (error) {
+    if (!isQuotaExceededError(error)) return;
+    overlayFor(storage).set(key, value);
+    noteQuota(storage);
+  }
+}
+
+function removeItem(storage: Storage, key: string): void {
+  volatileByStorage.get(storage)?.delete(key);
+  try {
+    storage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+function listKeys(storage: Storage, prefix: string): string[] {
+  const keys: string[] = [];
+  try {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key !== null && key.startsWith(prefix)) keys.push(key);
+    }
+  } catch {
+    /* ignore */
+  }
+  const overlay = volatileByStorage.get(storage);
+  if (overlay !== undefined) {
+    for (const key of overlay.keys()) {
+      if (key.startsWith(prefix) && !keys.includes(key)) keys.push(key);
+    }
+  }
+  return keys;
+}
+
+function usesDefaultStorage(storage: Storage): boolean {
+  return storage === getDefaultStorage();
+}
+
+function mirrorOp(
+  storage: Storage,
+  key: string,
+  change: CollaborationProjectChangeRecord,
+  json: string,
+): Promise<void> {
+  if (!usesDefaultStorage(storage)) return Promise.resolve();
+  return mirrorOutboundOpToIdb(key, change.projectId, json).catch((err) => {
+    log.error('collab outbound op idb mirror failed', { err });
+  });
+}
+
+function forgetOp(storage: Storage, key: string): Promise<void> {
+  if (!usesDefaultStorage(storage)) return Promise.resolve();
+  return deleteOutboundOpFromIdb(key).catch((err) => {
+    log.error('collab outbound op idb delete failed', { err });
+  });
 }
 
 /**
@@ -115,6 +233,7 @@ export function probeCollabClientStateReadable(storage?: Storage): boolean {
   const target = storage ?? getDefaultStorage();
   if (target === undefined) return false;
   try {
+    if (readItem(target, MIGRATED_FLAG_KEY) === '1') return true;
     const raw = target.getItem(COLLAB_CLIENT_STATE_STORAGE_KEY);
     if (raw === null || raw.length === 0) return true;
     const parsed = JSON.parse(raw) as unknown;
@@ -124,74 +243,69 @@ export function probeCollabClientStateReadable(storage?: Storage): boolean {
   }
 }
 
-function loadStateMap(storage?: Storage): CollaborationClientStateMap {
-  const target = storage ?? getDefaultStorage();
-  if (target === undefined) return {};
-  const fromLs = loadBaseStateMapFromStorage(target);
-  const vol = volatileByStorage.get(target);
-  return vol !== undefined ? { ...fromLs, ...vol } : fromLs;
-}
-
-function tryFlushVolatileCollabStateToLocalStorage(target: Storage): void {
-  const overlay = volatileByStorage.get(target);
-  if (overlay === undefined) return;
-  const base = loadBaseStateMapFromStorage(target);
-  const merged = { ...base, ...overlay };
-  try {
-    target.setItem(COLLAB_CLIENT_STATE_STORAGE_KEY, JSON.stringify(merged));
-    volatileByStorage.delete(target);
-  } catch (e) {
-    if (!isQuotaExceededError(e)) return;
-  }
-}
-
-function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage): void {
-  const target = storage ?? getDefaultStorage();
-  if (target === undefined) return;
-  try {
-    target.setItem(COLLAB_CLIENT_STATE_STORAGE_KEY, JSON.stringify(stateMap));
-    volatileByStorage.delete(target);
-  } catch (e) {
-    if (!isQuotaExceededError(e)) return;
-    volatileByStorage.set(target, stateMap);
-    void saveCollabClientStateBlobToIdb(JSON.stringify(stateMap)).catch((err) => {
-      log.error('collab client state idb mirror failed', { err });
-    });
-    log.warn(
-      'collab client state localStorage quota exceeded; volatile overlay + IndexedDB mirror',
-      {
-        projectCount: Object.keys(stateMap).length,
-      },
-    );
-    const now = Date.now();
-    if (now - lastCollabQuotaToastAt >= COLLAB_QUOTA_TOAST_COOLDOWN_MS) {
-      lastCollabQuotaToastAt = now;
-      const toastMsg = getAppDataResilienceMessages(
-        resolveCollabToastLocale(),
-      ).collabLocalStorageQuotaToast;
-      dispatchAppGlobalToast({ message: toastMsg, variant: 'error', autoDismissMs: 14_000 });
+function ensureMigrated(storage: Storage): void {
+  if (readItem(storage, MIGRATED_FLAG_KEY) === '1') return;
+  const raw = readItem(storage, COLLAB_CLIENT_STATE_STORAGE_KEY);
+  if (raw !== null && raw.length > 0) {
+    try {
+      const map = parseRawToStateMap(raw);
+      for (const [projectId, state] of Object.entries(map)) {
+        if (state.lastSeenRevision !== undefined) {
+          const key = cursorStorageKey(projectId);
+          const current = Number(readItem(storage, key) ?? 0);
+          if (state.lastSeenRevision > current)
+            writeItem(storage, key, String(state.lastSeenRevision));
+        }
+        for (const change of state.pendingOutboundChanges ?? []) {
+          const key = outboundOpStorageKey(change);
+          if (readItem(storage, key) === null) writeItem(storage, key, JSON.stringify(change));
+        }
+      }
+    } catch {
+      /* drop a corrupt legacy blob */
     }
+    removeItem(storage, COLLAB_CLIENT_STATE_STORAGE_KEY);
   }
+  writeItem(storage, MIGRATED_FLAG_KEY, '1');
+}
+
+function resolveStorage(storage?: Storage): Storage | undefined {
+  const target = storage ?? getDefaultStorage();
+  if (target !== undefined) ensureMigrated(target);
+  return target;
 }
 
 /**
- * Merge persisted IDB mirror into the default localStorage view and retry flush.
- * Call before reading project cursor / pending outbound on bridge bootstrap (F-3).
+ * Import the legacy singleton blob once, then delete it so an ACK'd queue cannot come back.
+ * Call before reading the cursor or pending outbound on bridge bootstrap.
  */
 export async function hydrateCollabClientStateFromIdb(): Promise<void> {
-  const raw = await loadCollabClientStateBlobFromIdb();
-  if (raw === null || raw.length === 0) return;
-  let idbMap: CollaborationClientStateMap;
-  try {
-    idbMap = parseRawToStateMap(raw);
-  } catch {
-    return;
-  }
   const target = getDefaultStorage();
   if (target === undefined) return;
-  const prev = volatileByStorage.get(target);
-  volatileByStorage.set(target, prev !== undefined ? { ...idbMap, ...prev } : idbMap);
-  tryFlushVolatileCollabStateToLocalStorage(target);
+  if (readItem(target, MIGRATED_FLAG_KEY) !== '1') {
+    const blob = await loadCollabClientStateBlobFromIdb();
+    if (
+      blob !== null &&
+      blob.length > 0 &&
+      readItem(target, COLLAB_CLIENT_STATE_STORAGE_KEY) === null
+    ) {
+      writeItem(target, COLLAB_CLIENT_STATE_STORAGE_KEY, blob);
+    }
+    ensureMigrated(target);
+  }
+  await deleteCollabClientStateBlobFromIdb().catch((err) => {
+    log.error('collab client state blob delete failed', { err });
+  });
+  const ops = await listAllOutboundOpsFromIdb().catch(() => []);
+  for (const op of ops) {
+    if (readItem(target, op.key) === null) writeItem(target, op.key, op.json);
+  }
+  const cursors = await listOutboundCursorsFromIdb().catch(() => []);
+  for (const cursor of cursors) {
+    const key = cursorStorageKey(cursor.projectId);
+    const current = Number(readItem(target, key) ?? 0);
+    if (cursor.revision > current) writeItem(target, key, String(cursor.revision));
+  }
 }
 
 /** Vitest: drop volatile overlay for a mocked Storage instance. */
@@ -199,39 +313,13 @@ export function resetCollabClientStateVolatileOverlayForTests(storage: Storage):
   volatileByStorage.delete(storage);
 }
 
-function upsertProjectState(
-  projectId: string,
-  updater: (
-    existing: CollaborationClientProjectState | undefined,
-  ) => CollaborationClientProjectState | null,
-  storage?: Storage,
-): void {
-  if (projectId.trim().length === 0) return;
-  const targetStorage = storage ?? getDefaultStorage();
-  if (targetStorage === undefined) return;
-
-  const stateMap = loadStateMap(targetStorage);
-  const previous = stateMap[projectId];
-  const next = updater(previous);
-
-  if (next === null) {
-    delete stateMap[projectId];
-  } else {
-    stateMap[projectId] = next;
-  }
-
-  saveStateMap(stateMap, targetStorage);
-}
-
 export function loadProjectLastSeenRevision(projectId: string, storage?: Storage): number {
   if (projectId.trim().length === 0) return 0;
-  const targetStorage = storage ?? getDefaultStorage();
-  const stateMap = loadStateMap(targetStorage);
-  const revision = stateMap[projectId]?.lastSeenRevision;
-  if (typeof revision === 'number' && Number.isFinite(revision) && revision >= 0) {
-    return Math.floor(revision);
-  }
-  return 0;
+  const target = resolveStorage(storage);
+  if (target === undefined) return 0;
+  const revision = Number(readItem(target, cursorStorageKey(projectId)) ?? 0);
+  if (!Number.isFinite(revision) || revision < 0) return 0;
+  return Math.floor(revision);
 }
 
 export function saveProjectLastSeenRevision(
@@ -241,17 +329,27 @@ export function saveProjectLastSeenRevision(
 ): void {
   if (projectId.trim().length === 0) return;
   if (!Number.isFinite(revision) || revision < 0) return;
+  const target = resolveStorage(storage);
+  if (target === undefined) return;
   const normalizedRevision = Math.floor(revision);
-
-  upsertProjectState(
-    projectId,
-    (existing) => ({
-      ...(existing ?? {}),
-      lastSeenRevision: normalizedRevision,
-      updatedAt: new Date().toISOString(),
+  const key = cursorStorageKey(projectId);
+  const current = Number(readItem(target, key) ?? 0);
+  if (normalizedRevision <= current) return;
+  writeItem(target, key, String(normalizedRevision));
+  if (!usesDefaultStorage(target)) return;
+  trackIdb(
+    advanceOutboundCursorInIdb(projectId, normalizedRevision).catch((err) => {
+      log.error('collab cursor idb advance failed', { err });
     }),
-    storage,
   );
+}
+
+function normalizedPending(
+  changes: CollaborationProjectChangeRecord[],
+): CollaborationProjectChangeRecord[] {
+  return changes
+    .map((change) => sanitizeChangeRecord(change))
+    .filter((item): item is CollaborationProjectChangeRecord => item !== null);
 }
 
 export function loadProjectPendingOutboundChanges(
@@ -259,37 +357,144 @@ export function loadProjectPendingOutboundChanges(
   storage?: Storage,
 ): CollaborationProjectChangeRecord[] {
   if (projectId.trim().length === 0) return [];
-  const targetStorage = storage ?? getDefaultStorage();
-  const stateMap = loadStateMap(targetStorage);
-  return stateMap[projectId]?.pendingOutboundChanges ?? [];
+  const target = resolveStorage(storage);
+  if (target === undefined) return [];
+  const pending: CollaborationProjectChangeRecord[] = [];
+  for (const key of listKeys(target, opStoragePrefix(projectId))) {
+    const raw = readItem(target, key);
+    if (raw === null) continue;
+    try {
+      const change = sanitizeChangeRecord(JSON.parse(raw) as unknown);
+      if (change !== null) pending.push(change);
+    } catch {
+      /* drop a corrupt op */
+    }
+  }
+  return pending;
 }
 
+export function putProjectPendingOutboundChange(
+  change: CollaborationProjectChangeRecord,
+  storage?: Storage,
+): Promise<void> {
+  const record = sanitizeChangeRecord(change);
+  const target = resolveStorage(storage);
+  if (record === null || target === undefined) return Promise.resolve();
+  const key = outboundOpStorageKey(record);
+  const json = JSON.stringify(record);
+  writeItem(target, key, json);
+  return mirrorOp(target, key, record, json);
+}
+
+export function deleteProjectPendingOutboundByKey(key: string, storage?: Storage): Promise<void> {
+  const target = resolveStorage(storage);
+  if (target === undefined || !key.startsWith(OP_KEY_PREFIX)) return Promise.resolve();
+  removeItem(target, key);
+  return forgetOp(target, key);
+}
+
+/** Replace one project's pending ops. Cursor is a different key and is left alone. */
 export function saveProjectPendingOutboundChanges(
   projectId: string,
   changes: CollaborationProjectChangeRecord[],
   storage?: Storage,
 ): void {
   if (projectId.trim().length === 0) return;
+  const target = resolveStorage(storage);
+  if (target === undefined) return;
+  const next = normalizedPending(changes).filter((change) => change.projectId === projectId);
+  const nextKeys = new Set(next.map((change) => outboundOpStorageKey(change)));
+  for (const key of listKeys(target, opStoragePrefix(projectId))) {
+    if (!nextKeys.has(key)) {
+      removeItem(target, key);
+      trackIdb(forgetOp(target, key));
+    }
+  }
+  for (const change of next) {
+    const key = outboundOpStorageKey(change);
+    const json = JSON.stringify(change);
+    writeItem(target, key, json);
+    trackIdb(mirrorOp(target, key, change, json));
+  }
+}
 
-  const normalizedChanges = changes
-    .map((change) => sanitizeChangeRecord(change))
-    .filter((item): item is CollaborationProjectChangeRecord => item !== null);
+const UNVERIFIED_KEY_PREFIX = 'jieyu:collab-unverified:v1:';
 
-  upsertProjectState(
-    projectId,
-    (existing) => {
-      const lastSeenRevision = existing?.lastSeenRevision;
-      if (normalizedChanges.length === 0 && lastSeenRevision === undefined) {
-        return null;
-      }
-      return {
-        ...(lastSeenRevision !== undefined ? { lastSeenRevision } : {}),
-        ...(normalizedChanges.length > 0 ? { pendingOutboundChanges: normalizedChanges } : {}),
-        updatedAt: new Date().toISOString(),
-      };
-    },
-    storage,
+export interface UnverifiedCollabMutation {
+  id: string;
+  entityType: string;
+  entityId: string;
+  opType: string;
+  payload?: Record<string, unknown>;
+  payloadRefPath?: string;
+}
+
+function unverifiedStorageKey(projectId: string): string {
+  return `${UNVERIFIED_KEY_PREFIX}${encodeURIComponent(projectId)}`;
+}
+
+function isUnverifiedMutation(value: unknown): value is UnverifiedCollabMutation {
+  if (value === null || typeof value !== 'object') return false;
+  const source = value as Record<string, unknown>;
+  return (
+    typeof source.id === 'string' &&
+    source.id.length > 0 &&
+    typeof source.entityType === 'string' &&
+    typeof source.entityId === 'string' &&
+    typeof source.opType === 'string'
   );
+}
+
+function readUnverified(storage: Storage, projectId: string): UnverifiedCollabMutation[] {
+  const raw = readItem(storage, unverifiedStorageKey(projectId));
+  if (raw === null || raw.length === 0) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isUnverifiedMutation);
+  } catch {
+    return [];
+  }
+}
+
+/** Edits that committed locally but are not yet in the outbound queue. */
+export function loadUnverifiedCollabMutations(
+  projectId: string,
+  storage?: Storage,
+): UnverifiedCollabMutation[] {
+  if (projectId.trim().length === 0) return [];
+  const target = storage ?? getDefaultStorage();
+  if (target === undefined) return [];
+  return readUnverified(target, projectId);
+}
+
+export function rememberUnverifiedCollabMutation(
+  projectId: string,
+  input: Omit<UnverifiedCollabMutation, 'id'>,
+  storage?: Storage,
+): string {
+  const id =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
+  const target = storage ?? getDefaultStorage();
+  if (target === undefined || projectId.trim().length === 0) return id;
+  const next = [...readUnverified(target, projectId), { ...input, id }];
+  writeItem(target, unverifiedStorageKey(projectId), JSON.stringify(next));
+  return id;
+}
+
+export function forgetUnverifiedCollabMutation(
+  projectId: string,
+  id: string,
+  storage?: Storage,
+): void {
+  const target = storage ?? getDefaultStorage();
+  if (target === undefined || projectId.trim().length === 0) return;
+  const next = readUnverified(target, projectId).filter((item) => item.id !== id);
+  const key = unverifiedStorageKey(projectId);
+  if (next.length === 0) removeItem(target, key);
+  else writeItem(target, key, JSON.stringify(next));
 }
 
 /**
@@ -298,5 +503,18 @@ export function saveProjectPendingOutboundChanges(
  */
 export function clearProjectCollabClientState(projectId: string, storage?: Storage): void {
   if (projectId.trim().length === 0) return;
-  upsertProjectState(projectId, () => null, storage);
+  const target = resolveStorage(storage);
+  if (target === undefined) return;
+  for (const key of listKeys(target, opStoragePrefix(projectId))) {
+    removeItem(target, key);
+    trackIdb(forgetOp(target, key));
+  }
+  removeItem(target, cursorStorageKey(projectId));
+  removeItem(target, unverifiedStorageKey(projectId));
+  if (!usesDefaultStorage(target)) return;
+  trackIdb(
+    deleteOutboundCursorFromIdb(projectId).catch((err) => {
+      log.error('collab cursor idb delete failed', { err });
+    }),
+  );
 }

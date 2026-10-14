@@ -126,6 +126,67 @@ describe('CollaborationClientStateStore', () => {
     resetCollabClientStateVolatileOverlayForTests(q);
   });
 
+  it('两条操作互不覆盖，ACK 只删被确认的那条 | two ops do not clobber and ack deletes one', async () => {
+    const {
+      deleteProjectPendingOutboundByKey,
+      outboundOpStorageKey,
+      putProjectPendingOutboundChange,
+    } = await import('./CollaborationClientStateStore');
+    const first = makeChange('op-a');
+    const second = { ...makeChange('op-b'), clientId: 'client-2' };
+    await putProjectPendingOutboundChange(first, storage);
+    await putProjectPendingOutboundChange(second, storage);
+
+    expect(loadProjectPendingOutboundChanges('project-1', storage)).toEqual([
+      expect.objectContaining({ clientOpId: 'op-a' }),
+      expect.objectContaining({ clientOpId: 'op-b' }),
+    ]);
+
+    await deleteProjectPendingOutboundByKey(outboundOpStorageKey(first), storage);
+    expect(loadProjectPendingOutboundChanges('project-1', storage)).toEqual([
+      expect.objectContaining({ clientOpId: 'op-b' }),
+    ]);
+  });
+
+  it('游标只前进，旧整包不会把已 ACK 的操作写回来 | cursor is monotonic and a stale blob does not resurrect', () => {
+    saveProjectLastSeenRevision('project-1', 10, storage);
+    saveProjectLastSeenRevision('project-1', 4, storage);
+    saveProjectPendingOutboundChanges('project-1', [makeChange('op-acked')], storage);
+    saveProjectPendingOutboundChanges('project-1', [], storage);
+    storage.setItem(
+      'jieyu:collab-client-state:v1',
+      JSON.stringify({
+        'project-1': {
+          lastSeenRevision: 1,
+          pendingOutboundChanges: [makeChange('op-acked')],
+          updatedAt: '2026-04-17T00:00:00.000Z',
+        },
+      }),
+    );
+
+    expect(loadProjectLastSeenRevision('project-1', storage)).toBe(10);
+    expect(loadProjectPendingOutboundChanges('project-1', storage)).toEqual([]);
+  });
+
+  it('旧整包只迁一次 | legacy blob migrates once', () => {
+    storage.setItem(
+      'jieyu:collab-client-state:v1',
+      JSON.stringify({
+        'project-1': {
+          lastSeenRevision: 4,
+          pendingOutboundChanges: [makeChange('op-old')],
+          updatedAt: '2026-04-17T00:00:00.000Z',
+        },
+      }),
+    );
+
+    expect(loadProjectLastSeenRevision('project-1', storage)).toBe(4);
+    expect(loadProjectPendingOutboundChanges('project-1', storage)).toEqual([
+      expect.objectContaining({ clientOpId: 'op-old' }),
+    ]);
+    expect(storage.getItem('jieyu:collab-client-state:v1')).toBeNull();
+  });
+
   it('hydrate 从 IndexedDB 恢复到默认 localStorage 视图 | hydrates default storage from IDB mirror', async () => {
     const payload = JSON.stringify({
       'project-idb': {

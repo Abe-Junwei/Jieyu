@@ -42,7 +42,7 @@ interface CloudSyncWrappedActions {
 
 interface CreateCloudSyncedWriteActionsParams {
   wrappedActionsRef: { readonly current: CloudSyncWrappedActions };
-  enqueueMutation: (input: TranscriptionCollaborationMutationInput) => void;
+  enqueueMutation: (input: TranscriptionCollaborationMutationInput) => void | Promise<void>;
   rememberLocalShadowMutation: (
     entityType: ProjectEntityType,
     entityId: string,
@@ -77,7 +77,7 @@ export function createCloudSyncedWriteActions({
         ...(layerId ? { layerId } : {}),
         value,
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit_content',
         entityId,
         opType: 'upsert_unit_content',
@@ -100,7 +100,7 @@ export function createCloudSyncedWriteActions({
         unitIds: unitIdList,
         value,
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit',
         entityId,
         opType: 'batch_patch',
@@ -118,7 +118,7 @@ export function createCloudSyncedWriteActions({
         unitIds: unitIdList,
         patch,
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit',
         entityId,
         opType: 'batch_patch',
@@ -133,7 +133,7 @@ export function createCloudSyncedWriteActions({
         startTime,
         endTime,
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit',
         entityId: unitId,
         opType: 'upsert_unit',
@@ -149,7 +149,7 @@ export function createCloudSyncedWriteActions({
         layerId,
         value,
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit_content',
         entityId,
         opType: 'upsert_unit_content',
@@ -174,7 +174,7 @@ export function createCloudSyncedWriteActions({
         ...(options?.focusedLayerId ? { focusedLayerId: options.focusedLayerId } : {}),
       };
       const entityId = createdUnit?.id ?? 'selection';
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit',
         entityId,
         opType: 'upsert_unit',
@@ -188,7 +188,7 @@ export function createCloudSyncedWriteActions({
         deleted: true,
         reason: 'delete-unit',
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit',
         entityId: unitId,
         opType: 'delete_entity',
@@ -203,7 +203,7 @@ export function createCloudSyncedWriteActions({
         unitIds: Array.from(ids),
         action: 'delete-selected',
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer_unit',
         entityId,
         opType: 'batch_patch',
@@ -228,7 +228,7 @@ export function createCloudSyncedWriteActions({
           ...(modality ? { modality } : {}),
           input: input as unknown as Record<string, unknown>,
         };
-        enqueueMutation({
+        await enqueueMutation({
           entityType: 'layer',
           entityId,
           opType: 'upsert_layer',
@@ -246,7 +246,7 @@ export function createCloudSyncedWriteActions({
         deleted: true,
         ...(options?.keepUnits !== undefined ? { keepUnits: options.keepUnits } : {}),
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'layer',
         entityId,
         opType: 'delete_entity',
@@ -268,7 +268,7 @@ export function createCloudSyncedWriteActions({
         layerId,
         enabled: !linkExisted,
       };
-      enqueueMutation({
+      await enqueueMutation({
         entityType: 'unit_relation',
         entityId,
         opType: 'upsert_relation',

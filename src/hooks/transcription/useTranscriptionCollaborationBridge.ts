@@ -23,9 +23,12 @@ import {
 import { ProjectChangeCodec } from '../../collaboration/cloud/ProjectChangeCodec';
 import type { ChangeTimelineResult } from '../../collaboration/cloud/CollaborationAuditLogService';
 import {
+  forgetUnverifiedCollabMutation,
   hydrateCollabClientStateFromIdb,
   loadProjectLastSeenRevision,
   loadProjectPendingOutboundChanges,
+  loadUnverifiedCollabMutations,
+  rememberUnverifiedCollabMutation,
   saveProjectLastSeenRevision,
 } from '../../collaboration/cloud/CollaborationClientStateStore';
 import {
@@ -54,6 +57,8 @@ import {
   refreshMultiDocumentGate,
 } from '../../services/annotationDocumentCollaborationGate';
 import { createLogger } from '../../observability/logger';
+import { getStoredLocalePreference, normalizeLocale, t } from '../../i18n';
+import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 
 interface UseTranscriptionCollaborationBridgeParams {
   enabled: boolean;
@@ -99,6 +104,22 @@ export interface TranscriptionCollaborationMutationInput {
 }
 
 const log = createLogger('useTranscriptionCollaborationBridge');
+
+let lastSyncNotGuaranteedToastAt = 0;
+
+function notifySyncNotGuaranteed(): void {
+  const now = Date.now();
+  if (now - lastSyncNotGuaranteedToastAt < 90_000) return;
+  lastSyncNotGuaranteedToastAt = now;
+  const locale =
+    getStoredLocalePreference() ??
+    (typeof navigator === 'undefined' ? 'zh-CN' : (normalizeLocale(navigator.language) ?? 'zh-CN'));
+  dispatchAppGlobalToast({
+    message: t(locale, 'app.collabNotice.syncNotGuaranteed'),
+    variant: 'error',
+    autoDismissMs: 14_000,
+  });
+}
 
 function requireBridgeInstance(bridge: CollaborationSyncBridge | null): CollaborationSyncBridge {
   if (!bridge) {
@@ -338,6 +359,8 @@ export function useTranscriptionCollaborationBridge({
       const actorId = await getSupabaseUserId();
       if (!actorId) {
         log.warn('skip bridge bootstrap without authenticated user');
+        if (loadUnverifiedCollabMutations(normalizedProjectId).length > 0)
+          notifySyncNotGuaranteed();
         return;
       }
       if (disposed) return;
@@ -437,6 +460,27 @@ export function useTranscriptionCollaborationBridge({
 
       bridgeRef.current = bridge;
       codecRef.current = codec;
+      for (const item of loadUnverifiedCollabMutations(normalizedProjectId)) {
+        try {
+          const record = codec.encode({
+            projectId: normalizedProjectId,
+            entityType: item.entityType as ProjectEntityType,
+            entityId: item.entityId,
+            opType: item.opType as ProjectChangeOperation,
+            ...(item.payload !== undefined ? { payload: item.payload } : {}),
+            ...(item.payloadRefPath ? { payloadRefPath: item.payloadRefPath } : {}),
+            baseRevision: latestRevisionRef.current,
+            sourceKind: 'user',
+          });
+          recordLocally(() => markProjectOutboundRecorded(normalizedProjectId), 'outbound');
+          await bridge.enqueueLocalChange(record);
+          forgetUnverifiedCollabMutation(normalizedProjectId, item.id);
+        } catch (error) {
+          log.warn('failed to queue a locally saved collaboration edit', { err: error });
+          notifySyncNotGuaranteed();
+          break;
+        }
+      }
       setIsBridgeReady(true);
     };
 
@@ -526,21 +570,28 @@ export function useTranscriptionCollaborationBridge({
   }, [applyProtocolGuard, enabled, handleCloudTombstone, normalizedProjectId, stopBridgeRuntime]);
 
   const enqueueMutation = useCallback(
-    (input: TranscriptionCollaborationMutationInput): void => {
-      if (!normalizedProjectId) return;
+    (input: TranscriptionCollaborationMutationInput): Promise<void> => {
+      if (!enabled || !normalizedProjectId) return Promise.resolve();
       const codec = codecRef.current;
       const bridge = bridgeRef.current;
-      if (!codec || !bridge) return;
       if (writeGuardRef.current.cloudWritesDisabled) {
         log.warn('suppressed local collaboration mutation (protocol guard)', {
           reasons: writeGuardRef.current.reasons,
         });
-        return;
+        return Promise.resolve();
       }
       // 运行中新建了第二份文稿：不再上传 | A second document was created while running: no upload
       if (isMultiDocumentProject(normalizedProjectId)) {
         log.warn('suppressed local collaboration mutation (several annotation documents)');
-        return;
+        return Promise.resolve();
+      }
+
+      // ponytail: the business commit and this record are not one IndexedDB transaction.
+      // A crash before this function runs still leaves no recovery entry.
+      const unverifiedId = rememberUnverifiedCollabMutation(normalizedProjectId, input);
+      if (!codec || !bridge) {
+        notifySyncNotGuaranteed();
+        return Promise.resolve();
       }
 
       const record = codec.encode({
@@ -556,9 +607,17 @@ export function useTranscriptionCollaborationBridge({
 
       // 先记下“有过出站记录”，再入队（D6）| Record outbound history before queueing (D6)
       recordLocally(() => markProjectOutboundRecorded(normalizedProjectId), 'outbound');
-      bridge.enqueueLocalChange(record);
+      return Promise.resolve(bridge.enqueueLocalChange(record)).then(
+        () => {
+          forgetUnverifiedCollabMutation(normalizedProjectId, unverifiedId);
+        },
+        (error: unknown) => {
+          log.warn('failed to persist a collaboration edit to the outbound queue', { err: error });
+          notifySyncNotGuaranteed();
+        },
+      );
     },
-    [normalizedProjectId],
+    [enabled, normalizedProjectId],
   );
 
   const markProjectRevisionSeen = useCallback(

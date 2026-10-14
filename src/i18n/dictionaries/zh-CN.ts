@@ -21,6 +21,8 @@ export const zhCNDictionary = {
   'app.collabNotice.projectDeletedInCloud': '当前项目已被所有者在云端删除，本机副本已清理。',
   'app.collabNotice.projectRemovedInOtherTab': '当前项目已在另一个标签页中从本机移除。',
   'app.collabNotice.appUpdated': '新版本已就绪，刷新页面后生效。',
+  'app.collabNotice.syncNotGuaranteed':
+    '本地已经保存，云同步还没有保证。请保持页面打开，联网后会继续尝试发送。',
   'app.home.removedCloudProjects.title': '已从本机移除的云端项目',
   'app.home.removedCloudProjects.hint':
     '这些项目只从本机移除了，云端和其他协作者不受影响；不会自动下载，需要时手动重新下载。',

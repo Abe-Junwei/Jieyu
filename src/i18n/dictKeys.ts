@@ -22,6 +22,7 @@ export const DICT_KEYS = [
   'app.collabNotice.projectDeletedInCloud',
   'app.collabNotice.projectRemovedInOtherTab',
   'app.collabNotice.appUpdated',
+  'app.collabNotice.syncNotGuaranteed',
   'app.home.removedCloudProjects.title',
   'app.home.removedCloudProjects.hint',
   'app.home.removedCloudProjects.redownload',

@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   loadProjectLastSeenRevision,
   loadProjectPendingOutboundChanges,
+  loadUnverifiedCollabMutations,
+  rememberUnverifiedCollabMutation,
   saveProjectLastSeenRevision,
   saveProjectPendingOutboundChanges,
 } from '../collaboration/cloud/CollaborationClientStateStore';
@@ -141,6 +143,24 @@ describe('T26 local removal (rev5 9.1, D6)', () => {
     ]);
     // 删除后再判定：仍然算协作过，不会被当成可以静默删除的本地项目 | Still collaborated afterwards
     expect(planProjectRemoval('p1', storage).mode).toBe('remove-local');
+  });
+
+  it('an unverified local edit blocks removal until the user discards it', async () => {
+    markProjectCollaborationBound('p1', storage);
+    rememberUnverifiedCollabMutation(
+      'p1',
+      { entityType: 'layer_unit', entityId: 'u1', opType: 'upsert_unit' },
+      storage,
+    );
+
+    expect(planProjectRemoval('p1', storage).pendingOutboundCount).toBe(1);
+    await expect(removeProjectFromDevice('p1', {}, deps)).rejects.toBeInstanceOf(
+      ProjectHasUnsyncedChangesError,
+    );
+    await expect(
+      removeProjectFromDevice('p1', { discardUnsyncedChanges: true }, deps),
+    ).resolves.toBe('remove-local');
+    expect(loadUnverifiedCollabMutations('p1', storage)).toEqual([]);
   });
 
   it('unsynced changes block removal until the user chooses to discard them', async () => {

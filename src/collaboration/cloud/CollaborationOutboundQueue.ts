@@ -1,7 +1,4 @@
-import {
-  shouldSuppressOutboundEcho,
-  type CollaborationProjectChangeRecord,
-} from './syncTypes';
+import { shouldSuppressOutboundEcho, type CollaborationProjectChangeRecord } from './syncTypes';
 
 export interface CollaborationOutboundQueueOptions {
   sender: (changes: CollaborationProjectChangeRecord[]) => Promise<void>;
@@ -20,14 +17,16 @@ const DEFAULT_MAX_RETRIES = 8;
 const DEFAULT_DROP_BATCH_AFTER_MAX_RETRIES = false;
 
 /**
- * 内存 + 定时节流 flush。**持久化**由 `CollaborationSyncBridge` 在 `onPendingChanged` 内以
- * 防抖落盘 `CollaborationClientStateStore`（见 `OUTBOUND_PENDING_SAVE_DEBOUNCE_MS`），避免每次 `enqueue` 直接写
- * `localStorage`（对应 remediation HIGH-12）。
+ * 内存 + 定时节流 flush。已入队的操作由 `CollaborationSyncBridge` 立刻按条落盘。
  */
 export class CollaborationOutboundQueue {
   private readonly sender: (changes: CollaborationProjectChangeRecord[]) => Promise<void>;
-  private readonly onFlushError: ((error: unknown, consecutiveFailures: number) => void) | undefined;
-  private readonly onPendingChanged: ((pending: CollaborationProjectChangeRecord[]) => void) | undefined;
+  private readonly onFlushError:
+    | ((error: unknown, consecutiveFailures: number) => void)
+    | undefined;
+  private readonly onPendingChanged:
+    | ((pending: CollaborationProjectChangeRecord[]) => void)
+    | undefined;
   private readonly flushIntervalMs: number;
   private readonly maxBatchSize: number;
   private readonly maxRetries: number;
@@ -44,7 +43,8 @@ export class CollaborationOutboundQueue {
     this.flushIntervalMs = options.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
     this.maxBatchSize = options.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
-    this.dropBatchAfterMaxRetries = options.dropBatchAfterMaxRetries ?? DEFAULT_DROP_BATCH_AFTER_MAX_RETRIES;
+    this.dropBatchAfterMaxRetries =
+      options.dropBatchAfterMaxRetries ?? DEFAULT_DROP_BATCH_AFTER_MAX_RETRIES;
     this.pending = options.initialPending?.slice() ?? [];
   }
 
@@ -98,7 +98,8 @@ export class CollaborationOutboundQueue {
       this.emitPendingChanged();
     } catch (error) {
       this.consecutiveFailures += 1;
-      const shouldDropBatch = this.dropBatchAfterMaxRetries && this.consecutiveFailures > this.maxRetries;
+      const shouldDropBatch =
+        this.dropBatchAfterMaxRetries && this.consecutiveFailures > this.maxRetries;
       if (!shouldDropBatch) {
         // 默认失败不丢弃，持续回退重试，避免静默数据丢失。
         // Keep retrying by default to avoid silent data loss.
