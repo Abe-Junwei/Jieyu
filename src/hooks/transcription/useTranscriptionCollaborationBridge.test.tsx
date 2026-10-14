@@ -128,7 +128,7 @@ vi.mock('../../collaboration/cloud/CollaborationSyncBridge', () => ({
 
 vi.mock('../../collaboration/cloud/collaborationSupabaseFacade', () => ({
   hasSupabaseBrowserClientConfig: hasConfig,
-  getSupabaseBrowserClient: () => ({ from: supabaseFrom }),
+  getSupabaseBrowserClient: () => ({ from: supabaseFrom, rpc: supabaseInsert }),
   getSupabaseUserId: getUserId,
 }));
 
@@ -193,7 +193,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     await waitFor(() => expect(bridgeStart).toHaveBeenCalledTimes(1));
     multiDocument.current = true;
     act(() => {
-      result.current.enqueueMutation({
+      void result.current.enqueueMutation({
         entityType: 'layer_unit_content',
         entityId: 'unit-1:layer-1',
         opType: 'upsert_unit_content',
@@ -282,7 +282,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     );
 
     act(() => {
-      result.current.enqueueMutation({
+      void result.current.enqueueMutation({
         entityType: 'layer_unit_content',
         entityId: 'unit-1:layer-1',
         opType: 'upsert_unit_content',
@@ -313,7 +313,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     });
 
     act(() => {
-      result.current.enqueueMutation({
+      void result.current.enqueueMutation({
         entityType: 'layer_unit_content',
         entityId: 'unit-1:layer-1',
         opType: 'upsert_unit_content',
@@ -450,7 +450,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     });
 
     act(() => {
-      result.current.enqueueMutation({
+      void result.current.enqueueMutation({
         entityType: 'layer_unit_content',
         entityId: 'unit-1:layer-1',
         opType: 'upsert_unit_content',
@@ -626,7 +626,7 @@ describe('useTranscriptionCollaborationBridge', () => {
       });
       expect(seen).toContain('protocol-changed');
       act(() => {
-        result.current.enqueueMutation({
+        void result.current.enqueueMutation({
           entityType: 'layer_unit',
           entityId: 'u2',
           opType: 'upsert_unit',
