@@ -20,4 +20,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/303
 - 模型权重：安装包不带；首次用本机转写时应用内下载，sha256 校验后存 `userData/models/`，显示进度、可取消、断网提示；默认推荐 small，可选 base，Windows 默认 base。
 - 下载源：GitHub Releases 为主，失败依次退 Hugging Face、hf-mirror.com，同一 sha256。
 - Windows 长录音（约 30 分钟以上）提示可改用云端转写；速度用 2 小时录音实测并记录，不设门槛。
-- 前置：whisper-server 只监听 127.0.0.1 的修复（`fix/whisper-server-bind-localhost`）先合进 main。
+- 只监听 127.0.0.1 + Host 头校验已合进 main（`bb5fb2a4`）。实现合同 v1 时补齐：Origin 校验（去掉 `Access-Control-Allow-Origin: *`，只放行本机来源）与连接来源回环 IP 判定（2026-10-14 评审遗留）。
