@@ -70,6 +70,24 @@ test('paired reading editor stays clear of the expanded left pane', async ({ pag
     'true',
   );
 
+  const sourceRail = page.locator('.timeline-paired-reading-row-rail-source').first();
+  const fullLayerName = await sourceRail.getAttribute('title');
+  expect(fullLayerName?.length).toBeGreaterThan(2);
+  expect(await sourceRail.getAttribute('aria-label')).toContain(fullLayerName);
+  expect.soft((await sourceRail.innerText()).trim().length).toBeLessThanOrEqual(2);
+  const targetRail = page.locator('.timeline-paired-reading-row-rail-target').first();
+  const targetLayerName = await targetRail.getAttribute('title');
+  expect(targetLayerName?.length).toBeGreaterThan(2);
+  expect(await targetRail.getAttribute('aria-label')).toContain(targetLayerName);
+  expect.soft((await targetRail.innerText()).trim().length).toBeLessThanOrEqual(2);
+  const statusSize = await page.locator('.waveform-left-status-strip').evaluate((element) => ({
+    content: element.scrollHeight,
+    visible: element.clientHeight,
+  }));
+  expect
+    .soft(statusSize.content, JSON.stringify(statusSize))
+    .toBeLessThanOrEqual(statusSize.visible + 1);
+
   const resizer = page.locator('.app-side-pane-resizer');
   await resizer.focus();
   await page.keyboard.press('ArrowRight');

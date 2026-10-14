@@ -86,7 +86,6 @@ interface TranscriptionTimelineVerticalViewGroupListProps {
   defaultTranscriptionLayerId?: string;
   layerLinks?: LayerLinkDocType[];
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>;
-  renderLaneLabel: (layer: LayerDocType) => ReactNode;
   onFocusLayer: (layerId: string) => void;
   patchVerticalPaneFocus: (patch: VerticalPaneFocusPatch) => void;
   bundleOrdinalByKey: ReadonlyMap<string, number>;
@@ -215,7 +214,6 @@ export function TranscriptionTimelineVerticalViewGroupList({
   defaultTranscriptionLayerId,
   layerLinks = [],
   unitByIdForSpeaker,
-  renderLaneLabel,
   onFocusLayer,
   patchVerticalPaneFocus,
   bundleOrdinalByKey,
@@ -627,8 +625,6 @@ export function TranscriptionTimelineVerticalViewGroupList({
                         }}
                       >
                         {renderPairedReadingRailLaneBody({
-                          layer: sourceItemLayer,
-                          renderLaneLabel,
                           fallbackTitle: sourceRowTitle,
                           mode: 'full',
                         })}
@@ -1041,8 +1037,6 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                   }}
                                 >
                                   {renderPairedReadingRailLaneBody({
-                                    layer: tLayer,
-                                    renderLaneLabel,
                                     fallbackTitle: layerHeaderContent,
                                     mode: layerPerSeg && ti > 0 ? 'continuation' : 'full',
                                   })}
@@ -1389,8 +1383,6 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                   }}
                                 >
                                   {renderPairedReadingRailLaneBody({
-                                    layer: tLayer,
-                                    renderLaneLabel,
                                     fallbackTitle: layerHeaderContent,
                                     mode: 'full',
                                   })}

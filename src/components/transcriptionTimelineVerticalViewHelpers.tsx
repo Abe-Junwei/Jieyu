@@ -1054,10 +1054,8 @@ function pairedReadingRowRailMark(fullLabel: string): string {
 
 type PairedReadingRailLaneLabelMode = 'full' | 'continuation';
 
-/** 与横向时间轴 renderLaneLabel 一致的多行层头；无层或回调空时回落单字标记 */
+/** 窄轨只显示标记；完整层名由按钮 title 和 aria-label 提供。 */
 export function renderPairedReadingRailLaneBody(input: {
-  layer: LayerDocType | undefined;
-  renderLaneLabel: (layer: LayerDocType) => ReactNode;
   fallbackTitle: string;
   mode: PairedReadingRailLaneLabelMode;
 }): ReactNode {
@@ -1070,16 +1068,6 @@ export function renderPairedReadingRailLaneBody(input: {
         ·
       </span>
     );
-  }
-  if (input.layer) {
-    const body = input.renderLaneLabel(input.layer);
-    if (body != null && body !== false && body !== '') {
-      return (
-        <span className="timeline-paired-reading-row-rail-lane-label" aria-hidden>
-          {body}
-        </span>
-      );
-    }
   }
   return (
     <span className="timeline-paired-reading-row-rail-mark" aria-hidden>

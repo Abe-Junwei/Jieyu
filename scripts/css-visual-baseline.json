@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-13T23:02:44.407Z",
-  "aggregate": "83e23858e08156aec32eff6fd81022fdc870591252bccd20e5b6369d5fc16367",
+  "generatedAt": "2026-10-14T04:49:19.641Z",
+  "aggregate": "735d56d8fcddec849bc268fe9c51e5d45316a2ade7d4b7d029d7b675c02b5ce1",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -50,7 +50,7 @@
     "src/styles/pages/transcription-timeline.css": "a6e9ae7c512fb7bec801198bc7e9caf5d938bcc5f28e6737a8c9526f8087cb35",
     "src/styles/pages/transcription-toolbar.css": "facb03941a9195eb66e6980883c59008cce5a90e6730d15bd4226015ebb4f3ea",
     "src/styles/pages/transcription-waveform-shell.css": "6efcc9716d3d80152a89112f9f34e6b6f196def207ac9321f9d48a80494e8acb",
-    "src/styles/pages/transcription-waveform.css": "56dc328efc5fabdf1d15a202484c40c54e19e42a7e86a2e8d4b48f92adced3f4",
+    "src/styles/pages/transcription-waveform.css": "002b3c772d7bf3aa29616e46a32ec5aa0fde90ba8349135ae801c76ffbcef590",
     "src/styles/panel-blocks.css": "7ee7ee5636067aa6cc3a971b38a153f7d783d2586b1be92832cf39268c2e695f",
     "src/styles/panels/action-dialogs.css": "adee440b7b40564496335f6a928e23b3eef987523762aa3ad8b6b65c953397b4",
     "src/styles/panels/ai-chat-composer.css": "0720ce1c055c90c514e3ff4ddbcfb719b6707778c7a44af641c610669d901eed",

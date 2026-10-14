@@ -471,7 +471,6 @@ export function TranscriptionTimelineVerticalView({
     saveUnitText,
     saveUnitLayerText,
     getUnitTextForLayer,
-    renderLaneLabel,
     createLayer,
     updateLayerMetadata,
     deleteLayer,
@@ -1301,7 +1300,6 @@ export function TranscriptionTimelineVerticalView({
                 : {})}
               layerLinks={layerLinks}
               unitByIdForSpeaker={unitByIdForSpeaker}
-              renderLaneLabel={renderLaneLabel}
               onFocusLayer={onFocusLayer}
               patchVerticalPaneFocus={patchVerticalPaneFocus}
               bundleOrdinalByKey={bundleOrdinalByKey}

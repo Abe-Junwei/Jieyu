@@ -41,8 +41,8 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3px;
-  padding: 6px 3px;
+  gap: 2px;
+  padding: 4px 3px;
   pointer-events: none;
   z-index: var(--z-raised);
   overflow: hidden;
@@ -57,18 +57,24 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  line-height: 1.1;
+  line-height: 1;
+}
+
+.waveform-left-status-strip .waveform-left-status-item-gain {
+  flex-direction: column;
+  gap: 1px;
 }
 
 .waveform-left-status-label {
-  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  letter-spacing: 0.04em;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  white-space: nowrap;
   color: var(--text-secondary);
   font-weight: 600;
 }
 
 .waveform-left-status-value {
-  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  white-space: nowrap;
   color: var(--text-secondary);
   font-weight: 700;
 }
@@ -79,10 +85,10 @@
   border-radius: var(--radius-pill);
   background: var(--surface-elevated);
   color: var(--text-secondary);
-  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 1px 6px;
   cursor: pointer;
 }
 
