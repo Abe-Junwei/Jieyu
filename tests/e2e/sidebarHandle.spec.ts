@@ -125,3 +125,102 @@ test('paired reading editor stays clear of the expanded left pane', async ({ pag
       .evaluate((element) => getComputedStyle(element).paddingLeft),
   ).toBe('0px');
 });
+
+test('waveform gutter controls fit at minimum width and for video', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const project = await setupFieldProjectWithMediaAndSegments(page);
+  await page.evaluate(() => localStorage.setItem('jieyu:lane-label-width', '40'));
+  await page.goto(`/transcription?textId=${project.textId}&mediaId=${project.mediaId}`);
+
+  const measureGutter = () =>
+    page.locator('.waveform-left-status-strip').evaluate((strip) => {
+      const bounds = strip.getBoundingClientRect();
+      const controls = Array.from(strip.querySelectorAll('button, input')).map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          name: element.getAttribute('aria-label') ?? element.getAttribute('title'),
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      });
+      return {
+        bounds: { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom },
+        contentHeight: strip.scrollHeight,
+        visibleHeight: strip.clientHeight,
+        scrollTop: strip.scrollTop,
+        controls,
+      };
+    });
+  const expectControlsInside = async () => {
+    const gutter = await measureGutter();
+    for (const control of gutter.controls) {
+      expect
+        .soft(control.left, JSON.stringify(control))
+        .toBeGreaterThanOrEqual(gutter.bounds.left - 1);
+      expect
+        .soft(control.right, JSON.stringify(control))
+        .toBeLessThanOrEqual(gutter.bounds.right + 1);
+      expect
+        .soft(control.top, JSON.stringify(control))
+        .toBeGreaterThanOrEqual(gutter.bounds.top - 1);
+      expect
+        .soft(control.bottom, JSON.stringify(control))
+        .toBeLessThanOrEqual(gutter.bounds.bottom + 1);
+    }
+    return gutter;
+  };
+
+  await expect
+    .poll(async () => {
+      const { bounds } = await measureGutter();
+      return bounds.right - bounds.left;
+    })
+    .toBe(40);
+  let gutter = await expectControlsInside();
+  expect
+    .soft(gutter.contentHeight, JSON.stringify(gutter))
+    .toBeLessThanOrEqual(gutter.visibleHeight + 1);
+
+  await page.evaluate(async (mediaId) => {
+    const dexie = (
+      globalThis as unknown as {
+        __jieyuDexie__: {
+          open: () => Promise<unknown>;
+          media_items: {
+            get: (
+              id: string,
+            ) => Promise<{ filename: string; details?: Record<string, unknown> } | undefined>;
+            put: (row: Record<string, unknown>) => Promise<unknown>;
+          };
+        };
+      }
+    ).__jieyuDexie__;
+    await dexie.open();
+    const row = await dexie.media_items.get(mediaId);
+    const audioBlob = row?.details?.audioBlob;
+    if (!row || !(audioBlob instanceof Blob)) throw new Error('Missing seeded media bytes');
+    await dexie.media_items.put({
+      ...row,
+      filename: 'field-video.mp4',
+      details: { ...row.details, audioBlob: audioBlob.slice(0, audioBlob.size, 'video/mp4') },
+    });
+  }, project.mediaId);
+  await page.goto(`/transcription?textId=${project.textId}&mediaId=${project.mediaId}`);
+  await expect(page.locator('.waveform-layout-toggle')).toBeVisible();
+  gutter = await expectControlsInside();
+  expect
+    .soft(gutter.contentHeight, JSON.stringify(gutter))
+    .toBeLessThanOrEqual(gutter.visibleHeight + 1);
+  const rightLayout = page.locator('.waveform-layout-toggle-btn[title="Video panel on the right"]');
+  await rightLayout.click();
+  await expect(rightLayout).toHaveClass(/active/);
+  gutter = await measureGutter();
+  expect(gutter.contentHeight, JSON.stringify(gutter)).toBeGreaterThan(gutter.visibleHeight);
+  await page.locator('.waveform-layout-toggle-btn[title="Video panel on the left"]').focus();
+  await expect.poll(async () => (await measureGutter()).scrollTop).toBeGreaterThan(0);
+  gutter = await measureGutter();
+  const lastControl = gutter.controls.at(-1);
+  expect(lastControl?.bottom, JSON.stringify(gutter)).toBeLessThanOrEqual(gutter.bounds.bottom + 1);
+});
