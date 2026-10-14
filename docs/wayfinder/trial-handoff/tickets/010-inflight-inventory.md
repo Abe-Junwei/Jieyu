@@ -2,7 +2,7 @@
 title: 盘点 main 之外的在途分支对结构和试用的影响
 label: wayfinder:task
 mode: AFK
-status: open
+status: closed (completed)
 assignee:
 blocked_by: []
 issue: https://github.com/Abe-Junwei/Jieyu/issues/260
@@ -16,3 +16,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/260
 
 进展（2026-10-13）：三个已评审分支（fix/p1-2-undo-collab、fix/p2-3-adapter-indexed、fix/ws8x1-e2e-region-wait）经用户同意正在合进 main，feat/p2-1-native-tool-calling 经用户同意删除。盘点时以合并后的 main 为准。
 
+
+## Resolution
+
+2026-10-13 完成：三个已评审分支合进 main，P2-1 分支删除（见 map.md 20:16–20:23 第 6 条）。

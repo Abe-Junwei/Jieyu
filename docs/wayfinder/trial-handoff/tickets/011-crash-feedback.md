@@ -20,4 +20,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/261
 
 ## Resolution
 
-用户 2026-10-13 定：首启弹窗征求同意，默认关闭；@sentry/electron 接渲染与主进程；强制 sendDefaultPii=false，字段白名单；用用户本人的 Sentry 账户与 DSN；脱敏按主路线图 C1。见 [ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/docs/wayfinder-trial-map/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)。落地并入 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276)。
+用户 2026-10-13 定：首启弹窗征求同意，默认关闭；@sentry/electron 接渲染与主进程；强制 sendDefaultPii=false，字段白名单；用用户本人的 Sentry 账户与 DSN；脱敏按主路线图 C1。见 [ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)。落地并入 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276)。

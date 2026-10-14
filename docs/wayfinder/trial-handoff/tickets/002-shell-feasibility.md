@@ -2,7 +2,7 @@
 title: 调研：Electron 跑现有 Vite 应用的事实清单
 label: wayfinder:research
 mode: AFK
-status: open
+status: closed (completed)
 assignee:
 blocked_by: []
 issue: https://github.com/Abe-Junwei/Jieyu/issues/252
@@ -23,3 +23,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/252
 
 补充：核实当前 Electron 版本实际支持的最低 macOS 版本（用户定的是 macOS 11+，见 #270）。
 
+
+## Resolution
+
+2026-10-14 调研拍板：最低 macOS 13 + Electron 44；SQLite 驱动 better-sqlite3（主进程，经 IPC）；Windows 不签名，自动更新靠 HTTPS + sha512；API 密钥用 safeStorage。报告见 [research/RESEARCH_252_284.md](../research/RESEARCH_252_284.md)。

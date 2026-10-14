@@ -12,4 +12,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/280
 
 ## Question
 
-按 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/docs/wayfinder-trial-map/docs/adr/0046-desktop-sqlite-project-folder.md) 第 3 条，列出所有非测试代码里直接 import db / Dexie 的模块，按领域分批（每批可单独验证），排出顺序与每批验收方式。只出计划，不迁移。
+按 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md) 第 3 条，列出所有非测试代码里直接 import db / Dexie 的模块，按领域分批（每批可单独验证），排出顺序与每批验收方式。只出计划，不迁移。

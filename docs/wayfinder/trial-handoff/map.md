@@ -19,12 +19,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#306 及 #307（2026-10-13 从第二程提入）；第二程 #285（子单 #286–#302、#308–#311））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#306 及 #307（2026-10-13 从第二程提入，本地单子 035–039）、#312（本地 040）；第二程 #285（子单 #286–#302、#308–#311））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
   - 协作：只靠互传项目包 JYM/JYT，不做实时同步。
-  - AI：试用者自己填云端模型 API 密钥（DeepSeek、Qwen 等），不附带本地模型。
+  - AI：不附带、不推荐通用大模型（WebLLM、Ollama）；AI 对话与分析用试用者自填的云端密钥（DeepSeek、Qwen 等）。本机语音转写例外：随包带 `whisper-cli`，模型权重在应用内下载（2026-10-14 改）。
   - 按 D14，交给非开发者即 schema 冻结点。
 - 输入：盒子 `/workspace/jieyu-review/RESEARCH_DISTRIBUTION.md`（本地运行网页应用的同类调研，C 只作对照，#252 补全）。
 - 背景：AI SDK 迁移由「解语修bug」在 `feat/ai-runtime-r1-toolloop` 进行；三个已评审修复待合：`fix/p1-2-undo-collab`、`fix/p2-3-adapter-indexed`、`fix/ws8x1-e2e-region-wait`。
@@ -48,7 +48,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   12. 崩溃上报：试用者选择开启的自动上报（如 Sentry），按主路线图 C1 脱敏（关闭 [#261](https://github.com/Abe-Junwei/Jieyu/issues/261)）。
   13. 试用名单与节奏由用户本人决定，不进路线图（关闭 [#264](https://github.com/Abe-Junwei/Jieyu/issues/264)）。
   14. 用户手册：图文中文快速上手，应用内帮助 + PDF（[#263](https://github.com/Abe-Junwei/Jieyu/issues/263) 转为任务）。
-- 2026-10-13 19:33–19:51 用户拍板（grill-with-docs；写成 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/docs/wayfinder-trial-map/docs/adr/0046-desktop-sqlite-project-folder.md)、[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/docs/wayfinder-trial-map/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)，术语见 [GLOSSARY](https://github.com/Abe-Junwei/Jieyu/blob/docs/wayfinder-trial-map/docs/GLOSSARY.md)）：
+- 2026-10-13 19:33–19:51 用户拍板（grill-with-docs；写成 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md)、[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)，术语见 [GLOSSARY](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/GLOSSARY.md)）：
   0. 用户没有需要保留的真实数据；D14 未触发，基线仍可重置。
   1. **取代上面第 2 条**：桌面版规范存储 = SQLite，项目文件夹 = `project.sqlite` + `media/`。JYM/JYT 仍是 JSON 交换包，导出导入时互转。磁盘不加密（加密 JYM 只用于导出）。（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 改为表结构）
   2. 存储层方案 B：统一存储接口；桌面实现 = 主进程 SQLite（如 better-sqlite3），浏览器构建 = Dexie；约 297 个直连 db 模块分批迁移，新代码必须走接口。（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)、新单 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)）
@@ -69,7 +69,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   2. 发布检查硬门槛只有三条：不丢数据（读回校验、升级前与覆盖前快照）；Mac 与 Windows 上能安装、启动、自动更新；用示例项目走通核心流程。其余只记录（[#282](https://github.com/Abe-Junwei/Jieyu/issues/282)）。
   3. 示例语料：调研 2–3 个开放许可的汉藏语系候选交用户挑（[#256](https://github.com/Abe-Junwei/Jieyu/issues/256)，调研进行中）。
   4. 存储接口按领域分仓库、暴露业务操作，不做通用表级增删改查（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)）。
-  5. 用户暂不开工任何单子。
+  5. ~~用户暂不开工任何单子。~~（已被取代：21:20 第 8 条排了开工顺序，#274 已在 main 上开工。）
   6. 三个已评审分支正在合进 main，P2-1 分支删除（用户已同意；[#260](https://github.com/Abe-Junwei/Jieyu/issues/260) 已注明）。
   7. ~~最低系统版本：macOS 11+、Windows 10+~~（2026-10-14 被取代：macOS 13+、Windows 10+，见下）（[#270](https://github.com/Abe-Junwei/Jieyu/issues/270)）。
   8. 项目位置：首次启动由用户选；选在百度网盘、iCloud、OneDrive 等同步文件夹里时警告（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
@@ -116,6 +116,26 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   7. 试用结束后的衔接与收费：以后再定。
   8. 补 #278：rev5 方案 D14 处注明冻结对象 = 项目文件夹格式（SQLite + media/）。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
+- 2026-10-14 用户（#252/#284 调研拍板，报告见 [research/RESEARCH_252_284.md](research/RESEARCH_252_284.md)）：
+  1. 最低 macOS 13，Electron 44（取代 #270 的 macOS 11+）；Windows 10+。
+  2. SQLite 驱动 = better-sqlite3（不用 node:sqlite），放主进程，界面经 IPC 调用；随 Electron 升级的原生模块重建在打包流程处理（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
+  3. Windows 不签名的自动更新：关闭签名校验，依靠 HTTPS + electron-updater sha512；试用手册说明 SmartScreen（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)、[#282](https://github.com/Abe-Junwei/Jieyu/issues/282)）。API 密钥用 Electron safeStorage。
+  4. e2e：浏览器 e2e 仍是主回归；另加 5–8 条 Electron 冒烟，每个 PR 在 Linux、macOS、Windows 三平台跑（[#284](https://github.com/Abe-Junwei/Jieyu/issues/284)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
+  5. [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 存储接口只暴露业务操作方法，禁止任意表名与泛型查询；auditLogStore 与 aiRuntimeV2TurnStore 的 fingerprint 统一走该接口。
+- 2026-10-14 用户（路线图拷问）：
+  1. [#303](https://github.com/Abe-Junwei/Jieyu/issues/303)–[#306](https://github.com/Abe-Junwei/Jieyu/issues/306) 全部挡首个试用版，首发即带本机转写。
+  2. Whisper 权重不进安装包：首次使用时应用内下载，sha256 校验后存 `userData/models/`；默认推荐 small，可选 base。
+  3. 权重下载源：GitHub Releases 为主，失败依次退 Hugging Face、hf-mirror.com，同一 sha256。
+  4. `whisper-cli` 随安装包带各平台预编译版，与应用一起签名公证；引入第二个大体积引擎时改成可下载的模型包（[#305](https://github.com/Abe-Junwei/Jieyu/issues/305)）。
+  5. 首发只出 Apple 芯片 Mac 与 Windows x64。
+  6. Windows 只带 CPU 版 `whisper-cli`，默认 base，长录音提示可改云端；Vulkan 版按试用反馈再加（[#305](https://github.com/Abe-Junwei/Jieyu/issues/305)）。
+  7. 「不附带本地模型」收窄为不附带通用大模型，本机语音转写例外（见 Notes、Out of scope）。
+  8. 新单 [#312](https://github.com/Abe-Junwei/Jieyu/issues/312) 诊断与反馈（反馈邮件按钮、诊断包导出、Sentry），依赖 #276；Sentry 从 #276 移过去。
+  9. 反馈按钮与诊断包导出挡首发，写进 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282)「不丢数据」验收项；Sentry 不挡。
+  10. whisper-server 只监听本机的修复：评审 `fix/whisper-server-bind-localhost` 后合进 main，#305 链到该合并。
+  11. 维持「297 个模块全部迁完才冻结」；[#259](https://github.com/Abe-Junwei/Jieyu/issues/259) 依赖补 #280、#304，[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 依赖补 #304。
+  12. 本地单子只补第一程（035–040）；第二程开工前只放 GitHub（见 [README](README.md)）。
+  13. 链接统一改指 `blob/main/`，之后删除 `docs/wayfinder-trial-map` 分支。
 
 ## Next leg
 
@@ -148,25 +168,17 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Not yet specified
 
-- ~~与主路线图冲突：§1 纯 Web~~ 已按 [#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 改为 Electron 桌面版；本分支合进 main 后冲突消除。
-- 多台电脑：同一试用者换设备时项目文件夹怎么迁（拷文件夹还是导出 JYM）。
-- 冻结之后的迁移演练：试用期间若必须改结构，升级路径如何验证。
-- 试用者隐私与伦理：录音数据不出本机的承诺怎么写（与崩溃上报、AI 调用相关）。
-- 性能底线：试用者常见电脑上的大录音/长项目表现。
 - 试用结束后的去向：数据保留、转正式版与收费（2026-10-13 用户：以后再定）。
+
+（2026-10-14 移除已定项：换电脑靠导出 JYM、性能只记录不设门槛（21:18 第 7 条）；冻结后迁移验证（21:14 第 6 条、#281）；隐私承诺（A9 默认开、首次云端转写伦理对话框，20:16 第 1 条、21:18 第 6 条，中文隐私说明见 #307）。）
 
 ## Out of scope
 
 - 本地启动器 + 浏览器打开的路线（原 A/B）：用户改走桌面外壳。
 - 远程托管网站、域名、国内访问与备案：用户明确不设服务器。
 - 实时同步 / Supabase 云协作：只靠项目包互传（主路线图 C4 另行推进，不在这一程）。
-- 附带或推荐本地模型（WebLLM、Ollama）：用自填云端密钥。
+- 附带或推荐通用大模型（WebLLM、Ollama）：AI 对话与分析用自填云端密钥。本机语音转写（whisper-server）不在此列。
+- Intel Mac 与 Windows ARM 安装包（2026-10-14：首发只出 Apple 芯片 Mac 与 Windows x64）。
 - 移动端。
 - 试用名单与节奏：用户本人安排。
 - Tauri：已选 Electron。
-- 2026-10-14 用户（#252/#284 调研拍板，报告见 [research/RESEARCH_252_284.md](research/RESEARCH_252_284.md)）：
-  1. 最低 macOS 13，Electron 44（取代 #270 的 macOS 11+）；Windows 10+。
-  2. SQLite 驱动 = better-sqlite3（不用 node:sqlite），放主进程，界面经 IPC 调用；随 Electron 升级的原生模块重建在打包流程处理（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
-  3. Windows 不签名的自动更新：关闭签名校验，依靠 HTTPS + electron-updater sha512；试用手册说明 SmartScreen（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)、[#282](https://github.com/Abe-Junwei/Jieyu/issues/282)）。API 密钥用 Electron safeStorage。
-  4. e2e：浏览器 e2e 仍是主回归；另加 5–8 条 Electron 冒烟，每个 PR 在 Linux、macOS、Windows 三平台跑（[#284](https://github.com/Abe-Junwei/Jieyu/issues/284)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）。
-  5. [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 存储接口只暴露业务操作方法，禁止任意表名与泛型查询；auditLogStore 与 aiRuntimeV2TurnStore 的 fingerprint 统一走该接口。

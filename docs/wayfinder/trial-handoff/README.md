@@ -6,3 +6,4 @@
   - `status`（open/closed）、`assignee`（认领者，空即未认领）、`blocked_by`（id 列表）
 - 前线 = status open、blocked_by 全部 closed、assignee 为空。
 - 解决时：在单子末尾加 `## Resolution`，status 改 closed，并在 map.md「Decisions so far」加一行链接。
+- 下一程（[#285](https://github.com/Abe-Junwei/Jieyu/issues/285)）的单子开工前只放在 GitHub，开工时再建本地文件。
