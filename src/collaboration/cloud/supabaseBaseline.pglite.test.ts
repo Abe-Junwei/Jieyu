@@ -17,6 +17,10 @@ const BASELINE_SQL = readFileSync(
   resolve(__dirname, '../../../supabase/sql/001_collaboration_baseline.sql'),
   'utf8',
 );
+const APPEND_SQL = readFileSync(
+  resolve(__dirname, '../../../supabase/sql/002_append_project_changes.sql'),
+  'utf8',
+);
 
 const SUPABASE_SHELL_SQL = `
 create schema auth;
@@ -132,6 +136,7 @@ beforeAll(async () => {
   db = new PGlite();
   await db.exec(SUPABASE_SHELL_SQL);
   await db.exec(BASELINE_SQL);
+  await db.exec(APPEND_SQL);
   await db.exec(GRANTS_SQL);
 }, 120_000);
 
@@ -533,5 +538,79 @@ describe('JY-20 immutable audit columns and revision counter', () => {
         ),
       'JYIMM',
     );
+  });
+});
+
+function appendPayload(actorId: string, clientOpId: string, payload: unknown = {}) {
+  return {
+    project_id: PROJECT,
+    actor_id: actorId,
+    client_id: 'web-client-a',
+    client_op_id: clientOpId,
+    protocol_version: 1,
+    client_app_version: CLIENT_VERSION,
+    base_revision: 0,
+    entity_type: 'layer_unit',
+    entity_id: 'u1',
+    op_type: 'upsert_unit',
+    payload,
+    source_kind: 'user',
+  };
+}
+
+function appendChanges(userId: string, changes: unknown[]) {
+  return asUser(userId, () =>
+    db.query<{ client_op_id: string; project_revision: string | number }>(
+      `select client_op_id, project_revision from public.append_project_changes($1::jsonb)`,
+      [JSON.stringify(changes)],
+    ),
+  );
+}
+
+async function latestRevision(): Promise<number> {
+  const { rows } = await db.query<{ latest_revision: string | number }>(
+    `select latest_revision from public.projects where id = $1`,
+    [PROJECT],
+  );
+  return Number(rows[0]!.latest_revision);
+}
+
+describe('append_project_changes', () => {
+  it('replays the same operation without allocating another revision', async () => {
+    const first = await appendChanges(EDITOR, [appendPayload(EDITOR, 'op-1')]);
+    const replay = await appendChanges(EDITOR, [appendPayload(EDITOR, 'op-1')]);
+    const second = await appendChanges(EDITOR, [appendPayload(EDITOR, 'op-2', { text: 'b' })]);
+
+    expect(Number(first.rows[0]!.project_revision)).toBe(1);
+    expect(Number(replay.rows[0]!.project_revision)).toBe(1);
+    expect(Number(second.rows[0]!.project_revision)).toBe(2);
+    expect(await latestRevision()).toBe(2);
+  });
+
+  it('rejects the same operation id when the content differs, and does not skip a revision', async () => {
+    await appendChanges(EDITOR, [appendPayload(EDITOR, 'op-1', { text: 'a' })]);
+    await expectSqlState(
+      () => appendChanges(EDITOR, [appendPayload(EDITOR, 'op-1', { text: 'b' })]),
+      'JYDUP',
+    );
+    expect(await latestRevision()).toBe(1);
+  });
+
+  it('still rejects outsiders, commenter edits, a protocol mismatch, and a tombstone', async () => {
+    await expectSqlState(() => appendChanges(OUTSIDER, [appendPayload(OUTSIDER, 'op-x')]), '42501');
+    await expectSqlState(
+      () => appendChanges(COMMENTER, [appendPayload(COMMENTER, 'op-c')]),
+      '42501',
+    );
+    await expectSqlState(
+      () => appendChanges(EDITOR, [{ ...appendPayload(EDITOR, 'op-p'), protocol_version: 2 }]),
+      'JYPRT',
+    );
+    expect(await latestRevision()).toBe(0);
+
+    await appendChanges(EDITOR, [appendPayload(EDITOR, 'op-1')]);
+    await asUser(OWNER, () => db.query(`select public.delete_cloud_project($1)`, [PROJECT]));
+    await expectSqlState(() => appendChanges(EDITOR, [appendPayload(EDITOR, 'op-1')]), 'JYDEL');
+    expect(await latestRevision()).toBe(1);
   });
 });

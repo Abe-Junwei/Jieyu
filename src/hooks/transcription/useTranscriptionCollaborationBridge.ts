@@ -167,6 +167,13 @@ function assertCloudWritesAllowed(writeGuard: CollaborationProtocolGuardEvaluati
   throw new Error(`Collaboration cloud writes are disabled: ${detail}`);
 }
 
+function revisionNumber(value: unknown): number | null {
+  const parsed =
+    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.floor(parsed);
+}
+
 function toChangeInsertRow(
   record: ReturnType<ProjectChangeCodec['encode']>,
 ): CollaborationChangeInsertRow {
@@ -418,10 +425,20 @@ export function useTranscriptionCollaborationBridge({
             throw new Error(`Collaboration cloud writes are disabled: ${detail}`);
           }
           const rows = changes.map(toChangeInsertRow);
-          const { error } = await client.from('project_changes').insert(rows);
+          const { data, error } = await client.rpc('append_project_changes', { p_changes: rows });
           if (error) {
             handleServerWriteRejection(error);
             throw error;
+          }
+          if (Array.isArray(data)) {
+            for (const row of data) {
+              const revision = revisionNumber(
+                row !== null && typeof row === 'object' && 'project_revision' in row
+                  ? (row as { project_revision?: unknown }).project_revision
+                  : null,
+              );
+              if (revision !== null) commitLatestRevision(revision);
+            }
           }
         },
         onError: (error, context) => {

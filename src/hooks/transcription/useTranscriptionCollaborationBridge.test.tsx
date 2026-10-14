@@ -128,7 +128,7 @@ vi.mock('../../collaboration/cloud/CollaborationSyncBridge', () => ({
 
 vi.mock('../../collaboration/cloud/collaborationSupabaseFacade', () => ({
   hasSupabaseBrowserClientConfig: hasConfig,
-  getSupabaseBrowserClient: () => ({ from: supabaseFrom }),
+  getSupabaseBrowserClient: () => ({ from: supabaseFrom, rpc: supabaseInsert }),
   getSupabaseUserId: getUserId,
 }));
 
