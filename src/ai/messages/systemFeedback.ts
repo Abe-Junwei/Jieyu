@@ -32,6 +32,12 @@ export function formatNoExecutorInternalError(locale?: Locale): string {
     : 'Action executor is not connected.';
 }
 
+export function formatCommitUnverifiedDetail(locale?: Locale): string {
+  return isZhLocale(locale)
+    ? '写入结果未能核实。同一请求不会自动再执行。'
+    : 'The write result could not be verified. The same request will not run again automatically.';
+}
+
 export function formatToolExecutionFallbackError(locale?: Locale): string {
   return isZhLocale(locale) ? '\u5de5\u5177\u6267\u884c\u5931\u8d25' : 'Tool execution failed';
 }

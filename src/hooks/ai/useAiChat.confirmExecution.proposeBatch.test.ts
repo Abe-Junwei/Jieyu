@@ -412,4 +412,42 @@ describe('executeConfirmedProposedChangeBatch', () => {
     expect(rb1).toHaveBeenCalledTimes(1);
     expect(d.markExecutedRequestId).not.toHaveBeenCalled();
   });
+
+  it('records a write-child throw as unverified and still runs prior rollbacks', async () => {
+    const rb1 = vi.fn(async () => {});
+    const onToolCall = vi.fn(async (call: AiChatToolCall): Promise<AiChatToolResult> => {
+      if (call.arguments.segmentId === 'a') return { ok: true, message: 'a', rollback: rb1 };
+      throw new Error('child write exploded');
+    });
+    const d = makeDeps({ onToolCall });
+
+    await executeConfirmedProposedChangeBatch({
+      assistantMessageId: 'asst-1',
+      parentCall: baseParentCall('parent-throw'),
+      childCalls: [validSetText('a', 'ta'), validSetText('b', 'tb')],
+      auditContext: buildToolAuditContext('', 'p', 'm', 'enabled', 'concise'),
+      locale: TEST_LOCALE,
+      toolFeedbackStyle: 'concise',
+      hasPersistedExecutionForRequest: d.hasPersistedExecutionForRequest,
+      applyAssistantMessageResult: d.applyAssistantMessageResult,
+      onToolCall: d.onToolCall,
+      writeToolDecisionAuditLog: d.writeToolDecisionAuditLog,
+      setTaskSession: d.setTaskSession,
+      taskSessionId: 'ts-1',
+      markExecutedRequestId: d.markExecutedRequestId,
+      sessionMemory: {},
+      updateSessionMemory: d.updateSessionMemory,
+      persistSessionMemory: d.persistSessionMemory,
+      bumpMetric: d.bumpMetric,
+    });
+
+    expect(rb1).toHaveBeenCalledTimes(1);
+    expect(d.markExecutedRequestId).not.toHaveBeenCalled();
+    expect(d.writeToolDecisionAuditLog.mock.calls.at(-1)?.[2]).toBe(
+      'confirm_failed:propose_changes:commit_unverified',
+    );
+    expect(d.writeToolDecisionAuditLog.mock.calls.at(-1)?.[5]).toEqual(
+      expect.objectContaining({ reason: 'commit_unverified', executed: false }),
+    );
+  });
 });

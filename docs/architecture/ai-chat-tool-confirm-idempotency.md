@@ -3,7 +3,7 @@ title: AI 聊天工具确认与 requestId 幂等
 doc_type: architecture-spec
 status: active
 owner: repo
-last_reviewed: 2026-05-02
+last_reviewed: 2026-10-14
 source_of_truth: ai-chat-tool-audit
 ---
 
@@ -19,8 +19,9 @@ source_of_truth: ai-chat-tool-audit
 ## 父级 `propose_changes`
 
 - **`markExecutedRequestId(parentCall.requestId)`** 仅在 **全部子工具成功** 后调用（内存去重集）。
-- **部分失败**（`invalid_child_args` / `child_failed` / `exception`）时，父级审计 `buildToolDecisionAuditMetadata` 的 **`executed` 必须为 `false`**：  
+- **部分失败**（`invalid_child_args` / `child_failed` / 只读子步的 `exception`）时，父级审计 `buildToolDecisionAuditMetadata` 的 **`executed` 必须为 `false`**：  
   子步可能已写库并触发补偿 `rollback`，但父请求 **未完成**，用户应能 **使用同一父 `requestId` 再次确认**（重试同一批 `propose_changes`）。
+- **写入子步抛错**记 `commit_unverified`（`executed` 仍为 `false`）。同一父 `requestId` 视为已占用，不能再自动执行：抛错时读回不了的写入可能已经落地。只读查询抛错仍是 `exception`。
 - **部分进度** 用 `executionProgress`（`appliedCount` / `totalCount` / `partial`）与 `proposeRollback` 表达；不得用 `executed: true` 代替「有子步曾成功」。
 
 ## `hasPersistedExecutionForRequest(requestId)`
@@ -29,7 +30,7 @@ source_of_truth: ai-chat-tool-audit
 
 1. 先查内存 `executedRequestIds`。
 2. 再查 Dexie `audit_logs`，`[collection+field+requestId] = ['ai_messages','ai_tool_call_decision', requestId]`。
-3. 若行上存在可解析的 **`metadataJson.phase === 'decision'`**，则以 **`metadata.executed === true`** 为唯一依据（不再用 `newValue` 启发式覆盖）。
+3. 若行上存在可解析的 **`metadataJson.phase === 'decision'`**，则 **`metadata.executed === true`** 或 **`metadata.reason === 'commit_unverified'`** 都挡住同一 `requestId` 再执行（不再用 `newValue` 启发式覆盖）。`commit_unverified` 不是已核实成功，只表示不能把这次抛错当成未写入。
 4. **无 metadata 的行**：回退解析紧凑形态 `confirm_failed|auto_failed:<toolName>:<reason>`。`confirmed` / `auto_confirmed` 视为已提交。`confirm_failed` / `auto_failed` 仅在 **reason 不在「未提交副作用」白名单**（实现为 `NON_PERSISTED_TOOL_DECISION_REASONS`，含 `child_failed`、`invalid_child_args`、`exception`、门控类 `user_directive_*` / `stale_read_model` / `invalid_proposed_changes` 等）时视为已持久化；其余 reason 仍保守视为已提交，以免未知旧码误判为可重试。新写入应始终带结构化 `metadataJson`。
 
 ## T4-a：失败 reason 枚举与运维分流
@@ -47,7 +48,7 @@ source_of_truth: ai-chat-tool-audit
 ### T4-c：确认路径执行器自动重试（默认关）
 
 - **开关：** `featureFlags.aiToolCallExecutorAutoRetryEnabled`（`src/ai/config/featureFlags.ts`）。
-- **行为：** `executeConfirmedToolCall`（`useAiChat.confirmExecution.ts`）只对 `get_current_segment`、`get_project_summary`、`get_recent_history` 三个明确只读查询的 **`onToolCall` 抛错/超时** 最多再调用 **一次**；**不**重试 `result.ok === false`，也**不**重试写入/删除工具或 `propose_changes` 父级批量路径。写入执行器无可取消的提交边界，超过 30 秒仍须等待其返回；抛错后的提交状态尚需另行读回核实。
+- **行为：** `executeConfirmedToolCall`（`useAiChat.confirmExecution.ts`）只对 `get_current_segment`、`get_project_summary`、`get_recent_history` 三个明确只读查询的 **`onToolCall` 抛错/超时** 最多再调用 **一次**；**不**重试 `result.ok === false`，也**不**重试写入/删除工具或 `propose_changes` 父级批量路径。写入执行器无可取消的提交边界，超过 30 秒仍须等待其返回。语段文本写入在保存抛错后读 `layer_unit_contents`：行已是目标文本则按已落地返回，行不在则按未写入返回；读不了库则审计为 `commit_unverified`，同一 `requestId` 不再执行。语段文本的批量补偿在写回旧文本后读回，对不上就让补偿失败。删除、建层等其它写入抛错仍没有逐字段读回，只记 `commit_unverified`。
 
 ## 子工具 `requestId`
 

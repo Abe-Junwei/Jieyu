@@ -1,6 +1,10 @@
 import { featureFlags } from '../../ai/config/featureFlags';
 import { dryRunToolCallForConfirm } from '../../ai/chat/toolCallDryRun';
-import { shouldRetryToolCallExecutorThrow } from '../../ai/chat/toolDecisionFailureReason';
+import {
+  auditReasonForExecutorThrow,
+  shouldRetryToolCallExecutorThrow,
+  TIMED_READ_ONLY_TOOL_NAMES,
+} from '../../ai/chat/toolDecisionFailureReason';
 import {
   buildToolDecisionAuditMetadata,
   isDestructiveToolCall,
@@ -8,6 +12,7 @@ import {
   toNaturalToolSuccess,
 } from '../../ai/chat/toolCallHelpers';
 import {
+  formatCommitUnverifiedDetail,
   formatDuplicateRequestIgnoredDetail,
   formatDuplicateRequestIgnoredError,
   formatInvalidArgsError,
@@ -47,12 +52,6 @@ export async function raceWithTimeout<T>(primary: T | Promise<T>, timeoutMs: num
     if (timer !== undefined) clearTimeout(timer);
   }
 }
-
-const PURE_READ_TOOL_NAMES: ReadonlySet<AiChatToolCall['name']> = new Set([
-  'get_current_segment',
-  'get_project_summary',
-  'get_recent_history',
-]);
 
 interface ExecuteConfirmedToolCallParams {
   assistantMessageId: string;
@@ -434,7 +433,7 @@ export async function executeConfirmedToolCall({
         () => {
           const execution = onToolCall(call);
           // shortcut: mutation adapters have no cancellable commit boundary; wait for completion instead of reporting a false timeout.
-          return PURE_READ_TOOL_NAMES.has(call.name)
+          return TIMED_READ_ONLY_TOOL_NAMES.has(call.name)
             ? raceWithTimeout(execution, TOOL_EXEC_TIMEOUT_MS)
             : Promise.resolve(execution);
         },
@@ -502,7 +501,8 @@ export async function executeConfirmedToolCall({
       lastThrow = error;
       const mayRetry = shouldRetryToolCallExecutorThrow({
         enabled:
-          featureFlags.aiToolCallExecutorAutoRetryEnabled && PURE_READ_TOOL_NAMES.has(call.name),
+          featureFlags.aiToolCallExecutorAutoRetryEnabled &&
+          TIMED_READ_ONLY_TOOL_NAMES.has(call.name),
         attemptIndex: attempt,
         toolName: call.name,
         isDestructive: (name) => isDestructiveToolCall(name as (typeof call)['name']),
@@ -511,8 +511,11 @@ export async function executeConfirmedToolCall({
         continue;
       }
       const execDurationMsErr = Math.round(performance.now() - execStart);
-      const toolErrorText =
+      const thrownText =
         lastThrow instanceof Error ? lastThrow.message : formatToolExecutionFallbackError(locale);
+      const reason = auditReasonForExecutorThrow(call.name);
+      const toolErrorText =
+        reason === 'commit_unverified' ? formatCommitUnverifiedDetail(locale) : thrownText;
       await applyAssistantMessageResult(
         assistantMessageId,
         toNaturalToolFailure(locale, call.name, toolErrorText, toolFeedbackStyle),
@@ -522,7 +525,7 @@ export async function executeConfirmedToolCall({
       await writeToolDecisionAuditLog(
         assistantMessageId,
         `pending:${call.name}`,
-        `confirm_failed:${call.name}:exception`,
+        `confirm_failed:${call.name}:${reason}`,
         'human',
         call.requestId,
         buildToolDecisionAuditMetadata(
@@ -533,7 +536,7 @@ export async function executeConfirmedToolCall({
           'confirm_failed',
           false,
           toolErrorText,
-          'exception',
+          reason,
           execDurationMsErr,
         ),
       );
@@ -885,7 +888,7 @@ export async function executeConfirmedProposedChangeBatch({
         childWithRequestId.name,
         () => {
           const execution = onToolCall(childWithRequestId);
-          return PURE_READ_TOOL_NAMES.has(childWithRequestId.name)
+          return TIMED_READ_ONLY_TOOL_NAMES.has(childWithRequestId.name)
             ? raceWithTimeout(execution, TOOL_EXEC_TIMEOUT_MS)
             : Promise.resolve(execution);
         },
@@ -989,8 +992,11 @@ export async function executeConfirmedProposedChangeBatch({
     finishIdle();
   } catch (error) {
     const execDurationMsErr = Math.round(performance.now() - execStart);
-    const toolErrorText =
+    const thrownText =
       error instanceof Error ? error.message : formatToolExecutionFallbackError(locale);
+    const reason = auditReasonForExecutorThrow(currentChildName);
+    const toolErrorText =
+      reason === 'commit_unverified' ? formatCommitUnverifiedDetail(locale) : thrownText;
     const rb = await runProposeChangeRollbacks(rollbacks);
     const detail = appendProposeRollbackStatus(
       locale,
@@ -1014,7 +1020,7 @@ export async function executeConfirmedProposedChangeBatch({
       await writeToolDecisionAuditLog(
         assistantMessageId,
         `pending:${parentCall.name}`,
-        `confirm_failed:${parentCall.name}:exception`,
+        `confirm_failed:${parentCall.name}:${reason}`,
         'human',
         parentCall.requestId,
         buildToolDecisionAuditMetadata(
@@ -1025,7 +1031,7 @@ export async function executeConfirmedProposedChangeBatch({
           'confirm_failed',
           false,
           detail,
-          'exception',
+          reason,
           execDurationMsErr,
           buildProposeChangesExecutionProgress(appliedChildCount, childCalls.length),
           {
