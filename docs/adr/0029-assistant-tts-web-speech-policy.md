@@ -13,7 +13,7 @@ depends_on:
 
 ## 背景
 
-ADR-0028 将 **TTS** 列为助手多模态编排的开放项：与聊天输出挂钩、受同一对话态约束。当前实现以浏览器 **`speechSynthesis`** 为主路径（`assistantWebSpeechTts`、用户偏好 `assistantTtsEnabled`、流式开始/结束时 `stopAssistantWebSpeechTts` 等）。本 ADR 固化 **缺省开关、降级提示、CSP/许可注意点、与对话态互斥** 的产品与工程边界（拍板见 [`AI语音拍板项-TTS-发布门禁-键入路由-2026-05-02.md`](../execution/plans/AI语音拍板项-TTS-发布门禁-键入路由-2026-05-02.md)）。
+ADR-0028 将 **TTS** 列为助手多模态编排的开放项：与聊天输出挂钩、受同一对话态约束。当前实现以浏览器 **`speechSynthesis`** 为主路径（`assistantWebSpeechTts`、用户偏好 `assistantTtsEnabled`、流式开始/结束时 `stopAssistantWebSpeechTts` 等）。本 ADR 固化 **缺省开关、降级提示、CSP/许可注意点、与对话态互斥** 的产品与工程边界。
 
 ## 决策（已拍板，2026-05-02）
 

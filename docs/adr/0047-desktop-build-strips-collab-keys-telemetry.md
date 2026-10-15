@@ -1,7 +1,7 @@
 ---
 title: '0047 — 桌面构建：剔除协作、密钥走钥匙串、遥测需同意'
 doc_type: adr
-status: active
+status: accepted
 owner: repo
 last_reviewed: 2026-10-13
 source_of_truth: decision

@@ -22,7 +22,7 @@
 | 项 | v1 | v2 |
 |---|---|---|
 | 来源记录 | `source_records`，或新开表 | **只新开 `model_runs`**（`source_records` 是导入文件的来源表，语义不合） |
-| 安全 | 只说“允许 127.0.0.1” | 回环监听 + 一次性令牌 + Host 校验 + 回环 IP 判定 + 严格校验响应 + 大小上限 |
+| 安全 | 只说“允许 127.0.0.1” | 回环监听 + 令牌可选（不支持只警告）+ Host 校验 + 回环 IP 判定 + 严格校验响应 + 大小上限 |
 | 合同 | 时间基准、采样率、长音频、版本都没写死 | 全部写死，见 §4 |
 | 音频传递 | multipart 或共享 `audio.path` | **只用 multipart** |
 | 进度/取消 | SSE + `DELETE /jobs` + `$/cancel` | 同步请求 + 主进程 AbortController + 超时；进度按块由解语自己算 |
@@ -93,7 +93,7 @@
 | code | 含义 | HTTP 状态 |
 |---|---|---|
 | `bad_request` | 请求格式不对 | 400 |
-| `unauthorized` | 令牌错误或缺失 | 401 |
+| `unauthorized` | 服务要求令牌但校验失败 | 401 |
 | `unsupported_capability` | 不支持这种能力 | 404 / 501 |
 | `unsupported_language` | 不支持这种语言 | 422 |
 | `bad_audio` | 音频读不了 | 422 |
@@ -110,10 +110,8 @@
 
 ## 5. 安全
 
-1. **回环监听**：解语自带的服务一律 `listen(port, '127.0.0.1')`。
-   - 现状：`server.js:330` 是 `server.listen(CONFIG.port, …)`，没指定 host，会监听所有网卡。这个问题**由解语修bug 单独修**，不在本方案的单子里。
-   - 用户自己的服务，在文档和 conformance 脚本里要求回环监听，脚本检测到非回环就给警告。
-2. **一次性令牌**：导入模型时解语生成一个随机 bearer token，存进 OS 钥匙串，用户把它配给自己的服务（服务从环境变量读）。声明文件里不放令牌。每次请求都带 `Authorization: Bearer …`。
+1. **回环监听**：解语自带的服务一律 `listen(port, '127.0.0.1')`。whisper-server 默认只监听 127.0.0.1 已合进 main（`bb5fb2a4`）。用户自己的服务，在文档和 conformance 脚本里要求回环监听，脚本检测到非回环就给警告。
+2. **令牌可选**（2026-10-13 21:06）：可以生成 bearer 存 OS 钥匙串，声明文件里不放令牌。服务不支持令牌也能接，只显示警告。服务支持时，请求带 `Authorization: Bearer …`。
 3. **Host 校验**：协议要求服务端只接受 `Host: 127.0.0.1:<port>` 或 `localhost:<port>`，以防 DNS rebinding。conformance 脚本会测这一项。
 4. **回环判定**：主进程按**解析后的 IP** 判断，只连 127.0.0.0/8 和 ::1；`localhost` 解析到非回环地址就拒绝。不跟随重定向。
 5. **严格校验响应**：用 zod strict schema 校验；响应体上限默认 8 MB，单块 segments 上限 10 000 条，文本字段长度也有上限。超限一律判 `bad_response`，结果整块丢弃。
@@ -176,7 +174,7 @@
 - **vitest**：合同 schema、切块和时间平移、回环判定、上限、候选写入后读回、拒绝不碰人工数据、`model_runs` 计数。
 - **Electron e2e**（依赖 #284）：配置模拟模型 → 转写一段 → 接受 → 重载后还在。
 
-## 10. 最小首片与单子（挂 #285，试用之后排）
+## 10. 最小首片与单子（第一程 #250，#303–#306 挡首发）
 
 | 单 | 内容 | 量 | 依赖 |
 |---|---|---|---|
@@ -207,13 +205,9 @@
 | sherpa-onnx | ASR、VAD 等，没有对齐 | Apache-2.0 | https://github.com/k2-fsa/sherpa-onnx |
 | Persephone / Elpis | 小语种自训模型的需求佐证，两个项目都基本停更 | Apache-2.0 | https://github.com/persephone-tools/persephone 、https://github.com/CoEDL/elpis |
 
-## 12. 待用户拍板（精简版）
+## 12. 已拍板
 
-1. **`model_runs` 是否赶在 D14 冻结前定进 schema？** 建议赶，空表也行。赶不上就冻结后用只加不改的迁移补。
-2. **#303 是否改写成“这套接口的第一个实现”**，并且选自带的 whisper-server（已兼容 OpenAI，改成 v1 合同）而不是 whisper.cpp 官方 server？建议是。
-3. **首片只做转写**，对齐放到第二个真实模型出现之后。同意吗？
-4. **用户自己的服务必须支持令牌**才能接入，还是只给警告？建议必须支持（conformance 脚本里会提供示例代码）。
-5. **何时开单**：现在就在 #285 下开 N1–N3 占位，还是等试用结束？
+文首五条即决定。本节不再保留待决问题。
 
 ## 13. 结果怎么进标注页和语料库页（已对照 origin/main 核实）
 
@@ -242,8 +236,8 @@
 
 ### 13.4 语料库页（下一程，不进首片）
 
-- 语料库页（`src/pages/CorpusLibraryPage.tsx`、`CorpusLibraryWorkspace.tsx`）在试用里被 `corpusLibraryPageEnabled=false`（`src/ai/config/featureFlags.ts`）关着，按 #265 隐藏，所以这部分整体放下一程，和 #299 标准格式、#298 语料库 AI 一起排：
-  - 现有只有文本筛选框（`CorpusLibraryWorkspace.tsx:174`），加一个“来源：全部 / 人工 / 机器已确认 / 机器未确认”筛选，数据全部来自 `provenance`，不需要新表。
+- 语料库页 2026-10-13 起默认开（含试用）。来源筛选、统计和按来源导出仍不进首片，与 #299、#298 排在下一程：
+  - 现有只有文本筛选框，加一个“来源：全部 / 人工 / 机器已确认 / 机器未确认”筛选，数据全部来自 `provenance`，不需要新表。
   - 统计分开数“人工”和“机器未确认”的语段数和时长。
   - 导出（EAF 等，#299）默认带上来源；可选“不导出未确认的机器内容”。
 - 首片只要保证 `provenance` 写对，下一程不用迁移。

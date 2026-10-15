@@ -1,7 +1,7 @@
 ---
 title: ADR 0042 - 层名对不上时，日期正文记入丢失
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-09-28
 source_of_truth: decision

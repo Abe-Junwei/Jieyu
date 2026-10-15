@@ -3,7 +3,7 @@ title: Knip 例外清单（2026-05-08）
 doc_type: execution-governance-ledger
 status: active
 owner: repo
-last_reviewed: 2026-05-13
+last_reviewed: 2026-10-14
 source_of_truth: knip-exceptions
 ---
 
@@ -14,8 +14,7 @@ source_of_truth: knip-exceptions
 > **当前状态**：
 >
 > - **CI 门禁（窄）**：`npm run check:knip:ci` 通过。等价于 `knip --no-progress --exclude exports,types,nsExports,nsTypes,enumMembers,duplicates`（Knip 6 起移除已废弃的 `classMembers` issue 类型），仅强约束 unused **files / dependencies / binaries / unlisted**，作为不可降级的合并门槛。
-> - **本地全量（宽）**：`npm run check:knip:full` 仍会报告 `unused exports / types / duplicates` 等条目，作为长期收敛清单使用，不阻塞 PR；新增导出请优先就地消费或在本 ledger 第 2 节登记 `ignoreIssues`。
-> - 完整快照：`docs/execution/audits/knip-baseline-2026-05-11.txt`。
+> - **本地全量（宽）**：`npm run check:knip:full` 仍会报告 `unused exports / types / duplicates` 等条目，作为长期收敛清单使用，不阻塞 PR；新增导出请优先就地消费或在本 ledger 第 2 节登记 `ignoreIssues`。现行例外以本清单和 `knip.json` 为准。
 
 ---
 
@@ -83,7 +82,7 @@ source_of_truth: knip-exceptions
 | 2026-05-08 | 新增 `src/workerThreads.browser.ts` exports 例外（Worker shim） | 技术债修复方案 |
 | 2026-05-08 | 补齐 `ignoreIssues`：`storage.ts`、`transcriptionAcousticSummary.ts`、`transcriptionTimelineWorkspacePanelTypes.ts`；`language-subtag-registry` 从 `ignoreDependencies` 移除并写入 `devDependencies` | 技术债修复方案 |
 | 2026-05-08 | `localContextToolTypes.ts`、`localContextToolScopeNormalize.ts` 为正常入口（**非** `knip.json` `ignore`）；用于消除 `madge` 环 | 技术债修复方案 |
-| 2026-05-11 | `knip.json`：`ignore` 增加例外 ledger §1 七文件；`ignoreBinaries`: `knip`；`ignoreDependencies` 增补 `country-state-city`（脚本入口已在 `devDependencies` 显式声明）；与 `docs/execution/audits/knip-baseline-2026-05-11.txt` 对齐 |
+| 2026-05-11 | `knip.json`：`ignore` 增加例外 ledger §1 七文件；`ignoreBinaries`: `knip`；`ignoreDependencies` 增补 `country-state-city`（脚本入口已在 `devDependencies` 显式声明） |
 | 2026-05-12 | 删除死文件 `src/components/layerActionPopoverFieldIds.ts`；CI 门禁切换为 `check:knip:ci`（窄范围：files/dependencies/binaries/unlisted），`check:knip:full` 保留为本地宽范围参考；`ignoreBinaries` 清空、`ignoreDependencies` 收敛至仅 `cross-env` |
 | 2026-05-12 | `knip.json` 新增 `exclude: ["types"]`（unused types 规模 547 以假阳性为主，与 `--include-entry-exports` 口径一致；窄门禁已排除 types）；批量清理 AI chat / services / pages / db / extensions 共 64 个未使用导出，移除 `export` 或删除死代码；`ignoreIssues` 增补 12 项（动态 import、re-export、内部组织导出） | 技术债修复方案 |
 

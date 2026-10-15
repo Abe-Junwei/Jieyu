@@ -3,7 +3,7 @@ title: ADR-0009 绿场时间轴单一真相冻结（Superseding）
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-21
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
@@ -95,11 +95,9 @@ Greenfield 目标是：单一时间轴宿主 + 可选声学插件，减少双轨
 ### 视口单写者与类型合同（工程补充）
 
 - **只读快照**：`TimelineReadModel.zoom` 与声学切片 `TimelineReadModel.acoustic` 继续作为编排层可观测快照。
-- **权威写入（进行中）**：[`useTimelineViewport`](../../src/hooks/transcription/useTimelineViewport.ts) 已包装 `useZoom` 并产出 **`TimelineViewportProjection`**；波形桥、`useTimelineReadModel` 与 [`buildOrchestratorViewModelsInput`](../../src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts) 均从该投影派生 zoom / ruler / `textTimelineZoomPxPerSec`。ReadyWorkspace 进一步瘦身见 [时间轴视口…规划](../execution/plans/时间轴视口单写者与声学插件重构规划-2026-04-21.md) 阶段 D。
-- **类型冻结（阶段 A）**：[`src/hooks/transcription/timelineViewportTypes.ts`](../../src/hooks/transcription/timelineViewportTypes.ts) 定义 `TimelineViewportProjection`、`TimelineViewportZoomBridge` / `TimelineViewportZoomControls`、`AcousticStripContract`，与 `useZoom` 返回及 read model 对齐，避免阶段 B/C 重复发明字段名。
+- **权威写入**：[`useTimelineViewport`](../../src/hooks/transcription/useTimelineViewport.ts) 包装 `useZoom` 并产出 `TimelineViewportProjection`。波形桥、`useTimelineReadModel` 与 [`buildOrchestratorViewModelsInput`](../../src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts) 都从这份投影派生 zoom、ruler 和 `textTimelineZoomPxPerSec`。
+- **类型**：[`src/hooks/transcription/timelineViewportTypes.ts`](../../src/hooks/transcription/timelineViewportTypes.ts) 定义 `TimelineViewportProjection`、`TimelineViewportZoomBridge`、`TimelineViewportZoomControls` 和 `AcousticStripContract`，与 `useZoom` 的返回值和 read model 对齐。
 
 ## References
 
 - docs/adr/0004-logical-timeline-acoustic-media-lifecycle.md
-- docs/execution/plans/模式架构与平级评估-2026-04-21.md
-- docs/execution/plans/时间轴视口单写者与声学插件重构规划-2026-04-21.md

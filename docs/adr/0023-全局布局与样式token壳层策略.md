@@ -28,7 +28,7 @@ source_of_truth: architecture-decision
    转写顶栏、波形、聊天/host 等高密度区域**纳入**与全局 `--shadow-*` 的对齐与重复长阴影收束，与表单壳层同一轮治理，但以「 elevation 可映射处优先替换、语义色/内阴影保留」为原则，避免一次性破坏波形与焦点态语义。
 
 5. **文档**  
-   落地方案与阶段门禁见 `docs/execution/plans/全局布局与样式token收敛整改方案-2026-04-26.md`。
+   落地方案已不在工作区。现行约束以本 ADR 与 `src/styles/tokens.css` 为准。
 
 6. **Phase E（类名）**  
    语言资产工作区内「二级小节」标题栈与说明：使用 `panel-section__copy`、`panel-title-secondary`、以及 `panel-subsection__description`（见 `panel-primitives.css`），**不再**使用 `lm-subgroup-*` 前缀，便于与全站 `panel-*` 可发现性一致。

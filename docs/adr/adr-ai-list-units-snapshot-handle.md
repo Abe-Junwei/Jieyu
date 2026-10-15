@@ -3,11 +3,13 @@ title: ADR-007 list_units in-memory snapshot handle for large projects
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-15
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-007 — `list_units` in-memory snapshot handle for large projects
+
+> 自称 ADR-007。编号序列里没有 0007。
 
 ## Status
 

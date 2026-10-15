@@ -17,5 +17,5 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/257
 已定：
 - 预置 DeepSeek 与 Qwen，另可填自定义 OpenAI 兼容地址；本阶段不接本地模型。
 - 显示 AI token 用量；可选设每月上限，超出后停用 AI。
-- 试用版转写（Whisper）走云端 OpenAI 兼容转写接口，用试用者自己的密钥；本地 Whisper 放第二程。
+- 试用版本机与云端转写都保留（2026-10-13 21:16 改定）。云端走 OpenAI 兼容转写接口，用试用者自己的密钥。本机走随包 whisper-server（[#303](https://github.com/Abe-Junwei/Jieyu/issues/303)，第一程，挡首发）。设置里两者可选；云端转写需隐私说明，可按项目关闭。
 

@@ -9,8 +9,8 @@ const reportOutputPath = path.join(
   workspaceRoot,
   'docs',
   'execution',
-  'archive',
-  'release-gates-auto',
+  'release-gates',
+  'release-evidence',
   'collaboration-cloud-gate-report-auto.md',
 );
 

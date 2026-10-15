@@ -1,7 +1,7 @@
 ---
 title: '0045 — LIFT 副本 id 哈希算法冻结'
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-10-09
 source_of_truth: decision

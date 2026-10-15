@@ -1,13 +1,15 @@
 ---
 title: ADR 0001 - 当前事实统一收口到 docs/architecture
 doc_type: adr
-status: accepted
+status: superseded
 owner: repo
-last_reviewed: 2026-04-21
+last_reviewed: 2026-10-15
 source_of_truth: decision-record
 ---
 
 # ADR 0001：当前事实统一收口到 docs/architecture
+
+> 状态：superseded by [ADR-0049](./0049-decisions-not-current-state-inventories.md)。下面的决策原文保留。现行文档落位以 ADR-0049 为准。
 
 ## 背景
 
@@ -17,8 +19,7 @@ source_of_truth: decision-record
 
 1. README 只保留启动、测试、构建、主要入口和文档索引。
 2. 长期有效的当前事实统一进入 `docs/architecture/`。
-3. 历史规划类 Markdown（`规划-*` 等）统一放在 `docs/execution/archive/historical-root-docs/`，只保留方案、约束、取舍和历史阶段判断。
-4. 发布说明类 Markdown（`发布说明-*`）放在同一归档目录，承载某轮实现的收口、影响面和回归结论。
+3. 已完成、被替换或明确不做的规划、发布说明和调研不留在工作区。git 历史保留原文。当前事实只写 `docs/architecture/` 与 ADR。
 
 ## 影响
 

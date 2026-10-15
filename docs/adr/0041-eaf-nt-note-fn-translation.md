@@ -1,7 +1,7 @@
 ---
 title: ADR 0041 - EAF 的 nt 是备注、fn 是译文
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-09-28
 source_of_truth: decision

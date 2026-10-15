@@ -3,7 +3,6 @@
  *
  * 包含麦克风按钮、模式选择器、引擎选择器、商业 STT 配置面板和即时转写显示。
  *
- * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §4.4（VoiceAgentWidget）
  */
 
 import {

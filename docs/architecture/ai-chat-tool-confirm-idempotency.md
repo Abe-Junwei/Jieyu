@@ -13,7 +13,7 @@ source_of_truth: ai-chat-tool-audit
 
 ## 实现锚点（T3-c）
 
-- **单工具确认：** `finalizeHumanToolCallConfirmOutcome`（`src/hooks/useAiChat.confirmExecution.ts`）固定顺序：`applyAssistantMessageResult` → `writeToolDecisionAuditLog`（`executed` 与 outcome 一致）→ 仅成功时 `markExecutedRequestId`。
+- **单工具确认：** `finalizeHumanToolCallConfirmOutcome`（`src/hooks/ai/useAiChat.confirmExecution.ts`）固定顺序：`applyAssistantMessageResult` → `writeToolDecisionAuditLog`（`executed` 与 outcome 一致）→ 仅成功时 `markExecutedRequestId`。
 - **父级 `propose_changes` 全成功：** `finalizeHumanProposeChangesParentConfirmSuccess` 同上，父级 `markExecutedRequestId` 仅在 **`confirmed` 且 `executed: true`** 的决策审计写入之后。
 
 ## 父级 `propose_changes`
@@ -26,7 +26,7 @@ source_of_truth: ai-chat-tool-audit
 
 ## `hasPersistedExecutionForRequest(requestId)`
 
-实现见 `src/hooks/useAiChat.toolAudit.ts`：
+实现见 `src/hooks/ai/useAiChat.toolAudit.ts`：
 
 1. 先查内存 `executedRequestIds`。
 2. 再查 Dexie `audit_logs`，`[collection+field+requestId] = ['ai_messages','ai_tool_call_decision', requestId]`。
@@ -36,7 +36,7 @@ source_of_truth: ai-chat-tool-audit
 ## T4-a：失败 reason 枚举与运维分流
 
 - **真源模块：** `src/ai/chat/toolDecisionFailureReason.ts`（`NON_PERSISTED_TOOL_DECISION_REASONS`、`TOOL_DECISION_METADATA_REASON_CODES`、`TOOL_DECISION_REASON_FAILURE_TRIAGE`、`getToolDecisionFailureTriage`、`parseCompactToolDecisionReasonFromNewValue`）。
-- **幂等回退消费：** `src/hooks/useAiChat.toolAudit.ts` 从该模块导入 `NON_PERSISTED_TOOL_DECISION_REASONS`，与紧凑 `newValue` 第三段对齐。
+- **幂等回退消费：** `src/hooks/ai/useAiChat.toolAudit.ts` 从该模块导入 `NON_PERSISTED_TOOL_DECISION_REASONS`，与紧凑 `newValue` 第三段对齐。
 - **UI 策略文案：** `metadata.reason` 中用户指令类码与 `src/ai/chat/policyReasonLabels.ts` 对齐；门控挂起的 `policyReasonCode`（如 `explicit_target_write_requires_confirmation`）亦纳入 `TOOL_DECISION_METADATA_REASON_CODES` 以便分流与观测一致。
 - **分流语义：** `retry` / `clarify` / `human` / `abandon` 为运维提示；自动重试（T4-c）仅允许在显式白名单 reason 上扩展，不得弱化幂等与 destructive gate。
 

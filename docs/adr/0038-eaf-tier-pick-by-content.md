@@ -1,7 +1,7 @@
 ---
 title: ADR 0038 - EAF 默认按正文选转写层
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-09-28
 source_of_truth: decision
@@ -37,7 +37,7 @@ source_of_truth: decision
 - 木雅语这种根层就叫转写、子层是自由翻译的文件，转写层不变。
 - TextGrid、flextext、Toolbox、TRS、LIFT 的默认归类不改。
 
-切片和验证见 [EAF 默认选层](../execution/plans/EAF默认选层-2026-09-28.md)。
+切片已在主线。本 ADR 是默认选层规则。
 
 ## 不采纳
 

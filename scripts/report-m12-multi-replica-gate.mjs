@@ -9,8 +9,8 @@ const reportOutputPath = path.join(
   workspaceRoot,
   'docs',
   'execution',
-  'archive',
-  'release-gates-auto',
+  'release-gates',
+  'release-evidence',
   'M12-多副本批量同步评审报告-自动生成.md',
 );
 

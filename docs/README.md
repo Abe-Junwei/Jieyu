@@ -3,7 +3,7 @@ title: 文档索引
 doc_type: docs-index
 status: active
 owner: repo
-last_reviewed: 2026-04-21
+last_reviewed: 2026-10-15
 source_of_truth: navigation-only
 ---
 
@@ -14,11 +14,10 @@ source_of_truth: navigation-only
 ## 快速导航
 
 1. 想看当前仓库现状与长期有效约束：进入 [architecture/README.md](./architecture/README.md)
-2. 想看执行方案、门禁、审计与手工验收：进入 [execution/README.md](./execution/README.md)
-3. 想看 service 分层治理：进入 [services/README.md](./services/README.md)
-4. 想看关键决策：进入 [adr/README.md](./adr/README.md)
-5. 想追历史规划、发布或调研：进入 [execution/archive/README.md](./execution/archive/README.md)（含 `historical-root-docs/` 索引）
-6. 想看 `frame-ancestors` 与部署响应头落地：进入 [development/csp-frame-ancestors-deployment.md](./development/csp-frame-ancestors-deployment.md)
+2. 想看仍要执行的方案、门禁和台账：进入 [execution/README.md](./execution/README.md)
+3. 想看关键决策：进入 [adr/README.md](./adr/README.md)
+4. 想看当前试用阶段：进入 [wayfinder/trial-handoff/map.md](./wayfinder/trial-handoff/map.md)（与主路线图冲突时以较新拍板为准）
+5. 想看 `frame-ancestors` 与部署响应头落地：进入 [development/csp-frame-ancestors-deployment.md](./development/csp-frame-ancestors-deployment.md)
 
 ## 文档分层
 
@@ -26,64 +25,23 @@ source_of_truth: navigation-only
 
 目录：`docs/architecture/`
 
-用途：保存当前仍有效、可长期引用的现状文档、术语文档和兼容性合同。
+用途：一页产品形状，以及按任务打开的术语、协议和合同。
 
 当前入口：
 
 - [architecture/README.md](./architecture/README.md)
 
-### 2. 历史规划文档
-
-范围：已迁入 [execution/archive/historical-root-docs](./execution/archive/historical-root-docs/) 的 `规划-*` 与 `架构迁移-*` 等。
-
-用途：保留当时的目标、约束、取舍与执行背景。
-
-规则：
-
-- 不再作为当前实现的事实源。
-- 若与现状冲突，以 `docs/architecture/` 和代码为准。
-- 若需要描述“当前已落地结果”，应补到 `docs/architecture/` 或对应发布说明，而不是继续堆在旧规划正文里。
-
-### 3. 发布说明
-
-范围：同上目录中的 `发布说明-*`。
-
-用途：保留每轮功能收口、回归验证、影响面与边界记录。
-
-### 4. 调研文档
-
-范围：同上目录中的 `调研-*`。
-
-用途：保留外部资料调研、数据源评估、方案对比与采纳依据。
-
-当前文件（索引入口）：
-
-- [调研-信号处理与语音处理可借用技术路线-2026-04-08.md](./execution/archive/historical-root-docs/调研-信号处理与语音处理可借用技术路线-2026-04-08.md)
-- [调研-低资源语言强制对齐与成熟技术路线-2026-03-29.md](./execution/archive/historical-root-docs/调研-低资源语言强制对齐与成熟技术路线-2026-03-29.md)
-- [调研-前500语言与正字法开放数据方案-2026-04-04.md](./execution/archive/historical-root-docs/调研-前500语言与正字法开放数据方案-2026-04-04.md)
-- [调研-低资源与濒危语言NLP技术路线-2026-07.md](./execution/archive/historical-root-docs/调研-低资源与濒危语言NLP技术路线-2026-07.md)
-
-### 5. 执行与工程治理
+### 2. 执行与工程治理
 
 目录：`docs/execution/`
 
-用途：执行台账、CI/分支保护、工程治理约定等。
+用途：未完成的计划、在用的门禁和台账。
 
 当前入口：
 
 - [execution/README.md](./execution/README.md)
 
-### 6. Services 专题文档
-
-目录：`docs/services/`
-
-用途：保存 service 层治理、分层规则与迁移约束类文档。
-
-当前入口：
-
-- [services/README.md](./services/README.md)
-
-### 7. ADR 目录
+### 3. ADR 目录
 
 目录：`docs/adr/`
 
@@ -94,9 +52,10 @@ source_of_truth: navigation-only
 ## 推荐维护方式
 
 - README 只保留启动、测试、构建、主要入口、文档索引。
-- 新的当前事实、长期约束、协议文档，优先进入 `docs/architecture/`。
-- 新需求、新路线、新批次拆解，新增 Markdown 请放入 `docs/execution/archive/historical-root-docs/` 并沿用 `规划-*` 命名，或在 `docs/execution/plans/` 写专题执行方案。
-- 一轮实现完成后的收口记录，放入 `docs/execution/archive/historical-root-docs/` 并沿用 `发布说明-*` 命名。
+- 新的长期约束和协议进入 `docs/architecture/`，并在 `AI_QUICKSTART.md` 路由表写明什么任务才读。产品形状只改 `docs/architecture/仓库现状与代码地图.md`。
+- 仍要执行的方案写在 `docs/execution/plans/`。做完、被替换或明确不做的长文从工作区删除，需要时看 git 历史。
+- 不要新建 `docs/execution/archive/`。
+- 每类文档何时更新、何时删除见 [ADR-0051](./adr/0051-every-doc-type-has-an-end.md)；`npm run check:docs-governance` 会拦。
 - 当某项设计具有长期复用价值且决策分歧较大时，再新增 ADR。
 
 ## 治理命令

@@ -1,11 +1,13 @@
 ---
 title: OTel + Trace透传 + conflict_resolved 五阶段执行清单
 doc_type: execution-plan
-status: draft
+status: deferred
+revisit_when: 桌面版发布后，主路线图 C4 协作云重新排期
 owner: repo
-last_reviewed: 2026-04-17
+last_reviewed: 2026-10-14
 source_of_truth: execution-plan
 ---
+> **2026-10-14 文档状态**：协作观测随 C4 搁置。
 
 # OTel + Trace透传 + conflict_resolved 五阶段执行清单
 

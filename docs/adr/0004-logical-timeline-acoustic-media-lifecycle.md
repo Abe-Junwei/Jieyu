@@ -1,17 +1,17 @@
 ---
-title: ADR-0004 逻辑时间轴与声学媒体生命周期（阶段 0 行为规格）
+title: ADR-0004 逻辑时间轴与声学媒体生命周期
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-19
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
-# ADR-0004 逻辑时间轴与声学媒体生命周期（阶段 0 行为规格）
+# ADR-0004 逻辑时间轴与声学媒体生命周期
 
 ## Status
 
-Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现若偏离须更新本 ADR 或新增 superseding ADR）。
+Accepted。主存坐标、`timeMapping` 和导入不静默缩放仍然有效。`timelineMode` 的运行态分叉已由 [ADR-0009](./0009-greenfield-timeline-single-source-freeze.md) 接替。
 
 ## Context
 
@@ -21,7 +21,7 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 - 逻辑秒与声学文件秒的对应关系；
 - 导入声学时长与已存在语段时间不一致时的处理策略；
-- `timelineMode` 与「无 blob / 有 blob / 删音后」下允许的用户操作边界。
+- 无声学、解码中、可播放三种状态下允许的操作。`timelineMode` 只作导出标签。
 
 行业参考：ELAN 关联媒体与标注分离、Descript Replace/realign、Praat TextGrid 时间域与显式 Scale。
 
@@ -79,24 +79,21 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 ---
 
-## 决策 3：`timelineMode` 与删音 / 再导音（元数据对称目标）
+## 决策 3：`timelineMode` 只作导出标签
 
-**当前实现问题**（已知技术债）：`deleteAudio` 会将 `texts.metadata.timelineMode` 写为 `document`，而再导音未必恢复 `media`。
+运行态以 [ADR-0009](./0009-greenfield-timeline-single-source-freeze.md) 为准。`timelineMode` 不选壳、不定占位、不驱动轴状态。声学能力看 `AcousticSnapshot`（`no_media` / `pending_decode` / `playable`）。
 
-**目标语义**（阶段 1 实现须对齐）：
+删音只清声学字节并保留占位行与主存坐标。占位行首次晋升为更短声学时的压缩见 [ADR-0019](./0019-first-acoustic-import-time-remap.md)。
 
-- **`timelineMode: document`**：以文献、逻辑秒、占位轴为主；声学为可选附件。
-- **`timelineMode: media`**：以与声学对齐的工作流为主；无 blob 时仍可编辑逻辑坐标，但产品应提示「未链接声学」。
+下面按日期记下的实现笔记若与 ADR-0009 冲突，以 ADR-0009 为准。
 
-删音**不应**被理解为「项目从 media 永久降级为 document」**除非**用户显式选择「转为文献项目」。在未有该 UI 前，**推荐**删音后保留 `timelineMode: 'media'`，仅清除声学字节并保留占位行；若保留现状写 `document`，须在阶段 1 同步：**再导音时恢复为 `media`** 或写入可逆字段（后续 ADR 可细化）。
+**实现记录（阶段 1，2026-04-18，历史）**：`LinguisticService.deleteAudio` / `importAudio` 当时按 `timelineMode` 对齐。运行态以 ADR-0009 为准。
 
-**实现记录（阶段 1，2026-04-18）**：`LinguisticService.deleteAudio` / `importAudio` 已按上表对齐；`timelineMode: 'media'` 项目在删音后保留 `media`，`importAudio` 在 `media` 文本上同步 `logicalDurationSec` 下界。
-
-**实现记录（阶段 2，2026-04-18）**：`resolveTimelineShellMode` + `TranscriptionPage.TimelineContent` 壳层；原 `TranscriptionTimelineTextOnly` 在 `document|media` 下允许逻辑拖建；`LeftRailProjectHub` 逻辑时间映射菜单对 `media` 开放；`acousticPending` 视觉提示。
+**实现记录（阶段 2，2026-04-18，历史）**：当时按 `document` / `media` 分叉壳层和逻辑拖建。壳层以横向宿主 ADR-0005 为准，运行态以 ADR-0009 为准。
 
 **实现记录（横向壳合并，2026-04-22）**：见 [ADR-0005](./0005-unified-timeline-workspace-host.md) — 横向 `waveform`/`text-only` 统一由 `TranscriptionTimelineWorkspaceHost` 挂载 `TranscriptionTimelineHorizontalMediaLanes`；`TranscriptionTimelineTextOnly` 实现已移除；解码中样式由 `acousticShellPending` 继承。
 
-**实现记录（决策 3 回归锁定，2026-04-22）**：`LinguisticService.cleanup.deleteAudioPreserveTimeline` 在删音后按「原 `media` 或已有计时语段」保留 `texts.metadata.timelineMode: 'media'`；占位行 `details.timelineMode` 与之一致。`importAudio` 经 `refreshMediaTimelineMetadata` 在 `media` 文本上维持 `timelineMode: 'media'` 并抬升 `logicalDurationSec` 下界。单测 **`deleteAudio preserves timelineMode media and importAudio keeps media metadata`**（`LinguisticService.test.ts`）为再导音对称性的门禁。
+**实现记录（2026-04-22，历史）**：当时删音后保留 `timelineMode: 'media'`，并把对应单测当作门禁。这不是现行门禁。运行态以 ADR-0009 为准。
 
 **实现记录（阶段 3，2026-04-18）**：对导入/删音/选媒体/保存路径做静态审计；确认无「导入或删音触发的静默语段缩放」；`importAudio` 短于已有语段跨度时不改 `layer_units`（见 `LinguisticService.test.ts` 回归用例）。
 
@@ -110,7 +107,7 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 **实现记录（阶段 7b，2026-04-18）**：`importAudio` 支持 **`importMode` / `replaceMediaId`**（Replace 覆盖所选声学行、Add 新建轨）；导入对话框在已存在非占位声学时展示 **Replace vs Add**（`AudioImportDialog` + `audioImportDisposition`）；侧栏/工具栏隐藏文件直传路径仍走 **`importMode` 缺省** 的既有默认行为。
 
-**实现记录（阶段 7a，2026-04-18）**：`resolveTimelineAxisStatus` 汇总 **解码中 / 占位轴 / 无声学 blob / 语段超出解码时长**；**`TimelineAxisStatusStrip`** 置于 **`TranscriptionPage.TimelineTop`**；在 **`timelineMode` 为 document 或 media** 时展示 **`texts.metadata.logicalDurationSec`** 格式化的逻辑轴长度（见 `src/utils/timelineAxisStatus.ts`）。
+**实现记录（阶段 7a，2026-04-18，历史）**：`resolveTimelineAxisStatus` 汇总解码中、占位轴、无声学和无解码时长。逻辑轴长度的展示条件以 ADR-0009 为准，不按 `timelineMode` 的 document 或 media 分叉。
 
 **实现记录（阶段 7a 扩展，2026-04-19）**：**`useReadyWorkspaceAxisStatus`** 在 **`no_playable_media`** 下向 **`TimelineAxisStatusStrip`** 传入 **`importAcoustic`**，通过 **`importFileRef.current.click()`** 触发与工具栏共用的隐藏 **`<input type="file">`**；文案强调 **语段起止时间仍保留** 并引导选择可播放媒体文件（i18n：`noPlayableMediaTimingKept`、`chooseAcousticFileButton`）。单测 **`useReadyWorkspaceAxisStatus.test.tsx`** 锁定「仅无媒体提示时接线、解码中不出导入按钮」。
 
@@ -122,32 +119,17 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 ---
 
-## 决策 4：状态 × 操作矩阵（门禁基准）
+## 决策 4：声学状态 × 操作
 
-下列「允许」指产品**应当提供或被允许**的编辑能力；「受限」指须提示、隐藏波形或走占位路径。实现可分阶段，但**不得**与本矩阵长期冲突。
+编辑能力看 `AcousticSnapshot`，不看 `timelineMode`。文本和语段起止时间在三种状态下都可编辑。
 
-### 4.1 状态定义
+| 状态 | 波形拖选 / 播放 / seek | 导入声学 |
+| --- | --- | --- |
+| `no_media` | 不适用 | 允许 |
+| `pending_decode` | 等待解码 | 允许 |
+| `playable` | 允许 | 允许（Replace / Add 见决策 5） |
 
-| 状态 ID | 条件（简化） |
-|---------|----------------|
-| **D0** | `timelineMode=document`，无声学 blob（仅占位或等价） |
-| **D1** | `timelineMode=document`，已加载声学 blob |
-| **M0** | `timelineMode=media`，无声学 blob |
-| **M1** | `timelineMode=media`，已加载声学 blob |
-| **X** | 删音后占位、无 blob（实现上常接近 D0/M0，以 `timelineMode` 为准） |
-
-### 4.2 操作矩阵（阶段 0 冻结）
-
-| 操作 | D0 | D1 | M0 | M1 | X |
-|------|----|----|----|----|---|
-| 编辑转写/译文文本 | 允许 | 允许 | 允许 | 允许 | 允许 |
-| 手改语段起止时间（数值或句柄） | 允许 | 允许 | 允许 | 允许 | 允许 |
-| 纯文本轨拖选建段（逻辑轴比例尺） | **允许**（当前代码门控为 `exportTimelineModeLabel===document`；**阶段 2 须允许 D0 与 M0 在「无 blob」时等价能力，或改名统一为逻辑轴门控）** | —（通常显示波形壳） | **应与 D0 对齐** | — | 与 D0/M0 一致 |
-| 波形上拖选 / 播放 / seek | 不适用 | 允许 | 不适用 | 允许 | 不适用 |
-| 导入声学 | 允许 | 允许（Replace/Add 策略见执行计划 7B） | 允许 | 允许 | 允许 |
-| 删音（变占位） | 若存在 blob 则允许 | 允许 | 若存在则允许 | 允许 | 已无 blob 则 N/A |
-
-**说明**：主壳「波形轨 vs 纯文本轨」由 `resolveTimelineShellMode`（`selectedMediaUrl`、播放器就绪、`playerDuration`、纵向开关等）决定，经 `TranscriptionTimelineWorkspaceHost` 路由；**不**单独以 `timelineMode` 切换横向组件树（见 [ADR-0005](./0005-unified-timeline-workspace-host.md)）。
+主壳由 `resolveTimelineShellMode` 决定，经 `TranscriptionTimelineWorkspaceHost` 路由。不单独用 `timelineMode` 切换横向组件树（见 [ADR-0005 横向壳](./0005-unified-timeline-workspace-host.md)）。
 
 ---
 
@@ -165,7 +147,6 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 ## References
 
-- `docs/execution/archive/cursor-plans/logical_timeline_media_lifecycle.plan.md`
 - `src/services/LinguisticService.ts`（`previewTextTimeMapping`、`invertTextTimeMapping`、`importAudio`、`deleteAudio`）
 - `src/pages/TranscriptionPage.TimelineContent.tsx`
 - [ADR-0005](./0005-unified-timeline-workspace-host.md)（横向统一宿主；原纯文本壳逻辑并入 `TranscriptionTimelineHorizontalMediaLanes`）

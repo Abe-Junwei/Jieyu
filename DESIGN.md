@@ -36,40 +36,11 @@
 - **面板视觉层级**：同一路径上可见容器 **border 最多两层**；更深层级用背景色与间距区分（见仓库 `AGENTS.md` / 解语 Copilot 约束）。
 - 合并前至少关注：`npm run check:css-architecture`、`check:panel-foundation` 或与改动范围匹配的 gate。
 
-## 阶段 B 试点：转写侧栏「AI」面板
+## 转写页聊天与侧栏
 
-**范围（本期允许改动的实现锚点）**
-
-- **用户路径**：转写页 `/transcription` → 右侧栏 **AI**（嵌入式聊天、语音抽屉、Hub 切换、分析里的向量卡片等与该侧栏同一视觉体系的部分）。
-- **主要组件**
-  - `src/components/ai/AiChatCard.tsx`（侧栏内聊天主体；已 `import` `ai-hub.css`、`ai-chat-composer.css`、`ai-chat-thread.css`）
-  - `src/components/ai/AiAssistantHubCard.tsx`（Hub 入口）
-  - `src/components/ai/AiEmbeddingCard.tsx`（分析 Tab → 向量/嵌入；类名如 `transcription-ai-card*` 与 `ai-hub` 共用）
-  - 编排入口（仅当需调整侧栏结构时）：`src/pages/TranscriptionPage.AssistantRuntime.tsx`
-- **主要样式**
-  - `src/styles/pages/ai-sidebar-shell.css`
-  - `src/styles/ai-hub.css`
-  - `src/styles/panels/ai-chat-composer.css`
-  - `src/styles/panels/ai-chat-thread.css`
-  - `src/styles/pages/ai-chat-window.css`（独立窗口模式若一并对照）
-  - `src/styles/panels/prompt-lab.css`（Prompt Lab 与聊天同壳时）
-- **文案 / i18n（改字必须经过此路径）**
-  - `src/i18n/dictKeys.ts`、词典 `src/i18n/dictionaries/*.ts`
-  - 与 AI 卡相关的消息模块（例如 `getAiChatCardMessages`、`getAiEmbeddingCardMessages` 等，经 `src/i18n/messages` 聚合）
-
-**本期非目标（默认不动，除非单独开任务）**
-
-- 转写**主时间轴**、分段列表、波形等非侧栏 AI 区域。
-- `useAiChat.ts` 等大块编排逻辑（仅 UI/UX 试点时不要借机重构）。
-- 新增主题 `ThemeId` 或整盘换肤（属产品级，需单独评审）。
-
-**试点验收命令（合并前至少跑）**
-
-```bash
-npm run gate:panel-phase1
-```
-
-若仅改少量样式、不涉及面板壳结构，可退化为至少：`npm run check:css-architecture && npm run check:architecture-guard`。
+- 聊天在 `src/pages/TranscriptionPage.ChatWindow.tsx`，不是右侧栏里的嵌入页。
+- 右侧栏 `src/pages/TranscriptionPage.AiSidebar.tsx` 组装分析。
+- 改这两处的外观仍走上面的 token、i18n 和两层边框。聊天样式看 `src/styles/pages/ai-chat-window.css`。
 
 ---
 

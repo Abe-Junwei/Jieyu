@@ -9,29 +9,19 @@ Follow this repository structure when creating or updating files:
 
 - Put product/application code under `src/`; do not place business code in `docs/`.
 - Put executable checks and automation scripts under `scripts/`.
-- Use `docs/architecture/` for long-lived current-state facts.
-- Use `docs/adr/` for durable architecture decisions; add a new ADR when superseding.
-- Use `docs/execution/plans/` for active execution plans; put closed milestone **执行记录**与合并总览 into `docs/execution/archive/milestone-records/`; new closed plans go to `docs/execution/archive/plans-closed/` (frontmatter `status` is SSoT — see `scripts/check-plans-frontmatter.mjs`).
-- Use `docs/execution/specs/<feature-slug>/` for per-feature Spec-Driven Development 三件套 (`requirements.md` / `design.md` / `tasks.md`); template at `docs/execution/specs/_template/`. Triggered for medium+ complexity per `copilot-instructions.md` §5.2.1.
-- Use `docs/execution/audits/` for human-authored audits/baselines/reports.
-- Use `docs/execution/archive/audits-auto/` for **auto-generated** audit markdown (currently `M2-主路径行为对比报告-自动生成.md` from `scripts/generate-m2-behavior-report.mjs`).
-- Use `docs/execution/release-gates/` for go/no-go checklists, runbooks, and human-authored gate artifacts.
-- Use `docs/execution/archive/release-gates-auto/` for **auto-generated** gate markdown produced by `scripts/*gate*.mjs` / `evaluate-m6-release-gate.mjs`.
-- Use `docs/execution/governance/` for process/governance ledgers.
-- Use `docs/execution/archive/manual-validation/` for manual validation scripts and records.
-- Use `docs/execution/archive/historical-root-docs/` for historical **`规划-*` / `发布说明-*` / `调研-*` / `评估-*` / `架构迁移-*`** Markdown (formerly at `docs/` root).
-
-For historical doc naming (under `docs/execution/archive/historical-root-docs/`):
-
-- Planning docs: `规划-*.md`
-- Release notes: `发布说明-*.md`
-- Research docs: `调研-*.md`
+- Every doc type has an end rule: [ADR-0051](../../docs/adr/0051-every-doc-type-has-an-end.md). Update a doc in the same change as the code it names.
+- Use `docs/adr/` for durable decisions. A changed decision is a new ADR; do not rewrite an accepted decision. See [ADR-0049](../../docs/adr/0049-decisions-not-current-state-inventories.md).
+- Use `docs/architecture/` for the one product-shape page and for contracts that `AI_QUICKSTART.md`, a code comment, or a failing check names. Do not add a second current-state inventory.
+- Use `docs/execution/plans/` for execution plans that are still the source for unfinished work. Frontmatter `status` is SSoT (`scripts/check-plans-frontmatter.mjs`). Do not add `docs/execution/archive/`. Finished, superseded, and abandoned plans are deleted from the working tree; git history is the record. A `deferred` plan needs `revisit_when:`.
+- Use `docs/execution/specs/<feature-slug>/` for per-feature Spec-Driven Development 三件套 (`requirements.md` / `design.md` / `tasks.md`); template at `docs/execution/specs/_template/`. Triggered for medium+ complexity per `copilot-instructions.md` §5.2.1. Delete a spec directory once every task in `tasks.md` is checked; write N/A items as `- [x] 不适用：…`.
+- Use `docs/execution/audits/` only for machine exports that scripts read (ndjson / json / txt). Do not add narrative audit reports.
+- Use `docs/execution/release-gates/` for go/no-go checklists and runbooks that are still in force. Auto-generated gate markdown goes to `docs/execution/release-gates/release-evidence/`.
+- Use `docs/execution/governance/` for living ledgers that checks or current gates still cite.
 
 Behavior rules:
 
-- **Product architecture decisions**（含层模态、录音语义、时间轴与媒体生命周期等）**必须**写入本仓库的 `docs/adr/` 或 `docs/architecture/`；**不要**把 Cursor 编辑器用户目录下的 plan 文件（例如 `~/.cursor/plans`）当作 Jieyu 的唯一或权威规格库。
-- Treat `docs/execution/archive/historical-root-docs/规划-*` as historical planning context, not the source of current truth.
-- Prefer `docs/architecture/` + code as source of truth when conflicts exist.
+- **Product architecture decisions**（含层模态、录音语义、时间轴与媒体生命周期等）写入 `docs/adr/`。**不要**把 Cursor 编辑器用户目录下的 plan 文件（例如 `~/.cursor/plans`）当作 Jieyu 的唯一或权威规格库。
+- Checkable facts follow code and the live check. Product shape is the one page in `docs/architecture/`。Do not recreate `docs/execution/archive/`.
 - Keep docs in the correct execution subfolder; avoid flattening into `docs/execution/`.
 - When adding/modifying governed docs, run `npm run check:docs-governance`.
 - After large doc moves/renames, run `npm run report:docs-link-debt`.

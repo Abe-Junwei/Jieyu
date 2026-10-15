@@ -209,7 +209,7 @@ export const featureFlags = {
     aiAgentLoopReliabilityFlagsDefaultEnabled,
   /**
    * A7 Last Mile write gate: readonly local tools auto-allow; write tools scope-checked at executor.
-   * 默认 false；dogfood/staging 可经 env 开启。见 spec agent-runtime-security-write-gate。
+   * 默认 false；dogfood/staging 可经 env 开启。
    */
   /** 开 v2（env）时强制打开；localStorage 覆盖见 resolveAiAgentRuntimeV2Enabled | forced on with env v2 */
   aiToolWriteGateEnabled:
@@ -227,7 +227,7 @@ export const featureFlags = {
     aiAgentLoopToolResultCompactionEnabledFromEnv ?? aiAgentLoopReliabilityFlagsDefaultEnabled,
   /**
    * A4b: scale agent-loop maxSteps by queryFamily (count=2, search/detail=4, else base).
-   * 默认 false；开启后才改变步数。见 spec agent-runtime-runner-foundation §5。
+   * 默认 false；开启后才改变步数。
    */
   aiAgentLoopEffortScalingEnabled: aiAgentLoopEffortScalingEnabledFromEnv ?? false,
   /**
@@ -237,7 +237,7 @@ export const featureFlags = {
   aiAgentUiPreviewEnabled: aiAgentUiPreviewEnabledFromEnv ?? false,
   /**
    * A9: local inbound injection block + outbound PII/secret redact.
-   * 默认 true（#283：试用版/prod 默认开）；挂 before_model / before_client。env 可显式关闭。见 spec agent-runtime-security-semantic-guard。
+   * 默认 true（#283：试用版/prod 默认开）；挂 before_model / before_client。env 可显式关闭。
    */
   aiSemanticGuardEnabled: aiSemanticGuardEnabledFromEnv ?? true,
   /**

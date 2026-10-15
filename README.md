@@ -28,7 +28,9 @@ npm run dev
 npm run typecheck
 ```
 
-2. 全量测试与守卫
+2. 测试
+
+`npm test` 只跑 Vitest。结构守卫是 `npm run check:architecture-guard`；整仓守卫是 `npm run check:all`。
 
 ```bash
 npm test
@@ -42,9 +44,8 @@ npx vitest run <file-or-pattern>
 
 ## 浏览器与发版前核验
 
-- **桌面策略**：[docs/architecture/桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md)（四大 + 国内极速模式、Safari 门槛、ESR 等）。
+- **桌面策略**：[docs/architecture/桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md)（四大 + 国内极速模式、Safari 门槛、ESR 等）。CI 不覆盖 360 / QQ / 搜狗。
 - **CSS `backdrop-filter` 按文件门禁**：`npm run check:css-compat`（亦包含在 `npm run check:css-architecture` 与 CI `quality` 任务中，且 CI 在完整 `npm test` 前会先跑一遍以便早失败）。
-- **国内双核手工冒烟**：[docs/execution/release-gates/桌面浏览器抽样验收-2026-04-24.md](docs/execution/release-gates/桌面浏览器抽样验收-2026-04-24.md)（CI 不替代）。
 - **升级 Zod / Vite 或动到 CSP / `index.html` 脚本顺序后**：本地跑 `npm run regression:vite-zod-csp`（`typecheck` + `build` + 三引擎 E2E）；细节见 [ADR 0021](docs/adr/0021-zod-jitless-strict-csp.md)。
 
 ## 构建
@@ -114,15 +115,13 @@ VITE_MAP_PROXY_FALLBACK_ON_ERROR=true
 ## 文档索引
 
 - 文档总索引：[docs/README.md](docs/README.md)
-- 长期有效现状文档：[docs/architecture/README.md](docs/architecture/README.md)
+- 产品形状：[docs/architecture/仓库现状与代码地图.md](docs/architecture/仓库现状与代码地图.md)。架构合同索引：[docs/architecture/README.md](docs/architecture/README.md)
 - 执行、门禁与审计入口：[docs/execution/README.md](docs/execution/README.md)
 - ADR 入口：[docs/adr/README.md](docs/adr/README.md)
 
 文档分层约定：
 
-- `docs/architecture/`：长期有效的当前现状、术语、协议与结构文档。
-- `docs/规划-*`：历史规划文档，只保留当时方案与背景，不再作为当前事实源。
-- `docs/发布说明-*`：每轮收口的发布记录。
+- `docs/architecture/`：一页产品形状，加上按任务打开的合同、术语和协议。
 - `docs/adr/`：已启用的关键技术决策目录。
 
 常用文档治理命令：

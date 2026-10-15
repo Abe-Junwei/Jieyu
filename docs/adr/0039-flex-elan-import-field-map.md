@@ -1,7 +1,7 @@
 ---
 title: ADR 0039 - FLEx 与 ELAN 按说明文档映射到已有字段
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-09-28
 source_of_truth: decision
@@ -65,7 +65,7 @@ DoReCo 的 `tx`、`ft`、`ref`、`wd`、`mb`、`gl`、`ps` 不在上述文档里
 - DoReCo 的 `tx`、`ft`、`wd`、`mb`、`gl`、`ps` 归类不变。`ps` 仍是 DoReCo 的词性层名，不是 flextext 的 `pos`。
 - 解语自己导出的 flextext 时间单位改为毫秒。旧的「属性里的数字就是秒」不再成立。
 
-切片见 [FLEx 与 ELAN 导入字段映射](../execution/plans/FLEx与ELAN导入字段映射-2026-09-28.md)。
+切片已在主线。本 ADR 是字段映射。
 
 ## 不采纳
 

@@ -3,21 +3,16 @@ title: AI Agent 运行时安全 — 本地优先策略
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-09-04
+last_reviewed: 2026-10-14
 source_of_truth: current-state
 depends_on:
-  - ./ai-execution-capability-strategy-matrix-v0.md
-  - ./ai-chat-send-turn-pipeline.md
-  - ./ai-agent-runtime-runner-model.md
   - ../adr/0031-ai-chat-keyvault-and-csp-connect-src.md
-  - ../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md
 ---
 
 # AI Agent 运行时安全 — 本地优先策略
 
 > **排期真源**：[解语主路线图 §3 A6–A14、B11–B15](../execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)  
-> **任务分解**：[Agent运行时架构补强-本地优先落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)（含 A6–A9 安全轨 + A10–A14 架构轨 + B11–B15 MCP）  
-> **Runner 模型**：[ai-agent-runtime-runner-model.md](./ai-agent-runtime-runner-model.md)
+> **提交点**：`src/ai/runtime/commitToolEffects.ts`。不引入 Google ADK。
 
 ## 1. 定位与边界
 
@@ -26,8 +21,8 @@ depends_on:
 | 原则 | 含义 |
 | --- | --- |
 | **证据型、人在环** | AI 默认 proposal / 确认；禁止静默写转写主链 |
-| **本地优先** | 策略与过滤在浏览器内执行；不依赖额外 SaaS 安全层 |
-| **Last Mile 再验** | 每次工具写 Dexie 前重新判定 scope + trust + policy |
+| **本地优先** | 策略与过滤在本机执行。浏览器构建在页面内，桌面构建在应用内。不依赖额外 SaaS 安全层 |
+| **Last Mile 再验** | 每次工具写项目库前重新判定 scope + trust + policy |
 | **可复盘** | 审计链能回答：谁、在什么 scope、委托了什么、工具做了什么 |
 
 **刻意不做**（除非产品形态变更）：企业 NHI 注册中心、A2A 全套认证、Agent SBOM 平台、Co-work 式用户 impersonation 专项、云端 Model Armor。
@@ -41,7 +36,7 @@ depends_on:
 | **旁路写 session/记忆** | 用户指令 / 后台 flush 绕过主链 | F4 sandbox + sidecar 审计（A6，已有 Batch A） |
 | **出站敏感泄露** | 转写/元数据 PII 进入 assistant 回复 | 出站 redact + 日志 scrub（A9；已有 `sensitiveKeyPolicy`） |
 | **外部 MCP 数据外泄** | Jieyu AI 调 OpenAlex 等外部 server | MCP trust allowlist + 只读默认（B11） |
-| **凭证泄露** | API key 明文落盘 / XSS 外连 | KeyVault + CSP connect-src（ADR-0031，维持） |
+| **凭证泄露** | API key 明文落盘 / XSS 外连 | 浏览器构建用 KeyVault + CSP connect-src（ADR-0031）。桌面密钥走系统钥匙串（ADR-0047） |
 
 ## 3. 能力映射（对标 Google / IBM 视频 → Jieyu 实现）
 
@@ -49,7 +44,7 @@ depends_on:
 | --- | --- | --- |
 | Model Armor 入站过滤 | `src/ai/security/semanticGuard.ts`（规则 + 可选启发式） | A9 |
 | Model Armor 出站 PII redact | 同上 + 复用 `observability/sensitiveKeyPolicy` | A9 |
-| Tool 持凭证、Agent 不碰 | 已有 KeyVault；MCP Bearer 在 server 侧 | 维持 |
+| Tool 持凭证、Agent 不碰 | 浏览器构建用 KeyVault；桌面密钥在系统钥匙串，请求从 Electron 主进程发出（ADR-0047）。MCP Bearer 在 server 侧 | 维持 |
 | IBM Register agents | `agentRunId` 写入 `ai_tool_call_decision` / loop step / MCP audit | A8 |
 | IBM JIT / strip privileges | 扩展 `aiToolPolicyMatrix` + session `toolPreferences`；写 scope 绑定 `CorpusSourceSet` | A7 |
 | IBM Tie intent to action | turn metadata：`userTextDigest`、`sourceScopeSummary`、`workflowId` | A8 |
@@ -94,7 +89,7 @@ Parallel:
 
 ## 6. A9 落地口径（本地 semantic guard）
 
-截至 2026-09-03，A9 以 **flag 默认 false** 进主链：
+`aiSemanticGuardEnabled` 默认开，以 `src/ai/config/featureFlags.ts` 为准。env 可关。
 
 | 项 | 代码 | 行为 |
 | --- | --- | --- |
@@ -165,24 +160,18 @@ Parallel:
 
 | 文档 | 关系 |
 | --- | --- |
-| [ai-execution-capability-strategy-matrix-v0.md](./ai-execution-capability-strategy-matrix-v0.md) | scope / trust / quota 词汇表；A7 扩展矩阵列 |
-| [F4 受控矩阵](../execution/plans/F4-扩展入口-受控矩阵-2026-05-05.md) | 旁路入口登记；A6 延续 Batch B/C |
-| [ai-agent-architecture-risk-assessment](../execution/audits/ai-agent-architecture-risk-assessment-2026-05-17.md) | 可靠性 P0（闭环重规划）仍属 A4，与安全轨并行 |
-| [ADR-0031](../adr/0031-ai-chat-keyvault-and-csp-connect-src.md) | KeyVault / CSP 边界不因 A9 而夸大 |
-| [A9 SDD](../execution/specs/agent-runtime-security-semantic-guard/) | 入/出站规则与 flag 验收 |
-| [B11 SDD](../execution/specs/agent-runtime-external-mcp-trust/) | origin allowlist；schema 进 LLM 前门 |
-| [B13 SDD](../execution/specs/agent-runtime-external-mcp-http-client/) | Streamable HTTP 子集；flag 关零 fetch |
-| [B14 SDD](../execution/specs/agent-runtime-external-mcp-send-turn/) | send-turn guide + execute；flag 关零 HTTP |
-| [B15 SDD](../execution/specs/agent-runtime-external-mcp-provider-adapters/) | Zotero/OpenAlex 适配；flag 关零 packets |
+| 工具策略代码 | scope / trust 以 `assertToolWriteAllowed` 与 catalog 为准。quota 未单独成文 |
+| [ADR-0031](../adr/0031-ai-chat-keyvault-and-csp-connect-src.md) | 浏览器 KeyVault / CSP。桌面密钥与渲染进程 `connect-src` 见 ADR-0047 |
+| 主路线图 A9 | 入/出站规则已落地；`aiSemanticGuardEnabled` 默认开 |
 
 ## 9. 修订记录
 
 | 日期 | 说明 |
 | --- | --- |
 | 2026-06-01 | 初版：本地优先 Agent 运行时安全策略；切片 A6–A9 / B11 映射；并入主路线图。 |
-| 2026-06-01 | 对齐架构补强：排期扩至 A6–A14；任务真源改 [架构补强落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)；链 [Runner 模型](./ai-agent-runtime-runner-model.md)。 |
+| 2026-06-01 | 对齐架构补强：排期扩至 A6–A14；任务表已于 2026-10-14 删除，切片状态以主路线图为准。提交点是 `commitToolEffects`。 |
 | 2026-09-02 | A6 落地口径：sidecar 入口守卫 + 工业三开关环境矩阵（dogfood/staging ON、prod OFF）记入本文。 |
-| 2026-09-03 | A9 落地口径：本地 inspect 入站 block / 出站 redact；flag 默认 false。 |
+| 2026-09-03 | A9 落地口径：本地 inspect 入站 block / 出站 redact。默认值以 `featureFlags.ts` 为准，当前为开。 |
 | 2026-09-04 | B11 落地口径：`external_mcp_trust` + `exposeExternalMcpToolsToLlm`；flag 默认 false；outbound HTTP client 仍属 B12。 |
 | 2026-09-04 | B13 落地口径：Streamable HTTP client；flag 默认 false；不放宽 CSP。 |
 | 2026-09-04 | B14 落地口径：send-turn `extmcp__` 桥 + `lastToolsJson` 缓存；flag 默认 false。 |

@@ -3,7 +3,7 @@ title: frame-ancestors 部署落地说明
 doc_type: guide
 status: active
 owner: repo
-last_reviewed: 2026-04-25
+last_reviewed: 2026-10-15
 source_of_truth: deployment-guide
 ---
 

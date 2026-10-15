@@ -3,7 +3,7 @@ title: CSS 架构与模板复用规范
 doc_type: architecture-spec
 status: active
 owner: repo
-last_reviewed: 2026-04-09
+last_reviewed: 2026-10-14
 source_of_truth: css-architecture-governance
 ---
 
@@ -205,20 +205,6 @@ npm run scaffold:ui-surface -- --type=dialog --name=SpeakerAudit
 1. `npm run build`
 2. `npm run profile:build-assets`
 3. `npm run check:build-budgets`
-
-### 7.4 分支保护建议
-
-配置 `scripts/configure-github-branch-protection.mjs` 时，至少应包含以下 required checks：
-
-1. `docs-governance`
-2. `quality`
-3. `build-guard`
-
-### 7.5 治理执行记录
-
-季度复盘与持续治理结果请记录在：
-
-1. `docs/architecture/CSS治理执行记录.md`
 
 ## 8. 面板 Section 标题统一规范
 

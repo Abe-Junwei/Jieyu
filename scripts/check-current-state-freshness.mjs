@@ -1,12 +1,8 @@
 #!/usr/bin/env node
 // scripts/check-current-state-freshness.mjs
 //
-// Staleness guard for "current state" documents. A doc is in scope when:
-//   - doc_type matches `architecture-current-state` (any depth under
-//     `docs/architecture/**`), OR
-//   - doc_type starts with `architecture-feature-current-state`, OR
-//   - frontmatter contains `staleness_check: true`, OR
-//   - the path is in the explicit allow-list below.
+// Staleness guard (ADR-0051): every markdown file under `docs/architecture/**`
+// and `docs/development/`, plus the agent entry files below.
 //
 // `last_reviewed` (YYYY-MM-DD) is required. Age policy:
 //   - ≥ 180 days → FAIL (exit 1)
@@ -19,7 +15,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 
 const ROOT = process.cwd();
-const ARCH_DIR = resolve(ROOT, 'docs/architecture');
+const DOC_DIRS = [resolve(ROOT, 'docs/architecture'), resolve(ROOT, 'docs/development')];
 const ALLOW_PATHS = [
   resolve(ROOT, 'copilot-instructions.md'),
   resolve(ROOT, 'AGENTS.md'),
@@ -50,22 +46,11 @@ function parseFrontmatter(text) {
   return fields;
 }
 
-function isInScope(file, fm) {
-  if (ALLOW_PATHS.includes(file)) return true;
-  if (!fm) return false;
-  if (fm.staleness_check === 'true') return true;
-  if (!fm.doc_type) return false;
-  const dt = fm.doc_type;
-  return dt === 'architecture-current-state'
-    || dt.startsWith('architecture-feature-current-state');
-}
-
 function daysBetween(a, b) {
   return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-const archFiles = walk(ARCH_DIR);
-const allCandidates = [...archFiles, ...ALLOW_PATHS];
+const allCandidates = [...DOC_DIRS.flatMap((dir) => walk(dir)), ...ALLOW_PATHS];
 
 const failures = [];
 const warnings = [];
@@ -79,12 +64,11 @@ for (const file of allCandidates) {
   let txt;
   try { txt = readFileSync(file, 'utf8'); } catch { continue; }
   const fm = parseFrontmatter(txt);
-  if (!isInScope(file, fm)) continue;
   inScopeCount.value += 1;
   const rel = relative(ROOT, file);
   const lastReviewed = fm?.last_reviewed;
   if (!lastReviewed) {
-    failures.push(`${rel}: in-scope current-state doc missing \`last_reviewed:\` field`);
+    failures.push(`${rel}: missing \`last_reviewed:\` field`);
     continue;
   }
   const date = new Date(`${lastReviewed}T00:00:00Z`);

@@ -102,7 +102,7 @@ export function resolveUserDirectivePolicyDecision(
 
 /**
  * Local context tools: when write gate is on, readonly tools bypass ask_first / impact preview.
- * Spec: agent-runtime-security-write-gate — auto-allow L0 reads for non-developer users.
+ * Auto-allow L0 reads for non-developer users.
  */
 export function resolveLocalContextToolPolicyDecision(
   toolCall: PolicyShapeToolCall,

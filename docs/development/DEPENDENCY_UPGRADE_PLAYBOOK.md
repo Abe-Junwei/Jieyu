@@ -1,3 +1,12 @@
+---
+title: Dependency upgrade playbook
+doc_type: guide
+status: active
+owner: repo
+last_reviewed: 2026-10-15
+source_of_truth: development-guide
+---
+
 # Dependency upgrade playbook
 
 Use this when adopting **major** npm upgrades (Vite, TypeScript, routers, SDKs).

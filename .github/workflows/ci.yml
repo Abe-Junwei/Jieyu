@@ -57,6 +57,7 @@ jobs:
         run: npm run typecheck
       - name: ESLint (strict, warnings fail)
         run: npm run lint:ci
+      # Every knip.json exception needs a reason in docs/execution/governance/knip-exception-ledger-2026-05-08.md.
       - name: Knip cleanup gate
         run: npm run check:knip:ci
       - name: Acceptance-1 (AI structural rollback smoke)

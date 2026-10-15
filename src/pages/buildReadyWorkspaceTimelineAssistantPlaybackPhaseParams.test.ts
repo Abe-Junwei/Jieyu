@@ -1,7 +1,6 @@
 /**
  * Lock-in 测试：playback 阶段必须从 pre / domainShell 注入 toggleNotes 与 setShowSearch，
- * 不得回退成 `data.toggleNotes` / `data.setShowSearch`（`useTranscriptionData` 不暴露这两个 UI 入口；
- * 历史回归参见 docs/execution/release-gates/对外前最小检查-2026-05-11.md 2026-05-12 条目）。
+ * 不得回退成 `data.toggleNotes` / `data.setShowSearch`（`useTranscriptionData` 不暴露这两个 UI 入口）。
  */
 import fs from 'node:fs';
 import path from 'node:path';

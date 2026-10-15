@@ -23,7 +23,7 @@ ADR-0025 将 B2 白名单回滚主要约束在「段层 split + 文本/词元」
 ## 影响
 
 - `useTranscriptionAiController` / ReadyWorkspace 必须继续为 AI handler 注入 `silentSegmentGraphSyncForAi`，否则结构性合并/删除在严格模式下会失败（可逆优先）。
-- 防回归：`src/services/AiCanonicalClusterRollbackSnapshot.dexie.test.ts`（fake-indexedDB 上 capture→改库→restore，含超上限 `null`）；`npm run check:acceptance-1` 已纳入该文件与 `proposeBatch` 中 merge 子步逆序 rollback 用例。规模上限与 `JIEYU_AI_STRUCTURAL_ROLLBACK_MAX_SELECTION_IDS` 见 `docs/architecture/ai-propose-changes-rollback-scale.md`。`useAiToolCallHandler` 相关测试使用 **spy** 收窄对快照模块的替换范围；**生产路径** 不得依赖全模块 mock。
+- 防回归：`src/services/AiCanonicalClusterRollbackSnapshot.dexie.test.ts`（fake-indexedDB 上 capture→改库→restore，含超上限 `null`）；`npm run check:acceptance-1` 已纳入该文件与 `proposeBatch` 中 merge 子步逆序 rollback 用例。规模上限在 `getAiStructuralRollbackMaxSelectionIds()`，环境变量 `JIEYU_AI_STRUCTURAL_ROLLBACK_MAX_SELECTION_IDS`。`useAiToolCallHandler` 相关测试使用 **spy** 收窄对快照模块的替换范围；**生产路径** 不得依赖全模块 mock。
 
 ## 被放弃的备选方案
 

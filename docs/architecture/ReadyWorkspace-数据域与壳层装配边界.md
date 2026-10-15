@@ -3,7 +3,7 @@ title: ReadyWorkspace 数据域与壳层装配边界
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-05-10
+last_reviewed: 2026-10-14
 source_of_truth: implementation
 ---
 
@@ -11,7 +11,7 @@ source_of_truth: implementation
 
 ## 一页式装配导航（Orchestrator 顺序）
 
-> 目标：新会话 / agent **不必先扫平铺的 `useReadyWorkspace*` 文件名**，即可按「阶段」定位改动落点。入口与行数守卫见 `docs/architecture/code-governance-plan-2026-05-06.md` §5.1。
+> 目标：新会话 / agent **不必先扫平铺的 `useReadyWorkspace*` 文件名**，即可按「阶段」定位改动落点。入口守卫以当次 `npm run check:architecture-guard` 为准。
 
 **薄入口链**
 

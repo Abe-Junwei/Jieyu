@@ -3,7 +3,7 @@ title: Durable agent-loop recovery — scope and limits
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-05-01
+last_reviewed: 2026-10-15
 source_of_truth: ai-agent-loop-recovery
 ---
 
@@ -13,22 +13,22 @@ This document states what the desktop app **does** and **does not** promise when
 
 ## Authoritative sources
 
-- **Durable state:** `ai_tasks` rows written by `persistAgentLoopCheckpointTask` / updated by `TaskRunner` heartbeat paths.
+- **Durable state:** `ai_tasks` rows inserted or updated by `TaskRunner.parkCheckpoint` at handoff, and closed by `completeAgentLoopCheckpointTask` / `cancelAgentLoopCheckpointTask`. Resume does not go through `TaskRunner.execute`.
 - **Session UX state:** Dexie `ai_session_memories` (`pendingAgentLoopCheckpoint` 等), keyed by `conversationId` after `useSessionMemoryConversationBinding` bind; reconciled with `ai_tasks` via `useAgentLoopSessionMemoryDexieReconcile` → `reconcilePendingAgentLoopCheckpointFromDexie`.
 - **Deferred UI bridge:** `useDeferredAiRuntimeBridge` includes `pendingAgentLoopCheckpoint` in the AI state worker slice fingerprint so sidebar / chat浮窗在冷启动水合后能立刻拿到新 `sessionMemory`（不仅依赖 settings 指纹）。
 
 ## Cold start (no session checkpoint)
 
-On `useAiChat` mount, if session memory has **no** `pendingAgentLoopCheckpoint`, the runtime loads the **latest** pending resumable `agent_loop` row from `ai_tasks` (same predicate as `loadLatestPendingAgentLoopCheckpoint`) and mirrors it into session memory so alerts / composer affordances stay aligned with durable state after refresh.
+On `useAiChat` mount, if session memory has **no** `pendingAgentLoopCheckpoint`, the runtime loads the **latest** pending resumable `agent_loop` row **for the current conversation** from `ai_tasks` (matched through the task's `targetId` assistant message) (same predicate as `loadLatestPendingAgentLoopCheckpoint`) and mirrors it into session memory so alerts / composer affordances stay aligned with durable state after refresh.
 
 **Not promised:**
 
-- **Multiple concurrent pending handoffs:** only one checkpoint is mirrored into session memory — the row with the greatest `updatedAt` among pending resumable `agent_loop` tasks. Older pending rows remain visible in the embedding task list until completed, cancelled, or superseded in DB.
+- **Multiple concurrent pending handoffs:** only one checkpoint is mirrored into session memory — the row with the greatest `updatedAt` among the current conversation's pending resumable `agent_loop` tasks. Older pending rows stay in `ai_tasks` until completed or cancelled; the embedding task list shows only the most recent tasks, so they can drop out of view.
 - **Cross-device sync:** `ai_tasks` is local IndexedDB only; another browser profile or machine does not see the same queue.
 - **Non–token-budget handoffs:** tasks whose `handoffReason` is not `token_budget_warning` are outside the resume contract enforced by `agentLoopCheckpoint.ts`.
 
 ## Session checkpoint with `taskId`
 
-If session memory already contains `pendingAgentLoopCheckpoint.taskId`, mount reconciliation **reloads** that row from `ai_tasks`. If the row is no longer pending resumable, the checkpoint is **removed** and reconciliation **runs again** without that field so a **different** latest pending `agent_loop` row (if any) can hydrate — covering another tab completing/cancelling the old task while this tab still had a stale `taskId`.
+If session memory already contains `pendingAgentLoopCheckpoint.taskId`, mount reconciliation **reloads** that row from `ai_tasks`. If the row is no longer pending resumable, the checkpoint is **removed** and reconciliation **runs again** without that field so a **different** latest pending `agent_loop` row of the same conversation (if any) can hydrate — covering another tab completing/cancelling the old task while this tab still had a stale `taskId`.
 
 **Not promised:** live cross-tab UI sync without navigation. Tabs that stay open do not re-hydrate session memory until remount/reload or an in-app conversation switch; durable checkpoint state lives in `ai_tasks` / Dexie (`ai_session_memories` after bind), not localStorage.

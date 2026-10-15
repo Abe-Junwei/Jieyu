@@ -3,7 +3,7 @@ title: ADR-0030 — Vertical Workflow Template Contract
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-05-07
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
@@ -85,4 +85,4 @@ Body: *Connect this chat or tool session to a Jieyu project (text / media / laye
 - `src/ai/chat/toolCallHelpers.ts` (`buildToolIntentAuditMetadata` / `buildToolDecisionAuditMetadata`)
 - `src/ai/chat/workflowExplainability.ts`
 - `scripts/generate-release-evidence-bundle.mjs`
-- `docs/execution/plans/AI智能体架构改进方案-2026-05-06.md`
+- [主路线图 A6–A14](../execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)

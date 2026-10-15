@@ -3,11 +3,13 @@ title: PWA / 离线壳与首次访问预期
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 source_of_truth: pwa-offline-ux-boundary
 ---
 
 # PWA / 离线壳与首次访问预期（C-3）
+
+> 本文只约束浏览器构建。Electron 桌面应用是 ADR-0046 的已接受目标，尚未接到本检出。
 
 对应勘误表 **Phase C-3**：在 `vite-plugin-pwa` + Workbox **precache** 尚未把应用壳与关键静态资源写入缓存之前，用户可能遇到以下情况；**这不视为「PWA 坏了」**，而是首次冷启动与 SW 生命周期的正常边界。
 
@@ -25,4 +27,3 @@ source_of_truth: pwa-offline-ux-boundary
 ## 相关实现锚点
 
 - `vite.config.ts`：`VitePWA` `workbox`、`navigateFallback`、`globIgnores`、`maximumFileSizeToCacheInBytes`
-- `docs/execution/audits/工程审计勘误与全面修复计划-2026-04-24.md` Phase C-1 / C-2

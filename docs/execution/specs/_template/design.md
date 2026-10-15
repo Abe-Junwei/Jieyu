@@ -35,7 +35,7 @@ depends_on:
 | --- | --- | --- |
 | `src/pages/useXxxController.ts` | … | < 200 / < 8 hooks |
 | `src/services/XxxService.ts` | … | < 300 |
-| `src/hooks/useYyy.ts` | … | < 150 |
+| `src/hooks/<域>/useYyy.ts` | … | < 150 |
 
 约束自查：
 - [ ] 单 hook 行数 < 300，`useEffect/useMemo/useCallback` 总数 < 12
@@ -68,4 +68,4 @@ depends_on:
 | 单元测试 | `npx vitest run <path>` | all pass |
 | 结构守卫 | `npm run check:architecture-guard` | OK |
 | E2E（如适用） | `npm run test:e2e:chromium -- <spec>` | green |
-| Agent evals（涉 AI） | `npm run check:agent-evals:smoke` | OK |
+| Agent evals（涉 AI） | `npm run check:agent-evals:full` | OK |

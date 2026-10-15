@@ -18,7 +18,6 @@
  * - Push-to-talk 快速模式
  * - 自动跳过已标注句段
  *
- * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 附：实施路线图 v3.0 · 阶段4
  */
 
 import type { SttResult } from './VoiceInputService.types';

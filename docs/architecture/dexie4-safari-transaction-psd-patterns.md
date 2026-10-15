@@ -3,11 +3,13 @@ title: Dexie 4 + Safari 事务作用域与 PSD 实践
 doc_type: architecture-spec
 status: active
 owner: repo
-last_reviewed: 2026-04-19
+last_reviewed: 2026-10-14
 source_of_truth: dexie-safari-transaction-psd
 ---
 
 # Dexie 4 + Safari：IndexedDB 事务作用域与 PSD 实践一页纸
+
+> 本文只约束浏览器构建里的 Dexie。桌面 SQLite 以 ADR-0046 为准，不照搬 object store 列表。见 ADR-0006。
 
 面向在本仓库内编写 **Dexie 4** 读写代码的工程师。目标：避免 `Table <store> not part of transaction`、`TransactionInactiveError`、以及 Safari / WebKit 上因 **PSD（Promise Specific Data）** 断裂导致的诡异栈与错表名报错。
 

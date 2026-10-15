@@ -1,7 +1,7 @@
 ---
 title: '0046 — 桌面版存储：项目文件夹 = project.sqlite + media/，存储接口两种实现'
 doc_type: adr
-status: active
+status: accepted
 owner: repo
 last_reviewed: 2026-10-13
 source_of_truth: decision

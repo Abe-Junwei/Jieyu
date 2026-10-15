@@ -11,7 +11,6 @@
  *
  * 所有状态均可订阅，状态变化时主动通知。
  *
- * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 附：实施路线图 v3.0 · 阶段6
  */
 
 import { createLogger } from '../observability/logger';
@@ -136,7 +135,9 @@ export class AmbientObserver {
   /** Subscribe to environment changes */
   onEnvironmentChange(callback: (env: AmbientEnvironment) => void): () => void {
     this._listeners.add(callback);
-    return () => { this._listeners.delete(callback); };
+    return () => {
+      this._listeners.delete(callback);
+    };
   }
 
   /**

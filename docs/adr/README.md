@@ -1,83 +1,76 @@
 ---
 title: ADR 目录说明
 doc_type: adr-index
-status: active
+status: accepted
 owner: repo
-last_reviewed: 2026-09-30
+last_reviewed: 2026-10-15
 source_of_truth: decision-index
 ---
 
 # ADR 目录说明
 
-当前目录用于保存 Architecture Decision Record（ADR）。
+本目录只记为什么。规则见 [ADR-0049](./0049-decisions-not-current-state-inventories.md)，各类文档何时结束见 [ADR-0051](./0051-every-doc-type-has-an-end.md)。索引不复述决策。
 
-## 使用时机
+## 编号
 
-- 同一主题出现多轮技术取舍，已不适合继续散落在规划文档中。
-- 需要长期说明“为什么选这个方案，而不是另一个方案”。
-- 决策会持续影响后续实现、测试、迁移或兼容性边界。
+下一号是 **0052**。**0048** 留给存储接口（GitHub #274），文件尚未写。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
-## 当前 ADR
+`adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
-- [0001-当前事实统一收口到-architecture.md](./0001-当前事实统一收口到-architecture.md)
-- [0002-转写页作为唯一开放工作台.md](./0002-转写页作为唯一开放工作台.md)
+## superseded
+
+- [0001-当前事实统一收口到-architecture.md](./0001-当前事实统一收口到-architecture.md) → [0049](./0049-decisions-not-current-state-inventories.md)
+- [0043-superseded-by-project-owned-catalogs.md](./0043-superseded-by-project-owned-catalogs.md) → [0044](./0044-project-owned-catalogs.md)
+
+## 主序列
+
+- [0002-开放工作台范围.md](./0002-开放工作台范围.md)
 - [0003-execution-文档按角色分层.md](./0003-execution-文档按角色分层.md)
-- [0004-logical-timeline-acoustic-media-lifecycle.md](./0004-logical-timeline-acoustic-media-lifecycle.md)（逻辑时间轴 / 声学媒体 / 阶段 0 行为规格）
-- [0005 — 转写层录音模态（SayMore careful speech 向）](./转写层录音模态（SayMore careful speech 向）架构方案.md)（文件名含中文；与 README 中「0005」编号对应）
-- [0006-dexie-transaction-scope-layer-graph.md](./0006-dexie-transaction-scope-layer-graph.md)（Dexie 事务作用域与转写层图访问：声明列全表为第一规范）
-- [0008-greenfield-indexeddb-export-collab-surface.md](./0008-greenfield-indexeddb-export-collab-surface.md)（绿场库名、导出表面、轨道仅存 Dexie、协同 RLS 身份绑定）
-- [0009-greenfield-timeline-single-source-freeze.md](./0009-greenfield-timeline-single-source-freeze.md)（绿场时间轴单一真相冻结；superseding ADR-0004 的运行态 mode 分叉）
-- [ADR-007 — `list_units` 大列表句柄分页（内存快照）](./adr-ai-list-units-snapshot-handle.md)
-- [0010-writing-workspace-export-runtime.md](./0010-writing-workspace-export-runtime.md)（写作导出运行时：docx/html/tex + **Typst PDF**、预览核、分档；`proposed` 骨架）
-- [0011-writing-corpus-ref-and-citation-jump.md](./0011-writing-corpus-ref-and-citation-jump.md)（`corpusRef` 与 `citationJump` 边界；`proposed` 骨架）
-- [0012-writing-workspace-dexie-schema.md](./0012-writing-workspace-dexie-schema.md)（写作 Dexie 表与迁移；`proposed` 骨架）
-- [0013-writing-lab-graduation-criteria.md](./0013-writing-lab-graduation-criteria.md)（写作 lab 毕业为开放工作台；`proposed` 骨架）
-- [0014-writing-grammardoc-vault-boundary.md](./0014-writing-grammardoc-vault-boundary.md)（GrammarDoc ↔ 写作库边界；`proposed` 占位）
-- [0015-writing-diagram-offline-supply.md](./0015-writing-diagram-offline-supply.md)（图码与离线供应链；`proposed` 占位）
-- [0016-writing-collab-object-mapping.md](./0016-writing-collab-object-mapping.md)（写作 · `project_changes` 等协同对象映射；`proposed` 骨架）
-- [0017-jieyu-core-workbench-architecture-adaptation.md](./0017-jieyu-core-workbench-architecture-adaptation.md)（核心工作台架构蓝图采纳与适配：Adopt/Adapt/Reject + 迁移风险清单）
-- [0018-transcription-segment-scope-media-ssot.md](./0018-transcription-segment-scope-media-ssot.md)（转写页 segment 作用域媒体 SSOT：图加载后精化 + AI/导出对齐）
-- [0019-first-acoustic-import-time-remap.md](./0019-first-acoustic-import-time-remap.md)（占位晋升首绑声学：`L > duration` 时线性压缩 + 平移；删音仍保留坐标）
-- [0020-unscoped-canonical-unit-transcription-lane-read-scope.md](./0020-unscoped-canonical-unit-transcription-lane-read-scope.md)（unscoped canonical unit 的转写轨读作用域：单一 resolve 入口与读写边界）
-- [0021-zod-jitless-strict-csp.md](./0021-zod-jitless-strict-csp.md)（Zod `jitless` 与严格 `script-src`：禁止 `unsafe-eval` 前提下消除 JIT 探测 CSP 噪声）
-- [0022-annotation-analysis-graph-typed-relations.md](./0022-annotation-analysis-graph-typed-relations.md)（标注 analysisGraph 与 typed relation：非线性形态、exponent/process、fixture-first 与导出 projection）
-- [0023-全局布局与样式token壳层策略.md](./0023-全局布局与样式token壳层策略.md)（圆角/间距/阴影/壳内控制件与 `.la-shell` 合约；与 execution plan 2026-04-26 配套）
-- [0024-release-evidence-core-governance-dual-gate.md](./0024-release-evidence-core-governance-dual-gate.md)（release-evidence：`gate:release-evidence:core/full` 与 `gate:release-evidence:governance` 双闸职责与 CI 顺序）
-- [0025-ai-propose-changes-b2-rollback-boundary.md](./0025-ai-propose-changes-b2-rollback-boundary.md)（`propose_changes` 确认批处理逆序 rollback；B2 白名单与段层 split 契约；merge/delete 扩展见 ADR-0026）
-- [0026-ai-propose-changes-canonical-cluster-rollback.md](./0026-ai-propose-changes-canonical-cluster-rollback.md)（全路径可逆：规范单元簇快照 + 混合时间轴 merge/delete/`allSegments` 回滚）
-- [0027-voice-unified-non-dictation-chat-path.md](./0027-voice-unified-non-dictation-chat-path.md)（非听写语音与文字统一 AI 聊天主链；无开关、无旧分流）
-- [0028-assistant-multimodal-orchestration-local-first.md](./0028-assistant-multimodal-orchestration-local-first.md)（助手编排统一：共用 dialogue、工具真执行、本地优先、TTS；打字不强制预路由；VoiceAgentService 收敛）
-- [0029-assistant-tts-web-speech-policy.md](./0029-assistant-tts-web-speech-policy.md)（助手 TTS：`speechSynthesis` 边界、默认关、不支持时弱提示、与流式互斥；`accepted`）
-- [0022-ai-evaluation-judge-provider-contract.md](./0022-ai-evaluation-judge-provider-contract.md)（AI 评测 JudgeProvider 契约：`JudgeProvider` / baseline vs LLM judge；`accepted`）
-- [0030-vertical-workflow-template-contract.md](./0030-vertical-workflow-template-contract.md)（垂直工作流模板：`sourceScopeSummary` 命名、MCP 空 scope 硬失败、eval 分阶段、release evidence `skipTaxonomyRollup`、dogfood 指标非门禁、`VoiceAgentService` &lt;950 行；`accepted`）
-- [0031-ai-chat-keyvault-and-csp-connect-src.md](./0031-ai-chat-keyvault-and-csp-connect-src.md)（AI Chat KeyVault 与 connect-src）
-- [0032-transcription-ai-chat-floating-window-only.md](./0032-transcription-ai-chat-floating-window-only.md)（转写页对话仅浮窗；分析右栏已由 ADR-0033 迁出；`accepted`）
-- [0033-analysis-restricted-workspace-no-transcription-dock.md](./0033-analysis-restricted-workspace-no-transcription-dock.md)（`/analysis` 受限工作台承接向量+统计；转写拆 AI 右栏；声学留在转写检查条；`accepted`）
-- [0034-collaboration-project-snapshot-excludes-global-catalogs.md](./0034-collaboration-project-snapshot-excludes-global-catalogs.md)（协作项目快照按 `textId` 裁剪；不含词库/语言资产；restore 禁止整库 replace-all）
-- [0035-lexicon-edit-baseline-dmlex.md](./0035-lexicon-edit-baseline-dmlex.md)（词典编辑基准用 DMLex 1.0 JSON Schema；LIFT 只做投影；解语附加字段放在 schema 外）
-- [0036-eaf-import-is-interchange.md](./0036-eaf-import-is-interchange.md)（EAF 是文本交换；`.jyt` / `.jym` 继续做原 id 备份；往返键是文稿 + 外部层 id + 标注 id）
-- [0037-interchange-loss-report.md](./0037-interchange-loss-report.md)（标注和 LIFT 导入共用一份丢失清单；有稳定 id 才往返；不接入 Pepper / Corflow / reBabel）
-- [0038-eaf-tier-pick-by-content.md](./0038-eaf-tier-pick-by-content.md)（没有角色表时按正文和层名选 EAF 转写层；一句对一句的细分层不当词；没有媒体时独立翻译挂到已有语段）
-- [0039-flex-elan-import-field-map.md](./0039-flex-elan-import-field-map.md)（FLEx 与 ELAN 的元素按说明文档写进解语已有字段；词级 `gls` 不进转写页翻译行）
-- [0040-eaf-ph-phonetic-transcription.md](./0040-eaf-ph-phonetic-transcription.md)（DoReCo `ph` 是语音转写层，写入已有的附加转写层，不计丢失）
-- [0041-eaf-nt-note-fn-translation.md](./0041-eaf-nt-note-fn-translation.md)（DoReCo `nt` 写入句子备注，`fn` 与 `ft` 同为翻译且不合并）
-- [0042-eaf-unnamed-date-tier.md](./0042-eaf-unnamed-date-tier.md)（层名对不上时，闭集日期记入丢失，不进翻译行，也不当转写）
-- [0043-speaker-roster-on-project-text.md](./0043-speaker-roster-on-project-text.md)（说话人名单写在项目上；档案行的归属见 ADR-0044）
-- [0044-project-owned-catalogs.md](./0044-project-owned-catalogs.md)（词条、说话人、正字法、语言记录等按 `textId` 分开，跨项目不共用）
-- [0045-lift-copy-id-hash-freeze.md](./0045-lift-copy-id-hash-freeze.md)（LIFT 跨项目副本 id 的四路 FNV-1a 哈希冻结，GAP-4 / P3）
-- [0046-desktop-sqlite-project-folder.md](./0046-desktop-sqlite-project-folder.md)（桌面版项目文件夹 = project.sqlite + media/，存储接口两种实现，两层数据，快照位置）
-- [0047-desktop-build-strips-collab-keys-telemetry.md](./0047-desktop-build-strips-collab-keys-telemetry.md)（桌面构建剔除协作，密钥走钥匙串，崩溃上报需同意）
+- [0004-logical-timeline-acoustic-media-lifecycle.md](./0004-logical-timeline-acoustic-media-lifecycle.md)
+- [0005-unified-timeline-workspace-host.md](./0005-unified-timeline-workspace-host.md)（与下一份都叫 0005）
+- [转写层录音模态（SayMore careful speech 向）架构方案.md](./转写层录音模态（SayMore careful speech 向）架构方案.md)（也叫 0005）
+- [0006-dexie-transaction-scope-layer-graph.md](./0006-dexie-transaction-scope-layer-graph.md)
+- [0008-greenfield-indexeddb-export-collab-surface.md](./0008-greenfield-indexeddb-export-collab-surface.md)
+- [0009-greenfield-timeline-single-source-freeze.md](./0009-greenfield-timeline-single-source-freeze.md)
+- [0018-transcription-segment-scope-media-ssot.md](./0018-transcription-segment-scope-media-ssot.md)
+- [0019-first-acoustic-import-time-remap.md](./0019-first-acoustic-import-time-remap.md)
+- [0020-unscoped-canonical-unit-transcription-lane-read-scope.md](./0020-unscoped-canonical-unit-transcription-lane-read-scope.md)
+- [0021-zod-jitless-strict-csp.md](./0021-zod-jitless-strict-csp.md)
+- [0022-annotation-analysis-graph-typed-relations.md](./0022-annotation-analysis-graph-typed-relations.md)（与评测 Judge 那份都叫 0022）
+- [0022-ai-evaluation-judge-provider-contract.md](./0022-ai-evaluation-judge-provider-contract.md)
+- [0023-全局布局与样式token壳层策略.md](./0023-全局布局与样式token壳层策略.md)
+- [0024-release-evidence-core-governance-dual-gate.md](./0024-release-evidence-core-governance-dual-gate.md)
+- [0025-ai-propose-changes-b2-rollback-boundary.md](./0025-ai-propose-changes-b2-rollback-boundary.md)
+- [0026-ai-propose-changes-canonical-cluster-rollback.md](./0026-ai-propose-changes-canonical-cluster-rollback.md)
+- [0027-voice-unified-non-dictation-chat-path.md](./0027-voice-unified-non-dictation-chat-path.md)
+- [0028-assistant-multimodal-orchestration-local-first.md](./0028-assistant-multimodal-orchestration-local-first.md)
+- [0029-assistant-tts-web-speech-policy.md](./0029-assistant-tts-web-speech-policy.md)
+- [0030-vertical-workflow-template-contract.md](./0030-vertical-workflow-template-contract.md)
+- [0031-ai-chat-keyvault-and-csp-connect-src.md](./0031-ai-chat-keyvault-and-csp-connect-src.md)
+- [0032-transcription-ai-chat-floating-window-only.md](./0032-transcription-ai-chat-floating-window-only.md)
+- [0033-analysis-restricted-workspace-no-transcription-dock.md](./0033-analysis-restricted-workspace-no-transcription-dock.md)
+- [0034-collaboration-project-snapshot-by-project.md](./0034-collaboration-project-snapshot-by-project.md)
+- [0035-lexicon-edit-baseline-dmlex.md](./0035-lexicon-edit-baseline-dmlex.md)
+- [0036-eaf-import-is-interchange.md](./0036-eaf-import-is-interchange.md)
+- [0037-interchange-loss-report.md](./0037-interchange-loss-report.md)
+- [0038-eaf-tier-pick-by-content.md](./0038-eaf-tier-pick-by-content.md)
+- [0039-flex-elan-import-field-map.md](./0039-flex-elan-import-field-map.md)
+- [0040-eaf-ph-phonetic-transcription.md](./0040-eaf-ph-phonetic-transcription.md)
+- [0041-eaf-nt-note-fn-translation.md](./0041-eaf-nt-note-fn-translation.md)
+- [0042-eaf-unnamed-date-tier.md](./0042-eaf-unnamed-date-tier.md)
+- [0044-project-owned-catalogs.md](./0044-project-owned-catalogs.md)
+- [0045-lift-copy-id-hash-freeze.md](./0045-lift-copy-id-hash-freeze.md)
+- [0046-desktop-sqlite-project-folder.md](./0046-desktop-sqlite-project-folder.md)
+- [0047-desktop-build-strips-collab-keys-telemetry.md](./0047-desktop-build-strips-collab-keys-telemetry.md)
+- [0049-decisions-not-current-state-inventories.md](./0049-decisions-not-current-state-inventories.md)
+- [0051-every-doc-type-has-an-end.md](./0051-every-doc-type-has-an-end.md)
 
-## 建议格式
+## 已关闭的另一套编号
 
-- 背景
-- 决策
-- 影响
-- 被放弃的备选方案
-- 后续回顾点
-
-## 编号规则
-
-1. 新 ADR 按三位数递增编号。
-2. 文件名使用“编号 + 决策主题”。
-3. 已接受决策不覆写原结论；若后续改变，新增 superseding ADR。
+- [adr-timeline-unit-view-read-model.md](./adr-timeline-unit-view-read-model.md)（自称 ADR-001）
+- [adr-ai-grounding-mcp-shaped.md](./adr-ai-grounding-mcp-shaped.md)（自称 ADR-002）
+- [adr-db-unification-timeline-units.md](./adr-db-unification-timeline-units.md)（自称 ADR-003）
+- [adr-timeline-unit-view-single-caliber.md](./adr-timeline-unit-view-single-caliber.md)（自称 ADR-004）
+- [adr-db-unification-strangler.md](./adr-db-unification-strangler.md)（自称 ADR-005）
+- [adr-006-linguistic-subgraph-unitid-utterances-retirement.md](./adr-006-linguistic-subgraph-unitid-utterances-retirement.md)（自称 ADR-006）
+- [adr-ai-list-units-snapshot-handle.md](./adr-ai-list-units-snapshot-handle.md)（自称 ADR-007）

@@ -3,11 +3,13 @@ title: ADR 0022 - 标注 analysisGraph 与 typed relation
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-25
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR 0022：标注 analysisGraph 与 typed relation
+
+> 本编号与 [评测 Judge](./0022-ai-evaluation-judge-provider-contract.md) 不是同一决定。本文只规定标注 analysisGraph。
 
 ## 背景
 
@@ -46,7 +48,7 @@ source_of_truth: decision-record
 
 实现 UI 前，先建立 analysisGraph fixture。每条 fixture 至少包含：原文、分词、内部 graph JSON、Leipzig 展示、至少一种导出 projection、diagnostic。
 
-当前 fixture baseline：[`docs/execution/audits/标注-analysisGraph-fixture基线-2026-04-25.md`](../execution/audits/标注-analysisGraph-fixture基线-2026-04-25.md)。实现 PR 应先补齐或更新该 baseline，再修改 schema/parser/UI。
+叙述性 fixture 清单已从工作区移除。改 schema、parser 或 UI 时，先改对应测试夹具再改实现。
 
 M2 必备 fixture：
 

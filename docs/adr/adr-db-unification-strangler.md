@@ -3,11 +3,13 @@ title: ADR-005 DB Unification — Strangler Path (Not Taken)
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-15
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-005 DB Unification — Strangler Path (Not Taken)
+
+> 自称 ADR-005，不是两份 ADR-0005。
 
 ## Status
 Accepted (historical closure)

@@ -6,7 +6,6 @@
  *   - 原始操作记录（每条 action 独立存储）
  *   - 聚合后的用户画像快照
  *
- * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 十九、版本历史（UserBehaviorDB / 行为观测落地）
  */
 
 import Dexie, { type Table } from 'dexie';
@@ -191,10 +190,7 @@ export async function pruneOldRecords(): Promise<void> {
       .last();
 
     if (oldestToKeep) {
-      await userBehaviorDB.actionRecords
-        .where('timestamp')
-        .below(oldestToKeep.timestamp)
-        .delete();
+      await userBehaviorDB.actionRecords.where('timestamp').below(oldestToKeep.timestamp).delete();
     }
   } catch (err) {
     reportIfUnexpectedDexieDegradation(
@@ -213,10 +209,7 @@ export async function getActionRecordsInRange(
   endMs: number,
 ): Promise<ActionRecordDoc[]> {
   try {
-    return await userBehaviorDB.actionRecords
-      .where('timestamp')
-      .between(startMs, endMs)
-      .toArray();
+    return await userBehaviorDB.actionRecords.where('timestamp').between(startMs, endMs).toArray();
   } catch (err) {
     reportIfUnexpectedDexieDegradation(
       'userBehaviorDB.getActionRecordsInRange',

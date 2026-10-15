@@ -2,8 +2,7 @@
 // scripts/generate-plans-readme.mjs
 //
 // Regenerates docs/execution/plans/README.md as an auto-generated
-// active-only index. Closed plans (status: done|completed|superseded) are
-// filtered out and listed in a collapsed section at the bottom by status.
+// index of open and deferred plans. Closed plans are deleted (ADR-0051).
 //
 // Source of truth: YAML frontmatter on each plan file (see
 // scripts/check-plans-frontmatter.mjs).
@@ -16,7 +15,6 @@ const PLANS_DIR = resolve(ROOT, 'docs/execution/plans');
 const README_PATH = resolve(PLANS_DIR, 'README.md');
 
 const ACTIVE_STATUSES = new Set(['active', 'draft', 'proposed', 'deferred']);
-const CLOSED_STATUSES = new Set(['done', 'completed', 'superseded']);
 
 function parseFrontmatter(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---/);
@@ -41,17 +39,16 @@ const entries = files.map((filename) => {
     title: fm.title || filename.replace(/\.md$/, ''),
     status: fm.status || 'unknown',
     lastReviewed: fm.last_reviewed || '',
-    closedAt: fm.closed_at || '',
-    supersededBy: fm.superseded_by || '',
+    revisitWhen: fm.revisit_when || '',
   };
 });
 
-const active = entries.filter((e) => ACTIVE_STATUSES.has(e.status));
-const closed = entries.filter((e) => CLOSED_STATUSES.has(e.status));
-const unknown = entries.filter((e) => !ACTIVE_STATUSES.has(e.status) && !CLOSED_STATUSES.has(e.status));
+const open = entries.filter((e) => e.status === 'active' || e.status === 'draft' || e.status === 'proposed');
+const deferred = entries.filter((e) => e.status === 'deferred');
+const unknown = entries.filter((e) => !ACTIVE_STATUSES.has(e.status));
 
-active.sort((a, b) => (b.lastReviewed || '').localeCompare(a.lastReviewed || ''));
-closed.sort((a, b) => (b.closedAt || '').localeCompare(a.closedAt || ''));
+open.sort((a, b) => (b.lastReviewed || '').localeCompare(a.lastReviewed || ''));
+deferred.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'zh'));
 
 const today = new Date().toISOString().slice(0, 10);
 const out = [];
@@ -69,23 +66,24 @@ out.push('');
 out.push('> 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。');
 out.push('> SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。');
 out.push('');
-out.push(`## Active（${active.length}）`);
+out.push(`## 进行中（${open.length}）`);
 out.push('');
 out.push('| status | title | last_reviewed |');
 out.push('| --- | --- | --- |');
-for (const e of active) {
+for (const e of open) {
   out.push(`| ${e.status} | [${e.title}](./${e.filename}) | ${e.lastReviewed} |`);
 }
 out.push('');
 
-if (closed.length > 0) {
-  out.push(`## Closed（${closed.length}） — 仅供历史追溯`);
+if (deferred.length > 0) {
+  out.push(`## 搁置（${deferred.length}）`);
   out.push('');
-  out.push('| status | title | closed_at | superseded_by |');
-  out.push('| --- | --- | --- | --- |');
-  for (const e of closed) {
-    const sup = e.supersededBy ? `\`${e.supersededBy}\`` : '—';
-    out.push(`| ${e.status} | [${e.title}](./${e.filename}) | ${e.closedAt} | ${sup} |`);
+  out.push('不在当前试用程。`revisit_when` 发生时改回 `active`，确定不做就删除。');
+  out.push('');
+  out.push('| title | revisit_when | last_reviewed |');
+  out.push('| --- | --- | --- |');
+  for (const e of deferred) {
+    out.push(`| [${e.title}](./${e.filename}) | ${e.revisitWhen} | ${e.lastReviewed} |`);
   }
   out.push('');
 }
@@ -100,4 +98,4 @@ if (unknown.length > 0) {
 }
 
 writeFileSync(README_PATH, out.join('\n'), 'utf8');
-console.log(`[generate-plans-readme] OK: wrote ${active.length} active + ${closed.length} closed (${unknown.length} unknown) to ${README_PATH}.`);
+console.log(`[generate-plans-readme] OK: wrote ${open.length} open + ${deferred.length} deferred (${unknown.length} unknown) to ${README_PATH}.`);

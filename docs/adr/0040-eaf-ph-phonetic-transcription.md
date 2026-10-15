@@ -1,7 +1,7 @@
 ---
 title: ADR 0040 - EAF 的 ph 层是语音转写
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-09-28
 source_of_truth: decision

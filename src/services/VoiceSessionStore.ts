@@ -3,7 +3,6 @@
  *
  * Stores VoiceSession objects so that command history survives page reloads.
  *
- * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §4.2.6 / 九、新增文件清单（VoiceSessionStore）
  */
 
 import type { VoiceSession } from './IntentRouter';
@@ -83,9 +82,7 @@ export async function saveVoiceSession(session: VoiceSession): Promise<void> {
 }
 
 /** Load the most recent N voice sessions, newest first. */
-export async function loadRecentVoiceSessions(
-  limit = 5,
-): Promise<VoiceSession[]> {
+export async function loadRecentVoiceSessions(limit = 5): Promise<VoiceSession[]> {
   const db = await openDB();
   if (!db) return [];
 

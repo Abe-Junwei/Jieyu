@@ -22,4 +22,4 @@ OASIS Standard，2025-04-29。从官方目录原样复制，供词典编辑基�
 
 JSON 序列化里 `partOfSpeech`、`label`、`translationLanguage` 是字符串。`entry`、`sense`、`example` 等对象 `additionalProperties` 为 false。解语自己的语段引用和自由文本注释不能写进这些对象。
 
-决策见 [ADR 0035](../../adr/0035-lexicon-edit-baseline-dmlex.md)。实施顺序见 [词典编辑改用 DMLex 基准](../../execution/plans/词典编辑改用DMLex基准-2026-09-27.md)。
+决策见 [ADR 0035](../../adr/0035-lexicon-edit-baseline-dmlex.md)。切片已在主线。

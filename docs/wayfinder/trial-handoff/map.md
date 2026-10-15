@@ -19,7 +19,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）；第二程 #285（子单 #286–#302、#308–#311））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）；第二程 #285（子单 #286–#302、#308–#311、#314））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -47,7 +47,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   12. 崩溃上报：试用者选择开启的自动上报（如 Sentry），按主路线图 C1 脱敏（关闭 [#261](https://github.com/Abe-Junwei/Jieyu/issues/261)）。
   13. 试用名单与节奏由用户本人决定，不进路线图（关闭 [#264](https://github.com/Abe-Junwei/Jieyu/issues/264)）。
   14. 用户手册：图文中文快速上手，应用内帮助 + PDF（[#263](https://github.com/Abe-Junwei/Jieyu/issues/263) 转为任务）。
-- 2026-10-13 19:33–19:51 用户拍板（grill-with-docs；写成 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md)、[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)，术语见 [GLOSSARY](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/GLOSSARY.md)）：
+- 2026-10-13 19:33–19:51 用户拍板（grill-with-docs；写成 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md)、[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)，术语见 [术语表](../../architecture/术语表.md)）：
   0. 用户没有需要保留的真实数据；D14 未触发，基线仍可重置。
   1. **取代上面第 2 条**：桌面版规范存储 = SQLite，项目文件夹 = `project.sqlite` + `media/`。JYM/JYT 仍是 JSON 交换包，导出导入时互转。磁盘不加密（加密 JYM 只用于导出）。（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 改为表结构）
   2. 存储层方案 B：统一存储接口；桌面实现 = 主进程 SQLite（如 better-sqlite3），浏览器构建 = Dexie；约 297 个直连 db 模块分批迁移，新代码必须走接口。（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)、新单 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)）
@@ -144,6 +144,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   6. 示例放 GitHub Releases 资产 `sample-muya-v*`，构建时下载并校验 sha256；录音不进 git。
   7. 内置形式 = JYM 项目包，用户在解语里制作并导出；首启自动导入（依赖 #255、#275）。
   8. 两处 `supermemory-agent-memory.mdc`：木雅语料只留在本机，唯一例外为授权示例片段；代理仍不读、不上传、不粘贴任何木雅语料内容。
+  9. 插件与扩展不做：不做到扩展中心，也不开放第三方插件。《插件系统与扩展生态落地方案》就此停止。已在仓库里的扩展运行时不因此删除。
+- 2026-10-15 用户：AI 架构迁移拍进第二程 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。只做 ToolLoopAgent 有限试点，不批准全面迁移；R1 不达标再限时对照 OpenAI Agents SDK。不进第一程。`aiAgentRuntimeV2Enabled` 达标前不默认打开。门槛留在迁移评估，不另写切片。
 
 ## Next leg
 
@@ -171,8 +173,9 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#309](https://github.com/Abe-Junwei/Jieyu/issues/309) 完善 Leipzig IGT 导出（gb4e/expex + HTML）
 - [#310](https://github.com/Abe-Junwei/Jieyu/issues/310) 存档包导出（媒体 + EAF + LIFT + 元数据 XML）
 - [#311](https://github.com/Abe-Junwei/Jieyu/issues/311) FLEx LIFT 往返验证
+- [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时有限试点（ToolLoopAgent；试用结束前不开工；v2 不默认打开）
 
-排序（2026-10-13 21:23）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），A 系列 #286–#297 按需。
+排序（2026-10-13 21:23，2026-10-15 补 A15）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），A 系列 #286–#297 按需。A15（#314）排在试用结束之后，不插进第一程。
 
 ## Not yet specified
 
@@ -190,3 +193,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 移动端。
 - 试用名单与节奏：用户本人安排。
 - Tauri：已选 Electron。
+- 插件与扩展生态（2026-10-14）：不做到扩展中心，不开放第三方插件。已在仓库里的扩展运行时不因此删除。

@@ -3,11 +3,13 @@ title: ADR-0005 转写层录音模态（SayMore careful speech 向）
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-18
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-0005 转写层录音模态（SayMore careful speech 向）
+
+> 本编号与 [转写时间轴统一宿主](./0005-unified-timeline-workspace-host.md) 不是同一决定。本文只规定层录音模态。
 
 ## Status
 

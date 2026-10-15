@@ -1,3 +1,12 @@
+---
+title: Versioning and releases
+doc_type: guide
+status: active
+owner: repo
+last_reviewed: 2026-10-15
+source_of_truth: development-guide
+---
+
 # Versioning and releases
 
 This document defines how the **application version** in `package.json` and

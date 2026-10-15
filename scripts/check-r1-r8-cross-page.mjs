@@ -3,7 +3,7 @@
 //
 // P1-5 / B10：三页联评 R1–R8 合入门禁。
 // 命中标注 / 词典 / 语料产品路径时，PR 正文必须对 R1–R8 逐项勾选 `[x]` 或写明 `N/A`。
-// 锚点：docs/execution/plans/标注词典语料-治理补充规范-2026-04-25.md#r1-r8-cross-page-checklist
+// 锚点：.github/pull_request_template.md 的 R1–R8 段
 //
 // 不引入 Danger.js / 第三方 checklist action；复用本仓库 node 守卫 + 路径过滤。
 //
@@ -297,7 +297,7 @@ function main() {
       }
     }
     console.error(
-      'Anchor: docs/execution/plans/标注词典语料-治理补充规范-2026-04-25.md#r1-r8-cross-page-checklist',
+      'Anchor: .github/pull_request_template.md R1–R8 section',
     );
     process.exit(1);
   }

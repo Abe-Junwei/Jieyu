@@ -3,30 +3,20 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-05-11
-source_of_truth: current-state-index
+last_reviewed: 2026-10-15
+source_of_truth: architecture-index
 ---
 
 # Architecture 文档索引
 
-这里存放当前仓库中长期有效、应被视为“现状事实源”的文档。
+产品形状只有 [仓库现状与代码地图.md](./仓库现状与代码地图.md)。其余是合同或操作步骤，在 `AI_QUICKSTART.md` 路由命中、源码注释点名，或检查失败时才读。
 
-## 当前文档
+## 现状
 
 - [仓库现状与代码地图.md](./仓库现状与代码地图.md)
-  - 用途：仓库全局现状、代码地图、功能域总表。
+  - 用途：一页产品形状。文件清单、schema 版本和行数不在这里。
 
-- [collaboration-cloud.md](./collaboration-cloud.md)
-  - 用途：Supabase 协作云桥接的数据流、工程约束与观测基线。
-
-- [collaboration-runtime-map.md](./collaboration-runtime-map.md)
-  - 用途：`collaboration*Runtime` 与 `cloud/*` 的职责分工（生产 vs 门禁）。
-
-- [转写工作区声学分析现状.md](./转写工作区声学分析现状.md)
-  - 用途：转写工作区声学分析能力的当前实现边界、代码挂点与未完成项。
-
-- [transcription-deep-link-query-contract.md](./transcription-deep-link-query-contract.md)
-  - 用途：`/transcription` 深链 query、`sessionStorage` 返回提示与实现挂点（对齐三页联动 P0-1）。
+## 按任务打开的合同
 
 - [transcription-voice-action-id-registry-contract.md](./transcription-voice-action-id-registry-contract.md)
   - 用途：`ActionId` 与 `voiceIntentUi`、`dictKeys`、双语字典、`VoiceIntentLlmResolver` 允许列表的注册一致性；校验入口 `npm run check:transcription-text-telemetry-contract`。
@@ -35,7 +25,19 @@ source_of_truth: current-state-index
   - 用途：PWA / Service Worker 与**首次访问、冷启动、precache 边界**的用户预期（勘误表 C-3）。
 
 - [术语表.md](./术语表.md)
-  - 用途：统一 layer / tier / track / lane 等核心术语与边界。
+  - 用途：产品词（项目、文稿、项目包）与 layer / tier / track / lane 的边界。
+
+- [timeline-unit-governance.md](./timeline-unit-governance.md)
+  - 用途：时间轴单元的现行命名与读模型边界。
+
+- [dexie4-safari-transaction-psd-patterns.md](./dexie4-safari-transaction-psd-patterns.md)
+  - 用途：Dexie 4 在 Safari 上的事务作用域和 PSD 写法。决策边界见 ADR-0006。
+
+- [language-metadata-geodata-and-picker-strategy.md](./language-metadata-geodata-and-picker-strategy.md)
+  - 用途：语言元数据的国家列表来自仓库内静态快照，不再依赖 `country-state-city`。
+
+- [dmlex/README.md](./dmlex/README.md)
+  - 用途：DMLex 1.0 JSON Schema 副本。词典编辑基准见 ADR-0035。
 
 - [provider-neutral-orthography-interop-contract.md](./provider-neutral-orthography-interop-contract.md)
   - 用途：正字法互操作的长期兼容性合同。
@@ -52,52 +54,21 @@ source_of_truth: current-state-index
 - [ai-chat-tool-confirm-idempotency.md](./ai-chat-tool-confirm-idempotency.md)
   - 用途：AI 聊天工具确认链路的幂等与审计契约（含 `propose_changes` 批处理、trace 与 `metadata.executed` 语义）。
 
-- [ai-chat-send-turn-pipeline.md](./ai-chat-send-turn-pipeline.md)
-  - 用途：转写侧栏 `runAiChatSendTurn` 客户端 send 管道（preflight → persist/primary stream → stream phase → completion）、可选 correlation 日志、`data-testid` 与相关单测/E2E 索引。
-
-- [ai-execution-capability-strategy-matrix-v0.md](./ai-execution-capability-strategy-matrix-v0.md)
-  - 用途：执行层 capability 策略矩阵 v0（scope / trust / quota 与 `toolPreferences` / `safetyPreferences`、主链 pipeline、后台 sandbox 的优先级与代码锚点；T2-a）。
-
 - [ai-agent-runtime-security-local-first.md](./ai-agent-runtime-security-local-first.md)
-  - 用途：Agent 运行时安全本地优先策略（Last Mile 写 gate、semantic guard、agentRunId 审计）；排期见主路线图 A6–A14 与 [架构补强落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)。
+  - 用途：Agent 运行时安全本地优先策略（Last Mile 写 gate、semantic guard、agentRunId 审计）；排期见主路线图 A6–A14。
 
-- [ai-agent-runtime-runner-model.md](./ai-agent-runtime-runner-model.md)
-  - 用途：自研 Runner / Catalog / Callback 模型（借 ADK 模式、非 ADK 依赖）；`commitToolEffects` 唯一提交点；与 A10–A14 对齐。
-
-- [ai-change-transaction-preview-v1.md](./ai-change-transaction-preview-v1.md)
-  - 用途：变更事务预览 DTO v1（`AiChangeTransactionPreviewV1` / `buildAiChangeTransactionPreviewV1`）；与 `AiChangeSet` 对齐；T3-a。
-
-- [voice-unified-chat-path.md](./voice-unified-chat-path.md)
-  - 用途：非听写语音（command/analysis）与文字共用 AI 聊天主链的现状、功能开关、关键文件与回滚入口（灰度见 release-gates 配套文档）。
-
-- [voice-agent-hook-vs-service-behavior-matrix.md](./voice-agent-hook-vs-service-behavior-matrix.md)
-  - 用途：`useVoiceAgent` 与 `VoiceAgentService` 并行存在期间的行为对照与懒加载单一事实源（`voiceRuntimeLoaders`）；配合 `voiceIntentResolution.serviceHookParity.test.ts` 防漂移。
-
-- [self-evolving-agents-survey-analysis.md](./self-evolving-agents-survey-analysis.md)
-  - 用途：自演化 AI Agent 综述（arXiv:2508.07407）的核心框架、对 Jieyu 各子组件（Prompt/Memory/Tool/Workflow）的启示、以及分阶段落地建议；作为远期架构备选方向，非当前执行项。
-
-- [code-scale-maintenance-assessment.md](./code-scale-maintenance-assessment.md)
-  - 用途：全仓代码规模（1,719 文件 / ~39.5 万行）与维护成本的定量评估，含 LinguisticService 拆分、hooks 重组、scripts 分组的方案比较与执行顺序建议。
+- [ai-durable-agent-loop-recovery-scope.md](./ai-durable-agent-loop-recovery-scope.md)
+  - 用途：`agent_loop` 在 token 预算移交后能恢复什么、不承诺什么。
 
 - [code-governance-plan-2026-05-06.md](./code-governance-plan-2026-05-06.md)
-  - 用途：代码规模与结构治理的完整执行方案，含七波次拆分/重组计划（紧急阈值释放 → 服务层拆分 → AI 层重组 → 类型外迁 → Hooks 分组 → 组件瘦身 → 基础设施评估）、时间表、验收标准与风险矩阵。
-  - 2026-05-09 更新：`localContextToolExecutors.ts` 深拆分状态回填；AI Chat guard 口径收敛为单一 1000 ceiling（移除 `localContextToolFormatters.ts` / `localToolSlotResolver.ts` 的 1100 临时 ratchet）；新增 `toolCallHelpers.ts` 1700 ratchet 删除执行条目（拆分边界 + 验收命令）。
-
-- [CSS治理执行记录.md](./CSS治理执行记录.md)
-  - 用途：记录季度治理执行证据（预算复盘、兼容复核、视觉基线与废弃窗口推进）。
+  - 用途：落位规则与门禁。热点以当次 `npm run check:architecture-guard` 为准。本文不记行数。
 
 - [ReadyWorkspace-数据域与壳层装配边界.md](./ReadyWorkspace-数据域与壳层装配边界.md)
   - 用途：`useTranscriptionData`（`data`）与波形桥 / UI state / segment scope 的职责边界；时间轴交互 `domainWrite`+`hostWrite` 装配纪律，防止 `data.xxx` 壳层误接导致的运行期 `undefined`。
 
 ## 收录原则
 
-- 内容必须对当前实现仍然有效。
-- 内容必须适合被 README、代码评审、后续规划反复引用。
-- 若文档已经主要变成“当时为什么这么做”，应移回历史规划或发布说明，而不是继续留在这里。
-
-## 不放什么
-
-- 不放阶段性实施拆解。
-- 不放一次性修复清单。
-- 不放某一轮发布的验证记录。
-- 不放仅对当时开发过程有效的临时说明。
+- 产品形状只写仓库现状那一页。
+- 新合同必须在 `AI_QUICKSTART.md` 路由表写明什么任务才读。没有加载条件的散文不收。
+- 为什么放 `docs/adr/`。已接受的 ADR 不改结论。
+- 不放阶段性实施拆解、一次性修复清单、某一轮发布的验证记录，或只对当时开发过程有效的临时说明。

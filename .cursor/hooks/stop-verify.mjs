@@ -6,13 +6,14 @@
 // 失败时回注 followup_message 让 agent 先修再收尾（loop_limit=2 兜底防循环）。
 // 始终 fail-open（exit 0）：钩子异常不得阻塞会话结束。
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..', '..');
 const sentinel = join(scriptDir, '.verify-pending');
+const driftSeen = join(scriptDir, '.doc-drift-seen');
 
 function drainStdin() {
   try {
@@ -37,7 +38,46 @@ function tail(text, lines = 25) {
   return text.trim().split('\n').slice(-lines).join('\n');
 }
 
-function main() {
+function changedFiles() {
+  const res = spawnSync('git', ['status', '--porcelain', '-z', '--untracked-files=all'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  if (res.status !== 0) return new Set();
+  const entries = res.stdout.split('\0');
+  const files = new Set();
+  for (let i = 0; i < entries.length; i += 1) {
+    const entry = entries[i];
+    if (entry.length < 4) continue;
+    files.add(entry.slice(3));
+    if (entry[0] === 'R' || entry[0] === 'C') i += 1;
+  }
+  return files;
+}
+
+// ADR-0051 §4：改了被文档点名的代码却没改那份文档时只提醒一次，不拦截。
+async function docDriftReminder() {
+  try {
+    process.chdir(repoRoot);
+    const { codeDriftWarnings, listPathCheckedDocs } = await import(
+      pathToFileURL(join(repoRoot, 'scripts', 'check-docs-governance.mjs')).href
+    );
+    const warnings = codeDriftWarnings(changedFiles(), listPathCheckedDocs());
+    const seen = existsSync(driftSeen) ? new Set(readFileSync(driftSeen, 'utf8').split('\n')) : new Set();
+    const fresh = warnings.filter((w) => !seen.has(w));
+    if (fresh.length === 0) return '';
+    writeFileSync(driftSeen, [...seen, ...fresh].filter(Boolean).join('\n'));
+    return [
+      '以下文档点名的代码改了，文档没改。确认它们是否需要同步更新；不需要就忽略（本提醒不拦截，同一条只提一次）：',
+      '',
+      ...fresh.map((w) => `- ${w}`),
+    ].join('\n');
+  } catch {
+    return '';
+  }
+}
+
+async function main() {
   try {
     drainStdin();
 
@@ -68,9 +108,11 @@ function main() {
       if (!workflow.ok) failures.push(workflow);
     }
 
+    const drift = await docDriftReminder();
+
     if (failures.length === 0) {
       process.stderr.write('[stop-verify] typecheck + smoke evals + dev-agent workflow 通过\n');
-      process.stdout.write('{}');
+      process.stdout.write(drift ? JSON.stringify({ followup_message: drift }) : '{}');
       return;
     }
 
@@ -86,6 +128,7 @@ function main() {
       summary,
       '',
       '修复后会在下一轮再次自动校验。',
+      ...(drift ? ['', drift] : []),
     ].join('\n');
 
     process.stdout.write(JSON.stringify({ followup_message: followup }));

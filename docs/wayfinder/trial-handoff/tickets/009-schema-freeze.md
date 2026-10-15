@@ -16,4 +16,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/259
 
 ## Related
 
-已有冻结操作说明：[batch4a 验证记录 · 冻结点操作（D14）](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/release-gates/project-data-batch4a-migration-framework-verification-2026-10-09.md)。本单只定时机与清单。
+验证记录已从工作区移除。本单仍只定冻结时机与清单。

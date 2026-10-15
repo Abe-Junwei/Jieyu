@@ -3,7 +3,7 @@ title: Provider-Neutral Orthography Interop Contract
 doc_type: architecture-contract
 status: active
 owner: repo
-last_reviewed: 2026-04-06
+last_reviewed: 2026-10-15
 source_of_truth: compatibility-contract
 ---
 
@@ -42,10 +42,11 @@ source_of_truth: compatibility-contract
 | `variantTag` | 变体快照 | 可选；例如 `fonipa` |
 | `bridgeId` | 来源/目标桥接规则标识 | 当前只做透传，不要求所有 exporter 都必须写出；旧 `transformId` 已退出现行合同 |
 
+解析端另外接受五个结构字段：`timelineMode`、`logicalDurationSec`、`timebaseLabel`、`role`、`noteKind`。它们描述时间轴和 EAF 层角色，不属于正字法 identity；构建函数 `buildOrthographyInteropMetadata` 不写它们。
+
 对应代码门禁：
 
-- 构建白名单：[src/utils/orthographyInteropMetadata.ts](../../src/utils/orthographyInteropMetadata.ts#L13)
-- 解析白名单：[src/utils/orthographyInteropMetadata.ts](../../src/utils/orthographyInteropMetadata.ts#L29)
+- 构建与解析白名单：[src/utils/orthographyInteropMetadata.ts](../../src/utils/orthographyInteropMetadata.ts)
 - 白名单单测：[src/utils/orthographyInteropMetadata.test.ts](../../src/utils/orthographyInteropMetadata.test.ts)
 
 ## 降级规则
@@ -105,7 +106,7 @@ source_of_truth: compatibility-contract
 - TextGrid round-trip 保留 `languageId / orthographyId / scriptTag / regionTag / variantTag`：[src/services/TextGridService.test.ts](../../src/services/TextGridService.test.ts#L66)
 - TextGrid import 对未知 metadata 字段做 downgrade 忽略，同时保留 `bridgeId`：[src/services/TextGridService.test.ts](../../src/services/TextGridService.test.ts#L111)
 - 快照导入会忽略已移除的旧 `transformId` 兼容字段：[src/db/importDatabaseFromJson.test.ts](../../src/db/importDatabaseFromJson.test.ts)
-- metadata helper 只解析白名单字段并丢弃未知键：[src/utils/orthographyInteropMetadata.test.ts](../../src/utils/orthographyInteropMetadata.test.ts)
+- metadata helper 丢弃白名单以外的键（单测覆盖六个 identity 字段）：[src/utils/orthographyInteropMetadata.test.ts](../../src/utils/orthographyInteropMetadata.test.ts)
 
 ## 对未来 provider 的要求
 

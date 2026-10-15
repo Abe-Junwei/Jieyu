@@ -3,7 +3,7 @@ title: ADR-0032 — 转写页 AI 对话仅浮窗
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-08-21
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
@@ -18,7 +18,7 @@ source_of_truth: decision-record
 1. **对话唯一宿主**是浮动聊天窗。窗内挂载 `TranscriptionPageAssistantRuntime`（含语音抽屉），`showHeader={false}`，顶栏仍由窗头绘制。
 2. **右侧栏不再承担分析。** 向量 / 统计迁到受限工作台 `/analysis`（ADR-0033）。本条被 ADR-0033 supersede。
 3. **工具确认**打开浮窗，不展开分析栏、不抢时间轴宽度。
-4. **停靠 ⇄ 浮窗两套壳**（`docs/execution/specs/ai-assistant-presentation-modes/`）延后；关闭浮窗不等于收回侧栏。
+4. **停靠与浮窗两套壳不做**；关闭浮窗不等于收回侧栏。
 
 ## 影响
 
@@ -36,5 +36,5 @@ source_of_truth: decision-record
 
 - 临时放大已落地：放大填满视口留白，不写入默认尺寸；关闭或刷新后回到上次普通窗几何。
 - 浮窗默认只留窗头（标题 / 状态 / 设置 / 最小 / 放大 / 关闭）+ 消息 + 输入；摘要、Run 时间线、指标、Prompt Lab、决策回放不再占主列。语料范围条仍在窗内。
-- 停靠 ⇄ 浮窗两套壳仍延后，见 `docs/execution/specs/ai-assistant-presentation-modes/`。
+- 停靠与浮窗两套壳不做。本 ADR 是该决定。
 - 分析表面已迁出右栏，见 [ADR-0033](./0033-analysis-restricted-workspace-no-transcription-dock.md)。

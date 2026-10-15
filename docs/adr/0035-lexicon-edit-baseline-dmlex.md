@@ -1,7 +1,7 @@
 ---
 title: ADR 0035 - 词典编辑基准采用 DMLex JSON
 doc_type: adr
-status: active
+status: accepted
 owner: lexicon
 last_reviewed: 2026-09-27
 source_of_truth: decision
@@ -39,4 +39,4 @@ DMLex 1.0 的 JSON Schema（带跨语言模块）把这组对象定义成词头�
 ## 后续回顾点
 
 - 若出现必须无损吞进 FLEx 全量 LIFT 的接收方，再开单独投影，不把那些字段加回编辑基准。
-- 实施顺序见 `docs/execution/plans/词典编辑改用DMLex基准-2026-09-27.md`。
+- 实施切片已在主线。本 ADR 是编辑基准。

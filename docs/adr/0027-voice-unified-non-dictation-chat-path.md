@@ -33,6 +33,6 @@ source_of_truth: decision
 
 - 若未来需再次灰度新变体，应使用**新**开关名与 ADR，避免复活本决策已删除的语义。
 
-## 现状事实与文件清单
+## 现状
 
-见 `docs/architecture/voice-unified-chat-path.md`。
+行为以当前代码为准。界面只有聊天和听写。`command` 仍是非听写的内部默认值，不是单独一档。懒加载只走 `src/services/voiceRuntimeLoaders.ts`。

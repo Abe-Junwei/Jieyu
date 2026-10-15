@@ -3,11 +3,13 @@ title: ADR-0022 — AI Evaluation Judge Provider Contract
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-05-07
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-0022: AI Evaluation Judge Provider Contract
+
+> 本编号与 [标注 analysisGraph](./0022-annotation-analysis-graph-typed-relations.md) 不是同一决定。本文只规定评测 Judge。
 
 ## Status
 

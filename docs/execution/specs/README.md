@@ -41,4 +41,4 @@ docs/execution/specs/
 - `plans/`：宏观规划、多 milestone 路线图。
 - `specs/`：per-feature 三件套，颗粒度细到具体落位文件与验证命令。
 - 一份 plan 可分解为多份 spec。
-- spec 完成后 frontmatter `status: completed` 并保留作历史证据；不强制移动到 archive。
+- 切片落地后删除该 spec 目录。git 历史保留原文。未完成的规格留在本目录。

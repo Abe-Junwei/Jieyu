@@ -40,7 +40,7 @@ function uniqueIds(ids: readonly string[]): string[] {
 /**
  * Hard cap for IDs participating in one structural AI snapshot (merge / delete / allSegments).
  * Read on each call so tests can `vi.stubEnv('JIEYU_AI_STRUCTURAL_ROLLBACK_MAX_SELECTION_IDS', '…')`.
- * Default 4000; see `docs/architecture/ai-propose-changes-rollback-scale.md`.
+ * Default 4000. Override with `JIEYU_AI_STRUCTURAL_ROLLBACK_MAX_SELECTION_IDS`.
  */
 export function getAiStructuralRollbackMaxSelectionIds(): number {
   const raw =

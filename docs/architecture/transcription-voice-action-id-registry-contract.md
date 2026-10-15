@@ -3,7 +3,7 @@ title: 转写语音 ActionId 注册与文案合同
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-04-26
+last_reviewed: 2026-10-15
 source_of_truth: implementation
 ---
 
@@ -29,7 +29,7 @@ source_of_truth: implementation
 npm run check:transcription-text-telemetry-contract
 ```
 
-实现：`scripts/check-transcription-text-telemetry-contract.mjs`。该检查已并入 `npm run check:architecture-guard`，并随主仓库 **`npm test`** 在 CI 中执行。
+实现：`scripts/check-transcription-text-telemetry-contract.mjs`。该检查已并入 `npm run check:architecture-guard`，CI 经 `npm run check:all` 执行。
 
 ## PR / 发布前清单（养成习惯）
 
@@ -42,10 +42,10 @@ npm run check:transcription-text-telemetry-contract
 
 ## 变更清单（新增或重命名 ActionId）
 
-1. 在 `IntentRouter.ts` 的 `ActionId` 联合类型与 `ACTION_ID_SET` 中同时增删。  
+1. 在 `src/types/intentActionId.ts` 的 `ActionId` 联合类型与 `IntentRouter.ts` 的 `ACTION_ID_SET` 中同时增删。  
 2. 在 `voiceIntentUi.ts` 的 `ACTION_LABEL_KEYS` 中增加对应行，值为新的 `transcription.voiceAction.<id>` 键名（与 camelCase 的 `actionId` 对齐为惯例）。  
 3. 在 `dictKeys.ts` 与 `en-US.ts`、`zh-CN.ts` 中增加该键及中英文文案。  
 4. 在 `VoiceIntentLlmResolver.ts` 的允许列表字符串中追加同名 id（逗号分隔，顺序可与集合不同，但集合必须相等）。  
 5. 本地运行：`npm run check:transcription-text-telemetry-contract` 或 `npm run check:architecture-guard`。
 
-与语音主链、聊天路径的更多上下文见 [voice-unified-chat-path.md](./voice-unified-chat-path.md)。
+与语音主链的决定见 [ADR-0027](../adr/0027-voice-unified-non-dictation-chat-path.md)。

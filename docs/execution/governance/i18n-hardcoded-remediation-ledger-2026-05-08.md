@@ -19,14 +19,14 @@ source_of_truth: i18n-hardcoded-remediation
 
 | 文件 | 基线命中（约） | 性质与收敛策略 |
 |------|----------------|----------------|
-| `src/ai/chat/localContextToolFormatters.ts` | 高 | 多为双语工具结果模板；**中长期**迁入 i18n 字典或垂直 workflow 专用字典；短期以模块边界测试锁定行为 |
+| `src/ai/chat/localContextToolFormatters.ts` | 高 | 工具结果模板。不迁入 UI 字典。界面文案走 `src/i18n`，模型/工具固定句式留在 AI 文案层 |
 | `src/utils/theme.ts` | 中 | 主题展示名/描述；可分批迁入字典或只读配置 |
 | `src/ai/eval/userFeedback.ts` | 低 | 关键词分类启发式；可保留或收紧为枚举映射 |
-| `src/hooks/useTranscriptionTimelineVerticalChrome.ts` 等 | 低 | 菜单/aria 片段；与 paired-reading 字典合并优先 |
+| `src/hooks/transcription/useTranscriptionTimelineVerticalChrome.ts` 等 | 低 | 菜单/aria 片段；与 paired-reading 字典合并优先 |
 
 ## 3. 推荐迁移顺序（滚动执行）
 
-1. **用户可见且高频**：`localContextToolFormatters` 中与 UI 同路径展示的句子。
+1. **不要**把 `localContextToolFormatters` 的工具结果模板迁进 UI 字典。
 2. **主题/关于页**：`theme.ts` 中品牌化句子。
 3. **其余**：按目录阈值内 **delta 最小** 原则随功能 PR 捎带。
 

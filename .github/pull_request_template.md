@@ -16,7 +16,7 @@
 ## Architecture Guard
 
 - [ ] 已运行 `npm run typecheck`
-- [ ] 已运行 `npm test`（内含 `check:architecture-guard` → **`audit:ready-workspace-timeline-host`**；或单独 `npm run audit:ready-workspace-timeline-host`）
+- [ ] 已运行 `npm test`（只跑 Vitest）。结构守卫另跑 `npm run check:architecture-guard`（含 `audit:ready-workspace-timeline-host`）。整仓守卫是 `npm run check:all`
 - [ ] 已查看 `npm run report:architecture-hotspots`
 - [ ] 若影响转写页时间轴，已运行 `npm run gate:timeline-phase1`
 - [ ] 未新增 `check:architecture-guard` hard failure
@@ -28,7 +28,7 @@
 
 ## Timeline 验收 | Timeline Validation
 
-- [ ] 若影响转写页时间轴，已按执行脚本完成手工冒烟：`docs/execution/手工验收执行脚本-转写页时间轴治理门禁-2026-04-03.md`
+- [ ] 若影响转写页时间轴，已跑触及域的 vitest；交互改动另跑 `npm run test:e2e:chromium`
 - [ ] 已附验收证据（截图或录屏链接）
 
 ### Hotspot 检查 | Hotspot Check
@@ -56,7 +56,7 @@
 
 ## R1–R8 三页联评 | Cross-page checklist
 
-命中标注 `/annotation`、词典 `/lexicon`、语料 `/corpus` 产品路径时必须逐项勾选 `[x]`，或在该行写明 `N/A` 与理由。未触及三页产品代码时本段可全部 `N/A`。锚点：[治理补充规范 #r1-r8-cross-page-checklist](docs/execution/plans/标注词典语料-治理补充规范-2026-04-25.md#r1-r8-cross-page-checklist)。门禁：`npm run check:r1-r8`。
+命中标注 `/annotation`、词典 `/lexicon`、语料 `/corpus` 产品路径时必须逐项勾选 `[x]`，或在该行写明 `N/A` 与理由。未触及三页产品代码时本段可全部 `N/A`。清单即本节。门禁：`npm run check:r1-r8`。
 
 - [ ] **R1** 词汇标签分轨（项目词典 vs 术语备忘）
 - [ ] **R2** 写库边界未被语料库越界

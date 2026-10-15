@@ -1,7 +1,7 @@
 ---
 title: ADR 0036 - EAF 导入是文本交换，不是整库备份
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-09-28
 source_of_truth: decision
@@ -38,7 +38,7 @@ source_of_truth: decision
 - 无角色表时的默认选层见 ADR 0038。再导入、非毫秒时间单位、空音频这三条会改变已有结果，按执行计划的切片分别用测试锁住。
 - 层角色选择若只是现有导入流程里的一次确认，不新增 feature flag，也不单开 SDD。一旦为此新增 controller，先写 `docs/execution/specs/eaf-import-alignment/`。
 
-切片、验证和非目标见 [EAF 导入对齐改进](../execution/plans/EAF导入对齐改进-2026-09-28.md)。
+切片已在主线。本 ADR 是导入语义。
 
 ## 不采纳
 

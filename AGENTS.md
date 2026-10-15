@@ -2,7 +2,7 @@
 title: AGENTS.md — Jieyu cross-tool agent baseline
 status: active
 owner: repo
-last_reviewed: 2026-09-07
+last_reviewed: 2026-10-15
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -16,18 +16,18 @@ Behavioral guidelines below are adapted from [forrestchang/andrej-karpathy-skill
 
 - **项目级工程约束权威正文**：[copilot-instructions.md](copilot-instructions.md)（中文 canonical full text）。非 trivial 或触碰架构的任务**通读不得只读摘要**。
 - **编排层 vs controller 边界、目录落位、复杂度阈值（300 行 / 12 hooks）、面板 CSS 双层边框**：见 [copilot-instructions.md](copilot-instructions.md) §0 / §一 / §二 / §三 / §九。
-- **新任务默认工作流（Explore → Plan → Implement → Commit）**：见 [copilot-instructions.md](copilot-instructions.md) §五。Explore 仅读不改；Commit 必须附验证证据。
+- **新任务默认工作流（Explore → Research → Plan → Implement → Commit）**：见 [copilot-instructions.md](copilot-instructions.md) §五。Explore 仅读不改；Commit 必须附验证证据。
 - **中等以上复杂度需写 SDD 三件套**（≥ 1 新 controller / ≥ 1 新 service / 跨 ≥ 3 controller 改动）：模板见 [docs/execution/specs/_template/](docs/execution/specs/_template/)。
 - **ReadyWorkspace 装配**：波形 / UI state / segment scope 的 API **不得**从 `useTranscriptionData` 的 `data` 上取；见 [docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md](docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md)；门禁含于 `npm run check:architecture-guard`（`audit:ready-workspace-timeline-host`）。
 - **docs 落位与治理**：[.cursor/rules/jieyu-docs-governance.mdc](.cursor/rules/jieyu-docs-governance.mdc) 与 `npm run check:docs-governance`。
-- **当 docs 与代码冲突时**：优先 [docs/architecture/](docs/architecture/) 与代码为当前真相；历史规划只作上下文。
+- **文档打架时**：能核对的以代码和当次检查为准。产品形状只看 [仓库现状](docs/architecture/仓库现状与代码地图.md)。其余 architecture 文档只在 [AI_QUICKSTART](AI_QUICKSTART.md) 路由命中时读。为什么见 [ADR-0049](docs/adr/0049-decisions-not-current-state-inventories.md)。历史规划只作上下文。
 - **成熟方案优先**：新增功能 / 交互 / 算法 / 存储 / 集成 / 架构前，先调研业内成熟实现（库 / 规范 / 框架原生模式 / 仓库既有模块）；只有明确说明复用不适合后才自行设计。新增依赖必须说明维护、体积、许可与集成成本。**此原则的执行载体是工作流的 Research 阶段（见 [copilot-instructions.md](copilot-instructions.md) §5.1.5）：新功能未做 Research 不得进入 Plan。**
 - **桌面端浏览器支持**：[docs/architecture/桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md)；新或敏感的浏览器 API 用特性检测；行为差异需扩 E2E（`npm run test:e2e`；本地快环 `npm run test:e2e:chromium`）。
 - **UI / Stitch handoff**：视觉工作先读 [DESIGN.md](DESIGN.md) 与 [src/styles/tokens.css](src/styles/tokens.css)；颜色映射语义 token；用户可见文案走 `dictKeys` / 字典，不留设计稿原文。
 - **AI formatter 文案 vs UI 文案分层**：模型/工具输出固定句式放 `src/ai/messages/`，与界面字典不混命名空间。
-- **单人合并门槛（拍板 2A）**：完成前必跑 `npm run typecheck` + 触及域的 `vitest`；交互 / ReadyWorkspace / 侧栏 / 时间轴改动还要 `npm run test:e2e:chromium`；完整改进决策见 [docs/execution/plans/单人AI协作改进计划-拍板决策-2026-05-11.md](docs/execution/plans/单人AI协作改进计划-拍板决策-2026-05-11.md)。
-- **数据访问（P2-3）**：新代码直接用 Dexie Table API（`db.dexie.<table>.where(index)…`），不再新增 `db.collections.*` 调用；`findOne` / `removeBySelector` 遇到没有索引的选择器在开发和测试里会抛 `DexieNonIndexedQueryError`。整表读必须显式（`toArray()` 或 `find().exec()` 加 `shortcut:` 注释说明为什么可以）。
-- **Feature flag**：高风险或 UI 觉察大改默认套 flag，`false` 合并、自用 1 周后切默认 `true`；见 [src/featureFlags.ts](src/featureFlags.ts) 与 [copilot-instructions.md](copilot-instructions.md) §五。
+- **单人合并门槛**：完成前必跑 `npm run typecheck` + 触及域的 `vitest`；交互 / ReadyWorkspace / 侧栏 / 时间轴改动还要 `npm run test:e2e:chromium`。E2E 修稳，不长期 skip。依赖手动升，顺序见 [DEPENDENCY_UPGRADE_PLAYBOOK.md](docs/development/DEPENDENCY_UPGRADE_PLAYBOOK.md)。
+- **数据访问（P2-3）**：本检出的新代码仍直接用 Dexie Table API（`db.dexie.<table>.where(index)…`），不再新增 `db.collections.*` 调用；`findOne` / `removeBySelector` 遇到没有索引的选择器在开发和测试里会抛 `DexieNonIndexedQueryError`。整表读必须显式（`toArray()` 或 `find().exec()` 加 `shortcut:` 注释说明为什么可以）。ADR-0046 的 repository 是已接受目标，本检出还没有这个接口；不要在普通改动里自行设计，存储接口留给 ADR-0048。
+- **Feature flag**：高风险或 UI 觉察大改默认套 flag，`false` 合并、自用 1 周后切默认 `true`；见 [src/ai/config/featureFlags.ts](src/ai/config/featureFlags.ts) 与 [copilot-instructions.md](copilot-instructions.md) §五。
 
 ## 通用代理基线（Karpathy 4 rules）
 
@@ -112,7 +112,7 @@ For multi-step tasks, state a brief plan:
 
 完整定义见 [copilot-instructions.md](copilot-instructions.md) §五。要点：
 
-- **Explore**：仅读 src/ / docs/adr/ / docs/architecture/，产出已读事实清单（"我们现在有什么"）。Cursor → Plan/Ask mode；Kimi → `--explore`；Copilot → Chat ask。
+- **Explore**：读 `src/`、相关 `docs/adr/`，以及 AI_QUICKSTART 点名的架构页（产品形状，加上本任务路由那一行）。不把 `docs/architecture/` 整目录读完。Cursor → Plan/Ask mode；Kimi → `--explore`；Copilot → Chat ask。
 - **Research**（新功能 / 新交互 / 新算法 / 新存储 / 新集成 / 新架构时强制）：向外调研业内成熟做法（"业内怎么做"）——同类产品 / 标杆实现、best practice / 规范、公认不可行方案、潜在的坑，综合出复用/适配/自研结论后再进 Plan。Cursor → WebSearch + context7；Kimi → web/search tool；Copilot → chat web search。详见 §5.1.5。
 - **Plan**：产出落位 + 验证方式（承接 Research 结论）；用户确认后才切到实施。
 - **Implement**：执行 plan；逐步 typecheck / 定向 vitest 验证。

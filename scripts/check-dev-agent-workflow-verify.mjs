@@ -10,6 +10,7 @@
 // 供 .cursor/hooks/stop-verify.mjs 调用；也可手动 npm run check:dev-agent-workflow-verify
 
 import { spawnSync } from 'node:child_process';
+import { readFileSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { checkSpecResearchFilled } from './check-spec-research-filled.mjs';
 
@@ -92,17 +93,60 @@ export function detectSddTriggerSignals(files) {
   return triggers;
 }
 
+/**
+ * @param {string} filePath
+ * @returns {string | null} specs slug, or null for template / README / a specs-root file
+ */
+export function specSlugFromPath(filePath) {
+  const p = filePath.replace(/\\/g, '/');
+  if (!p.startsWith(SPECS_PREFIX) || p.startsWith(SPECS_TEMPLATE)) return null;
+  const slug = p.slice(SPECS_PREFIX.length).split('/')[0];
+  if (!slug || slug.includes('.') || slug === '..') return null;
+  return slug;
+}
+
 /** @param {ChangedFile[]} files */
 export function hasSpecDirectoryActivity(files) {
-  return files.some((f) => {
-    const p = f.path.replace(/\\/g, '/');
-    return p.startsWith(SPECS_PREFIX) && !p.startsWith(SPECS_TEMPLATE);
-  });
+  return files.some((f) => f.status !== 'D' && specSlugFromPath(f.path));
+}
+
+function designStatus(designPath) {
+  let text = '';
+  try {
+    text = readFileSync(designPath, 'utf8');
+  } catch {
+    return undefined;
+  }
+  const fm = text.match(/^---\n([\s\S]*?)\n---/);
+  if (!fm) return undefined;
+  const m = fm[1].match(/^status:\s*(.*)$/m);
+  return m ? m[1].trim().replace(/^['"]|['"]$/g, '') : undefined;
+}
+
+/**
+ * A slug satisfies Implement only when its trio still exists and design is not draft.
+ * @param {string} slug
+ * @param {string} specRoot
+ */
+export function specSlugReadyOnDisk(slug, specRoot) {
+  const dir = join(specRoot, slug);
+  const requirements = join(dir, 'requirements.md');
+  const design = join(dir, 'design.md');
+  const tasks = join(dir, 'tasks.md');
+  for (const filePath of [requirements, design, tasks]) {
+    try {
+      if (!statSync(filePath).isFile()) return false;
+    } catch {
+      return false;
+    }
+  }
+  const status = designStatus(design);
+  return Boolean(status) && status !== 'draft';
 }
 
 /**
  * @param {ChangedFile[]} changedFiles
- * @param {{ specResearchFailures?: string[] }} [injected]
+ * @param {{ specResearchFailures?: string[], specRoot?: string, isImplementSpecReady?: (slug: string) => boolean }} [injected]
  * @returns {string[]} human-readable failures (empty = pass)
  */
 export function verifyDevAgentWorkflow(changedFiles, injected = {}) {
@@ -114,12 +158,24 @@ export function verifyDevAgentWorkflow(changedFiles, injected = {}) {
 
   const triggers = detectSddTriggerSignals(changedFiles);
   const specTouched = hasSpecDirectoryActivity(changedFiles);
+  const specRoot = injected.specRoot ?? join(process.cwd(), 'docs/execution/specs');
+  const implementReady = [...new Set(
+    changedFiles
+      .filter((f) => f.status !== 'D')
+      .map((f) => specSlugFromPath(f.path))
+      .filter(Boolean),
+  )].some((slug) => (
+    injected.isImplementSpecReady
+      ? injected.isImplementSpecReady(slug)
+      : specSlugReadyOnDisk(slug, specRoot)
+  ));
 
-  if (triggers.length > 0 && !specTouched) {
+  if (triggers.length > 0 && !implementReady) {
     const lines = triggers.map((t) => `- ${t.kind}: ${t.detail}`).join('\n');
     failures.push(
       [
-        'SDD 触发信号已出现，但本轮 diff 未触及 docs/execution/specs/<slug>/。',
+        'SDD 触发信号已出现，但没有仍存在、且 design 不是 draft 的 specs/<slug>/ 三件套。',
+        'specs/README.md、纯删除、以及 draft 都不算 Implement 已有规格。',
         '按 copilot-instructions.md §5.1.5 / §5.2.1：须先 Research → Plan（含 spec 三件套）再 Implement。',
         '触发信号：',
         lines,

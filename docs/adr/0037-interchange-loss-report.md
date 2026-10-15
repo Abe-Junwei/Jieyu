@@ -1,7 +1,7 @@
 ---
 title: ADR 0037 - 文件交换共用一份丢失清单
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
 last_reviewed: 2026-09-28
 source_of_truth: decision
@@ -33,7 +33,7 @@ source_of_truth: decision
 - 无角色表且未打开确认时，层的归类与现在相同。直接调用 `useImportExport` 的测试不传确认开关，行为不变。
 - 生产路径沿用 `useTranscriptionImportExportInput` 里已有的确认开关，含义扩到全部标注格式。
 
-切片、验证和非目标见 [文件交换丢失清单](../execution/plans/文件交换丢失清单-2026-09-28.md)。
+切片已在主线。本 ADR 是丢失报告的语义。
 
 ## 不采纳
 

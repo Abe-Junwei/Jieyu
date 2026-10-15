@@ -3,7 +3,7 @@ title: ADR-0006 Dexie 事务作用域与转写层图（layer graph）访问规�
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-18
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
@@ -11,7 +11,7 @@ source_of_truth: decision-record
 
 ## Status
 
-Accepted（规范目标：**第一层**——在 `db.dexie.transaction` 声明中列全回调体内会访问的 object store；实现按本文「落地阶段」渐进完成。2026-04-18 起主要调用方已迁移至 `dexieTranscriptionGraphStores`；`storeNames` 检测 + `Dexie.waitFor` 仍保留为兼容窄事务的读取安全网，见「阶段 4」结论。）
+Accepted。本文只约束浏览器构建里的 Dexie 事务。桌面 SQLite 以 [ADR-0046](./0046-desktop-sqlite-project-folder.md) 的存储接口为准，不照搬 object store 列表。
 
 ## Context
 
@@ -96,7 +96,7 @@ IndexedDB 要求：在某一 `IDBTransaction` 上只能打开其 **scope 内** �
 ## 后续回顾点
 
 - [x] 常量模块已落地且调用方已迁移引用（`src/db/dexieTranscriptionGraphStores.ts` + `src/db/index.ts`）。  
-- [x] `rg "dexie\\.transaction"` 打开点已收口到执行计划表与集中声明；细粒度 callee 矩阵见 `docs/execution/archive/cursor-plans/dexie-transaction-layer-graph-scope.plan.md`。  
+- [x] `rg "dexie\\.transaction"` 打开点已收口到本 ADR 的执行顺序与集中声明。  
 - [x] 安全网（`waitFor`）：**现阶段保留**（见「阶段 4」结论）；若未来移除，须新 ADR 或修订本 ADR 并补充回归说明。  
 
 ## 参考（Dexie 官方）

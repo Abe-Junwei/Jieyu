@@ -3,7 +3,7 @@ title: ADR 0003 - execution 文档按角色分层
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-06
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
@@ -18,8 +18,8 @@ source_of_truth: decision-record
 1. `docs/execution/governance/` 保存长期治理规则和台账。
 2. `docs/execution/release-gates/` 保存发布门禁、风险、封账和 go / no-go 结论。
 3. `docs/execution/plans/` 保存专题执行方案与开放条件文档。
-4. `docs/execution/audits/` 保存代码盘点、扫描基线和专项审计。
-5. 手工验收脚本、记录、证据继续归档到 `docs/execution/archive/manual-validation/`。
+4. `docs/execution/audits/` 只留脚本读取的导出。
+5. 不设 `docs/execution/archive/`。做完或作废的长文从工作区删除。
 
 ## 影响
 
@@ -34,5 +34,5 @@ source_of_truth: decision-record
 
 ## 后续回顾点
 
-1. 若单一主题的门禁/脚本/记录持续增多，再在 `release-gates/` 或 `archive/` 下按主题继续细分。
+1. 若单一主题的门禁持续增多，再在 `release-gates/` 下按主题细分。不要把一次性报告留在工作区。
 2. 每轮迁移后都要跑一次旧路径检索，防止遗留相对链接失效。

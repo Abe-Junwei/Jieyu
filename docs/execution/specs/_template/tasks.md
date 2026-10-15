@@ -12,7 +12,7 @@ depends_on:
 
 # Tasks — <feature-slug>
 
-> 上限：≤ 60 行。颗粒度：每条 task ≤ 半天工作量；超过即拆。
+> 上限：≤ 60 行。颗粒度：每条 task ≤ 半天工作量；超过即拆。不适用的项写成 `- [x] 不适用：原因`。全部勾完就删除本 spec 目录（ADR-0051）。
 
 ## Implementation tasks
 
@@ -21,14 +21,14 @@ depends_on:
 - [ ] 任务 3 → 验证：`<command>`
 - [ ] …
 
-## Pre-merge gates（与拍板 2A 一致）
+## Pre-merge gates（与 AGENTS.md 单人合并门槛一致）
 
 - [ ] `npm run typecheck`
 - [ ] 触及域的 `vitest`（具体路径：`<path>`）
 - [ ] 触及交互 / ReadyWorkspace / 侧栏 / 时间轴：`npm run test:e2e:chromium`
 - [ ] 触及编排 / 复杂度：`npm run check:architecture-guard`
-- [ ] 触及 `src/ai/**`：`npm run check:agent-evals:smoke`
-- [ ] 触及 docs：`npm run check:docs-governance` + `npm run check:plans-frontmatter`
+- [ ] 触及 `src/ai/**`：`npm run check:agent-evals:full`
+- [ ] 触及 docs：`npm run check:docs-governance`
 - [ ] Feature flag（如启用）已注册并默认 `false`
 
 ## Commit 阶段证据模板
@@ -48,4 +48,4 @@ Verified:
 
 - [ ] 自用 N 周后切 feature flag 默认值（如启用）
 - [ ] 稳定 1 cycle 后清理 flag 与所有分支
-- [ ] spec frontmatter `status: completed` + `closed_at: YYYY-MM-DD`
+- [ ] 删除 `docs/execution/specs/<feature-slug>/`

@@ -3,11 +3,13 @@ title: ADR-0005 转写时间轴统一宿主（横向壳合并）
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-22
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-0005 转写时间轴统一宿主（横向壳合并）
+
+> 本编号与 [转写层录音模态](./转写层录音模态（SayMore careful speech 向）架构方案.md) 不是同一决定。本文只规定横向壳合并。
 
 ## Status
 
@@ -31,5 +33,5 @@ Accepted。本 ADR 记录 **2026-04 起** 转写主时间轴在**横向**上的�
 
 ## Relation to ADR-0004
 
-- **0004** 继续约束：`timelineMode`、`logicalDurationSec`、`timeMapping`、删音/占位与主存坐标。
+- **0004** 继续约束 `logicalDurationSec`、`timeMapping`、删音占位与主存坐标。`timelineMode` 只作导出标签，运行态以 [ADR-0009](./0009-greenfield-timeline-single-source-freeze.md) 为准。
 - **0005** 仅约束 **横向 React 挂载拓扑** 与壳枚举到组件的映射，不改变 0004 的数据语义。

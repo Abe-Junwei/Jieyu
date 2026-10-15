@@ -464,6 +464,7 @@ function main() {
   if (options.writeBaseline) {
     writeBaseline(options.baselinePath, fileCounts, totalHits);
     console.log(`[check-i18n-hardcoded] baseline written: ${toWorkspaceRelative(options.baselinePath)}`);
+    console.log('[check-i18n-hardcoded] record the reason in docs/execution/governance/i18n-hardcoded-remediation-ledger-2026-05-08.md §4');
   }
 
   if (findings.length === 0) {

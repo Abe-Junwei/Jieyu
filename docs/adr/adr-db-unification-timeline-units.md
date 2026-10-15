@@ -3,11 +3,13 @@ title: ADR-003 DB Unification Timeline Units
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-15
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-003 DB Unification Timeline Units
+
+> 自称 ADR-003，不是 [0003](./0003-execution-文档按角色分层.md)。
 
 ## Status
 Accepted
@@ -34,7 +36,7 @@ Canonical persistence is `layer_units`, `layer_unit_contents`, and `unit_relatio
 
 **Guards:** `scripts/check-segmentation-storage-boundary.mjs` whitelists the above storage-layer entry points; `scripts/architecture-guard.config.mjs` forbids reintroducing the deleted `LegacyMirrorService` / `LayerUnitSegmentMirrorPrimitives` module names.
 
-**Release gate:** See `docs/execution/release-gates/M16-DB-unification-cutover-清单-2026-04-15.md`.
+**Release gate:** `npm run gate:timeline-cqrs-phase16-17`.
 
 **See also:** [ADR-005 — Strangler path not taken](./adr-db-unification-strangler.md) (greenfield-style cutover instead of dual-write). [ADR-006 — Linguistic `unitId` + removal of `utterances` store](./adr-006-linguistic-subgraph-unitid-utterances-retirement.md) (**accepted**; Dexie v37 completes utterance **persistence** in `layer_units` only and removes the `utterances` collection).
 
@@ -44,4 +46,4 @@ Canonical persistence is `layer_units`, `layer_unit_contents`, and `unit_relatio
 
 **Automated gate:** `npm run gate:timeline-cqrs-phase16-17` runs architecture guard, `scripts/check-segmentation-storage-boundary.mjs`, migration replay/idempotency tests, and `LayerUnitSegmentWriteService` / `LayerUnitRelationQueryService` regression tests.
 
-**Release gate:** See `docs/execution/release-gates/M17-DB-unification-verification-清单-2026-04-15.md`.
+**Release gate:** the same `npm run gate:timeline-cqrs-phase16-17` command covers this verification closure.

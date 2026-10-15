@@ -3,7 +3,7 @@ title: ADR 0031 — AI Chat KeyVault 本地优先威胁模型与 connect-src 白
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-06-01
+last_reviewed: 2026-10-14
 source_of_truth: architecture-decision
 ---
 
@@ -22,8 +22,11 @@ source_of_truth: architecture-decision
 1. **不**在本阶段引入用户主口令 UI（避免与「零配置本地优先」产品路径冲突）。
 2. 将 KeyVault 定位为 **「防 casual 本地读取」** 层：阻止明文 API key 落盘、阻止非脚本方直接读 `localStorage` 字符串；**不**声称抵御同 origin 恶意脚本。
 3. 若未来需要「抵御物理访问 / 共享机器」级保护，另开 ADR 引入可选用户秘密或 OS 凭据 API，并与迁移路径绑定。
+4. **桌面版不使用这段 KeyVault。** 密钥进系统钥匙串，AI 请求从 Electron 主进程发出，桌面渲染进程的 `connect-src` 只放行本地来源。见 [ADR-0047](./0047-desktop-build-strips-collab-keys-telemetry.md)。
 
 ### 2. CSP `connect-src` 收紧
+
+浏览器构建维护下面这份显式名单。桌面渲染进程的 `connect-src` 只放行本地来源，见决策 1.4 与 ADR-0047。
 
 1. 从 `index.html` meta CSP **移除** `https:` / `wss:` 通配符。
 2. 保留并维护**显式枚举**：Supabase、Sentry、常用 LLM/TTS 供应商、OpenStreetMap Nominatim、BAS WebServices、Hugging Face 模型 CDN，以及本机环回 Whisper `3040` 与 Zotero MCP HTTP `8765` 等。

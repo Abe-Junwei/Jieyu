@@ -3,51 +3,24 @@ title: execution/governance 文档索引
 doc_type: execution-governance-index
 status: active
 owner: repo
-last_reviewed: 2026-05-05
+last_reviewed: 2026-10-14
 source_of_truth: governance-index
 ---
 
 # execution/governance 文档索引
 
-这里保存长期保留的工程治理规则、台账和文档治理说明。
+这里只留仍被检查脚本或现行门禁引用的台账。
 
 ## 文档治理运行口径
 
-当前仓库的文档治理分成两层：
-
 1. 严格治理面：`npm run check:docs-governance`
-2. 全仓债务报告：`npm run report:docs-link-debt`
+2. 全仓链接报告：`npm run report:docs-link-debt`（只报告，不阻塞合并）
 
-口径说明：
+改索引、architecture、services、adr 或 release-gates 后跑第 1 条。大范围删改链接后再跑第 2 条。
 
-1. `check:docs-governance` 只对当前高价值文档面做严格校验，包括 frontmatter、角色声明和关键内部链接。
-2. `report:docs-link-debt` 会扫描 `docs/` 下全部 Markdown，用于发现历史文档路径漂移或失效引用，但只报告不阻塞。
-3. CI 中对应的独立 job 为 `docs-governance`；该 job 会同时运行上述两个命令，其中严格检查失败会阻塞合并，债务报告仅用于可见性。
+## 当前台账
 
-推荐使用顺序：
+- [i18n-hardcoded-remediation-ledger-2026-05-08.md](./i18n-hardcoded-remediation-ledger-2026-05-08.md)
+- [knip-exception-ledger-2026-05-08.md](./knip-exception-ledger-2026-05-08.md)
 
-1. 改完当前索引、architecture、services、adr 或 release-gates 文档后，先跑 `npm run check:docs-governance`
-2. 做归档、迁移、批量改路径后，再跑 `npm run report:docs-link-debt`
-3. 若要把检查设为 GitHub 远端必选项，请同步更新 branch protection 的 required checks
-
-**建议节奏**：发版前、或 `docs/` 大搬迁/批量改相对路径后，额外跑一次 `npm run report:docs-link-debt`，把报告中的断链记入对应计划或 PR（该命令不阻塞合并，仅提高可见性）。
-
-## 当前文档
-
-本目录在索引之外保留下列台账与 ARCH 专文（其余治理事实仍可参见下列活跃计划与闸门文档）：
-
-- [未落地项汇总-2026-04-24.md](./未落地项汇总-2026-04-24.md)
-- [arch1-fireAndForget-2026-04-25.md](./arch1-fireAndForget-2026-04-25.md)
-- [arch2-i18n-message-modules-2026-04-25.md](./arch2-i18n-message-modules-2026-04-25.md)
-- [arch3-architecture-guard-hotspots-2026-05-05.md](./arch3-architecture-guard-hotspots-2026-05-05.md)
-- [git-stash-inventory-2026-05-05.md](./git-stash-inventory-2026-05-05.md)（本地 `git stash` 快照，**不自动清理**）
-- [release-gates 文档索引](../release-gates/README.md)
-- [证据化发布与 AI 工具治理完整方案-2026-04-20.md](../plans/证据化发布与AI工具治理完整方案-2026-04-20.md)
-- [标注页与词典页开发路线图-2026-04-25.md](../plans/标注页与词典页开发路线图-2026-04-25.md)
-- [标注词典语料-治理补充规范-2026-04-25.md](../plans/标注词典语料-治理补充规范-2026-04-25.md)
-
-## 使用原则
-
-1. 这里的文档优先描述治理规则、守卫口径和归档原则。
-2. 若要描述当前产品事实，请回到 `../../architecture/`。
-3. 文档治理脚本与 CI 口径变更后，应同步更新本页和 [release-gates 文档索引](../release-gates/README.md)，避免“脚本已变、文档未跟上”。
+产品事实写回 `../../architecture/` 或 `../../adr/`。不要在这里新增一次性审查报告。

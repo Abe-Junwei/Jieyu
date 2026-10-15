@@ -22,7 +22,8 @@ const markdownReportPath = path.join(
   workspaceRoot,
   'docs',
   'execution',
-  'audits',
+  'release-gates',
+  'release-evidence',
   `M5-观测趋势报告-v1-${getTodayDateLabel()}.md`,
 );
 

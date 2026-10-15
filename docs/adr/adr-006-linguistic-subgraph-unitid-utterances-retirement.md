@@ -3,14 +3,16 @@ title: ADR-006 Linguistic Subgraph unitId + utterances Store Removal (Big-Bang)
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-15
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-006 — 语言学子图 `unitId` 与 `utterances` 表移除（破坏性单次切流）
 
+> 自称 ADR-006，不是 [Dexie 事务](./0006-dexie-transaction-scope-layer-graph.md)。
+
 ## Status
-**Accepted** — aligned with [M18 行动方案](../execution/plans/M18-语言学子图-unitId-统一行动方案-2026-04-15.md): Dexie **v37** performs the cutover (`utterances` store removed; subgraph keys **`unitId` only**), with verification via `npm run test:m18-linguistic-subgraph` and `npm run gate:timeline-cqrs-full-migration`.
+**Accepted** — Dexie **v37** performs the cutover (`utterances` store removed; subgraph keys **`unitId` only**), with verification via `npm run test:m18-linguistic-subgraph` and `npm run gate:timeline-cqrs-full-migration`.
 
 ## Context
 
@@ -56,7 +58,7 @@ M18 removes **`utteranceId` as the subgraph foreign key** on **`utterance_tokens
 - **`UtteranceTextDocType.utteranceId`**, **`LayerSegmentDocType.utteranceId`**, and similar fields meaning “**host utterance unit id**” in translation/segment **document** shapes.
 - In-memory / UI names such as **`utterances: UtteranceDocType[]`** — these are **projections** from canonical `layer_units`, **not** the removed Dexie `utterances` store.
 
-Authoritative wording: [M18 命名与「子图 utteranceId」边界](../architecture/m18-linguistic-nomenclature.md).
+The naming note that listed these kept names was deleted on 2026-10-15; `src/` no longer contains `utteranceId`.
 
 ## Consequences
 
@@ -75,7 +77,5 @@ Authoritative wording: [M18 命名与「子图 utteranceId」边界](../architec
 
 ## Related
 
-- [M18 — 语言学子图 unitId 统一 + utterances 退场（一锤定音版）](../execution/plans/M18-语言学子图-unitId-统一行动方案-2026-04-15.md)  
-- [M18 命名与「子图 utteranceId」边界](../architecture/m18-linguistic-nomenclature.md)  
 - [ADR-003 — DB Unification Timeline Units](./adr-db-unification-timeline-units.md)  
 - [ADR-001 — Timeline Unit View Read Model](./adr-timeline-unit-view-read-model.md)

@@ -1,9 +1,9 @@
 ---
 title: '0044 — 目录按项目分开，跨项目不共用'
 doc_type: adr
-status: active
+status: accepted
 owner: transcription
-last_reviewed: 2026-10-09
+last_reviewed: 2026-10-14
 source_of_truth: decision
 ---
 
@@ -41,4 +41,4 @@ source_of_truth: decision
 ## 影响
 
 - 本决定取代 ADR-0034 里「快照不含词库 / 语言 / 正字法」和 ADR-0043 里「说话人行全局」这两句。快照仍不整库覆盖。
-- 已知限制：语言覆盖行、内置正字法覆盖行和 LIFT 词条沿用全局 ID 作主键。同一个 ID 只能由一份项目持有；另一份项目再写同一 ID 会报归属不符，不会悄悄认领或覆盖。
+- ADR-0046 已把语言覆盖行、内置正字法覆盖行和 LIFT 词条改为归项目所有。它们不再沿用一份全局 ID 当作现行限制。

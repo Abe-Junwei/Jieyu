@@ -3,11 +3,13 @@ title: ADR-002 AI Grounding MCP Shaped
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-15
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-002 AI Grounding MCP Shaped
+
+> 自称 ADR-002，不是 [开放工作台范围](./0002-开放工作台范围.md)。
 
 ## Status
 Accepted

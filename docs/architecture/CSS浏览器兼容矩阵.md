@@ -3,7 +3,7 @@ title: CSS 浏览器兼容矩阵
 doc_type: architecture-spec
 status: active
 owner: repo
-last_reviewed: 2026-04-25
+last_reviewed: 2026-10-15
 source_of_truth: css-compat-governance
 ---
 

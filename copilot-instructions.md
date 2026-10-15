@@ -3,7 +3,7 @@ title: 解语 Copilot 项目级开发约束（canonical full text）
 doc_type: agent-instructions
 status: active
 owner: repo
-last_reviewed: 2026-05-13
+last_reviewed: 2026-10-15
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -23,7 +23,7 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ### 0.1 通用代理基线指针
 
 > **Karpathy 4 rules（Think / Simplicity / Surgical / Goal-Driven）与代码审查硬规则**：见 [AGENTS.md](AGENTS.md) §1–4，本文不重复。
-> **新任务工作流（Explore → Plan → Implement → Commit）**：见本文 §五 详细展开；[AGENTS.md](AGENTS.md) 有简短引用。
+> **新任务工作流（Explore → Research → Plan → Implement → Commit）**：见本文 §五 详细展开；[AGENTS.md](AGENTS.md) 有简短引用。Research 只在新功能、新交互、新算法、新存储、新集成、新架构时强制。
 
 ### 0.2 Jieyu 项目级硬规则（每次任务默认启用）
 
@@ -44,7 +44,7 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 5. 单个 hook 超过 300 行，或 `useEffect/useMemo/useCallback` 总数超过 12 个时，必须拆分。
 
 6. 本仓库遵守现有目录结构，不引入外部教程式 `src/features/...` 体系。
-页面专属 controller 放在 `src/pages/useXxxController.ts`；通用 hook 在 `src/hooks/`；领域写路径在 `src/services/`。
+页面专属 controller 放在 `src/pages/useXxxController.ts`。新 hook 放进 `src/hooks/<域>/`，不在 `src/hooks/` 根上新增文件，也不建 `src/hooks/index.ts` 全量 barrel。领域写路径在 `src/services/`。
 
 7. 中等及以上复杂度任务，默认先定落位文件，再写代码。
 优先顺序：先 controller/service，后 UI 接线。
@@ -108,7 +108,7 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 本仓库不使用通用 `src/features/...` 约定。必须遵守当前真实结构：
 
 - 页面专属 controller：`src/pages/useXxxController.ts`
-- 通用 hook：`src/hooks/useXxx.ts`
+- 新 hook：`src/hooks/<域>/useXxx.ts`。不在 `src/hooks/` 根上新增文件，不建 `src/hooks/index.ts` 全量 barrel
 - 领域服务与持久化写路径：`src/services/XxxService.ts`
 - 纯工具函数：`src/utils/` 或页面侧 `Xxx.helpers.ts`
 - UI 组件：`src/components/` 或页面对应 section/component 文件
@@ -147,7 +147,8 @@ AI 生成代码时，必须优先模仿仓库中的真实范式，而不是套�
 
 **只读资源**：
 - `src/`（仅扫读，不改）
-- [docs/architecture/](docs/architecture/)、[docs/adr/](docs/adr/)
+- [仓库现状](docs/architecture/仓库现状与代码地图.md)，以及 [AI_QUICKSTART](AI_QUICKSTART.md) 路由表里本任务那一行。不把 [docs/architecture/](docs/architecture/) 整目录当现状读完
+- 与本任务有关的 [docs/adr/](docs/adr/)
 - 相关 [docs/execution/specs/](docs/execution/specs/)（如有）
 - 既存模式锚点见上文 §四
 
@@ -217,7 +218,7 @@ Explore（仅读本仓库）回答"我们现在有什么"；Research（向外调
 
 - 严格按 Plan 中的落位文件清单执行；不顺手"改进"无关代码（Surgical Changes）。
 - 每完成一个落位文件就跑相关 `typecheck` / 定向 `vitest`，**不要憋到最后**。
-- 涉及 `src/ai/**` 改动时跑 `npm run check:agent-evals:smoke`。
+- 涉及 `src/ai/**` 改动时跑 `npm run check:agent-evals:full`；其余改动跑 `npm run check:agent-evals:smoke`。
 - 触及编排 / 复杂度时跑 `npm run check:architecture-guard`。
 - 高风险或 UI 觉察大改默认套 feature flag（`src/ai/config/featureFlags.ts`），`false` 合并，自用 1 周后切默认 `true`；详见 §五.5 feature flag 工作流。
 
@@ -225,13 +226,14 @@ Explore（仅读本仓库）回答"我们现在有什么"；Research（向外调
 
 `npm run check:agent-evals` 分两档：
 
-- `check:agent-evals:smoke`（≤ ~90s，3 个核心 case，覆盖典型 AI 失误）：
-  - `typecheck` — 错读路径 / 错引模块导致编译失败
-  - `architecture-guard-core` — 业务逻辑落到编排层、复杂度上限
-  - `ai-messages-isolation` — UI 文案落到 `src/ai/messages/`（formatter 文案与 i18n 分层）
-- `check:agent-evals:full`（完整 16 case）— 触及 `src/ai/**` 的改动必跑。
+- `check:agent-evals:smoke`（suite 里 `tiers` 含 `smoke` 的 case；当前覆盖错读路径、业务逻辑落到编排层、UI 文案落到 `src/ai/messages/`，外加语义 case）：
+  - `typecheck`
+  - `architecture-guard-core`
+  - `ai-messages-isolation`
+  - `agent-evals-semantic-cases`
+- `check:agent-evals:full`：跑 [suite.v1.json](scripts/agent-evals/suite.v1.json) 里的全部 case。档位和个数以该文件为准，不在这里记死。
 
-**接线**：smoke 接 L1 pre-merge（与拍板 2A 一致）；非 `src/ai/**` 改动只跑 smoke 即可，full 仅在 AI 改动或 release 前跑。
+**接线**：smoke 接 L1 pre-merge（与 `AGENTS.md` 单人合并门槛一致）；非 `src/ai/**` 改动只跑 smoke 即可，full 仅在 AI 改动或 release 前跑。
 
 #### 5.3.2 Prod-failure → eval case 反哺惯例
 
@@ -261,12 +263,12 @@ Explore（仅读本仓库）回答"我们现在有什么"；Research（向外调
 
 **禁止**：未跑实际命令就在 commit msg 写 "verified" / "tested"。
 
-### 5.5 Feature flag 工作流（§一.B 拍板，半年内对外）
+### 5.5 Feature flag 工作流
 
-- 高风险或 UI 觉察大改：在 [src/ai/config/featureFlags.ts](src/ai/config/featureFlags.ts) 注册 `boolean | enum` flag（已是项目唯一 flag 注册表，AI 与非 AI 共用）。
-- 默认 `false` 合并 → 自用至少 1 周 → 切默认 `true`。
-- Flag 来源：`localStorage`（运行时切换） + `import.meta.env`（构建时默认）。
-- Flag 收口：稳定 1 个 release cycle 后**清理 flag** 与所有分支，不留长期 dead 分支。
+- 高风险或 UI 觉察大改：在 [src/ai/config/featureFlags.ts](src/ai/config/featureFlags.ts) 注册 `boolean | enum` flag（项目的 flag 注册表，AI 与非 AI 共用）。
+- 新 flag 默认 `false` 合并 → 自用至少 1 周 → 再切默认 `true`。已有 flag 的默认值以该文件为准。
+- 构建期默认来自 `import.meta.env` 的 `VITE_*`。`localStorage` 只覆盖 `jieyu.aiAgentRuntimeV2Enabled`，不是每个 flag 的运行时开关。
+- Flag 收口：稳定 1 个 release cycle 后清理 flag 与所有分支，不留长期 dead 分支。
 
 ### 5.6 默认工作流（小任务跳过 Explore）
 

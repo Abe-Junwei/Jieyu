@@ -1,6 +1,7 @@
 /**
  * A10.3 — unique session/localToolState commit point after a tool result.
  * Does not write projectFacts / long-term memory.
+ * Do not add a Google ADK dependency.
  */
 
 import { patchSessionMemoryPreferences } from '../chat/sessionMemory';

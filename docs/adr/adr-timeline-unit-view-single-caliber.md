@@ -3,11 +3,13 @@ title: ADR-004 Timeline Unit Single Caliber
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-15
+last_reviewed: 2026-10-14
 source_of_truth: decision-record
 ---
 
 # ADR-004 Timeline Unit Single Caliber
+
+> 自称 ADR-004，不是 [0004](./0004-logical-timeline-acoustic-media-lifecycle.md)。
 
 ## Status
 Accepted

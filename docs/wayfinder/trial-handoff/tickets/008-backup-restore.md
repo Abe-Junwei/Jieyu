@@ -16,4 +16,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/258
 
 ## Related
 
-已有实现：[batch4b 验证记录](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/release-gates/project-data-batch4b-durability-verification-2026-10-09.md)（T44 备份文件夹、诊断面板）。本单只定试用者的呈现与文案。
+验证记录已从工作区移除。本单仍只定试用者的呈现与文案：在哪看到快照、怎么恢复、换电脑怎么迁。
