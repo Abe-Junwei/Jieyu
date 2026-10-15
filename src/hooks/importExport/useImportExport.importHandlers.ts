@@ -22,11 +22,7 @@ import { computeBlobSha256 } from '../../utils/blobSha256';
 import { sourceFormatFromName } from '../../utils/projectSourceFiles';
 import { validateLayerTierConsistency } from '../../services/TierBridgeService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
-import {
-  hasRepairPersistableLayerDiff,
-  repairExistingLayerConstraints,
-  validateExistingLayerConstraints,
-} from '../../services/LayerConstraintService';
+import { persistRepairedLayerConstraints } from '../../services/persistRepairedLayerConstraints';
 import { ingestTextFile } from '../../utils/textIngestion';
 import { parseAnnotationImport } from './annotationImportParse';
 import { t, tf, type DictKey, type Locale } from '../../i18n';
@@ -1157,34 +1153,15 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               .toArray()
           : [];
 
-      const repairedResult = repairExistingLayerConstraints(
-        layersAfterImport,
-        undefined,
+      const repairedResult = await persistRepairedLayerConstraints({
+        layers: layersAfterImport,
+        layerLinks: importLayerLinks,
         locale,
-        importLayerLinks,
-      );
-      const originalLayerById = new Map(
-        layersAfterImport.map((layer) => [layer.id, layer] as const),
-      );
-      const changedLayers = repairedResult.layers.filter((layer) => {
-        const before = originalLayerById.get(layer.id);
-        if (!before) return false;
-        return hasRepairPersistableLayerDiff(before, layer, layersAfterImport, importLayerLinks);
       });
-      for (const changedLayer of changedLayers) {
-        await LayerTierUnifiedService.updateLayer({
-          ...changedLayer,
-          updatedAt: now,
+      if (repairedResult.issues.length > 0) {
+        log.warn('layer constraint validation found issues', {
+          layerConstraintIssues: repairedResult.issues,
         });
-      }
-      const layerConstraintIssues = validateExistingLayerConstraints(
-        repairedResult.layers,
-        undefined,
-        locale,
-        importLayerLinks,
-      );
-      if (layerConstraintIssues.length > 0) {
-        log.warn('layer constraint validation found issues', { layerConstraintIssues });
       }
       if (importOptions?.mismatchAcknowledged) {
         const expandTarget = resolvePostImportLogicalExpandTargetSec(mismatchNotices);
@@ -1221,7 +1198,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             appendedCount: parsedUnits.length,
           }),
           constraintRepairCount: repairedResult.repairs.length,
-          constraintWarningCount: layerConstraintIssues.length,
+          constraintWarningCount: repairedResult.issues.length,
           hostRecoveryWarningCount,
           translate: translateImportDone,
         }),

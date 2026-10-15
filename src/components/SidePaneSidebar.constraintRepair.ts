@@ -1,13 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
-import {
-  type ExistingLayerConstraintIssue,
-  type ExistingLayerConstraintRepair,
-  hasRepairPersistableLayerDiff,
-  repairExistingLayerConstraints,
-  validateExistingLayerConstraints,
+import type {
+  ExistingLayerConstraintIssue,
+  ExistingLayerConstraintRepair,
 } from '../services/LayerConstraintService';
+import { persistRepairedLayerConstraints } from '../services/persistRepairedLayerConstraints';
 import type { Locale } from '../i18n';
 import {
   type LayerOrderIssue,
@@ -98,36 +96,19 @@ export function useSidePaneSidebarConstraintRepair({
     setConstraintRepairDetailsCollapsed(false);
 
     try {
-      const constraintRepaired = repairExistingLayerConstraints(
-        sidePaneRows,
-        undefined,
-        locale,
+      const constraintRepaired = await persistRepairedLayerConstraints({
+        layers: sidePaneRows,
         layerLinks,
-      );
+        locale,
+      });
       const orderRepaired = repairLayerOrder(constraintRepaired.layers);
       const layerById = new Map(sidePaneRows.map((layer) => [layer.id, layer] as const));
-      const changedLayers = orderRepaired.layers.filter((layer) => {
-        const before = layerById.get(layer.id);
-        if (!before) return false;
-        return hasRepairPersistableLayerDiff(before, layer, sidePaneRows, layerLinks);
-      });
       const changedSortLayers = orderRepaired.layers.filter((layer) => {
         const before = layerById.get(layer.id);
         if (!before) return false;
         return (before.sortOrder ?? 0) !== (layer.sortOrder ?? 0);
       });
 
-      if (changedLayers.length > 0) {
-        const now = new Date().toISOString();
-        await Promise.all(
-          changedLayers.map((layer) =>
-            LayerTierUnifiedService.updateLayer({
-              ...layer,
-              updatedAt: now,
-            }),
-          ),
-        );
-      }
       if (changedSortLayers.length > 0) {
         await Promise.all(
           changedSortLayers.map((layer) =>
@@ -136,12 +117,7 @@ export function useSidePaneSidebarConstraintRepair({
         );
       }
 
-      const remainingIssues = validateExistingLayerConstraints(
-        orderRepaired.layers,
-        undefined,
-        locale,
-        layerLinks,
-      );
+      const remainingIssues = constraintRepaired.issues;
       const remainingOrderIssues = validateLayerOrder(orderRepaired.layers);
       setConstraintRepairDetails({
         repairs: constraintRepaired.repairs,
@@ -151,7 +127,7 @@ export function useSidePaneSidebarConstraintRepair({
       });
 
       if (
-        changedLayers.length === 0 &&
+        constraintRepaired.changedCount === 0 &&
         changedSortLayers.length === 0 &&
         remainingIssues.length === 0 &&
         remainingOrderIssues.length === 0
@@ -163,11 +139,11 @@ export function useSidePaneSidebarConstraintRepair({
       setConstraintRepairMessage(
         remainingIssues.length > 0 || remainingOrderIssues.length > 0
           ? messages.repairSummary(
-              changedLayers.length,
+              constraintRepaired.changedCount,
               changedSortLayers.length,
               remainingIssues.length + remainingOrderIssues.length,
             )
-          : messages.repairSummaryDone(changedLayers.length, changedSortLayers.length),
+          : messages.repairSummaryDone(constraintRepaired.changedCount, changedSortLayers.length),
       );
     } catch (error) {
       setConstraintRepairMessage(
