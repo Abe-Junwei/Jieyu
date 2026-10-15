@@ -89,7 +89,8 @@ type Props = {
   onCommitLiteral?: (unitId: string, text: string) => void;
   onCommitTokenForm?: (unitId: string, tokenId: string, form: string) => void;
   mweSelectedIds?: readonly string[];
-  mweError?: '' | 'dirty' | 'contiguous' | 'failed';
+  mweError?: '' | 'dirty' | 'contiguous' | 'failed' | 'stale';
+  onRetryMweRefresh?: () => void;
   onToggleMweToken?: (unitId: string, tokenId: string) => void;
   onWriteFormsToSurface?: (unitId: string) => void;
   onAddAlternative?: (unitId: string, tokenId: string, pos: string) => void;
@@ -97,9 +98,12 @@ type Props = {
   onDeleteToken?: (unitId: string, tokenId: string, confirmLoss: boolean) => void;
   onMarkRelation?: (unitId: string, mark: AnnotationRelationMark) => void;
   onSelectAlternative?: (unitId: string, relationId: string) => void;
-  relationError?: '' | 'dirty' | 'failed';
-  alternativeError?: '' | 'dirty' | 'failed';
-  posError?: '' | 'dirty' | 'failed';
+  relationError?: '' | 'dirty' | 'failed' | 'stale';
+  onRetryRelationRefresh?: () => void;
+  alternativeError?: '' | 'dirty' | 'failed' | 'stale';
+  onRetryAlternativeRefresh?: () => void;
+  posError?: '' | 'dirty' | 'failed' | 'stale';
+  onRetryPosRefresh?: () => void;
 };
 
 function relationChipText(
@@ -318,13 +322,17 @@ export function AnnotationIgtRowView({
   onCommitTokenForm,
   mweSelectedIds,
   mweError = '',
+  onRetryMweRefresh,
   onToggleMweToken,
   onWriteFormsToSurface,
   onMarkRelation,
   relationError = '',
+  onRetryRelationRefresh,
   onSelectAlternative,
   alternativeError = '',
+  onRetryAlternativeRefresh,
   posError = '',
+  onRetryPosRefresh,
   onAddAlternative,
   onApplyPosByForm,
   onDeleteToken,
@@ -523,14 +531,36 @@ export function AnnotationIgtRowView({
             ? t(locale, 'workspace.annotation.mweDirty')
             : mweError === 'contiguous'
               ? t(locale, 'workspace.annotation.mweContiguous')
-              : t(locale, 'workspace.annotation.mweFailed')}
+              : mweError === 'stale'
+                ? t(locale, 'workspace.annotation.refreshStale')
+                : t(locale, 'workspace.annotation.mweFailed')}
+          {mweError === 'stale' ? (
+            <button
+              type="button"
+              data-testid={`annotation-igt-mwe-refresh-${row.id}`}
+              onClick={onRetryMweRefresh}
+            >
+              {t(locale, 'workspace.annotation.refreshRetry')}
+            </button>
+          ) : null}
         </p>
       ) : null}
       {focused && relationError.length > 0 ? (
         <p className="annotation-igt-label" data-testid={`annotation-igt-relation-error-${row.id}`}>
           {relationError === 'dirty'
             ? t(locale, 'workspace.annotation.mweDirty')
-            : t(locale, 'workspace.annotation.relationFailed')}
+            : relationError === 'stale'
+              ? t(locale, 'workspace.annotation.refreshStale')
+              : t(locale, 'workspace.annotation.relationFailed')}
+          {relationError === 'stale' ? (
+            <button
+              type="button"
+              data-testid={`annotation-igt-relation-refresh-${row.id}`}
+              onClick={onRetryRelationRefresh}
+            >
+              {t(locale, 'workspace.annotation.refreshRetry')}
+            </button>
+          ) : null}
         </p>
       ) : null}
       {focused && alternativeError.length > 0 ? (
@@ -540,14 +570,36 @@ export function AnnotationIgtRowView({
         >
           {alternativeError === 'dirty'
             ? t(locale, 'workspace.annotation.mweDirty')
-            : t(locale, 'workspace.annotation.relationFailed')}
+            : alternativeError === 'stale'
+              ? t(locale, 'workspace.annotation.refreshStale')
+              : t(locale, 'workspace.annotation.relationFailed')}
+          {alternativeError === 'stale' ? (
+            <button
+              type="button"
+              data-testid={`annotation-igt-alternative-refresh-${row.id}`}
+              onClick={onRetryAlternativeRefresh}
+            >
+              {t(locale, 'workspace.annotation.refreshRetry')}
+            </button>
+          ) : null}
         </p>
       ) : null}
       {focused && posError.length > 0 ? (
         <p className="annotation-igt-label" data-testid={`annotation-igt-pos-error-${row.id}`}>
           {posError === 'dirty'
             ? t(locale, 'workspace.annotation.mweDirty')
-            : t(locale, 'workspace.annotation.posFailed')}
+            : posError === 'stale'
+              ? t(locale, 'workspace.annotation.refreshStale')
+              : t(locale, 'workspace.annotation.posFailed')}
+          {posError === 'stale' ? (
+            <button
+              type="button"
+              data-testid={`annotation-igt-pos-refresh-${row.id}`}
+              onClick={onRetryPosRefresh}
+            >
+              {t(locale, 'workspace.annotation.refreshRetry')}
+            </button>
+          ) : null}
         </p>
       ) : null}
       {focused ? (

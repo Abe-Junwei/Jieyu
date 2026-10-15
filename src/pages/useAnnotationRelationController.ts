@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { AnnotationAnalysisGraphFixture } from '../annotation/analysisGraph';
 import {
   assignAllomorph,
@@ -22,7 +22,7 @@ import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 import type { AnnotationTokenLexemeLinkView } from './annotation/saveAnnotationLexemeLink';
 import { saveAnnotationUtteranceGraphChange } from './annotation/saveAnnotationUnitAnalysisGraph';
 
-export type AnnotationRelationError = '' | 'dirty' | 'failed';
+export type AnnotationRelationError = '' | 'dirty' | 'failed' | 'stale';
 
 export type AnnotationRelationMark =
   | { kind: 'reduplicates'; tokenId: string; reduplicantId: string; stemId: string }
@@ -74,11 +74,27 @@ function hasDirtyDrafts(input: ApplyInput): boolean {
   return collectDirtyAnnotationMorphemeWrites(morphs, input.morphDrafts).length > 0;
 }
 
-export function useAnnotationRelationController(textId: string, reload: () => void) {
+export function useAnnotationRelationController(textId: string, reload: () => Promise<unknown>) {
   const [error, setError] = useState<AnnotationRelationError>('');
+  const savedAwaitingRefresh = useRef(false);
+
+  const publishRefresh = useCallback(async () => {
+    try {
+      await reload();
+      savedAwaitingRefresh.current = false;
+      setError('');
+    } catch {
+      savedAwaitingRefresh.current = true;
+      setError('stale');
+    }
+  }, [reload]);
 
   const apply = useCallback(
     async (input: ApplyInput) => {
+      if (savedAwaitingRefresh.current) {
+        await publishRefresh();
+        return;
+      }
       if (hasDirtyDrafts(input)) {
         setError('dirty');
         return;
@@ -95,14 +111,13 @@ export function useAnnotationRelationController(textId: string, reload: () => vo
           setError('failed');
           return;
         }
-        setError('');
-        reload();
+        await publishRefresh();
       } catch {
         setError('failed');
       }
     },
-    [reload, textId],
+    [publishRefresh, textId],
   );
 
-  return { error, apply };
+  return { error, apply, retryRefresh: publishRefresh };
 }

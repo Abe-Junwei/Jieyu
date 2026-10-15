@@ -254,6 +254,8 @@ export const DICT_KEYS = [
   'workspace.annotation.mweDirty',
   'workspace.annotation.mweContiguous',
   'workspace.annotation.mweFailed',
+  'workspace.annotation.refreshStale',
+  'workspace.annotation.refreshRetry',
   'workspace.annotation.exportCldf',
   'workspace.annotation.exportConllu',
   'workspace.annotation.exportLigt',

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { addAlternativePos, selectAlternativeAnalysis } from '../annotation/alternativeAnalysis';
 import { collectDirtyAnnotationMorphemeWrites } from './annotation/annotationMorphemeDrafts';
 import type {
@@ -11,7 +11,7 @@ import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 import type { AnnotationTokenLexemeLinkView } from './annotation/saveAnnotationLexemeLink';
 import { saveAnnotationUtteranceGraphChange } from './annotation/saveAnnotationUnitAnalysisGraph';
 
-export type AnnotationAlternativeAnalysisError = '' | 'dirty' | 'failed';
+export type AnnotationAlternativeAnalysisError = '' | 'dirty' | 'failed' | 'stale';
 
 type SelectInput = {
   row: AnnotationIgtRow;
@@ -30,11 +30,30 @@ function hasDirtyDrafts(input: SelectInput): boolean {
   return collectDirtyAnnotationMorphemeWrites(morphs, input.morphDrafts).length > 0;
 }
 
-export function useAnnotationAlternativeAnalysisController(textId: string, reload: () => void) {
+export function useAnnotationAlternativeAnalysisController(
+  textId: string,
+  reload: () => Promise<unknown>,
+) {
   const [error, setError] = useState<AnnotationAlternativeAnalysisError>('');
+  const savedAwaitingRefresh = useRef(false);
+
+  const publishRefresh = useCallback(async () => {
+    try {
+      await reload();
+      savedAwaitingRefresh.current = false;
+      setError('');
+    } catch {
+      savedAwaitingRefresh.current = true;
+      setError('stale');
+    }
+  }, [reload]);
 
   const select = useCallback(
     async (input: SelectInput) => {
+      if (savedAwaitingRefresh.current) {
+        await publishRefresh();
+        return;
+      }
       if (hasDirtyDrafts(input)) {
         setError('dirty');
         return;
@@ -51,13 +70,12 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
           setError('failed');
           return;
         }
-        setError('');
-        reload();
+        await publishRefresh();
       } catch {
         setError('failed');
       }
     },
-    [reload, textId],
+    [publishRefresh, textId],
   );
 
   const addPos = useCallback(
@@ -69,6 +87,10 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
         if (write.gloss !== undefined) return true;
         return (write.pos ?? '') !== sourcePos;
       });
+      if (savedAwaitingRefresh.current) {
+        await publishRefresh();
+        return;
+      }
       const morphs = input.row.tokens.flatMap((token) => input.morphsByTokenId[token.id] ?? []);
       if (blocked || collectDirtyAnnotationMorphemeWrites(morphs, input.morphDrafts).length > 0) {
         setError('dirty');
@@ -86,14 +108,13 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
           setError('failed');
           return;
         }
-        setError('');
-        reload();
+        await publishRefresh();
       } catch {
         setError('failed');
       }
     },
-    [reload, textId],
+    [publishRefresh, textId],
   );
 
-  return { error, select, addPos };
+  return { error, select, addPos, retryRefresh: publishRefresh };
 }

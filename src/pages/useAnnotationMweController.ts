@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   downloadTextFile,
   exportUtteranceToCldf,
@@ -21,7 +21,7 @@ import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 import type { AnnotationTokenLexemeLinkView } from './annotation/saveAnnotationLexemeLink';
 import { saveAnnotationUtteranceGraphChange } from './annotation/saveAnnotationUnitAnalysisGraph';
 
-export type AnnotationMweError = '' | 'dirty' | 'contiguous' | 'failed';
+export type AnnotationMweError = '' | 'dirty' | 'contiguous' | 'failed' | 'stale';
 export type AnnotationAnalysisExportKind = 'cldf' | 'conllu' | 'ligt' | 'latex' | 'flex' | 'elan';
 
 type ConfirmInput = {
@@ -40,12 +40,30 @@ function hasDirtyDrafts(input: ConfirmInput): boolean {
   return collectDirtyAnnotationMorphemeWrites(morphs, input.morphDrafts).length > 0;
 }
 
-export function useAnnotationMweController(textId: string, reload: () => void) {
+export function useAnnotationMweController(textId: string, reload: () => Promise<unknown>) {
   const [selectedByUnit, setSelectedByUnit] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<AnnotationMweError>('');
+  const savedAwaitingRefresh = useRef(false);
+  const pendingUnitId = useRef<string | null>(null);
+
+  const publishRefresh = useCallback(async () => {
+    try {
+      await reload();
+      savedAwaitingRefresh.current = false;
+      const unitId = pendingUnitId.current;
+      pendingUnitId.current = null;
+      if (unitId !== null) {
+        setSelectedByUnit((current) => ({ ...current, [unitId]: [] }));
+      }
+      setError('');
+    } catch {
+      savedAwaitingRefresh.current = true;
+      setError('stale');
+    }
+  }, [reload]);
 
   const toggle = useCallback((unitId: string, tokenId: string) => {
-    setError('');
+    setError((current) => (current === 'stale' ? current : ''));
     setSelectedByUnit((current) => {
       const selected = current[unitId] ?? [];
       const next = selected.includes(tokenId)
@@ -61,6 +79,10 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
         setError('dirty');
         return;
       }
+      if (savedAwaitingRefresh.current) {
+        await publishRefresh();
+        return;
+      }
       const selected = selectedByUnit[input.row.id] ?? [];
       try {
         const saved = await saveAnnotationUtteranceGraphChange({
@@ -74,15 +96,14 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
           setError('failed');
           return;
         }
-        setSelectedByUnit((current) => ({ ...current, [input.row.id]: [] }));
-        setError('');
-        reload();
+        pendingUnitId.current = input.row.id;
+        await publishRefresh();
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : '';
         setError(message.includes('contiguous') ? 'contiguous' : 'failed');
       }
     },
-    [reload, selectedByUnit, textId],
+    [publishRefresh, selectedByUnit, textId],
   );
 
   const exportAnalysis = useCallback((input: ConfirmInput, kind: AnnotationAnalysisExportKind) => {
@@ -127,5 +148,5 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
     );
   }, []);
 
-  return { selectedByUnit, error, toggle, confirm, exportAnalysis };
+  return { selectedByUnit, error, toggle, confirm, retryRefresh: publishRefresh, exportAnalysis };
 }

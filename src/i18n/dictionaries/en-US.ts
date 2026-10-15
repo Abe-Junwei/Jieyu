@@ -277,6 +277,8 @@ export const enUSDictionary = {
   'workspace.annotation.mweDirty': 'Save the open cell edits before changing the analysis graph.',
   'workspace.annotation.mweContiguous': 'Choose a contiguous run of words.',
   'workspace.annotation.mweFailed': 'The analysis graph could not be saved.',
+  'workspace.annotation.refreshStale': 'Saved, but the view has not refreshed.',
+  'workspace.annotation.refreshRetry': 'Refresh again',
   'workspace.annotation.exportCldf': 'Download CLDF',
   'workspace.annotation.exportConllu': 'Download CoNLL-U',
   'workspace.annotation.exportLigt': 'Download Ligt',

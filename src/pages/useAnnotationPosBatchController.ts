@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 import type { AnnotationTokenDraft } from './annotation/annotationTokenDrafts';
 import {
@@ -7,16 +7,28 @@ import {
   sourceGlossIsDirty,
 } from './annotation/saveAnnotationPosByForm';
 
-export type AnnotationPosBatchError = '' | 'dirty' | 'failed';
+export type AnnotationPosBatchError = '' | 'dirty' | 'failed' | 'stale';
 
 export function useAnnotationPosBatchController(
-  reload: () => void,
+  reload: () => Promise<unknown>,
   clearDrafts: (
     tokenIds: readonly string[],
     draftsAtStart: Readonly<Record<string, AnnotationTokenDraft>>,
   ) => void,
 ) {
   const [error, setError] = useState<AnnotationPosBatchError>('');
+  const savedAwaitingRefresh = useRef(false);
+
+  const publishRefresh = useCallback(async () => {
+    try {
+      await reload();
+      savedAwaitingRefresh.current = false;
+      setError('');
+    } catch {
+      savedAwaitingRefresh.current = true;
+      setError('stale');
+    }
+  }, [reload]);
 
   const apply = useCallback(
     async (input: {
@@ -25,6 +37,10 @@ export function useAnnotationPosBatchController(
       sourceTokenId: string;
       pos: string;
     }) => {
+      if (savedAwaitingRefresh.current) {
+        await publishRefresh();
+        return;
+      }
       const source = input.rows
         .flatMap((row) => row.tokens)
         .find((token) => token.id === input.sourceTokenId);
@@ -44,14 +60,13 @@ export function useAnnotationPosBatchController(
           writes.map((write) => write.tokenId),
           draftsAtStart,
         );
-        setError('');
-        reload();
+        await publishRefresh();
       } catch {
         setError('failed');
       }
     },
-    [clearDrafts, reload],
+    [clearDrafts, publishRefresh],
   );
 
-  return { error, apply };
+  return { error, apply, retryRefresh: publishRefresh };
 }

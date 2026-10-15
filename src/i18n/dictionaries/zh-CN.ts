@@ -264,6 +264,8 @@ export const zhCNDictionary = {
   'workspace.annotation.mweDirty': '先保存正在编辑的格子，再改分析图。',
   'workspace.annotation.mweContiguous': '请选择连续的几个词。',
   'workspace.annotation.mweFailed': '分析图没有保存。',
+  'workspace.annotation.refreshStale': '已保存，界面还没刷新。',
+  'workspace.annotation.refreshRetry': '重新刷新',
   'workspace.annotation.exportCldf': '下载 CLDF',
   'workspace.annotation.exportConllu': '下载 CoNLL-U',
   'workspace.annotation.exportLigt': '下载 Ligt',

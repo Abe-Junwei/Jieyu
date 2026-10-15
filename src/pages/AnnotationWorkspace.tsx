@@ -102,12 +102,18 @@ export function AnnotationWorkspace() {
     rows: controller.rows,
     reloadWorkspace: () => controller.reload({ throwOnError: true }),
   });
-  const mwe = useAnnotationMweController(controller.textId, controller.reload);
-  const posBatch = useAnnotationPosBatchController(controller.reload, controller.clearTokenDrafts);
-  const relations = useAnnotationRelationController(controller.textId, controller.reload);
-  const alternatives = useAnnotationAlternativeAnalysisController(
-    controller.textId,
-    controller.reload,
+  const mwe = useAnnotationMweController(controller.textId, () =>
+    controller.reload({ throwOnError: true }),
+  );
+  const posBatch = useAnnotationPosBatchController(
+    () => controller.reload({ throwOnError: true }),
+    controller.clearTokenDrafts,
+  );
+  const relations = useAnnotationRelationController(controller.textId, () =>
+    controller.reload({ throwOnError: true }),
+  );
+  const alternatives = useAnnotationAlternativeAnalysisController(controller.textId, () =>
+    controller.reload({ throwOnError: true }),
   );
   const validator = useAnnotationValidatorPanelController({
     focusedUnitId: controller.focusedUnitId,
@@ -406,6 +412,9 @@ export function AnnotationWorkspace() {
                 onCommitTokenForm={controller.onCommitTokenForm}
                 mweSelectedIds={mwe.selectedByUnit[row.id] ?? []}
                 mweError={row.id === controller.focusedUnitId ? mwe.error : ''}
+                onRetryMweRefresh={() => {
+                  void mwe.retryRefresh();
+                }}
                 onToggleMweToken={mwe.toggle}
                 onDeleteToken={(unitId, tokenId, confirmLoss) => {
                   void deleteAnnotationToken({ unitId, tokenId, confirmLoss }).then(() =>
@@ -428,8 +437,17 @@ export function AnnotationWorkspace() {
                   });
                 }}
                 relationError={row.id === controller.focusedUnitId ? relations.error : ''}
+                onRetryRelationRefresh={() => {
+                  void relations.retryRefresh();
+                }}
                 alternativeError={row.id === controller.focusedUnitId ? alternatives.error : ''}
+                onRetryAlternativeRefresh={() => {
+                  void alternatives.retryRefresh();
+                }}
                 posError={row.id === controller.focusedUnitId ? posBatch.error : ''}
+                onRetryPosRefresh={() => {
+                  void posBatch.retryRefresh();
+                }}
                 onAddAlternative={(unitId, tokenId, pos) => {
                   const target = controller.rows.find((item) => item.id === unitId);
                   if (!target) return;
