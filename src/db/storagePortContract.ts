@@ -3,7 +3,7 @@
  * Dexie 实现在 `storagePort.test.ts` 里跑；SQLite 实现（#275）拿同一个函数跑。
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { StoragePort } from './storagePort';
+import { recordingRemovalBlockReason, type StoragePort } from './storagePort';
 import type { AuditLogDocType } from './types';
 
 const NOW = '2026-10-15T00:00:00.000Z';
@@ -68,6 +68,12 @@ export function describeStoragePortContract(
 
     it('has no fingerprint for an unknown id', async () => {
       await expect(port().fingerprintTarget('missing')).resolves.toBeUndefined();
+    });
+
+    it('refuses to remove a recording id that is not stored', async () => {
+      await expect(port().removeEmptyRecording('missing-media')).rejects.toSatisfy(
+        (error: unknown) => recordingRemovalBlockReason(error) === 'missing',
+      );
     });
   });
 }

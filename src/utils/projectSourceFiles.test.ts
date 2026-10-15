@@ -29,6 +29,31 @@ describe('projectSourceFiles', () => {
     expect(views[0]).toMatchObject({ audioFormat: 'WAV', sentenceCount: 12 });
   });
 
+  it('keeps a missing-byte flag on the audio card', () => {
+    const views = linkManuscriptsToAudio(
+      [
+        {
+          id: 'media-1',
+          name: '田野录音',
+          filename: 'field.wav',
+          hasPlayableBytes: false,
+          sentenceCount: 0,
+          unitCount: 0,
+          anchorCount: 0,
+          canRemoveEmpty: false,
+        },
+      ],
+      [],
+    );
+    expect(views[0]).toMatchObject({
+      hasPlayableBytes: false,
+      sentenceCount: 0,
+      unitCount: 0,
+      anchorCount: 0,
+      canRemoveEmpty: false,
+    });
+  });
+
   it('a filename named in the source is only a suggestion (rev5 4.2-4)', () => {
     const views = linkManuscriptsToAudio(
       [{ id: 'media-1', name: '田野录音', filename: 'field.wav' }],

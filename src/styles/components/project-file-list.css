@@ -610,6 +610,7 @@
 
 .project-file-audio-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-top: auto;
@@ -635,6 +636,23 @@
 .project-file-primary-action:focus-visible {
   background: color-mix(in srgb, var(--theme-accent-solid) 12%, var(--surface-header));
   color: var(--theme-accent-solid);
+}
+
+.project-file-audio-status {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.project-file-audio-repair {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
 }
 
 .project-file-annotation-action {

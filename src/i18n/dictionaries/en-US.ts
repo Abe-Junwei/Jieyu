@@ -66,6 +66,20 @@ export const enUSDictionary = {
   'app.files.search': 'Search recordings or manuscripts',
   'app.files.noMatches': 'No matching recordings or manuscripts.',
   'app.files.enterTranscription': 'Open transcription workspace',
+  'app.files.audioMissing': 'Audio missing',
+  'app.files.audioWithNoSentences': 'Audio present, 0 segments',
+  'app.files.relinkAudio': 'Attach audio again',
+  'app.files.removeEmptyRecording': 'Remove this recording',
+  'app.files.removeEmptyRecordingConfirm':
+    'Remove recording "{name}"? Only this entry ({id}) is deleted. {sources}Other recordings with the same name stay.',
+  'app.files.removeEmptyRecordingSources':
+    'These source files will be unlinked and kept: {names}. ',
+  'app.files.removeEmptyRecordingBlocked':
+    'This recording still has audio, segments, or anchors, so the entry stays.',
+  'app.files.removeEmptyRecordingRefreshPending':
+    'This recording was removed. The board has not refreshed yet.',
+  'app.files.removeEmptyRecordingKeepUnits':
+    'Existing segments and anchors stay in the project and are no longer attached to this recording. ',
   'app.home.templateRules': 'Templates and language conventions',
   'app.home.lastUpdated': 'Last updated: {date}',
   'app.home.documentScope': 'Statistics cover the whole project ({count} documents)',
@@ -1537,7 +1551,7 @@ export const enUSDictionary = {
     'The linked project was not found or was removed (textId: {textId})',
   'transcription.action.confirmDeleteAudio':
     'Delete the recording bytes of "{filename}"? Segments, timecodes and transcription are kept; the recording is marked missing under its original name and can be relinked later.',
-  'transcription.action.audioDeleted': 'Current media deleted.',
+  'transcription.action.audioDeleted': 'The audio file was removed. The timeline stays.',
   'transcription.action.audioDeleteFailed': 'Failed to delete current media: {message}',
   'transcription.action.confirmDeleteProject':
     'Delete this project, including its transcription, annotation, media, lexicon, speakers, orthographies, and language records? This cannot be undone.',

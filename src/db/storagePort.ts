@@ -13,6 +13,29 @@ import type {
 import { db, getDb } from './engine';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
+import { isMediaItemPlaceholderRow, mediaRowHasPlayableBytes } from '../utils/mediaItemState';
+
+export class RecordingRemovalBlockedError extends Error {
+  readonly code = 'RECORDING_REMOVAL_BLOCKED' as const;
+
+  constructor(
+    readonly mediaId: string,
+    readonly reason: 'missing' | 'has-bytes' | 'has-units' | 'has-anchors' | 'not-acoustic',
+  ) {
+    super(`removeEmptyRecording: ${mediaId} blocked (${reason})`);
+    this.name = 'RecordingRemovalBlockedError';
+  }
+}
+
+export function recordingRemovalBlockReason(
+  error: unknown,
+): RecordingRemovalBlockedError['reason'] | undefined {
+  if (error instanceof RecordingRemovalBlockedError) return error.reason;
+  if (error instanceof Error && error.cause instanceof RecordingRemovalBlockedError) {
+    return error.cause.reason;
+  }
+  return undefined;
+}
 
 export class StorageReadbackError extends Error {
   readonly code = 'STORAGE_READBACK';
@@ -52,6 +75,12 @@ export interface StoragePort {
   fingerprintTarget(id: string): Promise<string | undefined>;
   audit: AuditLogOps;
   commitRegexSplit(write: RegexSplitCommit): Promise<{ resizedSegmentIds: string[] }>;
+  /**
+   * 移除一条没有可播放字节的录音。
+   * 同事务解开指向它的来源文稿，文稿本身留下；句段和锚点留在项目里，改挂到未绑定录音。
+   * 同名的其他录音不动。
+   */
+  removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -233,7 +262,75 @@ export const dexieStoragePort: StoragePort = {
   },
 
   commitRegexSplit,
+
+  removeEmptyRecording,
 };
+
+async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }> {
+  const id = mediaId.trim();
+  if (id.length === 0) throw new RecordingRemovalBlockedError(mediaId, 'missing');
+  const database = await getDb();
+  let unboundSourceIds: string[] = [];
+  await withTransaction(
+    database,
+    'rw',
+    [
+      database.dexie.media_items,
+      database.dexie.layer_units,
+      database.dexie.anchors,
+      database.dexie.source_records,
+      database.dexie.segment_meta,
+      database.dexie.segment_quality_snapshots,
+      database.dexie.translation_status_snapshots,
+      database.dexie.track_entities,
+      database.dexie.scope_stats_snapshots,
+    ],
+    async () => {
+      const row = await database.dexie.media_items.get(id);
+      if (!row) throw new RecordingRemovalBlockedError(id, 'missing');
+      if (isMediaItemPlaceholderRow(row)) {
+        throw new RecordingRemovalBlockedError(id, 'not-acoustic');
+      }
+      if (mediaRowHasPlayableBytes(row)) {
+        throw new RecordingRemovalBlockedError(id, 'has-bytes');
+      }
+      const sources = await database.dexie.source_records.where('mediaId').equals(id).toArray();
+      unboundSourceIds = sources.map((source) => source.id);
+      const now = new Date().toISOString();
+      const units = await database.dexie.layer_units.where('mediaId').equals(id).toArray();
+      for (const unit of units) {
+        await database.dexie.layer_units.put({
+          ...unit,
+          mediaId: '__unknown_media__',
+          updatedAt: now,
+        });
+      }
+      const anchors = await database.dexie.anchors.where('mediaId').equals(id).toArray();
+      for (const anchor of anchors) {
+        await database.dexie.anchors.put({ ...anchor, mediaId: '__unknown_media__' });
+      }
+      for (const source of sources) {
+        const { mediaId: _linked, ...kept } = source;
+        await database.dexie.source_records.put({ ...kept, updatedAt: now });
+      }
+      await database.dexie.segment_meta.where('mediaId').equals(id).delete();
+      await database.dexie.segment_quality_snapshots.where('mediaId').equals(id).delete();
+      await database.dexie.translation_status_snapshots.where('mediaId').equals(id).delete();
+      await database.dexie.track_entities.where('mediaId').equals(id).delete();
+      await database.dexie.scope_stats_snapshots.where('mediaId').equals(id).delete();
+      await database.dexie.media_items.delete(id);
+    },
+    { label: 'storage.removeEmptyRecording' },
+  );
+  if (await database.dexie.media_items.get(id)) {
+    throw new StorageReadbackError('removeEmptyRecording');
+  }
+  for (const sourceId of unboundSourceIds) {
+    const source = await database.dexie.source_records.get(sourceId);
+    if (!source || source.mediaId === id) throw new StorageReadbackError('removeEmptyRecording');
+  }
+  return { unboundSourceIds };
+}
 
 let current: StoragePort = dexieStoragePort;
 
