@@ -1420,6 +1420,8 @@ export const zhCNDictionary = {
   'transcription.toast.asyncActionFailedWithContext': '操作失败：{context}',
   'transcription.toast.refreshAndRetry': '建议刷新后重试',
   'transcription.toast.dismiss': '点击关闭',
+  'transcription.toast.segmentWrittenViewStale': '已写入，视图还没刷新。',
+  'transcription.toast.segmentViewRetry': '重新刷新',
   'transcription.toast.voice.commandWaiting': '🎤 等待语音指令…',
   'transcription.toast.voice.commandListening': '🎤 正在听…',
   'transcription.toast.voice.dictationWaiting': '🎤 听写模式 — 说话即写入',

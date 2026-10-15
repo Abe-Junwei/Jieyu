@@ -457,7 +457,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     });
   });
 
-  it('reloads segments and surfaces error when batch segment delete fails', async () => {
+  it('surfaces an error without reloading when batch segment delete fails', async () => {
     mockDeleteSegmentsBatch.mockImplementationOnce(async () => {
       throw new Error('delete failed');
     });
@@ -481,7 +481,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(pushUndo).toHaveBeenCalledWith('批量删除句段');
     expect(mockDeleteSegmentsBatch).toHaveBeenCalledWith(['seg-1', 'seg-2']);
     expect(mockDeleteSegment).not.toHaveBeenCalled();
-    expect(reloadSegments).toHaveBeenCalledTimes(1);
+    expect(reloadSegments).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
@@ -575,5 +575,197 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(mergeWithNext).toHaveBeenCalledWith('utt-1');
     expect(deleteUnit).toHaveBeenCalledWith('utt-1');
     expect(deleteSelectedUnits).toHaveBeenCalledWith(new Set(['utt-1', 'utt-2']));
+  });
+
+  it('keeps a landed split when the view reload fails and selects after refresh', async () => {
+    const reloadSegments = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('reload failed'))
+      .mockResolvedValue(undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const selectTimelineUnit = vi.fn();
+    const recordTimelineEdit = vi.fn();
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+          recordTimelineEdit,
+          setSaveState,
+        }),
+      ),
+    );
+
+    let splitToken: AiSegmentSplitRollbackToken | undefined;
+    await act(async () => {
+      splitToken = await result.current.splitRouted('seg-2', 1.5);
+    });
+
+    expect(splitToken).toEqual({ keepSegmentId: 'seg-2', removeSegmentId: 'seg-right' });
+    expect(mockSplitSegment).toHaveBeenCalledTimes(1);
+    expect(selectTimelineUnit).not.toHaveBeenCalled();
+    expect(recordTimelineEdit).not.toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalledTimes(1);
+    const stale = setSaveState.mock.calls.at(-1)?.[0] as SaveState;
+    expect(stale).toEqual(
+      expect.objectContaining({
+        kind: 'viewStale',
+        message: '已写入，视图还没刷新。',
+        actionLabel: '重新刷新',
+      }),
+    );
+
+    await act(async () => {
+      if (stale.kind === 'viewStale') await stale.onAction();
+    });
+
+    expect(mockSplitSegment).toHaveBeenCalledTimes(1);
+    expect(selectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-seg',
+      unitId: 'seg-right',
+      kind: 'segment',
+    });
+    expect(recordTimelineEdit).toHaveBeenCalledWith({
+      action: 'split',
+      unitId: 'seg-2',
+      unitKind: 'segment',
+      detail: 'newSegment=seg-right',
+    });
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalledTimes(2);
+    expect(setSaveState).toHaveBeenLastCalledWith({ kind: 'idle' });
+  });
+
+  it('does not apply a stale split after a newer segment write', async () => {
+    const reloadSegments = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('reload failed'))
+      .mockResolvedValue(undefined);
+    const selectTimelineUnit = vi.fn();
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          reloadSegments,
+          selectTimelineUnit,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.splitRouted('seg-2', 1.5);
+    });
+    const stale = setSaveState.mock.calls.at(-1)?.[0] as SaveState;
+    await act(async () => {
+      await result.current.splitRouted('seg-2', 1.6);
+    });
+    await act(async () => {
+      if (stale.kind === 'viewStale') await stale.onAction();
+    });
+
+    expect(mockSplitSegment).toHaveBeenCalledTimes(2);
+    expect(selectTimelineUnit).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the original action error when refresh cannot update the undo snapshot', async () => {
+    const reloadSegments = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('reload failed'))
+      .mockResolvedValue(undefined);
+    const refreshSegmentUndoSnapshot = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('snapshot failed'));
+    const selectTimelineUnit = vi.fn();
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.splitRouted('seg-2', 1.5);
+    });
+    const stale = setSaveState.mock.calls.at(-1)?.[0] as SaveState;
+    await act(async () => {
+      if (stale.kind === 'viewStale') await stale.onAction();
+    });
+
+    expect(selectTimelineUnit).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '拆分句段失败：snapshot failed',
+      }),
+    );
+  });
+
+  it('mergeAdjacentSegmentsForAiRollback keeps the merge when the view reload fails', async () => {
+    const reloadSegments = vi.fn<() => Promise<void>>(async () => {
+      throw new Error('reload failed');
+    });
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          reloadSegments,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await expect(
+        result.current.mergeAdjacentSegmentsForAiRollback('seg-1', 'seg-2'),
+      ).resolves.toBeUndefined();
+    });
+
+    expect(mockMergeAdjacentSegments).toHaveBeenCalledTimes(1);
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'viewStale',
+        message: '已写入，视图还没刷新。',
+      }),
+    );
+  });
+
+  it('refreshes a landed batch delete without deleting again', async () => {
+    const reloadSegments = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('reload failed'))
+      .mockResolvedValue(undefined);
+    const selectTimelineUnit = vi.fn();
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          reloadSegments,
+          selectTimelineUnit,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.deleteSelectedUnitsRouted(new Set(['seg-1', 'seg-2']));
+    });
+    expect(reloadSegments).toHaveBeenCalledTimes(1);
+    const stale = setSaveState.mock.calls.at(-1)?.[0] as SaveState;
+    await act(async () => {
+      if (stale.kind === 'viewStale') await stale.onAction();
+    });
+
+    expect(mockDeleteSegmentsBatch).toHaveBeenCalledTimes(1);
+    expect(reloadSegments).toHaveBeenCalledTimes(2);
+    expect(selectTimelineUnit).toHaveBeenCalledWith(null);
+    expect(setSaveState).toHaveBeenLastCalledWith({ kind: 'idle' });
   });
 });

@@ -5,7 +5,11 @@ import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 import { t, useLocale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
-import { runSegmentLayerWriteReload } from './segmentLayerWriteReload';
+import {
+  finishSegmentLayerWrite,
+  runSegmentLayerWriteReload,
+  type SegmentViewRefreshPending,
+} from './segmentLayerWriteReload';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
@@ -28,6 +32,8 @@ interface UseTranscriptionSegmentBatchMergeInput {
   recordTimelineEdit?: (event: PushTimelineEditInput) => void;
   /** When concurrent segment mutations overlap, skip post-reload selection after stale reloads. */
   segmentMutationReloadGenRef: MutableRefObject<number>;
+  pendingView: MutableRefObject<SegmentViewRefreshPending | null>;
+  noteViewStale: MutableRefObject<(pending: SegmentViewRefreshPending) => void>;
 }
 
 function setSegmentBatchMergeError(
@@ -74,6 +80,8 @@ export function useTranscriptionSegmentBatchMerge({
   mergeSelectedUnits,
   recordTimelineEdit,
   segmentMutationReloadGenRef,
+  pendingView,
+  noteViewStale,
 }: UseTranscriptionSegmentBatchMergeInput): (
   ids: Set<string>,
   layerIdOverride?: string,
@@ -169,6 +177,7 @@ export function useTranscriptionSegmentBatchMerge({
           try {
             const outcome = await runSegmentLayerWriteReload({
               generation: segmentMutationReloadGenRef,
+              pendingView,
               reloadSegments,
               refreshSegmentUndoSnapshot,
               write: async () => {
@@ -181,18 +190,24 @@ export function useTranscriptionSegmentBatchMerge({
                 }
               },
             });
-            if (outcome.stale) {
-              recordBatchMergeLatency('success', startedAtMs);
-              return;
-            }
-            selectTimelineUnit(createSegmentTarget(firstSegment.id, targetLayerId));
-            recordTimelineEdit?.({
-              action: 'merge',
-              unitId: firstSegment.id,
-              unitKind: 'segment',
-              ...(orderedSegments.length > 2 ? { detail: `merged=${orderedSegments.length}` } : {}),
+            finishSegmentLayerWrite({
+              outcome,
+              noteViewStale: noteViewStale.current,
+              actionLabel: t(locale, 'transcription.unitAction.undo.mergeSelection'),
+              failureKey: 'transcription.error.action.segmentMergeFailed',
+              recordSuccess: () => recordBatchMergeLatency('success', startedAtMs),
+              followUp: () => {
+                selectTimelineUnit(createSegmentTarget(firstSegment.id, targetLayerId));
+                recordTimelineEdit?.({
+                  action: 'merge',
+                  unitId: firstSegment.id,
+                  unitKind: 'segment',
+                  ...(orderedSegments.length > 2
+                    ? { detail: `merged=${orderedSegments.length}` }
+                    : {}),
+                });
+              },
             });
-            recordBatchMergeLatency('success', startedAtMs);
           } catch (error) {
             setSegmentBatchMergeError(
               setSaveState,
@@ -226,6 +241,8 @@ export function useTranscriptionSegmentBatchMerge({
       locale,
       mergeSelectedUnits,
       pushUndo,
+      noteViewStale,
+      pendingView,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
       reloadSegments,

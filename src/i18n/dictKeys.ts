@@ -1327,6 +1327,8 @@ export const DICT_KEYS = [
   'transcription.toast.asyncActionFailedWithContext',
   'transcription.toast.refreshAndRetry',
   'transcription.toast.dismiss',
+  'transcription.toast.segmentWrittenViewStale',
+  'transcription.toast.segmentViewRetry',
   'transcription.toast.voice.commandWaiting',
   'transcription.toast.voice.commandListening',
   'transcription.toast.voice.dictationWaiting',

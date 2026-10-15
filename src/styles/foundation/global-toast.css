@@ -30,6 +30,23 @@
     filter 0.26s ease;
 }
 
+.transcription-toast-with-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.transcription-toast-action {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .transcription-toast-exiting {
   opacity: 0;
   transform: translateY(8px) scale(0.98);

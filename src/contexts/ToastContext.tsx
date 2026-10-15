@@ -23,6 +23,8 @@ export interface ToastItem {
   variant: ToastVariant;
   autoDismissMs?: number;
   exiting?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export interface ToastContextValue {
@@ -83,6 +85,7 @@ const SAVE_STATE_VARIANT: Record<SaveState['kind'], ToastVariant> = {
   saving: 'info',
   done: 'success',
   error: 'error',
+  viewStale: 'warning',
 };
 
 function normalizeErrorToast(
@@ -265,6 +268,25 @@ export function ToastProvider({ children }: Props) {
         return;
       }
 
+      if (state.kind === 'viewStale') {
+        clearTimers();
+        const item: ToastItem = {
+          id: nextId(),
+          message: state.message,
+          variant: 'warning',
+          exiting: false,
+          actionLabel: state.actionLabel,
+          onAction: state.onAction,
+        };
+        lastToastRef.current = {
+          message: state.message,
+          variant: 'warning',
+          timestamp: Date.now(),
+        };
+        setCurrent(item);
+        return;
+      }
+
       if (state.kind === 'done') {
         const now = Date.now();
         if (now - lastSaveDoneToastAtRef.current < SAVE_DONE_TOAST_COOLDOWN_MS) {
@@ -293,7 +315,7 @@ export function ToastProvider({ children }: Props) {
 
       showToast(message, defaultVariant);
     },
-    [dismiss, locale, showToast],
+    [clearTimers, dismiss, locale, showToast],
   );
 
   const showVoiceState = useCallback(
@@ -321,11 +343,25 @@ export function ToastProvider({ children }: Props) {
       {current && (
         <div className="transcription-toast-container" role="status" aria-live="polite">
           <div
-            className={`transcription-toast toast-${current.variant} ${current.exiting === true ? 'transcription-toast-exiting' : ''}`}
+            className={`transcription-toast toast-${current.variant} ${current.actionLabel !== undefined && current.actionLabel.length > 0 ? 'transcription-toast-with-action' : ''} ${current.exiting === true ? 'transcription-toast-exiting' : ''}`}
             onClick={dismiss}
             title={t(locale, 'transcription.toast.dismiss')}
           >
             {current.message}
+            {current.actionLabel !== undefined &&
+            current.actionLabel.length > 0 &&
+            current.onAction !== undefined ? (
+              <button
+                type="button"
+                className="transcription-toast-action"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  current.onAction?.();
+                }}
+              >
+                {current.actionLabel}
+              </button>
+            ) : null}
           </div>
         </div>
       )}

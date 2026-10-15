@@ -1515,6 +1515,8 @@ export const enUSDictionary = {
   'transcription.toast.asyncActionFailedWithContext': 'Action failed: {context}',
   'transcription.toast.refreshAndRetry': 'Refresh and try again',
   'transcription.toast.dismiss': 'Dismiss toast',
+  'transcription.toast.segmentWrittenViewStale': 'Written, but the view has not refreshed.',
+  'transcription.toast.segmentViewRetry': 'Refresh again',
   'transcription.toast.voice.commandWaiting': '🎤 Waiting for voice command…',
   'transcription.toast.voice.commandListening': '🎤 Listening…',
   'transcription.toast.voice.dictationWaiting': '🎤 Dictation mode — speak to insert',

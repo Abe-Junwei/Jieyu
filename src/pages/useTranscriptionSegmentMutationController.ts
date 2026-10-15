@@ -18,7 +18,8 @@ import {
   recordSegmentMutationLatency,
   setSegmentMutationActionError,
 } from './useTranscriptionSegmentMutationController.utils';
-import { runSegmentLayerWriteReload } from './segmentLayerWriteReload';
+import { finishSegmentLayerWrite, runSegmentLayerWriteReload } from './segmentLayerWriteReload';
+import { useSegmentLayerViewRefresh } from './useSegmentLayerViewRefresh';
 
 export type {
   UseTranscriptionSegmentMutationControllerInput,
@@ -50,6 +51,13 @@ export function useTranscriptionSegmentMutationController(
     recordTimelineEdit,
   } = input;
   const segmentMutationReloadGenRef = useRef(0);
+  const { pendingView, noteViewStale } = useSegmentLayerViewRefresh({
+    locale,
+    generation: segmentMutationReloadGenRef,
+    reloadSegments,
+    refreshSegmentUndoSnapshot,
+    setSaveState,
+  });
   const unitById = useMemo(
     () => new Map(unitsOnCurrentMedia.map((unit) => [unit.id, unit] as const)),
     [unitsOnCurrentMedia],
@@ -91,6 +99,8 @@ export function useTranscriptionSegmentMutationController(
     setSaveState,
     mergeSelectedUnits: mergeSelectedUnits,
     segmentMutationReloadGenRef,
+    pendingView,
+    noteViewStale,
     ...(recordTimelineEdit ? { recordTimelineEdit } : {}),
   });
   const resolveParentUnitForSegment = useCallback(
@@ -104,11 +114,18 @@ export function useTranscriptionSegmentMutationController(
     [findUnitDocContainingRange, getUnitDocById],
   );
   const mergeAdjacentSegmentsForAiRollback = async (keepId: string, removeId: string) => {
-    await runSegmentLayerWriteReload({
+    const outcome = await runSegmentLayerWriteReload({
       generation: segmentMutationReloadGenRef,
+      pendingView,
       reloadSegments,
       refreshSegmentUndoSnapshot,
       write: () => transcriptionAppService.mergeAdjacentSegments(keepId, removeId),
+    });
+    finishSegmentLayerWrite({
+      outcome,
+      noteViewStale: noteViewStale.current,
+      actionLabel: t(locale, 'transcription.unitAction.undo.mergePrevious'),
+      failureKey: 'transcription.error.action.segmentMergeFailed',
     });
   };
 
@@ -136,26 +153,29 @@ export function useTranscriptionSegmentMutationController(
           try {
             const outcome = await runSegmentLayerWriteReload({
               generation: segmentMutationReloadGenRef,
+              pendingView,
               reloadSegments,
               refreshSegmentUndoSnapshot,
               write: () => transcriptionAppService.splitSegment(id, splitTime),
             });
-            if (outcome.stale) {
-              recordSegmentMutationLatency('split', 'success', startedAtMs);
-              return undefined;
-            }
-            selectTimelineUnit(createSegmentTarget(outcome.value.second.id, targetLayerId));
-            recordTimelineEdit?.({
-              action: 'split',
-              unitId: id,
-              unitKind: 'segment',
-              detail: `newSegment=${outcome.value.second.id}`,
+            const written = finishSegmentLayerWrite({
+              outcome,
+              noteViewStale: noteViewStale.current,
+              actionLabel: t(locale, 'transcription.unitAction.undo.split'),
+              failureKey: 'transcription.error.action.segmentSplitFailed',
+              recordSuccess: () => recordSegmentMutationLatency('split', 'success', startedAtMs),
+              followUp: (value) => {
+                selectTimelineUnit(createSegmentTarget(value.second.id, targetLayerId));
+                recordTimelineEdit?.({
+                  action: 'split',
+                  unitId: id,
+                  unitKind: 'segment',
+                  detail: `newSegment=${value.second.id}`,
+                });
+              },
             });
-            recordSegmentMutationLatency('split', 'success', startedAtMs);
-            return {
-              keepSegmentId: outcome.value.first.id,
-              removeSegmentId: outcome.value.second.id,
-            };
+            if (!written) return undefined;
+            return { keepSegmentId: written.first.id, removeSegmentId: written.second.id };
           } catch (error) {
             setSegmentMutationActionError(
               setSaveState,
@@ -175,6 +195,8 @@ export function useTranscriptionSegmentMutationController(
       locale,
       pushSegmentLayerUndo,
       recordTimelineEdit,
+      noteViewStale,
+      pendingView,
       refreshSegmentUndoSnapshot,
       reloadSegments,
       resolveSegmentRoutingForLayer,
@@ -243,22 +265,28 @@ export function useTranscriptionSegmentMutationController(
           try {
             const outcome = await runSegmentLayerWriteReload({
               generation: segmentMutationReloadGenRef,
+              pendingView,
               reloadSegments,
               refreshSegmentUndoSnapshot,
               write: () => transcriptionAppService.mergeAdjacentSegments(prevSeg.id, id),
             });
-            if (outcome.stale) {
-              recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
-              return;
-            }
-            selectTimelineUnit(createSegmentTarget(prevSeg.id, targetLayerId));
-            recordTimelineEdit?.({
-              action: 'merge',
-              unitId: prevSeg.id,
-              unitKind: 'segment',
-              detail: `consumed=${curSeg.id}`,
+            finishSegmentLayerWrite({
+              outcome,
+              noteViewStale: noteViewStale.current,
+              actionLabel: t(locale, 'transcription.unitAction.undo.mergePrevious'),
+              failureKey: 'transcription.error.action.segmentMergeFailed',
+              recordSuccess: () =>
+                recordSegmentMutationLatency('merge_previous', 'success', startedAtMs),
+              followUp: () => {
+                selectTimelineUnit(createSegmentTarget(prevSeg.id, targetLayerId));
+                recordTimelineEdit?.({
+                  action: 'merge',
+                  unitId: prevSeg.id,
+                  unitKind: 'segment',
+                  detail: `consumed=${curSeg.id}`,
+                });
+              },
             });
-            recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
           } catch (error) {
             setSegmentMutationActionError(
               setSaveState,
@@ -276,6 +304,8 @@ export function useTranscriptionSegmentMutationController(
       createSegmentTarget,
       locale,
       mergeWithPrevious,
+      noteViewStale,
+      pendingView,
       pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
@@ -347,22 +377,28 @@ export function useTranscriptionSegmentMutationController(
           try {
             const outcome = await runSegmentLayerWriteReload({
               generation: segmentMutationReloadGenRef,
+              pendingView,
               reloadSegments,
               refreshSegmentUndoSnapshot,
               write: () => transcriptionAppService.mergeAdjacentSegments(id, nextSeg.id),
             });
-            if (outcome.stale) {
-              recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
-              return;
-            }
-            selectTimelineUnit(createSegmentTarget(id, targetLayerId));
-            recordTimelineEdit?.({
-              action: 'merge',
-              unitId: id,
-              unitKind: 'segment',
-              detail: `consumed=${nextSeg.id}`,
+            finishSegmentLayerWrite({
+              outcome,
+              noteViewStale: noteViewStale.current,
+              actionLabel: t(locale, 'transcription.unitAction.undo.mergeNext'),
+              failureKey: 'transcription.error.action.segmentMergeFailed',
+              recordSuccess: () =>
+                recordSegmentMutationLatency('merge_next', 'success', startedAtMs),
+              followUp: () => {
+                selectTimelineUnit(createSegmentTarget(id, targetLayerId));
+                recordTimelineEdit?.({
+                  action: 'merge',
+                  unitId: id,
+                  unitKind: 'segment',
+                  detail: `consumed=${nextSeg.id}`,
+                });
+              },
             });
-            recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
           } catch (error) {
             setSegmentMutationActionError(
               setSaveState,
@@ -380,6 +416,8 @@ export function useTranscriptionSegmentMutationController(
       createSegmentTarget,
       locale,
       mergeWithNext,
+      noteViewStale,
+      pendingView,
       pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
@@ -415,17 +453,22 @@ export function useTranscriptionSegmentMutationController(
           try {
             const outcome = await runSegmentLayerWriteReload({
               generation: segmentMutationReloadGenRef,
+              pendingView,
               reloadSegments,
               refreshSegmentUndoSnapshot,
               write: () => transcriptionAppService.deleteSegment(id),
             });
-            if (outcome.stale) {
-              recordSegmentMutationLatency('delete', 'success', startedAtMs);
-              return;
-            }
-            selectTimelineUnit(null);
-            recordTimelineEdit?.({ action: 'delete', unitId: id, unitKind: 'segment' });
-            recordSegmentMutationLatency('delete', 'success', startedAtMs);
+            finishSegmentLayerWrite({
+              outcome,
+              noteViewStale: noteViewStale.current,
+              actionLabel: t(locale, 'transcription.unitAction.undo.delete'),
+              failureKey: 'transcription.error.action.segmentDeleteFailed',
+              recordSuccess: () => recordSegmentMutationLatency('delete', 'success', startedAtMs),
+              followUp: () => {
+                selectTimelineUnit(null);
+                recordTimelineEdit?.({ action: 'delete', unitId: id, unitKind: 'segment' });
+              },
+            });
           } catch (error) {
             setSegmentMutationActionError(
               setSaveState,
@@ -442,6 +485,8 @@ export function useTranscriptionSegmentMutationController(
       activeLayerIdForEdits,
       deleteUnit,
       locale,
+      noteViewStale,
+      pendingView,
       pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
@@ -486,27 +531,31 @@ export function useTranscriptionSegmentMutationController(
             await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.deleteSelection'));
             const outcome = await runSegmentLayerWriteReload({
               generation: segmentMutationReloadGenRef,
+              pendingView,
               reloadSegments,
               refreshSegmentUndoSnapshot,
               write: () => transcriptionAppService.deleteSegments([...ids]),
             });
-            if (outcome.stale) {
-              recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
-              return;
-            }
-            selectTimelineUnit(null);
-            const headSeg = [...ids][0];
-            if (headSeg) {
-              recordTimelineEdit?.({
-                action: 'delete',
-                unitId: headSeg,
-                unitKind: 'segment',
-                ...(ids.size > 1 ? { detail: `batch=${ids.size}` } : {}),
-              });
-            }
-            recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
+            finishSegmentLayerWrite({
+              outcome,
+              noteViewStale: noteViewStale.current,
+              actionLabel: t(locale, 'transcription.unitAction.undo.deleteSelection'),
+              failureKey: 'transcription.error.action.segmentBatchDeleteFailed',
+              recordSuccess: () =>
+                recordSegmentMutationLatency('delete_selection', 'success', startedAtMs),
+              followUp: () => {
+                selectTimelineUnit(null);
+                const headSeg = [...ids][0];
+                if (!headSeg) return;
+                recordTimelineEdit?.({
+                  action: 'delete',
+                  unitId: headSeg,
+                  unitKind: 'segment',
+                  ...(ids.size > 1 ? { detail: `batch=${ids.size}` } : {}),
+                });
+              },
+            });
           } catch (error) {
-            await reloadSegments();
             setSegmentMutationActionError(
               setSaveState,
               t(locale, 'transcription.unitAction.undo.deleteSelection'),
@@ -522,6 +571,8 @@ export function useTranscriptionSegmentMutationController(
       activeLayerIdForEdits,
       deleteSelectedUnits,
       locale,
+      noteViewStale,
+      pendingView,
       pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,

@@ -308,6 +308,60 @@ describe('ToastContext', () => {
       expect(screen.getByRole('status').textContent).toBe('自定义保存完成');
     });
 
+    it('keeps a written-view warning until refresh or dismiss', () => {
+      vi.useFakeTimers();
+      const onAction = vi.fn();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({
+          kind: 'viewStale',
+          message: '已写入，视图还没刷新。',
+          actionLabel: '重新刷新',
+          onAction,
+        });
+      });
+      expect(document.querySelector('.toast-warning')).not.toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(screen.getByRole('button', { name: '重新刷新' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: '重新刷新' }));
+      expect(onAction).toHaveBeenCalledOnce();
+      expect(screen.getByRole('status')).toBeTruthy();
+      fireEvent.click(document.querySelector('.transcription-toast')!);
+      act(() => {
+        vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
+      });
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('still dismisses an error toast on the short timer', () => {
+      vi.useFakeTimers();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      act(() => {
+        ctx!.showSaveState({ kind: 'error', message: '保存失败原因' });
+      });
+      expect(document.querySelector('.toast-error')).not.toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(2100);
+      });
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
     it('renders error toast with custom message', () => {
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(
