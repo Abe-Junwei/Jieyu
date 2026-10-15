@@ -27,6 +27,35 @@ import {
   createConversationGenerationRef,
 } from '../../ai/chat/conversationGeneration';
 import { createAssistantStream, type AssistantStreamChunk } from './useAiChat.streamFactory';
+import * as localContextToolExecutors from '../../ai/chat/localContextToolExecutors';
+import * as externalMcpTurnBridge from '../../ai/mcp/client/externalMcpTurnBridge';
+
+const { runAiRuntimeV2TurnMock } = vi.hoisted(() => ({
+  runAiRuntimeV2TurnMock: vi.fn(),
+}));
+
+vi.mock('../../ai/chat/localContextToolExecutors', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../ai/chat/localContextToolExecutors')>();
+  return { ...actual, executeLocalContextToolCall: vi.fn() };
+});
+
+vi.mock('../../ai/mcp/client/externalMcpTurnBridge', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../ai/mcp/client/externalMcpTurnBridge')>();
+  return {
+    ...actual,
+    listRuntimeV2ExternalMcpTools: vi.fn(async () => []),
+    executeExternalMcpCall: vi.fn(),
+  };
+});
+
+vi.mock('../../ai/runtime/aiRuntimeV2Turn', () => ({
+  isNoToolsThisSession: () => false,
+  createAiSdkModelFromSettings: () => ({ specificationVersion: 'v4' }),
+  withLegacyFallback: async function* (primary: AsyncGenerator<unknown>) {
+    yield* primary;
+  },
+  runAiRuntimeV2Turn: (params: unknown) => runAiRuntimeV2TurnMock(params),
+}));
 
 vi.mock('react-dom', () => ({
   flushSync: (fn: () => void) => {
@@ -645,5 +674,432 @@ describe('runAiChatSendTurnStreamPhase', () => {
     const updatedComposed = input.sessionMemoryRef.current.composedWorkflowState;
     expect(updatedComposed!.pendingReflectionRetryStepIndex).toBe(0);
     expect(updatedComposed!.stepReflectionRetryCounts).toEqual({ 0: 1 });
+  });
+
+  describe('corpus_analysis_report', () => {
+    const workflow = getVerticalWorkflowV0('corpus_analysis_report');
+    const corpusSelection = {
+      workflowId: 'corpus_analysis_report' as const,
+      workflow,
+      confidence: 1,
+      source: 'rule_v0' as const,
+      reasonCode: 'keyword_match' as const,
+      matchedKeyword: '反例',
+    };
+    const corpusSeed: VerticalWorkflowOutputEnvelopeV0 = {
+      schemaVersion: 0,
+      workflowId: 'corpus_analysis_report',
+      writeMode: 'read_only',
+      outputKind: 'answer',
+      evidencePackets: [],
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      status: 'ready',
+    };
+    const claimsJson = JSON.stringify({
+      claims: [{ claimId: 'c1', text: '文献也这样记。', rowIds: ['ev_ext_literature_h1'] }],
+    });
+
+    it('never stores the unverified draft, even when the stream errors', async () => {
+      async function* deltaThenError(): AsyncGenerator<AssistantStreamChunk> {
+        yield { delta: claimsJson };
+        yield { error: 'boom' };
+      }
+      const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+      const queueFlushAssistantDraft = vi.fn();
+      await runAiChatSendTurnStreamPhase(
+        buildBaseInput({
+          stream: deltaThenError(),
+          finalizeAssistantMessage,
+          queueFlushAssistantDraft,
+          verticalWorkflowSelection: corpusSelection,
+          verticalOutputEnvelopeSeed: corpusSeed,
+        }),
+      );
+      expect(queueFlushAssistantDraft).not.toHaveBeenCalled();
+      expect(finalizeAssistantMessage).toHaveBeenCalledWith('error', '', 'boom', [], '');
+    });
+
+    it('renders external evidence packets that reach finalize', async () => {
+      vi.mocked(finalizeAssistantStreamCompletion).mockResolvedValue({
+        finalContent: claimsJson,
+        finalStatus: 'done',
+        evidencePackets: [
+          {
+            schemaVersion: 0,
+            id: 'ev_ext_literature_h1',
+            sourceType: 'document',
+            sourceId: 'h1',
+            title: 'A Grammar',
+            page: '42',
+            quote: 'The suffix marks past tense.',
+            confidence: 0.5,
+            reasonCode: 'external_mcp_literature',
+          },
+        ],
+      });
+      vi.mocked(runAgentLoop).mockResolvedValue({
+        resolvedContent: claimsJson,
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: undefined,
+        loopExecuted: false,
+        assistantReasoningContent: '',
+        totalOutputTokens: 0,
+        reportedInputTokens: 0,
+      } as AgentLoopRunnerResult);
+      async function* oneDone(): AsyncGenerator<AssistantStreamChunk> {
+        yield { delta: claimsJson };
+        yield { done: true };
+      }
+      const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+      const queueFlushAssistantDraft = vi.fn();
+      await runAiChatSendTurnStreamPhase(
+        buildBaseInput({
+          stream: oneDone(),
+          finalizeAssistantMessage,
+          queueFlushAssistantDraft,
+          verticalWorkflowSelection: corpusSelection,
+          verticalOutputEnvelopeSeed: corpusSeed,
+        }),
+      );
+      expect(queueFlushAssistantDraft).not.toHaveBeenCalled();
+      const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
+      expect(stored).toBe('文献也这样记。\n- A Grammar p.42 「The suffix marks past tense.」');
+    });
+
+    it('checks claims against corpus tool results from the v2 turn', async () => {
+      vi.mocked(localContextToolExecutors.executeLocalContextToolCall).mockResolvedValue({
+        ok: true,
+        name: 'concordance_kwic',
+        result: {
+          hits: [{ morphemeId: 'm2', unitId: 'u1', target: { form: 'ka', gloss: 'go' } }],
+        },
+      });
+      const cited = JSON.stringify({
+        claims: [{ claimId: 'c1', text: '过去时只出现在这个动词之后。', rowIds: ['m2'] }],
+      });
+      runAiRuntimeV2TurnMock.mockImplementation(async function* (params: {
+        decide: (
+          call: { name: string; arguments: Record<string, unknown>; requestId: string },
+          mode: string,
+        ) => Promise<unknown>;
+      }) {
+        await params.decide(
+          { name: 'concordance_kwic', arguments: { gloss: 'go' }, requestId: 'r1' },
+          'auto',
+        );
+        yield { delta: cited };
+        yield { done: true };
+      });
+      vi.mocked(runAgentLoop).mockResolvedValue({
+        resolvedContent: cited,
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: undefined,
+        loopExecuted: false,
+        assistantReasoningContent: '',
+        totalOutputTokens: 0,
+        reportedInputTokens: 0,
+      } as AgentLoopRunnerResult);
+      const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+      await runAiChatSendTurnStreamPhase(
+        buildBaseInput({
+          stream: (async function* () {
+            yield { done: true };
+          })(),
+          finalizeAssistantMessage,
+          flags: { ...featureFlags, aiAgentRuntimeV2Enabled: true },
+          verticalWorkflowSelection: corpusSelection,
+          verticalOutputEnvelopeSeed: corpusSeed,
+        }),
+      );
+      const loopState = vi.mocked(runAgentLoop).mock.calls[0]?.[1];
+      expect(loopState?.resolvedLocalToolResults).toBeUndefined();
+      expect(localContextToolExecutors.executeLocalContextToolCall).toHaveBeenCalled();
+      const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
+      expect(stored).toBe('过去时只出现在这个动词之后。\n- u1 ka go');
+    });
+
+    it('checks claims against external evidence returned by the v2 turn', async () => {
+      const toolName = 'extmcp__https---mcp.example.test-mcp__search_literature';
+      vi.mocked(externalMcpTurnBridge.listRuntimeV2ExternalMcpTools).mockResolvedValue([
+        {
+          name: toolName,
+          origin: 'https://mcp.example.test/mcp',
+          toolName: 'search_literature',
+          description: 'Search.',
+          inputSchema: { type: 'object', properties: {} },
+        },
+      ]);
+      vi.mocked(externalMcpTurnBridge.executeExternalMcpCall).mockResolvedValue({
+        name: toolName,
+        ok: true,
+        evidencePackets: [
+          {
+            schemaVersion: 0,
+            id: 'ev_ext_literature_h1',
+            sourceType: 'document',
+            sourceId: 'h1',
+            title: 'A Grammar',
+            page: '42',
+            quote: 'The suffix marks past tense.',
+            confidence: 0.5,
+            reasonCode: 'external_mcp_literature',
+          },
+        ],
+      });
+      runAiRuntimeV2TurnMock.mockImplementation(async function* (params: {
+        decide: (
+          call: { name: string; arguments: Record<string, unknown>; requestId: string },
+          mode: string,
+        ) => Promise<unknown>;
+      }) {
+        await params.decide({ name: toolName, arguments: {}, requestId: 'r1' }, 'auto');
+        yield { delta: claimsJson };
+        yield { done: true };
+      });
+      vi.mocked(runAgentLoop).mockResolvedValue({
+        resolvedContent: claimsJson,
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: undefined,
+        loopExecuted: false,
+        assistantReasoningContent: '',
+        totalOutputTokens: 0,
+        reportedInputTokens: 0,
+      } as AgentLoopRunnerResult);
+      const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+      await runAiChatSendTurnStreamPhase(
+        buildBaseInput({
+          stream: (async function* () {
+            yield { done: true };
+          })(),
+          finalizeAssistantMessage,
+          flags: {
+            ...featureFlags,
+            aiAgentRuntimeV2Enabled: true,
+            aiExternalMcpSendTurnEnabled: true,
+            aiExternalMcpTrustEnabled: true,
+          },
+          verticalWorkflowSelection: corpusSelection,
+          verticalOutputEnvelopeSeed: corpusSeed,
+        }),
+      );
+      const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
+      expect(stored).toBe('文献也这样记。\n- A Grammar p.42 「The suffix marks past tense.」');
+    });
+  });
+
+  it('runs list_units on v2 and does not continue the old loop', async () => {
+    vi.mocked(localContextToolExecutors.executeLocalContextToolCall).mockResolvedValue({
+      ok: true,
+      name: 'list_units',
+      result: { matches: [{ unitId: 'u1' }], _readModel: { source: 'timeline_index' } },
+    });
+    runAiRuntimeV2TurnMock.mockImplementation(async function* (params: {
+      decide: (
+        call: { name: string; arguments: Record<string, unknown>; requestId: string },
+        mode: string,
+      ) => Promise<{ finalContent: string }>;
+    }) {
+      const decision = await params.decide(
+        { name: 'list_units', arguments: { limit: 8 }, requestId: 'r1' },
+        'auto',
+      );
+      yield { delta: decision.finalContent };
+      yield { done: true };
+    });
+    vi.mocked(runAgentLoop).mockImplementation(async (_deps, state) => ({
+      resolvedContent: state.resolvedContent,
+      resolvedStatus: state.resolvedStatus,
+      resolvedErrorMessage: state.resolvedErrorMessage,
+      resolvedConnectionErrorMessage: state.resolvedConnectionErrorMessage,
+      resolvedLocalToolResults: state.resolvedLocalToolResults,
+      loopExecuted: false,
+      assistantReasoningContent: '',
+      totalOutputTokens: 0,
+      reportedInputTokens: 0,
+    }));
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    await runAiChatSendTurnStreamPhase(
+      buildBaseInput({
+        stream: (async function* () {
+          yield { done: true };
+        })(),
+        finalizeAssistantMessage,
+        flags: { ...featureFlags, aiAgentRuntimeV2Enabled: true },
+      }),
+    );
+    const loopState = vi.mocked(runAgentLoop).mock.calls.at(-1)?.[1];
+    expect(loopState?.resolvedLocalToolResults).toBeUndefined();
+    const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
+    expect(stored).toContain('u1');
+    expect(stored).not.toContain('_readModel');
+  });
+
+  it('holds batch_apply for approval and returns the preview only after that', async () => {
+    const execute = vi.mocked(localContextToolExecutors.executeLocalContextToolCall);
+    execute.mockClear();
+    execute.mockResolvedValue({
+      ok: true,
+      name: 'batch_apply',
+      result: {
+        items: [{ preview: 'Would apply verify to u1' }],
+        _readModel: { source: 'segment_meta' },
+      },
+    });
+    const setPendingToolCall = vi.fn();
+    runAiRuntimeV2TurnMock.mockImplementation(async function* (params: {
+      decide: (
+        call: { name: string; arguments: Record<string, unknown>; requestId: string },
+        mode: string,
+      ) => Promise<{ finalContent: string; pending: boolean }>;
+      requestApproval: (
+        call: { name: string; arguments: Record<string, unknown>; requestId: string },
+        approvalId: string,
+      ) => Promise<{ pending: boolean; text: string }>;
+    }) {
+      const missing = await params.requestApproval(
+        { name: 'batch_apply', arguments: {}, requestId: 'r0' },
+        'approval-0',
+      );
+      expect(missing.pending).toBe(false);
+      expect(execute).not.toHaveBeenCalled();
+      const held = await params.requestApproval(
+        { name: 'batch_apply', arguments: { action: 'verify', unitIds: ['u1'] }, requestId: 'r1' },
+        'approval-1',
+      );
+      expect(held.pending).toBe(true);
+      expect(execute).not.toHaveBeenCalled();
+      const early = await params.decide(
+        { name: 'batch_apply', arguments: { action: 'verify', unitIds: ['u1'] }, requestId: 'r1' },
+        'auto',
+      );
+      expect(early.pending).toBe(false);
+      expect(execute).not.toHaveBeenCalled();
+      const decision = await params.decide(
+        { name: 'batch_apply', arguments: { action: 'verify', unitIds: ['u1'] }, requestId: 'r1' },
+        'approved',
+      );
+      yield { delta: decision.finalContent };
+      yield { done: true };
+    });
+    vi.mocked(runAgentLoop).mockImplementation(async (_deps, state) => ({
+      resolvedContent: state.resolvedContent,
+      resolvedStatus: state.resolvedStatus,
+      resolvedErrorMessage: state.resolvedErrorMessage,
+      resolvedConnectionErrorMessage: state.resolvedConnectionErrorMessage,
+      resolvedLocalToolResults: state.resolvedLocalToolResults,
+      loopExecuted: false,
+      assistantReasoningContent: '',
+      totalOutputTokens: 0,
+      reportedInputTokens: 0,
+    }));
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    await runAiChatSendTurnStreamPhase(
+      buildBaseInput({
+        stream: (async function* () {
+          yield { done: true };
+        })(),
+        finalizeAssistantMessage,
+        setPendingToolCall,
+        flags: { ...featureFlags, aiAgentRuntimeV2Enabled: true },
+      }),
+    );
+    const card = setPendingToolCall.mock.calls.at(-1)?.[0] as {
+      runtimeV2?: { approvalId: string };
+      impactPreview?: string[];
+    };
+    expect(card.runtimeV2?.approvalId).toBe('approval-1');
+    expect(card.impactPreview).toEqual(['verify u1']);
+    const loopState = vi.mocked(runAgentLoop).mock.calls.at(-1)?.[1];
+    expect(loopState?.resolvedLocalToolResults).toBeUndefined();
+    const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
+    expect(stored).toContain('Would apply verify to u1');
+    expect(stored).not.toContain('_readModel');
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an MCP input card without giving the prompt to the model', async () => {
+    const toolName = 'extmcp__https---mcp.example.test-mcp__search_works';
+    vi.mocked(externalMcpTurnBridge.listRuntimeV2ExternalMcpTools).mockResolvedValue([
+      {
+        name: toolName,
+        origin: 'https://mcp.example.test/mcp',
+        toolName: 'search_works',
+        description: 'Search.',
+        inputSchema: { type: 'object', properties: {} },
+      },
+    ]);
+    vi.mocked(externalMcpTurnBridge.executeExternalMcpCall).mockResolvedValue({
+      name: toolName,
+      ok: false,
+      reason: 'input_required',
+      form: {
+        origin: 'https://mcp.example.test/mcp',
+        toolName: 'search_works',
+        arguments: {},
+        requestState: 'opaque-state',
+        requests: [
+          {
+            id: 'github_login',
+            message: 'Please provide your GitHub username',
+            fields: [{ name: 'name', required: true }],
+          },
+        ],
+      },
+    });
+    runAiRuntimeV2TurnMock.mockImplementation(async function* (params: {
+      decide: (
+        call: { name: string; arguments: Record<string, unknown>; requestId: string },
+        mode: string,
+      ) => Promise<{ finalContent: string }>;
+    }) {
+      const decision = await params.decide(
+        { name: toolName, arguments: {}, requestId: 'r1' },
+        'auto',
+      );
+      yield { delta: decision.finalContent };
+      yield { done: true };
+    });
+    vi.mocked(runAgentLoop).mockImplementation(async (_deps, state) => ({
+      resolvedContent: state.resolvedContent,
+      resolvedStatus: state.resolvedStatus,
+      resolvedErrorMessage: state.resolvedErrorMessage,
+      resolvedConnectionErrorMessage: state.resolvedConnectionErrorMessage,
+      resolvedLocalToolResults: state.resolvedLocalToolResults,
+      loopExecuted: false,
+      assistantReasoningContent: '',
+      totalOutputTokens: 0,
+      reportedInputTokens: 0,
+    }));
+    const setPendingToolCall = vi.fn();
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    await runAiChatSendTurnStreamPhase(
+      buildBaseInput({
+        stream: (async function* () {
+          yield { done: true };
+        })(),
+        finalizeAssistantMessage,
+        setPendingToolCall,
+        flags: {
+          ...featureFlags,
+          aiAgentRuntimeV2Enabled: true,
+          aiExternalMcpSendTurnEnabled: true,
+          aiExternalMcpTrustEnabled: true,
+        },
+      }),
+    );
+    const card = setPendingToolCall.mock.calls.at(-1)?.[0] as {
+      mcpInput?: { requestState?: string; requests: Array<{ message: string }> };
+    };
+    expect(card.mcpInput?.requests[0]?.message).toBe('Please provide your GitHub username');
+    const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
+    expect(stored).toBe('input_required');
+    expect(stored).not.toContain('opaque-state');
+    expect(stored).not.toContain('GitHub');
   });
 });

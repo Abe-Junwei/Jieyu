@@ -36,6 +36,14 @@ import {
 } from './aiRuntimeV2Pending';
 import { getAiToolPolicy } from '../policy/aiToolPolicyMatrix';
 import type { AiChatToolName } from '../chat/aiChatToolName.types';
+import {
+  corpusAnalysisToolSpecs,
+  isRuntimeV2CorpusAnalysisTool,
+  batchApplyToolSpec,
+  isRuntimeV2BatchApply,
+  isRuntimeV2LocalReadTool,
+  localReadToolSpecs,
+} from './runtimeV2CorpusTools';
 
 const OPENAI_COMPATIBLE_KINDS = new Set<AiChatSettings['providerKind']>([
   'openai-compatible',
@@ -69,7 +77,9 @@ const decodeEscapedLabel = (label: string) =>
  * 严格校验仍在 toolDecisionPipeline，invalid_args 走澄清。
  * Tool definitions derived from the zod schemas; no validation at the SDK boundary.
  */
-export function buildRuntimeV2ToolSpecs(): Record<string, PilotToolSpec> {
+export function buildRuntimeV2ToolSpecs(options?: {
+  corpusAnalysis?: boolean;
+}): Record<string, PilotToolSpec> {
   const specs: Record<string, PilotToolSpec> = {};
   for (const name of AI_CHAT_TOOL_NAMES_FROM_PARSER) {
     const zodSchema = (toolArgumentSchemas as Record<string, z.ZodType | undefined>)[name];
@@ -93,6 +103,9 @@ export function buildRuntimeV2ToolSpecs(): Record<string, PilotToolSpec> {
       inputSchema: jsonSchema(loose),
     };
   }
+  Object.assign(specs, localReadToolSpecs());
+  specs.batch_apply = batchApplyToolSpec();
+  if (options?.corpusAnalysis) Object.assign(specs, corpusAnalysisToolSpecs());
   return specs;
 }
 
@@ -120,6 +133,12 @@ export interface RuntimeV2ApprovalRequestOutcome {
  * Approval policy: reads are not-applicable; every write/destructive tool needs user approval.
  */
 export function runtimeV2ToolApproval(name: string): ToolApprovalStatus {
+  if (isRuntimeV2BatchApply(name)) {
+    return { type: 'user-approval', reason: 'write_gate_preview_required' };
+  }
+  if (isRuntimeV2CorpusAnalysisTool(name) || isRuntimeV2LocalReadTool(name))
+    return 'not-applicable';
+  if (name.startsWith('extmcp__')) return 'not-applicable';
   if (!(AI_CHAT_TOOL_NAMES_FROM_PARSER as readonly string[]).includes(name)) return 'denied';
   const policy = getAiToolPolicy(name as AiChatToolName) as
     | ReturnType<typeof getAiToolPolicy>
@@ -163,6 +182,10 @@ export interface RunAiRuntimeV2TurnParams {
   /** 待确认提示后缀：确认后不会自动继续 | appended to pending text */
   pendingHint?: string;
   approvalFor?: (name: string) => ToolApprovalStatus;
+  /** R3-1: offer the three read-only corpus queries. Flag stays off unless the caller opts in. */
+  corpusAnalysisTools?: boolean;
+  /** R3-2: cached external MCP tools, already capped by the caller. */
+  extraTools?: Record<string, PilotToolSpec>;
   now?: () => number;
 }
 
@@ -287,7 +310,10 @@ export async function* runAiRuntimeV2Turn(
 
   const agent = createPilotAgent({
     model: p.model,
-    tools: buildRuntimeV2ToolSpecs(),
+    tools: {
+      ...buildRuntimeV2ToolSpecs({ corpusAnalysis: p.corpusAnalysisTools === true }),
+      ...(p.extraTools ?? {}),
+    },
     instructions: p.systemPrompt,
     toolApproval: (name) => approvalFor(name),
     runToolDecision: (name, input, toolCallId) => {

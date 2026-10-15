@@ -3,7 +3,10 @@ import { runAnnotationQaReflection } from './annotationQaReflection';
 import { runLexemeCandidatesReflection } from './lexemeCandidatesReflection';
 import { runSegmentQaReflection } from './segmentQaReflection';
 import { runElanFlexCompatibilityReflection } from './elanFlexCompatibilityWorkflow';
-import { runCorpusAnalysisReportReflection } from './corpusAnalysisReport';
+import {
+  runCorpusAnalysisReportReflection,
+  type AnalysisEvidenceRow,
+} from './corpusAnalysisReport';
 import type { ComposedReflectionRetryBlob } from './composedWorkflowTemplates';
 import { getVerticalWorkflowV0, type VerticalWorkflowId } from './verticalWorkflowRegistry';
 
@@ -45,6 +48,7 @@ function runHandler(
   handlerId: VerticalReflectionHandlerId,
   content: string,
   packets: ReadonlyArray<EvidencePacketV0>,
+  analysisRows: readonly AnalysisEvidenceRow[],
 ): VerticalReflectionDispatchResult {
   switch (handlerId) {
     case 'segment_qa': {
@@ -82,7 +86,7 @@ function runHandler(
       };
     }
     case 'corpus_analysis_report': {
-      const result = runCorpusAnalysisReportReflection(content);
+      const result = runCorpusAnalysisReportReflection(content, analysisRows);
       return {
         reflection: toView(result),
         auditField: AUDIT_FIELD_BY_HANDLER.corpus_analysis_report,
@@ -98,9 +102,11 @@ export function dispatchVerticalWorkflowReflection(
   workflowId: VerticalWorkflowId,
   content: string,
   packets: ReadonlyArray<EvidencePacketV0>,
+  /** corpus_analysis_report only: rows from this turn's tool results and evidence packets. */
+  analysisRows: readonly AnalysisEvidenceRow[] = [],
 ): VerticalReflectionDispatchResult | null {
   const workflow = getVerticalWorkflowV0(workflowId);
   const handlerId = workflow.reflectionHandlerId;
   if (!handlerId) return null;
-  return runHandler(handlerId, content, packets);
+  return runHandler(handlerId, content, packets, analysisRows);
 }

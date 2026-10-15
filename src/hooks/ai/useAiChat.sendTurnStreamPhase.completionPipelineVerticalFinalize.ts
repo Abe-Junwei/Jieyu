@@ -62,14 +62,26 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   const { db, ragCitations } = opening;
   const { verticalOutputEnvelopeSeed, verticalWorkflowSelection } = streamCompletionResult;
   let effectiveVerticalEnvelope = verticalOutputEnvelopeSeed;
-  const verifiedAnalysisText =
-    resolution.status === 'done' &&
-    verticalOutputEnvelopeSeed?.workflowId === 'corpus_analysis_report'
-      ? renderVerifiedAnalysisReport(resolution.content, [
-          ...analysisRowsFromToolResults(streamCompletionResult.localToolResults ?? []),
-          ...analysisRowsFromEvidencePackets(streamCompletionResult.evidencePackets ?? []),
-        ]).text
-      : resolution.content;
+  const isCorpusAnalysis = verticalOutputEnvelopeSeed?.workflowId === 'corpus_analysis_report';
+  const analysisRows = isCorpusAnalysis
+    ? [
+        ...analysisRowsFromToolResults([
+          ...(streamCompletionResult.localToolResults ?? []),
+          ...(streamCompletionResult.corpusToolResults ?? []),
+        ]),
+        ...analysisRowsFromEvidencePackets(streamCompletionResult.evidencePackets ?? []),
+      ]
+    : [];
+  // Unverified claims never reach the UI or storage, including on the error path.
+  const verifiedAnalysisText = isCorpusAnalysis
+    ? resolution.status === 'done'
+      ? renderVerifiedAnalysisReport(
+          resolution.content,
+          analysisRows,
+          input.toolFeedbackLocaleRef.current,
+        ).text
+      : ''
+    : resolution.content;
   const clientContent =
     resolution.status === 'done'
       ? await applyOutboundSemanticGuard({
@@ -107,6 +119,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
         verticalOutputEnvelopeSeed.workflowId,
         resolution.content,
         verticalOutputEnvelopeSeed.evidencePackets,
+        analysisRows,
       );
       if (dispatched) {
         const reflection = dispatched.reflection;

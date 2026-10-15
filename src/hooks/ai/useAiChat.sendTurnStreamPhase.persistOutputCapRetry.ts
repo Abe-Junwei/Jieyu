@@ -9,6 +9,7 @@ import type { ChatTokenUsage } from '../../ai/providers/LLMProvider';
 import { mergeTokenUsage } from '../../ai/providers/tokenUsage';
 import { genRequestId } from './useAiChat.toolAudit';
 import { updateAssistantRetryMeta } from './useAiChat.sendTurnPersistPhase';
+import { hidesUnverifiedDraft } from '../../ai/vertical/corpusAnalysisReport';
 import type {
   RunAiChatSendTurnStreamPhaseInput,
   SendTurnStreamPhaseState,
@@ -132,7 +133,9 @@ export async function runSendTurnStreamOutputCapRetryIfNeeded(params: {
         msg.id === assistantId
           ? {
               ...msg,
-              content: retryContent,
+              ...(hidesUnverifiedDraft(input.verticalWorkflowSelection?.workflowId)
+                ? {}
+                : { content: retryContent }),
               reasoningContent: retryReasoningContent,
               generationSource: retryGenerationSource,
               generationModel: retryGenerationModel,

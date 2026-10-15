@@ -14,10 +14,13 @@ import type {
   VerticalWorkflowOutputEnvelopeV0,
   VerticalWorkflowSelectionV0,
 } from '../../ai/vertical/verticalWorkflowSelection';
+import type { LocalContextToolResult } from '../../ai/chat/localContextToolTypes';
 
 export type SendTurnStreamCompletionSnapshot = ResolveAiChatStreamCompletionResult & {
   verticalWorkflowSelection: VerticalWorkflowSelectionV0 | null;
   verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null;
+  /** R3-1: corpus query results from ToolLoopAgent. Not localToolResults, so the old loop does not continue. */
+  corpusToolResults?: LocalContextToolResult[];
 };
 
 export type RunSendTurnStreamPostCompletionPipelineArgs = Readonly<{

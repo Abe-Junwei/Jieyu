@@ -3,6 +3,9 @@
  * Phase 0.4 — split from `architecture-guard.config.mjs`.
  */
 export const architectureGuardServiceFileRules = [
+  // ADR-0056: legacy agent loop is frozen; new loop behavior goes to src/ai/runtime/ (ToolLoopAgent).
+  { file: 'src/ai/chat/agentLoopRunner.ts', maxLines: 577 },
+  { file: 'src/ai/chat/agentLoop.ts', maxLines: 246 },
   {
     file: 'src/services/VoiceAgentService.ts',
     maxLines: 1100,

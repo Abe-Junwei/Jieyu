@@ -49,7 +49,7 @@ interface AiChatAlertsPanelProps {
   onOpenDecisionReplay?: ((requestId: string) => Promise<void> | void) | undefined;
   onResumeAgentLoop?: (() => Promise<void> | void) | undefined;
   onDismissAgentLoopHandoff?: (() => Promise<void> | void) | undefined;
-  onConfirmPendingToolCall?: (() => Promise<void>) | undefined;
+  onConfirmPendingToolCall?: ((draft?: Record<string, string>) => Promise<void>) | undefined;
   onCancelPendingToolCall?: (() => Promise<void>) | undefined;
   assistantDialogue?: AssistantDialogueSnapshot;
   onVoiceSelectDisambiguation?: (intent: ActionIntent) => void;
@@ -110,6 +110,17 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
     );
   });
   const hasToolPending = !!aiPendingToolCall;
+  const [mcpDraft, setMcpDraft] = useState<Record<string, string>>({});
+  const mcpDraftKey =
+    aiPendingToolCall?.mcpInput?.requests.map((request) => request.id).join('|') ?? '';
+  useEffect(() => {
+    setMcpDraft({});
+  }, [mcpDraftKey]);
+  const mcpInputMissing = (aiPendingToolCall?.mcpInput?.requests ?? []).some((request) =>
+    request.fields.some(
+      (field) => field.required && !(mcpDraft[`${request.id}.${field.name}`] ?? '').trim(),
+    ),
+  );
   const hasAgentLoopHandoffPending = Boolean(aiPendingAgentLoopCheckpoint);
   const voicePrimary = assistantDialogue?.primary;
   const hasVoiceDisambiguationUi =
@@ -476,12 +487,34 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                         ))}
                       </ul>
                     )}
+                    {aiPendingToolCall.mcpInput && (
+                      <div className="ai-chat-alerts-impact-list">
+                        {aiPendingToolCall.mcpInput.requests.flatMap((request) =>
+                          request.fields.map((field) => {
+                            const key = `${request.id}.${field.name}`;
+                            return (
+                              <label key={key}>
+                                {field.name}
+                                <input
+                                  aria-label={field.name}
+                                  value={mcpDraft[key] ?? ''}
+                                  onChange={(event) => {
+                                    const next = event.target.value;
+                                    setMcpDraft((prev) => ({ ...prev, [key]: next }));
+                                  }}
+                                />
+                              </label>
+                            );
+                          }),
+                        )}
+                      </div>
+                    )}
                     <div className="ai-chat-alerts-actions">
                       <PanelButton
                         variant="danger"
                         className="ai-chat-alerts-action-btn"
-                        disabled={!onConfirmPendingToolCall || readModelStale}
-                        onClick={() => void onConfirmPendingToolCall?.()}
+                        disabled={!onConfirmPendingToolCall || readModelStale || mcpInputMissing}
+                        onClick={() => void onConfirmPendingToolCall?.(mcpDraft)}
                       >
                         {formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}
                       </PanelButton>

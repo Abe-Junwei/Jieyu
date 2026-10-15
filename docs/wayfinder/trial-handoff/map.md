@@ -150,6 +150,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-15 用户：语言学只读分析是主路线图 **B16**、第二程 [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)。第一程（#250）做完再开工，flag 默认关。不并进 A15，不把本机 Ollama 或自训模型设为默认。对话仍用自填云端密钥。
 - 2026-10-15 用户：B16 的模型输出结构化主张，引用工具结果行 id，代码核对后渲染成可复制正文。发给云端模型的只有 gloss 标签、词类、次数和行 id，不含词形和转写；例句本机填回。文献摘录是 **B17**、[#316](https://github.com/Abe-Junwei/Jieyu/issues/316)，排在 B16 之后，只在桌面版，由主进程 stdio 拉起本机检索。引文关系不作为语法事实。不设写作工作区。
 - 2026-10-15 用户：词形和转写可以发给用户自选的云端模型，以便分析词形本身（取代上一条的「云端只见抽象标签」，外发仍过 A9）。B17 放宽为外部证据源：本机文献、网页检索、语料资源都接 MCP；网页检索走 MCP 搜索服务，不用模型供应商自带的联网搜索。
+- 2026-10-15 用户：智能体多步循环只走 A15 的 Vercel AI SDK ToolLoopAgent。B16/B17 的查询、核对、证据映射仍是领域代码；工具结果回到模型再写下一轮，不在 `agentLoopRunner` 上补。取代同日「不并进 A15」把循环留在旧运行时的写法。本机模型仍不设为默认。
+- 2026-10-15 用户：智能体路线统一到主路线图 §2.2.0 与 [ADR-0056](../../adr/0056-single-agent-runtime-toolloopagent.md)。运行时只有 ToolLoopAgent，旧循环冻结并由 architecture guard 锁行数。核对 main：R1/R2 代码已在 main、flag 关，用户追认留在 main；B16/B17 端到端分别等 R3-1、R3-2；评审的领域修复是 D1–D6。
 
 ## Next leg
 
@@ -177,12 +179,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#309](https://github.com/Abe-Junwei/Jieyu/issues/309) 完善 Leipzig IGT 导出（gb4e/expex + HTML）
 - [#310](https://github.com/Abe-Junwei/Jieyu/issues/310) 存档包导出（媒体 + EAF + LIFT + 元数据 XML）
 - [#311](https://github.com/Abe-Junwei/Jieyu/issues/311) FLEx LIFT 往返验证
-- [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时有限试点（ToolLoopAgent；R0/R1 已提前到与第一程并行；R2 仍不进试用版默认路径；v2 不默认打开）
-- [#315](https://github.com/Abe-Junwei/Jieyu/issues/315) B16a 语言学只读查询工具（已落地，flag 默认关；不并进 A15）
-- [#317](https://github.com/Abe-Junwei/Jieyu/issues/317) B16b 分析正文（已落地，flag 默认关；结构化主张加核对；词形可发用户自选云端模型，见 ADR-0055）
-- [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) B17 外部证据源（已落地，flag 默认关；stdio 宿主桥，浏览器不 spawn；Electron 主进程 spawn 待桌面壳）
+- [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时（Vercel AI SDK ToolLoopAgent；新的多步循环只接这里，含 B16/B17 的工具结果回模型；不扩展旧 `agentLoopRunner`；R2 不进试用版默认路径；v2 不默认打开）
+- [#315](https://github.com/Abe-Junwei/Jieyu/issues/315) B16a 语言学只读查询工具（领域工具已落地，flag 默认关；多步循环归 #314）
+- [#317](https://github.com/Abe-Junwei/Jieyu/issues/317) B16b 分析正文（主张核对已落地，flag 默认关；词形可发用户自选云端模型，见 ADR-0055；结果回模型归 #314）
+- [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) B17 外部证据源（命中映射已落地，flag 默认关；stdio 宿主桥，浏览器不 spawn；命中回模型归 #314）
 
-排序（2026-10-13 21:23，2026-10-15 补 A15、B16、B17）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），B16 与 B7 同属这一段，B17 在 B16b 之后。A 系列 #286–#297 按需。A15 的 R0/R1 与第一程并行，不挡 [#250](https://github.com/Abe-Junwei/Jieyu/issues/250) 的交付；R2 不进试用版默认路径。B16a 与 B16b 已落地，flag 默认关。
+排序（2026-10-13 21:23，2026-10-15 补 A15、B16、B17）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），B16 与 B7 同属这一段，B17 在 B16b 之后。A 系列 #286–#297 按需。A15 的 R1/R2 代码在 main、flag 关，不挡 [#250](https://github.com/Abe-Junwei/Jieyu/issues/250) 的交付，不进试用版默认路径。B16/B17 的领域查询与核对已落地，flag 默认关；智能体顺序见主路线图 §2.2.0。
 
 ## Not yet specified
 
