@@ -33,6 +33,7 @@ import { LexiconAttachmentSection } from './LexiconAttachmentSection';
 import { LexiconEntryEditForm } from './lexicon/LexiconEntryEditForm';
 import { LexiconEntryOverview } from './lexicon/LexiconEntryOverview';
 import { LexiconSenseList } from './lexicon/LexiconSenseList';
+import { removeAnnotationOccurrenceCitation } from './annotation/saveAnnotationOccurrenceCitation';
 import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
 import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 import { exportLexemesAsDmlex } from '../utils/dmlexJsonExport';
@@ -629,31 +630,10 @@ export function LexiconPage() {
                           {...(selectedLexeme.jieyu ? { extras: selectedLexeme.jieyu } : {})}
                           relations={relations}
                           onDeleteCitation={(tokenId) => {
-                            const occurrenceCitations = (
-                              selectedLexeme.jieyu?.occurrenceCitations ?? []
-                            ).filter((citation) => citation.tokenId !== tokenId);
-                            const jieyu = { ...(selectedLexeme.jieyu ?? {}) };
-                            if (occurrenceCitations.length > 0) {
-                              jieyu.occurrenceCitations = occurrenceCitations;
-                            } else {
-                              delete jieyu.occurrenceCitations;
-                            }
-                            const stored = {
-                              ...selectedLexeme,
-                              updatedAt: new Date().toISOString(),
-                              ...(Object.keys(jieyu).length > 0 ? { jieyu } : {}),
-                            };
-                            if (Object.keys(jieyu).length === 0) delete stored.jieyu;
-                            void LinguisticService.lexemes.save(stored).then(() => {
-                              const current =
-                                queryClient.getQueryData<LexemeEntryDoc[]>([
-                                  'lexemes',
-                                  projectTextId,
-                                ]) ?? [];
-                              queryClient.setQueryData(
-                                ['lexemes', projectTextId],
-                                mergeLexemeIntoList(current, stored),
-                              );
+                            void removeAnnotationOccurrenceCitation({
+                              textId: projectTextId,
+                              lexemeId: selectedLexeme.id,
+                              tokenId,
                             });
                           }}
                         />
