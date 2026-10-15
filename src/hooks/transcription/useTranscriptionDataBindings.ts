@@ -255,6 +255,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     setTranslations,
     setUnits,
     setUnitDrafts,
+    setAnchors,
     setTranslationDrafts,
     setSelectedUnitIds,
     setSelectedTimelineUnit,

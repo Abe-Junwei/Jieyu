@@ -127,6 +127,7 @@ export type TranscriptionUnitActionsParams = {
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setAnchors?: React.Dispatch<React.SetStateAction<AnchorDocType[]>>;
   setTranslationDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setSelectedUnitIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
@@ -155,6 +156,7 @@ export function useTranscriptionUnitActions({
   setTranslations,
   setUnits,
   setUnitDrafts,
+  setAnchors,
   setTranslationDrafts,
   setSelectedUnitIds,
   setSelectedTimelineUnit,
@@ -619,6 +621,7 @@ export function useTranscriptionUnitActions({
         setTranslations,
         setUnits,
         setUnitDrafts,
+        ...(setAnchors ? { setAnchors } : {}),
       }),
     [
       allowOverlapInTranscription,
@@ -637,6 +640,7 @@ export function useTranscriptionUnitActions({
       setTranslations,
       setUnits,
       setUnitDrafts,
+      setAnchors,
     ],
   );
 

@@ -3,8 +3,16 @@
  * 调用方经 `storagePort()` 取当前实现；浏览器构建是下面的 Dexie 实现，桌面壳启动时用
  * `installStoragePort` 换成经 IPC 的 SQLite 实现（#275），两者都要通过 `storagePortContract.ts`。
  */
-import type { AuditLogDocType, AiRuntimeV2TurnDoc } from './types';
-import { db } from './engine';
+import type {
+  AnchorDocType,
+  AuditLogDocType,
+  AiRuntimeV2TurnDoc,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+} from './types';
+import { db, getDb } from './engine';
+import { withTransaction } from './withTransaction';
+import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
 
 export class StorageReadbackError extends Error {
   readonly code = 'STORAGE_READBACK';
@@ -29,11 +37,74 @@ export interface AuditLogOps {
   getAuditLog(id: string): Promise<AuditLogDocType | undefined>;
 }
 
+/** 正则拆分已经算好的行。调用方不传表名。 */
+export interface RegexSplitCommit {
+  anchors: AnchorDocType[];
+  units: LayerUnitDocType[];
+  contents: LayerUnitContentDocType[];
+}
+
 /** 调用方不传表名，也不接收事务回调。 */
 export interface StoragePort {
   turns: AiRuntimeTurnOps;
   fingerprintTarget(id: string): Promise<string | undefined>;
   audit: AuditLogOps;
+  commitRegexSplit(write: RegexSplitCommit): Promise<void>;
+}
+
+function textIdsOf(write: RegexSplitCommit): string[] {
+  const ids = new Set<string>();
+  for (const row of [...write.units, ...write.contents]) {
+    const textId = row.textId?.trim() ?? '';
+    if (textId.length > 0) ids.add(textId);
+  }
+  return [...ids];
+}
+
+async function commitRegexSplit(write: RegexSplitCommit): Promise<void> {
+  const textIds = textIdsOf(write);
+  if (textIds.length > 1) {
+    throw new CatalogOwnershipMismatchError(
+      'layer_units',
+      'commitRegexSplit',
+      textIds[0]!,
+      textIds[1]!,
+    );
+  }
+  const database = await getDb();
+  await withTransaction(
+    database,
+    'rw',
+    [database.dexie.anchors, database.dexie.layer_units, database.dexie.layer_unit_contents],
+    async () => {
+      if (write.anchors.length > 0) await database.dexie.anchors.bulkPut(write.anchors);
+      if (write.units.length > 0) await database.dexie.layer_units.bulkPut(write.units);
+      if (write.contents.length > 0)
+        await database.dexie.layer_unit_contents.bulkPut(write.contents);
+    },
+    { label: 'commitRegexSplit' },
+  );
+  for (const anchor of write.anchors) {
+    const stored = await database.dexie.anchors.get(anchor.id);
+    if (!stored || stored.time !== anchor.time) throw new StorageReadbackError('commitRegexSplit');
+  }
+  for (const unit of write.units) {
+    const stored = await database.dexie.layer_units.get(unit.id);
+    if (
+      !stored ||
+      stored.updatedAt !== unit.updatedAt ||
+      stored.startTime !== unit.startTime ||
+      stored.endTime !== unit.endTime
+    ) {
+      throw new StorageReadbackError('commitRegexSplit');
+    }
+  }
+  for (const content of write.contents) {
+    const stored = await database.dexie.layer_unit_contents.get(content.id);
+    if (!stored || stored.updatedAt !== content.updatedAt || stored.text !== content.text) {
+      throw new StorageReadbackError('commitRegexSplit');
+    }
+  }
 }
 
 function stamp(kind: string, row: { updatedAt?: unknown }): string {
@@ -108,6 +179,8 @@ export const dexieStoragePort: StoragePort = {
       return db.audit_logs.get(id);
     },
   },
+
+  commitRegexSplit,
 };
 
 let current: StoragePort = dexieStoragePort;

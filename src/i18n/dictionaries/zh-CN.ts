@@ -2381,6 +2381,8 @@ export const zhCNDictionary = {
   'transcription.error.action.recoveryApplyFailed': '恢复失败：{message}',
   'transcription.error.action.redoFailed': '重做失败：{message}',
   'transcription.error.action.regexSplitBatchFailed': '正则批量拆分失败：{message}',
+  'transcription.error.action.regexSplitUnconfirmed':
+    '这次正则拆分已经写入，读回没有对上。已重新读取，请核对后再继续。',
   'transcription.error.action.scaleBatchFailed': '批量时间缩放失败：{message}',
   'transcription.error.action.segmentBatchDeleteFailed': '批量删除句段失败：{message}',
   'transcription.error.action.segmentDeleteFailed': '删除句段失败：{message}',

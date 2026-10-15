@@ -30,6 +30,7 @@ accepted。落实 [ADR-0046](./0046-desktop-sqlite-project-folder.md) 第 3 条�
 - 新的存储操作加在这个接口上，并带 Dexie 的写入后读回测试。调用方经 `storagePort()` 取当前实现，桌面壳用 `installStoragePort` 换掉。合同测试在 `src/db/storagePortContract.ts`，只经接口写入和读回；#275 的 SQLite 实现跑同一个函数。
 - Dexie 实现在事务里不得 await 非 Dexie 的 Promise（例如 `getDb()`）。那样会丢掉当前事务，后面的读写各自提交，外层事务最后报 `PrematureCommitError`。事务内调用的辅助函数接收 `db` 参数。
 - 跨表样例：删除说话人（并入另一个说话人，或清空句段上的说话人）在一次 Dexie 事务里改句段行、删说话人行、改项目说话人名单，同项目检查也在事务里。名单写失败时整次回滚。这个操作还没挪到接口上，挪的时候跟 #275 一起。
+- 正则拆分是接口上的 `commitRegexSplit`。调用方算好锚点、句段、正文和分词投影，一次写入，提交后再读回。读回失败不撤销。SQLite 实现留到 #275。
 - 主路线图 §2.1 的双实现读回，从 SQLite 实现存在之后，对走该接口的写路径生效。
 - 审计插入和回合指纹走该接口。其余仍直接写 `audit_logs` 的调用留给 #280。
 

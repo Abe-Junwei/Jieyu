@@ -1,8 +1,9 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { getDb } from '../../db';
 import type { AnchorDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
+import { StorageReadbackError, storagePort } from '../../db/storagePort';
 import { LinguisticService } from '../../services/LinguisticService';
-import { newId, formatTime } from '../../utils/transcriptionFormatters';
+import { formatTime } from '../../utils/transcriptionFormatters';
 import { reportActionError } from '../../utils/actionErrorReporter';
 import { reportValidationError } from '../../utils/validationErrorReporter';
 import type { SaveState } from './transcriptionTypes';
@@ -14,7 +15,9 @@ import {
 import type { Locale } from '../../i18n';
 import { t, tf } from '../../i18n';
 import { createLogger } from '../../observability/logger';
-import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
+import { buildSegmentationProjection } from '../../services/LayerSegmentationTextService';
+import { scheduleSegmentMetaSyncForUnitIds } from '../../services/segmentMetaSyncBestEffort';
+import { planRegexSplit } from './regexSplitPlan';
 import { mergeUnitSelfCertaintyConservative } from '../../utils/unitSelfCertainty';
 import { hasTimelineGapOverlapAfterTransforms } from '../../utils/timelineBatchOverlapValidation';
 
@@ -56,6 +59,7 @@ type BatchActionsInput = {
   setTranslations: Dispatch<SetStateAction<LayerUnitContentDocType[]>>;
   setUnits: Dispatch<SetStateAction<LayerUnitDocType[]>>;
   setUnitDrafts: Dispatch<SetStateAction<Record<string, string>>>;
+  setAnchors?: Dispatch<SetStateAction<AnchorDocType[]>>;
 };
 
 export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
@@ -66,7 +70,6 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
     unitsOnCurrentMediaRef,
     pushUndo,
     rollbackUndo,
-    createAnchor,
     updateAnchorTime,
     pruneOrphanAnchors,
     getUnitTextForLayer,
@@ -76,6 +79,7 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
     setTranslations,
     setUnits,
     setUnitDrafts,
+    setAnchors,
   } = input;
 
   const offsetSelectedTimes = async (ids: Set<string>, deltaSec: number) => {
@@ -309,110 +313,14 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
       .sort((a, b) => a.startTime - b.startTime);
     if (targets.length === 0) return;
 
-    const minSpan = 0.05;
-    const db = await getDb();
     const now = new Date().toISOString();
-    const updates: LayerUnitDocType[] = [];
-    const inserts: LayerUnitDocType[] = [];
-    const copiedTranslations: LayerUnitContentDocType[] = [];
-    const nextDraftEntries: Record<string, string> = {};
-
-    for (const target of targets) {
-      if (!target.mediaId) continue;
-
-      const fullText = (getUnitTextForLayer(target) || '').trim();
-      if (!fullText) continue;
-      const segments = fullText
-        .split(splitter)
-        .map((part) => part.trim())
-        .filter((part) => part.length > 0);
-      if (segments.length < 2) continue;
-
-      const totalChars = Math.max(
-        1,
-        segments.reduce((sum, part) => sum + part.length, 0),
-      );
-      const duration = target.endTime - target.startTime;
-      const bounds: Array<{ start: number; end: number }> = [];
-      let cursor = target.startTime;
-      for (let i = 0; i < segments.length; i++) {
-        if (i === segments.length - 1) {
-          bounds.push({ start: cursor, end: target.endTime });
-          break;
-        }
-        const ratio = segments[i]!.length / totalChars;
-        const segDuration = Math.max(minSpan, Number((duration * ratio).toFixed(3)));
-        const next = Number((cursor + segDuration).toFixed(3));
-        bounds.push({ start: cursor, end: next });
-        cursor = next;
-      }
-
-      if (bounds.some((item) => item.end - item.start < minSpan)) {
-        continue;
-      }
-
-      const first = bounds[0]!;
-      const preservedSelfCertainty = target.selfCertainty;
-      const updatedFirst: LayerUnitDocType = {
-        ...target,
-        startTime: Number(first.start.toFixed(3)),
-        endTime: Number(first.end.toFixed(3)),
-        updatedAt: now,
-      } as LayerUnitDocType;
-      if (preservedSelfCertainty === undefined) {
-        delete updatedFirst.selfCertainty;
-      } else {
-        updatedFirst.selfCertainty = preservedSelfCertainty;
-      }
-      updates.push(updatedFirst);
-      nextDraftEntries[target.id] = segments[0]!;
-
-      let prevEndAnchorId = updatedFirst.endAnchorId;
-      for (let i = 1; i < bounds.length; i++) {
-        const bound = bounds[i]!;
-        const id = newId('utt');
-        const startAnchorId = prevEndAnchorId;
-        let endAnchorId = target.endAnchorId;
-        if (i < bounds.length - 1) {
-          const splitAnchor = await createAnchor(db, target.mediaId, Number(bound.end.toFixed(3)));
-          endAnchorId = splitAnchor.id;
-          prevEndAnchorId = splitAnchor.id;
-        }
-        const nextUnit: LayerUnitDocType = {
-          ...target,
-          id,
-          startTime: Number(bound.start.toFixed(3)),
-          endTime: Number(bound.end.toFixed(3)),
-          startAnchorId,
-          endAnchorId,
-          annotationStatus: 'raw',
-          createdAt: now,
-          updatedAt: now,
-        } as LayerUnitDocType;
-        if (preservedSelfCertainty === undefined) {
-          delete nextUnit.selfCertainty;
-        } else {
-          nextUnit.selfCertainty = preservedSelfCertainty;
-        }
-        inserts.push(nextUnit);
-        nextDraftEntries[id] = segments[i]!;
-
-        const origTranslations = translations.filter((t) => t.unitId === target.id);
-        for (const ot of origTranslations) {
-          const copy: LayerUnitContentDocType = {
-            ...ot,
-            id: newId('utr'),
-            unitId: id,
-            createdAt: now,
-            updatedAt: now,
-          } as LayerUnitContentDocType;
-          await syncUnitTextToSegmentationV2(db, nextUnit, copy);
-          copiedTranslations.push(copy);
-        }
-      }
-    }
-
-    if (updates.length === 0 && inserts.length === 0) {
+    const plan = planRegexSplit(
+      targets.map((unit) => ({ unit, fullText: getUnitTextForLayer(unit) || '' })),
+      translations,
+      splitter,
+      now,
+    );
+    if (plan.units.length === 0) {
       reportValidationError({
         message: t(locale, 'transcription.error.validation.regexNoSplitCandidates'),
         i18nKey: 'transcription.error.validation.regexNoSplitCandidates',
@@ -422,23 +330,113 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
       return;
     }
 
+    const db = await getDb();
+    const existingSegments = (
+      await db.dexie.layer_units.where('parentUnitId').anyOf(plan.firstUnitIds).toArray()
+    ).filter((row) => row.unitType === 'segment');
+    const firstById = new Map(
+      plan.units
+        .filter((unit) => plan.firstUnitIds.includes(unit.id))
+        .map((unit) => [unit.id, unit]),
+    );
+    const shiftedSegments = existingSegments.map((row) => {
+      const owner = row.parentUnitId ? firstById.get(row.parentUnitId) : undefined;
+      if (!owner) return row;
+      return { ...row, startTime: owner.startTime, endTime: owner.endTime, updatedAt: now };
+    });
+    const projections = plan.projectionSources.map(({ unit, translation }) =>
+      buildSegmentationProjection(unit, translation, now),
+    );
+    const storedContents = await Promise.all(
+      plan.contents.map(async (row) => {
+        const stored = await db.dexie.layer_unit_contents.get(row.id);
+        if (!stored) return row;
+        const text = row.text;
+        return text === undefined
+          ? { ...stored, updatedAt: now }
+          : { ...stored, text, updatedAt: now };
+      }),
+    );
+    const writtenUnits = [
+      ...plan.units,
+      ...shiftedSegments,
+      ...projections.map((row) => row.segment),
+    ];
+    const writtenContents = [...storedContents, ...projections.map((row) => row.content)];
+
     pushUndo(getUndoLabel(locale, 'splitByRegex'));
     try {
-      await LinguisticService.units.saveBatch([...updates, ...inserts]);
-      const updateMap = new Map(updates.map((u) => [u.id, u]));
-      setUnits((prev) => [...prev.map((u) => updateMap.get(u.id) ?? u), ...inserts]);
-      setTranslations((prev) => [...prev, ...copiedTranslations]);
-      setUnitDrafts((prev) => ({ ...prev, ...nextDraftEntries }));
-      if (inserts.length > 0) {
-        selectUnitPrimary(inserts[0]!.id);
+      await storagePort().commitRegexSplit({
+        anchors: plan.anchors,
+        units: writtenUnits,
+        contents: writtenContents,
+      });
+      const updatedIds = new Set(plan.firstUnitIds);
+      setUnits((prev) => [
+        ...prev.map((unit) => plan.units.find((next) => next.id === unit.id) ?? unit),
+        ...plan.units.filter((unit) => !updatedIds.has(unit.id)),
+      ]);
+      setTranslations((prev) => {
+        const written = new Map(plan.contents.map((row) => [row.id, row]));
+        const merged = prev.map((row) => written.get(row.id) ?? row);
+        const known = new Set(merged.map((row) => row.id));
+        return [...merged, ...plan.contents.filter((row) => !known.has(row.id))];
+      });
+      setUnitDrafts((prev) => ({ ...prev, ...plan.drafts }));
+      if (plan.anchors.length > 0) {
+        setAnchors?.((prev) => [...prev, ...plan.anchors]);
       }
+      const firstInsert = plan.units.find((unit) => !updatedIds.has(unit.id));
+      if (firstInsert) selectUnitPrimary(firstInsert.id);
+      scheduleSegmentMetaSyncForUnitIds(
+        writtenUnits.map((unit) => unit.id),
+        'useTranscriptionUnitActions.splitByRegex',
+      );
       setSaveState({
         kind: 'done',
         message: tf(locale, 'transcription.unitAction.done.regexSplitSelection', {
-          count: updates.length + inserts.length,
+          count: plan.units.length,
         }),
       });
     } catch (error) {
+      if (error instanceof StorageReadbackError) {
+        try {
+          const fresh = await getDb();
+          const [unitRows, contentRows, anchorRows] = await Promise.all([
+            fresh.dexie.layer_units.bulkGet(writtenUnits.map((unit) => unit.id)),
+            fresh.dexie.layer_unit_contents.bulkGet(plan.contents.map((row) => row.id)),
+            fresh.dexie.anchors.bulkGet(plan.anchors.map((row) => row.id)),
+          ]);
+          const unitsFound = unitRows.filter((row): row is LayerUnitDocType => row !== undefined);
+          const contentsFound = contentRows.filter(
+            (row): row is LayerUnitContentDocType => row !== undefined,
+          );
+          const anchorsFound = anchorRows.filter((row): row is AnchorDocType => row !== undefined);
+          setUnits((prev) => {
+            const known = new Set(prev.map((unit) => unit.id));
+            return [
+              ...prev.map((unit) => unitsFound.find((row) => row.id === unit.id) ?? unit),
+              ...unitsFound.filter((row) => row.unitType !== 'segment' && !known.has(row.id)),
+            ];
+          });
+          setTranslations((prev) => {
+            const byId = new Map(contentsFound.map((row) => [row.id, row]));
+            const merged = prev.map((row) => byId.get(row.id) ?? row);
+            const known = new Set(merged.map((row) => row.id));
+            return [...merged, ...contentsFound.filter((row) => !known.has(row.id))];
+          });
+          if (anchorsFound.length > 0) setAnchors?.((prev) => [...prev, ...anchorsFound]);
+        } catch (rereadError) {
+          log.warn('Reread after regex split read-back failure also failed', {
+            error: rereadError instanceof Error ? rereadError.message : String(rereadError),
+          });
+        }
+        setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.error.action.regexSplitUnconfirmed'),
+        });
+        return;
+      }
       if (rollbackUndo) {
         try {
           await rollbackUndo();

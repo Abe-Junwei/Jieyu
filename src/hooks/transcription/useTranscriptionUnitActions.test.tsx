@@ -93,11 +93,13 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     mockLogError.mockReset();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
     resetCommercialSttRuntimeSnapshotForTests();
     window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
     vi.restoreAllMocks();
+    const { dexieStoragePort, installStoragePort } = await import('../../db/storagePort');
+    installStoragePort(dexieStoragePort);
   });
 
   it('offsetSelectedTimes should block overlap and not push undo', async () => {
@@ -1082,7 +1084,13 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       throw new Error('rollback failed');
     });
     const setSaveState = vi.fn();
-    vi.spyOn(LinguisticService.units, 'saveBatch').mockRejectedValue(new Error('db write failed'));
+    const { dexieStoragePort, installStoragePort } = await import('../../db/storagePort');
+    installStoragePort({
+      ...dexieStoragePort,
+      commitRegexSplit: async () => {
+        throw new Error('db write failed');
+      },
+    });
 
     let unitsState = [makeUnit('u1', 0, 3)];
     const setUnits = vi.fn(

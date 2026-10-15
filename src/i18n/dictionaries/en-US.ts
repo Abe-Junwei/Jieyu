@@ -2559,6 +2559,8 @@ export const enUSDictionary = {
   'transcription.error.action.posSaveFailed': 'Failed to save POS tag: {message}',
   'transcription.error.action.recoveryApplyFailed': 'Failed to apply recovery: {message}',
   'transcription.error.action.redoFailed': 'Redo failed: {message}',
+  'transcription.error.action.regexSplitUnconfirmed':
+    'This regex split was saved, but the read-back did not match. The data was reloaded. Check it before continuing.',
   'transcription.error.action.regexSplitBatchFailed':
     'Failed to split by regex in batch: {message}',
   'transcription.error.action.scaleBatchFailed': 'Failed to scale segment timings: {message}',

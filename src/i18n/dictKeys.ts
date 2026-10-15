@@ -2313,6 +2313,7 @@ export const DICT_KEYS = [
   'transcription.error.action.recoveryApplyFailed',
   'transcription.error.action.redoFailed',
   'transcription.error.action.regexSplitBatchFailed',
+  'transcription.error.action.regexSplitUnconfirmed',
   'transcription.error.action.scaleBatchFailed',
   'transcription.error.action.segmentBatchDeleteFailed',
   'transcription.error.action.segmentDeleteFailed',

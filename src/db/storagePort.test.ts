@@ -79,6 +79,88 @@ describe('dexie storage port', () => {
     await expect(db.audit_logs.get('audit-miss')).resolves.toMatchObject({ id: 'audit-miss' });
   });
 
+  it('commits a regex split and reads the rows back', async () => {
+    await dexieStoragePort.commitRegexSplit({
+      anchors: [{ id: 'anc-1', mediaId: 'm1', time: 1, createdAt: NOW }],
+      units: [
+        {
+          id: 'u1',
+          textId: 'text-a',
+          mediaId: 'm1',
+          unitType: 'unit',
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+        } as LayerUnitDocType,
+      ],
+      contents: [
+        {
+          id: 'c1',
+          textId: 'text-a',
+          unitId: 'u1',
+          text: 'left',
+          contentRole: 'primary_text',
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    });
+    await expect(db.layer_units.get('u1')).resolves.toMatchObject({ endTime: 1 });
+    await expect(db.layer_unit_contents.get('c1')).resolves.toMatchObject({ text: 'left' });
+    await expect(db.anchors.get('anc-1')).resolves.toMatchObject({ time: 1 });
+  });
+
+  it('writes nothing when a regex split mixes two projects', async () => {
+    await expect(
+      dexieStoragePort.commitRegexSplit({
+        anchors: [],
+        units: [
+          {
+            id: 'u1',
+            textId: 'a',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          } as LayerUnitDocType,
+          {
+            id: 'u2',
+            textId: 'b',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          } as LayerUnitDocType,
+        ],
+        contents: [],
+      }),
+    ).rejects.toThrow(/belongs to project/);
+    await expect(db.layer_units.get('u1')).resolves.toBeUndefined();
+  });
+
+  it('keeps the regex split when read-back fails', async () => {
+    vi.spyOn(db.layer_units, 'get').mockResolvedValueOnce(undefined);
+    await expect(
+      dexieStoragePort.commitRegexSplit({
+        anchors: [],
+        units: [
+          {
+            id: 'u-miss',
+            textId: 'text-a',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          } as LayerUnitDocType,
+        ],
+        contents: [],
+      }),
+    ).rejects.toBeInstanceOf(StorageReadbackError);
+    vi.restoreAllMocks();
+    await expect(db.layer_units.get('u-miss')).resolves.toMatchObject({ id: 'u-miss' });
+  });
+
   it('routes the turn store through the installed implementation', async () => {
     const fake: StoragePort = {
       ...dexieStoragePort,

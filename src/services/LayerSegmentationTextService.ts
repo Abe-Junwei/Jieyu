@@ -135,18 +135,18 @@ export function getSegmentationV2Ids(
   };
 }
 
-export async function syncUnitTextToSegmentationV2(
-  db: JieyuDatabase,
+/** 分词投影的行，不写库。正则拆分把这些行交给存储接口一次提交。 */
+export function buildSegmentationProjection(
   unit: LayerUnitDocType,
   translation: LayerUnitContentDocType,
-): Promise<void> {
-  const now = new Date().toISOString();
+  now: string,
+): { segment: LayerUnitDocType; content: LayerUnitContentDocType } {
   const layerId = translation.layerId?.trim() || '';
   const translationMediaRefId =
     translation.mediaRefId?.trim() || translation.translationAudioMediaId?.trim() || '';
   const ids = getSegmentationV2Ids(layerId, unit.id, translation.id);
 
-  const segmentDoc: LayerUnitDocType = {
+  const segment: LayerUnitDocType = {
     id: ids.segmentId,
     textId: unit.textId,
     mediaId: unit.mediaId && unit.mediaId.trim().length > 0 ? unit.mediaId : UNKNOWN_MEDIA_ID,
@@ -169,7 +169,7 @@ export async function syncUnitTextToSegmentationV2(
     updatedAt: now,
   };
 
-  const contentDoc: LayerUnitContentDocType = {
+  const content: LayerUnitContentDocType = {
     id: ids.segmentContentId,
     textId: unit.textId,
     unitId: ids.segmentId,
@@ -186,6 +186,22 @@ export async function syncUnitTextToSegmentationV2(
     createdAt: translation.createdAt,
     updatedAt: translation.updatedAt,
   };
+
+  return { segment, content };
+}
+
+export async function syncUnitTextToSegmentationV2(
+  db: JieyuDatabase,
+  unit: LayerUnitDocType,
+  translation: LayerUnitContentDocType,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { segment: segmentDoc, content: contentDoc } = buildSegmentationProjection(
+    unit,
+    translation,
+    now,
+  );
+  const ids = getSegmentationV2Ids(translation.layerId?.trim() || '', unit.id, translation.id);
 
   // 事务保护：删旧 content + 写 segment + 写 content 必须原子执行 | Transaction: stale delete + segment upsert + content upsert must be atomic
   await withTransaction(
