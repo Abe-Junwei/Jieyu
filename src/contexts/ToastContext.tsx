@@ -84,6 +84,7 @@ const SAVE_STATE_VARIANT: Record<SaveState['kind'], ToastVariant> = {
   done: 'success',
   error: 'error',
   'refresh-pending': 'warning',
+  'follow-up-pending': 'warning',
 };
 
 function normalizeErrorToast(
@@ -274,7 +275,7 @@ export function ToastProvider({ children }: Props) {
         lastSaveDoneToastAtRef.current = now;
       }
 
-      if (state.kind === 'refresh-pending') {
+      if (state.kind === 'refresh-pending' || state.kind === 'follow-up-pending') {
         showToast(state.message, 'warning', 0);
         return;
       }

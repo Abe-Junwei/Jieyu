@@ -160,7 +160,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         });
       },
       onRefreshed: () => setSaveState({ kind: 'done', message }),
-      onPending: () => setSaveState({ kind: 'refresh-pending', message: pendingMessage }),
+      onPending: () =>
+        setSaveState(
+          pending.kind === 'written-follow-up-unconfirmed'
+            ? { kind: 'follow-up-pending', message: pendingMessage, stage: pending.stage }
+            : { kind: 'refresh-pending', message: pendingMessage },
+        ),
     });
   };
 
@@ -1410,7 +1415,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           stage: followUpStage,
           error: toErrorMessage(followUpError),
         });
-        return publishAnnotationRefresh(doneMessage, importTextId, {
+        return publishAnnotationRefresh('', importTextId, {
           kind: 'written-follow-up-unconfirmed',
           stage: followUpStage,
         });

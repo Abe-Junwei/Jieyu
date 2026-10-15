@@ -27,6 +27,10 @@ import {
   mergeAnnotationUnitTokenWithNext,
   splitAnnotationUnitToken,
 } from './annotation/splitMergeAnnotationTokens';
+import {
+  composeAnnotationRefresh,
+  publishAnnotationWriteRefresh,
+} from './annotationWorkspaceController.actions';
 import type { AnnotationIgtRow, AnnotationSaveNotice } from './useAnnotationWorkspaceController';
 
 export type AnnotationMorphologyController = {
@@ -127,14 +131,22 @@ export function useAnnotationMorphologyController(input: {
   }, [dataQuery.data]);
 
   const run = useCallback(
-    async (action: () => Promise<void>) => {
+    async (
+      action: () => Promise<'skip' | void>,
+      refresh: () => Promise<unknown> = () => dataQuery.refetch({ throwOnError: true }),
+    ) => {
       if (savingRef.current) return;
       savingRef.current = true;
       setSaveNotice({ kind: 'saving', message: '' });
+      let failed = false;
       try {
-        await action();
-        setSaveNotice({ kind: 'saved', message: '' });
+        const outcome = await action();
+        if (outcome === 'skip') {
+          setSaveNotice({ kind: 'saved', message: '' });
+          return;
+        }
       } catch (error) {
+        failed = true;
         const message =
           error instanceof Error && error.message.trim().length > 0
             ? error.message
@@ -143,8 +155,10 @@ export function useAnnotationMorphologyController(input: {
       } finally {
         savingRef.current = false;
       }
+      if (failed) return;
+      await publishAnnotationWriteRefresh({ reload: refresh, setSaveNotice, locale });
     },
-    [locale],
+    [dataQuery, locale],
   );
 
   const onMorphDraftChange = useCallback(
@@ -190,10 +204,9 @@ export function useAnnotationMorphologyController(input: {
           tokenId,
           morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
         });
-        await dataQuery.refetch({ throwOnError: true });
       });
     },
-    [dataQuery, locale, run, textId],
+    [locale, run, textId],
   );
 
   const onCommitMorphLine = useCallback(
@@ -209,10 +222,9 @@ export function useAnnotationMorphologyController(input: {
           tokenId,
           morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
         });
-        await dataQuery.refetch({ throwOnError: true });
       });
     },
-    [dataQuery, run, textId],
+    [run, textId],
   );
 
   const onSaveMorphemes = useCallback(
@@ -220,7 +232,7 @@ export function useAnnotationMorphologyController(input: {
       void run(async () => {
         const morphs = morphsByTokenId[tokenId] ?? [];
         const writes = collectDirtyAnnotationMorphemeWrites(morphs, drafts);
-        if (writes.length === 0) return;
+        if (writes.length === 0) return 'skip';
         const committedDrafts: Record<string, AnnotationMorphemeDraft> = {};
         for (const write of writes) {
           const draft = drafts[write.id];
@@ -240,30 +252,32 @@ export function useAnnotationMorphologyController(input: {
           morphs: next,
         });
         setDrafts((prev) => dropCommittedMorphemeDrafts(prev, committedDrafts));
-        await dataQuery.refetch({ throwOnError: true });
+        return undefined;
       });
     },
-    [dataQuery, drafts, morphsByTokenId, run, textId],
+    [drafts, morphsByTokenId, run, textId],
   );
 
   const onSplitToken = useCallback(
     (unitId: string, tokenId: string) => {
-      void run(async () => {
-        await splitAnnotationUnitToken(unitId, tokenId);
-        await reloadWorkspace();
-        await dataQuery.refetch({ throwOnError: true });
-      });
+      void run(
+        async () => {
+          await splitAnnotationUnitToken(unitId, tokenId);
+        },
+        composeAnnotationRefresh(reloadWorkspace, () => dataQuery.refetch({ throwOnError: true })),
+      );
     },
     [dataQuery, reloadWorkspace, run],
   );
 
   const onMergeToken = useCallback(
     (unitId: string, tokenId: string) => {
-      void run(async () => {
-        await mergeAnnotationUnitTokenWithNext(unitId, tokenId);
-        await reloadWorkspace();
-        await dataQuery.refetch({ throwOnError: true });
-      });
+      void run(
+        async () => {
+          await mergeAnnotationUnitTokenWithNext(unitId, tokenId);
+        },
+        composeAnnotationRefresh(reloadWorkspace, () => dataQuery.refetch({ throwOnError: true })),
+      );
     },
     [dataQuery, reloadWorkspace, run],
   );
@@ -275,7 +289,7 @@ export function useAnnotationMorphologyController(input: {
         const result = await saveAnnotationTokenLexemeLink(tokenId, lemma);
         if (result.kind === 'choose-sense') {
           setSenseChoicesByTokenId((prev) => ({ ...prev, [tokenId]: result.senses }));
-          return;
+          return 'skip';
         }
         setSenseChoicesByTokenId((prev) => {
           if (prev[tokenId] === undefined) return prev;
@@ -284,10 +298,10 @@ export function useAnnotationMorphologyController(input: {
           return next;
         });
         setLinkQueries((prev) => ({ ...prev, [tokenId]: '' }));
-        await dataQuery.refetch({ throwOnError: true });
+        return undefined;
       });
     },
-    [dataQuery, linkQueries, run],
+    [linkQueries, run],
   );
 
   const onChooseLexemeSense = useCallback(
@@ -298,7 +312,7 @@ export function useAnnotationMorphologyController(input: {
           linkQueries[tokenId] ?? '',
           senseId,
         );
-        if (result.kind === 'choose-sense') return;
+        if (result.kind === 'choose-sense') return 'skip';
         setSenseChoicesByTokenId((prev) => {
           if (prev[tokenId] === undefined) return prev;
           const next = { ...prev };
@@ -306,20 +320,19 @@ export function useAnnotationMorphologyController(input: {
           return next;
         });
         setLinkQueries((prev) => ({ ...prev, [tokenId]: '' }));
-        await dataQuery.refetch({ throwOnError: true });
+        return undefined;
       });
     },
-    [dataQuery, linkQueries, run],
+    [linkQueries, run],
   );
 
   const onUnlinkLexeme = useCallback(
     (tokenId: string) => {
       void run(async () => {
         await removeAnnotationTokenLexemeLink(tokenId);
-        await dataQuery.refetch({ throwOnError: true });
       });
     },
-    [dataQuery, run],
+    [run],
   );
 
   useWorkspaceEventRefresh({

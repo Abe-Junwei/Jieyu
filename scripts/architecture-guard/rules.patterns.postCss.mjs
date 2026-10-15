@@ -87,6 +87,23 @@ export const architectureGuardPostCssPatternRules = [
     forbiddenRegexes: [/await loadSnapshot\(/],
   }),
 
+  // Shared annotation writes report reload failure through settlePersistedRefresh.
+  patternRule(/^src\/pages\/annotationWorkspaceController\.actions\.ts$/, {
+    requiredRegexes: [/settlePersistedRefresh\(/],
+    forbiddenRegexes: [/await input\.reload\(/],
+  }),
+  patternRule(
+    /^src\/pages\/useAnnotation(?:Workspace|Morphology|Retokenize|AutoGloss|UnitMeta)Controller\.ts$/,
+    {
+      requiredRegexes: [/publishAnnotationWriteRefresh\(/],
+      forbiddenRegexes: [
+        /await reloadWorkspace\(/,
+        /await dataQuery\.refetch\(/,
+        /await queryClient\.invalidateQueries\(/,
+      ],
+    },
+  ),
+
   // ── 视口单写者：页面层禁止直连 useZoom（须经 useTimelineViewport 封装） ──
   patternRule(/^src\/pages\/.*\.(ts|tsx)$/, {
     excludeRegexes: [/\.test\./, /\.structure\./],

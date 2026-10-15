@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import type { useLocale } from '../i18n';
+import { settlePersistedRefresh } from '../hooks/importExport/persistedRefresh';
 import {
   writeAnnotationFormsToTranscription,
   writeAnnotationUnitLayerText,
@@ -11,10 +12,60 @@ import { LinguisticService } from '../app/languageAssetPageAccess';
 import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 
 /** 保存提示状态（定义在此以免与控制器循环依赖，JY-24）| Save notice (lives here to avoid a cycle). */
-export type AnnotationSaveNotice = {
-  kind: 'idle' | 'saving' | 'saved' | 'error';
-  message: string;
-};
+export type AnnotationSaveNotice =
+  | { kind: 'idle' | 'saving' | 'saved' | 'error'; message: string }
+  | {
+      kind: 'refresh-pending';
+      message: string;
+      retryRefresh: () => Promise<void>;
+    };
+
+type AnnotationWriteLocale = ReturnType<typeof useLocale>;
+
+/** Run several post-write reads. Callers pass the functions; they do not await them beside the write. */
+export function composeAnnotationRefresh(
+  ...steps: ReadonlyArray<() => Promise<unknown>>
+): () => Promise<void> {
+  return async () => {
+    for (const step of steps) await step();
+  };
+}
+
+/**
+ * The write has already returned. A failed reload stays `refresh-pending`.
+ * `retryRefresh` calls `reload` again and does not receive the write.
+ */
+export async function publishAnnotationWriteRefresh(input: {
+  ticket?: { current: number };
+  mine?: number;
+  reload: () => Promise<unknown>;
+  setSaveNotice: (notice: AnnotationSaveNotice) => void;
+  locale: AnnotationWriteLocale;
+}): Promise<'written-refreshed' | 'written-refresh-pending'> {
+  const finish = (notice: AnnotationSaveNotice) => {
+    if (input.ticket && input.mine !== undefined) {
+      finishAnnotationSaveNotice(input.ticket, input.mine, input.setSaveNotice, notice);
+      return;
+    }
+    input.setSaveNotice(notice);
+  };
+  const reload = input.reload;
+  const settled = await settlePersistedRefresh(undefined, async () => {
+    await reload();
+  });
+  if (settled.kind === 'written-refreshed') {
+    finish({ kind: 'saved', message: '' });
+    return 'written-refreshed';
+  }
+  finish({
+    kind: 'refresh-pending',
+    message: t(input.locale, 'workspace.annotation.writtenRefreshPending'),
+    retryRefresh: async () => {
+      await publishAnnotationWriteRefresh(input);
+    },
+  });
+  return 'written-refresh-pending';
+}
 
 /** Ignore a finished write when a later write has already taken the notice. */
 export function finishAnnotationSaveNotice(
@@ -27,34 +78,43 @@ export function finishAnnotationSaveNotice(
   setSaveNotice(notice);
 }
 
-/** Workspace write actions share one failure path, including refresh failures. */
+/** Workspace writes report a failed reload as refresh-pending. Retry calls reload only. */
 export function annotationWorkspaceWriteActions(input: {
   textId: string;
   languageId: string;
   rows: readonly AnnotationIgtRow[];
   reload: () => Promise<unknown>;
   setSaveNotice: (notice: AnnotationSaveNotice) => void;
-  locale: ReturnType<typeof useLocale>;
+  locale: AnnotationWriteLocale;
   noticeGate: { current: number };
 }) {
   const run = async (action: () => Promise<unknown>) => {
     const ticket = input.noticeGate;
     ticket.current += 1;
     const mine = ticket.current;
-    input.setSaveNotice({ kind: 'saving', message: '' });
+    const finish = (notice: AnnotationSaveNotice) => {
+      finishAnnotationSaveNotice(ticket, mine, input.setSaveNotice, notice);
+    };
+    finish({ kind: 'saving', message: '' });
     try {
       await action();
-      await input.reload();
-      finishAnnotationSaveNotice(ticket, mine, input.setSaveNotice, { kind: 'saved', message: '' });
     } catch (error) {
-      finishAnnotationSaveNotice(ticket, mine, input.setSaveNotice, {
+      finish({
         kind: 'error',
         message:
           error instanceof Error && error.message.trim()
             ? error.message
             : t(input.locale, 'workspace.annotation.saveError'),
       });
+      return;
     }
+    await publishAnnotationWriteRefresh({
+      ticket,
+      mine,
+      reload: input.reload,
+      setSaveNotice: input.setSaveNotice,
+      locale: input.locale,
+    });
   };
   return {
     onAcceptGlossSuggestion: (_unitId: string, tokenId: string, gloss: string, lang: string) => {

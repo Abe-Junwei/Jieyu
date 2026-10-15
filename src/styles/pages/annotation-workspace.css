@@ -39,6 +39,17 @@
   padding: 0;
 }
 
+.annotation-workspace-retry-refresh {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .annotation-workspace-return {
   width: fit-content;
   color: var(--header-accent);

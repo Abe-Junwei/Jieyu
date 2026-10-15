@@ -19,7 +19,9 @@ depends_on:
 - [x] 标注导入：刷新失败不报导入失败；新建文稿不删；整理失败单独结果 → 验证：`useImportExport.import.test.tsx`
 - [x] 项目枢纽按结果关闭对话框；刷新待完成用警告提示，且不触发「导入失败，请重试」
 - [x] 架构守卫禁止这两个入口再写 `await loadSnapshot(`
-- [ ] 下一批：标注共用 `run` 与四个仍把刷新放进同一次 catch 的控制器
+- [x] 标注共用 `run`、`runCommit`、重分词、句段附注、自动注释、语素控制器：刷新失败不是 error → 验证：`annotationWorkspaceController.actions.test.ts`
+- [x] 整理失败用 `follow-up-pending`，刷新成功也不写成 `done`
+- [x] 架构守卫要求上述入口调用 `settlePersistedRefresh` / `publishAnnotationWriteRefresh`，并禁止把 reload 写回写入的 `await`
 - [ ] 再下一批：媒体删除/导入和恢复路径里的写后 `loadSnapshot`
 
 ## Pre-merge gates（与拍板 2A 一致）
@@ -45,5 +47,5 @@ Verified:
 
 ## Post-merge
 
-- [ ] 标注控制器一批沿用同一结果，不另起框架
+- [x] 标注控制器一批沿用同一结果，不另起框架
 - [ ] spec frontmatter `status: completed` 留到媒体与恢复路径也分开之后

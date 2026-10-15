@@ -240,6 +240,9 @@ export const enUSDictionary = {
   'workspace.annotation.saveSaved': 'Saved',
   'workspace.annotation.saveFailed': 'Save failed: {message}',
   'workspace.annotation.saveError': 'Could not save annotation',
+  'workspace.annotation.writtenRefreshPending':
+    'Saved, but the view did not refresh. Reload it, and do not save again.',
+  'workspace.annotation.retryRefresh': 'Reload',
   'workspace.annotation.morphemeFormLabel': 'Morpheme form',
   'workspace.annotation.morphemeGlossLabel': 'Morpheme gloss',
   'workspace.annotation.morphemeSeed': 'Split morphemes on -/=',

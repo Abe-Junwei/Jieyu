@@ -219,6 +219,8 @@ export const DICT_KEYS = [
   'workspace.annotation.saveSaved',
   'workspace.annotation.saveFailed',
   'workspace.annotation.saveError',
+  'workspace.annotation.writtenRefreshPending',
+  'workspace.annotation.retryRefresh',
   'workspace.annotation.morphemeFormLabel',
   'workspace.annotation.morphemeGlossLabel',
   'workspace.annotation.morphemeSeed',

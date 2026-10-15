@@ -3,7 +3,7 @@ title: 协作 Runtime 角色地图
 doc_type: architecture-current-state
 status: active
 owner: collaboration
-last_reviewed: 2026-04-18
+last_reviewed: 2026-10-15
 source_of_truth: current-state
 ---
 

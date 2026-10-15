@@ -131,20 +131,23 @@ export function AnnotationWorkspace() {
   const activeNotice =
     notices.find((notice) => notice.kind === 'error') ??
     notices.find((notice) => notice.kind === 'saving') ??
+    notices.find((notice) => notice.kind === 'refresh-pending') ??
     notices.find((notice) => notice.kind === 'saved') ??
     controller.saveNotice;
   const saveStatusText =
     activeNotice.kind === 'saving'
       ? t(locale, 'workspace.annotation.saving')
-      : activeNotice.kind === 'saved'
-        ? t(locale, 'workspace.annotation.saveSaved')
-        : activeNotice.kind === 'error'
-          ? tf(locale, 'workspace.annotation.saveFailed', {
-              message: activeNotice.message,
-            })
-          : playback.lastOutcome === 'skipped'
-            ? t(locale, 'workspace.annotation.playbackSkipped')
-            : '';
+      : activeNotice.kind === 'refresh-pending'
+        ? activeNotice.message
+        : activeNotice.kind === 'saved'
+          ? t(locale, 'workspace.annotation.saveSaved')
+          : activeNotice.kind === 'error'
+            ? tf(locale, 'workspace.annotation.saveFailed', {
+                message: activeNotice.message,
+              })
+            : playback.lastOutcome === 'skipped'
+              ? t(locale, 'workspace.annotation.playbackSkipped')
+              : '';
 
   return (
     <section
@@ -198,7 +201,7 @@ export function AnnotationWorkspace() {
         <p className="annotation-workspace-empty">{t(locale, 'workspace.annotation.emptyList')}</p>
       ) : (
         <div className="annotation-workspace-body">
-          <p
+          <div
             className={
               saveStatusText.length === 0
                 ? 'annotation-workspace-keyboard annotation-workspace-keyboard-quiet'
@@ -211,7 +214,19 @@ export function AnnotationWorkspace() {
             data-playback={playback.lastOutcome}
           >
             {saveStatusText}
-          </p>
+            {activeNotice.kind === 'refresh-pending' ? (
+              <button
+                type="button"
+                className="annotation-workspace-retry-refresh"
+                data-testid="annotation-retry-refresh"
+                onClick={() => {
+                  void activeNotice.retryRefresh();
+                }}
+              >
+                {t(locale, 'workspace.annotation.retryRefresh')}
+              </button>
+            ) : null}
+          </div>
           <AnnotationDocumentToolsSlot
             textId={controller.textId}
             isEmpty={controller.isEmpty}

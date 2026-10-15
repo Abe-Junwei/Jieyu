@@ -13,7 +13,7 @@ source_of_truth: write-refresh-outcome-spec
 
 - **要做什么**：项目包导入和标注导入在写入成功、界面刷新失败时，报告「已写入但界面待刷新」，重试只重新读取。
 - **为什么现在做**：同一个 `try/catch` 会把刷新失败说成导入失败。用户再导入一次，恢复为新项目会再写一份；新建文稿路径还会把已经写好的文稿删掉。
-- **不做什么**：不改协作、Supabase、智能体路径；不用全库正则禁止 `try/catch`；不把标注控制器、媒体删除和恢复路径放进这一批。
+- **不做什么**：不改协作、Supabase、智能体路径；不用全库正则禁止 `try/catch`；媒体删除和恢复路径仍留在下一批。
 
 ## 2. 用户场景（≤ 3 条）
 
@@ -28,6 +28,8 @@ source_of_truth: write-refresh-outcome-spec
 - [ ] 新建文稿：刷新失败后文稿和内容仍在
 - [ ] 事务提交后的整理写入失败 → `written-follow-up-unconfirmed`，重试不增加解析次数和整理写入次数
 - [ ] 写入本身抛错 → `write-unconfirmed`，不调用 `loadSnapshot`
+- [ ] 标注共用写入：写入成功且 reload 拒绝 → 提示不是 `error`，gloss 可读回；重试不再调用写入
+- [ ] 整理失败的 `SaveState` 是 `follow-up-pending`；刷新成功后也不是 `done`
 
 ## 4. 受影响代码地图
 

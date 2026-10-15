@@ -1,5 +1,6 @@
 import {
   annotationWorkspaceWriteActions,
+  publishAnnotationWriteRefresh,
   type AnnotationSaveNotice,
 } from './annotationWorkspaceController.actions';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -166,28 +167,37 @@ export function useAnnotationWorkspaceController() {
       savingRef.current = true;
       setSaveNotice({ kind: 'saving', message: '' });
       try {
-        if (writes.length > 0) {
-          await saveAnnotationIgtRowTokens(unitId, writes);
-          await dataQuery.refetch({ throwOnError: true });
-        }
-        setDrafts((prev) => dropCommittedTokenDrafts(prev, committedDrafts));
-        setSaveNotice({ kind: 'saved', message: '' });
-        if (advance) {
-          const nextId = stepAnnotationUnitId(derived.unitIds, unitId, 1);
-          setKeyboard({
-            mode: 'inputFocused',
-            focusedUnitId: nextId,
-            lastAction: 'commitNext',
-          });
-        }
+        if (writes.length > 0) await saveAnnotationIgtRowTokens(unitId, writes);
       } catch (error) {
         const message =
           error instanceof Error && error.message.trim().length > 0
             ? error.message
             : t(locale, 'workspace.annotation.saveError');
         setSaveNotice({ kind: 'error', message });
+        return;
       } finally {
         savingRef.current = false;
+      }
+      if (writes.length === 0) {
+        setSaveNotice({ kind: 'saved', message: '' });
+      } else {
+        setDrafts((prev) => dropCommittedTokenDrafts(prev, committedDrafts));
+      }
+      const refreshed =
+        writes.length === 0
+          ? 'written-refreshed'
+          : await publishAnnotationWriteRefresh({
+              reload: () => dataQuery.refetch({ throwOnError: true }),
+              setSaveNotice,
+              locale,
+            });
+      if (advance && refreshed === 'written-refreshed') {
+        const nextId = stepAnnotationUnitId(derived.unitIds, unitId, 1);
+        setKeyboard({
+          mode: 'inputFocused',
+          focusedUnitId: nextId,
+          lastAction: 'commitNext',
+        });
       }
     },
     [dataQuery, derived.focusedUnitId, derived.rows, derived.unitIds, drafts, locale],

@@ -227,6 +227,9 @@ export const zhCNDictionary = {
   'workspace.annotation.saveSaved': '已保存',
   'workspace.annotation.saveFailed': '保存失败：{message}',
   'workspace.annotation.saveError': '无法保存标注',
+  'workspace.annotation.writtenRefreshPending':
+    '已写入，但界面没有刷新。请重新加载，不要再次保存。',
+  'workspace.annotation.retryRefresh': '重新加载',
   'workspace.annotation.morphemeFormLabel': '词素形式',
   'workspace.annotation.morphemeGlossLabel': '词素 gloss',
   'workspace.annotation.morphemeSeed': '按 -/= 分词素',

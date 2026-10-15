@@ -23,7 +23,12 @@ export type SaveState =
   | { kind: 'saving' }
   | { kind: 'done'; message: string }
   | { kind: 'error'; message: string; errorMeta?: StructuredErrorMeta }
-  | { kind: 'refresh-pending'; message: string };
+  | { kind: 'refresh-pending'; message: string }
+  | {
+      kind: 'follow-up-pending';
+      message: string;
+      stage: 'constraint-repair' | 'duration-expand';
+    };
 
 export type TimelineUnitKind = 'unit' | 'segment';
 

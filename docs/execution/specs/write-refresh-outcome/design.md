@@ -22,12 +22,10 @@ depends_on:
 
 本批核对过的调用，不把搜索命中数当成缺陷数：
 
-- 已分开：快照恢复对话框、语言目录刷新、首个转写层写入后的补写失败。
-- 本批要改：`importProjectArchive` 的三处 `loadSnapshot`；`handleImportFile` 在事务和整理之后的 `loadSnapshot`。
-- 仍混在同一次失败里，留给下一批：`annotationWorkspaceController.actions`、工作台 `runCommit`、重分词、句段附注、自动注释、语素控制器里的 `reload` / `refetch`。
-- 纯刷新或本批明确跳过：深链、工具栏、时间轴状态、文稿切换后的重载，以及协作水合。
-
-先前说「四个标注控制器已经只重试刷新」。在当前树上，重分词、句段附注、自动注释、语素控制器仍把 `reloadWorkspace` 或 `refetch` 放在同一次 `catch` 里。下一批按这个契约改，不把它们记成已完成。
+- 已分开：快照恢复对话框、语言目录刷新、首个转写层补写失败；归档与标注导入的 `loadSnapshot`；标注共用 `run`、`runCommit`、重分词、句段附注、自动注释、语素控制器。刷新失败是 `refresh-pending`，重试只调用 reload。
+- 整理失败的界面状态是 `follow-up-pending`。随后的刷新即使成功，也不写成 `done`。
+- 仍留给下一批：媒体删除/导入和恢复路径里的写后 `loadSnapshot`。MWE、关系、词性批量、备选分析的 `reload()` 不 await，拒绝不会进写入 catch。
+- 纯刷新或明确跳过：深链、工具栏、时间轴状态、文稿切换后的重载，以及协作水合。
 
 ## 2. 架构选择
 

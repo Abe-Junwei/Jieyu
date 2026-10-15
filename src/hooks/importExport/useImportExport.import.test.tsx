@@ -3377,8 +3377,10 @@ describe('useImportExport - import success under stop-write', () => {
       expect(outcome.stage).toBe('constraint-repair');
     }
     expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+    expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
     expect(setSaveState).toHaveBeenLastCalledWith({
-      kind: 'refresh-pending',
+      kind: 'follow-up-pending',
+      stage: 'constraint-repair',
       message: expect.stringContaining('later cleanup step did not finish'),
     });
     expect(mockImportFromTextGrid).toHaveBeenCalledTimes(1);
@@ -3393,6 +3395,12 @@ describe('useImportExport - import success under stop-write', () => {
     expect(mockImportFromTextGrid).toHaveBeenCalledTimes(1);
     expect(updateLayer).toHaveBeenCalledTimes(1);
     expect(loadSnapshot).toHaveBeenCalled();
+    expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'follow-up-pending',
+      stage: 'constraint-repair',
+      message: expect.stringContaining('later cleanup step did not finish'),
+    });
     updateLayer.mockRestore();
   });
 });
