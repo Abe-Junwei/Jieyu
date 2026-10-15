@@ -10,7 +10,7 @@
  * insert): concurrent edits do not lose updates, a write-validation failure rolls back and leaves the
  * row intact, and a missing project is an explicit result.
  */
-import { getDb, type TextDocType } from '../db';
+import { getDb, type JieyuDatabase, type TextDocType } from '../db';
 import { withTransaction } from '../db/withTransaction';
 
 export type ProjectPatchResult =
@@ -48,15 +48,17 @@ function unwrapTransactionError(error: unknown): unknown {
 
 /**
  * 在一个读写事务里修改项目行（可嵌套在包含 texts 的事务里）。
+ * 嵌套时传入外层的 `database`：在 Dexie 事务里再 await `getDb()` 会让外层事务提前提交。
  * Patch the project row in one read-write transaction (may nest in a transaction that has texts).
  */
 export async function patchProjectText(
   textId: string,
   patch: ProjectTextPatch,
+  database?: JieyuDatabase,
 ): Promise<ProjectPatchResult> {
   const id = textId.trim();
   if (id.length === 0) return { status: 'not-found' };
-  const db = await getDb();
+  const db = database ?? (await getDb());
   try {
     return await withTransaction(
       db,
@@ -82,11 +84,16 @@ export async function patchProjectText(
 export async function patchProjectMetadata(
   textId: string,
   patch: ProjectMetadataPatch,
+  database?: JieyuDatabase,
 ): Promise<ProjectPatchResult> {
-  return patchProjectText(textId, (current) => {
-    const next = patch(metadataOf(current), current);
-    return next === null ? null : { ...current, metadata: next };
-  });
+  return patchProjectText(
+    textId,
+    (current) => {
+      const next = patch(metadataOf(current), current);
+      return next === null ? null : { ...current, metadata: next };
+    },
+    database,
+  );
 }
 
 /** 项目不存在时抛 `ProjectNotFoundError`，否则返回写入后的行 | Throw when missing, else return the row */

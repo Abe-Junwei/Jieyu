@@ -396,6 +396,13 @@ export interface AiSessionMemoryDoc {
   updatedAt: string;
 }
 
+/** AI 运行时 v2 回合行。主键是 `conversationId`。消息形状由读取方检查。 */
+export interface AiRuntimeV2TurnDoc {
+  conversationId: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
 type AiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
 type AiMessageStatus = 'streaming' | 'done' | 'error' | 'aborted';
 

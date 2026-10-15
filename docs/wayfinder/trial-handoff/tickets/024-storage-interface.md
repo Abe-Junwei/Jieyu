@@ -22,3 +22,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/274
 
 样例：已迁的 `aiRuntimeV2TurnStore`（`fa4a4245`）。验收：ADR 合进 main 后你确认；主路线图 §2.1 DoD 第 1 条（SQLite 与 Dexie 双读回）在接口落地后生效。ADR 确认前，[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 只迁不涉及事务的纯读模块。
 
+## 实现（2026-10-15）
+
+决定写在 [ADR-0048](../../../adr/0048-storage-port.md)。Dexie 实现是 `src/db/storagePort.ts`：回合读写、固定种类的指纹、审计插入，写入后读回。读回失败是 `StorageReadbackError`，事务已经提交。SQLite 实现仍是 #275，须跑同一组读回。2026-10-15 用户已确认 ADR。
+

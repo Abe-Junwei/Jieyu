@@ -24,6 +24,7 @@ import type {
   AiConversationDoc,
   AiMessageDoc,
   AiSessionMemoryDoc,
+  AiRuntimeV2TurnDoc,
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
   ExternalMcpTrustDoc,
@@ -211,6 +212,7 @@ export class JieyuDexie extends Dexie {
   source_records!: Table<SourceRecordDocType, string>;
   annotation_documents!: Table<AnnotationDocumentDocType, string>;
   ai_source_sets!: Table<AiSourceSetDoc, string>;
+  ai_runtime_v2_turns!: Table<AiRuntimeV2TurnDoc, string>;
 
   /**
    * `versions` 只给原始快照转换器的测试用（合成账本）；主库永远用 `JIEYU_SCHEMA_VERSIONS`。

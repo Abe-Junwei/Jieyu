@@ -1,4 +1,5 @@
-import { getDb, type LayerUnitDocType, type SpeakerDocType } from '../db';
+import { getDb, type JieyuDatabase, type LayerUnitDocType, type SpeakerDocType } from '../db';
+import { withTransaction } from '../db/withTransaction';
 import type { SpeakerReferenceStatsBundle } from '../hooks/speakerManagement/types';
 import { normalizeUnitDocForStorage } from '../utils/camDataUtils';
 import { newId } from '../utils/transcriptionFormatters';
@@ -303,14 +304,51 @@ export async function mergeSpeakers(
   return unitRows.length + segments.length;
 }
 
+type DeleteSpeakerOptions = {
+  strategy?: 'clear' | 'merge' | 'reject';
+  targetSpeakerId?: string;
+};
+
+/**
+ * ADR-0048：删除说话人是一次业务操作。句段改写、说话人删除和项目名单在同一个事务里提交，
+ * 中途失败时整体回滚。句段元数据同步在提交之后才排。
+ */
 export async function deleteSpeaker(
   speakerId: string,
-  options: {
-    strategy?: 'clear' | 'merge' | 'reject';
-    targetSpeakerId?: string;
-  } = {},
+  options: DeleteSpeakerOptions = {},
 ): Promise<number> {
   const db = await getDb();
+  let outcome: { affectedCount: number; touchedIds: string[] };
+  try {
+    outcome = await withTransaction(
+      db,
+      'rw',
+      [
+        db.dexie.speakers,
+        db.dexie.layer_units,
+        db.dexie.layer_unit_contents,
+        db.dexie.texts,
+        db.dexie.tier_definitions,
+        db.dexie.annotation_documents,
+      ],
+      () => deleteSpeakerIn(db, speakerId, options),
+      { label: 'speakers.delete' },
+    );
+  } catch (error) {
+    throw error instanceof Error && error.cause instanceof Error ? error.cause : error;
+  }
+  scheduleSegmentMetaSyncForUnitIds(
+    outcome.touchedIds,
+    'linguisticServiceSpeakerOps.deleteSpeaker',
+  );
+  return outcome.affectedCount;
+}
+
+async function deleteSpeakerIn(
+  db: JieyuDatabase,
+  speakerId: string,
+  options: DeleteSpeakerOptions,
+): Promise<{ affectedCount: number; touchedIds: string[] }> {
   const id = speakerId.trim();
   if (!id) throw new Error('\u8bf4\u8bdd\u4eba ID \u4e0d\u80fd\u4e3a\u7a7a');
 
@@ -318,13 +356,11 @@ export async function deleteSpeaker(
   const speakerDoc = await db.collections.speakers.findOne({ selector: { id } }).exec();
   if (!speakerDoc) throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${id}`);
 
-  const units = (await listUnitDocsFromCanonicalLayerUnits(db)).filter(
-    (row) => row.speakerId?.trim() === id,
+  // 直接按 speakerId 索引读原始行：投影读取内部会 await getDb()，外层事务会提前提交
+  const rows = (await db.dexie.layer_units.where('speakerId').equals(id).toArray()).filter(
+    (row) => row.unitType === 'unit' || row.unitType === 'segment',
   );
-  const segments = (await LayerSegmentQueryService.listAllSegments()).filter(
-    (segment) => segment.speakerId?.trim() === id,
-  );
-  const affectedCount = units.length + segments.length;
+  const affectedCount = rows.length;
 
   if (affectedCount > 0 && strategy === 'reject') {
     throw new Error(
@@ -333,6 +369,7 @@ export async function deleteSpeaker(
   }
 
   const now = new Date().toISOString();
+  let mergeTargetId = '';
 
   if (affectedCount > 0 && strategy === 'merge') {
     const targetId = options.targetSpeakerId?.trim();
@@ -346,60 +383,37 @@ export async function deleteSpeaker(
     if (!targetDoc)
       throw new Error(`\u76ee\u6807\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${targetId}`);
     const target = targetDoc.toJSON();
-
-    const normalized = units.map((row) =>
-      normalizeUnitDocForStorage({
-        ...row,
-        speakerId: target.id,
-        speaker: target.name,
-        updatedAt: now,
-      }),
+    const source = speakerDoc.toJSON();
+    if (source.textId !== target.textId) {
+      throw new CatalogOwnershipMismatchError('speakers', target.id, target.textId, source.textId);
+    }
+    mergeTargetId = target.id;
+    await db.dexie.layer_units.bulkPut(
+      rows.map((row) => ({ ...row, speakerId: target.id, updatedAt: now })),
     );
-    if (normalized.length > 0) {
-      await bulkUpsertUnitLayerUnits(db, normalized);
-    }
-
-    if (segments.length > 0) {
-      const normalizedSegments = segments.map((segment) => ({
-        ...segment,
-        speakerId: target.id,
-        updatedAt: now,
-      }));
-      await LayerUnitSegmentWriteService.upsertSegments(db, normalizedSegments);
-    }
   }
 
   if (affectedCount > 0 && strategy === 'clear') {
-    const normalized = units.map((row) => {
-      const { speaker: _oldSpeaker, speakerId: _oldSpeakerId, ...rest } = row;
-      return normalizeUnitDocForStorage({
-        ...rest,
-        updatedAt: now,
-      });
-    });
-    if (normalized.length > 0) {
-      await bulkUpsertUnitLayerUnits(db, normalized);
-    }
-
-    if (segments.length > 0) {
-      const normalizedSegments = segments.map((segment) => {
-        const { speakerId: _oldSpeakerId, ...rest } = segment;
-        return {
-          ...rest,
-          updatedAt: now,
-        };
-      });
-      await LayerUnitSegmentWriteService.upsertSegments(db, normalizedSegments);
-    }
+    await db.dexie.layer_units.bulkPut(
+      rows.map(({ speakerId: _oldSpeakerId, ...rest }) => ({ ...rest, updatedAt: now })),
+    );
   }
 
-  scheduleSegmentMetaSyncForUnitIds(
-    [...units.map((row) => row.id), ...segments.map((row) => row.id)],
-    'linguisticServiceSpeakerOps.deleteSpeaker',
-  );
-  await db.collections.speakers.remove(id);
-  await detachSpeakerFromProjects(id);
-  return affectedCount;
+  await db.dexie.speakers.delete(id);
+  await detachSpeakerFromProjects(id, db);
+  if (mergeTargetId.length > 0) {
+    const projectIds = new Set<string>();
+    const owner = speakerDoc.toJSON().textId.trim();
+    if (owner.length > 0) projectIds.add(owner);
+    for (const row of rows) {
+      const textId = row.textId.trim();
+      if (textId.length > 0) projectIds.add(textId);
+    }
+    for (const textId of projectIds) {
+      await attachSpeakerToProject(mergeTargetId, textId, db);
+    }
+  }
+  return { affectedCount, touchedIds: rows.map((row) => row.id) };
 }
 
 export async function assignSpeakerToUnits(

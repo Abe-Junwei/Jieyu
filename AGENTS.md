@@ -26,7 +26,7 @@ Behavioral guidelines below are adapted from [forrestchang/andrej-karpathy-skill
 - **UI / Stitch handoff**：视觉工作先读 [DESIGN.md](DESIGN.md) 与 [src/styles/tokens.css](src/styles/tokens.css)；颜色映射语义 token；用户可见文案走 `dictKeys` / 字典，不留设计稿原文。
 - **AI formatter 文案 vs UI 文案分层**：模型/工具输出固定句式放 `src/ai/messages/`，与界面字典不混命名空间。
 - **单人合并门槛**：完成前必跑 `npm run typecheck` + 触及域的 `vitest`；交互 / ReadyWorkspace / 侧栏 / 时间轴改动还要 `npm run test:e2e:chromium`。E2E 修稳，不长期 skip。依赖手动升，顺序见 [DEPENDENCY_UPGRADE_PLAYBOOK.md](docs/development/DEPENDENCY_UPGRADE_PLAYBOOK.md)。
-- **数据访问（P2-3）**：本检出的新代码仍直接用 Dexie Table API（`db.dexie.<table>.where(index)…`），不再新增 `db.collections.*` 调用；`findOne` / `removeBySelector` 遇到没有索引的选择器在开发和测试里会抛 `DexieNonIndexedQueryError`。整表读必须显式（`toArray()` 或 `find().exec()` 加 `shortcut:` 注释说明为什么可以）。ADR-0046 的 repository 是已接受目标，本检出还没有这个接口；不要在普通改动里自行设计，存储接口留给 ADR-0048。
+- **数据访问（P2-3）**：新的存储操作走 [ADR-0048](docs/adr/0048-storage-port.md) 的业务操作接口（`src/db/storagePort.ts`）。一次操作一次事务，调用方不传表名、不拿事务回调。浏览器实现是 Dexie Table API；SQLite 实现是 #275。既有直连 db 的模块由 #280 分批迁。不再新增 `db.collections.*`；`findOne` / `removeBySelector` 遇到没有索引的选择器在开发和测试里会抛 `DexieNonIndexedQueryError`。整表读必须显式（`toArray()` 或 `find().exec()` 加 `shortcut:` 注释说明为什么可以）。
 - **Feature flag**：高风险或 UI 觉察大改默认套 flag，`false` 合并、自用 1 周后切默认 `true`；见 [src/ai/config/featureFlags.ts](src/ai/config/featureFlags.ts) 与 [copilot-instructions.md](copilot-instructions.md) §五。
 
 ## 通用代理基线（Karpathy 4 rules）

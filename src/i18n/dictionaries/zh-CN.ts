@@ -2370,6 +2370,8 @@ export const zhCNDictionary = {
   'transcription.importExport.overwriteSnapshotFailed':
     '已中止覆盖：覆盖前快照保存失败。本机数据没有改动。',
   'transcription.importExport.exportFailed': '导出失败: {message}',
+  'transcription.error.action.speakerWriteUnconfirmed':
+    '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
   'transcription.error.action.assignSpeakerFailed': '说话人指派失败：{message}',
   'transcription.error.action.createSpeakerFailed': '创建说话人失败：{message}',
   'transcription.error.action.mergeSelectionFailed': '批量合并失败：{message}',

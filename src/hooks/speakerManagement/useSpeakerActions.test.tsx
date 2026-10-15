@@ -520,13 +520,10 @@ describe('useSpeakerActions dialog flows', () => {
       await result.current.handleAssignSpeakerToSelected();
     });
 
-    expect(undo).toHaveBeenCalled();
-    expect(setSaveState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'error',
-        message: '说话人指派失败：检测到数据已被其他操作更新，请刷新后重试',
-        errorMeta: expect.objectContaining({ category: 'conflict', action: '说话人指派' }),
-      }),
-    );
+    expect(undo).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith({
+      kind: 'error',
+      message: '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
+    });
   });
 });

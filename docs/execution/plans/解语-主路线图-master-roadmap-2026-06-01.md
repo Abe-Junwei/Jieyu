@@ -167,7 +167,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-10-14）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）优先——[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) ADR-0048 存储接口、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) 模型接口 ADR、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) IndexedDB 归层盘点；随后 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架 + [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 模块迁移。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R0/R1 与上面三张单并行，独立分支，不挡试用关键路径；R2 不进试用版默认路径。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-10-14）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）优先——[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) ADR-0048 已确认（Dexie 样例在 `src/db/storagePort.ts`，SQLite 仍是 #275）、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) 模型接口 ADR、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) IndexedDB 归层盘点；随后 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架 + [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 模块迁移。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R0/R1 与上面三张单并行，独立分支，不挡试用关键路径；R2 不进试用版默认路径。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -303,7 +303,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 - 声学未做完的是本文 A2、A3。重型对齐、说话人分离和外部声学服务维持不做，条件见 A3。
 - 协作：桌面版剔除（ADR-0047）。[Supabase 落地](./托管实时协同-Supabase完整落地方案-2026-04-17.md) 与 M8–M14 留到桌面版之后，对应本文 C4，本程不排。
 - 工程治理：[代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md)
-- 持久化方向以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)、[ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md) 和 [试用地图](../../wayfinder/trial-handoff/map.md) 为准。
+- 持久化方向以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)、[ADR-0048](../../adr/0048-storage-port.md)、[ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md) 和 [试用地图](../../wayfinder/trial-handoff/map.md) 为准。
 - 规格目录只留模板。协作出站队列草稿已删除，恢复时的约束见 C4。
 
 ## 4. 适用边界与显式废弃
@@ -325,6 +325,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-15 | **ADR-0048 存储接口**。一次业务操作一次事务、一次 IPC；归属在持有数据库的一侧检查；指纹不接受表名。Dexie 样例在 `src/db/storagePort.ts`。SQLite 实现仍是 #275。用户已确认，#280 可以迁带事务的写入。 |
 | 2026-10-15 | **B17 外部证据源落地，flag 默认关**。文献/网页命中映射、stdio 宿主桥、证据包 title/page/url、B16b 可引用。Electron spawn 待桌面壳。 |
 | 2026-10-15 | **B16b 主张、核对与正文落地，flag 默认关**。工作流 `corpus_analysis_report`。对不上的主张删去。数据边界见 ADR-0055。 |
 | 2026-10-15 | **B16a 查询工具落地，flag 默认关**。`concordance_kwic`、`query_morpheme_paradigm`、`find_counterexamples`。纯函数对夹具验收。不调模型。 |

@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
 import { LinguisticService } from './LinguisticService';
 import { CatalogOwnershipMismatchError, CatalogProjectRequiredError } from './projectCatalogScope';
+import { readProjectSpeakerIds } from './speakerProjectMembership';
 
 const NOW = '2026-09-30T00:00:00.000Z';
 
@@ -16,6 +17,10 @@ async function seedText(textId: string): Promise<void> {
 }
 
 describe('project speaker roster', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(async () => {
     await db.open();
     await Promise.all(db.tables.map((table) => table.clear()));
@@ -78,5 +83,112 @@ describe('project speaker roster', () => {
       (await LinguisticService.speakers.listForProject('text-a')).map((row) => row.id),
     ).toEqual([ada.id]);
     expect(await LinguisticService.speakers.listForProject('text-b')).toEqual([]);
+  });
+
+  it('refuses a delete-merge onto a speaker from another project', async () => {
+    await seedText('text-a');
+    await seedText('text-b');
+    const ada = await LinguisticService.speakers.create({ name: 'Ada', textId: 'text-a' });
+    const bo = await LinguisticService.speakers.create({ name: 'Bo', textId: 'text-b' });
+    await db.layer_units.put({
+      id: 'unit-a',
+      textId: 'text-a',
+      unitType: 'unit',
+      speakerId: ada.id,
+      layerId: 'layer-a',
+      mediaId: 'media-a',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await expect(
+      LinguisticService.speakers.delete(ada.id, { strategy: 'merge', targetSpeakerId: bo.id }),
+    ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
+    expect((await db.layer_units.get('unit-a'))?.speakerId).toBe(ada.id);
+    expect(await db.speakers.get(ada.id)).toBeDefined();
+  });
+
+  it('puts the delete-merge target back on the project roster', async () => {
+    await seedText('text-a');
+    const ada = await LinguisticService.speakers.create({ name: 'Ada', textId: 'text-a' });
+    const bo = await LinguisticService.speakers.create({ name: 'Bo', textId: 'text-a' });
+    await db.layer_units.put({
+      id: 'unit-a',
+      textId: 'text-a',
+      unitType: 'unit',
+      speakerId: ada.id,
+      layerId: 'layer-a',
+      mediaId: 'media-a',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await LinguisticService.layers.saveTranslation({
+      id: 'layer-a',
+      textId: 'text-a',
+      key: 'trc_text-a',
+      name: { default: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      sortOrder: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const text = await db.texts.get('text-a');
+    const withoutBo = (readProjectSpeakerIds(text?.metadata) ?? []).filter((id) => id !== bo.id);
+    await db.texts.update('text-a', {
+      metadata: { ...(text?.metadata ?? {}), projectSpeakerIds: withoutBo },
+    });
+
+    await LinguisticService.speakers.delete(ada.id, { strategy: 'merge', targetSpeakerId: bo.id });
+
+    expect((await db.layer_units.get('unit-a'))?.speakerId).toBe(bo.id);
+    expect(await db.speakers.get(ada.id)).toBeUndefined();
+    expect(readProjectSpeakerIds((await db.texts.get('text-a'))?.metadata)).toContain(bo.id);
+  });
+
+  it('rolls back the whole delete-merge when the roster write fails', async () => {
+    await seedText('text-a');
+    await LinguisticService.layers.saveTranslation({
+      id: 'layer-a',
+      textId: 'text-a',
+      key: 'trc_text-a',
+      name: { default: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      sortOrder: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const ada = await LinguisticService.speakers.create({ name: 'Ada', textId: 'text-a' });
+    const bo = await LinguisticService.speakers.create({ name: 'Bo', textId: 'text-a' });
+    await db.layer_units.put({
+      id: 'unit-a',
+      textId: 'text-a',
+      unitType: 'unit',
+      speakerId: ada.id,
+      layerId: 'layer-a',
+      mediaId: 'media-a',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    vi.spyOn(db.texts, 'put').mockRejectedValue(new Error('roster write failed'));
+
+    await expect(
+      LinguisticService.speakers.delete(ada.id, { strategy: 'merge', targetSpeakerId: bo.id }),
+    ).rejects.toThrow('roster write failed');
+    vi.restoreAllMocks();
+
+    expect((await db.layer_units.get('unit-a'))?.speakerId).toBe(ada.id);
+    expect(await db.speakers.get(ada.id)).toBeDefined();
   });
 });

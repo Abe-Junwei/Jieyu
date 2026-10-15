@@ -31,7 +31,7 @@ import {
 import { newCatalogUuid } from './projectCatalogScope';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { createLogger } from '../observability/logger';
-import { refreshMultiDocumentGate } from './annotationDocumentCollaborationGate';
+import { rememberMultiDocumentGate } from './annotationDocumentCollaborationGate';
 
 const log = createLogger('annotationDocumentService');
 
@@ -535,8 +535,8 @@ export async function createAnnotationDocument(textId: string, title?: string): 
   } catch (error) {
     throw unwrapDocumentError(error);
   }
-  // 反向门：现在有多份文稿，协作与上传关闭 | Reverse gate: several documents now, collaboration off
-  await refreshMultiDocumentGate(owner);
+  // 反向门：这次提交已经多了一份文稿，缓存按这个结果关上传，不再另数一次
+  rememberMultiDocumentGate(owner, true);
   return id;
 }
 
@@ -682,6 +682,7 @@ async function deleteDocumentRows(
   documentId: string,
 ): Promise<Omit<AnnotationDocumentDeleteResult, 'snapshotSeq'>> {
   let result: Omit<AnnotationDocumentDeleteResult, 'snapshotSeq'>;
+  let severalRemaining = false;
   try {
     result = await withTransaction(
       db,
@@ -702,6 +703,7 @@ async function deleteDocumentRows(
         const remaining = documents
           .filter((doc) => doc.id !== documentId)
           .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        severalRemaining = remaining.length > 1;
         const next = remaining.find((doc) => doc.isDefault) ?? remaining[0];
         if (!next) throw new AnnotationDocumentLastDocumentError();
         // 归属按删除前的范围判（与确认框、工作台一致），再换掉当前文稿
@@ -734,7 +736,7 @@ async function deleteDocumentRows(
   } catch (error) {
     throw unwrapDocumentError(error);
   }
-  await refreshMultiDocumentGate(owner);
+  rememberMultiDocumentGate(owner, severalRemaining);
   return result;
 }
 

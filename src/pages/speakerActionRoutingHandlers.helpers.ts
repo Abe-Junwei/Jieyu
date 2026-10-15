@@ -7,7 +7,6 @@ import type {
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { SpeakerActionDialogState } from '../hooks/speakerManagement/types';
 import {
-  buildSpeakerActionErrorOptions,
   formatSpeakerClearResult,
   formatSpeakerExportContent,
   formatSpeakerExportDone,
@@ -17,7 +16,10 @@ import {
   type SpeakerTranslate,
 } from '../hooks/speakerManagement/speakerI18n';
 import { LinguisticService } from '../app/languageAssetPageAccess';
-import { reportActionError } from '../utils/actionErrorReporter';
+import {
+  settleSpeakerWrite,
+  speakerWriteCopy,
+} from '../hooks/speakerManagement/speakerWriteOutcome';
 import { reportValidationError } from '../utils/validationErrorReporter';
 
 type SegmentUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
@@ -160,41 +162,37 @@ export async function executeSegmentSpeakerClearDialog(input: {
     return;
   }
 
-  let undoPushed = false;
-  try {
-    await pushSpeakerUndoWithFreshSegmentSnapshot({
-      label: getSpeakerUndoLabel('clearTag', input.t),
-      pushUndo: input.pushUndo,
-      refreshSegmentUndoSnapshot: input.refreshSegmentUndoSnapshot,
-    });
-    undoPushed = true;
-    const cleared = await LinguisticService.speakers.assignToSegments(ids, undefined);
-    const now = new Date().toISOString();
-    input.updateSegmentsLocally(ids, (segment) => {
-      const next = { ...segment, updatedAt: now };
-      delete next.speakerId;
-      return next;
-    });
-    await input.reloadSegments();
-    await input.refreshSegmentUndoSnapshot();
-    await input.refreshSpeakerReferenceStats();
-    input.setActiveSpeakerFilterKey('all');
-    input.setSaveState({
-      kind: 'done',
-      message: formatSpeakerClearResult('segments', cleared, input.t, input.tf),
-    });
-    input.setSegmentSpeakerDialogState(null);
-  } catch (error) {
-    if (undoPushed) await input.undo();
-    reportActionError({
-      error,
-      ...buildSpeakerActionErrorOptions('dialogOperation', error, input.t, input.tf),
-      conflictI18nKey: 'transcription.error.conflict.speakerDialogOperation',
-      fallbackI18nKey: 'transcription.error.action.speakerDialogOperationFailed',
-      setErrorState: ({ message, meta }) =>
-        input.setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
-    });
-  }
+  await pushSpeakerUndoWithFreshSegmentSnapshot({
+    label: getSpeakerUndoLabel('clearTag', input.t),
+    pushUndo: input.pushUndo,
+    refreshSegmentUndoSnapshot: input.refreshSegmentUndoSnapshot,
+  });
+  let cleared = 0;
+  const outcome = await settleSpeakerWrite({
+    write: async () => {
+      cleared = await LinguisticService.speakers.assignToSegments(ids, undefined);
+      const now = new Date().toISOString();
+      input.updateSegmentsLocally(ids, (segment) => {
+        const next = { ...segment, updatedAt: now };
+        delete next.speakerId;
+        return next;
+      });
+      input.setActiveSpeakerFilterKey('all');
+    },
+    refresh: async () => {
+      await input.reloadSegments();
+      await input.refreshSegmentUndoSnapshot();
+      await input.refreshSpeakerReferenceStats();
+    },
+    reread: async () => {
+      await input.reloadSegments();
+      await input.refreshSpeakerReferenceStats();
+    },
+    setSaveState: input.setSaveState,
+    doneMessage: () => formatSpeakerClearResult('segments', cleared, input.t, input.tf),
+    ...speakerWriteCopy(input.t),
+  });
+  if (outcome !== 'unconfirmed') input.setSegmentSpeakerDialogState(null);
 }
 
 export function resolveSegmentSpeakerExportName(input: {

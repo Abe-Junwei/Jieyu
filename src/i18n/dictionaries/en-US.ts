@@ -2547,6 +2547,8 @@ export const enUSDictionary = {
   'transcription.importExport.overwriteSnapshotFailed':
     'Overwrite aborted: the pre-overwrite snapshot could not be saved. Nothing was changed.',
   'transcription.importExport.exportFailed': 'Export failed: {message}',
+  'transcription.error.action.speakerWriteUnconfirmed':
+    'This speaker change may be only partly saved. The data was reloaded. Check it before continuing.',
   'transcription.error.action.assignSpeakerFailed': 'Failed to assign speaker: {message}',
   'transcription.error.action.createSpeakerFailed': 'Failed to create speaker: {message}',
   'transcription.error.action.segmentSkipProcessingFailed':

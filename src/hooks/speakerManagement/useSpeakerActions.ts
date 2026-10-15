@@ -41,7 +41,6 @@ import {
   upsertSpeaker,
 } from './speakerUtils';
 import {
-  buildSpeakerActionErrorOptions,
   buildSpeakerDisplayLabels,
   buildUnitSpeakerSummaryLabels,
   formatSpeakerAssignmentResult,
@@ -61,8 +60,8 @@ import {
   type SpeakerTranslate,
 } from './speakerI18n';
 import { useSpeakerDerivedState } from './useSpeakerDerivedState';
-import { reportActionError } from '../../utils/actionErrorReporter';
 import { reportValidationError } from '../../utils/validationErrorReporter';
+import { rereadSpeakerProject, settleSpeakerWrite, speakerWriteCopy } from './speakerWriteOutcome';
 
 export { getUnitSpeakerKey };
 export type { SpeakerFilterOption } from './types';
@@ -488,34 +487,32 @@ export function useSpeakerActions({
     if (selectedUnitIds.size === 0 && !activeUnitId) return;
     if (speakerSaving) return;
     setSpeakerSaving(true);
-    let undoPushed = false;
     try {
       data.pushUndo(getSpeakerUndoLabel('assign', t));
-      undoPushed = true;
       const speaker = batchSpeakerId ? speakerById.get(batchSpeakerId) : undefined;
       const targetIds =
         selectedUnitIds.size > 0 ? Array.from(selectedUnitIds) : activeUnitId ? [activeUnitId] : [];
-
-      const updated = await LinguisticService.speakers.assignToUnits(
-        targetIds,
-        batchSpeakerId || undefined,
-      );
-      applySpeakerLocally(targetIds, speaker);
-      setBatchSpeakerId(batchSpeakerId || '');
-      await refreshSpeakerReferenceStats();
-      setSaveState({
-        kind: 'done',
-        message: formatSpeakerAssignmentResult('units', updated, t, tf),
-      });
-    } catch (error) {
-      if (undoPushed) await data.undo();
-      reportActionError({
-        error,
-        ...buildSpeakerActionErrorOptions('assign', error, t, tf),
-        conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
-        fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
-        setErrorState: ({ message, meta }) =>
-          setSaveState({ kind: 'error', message, errorMeta: meta }),
+      let updated = 0;
+      await settleSpeakerWrite({
+        write: async () => {
+          updated = await LinguisticService.speakers.assignToUnits(
+            targetIds,
+            batchSpeakerId || undefined,
+          );
+          applySpeakerLocally(targetIds, speaker);
+          setBatchSpeakerId(batchSpeakerId || '');
+        },
+        refresh: () => refreshSpeakerReferenceStats(),
+        reread: () =>
+          rereadSpeakerProject({
+            projectTextId,
+            setUnits,
+            refreshSpeakers,
+            refreshSpeakerReferenceStats,
+          }),
+        setSaveState,
+        doneMessage: () => formatSpeakerAssignmentResult('units', updated, t, tf),
+        ...speakerWriteCopy(t),
       });
     } finally {
       setSpeakerSaving(false);
@@ -525,10 +522,13 @@ export function useSpeakerActions({
     applySpeakerLocally,
     batchSpeakerId,
     data,
+    projectTextId,
     refreshSpeakerReferenceStats,
+    refreshSpeakers,
     selectedUnitIds,
     setBatchSpeakerId,
     setSaveState,
+    setUnits,
     speakerById,
     speakerSaving,
     t,
@@ -541,30 +541,27 @@ export function useSpeakerActions({
       if (targetIds.length === 0 || speakerSaving) return;
 
       setSpeakerSaving(true);
-      let undoPushed = false;
       try {
         data.pushUndo(getSpeakerUndoLabel('assign', t));
-        undoPushed = true;
         const speaker = speakerId ? speakerById.get(speakerId) : undefined;
-        const updated = await LinguisticService.speakers.assignToUnits(targetIds, speakerId);
-        applySpeakerLocally(targetIds, speaker);
-        if (speakerId) {
-          setBatchSpeakerId(speakerId);
-        }
-        await refreshSpeakerReferenceStats();
-        setSaveState({
-          kind: 'done',
-          message: formatSpeakerAssignmentResult('units', updated, t, tf),
-        });
-      } catch (error) {
-        if (undoPushed) await data.undo();
-        reportActionError({
-          error,
-          ...buildSpeakerActionErrorOptions('assign', error, t, tf),
-          conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
-          fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
-          setErrorState: ({ message, meta }) =>
-            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        let updated = 0;
+        await settleSpeakerWrite({
+          write: async () => {
+            updated = await LinguisticService.speakers.assignToUnits(targetIds, speakerId);
+            applySpeakerLocally(targetIds, speaker);
+            if (speakerId) setBatchSpeakerId(speakerId);
+          },
+          refresh: () => refreshSpeakerReferenceStats(),
+          reread: () =>
+            rereadSpeakerProject({
+              projectTextId,
+              setUnits,
+              refreshSpeakers,
+              refreshSpeakerReferenceStats,
+            }),
+          setSaveState,
+          doneMessage: () => formatSpeakerAssignmentResult('units', updated, t, tf),
+          ...speakerWriteCopy(t),
         });
       } finally {
         setSpeakerSaving(false);
@@ -573,8 +570,11 @@ export function useSpeakerActions({
     [
       applySpeakerLocally,
       data,
+      projectTextId,
       refreshSpeakerReferenceStats,
+      refreshSpeakers,
       setSaveState,
+      setUnits,
       speakerById,
       speakerSaving,
       setBatchSpeakerId,
@@ -589,48 +589,47 @@ export function useSpeakerActions({
     if (selectedUnitIds.size === 0 && !activeUnitId) return;
 
     setSpeakerSaving(true);
-    let undoPushed = false;
     try {
       const existing = findExistingSpeakerByName(name);
       data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
-      undoPushed = true;
       const targetIds =
         selectedUnitIds.size > 0 ? Array.from(selectedUnitIds) : activeUnitId ? [activeUnitId] : [];
-
-      const targetSpeaker =
-        existing ??
-        (await LinguisticService.speakers.create({
-          name,
-          textId: projectTextId,
-        }));
-      const updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
-      if (!existing) {
-        setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
-      }
-      applySpeakerLocally(targetIds, targetSpeaker);
-      setSpeakerDraftName('');
-      setBatchSpeakerId(targetSpeaker.id);
-      await refreshSpeakerReferenceStats();
-      setSaveState({
-        kind: 'done',
-        message: formatSpeakerCreateAndAssignResult(
-          'units',
-          targetSpeaker.name,
-          updated,
-          Boolean(existing),
-          t,
-          tf,
-        ),
-      });
-    } catch (error) {
-      if (undoPushed) await data.undo();
-      reportActionError({
-        error,
-        ...buildSpeakerActionErrorOptions('create', error, t, tf),
-        conflictI18nKey: 'transcription.error.conflict.createSpeaker',
-        fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
-        setErrorState: ({ message, meta }) =>
-          setSaveState({ kind: 'error', message, errorMeta: meta }),
+      let updated = 0;
+      let speakerName = name;
+      await settleSpeakerWrite({
+        write: async () => {
+          const targetSpeaker =
+            existing ??
+            (await LinguisticService.speakers.create({
+              name,
+              textId: projectTextId,
+            }));
+          updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
+          speakerName = targetSpeaker.name;
+          if (!existing) setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
+          applySpeakerLocally(targetIds, targetSpeaker);
+          setSpeakerDraftName('');
+          setBatchSpeakerId(targetSpeaker.id);
+        },
+        refresh: () => refreshSpeakerReferenceStats(),
+        reread: () =>
+          rereadSpeakerProject({
+            projectTextId,
+            setUnits,
+            refreshSpeakers,
+            refreshSpeakerReferenceStats,
+          }),
+        setSaveState,
+        doneMessage: () =>
+          formatSpeakerCreateAndAssignResult(
+            'units',
+            speakerName,
+            updated,
+            Boolean(existing),
+            t,
+            tf,
+          ),
+        ...speakerWriteCopy(t),
       });
     } finally {
       setSpeakerSaving(false);
@@ -642,9 +641,13 @@ export function useSpeakerActions({
     findExistingSpeakerByName,
     projectTextId,
     refreshSpeakerReferenceStats,
+    refreshSpeakers,
     selectedUnitIds,
+    setBatchSpeakerId,
     setSaveState,
+    setSpeakerDraftName,
     setSpeakers,
+    setUnits,
     speakerDraftName,
     speakerSaving,
     t,
@@ -658,44 +661,44 @@ export function useSpeakerActions({
       if (!trimmedName || targetIds.length === 0 || speakerSaving) return;
 
       setSpeakerSaving(true);
-      let undoPushed = false;
       try {
         const existing = findExistingSpeakerByName(trimmedName);
         data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
-        undoPushed = true;
-        const targetSpeaker =
-          existing ??
-          (await LinguisticService.speakers.create({
-            name: trimmedName,
-            textId: projectTextId,
-          }));
-        const updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
-        if (!existing) {
-          setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
-        }
-        applySpeakerLocally(targetIds, targetSpeaker);
-        setBatchSpeakerId(targetSpeaker.id);
-        await refreshSpeakerReferenceStats();
-        setSaveState({
-          kind: 'done',
-          message: formatSpeakerCreateAndAssignResult(
-            'units',
-            targetSpeaker.name,
-            updated,
-            Boolean(existing),
-            t,
-            tf,
-          ),
-        });
-      } catch (error) {
-        if (undoPushed) await data.undo();
-        reportActionError({
-          error,
-          ...buildSpeakerActionErrorOptions('create', error, t, tf),
-          conflictI18nKey: 'transcription.error.conflict.createSpeaker',
-          fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
-          setErrorState: ({ message, meta }) =>
-            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        let updated = 0;
+        let speakerName = trimmedName;
+        await settleSpeakerWrite({
+          write: async () => {
+            const targetSpeaker =
+              existing ??
+              (await LinguisticService.speakers.create({
+                name: trimmedName,
+                textId: projectTextId,
+              }));
+            updated = await LinguisticService.speakers.assignToUnits(targetIds, targetSpeaker.id);
+            speakerName = targetSpeaker.name;
+            if (!existing) setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
+            applySpeakerLocally(targetIds, targetSpeaker);
+            setBatchSpeakerId(targetSpeaker.id);
+          },
+          refresh: () => refreshSpeakerReferenceStats(),
+          reread: () =>
+            rereadSpeakerProject({
+              projectTextId,
+              setUnits,
+              refreshSpeakers,
+              refreshSpeakerReferenceStats,
+            }),
+          setSaveState,
+          doneMessage: () =>
+            formatSpeakerCreateAndAssignResult(
+              'units',
+              speakerName,
+              updated,
+              Boolean(existing),
+              t,
+              tf,
+            ),
+          ...speakerWriteCopy(t),
         });
       } finally {
         setSpeakerSaving(false);
@@ -707,9 +710,11 @@ export function useSpeakerActions({
       findExistingSpeakerByName,
       projectTextId,
       refreshSpeakerReferenceStats,
+      refreshSpeakers,
       setBatchSpeakerId,
       setSaveState,
       setSpeakers,
+      setUnits,
       speakerSaving,
       t,
       tf,
@@ -731,25 +736,28 @@ export function useSpeakerActions({
         });
         return;
       }
-      const created = await LinguisticService.speakers.create({
-        name,
-        textId: projectTextId,
-      });
-      setSpeakers((prev) => upsertSpeaker(prev, created));
-      setSpeakerDraftName('');
-      await refreshSpeakerReferenceStats();
-      setSaveState({
-        kind: 'done',
-        message: formatSpeakerCreateOnlyResult(created.name, false, tf),
-      });
-    } catch (error) {
-      reportActionError({
-        error,
-        ...buildSpeakerActionErrorOptions('create', error, t, tf),
-        conflictI18nKey: 'transcription.error.conflict.createSpeaker',
-        fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
-        setErrorState: ({ message, meta }) =>
-          setSaveState({ kind: 'error', message, errorMeta: meta }),
+      let createdName = name;
+      await settleSpeakerWrite({
+        write: async () => {
+          const created = await LinguisticService.speakers.create({
+            name,
+            textId: projectTextId,
+          });
+          createdName = created.name;
+          setSpeakers((prev) => upsertSpeaker(prev, created));
+          setSpeakerDraftName('');
+        },
+        refresh: () => refreshSpeakerReferenceStats(),
+        reread: () =>
+          rereadSpeakerProject({
+            projectTextId,
+            setUnits,
+            refreshSpeakers,
+            refreshSpeakerReferenceStats,
+          }),
+        setSaveState,
+        doneMessage: () => formatSpeakerCreateOnlyResult(createdName, false, tf),
+        ...speakerWriteCopy(t),
       });
     } finally {
       setSpeakerSaving(false);
@@ -758,10 +766,12 @@ export function useSpeakerActions({
     findExistingSpeakerByName,
     projectTextId,
     refreshSpeakerReferenceStats,
+    refreshSpeakers,
     setBatchSpeakerId,
     setSaveState,
     setSpeakerDraftName,
     setSpeakers,
+    setUnits,
     speakerDraftName,
     speakerSaving,
     t,
@@ -772,33 +782,30 @@ export function useSpeakerActions({
     if (unusedSpeakerIds.length === 0 || speakerSaving) return;
 
     setSpeakerSaving(true);
-    let undoPushed = false;
     try {
       data.pushUndo(getSpeakerUndoLabel('cleanupUnused', t));
-      undoPushed = true;
-      await Promise.all(
-        unusedSpeakerIds.map((speakerId) => LinguisticService.speakers.delete(speakerId)),
-      );
-      setSpeakers((prev) =>
-        sortSpeakersByName(prev.filter((speaker) => !unusedSpeakerIds.includes(speaker.id))),
-      );
-      if (unusedSpeakerIds.includes(activeSpeakerFilterKey)) {
-        setActiveSpeakerFilterKey('all');
-      }
-      await refreshSpeakerReferenceStats();
-      setSaveState({
-        kind: 'done',
-        message: formatSpeakerCleanupResult(unusedSpeakerIds.length, tf),
-      });
-    } catch (error) {
-      if (undoPushed) await data.undo();
-      reportActionError({
-        error,
-        ...buildSpeakerActionErrorOptions('cleanupUnused', error, t, tf),
-        conflictI18nKey: 'transcription.error.conflict.cleanupUnusedSpeaker',
-        fallbackI18nKey: 'transcription.error.action.cleanupUnusedSpeakerFailed',
-        setErrorState: ({ message, meta }) =>
-          setSaveState({ kind: 'error', message, errorMeta: meta }),
+      const removing = unusedSpeakerIds;
+      await settleSpeakerWrite({
+        write: async () => {
+          await Promise.all(
+            removing.map((speakerId) => LinguisticService.speakers.delete(speakerId)),
+          );
+          setSpeakers((prev) =>
+            sortSpeakersByName(prev.filter((speaker) => !removing.includes(speaker.id))),
+          );
+          if (removing.includes(activeSpeakerFilterKey)) setActiveSpeakerFilterKey('all');
+        },
+        refresh: () => refreshSpeakerReferenceStats(),
+        reread: () =>
+          rereadSpeakerProject({
+            projectTextId,
+            setUnits,
+            refreshSpeakers,
+            refreshSpeakerReferenceStats,
+          }),
+        setSaveState,
+        doneMessage: () => formatSpeakerCleanupResult(removing.length, tf),
+        ...speakerWriteCopy(t),
       });
     } finally {
       setSpeakerSaving(false);
@@ -806,9 +813,12 @@ export function useSpeakerActions({
   }, [
     activeSpeakerFilterKey,
     data,
+    projectTextId,
     refreshSpeakerReferenceStats,
+    refreshSpeakers,
     setSaveState,
     setSpeakers,
+    setUnits,
     speakerSaving,
     t,
     tf,
@@ -839,10 +849,18 @@ export function useSpeakerActions({
   const confirmSpeakerDialog = useCallback(async () => {
     if (!speakerDialogState || speakerSaving) return;
     setSpeakerSaving(true);
-    let undoPushed = false;
+    const dialog = speakerDialogState;
+    const reread = () =>
+      rereadSpeakerProject({
+        projectTextId,
+        setUnits,
+        refreshSpeakers,
+        refreshSpeakerReferenceStats,
+      });
+    const copy = speakerWriteCopy(t);
     try {
-      if (speakerDialogState.mode === 'clear') {
-        const unitIds = getUnitIdsForSpeakerKey(speakerDialogState.speakerKey);
+      if (dialog.mode === 'clear') {
+        const unitIds = getUnitIdsForSpeakerKey(dialog.speakerKey);
         if (unitIds.length === 0) {
           reportValidationError({
             message: t('transcription.error.validation.clearSpeakerNoTarget'),
@@ -854,16 +872,23 @@ export function useSpeakerActions({
           return;
         }
         data.pushUndo(getSpeakerUndoLabel('clearTag', t));
-        undoPushed = true;
-        const cleared = await LinguisticService.speakers.assignToUnits(unitIds, undefined);
-        applySpeakerLocally(unitIds, undefined);
-        await refreshSpeakerReferenceStats();
-        setActiveSpeakerFilterKey('all');
-        setSaveState({ kind: 'done', message: formatSpeakerClearResult('units', cleared, t, tf) });
+        let cleared = 0;
+        await settleSpeakerWrite({
+          write: async () => {
+            cleared = await LinguisticService.speakers.assignToUnits(unitIds, undefined);
+            applySpeakerLocally(unitIds, undefined);
+            setActiveSpeakerFilterKey('all');
+          },
+          refresh: () => refreshSpeakerReferenceStats(),
+          reread,
+          setSaveState,
+          doneMessage: () => formatSpeakerClearResult('units', cleared, t, tf),
+          ...copy,
+        });
       }
 
-      if (speakerDialogState.mode === 'rename') {
-        const nextName = speakerDialogState.draftName.trim();
+      if (dialog.mode === 'rename') {
+        const nextName = dialog.draftName.trim();
         if (!nextName) {
           reportValidationError({
             message: t('transcription.error.validation.renameSpeakerEmptyName'),
@@ -874,18 +899,24 @@ export function useSpeakerActions({
           return;
         }
         data.pushUndo(getSpeakerUndoLabel('rename', t));
-        undoPushed = true;
-        const updated = await LinguisticService.speakers.rename(
-          speakerDialogState.speakerKey,
-          nextName,
-        );
-        setSpeakers((prev) => upsertSpeaker(prev, updated));
-        setUnits((prev) => renameSpeakerInUnits(prev, updated.id, updated.name));
-        setSaveState({ kind: 'done', message: formatSpeakerRenameResult(updated.name, tf) });
+        let renamed = nextName;
+        await settleSpeakerWrite({
+          write: async () => {
+            const updated = await LinguisticService.speakers.rename(dialog.speakerKey, nextName);
+            renamed = updated.name;
+            setSpeakers((prev) => upsertSpeaker(prev, updated));
+            setUnits((prev) => renameSpeakerInUnits(prev, updated.id, updated.name));
+          },
+          refresh: () => refreshSpeakerReferenceStats(),
+          reread,
+          setSaveState,
+          doneMessage: () => formatSpeakerRenameResult(renamed, tf),
+          ...copy,
+        });
       }
 
-      if (speakerDialogState.mode === 'merge') {
-        const targetSpeaker = speakerById.get(speakerDialogState.targetSpeakerKey);
+      if (dialog.mode === 'merge') {
+        const targetSpeaker = speakerById.get(dialog.targetSpeakerKey);
         if (!targetSpeaker) {
           reportValidationError({
             message: t('transcription.error.validation.mergeSpeakerTargetMissing'),
@@ -896,33 +927,35 @@ export function useSpeakerActions({
           return;
         }
         data.pushUndo(getSpeakerUndoLabel('merge', t));
-        undoPushed = true;
-        const moved = await LinguisticService.speakers.merge(
-          speakerDialogState.sourceSpeakerKey,
-          speakerDialogState.targetSpeakerKey,
-        );
-        setSpeakers((prev) =>
-          sortSpeakersByName(
-            prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey),
-          ),
-        );
-        setUnits((prev) =>
-          prev.map((unit) =>
-            unit.speakerId === speakerDialogState.sourceSpeakerKey
-              ? { ...unit, speakerId: targetSpeaker.id, speaker: targetSpeaker.name }
-              : unit,
-          ),
-        );
-        await refreshSpeakerReferenceStats();
-        setActiveSpeakerFilterKey(targetSpeaker.id);
-        setSaveState({
-          kind: 'done',
-          message: formatSpeakerMergeResult(moved, targetSpeaker.name, tf),
+        let moved = 0;
+        await settleSpeakerWrite({
+          write: async () => {
+            moved = await LinguisticService.speakers.merge(
+              dialog.sourceSpeakerKey,
+              dialog.targetSpeakerKey,
+            );
+            setSpeakers((prev) =>
+              sortSpeakersByName(prev.filter((speaker) => speaker.id !== dialog.sourceSpeakerKey)),
+            );
+            setUnits((prev) =>
+              prev.map((unit) =>
+                unit.speakerId === dialog.sourceSpeakerKey
+                  ? { ...unit, speakerId: targetSpeaker.id, speaker: targetSpeaker.name }
+                  : unit,
+              ),
+            );
+            setActiveSpeakerFilterKey(targetSpeaker.id);
+          },
+          refresh: () => refreshSpeakerReferenceStats(),
+          reread,
+          setSaveState,
+          doneMessage: () => formatSpeakerMergeResult(moved, targetSpeaker.name, tf),
+          ...copy,
         });
       }
 
-      if (speakerDialogState.mode === 'delete') {
-        const replacementSpeakerKey = speakerDialogState.replacementSpeakerKey.trim();
+      if (dialog.mode === 'delete') {
+        const replacementSpeakerKey = dialog.replacementSpeakerKey.trim();
         if (replacementSpeakerKey.length > 0) {
           const replacementSpeaker = speakerById.get(replacementSpeakerKey);
           if (!replacementSpeaker) {
@@ -934,74 +967,73 @@ export function useSpeakerActions({
             });
             return;
           }
-
           data.pushUndo(getSpeakerUndoLabel('deleteAndMigrate', t));
-          undoPushed = true;
-          const moved = await LinguisticService.speakers.delete(
-            speakerDialogState.sourceSpeakerKey,
-            {
-              strategy: 'merge',
-              targetSpeakerId: replacementSpeaker.id,
+          let moved = 0;
+          await settleSpeakerWrite({
+            write: async () => {
+              moved = await LinguisticService.speakers.delete(dialog.sourceSpeakerKey, {
+                strategy: 'merge',
+                targetSpeakerId: replacementSpeaker.id,
+              });
+              setSpeakers((prev) =>
+                sortSpeakersByName(
+                  prev.filter((speaker) => speaker.id !== dialog.sourceSpeakerKey),
+                ),
+              );
+              setUnits((prev) =>
+                prev.map((unit) =>
+                  unit.speakerId === dialog.sourceSpeakerKey
+                    ? {
+                        ...unit,
+                        speakerId: replacementSpeaker.id,
+                        speaker: replacementSpeaker.name,
+                      }
+                    : unit,
+                ),
+              );
+              setActiveSpeakerFilterKey(replacementSpeaker.id);
             },
-          );
-          setSpeakers((prev) =>
-            sortSpeakersByName(
-              prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey),
-            ),
-          );
-          setUnits((prev) =>
-            prev.map((unit) =>
-              unit.speakerId === speakerDialogState.sourceSpeakerKey
-                ? { ...unit, speakerId: replacementSpeaker.id, speaker: replacementSpeaker.name }
-                : unit,
-            ),
-          );
-          await refreshSpeakerReferenceStats();
-          setActiveSpeakerFilterKey(replacementSpeaker.id);
-          setSaveState({
-            kind: 'done',
-            message: formatSpeakerDeleteAndMigrateResult(moved, replacementSpeaker.name, tf),
+            refresh: () => refreshSpeakerReferenceStats(),
+            reread,
+            setSaveState,
+            doneMessage: () =>
+              formatSpeakerDeleteAndMigrateResult(moved, replacementSpeaker.name, tf),
+            ...copy,
           });
         } else {
           data.pushUndo(getSpeakerUndoLabel('deleteEntity', t));
-          undoPushed = true;
-          const cleared = await LinguisticService.speakers.delete(
-            speakerDialogState.sourceSpeakerKey,
-            {
-              strategy: 'clear',
+          let cleared = 0;
+          await settleSpeakerWrite({
+            write: async () => {
+              cleared = await LinguisticService.speakers.delete(dialog.sourceSpeakerKey, {
+                strategy: 'clear',
+              });
+              setSpeakers((prev) =>
+                sortSpeakersByName(
+                  prev.filter((speaker) => speaker.id !== dialog.sourceSpeakerKey),
+                ),
+              );
+              setUnits((prev) =>
+                prev.map((unit) => {
+                  if (unit.speakerId !== dialog.sourceSpeakerKey) return unit;
+                  const { speaker: _speaker, speakerId: _speakerId, ...rest } = unit;
+                  return rest;
+                }),
+              );
+              if (activeSpeakerFilterKey === dialog.sourceSpeakerKey) {
+                setActiveSpeakerFilterKey('all');
+              }
             },
-          );
-          setSpeakers((prev) =>
-            sortSpeakersByName(
-              prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey),
-            ),
-          );
-          setUnits((prev) =>
-            prev.map((unit) => {
-              if (unit.speakerId !== speakerDialogState.sourceSpeakerKey) return unit;
-              const { speaker: _speaker, speakerId: _speakerId, ...rest } = unit;
-              return rest;
-            }),
-          );
-          await refreshSpeakerReferenceStats();
-          if (activeSpeakerFilterKey === speakerDialogState.sourceSpeakerKey) {
-            setActiveSpeakerFilterKey('all');
-          }
-          setSaveState({ kind: 'done', message: formatSpeakerDeleteAndClearResult(cleared, tf) });
+            refresh: () => refreshSpeakerReferenceStats(),
+            reread,
+            setSaveState,
+            doneMessage: () => formatSpeakerDeleteAndClearResult(cleared, tf),
+            ...copy,
+          });
         }
       }
 
       setSpeakerDialogState(null);
-    } catch (error) {
-      if (undoPushed) await data.undo();
-      reportActionError({
-        error,
-        ...buildSpeakerActionErrorOptions('dialogOperation', error, t, tf),
-        conflictI18nKey: 'transcription.error.conflict.speakerDialogOperation',
-        fallbackI18nKey: 'transcription.error.action.speakerDialogOperationFailed',
-        setErrorState: ({ message, meta }) =>
-          setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
     } finally {
       setSpeakerSaving(false);
     }
@@ -1010,7 +1042,9 @@ export function useSpeakerActions({
     applySpeakerLocally,
     data,
     getUnitIdsForSpeakerKey,
+    projectTextId,
     refreshSpeakerReferenceStats,
+    refreshSpeakers,
     setSaveState,
     setSpeakers,
     setUnits,

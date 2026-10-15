@@ -137,7 +137,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   13. 链接统一改指 `blob/main/`，之后删除 `docs/wayfinder-trial-map` 分支。
 - 2026-10-14 用户（路线图审查拷问，第二轮）：
   1. [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 改成「计划 + 逐批执行」；每批一 PR，基线降到 0（或只剩写明白名单的接口实现模块）时关闭。
-  2. [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 交付 ADR-0048 存储接口（事务、归属校验侧、IPC 粒度、异步约定；样例 `aiRuntimeV2TurnStore`）。ADR 确认前 #280 只迁不涉及事务的纯读模块。
+  2. [#274](https://github.com/Abe-Junwei/Jieyu/issues/274) 交付 ADR-0048 存储接口（事务、归属校验侧、IPC 粒度、异步约定；样例 `aiRuntimeV2TurnStore`）。ADR 确认前 #280 只迁不涉及事务的纯读模块。2026-10-15：接口与 Dexie 样例在 `src/db/storagePort.ts`，用户已确认 ADR；SQLite 实现仍是 #275。
   3. 公开示例改用木雅语料，取代撒都话；关闭 [#256](https://github.com/Abe-Junwei/Jieyu/issues/256)，新单 [#313](https://github.com/Abe-Junwei/Jieyu/issues/313)。
   4. 发音人知情同意已覆盖公开发布；元数据留「授权记录」字段由用户填写。
   5. 示例数据许可证 = CC BY 4.0。

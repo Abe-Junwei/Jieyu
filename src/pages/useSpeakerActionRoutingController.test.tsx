@@ -263,11 +263,11 @@ describe('useSpeakerActionRoutingController', () => {
 
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
     expect(assignSpeakerToUnits).not.toHaveBeenCalled();
-    expect(undo).toHaveBeenCalled();
+    expect(undo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '说话人指派失败：segment write failed',
+        message: '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
       }),
     );
 
@@ -305,12 +305,11 @@ describe('useSpeakerActionRoutingController', () => {
 
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
     expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-a');
-    expect(undo).toHaveBeenCalled();
+    expect(undo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '说话人指派失败：segment write failed',
-        errorMeta: expect.objectContaining({ category: 'action', action: '说话人指派' }),
+        message: '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
       }),
     );
 
@@ -342,7 +341,7 @@ describe('useSpeakerActionRoutingController', () => {
     });
 
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], undefined);
-    expect(undo).toHaveBeenCalled();
+    expect(undo).not.toHaveBeenCalled();
     expect(result.current.speakerDialogStateRouted).toEqual({
       mode: 'clear',
       speakerKey: 'spk-a',
@@ -352,8 +351,7 @@ describe('useSpeakerActionRoutingController', () => {
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '说话人操作失败：clear failed',
-        errorMeta: expect.objectContaining({ category: 'action', action: '说话人操作' }),
+        message: '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
       }),
     );
 
@@ -528,15 +526,14 @@ describe('useSpeakerActionRoutingController', () => {
     expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob', textId: 'text-1' });
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-new');
     expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-new');
-    expect(undo).toHaveBeenCalled();
+    expect(undo).not.toHaveBeenCalled();
     expect(setBatchSpeakerId).not.toHaveBeenCalledWith('spk-new');
     expect(setSpeakerDraftName).not.toHaveBeenCalledWith('');
     expect(setSpeakers).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '创建说话人失败：segment create-assign failed',
-        errorMeta: expect.objectContaining({ category: 'action', action: '创建说话人' }),
+        message: '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
       }),
     );
 
@@ -602,11 +599,11 @@ describe('useSpeakerActionRoutingController', () => {
 
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
     expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-a');
-    expect(undo).toHaveBeenCalled();
+    expect(undo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '说话人指派失败：unit write failed',
+        message: '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
       }),
     );
 
@@ -642,15 +639,11 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleAssignSpeakerToSelectedRouted();
     });
 
-    expect(undo).toHaveBeenCalled();
+    expect(undo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '说话人指派失败：No updatable units found for speaker assignment',
-        errorMeta: expect.objectContaining({
-          detail: 'No updatable units found for speaker assignment',
-          i18nKey: 'transcription.error.action.assignSpeakerFailed',
-        }),
+        message: '这次说话人修改可能只完成了一部分，已重新读取。请核对后再继续。',
       }),
     );
 

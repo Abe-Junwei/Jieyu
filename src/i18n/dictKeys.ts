@@ -2304,6 +2304,7 @@ export const DICT_KEYS = [
   'transcription.importExport.overwriteSnapshotFailed',
   'transcription.importExport.exportFailed',
   'transcription.error.action.assignSpeakerFailed',
+  'transcription.error.action.speakerWriteUnconfirmed',
   'transcription.error.action.createSpeakerFailed',
   'transcription.error.action.mergeSelectionFailed',
   'transcription.error.action.offsetBatchFailed',

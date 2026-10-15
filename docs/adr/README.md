@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0056**。**0048** 留给存储接口（GitHub #274），文件尚未写。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0056**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -62,6 +62,7 @@ source_of_truth: decision-index
 - [0045-lift-copy-id-hash-freeze.md](./0045-lift-copy-id-hash-freeze.md)
 - [0046-desktop-sqlite-project-folder.md](./0046-desktop-sqlite-project-folder.md)
 - [0047-desktop-build-strips-collab-keys-telemetry.md](./0047-desktop-build-strips-collab-keys-telemetry.md)
+- [0048-storage-port.md](./0048-storage-port.md)
 - [0049-decisions-not-current-state-inventories.md](./0049-decisions-not-current-state-inventories.md)
 - [0050-timeline-dispatcher-routes-only.md](./0050-timeline-dispatcher-routes-only.md)
 - [0051-every-doc-type-has-an-end.md](./0051-every-doc-type-has-an-end.md)

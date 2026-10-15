@@ -28,14 +28,29 @@ export function isMultiDocumentProject(textId: string): boolean {
   return multiDocumentProjects.get(textId.trim()) === true;
 }
 
-/** 重新数一次文稿并更新缓存；返回是否有多份 | Recount documents, update the cache, return whether several */
+/** 用一次已提交写入的已知结果更新缓存 | Cache the known result of a committed write */
+export function rememberMultiDocumentGate(textId: string, several: boolean): void {
+  const owner = textId.trim();
+  if (owner.length === 0) return;
+  multiDocumentProjects.set(owner, several);
+}
+
+/**
+ * 重新数一次文稿并更新缓存。数失败时先关掉上传（当成有多份），下次成功的重数再打开。
+ * Recount. If the recount fails, block upload until a later recount succeeds.
+ */
 export async function refreshMultiDocumentGate(textId: string): Promise<boolean> {
   const owner = textId.trim();
   if (owner.length === 0) return false;
-  const db = await getDb();
-  const several = (await db.dexie.annotation_documents.where('textId').equals(owner).count()) > 1;
-  multiDocumentProjects.set(owner, several);
-  return several;
+  try {
+    const db = await getDb();
+    const several = (await db.dexie.annotation_documents.where('textId').equals(owner).count()) > 1;
+    rememberMultiDocumentGate(owner, several);
+    return several;
+  } catch {
+    rememberMultiDocumentGate(owner, true);
+    return true;
+  }
 }
 
 /** 有多份文稿就抛错（上传类操作前调用）| Throw when several documents (before uploads) */

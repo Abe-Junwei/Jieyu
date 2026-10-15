@@ -1,4 +1,4 @@
-import { getDb, withTransaction } from '../db';
+import { getDb, withTransaction, type JieyuDatabase } from '../db';
 import { projectTextMetadataKey } from '../types/projectTextMetadata';
 import { patchProjectMetadata } from './projectMetadataPatch';
 
@@ -28,17 +28,22 @@ export function readProjectSpeakerIds(metadata: unknown): string[] | null {
 async function editProjectSpeakerIds(
   textId: string,
   edit: (stored: string[] | null) => string[],
+  database?: JieyuDatabase,
 ): Promise<string[] | null> {
   let roster: string[] = [];
-  const result = await patchProjectMetadata(textId, (metadata) => {
-    const stored = readProjectSpeakerIds(metadata);
-    roster = edit(stored);
-    const unchanged =
-      stored !== null &&
-      stored.length === roster.length &&
-      stored.every((speakerId, index) => roster[index] === speakerId);
-    return unchanged ? null : { ...metadata, [SPEAKER_IDS_KEY]: [...roster] };
-  });
+  const result = await patchProjectMetadata(
+    textId,
+    (metadata) => {
+      const stored = readProjectSpeakerIds(metadata);
+      roster = edit(stored);
+      const unchanged =
+        stored !== null &&
+        stored.length === roster.length &&
+        stored.every((speakerId, index) => roster[index] === speakerId);
+      return unchanged ? null : { ...metadata, [SPEAKER_IDS_KEY]: [...roster] };
+    },
+    database,
+  );
   return result.status === 'not-found' ? null : roster;
 }
 
@@ -48,8 +53,8 @@ function mergeIds(base: readonly string[], extra: readonly string[]): string[] {
   return next;
 }
 
-async function speakerIdsOnUnits(textId: string): Promise<string[]> {
-  const database = await getDb();
+async function speakerIdsOnUnits(textId: string, given?: JieyuDatabase): Promise<string[]> {
+  const database = given ?? (await getDb());
   const units = await withTransaction(
     database,
     'r',
@@ -74,24 +79,38 @@ export async function ensureProjectSpeakerIds(textId: string): Promise<string[]>
   return roster ?? fromUnits;
 }
 
-export async function attachSpeakerToProject(speakerId: string, textId: string): Promise<void> {
+/** 在外层 Dexie 事务里调用时传入 `database`，不再 await `getDb()`。 */
+export async function attachSpeakerToProject(
+  speakerId: string,
+  textId: string,
+  database?: JieyuDatabase,
+): Promise<void> {
   const id = speakerId.trim();
   const projectId = textId.trim();
   if (!id || !projectId) return;
-  const fromUnits = await speakerIdsOnUnits(projectId);
-  await editProjectSpeakerIds(projectId, (stored) => mergeIds(stored ?? [], [...fromUnits, id]));
+  const fromUnits = await speakerIdsOnUnits(projectId, database);
+  await editProjectSpeakerIds(
+    projectId,
+    (stored) => mergeIds(stored ?? [], [...fromUnits, id]),
+    database,
+  );
 }
 
-export async function detachSpeakerFromProjects(speakerId: string): Promise<void> {
+export async function detachSpeakerFromProjects(
+  speakerId: string,
+  given?: JieyuDatabase,
+): Promise<void> {
   const id = speakerId.trim();
   if (!id) return;
-  const database = await getDb();
+  const database = given ?? (await getDb());
   const texts = await database.dexie.texts.toArray();
   for (const text of texts) {
     const ids = readProjectSpeakerIds(text.metadata);
     if (ids === null || !ids.includes(id)) continue;
-    await editProjectSpeakerIds(text.id, (stored) =>
-      (stored ?? []).filter((speaker) => speaker !== id),
+    await editProjectSpeakerIds(
+      text.id,
+      (stored) => (stored ?? []).filter((speaker) => speaker !== id),
+      database,
     );
   }
 }

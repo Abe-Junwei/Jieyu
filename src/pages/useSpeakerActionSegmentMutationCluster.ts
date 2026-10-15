@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { LayerUnitDocType, SpeakerDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import {
-  buildSpeakerActionErrorOptions,
   formatSpeakerAssignmentResult,
   formatSpeakerCreateAndAssignResult,
   getSpeakerUndoLabel,
@@ -11,7 +10,10 @@ import {
   type SpeakerTranslate,
 } from '../hooks/speakerManagement/speakerI18n';
 import { LinguisticService } from '../app/languageAssetPageAccess';
-import { reportActionError } from '../utils/actionErrorReporter';
+import {
+  settleSpeakerWrite,
+  speakerWriteCopy,
+} from '../hooks/speakerManagement/speakerWriteOutcome';
 import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 import {
   assertSpeakerAssignmentUpdatedCounts,
@@ -42,7 +44,6 @@ export function useSpeakerActionSegmentMutationCluster({
   speakerSavingRouted,
   speakerOptions,
   pushUndo,
-  undo,
   reloadSegments,
   refreshSegmentUndoSnapshot,
   refreshSpeakerReferenceStats,
@@ -65,61 +66,54 @@ export function useSpeakerActionSegmentMutationCluster({
       );
       if (targetIds.length === 0 || speakerSavingRouted) return;
 
-      let undoPushed = false;
-      try {
-        await pushSpeakerUndoWithFreshSegmentSnapshot({
-          label: getSpeakerUndoLabel('assign', t),
-          pushUndo,
-          refreshSegmentUndoSnapshot,
-        });
-        undoPushed = true;
-        const updated = await LinguisticService.speakers.assignToSegments(targetIds, speakerId);
-        assertSpeakerAssignmentUpdatedCounts({
-          targetSegmentCount: targetIds.length,
-          targetUnitCount: 0,
-          updatedSegments: updated,
-          updatedUnits: 0,
-        });
-        const now = new Date().toISOString();
-        updateSegmentsLocally(targetIds, (segment) => {
-          if (speakerId) {
-            return { ...segment, speakerId, updatedAt: now };
-          }
-          const cleared = { ...segment, updatedAt: now };
-          delete cleared.speakerId;
-          return cleared;
-        });
-        setBatchSpeakerId(speakerId ?? '');
-        await reloadSegments();
-        await refreshSegmentUndoSnapshot();
-        await refreshSpeakerReferenceStats();
-        setSaveState({
-          kind: 'done',
-          message: formatSpeakerAssignmentResult('segments', updated, t, tf),
-        });
-      } catch (error) {
-        if (undoPushed) await undo();
-        reportActionError({
-          error,
-          ...buildSpeakerActionErrorOptions('assign', error, t, tf),
-          conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
-          fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
-          setErrorState: ({ message, meta }) =>
-            setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
-        });
-      }
+      await pushSpeakerUndoWithFreshSegmentSnapshot({
+        label: getSpeakerUndoLabel('assign', t),
+        pushUndo,
+        refreshSegmentUndoSnapshot,
+      });
+      let updated = 0;
+      await settleSpeakerWrite({
+        write: async () => {
+          updated = await LinguisticService.speakers.assignToSegments(targetIds, speakerId);
+          assertSpeakerAssignmentUpdatedCounts({
+            targetSegmentCount: targetIds.length,
+            targetUnitCount: 0,
+            updatedSegments: updated,
+            updatedUnits: 0,
+          });
+          const now = new Date().toISOString();
+          updateSegmentsLocally(targetIds, (segment) => {
+            if (speakerId) return { ...segment, speakerId, updatedAt: now };
+            const cleared = { ...segment, updatedAt: now };
+            delete cleared.speakerId;
+            return cleared;
+          });
+          setBatchSpeakerId(speakerId ?? '');
+        },
+        refresh: async () => {
+          await reloadSegments();
+          await refreshSegmentUndoSnapshot();
+          await refreshSpeakerReferenceStats();
+        },
+        reread: async () => {
+          await Promise.all([reloadSegments(), refreshSpeakers(), refreshSpeakerReferenceStats()]);
+        },
+        setSaveState,
+        doneMessage: () => formatSpeakerAssignmentResult('segments', updated, t, tf),
+        ...speakerWriteCopy(t),
+      });
     },
     [
       pushUndo,
       refreshSegmentUndoSnapshot,
       refreshSpeakerReferenceStats,
+      refreshSpeakers,
       reloadSegments,
       setBatchSpeakerId,
       setSaveState,
       speakerSavingRouted,
       t,
       tf,
-      undo,
       updateSegmentsLocally,
     ],
   );
@@ -136,63 +130,58 @@ export function useSpeakerActionSegmentMutationCluster({
       );
       if (!trimmedName || targetIds.length === 0 || speakerSavingRouted) return;
 
-      let undoPushed = false;
-      try {
-        const existing = findSpeakerOptionByNormalizedName(speakerOptions, trimmedName);
-        await pushSpeakerUndoWithFreshSegmentSnapshot({
-          label: getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t),
-          pushUndo,
-          refreshSegmentUndoSnapshot,
-        });
-        undoPushed = true;
-        const targetSpeaker =
-          existing ??
-          (await LinguisticService.speakers.create({
-            name: trimmedName,
-            textId: getActiveProjectTextId(),
+      const existing = findSpeakerOptionByNormalizedName(speakerOptions, trimmedName);
+      await pushSpeakerUndoWithFreshSegmentSnapshot({
+        label: getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t),
+        pushUndo,
+        refreshSegmentUndoSnapshot,
+      });
+      let updated = 0;
+      let speakerName = trimmedName;
+      await settleSpeakerWrite({
+        write: async () => {
+          const targetSpeaker =
+            existing ??
+            (await LinguisticService.speakers.create({
+              name: trimmedName,
+              textId: getActiveProjectTextId(),
+            }));
+          updated = await LinguisticService.speakers.assignToSegments(targetIds, targetSpeaker.id);
+          assertSpeakerAssignmentUpdatedCounts({
+            targetSegmentCount: targetIds.length,
+            targetUnitCount: 0,
+            updatedSegments: updated,
+            updatedUnits: 0,
+          });
+          speakerName = targetSpeaker.name;
+          const now = new Date().toISOString();
+          updateSegmentsLocally(targetIds, (segment) => ({
+            ...segment,
+            speakerId: targetSpeaker.id,
+            updatedAt: now,
           }));
-        const updated = await LinguisticService.speakers.assignToSegments(
-          targetIds,
-          targetSpeaker.id,
-        );
-        assertSpeakerAssignmentUpdatedCounts({
-          targetSegmentCount: targetIds.length,
-          targetUnitCount: 0,
-          updatedSegments: updated,
-          updatedUnits: 0,
-        });
-        const now = new Date().toISOString();
-        updateSegmentsLocally(targetIds, (segment) => ({
-          ...segment,
-          speakerId: targetSpeaker.id,
-          updatedAt: now,
-        }));
-        setSpeakerDraftName('');
-        setBatchSpeakerId(targetSpeaker.id);
-        await Promise.all([refreshSpeakers(), refreshSpeakerReferenceStats(), reloadSegments()]);
-        await refreshSegmentUndoSnapshot();
-        setSaveState({
-          kind: 'done',
-          message: formatSpeakerCreateAndAssignResult(
+          setSpeakerDraftName('');
+          setBatchSpeakerId(targetSpeaker.id);
+        },
+        refresh: async () => {
+          await Promise.all([refreshSpeakers(), refreshSpeakerReferenceStats(), reloadSegments()]);
+          await refreshSegmentUndoSnapshot();
+        },
+        reread: async () => {
+          await Promise.all([reloadSegments(), refreshSpeakers(), refreshSpeakerReferenceStats()]);
+        },
+        setSaveState,
+        doneMessage: () =>
+          formatSpeakerCreateAndAssignResult(
             'segments',
-            targetSpeaker.name,
+            speakerName,
             updated,
             Boolean(existing),
             t,
             tf,
           ),
-        });
-      } catch (error) {
-        if (undoPushed) await undo();
-        reportActionError({
-          error,
-          ...buildSpeakerActionErrorOptions('create', error, t, tf),
-          conflictI18nKey: 'transcription.error.conflict.createSpeaker',
-          fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
-          setErrorState: ({ message, meta }) =>
-            setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
-        });
-      }
+        ...speakerWriteCopy(t),
+      });
     },
     [
       pushUndo,
@@ -207,7 +196,6 @@ export function useSpeakerActionSegmentMutationCluster({
       speakerSavingRouted,
       t,
       tf,
-      undo,
       updateSegmentsLocally,
     ],
   );

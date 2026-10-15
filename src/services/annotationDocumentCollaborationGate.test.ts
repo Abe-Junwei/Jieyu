@@ -4,7 +4,7 @@
  * Batch 5 reverse gate: the cache follows document create / delete.
  */
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
 import {
   AnnotationDocumentCollaborationBlockedError,
@@ -42,5 +42,29 @@ describe('Batch 5: reverse collaboration gate', () => {
     await deleteAnnotationDocument(A, second);
     expect(isMultiDocumentProject(A)).toBe(false);
     expect(await db.annotation_documents.get(first)).toBeDefined();
+  });
+
+  it('stays closed after deleting one document when others remain', async () => {
+    await ensureDefaultAnnotationDocument(A);
+    const second = await createAnnotationDocument(A, 'two');
+    await createAnnotationDocument(A, 'three');
+    await deleteAnnotationDocument(A, second);
+    expect(isMultiDocumentProject(A)).toBe(true);
+    expect(() => assertCollaborationAllowed(A)).toThrow(
+      AnnotationDocumentCollaborationBlockedError,
+    );
+  });
+
+  it('blocks upload when a recount fails', async () => {
+    await ensureDefaultAnnotationDocument(A);
+    expect(await refreshMultiDocumentGate(A)).toBe(false);
+    vi.spyOn(db.annotation_documents, 'where').mockImplementation(() => {
+      throw new Error('recount');
+    });
+    expect(await refreshMultiDocumentGate(A)).toBe(true);
+    expect(() => assertCollaborationAllowed(A)).toThrow(
+      AnnotationDocumentCollaborationBlockedError,
+    );
+    vi.restoreAllMocks();
   });
 });
