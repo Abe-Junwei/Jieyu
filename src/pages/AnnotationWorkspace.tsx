@@ -18,8 +18,6 @@ import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceContro
 import { useAnnotationSentenceAcoustic } from './useAnnotationSentenceAcoustic';
 import { buildAnnotationGlossSuggestions } from './annotation/annotationGlossSuggestion';
 import { collectAnnotationGlossByFormWrites } from './annotation/annotationGlossByFormWrites';
-import { saveAnnotationGlossByForm } from './annotation/saveAnnotationGlossByForm';
-import { deleteAnnotationToken } from './annotation/deleteAnnotationToken';
 import { exportFocusedAnnotationSentence } from './annotation/annotationSentenceExport';
 import { downloadTextFile } from '../annotation/analysisGraphExport';
 import { searchVisibleAnnotationRows } from './annotation/annotationRowSearch';
@@ -324,7 +322,7 @@ export function AnnotationWorkspace() {
                     tokenId,
                     gloss,
                   );
-                  void saveAnnotationGlossByForm(writes).then(() => controller.reload());
+                  void controller.onApplyGlossByForm(writes);
                 }}
                 onCiteOccurrence={controller.onCiteOccurrence}
                 onSaveTokenLanguage={controller.onSaveTokenLanguage}
@@ -417,9 +415,7 @@ export function AnnotationWorkspace() {
                 }}
                 onToggleMweToken={mwe.toggle}
                 onDeleteToken={(unitId, tokenId, confirmLoss) => {
-                  void deleteAnnotationToken({ unitId, tokenId, confirmLoss }).then(() =>
-                    controller.reload(),
-                  );
+                  void controller.onDeleteToken(unitId, tokenId, confirmLoss);
                 }}
                 onApplyPosByForm={(unitId, tokenId, pos) => {
                   const target = controller.rows.find((item) => item.id === unitId);

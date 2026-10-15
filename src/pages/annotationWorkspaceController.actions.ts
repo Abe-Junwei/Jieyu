@@ -7,6 +7,8 @@ import {
 import { acceptAnnotationGlossSuggestion } from './annotation/acceptAnnotationGlossSuggestion';
 import { saveAnnotationTokenLanguage } from './annotation/saveAnnotationTokenLanguage';
 import { saveAnnotationOccurrenceCitation } from './annotation/saveAnnotationOccurrenceCitation';
+import { saveAnnotationGlossByForm } from './annotation/saveAnnotationGlossByForm';
+import { deleteAnnotationToken } from './annotation/deleteAnnotationToken';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 
@@ -136,7 +138,29 @@ export function annotationWorkspaceWriteActions(input: {
     onCommitTokenForm: (_unitId: string, tokenId: string, form: string) => {
       void run(() => LinguisticService.units.updateTokenForm(tokenId, form, input.languageId));
     },
+    onApplyGlossByForm: (writes: Parameters<typeof saveAnnotationGlossByForm>[0]) =>
+      run(() => saveAnnotationGlossByForm(writes)),
+    onDeleteToken: (unitId: string, tokenId: string, confirmLoss: boolean) =>
+      deleteTokenWithoutNoticeOnConfirm(run, unitId, tokenId, confirmLoss),
   };
+}
+
+async function deleteTokenWithoutNoticeOnConfirm(
+  run: (action: () => Promise<unknown>) => Promise<void>,
+  unitId: string,
+  tokenId: string,
+  confirmLoss: boolean,
+): Promise<void> {
+  try {
+    const plan = await deleteAnnotationToken({ unitId, tokenId, confirmLoss });
+    if (plan.kind === 'confirm') return;
+  } catch (error) {
+    await run(async () => {
+      throw error;
+    });
+    return;
+  }
+  await run(async () => undefined);
 }
 
 async function commitAnnotationLayerText(
