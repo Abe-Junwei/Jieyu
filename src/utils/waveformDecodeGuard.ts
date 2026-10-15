@@ -1,4 +1,6 @@
-export const WAVEFORM_DECODE_MAX_BYTES = 100 * 1024 * 1024;
+// 100 MiB rejects an 11-minute 48 kHz stereo WAV (~121 MiB). This cap is file bytes.
+// 512 MiB covers about 45 minutes of 44.1 kHz stereo 16-bit. Duration cap stays 3 hours.
+export const WAVEFORM_DECODE_MAX_BYTES = 512 * 1024 * 1024;
 export const WAVEFORM_DECODE_MAX_DURATION_SEC = 3 * 60 * 60;
 
 const ATTEMPT_STORAGE_KEY = 'jieyu:waveform-decode-attempt';

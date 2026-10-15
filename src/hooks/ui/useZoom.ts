@@ -10,6 +10,7 @@ import {
   applyTimelineViewportWheelPan,
 } from '../../utils/applyTimelineViewportScroll';
 import { TIMELINE_CONTENT_FIT_MAX_SCROLL_PX } from '../../utils/timelineContentFitZoom';
+import { elementUsesTextFlowLayout } from '../../utils/timelineTextFlowLayout';
 import { clampTimelineZoomPercent } from '../../utils/timelineZoomPercent';
 import { useLatest } from './useLatest';
 
@@ -42,7 +43,7 @@ export function shouldBypassTimelineWheel(
   if (!(target instanceof Element)) return false;
   if (
     target.closest(
-      'textarea, input, select, [contenteditable="true"], [data-allow-native-scroll="true"]',
+      'textarea, input, select, [contenteditable="true"], [data-allow-native-scroll="true"], [data-text-flow="1"]',
     )
   ) {
     return true;
@@ -607,11 +608,12 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target, wheelRoot)) {
         return;
       }
+      const textFlowLanes = elementUsesTextFlowLayout(tierContainerRef.current);
       const ws = playerInstanceRef.current;
       const mediaDurPan = playerDuration || 0;
       if (ws && playerIsReady) {
         if (mediaDurPan > 0 && docSpanSec > mediaDurPan) {
-          const tier = tierContainerRef.current;
+          const tier = textFlowLanes ? null : tierContainerRef.current;
           if (tier) {
             if (e.ctrlKey || e.metaKey) {
               e.preventDefault();
@@ -642,9 +644,8 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
           zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
         } else {
           e.preventDefault();
-          const tier = tierContainerRef.current;
           const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
-            tier,
+            tier: textFlowLanes ? null : tierContainerRef.current,
             ws,
             documentSpanSec: docSpanSec,
             mediaDurSec: mediaDurPan,
@@ -791,6 +792,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
     if (!playerIsPlaying) return;
     const mediaDur = playerDuration || 0;
     const maybeFollow = () => {
+      if (elementUsesTextFlowLayout(tierContainerRef.current)) return;
       const t = getTranscriptionPlaybackClockSnapshot();
       if (mediaDur > 0 && docSpanSec > mediaDur) {
         const ws = playerInstanceRef.current;

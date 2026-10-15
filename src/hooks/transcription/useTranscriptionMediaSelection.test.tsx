@@ -125,7 +125,7 @@ describe('useTranscriptionMediaSelection', () => {
     });
 
     rerender({
-      mediaItems: [mediaA, mediaB],
+      mediaItems: [mediaA],
       selectedMediaId: 'media-2',
       selectedUnitMediaId: undefined,
       selectedUnitMedia: undefined,
@@ -245,6 +245,79 @@ describe('useTranscriptionMediaSelection', () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:media-1-url');
+  });
+
+  it('keeps the imported recording when the selected sentence points at a row with no audio', () => {
+    const setSelectedMediaId = vi.fn();
+    const imported = makeBlobMedia('media-new', 'speech.wav');
+    const empty = {
+      ...makeBlobMedia('media-old', 'old.wav'),
+      details: {},
+      byteLocation: 'none',
+      availability: 'missing',
+    } as MediaItemDocType;
+    renderHook(() =>
+      useTranscriptionMediaSelection({
+        mediaItems: [empty, imported],
+        selectedMediaId: 'media-new',
+        setSelectedMediaId,
+        selectedUnitMediaId: 'media-old',
+        selectedUnitMedia: imported,
+      }),
+    );
+    expect(setSelectedMediaId).not.toHaveBeenCalled();
+  });
+
+  it('stays on the open row when it has no audio, even if another row does', () => {
+    const setSelectedMediaId = vi.fn();
+    const imported = makeBlobMedia('media-new', 'speech.wav');
+    const empty = {
+      ...makeBlobMedia('media-old', 'old.wav'),
+      details: {},
+      byteLocation: 'none',
+      availability: 'missing',
+    } as MediaItemDocType;
+    renderHook(() =>
+      useTranscriptionMediaSelection({
+        mediaItems: [empty, imported],
+        selectedMediaId: 'media-old',
+        setSelectedMediaId,
+        selectedUnitMediaId: '__unknown_media__',
+        selectedUnitMedia: empty,
+      }),
+    );
+    expect(setSelectedMediaId).not.toHaveBeenCalled();
+  });
+
+  it('does not draw another recording when the open row has no bytes', async () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:imported');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const imported = makeBlobMedia('media-new', 'speech.wav');
+    const empty = {
+      ...makeBlobMedia('media-old', 'speech.wav'),
+      details: {},
+      byteLocation: 'none',
+      availability: 'missing',
+    } as MediaItemDocType;
+    const { result, rerender } = renderHook(
+      ({ selectedMediaId }: { selectedMediaId: string }) =>
+        useTranscriptionMediaSelection({
+          mediaItems: [empty, imported],
+          selectedMediaId,
+          setSelectedMediaId: vi.fn(),
+          selectedUnitMediaId: selectedMediaId,
+          selectedUnitMedia: selectedMediaId === 'media-new' ? imported : empty,
+        }),
+      { initialProps: { selectedMediaId: 'media-new' } },
+    );
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBe('blob:imported');
+    });
+    rerender({ selectedMediaId: 'media-old' });
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBeUndefined();
+    });
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
   });
 
   it('does not retarget the recording when the selected unit media id is not loaded', async () => {

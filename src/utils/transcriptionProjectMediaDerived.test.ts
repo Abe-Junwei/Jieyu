@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { MediaItemDocType } from '../types/jieyuDbDocTypes';
-import { computeAudioImportDisposition } from './transcriptionProjectMediaDerived';
+import {
+  computeAudioImportDisposition,
+  mergeReloadedMediaRows,
+} from './transcriptionProjectMediaDerived';
 
 const NOW = '2026-10-08T12:00:00.000Z';
 
@@ -54,6 +57,38 @@ describe('computeAudioImportDisposition (rev5 Batch 1 / N4)', () => {
         mediaItems: [placeholderA, missingAcoustic],
         selectedTimelineMedia: missingAcoustic,
       }),
-    ).toEqual({ kind: 'choose', replaceMediaId: 'missing', replaceLabel: 'missing.wav' });
+    ).toEqual({
+      kind: 'choose',
+      replaceMediaId: 'missing',
+      replaceLabel: 'missing.wav',
+      replaceHasBytes: false,
+    });
+  });
+});
+
+describe('mergeReloadedMediaRows', () => {
+  it('keeps the in-memory blob when a managed row reloads without one', () => {
+    const blob = new Blob(['wav'], { type: 'audio/wav' });
+    const previous = media('media-1', 'acoustic');
+    previous.byteLocation = 'managed';
+    previous.availability = 'available';
+    previous.details = { audioBlob: blob };
+    const reloaded = media('media-1', 'acoustic');
+    reloaded.byteLocation = 'managed';
+    reloaded.availability = 'available';
+    reloaded.details = {};
+
+    const [row] = mergeReloadedMediaRows([previous], [reloaded]);
+    expect((row?.details as { audioBlob?: Blob }).audioBlob).toBe(blob);
+  });
+
+  it('does not restore a blob onto a recording whose bytes were deleted', () => {
+    const blob = new Blob(['wav'], { type: 'audio/wav' });
+    const previous = media('media-1', 'acoustic');
+    previous.details = { audioBlob: blob };
+    const reloaded = media('media-1', 'acoustic');
+
+    const [row] = mergeReloadedMediaRows([previous], [reloaded]);
+    expect((row?.details as { audioBlob?: unknown }).audioBlob).toBeUndefined();
   });
 });

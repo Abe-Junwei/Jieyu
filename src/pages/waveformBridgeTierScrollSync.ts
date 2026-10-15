@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type RefObject } from 'react';
 import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
 import { useLatest } from '../hooks/ui/useLatest';
 import { applyTimelineViewportScroll } from '../utils/applyTimelineViewportScroll';
+import { elementUsesTextFlowLayout } from '../utils/timelineTextFlowLayout';
 import { isExtendedDocumentTimeline } from '../utils/waveformTierScrollSync';
 
 type PlayerSlice = Pick<ReturnType<typeof useWaveSurfer>, 'instanceRef' | 'isReady' | 'duration'>;
@@ -32,7 +33,7 @@ export function useWaveformBridgeTierScrollSync(input: {
 
   useLayoutEffect(() => {
     const tier = tierContainerRef.current;
-    if (!tier) return;
+    if (!tier || elementUsesTextFlowLayout(tier)) return;
     const ws = player.instanceRef.current;
     if (!ws) {
       onTierScrollLeftPx?.(tier.scrollLeft);

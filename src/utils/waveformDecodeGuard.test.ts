@@ -16,6 +16,13 @@ describe('waveformDecodeGuard', () => {
       true,
     );
     expect(isWaveformMediaTooLong({ byteSize: WAVEFORM_DECODE_MAX_BYTES + 1 })).toBe(true);
+    expect(isWaveformMediaTooLong({ byteSize: 254 * 1024 * 1024, durationSec: 25 * 60 })).toBe(
+      false,
+    );
+    const elevenMinStereo48k = 11 * 60 * 48_000 * 2 * 2;
+    expect(isWaveformMediaTooLong({ byteSize: elevenMinStereo48k, durationSec: 11 * 60 })).toBe(
+      false,
+    );
     expect(
       waveformDecodeBlockReason({
         mediaId: 'media-1',

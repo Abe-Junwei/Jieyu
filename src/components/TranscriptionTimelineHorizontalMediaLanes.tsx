@@ -546,9 +546,13 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
             defaultTranscriptionLayerId,
             layerLinks,
           );
-          const docs = sourceLayer
-            ? (visibleSegmentsBySourceLayer.get(sourceLayer.id) ?? [])
-            : laneUnits;
+          const storedSegments = sourceLayer ? (segmentsByLayer?.get(sourceLayer.id) ?? []) : [];
+          // Independent-boundary lanes render unit rows when no segment rows exist
+          // (EAF import without media). Layout must use those same rows.
+          const docs =
+            sourceLayer && storedSegments.length > 0
+              ? (visibleSegmentsBySourceLayer.get(sourceLayer.id) ?? storedSegments)
+              : laneUnits;
           lanes.push({
             layerId: layer.id,
             items: docs.map((doc) => ({

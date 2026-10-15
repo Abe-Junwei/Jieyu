@@ -82,9 +82,11 @@ export async function importTranscriptionProjectAudio(input: {
       ? { importMode: 'replace' as const, replaceMediaId: choose.replaceMediaId }
       : options?.mode === 'add' && choose
         ? { importMode: 'add' as const }
-        : selectedPlaceholderId
-          ? { importMode: 'replace' as const, replaceMediaId: selectedPlaceholderId }
-          : {}),
+        : choose && !choose.replaceHasBytes
+          ? { importMode: 'replace' as const, replaceMediaId: choose.replaceMediaId }
+          : selectedPlaceholderId
+            ? { importMode: 'replace' as const, replaceMediaId: selectedPlaceholderId }
+            : {}),
   };
   let mediaId: string;
   let contentSha256: string | undefined;

@@ -11,7 +11,13 @@ export type TranscriptionAudioImportOptions = {
 export type AudioImportDisposition =
   /** `placeholderMediaId`：用户在时间轴上选中的占位轴；导入音频只晋升这一条。 */
   | { kind: 'simple'; placeholderMediaId?: string }
-  | { kind: 'choose'; replaceMediaId: string; replaceLabel: string };
+  | {
+      kind: 'choose';
+      replaceMediaId: string;
+      replaceLabel: string;
+      /** 为 false 时直接导入写回这一行，不再另开一条没有语段的声学轨。 */
+      replaceHasBytes?: boolean;
+    };
 
 /** 导入前时长不匹配感知（不阻止导入）。 */
 export type AudioImportTimelineMismatchContext = {
