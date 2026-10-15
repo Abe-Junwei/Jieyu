@@ -1,5 +1,13 @@
 import type { LayerUnitDocType } from '../../db';
 import { getDb } from '../../db';
+import {
+  createdUnitId,
+  presentUnitCount,
+  splitBoundaryLanded,
+  unitIdsForText,
+  unitPresence,
+  unitTextId,
+} from './aiWriteReadback';
 import { getTranscriptionAppService } from '../../app/TranscriptionAppService';
 import { t, tf } from '../../i18n';
 import { getAiToolSegmentExecutionToolNames } from '../../ai/policy/aiToolPolicyMatrix';
@@ -51,6 +59,69 @@ function segmentNotWritten(locale: Parameters<typeof tf>[0], segmentId: string) 
 }
 
 type SegmentLayerSave = (segmentId: string, layerId: string, text: string) => Promise<unknown>;
+
+async function deleteUnitsObserved(
+  ctx: Pick<ExecutionContext, 'deleteSelectedUnits' | 'deleteUnit'>,
+  ids: readonly string[],
+  locale: Parameters<typeof tf>[0],
+  rollback: () => Promise<void>,
+  batch: boolean,
+) {
+  const doneMessage = batch
+    ? tf(locale, 'transcription.unitAction.done.deleteSelection', { count: ids.length })
+    : t(locale, 'transcription.aiTool.segment.deleteDone');
+  let thrown: unknown;
+  try {
+    if (ctx.deleteSelectedUnits) {
+      await ctx.deleteSelectedUnits(new Set(ids));
+    } else {
+      for (const id of ids) await ctx.deleteUnit(id);
+    }
+  } catch (error) {
+    thrown = error;
+  }
+  if (!thrown) {
+    return {
+      ok: true as const,
+      message: doneMessage,
+      rollback,
+    };
+  }
+  const presence = await unitPresence(ids);
+  if (presence === 'all-absent') {
+    return {
+      ok: true as const,
+      message: doneMessage,
+      rollback,
+    };
+  }
+  if (presence === 'all-present') {
+    return {
+      ok: false as const,
+      message: tf(locale, 'transcription.aiTool.segment.deleteNotWritten', {
+        segmentId: ids.join('、'),
+      }),
+    };
+  }
+  throw thrown;
+}
+
+async function createUnitObserved(
+  anchorUnitId: string,
+  create: () => Promise<unknown>,
+): Promise<string | null | undefined> {
+  const textId = await unitTextId(anchorUnitId);
+  const before = textId ? await unitIdsForText(textId) : undefined;
+  try {
+    const created = await create();
+    return typeof created === 'string' && created.trim().length > 0 ? created.trim() : '';
+  } catch (error) {
+    const landed = await createdUnitId(textId, before);
+    if (typeof landed === 'string') return landed;
+    if (landed === null) return null;
+    throw error;
+  }
+}
 
 /** 保存抛错后再读库：行已是目标文本则提交已落地，行仍是旧值则未写入，库读不了则把原错误抛回去。 */
 async function commitSegmentLayerText(
@@ -238,9 +309,12 @@ export const segmentAdapter: ToolObjectAdapter = {
             }),
           };
         }
-        const created = await ctx.createTranscriptionSegment(targetSegment.id);
-        const newId =
-          typeof created === 'string' && created.trim().length > 0 ? created.trim() : '';
+        const newId = await createUnitObserved(targetSegment.id, () =>
+          ctx.createTranscriptionSegment!(targetSegment.id),
+        );
+        if (newId === null) {
+          return { ok: false, message: t(locale, 'transcription.aiTool.segment.createNotWritten') };
+        }
         return {
           ok: true,
           message: t(locale, 'transcription.aiTool.segment.createDone'),
@@ -270,11 +344,12 @@ export const segmentAdapter: ToolObjectAdapter = {
       }
       const cap = mediaDurationSecForTimeBounds(ctx.selectedUnitMedia);
       const mediaDuration = cap === Number.POSITIVE_INFINITY ? baseUnit.endTime + 2 : cap;
-      const createdAdjacent = await ctx.createAdjacentUnit(baseUnit, mediaDuration);
-      const adjacentId =
-        typeof createdAdjacent === 'string' && createdAdjacent.trim().length > 0
-          ? createdAdjacent.trim()
-          : '';
+      const adjacentId = await createUnitObserved(baseUnit.id, () =>
+        ctx.createAdjacentUnit(baseUnit, mediaDuration),
+      );
+      if (adjacentId === null) {
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.createNotWritten') };
+      }
       return {
         ok: true,
         message: t(locale, 'transcription.aiTool.segment.createDone'),
@@ -323,7 +398,29 @@ export const segmentAdapter: ToolObjectAdapter = {
             }),
           };
         }
-        const splitHint = await ctx.splitTranscriptionSegment(targetSegment.id, splitTime);
+        let splitHint: unknown;
+        try {
+          splitHint = await ctx.splitTranscriptionSegment(targetSegment.id, splitTime);
+        } catch (error) {
+          const landed = await splitBoundaryLanded(targetSegment.id, splitTime, end);
+          if (landed === true) {
+            return {
+              ok: true,
+              message: tf(locale, 'transcription.aiTool.segment.splitDone', {
+                splitTime: splitTime.toFixed(2),
+              }),
+            };
+          }
+          if (landed === false) {
+            return {
+              ok: false,
+              message: tf(locale, 'transcription.aiTool.segment.splitNotWritten', {
+                segmentId: targetSegment.id,
+              }),
+            };
+          }
+          throw error;
+        }
         const token = isAiSegmentSplitRollbackToken(splitHint) ? splitHint : null;
         const mergeRollback = ctx.mergeAdjacentSegmentsForAiRollback;
         const rollback =
@@ -372,7 +469,28 @@ export const segmentAdapter: ToolObjectAdapter = {
           }),
         };
       }
-      await ctx.splitUnit(targetUnit.id, splitTime);
+      try {
+        await ctx.splitUnit(targetUnit.id, splitTime);
+      } catch (error) {
+        const landed = await splitBoundaryLanded(targetUnit.id, splitTime, end);
+        if (landed === true) {
+          return {
+            ok: true,
+            message: tf(locale, 'transcription.aiTool.segment.splitDone', {
+              splitTime: splitTime.toFixed(2),
+            }),
+          };
+        }
+        if (landed === false) {
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.segment.splitNotWritten', {
+              segmentId: targetUnit.id,
+            }),
+          };
+        }
+        throw error;
+      }
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.segment.splitDone', {
@@ -424,9 +542,24 @@ export const segmentAdapter: ToolObjectAdapter = {
           rollback: mergeRollback,
         };
       } catch (error) {
-        const message =
-          error instanceof Error && error.message.trim().length > 0 ? error.message : String(error);
-        return { ok: false, message };
+        const present = await presentUnitCount(requestedBatchIds);
+        if (present === 1) {
+          return {
+            ok: true,
+            message: tf(locale, 'transcription.aiTool.segment.mergeSelectionDone', {
+              count: requestedBatchIds.length,
+            }),
+            rollback: mergeRollback,
+          };
+        }
+        if (present === requestedBatchIds.length) {
+          const message =
+            error instanceof Error && error.message.trim().length > 0
+              ? error.message
+              : String(error);
+          return { ok: false, message };
+        }
+        throw error;
       }
     }
 
@@ -453,21 +586,7 @@ export const segmentAdapter: ToolObjectAdapter = {
             message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
           };
         }
-        const deleteBatch = ctx.deleteSelectedUnits;
-        if (deleteBatch) {
-          await deleteBatch(new Set(requestedBatchIds));
-        } else {
-          for (const targetId of requestedBatchIds) {
-            await ctx.deleteUnit(targetId);
-          }
-        }
-        return {
-          ok: true,
-          message: tf(locale, 'transcription.unitAction.done.deleteSelection', {
-            count: requestedBatchIds.length,
-          }),
-          rollback: deleteRollback,
-        };
+        return deleteUnitsObserved(ctx, requestedBatchIds, locale, deleteRollback, true);
       }
 
       if (call.arguments.allSegments === true) {
@@ -492,21 +611,7 @@ export const segmentAdapter: ToolObjectAdapter = {
             message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
           };
         }
-        const deleteBatchAll = ctx.deleteSelectedUnits;
-        if (deleteBatchAll) {
-          await deleteBatchAll(new Set(allIds));
-        } else {
-          for (const targetId of allIds) {
-            await ctx.deleteUnit(targetId);
-          }
-        }
-        return {
-          ok: true,
-          message: tf(locale, 'transcription.unitAction.done.deleteSelection', {
-            count: allIds.length,
-          }),
-          rollback: deleteRollbackAll,
-        };
+        return deleteUnitsObserved(ctx, allIds, locale, deleteRollbackAll, true);
       }
 
       const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
@@ -520,12 +625,7 @@ export const segmentAdapter: ToolObjectAdapter = {
             message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
           };
         }
-        await ctx.deleteUnit(requestedSegmentId);
-        return {
-          ok: true,
-          message: t(locale, 'transcription.aiTool.segment.deleteDone'),
-          rollback: singleRollback,
-        };
+        return deleteUnitsObserved(ctx, [requestedSegmentId], locale, singleRollback, false);
       }
 
       if (!ctx.hasRequestedUnitTarget()) {
@@ -553,12 +653,7 @@ export const segmentAdapter: ToolObjectAdapter = {
           message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
         };
       }
-      await ctx.deleteUnit(targetUnit.id);
-      return {
-        ok: true,
-        message: t(locale, 'transcription.aiTool.segment.deleteDone'),
-        rollback: unitDeleteRollback,
-      };
+      return deleteUnitsObserved(ctx, [targetUnit.id], locale, unitDeleteRollback, false);
     }
 
     if (call.name === 'set_transcription_text') {

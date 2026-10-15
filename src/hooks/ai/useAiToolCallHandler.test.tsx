@@ -696,6 +696,23 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
     const mergeSelectedSegments = vi
       .fn<(ids: Set<string>) => Promise<void>>()
       .mockRejectedValue(new Error('请先选择相邻句段再执行合并。'));
+    const dbi = await getDb();
+    await dbi.dexie.layer_units.bulkPut(
+      ['seg-a', 'seg-c'].map(
+        (id) =>
+          ({
+            id,
+            textId: 't_merge_reject',
+            mediaId: 'm_merge_reject',
+            layerId: 'l_merge_reject',
+            unitType: 'segment',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          }) as LayerUnitDocType,
+      ),
+    );
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
@@ -714,6 +731,7 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
     });
 
     expect(response).toEqual({ ok: false, message: '请先选择相邻句段再执行合并。' });
+    await dbi.dexie.layer_units.bulkDelete(['seg-a', 'seg-c']);
   });
 
   it('rejects batch merge when fewer than two targets are provided', async () => {

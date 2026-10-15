@@ -374,4 +374,58 @@ describe('segmentAdapter', () => {
     await result.rollback!();
     expect(saveUnitLayerText).toHaveBeenLastCalledWith('u-1', 'old layer text', 'tl-1');
   });
+
+  it('reports delete_transcription_segment as not written when the unit row remains', async () => {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    await db.dexie.layer_units.put({
+      id: 'seg-keep',
+      textId: 'text-1',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await segmentAdapter.execute({
+      call: { name: 'delete_transcription_segment', arguments: { segmentId: 'seg-keep' } },
+      locale: 'zh-CN',
+      units: [],
+      silentSegmentGraphSyncForAi: async () => {},
+      deleteUnit: async () => {
+        throw new Error('rolled back');
+      },
+    } as any);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('seg-keep');
+  });
+
+  it('treats delete_transcription_segment as done when the unit row is already gone', async () => {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    await db.dexie.layer_units.put({
+      id: 'seg-gone',
+      textId: 'text-1',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await segmentAdapter.execute({
+      call: { name: 'delete_transcription_segment', arguments: { segmentId: 'seg-gone' } },
+      locale: 'zh-CN',
+      units: [],
+      silentSegmentGraphSyncForAi: async () => {},
+      deleteUnit: async (id: string) => {
+        await db.dexie.layer_units.delete(id);
+        throw new Error('post-commit');
+      },
+    } as any);
+
+    expect(result.ok).toBe(true);
+  });
 });

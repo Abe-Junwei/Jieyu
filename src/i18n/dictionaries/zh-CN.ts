@@ -2488,12 +2488,14 @@ export const zhCNDictionary = {
     '已创建转写层（{languageId}{aliasSuffix}）。',
   'transcription.aiTool.layer.createTranscriptionFailed':
     '创建转写层失败，请检查语言或别名是否冲突。',
+  'transcription.aiTool.layer.createNotWritten': '没有建成层：库里没有对应的新层。',
   'transcription.aiTool.layer.createTranslationMissingLanguageId': '缺少语言标识，无法创建翻译层。',
   'transcription.aiTool.layer.createTranslationDone':
     '已创建翻译层（{languageId}{aliasSuffix}，{modality}）。',
   'transcription.aiTool.layer.createTranslationFailed':
     '创建翻译层失败，请检查语言或别名是否冲突。',
   'transcription.aiTool.layer.deleteDone': '已删除层：{layerId}',
+  'transcription.aiTool.layer.deleteNotWritten': '没有删除层 {layerId}：库里的层还在。',
   'transcription.aiTool.layer.targetNotFound': '未找到目标层：{layerId}',
   'transcription.aiTool.layer.noMatchByLanguage': '未找到匹配“{languageQuery}”的{layerType}。',
   'transcription.aiTool.layer.multipleMatchByLanguage':
@@ -2593,6 +2595,10 @@ export const zhCNDictionary = {
   'transcription.aiTool.voice.unknownTool': '未知语音工具：{toolName}',
   'transcription.aiTool.segment.segmentNotWritten':
     '没有写入：句段 {segmentId} 不在当前文稿的工作台里（可能属于另一份文稿）。',
+  'transcription.aiTool.segment.deleteNotWritten': '没有删除句段 {segmentId}：库里的句段还在。',
+  'transcription.aiTool.segment.createNotWritten': '没有新建句段：库里没有多出对应的句段。',
+  'transcription.aiTool.segment.splitNotWritten':
+    '没有切开句段 {segmentId}：切分时间附近没有新的句段边界。',
   'transcription.aiTool.segment.segmentNotFound': '未找到目标句段：{segmentId}',
   'transcription.aiTool.segment.translationLayerNotFound': '未找到目标翻译层：{layerId}',
   'transcription.aiTool.segment.createMissingUnitId':

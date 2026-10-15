@@ -2,6 +2,7 @@ import { resolveLanguageQuery } from '../../utils/langMapping';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import { createLogger } from '../../observability/logger';
 import { t, tf } from '../../i18n';
+import { persistedLayerIds, tierRowExists } from './aiWriteReadback';
 import { formatLayerTypeLabel } from './useAiToolCallHandler.helpers';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
 import {
@@ -11,6 +12,46 @@ import {
 } from '../../ai/policy/aiToolPolicyMatrix';
 
 const log = createLogger('useAiToolCallHandler');
+
+type CreateLayerOutcome = 'created' | 'rejected' | 'absent' | { landedId: string };
+
+/** 建层抛错后按 contentType + languageId 读新行。返回 false 仍是调用方拒绝，不读库。 */
+async function createLayerObserved(
+  create: () => Promise<boolean>,
+  contentType: 'transcription' | 'translation',
+  languageId: string,
+): Promise<CreateLayerOutcome> {
+  const before = await persistedLayerIds(contentType, languageId);
+  try {
+    const ok = await create();
+    return ok ? 'created' : 'rejected';
+  } catch (error) {
+    if (before === undefined) throw error;
+    const after = await persistedLayerIds(contentType, languageId);
+    if (after === undefined) throw error;
+    const known = new Set(before);
+    const created = after.filter((id) => !known.has(id));
+    if (created.length === 1) return { landedId: created[0]! };
+    if (created.length === 0) return 'absent';
+    throw error;
+  }
+}
+
+/** 删层抛错后读 tier 行：行已不在则删除已落地，行还在则未删除，读不了则把原错误抛回去。 */
+async function deleteLayerObserved(
+  deleteLayer: (layerId: string) => Promise<void>,
+  layerId: string,
+): Promise<'deleted' | 'still-there'> {
+  try {
+    await deleteLayer(layerId);
+    return 'deleted';
+  } catch (error) {
+    const exists = await tierRowExists(layerId);
+    if (exists === false) return 'deleted';
+    if (exists === true) return 'still-there';
+    throw error;
+  }
+}
 
 export const layerAdapter: ToolObjectAdapter = {
   handles: [
@@ -40,18 +81,30 @@ export const layerAdapter: ToolObjectAdapter = {
         };
       }
       const alias = String(call.arguments.alias ?? '').trim();
-      const ok = await ctx.createLayer('transcription', {
+      const outcome = await createLayerObserved(
+        () =>
+          ctx.createLayer('transcription', {
+            languageId,
+            ...(alias ? { alias } : {}),
+          }),
+        'transcription',
         languageId,
-        ...(alias ? { alias } : {}),
-      });
+      );
+      if (outcome === 'rejected') {
+        return {
+          ok: false,
+          message: t(locale, 'transcription.aiTool.layer.createTranscriptionFailed'),
+        };
+      }
+      if (outcome === 'absent') {
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.createNotWritten') };
+      }
       return {
-        ok,
-        message: ok
-          ? tf(locale, 'transcription.aiTool.layer.createTranscriptionDone', {
-              languageId,
-              aliasSuffix: alias ? ` / ${alias}` : '',
-            })
-          : t(locale, 'transcription.aiTool.layer.createTranscriptionFailed'),
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.layer.createTranscriptionDone', {
+          languageId,
+          aliasSuffix: alias ? ` / ${alias}` : '',
+        }),
       };
     }
 
@@ -79,33 +132,46 @@ export const layerAdapter: ToolObjectAdapter = {
       const modality: 'text' | 'audio' | 'mixed' =
         modalityRaw === 'audio' || modalityRaw === 'mixed' ? modalityRaw : 'text';
       const prevLayerIds = new Set(ctx.translationLayers.map((l) => l.id));
-      const ok = await ctx.createLayer(
+      const outcome = await createLayerObserved(
+        () =>
+          ctx.createLayer(
+            'translation',
+            {
+              languageId,
+              ...(alias ? { alias } : {}),
+            },
+            modality,
+          ),
         'translation',
-        {
-          languageId,
-          ...(alias ? { alias } : {}),
-        },
-        modality,
+        languageId,
       );
-      if (ok) {
-        const newLayer = ctx.translationLayersRef.current.find((l) => !prevLayerIds.has(l.id));
-        if (newLayer) {
-          ctx.compensationRef.current.set(call.requestId ?? 'default', {
-            layerId: newLayer.id,
-            layerType: 'translation',
-            createdAt: Date.now(),
-          });
-        }
+      if (outcome === 'rejected') {
+        return {
+          ok: false,
+          message: t(locale, 'transcription.aiTool.layer.createTranslationFailed'),
+        };
+      }
+      if (outcome === 'absent') {
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.createNotWritten') };
+      }
+      const landedId = typeof outcome === 'object' ? outcome.landedId : undefined;
+      const newLayer =
+        ctx.translationLayersRef.current.find((l) => !prevLayerIds.has(l.id)) ??
+        (landedId ? { id: landedId } : undefined);
+      if (newLayer) {
+        ctx.compensationRef.current.set(call.requestId ?? 'default', {
+          layerId: newLayer.id,
+          layerType: 'translation',
+          createdAt: Date.now(),
+        });
       }
       return {
-        ok,
-        message: ok
-          ? tf(locale, 'transcription.aiTool.layer.createTranslationDone', {
-              languageId,
-              aliasSuffix: alias ? ` / ${alias}` : '',
-              modality,
-            })
-          : t(locale, 'transcription.aiTool.layer.createTranslationFailed'),
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.layer.createTranslationDone', {
+          languageId,
+          aliasSuffix: alias ? ` / ${alias}` : '',
+          modality,
+        }),
       };
     }
 
@@ -116,7 +182,15 @@ export const layerAdapter: ToolObjectAdapter = {
           ctx.transcriptionLayers.some((layer) => layer.id === requestedLayerId) ||
           ctx.translationLayers.some((layer) => layer.id === requestedLayerId);
         if (exists) {
-          await ctx.deleteLayer(requestedLayerId);
+          const deleted = await deleteLayerObserved(ctx.deleteLayer, requestedLayerId);
+          if (deleted === 'still-there') {
+            return {
+              ok: false,
+              message: tf(locale, 'transcription.aiTool.layer.deleteNotWritten', {
+                layerId: requestedLayerId,
+              }),
+            };
+          }
           return {
             ok: true,
             message: tf(locale, 'transcription.aiTool.layer.deleteDone', {
@@ -157,7 +231,15 @@ export const layerAdapter: ToolObjectAdapter = {
         }
 
         const targetLayer = matched[0]!;
-        await ctx.deleteLayer(targetLayer.id);
+        const deleted = await deleteLayerObserved(ctx.deleteLayer, targetLayer.id);
+        if (deleted === 'still-there') {
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.layer.deleteNotWritten', {
+              layerId: targetLayer.id,
+            }),
+          };
+        }
         return {
           ok: true,
           message: tf(locale, 'transcription.aiTool.layer.deleteDone', { layerId: targetLayer.id }),
@@ -222,7 +304,15 @@ export const layerAdapter: ToolObjectAdapter = {
       }
 
       const targetLayer = matched[0]!;
-      await ctx.deleteLayer(targetLayer.id);
+      const deleted = await deleteLayerObserved(ctx.deleteLayer, targetLayer.id);
+      if (deleted === 'still-there') {
+        return {
+          ok: false,
+          message: tf(locale, 'transcription.aiTool.layer.deleteNotWritten', {
+            layerId: targetLayer.id,
+          }),
+        };
+      }
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.layer.deleteDone', { layerId: targetLayer.id }),

@@ -2692,6 +2692,8 @@ export const enUSDictionary = {
     'Created transcription layer ({languageId}{aliasSuffix}).',
   'transcription.aiTool.layer.createTranscriptionFailed':
     'Failed to create transcription layer. Check whether the language or alias conflicts.',
+  'transcription.aiTool.layer.createNotWritten':
+    'No layer was created: the database has no matching new layer.',
   'transcription.aiTool.layer.createTranslationMissingLanguageId':
     'Missing languageId. Cannot create a translation layer.',
   'transcription.aiTool.layer.createTranslationDone':
@@ -2699,6 +2701,8 @@ export const enUSDictionary = {
   'transcription.aiTool.layer.createTranslationFailed':
     'Failed to create translation layer. Check whether the language or alias conflicts.',
   'transcription.aiTool.layer.deleteDone': 'Deleted layer: {layerId}',
+  'transcription.aiTool.layer.deleteNotWritten':
+    'Layer {layerId} was not deleted: it is still in the database.',
   'transcription.aiTool.layer.targetNotFound': 'Target layer not found: {layerId}',
   'transcription.aiTool.layer.noMatchByLanguage': 'No {layerType} matches "{languageQuery}".',
   'transcription.aiTool.layer.multipleMatchByLanguage':
@@ -2809,6 +2813,12 @@ export const enUSDictionary = {
   'transcription.aiTool.voice.unknownTool': 'Unknown voice tool: {toolName}',
   'transcription.aiTool.segment.segmentNotWritten':
     "Nothing was written: segment {segmentId} is not in the current document's workspace (it may belong to another document).",
+  'transcription.aiTool.segment.deleteNotWritten':
+    'Segment {segmentId} was not deleted: it is still in the database.',
+  'transcription.aiTool.segment.createNotWritten':
+    'No segment was created: the database has no additional segment.',
+  'transcription.aiTool.segment.splitNotWritten':
+    'Segment {segmentId} was not split: no new boundary was stored near the split time.',
   'transcription.aiTool.segment.segmentNotFound': 'Target segment not found: {segmentId}',
   'transcription.aiTool.segment.translationLayerNotFound':
     'Target translation layer not found: {layerId}',
