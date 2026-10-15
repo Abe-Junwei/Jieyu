@@ -36,6 +36,12 @@ export interface EvidencePacketV0 {
   summary?: string;
   confidence?: number;
   reasonCode?: string;
+  /** B17: work title when the packet is a literature or web hit. */
+  title?: string;
+  /** B17: page or page range from the retrieved work. */
+  page?: string;
+  /** B17: URL of the retrieved page or work. */
+  url?: string;
   /** PR-P1: EvidencePacket ↔ SourceSet 绑定契约 */
   sourceSetId?: string;
   sourceSetSnapshot?: EvidencePacketSourceSetSnapshot;

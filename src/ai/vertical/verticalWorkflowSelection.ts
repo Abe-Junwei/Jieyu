@@ -1,3 +1,4 @@
+import { featureFlags } from '../config/featureFlags';
 import type { EvidencePacketV0 } from './evidencePacket';
 import { evaluateWorkflowCompletionChecklist } from './workflowCompletionChecklist';
 import type { VerticalWorkflowOutputEnvelopeV0 } from './verticalWorkflowOutputEnvelope.types';
@@ -56,13 +57,24 @@ const VERTICAL_WORKFLOW_KEYWORD_RULES: ReadonlyArray<VerticalWorkflowKeywordRule
       '往返',
     ],
   },
+  {
+    workflowId: 'corpus_analysis_report',
+    confidence: 0.8,
+    keywords: ['共现', '反例', '范式', 'concordance'],
+  },
 ];
 
-export function selectVerticalWorkflowV0(userText: string): VerticalWorkflowSelectionV0 | null {
+export function selectVerticalWorkflowV0(
+  userText: string,
+  options?: { corpusAnalysisReportEnabled?: boolean },
+): VerticalWorkflowSelectionV0 | null {
   const normalized = userText.trim().toLowerCase();
   if (normalized.length === 0) return null;
+  const reportEnabled =
+    options?.corpusAnalysisReportEnabled ?? featureFlags.corpusAnalysisReportEnabled;
 
   for (const rule of VERTICAL_WORKFLOW_KEYWORD_RULES) {
+    if (rule.workflowId === 'corpus_analysis_report' && !reportEnabled) continue;
     const matchedKeyword = rule.keywords.find((keyword) =>
       normalized.includes(keyword.toLowerCase()),
     );

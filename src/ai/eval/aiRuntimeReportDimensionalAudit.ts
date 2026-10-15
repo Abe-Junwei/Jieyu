@@ -30,6 +30,8 @@ function workflowIdFromReflectionField(field: string): string {
       return 'lexeme_candidates';
     case 'ai_elan_flex_compatibility_reflection':
       return 'elan_flex_compatibility';
+    case 'ai_corpus_analysis_report_reflection':
+      return 'corpus_analysis_report';
     default:
       return 'unknown';
   }
@@ -38,7 +40,8 @@ function workflowIdFromReflectionField(field: string): string {
 function normalizeToolDecision(value: unknown): 'denied' | 'confirm_required' | null {
   if (typeof value !== 'string') return null;
   if (value === 'denied' || value === 'blocked' || value === 'policy_blocked') return 'denied';
-  if (value === 'confirm_required' || value === 'pending' || value === 'policy_pending') return 'confirm_required';
+  if (value === 'confirm_required' || value === 'pending' || value === 'policy_pending')
+    return 'confirm_required';
   return null;
 }
 
@@ -54,6 +57,7 @@ export async function collectReflectionFailedChecks(): Promise<ReflectionFailedC
       'ai_annotation_qa_reflection',
       'ai_lexeme_candidates_reflection',
       'ai_elan_flex_compatibility_reflection',
+      'ai_corpus_analysis_report_reflection',
     ]);
     const result: ReflectionFailedCheckRecord[] = [];
     for (const row of rows) {
@@ -68,7 +72,8 @@ export async function collectReflectionFailedChecks(): Promise<ReflectionFailedC
       if (!parsed || typeof parsed !== 'object') continue;
       const p = parsed as Record<string, unknown>;
       if (p.reflectionFlagged !== true) continue;
-      const workflowId = typeof p.workflowId === 'string' ? p.workflowId : workflowIdFromReflectionField(row.field);
+      const workflowId =
+        typeof p.workflowId === 'string' ? p.workflowId : workflowIdFromReflectionField(row.field);
       const requestId = typeof row.requestId === 'string' ? row.requestId : 'unknown';
       const checks = p.checks;
       if (!Array.isArray(checks)) {
@@ -86,7 +91,12 @@ export async function collectReflectionFailedChecks(): Promise<ReflectionFailedC
         continue;
       }
       for (const check of checks) {
-        if (check && typeof check === 'object' && check.passed === false && typeof check.name === 'string') {
+        if (
+          check &&
+          typeof check === 'object' &&
+          check.passed === false &&
+          typeof check.name === 'string'
+        ) {
           result.push({
             workflowId,
             checkName: check.name,
@@ -123,17 +133,21 @@ export async function collectToolDecisionRecords(): Promise<ToolDecisionRecord[]
       const p = parsed as Record<string, unknown>;
       const decision = normalizeToolDecision(p.decision) ?? normalizeToolDecision(p.outcome);
       if (!decision) continue;
-      const toolCall = p.toolCall && typeof p.toolCall === 'object'
-        ? p.toolCall as Record<string, unknown>
-        : null;
+      const toolCall =
+        p.toolCall && typeof p.toolCall === 'object'
+          ? (p.toolCall as Record<string, unknown>)
+          : null;
       result.push({
         requestId: typeof row.requestId === 'string' ? row.requestId : 'unknown',
         decision,
         ...(typeof p.reasonCode === 'string' ? { reasonCode: p.reasonCode } : {}),
         ...(typeof p.reason === 'string' ? { reasonCode: p.reason } : {}),
-        toolName: typeof p.toolName === 'string'
-          ? p.toolName
-          : (typeof toolCall?.name === 'string' ? toolCall.name : 'unknown'),
+        toolName:
+          typeof p.toolName === 'string'
+            ? p.toolName
+            : typeof toolCall?.name === 'string'
+              ? toolCall.name
+              : 'unknown',
         timestamp: row.timestamp,
       });
     }

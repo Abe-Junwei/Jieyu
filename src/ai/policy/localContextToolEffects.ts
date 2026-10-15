@@ -30,6 +30,9 @@ export const LOCAL_CONTEXT_TOOL_POLICY: Record<LocalContextToolName, LocalContex
     search_units: { effect: 'read', scopeBinding: 'current_project' },
     get_unit_detail: { effect: 'read', scopeBinding: 'current_unit' },
     get_unit_linguistic_memory: { effect: 'read', scopeBinding: 'current_unit' },
+    concordance_kwic: { effect: 'read', scopeBinding: 'current_project' },
+    query_morpheme_paradigm: { effect: 'read', scopeBinding: 'current_project' },
+    find_counterexamples: { effect: 'read', scopeBinding: 'current_project' },
   };
 
 export const LOCAL_CONTEXT_TOOL_NAMES: ReadonlySet<LocalContextToolName> = new Set(

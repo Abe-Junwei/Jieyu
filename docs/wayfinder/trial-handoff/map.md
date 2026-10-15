@@ -19,7 +19,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）；第二程 #285（子单 #286–#302、#308–#311、#314））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）；第二程 #285（子单 #286–#302、#308–#311、#314–#317））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -112,7 +112,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   4. 词典用 FLEx 做 LIFT 往返验证：[#311](https://github.com/Abe-Junwei/Jieyu/issues/311)。
   5. 第二程按页面闭环排：先词典页闭环，再语料库页闭环；A 系列 AI 打磨（#286–#297）按需再做。缺口清单见盒子 `/workspace/jieyu-review/PAGE_LOOP_GAPS.md`。
   6. 训练集导出：知情同意只提示，不强制数据卡；沿用缺授权记录的说话人默认不导出、可覆盖并记日志（[#304](https://github.com/Abe-Junwei/Jieyu/issues/304)、[model-interface-plan](model-interface-plan.md)）。
-  7. 试用结束后的衔接与收费：以后再定。
+  7. 语言学者试用告一段落之后的衔接与收费：以后再定。
   8. 补 #278：rev5 方案 D14 处注明冻结对象 = 项目文件夹格式（SQLite + media/）。
 - 新单：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架范围、[#278](https://github.com/Abe-Junwei/Jieyu/issues/278) 同步主路线图 §1。
 - 2026-10-14 用户（#252/#284 调研拍板，报告见 [research/RESEARCH_252_284.md](research/RESEARCH_252_284.md)）：
@@ -147,10 +147,13 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   9. 插件与扩展不做：不做到扩展中心，也不开放第三方插件。《插件系统与扩展生态落地方案》就此停止。已在仓库里的扩展运行时不因此删除。
 - 2026-10-15 用户：AI 架构迁移拍进第二程 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。只做 ToolLoopAgent 有限试点，不批准全面迁移；R1 不达标再限时对照 OpenAI Agents SDK。不进第一程。`aiAgentRuntimeV2Enabled` 达标前不默认打开。门槛留在迁移评估，不另写切片。
 - 2026-10-15 用户：[#314](https://github.com/Abe-Junwei/Jieyu/issues/314) 的 R0/R1 提前，与第一程 #274、#304、#279 并行，独立分支，不挡试用关键路径。R2 进 main 须试点达标且用户确认，不进试用版默认路径。父单仍是 #285。全面迁移仍不批准。
+- 2026-10-15 用户：语言学只读分析是主路线图 **B16**、第二程 [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)。第一程（#250）做完再开工，flag 默认关。不并进 A15，不把本机 Ollama 或自训模型设为默认。对话仍用自填云端密钥。
+- 2026-10-15 用户：B16 的模型输出结构化主张，引用工具结果行 id，代码核对后渲染成可复制正文。发给云端模型的只有 gloss 标签、词类、次数和行 id，不含词形和转写；例句本机填回。文献摘录是 **B17**、[#316](https://github.com/Abe-Junwei/Jieyu/issues/316)，排在 B16 之后，只在桌面版，由主进程 stdio 拉起本机检索。引文关系不作为语法事实。不设写作工作区。
+- 2026-10-15 用户：词形和转写可以发给用户自选的云端模型，以便分析词形本身（取代上一条的「云端只见抽象标签」，外发仍过 A9）。B17 放宽为外部证据源：本机文献、网页检索、语料资源都接 MCP；网页检索走 MCP 搜索服务，不用模型供应商自带的联网搜索。
 
 ## Next leg
 
-第二程父单 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)，子单来自主路线图中试用阶段外的条目（盒子 `/workspace/jieyu-review/MASTER_ROADMAP_MERGE.md` 的 (d) 类），每张链回原切片。试用结束前不开工。
+第二程父单 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)，子单来自主路线图中试用阶段外的条目（盒子 `/workspace/jieyu-review/MASTER_ROADMAP_MERGE.md` 的 (d) 类），每张链回原切片。第一程（#250）做完再开工。
 
 - [#286](https://github.com/Abe-Junwei/Jieyu/issues/286) A1 ReadyWorkspace 类型合同（剩余域）
 - [#287](https://github.com/Abe-Junwei/Jieyu/issues/287) A2 声学 hover readout 信息层级打磨
@@ -175,12 +178,15 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#310](https://github.com/Abe-Junwei/Jieyu/issues/310) 存档包导出（媒体 + EAF + LIFT + 元数据 XML）
 - [#311](https://github.com/Abe-Junwei/Jieyu/issues/311) FLEx LIFT 往返验证
 - [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时有限试点（ToolLoopAgent；R0/R1 已提前到与第一程并行；R2 仍不进试用版默认路径；v2 不默认打开）
+- [#315](https://github.com/Abe-Junwei/Jieyu/issues/315) B16a 语言学只读查询工具（已落地，flag 默认关；不并进 A15）
+- [#317](https://github.com/Abe-Junwei/Jieyu/issues/317) B16b 分析正文（已落地，flag 默认关；结构化主张加核对；词形可发用户自选云端模型，见 ADR-0055）
+- [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) B17 外部证据源（已落地，flag 默认关；stdio 宿主桥，浏览器不 spawn；Electron 主进程 spawn 待桌面壳）
 
-排序（2026-10-13 21:23，2026-10-15 补 A15，同日把 R0/R1 提前）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），A 系列 #286–#297 按需。A15 的 R0/R1 与第一程并行，不插进试用关键路径；R2 仍在试用结束之后。
+排序（2026-10-13 21:23，2026-10-15 补 A15、B16、B17）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），B16 与 B7 同属这一段，B17 在 B16b 之后。A 系列 #286–#297 按需。A15 的 R0/R1 与第一程并行，不挡 [#250](https://github.com/Abe-Junwei/Jieyu/issues/250) 的交付；R2 不进试用版默认路径。B16a 与 B16b 已落地，flag 默认关。
 
 ## Not yet specified
 
-- 试用结束后的去向：数据保留、转正式版与收费（2026-10-13 用户：以后再定）。
+- 语言学者试用告一段落之后的去向：数据保留、转正式版与收费（2026-10-13 用户：以后再定）。
 
 （2026-10-14 移除已定项：换电脑靠导出 JYM、性能只记录不设门槛（21:18 第 7 条）；冻结后迁移验证（21:14 第 6 条、#281）；隐私承诺（A9 默认开、首次云端转写伦理对话框，20:16 第 1 条、21:18 第 6 条，中文隐私说明见 #307）。）
 

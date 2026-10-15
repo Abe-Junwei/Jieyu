@@ -9,6 +9,7 @@ const verticalWorkflowIdSchema = z.enum([
   'annotation_qa',
   'lexeme_candidates',
   'elan_flex_compatibility',
+  'corpus_analysis_report',
 ]);
 
 export const verticalWorkflowEnvelopeSchemaV0 = z.object({

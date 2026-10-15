@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0055**。**0048** 留给存储接口（GitHub #274），文件尚未写。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0056**。**0048** 留给存储接口（GitHub #274），文件尚未写。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -68,6 +68,7 @@ source_of_truth: decision-index
 - [0052-tool-outcome-steps-stay-separate.md](./0052-tool-outcome-steps-stay-separate.md)
 - [0053-approval-not-one-handle.md](./0053-approval-not-one-handle.md)
 - [0054-outbound-collab-later-web-leg.md](./0054-outbound-collab-later-web-leg.md)
+- [0055-corpus-analysis-cloud-forms.md](./0055-corpus-analysis-cloud-forms.md)
 
 ## 已关闭的另一套编号
 

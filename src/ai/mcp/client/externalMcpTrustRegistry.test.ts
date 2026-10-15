@@ -32,6 +32,8 @@ describe('externalMcpTrustRegistry', () => {
     );
     expect(normalizeExternalMcpOrigin('javascript:alert(1)')).toBeNull();
     expect(normalizeExternalMcpOrigin('https://user:pass@mcp.example.test')).toBeNull();
+    expect(normalizeExternalMcpOrigin('stdio://DeepVault')).toBe('stdio://deepvault');
+    expect(normalizeExternalMcpOrigin('stdio://bad id')).toBeNull();
   });
 
   it('does not expose tools for an unregistered origin', async () => {

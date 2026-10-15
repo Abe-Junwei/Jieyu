@@ -9,6 +9,11 @@ import type { DegradationScenario } from '../../ai/chat/degradationManualOverrid
 import type { ComposedReflectionRetryBlob } from '../../ai/vertical/composedWorkflowTemplates';
 import { runSendTurnStreamComposedWorkflowAfterVerticalQuality } from './useAiChat.sendTurnStreamPhase.completionPipelineVerticalComposedWorkflow';
 import { parseCompatibilityReport } from '../../ai/vertical/elanFlexCompatibilityWorkflow';
+import {
+  analysisRowsFromEvidencePackets,
+  analysisRowsFromToolResults,
+  renderVerifiedAnalysisReport,
+} from '../../ai/vertical/corpusAnalysisReport';
 import { dispatchVerticalWorkflowReflection } from '../../ai/vertical/verticalWorkflowReflectionDispatch';
 import { getDefaultAgentCallbackRegistry } from '../../ai/runtime/agentCallbacks';
 import { applyOutboundSemanticGuard } from '../../ai/security/semanticGuard';
@@ -57,13 +62,21 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   const { db, ragCitations } = opening;
   const { verticalOutputEnvelopeSeed, verticalWorkflowSelection } = streamCompletionResult;
   let effectiveVerticalEnvelope = verticalOutputEnvelopeSeed;
+  const verifiedAnalysisText =
+    resolution.status === 'done' &&
+    verticalOutputEnvelopeSeed?.workflowId === 'corpus_analysis_report'
+      ? renderVerifiedAnalysisReport(resolution.content, [
+          ...analysisRowsFromToolResults(streamCompletionResult.localToolResults ?? []),
+          ...analysisRowsFromEvidencePackets(streamCompletionResult.evidencePackets ?? []),
+        ]).text
+      : resolution.content;
   const clientContent =
     resolution.status === 'done'
       ? await applyOutboundSemanticGuard({
-          text: resolution.content,
+          text: verifiedAnalysisText,
           ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
         })
-      : resolution.content;
+      : verifiedAnalysisText;
 
   if (!shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart)) {
     await finalizeAssistantMessage(

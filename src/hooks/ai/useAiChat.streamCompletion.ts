@@ -29,6 +29,7 @@ import { t, type Locale } from '../../i18n';
 import { resolveLocalContextToolPolicyDecision } from '../../ai/policy/resolveExecutionPolicy';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { resolveExternalMcpSendTurn } from '../../ai/mcp/client/externalMcpTurnBridge';
+import type { EvidencePacketV0 } from '../../ai/vertical/evidencePacket';
 import { runWithToolCallbacks } from '../../ai/runtime/agentCallbacks';
 import {
   applyLocalContextToolEffects,
@@ -140,6 +141,8 @@ export interface ResolveAiChatStreamCompletionResult {
   finalErrorMessage?: string;
   connectionErrorMessage?: string;
   localToolResults?: LocalContextToolResult[];
+  /** B17: evidence packets collected from external MCP tool calls in this turn. */
+  evidencePackets?: EvidencePacketV0[];
 }
 
 function buildLocalToolClarificationMessage(
@@ -563,6 +566,9 @@ export async function resolveAiChatStreamCompletion(
         finalStatus: externalTurn.finalStatus,
         ...(externalTurn.finalErrorMessage
           ? { finalErrorMessage: externalTurn.finalErrorMessage }
+          : {}),
+        ...(externalTurn.evidencePackets && externalTurn.evidencePackets.length > 0
+          ? { evidencePackets: externalTurn.evidencePackets }
           : {}),
       };
     }

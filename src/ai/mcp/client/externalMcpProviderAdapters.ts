@@ -6,6 +6,7 @@
 import { buildEvidencePacketV0, type EvidencePacketV0 } from '../../vertical/evidencePacket';
 import type { McpClientProvider } from './mcpClientTypes';
 import type { McpToolCallResult } from '../server/types';
+import { mapExternalEvidenceToolResultToPackets } from './externalMcpEvidenceHits';
 
 export const ZOTERO_MCP_HTTP_DEFAULT_ORIGIN = 'http://127.0.0.1:8765/mcp';
 export const OPENALEX_MCP_ORIGIN_PLACEHOLDER = 'https://mcp.example.test/openalex';
@@ -108,13 +109,17 @@ function itemToPacket(
   const resolvedId = (sourceId ?? `${provider}_${index + 1}`).slice(0, 128);
   const yearRaw = record.publication_year ?? record.year;
   const year = typeof yearRaw === 'number' ? String(yearRaw) : readString(record, ['date']);
+  const page = readString(record, ['page', 'pages', 'page_range', 'pageRange']);
+  const url = readString(record, ['url', 'link', 'href', 'id']);
   try {
     return buildEvidencePacketV0({
       id: `ev_mcp_${provider}_${resolvedId}`.slice(0, 128),
       sourceType: 'document',
       sourceId: resolvedId,
-      ...(title ? { quote: title.slice(0, 500) } : {}),
+      ...(title ? { title: title.slice(0, 300), quote: title.slice(0, 500) } : {}),
       ...(year ? { summary: year } : {}),
+      ...(page ? { page: page.slice(0, 64) } : {}),
+      ...(url && /^https?:\/\//i.test(url) ? { url: url.slice(0, 500) } : {}),
       reasonCode: `external_mcp_${provider}`,
     });
   } catch {
@@ -126,6 +131,9 @@ export function mapExternalMcpToolResultToEvidencePackets(input: {
   toolName: string;
   content: McpToolCallResult['content'];
 }): EvidencePacketV0[] {
+  const evidencePackets = mapExternalEvidenceToolResultToPackets(input);
+  if (evidencePackets.length > 0) return evidencePackets;
+
   const provider = resolveExternalMcpProviderFromToolName(input.toolName);
   if (!provider) return [];
   const packets: EvidencePacketV0[] = [];

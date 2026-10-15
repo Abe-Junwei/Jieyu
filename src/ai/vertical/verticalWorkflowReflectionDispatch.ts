@@ -3,6 +3,7 @@ import { runAnnotationQaReflection } from './annotationQaReflection';
 import { runLexemeCandidatesReflection } from './lexemeCandidatesReflection';
 import { runSegmentQaReflection } from './segmentQaReflection';
 import { runElanFlexCompatibilityReflection } from './elanFlexCompatibilityWorkflow';
+import { runCorpusAnalysisReportReflection } from './corpusAnalysisReport';
 import type { ComposedReflectionRetryBlob } from './composedWorkflowTemplates';
 import { getVerticalWorkflowV0, type VerticalWorkflowId } from './verticalWorkflowRegistry';
 
@@ -25,6 +26,7 @@ const AUDIT_FIELD_BY_HANDLER: Record<VerticalReflectionHandlerId, string> = {
   annotation_qa: 'ai_annotation_qa_reflection',
   lexeme_candidates: 'ai_lexeme_candidates_reflection',
   elan_flex_compatibility: 'ai_elan_flex_compatibility_reflection',
+  corpus_analysis_report: 'ai_corpus_analysis_report_reflection',
 };
 
 function toView(result: {
@@ -77,6 +79,13 @@ function runHandler(
         ...(result.reflectionFlagged
           ? { retryBlob: { kind: 'elan_flex_compatibility', result } }
           : {}),
+      };
+    }
+    case 'corpus_analysis_report': {
+      const result = runCorpusAnalysisReportReflection(content);
+      return {
+        reflection: toView(result),
+        auditField: AUDIT_FIELD_BY_HANDLER.corpus_analysis_report,
       };
     }
   }

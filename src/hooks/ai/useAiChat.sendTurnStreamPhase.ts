@@ -241,7 +241,9 @@ export async function runAiChatSendTurnStreamPhase(
     if ((chunk.delta ?? '').length > 0) {
       const delta = chunk.delta ?? '';
       s.assistantContent += delta;
-      if (canUpdateStreamUi()) {
+      const hideUnverifiedClaims =
+        verticalWorkflowSelection?.workflowId === 'corpus_analysis_report';
+      if (canUpdateStreamUi() && !hideUnverifiedClaims) {
         flushSync(() => {
           setMessages((prev) =>
             prev.map((msg) =>

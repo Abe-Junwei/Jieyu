@@ -3453,6 +3453,7 @@ export const DICT_KEYS = [
   'msg.ai.vertical.workflow.annotationQa',
   'msg.ai.vertical.workflow.lexemeCandidates',
   'msg.ai.vertical.workflow.elanFlexCompatibility',
+  'msg.ai.vertical.workflow.corpusAnalysisReport',
   'msg.ai.vertical.composed.annotationQaThenLexemeCandidates',
   'msg.ai.vertical.composed.segmentQaThenAnnotationQaThenLexemeCandidates',
   'msg.ai.vertical.composed.markdown.annotationAndLexemeCombined',

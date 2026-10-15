@@ -27,6 +27,15 @@ describe('verticalWorkflowSelection', () => {
     expect(selectVerticalWorkflowV0('今天天气不错')).toBeNull();
   });
 
+  it('selects corpus analysis only when that flag is on', () => {
+    expect(
+      selectVerticalWorkflowV0('请做共现分析', { corpusAnalysisReportEnabled: false }),
+    ).toBeNull();
+    expect(
+      selectVerticalWorkflowV0('请做共现分析', { corpusAnalysisReportEnabled: true })?.workflowId,
+    ).toBe('corpus_analysis_report');
+  });
+
   it('builds output envelope using selection workflow boundaries', () => {
     const selection = selectVerticalWorkflowV0('请做标注 QA');
     expect(selection).not.toBeNull();

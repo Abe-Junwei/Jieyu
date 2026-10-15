@@ -29,6 +29,9 @@ const LOCAL_CONTEXT_TOOL_NAME_UNION: readonly LocalContextToolName[] = [
   'search_units',
   'get_unit_detail',
   'get_unit_linguistic_memory',
+  'concordance_kwic',
+  'query_morpheme_paradigm',
+  'find_counterexamples',
 ];
 
 describe('localContextToolEffects catalog parity', () => {

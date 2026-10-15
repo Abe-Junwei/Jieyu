@@ -20,7 +20,8 @@ export type VerticalWorkflowId =
   | 'segment_qa'
   | 'annotation_qa'
   | 'lexeme_candidates'
-  | 'elan_flex_compatibility';
+  | 'elan_flex_compatibility'
+  | 'corpus_analysis_report';
 
 export interface VerticalWorkflowV0 {
   id: string;
@@ -92,6 +93,18 @@ export const VERTICAL_WORKFLOW_REGISTRY_V0: Record<VerticalWorkflowId, VerticalW
     evalSuiteId: 'vertical.elan_flex_compatibility.v0',
     stepKinds: LLM_ONLY_STEPS,
     reflectionHandlerId: 'elan_flex_compatibility',
+    maxReflectionRetries: 1,
+    outputSchemaId: 'envelope_v0',
+  },
+  corpus_analysis_report: {
+    id: 'corpus_analysis_report',
+    labelKey: 'msg.ai.vertical.workflow.corpusAnalysisReport',
+    inputScope: 'project',
+    outputKind: 'answer',
+    writeMode: 'read_only',
+    requiredCapabilities: ['read.segment', 'read.annotation'],
+    stepKinds: LLM_ONLY_STEPS,
+    reflectionHandlerId: 'corpus_analysis_report',
     maxReflectionRetries: 1,
     outputSchemaId: 'envelope_v0',
   },

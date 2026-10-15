@@ -1,3 +1,4 @@
+import { featureFlags } from '../config/featureFlags';
 import { extractJsonCandidates } from './toolCallSchemas';
 import { AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/ai/useAiChat.config';
 import { LOCAL_CONTEXT_TOOL_NAMES } from '../policy/localContextToolEffects';
@@ -101,7 +102,16 @@ export {
 } from './localContextToolFormatters';
 export { AI_LOCAL_TOOL_RESULT_CHAR_BUDGET as LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/ai/useAiChat.config';
 
-export function buildLocalContextToolGuide(): string {
+export function buildLocalContextToolGuide(
+  includeCorpusAnalysis = featureFlags.corpusAnalysisQueryToolsEnabled,
+): string {
+  const corpusLines = includeCorpusAnalysis
+    ? [
+        '- concordance_kwic(arguments:{"gloss":"PST","form":"-s","limit":40}): Morpheme hits in the current document with left/target/right form and gloss. Each hit has unitId. gloss or form is required.',
+        '- query_morpheme_paradigm(arguments:{"pos":"v"}): Adjacent morpheme-gloss counts for tokens of that part of speech in the current document. Returns tokenCount and adjacent[{leftGloss,rightGloss,count}].',
+        '- find_counterexamples(arguments:{"gloss":"PST","pos":"v","expect":"present|absent","limit":20}): Units in scope that fail the hypothesis. expect=present (default) means the gloss should occur; counterexampleUnitIds lack it. Each id is a real unitId.',
+      ]
+    : [];
   return [
     'Query tools (auto-executed, use freely even for questions — preferred over guessing):',
     '- Successful tool JSON includes `_readModel`: { timelineReadModelEpoch?, unitIndexComplete, capturedAtMs, indexRowCount? } — system metadata for snapshot freshness; do not treat as transcript content.',
@@ -125,6 +135,7 @@ export function buildLocalContextToolGuide(): string {
     '- diagnose_quality(arguments:{}): Aggregated quality report for missing text/speaker/gaps (+ `_readModel`)',
     '- batch_apply(arguments:{"action":"...","unitIds":["..."]}): Batch preview contract for the same action across many units (+ `_readModel`)',
     '- suggest_next_action(arguments:{}): Ranked next-step recommendations from current project state (+ `_readModel`)',
+    ...corpusLines,
     `- Tool JSON payloads may be truncated at ${AI_LOCAL_TOOL_RESULT_CHAR_BUDGET} chars; treat omitted tail as unknown and do not fabricate missing values`,
     "- User-facing natural language: never echo the snake_case tool names above; describe actions in the user's language. JSON tool_call names stay machine-only.",
     '- Query economy: if the last local tool JSON already answered the same scope/params, do not issue an equivalent read again unless [CONTEXT] changed, the prior payload was truncated, or you need a strictly different field.',

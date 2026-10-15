@@ -122,6 +122,12 @@ describe('featureFlags environment matrix', () => {
     expect(dogfood.aiExternalMcpSendTurnEnabled).toBe(false);
     expect(prod.aiExternalMcpProviderAdaptersEnabled).toBe(false);
     expect(dogfood.aiExternalMcpProviderAdaptersEnabled).toBe(false);
+    expect(prod.corpusAnalysisQueryToolsEnabled).toBe(false);
+    expect(dogfood.corpusAnalysisQueryToolsEnabled).toBe(false);
+    expect(prod.corpusAnalysisReportEnabled).toBe(false);
+    expect(dogfood.corpusAnalysisReportEnabled).toBe(false);
+    expect(prod.corpusExternalEvidenceEnabled).toBe(false);
+    expect(dogfood.corpusExternalEvidenceEnabled).toBe(false);
     expect(prod.annotationPageEnabled).toBe(true);
     expect(dogfood.annotationPageEnabled).toBe(true);
     expect(prod.corpusLibraryPageEnabled).toBe(true);
@@ -145,6 +151,9 @@ describe('featureFlags environment matrix', () => {
       VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED: 'true',
+      VITE_CORPUS_ANALYSIS_QUERY_TOOLS_ENABLED: 'true',
+      VITE_CORPUS_ANALYSIS_REPORT_ENABLED: 'true',
+      VITE_CORPUS_EXTERNAL_EVIDENCE_ENABLED: 'true',
       VITE_ANNOTATION_PAGE_ENABLED: 'false',
       VITE_CORPUS_LIBRARY_PAGE_ENABLED: 'false',
       VITE_LEXICON_ATTACHMENTS_ENABLED: 'true',
@@ -161,6 +170,9 @@ describe('featureFlags environment matrix', () => {
     expect(flags.aiExternalMcpHttpClientEnabled).toBe(true);
     expect(flags.aiExternalMcpSendTurnEnabled).toBe(true);
     expect(flags.aiExternalMcpProviderAdaptersEnabled).toBe(true);
+    expect(flags.corpusAnalysisQueryToolsEnabled).toBe(true);
+    expect(flags.corpusAnalysisReportEnabled).toBe(true);
+    expect(flags.corpusExternalEvidenceEnabled).toBe(true);
     expect(flags.annotationPageEnabled).toBe(false);
     expect(flags.corpusLibraryPageEnabled).toBe(false);
     expect(flags.lexiconAttachmentsEnabled).toBe(true);

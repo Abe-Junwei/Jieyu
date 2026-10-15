@@ -408,6 +408,25 @@ export function summarizeLocalContextToolResult(
     case 'get_unit_detail':
     case 'get_unit_linguistic_memory':
       return summarizeDetailResult(result, locale);
+    case 'concordance_kwic': {
+      const count = asFiniteNumber(body?.count) ?? 0;
+      return zh
+        ? `共现命中 ${count} 条，每条带句子 id。`
+        : `Concordance returned ${count} hits, each with a unit id.`;
+    }
+    case 'query_morpheme_paradigm': {
+      const tokenCount = asFiniteNumber(body?.tokenCount) ?? 0;
+      return zh
+        ? `该词类共 ${tokenCount} 个词，已统计相邻 gloss。`
+        : `Counted adjacent glosses across ${tokenCount} tokens of that part of speech.`;
+    }
+    case 'find_counterexamples': {
+      const matchCount = asFiniteNumber(body?.matchCount) ?? 0;
+      const counterexampleCount = asFiniteNumber(body?.counterexampleCount) ?? 0;
+      return zh
+        ? `符合 ${matchCount} 句，反例 ${counterexampleCount} 句。`
+        : `${matchCount} units match; ${counterexampleCount} are counterexamples.`;
+    }
     case 'diagnose_quality':
       return summarizeDiagnoseQualityResult(body ?? {}, locale, userText);
     case 'get_waveform_analysis': {

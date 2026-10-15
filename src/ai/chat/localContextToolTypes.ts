@@ -18,7 +18,10 @@ export type LocalContextToolName =
   | 'list_units'
   | 'search_units'
   | 'get_unit_detail'
-  | 'get_unit_linguistic_memory';
+  | 'get_unit_linguistic_memory'
+  | 'concordance_kwic'
+  | 'query_morpheme_paradigm'
+  | 'find_counterexamples';
 
 export interface LocalContextToolCall {
   name: LocalContextToolName;

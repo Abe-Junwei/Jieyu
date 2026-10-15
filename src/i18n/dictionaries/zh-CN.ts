@@ -4594,6 +4594,7 @@ export const zhCNDictionary = {
   'msg.ai.vertical.workflow.annotationQa': '标注审校',
   'msg.ai.vertical.workflow.lexemeCandidates': '词典候选',
   'msg.ai.vertical.workflow.elanFlexCompatibility': 'ELAN/FLEx 互通检查',
+  'msg.ai.vertical.workflow.corpusAnalysisReport': '语料分析',
   'msg.ai.vertical.composed.annotationQaThenLexemeCandidates': '审校并生成候选词',
   'msg.ai.vertical.composed.segmentQaThenAnnotationQaThenLexemeCandidates':
     '语段问答并审校生成候选词',

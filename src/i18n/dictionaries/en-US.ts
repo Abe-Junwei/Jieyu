@@ -4954,6 +4954,7 @@ export const enUSDictionary = {
   'msg.ai.vertical.workflow.annotationQa': 'Annotation QA',
   'msg.ai.vertical.workflow.lexemeCandidates': 'Lexeme Candidates',
   'msg.ai.vertical.workflow.elanFlexCompatibility': 'ELAN/FLEx Compatibility Check',
+  'msg.ai.vertical.workflow.corpusAnalysisReport': 'Corpus analysis',
   'msg.ai.vertical.composed.annotationQaThenLexemeCandidates':
     'Annotation QA then Lexeme Candidates',
   'msg.ai.vertical.composed.segmentQaThenAnnotationQaThenLexemeCandidates':

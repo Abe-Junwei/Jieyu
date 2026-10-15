@@ -70,6 +70,7 @@ import {
   buildComposedWorkflowSystemPromptAppendix,
 } from '../../ai/vertical/composedWorkflowTemplates';
 import { buildElanFlexCompatibilitySystemPrompt } from '../../ai/vertical/elanFlexCompatibilityWorkflow';
+import { buildCorpusAnalysisReportSystemPrompt } from '../../ai/vertical/corpusAnalysisReport';
 import type { AiChatSettings } from '../../ai/providers/providerCatalog';
 import type {
   AiContextDebugSnapshot,
@@ -386,6 +387,9 @@ export async function persistOpeningTurnAndBuildPromptContext(
   // P5: elan_flex_compatibility workflow system prompt appendix
   if (input.verticalWorkflowSelection?.workflowId === 'elan_flex_compatibility') {
     systemPrompt += '\n\n' + buildElanFlexCompatibilitySystemPrompt();
+  }
+  if (input.verticalWorkflowSelection?.workflowId === 'corpus_analysis_report') {
+    systemPrompt += '\n\n' + buildCorpusAnalysisReportSystemPrompt();
   }
   db.collections.audit_logs
     .insert({

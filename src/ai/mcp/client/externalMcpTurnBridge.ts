@@ -8,6 +8,11 @@ import { extractJsonCandidates } from '../../chat/toolCallSchemas';
 import { featureFlags } from '../../config/featureFlags';
 import { callExternalMcpToolViaHttp } from './externalMcpHttpClient';
 import { mapExternalMcpToolResultToEvidencePackets } from './externalMcpProviderAdapters';
+import { callLocalMcpToolViaStdio, isExternalMcpStdioOrigin } from './externalMcpStdioClient';
+import {
+  isExternalMcpSecondModelTool,
+  resolveExternalEvidenceKind,
+} from './externalMcpEvidenceHits';
 import {
   exposeExternalMcpToolsToLlm,
   listExternalMcpTrustEntries,
@@ -34,6 +39,7 @@ export type ExternalMcpSendTurnResolution =
       finalContent: string;
       finalStatus: 'done' | 'error';
       finalErrorMessage?: string;
+      evidencePackets?: EvidencePacketV0[];
     };
 
 export function encodeExternalMcpToolName(origin: string, toolName: string): string {
@@ -201,20 +207,49 @@ export async function resolveExternalMcpSendTurn(input: {
     message?: string;
   }> = [];
   let anyError = false;
+  const collectedPackets: EvidencePacketV0[] = [];
   for (const call of calls) {
-    const result = await callExternalMcpToolViaHttp({
-      origin: call.origin,
-      toolName: call.toolName,
-      arguments: call.arguments,
-      ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
-    });
+    if (isExternalMcpSecondModelTool(call.toolName)) {
+      anyError = true;
+      payloads.push({
+        name: call.name,
+        ok: false,
+        reason: 'second_model_tool_denied',
+      });
+      continue;
+    }
+    const evidenceKind = resolveExternalEvidenceKind(call.toolName);
+    if (
+      (evidenceKind || isExternalMcpStdioOrigin(call.origin)) &&
+      !featureFlags.corpusExternalEvidenceEnabled
+    ) {
+      anyError = true;
+      payloads.push({
+        name: call.name,
+        ok: false,
+        reason: 'flag_off',
+      });
+      continue;
+    }
+    const result = isExternalMcpStdioOrigin(call.origin)
+      ? await callLocalMcpToolViaStdio({
+          origin: call.origin,
+          toolName: call.toolName,
+          arguments: call.arguments,
+        })
+      : await callExternalMcpToolViaHttp({
+          origin: call.origin,
+          toolName: call.toolName,
+          arguments: call.arguments,
+          ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
+        });
     if (!result.ok) {
       anyError = true;
       payloads.push({
         name: call.name,
         ok: false,
         reason: result.reason,
-        ...(result.message ? { message: result.message } : {}),
+        ...('message' in result && result.message ? { message: result.message } : {}),
       });
       continue;
     }
@@ -224,6 +259,7 @@ export async function resolveExternalMcpSendTurn(input: {
           content: result.result.content,
         })
       : [];
+    collectedPackets.push(...evidencePackets);
     payloads.push({
       name: call.name,
       ok: true,
@@ -242,7 +278,13 @@ export async function resolveExternalMcpSendTurn(input: {
       finalContent,
       finalStatus: 'error',
       finalErrorMessage: 'external mcp tool failed',
+      ...(collectedPackets.length > 0 ? { evidencePackets: collectedPackets } : {}),
     };
   }
-  return { handled: true, finalContent, finalStatus: 'done' };
+  return {
+    handled: true,
+    finalContent,
+    finalStatus: 'done',
+    ...(collectedPackets.length > 0 ? { evidencePackets: collectedPackets } : {}),
+  };
 }

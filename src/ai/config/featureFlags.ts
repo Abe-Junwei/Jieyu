@@ -107,6 +107,18 @@ const aiExternalMcpProviderAdaptersEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED,
 );
 
+const corpusAnalysisQueryToolsEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_CORPUS_ANALYSIS_QUERY_TOOLS_ENABLED,
+);
+
+const corpusAnalysisReportEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_CORPUS_ANALYSIS_REPORT_ENABLED,
+);
+
+const corpusExternalEvidenceEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_CORPUS_EXTERNAL_EVIDENCE_ENABLED,
+);
+
 const annotationPageEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_ANNOTATION_PAGE_ENABLED,
 );
@@ -263,6 +275,21 @@ export const featureFlags = {
    * Default false. Depends on B13/B14; does not call OpenAlex REST or Zotero :23119.
    */
   aiExternalMcpProviderAdaptersEnabled: aiExternalMcpProviderAdaptersEnabledFromEnv ?? false,
+  /**
+   * B16a: concordance, paradigm, and counterexample query tools.
+   * Default false; flag off keeps them out of the local-tool prompt.
+   */
+  corpusAnalysisQueryToolsEnabled: corpusAnalysisQueryToolsEnabledFromEnv ?? false,
+  /**
+   * B16b: structured corpus-analysis claims rendered after row-id checks.
+   * Default false; flag off keeps the workflow out of selection.
+   */
+  corpusAnalysisReportEnabled: corpusAnalysisReportEnabledFromEnv ?? false,
+  /**
+   * B17: external evidence (literature / web / corpus resources via MCP; desktop stdio).
+   * Default false; flag off means no stdio spawn and no literature/web MCP requests.
+   */
+  corpusExternalEvidenceEnabled: corpusExternalEvidenceEnabledFromEnv ?? false,
   /**
    * B4 / annotation M1: IGT workspace with playback, notes, and AutoGloss preview.
    * Default true so `/annotation` is an open workbench. Env `false` keeps FeatureAvailabilityPanel.

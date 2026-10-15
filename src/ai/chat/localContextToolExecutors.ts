@@ -24,6 +24,7 @@ import {
 } from './executors/projectStats';
 import { listUnits, searchUnits } from './executors/searchAndList';
 import { getUnitDetail, getUnitLinguisticMemory } from './executors/linguisticMemory';
+import { runCorpusAnalysisTool } from './executors/corpusAnalysis';
 import {
   finalizeLocalContextToolResult,
   buildAcousticUnavailablePayload,
@@ -210,6 +211,11 @@ export async function executeLocalContextToolCall(
           ...(await getUnitLinguisticMemory(call.arguments, context)),
           name: call.name,
         };
+        break;
+      case 'concordance_kwic':
+      case 'query_morpheme_paradigm':
+      case 'find_counterexamples':
+        out = await runCorpusAnalysisTool(call.name, call.arguments, context);
         break;
       default:
         out = {

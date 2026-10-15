@@ -6,7 +6,11 @@ import {
   getAiToolRegistryShadowParityReport,
 } from './aiToolRegistryShadow';
 import { buildEvidencePacketV0, EVIDENCE_PACKET_V0_SCHEMA_VERSION } from './evidencePacket';
-import { getVerticalWorkflowV0, listVerticalWorkflowsV0, VERTICAL_WORKFLOW_REGISTRY_V0 } from './verticalWorkflowRegistry';
+import {
+  getVerticalWorkflowV0,
+  listVerticalWorkflowsV0,
+  VERTICAL_WORKFLOW_REGISTRY_V0,
+} from './verticalWorkflowRegistry';
 
 describe('vertical p0 foundation', () => {
   it('keeps tool registry shadow parity between tool schemas and policy matrix', () => {
@@ -26,13 +30,15 @@ describe('vertical p0 foundation', () => {
 
   it('exposes default vertical workflows with write-mode boundaries', () => {
     const workflows = listVerticalWorkflowsV0();
-    expect(workflows).toHaveLength(4);
+    expect(workflows).toHaveLength(5);
     expect(getVerticalWorkflowV0('segment_qa').writeMode).toBe('read_only');
     expect(getVerticalWorkflowV0('annotation_qa').writeMode).toBe('propose_only');
     expect(getVerticalWorkflowV0('lexeme_candidates').writeMode).toBe('propose_only');
     expect(getVerticalWorkflowV0('elan_flex_compatibility').writeMode).toBe('read_only');
+    expect(getVerticalWorkflowV0('corpus_analysis_report').writeMode).toBe('read_only');
     expect(Object.keys(VERTICAL_WORKFLOW_REGISTRY_V0).sort()).toEqual([
       'annotation_qa',
+      'corpus_analysis_report',
       'elan_flex_compatibility',
       'lexeme_candidates',
       'segment_qa',
@@ -52,18 +58,22 @@ describe('vertical p0 foundation', () => {
   });
 
   it('rejects invalid evidence packet confidence and invalid time range', () => {
-    expect(() => buildEvidencePacketV0({
-      id: 'ev_002',
-      sourceType: 'segment',
-      sourceId: 'seg_002',
-      confidence: 1.1,
-    })).toThrow(/confidence/);
+    expect(() =>
+      buildEvidencePacketV0({
+        id: 'ev_002',
+        sourceType: 'segment',
+        sourceId: 'seg_002',
+        confidence: 1.1,
+      }),
+    ).toThrow(/confidence/);
 
-    expect(() => buildEvidencePacketV0({
-      id: 'ev_003',
-      sourceType: 'segment',
-      sourceId: 'seg_003',
-      timeRangeMs: { startMs: 1000, endMs: 100 },
-    })).toThrow(/timeRangeMs/);
+    expect(() =>
+      buildEvidencePacketV0({
+        id: 'ev_003',
+        sourceType: 'segment',
+        sourceId: 'seg_003',
+        timeRangeMs: { startMs: 1000, endMs: 100 },
+      }),
+    ).toThrow(/timeRangeMs/);
   });
 });

@@ -6,6 +6,7 @@
 import { getDb, type ExternalMcpTrustDoc } from '../../../db';
 import { featureFlags } from '../../config/featureFlags';
 import { inspectInbound } from '../../security/semanticGuard';
+import { isExternalMcpSecondModelTool } from './externalMcpEvidenceHits';
 
 export type ExternalMcpToolSchema = {
   name: string;
@@ -44,6 +45,11 @@ export function normalizeExternalMcpOrigin(raw: string): string | null {
     parsed = new URL(trimmed);
   } catch {
     return null;
+  }
+  if (parsed.protocol === 'stdio:') {
+    const id = (parsed.hostname || parsed.pathname.replace(/^\/*/, '')).toLowerCase();
+    if (!id || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id)) return null;
+    return `stdio://${id}`;
   }
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
   if (parsed.username || parsed.password) return null;
@@ -253,5 +259,6 @@ export async function exposeExternalMcpToolsToLlm<T extends ExternalMcpToolSchem
   if (inbound.action === 'block') {
     return { allowed: false, reason: 'schema_blocked', blockReasons: inbound.reasons };
   }
-  return { allowed: true, origin, tools: input.tools };
+  const tools = input.tools.filter((tool) => !isExternalMcpSecondModelTool(tool.name));
+  return { allowed: true, origin, tools };
 }

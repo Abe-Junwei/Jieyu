@@ -50,6 +50,12 @@ const WORKFLOW_CHECKLIST_STEPS: Record<VerticalWorkflowId, readonly WorkflowComp
     'write_mode_honored',
     'envelope_status_set',
   ],
+  corpus_analysis_report: [
+    'workflow_resolved',
+    'reflection_passed',
+    'write_mode_honored',
+    'envelope_status_set',
+  ],
 };
 
 function isStepSatisfied(
