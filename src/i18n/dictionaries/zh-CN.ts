@@ -2515,9 +2515,13 @@ export const zhCNDictionary = {
     '缺少目标翻译层信息，必须显式指定目标翻译层。',
   'transcription.aiTool.layer.linkMissingTranscriptionRollback':
     '未找到可用转写层，无法设置链接。已自动回滚刚创建的层（{layerId}）。',
+  'transcription.aiTool.layer.linkMissingTranscriptionRollbackFailed':
+    '未找到可用转写层，无法设置链接。回滚失败，刚创建的层还在（{layerId}）。',
   'transcription.aiTool.layer.linkMissingTranscription': '未找到可用转写层，无法设置链接。',
   'transcription.aiTool.layer.linkMissingTranslationRollback':
     '未找到可用翻译层，无法设置链接。已自动回滚刚创建的层（{layerId}）。',
+  'transcription.aiTool.layer.linkMissingTranslationRollbackFailed':
+    '未找到可用翻译层，无法设置链接。回滚失败，刚创建的层还在（{layerId}）。',
   'transcription.aiTool.layer.linkMissingTranslation': '未找到可用翻译层，无法设置链接。',
   'transcription.aiTool.layer.unlinkRequiresFallbackParent':
     '无法解除关联：翻译层至少需保留一条指向宿主转写的 layer_links；请先指定新的宿主转写或新建链接后再移除此关联。',
@@ -2525,6 +2529,8 @@ export const zhCNDictionary = {
   'transcription.aiTool.layer.linkFailed': '链接操作失败',
   'transcription.aiTool.layer.linkRollbackAfterError':
     '{errMsg}。已自动回滚刚创建的层（{layerId}）。',
+  'transcription.aiTool.layer.linkRollbackFailedAfterError':
+    '{errMsg}。回滚失败，刚创建的层还在（{layerId}）。',
   'transcription.aiTool.layer.unlinkDoneWithFallback':
     '已解除关联：{transcriptionLayer} -> {translationLayer}，并改绑到 {fallbackLayer}',
   'transcription.aiTool.layer.linkDone': '已链接：{transcriptionLayer} -> {translationLayer}',

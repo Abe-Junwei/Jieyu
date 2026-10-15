@@ -4,7 +4,7 @@ import { createLogger } from '../../observability/logger';
 import { t, tf } from '../../i18n';
 import { persistedLayerIds, tierRowExists } from './aiWriteReadback';
 import { formatLayerTypeLabel } from './useAiToolCallHandler.helpers';
-import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
+import type { CompensationEntry, ToolObjectAdapter } from './useAiToolCallHandler.types';
 import {
   getAiToolLayerLinkActionKind,
   getAiToolLayerLinkExecutionToolNames,
@@ -51,6 +51,32 @@ async function deleteLayerObserved(
     if (exists === true) return 'still-there';
     throw error;
   }
+}
+
+type LayerCompensationRollback =
+  | { kind: 'none' }
+  | { kind: 'deleted'; layerId: string }
+  | { kind: 'still-there'; layerId: string };
+
+/** 未过期补偿先消费再删层。读回失败时把原错误抛出。 */
+async function consumeFreshLayerCompensation(
+  compensationRef: { current: Map<string, CompensationEntry> },
+  requestId: string,
+  ttlMs: number,
+  deleteLayer: (layerId: string) => Promise<void>,
+): Promise<LayerCompensationRollback> {
+  const comp = compensationRef.current.get(requestId);
+  if (!comp || Date.now() - comp.createdAt >= ttlMs) return { kind: 'none' };
+  compensationRef.current.delete(requestId);
+  const deleted = await deleteLayerObserved(deleteLayer, comp.layerId);
+  if (deleted === 'still-there') {
+    log.warn('Compensation rollback left the layer in place', {
+      requestId,
+      layerId: comp.layerId,
+    });
+    return { kind: 'still-there', layerId: comp.layerId };
+  }
+  return { kind: 'deleted', layerId: comp.layerId };
 }
 
 export const layerAdapter: ToolObjectAdapter = {
@@ -349,23 +375,28 @@ export const layerAdapter: ToolObjectAdapter = {
 
       const trcLayer = ctx.resolveTranscriptionLayerForLink();
       if (!trcLayer) {
-        const comp = compensationRef.current.get(call.requestId ?? 'default');
-        if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
-          compensationRef.current.delete(call.requestId ?? 'default');
-          try {
-            await ctx.deleteLayer(comp.layerId);
-          } catch (error) {
-            log.warn('Compensation rollback failed after missing transcription layer', {
-              requestId: call.requestId ?? 'default',
-              layerId: comp.layerId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
+        const rollback = await consumeFreshLayerCompensation(
+          compensationRef,
+          call.requestId ?? 'default',
+          COMPENSATION_TTL_MS,
+          ctx.deleteLayer,
+        );
+        if (rollback.kind === 'deleted') {
           return {
             ok: false,
             message: tf(locale, 'transcription.aiTool.layer.linkMissingTranscriptionRollback', {
-              layerId: comp.layerId,
+              layerId: rollback.layerId,
             }),
+          };
+        }
+        if (rollback.kind === 'still-there') {
+          return {
+            ok: false,
+            message: tf(
+              locale,
+              'transcription.aiTool.layer.linkMissingTranscriptionRollbackFailed',
+              { layerId: rollback.layerId },
+            ),
           };
         }
         return {
@@ -375,22 +406,25 @@ export const layerAdapter: ToolObjectAdapter = {
       }
       const trlLayer = ctx.resolveTranslationLayerForLink();
       if (!trlLayer) {
-        const comp = compensationRef.current.get(call.requestId ?? 'default');
-        if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
-          compensationRef.current.delete(call.requestId ?? 'default');
-          try {
-            await ctx.deleteLayer(comp.layerId);
-          } catch (error) {
-            log.warn('Compensation rollback failed after missing translation layer', {
-              requestId: call.requestId ?? 'default',
-              layerId: comp.layerId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
+        const rollback = await consumeFreshLayerCompensation(
+          compensationRef,
+          call.requestId ?? 'default',
+          COMPENSATION_TTL_MS,
+          ctx.deleteLayer,
+        );
+        if (rollback.kind === 'deleted') {
           return {
             ok: false,
             message: tf(locale, 'transcription.aiTool.layer.linkMissingTranslationRollback', {
-              layerId: comp.layerId,
+              layerId: rollback.layerId,
+            }),
+          };
+        }
+        if (rollback.kind === 'still-there') {
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.layer.linkMissingTranslationRollbackFailed', {
+              layerId: rollback.layerId,
             }),
           };
         }
@@ -450,31 +484,27 @@ export const layerAdapter: ToolObjectAdapter = {
             await ctx.toggleLayerLink(fallbackParent.key, trlLayer.id);
           }
         } catch (linkError) {
-          const comp = compensationRef.current.get(call.requestId ?? 'default');
-          if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
-            compensationRef.current.delete(call.requestId ?? 'default');
-            try {
-              await ctx.deleteLayer(comp.layerId);
-            } catch (error) {
-              log.warn('Compensation rollback failed after relink fallback error', {
-                requestId: call.requestId ?? 'default',
-                layerId: comp.layerId,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            }
-            const errMsg =
-              linkError instanceof Error
-                ? linkError.message
-                : t(locale, 'transcription.aiTool.layer.unlinkFailed');
-            return {
-              ok: false,
-              message: tf(locale, 'transcription.aiTool.layer.linkRollbackAfterError', {
-                errMsg,
-                layerId: comp.layerId,
-              }),
-            };
-          }
-          throw linkError;
+          const rollback = await consumeFreshLayerCompensation(
+            compensationRef,
+            call.requestId ?? 'default',
+            COMPENSATION_TTL_MS,
+            ctx.deleteLayer,
+          );
+          if (rollback.kind === 'none') throw linkError;
+          const errMsg =
+            linkError instanceof Error
+              ? linkError.message
+              : t(locale, 'transcription.aiTool.layer.unlinkFailed');
+          return {
+            ok: false,
+            message: tf(
+              locale,
+              rollback.kind === 'still-there'
+                ? 'transcription.aiTool.layer.linkRollbackFailedAfterError'
+                : 'transcription.aiTool.layer.linkRollbackAfterError',
+              { errMsg, layerId: rollback.layerId },
+            ),
+          };
         }
 
         compensationRef.current.delete(call.requestId ?? 'default');
@@ -523,31 +553,27 @@ export const layerAdapter: ToolObjectAdapter = {
           await ctx.toggleLayerLink(trcLayer.key, trlLayer.id);
         }
       } catch (linkError) {
-        const comp = compensationRef.current.get(call.requestId ?? 'default');
-        if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
-          compensationRef.current.delete(call.requestId ?? 'default');
-          try {
-            await ctx.deleteLayer(comp.layerId);
-          } catch (error) {
-            log.warn('Compensation rollback failed after link toggle error', {
-              requestId: call.requestId ?? 'default',
-              layerId: comp.layerId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-          const errMsg =
-            linkError instanceof Error
-              ? linkError.message
-              : t(locale, 'transcription.aiTool.layer.linkFailed');
-          return {
-            ok: false,
-            message: tf(locale, 'transcription.aiTool.layer.linkRollbackAfterError', {
-              errMsg,
-              layerId: comp.layerId,
-            }),
-          };
-        }
-        throw linkError;
+        const rollback = await consumeFreshLayerCompensation(
+          compensationRef,
+          call.requestId ?? 'default',
+          COMPENSATION_TTL_MS,
+          ctx.deleteLayer,
+        );
+        if (rollback.kind === 'none') throw linkError;
+        const errMsg =
+          linkError instanceof Error
+            ? linkError.message
+            : t(locale, 'transcription.aiTool.layer.linkFailed');
+        return {
+          ok: false,
+          message: tf(
+            locale,
+            rollback.kind === 'still-there'
+              ? 'transcription.aiTool.layer.linkRollbackFailedAfterError'
+              : 'transcription.aiTool.layer.linkRollbackAfterError',
+            { errMsg, layerId: rollback.layerId },
+          ),
+        };
       }
 
       compensationRef.current.delete(call.requestId ?? 'default');

@@ -2722,10 +2722,14 @@ export const enUSDictionary = {
     'Missing translationLayerId/layerId. An explicit target translation layer is required.',
   'transcription.aiTool.layer.linkMissingTranscriptionRollback':
     'No available transcription layer was found, so linking cannot proceed. Rolled back the newly created layer ({layerId}).',
+  'transcription.aiTool.layer.linkMissingTranscriptionRollbackFailed':
+    'No available transcription layer was found, so linking cannot proceed. Rollback failed; the newly created layer is still there ({layerId}).',
   'transcription.aiTool.layer.linkMissingTranscription':
     'No available transcription layer was found, so linking cannot proceed.',
   'transcription.aiTool.layer.linkMissingTranslationRollback':
     'No available translation layer was found, so linking cannot proceed. Rolled back the newly created layer ({layerId}).',
+  'transcription.aiTool.layer.linkMissingTranslationRollbackFailed':
+    'No available translation layer was found, so linking cannot proceed. Rollback failed; the newly created layer is still there ({layerId}).',
   'transcription.aiTool.layer.linkMissingTranslation':
     'No available translation layer was found, so linking cannot proceed.',
   'transcription.aiTool.layer.unlinkRequiresFallbackParent':
@@ -2734,6 +2738,8 @@ export const enUSDictionary = {
   'transcription.aiTool.layer.linkFailed': 'Link operation failed',
   'transcription.aiTool.layer.linkRollbackAfterError':
     '{errMsg}. Rolled back the newly created layer ({layerId}).',
+  'transcription.aiTool.layer.linkRollbackFailedAfterError':
+    '{errMsg}. Rollback failed; the newly created layer is still there ({layerId}).',
   'transcription.aiTool.layer.unlinkDoneWithFallback':
     'Unlinked {transcriptionLayer} -> {translationLayer} and rebound it to {fallbackLayer}.',
   'transcription.aiTool.layer.linkDone': 'Linked: {transcriptionLayer} -> {translationLayer}',
