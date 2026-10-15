@@ -13,6 +13,7 @@ import {
   timelineTranslationHostDraftAutoSaveKey,
   transcriptionLaneRowDraftAutoSaveKey,
 } from '../../utils/timelineDraftAutoSaveKeys';
+import { writeChosenTimelineText } from './writeChosenTimelineText';
 
 /** 多轨宿主 `TranscriptionTimelineMediaTranscriptionRow`：防抖 + blur 直写 */
 export function useTranscriptionMediaLaneRowTextAutosave(params: {
@@ -60,13 +61,17 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
       if (unitKind === 'segment') {
         if (!saveSegmentContentForLayer) return;
         scheduleAutoSave(rowKey, async () => {
-          await saveSegmentContentForLayer(unitId, layerId, value);
+          await writeChosenTimelineText({ kind: 'segment', segmentId: unitId, layerId }, value, {
+            saveSegmentContentForLayer,
+          });
         });
         return;
       }
       if (value.trim() && value !== sourceText) {
         scheduleAutoSave(rowKey, async () => {
-          await saveUnitLayerText(unitId, value, layerId);
+          await writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
+            saveUnitLayerText,
+          });
         });
       } else {
         clearAutoSaveTimer(rowKey);
@@ -94,19 +99,29 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
       if (unitKind === 'segment') {
         clearAutoSaveTimer(rowKey);
         if (saveSegmentContentForLayer && value !== sourceText) {
-          fireAndForget(saveSegmentContentForLayer(unitId, layerId, value), {
-            context: 'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts:L85',
-            policy: 'user-visible',
-          });
+          fireAndForget(
+            writeChosenTimelineText({ kind: 'segment', segmentId: unitId, layerId }, value, {
+              saveSegmentContentForLayer,
+            }),
+            {
+              context: 'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts:L85',
+              policy: 'user-visible',
+            },
+          );
         }
         return;
       }
       clearAutoSaveTimer(rowKey);
       if (value !== sourceText) {
-        fireAndForget(saveUnitLayerText(unitId, value, layerId), {
-          context: 'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts:L91',
-          policy: 'user-visible',
-        });
+        fireAndForget(
+          writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
+            saveUnitLayerText,
+          }),
+          {
+            context: 'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts:L91',
+            policy: 'user-visible',
+          },
+        );
       }
     },
     [
@@ -184,7 +199,11 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
           setRowSaveStatus('dirty');
           scheduleAutoSave(draftDebounceKey, async () => {
             await runSaveWithStatus(async () => {
-              await saveSegmentContentForLayer(unitId, layerId, value);
+              await writeChosenTimelineText(
+                { kind: 'segment', segmentId: unitId, layerId },
+                value,
+                { saveSegmentContentForLayer },
+              );
             });
           });
         } else {
@@ -197,7 +216,9 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
         setRowSaveStatus('dirty');
         scheduleAutoSave(draftDebounceKey, async () => {
           await runSaveWithStatus(async () => {
-            await saveUnitLayerText(unitId, value, layerId);
+            await writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
+              saveUnitLayerText,
+            });
           });
         });
       } else {
@@ -232,7 +253,11 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
         if (saveSegmentContentForLayer && value !== text) {
           fireAndForget(
             runSaveWithStatus(async () => {
-              await saveSegmentContentForLayer(unitId, layerId, value);
+              await writeChosenTimelineText(
+                { kind: 'segment', segmentId: unitId, layerId },
+                value,
+                { saveSegmentContentForLayer },
+              );
             }),
             {
               context: 'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts:L207',
@@ -248,7 +273,9 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
       if (value !== text) {
         fireAndForget(
           runSaveWithStatus(async () => {
-            await saveUnitLayerText(unitId, value, layerId);
+            await writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
+              saveUnitLayerText,
+            });
           }),
           {
             context: 'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts:L217',
@@ -329,7 +356,9 @@ export function useTranslationSidebarTextDraftAutosave(params: {
         setCellSaveStatus(cellKey, 'dirty');
         scheduleAutoSave(debounceKey, async () => {
           await runSaveWithStatus(cellKey, async () => {
-            await saveSegmentContentForLayer(unitId, layerId, value);
+            await writeChosenTimelineText({ kind: 'segment', segmentId: unitId, layerId }, value, {
+              saveSegmentContentForLayer,
+            });
           });
         });
         return;
@@ -338,7 +367,9 @@ export function useTranslationSidebarTextDraftAutosave(params: {
         setCellSaveStatus(cellKey, 'dirty');
         scheduleAutoSave(debounceKey, async () => {
           await runSaveWithStatus(cellKey, async () => {
-            await saveUnitLayerText(unitId, value, layerId);
+            await writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
+              saveUnitLayerText,
+            });
           });
         });
       } else {
@@ -371,7 +402,9 @@ export function useTranslationSidebarTextDraftAutosave(params: {
         clearAutoSaveTimer(debounceKey);
         if (value !== text && saveSegmentContentForLayer) {
           void runSaveWithStatus(cellKey, async () => {
-            await saveSegmentContentForLayer(unitId, layerId, value);
+            await writeChosenTimelineText({ kind: 'segment', segmentId: unitId, layerId }, value, {
+              saveSegmentContentForLayer,
+            });
           });
         } else {
           setCellSaveStatus(cellKey);
@@ -381,7 +414,9 @@ export function useTranslationSidebarTextDraftAutosave(params: {
       clearAutoSaveTimer(debounceKey);
       if (value !== text) {
         void runSaveWithStatus(cellKey, async () => {
-          await saveUnitLayerText(unitId, value, layerId);
+          await writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
+            saveUnitLayerText,
+          });
         });
       } else {
         setCellSaveStatus(cellKey);

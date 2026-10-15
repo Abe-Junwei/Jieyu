@@ -5,6 +5,7 @@ import {
   resolveVoiceRecordingSourceUnit,
 } from '../utils/recordingScopeUnitId';
 import { useTranslationSidebarTextDraftAutosave } from '../hooks/transcription/useTimelineLaneTextDraftAutosave';
+import { writeChosenTimelineText } from '../hooks/transcription/writeChosenTimelineText';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -198,12 +199,20 @@ export function TranscriptionTimelineTextTranslationItem({
         return;
       }
       void runSaveWithStatus(cellKey, async () => {
-        await saveSegmentContentForLayer(utt.id, layer.id, draft);
+        await writeChosenTimelineText(
+          { kind: 'segment', segmentId: utt.id, layerId: layer.id },
+          draft,
+          { saveSegmentContentForLayer },
+        );
       });
       return;
     }
     void runSaveWithStatus(cellKey, async () => {
-      await saveUnitLayerText(utt.id, draft, layer.id);
+      await writeChosenTimelineText(
+        { kind: 'unit-layer', unitId: utt.id, layerId: layer.id },
+        draft,
+        { saveUnitLayerText },
+      );
     });
   };
 

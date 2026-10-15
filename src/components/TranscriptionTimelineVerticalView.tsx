@@ -31,6 +31,7 @@ import {
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { filterTranslationLayersForVerticalReadingGroup } from '../utils/verticalReadingHostFilter';
 import { useTranscriptionTimelineVerticalChrome } from '../hooks/transcription/useTranscriptionTimelineVerticalChrome';
+import { writeChosenTimelineText } from '../hooks/transcription/writeChosenTimelineText';
 import {
   BASE_FONT_SIZE,
   computeFontSizeFromRenderPolicy,
@@ -720,7 +721,11 @@ export function TranscriptionTimelineVerticalView({
         const trSegs = segmentsByLayer?.get(persistLayer.id) ?? [];
         const pick = pickTranslationSegmentForPersist(trSegs, group.startTime, group.endTime);
         if (pick?.id) {
-          await saveSegmentContentForLayer(pick.id, persistLayer.id, value);
+          await writeChosenTimelineText(
+            { kind: 'segment', segmentId: pick.id, layerId: persistLayer.id },
+            value,
+            { saveSegmentContentForLayer },
+          );
           return;
         }
         const hint = t(locale, 'transcription.pairedReading.segmentMissingForSave');
@@ -728,7 +733,11 @@ export function TranscriptionTimelineVerticalView({
         throw new Error('PAIRED_READING_SEGMENT_PERSIST_BLOCKED');
       }
       await Promise.all(
-        anchorUnitIds.map((unitId) => saveUnitLayerText(unitId, value, persistLayer.id)),
+        anchorUnitIds.map((unitId) =>
+          writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId: persistLayer.id }, value, {
+            saveUnitLayerText,
+          }),
+        ),
       );
     },
     [
@@ -755,7 +764,11 @@ export function TranscriptionTimelineVerticalView({
           ? targetItem.translationSegmentId.trim()
           : '';
       if (segId.length > 0 && saveSegmentContentForLayer) {
-        await saveSegmentContentForLayer(segId, persistLayer.id, value);
+        await writeChosenTimelineText(
+          { kind: 'segment', segmentId: segId, layerId: persistLayer.id },
+          value,
+          { saveSegmentContentForLayer },
+        );
         return;
       }
       await persistGroupTranslation(persistLayer, group, anchorUnitIds, combinedValue ?? value);
@@ -769,10 +782,18 @@ export function TranscriptionTimelineVerticalView({
         if (!layerId || !saveSegmentContentForLayer) {
           throw new Error('Segment text save unavailable');
         }
-        await saveSegmentContentForLayer(unitId, layerId, value);
+        await writeChosenTimelineText({ kind: 'segment', segmentId: unitId, layerId }, value, {
+          saveSegmentContentForLayer,
+        });
         return;
       }
-      await saveUnitText(unitId, value, layerId);
+      await writeChosenTimelineText(
+        layerId !== undefined
+          ? { kind: 'unit-text', unitId, layerId }
+          : { kind: 'unit-text', unitId },
+        value,
+        { saveUnitText },
+      );
     },
     [saveSegmentContentForLayer, saveUnitText, unitByIdForSpeaker],
   );

@@ -14,6 +14,7 @@ import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordin
 import { t, useLocale } from '../i18n';
 import { useTextFlowFrame } from './transcription/textFlowLayoutContext';
 import { useMediaTranslationLaneRowDraftAutosave } from '../hooks/transcription/useTimelineLaneTextDraftAutosave';
+import { writeChosenTimelineText } from '../hooks/transcription/writeChosenTimelineText';
 import { createLogger } from '../observability/logger';
 
 interface TranscriptionTimelineMediaTranslationRowProps {
@@ -198,10 +199,18 @@ export function TranscriptionTimelineMediaTranslationRow({
     }
     void runSaveWithStatus(async () => {
       if (usesOwnSegments && saveSegmentContentForLayer) {
-        await saveSegmentContentForLayer(item.id, layer.id, value);
+        await writeChosenTimelineText(
+          { kind: 'segment', segmentId: item.id, layerId: layer.id },
+          value,
+          { saveSegmentContentForLayer },
+        );
         return;
       }
-      await saveUnitLayerText(textLookupUnitId, value, layer.id);
+      await writeChosenTimelineText(
+        { kind: 'unit-layer', unitId: textLookupUnitId, layerId: layer.id },
+        value,
+        { saveUnitLayerText },
+      );
     });
   }, [
     item.id,
