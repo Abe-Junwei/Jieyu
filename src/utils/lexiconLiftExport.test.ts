@@ -1,7 +1,21 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
+import type { LexemeEntryDoc } from '../db/types';
 import { entryDoc } from './dmlexEntry';
 import { serializeLexemesToLift } from './lexiconLiftExport';
+
+const now = '2026-09-27T00:00:00.000Z';
+
+function entryWithSenses(ids: readonly string[]): LexemeEntryDoc {
+  const base = entryDoc({ id: 'lex-senses', headword: 'run', createdAt: now, updatedAt: now });
+  return {
+    ...base,
+    entry: {
+      ...base.entry,
+      senses: ids.map((id) => ({ id })),
+    },
+  };
+}
 
 describe('serializeLexemesToLift', () => {
   it('writes the headword and escapes text', () => {
@@ -46,5 +60,26 @@ describe('serializeLexemesToLift', () => {
     const parsed = parseLiftXml(xml, 'text-1');
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.lexemes[0]?.entry.headword).toBe('ʔa˥\u0301 badchar\nnext');
+  });
+
+  it('finishes when every sense sits on a subsense cycle', () => {
+    const xml = serializeLexemesToLift(
+      [entryWithSenses(['sense-a', 'sense-b'])],
+      [
+        { type: 'subsense', members: [{ ref: 'sense-a' }, { ref: 'sense-b' }] },
+        { type: 'subsense', members: [{ ref: 'sense-b' }, { ref: 'sense-a' }] },
+      ],
+    );
+    expect(xml).toContain('id="sense-a"');
+    expect(xml).toContain('id="sense-b"');
+  });
+
+  it('still writes a sense whose only parent is missing', () => {
+    const xml = serializeLexemesToLift(
+      [entryWithSenses(['sense-root', 'sense-orphan'])],
+      [{ type: 'subsense', members: [{ ref: 'missing' }, { ref: 'sense-orphan' }] }],
+    );
+    expect(xml).toContain('id="sense-root"');
+    expect(xml).toContain('id="sense-orphan"');
   });
 });

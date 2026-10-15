@@ -110,6 +110,48 @@ describe('applyLexiconEntryFields', () => {
     ]);
   });
 
+  it('drops the edge that would close a subsense cycle and keeps the senses', () => {
+    const applied = applyLexiconEntryFields(
+      null,
+      {
+        ...emptyEntryFields(),
+        headword: 'run',
+        senses: [
+          {
+            ...emptyEntryFields().senses[0]!,
+            id: 'sense-a',
+            parentId: 'sense-c',
+            translation: 'a',
+          },
+          {
+            ...emptyEntryFields().senses[0]!,
+            id: 'sense-b',
+            parentId: 'sense-a',
+            translation: 'b',
+          },
+          {
+            ...emptyEntryFields().senses[0]!,
+            id: 'sense-c',
+            parentId: 'sense-b',
+            translation: 'c',
+          },
+        ],
+      },
+      null,
+      now,
+      'text-1',
+    );
+    expect(applied.entry.entry.senses?.map((sense) => sense.id)).toEqual([
+      'sense-a',
+      'sense-b',
+      'sense-c',
+    ]);
+    expect(applied.resource.resource.relations).toEqual([
+      { type: DMLEX_SUBSENSE, members: [{ ref: 'sense-c' }, { ref: 'sense-a' }] },
+      { type: DMLEX_SUBSENSE, members: [{ ref: 'sense-a' }, { ref: 'sense-b' }] },
+    ]);
+  });
+
   it('keeps a corpus citation when the handwritten example is cleared', () => {
     const existing = entryDoc({
       id: 'lex-1',

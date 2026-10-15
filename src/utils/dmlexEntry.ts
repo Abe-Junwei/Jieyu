@@ -176,6 +176,48 @@ export function emptyDmlexResource(now: string, textId: string): LexemeResourceD
   };
 }
 
+function parentWalkReaches(
+  parentOf: ReadonlyMap<string, string>,
+  start: string,
+  target: string,
+): boolean {
+  const seen = new Set<string>();
+  let current = start;
+  while (current.length > 0 && !seen.has(current)) {
+    if (current === target) return true;
+    seen.add(current);
+    current = parentOf.get(current) ?? '';
+  }
+  return false;
+}
+
+/** 丢掉自指、父或子不在本词条义项里、以及会绕回的 subsense。先出现的边留下。 */
+export function subsenseRelationsToKeep(
+  senseIds: ReadonlySet<string>,
+  relations: readonly DmlexRelation[],
+): DmlexRelation[] {
+  const kept: DmlexRelation[] = [];
+  const parentOf = new Map<string, string>();
+  for (const relation of relations) {
+    if (relation.type !== DMLEX_SUBSENSE || relation.members.length < 2) continue;
+    const parent = relation.members[0]?.ref ?? '';
+    const child = relation.members[1]?.ref ?? '';
+    if (
+      parent.length === 0 ||
+      child.length === 0 ||
+      parent === child ||
+      !senseIds.has(parent) ||
+      !senseIds.has(child) ||
+      parentWalkReaches(parentOf, parent, child)
+    ) {
+      continue;
+    }
+    if (!parentOf.has(child)) parentOf.set(child, parent);
+    kept.push(relation);
+  }
+  return kept;
+}
+
 function parentByChild(relations: readonly DmlexRelation[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const relation of relations) {
@@ -441,12 +483,15 @@ export function applyLexiconEntryFields(
     }
     return true;
   });
-  const subsenses = built.flatMap((row) => {
-    const parent = row.draft.parentId.trim();
-    const child = row.sense.id ?? '';
-    if (parent.length === 0 || parent === child || !senseIds.has(parent)) return [];
-    return [{ type: DMLEX_SUBSENSE, members: [{ ref: parent }, { ref: child }] }];
-  });
+  const subsenses = subsenseRelationsToKeep(
+    senseIds,
+    built.flatMap((row) => {
+      const parent = row.draft.parentId.trim();
+      const child = row.sense.id ?? '';
+      if (parent.length === 0 || child.length === 0) return [];
+      return [{ type: DMLEX_SUBSENSE, members: [{ ref: parent }, { ref: child }] }];
+    }),
+  );
   const partner = fields.homographEntryId.trim();
   const homographs =
     partner.length > 0 && partner !== id

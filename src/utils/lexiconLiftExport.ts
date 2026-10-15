@@ -5,6 +5,7 @@
 import type { DmlexRelation, DmlexSense } from '../db/dmlexTypes';
 import { DMLEX_SUBSENSE } from '../db/dmlexTypes';
 import type { LexemeEntryDoc } from '../db/types';
+import { subsenseRelationsToKeep } from './dmlexEntry';
 import { escapeXml, finalizeXmlExport, type XmlSanitizeReport } from './xmlSafeText';
 
 export const LIFT_VERSION = '0.13';
@@ -41,8 +42,16 @@ function senseXml(
   pos: string,
   tag: 'sense' | 'subsense',
   objectLang: string,
+  trail: Set<string>,
+  emitted: Set<string>,
 ): string {
   const id = sense.id ?? '';
+  if (id.length > 0 && tag === 'sense' && emitted.has(id)) return '';
+  if (id.length > 0) {
+    if (trail.has(id)) return '';
+    trail.add(id);
+    emitted.add(id);
+  }
   const glosses = (sense.headwordTranslations ?? [])
     .map((item) => {
       const lang = langOrUnd(item.langCode);
@@ -74,10 +83,12 @@ function senseXml(
     .join('');
   const grammatical = pos.length > 0 ? `<grammatical-info value="${escapeXml(pos)}"/>` : '';
   const nested = childrenOf(id, relations)
+    .filter((childId) => !trail.has(childId))
     .map((childId) => senses.find((row) => row.id === childId))
     .filter((row): row is DmlexSense => Boolean(row))
-    .map((row) => senseXml(row, senses, relations, pos, 'subsense', objectLang))
+    .map((row) => senseXml(row, senses, relations, pos, 'subsense', objectLang, trail, emitted))
     .join('');
+  if (id.length > 0) trail.delete(id);
   const idAttr = id.length > 0 ? ` id="${escapeXml(id)}"` : '';
   return `<${tag}${idAttr}>${grammatical}${glosses}${definitions}${explanations}${examples}${labels}${nested}</${tag}>`;
 }
@@ -118,11 +129,16 @@ export function serializeLexemesToLift(
     .map((lexeme) => {
       const entry = lexeme.entry;
       const senses = entry.senses ?? [];
+      const senseIds = new Set(
+        senses.flatMap((sense) => {
+          const senseId = sense.id ?? '';
+          return senseId.length > 0 ? [senseId] : [];
+        }),
+      );
+      const nestedRelations = subsenseRelationsToKeep(senseIds, relations);
       const childIds = new Set(
-        relations.flatMap((relation) =>
-          relation.type === DMLEX_SUBSENSE && relation.members.length >= 2
-            ? [relation.members[1]?.ref ?? '']
-            : [],
+        nestedRelations.flatMap((relation) =>
+          relation.members.length >= 2 ? [relation.members[1]?.ref ?? ''] : [],
         ),
       );
       const roots = senses.filter((sense) => {
@@ -130,9 +146,19 @@ export function serializeLexemesToLift(
         return senseId.length === 0 || !childIds.has(senseId);
       });
       const pos = entry.partsOfSpeech?.[0] ?? '';
-      const senseBody = (roots.length > 0 ? roots : senses)
-        .map((sense) => senseXml(sense, senses, relations, pos, 'sense', objectLang))
-        .join('');
+      const emitted = new Set<string>();
+      const writeSense = (sense: DmlexSense) =>
+        senseXml(sense, senses, nestedRelations, pos, 'sense', objectLang, new Set(), emitted);
+      const starters = roots.length > 0 ? roots : senses;
+      const senseBody = [
+        ...starters.map(writeSense),
+        ...senses
+          .filter((sense) => {
+            const senseId = sense.id ?? '';
+            return senseId.length > 0 && !emitted.has(senseId);
+          })
+          .map(writeSense),
+      ].join('');
       const variants = (entry.inflectedForms ?? [])
         .map((form) => `<variant>${xmlForm(objectLang, form.text)}</variant>`)
         .join('');
