@@ -165,4 +165,37 @@ describe('useTranscriptionRecoveryActions', () => {
     // 只清当前项目的恢复快照（方案 8.3）| Only the current project's recovery snapshot (plan 8.3)
     expect(mockClearRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME, currentUtt.textId);
   });
+
+  it('applyRecovery reports a stale view when the reload fails after the import returns', async () => {
+    const currentUtt = makeUnit('utt-1', '2026-03-23T20:00:00.000Z');
+    mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValueOnce([{ ...currentUtt }]);
+    const recoveryData = makeRecoveryDataWithTranslation([currentUtt]);
+    const loadSnapshot = vi.fn(async () => {
+      throw new Error('refresh failed');
+    });
+    const setSaveState = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTranscriptionRecoveryActions({
+        dbNameRef: { current: JIEYU_DEXIE_DB_NAME },
+        unitsRef: { current: [currentUtt] },
+        loadSnapshot,
+        runWithDbMutex: async <T,>(task: () => Promise<T>) => task(),
+        setSaveState,
+      }),
+    );
+
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.applyRecovery(recoveryData);
+    });
+
+    expect(ok).toBe(true);
+    expect(mockImportDatabaseFromJson).toHaveBeenCalledTimes(1);
+    expect(mockClearRecoverySnapshot).toHaveBeenCalledTimes(1);
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'viewStale', actionLabel: '重新刷新' }),
+    );
+    expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+  });
 });

@@ -57,6 +57,7 @@ export function LanguageMetadataWorkspacePage({
   const [, setError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [listStale, setListStale] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [draft, setDraft] = useState<LanguageMetadataDraft>(() => buildDraft(null, locale));
   // 搜索匹配元数据：用于 P2 match rendering | Search match metadata for P2 match rendering
@@ -102,7 +103,7 @@ export function LanguageMetadataWorkspacePage({
   useEffect(() => {
     let cancelled = false;
     void loadEntries(deferredSearchText.trim()).then((records) => {
-      if (cancelled) return;
+      if (cancelled || !records) return;
       const currentId = selectedLanguageIdRef.current;
       if (currentId === NEW_LANGUAGE_ID || records.length === 0) return;
       // 仅在无当前选择时自动选中首项，搜索缩窄时不强制切换 | Only auto-select first on initial load; do NOT force-switch when current is filtered out
@@ -429,7 +430,18 @@ export function LanguageMetadataWorkspacePage({
       });
 
       invalidateLabelMap();
-      await loadEntries(deferredSearchText.trim());
+      const refreshed = await loadEntries(deferredSearchText.trim(), {
+        preserveEntriesOnError: true,
+      });
+      if (!refreshed) {
+        // 已经写入：再保存要更新这一条，不能按空编号再建一条
+        setDraft((prev) => ({ ...prev, idInput: saved.id }));
+        setSaveError('');
+        setSaveSuccess(t(locale, 'transcription.importExport.writtenViewStale'));
+        setListStale(true);
+        return;
+      }
+      setListStale(false);
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set(LANGUAGE_ID_PARAM, saved.id);
       setSearchParams(nextParams, { replace: true });
@@ -460,7 +472,30 @@ export function LanguageMetadataWorkspacePage({
         locale,
       });
       invalidateLabelMap();
-      const refreshed = await loadEntries(deferredSearchText.trim());
+      const refreshed = await loadEntries(deferredSearchText.trim(), {
+        preserveEntriesOnError: true,
+      });
+      if (!refreshed) {
+        // 已经删掉：本地列表先去掉这一条（覆盖条目退回内置），免得再删一次
+        const deletedId = selectedEntry.id;
+        if (selectedEntry.entryKind === 'custom') {
+          setEntries((prev) => prev.filter((entry) => entry.id !== deletedId));
+          const nextParams = new URLSearchParams(searchParams);
+          nextParams.delete(LANGUAGE_ID_PARAM);
+          setSearchParams(nextParams, { replace: true });
+        } else {
+          setEntries((prev) =>
+            prev.map((entry) =>
+              entry.id === deletedId ? { ...entry, hasPersistedRecord: false } : entry,
+            ),
+          );
+        }
+        setSaveError('');
+        setSaveSuccess(t(locale, 'transcription.importExport.writtenViewStale'));
+        setListStale(true);
+        return;
+      }
+      setListStale(false);
       const nextParams = new URLSearchParams(searchParams);
       if (selectedEntry.entryKind === 'custom') {
         if (refreshed[0]) {
@@ -519,6 +554,23 @@ export function LanguageMetadataWorkspacePage({
       <div className="lm-footer-status">
         {saveError ? <p className="lm-state lm-state-error">{saveError}</p> : null}
         {saveSuccess ? <p className="lm-state lm-state-success">{saveSuccess}</p> : null}
+        {listStale ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              void loadEntries(deferredSearchText.trim(), { preserveEntriesOnError: true }).then(
+                (records) => {
+                  if (!records) return;
+                  setListStale(false);
+                  setSaveSuccess('');
+                },
+              );
+            }}
+          >
+            {t(locale, 'transcription.toast.segmentViewRetry')}
+          </button>
+        ) : null}
         {!saveError && !saveSuccess ? (
           <p className="lm-state">{t(locale, 'workspace.languageMetadata.summary')}</p>
         ) : null}

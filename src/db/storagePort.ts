@@ -42,6 +42,8 @@ export interface RegexSplitCommit {
   anchors: AnchorDocType[];
   units: LayerUnitDocType[];
   contents: LayerUnitContentDocType[];
+  /** 这些句段（须在 `units` 里）已有的分词段，在同一事务里改成句段的新起止时间。 */
+  resizeSegmentsOf?: string[];
 }
 
 /** 调用方不传表名，也不接收事务回调。 */
@@ -49,7 +51,7 @@ export interface StoragePort {
   turns: AiRuntimeTurnOps;
   fingerprintTarget(id: string): Promise<string | undefined>;
   audit: AuditLogOps;
-  commitRegexSplit(write: RegexSplitCommit): Promise<void>;
+  commitRegexSplit(write: RegexSplitCommit): Promise<{ resizedSegmentIds: string[] }>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -61,7 +63,7 @@ function textIdsOf(write: RegexSplitCommit): string[] {
   return [...ids];
 }
 
-async function commitRegexSplit(write: RegexSplitCommit): Promise<void> {
+async function commitRegexSplit(write: RegexSplitCommit): Promise<{ resizedSegmentIds: string[] }> {
   const textIds = textIdsOf(write);
   if (textIds.length > 1) {
     throw new CatalogOwnershipMismatchError(
@@ -71,24 +73,73 @@ async function commitRegexSplit(write: RegexSplitCommit): Promise<void> {
       textIds[1]!,
     );
   }
-  const database = await getDb();
-  await withTransaction(
-    database,
-    'rw',
-    [database.dexie.anchors, database.dexie.layer_units, database.dexie.layer_unit_contents],
-    async () => {
-      if (write.anchors.length > 0) await database.dexie.anchors.bulkPut(write.anchors);
-      if (write.units.length > 0) await database.dexie.layer_units.bulkPut(write.units);
-      if (write.contents.length > 0)
-        await database.dexie.layer_unit_contents.bulkPut(write.contents);
-    },
-    { label: 'commitRegexSplit' },
+  const projectId = textIds[0];
+  const owners = new Map(
+    (write.resizeSegmentsOf ?? []).flatMap((id) => {
+      const unit = write.units.find((row) => row.id === id);
+      return unit ? [[id, unit] as const] : [];
+    }),
   );
+  const database = await getDb();
+  let resized: LayerUnitDocType[] = [];
+  try {
+    resized = await withTransaction(
+      database,
+      'rw',
+      [database.dexie.anchors, database.dexie.layer_units, database.dexie.layer_unit_contents],
+      async () => {
+        if (projectId !== undefined) {
+          const [storedUnits, storedContents] = await Promise.all([
+            database.dexie.layer_units.bulkGet(write.units.map((row) => row.id)),
+            database.dexie.layer_unit_contents.bulkGet(write.contents.map((row) => row.id)),
+          ]);
+          for (const row of [...storedUnits, ...storedContents]) {
+            const owner = row?.textId?.trim() ?? '';
+            if (row && owner.length > 0 && owner !== projectId) {
+              throw new CatalogOwnershipMismatchError('layer_units', row.id, owner, projectId);
+            }
+          }
+        }
+        const segments =
+          owners.size === 0
+            ? []
+            : (
+                await database.dexie.layer_units
+                  .where('parentUnitId')
+                  .anyOf([...owners.keys()])
+                  .toArray()
+              ).flatMap((row) => {
+                const owner =
+                  row.parentUnitId === undefined ? undefined : owners.get(row.parentUnitId);
+                if (row.unitType !== 'segment' || !owner) return [];
+                return [
+                  {
+                    ...row,
+                    startTime: owner.startTime,
+                    endTime: owner.endTime,
+                    updatedAt: owner.updatedAt,
+                  },
+                ];
+              });
+        if (segments.length > 0) await database.dexie.layer_units.bulkPut(segments);
+        if (write.anchors.length > 0) await database.dexie.anchors.bulkPut(write.anchors);
+        if (write.units.length > 0) await database.dexie.layer_units.bulkPut(write.units);
+        if (write.contents.length > 0)
+          await database.dexie.layer_unit_contents.bulkPut(write.contents);
+        return segments;
+      },
+      { label: 'commitRegexSplit' },
+    );
+  } catch (error) {
+    throw error instanceof Error && error.cause instanceof CatalogOwnershipMismatchError
+      ? error.cause
+      : error;
+  }
   for (const anchor of write.anchors) {
     const stored = await database.dexie.anchors.get(anchor.id);
     if (!stored || stored.time !== anchor.time) throw new StorageReadbackError('commitRegexSplit');
   }
-  for (const unit of write.units) {
+  for (const unit of [...resized, ...write.units]) {
     const stored = await database.dexie.layer_units.get(unit.id);
     if (
       !stored ||
@@ -105,6 +156,7 @@ async function commitRegexSplit(write: RegexSplitCommit): Promise<void> {
       throw new StorageReadbackError('commitRegexSplit');
     }
   }
+  return { resizedSegmentIds: resized.map((row) => row.id) };
 }
 
 function stamp(kind: string, row: { updatedAt?: unknown }): string {

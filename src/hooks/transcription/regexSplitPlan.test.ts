@@ -58,6 +58,21 @@ describe('planRegexSplit', () => {
     ]);
   });
 
+  it('splits the row on the unit layer when a newer translation has the same text', () => {
+    const { contentRole: _role, ...sameText } = content('tr-same', 'aa,bb', 'translation');
+    const plan = planRegexSplit(
+      [{ unit: unit(), fullText: 'aa,bb' }],
+      [
+        content('pri', 'aa,bb', 'primary_text'),
+        { ...sameText, updatedAt: '2026-10-16T00:00:00.000Z' },
+      ],
+      /,/,
+      NOW,
+    );
+    expect(plan.contents.find((row) => row.id === 'pri')).toMatchObject({ text: 'aa' });
+    expect(plan.contents.some((row) => row.id === 'tr-same')).toBe(false);
+  });
+
   it('inserts a primary row when the unit has none', () => {
     const plan = planRegexSplit([{ unit: unit(), fullText: 'aa,bb' }], [], /,/, NOW);
     expect(plan.contents.filter((row) => row.unitId === 'u1')).toEqual([

@@ -15,7 +15,10 @@ import {
 import type { Locale } from '../../i18n';
 import { t, tf } from '../../i18n';
 import { createLogger } from '../../observability/logger';
-import { buildSegmentationProjection } from '../../services/LayerSegmentationTextService';
+import {
+  buildSegmentationProjection,
+  listUnitTextsByUnits,
+} from '../../services/LayerSegmentationTextService';
 import { scheduleSegmentMetaSyncForUnitIds } from '../../services/segmentMetaSyncBestEffort';
 import { planRegexSplit } from './regexSplitPlan';
 import { mergeUnitSelfCertaintyConservative } from '../../utils/unitSelfCertainty';
@@ -331,19 +334,6 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
     }
 
     const db = await getDb();
-    const existingSegments = (
-      await db.dexie.layer_units.where('parentUnitId').anyOf(plan.firstUnitIds).toArray()
-    ).filter((row) => row.unitType === 'segment');
-    const firstById = new Map(
-      plan.units
-        .filter((unit) => plan.firstUnitIds.includes(unit.id))
-        .map((unit) => [unit.id, unit]),
-    );
-    const shiftedSegments = existingSegments.map((row) => {
-      const owner = row.parentUnitId ? firstById.get(row.parentUnitId) : undefined;
-      if (!owner) return row;
-      return { ...row, startTime: owner.startTime, endTime: owner.endTime, updatedAt: now };
-    });
     const projections = plan.projectionSources.map(({ unit, translation }) =>
       buildSegmentationProjection(unit, translation, now),
     );
@@ -357,19 +347,16 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
           : { ...stored, text, updatedAt: now };
       }),
     );
-    const writtenUnits = [
-      ...plan.units,
-      ...shiftedSegments,
-      ...projections.map((row) => row.segment),
-    ];
+    const writtenUnits = [...plan.units, ...projections.map((row) => row.segment)];
     const writtenContents = [...storedContents, ...projections.map((row) => row.content)];
 
     pushUndo(getUndoLabel(locale, 'splitByRegex'));
     try {
-      await storagePort().commitRegexSplit({
+      const { resizedSegmentIds } = await storagePort().commitRegexSplit({
         anchors: plan.anchors,
         units: writtenUnits,
         contents: writtenContents,
+        resizeSegmentsOf: plan.firstUnitIds,
       });
       const updatedIds = new Set(plan.firstUnitIds);
       setUnits((prev) => [
@@ -389,7 +376,7 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
       const firstInsert = plan.units.find((unit) => !updatedIds.has(unit.id));
       if (firstInsert) selectUnitPrimary(firstInsert.id);
       scheduleSegmentMetaSyncForUnitIds(
-        writtenUnits.map((unit) => unit.id),
+        [...writtenUnits.map((unit) => unit.id), ...resizedSegmentIds],
         'useTranscriptionUnitActions.splitByRegex',
       );
       setSaveState({
@@ -402,15 +389,14 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
       if (error instanceof StorageReadbackError) {
         try {
           const fresh = await getDb();
-          const [unitRows, contentRows, anchorRows] = await Promise.all([
+          const splitUnitIds = plan.units.map((unit) => unit.id);
+          // 编辑器里的正文是按父句段映射过的视图行，不能直接塞库里的分词行
+          const [unitRows, contentsFound, anchorRows] = await Promise.all([
             fresh.dexie.layer_units.bulkGet(writtenUnits.map((unit) => unit.id)),
-            fresh.dexie.layer_unit_contents.bulkGet(plan.contents.map((row) => row.id)),
+            listUnitTextsByUnits(fresh, splitUnitIds),
             fresh.dexie.anchors.bulkGet(plan.anchors.map((row) => row.id)),
           ]);
           const unitsFound = unitRows.filter((row): row is LayerUnitDocType => row !== undefined);
-          const contentsFound = contentRows.filter(
-            (row): row is LayerUnitContentDocType => row !== undefined,
-          );
           const anchorsFound = anchorRows.filter((row): row is AnchorDocType => row !== undefined);
           setUnits((prev) => {
             const known = new Set(prev.map((unit) => unit.id));
@@ -419,13 +405,17 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
               ...unitsFound.filter((row) => row.unitType !== 'segment' && !known.has(row.id)),
             ];
           });
-          setTranslations((prev) => {
-            const byId = new Map(contentsFound.map((row) => [row.id, row]));
-            const merged = prev.map((row) => byId.get(row.id) ?? row);
-            const known = new Set(merged.map((row) => row.id));
-            return [...merged, ...contentsFound.filter((row) => !known.has(row.id))];
-          });
-          if (anchorsFound.length > 0) setAnchors?.((prev) => [...prev, ...anchorsFound]);
+          const splitIdSet = new Set(splitUnitIds);
+          setTranslations((prev) => [
+            ...prev.filter((row) => !splitIdSet.has(row.unitId ?? '')),
+            ...contentsFound,
+          ]);
+          if (anchorsFound.length > 0) {
+            setAnchors?.((prev) => {
+              const known = new Set(prev.map((row) => row.id));
+              return [...prev, ...anchorsFound.filter((row) => !known.has(row.id))];
+            });
+          }
         } catch (rereadError) {
           log.warn('Reread after regex split read-back failure also failed', {
             error: rereadError instanceof Error ? rereadError.message : String(rereadError),

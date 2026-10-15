@@ -207,6 +207,63 @@ describe('OrthographyBridgeManager', () => {
     });
   });
 
+  it('keeps the draft when the rule list fails to reload after a save', async () => {
+    mockCreateOrthographyBridge.mockResolvedValue({ id: 'orthxfm-created' });
+    mockUpdateOrthographyBridge.mockResolvedValue(undefined);
+    mockListOrthographyBridges.mockImplementation(async () => {
+      if (mockCreateOrthographyBridge.mock.calls.length > 0) {
+        throw new Error('list failed');
+      }
+      return [] as OrthographyBridgeDocType[];
+    });
+    renderWithLocale(
+      <OrthographyBridgeManager
+        targetOrthography={targetOrthography}
+        languageOptions={[{ code: 'eng', label: '英语 English' }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '管理写入桥接规则' }));
+    await screen.findByText('当前正字法尚未配置入站桥接规则，导入或自动写入时会保留原文本。');
+    fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
+    const bridgeCodeInput = screen.getByRole('textbox', { name: /语言代码|Source language code/i });
+    fireEvent.change(bridgeCodeInput, { target: { value: 'eng' } });
+    fireEvent.blur(bridgeCodeInput);
+    await waitFor(() => {
+      const select = screen.getByLabelText('来源正字法') as HTMLSelectElement;
+      expect(select.options.length).toBeGreaterThan(1);
+    });
+    fireEvent.change(screen.getByLabelText('来源正字法'), { target: { value: 'orth-source' } });
+    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), {
+      target: { value: 'sh => s' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('输入一段样例文本预览桥接结果'), {
+      target: { value: 'sha' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '保存规则' }));
+
+    expect(await screen.findByText('已写入，视图还没刷新。')).toBeTruthy();
+    expect(
+      (screen.getByPlaceholderText('每行一条映射，如 aa => a') as HTMLTextAreaElement).value,
+    ).toBe('sh => s');
+    expect(mockCreateOrthographyBridge).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.orthography-builder-validation-box-error')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存规则' }));
+    await waitFor(() => {
+      expect(mockUpdateOrthographyBridge).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'orthxfm-created' }),
+      );
+    });
+    expect(mockCreateOrthographyBridge).toHaveBeenCalledTimes(1);
+
+    mockListOrthographyBridges.mockResolvedValue([] as OrthographyBridgeDocType[]);
+    fireEvent.click(screen.getByRole('button', { name: '重新刷新' }));
+    await waitFor(() => {
+      expect(screen.queryByText('已写入，视图还没刷新。')).toBeNull();
+    });
+  });
+
   it('lists existing inbound bridges and supports toggling status and deleting', async () => {
     mockListOrthographyBridges.mockResolvedValue([
       {

@@ -6,7 +6,7 @@ import {
   formatOrthographyOptionLabel,
   groupOrthographiesForSelect,
 } from '~/hooks/orthography/useOrthographyPicker';
-import { useLocale } from '../i18n';
+import { t, useLocale } from '../i18n';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { FormField } from './ui';
 import {
@@ -102,6 +102,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [listStale, setListStale] = useState(false);
   const [bridges, setBridges] = useState<OrthographyBridgeDocType[]>([]);
   const [sourceOrthographyById, setSourceOrthographyById] =
     useState<Record<string, OrthographyDocType>>();
@@ -203,52 +204,60 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
     setError('');
   }, []);
 
-  const loadBridges = useCallback(async () => {
-    const requestVersion = loadRequestVersionRef.current + 1;
-    loadRequestVersionRef.current = requestVersion;
-    if (!targetOrthography?.id) {
-      setBridges([]);
-      setSourceOrthographyById({});
-      return;
-    }
-    setLoading(true);
-    try {
-      const nextBridges = await listOrthographyBridgeRecords({
-        targetOrthographyId: targetOrthography.id,
-      });
-      if (loadRequestVersionRef.current !== requestVersion) return;
-      setBridges(nextBridges);
-      const sourceIds = Array.from(new Set(nextBridges.map((item) => item.sourceOrthographyId)));
-      if (sourceIds.length === 0) {
+  const loadBridges = useCallback(
+    async (options?: { silent?: boolean }): Promise<boolean> => {
+      const requestVersion = loadRequestVersionRef.current + 1;
+      loadRequestVersionRef.current = requestVersion;
+      if (!targetOrthography?.id) {
+        setBridges([]);
         setSourceOrthographyById({});
-      } else {
-        const db = await getDb();
-        const [dbOrthographies, builtInOrthographies] = await Promise.all([
-          db.dexie.orthographies.bulkGet(sourceIds),
-          listBuiltInOrthographiesByIds(sourceIds),
-        ]);
-        if (loadRequestVersionRef.current !== requestVersion) return;
-        const mergedOrthographies = new Map<string, OrthographyDocType>();
-        builtInOrthographies.forEach((item) => {
-          mergedOrthographies.set(item.id, item);
+        return true;
+      }
+      setLoading(true);
+      try {
+        const nextBridges = await listOrthographyBridgeRecords({
+          targetOrthographyId: targetOrthography.id,
         });
-        dbOrthographies
-          .filter((item): item is OrthographyDocType => Boolean(item))
-          .forEach((item) => {
+        if (loadRequestVersionRef.current !== requestVersion) return true;
+        setBridges(nextBridges);
+        const sourceIds = Array.from(new Set(nextBridges.map((item) => item.sourceOrthographyId)));
+        if (sourceIds.length === 0) {
+          setSourceOrthographyById({});
+        } else {
+          const db = await getDb();
+          const [dbOrthographies, builtInOrthographies] = await Promise.all([
+            db.dexie.orthographies.bulkGet(sourceIds),
+            listBuiltInOrthographiesByIds(sourceIds),
+          ]);
+          if (loadRequestVersionRef.current !== requestVersion) return true;
+          const mergedOrthographies = new Map<string, OrthographyDocType>();
+          builtInOrthographies.forEach((item) => {
             mergedOrthographies.set(item.id, item);
           });
-        setSourceOrthographyById(Object.fromEntries(Array.from(mergedOrthographies.entries())));
+          dbOrthographies
+            .filter((item): item is OrthographyDocType => Boolean(item))
+            .forEach((item) => {
+              mergedOrthographies.set(item.id, item);
+            });
+          setSourceOrthographyById(Object.fromEntries(Array.from(mergedOrthographies.entries())));
+        }
+        setError('');
+        setListStale(false);
+        return true;
+      } catch (loadError) {
+        if (loadRequestVersionRef.current !== requestVersion) return true;
+        if (!options?.silent) {
+          setError(loadError instanceof Error ? loadError.message : managerMessages.errorLoad);
+        }
+        return false;
+      } finally {
+        if (loadRequestVersionRef.current === requestVersion) {
+          setLoading(false);
+        }
       }
-      setError('');
-    } catch (loadError) {
-      if (loadRequestVersionRef.current !== requestVersion) return;
-      setError(loadError instanceof Error ? loadError.message : managerMessages.errorLoad);
-    } finally {
-      if (loadRequestVersionRef.current === requestVersion) {
-        setLoading(false);
-      }
-    }
-  }, [managerMessages.errorLoad, targetOrthography?.id]);
+    },
+    [managerMessages.errorLoad, targetOrthography?.id],
+  );
 
   useEffect(() => {
     loadRequestVersionRef.current += 1;
@@ -321,12 +330,14 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
           id: bridge.id,
           status: bridge.status === 'active' ? 'draft' : 'active',
         });
-        await loadBridges();
       } catch (toggleError) {
         setError(toggleError instanceof Error ? toggleError.message : managerMessages.errorToggle);
+        return;
       } finally {
         setSaving(false);
       }
+      const listed = await loadBridges({ silent: true });
+      if (!listed) setListStale(true);
     },
     [loadBridges, managerMessages.errorToggle],
   );
@@ -336,15 +347,17 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
       setSaving(true);
       try {
         await deleteOrthographyBridgeRecord(bridgeId);
-        await loadBridges();
-        if (editingBridgeId === bridgeId) {
-          resetEditor();
-        }
       } catch (deleteError) {
         setError(deleteError instanceof Error ? deleteError.message : managerMessages.errorDelete);
+        return;
       } finally {
         setSaving(false);
       }
+      if (editingBridgeId === bridgeId) {
+        resetEditor();
+      }
+      const listed = await loadBridges({ silent: true });
+      if (!listed) setListStale(true);
     },
     [editingBridgeId, loadBridges, managerMessages.errorDelete, resetEditor],
   );
@@ -406,6 +419,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
     }
 
     setSaving(true);
+    let createdId: string | undefined;
     try {
       const existingBridge = editingBridgeId
         ? bridges.find((bridge) => bridge.id === editingBridgeId)
@@ -424,7 +438,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
           })
         : null;
       if (isCreatingNew) {
-        await createOrthographyBridgeRecord({
+        const created = await createOrthographyBridgeRecord({
           sourceOrthographyId,
           targetOrthographyId: targetOrthography.id,
           ...(Object.keys(name).length ? { name } : {}),
@@ -436,6 +450,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
           isReversible: draftBridgeIsReversible,
           status: draftStatus,
         });
+        createdId = created.id;
       } else if (editingBridgeId) {
         const shouldClearName = !Object.keys(name).length && existingBridge?.name !== undefined;
         await updateOrthographyBridgeRecord({
@@ -453,13 +468,23 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
           status: draftStatus,
         });
       }
-      await loadBridges();
-      resetEditor();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : managerMessages.errorSave);
+      return;
     } finally {
       setSaving(false);
     }
+    const listed = await loadBridges({ silent: true });
+    if (!listed) {
+      // 规则已经建好：保留草稿，但再保存只能改这一条，不能再建一条
+      if (createdId) {
+        setIsCreatingNew(false);
+        setEditingBridgeId(createdId);
+      }
+      setListStale(true);
+      return;
+    }
+    resetEditor();
   }, [
     bridgeDraftRules,
     bridgeDraftSampleCases,
@@ -916,6 +941,19 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
               </div>
             </div>
           )}
+
+          {listStale ? (
+            <div className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
+              <span>{t(locale, 'transcription.importExport.writtenViewStale')}</span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => void loadBridges({ silent: true })}
+              >
+                {t(locale, 'transcription.toast.segmentViewRetry')}
+              </button>
+            </div>
+          ) : null}
 
           {error && (
             <div className="orthography-builder-validation-box orthography-builder-validation-box-error">

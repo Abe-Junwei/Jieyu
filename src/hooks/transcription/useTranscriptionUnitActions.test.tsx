@@ -1078,6 +1078,78 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     );
   });
 
+  it('splitByRegex rereads view-shaped text and does not undo when read-back misses', async () => {
+    const pushUndo = vi.fn();
+    const rollbackUndo = vi.fn(async () => undefined);
+    const setSaveState = vi.fn();
+    const { dexieStoragePort, installStoragePort, StorageReadbackError } =
+      await import('../../db/storagePort');
+    installStoragePort({
+      ...dexieStoragePort,
+      commitRegexSplit: async (write) => {
+        await dexieStoragePort.commitRegexSplit(write);
+        throw new StorageReadbackError('commitRegexSplit');
+      },
+    });
+
+    let unitsState: LayerUnitDocType[] = [{ ...makeUnit('u1', 0, 3), layerId: 'layer-a' }];
+    let translationsState: LayerUnitContentDocType[] = [];
+    const setUnits = vi.fn(
+      (updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+        unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
+      },
+    );
+    const setTranslations = vi.fn(
+      (
+        updater:
+          | ((prev: LayerUnitContentDocType[]) => LayerUnitContentDocType[])
+          | LayerUnitContentDocType[],
+      ) => {
+        translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
+      },
+    );
+
+    const { result } = renderHook(() =>
+      useTranscriptionUnitActions({
+        defaultTranscriptionLayerId: undefined,
+        layerById: new Map(),
+        selectedUnitMedia: undefined,
+        translations: [],
+        unitsRef: { current: unitsState },
+        unitsOnCurrentMediaRef: { current: unitsState },
+        getUnitTextForLayer: () => 'a,b,c',
+        timingGestureRef: { current: { active: false, unitId: null } },
+        timingUndoRef: { current: null },
+        pushUndo,
+        rollbackUndo,
+        createAnchor: vi.fn(),
+        updateAnchorTime: vi.fn(),
+        pruneOrphanAnchors: vi.fn(),
+        setSaveState,
+        setMediaItems: vi.fn(),
+        setTranslations,
+        setUnits,
+        setUnitDrafts: vi.fn(),
+        setTranslationDrafts: vi.fn(),
+        activeUnitId: '',
+        setSelectedUnitIds: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.splitByRegex(new Set(['u1']), ',', 'g');
+    });
+
+    expect(rollbackUndo).not.toHaveBeenCalled();
+    const parentIds = new Set(unitsState.map((unit) => unit.id));
+    expect(parentIds.size).toBe(3);
+    expect(translationsState.map((row) => row.text).sort()).toEqual(['a', 'b', 'c']);
+    expect(translationsState.every((row) => parentIds.has(row.unitId ?? ''))).toBe(true);
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'error', message: expect.stringContaining('读回') }),
+    );
+  });
+
   it('splitByRegex should log both operation error and rollback warning when rollback also fails', async () => {
     const pushUndo = vi.fn();
     const rollbackUndo = vi.fn(async () => {

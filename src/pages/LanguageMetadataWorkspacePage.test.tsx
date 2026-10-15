@@ -463,6 +463,24 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
   });
 
+  it('drops a deleted custom entry locally when the list does not reload', async () => {
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+    const listedBeforeDelete = mockListLanguageCatalogEntries.getMockImplementation();
+    mockListLanguageCatalogEntries.mockImplementation(async (...args: unknown[]) => {
+      if (mockDeleteLanguageCatalogEntry.mock.calls.length > 0) throw new Error('list failed');
+      return listedBeforeDelete ? listedBeforeDelete(...(args as [never])) : [];
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '删除自定义条目' }));
+
+    expect(await screen.findByText('已写入，视图还没刷新。')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '删除自定义条目' })).toBeNull();
+    expect(mockDeleteLanguageCatalogEntry).toHaveBeenCalledTimes(1);
+  });
+
   it('saves a new custom language with separate asset id and display code', async () => {
     renderWorkspace('/assets/language-metadata');
 

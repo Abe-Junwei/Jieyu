@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { snapshotLoadWasSuperseded, type LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
+import { reloadAfterWrite, type LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
+import { getStoredLocalePreference } from '../../i18n';
 import { getDb, importDatabaseFromJson } from '../../db';
 import type { LayerUnitDocType } from '../../db';
 import {
@@ -94,22 +95,6 @@ export function useTranscriptionRecoveryActions({
 
           await importDatabaseFromJson(data.snapshot, { strategy: 'upsert' });
         });
-
-        const loaded = await loadSnapshot(projectTextId);
-        const name = dbNameRef.current;
-        if (name) {
-          fireAndForget(clearRecoverySnapshot(name, projectTextId), {
-            context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L88',
-            policy: 'background',
-          });
-        }
-        if (!snapshotLoadWasSuperseded(loaded)) {
-          setSaveState({
-            kind: 'done',
-            message: '\u5df2\u4ece\u5d29\u6e83\u6062\u590d\u6570\u636e\u4e2d\u8fd8\u539f',
-          });
-        }
-        return true;
       } catch (error) {
         log.error('Apply recovery failed', {
           error: error instanceof Error ? error.message : String(error),
@@ -125,6 +110,25 @@ export function useTranscriptionRecoveryActions({
         });
         return false;
       }
+
+      const name = dbNameRef.current;
+      if (name) {
+        fireAndForget(clearRecoverySnapshot(name, projectTextId), {
+          context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L88',
+          policy: 'background',
+        });
+      }
+      await reloadAfterWrite({
+        reload: () => loadSnapshot(projectTextId),
+        setSaveState,
+        locale: getStoredLocalePreference() ?? 'zh-CN',
+        onReloaded: () =>
+          setSaveState({
+            kind: 'done',
+            message: '\u5df2\u4ece\u5d29\u6e83\u6062\u590d\u6570\u636e\u4e2d\u8fd8\u539f',
+          }),
+      });
+      return true;
     },
     [dbNameRef, loadSnapshot, runWithDbMutex, setSaveState, unitsRef],
   );

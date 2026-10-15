@@ -1,6 +1,6 @@
 import type { ITranscriptionAppServiceGateway } from '../app/TranscriptionAppService';
 import {
-  snapshotLoadWasSuperseded,
+  reloadAfterWrite,
   type LoadTranscriptionSnapshot,
 } from '../hooks/transcription/workspaceSnapshotLoad';
 import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
@@ -149,10 +149,16 @@ export async function importTranscriptionProjectAudio(input: {
       logicalDurationSec: duration,
     });
   }
-  if (snapshotLoadWasSuperseded(await loadSnapshot(textId))) return;
   clearPendingAudioImportSelection();
-  setSaveState({
-    kind: 'done',
-    message: tfB('transcription.action.audioImported', { filename: file.name }),
+  const writtenTextId = textId;
+  await reloadAfterWrite({
+    reload: () => loadSnapshot(writtenTextId),
+    setSaveState,
+    locale,
+    onReloaded: () =>
+      setSaveState({
+        kind: 'done',
+        message: tfB('transcription.action.audioImported', { filename: file.name }),
+      }),
   });
 }

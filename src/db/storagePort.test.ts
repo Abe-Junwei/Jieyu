@@ -139,6 +139,87 @@ describe('dexie storage port', () => {
     await expect(db.layer_units.get('u1')).resolves.toBeUndefined();
   });
 
+  it('writes nothing when a regex split overwrites a row stored for another project', async () => {
+    await db.layer_units.put({
+      id: 'u-other',
+      textId: 'project-b',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as LayerUnitDocType);
+    await expect(
+      dexieStoragePort.commitRegexSplit({
+        anchors: [{ id: 'anc-x', mediaId: 'm1', time: 1, createdAt: NOW }],
+        units: [
+          {
+            id: 'u-other',
+            textId: 'project-a',
+            startTime: 0,
+            endTime: 0.5,
+            createdAt: NOW,
+            updatedAt: '2026-10-16T00:00:00.000Z',
+          } as LayerUnitDocType,
+        ],
+        contents: [],
+      }),
+    ).rejects.toThrow(/belongs to project/);
+    await expect(db.layer_units.get('u-other')).resolves.toMatchObject({
+      textId: 'project-b',
+      endTime: 1,
+    });
+    await expect(db.anchors.get('anc-x')).resolves.toBeUndefined();
+  });
+
+  it('moves the split unit segments to its new bounds in the same commit', async () => {
+    await db.layer_units.bulkPut([
+      {
+        id: 'seg-1',
+        textId: 'text-a',
+        unitType: 'segment',
+        parentUnitId: 'u1',
+        startTime: 0,
+        endTime: 3,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as LayerUnitDocType,
+      {
+        id: 'seg-other',
+        textId: 'text-a',
+        unitType: 'segment',
+        parentUnitId: 'u2',
+        startTime: 3,
+        endTime: 4,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as LayerUnitDocType,
+    ]);
+    const later = '2026-10-16T00:00:00.000Z';
+    const { resizedSegmentIds } = await dexieStoragePort.commitRegexSplit({
+      anchors: [],
+      units: [
+        {
+          id: 'u1',
+          textId: 'text-a',
+          unitType: 'unit',
+          startTime: 0,
+          endTime: 1.2,
+          createdAt: NOW,
+          updatedAt: later,
+        } as LayerUnitDocType,
+      ],
+      contents: [],
+      resizeSegmentsOf: ['u1'],
+    });
+    expect(resizedSegmentIds).toEqual(['seg-1']);
+    await expect(db.layer_units.get('seg-1')).resolves.toMatchObject({
+      startTime: 0,
+      endTime: 1.2,
+      updatedAt: later,
+    });
+    await expect(db.layer_units.get('seg-other')).resolves.toMatchObject({ endTime: 4 });
+  });
+
   it('keeps the regex split when read-back fails', async () => {
     vi.spyOn(db.layer_units, 'get').mockResolvedValueOnce(undefined);
     await expect(

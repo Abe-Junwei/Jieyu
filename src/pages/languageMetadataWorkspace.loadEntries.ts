@@ -21,7 +21,10 @@ export function createLoadEntries(deps: LoadEntriesDeps) {
   const { locale, browseLanguageIds, setLoading, setError, setEntries, setSearchSuggestionMap } =
     deps;
 
-  return async (nextSearchText: string): Promise<LanguageCatalogEntry[]> => {
+  return async (
+    nextSearchText: string,
+    options?: { preserveEntriesOnError?: boolean },
+  ): Promise<LanguageCatalogEntry[] | null> => {
     setLoading(true);
     try {
       const normalizedSearchText = nextSearchText.trim();
@@ -70,6 +73,7 @@ export function createLoadEntries(deps: LoadEntriesDeps) {
       setError('');
       return records;
     } catch (loadError) {
+      if (options?.preserveEntriesOnError) return null;
       setEntries([]);
       setError(
         loadError instanceof Error

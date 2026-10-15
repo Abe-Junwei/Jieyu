@@ -39,16 +39,18 @@ function boundsFor(
   return bounds;
 }
 
+/** 译文可能与原文同字；先取句段自己那一层的行，免得把译文当原文拆掉。 */
 function primaryContent(
   translations: LayerUnitContentDocType[],
-  unitId: string,
+  target: LayerUnitDocType,
   fullText: string,
 ): LayerUnitContentDocType | undefined {
   const rows = translations.filter(
-    (row) => row.unitId === unitId && (row.text ?? '').trim() === fullText,
+    (row) => row.unitId === target.id && (row.text ?? '').trim() === fullText,
   );
+  const ownLayer = target.layerId ? rows.filter((row) => row.layerId === target.layerId) : [];
   const primary = rows.filter((row) => (row.contentRole ?? 'primary_text') === 'primary_text');
-  const pool = primary.length > 0 ? primary : rows;
+  const pool = ownLayer.length > 0 ? ownLayer : primary.length > 0 ? primary : rows;
   return [...pool].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 }
 
@@ -124,7 +126,7 @@ export function planRegexSplit(
     firstUnitIds.push(target.id);
     drafts[target.id] = segments[0]!;
 
-    const primary = primaryContent(translations, target.id, trimmed);
+    const primary = primaryContent(translations, target, trimmed);
     if (primary) {
       contents.push({ ...primary, text: segments[0]!, updatedAt: now });
     } else {

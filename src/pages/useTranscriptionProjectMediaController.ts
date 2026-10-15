@@ -23,7 +23,7 @@ import {
   clearActiveProjectTextId,
   resolveCurrentProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
-import { snapshotLoadWasSuperseded } from '../hooks/transcription/workspaceSnapshotLoad';
+import { reloadAfterWrite } from '../hooks/transcription/workspaceSnapshotLoad';
 import {
   assessTimelineImportMismatch,
   resolveAudioImportWillRemapOnFirstBind,
@@ -169,17 +169,6 @@ export function useTranscriptionProjectMediaController(
       (async () => {
         try {
           await transcriptionAppService.deleteAudio(media.id);
-          if (
-            snapshotLoadWasSuperseded(
-              await loadSnapshot(resolveCurrentProjectTextId(media.textId ?? activeTextId)),
-            )
-          ) {
-            return;
-          }
-          selectTimelineUnit(null);
-          clearPendingAudioImportSelection();
-          setShowAudioImport(false);
-          setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
         } catch (error) {
           log.error('Failed to delete current audio', {
             mediaId: media.id,
@@ -195,7 +184,19 @@ export function useTranscriptionProjectMediaController(
               message: error instanceof Error ? error.message : String(error),
             }),
           });
+          return;
         }
+        selectTimelineUnit(null);
+        clearPendingAudioImportSelection();
+        setShowAudioImport(false);
+        const projectId = resolveCurrentProjectTextId(media.textId ?? activeTextId);
+        await reloadAfterWrite({
+          reload: () => loadSnapshot(projectId),
+          setSaveState,
+          locale,
+          onReloaded: () =>
+            setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') }),
+        });
       })(),
       {
         context: 'src/pages/useTranscriptionProjectMediaController.ts:L165',
@@ -226,8 +227,9 @@ export function useTranscriptionProjectMediaController(
     setProjectDeleteConfirm(false);
     fireAndForget(
       (async () => {
+        let outcome: Awaited<ReturnType<typeof runProjectRemovalWithPrompts>>;
         try {
-          const outcome = await runProjectRemovalWithPrompts(
+          outcome = await runProjectRemovalWithPrompts(
             transcriptionAppService,
             currentActiveTextId,
             {
@@ -239,24 +241,6 @@ export function useTranscriptionProjectMediaController(
                 ),
             },
           );
-          if (outcome === 'cancelled') return;
-          clearActiveProjectTextId();
-          setActiveTextId(null);
-          selectTimelineUnit(null);
-          clearPendingAudioImportSelection();
-          setShowAudioImport(false);
-          // 删除后没有当前项目：清空工作台，而不是跳到别的项目（JY-02）
-          // No current project after deletion: clear the workspace instead of jumping to another one (JY-02)
-          if (snapshotLoadWasSuperseded(await loadSnapshot(''))) return;
-          setSaveState({
-            kind: 'done',
-            message: t(
-              locale,
-              outcome === 'remove-local'
-                ? 'transcription.action.projectRemovedLocally'
-                : 'transcription.action.projectDeleted',
-            ),
-          });
         } catch (error) {
           log.error('Failed to delete current project', {
             textId: currentActiveTextId,
@@ -272,7 +256,26 @@ export function useTranscriptionProjectMediaController(
               message: error instanceof Error ? error.message : String(error),
             }),
           });
+          return;
         }
+        if (outcome === 'cancelled') return;
+        clearActiveProjectTextId();
+        setActiveTextId(null);
+        selectTimelineUnit(null);
+        clearPendingAudioImportSelection();
+        setShowAudioImport(false);
+        // 删除后没有当前项目：清空工作台，而不是跳到别的项目（JY-02）
+        // No current project after deletion: clear the workspace instead of jumping to another one (JY-02)
+        const doneKey =
+          outcome === 'remove-local'
+            ? 'transcription.action.projectRemovedLocally'
+            : 'transcription.action.projectDeleted';
+        await reloadAfterWrite({
+          reload: () => loadSnapshot(''),
+          setSaveState,
+          locale,
+          onReloaded: () => setSaveState({ kind: 'done', message: t(locale, doneKey) }),
+        });
       })(),
       {
         context: 'src/pages/useTranscriptionProjectMediaController.ts:L217',
@@ -304,14 +307,26 @@ export function useTranscriptionProjectMediaController(
       const result = await transcriptionAppService.createProject(projectInput);
       publishActiveProjectTextId(result.textId);
       setActiveTextId(result.textId);
-      setSaveState({
-        kind: 'done',
-        message: tfB('transcription.action.projectCreated', { title: projectInput.primaryTitle }),
-      });
       setShowAudioImport(false);
-      await loadSnapshot(result.textId);
+      const message = tfB('transcription.action.projectCreated', {
+        title: projectInput.primaryTitle,
+      });
+      await reloadAfterWrite({
+        reload: () => loadSnapshot(result.textId),
+        setSaveState,
+        locale,
+        onReloaded: () => setSaveState({ kind: 'done', message }),
+      });
     },
-    [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB, transcriptionAppService],
+    [
+      loadSnapshot,
+      locale,
+      setActiveTextId,
+      setSaveState,
+      setShowAudioImport,
+      tfB,
+      transcriptionAppService,
+    ],
   );
 
   const handleAudioImport = useCallback(
