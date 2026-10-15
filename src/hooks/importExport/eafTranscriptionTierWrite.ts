@@ -14,7 +14,7 @@ import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService'
 import type { EafTranscriptionTier } from '../../services/EafService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { newId, humanizeTierName } from '../../utils/transcriptionFormatters';
-import { persistImportedTokensForHost } from './useImportExport.additionalTierHandlers';
+import type { ImportedTokenGraphWriter } from './persistImportedTokenGraph';
 import {
   findReimportUnitId,
   matchLayerByEafTier,
@@ -50,7 +50,7 @@ export async function writeExtraEafTranscriptionTiers(input: {
     fallbackName: string,
   ) => { label: string; source: ImportLayerNameSource; matchedTag?: string };
   resolveSpeakerId: (speakerCode: string | undefined) => string | undefined;
-  lexemeIdByFormKey: Map<string, string>;
+  tokenGraph: ImportedTokenGraphWriter;
 }): Promise<void> {
   for (const tier of input.tiers) {
     const display = input.resolveLayerDisplayName(
@@ -127,24 +127,12 @@ export async function writeExtraEafTranscriptionTiers(input: {
         updatedAt: input.now,
       };
       await LinguisticService.units.save(saved);
-      if (existingId && unit.tokens && unit.tokens.length > 0) {
-        const oldTokens = await input.db.dexie.unit_tokens.where('unitId').equals(id).toArray();
-        const oldMorphs = await input.db.dexie.unit_morphemes.where('unitId').equals(id).toArray();
-        const oldIds = [...oldTokens.map((row) => row.id), ...oldMorphs.map((row) => row.id)];
-        if (oldIds.length > 0) {
-          await input.db.dexie.token_lexeme_links.where('targetId').anyOf(oldIds).delete();
-        }
-        await input.db.dexie.unit_morphemes.where('unitId').equals(id).delete();
-        await input.db.dexie.unit_tokens.where('unitId').equals(id).delete();
-      }
       if (unit.tokens && unit.tokens.length > 0) {
-        await persistImportedTokensForHost({
-          textId: input.textId,
+        await input.tokenGraph.write({
           hostUnitId: id,
           tokens: unit.tokens,
           now: input.now,
           ...(tier.locale ? { language: tier.locale } : {}),
-          lexemeIdByFormKey: input.lexemeIdByFormKey,
         });
       }
       if (unit.transcription.trim()) {

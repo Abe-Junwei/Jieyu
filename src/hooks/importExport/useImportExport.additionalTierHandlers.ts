@@ -3,18 +3,14 @@ import type {
   LayerDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
-  TokenLexemeLinkDocType,
-  UnitMorphemeDocType,
-  UnitTokenDocType,
 } from '../../db';
-import { getDb, isLexemeEntry } from '../../db';
 import type { EafImportResult } from '../../services/EafService';
-import { LinguisticService } from '../../services/LinguisticService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../../services/LayerSegmentationV2Service';
 import { LayerUnitSegmentWriteService } from '../../services/LayerUnitSegmentWriteService';
 import { newId, humanizeTierName } from '../../utils/transcriptionFormatters';
+import type { ImportedHostToken, ImportedTokenGraphWriter } from './persistImportedTokenGraph';
 import { createLogger } from '../../observability/logger';
 import { matchUnitByAnnotationRef } from '../../utils/eafImportAlign';
 import {
@@ -23,148 +19,14 @@ import {
   writeImportLayerNameAudit,
 } from './useImportExport.importHelpers';
 
-type AdditionalTierToken = {
-  form: Record<string, string>;
-  gloss?: Record<string, string>;
-  pos?: string;
-  lexemeId?: string;
-  morphemes?: Array<{
-    form: Record<string, string>;
-    gloss?: Record<string, string>;
-    pos?: string;
-    lexemeId?: string;
-  }>;
-};
-
 type AdditionalTierAnnotation = {
   startTime: number;
   endTime: number;
   text: string;
   annotationId?: string;
   annotationRef?: string;
-  tokens?: AdditionalTierToken[];
+  tokens?: ImportedHostToken[];
 };
-
-async function resolveFormLexemeId(
-  textId: string,
-  form: Record<string, string>,
-  language: string | undefined,
-  cache: Map<string, string>,
-  explicitId?: string,
-): Promise<string | undefined> {
-  const explicit = explicitId?.trim();
-  if (explicit) {
-    const db = await getDb();
-    const row = await db.dexie.lexemes.get(explicit);
-    if (row && isLexemeEntry(row) && row.textId === textId) return row.id;
-  }
-  const surface =
-    (typeof form.default === 'string' && form.default.trim()) ||
-    (typeof form.eng === 'string' && form.eng.trim()) ||
-    Object.values(form)
-      .find((value) => typeof value === 'string' && value.trim())
-      ?.trim();
-  if (!surface) return undefined;
-  const lang = language?.trim() || undefined;
-  const cacheKey = `${lang ?? ''}::${surface}`;
-  const cached = cache.get(cacheKey);
-  if (cached) return cached;
-  const lexemeId = await LinguisticService.lexemes.matchOrCreateByForm({
-    form: surface,
-    textId,
-    ...(lang ? { language: lang } : {}),
-  });
-  if (lexemeId) cache.set(cacheKey, lexemeId);
-  return lexemeId;
-}
-
-export async function persistImportedTokensForHost(input: {
-  textId: string;
-  hostUnitId: string;
-  tokens: AdditionalTierToken[];
-  now: string;
-  language?: string;
-  lexemeIdByFormKey: Map<string, string>;
-}): Promise<void> {
-  const tokenRows: UnitTokenDocType[] = [];
-  const morphRows: UnitMorphemeDocType[] = [];
-  for (const [tokenIndex, token] of input.tokens.entries()) {
-    if (!token.form || typeof token.form !== 'object') continue;
-    const tokenId = newId('tok');
-    const tokenLexemeId = await resolveFormLexemeId(
-      input.textId,
-      token.form,
-      input.language,
-      input.lexemeIdByFormKey,
-      token.lexemeId,
-    );
-    tokenRows.push({
-      id: tokenId,
-      textId: input.textId,
-      unitId: input.hostUnitId,
-      form: token.form,
-      ...(token.gloss ? { gloss: token.gloss } : {}),
-      ...(token.pos ? { pos: token.pos } : {}),
-      ...(tokenLexemeId ? { lexemeId: tokenLexemeId } : {}),
-      tokenIndex,
-      createdAt: input.now,
-      updatedAt: input.now,
-    });
-    const morphemes = Array.isArray(token.morphemes) ? token.morphemes : [];
-    for (const [morphemeIndex, morph] of morphemes.entries()) {
-      if (!morph?.form || typeof morph.form !== 'object') continue;
-      const morphLexemeId = await resolveFormLexemeId(
-        input.textId,
-        morph.form,
-        input.language,
-        input.lexemeIdByFormKey,
-        morph.lexemeId,
-      );
-      morphRows.push({
-        id: newId('morph'),
-        textId: input.textId,
-        unitId: input.hostUnitId,
-        tokenId,
-        form: morph.form,
-        ...(morph.gloss ? { gloss: morph.gloss } : {}),
-        ...(morph.pos ? { pos: morph.pos } : {}),
-        ...(morphLexemeId ? { lexemeId: morphLexemeId } : {}),
-        morphemeIndex,
-        createdAt: input.now,
-        updatedAt: input.now,
-      });
-    }
-  }
-  if (tokenRows.length > 0) await LinguisticService.units.saveTokensBatch(tokenRows);
-  if (morphRows.length > 0) await LinguisticService.units.saveMorphemesBatch(morphRows);
-  const linkRows: TokenLexemeLinkDocType[] = [];
-  for (const token of tokenRows) {
-    if (!token.lexemeId) continue;
-    linkRows.push({
-      id: newId('tll'),
-      targetType: 'token',
-      targetId: token.id,
-      lexemeId: token.lexemeId,
-      createdAt: input.now,
-      updatedAt: input.now,
-    });
-  }
-  for (const morph of morphRows) {
-    if (!morph.lexemeId) continue;
-    linkRows.push({
-      id: newId('tll'),
-      targetType: 'morpheme',
-      targetId: morph.id,
-      lexemeId: morph.lexemeId,
-      createdAt: input.now,
-      updatedAt: input.now,
-    });
-  }
-  if (linkRows.length > 0) {
-    const db = await getDb();
-    await db.dexie.token_lexeme_links.bulkPut(linkRows);
-  }
-}
 
 type InsertedUnit = {
   id: string;
@@ -225,7 +87,7 @@ export async function importAdditionalTiers(input: {
     tierName?: string;
   }) => Promise<Array<{ layerId: string; text: string }>>;
   rememberLayer: (layer: LayerDocType) => void;
-  lexemeIdByFormKey: Map<string, string>;
+  tokenGraph: ImportedTokenGraphWriter;
 }) {
   let tierCount = 0;
   let skippedIndependentTierSegmentCount = 0;
@@ -347,13 +209,11 @@ export async function importAdditionalTiers(input: {
             },
           );
           if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
-            await persistImportedTokensForHost({
-              textId: importTextId,
+            await input.tokenGraph.write({
               hostUnitId: segId,
               tokens: annotation.tokens,
               now: segNow,
               language: importedTierMeta?.languageId ?? 'und',
-              lexemeIdByFormKey: input.lexemeIdByFormKey,
             });
           }
         }
@@ -546,13 +406,11 @@ export async function importAdditionalTiers(input: {
             },
           ]);
           if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
-            await persistImportedTokensForHost({
-              textId: importTextId,
+            await input.tokenGraph.write({
               hostUnitId: parentMatch.id,
               tokens: annotation.tokens,
               now: segNow,
               language: tierLang,
-              lexemeIdByFormKey: input.lexemeIdByFormKey,
             });
           }
         }
@@ -613,13 +471,11 @@ export async function importAdditionalTiers(input: {
         };
         await syncUnitTextToSegmentationV2(input.db, match.unit, doc);
         if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
-          await persistImportedTokensForHost({
-            textId: match.unit.textId ?? input.textId,
+          await input.tokenGraph.write({
             hostUnitId: match.id,
             tokens: annotation.tokens,
             now: input.now,
             language: tierLang,
-            lexemeIdByFormKey: input.lexemeIdByFormKey,
           });
         }
       }

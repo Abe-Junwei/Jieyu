@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../../db';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
+import { createImportedTokenGraphWriter } from './persistImportedTokenGraph';
 
 const { mockSaveTokensBatch, mockSyncUnitText } = vi.hoisted(() => ({
   mockSaveTokensBatch: vi.fn(async (_rows?: unknown) => undefined),
@@ -36,7 +37,20 @@ vi.mock('../../db', async (importOriginal) => {
     ...actual,
     getDb: vi.fn(async () => ({
       dexie: {
-        token_lexeme_links: { bulkPut: vi.fn(async () => undefined) },
+        token_lexeme_links: {
+          bulkPut: vi.fn(async () => undefined),
+          where: () => ({ anyOf: () => ({ delete: async () => 0 }) }),
+        },
+        unit_tokens: {
+          where: () => ({
+            equals: () => ({ toArray: async () => [], delete: async () => 0 }),
+          }),
+        },
+        unit_morphemes: {
+          where: () => ({
+            equals: () => ({ toArray: async () => [], delete: async () => 0 }),
+          }),
+        },
       },
     })),
   };
@@ -129,7 +143,7 @@ describe('importAdditionalTiers', () => {
       }),
       planImportedWrites: vi.fn(async () => [{ layerId: glossLayer.id, text: 'hello' }]),
       rememberLayer: vi.fn(),
-      lexemeIdByFormKey: new Map(),
+      tokenGraph: createImportedTokenGraphWriter({ textId: 'text-import' }),
     });
 
     expect(mockSyncUnitText).toHaveBeenCalled();

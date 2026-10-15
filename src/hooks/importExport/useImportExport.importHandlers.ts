@@ -10,7 +10,7 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import type { SaveState } from '../useTranscriptionData';
-import { dexieStoresForAnnotationImportRw, getDb, isLexemeEntry, withTransaction } from '../../db';
+import { dexieStoresForAnnotationImportRw, getDb, withTransaction } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import { rememberImportedSourceFile } from '../../services/projectFileOps';
 import {
@@ -51,6 +51,10 @@ import { loadOrthographyRuntime } from '../../utils/loadOrthographyRuntime';
 import { normalizeUserNoteDocForStorage } from '../../utils/camDataUtils';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
 import { writeExtraEafTranscriptionTiers } from './eafTranscriptionTierWrite';
+import {
+  createImportedTokenGraphWriter,
+  type ImportedHostToken,
+} from './persistImportedTokenGraph';
 import {
   DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
   shouldWriteOriginalSourceText,
@@ -704,36 +708,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       // would auto-commit the txn ("Transaction committed too early").
       await loadOrthographyRuntime();
 
-      const lexemeIdByFormKey = new Map<string, string>();
-      const resolveImportLexemeId = async (
-        form: Record<string, string>,
-        language?: string,
-        explicitId?: string,
-      ): Promise<string | undefined> => {
-        const explicit = explicitId?.trim();
-        if (explicit) {
-          const row = await db.dexie.lexemes.get(explicit);
-          if (row && isLexemeEntry(row) && row.textId === importTextId) return row.id;
-        }
-        const surface =
-          (typeof form.default === 'string' && form.default.trim()) ||
-          (typeof form.eng === 'string' && form.eng.trim()) ||
-          Object.values(form)
-            .find((value) => typeof value === 'string' && value.trim())
-            ?.trim();
-        if (!surface) return undefined;
-        const lang = language?.trim() || undefined;
-        const cacheKey = `${lang ?? ''}::${surface}`;
-        const cached = lexemeIdByFormKey.get(cacheKey);
-        if (cached) return cached;
-        const lexemeId = await LinguisticService.lexemes.matchOrCreateByForm({
-          form: surface,
-          textId: importTextId,
-          ...(lang ? { language: lang } : {}),
-        });
-        if (lexemeId) lexemeIdByFormKey.set(cacheKey, lexemeId);
-        return lexemeId;
-      };
+      const tokenGraph = createImportedTokenGraphWriter({ textId: importTextId });
 
       await withTransaction(
         db,
@@ -909,111 +884,13 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               updatedAt: now,
             };
             await LinguisticService.units.save(newUnit);
-            if (reimportId && Array.isArray(maybeTokens) && maybeTokens.length > 0) {
-              const oldTokens = await db.dexie.unit_tokens.where('unitId').equals(id).toArray();
-              const oldMorphs = await db.dexie.unit_morphemes.where('unitId').equals(id).toArray();
-              const oldIds = [...oldTokens.map((row) => row.id), ...oldMorphs.map((row) => row.id)];
-              if (oldIds.length > 0) {
-                await db.dexie.token_lexeme_links.where('targetId').anyOf(oldIds).delete();
-              }
-              await db.dexie.unit_morphemes.where('unitId').equals(id).delete();
-              await db.dexie.unit_tokens.where('unitId').equals(id).delete();
-            }
-
             if (Array.isArray(maybeTokens) && maybeTokens.length > 0) {
-              const tokenRows: import('../../db').UnitTokenDocType[] = [];
-              const morphRows: import('../../db').UnitMorphemeDocType[] = [];
-
-              for (const [tokenIndex, rawToken] of maybeTokens.entries()) {
-                if (!rawToken || typeof rawToken !== 'object') continue;
-                const token = rawToken as {
-                  form?: Record<string, string>;
-                  gloss?: Record<string, string>;
-                  pos?: string;
-                  lexemeId?: string;
-                  morphemes?: Array<{
-                    form?: Record<string, string>;
-                    gloss?: Record<string, string>;
-                    pos?: string;
-                    lexemeId?: string;
-                  }>;
-                };
-                if (!token.form || typeof token.form !== 'object') continue;
-                const tokenId = newId('tok');
-                const tokenLexemeId = await resolveImportLexemeId(
-                  token.form,
-                  inferredTranscriptionLang,
-                  token.lexemeId,
-                );
-                tokenRows.push({
-                  id: tokenId,
-                  textId,
-                  unitId: id,
-                  form: token.form,
-                  ...(token.gloss ? { gloss: token.gloss } : {}),
-                  ...(token.pos ? { pos: token.pos } : {}),
-                  ...(tokenLexemeId ? { lexemeId: tokenLexemeId } : {}),
-                  tokenIndex,
-                  createdAt: now,
-                  updatedAt: now,
-                });
-
-                const morphemes = Array.isArray(token.morphemes) ? token.morphemes : [];
-                for (const [morphemeIndex, morph] of morphemes.entries()) {
-                  if (!morph?.form || typeof morph.form !== 'object') continue;
-                  const morphLexemeId = await resolveImportLexemeId(
-                    morph.form,
-                    inferredTranscriptionLang,
-                    morph.lexemeId,
-                  );
-                  morphRows.push({
-                    id: newId('morph'),
-                    textId,
-                    unitId: id,
-                    tokenId,
-                    form: morph.form,
-                    ...(morph.gloss ? { gloss: morph.gloss } : {}),
-                    ...(morph.pos ? { pos: morph.pos } : {}),
-                    ...(morphLexemeId ? { lexemeId: morphLexemeId } : {}),
-                    morphemeIndex,
-                    createdAt: now,
-                    updatedAt: now,
-                  });
-                }
-              }
-
-              if (tokenRows.length > 0) {
-                await LinguisticService.units.saveTokensBatch(tokenRows);
-              }
-              if (morphRows.length > 0) {
-                await LinguisticService.units.saveMorphemesBatch(morphRows);
-              }
-              const linkRows: import('../../db').TokenLexemeLinkDocType[] = [];
-              for (const token of tokenRows) {
-                if (!token.lexemeId) continue;
-                linkRows.push({
-                  id: newId('tll'),
-                  targetType: 'token',
-                  targetId: token.id,
-                  lexemeId: token.lexemeId,
-                  createdAt: now,
-                  updatedAt: now,
-                });
-              }
-              for (const morph of morphRows) {
-                if (!morph.lexemeId) continue;
-                linkRows.push({
-                  id: newId('tll'),
-                  targetType: 'morpheme',
-                  targetId: morph.id,
-                  lexemeId: morph.lexemeId,
-                  createdAt: now,
-                  updatedAt: now,
-                });
-              }
-              if (linkRows.length > 0) {
-                await db.dexie.token_lexeme_links.bulkPut(linkRows);
-              }
+              await tokenGraph.write({
+                hostUnitId: id,
+                tokens: maybeTokens as ImportedHostToken[],
+                now,
+                language: inferredTranscriptionLang,
+              });
             }
             insertedUnits.push({
               id,
@@ -1110,7 +987,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                 const key = normalizeSpeakerLookupKey(speakerCode);
                 return speakerIdMap.get(key) ?? speakerCode.trim();
               },
-              lexemeIdByFormKey,
+              tokenGraph,
             });
           }
 
@@ -1133,7 +1010,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             resolveLayerDisplayName,
             planImportedWrites,
             rememberLayer,
-            lexemeIdByFormKey,
+            tokenGraph,
           });
           tierCount = additionalResult.tierCount;
           skippedIndependentTierSegmentCount = additionalResult.skippedIndependentTierSegmentCount;
