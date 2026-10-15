@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import type { LoadTranscriptionSnapshot } from '../hooks/transcription/workspaceSnapshotLoad';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { t, type Locale } from '../i18n';
 import { DOCUMENT_PLACEHOLDER_TRACK_FILENAME } from '../utils/mediaItemState';
@@ -77,7 +78,7 @@ interface CreateTranscriptionToolbarPropsInput {
   importFileRef: RefObject<HTMLInputElement | null>;
   exportMenuRef: RefObject<HTMLDivElement | null>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   setShowProjectSetup: (value: boolean) => void;

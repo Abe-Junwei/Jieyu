@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
 import { getTranscriptionAppService } from '../../app/TranscriptionAppService';
 
 type TextKeyed = { textId?: string };
@@ -7,7 +8,7 @@ export function useTranscriptionDataTextTimeMapping(input: {
   units: readonly TextKeyed[];
   layers: readonly TextKeyed[];
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
 }) {
   const { units, layers, loadSnapshot } = input;
   const transcriptionAppService = getTranscriptionAppService();

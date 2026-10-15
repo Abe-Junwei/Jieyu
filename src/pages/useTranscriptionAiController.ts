@@ -32,7 +32,6 @@ import {
 import type {
   UseTranscriptionAiControllerInput,
   UseTranscriptionAiControllerResult,
-  VoiceAssistantToolCallHandler,
 } from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
 import {
@@ -595,7 +594,7 @@ export function useTranscriptionAiController(
     aiToolDecisionLogs,
     aiVerticalWorkflowAuditEntries,
     aiChat,
-    executeVoiceToolCall: handleAiToolCall as VoiceAssistantToolCallHandler,
+    executeVoiceToolCall: aiChat.submitResolvedToolCall,
     lexemeMatches,
     observerResult,
     actionableObserverRecommendations,

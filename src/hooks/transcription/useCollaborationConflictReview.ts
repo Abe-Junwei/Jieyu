@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
 import { createLogger } from '../../observability/logger';
 import {
   applyCollaborationInboundChange,
@@ -49,7 +50,7 @@ export interface UseCollaborationConflictReviewParams {
   rawActionsRef: { readonly current: CloudSyncRawActions };
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   /** P1-2：远端变更写进本地后调用（清空撤销）| After a remote change lands (clears undo) */
   onRemoteChangeApplied?: () => void;
 }

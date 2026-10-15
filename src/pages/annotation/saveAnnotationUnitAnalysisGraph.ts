@@ -5,6 +5,10 @@ import {
   validateAnnotationAnalysisGraphFixture,
 } from '../../annotation/analysisGraph';
 import type { LayerUnitDocType } from '../../types/jieyuDbDocTypes';
+import { buildAnnotationUtteranceGraph } from './buildAnnotationUtteranceGraph';
+import type { AnnotationIgtMorpheme } from './annotationMorphemeDrafts';
+import type { AnnotationIgtRow } from './annotationIgtRows';
+import type { AnnotationTokenLexemeLinkView } from './saveAnnotationLexemeLink';
 import type { AnnotationSelfCertaintyDeps } from './saveAnnotationUnitMeta';
 
 const defaultDeps: AnnotationSelfCertaintyDeps = {
@@ -13,6 +17,33 @@ const defaultDeps: AnnotationSelfCertaintyDeps = {
 };
 
 const graphWriteTail = new Map<string, Promise<unknown>>();
+
+export async function saveAnnotationUtteranceGraphChange(
+  input: {
+    textId: string;
+    row: AnnotationIgtRow;
+    morphsByTokenId: Readonly<Record<string, readonly AnnotationIgtMorpheme[] | undefined>>;
+    linksByTokenId: Readonly<Record<string, AnnotationTokenLexemeLinkView | undefined>>;
+    change: (graph: AnnotationAnalysisGraphFixture) => AnnotationAnalysisGraphFixture;
+  },
+  deps: AnnotationSelfCertaintyDeps = defaultDeps,
+): Promise<LayerUnitDocType | null> {
+  const projected = buildAnnotationUtteranceGraph({
+    row: input.row,
+    morphsByTokenId: input.morphsByTokenId,
+    linksByTokenId: input.linksByTokenId,
+  });
+  if (projected === undefined) return null;
+  return saveAnnotationUnitAnalysisGraph(
+    {
+      textId: input.textId,
+      unitId: input.row.id,
+      graph: input.change(projected),
+      expectedBase: input.row.analysisGraph,
+    },
+    deps,
+  );
+}
 
 export async function saveAnnotationUnitAnalysisGraph(
   input: {

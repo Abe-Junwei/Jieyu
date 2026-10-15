@@ -64,6 +64,11 @@ export interface ResolveToolDecisionPipelineParams {
    * 仍过策略拦截、写入门禁、去重与决策审计。| v2 native approval: request never executes; approved skips confirm branches.
    */
   runtimeV2Approval?: 'request' | 'approved';
+  /**
+   * 调用方已经解析出工具名和参数。不再用原话重判是不是工具请求。
+   * 策略、确认、写入门禁、执行和决策审计照常。
+   */
+  resolvedToolIntent?: boolean;
   onToolRiskCheck?:
     | ((
         call: AiChatToolCall,
@@ -166,6 +171,7 @@ export async function resolveToolDecisionPipeline({
   turnConversationId,
   agentRunId,
   runtimeV2Approval,
+  resolvedToolIntent,
 }: ResolveToolDecisionPipelineParams): Promise<ResolveToolDecisionPipelineResult> {
   const v2Approved = runtimeV2Approval === 'approved';
   const v2Request = runtimeV2Approval === 'request';
@@ -233,23 +239,24 @@ export async function resolveToolDecisionPipeline({
   };
 
   // v2 已批准：用户已明确决定，不再做意图澄清 | approved by the user: skip intent clarification
-  const intentOutcome = v2Approved
-    ? null
-    : resolveToolIntentOutcome({
-        intentAssessment,
-        ...(planner?.decision ? { plannerDecision: planner.decision } : {}),
-        ...(planner?.reason ? { plannerReason: planner.reason } : {}),
-        toolCallName: toolCall.name,
-        userText,
-        locale,
-        toolFeedbackStyle,
-        aiContext,
-        sessionMemory,
-        taskSessionId,
-        bumpMetric,
-        setTaskSession,
-        setPendingToolCall,
-      });
+  const intentOutcome =
+    v2Approved || resolvedToolIntent
+      ? null
+      : resolveToolIntentOutcome({
+          intentAssessment,
+          ...(planner?.decision ? { plannerDecision: planner.decision } : {}),
+          ...(planner?.reason ? { plannerReason: planner.reason } : {}),
+          toolCallName: toolCall.name,
+          userText,
+          locale,
+          toolFeedbackStyle,
+          aiContext,
+          sessionMemory,
+          taskSessionId,
+          bumpMetric,
+          setTaskSession,
+          setPendingToolCall,
+        });
 
   if (intentOutcome !== null) {
     return {

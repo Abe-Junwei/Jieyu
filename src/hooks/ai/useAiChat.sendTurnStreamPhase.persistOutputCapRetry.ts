@@ -3,6 +3,7 @@
  */
 
 import { flushSync } from 'react-dom';
+import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
 import { createAssistantStream } from './useAiChat.streamFactory';
 import type { ChatTokenUsage } from '../../ai/providers/LLMProvider';
 import { mergeTokenUsage } from '../../ai/providers/tokenUsage';
@@ -43,6 +44,9 @@ export async function runSendTurnStreamOutputCapRetryIfNeeded(params: {
     initialOutputTokens >= outputTokenCap &&
     !controller.signal.aborted;
   if (!shouldRetry) return;
+  if (!shouldApplyStreamUiUpdate(input.conversationGenerationRef, input.streamGenerationAtStart)) {
+    return;
+  }
 
   const costGuardRequestId = genRequestId({
     name: 'propose_changes',

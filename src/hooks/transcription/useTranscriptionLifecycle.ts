@@ -10,11 +10,16 @@ import {
   publishActiveProjectTextId,
   resolveCurrentProjectTextId,
 } from '../../utils/transcriptionUrlDeepLink';
+import {
+  snapshotLoadWasSuperseded,
+  type LinguisticAnnotationLoadResult,
+  type LoadTranscriptionSnapshot,
+} from './workspaceSnapshotLoad';
 
 type Params = {
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
-  loadLinguisticAnnotations: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
+  loadLinguisticAnnotations: (textId: string) => Promise<LinguisticAnnotationLoadResult | void>;
   setState: Dispatch<SetStateAction<DbState>>;
   dbNameRef: MutableRefObject<string | undefined>;
   dirtyRef: MutableRefObject<boolean>;
@@ -60,7 +65,8 @@ export function useTranscriptionLifecycle({
       try {
         const textId = await resolveInitialWorkspaceTextId();
         if (cancelled) return;
-        await loadSnapshot(textId);
+        const loaded = await loadSnapshot(textId);
+        if (cancelled || snapshotLoadWasSuperseded(loaded)) return;
         // token/morpheme 延迟加载，不阻塞首屏 | Deferred linguistic load, non-blocking
         fireAndForget(loadLinguisticAnnotations(textId), {
           context: 'src/hooks/transcription/useTranscriptionLifecycle.ts:L42',

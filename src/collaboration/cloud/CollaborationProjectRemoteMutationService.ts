@@ -1,4 +1,5 @@
 import { LinguisticService } from '../../services/LinguisticService';
+import type { LoadTranscriptionSnapshot } from '../../hooks/transcription/workspaceSnapshotLoad';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import type { PerLayerRowFieldPatch } from '../../hooks/transcription/useTranscriptionUnitActions';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
@@ -208,7 +209,7 @@ export interface ApplyCollaborationRemoteMutationDeps {
     layerId: string;
   }>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
 }
 
 export async function applyCollaborationRemoteMutation(

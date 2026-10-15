@@ -6,6 +6,7 @@ import {
   completeAgentLoopCheckpointTask,
   persistAgentLoopCheckpointTask,
 } from '../../ai/chat/agentLoopCheckpoint';
+import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { nowIso } from './useAiChat.helpers';
 import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat.sendTurnStreamPhase.verticalAudit';
@@ -52,6 +53,20 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
   } = input;
 
   const { db, history, historyCharBudget, aiContext, routingPlan, systemPrompt } = opening;
+
+  const stillCurrent = () =>
+    shouldApplyStreamUiUpdate(input.conversationGenerationRef, input.streamGenerationAtStart);
+  if (!stillCurrent()) {
+    await writeVerticalWorkflowAuditLogForSendTurnStreamPhase({
+      db,
+      assistantId,
+      verticalOutputEnvelopeSeed: streamCompletionResult.verticalOutputEnvelopeSeed,
+      verticalWorkflowSelection: streamCompletionResult.verticalWorkflowSelection,
+      completionStatus: resolution.status,
+      completionPath: 'stream_done',
+    });
+    return;
+  }
 
   const workflowAnswerReady = streamCompletionResult.verticalOutputEnvelopeSeed
     ? canMarkWorkflowAnswerReady(streamCompletionResult.verticalOutputEnvelopeSeed)

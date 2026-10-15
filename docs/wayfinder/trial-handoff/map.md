@@ -146,6 +146,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   8. 两处 `supermemory-agent-memory.mdc`：木雅语料只留在本机，唯一例外为授权示例片段；代理仍不读、不上传、不粘贴任何木雅语料内容。
   9. 插件与扩展不做：不做到扩展中心，也不开放第三方插件。《插件系统与扩展生态落地方案》就此停止。已在仓库里的扩展运行时不因此删除。
 - 2026-10-15 用户：AI 架构迁移拍进第二程 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。只做 ToolLoopAgent 有限试点，不批准全面迁移；R1 不达标再限时对照 OpenAI Agents SDK。不进第一程。`aiAgentRuntimeV2Enabled` 达标前不默认打开。门槛留在迁移评估，不另写切片。
+- 2026-10-15 用户：[#314](https://github.com/Abe-Junwei/Jieyu/issues/314) 的 R0/R1 提前，与第一程 #274、#304、#279 并行，独立分支，不挡试用关键路径。R2 进 main 须试点达标且用户确认，不进试用版默认路径。父单仍是 #285。全面迁移仍不批准。
 
 ## Next leg
 
@@ -173,9 +174,9 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#309](https://github.com/Abe-Junwei/Jieyu/issues/309) 完善 Leipzig IGT 导出（gb4e/expex + HTML）
 - [#310](https://github.com/Abe-Junwei/Jieyu/issues/310) 存档包导出（媒体 + EAF + LIFT + 元数据 XML）
 - [#311](https://github.com/Abe-Junwei/Jieyu/issues/311) FLEx LIFT 往返验证
-- [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时有限试点（ToolLoopAgent；试用结束前不开工；v2 不默认打开）
+- [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时有限试点（ToolLoopAgent；R0/R1 已提前到与第一程并行；R2 仍不进试用版默认路径；v2 不默认打开）
 
-排序（2026-10-13 21:23，2026-10-15 补 A15）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），A 系列 #286–#297 按需。A15（#314）排在试用结束之后，不插进第一程。
+排序（2026-10-13 21:23，2026-10-15 补 A15，同日把 R0/R1 提前）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），A 系列 #286–#297 按需。A15 的 R0/R1 与第一程并行，不插进试用关键路径；R2 仍在试用结束之后。
 
 ## Not yet specified
 

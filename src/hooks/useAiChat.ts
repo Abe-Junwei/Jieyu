@@ -61,6 +61,7 @@ import { useSyncAssistantDialogueChatTool } from './ai/useSyncAssistantDialogueC
 import { useAiChatAgentLoopCheckpointControls } from './ai/useAiChat.agentLoopCheckpointControls';
 import { useAiChatDirectiveSessionControls } from './ai/useAiChat.directiveSessionControls';
 import { resolveToolDecisionPipeline } from './ai/useAiChat.toolDecisionPipeline';
+import { submitResolvedToolCall as runSubmitResolvedToolCall } from './ai/useAiChat.submitResolvedToolCall';
 import { runAiChatSendTurn, type RunAiChatSendTurnArgs } from './ai/useAiChat.sendTurn';
 import {
   applyAiChatSettingsPatch,
@@ -640,12 +641,82 @@ export function useAiChat(options?: UseAiChatOptions) {
     );
   }, [abortActiveStream, conversationId, conversationManagement, runClearPersistenceCleanup]);
 
+  const submitResolvedToolCall = useCallback(
+    async (call: { name: string; arguments: Record<string, unknown>; userText?: string }) => {
+      const policy = resolveAiChatResponsePolicy(
+        sessionMemoryRef.current,
+        toolFeedbackLocaleRef.current,
+        settingsRef.current.toolFeedbackStyle,
+      );
+      const result = await runSubmitResolvedToolCall(
+        {
+          ensureConversation,
+          providerId: provider.id,
+          model: settingsRef.current.model,
+          locale: policy.locale,
+          toolDecisionMode: toolDecisionModeRef.current,
+          toolFeedbackStyle: policy.style,
+          allowDestructiveToolCalls,
+          messages: messagesRef.current,
+          setMessages,
+          getContext: () => getContextRef.current?.() ?? null,
+          onToolRiskCheck: onToolRiskCheckRef.current,
+          preparePendingToolCall: preparePendingToolCallRef.current,
+          onToolCall: onToolCallRef.current,
+          hasPersistedExecutionForRequest,
+          writeToolDecisionAuditLog,
+          writeToolIntentAuditLog,
+          sessionMemory: sessionMemoryRef.current,
+          updateSessionMemory: (next) => {
+            sessionMemoryRef.current = next;
+          },
+          setTaskSession,
+          setPendingToolCall,
+          taskSessionId: taskSessionRef.current.id,
+          markExecutedRequestId,
+          bumpMetric,
+          conversationGeneration: conversationGenerationRef.current,
+        },
+        { name: call.name, arguments: call.arguments, userText: call.userText ?? '' },
+      );
+      return {
+        ok: result.status !== 'error',
+        pending: result.status === 'pending',
+        message: result.content,
+      };
+    },
+    [
+      allowDestructiveToolCalls,
+      bumpMetric,
+      conversationGenerationRef,
+      ensureConversation,
+      getContextRef,
+      hasPersistedExecutionForRequest,
+      markExecutedRequestId,
+      messagesRef,
+      onToolCallRef,
+      onToolRiskCheckRef,
+      preparePendingToolCallRef,
+      provider.id,
+      sessionMemoryRef,
+      setPendingToolCall,
+      setTaskSession,
+      settingsRef,
+      taskSessionRef,
+      toolDecisionModeRef,
+      toolFeedbackLocaleRef,
+      writeToolDecisionAuditLog,
+      writeToolIntentAuditLog,
+    ],
+  );
+
   return {
     messages,
     isStreaming,
     lastError,
     conversationId,
     send,
+    submitResolvedToolCall,
     stop,
     clear,
     testConnection,

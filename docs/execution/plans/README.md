@@ -16,9 +16,9 @@ source_of_truth: execution-plan-index
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| active | [解语 AI 智能体运行时迁移评估](./AI智能体运行时迁移评估-2026-10-13.md) | 2026-10-15 |
 | proposed | [用户自带语音与 NLP 模型接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) | 2026-10-15 |
-| active | [解语 AI 智能体运行时迁移评估](./AI智能体运行时迁移评估-2026-10-13.md) | 2026-10-14 |
-| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-10-14 |
+| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-10-15 |
 
 ## 搁置（10）
 

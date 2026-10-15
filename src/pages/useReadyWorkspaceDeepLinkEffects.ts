@@ -1,4 +1,8 @@
 import { useEffect, useRef } from 'react';
+import {
+  snapshotLoadWasSuperseded,
+  type LoadTranscriptionSnapshot,
+} from '../hooks/transcription/workspaceSnapshotLoad';
 
 import type { ToastContextValue } from '../contexts/ToastContext';
 import { createTimelineUnit } from '../hooks/transcription/transcriptionTypes';
@@ -24,7 +28,7 @@ interface UseReadyWorkspaceDeepLinkEffectsInput {
   searchParams: URLSearchParams;
   setSearchParams: SetSearchParams;
   setActiveTextId: (textId: string) => void;
-  loadSnapshot: (textId: string) => Promise<unknown>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   showToast: ToastContextValue['showToast'];
   tfB: (key: string, opts?: Record<string, unknown>) => string;
   phase: string;
@@ -91,11 +95,13 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
       }
       setActiveTextId(raw);
       publishActiveProjectTextId(raw);
-      await loadSnapshot(raw);
+      const loaded = await loadSnapshot(raw);
       if (urlTextIdApplyNonceRef.current !== nonce) return;
-      pendingPostTextIdDeepLinkRef.current = hasTranscriptionDeepLinkSelectionPayload(optional)
-        ? optional
-        : null;
+      if (!snapshotLoadWasSuperseded(loaded)) {
+        pendingPostTextIdDeepLinkRef.current = hasTranscriptionDeepLinkSelectionPayload(optional)
+          ? optional
+          : null;
+      }
       setSearchParams((prev) => stripTranscriptionDeepLinkSearchParams(prev), { replace: true });
     })();
   }, [searchParams, setActiveTextId, loadSnapshot, setSearchParams, showToast, tfB]);

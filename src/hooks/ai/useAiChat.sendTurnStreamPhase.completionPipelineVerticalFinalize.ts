@@ -65,6 +65,17 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
         })
       : resolution.content;
 
+  if (!shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart)) {
+    await finalizeAssistantMessage(
+      resolution.status,
+      clientContent,
+      resolution.errorMessage,
+      ragCitations,
+      s.assistantReasoningContent,
+    );
+    return;
+  }
+
   // PR-12 / PR-17: reflection audit + degradation scenarios for manual takeover UX
   const degradationScenarios: DegradationScenario[] = [];
   if (effectiveVerticalEnvelope?.status === 'degraded') {
@@ -405,7 +416,10 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
       shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart),
   });
 
-  if (resolution.status === 'done') {
+  if (
+    resolution.status === 'done' &&
+    shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart)
+  ) {
     recordCompletionSuccessMetric();
     const backgroundMemoryRuntime = backgroundMemoryRuntimeRef.current;
     const shouldApplyBackgroundMemorySideEffects = () =>

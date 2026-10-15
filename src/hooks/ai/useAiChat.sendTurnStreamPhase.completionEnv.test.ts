@@ -100,6 +100,24 @@ describe('buildSendTurnStreamCompletionEnv', () => {
     expect(sessionMemoryRef.current).toEqual({ preferences: { lastLanguage: 'yue' } });
   });
 
+  it('reads messages and settings when the environment is built, not from an earlier copy', () => {
+    const messagesRef = {
+      current: [{ id: 'm1', role: 'user' as const, content: 'first', status: 'done' as const }],
+    };
+    const settingsRef = {
+      current: { model: 'model-a', toolFeedbackStyle: 'concise' as const },
+    } as RunAiChatSendTurnStreamPhaseInput['settingsRef'];
+    const input = minimalStreamPhaseInput({ messagesRef, settingsRef });
+    expect(buildSendTurnStreamCompletionEnv(input).model).toBe('model-a');
+    expect(buildSendTurnStreamCompletionEnv(input).messages).toEqual(messagesRef.current);
+
+    messagesRef.current = [{ id: 'm2', role: 'user', content: 'second', status: 'done' }];
+    settingsRef.current = { ...settingsRef.current, model: 'model-b' };
+    const later = buildSendTurnStreamCompletionEnv(input);
+    expect(later.model).toBe('model-b');
+    expect(later.messages.map((message) => message.content)).toEqual(['second']);
+  });
+
   it('skips in-memory and Dexie session memory updates when generation is stale', () => {
     const conversationGenerationRef = createConversationGenerationRef(0);
     conversationGenerationRef.current = 1;

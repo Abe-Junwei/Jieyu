@@ -5,6 +5,7 @@ import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 import { t, useLocale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
+import { runSegmentLayerWriteReload } from './segmentLayerWriteReload';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
@@ -166,18 +167,24 @@ export function useTranscriptionSegmentBatchMerge({
           await refreshSegmentUndoSnapshot();
           pushUndo(t(locale, 'transcription.unitAction.undo.mergeSelection'));
           try {
-            segmentMutationReloadGenRef.current += 1;
-            const postReloadToken = segmentMutationReloadGenRef.current;
-            const appService = getTranscriptionAppService();
-            for (let index = 1; index < orderedSegments.length; index += 1) {
-              await appService.mergeAdjacentSegments(firstSegment.id, orderedSegments[index]!.id);
-            }
-            await reloadSegments();
-            if (segmentMutationReloadGenRef.current !== postReloadToken) {
+            const outcome = await runSegmentLayerWriteReload({
+              generation: segmentMutationReloadGenRef,
+              reloadSegments,
+              refreshSegmentUndoSnapshot,
+              write: async () => {
+                const appService = getTranscriptionAppService();
+                for (let index = 1; index < orderedSegments.length; index += 1) {
+                  await appService.mergeAdjacentSegments(
+                    firstSegment.id,
+                    orderedSegments[index]!.id,
+                  );
+                }
+              },
+            });
+            if (outcome.stale) {
               recordBatchMergeLatency('success', startedAtMs);
               return;
             }
-            await refreshSegmentUndoSnapshot();
             selectTimelineUnit(createSegmentTarget(firstSegment.id, targetLayerId));
             recordTimelineEdit?.({
               action: 'merge',

@@ -18,10 +18,9 @@ import type {
 import { collectDirtyAnnotationMorphemeWrites } from './annotation/annotationMorphemeDrafts';
 import { collectDirtyAnnotationTokenWrites } from './annotation/annotationTokenDrafts';
 import type { AnnotationTokenDraft } from './annotation/annotationTokenDrafts';
-import { buildAnnotationUtteranceGraph } from './annotation/buildAnnotationUtteranceGraph';
 import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 import type { AnnotationTokenLexemeLinkView } from './annotation/saveAnnotationLexemeLink';
-import { saveAnnotationUnitAnalysisGraph } from './annotation/saveAnnotationUnitAnalysisGraph';
+import { saveAnnotationUtteranceGraphChange } from './annotation/saveAnnotationUnitAnalysisGraph';
 
 export type AnnotationRelationError = '' | 'dirty' | 'failed';
 
@@ -85,18 +84,17 @@ export function useAnnotationRelationController(textId: string, reload: () => vo
         return;
       }
       try {
-        const base = buildAnnotationUtteranceGraph(input);
-        if (base === undefined) {
+        const saved = await saveAnnotationUtteranceGraphChange({
+          textId,
+          row: input.row,
+          morphsByTokenId: input.morphsByTokenId,
+          linksByTokenId: input.linksByTokenId,
+          change: (graph) => applyMark(graph, input.mark),
+        });
+        if (saved === null) {
           setError('failed');
           return;
         }
-        const next = applyMark(base, input.mark);
-        await saveAnnotationUnitAnalysisGraph({
-          textId,
-          unitId: input.row.id,
-          graph: next,
-          expectedBase: input.row.analysisGraph,
-        });
         setError('');
         reload();
       } catch {

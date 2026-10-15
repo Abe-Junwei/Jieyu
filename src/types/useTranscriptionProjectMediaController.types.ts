@@ -6,6 +6,7 @@ import type {
   ProvenanceEnvelope,
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { LoadTranscriptionSnapshot } from '../hooks/transcription/workspaceSnapshotLoad';
 import type { Locale } from '../i18n';
 import type {
   AudioImportDisposition,
@@ -34,7 +35,7 @@ export interface UseTranscriptionProjectMediaControllerInput {
     extras?: { provenance?: ProvenanceEnvelope },
   ) => Promise<void>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   locale: Locale;
   tfB: (key: string, opts?: Record<string, unknown>) => string;

@@ -8,6 +8,10 @@
  */
 
 import { useCallback, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  snapshotLoadWasSuperseded,
+  type LoadTranscriptionSnapshot,
+} from '../hooks/transcription/workspaceSnapshotLoad';
 import type { TimelineAxisStatusStripProps } from '../components/transcription/TimelineAxisStatusStrip';
 import { t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -47,7 +51,7 @@ type ReadyWorkspaceAxisStatusInput<
   exportTimelineModeLabel?: TimelineAxisStatusStripProps['timelineMode'];
   locale: Parameters<typeof t>[0];
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   setSaveState: (
     state: { kind: 'done'; message: string } | { kind: 'error'; message: string },
   ) => void;
@@ -112,11 +116,12 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
             textId: activeTextId,
             minLogicalDurationSec: minSec,
           });
-          await loadSnapshot(activeTextId);
-          setSaveState({
-            kind: 'done',
-            message: t(locale, 'transcription.timelineAxisStatus.expandLogicalSuccess'),
-          });
+          if (!snapshotLoadWasSuperseded(await loadSnapshot(activeTextId))) {
+            setSaveState({
+              kind: 'done',
+              message: t(locale, 'transcription.timelineAxisStatus.expandLogicalSuccess'),
+            });
+          }
         } catch (e) {
           const detail = e instanceof Error ? e.message : String(e);
           setSaveState({

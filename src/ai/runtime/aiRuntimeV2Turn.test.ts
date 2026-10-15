@@ -545,6 +545,31 @@ describe('runAiRuntimeV2Turn', () => {
     expect(JSON.stringify(model.doStreamCalls[0]!.prompt)).not.toContain('c1');
   });
 
+  it('M2: after a tool already ran, a tools rejection does not replay the legacy stream', async () => {
+    let calls = 0;
+    const model = new MockLanguageModelV4({
+      doStream: async () => {
+        calls += 1;
+        if (calls === 1) return toolCallStream('set_transcription_text', '{}');
+        throw new APICallError({
+          message: 'tools is not supported',
+          url: 'x',
+          requestBodyValues: {},
+          statusCode: 400,
+          isRetryable: false,
+        });
+      },
+    });
+    const legacy = (async function* () {
+      yield { delta: 'legacy' };
+    })();
+    const p = params(model, { approvalFor: () => 'not-applicable' });
+    const chunks = await collect(withLegacyFallback(runAiRuntimeV2Turn(p), legacy));
+    expect(p.decide).toHaveBeenCalledTimes(1);
+    expect(chunks.map((chunk) => chunk.delta).join('')).not.toContain('legacy');
+    expect(isNoToolsThisSession('deepseek', 'deepseek-chat')).toBe(false);
+  });
+
   it('M2: tools rejected before any output falls back to the untouched legacy stream for this session', async () => {
     const model = new MockLanguageModelV4({
       doStream: async () => {
@@ -564,5 +589,20 @@ describe('runAiRuntimeV2Turn', () => {
     const chunks = await collect(withLegacyFallback(runAiRuntimeV2Turn(params(model)), legacy));
     expect(chunks).toEqual([{ delta: 'legacy' }, { done: true }]);
     expect(isNoToolsThisSession('deepseek', 'deepseek-chat')).toBe(true);
+  });
+
+  it('does not append the legacy stream after v2 already produced text', async () => {
+    async function* v2() {
+      yield { delta: 'already' };
+      yield { error: 'tools is not supported', toolsRejected: true };
+    }
+    let legacyStarted = false;
+    const legacy = (async function* () {
+      legacyStarted = true;
+      yield { delta: 'legacy' };
+    })();
+    const chunks = await collect(withLegacyFallback(v2(), legacy));
+    expect(legacyStarted).toBe(false);
+    expect(chunks).toEqual([{ delta: 'already' }, { error: 'tools is not supported' }]);
   });
 });

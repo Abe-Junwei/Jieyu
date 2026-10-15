@@ -19,7 +19,7 @@ import type { AnnotationTokenDraft } from './annotation/annotationTokenDrafts';
 import { buildAnnotationUtteranceGraph } from './annotation/buildAnnotationUtteranceGraph';
 import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 import type { AnnotationTokenLexemeLinkView } from './annotation/saveAnnotationLexemeLink';
-import { saveAnnotationUnitAnalysisGraph } from './annotation/saveAnnotationUnitAnalysisGraph';
+import { saveAnnotationUtteranceGraphChange } from './annotation/saveAnnotationUnitAnalysisGraph';
 
 export type AnnotationMweError = '' | 'dirty' | 'contiguous' | 'failed';
 export type AnnotationAnalysisExportKind = 'cldf' | 'conllu' | 'ligt' | 'latex' | 'flex' | 'elan';
@@ -63,18 +63,17 @@ export function useAnnotationMweController(textId: string, reload: () => void) {
       }
       const selected = selectedByUnit[input.row.id] ?? [];
       try {
-        const base = buildAnnotationUtteranceGraph(input);
-        if (base === undefined) {
+        const saved = await saveAnnotationUtteranceGraphChange({
+          textId,
+          row: input.row,
+          morphsByTokenId: input.morphsByTokenId,
+          linksByTokenId: input.linksByTokenId,
+          change: (graph) => assignPartOfMwe(graph, selected),
+        });
+        if (saved === null) {
           setError('failed');
           return;
         }
-        const withMwe = assignPartOfMwe(base, selected);
-        await saveAnnotationUnitAnalysisGraph({
-          textId,
-          unitId: input.row.id,
-          graph: withMwe,
-          expectedBase: input.row.analysisGraph,
-        });
         setSelectedByUnit((current) => ({ ...current, [input.row.id]: [] }));
         setError('');
         reload();

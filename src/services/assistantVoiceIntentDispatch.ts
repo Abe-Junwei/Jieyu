@@ -35,7 +35,7 @@ export interface DispatchResolvedVoiceIntentInput {
   executeAction: (actionId: ActionId, params?: { segmentIndex?: number }) => void;
   sendToAiChat?: (text: string) => void;
   insertDictation?: (text: string) => void;
-  /** 与 `useAiChat` / 转写页 `handleAiToolCall` 同源，实现工具真执行 */
+  /** 聊天拥有的已解析工具提交。决策、批准、执行和审计都在这条链上。 */
   executeVoiceToolCall?: VoiceAssistantToolCallHandler;
   queueAiThinking: () => void;
   setError: (e: string | null) => void;
@@ -166,47 +166,23 @@ export async function dispatchResolvedVoiceIntent(
       return;
     }
     case 'tool': {
-      // R1：语音工具调用交给聊天回合，走同一决策管线的确认、写入门禁与审计 | same pipeline as chat
-      if (runtimeV2 && sendToAiChat) {
-        queueAiThinking();
-        sendToAiChat(intent.raw);
+      if (!executeVoiceToolCall) {
+        setAgentState('idle');
         return;
       }
-      if (executeVoiceToolCall) {
-        try {
-          const toolResult = await executeVoiceToolCall({
-            name: intent.toolName,
-            arguments: toolArgumentsFromIntentParams(intent.params),
-          });
-          if (toolResult.ok) {
-            sendToAiChat?.(
-              tf(locale, 'transcription.voice.chatPrefix.toolSuccess', {
-                toolName: intent.toolName,
-                message: toolResult.message,
-              }),
-            );
-            Earcon.playSuccess();
-          } else {
-            sendToAiChat?.(
-              tf(locale, 'transcription.voice.chatPrefix.toolFailure', {
-                toolName: intent.toolName,
-                message: toolResult.message,
-              }),
-            );
-            Earcon.playError();
-          }
-        } catch (err) {
-          sendToAiChat?.(
-            tf(locale, 'transcription.voice.chatPrefix.toolException', {
-              toolName: intent.toolName,
-              message: err instanceof Error ? err.message : String(err),
-            }),
-          );
-          Earcon.playError();
-        }
-      } else if (sendToAiChat) {
-        sendToAiChat(tf(locale, 'transcription.voice.chatPrefix.command', { text: intent.raw }));
-        Earcon.playSuccess();
+      setError(null);
+      queueAiThinking();
+      try {
+        const toolResult = await executeVoiceToolCall({
+          name: intent.toolName,
+          arguments: toolArgumentsFromIntentParams(intent.params),
+          userText: intent.raw,
+        });
+        if (toolResult.pending) Earcon.playTick();
+        else if (toolResult.ok) Earcon.playSuccess();
+        else Earcon.playError();
+      } catch {
+        Earcon.playError();
       }
       setAgentState('idle');
       return;

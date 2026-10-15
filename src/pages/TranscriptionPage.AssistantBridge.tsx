@@ -49,7 +49,7 @@ export interface DeferredTranscriptionAiRuntimeState {
   aiChat: DeferredAiChatState;
   aiToolDecisionLogs: UseTranscriptionAiControllerResult['aiToolDecisionLogs'];
   aiVerticalWorkflowAuditEntries: UseTranscriptionAiControllerResult['aiVerticalWorkflowAuditEntries'];
-  /** 与 `aiChat` 工具执行同源，供语音 `tool` 意图调用 */
+  /** 语音 tool 意图进入聊天的决策管线。聊天 onToolCall 仍是执行器。 */
   executeVoiceToolCall: UseTranscriptionAiControllerResult['executeVoiceToolCall'];
   acousticRuntimeStatus: AcousticRuntimeStatus;
   acousticSummary: AcousticPromptSummary | null;

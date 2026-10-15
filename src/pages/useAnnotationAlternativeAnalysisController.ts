@@ -7,10 +7,9 @@ import type {
 } from './annotation/annotationMorphemeDrafts';
 import { collectDirtyAnnotationTokenWrites } from './annotation/annotationTokenDrafts';
 import type { AnnotationTokenDraft } from './annotation/annotationTokenDrafts';
-import { buildAnnotationUtteranceGraph } from './annotation/buildAnnotationUtteranceGraph';
 import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
 import type { AnnotationTokenLexemeLinkView } from './annotation/saveAnnotationLexemeLink';
-import { saveAnnotationUnitAnalysisGraph } from './annotation/saveAnnotationUnitAnalysisGraph';
+import { saveAnnotationUtteranceGraphChange } from './annotation/saveAnnotationUnitAnalysisGraph';
 
 export type AnnotationAlternativeAnalysisError = '' | 'dirty' | 'failed';
 
@@ -41,18 +40,17 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
         return;
       }
       try {
-        const base = buildAnnotationUtteranceGraph(input);
-        if (base === undefined) {
+        const saved = await saveAnnotationUtteranceGraphChange({
+          textId,
+          row: input.row,
+          morphsByTokenId: input.morphsByTokenId,
+          linksByTokenId: input.linksByTokenId,
+          change: (graph) => selectAlternativeAnalysis(graph, input.relationId),
+        });
+        if (saved === null) {
           setError('failed');
           return;
         }
-        const next = selectAlternativeAnalysis(base, input.relationId);
-        await saveAnnotationUnitAnalysisGraph({
-          textId,
-          unitId: input.row.id,
-          graph: next,
-          expectedBase: input.row.analysisGraph,
-        });
         setError('');
         reload();
       } catch {
@@ -77,18 +75,17 @@ export function useAnnotationAlternativeAnalysisController(textId: string, reloa
         return;
       }
       try {
-        const base = buildAnnotationUtteranceGraph(input);
-        if (base === undefined) {
+        const saved = await saveAnnotationUtteranceGraphChange({
+          textId,
+          row: input.row,
+          morphsByTokenId: input.morphsByTokenId,
+          linksByTokenId: input.linksByTokenId,
+          change: (graph) => addAlternativePos(graph, input.tokenId, input.pos),
+        });
+        if (saved === null) {
           setError('failed');
           return;
         }
-        const next = addAlternativePos(base, input.tokenId, input.pos);
-        await saveAnnotationUnitAnalysisGraph({
-          textId,
-          unitId: input.row.id,
-          graph: next,
-          expectedBase: input.row.analysisGraph,
-        });
         setError('');
         reload();
       } catch {

@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { snapshotLoadWasSuperseded, type LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
 import { getDb, importDatabaseFromJson } from '../../db';
 import type { LayerUnitDocType } from '../../db';
 import {
@@ -27,7 +28,7 @@ type Params = {
   dbNameRef: React.MutableRefObject<string | undefined>;
   unitsRef: React.MutableRefObject<LayerUnitDocType[]>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
   setSaveState: (s: SaveState) => void;
 };
@@ -94,7 +95,7 @@ export function useTranscriptionRecoveryActions({
           await importDatabaseFromJson(data.snapshot, { strategy: 'upsert' });
         });
 
-        await loadSnapshot(projectTextId);
+        const loaded = await loadSnapshot(projectTextId);
         const name = dbNameRef.current;
         if (name) {
           fireAndForget(clearRecoverySnapshot(name, projectTextId), {
@@ -102,10 +103,12 @@ export function useTranscriptionRecoveryActions({
             policy: 'background',
           });
         }
-        setSaveState({
-          kind: 'done',
-          message: '\u5df2\u4ece\u5d29\u6e83\u6062\u590d\u6570\u636e\u4e2d\u8fd8\u539f',
-        });
+        if (!snapshotLoadWasSuperseded(loaded)) {
+          setSaveState({
+            kind: 'done',
+            message: '\u5df2\u4ece\u5d29\u6e83\u6062\u590d\u6570\u636e\u4e2d\u8fd8\u539f',
+          });
+        }
         return true;
       } catch (error) {
         log.error('Apply recovery failed', {

@@ -1,4 +1,8 @@
 import type { ITranscriptionAppServiceGateway } from '../app/TranscriptionAppService';
+import {
+  snapshotLoadWasSuperseded,
+  type LoadTranscriptionSnapshot,
+} from '../hooks/transcription/workspaceSnapshotLoad';
 import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import { t, type Locale } from '../i18n';
@@ -20,7 +24,7 @@ export async function importTranscriptionProjectAudio(input: {
   audioImportDisposition: AudioImportDisposition;
   unitsOnCurrentMedia: LayerUnitDocType[];
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   clearPendingAudioImportSelection: () => void;
   locale: Locale;
   tfB: (key: string, opts?: Record<string, unknown>) => string;
@@ -145,7 +149,7 @@ export async function importTranscriptionProjectAudio(input: {
       logicalDurationSec: duration,
     });
   }
-  await loadSnapshot(textId);
+  if (snapshotLoadWasSuperseded(await loadSnapshot(textId))) return;
   clearPendingAudioImportSelection();
   setSaveState({
     kind: 'done',

@@ -76,6 +76,7 @@ export async function runAiChatSendTurnStreamPhase(
   // R1：flag 开且 provider 支持时，本回合由 ToolLoopAgent 运行；flag 关时完全走旧路径（懒加载，不进主包）
   let stream: AsyncGenerator<AssistantStreamChunk> = input.stream;
   let runtimeV2 = false;
+  let legacyTookOver = false;
   if (
     (input.flags.aiAgentRuntimeV2Enabled || resolveAiAgentRuntimeV2Enabled()) &&
     !opening.clarifyFastPathCall
@@ -185,6 +186,9 @@ export async function runAiChatSendTurnStreamPhase(
           },
         }),
         input.stream,
+        () => {
+          legacyTookOver = true;
+        },
       ) as AsyncGenerator<AssistantStreamChunk>;
     }
   }
@@ -224,10 +228,12 @@ export async function runAiChatSendTurnStreamPhase(
         ragCitations,
         s.assistantReasoningContent,
       );
-      setLastError(errorText);
-      if (shouldTrackRemoteStatus) {
-        setConnectionTestStatus('error');
-        setConnectionTestMessage(errorText);
+      if (canUpdateStreamUi()) {
+        setLastError(errorText);
+        if (shouldTrackRemoteStatus) {
+          setConnectionTestStatus('error');
+          setConnectionTestMessage(errorText);
+        }
       }
       break;
     }
@@ -289,31 +295,32 @@ export async function runAiChatSendTurnStreamPhase(
       queueFlushAssistantDraft(s.assistantContent, true);
       await awaitQueuedPersistence();
       commitPrimaryStreamUsage();
-      // v2 回合的工具已在循环内经决策管线处理，不再从文本解析 | v2 tools already ran in the loop
+      // 留在 v2 的回合工具已在循环里决定。改走旧流之后，按旧流解析一次，不重复执行。
       const {
         finalContent,
         finalStatus,
         finalErrorMessage,
         connectionErrorMessage,
         localToolResults,
-      } = runtimeV2
-        ? {
-            finalContent: s.assistantContent,
-            finalStatus: 'done' as const,
-            finalErrorMessage: undefined,
-            connectionErrorMessage: undefined,
-            localToolResults: undefined,
-          }
-        : await finalizeAssistantStreamCompletion(
-            {
-              assistantId,
-              assistantContent: s.assistantContent,
-              userText: effectiveUserText,
-              aiContext,
-              ...(memoryRecallShape ? { memoryRecallShape } : {}),
-            },
-            buildStreamCompletionEnv(),
-          );
+      } =
+        runtimeV2 && !legacyTookOver
+          ? {
+              finalContent: s.assistantContent,
+              finalStatus: 'done' as const,
+              finalErrorMessage: undefined,
+              connectionErrorMessage: undefined,
+              localToolResults: undefined,
+            }
+          : await finalizeAssistantStreamCompletion(
+              {
+                assistantId,
+                assistantContent: s.assistantContent,
+                userText: effectiveUserText,
+                aiContext,
+                ...(memoryRecallShape ? { memoryRecallShape } : {}),
+              },
+              buildStreamCompletionEnv(),
+            );
 
       const streamCompletionResult = {
         finalContent,
@@ -338,7 +345,7 @@ export async function runAiChatSendTurnStreamPhase(
 
   if (!s.streamFinalized && !controller.signal.aborted) {
     commitPrimaryStreamUsage();
-    recordCompletionSuccessMetric();
+    if (canUpdateStreamUi()) recordCompletionSuccessMetric();
     await awaitQueuedPersistence();
     await writeVerticalWorkflowAuditLogForSendTurnStreamPhase({
       db,

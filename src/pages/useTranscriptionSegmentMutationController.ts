@@ -18,6 +18,7 @@ import {
   recordSegmentMutationLatency,
   setSegmentMutationActionError,
 } from './useTranscriptionSegmentMutationController.utils';
+import { runSegmentLayerWriteReload } from './segmentLayerWriteReload';
 
 export type {
   UseTranscriptionSegmentMutationControllerInput,
@@ -103,14 +104,12 @@ export function useTranscriptionSegmentMutationController(
     [findUnitDocContainingRange, getUnitDocById],
   );
   const mergeAdjacentSegmentsForAiRollback = async (keepId: string, removeId: string) => {
-    segmentMutationReloadGenRef.current += 1;
-    const postReloadToken = segmentMutationReloadGenRef.current;
-    await transcriptionAppService.mergeAdjacentSegments(keepId, removeId);
-    await reloadSegments();
-    if (segmentMutationReloadGenRef.current !== postReloadToken) {
-      return;
-    }
-    await refreshSegmentUndoSnapshot();
+    await runSegmentLayerWriteReload({
+      generation: segmentMutationReloadGenRef,
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+      write: () => transcriptionAppService.mergeAdjacentSegments(keepId, removeId),
+    });
   };
 
   const splitRouted = useCallback(
@@ -135,26 +134,27 @@ export function useTranscriptionSegmentMutationController(
         onSegmentLayer: async () => {
           await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.split'));
           try {
-            segmentMutationReloadGenRef.current += 1;
-            const postReloadToken = segmentMutationReloadGenRef.current;
-            const splitResult = await transcriptionAppService.splitSegment(id, splitTime);
-            await reloadSegments();
-            if (segmentMutationReloadGenRef.current !== postReloadToken) {
+            const outcome = await runSegmentLayerWriteReload({
+              generation: segmentMutationReloadGenRef,
+              reloadSegments,
+              refreshSegmentUndoSnapshot,
+              write: () => transcriptionAppService.splitSegment(id, splitTime),
+            });
+            if (outcome.stale) {
               recordSegmentMutationLatency('split', 'success', startedAtMs);
               return undefined;
             }
-            await refreshSegmentUndoSnapshot();
-            selectTimelineUnit(createSegmentTarget(splitResult.second.id, targetLayerId));
+            selectTimelineUnit(createSegmentTarget(outcome.value.second.id, targetLayerId));
             recordTimelineEdit?.({
               action: 'split',
               unitId: id,
               unitKind: 'segment',
-              detail: `newSegment=${splitResult.second.id}`,
+              detail: `newSegment=${outcome.value.second.id}`,
             });
             recordSegmentMutationLatency('split', 'success', startedAtMs);
             return {
-              keepSegmentId: splitResult.first.id,
-              removeSegmentId: splitResult.second.id,
+              keepSegmentId: outcome.value.first.id,
+              removeSegmentId: outcome.value.second.id,
             };
           } catch (error) {
             setSegmentMutationActionError(
@@ -241,15 +241,16 @@ export function useTranscriptionSegmentMutationController(
           }
           await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.mergePrevious'));
           try {
-            segmentMutationReloadGenRef.current += 1;
-            const postReloadToken = segmentMutationReloadGenRef.current;
-            await transcriptionAppService.mergeAdjacentSegments(prevSeg.id, id);
-            await reloadSegments();
-            if (segmentMutationReloadGenRef.current !== postReloadToken) {
+            const outcome = await runSegmentLayerWriteReload({
+              generation: segmentMutationReloadGenRef,
+              reloadSegments,
+              refreshSegmentUndoSnapshot,
+              write: () => transcriptionAppService.mergeAdjacentSegments(prevSeg.id, id),
+            });
+            if (outcome.stale) {
               recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
               return;
             }
-            await refreshSegmentUndoSnapshot();
             selectTimelineUnit(createSegmentTarget(prevSeg.id, targetLayerId));
             recordTimelineEdit?.({
               action: 'merge',
@@ -344,15 +345,16 @@ export function useTranscriptionSegmentMutationController(
           }
           await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.mergeNext'));
           try {
-            segmentMutationReloadGenRef.current += 1;
-            const postReloadToken = segmentMutationReloadGenRef.current;
-            await transcriptionAppService.mergeAdjacentSegments(id, nextSeg.id);
-            await reloadSegments();
-            if (segmentMutationReloadGenRef.current !== postReloadToken) {
+            const outcome = await runSegmentLayerWriteReload({
+              generation: segmentMutationReloadGenRef,
+              reloadSegments,
+              refreshSegmentUndoSnapshot,
+              write: () => transcriptionAppService.mergeAdjacentSegments(id, nextSeg.id),
+            });
+            if (outcome.stale) {
               recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
               return;
             }
-            await refreshSegmentUndoSnapshot();
             selectTimelineUnit(createSegmentTarget(id, targetLayerId));
             recordTimelineEdit?.({
               action: 'merge',
@@ -411,15 +413,16 @@ export function useTranscriptionSegmentMutationController(
         onSegmentLayer: async () => {
           await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.delete'));
           try {
-            segmentMutationReloadGenRef.current += 1;
-            const postReloadToken = segmentMutationReloadGenRef.current;
-            await transcriptionAppService.deleteSegment(id);
-            await reloadSegments();
-            if (segmentMutationReloadGenRef.current !== postReloadToken) {
+            const outcome = await runSegmentLayerWriteReload({
+              generation: segmentMutationReloadGenRef,
+              reloadSegments,
+              refreshSegmentUndoSnapshot,
+              write: () => transcriptionAppService.deleteSegment(id),
+            });
+            if (outcome.stale) {
               recordSegmentMutationLatency('delete', 'success', startedAtMs);
               return;
             }
-            await refreshSegmentUndoSnapshot();
             selectTimelineUnit(null);
             recordTimelineEdit?.({ action: 'delete', unitId: id, unitKind: 'segment' });
             recordSegmentMutationLatency('delete', 'success', startedAtMs);
@@ -481,15 +484,16 @@ export function useTranscriptionSegmentMutationController(
           if (ids.size === 0) return;
           try {
             await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.deleteSelection'));
-            segmentMutationReloadGenRef.current += 1;
-            const postReloadToken = segmentMutationReloadGenRef.current;
-            await transcriptionAppService.deleteSegments([...ids]);
-            await reloadSegments();
-            if (segmentMutationReloadGenRef.current !== postReloadToken) {
+            const outcome = await runSegmentLayerWriteReload({
+              generation: segmentMutationReloadGenRef,
+              reloadSegments,
+              refreshSegmentUndoSnapshot,
+              write: () => transcriptionAppService.deleteSegments([...ids]),
+            });
+            if (outcome.stale) {
               recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
               return;
             }
-            await refreshSegmentUndoSnapshot();
             selectTimelineUnit(null);
             const headSeg = [...ids][0];
             if (headSeg) {

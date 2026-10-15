@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { LoadTranscriptionSnapshot } from '../transcription/workspaceSnapshotLoad';
 import { requestPersistOnGesture } from '../../utils/storageDurability';
 import { getDb } from '../../db';
 import { clearRecoverySnapshot } from '../../services/SnapshotService';
@@ -120,7 +121,7 @@ export interface UseImportExportInput {
   translations: LayerUnitContentDocType[];
   defaultTranscriptionLayerId: string | undefined;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
   /** Production transcription import asks before writing a foreign multi-tier EAF. */
   promptForEafTierRoles?: boolean;

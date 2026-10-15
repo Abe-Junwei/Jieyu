@@ -267,10 +267,12 @@ export async function* runAiRuntimeV2Turn(
   // 审批请求的 requestId 跨回合保持（审计配对）| keep the request's requestId across turns
   const requestIdByToolCallId = new Map<string, string>();
 
+  let executedAny = false;
   const executeCall = async (
     call: AiChatToolCall,
     mode: 'auto' | 'approved',
   ): Promise<PilotToolOutcome> => {
+    executedAny = true;
     const decision = await p.decide(call, mode);
     if (decision.pending) {
       // 审批已由 SDK 完成；管线若仍要确认，按失败返回，不留第二张卡 | never a second confirmation
@@ -304,9 +306,9 @@ export async function* runAiRuntimeV2Turn(
     executeCall(approvedCall(item), 'approved'),
   );
   let yieldedAny = false;
-  // 护栏 6（M2）：未输出任何内容前遇到“拒收 tools”，记入本会话集合，由调用方改走旧路径
+  // 未输出、也未执行过工具时，拒收 tools 才改走旧路径。已经执行的调用留着审计，不再重跑。
   const toolsRejected = (error: unknown) => {
-    if (yieldedAny || !isToolsRejectedError(error)) return false;
+    if (yieldedAny || executedAny || !isToolsRejectedError(error)) return false;
     markNoToolsThisSession(p.providerId, p.modelId);
     return true;
   };
@@ -412,16 +414,33 @@ export {
   markNoToolsThisSession,
 } from './noToolsThisSession';
 
-/** M2：v2 首个片段即“拒收 tools”时，本回合改用尚未消费的旧路径流 | fall back to the untouched legacy stream */
+function chunkAlreadyProduced(chunk: RuntimeV2Chunk): boolean {
+  return Boolean(chunk.delta || chunk.reasoningContent || chunk.done);
+}
+
+/**
+ * 首个片段即拒收 tools、且还没有任何正文时，改用尚未消费的旧路径。
+ * 已经输出或即将在调用方标记为已执行时，不再把旧流接上来。
+ */
 export async function* withLegacyFallback<T>(
   v2: AsyncGenerator<RuntimeV2Chunk>,
   legacy: AsyncGenerator<T>,
+  onLegacyTakeover?: () => void,
 ): AsyncGenerator<RuntimeV2Chunk | T> {
+  let produced = false;
   for await (const chunk of v2) {
     if (chunk.toolsRejected) {
-      yield* legacy;
+      if (!produced) {
+        onLegacyTakeover?.();
+        yield* legacy;
+        return;
+      }
+      const { toolsRejected: _ignored, ...rest } = chunk;
+      if (rest.error || rest.delta || rest.done) yield rest;
+      await legacy.return?.(undefined as never);
       return;
     }
+    if (chunkAlreadyProduced(chunk)) produced = true;
     yield chunk;
   }
   await legacy.return?.(undefined as never);

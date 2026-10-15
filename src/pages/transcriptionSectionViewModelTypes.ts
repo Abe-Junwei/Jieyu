@@ -1,4 +1,5 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
+import type { LoadTranscriptionSnapshot } from '../hooks/transcription/workspaceSnapshotLoad';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { OrthographyDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
@@ -50,7 +51,7 @@ export interface UseTranscriptionSectionViewModelsInput {
   importFileRef: RefObject<HTMLInputElement | null>;
   exportMenuRef: RefObject<HTMLDivElement | null>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   setShowProjectSetup: (value: boolean) => void;

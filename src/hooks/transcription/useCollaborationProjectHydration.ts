@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
 import { createLogger } from '../../observability/logger';
 import { hydrateCollaborationProjectFromCloud } from '../../collaboration/cloud/collaborationCloudHydration';
 import type { CollaborationProjectChangeRecord } from '../../collaboration/cloud/syncTypes';
@@ -28,7 +29,7 @@ export interface UseCollaborationProjectHydrationParams {
   restoreProjectSnapshotById: (snapshotId: string) => Promise<{ payloadJson: string }>;
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   markProjectRevisionSeen: (revision: number) => void;
 }
 

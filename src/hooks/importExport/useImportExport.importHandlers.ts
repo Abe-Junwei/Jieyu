@@ -1,4 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
+import {
+  snapshotLoadWasSuperseded,
+  type LoadTranscriptionSnapshot,
+} from '../transcription/workspaceSnapshotLoad';
 import type {
   LayerDocType,
   LayerLinkDocType,
@@ -112,7 +116,7 @@ type UseImportExportImportHandlersInput = {
   layers: LayerDocType[];
   defaultTranscriptionLayerId: string | undefined;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   setSaveState: Dispatch<SetStateAction<SaveState>>;
   locale: Locale;
   normalizeSpeakerLookupKey: (value: string | undefined) => string;
@@ -1333,7 +1337,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           });
         }
       }
-      await loadSnapshot(importTextId);
+      if (snapshotLoadWasSuperseded(await loadSnapshot(importTextId))) return;
       const hostRecoveryWarningCount = eafResult
         ? [...eafResult.tierConstraints.values()].filter(
             (constraintInfo) =>

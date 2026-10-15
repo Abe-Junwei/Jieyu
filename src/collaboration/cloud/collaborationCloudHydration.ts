@@ -1,4 +1,5 @@
 import { createLogger } from '../../observability/logger';
+import type { LoadTranscriptionSnapshot } from '../../hooks/transcription/workspaceSnapshotLoad';
 import { LinguisticService } from '../../services/LinguisticService';
 import {
   RECOVERY_TIMELINE_PAGE_SIZE,
@@ -25,7 +26,7 @@ export interface CollaborationCloudHydrationDeps {
   restoreProjectSnapshotById: (snapshotId: string) => Promise<{ payloadJson: string }>;
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   applyRemoteChangeToLocal: (
     change: CollaborationProjectChangeRecord,
     options?: { skipLoadSnapshot?: boolean; skipConflictGovernance?: boolean },

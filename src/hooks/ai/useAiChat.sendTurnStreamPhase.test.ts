@@ -233,6 +233,51 @@ describe('runAiChatSendTurnStreamPhase', () => {
     }
   });
 
+  it('after a conversation switch, a finished turn does not start another tool loop', async () => {
+    const generationRef = createConversationGenerationRef(0);
+    const streamGenerationAtStart = generationRef.current;
+    bumpConversationGeneration(generationRef);
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    async function* finished(): AsyncGenerator<AssistantStreamChunk> {
+      yield { delta: 'kept' };
+      yield { done: true };
+    }
+    await runAiChatSendTurnStreamPhase(
+      buildBaseInput({
+        conversationGenerationRef: generationRef,
+        streamGenerationAtStart,
+        finalizeAssistantMessage,
+        stream: finished(),
+      }),
+    );
+    expect(runAgentLoop).not.toHaveBeenCalled();
+    expect(createAssistantStream).not.toHaveBeenCalled();
+    expect(finalizeAssistantMessage).toHaveBeenCalledWith('done', 'final-body', undefined, [], '');
+  });
+
+  it('after a conversation switch, an error does not land on the new session', async () => {
+    const generationRef = createConversationGenerationRef(0);
+    const streamGenerationAtStart = generationRef.current;
+    bumpConversationGeneration(generationRef);
+    const setLastError = vi.fn();
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    async function* failed(): AsyncGenerator<AssistantStreamChunk> {
+      yield { error: 'boom' };
+    }
+    await runAiChatSendTurnStreamPhase(
+      buildBaseInput({
+        conversationGenerationRef: generationRef,
+        streamGenerationAtStart,
+        setLastError: setLastError as unknown as Dispatch<SetStateAction<string | null>>,
+        finalizeAssistantMessage,
+        stream: failed(),
+      }),
+    );
+    expect(setLastError).not.toHaveBeenCalled();
+    expect(runAgentLoop).not.toHaveBeenCalled();
+    expect(finalizeAssistantMessage).toHaveBeenCalledWith('error', '', 'boom', [], '');
+  });
+
   it('finalizes an empty stream as done without calling completion helpers', async () => {
     const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
     const recordCompletionSuccessMetric = vi.fn();

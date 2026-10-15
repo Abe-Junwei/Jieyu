@@ -185,7 +185,7 @@ describe('VoiceAgentService command bridge', () => {
     });
   });
 
-  it('sends the localized tool-success prefix to AI chat in English', async () => {
+  it('submits a resolved tool intent with the spoken line and no chat prefix', async () => {
     mockRouteIntent.mockReturnValue({
       type: 'tool',
       toolName: 'delete_transcription_segment',
@@ -201,13 +201,9 @@ describe('VoiceAgentService command bridge', () => {
     expect(onToolCall).toHaveBeenCalledWith({
       name: 'delete_transcription_segment',
       arguments: { segmentId: 'seg-1' },
+      userText: 'delete this segment',
     });
-    expect(onSendToAiChat).toHaveBeenCalledWith(
-      tf('en-US', 'transcription.voice.chatPrefix.toolSuccess', {
-        toolName: 'delete_transcription_segment',
-        message: 'Deleted.',
-      }),
-    );
+    expect(onSendToAiChat).not.toHaveBeenCalled();
     expect(mockPlaySuccess).toHaveBeenCalledTimes(1);
   });
 

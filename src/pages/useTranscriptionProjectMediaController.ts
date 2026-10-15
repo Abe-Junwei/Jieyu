@@ -23,6 +23,7 @@ import {
   clearActiveProjectTextId,
   resolveCurrentProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
+import { snapshotLoadWasSuperseded } from '../hooks/transcription/workspaceSnapshotLoad';
 import {
   assessTimelineImportMismatch,
   resolveAudioImportWillRemapOnFirstBind,
@@ -168,7 +169,13 @@ export function useTranscriptionProjectMediaController(
       (async () => {
         try {
           await transcriptionAppService.deleteAudio(media.id);
-          await loadSnapshot(resolveCurrentProjectTextId(media.textId ?? activeTextId));
+          if (
+            snapshotLoadWasSuperseded(
+              await loadSnapshot(resolveCurrentProjectTextId(media.textId ?? activeTextId)),
+            )
+          ) {
+            return;
+          }
           selectTimelineUnit(null);
           clearPendingAudioImportSelection();
           setShowAudioImport(false);
@@ -240,7 +247,7 @@ export function useTranscriptionProjectMediaController(
           setShowAudioImport(false);
           // 删除后没有当前项目：清空工作台，而不是跳到别的项目（JY-02）
           // No current project after deletion: clear the workspace instead of jumping to another one (JY-02)
-          await loadSnapshot('');
+          if (snapshotLoadWasSuperseded(await loadSnapshot(''))) return;
           setSaveState({
             kind: 'done',
             message: t(

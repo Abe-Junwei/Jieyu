@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -167,7 +167,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-10-14）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）优先——[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) ADR-0048 存储接口、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) 模型接口 ADR、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) IndexedDB 归层盘点；随后 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架 + [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 模块迁移。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 排在第二程，试用结束前不开工。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-10-14）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）优先——[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) ADR-0048 存储接口、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) 模型接口 ADR、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) IndexedDB 归层盘点；随后 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架 + [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 模块迁移。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R0/R1 与上面三张单并行，独立分支，不挡试用关键路径；R2 不进试用版默认路径。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -186,7 +186,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **A12** | Workflow 强化：StepKind + Reflection + Structured output | 🟡 | **W3** | L | **已落地**：`workflowCompletionChecklist`、finalize reflection reconcile、agent loop `workflowAnswerReady`；A12.1 `workflowStepKinds`；A12.2 registry `reflectionHandlerId` / `outputSchemaId` / `maxReflectionRetries` / `stepKinds`；A12.3 composed `parallel_readonly` 样本 + `executeReadonlyToolBatch`；A12.4 composed 步 ⊆ registry、checklist keys = registry keys；A12.5 `dispatchVerticalWorkflowReflection` + `after_model`。**剩余**：send-turn 多工具仍串行（刻意）；并行只读样本在 **A13** vitest，不替换 sequential local-tool | B4 新 workflow 只登记 registry；checklist 未闭合不得 done | 是 |
 | **A13** | TaskRunner 对齐 + Parallel readonly 样本 | 🟡 | **W4** | M | **已落地**：`TaskRunner.enqueue`/`parkCheckpoint` 写 `agentRunId`；parked `agent_loop` 不走 pump、不被 stale TTL 回收；`pendingAgentLoopCheckpoint` 4 态 classifier（`done`/`clarify`/`error`/`running`，仅 `running` 可 auto-continue）；catalog `trust: background`；`enqueueReadonlyToolBatchTask` + `PARALLEL_READONLY_COMPOSED_STEP_SAMPLE` vitest。**不**把并行 batch 接到 send-turn。**依赖 A8、A12** | 长任务 + 并行读 vitest；handoff 进 architecture/plan | 否 |
 | **A14** | Eval trajectory + agentRunId 自动断言 | 🟡 | **W4** | M | **已落地**：suite 二分、trajectory NDJSON 断言、**A8 `agentRunId` 链式断言**、vertical citation 进 `:smoke`、P2 tool-call 计数基线（fixture 回放）。**剩余**：可选 pass@k | smoke + trace 通过；按 run 过滤 trajectory | 否 |
-| **A15** | AI 运行时有限试点（ToolLoopAgent） | ⬜ | 第二程 | L | 第二程 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。试用结束前不开工。框架只接模型调用、结构化工具消息、多步循环和停止；解语保留领域工具、作用域、审批和 `commitToolEffects`。`aiAgentRuntimeV2Enabled` 默认关。R1 不达标再限时对照 OpenAI Agents SDK。门槛在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制 | R2 前不进 main；关闭 flag 后现网聊天不变；`check:agent-evals:smoke` | 是 |
+| **A15** | AI 运行时有限试点（ToolLoopAgent） | ⬜ | R0/R1 并行 | L | [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。R0/R1 与第一程 #274、#304、#279 并行，独立分支，不挡试用关键路径。R2 进 main 须试点达标且用户确认，不进试用版默认路径。框架只接模型调用、结构化工具消息、多步循环和停止；解语保留领域工具、作用域、审批和 `commitToolEffects`。`aiAgentRuntimeV2Enabled` 默认关。R1 不达标再限时对照 OpenAI Agents SDK。门槛在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制 | R2 前不进 main；关闭 flag 后现网聊天不变；`check:agent-evals:smoke` | 是 |
 
 ### Stage B — 开占位（标注 / 词典 / 语料 / 分析）
 
@@ -295,7 +295,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 索引见 [plans/README.md](./README.md)。下面只列工作区里仍有效的细节来源：
 
 - 三页联评门槛：`.github/pull_request_template.md` 的 R1–R8 段，门禁 `npm run check:r1-r8`。
-- AI / 语音：运行时迁移是切片 **A15**、第二程 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)，试用结束前不开工。试点未开始，v2 不默认打开；门槛留在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制。试用转写以 [model-interface-plan](../../wayfinder/trial-handoff/model-interface-plan.md) 和 #303–#306 为准。[NLP 接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) 的 R0–R4 仍是对齐及以后的规划，不推翻 A3 的不做，门槛未过不开工。
+- AI / 语音：运行时迁移是切片 **A15**、[#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。R0/R1 与第一程 #274、#304、#279 并行；R2 不进试用版默认路径。试点未开始，v2 不默认打开；门槛留在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制。试用转写以 [model-interface-plan](../../wayfinder/trial-handoff/model-interface-plan.md) 和 #303–#306 为准。[NLP 接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) 的 R0–R4 仍是对齐及以后的规划，不推翻 A3 的不做，门槛未过不开工。
 - Agent 运行时架构：[安全策略](../../architecture/ai-agent-runtime-security-local-first.md)。提交点是 `src/ai/runtime/commitToolEffects.ts`。切片状态见本文 A6–A14、B11–B15。
 - 声学未做完的是本文 A2、A3。重型对齐、说话人分离和外部声学服务维持不做，条件见 A3。
 - 协作：桌面版剔除（ADR-0047）。[Supabase 落地](./托管实时协同-Supabase完整落地方案-2026-04-17.md) 与 M8–M14 留到桌面版之后，对应本文 C4，本程不排。
@@ -322,6 +322,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-15 | **A15 的 R0/R1 提前**。与第一程 #274、#304、#279 并行，独立分支，不挡试用关键路径。R2 进 main 须试点达标且用户确认，不进试用版默认路径。门槛仍留在迁移评估。 |
 | 2026-10-15 | **A15 排进第二程**。AI 运行时有限试点，单号 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。试用结束前不开工。门槛留在迁移评估。 |
 | 2026-10-15 | **自带语音 NLP 方案恢复**。R0–R4 仍在该子计划。试用转写以 model-interface-plan 和 #303–#306 为准。对齐及以后不推翻 A3。 |
 | 2026-10-15 | **AI 架构迁移拍进第二程 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)**。有限试点，不进当前试用下一刀，不另开路线图切片。 |

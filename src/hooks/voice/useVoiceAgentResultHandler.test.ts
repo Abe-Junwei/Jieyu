@@ -2,7 +2,6 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { tf } from '../../i18n';
 import type { SttResult } from '../../services/VoiceInputService';
 import type { VoiceIntent, VoiceSession, ActionId } from '../../services/IntentRouter';
 import { DEFAULT_VOICE_MODE, type VoiceMode } from '../../services/voiceMode';
@@ -204,7 +203,7 @@ describe('useVoiceAgentResultHandler', () => {
     expect(opts.setAgentState).toHaveBeenCalledWith('idle');
   });
 
-  it('routes tool intent to AI chat as command when no tool executor is wired', async () => {
+  it('leaves a tool intent idle when no tool submit is wired', async () => {
     const toolIntent: VoiceIntent = {
       type: 'tool',
       toolName: 'search_units',
@@ -227,11 +226,10 @@ describe('useVoiceAgentResultHandler', () => {
       await result.current(makeFinalResult('搜索 test'));
     });
 
-    expect(opts.sendToAiChatRef.current).toHaveBeenCalledWith(
-      tf('zh-CN', 'transcription.voice.chatPrefix.command', { text: '搜索 test' }),
-    );
+    expect(opts.sendToAiChatRef.current).not.toHaveBeenCalled();
     expect(opts.queueAiThinking).not.toHaveBeenCalled();
-    expect(mockPlaySuccess).toHaveBeenCalledTimes(1);
+    expect(opts.setAgentState).toHaveBeenCalledWith('idle');
+    expect(mockPlaySuccess).not.toHaveBeenCalled();
   });
 
   it('invokes executeVoiceToolCall for tool intent when wired', async () => {
@@ -263,14 +261,10 @@ describe('useVoiceAgentResultHandler', () => {
     expect(executeVoiceToolCall).toHaveBeenCalledWith({
       name: 'delete_transcription_segment',
       arguments: { segmentId: 'seg-1' },
+      userText: 'delete',
     });
-    expect(opts.sendToAiChatRef.current).toHaveBeenCalledWith(
-      tf('zh-CN', 'transcription.voice.chatPrefix.toolSuccess', {
-        toolName: 'delete_transcription_segment',
-        message: 'gone',
-      }),
-    );
-    expect(opts.queueAiThinking).not.toHaveBeenCalled();
+    expect(opts.sendToAiChatRef.current).not.toHaveBeenCalled();
+    expect(opts.queueAiThinking).toHaveBeenCalled();
     expect(mockPlaySuccess).toHaveBeenCalledTimes(1);
   });
 

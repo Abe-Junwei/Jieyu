@@ -6,7 +6,11 @@ import { projectUtteranceAnalysisGraph } from '../../annotation/projectUtterance
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import type { LayerUnitDocType } from '../../types/jieyuDbDocTypes';
-import { saveAnnotationUnitAnalysisGraph } from './saveAnnotationUnitAnalysisGraph';
+import type { AnnotationIgtRow } from './annotationIgtRows';
+import {
+  saveAnnotationUnitAnalysisGraph,
+  saveAnnotationUtteranceGraphChange,
+} from './saveAnnotationUnitAnalysisGraph';
 
 describe('saveAnnotationUnitAnalysisGraph', () => {
   beforeEach(async () => {
@@ -320,4 +324,97 @@ describe('saveAnnotationUnitAnalysisGraph', () => {
       setSpy.mockRestore();
     }
   });
+
+  it('does not write when the utterance has no text', async () => {
+    const saveBatch = vi.fn();
+    const saved = await saveAnnotationUtteranceGraphChange(
+      {
+        textId: 'text-blank',
+        row: blankRow('blank'),
+        morphsByTokenId: {},
+        linksByTokenId: {},
+        change: (graph) => graph,
+      },
+      { listByTextId: async () => [], saveBatch },
+    );
+    expect(saved).toBeNull();
+    expect(saveBatch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a second utterance change that still uses the old row baseline', async () => {
+    const now = '2026-09-30T00:00:00.000Z';
+    const textId = 'text-change';
+    const unitId = 'unit-change';
+    await LinguisticService.layers.saveTranslation({
+      id: 'lane-change',
+      textId,
+      key: 'lane-change',
+      name: { default: 'lane' },
+      languageId: 'und',
+      modality: 'text',
+      layerType: 'transcription',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await LinguisticService.units.saveBatch([
+      {
+        id: unitId,
+        textId,
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'run' },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    const row = runRow(unitId);
+    const first = await saveAnnotationUtteranceGraphChange({
+      textId,
+      row,
+      morphsByTokenId: {},
+      linksByTokenId: {},
+      change: (graph) => addAlternativePos(graph, 'token-base', 'VERB'),
+    });
+    await expect(
+      saveAnnotationUtteranceGraphChange({
+        textId,
+        row,
+        morphsByTokenId: {},
+        linksByTokenId: {},
+        change: (graph) => addAlternativePos(graph, 'token-base', 'ADJ'),
+      }),
+    ).rejects.toThrow('analysisGraph baseline conflict');
+    const stored = (await LinguisticService.units.listByTextId(textId)).find(
+      (unit) => unit.id === unitId,
+    );
+    expect(stored?.analysisGraph).toEqual(first?.analysisGraph);
+  });
 });
+
+function blankRow(id: string): AnnotationIgtRow {
+  return {
+    id,
+    timeLabel: '',
+    startTime: 0,
+    endTime: 1,
+    mediaId: '',
+    surface: '',
+    tokens: [{ id: 'tok', form: '', gloss: '', pos: '', glossLang: 'default' }],
+    translation: '',
+    transcriptionHref: '/transcription',
+  };
+}
+
+function runRow(id: string): AnnotationIgtRow {
+  return {
+    id,
+    timeLabel: '',
+    startTime: 0,
+    endTime: 1,
+    mediaId: '',
+    surface: 'run',
+    tokens: [{ id: 'token-base', form: 'run', gloss: '', pos: 'N', glossLang: 'default' }],
+    translation: '',
+    transcriptionHref: '/transcription',
+  };
+}

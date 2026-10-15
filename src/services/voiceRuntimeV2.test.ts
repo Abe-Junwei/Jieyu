@@ -170,8 +170,8 @@ describe('voice under aiAgentRuntimeV2Enabled', () => {
     );
   });
 
-  it('tool intents go to the chat turn (shared pipeline), not straight to the tool handler', async () => {
-    const executeVoiceToolCall = vi.fn();
+  it('tool intents enter the shared tool submit with the spoken line', async () => {
+    const executeVoiceToolCall = vi.fn(async () => ({ ok: true, message: 'done' }));
     const sendToAiChat = vi.fn();
     const toolIntent = {
       type: 'tool',
@@ -182,7 +182,11 @@ describe('voice under aiAgentRuntimeV2Enabled', () => {
     await dispatchResolvedVoiceIntent(
       dispatchInput({ intent: toolIntent, executeVoiceToolCall, sendToAiChat }),
     );
-    expect(sendToAiChat).toHaveBeenCalledWith('删除第一句');
-    expect(executeVoiceToolCall).not.toHaveBeenCalled();
+    expect(executeVoiceToolCall).toHaveBeenCalledWith({
+      name: 'delete_transcription_segment',
+      arguments: {},
+      userText: '删除第一句',
+    });
+    expect(sendToAiChat).not.toHaveBeenCalled();
   });
 });

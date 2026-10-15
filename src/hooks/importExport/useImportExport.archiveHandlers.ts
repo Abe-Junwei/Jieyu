@@ -1,4 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
+import {
+  snapshotLoadWasSuperseded,
+  type LoadTranscriptionSnapshot,
+} from '../transcription/workspaceSnapshotLoad';
 import type { ImportConflictStrategy } from '../../db';
 import type {
   JieyuArchiveImportPreview,
@@ -92,7 +96,7 @@ function getArchivePasswordCacheKey(file: File): string {
 interface CreateImportExportArchiveHandlersInput {
   activeTextId: string | null;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
-  loadSnapshot: (textId: string) => Promise<void>;
+  loadSnapshot: LoadTranscriptionSnapshot;
   locale: Locale;
   setSaveState: Dispatch<SetStateAction<SaveState>>;
 }
@@ -386,8 +390,11 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         );
         resolvedTextId = openTextId;
         if (openTextId && openTextId !== activeTextId) publishActiveProjectTextId(openTextId);
-        await loadSnapshot(resolveCurrentProjectTextId(openTextId));
-        setSaveState({ kind: 'done', message });
+        if (
+          !snapshotLoadWasSuperseded(await loadSnapshot(resolveCurrentProjectTextId(openTextId)))
+        ) {
+          setSaveState({ kind: 'done', message });
+        }
         return true;
       }
       if (restoreMode === 'disaster-restore') {
@@ -399,8 +406,13 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
           throw new Error(t(locale, 'transcription.importExport.overwriteNotAllowed'));
         }
         const message = await overwriteWithProjectPackage(file, resolvedTextId, read.bytes);
-        await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
-        setSaveState({ kind: 'done', message });
+        if (
+          !snapshotLoadWasSuperseded(
+            await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId)),
+          )
+        ) {
+          setSaveState({ kind: 'done', message });
+        }
         return true;
       }
       const restored = await restoreProjectPackage(file, read.bytes);
@@ -412,8 +424,9 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         resolvedTextId = targetTextId;
         publishActiveProjectTextId(targetTextId);
       }
-      await loadSnapshot(targetTextId);
-      setSaveState({ kind: 'done', message: restored.message });
+      if (!snapshotLoadWasSuperseded(await loadSnapshot(targetTextId))) {
+        setSaveState({ kind: 'done', message: restored.message });
+      }
       return true;
     } catch (err) {
       const rawMessage = describeArchiveImportError(locale, err);
