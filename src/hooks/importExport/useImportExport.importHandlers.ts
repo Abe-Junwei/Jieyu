@@ -137,6 +137,23 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     normalizeSpeakerLookupKey,
   } = input;
 
+  const noteImportViewStale = (writtenTextId: string) => {
+    setSaveState({
+      kind: 'viewStale',
+      message: t(locale, 'transcription.importExport.writtenViewStale'),
+      actionLabel: t(locale, 'transcription.toast.segmentViewRetry'),
+      onAction: () => {
+        void loadSnapshot(writtenTextId)
+          .then(() => {
+            setSaveState({ kind: 'idle' });
+          })
+          .catch(() => {
+            noteImportViewStale(writtenTextId);
+          });
+      },
+    });
+  };
+
   const handleImportFile = async (
     file: File,
     importWriteStrategy: AnnotationImportBridgeStrategy = DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
@@ -1143,36 +1160,62 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         },
       );
 
-      const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));
-      // 走 `layerId` 索引，不整表读出（JY-15）| Indexed by layerId instead of a full scan (JY-15)
-      const importLayerLinks: LayerLinkDocType[] =
-        layerIdSet.size > 0
-          ? await db.dexie.layer_links
-              .where('layerId')
-              .anyOf([...layerIdSet])
-              .toArray()
-          : [];
+      let repairCount = 0;
+      let constraintWarningCount = 0;
+      let followUpIncomplete = false;
+      try {
+        const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));
+        // 走 `layerId` 索引，不整表读出（JY-15）| Indexed by layerId instead of a full scan (JY-15)
+        const importLayerLinks: LayerLinkDocType[] =
+          layerIdSet.size > 0
+            ? await db.dexie.layer_links
+                .where('layerId')
+                .anyOf([...layerIdSet])
+                .toArray()
+            : [];
 
-      const repairedResult = await persistRepairedLayerConstraints({
-        layers: layersAfterImport,
-        layerLinks: importLayerLinks,
-        locale,
-      });
-      if (repairedResult.issues.length > 0) {
-        log.warn('layer constraint validation found issues', {
-          layerConstraintIssues: repairedResult.issues,
+        const repairedResult = await persistRepairedLayerConstraints({
+          layers: layersAfterImport,
+          layerLinks: importLayerLinks,
+          locale,
+        });
+        repairCount = repairedResult.repairs.length;
+        constraintWarningCount = repairedResult.issues.length;
+        if (repairedResult.issues.length > 0) {
+          log.warn('layer constraint validation found issues', {
+            layerConstraintIssues: repairedResult.issues,
+          });
+        }
+      } catch (err) {
+        followUpIncomplete = true;
+        log.warn('post-import layer constraint repair failed', {
+          textId: importTextId,
+          error: toErrorMessage(err),
         });
       }
       if (importOptions?.mismatchAcknowledged) {
         const expandTarget = resolvePostImportLogicalExpandTargetSec(mismatchNotices);
         if (expandTarget != null && expandTarget > 0) {
-          await LinguisticService.media.expandTextLogicalDurationToAtLeast({
-            textId: importTextId,
-            minLogicalDurationSec: expandTarget,
-          });
+          try {
+            await LinguisticService.media.expandTextLogicalDurationToAtLeast({
+              textId: importTextId,
+              minLogicalDurationSec: expandTarget,
+            });
+          } catch (err) {
+            followUpIncomplete = true;
+            log.warn('post-import logical duration expand failed', {
+              textId: importTextId,
+              error: toErrorMessage(err),
+            });
+          }
         }
       }
-      if (snapshotLoadWasSuperseded(await loadSnapshot(importTextId))) return;
+      try {
+        if (snapshotLoadWasSuperseded(await loadSnapshot(importTextId))) return;
+      } catch {
+        noteImportViewStale(importTextId);
+        return;
+      }
       const hostRecoveryWarningCount = eafResult
         ? [...eafResult.tierConstraints.values()].filter(
             (constraintInfo) =>
@@ -1183,25 +1226,28 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         : 0;
       const translateImportDone = (key: string, params?: Record<string, string | number>) =>
         params ? tf(locale, key as DictKey, params) : t(locale, key as DictKey);
+      const doneMessage = formatAnnotationImportDone({
+        segmentCount: parsedUnits.length,
+        tierCount,
+        losses: composeAnnotationImportLosses({
+          parserLosses,
+          ...(missingMediaFilename ? { missingMediaFilename } : {}),
+          unmatchedRefCount,
+          skippedIndependentTierSegmentCount,
+          droppedTranslationSegmentCount,
+          appendedWithoutId,
+          appendedCount: parsedUnits.length,
+        }),
+        constraintRepairCount: repairCount,
+        constraintWarningCount,
+        hostRecoveryWarningCount,
+        translate: translateImportDone,
+      });
       setSaveState({
         kind: 'done',
-        message: formatAnnotationImportDone({
-          segmentCount: parsedUnits.length,
-          tierCount,
-          losses: composeAnnotationImportLosses({
-            parserLosses,
-            ...(missingMediaFilename ? { missingMediaFilename } : {}),
-            unmatchedRefCount,
-            skippedIndependentTierSegmentCount,
-            droppedTranslationSegmentCount,
-            appendedWithoutId,
-            appendedCount: parsedUnits.length,
-          }),
-          constraintRepairCount: repairedResult.repairs.length,
-          constraintWarningCount: repairedResult.issues.length,
-          hostRecoveryWarningCount,
-          translate: translateImportDone,
-        }),
+        message: followUpIncomplete
+          ? `${doneMessage} ${t(locale, 'transcription.importExport.importDone.followUpIncomplete')}`
+          : doneMessage,
       });
     } catch (err) {
       if (err instanceof ImportMismatchRequiresAckError || isEafTierRolesRequiredError(err)) {

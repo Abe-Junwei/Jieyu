@@ -7,6 +7,7 @@ import {
   applyAnnotationAutoGlossPreview,
   previewAnnotationAutoGloss,
 } from './annotation/applyAnnotationAutoGloss';
+import { publishAnnotationWriteRefresh } from './annotationWorkspaceController.actions';
 import type { AnnotationSaveNotice } from './useAnnotationWorkspaceController';
 
 export type AnnotationAutoGlossController = {
@@ -83,15 +84,18 @@ export function useAnnotationAutoGlossController(input: {
         .then(async () => {
           setMatches([]);
           setPreviewUnitId('');
-          await reloadWorkspace();
-          setSaveNotice({ kind: 'saved', message: '' });
+          await publishAnnotationWriteRefresh({
+            reload: reloadWorkspace,
+            setSaveNotice,
+            locale,
+          });
         })
         .catch(fail)
         .finally(() => {
           applyingRef.current = false;
         });
     },
-    [fail, matches, previewUnitId, reloadWorkspace, skipTokenIds],
+    [fail, locale, matches, previewUnitId, reloadWorkspace, skipTokenIds],
   );
 
   return { previewUnitId, matches, saveNotice, onPreview, onApply };

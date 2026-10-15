@@ -229,6 +229,7 @@ export const zhCNDictionary = {
   'workspace.annotation.glossLabel': 'gloss',
   'workspace.annotation.saving': '正在保存',
   'workspace.annotation.saveSaved': '已保存',
+  'workspace.annotation.writtenViewStale': '已写入，视图还没刷新。',
   'workspace.annotation.saveFailed': '保存失败：{message}',
   'workspace.annotation.saveError': '无法保存标注',
   'workspace.annotation.morphemeFormLabel': '词素形式',
@@ -2294,6 +2295,7 @@ export const zhCNDictionary = {
     '无法识别为 Toolbox/SFM 文件：内容缺少 \\tx / \\ts / \\te / \\ref 等标记。',
   'transcription.importExport.fileTooLarge': '标注文件超过 32 MB 上限。',
   'transcription.importExport.importDone.constraintRepaired': '已自动修复 {count} 条层约束问题。',
+  'transcription.importExport.importDone.followUpIncomplete': '层约束整理没有完成。',
   'transcription.importExport.importDone.constraintWarning':
     '检测到 {count} 条层约束兼容性问题，请在层管理中检查并修复。',
   'transcription.importExport.importDone.hostRecoveryWarning':
@@ -2330,6 +2332,8 @@ export const zhCNDictionary = {
   'transcription.importExport.noProject': '请先创建项目。',
   'transcription.importExport.conflict': '导入失败：检测到数据已被其他操作更新，请刷新后重试。',
   'transcription.importExport.failed': '导入失败: {message}',
+  'transcription.importExport.projectWrittenViewStale': '项目已写入，视图还没刷新。',
+  'transcription.importExport.writtenViewStale': '已写入，视图还没刷新。',
   'transcription.importExport.snapshotLegacyDatabase':
     '这个文件是数据重置之前的旧版本（{dbName}）导出的，当前版本不能导入，也不会转换旧数据。未写入任何数据。',
   'transcription.importExport.snapshotUnsupportedVersion':

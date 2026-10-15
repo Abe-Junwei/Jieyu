@@ -87,6 +87,23 @@ export const architectureGuardPostCssPatternRules = [
     ],
   }),
 
+  // 写入和写后刷新分开报。这些文件不得把刷新 await 写回写入路径。
+  patternRule(/^src\/pages\/annotationWorkspaceController\.actions\.ts$/, {
+    requiredRegexes: [/publishAnnotationWriteRefresh\(/],
+    forbiddenRegexes: [/await input\.reload\(/],
+  }),
+  patternRule(
+    /^src\/pages\/useAnnotation(?:Workspace|Morphology|Retokenize|AutoGloss|UnitMeta)Controller\.ts$/,
+    {
+      requiredRegexes: [/publishAnnotationWriteRefresh\(/],
+      forbiddenRegexes: [
+        /await reloadWorkspace\(/,
+        /await dataQuery\.refetch\(/,
+        /await queryClient\.invalidateQueries\(/,
+      ],
+    },
+  ),
+
   // ── 视口单写者：页面层禁止直连 useZoom（须经 useTimelineViewport 封装） ──
   patternRule(/^src\/pages\/.*\.(ts|tsx)$/, {
     excludeRegexes: [/\.test\./, /\.structure\./],

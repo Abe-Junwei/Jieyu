@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnnotationDocumentToolsSlot } from './annotation/AnnotationDocumentTools';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
-import { t, tf, useLocale } from '../i18n';
+import { t, useLocale } from '../i18n';
+import { annotationSaveStatusText } from './annotationWorkspaceController.actions';
 import { AnnotationIgtRowView } from './annotation/AnnotationIgtRow';
 import { useAnnotationAutoGlossController } from './useAnnotationAutoGlossController';
 import { useAnnotationMorphologyController } from './useAnnotationMorphologyController';
@@ -137,18 +138,11 @@ export function AnnotationWorkspace() {
     notices.find((notice) => notice.kind === 'saving') ??
     notices.find((notice) => notice.kind === 'saved') ??
     controller.saveNotice;
-  const saveStatusText =
-    activeNotice.kind === 'saving'
-      ? t(locale, 'workspace.annotation.saving')
-      : activeNotice.kind === 'saved'
-        ? t(locale, 'workspace.annotation.saveSaved')
-        : activeNotice.kind === 'error'
-          ? tf(locale, 'workspace.annotation.saveFailed', {
-              message: activeNotice.message,
-            })
-          : playback.lastOutcome === 'skipped'
-            ? t(locale, 'workspace.annotation.playbackSkipped')
-            : '';
+  const saveStatusText = annotationSaveStatusText(
+    activeNotice,
+    locale,
+    playback.lastOutcome === 'skipped',
+  );
 
   return (
     <section

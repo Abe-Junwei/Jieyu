@@ -13,6 +13,7 @@ import {
   saveAnnotationUnitTurn,
   type AnnotationUnitNoteView,
 } from './annotation/saveAnnotationUnitMeta';
+import { publishAnnotationWriteRefresh } from './annotationWorkspaceController.actions';
 import type { AnnotationSaveNotice } from './useAnnotationWorkspaceController';
 
 export type AnnotationUnitMetaController = {
@@ -111,11 +112,17 @@ export function useAnnotationUnitMetaController(input: {
       ...(noteId ? { noteId } : {}),
     })
       .then(async () => {
-        await queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', savingUnitId] });
+        await publishAnnotationWriteRefresh({
+          reload: () =>
+            queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', savingUnitId] }),
+          setSaveNotice,
+          locale,
+          report: () =>
+            focusedUnitIdRef.current === savingUnitId && draftEpochRef.current === draftEpochAtSave,
+        });
         if (focusedUnitIdRef.current !== savingUnitId) return;
         if (draftEpochRef.current !== draftEpochAtSave) return;
         setEdited(false);
-        setSaveNotice({ kind: 'saved', message: '' });
       })
       .catch((error) => {
         if (focusedUnitIdRef.current !== savingUnitId) return;
@@ -124,7 +131,7 @@ export function useAnnotationUnitMetaController(input: {
       .finally(() => {
         savingRef.current = false;
       });
-  }, [displayedCategory, displayedText, fail, focusedUnitId, queryClient, stored?.id]);
+  }, [displayedCategory, displayedText, fail, focusedUnitId, locale, queryClient, stored?.id]);
 
   const onSaveCategorizedNote = useCallback(
     (category: NoteCategory, content: string) => {
@@ -133,16 +140,20 @@ export function useAnnotationUnitMetaController(input: {
       setSaveNotice({ kind: 'saving', message: '' });
       void saveAnnotationUnitNote({ unitId: savingUnitId, content, category })
         .then(async () => {
-          await queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', savingUnitId] });
-          if (focusedUnitIdRef.current !== savingUnitId) return;
-          setSaveNotice({ kind: 'saved', message: '' });
+          await publishAnnotationWriteRefresh({
+            reload: () =>
+              queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', savingUnitId] }),
+            setSaveNotice,
+            locale,
+            report: () => focusedUnitIdRef.current === savingUnitId,
+          });
         })
         .catch((error) => {
           if (focusedUnitIdRef.current !== savingUnitId) return;
           fail(error);
         });
     },
-    [fail, focusedUnitId, queryClient],
+    [fail, focusedUnitId, locale, queryClient],
   );
 
   const onSaveTurn = useCallback(
@@ -157,16 +168,19 @@ export function useAnnotationUnitMetaController(input: {
       setSaveNotice({ kind: 'saving', message: '' });
       void saveAnnotationUnitTurn({ textId, unitId: savingUnitId, ...value })
         .then(async () => {
-          await reloadWorkspace();
-          if (focusedUnitIdRef.current !== savingUnitId) return;
-          setSaveNotice({ kind: 'saved', message: '' });
+          await publishAnnotationWriteRefresh({
+            reload: reloadWorkspace,
+            setSaveNotice,
+            locale,
+            report: () => focusedUnitIdRef.current === savingUnitId,
+          });
         })
         .catch((error) => {
           if (focusedUnitIdRef.current !== savingUnitId) return;
           fail(error);
         });
     },
-    [fail, focusedUnitId, reloadWorkspace, textId],
+    [fail, focusedUnitId, locale, reloadWorkspace, textId],
   );
 
   const onSelfCertaintyChange = useCallback(
@@ -180,16 +194,19 @@ export function useAnnotationUnitMetaController(input: {
         selfCertainty: value === '' ? null : value,
       })
         .then(async () => {
-          await reloadWorkspace();
-          if (focusedUnitIdRef.current !== savingUnitId) return;
-          setSaveNotice({ kind: 'saved', message: '' });
+          await publishAnnotationWriteRefresh({
+            reload: reloadWorkspace,
+            setSaveNotice,
+            locale,
+            report: () => focusedUnitIdRef.current === savingUnitId,
+          });
         })
         .catch((error) => {
           if (focusedUnitIdRef.current !== savingUnitId) return;
           fail(error);
         });
     },
-    [fail, focusedUnitId, reloadWorkspace, textId],
+    [fail, focusedUnitId, locale, reloadWorkspace, textId],
   );
 
   return useMemo(

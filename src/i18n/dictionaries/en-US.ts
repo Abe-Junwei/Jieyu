@@ -242,6 +242,7 @@ export const enUSDictionary = {
   'workspace.annotation.glossLabel': 'Gloss',
   'workspace.annotation.saving': 'Saving',
   'workspace.annotation.saveSaved': 'Saved',
+  'workspace.annotation.writtenViewStale': 'Written, but the view has not refreshed.',
   'workspace.annotation.saveFailed': 'Save failed: {message}',
   'workspace.annotation.saveError': 'Could not save annotation',
   'workspace.annotation.morphemeFormLabel': 'Morpheme form',
@@ -2465,6 +2466,8 @@ export const enUSDictionary = {
   'transcription.importExport.fileTooLarge': 'The annotation file exceeds the 32 MB limit.',
   'transcription.importExport.importDone.constraintRepaired':
     'Auto-repaired {count} layer-constraint issues.',
+  'transcription.importExport.importDone.followUpIncomplete':
+    'Layer constraint cleanup did not finish.',
   'transcription.importExport.importDone.constraintWarning':
     'Detected {count} layer-constraint compatibility issues. Please review and repair them in layer management.',
   'transcription.importExport.importDone.hostRecoveryWarning':
@@ -2505,6 +2508,9 @@ export const enUSDictionary = {
   'transcription.importExport.conflict':
     'Import failed: data was modified by another operation. Refresh and try again.',
   'transcription.importExport.failed': 'Import failed: {message}',
+  'transcription.importExport.projectWrittenViewStale':
+    'The project is written, but the view has not refreshed.',
+  'transcription.importExport.writtenViewStale': 'Written, but the view has not refreshed.',
   'transcription.importExport.snapshotLegacyDatabase':
     'This file was exported by the old version before the data reset ({dbName}). This version cannot import it and does not convert old data. Nothing was written.',
   'transcription.importExport.snapshotUnsupportedVersion':

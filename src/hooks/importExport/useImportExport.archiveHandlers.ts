@@ -253,6 +253,34 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     };
   };
 
+  const noteArchiveViewStale = (textId: string | null) => {
+    const openTextId = resolveCurrentProjectTextId(textId);
+    setSaveState({
+      kind: 'viewStale',
+      message: t(locale, 'transcription.importExport.projectWrittenViewStale'),
+      actionLabel: t(locale, 'transcription.toast.segmentViewRetry'),
+      onAction: () => {
+        void loadSnapshot(openTextId)
+          .then(() => {
+            setSaveState({ kind: 'idle' });
+          })
+          .catch(() => {
+            noteArchiveViewStale(textId);
+          });
+      },
+    });
+  };
+
+  const finishWrittenArchive = async (textId: string | null, message: string): Promise<void> => {
+    try {
+      const loaded = await loadSnapshot(resolveCurrentProjectTextId(textId));
+      if (snapshotLoadWasSuperseded(loaded)) return;
+      setSaveState({ kind: 'done', message });
+    } catch {
+      noteArchiveViewStale(textId);
+    }
+  };
+
   const restoreProjectPackage = async (
     file: File,
     alreadyRead?: Blob,
@@ -390,11 +418,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         );
         resolvedTextId = openTextId;
         if (openTextId && openTextId !== activeTextId) publishActiveProjectTextId(openTextId);
-        if (
-          !snapshotLoadWasSuperseded(await loadSnapshot(resolveCurrentProjectTextId(openTextId)))
-        ) {
-          setSaveState({ kind: 'done', message });
-        }
+        await finishWrittenArchive(openTextId, message);
         return true;
       }
       if (restoreMode === 'disaster-restore') {
@@ -406,13 +430,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
           throw new Error(t(locale, 'transcription.importExport.overwriteNotAllowed'));
         }
         const message = await overwriteWithProjectPackage(file, resolvedTextId, read.bytes);
-        if (
-          !snapshotLoadWasSuperseded(
-            await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId)),
-          )
-        ) {
-          setSaveState({ kind: 'done', message });
-        }
+        await finishWrittenArchive(resolvedTextId, message);
         return true;
       }
       const restored = await restoreProjectPackage(file, read.bytes);
@@ -424,9 +442,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         resolvedTextId = targetTextId;
         publishActiveProjectTextId(targetTextId);
       }
-      if (!snapshotLoadWasSuperseded(await loadSnapshot(targetTextId))) {
-        setSaveState({ kind: 'done', message: restored.message });
-      }
+      await finishWrittenArchive(targetTextId, restored.message);
       return true;
     } catch (err) {
       const rawMessage = describeArchiveImportError(locale, err);

@@ -15,6 +15,7 @@ const {
   mockIsRawIdbSnapshot,
   mockDetectProjectPackageKind,
   mockRestoreProjectPackageAsNew,
+  mockOverwriteProjectWithPackage,
   mockImportJybProjectsAsNew,
   mockDisasterRestoreFromJyb,
 } = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const {
   mockIsRawIdbSnapshot: vi.fn(async () => false),
   mockDetectProjectPackageKind: vi.fn(async () => 'jyt' as const),
   mockRestoreProjectPackageAsNew: vi.fn(),
+  mockOverwriteProjectWithPackage: vi.fn(),
   mockImportJybProjectsAsNew: vi.fn(),
   mockDisasterRestoreFromJyb: vi.fn(),
 }));
@@ -42,9 +44,11 @@ vi.mock('../../services/projectPackageService', () => ({
   detectProjectPackageKind: mockDetectProjectPackageKind,
   restoreProjectPackageAsNew: mockRestoreProjectPackageAsNew,
   previewProjectPackageRestore: vi.fn(),
-  overwriteProjectWithPackage: vi.fn(),
+  overwriteProjectWithPackage: mockOverwriteProjectWithPackage,
 }));
 
+import { t } from '../../i18n';
+import type { LoadTranscriptionSnapshot } from '../transcription/workspaceSnapshotLoad';
 import { createImportExportArchiveHandlers } from './useImportExport.archiveHandlers';
 
 function restoreResult(projectId: string) {
@@ -222,5 +226,135 @@ describe('RD-3: JYB import with no current project (R2-1)', () => {
     expect(ok).toBe(true);
     expect(loadSnapshot).toHaveBeenCalledWith('p1');
     expect(getActiveProjectTextId()).toBe('p1');
+  });
+});
+
+describe('archive import keeps a written project when the view fails to refresh', () => {
+  const file = new File(['x'], 'p.jyt');
+  const jybFile = new File(['x'], 'lib.jyb');
+  const importResult = { collections: { texts: { received: 1, written: 1, skipped: 0 } } };
+
+  function rejectingSnapshot() {
+    return vi.fn<LoadTranscriptionSnapshot>(async () => {
+      throw new Error('snapshot down');
+    });
+  }
+
+  async function openHandlers(
+    loadSnapshot: LoadTranscriptionSnapshot,
+    activeTextId: string | null,
+  ) {
+    const setSaveState = vi.fn();
+    const handlers = createImportExportArchiveHandlers({
+      activeTextId,
+      loadSnapshot,
+      locale: 'zh-CN',
+      setSaveState,
+    });
+    return { handlers, setSaveState };
+  }
+
+  async function expectWrittenViewStale(
+    ok: boolean,
+    setSaveState: ReturnType<typeof vi.fn>,
+    loadSnapshot: ReturnType<typeof rejectingSnapshot>,
+    textId: string,
+  ) {
+    expect(ok).toBe(true);
+    const stale = setSaveState.mock.calls
+      .map((call) => call[0])
+      .find((state) => state?.kind === 'viewStale');
+    expect(stale).toMatchObject({
+      kind: 'viewStale',
+      message: t('zh-CN', 'transcription.importExport.projectWrittenViewStale'),
+      actionLabel: t('zh-CN', 'transcription.toast.segmentViewRetry'),
+    });
+    expect(setSaveState.mock.calls.some((call) => call[0]?.kind === 'error')).toBe(false);
+    loadSnapshot.mockReset();
+    loadSnapshot.mockResolvedValue(undefined);
+    stale.onAction();
+    await vi.waitFor(() => {
+      expect(loadSnapshot).toHaveBeenCalledWith(textId);
+    });
+    await vi.waitFor(() => {
+      expect(setSaveState).toHaveBeenLastCalledWith({ kind: 'idle' });
+    });
+  }
+
+  beforeEach(() => {
+    clearActiveProjectTextId();
+    mockIsJybPackage.mockReset().mockResolvedValue(false);
+    mockIsRawIdbSnapshot.mockReset().mockResolvedValue(false);
+    mockDetectProjectPackageKind.mockReset().mockResolvedValue('jyt');
+    mockRestoreProjectPackageAsNew.mockReset();
+    mockOverwriteProjectWithPackage.mockReset();
+    mockImportJybProjectsAsNew.mockReset();
+  });
+  afterEach(() => clearActiveProjectTextId());
+
+  it('returns true after a restore-as-new write when the snapshot rejects', async () => {
+    mockRestoreProjectPackageAsNew.mockResolvedValue(restoreResult('text-imported'));
+    const loadSnapshot = rejectingSnapshot();
+    const { handlers, setSaveState } = await openHandlers(loadSnapshot, null);
+    const ok = await handlers.importProjectArchive(file, 'upsert', 'restore-as-new');
+    await expectWrittenViewStale(ok, setSaveState, loadSnapshot, 'text-imported');
+  });
+
+  it('returns true after an overwrite when the snapshot rejects', async () => {
+    publishActiveProjectTextId('text-current');
+    mockOverwriteProjectWithPackage.mockResolvedValue({
+      kind: 'jyt',
+      projectId: 'text-current',
+      title: { default: 'Current' },
+      importResult,
+      skippedLanguageIds: [],
+      skippedOrphanRows: [],
+    });
+    const loadSnapshot = rejectingSnapshot();
+    const { handlers, setSaveState } = await openHandlers(loadSnapshot, 'text-current');
+    const ok = await handlers.importProjectArchive(file, 'upsert', 'overwrite-current');
+    await expectWrittenViewStale(ok, setSaveState, loadSnapshot, 'text-current');
+  });
+
+  it('returns true after a library backup write when the snapshot rejects', async () => {
+    mockIsJybPackage.mockResolvedValue(true);
+    mockImportJybProjectsAsNew.mockResolvedValue({
+      projects: [
+        {
+          projectId: 'new-1',
+          sourceProjectId: 's1',
+          title: { default: 'A' },
+          skippedOrphanRows: [],
+        },
+      ],
+      importResult,
+      skippedLanguageIds: [],
+    });
+    const loadSnapshot = rejectingSnapshot();
+    const { handlers, setSaveState } = await openHandlers(loadSnapshot, null);
+    const ok = await handlers.importProjectArchive(jybFile, 'upsert', 'restore-as-new');
+    await expectWrittenViewStale(ok, setSaveState, loadSnapshot, 'new-1');
+  });
+
+  it('still returns false when the restore itself fails', async () => {
+    mockRestoreProjectPackageAsNew.mockRejectedValue(new Error('disk full'));
+    const loadSnapshot = rejectingSnapshot();
+    const { handlers, setSaveState } = await openHandlers(loadSnapshot, null);
+    const ok = await handlers.importProjectArchive(file, 'upsert', 'restore-as-new');
+    expect(ok).toBe(false);
+    expect(loadSnapshot).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+  });
+
+  it('stays quiet when the snapshot load is superseded', async () => {
+    mockRestoreProjectPackageAsNew.mockResolvedValue(restoreResult('text-imported'));
+    const loadSnapshot = vi.fn(async () => ({
+      committed: false as const,
+      reason: 'superseded' as const,
+    }));
+    const { handlers, setSaveState } = await openHandlers(loadSnapshot, null);
+    const ok = await handlers.importProjectArchive(file, 'upsert', 'restore-as-new');
+    expect(ok).toBe(true);
+    expect(setSaveState).not.toHaveBeenCalled();
   });
 });

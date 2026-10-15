@@ -9,6 +9,7 @@ import {
   restoreAnnotationRetokenize,
   type AnnotationRetokenizePreview,
 } from './annotation/annotationRetokenize';
+import { publishAnnotationWriteRefresh } from './annotationWorkspaceController.actions';
 import type { AnnotationSaveNotice } from './useAnnotationWorkspaceController';
 
 export type AnnotationRetokenizeController = {
@@ -103,15 +104,22 @@ export function useAnnotationRetokenizeController(input: {
           if (result.kind === 'candidate') {
             setForceOffer({ unitId, proposedForms: preview.proposedForms });
           }
-          if (result.kind !== 'unchanged') await reloadWorkspace();
-          setSaveNotice({ kind: 'saved', message: '' });
+          if (result.kind === 'unchanged') {
+            setSaveNotice({ kind: 'saved', message: '' });
+            return;
+          }
+          await publishAnnotationWriteRefresh({
+            reload: reloadWorkspace,
+            setSaveNotice,
+            locale,
+          });
         })
         .catch(fail)
         .finally(() => {
           applyingRef.current = false;
         });
     },
-    [drafts, fail, preview, reloadWorkspace, rows, textId],
+    [drafts, fail, locale, preview, reloadWorkspace, rows, textId],
   );
 
   const onOverwrite = useCallback(
@@ -146,12 +154,17 @@ export function useAnnotationRetokenizeController(input: {
         mode: 'force',
       })
         .then(async (result) => {
-          if (result.kind === 'forced') {
-            setForceOffer(null);
-            setSnapshotUnitId(unitId);
-            await reloadWorkspace();
+          if (result.kind !== 'forced') {
+            setSaveNotice({ kind: 'saved', message: '' });
+            return;
           }
-          setSaveNotice({ kind: 'saved', message: '' });
+          setForceOffer(null);
+          setSnapshotUnitId(unitId);
+          await publishAnnotationWriteRefresh({
+            reload: reloadWorkspace,
+            setSaveNotice,
+            locale,
+          });
         })
         .catch(fail)
         .finally(() => {
@@ -168,19 +181,24 @@ export function useAnnotationRetokenizeController(input: {
       setSaveNotice({ kind: 'saving', message: '' });
       void restoreAnnotationRetokenize({ textId, unitId })
         .then(async (result) => {
-          if (result.restored) {
-            setSnapshotUnitId('');
-            setForceOffer(null);
-            await reloadWorkspace();
+          if (!result.restored) {
+            setSaveNotice({ kind: 'saved', message: '' });
+            return;
           }
-          setSaveNotice({ kind: 'saved', message: '' });
+          setSnapshotUnitId('');
+          setForceOffer(null);
+          await publishAnnotationWriteRefresh({
+            reload: reloadWorkspace,
+            setSaveNotice,
+            locale,
+          });
         })
         .catch(fail)
         .finally(() => {
           applyingRef.current = false;
         });
     },
-    [fail, reloadWorkspace, snapshotUnitId, textId],
+    [fail, locale, reloadWorkspace, snapshotUnitId, textId],
   );
 
   return {

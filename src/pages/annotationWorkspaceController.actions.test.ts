@@ -1,9 +1,12 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
-import type { Locale } from '../i18n';
+import { t, type Locale } from '../i18n';
 import { LinguisticService } from '../app/languageAssetPageAccess';
-import { annotationWorkspaceWriteActions } from './annotationWorkspaceController.actions';
+import {
+  annotationSaveStatusText,
+  annotationWorkspaceWriteActions,
+} from './annotationWorkspaceController.actions';
 
 describe('annotationWorkspaceWriteActions', () => {
   const now = '2026-09-30T00:00:00.000Z';
@@ -94,6 +97,7 @@ describe('annotationWorkspaceWriteActions', () => {
     await first;
     expect(kinds.at(-1)).toBe('error');
 
+    const reloadNotices: { kind: string; message: string }[] = [];
     const reloadFailed = annotationWorkspaceWriteActions({
       textId: 'text-notice',
       languageId: 'und',
@@ -103,18 +107,24 @@ describe('annotationWorkspaceWriteActions', () => {
       },
       setSaveNotice: (notice) => {
         kinds.push(notice.kind);
+        reloadNotices.push(notice);
       },
       locale: 'zh-CN' as Locale,
       noticeGate: { current: 0 },
     });
-    const beforeReloadFailure = kinds.length;
     await reloadFailed.onApplyGlossByForm([
       { tokenId: 'tok-notice', gloss: 'HOUND', glossLang: 'default' },
     ]);
-    expect(kinds.at(-1)).toBe('error');
+    expect(reloadNotices.at(-1)).toEqual({
+      kind: 'saved',
+      message: t('zh-CN', 'workspace.annotation.writtenViewStale'),
+    });
+    expect((await db.unit_tokens.get('tok-notice'))?.gloss).toMatchObject({ default: 'HOUND' });
     await reloadFailed.onDeleteToken('unit-notice', 'tok-notice', false);
-    expect(kinds.at(-1)).toBe('error');
-    expect(kinds.length).toBeGreaterThan(beforeReloadFailure);
+    expect(reloadNotices.at(-1)).toEqual({
+      kind: 'saved',
+      message: t('zh-CN', 'workspace.annotation.writtenViewStale'),
+    });
 
     const removeToken = vi
       .spyOn(LinguisticService.units, 'removeToken')
@@ -186,6 +196,19 @@ describe('annotationWorkspaceWriteActions', () => {
     expect(reloads).toBe(0);
     expect(kinds).toEqual(['saved']);
     expect(await db.unit_tokens.get('only')).toBeDefined();
+  });
+});
+
+describe('annotationSaveStatusText', () => {
+  it('shows the written-view sentence when a save notice carries one', () => {
+    expect(
+      annotationSaveStatusText(
+        { kind: 'saved', message: t('zh-CN', 'workspace.annotation.writtenViewStale') },
+        'zh-CN',
+        false,
+      ),
+    ).toBe('已写入，视图还没刷新。');
+    expect(annotationSaveStatusText({ kind: 'saved', message: '' }, 'zh-CN', false)).toBe('已保存');
   });
 });
 
