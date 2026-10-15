@@ -53,18 +53,13 @@ export const architectureGuardPostCssPatternRules = [
   // ── ADR-003 Phase 16: forbid resurrecting removed legacy mirror modules | DB cutover guard ──
   patternRule(/^src\/services\/(?!.*\.test\.).*\.ts$/, {
     excludeFiles: ['src/services/LayerUnitSegmentWritePrimitives.ts'],
-    forbiddenRegexes: [
-      /\bLegacyMirrorService\b/,
-      /LayerUnitSegmentMirrorPrimitives/,
-    ],
+    forbiddenRegexes: [/\bLegacyMirrorService\b/, /LayerUnitSegmentMirrorPrimitives/],
   }),
 
   // ── ADR-006 M18: forbid resurrecting Dexie `utterances` store (allowlist: engine upgrade, M18 migration) ──
   patternRule(/^src\/.*\.(ts|tsx)$/, {
     excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
-    excludeFiles: [
-      'src/db/engine.ts',
-    ],
+    excludeFiles: ['src/db/engine.ts'],
     forbiddenRegexes: [
       /\bdb\.utterances\b/,
       /\bdexie\.utterances\b/,
@@ -76,9 +71,7 @@ export const architectureGuardPostCssPatternRules = [
   // ── ADR-006 M18: subgraph must not query legacy `utteranceId` index (allowlist: engine historical schema strings only if needed) ──
   patternRule(/^src\/.*\.(ts|tsx)$/, {
     excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
-    excludeFiles: [
-      'src/db/engine.ts',
-    ],
+    excludeFiles: ['src/db/engine.ts'],
     forbiddenRegexes: [
       /utterance_tokens\.where\(\s*['"]utteranceId['"]/,
       /utterance_morphemes\.where\(\s*['"]utteranceId['"]/,
@@ -87,12 +80,16 @@ export const architectureGuardPostCssPatternRules = [
     ],
   }),
 
+  // Write and the post-write screen refresh stay in separate results. Do not put
+  // `await loadSnapshot` back inside the import write try/catch.
+  patternRule(/^src\/hooks\/importExport\/useImportExport\.(archiveHandlers|importHandlers)\.ts$/, {
+    requiredRegexes: [/settlePersistedRefresh\(|publishAnnotationImportRefresh\(/],
+    forbiddenRegexes: [/await loadSnapshot\(/],
+  }),
+
   // ── 视口单写者：页面层禁止直连 useZoom（须经 useTimelineViewport 封装） ──
   patternRule(/^src\/pages\/.*\.(ts|tsx)$/, {
     excludeRegexes: [/\.test\./, /\.structure\./],
-    forbiddenRegexes: [
-      /from ['"][^'"]*\/hooks\/useZoom['"]/,
-      /\buseZoom\s*\(/,
-    ],
+    forbiddenRegexes: [/from ['"][^'"]*\/hooks\/useZoom['"]/, /\buseZoom\s*\(/],
   }),
 ];

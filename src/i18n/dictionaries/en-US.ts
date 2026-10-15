@@ -2496,6 +2496,10 @@ export const enUSDictionary = {
   'transcription.importExport.conflict':
     'Import failed: data was modified by another operation. Refresh and try again.',
   'transcription.importExport.failed': 'Import failed: {message}',
+  'transcription.importExport.writtenRefreshPending':
+    'The data is saved, but the screen did not refresh. Reload it, and do not import again.',
+  'transcription.importExport.writtenFollowUpUnconfirmed':
+    'The annotation is saved, but a later cleanup step did not finish. Reload and check it, and do not import again.',
   'transcription.importExport.snapshotLegacyDatabase':
     'This file was exported by the old version before the data reset ({dbName}). This version cannot import it and does not convert old data. Nothing was written.',
   'transcription.importExport.snapshotUnsupportedVersion':

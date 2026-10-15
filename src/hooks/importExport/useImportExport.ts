@@ -1075,13 +1075,6 @@ export function useImportExport(input: UseImportExportInput) {
       options: ImportExportImportHandlerOptions,
     ) => {
       const asNewDocument = target === 'new-document';
-      // B5-3：导入流程自己吞掉的错误只体现为 error 状态；记下来，好丢弃半成品文稿
-      // B5-3: errors the import handles itself only show as an error state; note it to discard the document
-      let importReportedError = false;
-      const trackedSetSaveState: typeof setSaveState = (next) => {
-        if (typeof next !== 'function' && next.kind === 'error') importReportedError = true;
-        setSaveState(next);
-      };
       const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
       const { handleImportFile: importFile } =
         importHandlersModule.createImportExportImportHandlers({
@@ -1093,7 +1086,7 @@ export function useImportExport(input: UseImportExportInput) {
           layers: asNewDocument ? [] : layers,
           defaultTranscriptionLayerId: asNewDocument ? undefined : defaultTranscriptionLayerId,
           loadSnapshot,
-          setSaveState: trackedSetSaveState,
+          setSaveState,
           locale,
           normalizeSpeakerLookupKey,
         });
@@ -1103,13 +1096,15 @@ export function useImportExport(input: UseImportExportInput) {
       // B5-2：要换文稿了，旧范围的恢复快照作废 | B5-2: the document changes; drop the old recovery snapshot
       await clearRecoverySnapshot((await getDb()).name, textId);
       try {
-        const { kept } = await runInNewAnnotationDocument(
+        // B5-3：只有写入未确认才丢弃新文稿。刷新失败或后续整理失败时文稿已经写入，不能删。
+        const { kept, result } = await runInNewAnnotationDocument(
           textId,
           () => importFile(file, strategy, options),
-          () => importReportedError,
+          (outcome) => outcome.kind === 'write-unconfirmed',
         );
         // 新文稿没留下（导入失败或没写进内容）时切回了原文稿，重载 | Rolled back to the previous document
         if (!kept) await loadSnapshot(textId);
+        return result;
       } catch (err) {
         await loadSnapshot(textId);
         throw err;
@@ -1142,7 +1137,7 @@ export function useImportExport(input: UseImportExportInput) {
         ...(target !== undefined ? { target } : {}),
       };
       try {
-        return await runAnnotationImport(file, importWriteStrategy, target, {
+        await runAnnotationImport(file, importWriteStrategy, target, {
           ...(promptForEafTierRoles ? { promptForEafTierRoles: true } : {}),
         });
       } catch (err) {

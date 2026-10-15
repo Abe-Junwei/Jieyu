@@ -50,6 +50,10 @@ import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
 import { describeArchiveImportError } from '../../utils/archiveImportErrorMessage';
 import {
+  projectArchiveImportStored,
+  type ArchiveImportOutcome,
+} from '../../hooks/importExport/persistedRefresh';
+import {
   previewSourceImportForFile,
   type SourceImportPlan,
 } from '../../services/sourceRecordService';
@@ -150,7 +154,7 @@ interface LeftRailProjectHubProps {
     strategy: ImportConflictStrategy,
     restoreMode?: ProjectArchiveRestoreMode,
     selection?: ProjectArchiveImportSelection,
-  ) => Promise<boolean>;
+  ) => Promise<boolean | ArchiveImportOutcome>;
   onApplyTextTimeMapping?: (input: { offsetSec: number; scale: number }) => Promise<void>;
   onExportEaf: () => void;
   onExportTextGrid: () => void;
@@ -438,7 +442,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     }
     setProjectImportState((prev) => (prev ? { ...prev, importing: true } : null));
 
-    const success =
+    const outcome =
       current.selectedProjectIds !== undefined
         ? await onImportProjectArchive(current.file, current.strategy, current.restoreMode, {
             projectIds: current.selectedProjectIds,
@@ -446,7 +450,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             restorePreferences: current.restorePreferences === true,
           })
         : await onImportProjectArchive(current.file, current.strategy, current.restoreMode);
-    if (success) {
+    if (projectArchiveImportStored(outcome)) {
       setProjectImportState(null);
       setIsOpen(false);
       return;

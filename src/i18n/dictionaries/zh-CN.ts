@@ -2321,6 +2321,10 @@ export const zhCNDictionary = {
   'transcription.importExport.noProject': '请先创建项目。',
   'transcription.importExport.conflict': '导入失败：检测到数据已被其他操作更新，请刷新后重试。',
   'transcription.importExport.failed': '导入失败: {message}',
+  'transcription.importExport.writtenRefreshPending':
+    '数据已写入，但界面没有刷新。请重新加载，不要再次导入。',
+  'transcription.importExport.writtenFollowUpUnconfirmed':
+    '标注已写入，但后续整理没有完成。请重新加载后检查，不要再次导入。',
   'transcription.importExport.snapshotLegacyDatabase':
     '这个文件是数据重置之前的旧版本（{dbName}）导出的，当前版本不能导入，也不会转换旧数据。未写入任何数据。',
   'transcription.importExport.snapshotUnsupportedVersion':

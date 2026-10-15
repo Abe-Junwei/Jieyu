@@ -84,6 +84,7 @@ import {
   formatAnnotationImportDone,
 } from '../../utils/interchangeLossReport';
 import { mergeInterchangeTierRoles } from '../../utils/interchangeTierRoles';
+import { publishAnnotationImportRefresh, type AnnotationImportOutcome } from './persistedRefresh';
 
 const log = createLogger('useImportExport');
 
@@ -133,11 +134,41 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     normalizeSpeakerLookupKey,
   } = input;
 
+  const publishAnnotationRefresh = (
+    message: string,
+    textId: string,
+    pending:
+      | { kind: 'written-refresh-pending' }
+      | {
+          kind: 'written-follow-up-unconfirmed';
+          stage: 'constraint-repair' | 'duration-expand';
+        },
+  ): Promise<AnnotationImportOutcome> => {
+    const pendingMessage =
+      pending.kind === 'written-follow-up-unconfirmed'
+        ? t(locale, 'transcription.importExport.writtenFollowUpUnconfirmed')
+        : t(locale, 'transcription.importExport.writtenRefreshPending');
+    return publishAnnotationImportRefresh({
+      message,
+      pendingMessage,
+      pending,
+      refresh: () => loadSnapshot(textId),
+      onRefreshError: (error) => {
+        log.error('annotation import refresh failed after the write', {
+          textId,
+          error: toErrorMessage(error),
+        });
+      },
+      onRefreshed: () => setSaveState({ kind: 'done', message }),
+      onPending: () => setSaveState({ kind: 'refresh-pending', message: pendingMessage }),
+    });
+  };
+
   const handleImportFile = async (
     file: File,
     importWriteStrategy: AnnotationImportBridgeStrategy = DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
     importOptions?: ImportExportImportHandlerOptions,
-  ) => {
+  ): Promise<AnnotationImportOutcome> => {
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
     if (isJieyuArchive) {
@@ -147,7 +178,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         kind: 'error',
         message: t(locale, 'transcription.importExport.archiveUseProjectImport'),
       });
-      return;
+      return { kind: 'write-unconfirmed' };
     }
     let text = '';
     let resolvedTextId: string | null = activeTextId;
@@ -171,7 +202,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           kind: 'error',
           message: t(locale, 'transcription.importExport.unsupportedFormat'),
         });
-        return;
+        return { kind: 'write-unconfirmed' };
       }
       const {
         eafResult,
@@ -251,7 +282,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       resolvedTextId = textId;
       if (!textId) {
         setSaveState({ kind: 'error', message: t(locale, 'transcription.importExport.noProject') });
-        return;
+        return { kind: 'write-unconfirmed' };
       }
       const importTextId = textId;
       const openMediaId =
@@ -1285,68 +1316,71 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         },
       );
 
-      const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));
-      // 走 `layerId` 索引，不整表读出（JY-15）| Indexed by layerId instead of a full scan (JY-15)
-      const importLayerLinks: LayerLinkDocType[] =
-        layerIdSet.size > 0
-          ? await db.dexie.layer_links
-              .where('layerId')
-              .anyOf([...layerIdSet])
-              .toArray()
-          : [];
+      // The transaction above has committed. Repair and duration expansion are later writes.
+      // A failure here is not "nothing was imported", and it is not a screen refresh.
+      let followUpStage: 'constraint-repair' | 'duration-expand' = 'constraint-repair';
+      let doneMessage = '';
+      try {
+        const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));
+        // 走 `layerId` 索引，不整表读出（JY-15）| Indexed by layerId instead of a full scan (JY-15)
+        const importLayerLinks: LayerLinkDocType[] =
+          layerIdSet.size > 0
+            ? await db.dexie.layer_links
+                .where('layerId')
+                .anyOf([...layerIdSet])
+                .toArray()
+            : [];
 
-      const repairedResult = repairExistingLayerConstraints(
-        layersAfterImport,
-        undefined,
-        locale,
-        importLayerLinks,
-      );
-      const originalLayerById = new Map(
-        layersAfterImport.map((layer) => [layer.id, layer] as const),
-      );
-      const changedLayers = repairedResult.layers.filter((layer) => {
-        const before = originalLayerById.get(layer.id);
-        if (!before) return false;
-        return hasRepairPersistableLayerDiff(before, layer, layersAfterImport, importLayerLinks);
-      });
-      for (const changedLayer of changedLayers) {
-        await LayerTierUnifiedService.updateLayer({
-          ...changedLayer,
-          updatedAt: now,
+        const repairedResult = repairExistingLayerConstraints(
+          layersAfterImport,
+          undefined,
+          locale,
+          importLayerLinks,
+        );
+        const originalLayerById = new Map(
+          layersAfterImport.map((layer) => [layer.id, layer] as const),
+        );
+        const changedLayers = repairedResult.layers.filter((layer) => {
+          const before = originalLayerById.get(layer.id);
+          if (!before) return false;
+          return hasRepairPersistableLayerDiff(before, layer, layersAfterImport, importLayerLinks);
         });
-      }
-      const layerConstraintIssues = validateExistingLayerConstraints(
-        repairedResult.layers,
-        undefined,
-        locale,
-        importLayerLinks,
-      );
-      if (layerConstraintIssues.length > 0) {
-        log.warn('layer constraint validation found issues', { layerConstraintIssues });
-      }
-      if (importOptions?.mismatchAcknowledged) {
-        const expandTarget = resolvePostImportLogicalExpandTargetSec(mismatchNotices);
-        if (expandTarget != null && expandTarget > 0) {
-          await LinguisticService.media.expandTextLogicalDurationToAtLeast({
-            textId: importTextId,
-            minLogicalDurationSec: expandTarget,
+        for (const changedLayer of changedLayers) {
+          await LayerTierUnifiedService.updateLayer({
+            ...changedLayer,
+            updatedAt: now,
           });
         }
-      }
-      await loadSnapshot(importTextId);
-      const hostRecoveryWarningCount = eafResult
-        ? [...eafResult.tierConstraints.values()].filter(
-            (constraintInfo) =>
-              Boolean(constraintInfo.parentTierId) &&
-              (constraintInfo.constraint === 'symbolic_association' ||
-                constraintInfo.constraint === 'time_subdivision'),
-          ).length
-        : 0;
-      const translateImportDone = (key: string, params?: Record<string, string | number>) =>
-        params ? tf(locale, key as DictKey, params) : t(locale, key as DictKey);
-      setSaveState({
-        kind: 'done',
-        message: formatAnnotationImportDone({
+        const layerConstraintIssues = validateExistingLayerConstraints(
+          repairedResult.layers,
+          undefined,
+          locale,
+          importLayerLinks,
+        );
+        if (layerConstraintIssues.length > 0) {
+          log.warn('layer constraint validation found issues', { layerConstraintIssues });
+        }
+        followUpStage = 'duration-expand';
+        if (importOptions?.mismatchAcknowledged) {
+          const expandTarget = resolvePostImportLogicalExpandTargetSec(mismatchNotices);
+          if (expandTarget != null && expandTarget > 0) {
+            await LinguisticService.media.expandTextLogicalDurationToAtLeast({
+              textId: importTextId,
+              minLogicalDurationSec: expandTarget,
+            });
+          }
+        }
+        const hostRecoveryWarningCount = eafResult
+          ? [...eafResult.tierConstraints.values()].filter(
+              (constraintInfo) =>
+                Boolean(constraintInfo.parentTierId) &&
+                (constraintInfo.constraint === 'symbolic_association' ||
+                  constraintInfo.constraint === 'time_subdivision'),
+            ).length
+          : 0;
+        const translateImportDone = (key: string, params?: Record<string, string | number>) =>
+          params ? tf(locale, key as DictKey, params) : t(locale, key as DictKey);
+        doneMessage = formatAnnotationImportDone({
           segmentCount: parsedUnits.length,
           tierCount,
           losses: composeAnnotationImportLosses({
@@ -1368,7 +1402,21 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           constraintWarningCount: layerConstraintIssues.length,
           hostRecoveryWarningCount,
           translate: translateImportDone,
-        }),
+        });
+      } catch (followUpError) {
+        log.error('annotation import follow-up failed after commit', {
+          fileName: file.name,
+          textId: importTextId,
+          stage: followUpStage,
+          error: toErrorMessage(followUpError),
+        });
+        return publishAnnotationRefresh(doneMessage, importTextId, {
+          kind: 'written-follow-up-unconfirmed',
+          stage: followUpStage,
+        });
+      }
+      return publishAnnotationRefresh(doneMessage, importTextId, {
+        kind: 'written-refresh-pending',
       });
     } catch (err) {
       if (err instanceof ImportMismatchRequiresAckError || isEafTierRolesRequiredError(err)) {
@@ -1380,7 +1428,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           kind: 'error',
           message: t(locale, 'transcription.importExport.toolboxFormatUnrecognized'),
         });
-        return;
+        return { kind: 'write-unconfirmed' };
       }
       log.error('Import file failed', {
         fileName: file.name,
@@ -1401,6 +1449,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           message: rawMessage,
         }),
       });
+      return { kind: 'write-unconfirmed' };
     }
   };
 

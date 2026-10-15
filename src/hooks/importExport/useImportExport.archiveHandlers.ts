@@ -15,6 +15,7 @@ import {
   publishActiveProjectTextId,
   resolveCurrentProjectTextId,
 } from '../../utils/transcriptionUrlDeepLink';
+import { settlePersistedRefresh, type ArchiveImportOutcome } from './persistedRefresh';
 
 const log = createLogger('useImportExport');
 
@@ -366,12 +367,38 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     };
   };
 
+  const publishArchiveRefresh = async (
+    message: string,
+    textId: string,
+  ): Promise<ArchiveImportOutcome> => {
+    const pendingMessage = t(locale, 'transcription.importExport.writtenRefreshPending');
+    const settled = await settlePersistedRefresh(
+      message,
+      () => loadSnapshot(textId),
+      (error) => {
+        log.error('archive import refresh failed after the write', {
+          textId,
+          error: toErrorMessage(error),
+        });
+      },
+    );
+    if (settled.kind === 'written-refreshed') {
+      setSaveState({ kind: 'done', message });
+      return { kind: 'written-refreshed' };
+    }
+    setSaveState({ kind: 'refresh-pending', message: pendingMessage });
+    return {
+      kind: 'written-refresh-pending',
+      retryRefresh: () => publishArchiveRefresh(message, textId),
+    };
+  };
+
   const importProjectArchive = async (
     file: File,
     strategy: ImportConflictStrategy,
     restoreMode: ProjectArchiveRestoreMode = 'restore-as-new',
     selection?: ProjectArchiveImportSelection,
-  ): Promise<boolean> => {
+  ): Promise<ArchiveImportOutcome> => {
     let resolvedTextId: string | null = activeTextId;
 
     try {
@@ -386,9 +413,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         );
         resolvedTextId = openTextId;
         if (openTextId && openTextId !== activeTextId) publishActiveProjectTextId(openTextId);
-        await loadSnapshot(resolveCurrentProjectTextId(openTextId));
-        setSaveState({ kind: 'done', message });
-        return true;
+        return await publishArchiveRefresh(message, resolveCurrentProjectTextId(openTextId));
       }
       if (restoreMode === 'disaster-restore') {
         throw new Error(t(locale, 'transcription.importExport.overwriteNotAllowed'));
@@ -399,9 +424,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
           throw new Error(t(locale, 'transcription.importExport.overwriteNotAllowed'));
         }
         const message = await overwriteWithProjectPackage(file, resolvedTextId, read.bytes);
-        await loadSnapshot(resolveCurrentProjectTextId(resolvedTextId));
-        setSaveState({ kind: 'done', message });
-        return true;
+        return await publishArchiveRefresh(message, resolveCurrentProjectTextId(resolvedTextId));
       }
       const restored = await restoreProjectPackage(file, read.bytes);
       // 仍停留在当前项目（JY-02）；没有当前项目时切到刚恢复的那一个（RD-3）
@@ -412,9 +435,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
         resolvedTextId = targetTextId;
         publishActiveProjectTextId(targetTextId);
       }
-      await loadSnapshot(targetTextId);
-      setSaveState({ kind: 'done', message: restored.message });
-      return true;
+      return await publishArchiveRefresh(restored.message, targetTextId);
     } catch (err) {
       const rawMessage = describeArchiveImportError(locale, err);
       log.error('Import archive failed', {
@@ -436,7 +457,7 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
           message: rawMessage,
         }),
       });
-      return false;
+      return { kind: 'write-unconfirmed' };
     }
   };
 

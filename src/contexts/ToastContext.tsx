@@ -83,6 +83,7 @@ const SAVE_STATE_VARIANT: Record<SaveState['kind'], ToastVariant> = {
   saving: 'info',
   done: 'success',
   error: 'error',
+  'refresh-pending': 'warning',
 };
 
 function normalizeErrorToast(
@@ -271,6 +272,11 @@ export function ToastProvider({ children }: Props) {
           return;
         }
         lastSaveDoneToastAtRef.current = now;
+      }
+
+      if (state.kind === 'refresh-pending') {
+        showToast(state.message, 'warning', 0);
+        return;
       }
 
       const defaultVariant = SAVE_STATE_VARIANT[state.kind];

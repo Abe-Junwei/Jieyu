@@ -22,7 +22,8 @@ export type SaveState =
   | { kind: 'idle' }
   | { kind: 'saving' }
   | { kind: 'done'; message: string }
-  | { kind: 'error'; message: string; errorMeta?: StructuredErrorMeta };
+  | { kind: 'error'; message: string; errorMeta?: StructuredErrorMeta }
+  | { kind: 'refresh-pending'; message: string };
 
 export type TimelineUnitKind = 'unit' | 'segment';
 

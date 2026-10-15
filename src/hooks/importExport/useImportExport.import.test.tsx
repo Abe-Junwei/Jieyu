@@ -7,8 +7,10 @@ import { act, renderHook } from '@testing-library/react';
 import { db, getDb, isLexemeEntry } from '../../db';
 import type { LayerDocType } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { settleSegmentMetaSync } from '../../services/segmentMetaSyncBestEffort';
 import { useImportExport } from './useImportExport';
+import { createImportExportImportHandlers } from './useImportExport.importHandlers';
 import { ensureDefaultAnnotationDocument } from '../../services/annotationDocumentService';
 import { getRecoverySnapshot, saveRecoverySnapshot } from '../../services/SnapshotService';
 
@@ -3208,5 +3210,189 @@ describe('useImportExport - import success under stop-write', () => {
     expect(result.current.eafTierRoleDialog?.isOpen).not.toBe(true);
     const contents = await db.layer_unit_contents.toArray();
     expect(contents.some((row) => row.text === 'first sentence')).toBe(true);
+  });
+
+  it('keeps imported rows when the screen refresh fails, and retry does not import again', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-refresh-pending',
+      textId: 'text-import',
+      key: 'trc_refresh_pending',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: 'dummy textgrid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValue({
+      units: [{ startTime: 0, endTime: 1, transcription: 'kept after refresh' }],
+      additionalTiers: new Map(),
+      transcriptionTierName: undefined,
+    });
+    const loadSnapshot = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('snapshot read failed'))
+      .mockResolvedValue(undefined);
+    const setSaveState = vi.fn();
+    const { handleImportFile } = createImportExportImportHandlers({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUnitMedia: undefined,
+      layers: [defaultLayer],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot,
+      setSaveState,
+      locale: 'en-US',
+      normalizeSpeakerLookupKey: (value) => value?.trim().toLowerCase() ?? '',
+    });
+
+    let outcome = await handleImportFile(new File(['x'], 'demo.textgrid', { type: 'text/plain' }));
+
+    expect(await db.layer_unit_contents.toArray()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ text: 'kept after refresh' })]),
+    );
+    expect(outcome?.kind).toBe('written-refresh-pending');
+    expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'refresh-pending',
+      message: expect.stringContaining('do not import again'),
+    });
+    expect(mockImportFromTextGrid).toHaveBeenCalledTimes(1);
+
+    if (outcome.kind !== 'written-refresh-pending') return;
+    const pendingRefresh = outcome;
+    outcome = await pendingRefresh.retryRefresh();
+    expect(mockImportFromTextGrid).toHaveBeenCalledTimes(1);
+    expect(loadSnapshot).toHaveBeenCalledTimes(2);
+    expect(outcome?.kind).toBe('written-refreshed');
+    expect(await db.layer_units.where('unitType').equals('unit').count()).toBe(1);
+  });
+
+  it('keeps a new document when refresh fails after the import write', async () => {
+    const before = await ensureDefaultAnnotationDocument('text-import');
+    mockIngestTextFile.mockResolvedValue({
+      text: 'dummy textgrid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValue({
+      units: [{ startTime: 0, endTime: 1, transcription: 'new document kept' }],
+      additionalTiers: new Map(),
+      transcriptionTierName: undefined,
+    });
+    const loadSnapshot = vi.fn(async () => {
+      throw new Error('snapshot read failed');
+    });
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import',
+        getActiveTextId: vi.fn(async () => 'text-import'),
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [],
+        translations: [],
+        defaultTranscriptionLayerId: undefined,
+        loadSnapshot,
+        setSaveState,
+      }),
+    );
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'new.textgrid', { type: 'text/plain' }),
+        undefined,
+        'new-document',
+      );
+    });
+    const docs = await db.annotation_documents.where('textId').equals('text-import').toArray();
+    expect(docs.length).toBeGreaterThan(1);
+    expect((await db.texts.get('text-import'))?.defaultDocumentId).not.toBe(before);
+    expect(await db.layer_unit_contents.toArray()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ text: 'new document kept' })]),
+    );
+    expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+  });
+
+  it('does not re-import when a post-commit repair fails', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-follow-up',
+      textId: 'text-import',
+      key: 'trc_follow_up',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    mockIngestTextFile.mockResolvedValue({
+      text: 'dummy textgrid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValue({
+      units: [{ startTime: 0, endTime: 1, transcription: 'kept after repair' }],
+      additionalTiers: new Map(),
+      transcriptionTierName: undefined,
+    });
+    mockRepairExistingLayerConstraints.mockImplementationOnce((layers: LayerDocType[]) => ({
+      layers: layers.map((layer) =>
+        layer.layerType === 'transcription' ? { ...layer, parentLayerId: 'missing-parent' } : layer,
+      ),
+      repairs: [],
+    }));
+    const updateLayer = vi
+      .spyOn(LayerTierUnifiedService, 'updateLayer')
+      .mockRejectedValue(new Error('repair write failed'));
+    const loadSnapshot = vi.fn(async () => undefined);
+    const setSaveState = vi.fn();
+    const { handleImportFile } = createImportExportImportHandlers({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUnitMedia: undefined,
+      layers: [defaultLayer],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot,
+      setSaveState,
+      locale: 'en-US',
+      normalizeSpeakerLookupKey: (value) => value?.trim().toLowerCase() ?? '',
+    });
+    let outcome = await handleImportFile(
+      new File(['x'], 'repair.textgrid', { type: 'text/plain' }),
+    );
+    expect(await db.layer_unit_contents.toArray()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ text: 'kept after repair' })]),
+    );
+    expect(outcome.kind).toBe('written-follow-up-unconfirmed');
+    if (outcome.kind === 'written-follow-up-unconfirmed') {
+      expect(outcome.stage).toBe('constraint-repair');
+    }
+    expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'refresh-pending',
+      message: expect.stringContaining('later cleanup step did not finish'),
+    });
+    expect(mockImportFromTextGrid).toHaveBeenCalledTimes(1);
+    expect(updateLayer).toHaveBeenCalledTimes(1);
+
+    if (outcome.kind !== 'written-follow-up-unconfirmed') {
+      updateLayer.mockRestore();
+      return;
+    }
+    const pendingFollowUp = outcome;
+    await pendingFollowUp.retryRefresh();
+    expect(mockImportFromTextGrid).toHaveBeenCalledTimes(1);
+    expect(updateLayer).toHaveBeenCalledTimes(1);
+    expect(loadSnapshot).toHaveBeenCalled();
+    updateLayer.mockRestore();
   });
 });

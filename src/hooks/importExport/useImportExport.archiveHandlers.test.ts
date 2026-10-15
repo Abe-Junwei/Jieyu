@@ -73,8 +73,8 @@ async function runImport(
     locale: 'zh-CN',
     setSaveState,
   });
-  const ok = await handlers.importProjectArchive(new File(['x'], 'p.jyt'), 'upsert');
-  return { ok, loadSnapshot, setSaveState };
+  const outcome = await handlers.importProjectArchive(new File(['x'], 'p.jyt'), 'upsert');
+  return { ok: outcome.kind === 'written-refreshed', outcome, loadSnapshot, setSaveState };
 }
 
 describe('RD-3: archive import with no current project', () => {
@@ -129,12 +129,12 @@ describe('RD-3: JYB import with no current project (R2-1)', () => {
       locale: 'zh-CN',
       setSaveState,
     });
-    const ok = await handlers.importProjectArchive(
+    const outcome = await handlers.importProjectArchive(
       new File(['x'], 'lib.jyb'),
       'upsert',
       restoreMode,
     );
-    return { ok, loadSnapshot, setSaveState };
+    return { ok: outcome.kind === 'written-refreshed', outcome, loadSnapshot, setSaveState };
   };
 
   beforeEach(() => {
@@ -222,5 +222,67 @@ describe('RD-3: JYB import with no current project (R2-1)', () => {
     expect(ok).toBe(true);
     expect(loadSnapshot).toHaveBeenCalledWith('p1');
     expect(getActiveProjectTextId()).toBe('p1');
+  });
+});
+
+describe('archive import refresh failure', () => {
+  beforeEach(() => {
+    clearActiveProjectTextId();
+    mockIsJybPackage.mockReset().mockResolvedValue(false);
+    mockIsRawIdbSnapshot.mockReset().mockResolvedValue(false);
+    mockDetectProjectPackageKind.mockReset().mockResolvedValue('jyt');
+    mockRestoreProjectPackageAsNew.mockReset();
+  });
+  afterEach(() => clearActiveProjectTextId());
+
+  it('keeps the restored project when the screen refresh fails, and retry only reloads', async () => {
+    mockRestoreProjectPackageAsNew.mockResolvedValue(restoreResult('text-imported'));
+    const loadSnapshot = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('constraint read failed'))
+      .mockResolvedValueOnce(undefined);
+    const setSaveState = vi.fn();
+    const handlers = createImportExportArchiveHandlers({
+      activeTextId: null,
+      loadSnapshot,
+      locale: 'zh-CN',
+      setSaveState,
+    });
+    const file = new File(['x'], 'p.jyt');
+    const outcome = await handlers.importProjectArchive(file, 'upsert');
+
+    expect(mockRestoreProjectPackageAsNew).toHaveBeenCalledTimes(1);
+    expect(outcome.kind).toBe('written-refresh-pending');
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'refresh-pending',
+      message: '数据已写入，但界面没有刷新。请重新加载，不要再次导入。',
+    });
+    expect(getActiveProjectTextId()).toBe('text-imported');
+
+    if (outcome.kind !== 'written-refresh-pending') return;
+    const retried = await outcome.retryRefresh();
+    expect(mockRestoreProjectPackageAsNew).toHaveBeenCalledTimes(1);
+    expect(loadSnapshot).toHaveBeenCalledTimes(2);
+    expect(retried.kind).toBe('written-refreshed');
+    expect(setSaveState).toHaveBeenLastCalledWith({
+      kind: 'done',
+      message: expect.stringContaining(''),
+    });
+  });
+
+  it('does not refresh when the restore itself fails', async () => {
+    mockRestoreProjectPackageAsNew.mockRejectedValueOnce(new Error('archive broken'));
+    const loadSnapshot = vi.fn(async () => undefined);
+    const setSaveState = vi.fn();
+    const handlers = createImportExportArchiveHandlers({
+      activeTextId: 'text-current',
+      loadSnapshot,
+      locale: 'zh-CN',
+      setSaveState,
+    });
+    const outcome = await handlers.importProjectArchive(new File(['x'], 'p.jyt'), 'upsert');
+    expect(outcome).toEqual({ kind: 'write-unconfirmed' });
+    expect(loadSnapshot).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
   });
 });
