@@ -178,29 +178,20 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         return;
       }
       const {
-        eafResult,
-        tgResult,
-        trsResult,
-        flexResult,
-        toolboxResult,
+        units: parsedUnits,
+        timelineMetadata: importedTimelineMetadata,
+        losses: parserLosses,
+        sourceLocale,
+        transcriptionTierName: importedTrcName,
+        tierMetadata: importedTierMetadata,
         roleExtraTranscriptionTiers,
         roleNoteSegments,
       } = parsedImport;
-
-      const parsedUnits =
-        eafResult?.units ??
-        tgResult?.units ??
-        trsResult?.units ??
-        flexResult?.units ??
-        toolboxResult?.units ??
-        [];
-
-      const importedTimelineMetadata =
-        eafResult?.timelineMetadata ??
-        tgResult?.timelineMetadata ??
-        trsResult?.timelineMetadata ??
-        flexResult?.timelineMetadata ??
-        toolboxResult?.timelineMetadata;
+      const eafResult = parsedImport.format === 'eaf' ? parsedImport.eaf : null;
+      const tgResult = parsedImport.format === 'textgrid' ? parsedImport.textGrid : null;
+      const trsResult = parsedImport.format === 'trs' ? parsedImport.trs : null;
+      const flexResult = parsedImport.format === 'flextext' ? parsedImport.flex : null;
+      const toolboxResult = parsedImport.format === 'toolbox' ? parsedImport.toolbox : null;
 
       const additionalTiers: Map<
         string,
@@ -593,22 +584,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           }
         | undefined;
 
-      const importedTrcName =
-        eafResult?.transcriptionTierName ?? tgResult?.transcriptionTierName ?? undefined;
-      const importedTierMetadata =
-        eafResult?.tierMetadata ??
-        tgResult?.tierMetadata ??
-        new Map<string, { languageId?: string; orthographyId?: string; bridgeId?: string }>();
       const importedTranscriptionMeta = importedTrcName
         ? importedTierMetadata.get(importedTrcName)
         : undefined;
       const importedTranscriptionBridgeId = importedTranscriptionMeta?.bridgeId ?? undefined;
       const inferredTranscriptionLang =
-        importedTranscriptionMeta?.languageId ??
-        eafResult?.defaultLocale ??
-        flexResult?.sourceLanguage ??
-        trsResult?.speakers?.[0]?.lang ??
-        'und';
+        importedTranscriptionMeta?.languageId ?? sourceLocale ?? 'und';
 
       const tierNameToLayerId = new Map<string, string>();
 
@@ -1354,13 +1335,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           segmentCount: parsedUnits.length,
           tierCount,
           losses: composeAnnotationImportLosses({
-            parserLosses: [
-              ...(eafResult?.losses ?? []),
-              ...(tgResult?.losses ?? []),
-              ...(trsResult?.losses ?? []),
-              ...(flexResult?.losses ?? []),
-              ...(toolboxResult?.losses ?? []),
-            ],
+            parserLosses,
             ...(missingMediaFilename ? { missingMediaFilename } : {}),
             unmatchedRefCount,
             skippedIndependentTierSegmentCount,

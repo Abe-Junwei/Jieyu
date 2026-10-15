@@ -13,12 +13,14 @@ import {
   readEafTierRoles,
   type EafTierRole,
 } from '../../utils/eafTierRole';
+import type { InterchangeLoss } from '../../utils/interchangeLossReport';
 import {
   shapeFlexForTierRoles,
   shapeTextGridForTierRoles,
   shapeToolboxForTierRoles,
   type InterchangeNoteSegment,
 } from '../../utils/interchangeTierRoles';
+import type { TimelineInteropMetadata } from '../../utils/timelineBindingExtent';
 
 export type AnnotationImportParseOptions = {
   promptForEafTierRoles?: boolean;
@@ -26,15 +28,54 @@ export type AnnotationImportParseOptions = {
   tierRoles?: Readonly<Record<string, EafTierRole>>;
 };
 
-export type ParsedAnnotationImport = {
-  eafResult: EafImportResult | null;
-  tgResult: TextGridImportResult | null;
-  trsResult: TrsImportResult | null;
-  flexResult: FlexImportResult | null;
-  toolboxResult: ToolboxImportResult | null;
+type AnnotationImportUnits =
+  | EafImportResult['units']
+  | TextGridImportResult['units']
+  | TrsImportResult['units']
+  | FlexImportResult['units']
+  | ToolboxImportResult['units'];
+
+type AnnotationImportShared = {
+  units: AnnotationImportUnits;
+  timelineMetadata?: TimelineInteropMetadata;
+  losses: InterchangeLoss[];
+  sourceLocale?: string;
+  transcriptionTierName?: string;
+  tierMetadata: EafImportResult['tierMetadata'];
   roleExtraTranscriptionTiers: EafTranscriptionTier[];
   roleNoteSegments: InterchangeNoteSegment[];
 };
+
+export type ParsedAnnotationImport =
+  | (AnnotationImportShared & { format: 'eaf'; eaf: EafImportResult })
+  | (AnnotationImportShared & { format: 'textgrid'; textGrid: TextGridImportResult })
+  | (AnnotationImportShared & { format: 'trs'; trs: TrsImportResult })
+  | (AnnotationImportShared & { format: 'flextext'; flex: FlexImportResult })
+  | (AnnotationImportShared & { format: 'toolbox'; toolbox: ToolboxImportResult });
+
+function sharedAnnotationImport(input: {
+  units: AnnotationImportUnits;
+  timelineMetadata?: TimelineInteropMetadata;
+  losses?: InterchangeLoss[];
+  sourceLocale?: string;
+  transcriptionTierName?: string;
+  tierMetadata?: EafImportResult['tierMetadata'];
+  roleExtraTranscriptionTiers: EafTranscriptionTier[];
+  roleNoteSegments: InterchangeNoteSegment[];
+}): AnnotationImportShared {
+  return {
+    units: input.units,
+    ...(input.timelineMetadata ? { timelineMetadata: input.timelineMetadata } : {}),
+    losses: input.losses ?? [],
+    ...(input.sourceLocale !== undefined ? { sourceLocale: input.sourceLocale } : {}),
+    ...(input.transcriptionTierName !== undefined
+      ? { transcriptionTierName: input.transcriptionTierName }
+      : {}),
+    tierMetadata: input.tierMetadata ?? new Map(),
+    roleExtraTranscriptionTiers: input.roleExtraTranscriptionTiers,
+    roleNoteSegments: input.roleNoteSegments,
+  };
+}
 
 export async function parseAnnotationImport(input: {
   name: string;
@@ -119,13 +160,82 @@ export async function parseAnnotationImport(input: {
     return { unsupported: true };
   }
 
-  return {
-    eafResult,
-    tgResult,
-    trsResult,
-    flexResult,
-    toolboxResult,
-    roleExtraTranscriptionTiers,
-    roleNoteSegments,
-  };
+  const roles = { roleExtraTranscriptionTiers, roleNoteSegments };
+  if (eafResult) {
+    return {
+      format: 'eaf',
+      eaf: eafResult,
+      ...sharedAnnotationImport({
+        units: eafResult.units,
+        ...(eafResult.timelineMetadata ? { timelineMetadata: eafResult.timelineMetadata } : {}),
+        ...(eafResult.losses ? { losses: eafResult.losses } : {}),
+        ...(eafResult.defaultLocale !== undefined ? { sourceLocale: eafResult.defaultLocale } : {}),
+        ...(eafResult.transcriptionTierName
+          ? { transcriptionTierName: eafResult.transcriptionTierName }
+          : {}),
+        tierMetadata: eafResult.tierMetadata,
+        ...roles,
+      }),
+    };
+  }
+  if (tgResult) {
+    return {
+      format: 'textgrid',
+      textGrid: tgResult,
+      ...sharedAnnotationImport({
+        units: tgResult.units,
+        ...(tgResult.timelineMetadata ? { timelineMetadata: tgResult.timelineMetadata } : {}),
+        ...(tgResult.losses ? { losses: tgResult.losses } : {}),
+        ...(tgResult.transcriptionTierName
+          ? { transcriptionTierName: tgResult.transcriptionTierName }
+          : {}),
+        tierMetadata: tgResult.tierMetadata,
+        ...roles,
+      }),
+    };
+  }
+  if (trsResult) {
+    const speakerLocale = trsResult.speakers[0]?.lang;
+    return {
+      format: 'trs',
+      trs: trsResult,
+      ...sharedAnnotationImport({
+        units: trsResult.units,
+        ...(trsResult.timelineMetadata ? { timelineMetadata: trsResult.timelineMetadata } : {}),
+        ...(trsResult.losses ? { losses: trsResult.losses } : {}),
+        ...(speakerLocale !== undefined ? { sourceLocale: speakerLocale } : {}),
+        ...roles,
+      }),
+    };
+  }
+  if (flexResult) {
+    return {
+      format: 'flextext',
+      flex: flexResult,
+      ...sharedAnnotationImport({
+        units: flexResult.units,
+        ...(flexResult.timelineMetadata ? { timelineMetadata: flexResult.timelineMetadata } : {}),
+        ...(flexResult.losses ? { losses: flexResult.losses } : {}),
+        ...(flexResult.sourceLanguage !== undefined
+          ? { sourceLocale: flexResult.sourceLanguage }
+          : {}),
+        ...roles,
+      }),
+    };
+  }
+  if (toolboxResult) {
+    return {
+      format: 'toolbox',
+      toolbox: toolboxResult,
+      ...sharedAnnotationImport({
+        units: toolboxResult.units,
+        ...(toolboxResult.timelineMetadata
+          ? { timelineMetadata: toolboxResult.timelineMetadata }
+          : {}),
+        ...(toolboxResult.losses ? { losses: toolboxResult.losses } : {}),
+        ...roles,
+      }),
+    };
+  }
+  return { unsupported: true };
 }
