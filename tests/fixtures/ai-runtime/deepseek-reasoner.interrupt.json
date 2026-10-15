@@ -2,7 +2,7 @@
   "config": "deepseek-reasoner",
   "model": "deepseek-reasoner",
   "scenario": "interrupt",
-  "recordedAt": "2026-10-13T08:42:58.850Z",
+  "recordedAt": "2026-10-15T10:22:24.992Z",
   "turns": [
     {
       "request": {
@@ -68,9 +68,9 @@
         }
       },
       "status": 200,
-      "elapsedMs": 392,
+      "elapsedMs": 635,
       "aborted": true,
-      "sse": "data: {\"id\":\"74eb7106-af29-45f9-b32e-80ad5c4faed3\",\"object\":\"chat.completion.chunk\",\"created\":1791880978,\"model\":\"deepseek-flash\",\"system_fingerprint\":\"aeb56401ca74e127821c4f9126dcb669\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"\"},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"74eb7106-af29-45f9-b32e-80ad5c4faed3\",\"object\":\"chat.completion.chunk\",\"created\":1791880978,\"model\":\"deepseek-flash\",\"system_fingerprint\":\"aeb56401ca74e127821c4f9126dcb669\",\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"reasoning_content\":\"Let\"},\"logprobs\":null,\"finish_reason\":null}]}\n\n"
+      "sse": "data: {\"id\":\"3038cf71-ba34-4a8e-8b07-b9ec34a99e26\",\"object\":\"chat.completion.chunk\",\"created\":1792059744,\"model\":\"deepseek-flash\",\"system_fingerprint\":\"aeb56401ca74e127821c4f9126dcb669\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"\"},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"3038cf71-ba34-4a8e-8b07-b9ec34a99e26\",\"object\":\"chat.completion.chunk\",\"created\":1792059744,\"model\":\"deepseek-flash\",\"system_fingerprint\":\"aeb56401ca74e127821c4f9126dcb669\",\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"reasoning_content\":\"The\"},\"logprobs\":null,\"finish_reason\":null}]}\n\n"
     }
   ]
 }

@@ -450,6 +450,21 @@ export interface PendingAiToolCall {
   readModelEpochCaptured?: number;
   /** Conversation that created this pending call; confirm must not execute after switch. */
   conversationIdAtCapture?: string | null;
+  /**
+   * MCP form the user fills before the tool is retried.
+   * requestState is opaque and must not be rendered or sent to the model.
+   */
+  mcpInput?: {
+    origin: string;
+    toolName: string;
+    arguments: Record<string, unknown>;
+    requestState?: string | undefined;
+    requests: ReadonlyArray<{
+      id: string;
+      message: string;
+      fields: ReadonlyArray<{ name: string; required: boolean }>;
+    }>;
+  };
 }
 
 export interface PreviewContract {

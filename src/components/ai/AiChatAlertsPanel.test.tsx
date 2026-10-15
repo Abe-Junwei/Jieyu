@@ -132,12 +132,18 @@ describe('AiChatAlertsPanel', () => {
     expect(approvalCenter.textContent).toMatch(/Approval Center \(MVP\)|审批中心（MVP）/);
     expect(approvalCenter.textContent).toContain('mode=user_preference');
     expect(approvalCenter.textContent).toContain('risk=high');
-    expect(approvalCenter.textContent).toContain('policy=User preference requires confirmation before execution. (user_directive_confirmation_required)');
+    expect(approvalCenter.textContent).toContain(
+      'policy=User preference requires confirmation before execution. (user_directive_confirmation_required)',
+    );
     expect(approvalHistory.textContent).toMatch(/Recent approval outcomes|最近审批记录/);
     expect(approvalHistory.textContent).toContain('policy_blocked');
-    expect(approvalHistory.textContent).toContain('Blocked by user safety preference for destructive actions.');
+    expect(approvalHistory.textContent).toContain(
+      'Blocked by user safety preference for destructive actions.',
+    );
     expect(approvalHistory.textContent).toContain('auto_confirmed');
-    const outcomeFilter = screen.getByRole('combobox', { name: /Approval outcome filter|审批结果筛选/i });
+    const outcomeFilter = screen.getByRole('combobox', {
+      name: /Approval outcome filter|审批结果筛选/i,
+    });
     fireEvent.change(outcomeFilter, { target: { value: 'blocked' } });
     expect(approvalHistory.textContent).toContain('policy_blocked');
     expect(approvalHistory.textContent).not.toContain('auto_confirmed');
@@ -184,7 +190,10 @@ describe('AiChatAlertsPanel', () => {
     const onResumeAgentLoop = vi.fn(async () => undefined);
     const onDismissAgentLoopHandoff = vi.fn(async () => undefined);
     const onEmbeddingTaskFocus = vi.fn<(event: Event) => void>();
-    window.addEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onEmbeddingTaskFocus as EventListener);
+    window.addEventListener(
+      REQUEST_EMBEDDING_TASK_FOCUS_EVENT,
+      onEmbeddingTaskFocus as EventListener,
+    );
 
     renderPanel({
       alertCount: 1,
@@ -204,7 +213,9 @@ describe('AiChatAlertsPanel', () => {
     });
 
     const handoff = screen.getByTestId('ai-agent-loop-handoff-mvp');
-    expect(handoff.textContent).toMatch(/Approval Center \(Durable Handoff\)|审批中心（Durable Handoff）/);
+    expect(handoff.textContent).toMatch(
+      /Approval Center \(Durable Handoff\)|审批中心（Durable Handoff）/,
+    );
     expect(handoff.textContent).toContain('step=3');
     expect(handoff.textContent).toContain('task=task_agent_loop_1');
     expect(screen.getByText(/请继续生成下一步操作建议/)).toBeTruthy();
@@ -220,7 +231,10 @@ describe('AiChatAlertsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Cancel|取消/i }));
     expect(onDismissAgentLoopHandoff).toHaveBeenCalledTimes(1);
-    window.removeEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onEmbeddingTaskFocus as EventListener);
+    window.removeEventListener(
+      REQUEST_EMBEDDING_TASK_FOCUS_EVENT,
+      onEmbeddingTaskFocus as EventListener,
+    );
   });
 
   it('disables durable handoff resume action while ai stream is active', () => {
@@ -242,7 +256,9 @@ describe('AiChatAlertsPanel', () => {
       onResumeAgentLoop,
     });
 
-    const resumeButton = screen.getByRole('button', { name: /Resume|继续执行/i }) as HTMLButtonElement;
+    const resumeButton = screen.getByRole('button', {
+      name: /Resume|继续执行/i,
+    }) as HTMLButtonElement;
     expect(resumeButton.disabled).toBe(true);
 
     fireEvent.click(resumeButton);
@@ -319,9 +335,47 @@ describe('AiChatAlertsPanel', () => {
         { id: 'log-2', decision: 'auto_confirmed', timestamp: '2026-04-25T12:00:02.000Z' },
       ],
     });
-    const outcomeFilter = screen.getByRole('combobox', { name: /Approval outcome filter|审批结果筛选/i }) as HTMLSelectElement;
+    const outcomeFilter = screen.getByRole('combobox', {
+      name: /Approval outcome filter|审批结果筛选/i,
+    }) as HTMLSelectElement;
     expect(outcomeFilter.value).toBe('blocked');
     fireEvent.change(outcomeFilter, { target: { value: 'executed' } });
     expect(window.sessionStorage.getItem('jieyu:ai-approval-history-filter')).toBe('executed');
+  });
+
+  it('sends the typed MCP field when the user confirms', () => {
+    const onConfirmPendingToolCall = vi.fn(async () => undefined);
+    const pendingToolCall: PendingAiToolCall = {
+      call: { name: 'get_recent_history', arguments: {} },
+      assistantMessageId: 'ast-1',
+      riskSummary: 'Please provide your GitHub username',
+      mcpInput: {
+        origin: 'https://mcp.example.test/mcp',
+        toolName: 'search_works',
+        arguments: {},
+        requestState: 'opaque-state',
+        requests: [
+          {
+            id: 'github_login',
+            message: 'Please provide your GitHub username',
+            fields: [{ name: 'name', required: true }],
+          },
+        ],
+      },
+    };
+    renderPanel({
+      alertCount: 1,
+      showAlertBar: true,
+      aiPendingToolCall: pendingToolCall,
+      onConfirmPendingToolCall,
+    });
+    const input = screen.getByRole('textbox', { name: 'name' });
+    const confirm = screen.getByRole('button', { name: /Confirm|确认/i });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(input, { target: { value: 'octocat' } });
+    expect(confirm).not.toBeDisabled();
+    fireEvent.click(confirm);
+    expect(onConfirmPendingToolCall).toHaveBeenCalledWith({ 'github_login.name': 'octocat' });
+    expect(screen.queryByText('opaque-state')).toBeNull();
   });
 });

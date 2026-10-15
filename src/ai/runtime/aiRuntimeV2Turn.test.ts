@@ -149,6 +149,70 @@ describe('runAiRuntimeV2Turn', () => {
       else expect(status, name).toMatchObject({ type: 'user-approval' });
     }
     expect(runtimeV2ToolApproval('not_a_tool')).toBe('denied');
+    expect(runtimeV2ToolApproval('extmcp__https---example__search_literature')).toBe(
+      'not-applicable',
+    );
+    expect(runtimeV2ToolApproval('list_units')).toBe('not-applicable');
+    expect(runtimeV2ToolApproval('list_layers')).toBe('not-applicable');
+    expect(runtimeV2ToolApproval('get_project_stats')).toBe('not-applicable');
+    expect(runtimeV2ToolApproval('suggest_next_action')).toBe('not-applicable');
+    expect(runtimeV2ToolApproval('batch_apply')).toMatchObject({
+      type: 'user-approval',
+      reason: 'write_gate_preview_required',
+    });
+    for (const name of ['concordance_kwic', 'query_morpheme_paradigm', 'find_counterexamples']) {
+      expect(runtimeV2ToolApproval(name), name).toBe('not-applicable');
+    }
+  });
+
+  it('feeds a corpus query result back into the next model step', async () => {
+    const model = new MockLanguageModelV4({
+      doStream: [
+        toolCallStream('concordance_kwic', '{"gloss":"PST"}'),
+        textStream('{"claims":[{"claimId":"c1","text":"past","rowIds":["m2"]}]}'),
+      ],
+    });
+    const p = params(model, {
+      corpusAnalysisTools: true,
+      decide: vi.fn(async () => ({
+        finalContent: JSON.stringify({ hits: [{ morphemeId: 'm2', unitId: 'u1' }] }),
+        finalStatus: 'done' as const,
+        pending: false,
+      })),
+    });
+    const chunks = await collect(runAiRuntimeV2Turn(p));
+    expect(p.decide).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'concordance_kwic' }),
+      'auto',
+    );
+    expect(model.doStreamCalls).toHaveLength(2);
+    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain('m2');
+    expect(chunks.map((c) => c.delta ?? '').join('')).toContain('rowIds');
+  });
+
+  it('executes an extra external MCP tool without asking for approval', async () => {
+    const { externalMcpToolSpecs } = await import('./runtimeV2CorpusTools');
+    const name = 'extmcp__https---mcp.example.test-mcp__search_literature';
+    const model = new MockLanguageModelV4({
+      doStream: [toolCallStream(name, '{}'), textStream('cited')],
+    });
+    const p = params(model, {
+      extraTools: externalMcpToolSpecs([
+        {
+          name,
+          description: 'Search literature.',
+          inputSchema: { type: 'object', properties: {} },
+        },
+      ]),
+      decide: vi.fn(async () => ({
+        finalContent: JSON.stringify([{ id: 'ev1', quote: 'past' }]),
+        finalStatus: 'done' as const,
+        pending: false,
+      })),
+    });
+    await collect(runAiRuntimeV2Turn(p));
+    expect(p.decide).toHaveBeenCalledWith(expect.objectContaining({ name }), 'auto');
+    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain('ev1');
   });
 
   it('a write stops with a native approval request: never executed, card + state saved in Dexie', async () => {

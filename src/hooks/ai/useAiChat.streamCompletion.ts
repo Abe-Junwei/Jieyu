@@ -143,9 +143,11 @@ export interface ResolveAiChatStreamCompletionResult {
   localToolResults?: LocalContextToolResult[];
   /** B17: evidence packets collected from external MCP tool calls in this turn. */
   evidencePackets?: EvidencePacketV0[];
+  /** R3-1: corpus queries executed inside ToolLoopAgent. Kept off localToolResults so the old loop does not continue. */
+  corpusToolResults?: LocalContextToolResult[];
 }
 
-function buildLocalToolClarificationMessage(
+export function buildLocalToolClarificationMessage(
   reason:
     | 'metric_ambiguous'
     | 'scope_ambiguous'

@@ -16,6 +16,10 @@ import {
 } from './externalMcpTrustRegistry';
 
 import {
+  parseExternalMcpInputRequired,
+  type ExternalMcpInputForm,
+} from './externalMcpInputRequired';
+import {
   isExternalMcpWriteRpcMethod,
   MCP_STREAMABLE_HTTP_PROTOCOL_VERSION,
   parseJsonRpcFromHttpBody,
@@ -35,7 +39,8 @@ export type ExternalMcpHttpDenial =
   | 'write_method_not_supported'
   | 'http_error'
   | 'rpc_error'
-  | 'invalid_response';
+  | 'invalid_response'
+  | 'input_required';
 
 export type ExternalMcpHttpListResult<T extends ExternalMcpToolSchema> =
   | { ok: true; origin: string; tools: readonly T[] }
@@ -53,6 +58,8 @@ export type ExternalMcpHttpCallResult =
       reason: ExternalMcpHttpDenial;
       message?: string;
       blockReasons?: readonly string[];
+      /** Form elicitation the user can fill. Absent when the server asked for something else. */
+      form?: ExternalMcpInputForm;
     };
 
 type FetchLike = typeof fetch;
@@ -260,6 +267,8 @@ export async function callExternalMcpToolViaHttp(input: {
   origin: string;
   toolName: string;
   arguments?: Record<string, unknown>;
+  inputResponses?: Record<string, unknown>;
+  requestState?: string;
   agentRunId?: string;
   authToken?: string;
   timeoutMs?: number;
@@ -286,7 +295,12 @@ export async function callExternalMcpToolViaHttp(input: {
   const rpc = await invokeExternalMcpJsonRpc({
     ...input,
     method: 'tools/call',
-    params: { name: input.toolName, arguments: input.arguments ?? {} },
+    params: {
+      name: input.toolName,
+      arguments: input.arguments ?? {},
+      ...(input.inputResponses ? { inputResponses: input.inputResponses } : {}),
+      ...(input.requestState ? { requestState: input.requestState } : {}),
+    },
   });
   if (!rpc.ok) {
     await persistOutboundAudit(
@@ -302,7 +316,29 @@ export async function callExternalMcpToolViaHttp(input: {
     );
     return { ok: false, reason: rpc.reason, ...(rpc.message ? { message: rpc.message } : {}) };
   }
-  const content = (rpc.result as McpToolCallResult | undefined)?.content;
+  const raw = rpc.result as { content?: unknown; resultType?: unknown } | undefined;
+  // 2026-07-28: the server is asking the user. Do not treat that payload as a tool result.
+  if (raw?.resultType === 'input_required') {
+    await persistOutboundAudit(
+      {
+        jsonRpcId,
+        toolName: input.toolName,
+        arguments: input.arguments ?? {},
+        startedAtMs,
+        outcome: 'execution_error',
+        error: { message: 'input_required' },
+      },
+      input.agentRunId,
+    );
+    const form = parseExternalMcpInputRequired(raw);
+    return {
+      ok: false,
+      reason: 'input_required',
+      message: 'external mcp result needs user input',
+      ...(form ? { form } : {}),
+    };
+  }
+  const content = (raw as McpToolCallResult | undefined)?.content;
   if (!Array.isArray(content)) {
     return { ok: false, reason: 'invalid_response', message: 'Missing tools/call content' };
   }

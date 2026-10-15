@@ -108,7 +108,7 @@ export function buildLocalContextToolGuide(
   const corpusLines = includeCorpusAnalysis
     ? [
         '- concordance_kwic(arguments:{"gloss":"PST","form":"-s","limit":40}): Morpheme hits in the current document with left/target/right form and gloss. Each hit has unitId. gloss or form is required.',
-        '- query_morpheme_paradigm(arguments:{"pos":"v"}): Adjacent morpheme-gloss counts for tokens of that part of speech in the current document. Returns tokenCount and adjacent[{leftGloss,rightGloss,count}].',
+        '- query_morpheme_paradigm(arguments:{"pos":"v"}): Adjacent morpheme-gloss counts for tokens of that part of speech in the current document. Returns tokenCount and adjacent[{leftGloss,rightGloss,count,examples}]. Cite examples[].morphemeId.',
         '- find_counterexamples(arguments:{"gloss":"PST","pos":"v","expect":"present|absent","limit":20}): Units in scope that fail the hypothesis. expect=present (default) means the gloss should occur; counterexampleUnitIds lack it. Each id is a real unitId.',
       ]
     : [];

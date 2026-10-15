@@ -11,3 +11,8 @@ export function formatStructuredAnswerEmpty(locale?: Locale | string): string {
     ? 'There is no additional structured evidence in this result.'
     : '当前没有额外的结构化证据。';
 }
+
+/** Corpus analysis example line when the cited row has no gloss. */
+export function formatCorpusAnalysisUnlabeled(locale?: Locale | string): string {
+  return locale === 'en-US' ? 'not yet glossed' : '尚未标注';
+}
