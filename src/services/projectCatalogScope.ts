@@ -54,7 +54,14 @@ export function requireCatalogProjectId(explicit?: string): string {
 
 /** 新目录行 ID（UUID）| New catalog row id (UUID) */
 export function newCatalogUuid(): string {
-  return globalThis.crypto.randomUUID();
+  if (
+    typeof globalThis.crypto !== 'undefined' &&
+    typeof globalThis.crypto.randomUUID === 'function'
+  ) {
+    return globalThis.crypto.randomUUID();
+  }
+  // Non-secure contexts (e.g. http://LAN-IP) lack randomUUID; keep id unique enough for catalog rows.
+  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function lexemeBelongsToProject(lexeme: LexemeDocType, textId: string): boolean {
