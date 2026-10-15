@@ -13,7 +13,12 @@ import {
 } from '../services/LayerSegmentGraphService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
 import { listAnnotationDocuments } from '../services/annotationDocumentService';
-import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
+import {
+  emptyRecordingRemovalByteBlock,
+  isAuxiliaryRecordingMediaRow,
+  isMediaItemPlaceholderRow,
+  mediaRowHasPlayableBytes,
+} from './mediaItemState';
 import {
   collectSentences,
   progressFromSentences,
@@ -45,6 +50,12 @@ export interface TranscriptionRecordProgressRow {
   transcribedCount: number;
   translatedCount: number;
   annotatedCount: number;
+  /** 这一条录音现在能否解码。文本稿没有这个字段。 */
+  hasPlayableBytes?: boolean;
+  unitCount?: number;
+  anchorCount?: number;
+  /** 与存储门禁一致：没有可播放字节，并且没有句段和锚点。 */
+  canRemoveEmpty?: boolean;
 }
 
 export interface HomeProjectProgressBundle {
@@ -170,6 +181,18 @@ async function loadRecordRow(
       : undefined;
   const displayName = typeof details?.displayName === 'string' ? details.displayName.trim() : '';
   const filename = displayName.length > 0 ? displayName : storageFilename;
+  const db = await getDb();
+  const [unitCount, anchorCount] = await Promise.all([
+    db.dexie.layer_units.where('mediaId').equals(mediaId).count(),
+    db.dexie.anchors.where('mediaId').equals(mediaId).count(),
+  ]);
+  const byteState = {
+    hasPlayableBytes: mediaRowHasPlayableBytes(media),
+    unitCount,
+    anchorCount,
+    canRemoveEmpty:
+      emptyRecordingRemovalByteBlock(media) === null && unitCount === 0 && anchorCount === 0,
+  };
 
   if (txLayerIds.length === 0) {
     const durationSec = recordDurationSec(media.duration, []);
@@ -180,10 +203,9 @@ async function loadRecordRow(
       storageFilename,
       ...(durationSec !== undefined ? { durationSec } : {}),
       ...emptyProgressCounts(),
+      ...byteState,
     };
   }
-
-  const db = await getDb();
   const [metaRows, trAll] = await Promise.all([
     db.dexie.segment_meta
       .where('[layerId+mediaId]')
@@ -203,6 +225,7 @@ async function loadRecordRow(
     storageFilename,
     ...(durationSec !== undefined ? { durationSec } : {}),
     ...countsFromRows(metaRows, trRows, hasTranslationLayers),
+    ...byteState,
   };
 }
 

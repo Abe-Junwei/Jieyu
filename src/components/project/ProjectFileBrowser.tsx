@@ -2,6 +2,7 @@ import '../../styles/components/project-file-list.css';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { recordingRemovalBlockReason, storagePort } from '../../db/storagePort';
 import { t, tf, useLocale, type Locale } from '../../i18n';
 import { LinguisticService } from '../../services/LinguisticService';
 import {
@@ -169,6 +170,7 @@ function FileLine(props: {
           annotationRate: storedProgress.annotationRate,
         };
   const stats = props.showProgress && !props.compact ? progressText(locale, progressRow) : null;
+  const status = recordingStatusLabel(locale, row);
   const rememberFile = () => {
     if (!row.mediaId) return;
     rememberTranscriptionWorkspaceReturnHint({ textId, mediaId: row.mediaId });
@@ -196,6 +198,7 @@ function FileLine(props: {
           </Link>
         )}
       </span>
+      {status ? <span className="project-file-audio-status">{status}</span> : null}
       {!props.compact && row.kind === 'audio' ? (
         <span className="project-file-meta">
           {formatDuration(row.durationSec)}
@@ -239,6 +242,15 @@ function FileLine(props: {
       </button>
     </div>
   );
+}
+
+function recordingStatusLabel(locale: Locale, row: ProjectFileView): string | null {
+  if (row.kind !== 'audio') return null;
+  if (row.hasPlayableBytes === false) return t(locale, 'app.files.audioMissing');
+  if (row.hasPlayableBytes === true && row.sentenceCount === 0) {
+    return t(locale, 'app.files.audioWithNoSentences');
+  }
+  return null;
 }
 
 function fileTargets(textId: string, row: ProjectFileView) {
@@ -314,8 +326,12 @@ function BoardAudio(props: {
   docs: ProjectFileView[];
   audioOptions?: readonly AudioOption[];
   onLink?: (row: ProjectFileView, mediaId: string | null) => Promise<void>;
+  onRelinkAudio?: (mediaId: string) => void;
+  onRemoveEmpty?: (row: ProjectFileView, docs: ProjectFileView[]) => void;
 }) {
   const locale = useLocale();
+  const status = recordingStatusLabel(locale, props.row);
+  const canRemove = props.row.hasPlayableBytes === false && props.onRemoveEmpty !== undefined;
   const { transcriptionTo, annotationTo, rememberFile } = fileTargets(props.textId, props.row);
   const stages = [
     { label: t(locale, 'app.home.progress.transcription'), rate: props.row.transcriptionRate },
@@ -362,9 +378,11 @@ function BoardAudio(props: {
         />
       ))}
       <p className="project-file-audio-meta">
-        {props.row.sentenceCount !== undefined
-          ? `${t(locale, 'app.overview.sentences')} ${props.row.sentenceCount}`
-          : t(locale, 'app.files.audio')}
+        {props.row.hasPlayableBytes === true && props.row.sentenceCount === 0
+          ? status
+          : props.row.sentenceCount !== undefined
+            ? `${status ? `${status} · ` : ''}${t(locale, 'app.overview.sentences')} ${props.row.sentenceCount}`
+            : `${status ? `${status} · ` : ''}${t(locale, 'app.files.audio')}`}
         {props.docs.length > 0
           ? ` · ${t(locale, 'app.overview.manuscriptCount')} ${props.docs.length}`
           : ''}
@@ -396,6 +414,27 @@ function BoardAudio(props: {
         <Link className="project-file-annotation-action" to={annotationTo} onClick={rememberFile}>
           {t(locale, 'app.nav.annotation')}
         </Link>
+        {props.row.hasPlayableBytes === false && props.row.mediaId && props.onRelinkAudio ? (
+          <button
+            type="button"
+            className="project-file-audio-repair"
+            onClick={() => {
+              const mediaId = props.row.mediaId;
+              if (mediaId) props.onRelinkAudio?.(mediaId);
+            }}
+          >
+            {t(locale, 'app.files.relinkAudio')}
+          </button>
+        ) : null}
+        {canRemove ? (
+          <button
+            type="button"
+            className="project-file-audio-repair"
+            onClick={() => props.onRemoveEmpty?.(props.row, props.docs)}
+          >
+            {t(locale, 'app.files.removeEmptyRecording')}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -450,6 +489,7 @@ export function ProjectFileBrowser(props: {
   /** Shown when this project has transcript text but no stored import filename yet. */
   fallbackManuscript?: boolean;
   onChanged?: () => void;
+  onRelinkAudio?: (mediaId: string) => void;
 }) {
   const locale = useLocale();
   const queryClient = useQueryClient();
@@ -457,6 +497,7 @@ export function ProjectFileBrowser(props: {
   const [editingId, setEditingId] = useState('');
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [actionError, setActionError] = useState('');
   const sources = useQuery({
     queryKey: ['project-source-files', textId],
     queryFn: () => listProjectSourceFiles(textId),
@@ -531,6 +572,54 @@ export function ProjectFileBrowser(props: {
     await linkProjectSourceFileToAudio(textId, row.id, mediaId);
     await refresh();
   };
+
+  const removeEmptyRecording = async (row: ProjectFileView, docs: ProjectFileView[]) => {
+    const mediaId = row.mediaId;
+    if (!mediaId) return;
+    const names = docs.map((doc) => doc.name).filter((name) => name.length > 0);
+    const sourcesNote =
+      names.length > 0
+        ? tf(locale, 'app.files.removeEmptyRecordingSources', {
+            names: names.join(locale === 'zh-CN' ? '、' : ', '),
+          })
+        : '';
+    const unitsNote =
+      (row.unitCount ?? 0) > 0 || (row.anchorCount ?? 0) > 0
+        ? t(locale, 'app.files.removeEmptyRecordingKeepUnits')
+        : '';
+    if (
+      !window.confirm(
+        tf(locale, 'app.files.removeEmptyRecordingConfirm', {
+          name: row.name,
+          id: mediaId,
+          sources: `${sourcesNote}${unitsNote}`,
+        }),
+      )
+    ) {
+      return;
+    }
+    setActionError('');
+    try {
+      await storagePort().removeEmptyRecording(mediaId);
+    } catch (error) {
+      const reason = recordingRemovalBlockReason(error);
+      if (reason !== 'missing') {
+        setActionError(
+          reason
+            ? t(locale, 'app.files.removeEmptyRecordingBlocked')
+            : error instanceof Error
+              ? error.message
+              : t(locale, 'app.files.removeEmptyRecordingBlocked'),
+        );
+        return;
+      }
+    }
+    try {
+      await refresh();
+    } catch {
+      setActionError(t(locale, 'app.files.removeEmptyRecordingRefreshPending'));
+    }
+  };
   const audioOptions: AudioOption[] = files
     .filter((row) => row.kind === 'audio')
     .map((row) => ({ id: row.id, name: row.name }));
@@ -600,6 +689,11 @@ export function ProjectFileBrowser(props: {
           {t(locale, 'app.files.recordings')} ({groups.length})
         </h3>
       )}
+      {actionError ? (
+        <p className="project-file-audio-status" role="alert">
+          {actionError}
+        </p>
+      ) : null}
       <div className="project-file-cards">
         {visibleGroups.map((group) => {
           const head = group.audio ?? group.docs[0];
@@ -624,6 +718,8 @@ export function ProjectFileBrowser(props: {
                     docs={group.docs}
                     audioOptions={audioOptions}
                     onLink={linkAudio}
+                    {...(props.onRelinkAudio ? { onRelinkAudio: props.onRelinkAudio } : {})}
+                    onRemoveEmpty={(row, docs) => void removeEmptyRecording(row, docs)}
                   />
                 ) : (
                   <FileLine

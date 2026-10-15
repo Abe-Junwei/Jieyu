@@ -1,6 +1,10 @@
 import { liveQuery } from 'dexie';
 import { getDb, withTransaction, type SourceRecordDocType } from '../db';
-import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from '../utils/mediaItemState';
+import {
+  isAuxiliaryRecordingMediaRow,
+  isMediaItemPlaceholderRow,
+  mediaRowHasPlayableBytes,
+} from '../utils/mediaItemState';
 import {
   audioDisplayName,
   linkManuscriptsToAudio,
@@ -42,6 +46,7 @@ export async function listProjectAudioFiles(textId: string): Promise<ProjectAudi
         filename: row.filename,
         name: audioDisplayName(row.filename, details) || row.id,
         ...(duration !== undefined ? { durationSec: duration } : {}),
+        hasPlayableBytes: mediaRowHasPlayableBytes(row),
       };
     });
 }

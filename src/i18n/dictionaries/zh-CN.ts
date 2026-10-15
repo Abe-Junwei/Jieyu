@@ -62,6 +62,17 @@ export const zhCNDictionary = {
   'app.files.search': '搜索录音或文稿',
   'app.files.noMatches': '没有匹配的录音或文稿。',
   'app.files.enterTranscription': '进入转写工作区',
+  'app.files.audioMissing': '音频缺失',
+  'app.files.audioWithNoSentences': '有音频、0 句段',
+  'app.files.relinkAudio': '重新挂接音频',
+  'app.files.removeEmptyRecording': '移除这条录音',
+  'app.files.removeEmptyRecordingConfirm':
+    '移除录音「{name}」？只删除这一条（{id}）。{sources}同名的其他录音不会动。',
+  'app.files.removeEmptyRecordingSources':
+    '将解除与这些来源文稿的关联，文稿仍留在项目里：{names}。',
+  'app.files.removeEmptyRecordingBlocked': '这条录音还有音频、句段或锚点，不能移除条目。',
+  'app.files.removeEmptyRecordingRefreshPending': '这条录音已经移除，看板尚未刷新。',
+  'app.files.removeEmptyRecordingKeepUnits': '已有语段和锚点会留在项目里，不再挂在这条录音上。',
   'app.home.templateRules': '选用模板与语言规范设置',
   'app.home.lastUpdated': '最后更新：{date}',
   'app.home.documentScope': '统计范围：全项目（{count} 份文稿）',
@@ -1438,7 +1449,7 @@ export const zhCNDictionary = {
   'transcription.toast.deepLinkTextNotFound': '链接中的项目不存在或已删除（textId：{textId}）',
   'transcription.action.confirmDeleteAudio':
     '确定删除当前媒体「{filename}」的录音字节？句段、时间码与转写内容都会保留，录音标为“缺失”并保留原名，之后可以重新挂接音频。',
-  'transcription.action.audioDeleted': '当前媒体已删除。',
+  'transcription.action.audioDeleted': '音频文件已移除，时间轴仍保留。',
   'transcription.action.audioDeleteFailed': '删除当前媒体失败：{message}',
   'transcription.action.skipProcessingMarked': '已标记为跳过处理',
   'transcription.action.skipProcessingCleared': '已恢复为可处理',

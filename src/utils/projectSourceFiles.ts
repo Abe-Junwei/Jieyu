@@ -16,6 +16,10 @@ export interface ProjectAudioFile {
   transcriptionRate?: number | null;
   translationRate?: number | null;
   annotationRate?: number | null;
+  hasPlayableBytes?: boolean;
+  unitCount?: number;
+  anchorCount?: number;
+  canRemoveEmpty?: boolean;
 }
 
 export interface ProjectFileView {
@@ -33,6 +37,10 @@ export interface ProjectFileView {
   transcriptionRate?: number | null;
   translationRate?: number | null;
   annotationRate?: number | null;
+  hasPlayableBytes?: boolean;
+  unitCount?: number;
+  anchorCount?: number;
+  canRemoveEmpty?: boolean;
 }
 
 const SOURCE_FORMATS = new Set([
@@ -146,6 +154,10 @@ export function linkManuscriptsToAudio(
     ...(row.transcriptionRate !== undefined ? { transcriptionRate: row.transcriptionRate } : {}),
     ...(row.translationRate !== undefined ? { translationRate: row.translationRate } : {}),
     ...(row.annotationRate !== undefined ? { annotationRate: row.annotationRate } : {}),
+    ...(row.hasPlayableBytes !== undefined ? { hasPlayableBytes: row.hasPlayableBytes } : {}),
+    ...(row.unitCount !== undefined ? { unitCount: row.unitCount } : {}),
+    ...(row.anchorCount !== undefined ? { anchorCount: row.anchorCount } : {}),
+    ...(row.canRemoveEmpty !== undefined ? { canRemoveEmpty: row.canRemoveEmpty } : {}),
   }));
   for (const source of sources) {
     const linked =
