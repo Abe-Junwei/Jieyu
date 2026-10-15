@@ -10,6 +10,7 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import type { UnitMorphemeDocType, UnitTokenDocType } from '../../db';
+import { mergeReloadedMediaRows } from '../../utils/transcriptionProjectMediaDerived';
 import { mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
 import { listUnitTextsFromSegmentationForText } from '../../services/LayerSegmentationTextService';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
@@ -208,7 +209,7 @@ export function useTranscriptionSnapshotLoader({
         setAnchors(anchorRows);
         setLayers(layerRows);
         setTranslations(translationRows);
-        setMediaItems(mediaRows);
+        setMediaItems((prev) => mergeReloadedMediaRows(prev, mediaRows));
         setSpeakers(speakers);
         setLayerLinks(linkRows);
 

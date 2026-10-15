@@ -5,6 +5,11 @@ import {
 
 export const TIMELINE_TEXT_FLOW_GAP_PX = 4;
 
+/** Scroll container whose lanes are packed by text width, not by time pixels. */
+export function elementUsesTextFlowLayout(el: EventTarget | null): boolean {
+  return el instanceof Element && el.getAttribute('data-text-flow') === '1';
+}
+
 const MIN_CELL_PX = 36;
 
 export type TextFlowBox = {

@@ -3,13 +3,16 @@ import { getDb, withTransaction, type MediaItemDocType } from '../db';
 import { patchProjectMetadata } from './projectMetadataPatch';
 import { newId } from '../utils/transcriptionFormatters';
 import { computeBlobSha256 } from '../utils/blobSha256';
+import { mediaBasename } from '../utils/eafImportAlign';
 import {
   DOCUMENT_PLACEHOLDER_TRACK_FILENAME,
   isAuxiliaryRecordingMediaRow,
   isMediaItemPlaceholderRow,
   managedAcousticMediaState,
+  mediaRowHasPlayableBytes,
   placeholderMediaState,
 } from '../utils/mediaItemState';
+import { bulkUpsertLayerUnits } from './LayerUnitSegmentWritePrimitives';
 import { remapLayerUnitsAndAnchorsForFirstAcousticImport } from '../utils/remapLayerUnitsForFirstAcousticImport';
 import {
   maxTimedUnitEndSec,
@@ -63,6 +66,43 @@ function stripStateDetails(details: Record<string, unknown> | undefined): Record
     ...remainingDetails
   } = details ?? {};
   return remainingDetails;
+}
+
+const UNBOUND_MEDIA_ID = '__unknown_media__';
+
+/** 项目里只有这一条录音名时，把未绑定的语段挂到它上面。多条不同录音时不动。 */
+async function bindUnboundUnitsWhenSoleRecording(
+  db: Awaited<ReturnType<typeof getDb>>,
+  textId: string,
+  mediaId: string,
+  now: string,
+): Promise<void> {
+  const rows = await db.dexie.media_items.where('textId').equals(textId).toArray();
+  const acoustic = rows.filter(
+    (row) => !isMediaItemPlaceholderRow(row) && !isAuxiliaryRecordingMediaRow(row),
+  );
+  const target = acoustic.find((row) => row.id === mediaId);
+  if (!target) return;
+  const name = mediaBasename(target.filename);
+  if (acoustic.some((row) => mediaBasename(row.filename) !== name)) return;
+  const units = await db.dexie.layer_units.where('textId').equals(textId).toArray();
+  const unbound = units.filter((unit) => {
+    const id = unit.mediaId?.trim() ?? '';
+    return id.length === 0 || id === UNBOUND_MEDIA_ID;
+  });
+  if (unbound.length === 0) return;
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.layer_units],
+    async () => {
+      await bulkUpsertLayerUnits(
+        db,
+        unbound.map((unit) => ({ ...unit, mediaId, updatedAt: now })),
+      );
+    },
+    { label: 'LinguisticService.media.bindUnboundUnits' },
+  );
 }
 
 function assertRelinkTarget(
@@ -151,7 +191,8 @@ export async function importAudio(input: {
   duration: number;
   /**
    * `default`：没有声学轨且恰好一条占位轴时晋升这条占位；有多条占位时必须用 `replace` 指定，否则抛出
-   *   `AudioImportPlaceholderSelectionRequiredError`；已存在声学轨（含缺音的声学轨）则新建 `mediaId`。
+   *   `AudioImportPlaceholderSelectionRequiredError`。同名声学轨已存在时写回那一条，不再另开一条；
+   *   其它文件名的声学轨（含缺音）仍新建 `mediaId`。
    * `replace`：覆盖 `replaceMediaId` 指向的行（声学就地换源，或显式晋升这一条占位）。
    * `add`：总是新增一条媒体轨；仅当没有声学轨且恰好一条占位时晋升这条占位。
    * 任何模式都不会合并、删除其他占位轴或其他录音（rev5 §4.2-11）。
@@ -164,8 +205,8 @@ export async function importAudio(input: {
 }): Promise<{ mediaId: string; contentSha256?: string }> {
   const db = await getDb();
   const now = new Date().toISOString();
-  const mode = input.importMode ?? 'default';
-  const replaceMediaIdTrimmed =
+  let mode = input.importMode ?? 'default';
+  let replaceMediaIdTrimmed =
     typeof input.replaceMediaId === 'string' ? input.replaceMediaId.trim() : '';
   if (mode === 'replace' && replaceMediaIdTrimmed.length === 0) {
     throw new Error('importAudio: replaceMediaId is required when importMode is replace');
@@ -179,6 +220,25 @@ export async function importAudio(input: {
       !placeholderRows.some((candidate) => candidate.id === row.id) &&
       !isAuxiliaryRecordingMediaRow(row),
   );
+  if (mode === 'default') {
+    const wanted = mediaBasename(input.filename);
+    const sameName = timelineAcousticRows.filter((row) => mediaBasename(row.filename) === wanted);
+    const alreadyPlayable = sameName.find((row) => mediaRowHasPlayableBytes(row));
+    if (alreadyPlayable) {
+      await bindUnboundUnitsWhenSoleRecording(db, input.textId, alreadyPlayable.id, now);
+      return {
+        mediaId: alreadyPlayable.id,
+        ...(alreadyPlayable.contentSha256 !== undefined
+          ? { contentSha256: alreadyPlayable.contentSha256 }
+          : {}),
+      };
+    }
+    const reusable = [...sameName].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+    if (reusable) {
+      mode = 'replace';
+      replaceMediaIdTrimmed = reusable.id;
+    }
+  }
 
   const refreshMediaTimelineMetadata = async (mediaIdForUnits: string) => {
     const textRow = await db.dexie.texts.get(input.textId);
@@ -212,9 +272,9 @@ export async function importAudio(input: {
     if (!targetRow || targetRow.textId !== input.textId) {
       throw new Error('importAudio: replaceMediaId must refer to a media item in this text');
     }
-    if (!isMediaItemPlaceholderRow(targetRow) && targetRow.availability === 'missing') {
-      // 缺音录音的替换就是 Relink：保留 ID 与原名 | Replacing a missing recording is a relink
-      return relinkMedia({
+    if (!isMediaItemPlaceholderRow(targetRow) && !mediaRowHasPlayableBytes(targetRow)) {
+      // 没有可播放字节就是 Relink，哪怕 availability 仍写着 available。保留 ID 与原名，并核对指纹。
+      const relinked = await relinkMedia({
         mediaId: targetRow.id,
         audioBlob: input.audioBlob,
         duration: input.duration,
@@ -224,6 +284,8 @@ export async function importAudio(input: {
           run: () => refreshMediaTimelineMetadata(targetRow.id),
         },
       });
+      await bindUnboundUnitsWhenSoleRecording(db, input.textId, targetRow.id, now);
+      return relinked;
     }
     if (!isMediaItemPlaceholderRow(targetRow)) {
       const contentSha256 = await computeBlobSha256(input.audioBlob);
@@ -258,6 +320,7 @@ export async function importAudio(input: {
         },
         { label: 'LinguisticService.media.importAudio.replace' },
       );
+      await bindUnboundUnitsWhenSoleRecording(db, input.textId, targetRow.id, now);
       return {
         mediaId: targetRow.id,
         ...(contentSha256 !== undefined ? { contentSha256 } : {}),
@@ -355,6 +418,7 @@ export async function importAudio(input: {
     { label: 'LinguisticService.media.importAudio' },
   );
 
+  await bindUnboundUnitsWhenSoleRecording(db, input.textId, mediaId, now);
   return { mediaId, ...(contentSha256 !== undefined ? { contentSha256 } : {}) };
 }
 

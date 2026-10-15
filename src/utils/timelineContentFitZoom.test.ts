@@ -7,8 +7,40 @@ import {
   flattenTimelineContentFitSegments,
   resolveContentFitPxPerSec,
   resolveContentFitZoomPercent,
+  resolveSyncedTextFitZoomPercent,
   resolveTextWidthFitPxPerSec,
 } from './timelineContentFitZoom';
+
+describe('resolveSyncedTextFitZoomPercent', () => {
+  it('opens the shared axis until the user picks a zoom', () => {
+    expect(
+      resolveSyncedTextFitZoomPercent({ userChoseZoom: false, contentFitZoomPercent: 240 }),
+    ).toBe(240);
+    expect(
+      resolveSyncedTextFitZoomPercent({ userChoseZoom: false, contentFitZoomPercent: 100 }),
+    ).toBe(null);
+    expect(
+      resolveSyncedTextFitZoomPercent({ userChoseZoom: true, contentFitZoomPercent: 240 }),
+    ).toBe(null);
+  });
+
+  it('stays at fit-all until the recording has decoded', () => {
+    expect(
+      resolveSyncedTextFitZoomPercent({
+        userChoseZoom: false,
+        contentFitZoomPercent: 240,
+        acousticReady: false,
+      }),
+    ).toBe(100);
+    expect(
+      resolveSyncedTextFitZoomPercent({
+        userChoseZoom: true,
+        contentFitZoomPercent: 240,
+        acousticReady: false,
+      }),
+    ).toBe(null);
+  });
+});
 
 describe('timelineContentFitZoom', () => {
   it('sizes a segment from character count plus chrome', () => {

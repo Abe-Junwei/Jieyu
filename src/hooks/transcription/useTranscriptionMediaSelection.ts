@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { MediaItemDocType } from '../../db';
+import { mediaRowHasPlayableBytes } from '../../utils/mediaItemState';
 import {
   markWaveformDecodeAttempt,
   publishWaveformDecodeBlock,
@@ -48,16 +49,21 @@ export function useTranscriptionMediaSelection({
   selectedUnitMedia,
 }: Params) {
   useEffect(() => {
-    const knownUnitMediaId =
-      selectedUnitMediaId && mediaItems.some((item) => item.id === selectedUnitMediaId)
-        ? selectedUnitMediaId
-        : '';
-    if (knownUnitMediaId) {
-      if (knownUnitMediaId !== selectedMediaId) {
-        setSelectedMediaId(knownUnitMediaId);
-      }
+    const unitRow =
+      selectedUnitMediaId !== undefined && selectedUnitMediaId !== ''
+        ? mediaItems.find((item) => item.id === selectedUnitMediaId)
+        : undefined;
+    const selected = mediaItems.find((item) => item.id === selectedMediaId);
+    // 语段指向一条没有字节的声学轨时，不要把刚导入的录音从选中行上拽走。
+    if (unitRow && mediaRowHasPlayableBytes(unitRow)) {
+      if (unitRow.id !== selectedMediaId) setSelectedMediaId(unitRow.id);
       return;
     }
+    if (unitRow && !mediaRowHasPlayableBytes(selected)) {
+      if (unitRow.id !== selectedMediaId) setSelectedMediaId(unitRow.id);
+      return;
+    }
+    if (mediaRowHasPlayableBytes(selected)) return;
 
     if (mediaItems.length === 0) {
       if (selectedMediaId) setSelectedMediaId('');
@@ -86,8 +92,12 @@ export function useTranscriptionMediaSelection({
     getWaveformDecodeGuardRevision,
   );
 
+  const waveformMedia = selectedMediaId
+    ? mediaItems.find((item) => item.id === selectedMediaId)
+    : selectedUnitMedia;
+
   useEffect(() => {
-    const media = selectedUnitMedia;
+    const media = waveformMedia;
 
     if (!media) {
       // 选中媒体切换时可能出现短暂空态，避免提前 revoke 导致 blob 加载失败 | During media switching, avoid premature revoke on transient empty state.
@@ -151,7 +161,7 @@ export function useTranscriptionMediaSelection({
     }
 
     setSelectedMediaUrl(media.url);
-  }, [guardRevision, selectedMediaId, selectedUnitMedia]);
+  }, [guardRevision, selectedMediaId, waveformMedia]);
 
   useEffect(
     () => () => {
@@ -162,14 +172,14 @@ export function useTranscriptionMediaSelection({
 
   // 缓存已选媒体的 Blob 字节数，用于 VAD 预热前置门控 | Cache selected media blob byte size for VAD pre-fetch gate
   const selectedMediaBlobSize = useMemo(() => {
-    const details = selectedUnitMedia?.details as Record<string, unknown> | undefined;
+    const details = waveformMedia?.details as Record<string, unknown> | undefined;
     const blob = details?.audioBlob;
     return blob instanceof Blob ? blob.size : undefined;
-  }, [selectedUnitMedia]);
+  }, [waveformMedia]);
 
   return {
     selectedMediaUrl,
     selectedMediaBlobSize,
-    selectedMediaIsVideo: selectedUnitMedia ? isMediaVideo(selectedUnitMedia) : false,
+    selectedMediaIsVideo: waveformMedia ? isMediaVideo(waveformMedia) : false,
   };
 }

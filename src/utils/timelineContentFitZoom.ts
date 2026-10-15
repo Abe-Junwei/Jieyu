@@ -40,6 +40,25 @@ export function resolveContentFitPxPerSec(
 }
 
 /**
+ * Shared time axis, opened until every segment's text fits its duration.
+ * Returns null once the user has chosen a zoom, or when fit-all already fits.
+ */
+export function resolveSyncedTextFitZoomPercent(input: {
+  userChoseZoom: boolean;
+  contentFitZoomPercent: number;
+  /**
+   * False while the recording is still decoding. A text-fit zoom applied as
+   * WaveSurfer's initial minPxPerSec leaves the waveform area blank.
+   */
+  acousticReady?: boolean;
+}): number | null {
+  if (input.userChoseZoom) return null;
+  if (input.acousticReady === false) return 100;
+  if (!(input.contentFitZoomPercent > 100)) return null;
+  return input.contentFitZoomPercent;
+}
+
+/**
  * Zoom percent relative to fit-all (100 = entire span in the viewport).
  * Returns 100 when the fit-all zoom already shows every segment's text.
  */
