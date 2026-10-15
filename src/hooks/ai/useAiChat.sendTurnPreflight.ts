@@ -51,6 +51,14 @@ import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 import { newAgentRunId } from '../../ai/runtime/agentRunId';
 import { getDefaultAgentCallbackRegistry } from '../../ai/runtime/agentCallbacks';
 
+/** Counts primary-stream usage once per turn. Catch and finally both call it. */
+export function applyPrimaryStreamUsage(phaseState: SendTurnStreamPhaseState): void {
+  if (phaseState.primaryUsageCommitted) return;
+  phaseState.primaryUsageCommitted = true;
+  phaseState.reportedInputTokens += phaseState.primaryStreamUsage?.inputTokens ?? 0;
+  phaseState.totalReportedOutputTokens += phaseState.primaryStreamUsage?.outputTokens ?? 0;
+}
+
 export type SendTurnDbConversationHolder = {
   dbRef: Awaited<ReturnType<typeof getDb>> | null;
   activeConversationId: string | null;
@@ -267,10 +275,7 @@ export async function runAiChatSendTurnPreflight(
     });
 
   const commitPrimaryStreamUsage = () => {
-    if (phaseState.primaryUsageCommitted) return;
-    phaseState.primaryUsageCommitted = true;
-    phaseState.reportedInputTokens += phaseState.primaryStreamUsage?.inputTokens ?? 0;
-    phaseState.totalReportedOutputTokens += phaseState.primaryStreamUsage?.outputTokens ?? 0;
+    applyPrimaryStreamUsage(phaseState);
   };
 
   const agentLoopSourceUserText = resumeCheckpoint?.originalUserText ?? trimmed;
