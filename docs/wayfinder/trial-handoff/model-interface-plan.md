@@ -5,7 +5,7 @@
 
 日期：2026-10-13 · 版本：v2（按 `REVIEW_NLP_MODEL_INTERFACE.md` 修订；v1 原文未动）
 代码基准：`origin/main` @ `1713321b`（只读核对，`git show origin/main:<path>`）
-状态：方案稿，挂第一程 #250。#304 ADR 待写；#303/#305/#306 挡首发。
+状态：方案稿，挂第一程 #250。合同决定见 [ADR-0057](../../adr/0057-model-interface-transcribe.md)。#303/#305/#306 挡首发。
 
 ## 0. 结论
 
@@ -179,7 +179,7 @@
 | 单 | 内容 | 量 | 依赖 |
 |---|---|---|---|
 | N0（前置，已转解语修bug）| whisper-server 改成只监听 127.0.0.1 | XS | — |
-| N1 | ADR：只含 transcribe；合同 v1（§4）、安全（§5）、声明文件（§6）、`model_runs` 表形状（§7）、“结果一律是候选” | S | 最好在 D14 冻结前定下表形状 |
+| N1 | ADR：只含 transcribe；合同 v1（§4）、安全（§5）、声明文件（§6）、`model_runs` 表形状（§7）、“结果一律是候选”。已写入 [ADR-0057](../../adr/0057-model-interface-transcribe.md) | S | 最好在 D14 冻结前定下表形状 |
 | N2 | 主进程 ModelHost：读声明文件、HTTP 传输、令牌存钥匙串、回环判定、zod 校验和上限、切块和平移、超时和中止、IPC、设置页“模型”栏；自带 whisper-server 实现 v1 合同，**即 #303 的第一个实现** | M–L | #276 桌面壳、N1、N0 |
 | N3 | 候选面板 + `model_runs` 落库 + 模拟模型 + conformance 脚本 + 1 条 Electron e2e | M–L | N2、#284 |
 
