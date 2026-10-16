@@ -1,1 +1,11 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
+contact_links:
+  - name: 私下报告安全漏洞 | Report a security vulnerability
+    url: https://github.com/Abe-Junwei/Jieyu/security/advisories/new
+    about: 请私下报告漏洞，不要开公开 Issue。See SECURITY.md.
+  - name: 讨论 | Discussions
+    url: https://github.com/Abe-Junwei/Jieyu/discussions
+    about: 提问、想法、田野流程和作品展示。Ask questions, share field workflows, and show work.
+  - name: 文档 | Documentation
+    url: https://github.com/Abe-Junwei/Jieyu/tree/main/docs
+    about: 架构、ADR 与开发文档索引。Architecture, ADRs, and developer docs.
