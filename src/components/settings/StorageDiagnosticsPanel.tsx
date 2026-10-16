@@ -194,6 +194,13 @@ function BackupFolderSection({ locale }: { locale: Locale }) {
           })}
         </p>
       ) : null}
+      {success?.retentionWarning ? (
+        <p className="small-text" role="alert">
+          {tf(locale, 'msg.appData.storageBackupRetentionWarning', {
+            message: success.retentionWarning,
+          })}
+        </p>
+      ) : null}
       {failure ? (
         <p className="small-text" role="alert" data-testid="backup-folder-last-failure">
           {tf(locale, 'msg.appData.storageBackupFailed', {
