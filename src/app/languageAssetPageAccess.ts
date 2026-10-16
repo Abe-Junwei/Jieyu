@@ -34,6 +34,7 @@ export {
 } from '../services/LinguisticService.orthography';
 
 export { LinguisticService } from '../services/LinguisticService';
+export { MediaContentMismatchError } from '../services/linguisticServiceMediaImport';
 export type { LexemeAttachmentView } from '../services/LinguisticService';
 export { lexemeAssetAcceptAttribute } from '../services/lexemeAssetMime';
 export {
