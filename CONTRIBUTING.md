@@ -1,5 +1,7 @@
 # 参与解语（Jieyu）开发
 
+社区行为见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。安全漏洞请按 [SECURITY.md](SECURITY.md) 私下报告，不要开公开 Issue。
+
 ## 环境
 
 - **Node**：与 `[.github/workflows/ci.yml](.github/workflows/ci.yml)` 一致，使用 **Node 22**（仓库根目录 `[.nvmrc](.nvmrc)`）。
@@ -55,6 +57,8 @@ npm ci
 ## 分支与合并
 
 - 默认工作分支以团队约定为准（常见为 `main` / `dev`）。
+- 合入 `main` 须经 Pull Request。不对 `main` force push。
+- 每次 PR 都要过的状态检查是 CI 里始终运行的 `docs-governance`、`quality`、`agent-evals-smoke`。路径过滤的 Chromium E2E 只在相关路径改动时跑，不作为每次 PR 的必需检查。
 - PR 描述与自检项见 `[.github/pull_request_template.md](.github/pull_request_template.md)`。
 
 ## 架构与产品事实源

@@ -1,10 +1,22 @@
 # 解语 (Jieyu)
 
-解语（Jieyu）是一个面向濒危语言研究与协作的本地优先应用。
+解语给做濒危语言调查和整理的人用。一次田野工作可以留在同一套本地工作区里走完：
+
+**录音 → 转写 → 标注 → 词典 → 语料库 → 导出。**
+
+录音、转写时间轴、标注、项目词典和语料库默认留在本机浏览器里（IndexedDB / Dexie）。需要协作时，同步的是按项目裁剪的快照。这一版在浏览器里运行。桌面安装包仍是后续目标，见 [仓库现状](docs/architecture/仓库现状与代码地图.md)。
 
 著作权：见根目录 **[LICENSE](LICENSE)**（Copyright (c) **沂南灵创技术服务中心**，ISC）。
 
-协作流程、Node 版本与常用门禁命令见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
+## 参与与对外说明
+
+- 如何参与开发：[CONTRIBUTING.md](CONTRIBUTING.md)
+- 安全漏洞（请私下报告）：[SECURITY.md](SECURITY.md)
+- 社区行为准则：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- 文档总索引：[docs/README.md](docs/README.md)
+- 学术引用：[CITATION.cff](CITATION.cff)
+
+Node 版本与常用门禁命令见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
 
 ## 启动
 
@@ -109,6 +121,7 @@ VITE_MAP_PROXY_FALLBACK_ON_ERROR=true
 ## 许可证与版本
 
 - 许可证：[LICENSE](LICENSE)（ISC，与 `package.json` 的 `license` 字段一致）。
+- 学术引用：[CITATION.cff](CITATION.cff)。
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)。
 - 语义化版本约定：[docs/development/VERSIONING.md](docs/development/VERSIONING.md)。
 

@@ -1,0 +1,40 @@
+# Weekly grouped dependency updates: one PR per ecosystem for minor/patch,
+# instead of a PR per package. Security updates are a separate repo setting
+# (Settings → Code security → Dependabot security updates) and are not held
+# back by this schedule or by cooldown.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    # Majors stay on docs/development/DEPENDENCY_UPGRADE_PLAYBOOK.md
+    # (one upgrade axis per PR). This ignore does not suppress security updates.
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5

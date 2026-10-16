@@ -1,0 +1,85 @@
+name: 缺陷报告 | Bug report
+description: 报告不正确的行为或退步 | Report incorrect behavior or a regression
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢报告。请先搜索[已有 Issue](https://github.com/Abe-Junwei/Jieyu/issues)。
+
+        **安全问题请不要填在这里。** 见 [SECURITY.md](https://github.com/Abe-Junwei/Jieyu/blob/main/SECURITY.md)。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么 | What happened?
+      description: 用一两句话说明实际结果，以及你期望的结果。
+      placeholder: 保存标注后，时间轴上的片段没有更新……
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤 | Steps to reproduce
+      description: 步骤越短、越具体，越容易修。
+      placeholder: |
+        1. 打开一个已有转写项目
+        2. 在标注页修改一条
+        3. 回到转写页
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 相关区域 | Area
+      options:
+        - 转写 / transcription
+        - 标注 / annotation
+        - 词典 / lexicon
+        - 语料库 / corpus
+        - 导出 / export
+        - 协作 / collaboration
+        - AI / 智能体
+        - 其他 / other
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统 | Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - 其他 / other
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: 浏览器 | Browser
+      description: 当前检出是浏览器应用。
+      options:
+        - Chrome
+        - Edge
+        - Firefox
+        - Safari
+        - 其他 / other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本或 commit | App version or commit
+      description: package.json 的 version，或你所在的 commit。
+      placeholder: 1.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图说明 | Logs
+      description: 如有控制台报错，贴出关键几行。先去掉密钥、语料原文和发音人信息。
+      render: shell
+    validations:
+      required: false

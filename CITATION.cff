@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "如果使用了解语，请引用它。If you use Jieyu, please cite it."
+title: "解语 (Jieyu)"
+abstract: >-
+  解语是面向濒危语言田野记录的本地优先软件：录音、转写、标注、词典、语料库与导出。
+  作者白军伟（Bai Junwei），北京师范大学。
+  Jieyu is local-first software for endangered-language documentation,
+  from recording through transcription, annotation, lexicon, corpus, and export.
+type: software
+authors:
+  - given-names: Junwei
+    family-names: Bai
+    alias: Abe-Junwei
+    affiliation: Beijing Normal University
+version: 1.1.0
+date-released: 2026-04-24
+license: ISC
+url: https://github.com/Abe-Junwei/Jieyu
+repository-code: https://github.com/Abe-Junwei/Jieyu
+keywords:
+  - endangered languages
+  - field linguistics
+  - transcription
+  - lexicon
+  - local-first
