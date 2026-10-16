@@ -196,6 +196,23 @@ describe('T26 local removal (rev5 9.1, D6)', () => {
     expect(purgeMainDb).not.toHaveBeenCalled();
     expect(storage.getItem(COLLAB_LOCAL_PROJECT_REGISTRY_KEY)).toBe('{not json');
   });
+
+  it('does not leave a new removed marker when cleanup cannot be queued', async () => {
+    markProjectCollaborationBound('p1', storage);
+    const original = storage.setItem.bind(storage);
+    const setItem = vi.spyOn(storage, 'setItem').mockImplementation((key, value) => {
+      if (key === PROJECT_CLEANUP_JOBS_STORAGE_KEY) throw new Error('queue unavailable');
+      original(key, value);
+    });
+    try {
+      await expect(removeProjectFromDevice('p1', {}, deps)).rejects.toThrow('queue unavailable');
+      expect(listLocallyRemovedCloudProjects(storage)).toEqual([]);
+      expect(listPendingProjectCleanupJobs(storage)).toEqual([]);
+      expect(purgeMainDb).not.toHaveBeenCalled();
+    } finally {
+      setItem.mockRestore();
+    }
+  });
 });
 
 describe('T24 cleanup jobs survive interruption', () => {
