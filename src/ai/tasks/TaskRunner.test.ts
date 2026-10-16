@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { db } from '../../db';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { db, getDb } from '../../db';
 import { TaskRunner, backoffDelay } from './TaskRunner';
 
 async function clearTables(): Promise<void> {
@@ -50,6 +50,61 @@ describe('TaskRunner', () => {
     expect(row?.timeoutMs).toBeGreaterThanOrEqual(1000);
     expect(row?.startedAt).toBeTruthy();
     expect(row?.completedAt).toBeTruthy();
+  });
+
+  it('does not rerun a completed business task when recording done fails', async () => {
+    const runner = new TaskRunner(1);
+    const database = await getDb();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const run = vi.fn(async () => {
+      await gate;
+      return 'saved';
+    });
+    const task = await runner.enqueue({ taskType: 'embed', targetId: 'x', maxAttempts: 2, run });
+    const original = database.collections.ai_tasks.update.bind(database.collections.ai_tasks);
+    const update = vi
+      .spyOn(database.collections.ai_tasks, 'update')
+      .mockImplementation((id, patch) =>
+        patch.status === 'done'
+          ? Promise.reject(new Error('status unavailable'))
+          : original(id, patch),
+      );
+    try {
+      release();
+      await expect(task.result).resolves.toBe('saved');
+      expect(run).toHaveBeenCalledTimes(1);
+      await expect(runner.retry(task.taskId)).resolves.toBeNull();
+    } finally {
+      update.mockRestore();
+    }
+  });
+
+  it('settles a failed task even when recording failed status also fails', async () => {
+    const runner = new TaskRunner(1);
+    const database = await getDb();
+    const original = database.collections.ai_tasks.update.bind(database.collections.ai_tasks);
+    const update = vi
+      .spyOn(database.collections.ai_tasks, 'update')
+      .mockImplementation((id, patch) =>
+        patch.status === 'failed'
+          ? Promise.reject(new Error('status unavailable'))
+          : original(id, patch),
+      );
+    try {
+      const task = await runner.enqueue({
+        taskType: 'embed',
+        targetId: 'x',
+        run: async () => {
+          throw new Error('business failure');
+        },
+      });
+      await expect(task.result).rejects.toThrow('business failure');
+    } finally {
+      update.mockRestore();
+    }
   });
 
   it('persists initial checkpoint and task-run checkpoints', async () => {

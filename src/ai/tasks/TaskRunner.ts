@@ -360,9 +360,10 @@ export class TaskRunner {
           throw new TaskCancelledError();
         }
 
+        let result: TResult;
         try {
           await this.updateTaskAttempt(db, task.taskId, attempt, task.maxAttempts, task.timeoutMs);
-          const result = await this.runWithTimeout(
+          result = await this.runWithTimeout(
             task,
             attempt,
             attempt > 1 && lastError instanceof Error ? lastError : null,
@@ -370,11 +371,6 @@ export class TaskRunner {
           if (task.controller.signal.aborted) {
             throw new TaskCancelledError();
           }
-          await this.updateTaskStatus(db, task.taskId, 'done');
-          terminalStatus = 'done';
-          task.completed = true;
-          task.resolve(result);
-          return;
         } catch (error) {
           lastError = error;
           if (task.controller.signal.aborted) {
@@ -387,7 +383,21 @@ export class TaskRunner {
             await this.updateTaskStatus(db, task.taskId, 'running');
             continue;
           }
+          continue;
         }
+        // The business run has returned. A status-write failure must never run it again.
+        try {
+          await this.updateTaskStatus(db, task.taskId, 'done');
+        } catch (error) {
+          log.error('Task completed but recording done status failed', {
+            err: error,
+            taskId: task.taskId,
+          });
+        }
+        terminalStatus = 'done';
+        task.completed = true;
+        task.resolve(result);
+        return;
       }
 
       const message =
@@ -399,13 +409,21 @@ export class TaskRunner {
               ? lastError.message
               : 'Task failed';
 
-      await this.updateTaskStatus(db, task.taskId, 'failed', message);
+      try {
+        await this.updateTaskStatus(db, task.taskId, 'failed', message);
+      } catch (error) {
+        log.error('Recording failed task status failed', { err: error, taskId: task.taskId });
+      }
       terminalStatus = 'failed';
       task.completed = true;
       task.reject(lastError);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Task failed';
-      await this.updateTaskStatus(db, task.taskId, 'failed', message);
+      try {
+        await this.updateTaskStatus(db, task.taskId, 'failed', message);
+      } catch (statusError) {
+        log.error('Recording failed task status failed', { err: statusError, taskId: task.taskId });
+      }
       terminalStatus = 'failed';
       task.completed = true;
       task.reject(error);
