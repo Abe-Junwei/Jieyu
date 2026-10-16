@@ -10,6 +10,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/304
 
 # 模型接口 ADR：转写能力、合同 v1、安全规则、model_runs 表形状
 
+已写入 [ADR-0057](../../../adr/0057-model-interface-transcribe.md)。
+
 ## Question
 
 写一份 ADR，只含 `transcribe` 一种能力（对齐以后再说）：
