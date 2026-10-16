@@ -74,7 +74,13 @@ export function useSpeakerActionSegmentMutationCluster({
       let updated = 0;
       await settleSpeakerWrite({
         write: async () => {
-          updated = await LinguisticService.speakers.assignToSegments(targetIds, speakerId);
+          const result = await LinguisticService.speakers.assignToMixedSelection({
+            textId: getActiveProjectTextId(),
+            segmentIds: targetIds,
+            unitIds: [],
+            ...(speakerId ? { speakerId } : {}),
+          });
+          updated = result.segments;
           assertSpeakerAssignmentUpdatedCounts({
             targetSegmentCount: targetIds.length,
             targetUnitCount: 0,
@@ -138,15 +144,17 @@ export function useSpeakerActionSegmentMutationCluster({
       });
       let updated = 0;
       let speakerName = trimmedName;
+      let reusedSpeaker = false;
       await settleSpeakerWrite({
         write: async () => {
-          const targetSpeaker =
-            existing ??
-            (await LinguisticService.speakers.create({
-              name: trimmedName,
-              textId: getActiveProjectTextId(),
-            }));
-          updated = await LinguisticService.speakers.assignToSegments(targetIds, targetSpeaker.id);
+          const result = await LinguisticService.speakers.createAndAssignToMixedSelection({
+            name: trimmedName,
+            textId: getActiveProjectTextId(),
+            segmentIds: targetIds,
+            unitIds: [],
+          });
+          const targetSpeaker = result.speaker;
+          updated = result.segments;
           assertSpeakerAssignmentUpdatedCounts({
             targetSegmentCount: targetIds.length,
             targetUnitCount: 0,
@@ -154,6 +162,7 @@ export function useSpeakerActionSegmentMutationCluster({
             updatedUnits: 0,
           });
           speakerName = targetSpeaker.name;
+          reusedSpeaker = !result.created;
           const now = new Date().toISOString();
           updateSegmentsLocally(targetIds, (segment) => ({
             ...segment,
@@ -176,7 +185,7 @@ export function useSpeakerActionSegmentMutationCluster({
             'segments',
             speakerName,
             updated,
-            Boolean(existing),
+            reusedSpeaker,
             t,
             tf,
           ),

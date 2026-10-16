@@ -1487,6 +1487,102 @@ describe('LinguisticService smoke tests', () => {
     expect(segment?.speakerId).toBe(target.id);
   });
 
+  it('rolls back a speaker merge when deleting the source fails', async () => {
+    const now = new Date().toISOString();
+    await db.layer_units.put({
+      id: 'unit_merge_rollback',
+      textId: 'text_merge_rollback',
+      layerId: 'layer_rollback',
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const source = await LinguisticService.speakers.create({
+      name: 'Source',
+      textId: 'text_merge_rollback',
+    });
+    const target = await LinguisticService.speakers.create({
+      name: 'Target',
+      textId: 'text_merge_rollback',
+    });
+    await db.layer_units.update('unit_merge_rollback', {
+      speakerId: source.id,
+      speaker: source.name,
+    });
+    const remove = vi.spyOn(db.speakers, 'delete').mockRejectedValueOnce(new Error('write failed'));
+    try {
+      await expect(LinguisticService.speakers.merge(source.id, target.id)).rejects.toThrow(
+        'write failed',
+      );
+      expect((await db.layer_units.get('unit_merge_rollback'))?.speakerId).toBe(source.id);
+      expect(await db.speakers.get(source.id)).toBeTruthy();
+    } finally {
+      remove.mockRestore();
+    }
+  });
+
+  it('commits mixed segment and unit speaker assignment together', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_mixed_atomic';
+    await db.texts.put({ id: textId, title: { default: 'Mixed' }, createdAt: now, updatedAt: now });
+    await db.speakers.put({
+      id: 'speaker_mixed',
+      name: 'Speaker',
+      textId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_units.bulkPut([
+      {
+        id: 'seg_mixed',
+        textId,
+        layerId: 'layer_mixed',
+        unitType: 'segment',
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'unit_mixed',
+        textId,
+        layerId: 'layer_mixed',
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    const put = vi.spyOn(db.texts, 'put').mockRejectedValueOnce(new Error('roster write failed'));
+    try {
+      await expect(
+        LinguisticService.speakers.assignToMixedSelection({
+          textId,
+          segmentIds: ['seg_mixed'],
+          unitIds: ['unit_mixed'],
+          speakerId: 'speaker_mixed',
+        }),
+      ).rejects.toThrow('roster write failed');
+      expect((await db.layer_units.get('seg_mixed'))?.speakerId).toBeUndefined();
+      expect((await db.layer_units.get('unit_mixed'))?.speakerId).toBeUndefined();
+    } finally {
+      put.mockRestore();
+    }
+    await expect(
+      LinguisticService.speakers.assignToMixedSelection({
+        textId,
+        segmentIds: ['seg_mixed'],
+        unitIds: ['unit_mixed'],
+        speakerId: 'speaker_mixed',
+      }),
+    ).resolves.toEqual({ segments: 1, units: 1 });
+    expect((await db.layer_units.get('seg_mixed'))?.speakerId).toBe('speaker_mixed');
+    expect((await db.layer_units.get('unit_mixed'))?.speakerId).toBe('speaker_mixed');
+  });
+
   it('clears speaker assignment when assigning undefined speaker id', async () => {
     const now = new Date().toISOString();
 

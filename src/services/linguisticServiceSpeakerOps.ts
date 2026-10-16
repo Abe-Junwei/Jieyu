@@ -12,6 +12,7 @@ import {
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
+import { storagePort } from '../db/storagePort';
 import { attachSpeakerToProject, detachSpeakerFromProjects } from './speakerProjectMembership';
 import { CatalogOwnershipMismatchError, requireCatalogProjectId } from './projectCatalogScope';
 
@@ -245,63 +246,11 @@ export async function mergeSpeakers(
   sourceSpeakerId: string,
   targetSpeakerId: string,
 ): Promise<number> {
-  const db = await getDb();
   const sourceId = sourceSpeakerId.trim();
   const targetId = targetSpeakerId.trim();
   if (!sourceId || !targetId) throw new Error('\u8bf4\u8bdd\u4eba ID \u4e0d\u80fd\u4e3a\u7a7a');
   if (sourceId === targetId) return 0;
-
-  const [sourceDoc, targetDoc] = await Promise.all([
-    db.collections.speakers.findOne({ selector: { id: sourceId } }).exec(),
-    db.collections.speakers.findOne({ selector: { id: targetId } }).exec(),
-  ]);
-
-  if (!sourceDoc) throw new Error(`\u6765\u6e90\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${sourceId}`);
-  if (!targetDoc) throw new Error(`\u76ee\u6807\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${targetId}`);
-
-  const target = targetDoc.toJSON();
-  const source = sourceDoc.toJSON();
-  if (source.textId !== target.textId) {
-    throw new CatalogOwnershipMismatchError('speakers', target.id, target.textId, source.textId);
-  }
-  const now = new Date().toISOString();
-  const unitRows = (await listUnitDocsFromCanonicalLayerUnits(db)).filter(
-    (row) => row.speakerId?.trim() === sourceId,
-  );
-  const segments = (await LayerSegmentQueryService.listAllSegments()).filter(
-    (segment) => segment.speakerId?.trim() === sourceId,
-  );
-
-  if (unitRows.length > 0) {
-    const normalized = unitRows.map((row) =>
-      normalizeUnitDocForStorage({
-        ...row,
-        speakerId: target.id,
-        speaker: target.name,
-        updatedAt: now,
-      }),
-    );
-    await bulkUpsertUnitLayerUnits(db, normalized);
-  }
-
-  if (segments.length > 0) {
-    const normalizedSegments = segments.map((segment) => ({
-      ...segment,
-      speakerId: target.id,
-      updatedAt: now,
-    }));
-    await LayerUnitSegmentWriteService.upsertSegments(db, normalizedSegments);
-  }
-
-  await db.collections.speakers.remove(sourceId);
-  await detachSpeakerFromProjects(sourceId);
-  const projectIds = [
-    ...new Set(unitRows.map((row) => row.textId.trim()).filter((textId) => textId.length > 0)),
-  ];
-  for (const textId of projectIds) {
-    await attachSpeakerToProject(target.id, textId);
-  }
-  return unitRows.length + segments.length;
+  return deleteSpeaker(sourceId, { strategy: 'merge', targetSpeakerId: targetId });
 }
 
 type DeleteSpeakerOptions = {
@@ -371,7 +320,7 @@ async function deleteSpeakerIn(
   const now = new Date().toISOString();
   let mergeTargetId = '';
 
-  if (affectedCount > 0 && strategy === 'merge') {
+  if (strategy === 'merge') {
     const targetId = options.targetSpeakerId?.trim();
     if (!targetId)
       throw new Error(
@@ -389,7 +338,12 @@ async function deleteSpeakerIn(
     }
     mergeTargetId = target.id;
     await db.dexie.layer_units.bulkPut(
-      rows.map((row) => ({ ...row, speakerId: target.id, updatedAt: now })),
+      rows.map((row) => ({
+        ...row,
+        speakerId: target.id,
+        ...(row.unitType === 'unit' ? { speaker: target.name } : {}),
+        updatedAt: now,
+      })),
     );
   }
 
@@ -521,4 +475,44 @@ export async function assignSpeakerToSegments(
     'linguisticServiceSpeakerOps.renameSpeaker',
   );
   return updates.length;
+}
+
+/** Mixed selection is one user action: never commit segments without its units. */
+export async function assignSpeakerToMixedSelection(input: {
+  textId: string;
+  segmentIds: readonly string[];
+  unitIds: readonly string[];
+  speakerId?: string;
+}): Promise<{ segments: number; units: number }> {
+  const result = await storagePort().assignSpeakerToMixedSelection(input);
+  scheduleSegmentMetaSyncForUnitIds(
+    [...input.segmentIds, ...input.unitIds],
+    'linguisticServiceSpeakerOps.assignMixedSelection',
+  );
+  return { segments: result.segments, units: result.units };
+}
+
+export async function createAndAssignSpeakerToMixedSelection(input: {
+  segmentIds: readonly string[];
+  unitIds: readonly string[];
+  name: string;
+  textId: string;
+}): Promise<{ speaker: SpeakerDocType; segments: number; units: number; created: boolean }> {
+  const result = await storagePort().assignSpeakerToMixedSelection({
+    textId: input.textId,
+    segmentIds: input.segmentIds,
+    unitIds: input.unitIds,
+    createSpeaker: { name: input.name, textId: input.textId },
+  });
+  if (!result.speaker) throw new Error('mixed speaker selection requires a speaker');
+  scheduleSegmentMetaSyncForUnitIds(
+    [...input.segmentIds, ...input.unitIds],
+    'linguisticServiceSpeakerOps.createAndAssignMixedSelection',
+  );
+  return {
+    speaker: result.speaker,
+    segments: result.segments,
+    units: result.units,
+    created: result.created === true,
+  };
 }

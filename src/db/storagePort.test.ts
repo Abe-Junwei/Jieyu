@@ -17,6 +17,7 @@ import {
   type StoragePort,
 } from './storagePort';
 import { describeStoragePortContract } from './storagePortContract';
+import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
 
 const NOW = '2026-10-15T00:00:00.000Z';
 
@@ -39,13 +40,184 @@ async function clearDb() {
   await Promise.all(db.tables.map((table) => table.clear()));
 }
 
-describeStoragePortContract('dexie', () => dexieStoragePort, clearDb);
+describeStoragePortContract(
+  'dexie',
+  () => dexieStoragePort,
+  clearDb,
+  async () => {
+    const textId = 'text-mixed-contract';
+    const segmentId = 'segment-mixed-contract';
+    const unitId = 'unit-mixed-contract';
+    await db.texts.put({ id: textId, title: { default: 'Mixed' }, createdAt: NOW, updatedAt: NOW });
+    await db.layer_units.bulkPut(
+      [segmentId, unitId].map((id, index) => ({
+        id,
+        textId,
+        layerId: 'layer-mixed-contract',
+        unitType: index === 0 ? ('segment' as const) : ('unit' as const),
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })),
+    );
+    return {
+      textId,
+      segmentId,
+      unitId,
+      readback: async (speakerId: string) => {
+        const [speaker, segment, unit, project] = await Promise.all([
+          db.speakers.get(speakerId),
+          db.layer_units.get(segmentId),
+          db.layer_units.get(unitId),
+          db.texts.get(textId),
+        ]);
+        return {
+          speakerId: speaker?.id,
+          segmentSpeakerId: segment?.speakerId,
+          unitSpeakerId: unit?.speakerId,
+          projectSpeakerIds: (project?.metadata as { projectSpeakerIds?: string[] } | undefined)
+            ?.projectSpeakerIds,
+        };
+      },
+    };
+  },
+);
 
 describe('dexie storage port', () => {
   beforeEach(clearDb);
   afterEach(() => {
     vi.restoreAllMocks();
     installStoragePort(dexieStoragePort);
+  });
+
+  it('rolls back a newly created speaker when mixed assignment roster write fails', async () => {
+    const textId = 'text-mixed-rollback';
+    await db.texts.put({ id: textId, title: { default: 'Mixed' }, createdAt: NOW, updatedAt: NOW });
+    await db.layer_units.put({
+      id: 'unit-mixed-rollback',
+      textId,
+      layerId: 'layer-mixed-rollback',
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const put = vi.spyOn(db.texts, 'put').mockRejectedValueOnce(new Error('roster unavailable'));
+    await expect(
+      dexieStoragePort.assignSpeakerToMixedSelection({
+        textId,
+        segmentIds: [],
+        unitIds: ['unit-mixed-rollback'],
+        createSpeaker: { name: 'New speaker', textId },
+      }),
+    ).rejects.toThrow('roster unavailable');
+    put.mockRestore();
+    expect(await db.speakers.count()).toBe(0);
+    expect((await db.layer_units.get('unit-mixed-rollback'))?.speakerId).toBeUndefined();
+  });
+
+  it('rejects mixed-project clearing before changing either assignment', async () => {
+    for (const textId of ['text-a', 'text-b']) {
+      await db.texts.put({
+        id: textId,
+        title: { default: textId },
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      await db.layer_units.put({
+        id: `unit-${textId}`,
+        textId,
+        layerId: `layer-${textId}`,
+        unitType: 'unit',
+        speakerId: `speaker-${textId}`,
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+    }
+    await expect(
+      dexieStoragePort.assignSpeakerToMixedSelection({
+        textId: 'text-a',
+        segmentIds: [],
+        unitIds: ['unit-text-a', 'unit-text-b'],
+      }),
+    ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
+    expect((await db.layer_units.get('unit-text-a'))?.speakerId).toBe('speaker-text-a');
+    expect((await db.layer_units.get('unit-text-b'))?.speakerId).toBe('speaker-text-b');
+  });
+
+  it('reads a mixed speaker write back from speakers, units, and project roster', async () => {
+    const textId = 'text-mixed-readback';
+    await db.texts.put({ id: textId, title: { default: 'Mixed' }, createdAt: NOW, updatedAt: NOW });
+    await db.layer_units.bulkPut(
+      ['segment', 'unit'].map((unitType) => ({
+        id: `${unitType}-mixed-readback`,
+        textId,
+        layerId: 'layer-mixed-readback',
+        unitType: unitType as 'segment' | 'unit',
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })),
+    );
+    const result = await dexieStoragePort.assignSpeakerToMixedSelection({
+      textId,
+      segmentIds: ['segment-mixed-readback'],
+      unitIds: ['unit-mixed-readback'],
+      createSpeaker: { name: 'Speaker', textId },
+    });
+    const speakerId = result.speaker?.id;
+    expect(speakerId).toBeTruthy();
+    expect(await db.speakers.get(speakerId!)).toMatchObject({ id: speakerId, textId });
+    expect(await db.layer_units.get('segment-mixed-readback')).toMatchObject({ speakerId });
+    expect(await db.layer_units.get('unit-mixed-readback')).toMatchObject({
+      speakerId,
+      speaker: 'Speaker',
+    });
+    expect((await db.texts.get(textId))?.metadata).toMatchObject({
+      projectSpeakerIds: [speakerId],
+    });
+  });
+
+  it('preserves the typed ownership error for an existing foreign speaker', async () => {
+    for (const textId of ['text-a', 'text-b']) {
+      await db.texts.put({
+        id: textId,
+        title: { default: textId },
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+    }
+    await db.speakers.put({
+      id: 'speaker-text-b',
+      name: 'Foreign',
+      textId: 'text-b',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_units.put({
+      id: 'unit-text-a',
+      textId: 'text-a',
+      layerId: 'layer-text-a',
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await expect(
+      dexieStoragePort.assignSpeakerToMixedSelection({
+        textId: 'text-a',
+        segmentIds: [],
+        unitIds: ['unit-text-a'],
+        speakerId: 'speaker-text-b',
+      }),
+    ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
+    expect((await db.layer_units.get('unit-text-a'))?.speakerId).toBeUndefined();
   });
 
   it('fingerprints a segment with its content rows', async () => {
