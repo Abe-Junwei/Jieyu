@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-16
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -30,7 +30,7 @@ last_reviewed: 2026-10-15
 - **长期目标**：田野录音 → 转写标注 → 词典/语料 → 出版与存档，在一台机器上闭环完成。
 
 - **形态**：Electron 桌面应用（路线 C；React + Vite 渲染层 + Worker/WASM），非移动。原纯 Web 形态（浏览器 + Dexie/IndexedDB）为历史基线。
-- **数据真源**：本机 SQLite 项目文件夹（ADR-0046）。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
+- **数据真源**：本机项目文件夹。文件夹里放什么以 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md) 为准（音频原文件、一份文稿一个 `.jyd`）；交换包和每日 JYM 备份仍以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md) 第 2、6 条为准。哪一条有效见 [ADR 目录](../../adr/README.md)。D14 尚未冻结。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
 - **独立性**：与 Rushi（如是我闻）**无运行时依赖、无能力互补承诺**；解语缺口在本仓内解决或显式标为非目标。
 - **刻意不做**：每 PR 全量重型 gate、高频依赖自动化、多角色评审路由、为形式的全量 E2E、通用多智能体 swarm / 云端多租户。成熟度检查留在 `package.json` 的按需分组，不接回 PR CI。
 
@@ -222,7 +222,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-10-15）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）优先——[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) ADR-0048 已确认（Dexie 样例在 `src/db/storagePort.ts`，SQLite 仍是 #275）、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) 模型接口 ADR、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) IndexedDB 归层盘点；随后 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架 + [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 模块迁移。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R1/R2 代码已在 main、flag 关，不挡试用关键路径，不进试用版默认路径；智能体顺序见 §2.2.0。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-10-15）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）按 [ADR-0059](../../adr/0059-electron-shell-skeleton.md) 实现 Electron 骨架。表结构仍是 [#275](https://github.com/Abe-Junwei/Jieyu/issues/275)，模块迁移仍是 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)。已落成：[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) [ADR-0048](../../adr/0048-storage-port.md)、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) [ADR-0057](../../adr/0057-model-interface-transcribe.md)、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) 的范围与验收（ADR-0059，尚未写代码）。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R1/R2 代码已在 main、flag 关，不挡试用关键路径，不进试用版默认路径；智能体顺序见 §2.2.0。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -358,7 +358,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 - 声学未做完的是本文 A2、A3。重型对齐、说话人分离和外部声学服务维持不做，条件见 A3。
 - 协作：桌面版剔除（ADR-0047）。[Supabase 落地](./托管实时协同-Supabase完整落地方案-2026-04-17.md) 与 M8–M14 留到桌面版之后，对应本文 C4，本程不排。
 - 工程治理：[代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md)
-- 持久化方向以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)、[ADR-0048](../../adr/0048-storage-port.md)、[ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md) 和 [试用地图](../../wayfinder/trial-handoff/map.md) 为准。
+- 持久化方向以 [ADR 目录的有效条款对照](../../adr/README.md) 为准：文件夹内容是 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)，交换包和每日备份仍是 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)，操作形状是 [ADR-0048](../../adr/0048-storage-port.md)，桌面剥离协作是 [ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md)。排期见 [试用地图](../../wayfinder/trial-handoff/map.md)。
 - 规格目录只留模板。协作出站队列草稿已删除，恢复时的约束见 C4。
 
 ## 4. 适用边界与显式废弃
@@ -380,6 +380,10 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-16 | **文件夹内容布局改记 ADR-0061，D14 不因此冻结**。音频保持原文件，文稿是 `.jyd`，声文稿只是展示。ADR-0046 的交换包、存储接口和每日 JYM 备份仍然有效，整篇不标 superseded。有效条款对照在 ADR 目录。冻结前还要：格式原型、跨录音文稿的迁移对拍、含音频的恢复演练、桌面写路径验证。不得用「没有要保留的真实数据」丢弃本机已导入的录音。 |
+| 2026-10-15 | **ADR-0059 Electron 骨架范围**。三进程、一次业务操作一次 IPC、项目文件夹锁、userData 四块目录、5–8 条三平台冒烟。不写代码。Sentry 仍在 #312。 |
+| 2026-10-15 | **ADR-0058 IndexedDB 归层**。八个库分别进项目文件夹、userData，或桌面版不要。主库按 `dataClass` 归层。覆盖行已按项目归属。 |
+| 2026-10-15 | **ADR-0057 模型接口**。这一程只有转写。结果是候选。`model_runs` 每次运行一行，语段用已有 `provenance.params.modelRunId` 指向它。实现仍等桌面壳。 |
 | 2026-10-15 | **ADR-0048 存储接口**。一次业务操作一次事务、一次 IPC；归属在持有数据库的一侧检查；指纹不接受表名。Dexie 样例在 `src/db/storagePort.ts`。SQLite 实现仍是 #275。用户已确认，#280 可以迁带事务的写入。 |
 | 2026-10-15 | **`input_required` 确认界面**。表单补录走解语自己的确认卡，用户提交后重试 `tools/call`。采样、文件根目录和服务器原文不进模型。SDK 升级不在这批。 |
 | 2026-10-15 | **R3-n6 跳过**。没有 Anthropic / Google 密钥，不添加 provider SDK，不挡 R4。 |
