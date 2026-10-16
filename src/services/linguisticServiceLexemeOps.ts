@@ -6,11 +6,17 @@ import {
   isLexemeResource,
   runDexieIndexedQueryOrElse,
   withTransaction,
+  type JieyuDatabase,
   type LexemeDocType,
   type LexemeEntryDoc,
   type LexemeResourceDoc,
 } from '../db';
-import { lexemeHeadword, lexemeMatchValues } from '../utils/dmlexEntry';
+import {
+  applyLexiconEntryFields,
+  lexemeHeadword,
+  lexemeMatchValues,
+  type LexiconEntryFields,
+} from '../utils/dmlexEntry';
 import { foldSearchText } from '../utils/searchTextNormalization';
 import { pickTranscriptionTextForLanguage } from '../utils/transcriptionFormatters';
 import { newId } from '../utils/transcriptionFormatters';
@@ -111,6 +117,78 @@ export async function saveLexeme(
   const doc = await db.collections.lexemes.insert(stored);
   if (options.announce !== false) dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
   return doc.primary;
+}
+
+function writeLexemeInTransaction(doc: LexemeDocType, database: JieyuDatabase): Promise<string> {
+  return database.dexie.lexemes.get(doc.id).then((existing) => {
+    const projectId = requireCatalogProjectId(doc.textId);
+    if (existing && existing.textId !== projectId) {
+      throw new CatalogOwnershipMismatchError('lexemes', doc.id, existing.textId, projectId);
+    }
+    const stamped: LexemeDocType = { ...doc, textId: projectId };
+    const stored = isLexemeEntry(stamped) ? ensureLexemeNestedIds(stamped) : stamped;
+    return database.dexie.lexemes.put(stored).then(() => stored.id);
+  });
+}
+
+export function mergeLexemeIntoList(
+  list: LexemeEntryDoc[],
+  stored: LexemeEntryDoc,
+): LexemeEntryDoc[] {
+  const idx = list.findIndex((row) => row.id === stored.id);
+  if (idx < 0) return [...list, stored];
+  const next = list.slice();
+  next[idx] = stored;
+  return next;
+}
+
+export async function saveLexiconEntry(input: {
+  existing: LexemeEntryDoc | null;
+  fields: LexiconEntryFields;
+  textId: string;
+}): Promise<LexemeEntryDoc> {
+  if (input.fields.headword.trim().length === 0) throw new Error('empty headword');
+  const textId = input.textId;
+  const db = await getDb();
+  const stored = await withTransaction(
+    db,
+    'rw',
+    [db.dexie.lexemes],
+    () => {
+      const now = new Date().toISOString();
+      return db.dexie.lexemes
+        .get(dmlexResourceIdForProject(textId))
+        .then((row) => (row && isLexemeResource(row) && row.textId === textId ? row : null))
+        .then((resource) => {
+          const applied = applyLexiconEntryFields(
+            input.existing,
+            input.fields,
+            resource,
+            now,
+            textId,
+          );
+          return writeLexemeInTransaction(applied.entry, db)
+            .then(() => writeLexemeInTransaction(applied.resource, db))
+            .then(() => db.dexie.lexemes.where('textId').equals(textId).toArray())
+            .then((rows) => {
+              const readback = entryRows(rows)
+                .sort(compareLexemeEntries)
+                .find((row) => row.id === applied.entry.id);
+              if (!readback || !isLexemeEntry(readback)) {
+                throw new Error(`lexeme readback missing ${applied.entry.id}`);
+              }
+              if (lexemeHeadword(readback) !== input.fields.headword.trim()) {
+                throw new Error(`lexeme headword readback mismatch for ${applied.entry.id}`);
+              }
+              return readback;
+            });
+        });
+    },
+    { label: 'lexicon-entry-save' },
+  );
+  dispatchWorkspaceLexemeUpdated({ lexemeId: stored.id });
+  dispatchWorkspaceLexemeUpdated({ lexemeId: dmlexResourceIdForProject(textId) });
+  return stored;
 }
 
 export async function deleteLexeme(lexemeId: string): Promise<void> {

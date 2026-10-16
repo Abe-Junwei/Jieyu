@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { db } from '../../db';
-import { isLexemeResource } from '../../db/lexemeNestedIds';
+import { db, dmlexResourceIdForProject, isLexemeEntry } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
-import type { LexemeEntryDoc, LexemeResourceDoc } from '../../types/jieyuDbDocTypes';
 import { emptyEntryFields, emptySenseDraft } from '../../utils/dmlexEntry';
 import {
   clearActiveProjectTextId,
@@ -12,59 +10,6 @@ import {
 } from '../../utils/transcriptionUrlDeepLink';
 import * as workspaceEvents from '../../utils/workspaceEvents';
 import { saveLexiconEntry } from './saveLexiconEntry';
-
-const now = '2026-09-27T00:00:00.000Z';
-
-describe('saveLexiconEntry', () => {
-  it('writes the entry and resource, then returns the list readback', async () => {
-    const rows = new Map<string, LexemeEntryDoc | LexemeResourceDoc>();
-    const stored = await saveLexiconEntry(
-      {
-        existing: null,
-        textId: 'text-1',
-        fields: {
-          ...emptyEntryFields(),
-          headword: 'pine',
-          senses: [{ ...emptyEntryFields().senses[0]!, translation: 'a conifer' }],
-        },
-      },
-      {
-        save: async (doc) => {
-          rows.set(doc.id, doc as LexemeEntryDoc);
-          return doc.id;
-        },
-        list: async () =>
-          [...rows.values()].filter((row): row is LexemeEntryDoc => row.kind !== 'resource'),
-        loadResource: async () => null,
-        saveResource: async (doc) => {
-          rows.set(doc.id, doc);
-          return doc.id;
-        },
-      },
-    );
-    expect(stored.entry.headword).toBe('pine');
-    expect(stored.entry.senses?.[0]?.headwordTranslations?.[0]?.text).toBe('a conifer');
-    expect(stored.createdAt.length).toBeGreaterThan(0);
-    expect(rows.size).toBe(2);
-    expect(stored.textId).toBe('text-1');
-    void now;
-  });
-
-  it('rejects an empty headword before writing', async () => {
-    const save = async () => 'x';
-    await expect(
-      saveLexiconEntry(
-        { existing: null, textId: 'text-1', fields: emptyEntryFields() },
-        {
-          save,
-          list: async () => [],
-          loadResource: async () => null,
-          saveResource: save,
-        },
-      ),
-    ).rejects.toThrow(/empty headword/);
-  });
-});
 
 const textId = 'text-1';
 
@@ -79,7 +24,7 @@ function fieldsWithSense(headword: string, parentId: string, childId: string) {
   };
 }
 
-describe('saveLexiconEntry commit', () => {
+describe('saveLexiconEntry', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
     publishActiveProjectTextId(textId);
@@ -88,6 +33,43 @@ describe('saveLexiconEntry commit', () => {
 
   afterEach(() => {
     clearActiveProjectTextId();
+  });
+
+  it('rejects an empty headword before writing', async () => {
+    await expect(
+      saveLexiconEntry({ existing: null, textId, fields: emptyEntryFields() }),
+    ).rejects.toThrow(/empty headword/);
+    expect(await db.lexemes.count()).toBe(0);
+  });
+
+  it('writes the entry and resource, then a later read matches the returned row', async () => {
+    const announced = vi.spyOn(workspaceEvents, 'dispatchWorkspaceLexemeUpdated');
+    const stored = await saveLexiconEntry({
+      existing: null,
+      textId,
+      fields: {
+        ...emptyEntryFields(),
+        headword: 'pine',
+        senses: [{ ...emptyEntryFields().senses[0]!, translation: 'a conifer' }],
+      },
+    });
+    const updated = await saveLexiconEntry({
+      existing: stored,
+      textId,
+      fields: { ...emptyEntryFields(), headword: 'oak' },
+    });
+
+    expect(stored.entry.headword).toBe('pine');
+    expect(stored.entry.senses?.[0]?.headwordTranslations?.[0]?.text).toBe('a conifer');
+    expect(stored.textId).toBe(textId);
+    expect(updated.id).toBe(stored.id);
+    expect(updated.entry.headword).toBe('oak');
+    const again = await db.lexemes.get(stored.id);
+    if (again === undefined || !isLexemeEntry(again)) throw new Error('entry missing');
+    expect(again.entry.headword).toBe('oak');
+    const resource = await LinguisticService.lexemes.getResource(textId);
+    expect(resource?.id).toBe(dmlexResourceIdForProject(textId));
+    expect(announced).toHaveBeenCalled();
   });
 
   it('keeps both subsense relations when two saves commit', async () => {
@@ -111,55 +93,30 @@ describe('saveLexiconEntry commit', () => {
     expect(pairs).toEqual(['sense-oak>sense-oak-child', 'sense-pine>sense-pine-child']);
   });
 
-  it('rolls back the entry when the resource write fails and does not announce', async () => {
-    const stored = await saveLexiconEntry({
-      existing: null,
-      textId,
-      fields: { ...emptyEntryFields(), headword: 'pine' },
+  it('rolls back the new entry when the resource id belongs to another project and does not announce', async () => {
+    const resourceId = dmlexResourceIdForProject(textId);
+    const now = '2026-09-27T00:00:00.000Z';
+    await db.lexemes.put({
+      id: resourceId,
+      kind: 'resource',
+      textId: 'text-other',
+      resource: { langCode: 'und', translationLanguages: ['zh'] },
+      createdAt: now,
+      updatedAt: now,
     });
-    const before = await db.lexemes.toArray();
     const announced = vi.spyOn(workspaceEvents, 'dispatchWorkspaceLexemeUpdated');
-    const realSave = LinguisticService.lexemes.save;
-    vi.spyOn(LinguisticService.lexemes, 'save').mockImplementation(async (doc, options) => {
-      if (isLexemeResource(doc)) throw new Error('resource failed');
-      return realSave(doc, options);
-    });
-
-    await expect(
-      saveLexiconEntry({
-        existing: stored,
-        textId,
-        fields: { ...emptyEntryFields(), headword: 'oak' },
-      }),
-    ).rejects.toThrow(/resource failed/);
-
-    expect(announced).not.toHaveBeenCalled();
-    expect(await db.lexemes.toArray()).toEqual(before);
-  });
-
-  it('rolls back both writes when readback disagrees and does not announce', async () => {
-    await saveLexiconEntry({
-      existing: null,
-      textId,
-      fields: { ...emptyEntryFields(), headword: 'pine' },
-    });
-    const before = await db.lexemes.toArray();
-    const announced = vi.spyOn(workspaceEvents, 'dispatchWorkspaceLexemeUpdated');
-    const realList = LinguisticService.lexemes.list;
-    vi.spyOn(LinguisticService.lexemes, 'list').mockImplementation(async (projectId) => {
-      const rows = await realList(projectId);
-      return rows.map((row) => ({ ...row, entry: { ...row.entry, headword: 'tampered' } }));
-    });
 
     await expect(
       saveLexiconEntry({
         existing: null,
         textId,
-        fields: { ...emptyEntryFields(), headword: 'oak' },
+        fields: { ...emptyEntryFields(), headword: 'pine' },
       }),
-    ).rejects.toThrow(/headword readback mismatch/);
+    ).rejects.toThrow(/belongs to project/);
 
     expect(announced).not.toHaveBeenCalled();
-    expect(await db.lexemes.toArray()).toEqual(before);
+    const rows = await db.lexemes.toArray();
+    expect(rows.filter(isLexemeEntry)).toEqual([]);
+    expect(rows.find((row) => row.id === resourceId)?.textId).toBe('text-other');
   });
 });
