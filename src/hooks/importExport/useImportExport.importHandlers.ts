@@ -122,6 +122,9 @@ type UseImportExportImportHandlersInput = {
   normalizeSpeakerLookupKey: (value: string | undefined) => string;
 };
 
+/** 这次标注导入有没有提交。视图没刷新仍算已提交。 */
+export type AnnotationImportCommit = { committed: boolean };
+
 export function createImportExportImportHandlers(input: UseImportExportImportHandlersInput) {
   const {
     activeTextId,
@@ -158,7 +161,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     file: File,
     importWriteStrategy: AnnotationImportBridgeStrategy = DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
     importOptions?: ImportExportImportHandlerOptions,
-  ) => {
+  ): Promise<AnnotationImportCommit> => {
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
     if (isJieyuArchive) {
@@ -168,10 +171,11 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         kind: 'error',
         message: t(locale, 'transcription.importExport.archiveUseProjectImport'),
       });
-      return;
+      return { committed: false };
     }
     let text = '';
     let resolvedTextId: string | null = activeTextId;
+    let committed = false;
 
     try {
       const xmlExts = ['.eaf', '.trs', '.flextext'];
@@ -192,7 +196,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           kind: 'error',
           message: t(locale, 'transcription.importExport.unsupportedFormat'),
         });
-        return;
+        return { committed: false };
       }
       const {
         units: parsedUnits,
@@ -263,7 +267,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       resolvedTextId = textId;
       if (!textId) {
         setSaveState({ kind: 'error', message: t(locale, 'transcription.importExport.noProject') });
-        return;
+        return { committed: false };
       }
       const importTextId = textId;
       const openMediaId =
@@ -1147,6 +1151,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         },
         { label: 'annotationImport.commit' },
       );
+      committed = true;
 
       fireAndForget(
         validateLayerTierConsistency(textId).then((issues) => {
@@ -1211,10 +1216,10 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         }
       }
       try {
-        if (snapshotLoadWasSuperseded(await loadSnapshot(importTextId))) return;
+        if (snapshotLoadWasSuperseded(await loadSnapshot(importTextId))) return { committed: true };
       } catch {
         noteImportViewStale(importTextId);
-        return;
+        return { committed: true };
       }
       const hostRecoveryWarningCount = eafResult
         ? [...eafResult.tierConstraints.values()].filter(
@@ -1249,6 +1254,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           ? `${doneMessage} ${t(locale, 'transcription.importExport.importDone.followUpIncomplete')}`
           : doneMessage,
       });
+      return { committed: true };
     } catch (err) {
       if (err instanceof ImportMismatchRequiresAckError || isEafTierRolesRequiredError(err)) {
         throw err;
@@ -1259,14 +1265,14 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           kind: 'error',
           message: t(locale, 'transcription.importExport.fileTooLarge'),
         });
-        return;
+        return { committed: false };
       }
       if (rawMessage === 'TOOLBOX_FORMAT_UNRECOGNIZED') {
         setSaveState({
           kind: 'error',
           message: t(locale, 'transcription.importExport.toolboxFormatUnrecognized'),
         });
-        return;
+        return { committed: false };
       }
       log.error('Import file failed', {
         fileName: file.name,
@@ -1287,6 +1293,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           message: rawMessage,
         }),
       });
+      return { committed };
     }
   };
 
