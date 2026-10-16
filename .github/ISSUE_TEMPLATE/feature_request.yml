@@ -40,6 +40,7 @@ body:
         - 语料库 / corpus
         - 导出 / export
         - 协作 / collaboration
+        - AI / 智能体
         - 其他 / other
     validations:
       required: true

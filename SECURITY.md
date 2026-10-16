@@ -23,7 +23,7 @@
 
 - **IndexedDB / 本地语料**：跨源读到别的项目的行，或一次写入把别的项目的数据改掉。
 - **本地密钥**：AI API key 从浏览器 KeyVault、页面日志、网络请求或崩溃上报里泄露。浏览器构建把密钥放在 `localStorage` 的 AES-GCM 封装里（`src/ai/config/keyVault.ts`，ADR-0031）。
-- **CSP**：绕过严格 `script-src`，或把数据发到 `connect-src` 名单之外。注入面包括转写文本、AI 输出、PDF 和导入文件（ADR-0021、ADR-0031）。
+- **CSP**：绕过严格 `script-src`，或把数据发到 `connect-src` 名单之外。注入面包括转写文本、AI 输出、PDF 和导入文件（PDF/RAG 见 [ai-agent-runtime-security-local-first.md](docs/architecture/ai-agent-runtime-security-local-first.md)；connect-src/KeyVault 见 ADR-0031）。
 - **协作快照**：快照超出当前项目、恢复时整库覆盖，或把 AI 密钥、AI/MCP 表、审计表带进快照（ADR-0034）。
 - **导入导出**：用项目快照或整库 JSON 备份，把一个项目的词库写进另一个项目。
 
