@@ -1565,6 +1565,8 @@ export const enUSDictionary = {
   'transcription.action.projectDeleteFailed': 'Failed to delete project: {message}',
   'transcription.action.projectCreated': 'Project "{title}" created. Import media next.',
   'transcription.action.audioImported': 'Media "{filename}" imported successfully.',
+  'transcription.action.audioImportedDurationFailed':
+    'Media "{filename}" was imported, but the logical timeline adjustment did not finish. Check the timeline; do not import it again.',
   'transcription.action.audioImportSelectPlaceholder':
     'This project has several placeholder timelines. Select the one to attach the audio to on the timeline, then import again.',
   'transcription.action.relinkContentMismatchConfirm':
@@ -3624,6 +3626,8 @@ export const enUSDictionary = {
   'msg.appData.storageBackupFolder': 'Back up now (whole library with audio, keeps the newest 3)',
   'msg.appData.storageBackupDone':
     'Last success: {at}, {file} ({size} MiB), removed {count} older backup(s)',
+  'msg.appData.storageBackupRetentionWarning':
+    'The new backup was saved, but older backups could not be cleaned up: {message}',
   'msg.appData.storageBackupFailed':
     'Last failure: {at}, {message} (existing backups were not touched)',
   'msg.appData.storageBackupScheduledFailed':

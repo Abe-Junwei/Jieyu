@@ -1464,6 +1464,8 @@ export const zhCNDictionary = {
   'transcription.action.projectDeleteFailed': '删除项目失败：{message}',
   'transcription.action.projectCreated': '项目「{title}」创建成功，请导入媒体。',
   'transcription.action.audioImported': '媒体「{filename}」导入成功。',
+  'transcription.action.audioImportedDurationFailed':
+    '媒体「{filename}」已导入，但逻辑时间轴调整未完成。请检查时间轴，勿重复导入。',
   'transcription.action.audioImportSelectPlaceholder':
     '项目里有多条占位时间轴，请先在时间轴上选中要挂接音频的那一条，再导入。',
   'transcription.action.relinkContentMismatchConfirm':
@@ -3317,6 +3319,7 @@ export const zhCNDictionary = {
     '按 WebKit 2020 年的 ITP 说明，在 Safari 中使用满 7 天、期间没有与本站交互的，可能删除 IndexedDB 等脚本可写存储；添加到主屏幕的 Web App 单独计数。当前版本未实测。',
   'msg.appData.storageBackupFolder': '立即备份（整库含音频，保留最近 3 份）',
   'msg.appData.storageBackupDone': '上次成功：{at}，{file}（{size} MiB），删除旧备份 {count} 份',
+  'msg.appData.storageBackupRetentionWarning': '新备份已保存，但旧备份清理未完成：{message}',
   'msg.appData.storageBackupFailed': '上次失败：{at}，{message}（已有备份未改动）',
   'msg.appData.storageBackupScheduledFailed':
     '自动备份到文件夹没有成功，原因见“设置 → 数据”。已有备份未改动。',
