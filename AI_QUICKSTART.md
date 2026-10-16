@@ -3,7 +3,7 @@ title: AI_QUICKSTART — 解语跨工具 AI 上手指引
 doc_type: agent-quickstart
 status: active
 owner: repo
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-16
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -30,7 +30,7 @@ ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对
 | 看当前阶段或排期 | [试用地图](docs/wayfinder/trial-handoff/map.md) | [主路线图](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md) |
 | 发布前检查 | 本文 §4 | 桌面试用发布以 [GitHub #282](https://github.com/Abe-Junwei/Jieyu/issues/282) 为准 |
 | Agent 运行时架构 / 写 gate / Runner / workflow | [主路线图 §2.2.0 统一路线](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md) · [ADR-0056](docs/adr/0056-single-agent-runtime-toolloopagent.md) | 动手前先对 §2.2.0 的三问。运行时只有 Vercel AI SDK 的 ToolLoopAgent（`src/ai/runtime/`，A15 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)，flag 关）；`agentLoopRunner` / `agentLoop` 冻结，architecture guard 锁行数。B16a [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)、B16b [#317](https://github.com/Abe-Junwei/Jieyu/issues/317)、B17 [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) 的工具要排进 R3 批次才算端到端。[ai-agent-runtime-security-local-first.md](docs/architecture/ai-agent-runtime-security-local-first.md) · `src/ai/runtime/commitToolEffects.ts` |
-| 改 db schema / persistence | [ADR-0046](docs/adr/0046-desktop-sqlite-project-folder.md)；写→reload→readback 见 [AGENTS.md](AGENTS.md) §4 | 定向 `vitest` |
+| 改 db schema / persistence | [ADR 当前有效条款](docs/adr/README.md#桌面存储当前有效条款)；写→reload→readback 见 [AGENTS.md](AGENTS.md) §4 | [ADR-0048](docs/adr/0048-storage-port.md) · 定向 `vitest` |
 | 改本地上下文工具 | `src/ai/chat/localContextTools.ts` | 定向 `vitest` |
 | 改 CSS / 面板视觉层级 | [copilot-instructions.md](copilot-instructions.md) §九 双层边框规则 | [CSS架构与模板复用规范.md](docs/architecture/CSS架构与模板复用规范.md) · [CSS浏览器兼容矩阵.md](docs/architecture/CSS浏览器兼容矩阵.md) |
 | 新用或敏感的浏览器 API | [桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md) | `npm run test:e2e:chromium` |
