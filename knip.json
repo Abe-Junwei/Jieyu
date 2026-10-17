@@ -27,9 +27,13 @@
     "src/assets/lottie/left-rail/leftRailLottieMap.ts",
     "src/pages/annotation/annotationLaneReadScope.ts",
     "src/services/VoiceAgentService.singleton.ts",
-    "src/workerThreads.browser.ts"
+    "src/workerThreads.browser.ts",
+    "src/desktop/**"
   ],
-  "ignoreDependencies": [],
+  "ignoreDependencies": [
+    "@electron/rebuild",
+    "electron-builder"
+  ],
   "ignoreIssues": {
     "src/ai/chat/toolCallSchemas.ts": ["exports"],
     "src/ai/chat/toolCallValidation.ts": ["exports"],
