@@ -1461,7 +1461,7 @@ describe('useAiChat abort and recovery', () => {
     expect(decisionLog?.source).toBe('human');
   });
 
-  it('should write confirm_failed exception audit log when tool execution throws', async () => {
+  it('should mark an unverified write when a confirmed tool execution throws', async () => {
     const onToolCall = vi.fn().mockRejectedValue(new Error('boom'));
     const { result } = renderHook(() => useAiChat({ onToolCall }));
 
@@ -1486,7 +1486,7 @@ describe('useAiChat abort and recovery', () => {
 
     const auditRows = await db.audit_logs.toArray();
     const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
-    expect(decisionLog?.newValue).toBe('confirm_failed:delete_layer:exception');
+    expect(decisionLog?.newValue).toBe('confirm_failed:delete_layer:commit_unverified');
     expect(decisionLog?.source).toBe('human');
   });
 
@@ -1719,7 +1719,7 @@ describe('useAiChat abort and recovery', () => {
     expect(assistant?.content).not.toContain('set_transcription_text');
   });
 
-  it('should write auto_failed audit log when auto-executed tool throws', async () => {
+  it('should mark an unverified write when an auto-executed tool throws', async () => {
     const onToolCall = vi.fn().mockRejectedValue(new Error('network'));
     const { result } = renderHook(() =>
       useAiChat({
@@ -1742,11 +1742,11 @@ describe('useAiChat abort and recovery', () => {
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('error');
-    expect(result.current.lastError).toBe('network');
+    expect(result.current.lastError).toContain('写入结果未能核实');
 
     const auditRows = await db.audit_logs.toArray();
     const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
-    expect(decisionLog?.newValue).toBe('auto_failed:set_transcription_text:exception');
+    expect(decisionLog?.newValue).toBe('auto_failed:set_transcription_text:commit_unverified');
   });
 
   it('should ignore tool call when user message has no action intent', async () => {
