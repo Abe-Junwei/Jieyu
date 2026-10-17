@@ -224,6 +224,16 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 > **当前下一刀（2026-10-15）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）按 [ADR-0059](../../adr/0059-electron-shell-skeleton.md) 实现 Electron 骨架。表结构仍是 [#275](https://github.com/Abe-Junwei/Jieyu/issues/275)，模块迁移仍是 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)。已落成：[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) [ADR-0048](../../adr/0048-storage-port.md)、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) [ADR-0057](../../adr/0057-model-interface-transcribe.md)、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) 的范围与验收（ADR-0059，尚未写代码）。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R1/R2 代码已在 main、flag 关，不挡试用关键路径，不进试用版默认路径；智能体顺序见 §2.2.0。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
+> **桌面存储收尾顺序（2026-10-16）**：单子在 [#250 地图](../../wayfinder/trial-handoff/map.md)，验收写在各单里，本文只排先后。
+>
+> 1. 现在就能做，不等桌面壳：[#327](https://github.com/Abe-Junwei/Jieyu/issues/327) 浏览器保存路径接上「一份文稿一条录音、不存跨文稿关系」；[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 继续逐批迁到存储接口；[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 先定还没写的列形状（会话记忆载荷、DMLex 正文、语言数组与多语备注、结构规则与转换规则正文、定义副本范围，`model_runs` 照 ADR-0057）。
+> 2. [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架（ADR-0059，即上面的当前下一刀）。
+> 3. [#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 存储接口的 SQLite 实现，按 ADR-0061 读写项目库和 `.jyd`。better-sqlite3 在这一步进 `package.json`。
+> 4. [#325](https://github.com/Abe-Junwei/Jieyu/issues/325) 桌面文件操作：送系统垃圾箱、认回、弹窗与订阅走单独通道。
+> 5. [#258](https://github.com/Abe-Junwei/Jieyu/issues/258) 含音频备份的恢复播放演练；通过前每日 JYM 不动。[#281](https://github.com/Abe-Junwei/Jieyu/issues/281) 加法迁移演练。
+> 6. [#259](https://github.com/Abe-Junwei/Jieyu/issues/259) D14 冻结：上面都过，且 #280 基线到 0。
+> 7. [#326](https://github.com/Abe-Junwei/Jieyu/issues/326) 旧浏览器库经 JYB 迁入，在第 4 步之后，可与第 5、6 步并行；挡首个试用版（用户 2026-10-17，归 #282「不丢数据」）。
+
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **A1** | ReadyWorkspace 合同化（剩余域） | ⬜ | — | M | 先侧栏，再波形，再 layout，把 `any`/`as any` 收成窄 type guard；类型收窄后再拆 hook。真实落位：`src/pages/useReadyWorkspaceSurfaceProps.tsx`、`readyWorkspaceSurfacePropsAssemblyPhase.tsx`、`readyWorkspaceSurfacePropsOrchestratorInputSlice.ts`、`readyWorkspaceSurfaceSliceContracts.ts`、`useReadyWorkspaceSurfaceOrchestratorBundle.ts`；边界见 [ReadyWorkspace 数据域](../../architecture/ReadyWorkspace-数据域与壳层装配边界.md)，收敛进度随 [代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md) ARCH-7 | `audit:ready-workspace-timeline-host` 绿 + 定向 vitest + e2e:chromium | 否（结构） |
@@ -380,6 +390,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-16 | **桌面存储收尾排成七步**（§3 Stage A 文首）。新开 #327（浏览器保存路径一文稿一录音）、#325（桌面文件操作）、#326（旧库经 JYB 迁入）。列形状并进 #275，恢复播放演练并进 #258，D14（#259）补挂 #258、#325。2026-10-17 用户定 #326 挡首个试用版。 |
 | 2026-10-16 | **文件夹内容布局改记 ADR-0061，D14 不因此冻结**。音频保持原文件，文稿是 `.jyd`，声文稿只是展示。ADR-0046 的交换包、存储接口和每日 JYM 备份仍然有效，整篇不标 superseded。有效条款对照在 ADR 目录。冻结前还要：格式原型、跨录音文稿的迁移对拍、含音频的恢复演练、桌面写路径验证。不得用「没有要保留的真实数据」丢弃本机已导入的录音。 |
 | 2026-10-15 | **ADR-0059 Electron 骨架范围**。三进程、一次业务操作一次 IPC、项目文件夹锁、userData 四块目录、5–8 条三平台冒烟。不写代码。Sentry 仍在 #312。 |
 | 2026-10-15 | **ADR-0058 IndexedDB 归层**。八个库分别进项目文件夹、userData，或桌面版不要。主库按 `dataClass` 归层。覆盖行已按项目归属。 |

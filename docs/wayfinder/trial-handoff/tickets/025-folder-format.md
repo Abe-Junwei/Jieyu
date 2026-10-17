@@ -16,6 +16,17 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 
 原先已定（[ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md)，取代早先「解包 JYM、多个 JSON」）：项目文件夹 = `project.sqlite` + `media/`，磁盘不加密；JYM/JYT 仍是 JSON 交换包，导出导入时互转。还要定：表结构（按 [#279](https://github.com/Abe-Junwei/Jieyu/issues/279) 归入项目层的数据，含 `documents[]`、改为项目所有的 ADR-0044 覆盖行）、版本号与升级规则、媒体文件的命名、与 JYM manifest 的一一对应。
 
+2026-10-16 还要定的列形状（合成迁移已写完标量行，见 [card-sqlite-file 规格](../../../execution/specs/card-sqlite-file/tasks.md) 最后一项）：
+
+- 会话记忆载荷（`AiSessionMemoryPayload` 在数据层是不透明对象）。
+- 词条 DMLex 正文（义项、关系、形式）。
+- 语言记录上的数组、行政区划、多语备注和自定义字段值。
+- 结构规则正文、正字法转换规则与样例、车道锁定表。
+- 词条、标签、自定义字段、缩写要不要进 `.jyd` 的定义副本。
+- `model_runs` 按 [ADR-0057](../../../adr/0057-model-interface-transcribe.md) 第 8 条建表，不另行设计。
+
+定一块写一块，每块写完关掉重开读回。之后才是存储端口的 SQLite 实现。
+
 已定，表结构需支持：
 - 音频 WAV/MP3/M4A/FLAC 原样复制进 media/。
 - 视频：抽出音轨，音轨与原视频都存进 media/；播放与波形用音轨。
