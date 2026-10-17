@@ -3,7 +3,7 @@ title: AI_QUICKSTART — 解语跨工具 AI 上手指引
 doc_type: agent-quickstart
 status: active
 owner: repo
-last_reviewed: 2026-10-16
+last_reviewed: 2026-10-17
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -16,6 +16,8 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 1. [copilot-instructions.md](copilot-instructions.md) — **项目级工程约束 canonical 中文正文**（编排层与 controller 边界、复杂度阈值、面板 CSS 双层边框、五阶段工作流，含 Research）。**非 trivial 任务必读**。
 2. [docs/architecture/code-governance-plan-2026-05-06.md](docs/architecture/code-governance-plan-2026-05-06.md) — **代码治理**（落位例外与门禁）。热点以当次 `npm run check:architecture-guard` 为准。
 3. [docs/architecture/仓库现状与代码地图.md](docs/architecture/仓库现状与代码地图.md) — **一页产品形状**（本检出是浏览器 / Dexie；Electron 与桌面存储是已接受目标）。不在这里查 flag、schema 版本或行数。
+
+> **2026-10-17 起新功能冻结**（[ADR-0064](docs/adr/0064-storage-freeze-until-desktop-opens-real-projects.md)）：到 #275 与 #325 落地为止，只做 #276、#275、#280、#325、#329（#276 后加 #328），另外只修 bug 和防丢数据的问题。开新功能前先看[主路线图](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md) §3 Stage A 开头。
 
 ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对应行。
 
