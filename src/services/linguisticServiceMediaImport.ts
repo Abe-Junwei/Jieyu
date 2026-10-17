@@ -77,25 +77,25 @@ async function bindUnboundUnitsWhenSoleRecording(
   mediaId: string,
   now: string,
 ): Promise<void> {
-  const rows = await db.dexie.media_items.where('textId').equals(textId).toArray();
-  const acoustic = rows.filter(
-    (row) => !isMediaItemPlaceholderRow(row) && !isAuxiliaryRecordingMediaRow(row),
-  );
-  const target = acoustic.find((row) => row.id === mediaId);
-  if (!target) return;
-  const name = mediaBasename(target.filename);
-  if (acoustic.some((row) => mediaBasename(row.filename) !== name)) return;
-  const units = await db.dexie.layer_units.where('textId').equals(textId).toArray();
-  const unbound = units.filter((unit) => {
-    const id = unit.mediaId?.trim() ?? '';
-    return id.length === 0 || id === UNBOUND_MEDIA_ID;
-  });
-  if (unbound.length === 0) return;
   await withTransaction(
     db,
     'rw',
-    [db.dexie.layer_units],
+    [db.dexie.media_items, db.dexie.layer_units],
     async () => {
+      const rows = await db.dexie.media_items.where('textId').equals(textId).toArray();
+      const acoustic = rows.filter(
+        (row) => !isMediaItemPlaceholderRow(row) && !isAuxiliaryRecordingMediaRow(row),
+      );
+      const target = acoustic.find((row) => row.id === mediaId);
+      if (!target) return;
+      const name = mediaBasename(target.filename);
+      if (acoustic.some((row) => mediaBasename(row.filename) !== name)) return;
+      const units = await db.dexie.layer_units.where('textId').equals(textId).toArray();
+      const unbound = units.filter((unit) => {
+        const id = unit.mediaId?.trim() ?? '';
+        return id.length === 0 || id === UNBOUND_MEDIA_ID;
+      });
+      if (unbound.length === 0) return;
       await bulkUpsertLayerUnits(
         db,
         unbound.map((unit) => ({ ...unit, mediaId, updatedAt: now })),

@@ -13,6 +13,9 @@ const ALLOWED_IMPORT_FILES = new Set([
   'src/services/TierBridgeService.ts',
   'src/services/LinguisticService.constraints.ts',
   'src/services/LinguisticService.ts',
+  // shortcut: JY-18 still patches tier metadata in one transaction; remove these when #280 moves it behind the storage port.
+  'src/services/LayerMetadataUpdateService.ts',
+  'src/pages/useTranscriptionLayerMetadataController.ts',
 ]);
 
 const ALLOWED_IMPORT_PREFIXES = [

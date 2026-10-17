@@ -83,7 +83,7 @@ test.describe('Batch 4b raw snapshot | 第 4b 批原始快照', () => {
     expect(Object.keys(files).some((name) => name.startsWith('blobs/'))).toBe(true);
 
     const textsBefore = await readTexts(page);
-    await page.locator('input.left-rail-project-hub-raw-snapshot-input').setInputFiles({
+    await page.getByTestId('raw-snapshot-input').setInputFiles({
       name: 'raw.zip',
       mimeType: 'application/zip',
       buffer: raw,

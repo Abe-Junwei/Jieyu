@@ -16,3 +16,25 @@ export function formatStructuredAnswerEmpty(locale?: Locale | string): string {
 export function formatCorpusAnalysisUnlabeled(locale?: Locale | string): string {
   return locale === 'en-US' ? 'not yet glossed' : '尚未标注';
 }
+
+export function formatConcordanceSummary(count: number, zh: boolean): string {
+  return zh
+    ? `共现命中 ${count} 条，每条带句子 id。`
+    : `Concordance returned ${count} hits, each with a unit id.`;
+}
+
+export function formatParadigmSummary(tokenCount: number, zh: boolean): string {
+  return zh
+    ? `该词类共 ${tokenCount} 个词，已统计相邻 gloss。`
+    : `Counted adjacent glosses across ${tokenCount} tokens of that part of speech.`;
+}
+
+export function formatCounterexampleSummary(
+  matchCount: number,
+  counterexampleCount: number,
+  zh: boolean,
+): string {
+  return zh
+    ? `符合 ${matchCount} 句，反例 ${counterexampleCount} 句。`
+    : `${matchCount} units match; ${counterexampleCount} are counterexamples.`;
+}

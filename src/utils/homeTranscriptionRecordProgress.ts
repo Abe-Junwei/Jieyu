@@ -11,6 +11,7 @@ import {
   resolveDefaultTranscriptionLayerId,
   resolveDefaultTranscriptionLayerIdsPerDocument,
 } from '../services/LayerSegmentGraphService';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
 import { listAnnotationDocuments } from '../services/annotationDocumentService';
 import {
@@ -183,7 +184,7 @@ async function loadRecordRow(
   const filename = displayName.length > 0 ? displayName : storageFilename;
   const db = await getDb();
   const [unitCount, anchorCount] = await Promise.all([
-    db.dexie.layer_units.where('mediaId').equals(mediaId).count(),
+    LayerSegmentQueryService.countUnitsByMediaId(mediaId),
     db.dexie.anchors.where('mediaId').equals(mediaId).count(),
   ]);
   const byteState = {

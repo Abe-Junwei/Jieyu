@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-14T05:00:25.963Z",
-  "aggregate": "a1840a4e634e379226b40a85442a45f71cdc490f44ba61439ff8c68e97da02f1",
+  "generatedAt": "2026-10-17T11:20:52.429Z",
+  "aggregate": "009e8c1b6984bf2a8068d4d7ca6b8d29385d080336baaacf4a072d476b5117d4",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -8,11 +8,11 @@
     "src/styles/collaboration-sync-surface.css": "9e4d83609616dbd916eecf39d5b7763d4873e901342c3e963649ffe9c0a24e2b",
     "src/styles/components/catalog-project-gate.css": "bec682d83c93de8c25fd57379e456890f25b4be1a0ac4c14dfd5df79947b6720",
     "src/styles/components/orthography-builder.css": "e5aa44f3a062f10ab33030850a4ba60d1efc60faa68f8c628ba1a2e09d919a87",
-    "src/styles/components/project-file-list.css": "bb0cb200cde4ce757d63bf136ba3b6f1080fe0c2bf34a69f9b6e4c3506b3acc0",
+    "src/styles/components/project-file-list.css": "c19cb30ff5a012f4d558e831b01c49dc013e1c47291b8b4ccc4e7a3bf06c9c1e",
     "src/styles/foundation/context-menu.css": "ec7bbbfec858ab2fdec8291c696f2986ac89ddeb26a67e13991711b0df9ed137",
     "src/styles/foundation/control-primitives.css": "7ce5c989b93a670f470f1b8fb93dfbb51d6a0b2cf3cc1b5603774d9b6c25e819",
     "src/styles/foundation/dialog-shell.css": "d293a9b6e8ab0faa48716ea2bde022b03ed6f70ff75c504868c329423506f046",
-    "src/styles/foundation/global-toast.css": "4b7055d7a24cee63fbe41313aa12e336d9934e0c9ef134fddbe288c7b8f09806",
+    "src/styles/foundation/global-toast.css": "c6cdfba44209e52da0c6ae10a3e8a7aef49f5bf9c6165c6b3e1f593d189cde65",
     "src/styles/foundation/icon-effect-motion.css": "a0a98780e62e6264e164993635eee1dc3494907226293f69e1c96f6596047575",
     "src/styles/foundation/language-asset-section-contract.css": "d05e55313d1f495411fcfdfcb63a6291f138774bb965d6460719f91ed9a81c08",
     "src/styles/foundation/material-jieyu.css": "07eb4b3015ecb3279a4ff0767fb15dfcfdfd45058bcbe2cf2b0085318cf3f053",

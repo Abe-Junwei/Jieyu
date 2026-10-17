@@ -4,6 +4,8 @@
  * 不调用系统垃圾箱，也不写数据库。
  */
 
+export const HIDDEN_DIRECTORY = '已隐藏';
+
 export type Presence = 'present' | 'trashed' | 'missing' | 'bytes-elsewhere';
 
 export interface TrackedFile {
@@ -39,7 +41,7 @@ function stemOf(relPath: string): string {
 }
 
 function isHidden(relPath: string): boolean {
-  return relPath.split(/[/\\]/).includes('已隐藏');
+  return relPath.split(/[/\\]/).includes(HIDDEN_DIRECTORY);
 }
 
 function findOp(project: FileProject, opId: string): FileOp | undefined {
@@ -275,7 +277,7 @@ export function hideFile(
   const file = project.files.find((item) => item.relPath === input.relPath);
   if (!file) return { project, status: 'needs-choice', relPath: null };
   const base = input.relPath.split(/[/\\]/).pop() ?? input.relPath;
-  const hiddenPath = `已隐藏/${base}`;
+  const hiddenPath = `${HIDDEN_DIRECTORY}/${base}`;
   const files = project.files.map((item) =>
     item.relPath === input.relPath ? { ...item, relPath: hiddenPath } : item,
   );

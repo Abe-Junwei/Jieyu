@@ -32,6 +32,7 @@ import { newCatalogUuid } from './projectCatalogScope';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { createLogger } from '../observability/logger';
 import { rememberMultiDocumentGate } from './annotationDocumentCollaborationGate';
+import { deleteTierAnnotationsForLayers } from './TierBridgeService';
 
 const log = createLogger('annotationDocumentService');
 
@@ -728,7 +729,7 @@ async function deleteDocumentRows(
           ownershipScope,
         });
         if (layerIds.length > 0) {
-          await db.dexie.tier_annotations.where('tierId').anyOf(layerIds).delete();
+          await deleteTierAnnotationsForLayers(db, layerIds);
           await db.dexie.layer_links.where('layerId').anyOf(layerIds).delete();
           await db.dexie.layer_links.where('hostTranscriptionLayerId').anyOf(layerIds).delete();
           await db.dexie.tier_definitions.bulkDelete(layerIds);

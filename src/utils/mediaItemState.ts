@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType } from '../db/types';
 
 /**
  * 媒体行状态字段（rev5 §4.1，切片 2B-C）| Media row state fields (rev5 §4.1, slice 2B-C)

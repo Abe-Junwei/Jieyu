@@ -3,6 +3,8 @@
  * 同一 id 出现两次时停下，不自己选。隐藏只记在卡片上，不改变配对。
  */
 
+import { HIDDEN_DIRECTORY } from './fileOps';
+
 export interface StoredManuscript {
   id: string;
   relPath: string;
@@ -32,7 +34,7 @@ export interface DeriveCardsResult {
 }
 
 function isHidden(relPath: string): boolean {
-  return relPath.split(/[/\\]/).includes('已隐藏');
+  return relPath.split(/[/\\]/).includes(HIDDEN_DIRECTORY);
 }
 
 function groupById<T extends { id: string }>(rows: readonly T[]): Map<string, T[]> {

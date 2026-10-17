@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType } from '../db/types';
 
 /**
  * 翻译/转写条录音入库时的文件名后缀（与 `blob.type`、`MediaRecorder.mimeType` 对齐）。

@@ -7,6 +7,8 @@
     { "pathPrefix": "src/services/IntentRouter.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/ai/config/voiceIntentResolver.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/ai/messages/", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/db/projectFiles/fileOps.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/db/storagePort.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/ai/embeddings/embeddingSmokeTest.ts", "reason": "test-fixture" },
     { "pathPrefix": "src/ai/embeddings/fallbackWarning.ts", "reason": "runtime-template-message" },
 

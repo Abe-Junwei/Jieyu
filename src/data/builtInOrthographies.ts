@@ -1,5 +1,8 @@
-import type { OrthographyDocType } from '../db';
-import { TOP50_REVIEWED_LANGUAGE_IDS, TOP50_REVIEWED_ORTHOGRAPHIES } from './orthographyTop50Reviewed';
+import type { OrthographyDocType } from '../db/types';
+import {
+  TOP50_REVIEWED_LANGUAGE_IDS,
+  TOP50_REVIEWED_ORTHOGRAPHIES,
+} from './orthographyTop50Reviewed';
 
 type GeneratedSeed = {
   id: string;
@@ -35,11 +38,15 @@ function dedupeOrthographies(items: OrthographyDocType[]): OrthographyDocType[] 
   return Array.from(deduped.values());
 }
 
-function flattenOrthographyCatalog(catalog: Map<string, OrthographyDocType[]>): OrthographyDocType[] {
+function flattenOrthographyCatalog(
+  catalog: Map<string, OrthographyDocType[]>,
+): OrthographyDocType[] {
   return dedupeOrthographies(Array.from(catalog.values()).flat());
 }
 
-function groupOrthographiesByLanguage(items: OrthographyDocType[]): Map<string, OrthographyDocType[]> {
+function groupOrthographiesByLanguage(
+  items: OrthographyDocType[],
+): Map<string, OrthographyDocType[]> {
   const grouped = new Map<string, OrthographyDocType[]>();
   items.forEach((item) => {
     const languageId = item.languageId?.trim();
@@ -51,8 +58,13 @@ function groupOrthographiesByLanguage(items: OrthographyDocType[]): Map<string, 
   return grouped;
 }
 
-function buildGeneratedOrthography(language: GeneratedLanguageEntry, seed: GeneratedSeed): OrthographyDocType {
-  const direction: NonNullable<OrthographyDocType['direction']> = RTL_SCRIPTS.has(seed.scriptCode) ? 'rtl' : 'ltr';
+function buildGeneratedOrthography(
+  language: GeneratedLanguageEntry,
+  seed: GeneratedSeed,
+): OrthographyDocType {
+  const direction: NonNullable<OrthographyDocType['direction']> = RTL_SCRIPTS.has(seed.scriptCode)
+    ? 'rtl'
+    : 'ltr';
   return {
     id: seed.id,
     languageId: language.iso6393,
@@ -88,7 +100,7 @@ async function fetchGeneratedCatalog(): Promise<GeneratedCatalog | null> {
   try {
     const response = await fetch(GENERATED_CATALOG_URL, { cache: 'force-cache' });
     if (!response.ok) return null;
-    return await response.json() as GeneratedCatalog;
+    return (await response.json()) as GeneratedCatalog;
   } catch {
     return null;
   }
@@ -105,9 +117,14 @@ async function loadBuiltInOrthographyCatalog(): Promise<Map<string, OrthographyD
     if (TOP50_REVIEWED_LANGUAGE_IDS.has(language.iso6393)) {
       return;
     }
-    const generatedOrthographies = language.orthographySeeds.map((seed) => buildGeneratedOrthography(language, seed));
+    const generatedOrthographies = language.orthographySeeds.map((seed) =>
+      buildGeneratedOrthography(language, seed),
+    );
     const existing = reviewedByLanguage.get(language.iso6393) ?? [];
-    reviewedByLanguage.set(language.iso6393, dedupeOrthographies([...existing, ...generatedOrthographies]));
+    reviewedByLanguage.set(
+      language.iso6393,
+      dedupeOrthographies([...existing, ...generatedOrthographies]),
+    );
   });
 
   return reviewedByLanguage;
@@ -126,8 +143,12 @@ async function loadBuiltInOrthographyIndex(): Promise<Map<string, OrthographyDoc
   return builtInOrthographyIndexPromise;
 }
 
-export async function listBuiltInOrthographies(languageIds: readonly string[]): Promise<OrthographyDocType[]> {
-  const normalizedLanguageIds = Array.from(new Set(languageIds.map((value) => value.trim()).filter(Boolean))).sort();
+export async function listBuiltInOrthographies(
+  languageIds: readonly string[],
+): Promise<OrthographyDocType[]> {
+  const normalizedLanguageIds = Array.from(
+    new Set(languageIds.map((value) => value.trim()).filter(Boolean)),
+  ).sort();
   if (normalizedLanguageIds.length === 0) return [];
   if (!builtInOrthographyCatalogPromise) {
     builtInOrthographyCatalogPromise = loadBuiltInOrthographyCatalog();
@@ -145,8 +166,12 @@ export async function listAllBuiltInOrthographies(): Promise<OrthographyDocType[
   return flattenOrthographyCatalog(await builtInOrthographyCatalogPromise);
 }
 
-export async function listBuiltInOrthographiesByIds(orthographyIds: readonly string[]): Promise<OrthographyDocType[]> {
-  const normalizedIds = Array.from(new Set(orthographyIds.map((value) => value.trim()).filter(Boolean)));
+export async function listBuiltInOrthographiesByIds(
+  orthographyIds: readonly string[],
+): Promise<OrthographyDocType[]> {
+  const normalizedIds = Array.from(
+    new Set(orthographyIds.map((value) => value.trim()).filter(Boolean)),
+  );
   if (normalizedIds.length === 0) return [];
   const orthographyIndex = await loadBuiltInOrthographyIndex();
   return normalizedIds
@@ -154,7 +179,9 @@ export async function listBuiltInOrthographiesByIds(orthographyIds: readonly str
     .filter((orthography): orthography is OrthographyDocType => Boolean(orthography));
 }
 
-export async function getBuiltInOrthographyById(orthographyId: string): Promise<OrthographyDocType | null> {
+export async function getBuiltInOrthographyById(
+  orthographyId: string,
+): Promise<OrthographyDocType | null> {
   const normalizedId = orthographyId.trim();
   if (!normalizedId) return null;
   const orthographyIndex = await loadBuiltInOrthographyIndex();

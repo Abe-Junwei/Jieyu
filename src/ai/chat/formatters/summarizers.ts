@@ -4,6 +4,11 @@
  */
 
 import { formatToolWriteGateUserError } from '../../messages/toolWriteGateFeedback';
+import {
+  formatConcordanceSummary,
+  formatCounterexampleSummary,
+  formatParadigmSummary,
+} from '../../messages/structuredAnswerCopy';
 import type { LocalContextToolResult } from '../localContextToolTypes';
 import { normalizeProjectMetric, normalizeUnitScope } from '../localContextToolScopeNormalize';
 
@@ -410,22 +415,16 @@ export function summarizeLocalContextToolResult(
       return summarizeDetailResult(result, locale);
     case 'concordance_kwic': {
       const count = asFiniteNumber(body?.count) ?? 0;
-      return zh
-        ? `共现命中 ${count} 条，每条带句子 id。`
-        : `Concordance returned ${count} hits, each with a unit id.`;
+      return formatConcordanceSummary(count, zh);
     }
     case 'query_morpheme_paradigm': {
       const tokenCount = asFiniteNumber(body?.tokenCount) ?? 0;
-      return zh
-        ? `该词类共 ${tokenCount} 个词，已统计相邻 gloss。`
-        : `Counted adjacent glosses across ${tokenCount} tokens of that part of speech.`;
+      return formatParadigmSummary(tokenCount, zh);
     }
     case 'find_counterexamples': {
       const matchCount = asFiniteNumber(body?.matchCount) ?? 0;
       const counterexampleCount = asFiniteNumber(body?.counterexampleCount) ?? 0;
-      return zh
-        ? `符合 ${matchCount} 句，反例 ${counterexampleCount} 句。`
-        : `${matchCount} units match; ${counterexampleCount} are counterexamples.`;
+      return formatCounterexampleSummary(matchCount, counterexampleCount, zh);
     }
     case 'diagnose_quality':
       return summarizeDiagnoseQualityResult(body ?? {}, locale, userText);

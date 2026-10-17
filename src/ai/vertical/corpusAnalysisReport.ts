@@ -199,7 +199,7 @@ export function buildCorpusAnalysisReportSystemPrompt(): string {
     'You are writing a corpus analysis as JSON only. Do not write prose outside the JSON.',
     'Each claim cites row ids from the tool results in this turn (KWIC or paradigm example morphemeId, counterexample unit id, or evidence packet id).',
     'Do not invent ids. Do not put word forms in the claim text; examples and citations are filled in locally.',
-    'If a category is absent from the tool result, say 尚未标注 in the claim text.',
+    `If a category is absent from the tool result, say ${formatCorpusAnalysisUnlabeled()} in the claim text.`,
     'External evidence only corroborates; it does not fill missing corpus categories.',
     '{ "claims": [ { "claimId": "c1", "text": "argument without word forms", "rowIds": ["id-from-tool"] } ] }',
   ].join('\n');
