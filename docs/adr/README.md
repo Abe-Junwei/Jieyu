@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-16
+last_reviewed: 2026-10-17
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0063**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0065**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -25,7 +25,7 @@ source_of_truth: decision-index
 
 | 事项 | 唯一权威 | 不要再当成权威 |
 | --- | --- | --- |
-| 桌面用 SQLite、浏览器用 Dexie、新代码走存储接口 | ADR-0046 第 3 条，操作形状见 ADR-0048 | — |
+| 桌面用 SQLite、浏览器用 Dexie、新代码走存储接口 | ADR-0046 第 3 条，操作形状见 ADR-0048；Electron 骨架跑通后浏览器构建只作开发与测试、新功能只按桌面实现（ADR-0063）；#275 之后新操作只写 SQLite，Dexie 冻结，E2E 迁完且旧库迁完后删浏览器构建（ADR-0064） | 按浏览器保存路径先实现一遍新规则；Dexie 与 SQLite 两边都写 |
 | JYT/JYM 是交换包不是活文件；JYB 只在浏览器构建（旧浏览器数据迁入桌面时例外，见 0062 第 6 条）；每日 JYM 快照留 3 份，在含音频的备份通过恢复演练前保持不动 | ADR-0046 第 2、6 条；ADR-0062 第 1、6 条 | 用「只备份数据库、音频只留哈希」替换每日 JYM。该替换未批准；将来的备份必须含可播放的音频字节 |
 | 文件夹里放什么 | ADR-0061 第 1–4、6 条：音频是原文件，一份文稿一个 `.jyd`，声文稿只是展示 | ADR-0046 第 1、5 条的 `project.sqlite` + `media/`；ADR-0058-card 第 1 条（音频字节在卡片文件里） |
 | 认回与删除状态 | 还没有。ADR-0061 第 5 条写了「按 sha256 认回」，多个文件哈希相同时不够，规格里先约束为必须问用户。同名判断把「已隐藏」算进去（ADR-0062 第 2 条） | 把第 5 条直接当成实现规格 |
@@ -99,6 +99,8 @@ source_of_truth: decision-index
 - [0060-card-file-ownership-and-operations.md](./0060-card-file-ownership-and-operations.md)
 - [0061-jyd-manuscript-file-audio-stays-plain.md](./0061-jyd-manuscript-file-audio-stays-plain.md)
 - [0062-desktop-storage-decisions-2026-10-16.md](./0062-desktop-storage-decisions-2026-10-16.md)
+- [0063-desktop-only-after-electron-skeleton.md](./0063-desktop-only-after-electron-skeleton.md)
+- [0064-storage-freeze-until-desktop-opens-real-projects.md](./0064-storage-freeze-until-desktop-opens-real-projects.md)
 
 ## 已关闭的另一套编号
 

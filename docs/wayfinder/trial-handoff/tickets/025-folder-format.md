@@ -27,8 +27,10 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 
 定一块写一块，每块写完关掉重开读回。之后才是存储端口的 SQLite 实现。
 
-已定，表结构需支持：
-- 音频 WAV/MP3/M4A/FLAC 原样复制进 media/。
-- 视频：抽出音轨，音轨与原视频都存进 media/；播放与波形用音轨。
+SQLite 实现里的业务操作要守住（2026-10-17 从 #327 并入，[ADR-0063](../../../adr/0063-desktop-only-after-electron-skeleton.md) 第 3 条）：给文稿挂录音时，已有录音就是替换，不是追加，替换前提示（措辞由用户确认）；新建或修改 `unit_relations` 时两端不在同一份 `.jyd` 就不写，并说明原因。检查函数用 `src/db/projectFiles/manuscriptAudio.ts`、`manuscriptParents.ts`。验收：写入后关掉重开读回；挂第二条录音后只剩一条；跨文稿关系写不进去。
+
+已定，文件夹里要有（ADR-0061，不再是 `media/`）：
+- 音频 WAV/MP3/M4A/FLAC 原样复制进项目文件夹，不进数据库。
+- 视频仍抽出音轨供播放与波形；音轨与原视频都留在项目文件夹里。
 - JYM 跨版本：新版自动升级旧包、旧版拒绝新包（见 [#266](https://github.com/Abe-Junwei/Jieyu/issues/266)）。
 

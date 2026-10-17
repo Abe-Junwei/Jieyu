@@ -4,7 +4,7 @@ label: wayfinder:grilling
 mode: HITL
 status: open
 assignee:
-blocked_by: [026]
+blocked_by: [025,026,043]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/277
 ---
 
