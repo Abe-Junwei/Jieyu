@@ -45,11 +45,13 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "electron": ["./src/desktop/skeleton/electron-resolution-stub.ts"]
     },
   },
   "exclude": [
     "dist",
+    "electron",
     "coverage",
     "test-results",
     "tmp",

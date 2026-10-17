@@ -1,0 +1,31 @@
+appId: app.jieyu.desktop
+productName: 解语
+electronVersion: 44.9.0
+directories:
+  output: release
+files:
+  - electron/dist/**
+  - dist/**
+  - package.json
+asarUnpack:
+  - node_modules/better-sqlite3/**
+mac:
+  category: public.app-category.productivity
+  minimumSystemVersion: "13.0"
+  target:
+    - target: dmg
+      arch:
+        - arm64
+    - target: zip
+      arch:
+        - arm64
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  verifyUpdateCodeSignature: false
+nsis:
+  oneClick: false
+publish:
+  provider: github
