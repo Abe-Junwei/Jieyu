@@ -72,7 +72,9 @@ describe('CollaborationSyncBridge persistence flow', () => {
   it('刷新后会自动补发持久化 pending 并清空队列 | replays persisted pending after refresh and clears queue', async () => {
     saveProjectPendingOutboundChanges('project-1', [makeChange('seed-op')]);
 
-    const sender = vi.fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>().mockResolvedValue(undefined);
+    const sender = vi
+      .fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const bridge = new CollaborationSyncBridge({
       projectId: 'project-1',
       onApplyRemoteChange: async () => {},
@@ -84,16 +86,15 @@ describe('CollaborationSyncBridge persistence flow', () => {
     // `outbound.start()` 使用 `void flush()`，须让微任务/下一 macrotick 先跑完再读 localStorage
     await new Promise<void>((r) => setTimeout(r, 0));
 
-    expect(sender).toHaveBeenCalledWith([
-      expect.objectContaining({ clientOpId: 'seed-op' }),
-    ]);
+    expect(sender).toHaveBeenCalledWith([expect.objectContaining({ clientOpId: 'seed-op' })]);
     expect(loadProjectPendingOutboundChanges('project-1')).toEqual([]);
 
     await bridge.stop();
   });
 
   it('离线失败会持久化，刷新重连后可补发 | persists on offline failure and replays on reconnect after refresh', async () => {
-    const failedSender = vi.fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
+    const failedSender = vi
+      .fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
       .mockRejectedValue(new Error('offline'));
 
     const offlineBridge = new CollaborationSyncBridge({
@@ -103,13 +104,14 @@ describe('CollaborationSyncBridge persistence flow', () => {
     });
 
     await offlineBridge.start();
-    offlineBridge.enqueueLocalChange(makeChange('offline-op'));
+    await offlineBridge.enqueueLocalChange(makeChange('offline-op'));
     await offlineBridge.flushLocalChanges();
     await waitForOutboundDebounce();
 
     await offlineBridge.stop();
 
-    const recoveredSender = vi.fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
+    const recoveredSender = vi
+      .fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
       .mockResolvedValue(undefined);
 
     const recoveredBridge = new CollaborationSyncBridge({
@@ -133,7 +135,9 @@ describe('CollaborationSyncBridge persistence flow', () => {
   it('initialOutboundPending: [] 不消费 localStorage 中的 pending（避免禁写时静默丢批次）| empty override skips replay without clearing storage', async () => {
     saveProjectPendingOutboundChanges('project-1', [makeChange('seed-op')]);
 
-    const sender = vi.fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>().mockResolvedValue(undefined);
+    const sender = vi
+      .fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const bridge = new CollaborationSyncBridge({
       projectId: 'project-1',
       onApplyRemoteChange: async () => {},
@@ -155,7 +159,8 @@ describe('CollaborationSyncBridge persistence flow', () => {
   it('sender 抛错时出站批次回退且持久化 pending 不丢 | throw from sender keeps batch and persisted pending', async () => {
     saveProjectPendingOutboundChanges('project-1', [makeChange('seed-op')]);
 
-    const sender = vi.fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
+    const sender = vi
+      .fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
       .mockRejectedValue(new Error('Collaboration cloud writes are disabled: test'));
 
     const bridge = new CollaborationSyncBridge({
@@ -168,9 +173,7 @@ describe('CollaborationSyncBridge persistence flow', () => {
     await flushMicroTasks();
     await waitForOutboundDebounce();
 
-    expect(sender).toHaveBeenCalledWith([
-      expect.objectContaining({ clientOpId: 'seed-op' }),
-    ]);
+    expect(sender).toHaveBeenCalledWith([expect.objectContaining({ clientOpId: 'seed-op' })]);
     expect(loadProjectPendingOutboundChanges('project-1')).toEqual([
       expect.objectContaining({ clientOpId: 'seed-op' }),
     ]);
