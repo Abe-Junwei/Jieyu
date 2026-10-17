@@ -4,7 +4,7 @@ label: wayfinder:task
 mode: AFK
 status: open
 assignee:
-blocked_by: [037]
+blocked_by: [025,037,043]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/306
 ---
 

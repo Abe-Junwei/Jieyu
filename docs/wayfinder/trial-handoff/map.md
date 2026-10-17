@@ -21,7 +21,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）、#325–#327（本地 043、044、042）；第二程 #285（子单 #286–#302、#308–#311、#314–#317））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）、#325、#326（本地 043、044）、#327 已关闭、#328（本地 045）、#329（本地 046）；第二程 #285（子单 #286–#302、#308–#311、#314–#317））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -157,6 +157,10 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-16：文件夹内容布局以 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md) 为准，取代 2026-10-13「项目文件夹 = `project.sqlite` + `media/`」和同日「冻结对象 = SQLite + media/」。ADR-0046 的交换包与每日 JYM 备份仍然有效，整篇不标 superseded。哪一条算数见 [ADR 目录](../../adr/README.md)。D14 尚未冻结。一份文稿同时只关联一条音频，可以改挂到另一条，但不能同时挂两条；父子链接不能跨文稿。冻结前要有格式原型、含音频的备份恢复并播放、桌面写路径验证。上面第 0 条「没有需要保留的真实数据」不再作为丢弃本机已导入录音的依据。
 - 2026-10-16 用户：桌面存储剩下的事整体排一次，顺序写进主路线图 §3。新单 [#327](https://github.com/Abe-Junwei/Jieyu/issues/327)（本地 042）浏览器保存路径接上一文稿一条录音、不存跨文稿关系，现在就能做；[#325](https://github.com/Abe-Junwei/Jieyu/issues/325)（043）桌面文件操作，等 #276、#275；[#326](https://github.com/Abe-Junwei/Jieyu/issues/326)（044）旧浏览器库经 JYB 迁入，等 #275、#325。没写完的列形状并进 #275，含音频备份的恢复演练并进 #258，D14 冻结（#259）补挂 #258、#325。
 - 2026-10-17 用户：旧浏览器库迁入（#326）挡首个试用版，归 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282)「不丢数据」硬门槛。
+- 2026-10-17 用户：Electron 骨架（#276）跑通后只做桌面版，浏览器构建只留作开发与测试（[ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)）。[#327](https://github.com/Abe-Junwei/Jieyu/issues/327) 不在浏览器上做，关闭，要求并进 #275、#325；浏览器里的 JYB 导出留到 #326 完成。新单 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328)（本地 045）在 #276 之后撤掉浏览器支持承诺。
+- 2026-10-17 用户（grill-with-docs，写成 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)）：从现在冻结新功能，到 #275 与 #325 都落地才解冻；冻结期只做 #276、#275、#280、#325 和新单 [#329](https://github.com/Abe-Junwei/Jieyu/issues/329)（本地 046，E2E 迁到 Electron），另外只修 bug。#303–#306、#312、#313 排到解冻后（035、037、038、040、041 补挂 025、043）。#275 之后只写 SQLite 实现；#329 与 #326 完成后删浏览器构建和 Dexie。协作代码保留等 C4；桌面已有替代的浏览器专用代码随浏览器构建删除，其余由用户逐项定。
+- 2026-10-17 用户（grill）：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)（026）改为实现单，按 ADR-0059 写骨架并验收。开工前批准 better-sqlite3。[#313](https://github.com/Abe-Junwei/Jieyu/issues/313)（041）的 A 是用户本人做的 JYM，不受冻结，代理不读语料；整张单仍被 #275、#325 挡住，B 等解冻。
+- 2026-10-17 主路线图全文对账：顺序改为先 #276，再 #275 与 #280；D14（#259）只等存储几步与 #258、#281，不等首发功能单；首发 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282)（032）补挂 D14 与 035、037、038、040、041；发布流水线 [#277](https://github.com/Abe-Junwei/Jieyu/issues/277)（027）排到解冻后。只出决定、调研、原型、文档的单子不受冻结。[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)（ADR-0048）、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279)（ADR-0058）、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304)（ADR-0057）已落成，关闭，本地 024、029、036 删除。
 
 ## Next leg
 

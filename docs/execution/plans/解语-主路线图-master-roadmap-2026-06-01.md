@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-16
+last_reviewed: 2026-10-17
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -29,16 +29,16 @@ last_reviewed: 2026-10-16
 
 - **长期目标**：田野录音 → 转写标注 → 词典/语料 → 出版与存档，在一台机器上闭环完成。
 
-- **形态**：Electron 桌面应用（路线 C；React + Vite 渲染层 + Worker/WASM），非移动。原纯 Web 形态（浏览器 + Dexie/IndexedDB）为历史基线。
+- **形态**：Electron 桌面应用（路线 C；React + Vite 渲染层 + Worker/WASM），非移动。原纯 Web 形态（浏览器 + Dexie/IndexedDB）为历史基线；Electron 骨架跑通后只作开发与测试，E2E 迁完、旧库迁完后删除（[ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、[ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)）。
 - **数据真源**：本机项目文件夹。文件夹里放什么以 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md) 为准（音频原文件、一份文稿一个 `.jyd`）；交换包和每日 JYM 备份仍以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md) 第 2、6 条为准。哪一条有效见 [ADR 目录](../../adr/README.md)。D14 尚未冻结。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
 - **独立性**：与 Rushi（如是我闻）**无运行时依赖、无能力互补承诺**；解语缺口在本仓内解决或显式标为非目标。
 - **刻意不做**：每 PR 全量重型 gate、高频依赖自动化、多角色评审路由、为形式的全量 E2E、通用多智能体 swarm / 云端多租户。成熟度检查留在 `package.json` 的按需分组，不接回 PR CI。
 
-技术与浏览器边界：[桌面端浏览器支持策略](../../architecture/桌面端浏览器支持策略.md)、[PWA / 离线壳预期](../../architecture/offline-pwa-first-visit-expectations.md)。
+技术与浏览器边界：[桌面端浏览器支持策略](../../architecture/桌面端浏览器支持策略.md)、[PWA / 离线壳预期](../../architecture/offline-pwa-first-visit-expectations.md)。两页只约束当前浏览器构建，#276 跑通后由 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 撤下。
 
 ## 2. 切片总览与依赖序
 
-排序原则（已拍板）：**先稳主线（A）→ 再开占位（B）→ 后对外/协作（C）**。
+排序原则（已拍板）：**先稳主线（A）→ 再开占位（B）→ 后对外/协作（C）**。2026-10-17 起新功能冻结（ADR-0064），A / B / C 的新切片都等 #275 与 #325 落地；当前顺序以 §3 Stage A 开头为准，本节只作切片依赖。
 
 ```
 Stage A 稳主线 + Agent 架构轨    Stage B 开占位              Stage C 对外/协作
@@ -85,6 +85,8 @@ A14 Eval trajectory   ─┘
 > **范围**：所有智能体切片（A4–A15、B11–B17 及以后）。**全局顺序、切片状态与 Stage B 门槛以本节 + §3 为准。**
 
 #### 2.2.0 统一路线（2026-10-15 起，先读这一节）
+
+> 2026-10-17 起新功能冻结（ADR-0064）：R2 补测、R4 默认开 v2 与删旧循环都排到 #275 与 #325 落地之后；冻结期只修 bug。
 
 规则见 [ADR-0056](../../adr/0056-single-agent-runtime-toolloopagent.md)：运行时只有 Vercel AI SDK `ToolLoopAgent`，旧 `agentLoopRunner` 冻结。门槛和护栏见[迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，这里只排顺序、定归属。
 
@@ -179,6 +181,8 @@ Wave 4 — 安全外连 + 评测/长程 harness（B15 已收口）
   B15  Zotero/OpenAlex MCP 提供方适配（flag `aiExternalMcpProviderAdaptersEnabled` 默认 false）
 ```
 
+> A15、B16a、B16b、B17 不在上面已关闭的波次里。状态见 §2.2.0 和 §3 表；冻结期内不做。
+
 > **Wave 4 已收口（2026-09-11）**：A9–A14 与 B11–B15 代码均在 `main`，外连 MCP 各 flag 默认 false。Agent 轨不再单列「下一刀 PR」；产品下一刀见 §3 开篇。
 
 #### 2.2.3 Stage B / C 解锁对照
@@ -207,14 +211,14 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 每个切片"完全落地"必须同时满足（本地闭环口径）：
 
-1. **数据层**：经存储接口写入并读回校验。**SQLite 与 Dexie 两实现均读回**自 #274/#275 落地（SQLite 实现存在）后生效；在此之前沿用 Dexie schema / Service / Worker 写路径就位；**写 → reload/requery → readback 验证**（不止字段存在）。
+1. **数据层**：经存储接口写入并读回校验。#275 的 SQLite 实现落地前沿用 Dexie 写路径；落地后新增操作只写并读回 SQLite 实现，不再两边都写（ADR-0064 第 4 条）。**写 → reload/requery → readback 验证**（不止字段存在）。
 2. **UI 层**：入口、状态、交互闭环接线完成；用户可见文案走 `dictKeys` / 字典，不留硬编码。
 3. **编排纪律**：重逻辑下沉 controller/service/纯函数；不在页面层堆业务（copilot-instructions §一/§三）。
-4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；触交互/ReadyWorkspace/侧栏/时间轴加 `npm run test:e2e:chromium`；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`；触桌面壳/存储加 Electron 构建与主进程测试。
+4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；触交互/ReadyWorkspace/侧栏/时间轴加 `npm run test:e2e:chromium`（#329 搬完的那几组改跑 Electron E2E）；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`；触桌面壳/存储加 Electron 构建与主进程测试。
 5. **可回滚**：高风险或 UI 觉察大改套 feature flag（`src/ai/config/featureFlags.ts`），`false` 合并、自用后切默认。
 6. **SDD**：中等以上复杂度（≥1 新 controller / ≥1 新 service / 跨 ≥3 controller）先写 `docs/execution/specs/<slug>/` 三件套再编码。
 
-> 「前后端完全落地」在本项目 = **持久化(Dexie/Service/Worker) + UI 三层贯通且可 readback**；协作云同步属 C4 独立切片，不作为本地切片的落地门槛。
+> 「前后端完全落地」在本项目 = **持久化（存储接口；#275 后为 SQLite）+ UI 三层贯通且可 readback**；协作云同步属 C4 独立切片，不作为本地切片的落地门槛。
 
 ## 3. 切片清单
 
@@ -222,23 +226,30 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-10-15）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）按 [ADR-0059](../../adr/0059-electron-shell-skeleton.md) 实现 Electron 骨架。表结构仍是 [#275](https://github.com/Abe-Junwei/Jieyu/issues/275)，模块迁移仍是 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)。已落成：[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) [ADR-0048](../../adr/0048-storage-port.md)、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) [ADR-0057](../../adr/0057-model-interface-transcribe.md)、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) 的范围与验收（ADR-0059，尚未写代码）。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R1/R2 代码已在 main、flag 关，不挡试用关键路径，不进试用版默认路径；智能体顺序见 §2.2.0。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
-
-> **桌面存储收尾顺序（2026-10-16）**：单子在 [#250 地图](../../wayfinder/trial-handoff/map.md)，验收写在各单里，本文只排先后。
+> **当前下一刀（2026-10-17）**：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架，范围与验收见 [ADR-0059](../../adr/0059-electron-shell-skeleton.md)。已落成的决定：存储接口 [ADR-0048](../../adr/0048-storage-port.md)、模型接口 [ADR-0057](../../adr/0057-model-interface-transcribe.md)、IndexedDB 归层 [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、文件夹内容 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)、[ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)、只做桌面版 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、新功能冻结 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 >
-> 1. 现在就能做，不等桌面壳：[#327](https://github.com/Abe-Junwei/Jieyu/issues/327) 浏览器保存路径接上「一份文稿一条录音、不存跨文稿关系」；[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 继续逐批迁到存储接口；[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 先定还没写的列形状（会话记忆载荷、DMLex 正文、语言数组与多语备注、结构规则与转换规则正文、定义副本范围，`model_runs` 照 ADR-0057）。
-> 2. [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架（ADR-0059，即上面的当前下一刀）。
-> 3. [#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 存储接口的 SQLite 实现，按 ADR-0061 读写项目库和 `.jyd`。better-sqlite3 在这一步进 `package.json`。
-> 4. [#325](https://github.com/Abe-Junwei/Jieyu/issues/325) 桌面文件操作：送系统垃圾箱、认回、弹窗与订阅走单独通道。
-> 5. [#258](https://github.com/Abe-Junwei/Jieyu/issues/258) 含音频备份的恢复播放演练；通过前每日 JYM 不动。[#281](https://github.com/Abe-Junwei/Jieyu/issues/281) 加法迁移演练。
-> 6. [#259](https://github.com/Abe-Junwei/Jieyu/issues/259) D14 冻结：上面都过，且 #280 基线到 0。
-> 7. [#326](https://github.com/Abe-Junwei/Jieyu/issues/326) 旧浏览器库经 JYB 迁入，在第 4 步之后，可与第 5、6 步并行；挡首个试用版（用户 2026-10-17，归 #282「不丢数据」）。
+> **新功能冻结（2026-10-17 起，ADR-0064）**：到下面第 3 步（#275 与 #325 都落地）为止。
+>
+> - 只做：#276、#275、#280、#325、#329，以及 #276 之后的 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328)；另外只修 bug 和防丢数据的问题。
+> - 暂停：下表未完成的 A 切片（A1–A3、A4b、A7–A15，含 §2.2.0 的 R2 补测与 R4）、Stage B / C 的新切片、挡首发的 #303–#306、#312、#313 的首启导入（B），以及发布流水线 [#277](https://github.com/Abe-Junwei/Jieyu/issues/277)。
+> - 不受冻结：只出决定、调研、原型或文档的单子，不改产品代码，如 [#255](https://github.com/Abe-Junwei/Jieyu/issues/255) 上手原型、[#257](https://github.com/Abe-Junwei/Jieyu/issues/257) AI 设置访谈、[#263](https://github.com/Abe-Junwei/Jieyu/issues/263) 手册、[#265](https://github.com/Abe-Junwei/Jieyu/issues/265) 功能面清单、[#266](https://github.com/Abe-Junwei/Jieyu/issues/266) 项目包流程评估、[#307](https://github.com/Abe-Junwei/Jieyu/issues/307) 许可证。#313 的 A 也在此列：用户本人做木雅语 JYM 并上传，代理不读语料。
+> - 一直不排：**B7**、任意图编辑器、依存共指、R6、R15、C3d Word、flag 放量宣告。
+>
+> **首发前顺序（2026-10-17 按 ADR-0063/0064 重排）**：单子在 [#250 地图](../../wayfinder/trial-handoff/map.md)，验收写在各单里，本文只排先后。
+>
+> 1. [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) 实现 Electron 骨架并按 ADR-0059 验收。开工前批准 better-sqlite3 进 `package.json`（ADR-0062 第 8 条）。跑通后撤掉浏览器支持承诺（[#328](https://github.com/Abe-Junwei/Jieyu/issues/328)），浏览器构建只作开发与测试。
+> 2. [#275](https://github.com/Abe-Junwei/Jieyu/issues/275)：先定还没写的列形状（会话记忆载荷、DMLex 正文、语言数组与多语备注、结构规则与转换规则正文、定义副本范围；`model_runs` 照 ADR-0057），再写存储接口的 SQLite 实现，按 ADR-0061 读写项目库和 `.jyd`，守住一份文稿一条录音、不存跨文稿关系。Node 下的 vitest 与 Electron 共用 #276 已加入的 better-sqlite3。此后新增业务操作只写 SQLite 实现，Dexie 冻结、只修 bug。[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 与本步并行，逐批迁到存储接口。
+> 3. [#325](https://github.com/Abe-Junwei/Jieyu/issues/325) 桌面文件操作（送系统垃圾箱、认回、弹窗与订阅走单独通道），同时 [#329](https://github.com/Abe-Junwei/Jieyu/issues/329) 把 E2E 迁到 Electron。#275 与 #325 都落地即解冻。
+> 4. 解冻后并行：本机转写 #303–#306、诊断与反馈 #312、木雅语示例 #313 的首启导入（A 不受冻结，用户本人做）、发布流水线 #277；[#326](https://github.com/Abe-Junwei/Jieyu/issues/326) 旧浏览器库经 JYB 迁入；[#258](https://github.com/Abe-Junwei/Jieyu/issues/258) 含音频备份的恢复播放演练（通过前每日 JYM 不动）；[#281](https://github.com/Abe-Junwei/Jieyu/issues/281) 加法迁移演练。
+> 5. [#259](https://github.com/Abe-Junwei/Jieyu/issues/259) D14 冻结项目文件夹格式：要 #275、#325、#258、#281 都过，且 #280 基线到 0。不等第 4 步里的功能单。
+> 6. [#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 首个桌面试用版：D14 已冻结，#277 能出包，三条硬门槛都过（不丢数据含 #312、#326；核心流程含 #303–#306、#313）。
+> 7. #329 搬完、#326 迁完后，删除浏览器构建、Dexie 实现，以及桌面已有替代的浏览器专用代码；协作代码保留到 C4（ADR-0064 第 6、7 条）。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **A1** | ReadyWorkspace 合同化（剩余域） | ⬜ | — | M | 先侧栏，再波形，再 layout，把 `any`/`as any` 收成窄 type guard；类型收窄后再拆 hook。真实落位：`src/pages/useReadyWorkspaceSurfaceProps.tsx`、`readyWorkspaceSurfacePropsAssemblyPhase.tsx`、`readyWorkspaceSurfacePropsOrchestratorInputSlice.ts`、`readyWorkspaceSurfaceSliceContracts.ts`、`useReadyWorkspaceSurfaceOrchestratorBundle.ts`；边界见 [ReadyWorkspace 数据域](../../architecture/ReadyWorkspace-数据域与壳层装配边界.md)，收敛进度随 [代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md) ARCH-7 | `audit:ready-workspace-timeline-host` 绿 + 定向 vitest + e2e:chromium | 否（结构） |
 | **A2** | 声学统一 hover readout 信息层级打磨 | 🟡 | — | M | **已落地**：`WaveformReadoutCard` 统一 waveform/spectrogram hover 时间/频率/F0/强度（声学现状 §2.3）。**剩余**：信息层级打磨（声学现状 §3.1 的 polish，非从零实现） | readout 在 waveform/spectrogram/split 一致；`WaveformReadoutCard.test` + 定向 vitest | 否 |
-| **A3** | 声学 inspector 冻结 + 多点比较（**最小闭环·本地子集**） | 🟡 | — | L | **已落地**：acoustic tab 会话内 pin/unpin + live-vs-pinned Δt/ΔF0/ΔdB（`useTranscriptionAcousticPanelState` + `AiAnalysisPanelAcousticInspectorSection`）。pin 为 React state，换媒体即清。**剩余**：冻结点 Dexie persist → reload → readback；多于 1 个冻结点；科研级 inspector（声学现状 Phase 4）仍不在本切片。**不做**：词/音素强制对齐、说话人分离、重型外部声学服务，直到有明确交付、可复现评测，并且失败能回到本地 | 冻结点持久化 readback；多点比较渲染；定向 vitest | 是 |
+| **A3** | 声学 inspector 冻结 + 多点比较（**最小闭环·本地子集**） | 🟡 | — | L | **已落地**：acoustic tab 会话内 pin/unpin + live-vs-pinned Δt/ΔF0/ΔdB（`useTranscriptionAcousticPanelState` + `AiAnalysisPanelAcousticInspectorSection`）。pin 为 React state，换媒体即清。**剩余**（解冻后，ADR-0064 第 4 条）：冻结点经存储接口写入 SQLite → reload → readback；多于 1 个冻结点；科研级 inspector（声学现状 Phase 4）仍不在本切片。**不做**：词/音素强制对齐、说话人分离、重型外部声学服务，直到有明确交付、可复现评测，并且失败能回到本地 | 冻结点持久化 readback；多点比较渲染；定向 vitest | 是 |
 | **A4** | AI agent-loop 可靠性 + compaction 收口 | ✅ | **W1** | **L** | 三可靠性 flag + `aiAgentLoopToolResultCompactionEnabled`。**代码**：replanning/quality/budget/compaction 已落地，dogfood/staging/prod 默认可靠性 flag 为 `true`。**证据（2026-09-02）**：① `aiAgentLoopHandoffAfterReload` + clarify 路径 e2e；② `check:agent-evals:trace` 17/17；③ reflection reconcile 后 envelope `status` 写入 vertical audit | §2.2.4 命令全绿 | 规格已收口并移出工作区 |
 | **A4b** | Context 工程余量（JIT + effort scaling） | 🟡 | **W2** | M | **已落地**：`resolveEffectiveMaxSteps()` + flag `aiAgentLoopEffortScalingEnabled`（默认 **false**）。**剩余**：P1.2 JIT 默认 limit/scope / concise 响应（`localToolSlotResolver`） | 6 步 payload 较基线降 ≥30%；eval 无「list 全项目」路径 | 视 Implement |
 | **A5** | 时间轴交互/壳层收敛剩余项 | ✅ | — | M | 时间轴交互与壳层收敛：**A–F 主链 2026-06-26 已闭合**（矩阵 v35/v36）。**剩余不属于本切片阻塞**：§9 backlog（G3 lane 行 DOM、选集 undo 批处理、timeMapping 非线性渲染） | 定向 vitest + e2e:chromium + `check:architecture-guard`（主链已过） | 视项 |
@@ -251,7 +262,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **A12** | Workflow 强化：StepKind + Reflection + Structured output | 🟡 | **W3** | L | **已落地**：`workflowCompletionChecklist`、finalize reflection reconcile、agent loop `workflowAnswerReady`；A12.1 `workflowStepKinds`；A12.2 registry `reflectionHandlerId` / `outputSchemaId` / `maxReflectionRetries` / `stepKinds`；A12.3 composed `parallel_readonly` 样本 + `executeReadonlyToolBatch`；A12.4 composed 步 ⊆ registry、checklist keys = registry keys；A12.5 `dispatchVerticalWorkflowReflection` + `after_model`。**剩余**：send-turn 多工具仍串行（刻意）；并行只读样本在 **A13** vitest，不替换 sequential local-tool | B4 新 workflow 只登记 registry；checklist 未闭合不得 done | 是 |
 | **A13** | TaskRunner 对齐 + Parallel readonly 样本 | 🟡 | **W4** | M | **已落地**：`TaskRunner.enqueue`/`parkCheckpoint` 写 `agentRunId`；parked `agent_loop` 不走 pump、不被 stale TTL 回收；`pendingAgentLoopCheckpoint` 4 态 classifier（`done`/`clarify`/`error`/`running`，仅 `running` 可 auto-continue）；catalog `trust: background`；`enqueueReadonlyToolBatchTask` + `PARALLEL_READONLY_COMPOSED_STEP_SAMPLE` vitest。**不**把并行 batch 接到 send-turn。**依赖 A8、A12** | 长任务 + 并行读 vitest；handoff 进 architecture/plan | 否 |
 | **A14** | Eval trajectory + agentRunId 自动断言 | 🟡 | **W4** | M | **已落地**：suite 二分、trajectory NDJSON 断言、**A8 `agentRunId` 链式断言**、vertical citation 进 `:smoke`、P2 tool-call 计数基线（fixture 回放）。**剩余**：可选 pass@k | smoke + trace 通过；按 run 过滤 trajectory | 否 |
-| **A15** | AI 运行时（ToolLoopAgent，唯一运行时，[ADR-0056](../../adr/0056-single-agent-runtime-toolloopagent.md)） | 🟡 | R1/R2 代码在 main，flag 关；R3、R4 未做 | L | [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。顺序和现状见 §2.2.0。不挡试用关键路径，不进试用版默认路径。框架只接模型调用、结构化工具消息、多步循环和停止；解语保留领域工具、作用域、审批和 `commitToolEffects`。新的多步循环（工具结果回到模型再写下一轮，含 B16/B17）只接本片，不在 `agentLoopRunner` 上再加续跑。`aiAgentRuntimeV2Enabled` 默认关。R1 不达标再限时对照 OpenAI Agents SDK。门槛在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制 | 每批 R3 达到 R1 数值标准；关闭 flag 后现网聊天不变；旧循环行数不涨；`check:agent-evals:smoke` | 是 |
+| **A15** | AI 运行时（ToolLoopAgent，唯一运行时，[ADR-0056](../../adr/0056-single-agent-runtime-toolloopagent.md)） | 🟡 | R1–R3 在 main，flag 关；R4 解冻后自用 | L | [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。顺序和现状见 §2.2.0。不挡试用关键路径，不进试用版默认路径。框架只接模型调用、结构化工具消息、多步循环和停止；解语保留领域工具、作用域、审批和 `commitToolEffects`。新的多步循环（工具结果回到模型再写下一轮，含 B16/B17）只接本片，不在 `agentLoopRunner` 上再加续跑。`aiAgentRuntimeV2Enabled` 默认关。R1 不达标再限时对照 OpenAI Agents SDK。门槛在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制 | 每批 R3 达到 R1 数值标准；关闭 flag 后现网聊天不变；旧循环行数不涨；`check:agent-evals:smoke` | 是 |
 
 ### Stage B — 开占位（标注 / 词典 / 语料 / 分析）
 
@@ -332,9 +343,9 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟢 已落地·flag 开（2026-10-13 默认 true，含试用）】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled`（2026-10-13 起默认 **true**）。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【🟡 已落地】** `citationResolver.resolveUnitCitation` + `citationJump` 对缺失 unit 报 `CITATION_UNIT_NOT_FOUND` 且不跳转；RAG footer 在 `readModelIndexHit === false` 时省略 snippet；悬空 lexeme 链接 `CITATION_LEXEME_NOT_FOUND`。无软删列；残留 segment 不得复活已删 unit。SDD：`citation-broken-state/`。`removeUnit` 经 B2 `unit-updated` 通知消费方增量 refetch | 删 unit 后 resolve 断裂码；jump 不盲跳；footer 无旧摘录；定向 vitest | 是 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | **【⬜ 未开始】** `corpusBridgeAdapter` / corpus 专用 `useAiToolCallHandler.adapters` **仓库中不存在**。A6 ✅；A7/A9/A12 主体已进 `main`（A9 默认开，A11 默认关）——**不再**把「缺 A7/A9/A12 代码」当阻塞。真正阻塞：转写 ChatWindow **会话隔离**（禁止再把 corpus 写路径堆进 `TranscriptionPage.ChatWindow.tsx`） | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
-| **B16a** | 语言学只读查询工具 | M | **【🟢 已落地·flag 关 [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)】** 三个只读工具进 `localContextTools`：`concordance_kwic`、`query_morpheme_paradigm`、`find_counterexamples`。每行结果带 `unitId`。这是领域工具，不在 A15 里重写。多步「结果回到模型」只走 A15 的 ToolLoopAgent，不在 `agentLoopRunner` 上补。v2 还拿不到这三个工具，排在 §2.2.0 R3-1；反例词类范围是 D1。不调模型就能验收查询本身。flag 默认 **false** | 固定测试数据上的次数、范式、反例 id 正确；只读零写入；flag 关工具不进 prompt；定向 vitest | 是 |
-| **B16b** | 语言学分析正文：结构化主张 + 核对 + 可复制渲染 | L | **【🟢 已落地·flag 关 [#317](https://github.com/Abe-Junwei/Jieyu/issues/317)】** 依赖 B16a。工作流 `corpus_analysis_report`，flag `corpusAnalysisReportEnabled` 默认关。照 `elan_flex_compatibility`：模型输出结构化主张（不当正文流式显示），每条主张引用本次工具结果的行 id；代码逐条核对后渲染成聊天回复里的可复制正文，复用现有复制按钮，不设写作工作区（ADR-0002）。主张格式、核对和渲染是一份共用代码，B17 也走这一套。工具结果回到模型再出主张，只走 A15 的 ToolLoopAgent，不扩展 `agentLoopRunner`；v2 上的端到端等 §2.2.0 R3-1，评审修复是 D3–D6。词形和转写可以发给用户自选的云端模型；外发仍过 A9。例句由本机按行 id 从工具结果填回。数据边界见 [ADR-0055](../../adr/0055-corpus-analysis-cloud-forms.md)。不把本机模型或微调设为默认 | 每条主张的行 id 都在本次工具结果里，对不上的主张删去，全部对不上则不出正文（条数警告不算通过）；库中无该范畴写「尚未标注」；正文里的例句词形与库里一致；flag 关工作流不可选；定向 vitest + `check:agent-evals:smoke` | 是 |
-| **B17** | 外部证据源（MCP：文献、网页检索、语料资源） | L | **【🟢 已落地·flag 关 [#316](https://github.com/Abe-Junwei/Jieyu/issues/316)】** flag `corpusExternalEvidenceEnabled` 默认关。本机服务走桌面宿主 stdio 桥（`window.__JIEYU_EXTERNAL_MCP_STDIO__`，浏览器返回 `not_desktop`）；远程走 B13。网页检索走 MCP。服务器进 B11。返回内容过 A9。拒绝 `answer_with_citations`。`EvidencePacketV0` 有 title/page/url。主张引用命中 id，走 B16b 核对。命中回到模型再写主张，只走 A15 的 ToolLoopAgent，不在 `agentLoopRunner` 上接续跑；排在 §2.2.0 R3-2，原文外泄与证据传递是 D2、D4。无命中该句不出。Electron 主进程 spawn 待桌面壳接线 | 外部句对得上本次命中的出处和原文；无命中不出现该句；未登记服务器零调用；flag 关不拉起进程、不发请求；定向 vitest | 是 |
+| **B16a** | 语言学只读查询工具 | M | **【🟢 已落地·flag 关 [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)】** 三个只读工具进 `localContextTools`：`concordance_kwic`、`query_morpheme_paradigm`、`find_counterexamples`。每行结果带 `unitId`。这是领域工具，不在 A15 里重写。多步「结果回到模型」只走 A15 的 ToolLoopAgent，不在 `agentLoopRunner` 上补。v2 在 `corpusAnalysisQueryToolsEnabled` 打开时已能调用这三个工具（§2.2.0 R3-1）；反例词类范围是 D1。不调模型就能验收查询本身。flag 默认 **false** | 固定测试数据上的次数、范式、反例 id 正确；只读零写入；flag 关工具不进 prompt；定向 vitest | 是 |
+| **B16b** | 语言学分析正文：结构化主张 + 核对 + 可复制渲染 | L | **【🟢 已落地·flag 关 [#317](https://github.com/Abe-Junwei/Jieyu/issues/317)】** 依赖 B16a。工作流 `corpus_analysis_report`，flag `corpusAnalysisReportEnabled` 默认关。照 `elan_flex_compatibility`：模型输出结构化主张（不当正文流式显示），每条主张引用本次工具结果的行 id；代码逐条核对后渲染成聊天回复里的可复制正文，复用现有复制按钮，不设写作工作区（ADR-0002）。主张格式、核对和渲染是一份共用代码，B17 也走这一套。工具结果回到模型再出主张，只走 A15 的 ToolLoopAgent，不扩展 `agentLoopRunner`；v2 上已能核对（§2.2.0），两个运行时 flag 默认关；评审修复是 D3–D6。词形和转写可以发给用户自选的云端模型；外发仍过 A9。例句由本机按行 id 从工具结果填回。数据边界见 [ADR-0055](../../adr/0055-corpus-analysis-cloud-forms.md)。不把本机模型或微调设为默认 | 每条主张的行 id 都在本次工具结果里，对不上的主张删去，全部对不上则不出正文（条数警告不算通过）；库中无该范畴写「尚未标注」；正文里的例句词形与库里一致；flag 关工作流不可选；定向 vitest + `check:agent-evals:smoke` | 是 |
+| **B17** | 外部证据源（MCP：文献、网页检索、语料资源） | L | **【🟢 已落地·flag 关 [#316](https://github.com/Abe-Junwei/Jieyu/issues/316)】** flag `corpusExternalEvidenceEnabled` 默认关。本机服务走桌面宿主 stdio 桥（`window.__JIEYU_EXTERNAL_MCP_STDIO__`，浏览器返回 `not_desktop`）；远程走 B13。网页检索走 MCP。服务器进 B11。返回内容过 A9。拒绝 `answer_with_citations`。`EvidencePacketV0` 有 title/page/url。主张引用命中 id，走 B16b 核对。命中回到模型再写主张，只走 A15 的 ToolLoopAgent，不在 `agentLoopRunner` 上接续跑；R3-2 已把缓存的外部工具交给 v2；stdio 和证据工具仍要 `corpusExternalEvidenceEnabled`。原文外泄与证据传递是 D2、D4。无命中该句不出。Electron 主进程 spawn 待桌面壳接线 | 外部句对得上本次命中的出处和原文；无命中不出现该句；未登记服务器零调用；flag 关不拉起进程、不发请求；定向 vitest | 是 |
 | **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量。Outbound HTTP 见 **B13**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
 | **B12** | MCP resources/prompts + AgentArtifactV0 | M | **【已落地·flag 关】** inbound `resources/list`+`read`（`jieyu://source-set/{id}`）与 `prompts/list`+`get`（A12 registry）；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；`buildB5bExportManifest`。Flag `aiMcpResourcesArtifactsEnabled` 默认 **false**。SDD：`agent-runtime-mcp-resources-artifacts/`。**依赖 B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单函数 | 是 |
 | **B13** | outbound Streamable HTTP MCP client | M | **【已落地·flag 关】** `externalMcpHttpClient` POST `tools/list`/`tools/call`（JSON 或 SSE `data:`）；仅 B11 已启用 origin；写向 RPC 零 fetch；audit 写 `agentRunId`。Flag `aiExternalMcpHttpClientEnabled` 默认 **false**。不引入 SDK；不改 CSP `connect-src`；不接 ChatWindow。SDD：`agent-runtime-external-mcp-http-client/`。**依赖 B11** | flag 关零 fetch；未启用 origin 零 fetch；list 经 expose 门；write RPC deny | 是 |
@@ -348,13 +359,13 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | ID | 切片 | 粒度 | 目标 / 落位锚点 | 验收 | SDD |
 | --- | --- | --- | --- | --- | --- |
-| **C1** | 对外前最小检查执行 | M | **桌面试用版以 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 发布检查单为准**。Agent 架构抽样仍是 A8 + A9 + A11 + A14 | 检查单逐项过；`test:e2e:chromium` 全绿；单次 send turn 可串联 audit + trajectory | 否 |
+| **C1** | 对外前最小检查执行 | M | **桌面试用版以 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 发布检查单为准**。Agent 架构抽样仍是 A8 + A9 + A11 + A14 | 检查单逐项过；Electron 安装包冒烟与 E2E（#329）全绿；单次 send turn 可串联 audit + trajectory | 否 |
 | **C2** | i18n 基线计划性消减（6B） | M | `check:i18n-hardcoded:guard` 不新增债 + 按目录消减；AI 文案走 `src/ai/messages/` 与 UI `dictKeys` 分离 | 基线 hits 按目标下降；guard 绿 | 否 |
 | **C3a** | 字幕导出（SRT + WebVTT） | M | **【已落地】** 同一 `layer_units` 读模型（`buildOrthographyAwareExportUnits`）→ `transcriptionLiteExport` 序列化 SubRip + WebVTT（无 STYLE/NOTE/定位）→ 项目中心导出菜单 + `handleExportLite`；不写回编辑模型。锚点：`src/utils/transcriptionLiteExport.ts`、`useImportExport.handleExportLite`、`transcriptionExportCallbacks` | golden 对拍 + 定向 vitest；空语段不下载 | 否 |
 | **C3b** | 表格转写导出（CSV / TSV） | M | **【已落地】** 与 C3a 同一读模型与单一 `onExportLite(format)`；RFC 4180 CSV（UTF-8 BOM）+ TSV（tab 净化）；逐语段 start/end/speaker/text/gloss | golden 对拍 + 定向 vitest | 否 |
 | **C3c** | 学术 IGT LaTeX 导出（Leipzig） | L | **【已落地】** 同一 `layer_units` 读模型 + 首个翻译层 → `transcriptionIgtLatexExport` 序列化 gb4e `\gll`/`\glt`（不写回、不调 `AutoGlossService.glossUnit`）；`onExportLite('tex')` + 项目中心菜单。锚点：`src/utils/transcriptionIgtLatexExport.ts`、`LeipzigValidator`（测试断言） | golden 对拍 + Leipzig 校验通过 + 定向 vitest | 是 |
 | **C3d** | Word/docx 导出 | — | **待定**：需引入 docx 生成依赖（体积/维护/许可成本需评估）。**默认不排期**，按真实诉求再决定复用方案 | — | 是（先 Research） |
-| **C4** | 协作云增强（独立切片） | — | **桌面构建剔除协作（ADR-0047）**；本行只适用于 Web 构建。协议与转写 bridge **已接线**；项目快照按 `textId` 裁剪、restore 禁止整库 replace-all、入站 apply 成功后再推进 cursor（ADR-0034）。词库仍不同步。恢复实时协作时，出站队列按 SQLite 重做；已提交的修改不能丢，已确认的操作不能复活。增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
+| **C4** | 协作云增强（独立切片） | — | **桌面构建编译期剔除协作（ADR-0047）**；浏览器构建将删除，协作代码保留，恢复时接到桌面版（ADR-0064 第 7 条）。协议与转写 bridge **已接线**；项目快照按 `textId` 裁剪、restore 禁止整库 replace-all、入站 apply 成功后再推进 cursor（ADR-0034）。词库仍不同步。恢复实时协作时，出站队列按 SQLite 重做；已提交的修改不能丢，已确认的操作不能复活。增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
 
 > **导出现状（2026-09-13 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 2026-10-13 起默认开）、转写字幕 SRT/WebVTT、语段表 CSV/TSV（**C3a/C3b**）与 Leipzig IGT LaTeX/`gb4e`（**C3c**，只出站不 round-trip）；**缺口** = Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
 
@@ -363,13 +374,13 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 索引见 [plans/README.md](./README.md)。下面只列工作区里仍有效的细节来源：
 
 - 三页联评门槛：`.github/pull_request_template.md` 的 R1–R8 段，门禁 `npm run check:r1-r8`。
-- AI / 语音：运行时迁移是切片 **A15**、[#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。R1/R2 代码在 main，flag 关，v2 不默认打开；顺序和归属见 §2.2.0；门槛留在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制。语言学分析是第二程的 **B16a** 查询工具（[#315](https://github.com/Abe-Junwei/Jieyu/issues/315)）和 **B16b** 主张、核对与正文（[#317](https://github.com/Abe-Junwei/Jieyu/issues/317)），领域查询与核对已落地、flag 默认关。外部证据源是 **B17**、[#316](https://github.com/Abe-Junwei/Jieyu/issues/316)，flag 默认关；Electron 主进程 spawn 待桌面壳。这三片的多步循环（工具结果回到模型）只走 A15，不在 `agentLoopRunner` 上再加续跑。试用转写以 [model-interface-plan](../../wayfinder/trial-handoff/model-interface-plan.md) 和 #303–#306 为准。[NLP 接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) 的 R0–R4 仍是对齐及以后的规划，不推翻 A3 的不做，门槛未过不开工。
+- AI / 语音：运行时迁移是切片 **A15**、[#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。R1–R3 代码在 main，flag 关，v2 不默认打开；R4 是解冻后的自用。顺序和归属见 §2.2.0；门槛留在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制。语言学分析是第二程的 **B16a** 查询工具（[#315](https://github.com/Abe-Junwei/Jieyu/issues/315)）和 **B16b** 主张、核对与正文（[#317](https://github.com/Abe-Junwei/Jieyu/issues/317)），领域查询与核对已落地、flag 默认关。外部证据源是 **B17**、[#316](https://github.com/Abe-Junwei/Jieyu/issues/316)，flag 默认关；Electron 主进程 spawn 待桌面壳。这三片的多步循环（工具结果回到模型）只走 A15，不在 `agentLoopRunner` 上再加续跑。试用转写以 [model-interface-plan](../../wayfinder/trial-handoff/model-interface-plan.md) 和 #303–#306 为准。[NLP 接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) 的 R0–R4 仍是对齐及以后的规划，不推翻 A3 的不做，门槛未过不开工。
 - Agent 运行时架构：[安全策略](../../architecture/ai-agent-runtime-security-local-first.md)。提交点是 `src/ai/runtime/commitToolEffects.ts`。切片状态见本文 A6–A14、B11–B15。
 - 声学未做完的是本文 A2、A3。重型对齐、说话人分离和外部声学服务维持不做，条件见 A3。
 - 协作：桌面版剔除（ADR-0047）。[Supabase 落地](./托管实时协同-Supabase完整落地方案-2026-04-17.md) 与 M8–M14 留到桌面版之后，对应本文 C4，本程不排。
 - 工程治理：[代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md)
-- 持久化方向以 [ADR 目录的有效条款对照](../../adr/README.md) 为准：文件夹内容是 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)，交换包和每日备份仍是 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)，操作形状是 [ADR-0048](../../adr/0048-storage-port.md)，桌面剥离协作是 [ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md)。排期见 [试用地图](../../wayfinder/trial-handoff/map.md)。
-- 规格目录只留模板。协作出站队列草稿已删除，恢复时的约束见 C4。
+- 持久化方向以 [ADR 目录的有效条款对照](../../adr/README.md) 为准：文件夹内容是 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)，交换包和每日备份仍是 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)，操作形状是 [ADR-0048](../../adr/0048-storage-port.md)，桌面剥离协作是 [ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md)，八条存储决定是 [ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)，只做桌面版与冻结是 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、[ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)。排期见 [试用地图](../../wayfinder/trial-handoff/map.md)。
+- 规格目录里还有未收口的 `card-sqlite-file`、`annotation-utterance-graph-change`、`corpus-analysis-query-tools`、`corpus-analysis-report`、`corpus-external-evidence`，另有 `_template`。协作出站队列草稿已删除，恢复时的约束见 C4。
 
 ## 4. 适用边界与显式废弃
 
@@ -390,6 +401,10 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-17 | **审查对账**：A15 / B16a / B16b / B17 与 §2.2.0 对齐；波次图补上这四片不在已关闭波次里；A3 剩余改为解冻后写 SQLite；规格目录改为列出仍在的五份规格。#276 改为实现单，better-sqlite3 在 #276 批准后加入。#313 的 A 不受冻结。 |
+| 2026-10-17 | **全文对账**（对照 ADR-0063/0064、#250、各单）：顺序改为先 #276 再 #275/#280（原写 #280/#275 先于 #276）；D14 不再等首发功能单；补上首发 #282 一步，#282 补挂 D14 与功能单；#277 发布流水线排到解冻后；DoD 去掉「SQLite 与 Dexie 两边读回」；C1 改为 Electron 冒烟与 E2E；C4 去掉「只适用于 Web 构建」；§2、§2.2.0 写明冻结；只出决定、调研、原型、文档的单子不受冻结。#274、#279、#304 的 ADR 已落成，单子关闭。 |
+| 2026-10-17 | **ADR-0064 新功能冻结**（grill-with-docs）：从现在到 #275 与 #325 落地，只做 #276、#275、#280、#325、#329，另外只修 bug；A1–A15 与 #303–#306、#312、#313 排到解冻后。#275 之后只写 SQLite 实现；#329 与 #326 完成后删浏览器构建与 Dexie；协作代码保留等 C4。 |
+| 2026-10-17 | **ADR-0063**：Electron 骨架（#276）跑通后只做桌面版，浏览器构建只留作开发与测试。#327 关闭，并进 #275、#325；新开 #328 撤掉浏览器支持承诺。浏览器 JYB 导出留到 #326 完成。 |
 | 2026-10-16 | **桌面存储收尾排成七步**（§3 Stage A 文首）。新开 #327（浏览器保存路径一文稿一录音）、#325（桌面文件操作）、#326（旧库经 JYB 迁入）。列形状并进 #275，恢复播放演练并进 #258，D14（#259）补挂 #258、#325。2026-10-17 用户定 #326 挡首个试用版。 |
 | 2026-10-16 | **文件夹内容布局改记 ADR-0061，D14 不因此冻结**。音频保持原文件，文稿是 `.jyd`，声文稿只是展示。ADR-0046 的交换包、存储接口和每日 JYM 备份仍然有效，整篇不标 superseded。有效条款对照在 ADR 目录。冻结前还要：格式原型、跨录音文稿的迁移对拍、含音频的恢复演练、桌面写路径验证。不得用「没有要保留的真实数据」丢弃本机已导入的录音。 |
 | 2026-10-15 | **ADR-0059 Electron 骨架范围**。三进程、一次业务操作一次 IPC、项目文件夹锁、userData 四块目录、5–8 条三平台冒烟。不写代码。Sentry 仍在 #312。 |
