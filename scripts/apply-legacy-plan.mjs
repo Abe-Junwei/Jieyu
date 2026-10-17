@@ -1,0 +1,1334 @@
+/**
+ * 把一份已经确认的迁移规划写成音频文件、项目库和 .jyd。
+ * 失败时先关掉数据库，再删掉这次写出的文件和残留日志。可由测试导入，也可直接运行：
+ * node --experimental-sqlite scripts/apply-legacy-plan.mjs <plan.json> <dest>
+ */
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { DatabaseSync } from 'node:sqlite';
+
+const JYD_APPLICATION_ID = 0x4a594443;
+const PROJECT_APPLICATION_ID = 0x4a59504a;
+
+const LANGUAGE_EXTRAS = [
+  ['languageCode', 'language_code', 'TEXT'],
+  ['canonicalTag', 'canonical_tag', 'TEXT'],
+  ['iso6391', 'iso6391', 'TEXT'],
+  ['iso6392B', 'iso6392b', 'TEXT'],
+  ['iso6392T', 'iso6392t', 'TEXT'],
+  ['iso6393', 'iso6393', 'TEXT'],
+  ['autonym', 'autonym', 'TEXT'],
+  ['glottocode', 'glottocode', 'TEXT'],
+  ['wikidataId', 'wikidata_id', 'TEXT'],
+  ['scope', 'scope', 'TEXT'],
+  ['macrolanguage', 'macrolanguage', 'TEXT'],
+  ['genus', 'genus', 'TEXT'],
+  ['subfamily', 'subfamily', 'TEXT'],
+  ['branch', 'branch', 'TEXT'],
+  ['classificationPath', 'classification_path', 'TEXT'],
+  ['modality', 'modality', 'TEXT'],
+  ['languageType', 'language_type', 'TEXT'],
+  ['endangermentLevel', 'endangerment_level', 'TEXT'],
+  ['aesStatus', 'aes_status', 'TEXT'],
+  ['endangermentSource', 'endangerment_source', 'TEXT'],
+  ['endangermentAssessmentYear', 'endangerment_assessment_year', 'INTEGER'],
+  ['speakerCountL1', 'speaker_count_l1', 'INTEGER'],
+  ['speakerCountL2', 'speaker_count_l2', 'INTEGER'],
+  ['speakerCountSource', 'speaker_count_source', 'TEXT'],
+  ['speakerCountYear', 'speaker_count_year', 'INTEGER'],
+  ['speakerTrend', 'speaker_trend', 'TEXT'],
+  ['macroarea', 'macroarea', 'TEXT'],
+  ['intergenerationalTransmission', 'intergenerational_transmission', 'TEXT'],
+  ['officialStatus', 'official_status', 'TEXT'],
+  ['egids', 'egids', 'TEXT'],
+  ['documentationLevel', 'documentation_level', 'TEXT'],
+  ['literacyRate', 'literacy_rate', 'REAL'],
+  ['latitude', 'latitude', 'REAL'],
+  ['longitude', 'longitude', 'REAL'],
+  ['locationId', 'location_id', 'TEXT'],
+  ['sourceType', 'source_type', 'TEXT'],
+  ['reviewStatus', 'review_status', 'TEXT'],
+  ['visibility', 'visibility', 'TEXT'],
+];
+
+function definedFields(row, pairs) {
+  const out = {};
+  for (const [camel, column] of pairs) {
+    if (row[column] !== null && row[column] !== undefined) out[camel] = row[column];
+  }
+  return out;
+}
+
+function writeDatabase(file, applicationId, apply) {
+  const db = new DatabaseSync(file);
+  try {
+    db.exec('PRAGMA journal_mode = DELETE');
+    db.exec(`PRAGMA application_id = ${applicationId}`);
+    db.exec('PRAGMA user_version = 1');
+    apply(db);
+  } finally {
+    db.close();
+  }
+}
+
+export function applyPlan(plan, dest, { failAfterAudio = false, failDuringProject = false } = {}) {
+  fs.mkdirSync(dest, { recursive: true });
+  const written = [];
+  try {
+    for (const audio of plan.audios) {
+      const file = path.join(dest, audio.fileName);
+      fs.writeFileSync(file, audio.bytes);
+      written.push(file);
+      const hash = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+      if (hash !== audio.sha256) throw new Error('sha256 mismatch');
+    }
+    if (failAfterAudio) throw new Error('injected failure');
+    const projectFile = path.join(dest, 'project.sqlite');
+    written.push(projectFile);
+    writeDatabase(projectFile, PROJECT_APPLICATION_ID, (db) => {
+      if (failDuringProject) throw new Error('injected project failure');
+      db.exec('CREATE TABLE audio (id TEXT PRIMARY KEY, relpath TEXT, sha256 TEXT)');
+      db.exec('CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
+      db.exec(
+        'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL)',
+      );
+      db.exec(
+        `CREATE TABLE languages (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, ${LANGUAGE_EXTRAS.map(([, column, type]) => `${column} ${type}`).join(', ')})`,
+      );
+      db.exec(
+        'CREATE TABLE language_display_names (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, locale TEXT NOT NULL, value TEXT NOT NULL)',
+      );
+      db.exec(
+        'CREATE TABLE language_aliases (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, alias TEXT NOT NULL)',
+      );
+      db.exec(
+        'CREATE TABLE orthographies (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, language_id TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE phonemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, ipa TEXT NOT NULL, type TEXT NOT NULL)',
+      );
+      db.exec(
+        'CREATE TABLE abbreviations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, abbreviation TEXT NOT NULL, category TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE tag_definitions (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, key TEXT NOT NULL, scope TEXT, color TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE bibliographic_sources (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, year INTEGER, source_type TEXT, citation_key TEXT, access_rights TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE locations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, latitude REAL, longitude REAL, region TEXT, country TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE grammar_docs (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, parent_id TEXT, sort_order INTEGER, access_rights TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE orthography_bridges (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, source_orthography_id TEXT NOT NULL, target_orthography_id TEXT NOT NULL, engine TEXT NOT NULL, status TEXT, is_reversible INTEGER)',
+      );
+      db.exec(
+        'CREATE TABLE custom_field_definitions (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, field_type TEXT NOT NULL, sort_order INTEGER NOT NULL, required INTEGER, min_value REAL, max_value REAL, pattern TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE language_catalog_history (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, action TEXT NOT NULL, summary TEXT NOT NULL, reason TEXT, reason_code TEXT, actor_id TEXT, actor_type TEXT, source_type TEXT, source_ref TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE lexeme_assets (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, kind TEXT NOT NULL, mime_type TEXT NOT NULL, display_name TEXT NOT NULL, language_code TEXT, byte_size INTEGER NOT NULL, ref_count INTEGER NOT NULL, blob_export_omitted INTEGER)',
+      );
+      db.exec(
+        'CREATE TABLE lexeme_asset_links (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, lexeme_id TEXT NOT NULL, asset_id TEXT NOT NULL)',
+      );
+      db.exec(
+        'CREATE TABLE structural_rule_profiles (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, scope TEXT NOT NULL, language_id TEXT, derived_from_system_id TEXT, enabled INTEGER NOT NULL, priority INTEGER NOT NULL)',
+      );
+      db.exec(
+        'CREATE TABLE ai_conversations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, mode TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, archived INTEGER, cleared_at TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE ai_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, generation_source TEXT, generation_model TEXT, error_message TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE ai_tasks (id TEXT PRIMARY KEY, task_type TEXT NOT NULL, status TEXT NOT NULL, target_id TEXT NOT NULL, target_type TEXT, model_id TEXT, error_message TEXT, attempt INTEGER, max_attempts INTEGER, timeout_ms INTEGER, resumable INTEGER, handoff_reason TEXT, agent_run_id TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE ai_task_snapshots (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, task_type TEXT NOT NULL, status TEXT NOT NULL, target_id TEXT NOT NULL, target_type TEXT, model_id TEXT, has_error INTEGER NOT NULL, is_terminal INTEGER NOT NULL, duration_ms INTEGER NOT NULL, attempt INTEGER, max_attempts INTEGER, resumable INTEGER, handoff_reason TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE project_ai_memories (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, fact TEXT NOT NULL, confidence REAL NOT NULL, source_conversation_id TEXT, expires_at TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE agent_artifacts (id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, kind TEXT NOT NULL, uri TEXT NOT NULL, title TEXT NOT NULL, mime_type TEXT NOT NULL, body_json TEXT NOT NULL, agent_run_id TEXT, adoption_item_id TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE ai_source_sets (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, media_id TEXT, layer_id TEXT, bound_session_id TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE user_notes (id TEXT PRIMARY KEY, target_type TEXT NOT NULL, target_id TEXT NOT NULL, text TEXT NOT NULL)',
+      );
+      const insert = db.prepare('INSERT INTO audio (id, relpath, sha256) VALUES (?, ?, ?)');
+      for (const audio of plan.audios) insert.run(audio.audioId, audio.fileName, audio.sha256);
+      if (plan.project) {
+        db.prepare('INSERT INTO project (id, name) VALUES (?, ?)').run(
+          plan.project.id,
+          plan.project.name,
+        );
+      }
+      const insertSpeaker = db.prepare('INSERT INTO speakers (id, text_id, name) VALUES (?, ?, ?)');
+      for (const speaker of plan.speakers ?? []) {
+        insertSpeaker.run(speaker.id, speaker.textId, speaker.name);
+      }
+      const insertLanguage = db.prepare(
+        `INSERT INTO languages (id, text_id, name, ${LANGUAGE_EXTRAS.map(([, column]) => column).join(', ')}) VALUES (${['?', '?', '?', ...LANGUAGE_EXTRAS.map(() => '?')].join(', ')})`,
+      );
+      for (const language of plan.languages ?? []) {
+        insertLanguage.run(
+          language.id,
+          language.textId,
+          language.name,
+          ...LANGUAGE_EXTRAS.map(([camel]) => language[camel] ?? null),
+        );
+      }
+      const insertDisplayName = db.prepare(
+        'INSERT INTO language_display_names (id, text_id, language_id, locale, value) VALUES (?, ?, ?, ?, ?)',
+      );
+      for (const displayName of plan.displayNames ?? []) {
+        insertDisplayName.run(
+          displayName.id,
+          displayName.textId,
+          displayName.languageId,
+          displayName.locale,
+          displayName.value,
+        );
+      }
+      const insertAlias = db.prepare(
+        'INSERT INTO language_aliases (id, text_id, language_id, alias) VALUES (?, ?, ?, ?)',
+      );
+      for (const alias of plan.aliases ?? [])
+        insertAlias.run(alias.id, alias.textId, alias.languageId, alias.alias);
+      const insertOrthography = db.prepare(
+        'INSERT INTO orthographies (id, text_id, name, language_id) VALUES (?, ?, ?, ?)',
+      );
+      for (const orthography of plan.orthographies ?? []) {
+        insertOrthography.run(
+          orthography.id,
+          orthography.textId,
+          orthography.name,
+          orthography.languageId ?? null,
+        );
+      }
+      const insertSource = db.prepare(
+        'INSERT INTO source_records (id, text_id, original_name, display_name, format, media_id) VALUES (?, ?, ?, ?, ?, ?)',
+      );
+      for (const source of plan.sourceRecords ?? []) {
+        insertSource.run(
+          source.id,
+          source.textId,
+          source.originalName,
+          source.displayName,
+          source.format,
+          source.mediaId ?? null,
+        );
+      }
+      const insertLexeme = db.prepare(
+        'INSERT INTO lexemes (id, text_id, headword, kind, usage_count, access_rights) VALUES (?, ?, ?, ?, ?, ?)',
+      );
+      for (const lexeme of plan.lexemes ?? []) {
+        insertLexeme.run(
+          lexeme.id,
+          lexeme.textId,
+          lexeme.headword,
+          lexeme.kind ?? null,
+          lexeme.usageCount ?? null,
+          lexeme.accessRights ?? null,
+        );
+      }
+      const insertPhoneme = db.prepare(
+        'INSERT INTO phonemes (id, text_id, language_id, ipa, type) VALUES (?, ?, ?, ?, ?)',
+      );
+      for (const phoneme of plan.phonemes ?? []) {
+        insertPhoneme.run(
+          phoneme.id,
+          phoneme.textId,
+          phoneme.languageId,
+          phoneme.ipa,
+          phoneme.type,
+        );
+      }
+      const insertAbbreviation = db.prepare(
+        'INSERT INTO abbreviations (id, text_id, abbreviation, category) VALUES (?, ?, ?, ?)',
+      );
+      for (const row of plan.abbreviations ?? []) {
+        insertAbbreviation.run(row.id, row.textId, row.abbreviation, row.category ?? null);
+      }
+      const insertTag = db.prepare(
+        'INSERT INTO tag_definitions (id, text_id, key, scope, color) VALUES (?, ?, ?, ?, ?)',
+      );
+      for (const tag of plan.tagDefinitions ?? []) {
+        insertTag.run(tag.id, tag.textId, tag.key, tag.scope ?? null, tag.color ?? null);
+      }
+      const insertBibliography = db.prepare(
+        'INSERT INTO bibliographic_sources (id, text_id, title, year, source_type, citation_key, access_rights) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const source of plan.bibliographicSources ?? []) {
+        insertBibliography.run(
+          source.id,
+          source.textId,
+          source.title,
+          source.year ?? null,
+          source.sourceType ?? null,
+          source.citationKey ?? null,
+          source.accessRights ?? null,
+        );
+      }
+      const insertLocation = db.prepare(
+        'INSERT INTO locations (id, text_id, latitude, longitude, region, country) VALUES (?, ?, ?, ?, ?, ?)',
+      );
+      for (const location of plan.locations ?? []) {
+        insertLocation.run(
+          location.id,
+          location.textId,
+          location.latitude ?? null,
+          location.longitude ?? null,
+          location.region ?? null,
+          location.country ?? null,
+        );
+      }
+      const insertGrammar = db.prepare(
+        'INSERT INTO grammar_docs (id, text_id, title, content, parent_id, sort_order, access_rights) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const doc of plan.grammarDocs ?? []) {
+        insertGrammar.run(
+          doc.id,
+          doc.textId,
+          doc.title,
+          doc.content,
+          doc.parentId ?? null,
+          doc.sortOrder ?? null,
+          doc.accessRights ?? null,
+        );
+      }
+      const insertBridge = db.prepare(
+        'INSERT INTO orthography_bridges (id, text_id, source_orthography_id, target_orthography_id, engine, status, is_reversible) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const bridge of plan.orthographyBridges ?? []) {
+        insertBridge.run(
+          bridge.id,
+          bridge.textId,
+          bridge.sourceOrthographyId,
+          bridge.targetOrthographyId,
+          bridge.engine,
+          bridge.status ?? null,
+          bridge.isReversible === undefined ? null : bridge.isReversible ? 1 : 0,
+        );
+      }
+      const insertCustomField = db.prepare(
+        'INSERT INTO custom_field_definitions (id, text_id, field_type, sort_order, required, min_value, max_value, pattern) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const field of plan.customFields ?? []) {
+        insertCustomField.run(
+          field.id,
+          field.textId,
+          field.fieldType,
+          field.sortOrder,
+          field.required === undefined ? null : field.required ? 1 : 0,
+          field.minValue ?? null,
+          field.maxValue ?? null,
+          field.pattern ?? null,
+        );
+      }
+      const insertHistory = db.prepare(
+        'INSERT INTO language_catalog_history (id, text_id, language_id, action, summary, reason, reason_code, actor_id, actor_type, source_type, source_ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const entry of plan.catalogHistory ?? []) {
+        insertHistory.run(
+          entry.id,
+          entry.textId,
+          entry.languageId,
+          entry.action,
+          entry.summary,
+          entry.reason ?? null,
+          entry.reasonCode ?? null,
+          entry.actorId ?? null,
+          entry.actorType ?? null,
+          entry.sourceType ?? null,
+          entry.sourceRef ?? null,
+        );
+      }
+      const bit = (value) => (value === undefined ? null : value ? 1 : 0);
+      const insertAsset = db.prepare(
+        'INSERT INTO lexeme_assets (id, text_id, kind, mime_type, display_name, language_code, byte_size, ref_count, blob_export_omitted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const asset of plan.lexemeAssets ?? []) {
+        insertAsset.run(
+          asset.id,
+          asset.textId,
+          asset.kind,
+          asset.mimeType,
+          asset.displayName,
+          asset.languageCode ?? null,
+          asset.byteSize,
+          asset.refCount,
+          bit(asset.blobExportOmitted),
+        );
+      }
+      const insertAssetLink = db.prepare(
+        'INSERT INTO lexeme_asset_links (id, text_id, lexeme_id, asset_id) VALUES (?, ?, ?, ?)',
+      );
+      for (const link of plan.lexemeAssetLinks ?? []) {
+        insertAssetLink.run(link.id, link.textId, link.lexemeId, link.assetId);
+      }
+      const insertRule = db.prepare(
+        'INSERT INTO structural_rule_profiles (id, project_id, scope, language_id, derived_from_system_id, enabled, priority) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const rule of plan.structuralRules ?? []) {
+        insertRule.run(
+          rule.id,
+          rule.projectId,
+          rule.scope,
+          rule.languageId ?? null,
+          rule.derivedFromSystemId ?? null,
+          rule.enabled ? 1 : 0,
+          rule.priority,
+        );
+      }
+      const insertConversation = db.prepare(
+        'INSERT INTO ai_conversations (id, text_id, title, mode, provider_id, model, archived, cleared_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const conversation of plan.conversations ?? []) {
+        insertConversation.run(
+          conversation.id,
+          conversation.textId,
+          conversation.title,
+          conversation.mode,
+          conversation.providerId,
+          conversation.model,
+          bit(conversation.archived),
+          conversation.clearedAt ?? null,
+        );
+      }
+      const insertMessage = db.prepare(
+        'INSERT INTO ai_messages (id, conversation_id, role, content, status, generation_source, generation_model, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const message of plan.aiMessages ?? []) {
+        insertMessage.run(
+          message.id,
+          message.conversationId,
+          message.role,
+          message.content,
+          message.status,
+          message.generationSource ?? null,
+          message.generationModel ?? null,
+          message.errorMessage ?? null,
+        );
+      }
+      const insertTask = db.prepare(
+        'INSERT INTO ai_tasks (id, task_type, status, target_id, target_type, model_id, error_message, attempt, max_attempts, timeout_ms, resumable, handoff_reason, agent_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const task of plan.aiTasks ?? []) {
+        insertTask.run(
+          task.id,
+          task.taskType,
+          task.status,
+          task.targetId,
+          task.targetType ?? null,
+          task.modelId ?? null,
+          task.errorMessage ?? null,
+          task.attempt ?? null,
+          task.maxAttempts ?? null,
+          task.timeoutMs ?? null,
+          bit(task.resumable),
+          task.handoffReason ?? null,
+          task.agentRunId ?? null,
+        );
+      }
+      const insertSnapshot = db.prepare(
+        'INSERT INTO ai_task_snapshots (id, task_id, task_type, status, target_id, target_type, model_id, has_error, is_terminal, duration_ms, attempt, max_attempts, resumable, handoff_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const snapshot of plan.aiTaskSnapshots ?? []) {
+        insertSnapshot.run(
+          snapshot.id,
+          snapshot.taskId,
+          snapshot.taskType,
+          snapshot.status,
+          snapshot.targetId,
+          snapshot.targetType ?? null,
+          snapshot.modelId ?? null,
+          snapshot.hasError ? 1 : 0,
+          snapshot.isTerminal ? 1 : 0,
+          snapshot.durationMs,
+          snapshot.attempt ?? null,
+          snapshot.maxAttempts ?? null,
+          bit(snapshot.resumable),
+          snapshot.handoffReason ?? null,
+        );
+      }
+      const insertMemory = db.prepare(
+        'INSERT INTO project_ai_memories (id, project_id, fact, confidence, source_conversation_id, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+      );
+      for (const memory of plan.projectMemories ?? []) {
+        insertMemory.run(
+          memory.id,
+          memory.projectId,
+          memory.fact,
+          memory.confidence,
+          memory.sourceConversationId ?? null,
+          memory.expiresAt ?? null,
+        );
+      }
+      const insertArtifact = db.prepare(
+        'INSERT INTO agent_artifacts (id, schema_version, kind, uri, title, mime_type, body_json, agent_run_id, adoption_item_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const artifact of plan.agentArtifacts ?? []) {
+        insertArtifact.run(
+          artifact.id,
+          artifact.schemaVersion,
+          artifact.kind,
+          artifact.uri,
+          artifact.title,
+          artifact.mimeType,
+          artifact.bodyJson,
+          artifact.agentRunId ?? null,
+          artifact.adoptionItemId ?? null,
+        );
+      }
+      const insertSourceSet = db.prepare(
+        'INSERT INTO ai_source_sets (id, project_id, name, scope, status, media_id, layer_id, bound_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const sourceSet of plan.aiSourceSets ?? []) {
+        insertSourceSet.run(
+          sourceSet.id,
+          sourceSet.projectId,
+          sourceSet.name,
+          sourceSet.scope,
+          sourceSet.status,
+          sourceSet.mediaId ?? null,
+          sourceSet.layerId ?? null,
+          sourceSet.boundSessionId ?? null,
+        );
+      }
+      const insertNote = db.prepare(
+        'INSERT INTO user_notes (id, target_type, target_id, text) VALUES (?, ?, ?, ?)',
+      );
+      for (const note of plan.notes ?? []) {
+        insertNote.run(note.id, note.targetType, note.targetId, note.text);
+      }
+    });
+    for (const manuscript of plan.manuscripts) {
+      const file = path.join(dest, manuscript.fileName);
+      written.push(file);
+      writeDatabase(file, JYD_APPLICATION_ID, (db) => {
+        db.exec('CREATE TABLE meta (id TEXT PRIMARY KEY, audio_id TEXT, source_document_id TEXT)');
+        db.exec(
+          'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT)',
+        );
+        db.exec(
+          'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT)',
+        );
+        db.exec(
+          'CREATE TABLE anchors (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, time REAL NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE unit_contents (id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE unit_relations (id TEXT PRIMARY KEY, source_unit_id TEXT NOT NULL, target_unit_id TEXT NOT NULL, relation_type TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE user_notes (id TEXT PRIMARY KEY, target_type TEXT NOT NULL, target_id TEXT NOT NULL, text TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE layer_links (id TEXT PRIMARY KEY, host_layer_id TEXT NOT NULL, layer_id TEXT NOT NULL, link_type TEXT NOT NULL, is_preferred INTEGER NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE track_entities (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, mode TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE tier_annotations (id TEXT PRIMARY KEY, tier_id TEXT NOT NULL, value TEXT NOT NULL, is_verified INTEGER NOT NULL, start_time REAL, end_time REAL)',
+        );
+        db.exec('CREATE TABLE languages (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
+        db.exec(
+          'CREATE TABLE language_display_names (id TEXT PRIMARY KEY, language_id TEXT NOT NULL, locale TEXT NOT NULL, value TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE language_aliases (id TEXT PRIMARY KEY, language_id TEXT NOT NULL, alias TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE orthographies (id TEXT PRIMARY KEY, name TEXT NOT NULL, language_id TEXT)',
+        );
+        db.exec('CREATE TABLE speakers (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
+        db.exec('CREATE TABLE manuscript_sources (source_id TEXT PRIMARY KEY)');
+        db.exec(
+          'CREATE TABLE token_lexeme_links (id TEXT PRIMARY KEY, target_type TEXT NOT NULL, target_id TEXT NOT NULL, lexeme_id TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE tokens (id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, token_index INTEGER NOT NULL, form TEXT NOT NULL)',
+        );
+        db.exec(
+          'CREATE TABLE morphemes (id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, token_id TEXT NOT NULL, morpheme_index INTEGER NOT NULL, form TEXT NOT NULL)',
+        );
+        db.prepare('INSERT INTO meta (id, audio_id, source_document_id) VALUES (?, ?, ?)').run(
+          manuscript.id,
+          manuscript.audioId,
+          manuscript.sourceDocumentId,
+        );
+        const insertLayer = db.prepare(
+          'INSERT INTO layers (id, key, language_id, orthography_id) VALUES (?, ?, ?, ?)',
+        );
+        for (const layer of manuscript.layers ?? []) {
+          insertLayer.run(
+            layer.id,
+            layer.key,
+            layer.languageId ?? null,
+            layer.orthographyId ?? null,
+          );
+        }
+        const insert = db.prepare(
+          'INSERT INTO units (id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        );
+        for (const unit of manuscript.units) {
+          insert.run(
+            unit.id,
+            unit.layerId ?? null,
+            unit.mediaId ?? null,
+            unit.parentUnitId ?? null,
+            unit.speakerId ?? null,
+            unit.startAnchorId ?? null,
+            unit.endAnchorId ?? null,
+          );
+        }
+        const insertAnchor = db.prepare(
+          'INSERT INTO anchors (id, media_id, time) VALUES (?, ?, ?)',
+        );
+        for (const anchor of manuscript.anchors ?? []) {
+          insertAnchor.run(anchor.id, anchor.mediaId, anchor.time);
+        }
+        const insertContent = db.prepare(
+          'INSERT INTO unit_contents (id, unit_id, role, text) VALUES (?, ?, ?, ?)',
+        );
+        for (const content of manuscript.contents ?? []) {
+          insertContent.run(content.id, content.unitId, content.role, content.text);
+        }
+        const insertRelation = db.prepare(
+          'INSERT INTO unit_relations (id, source_unit_id, target_unit_id, relation_type) VALUES (?, ?, ?, ?)',
+        );
+        for (const relation of manuscript.relations ?? []) {
+          insertRelation.run(
+            relation.id,
+            relation.sourceUnitId,
+            relation.targetUnitId,
+            relation.relationType,
+          );
+        }
+        const insertNote = db.prepare(
+          'INSERT INTO user_notes (id, target_type, target_id, text) VALUES (?, ?, ?, ?)',
+        );
+        for (const note of manuscript.notes ?? []) {
+          insertNote.run(note.id, note.targetType, note.targetId, note.text);
+        }
+        const insertLayerLink = db.prepare(
+          'INSERT INTO layer_links (id, host_layer_id, layer_id, link_type, is_preferred) VALUES (?, ?, ?, ?, ?)',
+        );
+        for (const link of manuscript.layerLinks ?? []) {
+          insertLayerLink.run(
+            link.id,
+            link.hostLayerId,
+            link.layerId,
+            link.linkType,
+            link.isPreferred ? 1 : 0,
+          );
+        }
+        const insertTrack = db.prepare(
+          'INSERT INTO track_entities (id, media_id, mode) VALUES (?, ?, ?)',
+        );
+        for (const track of manuscript.tracks ?? []) {
+          insertTrack.run(track.id, track.mediaId, track.mode);
+        }
+        const insertAnnotation = db.prepare(
+          'INSERT INTO tier_annotations (id, tier_id, value, is_verified, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)',
+        );
+        for (const annotation of manuscript.annotations ?? []) {
+          insertAnnotation.run(
+            annotation.id,
+            annotation.tierId,
+            annotation.value,
+            annotation.isVerified ? 1 : 0,
+            annotation.startTime ?? null,
+            annotation.endTime ?? null,
+          );
+        }
+        const insertToken = db.prepare(
+          'INSERT INTO tokens (id, unit_id, token_index, form) VALUES (?, ?, ?, ?)',
+        );
+        for (const token of manuscript.tokens ?? []) {
+          insertToken.run(token.id, token.unitId, token.tokenIndex, token.form);
+        }
+        const insertMorpheme = db.prepare(
+          'INSERT INTO morphemes (id, unit_id, token_id, morpheme_index, form) VALUES (?, ?, ?, ?, ?)',
+        );
+        for (const morpheme of manuscript.morphemes ?? []) {
+          insertMorpheme.run(
+            morpheme.id,
+            morpheme.unitId,
+            morpheme.tokenId,
+            morpheme.morphemeIndex,
+            morpheme.form,
+          );
+        }
+        const definitions = manuscript.definitions ?? {
+          languages: [],
+          displayNames: [],
+          aliases: [],
+          orthographies: [],
+          speakers: [],
+        };
+        const insertSnapshotLanguage = db.prepare('INSERT INTO languages (id, name) VALUES (?, ?)');
+        for (const language of definitions.languages) {
+          insertSnapshotLanguage.run(language.id, language.name);
+        }
+        const insertSnapshotDisplayName = db.prepare(
+          'INSERT INTO language_display_names (id, language_id, locale, value) VALUES (?, ?, ?, ?)',
+        );
+        for (const displayName of definitions.displayNames) {
+          insertSnapshotDisplayName.run(
+            displayName.id,
+            displayName.languageId,
+            displayName.locale,
+            displayName.value,
+          );
+        }
+        const insertSnapshotAlias = db.prepare(
+          'INSERT INTO language_aliases (id, language_id, alias) VALUES (?, ?, ?)',
+        );
+        for (const alias of definitions.aliases) {
+          insertSnapshotAlias.run(alias.id, alias.languageId, alias.alias);
+        }
+        const insertSnapshotOrthography = db.prepare(
+          'INSERT INTO orthographies (id, name, language_id) VALUES (?, ?, ?)',
+        );
+        for (const orthography of definitions.orthographies) {
+          insertSnapshotOrthography.run(
+            orthography.id,
+            orthography.name,
+            orthography.languageId ?? null,
+          );
+        }
+        const insertSnapshotSpeaker = db.prepare('INSERT INTO speakers (id, name) VALUES (?, ?)');
+        for (const speaker of definitions.speakers)
+          insertSnapshotSpeaker.run(speaker.id, speaker.name);
+        const insertSourceRef = db.prepare('INSERT INTO manuscript_sources (source_id) VALUES (?)');
+        for (const sourceId of manuscript.sourceIds ?? []) insertSourceRef.run(sourceId);
+        const insertLexemeLink = db.prepare(
+          'INSERT INTO token_lexeme_links (id, target_type, target_id, lexeme_id) VALUES (?, ?, ?, ?)',
+        );
+        for (const link of manuscript.lexemeLinks ?? []) {
+          insertLexemeLink.run(link.id, link.targetType, link.targetId, link.lexemeId);
+        }
+      });
+    }
+  } catch (error) {
+    for (const file of written) {
+      fs.rmSync(file, { force: true });
+      fs.rmSync(`${file}-journal`, { force: true });
+    }
+    throw error;
+  }
+}
+
+export function readProject(dest) {
+  const project = new DatabaseSync(path.join(dest, 'project.sqlite'), { readOnly: true });
+  const audios = project.prepare('SELECT id, relpath, sha256 FROM audio ORDER BY id').all();
+  const projectRow = project.prepare('SELECT id, name FROM project').get();
+  const speakers = project.prepare('SELECT id, text_id, name FROM speakers ORDER BY id').all();
+  const languages = project
+    .prepare(
+      `SELECT id, text_id, name, ${LANGUAGE_EXTRAS.map(([, column]) => column).join(', ')} FROM languages ORDER BY id`,
+    )
+    .all();
+  const displayNames = project
+    .prepare(
+      'SELECT id, text_id, language_id, locale, value FROM language_display_names ORDER BY id',
+    )
+    .all();
+  const aliases = project
+    .prepare('SELECT id, text_id, language_id, alias FROM language_aliases ORDER BY id')
+    .all();
+  const orthographies = project
+    .prepare('SELECT id, text_id, name, language_id FROM orthographies ORDER BY id')
+    .all();
+  const sourceRecords = project
+    .prepare(
+      'SELECT id, text_id, original_name, display_name, format, media_id FROM source_records ORDER BY id',
+    )
+    .all();
+  const lexemes = project
+    .prepare(
+      'SELECT id, text_id, headword, kind, usage_count, access_rights FROM lexemes ORDER BY id',
+    )
+    .all();
+  const phonemes = project
+    .prepare('SELECT id, text_id, language_id, ipa, type FROM phonemes ORDER BY id')
+    .all();
+  const abbreviations = project
+    .prepare('SELECT id, text_id, abbreviation, category FROM abbreviations ORDER BY id')
+    .all();
+  const tagDefinitions = project
+    .prepare('SELECT id, text_id, key, scope, color FROM tag_definitions ORDER BY id')
+    .all();
+  const bibliographicSources = project
+    .prepare(
+      'SELECT id, text_id, title, year, source_type, citation_key, access_rights FROM bibliographic_sources ORDER BY id',
+    )
+    .all();
+  const locations = project
+    .prepare('SELECT id, text_id, latitude, longitude, region, country FROM locations ORDER BY id')
+    .all();
+  const grammarDocs = project
+    .prepare(
+      'SELECT id, text_id, title, content, parent_id, sort_order, access_rights FROM grammar_docs ORDER BY id',
+    )
+    .all();
+  const orthographyBridges = project
+    .prepare(
+      'SELECT id, text_id, source_orthography_id, target_orthography_id, engine, status, is_reversible FROM orthography_bridges ORDER BY id',
+    )
+    .all();
+  const customFields = project
+    .prepare(
+      'SELECT id, text_id, field_type, sort_order, required, min_value, max_value, pattern FROM custom_field_definitions ORDER BY sort_order, id',
+    )
+    .all();
+  const catalogHistory = project
+    .prepare(
+      'SELECT id, text_id, language_id, action, summary, reason, reason_code, actor_id, actor_type, source_type, source_ref FROM language_catalog_history ORDER BY id',
+    )
+    .all();
+  const lexemeAssets = project
+    .prepare(
+      'SELECT id, text_id, kind, mime_type, display_name, language_code, byte_size, ref_count, blob_export_omitted FROM lexeme_assets ORDER BY id',
+    )
+    .all();
+  const lexemeAssetLinks = project
+    .prepare('SELECT id, text_id, lexeme_id, asset_id FROM lexeme_asset_links ORDER BY id')
+    .all();
+  const structuralRules = project
+    .prepare(
+      'SELECT id, project_id, scope, language_id, derived_from_system_id, enabled, priority FROM structural_rule_profiles ORDER BY id',
+    )
+    .all();
+  const conversations = project
+    .prepare(
+      'SELECT id, text_id, title, mode, provider_id, model, archived, cleared_at FROM ai_conversations ORDER BY id',
+    )
+    .all();
+  const aiMessages = project
+    .prepare(
+      'SELECT id, conversation_id, role, content, status, generation_source, generation_model, error_message FROM ai_messages ORDER BY id',
+    )
+    .all();
+  const aiTasks = project
+    .prepare(
+      'SELECT id, task_type, status, target_id, target_type, model_id, error_message, attempt, max_attempts, timeout_ms, resumable, handoff_reason, agent_run_id FROM ai_tasks ORDER BY id',
+    )
+    .all();
+  const aiTaskSnapshots = project
+    .prepare(
+      'SELECT id, task_id, task_type, status, target_id, target_type, model_id, has_error, is_terminal, duration_ms, attempt, max_attempts, resumable, handoff_reason FROM ai_task_snapshots ORDER BY id',
+    )
+    .all();
+  const projectMemories = project
+    .prepare(
+      'SELECT id, project_id, fact, confidence, source_conversation_id, expires_at FROM project_ai_memories ORDER BY id',
+    )
+    .all();
+  const agentArtifacts = project
+    .prepare(
+      'SELECT id, schema_version, kind, uri, title, mime_type, body_json, agent_run_id, adoption_item_id FROM agent_artifacts ORDER BY id',
+    )
+    .all();
+  const aiSourceSets = project
+    .prepare(
+      'SELECT id, project_id, name, scope, status, media_id, layer_id, bound_session_id FROM ai_source_sets ORDER BY id',
+    )
+    .all();
+  const notes = project
+    .prepare('SELECT id, target_type, target_id, text FROM user_notes ORDER BY id')
+    .all();
+  project.close();
+  const manuscripts = fs
+    .readdirSync(dest)
+    .filter((name) => name.endsWith('.jyd'))
+    .sort()
+    .map((fileName) => {
+      const db = new DatabaseSync(path.join(dest, fileName), { readOnly: true });
+      const meta = db.prepare('SELECT id, audio_id, source_document_id FROM meta').get();
+      const layers = db
+        .prepare('SELECT id, key, language_id, orthography_id FROM layers ORDER BY id')
+        .all();
+      const units = db
+        .prepare(
+          'SELECT id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id FROM units ORDER BY id',
+        )
+        .all();
+      const snapshotLanguages = db.prepare('SELECT id, name FROM languages ORDER BY id').all();
+      const snapshotDisplayNames = db
+        .prepare('SELECT id, language_id, locale, value FROM language_display_names ORDER BY id')
+        .all();
+      const snapshotAliases = db
+        .prepare('SELECT id, language_id, alias FROM language_aliases ORDER BY id')
+        .all();
+      const snapshotOrthographies = db
+        .prepare('SELECT id, name, language_id FROM orthographies ORDER BY id')
+        .all();
+      const snapshotSpeakers = db.prepare('SELECT id, name FROM speakers ORDER BY id').all();
+      const sourceRefs = db
+        .prepare('SELECT source_id FROM manuscript_sources ORDER BY rowid')
+        .all();
+      const lexemeLinks = db
+        .prepare('SELECT id, target_type, target_id, lexeme_id FROM token_lexeme_links ORDER BY id')
+        .all();
+      const anchors = db.prepare('SELECT id, media_id, time FROM anchors ORDER BY id').all();
+      const contents = db
+        .prepare('SELECT id, unit_id, role, text FROM unit_contents ORDER BY id')
+        .all();
+      const relations = db
+        .prepare(
+          'SELECT id, source_unit_id, target_unit_id, relation_type FROM unit_relations ORDER BY id',
+        )
+        .all();
+      const notes = db
+        .prepare('SELECT id, target_type, target_id, text FROM user_notes ORDER BY id')
+        .all();
+      const layerLinks = db
+        .prepare(
+          'SELECT id, host_layer_id, layer_id, link_type, is_preferred FROM layer_links ORDER BY id',
+        )
+        .all();
+      const tracks = db.prepare('SELECT id, media_id, mode FROM track_entities ORDER BY id').all();
+      const annotations = db
+        .prepare(
+          'SELECT id, tier_id, value, is_verified, start_time, end_time FROM tier_annotations ORDER BY id',
+        )
+        .all();
+      const tokens = db
+        .prepare('SELECT id, unit_id, token_index, form FROM tokens ORDER BY token_index, id')
+        .all();
+      const morphemes = db
+        .prepare(
+          'SELECT id, unit_id, token_id, morpheme_index, form FROM morphemes ORDER BY morpheme_index, id',
+        )
+        .all();
+      db.close();
+      return {
+        fileName,
+        id: meta.id,
+        audioId: meta.audio_id,
+        sourceDocumentId: meta.source_document_id,
+        layers: layers.map((layer) => ({
+          id: layer.id,
+          key: layer.key,
+          ...(layer.language_id !== null ? { languageId: layer.language_id } : {}),
+          ...(layer.orthography_id !== null ? { orthographyId: layer.orthography_id } : {}),
+        })),
+        definitions: {
+          languages: snapshotLanguages.map((language) => ({
+            id: language.id,
+            name: language.name,
+          })),
+          displayNames: snapshotDisplayNames.map((displayName) => ({
+            id: displayName.id,
+            languageId: displayName.language_id,
+            locale: displayName.locale,
+            value: displayName.value,
+          })),
+          aliases: snapshotAliases.map((alias) => ({
+            id: alias.id,
+            languageId: alias.language_id,
+            alias: alias.alias,
+          })),
+          orthographies: snapshotOrthographies.map((orthography) => ({
+            id: orthography.id,
+            name: orthography.name,
+            ...(orthography.language_id !== null ? { languageId: orthography.language_id } : {}),
+          })),
+          speakers: snapshotSpeakers.map((speaker) => ({ id: speaker.id, name: speaker.name })),
+        },
+        sourceIds: sourceRefs.map((source) => source.source_id),
+        lexemeLinks: lexemeLinks.map((link) => ({
+          id: link.id,
+          targetType: link.target_type,
+          targetId: link.target_id,
+          lexemeId: link.lexeme_id,
+        })),
+        anchors: anchors.map((anchor) => ({
+          id: anchor.id,
+          mediaId: anchor.media_id,
+          time: anchor.time,
+        })),
+        contents: contents.map((content) => ({
+          id: content.id,
+          unitId: content.unit_id,
+          role: content.role,
+          text: content.text,
+        })),
+        relations: relations.map((relation) => ({
+          id: relation.id,
+          sourceUnitId: relation.source_unit_id,
+          targetUnitId: relation.target_unit_id,
+          relationType: relation.relation_type,
+        })),
+        notes: notes.map((note) => ({
+          id: note.id,
+          targetType: note.target_type,
+          targetId: note.target_id,
+          text: note.text,
+        })),
+        layerLinks: layerLinks.map((link) => ({
+          id: link.id,
+          hostLayerId: link.host_layer_id,
+          layerId: link.layer_id,
+          linkType: link.link_type,
+          isPreferred: link.is_preferred !== 0,
+        })),
+        tracks: tracks.map((track) => ({
+          id: track.id,
+          mediaId: track.media_id,
+          mode: track.mode,
+        })),
+        annotations: annotations.map((annotation) => ({
+          id: annotation.id,
+          tierId: annotation.tier_id,
+          value: annotation.value,
+          isVerified: annotation.is_verified !== 0,
+          ...(annotation.start_time !== null ? { startTime: annotation.start_time } : {}),
+          ...(annotation.end_time !== null ? { endTime: annotation.end_time } : {}),
+        })),
+        tokens: tokens.map((token) => ({
+          id: token.id,
+          unitId: token.unit_id,
+          tokenIndex: token.token_index,
+          form: token.form,
+        })),
+        morphemes: morphemes.map((morpheme) => ({
+          id: morpheme.id,
+          unitId: morpheme.unit_id,
+          tokenId: morpheme.token_id,
+          morphemeIndex: morpheme.morpheme_index,
+          form: morpheme.form,
+        })),
+        units: units.map((unit) => ({
+          id: unit.id,
+          layerId: unit.layer_id,
+          mediaId: unit.media_id,
+          parentUnitId: unit.parent_unit_id,
+          ...(unit.speaker_id !== null ? { speakerId: unit.speaker_id } : {}),
+          ...(unit.start_anchor_id !== null ? { startAnchorId: unit.start_anchor_id } : {}),
+          ...(unit.end_anchor_id !== null ? { endAnchorId: unit.end_anchor_id } : {}),
+        })),
+      };
+    });
+  return {
+    project: projectRow ? { id: projectRow.id, name: projectRow.name } : null,
+    speakers: speakers.map((speaker) => ({
+      id: speaker.id,
+      textId: speaker.text_id,
+      name: speaker.name,
+    })),
+    languages: languages.map((language) => ({
+      id: language.id,
+      textId: language.text_id,
+      name: language.name,
+      ...definedFields(language, LANGUAGE_EXTRAS),
+    })),
+    displayNames: displayNames.map((displayName) => ({
+      id: displayName.id,
+      textId: displayName.text_id,
+      languageId: displayName.language_id,
+      locale: displayName.locale,
+      value: displayName.value,
+    })),
+    aliases: aliases.map((alias) => ({
+      id: alias.id,
+      textId: alias.text_id,
+      languageId: alias.language_id,
+      alias: alias.alias,
+    })),
+    orthographies: orthographies.map((orthography) => ({
+      id: orthography.id,
+      textId: orthography.text_id,
+      name: orthography.name,
+      ...(orthography.language_id !== null ? { languageId: orthography.language_id } : {}),
+    })),
+    lexemes: lexemes.map((lexeme) => ({
+      id: lexeme.id,
+      textId: lexeme.text_id,
+      headword: lexeme.headword,
+      ...(lexeme.kind !== null ? { kind: lexeme.kind } : {}),
+      ...(lexeme.usage_count !== null ? { usageCount: lexeme.usage_count } : {}),
+      ...(lexeme.access_rights !== null ? { accessRights: lexeme.access_rights } : {}),
+    })),
+    phonemes: phonemes.map((phoneme) => ({
+      id: phoneme.id,
+      textId: phoneme.text_id,
+      languageId: phoneme.language_id,
+      ipa: phoneme.ipa,
+      type: phoneme.type,
+    })),
+    abbreviations: abbreviations.map((row) => ({
+      id: row.id,
+      textId: row.text_id,
+      abbreviation: row.abbreviation,
+      ...(row.category !== null ? { category: row.category } : {}),
+    })),
+    tagDefinitions: tagDefinitions.map((tag) => ({
+      id: tag.id,
+      textId: tag.text_id,
+      key: tag.key,
+      ...(tag.scope !== null ? { scope: tag.scope } : {}),
+      ...(tag.color !== null ? { color: tag.color } : {}),
+    })),
+    bibliographicSources: bibliographicSources.map((source) => ({
+      id: source.id,
+      textId: source.text_id,
+      title: source.title,
+      ...(source.year !== null ? { year: source.year } : {}),
+      ...(source.source_type !== null ? { sourceType: source.source_type } : {}),
+      ...(source.citation_key !== null ? { citationKey: source.citation_key } : {}),
+      ...(source.access_rights !== null ? { accessRights: source.access_rights } : {}),
+    })),
+    locations: locations.map((location) => ({
+      id: location.id,
+      textId: location.text_id,
+      ...(location.latitude !== null ? { latitude: location.latitude } : {}),
+      ...(location.longitude !== null ? { longitude: location.longitude } : {}),
+      ...(location.region !== null ? { region: location.region } : {}),
+      ...(location.country !== null ? { country: location.country } : {}),
+    })),
+    grammarDocs: grammarDocs.map((doc) => ({
+      id: doc.id,
+      textId: doc.text_id,
+      title: doc.title,
+      content: doc.content,
+      ...(doc.parent_id !== null ? { parentId: doc.parent_id } : {}),
+      ...(doc.sort_order !== null ? { sortOrder: doc.sort_order } : {}),
+      ...(doc.access_rights !== null ? { accessRights: doc.access_rights } : {}),
+    })),
+    orthographyBridges: orthographyBridges.map((bridge) => ({
+      id: bridge.id,
+      textId: bridge.text_id,
+      sourceOrthographyId: bridge.source_orthography_id,
+      targetOrthographyId: bridge.target_orthography_id,
+      engine: bridge.engine,
+      ...(bridge.status !== null ? { status: bridge.status } : {}),
+      ...(bridge.is_reversible !== null ? { isReversible: bridge.is_reversible !== 0 } : {}),
+    })),
+    customFields: customFields.map((field) => ({
+      id: field.id,
+      textId: field.text_id,
+      fieldType: field.field_type,
+      sortOrder: field.sort_order,
+      ...(field.required !== null ? { required: field.required !== 0 } : {}),
+      ...(field.min_value !== null ? { minValue: field.min_value } : {}),
+      ...(field.max_value !== null ? { maxValue: field.max_value } : {}),
+      ...(field.pattern !== null ? { pattern: field.pattern } : {}),
+    })),
+    catalogHistory: catalogHistory.map((entry) => ({
+      id: entry.id,
+      textId: entry.text_id,
+      languageId: entry.language_id,
+      action: entry.action,
+      summary: entry.summary,
+      ...(entry.reason !== null ? { reason: entry.reason } : {}),
+      ...(entry.reason_code !== null ? { reasonCode: entry.reason_code } : {}),
+      ...(entry.actor_id !== null ? { actorId: entry.actor_id } : {}),
+      ...(entry.actor_type !== null ? { actorType: entry.actor_type } : {}),
+      ...(entry.source_type !== null ? { sourceType: entry.source_type } : {}),
+      ...(entry.source_ref !== null ? { sourceRef: entry.source_ref } : {}),
+    })),
+    lexemeAssets: lexemeAssets.map((asset) => ({
+      id: asset.id,
+      textId: asset.text_id,
+      kind: asset.kind,
+      mimeType: asset.mime_type,
+      displayName: asset.display_name,
+      ...(asset.language_code !== null ? { languageCode: asset.language_code } : {}),
+      byteSize: asset.byte_size,
+      refCount: asset.ref_count,
+      ...(asset.blob_export_omitted !== null
+        ? { blobExportOmitted: asset.blob_export_omitted !== 0 }
+        : {}),
+    })),
+    lexemeAssetLinks: lexemeAssetLinks.map((link) => ({
+      id: link.id,
+      textId: link.text_id,
+      lexemeId: link.lexeme_id,
+      assetId: link.asset_id,
+    })),
+    structuralRules: structuralRules.map((rule) => ({
+      id: rule.id,
+      projectId: rule.project_id,
+      scope: rule.scope,
+      ...(rule.language_id !== null ? { languageId: rule.language_id } : {}),
+      ...(rule.derived_from_system_id !== null
+        ? { derivedFromSystemId: rule.derived_from_system_id }
+        : {}),
+      enabled: rule.enabled !== 0,
+      priority: rule.priority,
+    })),
+    conversations: conversations.map((conversation) => ({
+      id: conversation.id,
+      textId: conversation.text_id,
+      title: conversation.title,
+      mode: conversation.mode,
+      providerId: conversation.provider_id,
+      model: conversation.model,
+      ...(conversation.archived !== null ? { archived: conversation.archived !== 0 } : {}),
+      ...(conversation.cleared_at !== null ? { clearedAt: conversation.cleared_at } : {}),
+    })),
+    aiMessages: aiMessages.map((message) => ({
+      id: message.id,
+      conversationId: message.conversation_id,
+      role: message.role,
+      content: message.content,
+      status: message.status,
+      ...(message.generation_source !== null
+        ? { generationSource: message.generation_source }
+        : {}),
+      ...(message.generation_model !== null ? { generationModel: message.generation_model } : {}),
+      ...(message.error_message !== null ? { errorMessage: message.error_message } : {}),
+    })),
+    aiTasks: aiTasks.map((task) => ({
+      id: task.id,
+      taskType: task.task_type,
+      status: task.status,
+      targetId: task.target_id,
+      ...(task.target_type !== null ? { targetType: task.target_type } : {}),
+      ...(task.model_id !== null ? { modelId: task.model_id } : {}),
+      ...(task.error_message !== null ? { errorMessage: task.error_message } : {}),
+      ...(task.attempt !== null ? { attempt: task.attempt } : {}),
+      ...(task.max_attempts !== null ? { maxAttempts: task.max_attempts } : {}),
+      ...(task.timeout_ms !== null ? { timeoutMs: task.timeout_ms } : {}),
+      ...(task.resumable !== null ? { resumable: task.resumable !== 0 } : {}),
+      ...(task.handoff_reason !== null ? { handoffReason: task.handoff_reason } : {}),
+      ...(task.agent_run_id !== null ? { agentRunId: task.agent_run_id } : {}),
+    })),
+    aiTaskSnapshots: aiTaskSnapshots.map((snapshot) => ({
+      id: snapshot.id,
+      taskId: snapshot.task_id,
+      taskType: snapshot.task_type,
+      status: snapshot.status,
+      targetId: snapshot.target_id,
+      ...(snapshot.target_type !== null ? { targetType: snapshot.target_type } : {}),
+      ...(snapshot.model_id !== null ? { modelId: snapshot.model_id } : {}),
+      hasError: snapshot.has_error !== 0,
+      isTerminal: snapshot.is_terminal !== 0,
+      durationMs: snapshot.duration_ms,
+      ...(snapshot.attempt !== null ? { attempt: snapshot.attempt } : {}),
+      ...(snapshot.max_attempts !== null ? { maxAttempts: snapshot.max_attempts } : {}),
+      ...(snapshot.resumable !== null ? { resumable: snapshot.resumable !== 0 } : {}),
+      ...(snapshot.handoff_reason !== null ? { handoffReason: snapshot.handoff_reason } : {}),
+    })),
+    projectMemories: projectMemories.map((memory) => ({
+      id: memory.id,
+      projectId: memory.project_id,
+      fact: memory.fact,
+      confidence: memory.confidence,
+      ...(memory.source_conversation_id !== null
+        ? { sourceConversationId: memory.source_conversation_id }
+        : {}),
+      ...(memory.expires_at !== null ? { expiresAt: memory.expires_at } : {}),
+    })),
+    agentArtifacts: agentArtifacts.map((artifact) => ({
+      id: artifact.id,
+      schemaVersion: artifact.schema_version,
+      kind: artifact.kind,
+      uri: artifact.uri,
+      title: artifact.title,
+      mimeType: artifact.mime_type,
+      bodyJson: artifact.body_json,
+      ...(artifact.agent_run_id !== null ? { agentRunId: artifact.agent_run_id } : {}),
+      ...(artifact.adoption_item_id !== null ? { adoptionItemId: artifact.adoption_item_id } : {}),
+    })),
+    aiSourceSets: aiSourceSets.map((sourceSet) => ({
+      id: sourceSet.id,
+      projectId: sourceSet.project_id,
+      name: sourceSet.name,
+      scope: sourceSet.scope,
+      status: sourceSet.status,
+      ...(sourceSet.media_id !== null ? { mediaId: sourceSet.media_id } : {}),
+      ...(sourceSet.layer_id !== null ? { layerId: sourceSet.layer_id } : {}),
+      ...(sourceSet.bound_session_id !== null
+        ? { boundSessionId: sourceSet.bound_session_id }
+        : {}),
+    })),
+    notes: notes.map((note) => ({
+      id: note.id,
+      targetType: note.target_type,
+      targetId: note.target_id,
+      text: note.text,
+    })),
+    sourceRecords: sourceRecords.map((source) => ({
+      id: source.id,
+      textId: source.text_id,
+      originalName: source.original_name,
+      displayName: source.display_name,
+      format: source.format,
+      ...(source.media_id !== null ? { mediaId: source.media_id } : {}),
+    })),
+    audios: audios.map((audio) => ({
+      id: audio.id,
+      relPath: audio.relpath,
+      sha256: audio.sha256,
+    })),
+    manuscripts,
+  };
+}
+
+const isDirectRun =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+  const [planFile, dest] = process.argv.slice(2);
+  const raw = JSON.parse(fs.readFileSync(planFile, 'utf8'));
+  applyPlan(
+    {
+      project: raw.project ?? null,
+      speakers: raw.speakers ?? [],
+      languages: raw.languages ?? [],
+      displayNames: raw.displayNames ?? [],
+      aliases: raw.aliases ?? [],
+      orthographies: raw.orthographies ?? [],
+      sourceRecords: raw.sourceRecords ?? [],
+      lexemes: raw.lexemes ?? [],
+      phonemes: raw.phonemes ?? [],
+      abbreviations: raw.abbreviations ?? [],
+      tagDefinitions: raw.tagDefinitions ?? [],
+      bibliographicSources: raw.bibliographicSources ?? [],
+      locations: raw.locations ?? [],
+      grammarDocs: raw.grammarDocs ?? [],
+      orthographyBridges: raw.orthographyBridges ?? [],
+      customFields: raw.customFields ?? [],
+      catalogHistory: raw.catalogHistory ?? [],
+      lexemeAssets: raw.lexemeAssets ?? [],
+      lexemeAssetLinks: raw.lexemeAssetLinks ?? [],
+      structuralRules: raw.structuralRules ?? [],
+      conversations: raw.conversations ?? [],
+      aiMessages: raw.aiMessages ?? [],
+      aiTasks: raw.aiTasks ?? [],
+      aiTaskSnapshots: raw.aiTaskSnapshots ?? [],
+      projectMemories: raw.projectMemories ?? [],
+      agentArtifacts: raw.agentArtifacts ?? [],
+      aiSourceSets: raw.aiSourceSets ?? [],
+      notes: raw.notes ?? [],
+      audios: raw.audios.map((audio) => ({ ...audio, bytes: Buffer.from(audio.bytes, 'base64') })),
+      manuscripts: raw.manuscripts,
+    },
+    dest,
+  );
+  process.stdout.write(JSON.stringify(readProject(dest)));
+}

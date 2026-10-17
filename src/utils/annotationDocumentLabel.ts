@@ -2,7 +2,7 @@
  * 第 5 批：标注文稿的显示名。
  * Batch 5: display name of an annotation document.
  */
-import type { AnnotationDocumentDocType } from '../db';
+import type { AnnotationDocumentDocType } from '../db/types';
 import { tf, type Locale } from '../i18n';
 import { readAnyMultiLangLabel } from './multiLangLabels';
 

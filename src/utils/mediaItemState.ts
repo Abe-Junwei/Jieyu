@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType } from '../db/types';
 
 /**
  * 媒体行状态字段（rev5 §4.1，切片 2B-C）| Media row state fields (rev5 §4.1, slice 2B-C)
@@ -67,6 +67,28 @@ export function isMediaItemBytesMissing(
   row: Pick<MediaItemDocType, 'timelineKind' | 'availability'>,
 ): boolean {
   return row.timelineKind === 'acoustic' && row.availability === 'missing';
+}
+
+/** 这一行现在就能拿去解码：库里的 Blob，或一条非空 url。 */
+export function mediaRowHasPlayableBytes(
+  row: Pick<MediaItemDocType, 'details' | 'url'> | undefined,
+): boolean {
+  if (!row) return false;
+  const blob = (row.details as { audioBlob?: unknown } | undefined)?.audioBlob;
+  if (blob instanceof Blob && blob.size > 0) return true;
+  return typeof row.url === 'string' && row.url.trim().length > 0;
+}
+
+/**
+ * 空录音条目能不能删，只看现在拿不拿得到字节。和 `removeEmptyRecording` 用同一条规则。
+ * 状态仍写着有文件、但库里已经没有 Blob 或 url 时，允许移除。
+ */
+export function emptyRecordingRemovalByteBlock(
+  row: Pick<MediaItemDocType, 'timelineKind' | 'details' | 'url'>,
+): 'not-acoustic' | 'has-bytes' | null {
+  if (row.timelineKind !== 'acoustic') return 'not-acoustic';
+  if (mediaRowHasPlayableBytes(row)) return 'has-bytes';
+  return null;
 }
 
 const AUXILIARY_RECORDING_SOURCES = new Set(['translation-recording', 'transcription-recording']);

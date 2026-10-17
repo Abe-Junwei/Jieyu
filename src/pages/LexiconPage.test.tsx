@@ -54,6 +54,29 @@ vi.mock('../services/LinguisticService', () => ({
   },
 }));
 
+vi.mock('./lexicon/saveLexiconEntry', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./lexicon/saveLexiconEntry')>();
+  const { applyLexiconEntryFields } = await import('../utils/dmlexEntry');
+  return {
+    ...actual,
+    saveLexiconEntry: async (input: Parameters<typeof actual.saveLexiconEntry>[0]) => {
+      const applied = applyLexiconEntryFields(
+        input.existing,
+        input.fields,
+        (await mockGetResource()) as Awaited<ReturnType<typeof mockGetResource>>,
+        new Date().toISOString(),
+        input.textId,
+      );
+      await mockSaveLexeme(applied.entry);
+      await mockSaveLexeme(applied.resource);
+      const rows = (await mockListLexemes()) as LexemeEntryDoc[];
+      const stored = rows.find((row) => row.id === applied.entry.id);
+      if (!stored) throw new Error('lexeme readback missing');
+      return stored;
+    },
+  };
+});
+
 vi.mock('../ai/config/featureFlags', () => ({
   featureFlags: {
     get lexiconAttachmentsEnabled() {

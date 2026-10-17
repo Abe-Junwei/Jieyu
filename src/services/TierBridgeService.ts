@@ -25,6 +25,13 @@ export interface ConsistencyIssue {
 
 const TIER_KEY_PREFIX = 'bridge_';
 
+export async function deleteTierAnnotationsForLayers(
+  db: JieyuDatabase,
+  layerIds: string[],
+): Promise<void> {
+  await db.dexie.tier_annotations.where('tierId').anyOf(layerIds).delete();
+}
+
 function resolveBridgeId(value: { bridgeId?: unknown } | null | undefined): string | undefined {
   if (!value) return undefined;
   if (typeof value.bridgeId === 'string' && value.bridgeId.trim()) return value.bridgeId.trim();

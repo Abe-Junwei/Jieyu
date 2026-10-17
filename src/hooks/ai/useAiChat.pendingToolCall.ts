@@ -21,6 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
+import { completeExternalMcpInputForm } from '../../ai/mcp/client/externalMcpTurnBridge';
 import { expireApprovalIfStale, resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
 import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
@@ -94,19 +95,76 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
   const onToolCallRef = useLatest(options.onToolCall);
   const getTimelineReadModelEpochRef = useLatest(getTimelineReadModelEpoch);
 
-  const confirmPendingToolCall = useCallback(async () => {
-    const pending = pendingToolCallRef.current;
-    if (!pending) return;
+  const confirmPendingToolCall = useCallback(
+    async (draft?: Record<string, string>) => {
+      const pending = pendingToolCallRef.current;
+      if (!pending) return;
 
-    const assistantMessageId = pending.assistantMessageId;
-    const changeSet = buildAiChangeSetFromPendingToolCall(pending);
-    const currentEpoch = getTimelineReadModelEpochRef.current?.();
-    // S2：同页内 v2 卡片同样走 epoch；重载恢复的卡片不带 epoch，由 resolveApproval 的库指纹核对 |
-    // in-page epoch for v2 too; restored cards (no epoch) are guarded by DB fingerprints in resolveApproval
-    const restoredV2 = isRestoredV2Card(pending);
-    if (!restoredV2 && !validateChangeSetEpoch(changeSet, currentEpoch)) {
-      const staleCall = pending.executionCall ?? pending.call;
-      const staleAuditContext =
+      const assistantMessageId = pending.assistantMessageId;
+      if (pending.mcpInput) {
+        const outcome = await completeExternalMcpInputForm(pending.mcpInput, draft ?? {});
+        if (!outcome.ok && outcome.text === 'input_required') return;
+        setPendingToolCall(null);
+        setTaskSession({
+          id: taskSessionRef.current.id,
+          status: 'idle',
+          updatedAt: nowIso(),
+        });
+        await applyAssistantMessageResult(
+          assistantMessageId,
+          outcome.text,
+          outcome.ok ? 'done' : 'error',
+          outcome.ok ? undefined : outcome.text,
+        );
+        return;
+      }
+      const changeSet = buildAiChangeSetFromPendingToolCall(pending);
+      const currentEpoch = getTimelineReadModelEpochRef.current?.();
+      // S2：同页内 v2 卡片同样走 epoch；重载恢复的卡片不带 epoch，由 resolveApproval 的库指纹核对 |
+      // in-page epoch for v2 too; restored cards (no epoch) are guarded by DB fingerprints in resolveApproval
+      const restoredV2 = isRestoredV2Card(pending);
+      if (!restoredV2 && !validateChangeSetEpoch(changeSet, currentEpoch)) {
+        const staleCall = pending.executionCall ?? pending.call;
+        const staleAuditContext =
+          pending.auditContext ??
+          buildToolAuditContext(
+            '',
+            providerId,
+            settingsRef.current.model,
+            toolDecisionModeRef.current,
+            settingsRef.current.toolFeedbackStyle,
+          );
+        const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
+        setPendingToolCall(null);
+        setTaskSession({
+          id: taskSessionRef.current.id,
+          status: 'idle',
+          updatedAt: nowIso(),
+        });
+        bumpMetric('failureCount');
+        await applyAssistantMessageResult(assistantMessageId, staleMessage, 'error', staleMessage);
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${staleCall.name}`,
+          `confirm_failed:${staleCall.name}:stale_read_model`,
+          'system',
+          staleCall.requestId ?? pending.requestId,
+          buildToolDecisionAuditMetadata(
+            assistantMessageId,
+            staleCall,
+            staleAuditContext,
+            'system',
+            'confirm_failed',
+            false,
+            staleMessage,
+            'stale_read_model',
+          ),
+        );
+        return;
+      }
+
+      const call = pending.executionCall ?? pending.call;
+      const auditContext =
         pending.auditContext ??
         buildToolAuditContext(
           '',
@@ -115,180 +173,176 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
           toolDecisionModeRef.current,
           settingsRef.current.toolFeedbackStyle,
         );
-      const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
+      const originConversationId =
+        pending.conversationIdAtCapture ?? conversationIdRef.current ?? null;
+      const shouldApplyTurnSideEffects = () =>
+        originConversationId === null || conversationIdRef.current === originConversationId;
+      const persistSessionMemoryForOrigin = (memory: AiSessionMemory) => {
+        if (originConversationId) {
+          void persistSessionMemoryAsync(originConversationId, memory);
+          return;
+        }
+        persistSessionMemory(memory);
+      };
+
+      if (!shouldApplyTurnSideEffects()) {
+        const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
+        setTaskSession({
+          id: taskSessionRef.current.id,
+          status: 'idle',
+          updatedAt: nowIso(),
+        });
+        bumpMetric('failureCount');
+        await applyAssistantMessageResult(assistantMessageId, staleMessage, 'error', staleMessage);
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${call.name}`,
+          `confirm_failed:${call.name}:turn_superseded`,
+          'system',
+          call.requestId ?? pending.requestId,
+          buildToolDecisionAuditMetadata(
+            assistantMessageId,
+            call,
+            auditContext,
+            'system',
+            'confirm_failed',
+            false,
+            staleMessage,
+            'turn_superseded',
+          ),
+        );
+        return;
+      }
+
       setPendingToolCall(null);
       setTaskSession({
         id: taskSessionRef.current.id,
-        status: 'idle',
+        status: 'executing',
+        toolName: call.name,
         updatedAt: nowIso(),
       });
-      bumpMetric('failureCount');
-      await applyAssistantMessageResult(assistantMessageId, staleMessage, 'error', staleMessage);
-      await writeToolDecisionAuditLog(
-        assistantMessageId,
-        `pending:${staleCall.name}`,
-        `confirm_failed:${staleCall.name}:stale_read_model`,
-        'system',
-        staleCall.requestId ?? pending.requestId,
-        buildToolDecisionAuditMetadata(
-          assistantMessageId,
-          staleCall,
-          staleAuditContext,
-          'system',
-          'confirm_failed',
-          false,
-          staleMessage,
-          'stale_read_model',
-        ),
-      );
-      return;
-    }
 
-    const call = pending.executionCall ?? pending.call;
-    const auditContext =
-      pending.auditContext ??
-      buildToolAuditContext(
-        '',
-        providerId,
-        settingsRef.current.model,
-        toolDecisionModeRef.current,
-        settingsRef.current.toolFeedbackStyle,
-      );
-    const originConversationId =
-      pending.conversationIdAtCapture ?? conversationIdRef.current ?? null;
-    const shouldApplyTurnSideEffects = () =>
-      originConversationId === null || conversationIdRef.current === originConversationId;
-    const persistSessionMemoryForOrigin = (memory: AiSessionMemory) => {
-      if (originConversationId) {
-        void persistSessionMemoryAsync(originConversationId, memory);
-        return;
-      }
-      persistSessionMemory(memory);
-    };
-
-    if (!shouldApplyTurnSideEffects()) {
-      const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
-      setTaskSession({
-        id: taskSessionRef.current.id,
-        status: 'idle',
-        updatedAt: nowIso(),
-      });
-      bumpMetric('failureCount');
-      await applyAssistantMessageResult(assistantMessageId, staleMessage, 'error', staleMessage);
-      await writeToolDecisionAuditLog(
-        assistantMessageId,
-        `pending:${call.name}`,
-        `confirm_failed:${call.name}:turn_superseded`,
-        'system',
-        call.requestId ?? pending.requestId,
-        buildToolDecisionAuditMetadata(
-          assistantMessageId,
-          call,
-          auditContext,
-          'system',
-          'confirm_failed',
-          false,
-          staleMessage,
-          'turn_superseded',
-        ),
-      );
-      return;
-    }
-
-    setPendingToolCall(null);
-    setTaskSession({
-      id: taskSessionRef.current.id,
-      status: 'executing',
-      toolName: call.name,
-      updatedAt: nowIso(),
-    });
-
-    // v2：确认 = 原生 tool-approval-response；本页内立即经决策管线执行，重载后留到下一回合开头
-    // v2: confirm records a native approval response; executes now through the pipeline when the turn is live
-    if (pending.runtimeV2 && pending.call.name !== 'propose_changes') {
-      await writeToolDecisionAuditLog(
-        assistantMessageId,
-        `pending:${call.name}`,
-        `approved:${call.name}:tool_approval`,
-        'human',
-        call.requestId ?? pending.requestId,
-      );
-      const r = await resolveApproval(
-        pending.runtimeV2.conversationId,
-        pending.runtimeV2.approvalId,
-        true,
-        Date.now(),
-      );
-      if (r?.stale) {
-        // S1：目标在审批期间变了 → 过期，不执行 | target changed → expired, not executed
+      // v2：确认 = 原生 tool-approval-response；本页内立即经决策管线执行，重载后留到下一回合开头
+      // v2: confirm records a native approval response; executes now through the pipeline when the turn is live
+      if (pending.runtimeV2 && pending.call.name !== 'propose_changes') {
         await writeToolDecisionAuditLog(
           assistantMessageId,
           `pending:${call.name}`,
-          `expired_stale:${call.name}`,
-          'system',
+          `approved:${call.name}:tool_approval`,
+          'human',
           call.requestId ?? pending.requestId,
         );
-      }
-      setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
-      await applyAssistantMessageResult(
-        assistantMessageId,
-        r?.stale
-          ? t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale')
-          : (r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
-        r?.outcome?.status === 'error' ? 'error' : 'done',
-      );
-      if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
-      return;
-    }
-
-    // 注入 requestId | Inject requestId
-    const callWithRequestId: AiChatToolCall & { requestId: string } = {
-      ...call,
-      requestId: call.requestId ?? pending.requestId ?? genRequestId(call, assistantMessageId),
-    };
-
-    if (pending.call.name === 'propose_changes' && pending.proposedChildCalls?.length) {
-      // S2：先核对指纹再跑批处理 | check fingerprints before running the batch
-      if (
-        pending.runtimeV2 &&
-        (await expireApprovalIfStale(
+        const r = await resolveApproval(
           pending.runtimeV2.conversationId,
           pending.runtimeV2.approvalId,
+          true,
           Date.now(),
-        ))
-      ) {
-        await writeToolDecisionAuditLog(
-          assistantMessageId,
-          `pending:${call.name}`,
-          `expired_stale:${call.name}`,
-          'system',
-          callWithRequestId.requestId,
         );
+        if (r?.stale) {
+          // S1：目标在审批期间变了 → 过期，不执行 | target changed → expired, not executed
+          await writeToolDecisionAuditLog(
+            assistantMessageId,
+            `pending:${call.name}`,
+            `expired_stale:${call.name}`,
+            'system',
+            call.requestId ?? pending.requestId,
+          );
+        }
         setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
         await applyAssistantMessageResult(
           assistantMessageId,
-          t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale'),
-          'done',
+          r?.stale
+            ? t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale')
+            : (r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
+          r?.outcome?.status === 'error' ? 'error' : 'done',
         );
+        if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
         return;
       }
-      // 记下批处理最后写给用户的结果，原样回给模型 | capture the batch's real outcome for the model
-      let batchOutcome: { status: 'done' | 'error'; message: string } = {
-        status: 'error',
-        message: 'proposed changes produced no result',
+
+      // 注入 requestId | Inject requestId
+      const callWithRequestId: AiChatToolCall & { requestId: string } = {
+        ...call,
+        requestId: call.requestId ?? pending.requestId ?? genRequestId(call, assistantMessageId),
       };
-      await executeConfirmedProposedChangeBatch({
+
+      if (pending.call.name === 'propose_changes' && pending.proposedChildCalls?.length) {
+        // S2：先核对指纹再跑批处理 | check fingerprints before running the batch
+        if (
+          pending.runtimeV2 &&
+          (await expireApprovalIfStale(
+            pending.runtimeV2.conversationId,
+            pending.runtimeV2.approvalId,
+            Date.now(),
+          ))
+        ) {
+          await writeToolDecisionAuditLog(
+            assistantMessageId,
+            `pending:${call.name}`,
+            `expired_stale:${call.name}`,
+            'system',
+            callWithRequestId.requestId,
+          );
+          setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
+          await applyAssistantMessageResult(
+            assistantMessageId,
+            t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale'),
+            'done',
+          );
+          return;
+        }
+        // 记下批处理最后写给用户的结果，原样回给模型 | capture the batch's real outcome for the model
+        let batchOutcome: { status: 'done' | 'error'; message: string } = {
+          status: 'error',
+          message: 'proposed changes produced no result',
+        };
+        await executeConfirmedProposedChangeBatch({
+          assistantMessageId,
+          parentCall: callWithRequestId,
+          childCalls: pending.proposedChildCalls,
+          auditContext,
+          locale: toolFeedbackLocale,
+          toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
+          hasPersistedExecutionForRequest,
+          applyAssistantMessageResult: async (id, content, status, errorMessage) => {
+            batchOutcome = { status: status === 'error' ? 'error' : 'done', message: content };
+            await applyAssistantMessageResult(id, content, status, errorMessage);
+          },
+          ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
+          writeToolDecisionAuditLog,
+          setTaskSession,
+          taskSessionId: taskSessionRef.current.id,
+          markExecutedRequestId,
+          sessionMemory: sessionMemoryRef.current,
+          updateSessionMemory: (nextMemory) => {
+            sessionMemoryRef.current = nextMemory;
+          },
+          persistSessionMemory: persistSessionMemoryForOrigin,
+          bumpMetric,
+          shouldApplyTurnSideEffects,
+        });
+        // shortcut: v2 下 propose_changes 仍用旧批处理执行，结果记回原生审批消息 | batch path, outcome recorded
+        if (pending.runtimeV2) {
+          const r = await resolveApproval(
+            pending.runtimeV2.conversationId,
+            pending.runtimeV2.approvalId,
+            true,
+            Date.now(),
+            batchOutcome,
+          );
+          if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
+        }
+        return;
+      }
+
+      await executeConfirmedToolCall({
         assistantMessageId,
-        parentCall: callWithRequestId,
-        childCalls: pending.proposedChildCalls,
+        call: callWithRequestId,
         auditContext,
         locale: toolFeedbackLocale,
         toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
         hasPersistedExecutionForRequest,
-        applyAssistantMessageResult: async (id, content, status, errorMessage) => {
-          batchOutcome = { status: status === 'error' ? 'error' : 'done', message: content };
-          await applyAssistantMessageResult(id, content, status, errorMessage);
-        },
+        applyAssistantMessageResult,
         ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
         writeToolDecisionAuditLog,
         setTaskSession,
@@ -302,60 +356,27 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         bumpMetric,
         shouldApplyTurnSideEffects,
       });
-      // shortcut: v2 下 propose_changes 仍用旧批处理执行，结果记回原生审批消息 | batch path, outcome recorded
-      if (pending.runtimeV2) {
-        const r = await resolveApproval(
-          pending.runtimeV2.conversationId,
-          pending.runtimeV2.approvalId,
-          true,
-          Date.now(),
-          batchOutcome,
-        );
-        if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
-      }
-      return;
-    }
-
-    await executeConfirmedToolCall({
-      assistantMessageId,
-      call: callWithRequestId,
-      auditContext,
-      locale: toolFeedbackLocale,
-      toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
-      hasPersistedExecutionForRequest,
+    },
+    [
       applyAssistantMessageResult,
-      ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
-      writeToolDecisionAuditLog,
-      setTaskSession,
-      taskSessionId: taskSessionRef.current.id,
-      markExecutedRequestId,
-      sessionMemory: sessionMemoryRef.current,
-      updateSessionMemory: (nextMemory) => {
-        sessionMemoryRef.current = nextMemory;
-      },
-      persistSessionMemory: persistSessionMemoryForOrigin,
       bumpMetric,
-      shouldApplyTurnSideEffects,
-    });
-  }, [
-    applyAssistantMessageResult,
-    bumpMetric,
-    getTimelineReadModelEpochRef,
-    hasPersistedExecutionForRequest,
-    markExecutedRequestId,
-    onToolCallRef,
-    pendingToolCallRef,
-    providerId,
-    sessionMemoryRef,
-    setPendingToolCall,
-    settingsRef,
-    setTaskSession,
-    taskSessionRef,
-    toolFeedbackLocale,
-    toolDecisionModeRef,
-    writeToolDecisionAuditLog,
-    conversationIdRef,
-  ]);
+      getTimelineReadModelEpochRef,
+      hasPersistedExecutionForRequest,
+      markExecutedRequestId,
+      onToolCallRef,
+      pendingToolCallRef,
+      providerId,
+      sessionMemoryRef,
+      setPendingToolCall,
+      settingsRef,
+      setTaskSession,
+      taskSessionRef,
+      toolFeedbackLocale,
+      toolDecisionModeRef,
+      writeToolDecisionAuditLog,
+      conversationIdRef,
+    ],
+  );
 
   const cancelPendingToolCall = useCallback(async () => {
     const pending = pendingToolCallRef.current;

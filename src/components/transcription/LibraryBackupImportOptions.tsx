@@ -42,7 +42,7 @@ export function LibraryBackupImportOptions({
   const aiRows = backup.projects.reduce((sum, project) => sum + project.aiRows, 0);
   const preferenceKeys = backup.preferenceKeys;
   return (
-    <div className="left-rail-project-import-jyb" data-testid="jyb-import-options">
+    <div data-testid="jyb-import-options">
       <div className="panel-meta">
         <PanelChip data-testid="jyb-media-chip">
           {t(
@@ -96,7 +96,7 @@ export function LibraryBackupImportOptions({
             {t(locale, 'transcription.projectHub.jybDisasterWarning')}
           </p>
           {preferenceKeys.length > 0 ? (
-            <div className="left-rail-project-import-jyb-preferences">
+            <div>
               <label>
                 <input
                   type="checkbox"
@@ -122,7 +122,7 @@ export function LibraryBackupImportOptions({
           ) : null}
         </>
       ) : (
-        <fieldset className="left-rail-project-import-jyb-projects">
+        <fieldset>
           <legend>{t(locale, 'transcription.projectHub.jybProjectsTitle')}</legend>
           {backup.projects.map((project) => (
             <label key={project.id}>

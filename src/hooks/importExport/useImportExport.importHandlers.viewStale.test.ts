@@ -9,6 +9,7 @@ import {
   runInNewAnnotationDocument,
 } from '../../services/annotationDocumentService';
 import * as repairedConstraintModule from '../../services/persistRepairedLayerConstraints';
+import * as interchangeLossReport from '../../utils/interchangeLossReport';
 import type { LoadTranscriptionSnapshot } from '../transcription/workspaceSnapshotLoad';
 import { createImportExportImportHandlers } from './useImportExport.importHandlers';
 import type { SaveState } from '../transcription/transcriptionTypes';
@@ -76,24 +77,18 @@ describe('annotation import keeps a written document when the view fails to refr
   it('keeps the new document and its rows when the snapshot rejects after the write', async () => {
     const previous = await ensureDefaultAnnotationDocument(textId);
     const states: SaveState[] = [];
-    let reportedError = false;
     const setSaveState: Dispatch<SetStateAction<SaveState>> = (next) => {
       if (typeof next === 'function') return;
-      if (next.kind === 'error') reportedError = true;
       states.push(next);
     };
     const loadSnapshot = vi.fn<LoadTranscriptionSnapshot>(async () => {
       throw new Error('snapshot down');
     });
     const { handleImportFile } = handlers(loadSnapshot, setSaveState);
-    const outcome = await runInNewAnnotationDocument(
-      textId,
-      () => handleImportFile(eafFile()),
-      () => reportedError,
-    );
+    const outcome = await runInNewAnnotationDocument(textId, () => handleImportFile(eafFile()));
 
     expect(outcome.kept).toBe(true);
-    expect(reportedError).toBe(false);
+    expect(outcome.result.committed).toBe(true);
     expect((await db.texts.get(textId))?.defaultDocumentId).not.toBe(previous);
     expect(await db.layer_units.where('textId').equals(textId).count()).toBeGreaterThan(0);
     expect(await contentText()).toContain('hello');
@@ -115,10 +110,8 @@ describe('annotation import keeps a written document when the view fails to refr
   it('keeps the new document when post-commit constraint repair throws', async () => {
     const previous = await ensureDefaultAnnotationDocument(textId);
     const states: SaveState[] = [];
-    let reportedError = false;
     const setSaveState: Dispatch<SetStateAction<SaveState>> = (next) => {
       if (typeof next === 'function') return;
-      if (next.kind === 'error') reportedError = true;
       states.push(next);
     };
     const repairSpy = vi
@@ -127,14 +120,10 @@ describe('annotation import keeps a written document when the view fails to refr
     const loadSnapshot = vi.fn<LoadTranscriptionSnapshot>(async () => undefined);
     const { handleImportFile } = handlers(loadSnapshot, setSaveState);
     try {
-      const outcome = await runInNewAnnotationDocument(
-        textId,
-        () => handleImportFile(eafFile()),
-        () => reportedError,
-      );
+      const outcome = await runInNewAnnotationDocument(textId, () => handleImportFile(eafFile()));
 
       expect(outcome.kept).toBe(true);
-      expect(reportedError).toBe(false);
+      expect(outcome.result.committed).toBe(true);
       expect((await db.texts.get(textId))?.defaultDocumentId).not.toBe(previous);
       expect(await db.layer_units.where('textId').equals(textId).count()).toBeGreaterThan(0);
       expect(await contentText()).toContain('hello');
@@ -147,6 +136,29 @@ describe('annotation import keeps a written document when the view fails to refr
       });
     } finally {
       repairSpy.mockRestore();
+    }
+  });
+
+  it('keeps the new document when a step after the commit throws', async () => {
+    const previous = await ensureDefaultAnnotationDocument(textId);
+    const formatSpy = vi
+      .spyOn(interchangeLossReport, 'formatAnnotationImportDone')
+      .mockImplementationOnce(() => {
+        throw new Error('format failed');
+      });
+    const { handleImportFile } = handlers(
+      async () => undefined,
+      () => undefined,
+    );
+    try {
+      const outcome = await runInNewAnnotationDocument(textId, () => handleImportFile(eafFile()));
+
+      expect(outcome.result.committed).toBe(true);
+      expect(outcome.kept).toBe(true);
+      expect((await db.texts.get(textId))?.defaultDocumentId).not.toBe(previous);
+      expect(await contentText()).toContain('hello');
+    } finally {
+      formatSpy.mockRestore();
     }
   });
 
@@ -171,20 +183,19 @@ describe('annotation import keeps a written document when the view fails to refr
 
   it('still discards a new document when the import itself fails', async () => {
     const previous = await ensureDefaultAnnotationDocument(textId);
-    let reportedError = false;
+    const states: SaveState[] = [];
     const setSaveState: Dispatch<SetStateAction<SaveState>> = (next) => {
       if (typeof next === 'function') return;
-      if (next.kind === 'error') reportedError = true;
+      states.push(next);
     };
     const { handleImportFile } = handlers(async () => undefined, setSaveState);
-    const outcome = await runInNewAnnotationDocument(
-      textId,
-      () => handleImportFile(new File(['nope'], 'notes.docx')),
-      () => reportedError,
+    const outcome = await runInNewAnnotationDocument(textId, () =>
+      handleImportFile(new File(['nope'], 'notes.docx')),
     );
 
     expect(outcome.kept).toBe(false);
-    expect(reportedError).toBe(true);
+    expect(outcome.result.committed).toBe(false);
+    expect(states.some((state) => state.kind === 'error')).toBe(true);
     expect((await db.texts.get(textId))?.defaultDocumentId).toBe(previous);
     expect(await db.layer_units.where('textId').equals(textId).count()).toBe(0);
   });

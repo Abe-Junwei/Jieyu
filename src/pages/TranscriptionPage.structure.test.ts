@@ -1299,7 +1299,7 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(
       segmentMutationClusterCode.includes(
-        'await LinguisticService.speakers.assignToSegments(targetIds, speakerId);',
+        'await LinguisticService.speakers.assignToMixedSelection({',
       ),
     ).toBe(true);
     expect(

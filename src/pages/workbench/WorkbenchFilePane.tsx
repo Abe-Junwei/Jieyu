@@ -6,7 +6,7 @@ import { ContextMenu } from '../../components/ContextMenu';
 import { EafTierRoleDialog } from '../../components/EafTierRoleDialog';
 import { useImportExport } from '../../hooks/importExport/useImportExport';
 import { t, tf, type Locale } from '../../i18n';
-import { LinguisticService } from '../../app/languageAssetPageAccess';
+import { LinguisticService, MediaContentMismatchError } from '../../app/languageAssetPageAccess';
 import type { TranscriptionRecordProgressRow } from '../../utils/homeTranscriptionRecordProgress';
 import { isWaveformMediaTooLong } from '../../utils/waveformDecodeGuard';
 import { ProjectFileBrowser } from '../../components/project/ProjectFileBrowser';
@@ -120,7 +120,10 @@ export function WorkbenchFilePane(props: {
     promptForEafTierRoles: true,
   });
 
+  const relinkMediaIdRef = useRef<string | null>(null);
   const importMedia = async (file: File) => {
+    const replaceMediaId = relinkMediaIdRef.current;
+    relinkMediaIdRef.current = null;
     const duration = await readMediaDuration(file);
     if (isWaveformMediaTooLong({ byteSize: file.size, durationSec: duration })) {
       setSaveState({ kind: 'error', message: t(locale, 'transcription.action.audioTooLong') });
@@ -132,18 +135,44 @@ export function WorkbenchFilePane(props: {
         audioBlob: file,
         filename: file.name,
         duration,
+        ...(replaceMediaId ? { importMode: 'replace' as const, replaceMediaId } : {}),
       });
     } catch (error) {
-      if (
-        !(error instanceof Error && error.name === 'AudioImportPlaceholderSelectionRequiredError')
+      const mismatch =
+        error instanceof MediaContentMismatchError
+          ? error
+          : error instanceof Error && error.cause instanceof MediaContentMismatchError
+            ? error.cause
+            : undefined;
+      if (mismatch) {
+        if (!window.confirm(t(locale, 'transcription.action.relinkContentMismatchConfirm'))) {
+          setSaveState({
+            kind: 'error',
+            message: t(locale, 'transcription.action.relinkContentMismatchCancelled'),
+          });
+          return;
+        }
+        await LinguisticService.media.importAudio({
+          textId,
+          audioBlob: file,
+          filename: file.name,
+          duration,
+          importMode: 'replace',
+          replaceMediaId: mismatch.mediaId,
+          acknowledgeContentMismatch: true,
+        });
+      } else if (
+        error instanceof Error &&
+        error.name === 'AudioImportPlaceholderSelectionRequiredError'
       ) {
+        setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.action.audioImportSelectPlaceholder'),
+        });
+        return;
+      } else {
         throw error;
       }
-      setSaveState({
-        kind: 'error',
-        message: t(locale, 'transcription.action.audioImportSelectPlaceholder'),
-      });
-      return;
     }
     setSaveState({
       kind: 'done',
@@ -211,12 +240,22 @@ export function WorkbenchFilePane(props: {
             ...(row.durationSec !== undefined ? { durationSec: row.durationSec } : {}),
             audioFormat: audioFormat(row.storageFilename),
             sentenceCount: row.sentenceCount,
+            ...(row.hasPlayableBytes !== undefined
+              ? { hasPlayableBytes: row.hasPlayableBytes }
+              : {}),
+            ...(row.unitCount !== undefined ? { unitCount: row.unitCount } : {}),
+            ...(row.anchorCount !== undefined ? { anchorCount: row.anchorCount } : {}),
+            ...(row.canRemoveEmpty !== undefined ? { canRemoveEmpty: row.canRemoveEmpty } : {}),
             transcriptionRate: row.transcriptionRate,
             translationRate: row.translationRate,
             annotationRate: row.annotationRate,
           }))}
         fallbackManuscript={records.some((row) => row.transcriptionUnitCount > 0)}
         onChanged={() => void refreshProject()}
+        onRelinkAudio={(mediaId) => {
+          relinkMediaIdRef.current = mediaId;
+          mediaInputRef.current?.click();
+        }}
       />
       <input
         ref={mediaInputRef}
@@ -228,7 +267,10 @@ export function WorkbenchFilePane(props: {
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
-          if (!file) return;
+          if (!file) {
+            relinkMediaIdRef.current = null;
+            return;
+          }
           fireAndForget(importMedia(file), {
             context: 'src/pages/workbench/WorkbenchFilePane.tsx:L196',
             policy: 'user-visible',
@@ -282,7 +324,10 @@ export function WorkbenchFilePane(props: {
               ? [
                   {
                     label: t(locale, 'transcription.toolbar.importAudio'),
-                    onClick: () => mediaInputRef.current?.click(),
+                    onClick: () => {
+                      relinkMediaIdRef.current = null;
+                      mediaInputRef.current?.click();
+                    },
                   },
                   {
                     label: t(locale, 'app.home.importAnnotation'),

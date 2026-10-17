@@ -365,17 +365,14 @@ describe('Batch 5 / B5-3: a failed "import as a new document" discards the half-
     expect(await seqs()).toEqual(snapshotsBefore);
   });
 
-  it('an error the import handled itself (isFailed) also discards it', async () => {
+  it('an import that reports it did not commit also discards the document', async () => {
     const d1 = await ensureDefaultAnnotationDocument(A);
-    const outcome = await runInNewAnnotationDocument(
-      A,
-      async () => {
-        await halfImport();
-        return 'reported-error';
-      },
-      (result) => result === 'reported-error',
-    );
+    const outcome = await runInNewAnnotationDocument(A, async () => {
+      await halfImport();
+      return { committed: false };
+    });
     expect(outcome.kept).toBe(false);
+    expect(outcome.result.committed).toBe(false);
     expect((await db.texts.get(A))?.defaultDocumentId).toBe(d1);
     expect(await db.annotation_documents.where('textId').equals(A).count()).toBe(1);
     expect(await db.tier_definitions.get('L_new')).toBeUndefined();
@@ -383,7 +380,10 @@ describe('Batch 5 / B5-3: a failed "import as a new document" discards the half-
 
   it('a successful import with content keeps the new document', async () => {
     const d1 = await ensureDefaultAnnotationDocument(A);
-    const outcome = await runInNewAnnotationDocument(A, halfImport, () => false);
+    const outcome = await runInNewAnnotationDocument(A, async () => {
+      await halfImport();
+      return { committed: true };
+    });
     expect(outcome.kept).toBe(true);
     expect((await db.texts.get(A))?.defaultDocumentId).not.toBe(d1);
     expect(await db.tier_definitions.get('L_new')).toBeDefined();

@@ -27,6 +27,7 @@ Behavioral guidelines below are adapted from [forrestchang/andrej-karpathy-skill
 - **AI formatter 文案 vs UI 文案分层**：模型/工具输出固定句式放 `src/ai/messages/`，与界面字典不混命名空间。
 - **单人合并门槛**：完成前必跑 `npm run typecheck` + 触及域的 `vitest`；交互 / ReadyWorkspace / 侧栏 / 时间轴改动还要 `npm run test:e2e:chromium`。E2E 修稳，不长期 skip。依赖手动升，顺序见 [DEPENDENCY_UPGRADE_PLAYBOOK.md](docs/development/DEPENDENCY_UPGRADE_PLAYBOOK.md)。
 - **数据访问（P2-3）**：新的存储操作走 [ADR-0048](docs/adr/0048-storage-port.md) 的业务操作接口（`src/db/storagePort.ts`）。一次操作一次事务，调用方不传表名、不拿事务回调。浏览器实现是 Dexie Table API；SQLite 实现是 #275。既有直连 db 的模块由 #280 分批迁。不再新增 `db.collections.*`；`findOne` / `removeBySelector` 遇到没有索引的选择器在开发和测试里会抛 `DexieNonIndexedQueryError`。整表读必须显式（`toArray()` 或 `find().exec()` 加 `shortcut:` 注释说明为什么可以）。
+- **智能体运行时**：只有 Vercel AI SDK `ToolLoopAgent`（`src/ai/runtime/`）。多步循环、工具结果回到模型、审批都只接这里；`src/ai/chat/agentLoopRunner.ts` / `agentLoop.ts` 冻结，只修 bug。领域代码不读某个运行时的私有字段。见 [ADR-0056](docs/adr/0056-single-agent-runtime-toolloopagent.md) 与主路线图 §2.2.0。
 - **Feature flag**：高风险或 UI 觉察大改默认套 flag，`false` 合并、自用 1 周后切默认 `true`；见 [src/ai/config/featureFlags.ts](src/ai/config/featureFlags.ts) 与 [copilot-instructions.md](copilot-instructions.md) §五。
 
 ## 通用代理基线（Karpathy 4 rules）

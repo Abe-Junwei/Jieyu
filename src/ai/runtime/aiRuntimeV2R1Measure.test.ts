@@ -3,7 +3,7 @@
  * Box replay only — no network.
  */
 // @vitest-environment jsdom
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { simulateReadableStream } from 'ai';
@@ -379,34 +379,37 @@ describe('R1 DeepSeek fixture measurement (v4.2)', () => {
     expect(ok).toBe(12);
   }, 60000);
 
-  it('AI panel first-open bundle delta (aiRuntimeV2Turn lazy chunk) ≤ 200 KB gz', () => {
-    const files = readdirSync(DIST_ASSETS).filter(
-      (n) => n.startsWith('aiRuntimeV2Turn-') && n.endsWith('.js') && !n.endsWith('.br'),
-    );
-    expect(files.length).toBeGreaterThanOrEqual(1);
-    let maxGz = 0;
-    for (const n of files) {
-      const raw = readFileSync(join(DIST_ASSETS, n));
-      const gz = gzipSync(raw, { level: 9 }).byteLength;
-      maxGz = Math.max(maxGz, gz);
+  it.skipIf(!existsSync(DIST_ASSETS))(
+    'AI panel first-open bundle delta (aiRuntimeV2Turn lazy chunk) ≤ 200 KB gz',
+    () => {
+      const files = readdirSync(DIST_ASSETS).filter(
+        (n) => n.startsWith('aiRuntimeV2Turn-') && n.endsWith('.js') && !n.endsWith('.br'),
+      );
+      expect(files.length).toBeGreaterThanOrEqual(1);
+      let maxGz = 0;
+      for (const n of files) {
+        const raw = readFileSync(join(DIST_ASSETS, n));
+        const gz = gzipSync(raw, { level: 9 }).byteLength;
+        maxGz = Math.max(maxGz, gz);
+        console.warn(
+          JSON.stringify({
+            chunk: n,
+            rawBytes: raw.byteLength,
+            gz9Bytes: gz,
+            gz9KiB: +(gz / 1024).toFixed(1),
+          }),
+        );
+      }
+      const budget = 200 * 1024;
       console.warn(
         JSON.stringify({
-          chunk: n,
-          rawBytes: raw.byteLength,
-          gz9Bytes: gz,
-          gz9KiB: +(gz / 1024).toFixed(1),
+          bundleDeltaGz: maxGz,
+          budgetGz: budget,
+          pass: maxGz <= budget,
+          note: 'flag-off AI panel does not load this chunk (dynamic import on v2 turn); delta ≈ chunk size',
         }),
       );
-    }
-    const budget = 200 * 1024;
-    console.warn(
-      JSON.stringify({
-        bundleDeltaGz: maxGz,
-        budgetGz: budget,
-        pass: maxGz <= budget,
-        note: 'flag-off AI panel does not load this chunk (dynamic import on v2 turn); delta ≈ chunk size',
-      }),
-    );
-    expect(maxGz).toBeLessThanOrEqual(budget);
-  });
+      expect(maxGz).toBeLessThanOrEqual(budget);
+    },
+  );
 });

@@ -1,4 +1,4 @@
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../db/types';
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 
 type SpeakerLayerPlacement = {

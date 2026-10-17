@@ -16,7 +16,11 @@ import {
   loadUnverifiedCollabMutations,
 } from '../collaboration/cloud/CollaborationClientStateStore';
 import { broadcastCollaborationLifecycle } from '../collaboration/cloud/collaborationLifecycleBroadcast';
-import { markProjectRemovedLocally } from '../collaboration/cloud/collaborationLocalProjectRegistry';
+import {
+  clearProjectRemovedLocally,
+  markProjectRemovedLocally,
+  readCollaborationLocalRegistry,
+} from '../collaboration/cloud/collaborationLocalProjectRegistry';
 import {
   assessProjectCollaborationHistory,
   type ProjectCollaborationAssessment,
@@ -82,15 +86,31 @@ export async function removeProjectFromDevice(
     throw new ProjectHasUnsyncedChangesError(plan.projectId, plan.pendingOutboundCount);
   }
   if (plan.mode === 'remove-local') {
+    const registry = readCollaborationLocalRegistry(deps.storage);
+    const wasRemoved =
+      registry.ok && registry.records[plan.projectId]?.removedLocallyAt !== undefined;
     // 记录写不进去就不删：否则重新登录时会被自动拉回来 | No record, no removal (it would be pulled back)
     markProjectRemovedLocally(
       plan.projectId,
       options.projectName !== undefined ? { projectName: options.projectName } : {},
       deps.storage,
     );
+    try {
+      enqueueProjectCleanupJob(plan.projectId, plan.mode, deps.storage);
+    } catch (error) {
+      if (!wasRemoved) {
+        try {
+          clearProjectRemovedLocally(plan.projectId, deps.storage);
+        } catch {
+          /* Keep the original storage error. */
+        }
+      }
+      throw error;
+    }
     broadcastCollaborationLifecycle('project-removed-locally', plan.projectId);
+  } else {
+    enqueueProjectCleanupJob(plan.projectId, plan.mode, deps.storage);
   }
-  enqueueProjectCleanupJob(plan.projectId, plan.mode, deps.storage);
   await runProjectCleanupJob(plan.projectId, deps);
   return plan.mode;
 }

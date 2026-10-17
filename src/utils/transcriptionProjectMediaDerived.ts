@@ -1,11 +1,21 @@
 import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SearchableItem } from './searchReplaceUtils';
-import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
+import {
+  isAuxiliaryRecordingMediaRow,
+  isMediaItemPlaceholderRow,
+  mediaRowHasPlayableBytes,
+} from './mediaItemState';
 
 export type AudioImportDisposition =
   /** `placeholderMediaId`：用户在时间轴上选中的占位轴；导入音频只晋升这一条。 */
   | { kind: 'simple'; placeholderMediaId?: string }
-  | { kind: 'choose'; replaceMediaId: string; replaceLabel: string };
+  | {
+      kind: 'choose';
+      replaceMediaId: string;
+      replaceLabel: string;
+      /** False when that row has no audio yet, so a direct import can fill it. */
+      replaceHasBytes: boolean;
+    };
 
 export function computeAudioImportDisposition(input: {
   activeTextId: string | null | undefined;
@@ -40,7 +50,28 @@ export function computeAudioImportDisposition(input: {
     kind: 'choose',
     replaceMediaId: replaceTarget.id,
     replaceLabel: replaceTarget.filename,
+    replaceHasBytes: mediaRowHasPlayableBytes(replaceTarget),
   };
+}
+
+/**
+ * `loadSnapshot` 整表替换会丢掉上一拍还在内存里的 Blob（IndexedDB 读回不是 Blob 时）。
+ * 只补「库状态仍是 managed/available」的行，不把已删除的录音捡回来。
+ */
+export function mergeReloadedMediaRows(
+  previous: readonly MediaItemDocType[],
+  reloaded: readonly MediaItemDocType[],
+): MediaItemDocType[] {
+  if (previous.length === 0) return [...reloaded];
+  const previousById = new Map(previous.map((row) => [row.id, row]));
+  return reloaded.map((row) => {
+    if (row.byteLocation !== 'managed' || row.availability !== 'available') return row;
+    if (mediaRowHasPlayableBytes(row)) return row;
+    const kept = previousById.get(row.id);
+    const blob = (kept?.details as { audioBlob?: unknown } | undefined)?.audioBlob;
+    if (!(blob instanceof Blob) || blob.size === 0) return row;
+    return { ...row, details: { ...row.details, audioBlob: blob } };
+  });
 }
 
 type TranscriptionLayerLite = {

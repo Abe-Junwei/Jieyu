@@ -65,7 +65,7 @@ const editorContextValue = {
   translationTextByLayer: new Map(),
   focusedTranslationDraftKeyRef: { current: null as string | null },
   renderLaneLabel: vi.fn(() => 'lane'),
-  getUnitTextForLayer: vi.fn(() => ''),
+  getUnitTextForLayer: vi.fn((_unit: { id: string }) => ''),
   scheduleAutoSave: vi.fn(),
   clearAutoSaveTimer: vi.fn(),
   saveUnitText: vi.fn(async () => undefined),
@@ -266,6 +266,50 @@ describe('TranscriptionTimelineHorizontalMediaLanes layout extent', () => {
     );
     const content = container.querySelector('.timeline-content') as HTMLElement | null;
     expect(content?.style.width).toBe(`${estimateTimelineSegmentTextWidthPx('sentence') + 64}px`);
+    editorContextValue.getUnitTextForLayer.mockReturnValue('');
+  });
+
+  it('spreads independent-boundary units when the layer has no segment rows', () => {
+    editorContextValue.getUnitTextForLayer.mockImplementation((unit: { id: string }) =>
+      unit.id === 'u-late' ? 'later sentence' : 'early',
+    );
+    const layer = {
+      ...makeLayer('trc-flow-units'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const early = makeUnit('u-early', 0, 1);
+    const late = makeUnit('u-late', 10, 12);
+    const frames = new Map<string, { left?: number } | null>();
+    render(
+      <TranscriptionTimelineHorizontalMediaLanes
+        textFlowLayout
+        timelineExtentSec={1800}
+        zoomPxPerSec={10}
+        timelineContentGutterPx={64}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUnits={[early, late]}
+        segmentParentUnitLookup={[early, late]}
+        segmentsByLayer={new Map([[layer.id, []]])}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt, _layer, _draft, extra) => {
+          const frame = (extra as { frame?: { left?: number } | null }).frame;
+          frames.set(utt.id, frame ?? null);
+          return null;
+        }}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+    expect(frames.get('u-early')?.left).toBe(0);
+    expect(frames.get('u-late')?.left ?? 0).toBeGreaterThan(0);
     editorContextValue.getUnitTextForLayer.mockReturnValue('');
   });
 });

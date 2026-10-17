@@ -6,11 +6,13 @@ import { TranscriptionTimelineWorkspaceHost } from './TranscriptionTimelineWorks
 
 vi.mock('../components/TranscriptionTimelineHorizontalMediaLanes', () => ({
   TranscriptionTimelineHorizontalMediaLanes: (props: {
+    textFlowLayout?: boolean;
     timelineChromeClassNames?: readonly string[];
   }) => (
     <div
       data-testid="workspace-host-waveform"
       data-chrome-classes={(props.timelineChromeClassNames ?? []).join(' ')}
+      data-text-flow={props.textFlowLayout === true ? '1' : '0'}
     >
       waveform
     </div>
@@ -45,6 +47,22 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
     );
 
     expect(screen.getByTestId('workspace-host-waveform')).toBeTruthy();
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-text-flow')).toBe('0');
+  });
+
+  it('keeps time-aligned lanes when text flow is turned off', () => {
+    render(
+      <TranscriptionTimelineWorkspaceHost
+        verticalComparisonEnabled={false}
+        shell="waveform"
+        workspaceAcousticChromeState="playable"
+        mediaLanesProps={{ textFlowLayout: false } as never}
+        textOnlyProps={{} as never}
+        emptyStateProps={{} as never}
+      />,
+    );
+
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-text-flow')).toBe('0');
   });
 
   it('routes text-only shell into unified host lanes', () => {
@@ -60,6 +78,7 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
     );
 
     expect(screen.getByTestId('workspace-host-waveform')).toBeTruthy();
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-text-flow')).toBe('1');
     expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-chrome-classes')).toBe(
       '',
     );

@@ -7,6 +7,7 @@ import type {
 } from '../../db';
 import { layerTextLookupUnitId } from '../../utils/recordingScopeUnitId';
 import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
+import { mediaBasename } from '../../utils/eafImportAlign';
 import { isUnboundTimelineMedia } from './timelineUnitView';
 import { isUnitTimelineUnit, type TimelineUnit } from './transcriptionTypes';
 
@@ -130,11 +131,22 @@ export function useTranscriptionDerivedData({
     const unitsSorted = [...units].sort((a, b) => a.startTime - b.startTime);
     const loadedMediaIds = new Set(mediaItems.map((item) => item.id));
     const recordedMediaIdSet = new Set(recordedMediaIds);
+    const selectedName = selectedUnitMedia?.filename
+      ? mediaBasename(selectedUnitMedia.filename)
+      : '';
+    const sameNameMediaIds = new Set(
+      selectedName.length > 0
+        ? mediaItems
+            .filter((item) => mediaBasename(item.filename) === selectedName)
+            .map((item) => item.id)
+        : [],
+    );
     const unitsOnCurrentMedia = selectedUnitMedia?.id
       ? unitsSorted.filter((item) => {
           const mediaId = item.mediaId ?? '';
           return (
             mediaId === selectedUnitMedia.id ||
+            sameNameMediaIds.has(mediaId) ||
             isUnboundTimelineMedia(mediaId) ||
             recordedMediaIdSet.has(mediaId)
           );

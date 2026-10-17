@@ -232,9 +232,9 @@ describe('useSpeakerActionRoutingController', () => {
     expect(handleAssignSpeakerToSelected).toHaveBeenCalled();
   });
 
-  it('rolls back segment-only speaker assignment when segment update fails', async () => {
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
+  it('reports segment-only speaker assignment failure without undoing', async () => {
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'assignToMixedSelection')
       .mockRejectedValue(new Error('segment write failed'));
     const assignSpeakerToUnits = vi
       .spyOn(LinguisticService.speakers, 'assignToUnits')
@@ -261,7 +261,12 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleAssignSpeakerToSelectedRouted();
     });
 
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
+    expect(assignMixed).toHaveBeenCalledWith({
+      textId: 'text-1',
+      segmentIds: ['seg-1'],
+      unitIds: [],
+      speakerId: 'spk-a',
+    });
     expect(assignSpeakerToUnits).not.toHaveBeenCalled();
     expect(undo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
@@ -271,17 +276,14 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    assignSpeakerToSegments.mockRestore();
+    assignMixed.mockRestore();
     assignSpeakerToUnits.mockRestore();
   });
 
   it('rolls back mixed speaker assignment when segment update fails', async () => {
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'assignToMixedSelection')
       .mockRejectedValue(new Error('segment write failed'));
-    const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService.speakers, 'assignToUnits')
-      .mockResolvedValue(1);
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const { result } = renderHook(() =>
@@ -303,8 +305,12 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleAssignSpeakerToSelectedRouted();
     });
 
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
-    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-a');
+    expect(assignMixed).toHaveBeenCalledWith({
+      textId: 'text-1',
+      segmentIds: ['seg-1'],
+      unitIds: ['utt-1'],
+      speakerId: 'spk-a',
+    });
     expect(undo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -313,13 +319,12 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUnits.mockRestore();
+    assignMixed.mockRestore();
   });
 
   it('keeps clear-speaker dialog open and rolls back when clear action fails', async () => {
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'assignToMixedSelection')
       .mockRejectedValue(new Error('clear failed'));
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
@@ -340,7 +345,11 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.confirmSpeakerDialogRouted();
     });
 
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], undefined);
+    expect(assignMixed).toHaveBeenCalledWith({
+      textId: 'text-1',
+      segmentIds: ['seg-1'],
+      unitIds: [],
+    });
     expect(undo).not.toHaveBeenCalled();
     expect(result.current.speakerDialogStateRouted).toEqual({
       mode: 'clear',
@@ -355,16 +364,13 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    assignSpeakerToSegments.mockRestore();
+    assignMixed.mockRestore();
   });
 
   it('clears mixed selection speakers across segments and units', async () => {
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
-      .mockResolvedValue(1);
-    const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService.speakers, 'assignToUnits')
-      .mockResolvedValue(1);
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'assignToMixedSelection')
+      .mockResolvedValue({ segments: 1, units: 1 });
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const { result } = renderHook(() =>
       useSpeakerActionRoutingController(
@@ -383,8 +389,11 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleClearSpeakerOnSelectedRouted();
     });
 
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], undefined);
-    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], undefined);
+    expect(assignMixed).toHaveBeenCalledWith({
+      textId: 'text-1',
+      segmentIds: ['seg-1'],
+      unitIds: ['utt-1'],
+    });
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'done',
@@ -392,14 +401,13 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUnits.mockRestore();
+    assignMixed.mockRestore();
   });
 
   it('clears speaker on segment-only selection without unit fallback writes', async () => {
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
-      .mockResolvedValue(1);
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'assignToMixedSelection')
+      .mockResolvedValue({ segments: 1, units: 0 });
     const assignSpeakerToUnits = vi
       .spyOn(LinguisticService.speakers, 'assignToUnits')
       .mockResolvedValue(1);
@@ -419,23 +427,26 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleClearSpeakerOnSelectedRouted();
     });
 
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], undefined);
+    expect(assignMixed).toHaveBeenCalledWith({
+      textId: 'text-1',
+      segmentIds: ['seg-1'],
+      unitIds: [],
+    });
     expect(assignSpeakerToUnits).not.toHaveBeenCalled();
 
-    assignSpeakerToSegments.mockRestore();
+    assignMixed.mockRestore();
     assignSpeakerToUnits.mockRestore();
   });
 
   it('creates a speaker and assigns mixed selection across segments and units', async () => {
-    const createSpeaker = vi
-      .spyOn(LinguisticService.speakers, 'create')
-      .mockResolvedValue(makeSpeaker('spk-new', 'Bob'));
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
-      .mockResolvedValue(1);
-    const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService.speakers, 'assignToUnits')
-      .mockResolvedValue(1);
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'createAndAssignToMixedSelection')
+      .mockResolvedValue({
+        speaker: makeSpeaker('spk-new', 'Bob'),
+        segments: 1,
+        units: 1,
+        created: true,
+      });
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const setBatchSpeakerId = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
     const setSpeakerDraftName = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
@@ -465,9 +476,12 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleCreateSpeakerAndAssignRouted();
     });
 
-    expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob', textId: 'text-1' });
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-new');
-    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-new');
+    expect(assignMixed).toHaveBeenCalledWith({
+      segmentIds: ['seg-1'],
+      unitIds: ['utt-1'],
+      name: 'Bob',
+      textId: 'text-1',
+    });
     expect(setSpeakerDraftName).toHaveBeenCalledWith('');
     expect(setBatchSpeakerId).toHaveBeenCalledWith('spk-new');
     expect(setSpeakers).toHaveBeenCalledWith(expect.any(Function));
@@ -479,21 +493,13 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    createSpeaker.mockRestore();
-    assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUnits.mockRestore();
+    assignMixed.mockRestore();
   });
 
   it('rolls back mixed create-speaker assignment when segment write fails', async () => {
-    const createSpeaker = vi
-      .spyOn(LinguisticService.speakers, 'create')
-      .mockResolvedValue(makeSpeaker('spk-new', 'Bob'));
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'createAndAssignToMixedSelection')
       .mockRejectedValue(new Error('segment create-assign failed'));
-    const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService.speakers, 'assignToUnits')
-      .mockResolvedValue(1);
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const setBatchSpeakerId = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
@@ -523,9 +529,12 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleCreateSpeakerAndAssignRouted();
     });
 
-    expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob', textId: 'text-1' });
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-new');
-    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-new');
+    expect(assignMixed).toHaveBeenCalledWith({
+      segmentIds: ['seg-1'],
+      unitIds: ['utt-1'],
+      name: 'Bob',
+      textId: 'text-1',
+    });
     expect(undo).not.toHaveBeenCalled();
     expect(setBatchSpeakerId).not.toHaveBeenCalledWith('spk-new');
     expect(setSpeakerDraftName).not.toHaveBeenCalledWith('');
@@ -537,16 +546,16 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    createSpeaker.mockRestore();
-    assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUnits.mockRestore();
+    assignMixed.mockRestore();
   });
 
   it('refreshes segment undo snapshot before mixed speaker assignment', async () => {
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const pushUndo = vi.fn();
-    vi.spyOn(LinguisticService.speakers, 'assignToSegments').mockResolvedValue(1);
-    vi.spyOn(LinguisticService.speakers, 'assignToUnits').mockResolvedValue(1);
+    vi.spyOn(LinguisticService.speakers, 'assignToMixedSelection').mockResolvedValue({
+      segments: 1,
+      units: 1,
+    });
     const { result } = renderHook(() =>
       useSpeakerActionRoutingController(
         createBaseInput({
@@ -569,12 +578,9 @@ describe('useSpeakerActionRoutingController', () => {
     vi.restoreAllMocks();
   });
 
-  it('rolls back mixed speaker assignment when unit update fails after segments succeed', async () => {
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
-      .mockResolvedValue(1);
-    const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService.speakers, 'assignToUnits')
+  it('reports a failed atomic mixed assignment without undoing other data', async () => {
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'assignToMixedSelection')
       .mockRejectedValue(new Error('unit write failed'));
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
@@ -597,8 +603,12 @@ describe('useSpeakerActionRoutingController', () => {
       await result.current.handleAssignSpeakerToSelectedRouted();
     });
 
-    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
-    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-a');
+    expect(assignMixed).toHaveBeenCalledWith({
+      textId: 'text-1',
+      segmentIds: ['seg-1'],
+      unitIds: ['utt-1'],
+      speakerId: 'spk-a',
+    });
     expect(undo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -607,17 +617,13 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUnits.mockRestore();
+    assignMixed.mockRestore();
   });
 
   it('reports error when mixed selection unit targets resolve to zero rows', async () => {
-    const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService.speakers, 'assignToSegments')
-      .mockResolvedValue(1);
-    const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService.speakers, 'assignToUnits')
-      .mockResolvedValue(0);
+    const assignMixed = vi
+      .spyOn(LinguisticService.speakers, 'assignToMixedSelection')
+      .mockResolvedValue({ segments: 1, units: 0 });
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const { result } = renderHook(() =>
@@ -647,7 +653,6 @@ describe('useSpeakerActionRoutingController', () => {
       }),
     );
 
-    assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUnits.mockRestore();
+    assignMixed.mockRestore();
   });
 });

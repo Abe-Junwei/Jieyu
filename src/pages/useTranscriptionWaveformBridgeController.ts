@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type SetStateAction,
   type UIEvent as ReactUIEvent,
 } from 'react';
 import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtentConstants';
@@ -38,9 +39,11 @@ import { useWaveformBridgeRegionDragRaf } from './waveformBridgeRegionDragRaf';
 import { useWaveformBridgeHoverScrollRaf } from './waveformBridgeHoverScrollRaf';
 import { useWaveformBridgeTierScrollSync } from './waveformBridgeTierScrollSync';
 import { useWaveformBridgeSegmentPlaybackControls } from './waveformBridgeSegmentPlaybackControls';
+import { elementUsesTextFlowLayout } from '../utils/timelineTextFlowLayout';
 import { applyTierScrollToWaveSurfer } from '../utils/waveformTierScrollSync';
 import { clearWaveformDecodeAttempt } from '../utils/waveformDecodeGuard';
 import { useTimelineContentFitZoom } from './useTimelineContentFitZoom';
+import { resolveSyncedTextFitZoomPercent } from '../utils/timelineContentFitZoom';
 export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
 
 export function useTranscriptionWaveformBridgeController(
@@ -48,6 +51,11 @@ export function useTranscriptionWaveformBridgeController(
 ): UseTranscriptionWaveformBridgeControllerResult {
   const { setAmplitudeScale } = input;
   const [zoomPercent, setZoomPercent] = useState(100);
+  const userChoseZoomRef = useRef(false);
+  const setZoomPercentFromUi = useCallback((value: SetStateAction<number>) => {
+    userChoseZoomRef.current = true;
+    setZoomPercent(value);
+  }, []);
   useEnsureVadCache(input.mediaId, input.selectedMediaUrl, input.mediaBlobSize);
   const vadSegments = useVadCachedSegments(input.mediaId);
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
@@ -263,6 +271,16 @@ export function useTranscriptionWaveformBridgeController(
   );
   const zoomPxPerSec = Math.max(1e-9, fitPxPerSec * (zoomPercent / 100));
   useLayoutEffect(() => {
+    if (input.zoomMode !== 'fit-all') return;
+    const next = resolveSyncedTextFitZoomPercent({
+      userChoseZoom: userChoseZoomRef.current,
+      contentFitZoomPercent,
+      acousticReady: player.isReady,
+    });
+    if (next == null) return;
+    setZoomPercent((prev) => (prev === next ? prev : next));
+  }, [contentFitZoomPercent, input.zoomMode, player.isReady]);
+  useLayoutEffect(() => {
     setWaveformZoomPxPerSec(zoomPxPerSec);
   }, [zoomPxPerSec]);
 
@@ -376,7 +394,7 @@ export function useTranscriptionWaveformBridgeController(
     playerIsPlaying: player.isPlaying,
     selectedMediaUrl: input.selectedMediaUrl,
     zoomPercent,
-    setZoomPercent,
+    setZoomPercent: setZoomPercentFromUi,
     setZoomMode: input.setZoomMode,
     fitPxPerSec,
     maxZoomPercent,
@@ -486,6 +504,7 @@ export function useTranscriptionWaveformBridgeController(
   );
 
   const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
+    if (elementUsesTextFlowLayout(event.currentTarget)) return;
     const nextScrollLeft = event.currentTarget.scrollLeft;
     setTierScrollLeftPx(nextScrollLeft);
     const ws = player.instanceRef.current;

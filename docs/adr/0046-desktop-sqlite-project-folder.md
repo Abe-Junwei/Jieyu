@@ -9,7 +9,7 @@ source_of_truth: decision
 
 # 0046 — 桌面版存储：项目文件夹 = project.sqlite + media/，存储接口两种实现
 
-- 状态：已接受（用户 2026-10-13 19:33–19:51 拍板；D14 冻结前）
+- 状态：已接受（用户 2026-10-13 19:33–19:51 拍板；D14 冻结前）。第 1、5 条里「内容真源是 `project.sqlite` + `media/`」的部分不再有效，文件夹内容布局以 [ADR-0061](./0061-jyd-manuscript-file-audio-stays-plain.md) 为准。第 2、3、6、8 条仍有效；第 6 条的每日 JYM 备份尚未被替换。下面的决策正文不改。整篇不标 `superseded`。
 - 取代：同日早些时候「项目文件夹 = 解包 JYM、多个 JSON」的口径（wayfinder #275 旧版）。
 - 相关：ADR-0044（目录按项目）、ADR-0008（冻结点前提）、ADR-0031（keyVault，见 ADR-0047）、rev5 方案 D1/D5–D7/D14。
 

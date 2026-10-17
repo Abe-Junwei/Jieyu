@@ -7,12 +7,15 @@ import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocType
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import { t, type Locale } from '../i18n';
 import { managedAcousticMediaState } from '../utils/mediaItemState';
+import { createLogger } from '../observability/logger';
 import { hasEstablishedTimedUnits } from '../utils/timelineLogicalDurationSync';
 import { isWaveformMediaTooLong } from '../utils/waveformDecodeGuard';
 import type {
   AudioImportDisposition,
   TranscriptionAudioImportOptions,
 } from './transcriptionAudioImportTypes';
+
+const log = createLogger('importTranscriptionProjectAudio');
 
 export async function importTranscriptionProjectAudio(input: {
   transcriptionAppService: ITranscriptionAppServiceGateway;
@@ -82,9 +85,11 @@ export async function importTranscriptionProjectAudio(input: {
       ? { importMode: 'replace' as const, replaceMediaId: choose.replaceMediaId }
       : options?.mode === 'add' && choose
         ? { importMode: 'add' as const }
-        : selectedPlaceholderId
-          ? { importMode: 'replace' as const, replaceMediaId: selectedPlaceholderId }
-          : {}),
+        : choose && !choose.replaceHasBytes
+          ? { importMode: 'replace' as const, replaceMediaId: choose.replaceMediaId }
+          : selectedPlaceholderId
+            ? { importMode: 'replace' as const, replaceMediaId: selectedPlaceholderId }
+            : {}),
   };
   let mediaId: string;
   let contentSha256: string | undefined;
@@ -129,25 +134,31 @@ export async function importTranscriptionProjectAudio(input: {
     createdAt: new Date().toISOString(),
     ...managedAcousticMediaState(blob, contentSha256),
   });
-  if (options?.mismatchAcknowledged) {
-    const expandTarget = Math.max(
-      duration,
-      typeof options.postImportExpandLogicalToSec === 'number' &&
-        Number.isFinite(options.postImportExpandLogicalToSec)
-        ? options.postImportExpandLogicalToSec
-        : 0,
-    );
-    if (expandTarget > 0) {
-      await transcriptionAppService.expandTextLogicalDurationToAtLeast({
+  let durationWriteFailed = false;
+  try {
+    if (options?.mismatchAcknowledged) {
+      const expandTarget = Math.max(
+        duration,
+        typeof options.postImportExpandLogicalToSec === 'number' &&
+          Number.isFinite(options.postImportExpandLogicalToSec)
+          ? options.postImportExpandLogicalToSec
+          : 0,
+      );
+      if (expandTarget > 0) {
+        await transcriptionAppService.expandTextLogicalDurationToAtLeast({
+          textId,
+          minLogicalDurationSec: expandTarget,
+        });
+      }
+    } else if (!hasEstablishedTimedUnits(unitsOnCurrentMedia) && duration > 0) {
+      await transcriptionAppService.setTextLogicalDurationSec({
         textId,
-        minLogicalDurationSec: expandTarget,
+        logicalDurationSec: duration,
       });
     }
-  } else if (!hasEstablishedTimedUnits(unitsOnCurrentMedia) && duration > 0) {
-    await transcriptionAppService.setTextLogicalDurationSec({
-      textId,
-      logicalDurationSec: duration,
-    });
+  } catch (error) {
+    durationWriteFailed = true;
+    log.warn('Audio imported but logical duration update failed', { textId, mediaId, err: error });
   }
   clearPendingAudioImportSelection();
   const writtenTextId = textId;
@@ -155,10 +166,30 @@ export async function importTranscriptionProjectAudio(input: {
     reload: () => loadSnapshot(writtenTextId),
     setSaveState,
     locale,
+    ...(durationWriteFailed
+      ? {
+          onRetryReloaded: () =>
+            setSaveState({
+              kind: 'error',
+              message: tfB('transcription.action.audioImportedDurationFailed', {
+                filename: file.name,
+              }),
+            }),
+        }
+      : {}),
     onReloaded: () =>
-      setSaveState({
-        kind: 'done',
-        message: tfB('transcription.action.audioImported', { filename: file.name }),
-      }),
+      setSaveState(
+        durationWriteFailed
+          ? {
+              kind: 'error',
+              message: tfB('transcription.action.audioImportedDurationFailed', {
+                filename: file.name,
+              }),
+            }
+          : {
+              kind: 'done',
+              message: tfB('transcription.action.audioImported', { filename: file.name }),
+            },
+      ),
   });
 }

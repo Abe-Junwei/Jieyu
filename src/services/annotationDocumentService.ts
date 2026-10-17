@@ -32,6 +32,7 @@ import { newCatalogUuid } from './projectCatalogScope';
 import { isProjectNeverCollaborated } from '../collaboration/cloud/projectCollaborationHistory';
 import { createLogger } from '../observability/logger';
 import { rememberMultiDocumentGate } from './annotationDocumentCollaborationGate';
+import { deleteTierAnnotationsForLayers } from './TierBridgeService';
 
 const log = createLogger('annotationDocumentService');
 
@@ -148,6 +149,16 @@ export async function ensureDefaultAnnotationDocument(textId: string): Promise<s
     if (cause instanceof AnnotationDocumentProjectNotFoundError) throw cause;
     throw error;
   }
+}
+
+/** Call only from a transaction that already includes texts and annotation_documents. */
+export async function ensureDefaultAnnotationDocumentInTransaction(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<string> {
+  const owner = textId.trim();
+  if (!owner) throw new AnnotationDocumentProjectNotFoundError(textId);
+  return (await ensureDefaultDocumentIn(db, owner)).id;
 }
 
 /** 只读：项目的文档列表 | Read-only: the project's documents */
@@ -718,7 +729,7 @@ async function deleteDocumentRows(
           ownershipScope,
         });
         if (layerIds.length > 0) {
-          await db.dexie.tier_annotations.where('tierId').anyOf(layerIds).delete();
+          await deleteTierAnnotationsForLayers(db, layerIds);
           await db.dexie.layer_links.where('layerId').anyOf(layerIds).delete();
           await db.dexie.layer_links.where('hostTranscriptionLayerId').anyOf(layerIds).delete();
           await db.dexie.tier_definitions.bulkDelete(layerIds);
@@ -816,19 +827,17 @@ export async function keepCurrentDocumentRows<T extends { textId: string; layerI
 }
 
 /**
- * 第 5 批：把一次导入写进新建的文稿。导入抛错、或 `isFailed(result)` 为真（导入流程自己吞掉的错误）时，
- * 新文稿连同写了一半的内容一律删掉并切回原文稿（B5-3）；成功但没写进内容时同样删掉；成功且有内容时保留。
- * 返回值 `kept` 表示新文稿是否留下。
- * Batch 5: run an import inside a freshly created document. If the import throws or `isFailed(result)`
- * (an error the import handled itself), the new document and its half-written rows are removed and the
- * previous document becomes current again (B5-3); an empty successful import is removed too; a successful
- * import with content is kept. `kept` tells which.
+ * 第 5 批：把一次导入写进新建的文稿。`run` 返回这次导入有没有提交。
+ * 抛错或 `committed: false` 时，新文稿连同写了一半的内容删掉并切回原文稿（B5-3）；
+ * 已提交但没写进内容时同样删掉；已提交且有内容时保留。`kept` 表示新文稿是否留下。
+ * Batch 5: run an import inside a freshly created document. `run` reports whether that import committed.
+ * A throw or `committed: false` removes the new document and its half-written rows and switches back
+ * (B5-3); a committed import with no content is removed too; a committed import with content is kept.
  */
-export async function runInNewAnnotationDocument<T>(
+export async function runInNewAnnotationDocument(
   textId: string,
-  run: () => Promise<T>,
-  isFailed?: (result: T) => boolean,
-): Promise<{ result: T; kept: boolean }> {
+  run: () => Promise<{ committed: boolean }>,
+): Promise<{ result: { committed: boolean }; kept: boolean }> {
   const owner = textId.trim();
   const previous = await ensureDefaultAnnotationDocument(owner);
   const created = await createAnnotationDocument(owner);
@@ -839,7 +848,7 @@ export async function runInNewAnnotationDocument<T>(
     await deleteDocumentRows(await getDb(), owner, created);
     await switchAnnotationDocument(owner, previous);
   };
-  let result: T;
+  let result: { committed: boolean };
   try {
     result = await run();
   } catch (error) {
@@ -850,7 +859,7 @@ export async function runInNewAnnotationDocument<T>(
     );
     throw error;
   }
-  if (isFailed?.(result) === true) {
+  if (result.committed !== true) {
     await discard();
     return { result, kept: false };
   }

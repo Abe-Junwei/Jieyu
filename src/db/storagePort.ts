@@ -9,10 +9,39 @@ import type {
   AiRuntimeV2TurnDoc,
   LayerUnitContentDocType,
   LayerUnitDocType,
+  SpeakerDocType,
 } from './types';
 import { db, getDb } from './engine';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
+import { isMediaItemPlaceholderRow, mediaRowHasPlayableBytes } from '../utils/mediaItemState';
+import { newId } from '../utils/transcriptionFormatters';
+import {
+  attachSpeakerToProject,
+  readProjectSpeakerIds,
+} from '../services/speakerProjectMembership';
+
+export class RecordingRemovalBlockedError extends Error {
+  readonly code = 'RECORDING_REMOVAL_BLOCKED' as const;
+
+  constructor(
+    readonly mediaId: string,
+    readonly reason: 'missing' | 'has-bytes' | 'has-units' | 'has-anchors' | 'not-acoustic',
+  ) {
+    super(`removeEmptyRecording: ${mediaId} blocked (${reason})`);
+    this.name = 'RecordingRemovalBlockedError';
+  }
+}
+
+export function recordingRemovalBlockReason(
+  error: unknown,
+): RecordingRemovalBlockedError['reason'] | undefined {
+  if (error instanceof RecordingRemovalBlockedError) return error.reason;
+  if (error instanceof Error && error.cause instanceof RecordingRemovalBlockedError) {
+    return error.cause.reason;
+  }
+  return undefined;
+}
 
 export class StorageReadbackError extends Error {
   readonly code = 'STORAGE_READBACK';
@@ -46,12 +75,36 @@ export interface RegexSplitCommit {
   resizeSegmentsOf?: string[];
 }
 
+export interface MixedSpeakerSelectionWrite {
+  textId: string;
+  segmentIds: readonly string[];
+  unitIds: readonly string[];
+  speakerId?: string;
+  createSpeaker?: { name: string; textId: string };
+}
+
+export interface MixedSpeakerSelectionResult {
+  segments: number;
+  units: number;
+  speaker?: SpeakerDocType;
+  created?: boolean;
+}
+
 /** 调用方不传表名，也不接收事务回调。 */
 export interface StoragePort {
   turns: AiRuntimeTurnOps;
   fingerprintTarget(id: string): Promise<string | undefined>;
   audit: AuditLogOps;
   commitRegexSplit(write: RegexSplitCommit): Promise<{ resizedSegmentIds: string[] }>;
+  assignSpeakerToMixedSelection(
+    write: MixedSpeakerSelectionWrite,
+  ): Promise<MixedSpeakerSelectionResult>;
+  /**
+   * 移除一条没有可播放字节的录音。
+   * 同事务解开指向它的来源文稿，文稿本身留下；句段和锚点留在项目里，改挂到未绑定录音。
+   * 同名的其他录音不动。
+   */
+  removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -233,7 +286,208 @@ export const dexieStoragePort: StoragePort = {
   },
 
   commitRegexSplit,
+
+  assignSpeakerToMixedSelection,
+
+  removeEmptyRecording,
 };
+
+async function assignSpeakerToMixedSelection(
+  write: MixedSpeakerSelectionWrite,
+): Promise<MixedSpeakerSelectionResult> {
+  const projectId = write.textId.trim();
+  if (projectId === '') throw new Error('mixed speaker selection requires a project');
+  const requestedSpeakerId = write.speakerId?.trim() ?? '';
+  const segmentIds = [...new Set(write.segmentIds.map((id) => id.trim()).filter(Boolean))];
+  const unitIds = [...new Set(write.unitIds.map((id) => id.trim()).filter(Boolean))];
+  const touched = [...segmentIds, ...unitIds];
+  if (segmentIds.some((id) => unitIds.includes(id))) {
+    throw new Error('mixed speaker selection overlaps');
+  }
+  if (requestedSpeakerId !== '' && write.createSpeaker !== undefined) {
+    throw new Error('choose an existing speaker or create one');
+  }
+  if (touched.length === 0) return { segments: 0, units: 0 };
+  const database = await getDb();
+  let result: MixedSpeakerSelectionResult;
+  try {
+    result = await withTransaction(
+      database,
+      'rw',
+      [database.dexie.speakers, database.dexie.layer_units, database.dexie.texts],
+      async (): Promise<MixedSpeakerSelectionResult> => {
+        const rows = await database.dexie.layer_units.bulkGet(touched);
+        if (!(await database.dexie.texts.get(projectId)))
+          throw new Error(`项目不存在: ${projectId}`);
+        if (
+          rows.some(
+            (row, index) =>
+              !row || row.unitType !== (index < segmentIds.length ? 'segment' : 'unit'),
+          )
+        ) {
+          throw new Error('mixed speaker selection changed before writing');
+        }
+        let speaker =
+          requestedSpeakerId !== ''
+            ? await database.dexie.speakers.get(requestedSpeakerId)
+            : undefined;
+        let created = false;
+        if (write.createSpeaker) {
+          const name = write.createSpeaker.name.trim();
+          const textId = write.createSpeaker.textId.trim();
+          if (name === '' || textId === '')
+            throw new Error('speaker name and project are required');
+          if (!(await database.dexie.texts.get(textId))) throw new Error(`项目不存在: ${textId}`);
+          const candidates = await database.dexie.speakers.where('textId').equals(textId).toArray();
+          speaker = candidates.find(
+            (row) =>
+              row.name.trim().toLocaleLowerCase('zh-Hans-CN') ===
+              name.toLocaleLowerCase('zh-Hans-CN'),
+          );
+          if (!speaker) {
+            const now = new Date().toISOString();
+            speaker = { id: newId('speaker'), name, textId, createdAt: now, updatedAt: now };
+            await database.dexie.speakers.add(speaker);
+            created = true;
+          }
+        }
+        if (requestedSpeakerId !== '' && !speaker) {
+          throw new Error(`说话人不存在: ${requestedSpeakerId}`);
+        }
+        if (speaker && speaker.textId !== projectId) {
+          throw new CatalogOwnershipMismatchError(
+            'speakers',
+            speaker.id,
+            speaker.textId,
+            projectId,
+          );
+        }
+        for (const row of rows) {
+          if (row!.textId.trim() !== projectId) {
+            throw new CatalogOwnershipMismatchError('layer_units', row!.id, row!.textId, projectId);
+          }
+        }
+        const now = new Date().toISOString();
+        await database.dexie.layer_units.bulkPut(
+          rows.map((row) => {
+            const { speaker: _oldSpeaker, speakerId: _oldSpeakerId, ...rest } = row!;
+            return {
+              ...rest,
+              ...(speaker
+                ? {
+                    speakerId: speaker.id,
+                    ...(row!.unitType === 'unit' ? { speaker: speaker.name } : {}),
+                  }
+                : {}),
+              updatedAt: now,
+            };
+          }),
+        );
+        if (speaker) await attachSpeakerToProject(speaker.id, speaker.textId, database);
+        return {
+          segments: segmentIds.length,
+          units: unitIds.length,
+          ...(speaker ? { speaker } : {}),
+          ...(created ? { created: true } : {}),
+        };
+      },
+      { label: 'speakers.assignMixedSelection' },
+    );
+  } catch (error) {
+    throw error instanceof Error && error.cause instanceof CatalogOwnershipMismatchError
+      ? error.cause
+      : error;
+  }
+  const stored = await database.dexie.layer_units.bulkGet(touched);
+  if (
+    stored.some(
+      (row, index) =>
+        !row ||
+        row.speakerId !== result.speaker?.id ||
+        (index >= segmentIds.length &&
+          result.speaker !== undefined &&
+          row.speaker !== result.speaker.name),
+    )
+  ) {
+    throw new StorageReadbackError('assignSpeakerToMixedSelection');
+  }
+  if (result.speaker && !(await database.dexie.speakers.get(result.speaker.id))) {
+    throw new StorageReadbackError('assignSpeakerToMixedSelection');
+  }
+  if (result.speaker) {
+    const project = await database.dexie.texts.get(result.speaker.textId);
+    if (!project || readProjectSpeakerIds(project.metadata)?.includes(result.speaker.id) !== true) {
+      throw new StorageReadbackError('assignSpeakerToMixedSelection');
+    }
+  }
+  return result;
+}
+
+async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }> {
+  const id = mediaId.trim();
+  if (id.length === 0) throw new RecordingRemovalBlockedError(mediaId, 'missing');
+  const database = await getDb();
+  let unboundSourceIds: string[] = [];
+  await withTransaction(
+    database,
+    'rw',
+    [
+      database.dexie.media_items,
+      database.dexie.layer_units,
+      database.dexie.anchors,
+      database.dexie.source_records,
+      database.dexie.segment_meta,
+      database.dexie.segment_quality_snapshots,
+      database.dexie.translation_status_snapshots,
+      database.dexie.track_entities,
+      database.dexie.scope_stats_snapshots,
+    ],
+    async () => {
+      const row = await database.dexie.media_items.get(id);
+      if (!row) throw new RecordingRemovalBlockedError(id, 'missing');
+      if (isMediaItemPlaceholderRow(row)) {
+        throw new RecordingRemovalBlockedError(id, 'not-acoustic');
+      }
+      if (mediaRowHasPlayableBytes(row)) {
+        throw new RecordingRemovalBlockedError(id, 'has-bytes');
+      }
+      const sources = await database.dexie.source_records.where('mediaId').equals(id).toArray();
+      unboundSourceIds = sources.map((source) => source.id);
+      const now = new Date().toISOString();
+      const units = await database.dexie.layer_units.where('mediaId').equals(id).toArray();
+      for (const unit of units) {
+        await database.dexie.layer_units.put({
+          ...unit,
+          mediaId: '__unknown_media__',
+          updatedAt: now,
+        });
+      }
+      const anchors = await database.dexie.anchors.where('mediaId').equals(id).toArray();
+      for (const anchor of anchors) {
+        await database.dexie.anchors.put({ ...anchor, mediaId: '__unknown_media__' });
+      }
+      for (const source of sources) {
+        const { mediaId: _linked, ...kept } = source;
+        await database.dexie.source_records.put({ ...kept, updatedAt: now });
+      }
+      await database.dexie.segment_meta.where('mediaId').equals(id).delete();
+      await database.dexie.segment_quality_snapshots.where('mediaId').equals(id).delete();
+      await database.dexie.translation_status_snapshots.where('mediaId').equals(id).delete();
+      await database.dexie.track_entities.where('mediaId').equals(id).delete();
+      await database.dexie.scope_stats_snapshots.where('mediaId').equals(id).delete();
+      await database.dexie.media_items.delete(id);
+    },
+    { label: 'storage.removeEmptyRecording' },
+  );
+  if (await database.dexie.media_items.get(id)) {
+    throw new StorageReadbackError('removeEmptyRecording');
+  }
+  for (const sourceId of unboundSourceIds) {
+    const source = await database.dexie.source_records.get(sourceId);
+    if (!source || source.mediaId === id) throw new StorageReadbackError('removeEmptyRecording');
+  }
+  return { unboundSourceIds };
+}
 
 let current: StoragePort = dexieStoragePort;
 

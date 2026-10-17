@@ -11,6 +11,16 @@ describe('shouldBypassTimelineWheel', () => {
     expect(shouldBypassTimelineWheel(textarea)).toBe(true);
   });
 
+  it('allows native wheel scrolling when lanes are packed by text width', () => {
+    const tier = document.createElement('div');
+    tier.setAttribute('data-text-flow', '1');
+    const child = document.createElement('span');
+    tier.appendChild(child);
+    document.body.appendChild(tier);
+
+    expect(shouldBypassTimelineWheel(child)).toBe(true);
+  });
+
   it('allows native wheel scrolling inside explicitly scrollable descendants', () => {
     const scroller = document.createElement('div');
     scroller.setAttribute('data-allow-native-scroll', 'true');

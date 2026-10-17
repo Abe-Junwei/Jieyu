@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-16
 source_of_truth: decision-index
 ---
 
@@ -13,9 +13,30 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0056**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0063**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
+
+0058 有两份，文件名不同，不改名：`0058-card-sqlite-file.md` 记卡片语义，`0058-indexeddb-two-layer-placement.md` 记 IndexedDB 归层。引用时写文件名。
+
+## 桌面存储：当前有效条款
+
+下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。
+
+| 事项 | 唯一权威 | 不要再当成权威 |
+| --- | --- | --- |
+| 桌面用 SQLite、浏览器用 Dexie、新代码走存储接口 | ADR-0046 第 3 条，操作形状见 ADR-0048 | — |
+| JYT/JYM 是交换包不是活文件；JYB 只在浏览器构建（旧浏览器数据迁入桌面时例外，见 0062 第 6 条）；每日 JYM 快照留 3 份，在含音频的备份通过恢复演练前保持不动 | ADR-0046 第 2、6 条；ADR-0062 第 1、6 条 | 用「只备份数据库、音频只留哈希」替换每日 JYM。该替换未批准；将来的备份必须含可播放的音频字节 |
+| 文件夹里放什么 | ADR-0061 第 1–4、6 条：音频是原文件，一份文稿一个 `.jyd`，声文稿只是展示 | ADR-0046 第 1、5 条的 `project.sqlite` + `media/`；ADR-0058-card 第 1 条（音频字节在卡片文件里） |
+| 认回与删除状态 | 还没有。ADR-0061 第 5 条写了「按 sha256 认回」，多个文件哈希相同时不够，规格里先约束为必须问用户。同名判断把「已隐藏」算进去（ADR-0062 第 2 条） | 把第 5 条直接当成实现规格 |
+| 共用定义、定义副本、清单缓存、操作 id、同名合并时机 | ADR-0060 第 2、3、4、7 条 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`） |
+| 隐藏、系统垃圾箱、协作删除只动本机 | ADR-0058-card 第 5、6 条 | — |
+| IndexedDB 归哪一层 | ADR-0058-indexeddb；项目文件夹里再按 ADR-0060、ADR-0061 分 | 该篇里「项目内容全进 `project.sqlite` + `media/`」 |
+| D14 冻结 | 尚未冻结。一份文稿同时只关联一条音频，父子链接不能跨文稿；已经同时挂着两条的旧文稿迁移时拒绝，不自动拆。冻结前还要有：格式原型、含音频的备份恢复并播放、桌面写路径验证 | ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；「没有要保留的真实数据」不能当作丢弃本机已导入录音的依据 |
+| `unit_relations`、`user_notes` 放哪 | ADR-0062 第 3、4 条：按每行所指对象归属；跨文稿的关系一律不存 | 把整表划进 `.jyd` 或项目库 |
+| 存储接口的边界 | ADR-0062 第 7 条：业务操作走端口（一事务）；弹窗和订阅分开 | 把弹窗、订阅、业务操作收进同一个可选 `files` 对象 |
+
+研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
 ## superseded
 
@@ -70,6 +91,14 @@ source_of_truth: decision-index
 - [0053-approval-not-one-handle.md](./0053-approval-not-one-handle.md)
 - [0054-outbound-collab-later-web-leg.md](./0054-outbound-collab-later-web-leg.md)
 - [0055-corpus-analysis-cloud-forms.md](./0055-corpus-analysis-cloud-forms.md)
+- [0056-single-agent-runtime-toolloopagent.md](./0056-single-agent-runtime-toolloopagent.md)
+- [0057-model-interface-transcribe.md](./0057-model-interface-transcribe.md)
+- [0058-card-sqlite-file.md](./0058-card-sqlite-file.md)
+- [0058-indexeddb-two-layer-placement.md](./0058-indexeddb-two-layer-placement.md)
+- [0059-electron-shell-skeleton.md](./0059-electron-shell-skeleton.md)
+- [0060-card-file-ownership-and-operations.md](./0060-card-file-ownership-and-operations.md)
+- [0061-jyd-manuscript-file-audio-stays-plain.md](./0061-jyd-manuscript-file-audio-stays-plain.md)
+- [0062-desktop-storage-decisions-2026-10-16.md](./0062-desktop-storage-decisions-2026-10-16.md)
 
 ## 已关闭的另一套编号
 

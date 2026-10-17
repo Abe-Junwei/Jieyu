@@ -62,7 +62,6 @@ export function RemovedCloudProjectsSection({
   if (entries.length === 0) return null;
   return (
     <section
-      className="home-removed-cloud-projects"
       aria-label={t(locale, 'app.home.removedCloudProjects.title')}
       data-testid="removed-cloud-projects"
     >

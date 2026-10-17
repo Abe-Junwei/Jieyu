@@ -19,11 +19,31 @@ import {
   type ExternalMcpToolSchema,
 } from './externalMcpTrustRegistry';
 import type { EvidencePacketV0 } from '../../vertical/evidencePacket';
+import { inspectInbound } from '../../security/semanticGuard';
+import {
+  buildExternalMcpInputResponses,
+  parseExternalMcpInputRequired,
+  type ExternalMcpInputCard,
+  type ExternalMcpInputForm,
+} from './externalMcpInputRequired';
 
 export const EXTERNAL_MCP_TOOL_NAME_PREFIX = 'extmcp__';
 const GUIDE_MAX_CHARS = 4_000;
 const RESULT_MAX_CHARS = 8_000;
+const MODEL_CONTENT_MAX_CHARS = 4_000;
 const MAX_CALLS_PER_TURN = 5;
+export const RUNTIME_V2_EXTERNAL_MCP_TOOL_CAP = 5;
+
+export type ExternalMcpCallPayload = {
+  name: string;
+  ok: boolean;
+  origin?: string;
+  content?: unknown;
+  evidencePackets?: EvidencePacketV0[];
+  reason?: string;
+  message?: string;
+  form?: ExternalMcpInputCard;
+};
 
 export type ExternalMcpToolCall = {
   name: string;
@@ -62,6 +82,16 @@ export function decodeExternalMcpToolName(
   return { originKey, toolName };
 }
 
+function rawContentPassesInbound(content: ReadonlyArray<{ type: string; text?: string }>): boolean {
+  const texts = content.flatMap((part) =>
+    part.type === 'text' && typeof part.text === 'string' ? [part.text] : [],
+  );
+  return (
+    inspectInbound({ text: texts.join('\n'), snippets: texts, trustTier: 'untrusted' }).action ===
+    'allow'
+  );
+}
+
 function parseLastToolsJson(raw: string | undefined): ExternalMcpToolSchema[] {
   if (!raw) return [];
   try {
@@ -72,6 +102,9 @@ function parseLastToolsJson(raw: string | undefined): ExternalMcpToolSchema[] {
       .map((item) => ({
         name: String(item.name ?? ''),
         ...(typeof item.description === 'string' ? { description: item.description } : {}),
+        ...(item.inputSchema && typeof item.inputSchema === 'object'
+          ? { inputSchema: item.inputSchema }
+          : {}),
       }))
       .filter((tool) => tool.name.trim().length > 0);
   } catch {
@@ -170,6 +203,195 @@ export async function parseExternalMcpToolCallsFromText(
   return resolved;
 }
 
+/** Cached tools for ToolLoopAgent. At most 5. Second-model tools are left out. */
+export type RuntimeV2ExternalMcpTool = {
+  name: string;
+  origin: string;
+  toolName: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+};
+
+export async function listRuntimeV2ExternalMcpTools(): Promise<RuntimeV2ExternalMcpTool[]> {
+  if (!featureFlags.aiExternalMcpSendTurnEnabled || !featureFlags.aiExternalMcpTrustEnabled) {
+    return [];
+  }
+  const entries = await listExternalMcpTrustEntries();
+  const specs: RuntimeV2ExternalMcpTool[] = [];
+  for (const entry of entries) {
+    if (!entry.enabled || !entry.lastToolsJson) continue;
+    if (isExternalMcpStdioOrigin(entry.origin) && !featureFlags.corpusExternalEvidenceEnabled) {
+      continue;
+    }
+    for (const tool of parseLastToolsJson(entry.lastToolsJson)) {
+      if (isExternalMcpSecondModelTool(tool.name)) continue;
+      if (resolveExternalEvidenceKind(tool.name) && !featureFlags.corpusExternalEvidenceEnabled) {
+        continue;
+      }
+      const schema =
+        tool.inputSchema && typeof tool.inputSchema === 'object' && !Array.isArray(tool.inputSchema)
+          ? (tool.inputSchema as Record<string, unknown>)
+          : { type: 'object', properties: {} };
+      specs.push({
+        name: encodeExternalMcpToolName(entry.origin, tool.name),
+        origin: entry.origin,
+        toolName: tool.name,
+        description: tool.description?.trim() || tool.name,
+        inputSchema: schema,
+      });
+      if (specs.length >= RUNTIME_V2_EXTERNAL_MCP_TOOL_CAP) return specs;
+    }
+  }
+  return specs;
+}
+
+function inputCard(
+  call: ExternalMcpToolCall,
+  form: ExternalMcpInputForm,
+): ExternalMcpInputCard | undefined {
+  if (isExternalMcpStdioOrigin(call.origin)) return undefined;
+  return {
+    origin: call.origin,
+    toolName: call.toolName,
+    arguments: call.arguments,
+    requests: form.requests,
+    ...(form.requestState ? { requestState: form.requestState } : {}),
+  };
+}
+
+/** User submitted the form. A second input_required is not turned into another card. */
+export async function completeExternalMcpInputForm(
+  form: ExternalMcpInputCard,
+  values: Record<string, string>,
+  agentRunId?: string,
+): Promise<{ ok: boolean; text: string }> {
+  const inputResponses = buildExternalMcpInputResponses(form, values);
+  if (!inputResponses) return { ok: false, text: 'input_required' };
+  const payload = await executeExternalMcpCall(
+    {
+      name: encodeExternalMcpToolName(form.origin, form.toolName),
+      origin: form.origin,
+      toolName: form.toolName,
+      arguments: form.arguments,
+    },
+    agentRunId,
+    { inputResponses, ...(form.requestState ? { requestState: form.requestState } : {}) },
+  );
+  return { ok: payload.ok, text: externalMcpModelMessage(payload) };
+}
+
+export async function executeExternalMcpCall(
+  call: ExternalMcpToolCall,
+  agentRunId?: string,
+  retry?: { inputResponses: Record<string, unknown>; requestState?: string },
+): Promise<ExternalMcpCallPayload> {
+  if (isExternalMcpSecondModelTool(call.toolName)) {
+    return { name: call.name, ok: false, reason: 'second_model_tool_denied' };
+  }
+  const evidenceKind = resolveExternalEvidenceKind(call.toolName);
+  if (
+    (evidenceKind || isExternalMcpStdioOrigin(call.origin)) &&
+    !featureFlags.corpusExternalEvidenceEnabled
+  ) {
+    return { name: call.name, ok: false, reason: 'flag_off' };
+  }
+  const result = isExternalMcpStdioOrigin(call.origin)
+    ? await callLocalMcpToolViaStdio({
+        origin: call.origin,
+        toolName: call.toolName,
+        arguments: call.arguments,
+      })
+    : await callExternalMcpToolViaHttp({
+        origin: call.origin,
+        toolName: call.toolName,
+        arguments: call.arguments,
+        ...(agentRunId ? { agentRunId } : {}),
+        ...(retry?.inputResponses ? { inputResponses: retry.inputResponses } : {}),
+        ...(retry?.requestState ? { requestState: retry.requestState } : {}),
+      });
+  if (!result.ok) {
+    const form =
+      result.reason === 'input_required' && 'form' in result && result.form
+        ? inputCard(call, result.form)
+        : undefined;
+    return {
+      name: call.name,
+      ok: false,
+      reason: result.reason,
+      ...('message' in result && result.message ? { message: result.message } : {}),
+      ...(form ? { form } : {}),
+    };
+  }
+  const parsedInput = parseExternalMcpInputRequired(result.result);
+  if (parsedInput) {
+    const form = inputCard(call, parsedInput);
+    return {
+      name: call.name,
+      ok: false,
+      reason: 'input_required',
+      ...(form ? { form } : {}),
+    };
+  }
+  const evidencePackets = featureFlags.aiExternalMcpProviderAdaptersEnabled
+    ? mapExternalMcpToolResultToEvidencePackets({
+        toolName: call.toolName,
+        content: result.result.content,
+      })
+    : [];
+  if (!evidenceKind && !rawContentPassesInbound(result.result.content)) {
+    return { name: call.name, ok: false, reason: 'inbound_blocked' };
+  }
+  return {
+    name: call.name,
+    ok: true,
+    origin: result.origin,
+    ...(evidenceKind ? {} : { content: result.result.content }),
+    ...(evidencePackets.length > 0 ? { evidencePackets } : {}),
+  };
+}
+
+/** What the model may read. Evidence tools contribute packet ids, never the raw payload. */
+export function externalMcpModelMessage(payload: ExternalMcpCallPayload): string {
+  if (!payload.ok) return payload.reason ?? 'external mcp tool failed';
+  if (payload.evidencePackets && payload.evidencePackets.length > 0) {
+    return JSON.stringify(
+      payload.evidencePackets.map((packet) => ({
+        id: packet.id,
+        title: packet.title,
+        page: packet.page,
+        url: packet.url,
+        quote: packet.quote,
+      })),
+    );
+  }
+  if (payload.content !== undefined) return externalMcpContentMessage(payload.content);
+  return 'ok';
+}
+
+function externalMcpContentMessage(content: unknown): string {
+  const body = JSON.stringify(content);
+  if (body === undefined) return 'ok';
+  if (body.length <= MODEL_CONTENT_MAX_CHARS) return body;
+  return JSON.stringify({ truncated: true });
+}
+
+/** Keep whole payloads. Stop before a payload that would exceed RESULT_MAX_CHARS. */
+function externalMcpResultsBody(payloads: ExternalMcpCallPayload[]): string {
+  const full = JSON.stringify({ external_mcp_tool_results: payloads });
+  if (full.length <= RESULT_MAX_CHARS) return full;
+
+  const kept: ExternalMcpCallPayload[] = [];
+  for (const payload of payloads) {
+    const candidate = JSON.stringify({
+      external_mcp_tool_results: [...kept, payload],
+      truncated: true,
+    });
+    if (candidate.length > RESULT_MAX_CHARS) break;
+    kept.push(payload);
+  }
+  return JSON.stringify({ external_mcp_tool_results: kept, truncated: true });
+}
+
 export async function resolveExternalMcpSendTurn(input: {
   assistantContent: string;
   canApplySideEffects: boolean;
@@ -197,81 +419,16 @@ export async function resolveExternalMcpSendTurn(input: {
       finalErrorMessage: 'external mcp tool unresolved',
     };
   }
-  const payloads: Array<{
-    name: string;
-    ok: boolean;
-    origin?: string;
-    content?: unknown;
-    evidencePackets?: EvidencePacketV0[];
-    reason?: string;
-    message?: string;
-  }> = [];
+  const payloads: ExternalMcpCallPayload[] = [];
   let anyError = false;
   const collectedPackets: EvidencePacketV0[] = [];
   for (const call of calls) {
-    if (isExternalMcpSecondModelTool(call.toolName)) {
-      anyError = true;
-      payloads.push({
-        name: call.name,
-        ok: false,
-        reason: 'second_model_tool_denied',
-      });
-      continue;
-    }
-    const evidenceKind = resolveExternalEvidenceKind(call.toolName);
-    if (
-      (evidenceKind || isExternalMcpStdioOrigin(call.origin)) &&
-      !featureFlags.corpusExternalEvidenceEnabled
-    ) {
-      anyError = true;
-      payloads.push({
-        name: call.name,
-        ok: false,
-        reason: 'flag_off',
-      });
-      continue;
-    }
-    const result = isExternalMcpStdioOrigin(call.origin)
-      ? await callLocalMcpToolViaStdio({
-          origin: call.origin,
-          toolName: call.toolName,
-          arguments: call.arguments,
-        })
-      : await callExternalMcpToolViaHttp({
-          origin: call.origin,
-          toolName: call.toolName,
-          arguments: call.arguments,
-          ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
-        });
-    if (!result.ok) {
-      anyError = true;
-      payloads.push({
-        name: call.name,
-        ok: false,
-        reason: result.reason,
-        ...('message' in result && result.message ? { message: result.message } : {}),
-      });
-      continue;
-    }
-    const evidencePackets = featureFlags.aiExternalMcpProviderAdaptersEnabled
-      ? mapExternalMcpToolResultToEvidencePackets({
-          toolName: call.toolName,
-          content: result.result.content,
-        })
-      : [];
-    collectedPackets.push(...evidencePackets);
-    payloads.push({
-      name: call.name,
-      ok: true,
-      origin: result.origin,
-      content: result.result.content,
-      ...(evidencePackets.length > 0 ? { evidencePackets } : {}),
-    });
+    const payload = await executeExternalMcpCall(call, input.agentRunId);
+    if (!payload.ok) anyError = true;
+    collectedPackets.push(...(payload.evidencePackets ?? []));
+    payloads.push(payload);
   }
-  const finalContent = JSON.stringify({ external_mcp_tool_results: payloads }).slice(
-    0,
-    RESULT_MAX_CHARS,
-  );
+  const finalContent = externalMcpResultsBody(payloads);
   if (anyError) {
     return {
       handled: true,

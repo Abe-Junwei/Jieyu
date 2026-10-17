@@ -1087,7 +1087,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         type="file"
         accept=".zip"
         aria-label={t(locale, 'transcription.projectHub.rawSnapshotImport')}
-        className="left-rail-project-hub-file-input left-rail-project-hub-raw-snapshot-input"
+        className="left-rail-project-hub-file-input"
+        data-testid="raw-snapshot-input"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
@@ -1541,7 +1542,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           />
           {annotationImportState.sourcePlan ? (
             <p
-              className="small-text left-rail-project-import-source-plan"
+              className="small-text"
               data-testid="annotation-import-source-plan"
               data-plan={annotationImportState.sourcePlan.kind}
             >
@@ -1565,7 +1566,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           annotationImportState.replacePreview &&
           annotationImportState.replacePreview.unitCount > 0 ? (
             <p
-              className="small-text left-rail-project-import-replace-preview"
+              className="small-text"
               data-testid="annotation-import-replace-preview"
               data-unit-count={annotationImportState.replacePreview.unitCount}
             >
@@ -1577,7 +1578,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           ) : null}
 
           {activeTextId && canCreateAnnotationDocument(activeTextId) ? (
-            <label className="left-rail-project-import-target">
+            <label>
               <input
                 type="checkbox"
                 data-testid="annotation-import-as-new-document"

@@ -45,7 +45,7 @@ function referenceIndexedDb() {
 
 function memoryFolder(
   initial: string[],
-  opts: { failWrite?: boolean; permission?: PermissionState } = {},
+  opts: { failWrite?: boolean; failRemove?: boolean; permission?: PermissionState } = {},
 ) {
   const files = new Map<string, Uint8Array>(initial.map((name) => [name, new Uint8Array(1)]));
   let permission = opts.permission ?? 'granted';
@@ -71,6 +71,7 @@ function memoryFolder(
         };
       },
       async removeEntry(name: string) {
+        if (opts.failRemove) throw new Error('cleanup unavailable');
         files.delete(name);
       },
       async *values() {
@@ -172,6 +173,16 @@ describe('backupFolderService', () => {
     expect(folder.files.has('notes.txt')).toBe(true);
     expect(folder.files.has('jieyu-library-2026-10-01.jyb')).toBe(true);
     expect(readBackupFolderStatus().lastSuccess?.fileName).toBe(result.fileName);
+  });
+
+  it('reports retention failure without calling a completed backup a failure', async () => {
+    const folder = memoryFolder(OLD, { failRemove: true });
+    await useFolder(folder);
+    const result = await backupLibraryToFolder({ interactive: false, exportJyb: bytes });
+    expect(folder.files.has(result.fileName)).toBe(true);
+    expect(result).toMatchObject({ retentionWarning: 'cleanup unavailable', removed: [] });
+    expect(readBackupFolderStatus().lastSuccess?.fileName).toBe(result.fileName);
+    expect(readBackupFolderStatus().lastFailure).toBeUndefined();
   });
 
   it('a failed write removes only its partial file, keeps older backups and records the failure', async () => {

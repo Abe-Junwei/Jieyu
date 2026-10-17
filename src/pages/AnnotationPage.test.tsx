@@ -16,6 +16,7 @@ const {
   mockListMorphemesByTokenIds,
   mockListTokenLexemeLinks,
   mockListLexemes,
+  mockSaveOccurrenceCitation,
   mockSearchLexemes,
   mockUpdateTokenPos,
   mockUpdateTokenGloss,
@@ -41,6 +42,7 @@ const {
   mockListMorphemesByTokenIds: vi.fn(),
   mockListTokenLexemeLinks: vi.fn(),
   mockListLexemes: vi.fn(),
+  mockSaveOccurrenceCitation: vi.fn(),
   mockSearchLexemes: vi.fn(),
   mockUpdateTokenPos: vi.fn(),
   mockUpdateTokenGloss: vi.fn(),
@@ -102,6 +104,10 @@ vi.mock('../app/languageAssetPageAccess', () => ({
       listForProject: mockListSpeakersForProject,
     },
   },
+}));
+
+vi.mock('./annotation/saveAnnotationOccurrenceCitation', () => ({
+  saveAnnotationOccurrenceCitation: mockSaveOccurrenceCitation,
 }));
 
 vi.mock('../ai/config/featureFlags', () => ({
@@ -228,6 +234,7 @@ function seedWorkspace(tokens: TokenFixture[], units: Array<typeof UNIT_ONE> = [
   mockListMorphemesByTokenIds.mockResolvedValue([]);
   mockListTokenLexemeLinks.mockResolvedValue([]);
   mockListLexemes.mockResolvedValue([]);
+  mockSaveOccurrenceCitation.mockResolvedValue(undefined);
   mockSearchLexemes.mockResolvedValue([]);
   mockUpdateTokenPos.mockResolvedValue(undefined);
   mockUpdateTokenGloss.mockResolvedValue(undefined);
@@ -254,6 +261,7 @@ afterEach(() => {
   mockListMorphemesByTokenIds.mockReset();
   mockListTokenLexemeLinks.mockReset();
   mockListLexemes.mockReset();
+  mockSaveOccurrenceCitation.mockReset();
   mockSearchLexemes.mockReset();
   mockUpdateTokenPos.mockReset();
   mockUpdateTokenGloss.mockReset();
@@ -820,7 +828,7 @@ describe('AnnotationPage', () => {
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     fireEvent.click(await screen.findByTestId('annotation-igt-word-actions-tok-1'));
     const cite = await screen.findByTestId('annotation-igt-cite-tok-1');
-    mockListLexemes.mockRejectedValue(new Error('citation write failed'));
+    mockSaveOccurrenceCitation.mockRejectedValue(new Error('citation write failed'));
     fireEvent.click(cite);
     await waitFor(() =>
       expect(screen.getByTestId('annotation-keyboard-status').textContent).toContain(

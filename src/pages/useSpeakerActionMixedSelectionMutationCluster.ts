@@ -90,14 +90,13 @@ export function useSpeakerActionMixedSelectionMutationCluster({
       let updatedUnits = 0;
       await settleSpeakerWrite({
         write: async () => {
-          [updatedSegments, updatedUnits] = await Promise.all([
-            targetSegmentIds.length > 0
-              ? LinguisticService.speakers.assignToSegments(targetSegmentIds, normalizedSpeakerId)
-              : Promise.resolve(0),
-            targetUnitIds.length > 0
-              ? LinguisticService.speakers.assignToUnits(targetUnitIds, normalizedSpeakerId)
-              : Promise.resolve(0),
-          ]);
+          ({ segments: updatedSegments, units: updatedUnits } =
+            await LinguisticService.speakers.assignToMixedSelection({
+              textId: getActiveProjectTextId(),
+              segmentIds: targetSegmentIds,
+              unitIds: targetUnitIds,
+              ...(normalizedSpeakerId ? { speakerId: normalizedSpeakerId } : {}),
+            }));
           assertSpeakerAssignmentUpdatedCounts({
             targetSegmentCount: targetSegmentIds.length,
             targetUnitCount: targetUnitIds.length,
@@ -176,22 +175,31 @@ export function useSpeakerActionMixedSelectionMutationCluster({
       let updatedSegments = 0;
       let updatedUnits = 0;
       let speakerName = trimmedName;
+      let reusedSpeaker = Boolean(existing);
       await settleSpeakerWrite({
         write: async () => {
-          const targetSpeaker =
-            existing ??
-            (await LinguisticService.speakers.create({
+          let targetSpeaker: SpeakerDocType;
+          if (existing) {
+            targetSpeaker = existing;
+            ({ segments: updatedSegments, units: updatedUnits } =
+              await LinguisticService.speakers.assignToMixedSelection({
+                textId: getActiveProjectTextId(),
+                segmentIds: targetSegmentIds,
+                unitIds: targetUnitIds,
+                speakerId: targetSpeaker.id,
+              }));
+          } else {
+            const result = await LinguisticService.speakers.createAndAssignToMixedSelection({
+              segmentIds: targetSegmentIds,
+              unitIds: targetUnitIds,
               name: trimmedName,
               textId: getActiveProjectTextId(),
-            }));
-          [updatedSegments, updatedUnits] = await Promise.all([
-            targetSegmentIds.length > 0
-              ? LinguisticService.speakers.assignToSegments(targetSegmentIds, targetSpeaker.id)
-              : Promise.resolve(0),
-            targetUnitIds.length > 0
-              ? LinguisticService.speakers.assignToUnits(targetUnitIds, targetSpeaker.id)
-              : Promise.resolve(0),
-          ]);
+            });
+            targetSpeaker = result.speaker;
+            updatedSegments = result.segments;
+            updatedUnits = result.units;
+            reusedSpeaker = !result.created;
+          }
           assertSpeakerAssignmentUpdatedCounts({
             targetSegmentCount: targetSegmentIds.length,
             targetUnitCount: targetUnitIds.length,
@@ -227,7 +235,7 @@ export function useSpeakerActionMixedSelectionMutationCluster({
             'selection',
             speakerName,
             updatedSegments + updatedUnits,
-            Boolean(existing),
+            reusedSpeaker,
             t,
             tf,
           ),

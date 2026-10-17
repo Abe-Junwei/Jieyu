@@ -1,9 +1,9 @@
-import { getDb, type TextDocType } from '../db';
+import { getDb, withTransaction, type TextDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { normalizeProjectLanguageIds } from '../utils/projectLanguageLists';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
-import { ensureDefaultAnnotationDocument } from './annotationDocumentService';
+import { ensureDefaultAnnotationDocumentInTransaction } from './annotationDocumentService';
 
 export async function createProject(input: {
   primaryTitle: string;
@@ -27,26 +27,36 @@ export async function createProject(input: {
   ]);
   const workingLanguageIds = normalizeProjectLanguageIds(input.workingLanguageIds ?? []);
 
-  await db.collections.texts.insert({
-    id: textId,
-    title: buildPrimaryAndEnglishLabels({
-      primaryLabel: input.primaryTitle,
-      englishFallbackLabel: input.englishFallbackTitle,
-    }),
-    metadata: {
-      primaryLanguageId: objectLanguageIds[0] ?? primaryLanguageId,
-      objectLanguageIds,
-      workingLanguageIds,
-      timelineMode: 'document',
-      logicalDurationSec: 1800,
-      timebaseLabel: 'logical-second',
-      ...(input.primaryOrthographyId ? { primaryOrthographyId: input.primaryOrthographyId } : {}),
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.texts, db.dexie.annotation_documents],
+    async () => {
+      await db.collections.texts.insert({
+        id: textId,
+        title: buildPrimaryAndEnglishLabels({
+          primaryLabel: input.primaryTitle,
+          englishFallbackLabel: input.englishFallbackTitle,
+        }),
+        metadata: {
+          primaryLanguageId: objectLanguageIds[0] ?? primaryLanguageId,
+          objectLanguageIds,
+          workingLanguageIds,
+          timelineMode: 'document',
+          logicalDurationSec: 1800,
+          timebaseLabel: 'logical-second',
+          ...(input.primaryOrthographyId
+            ? { primaryOrthographyId: input.primaryOrthographyId }
+            : {}),
+        },
+        createdAt: now,
+        updatedAt: now,
+      } as TextDocType);
+      // 2B-E：每个新项目有一份默认标注文档（UUID）| Every new project gets one default document (UUID)
+      await ensureDefaultAnnotationDocumentInTransaction(db, textId);
     },
-    createdAt: now,
-    updatedAt: now,
-  } as TextDocType);
-  // 2B-E：每个新项目有一份默认标注文档（UUID）| Every new project gets one default document (UUID)
-  await ensureDefaultAnnotationDocument(textId);
+    { label: 'projects.create' },
+  );
 
   return { textId };
 }

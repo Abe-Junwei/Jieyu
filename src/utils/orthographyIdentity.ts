@@ -1,4 +1,4 @@
-import type { OrthographyDocType } from '../db';
+import type { OrthographyDocType } from '../db/types';
 import { toIso639_3 } from './langMapping';
 
 type OrthographyIdentityInput = Pick<

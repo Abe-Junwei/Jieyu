@@ -21,6 +21,15 @@ export interface KwicHit {
   right: { form: string; gloss: string } | null;
 }
 
+/** Citable rows for a paradigm pair; the id is the left morpheme of the pair. */
+export interface ParadigmPair {
+  leftGloss: string;
+  rightGloss: string;
+  count: number;
+  examples: Array<{ morphemeId: string; unitId: string; form: string; gloss: string }>;
+}
+
+const MAX_PARADIGM_EXAMPLES = 3;
 const DEFAULT_LIMIT = 40;
 const MAX_LIMIT = 50;
 const MAX_COUNTEREXAMPLES = 20;
@@ -88,7 +97,7 @@ export function queryMorphemeParadigm(
       ok: true;
       pos: string;
       tokenCount: number;
-      adjacent: Array<{ leftGloss: string; rightGloss: string; count: number }>;
+      adjacent: ParadigmPair[];
     }
   | { ok: false; error: string } {
   const pos = query.pos?.trim() ?? '';
@@ -100,20 +109,27 @@ export function queryMorphemeParadigm(
     list.push(row);
     tokens.set(row.tokenId, list);
   }
-  const counts = new Map<string, { leftGloss: string; rightGloss: string; count: number }>();
+  const counts = new Map<string, ParadigmPair>();
   for (const list of tokens.values()) {
     const ordered = [...list].sort((a, b) => a.morphemeIndex - b.morphemeIndex);
     for (let i = 0; i < ordered.length - 1; i += 1) {
-      const leftGloss = ordered[i]!.gloss.trim();
-      const rightGloss = ordered[i + 1]!.gloss.trim();
+      const left = ordered[i]!;
+      const right = ordered[i + 1]!;
+      const leftGloss = left.gloss.trim();
+      const rightGloss = right.gloss.trim();
       if (!leftGloss || !rightGloss) continue;
       const key = `${leftGloss}\t${rightGloss}`;
-      const prev = counts.get(key);
-      counts.set(key, {
-        leftGloss,
-        rightGloss,
-        count: (prev?.count ?? 0) + 1,
-      });
+      const pair = counts.get(key) ?? { leftGloss, rightGloss, count: 0, examples: [] };
+      pair.count += 1;
+      if (pair.examples.length < MAX_PARADIGM_EXAMPLES) {
+        pair.examples.push({
+          morphemeId: left.id,
+          unitId: left.unitId,
+          form: `${left.form}-${right.form}`,
+          gloss: `${leftGloss}-${rightGloss}`,
+        });
+      }
+      counts.set(key, pair);
     }
   }
   const adjacent = [...counts.values()].sort(
@@ -145,7 +161,7 @@ export function findCounterexamples(
     const entry = units.get(row.unitId) ?? { inScope: false, hasGloss: false };
     const posHit = !pos || row.tokenPos.trim().toLowerCase() === pos;
     if (posHit) entry.inScope = true;
-    if (sameLabel(row.gloss, gloss)) entry.hasGloss = true;
+    if (posHit && sameLabel(row.gloss, gloss)) entry.hasGloss = true;
     units.set(row.unitId, entry);
   }
   const counterexampleUnitIds: string[] = [];

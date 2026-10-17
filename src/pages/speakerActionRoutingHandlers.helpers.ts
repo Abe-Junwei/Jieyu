@@ -21,6 +21,7 @@ import {
   speakerWriteCopy,
 } from '../hooks/speakerManagement/speakerWriteOutcome';
 import { reportValidationError } from '../utils/validationErrorReporter';
+import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 
 type SegmentUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
@@ -170,7 +171,12 @@ export async function executeSegmentSpeakerClearDialog(input: {
   let cleared = 0;
   const outcome = await settleSpeakerWrite({
     write: async () => {
-      cleared = await LinguisticService.speakers.assignToSegments(ids, undefined);
+      const result = await LinguisticService.speakers.assignToMixedSelection({
+        textId: getActiveProjectTextId(),
+        segmentIds: ids,
+        unitIds: [],
+      });
+      cleared = result.segments;
       const now = new Date().toISOString();
       input.updateSegmentsLocally(ids, (segment) => {
         const next = { ...segment, updatedAt: now };

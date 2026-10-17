@@ -100,7 +100,7 @@ export function TranscriptionTimelineWorkspaceHost({
     return (
       <TranscriptionTimelineHorizontalMediaLanes
         {...mediaLanesProps}
-        textFlowLayout={shell === 'text-only'}
+        textFlowLayout={mediaLanesProps.textFlowLayout ?? shell === 'text-only'}
         timelineChromeClassNames={timelineChrome.timelineContentClassNames}
       />
     );

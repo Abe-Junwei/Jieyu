@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-16
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -30,7 +30,7 @@ last_reviewed: 2026-10-15
 - **长期目标**：田野录音 → 转写标注 → 词典/语料 → 出版与存档，在一台机器上闭环完成。
 
 - **形态**：Electron 桌面应用（路线 C；React + Vite 渲染层 + Worker/WASM），非移动。原纯 Web 形态（浏览器 + Dexie/IndexedDB）为历史基线。
-- **数据真源**：本机 SQLite 项目文件夹（ADR-0046）。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
+- **数据真源**：本机项目文件夹。文件夹里放什么以 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md) 为准（音频原文件、一份文稿一个 `.jyd`）；交换包和每日 JYM 备份仍以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md) 第 2、6 条为准。哪一条有效见 [ADR 目录](../../adr/README.md)。D14 尚未冻结。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
 - **独立性**：与 Rushi（如是我闻）**无运行时依赖、无能力互补承诺**；解语缺口在本仓内解决或显式标为非目标。
 - **刻意不做**：每 PR 全量重型 gate、高频依赖自动化、多角色评审路由、为形式的全量 E2E、通用多智能体 swarm / 云端多租户。成熟度检查留在 `package.json` 的按需分组，不接回 PR CI。
 
@@ -80,9 +80,64 @@ A14 Eval trajectory   ─┘
 >
 > **代码审查 PR-0～12**：统一修复方案 §1.1 已全部 ✅；**不纳入**下文 Agent 波次，仅作 Stage B 工程地基。
 
-### 2.2 Agent 架构轨 — 合并进度与执行波次（2026-06-10）
+### 2.2 Agent 架构轨
 
-> **范围**：切片 **A4、A4b、A6–A14**（及 B11 安全外连）。**全局顺序、切片状态与 Stage B 门槛以本节 + §3 为准。**
+> **范围**：所有智能体切片（A4–A15、B11–B17 及以后）。**全局顺序、切片状态与 Stage B 门槛以本节 + §3 为准。**
+
+#### 2.2.0 统一路线（2026-10-15 起，先读这一节）
+
+规则见 [ADR-0056](../../adr/0056-single-agent-runtime-toolloopagent.md)：运行时只有 Vercel AI SDK `ToolLoopAgent`，旧 `agentLoopRunner` 冻结。门槛和护栏见[迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，这里只排顺序、定归属。
+
+**每项能力归哪一层**
+
+| 层 | 归属 | 放在哪 |
+| --- | --- | --- |
+| 运行时 | Vercel AI SDK：模型调用、结构化工具调用与结果、多步循环与停止、`toolApproval`、`Output.object` | `src/ai/runtime/`（`toolLoopAgentPilot.ts`、`aiRuntimeV2Turn.ts`） |
+| 安全 | 解语：策略矩阵、`toolDecisionPipeline`、`toolWriteGate`、`commitToolEffects`、`requestId`、审计读回、A9 | `src/ai/policy/`、`src/ai/runtime/` 里的门禁和提交点 |
+| 领域 | 解语：工具本身、作用域、B16 查询与主张核对、B17 证据映射、垂直工作流 | `src/ai/analysis/`、`src/ai/vertical/`、`src/ai/mcp/` |
+| 外连 | MCP client（B11–B15、B17），按 2026-07-28 规范单独改 | `src/ai/mcp/client/` |
+
+开新智能体工作前对一遍：
+
+1. 需要「工具结果回到模型再写下一轮」或跨步汇总吗？需要就只接 `src/ai/runtime/`，不碰 `agentLoopRunner.ts` / `agentLoop.ts`。这两份文件的行数由 `check:architecture-guard` 锁住。
+2. 领域代码读的是工具结果本身，还是某个运行时的私有字段（例如 `localToolResults`）？只能读工具结果本身。
+3. 这项能力用到的工具，v2 拿得到吗？拿不到就不算端到端完成，要排进下面的 R3 批次。
+
+**现状（2026-10-15 核对 main）**
+
+- R1：ToolLoopAgent 骨架、§3.3 护栏测试、fixture 录制器都在 main。只量了 DeepSeek 一家。Qwen 因没有密钥于 2026-10-15 跳过，不挡后面的步骤。MiniMax、Anthropic 仍未测。
+- R2：真实入口已接，flag `aiAgentRuntimeV2Enabled` 默认关（本机 localStorage `jieyu.aiAgentRuntimeV2Enabled=1` 可开）。原生审批、Dexie 待审批、重载恢复、本次会话不带工具开关都在 main。代码 10-13 进 main，早于「R2 进 main 须试点达标且用户确认」这条规矩（10-15）。用户 10-15 追认留在 main，flag 继续关。
+- v2 把 21 个聊天工具交给模型。R3-1 另加 B16a 三个只读查询（`corpusAnalysisQueryToolsEnabled` 开时才出现）：`concordance_kwic`、`query_morpheme_paradigm`、`find_counterexamples`。结果经 `corpusToolResults` 交给核对，不进 `localToolResults`，旧循环不续跑。R3-n1 到 R3-n4 把只读工作区工具都交给 v2。`batch_apply` 只出预览，用户确认后才执行。外部 MCP 从信任缓存取最多 5 个（R3-2）；证据工具和 stdio 仍要 `corpusExternalEvidenceEnabled`。provider 只接 OpenAI 兼容一族。
+- B16b、B17 在 v2 上能核对。旧路径仍不会把外部命中送回模型。
+
+**顺序**
+
+```text
+D  领域修复（两条运行时都要用，不等 R3）✅ 2026-10-15
+   D1 反例按词类范围判 gloss（findCounterexamples）
+   D2 外部 MCP 原文不进 finalContent，只留过 A9 的命中
+   D3 未核对的主张草稿、出错时的原文都不落库
+   D4 evidencePackets 从流式完成结果传到收尾
+   D5 主张全被删时反思不算通过；「尚未标注」走字典
+   D6 范式查询给出可引用的行 id，或明确不可引用
+R2 收尾  （用户已追认 R2 留在 main）Qwen 已跳过；MiniMax、Anthropic 的 fixture 仍可补，不挡 R3
+R3-1  本地上下文工具第一批 ✅ 2026-10-15：concordance_kwic、query_morpheme_paradigm、find_counterexamples
+      v2 回合把工具结果交给垂直收尾，corpus_analysis_report 在 v2 上出核对后的正文。flag 仍默认关
+R3-2  外部 MCP 进 v2 ✅ 2026-10-15：缓存里最多 5 个已登记工具交给 ToolLoopAgent。命中作为工具结果回到模型，证据包走 evidencePackets。`resultType: input_required` 不把原文交给模型。表单确认见下方；MCP SDK 升级仍未做
+R3-n1 只读工作区工具第一批 ✅ 2026-10-15：list_units、search_units、get_unit_detail、get_unit_linguistic_memory、get_current_selection。结果回到模型，不进旧循环。batch_apply 仍不在 v2。
+R3-n2 只读工作区工具第二批 ✅ 2026-10-15：list_layers、list_layer_links、get_unsaved_drafts、list_speakers、list_notes。结果回到模型，不进旧循环。
+R3-n3 只读工作区工具第三批 ✅ 2026-10-15：list_notes_detail、get_visible_timeline_state、get_speaker_breakdown、get_project_stats、get_waveform_analysis。结果回到模型，不进旧循环。
+R3-n4 只读工作区工具最后一批 ✅ 2026-10-15：get_acoustic_summary、find_incomplete_units、diagnose_quality、suggest_next_action。结果回到模型，不进旧循环。batch_apply 仍不在 v2。
+R3-n5 batch_apply 写审批 ✅ 2026-10-15：模型可以调用，但要用户确认后才跑预览。确认前不执行。结果回到模型，不进旧循环。它不直接改数据。
+R3-n6 Anthropic / Google provider。跳过 2026-10-15：没有密钥，不添加 provider SDK，不挡 R4
+R4    dogfood ≥7 天、≥20 次会话 → 用户决定默认开 v2 → 删旧循环
+```
+
+D 已完成：输出超长重试那条路也不再显示或保存未核对的草稿。R3-1 已接上三个查询。B16 在 v2 上能核对这三样结果；flag 默认关，端到端仍要用户打开 `aiAgentRuntimeV2Enabled` 和 `corpusAnalysisQueryToolsEnabled`。R3-2 已把缓存的外部工具交给 v2。B17 在 v2 上能核对这次命中；stdio 和证据工具仍要 `corpusExternalEvidenceEnabled`。`input_required` 的表单确认已接上：用户填写后重试工具；采样、文件根目录和服务器原文仍不进模型。MCP SDK 升级仍未做。只读工作区工具已全部进 v2。`batch_apply` 已进 v2，用户确认后才跑预览，不直接改数据。R3-n6 已跳过（2026-10-15，没有 Anthropic / Google 密钥），不挡 R4。本地工具迁移到此结束。Qwen 测量已跳过。MiniMax、Anthropic 的 R1 fixture 仍未测。`input_required` 的表单确认已做。采样、文件根目录、stdio 重试和 MCP SDK 升级仍未做。R4 是自用 dogfood，不是代码切片。语音审计统一（迁移评估 §5-2）与 MCP client 改造（§5-1）是独立风险项，不随 v2 自动解决。
+
+**不做**：自研第二套循环、Vercel AI Gateway、LangGraph、Mastra、跨设备续跑、把工具调用编回文本给旧 parser。
+
+下面 2.2.1–2.2.4 是 A4–A14、B11–B15 波次的历史记录，四个波次已于 2026-09-11 关闭。
 
 #### 2.2.1 已落地（`main`，不再单列 PR）
 
@@ -167,7 +222,17 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-10-14）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）优先——[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) ADR-0048 已确认（Dexie 样例在 `src/db/storagePort.ts`，SQLite 仍是 #275）、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) 模型接口 ADR、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) IndexedDB 归层盘点；随后 [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架 + [#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 模块迁移。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R0/R1 与上面三张单并行，独立分支，不挡试用关键路径；R2 不进试用版默认路径。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-10-15）**：桌面试用线（[#250](../../wayfinder/trial-handoff/map.md)）按 [ADR-0059](../../adr/0059-electron-shell-skeleton.md) 实现 Electron 骨架。表结构仍是 [#275](https://github.com/Abe-Junwei/Jieyu/issues/275)，模块迁移仍是 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)。已落成：[#274](https://github.com/Abe-Junwei/Jieyu/issues/274) [ADR-0048](../../adr/0048-storage-port.md)、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304) [ADR-0057](../../adr/0057-model-interface-transcribe.md)、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279) [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) 的范围与验收（ADR-0059，尚未写代码）。标注页 B4u–B4aa / B4ab、词典 B3an 已落地，那一串没有下一刀。不排 **B7** / 任意图编辑器 / 依存共指 / R6 / R15 / C3d Word / flag 放量宣告。语料库页 flag 2026-10-13 起默认开（含试用）。**A15** 的 R1/R2 代码已在 main、flag 关，不挡试用关键路径，不进试用版默认路径；智能体顺序见 §2.2.0。Dogfood ≠ 产品开放。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+
+> **桌面存储收尾顺序（2026-10-16）**：单子在 [#250 地图](../../wayfinder/trial-handoff/map.md)，验收写在各单里，本文只排先后。
+>
+> 1. 现在就能做，不等桌面壳：[#327](https://github.com/Abe-Junwei/Jieyu/issues/327) 浏览器保存路径接上「一份文稿一条录音、不存跨文稿关系」；[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 继续逐批迁到存储接口；[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 先定还没写的列形状（会话记忆载荷、DMLex 正文、语言数组与多语备注、结构规则与转换规则正文、定义副本范围，`model_runs` 照 ADR-0057）。
+> 2. [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架（ADR-0059，即上面的当前下一刀）。
+> 3. [#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 存储接口的 SQLite 实现，按 ADR-0061 读写项目库和 `.jyd`。better-sqlite3 在这一步进 `package.json`。
+> 4. [#325](https://github.com/Abe-Junwei/Jieyu/issues/325) 桌面文件操作：送系统垃圾箱、认回、弹窗与订阅走单独通道。
+> 5. [#258](https://github.com/Abe-Junwei/Jieyu/issues/258) 含音频备份的恢复播放演练；通过前每日 JYM 不动。[#281](https://github.com/Abe-Junwei/Jieyu/issues/281) 加法迁移演练。
+> 6. [#259](https://github.com/Abe-Junwei/Jieyu/issues/259) D14 冻结：上面都过，且 #280 基线到 0。
+> 7. [#326](https://github.com/Abe-Junwei/Jieyu/issues/326) 旧浏览器库经 JYB 迁入，在第 4 步之后，可与第 5、6 步并行；挡首个试用版（用户 2026-10-17，归 #282「不丢数据」）。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -186,7 +251,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **A12** | Workflow 强化：StepKind + Reflection + Structured output | 🟡 | **W3** | L | **已落地**：`workflowCompletionChecklist`、finalize reflection reconcile、agent loop `workflowAnswerReady`；A12.1 `workflowStepKinds`；A12.2 registry `reflectionHandlerId` / `outputSchemaId` / `maxReflectionRetries` / `stepKinds`；A12.3 composed `parallel_readonly` 样本 + `executeReadonlyToolBatch`；A12.4 composed 步 ⊆ registry、checklist keys = registry keys；A12.5 `dispatchVerticalWorkflowReflection` + `after_model`。**剩余**：send-turn 多工具仍串行（刻意）；并行只读样本在 **A13** vitest，不替换 sequential local-tool | B4 新 workflow 只登记 registry；checklist 未闭合不得 done | 是 |
 | **A13** | TaskRunner 对齐 + Parallel readonly 样本 | 🟡 | **W4** | M | **已落地**：`TaskRunner.enqueue`/`parkCheckpoint` 写 `agentRunId`；parked `agent_loop` 不走 pump、不被 stale TTL 回收；`pendingAgentLoopCheckpoint` 4 态 classifier（`done`/`clarify`/`error`/`running`，仅 `running` 可 auto-continue）；catalog `trust: background`；`enqueueReadonlyToolBatchTask` + `PARALLEL_READONLY_COMPOSED_STEP_SAMPLE` vitest。**不**把并行 batch 接到 send-turn。**依赖 A8、A12** | 长任务 + 并行读 vitest；handoff 进 architecture/plan | 否 |
 | **A14** | Eval trajectory + agentRunId 自动断言 | 🟡 | **W4** | M | **已落地**：suite 二分、trajectory NDJSON 断言、**A8 `agentRunId` 链式断言**、vertical citation 进 `:smoke`、P2 tool-call 计数基线（fixture 回放）。**剩余**：可选 pass@k | smoke + trace 通过；按 run 过滤 trajectory | 否 |
-| **A15** | AI 运行时有限试点（ToolLoopAgent） | ⬜ | R0/R1 并行 | L | [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。R0/R1 与第一程 #274、#304、#279 并行，独立分支，不挡试用关键路径。R2 进 main 须试点达标且用户确认，不进试用版默认路径。框架只接模型调用、结构化工具消息、多步循环和停止；解语保留领域工具、作用域、审批和 `commitToolEffects`。`aiAgentRuntimeV2Enabled` 默认关。R1 不达标再限时对照 OpenAI Agents SDK。门槛在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制 | R2 前不进 main；关闭 flag 后现网聊天不变；`check:agent-evals:smoke` | 是 |
+| **A15** | AI 运行时（ToolLoopAgent，唯一运行时，[ADR-0056](../../adr/0056-single-agent-runtime-toolloopagent.md)） | 🟡 | R1/R2 代码在 main，flag 关；R3、R4 未做 | L | [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。顺序和现状见 §2.2.0。不挡试用关键路径，不进试用版默认路径。框架只接模型调用、结构化工具消息、多步循环和停止；解语保留领域工具、作用域、审批和 `commitToolEffects`。新的多步循环（工具结果回到模型再写下一轮，含 B16/B17）只接本片，不在 `agentLoopRunner` 上再加续跑。`aiAgentRuntimeV2Enabled` 默认关。R1 不达标再限时对照 OpenAI Agents SDK。门槛在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制 | 每批 R3 达到 R1 数值标准；关闭 flag 后现网聊天不变；旧循环行数不涨；`check:agent-evals:smoke` | 是 |
 
 ### Stage B — 开占位（标注 / 词典 / 语料 / 分析）
 
@@ -267,9 +332,9 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟢 已落地·flag 开（2026-10-13 默认 true，含试用）】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled`（2026-10-13 起默认 **true**）。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【🟡 已落地】** `citationResolver.resolveUnitCitation` + `citationJump` 对缺失 unit 报 `CITATION_UNIT_NOT_FOUND` 且不跳转；RAG footer 在 `readModelIndexHit === false` 时省略 snippet；悬空 lexeme 链接 `CITATION_LEXEME_NOT_FOUND`。无软删列；残留 segment 不得复活已删 unit。SDD：`citation-broken-state/`。`removeUnit` 经 B2 `unit-updated` 通知消费方增量 refetch | 删 unit 后 resolve 断裂码；jump 不盲跳；footer 无旧摘录；定向 vitest | 是 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | **【⬜ 未开始】** `corpusBridgeAdapter` / corpus 专用 `useAiToolCallHandler.adapters` **仓库中不存在**。A6 ✅；A7/A9/A12 主体已进 `main`（A9 默认开，A11 默认关）——**不再**把「缺 A7/A9/A12 代码」当阻塞。真正阻塞：转写 ChatWindow **会话隔离**（禁止再把 corpus 写路径堆进 `TranscriptionPage.ChatWindow.tsx`） | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
-| **B16a** | 语言学只读查询工具 | M | **【🟢 已落地·flag 关 [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)】** 用户要求先做完这一片，不并进 A15。三个只读工具进 `localContextTools`：`concordance_kwic`、`query_morpheme_paradigm`、`find_counterexamples`。每行结果带 `unitId`。不调模型就能验收。开工时注册 flag，默认 **false** | 固定测试数据上的次数、范式、反例 id 正确；只读零写入；flag 关工具不进 prompt；定向 vitest | 是 |
-| **B16b** | 语言学分析正文：结构化主张 + 核对 + 可复制渲染 | L | **【🟢 已落地·flag 关 [#317](https://github.com/Abe-Junwei/Jieyu/issues/317)】** 依赖 B16a。工作流 `corpus_analysis_report`，flag `corpusAnalysisReportEnabled` 默认关。照 `elan_flex_compatibility`：模型输出结构化主张（不当正文流式显示），每条主张引用本次工具结果的行 id；代码逐条核对后渲染成聊天回复里的可复制正文，复用现有复制按钮，不设写作工作区（ADR-0002）。主张格式、核对和渲染是一份共用代码，B17 也走这一套。词形和转写可以发给用户自选的云端模型；外发仍过 A9。例句由本机按行 id 从工具结果填回。数据边界见 [ADR-0055](../../adr/0055-corpus-analysis-cloud-forms.md)。不把本机模型或微调设为默认 | 每条主张的行 id 都在本次工具结果里，对不上的主张删去，全部对不上则不出正文（条数警告不算通过）；库中无该范畴写「尚未标注」；正文里的例句词形与库里一致；flag 关工作流不可选；定向 vitest + `check:agent-evals:smoke` | 是 |
-| **B17** | 外部证据源（MCP：文献、网页检索、语料资源） | L | **【🟢 已落地·flag 关 [#316](https://github.com/Abe-Junwei/Jieyu/issues/316)】** flag `corpusExternalEvidenceEnabled` 默认关。本机服务走桌面宿主 stdio 桥（`window.__JIEYU_EXTERNAL_MCP_STDIO__`，浏览器返回 `not_desktop`）；远程走 B13。网页检索走 MCP。服务器进 B11。返回内容过 A9。拒绝 `answer_with_citations`。`EvidencePacketV0` 有 title/page/url。主张引用命中 id，走 B16b 核对。无命中该句不出。Electron 主进程 spawn 待桌面壳接线 | 外部句对得上本次命中的出处和原文；无命中不出现该句；未登记服务器零调用；flag 关不拉起进程、不发请求；定向 vitest | 是 |
+| **B16a** | 语言学只读查询工具 | M | **【🟢 已落地·flag 关 [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)】** 三个只读工具进 `localContextTools`：`concordance_kwic`、`query_morpheme_paradigm`、`find_counterexamples`。每行结果带 `unitId`。这是领域工具，不在 A15 里重写。多步「结果回到模型」只走 A15 的 ToolLoopAgent，不在 `agentLoopRunner` 上补。v2 还拿不到这三个工具，排在 §2.2.0 R3-1；反例词类范围是 D1。不调模型就能验收查询本身。flag 默认 **false** | 固定测试数据上的次数、范式、反例 id 正确；只读零写入；flag 关工具不进 prompt；定向 vitest | 是 |
+| **B16b** | 语言学分析正文：结构化主张 + 核对 + 可复制渲染 | L | **【🟢 已落地·flag 关 [#317](https://github.com/Abe-Junwei/Jieyu/issues/317)】** 依赖 B16a。工作流 `corpus_analysis_report`，flag `corpusAnalysisReportEnabled` 默认关。照 `elan_flex_compatibility`：模型输出结构化主张（不当正文流式显示），每条主张引用本次工具结果的行 id；代码逐条核对后渲染成聊天回复里的可复制正文，复用现有复制按钮，不设写作工作区（ADR-0002）。主张格式、核对和渲染是一份共用代码，B17 也走这一套。工具结果回到模型再出主张，只走 A15 的 ToolLoopAgent，不扩展 `agentLoopRunner`；v2 上的端到端等 §2.2.0 R3-1，评审修复是 D3–D6。词形和转写可以发给用户自选的云端模型；外发仍过 A9。例句由本机按行 id 从工具结果填回。数据边界见 [ADR-0055](../../adr/0055-corpus-analysis-cloud-forms.md)。不把本机模型或微调设为默认 | 每条主张的行 id 都在本次工具结果里，对不上的主张删去，全部对不上则不出正文（条数警告不算通过）；库中无该范畴写「尚未标注」；正文里的例句词形与库里一致；flag 关工作流不可选；定向 vitest + `check:agent-evals:smoke` | 是 |
+| **B17** | 外部证据源（MCP：文献、网页检索、语料资源） | L | **【🟢 已落地·flag 关 [#316](https://github.com/Abe-Junwei/Jieyu/issues/316)】** flag `corpusExternalEvidenceEnabled` 默认关。本机服务走桌面宿主 stdio 桥（`window.__JIEYU_EXTERNAL_MCP_STDIO__`，浏览器返回 `not_desktop`）；远程走 B13。网页检索走 MCP。服务器进 B11。返回内容过 A9。拒绝 `answer_with_citations`。`EvidencePacketV0` 有 title/page/url。主张引用命中 id，走 B16b 核对。命中回到模型再写主张，只走 A15 的 ToolLoopAgent，不在 `agentLoopRunner` 上接续跑；排在 §2.2.0 R3-2，原文外泄与证据传递是 D2、D4。无命中该句不出。Electron 主进程 spawn 待桌面壳接线 | 外部句对得上本次命中的出处和原文；无命中不出现该句；未登记服务器零调用；flag 关不拉起进程、不发请求；定向 vitest | 是 |
 | **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量。Outbound HTTP 见 **B13**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
 | **B12** | MCP resources/prompts + AgentArtifactV0 | M | **【已落地·flag 关】** inbound `resources/list`+`read`（`jieyu://source-set/{id}`）与 `prompts/list`+`get`（A12 registry）；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；`buildB5bExportManifest`。Flag `aiMcpResourcesArtifactsEnabled` 默认 **false**。SDD：`agent-runtime-mcp-resources-artifacts/`。**依赖 B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单函数 | 是 |
 | **B13** | outbound Streamable HTTP MCP client | M | **【已落地·flag 关】** `externalMcpHttpClient` POST `tools/list`/`tools/call`（JSON 或 SSE `data:`）；仅 B11 已启用 origin；写向 RPC 零 fetch；audit 写 `agentRunId`。Flag `aiExternalMcpHttpClientEnabled` 默认 **false**。不引入 SDK；不改 CSP `connect-src`；不接 ChatWindow。SDD：`agent-runtime-external-mcp-http-client/`。**依赖 B11** | flag 关零 fetch；未启用 origin 零 fetch；list 经 expose 门；write RPC deny | 是 |
@@ -298,12 +363,12 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 索引见 [plans/README.md](./README.md)。下面只列工作区里仍有效的细节来源：
 
 - 三页联评门槛：`.github/pull_request_template.md` 的 R1–R8 段，门禁 `npm run check:r1-r8`。
-- AI / 语音：运行时迁移是切片 **A15**、[#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。R0/R1 与第一程 #274、#304、#279 并行；R2 不进试用版默认路径。试点未开始，v2 不默认打开；门槛留在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制。语言学分析是第二程的 **B16a** 查询工具（[#315](https://github.com/Abe-Junwei/Jieyu/issues/315)）和 **B16b** 主张、核对与正文（[#317](https://github.com/Abe-Junwei/Jieyu/issues/317)），两片都已落地、flag 默认关，不并进 A15。外部证据源（MCP：文献、网页检索、语料资源）是切片 **B17**、[#316](https://github.com/Abe-Junwei/Jieyu/issues/316)，已落地、flag 默认关；Electron 主进程 spawn 待桌面壳。试用转写以 [model-interface-plan](../../wayfinder/trial-handoff/model-interface-plan.md) 和 #303–#306 为准。[NLP 接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) 的 R0–R4 仍是对齐及以后的规划，不推翻 A3 的不做，门槛未过不开工。
+- AI / 语音：运行时迁移是切片 **A15**、[#314](https://github.com/Abe-Junwei/Jieyu/issues/314)。R1/R2 代码在 main，flag 关，v2 不默认打开；顺序和归属见 §2.2.0；门槛留在 [迁移评估](./AI智能体运行时迁移评估-2026-10-13.md)，本文不复制。语言学分析是第二程的 **B16a** 查询工具（[#315](https://github.com/Abe-Junwei/Jieyu/issues/315)）和 **B16b** 主张、核对与正文（[#317](https://github.com/Abe-Junwei/Jieyu/issues/317)），领域查询与核对已落地、flag 默认关。外部证据源是 **B17**、[#316](https://github.com/Abe-Junwei/Jieyu/issues/316)，flag 默认关；Electron 主进程 spawn 待桌面壳。这三片的多步循环（工具结果回到模型）只走 A15，不在 `agentLoopRunner` 上再加续跑。试用转写以 [model-interface-plan](../../wayfinder/trial-handoff/model-interface-plan.md) 和 #303–#306 为准。[NLP 接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) 的 R0–R4 仍是对齐及以后的规划，不推翻 A3 的不做，门槛未过不开工。
 - Agent 运行时架构：[安全策略](../../architecture/ai-agent-runtime-security-local-first.md)。提交点是 `src/ai/runtime/commitToolEffects.ts`。切片状态见本文 A6–A14、B11–B15。
 - 声学未做完的是本文 A2、A3。重型对齐、说话人分离和外部声学服务维持不做，条件见 A3。
 - 协作：桌面版剔除（ADR-0047）。[Supabase 落地](./托管实时协同-Supabase完整落地方案-2026-04-17.md) 与 M8–M14 留到桌面版之后，对应本文 C4，本程不排。
 - 工程治理：[代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md)
-- 持久化方向以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)、[ADR-0048](../../adr/0048-storage-port.md)、[ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md) 和 [试用地图](../../wayfinder/trial-handoff/map.md) 为准。
+- 持久化方向以 [ADR 目录的有效条款对照](../../adr/README.md) 为准：文件夹内容是 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)，交换包和每日备份仍是 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)，操作形状是 [ADR-0048](../../adr/0048-storage-port.md)，桌面剥离协作是 [ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md)。排期见 [试用地图](../../wayfinder/trial-handoff/map.md)。
 - 规格目录只留模板。协作出站队列草稿已删除，恢复时的约束见 C4。
 
 ## 4. 适用边界与显式废弃
@@ -325,7 +390,24 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-16 | **桌面存储收尾排成七步**（§3 Stage A 文首）。新开 #327（浏览器保存路径一文稿一录音）、#325（桌面文件操作）、#326（旧库经 JYB 迁入）。列形状并进 #275，恢复播放演练并进 #258，D14（#259）补挂 #258、#325。2026-10-17 用户定 #326 挡首个试用版。 |
+| 2026-10-16 | **文件夹内容布局改记 ADR-0061，D14 不因此冻结**。音频保持原文件，文稿是 `.jyd`，声文稿只是展示。ADR-0046 的交换包、存储接口和每日 JYM 备份仍然有效，整篇不标 superseded。有效条款对照在 ADR 目录。冻结前还要：格式原型、跨录音文稿的迁移对拍、含音频的恢复演练、桌面写路径验证。不得用「没有要保留的真实数据」丢弃本机已导入的录音。 |
+| 2026-10-15 | **ADR-0059 Electron 骨架范围**。三进程、一次业务操作一次 IPC、项目文件夹锁、userData 四块目录、5–8 条三平台冒烟。不写代码。Sentry 仍在 #312。 |
+| 2026-10-15 | **ADR-0058 IndexedDB 归层**。八个库分别进项目文件夹、userData，或桌面版不要。主库按 `dataClass` 归层。覆盖行已按项目归属。 |
+| 2026-10-15 | **ADR-0057 模型接口**。这一程只有转写。结果是候选。`model_runs` 每次运行一行，语段用已有 `provenance.params.modelRunId` 指向它。实现仍等桌面壳。 |
 | 2026-10-15 | **ADR-0048 存储接口**。一次业务操作一次事务、一次 IPC；归属在持有数据库的一侧检查；指纹不接受表名。Dexie 样例在 `src/db/storagePort.ts`。SQLite 实现仍是 #275。用户已确认，#280 可以迁带事务的写入。 |
+| 2026-10-15 | **`input_required` 确认界面**。表单补录走解语自己的确认卡，用户提交后重试 `tools/call`。采样、文件根目录和服务器原文不进模型。SDK 升级不在这批。 |
+| 2026-10-15 | **R3-n6 跳过**。没有 Anthropic / Google 密钥，不添加 provider SDK，不挡 R4。 |
+| 2026-10-15 | **R3-n5**。`batch_apply` 进 v2，审批是 user-approval。确认前不执行预览。确认后的预览回到模型，不进旧循环。 |
+| 2026-10-15 | **R3-n4**。v2 接上最后四个只读工作区工具：`get_acoustic_summary`、`find_incomplete_units`、`diagnose_quality`、`suggest_next_action`。`batch_apply` 仍不在 v2。 |
+| 2026-10-15 | **R3-n3**。v2 再增加五个只读工作区工具：`list_notes_detail`、`get_visible_timeline_state`、`get_speaker_breakdown`、`get_project_stats`、`get_waveform_analysis`。`batch_apply` 仍不在 v2。 |
+| 2026-10-15 | **R3-n2**。v2 再增加五个只读工作区工具：`list_layers`、`list_layer_links`、`get_unsaved_drafts`、`list_speakers`、`list_notes`。`batch_apply` 仍不在 v2。 |
+| 2026-10-15 | **R3-n1**。v2 增加五个只读工作区工具。`batch_apply` 不在这批。Anthropic / Google 因没有密钥先不做。 |
+| 2026-10-15 | **R3-2**。v2 从信任缓存取最多 5 个外部 MCP 工具。证据命中回到模型并进入核对。服务器返回 `input_required` 时不把内容交给模型。确认界面和 SDK 升级不在这批。 |
+| 2026-10-15 | **R3-1**。ToolLoopAgent 在查询 flag 打开时提供 B16a 三个只读工具。结果走 `corpusToolResults` 供主张核对，不触发旧 `agentLoopRunner` 续跑。 |
+| 2026-10-15 | **Qwen 的 R1 fixture 跳过**。没有 DashScope 密钥，三次提交均被拒（401），未写入 fixture。不挡 R3。MiniMax、Anthropic 仍未测。 |
+| 2026-10-15 | **智能体统一路线 §2.2.0，ADR-0056**。运行时只有 ToolLoopAgent，旧循环冻结并由 architecture guard 锁行数。核对 main：R1/R2 代码已在 main（flag 关），取代「试点未开始」；v2 还拿不到本地上下文工具和外部 MCP，B16/B17 端到端分别等 R3-1、R3-2。评审发现的领域修复排为 D1–D6。 |
+| 2026-10-15 | **智能体多步循环只走 A15 ToolLoopAgent**。B16/B17 的查询、核对、渲染仍是领域代码；工具结果回到模型再写下一轮，不在 `agentLoopRunner` 上补。取代同日「不并进 A15」把循环留在旧运行时的写法。 |
 | 2026-10-15 | **B17 外部证据源落地，flag 默认关**。文献/网页命中映射、stdio 宿主桥、证据包 title/page/url、B16b 可引用。Electron spawn 待桌面壳。 |
 | 2026-10-15 | **B16b 主张、核对与正文落地，flag 默认关**。工作流 `corpus_analysis_report`。对不上的主张删去。数据边界见 ADR-0055。 |
 | 2026-10-15 | **B16a 查询工具落地，flag 默认关**。`concordance_kwic`、`query_morpheme_paradigm`、`find_counterexamples`。纯函数对夹具验收。不调模型。 |

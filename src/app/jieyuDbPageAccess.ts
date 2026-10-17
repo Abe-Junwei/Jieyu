@@ -7,5 +7,6 @@ export { db, getDb, withTransaction } from '../db';
 export { patchProjectMetadata } from '../services/projectMetadataPatch';
 export { stripForbiddenTranslationParentLayerId } from '../db';
 export { isLexemeEntry } from '../db';
+export { dmlexResourceIdForProject } from '../db';
 export { brandLayerUnitWriteTarget, type LayerUnitWriteTarget } from '../db/unitIdBrands';
 export type { DmlexRelation, DmlexSense, JieyuLexemeExtras } from '../db/dmlexTypes';

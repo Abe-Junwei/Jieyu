@@ -85,7 +85,14 @@ describe('queryMorphemeParadigm', () => {
       ok: true,
       pos: 'v',
       tokenCount: 2,
-      adjacent: [{ leftGloss: 'go', rightGloss: 'PST', count: 1 }],
+      adjacent: [
+        {
+          leftGloss: 'go',
+          rightGloss: 'PST',
+          count: 1,
+          examples: [{ morphemeId: 'm1', unitId: 'u1', form: 'ka--s', gloss: 'go-PST' }],
+        },
+      ],
     });
   });
 });
@@ -101,5 +108,14 @@ describe('findCounterexamples', () => {
       counterexampleCount: 1,
       counterexampleUnitIds: ['u2'],
     });
+  });
+
+  it('ignores the gloss on tokens outside the pos scope', () => {
+    const mixed: AnalysisMorpheme[] = [
+      { ...rows[2]!, id: 'm5', unitId: 'u4', tokenId: 't4' },
+      { ...rows[3]!, id: 'm6', unitId: 'u4', tokenId: 't5', gloss: 'PST' },
+    ];
+    const result = findCounterexamples(mixed, { gloss: 'PST', pos: 'v', expect: 'present' });
+    expect(result).toMatchObject({ matchCount: 0, counterexampleUnitIds: ['u4'] });
   });
 });

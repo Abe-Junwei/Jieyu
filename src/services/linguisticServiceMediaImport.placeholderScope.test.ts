@@ -7,7 +7,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
 import type { MediaItemDocType } from '../db';
 import { LinguisticService } from './LinguisticService';
-import { AudioImportPlaceholderSelectionRequiredError } from './linguisticServiceMediaImport';
+import {
+  AudioImportPlaceholderSelectionRequiredError,
+  MediaContentMismatchError,
+} from './linguisticServiceMediaImport';
 
 const TEXT_ID = 'text_t11';
 const LAYER_ID = 'layer_trc_t11';
@@ -219,5 +222,90 @@ describe('importAudio placeholder scope (T11 / N4)', () => {
     await expect(db.layer_units.get('seg_a')).resolves.toEqual(
       expect.objectContaining({ mediaId: 'media_ph_a', startTime: 1, endTime: 2 }),
     );
+  });
+
+  it('imports the same filename onto the existing empty recording instead of adding another', async () => {
+    await db.media_items.bulkDelete(['media_ph_a', 'media_ph_b']);
+    await db.layer_units.bulkDelete(['seg_a', 'seg_b']);
+    await db.layer_units.put({
+      id: 'seg_unbound',
+      textId: TEXT_ID,
+      mediaId: '__unknown_media__',
+      layerId: LAYER_ID,
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const first = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: new Blob(['wav'], { type: 'audio/wav' }),
+      filename: 'media_missing.wav',
+      duration: 20,
+    });
+    expect(first.mediaId).toBe('media_missing');
+    const stored = await db.media_items.get('media_missing');
+    expect((stored?.details as { audioBlob?: unknown }).audioBlob).toBeInstanceOf(Blob);
+    await expect(db.layer_units.get('seg_unbound')).resolves.toEqual(
+      expect.objectContaining({ mediaId: 'media_missing' }),
+    );
+
+    const second = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: new Blob(['wav-again'], { type: 'audio/wav' }),
+      filename: 'media_missing.wav',
+      duration: 20,
+    });
+    expect(second.mediaId).toBe('media_missing');
+    expect(await db.media_items.where('textId').equals(TEXT_ID).count()).toBe(1);
+  });
+
+  it('checks the fingerprint before reattaching a card that has no playable bytes but still says available', async () => {
+    const recorded = 'ab'.repeat(32);
+    await db.media_items.put({
+      id: 'media_stale',
+      textId: TEXT_ID,
+      filename: 'stale.wav',
+      duration: 12,
+      details: { audioBlob: new Blob([]) },
+      isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
+      contentSize: 0,
+      contentSha256: recorded,
+      createdAt: NOW,
+    });
+    const file = new Blob(['different'], { type: 'audio/wav' });
+    await expect(
+      LinguisticService.media.importAudio({
+        textId: TEXT_ID,
+        audioBlob: file,
+        filename: 'other.wav',
+        duration: 12,
+        importMode: 'replace',
+        replaceMediaId: 'media_stale',
+      }),
+    ).rejects.toBeInstanceOf(MediaContentMismatchError);
+    const unchanged = await db.media_items.get('media_stale');
+    expect(unchanged?.contentSha256).toBe(recorded);
+    expect((unchanged?.details as { audioBlob: Blob }).audioBlob.size).toBe(0);
+
+    const linked = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: file,
+      filename: 'other.wav',
+      duration: 12,
+      importMode: 'replace',
+      replaceMediaId: 'media_stale',
+      acknowledgeContentMismatch: true,
+    });
+    expect(linked.mediaId).toBe('media_stale');
+    const stored = await db.media_items.get('media_stale');
+    expect(stored?.filename).toBe('stale.wav');
+    expect((stored?.details as { audioBlob: Blob }).audioBlob.size).toBe(file.size);
+    expect(stored?.contentSha256).not.toBe(recorded);
   });
 });

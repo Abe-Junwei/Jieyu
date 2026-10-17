@@ -55,6 +55,9 @@ export const LinguisticService = {
     delete: linguisticServiceSpeakerOps.deleteSpeaker,
     assignToUnits: linguisticServiceSpeakerOps.assignSpeakerToUnits,
     assignToSegments: linguisticServiceSpeakerOps.assignSpeakerToSegments,
+    assignToMixedSelection: linguisticServiceSpeakerOps.assignSpeakerToMixedSelection,
+    createAndAssignToMixedSelection:
+      linguisticServiceSpeakerOps.createAndAssignSpeakerToMixedSelection,
   },
   units: {
     getAll: linguisticServiceUnitTokenOps.getAllUnits,

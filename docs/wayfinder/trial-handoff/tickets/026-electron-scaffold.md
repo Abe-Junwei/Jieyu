@@ -10,6 +10,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/276
 
 # Electron 外壳骨架的范围
 
+范围和验收已写入 [ADR-0059](../../../adr/0059-electron-shell-skeleton.md)。本单不实现骨架。骨架只证明一个写操作能经 IPC 写进临时库并读回；按 ADR-0061 读写项目库和 `.jyd`、送系统垃圾箱、认回在 [043](043-desktop-file-ops.md)。
+
 ## Question
 
 外壳 = Electron。骨架要包含什么、怎么验收（不实现）：

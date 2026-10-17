@@ -26,11 +26,17 @@ type DirectoryHandle = FileSystemDirectoryHandle & {
 };
 type DirectoryPicker = (options: { id: string; mode: 'readwrite' }) => Promise<DirectoryHandle>;
 
-export type BackupSuccess = { at: string; fileName: string; sizeBytes: number; removed: string[] };
+export type BackupSuccess = {
+  at: string;
+  fileName: string;
+  sizeBytes: number;
+  removed: string[];
+  retentionWarning?: string;
+};
 export type BackupFailureReason = 'permission-needed' | 'no-folder' | 'failed';
 export type BackupFolderStatus = {
   lastSuccess?: BackupSuccess;
-  lastFailure?: { at: string; reason: BackupFailureReason; message: string };
+  lastFailure?: { at: string; reason: BackupFailureReason; message: string } | undefined;
 };
 
 export class BackupFolderError extends Error {
@@ -182,19 +188,28 @@ export async function backupLibraryToFolder(options: {
       await folder.removeEntry(fileName).catch(() => undefined);
       throw error;
     }
-    const names: string[] = [];
-    for await (const entry of folder.values()) {
-      if (entry.kind === 'file' && BACKUP_FILE_PATTERN.test(entry.name)) names.push(entry.name);
+    const removed: string[] = [];
+    let retentionWarning: string | undefined;
+    try {
+      const names: string[] = [];
+      for await (const entry of folder.values()) {
+        if (entry.kind === 'file' && BACKUP_FILE_PATTERN.test(entry.name)) names.push(entry.name);
+      }
+      for (const name of names.sort().slice(0, Math.max(0, names.length - BACKUP_FOLDER_KEEP))) {
+        await folder.removeEntry(name);
+        removed.push(name);
+      }
+    } catch (error) {
+      retentionWarning = error instanceof Error ? error.message : String(error);
     }
-    const removed = names.sort().slice(0, Math.max(0, names.length - BACKUP_FOLDER_KEEP));
-    for (const name of removed) await folder.removeEntry(name);
     const success = {
       at: new Date().toISOString(),
       fileName,
       sizeBytes: blob.size,
       removed,
+      ...(retentionWarning ? { retentionWarning } : {}),
     };
-    writeStatus({ lastSuccess: success });
+    writeStatus({ lastSuccess: success, lastFailure: undefined });
     recordFullProjectArchiveExportCompleted();
     return success;
   } catch (error) {

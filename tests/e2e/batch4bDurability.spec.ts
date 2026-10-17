@@ -82,7 +82,7 @@ test.describe('Batch 4b durability | 第 4b 批存储耐久', () => {
       w.__restoreIdb = () => Object.assign(proto, originals);
     });
 
-    await page.locator('input.left-rail-project-hub-raw-snapshot-input').setInputFiles({
+    await page.getByTestId('raw-snapshot-input').setInputFiles({
       name: 'raw.zip',
       mimeType: 'application/zip',
       buffer: raw,

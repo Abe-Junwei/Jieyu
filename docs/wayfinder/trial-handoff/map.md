@@ -5,6 +5,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 # 地图：解语交给语言学者试用
 
+> 当前桌面存储决定见 [ADR 当前有效条款](../../adr/README.md#桌面存储当前有效条款)：项目文件夹布局以 ADR-0061 为准，不再是下方历史记录中的 `project.sqlite` + `media/`；ADR-0046 的交换包与每日 JYM 备份仍有效。D14 尚未冻结。本机已导入的录音不能按历史上的「没有需要保留的真实数据」直接丢弃。一份文稿同时只关联一条音频，父子链接不能跨文稿。冻结前仍需含音频备份的恢复播放及桌面写路径验证。
+
 ## Long-term destination
 
 从田野到出版的单机闭环（用户 2026-10-13 20:08）：一个人在桌面版里完成录音、转写、标注、词典、语料库建库，再导出出版和存档格式。
@@ -19,7 +21,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）；第二程 #285（子单 #286–#302、#308–#311、#314–#317））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）、#325–#327（本地 043、044、042）；第二程 #285（子单 #286–#302、#308–#311、#314–#317））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -53,7 +55,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   2. 存储层方案 B：统一存储接口；桌面实现 = 主进程 SQLite（如 better-sqlite3），浏览器构建 = Dexie；约 297 个直连 db 模块分批迁移，新代码必须走接口。（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)、新单 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)）
   3. 术语：项目 = `textId` = 一个项目文件夹；项目包 = JYM/JYT，只用于交换与归档；文稿 = 项目内的标注文档；工作区只指界面布局。
   4. 两层：项目内容在项目文件夹；偏好、缓存、可重建索引在 Electron `userData`；8 个 IndexedDB 库逐库归层；ADR-0044 全局 ID 覆盖行改为项目所有。（新单 [#279](https://github.com/Abe-Junwei/Jieyu/issues/279)）
-  5. 桌面版每个项目每天一份 JYM 快照，保留 3 份，加格式升级前快照；JYB 只在浏览器构建。（[#258](https://github.com/Abe-Junwei/Jieyu/issues/258)）
+  5. 桌面版每个项目每天一份 JYM 快照，保留 3 份，加格式升级前快照；JYB 只在浏览器构建（2026-10-16 ADR-0062 第 6 条放宽：桌面端接受一次 JYB 导入，用于旧库迁入 [#326](https://github.com/Abe-Junwei/Jieyu/issues/326)）。（[#258](https://github.com/Abe-Junwei/Jieyu/issues/258)）
   6. 导入的媒体一律复制进 `media/`；冻结前不新增 `byteLocation` 取值。
   7. 覆盖前、升级前快照与恢复导出放 `userData/backups/<项目>/`，不互传；照搬写入后读回校验。
   8. 桌面构建编译期剔除协作 / Supabase 代码，磁盘格式不含协作字段；试用项目一律视为从未协作，覆盖导入始终允许（先存覆盖前快照）。（[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)）
@@ -150,6 +152,11 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-15 用户：语言学只读分析是主路线图 **B16**、第二程 [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)。第一程（#250）做完再开工，flag 默认关。不并进 A15，不把本机 Ollama 或自训模型设为默认。对话仍用自填云端密钥。
 - 2026-10-15 用户：B16 的模型输出结构化主张，引用工具结果行 id，代码核对后渲染成可复制正文。发给云端模型的只有 gloss 标签、词类、次数和行 id，不含词形和转写；例句本机填回。文献摘录是 **B17**、[#316](https://github.com/Abe-Junwei/Jieyu/issues/316)，排在 B16 之后，只在桌面版，由主进程 stdio 拉起本机检索。引文关系不作为语法事实。不设写作工作区。
 - 2026-10-15 用户：词形和转写可以发给用户自选的云端模型，以便分析词形本身（取代上一条的「云端只见抽象标签」，外发仍过 A9）。B17 放宽为外部证据源：本机文献、网页检索、语料资源都接 MCP；网页检索走 MCP 搜索服务，不用模型供应商自带的联网搜索。
+- 2026-10-15 用户：智能体多步循环只走 A15 的 Vercel AI SDK ToolLoopAgent。B16/B17 的查询、核对、证据映射仍是领域代码；工具结果回到模型再写下一轮，不在 `agentLoopRunner` 上补。取代同日「不并进 A15」把循环留在旧运行时的写法。本机模型仍不设为默认。
+- 2026-10-15 用户：智能体路线统一到主路线图 §2.2.0 与 [ADR-0056](../../adr/0056-single-agent-runtime-toolloopagent.md)。运行时只有 ToolLoopAgent，旧循环冻结并由 architecture guard 锁行数。核对 main：R1/R2 代码已在 main、flag 关，用户追认留在 main；B16/B17 端到端分别等 R3-1、R3-2；评审的领域修复是 D1–D6。
+- 2026-10-16：文件夹内容布局以 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md) 为准，取代 2026-10-13「项目文件夹 = `project.sqlite` + `media/`」和同日「冻结对象 = SQLite + media/」。ADR-0046 的交换包与每日 JYM 备份仍然有效，整篇不标 superseded。哪一条算数见 [ADR 目录](../../adr/README.md)。D14 尚未冻结。一份文稿同时只关联一条音频，可以改挂到另一条，但不能同时挂两条；父子链接不能跨文稿。冻结前要有格式原型、含音频的备份恢复并播放、桌面写路径验证。上面第 0 条「没有需要保留的真实数据」不再作为丢弃本机已导入录音的依据。
+- 2026-10-16 用户：桌面存储剩下的事整体排一次，顺序写进主路线图 §3。新单 [#327](https://github.com/Abe-Junwei/Jieyu/issues/327)（本地 042）浏览器保存路径接上一文稿一条录音、不存跨文稿关系，现在就能做；[#325](https://github.com/Abe-Junwei/Jieyu/issues/325)（043）桌面文件操作，等 #276、#275；[#326](https://github.com/Abe-Junwei/Jieyu/issues/326)（044）旧浏览器库经 JYB 迁入，等 #275、#325。没写完的列形状并进 #275，含音频备份的恢复演练并进 #258，D14 冻结（#259）补挂 #258、#325。
+- 2026-10-17 用户：旧浏览器库迁入（#326）挡首个试用版，归 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282)「不丢数据」硬门槛。
 
 ## Next leg
 
@@ -177,17 +184,16 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#309](https://github.com/Abe-Junwei/Jieyu/issues/309) 完善 Leipzig IGT 导出（gb4e/expex + HTML）
 - [#310](https://github.com/Abe-Junwei/Jieyu/issues/310) 存档包导出（媒体 + EAF + LIFT + 元数据 XML）
 - [#311](https://github.com/Abe-Junwei/Jieyu/issues/311) FLEx LIFT 往返验证
-- [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时有限试点（ToolLoopAgent；R0/R1 已提前到与第一程并行；R2 仍不进试用版默认路径；v2 不默认打开）
-- [#315](https://github.com/Abe-Junwei/Jieyu/issues/315) B16a 语言学只读查询工具（已落地，flag 默认关；不并进 A15）
-- [#317](https://github.com/Abe-Junwei/Jieyu/issues/317) B16b 分析正文（已落地，flag 默认关；结构化主张加核对；词形可发用户自选云端模型，见 ADR-0055）
-- [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) B17 外部证据源（已落地，flag 默认关；stdio 宿主桥，浏览器不 spawn；Electron 主进程 spawn 待桌面壳）
+- [#314](https://github.com/Abe-Junwei/Jieyu/issues/314) A15 AI 运行时（Vercel AI SDK ToolLoopAgent；新的多步循环只接这里，含 B16/B17 的工具结果回模型；不扩展旧 `agentLoopRunner`；R2 不进试用版默认路径；v2 不默认打开）
+- [#315](https://github.com/Abe-Junwei/Jieyu/issues/315) B16a 语言学只读查询工具（领域工具已落地，flag 默认关；多步循环归 #314）
+- [#317](https://github.com/Abe-Junwei/Jieyu/issues/317) B16b 分析正文（主张核对已落地，flag 默认关；词形可发用户自选云端模型，见 ADR-0055；结果回模型归 #314）
+- [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) B17 外部证据源（命中映射已落地，flag 默认关；stdio 宿主桥，浏览器不 spawn；命中回模型归 #314）
 
-排序（2026-10-13 21:23，2026-10-15 补 A15、B16、B17）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），B16 与 B7 同属这一段，B17 在 B16b 之后。A 系列 #286–#297 按需。A15 的 R0/R1 与第一程并行，不挡 [#250](https://github.com/Abe-Junwei/Jieyu/issues/250) 的交付；R2 不进试用版默认路径。B16a 与 B16b 已落地，flag 默认关。
+排序（2026-10-13 21:23，2026-10-15 补 A15、B16、B17）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），B16 与 B7 同属这一段，B17 在 B16b 之后。A 系列 #286–#297 按需。A15 的 R1/R2 代码在 main、flag 关，不挡 [#250](https://github.com/Abe-Junwei/Jieyu/issues/250) 的交付，不进试用版默认路径。B16/B17 的领域查询与核对已落地，flag 默认关；智能体顺序见主路线图 §2.2.0。
 
 ## Not yet specified
 
 - 语言学者试用告一段落之后的去向：数据保留、转正式版与收费（2026-10-13 用户：以后再定）。
-
 （2026-10-14 移除已定项：换电脑靠导出 JYM、性能只记录不设门槛（21:18 第 7 条）；冻结后迁移验证（21:14 第 6 条、#281）；隐私承诺（A9 默认开、首次云端转写伦理对话框，20:16 第 1 条、21:18 第 6 条，中文隐私说明见 #307）。）
 
 ## Out of scope

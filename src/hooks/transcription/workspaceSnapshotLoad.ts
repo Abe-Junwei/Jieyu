@@ -29,6 +29,7 @@ export async function reloadAfterWrite(input: {
   setSaveState: (state: SaveState) => void;
   locale: Locale;
   onReloaded: () => void;
+  onRetryReloaded?: () => void;
 }): Promise<void> {
   const publishStale = (): void => {
     input.setSaveState({
@@ -37,8 +38,10 @@ export async function reloadAfterWrite(input: {
       actionLabel: t(input.locale, 'transcription.toast.segmentViewRetry'),
       onAction: () => {
         void input.reload().then(
-          () => {
-            input.setSaveState({ kind: 'idle' });
+          (result) => {
+            if (snapshotLoadWasSuperseded(result)) return;
+            if (input.onRetryReloaded) input.onRetryReloaded();
+            else input.setSaveState({ kind: 'idle' });
           },
           () => {
             publishStale();
