@@ -23,3 +23,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/280
 
 - 2026-10-18 第 1 批：只从 `db` 桶拿类型的模块改从 `db/types` 或 `db/engine` 导入。基线 297 → 129。剩下的是仍有值导入的模块。
 - 2026-10-18 第 2 批：项目行读取和跨项目归属查询进存储接口（`readProject`、`listForeignOwnedUnits` / `Layers` / `Media`）。调用方：异体字行、缩写表、词类表、`projectOwnershipQueries`。基线 129 → 125。
+- 2026-10-18 第 3 批：轨道显示状态 `listTrackEntities` / `putTrackEntity`（写入后读回，已有行不能改 `textId`）。`TrackEntityStore` 不再调用 `getDb`。基线 125 → 124。

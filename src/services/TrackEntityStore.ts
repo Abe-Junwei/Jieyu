@@ -1,5 +1,6 @@
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
-import { getDb, type TrackEntityDocType } from '../db';
+import type { TrackEntityDocType } from '../db/types';
+import { storagePort } from '../db/storagePort';
 import { trackEntityDocumentId } from '../db/trackEntityIds';
 
 export type TrackEntityState = {
@@ -95,8 +96,7 @@ export function upsertTrackEntityState(
  * Map keys match persisted track keys (e.g. `textId::timelineMediaId`).
  */
 export async function loadTrackEntityStateMapFromDb(textId: string): Promise<TrackEntityStateMap> {
-  const db = await getDb();
-  const rows = await db.dexie.track_entities.where('textId').equals(textId).toArray();
+  const rows = await storagePort().listTrackEntities(textId);
 
   const next: TrackEntityStateMap = {};
   for (const row of rows) {
@@ -118,7 +118,6 @@ export async function saveTrackEntityStateToDb(
   trackKey: string,
   state: TrackEntityState,
 ): Promise<void> {
-  const db = await getDb();
   const id = trackEntityDocumentId(textId, trackKey);
   const doc: TrackEntityDocType = {
     id,
@@ -128,5 +127,5 @@ export async function saveTrackEntityStateToDb(
     laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
     updatedAt: state.updatedAt,
   };
-  await db.dexie.track_entities.put(doc);
+  await storagePort().putTrackEntity(doc);
 }

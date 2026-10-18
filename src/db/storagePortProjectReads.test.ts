@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from './engine';
+import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
 import { storagePort } from './storagePort';
 
 const NOW = '2026-10-18T00:00:00.000Z';
@@ -76,5 +77,24 @@ describe('storage port project reads', () => {
       { id: 'media-b', textId: 'text-b' },
     ]);
     await expect(storagePort().listForeignOwnedUnits([], 'text-a')).resolves.toEqual([]);
+  });
+
+  it('writes a track entity and reads it back for that project only', async () => {
+    const doc = {
+      id: 'track-1',
+      textId: 'text-a',
+      mediaId: 'text-a::media-1',
+      mode: 'multi-locked' as const,
+      laneLockMap: { s1: 1 },
+      updatedAt: NOW,
+    };
+    await storagePort().putTrackEntity(doc);
+    await expect(storagePort().listTrackEntities('text-a')).resolves.toEqual([doc]);
+    await expect(storagePort().listTrackEntities('text-b')).resolves.toEqual([]);
+    await expect(storagePort().putTrackEntity({ ...doc, textId: 'text-b' })).rejects.toBeInstanceOf(
+      CatalogOwnershipMismatchError,
+    );
+    const stored = await db.track_entities.get('track-1');
+    expect(stored?.textId).toBe('text-a');
   });
 });

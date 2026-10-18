@@ -11,6 +11,7 @@ import type {
   LayerUnitDocType,
   SpeakerDocType,
   TextDocType,
+  TrackEntityDocType,
 } from './types';
 import {
   listForeignOwnedLayers,
@@ -117,6 +118,8 @@ export interface StoragePort {
   listForeignOwnedUnits(unitIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
   listForeignOwnedLayers(layerIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
   listForeignOwnedMedia(mediaIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listTrackEntities(textId: string): Promise<TrackEntityDocType[]>;
+  putTrackEntity(doc: TrackEntityDocType): Promise<void>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -307,6 +310,9 @@ export const dexieStoragePort: StoragePort = {
   listForeignOwnedUnits,
   listForeignOwnedLayers,
   listForeignOwnedMedia,
+
+  listTrackEntities,
+  putTrackEntity,
 };
 
 async function assignSpeakerToMixedSelection(
@@ -504,6 +510,34 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
     if (!source || source.mediaId === id) throw new StorageReadbackError('removeEmptyRecording');
   }
   return { unboundSourceIds };
+}
+
+async function listTrackEntities(textId: string): Promise<TrackEntityDocType[]> {
+  const id = textId.trim();
+  if (id.length === 0) return [];
+  const database = await getDb();
+  return database.dexie.track_entities.where('textId').equals(id).toArray();
+}
+
+async function putTrackEntity(doc: TrackEntityDocType): Promise<void> {
+  const database = await getDb();
+  const existing = await database.dexie.track_entities.get(doc.id);
+  if (existing && existing.textId !== doc.textId) {
+    throw new CatalogOwnershipMismatchError('track_entities', doc.id, existing.textId, doc.textId);
+  }
+  await database.dexie.track_entities.put(doc);
+  const stored = await database.dexie.track_entities.get(doc.id);
+  const sameLocks = JSON.stringify(stored?.laneLockMap) === JSON.stringify(doc.laneLockMap);
+  if (
+    !stored ||
+    stored.textId !== doc.textId ||
+    stored.mediaId !== doc.mediaId ||
+    stored.mode !== doc.mode ||
+    stored.updatedAt !== doc.updatedAt ||
+    !sameLocks
+  ) {
+    throw new StorageReadbackError('putTrackEntity');
+  }
 }
 
 let current: StoragePort = dexieStoragePort;
