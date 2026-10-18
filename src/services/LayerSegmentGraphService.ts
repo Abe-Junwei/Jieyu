@@ -1,6 +1,7 @@
 import {
   dexieStoresForLayerUnitsAndContentsRw,
   dexieStoresForLayerSegmentGraphRw,
+  getDb,
   withTransaction,
   type JieyuDatabase,
   type LayerDocType,
@@ -201,6 +202,20 @@ export async function resolveDefaultTranscriptionLayerIdsPerDocument(
     const id = pickDefaultTranscriptionLayerId(group);
     return id !== undefined ? [id] : [];
   });
+}
+
+/** 调用方不再自己打开数据库。 */
+export async function resolveDefaultTranscriptionLayerIdForText(
+  textId: string,
+): Promise<string | undefined> {
+  return resolveDefaultTranscriptionLayerId(await getDb(), textId);
+}
+
+/** 调用方不再自己打开数据库。 */
+export async function resolveDefaultTranscriptionLayerIdsPerDocumentForText(
+  textId: string,
+): Promise<string[]> {
+  return resolveDefaultTranscriptionLayerIdsPerDocument(await getDb(), textId);
 }
 
 /**

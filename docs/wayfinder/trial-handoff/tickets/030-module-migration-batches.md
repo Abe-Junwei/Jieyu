@@ -28,3 +28,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/280
 - 2026-10-18 第 5 批：层树父级函数和文档类型改从 `db/types` 导入，不再经过 `db` 桶。基线 122 → 111。
 - 2026-10-18 第 6 批：来源登记 `listSourceRecords` / `registerImportedSource` / `renameSourceRecord` / `linkSourceRecordMedia`。哈希仍在事务外，登记和读回在同一个事务里。`sourceRecordService` 不再调用 `getDb`。基线 111 → 110。
 - 2026-10-18 第 7 批：层约束、层排序、层段读取、EAF 附加层和 `LinguisticService` 的类型再导出改从 `db/types` 导入。这些文件不读库。基线 110 → 103。
+- 2026-10-18 第 8 批：首页进度和项目概览读取语段元数据、译文快照、锚点计数和词计数，改走存储接口。默认转写层仍由层服务打开数据库。`homeTranscriptionRecordProgress` 和 `projectOverview` 不再从 `db` 桶导入。基线 103 → 101。

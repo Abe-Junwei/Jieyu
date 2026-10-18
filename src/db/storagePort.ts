@@ -9,10 +9,12 @@ import type {
   AiRuntimeV2TurnDoc,
   LayerUnitContentDocType,
   LayerUnitDocType,
+  SegmentMetaDocType,
   SpeakerDocType,
   TextDocType,
   SourceRecordDocType,
   TrackEntityDocType,
+  TranslationStatusSnapshotDocType,
 } from './types';
 import {
   listForeignOwnedLayers,
@@ -21,6 +23,15 @@ import {
   readProject,
   type ForeignOwnedRow,
 } from './storagePortProjectReads';
+import {
+  countAnchorsByMedia,
+  countUnitTokensByText,
+  listSegmentMetaByText,
+  listSegmentMetaForMediaLayers,
+  listSegmentMetaForTextLayers,
+  listTranslationSnapshotsByMedia,
+  listTranslationSnapshotsByText,
+} from './storagePortProjectProgress';
 import {
   linkSourceRecordMedia,
   listSourceRecordRows,
@@ -145,6 +156,20 @@ export interface StoragePort {
     recordId: string,
     mediaId: string | null,
   ): Promise<SourceRecordDocType | undefined>;
+  /** 首页进度和项目概览用的只读计数与快照。 */
+  countAnchorsByMedia(mediaId: string): Promise<number>;
+  countUnitTokensByText(textId: string): Promise<number>;
+  listSegmentMetaByText(textId: string): Promise<SegmentMetaDocType[]>;
+  listSegmentMetaForMediaLayers(
+    mediaId: string,
+    layerIds: readonly string[],
+  ): Promise<SegmentMetaDocType[]>;
+  listSegmentMetaForTextLayers(
+    textId: string,
+    layerIds: readonly string[],
+  ): Promise<SegmentMetaDocType[]>;
+  listTranslationSnapshotsByMedia(mediaId: string): Promise<TranslationStatusSnapshotDocType[]>;
+  listTranslationSnapshotsByText(textId: string): Promise<TranslationStatusSnapshotDocType[]>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -344,6 +369,13 @@ export const dexieStoragePort: StoragePort = {
   registerImportedSource: registerImportedSourceRecord,
   renameSourceRecord: renameSourceRecordRow,
   linkSourceRecordMedia,
+  countAnchorsByMedia,
+  countUnitTokensByText,
+  listSegmentMetaByText,
+  listSegmentMetaForMediaLayers,
+  listSegmentMetaForTextLayers,
+  listTranslationSnapshotsByMedia,
+  listTranslationSnapshotsByText,
 };
 
 async function assignSpeakerToMixedSelection(

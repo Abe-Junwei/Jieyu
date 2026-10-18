@@ -5,11 +5,11 @@ import type {
   TextDocType,
   TranslationStatusSnapshotDocType,
 } from '../db/types';
-import { getDb } from '../db';
+import { storagePort } from '../db/storagePort';
 import { LinguisticService } from '../services/LinguisticService';
 import {
-  resolveDefaultTranscriptionLayerId,
-  resolveDefaultTranscriptionLayerIdsPerDocument,
+  resolveDefaultTranscriptionLayerIdForText,
+  resolveDefaultTranscriptionLayerIdsPerDocumentForText,
 } from '../services/LayerSegmentGraphService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
@@ -182,10 +182,9 @@ async function loadRecordRow(
       : undefined;
   const displayName = typeof details?.displayName === 'string' ? details.displayName.trim() : '';
   const filename = displayName.length > 0 ? displayName : storageFilename;
-  const db = await getDb();
   const [unitCount, anchorCount] = await Promise.all([
     LayerSegmentQueryService.countUnitsByMediaId(mediaId),
-    db.dexie.anchors.where('mediaId').equals(mediaId).count(),
+    storagePort().countAnchorsByMedia(mediaId),
   ]);
   const byteState = {
     hasPlayableBytes: mediaRowHasPlayableBytes(media),
@@ -208,12 +207,9 @@ async function loadRecordRow(
     };
   }
   const [metaRows, trAll] = await Promise.all([
-    db.dexie.segment_meta
-      .where('[layerId+mediaId]')
-      .anyOf(txLayerIds.map((layerId) => [layerId, mediaId]))
-      .toArray(),
+    storagePort().listSegmentMetaForMediaLayers(mediaId, txLayerIds),
     hasTranslationLayers
-      ? db.dexie.translation_status_snapshots.where('mediaId').equals(mediaId).toArray()
+      ? storagePort().listTranslationSnapshotsByMedia(mediaId)
       : Promise.resolve([] as TranslationStatusSnapshotDocType[]),
   ]);
   const trRows = hasTranslationLayers ? trAll.filter((row) => row.textId === textId) : [];
@@ -235,14 +231,10 @@ async function loadTextRecordOnlyRow(
   txLayerIds: readonly string[],
   hasTranslationLayers: boolean,
 ): Promise<TranscriptionRecordProgressRow> {
-  const db = await getDb();
   const [metaRows, trAll] = await Promise.all([
-    db.dexie.segment_meta
-      .where('[textId+layerId]')
-      .anyOf(txLayerIds.map((layerId) => [textId, layerId]))
-      .toArray(),
+    storagePort().listSegmentMetaForTextLayers(textId, txLayerIds),
     hasTranslationLayers
-      ? db.dexie.translation_status_snapshots.where('textId').equals(textId).toArray()
+      ? storagePort().listTranslationSnapshotsByText(textId)
       : Promise.resolve([] as TranslationStatusSnapshotDocType[]),
   ]);
 
@@ -259,11 +251,10 @@ export async function loadHomeProjectProgressBundle(
   locale: Locale,
 ): Promise<HomeProjectProgressBundle> {
   await WorkspaceReadModelService.rebuildForText(text.id);
-  const db = await getDb();
-  const defaultTranscriptionLayerId = await resolveDefaultTranscriptionLayerId(db, text.id);
+  const defaultTranscriptionLayerId = await resolveDefaultTranscriptionLayerIdForText(text.id);
   // 第 5 批：首页按全项目（所有文稿）统计：每份文稿的默认转写层都算（用户决定 2026-10-10）
   // Batch 5: the home page counts the whole project — every document's default transcription layer
-  const txLayerIds = await resolveDefaultTranscriptionLayerIdsPerDocument(db, text.id);
+  const txLayerIds = await resolveDefaultTranscriptionLayerIdsPerDocumentForText(text.id);
   const layers = await LinguisticService.layers.listByTextId(text.id, { allDocuments: true });
   const hasTranslationLayers = layers.some((layer) => layer.layerType === 'translation');
   const documentCount = (await listAnnotationDocuments(text.id)).length;
