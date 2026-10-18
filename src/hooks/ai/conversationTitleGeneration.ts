@@ -1,4 +1,4 @@
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import type { AiChatSettings } from '../../ai/providers/providerCatalog';
 import { APP_LOCALES, t, type Locale } from '../../i18n';
 import { createLogger } from '../../observability/logger';
@@ -103,27 +103,24 @@ export async function patchConversationTitleIfNeeded(
       : buildConversationTitleRuleBased(userText);
   if (!title) return false;
 
-  const db = await getDb();
-  const conversation = await db.collections.ai_conversations
-    .findOne({ selector: { id: conversationId } })
-    .exec();
-  if (!conversation) return false;
+  const row = await storagePort().readAiConversation(conversationId);
+  if (!row) return false;
 
-  const row = conversation.toJSON();
   const existing = row.title?.trim() ?? '';
   if (existing.length > 0 && !isPersistedTitleEmptyOrDefault(existing, locale)) {
     return false;
   }
 
-  await db.collections.ai_conversations.update(conversationId, {
+  const stored = await storagePort().patchAiConversation(conversationId, {
     title,
     updatedAt: nowIso(),
   });
+  if (!stored) return false;
 
-  const textId = options?.textId ?? row.textId;
+  const textId = (options?.textId ?? row.textId)?.trim() ?? '';
   notifyConversationListMutated({
     conversationId,
-    ...(textId ? { textId } : {}),
+    ...(textId.length > 0 ? { textId } : {}),
   });
   return true;
 }

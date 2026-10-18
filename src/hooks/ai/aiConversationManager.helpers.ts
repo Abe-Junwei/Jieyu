@@ -1,4 +1,4 @@
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import type { AiConversationDoc } from '../../db/types';
 import type { AiConversationListItem } from './aiConversationManager.types';
 import { toAiConversationListItem } from './aiConversationManager.types';
@@ -53,16 +53,7 @@ export function pickLatestConversationInScope(
 export const MAX_CONVERSATION_LIST_ROWS = 200;
 
 export async function fetchAllConversationRows(): Promise<AiConversationDoc[]> {
-  const db = await getDb();
-  const aiConversationsTable = db.dexie?.ai_conversations;
-  if (!aiConversationsTable) {
-    return [];
-  }
-  return aiConversationsTable
-    .orderBy('updatedAt')
-    .reverse()
-    .limit(MAX_CONVERSATION_LIST_ROWS)
-    .toArray();
+  return storagePort().listRecentAiConversations(MAX_CONVERSATION_LIST_ROWS);
 }
 
 export async function listConversationsInScope(textId?: string): Promise<AiConversationListItem[]> {

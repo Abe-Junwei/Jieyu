@@ -5,6 +5,7 @@
  */
 import type {
   AgentArtifactDoc,
+  AiConversationDoc,
   AiMessageDoc,
   AiRuntimeV2TurnDoc,
   AnchorDocType,
@@ -43,6 +44,13 @@ import {
   listTranslationSnapshotsByText,
 } from './storagePortProjectProgress';
 import { listUnitMorphemesByText, listUnitTokensByText } from './storagePortCorpusRows';
+import {
+  clearAiConversationMessages,
+  listRecentAiConversations,
+  patchAiConversation,
+  readAiConversation,
+  type AiConversationPatch,
+} from './storagePortConversations';
 import { listMediaByText, listMediaIdsByText, saveMediaItem } from './storagePortMedia';
 import { saveAgentArtifact, readAgentArtifact } from './storagePortAgentArtifacts';
 import { insertMcpToolCallAudit } from './storagePortMcpAudit';
@@ -213,6 +221,13 @@ export interface StoragePort {
   insertMcpToolCallAudit(doc: McpToolCallAuditDoc): Promise<void>;
   readAgentArtifact(id: string): Promise<AgentArtifactDoc | undefined>;
   saveAgentArtifact(doc: AgentArtifactDoc, audit: AuditLogDocType): Promise<AgentArtifactDoc>;
+  listRecentAiConversations(limit: number): Promise<AiConversationDoc[]>;
+  readAiConversation(id: string): Promise<AiConversationDoc | undefined>;
+  patchAiConversation(
+    id: string,
+    patch: AiConversationPatch,
+  ): Promise<AiConversationDoc | undefined>;
+  clearAiConversationMessages(conversationId: string, updatedAt: string): Promise<boolean>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -437,6 +452,10 @@ export const dexieStoragePort: StoragePort = {
   insertMcpToolCallAudit,
   readAgentArtifact,
   saveAgentArtifact,
+  listRecentAiConversations,
+  readAiConversation,
+  patchAiConversation,
+  clearAiConversationMessages,
 };
 
 async function assignSpeakerToMixedSelection(
