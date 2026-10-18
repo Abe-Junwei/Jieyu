@@ -9,12 +9,16 @@ import type {
   AiRuntimeV2TurnDoc,
   LayerUnitContentDocType,
   LayerUnitDocType,
+  MediaItemDocType,
   SegmentMetaDocType,
   SpeakerDocType,
   TextDocType,
   SourceRecordDocType,
+  TierDefinitionDocType,
   TrackEntityDocType,
   TranslationStatusSnapshotDocType,
+  UnitMorphemeDocType,
+  UnitTokenDocType,
 } from './types';
 import {
   listForeignOwnedLayers,
@@ -32,6 +36,17 @@ import {
   listTranslationSnapshotsByMedia,
   listTranslationSnapshotsByText,
 } from './storagePortProjectProgress';
+import { listUnitMorphemesByText, listUnitTokensByText } from './storagePortCorpusRows';
+import { listMediaByText, saveMediaItem } from './storagePortMedia';
+import {
+  countPresentLayerUnits,
+  listLayerUnitIdsByText,
+  listLayerUnitsAtMediaStart,
+  listTierIdsByContentLanguage,
+  patchAiMessageContent,
+  readTierDefinition,
+  type AiMessageContentPatch,
+} from './storagePortWriteProbes';
 import {
   linkSourceRecordMedia,
   listSourceRecordRows,
@@ -41,6 +56,7 @@ import {
 } from './storagePortSourceRecords';
 import type { SourceImportPlan } from '../services/sourceRecordPlan';
 import { db, getDb } from './engine';
+import { StorageReadbackError } from './storageReadbackError';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
 import { isMediaItemPlaceholderRow, mediaRowHasPlayableBytes } from '../utils/mediaItemState';
@@ -72,14 +88,7 @@ export function recordingRemovalBlockReason(
   return undefined;
 }
 
-export class StorageReadbackError extends Error {
-  readonly code = 'STORAGE_READBACK';
-
-  constructor(operation: string) {
-    super(`storage read-back failed after ${operation}`);
-    this.name = 'StorageReadbackError';
-  }
-}
+export { StorageReadbackError } from './storageReadbackError';
 
 type TurnRow = { conversationId: string; createdAt?: unknown; expiresAt?: unknown };
 
@@ -170,6 +179,19 @@ export interface StoragePort {
   ): Promise<SegmentMetaDocType[]>;
   listTranslationSnapshotsByMedia(mediaId: string): Promise<TranslationStatusSnapshotDocType[]>;
   listTranslationSnapshotsByText(textId: string): Promise<TranslationStatusSnapshotDocType[]>;
+  listUnitTokensByText(textId: string): Promise<UnitTokenDocType[]>;
+  listUnitMorphemesByText(textId: string): Promise<UnitMorphemeDocType[]>;
+  listMediaByText(textId: string): Promise<MediaItemDocType[]>;
+  saveMediaItem(data: MediaItemDocType): Promise<string>;
+  countPresentLayerUnits(ids: readonly string[]): Promise<number>;
+  listLayerUnitIdsByText(textId: string): Promise<string[]>;
+  listLayerUnitsAtMediaStart(mediaId: string, startTime: number): Promise<LayerUnitDocType[]>;
+  readTierDefinition(layerId: string): Promise<TierDefinitionDocType | undefined>;
+  listTierIdsByContentLanguage(
+    contentType: TierDefinitionDocType['contentType'],
+    languageId: string,
+  ): Promise<string[]>;
+  patchAiMessageContent(id: string, patch: AiMessageContentPatch): Promise<void>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -376,6 +398,16 @@ export const dexieStoragePort: StoragePort = {
   listSegmentMetaForTextLayers,
   listTranslationSnapshotsByMedia,
   listTranslationSnapshotsByText,
+  listUnitTokensByText,
+  listUnitMorphemesByText,
+  listMediaByText,
+  saveMediaItem,
+  countPresentLayerUnits,
+  listLayerUnitIdsByText,
+  listLayerUnitsAtMediaStart,
+  readTierDefinition,
+  listTierIdsByContentLanguage,
+  patchAiMessageContent,
 };
 
 async function assignSpeakerToMixedSelection(
