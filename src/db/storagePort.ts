@@ -59,6 +59,7 @@ import {
   countPresentLayerUnits,
   listAiMessagesByConversation,
   listAuditLogsByCollection,
+  listAuditLogsByFieldRequest,
   listLayerUnitIdsByText,
   listLayerUnitsAtMediaStart,
   listTierIdsByContentLanguage,
@@ -218,6 +219,11 @@ export interface StoragePort {
   ): Promise<{ id: string; targetId: string; parentTargetId?: string; unitId: string }>;
   listAiMessagesByConversation(conversationId: string): Promise<AiMessageDoc[]>;
   listAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]>;
+  listAuditLogsByFieldRequest(
+    collection: string,
+    field: string,
+    requestId: string,
+  ): Promise<AuditLogDocType[]>;
   insertMcpToolCallAudit(doc: McpToolCallAuditDoc): Promise<void>;
   readAgentArtifact(id: string): Promise<AgentArtifactDoc | undefined>;
   saveAgentArtifact(doc: AgentArtifactDoc, audit: AuditLogDocType): Promise<AgentArtifactDoc>;
@@ -449,6 +455,7 @@ export const dexieStoragePort: StoragePort = {
   patchAiMessageContent,
   listAiMessagesByConversation,
   listAuditLogsByCollection,
+  listAuditLogsByFieldRequest,
   insertMcpToolCallAudit,
   readAgentArtifact,
   saveAgentArtifact,

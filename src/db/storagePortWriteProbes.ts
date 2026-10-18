@@ -81,6 +81,22 @@ export async function listAuditLogsByCollection(collection: string): Promise<Aud
   const database = await getDb();
   return database.dexie.audit_logs.where('collection').equals(id).toArray();
 }
+
+export async function listAuditLogsByFieldRequest(
+  collection: string,
+  field: string,
+  requestId: string,
+): Promise<AuditLogDocType[]> {
+  const collectionId = trimmed(collection);
+  const fieldId = trimmed(field);
+  const request = trimmed(requestId);
+  if (collectionId.length === 0 || fieldId.length === 0 || request.length === 0) return [];
+  const database = await getDb();
+  return database.dexie.audit_logs
+    .where('[collection+field+requestId]')
+    .equals([collectionId, fieldId, request])
+    .toArray();
+}
 export async function patchAiMessageContent(
   id: string,
   patch: AiMessageContentPatch,
