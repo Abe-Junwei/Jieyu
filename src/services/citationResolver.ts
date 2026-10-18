@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { storagePort } from '../db/storagePort';
 
 export const CITATION_BROKEN_CODE = {
   unitNotFound: 'CITATION_UNIT_NOT_FOUND',
@@ -31,7 +31,7 @@ export async function resolveUnitCitation(unitId: string): Promise<UnitCitationR
   if (!id) {
     return { kind: 'broken', type: 'unit', code: CITATION_BROKEN_CODE.unitNotFound };
   }
-  const row = await db.layer_units.get(id);
+  const row = await storagePort().readLayerUnit(id);
   if (!row || row.unitType === 'segment') {
     return { kind: 'broken', type: 'unit', code: CITATION_BROKEN_CODE.unitNotFound };
   }

@@ -120,6 +120,8 @@ export interface StoragePort {
   listForeignOwnedMedia(mediaIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
   listTrackEntities(textId: string): Promise<TrackEntityDocType[]>;
   putTrackEntity(doc: TrackEntityDocType): Promise<void>;
+  readLayerUnit(unitId: string): Promise<LayerUnitDocType | undefined>;
+  countAnnotationDocuments(textId: string): Promise<number>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -313,6 +315,8 @@ export const dexieStoragePort: StoragePort = {
 
   listTrackEntities,
   putTrackEntity,
+  readLayerUnit,
+  countAnnotationDocuments,
 };
 
 async function assignSpeakerToMixedSelection(
@@ -510,6 +514,20 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
     if (!source || source.mediaId === id) throw new StorageReadbackError('removeEmptyRecording');
   }
   return { unboundSourceIds };
+}
+
+async function readLayerUnit(unitId: string): Promise<LayerUnitDocType | undefined> {
+  const id = unitId.trim();
+  if (id.length === 0) return undefined;
+  const database = await getDb();
+  return database.dexie.layer_units.get(id);
+}
+
+async function countAnnotationDocuments(textId: string): Promise<number> {
+  const id = textId.trim();
+  if (id.length === 0) return 0;
+  const database = await getDb();
+  return database.dexie.annotation_documents.where('textId').equals(id).count();
 }
 
 async function listTrackEntities(textId: string): Promise<TrackEntityDocType[]> {

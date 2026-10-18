@@ -12,7 +12,7 @@
  * deleted. shortcut: a JYT / JYB overwrite that brings several documents into a project that is already
  * syncing only updates the cache at the next bridge start.
  */
-import { getDb } from '../db';
+import { storagePort } from '../db/storagePort';
 
 const multiDocumentProjects = new Map<string, boolean>();
 
@@ -43,8 +43,7 @@ export async function refreshMultiDocumentGate(textId: string): Promise<boolean>
   const owner = textId.trim();
   if (owner.length === 0) return false;
   try {
-    const db = await getDb();
-    const several = (await db.dexie.annotation_documents.where('textId').equals(owner).count()) > 1;
+    const several = (await storagePort().countAnnotationDocuments(owner)) > 1;
     rememberMultiDocumentGate(owner, several);
     return several;
   } catch {
