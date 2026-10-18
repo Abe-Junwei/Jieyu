@@ -97,4 +97,22 @@ describe('storage port project reads', () => {
     const stored = await db.track_entities.get('track-1');
     expect(stored?.textId).toBe('text-a');
   });
+
+  it('reads each overlapping track-entity write back against the row that call wrote', async () => {
+    const writes = Array.from({ length: 8 }, (_, index) =>
+      storagePort().putTrackEntity({
+        id: 'track-race',
+        textId: 'text-a',
+        mediaId: 'text-a::media-1',
+        mode: 'single',
+        laneLockMap: { lane: index, other: 1 },
+        updatedAt: `2026-01-01T00:00:0${index}.000Z`,
+      }),
+    );
+    await expect(Promise.all(writes)).resolves.toHaveLength(8);
+    await expect(db.track_entities.get('track-race')).resolves.toMatchObject({
+      textId: 'text-a',
+      mediaId: 'text-a::media-1',
+    });
+  });
 });

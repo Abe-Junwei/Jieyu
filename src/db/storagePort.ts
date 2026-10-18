@@ -537,24 +537,47 @@ async function listTrackEntities(textId: string): Promise<TrackEntityDocType[]> 
   return database.dexie.track_entities.where('textId').equals(id).toArray();
 }
 
+function sameLaneLockMap(
+  stored: Record<string, number> | undefined,
+  written: Record<string, number>,
+): boolean {
+  if (!stored) return false;
+  const writtenKeys = Object.keys(written);
+  if (Object.keys(stored).length !== writtenKeys.length) return false;
+  return writtenKeys.every((key) => Object.hasOwn(stored, key) && stored[key] === written[key]);
+}
+
 async function putTrackEntity(doc: TrackEntityDocType): Promise<void> {
   const database = await getDb();
   const existing = await database.dexie.track_entities.get(doc.id);
   if (existing && existing.textId !== doc.textId) {
     throw new CatalogOwnershipMismatchError('track_entities', doc.id, existing.textId, doc.textId);
   }
-  await database.dexie.track_entities.put(doc);
-  const stored = await database.dexie.track_entities.get(doc.id);
-  const sameLocks = JSON.stringify(stored?.laneLockMap) === JSON.stringify(doc.laneLockMap);
-  if (
-    !stored ||
-    stored.textId !== doc.textId ||
-    stored.mediaId !== doc.mediaId ||
-    stored.mode !== doc.mode ||
-    stored.updatedAt !== doc.updatedAt ||
-    !sameLocks
-  ) {
-    throw new StorageReadbackError('putTrackEntity');
+  try {
+    await withTransaction(
+      database,
+      'rw',
+      [database.dexie.track_entities],
+      async () => {
+        await database.dexie.track_entities.put(doc);
+        const stored = await database.dexie.track_entities.get(doc.id);
+        if (
+          !stored ||
+          stored.textId !== doc.textId ||
+          stored.mediaId !== doc.mediaId ||
+          stored.mode !== doc.mode ||
+          stored.updatedAt !== doc.updatedAt ||
+          !sameLaneLockMap(stored.laneLockMap, doc.laneLockMap)
+        ) {
+          throw new StorageReadbackError('putTrackEntity');
+        }
+      },
+      { label: 'putTrackEntity' },
+    );
+  } catch (error) {
+    if (error instanceof StorageReadbackError) throw error;
+    if (error instanceof Error && error.cause instanceof StorageReadbackError) throw error.cause;
+    throw error;
   }
 }
 
