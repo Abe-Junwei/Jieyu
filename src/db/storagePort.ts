@@ -10,7 +10,15 @@ import type {
   LayerUnitContentDocType,
   LayerUnitDocType,
   SpeakerDocType,
+  TextDocType,
 } from './types';
+import {
+  listForeignOwnedLayers,
+  listForeignOwnedMedia,
+  listForeignOwnedUnits,
+  readProject,
+  type ForeignOwnedRow,
+} from './storagePortProjectReads';
 import { db, getDb } from './engine';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
@@ -105,6 +113,10 @@ export interface StoragePort {
    * 同名的其他录音不动。
    */
   removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }>;
+  readProject(textId: string): Promise<TextDocType | undefined>;
+  listForeignOwnedUnits(unitIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listForeignOwnedLayers(layerIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listForeignOwnedMedia(mediaIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -290,6 +302,11 @@ export const dexieStoragePort: StoragePort = {
   assignSpeakerToMixedSelection,
 
   removeEmptyRecording,
+
+  readProject,
+  listForeignOwnedUnits,
+  listForeignOwnedLayers,
+  listForeignOwnedMedia,
 };
 
 async function assignSpeakerToMixedSelection(
