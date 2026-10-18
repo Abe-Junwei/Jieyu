@@ -7,7 +7,7 @@ import {
   type LayerLinkDocType,
   type LayerUnitContentDocType,
   type LayerUnitDocType,
-} from '../../db';
+} from '../../db/types';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { useLatest } from '../ui/useLatest';
 import { resolveSegmentTimelineSourceLayer } from './useLayerSegments';

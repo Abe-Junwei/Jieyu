@@ -2,7 +2,7 @@ import {
   layerTranscriptionTreeParentId,
   type LayerDocType,
   type LayerUnitContentDocType,
-} from '../../db';
+} from '../../db/types';
 import { t, tf, type Locale } from '../../i18n';
 
 const UNDO_LABEL_KEYS = {
