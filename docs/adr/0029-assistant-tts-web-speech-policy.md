@@ -26,7 +26,7 @@ ADR-0028 将 **TTS** 列为助手多模态编排的开放项：与聊天输出�
 ## 影响
 
 - 代码：`src/utils/assistantWebSpeechTts.ts`、`useVoiceInteraction` / `useVoiceAgentStartController` 中与 TTS 相关的启停、偏好读写。
-- 文档：`docs/architecture/桌面端浏览器支持策略.md` 交叉引用本 ADR（CSP / `speechSynthesis` 可用性以特性检测为准）。
+- 文档：CSP / `speechSynthesis` 可用性以特性检测为准。原浏览器支持策略页已随 #328 删除，交付形态见 [ADR-0063](./0063-desktop-only-after-electron-skeleton.md)。
 
 ## 被放弃的备选方案
 

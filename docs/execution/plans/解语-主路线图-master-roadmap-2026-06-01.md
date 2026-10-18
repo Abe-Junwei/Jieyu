@@ -34,7 +34,7 @@ last_reviewed: 2026-10-18
 - **独立性**：与 Rushi（如是我闻）**无运行时依赖、无能力互补承诺**；解语缺口在本仓内解决或显式标为非目标。
 - **刻意不做**：每 PR 全量重型 gate、高频依赖自动化、多角色评审路由、为形式的全量 E2E、通用多智能体 swarm / 云端多租户。成熟度检查留在 `package.json` 的按需分组，不接回 PR CI。
 
-技术与浏览器边界：[桌面端浏览器支持策略](../../architecture/桌面端浏览器支持策略.md)、[PWA / 离线壳预期](../../architecture/offline-pwa-first-visit-expectations.md)。两页只约束当前浏览器构建，#276 跑通后由 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 撤下。
+技术边界：[ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)（只交付桌面版；`browserslist` 为 Electron 44 的 Chromium 152）、[PWA / 离线壳预期](../../architecture/offline-pwa-first-visit-expectations.md)（只约束开发与测试用的浏览器构建）。[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 已撤下浏览器支持承诺。
 
 ## 2. 切片总览与依赖序
 
@@ -226,18 +226,18 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-10-18）**：[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 撤掉浏览器支持承诺。#276 已在 [#331](https://github.com/Abe-Junwei/Jieyu/pull/331) 落地。已落成的决定：存储接口 [ADR-0048](../../adr/0048-storage-port.md)、模型接口 [ADR-0057](../../adr/0057-model-interface-transcribe.md)、IndexedDB 归层 [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、文件夹内容 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)、[ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)、只做桌面版 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、新功能冻结 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-10-18）**：[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 先定还没写的列形状，再写存储接口的 SQLite 实现；[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 与之并行。#276 与 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 已落地。已落成的决定：存储接口 [ADR-0048](../../adr/0048-storage-port.md)、模型接口 [ADR-0057](../../adr/0057-model-interface-transcribe.md)、IndexedDB 归层 [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、文件夹内容 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)、[ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)、只做桌面版 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、新功能冻结 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 >
 > **新功能冻结（2026-10-17 起，ADR-0064）**：到下面第 3 步（#275 与 #325 都落地）为止。
 >
-> - 只做：#275、#280、#325、#329，以及 #276 之后的 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328)；另外只修 bug 和防丢数据的问题。#276 已落地。
+> - 只做：#275、#280、#325、#329；另外只修 bug 和防丢数据的问题。#276 与 #328 已落地。
 > - 暂停：下表未完成的 A 切片（A1–A3、A4b、A7–A15，含 §2.2.0 的 R2 补测与 R4）、Stage B / C 的新切片、挡首发的 #303–#306、#312、#313 的首启导入（B），以及发布流水线 [#277](https://github.com/Abe-Junwei/Jieyu/issues/277)。
 > - 不受冻结：只出决定、调研、原型或文档的单子，不改产品代码，如 [#255](https://github.com/Abe-Junwei/Jieyu/issues/255) 上手原型、[#257](https://github.com/Abe-Junwei/Jieyu/issues/257) AI 设置访谈、[#263](https://github.com/Abe-Junwei/Jieyu/issues/263) 手册、[#265](https://github.com/Abe-Junwei/Jieyu/issues/265) 功能面清单、[#266](https://github.com/Abe-Junwei/Jieyu/issues/266) 项目包流程评估、[#307](https://github.com/Abe-Junwei/Jieyu/issues/307) 许可证。#313 的 A 也在此列：用户本人做木雅语 JYM 并上传，代理不读语料。
 > - 一直不排：**B7**、任意图编辑器、依存共指、R6、R15、C3d Word、flag 放量宣告。
 >
 > **首发前顺序（2026-10-17 按 ADR-0063/0064 重排）**：单子在 [#250 地图](../../wayfinder/trial-handoff/map.md)，验收写在各单里，本文只排先后。
 >
-> 1. [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) 已落地（[#331](https://github.com/Abe-Junwei/Jieyu/pull/331)）：Electron 骨架按 ADR-0059 验收，better-sqlite3 已进 `package.json`。下一步撤掉浏览器支持承诺（[#328](https://github.com/Abe-Junwei/Jieyu/issues/328)），浏览器构建只作开发与测试。
+> 1. [#276](https://github.com/Abe-Junwei/Jieyu/issues/276) 已落地（[#331](https://github.com/Abe-Junwei/Jieyu/pull/331)）：Electron 骨架按 ADR-0059 验收，better-sqlite3 已进 `package.json`。[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 已撤掉浏览器支持承诺：浏览器构建只作开发与测试，`browserslist` 为 Chromium 152，Playwright 只留 Chromium。源码未删。
 > 2. [#275](https://github.com/Abe-Junwei/Jieyu/issues/275)：先定还没写的列形状（会话记忆载荷、DMLex 正文、语言数组与多语备注、结构规则与转换规则正文、定义副本范围；`model_runs` 照 ADR-0057），再写存储接口的 SQLite 实现，按 ADR-0061 读写项目库和 `.jyd`，守住一份文稿一条录音、不存跨文稿关系。Node 下的 vitest 与 Electron 共用 #276 已加入的 better-sqlite3。此后新增业务操作只写 SQLite 实现，Dexie 冻结、只修 bug。[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 与本步并行，逐批迁到存储接口。
 > 3. [#325](https://github.com/Abe-Junwei/Jieyu/issues/325) 桌面文件操作（送系统垃圾箱、认回、弹窗与订阅走单独通道），同时 [#329](https://github.com/Abe-Junwei/Jieyu/issues/329) 把 E2E 迁到 Electron。#275 与 #325 都落地即解冻。
 > 4. 解冻后并行：本机转写 #303–#306、诊断与反馈 #312、木雅语示例 #313 的首启导入（A 不受冻结，用户本人做）、发布流水线 #277；[#326](https://github.com/Abe-Junwei/Jieyu/issues/326) 旧浏览器库经 JYB 迁入；[#258](https://github.com/Abe-Junwei/Jieyu/issues/258) 含音频备份的恢复播放演练（通过前每日 JYM 不动）；[#281](https://github.com/Abe-Junwei/Jieyu/issues/281) 加法迁移演练。
@@ -401,6 +401,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-18 | **#328 落地**。删除浏览器支持策略页；`browserslist` 改为 Chromium 152；Playwright 与每晚任务去掉 Firefox、WebKit。关于页不再承诺浏览器。浏览器专用代码只列清单，不删。当前下一刀改为 #275（#280 并行）。本地 045 删除。 |
 | 2026-10-18 | **#276 落地**（[#331](https://github.com/Abe-Junwei/Jieyu/pull/331)）。当前下一刀改为 #328。本地 026 删除。 |
 | 2026-10-17 | **审查对账**：A15 / B16a / B16b / B17 与 §2.2.0 对齐；波次图补上这四片不在已关闭波次里；A3 剩余改为解冻后写 SQLite；规格目录改为列出仍在的五份规格。#276 改为实现单，better-sqlite3 在 #276 批准后加入。#313 的 A 不受冻结。 |
 | 2026-10-17 | **全文对账**（对照 ADR-0063/0064、#250、各单）：顺序改为先 #276 再 #275/#280（原写 #280/#275 先于 #276）；D14 不再等首发功能单；补上首发 #282 一步，#282 补挂 D14 与功能单；#277 发布流水线排到解冻后；DoD 去掉「SQLite 与 Dexie 两边读回」；C1 改为 Electron 冒烟与 E2E；C4 去掉「只适用于 Web 构建」；§2、§2.2.0 写明冻结；只出决定、调研、原型、文档的单子不受冻结。#274、#279、#304 的 ADR 已落成，单子关闭。 |

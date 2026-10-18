@@ -21,7 +21,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## Notes
 
-- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）、#325、#326（本地 043、044）、#327 已关闭、#328（本地 045）、#329（本地 046）；第二程 #285（子单 #286–#302、#308–#311、#314–#317））。
+- 追踪方式：本目录 Markdown（约定见 [README](README.md)）+ GitHub issue（本图 #250，子单 #251–#284、#303–#307（本地 035–039）、#312（本地 040）、#313（本地 041）、#325、#326（本地 043、044）、#327 已关闭、#328 已关闭、#329（本地 046）；第二程 #285（子单 #286–#302、#308–#311、#314–#317））。
 - 全局排期真源是 [主路线图](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/execution/plans/%E8%A7%A3%E8%AF%AD-%E4%B8%BB%E8%B7%AF%E7%BA%BF%E5%9B%BE-master-roadmap-2026-06-01.md)。本图只管「交给试用者」这一程；与主路线图重叠的单子在各自 Related 里链到原条目（C1 对外前最小检查、C2 i18n、batch4a/4b 记录）。主路线图里没有与本图重复的 GitHub issue。
 - 已定（用户 2026-10-13）：
   - 分发：桌面外壳（Electron）。19:11 改定，取代 18:54 的「本地运行、浏览器打开」。Mac 与 Windows 都要能跑。
@@ -164,6 +164,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-18：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架落地（[#331](https://github.com/Abe-Junwei/Jieyu/pull/331)）。三平台烟测覆盖启动、选项目文件夹、同步盘警告、第二窗口被锁挡住、一次 `project.sqlite` 写入读回、主进程带密钥的出站请求（渲染进程看不到明文）、媒体 Range。浏览器端到端仍是主回归。协作编译期剔除留给 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328)。本地 026 删除。
 - 2026-10-18 用户：Field Matters 调研（本机笔记，2022–2026 论文）里值得做的四项挂第二程：[#333](https://github.com/Abe-Junwei/Jieyu/issues/333) 词表音位配列质检、[#334](https://github.com/Abe-Junwei/Jieyu/issues/334) ASR 训练集导出与编辑记录、[#335](https://github.com/Abe-Junwei/Jieyu/issues/335) 注释 LLM 后校正（先做三方对比实验，产品接入归 #315）、[#336](https://github.com/Abe-Junwei/Jieyu/issues/336) 离线说话人分离原型。全部排在 ADR-0064 解冻与 #250 之后；自训模型都不设默认。暂缓不开单：CLDF 导出（等 #309、#310）、CRF 注释器（先看 #335 的结果）、ZIPA 音素识别与强制对齐（等推理后端）、PolyGloss（只跟踪，许可未明）。
 - 2026-10-18 11:20 用户：#335 第一步（三方对比实验）提前，不受冻结、不等 #250。实验脚本在本机由用户在自己的数据上跑，代理不读语料；第二步（产品接入）仍排在解冻与 #250 之后。
+- 2026-10-18：[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 落地。删除浏览器支持策略页；`browserslist` 改为 Electron 44 的 Chromium 152；Playwright 与每晚任务去掉 Firefox、WebKit；关于页改为桌面版说明。源码不删。清单：协作与 Supabase 保留（编译期剔除仍按 ADR-0047，本单未改构建）；随浏览器构建删除的有 `src/ai/config/keyVault.ts`（桌面用 `safeStorage`）和 Vite PWA；待用户逐项定的有 `src/services/backupFolderService.ts`（File System Access 站点外备份）和只在 Firefox 上跑的 `tests/e2e/ws8X2AcousticOversize.spec.ts`。Dexie 与浏览器里的 JYB 导出仍留到 #326、#329。本地 045 删除。当前下一刀是 #275，#280 并行。
 
 ## Next leg
 

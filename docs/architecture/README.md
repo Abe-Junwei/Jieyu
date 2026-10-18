@@ -46,10 +46,7 @@ source_of_truth: architecture-index
   - 用途：CSS 分层边界、命名规范、治理脚本与面板/对话框自动模板约定。
 
 - [CSS浏览器兼容矩阵.md](./CSS浏览器兼容矩阵.md)
-  - 用途：CSS 现代特性兼容策略、降级规则与 CI 校验入口。
-
-- [桌面端浏览器支持策略.md](./桌面端浏览器支持策略.md)
-  - 用途：产品对外兼容边界（桌面端 Chrome / Edge / Firefox / Safari 及国内双核浏览器的极速模式）；与 CSS 矩阵分工明确。
+  - 用途：开发与测试用浏览器构建里的 CSS 降级规则与 CI 校验入口。产品交付以桌面版为准（ADR-0063）。
 
 - [ai-chat-tool-confirm-idempotency.md](./ai-chat-tool-confirm-idempotency.md)
   - 用途：AI 聊天工具确认链路的幂等与审计契约（含 `propose_changes` 批处理、trace 与 `metadata.executed` 语义）。

@@ -8,7 +8,7 @@ name: Nightly Regression
 # Covered:
 # - TranscriptionTimelineVerticalView suite-a/b/c/d shards (4× 45min)
 # - Content view-model post-shard test
-# - E2E on Firefox + WebKit (Chromium remains per-PR in ci.yml)
+# - Chromium E2E stays on the PR workflow (e2e-pr.yml). Firefox and WebKit left with #328.
 
 on:
   schedule:
@@ -60,28 +60,3 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
         run: npm run test:vertical-view:content-vm-only
-
-  e2e-firefox-webkit:
-    name: E2E (Firefox + WebKit)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-      - run: npm ci
-      - name: Install Playwright browsers (FF + WebKit)
-        run: npx playwright install --with-deps firefox webkit
-      - name: Build
-        run: npm run build
-      - name: Run E2E on Firefox
-        run: npx playwright test --project=firefox
-      - name: Run E2E on WebKit
-        run: npx playwright test --project=webkit

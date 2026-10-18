@@ -1,8 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * E2E：Chromium / Firefox / WebKit 三引擎，与 `docs/architecture/桌面端浏览器支持策略.md` 一致。
- * CI：作业 **`e2e-critical-paths`** 跑三引擎 `npm run test:e2e`（见 `.github/workflows/ci.yml`）。F4 session-sidecar 专用构建见 `playwright.session-sidecar.config.ts` + `npm run test:e2e:session-sidecar-audit`。本地快速循环：`npx playwright test --project=chromium` 或 `npm run test:e2e:chromium`。
+ * E2E：只跑 Chromium。产品交付桌面版（ADR-0063）；浏览器构建只作开发与测试，
+ * `browserslist` 收到 Electron 44 随附的 Chromium 152。Firefox / WebKit 项目与每晚任务已随 #328 去掉。
+ * #329 完成前，Chromium E2E 仍是合并门槛（`.github/workflows/e2e-pr.yml` 跑 `npm run test:e2e:chromium`）。
+ * F4 session-sidecar 专用构建见 `playwright.session-sidecar.config.ts`。
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -18,14 +20,6 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
     },
   ],
   webServer: {
