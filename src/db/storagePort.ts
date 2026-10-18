@@ -11,6 +11,7 @@ import type {
   LayerUnitDocType,
   SpeakerDocType,
   TextDocType,
+  SourceRecordDocType,
   TrackEntityDocType,
 } from './types';
 import {
@@ -20,6 +21,14 @@ import {
   readProject,
   type ForeignOwnedRow,
 } from './storagePortProjectReads';
+import {
+  linkSourceRecordMedia,
+  listSourceRecordRows,
+  registerImportedSourceRecord,
+  renameSourceRecordRow,
+  type SourceRecordRegistration,
+} from './storagePortSourceRecords';
+import type { SourceImportPlan } from '../services/sourceRecordPlan';
 import { db, getDb } from './engine';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
@@ -122,6 +131,20 @@ export interface StoragePort {
   putTrackEntity(doc: TrackEntityDocType): Promise<void>;
   readLayerUnit(unitId: string): Promise<LayerUnitDocType | undefined>;
   countAnnotationDocuments(textId: string): Promise<number>;
+  listSourceRecords(textId: string): Promise<SourceRecordDocType[]>;
+  registerImportedSource(
+    input: SourceRecordRegistration,
+  ): Promise<{ plan: SourceImportPlan; record: SourceRecordDocType }>;
+  renameSourceRecord(
+    textId: string,
+    recordId: string,
+    displayName: string,
+  ): Promise<SourceRecordDocType | undefined>;
+  linkSourceRecordMedia(
+    textId: string,
+    recordId: string,
+    mediaId: string | null,
+  ): Promise<SourceRecordDocType | undefined>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -317,6 +340,10 @@ export const dexieStoragePort: StoragePort = {
   putTrackEntity,
   readLayerUnit,
   countAnnotationDocuments,
+  listSourceRecords: listSourceRecordRows,
+  registerImportedSource: registerImportedSourceRecord,
+  renameSourceRecord: renameSourceRecordRow,
+  linkSourceRecordMedia,
 };
 
 async function assignSpeakerToMixedSelection(
