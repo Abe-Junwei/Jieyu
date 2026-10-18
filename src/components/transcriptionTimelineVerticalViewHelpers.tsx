@@ -5,7 +5,7 @@ import {
   type LayerLinkDocType,
   type LayerUnitContentDocType,
   type LayerUnitDocType,
-} from '../db';
+} from '../db/types';
 import {
   DEFAULT_TIMELINE_LANE_HEIGHT,
   MAX_TIMELINE_LANE_HEIGHT,
@@ -302,11 +302,9 @@ export function resolvePairedReadingSyncedTargetCellId(input: {
   layerLinks: readonly VerticalReadingHostLink[];
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
   segmentContentByLayer:
-    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
-    | undefined;
+    ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined;
   translationTextByLayer:
-    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
-    | undefined;
+    ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined;
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>;
 }): string {
   const {
@@ -491,8 +489,7 @@ export function resolvePairedReadingTargetPlainTextForLayer(
   defaultTranscriptionLayerId: string | undefined,
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
   segmentContentByLayer:
-    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
-    | undefined,
+    ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined,
   translationTextByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>,
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>,
 ): string {
@@ -522,8 +519,7 @@ export function resolvePairedReadingExplicitTargetItemsForLayer(
   defaultTranscriptionLayerId: string | undefined,
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
   segmentContentByLayer:
-    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
-    | undefined,
+    ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined,
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>,
 ): PairedReadingTargetItem[] | undefined {
   const targetUsesSegments = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId);
@@ -558,8 +554,7 @@ export function buildAggregatePairedReadingTargetItemsForSourceUnit(input: {
   layerLinks: readonly VerticalReadingHostLink[];
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
   segmentContentByLayer:
-    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
-    | undefined;
+    ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined;
   translationTextByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>;
   fallbackFocusedSourceLayerId: string | undefined;

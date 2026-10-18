@@ -37,4 +37,4 @@ export type {
   TextDocType,
   UserNoteDocType,
   UserNoteDraft,
-} from '../db';
+} from '../db/types';

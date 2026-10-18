@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { type LayerConstraint, type LayerLinkDocType } from '../../db';
+import { type LayerConstraint, type LayerLinkDocType } from '../../db/types';
 import type { LanguageIsoInputValue } from '../LanguageIsoInput';
 import {
   groupOrthographiesForSelect,

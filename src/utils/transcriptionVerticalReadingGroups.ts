@@ -3,7 +3,7 @@ import {
   type LayerDocType,
   type LayerLinkDocType,
   type LayerUnitDocType,
-} from '../db';
+} from '../db/types';
 import { listInboundTranscriptionHostIdsForTranscriptionLane } from './transcriptionUnitLaneReadScope';
 import { normalizeSingleLine } from './transcriptionFormatters';
 

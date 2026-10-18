@@ -1,5 +1,8 @@
-import type { LayerDocType, LayerLinkDocType } from '../../db';
-import { layerTranscriptionTreeParentId } from '../../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerLinkDocType,
+} from '../../db/types';
 import { listIndependentBoundaryTranscriptionLayers } from '../../services/LayerConstraintService';
 import {
   buildTranscriptionIdByKeyMap,

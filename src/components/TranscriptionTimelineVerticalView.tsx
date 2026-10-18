@@ -1,5 +1,5 @@
 import '../styles/pages/timeline/timeline-paired-reading.css';
-import { layerTranscriptionTreeParentId, type LayerDocType } from '../db';
+import { layerTranscriptionTreeParentId, type LayerDocType } from '../db/types';
 import { listInboundTranscriptionHostIdsForTranscriptionLane } from '../utils/transcriptionUnitLaneReadScope';
 import {
   useCallback,
