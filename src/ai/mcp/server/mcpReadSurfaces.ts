@@ -3,7 +3,7 @@
  * Flag off ⇒ Method not found (same as pre-B12).
  */
 
-import { getDb } from '../../../db';
+import { listAiSourceSets, readAiSourceSet } from '../../../db/storagePortAiMcp';
 import { featureFlags } from '../../config/featureFlags';
 import {
   getVerticalWorkflowV0,
@@ -16,8 +16,7 @@ import type { JsonRpcRequest } from './types';
 export const SOURCE_SET_URI_PREFIX = 'jieyu://source-set/';
 
 export type McpReadSurfaceOutcome =
-  | { ok: true; result: unknown }
-  | { ok: false; code: number; message: string };
+  { ok: true; result: unknown } | { ok: false; code: number; message: string };
 
 export function isMcpReadSurfaceMethod(method: string): boolean {
   return (
@@ -43,11 +42,8 @@ function isVerticalWorkflowId(name: string): name is VerticalWorkflowId {
 }
 
 async function listSourceSetResources(): Promise<McpReadSurfaceOutcome> {
-  const db = await getDb();
-  // shortcut(P2-3): 全局表，量小 | global table, small
-  const rows = await db.collections.ai_source_sets.find().exec();
+  const rows = await listAiSourceSets();
   const resources = rows
-    .map((row) => row.toJSON())
     .filter((doc) => doc.status === 'active')
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((doc) => ({
@@ -71,12 +67,10 @@ async function readSourceSetResource(
       message: 'Invalid params: uri must be jieyu://source-set/{id}',
     };
   }
-  const db = await getDb();
-  const row = await db.collections.ai_source_sets.findOne({ selector: { id } }).exec();
-  if (!row) {
+  const snapshot = await readAiSourceSet(id);
+  if (!snapshot) {
     return { ok: false, code: -32002, message: 'Resource not found' };
   }
-  const snapshot = row.toJSON();
   return {
     ok: true,
     result: {

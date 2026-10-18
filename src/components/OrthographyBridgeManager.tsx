@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getDb, type OrthographyDocType, type OrthographyBridgeDocType } from '../db';
+import type { OrthographyDocType, OrthographyBridgeDocType } from '../db/types';
+import { bulkGetOrthographies } from '../db/storagePortImportOrthography';
 import { useLanguageCatalogLabelMap } from '~/hooks/languageCatalog/useLanguageCatalogLabelMap';
 import { useOrthographies } from '~/hooks/orthography/useOrthographies';
 import {
@@ -224,9 +225,8 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
         if (sourceIds.length === 0) {
           setSourceOrthographyById({});
         } else {
-          const db = await getDb();
           const [dbOrthographies, builtInOrthographies] = await Promise.all([
-            db.dexie.orthographies.bulkGet(sourceIds),
+            bulkGetOrthographies(sourceIds),
             listBuiltInOrthographiesByIds(sourceIds),
           ]);
           if (loadRequestVersionRef.current !== requestVersion) return true;

@@ -4,6 +4,7 @@ import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AiSessionMemory } from './chatDomain.types';
 import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
+import * as sessionMemoryRows from '../../db/storagePortAiSessionMemory';
 import { updateSessionMemoryWithPrompt } from './adaptiveInputProfile';
 import { buildUserDirectivePrompt } from './userDirectivePrompt';
 import {
@@ -152,27 +153,17 @@ describe('sessionMemory Dexie store (G1a)', () => {
     resetSessionMemoryStoreForTests();
     bindSessionMemoryConversation(conversationA);
 
-    const db = await getDb();
-    const originalFindOne = db.collections.ai_session_memories.findOne.bind(
-      db.collections.ai_session_memories,
-    );
+    const originalRead = sessionMemoryRows.readAiSessionMemory;
     let releaseDelayedLoad: (() => void) | undefined;
     const delayedLoadGate = new Promise<void>((resolve) => {
       releaseDelayedLoad = resolve;
     });
-    vi.spyOn(db.collections.ai_session_memories, 'findOne').mockImplementation((query) => {
-      const conversationId = query?.selector?.conversationId;
-      if (conversationId === conversationA) {
-        return {
-          exec: async () => {
-            await delayedLoadGate;
-            const row = await originalFindOne(query).exec();
-            return row;
-          },
-        } as ReturnType<typeof originalFindOne>;
-      }
-      return originalFindOne(query);
-    });
+    const readSpy = vi
+      .spyOn(sessionMemoryRows, 'readAiSessionMemory')
+      .mockImplementation(async (id) => {
+        if (id === conversationA) await delayedLoadGate;
+        return originalRead(id);
+      });
 
     const staleLoad = loadSessionMemoryAsync(conversationA);
     bindSessionMemoryConversation(conversationB);
@@ -185,7 +176,9 @@ describe('sessionMemory Dexie store (G1a)', () => {
 
     releaseDelayedLoad?.();
     await staleLoad;
+    readSpy.mockRestore();
 
+    const db = await getDb();
     const rowB = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId: conversationB } })
       .exec();
@@ -199,34 +192,37 @@ describe('sessionMemory Dexie store (G1a)', () => {
 
   it('serializes concurrent persistSessionMemoryAsync so Dexie keeps latest snapshot', async () => {
     const conversationId = 'conv-concurrent-persist';
-    const db = await getDb();
-    const originalInsert = db.collections.ai_session_memories.insert.bind(
-      db.collections.ai_session_memories,
-    );
+    const originalPut = sessionMemoryRows.putAiSessionMemory;
     let writeCount = 0;
-    vi.spyOn(db.collections.ai_session_memories, 'insert').mockImplementation(async (doc) => {
-      writeCount += 1;
-      if (writeCount === 1) {
-        await new Promise((resolve) => setTimeout(resolve, 40));
-      }
-      return originalInsert(doc);
-    });
+    const putSpy = vi
+      .spyOn(sessionMemoryRows, 'putAiSessionMemory')
+      .mockImplementation(async (doc) => {
+        writeCount += 1;
+        if (writeCount === 1) {
+          await new Promise((resolve) => setTimeout(resolve, 40));
+        }
+        return originalPut(doc);
+      });
 
     bindSessionMemoryConversation(conversationId);
-    const firstPersist = persistSessionMemoryAsync(conversationId, {
-      preferences: { lastLanguage: 'cmn' },
-    });
-    const secondPersist = persistSessionMemoryAsync(conversationId, {
-      preferences: { lastLanguage: 'yue' },
-      responsePreferences: { style: 'concise' },
-    });
-    await Promise.all([firstPersist, secondPersist]);
+    try {
+      const firstPersist = persistSessionMemoryAsync(conversationId, {
+        preferences: { lastLanguage: 'cmn' },
+      });
+      const secondPersist = persistSessionMemoryAsync(conversationId, {
+        preferences: { lastLanguage: 'yue' },
+        responsePreferences: { style: 'concise' },
+      });
+      await Promise.all([firstPersist, secondPersist]);
 
-    resetSessionMemoryStoreForTests();
-    bindSessionMemoryConversation(conversationId);
-    const loaded = await loadSessionMemoryAsync(conversationId);
-    expect(loaded.preferences?.lastLanguage).toBe('yue');
-    expect(loaded.responsePreferences?.style).toBe('concise');
+      resetSessionMemoryStoreForTests();
+      bindSessionMemoryConversation(conversationId);
+      const loaded = await loadSessionMemoryAsync(conversationId);
+      expect(loaded.preferences?.lastLanguage).toBe('yue');
+      expect(loaded.responsePreferences?.style).toBe('concise');
+    } finally {
+      putSpy.mockRestore();
+    }
   });
 
   it('defers sync persist until hydration and does not clobber Dexie with stale empty snapshot', async () => {

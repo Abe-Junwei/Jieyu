@@ -1,5 +1,5 @@
+import { putAiSessionMemory, readAiSessionMemory } from '../../db/storagePortAiSessionMemory';
 import { createLogger } from '../../observability/logger';
-import { getDb } from '../../db';
 import type { AiSessionMemory } from './chatDomain.types';
 import {
   mergeSessionMemoryPendingOverBaseline,
@@ -83,12 +83,9 @@ async function readSessionMemoryBaselineFromDexie(
   conversationId: string,
 ): Promise<AiSessionMemory> {
   try {
-    const db = await getDb();
-    const row = await db.collections.ai_session_memories
-      .findOne({ selector: { conversationId } })
-      .exec();
+    const row = await readAiSessionMemory(conversationId);
     if (row) {
-      return normalizeSessionMemory(row.toJSON().payload ?? {});
+      return normalizeSessionMemory(row.payload ?? {});
     }
   } catch (error) {
     log.warn('Failed to read session memory baseline for pending flush', {
@@ -221,12 +218,9 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
   }
 
   try {
-    const db = await getDb();
-    const row = await db.collections.ai_session_memories
-      .findOne({ selector: { conversationId } })
-      .exec();
+    const row = await readAiSessionMemory(conversationId);
     if (row) {
-      const dexiePayload = normalizeSessionMemory(row.toJSON().payload ?? {});
+      const dexiePayload = normalizeSessionMemory(row.payload ?? {});
       if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
         return memoryCache.get(conversationId) ?? dexiePayload;
       }
@@ -268,12 +262,9 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
   }
 
   try {
-    const db = await getDb();
-    const retryRow = await db.collections.ai_session_memories
-      .findOne({ selector: { conversationId } })
-      .exec();
+    const retryRow = await readAiSessionMemory(conversationId);
     if (retryRow) {
-      const dexiePayload = normalizeSessionMemory(retryRow.toJSON().payload ?? {});
+      const dexiePayload = normalizeSessionMemory(retryRow.payload ?? {});
       if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
         return memoryCache.get(conversationId) ?? dexiePayload;
       }
@@ -304,8 +295,7 @@ async function writeSessionMemoryToDexie(
   conversationId: string,
   payload: AiSessionMemory,
 ): Promise<void> {
-  const db = await getDb();
-  await db.collections.ai_session_memories.insert({
+  await putAiSessionMemory({
     id: conversationId,
     conversationId,
     payload,

@@ -616,7 +616,7 @@ export function getDb(): Promise<JieyuDatabase> {
 }
 
 /**
- * 测试 / 开发场景：关闭 `getDb()` 缓存的 `JieyuDatabase` 与底层 Dexie，并清空单例 Promise。下一次 `getDb()` 会重新 `_createDb()`；`import { db } from '…/db'` 仍指向同一 Dexie 单例，测试里通常应再 `await db.open()`。生产路径勿调用。
+ * 测试 / 开发场景：关闭 `getDb()` 缓存的 `JieyuDatabase` 与底层 Dexie，并清空单例 Promise。下一次 `getDb()` 会重新 `_createDb()`。桶文件再导出的 `db` 仍指向同一 Dexie 单例，测试里通常应再 `await db.open()`。生产路径勿调用。
  * Tests/dev: clear `getDb` memo + close underlying Dexie. Next `getDb()` rebuilds `JieyuDatabase`; the `db` import remains the same Dexie instance; call `await db.open()` in tests as needed. Do not use in production.
  */
 export async function resetJieyuDatabaseSingletonForTests(): Promise<void> {

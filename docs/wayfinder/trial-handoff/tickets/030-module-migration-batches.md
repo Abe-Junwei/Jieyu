@@ -38,3 +38,4 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/280
 - 2026-10-18 第 15 批：最近会话列表、会话标题补丁、清空会话消息并回写 updatedAt，改走存储接口。基线 89 → 86。
 - 2026-10-18 第 16 批：运行时报告从审计行收集采纳、引用、相关性和字段计数，改走已有的按 collection 读取。基线 86 → 85。
 - 2026-10-18 第 17 批：工具决策和意图审计写入走 `audit.insertAuditLog`，按 collection、field、requestId 查已执行决策。基线 85 → 84。
+- 2026-10-18 第 18 批：生产代码不再从 `db` 桶导入。表访问在 `src/db/storagePort*.ts`，原来的服务和 hook 改调用这些模块。句段表白名单跟着挪到这些存储模块。基线 84 → 0。

@@ -1,0 +1,212 @@
+import { getDb } from './engine';
+import type { LayerUnitContentDocType, TextDocType } from './types';
+import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
+import {
+  invalidateUnitEmbeddings,
+  isDefaultTranscriptionLayerForUnitText,
+} from '../ai/embeddings/EmbeddingInvalidationService';
+import { getUnitDocProjectionById } from './storagePortServiceLayerSegmentGraph';
+import {
+  listUnitTextsByUnit,
+  listUnitTextsByUnits,
+  syncUnitTextToSegmentationV2,
+} from './storagePortServiceLayerSegmentationText';
+import {
+  invertTextTimeMapping as invertTextTimeMappingImpl,
+  mergeTextTimeMappingHistory,
+  normalizeTextTimeMapping,
+  previewTextTimeMapping as previewTextTimeMappingImpl,
+  type PreviewTextTimeMappingInput,
+  type PreviewTextTimeMappingResult,
+  type TextTimeMapping,
+  type UpdateTextTimeMappingInput,
+} from '../services/LinguisticService.timeMapping';
+import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
+import { patchProjectText, requireProjectPatch } from './storagePortServiceProjectMetadataPatch';
+
+function metadataOf(text: TextDocType): Record<string, unknown> {
+  return text.metadata !== null && typeof text.metadata === 'object'
+    ? (text.metadata as Record<string, unknown>)
+    : {};
+}
+
+export async function getUnitTexts(unitId: string): Promise<LayerUnitContentDocType[]> {
+  const db = await getDb();
+  return listUnitTextsByUnit(db, unitId);
+}
+
+export async function listUnitTextsByUnitIds(
+  unitIds: readonly string[],
+): Promise<LayerUnitContentDocType[]> {
+  const db = await getDb();
+  return listUnitTextsByUnits(db, unitIds);
+}
+
+export async function saveUnitText(data: LayerUnitContentDocType): Promise<string> {
+  const db = await getDb();
+  const unitId = data.unitId?.trim();
+  const layerId = data.layerId?.trim();
+  if (unitId) {
+    const unit = await getUnitDocProjectionById(db, unitId);
+    if (unit) {
+      await syncUnitTextToSegmentationV2(db, unit, data);
+    }
+    if (layerId && (await isDefaultTranscriptionLayerForUnitText(db, unitId, layerId))) {
+      await invalidateUnitEmbeddings(db, [unitId]);
+    }
+    dispatchWorkspaceUnitUpdated({
+      unitId,
+      ...(layerId ? { layerId } : {}),
+    });
+  }
+  return data.id;
+}
+
+export async function getAllTexts(): Promise<TextDocType[]> {
+  const db = await getDb();
+  // shortcut(P2-3): 项目列表本来就是全部项目 | the project list is every project
+  const docs = await db.collections.texts.find().exec();
+  return docs.map((doc) => doc.toJSON());
+}
+
+/** 单条文本（略过 getAllTexts），供壳层在首屏尽快拿到 metadata.logicalDurationSec | Single text for faster first-paint */
+export async function getTextById(textId: string): Promise<TextDocType | null> {
+  const id = textId.trim();
+  if (id.length === 0) return null;
+  const db = await getDb();
+  const existingDoc = await db.collections.texts.findOne({ selector: { id } }).exec();
+  return existingDoc ? existingDoc.toJSON() : null;
+}
+
+export async function updateProjectLanguageLists(input: {
+  textId: string;
+  primaryTitle: string;
+  englishFallbackTitle: string;
+  objectLanguageIds: readonly string[];
+  workingLanguageIds: readonly string[];
+}): Promise<TextDocType> {
+  const textId = input.textId.trim();
+  if (textId.length === 0) throw new Error('textId 不能为空');
+  const objectLanguageIds = [...input.objectLanguageIds];
+  const primary = objectLanguageIds[0];
+  if (!primary) throw new Error('至少保留一种目标语言');
+  const result = await patchProjectText(textId, (existing) => ({
+    ...existing,
+    title: buildPrimaryAndEnglishLabels({
+      primaryLabel: input.primaryTitle,
+      englishFallbackLabel: input.englishFallbackTitle,
+      existing: existing.title,
+    }),
+    metadata: {
+      ...metadataOf(existing),
+      primaryLanguageId: primary,
+      objectLanguageIds,
+      workingLanguageIds: [...input.workingLanguageIds],
+    },
+  }));
+  return requireProjectPatch(textId, result);
+}
+
+export async function saveText(data: TextDocType): Promise<string> {
+  const db = await getDb();
+  const doc = await db.collections.texts.insert(data);
+  return doc.primary;
+}
+
+/**
+ * 确保文本进入文献项目的逻辑时间模式 | Ensure the text is configured for document-mode logical time.
+ */
+export async function ensureDocumentTimeline(input: {
+  textId: string;
+  logicalDurationSec?: number;
+}): Promise<TextDocType> {
+  const textId = input.textId.trim();
+  if (textId.length === 0) throw new Error('textId 不能为空');
+
+  const result = await patchProjectText(textId, (existing) => {
+    const metadata = metadataOf(existing);
+    const logicalDurationSec =
+      Number.isFinite(input.logicalDurationSec) && (input.logicalDurationSec ?? 0) > 0
+        ? (input.logicalDurationSec as number)
+        : typeof metadata.logicalDurationSec === 'number' &&
+            Number.isFinite(metadata.logicalDurationSec)
+          ? metadata.logicalDurationSec
+          : 1800;
+    return {
+      ...existing,
+      metadata: {
+        ...metadata,
+        timelineMode: 'document',
+        logicalDurationSec,
+        timebaseLabel: 'logical-second',
+      },
+    };
+  });
+  return requireProjectPatch(textId, result);
+}
+
+export async function updateTextTimeMapping(
+  input: UpdateTextTimeMappingInput,
+): Promise<TextDocType> {
+  const textId = input.textId.trim();
+  if (textId.length === 0) throw new Error('textId 不能为空');
+
+  const result = await patchProjectText(textId, (existing) => {
+    const now = new Date().toISOString();
+    const metadata =
+      existing.metadata && typeof existing.metadata === 'object'
+        ? (existing.metadata as Record<string, unknown>)
+        : {};
+    const currentMapping = normalizeTextTimeMapping(metadata.timeMapping);
+    const mappingHistory = mergeTextTimeMappingHistory(currentMapping, metadata.timeMappingHistory);
+    const nextOffsetSec = input.offsetSec ?? currentMapping?.offsetSec ?? 0;
+    const nextScale = input.scale ?? currentMapping?.scale ?? 1;
+
+    if (!Number.isFinite(nextOffsetSec)) {
+      throw new Error('offsetSec 必须是有限数字');
+    }
+    if (nextOffsetSec < 0) {
+      throw new Error('offsetSec 不能小于 0');
+    }
+    if (!Number.isFinite(nextScale) || nextScale <= 0) {
+      throw new Error('scale 必须是大于 0 的有限数字');
+    }
+
+    const nextMapping: TextTimeMapping = {
+      offsetSec: nextOffsetSec,
+      scale: nextScale,
+      revision: (currentMapping?.revision ?? 0) + 1,
+      updatedAt: now,
+      ...(input.sourceMediaId?.trim()
+        ? { sourceMediaId: input.sourceMediaId.trim() }
+        : currentMapping?.sourceMediaId
+          ? { sourceMediaId: currentMapping.sourceMediaId }
+          : {}),
+    };
+
+    return {
+      ...existing,
+      metadata: {
+        ...metadata,
+        timeMapping: nextMapping,
+        ...(currentMapping ? { timeMappingRollback: currentMapping } : {}),
+        ...(mappingHistory ? { timeMappingHistory: mappingHistory } : {}),
+      },
+      updatedAt: now,
+    };
+  });
+  return requireProjectPatch(textId, result);
+}
+
+export function previewTextTimeMapping(
+  input: PreviewTextTimeMappingInput,
+): PreviewTextTimeMappingResult {
+  return previewTextTimeMappingImpl(input);
+}
+
+export function invertTextTimeMapping(
+  realTime: number,
+  mapping: Pick<TextTimeMapping, 'offsetSec' | 'scale'>,
+): number {
+  return invertTextTimeMappingImpl(realTime, mapping);
+}

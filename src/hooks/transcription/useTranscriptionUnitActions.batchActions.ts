@@ -1,7 +1,10 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { getDb } from '../../db';
-import type { AnchorDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
+import type { AnchorDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db/types';
 import { StorageReadbackError, storagePort } from '../../db/storagePort';
+import {
+  readTranscriptionContentById,
+  rereadTranscriptionRegexSplit,
+} from '../../db/storagePortTranscriptionUnits';
 import { LinguisticService } from '../../services/LinguisticService';
 import { formatTime } from '../../utils/transcriptionFormatters';
 import { reportActionError } from '../../utils/actionErrorReporter';
@@ -15,10 +18,7 @@ import {
 import type { Locale } from '../../i18n';
 import { t, tf } from '../../i18n';
 import { createLogger } from '../../observability/logger';
-import {
-  buildSegmentationProjection,
-  listUnitTextsByUnits,
-} from '../../services/LayerSegmentationTextService';
+import { buildSegmentationProjection } from '../../services/LayerSegmentationTextService';
 import { scheduleSegmentMetaSyncForUnitIds } from '../../services/segmentMetaSyncBestEffort';
 import { planRegexSplit } from './regexSplitPlan';
 import { mergeUnitSelfCertaintyConservative } from '../../utils/unitSelfCertainty';
@@ -33,25 +33,13 @@ type BatchActionsInput = {
   unitsOnCurrentMediaRef: MutableRefObject<LayerUnitDocType[]>;
   pushUndo: (label: string) => void;
   rollbackUndo?: () => Promise<void>;
-  createAnchor: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    mediaId: string,
-    time: number,
-  ) => Promise<AnchorDocType>;
-  updateAnchorTime: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    anchorId: string,
-    newTime: number,
-  ) => Promise<void>;
-  pruneOrphanAnchors: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    removedUnitIds: Set<string>,
-  ) => Promise<void>;
+  createAnchor: (mediaId: string, time: number) => Promise<AnchorDocType>;
+  updateAnchorTime: (anchorId: string, newTime: number) => Promise<void>;
+  pruneOrphanAnchors: (removedUnitIds: Set<string>) => Promise<void>;
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   reassignTranslations: (
     survivorId: string,
     removedId: string,
-    db: Awaited<ReturnType<typeof getDb>>,
     now: string,
   ) => Promise<{
     newTranslations: LayerUnitContentDocType[];
@@ -124,7 +112,6 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
 
     pushUndo(getUndoLabel(locale, 'offsetSelectedTimes'));
     try {
-      const db = await getDb();
       const now = new Date().toISOString();
       const updatedRows = targets.map((u) => {
         const next = transformed.get(u.id)!;
@@ -139,8 +126,10 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
 
       await Promise.all(
         updatedRows.map(async (u) => {
-          if (u.startAnchorId) await updateAnchorTime(db, u.startAnchorId, u.startTime);
-          if (u.endAnchorId) await updateAnchorTime(db, u.endAnchorId, u.endTime);
+          const startAnchorId = u.startAnchorId ?? '';
+          const endAnchorId = u.endAnchorId ?? '';
+          if (startAnchorId.length > 0) await updateAnchorTime(startAnchorId, u.startTime);
+          if (endAnchorId.length > 0) await updateAnchorTime(endAnchorId, u.endTime);
         }),
       );
 
@@ -228,7 +217,6 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
 
     pushUndo(getUndoLabel(locale, 'scaleSelectedTimes'));
     try {
-      const db = await getDb();
       const now = new Date().toISOString();
       const updatedRows = targets.map((u) => {
         const next = transformed.get(u.id)!;
@@ -243,8 +231,10 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
 
       await Promise.all(
         updatedRows.map(async (u) => {
-          if (u.startAnchorId) await updateAnchorTime(db, u.startAnchorId, u.startTime);
-          if (u.endAnchorId) await updateAnchorTime(db, u.endAnchorId, u.endTime);
+          const startAnchorId = u.startAnchorId ?? '';
+          const endAnchorId = u.endAnchorId ?? '';
+          if (startAnchorId.length > 0) await updateAnchorTime(startAnchorId, u.startTime);
+          if (endAnchorId.length > 0) await updateAnchorTime(endAnchorId, u.endTime);
         }),
       );
 
@@ -333,13 +323,12 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
       return;
     }
 
-    const db = await getDb();
     const projections = plan.projectionSources.map(({ unit, translation }) =>
       buildSegmentationProjection(unit, translation, now),
     );
     const storedContents = await Promise.all(
       plan.contents.map(async (row) => {
-        const stored = await db.dexie.layer_unit_contents.get(row.id);
+        const stored = await readTranscriptionContentById(row.id);
         if (!stored) return row;
         const text = row.text;
         return text === undefined
@@ -388,16 +377,17 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
     } catch (error) {
       if (error instanceof StorageReadbackError) {
         try {
-          const fresh = await getDb();
           const splitUnitIds = plan.units.map((unit) => unit.id);
           // 编辑器里的正文是按父句段映射过的视图行，不能直接塞库里的分词行
-          const [unitRows, contentsFound, anchorRows] = await Promise.all([
-            fresh.dexie.layer_units.bulkGet(writtenUnits.map((unit) => unit.id)),
-            listUnitTextsByUnits(fresh, splitUnitIds),
-            fresh.dexie.anchors.bulkGet(plan.anchors.map((row) => row.id)),
-          ]);
-          const unitsFound = unitRows.filter((row): row is LayerUnitDocType => row !== undefined);
-          const anchorsFound = anchorRows.filter((row): row is AnchorDocType => row !== undefined);
+          const {
+            units: unitsFound,
+            contents: contentsFound,
+            anchors: anchorsFound,
+          } = await rereadTranscriptionRegexSplit({
+            writtenUnitIds: writtenUnits.map((unit) => unit.id),
+            splitUnitIds,
+            anchorIds: plan.anchors.map((row) => row.id),
+          });
           setUnits((prev) => {
             const known = new Set(prev.map((unit) => unit.id));
             return [
@@ -470,7 +460,6 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
 
     pushUndo(getUndoLabel(locale, 'mergeSelectedUnits'));
     try {
-      const db = await getDb();
       const now = new Date().toISOString();
       const first = sorted[0]!;
       const last = sorted[sorted.length - 1]!;
@@ -498,7 +487,6 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
         const { newTranslations, updatedTranslations } = await reassignTranslations(
           first.id,
           u.id,
-          db,
           now,
         );
         allNewTranslations = [...allNewTranslations, ...newTranslations];
@@ -517,7 +505,7 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
       ]);
       selectUnitPrimary(first.id);
 
-      await pruneOrphanAnchors(db, removeIds);
+      await pruneOrphanAnchors(removeIds);
       setSaveState({
         kind: 'done',
         message: tf(locale, 'transcription.unitAction.done.mergeSelection', {

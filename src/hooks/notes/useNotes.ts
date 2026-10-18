@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { db as dexieDb, withNoteTextId } from '../../db';
 import type {
   UserNoteDocType,
   UserNoteDraft,
   NoteTargetType,
   NoteCategory,
   MultiLangString,
-} from '../../db';
+} from '../../db/types';
+import {
+  deleteUserNote,
+  findUnitMorphemeByIndex,
+  findUnitTokenByIndex,
+  listNotesForTarget,
+  listNotesForTargets,
+  putUserNoteForTarget,
+  readUnitMorpheme,
+  readUnitToken,
+  updateUserNote,
+} from '../../db/storagePortImportNotes';
 import { createLogger } from '../../observability/logger';
 import { scheduleSegmentMetaSyncForUnitIds } from '../../services/segmentMetaSyncBestEffort';
 import { newId } from '../../utils/transcriptionFormatters';
-import { normalizeUserNoteDocForStorage } from '../../utils/camDataUtils';
 
 const log = createLogger('useNotes');
 
@@ -29,7 +38,7 @@ export function useNotes(target: NoteTarget | null) {
 
   const resolveCanonicalTarget = useCallback(async (input: NoteTarget): Promise<NoteTarget> => {
     if (input.targetType === 'token') {
-      const existingToken = await dexieDb.unit_tokens.get(input.targetId);
+      const existingToken = await readUnitToken(input.targetId);
       if (existingToken) {
         return { targetType: 'token', targetId: existingToken.id };
       }
@@ -40,10 +49,7 @@ export function useNotes(target: NoteTarget | null) {
         );
 
         for (const unitId of unitCandidates) {
-          const tokenByIndex = await dexieDb.unit_tokens
-            .where('[unitId+tokenIndex]')
-            .equals([unitId, input.targetIndex])
-            .first();
+          const tokenByIndex = await findUnitTokenByIndex(unitId, input.targetIndex);
           if (tokenByIndex) {
             return { targetType: 'token', targetId: tokenByIndex.id, parentTargetId: unitId };
           }
@@ -54,7 +60,7 @@ export function useNotes(target: NoteTarget | null) {
     }
 
     if (input.targetType === 'morpheme') {
-      const existingMorpheme = await dexieDb.unit_morphemes.get(input.targetId);
+      const existingMorpheme = await readUnitMorpheme(input.targetId);
       if (existingMorpheme) {
         return {
           targetType: 'morpheme',
@@ -69,10 +75,7 @@ export function useNotes(target: NoteTarget | null) {
         );
 
         for (const tokenId of tokenCandidates) {
-          const morphByIndex = await dexieDb.unit_morphemes
-            .where('[tokenId+morphemeIndex]')
-            .equals([tokenId, input.targetIndex])
-            .first();
+          const morphByIndex = await findUnitMorphemeByIndex(tokenId, input.targetIndex);
           if (morphByIndex) {
             return { targetType: 'morpheme', targetId: morphByIndex.id, parentTargetId: tokenId };
           }
@@ -94,10 +97,7 @@ export function useNotes(target: NoteTarget | null) {
     setIsLoading(true);
     try {
       const resolvedTarget = await resolveCanonicalTarget(target);
-      const results = await dexieDb.user_notes
-        .where('[targetType+targetId]')
-        .equals([resolvedTarget.targetType, resolvedTarget.targetId])
-        .sortBy('updatedAt');
+      const results = await listNotesForTarget(resolvedTarget.targetType, resolvedTarget.targetId);
       if (ticket === ticketRef.current) {
         setNotes(results);
         setIsLoading(false);
@@ -140,9 +140,7 @@ export function useNotes(target: NoteTarget | null) {
         createdAt: now,
         updatedAt: now,
       };
-      await dexieDb.user_notes.put(
-        normalizeUserNoteDocForStorage(await withNoteTextId(dexieDb, doc)),
-      );
+      await putUserNoteForTarget(doc);
       scheduleSegmentMetaSyncForUnitIds(
         [
           resolvedTarget.targetId,
@@ -158,7 +156,7 @@ export function useNotes(target: NoteTarget | null) {
 
   const updateNote = useCallback(
     async (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => {
-      await dexieDb.user_notes.update(id, { ...updates, updatedAt: new Date().toISOString() });
+      await updateUserNote(id, { ...updates, updatedAt: new Date().toISOString() });
       if (target) {
         const resolvedTarget = await resolveCanonicalTarget(target);
         scheduleSegmentMetaSyncForUnitIds(
@@ -177,7 +175,7 @@ export function useNotes(target: NoteTarget | null) {
 
   const deleteNote = useCallback(
     async (id: string) => {
-      await dexieDb.user_notes.delete(id);
+      await deleteUserNote(id);
       if (target) {
         const resolvedTarget = await resolveCanonicalTarget(target);
         scheduleSegmentMetaSyncForUnitIds(
@@ -214,10 +212,7 @@ export function useNoteCounts(targetType: NoteTargetType, targetIds: string[], r
     (async () => {
       try {
         const map = new Map<string, number>();
-        const results = await dexieDb.user_notes
-          .where('[targetType+targetId]')
-          .anyOf(stableTargetIds.map((id) => [targetType, id]))
-          .toArray();
+        const results = await listNotesForTargets(targetType, stableTargetIds);
         for (const note of results) {
           map.set(note.targetId, (map.get(note.targetId) ?? 0) + 1);
         }

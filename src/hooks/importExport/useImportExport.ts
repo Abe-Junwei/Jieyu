@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LoadTranscriptionSnapshot } from '../transcription/workspaceSnapshotLoad';
 import { requestPersistOnGesture } from '../../utils/storageDurability';
-import { getDb } from '../../db';
 import { clearRecoverySnapshot } from '../../services/SnapshotService';
 import { useClickOutside } from '../ui/useClickOutside';
 import type {
@@ -10,7 +9,14 @@ import type {
   MediaItemDocType,
   LayerDocType,
   LayerUnitContentDocType,
-} from '../../db';
+} from '../../db/types';
+import {
+  listLayerLinksByLayerIds,
+  listSpeakersByIds,
+  listUnitNotes,
+  readOpenDatabaseName,
+  readTextRow,
+} from '../../db/storagePortImportReads';
 import type { SaveState } from '../useTranscriptionData';
 import { LinguisticService } from '../../services/LinguisticService';
 import { t, tf, useLocale, type DictKey, type Locale } from '../../i18n';
@@ -340,11 +346,7 @@ export function useImportExport(input: UseImportExportInput) {
 
   const fetchUnitNotes = useCallback(async (uttIds: string[]) => {
     if (uttIds.length === 0) return [];
-    const db = await getDb();
-    return db.dexie.user_notes
-      .where('[targetType+targetId]')
-      .anyOf(uttIds.map((id) => ['unit', id]))
-      .toArray();
+    return listUnitNotes(uttIds);
   }, []);
 
   const loadSegmentExportDataForLayers = useCallback(
@@ -359,8 +361,11 @@ export function useImportExport(input: UseImportExportInput) {
 
       const { layerSegmentQueryService } = await serviceLoaders.loadExportSupportModules();
 
-      const segMap = new Map<string, import('../../db').LayerUnitDocType[]>();
-      const contentMap = new Map<string, Map<string, import('../../db').LayerUnitContentDocType>>();
+      const segMap = new Map<string, import('../../db/types').LayerUnitDocType[]>();
+      const contentMap = new Map<
+        string,
+        Map<string, import('../../db/types').LayerUnitContentDocType>
+      >();
 
       for (const layer of targetLayers) {
         const orderedSegments =
@@ -381,7 +386,10 @@ export function useImportExport(input: UseImportExportInput) {
             },
           );
 
-        const mergedContentMap = new Map<string, import('../../db').LayerUnitContentDocType>();
+        const mergedContentMap = new Map<
+          string,
+          import('../../db/types').LayerUnitContentDocType
+        >();
         for (const content of mergedContents) {
           const segmentId = content.segmentId ?? content.unitId;
           if (!segmentId) continue;
@@ -395,13 +403,13 @@ export function useImportExport(input: UseImportExportInput) {
 
       return {
         ...(segMap.size > 0
-          ? { segmentsByLayer: segMap as Map<string, import('../../db').LayerUnitDocType[]> }
+          ? { segmentsByLayer: segMap as Map<string, import('../../db/types').LayerUnitDocType[]> }
           : {}),
         ...(contentMap.size > 0
           ? {
               segmentContents: contentMap as Map<
                 string,
-                Map<string, import('../../db').LayerUnitContentDocType>
+                Map<string, import('../../db/types').LayerUnitContentDocType>
               >,
             }
           : {}),
@@ -430,8 +438,7 @@ export function useImportExport(input: UseImportExportInput) {
   const loadProjectPrimaryOrthographyId = useCallback(async () => {
     const textId = activeTextId ?? (await getActiveTextId());
     if (!textId) return undefined;
-    const db = await getDb();
-    const textRow = await db.dexie.texts?.get?.(textId);
+    const textRow = await readTextRow(textId);
     const metadata =
       textRow && typeof textRow === 'object'
         ? (textRow as { metadata?: { primaryOrthographyId?: unknown } }).metadata
@@ -445,8 +452,7 @@ export function useImportExport(input: UseImportExportInput) {
   const loadProjectTimelineMetadata = useCallback(async () => {
     const textId = activeTextId ?? (await getActiveTextId());
     if (!textId) return undefined;
-    const db = await getDb();
-    const textRow = await db.dexie.texts?.get?.(textId);
+    const textRow = await readTextRow(textId);
     const metadata =
       textRow && typeof textRow === 'object'
         ? (
@@ -578,30 +584,25 @@ export function useImportExport(input: UseImportExportInput) {
             timeAlignedLayers,
             segmentExportMediaId || undefined,
           )) as {
-            segmentsByLayer?: Map<string, import('../../db').LayerUnitDocType[]>;
-            segmentContents?: Map<string, Map<string, import('../../db').LayerUnitContentDocType>>;
+            segmentsByLayer?: Map<string, import('../../db/types').LayerUnitDocType[]>;
+            segmentContents?: Map<
+              string,
+              Map<string, import('../../db/types').LayerUnitContentDocType>
+            >;
           };
           const layerSegments = exportData.segmentsByLayer;
           const layerSegmentContents = exportData.segmentContents;
-          const db = await getDb();
           // 只读本项目图层的链接（走 `layerId` 索引，JY-15）| Only this project's links (indexed, JY-15)
           const layerLinks =
-            typeof db.dexie.layer_links?.where === 'function' && layers.length > 0
-              ? await db.dexie.layer_links
-                  .where('layerId')
-                  .anyOf(layers.map((layer) => layer.id))
-                  .toArray()
+            layers.length > 0
+              ? await listLayerLinksByLayerIds(layers.map((layer) => layer.id))
               : [];
           const relevantSpeakerIds = resolveRelevantExportSpeakerIds(
             unitsOnCurrentMedia,
             layerSegments,
           );
           const speakers =
-            relevantSpeakerIds.size === 0
-              ? []
-              : (await db.dexie.speakers.toArray()).filter((speaker) =>
-                  relevantSpeakerIds.has(speaker.id),
-                );
+            relevantSpeakerIds.size === 0 ? [] : await listSpeakersByIds([...relevantSpeakerIds]);
           const exportUnits = await buildOrthographyAwareExportUnits(
             unitsOnCurrentMedia,
             defaultTrcLayer,
@@ -719,19 +720,16 @@ export function useImportExport(input: UseImportExportInput) {
               .map((unit) => unit.speakerId)
               .filter((id): id is string => typeof id === 'string' && id.length > 0),
           );
-          const db = await getDb();
           const speakers =
             relevantSpeakerIds.size === 0
               ? []
-              : (await db.dexie.speakers.toArray())
-                  .filter((speaker) => relevantSpeakerIds.has(speaker.id))
-                  .map((speaker) => ({
-                    id: speaker.id,
-                    name: speaker.name,
-                    ...(speaker.languageIds?.[0] ? { lang: speaker.languageIds[0] } : {}),
-                    ...(speaker.dialect ? { dialect: speaker.dialect } : {}),
-                    ...(speaker.accent ? { accent: speaker.accent } : {}),
-                  }));
+              : (await listSpeakersByIds([...relevantSpeakerIds])).map((speaker) => ({
+                  id: speaker.id,
+                  name: speaker.name,
+                  ...(speaker.languageIds?.[0] ? { lang: speaker.languageIds[0] } : {}),
+                  ...(speaker.dialect ? { dialect: speaker.dialect } : {}),
+                  ...(speaker.accent ? { accent: speaker.accent } : {}),
+                }));
           let xmlSanitized: XmlSanitizeReport | null = null;
           const trs = transcriberService.exportToTrs({
             units: exportUnits,
@@ -934,13 +932,8 @@ export function useImportExport(input: UseImportExportInput) {
               .map((unit) => unit.speakerId)
               .filter((id): id is string => typeof id === 'string' && id.length > 0),
           );
-          const db = await getDb();
           const speakers =
-            relevantSpeakerIds.size === 0
-              ? []
-              : (await db.dexie.speakers.toArray()).filter((speaker) =>
-                  relevantSpeakerIds.has(speaker.id),
-                );
+            relevantSpeakerIds.size === 0 ? [] : await listSpeakersByIds([...relevantSpeakerIds]);
           const speakerNameById = new Map(
             speakers.map((speaker) => [speaker.id, speaker.name] as const),
           );
@@ -1046,7 +1039,7 @@ export function useImportExport(input: UseImportExportInput) {
       },
       importProjectArchive: async (
         file: File,
-        strategy: import('../../db').ImportConflictStrategy,
+        strategy: import('../../db/types').ImportConflictStrategy,
         restoreMode?: import('../../services/JymService').ProjectArchiveRestoreMode,
         selection?: import('../../services/JymService').ProjectArchiveImportSelection,
       ) => {
@@ -1101,7 +1094,7 @@ export function useImportExport(input: UseImportExportInput) {
         return;
       }
       // B5-2：要换文稿了，旧范围的恢复快照作废 | B5-2: the document changes; drop the old recovery snapshot
-      await clearRecoverySnapshot((await getDb()).name, textId);
+      await clearRecoverySnapshot(await readOpenDatabaseName(), textId);
       try {
         const { kept } = await runInNewAnnotationDocument(textId, () =>
           importFile(file, strategy, options),
@@ -1235,7 +1228,7 @@ export function useImportExport(input: UseImportExportInput) {
   const reloadAfterAnnotationDocumentChange = useCallback(async () => {
     const textId = activeTextId ?? (await getActiveTextId());
     if (!textId) return;
-    await clearRecoverySnapshot((await getDb()).name, textId);
+    await clearRecoverySnapshot(await readOpenDatabaseName(), textId);
     await loadSnapshot(textId);
   }, [activeTextId, getActiveTextId, loadSnapshot]);
 

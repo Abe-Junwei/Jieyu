@@ -6,7 +6,6 @@ import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
 
 const {
   mockCountSegmentContentsByLayerId,
-  mockGetDb,
   mockCreateLayer,
   mockDeleteLayer,
   mockInsertLayerLink,
@@ -25,12 +24,11 @@ const {
   mockCreateSegment,
 } = vi.hoisted(() => ({
   mockCountSegmentContentsByLayerId: vi.fn(async () => 0),
-  mockGetDb: vi.fn(),
   mockCreateLayer: vi.fn(async () => undefined),
   mockDeleteLayer: vi.fn(async () => undefined),
-  mockInsertLayerLink: vi.fn(async () => undefined),
-  mockRemoveLayerLink: vi.fn(async () => undefined),
-  mockUpdateLayerLink: vi.fn(async () => undefined),
+  mockInsertLayerLink: vi.fn(async (_link: unknown) => undefined),
+  mockRemoveLayerLink: vi.fn(async (_id: string) => undefined),
+  mockUpdateLayerLink: vi.fn(async (_id: string, _changes: unknown) => undefined),
   mockUpdateLayer: vi.fn(async () => undefined),
   mockUpdateLayerSortOrder: vi.fn(async () => undefined),
   mockDeleteLayerSegmentGraphByLayerId: vi.fn(async () => ({
@@ -39,7 +37,7 @@ const {
   })),
   mockRemoveUnitsBatch: vi.fn(async () => undefined),
   mockLayerSegmentsWhereLayerIdToArray: vi.fn(async () => []),
-  mockRemoveBySelectorLayerLinks: vi.fn(async () => undefined),
+  mockRemoveBySelectorLayerLinks: vi.fn(async (_selector: unknown) => undefined),
   mockLayerLinksToArray: vi.fn(async () => []),
   mockUnitsWhereTextIdPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
   mockListUnitTextsByUnits: vi.fn(async () => []),
@@ -47,11 +45,18 @@ const {
   mockCreateSegment: vi.fn(async () => undefined),
 }));
 
-vi.mock('../../db', async () => {
-  const actual = await vi.importActual('../../db');
+vi.mock('../../db/storagePortTranscriptionLayers', async () => {
+  const actual = await vi.importActual<typeof import('../../db/storagePortTranscriptionLayers')>(
+    '../../db/storagePortTranscriptionLayers',
+  );
   return {
     ...actual,
-    getDb: mockGetDb,
+    insertTranscriptionLayerLink: (link: unknown) => mockInsertLayerLink(link),
+    deleteTranscriptionLayerLink: (id: string) => mockRemoveLayerLink(id),
+    updateTranscriptionLayerLink: (id: string, changes: unknown) =>
+      mockUpdateLayerLink(id, changes),
+    deleteTranscriptionLayerLinksBySelector: (selector: unknown) =>
+      mockRemoveBySelectorLayerLinks(selector),
   };
 });
 
@@ -100,29 +105,6 @@ vi.mock('../../services/LayerSegmentGraphService', () => ({
 describe('useTranscriptionLayerActions v2 cleanup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    mockGetDb.mockResolvedValue({
-      collections: {
-        layer_links: {
-          remove: mockRemoveLayerLink,
-          removeBySelector: mockRemoveBySelectorLayerLinks,
-          insert: mockInsertLayerLink,
-          update: mockUpdateLayerLink,
-        },
-      },
-      dexie: {
-        layer_segments: {
-          where: () => ({
-            equals: () => ({
-              toArray: mockLayerSegmentsWhereLayerIdToArray,
-            }),
-          }),
-        },
-        layer_links: {
-          toArray: mockLayerLinksToArray,
-        },
-      },
-    });
   });
 
   it('removes segment_links via source/target indexes when deleting a layer', async () => {
@@ -574,8 +556,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     const createCalls = mockCreateLayer.mock.calls as unknown[][];
     const lastCallIndex = createCalls.length - 1;
     const created = (lastCallIndex >= 0 ? createCalls[lastCallIndex]?.[0] : undefined) as
-      | { constraint?: string }
-      | undefined;
+      { constraint?: string } | undefined;
     expect(created?.constraint).toBe('independent_boundary');
     expect(mockSaveUnit).toHaveBeenCalledTimes(1);
     expect(mockCreateSegment).not.toHaveBeenCalled();
@@ -843,8 +824,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     });
 
     const reordered = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as
-      | LayerDocType[]
-      | undefined;
+      LayerDocType[] | undefined;
     expect(reordered?.map((layer) => layer.id)).toEqual([
       'layer_trc_b',
       'layer_trc_a',
@@ -964,16 +944,14 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     );
 
     const reordered = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as
-      | LayerDocType[]
-      | undefined;
+      LayerDocType[] | undefined;
     expect(reordered?.map((layer) => layer.id)).toEqual([
       'layer_trc_a',
       'layer_trc_b',
       'layer_trl_a',
     ]);
     const linkedLayers = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as
-      | Array<{ transcriptionLayerKey: string; layerId: string }>
-      | undefined;
+      Array<{ transcriptionLayerKey: string; layerId: string }> | undefined;
     expect(linkedLayers).toEqual([
       expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
     ]);
@@ -1098,8 +1076,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     );
 
     const nextLayers = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as
-      | LayerDocType[]
-      | undefined;
+      LayerDocType[] | undefined;
     // 主宿主仍在 trc_a 时 canonical 顺序保持译文紧邻首选根；link-only 下由 computeCanonicalLayerOrder 决定 |
     expect(nextLayers?.map((layer) => layer.id)).toEqual([
       'layer_trc_a',
@@ -1215,8 +1192,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     );
 
     const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as
-      | Array<{ id: string; hostTranscriptionLayerId?: string }>
-      | undefined;
+      Array<{ id: string; hostTranscriptionLayerId?: string }> | undefined;
     expect(nextLinks).toHaveLength(2);
     expect(nextLinks?.some((l) => l.id === 'link_to_a')).toBe(true);
     expect(nextLinks?.map((l) => l.hostTranscriptionLayerId).sort()).toEqual([
@@ -1321,8 +1297,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(mockUpdateLayerLink).toHaveBeenCalledWith('link_to_b', { isPreferred: true });
 
     const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as
-      | Array<{ id: string; isPreferred?: boolean }>
-      | undefined;
+      Array<{ id: string; isPreferred?: boolean }> | undefined;
     const prefB = nextLinks?.find((l) => l.id === 'link_to_b');
     const prefA = nextLinks?.find((l) => l.id === 'link_to_a');
     expect(prefB?.isPreferred).toBe(true);
@@ -1422,8 +1397,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     );
 
     const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as
-      | Array<{ id: string; hostTranscriptionLayerId?: string }>
-      | undefined;
+      Array<{ id: string; hostTranscriptionLayerId?: string }> | undefined;
     expect(nextLinks).toHaveLength(2);
     expect(nextLinks?.some((l) => l.id === 'link_to_a')).toBe(true);
     expect(nextLinks?.map((l) => l.hostTranscriptionLayerId).sort()).toEqual([
@@ -1528,8 +1502,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(mockUpdateLayerLink).toHaveBeenCalledWith('link_to_b', { isPreferred: true });
 
     const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as
-      | Array<{ id: string; isPreferred?: boolean }>
-      | undefined;
+      Array<{ id: string; isPreferred?: boolean }> | undefined;
     const prefB = nextLinks?.find((l) => l.id === 'link_to_b');
     const prefA = nextLinks?.find((l) => l.id === 'link_to_a');
     expect(prefB?.isPreferred).toBe(true);

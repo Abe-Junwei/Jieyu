@@ -5,10 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const auditInsert = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('../../db', () => ({
-  getDb: vi.fn(async () => ({
-    collections: { audit_logs: { insert: auditInsert } },
-  })),
+vi.mock('../../db/storagePort', () => ({
+  storagePort: () => ({ audit: { insertAuditLog: auditInsert } }),
 }));
 import type { ChatOrchestrator } from '../../ai/ChatOrchestrator';
 import { featureFlags } from '../../ai/config/featureFlags';

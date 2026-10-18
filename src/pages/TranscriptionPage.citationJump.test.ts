@@ -15,13 +15,30 @@ const mockDb = vi.hoisted(() => ({
     toArray: vi.fn(async () => []),
   },
   layer_units: {
-    get: vi.fn(async (): Promise<{ id: string; unitType?: string } | undefined> => undefined),
+    get: vi.fn(
+      async (_id: string): Promise<{ id: string; unitType?: string } | undefined> => undefined,
+    ),
   },
 }));
 
-vi.mock('../db', () => ({
-  db: mockDb,
-}));
+vi.mock('../db/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../db/engine')>();
+  return { ...actual, db: mockDb };
+});
+
+vi.mock('../db/storagePort', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../db/storagePort')>();
+  return {
+    ...actual,
+    storagePort: () => {
+      const port = actual.storagePort();
+      return {
+        ...port,
+        readLayerUnit: (id: string) => mockDb.layer_units.get(id),
+      };
+    },
+  };
+});
 
 import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJump';
 

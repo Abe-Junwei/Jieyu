@@ -2,7 +2,8 @@
  * Send-turn guards, session bookkeeping, UI seed messages, timeout + persistence helpers (before persistOpening).
  */
 
-import { getDb } from '../../db';
+import type { JieyuDatabase } from '../../db/engine';
+import type { AiMessageCitation } from '../../db/types';
 import { updateSessionMemoryWithPrompt } from '../../ai/chat/adaptiveInputProfile';
 import { extractUserDirectives } from '../../ai/memory/userDirectiveExtractor';
 import { applyUserDirectivesToSessionMemory } from '../../ai/memory/userDirectiveRegistry';
@@ -60,7 +61,7 @@ export function applyPrimaryStreamUsage(phaseState: SendTurnStreamPhaseState): v
 }
 
 export type SendTurnDbConversationHolder = {
-  dbRef: Awaited<ReturnType<typeof getDb>> | null;
+  dbRef: JieyuDatabase | null;
   activeConversationId: string | null;
 };
 
@@ -85,7 +86,7 @@ export type SendTurnPreflightContext = Readonly<{
     status: 'done' | 'error' | 'aborted',
     content: string,
     errorMessage?: string,
-    citations?: import('../../db').AiMessageCitation[],
+    citations?: AiMessageCitation[],
     reasoningContent?: string,
     options?: {
       sourceScopeSummary?: UiChatMessage['sourceScopeSummary'];

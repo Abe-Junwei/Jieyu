@@ -1,4 +1,4 @@
-import { getDb } from '../../db';
+import { readTextRow } from '../../db/storagePortImportReads';
 import {
   importFromEaf,
   type EafImportResult,
@@ -96,8 +96,7 @@ export async function parseAnnotationImport(input: {
   const readTierRoleMetadata = async (): Promise<Record<string, unknown> | undefined> => {
     const earlyTextId = activeTextId ?? (await getActiveTextId());
     if (!earlyTextId) return undefined;
-    const earlyDb = await getDb();
-    const earlyText = await earlyDb.dexie.texts.get(earlyTextId);
+    const earlyText = await readTextRow(earlyTextId);
     return (earlyText?.metadata as Record<string, unknown> | undefined) ?? undefined;
   };
 
@@ -105,8 +104,7 @@ export async function parseAnnotationImport(input: {
     eafResult = importFromEaf(text);
     const earlyTextId = activeTextId ?? (await getActiveTextId());
     if (earlyTextId && eafResult) {
-      const earlyDb = await getDb();
-      const earlyText = await earlyDb.dexie.texts.get(earlyTextId);
+      const earlyText = await readTextRow(earlyTextId);
       const savedRoles = readEafTierRoles(
         (earlyText?.metadata as Record<string, unknown> | undefined) ?? undefined,
       );

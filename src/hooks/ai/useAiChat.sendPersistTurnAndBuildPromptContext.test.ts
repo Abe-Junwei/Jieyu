@@ -17,15 +17,22 @@ const { ragGate, releaseRagGate } = vi.hoisted(() => {
   };
 });
 
-vi.mock('../../db', () => ({
-  getDb: vi.fn(async () => ({
-    collections: {
-      ai_conversations: {
-        findOne: () => ({ exec: async () => null }),
-        update: vi.fn(),
-      },
-    },
-  })),
+vi.mock('../../db/storagePortChatDatabase', () => ({
+  openChatDatabase: vi.fn(async () => ({ name: 'test-db' })),
+}));
+
+vi.mock('../../db/storagePortChatMessages', () => ({
+  insertUserChatMessage: vi.fn(async () => undefined),
+  insertAssistantChatPlaceholder: vi.fn(async () => undefined),
+}));
+
+vi.mock('../../db/storagePortChatConversations', () => ({
+  readAiConversation: vi.fn(async () => undefined),
+  patchAiConversation: vi.fn(async () => undefined),
+}));
+
+vi.mock('../../db/storagePortChatAudit', () => ({
+  insertChatAuditLog: vi.fn(async () => undefined),
 }));
 
 vi.mock('./useAiChat.sendTurnPersistPhase', () => ({

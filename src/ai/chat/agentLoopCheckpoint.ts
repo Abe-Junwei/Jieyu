@@ -1,4 +1,6 @@
-import { getDb, type AiTaskDoc } from '../../db';
+import { readAiMessageConversationId } from '../../db/storagePortAiMessages';
+import { listAiTasks, patchAiTask, readAiTask } from '../../db/storagePortAiTasks';
+import type { AiTaskDoc } from '../../db/types';
 import type { TaskRunner, TaskRunnerCheckpoint } from '../tasks/TaskRunner';
 import { getGlobalTaskRunner } from '../tasks/taskRunnerSingleton';
 import type { AiSessionMemoryPendingAgentLoopCheckpoint } from './chatDomain.types';
@@ -115,11 +117,9 @@ export async function loadPendingAgentLoopCheckpointFromTaskId(
   taskId: string,
 ): Promise<AiSessionMemoryPendingAgentLoopCheckpoint | undefined> {
   const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) return undefined;
-  const db = await getDb();
-  const task = await db.collections.ai_tasks.findOne({ selector: { id: normalizedTaskId } }).exec();
-  if (!task) return undefined;
-  const row = task.toJSON();
+  if (normalizedTaskId.length === 0) return undefined;
+  const row = await readAiTask(normalizedTaskId);
+  if (!row) return undefined;
   if (!isPendingResumableAgentLoopTask(row)) return undefined;
   return fromAgentLoopTaskCheckpoint(row);
 }
@@ -128,12 +128,11 @@ export async function loadPendingAgentLoopCheckpointFromTaskId(
 export async function resolveAgentLoopCheckpointConversationId(
   checkpoint: Pick<AiSessionMemoryPendingAgentLoopCheckpoint, 'taskId'>,
 ): Promise<string | undefined> {
-  const taskId = checkpoint.taskId?.trim();
-  if (!taskId) return undefined;
-  const db = await getDb();
-  const task = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
+  const taskId = checkpoint.taskId?.trim() ?? '';
+  if (taskId.length === 0) return undefined;
+  const task = await readAiTask(taskId);
   if (!task) return undefined;
-  return resolveConversationIdForAgentLoopTarget(task.toJSON().targetId);
+  return resolveConversationIdForAgentLoopTarget(task.targetId);
 }
 
 export type LoadLatestPendingAgentLoopCheckpointOptions = Readonly<{
@@ -145,28 +144,20 @@ async function resolveConversationIdForAgentLoopTarget(
   targetId: string,
 ): Promise<string | undefined> {
   const normalizedTargetId = targetId.trim();
-  if (!normalizedTargetId) return undefined;
-  const db = await getDb();
-  const message = await db.collections.ai_messages
-    .findOne({ selector: { id: normalizedTargetId } })
-    .exec();
-  const conversationId = message?.toJSON().conversationId?.trim();
-  return conversationId || undefined;
+  if (normalizedTargetId.length === 0) return undefined;
+  return readAiMessageConversationId(normalizedTargetId);
 }
 
 export async function loadLatestPendingAgentLoopCheckpoint(
   options?: LoadLatestPendingAgentLoopCheckpointOptions,
 ): Promise<AiSessionMemoryPendingAgentLoopCheckpoint | undefined> {
-  const scopedConversationId = options?.conversationId?.trim();
-  const db = await getDb();
-  // shortcut(P2-3): 全局表，量小 | global table, small
-  const pendingTasks = (await db.collections.ai_tasks.find().exec())
-    .map((item) => item.toJSON())
+  const scopedConversationId = options?.conversationId?.trim() ?? '';
+  const pendingTasks = (await listAiTasks())
     .filter((row) => isPendingResumableAgentLoopTask(row))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   for (const task of pendingTasks) {
-    if (scopedConversationId) {
+    if (scopedConversationId.length > 0) {
       const targetConversationId = await resolveConversationIdForAgentLoopTarget(task.targetId);
       if (targetConversationId !== scopedConversationId) continue;
     }
@@ -178,10 +169,9 @@ export async function loadLatestPendingAgentLoopCheckpoint(
 
 export async function completeAgentLoopCheckpointTask(taskId: string): Promise<void> {
   const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) return;
-  const db = await getDb();
+  if (normalizedTaskId.length === 0) return;
   const timestamp = nowIso();
-  await db.collections.ai_tasks.update(normalizedTaskId, {
+  await patchAiTask(normalizedTaskId, {
     status: 'done',
     resumable: false,
     completedAt: timestamp,
@@ -191,10 +181,9 @@ export async function completeAgentLoopCheckpointTask(taskId: string): Promise<v
 
 export async function cancelAgentLoopCheckpointTask(taskId: string): Promise<void> {
   const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) return;
-  const db = await getDb();
+  if (normalizedTaskId.length === 0) return;
   const timestamp = nowIso();
-  await db.collections.ai_tasks.update(normalizedTaskId, {
+  await patchAiTask(normalizedTaskId, {
     status: 'failed',
     resumable: false,
     errorMessage: 'cancelled_by_user',

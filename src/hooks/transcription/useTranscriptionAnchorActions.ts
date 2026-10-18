@@ -1,6 +1,9 @@
 import { useCallback } from 'react';
-import { getDb } from '../../db';
-import type { AnchorDocType, LayerUnitDocType } from '../../db';
+import type { AnchorDocType, LayerUnitDocType } from '../../db/types';
+import {
+  deleteTranscriptionAnchor,
+  putTranscriptionAnchor,
+} from '../../db/storagePortTranscriptionAnchors';
 import { newId } from '../../utils/transcriptionFormatters';
 
 type Params = {
@@ -11,52 +14,50 @@ type Params = {
 
 export function useTranscriptionAnchorActions({ anchorsRef, unitsRef, setAnchors }: Params) {
   const createAnchor = useCallback(
-    async (
-      db: Awaited<ReturnType<typeof getDb>>,
-      mediaId: string,
-      time: number,
-    ): Promise<AnchorDocType> => {
+    async (mediaId: string, time: number): Promise<AnchorDocType> => {
       const anchor: AnchorDocType = {
         id: newId('anc'),
         mediaId,
         time,
         createdAt: new Date().toISOString(),
       };
-      await db.collections.anchors.insert(anchor);
-      setAnchors((prev) => [...prev, anchor]);
-      return anchor;
+      const stored = await putTranscriptionAnchor(anchor);
+      setAnchors((prev) => [...prev, stored]);
+      return stored;
     },
     [setAnchors],
   );
 
   const pruneOrphanAnchors = useCallback(
-    async (db: Awaited<ReturnType<typeof getDb>>, excludeUnitIds?: Set<string>) => {
+    async (excludeUnitIds?: Set<string>) => {
       const referenced = new Set<string>();
-      for (const u of unitsRef.current) {
-        if (excludeUnitIds?.has(u.id)) continue;
-        if (u.startAnchorId) referenced.add(u.startAnchorId);
-        if (u.endAnchorId) referenced.add(u.endAnchorId);
+      for (const unit of unitsRef.current) {
+        if (excludeUnitIds?.has(unit.id)) continue;
+        const startAnchorId = unit.startAnchorId ?? '';
+        const endAnchorId = unit.endAnchorId ?? '';
+        if (startAnchorId.length > 0) referenced.add(startAnchorId);
+        if (endAnchorId.length > 0) referenced.add(endAnchorId);
       }
-      const orphans = anchorsRef.current.filter((a) => !referenced.has(a.id));
+      const orphans = anchorsRef.current.filter((anchor) => !referenced.has(anchor.id));
       if (orphans.length === 0) return;
 
       for (const orphan of orphans) {
-        await db.collections.anchors.remove(orphan.id);
+        await deleteTranscriptionAnchor(orphan.id);
       }
-      const orphanIds = new Set(orphans.map((a) => a.id));
-      setAnchors((prev) => prev.filter((a) => !orphanIds.has(a.id)));
+      const orphanIds = new Set(orphans.map((anchor) => anchor.id));
+      setAnchors((prev) => prev.filter((anchor) => !orphanIds.has(anchor.id)));
     },
     [anchorsRef, setAnchors, unitsRef],
   );
 
   const updateAnchorTime = useCallback(
-    async (db: Awaited<ReturnType<typeof getDb>>, anchorId: string, newTime: number) => {
-      const anchor = anchorsRef.current.find((a) => a.id === anchorId);
+    async (anchorId: string, newTime: number) => {
+      const anchor = anchorsRef.current.find((item) => item.id === anchorId);
       if (!anchor) return;
 
       const updated: AnchorDocType = { ...anchor, time: newTime };
-      await db.collections.anchors.insert(updated);
-      setAnchors((prev) => prev.map((a) => (a.id === anchorId ? updated : a)));
+      const stored = await putTranscriptionAnchor(updated);
+      setAnchors((prev) => prev.map((item) => (item.id === anchorId ? stored : item)));
     },
     [anchorsRef, setAnchors],
   );

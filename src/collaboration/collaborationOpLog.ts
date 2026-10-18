@@ -1,10 +1,7 @@
-import { getDb } from '../db';
+import { putCollaborationOperationAuditLogs } from '../db/storagePortImportCollaboration';
 
 type CollaborationOperationType =
-  | 'arbitration_requested'
-  | 'arbitration_decided'
-  | 'reconnect_validated'
-  | 'conflict_resolved';
+  'arbitration_requested' | 'arbitration_decided' | 'reconnect_validated' | 'conflict_resolved';
 
 export interface CollaborationOperationLog {
   logId: string;
@@ -53,7 +50,9 @@ export function createCollaborationOperationLog(
   input: CreateCollaborationOperationLogInput,
 ): CollaborationOperationLog {
   const at = input.at ?? Date.now();
-  const payloadDigest = hashString(`${input.type}:${input.entityId}:${input.sessionId}:${input.payloadSource}`);
+  const payloadDigest = hashString(
+    `${input.type}:${input.entityId}:${input.sessionId}:${input.payloadSource}`,
+  );
 
   return {
     logId: `log_${hashString(`${input.entityId}:${input.sessionId}:${at}:${input.type}:${input.payloadSource}`)}`,
@@ -94,34 +93,14 @@ export function appendOperationLog(
 /**
  * 持久化协同冲突操作日志到审计仓 | Persist collaboration operation logs into audit storage
  */
-export async function persistCollaborationOperationLogs(logs: CollaborationOperationLog[]): Promise<void> {
+export async function persistCollaborationOperationLogs(
+  logs: CollaborationOperationLog[],
+): Promise<void> {
   const merged = mergeOperationLogs(logs);
   if (merged.length === 0) return;
 
   try {
-    const db = await getDb();
-    await db.dexie.audit_logs.bulkPut(merged.map((log) => ({
-      id: `collab_${log.logId}`,
-      collection: 'collaboration_conflicts',
-      documentId: log.entityId,
-      action: 'create' as const,
-      field: 'operation_log',
-      oldValue: '',
-      newValue: log.type,
-      source: 'system' as const,
-      timestamp: new Date(log.at).toISOString(),
-      requestId: log.logId,
-      metadataJson: JSON.stringify({
-        type: log.type,
-        entityId: log.entityId,
-        sessionId: log.sessionId,
-        payloadDigest: log.payloadDigest,
-        ...(log.strategy !== undefined ? { strategy: log.strategy } : {}),
-        ...(log.conflictCodes !== undefined ? { conflictCodes: log.conflictCodes } : {}),
-        ...(log.decisionId !== undefined ? { decisionId: log.decisionId } : {}),
-        ...(log.traceId !== undefined ? { traceId: log.traceId } : {}),
-      }),
-    })));
+    await putCollaborationOperationAuditLogs(merged);
   } catch (error) {
     if (isMissingIndexedDbApiError(error)) return;
     throw error;
