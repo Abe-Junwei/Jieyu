@@ -6,6 +6,14 @@ function trimmed(id: string): string {
   return id.trim();
 }
 
+export async function listMediaIdsByText(textId: string): Promise<string[]> {
+  const id = trimmed(textId);
+  if (id.length === 0) return [];
+  const database = await getDb();
+  const keys = await database.dexie.media_items.where('textId').equals(id).primaryKeys();
+  return keys.map((key) => String(key));
+}
+
 export async function listMediaByText(textId: string): Promise<MediaItemDocType[]> {
   const id = trimmed(textId);
   if (id.length === 0) return [];

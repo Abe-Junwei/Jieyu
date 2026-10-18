@@ -6,10 +6,12 @@
 import type {
   AnchorDocType,
   AuditLogDocType,
+  AiMessageDoc,
   AiRuntimeV2TurnDoc,
   LayerUnitContentDocType,
   LayerUnitDocType,
   MediaItemDocType,
+  NoteTargetType,
   SegmentMetaDocType,
   SpeakerDocType,
   TextDocType,
@@ -17,6 +19,8 @@ import type {
   TierDefinitionDocType,
   TrackEntityDocType,
   TranslationStatusSnapshotDocType,
+  UserNoteDocType,
+  UserNoteDraft,
   UnitMorphemeDocType,
   UnitTokenDocType,
 } from './types';
@@ -37,9 +41,12 @@ import {
   listTranslationSnapshotsByText,
 } from './storagePortProjectProgress';
 import { listUnitMorphemesByText, listUnitTokensByText } from './storagePortCorpusRows';
-import { listMediaByText, saveMediaItem } from './storagePortMedia';
+import { listMediaByText, listMediaIdsByText, saveMediaItem } from './storagePortMedia';
+import { listNotesByTarget, putUserNote } from './storagePortNotes';
 import {
   countPresentLayerUnits,
+  listAiMessagesByConversation,
+  listAuditLogsByCollection,
   listLayerUnitIdsByText,
   listLayerUnitsAtMediaStart,
   listTierIdsByContentLanguage,
@@ -192,6 +199,13 @@ export interface StoragePort {
     languageId: string,
   ): Promise<string[]>;
   patchAiMessageContent(id: string, patch: AiMessageContentPatch): Promise<void>;
+  listMediaIdsByText(textId: string): Promise<string[]>;
+  listNotesByTarget(targetType: NoteTargetType, targetId: string): Promise<UserNoteDocType[]>;
+  putUserNote(
+    doc: UserNoteDraft,
+  ): Promise<{ id: string; targetId: string; parentTargetId?: string; unitId: string }>;
+  listAiMessagesByConversation(conversationId: string): Promise<AiMessageDoc[]>;
+  listAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -402,12 +416,17 @@ export const dexieStoragePort: StoragePort = {
   listUnitMorphemesByText,
   listMediaByText,
   saveMediaItem,
+  listMediaIdsByText,
+  listNotesByTarget,
+  putUserNote,
   countPresentLayerUnits,
   listLayerUnitIdsByText,
   listLayerUnitsAtMediaStart,
   readTierDefinition,
   listTierIdsByContentLanguage,
   patchAiMessageContent,
+  listAiMessagesByConversation,
+  listAuditLogsByCollection,
 };
 
 async function assignSpeakerToMixedSelection(

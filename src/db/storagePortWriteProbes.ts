@@ -1,6 +1,11 @@
 import { getDb } from './engine';
 import { StorageReadbackError } from './storageReadbackError';
-import type { AiMessageDoc, LayerUnitDocType, TierDefinitionDocType } from './types';
+import type {
+  AiMessageDoc,
+  AuditLogDocType,
+  LayerUnitDocType,
+  TierDefinitionDocType,
+} from './types';
 
 function trimmed(id: string): string {
   return id.trim();
@@ -61,7 +66,21 @@ export interface AiMessageContentPatch {
   updatedAt: string;
 }
 
-/** 行不存在时不写。存在时合并这几个字段并读回。 */
+export async function listAiMessagesByConversation(
+  conversationId: string,
+): Promise<AiMessageDoc[]> {
+  const id = trimmed(conversationId);
+  if (id.length === 0) return [];
+  const database = await getDb();
+  return database.dexie.ai_messages.where('conversationId').equals(id).toArray();
+}
+
+export async function listAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]> {
+  const id = trimmed(collection);
+  if (id.length === 0) return [];
+  const database = await getDb();
+  return database.dexie.audit_logs.where('collection').equals(id).toArray();
+}
 export async function patchAiMessageContent(
   id: string,
   patch: AiMessageContentPatch,
