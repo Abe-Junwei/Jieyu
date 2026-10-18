@@ -16,10 +16,11 @@ if (mainBuild !== 0) process.exit(mainBuild);
 const preloadBuild = run(node, [vite, 'build', '--config', 'electron/vite.preload.config.ts']);
 if (preloadBuild !== 0) process.exit(preloadBuild);
 const rebuilt = run(node, [path.join(root, 'node_modules/@electron/rebuild/lib/cli.js'), '-f', '-w', 'better-sqlite3']);
-const electronArgs = [path.join(root, 'node_modules/electron/cli.js'), 'electron/dist/main.js', '--smoke'];
+const electronArgs = [path.join(root, 'node_modules/electron/cli.js')];
 if (process.platform === 'linux') {
-  electronArgs.push('--no-sandbox');
+  electronArgs.push('--password-store=basic', '--no-sandbox');
 }
+electronArgs.push('electron/dist/main.js', '--smoke');
 const needsXvfb = process.platform === 'linux' && !process.env.DISPLAY;
 const smoke = rebuilt === 0
   ? needsXvfb

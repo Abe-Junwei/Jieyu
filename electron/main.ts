@@ -12,6 +12,9 @@ import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import { writeProbeAndReadBack } from '../src/desktop/skeleton/probeStore';
 import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
 
+app.commandLine.appendSwitch('password-store', 'basic');
+if (process.platform === 'linux') safeStorage.setUsePlainTextEncryption(true);
+
 const BAIDU_MARKER = '百度网盘';
 const MEDIA_SCHEME = 'jieyu-media';
 
@@ -367,7 +370,6 @@ async function chooseProject(): Promise<void> {
   }
 }
 
-app.commandLine.appendSwitch('password-store', 'basic');
 app.whenReady().then(async () => {
   ensureUserDataLayout(app.getPath('userData'));
   installCsp();
