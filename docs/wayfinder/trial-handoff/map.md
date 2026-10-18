@@ -162,6 +162,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-17 用户（grill）：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276)（026）改为实现单，按 ADR-0059 写骨架并验收。开工前批准 better-sqlite3。[#313](https://github.com/Abe-Junwei/Jieyu/issues/313)（041）的 A 是用户本人做的 JYM，不受冻结，代理不读语料；整张单仍被 #275、#325 挡住，B 等解冻。
 - 2026-10-17 主路线图全文对账：顺序改为先 #276，再 #275 与 #280；D14（#259）只等存储几步与 #258、#281，不等首发功能单；首发 [#282](https://github.com/Abe-Junwei/Jieyu/issues/282)（032）补挂 D14 与 035、037、038、040、041；发布流水线 [#277](https://github.com/Abe-Junwei/Jieyu/issues/277)（027）排到解冻后。只出决定、调研、原型、文档的单子不受冻结。[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)（ADR-0048）、[#279](https://github.com/Abe-Junwei/Jieyu/issues/279)（ADR-0058）、[#304](https://github.com/Abe-Junwei/Jieyu/issues/304)（ADR-0057）已落成，关闭，本地 024、029、036 删除。
 - 2026-10-18：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架落地（[#331](https://github.com/Abe-Junwei/Jieyu/pull/331)）。三平台烟测覆盖启动、选项目文件夹、同步盘警告、第二窗口被锁挡住、一次 `project.sqlite` 写入读回、主进程带密钥的出站请求（渲染进程看不到明文）、媒体 Range。浏览器端到端仍是主回归。协作编译期剔除留给 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328)。本地 026 删除。
+- 2026-10-18 用户：Field Matters 调研（本机笔记，2022–2026 论文）里值得做的四项挂第二程：[#333](https://github.com/Abe-Junwei/Jieyu/issues/333) 词表音位配列质检、[#334](https://github.com/Abe-Junwei/Jieyu/issues/334) ASR 训练集导出与编辑记录、[#335](https://github.com/Abe-Junwei/Jieyu/issues/335) 注释 LLM 后校正（先做三方对比实验，产品接入归 #315）、[#336](https://github.com/Abe-Junwei/Jieyu/issues/336) 离线说话人分离原型。全部排在 ADR-0064 解冻与 #250 之后；自训模型都不设默认。暂缓不开单：CLDF 导出（等 #309、#310）、CRF 注释器（先看 #335 的结果）、ZIPA 音素识别与强制对齐（等推理后端）、PolyGloss（只跟踪，许可未明）。
+- 2026-10-18 11:20 用户：#335 第一步（三方对比实验）提前，不受冻结、不等 #250。实验脚本在本机由用户在自己的数据上跑，代理不读语料；第二步（产品接入）仍排在解冻与 #250 之后。
 
 ## Next leg
 
@@ -193,8 +195,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - [#315](https://github.com/Abe-Junwei/Jieyu/issues/315) B16a 语言学只读查询工具（领域工具已落地，flag 默认关；多步循环归 #314）
 - [#317](https://github.com/Abe-Junwei/Jieyu/issues/317) B16b 分析正文（主张核对已落地，flag 默认关；词形可发用户自选云端模型，见 ADR-0055；结果回模型归 #314）
 - [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) B17 外部证据源（命中映射已落地，flag 默认关；stdio 宿主桥，浏览器不 spawn；命中回模型归 #314）
+- [#333](https://github.com/Abe-Junwei/Jieyu/issues/333) 词表音位配列质检（可疑条目视图，留一法困惑度）
+- [#334](https://github.com/Abe-Junwei/Jieyu/issues/334) ASR 训练集导出与「草稿到改后」编辑记录（Whisper 路线，模型经 #303/#305 登记）
+- [#335](https://github.com/Abe-Junwei/Jieyu/issues/335) 注释草稿加云端 LLM 后校正（三方对比实验已提前，可在第一程期间做；产品接入归 #315，flag 默认关）
+- [#336](https://github.com/Abe-Junwei/Jieyu/issues/336) 离线说话人分离原型（sherpa-onnx，3–5 段真实录音量 DER）
 
-排序（2026-10-13 21:23，2026-10-15 补 A15、B16、B17）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），B16 与 B7 同属这一段，B17 在 B16b 之后。A 系列 #286–#297 按需。A15 的 R1/R2 代码在 main、flag 关，不挡 [#250](https://github.com/Abe-Junwei/Jieyu/issues/250) 的交付，不进试用版默认路径。B16/B17 的领域查询与核对已落地，flag 默认关；智能体顺序见主路线图 §2.2.0。
+排序（2026-10-13 21:23，2026-10-15 补 A15、B16、B17，2026-10-18 补 Field Matters 四项）：先词典页闭环，再语料库页闭环（#298、#299 归入语料库页），B16 与 B7 同属这一段，B17 在 B16b 之后。A 系列 #286–#297 按需。A15 的 R1/R2 代码在 main、flag 关，不挡 [#250](https://github.com/Abe-Junwei/Jieyu/issues/250) 的交付，不进试用版默认路径。B16/B17 的领域查询与核对已落地，flag 默认关；智能体顺序见主路线图 §2.2.0。#333 归词典页一段；#335 跟 B16a（#315）走；#334 在 #303/#305 之后；#336 不挡其他单。
 
 ## Not yet specified
 
