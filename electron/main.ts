@@ -1,0 +1,394 @@
+import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, session } from 'electron';
+import type { IpcMainInvokeEvent, WebContents } from 'electron';
+import fs from 'node:fs';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import path from 'node:path';
+import { Readable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
+import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
+import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
+import { openProjectFolder } from '../src/desktop/skeleton/openProject';
+import { writeProbeAndReadBack } from '../src/desktop/skeleton/probeStore';
+import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
+
+app.commandLine.appendSwitch('password-store', 'basic');
+if (process.platform === 'linux') safeStorage.setUsePlainTextEncryption(true);
+
+const BAIDU_MARKER = '百度网盘';
+const MEDIA_SCHEME = 'jieyu-media';
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: MEDIA_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true },
+  },
+]);
+
+function mediaRoot(): string {
+  return path.join(app.getPath('temp'), 'jieyu-skeleton-media');
+}
+
+function mediaFile(name: string): string | null {
+  const root = path.resolve(mediaRoot());
+  const filePath = path.resolve(root, path.basename(name));
+  const relative = path.relative(root, filePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return null;
+  return filePath;
+}
+
+function installCsp(): void {
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [DESKTOP_CSP],
+      },
+    });
+  });
+}
+
+function installMediaProtocol(): void {
+  protocol.handle(MEDIA_SCHEME, (request) => {
+    const url = new URL(request.url);
+    const filePath = mediaFile(url.pathname);
+    if (!filePath || !fs.existsSync(filePath)) {
+      return new Response(null, { status: 404 });
+    }
+    const total = fs.statSync(filePath).size;
+    const slice = sliceForRange(total, request.headers.get('range'));
+    if (slice.status === 416) {
+      return new Response(null, {
+        status: 416,
+        headers: { 'Content-Range': `bytes */${total}` },
+      });
+    }
+    const length = slice.end - slice.start + 1;
+    const headers = new Headers({
+      'Accept-Ranges': 'bytes',
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': String(length),
+    });
+    if (slice.status === 206) {
+      headers.set('Content-Range', `bytes ${slice.start}-${slice.end}/${total}`);
+    }
+    if (length === 0) {
+      return new Response(null, { status: slice.status, headers });
+    }
+    const stream = fs.createReadStream(filePath, { start: slice.start, end: slice.end });
+    return new Response(Readable.toWeb(stream) as unknown as BodyInit, {
+      status: slice.status,
+      headers,
+    });
+  });
+}
+
+let openedFolder: string | null = null;
+const inFlightRequests = new Map<string, AbortController>();
+
+function databasePath(): string {
+  const root = openedFolder ?? path.join(app.getPath('temp'), 'jieyu-skeleton');
+  return path.join(root, 'project.sqlite');
+}
+
+function secretPath(): string {
+  return path.join(app.getPath('userData'), 'preferences', 'secret.bin');
+}
+
+function readStoredSecret(): string | null {
+  const file = secretPath();
+  if (!fs.existsSync(file) || !safeStorage.isEncryptionAvailable()) return null;
+  return safeStorage.decryptString(fs.readFileSync(file));
+}
+
+function handle<T extends unknown[]>(
+  channel: string,
+  listener: (...args: T) => unknown,
+): void {
+  ipcMain.handle(channel, (event: IpcMainInvokeEvent, ...args: T) => {
+    void event;
+    return listener(...args);
+  });
+}
+
+async function runOutboundRequest(
+  sender: WebContents,
+  requestId: string,
+  url: string,
+): Promise<{ status: number; chunks: number; aborted: boolean }> {
+  const secret = readStoredSecret();
+  if (!secret) throw new Error('missing secret');
+  const controller = new AbortController();
+  inFlightRequests.set(requestId, controller);
+  let chunks = 0;
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: controller.signal,
+    });
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    if (reader) {
+      while (true) {
+        const step = await reader.read();
+        if (step.done) break;
+        const text = decoder.decode(step.value, { stream: true });
+        if (text.length > 0) {
+          chunks += 1;
+          sender.send('skeleton:request-chunk', { requestId, chunk: text });
+        }
+      }
+    }
+    return { status: response.status, chunks, aborted: false };
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return { status: 0, chunks, aborted: true };
+    }
+    throw error;
+  } finally {
+    inFlightRequests.delete(requestId);
+  }
+}
+
+function registerIpc(): void {
+  handle('skeleton:write-probe', (note: unknown) => {
+    if (typeof note !== 'string' || note.length === 0) throw new Error('empty probe');
+    const file = databasePath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    return writeProbeAndReadBack(file, note);
+  });
+
+  handle('skeleton:open-project', (folder: unknown) => {
+    if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
+    const opened = openProjectFolder({
+      folder,
+      pid: process.pid,
+      extraMarkers: [BAIDU_MARKER],
+      userDataRoot: app.getPath('userData'),
+    });
+    if (opened.lock === 'acquired') openedFolder = folder;
+    if (opened.lock === 'busy') {
+      return { ...opened, message: '已在别处打开' };
+    }
+    if (opened.warning === 'sync-folder') {
+      return { ...opened, message: '文件夹在同步盘里，仍可继续' };
+    }
+    return opened;
+  });
+
+  handle('skeleton:store-secret', (plain: unknown) => {
+    if (typeof plain !== 'string' || plain.length === 0) throw new Error('empty secret');
+    if (!safeStorage.isEncryptionAvailable()) return { stored: false, reason: 'unavailable' };
+    const file = secretPath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, safeStorage.encryptString(plain));
+    return { stored: true };
+  });
+
+  ipcMain.handle('skeleton:start-request', (event, requestId: unknown, url: unknown) => {
+    if (typeof requestId !== 'string' || requestId.length === 0) throw new Error('empty requestId');
+    if (typeof url !== 'string' || url.length === 0) throw new Error('empty url');
+    return runOutboundRequest(event.sender, requestId, url);
+  });
+
+  handle('skeleton:abort-request', (requestId: unknown) => {
+    if (typeof requestId !== 'string' || requestId.length === 0) throw new Error('empty requestId');
+    const controller = inFlightRequests.get(requestId);
+    if (!controller) return { aborted: false };
+    controller.abort();
+    return { aborted: true };
+  });
+
+  handle('skeleton:media-url', (name: unknown) => {
+    if (typeof name !== 'string' || name.length === 0) throw new Error('empty media');
+    return `${MEDIA_SCHEME}://local/${path.basename(name)}`;
+  });
+}
+
+async function openWindow(): Promise<BrowserWindow> {
+  const preload = path.join(path.dirname(fileURLToPath(import.meta.url)), 'preload.cjs');
+  const win = new BrowserWindow({
+    show: !process.argv.includes('--smoke'),
+    webPreferences: {
+      preload,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  const devServer = process.env.JIEYU_VITE_DEV_SERVER;
+  if (devServer && !process.argv.includes('--smoke')) {
+    await win.loadURL(devServer);
+    return win;
+  }
+  const indexHtml = path.join(process.cwd(), 'dist', 'index.html');
+  if (!process.argv.includes('--smoke') && fs.existsSync(indexHtml)) {
+    await win.loadFile(indexHtml);
+    return win;
+  }
+  const page = path.join(app.getPath('temp'), 'jieyu-skeleton-smoke.html');
+  fs.writeFileSync(page, '<!doctype html><title>jieyu</title>');
+  await win.loadFile(page);
+  return win;
+}
+
+function startSmokeLoopback(expectedSecret: string): Promise<{
+  baseUrl: string;
+  sawExpectedAuth: () => boolean;
+  close: () => Promise<void>;
+}> {
+  let matchedAuth = false;
+  const server = http.createServer((req, res) => {
+    if (req.headers.authorization === `Bearer ${expectedSecret}`) {
+      matchedAuth = true;
+    } else {
+      res.writeHead(401).end('unauthorized');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Transfer-Encoding': 'chunked',
+    });
+    res.write('chunk-1');
+    const timer = setInterval(() => {
+      if (!res.writableEnded) res.write('chunk-next');
+    }, 25);
+    req.on('close', () => clearInterval(timer));
+  });
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address() as AddressInfo;
+      resolve({
+        baseUrl: `http://127.0.0.1:${address.port}`,
+        sawExpectedAuth: () => matchedAuth,
+        close: () => new Promise<void>((done) => server.close(() => done())),
+      });
+    });
+  });
+}
+
+async function runSmoke(win: BrowserWindow): Promise<void> {
+  const secretValue = 'super-secret-value';
+  const loopback = await startSmokeLoopback(secretValue);
+  try {
+    const root = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'jieyu-smoke-'));
+    const project = path.join(root, 'field');
+    const synced = path.join(root, BAIDU_MARKER, 'field');
+    fs.mkdirSync(mediaRoot(), { recursive: true });
+    fs.writeFileSync(path.join(mediaRoot(), 'clip.bin'), 'abcdefgh');
+    const script = `(async () => {
+      const opened = await window.jieyuDesktop.openProject(${JSON.stringify(project)});
+      const probe = await window.jieyuDesktop.writeProbe('ping');
+      const busy = await window.jieyuDesktop.openProject(${JSON.stringify(project)});
+      const synced = await window.jieyuDesktop.openProject(${JSON.stringify(synced)});
+      const secret = await window.jieyuDesktop.storeSecret(${JSON.stringify(secretValue)});
+      const streamed = [];
+      const off = window.jieyuDesktop.onRequestChunk((event) => {
+        if (event.requestId === 'req-smoke') {
+          streamed.push(event.chunk);
+          void window.jieyuDesktop.abortRequest('req-smoke');
+        }
+      });
+      const outbound = await window.jieyuDesktop.startRequest(
+        'req-smoke',
+        ${JSON.stringify(`${loopback.baseUrl}/stream`)},
+      );
+      off();
+      const mediaUrl = await window.jieyuDesktop.mediaUrl('clip.bin');
+      const mediaResponse = await fetch(mediaUrl, { headers: { Range: 'bytes=0-3' } });
+      return {
+        probe,
+        opened,
+        busy,
+        synced,
+        secret,
+        outbound,
+        streamed,
+        media: { status: mediaResponse.status, body: await mediaResponse.text() },
+      };
+    })()`;
+    const result = (await win.webContents.executeJavaScript(script, true)) as {
+      probe: { id: number; note: string };
+      opened: { lock: string };
+      busy: { lock: string; message?: string };
+      synced: { warning: string | null };
+      secret: { stored?: boolean };
+      outbound: { status: number; chunks: number; aborted: boolean };
+      streamed: string[];
+      media: { status: number; body: string };
+    };
+    const failures: string[] = [];
+    if (result.probe.note !== 'ping') failures.push('probe');
+    if (result.opened.lock !== 'acquired') failures.push('lock');
+    if (result.busy.lock !== 'busy' || result.busy.message !== '已在别处打开') failures.push('second-window');
+    if (result.synced.warning !== 'sync-folder') failures.push('sync-folder');
+    if (result.secret.stored !== true) failures.push('secret');
+    if (!loopback.sawExpectedAuth()) failures.push('outbound-auth');
+    if (!result.outbound.aborted || !result.streamed.some((chunk) => chunk.includes('chunk-1'))) {
+      failures.push('outbound-stream-abort');
+    }
+    const serialized = JSON.stringify({
+      secret: result.secret,
+      outbound: result.outbound,
+      streamed: result.streamed,
+    });
+    if (serialized.includes(secretValue)) failures.push('secret-leaked');
+    const file = secretPath();
+    if (fs.existsSync(file) && fs.readFileSync(file).includes(secretValue)) {
+      failures.push('secret-plaintext');
+    }
+    if (result.media.status !== 206 || result.media.body !== 'abcd') failures.push('range');
+    if (failures.length > 0) {
+      console.error(failures.join(','), JSON.stringify(result));
+      app.exit(1);
+      return;
+    }
+    console.log('skeleton smoke ok');
+    app.exit(0);
+  } finally {
+    await loopback.close();
+  }
+}
+
+async function chooseProject(): Promise<void> {
+  const picked = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
+  const folder = picked.filePaths[0];
+  if (!folder) return;
+  const opened = openProjectFolder({
+    folder,
+    pid: process.pid,
+    extraMarkers: [BAIDU_MARKER],
+    userDataRoot: app.getPath('userData'),
+  });
+  if (opened.lock === 'busy') {
+    await dialog.showMessageBox({ message: '已在别处打开' });
+    return;
+  }
+  if (opened.warning === 'sync-folder') {
+    await dialog.showMessageBox({ message: '文件夹在同步盘里，仍可继续' });
+  }
+}
+
+app.whenReady().then(async () => {
+  ensureUserDataLayout(app.getPath('userData'));
+  installCsp();
+  installMediaProtocol();
+  registerIpc();
+  const win = await openWindow();
+  if (process.argv.includes('--smoke')) {
+    await runSmoke(win);
+    return;
+  }
+  ipcMain.handle('skeleton:choose-project', () => chooseProject());
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) void openWindow();
+  });
+}).catch((error: unknown) => {
+  console.error(error);
+  app.exit(1);
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin' && !process.argv.includes('--smoke')) app.quit();
+});
