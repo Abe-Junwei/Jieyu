@@ -4,10 +4,12 @@
  * `installStoragePort` 换成经 IPC 的 SQLite 实现（#275），两者都要通过 `storagePortContract.ts`。
  */
 import type {
-  AnchorDocType,
-  AuditLogDocType,
+  AgentArtifactDoc,
   AiMessageDoc,
   AiRuntimeV2TurnDoc,
+  AnchorDocType,
+  AuditLogDocType,
+  McpToolCallAuditDoc,
   LayerUnitContentDocType,
   LayerUnitDocType,
   MediaItemDocType,
@@ -42,6 +44,8 @@ import {
 } from './storagePortProjectProgress';
 import { listUnitMorphemesByText, listUnitTokensByText } from './storagePortCorpusRows';
 import { listMediaByText, listMediaIdsByText, saveMediaItem } from './storagePortMedia';
+import { saveAgentArtifact, readAgentArtifact } from './storagePortAgentArtifacts';
+import { insertMcpToolCallAudit } from './storagePortMcpAudit';
 import { listNotesByTarget, putUserNote } from './storagePortNotes';
 import {
   countPresentLayerUnits,
@@ -206,6 +210,9 @@ export interface StoragePort {
   ): Promise<{ id: string; targetId: string; parentTargetId?: string; unitId: string }>;
   listAiMessagesByConversation(conversationId: string): Promise<AiMessageDoc[]>;
   listAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]>;
+  insertMcpToolCallAudit(doc: McpToolCallAuditDoc): Promise<void>;
+  readAgentArtifact(id: string): Promise<AgentArtifactDoc | undefined>;
+  saveAgentArtifact(doc: AgentArtifactDoc, audit: AuditLogDocType): Promise<AgentArtifactDoc>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -427,6 +434,9 @@ export const dexieStoragePort: StoragePort = {
   patchAiMessageContent,
   listAiMessagesByConversation,
   listAuditLogsByCollection,
+  insertMcpToolCallAudit,
+  readAgentArtifact,
+  saveAgentArtifact,
 };
 
 async function assignSpeakerToMixedSelection(
