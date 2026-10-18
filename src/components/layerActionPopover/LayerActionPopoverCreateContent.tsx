@@ -13,7 +13,7 @@ import { getOrthographyCatalogGroupLabel } from '../../i18n/messages';
 import { getOrthographyCatalogBadgeInfo } from '../orthographyCatalogUi';
 import type { Locale } from '../../i18n';
 import type { ResolveLanguageDisplayName } from '../../utils/languageDisplayNameResolver';
-import type { LayerConstraint, LayerDocType, OrthographyDocType } from '../../db';
+import type { LayerConstraint, LayerDocType, OrthographyDocType } from '../../db/types';
 import { formatParentLayerOptionLabel, type LayerActionType } from '../layerActionPopoverHelpers';
 import type { LayerActionPopoverMessages } from '../../i18n/messages';
 

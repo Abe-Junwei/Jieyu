@@ -30,7 +30,12 @@ import {
   VAD_AUTO_WARM_MAX_BYTES,
 } from '../services/vad/VadMediaCacheService';
 import type { AppServiceMeta, AppServiceResult } from './contracts';
-import type { MediaItemDocType, ProvenanceEnvelope, ProvenanceParams, TextDocType } from '../db';
+import type {
+  MediaItemDocType,
+  ProvenanceEnvelope,
+  ProvenanceParams,
+  TextDocType,
+} from '../db/types';
 
 export const TranscriptionAppServiceMeta: AppServiceMeta = {
   domain: 'transcription',

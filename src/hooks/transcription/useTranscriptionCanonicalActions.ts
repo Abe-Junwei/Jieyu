@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import { LinguisticService } from '../../services/LinguisticService';
 import { useTranscriptionTokenActions } from './useTranscriptionTokenActions';
 import { createLogger } from '../../observability/logger';

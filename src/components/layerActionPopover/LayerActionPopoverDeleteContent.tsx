@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from 'react';
-import type { LayerDocType } from '../../db';
+import type { LayerDocType } from '../../db/types';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import type { LayerActionPopoverMessages } from '../../i18n/messages';
 import { FormField, PanelSection, PanelSummary } from '../ui';

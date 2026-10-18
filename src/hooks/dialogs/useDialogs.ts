@@ -4,7 +4,7 @@ import {
   publishActiveProjectTextId,
   readTranscriptionWorkspaceReturnHint,
 } from '../../utils/transcriptionUrlDeepLink';
-import type { TextDocType, LayerUnitDocType } from '../../db';
+import type { TextDocType, LayerUnitDocType } from '../../db/types';
 
 type DialogUnit = Pick<LayerUnitDocType, 'textId'>;
 export type TextTimelineMode = 'document' | 'media';

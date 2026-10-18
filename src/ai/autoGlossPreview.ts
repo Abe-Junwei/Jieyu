@@ -4,7 +4,7 @@ import type {
   MultiLangString,
   Transcription,
   UnitTokenDocType,
-} from '../db';
+} from '../db/types';
 import { isLexemeEntry } from '../db/lexemeNestedIds';
 import { lexemeGlossProjection, lexemeMatchValues } from '../utils/dmlexEntry';
 import { pickDefaultTranscriptionText } from '../utils/transcriptionFormatters';

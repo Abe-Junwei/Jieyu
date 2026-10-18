@@ -17,7 +17,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import type { LayerUnitDocType, SpeakerDocType } from '../../db';
+import type { LayerUnitDocType, SpeakerDocType } from '../../db/types';
 import type { SaveState } from '../transcription/transcriptionTypes';
 import { LinguisticService } from '../../services/LinguisticService';
 import {

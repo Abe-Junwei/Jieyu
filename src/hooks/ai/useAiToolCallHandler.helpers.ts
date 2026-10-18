@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../../db';
+import type { LayerDocType } from '../../db/types';
 import { t, type Locale } from '../../i18n';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../../utils/langMapping';
 import { listUniqueNonEmptyMultiLangLabels } from '../../utils/multiLangLabels';

@@ -3,8 +3,14 @@
  */
 
 import { useMemo } from 'react';
-import type { SpeakerDocType, LayerUnitDocType } from '../../db';
-import { buildSelectedSpeakerSummary, buildSpeakerFilterOptions, buildSpeakerVisualMap, type SpeakerDisplayLabels, type SpeakerSelectionSummaryLabels } from './speakerUtils';
+import type { SpeakerDocType, LayerUnitDocType } from '../../db/types';
+import {
+  buildSelectedSpeakerSummary,
+  buildSpeakerFilterOptions,
+  buildSpeakerVisualMap,
+  type SpeakerDisplayLabels,
+  type SpeakerSelectionSummaryLabels,
+} from './speakerUtils';
 
 type UseSpeakerDerivedStateLabels = {
   displayLabels?: Partial<SpeakerDisplayLabels>;
@@ -23,7 +29,8 @@ export function useSpeakerDerivedState(
   );
 
   const speakerFilterOptions = useMemo(
-    () => buildSpeakerFilterOptions(unitsOnCurrentMedia, speakerVisualByUnitId, labels?.displayLabels),
+    () =>
+      buildSpeakerFilterOptions(unitsOnCurrentMedia, speakerVisualByUnitId, labels?.displayLabels),
     [labels?.displayLabels, speakerVisualByUnitId, unitsOnCurrentMedia],
   );
 

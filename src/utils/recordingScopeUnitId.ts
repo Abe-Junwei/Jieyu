@@ -1,4 +1,4 @@
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../db/types';
 import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 
 const EMPTY_UNIT_MAP: ReadonlyMap<string, LayerUnitDocType> = new Map();

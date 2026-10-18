@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ContextMenuItem } from '../ContextMenu';
-import type { AnnotationDocumentDocType } from '../../db';
+import type { AnnotationDocumentDocType } from '../../db/types';
 import { t, tf, type Locale } from '../../i18n';
 import { createLogger } from '../../observability/logger';
 import {

@@ -3,7 +3,7 @@ import type {
   LanguageCatalogHistoryAction,
   LanguageCatalogHistoryDocType,
   LanguageCatalogSourceType,
-} from '../../db';
+} from '../../db/types';
 import type { LanguageCatalogEntry } from './languageCatalogTypes';
 
 function normalizeComparableValue(value: unknown): unknown {

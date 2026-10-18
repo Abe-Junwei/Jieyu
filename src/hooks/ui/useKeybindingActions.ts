@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import type { TimelineUnitView } from '../transcription/timelineUnitView';
 import type { TimelineUnit } from '../transcription/transcriptionTypes';
 import {

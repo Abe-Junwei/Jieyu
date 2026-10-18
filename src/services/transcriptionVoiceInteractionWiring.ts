@@ -3,7 +3,7 @@
  * Extracted from useVoiceInteraction for Phase C1 — keeps the hook thinner and tests the wiring in isolation.
  */
 
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db/types';
 import type { VoiceInteractionMessages } from '../i18n/messages';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
@@ -43,11 +43,14 @@ export function computeTranscriptionVoiceTargetSummary(input: {
   } = input;
 
   const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUnit);
-  const rowLabel = selection.selectedUnitKind === 'segment'
-    ? messages.currentIndependentSegment
-    : selection.selectedRowMeta
-      ? messages.currentSentenceWithIndex(selection.selectedRowMeta.rowNumber)
-      : (selection.selectedUnit ? messages.currentUnit : messages.noUnitSelected);
+  const rowLabel =
+    selection.selectedUnitKind === 'segment'
+      ? messages.currentIndependentSegment
+      : selection.selectedRowMeta
+        ? messages.currentSentenceWithIndex(selection.selectedRowMeta.rowNumber)
+        : selection.selectedUnit
+          ? messages.currentUnit
+          : messages.noUnitSelected;
 
   if (isNonDictationMode) {
     if (hasSelection) {
@@ -106,17 +109,17 @@ export function createTranscriptionVoiceSendToAiChat(input: {
     analysisText: string,
   ) => Promise<VoiceAnalysisWritebackResult> | VoiceAnalysisWritebackResult;
   aiChatSend: (text: string) => Promise<unknown>;
-  messages: Pick<VoiceInteractionMessages, 'analysisWritebackDone' | 'analysisWritebackFailed' | 'sendToAiFailed'>;
+  messages: Pick<
+    VoiceInteractionMessages,
+    'analysisWritebackDone' | 'analysisWritebackFailed' | 'sendToAiFailed'
+  >;
   runVoiceTask: (
     task: () => Promise<void>,
     fallbackMessage: string,
     onError?: (message: string) => void,
   ) => void;
   getVoiceAgentApi: () => {
-    setAnalysisFillCallback?: (
-      unitId: string | null,
-      cb: ((text: string) => void) | null,
-    ) => void;
+    setAnalysisFillCallback?: (unitId: string | null, cb: ((text: string) => void) | null) => void;
     setExternalError?: (message: string | null) => void;
   } | null;
   setAnalysisWritebackFeedback: (value: { kind: 'done' | 'error'; message: string } | null) => void;
@@ -132,28 +135,44 @@ export function createTranscriptionVoiceSendToAiChat(input: {
   } = input;
 
   return (text: string) => {
-    runVoiceTask(async () => {
-      const unitId = getActiveUnitId();
-      getVoiceAgentApi()?.setAnalysisFillCallback?.(unitId, (analysisText) => {
-        runVoiceTask(async () => {
-          const result = await onVoiceAnalysisResult(unitId, analysisText);
-          if (!result) {
-            getVoiceAgentApi()?.setExternalError?.(null);
-            setAnalysisWritebackFeedback({ kind: 'done', message: messages.analysisWritebackDone });
-            return;
-          }
-          const ok = result.ok !== false;
-          const normalizedMessage = result.message?.trim() || (ok ? messages.analysisWritebackDone : messages.analysisWritebackFailed);
-          setAnalysisWritebackFeedback({ kind: ok ? 'done' : 'error', message: normalizedMessage });
-          getVoiceAgentApi()?.setExternalError?.(ok ? null : normalizedMessage);
-        }, messages.analysisWritebackFailed, (message) => {
-          setAnalysisWritebackFeedback({ kind: 'error', message });
+    runVoiceTask(
+      async () => {
+        const unitId = getActiveUnitId();
+        getVoiceAgentApi()?.setAnalysisFillCallback?.(unitId, (analysisText) => {
+          runVoiceTask(
+            async () => {
+              const result = await onVoiceAnalysisResult(unitId, analysisText);
+              if (!result) {
+                getVoiceAgentApi()?.setExternalError?.(null);
+                setAnalysisWritebackFeedback({
+                  kind: 'done',
+                  message: messages.analysisWritebackDone,
+                });
+                return;
+              }
+              const ok = result.ok !== false;
+              const normalizedMessage =
+                result.message?.trim() ||
+                (ok ? messages.analysisWritebackDone : messages.analysisWritebackFailed);
+              setAnalysisWritebackFeedback({
+                kind: ok ? 'done' : 'error',
+                message: normalizedMessage,
+              });
+              getVoiceAgentApi()?.setExternalError?.(ok ? null : normalizedMessage);
+            },
+            messages.analysisWritebackFailed,
+            (message) => {
+              setAnalysisWritebackFeedback({ kind: 'error', message });
+            },
+          );
         });
-      });
-      await aiChatSend(text);
-    }, messages.sendToAiFailed, (message) => {
-      getVoiceAgentApi()?.setAnalysisFillCallback?.(null, null);
-      setAnalysisWritebackFeedback({ kind: 'error', message });
-    });
+        await aiChatSend(text);
+      },
+      messages.sendToAiFailed,
+      (message) => {
+        getVoiceAgentApi()?.setAnalysisFillCallback?.(null, null);
+        setAnalysisWritebackFeedback({ kind: 'error', message });
+      },
+    );
   };
 }

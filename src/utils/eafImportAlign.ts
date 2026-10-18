@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../db/types';
 
 const EAF_META_MARKER = '__eafmeta_';
 

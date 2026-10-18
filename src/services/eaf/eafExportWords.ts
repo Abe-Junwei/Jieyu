@@ -1,4 +1,4 @@
-import type { LayerUnitDocType, UnitMorphemeDocType, UnitTokenDocType } from '../../db';
+import type { LayerUnitDocType, UnitMorphemeDocType, UnitTokenDocType } from '../../db/types';
 import type { EafExportScratch } from './eafExportScratch';
 import { escapeXml, readMultiLangDefault } from './eafXml';
 

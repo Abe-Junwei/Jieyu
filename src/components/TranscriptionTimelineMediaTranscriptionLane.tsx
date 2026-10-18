@@ -13,7 +13,7 @@ import type {
   LayerUnitDocType,
   LayerUnitContentDocType,
   MediaItemDocType,
-} from '../db';
+} from '../db/types';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';

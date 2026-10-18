@@ -1,4 +1,4 @@
-import type { LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerUnitDocType, MediaItemDocType } from '../db/types';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
 import { maxUnitEndTimeSec } from './timelineAxisStatus';
 

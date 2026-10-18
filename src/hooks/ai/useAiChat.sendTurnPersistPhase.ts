@@ -10,7 +10,7 @@
  * This module centralizes all ai_messages DB mutations into a single file.
  */
 
-import type { AiMessageCitation, AiMessageDoc } from '../../db';
+import type { AiMessageCitation, AiMessageDoc } from '../../db/types';
 import type { JieyuDatabase } from '../../db/engine';
 import { nowIso } from './useAiChat.helpers';
 

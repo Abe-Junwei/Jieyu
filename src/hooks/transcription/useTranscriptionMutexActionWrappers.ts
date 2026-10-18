@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LayerDocType, LayerUnitDocType, ProvenanceEnvelope } from '../../db';
+import type { LayerDocType, LayerUnitDocType, ProvenanceEnvelope } from '../../db/types';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
 import type { PerLayerRowFieldPatch } from './useTranscriptionUnitActions';

@@ -7,14 +7,14 @@ import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidation
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 import type {
   AnchorDocType,
-  JieyuDatabase,
   LayerUnitContentDocType,
   LayerUnitDocType,
   TokenLexemeLinkDocType,
   UnitMorphemeDocType,
   UnitTokenDocType,
   UserNoteDocType,
-} from '../db';
+} from '../db/types';
+import type { JieyuDatabase } from '../db/engine';
 import {
   dexieStoresForLayerSegmentGraphRw,
   dexieStoresForRemoveUnitCascadeRw,

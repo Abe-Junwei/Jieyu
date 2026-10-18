@@ -8,7 +8,12 @@ import {
 import { getOrthographyCatalogBadgeInfo } from '../orthographyCatalogUi';
 import type { Locale } from '../../i18n';
 import type { ResolveLanguageDisplayName } from '../../utils/languageDisplayNameResolver';
-import type { LayerConstraint, LayerDocType, LayerLinkDocType, OrthographyDocType } from '../../db';
+import type {
+  LayerConstraint,
+  LayerDocType,
+  LayerLinkDocType,
+  OrthographyDocType,
+} from '../../db/types';
 import type { LayerActionPopoverMessages } from '../../i18n/messages';
 import { buildLayerActionPopoverEditMetadataFieldIds } from './layerActionPopoverEditMetadataFieldIds';
 import { LayerActionPopoverEditMetadataCoreSection } from './LayerActionPopoverEditMetadataCoreSection';

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import type { LayerUnitDocType, LayerDocType } from '../../db';
+import type { LayerUnitDocType, LayerDocType } from '../../db/types';
 import type { AiChatToolCall, AiChatToolResult } from './useAiChat.types';
 import { useLatest } from '../ui/useLatest';
 import { tf, useLocale } from '../../i18n';

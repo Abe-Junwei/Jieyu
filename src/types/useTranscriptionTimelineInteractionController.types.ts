@@ -1,5 +1,5 @@
 import type { MutableRefObject } from 'react';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db/types';
 import type {
   TranscriptionCtxMenuLayerType,
   TranscriptionCtxMenuSurface,

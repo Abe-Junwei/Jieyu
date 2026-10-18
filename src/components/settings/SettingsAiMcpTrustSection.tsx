@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { OptionGroup, SettingRow, SettingsSection } from '../settingsModalPrimitives';
 import type { SettingsModalMessages } from '../../i18n/messages';
-import type { ExternalMcpTrustDoc } from '../../db';
+import type { ExternalMcpTrustDoc } from '../../db/types';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { listExternalMcpToolsViaHttp } from '../../ai/mcp/client/externalMcpHttpClient';
 import { EXTERNAL_MCP_PROVIDER_PRESETS } from '../../ai/mcp/client/externalMcpProviderAdapters';

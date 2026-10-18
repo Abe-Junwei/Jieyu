@@ -1,4 +1,4 @@
-import type { LayerConstraint, LayerLinkDocType } from '../db';
+import type { LayerConstraint, LayerLinkDocType } from '../db/types';
 
 export type LayerMetadataUpdateInput = {
   dialect?: string;

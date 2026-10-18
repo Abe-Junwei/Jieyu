@@ -10,7 +10,7 @@
 
 import { createContext, useContext, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { SpeakerDocType } from '../db';
+import type { SpeakerDocType } from '../db/types';
 import { createLogger } from '../observability/logger';
 import {
   EMPTY_SPEAKER_REFERENCE_STATS,

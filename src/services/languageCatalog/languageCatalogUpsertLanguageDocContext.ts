@@ -1,4 +1,4 @@
-import type { LanguageCatalogSourceType, LanguageDocType } from '../../db';
+import type { LanguageCatalogSourceType, LanguageDocType } from '../../db/types';
 import type { UpsertLanguageCatalogEntryInput } from './languageCatalogTypes';
 import type { UpsertPreparedFields } from './languageCatalogUpsertPrep';
 

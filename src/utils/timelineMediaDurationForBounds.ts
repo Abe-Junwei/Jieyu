@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType } from '../db/types';
 import { isMediaItemPlaceholderRow } from './mediaItemState';
 import { resolveTimelineBindingExtentSec } from './timelineBindingExtent';
 

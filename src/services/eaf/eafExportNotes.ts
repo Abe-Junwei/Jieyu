@@ -1,4 +1,4 @@
-import type { LayerUnitDocType, SpeakerDocType, UserNoteDocType } from '../../db';
+import type { LayerUnitDocType, SpeakerDocType, UserNoteDocType } from '../../db/types';
 import { formatEafSideChannelNote, parseEafSideChannelNote } from '../../utils/eafTierRole';
 import { escapeXml } from './eafXml';
 

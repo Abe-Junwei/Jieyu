@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../../db';
+import type { MediaItemDocType } from '../../db/types';
 import { buildPdfJsDocumentParams } from '../../utils/pdfjs-config';
 
 export type PdfTextFragment = {

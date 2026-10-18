@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LayerConstraint } from '../../db';
+import type { LayerConstraint } from '../../db/types';
 
 export type LayerActionPanelKind =
-  | 'speaker-management'
-  | 'create-transcription'
-  | 'create-translation'
-  | 'delete'
-  | null;
+  'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null;
 
 export interface UseLayerActionPanelInput {
   createLayer: (

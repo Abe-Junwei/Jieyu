@@ -1,7 +1,7 @@
 /**
  * 时间轴顶栏媒体可播性提示（ADR-0004 7A）。**语段时间**不由本模块推断；仅汇总壳层与 `max(endTime)`。
  */
-import type { LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerUnitDocType, MediaItemDocType } from '../db/types';
 import { isMediaItemPlaceholderRow } from './mediaItemState';
 import { resolveTimelineShellMode } from './timelineShellMode';
 export type TimelineAxisMediaHint =

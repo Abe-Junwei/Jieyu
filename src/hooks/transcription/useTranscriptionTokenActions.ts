@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { LinguisticService } from '../../services/LinguisticService';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 
 type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;

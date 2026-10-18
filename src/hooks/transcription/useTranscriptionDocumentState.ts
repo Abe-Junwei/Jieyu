@@ -7,7 +7,7 @@ import type {
   LayerDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
-} from '../../db';
+} from '../../db/types';
 
 export function useTranscriptionDocumentState() {
   const [units, setUnits] = useState<LayerUnitDocType[]>([]);

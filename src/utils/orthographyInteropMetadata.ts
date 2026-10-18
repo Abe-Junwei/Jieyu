@@ -1,4 +1,4 @@
-import type { LayerDocType, OrthographyDocType } from '../db';
+import type { LayerDocType, OrthographyDocType } from '../db/types';
 import {
   parseEafNoteKind,
   parseEafTierRole,

@@ -4,7 +4,7 @@ import type {
   LayerDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
-} from '../../db';
+} from '../../db/types';
 import { layerTextLookupUnitId } from '../../utils/recordingScopeUnitId';
 import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import { mediaBasename } from '../../utils/eafImportAlign';

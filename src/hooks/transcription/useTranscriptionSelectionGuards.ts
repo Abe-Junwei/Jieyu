@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { LayerDocType } from '../../db';
+import type { LayerDocType } from '../../db/types';
 
 type Params = {
   selectedLayerId: string;

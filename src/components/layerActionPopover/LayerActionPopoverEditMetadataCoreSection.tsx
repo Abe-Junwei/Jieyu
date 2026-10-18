@@ -14,7 +14,7 @@ import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import { getOrthographyCatalogBadgeInfo } from '../orthographyCatalogUi';
 import type { Locale } from '../../i18n';
 import type { ResolveLanguageDisplayName } from '../../utils/languageDisplayNameResolver';
-import type { LayerDocType, OrthographyDocType } from '../../db';
+import type { LayerDocType, OrthographyDocType } from '../../db/types';
 import type { LayerActionPopoverMessages } from '../../i18n/messages';
 import type { LayerActionPopoverEditMetadataFieldIds } from './layerActionPopoverEditMetadataFieldIds';
 

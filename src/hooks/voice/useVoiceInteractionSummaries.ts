@@ -1,5 +1,5 @@
 import { useEffect, useMemo, type Dispatch, type SetStateAction } from 'react';
-import type { LayerDocType, LayerLinkDocType } from '../../db';
+import type { LayerDocType, LayerLinkDocType } from '../../db/types';
 import { getActiveSttProviderMetadata } from '../../services/stt/providerMetadata';
 import {
   computeTranscriptionVoiceSelectionSummary,

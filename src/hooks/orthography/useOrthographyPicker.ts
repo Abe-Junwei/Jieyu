@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MultiLangString, OrthographyDocType } from '../../db';
+import type { MultiLangString, OrthographyDocType } from '../../db/types';
 import { useLocale } from '../../i18n';
 import {
   cloneOrthographyRecordToLanguage,

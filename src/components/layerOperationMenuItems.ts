@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../db/types';
 import type { ContextMenuItem } from './ContextMenu';
 
 export type LayerOperationActionType =
@@ -38,7 +38,12 @@ export function buildLayerOperationMenuItems({
       label: labels.editLayerMetadata,
       disabled: !layerId,
       onClick: () => {
-        onAction(layer?.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata', layerId);
+        onAction(
+          layer?.layerType === 'translation'
+            ? 'edit-translation-metadata'
+            : 'edit-transcription-metadata',
+          layerId,
+        );
       },
     },
     {

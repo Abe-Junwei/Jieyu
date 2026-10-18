@@ -13,7 +13,7 @@ import type {
   LayerUnitDocType,
   UserNoteDocType,
   OrthographyDocType,
-} from '../db';
+} from '../db/types';
 import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {

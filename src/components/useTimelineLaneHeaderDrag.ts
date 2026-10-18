@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db/types';
 import { resolveLayerDragGroup } from '../services/LayerOrderingService';
-import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '../utils/dragReorder';
+import {
+  resolveVerticalReorderTargetIndex,
+  type VerticalDragDirection,
+} from '../utils/dragReorder';
 import { fireAndForget } from '../utils/fireAndForget';
 import { buildLayerDropIntent, type LayerDropIntent } from '../utils/layerDragDropModel';
 
@@ -12,7 +15,10 @@ interface BundleRange {
   end: number;
 }
 
-type LaneHeaderHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
+type LaneHeaderHostLink = Pick<
+  LayerLinkDocType,
+  'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+>;
 
 interface TimelineLaneHeaderDragOptions {
   layer: Pick<LayerDocType, 'id' | 'layerType'>;
@@ -59,12 +65,15 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
   const dragLastClientYRef = useRef<number | null>(null);
   const dragDirectionRef = useRef<VerticalDragDirection>('none');
 
-  const resolveDraggedLaneRows = useCallback((sourceIndex: number, sourceSpan: number): HTMLElement[] => {
-    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
-    if (!container) return [];
-    const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
-    return lanes.slice(sourceIndex, sourceIndex + sourceSpan);
-  }, []);
+  const resolveDraggedLaneRows = useCallback(
+    (sourceIndex: number, sourceSpan: number): HTMLElement[] => {
+      const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+      if (!container) return [];
+      const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
+      return lanes.slice(sourceIndex, sourceIndex + sourceSpan);
+    },
+    [],
+  );
 
   const updateDragDirection = useCallback((clientY: number) => {
     const previous = dragLastClientYRef.current;
@@ -99,77 +108,99 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
     });
   }, []);
 
-  const resolveTargetBundleRange = useCallback((draggedId: string, dropIndex: number) => {
-    if (!bundleRootIds.has(draggedId)) return null;
-    if (!bundleBoundaryIndexes.includes(dropIndex)) return null;
+  const resolveTargetBundleRange = useCallback(
+    (draggedId: string, dropIndex: number) => {
+      if (!bundleRootIds.has(draggedId)) return null;
+      if (!bundleBoundaryIndexes.includes(dropIndex)) return null;
 
-    const clampedProbeIndex = Math.max(0, Math.min(dropIndex, allLayers.length - 1));
-    const targetRange = bundleRanges.find((range) => clampedProbeIndex >= range.start && clampedProbeIndex < range.end);
-    if (!targetRange || targetRange.rootId === draggedId) return null;
-    return targetRange;
-  }, [allLayers.length, bundleBoundaryIndexes, bundleRanges, bundleRootIds]);
+      const clampedProbeIndex = Math.max(0, Math.min(dropIndex, allLayers.length - 1));
+      const targetRange = bundleRanges.find(
+        (range) => clampedProbeIndex >= range.start && clampedProbeIndex < range.end,
+      );
+      if (!targetRange || targetRange.rootId === draggedId) return null;
+      return targetRange;
+    },
+    [allLayers.length, bundleBoundaryIndexes, bundleRanges, bundleRootIds],
+  );
 
   const getDraggedLaneBlockHeight = useCallback((lanes: HTMLElement[]): number => {
     if (lanes.length === 0) return 54;
     return lanes.reduce((total, lane) => total + lane.getBoundingClientRect().height, 0);
   }, []);
 
-  const updateSiblingShiftVisual = useCallback((sourceIndex: number, sourceSpan: number, dropIndex: number) => {
-    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
-    if (!container) return;
+  const updateSiblingShiftVisual = useCallback(
+    (sourceIndex: number, sourceSpan: number, dropIndex: number) => {
+      const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+      if (!container) return;
 
-    clearSiblingShiftVisual();
+      clearSiblingShiftVisual();
 
-    const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
-    if (lanes.length === 0) return;
+      const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
+      if (lanes.length === 0) return;
 
-    const insertionIndex = Math.max(0, Math.min(dropIndex, lanes.length));
-    if (insertionIndex === sourceIndex || (insertionIndex > sourceIndex && insertionIndex <= sourceIndex + sourceSpan)) return;
+      const insertionIndex = Math.max(0, Math.min(dropIndex, lanes.length));
+      if (
+        insertionIndex === sourceIndex ||
+        (insertionIndex > sourceIndex && insertionIndex <= sourceIndex + sourceSpan)
+      )
+        return;
 
-    const dragBlockHeight = getDraggedLaneBlockHeight(lanes.slice(sourceIndex, sourceIndex + sourceSpan));
+      const dragBlockHeight = getDraggedLaneBlockHeight(
+        lanes.slice(sourceIndex, sourceIndex + sourceSpan),
+      );
 
-    if (insertionIndex > sourceIndex) {
-      for (let i = sourceIndex + sourceSpan; i < insertionIndex; i++) {
+      if (insertionIndex > sourceIndex) {
+        for (let i = sourceIndex + sourceSpan; i < insertionIndex; i++) {
+          const laneEl = lanes[i];
+          if (!laneEl) continue;
+          laneEl.classList.add('timeline-lane-row-shift');
+          laneEl.style.setProperty('--timeline-lane-shift-offset', `${-dragBlockHeight}px`);
+        }
+        return;
+      }
+
+      for (let i = insertionIndex; i < sourceIndex; i++) {
         const laneEl = lanes[i];
         if (!laneEl) continue;
         laneEl.classList.add('timeline-lane-row-shift');
-        laneEl.style.setProperty('--timeline-lane-shift-offset', `${-dragBlockHeight}px`);
+        laneEl.style.setProperty('--timeline-lane-shift-offset', `${dragBlockHeight}px`);
       }
-      return;
-    }
+    },
+    [clearSiblingShiftVisual, getDraggedLaneBlockHeight],
+  );
 
-    for (let i = insertionIndex; i < sourceIndex; i++) {
-      const laneEl = lanes[i];
-      if (!laneEl) continue;
-      laneEl.classList.add('timeline-lane-row-shift');
-      laneEl.style.setProperty('--timeline-lane-shift-offset', `${dragBlockHeight}px`);
-    }
-  }, [clearSiblingShiftVisual, getDraggedLaneBlockHeight]);
+  const updateBundleBoundaryHighlightVisual = useCallback(
+    (draggedId: string, sourceIndex: number, dropIndex: number) => {
+      clearBundleBoundaryHighlightVisual();
 
-  const updateBundleBoundaryHighlightVisual = useCallback((draggedId: string, sourceIndex: number, dropIndex: number) => {
-    clearBundleBoundaryHighlightVisual();
+      if (!bundleRootIds.has(draggedId)) return;
+      if (!bundleBoundaryIndexes.includes(dropIndex)) return;
+      if (dropIndex === sourceIndex) return;
 
-    if (!bundleRootIds.has(draggedId)) return;
-    if (!bundleBoundaryIndexes.includes(dropIndex)) return;
-    if (dropIndex === sourceIndex) return;
+      const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+      if (!container) return;
+      const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
+      if (lanes.length === 0) return;
 
-    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
-    if (!container) return;
-    const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
-    if (lanes.length === 0) return;
+      if (dropIndex >= lanes.length) {
+        lanes[lanes.length - 1]?.classList.add('timeline-lane-boundary-highlight-bottom');
+      } else {
+        lanes[dropIndex]?.classList.add('timeline-lane-boundary-highlight-top');
+      }
 
-    if (dropIndex >= lanes.length) {
-      lanes[lanes.length - 1]?.classList.add('timeline-lane-boundary-highlight-bottom');
-    } else {
-      lanes[dropIndex]?.classList.add('timeline-lane-boundary-highlight-top');
-    }
-
-    const targetRange = resolveTargetBundleRange(draggedId, dropIndex);
-    if (!targetRange) return;
-    for (let index = targetRange.start; index < targetRange.end; index += 1) {
-      lanes[index]?.classList.add('timeline-lane-bundle-target');
-    }
-  }, [bundleBoundaryIndexes, bundleRootIds, clearBundleBoundaryHighlightVisual, resolveTargetBundleRange]);
+      const targetRange = resolveTargetBundleRange(draggedId, dropIndex);
+      if (!targetRange) return;
+      for (let index = targetRange.start; index < targetRange.end; index += 1) {
+        lanes[index]?.classList.add('timeline-lane-bundle-target');
+      }
+    },
+    [
+      bundleBoundaryIndexes,
+      bundleRootIds,
+      clearBundleBoundaryHighlightVisual,
+      resolveTargetBundleRange,
+    ],
+  );
 
   const clearLaneDragVisual = useCallback(() => {
     if (dragVisualRafRef.current !== null) {
@@ -217,137 +248,161 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
     dragVisualRafRef.current = requestAnimationFrame(animate);
   }, []);
 
-  const updateLaneDragVisual = useCallback((clientY: number) => {
-    const laneEl = laneRowRef.current;
-    const startY = dragStartClientYRef.current;
-    if (!laneEl || startY === null) return;
-    const deltaY = clientY - startY;
-    dragVisualTargetOffsetRef.current = deltaY;
-    startLaneDragVisualAnimation();
-  }, [startLaneDragVisualAnimation]);
+  const updateLaneDragVisual = useCallback(
+    (clientY: number) => {
+      const laneEl = laneRowRef.current;
+      const startY = dragStartClientYRef.current;
+      if (!laneEl || startY === null) return;
+      const deltaY = clientY - startY;
+      dragVisualTargetOffsetRef.current = deltaY;
+      startLaneDragVisualAnimation();
+    },
+    [startLaneDragVisualAnimation],
+  );
 
-  const resolveDropTargetIndex = useCallback((clientY: number): number | null => {
-    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
-    if (!container) return null;
+  const resolveDropTargetIndex = useCallback(
+    (clientY: number): number | null => {
+      const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+      if (!container) return null;
 
-    const laneLabels = container.querySelectorAll<HTMLElement>('.timeline-lane-header');
-    if (laneLabels.length === 0) return null;
+      const laneLabels = container.querySelectorAll<HTMLElement>('.timeline-lane-header');
+      if (laneLabels.length === 0) return null;
 
-    const activeDrag = dragStateRef.current;
+      const activeDrag = dragStateRef.current;
 
-    let targetIndex = resolveVerticalReorderTargetIndex(
-      Array.from(laneLabels, (laneEl) => laneEl.getBoundingClientRect()),
-      clientY,
-      dragDirectionRef.current,
-      {
-        ...(activeDrag && bundleRootIds.has(activeDrag.draggedId)
-          ? { allowedBoundaryIndexes: bundleBoundaryIndexes }
-          : {}),
-      },
-    );
-    if (targetIndex === null) return null;
+      let targetIndex = resolveVerticalReorderTargetIndex(
+        Array.from(laneLabels, (laneEl) => laneEl.getBoundingClientRect()),
+        clientY,
+        dragDirectionRef.current,
+        {
+          ...(activeDrag && bundleRootIds.has(activeDrag.draggedId)
+            ? { allowedBoundaryIndexes: bundleBoundaryIndexes }
+            : {}),
+        },
+      );
+      if (targetIndex === null) return null;
 
-    if (targetIndex > allLayers.length) targetIndex = allLayers.length;
+      if (targetIndex > allLayers.length) targetIndex = allLayers.length;
 
-    if (activeDrag && targetIndex > activeDrag.sourceIndex && targetIndex < activeDrag.sourceIndex + activeDrag.sourceSpan) {
-      return activeDrag.sourceIndex;
-    }
+      if (
+        activeDrag &&
+        targetIndex > activeDrag.sourceIndex &&
+        targetIndex < activeDrag.sourceIndex + activeDrag.sourceSpan
+      ) {
+        return activeDrag.sourceIndex;
+      }
 
-    return targetIndex;
-  }, [allLayers.length, bundleBoundaryIndexes, bundleRootIds]);
+      return targetIndex;
+    },
+    [allLayers.length, bundleBoundaryIndexes, bundleRootIds],
+  );
 
-  const resolveDropTargetIndexForActiveDrag = useCallback((
-    clientY: number,
-    activeDrag: { draggedId: string; sourceIndex: number; sourceSpan: number },
-  ): LayerDropIntent | null => {
-    const baseTargetIndex = resolveDropTargetIndex(clientY);
-    if (baseTargetIndex === null) return null;
+  const resolveDropTargetIndexForActiveDrag = useCallback(
+    (
+      clientY: number,
+      activeDrag: { draggedId: string; sourceIndex: number; sourceSpan: number },
+    ): LayerDropIntent | null => {
+      const baseTargetIndex = resolveDropTargetIndex(clientY);
+      if (baseTargetIndex === null) return null;
 
-    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
-    if (!container) {
+      const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+      if (!container) {
+        return buildLayerDropIntent({
+          draggedId: activeDrag.draggedId,
+          sourceIndex: activeDrag.sourceIndex,
+          sourceSpan: activeDrag.sourceSpan,
+          baseTargetIndex,
+          rowCount: allLayers.length,
+          bundleRanges,
+          isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+        });
+      }
+      const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
+      if (lanes.length === 0) {
+        return buildLayerDropIntent({
+          draggedId: activeDrag.draggedId,
+          sourceIndex: activeDrag.sourceIndex,
+          sourceSpan: activeDrag.sourceSpan,
+          baseTargetIndex,
+          rowCount: allLayers.length,
+          bundleRanges,
+          isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+        });
+      }
+
       return buildLayerDropIntent({
         draggedId: activeDrag.draggedId,
         sourceIndex: activeDrag.sourceIndex,
         sourceSpan: activeDrag.sourceSpan,
         baseTargetIndex,
-        rowCount: allLayers.length,
+        rowCount: lanes.length,
         bundleRanges,
         isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
       });
-    }
-    const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
-    if (lanes.length === 0) {
-      return buildLayerDropIntent({
-        draggedId: activeDrag.draggedId,
-        sourceIndex: activeDrag.sourceIndex,
-        sourceSpan: activeDrag.sourceSpan,
-        baseTargetIndex,
-        rowCount: allLayers.length,
-        bundleRanges,
-        isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
-      });
-    }
+    },
+    [allLayers.length, bundleRanges, bundleRootIds, resolveDropTargetIndex],
+  );
 
-    return buildLayerDropIntent({
-      draggedId: activeDrag.draggedId,
-      sourceIndex: activeDrag.sourceIndex,
-      sourceSpan: activeDrag.sourceSpan,
-      baseTargetIndex,
-      rowCount: lanes.length,
-      bundleRanges,
-      isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
-    });
-  }, [allLayers.length, bundleRanges, bundleRootIds, resolveDropTargetIndex]);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    dropIntentRef.current = null;
-    dragStartClientYRef.current = e.clientY;
-    dragLastClientYRef.current = e.clientY;
-    dragDirectionRef.current = 'none';
-    laneRowRef.current = headerRef.current?.closest<HTMLElement>('.timeline-lane') ?? null;
-    if (dragTimerRef.current) {
-      clearTimeout(dragTimerRef.current);
-      dragTimerRef.current = null;
-    }
-
-    const idx = allLayers.findIndex((item) => item.id === layer.id);
-    const draggedLayerIds = resolveLayerDragGroup(allLayers, layer.id, layerLinks);
-    const sourceSpan = draggedLayerIds.length;
-
-    const cancelPendingDragStart = () => {
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      dropIntentRef.current = null;
+      dragStartClientYRef.current = e.clientY;
+      dragLastClientYRef.current = e.clientY;
+      dragDirectionRef.current = 'none';
+      laneRowRef.current = headerRef.current?.closest<HTMLElement>('.timeline-lane') ?? null;
       if (dragTimerRef.current) {
         clearTimeout(dragTimerRef.current);
         dragTimerRef.current = null;
       }
-      dragStartClientYRef.current = null;
-      dragLastClientYRef.current = null;
-      dragDirectionRef.current = 'none';
-      dropIntentRef.current = null;
-      laneRowRef.current = null;
-      document.removeEventListener('mouseup', cancelPendingDragStart);
-    };
 
-    dragTimerRef.current = setTimeout(() => {
-      dragTimerRef.current = null;
-      draggedLaneRowsRef.current = resolveDraggedLaneRows(idx, sourceSpan);
-      laneRowRef.current = draggedLaneRowsRef.current[0] ?? laneRowRef.current;
-      setDragState({
-        draggedId: layer.id,
-        draggedLayerIds,
-        sourceIndex: idx,
-        sourceSpan,
-        sourceType: layer.layerType,
-      });
-      setDropTargetIndex(idx);
-      dropTargetIndexRef.current = idx;
-      dropIntentRef.current = null;
-      updateBundleBoundaryHighlightVisual(layer.id, idx, idx);
-      updateLaneDragVisual(e.clientY);
-      document.removeEventListener('mouseup', cancelPendingDragStart);
-    }, 500);
-    document.addEventListener('mouseup', cancelPendingDragStart);
-  }, [allLayers, layer.id, layer.layerType, layerLinks, resolveDraggedLaneRows, updateBundleBoundaryHighlightVisual, updateLaneDragVisual]);
+      const idx = allLayers.findIndex((item) => item.id === layer.id);
+      const draggedLayerIds = resolveLayerDragGroup(allLayers, layer.id, layerLinks);
+      const sourceSpan = draggedLayerIds.length;
+
+      const cancelPendingDragStart = () => {
+        if (dragTimerRef.current) {
+          clearTimeout(dragTimerRef.current);
+          dragTimerRef.current = null;
+        }
+        dragStartClientYRef.current = null;
+        dragLastClientYRef.current = null;
+        dragDirectionRef.current = 'none';
+        dropIntentRef.current = null;
+        laneRowRef.current = null;
+        document.removeEventListener('mouseup', cancelPendingDragStart);
+      };
+
+      dragTimerRef.current = setTimeout(() => {
+        dragTimerRef.current = null;
+        draggedLaneRowsRef.current = resolveDraggedLaneRows(idx, sourceSpan);
+        laneRowRef.current = draggedLaneRowsRef.current[0] ?? laneRowRef.current;
+        setDragState({
+          draggedId: layer.id,
+          draggedLayerIds,
+          sourceIndex: idx,
+          sourceSpan,
+          sourceType: layer.layerType,
+        });
+        setDropTargetIndex(idx);
+        dropTargetIndexRef.current = idx;
+        dropIntentRef.current = null;
+        updateBundleBoundaryHighlightVisual(layer.id, idx, idx);
+        updateLaneDragVisual(e.clientY);
+        document.removeEventListener('mouseup', cancelPendingDragStart);
+      }, 500);
+      document.addEventListener('mouseup', cancelPendingDragStart);
+    },
+    [
+      allLayers,
+      layer.id,
+      layer.layerType,
+      layerLinks,
+      resolveDraggedLaneRows,
+      updateBundleBoundaryHighlightVisual,
+      updateLaneDragVisual,
+    ],
+  );
 
   useEffect(() => {
     dragStateRef.current = dragState;
@@ -380,7 +435,10 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
 
     if (finalTarget !== null) {
       if (finalTarget !== activeDrag.sourceIndex) {
-        fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget), { context: 'src/components/useTimelineLaneHeaderDrag.ts:L383', policy: 'user-visible' });
+        fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget), {
+          context: 'src/components/useTimelineLaneHeaderDrag.ts:L383',
+          policy: 'user-visible',
+        });
       }
     }
 
@@ -395,7 +453,12 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
     draggedLaneRowsRef.current = [];
     setDragState(null);
     setDropTargetIndex(null);
-  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, onReorderLayers]);
+  }, [
+    clearBundleBoundaryHighlightVisual,
+    clearLaneDragVisual,
+    clearSiblingShiftVisual,
+    onReorderLayers,
+  ]);
 
   useEffect(() => {
     if (!dragState) return;
@@ -429,23 +492,37 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, commitDragReorder, dragState, resolveDropTargetIndexForActiveDrag, updateDragDirection, updateBundleBoundaryHighlightVisual, updateLaneDragVisual, updateSiblingShiftVisual]);
+  }, [
+    clearBundleBoundaryHighlightVisual,
+    clearLaneDragVisual,
+    clearSiblingShiftVisual,
+    commitDragReorder,
+    dragState,
+    resolveDropTargetIndexForActiveDrag,
+    updateDragDirection,
+    updateBundleBoundaryHighlightVisual,
+    updateLaneDragVisual,
+    updateSiblingShiftVisual,
+  ]);
 
-  useEffect(() => () => {
-    clearLaneDragVisual();
-    clearSiblingShiftVisual();
-    clearBundleBoundaryHighlightVisual();
-    dragStartClientYRef.current = null;
-    dragLastClientYRef.current = null;
-    dragDirectionRef.current = 'none';
-    dropIntentRef.current = null;
-    laneRowRef.current = null;
-    draggedLaneRowsRef.current = [];
-    if (dragTimerRef.current) {
-      clearTimeout(dragTimerRef.current);
-      dragTimerRef.current = null;
-    }
-  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual]);
+  useEffect(
+    () => () => {
+      clearLaneDragVisual();
+      clearSiblingShiftVisual();
+      clearBundleBoundaryHighlightVisual();
+      dragStartClientYRef.current = null;
+      dragLastClientYRef.current = null;
+      dragDirectionRef.current = 'none';
+      dropIntentRef.current = null;
+      laneRowRef.current = null;
+      draggedLaneRowsRef.current = [];
+      if (dragTimerRef.current) {
+        clearTimeout(dragTimerRef.current);
+        dragTimerRef.current = null;
+      }
+    },
+    [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual],
+  );
 
   return {
     headerRef,

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ChangeEvent } from 'react';
-import type { LayerUnitDocType, NoteCategory } from '../../db';
+import type { LayerUnitDocType, NoteCategory } from '../../db/types';
 import { t, useOptionalLocale } from '../../i18n';
 import {
   listAnnotationUnitNotes,

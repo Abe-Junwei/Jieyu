@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import type { LayerDocType } from '../../db';
+import type { LayerDocType } from '../../db/types';
 import { t, useLocale } from '../../i18n';
 import { formatSidePaneLayerLabel } from '../../utils/transcriptionFormatters';
 import { useSidePaneLayerContextOrFallback } from '../../contexts/SidePaneContext';

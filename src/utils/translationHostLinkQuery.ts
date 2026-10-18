@@ -6,7 +6,7 @@
  * Centralizes host id resolution so resolvers, comparison view, constraints, and ordering share one contract.
  */
 
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db/types';
 
 export type TranslationHostLink = Pick<
   LayerLinkDocType,

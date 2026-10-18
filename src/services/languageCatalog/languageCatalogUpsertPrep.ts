@@ -1,4 +1,4 @@
-import type { LanguageDisplayNameRole, LanguageDocType, MultiLangString } from '../../db';
+import type { LanguageDisplayNameRole, LanguageDocType, MultiLangString } from '../../db/types';
 import type { Locale } from '../../i18n';
 import { lookupIso639_3Seed, type Iso639_3Seed } from '../languageCatalogSeedLookup';
 import type { UpsertLanguageCatalogEntryInput } from './languageCatalogTypes';

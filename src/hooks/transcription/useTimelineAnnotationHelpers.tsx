@@ -11,7 +11,7 @@ import {
   TimelineAnnotationItem,
   type TimelineAnnotationItemProps,
 } from '../../components/TimelineAnnotationItem';
-import type { LayerDocType, OrthographyDocType } from '../../db';
+import type { LayerDocType, OrthographyDocType } from '../../db/types';
 import type { ContextMenuState } from '../../pages/TranscriptionPage.UIState';
 import { t, useLocale } from '../../i18n';
 import { type TimelineUnit } from './transcriptionTypes';

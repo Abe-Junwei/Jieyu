@@ -12,7 +12,7 @@ import type {
   UpdateOrthographyBridgeInput,
   UpdateOrthographyInput,
 } from './LinguisticService.orthography';
-import type { OrthographyBridgeDocType, OrthographyDocType } from '../db';
+import type { OrthographyBridgeDocType, OrthographyDocType } from '../db/types';
 
 export async function createOrthography(
   input: CreateOrthographyInput,

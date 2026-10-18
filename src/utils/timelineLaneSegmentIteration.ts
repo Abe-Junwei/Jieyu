@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db/types';
 import {
   resolveSegmentTimelineSourceLayer,
   type SegmentTimelineHostLink,

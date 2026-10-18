@@ -1,4 +1,5 @@
-import type { JieyuDatabase, LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../db';
+import type { JieyuDatabase } from '../db/engine';
+import type { LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../db/types';
 import {
   bulkDeleteLayerUnitContentsByIds,
   bulkUpsertLayerSegmentGraph,
@@ -15,20 +16,32 @@ import {
  * All writes land in `layer_units`, `layer_unit_contents`, and `unit_relations`.
  */
 export class LayerUnitSegmentWriteService {
-  static async insertSegments(db: JieyuDatabase, segments: readonly LayerUnitDocType[]): Promise<void> {
+  static async insertSegments(
+    db: JieyuDatabase,
+    segments: readonly LayerUnitDocType[],
+  ): Promise<void> {
     if (segments.length === 0) return;
-    await bulkUpsertLayerUnits(db, segments.map((segment) => ({
-      ...segment,
-      unitType: 'segment',
-    })));
+    await bulkUpsertLayerUnits(
+      db,
+      segments.map((segment) => ({
+        ...segment,
+        unitType: 'segment',
+      })),
+    );
   }
 
-  static async upsertSegments(db: JieyuDatabase, segments: readonly LayerUnitDocType[]): Promise<void> {
+  static async upsertSegments(
+    db: JieyuDatabase,
+    segments: readonly LayerUnitDocType[],
+  ): Promise<void> {
     if (segments.length === 0) return;
-    await bulkUpsertLayerUnits(db, segments.map((segment) => ({
-      ...segment,
-      unitType: 'segment',
-    })));
+    await bulkUpsertLayerUnits(
+      db,
+      segments.map((segment) => ({
+        ...segment,
+        unitType: 'segment',
+      })),
+    );
   }
 
   static async reassignUnitsToMediaId(
@@ -47,39 +60,60 @@ export class LayerUnitSegmentWriteService {
     return reassignedUnits;
   }
 
-  static async insertSegmentContents(db: JieyuDatabase, contents: readonly LayerUnitContentDocType[]): Promise<void> {
+  static async insertSegmentContents(
+    db: JieyuDatabase,
+    contents: readonly LayerUnitContentDocType[],
+  ): Promise<void> {
     if (contents.length === 0) return;
     await bulkUpsertLayerUnitContents(db, contents);
   }
 
-  static async upsertSegmentContents(db: JieyuDatabase, contents: readonly LayerUnitContentDocType[]): Promise<void> {
+  static async upsertSegmentContents(
+    db: JieyuDatabase,
+    contents: readonly LayerUnitContentDocType[],
+  ): Promise<void> {
     if (contents.length === 0) return;
     await bulkUpsertLayerUnitContents(db, contents);
   }
 
-  static async insertSegmentLinks(db: JieyuDatabase, links: readonly UnitRelationDocType[]): Promise<void> {
+  static async insertSegmentLinks(
+    db: JieyuDatabase,
+    links: readonly UnitRelationDocType[],
+  ): Promise<void> {
     if (links.length === 0) return;
     await bulkUpsertUnitRelations(db, links);
   }
 
-  static async upsertSegmentLinks(db: JieyuDatabase, links: readonly UnitRelationDocType[]): Promise<void> {
+  static async upsertSegmentLinks(
+    db: JieyuDatabase,
+    links: readonly UnitRelationDocType[],
+  ): Promise<void> {
     if (links.length === 0) return;
     await bulkUpsertUnitRelations(db, links);
   }
 
-  static async deleteSegmentContentsByIds(db: JieyuDatabase, contentIds: readonly string[]): Promise<void> {
+  static async deleteSegmentContentsByIds(
+    db: JieyuDatabase,
+    contentIds: readonly string[],
+  ): Promise<void> {
     const ids = [...new Set(contentIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
     await bulkDeleteLayerUnitContentsByIds(db, ids);
   }
 
-  static async deleteSegmentLinksByIds(db: JieyuDatabase, linkIds: readonly string[]): Promise<void> {
+  static async deleteSegmentLinksByIds(
+    db: JieyuDatabase,
+    linkIds: readonly string[],
+  ): Promise<void> {
     const ids = [...new Set(linkIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
     await db.dexie.unit_relations.bulkDelete(ids);
   }
 
-  static async deleteSegmentsByIds(db: JieyuDatabase, segmentIds: readonly string[]): Promise<void> {
+  static async deleteSegmentsByIds(
+    db: JieyuDatabase,
+    segmentIds: readonly string[],
+  ): Promise<void> {
     const ids = [...new Set(segmentIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
     await deleteSegmentLayerUnitCascade(db, ids);
