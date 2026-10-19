@@ -146,9 +146,13 @@ describe('annotation import keeps a written document when the view fails to refr
       .mockImplementationOnce(() => {
         throw new Error('format failed');
       });
+    const states: SaveState[] = [];
     const { handleImportFile } = handlers(
       async () => undefined,
-      () => undefined,
+      (next) => {
+        if (typeof next === 'function') return;
+        states.push(next);
+      },
     );
     try {
       const outcome = await runInNewAnnotationDocument(textId, () => handleImportFile(eafFile()));
@@ -157,6 +161,10 @@ describe('annotation import keeps a written document when the view fails to refr
       expect(outcome.kept).toBe(true);
       expect((await db.texts.get(textId))?.defaultDocumentId).not.toBe(previous);
       expect(await contentText()).toContain('hello');
+      expect(states.at(-1)).toEqual({
+        kind: 'error',
+        message: '文件已导入并保存，但后续步骤出错：format failed。请检查导入结果，勿重复导入。',
+      });
     } finally {
       formatSpy.mockRestore();
     }

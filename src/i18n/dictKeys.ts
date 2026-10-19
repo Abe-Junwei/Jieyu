@@ -2293,6 +2293,7 @@ export const DICT_KEYS = [
   'transcription.importExport.noProject',
   'transcription.importExport.conflict',
   'transcription.importExport.failed',
+  'transcription.importExport.importedFollowUpFailed',
   'transcription.importExport.projectWrittenViewStale',
   'transcription.importExport.writtenViewStale',
   'transcription.importExport.snapshotLegacyDatabase',

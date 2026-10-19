@@ -2528,6 +2528,8 @@ export const enUSDictionary = {
   'transcription.importExport.conflict':
     'Import failed: data was modified by another operation. Refresh and try again.',
   'transcription.importExport.failed': 'Import failed: {message}',
+  'transcription.importExport.importedFollowUpFailed':
+    'The file was imported and saved, but a later step failed: {message}. Check the result; do not import it again.',
   'transcription.importExport.projectWrittenViewStale':
     'The project is written, but the view has not refreshed.',
   'transcription.importExport.writtenViewStale': 'Written, but the view has not refreshed.',
