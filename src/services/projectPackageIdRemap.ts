@@ -13,6 +13,8 @@
  * (a natural key) and are not remapped; the caller handles collisions.
  */
 
+import { newCatalogUuid } from './projectCatalogScope';
+
 /** 主键是自然键、不重映射的集合 | Collections keyed by a natural key, never remapped */
 export const NATURAL_KEY_COLLECTIONS: ReadonlySet<string> = new Set(['languages']);
 
@@ -27,7 +29,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 /** 为包里每一行的 id 分配新 id | Allocate a new id for every row id in the package */
 export function buildProjectIdRemap(
   collections: ProjectCollections,
-  newId: () => string = () => globalThis.crypto.randomUUID(),
+  newId: () => string = newCatalogUuid,
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const [name, rows] of Object.entries(collections)) {

@@ -60,8 +60,13 @@ export function newCatalogUuid(): string {
   ) {
     return globalThis.crypto.randomUUID();
   }
-  // Non-secure contexts (e.g. http://LAN-IP) lack randomUUID; keep id unique enough for catalog rows.
-  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  // 非安全上下文（如 http://局域网 IP）没有 randomUUID，但有 getRandomValues：按 RFC 9562 拼 v4。
+  // Non-secure contexts (e.g. http://LAN-IP) lack randomUUID but keep getRandomValues: build a v4 UUID.
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 export function lexemeBelongsToProject(lexeme: LexemeDocType, textId: string): boolean {
