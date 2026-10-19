@@ -28,6 +28,8 @@ export interface PilotToolOutcome {
   status: 'done' | 'error';
   message: string;
   requestId?: string;
+  /** Not sent to the model. End the loop after this step, e.g. the tool waits for user input. */
+  stopLoop?: boolean;
 }
 
 export interface PilotAgentOptions {
@@ -65,11 +67,16 @@ export function assertProviderInstance(
 export function createPilotAgent(options: PilotAgentOptions) {
   assertProviderInstance(options.model);
   const tools: ToolSet = {};
+  const stopAfter = new Set<string>();
   for (const [name, spec] of Object.entries(options.tools)) {
     tools[name] = tool({
       description: spec.description,
       inputSchema: spec.inputSchema,
-      execute: (input, { toolCallId }) => options.runToolDecision(name, input, toolCallId),
+      execute: async (input, { toolCallId }) => {
+        const { stopLoop, ...outcome } = await options.runToolDecision(name, input, toolCallId);
+        if (stopLoop) stopAfter.add(toolCallId);
+        return outcome;
+      },
     });
   }
   return new ToolLoopAgent({
@@ -82,6 +89,8 @@ export function createPilotAgent(options: PilotAgentOptions) {
       // B2：参数不可解析即停，交给澄清，不让模型盲重试 | stop on invalid args, clarification takes over
       ({ steps }) =>
         (steps.at(-1)?.toolCalls ?? []).some((c) => (c as { invalid?: boolean }).invalid === true),
+      // A tool asked for user input: do not let the model call it again in this turn.
+      ({ steps }) => (steps.at(-1)?.toolResults ?? []).some((r) => stopAfter.has(r.toolCallId)),
     ],
     ...(options.toolApproval
       ? {

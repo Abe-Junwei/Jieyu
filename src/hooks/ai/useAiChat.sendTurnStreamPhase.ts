@@ -103,6 +103,7 @@ export async function runAiChatSendTurnStreamPhase(
   let stream: AsyncGenerator<AssistantStreamChunk> = input.stream;
   let runtimeV2 = false;
   let legacyTookOver = false;
+  let v2InputCardShown = false;
   const v2CorpusResults: LocalContextToolResult[] = [];
   const v2EvidencePackets: EvidencePacketV0[] = [];
   if (
@@ -116,6 +117,12 @@ export async function runAiChatSendTurnStreamPhase(
       : v2.createAiSdkModelFromSettings(settings);
     if (model) {
       runtimeV2 = true;
+      // The first MCP input card of the turn wins; later cards stay in the turn state.
+      const setTurnCard = (card: PendingAiToolCall | null) => {
+        if (v2InputCardShown) return;
+        if (card?.mcpInput) v2InputCardShown = true;
+        input.setPendingToolCall(card);
+      };
       const runV2Pipeline = async (
         call: AiChatToolCall,
         approval: 'request' | 'approved' | undefined,
@@ -137,7 +144,7 @@ export async function runAiChatSendTurnStreamPhase(
               const tagged =
                 value && runtimeV2Card ? { ...value, runtimeV2: runtimeV2Card } : value;
               if (tagged) card = tagged;
-              env.setPendingToolCall(tagged);
+              setTurnCard(tagged);
             },
           },
           { ...(planner?.call ?? call), ...(call.requestId ? { requestId: call.requestId } : {}) },
@@ -218,12 +225,13 @@ export async function runAiChatSendTurnStreamPhase(
               );
               v2EvidencePackets.push(...(payload.evidencePackets ?? []));
               if (payload.form) {
-                input.setPendingToolCall(
+                setTurnCard(
                   buildExternalMcpInputPendingCall({
                     name: call.name,
                     form: payload.form,
                     assistantMessageId: assistantId,
                     requestId: call.requestId,
+                    conversationId: input.sendTurnConversationId,
                   }),
                 );
               }
@@ -231,6 +239,7 @@ export async function runAiChatSendTurnStreamPhase(
                 finalContent: externalMcpModelMessage(payload),
                 finalStatus: payload.ok ? 'done' : 'error',
                 pending: false,
+                ...(payload.reason === 'input_required' ? { stopLoop: true } : {}),
               };
             }
             if (isRuntimeV2BatchApply(call.name)) {
@@ -313,7 +322,7 @@ export async function runAiChatSendTurnStreamPhase(
                   approvalId,
                 },
               };
-              input.setPendingToolCall(card);
+              setTurnCard(card);
               await input.writeToolDecisionAuditLog(
                 assistantId,
                 'pending:batch_apply',
@@ -463,7 +472,14 @@ export async function runAiChatSendTurnStreamPhase(
       } =
         runtimeV2 && !legacyTookOver
           ? {
-              finalContent: s.assistantContent,
+              finalContent: v2InputCardShown
+                ? [
+                    s.assistantContent,
+                    t(toolFeedbackLocaleRef.current, 'ai.externalMcp.inputNeeded'),
+                  ]
+                    .filter((part) => part.trim().length > 0)
+                    .join('\n\n')
+                : s.assistantContent,
               finalStatus: 'done' as const,
               finalErrorMessage: undefined,
               connectionErrorMessage: undefined,

@@ -3,6 +3,7 @@
  * The server question stays on the card; it never goes into the assistant message.
  */
 import { completeExternalMcpInputForm } from '../../ai/mcp/client/externalMcpTurnBridge';
+import { firstUnansweredCard } from '../../ai/runtime/aiRuntimeV2Pending';
 import type { ExternalMcpInputCard } from '../../ai/mcp/client/externalMcpInputRequired';
 import { t, type Locale } from '../../i18n';
 import type { PendingAiToolCall } from './useAiChat.types';
@@ -85,6 +86,7 @@ export async function confirmExternalMcpInputCard(
   }
   deps.setPendingToolCall(null);
   deps.setTaskIdle();
+  await showQueuedApprovalCard(pending, deps.setPendingToolCall);
   if (outcome.kind === 'failed') {
     const message = t(deps.locale, 'ai.externalMcp.inputFailed');
     await deps.applyAssistantMessageResult(assistantMessageId, message, 'error', message);
@@ -110,4 +112,17 @@ export async function confirmExternalMcpInputCard(
     'human',
     requestId,
   );
+}
+
+/**
+ * An approval requested in the same ToolLoopAgent turn waits behind the input card
+ * (it is saved in the turn state); show it once the input card is gone.
+ */
+export async function showQueuedApprovalCard(
+  closed: PendingAiToolCall,
+  setPendingToolCall: (value: PendingAiToolCall | null) => void,
+): Promise<void> {
+  if (!closed.conversationIdAtCapture) return;
+  const next = await firstUnansweredCard(closed.conversationIdAtCapture, Date.now());
+  if (next) setPendingToolCall(next as PendingAiToolCall);
 }

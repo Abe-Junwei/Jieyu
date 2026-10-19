@@ -117,6 +117,8 @@ export interface RuntimeV2Decision {
   finalStatus: 'done' | 'error';
   /** 管线是否仍把调用交给了确认界面 | whether the pipeline still handed the call to the confirm UI */
   pending: boolean;
+  /** End the loop after this step (the tool waits for user input). */
+  stopLoop?: boolean;
 }
 
 /** 审批请求的管线结果：pending=已出确认卡片；card=卡片快照（存 Dexie，重载后重渲染）| request outcome */
@@ -141,8 +143,7 @@ export function runtimeV2ToolApproval(name: string): ToolApprovalStatus {
   if (name.startsWith('extmcp__')) return 'not-applicable';
   if (!(AI_CHAT_TOOL_NAMES_FROM_PARSER as readonly string[]).includes(name)) return 'denied';
   const policy = getAiToolPolicy(name as AiChatToolName) as
-    | ReturnType<typeof getAiToolPolicy>
-    | undefined;
+    ReturnType<typeof getAiToolPolicy> | undefined;
   if (policy?.effect === 'read') return 'not-applicable';
   return {
     type: 'user-approval',
@@ -305,6 +306,7 @@ export async function* runAiRuntimeV2Turn(
       status: decision.finalStatus,
       message: decision.finalContent,
       requestId: call.requestId ?? '',
+      ...(decision.stopLoop ? { stopLoop: true } : {}),
     };
   };
 

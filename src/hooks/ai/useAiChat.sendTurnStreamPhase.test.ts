@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatOrchestrator } from '../../ai/ChatOrchestrator';
 import { featureFlags } from '../../ai/config/featureFlags';
+import { t } from '../../i18n';
 import { getDefaultAiChatSettings } from '../../ai/providers/providerCatalog';
 import { createMetricTags } from '../../observability/metrics';
 import type { VerticalWorkflowOutputEnvelopeV0 } from '../../ai/vertical/verticalWorkflowSelection';
@@ -402,8 +403,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
     const payload = auditInsert.mock.calls.find(
       (call) => (call[0] as { field?: string }).field === 'ai_vertical_workflow_result',
     )?.[0] as
-      | { field: string; oldValue: string; newValue: string; metadataJson: string }
-      | undefined;
+      { field: string; oldValue: string; newValue: string; metadataJson: string } | undefined;
     expect(payload?.oldValue).toBe('annotation_qa');
     expect(payload?.newValue).toBe('done');
     const meta = JSON.parse(payload!.metadataJson) as {
@@ -1098,7 +1098,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
     };
     expect(card.mcpInput?.requests[0]?.message).toBe('Please provide your GitHub username');
     const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
-    expect(stored).toBe('input_required');
+    expect(stored).toContain(t('zh-CN', 'ai.externalMcp.inputNeeded'));
     expect(stored).not.toContain('opaque-state');
     expect(stored).not.toContain('GitHub');
   });

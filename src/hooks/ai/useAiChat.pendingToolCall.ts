@@ -21,7 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
-import { confirmExternalMcpInputCard } from './useAiChat.externalMcpInput';
+import { confirmExternalMcpInputCard, showQueuedApprovalCard } from './useAiChat.externalMcpInput';
 import { expireApprovalIfStale, resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
 import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
@@ -428,6 +428,7 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
           : {}),
       });
     }
+    if (pending.mcpInput) await showQueuedApprovalCard(pending, setPendingToolCall);
     // v2：取消 = 原生拒绝 response + execution-denied；有下一张卡片则接着显示 | native denial, show next card
     if (pending.runtimeV2) {
       const r = await resolveApproval(
