@@ -10,6 +10,7 @@ import {
   ToolLoopAgent,
   isStepCount,
   tool,
+  toolSearch,
   type LanguageModel,
   type TextStreamPart,
   type ToolApprovalStatus,
@@ -21,6 +22,22 @@ import type { z } from 'zod';
 export interface PilotToolSpec {
   description: string;
   inputSchema: z.ZodType | Schema;
+  /** Hidden from the model until `tool_search` finds it; callable from the next step. */
+  deferLoading?: boolean;
+}
+
+/** ADR-0065: tool definitions the model sees at the start of a turn, `tool_search` included. */
+export const PILOT_EAGER_TOOL_LIMIT = 20;
+
+export const PILOT_TOOL_SEARCH_NAME = 'tool_search';
+
+const TOOL_SEARCH_INSTRUCTIONS =
+  'Only some tools are listed. If none fits, call tool_search with English keywords (for example "layer", "gloss", "notes", "speaker", "corpus") and call the found tool on the next step.';
+
+export function countEagerPilotTools(tools: Record<string, PilotToolSpec>): number {
+  const specs = Object.values(tools);
+  const eager = specs.filter((s) => !s.deferLoading).length;
+  return specs.some((s) => s.deferLoading) ? eager + 1 : eager;
 }
 
 /** 工具决策结果（审批由 SDK toolApproval 完成，这里只有执行结果）| execution outcome */
@@ -75,10 +92,21 @@ export function createPilotAgent(options: PilotAgentOptions) {
   assertProviderInstance(options.model);
   const tools: ToolSet = {};
   const stopAfter = new Set<string>();
+  const eagerCount = countEagerPilotTools(options.tools);
+  if (eagerCount > PILOT_EAGER_TOOL_LIMIT) {
+    throw new Error(
+      `AI runtime: ${eagerCount} tools visible at turn start, limit ${PILOT_EAGER_TOOL_LIMIT}`,
+    );
+  }
+  const hasDeferred = Object.values(options.tools).some((s) => s.deferLoading);
+  if (hasDeferred && PILOT_TOOL_SEARCH_NAME in options.tools) {
+    throw new Error(`AI runtime: tool name ${PILOT_TOOL_SEARCH_NAME} is reserved`);
+  }
   for (const [name, spec] of Object.entries(options.tools)) {
     tools[name] = tool({
       description: spec.description,
       inputSchema: spec.inputSchema,
+      ...(spec.deferLoading ? { deferLoading: true } : {}),
       execute: async (input, { toolCallId, abortSignal }) => {
         const {
           stopLoop,
@@ -90,6 +118,10 @@ export function createPilotAgent(options: PilotAgentOptions) {
       },
     });
   }
+  if (hasDeferred) tools[PILOT_TOOL_SEARCH_NAME] = toolSearch();
+  const instructions = hasDeferred
+    ? [options.instructions, TOOL_SEARCH_INSTRUCTIONS].filter(Boolean).join('\n\n')
+    : options.instructions;
   return new ToolLoopAgent({
     model: options.model,
     tools,
@@ -106,10 +138,12 @@ export function createPilotAgent(options: PilotAgentOptions) {
     ...(options.toolApproval
       ? {
           toolApproval: ({ toolCall }: { toolCall: { toolName: string; input: unknown } }) =>
-            options.toolApproval!(toolCall.toolName, toolCall.input),
+            hasDeferred && toolCall.toolName === PILOT_TOOL_SEARCH_NAME
+              ? 'not-applicable'
+              : options.toolApproval!(toolCall.toolName, toolCall.input),
         }
       : {}),
-    ...(options.instructions ? { instructions: options.instructions } : {}),
+    ...(instructions ? { instructions } : {}),
   });
 }
 

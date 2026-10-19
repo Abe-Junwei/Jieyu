@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0065**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0066**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -101,6 +101,7 @@ source_of_truth: decision-index
 - [0062-desktop-storage-decisions-2026-10-16.md](./0062-desktop-storage-decisions-2026-10-16.md)
 - [0063-desktop-only-after-electron-skeleton.md](./0063-desktop-only-after-electron-skeleton.md)
 - [0064-storage-freeze-until-desktop-opens-real-projects.md](./0064-storage-freeze-until-desktop-opens-real-projects.md)
+- [0065-toolloopagent-eager-tool-limit.md](./0065-toolloopagent-eager-tool-limit.md)
 
 ## 已关闭的另一套编号
 

@@ -18,6 +18,7 @@ import {
   createConversationGenerationRef,
 } from '../../ai/chat/conversationGeneration';
 import { loadTurnState, unansweredApprovals } from '../../ai/runtime/aiRuntimeV2Pending';
+import { PILOT_TOOL_SEARCH_NAME } from '../../ai/runtime/toolLoopAgentPilot';
 import * as localContextToolExecutors from '../../ai/chat/localContextToolExecutors';
 import * as externalMcpTurnBridge from '../../ai/mcp/client/externalMcpTurnBridge';
 import type { PersistOpeningTurnAndBuildPromptContextResult } from './useAiChat.sendPersistTurnAndBuildPromptContext';
@@ -85,6 +86,10 @@ function toolCallsStream(calls: Array<[string, string]>) {
       ],
     }),
   };
+}
+
+function searchStream(query: string) {
+  return toolCallsStream([[PILOT_TOOL_SEARCH_NAME, JSON.stringify({ query })]]);
 }
 
 function textStream(text: string) {
@@ -340,6 +345,7 @@ describe('ToolLoopAgent turn: MCP input card', () => {
     });
     const model = new MockLanguageModelV4({
       doStream: [
+        searchStream('search works'),
         toolCallsStream([
           [EXT_TOOL, '{}'],
           ['batch_apply', '{"action":"verify","unitIds":["u1"]}'],
@@ -352,7 +358,7 @@ describe('ToolLoopAgent turn: MCP input card', () => {
 
     await runAiChatSendTurnStreamPhase(h.input);
 
-    expect(model.doStreamCalls).toHaveLength(1);
+    expect(model.doStreamCalls).toHaveLength(2);
     const shown = h.cards.filter(Boolean) as PendingAiToolCall[];
     expect(shown).toHaveLength(1);
     expect(shown[0]!.mcpInput?.requestState).toBe('STATE-1');
@@ -377,7 +383,11 @@ describe('ToolLoopAgent turn: MCP input card', () => {
 describe('ToolLoopAgent turn: stop and conversation switch', () => {
   function modelCallingExternalTool() {
     const model = new MockLanguageModelV4({
-      doStream: [toolCallsStream([[EXT_TOOL, '{}']]), textStream('after')],
+      doStream: [
+        searchStream('search works'),
+        toolCallsStream([[EXT_TOOL, '{}']]),
+        textStream('after'),
+      ],
     });
     modelRef.current = model;
     return model;
@@ -456,6 +466,7 @@ describe('ToolLoopAgent turn: execution audit', () => {
     );
     modelRef.current = new MockLanguageModelV4({
       doStream: [
+        searchStream('concordance kwic'),
         toolCallsStream([
           ['list_units', '{"limit":8}'],
           ['concordance_kwic', '{"gloss":"PST"}'],
@@ -487,6 +498,7 @@ describe('ToolLoopAgent turn: external MCP call cap', () => {
     }));
     const model = new MockLanguageModelV4({
       doStream: [
+        searchStream('search works'),
         {
           stream: simulateReadableStream({
             chunks: [
@@ -509,8 +521,8 @@ describe('ToolLoopAgent turn: external MCP call cap', () => {
     await runAiChatSendTurnStreamPhase(h.input);
 
     expect(externalMcpTurnBridge.executeExternalMcpCall).toHaveBeenCalledTimes(5);
-    expect(model.doStreamCalls).toHaveLength(2);
-    const prompt = JSON.stringify(model.doStreamCalls[1]!.prompt);
+    expect(model.doStreamCalls).toHaveLength(3);
+    const prompt = JSON.stringify(model.doStreamCalls[2]!.prompt);
     expect(prompt.match(/turn_call_limit/g)).toHaveLength(2);
   });
 });

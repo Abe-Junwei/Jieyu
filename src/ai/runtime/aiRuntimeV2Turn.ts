@@ -73,6 +73,27 @@ const decodeEscapedLabel = (label: string) =>
   label.replace(/\\u([0-9a-f]{4})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
 
 /**
+ * ADR-0065: the tools the model sees at turn start. Every other tool is found through `tool_search`.
+ * Recorded fixtures call delete_transcription_segment and list_layers directly.
+ */
+export const RUNTIME_V2_EAGER_TOOLS: ReadonlySet<string> = new Set([
+  'get_current_selection',
+  'get_unit_detail',
+  'list_units',
+  'search_units',
+  'list_layers',
+  'get_project_stats',
+  'set_transcription_text',
+  'set_translation_text',
+  'create_transcription_segment',
+  'split_transcription_segment',
+  'merge_transcription_segments',
+  'delete_transcription_segment',
+  'propose_changes',
+  'batch_apply',
+]);
+
+/**
  * 工具定义由现有 zod schema 派生（参数 + 描述）给模型看；SDK 边界不校验（jsonSchema 无 validate），
  * 严格校验仍在 toolDecisionPipeline，invalid_args 走澄清。
  * Tool definitions derived from the zod schemas; no validation at the SDK boundary.
@@ -106,6 +127,9 @@ export function buildRuntimeV2ToolSpecs(options?: {
   Object.assign(specs, localReadToolSpecs());
   specs.batch_apply = batchApplyToolSpec();
   if (options?.corpusAnalysis) Object.assign(specs, corpusAnalysisToolSpecs());
+  for (const [name, spec] of Object.entries(specs)) {
+    if (!RUNTIME_V2_EAGER_TOOLS.has(name)) spec.deferLoading = true;
+  }
   return specs;
 }
 

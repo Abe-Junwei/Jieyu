@@ -126,6 +126,7 @@ export function externalMcpToolSpecs(
     specs[tool.name] = {
       description: tool.description,
       inputSchema: jsonSchema(tool.inputSchema as Record<string, unknown>),
+      deferLoading: true,
     };
   }
   return specs;
