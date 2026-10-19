@@ -2972,6 +2972,8 @@ export const enUSDictionary = {
     'The target of this pending action changed meanwhile, so the approval expired. Please ask again.',
   'ai.runtimeV2.pendingNoAutoContinue':
     'After you confirm, I will not continue automatically; send another message to let me proceed.',
+  'ai.externalMcp.inputNeeded':
+    'The external tool needs more information. Fill in the card below and submit.',
   'ai.toolWriteGate.localPolicyBlocked':
     'Local tool execution was blocked by your directive preferences. If you want to continue, explicitly authorize this turn.',
   'ai.toolWriteGate.localPolicyConfirm':

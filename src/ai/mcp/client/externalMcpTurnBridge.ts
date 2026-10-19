@@ -60,6 +60,8 @@ export type ExternalMcpSendTurnResolution =
       finalStatus: 'done' | 'error';
       finalErrorMessage?: string;
       evidencePackets?: EvidencePacketV0[];
+      /** The first call that needs user input. It is left out of finalContent. */
+      inputCard?: { name: string; form: ExternalMcpInputCard };
     };
 
 /** OpenAI-compatible function names: `^[a-zA-Z0-9_-]{1,64}$`. */
@@ -437,27 +439,37 @@ export async function resolveExternalMcpSendTurn(input: {
   }
   const payloads: ExternalMcpCallPayload[] = [];
   let anyError = false;
+  let inputCard: { name: string; form: ExternalMcpInputCard } | undefined;
   const collectedPackets: EvidencePacketV0[] = [];
   for (const call of calls) {
     const payload = await executeExternalMcpCall(call, input.agentRunId);
-    if (!payload.ok) anyError = true;
     collectedPackets.push(...(payload.evidencePackets ?? []));
-    payloads.push(payload);
+    if (payload.form && !inputCard) {
+      inputCard = { name: call.name, form: payload.form };
+      continue;
+    }
+    if (!payload.ok) anyError = true;
+    payloads.push(modelSafePayload(payload));
   }
-  const finalContent = externalMcpResultsBody(payloads);
+  const finalContent = payloads.length > 0 ? externalMcpResultsBody(payloads) : '';
+  const extras = {
+    ...(collectedPackets.length > 0 ? { evidencePackets: collectedPackets } : {}),
+    ...(inputCard ? { inputCard } : {}),
+  };
   if (anyError) {
     return {
       handled: true,
       finalContent,
       finalStatus: 'error',
       finalErrorMessage: 'external mcp tool failed',
-      ...(collectedPackets.length > 0 ? { evidencePackets: collectedPackets } : {}),
+      ...extras,
     };
   }
-  return {
-    handled: true,
-    finalContent,
-    finalStatus: 'done',
-    ...(collectedPackets.length > 0 ? { evidencePackets: collectedPackets } : {}),
-  };
+  return { handled: true, finalContent, finalStatus: 'done', ...extras };
+}
+
+/** finalContent goes to history and back to the model: no form, server question or requestState. */
+function modelSafePayload(payload: ExternalMcpCallPayload): ExternalMcpCallPayload {
+  if (payload.reason !== 'input_required') return payload;
+  return { name: payload.name, ok: false, reason: 'input_required' };
 }

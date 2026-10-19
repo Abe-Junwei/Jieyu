@@ -41,6 +41,7 @@ import {
 } from './useAiChat.streamCompletion';
 import { buildToolAuditContext } from '../../ai/chat/toolCallHelpers';
 import { handleInvalidToolArguments } from './useAiChat.argsValidation';
+import { buildExternalMcpInputPendingCall } from './useAiChat.externalMcpInput';
 import { t } from '../../i18n';
 import type { AssistantStreamChunk } from './useAiChat.streamFactory';
 import type { AiChatToolCall, PendingAiToolCall } from './useAiChat.types';
@@ -217,21 +218,14 @@ export async function runAiChatSendTurnStreamPhase(
               );
               v2EvidencePackets.push(...(payload.evidencePackets ?? []));
               if (payload.form) {
-                const snapshot = {
-                  name: call.name,
-                  arguments: call.arguments,
-                  ...(call.requestId ? { requestId: call.requestId } : {}),
-                } as PendingAiToolCall['call'];
-                const prompt = payload.form.requests[0]?.message;
-                input.setPendingToolCall({
-                  call: snapshot,
-                  assistantMessageId: assistantId,
-                  ...(prompt ? { riskSummary: prompt } : {}),
-                  approvalMode: 'user_preference',
-                  policyReasonCode: 'input_required',
-                  mcpInput: payload.form,
-                  ...(call.requestId ? { requestId: call.requestId } : {}),
-                });
+                input.setPendingToolCall(
+                  buildExternalMcpInputPendingCall({
+                    name: call.name,
+                    form: payload.form,
+                    assistantMessageId: assistantId,
+                    requestId: call.requestId,
+                  }),
+                );
               }
               return {
                 finalContent: externalMcpModelMessage(payload),

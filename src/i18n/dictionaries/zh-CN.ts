@@ -2732,6 +2732,7 @@ export const zhCNDictionary = {
   'ai.runtimeV2.approvedRunsNextTurn': '已批准，将在你发送下一条消息时执行。',
   'ai.runtimeV2.approvalStale': '待确认的操作目标在此期间已变化，该审批已过期，请重新发起。',
   'ai.runtimeV2.pendingNoAutoContinue': '确认后不会自动继续，请在确认后再发一条消息让我接着做。',
+  'ai.externalMcp.inputNeeded': '外部工具需要你补充信息，请在下方卡片里填写后提交。',
   'ai.toolWriteGate.localPolicyBlocked':
     '已按你的偏好阻止本地工具自动执行。若你希望继续，请明确授权本轮执行。',
   'ai.toolWriteGate.localPolicyConfirm':
