@@ -1714,6 +1714,7 @@ describe('planLegacyMigration', () => {
       writeFileSync(
         planFile,
         JSON.stringify({
+          status: plan.status,
           project: plan.project,
           speakers: plan.speakers,
           languages: plan.languages,
