@@ -278,3 +278,96 @@ describe('planLegacyMigration split and audio references', () => {
     expect(plan.missingAudios).toEqual([{ manuscriptId: 'd1', audioId: 'ghost' }]);
   });
 });
+
+describe('planLegacyMigration records and ids across manuscripts', () => {
+  it('records a document source that is linked to another audio', () => {
+    const plan = ready({
+      project: { id: 'p1', name: 'P' },
+      documents: [{ id: 'd1', name: 'doc', sourceIds: ['s-other'] }],
+      layers: [{ id: 'l1', documentId: 'd1' }],
+      units: [{ id: 'u1', layerId: 'l1', mediaId: 'a1' }],
+      audios: [{ id: 'a1', filename: 'a.wav', bytes: bytes('A') }],
+      sourceRecords: [
+        {
+          id: 's-other',
+          textId: 'p1',
+          originalName: 'x',
+          displayName: 'x',
+          format: 'eaf',
+          mediaId: 'a9',
+        },
+      ],
+    });
+    expect(plan.manuscripts[0]?.sourceIds).toEqual([]);
+    expect(plan.droppedSourceRefs).toEqual([
+      { documentId: 'd1', sourceId: 's-other', mediaId: 'a9', reason: 'other-audio' },
+    ]);
+  });
+
+  it('gives each copy of an anchor, track or layer link its own id and records the mapping', () => {
+    const plan = ready(
+      {
+        documents: [
+          { id: 'd1', name: 'one' },
+          { id: 'd2', name: 'two' },
+        ],
+        layers: [
+          { id: 'l1', documentId: 'd1' },
+          { id: 'l1b', documentId: 'd1' },
+          { id: 'l2', documentId: 'd2' },
+        ],
+        units: [
+          { id: 'u1', layerId: 'l1', mediaId: 'a1', startAnchorId: 'an1', endAnchorId: 'an2' },
+          { id: 'u1b', layerId: 'l1b', mediaId: 'a2' },
+          { id: 'u2', layerId: 'l2', mediaId: 'a1', startAnchorId: 'an1' },
+        ],
+        audios: [
+          { id: 'a1', filename: 'a.wav', bytes: bytes('A') },
+          { id: 'a2', filename: 'b.wav', bytes: bytes('B') },
+        ],
+        anchors: [
+          { id: 'an1', mediaId: 'a1', time: 0 },
+          { id: 'an2', mediaId: 'a1', time: 1 },
+        ],
+        tracks: [{ id: 't1', mediaId: 'a1', mode: 'single' }],
+        layerLinks: [
+          { id: 'll1', hostLayerId: 'l1', layerId: 'l1b', linkType: 'free', isPreferred: true },
+        ],
+      },
+      { confirmSplit: true },
+    );
+    const byId = new Map(plan.manuscripts.map((manuscript) => [manuscript.id, manuscript]));
+    expect(byId.get('d1--a1')?.anchors.map((anchor) => anchor.id)).toEqual(['an1', 'an2']);
+    expect(byId.get('d2')?.anchors.map((anchor) => anchor.id)).toEqual(['an1--d2', 'an2--d2']);
+    expect(byId.get('d2')?.units[0]).toMatchObject({ id: 'u2', startAnchorId: 'an1--d2' });
+    expect(byId.get('d2')?.tracks.map((track) => track.id)).toEqual(['t1--d2']);
+    for (const kind of ['anchors', 'tracks', 'layerLinks'] as const) {
+      const ids = plan.manuscripts.flatMap((manuscript) => manuscript[kind].map((row) => row.id));
+      expect(new Set(ids).size, kind).toBe(ids.length);
+    }
+    expect(plan.copiedIds).toEqual([
+      { manuscriptId: 'd2', kind: 'anchor', fromId: 'an1', toId: 'an1--d2' },
+      { manuscriptId: 'd2', kind: 'anchor', fromId: 'an2', toId: 'an2--d2' },
+      { manuscriptId: 'd2', kind: 'track', fromId: 't1', toId: 't1--d2' },
+    ]);
+    const { root, stdout } = applyViaCli(plan);
+    try {
+      const back = JSON.parse(stdout) as {
+        manuscripts: {
+          id: string;
+          anchors: { id: string }[];
+          units: { id: string; startAnchorId?: string }[];
+        }[];
+      };
+      const anchorIds = back.manuscripts.flatMap((manuscript) =>
+        manuscript.anchors.map((a) => a.id),
+      );
+      expect(new Set(anchorIds).size).toBe(anchorIds.length);
+      expect(
+        back.manuscripts.find((manuscript) => manuscript.id === 'd2')?.units[0]?.startAnchorId,
+      ).toBe('an1--d2');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

@@ -29,6 +29,8 @@
  * 没有语段引用的音频也写出，看板上是录音卡片（ADR-0061 第 3 条）。
  * 拆分时没有 mediaId 的语段跟着父语段走；自己和上级都没有音频的纯文本语段不进任何一份，确认前就列在待确认清单里，连同会断开的父子链接。mediaId 一律去掉首尾空白再比较。
  * 文稿引用了库里没有的音频 id 时照写，记进 `missingAudios`。
+ * 文稿引用的来源挂在别的录音上、哪份文稿都不进时，记进 `droppedSourceRefs`。
+ * 同一个锚点、轨道或层链接进了几份 `.jyd` 时，第一份保留原 id，其余换成 `原id--文稿id`，对照记进 `copiedIds`，语段上的锚点引用跟着换。
  * 文件名由标题或原文件名清成一段安全文件名。音频和 `.jyd` 共用一个命名空间，忽略大小写和组合方式去重；音频不占用 `project.sqlite`、隐藏目录、`.jyd` 和 SQLite 日志的名字。
  */
 import { createHash } from 'node:crypto';
@@ -716,6 +718,8 @@ export type LegacyMigrationPlan =
       droppedLayerLinks: DroppedLayerLink[];
       droppedTracks: { id: string; mediaId: string }[];
       droppedAnnotations: DroppedAnnotation[];
+      droppedSourceRefs: DroppedSourceRef[];
+      copiedIds: CopiedId[];
       droppedDefinitions: {
         kind: 'language' | 'orthography' | 'display-name' | 'alias';
         id: string;
@@ -1310,7 +1314,7 @@ function plannedSourceRefs(
       continue;
     }
     if (source.mediaId !== undefined) {
-      if (source.mediaId === audioId) kept.push(source.id);
+      if (audioIdOf(source.mediaId) === audioId) kept.push(source.id);
       continue;
     }
     if (includeUnlinked) kept.push(source.id);
@@ -1349,6 +1353,68 @@ function plannedLexemeLinks(
     });
   }
   return { links: kept, dropped, handled };
+}
+
+/** 文稿引用的来源挂在这份文稿没有的录音上，所以不进任何一份 `.jyd`。 */
+export interface DroppedSourceRef {
+  documentId: string;
+  sourceId: string;
+  mediaId: string;
+  reason: 'other-audio';
+}
+
+/** 同一个锚点、轨道或层链接进了不止一份 `.jyd` 时，第一份保留原 id，其余换成新 id。 */
+export interface CopiedId {
+  manuscriptId: string;
+  kind: 'anchor' | 'track' | 'layer-link';
+  fromId: string;
+  toId: string;
+}
+
+function renameCopiedIds(manuscripts: PlannedManuscript[]): CopiedId[] {
+  const copied: CopiedId[] = [];
+  const seen: Record<CopiedId['kind'], Set<string>> = {
+    anchor: new Set(),
+    track: new Set(),
+    'layer-link': new Set(),
+  };
+  const rename = (kind: CopiedId['kind'], manuscriptId: string, id: string): string => {
+    if (!seen[kind].has(id)) {
+      seen[kind].add(id);
+      return id;
+    }
+    let toId = `${id}--${manuscriptId}`;
+    for (let n = 2; seen[kind].has(toId); n += 1) toId = `${id}--${manuscriptId}-${n}`;
+    seen[kind].add(toId);
+    copied.push({ manuscriptId, kind, fromId: id, toId });
+    return toId;
+  };
+  for (const manuscript of manuscripts) {
+    const anchorIds = new Map<string, string>();
+    manuscript.anchors = manuscript.anchors.map((anchor) => {
+      const id = rename('anchor', manuscript.id, anchor.id);
+      anchorIds.set(anchor.id, id);
+      return { ...anchor, id };
+    });
+    manuscript.units = manuscript.units.map((unit) => ({
+      ...unit,
+      ...(unit.startAnchorId !== undefined
+        ? { startAnchorId: anchorIds.get(unit.startAnchorId) ?? unit.startAnchorId }
+        : {}),
+      ...(unit.endAnchorId !== undefined
+        ? { endAnchorId: anchorIds.get(unit.endAnchorId) ?? unit.endAnchorId }
+        : {}),
+    }));
+    manuscript.tracks = manuscript.tracks.map((track) => ({
+      ...track,
+      id: rename('track', manuscript.id, track.id),
+    }));
+    manuscript.layerLinks = manuscript.layerLinks.map((link) => ({
+      ...link,
+      id: rename('layer-link', manuscript.id, link.id),
+    }));
+  }
+  return copied;
 }
 
 export interface SplitDroppedUnit {
@@ -1566,7 +1632,10 @@ export function planLegacyMigration(
   const handledLexemeLinks = new Set<string>();
   const fileNames = new Set<string>();
 
+  const ownedSourceById = new Map(ownedSources.kept.map((source) => [source.id, source]));
+  const droppedSourceRefs: DroppedSourceRef[] = [];
   for (const document of library.documents) {
+    const keptSourceIds = new Set<string>();
     const units = placed.filter((unit) => unit.manuscriptId === document.id);
     const audioIds = unitAudioIds(units);
     const split = audioIds.length > 1 ? splitDocument(units, audioIds) : null;
@@ -1667,6 +1736,17 @@ export function planLegacyMigration(
         tracks: [],
         annotations: [],
       });
+      for (const id of sourceRefs.sourceIds) keptSourceIds.add(id);
+    }
+    for (const id of new Set(document.sourceIds ?? [])) {
+      const source = ownedSourceById.get(id);
+      if (source === undefined || keptSourceIds.has(id)) continue;
+      droppedSourceRefs.push({
+        documentId: document.id,
+        sourceId: id,
+        mediaId: source.mediaId ?? '',
+        reason: 'other-audio',
+      });
     }
   }
 
@@ -1729,6 +1809,8 @@ export function planLegacyMigration(
     sha256: sha256(audio.bytes),
     bytes: audio.bytes,
   }));
+
+  const copiedIds = renameCopiedIds(manuscripts);
 
   return {
     status: 'ready',
@@ -1804,6 +1886,8 @@ export function planLegacyMigration(
     droppedLayerLinks,
     droppedTracks,
     droppedAnnotations,
+    droppedSourceRefs,
+    copiedIds,
     droppedDefinitions: [
       ...ownedLanguages.dropped.map((row) => ({
         kind: 'language' as const,
