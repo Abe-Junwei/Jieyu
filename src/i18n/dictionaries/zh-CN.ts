@@ -72,6 +72,8 @@ export const zhCNDictionary = {
     '将解除与这些来源文稿的关联，文稿仍留在项目里：{names}。',
   'app.files.removeEmptyRecordingBlocked': '这条录音还有音频、句段或锚点，不能移除条目。',
   'app.files.removeEmptyRecordingRefreshPending': '这条录音已经移除，看板尚未刷新。',
+  'app.files.removeEmptyRecordingReadbackFailed':
+    '移除后没能确认结果，请刷新看板查看这条录音是否还在。',
   'app.files.removeEmptyRecordingKeepUnits': '已有语段和锚点会留在项目里，不再挂在这条录音上。',
   'app.home.templateRules': '选用模板与语言规范设置',
   'app.home.lastUpdated': '最后更新：{date}',
@@ -1466,6 +1468,10 @@ export const zhCNDictionary = {
   'transcription.action.audioImported': '媒体「{filename}」导入成功。',
   'transcription.action.audioImportedDurationFailed':
     '媒体「{filename}」已导入，但逻辑时间轴调整未完成。请检查时间轴，勿重复导入。',
+  'transcription.action.audioImportedBindFailed':
+    '媒体「{filename}」已导入，但未挂到录音上的语段没能挂接到它。请检查时间轴，勿重复导入。',
+  'transcription.action.audioAlreadyImported':
+    '项目里已有内容完全相同的「{filename}」，这次没有重复导入。',
   'transcription.action.audioImportSelectPlaceholder':
     '项目里有多条占位时间轴，请先在时间轴上选中要挂接音频的那一条，再导入。',
   'transcription.action.relinkContentMismatchConfirm':
@@ -2345,6 +2351,8 @@ export const zhCNDictionary = {
   'transcription.importExport.noProject': '请先创建项目。',
   'transcription.importExport.conflict': '导入失败：检测到数据已被其他操作更新，请刷新后重试。',
   'transcription.importExport.failed': '导入失败: {message}',
+  'transcription.importExport.importedFollowUpFailed':
+    '文件已导入并保存，但后续步骤出错：{message}。请检查导入结果，勿重复导入。',
   'transcription.importExport.projectWrittenViewStale': '项目已写入，视图还没刷新。',
   'transcription.importExport.writtenViewStale': '已写入，视图还没刷新。',
   'transcription.importExport.snapshotLegacyDatabase':

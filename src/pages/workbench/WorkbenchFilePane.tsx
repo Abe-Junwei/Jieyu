@@ -129,14 +129,18 @@ export function WorkbenchFilePane(props: {
       setSaveState({ kind: 'error', message: t(locale, 'transcription.action.audioTooLong') });
       return;
     }
+    let alreadyImported = false;
+    let unitBindingFailed = false;
     try {
-      await LinguisticService.media.importAudio({
+      const result = await LinguisticService.media.importAudio({
         textId,
         audioBlob: file,
         filename: file.name,
         duration,
         ...(replaceMediaId ? { importMode: 'replace' as const, replaceMediaId } : {}),
       });
+      alreadyImported = result.alreadyImported === true;
+      unitBindingFailed = result.unitBindingFailed === true;
     } catch (error) {
       const mismatch =
         error instanceof MediaContentMismatchError
@@ -152,7 +156,7 @@ export function WorkbenchFilePane(props: {
           });
           return;
         }
-        await LinguisticService.media.importAudio({
+        const result = await LinguisticService.media.importAudio({
           textId,
           audioBlob: file,
           filename: file.name,
@@ -161,6 +165,7 @@ export function WorkbenchFilePane(props: {
           replaceMediaId: mismatch.mediaId,
           acknowledgeContentMismatch: true,
         });
+        unitBindingFailed = result.unitBindingFailed === true;
       } else if (
         error instanceof Error &&
         error.name === 'AudioImportPlaceholderSelectionRequiredError'
@@ -174,10 +179,23 @@ export function WorkbenchFilePane(props: {
         throw error;
       }
     }
-    setSaveState({
-      kind: 'done',
-      message: tf(locale, 'transcription.action.audioImported', { filename: file.name }),
-    });
+    setSaveState(
+      alreadyImported || unitBindingFailed
+        ? {
+            kind: 'error',
+            message: tf(
+              locale,
+              alreadyImported
+                ? 'transcription.action.audioAlreadyImported'
+                : 'transcription.action.audioImportedBindFailed',
+              { filename: file.name },
+            ),
+          }
+        : {
+            kind: 'done',
+            message: tf(locale, 'transcription.action.audioImported', { filename: file.name }),
+          },
+    );
     await refreshProject();
   };
 
@@ -245,7 +263,6 @@ export function WorkbenchFilePane(props: {
               : {}),
             ...(row.unitCount !== undefined ? { unitCount: row.unitCount } : {}),
             ...(row.anchorCount !== undefined ? { anchorCount: row.anchorCount } : {}),
-            ...(row.canRemoveEmpty !== undefined ? { canRemoveEmpty: row.canRemoveEmpty } : {}),
             transcriptionRate: row.transcriptionRate,
             translationRate: row.translationRate,
             annotationRate: row.annotationRate,

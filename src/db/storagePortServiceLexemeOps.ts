@@ -139,6 +139,21 @@ export function mergeLexemeIntoList(
   return next;
 }
 
+function assertLexemeReadback(
+  row: LexemeDocType | undefined,
+  id: string,
+  textId: string,
+  fields: LexiconEntryFields,
+): LexemeEntryDoc {
+  if (!row || !isLexemeEntry(row) || row.textId !== textId) {
+    throw new Error(`lexeme readback missing ${id}`);
+  }
+  if (lexemeHeadword(row) !== fields.headword.trim()) {
+    throw new Error(`lexeme headword readback mismatch for ${id}`);
+  }
+  return row;
+}
+
 export async function saveLexiconEntry(input: {
   existing: LexemeEntryDoc | null;
   fields: LexiconEntryFields;
@@ -166,23 +181,14 @@ export async function saveLexiconEntry(input: {
           );
           return writeLexemeInTransaction(applied.entry, db)
             .then(() => writeLexemeInTransaction(applied.resource, db))
-            .then(() => db.dexie.lexemes.where('textId').equals(textId).toArray())
-            .then((rows) => {
-              const readback = entryRows(rows)
-                .sort(compareLexemeEntries)
-                .find((row) => row.id === applied.entry.id);
-              if (!readback || !isLexemeEntry(readback)) {
-                throw new Error(`lexeme readback missing ${applied.entry.id}`);
-              }
-              if (lexemeHeadword(readback) !== input.fields.headword.trim()) {
-                throw new Error(`lexeme headword readback mismatch for ${applied.entry.id}`);
-              }
-              return readback;
-            });
+            .then(() => db.dexie.lexemes.get(applied.entry.id))
+            .then((row) => assertLexemeReadback(row, applied.entry.id, textId, input.fields));
         });
     },
     { label: 'lexicon-entry-save' },
   );
+  // 事务内读回只证明写进去了；提交后再读一次 | In-tx readback proves the write, not the commit
+  assertLexemeReadback(await db.dexie.lexemes.get(stored.id), stored.id, textId, input.fields);
   dispatchWorkspaceLexemeUpdated({ lexemeId: stored.id });
   dispatchWorkspaceLexemeUpdated({ lexemeId: dmlexResourceIdForProject(textId) });
   return stored;

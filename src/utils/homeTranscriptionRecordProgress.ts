@@ -15,7 +15,6 @@ import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { WorkspaceReadModelService } from '../services/WorkspaceReadModelService';
 import { listAnnotationDocuments } from '../services/annotationDocumentService';
 import {
-  emptyRecordingRemovalByteBlock,
   isAuxiliaryRecordingMediaRow,
   isMediaItemPlaceholderRow,
   mediaRowHasPlayableBytes,
@@ -55,8 +54,6 @@ export interface TranscriptionRecordProgressRow {
   hasPlayableBytes?: boolean;
   unitCount?: number;
   anchorCount?: number;
-  /** 与存储门禁一致：没有可播放字节，并且没有句段和锚点。 */
-  canRemoveEmpty?: boolean;
 }
 
 export interface HomeProjectProgressBundle {
@@ -190,8 +187,6 @@ async function loadRecordRow(
     hasPlayableBytes: mediaRowHasPlayableBytes(media),
     unitCount,
     anchorCount,
-    canRemoveEmpty:
-      emptyRecordingRemovalByteBlock(media) === null && unitCount === 0 && anchorCount === 0,
   };
 
   if (txLayerIds.length === 0) {

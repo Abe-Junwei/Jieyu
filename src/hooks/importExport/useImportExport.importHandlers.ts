@@ -1259,6 +1259,17 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         resolvedTextId,
         error: rawMessage,
       });
+      // 事务已提交：再报“导入失败”会让用户重导，生成第二份文稿或重复语段。
+      // Already committed: "import failed" would make users import again and duplicate the content.
+      if (committed) {
+        setSaveState({
+          kind: 'error',
+          message: tf(locale, 'transcription.importExport.importedFollowUpFailed', {
+            message: rawMessage,
+          }),
+        });
+        return { committed };
+      }
       reportActionError({
         actionLabel: t(locale, 'transcription.importExport.actionLabelImportFile'),
         error: err,

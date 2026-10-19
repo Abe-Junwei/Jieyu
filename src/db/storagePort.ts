@@ -79,7 +79,7 @@ import { db, getDb } from './engine';
 import { StorageReadbackError } from './storageReadbackError';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
-import { isMediaItemPlaceholderRow, mediaRowHasPlayableBytes } from '../utils/mediaItemState';
+import { emptyRecordingRemovalByteBlock } from '../utils/mediaItemState';
 import { newId } from '../utils/transcriptionFormatters';
 import {
   attachSpeakerToProject,
@@ -620,12 +620,8 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
     async () => {
       const row = await database.dexie.media_items.get(id);
       if (!row) throw new RecordingRemovalBlockedError(id, 'missing');
-      if (isMediaItemPlaceholderRow(row)) {
-        throw new RecordingRemovalBlockedError(id, 'not-acoustic');
-      }
-      if (mediaRowHasPlayableBytes(row)) {
-        throw new RecordingRemovalBlockedError(id, 'has-bytes');
-      }
+      const blocked = emptyRecordingRemovalByteBlock(row);
+      if (blocked !== null) throw new RecordingRemovalBlockedError(id, blocked);
       const sources = await database.dexie.source_records.where('mediaId').equals(id).toArray();
       unboundSourceIds = sources.map((source) => source.id);
       const now = new Date().toISOString();

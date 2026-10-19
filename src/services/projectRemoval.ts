@@ -17,9 +17,9 @@ import {
 } from '../collaboration/cloud/CollaborationClientStateStore';
 import { broadcastCollaborationLifecycle } from '../collaboration/cloud/collaborationLifecycleBroadcast';
 import {
-  clearProjectRemovedLocally,
   markProjectRemovedLocally,
   readCollaborationLocalRegistry,
+  updateCollaborationLocalProjectRecord,
 } from '../collaboration/cloud/collaborationLocalProjectRegistry';
 import {
   assessProjectCollaborationHistory,
@@ -87,8 +87,7 @@ export async function removeProjectFromDevice(
   }
   if (plan.mode === 'remove-local') {
     const registry = readCollaborationLocalRegistry(deps.storage);
-    const wasRemoved =
-      registry.ok && registry.records[plan.projectId]?.removedLocallyAt !== undefined;
+    const previous = registry.ok ? registry.records[plan.projectId] : undefined;
     // 记录写不进去就不删：否则重新登录时会被自动拉回来 | No record, no removal (it would be pulled back)
     markProjectRemovedLocally(
       plan.projectId,
@@ -98,12 +97,11 @@ export async function removeProjectFromDevice(
     try {
       enqueueProjectCleanupJob(plan.projectId, plan.mode, deps.storage);
     } catch (error) {
-      if (!wasRemoved) {
-        try {
-          clearProjectRemovedLocally(plan.projectId, deps.storage);
-        } catch {
-          /* Keep the original storage error. */
-        }
+      // 恢复原记录（含原移除时间与项目名）；原来没有记录就删掉 | Restore the prior record, or drop it
+      try {
+        updateCollaborationLocalProjectRecord(plan.projectId, () => previous ?? null, deps.storage);
+      } catch {
+        /* Keep the original storage error. */
       }
       throw error;
     }

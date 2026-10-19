@@ -72,6 +72,20 @@ describe('saveLexiconEntry', () => {
     expect(announced).toHaveBeenCalled();
   });
 
+  it('reads the saved entry back by id without listing the whole project', async () => {
+    const where = vi.spyOn(db.lexemes, 'where');
+    const stored = await saveLexiconEntry({
+      existing: null,
+      textId,
+      fields: { ...emptyEntryFields(), headword: 'birch' },
+    });
+    expect(stored.entry.headword).toBe('birch');
+    expect(where).not.toHaveBeenCalledWith('textId');
+    const again = await db.lexemes.get(stored.id);
+    if (again === undefined || !isLexemeEntry(again)) throw new Error('entry missing');
+    expect(again.entry.headword).toBe('birch');
+  });
+
   it('keeps both subsense relations when two saves commit', async () => {
     await Promise.all([
       saveLexiconEntry({
