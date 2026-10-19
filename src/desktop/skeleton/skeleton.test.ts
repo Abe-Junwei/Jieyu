@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DESKTOP_CSP } from './desktopCsp';
+import { isAppNavigation, secretStoreRefusal } from './desktopSecurity';
 import { sliceForRange } from './mediaRange';
 import { openProjectFolder } from './openProject';
 import { writeProbeAndReadBack } from './probeStore';
@@ -23,6 +24,25 @@ afterEach(() => {
 });
 
 describe('desktop skeleton', () => {
+  it('refuses to store secrets with the Linux basic_text backend outside the smoke run', () => {
+    expect(secretStoreRefusal(true, 'basic_text', false)).toBe('basic_text');
+    expect(secretStoreRefusal(true, 'basic_text', true)).toBeNull();
+    expect(secretStoreRefusal(true, 'gnome_libsecret', false)).toBeNull();
+    expect(secretStoreRefusal(true, null, false)).toBeNull();
+    expect(secretStoreRefusal(false, null, true)).toBe('unavailable');
+  });
+
+  it('only allows navigation that stays on the app page', () => {
+    expect(isAppNavigation('http://localhost:5173/#/x', 'http://localhost:5173/')).toBe(true);
+    expect(isAppNavigation('https://evil.example/', 'http://localhost:5173/')).toBe(false);
+    expect(isAppNavigation('file:///app/dist/index.html#a', 'file:///app/dist/index.html')).toBe(
+      true,
+    );
+    expect(isAppNavigation('file:///etc/passwd', 'file:///app/dist/index.html')).toBe(false);
+    expect(isAppNavigation('javascript:alert(1)', 'http://localhost:5173/')).toBe(false);
+    expect(isAppNavigation('http://localhost:5173/', '')).toBe(false);
+  });
+
   it('writes one probe row and reads it back', () => {
     const dir = tempDir();
     const row = writeProbeAndReadBack(path.join(dir, 'project.sqlite'), 'ping');
