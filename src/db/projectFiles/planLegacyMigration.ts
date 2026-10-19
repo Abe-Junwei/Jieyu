@@ -26,8 +26,10 @@
  * 轨道跟着录音进对应的 `.jyd`。车道锁定表还没写。
  * 层标注跟着所在的层进 `.jyd`，只记 id、层、文本、是否已核和可选起止时间。同一层出现在多份文稿时不复制。
  * 层对不上的语段、词和词素记入丢弃，不进文稿。显示名和别名带项目 id，别的项目即使语言号相同也不进。
+ * 文件名由标题或原文件名清成一段安全文件名。音频和 `.jyd` 共用一个命名空间，忽略大小写和组合方式去重；音频不占用 `project.sqlite`、隐藏目录、`.jyd` 和 SQLite 日志的名字。
  */
 import { createHash } from 'node:crypto';
+import { HIDDEN_DIRECTORY } from './fileOps.ts';
 import { unitAudioIds } from './manuscriptAudio.ts';
 import { crossManuscriptParentLinks } from './manuscriptParents.ts';
 
@@ -741,21 +743,81 @@ function baseName(filename: string): string {
   return parts[parts.length - 1] ?? filename;
 }
 
+const PROJECT_FILE = 'project.sqlite';
+/** 留出 ` (n)` 的位置，整个文件名不超过常见文件系统的 255 字节。 */
+const MAX_NAME_BYTES = 240;
+const UNSAFE_NAME_CHARS = /[<>:"/\\|?*\u0000-\u001f\u007f]/gu;
+const WINDOWS_DEVICE_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/iu;
+const SQLITE_SIDE_FILE = /-(journal|wal|shm)$/u;
+
+/** 同名比较忽略大小写和 Unicode 组合方式，对齐 APFS、NTFS 的默认行为。 */
+function fileNameKey(name: string): string {
+  return name.normalize('NFC').toUpperCase().toLowerCase();
+}
+
+function splitExtension(name: string): { stem: string; ext: string } {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? { stem: name.slice(0, dot), ext: name.slice(dot) } : { stem: name, ext: '' };
+}
+
+function truncateUtf8(text: string, maxBytes: number): string {
+  const encoder = new TextEncoder();
+  let out = '';
+  let bytes = 0;
+  for (const char of text) {
+    const size = encoder.encode(char).length;
+    if (bytes + size > maxBytes) break;
+    out += char;
+    bytes += size;
+  }
+  return out;
+}
+
+/** 标题或原文件名变成项目文件夹里的一段文件名：不带目录，不是 `.`/`..`，Windows 也能建。 */
+function safeFileName(raw: string, fallback: string): string {
+  let name = raw
+    .normalize('NFC')
+    .replace(UNSAFE_NAME_CHARS, '_')
+    .replace(/^[. ]+|[. ]+$/gu, '');
+  if (name.length === 0) name = fallback;
+  const head = name.split('.')[0] ?? name;
+  if (WINDOWS_DEVICE_NAME.test(head.trimEnd())) name = `${head}_${name.slice(head.length)}`;
+  const { stem, ext } = splitExtension(name);
+  const extBytes = new TextEncoder().encode(ext).length;
+  if (extBytes >= MAX_NAME_BYTES) return truncateUtf8(name, MAX_NAME_BYTES);
+  const kept = truncateUtf8(stem, MAX_NAME_BYTES - extBytes).replace(/[. ]+$/u, '');
+  return `${kept.length > 0 ? kept : fallback}${ext}`;
+}
+
+function manuscriptFileName(documentName: string): string {
+  return `${safeFileName(documentName, 'untitled')}.jyd`;
+}
+
+/** 音频不能占用项目库、隐藏目录、`.jyd` 和 SQLite 日志的名字。 */
+function audioFileName(filename: string): string {
+  const name = safeFileName(baseName(filename), 'audio');
+  const key = fileNameKey(name);
+  const reserved =
+    key === PROJECT_FILE ||
+    key === fileNameKey(HIDDEN_DIRECTORY) ||
+    fileNameKey(splitExtension(name).ext) === '.jyd' ||
+    SQLITE_SIDE_FILE.test(key);
+  return reserved ? `${name}_` : name;
+}
+
 function uniqueName(used: Set<string>, name: string): string {
-  if (!used.has(name)) {
-    used.add(name);
+  if (!used.has(fileNameKey(name))) {
+    used.add(fileNameKey(name));
     return name;
   }
-  const dot = name.lastIndexOf('.');
-  const stem = dot > 0 ? name.slice(0, dot) : name;
-  const ext = dot > 0 ? name.slice(dot) : '';
+  const { stem, ext } = splitExtension(name);
   let n = 2;
   let next = `${stem} (${n})${ext}`;
-  while (used.has(next)) {
+  while (used.has(fileNameKey(next))) {
     n += 1;
     next = `${stem} (${n})${ext}`;
   }
-  used.add(next);
+  used.add(fileNameKey(next));
   return next;
 }
 
@@ -1425,7 +1487,7 @@ export function planLegacyMigration(
   const droppedMorphemes: { id: string; tokenId: string }[] = [];
   const droppedLexemeLinks: DroppedLexemeLink[] = [];
   const handledLexemeLinks = new Set<string>();
-  const manuscriptNames = new Set<string>();
+  const fileNames = new Set<string>();
 
   for (const document of library.documents) {
     const units = placed.filter((unit) => unit.manuscriptId === document.id);
@@ -1498,7 +1560,7 @@ export function planLegacyMigration(
       manuscripts.push({
         id: group.id,
         sourceDocumentId: document.id,
-        fileName: uniqueName(manuscriptNames, `${document.name}.jyd`),
+        fileName: uniqueName(fileNames, manuscriptFileName(document.name)),
         audioId: group.audioId,
         layers,
         tokens: segmentation.tokens,
@@ -1568,13 +1630,12 @@ export function planLegacyMigration(
     lexemes: keptLexemeIds,
   });
 
-  const audioNames = new Set<string>();
   const usedAudioIds = new Set(manuscripts.flatMap((manuscript) => manuscript.audioId ?? []));
   const audios = library.audios
     .filter((audio) => usedAudioIds.has(audio.id))
     .map((audio) => ({
       audioId: audio.id,
-      fileName: uniqueName(audioNames, baseName(audio.filename)),
+      fileName: uniqueName(fileNames, audioFileName(audio.filename)),
       sha256: sha256(audio.bytes),
       bytes: audio.bytes,
     }));
