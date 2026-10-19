@@ -80,17 +80,21 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
     expect(result.content.some((p) => p.type === 'tool-approval-request')).toBe(true);
   });
 
-  it('every tool call goes only through runToolDecision, with the parsed input and call id', async () => {
+  it('every tool call goes only through runToolDecision, with the parsed input, call id and abort signal', async () => {
     const { agent, runToolDecision } = buildAgent([
       toolCallTurn('delete_transcription_segment', '{"segmentId":"s1"}', 'call-9'),
       textTurn('deleted'),
     ]);
-    await agent.generate({ messages: [{ role: 'user', content: 'delete s1' }] });
+    await agent.generate({
+      messages: [{ role: 'user', content: 'delete s1' }],
+      abortSignal: new AbortController().signal,
+    });
     expect(runToolDecision).toHaveBeenCalledTimes(1);
     expect(runToolDecision).toHaveBeenCalledWith(
       'delete_transcription_segment',
       { segmentId: 's1' },
       'call-9',
+      expect.any(AbortSignal),
     );
   });
 

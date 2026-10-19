@@ -162,7 +162,11 @@ export interface RunAiRuntimeV2TurnParams {
   signal: AbortSignal;
   genRequestId: (call: AiChatToolCall) => string;
   /** 执行：auto=无需审批的工具；approved=用户已批准（管线跳过确认分支，仍过写入门禁与审计）| execute */
-  decide: (call: AiChatToolCall, mode: 'auto' | 'approved') => Promise<RuntimeV2Decision>;
+  decide: (
+    call: AiChatToolCall,
+    mode: 'auto' | 'approved',
+    signal?: AbortSignal,
+  ) => Promise<RuntimeV2Decision>;
   /** 每个 tool-approval-request：经管线出确认卡片并写 pending 审计 | per approval request */
   requestApproval: (
     call: AiChatToolCall,
@@ -295,9 +299,10 @@ export async function* runAiRuntimeV2Turn(
   const executeCall = async (
     call: AiChatToolCall,
     mode: 'auto' | 'approved',
+    signal?: AbortSignal,
   ): Promise<PilotToolOutcome> => {
     executedAny = true;
-    const decision = await p.decide(call, mode);
+    const decision = await p.decide(call, mode, signal);
     if (decision.pending) {
       // 审批已由 SDK 完成；管线若仍要确认，按失败返回，不留第二张卡 | never a second confirmation
       return { status: 'error', message: decision.finalContent, requestId: call.requestId ?? '' };
@@ -318,12 +323,12 @@ export async function* runAiRuntimeV2Turn(
     },
     instructions: p.systemPrompt,
     toolApproval: (name) => approvalFor(name),
-    runToolDecision: (name, input, toolCallId) => {
+    runToolDecision: (name, input, toolCallId, abortSignal) => {
       const requestId =
         requestIdByToolCallId.get(toolCallId) ?? p.genRequestId(toCall(name, input, ''));
       // SDK 只在批准后才执行写工具 | the SDK only executes write tools after approval
       const mode = approvalFor(name) === 'not-applicable' ? 'auto' : 'approved';
-      return executeCall(toCall(name, input, requestId), mode);
+      return executeCall(toCall(name, input, requestId), mode, abortSignal);
     },
   });
 
@@ -331,7 +336,7 @@ export async function* runAiRuntimeV2Turn(
   registerApprovalExecutor(p.conversationId, (item) => executeCall(approvedCall(item), 'approved'));
 
   const messages = await resolveStartMessages(p, now(), (item) =>
-    executeCall(approvedCall(item), 'approved'),
+    executeCall(approvedCall(item), 'approved', p.signal),
   );
   let yieldedAny = false;
   // 未输出、也未执行过工具时，拒收 tools 才改走旧路径。已经执行的调用留着审计，不再重跑。

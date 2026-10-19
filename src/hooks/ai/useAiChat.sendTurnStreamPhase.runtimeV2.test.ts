@@ -13,7 +13,10 @@ import { featureFlags } from '../../ai/config/featureFlags';
 import { getDefaultAiChatSettings } from '../../ai/providers/providerCatalog';
 import { createMetricTags } from '../../observability/metrics';
 import { db } from '../../db';
-import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
+import {
+  bumpConversationGeneration,
+  createConversationGenerationRef,
+} from '../../ai/chat/conversationGeneration';
 import { loadTurnState, unansweredApprovals } from '../../ai/runtime/aiRuntimeV2Pending';
 import * as localContextToolExecutors from '../../ai/chat/localContextToolExecutors';
 import * as externalMcpTurnBridge from '../../ai/mcp/client/externalMcpTurnBridge';
@@ -368,5 +371,43 @@ describe('ToolLoopAgent turn: MCP input card', () => {
     await hook.current.cancelPendingToolCall();
     expect(pendingRef.current?.call.name).toBe('batch_apply');
     expect(pendingRef.current?.runtimeV2?.conversationId).toBe('conv-1');
+  });
+});
+
+describe('ToolLoopAgent turn: stop and conversation switch', () => {
+  function modelCallingExternalTool() {
+    const model = new MockLanguageModelV4({
+      doStream: [toolCallsStream([[EXT_TOOL, '{}']]), textStream('after')],
+    });
+    modelRef.current = model;
+    return model;
+  }
+
+  it('passes the abort signal into the external call and shows no card after Stop', async () => {
+    modelCallingExternalTool();
+    const h = buildHarness();
+    let seenSignal: AbortSignal | undefined;
+    vi.mocked(externalMcpTurnBridge.executeExternalMcpCall).mockImplementation(
+      async (call, _runId, _retry, signal) => {
+        seenSignal = signal;
+        h.input.controller.abort();
+        return { name: call.name, ok: false, reason: 'input_required', form: mcpForm('S') };
+      },
+    );
+    await runAiChatSendTurnStreamPhase(h.input);
+    expect(seenSignal).toBeInstanceOf(AbortSignal);
+    expect(seenSignal?.aborted).toBe(true);
+    expect(h.cards.filter(Boolean)).toHaveLength(0);
+  });
+
+  it('shows no card when the conversation changed while the tool ran', async () => {
+    modelCallingExternalTool();
+    const h = buildHarness();
+    vi.mocked(externalMcpTurnBridge.executeExternalMcpCall).mockImplementation(async (call) => {
+      bumpConversationGeneration(h.input.conversationGenerationRef);
+      return { name: call.name, ok: false, reason: 'input_required', form: mcpForm('S') };
+    });
+    await runAiChatSendTurnStreamPhase(h.input);
+    expect(h.cards.filter(Boolean)).toHaveLength(0);
   });
 });

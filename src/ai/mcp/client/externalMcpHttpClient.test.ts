@@ -161,6 +161,32 @@ describe('externalMcpHttpClient', () => {
     expect(audits.some((row) => row.toJSON().agentRunId === 'run_b13_call')).toBe(true);
   });
 
+  it('aborts the in-flight tools/call when the caller signal aborts', async () => {
+    await setExternalMcpTrustEnabled({ origin: ORIGIN, enabled: true, tools: SAFE_TOOLS });
+    const caller = new AbortController();
+    const fetchImpl = vi.fn(async (_url, init) => {
+      const body = JSON.parse(String((init as RequestInit).body));
+      if (body.method === 'tools/list') {
+        return jsonResponse({ jsonrpc: '2.0', id: body.id, result: { tools: SAFE_TOOLS } });
+      }
+      const signal = (init as RequestInit).signal!;
+      caller.abort();
+      return new Promise<Response>((_resolve, reject) => {
+        if (signal.aborted) reject(new Error('aborted by caller'));
+        signal.addEventListener('abort', () => reject(new Error('aborted by caller')));
+      });
+    });
+    const called = await callExternalMcpToolViaHttp({
+      origin: ORIGIN,
+      toolName: 'search_works',
+      arguments: {},
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      signal: caller.signal,
+      timeoutMs: 60_000,
+    });
+    expect(called).toMatchObject({ ok: false, reason: 'http_error', message: 'aborted by caller' });
+  });
+
   it('refuses a result that asks the user for more input', async () => {
     await setExternalMcpTrustEnabled({ origin: ORIGIN, enabled: true, tools: SAFE_TOOLS });
     const fetchImpl = vi.fn(async (_url, init) => {

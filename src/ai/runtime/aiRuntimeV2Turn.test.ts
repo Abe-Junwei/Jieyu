@@ -132,6 +132,7 @@ describe('runAiRuntimeV2Turn', () => {
         requestId: 'req-set_transcription_text-{}',
       }),
       'auto',
+      expect.any(AbortSignal),
     );
     expect(p.requestApproval).not.toHaveBeenCalled();
     expect(chunks.map((c) => c.delta).join('')).toBe('done');
@@ -182,6 +183,7 @@ describe('runAiRuntimeV2Turn', () => {
     expect(p.decide).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'concordance_kwic' }),
       'auto',
+      expect.any(AbortSignal),
     );
     expect(model.doStreamCalls).toHaveLength(2);
     expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain('m2');
@@ -209,7 +211,11 @@ describe('runAiRuntimeV2Turn', () => {
       })),
     });
     await collect(runAiRuntimeV2Turn(p));
-    expect(p.decide).toHaveBeenCalledWith(expect.objectContaining({ name }), 'auto');
+    expect(p.decide).toHaveBeenCalledWith(
+      expect.objectContaining({ name }),
+      'auto',
+      expect.any(AbortSignal),
+    );
     expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain('ev1');
   });
 
@@ -328,6 +334,7 @@ describe('runAiRuntimeV2Turn', () => {
     expect(p.decide).toHaveBeenCalledWith(
       expect.objectContaining({ requestId: 'req-a1' }),
       'approved',
+      expect.any(AbortSignal),
     );
     expect(onApprovalClosed).toHaveBeenCalledWith('req-a2', 'delete_layer', 'unanswered');
     const prompt = JSON.stringify(model.doStreamCalls[0]!.prompt);
@@ -405,6 +412,7 @@ describe('runAiRuntimeV2Turn', () => {
     expect(p.decide).toHaveBeenCalledWith(
       expect.objectContaining({ arguments: { segmentId: 'seg-A' }, requestId: 'req-a1' }),
       'approved',
+      expect.any(AbortSignal),
     );
   });
 

@@ -312,6 +312,7 @@ export async function executeExternalMcpCall(
   call: ExternalMcpToolCall,
   agentRunId?: string,
   retry?: { inputResponses: Record<string, unknown>; requestState?: string },
+  signal?: AbortSignal,
 ): Promise<ExternalMcpCallPayload> {
   if (isExternalMcpSecondModelTool(call.toolName)) {
     return { name: call.name, ok: false, reason: 'second_model_tool_denied' };
@@ -336,6 +337,7 @@ export async function executeExternalMcpCall(
         ...(agentRunId ? { agentRunId } : {}),
         ...(retry?.inputResponses ? { inputResponses: retry.inputResponses } : {}),
         ...(retry?.requestState ? { requestState: retry.requestState } : {}),
+        ...(signal ? { signal } : {}),
       });
   if (!result.ok) {
     const form =

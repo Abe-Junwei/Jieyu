@@ -118,8 +118,9 @@ export async function runAiChatSendTurnStreamPhase(
     if (model) {
       runtimeV2 = true;
       // The first MCP input card of the turn wins; later cards stay in the turn state.
+      // A stopped turn or a switched conversation gets no card; approvals stay in the turn state.
       const setTurnCard = (card: PendingAiToolCall | null) => {
-        if (v2InputCardShown) return;
+        if (v2InputCardShown || controller.signal.aborted || !canUpdateStreamUi()) return;
         if (card?.mcpInput) v2InputCardShown = true;
         input.setPendingToolCall(card);
       };
@@ -211,7 +212,7 @@ export async function runAiChatSendTurnStreamPhase(
             return finalContent;
           },
           // 执行与审批请求都走同一决策管线（策略、写入门禁、审计）| one pipeline for both
-          decide: async (call, mode) => {
+          decide: async (call, mode, signal) => {
             const externalTool = externalMcpByName.get(call.name);
             if (externalTool) {
               const payload = await executeExternalMcpCall(
@@ -222,6 +223,8 @@ export async function runAiChatSendTurnStreamPhase(
                   arguments: call.arguments,
                 },
                 input.agentRunId,
+                undefined,
+                signal,
               );
               v2EvidencePackets.push(...(payload.evidencePackets ?? []));
               if (payload.form) {
@@ -316,6 +319,10 @@ export async function runAiChatSendTurnStreamPhase(
                 policyReasonCode: 'write_gate_preview_required',
                 policyReasonLabel: pendingText,
                 riskTier: 'medium',
+                conversationIdAtCapture: input.sendTurnConversationId,
+                ...(aiContext?.shortTerm?.timelineReadModelEpoch !== undefined
+                  ? { readModelEpochCaptured: aiContext.shortTerm.timelineReadModelEpoch }
+                  : {}),
                 ...(call.requestId ? { requestId: call.requestId } : {}),
                 runtimeV2: {
                   conversationId: input.sendTurnConversationId,

@@ -104,6 +104,7 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       if (pending.mcpInput) {
         await confirmExternalMcpInputCard({ ...pending, mcpInput: pending.mcpInput }, draft ?? {}, {
           locale: toolFeedbackLocale,
+          currentConversationId: conversationIdRef.current,
           setPendingToolCall,
           setTaskIdle: () =>
             setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() }),

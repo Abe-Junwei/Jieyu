@@ -39,7 +39,12 @@ export interface PilotAgentOptions {
    * 每个工具调用的唯一执行入口（生产 = resolveToolDecisionPipeline：策略、确认、写入门禁、审计）。
    * The only execution path for every tool call (prod: the existing decision pipeline).
    */
-  runToolDecision: (name: string, input: unknown, toolCallId: string) => Promise<PilotToolOutcome>;
+  runToolDecision: (
+    name: string,
+    input: unknown,
+    toolCallId: string,
+    abortSignal?: AbortSignal,
+  ) => Promise<PilotToolOutcome>;
   /**
    * SDK 原生审批（toolApproval 回调）；'user-approval' 时循环停下并发出 tool-approval-request。
    * Native SDK approval; 'user-approval' stops the loop and emits tool-approval-request parts.
@@ -72,8 +77,13 @@ export function createPilotAgent(options: PilotAgentOptions) {
     tools[name] = tool({
       description: spec.description,
       inputSchema: spec.inputSchema,
-      execute: async (input, { toolCallId }) => {
-        const { stopLoop, ...outcome } = await options.runToolDecision(name, input, toolCallId);
+      execute: async (input, { toolCallId, abortSignal }) => {
+        const { stopLoop, ...outcome } = await options.runToolDecision(
+          name,
+          input,
+          toolCallId,
+          abortSignal,
+        );
         if (stopLoop) stopAfter.add(toolCallId);
         return outcome;
       },

@@ -165,7 +165,7 @@ function inputCard(requestState: string): PendingAiToolCall {
   });
 }
 
-function renderPendingCard(card: PendingAiToolCall) {
+function renderPendingCard(card: PendingAiToolCall, currentConversationId = 'conv-1') {
   const pendingRef = { current: card as PendingAiToolCall | null };
   const stored = new Map<string, { content: string; status: string | undefined }>();
   const audits: string[] = [];
@@ -197,7 +197,7 @@ function renderPendingCard(card: PendingAiToolCall) {
       setPendingToolCall,
       setTaskSession: vi.fn(),
       bumpMetric: vi.fn(),
-      conversationIdRef: { current: 'conv-1' },
+      conversationIdRef: { current: currentConversationId },
     }),
   );
   return { hook: result, pendingRef, stored, audits };
@@ -272,5 +272,16 @@ describe('MCP input card: user-facing results', () => {
     expect(audits).toContain(`cancelled:${TOOL}`);
     expect(events).not.toContain('write_cancelled');
     expect(toolsCalls).toHaveLength(0);
+  });
+});
+
+describe('MCP input card: conversation switch', () => {
+  it('does not submit a card captured in another conversation', async () => {
+    const { hook, pendingRef, stored, audits } = renderPendingCard(inputCard('STATE-1'), 'conv-2');
+    await hook.current.confirmPendingToolCall(filled);
+    expect(toolsCalls).toHaveLength(0);
+    expect(pendingRef.current).toBeNull();
+    expect(stored.get('ast-1')?.status).toBe('error');
+    expect(audits).toContain(`confirm_failed:${TOOL}:turn_superseded`);
   });
 });

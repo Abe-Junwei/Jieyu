@@ -36,6 +36,7 @@ export function buildExternalMcpInputPendingCall(input: {
 
 export interface ExternalMcpInputCardDeps {
   locale: Locale;
+  currentConversationId: string | null;
   setPendingToolCall: (value: PendingAiToolCall | null) => void;
   setTaskIdle: () => void;
   applyAssistantMessageResult: (
@@ -61,6 +62,21 @@ export async function confirmExternalMcpInputCard(
   const { assistantMessageId } = pending;
   const name = pending.call.name;
   const requestId = pending.call.requestId ?? pending.requestId;
+  const origin = pending.conversationIdAtCapture;
+  if (origin && deps.currentConversationId !== origin) {
+    const message = t(deps.locale, 'ai.alerts.staleReadModelConfirmBlocked');
+    deps.setPendingToolCall(null);
+    deps.setTaskIdle();
+    await deps.applyAssistantMessageResult(assistantMessageId, message, 'error', message);
+    await deps.writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${name}`,
+      `confirm_failed:${name}:turn_superseded`,
+      'system',
+      requestId,
+    );
+    return;
+  }
   const outcome = await completeExternalMcpInputForm(pending.mcpInput, draft);
   if (outcome.kind === 'missing_required') return;
   if (outcome.kind === 'asked_again') {
