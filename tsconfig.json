@@ -42,6 +42,7 @@
     "skipLibCheck": true,
 
     "moduleResolution": "bundler",
+    "rewriteRelativeImportExtensions": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "paths": {

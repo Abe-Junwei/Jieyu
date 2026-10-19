@@ -66,6 +66,8 @@ jobs:
         run: npm run check:all
       - name: Vitest suite
         run: npm run test:vitest
+      - name: Project-files script tests (node:sqlite, synthetic data)
+        run: npm run test:project-files-scripts
       - name: Architecture hotspot report
         run: npm run report:architecture-hotspots
 

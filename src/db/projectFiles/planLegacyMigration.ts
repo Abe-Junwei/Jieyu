@@ -28,8 +28,8 @@
  * 层对不上的语段、词和词素记入丢弃，不进文稿。显示名和别名带项目 id，别的项目即使语言号相同也不进。
  */
 import { createHash } from 'node:crypto';
-import { unitAudioIds } from './manuscriptAudio';
-import { crossManuscriptParentLinks } from './manuscriptParents';
+import { unitAudioIds } from './manuscriptAudio.ts';
+import { crossManuscriptParentLinks } from './manuscriptParents.ts';
 
 export interface LegacyDocument {
   id: string;
@@ -71,10 +71,7 @@ export interface LegacyUnitContent {
 }
 
 export type LegacyRelationType =
-  | 'aligned_to'
-  | 'derived_from'
-  | 'linked_reference'
-  | 'analysis_graph_candidate';
+  'aligned_to' | 'derived_from' | 'linked_reference' | 'analysis_graph_candidate';
 
 export interface LegacyUnitRelation {
   id: string;
@@ -91,14 +88,7 @@ export interface DroppedUnitRelation {
 }
 
 export type LegacyNoteTarget =
-  | 'unit'
-  | 'token'
-  | 'morpheme'
-  | 'language'
-  | 'speaker'
-  | 'orthography'
-  | 'lexeme'
-  | 'text';
+  'unit' | 'token' | 'morpheme' | 'language' | 'speaker' | 'orthography' | 'lexeme' | 'text';
 
 export type LegacyLayerLinkType = 'direct' | 'free' | 'literal' | 'pedagogical';
 
@@ -266,12 +256,7 @@ export interface LegacyCatalogHistory {
 }
 
 export type LegacyCustomFieldType =
-  | 'text'
-  | 'number'
-  | 'boolean'
-  | 'select'
-  | 'multiselect'
-  | 'url';
+  'text' | 'number' | 'boolean' | 'select' | 'multiselect' | 'url';
 
 export interface LegacyCustomField {
   id: string;
@@ -433,14 +418,7 @@ export interface LegacyAiSourceSet {
 export type LegacyPhonemeType = 'consonant' | 'vowel' | 'tone' | 'diphthong' | 'other';
 
 export type LegacyAbbreviationCategory =
-  | 'person'
-  | 'number'
-  | 'tense'
-  | 'aspect'
-  | 'mood'
-  | 'case'
-  | 'voice'
-  | 'other';
+  'person' | 'number' | 'tense' | 'aspect' | 'mood' | 'case' | 'voice' | 'other';
 
 export interface LegacyAbbreviation {
   id: string;

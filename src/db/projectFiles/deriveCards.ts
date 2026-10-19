@@ -3,7 +3,7 @@
  * 同一 id 出现两次时停下，不自己选。隐藏只记在卡片上，不改变配对。
  */
 
-import { HIDDEN_DIRECTORY } from './fileOps';
+import { HIDDEN_DIRECTORY } from './fileOps.ts';
 
 export interface StoredManuscript {
   id: string;
