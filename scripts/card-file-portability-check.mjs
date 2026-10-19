@@ -11,9 +11,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { backup, DatabaseSync } from 'node:sqlite';
+import * as sqlite from 'node:sqlite';
 
-test('a card file is portable only after a consistent backup and close', async () => {
+const { DatabaseSync } = sqlite;
+const backupSkip =
+  typeof sqlite.backup === 'function'
+    ? false
+    : `node:sqlite on Node ${process.version} has no backup(); use a Node 22 release that exports it (22.16+)`;
+
+test('a card file is portable only after a consistent backup and close', { skip: backupSkip }, async () => {
+  const { backup } = sqlite;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-card-'));
   try {
     const src = path.join(dir, 'card.sqlite');

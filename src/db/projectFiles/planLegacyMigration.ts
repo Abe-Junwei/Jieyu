@@ -26,10 +26,17 @@
  * 轨道跟着录音进对应的 `.jyd`。车道锁定表还没写。
  * 层标注跟着所在的层进 `.jyd`，只记 id、层、文本、是否已核和可选起止时间。同一层出现在多份文稿时不复制。
  * 层对不上的语段、词和词素记入丢弃，不进文稿。显示名和别名带项目 id，别的项目即使语言号相同也不进。
+ * 没有语段引用的音频也写出，看板上是录音卡片（ADR-0061 第 3 条）。
+ * 拆分时没有 mediaId 的语段跟着父语段走；自己和上级都没有音频的纯文本语段不进任何一份，确认前就列在待确认清单里，连同会断开的父子链接。mediaId 一律去掉首尾空白再比较。
+ * 文稿引用了库里没有的音频 id 时照写，记进 `missingAudios`。
+ * 文稿引用的来源挂在别的录音上、哪份文稿都不进时，记进 `droppedSourceRefs`。
+ * 同一个锚点、轨道或层链接进了几份 `.jyd` 时，第一份保留原 id，其余换成 `原id--文稿id`，对照记进 `copiedIds`，语段上的锚点引用跟着换。
+ * 文件名由标题或原文件名清成一段安全文件名。音频和 `.jyd` 共用一个命名空间，忽略大小写和组合方式去重；音频不占用 `project.sqlite`、隐藏目录、`.jyd` 和 SQLite 日志的名字。
  */
 import { createHash } from 'node:crypto';
-import { unitAudioIds } from './manuscriptAudio';
-import { crossManuscriptParentLinks } from './manuscriptParents';
+import { HIDDEN_DIRECTORY } from './fileOps.ts';
+import { audioIdOf, unitAudioIds } from './manuscriptAudio.ts';
+import { crossManuscriptParentLinks } from './manuscriptParents.ts';
 
 export interface LegacyDocument {
   id: string;
@@ -71,10 +78,7 @@ export interface LegacyUnitContent {
 }
 
 export type LegacyRelationType =
-  | 'aligned_to'
-  | 'derived_from'
-  | 'linked_reference'
-  | 'analysis_graph_candidate';
+  'aligned_to' | 'derived_from' | 'linked_reference' | 'analysis_graph_candidate';
 
 export interface LegacyUnitRelation {
   id: string;
@@ -91,14 +95,7 @@ export interface DroppedUnitRelation {
 }
 
 export type LegacyNoteTarget =
-  | 'unit'
-  | 'token'
-  | 'morpheme'
-  | 'language'
-  | 'speaker'
-  | 'orthography'
-  | 'lexeme'
-  | 'text';
+  'unit' | 'token' | 'morpheme' | 'language' | 'speaker' | 'orthography' | 'lexeme' | 'text';
 
 export type LegacyLayerLinkType = 'direct' | 'free' | 'literal' | 'pedagogical';
 
@@ -266,12 +263,7 @@ export interface LegacyCatalogHistory {
 }
 
 export type LegacyCustomFieldType =
-  | 'text'
-  | 'number'
-  | 'boolean'
-  | 'select'
-  | 'multiselect'
-  | 'url';
+  'text' | 'number' | 'boolean' | 'select' | 'multiselect' | 'url';
 
 export interface LegacyCustomField {
   id: string;
@@ -433,14 +425,7 @@ export interface LegacyAiSourceSet {
 export type LegacyPhonemeType = 'consonant' | 'vowel' | 'tone' | 'diphthong' | 'other';
 
 export type LegacyAbbreviationCategory =
-  | 'person'
-  | 'number'
-  | 'tense'
-  | 'aspect'
-  | 'mood'
-  | 'case'
-  | 'voice'
-  | 'other';
+  'person' | 'number' | 'tense' | 'aspect' | 'mood' | 'case' | 'voice' | 'other';
 
 export interface LegacyAbbreviation {
   id: string;
@@ -660,7 +645,13 @@ export type LegacyMigrationPlan =
       audios: PlannedAudio[];
       manuscripts: PlannedManuscript[];
       droppedLinks: DroppedLink[];
-      droppedUnits: { id: string; layerId: string }[];
+      droppedUnits: {
+        id: string;
+        layerId: string;
+        reason: 'missing-layer' | 'no-audio-in-split';
+      }[];
+      /** 文稿引用了库里没有的音频 id。文稿照写，卡片会显示音频不见了。 */
+      missingAudios: { manuscriptId: string; audioId: string }[];
       droppedTokens: { id: string; unitId: string }[];
       droppedMorphemes: { id: string; tokenId: string }[];
       project: LegacyProject | null;
@@ -727,13 +718,15 @@ export type LegacyMigrationPlan =
       droppedLayerLinks: DroppedLayerLink[];
       droppedTracks: { id: string; mediaId: string }[];
       droppedAnnotations: DroppedAnnotation[];
+      droppedSourceRefs: DroppedSourceRef[];
+      copiedIds: CopiedId[];
       droppedDefinitions: {
         kind: 'language' | 'orthography' | 'display-name' | 'alias';
         id: string;
         ref: string;
       }[];
     }
-  | { status: 'needs-confirm'; documents: { documentId: string; audioIds: string[] }[] }
+  | { status: 'needs-confirm'; documents: PendingSplit[] }
   | { status: 'rejected'; reason: 'cross-manuscript-parent'; links: DroppedLink[] }
   | { status: 'rejected'; reason: 'speakers-without-project' }
   | { status: 'rejected'; reason: 'definitions-without-project' }
@@ -763,21 +756,81 @@ function baseName(filename: string): string {
   return parts[parts.length - 1] ?? filename;
 }
 
+const PROJECT_FILE = 'project.sqlite';
+/** 留出 ` (n)` 的位置，整个文件名不超过常见文件系统的 255 字节。 */
+const MAX_NAME_BYTES = 240;
+const UNSAFE_NAME_CHARS = /[<>:"/\\|?*\u0000-\u001f\u007f]/gu;
+const WINDOWS_DEVICE_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/iu;
+const SQLITE_SIDE_FILE = /-(journal|wal|shm)$/u;
+
+/** 同名比较忽略大小写和 Unicode 组合方式，对齐 APFS、NTFS 的默认行为。 */
+function fileNameKey(name: string): string {
+  return name.normalize('NFC').toUpperCase().toLowerCase();
+}
+
+function splitExtension(name: string): { stem: string; ext: string } {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? { stem: name.slice(0, dot), ext: name.slice(dot) } : { stem: name, ext: '' };
+}
+
+function truncateUtf8(text: string, maxBytes: number): string {
+  const encoder = new TextEncoder();
+  let out = '';
+  let bytes = 0;
+  for (const char of text) {
+    const size = encoder.encode(char).length;
+    if (bytes + size > maxBytes) break;
+    out += char;
+    bytes += size;
+  }
+  return out;
+}
+
+/** 标题或原文件名变成项目文件夹里的一段文件名：不带目录，不是 `.`/`..`，Windows 也能建。 */
+function safeFileName(raw: string, fallback: string): string {
+  let name = raw
+    .normalize('NFC')
+    .replace(UNSAFE_NAME_CHARS, '_')
+    .replace(/^[. ]+|[. ]+$/gu, '');
+  if (name.length === 0) name = fallback;
+  const head = name.split('.')[0] ?? name;
+  if (WINDOWS_DEVICE_NAME.test(head.trimEnd())) name = `${head}_${name.slice(head.length)}`;
+  const { stem, ext } = splitExtension(name);
+  const extBytes = new TextEncoder().encode(ext).length;
+  if (extBytes >= MAX_NAME_BYTES) return truncateUtf8(name, MAX_NAME_BYTES);
+  const kept = truncateUtf8(stem, MAX_NAME_BYTES - extBytes).replace(/[. ]+$/u, '');
+  return `${kept.length > 0 ? kept : fallback}${ext}`;
+}
+
+function manuscriptFileName(documentName: string): string {
+  return `${safeFileName(documentName, 'untitled')}.jyd`;
+}
+
+/** 音频不能占用项目库、隐藏目录、`.jyd` 和 SQLite 日志的名字。 */
+function audioFileName(filename: string): string {
+  const name = safeFileName(baseName(filename), 'audio');
+  const key = fileNameKey(name);
+  const reserved =
+    key === PROJECT_FILE ||
+    key === fileNameKey(HIDDEN_DIRECTORY) ||
+    fileNameKey(splitExtension(name).ext) === '.jyd' ||
+    SQLITE_SIDE_FILE.test(key);
+  return reserved ? `${name}_` : name;
+}
+
 function uniqueName(used: Set<string>, name: string): string {
-  if (!used.has(name)) {
-    used.add(name);
+  if (!used.has(fileNameKey(name))) {
+    used.add(fileNameKey(name));
     return name;
   }
-  const dot = name.lastIndexOf('.');
-  const stem = dot > 0 ? name.slice(0, dot) : name;
-  const ext = dot > 0 ? name.slice(dot) : '';
+  const { stem, ext } = splitExtension(name);
   let n = 2;
   let next = `${stem} (${n})${ext}`;
-  while (used.has(next)) {
+  while (used.has(fileNameKey(next))) {
     n += 1;
     next = `${stem} (${n})${ext}`;
   }
-  used.add(next);
+  used.add(fileNameKey(next));
   return next;
 }
 
@@ -826,7 +879,7 @@ function plannedUnit(
   return {
     id: unit.id,
     layerId: unit.layerId,
-    ...(unit.mediaId !== undefined ? { mediaId: unit.mediaId } : {}),
+    ...(audioIdOf(unit.mediaId) !== null ? { mediaId: audioIdOf(unit.mediaId) as string } : {}),
     ...(parentUnitId !== undefined ? { parentUnitId } : {}),
     ...(unit.speakerId !== undefined ? { speakerId: unit.speakerId } : {}),
     ...(anchors.startAnchorId !== undefined ? { startAnchorId: anchors.startAnchorId } : {}),
@@ -897,7 +950,10 @@ function assignTracks(
 ): { id: string; mediaId: string }[] {
   const dropped: { id: string; mediaId: string }[] = [];
   for (const track of tracks) {
-    const homes = manuscripts.filter((manuscript) => manuscript.audioId === track.mediaId);
+    const homes = manuscripts.filter(
+      (manuscript) =>
+        manuscript.audioId !== null && manuscript.audioId === audioIdOf(track.mediaId),
+    );
     if (homes.length === 0) {
       dropped.push({ id: track.id, mediaId: track.mediaId });
       continue;
@@ -1006,7 +1062,7 @@ function plannedContents(
 function plannedAnchors(anchors: readonly LegacyAnchor[], audioId: string | null): PlannedAnchor[] {
   if (audioId === null) return [];
   return anchors
-    .filter((anchor) => anchor.mediaId === audioId)
+    .filter((anchor) => audioIdOf(anchor.mediaId) === audioId)
     .map((anchor) => ({ id: anchor.id, mediaId: anchor.mediaId, time: anchor.time }));
 }
 
@@ -1258,7 +1314,7 @@ function plannedSourceRefs(
       continue;
     }
     if (source.mediaId !== undefined) {
-      if (source.mediaId === audioId) kept.push(source.id);
+      if (audioIdOf(source.mediaId) === audioId) kept.push(source.id);
       continue;
     }
     if (includeUnlinked) kept.push(source.id);
@@ -1297,6 +1353,130 @@ function plannedLexemeLinks(
     });
   }
   return { links: kept, dropped, handled };
+}
+
+/** 文稿引用的来源挂在这份文稿没有的录音上，所以不进任何一份 `.jyd`。 */
+export interface DroppedSourceRef {
+  documentId: string;
+  sourceId: string;
+  mediaId: string;
+  reason: 'other-audio';
+}
+
+/** 同一个锚点、轨道或层链接进了不止一份 `.jyd` 时，第一份保留原 id，其余换成新 id。 */
+export interface CopiedId {
+  manuscriptId: string;
+  kind: 'anchor' | 'track' | 'layer-link';
+  fromId: string;
+  toId: string;
+}
+
+function renameCopiedIds(manuscripts: PlannedManuscript[]): CopiedId[] {
+  const copied: CopiedId[] = [];
+  const seen: Record<CopiedId['kind'], Set<string>> = {
+    anchor: new Set(),
+    track: new Set(),
+    'layer-link': new Set(),
+  };
+  const rename = (kind: CopiedId['kind'], manuscriptId: string, id: string): string => {
+    if (!seen[kind].has(id)) {
+      seen[kind].add(id);
+      return id;
+    }
+    let toId = `${id}--${manuscriptId}`;
+    for (let n = 2; seen[kind].has(toId); n += 1) toId = `${id}--${manuscriptId}-${n}`;
+    seen[kind].add(toId);
+    copied.push({ manuscriptId, kind, fromId: id, toId });
+    return toId;
+  };
+  for (const manuscript of manuscripts) {
+    const anchorIds = new Map<string, string>();
+    manuscript.anchors = manuscript.anchors.map((anchor) => {
+      const id = rename('anchor', manuscript.id, anchor.id);
+      anchorIds.set(anchor.id, id);
+      return { ...anchor, id };
+    });
+    manuscript.units = manuscript.units.map((unit) => ({
+      ...unit,
+      ...(unit.startAnchorId !== undefined
+        ? { startAnchorId: anchorIds.get(unit.startAnchorId) ?? unit.startAnchorId }
+        : {}),
+      ...(unit.endAnchorId !== undefined
+        ? { endAnchorId: anchorIds.get(unit.endAnchorId) ?? unit.endAnchorId }
+        : {}),
+    }));
+    manuscript.tracks = manuscript.tracks.map((track) => ({
+      ...track,
+      id: rename('track', manuscript.id, track.id),
+    }));
+    manuscript.layerLinks = manuscript.layerLinks.map((link) => ({
+      ...link,
+      id: rename('layer-link', manuscript.id, link.id),
+    }));
+  }
+  return copied;
+}
+
+export interface SplitDroppedUnit {
+  id: string;
+  reason: 'no-audio';
+}
+
+export interface PendingSplit {
+  documentId: string;
+  audioIds: string[];
+  /** 拆开后不进任何一份文稿的语段：自己和上级都没有音频。 */
+  droppedUnits: SplitDroppedUnit[];
+  /** 拆开后父子分在两份文稿里、会被断开的链接。 */
+  droppedLinks: DroppedLink[];
+}
+
+/**
+ * 按录音拆开一份文稿。没有 mediaId 的语段沿父链找到最近一条音频，跟着那一组走；
+ * 一直找不到的是纯文本语段，拆开时不进任何一组。
+ */
+function splitDocument<T extends LegacyUnit>(
+  units: readonly T[],
+  audioIds: readonly string[],
+): {
+  groups: { audioId: string; units: T[] }[];
+  droppedUnits: SplitDroppedUnit[];
+  droppedLinks: DroppedLink[];
+} {
+  const byId = new Map(units.map((unit) => [unit.id, unit]));
+  const resolved = new Map<string, string | null>();
+  const resolve = (unit: T): string | null => {
+    const seen = new Set<string>();
+    let current: T | undefined = unit;
+    while (current !== undefined && !seen.has(current.id)) {
+      const known = resolved.get(current.id);
+      if (known !== undefined) return known;
+      const own = audioIdOf(current.mediaId);
+      if (own !== null) return own;
+      seen.add(current.id);
+      current = current.parentUnitId === undefined ? undefined : byId.get(current.parentUnitId);
+    }
+    return null;
+  };
+  for (const unit of units) resolved.set(unit.id, resolve(unit));
+  const droppedLinks: DroppedLink[] = [];
+  for (const unit of units) {
+    if (unit.parentUnitId === undefined || !byId.has(unit.parentUnitId)) continue;
+    const own = resolved.get(unit.id) ?? null;
+    if (own !== null && own !== (resolved.get(unit.parentUnitId) ?? null)) {
+      droppedLinks.push({ unitId: unit.id, parentUnitId: unit.parentUnitId });
+    }
+  }
+  return {
+    groups: audioIds.map((audioId) => ({
+      audioId,
+      units: units.filter((unit) => resolved.get(unit.id) === audioId),
+    })),
+    droppedUnits: units
+      .filter((unit) => resolved.get(unit.id) === null)
+      .map((unit) => ({ id: unit.id, reason: 'no-audio' as const })),
+    droppedLinks,
+  };
 }
 
 export function planLegacyMigration(
@@ -1441,27 +1621,40 @@ export function planLegacyMigration(
   };
 
   const confirmSplit = options.confirmSplit === true;
-  const pending: { documentId: string; audioIds: string[] }[] = [];
+  const pending: PendingSplit[] = [];
+  const splitDroppedUnits = new Set<string>();
+  const libraryAudioIds = new Set(library.audios.map((audio) => audio.id));
+  const missingAudios: { manuscriptId: string; audioId: string }[] = [];
   const manuscripts: PlannedManuscript[] = [];
   const droppedLinks: DroppedLink[] = [];
   const droppedMorphemes: { id: string; tokenId: string }[] = [];
   const droppedLexemeLinks: DroppedLexemeLink[] = [];
   const handledLexemeLinks = new Set<string>();
-  const manuscriptNames = new Set<string>();
+  const fileNames = new Set<string>();
 
+  const ownedSourceById = new Map(ownedSources.kept.map((source) => [source.id, source]));
+  const droppedSourceRefs: DroppedSourceRef[] = [];
   for (const document of library.documents) {
+    const keptSourceIds = new Set<string>();
     const units = placed.filter((unit) => unit.manuscriptId === document.id);
     const audioIds = unitAudioIds(units);
-    if (audioIds.length > 1 && !confirmSplit) {
-      pending.push({ documentId: document.id, audioIds });
+    const split = audioIds.length > 1 ? splitDocument(units, audioIds) : null;
+    if (split !== null && !confirmSplit) {
+      pending.push({
+        documentId: document.id,
+        audioIds,
+        droppedUnits: split.droppedUnits,
+        droppedLinks: split.droppedLinks,
+      });
       continue;
     }
-    const groups =
-      audioIds.length > 1
-        ? audioIds.map((audioId) => ({
-            id: `${document.id}--${audioId}`,
-            audioId,
-            units: units.filter((unit) => unit.mediaId === audioId),
+    for (const unit of split?.droppedUnits ?? []) splitDroppedUnits.add(unit.id);
+    const groups: { id: string; audioId: string | null; units: typeof units }[] =
+      split !== null
+        ? split.groups.map((group) => ({
+            id: `${document.id}--${group.audioId}`,
+            audioId: group.audioId,
+            units: group.units,
           }))
         : [
             {
@@ -1471,6 +1664,9 @@ export function planLegacyMigration(
             },
           ];
     for (const group of groups) {
+      if (group.audioId !== null && !libraryAudioIds.has(group.audioId)) {
+        missingAudios.push({ manuscriptId: group.id, audioId: group.audioId });
+      }
       const groupIds = new Set(group.units.map((unit) => unit.id));
       const segmentation = plannedSegmentation(
         library.tokens ?? [],
@@ -1520,7 +1716,7 @@ export function planLegacyMigration(
       manuscripts.push({
         id: group.id,
         sourceDocumentId: document.id,
-        fileName: uniqueName(manuscriptNames, `${document.name}.jyd`),
+        fileName: uniqueName(fileNames, manuscriptFileName(document.name)),
         audioId: group.audioId,
         layers,
         tokens: segmentation.tokens,
@@ -1539,6 +1735,17 @@ export function planLegacyMigration(
         layerLinks: [],
         tracks: [],
         annotations: [],
+      });
+      for (const id of sourceRefs.sourceIds) keptSourceIds.add(id);
+    }
+    for (const id of new Set(document.sourceIds ?? [])) {
+      const source = ownedSourceById.get(id);
+      if (source === undefined || keptSourceIds.has(id)) continue;
+      droppedSourceRefs.push({
+        documentId: document.id,
+        sourceId: id,
+        mediaId: source.mediaId ?? '',
+        reason: 'other-audio',
       });
     }
   }
@@ -1569,7 +1776,13 @@ export function planLegacyMigration(
     .map((content) => ({ id: content.id, unitId: content.unitId }));
   const droppedUnits = library.units
     .filter((unit) => !placedUnitIds.has(unit.id))
-    .map((unit) => ({ id: unit.id, layerId: unit.layerId }));
+    .map((unit) => ({
+      id: unit.id,
+      layerId: unit.layerId,
+      reason: splitDroppedUnits.has(unit.id)
+        ? ('no-audio-in-split' as const)
+        : ('missing-layer' as const),
+    }));
   const droppedTokens = (library.tokens ?? [])
     .filter((token) => !placedUnitIds.has(token.unitId))
     .map((token) => ({ id: token.id, unitId: token.unitId }));
@@ -1590,16 +1803,14 @@ export function planLegacyMigration(
     lexemes: keptLexemeIds,
   });
 
-  const audioNames = new Set<string>();
-  const usedAudioIds = new Set(manuscripts.flatMap((manuscript) => manuscript.audioId ?? []));
-  const audios = library.audios
-    .filter((audio) => usedAudioIds.has(audio.id))
-    .map((audio) => ({
-      audioId: audio.id,
-      fileName: uniqueName(audioNames, baseName(audio.filename)),
-      sha256: sha256(audio.bytes),
-      bytes: audio.bytes,
-    }));
+  const audios = library.audios.map((audio) => ({
+    audioId: audio.id,
+    fileName: uniqueName(fileNames, audioFileName(audio.filename)),
+    sha256: sha256(audio.bytes),
+    bytes: audio.bytes,
+  }));
+
+  const copiedIds = renameCopiedIds(manuscripts);
 
   return {
     status: 'ready',
@@ -1607,6 +1818,7 @@ export function planLegacyMigration(
     manuscripts,
     droppedLinks,
     droppedUnits,
+    missingAudios,
     droppedTokens,
     droppedMorphemes,
     project: library.project ?? null,
@@ -1674,6 +1886,8 @@ export function planLegacyMigration(
     droppedLayerLinks,
     droppedTracks,
     droppedAnnotations,
+    droppedSourceRefs,
+    copiedIds,
     droppedDefinitions: [
       ...ownedLanguages.dropped.map((row) => ({
         kind: 'language' as const,

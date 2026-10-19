@@ -40,6 +40,23 @@ function stemOf(relPath: string): string {
   return dot > 0 ? base.slice(0, dot) : base;
 }
 
+function foldName(name: string): string {
+  return name.normalize('NFC').toUpperCase().toLowerCase();
+}
+
+/** 同名按主名比较，不分大小写，隐藏文件也算。 */
+function stemTaken(
+  files: readonly TrackedFile[],
+  names: readonly string[],
+  except: (file: TrackedFile) => boolean = () => false,
+): boolean {
+  const stems = new Set(names.map((name) => foldName(stemOf(name))));
+  return files.some(
+    (file) =>
+      file.presence === 'present' && !except(file) && stems.has(foldName(stemOf(file.relPath))),
+  );
+}
+
 function isHidden(relPath: string): boolean {
   return relPath.split(/[/\\]/).includes(HIDDEN_DIRECTORY);
 }
@@ -137,16 +154,7 @@ export function importFiles(
       manuscriptId: existing.allocatedIds[1] ?? null,
     };
   }
-  const taken = project.files.some(
-    (file) =>
-      file.presence === 'present' &&
-      (file.relPath === input.audioName ||
-        file.relPath === input.manuscriptName ||
-        (isHidden(file.relPath) &&
-          (stemOf(file.relPath) === stemOf(input.audioName) ||
-            stemOf(file.relPath) === stemOf(input.manuscriptName)))),
-  );
-  if (taken) {
+  if (stemTaken(project.files, [input.audioName, input.manuscriptName])) {
     const op: FileOp = {
       opId: input.opId,
       action: 'import',
@@ -269,17 +277,40 @@ export function commitPair(
 export function hideFile(
   project: FileProject,
   input: { opId: string; relPath: string },
-): { project: FileProject; status: 'complete' | 'needs-choice'; relPath: string | null } {
+): {
+  project: FileProject;
+  status: 'complete' | 'needs-choice' | 'not-found';
+  relPath: string | null;
+} {
   const existing = findOp(project, input.opId);
   if (existing?.status === 'complete') {
     return { project, status: 'complete', relPath: existing.paths[0] ?? null };
   }
-  const file = project.files.find((item) => item.relPath === input.relPath);
-  if (!file) return { project, status: 'needs-choice', relPath: null };
+  const file = project.files.find(
+    (item) => item.relPath === input.relPath && item.presence === 'present',
+  );
+  if (!file) return { project, status: 'not-found', relPath: null };
   const base = input.relPath.split(/[/\\]/).pop() ?? input.relPath;
   const hiddenPath = `${HIDDEN_DIRECTORY}/${base}`;
+  const collides = project.files.some(
+    (item) =>
+      item !== file &&
+      item.presence === 'present' &&
+      foldName(item.relPath) === foldName(hiddenPath),
+  );
+  if (collides) {
+    const op: FileOp = {
+      opId: input.opId,
+      action: 'hide',
+      allocatedIds: [],
+      paths: [input.relPath],
+      donePaths: [],
+      status: 'needs-choice',
+    };
+    return { project: withOp(project, op), status: 'needs-choice', relPath: null };
+  }
   const files = project.files.map((item) =>
-    item.relPath === input.relPath ? { ...item, relPath: hiddenPath } : item,
+    item === file ? { ...item, relPath: hiddenPath } : item,
   );
   const op: FileOp = {
     opId: input.opId,
@@ -295,17 +326,15 @@ export function hideFile(
 export function renameFile(
   project: FileProject,
   input: { opId: string; from: string; to: string },
-): { project: FileProject; status: 'complete' | 'needs-choice' } {
+): { project: FileProject; status: 'complete' | 'needs-choice' | 'not-found' } {
   const existing = findOp(project, input.opId);
   if (existing)
     return { project, status: existing.status === 'needs-choice' ? 'needs-choice' : 'complete' };
-  const conflict = project.files.some(
-    (file) =>
-      file.presence === 'present' &&
-      (file.relPath === input.to ||
-        (isHidden(file.relPath) && stemOf(file.relPath) === stemOf(input.to))),
+  const source = project.files.find(
+    (file) => file.relPath === input.from && file.presence === 'present',
   );
-  if (conflict) {
+  if (!source) return { project, status: 'not-found' };
+  if (stemTaken(project.files, [input.to], (file) => file === source)) {
     const op: FileOp = {
       opId: input.opId,
       action: 'rename',
@@ -317,7 +346,7 @@ export function renameFile(
     return { project: withOp(project, op), status: 'needs-choice' };
   }
   const files = project.files.map((file) =>
-    file.relPath === input.from ? { ...file, relPath: input.to } : file,
+    file === source ? { ...file, relPath: input.to } : file,
   );
   const op: FileOp = {
     opId: input.opId,
