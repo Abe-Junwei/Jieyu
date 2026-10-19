@@ -7,13 +7,18 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
+import { isAppNavigation, secretStoreRefusal } from '../src/desktop/skeleton/desktopSecurity';
 import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import { writeProbeAndReadBack } from '../src/desktop/skeleton/probeStore';
 import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
 
-app.commandLine.appendSwitch('password-store', 'basic');
-if (process.platform === 'linux') safeStorage.setUsePlainTextEncryption(true);
+const SMOKE = process.argv.includes('--smoke');
+// Linux CI has no secret service; only the smoke run may fall back to the hardcoded-password store.
+if (SMOKE) {
+  app.commandLine.appendSwitch('password-store', 'basic');
+  if (process.platform === 'linux') safeStorage.setUsePlainTextEncryption(true);
+}
 
 const BAIDU_MARKER = '百度网盘';
 const MEDIA_SCHEME = 'jieyu-media';
@@ -178,7 +183,15 @@ function registerIpc(): void {
 
   handle('skeleton:store-secret', (plain: unknown) => {
     if (typeof plain !== 'string' || plain.length === 0) throw new Error('empty secret');
-    if (!safeStorage.isEncryptionAvailable()) return { stored: false, reason: 'unavailable' };
+    const refusal = secretStoreRefusal(
+      safeStorage.isEncryptionAvailable(),
+      process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null,
+      SMOKE,
+    );
+    if (refusal === 'basic_text') {
+      return { stored: false, reason: refusal, message: '系统没有可用的密钥环，未保存密钥' };
+    }
+    if (refusal) return { stored: false, reason: refusal };
     const file = secretPath();
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, safeStorage.encryptString(plain));
@@ -215,6 +228,10 @@ async function openWindow(): Promise<BrowserWindow> {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!isAppNavigation(url, win.webContents.getURL())) event.preventDefault();
   });
   const devServer = process.env.JIEYU_VITE_DEV_SERVER;
   if (devServer && !process.argv.includes('--smoke')) {
