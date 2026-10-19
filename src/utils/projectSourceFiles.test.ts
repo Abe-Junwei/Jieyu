@@ -40,7 +40,6 @@ describe('projectSourceFiles', () => {
           sentenceCount: 0,
           unitCount: 0,
           anchorCount: 0,
-          canRemoveEmpty: false,
         },
       ],
       [],
@@ -50,7 +49,6 @@ describe('projectSourceFiles', () => {
       sentenceCount: 0,
       unitCount: 0,
       anchorCount: 0,
-      canRemoveEmpty: false,
     });
   });
 

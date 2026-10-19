@@ -27,7 +27,6 @@ const record: TranscriptionRecordProgressRow = {
   hasPlayableBytes: false,
   unitCount: 0,
   anchorCount: 0,
-  canRemoveEmpty: false,
 };
 
 function renderPane() {

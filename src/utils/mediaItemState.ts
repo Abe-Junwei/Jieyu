@@ -80,13 +80,17 @@ export function mediaRowHasPlayableBytes(
 }
 
 /**
- * 空录音条目能不能删，只看现在拿不拿得到字节。和 `removeEmptyRecording` 用同一条规则。
+ * 空录音条目能不能删：不是占位轴，且现在拿不到字节。`removeEmptyRecording` 直接用这条规则；看板只列
+ * 非占位行，并按 `mediaRowHasPlayableBytes` 显示移除按钮，所以两边一致。句段和锚点不挡移除，会改成未挂接。
  * 状态仍写着有文件、但库里已经没有 Blob 或 url 时，允许移除。
+ * Removable when the row is not a placeholder and has no playable bytes. `removeEmptyRecording` calls
+ * this; the board lists only non-placeholder rows and keys the button on `mediaRowHasPlayableBytes`.
+ * Units and anchors do not block removal; they are unbound.
  */
 export function emptyRecordingRemovalByteBlock(
   row: Pick<MediaItemDocType, 'timelineKind' | 'details' | 'url'>,
 ): 'not-acoustic' | 'has-bytes' | null {
-  if (row.timelineKind !== 'acoustic') return 'not-acoustic';
+  if (isMediaItemPlaceholderRow(row)) return 'not-acoustic';
   if (mediaRowHasPlayableBytes(row)) return 'has-bytes';
   return null;
 }

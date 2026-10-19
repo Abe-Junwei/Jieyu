@@ -263,7 +263,6 @@ export function WorkbenchFilePane(props: {
               : {}),
             ...(row.unitCount !== undefined ? { unitCount: row.unitCount } : {}),
             ...(row.anchorCount !== undefined ? { anchorCount: row.anchorCount } : {}),
-            ...(row.canRemoveEmpty !== undefined ? { canRemoveEmpty: row.canRemoveEmpty } : {}),
             transcriptionRate: row.transcriptionRate,
             translationRate: row.translationRate,
             annotationRate: row.annotationRate,
