@@ -2427,6 +2427,8 @@ export const DICT_KEYS = [
   'ai.runtimeV2.approvedRunsNextTurn',
   'ai.runtimeV2.approvalStale',
   'ai.runtimeV2.pendingNoAutoContinue',
+  'ai.externalMcp.inputAskedAgain',
+  'ai.externalMcp.inputFailed',
   'ai.externalMcp.inputNeeded',
   'ai.toolWriteGate.localPolicyBlocked',
   'ai.toolWriteGate.localPolicyConfirm',

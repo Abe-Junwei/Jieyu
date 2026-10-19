@@ -21,7 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
-import { completeExternalMcpInputForm } from '../../ai/mcp/client/externalMcpTurnBridge';
+import { confirmExternalMcpInputCard } from './useAiChat.externalMcpInput';
 import { expireApprovalIfStale, resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
 import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
@@ -102,20 +102,14 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
 
       const assistantMessageId = pending.assistantMessageId;
       if (pending.mcpInput) {
-        const outcome = await completeExternalMcpInputForm(pending.mcpInput, draft ?? {});
-        if (!outcome.ok && outcome.text === 'input_required') return;
-        setPendingToolCall(null);
-        setTaskSession({
-          id: taskSessionRef.current.id,
-          status: 'idle',
-          updatedAt: nowIso(),
+        await confirmExternalMcpInputCard({ ...pending, mcpInput: pending.mcpInput }, draft ?? {}, {
+          locale: toolFeedbackLocale,
+          setPendingToolCall,
+          setTaskIdle: () =>
+            setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() }),
+          applyAssistantMessageResult,
+          writeToolDecisionAuditLog,
         });
-        await applyAssistantMessageResult(
-          assistantMessageId,
-          outcome.text,
-          outcome.ok ? 'done' : 'error',
-          outcome.ok ? undefined : outcome.text,
-        );
         return;
       }
       const changeSet = buildAiChangeSetFromPendingToolCall(pending);

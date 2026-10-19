@@ -277,14 +277,22 @@ function inputCard(
   };
 }
 
-/** User submitted the form. A second input_required is not turned into another card. */
+export type ExternalMcpInputFormOutcome =
+  /** A required field is empty; nothing was sent. */
+  | { kind: 'missing_required' }
+  /** The server asked again. `form` carries the new requestState. */
+  | { kind: 'asked_again'; form: ExternalMcpInputCard }
+  | { kind: 'done'; text: string }
+  | { kind: 'failed'; reason: string };
+
+/** User submitted the form. */
 export async function completeExternalMcpInputForm(
   form: ExternalMcpInputCard,
   values: Record<string, string>,
   agentRunId?: string,
-): Promise<{ ok: boolean; text: string }> {
+): Promise<ExternalMcpInputFormOutcome> {
   const inputResponses = buildExternalMcpInputResponses(form, values);
-  if (!inputResponses) return { ok: false, text: 'input_required' };
+  if (!inputResponses) return { kind: 'missing_required' };
   const payload = await executeExternalMcpCall(
     {
       name: encodeExternalMcpToolName(form.origin, form.toolName),
@@ -295,7 +303,9 @@ export async function completeExternalMcpInputForm(
     agentRunId,
     { inputResponses, ...(form.requestState ? { requestState: form.requestState } : {}) },
   );
-  return { ok: payload.ok, text: externalMcpModelMessage(payload) };
+  if (payload.form) return { kind: 'asked_again', form: payload.form };
+  if (!payload.ok) return { kind: 'failed', reason: payload.reason ?? 'external mcp tool failed' };
+  return { kind: 'done', text: externalMcpModelMessage(payload) };
 }
 
 export async function executeExternalMcpCall(

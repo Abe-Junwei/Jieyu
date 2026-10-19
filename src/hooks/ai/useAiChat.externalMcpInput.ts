@@ -2,7 +2,9 @@
  * The input card an external MCP server asks for, shared by both runtimes.
  * The server question stays on the card; it never goes into the assistant message.
  */
+import { completeExternalMcpInputForm } from '../../ai/mcp/client/externalMcpTurnBridge';
 import type { ExternalMcpInputCard } from '../../ai/mcp/client/externalMcpInputRequired';
+import { t, type Locale } from '../../i18n';
 import type { PendingAiToolCall } from './useAiChat.types';
 
 export function buildExternalMcpInputPendingCall(input: {
@@ -29,4 +31,71 @@ export function buildExternalMcpInputPendingCall(input: {
     ...(requestId ? { requestId } : {}),
     ...(conversationId ? { conversationIdAtCapture: conversationId } : {}),
   };
+}
+
+export interface ExternalMcpInputCardDeps {
+  locale: Locale;
+  setPendingToolCall: (value: PendingAiToolCall | null) => void;
+  setTaskIdle: () => void;
+  applyAssistantMessageResult: (
+    messageId: string,
+    content: string,
+    status?: 'done' | 'error',
+    errorMessage?: string,
+  ) => Promise<void>;
+  writeToolDecisionAuditLog: (
+    assistantMessageId: string,
+    oldValue: string,
+    newValue: string,
+    source: 'human' | 'ai' | 'system',
+    requestId?: string,
+  ) => Promise<void>;
+}
+
+export async function confirmExternalMcpInputCard(
+  pending: PendingAiToolCall & { mcpInput: ExternalMcpInputCard },
+  draft: Record<string, string>,
+  deps: ExternalMcpInputCardDeps,
+): Promise<void> {
+  const { assistantMessageId } = pending;
+  const name = pending.call.name;
+  const requestId = pending.call.requestId ?? pending.requestId;
+  const outcome = await completeExternalMcpInputForm(pending.mcpInput, draft);
+  if (outcome.kind === 'missing_required') return;
+  if (outcome.kind === 'asked_again') {
+    const prompt = outcome.form.requests[0]?.message;
+    deps.setPendingToolCall({
+      ...pending,
+      mcpInput: outcome.form,
+      ...(prompt ? { riskSummary: prompt } : {}),
+    });
+    await deps.applyAssistantMessageResult(
+      assistantMessageId,
+      t(deps.locale, 'ai.externalMcp.inputAskedAgain'),
+      'done',
+    );
+    await deps.writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${name}`,
+      `input_required_again:${name}`,
+      'system',
+      requestId,
+    );
+    return;
+  }
+  deps.setPendingToolCall(null);
+  deps.setTaskIdle();
+  if (outcome.kind === 'failed') {
+    const message = t(deps.locale, 'ai.externalMcp.inputFailed');
+    await deps.applyAssistantMessageResult(assistantMessageId, message, 'error', message);
+    await deps.writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${name}`,
+      `confirm_failed:${name}:${outcome.reason}`,
+      'system',
+      requestId,
+    );
+    return;
+  }
+  await deps.applyAssistantMessageResult(assistantMessageId, outcome.text, 'done');
 }

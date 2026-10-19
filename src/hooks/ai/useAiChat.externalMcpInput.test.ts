@@ -16,11 +16,15 @@ vi.mock('../../ai/config/featureFlags', async (importOriginal) => {
   };
 });
 
+import { renderHook } from '@testing-library/react';
 import { resetJieyuDatabaseSingletonForTests } from '../../db';
+import { getDefaultAiChatSettings } from '../../ai/providers/providerCatalog';
 import { setExternalMcpTrustEnabled } from '../../ai/mcp/client/externalMcpTrustRegistry';
 import { encodeExternalMcpToolName } from '../../ai/mcp/client/externalMcpTurnBridge';
 import { t } from '../../i18n';
 import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
+import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
+import { buildExternalMcpInputPendingCall } from './useAiChat.externalMcpInput';
 import type { AiSessionMemory, PendingAiToolCall } from './useAiChat.types';
 
 const ORIGIN = 'https://mcp.example.test/mcp';
@@ -74,7 +78,9 @@ beforeEach(async () => {
       return jsonResponse({ jsonrpc: '2.0', id: body.id, result: { tools: SAFE_TOOLS } });
     }
     toolsCalls.push(body.params ?? {});
-    return jsonResponse({ jsonrpc: '2.0', id: body.id, result: onToolsCall(body.params ?? {}) });
+    const result = onToolsCall(body.params ?? {});
+    if (result instanceof Response) return result;
+    return jsonResponse({ jsonrpc: '2.0', id: body.id, result });
   }) as unknown as typeof fetch;
 });
 
@@ -132,5 +138,108 @@ describe('legacy runtime: external MCP asks for input', () => {
     expect(card.mcpInput?.requests[0]?.message).toBe('Please provide your GitHub username');
     expect(card.call.name).toBe(TOOL);
     expect(card.conversationIdAtCapture).toBe('conv-1');
+  });
+});
+
+function inputCard(requestState: string): PendingAiToolCall {
+  return buildExternalMcpInputPendingCall({
+    name: TOOL,
+    form: {
+      origin: ORIGIN,
+      toolName: 'search_works',
+      arguments: { q: 'x' },
+      requestState,
+      requests: [
+        {
+          id: 'github_login',
+          message: 'Please provide your GitHub username',
+          fields: [{ name: 'name', required: true }],
+        },
+      ],
+    },
+    assistantMessageId: 'ast-1',
+    requestId: 'req-1',
+    conversationId: 'conv-1',
+  });
+}
+
+function renderPendingCard(card: PendingAiToolCall) {
+  const pendingRef = { current: card as PendingAiToolCall | null };
+  const stored = new Map<string, { content: string; status: string | undefined }>();
+  const audits: string[] = [];
+  const setPendingToolCall = vi.fn((value: unknown) => {
+    pendingRef.current =
+      typeof value === 'function'
+        ? (value as (prev: PendingAiToolCall | null) => PendingAiToolCall | null)(
+            pendingRef.current,
+          )
+        : (value as PendingAiToolCall | null);
+  });
+  const { result } = renderHook(() =>
+    useAiChatPendingToolCall({
+      providerId: 'mock',
+      settingsRef: { current: getDefaultAiChatSettings('mock') },
+      toolDecisionModeRef: { current: 'enabled' },
+      pendingToolCallRef: pendingRef,
+      taskSessionRef: { current: { id: 'task-1', status: 'idle', updatedAt: '' } },
+      sessionMemoryRef: { current: {} as AiSessionMemory },
+      toolFeedbackLocale: 'en-US',
+      applyAssistantMessageResult: async (id, content, status) => {
+        stored.set(id, { content, status });
+      },
+      hasPersistedExecutionForRequest: async () => false,
+      writeToolDecisionAuditLog: async (_id, _oldValue, newValue) => {
+        audits.push(newValue);
+      },
+      markExecutedRequestId: vi.fn(),
+      setPendingToolCall,
+      setTaskSession: vi.fn(),
+      bumpMetric: vi.fn(),
+      conversationIdRef: { current: 'conv-1' },
+    }),
+  );
+  return { hook: result, pendingRef, stored, audits };
+}
+
+const filled = { 'github_login.name': 'octocat' };
+
+describe('MCP input card: confirm', () => {
+  it('keeps the card when a required field is empty and sends nothing', async () => {
+    const { hook, pendingRef, stored } = renderPendingCard(inputCard('STATE-1'));
+    await hook.current.confirmPendingToolCall({});
+    expect(toolsCalls).toHaveLength(0);
+    expect(pendingRef.current?.mcpInput?.requestState).toBe('STATE-1');
+    expect(stored.size).toBe(0);
+  });
+
+  it('when the server asks again, updates the card and submits the NEW requestState next time', async () => {
+    onToolsCall = (params) =>
+      params.requestState === 'STATE-2'
+        ? { content: [{ type: 'text', text: 'done' }] }
+        : inputRequired('STATE-2', 'Please also give your org');
+    const { hook, pendingRef, stored, audits } = renderPendingCard(inputCard('STATE-1'));
+
+    await hook.current.confirmPendingToolCall(filled);
+    expect(toolsCalls.at(-1)?.requestState).toBe('STATE-1');
+    expect(pendingRef.current?.mcpInput?.requestState).toBe('STATE-2');
+    expect(pendingRef.current?.riskSummary).toBe('Please also give your org');
+    expect(stored.get('ast-1')?.content).toBe(t('en-US', 'ai.externalMcp.inputAskedAgain'));
+    expect(audits).toContain(`input_required_again:${TOOL}`);
+
+    await hook.current.confirmPendingToolCall(filled);
+    expect(toolsCalls.at(-1)?.requestState).toBe('STATE-2');
+    expect(pendingRef.current).toBeNull();
+  });
+
+  it('clears the card, stores a localized error and audits when the call cannot recover', async () => {
+    onToolsCall = () => new Response('nope', { status: 500 });
+    const { hook, pendingRef, stored, audits } = renderPendingCard(inputCard('STATE-1'));
+    await hook.current.confirmPendingToolCall(filled);
+    expect(pendingRef.current).toBeNull();
+    expect(stored.get('ast-1')).toEqual({
+      content: t('en-US', 'ai.externalMcp.inputFailed'),
+      status: 'error',
+    });
+    expect(audits).toContain(`confirm_failed:${TOOL}:http_error`);
   });
 });
