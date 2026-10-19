@@ -30,6 +30,8 @@ export interface PilotToolOutcome {
   requestId?: string;
   /** Not sent to the model. End the loop after this step, e.g. the tool waits for user input. */
   stopLoop?: boolean;
+  /** Not sent to the model. Text shown in the chat when an approved call runs from the card. */
+  userMessage?: string;
 }
 
 export interface PilotAgentOptions {
@@ -78,12 +80,11 @@ export function createPilotAgent(options: PilotAgentOptions) {
       description: spec.description,
       inputSchema: spec.inputSchema,
       execute: async (input, { toolCallId, abortSignal }) => {
-        const { stopLoop, ...outcome } = await options.runToolDecision(
-          name,
-          input,
-          toolCallId,
-          abortSignal,
-        );
+        const {
+          stopLoop,
+          userMessage: _userMessage,
+          ...outcome
+        } = await options.runToolDecision(name, input, toolCallId, abortSignal);
         if (stopLoop) stopAfter.add(toolCallId);
         return outcome;
       },

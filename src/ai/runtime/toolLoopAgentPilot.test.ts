@@ -98,6 +98,17 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
     );
   });
 
+  it('keeps the chat-only userMessage out of the tool result sent to the model', async () => {
+    const { agent, model } = buildAgent(
+      [toolCallTurn('list_layers', '{}'), textTurn('done')],
+      () => ({ status: 'done', message: '{"layers":[]}', userMessage: 'CHAT-ONLY-TEXT' }),
+    );
+    await agent.generate({ messages: [{ role: 'user', content: 'layers' }] });
+    const prompt = JSON.stringify(model.doGenerateCalls[1]!.prompt);
+    expect(prompt).toContain('layers');
+    expect(prompt).not.toContain('CHAT-ONLY-TEXT');
+  });
+
   it('G5: invalid args never execute and never become {}', async () => {
     const { agent, runToolDecision } = buildAgent([
       toolCallTurn('delete_transcription_segment', '{"segmentId":'),

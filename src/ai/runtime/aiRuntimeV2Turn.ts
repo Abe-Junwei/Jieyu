@@ -119,6 +119,8 @@ export interface RuntimeV2Decision {
   pending: boolean;
   /** End the loop after this step (the tool waits for user input). */
   stopLoop?: boolean;
+  /** Not sent to the model. Text shown in the chat when an approved call runs from the card. */
+  userMessage?: string;
 }
 
 /** 审批请求的管线结果：pending=已出确认卡片；card=卡片快照（存 Dexie，重载后重渲染）| request outcome */
@@ -312,6 +314,7 @@ export async function* runAiRuntimeV2Turn(
       message: decision.finalContent,
       requestId: call.requestId ?? '',
       ...(decision.stopLoop ? { stopLoop: true } : {}),
+      ...(decision.userMessage !== undefined ? { userMessage: decision.userMessage } : {}),
     };
   };
 

@@ -940,7 +940,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
     expect(stored).not.toContain('_readModel');
   });
 
-  it('holds batch_apply for approval and returns the preview only after that', async () => {
+  it('holds batch_apply for approval and never runs it inside the turn', async () => {
     const execute = vi.mocked(localContextToolExecutors.executeLocalContextToolCall);
     execute.mockClear();
     execute.mockResolvedValue({
@@ -980,11 +980,6 @@ describe('runAiChatSendTurnStreamPhase', () => {
       );
       expect(early.pending).toBe(false);
       expect(execute).not.toHaveBeenCalled();
-      const decision = await params.decide(
-        { name: 'batch_apply', arguments: { action: 'verify', unitIds: ['u1'] }, requestId: 'r1' },
-        'approved',
-      );
-      yield { delta: decision.finalContent };
       yield { done: true };
     });
     vi.mocked(runAgentLoop).mockImplementation(async (_deps, state) => ({
@@ -1018,9 +1013,9 @@ describe('runAiChatSendTurnStreamPhase', () => {
     const loopState = vi.mocked(runAgentLoop).mock.calls.at(-1)?.[1];
     expect(loopState?.resolvedLocalToolResults).toBeUndefined();
     const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
-    expect(stored).toContain('Would apply verify to u1');
-    expect(stored).not.toContain('_readModel');
-    expect(execute).toHaveBeenCalledTimes(1);
+    expect(stored).not.toContain('Would apply verify to u1');
+    // Approving the card runs it: useAiChat.sendTurnStreamPhase.runtimeV2.test.ts
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it('shows an MCP input card without giving the prompt to the model', async () => {

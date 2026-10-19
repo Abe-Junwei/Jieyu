@@ -18,6 +18,7 @@ import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat
 import { applyOutboundSemanticGuard } from '../../ai/security/semanticGuard';
 import { hidesUnverifiedDraft } from '../../ai/vertical/corpusAnalysisReport';
 import { executeLocalContextToolCall } from '../../ai/chat/localContextToolExecutors';
+import { formatLocalContextToolResultMessage } from '../../ai/chat/localContextToolFormatters';
 import {
   batchApplyApprovalLines,
   corpusToolMessage,
@@ -264,6 +265,11 @@ export async function runAiChatSendTurnStreamPhase(
                   : (toolResult.error ?? 'batch_apply preview failed'),
                 finalStatus: toolResult.ok ? 'done' : 'error',
                 pending: false,
+                userMessage: formatLocalContextToolResultMessage(
+                  toolResult,
+                  toolFeedbackLocaleRef.current,
+                  effectiveUserText,
+                ),
               };
             }
             if (isRuntimeV2CorpusAnalysisTool(call.name) || isRuntimeV2LocalReadTool(call.name)) {

@@ -248,7 +248,9 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
           assistantMessageId,
           r?.stale
             ? t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale')
-            : (r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
+            : (r?.outcome?.userMessage ??
+                r?.outcome?.message ??
+                t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
           r?.outcome?.status === 'error' ? 'error' : 'done',
         );
         if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);

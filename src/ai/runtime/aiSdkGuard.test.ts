@@ -41,7 +41,7 @@ describe('aiSdkGuard', () => {
     const text = readFileSync(join(__dirname, 'toolLoopAgentPilot.ts'), 'utf8');
     expect(text.match(/execute:/g)).toHaveLength(1);
     expect(text).toMatch(
-      /execute: async \(input, \{ toolCallId, abortSignal \}\) => \{\s+const \{ stopLoop, \.\.\.outcome \} = await options\.runToolDecision\(/,
+      /execute: async \(input, \{ toolCallId, abortSignal \}\) => \{\s+const \{[^}]*\.\.\.outcome\s*\} = await options\.runToolDecision\(/,
     );
   });
 });

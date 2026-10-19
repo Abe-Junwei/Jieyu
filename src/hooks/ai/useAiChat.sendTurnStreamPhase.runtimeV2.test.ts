@@ -411,3 +411,39 @@ describe('ToolLoopAgent turn: stop and conversation switch', () => {
     expect(h.cards.filter(Boolean)).toHaveLength(0);
   });
 });
+
+describe('ToolLoopAgent turn: approved batch_apply', () => {
+  it('runs batch_apply from the confirm card and stores formatted text, not raw JSON', async () => {
+    const execute = vi.mocked(localContextToolExecutors.executeLocalContextToolCall);
+    execute.mockResolvedValue({
+      ok: true,
+      name: 'batch_apply',
+      result: {
+        action: 'verify',
+        items: [{ unitId: 'u1', preview: 'Would apply verify to u1' }],
+        _readModel: { source: 'segment_meta' },
+      },
+    });
+    modelRef.current = new MockLanguageModelV4({
+      doStream: [toolCallsStream([['batch_apply', '{"action":"verify","unitIds":["u1"]}']])],
+    });
+    const h = buildHarness();
+
+    await runAiChatSendTurnStreamPhase(h.input);
+
+    expect(execute).not.toHaveBeenCalled();
+    const card = h.cards.filter(Boolean).at(-1) as PendingAiToolCall;
+    expect(card.call.name).toBe('batch_apply');
+    expect(card.runtimeV2?.conversationId).toBe('conv-1');
+
+    const { hook, stored } = renderPendingCard(card, h.audits);
+    await hook.current.confirmPendingToolCall();
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    const text = stored.get('ast-v2')?.content ?? '';
+    expect(text).not.toBe('');
+    expect(text).not.toContain('_readModel');
+    expect(text).not.toContain('{"');
+    expect(stored.get('ast-v2')?.status).toBe('done');
+  });
+});
