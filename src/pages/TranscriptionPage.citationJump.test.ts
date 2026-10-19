@@ -23,6 +23,15 @@ vi.mock('../db', () => ({
   db: mockDb,
 }));
 
+// Unit citations now read through the storage port (#280), not `db.layer_units`.
+vi.mock('../db/storagePort', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../db/storagePort')>();
+  return {
+    ...actual,
+    storagePort: () => ({ ...actual.storagePort(), readLayerUnit: mockDb.layer_units.get }),
+  };
+});
+
 import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJump';
 
 describe('handleTranscriptionCitationJump', () => {
