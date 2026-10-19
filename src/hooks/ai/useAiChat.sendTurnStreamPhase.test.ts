@@ -815,8 +815,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
           verticalOutputEnvelopeSeed: corpusSeed,
         }),
       );
-      const loopState = vi.mocked(runAgentLoop).mock.calls[0]?.[1];
-      expect(loopState?.resolvedLocalToolResults).toBeUndefined();
+      expect(runAgentLoop).not.toHaveBeenCalled();
       expect(localContextToolExecutors.executeLocalContextToolCall).toHaveBeenCalled();
       const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
       expect(stored).toBe('过去时只出现在这个动词之后。\n- u1 ka go');
@@ -933,8 +932,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
         flags: { ...featureFlags, aiAgentRuntimeV2Enabled: true },
       }),
     );
-    const loopState = vi.mocked(runAgentLoop).mock.calls.at(-1)?.[1];
-    expect(loopState?.resolvedLocalToolResults).toBeUndefined();
+    expect(runAgentLoop).not.toHaveBeenCalled();
     const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
     expect(stored).toContain('u1');
     expect(stored).not.toContain('_readModel');
@@ -1010,8 +1008,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
     };
     expect(card.runtimeV2?.approvalId).toBe('approval-1');
     expect(card.impactPreview).toEqual(['verify u1']);
-    const loopState = vi.mocked(runAgentLoop).mock.calls.at(-1)?.[1];
-    expect(loopState?.resolvedLocalToolResults).toBeUndefined();
+    expect(runAgentLoop).not.toHaveBeenCalled();
     const stored = finalizeAssistantMessage.mock.calls[0]?.[1] as string;
     expect(stored).not.toContain('Would apply verify to u1');
     // Approving the card runs it: useAiChat.sendTurnStreamPhase.runtimeV2.test.ts

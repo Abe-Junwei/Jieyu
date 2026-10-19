@@ -27,6 +27,8 @@ export type RunSendTurnStreamPostCompletionPipelineArgs = Readonly<{
   input: RunAiChatSendTurnStreamPhaseInput;
   phaseState: SendTurnStreamPhaseState;
   streamCompletionResult: SendTurnStreamCompletionSnapshot;
+  /** The turn ran on ToolLoopAgent; skip the legacy agent loop continuation. */
+  ranOnToolLoopAgent?: boolean;
   buildStreamCompletionEnv: () => Omit<
     ResolveAiChatStreamCompletionParams,
     'assistantId' | 'assistantContent' | 'userText' | 'aiContext'

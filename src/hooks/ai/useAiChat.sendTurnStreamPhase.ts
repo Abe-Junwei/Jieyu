@@ -538,10 +538,10 @@ export async function runAiChatSendTurnStreamPhase(
       };
 
       await runSendTurnStreamPostCompletionPipeline({
-        // v2 的语料查询放在 corpusToolResults，不放 localToolResults，旧循环不会续跑
         input,
         phaseState: s,
         streamCompletionResult,
+        ranOnToolLoopAgent: runtimeV2 && !legacyTookOver,
         buildStreamCompletionEnv,
       });
       break;
