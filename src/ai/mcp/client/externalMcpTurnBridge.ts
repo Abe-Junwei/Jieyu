@@ -62,24 +62,59 @@ export type ExternalMcpSendTurnResolution =
       evidencePackets?: EvidencePacketV0[];
     };
 
-export function encodeExternalMcpToolName(origin: string, toolName: string): string {
-  // Origin keys must not contain `__` (the name separator). `://` would become `___`
-  // if replaced with `_`, so illegal characters become `-`.
-  const originKey = origin.replace(/[^a-zA-Z0-9.-]/g, '-');
-  return `${EXTERNAL_MCP_TOOL_NAME_PREFIX}${originKey}__${toolName}`;
+/** OpenAI-compatible function names: `^[a-zA-Z0-9_-]{1,64}$`. */
+const TOOL_NAME_MAX = 64;
+const TOOL_NAME_HASH_LENGTH = 8;
+const TOOL_NAME_TOOL_PART_MAX = 24;
+
+function stableNameHash(text: string): string {
+  // FNV-1a 32-bit; stable across sessions so cached names and audit rows line up.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(TOOL_NAME_HASH_LENGTH, '0');
 }
 
-export function decodeExternalMcpToolName(
-  encoded: string,
-): { originKey: string; toolName: string } | null {
-  if (!encoded.startsWith(EXTERNAL_MCP_TOOL_NAME_PREFIX)) return null;
-  const rest = encoded.slice(EXTERNAL_MCP_TOOL_NAME_PREFIX.length);
-  const sep = rest.indexOf('__');
-  if (sep <= 0) return null;
-  const originKey = rest.slice(0, sep);
-  const toolName = rest.slice(sep + 2);
-  if (!originKey || !toolName) return null;
-  return { originKey, toolName };
+const nameSlug = (text: string) => text.replace(/[^a-zA-Z0-9_]+/g, '-').replace(/^-+|-+$/g, '');
+
+/**
+ * Readable but lossy: the hash suffix keeps names unique. Names are mapped back through
+ * the exposed-tool list (`listExposedExternalMcpTools`), never parsed.
+ */
+export function encodeExternalMcpToolName(origin: string, toolName: string): string {
+  const hash = stableNameHash(`${origin}\n${toolName}`);
+  const budget = TOOL_NAME_MAX - EXTERNAL_MCP_TOOL_NAME_PREFIX.length - hash.length - 2;
+  const toolPart = nameSlug(toolName).slice(0, TOOL_NAME_TOOL_PART_MAX);
+  const hostPart = nameSlug(origin.replace(/^[a-z]+:\/\//i, '')).slice(
+    0,
+    Math.max(0, budget - toolPart.length - 1),
+  );
+  const readable = [hostPart, toolPart].filter(Boolean).join('-');
+  return `${EXTERNAL_MCP_TOOL_NAME_PREFIX}${readable}__${hash}`;
+}
+
+type ExposedExternalMcpTool = { name: string; origin: string; tool: ExternalMcpToolSchema };
+
+/** Enabled origins' cached tools that pass the schema safety check, with their encoded names. */
+async function listExposedExternalMcpTools(): Promise<ExposedExternalMcpTool[]> {
+  const out: ExposedExternalMcpTool[] = [];
+  for (const entry of await listExternalMcpTrustEntries()) {
+    if (!entry.enabled || !entry.lastToolsJson) continue;
+    const tools = parseLastToolsJson(entry.lastToolsJson);
+    if (tools.length === 0) continue;
+    const exposed = await exposeExternalMcpToolsToLlm({ origin: entry.origin, tools });
+    if (!exposed.allowed) continue;
+    for (const tool of exposed.tools) {
+      out.push({
+        name: encodeExternalMcpToolName(exposed.origin, tool.name),
+        origin: exposed.origin,
+        tool,
+      });
+    }
+  }
+  return out;
 }
 
 function rawContentPassesInbound(content: ReadonlyArray<{ type: string; text?: string }>): boolean {
@@ -155,21 +190,12 @@ function extractNamedToolHolders(
 export async function buildExternalMcpToolCallGuide(): Promise<string> {
   if (!featureFlags.aiExternalMcpSendTurnEnabled) return '';
   if (!featureFlags.aiExternalMcpTrustEnabled) return '';
-  const entries = await listExternalMcpTrustEntries();
   const lines: string[] = [
     'External MCP tools (cached schema; emit tool_call JSON only; prefer local tools when they suffice):',
   ];
-  for (const entry of entries) {
-    if (!entry.enabled || !entry.lastToolsJson) continue;
-    const tools = parseLastToolsJson(entry.lastToolsJson);
-    if (tools.length === 0) continue;
-    const exposed = await exposeExternalMcpToolsToLlm({ origin: entry.origin, tools });
-    if (!exposed.allowed) continue;
-    for (const tool of exposed.tools) {
-      const encoded = encodeExternalMcpToolName(exposed.origin, tool.name);
-      const desc = tool.description ? `: ${tool.description}` : '';
-      lines.push(`- ${encoded}(arguments:{...})${desc}`);
-    }
+  for (const { name, tool } of await listExposedExternalMcpTools()) {
+    const desc = tool.description ? `: ${tool.description}` : '';
+    lines.push(`- ${name}(arguments:{...})${desc}`);
   }
   if (lines.length === 1) return '';
   lines.push('Do not paste these identifiers into natural-language replies to the user.');
@@ -184,19 +210,15 @@ export async function parseExternalMcpToolCallsFromText(
     item.name.startsWith(EXTERNAL_MCP_TOOL_NAME_PREFIX),
   );
   if (holders.length === 0) return [];
-  const enabled = (await listExternalMcpTrustEntries()).filter((entry) => entry.enabled);
+  const exposed = await listExposedExternalMcpTools();
   const resolved: ExternalMcpToolCall[] = [];
   for (const holder of holders) {
-    const decoded = decodeExternalMcpToolName(holder.name);
-    if (!decoded) continue;
-    const matches = enabled.filter(
-      (entry) => encodeExternalMcpToolName(entry.origin, decoded.toolName) === holder.name,
-    );
+    const matches = exposed.filter((item) => item.name === holder.name);
     if (matches.length !== 1) continue;
     resolved.push({
       name: holder.name,
       origin: matches[0]!.origin,
-      toolName: decoded.toolName,
+      toolName: matches[0]!.tool.name,
       arguments: holder.arguments,
     });
   }
@@ -216,31 +238,25 @@ export async function listRuntimeV2ExternalMcpTools(): Promise<RuntimeV2External
   if (!featureFlags.aiExternalMcpSendTurnEnabled || !featureFlags.aiExternalMcpTrustEnabled) {
     return [];
   }
-  const entries = await listExternalMcpTrustEntries();
   const specs: RuntimeV2ExternalMcpTool[] = [];
-  for (const entry of entries) {
-    if (!entry.enabled || !entry.lastToolsJson) continue;
-    if (isExternalMcpStdioOrigin(entry.origin) && !featureFlags.corpusExternalEvidenceEnabled) {
+  for (const { name, origin, tool } of await listExposedExternalMcpTools()) {
+    if (isExternalMcpStdioOrigin(origin) && !featureFlags.corpusExternalEvidenceEnabled) continue;
+    if (isExternalMcpSecondModelTool(tool.name)) continue;
+    if (resolveExternalEvidenceKind(tool.name) && !featureFlags.corpusExternalEvidenceEnabled) {
       continue;
     }
-    for (const tool of parseLastToolsJson(entry.lastToolsJson)) {
-      if (isExternalMcpSecondModelTool(tool.name)) continue;
-      if (resolveExternalEvidenceKind(tool.name) && !featureFlags.corpusExternalEvidenceEnabled) {
-        continue;
-      }
-      const schema =
-        tool.inputSchema && typeof tool.inputSchema === 'object' && !Array.isArray(tool.inputSchema)
-          ? (tool.inputSchema as Record<string, unknown>)
-          : { type: 'object', properties: {} };
-      specs.push({
-        name: encodeExternalMcpToolName(entry.origin, tool.name),
-        origin: entry.origin,
-        toolName: tool.name,
-        description: tool.description?.trim() || tool.name,
-        inputSchema: schema,
-      });
-      if (specs.length >= RUNTIME_V2_EXTERNAL_MCP_TOOL_CAP) return specs;
-    }
+    const schema =
+      tool.inputSchema && typeof tool.inputSchema === 'object' && !Array.isArray(tool.inputSchema)
+        ? (tool.inputSchema as Record<string, unknown>)
+        : { type: 'object', properties: {} };
+    specs.push({
+      name,
+      origin,
+      toolName: tool.name,
+      description: tool.description?.trim() || tool.name,
+      inputSchema: schema,
+    });
+    if (specs.length >= RUNTIME_V2_EXTERNAL_MCP_TOOL_CAP) return specs;
   }
   return specs;
 }
