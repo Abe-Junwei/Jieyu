@@ -252,13 +252,23 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
       expect(runToolDecision.mock.calls.map((c) => c[0])).toEqual(['delete_layer']);
     });
 
-    it('never runs a deferred tool the model calls before searching', async () => {
-      const { agent, runToolDecision } = deferredAgent([
+    it('calling a deferred tool before searching does not run it, and the model may search and retry', async () => {
+      const { agent, model, runToolDecision } = deferredAgent([
+        toolCallTurn('delete_layer', '{"layerId":"L1"}', 'early'),
+        toolCallTurn(PILOT_TOOL_SEARCH_NAME, '{"query":"delete layer"}'),
         toolCallTurn('delete_layer', '{"layerId":"L1"}'),
         textTurn('done'),
       ]);
-      await agent.generate({ messages: [{ role: 'user', content: 'delete layer L1' }] });
-      expect(runToolDecision).not.toHaveBeenCalled();
+      const result = await agent.generate({
+        messages: [{ role: 'user', content: 'delete layer L1' }],
+      });
+      expect(model.doGenerateCalls).toHaveLength(4);
+      expect(JSON.stringify(model.doGenerateCalls[1]!.prompt)).toContain('early');
+      expect(runToolDecision.mock.calls.map((c) => c[0])).toEqual(['delete_layer']);
+      const early = result.steps[0]!.toolCalls[0]!;
+      expect(
+        mapStreamPart({ ...early, type: 'tool-call' } as never, new Set(['delete_layer'])),
+      ).toBeNull();
     });
 
     it('refuses more eager tools than the limit', () => {

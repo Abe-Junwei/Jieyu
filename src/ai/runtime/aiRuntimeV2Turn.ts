@@ -16,6 +16,7 @@ import { TOOL_STRATEGY_TABLE } from '../chat/toolCallStrategy';
 import { createThinkTagStripper } from '../providers/streamUtils';
 import {
   createPilotAgent,
+  deferredPilotToolNames,
   isToolsRejectedError,
   mapStreamPart,
   type PilotToolOutcome,
@@ -342,12 +343,14 @@ export async function* runAiRuntimeV2Turn(
     };
   };
 
+  const toolSpecs = {
+    ...buildRuntimeV2ToolSpecs({ corpusAnalysis: p.corpusAnalysisTools === true }),
+    ...(p.extraTools ?? {}),
+  };
+  const deferredTools = deferredPilotToolNames(toolSpecs);
   const agent = createPilotAgent({
     model: p.model,
-    tools: {
-      ...buildRuntimeV2ToolSpecs({ corpusAnalysis: p.corpusAnalysisTools === true }),
-      ...(p.extraTools ?? {}),
-    },
+    tools: toolSpecs,
     instructions: p.systemPrompt,
     toolApproval: (name) => approvalFor(name),
     runToolDecision: (name, input, toolCallId, abortSignal) => {
@@ -384,7 +387,7 @@ export async function* runAiRuntimeV2Turn(
   try {
     const result = await agent.stream({ messages, abortSignal: p.signal });
     for await (const part of result.fullStream) {
-      const ev = mapStreamPart(part);
+      const ev = mapStreamPart(part, deferredTools);
       if (!ev) continue;
       if (ev.type === 'text') {
         yieldedAny = true;
