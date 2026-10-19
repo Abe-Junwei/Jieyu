@@ -84,7 +84,7 @@
     { "pathPrefix": "src/data/orthographyTop50Reviewed.ts", "reason": "data-dictionary" },
 
     { "pathPrefix": "src/services/LinguisticService.ts", "reason": "validation-and-guard-message" },
-    { "pathPrefix": "src/services/LinguisticService.orthography.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/db/storagePortServiceOrthography.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/pages/languageMetadataWorkspace.shared.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/languageMapEmbed.shared.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/services/stt/providerMetadata.ts", "reason": "provider-protocol" },
