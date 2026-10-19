@@ -2,7 +2,7 @@
  * Speaker utilities | \u8bf4\u8bdd\u4eba\u5de5\u5177\u51fd\u6570
  */
 
-import type { SpeakerDocType, LayerUnitDocType } from '../../db';
+import type { SpeakerDocType, LayerUnitDocType } from '../../db/types';
 import type { SpeakerFilterOption, SpeakerVisual } from './types';
 
 const SPEAKER_TRACK_COLORS = [
@@ -42,13 +42,12 @@ const DEFAULT_SPEAKER_SELECTION_SUMMARY_LABELS: SpeakerSelectionSummaryLabels = 
   ...DEFAULT_SPEAKER_DISPLAY_LABELS,
   noSelectionUnits: '\u672a\u9009\u62e9\u53e5\u6bb5',
   noneAssignedUnits: '\u5f53\u524d\u53e5\u6bb5\u5747\u672a\u6807\u6ce8\u8bf4\u8bdd\u4eba',
-  singleSpeakerSummary: (speakerName) => `\u5f53\u524d\u7edf\u4e00\u8bf4\u8bdd\u4eba：${speakerName}`,
+  singleSpeakerSummary: (speakerName) =>
+    `\u5f53\u524d\u7edf\u4e00\u8bf4\u8bdd\u4eba：${speakerName}`,
   multipleSpeakersSummary: (count) => `\u5f53\u524d\u6d89\u53ca ${count} \u4f4d\u8bf4\u8bdd\u4eba`,
 };
 
-function resolveSpeakerDisplayLabels(
-  labels?: Partial<SpeakerDisplayLabels>,
-): SpeakerDisplayLabels {
+function resolveSpeakerDisplayLabels(labels?: Partial<SpeakerDisplayLabels>): SpeakerDisplayLabels {
   return {
     ...DEFAULT_SPEAKER_DISPLAY_LABELS,
     ...labels,
@@ -76,9 +75,7 @@ export function normalizeSpeakerName(name: string | undefined): string {
   return name?.trim() ?? '';
 }
 
-export function getUnitSpeakerKey(
-  unit: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>,
-): string {
+export function getUnitSpeakerKey(unit: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>): string {
   const speakerId = unit.speakerId?.trim();
   if (speakerId) return speakerId;
   return '';
@@ -92,7 +89,10 @@ export function sortSpeakersByName(speakers: SpeakerDocType[]): SpeakerDocType[]
   });
 }
 
-export function upsertSpeaker(speakers: SpeakerDocType[], nextSpeaker: SpeakerDocType): SpeakerDocType[] {
+export function upsertSpeaker(
+  speakers: SpeakerDocType[],
+  nextSpeaker: SpeakerDocType,
+): SpeakerDocType[] {
   const next = speakers.filter((speaker) => speaker.id !== nextSpeaker.id);
   next.push(nextSpeaker);
   return sortSpeakersByName(next);
@@ -135,8 +135,9 @@ export function buildSpeakerVisualMapFromKeys(
   for (const assignment of assignments) {
     const speakerKey = assignment.speakerKey.trim();
     if (!speakerKey || speakerKey === 'unknown-speaker') continue;
-    const color = SPEAKER_TRACK_COLORS[hashSpeakerKey(speakerKey) % SPEAKER_TRACK_COLORS.length]
-      ?? SPEAKER_TRACK_COLORS[0];
+    const color =
+      SPEAKER_TRACK_COLORS[hashSpeakerKey(speakerKey) % SPEAKER_TRACK_COLORS.length] ??
+      SPEAKER_TRACK_COLORS[0];
     nextMap[assignment.unitId] = {
       name: getSpeakerDisplayNameByKey(speakerKey, speakerById, labels),
       color,
@@ -219,7 +220,9 @@ export function buildSelectedSpeakerSummary(
   if (keys.size === 1) {
     const first = assigned[0];
     if (!first) return resolvedLabels.noneAssignedUnits;
-    return resolvedLabels.singleSpeakerSummary(getSpeakerDisplayName(first, speakerById, resolvedLabels));
+    return resolvedLabels.singleSpeakerSummary(
+      getSpeakerDisplayName(first, speakerById, resolvedLabels),
+    );
   }
   return resolvedLabels.multipleSpeakersSummary(keys.size);
 }
@@ -233,9 +236,7 @@ export function applySpeakerAssignmentToUnits(
   return units.map((unit) => {
     if (!targetIds.has(unit.id)) return unit;
     const { speaker: _legacySpeaker, speakerId: _legacySpeakerId, ...rest } = unit;
-    return speaker
-      ? { ...rest, speakerId: speaker.id, speaker: speaker.name }
-      : rest;
+    return speaker ? { ...rest, speakerId: speaker.id, speaker: speaker.name } : rest;
   });
 }
 
@@ -244,9 +245,7 @@ export function renameSpeakerInUnits(
   speakerId: string,
   nextName: string,
 ): LayerUnitDocType[] {
-  return units.map((unit) => (
-    unit.speakerId === speakerId
-      ? { ...unit, speaker: nextName }
-      : unit
-  ));
+  return units.map((unit) =>
+    unit.speakerId === speakerId ? { ...unit, speaker: nextName } : unit,
+  );
 }

@@ -3,15 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinguisticService } from '../services/LinguisticService';
 import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import { occurrenceGlossByUnitId } from '../utils/occurrenceGlossLine';
-import type {
-  LayerDocType,
-  LayerLinkDocType,
-  LayerUnitContentDocType,
-  LayerUnitDocType,
-  OrthographyDocType,
-  SpeakerDocType,
-} from '../db';
-import { layerTranscriptionTreeParentId } from '../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerLinkDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type OrthographyDocType,
+  type SpeakerDocType,
+} from '../db/types';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { useOrthographies } from '~/hooks/orthography/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/messages';

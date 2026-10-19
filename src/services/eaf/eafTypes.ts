@@ -12,7 +12,7 @@ import type {
   LayerLinkDocType,
   UnitTokenDocType,
   UnitMorphemeDocType,
-} from '../../db';
+} from '../../db/types';
 import type { OrthographyInteropMetadata } from '../../utils/orthographyInteropMetadata';
 import type { InterchangeLoss } from '../../utils/interchangeLossReport';
 import type { EafNoteKind, EafRolePromptTier, EafTierRole } from '../../utils/eafTierRole';

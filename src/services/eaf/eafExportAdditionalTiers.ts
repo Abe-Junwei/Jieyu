@@ -1,10 +1,10 @@
-import type {
-  LayerDocType,
-  LayerLinkDocType,
-  LayerUnitContentDocType,
-  LayerUnitDocType,
-} from '../../db';
-import { layerTranscriptionTreeParentId } from '../../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerLinkDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+} from '../../db/types';
 import { readEnglishFallbackMultiLangLabel } from '../../utils/multiLangLabels';
 import type { EafExportInput } from './eafTypes';
 import type { EafExportScratch } from './eafExportScratch';

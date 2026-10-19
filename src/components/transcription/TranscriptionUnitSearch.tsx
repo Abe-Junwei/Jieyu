@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import type { LayerUnitDocType, Transcription } from '../../db';
+import type { LayerUnitDocType, Transcription } from '../../db/types';
 import { t, useOptionalLocale } from '../../i18n';
 import { parseCharacterVariantLines } from '../../pages/annotation/annotationCharacterVariants';
 import type { AnnotationSearchMode } from '../../pages/annotation/annotationRowSearch';

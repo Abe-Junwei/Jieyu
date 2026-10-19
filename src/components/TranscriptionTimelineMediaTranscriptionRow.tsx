@@ -1,4 +1,4 @@
-import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db/types';
 import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
@@ -27,8 +27,7 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
   unitById: Map<string, LayerUnitDocType>;
   segmentById: Map<string, LayerUnitDocType>;
   saveSegmentContentForLayer:
-    | ((segmentId: string, layerId: string, value: string) => Promise<void>)
-    | undefined;
+    ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
   saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;

@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../db/types';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import {
   applyLayerMetadataUpdate,

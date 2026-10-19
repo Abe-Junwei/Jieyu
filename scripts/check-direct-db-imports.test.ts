@@ -7,6 +7,8 @@ describe('direct-db import ratchet (#280)', () => {
     expect(DIRECT_DB_IMPORT_RE.test("import { db } from '../../db';")).toBe(true);
     expect(DIRECT_DB_IMPORT_RE.test("import { db } from '../db/index';")).toBe(true);
     expect(DIRECT_DB_IMPORT_RE.test("import { x } from '../db/schemas';")).toBe(false);
+    expect(DIRECT_DB_IMPORT_RE.test("import type { X } from '../db/types';")).toBe(false);
+    expect(DIRECT_DB_IMPORT_RE.test("import type { JieyuDatabase } from '../db/engine';")).toBe(false);
   });
 
   it('only allows the count to stay or decrease', () => {

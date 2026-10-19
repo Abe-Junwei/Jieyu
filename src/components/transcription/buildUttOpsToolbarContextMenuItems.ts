@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../../db';
+import type { LayerDocType } from '../../db/types';
 import type { TimelineUnit, TimelineUnitKind } from '../../hooks/transcription/transcriptionTypes';
 import type { TranscriptionOverlaysMessages } from '../../i18n/messages';
 import type { ContextMenuItem } from '../ContextMenu';

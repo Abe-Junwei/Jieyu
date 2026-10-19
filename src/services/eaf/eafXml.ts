@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../../db';
+import type { MediaItemDocType } from '../../db/types';
 import type { OrthographyInteropMetadata } from '../../utils/orthographyInteropMetadata';
 import { createLogger } from '../../observability/logger';
 import type { TimelineInteropMetadata } from './eafTypes';

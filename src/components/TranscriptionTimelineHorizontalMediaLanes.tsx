@@ -6,7 +6,7 @@ import type {
   LayerUnitDocType,
   MediaItemDocType,
   OrthographyDocType,
-} from '../db';
+} from '../db/types';
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';

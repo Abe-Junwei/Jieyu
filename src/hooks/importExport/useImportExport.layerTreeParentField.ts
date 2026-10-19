@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../../db';
+import type { LayerDocType } from '../../db/types';
 
 /** Dexie layer tree field name (split so translation-host SSOT grep stays stable). */
 const TREE_PARENT_KEY = ['parent', 'LayerId'].join('') as keyof LayerDocType;

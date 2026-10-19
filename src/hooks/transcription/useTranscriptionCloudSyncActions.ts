@@ -5,7 +5,7 @@
  * 保持 useTranscriptionData 为薄组合层。
  * Keeps useTranscriptionData as a thin composition layer.
  */
-import type { ProvenanceEnvelope } from '../../db';
+import type { ProvenanceEnvelope } from '../../db/types';
 import { snapshotLoadWasSuperseded, type LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { featureFlags } from '../../ai/config/featureFlags';

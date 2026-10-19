@@ -3,7 +3,7 @@ import type {
   LayerDisplaySettings,
   OrthographyDocType,
   LayerUnitDocType,
-} from '../../db';
+} from '../../db/types';
 import type { SpeakerFilterOption } from '../../hooks/speakerManagement/useSpeakerActions';
 import type { TimelineUnitKind } from '../../hooks/transcription/transcriptionTypes';
 import type { ContextMenuState } from '../../pages/TranscriptionPage.UIState';

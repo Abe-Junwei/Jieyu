@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { OrthographyDocType } from '../db';
+import type { OrthographyDocType } from '../db/types';
 import { useOptionalLocale } from '../i18n';
 import { getSearchReplaceOverlayMessages } from '../i18n/messages';
 import {

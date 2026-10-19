@@ -1,4 +1,4 @@
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../db/types';
 import type { LayerDocType } from '../pages/transcriptionAiController.types';
 import type { Dispatch, SetStateAction } from 'react';
 import { loadOrthographyRuntime } from './loadOrthographyRuntime';

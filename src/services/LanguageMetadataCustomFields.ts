@@ -1,93 +1,188 @@
 import { z } from 'zod';
 import { tf, type Locale } from '../i18n';
-import type { CustomFieldDefinitionDocType, CustomFieldValueType, LanguageDocType, MultiLangString } from '../db';
+import type {
+  CustomFieldDefinitionDocType,
+  CustomFieldValueType,
+  LanguageDocType,
+  MultiLangString,
+} from '../db/types';
 
 export type CustomFieldStoredValue = NonNullable<LanguageDocType['customFields']>[string];
 
-const CUSTOM_FIELD_VALUE_TYPES = ['text', 'number', 'boolean', 'select', 'multiselect', 'url'] as const satisfies readonly CustomFieldValueType[];
+const CUSTOM_FIELD_VALUE_TYPES = [
+  'text',
+  'number',
+  'boolean',
+  'select',
+  'multiselect',
+  'url',
+] as const satisfies readonly CustomFieldValueType[];
 
-export const CUSTOM_FIELD_RENDERER_REGISTRY: Record<CustomFieldValueType, {
-  htmlInputType: 'text' | 'number' | 'checkbox' | 'select' | 'url';
-  supportsOptions: boolean;
-  supportsNumericRange: boolean;
-  supportsPattern: boolean;
-  supportsDefaultValue: boolean;
-  isMultiValue: boolean;
-}> = {
-  text: { htmlInputType: 'text', supportsOptions: false, supportsNumericRange: false, supportsPattern: true, supportsDefaultValue: true, isMultiValue: false },
-  number: { htmlInputType: 'number', supportsOptions: false, supportsNumericRange: true, supportsPattern: false, supportsDefaultValue: true, isMultiValue: false },
-  boolean: { htmlInputType: 'checkbox', supportsOptions: false, supportsNumericRange: false, supportsPattern: false, supportsDefaultValue: true, isMultiValue: false },
-  select: { htmlInputType: 'select', supportsOptions: true, supportsNumericRange: false, supportsPattern: false, supportsDefaultValue: true, isMultiValue: false },
-  multiselect: { htmlInputType: 'select', supportsOptions: true, supportsNumericRange: false, supportsPattern: false, supportsDefaultValue: true, isMultiValue: true },
-  url: { htmlInputType: 'url', supportsOptions: false, supportsNumericRange: false, supportsPattern: true, supportsDefaultValue: true, isMultiValue: false },
+export const CUSTOM_FIELD_RENDERER_REGISTRY: Record<
+  CustomFieldValueType,
+  {
+    htmlInputType: 'text' | 'number' | 'checkbox' | 'select' | 'url';
+    supportsOptions: boolean;
+    supportsNumericRange: boolean;
+    supportsPattern: boolean;
+    supportsDefaultValue: boolean;
+    isMultiValue: boolean;
+  }
+> = {
+  text: {
+    htmlInputType: 'text',
+    supportsOptions: false,
+    supportsNumericRange: false,
+    supportsPattern: true,
+    supportsDefaultValue: true,
+    isMultiValue: false,
+  },
+  number: {
+    htmlInputType: 'number',
+    supportsOptions: false,
+    supportsNumericRange: true,
+    supportsPattern: false,
+    supportsDefaultValue: true,
+    isMultiValue: false,
+  },
+  boolean: {
+    htmlInputType: 'checkbox',
+    supportsOptions: false,
+    supportsNumericRange: false,
+    supportsPattern: false,
+    supportsDefaultValue: true,
+    isMultiValue: false,
+  },
+  select: {
+    htmlInputType: 'select',
+    supportsOptions: true,
+    supportsNumericRange: false,
+    supportsPattern: false,
+    supportsDefaultValue: true,
+    isMultiValue: false,
+  },
+  multiselect: {
+    htmlInputType: 'select',
+    supportsOptions: true,
+    supportsNumericRange: false,
+    supportsPattern: false,
+    supportsDefaultValue: true,
+    isMultiValue: true,
+  },
+  url: {
+    htmlInputType: 'url',
+    supportsOptions: false,
+    supportsNumericRange: false,
+    supportsPattern: true,
+    supportsDefaultValue: true,
+    isMultiValue: false,
+  },
 };
 
 const multiLangStringSchema = z.record(z.string(), z.string());
-const storedValueSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.array(z.string())]);
+const storedValueSchema = z.union([
+  z.string(),
+  z.number().finite(),
+  z.boolean(),
+  z.array(z.string()),
+]);
 
-const customFieldDefinitionInputSchema = z.object({
-  id: z.string().trim().min(1).optional(),
-  name: multiLangStringSchema,
-  fieldType: z.enum(CUSTOM_FIELD_VALUE_TYPES),
-  options: z.array(z.string()).optional(),
-  description: multiLangStringSchema.optional(),
-  required: z.boolean().optional(),
-  defaultValue: storedValueSchema.optional(),
-  placeholder: multiLangStringSchema.optional(),
-  helpText: multiLangStringSchema.optional(),
-  minValue: z.number().finite().optional(),
-  maxValue: z.number().finite().optional(),
-  pattern: z.string().optional(),
-  sortOrder: z.number().int().min(0).optional(),
-}).superRefine((value, ctx) => {
-  const options = normalizeOptionList(value.options);
-  const descriptor = CUSTOM_FIELD_RENDERER_REGISTRY[value.fieldType];
+const customFieldDefinitionInputSchema = z
+  .object({
+    id: z.string().trim().min(1).optional(),
+    name: multiLangStringSchema,
+    fieldType: z.enum(CUSTOM_FIELD_VALUE_TYPES),
+    options: z.array(z.string()).optional(),
+    description: multiLangStringSchema.optional(),
+    required: z.boolean().optional(),
+    defaultValue: storedValueSchema.optional(),
+    placeholder: multiLangStringSchema.optional(),
+    helpText: multiLangStringSchema.optional(),
+    minValue: z.number().finite().optional(),
+    maxValue: z.number().finite().optional(),
+    pattern: z.string().optional(),
+    sortOrder: z.number().int().min(0).optional(),
+  })
+  .superRefine((value, ctx) => {
+    const options = normalizeOptionList(value.options);
+    const descriptor = CUSTOM_FIELD_RENDERER_REGISTRY[value.fieldType];
 
-  if (readLocalizedFieldText('zh-CN', value.name).trim().length === 0 && readLocalizedFieldText('en-US', value.name).trim().length === 0) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Field name is required.' });
-  }
-
-  if (descriptor.supportsOptions && (!options || options.length === 0)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Option-based fields require at least one option.' });
-  }
-
-  if (!descriptor.supportsOptions && options && options.length > 0) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Only select and multiselect fields can define options.' });
-  }
-
-  if (!descriptor.supportsNumericRange && (value.minValue !== undefined || value.maxValue !== undefined)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Only number fields support min/max.' });
-  }
-
-  if (value.minValue !== undefined && value.maxValue !== undefined && value.minValue > value.maxValue) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Min value cannot be greater than max value.' });
-  }
-
-  if (!descriptor.supportsPattern && value.pattern?.trim()) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'This field type does not support regex pattern validation.' });
-  }
-
-  if (value.pattern?.trim()) {
-    try {
-      new RegExp(value.pattern.trim());
-    } catch {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Regex pattern is invalid.' });
+    if (
+      readLocalizedFieldText('zh-CN', value.name).trim().length === 0 &&
+      readLocalizedFieldText('en-US', value.name).trim().length === 0
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Field name is required.' });
     }
-  }
 
-  if (value.defaultValue !== undefined) {
-    const result = validateStoredValueAgainstDefinition({
-      fieldType: value.fieldType,
-      ...(options ? { options } : {}),
-      ...(value.minValue !== undefined ? { minValue: value.minValue } : {}),
-      ...(value.maxValue !== undefined ? { maxValue: value.maxValue } : {}),
-      ...(value.pattern?.trim() ? { pattern: value.pattern.trim() } : {}),
-    } as Pick<CustomFieldDefinitionDocType, 'fieldType' | 'options' | 'minValue' | 'maxValue' | 'pattern'>, value.defaultValue);
-    if (!result.valid) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: result.reason ?? 'Default value does not match the field definition.' });
+    if (descriptor.supportsOptions && (!options || options.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Option-based fields require at least one option.',
+      });
     }
-  }
-});
+
+    if (!descriptor.supportsOptions && options && options.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Only select and multiselect fields can define options.',
+      });
+    }
+
+    if (
+      !descriptor.supportsNumericRange &&
+      (value.minValue !== undefined || value.maxValue !== undefined)
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Only number fields support min/max.' });
+    }
+
+    if (
+      value.minValue !== undefined &&
+      value.maxValue !== undefined &&
+      value.minValue > value.maxValue
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Min value cannot be greater than max value.',
+      });
+    }
+
+    if (!descriptor.supportsPattern && value.pattern?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'This field type does not support regex pattern validation.',
+      });
+    }
+
+    if (value.pattern?.trim()) {
+      try {
+        new RegExp(value.pattern.trim());
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Regex pattern is invalid.' });
+      }
+    }
+
+    if (value.defaultValue !== undefined) {
+      const result = validateStoredValueAgainstDefinition(
+        {
+          fieldType: value.fieldType,
+          ...(options ? { options } : {}),
+          ...(value.minValue !== undefined ? { minValue: value.minValue } : {}),
+          ...(value.maxValue !== undefined ? { maxValue: value.maxValue } : {}),
+          ...(value.pattern?.trim() ? { pattern: value.pattern.trim() } : {}),
+        } as Pick<
+          CustomFieldDefinitionDocType,
+          'fieldType' | 'options' | 'minValue' | 'maxValue' | 'pattern'
+        >,
+        value.defaultValue,
+      );
+      if (!result.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: result.reason ?? 'Default value does not match the field definition.',
+        });
+      }
+    }
+  });
 
 type NormalizedCustomFieldDefinitionInput = {
   id?: string;
@@ -131,7 +226,10 @@ function normalizeOptionList(options?: readonly string[]): string[] | undefined 
 }
 
 function validateStoredValueAgainstDefinition(
-  definition: Pick<CustomFieldDefinitionDocType, 'fieldType' | 'options' | 'minValue' | 'maxValue' | 'pattern'>,
+  definition: Pick<
+    CustomFieldDefinitionDocType,
+    'fieldType' | 'options' | 'minValue' | 'maxValue' | 'pattern'
+  >,
   value: CustomFieldStoredValue,
 ): { valid: boolean; reason?: string } {
   switch (definition.fieldType) {
@@ -152,12 +250,19 @@ function validateStoredValueAgainstDefinition(
     case 'select':
       return {
         valid: typeof value === 'string' && !!definition.options?.includes(value),
-        ...(typeof value === 'string' && definition.options?.includes(value) ? {} : { reason: 'Default value must match one of the options.' }),
+        ...(typeof value === 'string' && definition.options?.includes(value)
+          ? {}
+          : { reason: 'Default value must match one of the options.' }),
       };
     case 'multiselect':
       return {
-        valid: Array.isArray(value) && value.every((item) => typeof item === 'string' && !!definition.options?.includes(item)),
-        ...(Array.isArray(value) && value.every((item) => typeof item === 'string' && !!definition.options?.includes(item)) ? {} : { reason: 'Default value must only contain valid options.' }),
+        valid:
+          Array.isArray(value) &&
+          value.every((item) => typeof item === 'string' && !!definition.options?.includes(item)),
+        ...(Array.isArray(value) &&
+        value.every((item) => typeof item === 'string' && !!definition.options?.includes(item))
+          ? {}
+          : { reason: 'Default value must only contain valid options.' }),
       };
     case 'url':
     case 'text': {
@@ -231,7 +336,10 @@ export function formatCustomFieldOptionsEditorValue(options?: readonly string[])
 }
 
 export function parseCustomFieldOptionsEditorValue(value: string): string[] {
-  return value.split('\n').map((item) => item.trim()).filter(Boolean);
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 export function serializeCustomFieldDraftValue(value: CustomFieldStoredValue): string {
@@ -256,12 +364,20 @@ export function parseCustomFieldDraftMultiselectValue(value: string): string[] {
     // 兼容旧版逗号协议 | Backward compatibility for legacy comma-delimited values
   }
 
-  return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+  return trimmed
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
-export function buildCustomFieldDraftValues(customFields?: LanguageDocType['customFields']): Record<string, string> {
+export function buildCustomFieldDraftValues(
+  customFields?: LanguageDocType['customFields'],
+): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(customFields ?? {}).map(([key, value]) => [key, serializeCustomFieldDraftValue(value)])
+    Object.entries(customFields ?? {}).map(([key, value]) => [
+      key,
+      serializeCustomFieldDraftValue(value),
+    ]),
   );
 }
 
@@ -313,10 +429,16 @@ export function validateCustomFieldDraftValue(
         return tf(locale, 'workspace.languageMetadata.customFieldErrorNumber', { field: label });
       }
       if (definition.minValue !== undefined && value < definition.minValue) {
-        return tf(locale, 'workspace.languageMetadata.customFieldErrorMin', { field: label, min: String(definition.minValue) });
+        return tf(locale, 'workspace.languageMetadata.customFieldErrorMin', {
+          field: label,
+          min: String(definition.minValue),
+        });
       }
       if (definition.maxValue !== undefined && value > definition.maxValue) {
-        return tf(locale, 'workspace.languageMetadata.customFieldErrorMax', { field: label, max: String(definition.maxValue) });
+        return tf(locale, 'workspace.languageMetadata.customFieldErrorMax', {
+          field: label,
+          max: String(definition.maxValue),
+        });
       }
       return null;
     }
@@ -328,8 +450,13 @@ export function validateCustomFieldDraftValue(
       return null;
     }
     case 'multiselect': {
-      const values = Array.isArray(rawValue) ? rawValue : parseCustomFieldDraftMultiselectValue(String(rawValue));
-      if (definition.options?.length && values.some((item) => !definition.options?.includes(item))) {
+      const values = Array.isArray(rawValue)
+        ? rawValue
+        : parseCustomFieldDraftMultiselectValue(String(rawValue));
+      if (
+        definition.options?.length &&
+        values.some((item) => !definition.options?.includes(item))
+      ) {
         return tf(locale, 'workspace.languageMetadata.customFieldErrorOption', { field: label });
       }
       return null;
@@ -391,7 +518,9 @@ export function buildPersistedCustomFieldValues(
   definitions: readonly CustomFieldDefinitionDocType[],
   locale: Locale,
 ): Record<string, CustomFieldStoredValue> {
-  const definitionMap = new Map(definitions.map((definition) => [definition.id, definition] as const));
+  const definitionMap = new Map(
+    definitions.map((definition) => [definition.id, definition] as const),
+  );
   const result: Record<string, CustomFieldStoredValue> = {};
 
   for (const [fieldId, rawValue] of Object.entries(draftValues)) {
@@ -401,11 +530,12 @@ export function buildPersistedCustomFieldValues(
       continue;
     }
 
-    const normalizedInput = definition.fieldType === 'multiselect'
-      ? parseCustomFieldDraftMultiselectValue(rawValue)
-      : definition.fieldType === 'boolean'
-        ? rawValue === 'true'
-        : rawValue;
+    const normalizedInput =
+      definition.fieldType === 'multiselect'
+        ? parseCustomFieldDraftMultiselectValue(rawValue)
+        : definition.fieldType === 'boolean'
+          ? rawValue === 'true'
+          : rawValue;
 
     const validationMessage = validateCustomFieldDraftValue(definition, normalizedInput, locale);
     if (validationMessage) {

@@ -1,4 +1,4 @@
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../db/types';
 import { getUnitsByTextId } from './linguisticServiceUnitTokenOps';
 
 /** Read-only corpus library projection for one text (project). Not a Dexie table. */

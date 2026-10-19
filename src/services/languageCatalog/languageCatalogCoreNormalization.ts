@@ -23,7 +23,7 @@ import type {
   LanguageDisplayNameRole,
   LanguageDocType,
   MultiLangString,
-} from '../../db';
+} from '../../db/types';
 
 export function flattenCustomFieldSearchValues(
   customFields?: LanguageDocType['customFields'],

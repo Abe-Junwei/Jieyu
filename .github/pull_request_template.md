@@ -10,8 +10,7 @@
 
 ## 浏览器与 Web API | Browser / Web API
 
-- [ ] 若本次引入或强依赖 **较新 / 非普遍的 Web API**（媒体、存储、权限、Worker、剪贴板等），已查 [Can I use](https://caniuse.com/) 或 MDN，优先 **特性检测**；本地已跑 **`npm run test:e2e:chromium`**（快速）或 **`npm run test:e2e`**（三引擎，与 CI `e2e-critical-paths` 对齐）或注明 **N/A**
-- [ ] 策略口径见：`docs/architecture/桌面端浏览器支持策略.md`
+- [ ] 若本次引入或强依赖 **较新 / 非普遍的 Web API**（媒体、存储、权限、Worker、剪贴板等），已查 [Can I use](https://caniuse.com/) 或 MDN，优先 **特性检测**；对照 Electron 44 随附的 Chromium 152（`package.json` 的 `browserslist`）。本地已跑 **`npm run test:e2e:chromium`** 或注明 **N/A**（#329 完成前 Chromium E2E 仍是合并门槛）
 
 ## Architecture Guard
 

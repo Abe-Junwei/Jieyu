@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import MiniSearch from 'minisearch';
 import { foldSearchText } from '../../utils/searchTextNormalization';
-import type { LexemeEntryDoc } from '../../db';
+import type { LexemeEntryDoc } from '../../db/types';
 
 type LexiconSearchDocument = {
   id: string;

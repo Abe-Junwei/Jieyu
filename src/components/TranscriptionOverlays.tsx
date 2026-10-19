@@ -8,7 +8,7 @@ import type {
   OrthographyDocType,
   UserNoteDocType,
   LayerUnitDocType,
-} from '../db';
+} from '../db/types';
 import type { NotePopoverState } from '~/hooks/notes/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/speakerManagement/useSpeakerActions';
 import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';

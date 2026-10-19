@@ -4,7 +4,7 @@ import type {
   LayerUnitContentDocType,
   MediaItemDocType,
   ProvenanceEnvelope,
-} from '../db';
+} from '../db/types';
 import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { LoadTranscriptionSnapshot } from '../hooks/transcription/workspaceSnapshotLoad';
 import type { Locale } from '../i18n';

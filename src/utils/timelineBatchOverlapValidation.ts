@@ -1,4 +1,4 @@
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../db/types';
 
 /**
  * Detects gap violations on a single-media timeline after per-unit time overrides.

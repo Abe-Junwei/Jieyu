@@ -4,7 +4,7 @@ import type {
   LayerLinkDocType,
   LayerSegmentViewDocType,
   LayerUnitDocType,
-} from '../../db';
+} from '../../db/types';
 import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import {
   buildTranscriptionLaneReadScopeResolutionCache,

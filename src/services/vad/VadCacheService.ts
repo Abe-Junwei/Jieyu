@@ -12,7 +12,7 @@
  * localStorage 对这类小体量缓存（通常 <100 条 × <5 KB/条）足够。
  */
 
-import type { ProvenanceParams } from '../../db';
+import type { ProvenanceParams } from '../../db/types';
 import { vadRunParams } from './autoSegmentationProvenance';
 import type { SpeechSegment } from './WhisperXVadService';
 

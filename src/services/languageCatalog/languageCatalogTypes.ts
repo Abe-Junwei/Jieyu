@@ -5,7 +5,7 @@ import type {
   LanguageDisplayNameRole,
   LanguageDocType,
   MultiLangString,
-} from '../../db';
+} from '../../db/types';
 
 export type LanguageCatalogEntryKind = 'built-in' | 'override' | 'custom';
 

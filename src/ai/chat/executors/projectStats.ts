@@ -1,6 +1,6 @@
 import type { AiPromptContext } from '../chatDomain.types';
 import type { LocalContextToolResult } from '../localContextToolTypes';
-import type { SegmentMetaDocType } from '../../../db';
+import type { SegmentMetaDocType } from '../../../db/types';
 import {
   normalizeUnitScope,
   normalizeProjectMetric,

@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType } from '../db/types';
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';

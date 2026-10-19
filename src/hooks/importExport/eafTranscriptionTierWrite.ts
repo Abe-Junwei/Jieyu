@@ -1,9 +1,5 @@
-import type {
-  JieyuDatabase,
-  LayerDocType,
-  LayerUnitContentDocType,
-  LayerUnitDocType,
-} from '../../db';
+import type { JieyuDatabase } from '../../db/engine';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType } from '../../db/types';
 import { LinguisticService } from '../../services/LinguisticService';
 import {
   getLayerUnitById,

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { SaveState, DbState } from './transcriptionTypes';
-import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '../../db';
+import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '../../db/types';
 import { clearRecoverySnapshot, saveRecoverySnapshot } from '../../services/SnapshotService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { LinguisticService } from '../../services/LinguisticService';

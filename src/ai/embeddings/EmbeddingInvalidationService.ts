@@ -1,4 +1,5 @@
-import type { JieyuDatabase, LayerDocType, LayerUnitDocType } from '../../db';
+import type { JieyuDatabase } from '../../db/engine';
+import type { LayerDocType, LayerUnitDocType } from '../../db/types';
 import { getUnitDocProjectionById } from '../../services/LayerSegmentGraphService';
 import { readOtherDocumentLayerIds } from '../../services/annotationDocumentService';
 

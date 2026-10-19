@@ -7,7 +7,7 @@ import type {
   UserNoteDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
-} from '../db';
+} from '../db/types';
 
 type ProvenanceInput = Partial<ProvenanceEnvelope> & {
   actorType?: ActorType;

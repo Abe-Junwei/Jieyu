@@ -6,7 +6,7 @@
  */
 
 import type { CSSProperties, FC } from 'react';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 
 export interface WaveformHoverTooltipProps {
   time: number;

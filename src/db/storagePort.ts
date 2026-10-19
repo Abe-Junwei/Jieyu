@@ -10,7 +10,25 @@ import type {
   LayerUnitContentDocType,
   LayerUnitDocType,
   SpeakerDocType,
+  TextDocType,
+  SourceRecordDocType,
+  TrackEntityDocType,
 } from './types';
+import {
+  listForeignOwnedLayers,
+  listForeignOwnedMedia,
+  listForeignOwnedUnits,
+  readProject,
+  type ForeignOwnedRow,
+} from './storagePortProjectReads';
+import {
+  linkSourceRecordMedia,
+  listSourceRecordRows,
+  registerImportedSourceRecord,
+  renameSourceRecordRow,
+  type SourceRecordRegistration,
+} from './storagePortSourceRecords';
+import type { SourceImportPlan } from '../services/sourceRecordPlan';
 import { db, getDb } from './engine';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
@@ -105,6 +123,28 @@ export interface StoragePort {
    * 同名的其他录音不动。
    */
   removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }>;
+  readProject(textId: string): Promise<TextDocType | undefined>;
+  listForeignOwnedUnits(unitIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listForeignOwnedLayers(layerIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listForeignOwnedMedia(mediaIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listTrackEntities(textId: string): Promise<TrackEntityDocType[]>;
+  putTrackEntity(doc: TrackEntityDocType): Promise<void>;
+  readLayerUnit(unitId: string): Promise<LayerUnitDocType | undefined>;
+  countAnnotationDocuments(textId: string): Promise<number>;
+  listSourceRecords(textId: string): Promise<SourceRecordDocType[]>;
+  registerImportedSource(
+    input: SourceRecordRegistration,
+  ): Promise<{ plan: SourceImportPlan; record: SourceRecordDocType }>;
+  renameSourceRecord(
+    textId: string,
+    recordId: string,
+    displayName: string,
+  ): Promise<SourceRecordDocType | undefined>;
+  linkSourceRecordMedia(
+    textId: string,
+    recordId: string,
+    mediaId: string | null,
+  ): Promise<SourceRecordDocType | undefined>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -290,6 +330,20 @@ export const dexieStoragePort: StoragePort = {
   assignSpeakerToMixedSelection,
 
   removeEmptyRecording,
+
+  readProject,
+  listForeignOwnedUnits,
+  listForeignOwnedLayers,
+  listForeignOwnedMedia,
+
+  listTrackEntities,
+  putTrackEntity,
+  readLayerUnit,
+  countAnnotationDocuments,
+  listSourceRecords: listSourceRecordRows,
+  registerImportedSource: registerImportedSourceRecord,
+  renameSourceRecord: renameSourceRecordRow,
+  linkSourceRecordMedia,
 };
 
 async function assignSpeakerToMixedSelection(
@@ -487,6 +541,71 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
     if (!source || source.mediaId === id) throw new StorageReadbackError('removeEmptyRecording');
   }
   return { unboundSourceIds };
+}
+
+async function readLayerUnit(unitId: string): Promise<LayerUnitDocType | undefined> {
+  const id = unitId.trim();
+  if (id.length === 0) return undefined;
+  const database = await getDb();
+  return database.dexie.layer_units.get(id);
+}
+
+async function countAnnotationDocuments(textId: string): Promise<number> {
+  const id = textId.trim();
+  if (id.length === 0) return 0;
+  const database = await getDb();
+  return database.dexie.annotation_documents.where('textId').equals(id).count();
+}
+
+async function listTrackEntities(textId: string): Promise<TrackEntityDocType[]> {
+  const id = textId.trim();
+  if (id.length === 0) return [];
+  const database = await getDb();
+  return database.dexie.track_entities.where('textId').equals(id).toArray();
+}
+
+function sameLaneLockMap(
+  stored: Record<string, number> | undefined,
+  written: Record<string, number>,
+): boolean {
+  if (!stored) return false;
+  const writtenKeys = Object.keys(written);
+  if (Object.keys(stored).length !== writtenKeys.length) return false;
+  return writtenKeys.every((key) => Object.hasOwn(stored, key) && stored[key] === written[key]);
+}
+
+async function putTrackEntity(doc: TrackEntityDocType): Promise<void> {
+  const database = await getDb();
+  const existing = await database.dexie.track_entities.get(doc.id);
+  if (existing && existing.textId !== doc.textId) {
+    throw new CatalogOwnershipMismatchError('track_entities', doc.id, existing.textId, doc.textId);
+  }
+  try {
+    await withTransaction(
+      database,
+      'rw',
+      [database.dexie.track_entities],
+      async () => {
+        await database.dexie.track_entities.put(doc);
+        const stored = await database.dexie.track_entities.get(doc.id);
+        if (
+          !stored ||
+          stored.textId !== doc.textId ||
+          stored.mediaId !== doc.mediaId ||
+          stored.mode !== doc.mode ||
+          stored.updatedAt !== doc.updatedAt ||
+          !sameLaneLockMap(stored.laneLockMap, doc.laneLockMap)
+        ) {
+          throw new StorageReadbackError('putTrackEntity');
+        }
+      },
+      { label: 'putTrackEntity' },
+    );
+  } catch (error) {
+    if (error instanceof StorageReadbackError) throw error;
+    if (error instanceof Error && error.cause instanceof StorageReadbackError) throw error.cause;
+    throw error;
+  }
 }
 
 let current: StoragePort = dexieStoragePort;

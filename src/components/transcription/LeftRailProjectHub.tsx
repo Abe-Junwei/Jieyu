@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { useToast } from '../../contexts/ToastContext';
-import type { ImportConflictStrategy } from '../../db';
+import type { ImportConflictStrategy } from '../../db/types';
 import { t, tf, useLocale } from '../../i18n';
 import {
   DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,

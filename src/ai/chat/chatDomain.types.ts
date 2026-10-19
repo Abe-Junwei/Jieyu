@@ -3,7 +3,7 @@
  * hooks/useAiChat.types.ts 仅再导出本文件，避免 ai/chat 反向依赖 hooks。
  */
 
-import type { AiMessageCitation } from '../../db';
+import type { AiMessageCitation } from '../../db/types';
 import type { EmbeddingSearchService } from '../embeddings/EmbeddingSearchService';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import type { AiChatToolName } from './aiChatToolName.types';
@@ -138,11 +138,7 @@ export type AiAdaptiveIntent =
   | 'qa';
 
 export type AiAdaptiveResponseStyle =
-  | 'analysis'
-  | 'direct_edit'
-  | 'concise'
-  | 'detailed'
-  | 'step_by_step';
+  'analysis' | 'direct_edit' | 'concise' | 'detailed' | 'step_by_step';
 
 export interface AiAdaptiveInputProfile {
   recentPrompts?: string[];

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db/types';
 
 type Params = {
   translationLayers: LayerDocType[];

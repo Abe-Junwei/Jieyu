@@ -7,7 +7,7 @@ import type {
   LayerUnitContentDocType,
   LayerUnitDocType,
   SpeakerDocType,
-} from '../db';
+} from '../db/types';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { useLayerActionPanel } from '~/hooks/layer/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';

@@ -41,7 +41,7 @@ source_of_truth: architecture-decision
 
 合并前或发版前在干净工作区执行（仓库已提供脚本）：
 
-1. `npm run regression:vite-zod-csp`（即 `typecheck` → `build` → `test:e2e` 三引擎）。
+1. `npm run regression:vite-zod-csp`（即 `typecheck` → `build` → `test:e2e`，Chromium）。
 2. 核对 **`dist/index.html`**：存在 **先于** `main-*.js` 的 **`/assets/zod-jitless-bootstrap.js`** 可执行脚本标签，且 **`vite.config.ts`** 中 `injectZodBootstrapExecBeforeMain` 仍作用于 `transformIndexHtml` **post**。
 3. 若升级 **Vite**：重点确认多入口 `rollupOptions.input` 与 `output.entryFileNames` 行为未变；若升级 **Zod**：确认 `core.js` 仍从 `globalThis.__zod_globalConfig` 取全局配置、`jitless` 语义不变。
 

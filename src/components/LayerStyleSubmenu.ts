@@ -3,12 +3,26 @@
  * 纯数据函数，返回 ContextMenuItem[] | Pure data function, returns ContextMenuItem[]
  */
 
-import type { LayerDisplaySettings, OrthographyDocType } from '../db';
+import type { LayerDisplaySettings, OrthographyDocType } from '../db/types';
 import type { Locale } from '../i18n';
 import { getLayerStyleSubmenuMessages } from '../i18n/messages';
 import type { ContextMenuItem } from './ContextMenu';
-import type { FontCoverageVerification, LocalFontEntry, OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
-import { BASE_FONT_SIZE, describeLocalFontCoverage, describePresetFontCoverage, filterLocalFontsForLanguage, formatLocalFontLabel, LAYER_FONT_SIZE_STEP, MAX_LAYER_FONT_SIZE, MIN_LAYER_FONT_SIZE, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import type {
+  FontCoverageVerification,
+  LocalFontEntry,
+  OrthographyRenderPolicy,
+} from '../utils/layerDisplayStyle';
+import {
+  BASE_FONT_SIZE,
+  describeLocalFontCoverage,
+  describePresetFontCoverage,
+  filterLocalFontsForLanguage,
+  formatLocalFontLabel,
+  LAYER_FONT_SIZE_STEP,
+  MAX_LAYER_FONT_SIZE,
+  MIN_LAYER_FONT_SIZE,
+  resolveOrthographyRenderPolicy,
+} from '../utils/layerDisplayStyle';
 
 /** 构建"显示样式"子菜单项 | Build "Display Style" submenu items */
 export function buildLayerStyleMenuItems(
@@ -27,8 +41,14 @@ export function buildLayerStyleMenuItems(
     toggleShowAllFonts?: () => void;
     getSearchQuery?: (layerId: string) => string;
     setSearchQuery?: (layerId: string, nextValue: string) => void;
-    getCoverage?: (fontFamily: string, renderPolicy: OrthographyRenderPolicy) => FontCoverageVerification | undefined;
-    ensureCoverage?: (fontFamily: string, renderPolicy: OrthographyRenderPolicy) => Promise<FontCoverageVerification | undefined>;
+    getCoverage?: (
+      fontFamily: string,
+      renderPolicy: OrthographyRenderPolicy,
+    ) => FontCoverageVerification | undefined;
+    ensureCoverage?: (
+      fontFamily: string,
+      renderPolicy: OrthographyRenderPolicy,
+    ) => Promise<FontCoverageVerification | undefined>;
   },
   locale: Locale = 'zh-CN',
 ): ContextMenuItem[] {
@@ -54,15 +74,20 @@ export function buildLayerStyleMenuItems(
   const fontMenuItems: ContextMenuItem[] = [
     {
       label: messages.fontCoverage,
-      meta: renderPolicy.coverageSummary.confidence === 'sample-backed'
-        ? messages.fontCoverageSamples(renderPolicy.coverageSummary.exemplarCharacterCount)
-        : messages.fontCoverageMissing,
+      meta:
+        renderPolicy.coverageSummary.confidence === 'sample-backed'
+          ? messages.fontCoverageSamples(renderPolicy.coverageSummary.exemplarCharacterCount)
+          : messages.fontCoverageMissing,
       disabled: true,
     },
     ...fontPresets.map((preset) => ({
       label: preset.key,
-      meta: describePresetFontCoverage(preset.key, renderPolicy, localFonts?.getCoverage?.(preset.key, renderPolicy)),
-      selectionState: currentFont === preset.key ? 'selected' as const : 'unselected' as const,
+      meta: describePresetFontCoverage(
+        preset.key,
+        renderPolicy,
+        localFonts?.getCoverage?.(preset.key, renderPolicy),
+      ),
+      selectionState: currentFont === preset.key ? ('selected' as const) : ('unselected' as const),
       selectionVariant: 'check' as const,
       onClick: () => {
         void localFonts?.ensureCoverage?.(preset.key, renderPolicy);
@@ -87,24 +112,34 @@ export function buildLayerStyleMenuItems(
       const visibleLocalFonts = showAllFonts
         ? localFonts.fonts
         : filterLocalFontsForLanguage(localFonts.fonts, languageId, orthographies, orthographyId);
-      const searchedLocalFonts = searchQuery.length > 0
-        ? visibleLocalFonts.filter((font) => {
-            const localizedLabel = formatLocalFontLabel(font, languageId, orthographies, orthographyId).toLowerCase();
-            const englishLabel = font.family.toLowerCase();
-            const fullNames = font.fullNames.join(' ').toLowerCase();
-            const postscriptNames = font.postscriptNames.join(' ').toLowerCase();
-            return localizedLabel.includes(searchQuery)
-              || englishLabel.includes(searchQuery)
-              || fullNames.includes(searchQuery)
-              || postscriptNames.includes(searchQuery);
-          })
-        : visibleLocalFonts;
+      const searchedLocalFonts =
+        searchQuery.length > 0
+          ? visibleLocalFonts.filter((font) => {
+              const localizedLabel = formatLocalFontLabel(
+                font,
+                languageId,
+                orthographies,
+                orthographyId,
+              ).toLowerCase();
+              const englishLabel = font.family.toLowerCase();
+              const fullNames = font.fullNames.join(' ').toLowerCase();
+              const postscriptNames = font.postscriptNames.join(' ').toLowerCase();
+              return (
+                localizedLabel.includes(searchQuery) ||
+                englishLabel.includes(searchQuery) ||
+                fullNames.includes(searchQuery) ||
+                postscriptNames.includes(searchQuery)
+              );
+            })
+          : visibleLocalFonts;
       fontMenuItems.push({
         label: messages.findFonts,
         separatorBefore: true,
         searchField: {
           value: currentSearchQuery,
-          placeholder: showAllFonts ? messages.searchAllLocalFonts : messages.searchCurrentLanguageFonts,
+          placeholder: showAllFonts
+            ? messages.searchAllLocalFonts
+            : messages.searchCurrentLanguageFonts,
           onChange: (nextValue) => localFonts.setSearchQuery?.(layerId, nextValue),
         },
       });
@@ -126,8 +161,13 @@ export function buildLayerStyleMenuItems(
       for (const lf of searchedLocalFonts) {
         fontMenuItems.push({
           label: formatLocalFontLabel(lf, languageId, orthographies, orthographyId),
-          meta: describeLocalFontCoverage(lf, renderPolicy, localFonts.getCoverage?.(lf.family, renderPolicy)),
-          selectionState: currentFont === lf.family ? 'selected' as const : 'unselected' as const,
+          meta: describeLocalFontCoverage(
+            lf,
+            renderPolicy,
+            localFonts.getCoverage?.(lf.family, renderPolicy),
+          ),
+          selectionState:
+            currentFont === lf.family ? ('selected' as const) : ('unselected' as const),
           selectionVariant: 'check' as const,
           ...(isFirst ? { separatorBefore: true } : {}),
           onClick: () => {
@@ -139,9 +179,12 @@ export function buildLayerStyleMenuItems(
       }
       if (searchedLocalFonts.length === 0) {
         fontMenuItems.push({
-          label: searchQuery.length > 0
-            ? messages.noMatchingLocalFonts
-            : (showAllFonts ? messages.noAvailableLocalFonts : messages.noLanguageMatchedFonts),
+          label:
+            searchQuery.length > 0
+              ? messages.noMatchingLocalFonts
+              : showAllFonts
+                ? messages.noAvailableLocalFonts
+                : messages.noLanguageMatchedFonts,
           separatorBefore: isFirst,
           disabled: true,
         });
@@ -153,10 +196,17 @@ export function buildLayerStyleMenuItems(
         separatorBefore: true,
         disabled: localFonts.status === 'denied',
         keepOpen: true,
-        onClick: () => { void localFonts.load(); },
+        onClick: () => {
+          void localFonts.load();
+        },
       });
     } else if (localFonts.status === 'loading') {
-      fontMenuItems.push({ label: messages.loading, icon: messages.localFontsIcon, separatorBefore: true, disabled: true });
+      fontMenuItems.push({
+        label: messages.loading,
+        icon: messages.localFontsIcon,
+        separatorBefore: true,
+        disabled: true,
+      });
     }
   }
 

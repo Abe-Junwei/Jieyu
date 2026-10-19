@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
-import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
+import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db/types';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/messages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';

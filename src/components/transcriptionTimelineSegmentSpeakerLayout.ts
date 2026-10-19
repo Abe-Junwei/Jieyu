@@ -3,7 +3,7 @@ import type {
   LayerLinkDocType,
   LayerSegmentViewDocType,
   LayerUnitDocType,
-} from '../db';
+} from '../db/types';
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import { getUnitSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
 import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';

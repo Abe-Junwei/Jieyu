@@ -1,4 +1,4 @@
-import type { LayerConstraint, LayerDocType } from '../../db';
+import type { LayerConstraint, LayerDocType } from '../../db/types';
 import {
   getLayerCreateGuard,
   type TranslationCreateGuardResult,

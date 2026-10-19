@@ -1,6 +1,7 @@
 import { listStandardLeipzigAbbreviations } from '../ai/LeipzigValidator';
 import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
-import { getDb, type TextDocType } from '../db';
+import type { TextDocType } from '../db/types';
+import { storagePort } from '../db/storagePort';
 import { projectTextMetadataKey } from '../types/projectTextMetadata';
 import {
   ProjectNotFoundError,
@@ -57,8 +58,7 @@ export function readAnnotationAbbreviations(metadata: unknown): AnnotationAbbrev
 }
 
 async function readText(textId: string): Promise<TextDocType> {
-  const database = await getDb();
-  const existing = await database.dexie.texts.get(textId);
+  const existing = await storagePort().readProject(textId);
   if (!existing) throw new ProjectNotFoundError(textId);
   return existing;
 }

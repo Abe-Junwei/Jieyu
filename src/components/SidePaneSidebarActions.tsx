@@ -1,5 +1,5 @@
 import type { SpeakerRailContextValue } from '../contexts/SpeakerRailContext';
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../db/types';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { fireAndForget } from '../utils/fireAndForget';
 import { WrenchIcon } from './SvgIcons';
@@ -23,7 +23,8 @@ interface SidePaneSidebarActionsProps {
   layerActionRootRef: React.RefObject<HTMLElement | null>;
   constraintRepairBusy: boolean;
   sidePaneRowsLength: number;
-  layerActionPanel: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null;
+  layerActionPanel:
+    'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null;
   quickDeleteLayerId: string;
   quickDeleteKeepUnits: boolean;
   deletableLayers: LayerDocType[];
@@ -39,7 +40,9 @@ interface SidePaneSidebarActionsProps {
   groupedConstraintRepairDetails: ConstraintRepairDetailGroup[];
   speakerCtx: SpeakerRailContextValue;
   onRunRepair: () => Promise<void>;
-  setLayerActionPanel: (value: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null) => void;
+  setLayerActionPanel: (
+    value: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null,
+  ) => void;
   setQuickDeleteLayerId: (value: string) => void;
   setQuickDeleteKeepUnits: (value: boolean) => void;
   requestDeleteLayer: (layerId: string) => Promise<void>;
@@ -81,11 +84,16 @@ export function SidePaneSidebarActions({
         className="transcription-side-pane-quick-action"
         disabled={constraintRepairBusy || sidePaneRowsLength === 0}
         onClick={() => {
-          fireAndForget(onRunRepair(), { context: 'src/components/SidePaneSidebarActions.tsx:L84', policy: 'user-visible' });
+          fireAndForget(onRunRepair(), {
+            context: 'src/components/SidePaneSidebarActions.tsx:L84',
+            policy: 'user-visible',
+          });
         }}
       >
         <WrenchIcon className="transcription-side-pane-quick-action-icon" />
-        <span className="transcription-side-pane-quick-action-label">{constraintRepairBusy ? messages.quickActionRepairing : messages.quickActionRepair}</span>
+        <span className="transcription-side-pane-quick-action-label">
+          {constraintRepairBusy ? messages.quickActionRepairing : messages.quickActionRepair}
+        </span>
       </button>
 
       {layerActionPanel === 'speaker-management' && (
@@ -97,7 +105,11 @@ export function SidePaneSidebarActions({
       )}
 
       {layerActionPanel === 'delete' && (
-        <SidePaneActionModal ariaLabel={messages.deleteLayerModalAria} closeLabel={messages.cancelButton} onClose={() => setLayerActionPanel(null)}>
+        <SidePaneActionModal
+          ariaLabel={messages.deleteLayerModalAria}
+          closeLabel={messages.cancelButton}
+          onClose={() => setLayerActionPanel(null)}
+        >
           <select
             className="layer-action-dialog-input"
             value={quickDeleteLayerId}
@@ -123,80 +135,93 @@ export function SidePaneSidebarActions({
               className="layer-action-dialog-btn layer-action-dialog-btn-danger"
               disabled={!quickDeleteLayerId}
               onClick={() => {
-                fireAndForget((async () => {
-                  await requestDeleteLayer(quickDeleteLayerId);
-                  setLayerActionPanel(null);
-                })(), { context: 'src/components/SidePaneSidebarActions.tsx:L126', policy: 'user-visible' });
+                fireAndForget(
+                  (async () => {
+                    await requestDeleteLayer(quickDeleteLayerId);
+                    setLayerActionPanel(null);
+                  })(),
+                  {
+                    context: 'src/components/SidePaneSidebarActions.tsx:L126',
+                    policy: 'user-visible',
+                  },
+                );
               }}
             >
               {messages.deleteButton}
             </button>
-            <button className="layer-action-dialog-btn layer-action-dialog-btn-ghost" onClick={() => setLayerActionPanel(null)}>{messages.cancelButton}</button>
+            <button
+              className="layer-action-dialog-btn layer-action-dialog-btn-ghost"
+              onClick={() => setLayerActionPanel(null)}
+            >
+              {messages.cancelButton}
+            </button>
           </ActionButtonGroup>
         </SidePaneActionModal>
       )}
 
       {layerCreateMessage && (
-        <p className="small-text transcription-side-pane-message">
-          {layerCreateMessage}
-        </p>
+        <p className="small-text transcription-side-pane-message">{layerCreateMessage}</p>
       )}
       {constraintRepairMessage && (
-        <p className="small-text transcription-side-pane-message">
-          {constraintRepairMessage}
-        </p>
+        <p className="small-text transcription-side-pane-message">{constraintRepairMessage}</p>
       )}
-      {constraintRepairDetails && (
-        constraintRepairDetails.repairs.length > 0
-        || constraintRepairDetails.issues.length > 0
-        || constraintRepairDetails.orderRepairs.length > 0
-        || constraintRepairDetails.orderIssues.length > 0
-      ) && (
-        <div
-          aria-label={messages.repairDetailsAria}
-          className="transcription-side-pane-repair-details"
-        >
-          <div className="transcription-side-pane-repair-header">
-            <strong>{messages.repairDetailsTitle}</strong>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setConstraintRepairDetailsCollapsed((prev) => !prev)}
-              aria-label={constraintRepairDetailsCollapsed ? messages.repairDetailsExpandAria : messages.repairDetailsCollapseAria}
-            >
-              {constraintRepairDetailsCollapsed ? messages.repairDetailsExpand : messages.repairDetailsCollapse}
-            </button>
-          </div>
-          {!constraintRepairDetailsCollapsed && groupedConstraintRepairDetails.map((group) => (
-            <div
-              key={`group-${group.layerId}`}
-              className="transcription-side-pane-repair-group"
-            >
-              <div className="transcription-side-pane-repair-group-label">{group.label}</div>
-              {group.repairs.map((item, index) => (
-                <div key={`repair-${item.layerId}-${item.code}-${index}`}>
-                  [repaired][{item.code}] {item.message}
-                </div>
-              ))}
-              {group.issues.map((item, index) => (
-                <div key={`issue-${item.layerId}-${item.code}-${index}`}>
-                  [pending][{item.code}] {item.message}
-                </div>
-              ))}
-              {group.orderRepairs.map((item, index) => (
-                <div key={`order-repair-${item.layerId}-${item.code}-${index}`}>
-                  [order-repaired][{item.code}] {item.message}
-                </div>
-              ))}
-              {group.orderIssues.map((item, index) => (
-                <div key={`order-issue-${item.layerId}-${item.code}-${index}`}>
-                  [order-pending][{item.code}] {item.message}
-                </div>
-              ))}
+      {constraintRepairDetails &&
+        (constraintRepairDetails.repairs.length > 0 ||
+          constraintRepairDetails.issues.length > 0 ||
+          constraintRepairDetails.orderRepairs.length > 0 ||
+          constraintRepairDetails.orderIssues.length > 0) && (
+          <div
+            aria-label={messages.repairDetailsAria}
+            className="transcription-side-pane-repair-details"
+          >
+            <div className="transcription-side-pane-repair-header">
+              <strong>{messages.repairDetailsTitle}</strong>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setConstraintRepairDetailsCollapsed((prev) => !prev)}
+                aria-label={
+                  constraintRepairDetailsCollapsed
+                    ? messages.repairDetailsExpandAria
+                    : messages.repairDetailsCollapseAria
+                }
+              >
+                {constraintRepairDetailsCollapsed
+                  ? messages.repairDetailsExpand
+                  : messages.repairDetailsCollapse}
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+            {!constraintRepairDetailsCollapsed &&
+              groupedConstraintRepairDetails.map((group) => (
+                <div
+                  key={`group-${group.layerId}`}
+                  className="transcription-side-pane-repair-group"
+                >
+                  <div className="transcription-side-pane-repair-group-label">{group.label}</div>
+                  {group.repairs.map((item, index) => (
+                    <div key={`repair-${item.layerId}-${item.code}-${index}`}>
+                      [repaired][{item.code}] {item.message}
+                    </div>
+                  ))}
+                  {group.issues.map((item, index) => (
+                    <div key={`issue-${item.layerId}-${item.code}-${index}`}>
+                      [pending][{item.code}] {item.message}
+                    </div>
+                  ))}
+                  {group.orderRepairs.map((item, index) => (
+                    <div key={`order-repair-${item.layerId}-${item.code}-${index}`}>
+                      [order-repaired][{item.code}] {item.message}
+                    </div>
+                  ))}
+                  {group.orderIssues.map((item, index) => (
+                    <div key={`order-issue-${item.layerId}-${item.code}-${index}`}>
+                      [order-pending][{item.code}] {item.message}
+                    </div>
+                  ))}
+                </div>
+              ))}
+          </div>
+        )}
     </div>
   );
 }

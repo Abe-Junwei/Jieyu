@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LayerUnitDocType, LayerDocType } from '../../db';
+import type { LayerUnitDocType, LayerDocType } from '../../db/types';
 import type { DictKey } from '../../i18n';
 import type { SaveState } from '../useTranscriptionData';
 

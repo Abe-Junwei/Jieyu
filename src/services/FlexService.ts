@@ -17,7 +17,7 @@ import type {
   UnitTokenDocType,
   UnitMorphemeDocType,
   OrthographyDocType,
-} from '../db';
+} from '../db/types';
 import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import { escapeXml, finalizeXmlExport, type XmlSanitizeReport } from '../utils/xmlSafeText';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';

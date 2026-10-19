@@ -13,7 +13,7 @@ import type {
   LayerUnitDocType,
   UnitRelationDocType,
   SpeakerDocType,
-} from '../../db';
+} from '../../db/types';
 import { CommandHistory, type ReversibleCommand } from '../../services/CommandService';
 import type { SaveState } from './transcriptionTypes';
 import type { TimingUndoState } from '../../utils/selectionUtils';

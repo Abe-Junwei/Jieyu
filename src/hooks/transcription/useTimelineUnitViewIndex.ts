@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../../db/types';
 import { buildTimelineUnitViewIndex, type TimelineUnitViewIndex } from './timelineUnitView';
 
 export interface UseTimelineUnitViewIndexInput {

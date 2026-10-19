@@ -56,9 +56,9 @@ npx vitest run <file-or-pattern>
 
 ## 浏览器与发版前核验
 
-- **桌面策略**：[docs/architecture/桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md)（四大 + 国内极速模式、Safari 门槛、ESR 等）。CI 不覆盖 360 / QQ / 搜狗。
+- **运行环境**：桌面版（[ADR-0063](docs/adr/0063-desktop-only-after-electron-skeleton.md)）。浏览器构建只作开发与测试，不对浏览器作支持承诺。`browserslist` 为 Electron 44 随附的 Chromium 152。
 - **CSS `backdrop-filter` 按文件门禁**：`npm run check:css-compat`（亦包含在 `npm run check:css-architecture` 与 CI `quality` 任务中，且 CI 在完整 `npm test` 前会先跑一遍以便早失败）。
-- **升级 Zod / Vite 或动到 CSP / `index.html` 脚本顺序后**：本地跑 `npm run regression:vite-zod-csp`（`typecheck` + `build` + 三引擎 E2E）；细节见 [ADR 0021](docs/adr/0021-zod-jitless-strict-csp.md)。
+- **升级 Zod / Vite 或动到 CSP / `index.html` 脚本顺序后**：本地跑 `npm run regression:vite-zod-csp`（`typecheck` + `build` + Chromium E2E）；细节见 [ADR 0021](docs/adr/0021-zod-jitless-strict-csp.md)。
 
 ## 构建
 

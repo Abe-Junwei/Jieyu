@@ -29,7 +29,7 @@ import {
   type ListUnitsSnapshotRow,
 } from '../localContextListUnitsSnapshotStore';
 import { SegmentMetaService } from '../../../services/SegmentMetaService';
-import type { NoteCategory, LayerUnitStatus } from '../../../db';
+import type { NoteCategory, LayerUnitStatus } from '../../../db/types';
 import type { UnitSelfCertainty } from '../../../utils/unitSelfCertainty';
 import { createLogger } from '../../../observability/logger';
 import { createMetricTags, recordMetric } from '../../../observability/metrics';

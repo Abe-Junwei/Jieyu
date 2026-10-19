@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db/types';
 import {
   buildTranscriptionIdByKeyMap,
   resolveLayerLinkHostTranscriptionLayerId,

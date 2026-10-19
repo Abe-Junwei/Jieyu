@@ -4,7 +4,7 @@ import type {
   ProvenanceEnvelope,
   ProvenanceParams,
   ReviewStatus,
-} from '../db';
+} from '../db/types';
 
 const PROVENANCE_ACTOR_TYPES = new Set<ActorType>(['human', 'ai', 'system', 'importer']);
 

@@ -5,7 +5,7 @@
  * the line-count budget. This is a plain function (not a hook) because it
  * only reads refs and calls stable callbacks.
  */
-import type { ProvenanceEnvelope } from '../../db';
+import type { ProvenanceEnvelope } from '../../db/types';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
 import type { PerLayerRowFieldPatch } from './useTranscriptionUnitActions';
