@@ -208,3 +208,73 @@ describe('planLegacyMigration audio without segments', () => {
     }
   });
 });
+
+describe('planLegacyMigration split and audio references', () => {
+  function twoAudioDocument(): LegacyLibrary {
+    return {
+      documents: [{ id: 'd1', name: 'doc' }],
+      layers: [
+        { id: 'l1', documentId: 'd1' },
+        { id: 'l2', documentId: 'd1' },
+      ],
+      units: [
+        { id: 'u1', layerId: 'l1', mediaId: 'a1' },
+        { id: 'u2', layerId: 'l1', mediaId: ' a2 ' },
+        { id: 'u3', layerId: 'l1', mediaId: ' a1' },
+        { id: 'child', layerId: 'l2', parentUnitId: 'u1' },
+        { id: 'grandchild', layerId: 'l2', parentUnitId: 'child', mediaId: '  ' },
+        { id: 'cross', layerId: 'l2', parentUnitId: 'u1', mediaId: 'a2' },
+        { id: 'note', layerId: 'l2' },
+      ],
+      audios: [
+        { id: 'a1', filename: 'a.wav', bytes: bytes('A') },
+        { id: 'a2', filename: 'b.wav', bytes: bytes('B') },
+      ],
+    };
+  }
+
+  it('lists what a split would drop before the user confirms it', () => {
+    expect(planLegacyMigration(twoAudioDocument())).toEqual({
+      status: 'needs-confirm',
+      documents: [
+        {
+          documentId: 'd1',
+          audioIds: ['a1', 'a2'],
+          droppedUnits: [{ id: 'note', reason: 'no-audio' }],
+          droppedLinks: [{ unitId: 'cross', parentUnitId: 'u1' }],
+        },
+      ],
+    });
+  });
+
+  it('puts units without a mediaId with their parent and records text-only units with a reason', () => {
+    const plan = ready(twoAudioDocument(), { confirmSplit: true });
+    const unitsOf = (audioId: string) =>
+      plan.manuscripts
+        .find((manuscript) => manuscript.audioId === audioId)
+        ?.units.map((unit) => [unit.id, unit.mediaId ?? null, unit.parentUnitId ?? null]);
+    expect(unitsOf('a1')).toEqual([
+      ['u1', 'a1', null],
+      ['u3', 'a1', null],
+      ['child', null, 'u1'],
+      ['grandchild', null, 'child'],
+    ]);
+    expect(unitsOf('a2')).toEqual([
+      ['u2', 'a2', null],
+      ['cross', 'a2', null],
+    ]);
+    expect(plan.droppedUnits).toEqual([{ id: 'note', layerId: 'l2', reason: 'no-audio-in-split' }]);
+    expect(plan.droppedLinks).toEqual([{ unitId: 'cross', parentUnitId: 'u1' }]);
+  });
+
+  it('records a manuscript whose audio id is not in the library', () => {
+    const plan = ready({
+      documents: [{ id: 'd1', name: 'doc' }],
+      layers: [{ id: 'l1', documentId: 'd1' }],
+      units: [{ id: 'u1', layerId: 'l1', mediaId: 'ghost' }],
+      audios: [],
+    });
+    expect(plan.manuscripts.map((manuscript) => manuscript.audioId)).toEqual(['ghost']);
+    expect(plan.missingAudios).toEqual([{ manuscriptId: 'd1', audioId: 'ghost' }]);
+  });
+});

@@ -78,7 +78,14 @@ describe('planLegacyMigration', () => {
     });
     expect(plan).toEqual({
       status: 'needs-confirm',
-      documents: [{ documentId: 'doc-1', audioIds: ['audio-a', 'audio-b'] }],
+      documents: [
+        {
+          documentId: 'doc-1',
+          audioIds: ['audio-a', 'audio-b'],
+          droppedUnits: [],
+          droppedLinks: [],
+        },
+      ],
     });
   });
 
@@ -131,7 +138,9 @@ describe('planLegacyMigration', () => {
     });
     expect(plan.status).toBe('ready');
     if (plan.status !== 'ready') return;
-    expect(plan.droppedUnits).toEqual([{ id: 'u-missing', layerId: 'missing' }]);
+    expect(plan.droppedUnits).toEqual([
+      { id: 'u-missing', layerId: 'missing', reason: 'missing-layer' },
+    ]);
     expect(plan.droppedTokens).toEqual([{ id: 't-missing', unitId: 'u-missing' }]);
     expect(plan.droppedMorphemes).toEqual([{ id: 'm-missing', tokenId: 't-missing' }]);
     expect(plan.droppedContents).toEqual([{ id: 'c-missing', unitId: 'u-missing' }]);
