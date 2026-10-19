@@ -5,13 +5,13 @@
  * 运行：node --experimental-sqlite --test scripts/jyd-failure-roundtrip.mjs
  */
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
+import { killWhenReady } from './lib/sigkill-harness.mjs';
 
 const SENTENCE_COUNT = 10_000;
 const SPEED_LIMIT_MS = 2_000;
@@ -133,19 +133,7 @@ console.log('ready');
 setInterval(() => {}, 1000);
 `,
       );
-      const childProc = spawn(process.execPath, ['--experimental-sqlite', child], {
-        env: { ...process.env, DB: file },
-        stdio: ['ignore', 'pipe', 'inherit'],
-      });
-      await new Promise((resolve, reject) => {
-        childProc.stdout.on('data', (chunk) => {
-          if (String(chunk).includes('ready')) childProc.kill('SIGKILL');
-        });
-        childProc.on('exit', (code, signal) => {
-          if (signal === 'SIGKILL') resolve();
-          else reject(new Error(`expected SIGKILL, got ${signal ?? code}`));
-        });
-      });
+      await killWhenReady(child, { env: { DB: file } });
       const db = driver.open(file);
       const count = db.get('SELECT count(*) AS n FROM units').n;
       const before = db.get("SELECT count(*) AS n FROM units WHERE body = 'before'").n;

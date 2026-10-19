@@ -91,7 +91,7 @@ export class RecordingRemovalBlockedError extends Error {
 
   constructor(
     readonly mediaId: string,
-    readonly reason: 'missing' | 'has-bytes' | 'has-units' | 'has-anchors' | 'not-acoustic',
+    readonly reason: 'missing' | 'has-bytes' | 'not-acoustic',
   ) {
     super(`removeEmptyRecording: ${mediaId} blocked (${reason})`);
     this.name = 'RecordingRemovalBlockedError';
@@ -601,6 +601,8 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
   if (id.length === 0) throw new RecordingRemovalBlockedError(mediaId, 'missing');
   const database = await getDb();
   let unboundSourceIds: string[] = [];
+  let reboundUnitIds: string[] = [];
+  let reboundAnchorIds: string[] = [];
   await withTransaction(
     database,
     'rw',
@@ -628,6 +630,7 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
       unboundSourceIds = sources.map((source) => source.id);
       const now = new Date().toISOString();
       const units = await database.dexie.layer_units.where('mediaId').equals(id).toArray();
+      reboundUnitIds = units.map((unit) => unit.id);
       for (const unit of units) {
         await database.dexie.layer_units.put({
           ...unit,
@@ -636,6 +639,7 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
         });
       }
       const anchors = await database.dexie.anchors.where('mediaId').equals(id).toArray();
+      reboundAnchorIds = anchors.map((anchor) => anchor.id);
       for (const anchor of anchors) {
         await database.dexie.anchors.put({ ...anchor, mediaId: '__unknown_media__' });
       }
@@ -658,6 +662,17 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
   for (const sourceId of unboundSourceIds) {
     const source = await database.dexie.source_records.get(sourceId);
     if (!source || source.mediaId === id) throw new StorageReadbackError('removeEmptyRecording');
+  }
+  if (
+    (await database.dexie.layer_units.where('mediaId').equals(id).count()) > 0 ||
+    (await database.dexie.anchors.where('mediaId').equals(id).count()) > 0
+  ) {
+    throw new StorageReadbackError('removeEmptyRecording');
+  }
+  const units = await database.dexie.layer_units.bulkGet(reboundUnitIds);
+  const anchors = await database.dexie.anchors.bulkGet(reboundAnchorIds);
+  if ([...units, ...anchors].some((row) => row?.mediaId !== '__unknown_media__')) {
+    throw new StorageReadbackError('removeEmptyRecording');
   }
   return { unboundSourceIds };
 }

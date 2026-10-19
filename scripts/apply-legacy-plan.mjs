@@ -1,9 +1,9 @@
 /**
  * 把一份已经确认的迁移规划写成音频文件、项目库和 .jyd。
- * 失败时先关掉数据库，再删掉这次写出的文件和残留日志。可由测试导入，也可直接运行：
+ * 目标文件夹非空就拒绝；失败时只删这次建出来的路径。可由测试导入，也可直接运行：
  * node --experimental-sqlite scripts/apply-legacy-plan.mjs <plan.json> <dest>
  */
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,33 +61,206 @@ function definedFields(row, pairs) {
   return out;
 }
 
-function writeDatabase(file, applicationId, apply) {
+const PROJECT_FILE = 'project.sqlite';
+const STAGING_PREFIX = '.jieyu-staging-';
+const WINDOWS_ILLEGAL = /[<>:"/\\|?*\u0000-\u001f\u007f]/u;
+
+export class DestinationNotEmptyError extends Error {
+  constructor(dest, entries) {
+    super(`applyPlan: ${dest} is not empty (${entries.slice(0, 5).join(', ')})`);
+    this.name = 'DestinationNotEmptyError';
+    this.code = 'DESTINATION_NOT_EMPTY';
+    this.entries = entries;
+  }
+}
+
+function foldName(name) {
+  return name.normalize('NFC').toUpperCase().toLowerCase();
+}
+
+/** 每个文件名必须是目标文件夹里的一段，且忽略大小写后互不相同。规划已经保证，这里再挡一次。 */
+function assertFileNames(root, names) {
+  const seen = new Set();
+  for (const name of names) {
+    const safe =
+      typeof name === 'string' &&
+      name.length > 0 &&
+      name !== '.' &&
+      name !== '..' &&
+      !WINDOWS_ILLEGAL.test(name) &&
+      !/[. ]$/u.test(name) &&
+      !name.startsWith(STAGING_PREFIX) &&
+      path.resolve(root, name) === path.join(root, name) &&
+      path.dirname(path.join(root, name)) === root;
+    if (!safe) throw new Error(`applyPlan: unsafe file name ${JSON.stringify(name)}`);
+    const key = foldName(name);
+    if (seen.has(key)) throw new Error(`applyPlan: duplicate file name ${JSON.stringify(name)}`);
+    seen.add(key);
+  }
+}
+
+function writeDatabase(file, applicationId, created, apply) {
+  fs.closeSync(fs.openSync(file, 'wx'));
+  created.push({ kind: 'file', path: file });
   const db = new DatabaseSync(file);
   try {
     db.exec('PRAGMA journal_mode = DELETE');
-    db.exec(`PRAGMA application_id = ${applicationId}`);
-    db.exec('PRAGMA user_version = 1');
-    apply(db);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.exec(`PRAGMA application_id = ${applicationId}`);
+      db.exec('PRAGMA user_version = 1');
+      apply(db);
+      db.exec('COMMIT');
+    } catch (error) {
+      try {
+        db.exec('ROLLBACK');
+      } catch {
+        // 语句失败时 SQLite 可能已经自己回滚了。
+      }
+      throw error;
+    }
   } finally {
     db.close();
   }
 }
 
-export function applyPlan(plan, dest, { failAfterAudio = false, failDuringProject = false } = {}) {
-  fs.mkdirSync(dest, { recursive: true });
-  const written = [];
+function sameIds(left, right) {
+  return JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
+}
+
+/** 暂存目录写完后整份读回，对不上就不放进目标文件夹。 */
+function verifyStaged(plan, staging) {
+  const mismatch = (what) => {
+    throw new Error(`applyPlan readback mismatch: ${what}`);
+  };
+  for (const [file, applicationId] of [
+    [PROJECT_FILE, PROJECT_APPLICATION_ID],
+    ...plan.manuscripts.map((manuscript) => [manuscript.fileName, JYD_APPLICATION_ID]),
+  ]) {
+    const db = new DatabaseSync(path.join(staging, file), { readOnly: true });
+    try {
+      if (db.prepare('PRAGMA application_id').get().application_id !== applicationId) {
+        mismatch(`${file} application_id`);
+      }
+      if (db.prepare('PRAGMA integrity_check').get().integrity_check !== 'ok') {
+        mismatch(`${file} integrity_check`);
+      }
+    } finally {
+      db.close();
+    }
+  }
+  const read = readProject(staging);
+  const audioKey = (rows) =>
+    rows.map((row) => `${row.id}\0${row.relPath}\0${row.sha256}`).sort().join('\n');
+  const plannedAudios = plan.audios.map((audio) => ({
+    id: audio.audioId,
+    relPath: audio.fileName,
+    sha256: audio.sha256,
+  }));
+  if (audioKey(read.audios) !== audioKey(plannedAudios)) mismatch('audio rows');
+  for (const audio of plan.audios) {
+    const bytes = fs.readFileSync(path.join(staging, audio.fileName));
+    if (createHash('sha256').update(bytes).digest('hex') !== audio.sha256) {
+      mismatch(`${audio.fileName} sha256`);
+    }
+  }
+  if ((read.project?.id ?? null) !== (plan.project?.id ?? null)) mismatch('project row');
+  for (const [key, rows] of Object.entries(read)) {
+    if (key === 'audios' || key === 'manuscripts' || !Array.isArray(rows)) continue;
+    if (rows.length !== (plan[key] ?? []).length) mismatch(`${key} count`);
+  }
+  if (read.manuscripts.length !== plan.manuscripts.length) mismatch('manuscript count');
+  const byFile = new Map(read.manuscripts.map((manuscript) => [manuscript.fileName, manuscript]));
+  for (const manuscript of plan.manuscripts) {
+    const back = byFile.get(manuscript.fileName);
+    if (
+      !back ||
+      back.id !== manuscript.id ||
+      back.audioId !== (manuscript.audioId ?? null) ||
+      back.sourceDocumentId !== manuscript.sourceDocumentId ||
+      !sameIds(
+        back.units.map((unit) => unit.id),
+        manuscript.units.map((unit) => unit.id),
+      ) ||
+      !sameIds(
+        back.anchors.map((anchor) => anchor.id),
+        (manuscript.anchors ?? []).map((anchor) => anchor.id),
+      ) ||
+      back.contents.length !== (manuscript.contents ?? []).length ||
+      back.tokens.length !== (manuscript.tokens ?? []).length
+    ) {
+      mismatch(`manuscript ${manuscript.fileName}`);
+    }
+  }
+}
+
+/** 只删这次运行建出来的路径，倒着删。某一项删不掉也接着删其余的。 */
+function rollback(created) {
+  const errors = [];
+  for (const entry of [...created].reverse()) {
+    try {
+      if (entry.kind === 'staging') fs.rmSync(entry.path, { recursive: true, force: true });
+      else if (entry.kind === 'dir') fs.rmdirSync(entry.path);
+      else fs.rmSync(entry.path, { force: true });
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  return errors;
+}
+
+/**
+ * 目标文件夹必须不存在或为空，否则写之前就拒绝。
+ * 先全部写进 `dest/.jieyu-staging-<opId>/`（每个文件独占创建，每个库一次事务），读回无误后再逐个移进目标，
+ * `project.sqlite` 最后一个移。被杀掉时目标里最多剩下暂存目录和不带 `project.sqlite` 的半份文件。
+ */
+export function applyPlan(
+  plan,
+  dest,
+  { opId = randomUUID(), failAfterAudio = false, failDuringProject = false, onStep } = {},
+) {
+  if (plan?.status !== 'ready') {
+    throw new Error(`applyPlan: plan status is ${plan?.status ?? 'missing'}, not ready`);
+  }
+  if (!/^[A-Za-z0-9_-]+$/u.test(opId)) throw new Error(`applyPlan: bad opId ${opId}`);
+  const root = path.resolve(dest);
+  const names = [
+    ...plan.audios.map((audio) => audio.fileName),
+    ...plan.manuscripts.map((manuscript) => manuscript.fileName),
+    PROJECT_FILE,
+  ];
+  assertFileNames(root, names);
+  if (fs.existsSync(root)) {
+    if (!fs.statSync(root).isDirectory()) throw new DestinationNotEmptyError(root, ['(a file)']);
+    const entries = fs.readdirSync(root);
+    if (entries.length > 0) throw new DestinationNotEmptyError(root, entries);
+  }
+  const step = (name) => onStep?.(name);
+  const created = [];
   try {
+    if (!fs.existsSync(root)) {
+      const first = fs.mkdirSync(root, { recursive: true });
+      const dirs = [];
+      for (let dir = root; first !== undefined; dir = path.dirname(dir)) {
+        dirs.unshift(dir);
+        if (dir === first || dir === path.dirname(dir)) break;
+      }
+      for (const dir of dirs) created.push({ kind: 'dir', path: dir });
+    }
+    const staging = path.join(root, `${STAGING_PREFIX}${opId}`);
+    fs.mkdirSync(staging);
+    created.push({ kind: 'staging', path: staging });
     for (const audio of plan.audios) {
-      const file = path.join(dest, audio.fileName);
-      fs.writeFileSync(file, audio.bytes);
-      written.push(file);
+      const file = path.join(staging, audio.fileName);
+      fs.writeFileSync(file, audio.bytes, { flag: 'wx' });
+      created.push({ kind: 'file', path: file });
       const hash = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
       if (hash !== audio.sha256) throw new Error('sha256 mismatch');
     }
+    step('audio');
     if (failAfterAudio) throw new Error('injected failure');
-    const projectFile = path.join(dest, 'project.sqlite');
-    written.push(projectFile);
-    writeDatabase(projectFile, PROJECT_APPLICATION_ID, (db) => {
+    const projectFile = path.join(staging, PROJECT_FILE);
+    writeDatabase(projectFile, PROJECT_APPLICATION_ID, created, (db) => {
       if (failDuringProject) throw new Error('injected project failure');
       db.exec('CREATE TABLE audio (id TEXT PRIMARY KEY, relpath TEXT, sha256 TEXT)');
       db.exec('CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
@@ -519,11 +692,11 @@ export function applyPlan(plan, dest, { failAfterAudio = false, failDuringProjec
       for (const note of plan.notes ?? []) {
         insertNote.run(note.id, note.targetType, note.targetId, note.text);
       }
+      step('project-rows');
     });
     for (const manuscript of plan.manuscripts) {
-      const file = path.join(dest, manuscript.fileName);
-      written.push(file);
-      writeDatabase(file, JYD_APPLICATION_ID, (db) => {
+      const file = path.join(staging, manuscript.fileName);
+      writeDatabase(file, JYD_APPLICATION_ID, created, (db) => {
         db.exec('CREATE TABLE meta (id TEXT PRIMARY KEY, audio_id TEXT, source_document_id TEXT)');
         db.exec(
           'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT)',
@@ -730,13 +903,29 @@ export function applyPlan(plan, dest, { failAfterAudio = false, failDuringProjec
         for (const link of manuscript.lexemeLinks ?? []) {
           insertLexemeLink.run(link.id, link.targetType, link.targetId, link.lexemeId);
         }
+        step('manuscript-rows');
       });
     }
-  } catch (error) {
-    for (const file of written) {
-      fs.rmSync(file, { force: true });
-      fs.rmSync(`${file}-journal`, { force: true });
+    verifyStaged(plan, staging);
+    step('staged');
+    for (const name of names) {
+      const target = path.join(root, name);
+      if (fs.existsSync(target)) throw new DestinationNotEmptyError(root, [name]);
+      fs.renameSync(path.join(staging, name), target);
+      created.push({ kind: 'file', path: target });
     }
+    fs.rmdirSync(staging);
+    for (const name of names) {
+      const target = path.join(root, name);
+      if (path.dirname(fs.realpathSync(target)) !== fs.realpathSync(root)) {
+        throw new Error(`applyPlan: ${name} landed outside ${root}`);
+      }
+    }
+    step('published');
+    return { dest: root, files: names };
+  } catch (error) {
+    const cleanupErrors = rollback(created);
+    if (cleanupErrors.length > 0) error.cleanupErrors = cleanupErrors;
     throw error;
   }
 }
@@ -1297,6 +1486,7 @@ if (isDirectRun) {
   const raw = JSON.parse(fs.readFileSync(planFile, 'utf8'));
   applyPlan(
     {
+      status: raw.status,
       project: raw.project ?? null,
       speakers: raw.speakers ?? [],
       languages: raw.languages ?? [],
