@@ -23,33 +23,15 @@ const { aiTaskRows } = vi.hoisted(() => ({
   >(),
 }));
 
-vi.mock('../../db', () => ({
-  getDb: vi.fn(async () => ({
-    collections: {
-      ai_tasks: {
-        find: () => ({
-          exec: async () =>
-            Array.from(aiTaskRows.values()).map((row) => ({
-              toJSON: () => ({ ...row }),
-            })),
-        }),
-        findOne: ({ selector }: { selector: { id: string } }) => ({
-          exec: async () => {
-            const row = aiTaskRows.get(selector.id);
-            return row ? { toJSON: () => ({ ...row }) } : null;
-          },
-        }),
-        update: async (id: string, patch: Record<string, unknown>) => {
-          const row = aiTaskRows.get(id);
-          if (!row) return;
-          aiTaskRows.set(id, {
-            ...row,
-            ...patch,
-          });
-        },
-      },
-    },
-  })),
+vi.mock('../../db/storagePortChatTasks', () => ({
+  readAiTask: async (id: string) => aiTaskRows.get(id),
+  listAiTasks: async () => Array.from(aiTaskRows.values()).map((row) => ({ ...row })),
+  patchAiTask: async (id: string, patch: Record<string, unknown>) => {
+    const row = aiTaskRows.get(id);
+    if (!row) return false;
+    aiTaskRows.set(id, { ...row, ...patch });
+    return true;
+  },
 }));
 
 afterEach(() => {

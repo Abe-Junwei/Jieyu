@@ -42,7 +42,11 @@ import { useAiPromptTemplates } from './useAiPromptTemplates';
 import { getAiChatCardMessages } from '../../i18n/messages';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
-import { getDb } from '../../db';
+import {
+  listAiSourceSets,
+  listSourceSetCorpusIds,
+  putAiSourceSet,
+} from '../../db/storagePortChatSources';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { useAssistantDialogueSnapshot } from '../../hooks/useAssistantDialogueSnapshot';
@@ -196,44 +200,23 @@ export function AiChatCard({
   // continuous invalidation would require subscribing to all related tables)
   useEffect(() => {
     let cancelled = false;
-    const promise = getDb().then(async (db) => {
-      // shortcut(P2-3): 全局表，量小 | global table, small
-      const rows = await db.collections.ai_source_sets.find().exec();
+    const promise = (async () => {
+      const rows = await listAiSourceSets();
       if (cancelled) return;
-      let sets = rows.map((r) => r.toJSON());
+      let sets = rows;
 
       // P1-3: Runtime invalidation detection
       if (sets.length > 0) {
-        const [layerUnitIdsList, texts, lexemes, userNotes, mediaItems, layerLinks] =
-          await Promise.all([
-            LayerSegmentQueryService.listAllLayerUnitIds().catch(() => [] as string[]),
-            db.collections.texts
-              .find()
-              .exec()
-              .catch(() => []),
-            db.collections.lexemes
-              .find()
-              .exec()
-              .catch(() => []),
-            db.collections.user_notes
-              .find()
-              .exec()
-              .catch(() => []),
-            db.collections.media_items
-              .find()
-              .exec()
-              .catch(() => []),
-            db.collections.layer_links
-              .find()
-              .exec()
-              .catch(() => []),
-          ]);
+        const [layerUnitIdsList, corpusIds] = await Promise.all([
+          LayerSegmentQueryService.listAllLayerUnitIds().catch(() => [] as string[]),
+          listSourceSetCorpusIds(),
+        ]);
         const layerUnitIds = new Set(layerUnitIdsList);
-        const textIds = new Set(texts.map((t) => t.id));
-        const lexemeIds = new Set(lexemes.map((l) => l.id));
-        const noteIds = new Set(userNotes.map((n) => n.id));
-        const mediaIds = new Set(mediaItems.map((m) => m.id));
-        const layerLinkIds = new Set(layerLinks.map((l) => l.id));
+        const textIds = new Set(corpusIds.textIds);
+        const lexemeIds = new Set(corpusIds.lexemeIds);
+        const noteIds = new Set(corpusIds.noteIds);
+        const mediaIds = new Set(corpusIds.mediaIds);
+        const layerLinkIds = new Set(corpusIds.layerLinkIds);
 
         const { updated, invalidatedIds } = pruneInvalidatedSourceSets(
           sets,
@@ -261,14 +244,14 @@ export function AiChatCard({
 
         if (invalidatedIds.length > 0) {
           sets = updated;
-          await Promise.all(sets.map((set) => db.collections.ai_source_sets.update(set.id, set)));
+          await Promise.all(sets.map((set) => putAiSourceSet(set)));
         }
       }
 
       if (!cancelled) {
         setSavedSourceSets(sets);
       }
-    });
+    })();
     fireAndForget(promise, {
       context: 'src/components/ai/AiChatCard.tsx:L208',
       policy: 'user-visible',
@@ -281,17 +264,7 @@ export function AiChatCard({
   // P5: Persist source sets to Dexie (serialized via Promise queue to avoid races)
   const persistSourceSets = useCallback((sets: SavedCorpusSourceSet[]) => {
     persistQueueRef.current = persistQueueRef.current.then(async () => {
-      const db = await getDb();
-      // shortcut(P2-3): 全局表，量小 | global table, small
-      const existing = await db.collections.ai_source_sets.find().exec();
-      const existingIds = new Set(existing.map((r) => r.id));
-      await Promise.all(
-        sets.map((set) =>
-          existingIds.has(set.id)
-            ? db.collections.ai_source_sets.update(set.id, set)
-            : db.collections.ai_source_sets.insert(set),
-        ),
-      );
+      await Promise.all(sets.map((set) => putAiSourceSet(set)));
     });
     fireAndForget(persistQueueRef.current, {
       context: 'src/components/ai/AiChatCard.tsx:L224',

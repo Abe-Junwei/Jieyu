@@ -3,8 +3,15 @@
  */
 
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { AiMessageCitation } from '../../db';
-import { getDb } from '../../db';
+import type { AiMessageCitation } from '../../db/types';
+import type { JieyuDatabase } from '../../db/engine';
+import { openChatDatabase } from '../../db/storagePortChatDatabase';
+import { insertChatAuditLog } from '../../db/storagePortChatAudit';
+import { patchAiConversation, readAiConversation } from '../../db/storagePortChatConversations';
+import {
+  insertAssistantChatPlaceholder,
+  insertUserChatMessage,
+} from '../../db/storagePortChatMessages';
 import type {
   AiPromptContext,
   AiSessionMemoryPendingAgentLoopCheckpoint,
@@ -52,7 +59,6 @@ import {
 } from './useAiChat.responsePolicy';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { newMessageId, nowIso } from './useAiChat.helpers';
-import { persistUserMessage, persistAssistantPlaceholder } from './useAiChat.sendTurnPersistPhase';
 import { scheduleConversationTitlePatch } from './patchConversationTitleMvp';
 import { normalizeLocale, type Locale } from '../../i18n';
 import {
@@ -109,7 +115,7 @@ export interface PersistOpeningTurnAndBuildPromptContextInput {
 }
 
 export interface PersistOpeningTurnAndBuildPromptContextResult {
-  db: Awaited<ReturnType<typeof getDb>>;
+  db: JieyuDatabase;
   activeConversationId: string;
   history: HistoryChatMessage[];
   historyCharBudget: number;
@@ -120,8 +126,7 @@ export interface PersistOpeningTurnAndBuildPromptContextResult {
   contextBlock: string;
   ragCitations: AiMessageCitation[];
   memoryRecallShape:
-    | NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']>
-    | undefined;
+    NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']> | undefined;
   clarifyFastPathCall: ClarifyFastPathCall | null;
   systemPrompt: string;
   /** B4：v2 专用系统提示（无文本 tool_call 指令）| v2 prompt without text tool_call instructions */
@@ -138,9 +143,9 @@ export async function persistOpeningTurnAndBuildPromptContext(
   const canApplyOpeningTurnEffects = () =>
     !input.conversationGenerationRef ||
     !isConversationGenerationStale(input.conversationGenerationRef.current, turnGenerationAtStart);
-  const db = await getDb();
+  const db = await openChatDatabase();
   const userTimestamp = nowIso();
-  await persistUserMessage(db, {
+  await insertUserChatMessage({
     id: input.userMsg.id,
     conversationId: activeConversationId,
     content: input.userMsg.content,
@@ -151,7 +156,7 @@ export async function persistOpeningTurnAndBuildPromptContext(
     settings,
   });
   const assistantTimestamp = nowIso();
-  await persistAssistantPlaceholder(db, {
+  await insertAssistantChatPlaceholder({
     id: input.assistantId,
     conversationId: activeConversationId,
     generationSource: input.assistantSeed.generationSource,
@@ -159,13 +164,12 @@ export async function persistOpeningTurnAndBuildPromptContext(
     timestamp: assistantTimestamp,
   });
 
-  const conversation = await db.collections.ai_conversations
-    .findOne({ selector: { id: activeConversationId } })
-    .exec();
+  const conversation = await readAiConversation(activeConversationId);
   if (conversation) {
-    await db.collections.ai_conversations.update(activeConversationId, {
+    const model = settings.model.trim().length > 0 ? settings.model : input.providerId;
+    await patchAiConversation(activeConversationId, {
       providerId: input.providerId,
-      model: settings.model || input.providerId,
+      model,
       updatedAt: nowIso(),
     });
   }
@@ -254,8 +258,7 @@ export async function persistOpeningTurnAndBuildPromptContext(
   let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
   let ragCitations: AiMessageCitation[] = [];
   let memoryRecallShape:
-    | NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']>
-    | undefined;
+    NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']> | undefined;
   const corpusSourceSetResolved = resolveCorpusSourceSet(aiContext);
   const ragCandidateSourceIds = ragCandidateSourceIdsForSegmentQa(
     input.verticalWorkflowSelection?.workflowId,
@@ -391,23 +394,21 @@ export async function persistOpeningTurnAndBuildPromptContext(
   if (input.verticalWorkflowSelection?.workflowId === 'corpus_analysis_report') {
     systemPrompt += '\n\n' + buildCorpusAnalysisReportSystemPrompt();
   }
-  db.collections.audit_logs
-    .insert({
-      id: newMessageId('audit'),
-      collection: 'ai_messages',
-      documentId: input.assistantId,
-      action: 'update',
-      field: 'ai_response_policy_resolution',
-      oldValue: '',
-      newValue: responsePolicy.locale,
-      source: 'ai',
-      timestamp: nowIso(),
-      requestId: `${input.assistantId}_response_policy`,
-      metadataJson: JSON.stringify(buildResponsePolicyAuditMetadata(responsePolicy)),
-    })
-    .catch(() => {
-      // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
-    });
+  void insertChatAuditLog({
+    id: newMessageId('audit'),
+    collection: 'ai_messages',
+    documentId: input.assistantId,
+    action: 'update',
+    field: 'ai_response_policy_resolution',
+    oldValue: '',
+    newValue: responsePolicy.locale,
+    source: 'ai',
+    timestamp: nowIso(),
+    requestId: `${input.assistantId}_response_policy`,
+    metadataJson: JSON.stringify(buildResponsePolicyAuditMetadata(responsePolicy)),
+  }).catch(() => {
+    // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
+  });
   input.setMetrics((prev) => ({
     ...prev,
     currentTurnTokens: 0,

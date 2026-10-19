@@ -6,18 +6,37 @@ import {
 import type {
   LayerDocType,
   LayerLinkDocType,
+  LayerUnitDocType,
   MediaItemDocType,
   LayerUnitContentDocType,
-} from '../../db';
+} from '../../db/types';
 import type { SaveState } from '../useTranscriptionData';
-import { dexieStoresForAnnotationImportRw, getDb, withTransaction } from '../../db';
+import {
+  attachImportedSourceToDocument,
+  buildImportLanguageNameMapForCommit,
+  deleteAnnotationDocumentUnitGraphForImport,
+  importAdditionalTiersForCommit,
+  insertImportedLayerLink,
+  putImportedMediaItem,
+  putImportedTextRow,
+  putImportedUserNote,
+  resolvePreferredHostForTranslationImport,
+  syncImportedUnitText,
+  withAnnotationImportTransaction,
+  writeExtraEafTranscriptionTiersForCommit,
+  writeImportLayerNameAuditRow,
+} from '../../db/storagePortImportAnnotation';
+import {
+  listLayerLinksByLayerIds,
+  listLayerUnitContentsByUnitIds,
+  listLayerUnitsByText,
+  listMediaItemsByText,
+  readMediaItem,
+  readTextRow,
+} from '../../db/storagePortImportReads';
 import { LinguisticService } from '../../services/LinguisticService';
 import { rememberImportedSourceFile } from '../../services/projectFileOps';
-import {
-  attachSourceToAnnotationDocument,
-  deleteAnnotationDocumentUnitGraph,
-  ensureDefaultAnnotationDocument,
-} from '../../services/annotationDocumentService';
+import { ensureDefaultAnnotationDocument } from '../../services/annotationDocumentService';
 import { computeBlobSha256 } from '../../utils/blobSha256';
 import { sourceFormatFromName } from '../../utils/projectSourceFiles';
 import { validateLayerTierConsistency } from '../../services/TierBridgeService';
@@ -42,11 +61,8 @@ import {
 import { ImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
 import { resolvePostImportLogicalExpandTargetSec } from '../../utils/timelineImportPostApply';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
-import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { loadOrthographyRuntime } from '../../utils/loadOrthographyRuntime';
 import { normalizeUserNoteDocForStorage } from '../../utils/camDataUtils';
-import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
-import { writeExtraEafTranscriptionTiers } from './eafTranscriptionTierWrite';
 import {
   createImportedTokenGraphWriter,
   type ImportedHostToken,
@@ -58,12 +74,9 @@ import {
   type AnnotationImportBridgeStrategy,
 } from './useImportExport.annotationImport';
 import {
-  buildImportLanguageNameMap,
   createImportLanguageResolvers,
   createImportSpeakerResolver,
-  resolvePreferredHostTranscriptionLayerIdForTranslationImport,
   withEafKeyMeta,
-  writeImportLayerNameAudit,
 } from './useImportExport.importHelpers';
 import {
   getLayerTreeParentLayerId,
@@ -273,11 +286,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       const openMediaId =
         segmentScopeMediaId?.trim() || activeTimelineMediaItem?.id || selectedUnitMedia?.id || '';
 
-      const db = await getDb();
-      const projectMediaRows = await db.dexie.media_items
-        .where('textId')
-        .equals(importTextId)
-        .toArray();
+      const projectMediaRows = await listMediaItemsByText(importTextId);
       const eafMedia = eafResult
         ? resolveEafImportMediaId({
             ...(openMediaId.length > 0 ? { currentMediaId: openMediaId } : {}),
@@ -288,7 +297,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       let mediaId = eafMedia.mediaId;
       let missingMediaFilename = eafMedia.missingMediaFilename;
       const now = new Date().toISOString();
-      const currentText = await db.dexie.texts.get(importTextId);
+      const currentText = await readTextRow(importTextId);
       let establishedDocumentSpanSec = 0;
       let establishedAcousticSec = 0;
       if (currentText) {
@@ -407,10 +416,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         for (const layer of layersAfterImport) {
           if (layer.layerType !== inputData.layerType) continue;
           if (layer.layerType === 'translation') {
-            const resolvedHost = await resolvePreferredHostTranscriptionLayerIdForTranslationImport(
-              db,
-              layer.id,
-            );
+            const resolvedHost = await resolvePreferredHostForTranslationImport(layer.id);
             if ((resolvedHost ?? '') !== desiredTranslationHost) continue;
           } else if (
             (getLayerTreeParentLayerId(layer) ?? '') !== (inputData.transcriptionTreeParentId ?? '')
@@ -450,7 +456,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         if (inputData.layerType === 'translation' && desiredTranslationHost) {
           const hostLayer = layerById.get(desiredTranslationHost);
           if (hostLayer?.key) {
-            await db.collections.layer_links.insert({
+            await insertImportedLayerLink({
               id: newId('link'),
               transcriptionLayerKey: hostLayer.key,
               hostTranscriptionLayerId: desiredTranslationHost,
@@ -461,8 +467,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             });
           }
         }
-        await writeImportLayerNameAudit({
-          db,
+        await writeImportLayerNameAuditRow({
           now,
           layerId,
           displayName: resolveLayerNameText(desiredName),
@@ -539,7 +544,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         return Array.from(new Map(writes.map((item) => [item.layerId, item])).values());
       }
 
-      const languageNameByIso = await buildImportLanguageNameMap(db);
+      const languageNameByIso = await buildImportLanguageNameMapForCommit();
       const { resolveDbLanguageName, resolveEafLanguageLabel, resolveLayerDisplayName } =
         createImportLanguageResolvers({
           languageNameByIso,
@@ -713,7 +718,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         startTime: number;
         endTime: number;
         annotationId?: string;
-        unit: import('../../db').LayerUnitDocType;
+        unit: LayerUnitDocType;
       }> = [];
       let tierCount = 0;
       let skippedIndependentTierSegmentCount = 0;
@@ -727,430 +732,409 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
 
       const tokenGraph = createImportedTokenGraphWriter({ textId: importTextId });
 
-      await withTransaction(
-        db,
-        'rw',
-        [...dexieStoresForAnnotationImportRw(db)],
-        async () => {
-          // 2B-E：在事务内按文档替换 | Replace by document inside the transaction
-          await deleteAnnotationDocumentUnitGraph(db, importTextId, importDocumentId);
-          if (mediaId && eafResult?.secondaryMedia && eafResult.secondaryMedia.length > 0) {
-            const mediaRow = await db.dexie.media_items.get(mediaId);
-            if (mediaRow) {
-              const prevDetails =
-                mediaRow.details && typeof mediaRow.details === 'object' ? mediaRow.details : {};
-              await db.dexie.media_items.put({
-                ...mediaRow,
-                details: {
-                  ...prevDetails,
-                  secondaryMedia: eafResult.secondaryMedia,
-                },
-              });
+      await withAnnotationImportTransaction(async () => {
+        // 2B-E：在事务内按文档替换 | Replace by document inside the transaction
+        await deleteAnnotationDocumentUnitGraphForImport(importTextId, importDocumentId);
+        if (mediaId && eafResult?.secondaryMedia && eafResult.secondaryMedia.length > 0) {
+          const mediaRow = await readMediaItem(mediaId);
+          if (mediaRow) {
+            const prevDetails =
+              mediaRow.details && typeof mediaRow.details === 'object' ? mediaRow.details : {};
+            await putImportedMediaItem({
+              ...mediaRow,
+              details: {
+                ...prevDetails,
+                secondaryMedia: eafResult.secondaryMedia,
+              },
+            });
+          }
+        }
+
+        if (importedTimelineMetadata || importOptions?.tierRoles) {
+          const textRow = await readTextRow(importTextId);
+          if (textRow) {
+            const baseMetadata = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
+            const withRoles = importOptions?.tierRoles
+              ? eafResult
+                ? mergeEafTierRoles(baseMetadata, importOptions.tierRoles)
+                : mergeInterchangeTierRoles(baseMetadata, importOptions.tierRoles)
+              : baseMetadata;
+            await putImportedTextRow({
+              ...textRow,
+              metadata: importedTimelineMetadata
+                ? mergeImportedTimelineMetadata(withRoles, importedTimelineMetadata, {
+                    establishedDocumentSpanSec,
+                    establishedAcousticSec,
+                    importedUnitsMaxEndSec,
+                  })
+                : withRoles,
+              updatedAt: now,
+            });
+          }
+        }
+
+        const importedTitle = eafResult?.documentTitle ?? flexResult?.documentTitle;
+        if (importedTitle && Object.values(importedTitle).some((part) => part.trim().length > 0)) {
+          const textRow = await readTextRow(importTextId);
+          const currentTitle = textRow?.title;
+          const titleBlank =
+            !currentTitle || Object.values(currentTitle).every((part) => part.trim().length === 0);
+          if (textRow && titleBlank) {
+            await putImportedTextRow({
+              ...textRow,
+              title: { ...importedTitle },
+              updatedAt: now,
+            });
+          } else if (textRow) {
+            for (const part of Object.values(importedTitle)) {
+              const text = part.trim();
+              if (text.length === 0) continue;
+              await putImportedUserNote(
+                normalizeUserNoteDocForStorage({
+                  textId: importTextId,
+                  id: newId('note'),
+                  targetType: 'text',
+                  targetId: importTextId,
+                  content: { default: text },
+                  category: 'comment',
+                  createdAt: now,
+                  updatedAt: now,
+                }),
+              );
             }
           }
+        }
 
-          if (importedTimelineMetadata || importOptions?.tierRoles) {
-            const textRow = await db.dexie.texts.get(importTextId);
-            if (textRow) {
-              const baseMetadata = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
-              const withRoles = importOptions?.tierRoles
-                ? eafResult
-                  ? mergeEafTierRoles(baseMetadata, importOptions.tierRoles)
-                  : mergeInterchangeTierRoles(baseMetadata, importOptions.tierRoles)
-                : baseMetadata;
-              await db.dexie.texts.put({
-                ...textRow,
-                metadata: importedTimelineMetadata
-                  ? mergeImportedTimelineMetadata(withRoles, importedTimelineMetadata, {
-                      establishedDocumentSpanSec,
-                      establishedAcousticSec,
-                      importedUnitsMaxEndSec,
-                    })
-                  : withRoles,
-                updatedAt: now,
-              });
-            }
+        for (const pending of pendingSpeakers) {
+          await resolveOrCreateSpeaker(pending.rawKey, pending.displayName, pending.attrs);
+        }
+
+        if (pendingAutoLayer) {
+          await LayerTierUnifiedService.createLayer(pendingAutoLayer.doc);
+          await writeImportLayerNameAuditRow({
+            now,
+            layerId: pendingAutoLayer.doc.id,
+            displayName: pendingAutoLayer.displayName,
+            source: pendingAutoLayer.source,
+            languageId: pendingAutoLayer.languageId,
+            ...(pendingAutoLayer.tierName ? { tierName: pendingAutoLayer.tierName } : {}),
+            ...(pendingAutoLayer.matchedTag ? { matchedTag: pendingAutoLayer.matchedTag } : {}),
+          });
+        }
+
+        const existingUnitRows = await listLayerUnitsByText(textId);
+        if (
+          existingUnitRows.length > 0 &&
+          (tgResult !== null || trsResult !== null || toolboxResult !== null)
+        ) {
+          appendedWithoutId = true;
+        }
+        const existingUnits: ReimportUnitRow[] = existingUnitRows.map((unitRow) => ({
+          id: unitRow.id,
+          textId: unitRow.textId,
+          ...(unitRow.externalRef ? { externalRef: unitRow.externalRef } : {}),
+          ...(unitRow.unitType ? { unitType: unitRow.unitType } : {}),
+          ...(unitRow.parentUnitId ? { parentUnitId: unitRow.parentUnitId } : {}),
+        }));
+        const existingContentRows =
+          existingUnits.length > 0
+            ? await listLayerUnitContentsByUnitIds(existingUnits.map((unitRow) => unitRow.id))
+            : [];
+        const existingContents: ReimportContentRow[] = existingContentRows.map((contentRow) => ({
+          ...(contentRow.unitId ? { unitId: contentRow.unitId } : {}),
+          ...(contentRow.layerId ? { layerId: contentRow.layerId } : {}),
+          ...(contentRow.externalRef ? { externalRef: contentRow.externalRef } : {}),
+        }));
+
+        for (const u of parsedUnits) {
+          const startTime = Number(u.startTime.toFixed(3));
+          const endTime = Number(u.endTime.toFixed(3));
+          const maybeTokens = 'tokens' in u ? (u as { tokens?: unknown }).tokens : undefined;
+          const maybeSpeakerId =
+            'speakerId' in u ? (u as { speakerId?: unknown }).speakerId : undefined;
+          const maybeAnnotationId =
+            'annotationId' in u && typeof (u as { annotationId?: string }).annotationId === 'string'
+              ? (u as { annotationId: string }).annotationId
+              : undefined;
+          const normalizedSpeakerKey =
+            typeof maybeSpeakerId === 'string' ? normalizeSpeakerLookupKey(maybeSpeakerId) : '';
+          const resolvedSpeakerId =
+            typeof maybeSpeakerId === 'string' && maybeSpeakerId.length > 0
+              ? (speakerIdMap.get(normalizedSpeakerKey) ?? maybeSpeakerId.trim())
+              : undefined;
+          const reimportId =
+            maybeAnnotationId && effectiveTranscriptionLayerId
+              ? findReimportUnitId({
+                  textId,
+                  layerId: effectiveTranscriptionLayerId,
+                  annotationId: maybeAnnotationId,
+                  units: existingUnits,
+                  contents: existingContents,
+                })
+              : undefined;
+          const id = reimportId ?? newId('utt');
+          const previousUnit = reimportId
+            ? existingUnitRows.find((unitRow) => unitRow.id === reimportId)
+            : undefined;
+          const newUnit: LayerUnitDocType = {
+            ...(previousUnit ?? { id, textId, createdAt: now }),
+            id,
+            textId,
+            ...(mediaId ? { mediaId } : {}),
+            startTime,
+            endTime,
+            annotationStatus: previousUnit?.annotationStatus ?? 'raw',
+            ...(resolvedSpeakerId ? { speakerId: resolvedSpeakerId } : {}),
+            ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+            createdAt: previousUnit?.createdAt ?? now,
+            updatedAt: now,
+          };
+          await LinguisticService.units.save(newUnit);
+          if (Array.isArray(maybeTokens) && maybeTokens.length > 0) {
+            await tokenGraph.write({
+              hostUnitId: id,
+              tokens: maybeTokens as ImportedHostToken[],
+              now,
+              language: inferredTranscriptionLang,
+            });
+          }
+          insertedUnits.push({
+            id,
+            startTime,
+            endTime,
+            ...(maybeAnnotationId ? { annotationId: maybeAnnotationId } : {}),
+            unit: newUnit,
+          });
+          existingUnits.push({
+            id,
+            textId,
+            ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+          });
+          if (maybeAnnotationId && effectiveTranscriptionLayerId) {
+            existingContents.push({
+              unitId: id,
+              layerId: effectiveTranscriptionLayerId,
+              externalRef: maybeAnnotationId,
+            });
           }
 
-          const importedTitle = eafResult?.documentTitle ?? flexResult?.documentTitle;
-          if (
-            importedTitle &&
-            Object.values(importedTitle).some((part) => part.trim().length > 0)
-          ) {
-            const textRow = await db.dexie.texts.get(importTextId);
-            const currentTitle = textRow?.title;
-            const titleBlank =
-              !currentTitle ||
-              Object.values(currentTitle).every((part) => part.trim().length === 0);
-            if (textRow && titleBlank) {
-              await db.dexie.texts.put({
-                ...textRow,
-                title: { ...importedTitle },
-                updatedAt: now,
+          if (u.transcription.trim() && effectiveTranscriptionLayerId) {
+            const transcriptionWrites = await planImportedWrites({
+              text: u.transcription,
+              ...(importedTranscriptionMeta?.orthographyId !== undefined
+                ? { sourceOrthographyId: importedTranscriptionMeta.orthographyId }
+                : {}),
+              ...(importedTranscriptionBridgeId !== undefined
+                ? { bridgeId: importedTranscriptionBridgeId }
+                : {}),
+              targetLayerId: effectiveTranscriptionLayerId,
+              baseLabel: resolveLayerDisplayName(
+                [inferredTranscriptionLang, importedTrcName],
+                humanizeTierName(importedTrcName ?? 'Transcription'),
+              ).label,
+              languageId: inferredTranscriptionLang,
+              layerType: 'transcription',
+              keyPrefix: 'trc_import_source',
+              ...(importedTrcName ? { tierName: importedTrcName } : {}),
+            });
+            for (const write of transcriptionWrites) {
+              const priorContent = existingContentRows.find((contentRow) => {
+                if (contentRow.layerId !== write.layerId) return false;
+                if (contentRow.modality !== undefined && contentRow.modality !== 'text') {
+                  return false;
+                }
+                if (contentRow.unitId === id) return true;
+                const owner = existingUnits.find((row) => row.id === contentRow.unitId);
+                return owner?.parentUnitId === id;
               });
-            } else if (textRow) {
-              for (const part of Object.values(importedTitle)) {
-                const text = part.trim();
-                if (text.length === 0) continue;
-                await db.dexie.user_notes.put(
-                  normalizeUserNoteDocForStorage({
-                    textId: importTextId,
-                    id: newId('note'),
-                    targetType: 'text',
-                    targetId: importTextId,
-                    content: { default: text },
-                    category: 'comment',
+              const doc: LayerUnitContentDocType = priorContent
+                ? {
+                    ...priorContent,
+                    text: write.text,
+                    ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+                    updatedAt: now,
+                  }
+                : {
+                    id: newId('utr'),
+                    unitId: id,
+                    layerId: write.layerId,
+                    modality: 'text' as const,
+                    text: write.text,
+                    sourceType: 'human' as const,
+                    ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
                     createdAt: now,
                     updatedAt: now,
-                  }),
-                );
-              }
+                  };
+              await syncImportedUnitText(newUnit, doc);
             }
           }
+        }
 
-          for (const pending of pendingSpeakers) {
-            await resolveOrCreateSpeaker(pending.rawKey, pending.displayName, pending.attrs);
-          }
-
-          if (pendingAutoLayer) {
-            await LayerTierUnifiedService.createLayer(pendingAutoLayer.doc);
-            await writeImportLayerNameAudit({
-              db,
-              now,
-              layerId: pendingAutoLayer.doc.id,
-              displayName: pendingAutoLayer.displayName,
-              source: pendingAutoLayer.source,
-              languageId: pendingAutoLayer.languageId,
-              ...(pendingAutoLayer.tierName ? { tierName: pendingAutoLayer.tierName } : {}),
-              ...(pendingAutoLayer.matchedTag ? { matchedTag: pendingAutoLayer.matchedTag } : {}),
-            });
-          }
-
-          const existingUnitRows = await db.dexie.layer_units
-            .where('textId')
-            .equals(textId)
-            .toArray();
-          if (
-            existingUnitRows.length > 0 &&
-            (tgResult !== null || trsResult !== null || toolboxResult !== null)
-          ) {
-            appendedWithoutId = true;
-          }
-          const existingUnits: ReimportUnitRow[] = existingUnitRows.map((unitRow) => ({
-            id: unitRow.id,
-            textId: unitRow.textId,
-            ...(unitRow.externalRef ? { externalRef: unitRow.externalRef } : {}),
-            ...(unitRow.unitType ? { unitType: unitRow.unitType } : {}),
-            ...(unitRow.parentUnitId ? { parentUnitId: unitRow.parentUnitId } : {}),
-          }));
-          const existingContentRows =
-            existingUnits.length > 0
-              ? await db.dexie.layer_unit_contents
-                  .where('unitId')
-                  .anyOf(existingUnits.map((unitRow) => unitRow.id))
-                  .toArray()
-              : [];
-          const existingContents: ReimportContentRow[] = existingContentRows.map((contentRow) => ({
-            ...(contentRow.unitId ? { unitId: contentRow.unitId } : {}),
-            ...(contentRow.layerId ? { layerId: contentRow.layerId } : {}),
-            ...(contentRow.externalRef ? { externalRef: contentRow.externalRef } : {}),
-          }));
-
-          for (const u of parsedUnits) {
-            const startTime = Number(u.startTime.toFixed(3));
-            const endTime = Number(u.endTime.toFixed(3));
-            const maybeTokens = 'tokens' in u ? (u as { tokens?: unknown }).tokens : undefined;
-            const maybeSpeakerId =
-              'speakerId' in u ? (u as { speakerId?: unknown }).speakerId : undefined;
-            const maybeAnnotationId =
-              'annotationId' in u &&
-              typeof (u as { annotationId?: string }).annotationId === 'string'
-                ? (u as { annotationId: string }).annotationId
-                : undefined;
-            const normalizedSpeakerKey =
-              typeof maybeSpeakerId === 'string' ? normalizeSpeakerLookupKey(maybeSpeakerId) : '';
-            const resolvedSpeakerId =
-              typeof maybeSpeakerId === 'string' && maybeSpeakerId.length > 0
-                ? (speakerIdMap.get(normalizedSpeakerKey) ?? maybeSpeakerId.trim())
-                : undefined;
-            const reimportId =
-              maybeAnnotationId && effectiveTranscriptionLayerId
-                ? findReimportUnitId({
-                    textId,
-                    layerId: effectiveTranscriptionLayerId,
-                    annotationId: maybeAnnotationId,
-                    units: existingUnits,
-                    contents: existingContents,
-                  })
-                : undefined;
-            const id = reimportId ?? newId('utt');
-            const previousUnit = reimportId
-              ? existingUnitRows.find((unitRow) => unitRow.id === reimportId)
-              : undefined;
-            const newUnit: import('../../db').LayerUnitDocType = {
-              ...(previousUnit ?? { id, textId, createdAt: now }),
-              id,
-              textId,
-              ...(mediaId ? { mediaId } : {}),
-              startTime,
-              endTime,
-              annotationStatus: previousUnit?.annotationStatus ?? 'raw',
-              ...(resolvedSpeakerId ? { speakerId: resolvedSpeakerId } : {}),
-              ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
-              createdAt: previousUnit?.createdAt ?? now,
-              updatedAt: now,
-            };
-            await LinguisticService.units.save(newUnit);
-            if (Array.isArray(maybeTokens) && maybeTokens.length > 0) {
-              await tokenGraph.write({
-                hostUnitId: id,
-                tokens: maybeTokens as ImportedHostToken[],
-                now,
-                language: inferredTranscriptionLang,
-              });
-            }
-            insertedUnits.push({
-              id,
-              startTime,
-              endTime,
-              ...(maybeAnnotationId ? { annotationId: maybeAnnotationId } : {}),
-              unit: newUnit,
-            });
-            existingUnits.push({
-              id,
-              textId,
-              ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
-            });
-            if (maybeAnnotationId && effectiveTranscriptionLayerId) {
-              existingContents.push({
-                unitId: id,
-                layerId: effectiveTranscriptionLayerId,
-                externalRef: maybeAnnotationId,
-              });
-            }
-
-            if (u.transcription.trim() && effectiveTranscriptionLayerId) {
-              const transcriptionWrites = await planImportedWrites({
-                text: u.transcription,
-                ...(importedTranscriptionMeta?.orthographyId !== undefined
-                  ? { sourceOrthographyId: importedTranscriptionMeta.orthographyId }
-                  : {}),
-                ...(importedTranscriptionBridgeId !== undefined
-                  ? { bridgeId: importedTranscriptionBridgeId }
-                  : {}),
-                targetLayerId: effectiveTranscriptionLayerId,
-                baseLabel: resolveLayerDisplayName(
-                  [inferredTranscriptionLang, importedTrcName],
-                  humanizeTierName(importedTrcName ?? 'Transcription'),
-                ).label,
-                languageId: inferredTranscriptionLang,
-                layerType: 'transcription',
-                keyPrefix: 'trc_import_source',
-                ...(importedTrcName ? { tierName: importedTrcName } : {}),
-              });
-              for (const write of transcriptionWrites) {
-                const priorContent = existingContentRows.find((contentRow) => {
-                  if (contentRow.layerId !== write.layerId) return false;
-                  if (contentRow.modality !== undefined && contentRow.modality !== 'text') {
-                    return false;
-                  }
-                  if (contentRow.unitId === id) return true;
-                  const owner = existingUnits.find((row) => row.id === contentRow.unitId);
-                  return owner?.parentUnitId === id;
-                });
-                const doc: LayerUnitContentDocType = priorContent
-                  ? {
-                      ...priorContent,
-                      text: write.text,
-                      ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
-                      updatedAt: now,
-                    }
-                  : {
-                      id: newId('utr'),
-                      unitId: id,
-                      layerId: write.layerId,
-                      modality: 'text' as const,
-                      text: write.text,
-                      sourceType: 'human' as const,
-                      ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
-                      createdAt: now,
-                      updatedAt: now,
-                    };
-                await syncUnitTextToSegmentationV2(db, newUnit, doc);
-              }
-            }
-          }
-
-          const extraTranscriptionTiers = [
-            ...(eafResult?.extraTranscriptionTiers ?? []),
-            ...roleExtraTranscriptionTiers,
-          ];
-          if (extraTranscriptionTiers.length > 0) {
-            await writeExtraEafTranscriptionTiers({
-              db,
-              now,
-              textId,
-              ...(mediaId ? { mediaId } : {}),
-              layers: layersAfterImport,
-              tiers: extraTranscriptionTiers,
-              existingUnits,
-              existingContents,
-              insertedUnits,
-              rememberLayer,
-              tierNameToLayerId,
-              resolveLayerDisplayName,
-              resolveSpeakerId: (speakerCode) => {
-                if (!speakerCode) return undefined;
-                const key = normalizeSpeakerLookupKey(speakerCode);
-                return speakerIdMap.get(key) ?? speakerCode.trim();
-              },
-              tokenGraph,
-            });
-          }
-
-          const additionalResult = await importAdditionalTiers({
-            db,
+        const extraTranscriptionTiers = [
+          ...(eafResult?.extraTranscriptionTiers ?? []),
+          ...roleExtraTranscriptionTiers,
+        ];
+        if (extraTranscriptionTiers.length > 0) {
+          await writeExtraEafTranscriptionTiersForCommit({
             now,
             textId,
             ...(mediaId ? { mediaId } : {}),
             layers: layersAfterImport,
-            additionalTiers,
+            tiers: extraTranscriptionTiers,
+            existingUnits,
+            existingContents,
             insertedUnits,
-            importedTierMetadata,
-            tierNameToLayerId,
-            ...(effectiveTranscriptionLayerId ? { effectiveTranscriptionLayerId } : {}),
-            ...(autoCreatedLayerKey ? { autoCreatedLayerKey } : {}),
-            eafResult,
-            ...(flexResult?.glossLanguage ? { glossLanguage: flexResult.glossLanguage } : {}),
-            resolveDbLanguageName,
-            resolveEafLanguageLabel,
-            resolveLayerDisplayName,
-            planImportedWrites,
             rememberLayer,
+            tierNameToLayerId,
+            resolveLayerDisplayName,
+            resolveSpeakerId: (speakerCode) => {
+              if (!speakerCode) return undefined;
+              const key = normalizeSpeakerLookupKey(speakerCode);
+              return speakerIdMap.get(key) ?? speakerCode.trim();
+            },
             tokenGraph,
           });
-          tierCount = additionalResult.tierCount;
-          skippedIndependentTierSegmentCount = additionalResult.skippedIndependentTierSegmentCount;
-          droppedTranslationSegmentCount = additionalResult.droppedTranslationSegmentCount;
-          unmatchedRefCount += additionalResult.unmatchedRefCount;
+        }
 
-          const importedUserNotes = [
-            ...(eafResult?.userNotes ?? []),
-            ...(flexResult?.userNotes ?? []),
-            ...roleNoteSegments,
-          ];
-          if (importedUserNotes.length > 0) {
-            for (const note of importedUserNotes) {
-              if (!note.text.trim()) continue;
-              const category = classifiedNoteCategory(note);
-              const categoryField = category !== undefined ? { category } : {};
-              if ('targetType' in note && note.targetType === 'text') {
-                await db.dexie.user_notes.put(
-                  normalizeUserNoteDocForStorage({
-                    textId: importTextId,
-                    id: newId('note'),
-                    targetType: 'text',
-                    targetId: importTextId,
-                    content: { default: note.text },
-                    ...categoryField,
-                    createdAt: now,
-                    updatedAt: now,
-                  }),
-                );
-                continue;
-              }
-              const match = note.annotationRef
-                ? matchUnitByAnnotationRef(insertedUnits, note.annotationRef)
-                : insertedUnits.find(
-                    (unit) =>
-                      Math.abs(unit.startTime - note.startTime) < 0.05 &&
-                      Math.abs(unit.endTime - note.endTime) < 0.05,
-                  );
-              if (!match) {
-                if ((note.annotationRef ?? '').trim().length > 0) unmatchedRefCount += 1;
-                continue;
-              }
-              await db.dexie.user_notes.put(
+        const additionalResult = await importAdditionalTiersForCommit({
+          now,
+          textId,
+          ...(mediaId ? { mediaId } : {}),
+          layers: layersAfterImport,
+          additionalTiers,
+          insertedUnits,
+          importedTierMetadata,
+          tierNameToLayerId,
+          ...(effectiveTranscriptionLayerId ? { effectiveTranscriptionLayerId } : {}),
+          ...(autoCreatedLayerKey ? { autoCreatedLayerKey } : {}),
+          eafResult,
+          ...(flexResult?.glossLanguage ? { glossLanguage: flexResult.glossLanguage } : {}),
+          resolveDbLanguageName,
+          resolveEafLanguageLabel,
+          resolveLayerDisplayName,
+          planImportedWrites,
+          rememberLayer,
+          tokenGraph,
+        });
+        tierCount = additionalResult.tierCount;
+        skippedIndependentTierSegmentCount = additionalResult.skippedIndependentTierSegmentCount;
+        droppedTranslationSegmentCount = additionalResult.droppedTranslationSegmentCount;
+        unmatchedRefCount += additionalResult.unmatchedRefCount;
+
+        const importedUserNotes = [
+          ...(eafResult?.userNotes ?? []),
+          ...(flexResult?.userNotes ?? []),
+          ...roleNoteSegments,
+        ];
+        if (importedUserNotes.length > 0) {
+          for (const note of importedUserNotes) {
+            if (!note.text.trim()) continue;
+            const category = classifiedNoteCategory(note);
+            const categoryField = category !== undefined ? { category } : {};
+            if ('targetType' in note && note.targetType === 'text') {
+              await putImportedUserNote(
                 normalizeUserNoteDocForStorage({
                   textId: importTextId,
                   id: newId('note'),
-                  targetType: 'unit',
-                  targetId: match.id,
+                  targetType: 'text',
+                  targetId: importTextId,
                   content: { default: note.text },
                   ...categoryField,
                   createdAt: now,
                   updatedAt: now,
                 }),
               );
+              continue;
             }
+            const match = note.annotationRef
+              ? matchUnitByAnnotationRef(insertedUnits, note.annotationRef)
+              : insertedUnits.find(
+                  (unit) =>
+                    Math.abs(unit.startTime - note.startTime) < 0.05 &&
+                    Math.abs(unit.endTime - note.endTime) < 0.05,
+                );
+            if (!match) {
+              if ((note.annotationRef ?? '').trim().length > 0) unmatchedRefCount += 1;
+              continue;
+            }
+            await putImportedUserNote(
+              normalizeUserNoteDocForStorage({
+                textId: importTextId,
+                id: newId('note'),
+                targetType: 'unit',
+                targetId: match.id,
+                content: { default: note.text },
+                ...categoryField,
+                createdAt: now,
+                updatedAt: now,
+              }),
+            );
           }
+        }
 
-          if (eafResult?.sideChannelNotes && eafResult.sideChannelNotes.length > 0) {
-            for (const note of eafResult.sideChannelNotes) {
-              if (!note.text.trim()) continue;
-              const match = matchUnitByAnnotationRef(insertedUnits, note.parentAnnotationId);
-              if (!match) {
-                if ((note.parentAnnotationId ?? '').trim().length > 0) unmatchedRefCount += 1;
-                continue;
-              }
-              await db.dexie.user_notes.put(
+        if (eafResult?.sideChannelNotes && eafResult.sideChannelNotes.length > 0) {
+          for (const note of eafResult.sideChannelNotes) {
+            if (!note.text.trim()) continue;
+            const match = matchUnitByAnnotationRef(insertedUnits, note.parentAnnotationId);
+            if (!match) {
+              if ((note.parentAnnotationId ?? '').trim().length > 0) unmatchedRefCount += 1;
+              continue;
+            }
+            await putImportedUserNote(
+              normalizeUserNoteDocForStorage({
+                textId: importTextId,
+                id: newId('note'),
+                targetType: 'unit',
+                targetId: match.id,
+                content: { default: formatEafSideChannelNote(note.kind, note.text) },
+                category: 'linguistic',
+                createdAt: now,
+                updatedAt: now,
+              }),
+            );
+          }
+        }
+
+        if (trsResult?.sectionTopics && trsResult.sectionTopics.length > 0) {
+          for (const section of trsResult.sectionTopics) {
+            if (!section.topic.trim()) continue;
+            const matches = insertedUnits.filter(
+              (unit) =>
+                unit.startTime < section.endTime + 0.05 && unit.endTime > section.startTime - 0.05,
+            );
+            for (const match of matches) {
+              await putImportedUserNote(
                 normalizeUserNoteDocForStorage({
                   textId: importTextId,
                   id: newId('note'),
                   targetType: 'unit',
                   targetId: match.id,
-                  content: { default: formatEafSideChannelNote(note.kind, note.text) },
-                  category: 'linguistic',
+                  content: { default: section.topic },
+                  category: 'topic',
                   createdAt: now,
                   updatedAt: now,
                 }),
               );
             }
           }
-
-          if (trsResult?.sectionTopics && trsResult.sectionTopics.length > 0) {
-            for (const section of trsResult.sectionTopics) {
-              if (!section.topic.trim()) continue;
-              const matches = insertedUnits.filter(
-                (unit) =>
-                  unit.startTime < section.endTime + 0.05 &&
-                  unit.endTime > section.startTime - 0.05,
-              );
-              for (const match of matches) {
-                await db.dexie.user_notes.put(
-                  normalizeUserNoteDocForStorage({
-                    textId: importTextId,
-                    id: newId('note'),
-                    targetType: 'unit',
-                    targetId: match.id,
-                    content: { default: section.topic },
-                    category: 'topic',
-                    createdAt: now,
-                    updatedAt: now,
-                  }),
-                );
-              }
-            }
-          }
-          // 4.2-6：来源登记与导入内容同一次提交 | Source record commits together with the content
-          const registeredSource = await rememberImportedSourceFile({
-            textId: importTextId,
-            name: file.name,
-            format: sourceFormatFromName(file.name),
-            byteSize: file.size,
-            ...(importSourceSha256 ? { sha256: importSourceSha256 } : {}),
-            ...(eafResult?.documentUrn ? { externalDocId: eafResult.documentUrn } : {}),
-            ...(mediaId && mediaId.trim().length > 0 ? { mediaId } : {}),
-            ...(eafResult?.mediaFilename && eafResult.mediaFilename !== 'unknown.wav'
-              ? { linkedMediaFilename: eafResult.mediaFilename }
-              : {}),
-          });
-          if (registeredSource) {
-            await attachSourceToAnnotationDocument(db, importDocumentId, registeredSource.id);
-          }
-        },
-        { label: 'annotationImport.commit' },
-      );
+        }
+        // 4.2-6：来源登记与导入内容同一次提交 | Source record commits together with the content
+        const registeredSource = await rememberImportedSourceFile({
+          textId: importTextId,
+          name: file.name,
+          format: sourceFormatFromName(file.name),
+          byteSize: file.size,
+          ...(importSourceSha256 ? { sha256: importSourceSha256 } : {}),
+          ...(eafResult?.documentUrn ? { externalDocId: eafResult.documentUrn } : {}),
+          ...(mediaId && mediaId.trim().length > 0 ? { mediaId } : {}),
+          ...(eafResult?.mediaFilename && eafResult.mediaFilename !== 'unknown.wav'
+            ? { linkedMediaFilename: eafResult.mediaFilename }
+            : {}),
+        });
+        if (registeredSource) {
+          await attachImportedSourceToDocument(importDocumentId, registeredSource.id);
+        }
+      });
       committed = true;
 
       fireAndForget(
@@ -1172,12 +1156,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));
         // 走 `layerId` 索引，不整表读出（JY-15）| Indexed by layerId instead of a full scan (JY-15)
         const importLayerLinks: LayerLinkDocType[] =
-          layerIdSet.size > 0
-            ? await db.dexie.layer_links
-                .where('layerId')
-                .anyOf([...layerIdSet])
-                .toArray()
-            : [];
+          layerIdSet.size > 0 ? await listLayerLinksByLayerIds([...layerIdSet]) : [];
 
         const repairedResult = await persistRepairedLayerConstraints({
           layers: layersAfterImport,

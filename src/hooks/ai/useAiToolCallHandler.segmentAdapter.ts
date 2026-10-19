@@ -1,5 +1,11 @@
-import type { LayerUnitDocType } from '../../db';
-import { getDb } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
+import {
+  captureCanonicalClusterRollback,
+  readSegmentLayerStoredText,
+  reinsertSegmentGraphForRollback,
+  restoreCanonicalClusterRollback,
+  snapshotSegmentGraphForRollback,
+} from '../../db/storagePortChatSegments';
 import {
   createdUnitId,
   presentUnitCount,
@@ -11,15 +17,7 @@ import {
 import { getTranscriptionAppService } from '../../app/TranscriptionAppService';
 import { t, tf } from '../../i18n';
 import { getAiToolSegmentExecutionToolNames } from '../../ai/policy/aiToolPolicyMatrix';
-import {
-  captureAiCanonicalClusterRollbackSnapshot,
-  getAiStructuralRollbackMaxSelectionIds,
-  restoreAiCanonicalClusterRollbackSnapshot,
-} from '../../services/AiCanonicalClusterRollbackSnapshot';
-import {
-  reinsertLayerSegmentGraphSubset,
-  snapshotLayerSegmentGraphBySegmentIds,
-} from '../../services/LayerSegmentGraphService';
+import { getAiStructuralRollbackMaxSelectionIds } from '../../services/AiCanonicalClusterRollbackSnapshot';
 import { mediaDurationSecForTimeBounds } from '../../utils/timelineMediaDurationForBounds';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import { normalizeRequestedIds } from './useAiToolCallHandler.helpers';
@@ -42,9 +40,7 @@ async function segmentLayerTextLanded(
   expected: string,
 ): Promise<boolean | undefined> {
   try {
-    const db = await getDb();
-    const rows = await db.dexie.layer_unit_contents.where('unitId').equals(segmentId).toArray();
-    const stored = rows.find((row) => row.layerId === layerId)?.text?.trim() ?? '';
+    const stored = await readSegmentLayerStoredText(segmentId, layerId);
     return stored === expected.trim();
   } catch {
     return undefined;
@@ -197,12 +193,10 @@ async function buildSegmentDeleteGraphRollback(
   if (segmentIds.length > getAiStructuralRollbackMaxSelectionIds()) return undefined;
   const sync = ctx.silentSegmentGraphSyncForAi;
   if (!sync) return undefined;
-  const db = await getDb();
-  const snapshot = await snapshotLayerSegmentGraphBySegmentIds(db, segmentIds);
+  const snapshot = await snapshotSegmentGraphForRollback(segmentIds);
   if (snapshot.units.length !== segmentIds.length) return undefined;
   return async () => {
-    const dbInst = await getDb();
-    await reinsertLayerSegmentGraphSubset(dbInst, snapshot);
+    await reinsertSegmentGraphForRollback(snapshot);
     await sync();
   };
 }
@@ -213,12 +207,10 @@ async function buildSilentCanonicalMergeRollback(
 ): Promise<(() => Promise<void>) | undefined> {
   const sync = ctx.silentSegmentGraphSyncForAi;
   if (!sync) return undefined;
-  const db = await getDb();
-  const snap = await captureAiCanonicalClusterRollbackSnapshot(db, canonicalIds);
+  const snap = await captureCanonicalClusterRollback(canonicalIds);
   if (!snap) return undefined;
   return async () => {
-    const dbInst = await getDb();
-    await restoreAiCanonicalClusterRollbackSnapshot(dbInst, snap);
+    await restoreCanonicalClusterRollback(snap);
     await sync();
   };
 }
@@ -256,23 +248,19 @@ async function buildCombinedTimelineSelectionDeleteRollback(
     return !parent || !canonicalSet.has(parent);
   });
 
-  const db = await getDb();
   const segmentRb =
     standaloneSegmentIds.length > 0
       ? await buildSegmentDeleteGraphRollback(ctx, standaloneSegmentIds)
       : undefined;
   const canonSnap =
-    canonicalLaneIds.length > 0
-      ? await captureAiCanonicalClusterRollbackSnapshot(db, canonicalLaneIds)
-      : null;
+    canonicalLaneIds.length > 0 ? await captureCanonicalClusterRollback(canonicalLaneIds) : null;
   if (canonicalLaneIds.length > 0 && !canonSnap) return undefined;
   if (standaloneSegmentIds.length > 0 && !segmentRb) return undefined;
   if (!canonSnap && !segmentRb) return undefined;
 
   return async () => {
     if (canonSnap) {
-      const dbInst = await getDb();
-      await restoreAiCanonicalClusterRollbackSnapshot(dbInst, canonSnap);
+      await restoreCanonicalClusterRollback(canonSnap);
     }
     if (segmentRb) {
       await segmentRb();

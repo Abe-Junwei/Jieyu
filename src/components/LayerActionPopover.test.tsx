@@ -15,23 +15,19 @@ const {
   mockCreateOrthographyBridge,
   mockListLanguageCatalogEntries,
   mockUseOrthographies,
-  mockGetDb,
+  mockReadTierDefinitionForLayerForm,
 } = vi.hoisted(() => ({
   mockCreateOrthography: vi.fn(),
   mockCloneOrthographyToLanguage: vi.fn(),
   mockCreateOrthographyBridge: vi.fn(),
   mockListLanguageCatalogEntries: vi.fn(),
   mockUseOrthographies: vi.fn(),
-  mockGetDb: vi.fn(),
+  mockReadTierDefinitionForLayerForm: vi.fn(),
 }));
 
-vi.mock('../db', async () => {
-  const actual = await vi.importActual<typeof import('../db')>('../db');
-  return {
-    ...actual,
-    getDb: mockGetDb,
-  };
-});
+vi.mock('../db/storagePortImportTiers', () => ({
+  readTierDefinitionForLayerForm: (layerId: string) => mockReadTierDefinitionForLayerForm(layerId),
+}));
 
 vi.mock('../services/LinguisticService.orthography', () => ({
   createOrthographyRecord: mockCreateOrthography,
@@ -58,14 +54,8 @@ describe('LayerActionPopover orthography creation', () => {
     mockListLanguageCatalogEntries.mockReset();
     mockListLanguageCatalogEntries.mockResolvedValue([]);
     mockUseOrthographies.mockReset();
-    mockGetDb.mockReset();
-    mockGetDb.mockResolvedValue({
-      dexie: {
-        tier_definitions: {
-          get: async () => undefined,
-        },
-      },
-    });
+    mockReadTierDefinitionForLayerForm.mockReset();
+    mockReadTierDefinitionForLayerForm.mockResolvedValue(undefined);
   });
 
   function makeLayer(overrides: Partial<LayerDocType> = {}): LayerDocType {
@@ -122,25 +112,19 @@ describe('LayerActionPopover orthography creation', () => {
       constraint: 'symbolic_association',
     });
     const rootLayer = makeLayer({ id: 'trc-root', key: 'trc-root', name: { zho: '根层' } });
-    mockGetDb.mockResolvedValue({
-      dexie: {
-        tier_definitions: {
-          get: async () => ({
-            id: 'trc-edit-1',
-            textId: 'text-1',
-            key: 'bridge_trc-edit-1',
-            name: { zho: '默认转写' },
-            tierType: 'time-aligned',
-            contentType: 'transcription',
-            participantId: 'speaker-a',
-            dataCategory: 'speech',
-            delimiter: '|',
-            sortOrder: 3,
-            createdAt: NOW,
-            updatedAt: NOW,
-          }),
-        },
-      },
+    mockReadTierDefinitionForLayerForm.mockResolvedValue({
+      id: 'trc-edit-1',
+      textId: 'text-1',
+      key: 'bridge_trc-edit-1',
+      name: { zho: '默认转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      participantId: 'speaker-a',
+      dataCategory: 'speech',
+      delimiter: '|',
+      sortOrder: 3,
+      createdAt: NOW,
+      updatedAt: NOW,
     });
     const updateLayerMetadata = vi.fn(async () => true);
 
@@ -193,24 +177,18 @@ describe('LayerActionPopover orthography creation', () => {
       name: { zho: '译层' },
       languageId: 'eng',
     });
-    mockGetDb.mockResolvedValue({
-      dexie: {
-        tier_definitions: {
-          get: async () => ({
-            id: 'trl-edit-1',
-            textId: 'text-1',
-            key: 'bridge_trl-edit-1',
-            name: { zho: '译层' },
-            tierType: 'time-aligned',
-            contentType: 'translation',
-            participantId: 'translator-1',
-            dataCategory: 'translation',
-            delimiter: '||',
-            createdAt: NOW,
-            updatedAt: NOW,
-          }),
-        },
-      },
+    mockReadTierDefinitionForLayerForm.mockResolvedValue({
+      id: 'trl-edit-1',
+      textId: 'text-1',
+      key: 'bridge_trl-edit-1',
+      name: { zho: '译层' },
+      tierType: 'time-aligned',
+      contentType: 'translation',
+      participantId: 'translator-1',
+      dataCategory: 'translation',
+      delimiter: '||',
+      createdAt: NOW,
+      updatedAt: NOW,
     });
 
     renderWithLocale(

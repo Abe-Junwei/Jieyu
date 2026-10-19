@@ -31,6 +31,13 @@ vi.mock('../../db', async (importOriginal) => {
     getDb: (...args: unknown[]) => mockGetDb(...args),
   };
 });
+vi.mock('../../db/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../db/engine')>();
+  return {
+    ...actual,
+    getDb: (...args: unknown[]) => mockGetDb(...args),
+  };
+});
 vi.mock('../../services/LayerSegmentationTextService', () => ({
   listUnitTextsByUnit: (...args: unknown[]) => mockListUnitTextsByUnit(...args),
 }));

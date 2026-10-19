@@ -1,16 +1,23 @@
 import { useCallback } from 'react';
 import {
-  getDb,
   layerTranscriptionTreeParentId,
   stripForbiddenTranslationParentLayerId,
-} from '../../db';
-import type {
-  LayerLinkDocType,
-  MediaItemDocType,
-  LayerDocType,
-  LayerUnitDocType,
-  LayerUnitContentDocType,
-} from '../../db';
+  type LayerLinkDocType,
+  type MediaItemDocType,
+  type LayerDocType,
+  type LayerUnitDocType,
+  type LayerUnitContentDocType,
+} from '../../db/types';
+import {
+  deleteTranscriptionLayerLink,
+  deleteTranscriptionLayerLinksBySelector,
+  deleteTranscriptionLayerSegmentGraph,
+  insertTranscriptionLayerLink,
+  listTranscriptionUnitPrimaryKeysByTextId,
+  listTranscriptionUnitTextsByUnits,
+  updateTranscriptionLayerLink,
+  updateTranscriptionLayerSortOrder,
+} from '../../db/storagePortTranscriptionLayers';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { LinguisticService } from '../../services/LinguisticService';
 import { newId } from '../../utils/transcriptionFormatters';
@@ -31,11 +38,6 @@ import {
   assertTranscriptionDependencyLayerInvariant,
   scopeLayerLinksToLayerIdSet,
 } from '../../utils/transcriptionLayerDependencyInvariant';
-import { listUnitTextsByUnits } from '../../services/LayerSegmentationTextService';
-import {
-  deleteLayerSegmentGraphByLayerId,
-  listUnitUnitPrimaryKeysByTextId,
-} from '../../services/LayerSegmentGraphService';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { LayerSegmentationV2Service } from '../../services/LayerSegmentationV2Service';
@@ -160,7 +162,6 @@ export function useTranscriptionLayerActions({
 
       if (translationsToRewire.length === 0) return null;
 
-      const db = await getDb();
       const now = new Date().toISOString();
 
       for (const translationLayerId of translationsToRewire) {
@@ -172,9 +173,7 @@ export function useTranscriptionLayerActions({
 
         const removableLinks = nextLayerLinks.filter((link) => link.layerId === translationLayerId);
         if (removableLinks.length > 0) {
-          await Promise.all(
-            removableLinks.map((link) => db.collections.layer_links.remove(link.id)),
-          );
+          await Promise.all(removableLinks.map((link) => deleteTranscriptionLayerLink(link.id)));
           const removableIds = new Set(removableLinks.map((link) => link.id));
           nextLayerLinks = nextLayerLinks.filter((link) => !removableIds.has(link.id));
           changed = true;
@@ -199,7 +198,7 @@ export function useTranscriptionLayerActions({
           linkedTranslationLayerId: translationLayerId,
           createdAt: now,
         });
-        await db.collections.layer_links.insert(newLink);
+        await insertTranscriptionLayerLink(newLink);
         nextLayerLinks = [...nextLayerLinks, newLink];
         changed = true;
       }
@@ -212,7 +211,6 @@ export function useTranscriptionLayerActions({
   const persistLayerState = useCallback(
     async (previousLayers: LayerDocType[], nextLayers: LayerDocType[]) => {
       const previousById = new Map(previousLayers.map((layer) => [layer.id, layer] as const));
-      const db = await getDb();
 
       for (const layer of nextLayers) {
         const previous = previousById.get(layer.id);
@@ -236,7 +234,7 @@ export function useTranscriptionLayerActions({
           if (!sortChanged) continue;
         }
 
-        await LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db);
+        await updateTranscriptionLayerSortOrder(layer.id, layer.sortOrder ?? 0);
       }
     },
     [],
@@ -377,7 +375,6 @@ export function useTranscriptionLayerActions({
       const newSortOrder = maxSortOrder + 1;
 
       try {
-        const db = await getDb();
         const now = new Date().toISOString();
         const id = newId('layer');
         const textId =
@@ -486,7 +483,7 @@ export function useTranscriptionLayerActions({
             return link;
           });
           if (autoLinks.length > 0) {
-            await Promise.all(autoLinks.map((link) => db.collections.layer_links.insert(link)));
+            await Promise.all(autoLinks.map((link) => insertTranscriptionLayerLink(link)));
           }
         }
 
@@ -546,7 +543,6 @@ export function useTranscriptionLayerActions({
         return;
       }
 
-      const db = await getDb();
       const deleteCheck = canDeleteLayer(layers, effectiveLayerId, layerLinks);
       if (!deleteCheck.allowed) {
         if (!options?.silent) {
@@ -575,16 +571,13 @@ export function useTranscriptionLayerActions({
 
         const affectedByProjectScope =
           !keepUnits && isDeletingLastTranscription
-            ? await listUnitUnitPrimaryKeysByTextId(
-                db,
+            ? await listTranscriptionUnitPrimaryKeysByTextId(
                 targetLayer.textId,
                 new Set(layers.map((item) => item.id)),
               )
             : [];
-        const { affectedUnitIds: affectedByLayerTexts } = await deleteLayerSegmentGraphByLayerId(
-          db,
-          effectiveLayerId,
-        );
+        const { affectedUnitIds: affectedByLayerTexts } =
+          await deleteTranscriptionLayerSegmentGraph(effectiveLayerId);
         const affectedUnitIds = !keepUnits
           ? [...new Set([...affectedByLayerTexts, ...affectedByProjectScope])]
           : [];
@@ -615,7 +608,7 @@ export function useTranscriptionLayerActions({
               const removableLinks = nextLayerLinks.filter((link) => link.layerId === trlId);
               if (removableLinks.length > 0) {
                 await Promise.all(
-                  removableLinks.map((link) => db.collections.layer_links.remove(link.id)),
+                  removableLinks.map((link) => deleteTranscriptionLayerLink(link.id)),
                 );
                 const removableIds = new Set(removableLinks.map((link) => link.id));
                 nextLayerLinks = nextLayerLinks.filter((link) => !removableIds.has(link.id));
@@ -628,18 +621,18 @@ export function useTranscriptionLayerActions({
                 linkedTranslationLayerId: trlId,
                 createdAt: now,
               });
-              await db.collections.layer_links.insert(relink);
+              await insertTranscriptionLayerLink(relink);
               nextLayerLinks = [...nextLayerLinks, relink];
             }
           }
-          await db.collections.layer_links.removeBySelector({
+          await deleteTranscriptionLayerLinksBySelector({
             transcriptionLayerKey: targetLayer.key,
           });
           nextLayerLinks = nextLayerLinks.filter(
             (link) => link.transcriptionLayerKey !== targetLayer.key,
           );
         } else {
-          await db.collections.layer_links.removeBySelector({ layerId: effectiveLayerId });
+          await deleteTranscriptionLayerLinksBySelector({ layerId: effectiveLayerId });
           nextLayerLinks = nextLayerLinks.filter((link) => link.layerId !== effectiveLayerId);
         }
         await LayerTierUnifiedService.deleteLayer(targetLayer);
@@ -647,7 +640,7 @@ export function useTranscriptionLayerActions({
         let removedUnitIds = new Set<string>();
         if (!keepUnits && affectedUnitIds.length > 0) {
           const uniqueIds = [...new Set(affectedUnitIds)];
-          const remainingTexts = await listUnitTextsByUnits(db, uniqueIds);
+          const remainingTexts = await listTranscriptionUnitTextsByUnits(uniqueIds);
           const stillReferencedIds = new Set(remainingTexts.map((d) => d.unitId));
           const orphanIds = uniqueIds.filter((id) => !stillReferencedIds.has(id));
           if (orphanIds.length > 0) {
@@ -827,7 +820,6 @@ export function useTranscriptionLayerActions({
         if (preferredOnTarget) return;
 
         pushUndo(t(locale, 'transcription.layer.undo.adjustDependency'));
-        const db = await getDb();
         const nextLayerLinks = layerLinks.map((link) => {
           if (link.layerId !== layerId) return link;
           const hid = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
@@ -837,7 +829,7 @@ export function useTranscriptionLayerActions({
           const prev = layerLinks[i]!;
           const next = nextLayerLinks[i]!;
           if (prev.isPreferred !== next.isPreferred) {
-            await db.collections.layer_links.update(prev.id, { isPreferred: next.isPreferred });
+            await updateTranscriptionLayerLink(prev.id, { isPreferred: next.isPreferred });
           }
         }
         const nextLayers = computeCanonicalLayerOrder(layers, nextLayerLinks);
@@ -849,7 +841,6 @@ export function useTranscriptionLayerActions({
 
       pushUndo(t(locale, 'transcription.layer.undo.adjustDependency'));
       const now = new Date().toISOString();
-      const db = await getDb();
 
       if (existingLinksForTranslation.length > 0) {
         const hasPreferred = existingLinksForTranslation.some((link) => link.isPreferred);
@@ -863,7 +854,7 @@ export function useTranscriptionLayerActions({
         const newLink: LayerLinkDocType = !hasPreferred
           ? { ...baseLink, isPreferred: true }
           : baseLink;
-        await db.collections.layer_links.insert(newLink);
+        await insertTranscriptionLayerLink(newLink);
         const extendedLinks = [...layerLinks, newLink];
         const nextLayers = computeCanonicalLayerOrder(layers, extendedLinks);
         await persistLayerState(layers, nextLayers);
@@ -894,7 +885,7 @@ export function useTranscriptionLayerActions({
       if (changedSortLayers.length > 0) {
         await Promise.all(
           changedSortLayers.map((layer) =>
-            LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db),
+            updateTranscriptionLayerSortOrder(layer.id, layer.sortOrder ?? 0),
           ),
         );
       }
@@ -906,7 +897,7 @@ export function useTranscriptionLayerActions({
         linkedTranslationLayerId: layerId,
         createdAt: now,
       });
-      await db.collections.layer_links.insert(newLink);
+      await insertTranscriptionLayerLink(newLink);
 
       setLayers(nextLayers);
       setLayerLinks((prev) => [...prev.filter((link) => link.layerId !== layerId), newLink]);
@@ -954,7 +945,6 @@ export function useTranscriptionLayerActions({
       if (removeIds.size === 0) return;
 
       pushUndo(t(locale, 'transcription.layer.undo.adjustDependency'));
-      const db = await getDb();
       const now = new Date().toISOString();
       const remainingLinks = layerLinks.filter((link) => !removeIds.has(link.id));
       const existingFallback = remainingLinks.find(
@@ -981,13 +971,13 @@ export function useTranscriptionLayerActions({
         ...(existingFallback ? [] : [{ ...fallbackLink, isPreferred: true }]),
       ];
 
-      await Promise.all([...removeIds].map((id) => db.collections.layer_links.remove(id)));
+      await Promise.all([...removeIds].map((id) => deleteTranscriptionLayerLink(id)));
       for (const link of nextLayerLinks) {
         const previous = layerLinks.find((item) => item.id === link.id);
         if (!previous) {
-          await db.collections.layer_links.insert(link);
+          await insertTranscriptionLayerLink(link);
         } else if (previous.isPreferred !== link.isPreferred) {
-          await db.collections.layer_links.update(link.id, { isPreferred: link.isPreferred });
+          await updateTranscriptionLayerLink(link.id, { isPreferred: link.isPreferred });
         }
       }
       const nextLayers = computeCanonicalLayerOrder(layers, nextLayerLinks);

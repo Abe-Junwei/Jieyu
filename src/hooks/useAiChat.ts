@@ -21,7 +21,7 @@ import {
   readDevStreamPersistIntervalMs,
 } from './ai/useAiChat.config';
 import { newAuditLogId, nowIso } from './ai/useAiChat.helpers';
-import { getDb } from '../db';
+import { storagePort } from '../db/storagePort';
 import { executeConfirmedToolCall } from './ai/useAiChat.confirmExecution';
 import { enrichContextWithRag } from './ai/useAiChat.rag';
 import type { AiChatBackgroundMemoryRuntime } from './ai/useAiChat.backgroundMemory';
@@ -369,8 +369,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     persistSessionMemory(sessionMemoryRef.current);
     void (async () => {
       try {
-        const db = await getDb();
-        await db.collections.audit_logs.insert({
+        await storagePort().audit.insertAuditLog({
           id: newAuditLogId(),
           collection: 'ai_messages',
           documentId: 'session_memory',
@@ -609,8 +608,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     sessionMemoryRef.current = resetSessionMemoryForClear(sessionMemoryRef.current);
     void (async () => {
       try {
-        const db = await getDb();
-        await db.collections.audit_logs.insert({
+        await storagePort().audit.insertAuditLog({
           id: newAuditLogId(),
           collection: 'ai_messages',
           documentId: 'session_memory',

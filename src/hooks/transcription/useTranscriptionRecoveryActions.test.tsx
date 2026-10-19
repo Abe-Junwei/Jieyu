@@ -22,8 +22,7 @@ const {
   })),
 }));
 
-vi.mock('../../db', () => ({
-  getDb: vi.fn(async () => ({})),
+vi.mock('../../db/io', () => ({
   importDatabaseFromJson: mockImportDatabaseFromJson,
 }));
 

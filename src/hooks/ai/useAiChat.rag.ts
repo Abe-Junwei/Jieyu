@@ -1,4 +1,9 @@
-import { type AiMessageCitation, getDb } from '../../db';
+import type { AiMessageCitation } from '../../db/types';
+import {
+  listUnitTextsForRag,
+  readMediaItemById,
+  readUserNoteById,
+} from '../../db/storagePortChatRag';
 import type { AiPromptContext } from '../../ai/chat/chatDomain.types';
 import type { EmbeddingSearchService } from '../../ai/embeddings/EmbeddingSearchService';
 import { extractPdfSnippet } from '../../ai/embeddings/pdfTextUtils';
@@ -18,7 +23,6 @@ import { withTimeout } from './useAiChat.config';
 import { getActiveProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 import { createLogger } from '../../observability/logger';
 import { createMetricTags, recordMetric } from '../../observability/metrics';
-import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
 
 const log = createLogger('useAiChat.rag');
 
@@ -298,7 +302,6 @@ export async function enrichContextWithRag({
       };
     }
 
-    const db = await getDb();
     const idSet = buildLocalUnitIdSetForRagCitationCheck(promptContext);
     const readModelEpoch = promptContext?.shortTerm?.timelineReadModelEpoch;
     const settledResults = await Promise.allSettled(
@@ -308,8 +311,7 @@ export async function enrichContextWithRag({
         if (match.sourceType === 'note') {
           // 分块笔记 sourceId 带 #chunk=N 后缀，需取 baseRef 查库 | Chunked note sourceId has #chunk=N suffix, strip to base ID for DB lookup
           const { baseRef: noteBaseId } = splitPdfCitationRef(match.sourceId);
-          const noteRows = await db.collections.user_notes.findByIndex('id', noteBaseId);
-          const noteDoc = noteRows[0]?.toJSON();
+          const noteDoc = await readUserNoteById(noteBaseId);
           if (noteDoc?.content) {
             const contentByLang = noteDoc.content as Record<string, string>;
             snippet = (
@@ -320,13 +322,12 @@ export async function enrichContextWithRag({
             ).trim();
           }
         } else if (match.sourceType === 'unit') {
-          const textRows = await listUnitTextsByUnit(db, match.sourceId);
+          const textRows = await listUnitTextsForRag(match.sourceId);
           const textWithContent = textRows.find((row) => row.text?.trim());
           snippet = textWithContent?.text?.trim() ?? '';
         } else if (match.sourceType === 'pdf') {
           const { baseRef } = splitPdfCitationRef(match.sourceId);
-          const mediaRows = await db.collections.media_items.findByIndex('id', baseRef);
-          const mediaDoc = mediaRows[0]?.toJSON();
+          const mediaDoc = await readMediaItemById(baseRef);
           const details = mediaDoc?.details as Record<string, unknown> | undefined;
           snippet = extractPdfSnippet(details, 300);
         }

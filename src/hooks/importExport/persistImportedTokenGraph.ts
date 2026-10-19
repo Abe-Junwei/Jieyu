@@ -1,5 +1,6 @@
-import type { TokenLexemeLinkDocType, UnitMorphemeDocType, UnitTokenDocType } from '../../db';
-import { getDb, isLexemeEntry } from '../../db';
+import type { TokenLexemeLinkDocType, UnitMorphemeDocType, UnitTokenDocType } from '../../db/types';
+import { readOwnedLexemeEntryId } from '../../db/storagePortImportLexicon';
+import { putTokenLexemeLinks, replaceHostTokenGraph } from '../../db/storagePortImportTokenGraph';
 import { LinguisticService } from '../../services/LinguisticService';
 import { newId } from '../../utils/transcriptionFormatters';
 
@@ -34,11 +35,10 @@ async function resolveImportedLexemeId(
   cache: Map<string, string>,
   explicitId?: string,
 ): Promise<string | undefined> {
-  const explicit = explicitId?.trim();
-  if (explicit) {
-    const db = await getDb();
-    const row = await db.dexie.lexemes.get(explicit);
-    if (row && isLexemeEntry(row) && row.textId === textId) return row.id;
+  const explicit = explicitId?.trim() ?? '';
+  if (explicit.length > 0) {
+    const owned = await readOwnedLexemeEntryId(textId, explicit);
+    if (owned !== undefined && owned.length > 0) return owned;
   }
   const surface =
     (typeof form.default === 'string' && form.default.trim()) ||
@@ -58,21 +58,6 @@ async function resolveImportedLexemeId(
   });
   if (lexemeId) cache.set(cacheKey, lexemeId);
   return lexemeId;
-}
-
-async function replaceHostTokenGraph(hostUnitId: string): Promise<void> {
-  const db = await getDb();
-  const oldTokens = await db.dexie.unit_tokens.where('unitId').equals(hostUnitId).toArray();
-  const oldMorphs = await db.dexie.unit_morphemes.where('unitId').equals(hostUnitId).toArray();
-  const linkTargets = [
-    ...oldTokens.map((row) => ['token', row.id] as [string, string]),
-    ...oldMorphs.map((row) => ['morpheme', row.id] as [string, string]),
-  ];
-  if (linkTargets.length > 0) {
-    await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(linkTargets).delete();
-  }
-  await db.dexie.unit_morphemes.where('unitId').equals(hostUnitId).delete();
-  await db.dexie.unit_tokens.where('unitId').equals(hostUnitId).delete();
 }
 
 /** One writer per import. The surface-form cache stays inside it. */
@@ -162,8 +147,7 @@ export function createImportedTokenGraphWriter(input: {
         });
       }
       if (linkRows.length > 0) {
-        const db = await getDb();
-        await db.dexie.token_lexeme_links.bulkPut(linkRows);
+        await putTokenLexemeLinks(linkRows);
       }
     },
   };

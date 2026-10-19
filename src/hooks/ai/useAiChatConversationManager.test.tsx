@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
+import * as chatMessages from '../../db/storagePortChatMessages';
 import { resetSessionMemoryStoreForTests } from '../../ai/chat/sessionMemory';
 import { useAiChatConversationManager } from './useAiChatConversationManager';
 import type { UiChatMessage } from './useAiChat.types';
@@ -206,13 +207,11 @@ describe('useAiChatConversationManager', () => {
     const clearMessagesGate = new Promise<void>((resolve) => {
       releaseClearMessages = resolve;
     });
-    const originalRemoveBySelector = db.collections.ai_messages.removeBySelector.bind(
-      db.collections.ai_messages,
-    );
-    vi.spyOn(db.collections.ai_messages, 'removeBySelector').mockImplementation(
-      async (selector) => {
+    const originalDeleteMessages = chatMessages.deleteAiMessagesByConversation;
+    vi.spyOn(chatMessages, 'deleteAiMessagesByConversation').mockImplementation(
+      async (conversationId) => {
         await clearMessagesGate;
-        return originalRemoveBySelector(selector);
+        return originalDeleteMessages(conversationId);
       },
     );
 

@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { getDb } from '../../db';
+import { insertChatAuditLog } from '../../db/storagePortChatAudit';
 import { featureFlags } from '../../ai/config/featureFlags';
 import {
   deactivateSessionDirective as deactivateSessionDirectiveFromMemory,
@@ -33,30 +33,26 @@ export function useAiChatDirectiveSessionControls(options: {
       const activeConversationId = conversationIdRef.current;
       if (!activeConversationId) return;
       const timestamp = nowIso();
-      void getDb()
-        .then((db) =>
-          db.collections.audit_logs.insert({
-            id: newAuditLogId(),
-            collection: 'ai_messages',
-            documentId: activeConversationId,
-            action: 'update',
-            field: 'ai_user_directive_mutation',
-            oldValue: '',
-            newValue: mutationType,
-            source: 'human',
-            timestamp,
-            requestId: `directive_mutation_${mutationType}_${timestamp}`,
-            metadataJson: JSON.stringify({
-              schemaVersion: 1,
-              phase: 'user_directive_mutation',
-              mutationType,
-              ...payload,
-            }),
-          }),
-        )
-        .catch(() => {
-          // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
-        });
+      void insertChatAuditLog({
+        id: newAuditLogId(),
+        collection: 'ai_messages',
+        documentId: activeConversationId,
+        action: 'update',
+        field: 'ai_user_directive_mutation',
+        oldValue: '',
+        newValue: mutationType,
+        source: 'human',
+        timestamp,
+        requestId: `directive_mutation_${mutationType}_${timestamp}`,
+        metadataJson: JSON.stringify({
+          schemaVersion: 1,
+          phase: 'user_directive_mutation',
+          mutationType,
+          ...payload,
+        }),
+      }).catch(() => {
+        // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
+      });
     },
     [conversationIdRef],
   );

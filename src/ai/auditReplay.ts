@@ -1,4 +1,8 @@
-import { db as appDb } from '../db';
+import {
+  listRecentAuditLogsByCollectionField,
+  listAuditLogsByRequestId,
+} from '../db/storagePortAiAuditReplay';
+import { listAiMessageIdsByConversation } from '../db/storagePortAiMessages';
 import { mapAuditRowToAiToolDecisionLog, type AiToolDecisionLogItem } from './toolDecisionLog';
 import {
   AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD,
@@ -6,7 +10,6 @@ import {
   type ParsedVerticalWorkflowAuditEntry,
 } from './vertical/verticalWorkflowAudit';
 import { createLogger } from '../observability/logger';
-import { getDb } from '../db';
 
 const log = createLogger('auditReplay');
 
@@ -17,9 +20,8 @@ export type AuditReplayListOptions = Readonly<{
 }>;
 
 async function loadMessageIdsForConversation(conversationId: string): Promise<Set<string>> {
-  const db = await getDb();
-  const rows = await db.collections.ai_messages.findByIndex('conversationId', conversationId);
-  return new Set(rows.map((row) => row.id));
+  const ids = await listAiMessageIdsByConversation(conversationId);
+  return new Set(ids);
 }
 
 type AuditSource = 'human' | 'ai' | 'system';
@@ -140,15 +142,11 @@ export async function listRecentAiToolDecisionLogs(
 ): Promise<AiToolDecisionLogItem[]> {
   const resolvedLimit = options?.limit ?? limit;
   const fetchLimit = options?.conversationId ? Math.max(resolvedLimit * 12, 48) : resolvedLimit;
-  const rows = await appDb.audit_logs
-    .where('[collection+field+timestamp]')
-    .between(
-      ['ai_messages', 'ai_tool_call_decision', ''],
-      ['ai_messages', 'ai_tool_call_decision', '\uffff'],
-    )
-    .reverse()
-    .limit(fetchLimit)
-    .toArray();
+  const rows = await listRecentAuditLogsByCollectionField(
+    'ai_messages',
+    'ai_tool_call_decision',
+    fetchLimit,
+  );
 
   if (!options?.conversationId) {
     return rows.slice(0, resolvedLimit).map((item) => mapAuditRowToAiToolDecisionLog(item));
@@ -170,15 +168,11 @@ export async function listRecentAiVerticalWorkflowAuditEntries(
 ): Promise<ParsedVerticalWorkflowAuditEntry[]> {
   const resolvedLimit = options?.limit ?? limit;
   const fetchLimit = options?.conversationId ? Math.max(resolvedLimit * 12, 48) : resolvedLimit;
-  const rows = await appDb.audit_logs
-    .where('[collection+field+timestamp]')
-    .between(
-      ['ai_messages', AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD, ''],
-      ['ai_messages', AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD, '\uffff'],
-    )
-    .reverse()
-    .limit(fetchLimit)
-    .toArray();
+  const rows = await listRecentAuditLogsByCollectionField(
+    'ai_messages',
+    AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD,
+    fetchLimit,
+  );
 
   const messageIds = options?.conversationId
     ? await loadMessageIdsForConversation(options.conversationId)
@@ -197,7 +191,7 @@ export async function listRecentAiVerticalWorkflowAuditEntries(
 export async function loadAiToolReplayBundle(
   requestId: string,
 ): Promise<AiToolReplayBundle | null> {
-  const rows = (await appDb.audit_logs.where('requestId').equals(requestId).toArray())
+  const rows = (await listAuditLogsByRequestId(requestId))
     .filter((row) => row.collection === 'ai_messages')
     .sort(compareIsoTimestampAsc);
 

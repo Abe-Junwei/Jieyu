@@ -1,4 +1,3 @@
-import { getDb } from '../../db';
 import type {
   AnchorDocType,
   LayerLinkDocType,
@@ -6,7 +5,7 @@ import type {
   LayerDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
-} from '../../db';
+} from '../../db/types';
 import type { TimingUndoState } from '../../utils/selectionUtils';
 import type { SaveState, TimelineUnit } from './transcriptionTypes';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
@@ -29,20 +28,9 @@ type Params = {
   timingUndoRef: React.MutableRefObject<TimingUndoState | null>;
   pushUndo: (label: string) => void;
   rollbackUndo?: () => Promise<void>;
-  createAnchor: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    mediaId: string,
-    time: number,
-  ) => Promise<AnchorDocType>;
-  updateAnchorTime: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    anchorId: string,
-    newTime: number,
-  ) => Promise<void>;
-  pruneOrphanAnchors: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    removedUnitIds: Set<string>,
-  ) => Promise<void>;
+  createAnchor: (mediaId: string, time: number) => Promise<AnchorDocType>;
+  updateAnchorTime: (anchorId: string, newTime: number) => Promise<void>;
+  pruneOrphanAnchors: (removedUnitIds: Set<string>) => Promise<void>;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
   setLayerCreateMessage: React.Dispatch<React.SetStateAction<string>>;
   setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;

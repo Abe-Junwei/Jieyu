@@ -1,8 +1,7 @@
 /**
  * LIFT 0.13 → DMLex JSON projection. Unmapped FLEx fields become diagnostics.
  */
-import { getDb } from '../db';
-import { withTransaction } from '../db/withTransaction';
+import { listForeignLexemeIds, runLiftLexemeTransaction } from '../db/storagePortImportLexicon';
 import { LinguisticService } from '../services/LinguisticService';
 import { DMLEX_HOMOGRAPH, DMLEX_SUBSENSE } from '../db/dmlexTypes';
 import type { LexemeDocType, LexemeEntryDoc, LexemeResourceDoc } from '../db/types';
@@ -29,10 +28,7 @@ export type LexiconLiftDiagnostic = {
 };
 
 export type LexiconLiftImportReason =
-  | 'invalid-xml'
-  | 'unsupported-version'
-  | 'empty'
-  | 'save-failed';
+  'invalid-xml' | 'unsupported-version' | 'empty' | 'save-failed';
 
 export type LexiconLiftParseResult =
   | {
@@ -82,17 +78,8 @@ export function defaultLiftImportDeps(textId: string): LexiconLiftImportDeps {
     announce: (ids) => {
       for (const lexemeId of ids) dispatchWorkspaceLexemeUpdated({ lexemeId });
     },
-    listForeignIds: async (ids) => {
-      const db = await getDb();
-      const rows = await db.dexie.lexemes.bulkGet(ids);
-      return new Set(
-        rows.flatMap((row) => (row !== undefined && row.textId !== textId ? [row.id] : [])),
-      );
-    },
-    runAtomic: async (work) => {
-      const db = await getDb();
-      return withTransaction(db, 'rw', [db.dexie.lexemes], work, { label: 'lift-import' });
-    },
+    listForeignIds: (ids) => listForeignLexemeIds(textId, ids),
+    runAtomic: (work) => runLiftLexemeTransaction(work),
   };
 }
 

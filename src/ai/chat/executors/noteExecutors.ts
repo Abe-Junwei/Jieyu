@@ -6,8 +6,8 @@
 import type { AiPromptContext } from '../chatDomain.types';
 import type { LocalContextToolResult } from '../localContextToolTypes';
 import type { AiLocalToolReadModelMeta } from '../chatDomain.types';
-import type { NoteCategory, UserNoteDocType } from '../../../db';
-import { getDb } from '../../../db';
+import { listRecentUserNotes } from '../../../db/storagePortAiContextReads';
+import type { NoteCategory, UserNoteDocType } from '../../../db/types';
 import { normalizeUnitScope } from '../localContextToolScopeNormalize';
 import { buildReadModelMetaWithSource } from './readModelMeta';
 import { normalizeTextValue } from './argNormalizers';
@@ -175,8 +175,7 @@ export async function listNotesDetail(
 
   let fetched: UserNoteDocType[];
   try {
-    const db = await getDb();
-    fetched = await db.dexie.user_notes.orderBy('updatedAt').reverse().limit(800).toArray();
+    fetched = await listRecentUserNotes(800);
   } catch {
     return { ok: false, name: 'list_notes_detail', result: null, error: 'notes_read_failed' };
   }

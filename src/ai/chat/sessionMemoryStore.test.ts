@@ -4,6 +4,7 @@ import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AiSessionMemory } from './chatDomain.types';
 import * as dbModule from '../../db';
+import * as sessionMemoryRows from '../../db/storagePortAiSessionMemory';
 import {
   bindSessionMemoryConversation,
   loadSessionMemoryAsync,
@@ -24,20 +25,15 @@ describe('loadSessionMemoryAsync', () => {
     const conversationId = 'conv-hydration-race';
     bindSessionMemoryConversation(conversationId);
 
-    let resolveDexieRead!: (value: null) => void;
-    const dexieRead = new Promise<null>((resolve) => {
+    let resolveDexieRead!: (value: undefined) => void;
+    const dexieRead = new Promise<undefined>((resolve) => {
       resolveDexieRead = resolve;
     });
 
-    vi.spyOn(dbModule, 'getDb').mockResolvedValue({
-      collections: {
-        ai_session_memories: {
-          findOne: () => ({
-            exec: () => dexieRead,
-          }),
-        },
-      },
-    } as never);
+    const originalRead = sessionMemoryRows.readAiSessionMemory;
+    vi.spyOn(sessionMemoryRows, 'readAiSessionMemory').mockImplementation((id) =>
+      id === conversationId ? dexieRead : originalRead(id),
+    );
 
     const loadPromise = loadSessionMemoryAsync(conversationId);
 
@@ -45,7 +41,7 @@ describe('loadSessionMemoryAsync', () => {
       preferences: { lastLanguage: 'fra' },
     });
 
-    resolveDexieRead(null);
+    resolveDexieRead(undefined);
 
     await expect(loadPromise).resolves.toMatchObject({
       preferences: { lastLanguage: 'fra' },
@@ -57,7 +53,10 @@ describe('loadSessionMemoryAsync', () => {
     bindSessionMemoryConversation(conversationId);
 
     const staleRow = {
-      toJSON: () => ({ payload: { preferences: { lastLanguage: 'cmn' } } }),
+      id: conversationId,
+      conversationId,
+      payload: { preferences: { lastLanguage: 'cmn' } },
+      updatedAt: '2020-01-01T00:00:00.000Z',
     };
 
     let resolveDexieRead!: (value: typeof staleRow) => void;
@@ -65,15 +64,10 @@ describe('loadSessionMemoryAsync', () => {
       resolveDexieRead = resolve;
     });
 
-    vi.spyOn(dbModule, 'getDb').mockResolvedValue({
-      collections: {
-        ai_session_memories: {
-          findOne: () => ({
-            exec: () => dexieRead,
-          }),
-        },
-      },
-    } as never);
+    const originalRead = sessionMemoryRows.readAiSessionMemory;
+    vi.spyOn(sessionMemoryRows, 'readAiSessionMemory').mockImplementation((id) =>
+      id === conversationId ? dexieRead : originalRead(id),
+    );
 
     const loadPromise = loadSessionMemoryAsync(conversationId);
 
@@ -92,20 +86,15 @@ describe('loadSessionMemoryAsync', () => {
     const conversationA = 'conv-stale-hydrate-a';
     const conversationB = 'conv-stale-hydrate-b';
 
-    let resolveDexieReadA!: (value: null) => void;
-    const dexieReadA = new Promise<null>((resolve) => {
+    let resolveDexieReadA!: (value: undefined) => void;
+    const dexieReadA = new Promise<undefined>((resolve) => {
       resolveDexieReadA = resolve;
     });
 
-    const getDbSpy = vi.spyOn(dbModule, 'getDb').mockResolvedValue({
-      collections: {
-        ai_session_memories: {
-          findOne: () => ({
-            exec: () => dexieReadA,
-          }),
-        },
-      },
-    } as never);
+    const originalRead = sessionMemoryRows.readAiSessionMemory;
+    const getDbSpy = vi
+      .spyOn(sessionMemoryRows, 'readAiSessionMemory')
+      .mockImplementation((id) => (id === conversationA ? dexieReadA : originalRead(id)));
 
     bindSessionMemoryConversation(conversationA);
     const loadPromiseA = loadSessionMemoryAsync(conversationA);
@@ -115,7 +104,7 @@ describe('loadSessionMemoryAsync', () => {
       preferences: { lastLanguage: 'eng' },
     });
 
-    resolveDexieReadA(null);
+    resolveDexieReadA(undefined);
     await loadPromiseA;
 
     getDbSpy.mockRestore();

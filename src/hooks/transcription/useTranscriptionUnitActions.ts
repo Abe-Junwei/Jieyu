@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import { dexieStoresForLayerUnitsTableRead, getDb } from '../../db';
 import type {
   AnchorDocType,
   MediaItemDocType,
@@ -8,7 +7,12 @@ import type {
   LayerUnitContentDocType,
   LayerUnitStatus,
   ProvenanceEnvelope,
-} from '../../db';
+} from '../../db/types';
+import {
+  readTranscriptionLayerUnitsByIds,
+  readTranscriptionUnitById,
+  upsertTranscriptionSegments,
+} from '../../db/storagePortTranscriptionUnits';
 import { LinguisticService } from '../../services/LinguisticService';
 
 import type { TimingUndoState } from '../../utils/selectionUtils';
@@ -17,15 +21,12 @@ import { createTimelineUnit, type SaveState, type TimelineUnit } from './transcr
 
 import { useTranscriptionVoiceTranslationActions } from './useTranscriptionVoiceTranslationActions';
 
-import { LayerUnitSegmentWriteService } from '../../services/LayerUnitSegmentWriteService';
 import { scheduleSegmentMetaSyncForUnitIds } from '../../services/segmentMetaSyncBestEffort';
 import { t, useLocale } from '../../i18n';
 import { getUndoLabel } from './useTranscriptionUnitActions.helpers';
 import { createTranscriptionUnitBatchActions } from './useTranscriptionUnitActions.batchActions';
 import { createLogger } from '../../observability/logger';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
-import { getUnitDocProjectionById } from '../../services/LayerSegmentGraphService';
-
 import {
   createSaveUnitText,
   createSaveUnitLayerText,
@@ -108,20 +109,9 @@ export type TranscriptionUnitActionsParams = {
   timingUndoRef: React.MutableRefObject<TimingUndoState | null>;
   pushUndo: (label: string) => void;
   rollbackUndo?: () => Promise<void>;
-  createAnchor: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    mediaId: string,
-    time: number,
-  ) => Promise<AnchorDocType>;
-  updateAnchorTime: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    anchorId: string,
-    newTime: number,
-  ) => Promise<void>;
-  pruneOrphanAnchors: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    removedUnitIds: Set<string>,
-  ) => Promise<void>;
+  createAnchor: (mediaId: string, time: number) => Promise<AnchorDocType>;
+  updateAnchorTime: (anchorId: string, newTime: number) => Promise<void>;
+  pruneOrphanAnchors: (removedUnitIds: Set<string>) => Promise<void>;
   setSaveState: (s: SaveState) => void;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
@@ -199,10 +189,10 @@ export function useTranscriptionUnitActions({
   }, [setSelectedTimelineUnit, setSelectedUnitIds]);
 
   const resolveUnitById = useCallback(
-    async (db: Awaited<ReturnType<typeof getDb>>, unitId: string) => {
+    async (unitId: string) => {
       const local = unitsRef.current.find((item) => item.id === unitId);
       if (local) return local;
-      return (await getUnitDocProjectionById(db, unitId)) ?? null;
+      return readTranscriptionUnitById(unitId);
     },
     [unitsRef],
   );
@@ -547,15 +537,8 @@ export function useTranscriptionUnitActions({
 
       const localTargets = unitsRef.current.filter((u) => idSet.has(u.id));
       const unresolvedIds = [...idSet].filter((id) => !localTargets.some((u) => u.id === id));
-      const db = await getDb();
       const persistedTargets =
-        unresolvedIds.length > 0
-          ? await db.dexie.transaction('r', ...dexieStoresForLayerUnitsTableRead(db), async () =>
-              (await db.dexie.layer_units.bulkGet(unresolvedIds)).filter(
-                (row): row is LayerUnitDocType => Boolean(row),
-              ),
-            )
-          : [];
+        unresolvedIds.length > 0 ? await readTranscriptionLayerUnitsByIds(unresolvedIds) : [];
       const targets = [...localTargets, ...persistedTargets];
       if (targets.length === 0) return;
 
@@ -577,7 +560,7 @@ export function useTranscriptionUnitActions({
       }
 
       if (updatedSegments.length > 0) {
-        await LayerUnitSegmentWriteService.upsertSegments(db, updatedSegments);
+        await upsertTranscriptionSegments(updatedSegments);
         scheduleSegmentMetaSyncForUnitIds(
           updatedSegments.map((item) => item.id),
           'useTranscriptionUnitActions.savePerLayerFields',

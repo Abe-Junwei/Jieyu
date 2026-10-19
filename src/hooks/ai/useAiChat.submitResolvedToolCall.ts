@@ -5,11 +5,13 @@
 import { normalizeToolCallName } from '../../ai/chat/toolCallNameNormalize';
 import { applyAssistantMessageResult } from '../../ai/chat/applyAssistantMessageResult';
 import { persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
-import { getDb } from '../../db';
+import {
+  insertAssistantChatPlaceholder,
+  insertUserChatMessage,
+} from '../../db/storagePortChatMessages';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
 import { genRequestId } from './useAiChat.toolAudit';
 import { newMessageId, nowIso } from './useAiChat.helpers';
-import { persistAssistantPlaceholder, persistUserMessage } from './useAiChat.sendTurnPersistPhase';
 import type { ConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import type { AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import type { Locale } from '../../i18n';
@@ -111,14 +113,13 @@ export async function submitResolvedToolCall(
   const timestamp = nowIso();
   const userId = newMessageId('user');
   const assistantId = newMessageId('assistant');
-  const db = await getDb();
-  await persistUserMessage(db, {
+  await insertUserChatMessage({
     id: userId,
     conversationId,
     content: input.userText,
     timestamp,
   });
-  await persistAssistantPlaceholder(db, {
+  await insertAssistantChatPlaceholder({
     id: assistantId,
     conversationId,
     generationSource: 'local',
