@@ -213,6 +213,53 @@ describe('T26 local removal (rev5 9.1, D6)', () => {
       setItem.mockRestore();
     }
   });
+
+  it('restores the earlier removed time and name when cleanup cannot be queued again', async () => {
+    const earlier = {
+      boundAt: '2026-10-01T00:00:00.000Z',
+      removedLocallyAt: '2026-10-02T00:00:00.000Z',
+      removedProjectName: '旧名字',
+      updatedAt: '2026-10-02T00:00:00.000Z',
+    };
+    storage.setItem(COLLAB_LOCAL_PROJECT_REGISTRY_KEY, JSON.stringify({ p1: earlier }));
+    const original = storage.setItem.bind(storage);
+    const setItem = vi.spyOn(storage, 'setItem').mockImplementation((key, value) => {
+      if (key === PROJECT_CLEANUP_JOBS_STORAGE_KEY) throw new Error('queue unavailable');
+      original(key, value);
+    });
+    try {
+      await expect(removeProjectFromDevice('p1', { projectName: '新名字' }, deps)).rejects.toThrow(
+        'queue unavailable',
+      );
+    } finally {
+      setItem.mockRestore();
+    }
+    const registry = JSON.parse(storage.getItem(COLLAB_LOCAL_PROJECT_REGISTRY_KEY) ?? '{}');
+    expect(registry.p1).toMatchObject({
+      boundAt: earlier.boundAt,
+      removedLocallyAt: earlier.removedLocallyAt,
+      removedProjectName: '旧名字',
+    });
+  });
+
+  it('leaves no registry record behind when there was none and cleanup cannot be queued', async () => {
+    saveProjectPendingOutboundChanges('p1', [pendingChange('p1')], storage);
+    expect(planProjectRemoval('p1', storage).mode).toBe('remove-local');
+    const original = storage.setItem.bind(storage);
+    const setItem = vi.spyOn(storage, 'setItem').mockImplementation((key, value) => {
+      if (key === PROJECT_CLEANUP_JOBS_STORAGE_KEY) throw new Error('queue unavailable');
+      original(key, value);
+    });
+    try {
+      await expect(
+        removeProjectFromDevice('p1', { discardUnsyncedChanges: true }, deps),
+      ).rejects.toThrow('queue unavailable');
+    } finally {
+      setItem.mockRestore();
+    }
+    const registry = JSON.parse(storage.getItem(COLLAB_LOCAL_PROJECT_REGISTRY_KEY) ?? '{}');
+    expect(registry).not.toHaveProperty('p1');
+  });
 });
 
 describe('T24 cleanup jobs survive interruption', () => {

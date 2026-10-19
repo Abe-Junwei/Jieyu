@@ -78,6 +78,8 @@ export const enUSDictionary = {
     'This recording still has audio, segments, or anchors, so the entry stays.',
   'app.files.removeEmptyRecordingRefreshPending':
     'This recording was removed. The board has not refreshed yet.',
+  'app.files.removeEmptyRecordingReadbackFailed':
+    'The removal could not be confirmed. Refresh the board to check whether this recording is still there.',
   'app.files.removeEmptyRecordingKeepUnits':
     'Existing segments and anchors stay in the project and are no longer attached to this recording. ',
   'app.home.templateRules': 'Templates and language conventions',
@@ -1567,6 +1569,10 @@ export const enUSDictionary = {
   'transcription.action.audioImported': 'Media "{filename}" imported successfully.',
   'transcription.action.audioImportedDurationFailed':
     'Media "{filename}" was imported, but the logical timeline adjustment did not finish. Check the timeline; do not import it again.',
+  'transcription.action.audioImportedBindFailed':
+    'Media "{filename}" was imported, but segments not yet attached to a recording could not be attached to it. Check the timeline; do not import it again.',
+  'transcription.action.audioAlreadyImported':
+    'This project already has "{filename}" with identical content, so it was not imported again.',
   'transcription.action.audioImportSelectPlaceholder':
     'This project has several placeholder timelines. Select the one to attach the audio to on the timeline, then import again.',
   'transcription.action.relinkContentMismatchConfirm':
@@ -2524,6 +2530,8 @@ export const enUSDictionary = {
   'transcription.importExport.conflict':
     'Import failed: data was modified by another operation. Refresh and try again.',
   'transcription.importExport.failed': 'Import failed: {message}',
+  'transcription.importExport.importedFollowUpFailed':
+    'The file was imported and saved, but a later step failed: {message}. Check the result; do not import it again.',
   'transcription.importExport.projectWrittenViewStale':
     'The project is written, but the view has not refreshed.',
   'transcription.importExport.writtenViewStale': 'Written, but the view has not refreshed.',

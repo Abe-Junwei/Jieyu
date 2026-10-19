@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildProjectIdRemap, remapProjectCollections } from './projectPackageIdRemap';
 
 describe('project package id remap', () => {
@@ -29,5 +29,24 @@ describe('project package id remap', () => {
     expect(out.languages![0]).toEqual({ id: 'user:x', textId: t });
     // 输入不变 | Input untouched
     expect(collections.tier_definitions[0]!.id).toBe('L1');
+  });
+
+  it('allocates v4 UUIDs by default when crypto only has getRandomValues (http pages)', () => {
+    const original = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: original.getRandomValues.bind(original) });
+    try {
+      const map = buildProjectIdRemap({
+        texts: [{ id: 't1' }],
+        tier_definitions: [{ id: 'L1', textId: 't1' }],
+      });
+      const ids = [...map.values()];
+      expect(ids).toHaveLength(2);
+      for (const id of ids) {
+        expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      }
+      expect(new Set(ids).size).toBe(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

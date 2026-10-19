@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptyRecordingRemovalByteBlock,
   isAuxiliaryRecordingMediaRow,
   isMediaItemBytesMissing,
   isMediaItemPlaceholderRow,
@@ -56,5 +57,20 @@ describe('media item state fields (2B-C)', () => {
       true,
     );
     expect(isAuxiliaryRecordingMediaRow({ details: {} })).toBe(false);
+  });
+
+  it('uses one removal rule: placeholders and rows with bytes are blocked, legacy rows without timelineKind are not', () => {
+    expect(emptyRecordingRemovalByteBlock({ timelineKind: 'placeholder', details: {} })).toBe(
+      'not-acoustic',
+    );
+    expect(
+      emptyRecordingRemovalByteBlock({
+        timelineKind: 'acoustic',
+        details: { audioBlob: new Blob(['x']) },
+      }),
+    ).toBe('has-bytes');
+    expect(emptyRecordingRemovalByteBlock({ timelineKind: 'acoustic', details: {} })).toBeNull();
+    const legacy = { details: {} } as Parameters<typeof emptyRecordingRemovalByteBlock>[0];
+    expect(emptyRecordingRemovalByteBlock(legacy)).toBeNull();
   });
 });

@@ -2,7 +2,11 @@ import '../../styles/components/project-file-list.css';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { recordingRemovalBlockReason, storagePort } from '../../db/storagePort';
+import {
+  recordingRemovalBlockReason,
+  StorageReadbackError,
+  storagePort,
+} from '../../db/storagePort';
 import { t, tf, useLocale, type Locale } from '../../i18n';
 import { LinguisticService } from '../../services/LinguisticService';
 import {
@@ -607,9 +611,11 @@ export function ProjectFileBrowser(props: {
         setActionError(
           reason
             ? t(locale, 'app.files.removeEmptyRecordingBlocked')
-            : error instanceof Error
-              ? error.message
-              : t(locale, 'app.files.removeEmptyRecordingBlocked'),
+            : error instanceof StorageReadbackError
+              ? t(locale, 'app.files.removeEmptyRecordingReadbackFailed')
+              : error instanceof Error
+                ? error.message
+                : t(locale, 'app.files.removeEmptyRecordingBlocked'),
         );
         return;
       }

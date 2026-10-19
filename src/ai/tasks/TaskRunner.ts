@@ -133,6 +133,8 @@ export function backoffDelay(attempt: number, baseMs = 500, maxMs = 8000): numbe
   return Math.min(baseMs * 2 ** (attempt - 2), maxMs);
 }
 
+const DONE_STATUS_WRITE_ATTEMPTS = 3;
+
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (ms <= 0) return Promise.resolve();
   return new Promise((resolve) => {
@@ -387,14 +389,7 @@ export class TaskRunner {
           continue;
         }
         // The business run has returned. A status-write failure must never run it again.
-        try {
-          await this.updateTaskStatus(task.taskId, 'done');
-        } catch (error) {
-          log.error('Task completed but recording done status failed', {
-            err: error,
-            taskId: task.taskId,
-          });
-        }
+        await this.recordDoneStatus(task.taskId);
         terminalStatus = 'done';
         task.completed = true;
         task.resolve(result);
@@ -535,6 +530,23 @@ export class TaskRunner {
       ...(status === 'done' || status === 'failed' ? { completedAt: nowIso() } : {}),
       ...(errorMessage !== undefined && errorMessage.length > 0 ? { errorMessage } : {}),
     });
+  }
+
+  /**
+   * 只重试状态写入：行停在 running 的话，下次启动 `recoverStaleTasks` 会把已完成的任务记成失败。
+   * Retries only the status write: a row left `running` would be recovered as failed on next start.
+   */
+  private async recordDoneStatus(taskId: string): Promise<void> {
+    for (let attempt = 1; attempt <= DONE_STATUS_WRITE_ATTEMPTS; attempt += 1) {
+      await sleep(backoffDelay(attempt, 100));
+      try {
+        await this.updateTaskStatus(taskId, 'done');
+        return;
+      } catch (error) {
+        if (attempt < DONE_STATUS_WRITE_ATTEMPTS) continue;
+        log.error('Task completed but recording done status failed', { err: error, taskId });
+      }
+    }
   }
 
   private async updateTaskAttempt(
