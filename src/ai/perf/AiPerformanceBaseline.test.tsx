@@ -118,6 +118,14 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
+vi.mock('../config/aiChatSettingsStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../config/aiChatSettingsStorage')>();
+  return {
+    ...actual,
+    persistAiChatSettings: vi.fn(async () => {}),
+  };
+});
+
 vi.mock('../../db', () => ({
   getDb: vi.fn(() => Promise.resolve(hoisted.mockDb)),
   db: {
@@ -186,8 +194,13 @@ describe('AI performance baseline', () => {
   });
 
   it('chat stream persistence interval does not increase ai_messages write frequency', async () => {
+    const { getDb } = await import('../../db/engine');
+    const database = await getDb();
+    const put = vi.spyOn(database.dexie.ai_messages, 'put');
     const runScenario = async (intervalMs: number): Promise<number> => {
       hoisted.resetStores();
+      put.mockClear();
+      await database.dexie.ai_messages.clear();
 
       const { result, unmount } = renderHook(() =>
         useAiChat({ streamPersistIntervalMs: intervalMs }),
@@ -205,14 +218,14 @@ describe('AI performance baseline', () => {
         expect(result.current.isStreaming).toBe(false);
       });
 
-      const writeCount =
-        hoisted.aiMessagesInsert.mock.calls.length + hoisted.aiMessagesUpdate.mock.calls.length;
+      const writeCount = put.mock.calls.length;
       unmount();
       return writeCount;
     };
 
     const denseWrites = await runScenario(16);
     const sparseWrites = await runScenario(500);
+    put.mockRestore();
 
     expect(denseWrites).toBeGreaterThan(0);
     expect(sparseWrites).toBeGreaterThan(0);

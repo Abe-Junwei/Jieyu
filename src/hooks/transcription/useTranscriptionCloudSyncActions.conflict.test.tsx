@@ -45,6 +45,7 @@ const {
         put: vi.fn(async (row: Record<string, unknown>) => {
           mockAuditLogRows.push(row);
         }),
+        get: vi.fn(async (id: string) => mockAuditLogRows.find((row) => row.id === id)),
       },
     },
     collections: {
@@ -106,6 +107,11 @@ vi.mock('../../collaboration/cloud/collaborationSupabaseFacade', () => ({
 vi.mock('../../db', () => ({
   getDb: mockGetDb,
 }));
+
+vi.mock('../../db/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../db/engine')>();
+  return { ...actual, getDb: mockGetDb };
+});
 
 function buildParams(): UseTranscriptionCloudSyncActionsParams {
   const noop = vi.fn(async () => undefined);

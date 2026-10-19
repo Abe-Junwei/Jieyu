@@ -78,6 +78,14 @@ vi.mock('../../db', async () => {
   };
 });
 
+vi.mock('../../db/engine', async () => {
+  const actual = await vi.importActual<typeof import('../../db/engine')>('../../db/engine');
+  return {
+    ...actual,
+    getDb: mockGetDb,
+  };
+});
+
 vi.mock('../../db/storagePortImportReads', () => ({
   readTextRow: mockReadTextRow,
   listUnitNotes: mockListUnitNotes,
