@@ -130,6 +130,7 @@ export function WorkbenchFilePane(props: {
       return;
     }
     let alreadyImported = false;
+    let unitBindingFailed = false;
     try {
       const result = await LinguisticService.media.importAudio({
         textId,
@@ -139,6 +140,7 @@ export function WorkbenchFilePane(props: {
         ...(replaceMediaId ? { importMode: 'replace' as const, replaceMediaId } : {}),
       });
       alreadyImported = result.alreadyImported === true;
+      unitBindingFailed = result.unitBindingFailed === true;
     } catch (error) {
       const mismatch =
         error instanceof MediaContentMismatchError
@@ -154,7 +156,7 @@ export function WorkbenchFilePane(props: {
           });
           return;
         }
-        await LinguisticService.media.importAudio({
+        const result = await LinguisticService.media.importAudio({
           textId,
           audioBlob: file,
           filename: file.name,
@@ -163,6 +165,7 @@ export function WorkbenchFilePane(props: {
           replaceMediaId: mismatch.mediaId,
           acknowledgeContentMismatch: true,
         });
+        unitBindingFailed = result.unitBindingFailed === true;
       } else if (
         error instanceof Error &&
         error.name === 'AudioImportPlaceholderSelectionRequiredError'
@@ -177,12 +180,16 @@ export function WorkbenchFilePane(props: {
       }
     }
     setSaveState(
-      alreadyImported
+      alreadyImported || unitBindingFailed
         ? {
             kind: 'error',
-            message: tf(locale, 'transcription.action.audioAlreadyImported', {
-              filename: file.name,
-            }),
+            message: tf(
+              locale,
+              alreadyImported
+                ? 'transcription.action.audioAlreadyImported'
+                : 'transcription.action.audioImportedBindFailed',
+              { filename: file.name },
+            ),
           }
         : {
             kind: 'done',

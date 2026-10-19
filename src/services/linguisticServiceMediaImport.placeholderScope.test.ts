@@ -3,7 +3,7 @@
  * rev5 Batch 1 T11: importing audio replaces only the selected placeholder timeline (N4).
  */
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
 import type { MediaItemDocType } from '../db';
 import { LinguisticService } from './LinguisticService';
@@ -272,6 +272,31 @@ describe('importAudio placeholder scope (T11 / N4)', () => {
     expect(await db.media_items.where('textId').equals(TEXT_ID).count()).toBe(2);
     const original = await db.media_items.get('media_missing');
     expect(await (original?.details as { audioBlob: Blob }).audioBlob.text()).toBe('wav');
+  });
+
+  it('keeps the committed audio and reports it when binding unbound units fails afterwards', async () => {
+    await db.media_items.bulkDelete(['media_ph_a', 'media_ph_b', 'media_missing']);
+    await db.layer_units.bulkDelete(['seg_a', 'seg_b', 'seg_missing']);
+    await seedUnit('seg_unbound', '__unknown_media__', 0, 1);
+    const bulkPut = vi
+      .spyOn(db.layer_units, 'bulkPut')
+      .mockRejectedValueOnce(new Error('bind write failed'));
+
+    const result = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: new Blob(['bytes-X'], { type: 'audio/wav' }),
+      filename: 'a.wav',
+      duration: 20,
+    });
+    bulkPut.mockRestore();
+
+    expect(result.unitBindingFailed).toBe(true);
+    const stored = await db.media_items.get(result.mediaId);
+    expect(await (stored?.details as { audioBlob: Blob }).audioBlob.text()).toBe('bytes-X');
+    expect(stored?.contentSha256).toBe(result.contentSha256);
+    await expect(db.layer_units.get('seg_unbound')).resolves.toEqual(
+      expect.objectContaining({ mediaId: '__unknown_media__' }),
+    );
   });
 
   it('stores both recordings when a.wav is imported twice with different bytes', async () => {

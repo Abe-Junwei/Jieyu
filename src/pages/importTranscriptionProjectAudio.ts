@@ -94,9 +94,10 @@ export async function importTranscriptionProjectAudio(input: {
   let mediaId: string;
   let contentSha256: string | undefined;
   let alreadyImported: true | undefined;
+  let unitBindingFailed: true | undefined;
   try {
     try {
-      ({ mediaId, contentSha256, alreadyImported } =
+      ({ mediaId, contentSha256, alreadyImported, unitBindingFailed } =
         await transcriptionAppService.importAudio(importPayload));
     } catch (error) {
       // Relink 的新字节与原录音指纹不符：先让用户确认（rev5 T20）。
@@ -109,7 +110,7 @@ export async function importTranscriptionProjectAudio(input: {
         });
         return;
       }
-      ({ mediaId, contentSha256 } = await transcriptionAppService.importAudio({
+      ({ mediaId, contentSha256, unitBindingFailed } = await transcriptionAppService.importAudio({
         ...importPayload,
         acknowledgeContentMismatch: true,
       }));
@@ -179,34 +180,24 @@ export async function importTranscriptionProjectAudio(input: {
   }
   clearPendingAudioImportSelection();
   const writtenTextId = textId;
+  const partialKey = durationWriteFailed
+    ? 'transcription.action.audioImportedDurationFailed'
+    : unitBindingFailed
+      ? 'transcription.action.audioImportedBindFailed'
+      : null;
+  const showPartial = (key: string) => () =>
+    setSaveState({ kind: 'error', message: tfB(key, { filename: file.name }) });
   await reloadAfterWrite({
     reload: () => loadSnapshot(writtenTextId),
     setSaveState,
     locale,
-    ...(durationWriteFailed
-      ? {
-          onRetryReloaded: () =>
-            setSaveState({
-              kind: 'error',
-              message: tfB('transcription.action.audioImportedDurationFailed', {
-                filename: file.name,
-              }),
-            }),
-        }
-      : {}),
-    onReloaded: () =>
-      setSaveState(
-        durationWriteFailed
-          ? {
-              kind: 'error',
-              message: tfB('transcription.action.audioImportedDurationFailed', {
-                filename: file.name,
-              }),
-            }
-          : {
-              kind: 'done',
-              message: tfB('transcription.action.audioImported', { filename: file.name }),
-            },
-      ),
+    ...(partialKey ? { onRetryReloaded: showPartial(partialKey) } : {}),
+    onReloaded: partialKey
+      ? showPartial(partialKey)
+      : () =>
+          setSaveState({
+            kind: 'done',
+            message: tfB('transcription.action.audioImported', { filename: file.name }),
+          }),
   });
 }

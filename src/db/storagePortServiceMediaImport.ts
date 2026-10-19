@@ -21,6 +21,9 @@ import {
   resolveLogicalDurationAfterAcousticImport,
 } from '../utils/timelineLogicalDurationSync';
 import { LayerSegmentQueryService } from './storagePortServiceLayerSegmentQuery';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('mediaImportService');
 
 /**
  * 项目里有多条占位时间轴、调用方又没有指定要挂接哪一条时抛出；不会自动合并任何占位轴。
@@ -74,13 +77,31 @@ const UNBOUND_MEDIA_ID = '__unknown_media__';
 
 /**
  * `alreadyImported`：同名录音的字节完全相同，没有写入新行。
+ * `unitBindingFailed`：音频已提交，之后把未绑定语段挂上去的那一步失败；音频保留。
  * `alreadyImported`: a same-name recording with identical bytes exists; nothing new was written.
+ * `unitBindingFailed`: the audio is committed and kept; binding unbound units afterwards failed.
  */
 export type ImportAudioResult = {
   mediaId: string;
   contentSha256?: string;
   alreadyImported?: true;
+  unitBindingFailed?: true;
 };
+
+async function bindUnboundUnitsAfterCommit(
+  db: Awaited<ReturnType<typeof getDb>>,
+  textId: string,
+  mediaId: string,
+  now: string,
+): Promise<{ unitBindingFailed?: true }> {
+  try {
+    await bindUnboundUnitsWhenSoleRecording(db, textId, mediaId, now);
+    return {};
+  } catch (error) {
+    log.warn('Audio committed but binding unbound units failed', { textId, mediaId, err: error });
+    return { unitBindingFailed: true };
+  }
+}
 
 /** 项目里只有这一条录音名时，把未绑定的语段挂到它上面。多条不同录音时不动。 */
 async function bindUnboundUnitsWhenSoleRecording(
@@ -248,8 +269,8 @@ export async function importAudio(input: {
       const identical =
         sha === undefined ? undefined : playable.find((row) => row.contentSha256 === sha);
       if (identical && sha !== undefined) {
-        await bindUnboundUnitsWhenSoleRecording(db, input.textId, identical.id, now);
-        return { mediaId: identical.id, contentSha256: sha, alreadyImported: true };
+        const bound = await bindUnboundUnitsAfterCommit(db, input.textId, identical.id, now);
+        return { mediaId: identical.id, contentSha256: sha, alreadyImported: true, ...bound };
       }
     }
     const reusable =
@@ -306,8 +327,10 @@ export async function importAudio(input: {
           run: () => refreshMediaTimelineMetadata(targetRow.id),
         },
       });
-      await bindUnboundUnitsWhenSoleRecording(db, input.textId, targetRow.id, now);
-      return relinked;
+      return {
+        ...relinked,
+        ...(await bindUnboundUnitsAfterCommit(db, input.textId, targetRow.id, now)),
+      };
     }
     if (!isMediaItemPlaceholderRow(targetRow)) {
       const contentSha256 = await computeBlobSha256(input.audioBlob);
@@ -342,10 +365,10 @@ export async function importAudio(input: {
         },
         { label: 'LinguisticService.media.importAudio.replace' },
       );
-      await bindUnboundUnitsWhenSoleRecording(db, input.textId, targetRow.id, now);
       return {
         mediaId: targetRow.id,
         ...(contentSha256 !== undefined ? { contentSha256 } : {}),
+        ...(await bindUnboundUnitsAfterCommit(db, input.textId, targetRow.id, now)),
       };
     }
   }
@@ -439,8 +462,11 @@ export async function importAudio(input: {
     { label: 'LinguisticService.media.importAudio' },
   );
 
-  await bindUnboundUnitsWhenSoleRecording(db, input.textId, mediaId, now);
-  return { mediaId, ...(contentSha256 !== undefined ? { contentSha256 } : {}) };
+  return {
+    mediaId,
+    ...(contentSha256 !== undefined ? { contentSha256 } : {}),
+    ...(await bindUnboundUnitsAfterCommit(db, input.textId, mediaId, now)),
+  };
 }
 
 export async function createPlaceholderMedia(input: {

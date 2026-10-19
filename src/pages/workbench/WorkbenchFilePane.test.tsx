@@ -142,4 +142,18 @@ describe('WorkbenchFilePane same-name import', () => {
     expect(importAudio).toHaveBeenCalledTimes(2);
     expect(importAudio.mock.calls[0]?.[0]).not.toHaveProperty('importMode');
   });
+
+  it('says the audio was kept when binding segments to it failed afterwards', async () => {
+    vi.spyOn(LinguisticService.media, 'importAudio').mockResolvedValueOnce({
+      mediaId: 'media-a',
+      unitBindingFailed: true,
+    });
+    renderPane();
+
+    pickMedia(new File(['bytes-X'], 'a.wav', { type: 'audio/wav' }));
+    const notice = await screen.findByText(
+      '媒体「a.wav」已导入，但未挂到录音上的语段没能挂接到它。请检查时间轴，勿重复导入。',
+    );
+    expect(notice.getAttribute('role')).toBe('alert');
+  });
 });
