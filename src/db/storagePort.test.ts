@@ -539,6 +539,17 @@ describe('dexie storage port', () => {
     });
   });
 
+  it('fails the readback when a rebound anchor does not read back as unbound', async () => {
+    await db.media_items.put(emptyRecording('media-unit', 'speech.wav'));
+    await db.anchors.put({ id: 'anchor-1', mediaId: 'media-unit', time: 0, createdAt: NOW });
+    vi.spyOn(db.anchors, 'bulkGet').mockResolvedValueOnce([
+      { id: 'anchor-1', mediaId: 'media-unit', time: 0, createdAt: NOW },
+    ]);
+    await expect(dexieStoragePort.removeEmptyRecording('media-unit')).rejects.toBeInstanceOf(
+      StorageReadbackError,
+    );
+  });
+
   it('removes a row that still claims managed bytes when the blob is empty', async () => {
     await db.media_items.put({
       ...emptyRecording('media-stale', 'speech.wav'),

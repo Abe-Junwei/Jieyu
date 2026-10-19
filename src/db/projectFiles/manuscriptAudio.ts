@@ -12,7 +12,7 @@ export type ManuscriptAudioIssue =
   | { kind: 'multiple-audios'; audioIds: string[] }
   | { kind: 'header-mismatch'; audioId: string | null; unitAudioId: string };
 
-function audioIdOf(mediaId: string | undefined): string | null {
+export function audioIdOf(mediaId: string | undefined): string | null {
   const trimmed = mediaId?.trim() ?? '';
   return trimmed.length > 0 ? trimmed : null;
 }

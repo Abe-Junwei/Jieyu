@@ -9,11 +9,24 @@ import {
   renameFile,
   splitManuscript,
   trashNext,
+  HIDDEN_DIRECTORY,
   type FileProject,
+  type TrackedFile,
 } from './fileOps';
 
 function empty(): FileProject {
   return { files: [], ops: [] };
+}
+
+function file(id: string, relPath: string): TrackedFile {
+  return {
+    id,
+    kind: relPath.endsWith('.jyd') ? 'manuscript' : 'audio',
+    relPath,
+    sha256: null,
+    presence: 'present',
+    audioId: null,
+  };
 }
 
 describe('fileOps', () => {
@@ -156,6 +169,63 @@ describe('fileOps', () => {
     const split = splitManuscript(renamed.project, { opId: 'op-split', manuscriptId: 'doc-1' });
     expect(split.project.files.find((file) => file.id === 'doc-1')?.audioId).toBeNull();
     expect(split.project.files).toHaveLength(2);
+  });
+
+  it('asks instead of hiding onto a file that is already hidden', () => {
+    const project: FileProject = {
+      files: [
+        { ...file('audio-1', `a/rec01.wav`), presence: 'present' },
+        { ...file('audio-2', `${HIDDEN_DIRECTORY}/REC01.wav`), presence: 'present' },
+      ],
+      ops: [],
+    };
+    const result = hideFile(project, { opId: 'op-hide', relPath: 'a/rec01.wav' });
+    expect(result.status).toBe('needs-choice');
+    expect(result.relPath).toBeNull();
+    expect(result.project.files).toEqual(project.files);
+  });
+
+  it('reports a missing or absent file instead of hiding or renaming it', () => {
+    const project: FileProject = {
+      files: [{ ...file('audio-1', 'gone.wav'), presence: 'trashed' }],
+      ops: [],
+    };
+    const hidden = hideFile(project, { opId: 'op-hide', relPath: 'gone.wav' });
+    expect(hidden.status).toBe('not-found');
+    expect(hidden.project).toBe(project);
+    expect(hideFile(project, { opId: 'op-hide-2', relPath: 'nope.wav' }).status).toBe('not-found');
+    const renamed = renameFile(project, { opId: 'op-rename', from: 'nope.wav', to: 'x.wav' });
+    expect(renamed.status).toBe('not-found');
+    expect(renamed.project).toBe(project);
+    expect(renameFile(project, { opId: 'op-r2', from: 'gone.wav', to: 'x.wav' }).status).toBe(
+      'not-found',
+    );
+  });
+
+  it('compares visible names by case-folded stem, like hidden ones', () => {
+    const project: FileProject = {
+      files: [
+        { ...file('audio-1', 'Rec01.wav'), presence: 'present' },
+        { ...file('doc-2', 'notes.jyd'), presence: 'present' },
+      ],
+      ops: [],
+    };
+    expect(renameFile(project, { opId: 'op-1', from: 'notes.jyd', to: 'rec01.jyd' }).status).toBe(
+      'needs-choice',
+    );
+    expect(renameFile(project, { opId: 'op-2', from: 'Rec01.wav', to: 'REC01.flac' }).status).toBe(
+      'complete',
+    );
+    const imported = importFiles(project, {
+      opId: 'op-3',
+      audioId: 'audio-3',
+      manuscriptId: 'doc-3',
+      audioName: 'REC01.mp3',
+      manuscriptName: 'other.jyd',
+      sha256: 'x',
+    });
+    expect(imported.status).toBe('needs-choice');
+    expect(imported.project.files).toEqual(project.files);
   });
 
   it('distinguishes trashed, missing, and bytes that are not on this machine', () => {
