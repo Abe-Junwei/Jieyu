@@ -340,8 +340,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
 
     // Phase 1+2: 检查 V2 layer_segment_contents 而非 unit_texts | Check V2 instead of V1
     const v2Content = (await db.layer_unit_contents.get('utr-legacy')) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
 
     expect(v2Content?.text).toBe('updated');
     expect(v2Content && 'recordedBySpeakerId' in v2Content).toBe(false);
@@ -1186,7 +1185,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
         pushUndo,
         rollbackUndo,
         createAnchor: vi.fn(
-          async (_db, mediaId, time) =>
+          async (mediaId, time) =>
             ({
               id: 'a1',
               mediaId,
@@ -1328,7 +1327,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
         timingUndoRef: { current: null },
         pushUndo: vi.fn(),
         createAnchor: vi.fn(
-          async (_db, mediaId, time) =>
+          async (mediaId, time) =>
             ({
               id: `a_${time}`,
               mediaId,
@@ -1391,7 +1390,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
         timingUndoRef: { current: null },
         pushUndo: vi.fn(),
         createAnchor: vi.fn(
-          async (_db, mediaId, time) =>
+          async (mediaId, time) =>
             ({
               id: `a_${time}`,
               mediaId,
@@ -1578,7 +1577,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
         timingUndoRef: { current: null },
         pushUndo: vi.fn(),
         createAnchor: vi.fn(
-          async (_db, mediaId, time) =>
+          async (mediaId, time) =>
             ({
               id: `a_${time}`,
               mediaId,

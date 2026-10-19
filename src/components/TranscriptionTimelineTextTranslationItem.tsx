@@ -1,4 +1,4 @@
-import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db/types';
 import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import {
   recordingScopeUnitId,
@@ -37,20 +37,17 @@ interface TranscriptionTimelineTextTranslationItemProps {
   recordingUnitId: string | null | undefined;
   recordingLayerId: string | null | undefined;
   startRecordingForUnit:
-    | ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>)
-    | undefined;
+    ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   stopRecording: (() => void) | undefined;
   deleteVoiceTranslation:
-    | ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>)
-    | undefined;
+    ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   transcribeVoiceTranslation?: (
     unit: LayerUnitDocType,
     layer: LayerDocType,
     options?: { signal?: AbortSignal; audioBlob?: Blob },
   ) => Promise<void>;
   saveSegmentContentForLayer:
-    | ((segmentId: string, layerId: string, value: string) => Promise<void>)
-    | undefined;
+    ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
   saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;

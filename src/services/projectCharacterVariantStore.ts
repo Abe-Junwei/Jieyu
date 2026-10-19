@@ -1,4 +1,4 @@
-import { getDb } from '../db';
+import { storagePort } from '../db/storagePort';
 import { projectTextMetadataKey } from '../types/projectTextMetadata';
 import { patchProjectMetadata } from './projectMetadataPatch';
 
@@ -13,10 +13,9 @@ export function readCharacterVariantLines(metadata: unknown): string {
 export async function loadCharacterVariantLines(textId: string): Promise<string> {
   const id = textId.trim();
   if (!id) return '';
-  const database = await getDb();
-  const existing = await database.collections.texts.findOne({ selector: { id } }).exec();
+  const existing = await storagePort().readProject(id);
   if (!existing) return '';
-  return readCharacterVariantLines(existing.toJSON().metadata);
+  return readCharacterVariantLines(existing.metadata);
 }
 
 export async function saveCharacterVariantLines(textId: string, lines: string): Promise<void> {

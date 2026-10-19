@@ -33,16 +33,15 @@ describe('useAiChat.rag scenario resolver', () => {
 // ── enrichContextWithRag 集成测试 | Integration tests ─────────────────────
 
 // 延迟导入：需要在 mock 设置后 | Lazy import: must come after mocks
-vi.mock('../../db', () => ({
-  getDb: vi.fn(async () => ({
-    collections: {
-      user_notes: {
-        findByIndex: vi.fn(async () => [
-          { toJSON: () => ({ id: 'n1', content: { und: '笔记内容 note content for test' } }) },
-        ]),
-      },
-    },
+vi.mock('../../db/storagePortChatRag', () => ({
+  readUserNoteById: vi.fn(async () => ({
+    id: 'n1',
+    content: { und: '笔记内容 note content for test' },
   })),
+  readMediaItemById: vi.fn(async () => undefined),
+  listUnitTextsForRag: vi.fn(async () => [
+    { id: 'st1', unitId: 'u1', text: '测试语段文本 sample unit text', lang: 'cmn' },
+  ]),
 }));
 
 vi.mock('../../ai/embeddings/pdfTextUtils', () => ({

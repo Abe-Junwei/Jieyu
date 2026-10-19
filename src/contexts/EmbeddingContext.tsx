@@ -14,11 +14,22 @@
 import { createContext, useContext } from 'react';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { EmbeddingProviderCreateConfig } from '../ai/embeddings/EmbeddingProvider';
-import type { AiTaskDoc, LayerUnitDocType } from '../db';
+import type { AiTaskDoc, LayerUnitDocType } from '../db/types';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type AiEmbeddingTaskRow = Pick<AiTaskDoc, 'id' | 'taskType' | 'status' | 'updatedAt' | 'modelId' | 'errorMessage' | 'resumable' | 'handoffReason' | 'checkpointJson'>;
+type AiEmbeddingTaskRow = Pick<
+  AiTaskDoc,
+  | 'id'
+  | 'taskType'
+  | 'status'
+  | 'updatedAt'
+  | 'modelId'
+  | 'errorMessage'
+  | 'resumable'
+  | 'handoffReason'
+  | 'checkpointJson'
+>;
 
 export interface EmbeddingContextValue {
   selectedUnit: LayerUnitDocType | null;
@@ -55,11 +66,13 @@ export interface EmbeddingContextValue {
   onFindSimilarUnits: (() => Promise<void>) | undefined;
   onRefreshEmbeddingTasks: (() => Promise<void>) | undefined;
   onJumpToEmbeddingMatch: ((unitId: string) => void) | undefined;
-  onJumpToCitation: ((
-    citationType: 'unit' | 'note' | 'pdf' | 'schema',
-    refId: string,
-    citation?: { snippet?: string },
-  ) => Promise<void> | void) | undefined;
+  onJumpToCitation:
+    | ((
+        citationType: 'unit' | 'note' | 'pdf' | 'schema',
+        refId: string,
+        citation?: { snippet?: string },
+      ) => Promise<void> | void)
+    | undefined;
   onResumeAiTask: ((taskId: string) => Promise<void> | void) | undefined;
   onCancelAiTask: ((taskId: string) => Promise<void>) | undefined;
   onRetryAiTask: ((taskId: string) => Promise<void>) | undefined;
@@ -109,9 +122,5 @@ interface EmbeddingProviderProps {
 }
 
 export function EmbeddingProvider({ children, value }: EmbeddingProviderProps) {
-  return (
-    <EmbeddingContext.Provider value={value}>
-      {children}
-    </EmbeddingContext.Provider>
-  );
+  return <EmbeddingContext.Provider value={value}>{children}</EmbeddingContext.Provider>;
 }

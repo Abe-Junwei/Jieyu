@@ -3,16 +3,16 @@ title: CSS 浏览器兼容矩阵
 doc_type: architecture-spec
 status: active
 owner: repo
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-18
 source_of_truth: css-compat-governance
 ---
 
 # CSS 浏览器兼容矩阵
 
-## 与产品级浏览器策略的关系
+## 与产品交付的关系
 
-- 用户可见的「支持哪些浏览器打开应用」以 **[桌面端浏览器支持策略](./桌面端浏览器支持策略.md)** 为准（含 360 / QQ / 搜狗极速模式等条款）。
-- 本页仅约束 **CSS 能力** 的渐进增强 / 强制降级与脚本门禁，不替代上页。
+- 产品只交付桌面版（[ADR-0063](../adr/0063-desktop-only-after-electron-skeleton.md)）。构建目标是 Electron 44 随附的 Chromium 152（`package.json` 的 `browserslist`）。不对 Chrome、Edge、Firefox、Safari 或国内双核浏览器作支持承诺。
+- 本页只约束开发与测试用浏览器构建里的 **CSS 降级** 与脚本门禁。
 
 ## 支持策略总览
 

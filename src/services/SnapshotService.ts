@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db/types';
 import { exportRecoveryDatabaseAsJson } from '../db/io';
 import { filterCollectionsForProject } from '../db/projectScopedSnapshot';
 import { createLogger } from '../observability/logger';

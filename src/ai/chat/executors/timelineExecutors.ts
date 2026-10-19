@@ -12,7 +12,7 @@ import {
   type SegmentReadQueryScope,
   type SegmentSummary,
 } from '../../queries/segmentReadQueries';
-import type { SegmentMetaDocType } from '../../../db';
+import type { SegmentMetaDocType } from '../../../db/types';
 import type { LocalUnitScope } from '../localContextToolScopeNormalize';
 import { normalizeTextValue } from './argNormalizers';
 

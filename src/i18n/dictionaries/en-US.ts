@@ -4016,9 +4016,9 @@ export const enUSDictionary = {
     aboutVersion: 'Version',
     aboutDescription: 'Jieyu — Endangered Language Research Platform',
     aboutRepo: 'Repository',
-    aboutBrowserSupportTitle: 'Supported browsers (desktop)',
+    aboutBrowserSupportTitle: 'Where it runs',
     aboutBrowserSupportBody:
-      'Recent two stable major releases of Chrome, Edge, Firefox, and Safari. On Windows, 360 / QQ / Sogou are supported only in Chromium speed mode with a kernel version at least matching the Chrome floor. Mobile, tablet, and in-app WebViews are out of scope. Full policy: docs/architecture/桌面端浏览器支持策略.md in the repository.',
+      'Jieyu ships as a desktop app (Apple silicon Mac, and Windows 10 or later on x64). Opening it in a browser is for development and testing only, with no browser support commitment.',
     extensionsHostTitle: 'Host & compatibility',
     extensionsHostVersionLabel: 'Host version (semver)',
     extensionsBlurb:

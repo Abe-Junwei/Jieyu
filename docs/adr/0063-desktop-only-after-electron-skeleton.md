@@ -19,7 +19,7 @@ accepted。用户 2026-10-17 选定。本篇不改已有 ADR 的正文。
 
 ## 背景
 
-[ADR-0046](./0046-desktop-sqlite-project-folder.md) 第 3 条已经把浏览器构建定为「只供开发与测试」，但仓库仍按对外产品维护它：[桌面端浏览器支持策略](../architecture/桌面端浏览器支持策略.md) 对 Chrome、Edge、Firefox、Safari 和国内浏览器做了承诺，CI 每晚跑 Firefox 与 WebKit，新功能也按浏览器保存路径实现（如 [#327](https://github.com/Abe-Junwei/Jieyu/issues/327)）。这些都在给一个不会交给用户的形态付成本。
+[ADR-0046](./0046-desktop-sqlite-project-folder.md) 第 3 条已经把浏览器构建定为「只供开发与测试」，但仓库仍按对外产品维护它：`桌面端浏览器支持策略` 对 Chrome、Edge、Firefox、Safari 和国内浏览器做了承诺，CI 每晚跑 Firefox 与 WebKit，新功能也按浏览器保存路径实现（如 [#327](https://github.com/Abe-Junwei/Jieyu/issues/327)）。这些都在给一个不会交给用户的形态付成本。
 
 ## 决策
 
@@ -30,7 +30,7 @@ accepted。用户 2026-10-17 选定。本篇不改已有 ADR 的正文。
 
 ## 影响
 
-- 触发后：删除 [桌面端浏览器支持策略](../architecture/桌面端浏览器支持策略.md)；`browserslist` 收到 Electron 随附的 Chromium；去掉 Playwright 的 Firefox、WebKit 项目和每晚任务；`AGENTS.md` 里的浏览器支持一条改为指向桌面冒烟。
+- 触发后：删除 `桌面端浏览器支持策略`；`browserslist` 收到 Electron 随附的 Chromium；去掉 Playwright 的 Firefox、WebKit 项目和每晚任务；`AGENTS.md` 里的浏览器支持一条改为指向桌面冒烟。
 - 只在浏览器构建里有意义的代码（keyVault、浏览器侧协作同步等，见 [ADR-0047](./0047-desktop-build-strips-collab-keys-telemetry.md)）在触发后另行清点，本篇不定去留。
 - 浏览器里已经挂着多条录音的旧文稿不在浏览器里处理，迁入时按 ADR-0062 第 5 条拆分。
 

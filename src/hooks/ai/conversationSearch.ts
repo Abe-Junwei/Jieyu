@@ -1,4 +1,4 @@
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import type { AiConversationListItem } from './aiConversationManager.types';
 
 const RECENT_MESSAGE_SCAN_PER_CONVERSATION = 8;
@@ -40,13 +40,11 @@ export async function loadRecentMessageBodiesByConversation(
 ): Promise<Map<string, string[]>> {
   if (conversationIds.length === 0) return new Map();
 
-  const db = await getDb();
   const result = new Map<string, string[]>();
 
   await Promise.all(
     conversationIds.map(async (conversationId) => {
-      const rows = (await db.collections.ai_messages.findByIndex('conversationId', conversationId))
-        .map((doc) => doc.toJSON())
+      const rows = (await storagePort().listAiMessagesByConversation(conversationId))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, maxMessagesPerConversation);
       const bodies = rows

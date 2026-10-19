@@ -8,7 +8,7 @@
  * - Reads only filter by project and never write; without a project they return nothing (D11).
  * - There is no "claim unscoped rows" step any more: write validation keeps such rows out.
  */
-import type { LexemeDocType } from '../db';
+import type { LexemeDocType } from '../db/types';
 import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 
 const CATALOG_PROJECT_REQUIRED_CODE = 'CATALOG_PROJECT_REQUIRED';

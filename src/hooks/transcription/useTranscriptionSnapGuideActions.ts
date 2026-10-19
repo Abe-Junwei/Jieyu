@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import type { SnapGuide } from './transcriptionTypes';
 
 type Params = {

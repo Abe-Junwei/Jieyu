@@ -4,14 +4,79 @@
  * `installStoragePort` 换成经 IPC 的 SQLite 实现（#275），两者都要通过 `storagePortContract.ts`。
  */
 import type {
+  AgentArtifactDoc,
+  AiConversationDoc,
+  AiMessageDoc,
+  AiRuntimeV2TurnDoc,
   AnchorDocType,
   AuditLogDocType,
-  AiRuntimeV2TurnDoc,
+  McpToolCallAuditDoc,
   LayerUnitContentDocType,
   LayerUnitDocType,
+  MediaItemDocType,
+  NoteTargetType,
+  SegmentMetaDocType,
   SpeakerDocType,
+  TextDocType,
+  SourceRecordDocType,
+  TierDefinitionDocType,
+  TrackEntityDocType,
+  TranslationStatusSnapshotDocType,
+  UserNoteDocType,
+  UserNoteDraft,
+  UnitMorphemeDocType,
+  UnitTokenDocType,
 } from './types';
+import {
+  listForeignOwnedLayers,
+  listForeignOwnedMedia,
+  listForeignOwnedUnits,
+  readProject,
+  type ForeignOwnedRow,
+} from './storagePortProjectReads';
+import {
+  countAnchorsByMedia,
+  countUnitTokensByText,
+  listSegmentMetaByText,
+  listSegmentMetaForMediaLayers,
+  listSegmentMetaForTextLayers,
+  listTranslationSnapshotsByMedia,
+  listTranslationSnapshotsByText,
+} from './storagePortProjectProgress';
+import { listUnitMorphemesByText, listUnitTokensByText } from './storagePortCorpusRows';
+import {
+  clearAiConversationMessages,
+  listRecentAiConversations,
+  patchAiConversation,
+  readAiConversation,
+  type AiConversationPatch,
+} from './storagePortConversations';
+import { listMediaByText, listMediaIdsByText, saveMediaItem } from './storagePortMedia';
+import { saveAgentArtifact, readAgentArtifact } from './storagePortAgentArtifacts';
+import { insertMcpToolCallAudit } from './storagePortMcpAudit';
+import { listNotesByTarget, putUserNote } from './storagePortNotes';
+import {
+  countPresentLayerUnits,
+  listAiMessagesByConversation,
+  listAuditLogsByCollection,
+  listAuditLogsByFieldRequest,
+  listLayerUnitIdsByText,
+  listLayerUnitsAtMediaStart,
+  listTierIdsByContentLanguage,
+  patchAiMessageContent,
+  readTierDefinition,
+  type AiMessageContentPatch,
+} from './storagePortWriteProbes';
+import {
+  linkSourceRecordMedia,
+  listSourceRecordRows,
+  registerImportedSourceRecord,
+  renameSourceRecordRow,
+  type SourceRecordRegistration,
+} from './storagePortSourceRecords';
+import type { SourceImportPlan } from '../services/sourceRecordPlan';
 import { db, getDb } from './engine';
+import { StorageReadbackError } from './storageReadbackError';
 import { withTransaction } from './withTransaction';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
 import { isMediaItemPlaceholderRow, mediaRowHasPlayableBytes } from '../utils/mediaItemState';
@@ -43,14 +108,7 @@ export function recordingRemovalBlockReason(
   return undefined;
 }
 
-export class StorageReadbackError extends Error {
-  readonly code = 'STORAGE_READBACK';
-
-  constructor(operation: string) {
-    super(`storage read-back failed after ${operation}`);
-    this.name = 'StorageReadbackError';
-  }
-}
+export { StorageReadbackError } from './storageReadbackError';
 
 type TurnRow = { conversationId: string; createdAt?: unknown; expiresAt?: unknown };
 
@@ -105,6 +163,77 @@ export interface StoragePort {
    * 同名的其他录音不动。
    */
   removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }>;
+  readProject(textId: string): Promise<TextDocType | undefined>;
+  listForeignOwnedUnits(unitIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listForeignOwnedLayers(layerIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listForeignOwnedMedia(mediaIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
+  listTrackEntities(textId: string): Promise<TrackEntityDocType[]>;
+  putTrackEntity(doc: TrackEntityDocType): Promise<void>;
+  readLayerUnit(unitId: string): Promise<LayerUnitDocType | undefined>;
+  countAnnotationDocuments(textId: string): Promise<number>;
+  listSourceRecords(textId: string): Promise<SourceRecordDocType[]>;
+  registerImportedSource(
+    input: SourceRecordRegistration,
+  ): Promise<{ plan: SourceImportPlan; record: SourceRecordDocType }>;
+  renameSourceRecord(
+    textId: string,
+    recordId: string,
+    displayName: string,
+  ): Promise<SourceRecordDocType | undefined>;
+  linkSourceRecordMedia(
+    textId: string,
+    recordId: string,
+    mediaId: string | null,
+  ): Promise<SourceRecordDocType | undefined>;
+  /** 首页进度和项目概览用的只读计数与快照。 */
+  countAnchorsByMedia(mediaId: string): Promise<number>;
+  countUnitTokensByText(textId: string): Promise<number>;
+  listSegmentMetaByText(textId: string): Promise<SegmentMetaDocType[]>;
+  listSegmentMetaForMediaLayers(
+    mediaId: string,
+    layerIds: readonly string[],
+  ): Promise<SegmentMetaDocType[]>;
+  listSegmentMetaForTextLayers(
+    textId: string,
+    layerIds: readonly string[],
+  ): Promise<SegmentMetaDocType[]>;
+  listTranslationSnapshotsByMedia(mediaId: string): Promise<TranslationStatusSnapshotDocType[]>;
+  listTranslationSnapshotsByText(textId: string): Promise<TranslationStatusSnapshotDocType[]>;
+  listUnitTokensByText(textId: string): Promise<UnitTokenDocType[]>;
+  listUnitMorphemesByText(textId: string): Promise<UnitMorphemeDocType[]>;
+  listMediaByText(textId: string): Promise<MediaItemDocType[]>;
+  saveMediaItem(data: MediaItemDocType): Promise<string>;
+  countPresentLayerUnits(ids: readonly string[]): Promise<number>;
+  listLayerUnitIdsByText(textId: string): Promise<string[]>;
+  listLayerUnitsAtMediaStart(mediaId: string, startTime: number): Promise<LayerUnitDocType[]>;
+  readTierDefinition(layerId: string): Promise<TierDefinitionDocType | undefined>;
+  listTierIdsByContentLanguage(
+    contentType: TierDefinitionDocType['contentType'],
+    languageId: string,
+  ): Promise<string[]>;
+  patchAiMessageContent(id: string, patch: AiMessageContentPatch): Promise<void>;
+  listMediaIdsByText(textId: string): Promise<string[]>;
+  listNotesByTarget(targetType: NoteTargetType, targetId: string): Promise<UserNoteDocType[]>;
+  putUserNote(
+    doc: UserNoteDraft,
+  ): Promise<{ id: string; targetId: string; parentTargetId?: string; unitId: string }>;
+  listAiMessagesByConversation(conversationId: string): Promise<AiMessageDoc[]>;
+  listAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]>;
+  listAuditLogsByFieldRequest(
+    collection: string,
+    field: string,
+    requestId: string,
+  ): Promise<AuditLogDocType[]>;
+  insertMcpToolCallAudit(doc: McpToolCallAuditDoc): Promise<void>;
+  readAgentArtifact(id: string): Promise<AgentArtifactDoc | undefined>;
+  saveAgentArtifact(doc: AgentArtifactDoc, audit: AuditLogDocType): Promise<AgentArtifactDoc>;
+  listRecentAiConversations(limit: number): Promise<AiConversationDoc[]>;
+  readAiConversation(id: string): Promise<AiConversationDoc | undefined>;
+  patchAiConversation(
+    id: string,
+    patch: AiConversationPatch,
+  ): Promise<AiConversationDoc | undefined>;
+  clearAiConversationMessages(conversationId: string, updatedAt: string): Promise<boolean>;
 }
 
 function textIdsOf(write: RegexSplitCommit): string[] {
@@ -290,6 +419,50 @@ export const dexieStoragePort: StoragePort = {
   assignSpeakerToMixedSelection,
 
   removeEmptyRecording,
+
+  readProject,
+  listForeignOwnedUnits,
+  listForeignOwnedLayers,
+  listForeignOwnedMedia,
+
+  listTrackEntities,
+  putTrackEntity,
+  readLayerUnit,
+  countAnnotationDocuments,
+  listSourceRecords: listSourceRecordRows,
+  registerImportedSource: registerImportedSourceRecord,
+  renameSourceRecord: renameSourceRecordRow,
+  linkSourceRecordMedia,
+  countAnchorsByMedia,
+  countUnitTokensByText,
+  listSegmentMetaByText,
+  listSegmentMetaForMediaLayers,
+  listSegmentMetaForTextLayers,
+  listTranslationSnapshotsByMedia,
+  listTranslationSnapshotsByText,
+  listUnitTokensByText,
+  listUnitMorphemesByText,
+  listMediaByText,
+  saveMediaItem,
+  listMediaIdsByText,
+  listNotesByTarget,
+  putUserNote,
+  countPresentLayerUnits,
+  listLayerUnitIdsByText,
+  listLayerUnitsAtMediaStart,
+  readTierDefinition,
+  listTierIdsByContentLanguage,
+  patchAiMessageContent,
+  listAiMessagesByConversation,
+  listAuditLogsByCollection,
+  listAuditLogsByFieldRequest,
+  insertMcpToolCallAudit,
+  readAgentArtifact,
+  saveAgentArtifact,
+  listRecentAiConversations,
+  readAiConversation,
+  patchAiConversation,
+  clearAiConversationMessages,
 };
 
 async function assignSpeakerToMixedSelection(
@@ -487,6 +660,71 @@ async function removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds
     if (!source || source.mediaId === id) throw new StorageReadbackError('removeEmptyRecording');
   }
   return { unboundSourceIds };
+}
+
+async function readLayerUnit(unitId: string): Promise<LayerUnitDocType | undefined> {
+  const id = unitId.trim();
+  if (id.length === 0) return undefined;
+  const database = await getDb();
+  return database.dexie.layer_units.get(id);
+}
+
+async function countAnnotationDocuments(textId: string): Promise<number> {
+  const id = textId.trim();
+  if (id.length === 0) return 0;
+  const database = await getDb();
+  return database.dexie.annotation_documents.where('textId').equals(id).count();
+}
+
+async function listTrackEntities(textId: string): Promise<TrackEntityDocType[]> {
+  const id = textId.trim();
+  if (id.length === 0) return [];
+  const database = await getDb();
+  return database.dexie.track_entities.where('textId').equals(id).toArray();
+}
+
+function sameLaneLockMap(
+  stored: Record<string, number> | undefined,
+  written: Record<string, number>,
+): boolean {
+  if (!stored) return false;
+  const writtenKeys = Object.keys(written);
+  if (Object.keys(stored).length !== writtenKeys.length) return false;
+  return writtenKeys.every((key) => Object.hasOwn(stored, key) && stored[key] === written[key]);
+}
+
+async function putTrackEntity(doc: TrackEntityDocType): Promise<void> {
+  const database = await getDb();
+  const existing = await database.dexie.track_entities.get(doc.id);
+  if (existing && existing.textId !== doc.textId) {
+    throw new CatalogOwnershipMismatchError('track_entities', doc.id, existing.textId, doc.textId);
+  }
+  try {
+    await withTransaction(
+      database,
+      'rw',
+      [database.dexie.track_entities],
+      async () => {
+        await database.dexie.track_entities.put(doc);
+        const stored = await database.dexie.track_entities.get(doc.id);
+        if (
+          !stored ||
+          stored.textId !== doc.textId ||
+          stored.mediaId !== doc.mediaId ||
+          stored.mode !== doc.mode ||
+          stored.updatedAt !== doc.updatedAt ||
+          !sameLaneLockMap(stored.laneLockMap, doc.laneLockMap)
+        ) {
+          throw new StorageReadbackError('putTrackEntity');
+        }
+      },
+      { label: 'putTrackEntity' },
+    );
+  } catch (error) {
+    if (error instanceof StorageReadbackError) throw error;
+    if (error instanceof Error && error.cause instanceof StorageReadbackError) throw error.cause;
+    throw error;
+  }
 }
 
 let current: StoragePort = dexieStoragePort;

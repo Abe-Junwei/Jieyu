@@ -1,6 +1,10 @@
 import type { AiPromptContext } from '../chat/chatDomain.types';
-import type { AiMessageCitation } from '../../db';
-import { buildEvidencePacketV0, type EvidencePacketV0, type EvidencePacketSourceSetSnapshot } from './evidencePacket';
+import type { AiMessageCitation } from '../../db/types';
+import {
+  buildEvidencePacketV0,
+  type EvidencePacketV0,
+  type EvidencePacketSourceSetSnapshot,
+} from './evidencePacket';
 import type { CorpusSourceSet } from './corpusScopeTypes';
 
 export type { CorpusSourceSet } from './corpusScopeTypes';
@@ -63,7 +67,9 @@ export function resolveCorpusSourceSet(aiContext: AiPromptContext | null): Corpu
   };
 }
 
-function citationTypeToEvidenceSourceType(citationType: AiMessageCitation['type']): EvidencePacketV0['sourceType'] {
+function citationTypeToEvidenceSourceType(
+  citationType: AiMessageCitation['type'],
+): EvidencePacketV0['sourceType'] {
   switch (citationType) {
     case 'unit':
       return 'segment';
@@ -78,7 +84,9 @@ function citationTypeToEvidenceSourceType(citationType: AiMessageCitation['type'
   }
 }
 
-function buildSourceSetSnapshot(sourceSet: CorpusSourceSet | null): EvidencePacketSourceSetSnapshot | undefined {
+function buildSourceSetSnapshot(
+  sourceSet: CorpusSourceSet | null,
+): EvidencePacketSourceSetSnapshot | undefined {
   if (!sourceSet) return undefined;
   const snapshot: EvidencePacketSourceSetSnapshot = {
     sourceSetId: sourceSet.sourceIds.join('_') || 'project_wide',

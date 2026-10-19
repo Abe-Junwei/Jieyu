@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getDb, type OrthographyDocType } from '../../db';
+import type { OrthographyDocType } from '../../db/types';
+import { listOrthographiesByLanguageIds } from '../../db/storagePortImportOrthography';
 import { listBuiltInOrthographies } from '../../data/builtInOrthographies';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 
@@ -153,8 +154,7 @@ export function useOrthographies(languageIds: readonly string[]): OrthographyDoc
       const [builtInRows, rows] = await Promise.all([
         listBuiltInOrthographies(idsForQuery),
         (async () => {
-          const db = await getDb();
-          return db.dexie.orthographies.where('languageId').anyOf(idsForQuery).toArray();
+          return listOrthographiesByLanguageIds(idsForQuery);
         })(),
       ]);
       if (!disposed) {

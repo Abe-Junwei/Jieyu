@@ -9,7 +9,7 @@ import {
   type RefObject,
 } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import { VideoPlayer } from '../VideoPlayer';
 import { TimeRuler } from '../TimeRuler';
 import { TimelineStyledContainer } from './TimelineStyledContainer';

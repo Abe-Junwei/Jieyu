@@ -1,6 +1,6 @@
 import type { SpeakerTranslate } from './speakerI18n';
 import type { Dispatch, SetStateAction } from 'react';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import { LinguisticService } from '../../services/LinguisticService';
 import type { SaveState } from '../transcription/transcriptionTypes';
 

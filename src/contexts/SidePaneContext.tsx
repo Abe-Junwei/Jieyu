@@ -12,7 +12,7 @@
  */
 
 import { createContext, useContext, useMemo } from 'react';
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../db/types';
 import { createLogger } from '../observability/logger';
 
 // ── Context Value Type ────────────────────────────────────────────────────────
@@ -28,7 +28,8 @@ export interface SidePaneLayerContextValue {
 
 const SidePaneLayerContext = createContext<SidePaneLayerContextValue | null>(null);
 
-const MISSING_PROVIDER_MESSAGE = 'SidePaneLayerContext is missing. Use useLayerDeleteConfirmProps or wrap with SidePaneLayerProvider.';
+const MISSING_PROVIDER_MESSAGE =
+  'SidePaneLayerContext is missing. Use useLayerDeleteConfirmProps or wrap with SidePaneLayerProvider.';
 
 let hasLoggedMissingProvider = false;
 const log = createLogger('SidePaneContext');
@@ -50,7 +51,9 @@ const fallbackSidePaneLayerContext: SidePaneLayerContextValue = {
   deleteLayerWithoutConfirm: async () => {},
 };
 
-export function useSidePaneLayerContextOrFallback(options: { warnOnMissing?: boolean } = {}): SidePaneLayerContextValue {
+export function useSidePaneLayerContextOrFallback(
+  options: { warnOnMissing?: boolean } = {},
+): SidePaneLayerContextValue {
   const ctx = useContext(SidePaneLayerContext);
   if (!ctx) {
     if (options.warnOnMissing !== false) {
@@ -80,16 +83,15 @@ export function SidePaneLayerProvider({
   deleteLayer,
   deleteLayerWithoutConfirm,
 }: SidePaneLayerProviderProps) {
-  const value = useMemo<SidePaneLayerContextValue>(() => ({
-    deletableLayers,
-    checkLayerHasContent,
-    deleteLayer,
-    deleteLayerWithoutConfirm,
-  }), [deletableLayers, checkLayerHasContent, deleteLayer, deleteLayerWithoutConfirm]);
-
-  return (
-    <SidePaneLayerContext.Provider value={value}>
-      {children}
-    </SidePaneLayerContext.Provider>
+  const value = useMemo<SidePaneLayerContextValue>(
+    () => ({
+      deletableLayers,
+      checkLayerHasContent,
+      deleteLayer,
+      deleteLayerWithoutConfirm,
+    }),
+    [deletableLayers, checkLayerHasContent, deleteLayer, deleteLayerWithoutConfirm],
   );
+
+  return <SidePaneLayerContext.Provider value={value}>{children}</SidePaneLayerContext.Provider>;
 }

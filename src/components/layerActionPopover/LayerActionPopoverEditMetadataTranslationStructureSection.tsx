@@ -1,5 +1,5 @@
 import { FormField, PanelNote, PanelSection } from '../ui';
-import type { LayerDocType, LayerLinkDocType } from '../../db';
+import type { LayerDocType, LayerLinkDocType } from '../../db/types';
 import { formatParentLayerOptionLabel } from '../layerActionPopoverHelpers';
 import type { LayerActionPopoverMessages } from '../../i18n/messages';
 import type { LayerActionPopoverEditMetadataFieldIds } from './layerActionPopoverEditMetadataFieldIds';

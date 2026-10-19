@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from 'react';
-import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db/types';
 import type { LayerCreateInput } from '../hooks/transcription/transcriptionTypes';
 import type { LayerMetadataUpdateInput } from '../types/layerMetadata';
 

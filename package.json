@@ -325,11 +325,7 @@
   "author": "沂南灵创技术服务中心",
   "license": "ISC",
   "browserslist": [
-    "last 2 Chrome versions",
-    "last 2 Edge versions",
-    "last 2 Firefox versions",
-    "Firefox ESR",
-    "last 2 Safari versions"
+    "chrome 152"
   ],
   "main": "electron/dist/main.js",
   "type": "module",

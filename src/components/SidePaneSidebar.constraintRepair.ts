@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db/types';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
 import type {
   ExistingLayerConstraintIssue,

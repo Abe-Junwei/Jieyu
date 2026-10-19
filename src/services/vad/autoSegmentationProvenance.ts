@@ -6,7 +6,7 @@
  * ProvenanceEnvelope.params so every machine-cut segment is traceable.
  */
 
-import type { ProvenanceEnvelope, ProvenanceParams } from '../../db';
+import type { ProvenanceEnvelope, ProvenanceParams } from '../../db/types';
 import { DEFAULT_VAD_SEGMENTATION_PARAMS } from '../../utils/vadWorkerInferenceUtils';
 import { ENERGY_VAD_DEFAULTS } from '../VadService';
 

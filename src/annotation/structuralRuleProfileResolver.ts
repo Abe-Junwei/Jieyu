@@ -1,4 +1,4 @@
-import type { StructuralRuleProfileAssetDocType } from '../db';
+import type { StructuralRuleProfileAssetDocType } from '../db/types';
 import type { SystemStructuralRuleProfileTemplate } from './systemStructuralRuleProfiles';
 import {
   DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
@@ -14,8 +14,7 @@ export type StructuralRuleProfileResolutionContext = {
 
 /** 解析输入：代码系统模板或项目行 | Resolver input: a code system template or a project row */
 export type StructuralRuleProfileResolvableAsset =
-  | SystemStructuralRuleProfileTemplate
-  | StructuralRuleProfileAssetDocType;
+  SystemStructuralRuleProfileTemplate | StructuralRuleProfileAssetDocType;
 
 type ResolverScope = 'system' | 'language' | 'project' | 'user';
 

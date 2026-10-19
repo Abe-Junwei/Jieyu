@@ -1,4 +1,4 @@
-import type { LayerConstraint } from '../../db';
+import type { LayerConstraint } from '../../db/types';
 import type { OrthographyInteropMetadata } from '../../utils/orthographyInteropMetadata';
 import {
   absorbEafFlexTier,

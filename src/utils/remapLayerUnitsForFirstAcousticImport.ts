@@ -1,4 +1,5 @@
-import type { AnchorDocType, JieyuDatabase, LayerUnitDocType } from '../db';
+import type { AnchorDocType, LayerUnitDocType } from '../db/types';
+import type { JieyuDatabase } from '../db/engine';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { bulkUpsertLayerUnits } from '../services/LayerUnitSegmentWritePrimitives';
 

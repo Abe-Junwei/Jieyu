@@ -2,12 +2,12 @@
  * 独立边界层 segment 内容加载 hook | Hook for loading segment contents of independent-boundary layers
  */
 import { useCallback, useEffect, useState } from 'react';
-import {
-  type LayerDocType,
-  type LayerLinkDocType,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-} from '../../db';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+} from '../../db/types';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { useLatest } from '../ui/useLatest';
 import { resolveSegmentTimelineSourceLayer } from './useLayerSegments';

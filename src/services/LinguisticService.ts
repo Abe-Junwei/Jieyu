@@ -24,7 +24,7 @@ export type {
   OrthographyDocType,
   OrthographyBridgeDocType,
   LanguageCatalogVisibility,
-} from '../db';
+} from '../db/types';
 export type {
   LanguageCatalogEntry,
   LanguageCatalogDisplayNameEntry,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import type { MediaItemDocType } from '../../db';
+import type { MediaItemDocType } from '../../db/types';
 import { mediaRowHasPlayableBytes } from '../../utils/mediaItemState';
 import {
   markWaveformDecodeAttempt,

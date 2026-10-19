@@ -1,4 +1,4 @@
-import type { UserNoteDocType } from '../db';
+import type { UserNoteDocType } from '../db/types';
 
 export function extractUnitIdFromNote(
   note: Pick<UserNoteDocType, 'targetType' | 'targetId' | 'parentTargetId'>,

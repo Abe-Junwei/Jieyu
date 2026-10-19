@@ -1,4 +1,4 @@
-import type { LanguageDocType } from '../../db';
+import type { LanguageDocType } from '../../db/types';
 import * as lcNorm from './languageCatalogCoreNormalization';
 import type { UpsertLanguageDocBuildCtx } from './languageCatalogUpsertLanguageDocContext';
 

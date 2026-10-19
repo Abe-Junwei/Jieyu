@@ -4,7 +4,7 @@ import type {
   LayerDocType,
   LayerDisplaySettings,
   OrthographyDocType,
-} from '../db';
+} from '../db/types';
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';

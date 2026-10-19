@@ -43,9 +43,9 @@ describe('FULL-SCAN review: AutoGlossService loads all lexemes then filters (FS-
 describe('FULL-SCAN review: AI AutoGlossService writes without a transaction (FS-3)', () => {
   it('AutoGlossService.executeGloss path has no withTransaction (AI tool uses this)', async () => {
     const { readFileSync } = await import('node:fs');
-    const text = readFileSync(new URL('../ai/AutoGlossService.ts', import.meta.url), 'utf8');
-    // Annotation UI path (applyAnnotationAutoGloss) wraps writes; AI tool path does not.
-    // Mid-flight failure leaves a partial gloss + link set with no automatic rollback of earlier rows.
+    const text = readFileSync(new URL('../db/storagePortAiAutoGloss.ts', import.meta.url), 'utf8');
+    // executeGloss calls applyAutoGlossWrites, which wraps the gloss rows and links.
+    expect(text).toMatch(/export async function applyAutoGlossWrites/);
     expect(text).toMatch(/withTransaction/);
   });
 });
@@ -54,7 +54,7 @@ describe('FULL-SCAN review: searchLexemes skips foldSearchText (FS-5)', () => {
   it('NFD query finds NFC headword (RADAR-BUG-1 incomplete on LinguisticService.lexemes.search)', async () => {
     const { readFileSync } = await import('node:fs');
     const text = readFileSync(
-      new URL('../services/linguisticServiceLexemeOps.ts', import.meta.url),
+      new URL('../db/storagePortServiceLexemeOps.ts', import.meta.url),
       'utf8',
     );
     const fn = text.slice(text.indexOf('export async function searchLexemes'));

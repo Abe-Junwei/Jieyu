@@ -3699,9 +3699,9 @@ export const zhCNDictionary = {
     aboutVersion: '版本',
     aboutDescription: '解语 Jieyu — 濒危语言科研协作平台',
     aboutRepo: '项目仓库',
-    aboutBrowserSupportTitle: '受支持的浏览器（桌面）',
+    aboutBrowserSupportTitle: '运行环境',
     aboutBrowserSupportBody:
-      'Chrome、Edge、Firefox、Safari 各稳定渠道最近两个大版本；Windows 上 360 / QQ / 搜狗须使用 Chromium 极速（高速）模式，且内核不低于上述 Chrome 下限。不包含手机、平板与 App 内嵌浏览器。完整条款见开源仓库 docs/architecture/桌面端浏览器支持策略.md。',
+      '解语以桌面版交付（Apple 芯片 Mac、Windows 10 及以上的 x64）。在浏览器里打开只用于开发与测试，不对任何浏览器作支持承诺。',
     extensionsHostTitle: '宿主与兼容',
     extensionsHostVersionLabel: '宿主版本（semver）',
     extensionsBlurb:

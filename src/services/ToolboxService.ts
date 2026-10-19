@@ -18,7 +18,7 @@ import type {
   UnitTokenDocType,
   UnitMorphemeDocType,
   OrthographyDocType,
-} from '../db';
+} from '../db/types';
 import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';

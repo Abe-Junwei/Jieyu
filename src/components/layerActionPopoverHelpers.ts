@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../db/types';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { escapeRegExp } from '../utils/escapeRegExp';
 import type { LayerActionPopoverMessages } from '../i18n/messages';

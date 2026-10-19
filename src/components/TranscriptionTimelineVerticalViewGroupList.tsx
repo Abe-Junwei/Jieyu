@@ -6,7 +6,7 @@ import type {
   LayerUnitDocType,
   MediaItemDocType,
   OrthographyDocType,
-} from '../db';
+} from '../db/types';
 import { layerUsesOwnSegments } from '~/hooks/layer/useLayerSegments';
 import { unitToView } from '../hooks/transcription/timelineUnitView';
 import { t, tf, type Locale } from '../i18n';
@@ -105,12 +105,10 @@ interface TranscriptionTimelineVerticalViewGroupListProps {
   recordingUnitId?: string | null;
   recordingLayerId?: string | null;
   startRecordingForUnit?:
-    | ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>)
-    | undefined;
+    ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   stopRecording?: (() => void) | undefined;
   deleteVoiceTranslation?:
-    | ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>)
-    | undefined;
+    ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   transcribeVoiceTranslation?:
     | ((
         unit: LayerUnitDocType,
@@ -158,21 +156,17 @@ interface TranscriptionTimelineVerticalViewGroupListProps {
   persistSourceText: (unitId: string, value: string, layerId?: string) => Promise<void>;
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   segmentContentByLayer?:
-    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
-    | undefined;
+    ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined;
   segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
   resolveNoteIndicatorTarget?:
     | ((unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => NoteIndicator)
     | undefined;
   resolveSelfCertaintyForUnit?:
-    | ((unitId: string, layerId?: string) => UnitSelfCertainty | undefined)
-    | undefined;
+    ((unitId: string, layerId?: string) => UnitSelfCertainty | undefined) | undefined;
   resolveSelfCertaintyAmbiguityForUnit?:
-    | ((unitId: string, layerId?: string) => boolean)
-    | undefined;
+    ((unitId: string, layerId?: string) => boolean) | undefined;
   handleNoteClick?:
-    | ((unitId: string, layerId: string | undefined, event: React.MouseEvent) => void)
-    | undefined;
+    ((unitId: string, layerId: string | undefined, event: React.MouseEvent) => void) | undefined;
   handleAnnotationClick: (
     uttId: string,
     uttStartTime: number,

@@ -14,7 +14,7 @@ import {
 import { useVoiceAgent } from './useVoiceAgent';
 import type { CommercialProviderKind, SttEngine } from '../../services/VoiceInputService';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../../services/stt';
-import type { LayerDocType, LayerLinkDocType } from '../../db';
+import type { LayerDocType, LayerLinkDocType } from '../../db/types';
 import type {
   DictationPipelineCallbacks,
   QuickDictationConfig,

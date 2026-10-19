@@ -86,7 +86,7 @@ export function isSegmentTimelineUnit(
   return isTimelineUnitKind(unit, 'segment');
 }
 
-import type { LayerConstraint } from '../../db';
+import type { LayerConstraint } from '../../db/types';
 
 export type LayerCreateInput = {
   languageId: string;

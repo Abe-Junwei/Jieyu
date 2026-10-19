@@ -1,10 +1,15 @@
-import { getDb, withTransaction } from '../db';
+import {
+  applyAutoGlossWrites,
+  listLexemesByTextIds,
+  listUnitTokensByUnitId,
+  type AutoGlossWrite,
+} from '../db/storagePortAiAutoGloss';
 import type {
   MultiLangString,
   TokenLexemeLinkDocType,
   TokenLexemeLinkRole,
   UnitTokenDocType,
-} from '../db';
+} from '../db/types';
 import { TaskRunner } from './tasks/TaskRunner';
 import { getGlobalTaskRunner } from './tasks/taskRunnerSingleton';
 import { LeipzigValidator, type LeipzigWarning as LzWarning } from './LeipzigValidator';
@@ -71,77 +76,65 @@ export class AutoGlossService {
   }
 
   private async executeGloss(unitId: string): Promise<AutoGlossResult> {
-    const db = await getDb();
-    const tokens = (await db.collections.unit_tokens.findByIndex('unitId', unitId)).map((doc) =>
-      doc.toJSON(),
-    );
+    const tokens = await listUnitTokensByUnitId(unitId);
     // 只用这些 token 所属项目的词条：词条按项目归属，跨项目链接会被归属中间件拒绝（GAP-1）
     // Only lexemes of the tokens' own project: lexemes are per project and cross-project links
     // are rejected by the ownership middleware (GAP-1)
     const tokenTextIds = [
       ...new Set(tokens.map((token) => token.textId.trim()).filter((id) => id.length > 0)),
     ];
-    const lexemeDocs =
-      tokenTextIds.length === 0
-        ? []
-        : await db.collections.lexemes.findByIndexAnyOf('textId', tokenTextIds);
-    const lexemes = lexemeDocs.map((doc) => doc.toJSON());
+    const lexemes = await listLexemesByTextIds(tokenTextIds);
     const preview = previewAutoGlossMatches(tokens, lexemes);
 
     const matched: AutoGlossMatch[] = [];
     const leipzigHints: AutoGlossLeipzigHint[] = [];
+    const writes: AutoGlossWrite[] = [];
 
-    await withTransaction(
-      db,
-      'rw',
-      [db.dexie.unit_tokens, db.dexie.token_lexeme_links],
-      async () => {
-        for (const item of preview.matches) {
-          const now = new Date().toISOString();
-          await db.collections.unit_tokens.update(item.tokenId, {
-            gloss: item.gloss,
-            updatedAt: now,
-          });
+    for (const item of preview.matches) {
+      const now = new Date().toISOString();
+      const role: TokenLexemeLinkRole = item.matchType;
+      const link: TokenLexemeLinkDocType = {
+        id: makeId('tll'),
+        targetType: 'token',
+        targetId: item.tokenId,
+        lexemeId: item.lexemeId,
+        ...(item.senseId ? { senseId: item.senseId } : {}),
+        role,
+        confidence: item.confidence,
+        createdAt: now,
+        updatedAt: now,
+      };
+      writes.push({
+        tokenId: item.tokenId,
+        gloss: item.gloss,
+        updatedAt: now,
+        link,
+      });
 
-          const role: TokenLexemeLinkRole = item.matchType;
-          const link: TokenLexemeLinkDocType = {
-            id: makeId('tll'),
-            targetType: 'token',
-            targetId: item.tokenId,
-            lexemeId: item.lexemeId,
-            ...(item.senseId ? { senseId: item.senseId } : {}),
-            role,
-            confidence: item.confidence,
-            createdAt: now,
-            updatedAt: now,
-          };
-          await db.collections.token_lexeme_links.insert(link);
+      matched.push({
+        tokenId: item.tokenId,
+        tokenForm: item.tokenForm,
+        lexemeId: item.lexemeId,
+        lexemeLemma: item.lexemeLemma,
+        gloss: item.gloss,
+        confidence: item.confidence,
+        matchType: item.matchType,
+        linkId: link.id,
+      });
 
-          matched.push({
+      for (const glossVal of Object.values(item.gloss)) {
+        const validation = this.leipzigValidator.validateGloss(glossVal);
+        if (!validation.valid) {
+          leipzigHints.push({
             tokenId: item.tokenId,
-            tokenForm: item.tokenForm,
-            lexemeId: item.lexemeId,
-            lexemeLemma: item.lexemeLemma,
-            gloss: item.gloss,
-            confidence: item.confidence,
-            matchType: item.matchType,
-            linkId: link.id,
+            glossText: glossVal,
+            warnings: validation.warnings,
           });
-
-          for (const glossVal of Object.values(item.gloss)) {
-            const validation = this.leipzigValidator.validateGloss(glossVal);
-            if (!validation.valid) {
-              leipzigHints.push({
-                tokenId: item.tokenId,
-                glossText: glossVal,
-                warnings: validation.warnings,
-              });
-            }
-          }
         }
-      },
-      { label: 'ai-autogloss' },
-    );
+      }
+    }
+
+    await applyAutoGlossWrites(writes);
 
     return {
       unitId,

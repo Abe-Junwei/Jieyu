@@ -1,4 +1,9 @@
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, SpeakerDocType } from '../../db';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitDocType,
+  SpeakerDocType,
+} from '../../db/types';
 import {
   buildOrthographyInteropMetadata,
   type OrthographyInteropMetadata,

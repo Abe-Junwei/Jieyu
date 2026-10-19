@@ -22,7 +22,7 @@ Behavioral guidelines below are adapted from [forrestchang/andrej-karpathy-skill
 - **docs 落位与治理**：[.cursor/rules/jieyu-docs-governance.mdc](.cursor/rules/jieyu-docs-governance.mdc) 与 `npm run check:docs-governance`。
 - **文档打架时**：能核对的以代码和当次检查为准。产品形状只看 [仓库现状](docs/architecture/仓库现状与代码地图.md)。其余 architecture 文档只在 [AI_QUICKSTART](AI_QUICKSTART.md) 路由命中时读。为什么见 [ADR-0049](docs/adr/0049-decisions-not-current-state-inventories.md)。历史规划只作上下文。
 - **成熟方案优先**：新增功能 / 交互 / 算法 / 存储 / 集成 / 架构前，先调研业内成熟实现（库 / 规范 / 框架原生模式 / 仓库既有模块）；只有明确说明复用不适合后才自行设计。新增依赖必须说明维护、体积、许可与集成成本。**此原则的执行载体是工作流的 Research 阶段（见 [copilot-instructions.md](copilot-instructions.md) §5.1.5）：新功能未做 Research 不得进入 Plan。**
-- **桌面端浏览器支持**：[docs/architecture/桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md)；新或敏感的浏览器 API 用特性检测；行为差异需扩 E2E（`npm run test:e2e`；本地快环 `npm run test:e2e:chromium`）。
+- **桌面交付**：产品只做桌面版（[ADR-0063](docs/adr/0063-desktop-only-after-electron-skeleton.md)）。新或敏感的 Web API 用特性检测；#329 完成前合并门槛仍是 `npm run test:e2e:chromium`，桌面冒烟见 `.github/workflows/electron-smoke.yml`。
 - **UI / Stitch handoff**：视觉工作先读 [DESIGN.md](DESIGN.md) 与 [src/styles/tokens.css](src/styles/tokens.css)；颜色映射语义 token；用户可见文案走 `dictKeys` / 字典，不留设计稿原文。
 - **AI formatter 文案 vs UI 文案分层**：模型/工具输出固定句式放 `src/ai/messages/`，与界面字典不混命名空间。
 - **单人合并门槛**：完成前必跑 `npm run typecheck` + 触及域的 `vitest`；交互 / ReadyWorkspace / 侧栏 / 时间轴改动还要 `npm run test:e2e:chromium`。E2E 修稳，不长期 skip。依赖手动升，顺序见 [DEPENDENCY_UPGRADE_PLAYBOOK.md](docs/development/DEPENDENCY_UPGRADE_PLAYBOOK.md)。

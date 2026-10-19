@@ -8,7 +8,14 @@ import {
 } from 'react';
 import type { AiSessionMemory } from '../../ai/chat/chatDomain.types';
 import { t, type Locale } from '../../i18n';
-import { getDb } from '../../db';
+import {
+  deleteAiConversation,
+  insertAiConversation,
+  patchAiConversation,
+  readAiConversation,
+} from '../../db/storagePortChatConversations';
+import { deleteAiMessagesByConversation } from '../../db/storagePortChatMessages';
+import { deleteAiSessionMemoryByConversation } from '../../db/storagePortChatSessionMemory';
 import { clearSessionMemoryFastPath } from '../../ai/chat/clearSessionMemoryFastPath';
 import {
   bindSessionMemoryConversation,
@@ -164,16 +171,15 @@ export function useAiChatConversationManager(
   }, [applyConversationSwitch, detachActiveConversationUi, resetChatUiState, textId]);
 
   const startNewConversation = useCallback(async () => {
-    const db = await getDb();
     const id = newMessageId('conv');
     const timestamp = nowIso();
-    await db.collections.ai_conversations.insert({
+    await insertAiConversation({
       id,
       title: t(locale, 'ai.chat.defaultConversationTitle'),
       mode: 'assistant',
       providerId,
-      model: model || providerId,
-      ...(textId ? { textId } : {}),
+      model: model.trim().length > 0 ? model : providerId,
+      ...(textId !== undefined && textId.length > 0 ? { textId } : {}),
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -222,17 +228,15 @@ export function useAiChatConversationManager(
 
     void (async () => {
       try {
-        const db = await getDb();
-        const conversation = await db.collections.ai_conversations
-          .findOne({ selector: { id: activeId } })
-          .exec();
+        const conversation = await readAiConversation(activeId);
         if (conversation) {
-          await db.collections.ai_conversations.update(activeId, {
-            clearedAt: nowIso(),
-            updatedAt: nowIso(),
+          const clearedAt = nowIso();
+          await patchAiConversation(activeId, {
+            clearedAt,
+            updatedAt: clearedAt,
           });
         }
-        await db.collections.ai_messages.removeBySelector({ conversationId: activeId });
+        await deleteAiMessagesByConversation(activeId);
         const clearedMemory = clearSessionMemoryFastPath(memoryBeforeClear);
         if (conversationIdRef.current === activeId) {
           sessionMemoryRef.current = clearedMemory;
@@ -261,13 +265,10 @@ export function useAiChatConversationManager(
 
   const archiveConversation = useCallback(
     async (targetConversationId: string) => {
-      const db = await getDb();
-      const conversation = await db.collections.ai_conversations
-        .findOne({ selector: { id: targetConversationId } })
-        .exec();
+      const conversation = await readAiConversation(targetConversationId);
       if (!conversation) return;
 
-      await db.collections.ai_conversations.update(targetConversationId, {
+      await patchAiConversation(targetConversationId, {
         archived: true,
         updatedAt: nowIso(),
       });
@@ -287,22 +288,19 @@ export function useAiChatConversationManager(
 
   const deleteConversation = useCallback(
     async (targetConversationId: string) => {
-      const db = await getDb();
       const wasActive = conversationIdRef.current === targetConversationId;
 
       if (wasActive) {
         detachActiveConversationUi();
       }
 
-      await db.collections.ai_messages.removeBySelector({ conversationId: targetConversationId });
+      await deleteAiMessagesByConversation(targetConversationId);
       try {
-        await db.collections.ai_session_memories.removeBySelector({
-          conversationId: targetConversationId,
-        });
+        await deleteAiSessionMemoryByConversation(targetConversationId);
       } catch {
         // best-effort
       }
-      await db.collections.ai_conversations.removeBySelector({ id: targetConversationId });
+      await deleteAiConversation(targetConversationId);
 
       if (wasActive) {
         await switchToLatestInScopeOrEmpty();

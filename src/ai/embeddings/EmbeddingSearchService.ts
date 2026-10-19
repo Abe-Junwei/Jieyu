@@ -1,22 +1,23 @@
-import { getDb } from '../../db';
-import type { EmbeddingDoc, EmbeddingSourceType, JieyuDatabase } from '../../db';
+import {
+  listEmbeddingsByTextSourceModel,
+  listMediaItemsByIds,
+  listMediaItemsByTextId,
+  listUnitTextsForUnitIds,
+  listUserNotesByIds,
+} from '../../db/storagePortAiEmbeddings';
+import type { EmbeddingDoc, EmbeddingSourceType } from '../../db/types';
 import type { EmbeddingProvider } from './EmbeddingProvider';
 import MiniSearch from 'minisearch';
 import { foldSearchText, tokenizeMixedScriptForSearch } from '../../utils/searchTextNormalization';
 import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
 import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './searchFusionProfiles';
-import {
-  listUnitTextsFromSegmentationForText,
-  listUnitTextsByUnits,
-} from '../../services/LayerSegmentationTextService';
+import { listUnitTextsFromSegmentationForText } from '../../services/LayerSegmentationTextService';
 import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 
 /** Coarse hybrid-search phases for optional perf baselines (no effect on ranking). */
 export type EmbeddingSearchHybridPerfPhase =
-  | 'vector-retrieval'
-  | 'text-and-keyword-pool'
-  | 'minisearch-and-rerank';
+  'vector-retrieval' | 'text-and-keyword-pool' | 'minisearch-and-rerank';
 
 export interface SearchSimilarUnitsOptions {
   /** Project (text) to search in; rows from other projects are never scored. */
@@ -61,22 +62,17 @@ const DEFAULT_MIN_SCORE = 0.3;
  * `candidateSourceIds` filter. Explicit empty candidate set short-circuits (avoids a useless full read).
  */
 async function loadEmbeddingRowsForVectorScan(
-  db: JieyuDatabase,
   textId: string,
   sourceType: EmbeddingSourceType,
   modelId: string,
   modelVersion: string,
   candidateSourceIds: ReadonlySet<string> | null,
 ): Promise<EmbeddingDoc[]> {
-  if (!textId || (candidateSourceIds !== null && candidateSourceIds.size === 0)) {
+  if (textId.length === 0 || (candidateSourceIds !== null && candidateSourceIds.size === 0)) {
     return [];
   }
 
-  const table = db.dexie.embeddings;
-  const rows = await table
-    .where('[textId+sourceType+model]')
-    .equals([textId, sourceType, modelId])
-    .toArray();
+  const rows = await listEmbeddingsByTextSourceModel(textId, sourceType, modelId);
   const matchesModelVersion = (row: EmbeddingDoc) =>
     (row.modelVersion ?? DEFAULT_MODEL_VERSION) === modelVersion;
 
@@ -229,11 +225,9 @@ export class EmbeddingSearchService {
       return { query: normalizedQuery, matches: [], warningCode: 'query-embedding-unavailable' };
     }
 
-    const db = await getDb();
     const candidateSet = options?.candidateSourceIds ? new Set(options.candidateSourceIds) : null;
 
     const embeddingRows = await loadEmbeddingRowsForVectorScan(
-      db,
       options.textId,
       'unit',
       modelId,
@@ -291,13 +285,11 @@ export class EmbeddingSearchService {
       return { query: normalizedQuery, matches: [], warningCode: 'query-embedding-unavailable' };
     }
 
-    const db = await getDb();
     const scored: SimilarUnitMatch[] = [];
     const candidateSet = options?.candidateSourceIds ? new Set(options.candidateSourceIds) : null;
 
     for (const sourceType of sourceTypes) {
       const rows = await loadEmbeddingRowsForVectorScan(
-        db,
         options.textId,
         sourceType,
         modelId,
@@ -384,7 +376,6 @@ export class EmbeddingSearchService {
       };
     }
 
-    const db = await getDb();
     const modelId = options?.modelId ?? this.provider.modelId ?? DEFAULT_LOCAL_EMBEDDING_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const candidateSet = options?.candidateSourceIds ? new Set(options.candidateSourceIds) : null;
@@ -409,7 +400,7 @@ export class EmbeddingSearchService {
 
     const unitTextMap = new Map<string, string>();
     if (matchedUnitIds.length > 0) {
-      const rows = await listUnitTextsByUnits(db, new Set(matchedUnitIds));
+      const rows = await listUnitTextsForUnitIds(matchedUnitIds);
       const merged = new Map<string, string[]>();
       for (const row of rows) {
         const unitId = row.unitId?.trim();
@@ -426,7 +417,7 @@ export class EmbeddingSearchService {
 
     const noteTextMap = new Map<string, string>();
     if (matchedNoteIds.length > 0) {
-      const noteRows = await db.dexie.user_notes.where('id').anyOf(matchedNoteIds).toArray();
+      const noteRows = await listUserNotesByIds(matchedNoteIds);
       for (const note of noteRows) {
         const content = note.content as Record<string, string> | undefined;
         noteTextMap.set(note.id, extractNoteText(content).trim());
@@ -435,7 +426,7 @@ export class EmbeddingSearchService {
 
     const pdfTextMap = new Map<string, string>();
     if (matchedPdfBaseRefs.length > 0) {
-      const mediaRows = await db.dexie.media_items.where('id').anyOf(matchedPdfBaseRefs).toArray();
+      const mediaRows = await listMediaItemsByIds(matchedPdfBaseRefs);
       for (const media of mediaRows) {
         const details = media.details as Record<string, unknown> | undefined;
         pdfTextMap.set(media.id, extractPdfSnippet(details, 1000));
@@ -468,7 +459,7 @@ export class EmbeddingSearchService {
 
     if (sourceTypes.includes('unit')) {
       const unitRows = candidateSet
-        ? await listUnitTextsByUnits(db, candidateSet)
+        ? await listUnitTextsForUnitIds(candidateSet)
         : await listUnitTextsFromSegmentationForText(options.textId);
       const merged = new Map<string, string[]>();
       for (const row of unitRows) {
@@ -506,10 +497,7 @@ export class EmbeddingSearchService {
         .filter((m) => m.sourceType === 'note')
         .map((m) => m.sourceId);
       const uniqueNoteIds = [...new Set(noteIdsFromMatches)];
-      const noteRows =
-        uniqueNoteIds.length > 0
-          ? await db.dexie.user_notes.where('id').anyOf(uniqueNoteIds).toArray()
-          : [];
+      const noteRows = uniqueNoteIds.length > 0 ? await listUserNotesByIds(uniqueNoteIds) : [];
       for (const note of noteRows) {
         if (candidateSet && !candidateSet.has(note.id)) continue;
         const sourceKey = `note:${note.id}`;
@@ -542,10 +530,10 @@ export class EmbeddingSearchService {
       const uniquePdfIds = [...new Set(pdfIdsFromMatches)];
       const mediaRows =
         uniquePdfIds.length > 0
-          ? await db.dexie.media_items.where('id').anyOf(uniquePdfIds).toArray()
+          ? await listMediaItemsByIds(uniquePdfIds)
           : candidateSet
             ? []
-            : await db.dexie.media_items.where('textId').equals(options.textId).toArray();
+            : await listMediaItemsByTextId(options.textId);
       for (const media of mediaRows) {
         if (!isPdfMediaItem(media)) continue;
         if (candidateSet && !candidateSet.has(media.id)) continue;

@@ -1,4 +1,8 @@
-import { layerTranscriptionTreeParentId, type LayerDocType, type LayerLinkDocType } from '../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerLinkDocType,
+} from '../db/types';
 import { listInboundTranscriptionHostIdsForTranscriptionLane } from './transcriptionUnitLaneReadScope';
 
 export type TranscriptionDependencyInvariantViolation = Readonly<{
@@ -58,7 +62,10 @@ export function findTranscriptionDependencyInvariantViolations(input: {
     if (!parentResolves && !hostViaLink) {
       violations.push({
         layerId: layer.id,
-        layerKey: typeof layer.key === 'string' && layer.key.trim().length > 0 ? layer.key.trim() : layer.id,
+        layerKey:
+          typeof layer.key === 'string' && layer.key.trim().length > 0
+            ? layer.key.trim()
+            : layer.id,
         constraint: c,
       });
     }

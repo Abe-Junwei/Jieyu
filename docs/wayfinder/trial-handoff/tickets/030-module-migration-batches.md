@@ -18,3 +18,24 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/280
 - 每批一个 PR，迁完跑 `npm run check:direct-db-imports:write-baseline` 下调基线；进度评论记在本 issue。
 - ADR-0048 已于 2026-10-15 确认，带事务的写入可以迁；多表写入写成存储接口上的一个操作。
 - 关闭条件：`scripts/direct-db-imports-baseline.json` 的 `maxDirectDbModules` 降到 0，或只剩写明白名单的接口实现模块（Dexie / SQLite 适配层本身若必须 import `db`，在本单白名单里写明）。
+
+## 进度
+
+- 2026-10-18 第 1 批：只从 `db` 桶拿类型的模块改从 `db/types` 或 `db/engine` 导入。基线 297 → 129。剩下的是仍有值导入的模块。
+- 2026-10-18 第 2 批：项目行读取和跨项目归属查询进存储接口（`readProject`、`listForeignOwnedUnits` / `Layers` / `Media`）。调用方：异体字行、缩写表、词类表、`projectOwnershipQueries`。基线 129 → 125。
+- 2026-10-18 第 3 批：轨道显示状态 `listTrackEntities` / `putTrackEntity`（写入后读回，已有行不能改 `textId`）。`TrackEntityStore` 不再调用 `getDb`。基线 125 → 124。
+- 2026-10-18 第 4 批：`readLayerUnit`（引用解析）、`countAnnotationDocuments`（多文稿协作门）。基线 124 → 122。
+- 2026-10-18 第 5 批：层树父级函数和文档类型改从 `db/types` 导入，不再经过 `db` 桶。基线 122 → 111。
+- 2026-10-18 第 6 批：来源登记 `listSourceRecords` / `registerImportedSource` / `renameSourceRecord` / `linkSourceRecordMedia`。哈希仍在事务外，登记和读回在同一个事务里。`sourceRecordService` 不再调用 `getDb`。基线 111 → 110。
+- 2026-10-18 第 7 批：层约束、层排序、层段读取、EAF 附加层和 `LinguisticService` 的类型再导出改从 `db/types` 导入。这些文件不读库。基线 110 → 103。
+- 2026-10-18 第 8 批：首页进度和项目概览读取语段元数据、译文快照、锚点计数和词计数，改走存储接口。默认转写层仍由层服务打开数据库。`homeTranscriptionRecordProgress` 和 `projectOverview` 不再从 `db` 桶导入。基线 103 → 101。
+- 2026-10-18 第 9 批：采纳结果和会话沙箱的审计行改走 `audit.insertAuditLog`。
+- 2026-10-18 第 10 批：媒体按项目列出和保存改走存储接口，保存后按 id 读回。
+- 2026-10-18 第 11 批：语料分析工具按项目读取词和词素。
+- 2026-10-18 第 12 批：写入后的存在性读回（句段、层、助手消息正文）改走存储接口。第 9–12 批合计基线 101 → 95。
+- 2026-10-18 第 13 批：备注写入和按目标列出、项目媒体 id、会话最近消息、审计行按 collection 读取，改走存储接口。基线 95 → 91。
+- 2026-10-18 第 14 批：MCP 工具调用审计写入、代理产物和它的审计行（同一事务）改走存储接口。基线 91 → 89。
+- 2026-10-18 第 15 批：最近会话列表、会话标题补丁、清空会话消息并回写 updatedAt，改走存储接口。基线 89 → 86。
+- 2026-10-18 第 16 批：运行时报告从审计行收集采纳、引用、相关性和字段计数，改走已有的按 collection 读取。基线 86 → 85。
+- 2026-10-18 第 17 批：工具决策和意图审计写入走 `audit.insertAuditLog`，按 collection、field、requestId 查已执行决策。基线 85 → 84。
+- 2026-10-18 第 18 批：生产代码不再从 `db` 桶导入。表访问在 `src/db/storagePort*.ts`，原来的服务和 hook 改调用这些模块。句段表白名单跟着挪到这些存储模块。基线 84 → 0。

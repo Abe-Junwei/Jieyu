@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../db/types';
 import { applyOrthographyBridgeRecord } from '../services/LinguisticService.orthography';
 
 type LayerOrthographyRef = Pick<LayerDocType, 'id' | 'orthographyId' | 'bridgeId'>;

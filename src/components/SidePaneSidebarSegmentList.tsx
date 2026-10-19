@@ -21,7 +21,7 @@ import type {
   NoteCategory,
   SegmentMetaDocType,
   SpeakerDocType,
-} from '../db';
+} from '../db/types';
 import { createTimelineUnit, type TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
@@ -103,12 +103,7 @@ type FacetOption = {
 };
 
 type FacetCategoryKey =
-  | 'contentState'
-  | 'annotationStatus'
-  | 'sourceType'
-  | 'speaker'
-  | 'noteCategory'
-  | 'certainty';
+  'contentState' | 'annotationStatus' | 'sourceType' | 'speaker' | 'noteCategory' | 'certainty';
 
 type ReviewPresetOption = {
   value: SegmentReviewPreset | 'all';

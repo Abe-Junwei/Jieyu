@@ -1,4 +1,8 @@
-import { layerTranscriptionTreeParentId, type LayerDocType, type LayerUnitDocType } from '../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerUnitDocType,
+} from '../db/types';
 import {
   buildTranscriptionIdByKeyMap,
   resolveLayerLinkHostTranscriptionLayerId,
@@ -82,8 +86,7 @@ export type LaneScopedUnitView = Readonly<{
 }>;
 
 export type ResolveCanonicalUnitForTranscriptionLaneResult =
-  | Readonly<{ include: false }>
-  | Readonly<{ include: true } & LaneScopedUnitView>;
+  Readonly<{ include: false }> | Readonly<{ include: true } & LaneScopedUnitView>;
 
 /** Per-lane read-scope slices reused across many units (ADR 0020 hot path). */
 export type TranscriptionLaneReadScopeResolutionCache = Readonly<{

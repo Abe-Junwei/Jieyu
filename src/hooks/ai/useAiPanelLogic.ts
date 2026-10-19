@@ -18,7 +18,7 @@ const TASK_TO_PERSONA: Record<AiPanelTask, AiSystemPersonaKey> = {
 export function taskToPersona(task: AiPanelTask): AiSystemPersonaKey {
   return TASK_TO_PERSONA[task];
 }
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import type { SaveState } from '../useTranscriptionData';
 import { reportValidationError } from '../../utils/validationErrorReporter';
 import {

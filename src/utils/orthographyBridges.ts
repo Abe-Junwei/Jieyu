@@ -1,4 +1,4 @@
-import type { OrthographyBridgeDocType } from '../db';
+import type { OrthographyBridgeDocType } from '../db/types';
 import { escapeRegExp } from './escapeRegExp';
 
 export type OrthographyBridgeRules = OrthographyBridgeDocType['rules'];
@@ -32,8 +32,7 @@ export type OrthographyBridgeSampleCaseResult = OrthographyBridgeSampleCase & {
 };
 
 type ParsedIcuRule =
-  | { kind: 'normalize'; form: OrthographyNormalizationForm; raw: string }
-  | ParsedIcuReplaceRule;
+  { kind: 'normalize'; form: OrthographyNormalizationForm; raw: string } | ParsedIcuReplaceRule;
 
 const SUPPORTED_NORMALIZATION_FORMS = new Set<OrthographyNormalizationForm>([
   'NFC',

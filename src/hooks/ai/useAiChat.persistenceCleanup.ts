@@ -1,5 +1,5 @@
 import type { MutableRefObject } from 'react';
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import { nowIso } from './useAiChat.helpers';
 
 export interface AiChatClearPersistenceRequest {
@@ -19,28 +19,14 @@ export function runAiChatClearPersistenceCleanup(
         requestRef.current = null;
         if (!request) break;
 
-        const db = await getDb();
         let targetConversationId = request.conversationId;
         if (!targetConversationId) {
-          // shortcut(P2-3): 全局表，量小 | global table, small
-          const existingRows = (await db.collections.ai_conversations.find().exec())
-            .map((doc) => doc.toJSON())
-            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+          const existingRows = await storagePort().listRecentAiConversations(1);
           targetConversationId = existingRows[0]?.id ?? null;
         }
         if (!targetConversationId) continue;
 
-        await db.collections.ai_messages.removeBySelector({ conversationId: targetConversationId });
-        const conversation = await db.collections.ai_conversations
-          .findOne({ selector: { id: targetConversationId } })
-          .exec();
-        if (conversation) {
-          const row = conversation.toJSON();
-          await db.collections.ai_conversations.insert({
-            ...row,
-            updatedAt: nowIso(),
-          });
-        }
+        await storagePort().clearAiConversationMessages(targetConversationId, nowIso());
       }
     } finally {
       runningRef.current = false;

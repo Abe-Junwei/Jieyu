@@ -12,7 +12,7 @@ import {
   type LayerDocType,
   type LayerLinkDocType,
   type LayerUnitDocType,
-} from '../../db';
+} from '../../db/types';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { resolveLayerLinkHostTranscriptionLayerId } from '../../utils/translationHostLinkQuery';
 import { useLatest } from '../ui/useLatest';

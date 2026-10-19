@@ -31,7 +31,7 @@ import type {
   LayerUnitContentDocType,
   OrthographyDocType,
   LayerUnitDocType,
-} from '../db';
+} from '../db/types';
 import type { InterchangeLoss } from '../utils/interchangeLossReport';
 import { escapeXml, finalizeXmlExport, type XmlSanitizeReport } from '../utils/xmlSafeText';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';

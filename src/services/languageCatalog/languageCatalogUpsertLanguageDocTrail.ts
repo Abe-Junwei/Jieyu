@@ -1,4 +1,4 @@
-import type { LanguageDocType } from '../../db';
+import type { LanguageDocType } from '../../db/types';
 import type { UpsertLanguageDocBuildCtx } from './languageCatalogUpsertLanguageDocContext';
 
 /** sourceType、审核态、可见性、备注与时间戳 | Trail fields for upsert */

@@ -1,4 +1,4 @@
-import type { OrthographyDocType } from '../db';
+import type { OrthographyDocType } from '../db/types';
 import type { Locale } from '../i18n';
 import { getOrthographyCatalogGroupLabel } from '../i18n/messages';
 import { resolveOrthographyCatalogGroupKey } from '~/hooks/orthography/useOrthographyPicker';

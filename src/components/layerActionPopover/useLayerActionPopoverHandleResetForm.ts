@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { layerTranscriptionTreeParentId } from '../../db';
+import { layerTranscriptionTreeParentId } from '../../db/types';
 import { getLayerLabelParts } from '../../utils/transcriptionFormatters';
 import type { LayerActionPopoverProps } from './LayerActionPopoverTypes';
 import type { LayerActionPopoverFormState } from './useLayerActionPopoverFormState';

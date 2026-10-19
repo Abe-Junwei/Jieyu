@@ -1,11 +1,9 @@
+import { exportDatabaseAsJson, importDatabaseFromJson } from '../db/io';
 import {
-  exportDatabaseAsJson,
   exportProjectScopedDatabaseAsJson,
-  importDatabaseFromJson,
   importProjectScopedDatabaseFromJson,
-  type ImportConflictStrategy,
-  type ImportResult,
-} from '../db';
+} from '../db/projectScopedSnapshot';
+import type { ImportConflictStrategy, ImportResult } from '../db/types';
 
 export async function exportToJSON(): Promise<string> {
   const snapshot = await exportDatabaseAsJson();

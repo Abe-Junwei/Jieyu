@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { LayerDisplaySettings, LayerDocType, OrthographyDocType } from '../../db';
+import type { LayerDisplaySettings, LayerDocType, OrthographyDocType } from '../../db/types';
 import {
   BASE_FONT_SIZE,
   computeFontSizeFromRenderPolicy,

@@ -16,7 +16,6 @@ const {
   mockDeleteOrthographyBridge,
   mockListBuiltInOrthographiesByIds,
   mockUseOrthographies,
-  mockGetDb,
   mockBulkGet,
 } = vi.hoisted(() => ({
   mockListOrthographyBridges: vi.fn(),
@@ -25,7 +24,6 @@ const {
   mockDeleteOrthographyBridge: vi.fn(),
   mockListBuiltInOrthographiesByIds: vi.fn(),
   mockUseOrthographies: vi.fn(),
-  mockGetDb: vi.fn(),
   mockBulkGet: vi.fn(),
 }));
 
@@ -50,13 +48,9 @@ vi.mock('../data/builtInOrthographies', () => ({
   listBuiltInOrthographiesByIds: mockListBuiltInOrthographiesByIds,
 }));
 
-vi.mock('../db', async () => {
-  const actual = await vi.importActual('../db');
-  return {
-    ...actual,
-    getDb: mockGetDb,
-  };
-});
+vi.mock('../db/storagePortImportOrthography', () => ({
+  bulkGetOrthographies: (ids: readonly string[]) => mockBulkGet(ids),
+}));
 
 const targetOrthography: OrthographyDocType = {
   id: 'orth-target',
@@ -129,7 +123,6 @@ describe('OrthographyBridgeManager', () => {
     mockDeleteOrthographyBridge.mockReset();
     mockListBuiltInOrthographiesByIds.mockReset();
     mockUseOrthographies.mockReset();
-    mockGetDb.mockReset();
     mockBulkGet.mockReset();
 
     // 模拟 window.confirm 总是返回 true | Mock window.confirm to always return true
@@ -144,13 +137,6 @@ describe('OrthographyBridgeManager', () => {
     mockUseOrthographies.mockImplementation((languageIds: string[]) => {
       if (languageIds.includes('eng')) return [sourceOrthography];
       return [];
-    });
-    mockGetDb.mockResolvedValue({
-      dexie: {
-        orthographies: {
-          bulkGet: mockBulkGet,
-        },
-      },
     });
   });
 

@@ -1,13 +1,14 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { nowIso } from './useAiChat.helpers';
-import { getDb } from '../../db';
-import type { AiMessageCitation } from '../../db';
+import type { AiMessageCitation } from '../../db/types';
+import {
+  finalizeAiAssistantMessage,
+  flushAiAssistantContent,
+  readAiMessage,
+} from '../../db/storagePortChatMessages';
+import { patchAiConversation, readAiConversation } from '../../db/storagePortChatConversations';
 import { mergeContextSnapshotWithWorkflowExplainability } from '../../ai/chat/workflowExplainability';
 import type { UiChatMessage } from './useAiChat.types';
-import {
-  flushAssistantContent,
-  finalizeAssistantMessageInDb,
-} from './useAiChat.sendTurnPersistPhase';
 import {
   isConversationGenerationStale,
   type ConversationGenerationRef,
@@ -17,14 +18,13 @@ interface RefLike<T> {
   current: T;
 }
 
-type AiChatDb = Awaited<ReturnType<typeof getDb>>;
-
 interface CreateAssistantPersistenceHelpersOptions {
   assistantId: string;
   setMessages: Dispatch<SetStateAction<UiChatMessage[]>>;
   messagesRef: MutableRefObject<UiChatMessage[]>;
   streamPersistIntervalMsRef: RefLike<number>;
-  getDbRef: () => AiChatDb | null;
+  /** 开场写入完成前为 null，用来挡住过早的流式落库。 */
+  getDbRef: () => unknown;
   getActiveConversationId: () => string | null;
   conversationGenerationRef?: ConversationGenerationRef;
   streamGenerationAtStart?: number;
@@ -46,32 +46,27 @@ export function createAssistantPersistenceHelpers({
   let lastPersistedAt = 0;
 
   const touchConversationTimestamp = async (conversationId?: string) => {
-    const dbRef = getDbRef();
+    if (getDbRef() == null) return;
     const targetConversationId = conversationId ?? getActiveConversationId();
-    if (!dbRef || !targetConversationId) return;
+    if (targetConversationId == null || targetConversationId.length === 0) return;
 
-    const conversation = await dbRef.collections.ai_conversations
-      .findOne({
-        selector: { id: targetConversationId },
-      })
-      .exec();
+    const conversation = await readAiConversation(targetConversationId);
     if (!conversation) return;
 
-    await dbRef.collections.ai_conversations.update(targetConversationId, {
+    await patchAiConversation(targetConversationId, {
       updatedAt: nowIso(),
     });
   };
 
   const flushAssistantDraft = async (content: string, force = false): Promise<void> => {
     if (isStreamGenerationStale()) return;
-    const dbRef = getDbRef();
-    if (!dbRef) return;
+    if (getDbRef() == null) return;
     if (content === lastPersistedAssistantContent) return;
 
     const now = Date.now();
     if (!force && now - lastPersistedAt < streamPersistIntervalMsRef.current) return;
 
-    await flushAssistantContent(dbRef, assistantId, content);
+    await flushAiAssistantContent(assistantId, content);
     lastPersistedAssistantContent = content;
     lastPersistedAt = now;
   };
@@ -142,21 +137,17 @@ export function createAssistantPersistenceHelpers({
       );
     }
 
-    const dbRef = getDbRef();
-    if (!dbRef) return;
+    if (getDbRef() == null) return;
 
-    const existing = await dbRef.collections.ai_messages
-      .findOne({ selector: { id: assistantId } })
-      .exec();
-    if (existing) {
-      const row = existing.toJSON();
+    const row = await readAiMessage(assistantId);
+    if (row) {
       const explainDto = staleGeneration
         ? undefined
         : messagesRef.current.find((m) => m.id === assistantId)?.workflowExplainability;
       const contextSnapshot = explainDto
         ? mergeContextSnapshotWithWorkflowExplainability(row.contextSnapshot, explainDto)
         : row.contextSnapshot;
-      await finalizeAssistantMessageInDb(dbRef, row, {
+      await finalizeAiAssistantMessage(row, {
         content,
         status,
         errorMessage,

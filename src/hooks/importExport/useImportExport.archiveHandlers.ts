@@ -3,7 +3,7 @@ import {
   snapshotLoadWasSuperseded,
   type LoadTranscriptionSnapshot,
 } from '../transcription/workspaceSnapshotLoad';
-import type { ImportConflictStrategy } from '../../db';
+import type { ImportConflictStrategy } from '../../db/types';
 import type {
   JieyuArchiveImportPreview,
   ProjectArchiveImportSelection,

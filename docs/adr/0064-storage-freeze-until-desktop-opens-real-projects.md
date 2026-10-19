@@ -36,7 +36,7 @@ accepted。用户 2026-10-17 在 grill-with-docs 访谈里逐张选定。本篇�
 - 首发顺序变成：#276 → #275（同时 #280）→ #325 与 #329 → 解冻 → #303–#306、#312、#313、#277、#326、#258、#281 并行 → #259（只等 #258、#281 与存储几步）→ [#282](https://github.com/Abe-Junwei/Jieyu/issues/282)。发布流水线 [#277](https://github.com/Abe-Junwei/Jieyu/issues/277) 也排到解冻后。
 - 只出决定、调研、原型或文档、不改产品代码的单子不受冻结，如许可证核对（[#307](https://github.com/Abe-Junwei/Jieyu/issues/307)）。
 - better-sqlite3 要同时在 Node（vitest）和 Electron 下可用，两套原生模块的构建由 #275 解决。
-- 浏览器构建删掉后，[桌面端浏览器支持策略](../architecture/桌面端浏览器支持策略.md) 早已随 #328 删除，`AGENTS.md` 的 Chromium E2E 门槛随 #329 改成 Electron E2E。
+- 浏览器构建删掉后，`桌面端浏览器支持策略` 早已随 #328 删除，`AGENTS.md` 的 Chromium E2E 门槛随 #329 改成 Electron E2E。
 
 ## 被放弃的备选方案
 

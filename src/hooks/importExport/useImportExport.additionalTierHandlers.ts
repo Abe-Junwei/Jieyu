@@ -1,9 +1,5 @@
-import type {
-  JieyuDatabase,
-  LayerDocType,
-  LayerUnitDocType,
-  LayerUnitContentDocType,
-} from '../../db';
+import type { JieyuDatabase } from '../../db/engine';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db/types';
 import type { EafImportResult } from '../../services/EafService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';

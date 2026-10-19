@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { LayerUnitDocType, LayerUnitContentDocType } from '../../db';
+import type { LayerUnitDocType, LayerUnitContentDocType } from '../../db/types';
 import { useDeleteConfirmFlow } from '../useDeleteConfirmFlow';
 import { resolveDeletePlan } from '../../utils/deleteSelectionUtils';
 import { fireAndForget } from '../../utils/fireAndForget';

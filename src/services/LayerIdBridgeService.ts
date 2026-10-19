@@ -1,4 +1,4 @@
-import type { LayerLinkDocType, LayerUnitContentDocType } from '../db';
+import type { LayerLinkDocType, LayerUnitContentDocType } from '../db/types';
 
 // ─── 类型 | Types ────────────────────────────────────────────────
 
@@ -24,10 +24,12 @@ export function withUnitTextLayerId<T extends UnitTextWithoutLayerId>(
 
 // ─── LayerLink 辅助 | LayerLink helpers ──────────────────────────
 
-export function createLayerLink(params: {
-  id: string;
-  createdAt: string;
-} & LayerLinkEdge): LayerLinkDocType {
+export function createLayerLink(
+  params: {
+    id: string;
+    createdAt: string;
+  } & LayerLinkEdge,
+): LayerLinkDocType {
   return {
     id: params.id,
     transcriptionLayerKey: params.transcriptionLayerKey,

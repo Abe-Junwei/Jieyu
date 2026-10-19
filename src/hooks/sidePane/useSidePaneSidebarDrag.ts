@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LayerDocType, LayerLinkDocType } from '../../db';
+import type { LayerDocType, LayerLinkDocType } from '../../db/types';
 import {
   resolveVerticalReorderTargetIndex,
   type VerticalDragDirection,

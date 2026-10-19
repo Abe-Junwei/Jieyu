@@ -3,7 +3,7 @@ import type {
   LanguageAliasDocType,
   LanguageCatalogSourceType,
   LanguageDisplayNameDocType,
-} from '../../db';
+} from '../../db/types';
 import { newId } from '../../utils/transcriptionFormatters';
 import type { UpsertLanguageCatalogEntryInput } from './languageCatalogTypes';
 import * as lcNorm from './languageCatalogCoreNormalization';

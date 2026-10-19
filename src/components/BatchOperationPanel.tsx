@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_PANEL_CLOSE_LG } from '../utils/jieyuMaterialIcon';
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../db/types';
 import { useDraggablePanel } from '~/hooks/panel/useDraggablePanel';
 import { useLocale } from '../i18n';
 import { getBatchOperationPanelMessages } from '../i18n/messages';

@@ -1,4 +1,4 @@
-import type { LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerUnitDocType, MediaItemDocType } from '../db/types';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import {
   isSegmentTimelineUnit,
@@ -35,8 +35,7 @@ export function resolveSegmentScopeMediaId(
 export function resolveSegmentMediaIdFromSegmentGraph(
   selectedTimelineUnit: TimelineUnit | null,
   segmentsByLayer:
-    | ReadonlyMap<string, ReadonlyArray<Pick<LayerUnitDocType, 'id' | 'mediaId'>>>
-    | undefined,
+    ReadonlyMap<string, ReadonlyArray<Pick<LayerUnitDocType, 'id' | 'mediaId'>>> | undefined,
 ): string | undefined {
   if (!selectedTimelineUnit || !isSegmentTimelineUnit(selectedTimelineUnit)) return undefined;
   const layerId = selectedTimelineUnit.layerId?.trim() ?? '';

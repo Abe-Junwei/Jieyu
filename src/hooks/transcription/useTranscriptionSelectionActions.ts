@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { normalizeSelection } from '../../utils/selectionUtils';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import {
   createTimelineUnit,
   isSegmentTimelineUnit,

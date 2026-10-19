@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { getDb } from '../../db';
 import type {
   AnchorDocType,
   LayerLinkDocType,
@@ -8,18 +7,26 @@ import type {
   LayerDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
-} from '../../db';
-import type { UnitMorphemeDocType, UnitTokenDocType } from '../../db';
+  UnitMorphemeDocType,
+  UnitTokenDocType,
+} from '../../db/types';
+import {
+  readTranscriptionAnchorsByMediaIds,
+  readTranscriptionDatabaseName,
+  readTranscriptionDocumentScope,
+  readTranscriptionLayerLinksForLayerIds,
+  readTranscriptionLayersByTextId,
+  readTranscriptionMediaByTextId,
+  readTranscriptionMorphemesByTextId,
+  readTranscriptionTokensByTextId,
+  readTranscriptionUnitsForText,
+} from '../../db/storagePortTranscriptionSnapshot';
 import { mergeReloadedMediaRows } from '../../utils/transcriptionProjectMediaDerived';
 import { mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
 import { listUnitTextsFromSegmentationForText } from '../../services/LayerSegmentationTextService';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
-import { listUnitDocsForText } from '../../services/LayerSegmentGraphService';
 import { LinguisticService } from '../../services/LinguisticService';
-import {
-  isLayerInCurrentDocument,
-  readAnnotationDocumentScope,
-} from '../../services/annotationDocumentService';
+import { isLayerInCurrentDocument } from '../../services/annotationDocumentService';
 import { createTimelineUnit, type DbState, type TimelineUnit } from './transcriptionTypes';
 import {
   assertTranscriptionDependencyLayerInvariant,
@@ -99,19 +106,18 @@ export function useTranscriptionSnapshotLoader({
       const requestToken = (snapshotRequestGenerationRef.current += 1);
       const stillCurrent = () => snapshotRequestGenerationRef.current === requestToken;
       try {
-        const db = await getDb();
         const scopedTextId = typeof textId === 'string' ? textId.trim() : '';
         const hasProject = scopedTextId.length > 0;
-        const [layerDocs, mediaRows, documentScope] = hasProject
+        const [projectLayerRowsAll, mediaRows, documentScope] = hasProject
           ? await Promise.all([
-              db.collections.layers.findByIndex('textId', scopedTextId),
-              db.dexie.media_items.where('textId').equals(scopedTextId).toArray(),
-              readAnnotationDocumentScope(db, scopedTextId),
+              readTranscriptionLayersByTextId(scopedTextId),
+              readTranscriptionMediaByTextId(scopedTextId),
+              readTranscriptionDocumentScope(scopedTextId),
             ])
           : [[], [] as MediaItemDocType[], undefined];
-        const projectLayerRows = layerDocs
-          .map((doc) => doc.toJSON() as unknown as LayerDocType)
-          .filter((layer) => layer.textId === scopedTextId);
+        const projectLayerRows = projectLayerRowsAll.filter(
+          (layer) => layer.textId === scopedTextId,
+        );
         // 第 5 批：工作台只装当前文稿的层与其上的单元 | Batch 5: only the current document's layers / units
         const layerRows = documentScope
           ? projectLayerRows.filter((layer) => isLayerInCurrentDocument(layer, documentScope))
@@ -122,29 +128,25 @@ export function useTranscriptionSnapshotLoader({
         const inCurrentDocument = (row: { layerId?: string | undefined }) =>
           row.layerId === undefined || !otherDocumentLayerIds.has(row.layerId);
         const unitRows = hasProject
-          ? await listUnitDocsForText(db, scopedTextId, otherDocumentLayerIds)
+          ? await readTranscriptionUnitsForText(scopedTextId, otherDocumentLayerIds)
           : ([] as LayerUnitDocType[]);
         const projectLayerIds = [...new Set(layerRows.map((l) => l.id))];
         const projectMediaIds = mediaRows.map((row) => row.id);
-        const [anchorRows, linksByLayer, linksByHost, translationRows] = hasProject
+        const [anchorRows, layerLinks, translationRows] = hasProject
           ? await Promise.all([
-              projectMediaIds.length > 0
-                ? db.dexie.anchors.where('mediaId').anyOf(projectMediaIds).toArray()
-                : Promise.resolve([] as AnchorDocType[]),
-              projectLayerIds.length > 0
-                ? db.dexie.layer_links.where('layerId').anyOf(projectLayerIds).toArray()
-                : Promise.resolve([] as LayerLinkDocType[]),
-              projectLayerIds.length > 0
-                ? db.dexie.layer_links
-                    .where('hostTranscriptionLayerId')
-                    .anyOf(projectLayerIds)
-                    .toArray()
-                : Promise.resolve([] as LayerLinkDocType[]),
+              readTranscriptionAnchorsByMediaIds(projectMediaIds),
+              readTranscriptionLayerLinksForLayerIds(projectLayerIds),
               listUnitTextsFromSegmentationForText(scopedTextId).then((rows) =>
                 rows.filter(inCurrentDocument),
               ),
             ])
-          : [[] as AnchorDocType[], [], [], [] as LayerUnitContentDocType[]];
+          : [
+              [] as AnchorDocType[],
+              { byLayer: [] as LayerLinkDocType[], byHost: [] as LayerLinkDocType[] },
+              [] as LayerUnitContentDocType[],
+            ];
+        const linksByLayer = layerLinks.byLayer;
+        const linksByHost = layerLinks.byHost;
         // 关系行没有 textId：按任一端落在本项目图层上取 | Links carry no textId: either end on a project layer
         const linkRows = scopeLayerLinksToLayerIdSet(
           [
@@ -196,7 +198,7 @@ export function useTranscriptionSnapshotLoader({
 
         if (!stillCurrent()) return { committed: false, reason: 'superseded' };
         if (hasProject) {
-          const latestScope = await readAnnotationDocumentScope(db, scopedTextId);
+          const latestScope = await readTranscriptionDocumentScope(scopedTextId);
           if (!stillCurrent()) return { committed: false, reason: 'superseded' };
           if ((latestScope.defaultDocumentId ?? '') !== (documentScope?.defaultDocumentId ?? '')) {
             return { committed: false, reason: 'superseded' };
@@ -280,11 +282,12 @@ export function useTranscriptionSnapshotLoader({
           return prev;
         });
 
-        dbNameRef.current = db.name;
+        const dbName = await readTranscriptionDatabaseName();
+        dbNameRef.current = dbName;
         onScopeLoaded?.(`${scopedTextId}\u0000${documentScope?.defaultDocumentId ?? ''}`);
         setState({
           phase: 'ready',
-          dbName: db.name,
+          dbName,
           unitCount,
           unifiedUnitCount,
           ...(textLogicalDurationSecFromSnapshot !== undefined
@@ -329,13 +332,12 @@ export function useTranscriptionSnapshotLoader({
       const scopedTextId = textId.trim();
       if (scopedTextId.length === 0) return { applied: true };
       try {
-        const db = await getDb();
         // 只取本项目的 token / morpheme（JY-15）| Only this project's tokens / morphemes (JY-15)
         const [tokenDocs, morphemeDocs] = await Promise.all([
-          db.dexie.unit_tokens.where('textId').equals(scopedTextId).toArray(),
-          db.dexie.unit_morphemes.where('textId').equals(scopedTextId).toArray(),
+          readTranscriptionTokensByTextId(scopedTextId),
+          readTranscriptionMorphemesByTextId(scopedTextId),
         ]);
-        const tokenRows = (tokenDocs as UnitTokenDocType[]).slice().sort((a, b) => {
+        const tokenRows = tokenDocs.slice().sort((a, b) => {
           if (a.unitId === b.unitId) return a.tokenIndex - b.tokenIndex;
           return a.unitId.localeCompare(b.unitId);
         });

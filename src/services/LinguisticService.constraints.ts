@@ -1,4 +1,4 @@
-import type { TierAnnotationDocType, TierDefinitionDocType, TierType } from '../db';
+import type { TierAnnotationDocType, TierDefinitionDocType, TierType } from '../db/types';
 
 export type ConstraintSeverity = 'error' | 'warning' | 'info';
 
@@ -56,7 +56,12 @@ const ALLOWED_PARENT_TIER_TYPES: Record<TierType, readonly TierType[]> = {
   'time-aligned': [],
   'time-subdivision': ['time-aligned', 'time-subdivision'],
   'symbolic-subdivision': ['time-aligned', 'time-subdivision', 'symbolic-subdivision'],
-  'symbolic-association': ['time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association'],
+  'symbolic-association': [
+    'time-aligned',
+    'time-subdivision',
+    'symbolic-subdivision',
+    'symbolic-association',
+  ],
 };
 
 // ── Pure constraint validation functions ──────────────────────
@@ -148,7 +153,8 @@ export function validateTierConstraints(
     const tierAnns = annotationsByTier.get(tier.id) ?? [];
     const isTimeRoot = tier.tierType === 'time-aligned';
     const isTimeSub = tier.tierType === 'time-subdivision';
-    const isSymbolic = tier.tierType === 'symbolic-subdivision' || tier.tierType === 'symbolic-association';
+    const isSymbolic =
+      tier.tierType === 'symbolic-subdivision' || tier.tierType === 'symbolic-association';
 
     if (isTimeRoot || isTimeSub) {
       for (const ann of tierAnns) {
@@ -193,9 +199,15 @@ export function validateTierConstraints(
 
     if (isTimeSub && tier.parentTierId !== undefined) {
       for (const ann of tierAnns) {
-        if (ann.startTime === undefined || ann.endTime === undefined || ann.parentAnnotationId === undefined) continue;
+        if (
+          ann.startTime === undefined ||
+          ann.endTime === undefined ||
+          ann.parentAnnotationId === undefined
+        )
+          continue;
         const parentAnn = annotationById.get(ann.parentAnnotationId);
-        if (!parentAnn || parentAnn.startTime === undefined || parentAnn.endTime === undefined) continue;
+        if (!parentAnn || parentAnn.startTime === undefined || parentAnn.endTime === undefined)
+          continue;
         if (ann.startTime < parentAnn.startTime || ann.endTime > parentAnn.endTime) {
           violations.push({
             rule: 'T3',
@@ -221,7 +233,8 @@ export function validateTierConstraints(
       }
       for (const [parentId, children] of childrenByParent) {
         const parentAnn = annotationById.get(parentId);
-        if (!parentAnn || parentAnn.startTime === undefined || parentAnn.endTime === undefined) continue;
+        if (!parentAnn || parentAnn.startTime === undefined || parentAnn.endTime === undefined)
+          continue;
         const validChildren = children
           .filter((c) => c.startTime !== undefined && c.endTime !== undefined)
           .sort((a, b) => a.startTime! - b.startTime!);
@@ -351,7 +364,11 @@ export function validateTierConstraints(
     if (tier.parentTierId !== undefined) {
       const childIds = new Set(tierAnns.map((ann) => ann.id));
       for (const ann of annotations) {
-        if (ann.parentAnnotationId && childIds.has(ann.parentAnnotationId) && ann.tierId !== tier.id) {
+        if (
+          ann.parentAnnotationId &&
+          childIds.has(ann.parentAnnotationId) &&
+          ann.tierId !== tier.id
+        ) {
           violations.push({
             rule: 'S4',
             severity: 'warning',
@@ -371,14 +388,20 @@ export function validateTierConstraints(
         const subCountByParent = new Map<string, number>();
         for (const ann of tierAnns) {
           if (ann.parentAnnotationId === undefined) continue;
-          subCountByParent.set(ann.parentAnnotationId, (subCountByParent.get(ann.parentAnnotationId) ?? 0) + 1);
+          subCountByParent.set(
+            ann.parentAnnotationId,
+            (subCountByParent.get(ann.parentAnnotationId) ?? 0) + 1,
+          );
         }
         for (const assocTier of siblingAssocTiers) {
           const assocAnns = annotationsByTier.get(assocTier.id) ?? [];
           const assocCountByParent = new Map<string, number>();
           for (const ann of assocAnns) {
             if (ann.parentAnnotationId === undefined) continue;
-            assocCountByParent.set(ann.parentAnnotationId, (assocCountByParent.get(ann.parentAnnotationId) ?? 0) + 1);
+            assocCountByParent.set(
+              ann.parentAnnotationId,
+              (assocCountByParent.get(ann.parentAnnotationId) ?? 0) + 1,
+            );
           }
           for (const [parentId, subCount] of subCountByParent) {
             const subAnnsForParent = tierAnns.filter((a) => a.parentAnnotationId === parentId);

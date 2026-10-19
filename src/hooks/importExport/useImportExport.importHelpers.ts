@@ -1,4 +1,5 @@
-import type { JieyuDatabase, SpeakerDocType } from '../../db';
+import type { JieyuDatabase } from '../../db/engine';
+import type { SpeakerDocType } from '../../db/types';
 import { LinguisticService } from '../../services/LinguisticService';
 import { readAnyMultiLangLabel } from '../../utils/multiLangLabels';
 import { newId, parseBcp47 } from '../../utils/transcriptionFormatters';

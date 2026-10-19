@@ -28,7 +28,7 @@ import type {
   UiChatMessage,
   UseAiChatOptions,
 } from './useAiChat.types';
-import type { AiMessageCitation } from '../../db';
+import type { AiMessageCitation } from '../../db/types';
 import type { AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
 import type {
   VerticalWorkflowOutputEnvelopeV0,

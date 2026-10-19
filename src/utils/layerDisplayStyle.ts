@@ -4,7 +4,7 @@
  */
 
 import type { CSSProperties } from 'react';
-import type { LayerDisplaySettings, OrthographyDocType } from '../db';
+import type { LayerDisplaySettings, OrthographyDocType } from '../db/types';
 
 // ── Types | 类型 ────────────────────────────────────────────
 

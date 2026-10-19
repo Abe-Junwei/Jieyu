@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { t, tf, type Locale } from '../../i18n';
-import type { LayerDisplaySettings, LayerDocType, OrthographyDocType } from '../../db';
+import type { LayerDisplaySettings, LayerDocType, OrthographyDocType } from '../../db/types';
 import type { VerticalReadingGroup } from '../../utils/transcriptionVerticalReadingGroups';
 import {
   filterTranslationLayersForVerticalReadingGroup,

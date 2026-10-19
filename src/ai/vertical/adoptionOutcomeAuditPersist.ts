@@ -1,4 +1,4 @@
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import { newAuditLogId, nowIso } from '../../hooks/ai/useAiChat.helpers';
 import {
   AI_ADOPTION_OUTCOME_AUDIT_FIELD,
@@ -27,22 +27,20 @@ export function scheduleAdoptionOutcomeAuditLog(options: {
       : {}),
   };
   const timestamp = nowIso();
-  void getDb()
-    .then((db) =>
-      db.collections.audit_logs.insert({
-        id: newAuditLogId(),
-        collection: 'ai_messages',
-        documentId,
-        action: 'update',
-        field: AI_ADOPTION_OUTCOME_AUDIT_FIELD,
-        oldValue: item.workflowId,
-        newValue: meta.toStatus,
-        source: action === 'expire' ? 'system' : 'human',
-        timestamp,
-        requestId: `${item.id}_${action}_${timestamp}`,
-        metadataJson: JSON.stringify(meta),
-      }),
-    )
+  void storagePort()
+    .audit.insertAuditLog({
+      id: newAuditLogId(),
+      collection: 'ai_messages',
+      documentId,
+      action: 'update',
+      field: AI_ADOPTION_OUTCOME_AUDIT_FIELD,
+      oldValue: item.workflowId,
+      newValue: meta.toStatus,
+      source: action === 'expire' ? 'system' : 'human',
+      timestamp,
+      requestId: `${item.id}_${action}_${timestamp}`,
+      metadataJson: JSON.stringify(meta),
+    })
     .catch(() => {
       // 审计写入失败不阻断主流程 | Do not block UX when audit insert fails.
     });

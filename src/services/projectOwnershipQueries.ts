@@ -2,52 +2,31 @@
  * 查询给定单元 / 图层里哪些属于另一个项目（2B-G / JY-03）。
  * Find which of the given units / layers belong to another project (2B-G / JY-03).
  */
-import { getDb } from '../db';
+import { storagePort } from '../db/storagePort';
+import type { ForeignOwnedRow } from '../db/storagePortProjectReads';
 
-export type ForeignOwnedRow = { id: string; textId: string };
-
-function uniqueIds(ids: Iterable<string>): string[] {
-  return [...new Set([...ids].map((id) => id.trim()).filter((id) => id.length > 0))];
-}
+export type { ForeignOwnedRow };
 
 /** 已存在、且 `textId` 不是 `textId` 的单元 | Existing units whose `textId` differs */
-export async function listForeignOwnedUnits(
+export function listForeignOwnedUnits(
   unitIds: Iterable<string>,
   textId: string,
 ): Promise<ForeignOwnedRow[]> {
-  const ids = uniqueIds(unitIds);
-  if (ids.length === 0) return [];
-  const db = await getDb();
-  const rows = await db.dexie.layer_units.bulkGet(ids);
-  return rows.flatMap((row) =>
-    row && row.textId !== textId ? [{ id: row.id, textId: row.textId }] : [],
-  );
+  return storagePort().listForeignOwnedUnits(unitIds, textId);
 }
 
 /** 已存在、且 `textId` 不是 `textId` 的图层 | Existing layers whose `textId` differs */
-export async function listForeignOwnedLayers(
+export function listForeignOwnedLayers(
   layerIds: Iterable<string>,
   textId: string,
 ): Promise<ForeignOwnedRow[]> {
-  const ids = uniqueIds(layerIds);
-  if (ids.length === 0) return [];
-  const db = await getDb();
-  const rows = await db.dexie.tier_definitions.bulkGet(ids);
-  return rows.flatMap((row) =>
-    row && row.textId !== textId ? [{ id: row.id, textId: row.textId }] : [],
-  );
+  return storagePort().listForeignOwnedLayers(layerIds, textId);
 }
 
 /** 已存在、且 `textId` 不是 `textId` 的媒体（GAP-2）| Existing media whose `textId` differs (GAP-2) */
-export async function listForeignOwnedMedia(
+export function listForeignOwnedMedia(
   mediaIds: Iterable<string>,
   textId: string,
 ): Promise<ForeignOwnedRow[]> {
-  const ids = uniqueIds(mediaIds);
-  if (ids.length === 0) return [];
-  const db = await getDb();
-  const rows = await db.dexie.media_items.bulkGet(ids);
-  return rows.flatMap((row) =>
-    row && row.textId !== textId ? [{ id: row.id, textId: row.textId }] : [],
-  );
+  return storagePort().listForeignOwnedMedia(mediaIds, textId);
 }

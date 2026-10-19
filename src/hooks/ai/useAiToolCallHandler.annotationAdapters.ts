@@ -1,5 +1,5 @@
 import { AutoGlossService } from '../../ai/AutoGlossService';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
 import { LinguisticService } from '../../services/LinguisticService';
 import { t, tf } from '../../i18n';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';

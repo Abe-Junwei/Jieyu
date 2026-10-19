@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType } from '../db/types';
 import { t, useLocale } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { readAudioBlobFromDetails } from '../utils/translationRecordingMediaBlob';

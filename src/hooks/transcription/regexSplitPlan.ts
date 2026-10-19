@@ -1,4 +1,4 @@
-import type { AnchorDocType, LayerUnitContentDocType, LayerUnitDocType } from '../../db';
+import type { AnchorDocType, LayerUnitContentDocType, LayerUnitDocType } from '../../db/types';
 import { newId } from '../../utils/transcriptionFormatters';
 
 const MIN_SPAN_SEC = 0.05;

@@ -7,7 +7,11 @@
  * for multi-host translation layer filtering in the paired-reading shell.
  */
 
-import { layerTranscriptionTreeParentId, type LayerDocType, type LayerUnitDocType } from '../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerUnitDocType,
+} from '../db/types';
 import type { VerticalReadingGroup } from './transcriptionVerticalReadingGroups';
 import {
   buildTranscriptionIdByKeyMap,

@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import type { MutableRefObject } from 'react';
-import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db/types';
 import { saveRecoverySnapshot } from '../../services/SnapshotService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { resolveCurrentProjectTextId } from '../../utils/transcriptionUrlDeepLink';
