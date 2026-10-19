@@ -12,6 +12,7 @@ vi.mock('../../ai/config/featureFlags', async (importOriginal) => {
       aiExternalMcpHttpClientEnabled: true,
       aiExternalMcpSendTurnEnabled: true,
       aiSemanticGuardEnabled: true,
+      aiAgentUiPreviewEnabled: true,
     },
   };
 });
@@ -22,6 +23,7 @@ import { getDefaultAiChatSettings } from '../../ai/providers/providerCatalog';
 import { setExternalMcpTrustEnabled } from '../../ai/mcp/client/externalMcpTrustRegistry';
 import { encodeExternalMcpToolName } from '../../ai/mcp/client/externalMcpTurnBridge';
 import { t } from '../../i18n';
+import { getDefaultAgentUiEventBus } from '../../ai/runtime/agentUiEvents';
 import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
 import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
 import { buildExternalMcpInputPendingCall } from './useAiChat.externalMcpInput';
@@ -241,5 +243,34 @@ describe('MCP input card: confirm', () => {
       status: 'error',
     });
     expect(audits).toContain(`confirm_failed:${TOOL}:http_error`);
+  });
+});
+
+describe('MCP input card: user-facing results', () => {
+  it('stores a localized notice on success, never the tool result', async () => {
+    onToolsCall = () => ({ content: [{ type: 'text', text: '{"count":42}' }] });
+    const { hook, pendingRef, stored, audits } = renderPendingCard(inputCard('STATE-1'));
+    await hook.current.confirmPendingToolCall(filled);
+    expect(pendingRef.current).toBeNull();
+    expect(stored.get('ast-1')).toEqual({
+      content: t('en-US', 'ai.externalMcp.inputSubmitted'),
+      status: 'done',
+    });
+    expect(stored.get('ast-1')?.content).not.toContain('count');
+    expect(audits).toContain(`approved:${TOOL}:input_submitted`);
+  });
+
+  it('cancelling stores a localized notice without the encoded name and is not a write cancel', async () => {
+    const events: string[] = [];
+    const unsubscribe = getDefaultAgentUiEventBus().subscribe((event) => events.push(event.kind));
+    const { hook, pendingRef, stored, audits } = renderPendingCard(inputCard('STATE-1'));
+    await hook.current.cancelPendingToolCall();
+    unsubscribe();
+    expect(pendingRef.current).toBeNull();
+    expect(stored.get('ast-1')?.content).toBe(t('en-US', 'ai.externalMcp.inputCancelled'));
+    expect(stored.get('ast-1')?.content).not.toContain('extmcp__');
+    expect(audits).toContain(`cancelled:${TOOL}`);
+    expect(events).not.toContain('write_cancelled');
+    expect(toolsCalls).toHaveLength(0);
   });
 });

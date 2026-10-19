@@ -282,7 +282,7 @@ export type ExternalMcpInputFormOutcome =
   | { kind: 'missing_required' }
   /** The server asked again. `form` carries the new requestState. */
   | { kind: 'asked_again'; form: ExternalMcpInputCard }
-  | { kind: 'done'; text: string }
+  | { kind: 'done' }
   | { kind: 'failed'; reason: string };
 
 /** User submitted the form. */
@@ -305,7 +305,7 @@ export async function completeExternalMcpInputForm(
   );
   if (payload.form) return { kind: 'asked_again', form: payload.form };
   if (!payload.ok) return { kind: 'failed', reason: payload.reason ?? 'external mcp tool failed' };
-  return { kind: 'done', text: externalMcpModelMessage(payload) };
+  return { kind: 'done' };
 }
 
 export async function executeExternalMcpCall(

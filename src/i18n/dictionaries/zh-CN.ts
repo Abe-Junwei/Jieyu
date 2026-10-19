@@ -2732,6 +2732,8 @@ export const zhCNDictionary = {
   'ai.runtimeV2.approvedRunsNextTurn': '已批准，将在你发送下一条消息时执行。',
   'ai.runtimeV2.approvalStale': '待确认的操作目标在此期间已变化，该审批已过期，请重新发起。',
   'ai.runtimeV2.pendingNoAutoContinue': '确认后不会自动继续，请在确认后再发一条消息让我接着做。',
+  'ai.externalMcp.inputSubmitted': '已把你的输入交给外部工具。再发一条消息，让我接着做。',
+  'ai.externalMcp.inputCancelled': '已取消，没有把输入交给外部工具。',
   'ai.externalMcp.inputAskedAgain': '外部工具还需要更多信息，卡片已更新，请再填写一次。',
   'ai.externalMcp.inputFailed': '外部工具没有完成这次请求，请稍后再试。',
   'ai.externalMcp.inputNeeded': '外部工具需要你补充信息，请在下方卡片里填写后提交。',

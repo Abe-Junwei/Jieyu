@@ -394,11 +394,13 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     });
     await applyAssistantMessageResult(
       pending.assistantMessageId,
-      toNaturalToolCancelled(
-        toolFeedbackLocale,
-        pending.call.name,
-        settingsRef.current.toolFeedbackStyle,
-      ),
+      pending.mcpInput
+        ? t(toolFeedbackLocale, 'ai.externalMcp.inputCancelled')
+        : toNaturalToolCancelled(
+            toolFeedbackLocale,
+            pending.call.name,
+            settingsRef.current.toolFeedbackStyle,
+          ),
     );
 
     await writeToolDecisionAuditLog(
@@ -416,13 +418,16 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         false,
       ),
     );
-    publishAgentWriteCancelled({
-      toolName: pending.call.name,
-      ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
-      ...((pending.call.requestId ?? pending.requestId)
-        ? { requestId: pending.call.requestId ?? pending.requestId }
-        : {}),
-    });
+    // An MCP input card guards a read; it is not a cancelled write.
+    if (!pending.mcpInput) {
+      publishAgentWriteCancelled({
+        toolName: pending.call.name,
+        ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+        ...((pending.call.requestId ?? pending.requestId)
+          ? { requestId: pending.call.requestId ?? pending.requestId }
+          : {}),
+      });
+    }
     // v2：取消 = 原生拒绝 response + execution-denied；有下一张卡片则接着显示 | native denial, show next card
     if (pending.runtimeV2) {
       const r = await resolveApproval(

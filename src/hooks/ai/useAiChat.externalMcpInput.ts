@@ -97,5 +97,17 @@ export async function confirmExternalMcpInputCard(
     );
     return;
   }
-  await deps.applyAssistantMessageResult(assistantMessageId, outcome.text, 'done');
+  // The result is not fed to the model outside ToolLoopAgent; the user asks again to use it.
+  await deps.applyAssistantMessageResult(
+    assistantMessageId,
+    t(deps.locale, 'ai.externalMcp.inputSubmitted'),
+    'done',
+  );
+  await deps.writeToolDecisionAuditLog(
+    assistantMessageId,
+    `pending:${name}`,
+    `approved:${name}:input_submitted`,
+    'human',
+    requestId,
+  );
 }

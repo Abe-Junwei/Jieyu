@@ -2972,6 +2972,9 @@ export const enUSDictionary = {
     'The target of this pending action changed meanwhile, so the approval expired. Please ask again.',
   'ai.runtimeV2.pendingNoAutoContinue':
     'After you confirm, I will not continue automatically; send another message to let me proceed.',
+  'ai.externalMcp.inputSubmitted':
+    'Your input was sent to the external tool. Send another message and I will continue.',
+  'ai.externalMcp.inputCancelled': 'Cancelled. Nothing was sent to the external tool.',
   'ai.externalMcp.inputAskedAgain':
     'The external tool needs more information. The card has been updated; please fill it in again.',
   'ai.externalMcp.inputFailed':
