@@ -80,6 +80,36 @@ describe('TaskRunner', () => {
     }
   });
 
+  it('retries a failed done write so stale recovery does not later record a completed task as failed', async () => {
+    const runner = new TaskRunner(1);
+    const run = vi.fn(async () => 'saved');
+    const original = db.ai_tasks.update.bind(db.ai_tasks);
+    let doneWrites = 0;
+    const update = vi.spyOn(db.ai_tasks, 'update').mockImplementation((id, patch) => {
+      if ((patch as { status?: string }).status === 'done' && (doneWrites += 1) === 1) {
+        return Promise.reject(new Error('status unavailable')) as ReturnType<typeof original>;
+      }
+      return original(id as string, patch);
+    });
+    let taskId = '';
+    try {
+      const task = await runner.enqueue({ taskType: 'embed', targetId: 'x', run });
+      taskId = task.taskId;
+      await expect(task.result).resolves.toBe('saved');
+    } finally {
+      update.mockRestore();
+    }
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(doneWrites).toBe(2);
+    expect((await db.ai_tasks.get(taskId))?.status).toBe('done');
+
+    new TaskRunner({ staleTaskTtlMs: 1 });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const row = await db.ai_tasks.get(taskId);
+    expect(row?.status).toBe('done');
+    expect(row?.errorMessage).toBeUndefined();
+  });
+
   it('settles a failed task even when recording failed status also fails', async () => {
     const runner = new TaskRunner(1);
     const original = db.ai_tasks.update.bind(db.ai_tasks);
