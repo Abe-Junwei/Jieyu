@@ -116,3 +116,30 @@ describe('WorkbenchFilePane reattach', () => {
     expect(importAudio).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('WorkbenchFilePane same-name import', () => {
+  const pickMedia = (file: File) =>
+    fireEvent.change(screen.getByLabelText('导入媒体'), { target: { files: [file] } });
+
+  it('shows a non-success notice when the same bytes are already imported', async () => {
+    const importAudio = vi
+      .spyOn(LinguisticService.media, 'importAudio')
+      .mockResolvedValueOnce({
+        mediaId: 'media-a',
+        contentSha256: 'aa'.repeat(32),
+        alreadyImported: true,
+      })
+      .mockResolvedValueOnce({ mediaId: 'media-b', contentSha256: 'bb'.repeat(32) });
+    renderPane();
+
+    pickMedia(new File(['bytes-X'], 'a.wav', { type: 'audio/wav' }));
+    const notice = await screen.findByText('项目里已有内容完全相同的「a.wav」，这次没有重复导入。');
+    expect(notice.getAttribute('role')).toBe('alert');
+    expect(screen.queryByText('媒体「a.wav」导入成功。')).toBeNull();
+
+    pickMedia(new File(['bytes-Y'], 'a.wav', { type: 'audio/wav' }));
+    expect(await screen.findByText('媒体「a.wav」导入成功。')).toBeTruthy();
+    expect(importAudio).toHaveBeenCalledTimes(2);
+    expect(importAudio.mock.calls[0]?.[0]).not.toHaveProperty('importMode');
+  });
+});

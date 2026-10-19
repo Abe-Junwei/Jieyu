@@ -224,7 +224,7 @@ describe('importAudio placeholder scope (T11 / N4)', () => {
     );
   });
 
-  it('imports the same filename onto the existing empty recording instead of adding another', async () => {
+  it('imports the same filename onto the existing empty recording; different bytes later become a new row', async () => {
     await db.media_items.bulkDelete(['media_ph_a', 'media_ph_b']);
     await db.layer_units.bulkDelete(['seg_a', 'seg_b']);
     await db.layer_units.put({
@@ -252,14 +252,91 @@ describe('importAudio placeholder scope (T11 / N4)', () => {
       expect.objectContaining({ mediaId: 'media_missing' }),
     );
 
+    const same = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: new Blob(['wav'], { type: 'audio/wav' }),
+      filename: 'media_missing.wav',
+      duration: 20,
+    });
+    expect(same).toMatchObject({ mediaId: 'media_missing', alreadyImported: true });
+    expect(await db.media_items.where('textId').equals(TEXT_ID).count()).toBe(1);
+
     const second = await LinguisticService.media.importAudio({
       textId: TEXT_ID,
       audioBlob: new Blob(['wav-again'], { type: 'audio/wav' }),
       filename: 'media_missing.wav',
       duration: 20,
     });
-    expect(second.mediaId).toBe('media_missing');
-    expect(await db.media_items.where('textId').equals(TEXT_ID).count()).toBe(1);
+    expect(second.mediaId).not.toBe('media_missing');
+    expect(second.alreadyImported).toBeUndefined();
+    expect(await db.media_items.where('textId').equals(TEXT_ID).count()).toBe(2);
+    const original = await db.media_items.get('media_missing');
+    expect(await (original?.details as { audioBlob: Blob }).audioBlob.text()).toBe('wav');
+  });
+
+  it('stores both recordings when a.wav is imported twice with different bytes', async () => {
+    await db.media_items.bulkDelete(['media_ph_a', 'media_ph_b', 'media_missing']);
+    await db.layer_units.bulkDelete(['seg_a', 'seg_b', 'seg_missing']);
+
+    const first = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: new Blob(['bytes-X'], { type: 'audio/wav' }),
+      filename: 'a.wav',
+      duration: 20,
+    });
+    const second = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: new Blob(['bytes-Y-longer'], { type: 'audio/wav' }),
+      filename: 'a.wav',
+      duration: 25,
+    });
+
+    expect(second.mediaId).not.toBe(first.mediaId);
+    expect(second.alreadyImported).toBeUndefined();
+    const rows = await db.media_items.where('textId').equals(TEXT_ID).toArray();
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    expect(rows).toHaveLength(2);
+    const firstRow = byId.get(first.mediaId);
+    const secondRow = byId.get(second.mediaId);
+    expect(firstRow?.filename).toBe('a.wav');
+    expect(secondRow?.filename).toBe('a.wav');
+    expect(await (firstRow?.details as { audioBlob: Blob }).audioBlob.text()).toBe('bytes-X');
+    expect(await (secondRow?.details as { audioBlob: Blob }).audioBlob.text()).toBe(
+      'bytes-Y-longer',
+    );
+    expect(firstRow?.contentSha256).toBe(first.contentSha256);
+    expect(secondRow?.contentSha256).toBe(second.contentSha256);
+    expect(firstRow?.contentSha256).not.toBe(secondRow?.contentSha256);
+  });
+
+  it('imports same-name bytes as a new row when the existing recording has no fingerprint', async () => {
+    await db.media_items.bulkDelete(['media_ph_a', 'media_ph_b', 'media_missing']);
+    await db.layer_units.bulkDelete(['seg_a', 'seg_b', 'seg_missing']);
+    const blob = new Blob(['bytes-X'], { type: 'audio/wav' });
+    await db.media_items.put({
+      id: 'media_unhashed',
+      textId: TEXT_ID,
+      filename: 'a.wav',
+      duration: 20,
+      details: { audioBlob: blob },
+      isOfflineCached: true,
+      timelineKind: 'acoustic',
+      byteLocation: 'managed',
+      availability: 'available',
+      contentSize: blob.size,
+      createdAt: NOW,
+    });
+
+    const result = await LinguisticService.media.importAudio({
+      textId: TEXT_ID,
+      audioBlob: new Blob(['bytes-X'], { type: 'audio/wav' }),
+      filename: 'a.wav',
+      duration: 20,
+    });
+
+    expect(result.mediaId).not.toBe('media_unhashed');
+    expect(result.alreadyImported).toBeUndefined();
+    expect(await db.media_items.where('textId').equals(TEXT_ID).count()).toBe(2);
   });
 
   it('checks the fingerprint before reattaching a card that has no playable bytes but still says available', async () => {

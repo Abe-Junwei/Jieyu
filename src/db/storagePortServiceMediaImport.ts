@@ -72,6 +72,16 @@ function stripStateDetails(details: Record<string, unknown> | undefined): Record
 
 const UNBOUND_MEDIA_ID = '__unknown_media__';
 
+/**
+ * `alreadyImported`：同名录音的字节完全相同，没有写入新行。
+ * `alreadyImported`: a same-name recording with identical bytes exists; nothing new was written.
+ */
+export type ImportAudioResult = {
+  mediaId: string;
+  contentSha256?: string;
+  alreadyImported?: true;
+};
+
 /** 项目里只有这一条录音名时，把未绑定的语段挂到它上面。多条不同录音时不动。 */
 async function bindUnboundUnitsWhenSoleRecording(
   db: Awaited<ReturnType<typeof getDb>>,
@@ -193,7 +203,8 @@ export async function importAudio(input: {
   duration: number;
   /**
    * `default`：没有声学轨且恰好一条占位轴时晋升这条占位；有多条占位时必须用 `replace` 指定，否则抛出
-   *   `AudioImportPlaceholderSelectionRequiredError`。同名声学轨已存在时写回那一条，不再另开一条；
+   *   `AudioImportPlaceholderSelectionRequiredError`。同名声学轨已有可播放字节时比较 sha256：相同则返回
+   *   那一条并带 `alreadyImported`；不同或旧行没有哈希则新建一条，不覆盖旧录音。同名声学轨缺音时写回那一条；
    *   其它文件名的声学轨（含缺音）仍新建 `mediaId`。
    * `replace`：覆盖 `replaceMediaId` 指向的行（声学就地换源，或显式晋升这一条占位）。
    * `add`：总是新增一条媒体轨；仅当没有声学轨且恰好一条占位时晋升这条占位。
@@ -204,7 +215,7 @@ export async function importAudio(input: {
   replaceMediaId?: string;
   /** 替换目标是缺音录音（即 Relink）且 sha256 不符时，用户已确认继续 | User confirmed a relink sha256 mismatch */
   acknowledgeContentMismatch?: boolean;
-}): Promise<{ mediaId: string; contentSha256?: string }> {
+}): Promise<ImportAudioResult> {
   const db = await getDb();
   const now = new Date().toISOString();
   let mode = input.importMode ?? 'default';
@@ -222,20 +233,29 @@ export async function importAudio(input: {
       !placeholderRows.some((candidate) => candidate.id === row.id) &&
       !isAuxiliaryRecordingMediaRow(row),
   );
+  // 哈希在事务外先算好（rev5 §4.2-3）| Hash outside the transaction
+  let incomingSha256: Promise<string | undefined> | undefined;
+  const hashIncoming = () => (incomingSha256 ??= computeBlobSha256(input.audioBlob));
   if (mode === 'default') {
     const wanted = mediaBasename(input.filename);
     const sameName = timelineAcousticRows.filter((row) => mediaBasename(row.filename) === wanted);
-    const alreadyPlayable = sameName.find((row) => mediaRowHasPlayableBytes(row));
-    if (alreadyPlayable) {
-      await bindUnboundUnitsWhenSoleRecording(db, input.textId, alreadyPlayable.id, now);
-      return {
-        mediaId: alreadyPlayable.id,
-        ...(alreadyPlayable.contentSha256 !== undefined
-          ? { contentSha256: alreadyPlayable.contentSha256 }
-          : {}),
-      };
+    const playable = sameName.filter((row) => mediaRowHasPlayableBytes(row));
+    if (playable.length > 0) {
+      // 录音机会在不同场次复用同一文件名：只有字节相同才算已导入，否则另存一条，旧录音不动。
+      // Recorders reuse names across sessions: only identical bytes count as already imported;
+      // otherwise the new bytes become a new row and the old recording is left alone.
+      const sha = await hashIncoming();
+      const identical =
+        sha === undefined ? undefined : playable.find((row) => row.contentSha256 === sha);
+      if (identical && sha !== undefined) {
+        await bindUnboundUnitsWhenSoleRecording(db, input.textId, identical.id, now);
+        return { mediaId: identical.id, contentSha256: sha, alreadyImported: true };
+      }
     }
-    const reusable = [...sameName].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+    const reusable =
+      playable.length > 0
+        ? undefined
+        : [...sameName].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
     if (reusable) {
       mode = 'replace';
       replaceMediaIdTrimmed = reusable.id;
@@ -357,8 +377,7 @@ export async function importAudio(input: {
     isOfflineCached = primaryPlaceholder.isOfflineCached;
     mergedDetails = stripStateDetails(primaryPlaceholder.details);
   }
-  // 哈希在事务外先算好（rev5 §4.2-3）| Hash outside the transaction
-  const contentSha256 = await computeBlobSha256(input.audioBlob);
+  const contentSha256 = await hashIncoming();
 
   await withTransaction(
     db,

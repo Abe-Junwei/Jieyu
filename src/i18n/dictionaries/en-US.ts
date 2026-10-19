@@ -1567,6 +1567,8 @@ export const enUSDictionary = {
   'transcription.action.audioImported': 'Media "{filename}" imported successfully.',
   'transcription.action.audioImportedDurationFailed':
     'Media "{filename}" was imported, but the logical timeline adjustment did not finish. Check the timeline; do not import it again.',
+  'transcription.action.audioAlreadyImported':
+    'This project already has "{filename}" with identical content, so it was not imported again.',
   'transcription.action.audioImportSelectPlaceholder':
     'This project has several placeholder timelines. Select the one to attach the audio to on the timeline, then import again.',
   'transcription.action.relinkContentMismatchConfirm':

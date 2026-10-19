@@ -93,9 +93,11 @@ export async function importTranscriptionProjectAudio(input: {
   };
   let mediaId: string;
   let contentSha256: string | undefined;
+  let alreadyImported: true | undefined;
   try {
     try {
-      ({ mediaId, contentSha256 } = await transcriptionAppService.importAudio(importPayload));
+      ({ mediaId, contentSha256, alreadyImported } =
+        await transcriptionAppService.importAudio(importPayload));
     } catch (error) {
       // Relink 的新字节与原录音指纹不符：先让用户确认（rev5 T20）。
       // Relinked bytes differ from the recorded fingerprint: ask before writing (rev5 T20).
@@ -123,6 +125,21 @@ export async function importTranscriptionProjectAudio(input: {
       return;
     }
     throw error;
+  }
+  if (alreadyImported) {
+    clearPendingAudioImportSelection();
+    const writtenTextId = textId;
+    await reloadAfterWrite({
+      reload: () => loadSnapshot(writtenTextId),
+      setSaveState,
+      locale,
+      onReloaded: () =>
+        setSaveState({
+          kind: 'error',
+          message: tfB('transcription.action.audioAlreadyImported', { filename: file.name }),
+        }),
+    });
+    return;
   }
   addMediaItem({
     id: mediaId,

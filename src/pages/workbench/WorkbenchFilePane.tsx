@@ -129,14 +129,16 @@ export function WorkbenchFilePane(props: {
       setSaveState({ kind: 'error', message: t(locale, 'transcription.action.audioTooLong') });
       return;
     }
+    let alreadyImported = false;
     try {
-      await LinguisticService.media.importAudio({
+      const result = await LinguisticService.media.importAudio({
         textId,
         audioBlob: file,
         filename: file.name,
         duration,
         ...(replaceMediaId ? { importMode: 'replace' as const, replaceMediaId } : {}),
       });
+      alreadyImported = result.alreadyImported === true;
     } catch (error) {
       const mismatch =
         error instanceof MediaContentMismatchError
@@ -174,10 +176,19 @@ export function WorkbenchFilePane(props: {
         throw error;
       }
     }
-    setSaveState({
-      kind: 'done',
-      message: tf(locale, 'transcription.action.audioImported', { filename: file.name }),
-    });
+    setSaveState(
+      alreadyImported
+        ? {
+            kind: 'error',
+            message: tf(locale, 'transcription.action.audioAlreadyImported', {
+              filename: file.name,
+            }),
+          }
+        : {
+            kind: 'done',
+            message: tf(locale, 'transcription.action.audioImported', { filename: file.name }),
+          },
+    );
     await refreshProject();
   };
 

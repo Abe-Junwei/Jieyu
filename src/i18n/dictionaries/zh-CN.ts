@@ -1466,6 +1466,8 @@ export const zhCNDictionary = {
   'transcription.action.audioImported': '媒体「{filename}」导入成功。',
   'transcription.action.audioImportedDurationFailed':
     '媒体「{filename}」已导入，但逻辑时间轴调整未完成。请检查时间轴，勿重复导入。',
+  'transcription.action.audioAlreadyImported':
+    '项目里已有内容完全相同的「{filename}」，这次没有重复导入。',
   'transcription.action.audioImportSelectPlaceholder':
     '项目里有多条占位时间轴，请先在时间轴上选中要挂接音频的那一条，再导入。',
   'transcription.action.relinkContentMismatchConfirm':
