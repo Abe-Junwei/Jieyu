@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   analysisRowsFromEvidencePackets,
   analysisRowsFromToolResults,
+  buildCorpusAnalysisReportSystemPrompt,
   renderVerifiedAnalysisReport,
   runCorpusAnalysisReportReflection,
 } from './corpusAnalysisReport';
 import { buildEvidencePacketV0 } from './evidencePacket';
+import { summarizeLocalContextToolResult } from '../chat/formatters/summarizers';
 
 const raw = JSON.stringify({
   claims: [
@@ -114,5 +116,32 @@ describe('runCorpusAnalysisReportReflection', () => {
     ]);
     expect(result.reflectionFlagged).toBe(false);
     expect(result.summary).toBe('kept 1, dropped 1');
+  });
+});
+
+describe('corpus analysis copy follows the locale', () => {
+  const HAN = /[\u4e00-\u9fff]/;
+
+  it('asks for the unlabeled marker in the user locale', () => {
+    const en = buildCorpusAnalysisReportSystemPrompt('en-US');
+    expect(en).toContain('not yet glossed');
+    expect(en).not.toMatch(HAN);
+    expect(buildCorpusAnalysisReportSystemPrompt('zh-CN')).toMatch(HAN);
+  });
+
+  it('summarizes corpus queries in the user locale', () => {
+    const results = [
+      { ok: true, name: 'concordance_kwic', result: { count: 2 } },
+      { ok: true, name: 'query_morpheme_paradigm', result: { tokenCount: 4 } },
+      {
+        ok: true,
+        name: 'find_counterexamples',
+        result: { matchCount: 3, counterexampleCount: 1 },
+      },
+    ] as const;
+    for (const result of results) {
+      expect(summarizeLocalContextToolResult(result, 'en-US')).not.toMatch(HAN);
+      expect(summarizeLocalContextToolResult(result, 'zh-CN')).toMatch(HAN);
+    }
   });
 });
