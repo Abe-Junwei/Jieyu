@@ -445,6 +445,31 @@ describe('ToolLoopAgent turn: approved batch_apply', () => {
     expect(text).not.toContain('_readModel');
     expect(text).not.toContain('{"');
     expect(stored.get('ast-v2')?.status).toBe('done');
+    expect(h.audits).toContain('confirmed:batch_apply');
+  });
+});
+
+describe('ToolLoopAgent turn: execution audit', () => {
+  it('writes an execution audit row for local reads and corpus queries', async () => {
+    vi.mocked(localContextToolExecutors.executeLocalContextToolCall).mockImplementation(
+      async (call) => ({ ok: call.name === 'list_units', name: call.name, result: {} }),
+    );
+    modelRef.current = new MockLanguageModelV4({
+      doStream: [
+        toolCallsStream([
+          ['list_units', '{"limit":8}'],
+          ['concordance_kwic', '{"gloss":"PST"}'],
+        ]),
+        textStream('done'),
+      ],
+    });
+    const h = buildHarness({}, { corpusAnalysisQueryToolsEnabled: true });
+
+    await runAiChatSendTurnStreamPhase(h.input);
+
+    expect(h.audits).toEqual(
+      expect.arrayContaining(['auto_confirmed:list_units', 'auto_failed:concordance_kwic']),
+    );
   });
 });
 

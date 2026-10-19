@@ -127,6 +127,26 @@ export async function runAiChatSendTurnStreamPhase(
         if (card?.mcpInput) v2InputCardShown = true;
         input.setPendingToolCall(card);
       };
+      const auditLocalExecution = (
+        call: { name: string; requestId?: string },
+        ok: boolean,
+        approved: boolean,
+      ) => {
+        const outcome = approved
+          ? ok
+            ? 'confirmed'
+            : 'confirm_failed'
+          : ok
+            ? 'auto_confirmed'
+            : 'auto_failed';
+        return input.writeToolDecisionAuditLog(
+          assistantId,
+          `${approved ? 'pending' : 'auto'}:${call.name}`,
+          `${outcome}:${call.name}`,
+          approved ? 'human' : 'ai',
+          call.requestId,
+        );
+      };
       const runV2Pipeline = async (
         call: AiChatToolCall,
         approval: 'request' | 'approved' | undefined,
@@ -273,6 +293,7 @@ export async function runAiChatSendTurnStreamPhase(
                 aiContext,
                 input.localToolCallCountRef,
               );
+              await auditLocalExecution(call, toolResult.ok, true);
               return {
                 finalContent: toolResult.ok
                   ? corpusToolMessage(toolResult.result)
@@ -293,6 +314,7 @@ export async function runAiChatSendTurnStreamPhase(
                 input.localToolCallCountRef,
               );
               if (isRuntimeV2CorpusAnalysisTool(call.name)) v2CorpusResults.push(toolResult);
+              await auditLocalExecution(call, toolResult.ok, false);
               return {
                 finalContent: toolResult.ok
                   ? corpusToolMessage(toolResult.result)
