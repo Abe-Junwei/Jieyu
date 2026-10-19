@@ -78,6 +78,8 @@ export const enUSDictionary = {
     'This recording still has audio, segments, or anchors, so the entry stays.',
   'app.files.removeEmptyRecordingRefreshPending':
     'This recording was removed. The board has not refreshed yet.',
+  'app.files.removeEmptyRecordingReadbackFailed':
+    'The removal could not be confirmed. Refresh the board to check whether this recording is still there.',
   'app.files.removeEmptyRecordingKeepUnits':
     'Existing segments and anchors stay in the project and are no longer attached to this recording. ',
   'app.home.templateRules': 'Templates and language conventions',

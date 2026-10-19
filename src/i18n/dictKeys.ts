@@ -68,6 +68,7 @@ export const DICT_KEYS = [
   'app.files.removeEmptyRecordingSources',
   'app.files.removeEmptyRecordingBlocked',
   'app.files.removeEmptyRecordingRefreshPending',
+  'app.files.removeEmptyRecordingReadbackFailed',
   'app.files.removeEmptyRecordingKeepUnits',
   'app.home.templateRules',
   'app.home.lastUpdated',

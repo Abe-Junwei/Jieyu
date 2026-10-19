@@ -72,6 +72,8 @@ export const zhCNDictionary = {
     '将解除与这些来源文稿的关联，文稿仍留在项目里：{names}。',
   'app.files.removeEmptyRecordingBlocked': '这条录音还有音频、句段或锚点，不能移除条目。',
   'app.files.removeEmptyRecordingRefreshPending': '这条录音已经移除，看板尚未刷新。',
+  'app.files.removeEmptyRecordingReadbackFailed':
+    '移除后没能确认结果，请刷新看板查看这条录音是否还在。',
   'app.files.removeEmptyRecordingKeepUnits': '已有语段和锚点会留在项目里，不再挂在这条录音上。',
   'app.home.templateRules': '选用模板与语言规范设置',
   'app.home.lastUpdated': '最后更新：{date}',

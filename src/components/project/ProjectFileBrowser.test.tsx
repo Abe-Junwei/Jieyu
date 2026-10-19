@@ -8,6 +8,7 @@ import {
   dexieStoragePort,
   installStoragePort,
   RecordingRemovalBlockedError,
+  StorageReadbackError,
 } from '../../db/storagePort';
 import { LocaleProvider } from '../../i18n';
 import type { ProjectAudioFile } from '../../utils/projectSourceFiles';
@@ -92,5 +93,22 @@ describe('ProjectFileBrowser empty recording', () => {
     );
     expect(removeEmptyRecording).toHaveBeenCalledWith('media-1');
     expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it('shows a localized message when the removal cannot be read back', async () => {
+    installStoragePort({
+      ...dexieStoragePort,
+      removeEmptyRecording: vi.fn(async () => {
+        throw new StorageReadbackError('removeEmptyRecording');
+      }),
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderBoard([card()]);
+
+    fireEvent.click(await screen.findByRole('button', { name: '移除这条录音' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('移除后没能确认结果，请刷新看板查看这条录音是否还在。');
+    expect(alert).not.toHaveTextContent('read-back');
   });
 });
