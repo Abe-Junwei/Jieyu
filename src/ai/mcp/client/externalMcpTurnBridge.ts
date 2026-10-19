@@ -31,7 +31,7 @@ export const EXTERNAL_MCP_TOOL_NAME_PREFIX = 'extmcp__';
 const GUIDE_MAX_CHARS = 4_000;
 const RESULT_MAX_CHARS = 8_000;
 const MODEL_CONTENT_MAX_CHARS = 4_000;
-const MAX_CALLS_PER_TURN = 5;
+export const EXTERNAL_MCP_MAX_CALLS_PER_TURN = 5;
 export const RUNTIME_V2_EXTERNAL_MCP_TOOL_CAP = 5;
 
 export type ExternalMcpCallPayload = {
@@ -437,7 +437,7 @@ export async function resolveExternalMcpSendTurn(input: {
   }
   const calls = (await parseExternalMcpToolCallsFromText(input.assistantContent)).slice(
     0,
-    MAX_CALLS_PER_TURN,
+    EXTERNAL_MCP_MAX_CALLS_PER_TURN,
   );
   if (calls.length === 0) {
     return {

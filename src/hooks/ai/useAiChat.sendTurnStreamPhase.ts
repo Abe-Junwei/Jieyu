@@ -28,6 +28,7 @@ import {
   isRuntimeV2LocalReadTool,
 } from '../../ai/runtime/runtimeV2CorpusTools';
 import {
+  EXTERNAL_MCP_MAX_CALLS_PER_TURN,
   executeExternalMcpCall,
   externalMcpModelMessage,
   listRuntimeV2ExternalMcpTools,
@@ -105,6 +106,7 @@ export async function runAiChatSendTurnStreamPhase(
   let runtimeV2 = false;
   let legacyTookOver = false;
   let v2InputCardShown = false;
+  let v2ExternalCalls = 0;
   const v2CorpusResults: LocalContextToolResult[] = [];
   const v2EvidencePackets: EvidencePacketV0[] = [];
   if (
@@ -216,6 +218,18 @@ export async function runAiChatSendTurnStreamPhase(
           decide: async (call, mode, signal) => {
             const externalTool = externalMcpByName.get(call.name);
             if (externalTool) {
+              if (v2ExternalCalls >= EXTERNAL_MCP_MAX_CALLS_PER_TURN) {
+                return {
+                  finalContent: externalMcpModelMessage({
+                    name: call.name,
+                    ok: false,
+                    reason: 'turn_call_limit',
+                  }),
+                  finalStatus: 'error',
+                  pending: false,
+                };
+              }
+              v2ExternalCalls += 1;
               const payload = await executeExternalMcpCall(
                 {
                   name: call.name,

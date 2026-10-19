@@ -447,3 +447,45 @@ describe('ToolLoopAgent turn: approved batch_apply', () => {
     expect(stored.get('ast-v2')?.status).toBe('done');
   });
 });
+
+describe('ToolLoopAgent turn: external MCP call cap', () => {
+  it('runs at most 5 external MCP calls per turn and tells the model the rest hit the cap', async () => {
+    vi.mocked(externalMcpTurnBridge.executeExternalMcpCall).mockImplementation(async (call) => ({
+      name: call.name,
+      ok: true,
+    }));
+    const calls = Array.from({ length: 7 }, (_, i) => ({
+      type: 'tool-call' as const,
+      toolCallId: `ext-${i}`,
+      toolName: EXT_TOOL,
+      input: '{}',
+    }));
+    const model = new MockLanguageModelV4({
+      doStream: [
+        {
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'stream-start' as const, warnings: [] },
+              ...calls,
+              {
+                type: 'finish' as const,
+                finishReason: { unified: 'tool-calls' as const, raw: undefined },
+                usage,
+              },
+            ],
+          }),
+        },
+        textStream('done'),
+      ],
+    });
+    modelRef.current = model;
+    const h = buildHarness();
+
+    await runAiChatSendTurnStreamPhase(h.input);
+
+    expect(externalMcpTurnBridge.executeExternalMcpCall).toHaveBeenCalledTimes(5);
+    expect(model.doStreamCalls).toHaveLength(2);
+    const prompt = JSON.stringify(model.doStreamCalls[1]!.prompt);
+    expect(prompt.match(/turn_call_limit/g)).toHaveLength(2);
+  });
+});
