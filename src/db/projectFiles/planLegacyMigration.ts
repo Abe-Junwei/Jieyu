@@ -26,6 +26,7 @@
  * 轨道跟着录音进对应的 `.jyd`。车道锁定表还没写。
  * 层标注跟着所在的层进 `.jyd`，只记 id、层、文本、是否已核和可选起止时间。同一层出现在多份文稿时不复制。
  * 层对不上的语段、词和词素记入丢弃，不进文稿。显示名和别名带项目 id，别的项目即使语言号相同也不进。
+ * 没有语段引用的音频也写出，看板上是录音卡片（ADR-0061 第 3 条）。
  * 文件名由标题或原文件名清成一段安全文件名。音频和 `.jyd` 共用一个命名空间，忽略大小写和组合方式去重；音频不占用 `project.sqlite`、隐藏目录、`.jyd` 和 SQLite 日志的名字。
  */
 import { createHash } from 'node:crypto';
@@ -1630,15 +1631,12 @@ export function planLegacyMigration(
     lexemes: keptLexemeIds,
   });
 
-  const usedAudioIds = new Set(manuscripts.flatMap((manuscript) => manuscript.audioId ?? []));
-  const audios = library.audios
-    .filter((audio) => usedAudioIds.has(audio.id))
-    .map((audio) => ({
-      audioId: audio.id,
-      fileName: uniqueName(fileNames, audioFileName(audio.filename)),
-      sha256: sha256(audio.bytes),
-      bytes: audio.bytes,
-    }));
+  const audios = library.audios.map((audio) => ({
+    audioId: audio.id,
+    fileName: uniqueName(fileNames, audioFileName(audio.filename)),
+    sha256: sha256(audio.bytes),
+    bytes: audio.bytes,
+  }));
 
   return {
     status: 'ready',

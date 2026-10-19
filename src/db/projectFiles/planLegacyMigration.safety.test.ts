@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { deriveCards } from './deriveCards';
 import { planLegacyMigration, type LegacyLibrary } from './planLegacyMigration';
 
 type ReadyPlan = Extract<ReturnType<typeof planLegacyMigration>, { status: 'ready' }>;
@@ -150,6 +151,58 @@ describe('planLegacyMigration file names', () => {
         expect(full.startsWith(realDest + sep)).toBe(true);
         expect(dirname(full)).toBe(realDest);
       }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('planLegacyMigration audio without segments', () => {
+  it('keeps an unreferenced audio as a recording card, writes it, and reads it back', () => {
+    const plan = ready({
+      documents: [{ id: 'd1', name: 'doc' }],
+      layers: [{ id: 'l1', documentId: 'd1' }],
+      units: [{ id: 'u1', layerId: 'l1', mediaId: 'a1' }],
+      audios: [
+        { id: 'a1', filename: 'used.wav', bytes: bytes('A') },
+        { id: 'a2', filename: 'orphan.wav', bytes: bytes('B') },
+      ],
+    });
+    expect(plan.audios.map((audio) => [audio.audioId, audio.fileName])).toEqual([
+      ['a1', 'used.wav'],
+      ['a2', 'orphan.wav'],
+    ]);
+    const { root, dest, stdout } = applyViaCli(plan);
+    try {
+      expect(readdirSync(dest).sort()).toEqual([
+        'doc.jyd',
+        'orphan.wav',
+        'project.sqlite',
+        'used.wav',
+      ]);
+      const back = JSON.parse(stdout) as {
+        audios: { id: string; relPath: string; sha256: string }[];
+        manuscripts: { id: string; fileName: string; audioId: string | null }[];
+      };
+      expect(back.audios.map((audio) => [audio.id, audio.relPath])).toEqual([
+        ['a1', 'used.wav'],
+        ['a2', 'orphan.wav'],
+      ]);
+      const cards = deriveCards(
+        back.manuscripts.map((manuscript) => ({
+          id: manuscript.id,
+          relPath: manuscript.fileName,
+          audioId: manuscript.audioId,
+        })),
+        back.audios,
+      );
+      expect(cards).toEqual({
+        cards: [
+          { manuscriptId: 'd1', audioId: 'a1', hidden: false },
+          { manuscriptId: null, audioId: 'a2', hidden: false },
+        ],
+        issues: [],
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
