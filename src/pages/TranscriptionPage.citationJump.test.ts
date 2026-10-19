@@ -26,6 +26,7 @@ vi.mock('../db/engine', async (importOriginal) => {
   return { ...actual, db: mockDb };
 });
 
+// Unit citations now read through the storage port (#280), not `db.layer_units`.
 vi.mock('../db/storagePort', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../db/storagePort')>();
   return {
@@ -37,15 +38,6 @@ vi.mock('../db/storagePort', async (importOriginal) => {
         readLayerUnit: (id: string) => mockDb.layer_units.get(id),
       };
     },
-  };
-});
-
-// Unit citations now read through the storage port (#280), not `db.layer_units`.
-vi.mock('../db/storagePort', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../db/storagePort')>();
-  return {
-    ...actual,
-    storagePort: () => ({ ...actual.storagePort(), readLayerUnit: mockDb.layer_units.get }),
   };
 });
 
