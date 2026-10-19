@@ -3,7 +3,7 @@
  * Apply assistant message result to UI state and persistence layer.
  */
 
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import { nowIso } from '../../hooks/ai/useAiChat.helpers';
 import type { UiChatMessage } from '../../hooks/ai/useAiChat.types';
 
@@ -35,8 +35,7 @@ export async function applyAssistantMessageResult(
     }),
   );
 
-  const db = await getDb();
-  await db.collections.ai_messages.update(messageId, {
+  await storagePort().patchAiMessageContent(messageId, {
     content,
     status,
     ...(errorMessage ? { errorMessage } : {}),

@@ -1,4 +1,4 @@
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import type {
   BackgroundToolSandboxAction,
   BackgroundToolSandboxReason,
@@ -16,29 +16,27 @@ export function scheduleSessionSidecarSandboxAudit(options: {
     options;
   if (!conversationId) return;
   const timestamp = nowIso();
-  void getDb()
-    .then((db) =>
-      db.collections.audit_logs.insert({
-        id: newAuditLogId(),
-        collection: 'ai_messages',
-        documentId: conversationId,
-        action: 'update',
-        field: 'ai_session_sidecar_sandbox',
-        oldValue: '',
-        newValue: sandboxAction,
-        source: 'system',
-        timestamp,
-        requestId: `session_sidecar_sandbox_${virtualWritePath.replace(/\//g, '_')}_${timestamp}`,
-        metadataJson: JSON.stringify({
-          schemaVersion: 1,
-          phase: 'session_sidecar_sandbox',
-          gate: virtualWritePath,
-          sandboxAction,
-          sandboxReason,
-          ...(sourceMessageId ? { sourceMessageId } : {}),
-        }),
+  void storagePort()
+    .audit.insertAuditLog({
+      id: newAuditLogId(),
+      collection: 'ai_messages',
+      documentId: conversationId,
+      action: 'update',
+      field: 'ai_session_sidecar_sandbox',
+      oldValue: '',
+      newValue: sandboxAction,
+      source: 'system',
+      timestamp,
+      requestId: `session_sidecar_sandbox_${virtualWritePath.replace(/\//g, '_')}_${timestamp}`,
+      metadataJson: JSON.stringify({
+        schemaVersion: 1,
+        phase: 'session_sidecar_sandbox',
+        gate: virtualWritePath,
+        sandboxAction,
+        sandboxReason,
+        ...(sourceMessageId ? { sourceMessageId } : {}),
       }),
-    )
+    })
     .catch(() => {
       // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
     });

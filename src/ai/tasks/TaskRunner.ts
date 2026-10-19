@@ -1,4 +1,10 @@
-import { getDb, type AiTaskDoc } from '../../db';
+import {
+  insertAiTask,
+  listAiTasksByStatus,
+  patchAiTask,
+  readAiTask,
+} from '../../db/storagePortAiTasks';
+import type { AiTaskDoc } from '../../db/types';
 import { createLogger } from '../../observability/logger';
 
 const log = createLogger('TaskRunner');
@@ -204,9 +210,8 @@ export class TaskRunner {
     this.tasks.set(taskId, internalTask as InternalTask<unknown>);
     this.queue.push(taskId);
 
-    const db = await getDb();
     const timestamp = nowIso();
-    await db.collections.ai_tasks.insert({
+    await insertAiTask({
       id: taskId,
       taskType: input.taskType,
       status: 'pending',
@@ -264,13 +269,12 @@ export class TaskRunner {
    * Reload resume goes through send-turn, not TaskRunner.execute.
    */
   async parkCheckpoint(input: ParkCheckpointInput): Promise<string> {
-    const db = await getDb();
     const timestamp = nowIso();
     const taskId = input.taskId?.trim() || createTaskId('agent_loop');
     const checkpointJson = serializeCheckpoint(input.checkpoint);
-    const existing = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
+    const existing = await readAiTask(taskId);
     if (existing) {
-      await db.collections.ai_tasks.update(taskId, {
+      await patchAiTask(taskId, {
         status: 'pending',
         checkpointJson,
         lastHeartbeatAt: timestamp,
@@ -282,7 +286,7 @@ export class TaskRunner {
       return taskId;
     }
 
-    await db.collections.ai_tasks.insert({
+    await insertAiTask({
       id: taskId,
       taskType: 'agent_loop',
       status: 'pending',
@@ -303,9 +307,8 @@ export class TaskRunner {
   }
 
   async checkpoint(taskId: string, checkpoint: TaskRunnerCheckpoint): Promise<void> {
-    const db = await getDb();
     const timestamp = nowIso();
-    await db.collections.ai_tasks.update(taskId, {
+    await patchAiTask(taskId, {
       checkpointJson: serializeCheckpoint({ ...checkpoint, at: checkpoint.at ?? timestamp }),
       lastHeartbeatAt: timestamp,
       updatedAt: timestamp,
@@ -313,9 +316,8 @@ export class TaskRunner {
   }
 
   async heartbeat(taskId: string, checkpoint?: TaskRunnerCheckpoint): Promise<void> {
-    const db = await getDb();
     const timestamp = nowIso();
-    await db.collections.ai_tasks.update(taskId, {
+    await patchAiTask(taskId, {
       lastHeartbeatAt: timestamp,
       ...(checkpoint
         ? { checkpointJson: serializeCheckpoint({ ...checkpoint, at: checkpoint.at ?? timestamp }) }
@@ -348,11 +350,10 @@ export class TaskRunner {
   }
 
   private async runTask<TResult>(task: InternalTask<TResult>): Promise<void> {
-    const db = await getDb();
     let terminalStatus: AiTaskDoc['status'] = 'failed';
 
     try {
-      await this.updateTaskStatus(db, task.taskId, 'running');
+      await this.updateTaskStatus(task.taskId, 'running');
 
       let lastError: unknown = new Error('Task failed');
       for (let attempt = 1; attempt <= task.maxAttempts; attempt += 1) {
@@ -362,7 +363,7 @@ export class TaskRunner {
 
         let result: TResult;
         try {
-          await this.updateTaskAttempt(db, task.taskId, attempt, task.maxAttempts, task.timeoutMs);
+          await this.updateTaskAttempt(task.taskId, attempt, task.maxAttempts, task.timeoutMs);
           result = await this.runWithTimeout(
             task,
             attempt,
@@ -380,14 +381,14 @@ export class TaskRunner {
             const delay = backoffDelay(attempt + 1);
             if (delay > 0) await sleep(delay, task.controller.signal);
             if (task.controller.signal.aborted) break;
-            await this.updateTaskStatus(db, task.taskId, 'running');
+            await this.updateTaskStatus(task.taskId, 'running');
             continue;
           }
           continue;
         }
         // The business run has returned. A status-write failure must never run it again.
         try {
-          await this.updateTaskStatus(db, task.taskId, 'done');
+          await this.updateTaskStatus(task.taskId, 'done');
         } catch (error) {
           log.error('Task completed but recording done status failed', {
             err: error,
@@ -410,7 +411,7 @@ export class TaskRunner {
               : 'Task failed';
 
       try {
-        await this.updateTaskStatus(db, task.taskId, 'failed', message);
+        await this.updateTaskStatus(task.taskId, 'failed', message);
       } catch (error) {
         log.error('Recording failed task status failed', { err: error, taskId: task.taskId });
       }
@@ -420,7 +421,7 @@ export class TaskRunner {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Task failed';
       try {
-        await this.updateTaskStatus(db, task.taskId, 'failed', message);
+        await this.updateTaskStatus(task.taskId, 'failed', message);
       } catch (statusError) {
         log.error('Recording failed task status failed', { err: statusError, taskId: task.taskId });
       }
@@ -480,32 +481,28 @@ export class TaskRunner {
   }
 
   private async recoverStaleTasks(): Promise<void> {
-    const db = await getDb();
     const now = Date.now();
 
-    const runningRows = await db.collections.ai_tasks.findByIndex('status', 'running');
-    const pendingRows = await db.collections.ai_tasks.findByIndex('status', 'pending');
-    const staleRows = [...runningRows, ...pendingRows]
-      .map((row) => row.toJSON())
-      .filter((row) => {
-        // Parked send-turn checkpoints stay pending until resume; do not TTL-fail them.
-        const parkedAgentLoop =
-          row.taskType === 'agent_loop' && row.status === 'pending' && row.resumable === true;
-        if (parkedAgentLoop) return false;
-        return now - Date.parse(row.updatedAt) >= this.staleTaskTtlMs;
-      });
+    const runningRows = await listAiTasksByStatus('running');
+    const pendingRows = await listAiTasksByStatus('pending');
+    const staleRows = [...runningRows, ...pendingRows].filter((row) => {
+      // Parked send-turn checkpoints stay pending until resume; do not TTL-fail them.
+      const parkedAgentLoop =
+        row.taskType === 'agent_loop' && row.status === 'pending' && row.resumable === true;
+      if (parkedAgentLoop) return false;
+      return now - Date.parse(row.updatedAt) >= this.staleTaskTtlMs;
+    });
 
     for (const row of staleRows) {
-      const current = await db.collections.ai_tasks.findOne({ selector: { id: row.id } }).exec();
-      if (!current) continue;
-      const currentRow = current.toJSON();
+      const currentRow = await readAiTask(row.id);
+      if (!currentRow) continue;
       if (
         currentRow.updatedAt !== row.updatedAt ||
         (currentRow.status !== 'running' && currentRow.status !== 'pending')
       ) {
         continue;
       }
-      await db.collections.ai_tasks.insert({
+      await insertAiTask({
         ...currentRow,
         status: 'failed',
         errorMessage: currentRow.errorMessage ?? 'Recovered as stale task after app restart',
@@ -524,31 +521,29 @@ export class TaskRunner {
   }
 
   private async updateTaskStatus(
-    db: Awaited<ReturnType<typeof getDb>>,
     taskId: string,
     status: AiTaskDoc['status'],
     errorMessage?: string,
   ): Promise<void> {
-    const row = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
+    const row = await readAiTask(taskId);
     if (!row) return;
 
-    await db.collections.ai_tasks.update(taskId, {
+    await patchAiTask(taskId, {
       status,
       updatedAt: nowIso(),
       ...(status === 'running' ? { startedAt: row.startedAt ?? nowIso() } : {}),
       ...(status === 'done' || status === 'failed' ? { completedAt: nowIso() } : {}),
-      ...(errorMessage ? { errorMessage } : {}),
+      ...(errorMessage !== undefined && errorMessage.length > 0 ? { errorMessage } : {}),
     });
   }
 
   private async updateTaskAttempt(
-    db: Awaited<ReturnType<typeof getDb>>,
     taskId: string,
     attempt: number,
     maxAttempts: number,
     timeoutMs: number,
   ): Promise<void> {
-    await db.collections.ai_tasks.update(taskId, {
+    await patchAiTask(taskId, {
       attempt,
       maxAttempts,
       timeoutMs,

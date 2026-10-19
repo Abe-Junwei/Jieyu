@@ -7,8 +7,8 @@
 
 import { SegmentMetaService } from '../../services/SegmentMetaService';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
-import { getDb, type SegmentMetaDocType } from '../../db';
-import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
+import { readSegmentDetailExpansion } from '../../db/storagePortAiContextReads';
+import type { SegmentMetaDocType } from '../../db/types';
 
 export interface SegmentSummary {
   id: string;
@@ -167,11 +167,7 @@ export async function getSegmentDetail(
   let translations: SegmentDetail['translations'] = [];
 
   try {
-    const db = await getDb();
-    const [unitTexts, unitNotes] = await Promise.all([
-      listUnitTextsByUnit(db, hit.segmentId),
-      db.dexie.user_notes.where('[targetType+targetId]').equals(['unit', hit.segmentId]).toArray(),
-    ]);
+    const { unitTexts, notes: unitNotes } = await readSegmentDetailExpansion(hit.segmentId);
 
     const layerSeen = new Set<string>();
     layers = unitTexts.flatMap((row) => {

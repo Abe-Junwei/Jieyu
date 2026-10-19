@@ -3,7 +3,14 @@
  * Flag off ⇒ tools/list schema never reaches the LLM.
  */
 
-import { getDb, type ExternalMcpTrustDoc } from '../../../db';
+import {
+  insertExternalMcpTrust,
+  insertExternalMcpTrustAudit,
+  listExternalMcpTrustEntries as listStoredExternalMcpTrustEntries,
+  readExternalMcpTrust,
+  updateExternalMcpTrust,
+} from '../../../db/storagePortAiMcp';
+import type { ExternalMcpTrustDoc } from '../../../db/types';
 import { featureFlags } from '../../config/featureFlags';
 import { inspectInbound } from '../../security/semanticGuard';
 import { isExternalMcpSecondModelTool } from './externalMcpEvidenceHits';
@@ -15,11 +22,7 @@ export type ExternalMcpToolSchema = {
 };
 
 export type ExternalMcpExposeDenial =
-  | 'flag_off'
-  | 'invalid_origin'
-  | 'unregistered'
-  | 'disabled'
-  | 'schema_blocked';
+  'flag_off' | 'invalid_origin' | 'unregistered' | 'disabled' | 'schema_blocked';
 
 export type ExternalMcpExposeResult<T extends ExternalMcpToolSchema> =
   | { allowed: true; origin: string; tools: readonly T[] }
@@ -101,9 +104,8 @@ async function persistTrustAudit(input: {
   newValue: string;
   metadata: Record<string, unknown>;
 }): Promise<void> {
-  const db = await getDb();
   const timestamp = nowIso();
-  await db.collections.audit_logs.insert({
+  await insertExternalMcpTrustAudit({
     id: newAuditId(),
     collection: AUDIT_COLLECTION,
     documentId: input.origin,
@@ -117,20 +119,16 @@ async function persistTrustAudit(input: {
 }
 
 export async function listExternalMcpTrustEntries(): Promise<ExternalMcpTrustDoc[]> {
-  const db = await getDb();
-  // shortcut(P2-3): 全局表，量小 | global table, small
-  const rows = await db.collections.external_mcp_trust.find().exec();
-  return rows.map((row) => row.toJSON()).sort((a, b) => a.origin.localeCompare(b.origin));
+  const rows = await listStoredExternalMcpTrustEntries();
+  return rows.sort((a, b) => a.origin.localeCompare(b.origin));
 }
 
 export async function getExternalMcpTrustEntry(
   rawOrigin: string,
 ): Promise<ExternalMcpTrustDoc | undefined> {
   const origin = normalizeExternalMcpOrigin(rawOrigin);
-  if (!origin) return undefined;
-  const db = await getDb();
-  const row = await db.collections.external_mcp_trust.findOne({ selector: { id: origin } }).exec();
-  return row?.toJSON();
+  if (origin === null) return undefined;
+  return readExternalMcpTrust(origin);
 }
 
 export async function persistExternalMcpLastToolsJson(input: {
@@ -138,13 +136,9 @@ export async function persistExternalMcpLastToolsJson(input: {
   tools: readonly ExternalMcpToolSchema[];
 }): Promise<void> {
   const origin = normalizeExternalMcpOrigin(input.origin);
-  if (!origin) return;
-  const db = await getDb();
-  const existing = await db.collections.external_mcp_trust
-    .findOne({ selector: { id: origin } })
-    .exec();
-  if (!existing) return;
-  const previous = existing.toJSON();
+  if (origin === null) return;
+  const previous = await readExternalMcpTrust(origin);
+  if (!previous) return;
   const timestamp = nowIso();
   const next: ExternalMcpTrustDoc = {
     id: origin,
@@ -163,7 +157,7 @@ export async function persistExternalMcpLastToolsJson(input: {
       ? { lastSchemaScanReasonsJson: previous.lastSchemaScanReasonsJson }
       : {}),
   };
-  await db.collections.external_mcp_trust.update(origin, next);
+  await updateExternalMcpTrust(next);
 }
 
 export async function setExternalMcpTrustEnabled(input: {
@@ -196,12 +190,8 @@ export async function setExternalMcpTrustEnabled(input: {
     scanResult = 'allow';
   }
 
-  const db = await getDb();
   const timestamp = nowIso();
-  const existing = await db.collections.external_mcp_trust
-    .findOne({ selector: { id: origin } })
-    .exec();
-  const previous = existing?.toJSON();
+  const previous = await readExternalMcpTrust(origin);
   const label = input.label?.trim() || previous?.label;
   const toolsJson =
     input.tools && input.tools.length > 0
@@ -223,23 +213,16 @@ export async function setExternalMcpTrustEnabled(input: {
     ...(fetchedAt ? { lastToolsFetchedAt: fetchedAt } : {}),
   };
 
-  if (existing) {
-    await db.collections.external_mcp_trust.update(origin, next);
-  } else {
-    await db.collections.external_mcp_trust.insert(next);
-  }
+  const stored = previous ? await updateExternalMcpTrust(next) : await insertExternalMcpTrust(next);
 
   await persistTrustAudit({
     origin,
-    action: existing ? 'update' : 'create',
+    action: previous ? 'update' : 'create',
     newValue: input.enabled ? 'enabled' : 'disabled',
     metadata: { origin, enabled: input.enabled, scanResult },
   });
 
-  const stored = await db.collections.external_mcp_trust
-    .findOne({ selector: { id: origin } })
-    .exec();
-  return { ok: true, entry: stored!.toJSON() };
+  return { ok: true, entry: stored };
 }
 
 export async function exposeExternalMcpToolsToLlm<T extends ExternalMcpToolSchema>(input: {

@@ -3,10 +3,8 @@ import { scheduleSessionSidecarSandboxAudit } from './useAiChat.sessionSidecarAu
 
 const auditInsert = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('../../db', () => ({
-  getDb: vi.fn(async () => ({
-    collections: { audit_logs: { insert: auditInsert } },
-  })),
+vi.mock('../../db/storagePort', () => ({
+  storagePort: () => ({ audit: { insertAuditLog: auditInsert } }),
 }));
 
 describe('scheduleSessionSidecarSandboxAudit', () => {

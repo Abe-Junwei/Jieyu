@@ -18,7 +18,7 @@
  * (derived, size-bounded eviction).
  */
 import { clearProjectCollabClientState } from '../collaboration/cloud/CollaborationClientStateStore';
-import { getDb } from '../db';
+import { storagePort } from '../db/storagePort';
 import { createLogger } from '../observability/logger';
 import { deleteProjectCascade } from './LinguisticService.cleanup';
 import { projectMemoryStore } from './ProjectMemoryStore';
@@ -143,8 +143,7 @@ export function enqueueProjectCleanupJob(
 }
 
 async function defaultListProjectMediaIds(projectId: string): Promise<string[]> {
-  const db = await getDb();
-  return (await db.dexie.media_items.where('textId').equals(projectId).primaryKeys()) as string[];
+  return storagePort().listMediaIdsByText(projectId);
 }
 
 function removeTrackEntityState(mediaIds: readonly string[], storage: Storage | undefined): void {

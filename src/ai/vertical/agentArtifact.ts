@@ -2,7 +2,8 @@
  * B12 AgentArtifactV0 — Dexie persist + AdoptionQueue ids + B5b export manifest helper.
  */
 
-import { getDb, type AgentArtifactDoc, type AgentArtifactKind } from '../../db';
+import { storagePort } from '../../db/storagePort';
+import type { AgentArtifactDoc, AgentArtifactKind, AuditLogDocType } from '../../db/types';
 import type { AdoptionItem } from './adoptionQueue';
 
 export type { AgentArtifactDoc, AgentArtifactKind };
@@ -42,8 +43,9 @@ export async function persistAgentArtifact(input: {
   agentRunId?: string;
   adoptionItemId?: string;
 }): Promise<AgentArtifactDoc> {
-  const db = await getDb();
   const createdAt = nowIso();
+  const agentRunId = input.agentRunId?.trim() ?? '';
+  const adoptionItemId = input.adoptionItemId?.trim() ?? '';
   const doc: AgentArtifactDoc = {
     id: newArtifactId(),
     schemaVersion: 0,
@@ -53,11 +55,10 @@ export async function persistAgentArtifact(input: {
     mimeType: input.mimeType ?? 'application/json',
     bodyJson: JSON.stringify(input.body),
     createdAt,
-    ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
-    ...(input.adoptionItemId ? { adoptionItemId: input.adoptionItemId } : {}),
+    ...(agentRunId.length > 0 ? { agentRunId } : {}),
+    ...(adoptionItemId.length > 0 ? { adoptionItemId } : {}),
   };
-  await db.collections.agent_artifacts.insert(doc);
-  await db.collections.audit_logs.insert({
+  const audit: AuditLogDocType = {
     id: newAuditId(),
     collection: 'agent_artifacts',
     documentId: doc.id,
@@ -67,15 +68,12 @@ export async function persistAgentArtifact(input: {
     source: 'system',
     timestamp: createdAt,
     metadataJson: JSON.stringify({ kind: doc.kind, uri: doc.uri }),
-  });
-  const stored = await db.collections.agent_artifacts.findOne({ selector: { id: doc.id } }).exec();
-  return stored!.toJSON();
+  };
+  return storagePort().saveAgentArtifact(doc, audit);
 }
 
 export async function getAgentArtifact(id: string): Promise<AgentArtifactDoc | undefined> {
-  const db = await getDb();
-  const row = await db.collections.agent_artifacts.findOne({ selector: { id } }).exec();
-  return row?.toJSON();
+  return storagePort().readAgentArtifact(id);
 }
 
 export function attachArtifactId(item: AdoptionItem, artifactId: string): AdoptionItem {

@@ -5,8 +5,7 @@
 
 import type { AiPromptContext } from '../chatDomain.types';
 import type { LocalContextToolResult } from '../localContextToolTypes';
-import { dexieStoresForGetUnitLinguisticMemoryRead, getDb } from '../../../db';
-import { listUnitTextsByUnit } from '../../../services/LayerSegmentationTextService';
+import { readUnitLinguisticMemory } from '../../../db/storagePortAiLinguisticMemory';
 import { getSegmentDetail } from '../../queries/segmentReadQueries';
 import { normalizeUnitScope } from '../localContextToolScopeNormalize';
 import { buildReadModelMetaWithSource } from './readModelMeta';
@@ -125,8 +124,6 @@ export async function getUnitDetail(
   return { ok: false, name: 'get_unit_detail', result: null, error: `unit not found: ${unitId}` };
 }
 
-type LinguisticMemoryNoteTargetType = 'unit' | 'translation' | 'token' | 'morpheme';
-
 interface LinguisticMemoryNoteView {
   id: string;
   category?: string;
@@ -166,19 +163,6 @@ function mapLinguisticMemoryNoteRows(
     });
 }
 
-async function listNotesByTarget(
-  db: Awaited<ReturnType<typeof getDb>>,
-  targetType: LinguisticMemoryNoteTargetType,
-  targetId: string,
-): Promise<LinguisticMemoryNoteView[]> {
-  if (targetId.trim().length === 0) return [];
-  const rows = await db.dexie.user_notes
-    .where('[targetType+targetId]')
-    .equals([targetType, targetId])
-    .toArray();
-  return mapLinguisticMemoryNoteRows(rows as unknown as Array<Record<string, unknown>>);
-}
-
 export async function getUnitLinguisticMemory(
   args: Record<string, unknown>,
   context: AiPromptContext,
@@ -213,10 +197,8 @@ export async function getUnitLinguisticMemory(
   }
   const localHit = localRows?.find((row) => row.id === unitId);
 
-  let db: Awaited<ReturnType<typeof getDb>>;
-  try {
-    db = await getDb();
-  } catch {
+  const loaded = await readUnitLinguisticMemory(unitId, { includeNotes, includeMorphemes });
+  if (!loaded) {
     return {
       ok: false,
       name: 'get_unit_linguistic_memory',
@@ -228,88 +210,30 @@ export async function getUnitLinguisticMemory(
   const {
     layerUnit,
     unitTexts,
-    tokenRowsRaw,
-    morphemeRowsRaw,
-    layerRows,
-    unitNotes,
-    translationNoteRows,
-    tokenNoteRows,
-    morphemeNoteRows,
-  } = await db.dexie.transaction(
-    'r',
-    [...dexieStoresForGetUnitLinguisticMemoryRead(db)],
-    async () => {
-      const [layerUnit, unitTexts, tokenRowsRaw, morphemeRowsRaw] = await Promise.all([
-        db.dexie.layer_units.get(unitId),
-        listUnitTextsByUnit(db, unitId),
-        db.dexie.unit_tokens.where('unitId').equals(unitId).toArray(),
-        includeMorphemes
-          ? db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
-          : Promise.resolve([]),
-      ]);
-
-      const layerIds = [
-        ...new Set(
-          unitTexts
-            .map((row) => row.layerId)
-            .filter((id): id is string => typeof id === 'string' && id.length > 0),
-        ),
-      ];
-
-      const [layerRows, unitNotes, translationNoteRows, tokenNoteRows, morphemeNoteRows]: [
-        LinguisticMemoryLayerRow[],
-        LinguisticMemoryNoteView[],
-        Array<{ textId: string; notes: LinguisticMemoryNoteView[] }>,
-        Array<{ tokenId: string; notes: LinguisticMemoryNoteView[] }>,
-        Array<{ morphemeId: string; notes: LinguisticMemoryNoteView[] }>,
-      ] = await Promise.all([
-        layerIds.length > 0
-          ? (db.dexie.tier_definitions.where('id').anyOf(layerIds).toArray() as Promise<
-              LinguisticMemoryLayerRow[]
-            >)
-          : Promise.resolve<LinguisticMemoryLayerRow[]>([]),
-        includeNotes
-          ? listNotesByTarget(db, 'unit', unitId)
-          : Promise.resolve<LinguisticMemoryNoteView[]>([]),
-        includeNotes
-          ? Promise.all(
-              unitTexts.map(async (row) => ({
-                textId: row.id,
-                notes: await listNotesByTarget(db, 'translation', row.id),
-              })),
-            )
-          : Promise.resolve<Array<{ textId: string; notes: LinguisticMemoryNoteView[] }>>([]),
-        includeNotes
-          ? Promise.all(
-              tokenRowsRaw.map(async (row) => ({
-                tokenId: row.id,
-                notes: await listNotesByTarget(db, 'token', row.id),
-              })),
-            )
-          : Promise.resolve<Array<{ tokenId: string; notes: LinguisticMemoryNoteView[] }>>([]),
-        includeNotes
-          ? Promise.all(
-              morphemeRowsRaw.map(async (row) => ({
-                morphemeId: row.id,
-                notes: await listNotesByTarget(db, 'morpheme', row.id),
-              })),
-            )
-          : Promise.resolve<Array<{ morphemeId: string; notes: LinguisticMemoryNoteView[] }>>([]),
-      ]);
-
-      return {
-        layerUnit,
-        unitTexts,
-        tokenRowsRaw,
-        morphemeRowsRaw,
-        layerRows,
-        unitNotes,
-        translationNoteRows,
-        tokenNoteRows,
-        morphemeNoteRows,
-      };
-    },
+    tokenRows: tokenRowsRaw,
+    morphemeRows: morphemeRowsRaw,
+    layerRows: layerRowsRaw,
+    unitNotes: unitNoteRows,
+    translationNoteRows: translationNoteDocs,
+    tokenNoteRows: tokenNoteDocs,
+    morphemeNoteRows: morphemeNoteDocs,
+  } = loaded;
+  const layerRows = layerRowsRaw as unknown as LinguisticMemoryLayerRow[];
+  const unitNotes = mapLinguisticMemoryNoteRows(
+    unitNoteRows as unknown as Array<Record<string, unknown>>,
   );
+  const translationNoteRows = translationNoteDocs.map((entry) => ({
+    textId: entry.textId,
+    notes: mapLinguisticMemoryNoteRows(entry.notes as unknown as Array<Record<string, unknown>>),
+  }));
+  const tokenNoteRows = tokenNoteDocs.map((entry) => ({
+    tokenId: entry.tokenId,
+    notes: mapLinguisticMemoryNoteRows(entry.notes as unknown as Array<Record<string, unknown>>),
+  }));
+  const morphemeNoteRows = morphemeNoteDocs.map((entry) => ({
+    morphemeId: entry.morphemeId,
+    notes: mapLinguisticMemoryNoteRows(entry.notes as unknown as Array<Record<string, unknown>>),
+  }));
 
   const hasAnyData = Boolean(
     localHit ||

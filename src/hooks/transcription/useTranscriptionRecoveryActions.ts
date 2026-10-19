@@ -1,8 +1,11 @@
 import { useCallback } from 'react';
 import { reloadAfterWrite, type LoadTranscriptionSnapshot } from './workspaceSnapshotLoad';
 import { getStoredLocalePreference } from '../../i18n';
-import { getDb, importDatabaseFromJson } from '../../db';
-import type { LayerUnitDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db/types';
+import {
+  importTranscriptionRecoverySnapshot,
+  readTranscriptionUnitsByIds,
+} from '../../db/storagePortTranscriptionRecovery';
 import {
   clearRecoverySnapshot,
   getRecoveryLayerUnits,
@@ -13,7 +16,6 @@ import { fireAndForget } from '../../utils/fireAndForget';
 import type { SaveState } from './transcriptionTypes';
 import { createLogger } from '../../observability/logger';
 import { reportActionError } from '../../utils/actionErrorReporter';
-import { listUnitDocsByIds } from '../../services/LayerSegmentGraphService';
 import { resolveCurrentProjectTextId } from '../../utils/transcriptionUrlDeepLink';
 
 const log = createLogger('useTranscriptionRecoveryActions');
@@ -71,9 +73,8 @@ export function useTranscriptionRecoveryActions({
           if (unitsRef.current.length > 0) {
             const expectedById = new Map(unitsRef.current.map((u) => [u.id, u.updatedAt] as const));
             const ids = unitsRef.current.map((u) => u.id);
-            const db = await getDb();
             // 只按 id 取，不扫全库（JY-15）| By id only, no whole-DB scan (JY-15)
-            const persistedUnits = await listUnitDocsByIds(db, ids);
+            const persistedUnits = await readTranscriptionUnitsByIds(ids);
             const persistedById = new Map(
               persistedUnits
                 .filter((u) => ids.includes(u.id))
@@ -93,7 +94,7 @@ export function useTranscriptionRecoveryActions({
             }
           }
 
-          await importDatabaseFromJson(data.snapshot, { strategy: 'upsert' });
+          await importTranscriptionRecoverySnapshot(data.snapshot);
         });
       } catch (error) {
         log.error('Apply recovery failed', {

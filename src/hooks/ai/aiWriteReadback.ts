@@ -1,11 +1,9 @@
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 
 /** 这些 id 里还有几行。读不了库时返回 undefined。 */
 export async function presentUnitCount(ids: readonly string[]): Promise<number | undefined> {
   try {
-    const db = await getDb();
-    const rows = await db.dexie.layer_units.bulkGet([...ids]);
-    return rows.filter((row) => row != null).length;
+    return await storagePort().countPresentLayerUnits(ids);
   } catch {
     return undefined;
   }
@@ -16,9 +14,7 @@ export async function unitPresence(
   ids: readonly string[],
 ): Promise<'all-present' | 'all-absent' | 'partial' | 'unreadable'> {
   try {
-    const db = await getDb();
-    const rows = await db.dexie.layer_units.bulkGet([...ids]);
-    const present = rows.filter((row) => row != null).length;
+    const present = await storagePort().countPresentLayerUnits(ids);
     if (present === 0) return 'all-absent';
     if (present === ids.length) return 'all-present';
     return 'partial';
@@ -30,8 +26,7 @@ export async function unitPresence(
 /** 层行是否还在 tier_definitions。读不了库时返回 undefined。 */
 export async function tierRowExists(layerId: string): Promise<boolean | undefined> {
   try {
-    const db = await getDb();
-    const row = await db.dexie.tier_definitions.get(layerId);
+    const row = await storagePort().readTierDefinition(layerId);
     return row != null;
   } catch {
     return undefined;
@@ -44,9 +39,7 @@ export async function persistedLayerIds(
   languageId: string,
 ): Promise<string[] | undefined> {
   try {
-    const db = await getDb();
-    const rows = await db.dexie.tier_definitions.where('contentType').equals(contentType).toArray();
-    return rows.filter((row) => row.languageId === languageId).map((row) => row.id);
+    return await storagePort().listTierIdsByContentLanguage(contentType, languageId);
   } catch {
     return undefined;
   }
@@ -62,8 +55,7 @@ export async function createdUnitId(
 ): Promise<string | null | undefined> {
   if (!textId || beforeIds === undefined) return undefined;
   try {
-    const db = await getDb();
-    const after = await db.dexie.layer_units.where('textId').equals(textId).primaryKeys();
+    const after = await storagePort().listLayerUnitIdsByText(textId);
     const created = after.filter((id) => !beforeIds.has(String(id)));
     if (created.length === 1) return String(created[0]);
     if (created.length === 0) return null;
@@ -75,8 +67,7 @@ export async function createdUnitId(
 
 export async function unitTextId(unitId: string): Promise<string | undefined> {
   try {
-    const db = await getDb();
-    const row = await db.dexie.layer_units.get(unitId);
+    const row = await storagePort().readLayerUnit(unitId);
     return typeof row?.textId === 'string' && row.textId.length > 0 ? row.textId : undefined;
   } catch {
     return undefined;
@@ -85,8 +76,7 @@ export async function unitTextId(unitId: string): Promise<string | undefined> {
 
 export async function unitIdsForText(textId: string): Promise<Set<string> | undefined> {
   try {
-    const db = await getDb();
-    const keys = await db.dexie.layer_units.where('textId').equals(textId).primaryKeys();
+    const keys = await storagePort().listLayerUnitIdsByText(textId);
     return new Set(keys.map((id) => String(id)));
   } catch {
     return undefined;
@@ -103,15 +93,11 @@ export async function splitBoundaryLanded(
   originalEnd: number,
 ): Promise<boolean | undefined> {
   try {
-    const db = await getDb();
-    const row = await db.dexie.layer_units.get(segmentId);
+    const row = await storagePort().readLayerUnit(segmentId);
     if (!row) return undefined;
     if (row.endTime < originalEnd - 0.001 && row.endTime <= splitTime + 0.001) return true;
     if (!row.mediaId) return false;
-    const siblings = await db.dexie.layer_units
-      .where('[mediaId+startTime]')
-      .equals([row.mediaId, splitTime])
-      .toArray();
+    const siblings = await storagePort().listLayerUnitsAtMediaStart(row.mediaId, splitTime);
     return siblings.some((sibling) => sibling.id !== segmentId);
   } catch {
     return undefined;

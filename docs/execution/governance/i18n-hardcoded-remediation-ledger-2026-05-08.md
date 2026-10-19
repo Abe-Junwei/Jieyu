@@ -3,7 +3,7 @@ title: i18n 硬编码扫描 — 收敛台账（2026-05-08）
 doc_type: execution-governance-ledger
 status: active
 owner: repo
-last_reviewed: 2026-05-08
+last_reviewed: 2026-10-19
 source_of_truth: i18n-hardcoded-remediation
 ---
 
@@ -36,3 +36,4 @@ source_of_truth: i18n-hardcoded-remediation
 |------|------|--------|
 | 2026-05-08 | 将 `localContextToolExecutors` / `localContextToolFormatters` 等纳入严格基线；`totalHits` 调至 **216** | 技术债收口 |
 | 2026-05-08 | `src/ai/` **maxDelta** 设为 **20**（见 `scripts/i18n-hardcoded-thresholds.json`） | 代码治理计划 §11 |
+| 2026-10-19 | #280 把正字法校验文案的豁免从 `LinguisticService.orthography.ts` 跟到 `storagePortServiceOrthography.ts`。备注、时间轴、词例的硬编码错误句跟着实现挪进 `src/db/storagePortService*.ts`，基线按文件改记。没有新增用户文案。`totalHits` **232 → 227** | #338 |

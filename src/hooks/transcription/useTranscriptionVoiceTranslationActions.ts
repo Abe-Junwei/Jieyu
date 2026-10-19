@@ -1,18 +1,25 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
-import { getDb } from '../../db';
 import type {
   LayerDocType,
   MediaItemDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
-} from '../../db';
+} from '../../db/types';
+import {
+  listTranscriptionUnitTexts,
+  readTranscriptionMediaById,
+  removeTranscriptionUnitText,
+  syncTranscriptionUnitText,
+} from '../../db/storagePortTranscriptionUnits';
+import {
+  deleteTranscriptionLayerUnitContent,
+  deleteTranscriptionMediaItem,
+  insertTranscriptionMediaItem,
+  listTranscriptionContentsByUnitId,
+  putTranscriptionLayerUnitContent,
+} from '../../db/storagePortTranscriptionVoice';
 import { managedAcousticMediaState } from '../../utils/mediaItemState';
 import { newId } from '../../utils/transcriptionFormatters';
-import {
-  listUnitTextsByUnit,
-  removeUnitTextFromSegmentationV2,
-  syncUnitTextToSegmentationV2,
-} from '../../services/LayerSegmentationTextService';
 import {
   type UnitTextWithoutLayerId,
   withUnitTextLayerId,
@@ -148,10 +155,7 @@ function isLikelyAbortError(e: unknown, signal: AbortSignal | undefined): boolea
 }
 
 type UseTranscriptionVoiceTranslationActionsParams = {
-  resolveUnitById: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    unitId: string,
-  ) => Promise<LayerUnitDocType | null>;
+  resolveUnitById: (unitId: string) => Promise<LayerUnitDocType | null>;
   setMediaItems: Dispatch<SetStateAction<MediaItemDocType[]>>;
   setSaveState: (s: SaveState) => void;
   setTranslations: Dispatch<SetStateAction<LayerUnitContentDocType[]>>;
@@ -173,12 +177,8 @@ export function useTranscriptionVoiceTranslationActions({
   }, []);
 
   const listSegmentTranslations = useCallback(
-    async (
-      db: Awaited<ReturnType<typeof getDb>>,
-      segmentId: string,
-      layerId: string,
-    ): Promise<LayerUnitContentDocType[]> => {
-      const rows = await db.dexie.layer_unit_contents.where('unitId').equals(segmentId).toArray();
+    async (segmentId: string, layerId: string): Promise<LayerUnitContentDocType[]> => {
+      const rows = await listTranscriptionContentsByUnitId(segmentId);
       return rows
         .filter((item) => item.layerId === layerId)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -188,7 +188,6 @@ export function useTranscriptionVoiceTranslationActions({
 
   const resolveVoiceTranslationTargets = useCallback(
     async (
-      db: Awaited<ReturnType<typeof getDb>>,
       targetUnit: LayerUnitDocType,
       targetLayer: LayerDocType,
     ): Promise<{
@@ -199,14 +198,14 @@ export function useTranscriptionVoiceTranslationActions({
     }> => {
       const standaloneSegmentTarget = isStandaloneSegmentTarget(targetUnit);
       if (standaloneSegmentTarget) {
-        const rows = await listSegmentTranslations(db, targetUnit.id, targetLayer.id);
+        const rows = await listSegmentTranslations(targetUnit.id, targetLayer.id);
         return {
           standaloneSegmentTarget,
           existingAudioTranslation: rows.find((item) => Boolean(item.translationAudioMediaId)),
           newestSegmentRowForLayer: rows[0],
         };
       }
-      const unitRows = await listUnitTextsByUnit(db, targetUnit.id);
+      const unitRows = await listTranscriptionUnitTexts(targetUnit.id);
       const withAudio = unitRows
         .filter((item) => item.layerId === targetLayer.id && Boolean(item.translationAudioMediaId))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -225,10 +224,9 @@ export function useTranscriptionVoiceTranslationActions({
         throw new Error(t(locale, 'transcription.error.validation.voiceTranslationTargetRequired'));
       }
 
-      const db = await getDb();
       const now = new Date().toISOString();
       const { standaloneSegmentTarget, existingAudioTranslation, newestSegmentRowForLayer } =
-        await resolveVoiceTranslationTargets(db, targetUnit, targetLayer);
+        await resolveVoiceTranslationTargets(targetUnit, targetLayer);
       const existingTranslation = existingAudioTranslation ?? newestSegmentRowForLayer;
 
       const mediaId = newId('media');
@@ -247,7 +245,7 @@ export function useTranscriptionVoiceTranslationActions({
         createdAt: now,
         ...managedAcousticMediaState(blob),
       };
-      await db.collections.media_items.insert(newMedia);
+      await insertTranscriptionMediaItem(newMedia);
 
       const translationId =
         existingTranslation?.id ??
@@ -296,13 +294,14 @@ export function useTranscriptionVoiceTranslationActions({
           } as LayerUnitContentDocType);
 
       if (standaloneSegmentTarget) {
-        await db.dexie.layer_unit_contents.put(newTranslation);
+        await putTranscriptionLayerUnitContent(newTranslation);
       } else {
-        await syncUnitTextToSegmentationV2(db, targetUnit, newTranslation);
+        await syncTranscriptionUnitText(targetUnit, newTranslation);
       }
 
-      if (existingAudioTranslation?.translationAudioMediaId) {
-        await db.dexie.media_items.delete(existingAudioTranslation.translationAudioMediaId);
+      const previousMediaId = existingAudioTranslation?.translationAudioMediaId?.trim() ?? '';
+      if (previousMediaId.length > 0) {
+        await deleteTranscriptionMediaItem(previousMediaId);
       }
 
       setMediaItems((prev) => {
@@ -337,13 +336,12 @@ export function useTranscriptionVoiceTranslationActions({
         throw new Error(t(locale, 'transcription.error.validation.voiceTranslationTargetRequired'));
       }
 
-      const db = await getDb();
       const now = new Date().toISOString();
       const { standaloneSegmentTarget, existingAudioTranslation } =
-        await resolveVoiceTranslationTargets(db, targetUnit, targetLayer);
+        await resolveVoiceTranslationTargets(targetUnit, targetLayer);
 
-      const mediaId = existingAudioTranslation?.translationAudioMediaId;
-      if (!existingAudioTranslation || !mediaId) {
+      const mediaId = existingAudioTranslation?.translationAudioMediaId?.trim() ?? '';
+      if (!existingAudioTranslation || mediaId.length === 0) {
         setSaveState({
           kind: 'done',
           message: t(locale, 'transcription.voiceTranslation.done.noAudioToDelete'),
@@ -365,11 +363,11 @@ export function useTranscriptionVoiceTranslationActions({
           updatedAt: now,
         } as LayerUnitContentDocType;
         if (standaloneSegmentTarget) {
-          await db.dexie.layer_unit_contents.put(updatedTranslation);
+          await putTranscriptionLayerUnitContent(updatedTranslation);
         } else {
-          const unit = await resolveUnitById(db, targetUnit.id);
+          const unit = await resolveUnitById(targetUnit.id);
           if (unit) {
-            await syncUnitTextToSegmentationV2(db, unit, updatedTranslation);
+            await syncTranscriptionUnitText(unit, updatedTranslation);
           }
         }
         setTranslations((prev) =>
@@ -377,14 +375,14 @@ export function useTranscriptionVoiceTranslationActions({
         );
       } else {
         if (standaloneSegmentTarget) {
-          await db.dexie.layer_unit_contents.delete(existingAudioTranslation.id);
+          await deleteTranscriptionLayerUnitContent(existingAudioTranslation.id);
         } else {
-          await removeUnitTextFromSegmentationV2(db, existingAudioTranslation);
+          await removeTranscriptionUnitText(existingAudioTranslation);
         }
         setTranslations((prev) => prev.filter((item) => item.id !== existingAudioTranslation.id));
       }
 
-      await db.dexie.media_items.delete(mediaId);
+      await deleteTranscriptionMediaItem(mediaId);
       setMediaItems((prev) => prev.filter((item) => item.id !== mediaId));
       setSaveState({
         kind: 'done',
@@ -425,13 +423,12 @@ export function useTranscriptionVoiceTranslationActions({
         return;
       }
 
-      const db = await getDb();
       const now = new Date().toISOString();
       const { standaloneSegmentTarget, existingAudioTranslation } =
-        await resolveVoiceTranslationTargets(db, targetUnit, targetLayer);
+        await resolveVoiceTranslationTargets(targetUnit, targetLayer);
 
-      const mediaId = existingAudioTranslation?.translationAudioMediaId;
-      if (!existingAudioTranslation || !mediaId) {
+      const mediaId = existingAudioTranslation?.translationAudioMediaId?.trim() ?? '';
+      if (!existingAudioTranslation || mediaId.length === 0) {
         setSaveState({
           kind: 'done',
           message: t(locale, 'transcription.voiceTranslation.done.noAudioToTranscribe'),
@@ -443,7 +440,7 @@ export function useTranscriptionVoiceTranslationActions({
       let blob: Blob | null =
         options?.audioBlob && options.audioBlob.size > 0 ? options.audioBlob : null;
       if (!blob) {
-        const mediaRow = (await db.dexie.media_items.get(mediaId)) as MediaItemDocType | undefined;
+        const mediaRow = await readTranscriptionMediaById(mediaId);
         blob = readNonEmptyAudioBlobFromMediaItem(mediaRow) ?? null;
       }
       if (!blob || blob.size === 0) {
@@ -552,11 +549,11 @@ export function useTranscriptionVoiceTranslationActions({
       } as LayerUnitContentDocType;
 
       if (standaloneSegmentTarget) {
-        await db.dexie.layer_unit_contents.put(updatedTranslation);
+        await putTranscriptionLayerUnitContent(updatedTranslation);
       } else {
-        const unit = await resolveUnitById(db, targetUnit.id);
+        const unit = await resolveUnitById(targetUnit.id);
         if (unit) {
-          await syncUnitTextToSegmentationV2(db, unit, updatedTranslation);
+          await syncTranscriptionUnitText(unit, updatedTranslation);
         }
       }
 

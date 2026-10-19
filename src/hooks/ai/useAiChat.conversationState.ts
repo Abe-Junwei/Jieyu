@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t, type Locale } from '../../i18n';
-import { getDb } from '../../db';
+import { insertAiConversation } from '../../db/storagePortChatConversations';
+import {
+  listAiMessagesByConversation,
+  listAiMessagesByStatus,
+  patchAiMessage,
+} from '../../db/storagePortChatMessages';
 import {
   formatHistoryLoadFailedFallbackError,
   formatRecoveredInterruptedMessage,
@@ -87,10 +92,9 @@ function mapHistoryRowsToUiMessages(
 }
 
 export async function loadConversationUiMessages(conversationId: string): Promise<UiChatMessage[]> {
-  const db = await getDb();
-  const rows = (await db.collections.ai_messages.findByIndex('conversationId', conversationId))
-    .map((doc) => doc.toJSON())
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const rows = (await listAiMessagesByConversation(conversationId)).sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  );
 
   const chatRows = rows.filter((row) => row.role === 'user' || row.role === 'assistant');
   return mapHistoryRowsToUiMessages(chatRows).reverse();
@@ -116,7 +120,6 @@ export function useAiChatConversationState({
   const ensureConversation = useCallback(async (): Promise<string> => {
     if (conversationIdRef.current) return conversationIdRef.current;
 
-    const db = await getDb();
     const existingRows = await fetchAllConversationRows();
     const latestInScope = pickLatestConversationInScope(existingRows, textId);
 
@@ -128,13 +131,13 @@ export function useAiChatConversationState({
 
     const id = newMessageId('conv');
     const timestamp = nowIso();
-    await db.collections.ai_conversations.insert({
+    await insertAiConversation({
       id,
       title: t(locale, 'ai.chat.defaultConversationTitle'),
       mode: 'assistant',
       providerId,
-      model: model || providerId,
-      ...(textId ? { textId } : {}),
+      model: model.trim().length > 0 ? model : providerId,
+      ...(textId !== undefined && textId.length > 0 ? { textId } : {}),
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -147,24 +150,19 @@ export function useAiChatConversationState({
     let cancelled = false;
     const load = async () => {
       try {
-        const db = await getDb();
         // Recover crashed/interrupted sessions by marking stale streaming rows as aborted.
-        const zombieStreamingRows = await db.collections.ai_messages.findByIndex(
-          'status',
-          'streaming',
-        );
+        const zombieStreamingRows = await listAiMessagesByStatus('streaming');
         const nowMs = Date.now();
-        const staleZombieStreamingRows = zombieStreamingRows.filter((doc) => {
-          const updatedAtMs = Date.parse(doc.toJSON().updatedAt);
+        const staleZombieStreamingRows = zombieStreamingRows.filter((row) => {
+          const updatedAtMs = Date.parse(row.updatedAt);
           if (!Number.isFinite(updatedAtMs)) return true;
           return nowMs - updatedAtMs > ZOMBIE_STREAMING_STALE_MS;
         });
         if (staleZombieStreamingRows.length > 0) {
           const now = nowIso();
           await Promise.all(
-            staleZombieStreamingRows.map(async (doc) => {
-              const row = doc.toJSON();
-              await db.collections.ai_messages.update(row.id, {
+            staleZombieStreamingRows.map(async (row) => {
+              await patchAiMessage(row.id, {
                 status: 'aborted',
                 errorMessage: row.errorMessage ?? formatRecoveredInterruptedMessage(locale),
                 updatedAt: now,

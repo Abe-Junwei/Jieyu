@@ -5,58 +5,26 @@ import type { OrthographyDocType } from '../../db';
 import { resetBuiltInOrthographyCatalogForTests } from '../../data/builtInOrthographies';
 import { useOrthographies } from './useOrthographies';
 
-const { mockGetDb, mockToArray, mockAnyOf, mockWhere, mockFetch } = vi.hoisted(() => ({
-  mockToArray: vi.fn<() => Promise<OrthographyDocType[]>>(async () => []),
-  mockAnyOf: vi.fn<(languageIds: string[]) => { toArray: () => Promise<OrthographyDocType[]> }>(),
-  mockWhere: vi.fn<
-    (field: string) => {
-      anyOf: (languageIds: string[]) => { toArray: () => Promise<OrthographyDocType[]> };
-    }
-  >(),
-  mockGetDb: vi.fn<
-    () => Promise<{
-      dexie: {
-        orthographies: {
-          where: (field: string) => {
-            anyOf: (languageIds: string[]) => { toArray: () => Promise<OrthographyDocType[]> };
-          };
-        };
-      };
-    }>
-  >(),
+const { mockListOrthographiesByLanguageIds, mockFetch } = vi.hoisted(() => ({
+  mockListOrthographiesByLanguageIds: vi.fn<
+    (languageIds: readonly string[]) => Promise<OrthographyDocType[]>
+  >(async () => []),
   mockFetch: vi.fn(),
 }));
 
-vi.mock('../../db', () => ({
-  getDb: mockGetDb,
+vi.mock('../../db/storagePortImportOrthography', () => ({
+  listOrthographiesByLanguageIds: (languageIds: readonly string[]) =>
+    mockListOrthographiesByLanguageIds(languageIds),
 }));
 
 describe('useOrthographies', () => {
   beforeEach(() => {
     resetBuiltInOrthographyCatalogForTests();
-    mockToArray.mockReset();
-    mockAnyOf.mockReset();
-    mockWhere.mockReset();
-    mockGetDb.mockReset();
+    mockListOrthographiesByLanguageIds.mockReset();
+    mockListOrthographiesByLanguageIds.mockResolvedValue([]);
     mockFetch.mockReset();
     mockFetch.mockRejectedValue(new Error('network disabled in test'));
     vi.stubGlobal('fetch', mockFetch);
-
-    mockAnyOf.mockImplementation((languageIds: string[]) => {
-      void languageIds;
-      return { toArray: mockToArray };
-    });
-    mockWhere.mockImplementation((field: string) => {
-      void field;
-      return { anyOf: mockAnyOf };
-    });
-    mockGetDb.mockResolvedValue({
-      dexie: {
-        orthographies: {
-          where: mockWhere,
-        },
-      },
-    });
   });
 
   it('loads orthographies for current layer languages', async () => {
@@ -70,7 +38,7 @@ describe('useOrthographies', () => {
         createdAt: '2026-03-31T00:00:00.000Z',
       },
     ];
-    mockToArray.mockResolvedValue(rows);
+    mockListOrthographiesByLanguageIds.mockResolvedValue(rows);
 
     const { result } = renderHook(() => useOrthographies(['tha', 'bod']));
 
@@ -78,12 +46,11 @@ describe('useOrthographies', () => {
       expect(result.current).toEqual(rows);
     });
 
-    expect(mockWhere).toHaveBeenCalledWith('languageId');
-    expect(mockAnyOf).toHaveBeenCalledWith(['bod', 'tha']);
+    expect(mockListOrthographiesByLanguageIds).toHaveBeenCalledWith(['bod', 'tha']);
   });
 
   it('merges reviewed built-in orthographies for supported top50 languages', async () => {
-    mockToArray.mockResolvedValue([]);
+    mockListOrthographiesByLanguageIds.mockResolvedValue([]);
 
     const { result } = renderHook(() => useOrthographies(['eng']));
 
@@ -105,7 +72,7 @@ describe('useOrthographies', () => {
   });
 
   it('expands mandarin orthography lookup to include zho catalog entries', async () => {
-    mockToArray.mockResolvedValue([
+    mockListOrthographiesByLanguageIds.mockResolvedValue([
       {
         id: 'zho-custom-user',
         languageId: 'zho',
@@ -125,7 +92,7 @@ describe('useOrthographies', () => {
       expect(result.current.some((item) => item.id === 'zho-custom-user')).toBe(true);
     });
 
-    expect(mockAnyOf).toHaveBeenCalledWith(['cmn', 'zho']);
+    expect(mockListOrthographiesByLanguageIds).toHaveBeenCalledWith(['cmn', 'zho']);
   });
 
   it('sorts user orthographies ahead of generated built-ins for non-top50 languages', async () => {
@@ -151,7 +118,7 @@ describe('useOrthographies', () => {
         ],
       }),
     });
-    mockToArray.mockResolvedValue([
+    mockListOrthographiesByLanguageIds.mockResolvedValue([
       {
         id: 'bod-custom-user',
         languageId: 'bod',
@@ -189,7 +156,7 @@ describe('useOrthographies', () => {
       expect(result.current).toEqual([]);
     });
 
-    expect(mockGetDb).not.toHaveBeenCalled();
+    expect(mockListOrthographiesByLanguageIds).not.toHaveBeenCalled();
   });
 
   it('does not thrash when empty languageIds is a fresh [] each render', () => {
@@ -203,11 +170,11 @@ describe('useOrthographies', () => {
     rerender({ ids: [] });
     rerender({ ids: [] });
 
-    expect(mockGetDb).not.toHaveBeenCalled();
+    expect(mockListOrthographiesByLanguageIds).not.toHaveBeenCalled();
   });
 
   it('does not refetch when languageIds is a new array reference with the same normalized ids', async () => {
-    mockToArray.mockResolvedValue([]);
+    mockListOrthographiesByLanguageIds.mockResolvedValue([]);
 
     const { result, rerender } = renderHook(
       ({ ids }: { ids: readonly string[] }) => useOrthographies(ids),
@@ -220,13 +187,11 @@ describe('useOrthographies', () => {
       expect(result.current.some((item) => item.id === 'eng-latn')).toBe(true);
     });
 
-    const getDbCallsAfterSettle = mockGetDb.mock.calls.length;
-    const whereCallsAfterSettle = mockWhere.mock.calls.length;
+    const listCallsAfterSettle = mockListOrthographiesByLanguageIds.mock.calls.length;
 
     rerender({ ids: ['eng'] });
     rerender({ ids: ['eng'] });
 
-    expect(mockGetDb.mock.calls.length).toBe(getDbCallsAfterSettle);
-    expect(mockWhere.mock.calls.length).toBe(whereCallsAfterSettle);
+    expect(mockListOrthographiesByLanguageIds.mock.calls.length).toBe(listCallsAfterSettle);
   });
 });

@@ -1,4 +1,11 @@
-import { getDb, type EmbeddingDoc, type EmbeddingSourceType } from '../../db';
+import {
+  listEmbeddingsByIds,
+  listMediaItemsByTextId,
+  listUserNotesByTextId,
+  putEmbeddings,
+  putMediaItem,
+} from '../../db/storagePortAiEmbeddings';
+import type { EmbeddingDoc, EmbeddingSourceType } from '../../db/types';
 import type { EmbeddingProvider } from './EmbeddingProvider';
 import type { EmbeddingRuntimeProgress } from './EmbeddingRuntime';
 import { TaskRunner } from '../tasks/TaskRunner';
@@ -121,13 +128,9 @@ export class EmbeddingService {
    * 自动过滤无文字内容的笔记 | Skips notes with empty text.
    */
   async buildNotesEmbeddings(options: ProjectBuildOptions): Promise<BuildEmbeddingsResult> {
-    const db = await getDb();
-    const noteRows = options.textId
-      ? await db.collections.user_notes.findByIndex('textId', options.textId)
-      : [];
+    const noteRows = options.textId.length > 0 ? await listUserNotesByTextId(options.textId) : [];
     const sources: EmbeddingBuildSource[] = [];
-    for (const row of noteRows) {
-      const note = row.toJSON();
+    for (const note of noteRows) {
       // MultiLangString: prefer 'und' → 'en' → first available key | 优先取 'und'，其次 'en'，最后第一个非空值
       const content = note.content as Record<string, string>;
       const text = (
@@ -166,18 +169,14 @@ export class EmbeddingService {
    * Phase A: uses semantic-aware chunking (sentence boundary + sliding overlap) instead of hard char truncation.
    */
   async buildPdfEmbeddings(options: ProjectBuildOptions): Promise<BuildEmbeddingsResult> {
-    const db = await getDb();
-    const mediaRows = options.textId
-      ? await db.collections.media_items.findByIndex('textId', options.textId)
-      : [];
+    const mediaRows = options.textId.length > 0 ? await listMediaItemsByTextId(options.textId) : [];
     const maxChars = Number.isFinite(options?.chunkSizeChars)
       ? Math.max(160, Math.floor(options?.chunkSizeChars ?? 600))
       : 600;
 
     const sources: EmbeddingBuildSource[] = [];
-    for (const row of mediaRows) {
-      const media = row.toJSON();
-      if (!isPdfMediaItem(media) || !media.textId) continue;
+    for (const media of mediaRows) {
+      if (!isPdfMediaItem(media) || media.textId.length === 0) continue;
 
       const details = media.details as Record<string, unknown> | undefined;
       const preExtracted = extractPdfTextFragments(details);
@@ -188,7 +187,7 @@ export class EmbeddingService {
           if (fragments.length > 0) {
             const patch = await extractPdfDetailsPatch(details);
             if (patch) {
-              await db.collections.media_items.insert({
+              await putMediaItem({
                 ...media,
                 details: {
                   ...(details ?? {}),
@@ -307,7 +306,6 @@ export class EmbeddingService {
     const modelVersion = options.modelVersion;
     const total = sources.length;
     const startedAt = Date.now();
-    const db = await getDb();
 
     if (total === 0) {
       options.onProgress?.({ stage: 'done', processed: 0, total: 0 });
@@ -359,10 +357,9 @@ export class EmbeddingService {
       const batchIds = batch.map((source) =>
         buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion),
       );
-      const existingRows = await db.collections.embeddings.findByIndexAnyOf('id', batchIds);
+      const existingRows = await listEmbeddingsByIds(batchIds);
       const existingHashById = new Map<string, string>(
-        existingRows.map((row) => {
-          const item = row.toJSON();
+        existingRows.map((item) => {
           // textId in the key: legacy rows without textId get rewritten
           return [item.id, `${item.textId ?? ''}::${item.contentHash}`] as const;
         }),
@@ -397,7 +394,7 @@ export class EmbeddingService {
       }
 
       if (upserts.length > 0) {
-        await db.collections.embeddings.bulkInsert(upserts);
+        await putEmbeddings(upserts);
         generated += upserts.length;
       }
 

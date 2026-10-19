@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { exportProjectScopedDatabaseAsJson } from '../../db';
+import { exportProjectScopedDatabaseAsJson } from '../../db/projectScopedSnapshot';
 import {
   getSupabaseUserId,
   hasSupabaseBrowserClientConfig,

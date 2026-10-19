@@ -1,0 +1,117 @@
+import { getDb, type JieyuDatabase } from './engine';
+import { withTransaction } from './withTransaction';
+import { projectTextMetadataKey } from '../types/projectTextMetadata';
+import { patchProjectMetadata } from './storagePortServiceProjectMetadataPatch';
+
+const SPEAKER_IDS_KEY = projectTextMetadataKey.projectSpeakerIds;
+
+function readIdList(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    const id = item.trim();
+    if (id.length > 0 && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
+export function readProjectSpeakerIds(metadata: unknown): string[] | null {
+  if (metadata === null || typeof metadata !== 'object') return null;
+  if (!Object.prototype.hasOwnProperty.call(metadata, SPEAKER_IDS_KEY)) return null;
+  return readIdList((metadata as Record<string, unknown>)[SPEAKER_IDS_KEY]) ?? [];
+}
+
+/**
+ * 在项目行的事务里读出名单、合并、写回（F3）；返回写入后的名单，项目不存在时返回 null。
+ * Read, merge and write the roster inside the project-row transaction (F3); null without a project.
+ */
+async function editProjectSpeakerIds(
+  textId: string,
+  edit: (stored: string[] | null) => string[],
+  database?: JieyuDatabase,
+): Promise<string[] | null> {
+  let roster: string[] = [];
+  const result = await patchProjectMetadata(
+    textId,
+    (metadata) => {
+      const stored = readProjectSpeakerIds(metadata);
+      roster = edit(stored);
+      const unchanged =
+        stored !== null &&
+        stored.length === roster.length &&
+        stored.every((speakerId, index) => roster[index] === speakerId);
+      return unchanged ? null : { ...metadata, [SPEAKER_IDS_KEY]: [...roster] };
+    },
+    database,
+  );
+  return result.status === 'not-found' ? null : roster;
+}
+
+function mergeIds(base: readonly string[], extra: readonly string[]): string[] {
+  const next = [...base];
+  for (const id of extra) if (!next.includes(id)) next.push(id);
+  return next;
+}
+
+async function speakerIdsOnUnits(textId: string, given?: JieyuDatabase): Promise<string[]> {
+  const database = given ?? (await getDb());
+  const units = await withTransaction(
+    database,
+    'r',
+    [database.dexie.layer_units],
+    async () => database.dexie.layer_units.where('textId').equals(textId).toArray(),
+    { label: 'speakerProjectMembership.speakerIdsOnUnits' },
+  );
+  const ids: string[] = [];
+  for (const unit of units) {
+    const speakerId = unit.speakerId?.trim() ?? '';
+    if (speakerId.length > 0 && !ids.includes(speakerId)) ids.push(speakerId);
+  }
+  return ids;
+}
+
+/** Roster for this text, including speakers already assigned on its units. */
+export async function ensureProjectSpeakerIds(textId: string): Promise<string[]> {
+  const id = textId.trim();
+  if (id.length === 0) return [];
+  const fromUnits = await speakerIdsOnUnits(id);
+  const roster = await editProjectSpeakerIds(id, (stored) => mergeIds(stored ?? [], fromUnits));
+  return roster ?? fromUnits;
+}
+
+/** 在外层 Dexie 事务里调用时传入 `database`，不再 await `getDb()`。 */
+export async function attachSpeakerToProject(
+  speakerId: string,
+  textId: string,
+  database?: JieyuDatabase,
+): Promise<void> {
+  const id = speakerId.trim();
+  const projectId = textId.trim();
+  if (id.length === 0 || projectId.length === 0) return;
+  const fromUnits = await speakerIdsOnUnits(projectId, database);
+  await editProjectSpeakerIds(
+    projectId,
+    (stored) => mergeIds(stored ?? [], [...fromUnits, id]),
+    database,
+  );
+}
+
+export async function detachSpeakerFromProjects(
+  speakerId: string,
+  given?: JieyuDatabase,
+): Promise<void> {
+  const id = speakerId.trim();
+  if (id.length === 0) return;
+  const database = given ?? (await getDb());
+  const texts = await database.dexie.texts.toArray();
+  for (const text of texts) {
+    const ids = readProjectSpeakerIds(text.metadata);
+    if (ids === null || !ids.includes(id)) continue;
+    await editProjectSpeakerIds(
+      text.id,
+      (stored) => (stored ?? []).filter((speaker) => speaker !== id),
+      database,
+    );
+  }
+}

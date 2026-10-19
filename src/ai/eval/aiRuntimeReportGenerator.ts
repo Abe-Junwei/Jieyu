@@ -3,7 +3,7 @@
  * Reads from Dexie audit_logs and generates a runtime report.
  */
 
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import {
   buildAiRuntimeReportWithContext,
   type AiRuntimeReport,
@@ -21,8 +21,7 @@ import {
  */
 export async function collectAdoptionOutcomeMetadataJsons(): Promise<string[]> {
   try {
-    const db = await getDb();
-    const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
+    const rows = await storagePort().listAuditLogsByCollection('ai_messages');
     return rows
       .filter((r) => typeof r.field === 'string' && r.field === 'ai_adoption_outcome')
       .map((r) => r.metadataJson)
@@ -37,8 +36,7 @@ export async function collectAdoptionOutcomeMetadataJsons(): Promise<string[]> {
  */
 async function collectCitationJudgeResults(): Promise<ContextualCitationResult[]> {
   try {
-    const db = await getDb();
-    const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
+    const rows = await storagePort().listAuditLogsByCollection('ai_messages');
     const results: ContextualCitationResult[] = [];
     for (const row of rows) {
       if (typeof row.field !== 'string' || row.field !== 'ai_citation_judge') continue;
@@ -80,8 +78,7 @@ async function collectCitationJudgeResults(): Promise<ContextualCitationResult[]
  */
 async function collectRelevanceJudgeResults(): Promise<ContextualRelevanceResult[]> {
   try {
-    const db = await getDb();
-    const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
+    const rows = await storagePort().listAuditLogsByCollection('ai_messages');
     const results: ContextualRelevanceResult[] = [];
     for (const row of rows) {
       if (typeof row.field !== 'string' || row.field !== 'ai_relevance_judge') continue;
@@ -128,8 +125,7 @@ async function collectRelevanceJudgeResults(): Promise<ContextualRelevanceResult
  */
 async function collectAuditFieldCounts(): Promise<Record<string, number>> {
   try {
-    const db = await getDb();
-    const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
+    const rows = await storagePort().listAuditLogsByCollection('ai_messages');
     const counts: Record<string, number> = {};
     for (const row of rows) {
       if (typeof row.field === 'string') {

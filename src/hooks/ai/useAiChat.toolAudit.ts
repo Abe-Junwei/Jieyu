@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import { buildAiToolRequestId } from '../../ai/toolRequestId';
 import type { AiChatToolCall, AiChatToolName } from './useAiChat.types';
@@ -62,8 +62,8 @@ export function useAiChatToolAudit() {
       requestId?: string,
       metadata?: ToolDecisionAuditMetadata,
     ) => {
-      const db = await getDb();
-      await db.collections.audit_logs.insert({
+      const scopedRequestId = requestId?.trim() ?? '';
+      await storagePort().audit.insertAuditLog({
         id: newAuditLogId(),
         collection: 'ai_messages',
         documentId: assistantMessageId,
@@ -73,8 +73,8 @@ export function useAiChatToolAudit() {
         newValue,
         source,
         timestamp: nowIso(),
-        ...(requestId ? { requestId } : {}),
-        ...(metadata ? { metadataJson: JSON.stringify(metadata) } : {}),
+        ...(scopedRequestId.length > 0 ? { requestId: scopedRequestId } : {}),
+        ...(metadata !== undefined ? { metadataJson: JSON.stringify(metadata) } : {}),
       });
     },
     [],
@@ -88,8 +88,8 @@ export function useAiChatToolAudit() {
       requestId?: string,
       metadata?: ToolIntentAuditMetadata,
     ) => {
-      const db = await getDb();
-      await db.collections.audit_logs.insert({
+      const scopedRequestId = requestId?.trim() ?? '';
+      await storagePort().audit.insertAuditLog({
         id: newAuditLogId(),
         collection: 'ai_messages',
         documentId: assistantMessageId,
@@ -99,8 +99,8 @@ export function useAiChatToolAudit() {
         newValue: JSON.stringify(assessment),
         source: 'ai',
         timestamp: nowIso(),
-        ...(requestId ? { requestId } : {}),
-        ...(metadata ? { metadataJson: JSON.stringify(metadata) } : {}),
+        ...(scopedRequestId.length > 0 ? { requestId: scopedRequestId } : {}),
+        ...(metadata !== undefined ? { metadataJson: JSON.stringify(metadata) } : {}),
       });
     },
     [],
@@ -110,11 +110,11 @@ export function useAiChatToolAudit() {
     async (requestId: string): Promise<boolean> => {
       if (executedRequestIds.current.has(requestId)) return true;
 
-      const db = await getDb();
-      const rows = await db.dexie.audit_logs
-        .where('[collection+field+requestId]')
-        .equals(['ai_messages', 'ai_tool_call_decision', requestId])
-        .toArray();
+      const rows = await storagePort().listAuditLogsByFieldRequest(
+        'ai_messages',
+        'ai_tool_call_decision',
+        requestId,
+      );
 
       const hasExecuted = rows.some((row) => {
         if (typeof row.metadataJson === 'string' && row.metadataJson.trim().length > 0) {

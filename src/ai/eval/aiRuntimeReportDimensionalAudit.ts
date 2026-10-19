@@ -3,7 +3,7 @@
  * Reads various audit log types from Dexie and aggregates them.
  */
 
-import { getDb } from '../../db';
+import { storagePort } from '../../db/storagePort';
 
 export interface ReflectionFailedCheckRecord {
   workflowId: string;
@@ -50,8 +50,7 @@ function normalizeToolDecision(value: unknown): 'denied' | 'confirm_required' | 
  */
 export async function collectReflectionFailedChecks(): Promise<ReflectionFailedCheckRecord[]> {
   try {
-    const db = await getDb();
-    const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
+    const rows = await storagePort().listAuditLogsByCollection('ai_messages');
     const reflectionFields = new Set([
       'ai_segment_qa_reflection',
       'ai_annotation_qa_reflection',
@@ -117,8 +116,7 @@ export async function collectReflectionFailedChecks(): Promise<ReflectionFailedC
  */
 export async function collectToolDecisionRecords(): Promise<ToolDecisionRecord[]> {
   try {
-    const db = await getDb();
-    const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages');
+    const rows = await storagePort().listAuditLogsByCollection('ai_messages');
     const result: ToolDecisionRecord[] = [];
     for (const row of rows) {
       if (row.field !== 'ai_tool_call_decision') continue;

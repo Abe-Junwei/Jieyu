@@ -6,7 +6,6 @@ import type { MutableRefObject } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   db,
-  getDb,
   type SpeakerDocType,
   type LayerUnitDocType,
   type LayerUnitContentDocType,
@@ -193,10 +192,7 @@ describe('useTranscriptionPersistence', () => {
         speakersRef: toRef<SpeakerDocType[]>([]),
       }),
     );
-    const jieyuDb = await getDb();
-    const spy = vi
-      .spyOn(jieyuDb.collections.speakers, 'insert')
-      .mockRejectedValueOnce(new Error('boom'));
+    const spy = vi.spyOn(db.speakers, 'put').mockRejectedValueOnce(new Error('boom'));
     try {
       await expect(result.current.syncToDb([unit], [], [speaker])).rejects.toThrow('boom');
     } finally {

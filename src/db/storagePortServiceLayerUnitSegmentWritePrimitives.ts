@@ -1,0 +1,513 @@
+import type { JieyuDatabase } from './engine';
+import { readBackDexieGone, readBackDexieId } from './storagePortReadback';
+import { withTransaction } from './withTransaction';
+import { dexieStoresForLayerSegmentGraphRw } from './dexieTranscriptionGraphStores';
+import { validateUnitRelationDoc } from './schemas';
+import type {
+  LayerUnitContentDocType,
+  LayerUnitContentViewDocType,
+  LayerUnitDocType,
+  UnitRelationDocType,
+  UnitRelationViewDocType,
+} from './types';
+import { newId } from '../utils/transcriptionFormatters';
+
+const UNKNOWN_MEDIA_ID = '__unknown_media__';
+
+function mapLegacyLinkTypeToRelationType(
+  linkType: UnitRelationViewDocType['linkType'],
+): UnitRelationDocType['relationType'] {
+  if (linkType === 'projection' || linkType === 'time_subdivision') return 'derived_from';
+  if (linkType === 'equivalent' || linkType === 'bridge') return 'aligned_to';
+  return undefined;
+}
+
+export function normalizeMediaId(mediaId: string | undefined): string {
+  const trimmed = mediaId?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : UNKNOWN_MEDIA_ID;
+}
+
+function normalizeLayerUnitForStorage(unit: LayerUnitDocType): LayerUnitDocType {
+  const {
+    unitId: _legacyUnitId,
+    ordinal: _legacyOrdinal,
+    annotationStatus: _legacyAnnotationStatus,
+    ...rest
+  } = unit as LayerUnitDocType & {
+    unitId?: string;
+    ordinal?: number;
+    annotationStatus?: string;
+  };
+  const normalizedMediaId = normalizeMediaId(rest.mediaId);
+  const parentUnitId = rest.parentUnitId?.trim() || undefined;
+  const orderKey = rest.orderKey?.trim().length ? rest.orderKey.trim() : undefined;
+
+  return {
+    ...rest,
+    mediaId: normalizedMediaId,
+    unitType: unit.unitType ?? (parentUnitId ? 'segment' : 'unit'),
+    ...(parentUnitId ? { parentUnitId, rootUnitId: unit.rootUnitId ?? parentUnitId } : {}),
+    ...(orderKey ? { orderKey } : {}),
+  };
+}
+
+function normalizeLayerUnitContentForStorage(
+  content: LayerUnitContentDocType | LayerUnitContentViewDocType,
+): LayerUnitContentDocType {
+  const {
+    segmentId: _legacySegmentId,
+    translationAudioMediaId: _legacyTranslationAudioMediaId,
+    ...rest
+  } = content as LayerUnitContentViewDocType;
+  const legacySegmentId = typeof _legacySegmentId === 'string' ? _legacySegmentId.trim() : '';
+  const legacyMediaRefId =
+    typeof _legacyTranslationAudioMediaId === 'string' ? _legacyTranslationAudioMediaId.trim() : '';
+  const unitId = rest.unitId?.trim() || legacySegmentId || rest.id;
+  const mediaRefId = rest.mediaRefId?.trim() || legacyMediaRefId || undefined;
+  return {
+    ...rest,
+    unitId,
+    contentRole: rest.contentRole ?? 'primary_text',
+    modality: rest.modality ?? 'text',
+    sourceType: rest.sourceType ?? 'human',
+    ...(mediaRefId ? { mediaRefId } : {}),
+  };
+}
+
+function normalizeUnitRelationForStorage(
+  relation: UnitRelationDocType | UnitRelationViewDocType,
+): UnitRelationDocType {
+  const {
+    sourceSegmentId: _legacySourceSegmentId,
+    targetSegmentId: _legacyTargetSegmentId,
+    linkType: _legacyLinkType,
+    ...rest
+  } = relation as UnitRelationViewDocType;
+  const legacySourceUnitId =
+    typeof _legacySourceSegmentId === 'string' ? _legacySourceSegmentId.trim() : '';
+  const legacyTargetUnitId =
+    typeof _legacyTargetSegmentId === 'string' ? _legacyTargetSegmentId.trim() : '';
+  const sourceUnitId = rest.sourceUnitId?.trim() || legacySourceUnitId || rest.id;
+  const targetUnitId = rest.targetUnitId?.trim() || legacyTargetUnitId || rest.id;
+  const relationType =
+    rest.relationType ?? mapLegacyLinkTypeToRelationType(_legacyLinkType) ?? 'aligned_to';
+  return {
+    ...rest,
+    sourceUnitId,
+    targetUnitId,
+    relationType,
+  };
+}
+
+export async function putLayerUnit(db: JieyuDatabase, unit: LayerUnitDocType): Promise<void> {
+  const stored = normalizeLayerUnitForStorage(unit);
+  await db.dexie.layer_units.put(stored);
+  await readBackDexieId('putLayerUnit', stored.id, () => db.dexie.layer_units.get(stored.id));
+}
+
+export async function updateLayerUnit(
+  db: JieyuDatabase,
+  unitId: string,
+  changes: Partial<LayerUnitDocType>,
+): Promise<void> {
+  const updated = await db.dexie.layer_units
+    .where(':id')
+    .equals(unitId)
+    .modify((row) => {
+      Object.assign(row, normalizeLayerUnitForStorage({ ...row, ...changes }));
+    });
+  if (updated > 0) {
+    await readBackDexieId('updateLayerUnit', unitId, () => db.dexie.layer_units.get(unitId));
+  }
+}
+
+export async function getLayerUnitById(
+  db: JieyuDatabase,
+  unitId: string,
+): Promise<LayerUnitDocType | undefined> {
+  return db.dexie.layer_units.get(unitId);
+}
+
+export async function listLayerUnitsByTextId(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<LayerUnitDocType[]> {
+  const normalizedTextId = textId.trim();
+  if (normalizedTextId.length === 0) return [];
+  return db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray();
+}
+
+export async function listLayerUnitsByIds(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<LayerUnitDocType[]> {
+  const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
+  if (ids.length === 0) return [];
+  const rows = await db.dexie.layer_units.bulkGet(ids);
+  return rows.filter((row): row is LayerUnitDocType => Boolean(row));
+}
+
+export async function listLayerUnitsByLayerMedia(
+  db: JieyuDatabase,
+  layerId: string,
+  mediaId: string,
+): Promise<LayerUnitDocType[]> {
+  return db.dexie.layer_units.where('[layerId+mediaId]').equals([layerId, mediaId]).toArray();
+}
+
+export async function bulkUpsertLayerUnits(
+  db: JieyuDatabase,
+  units: readonly LayerUnitDocType[],
+): Promise<void> {
+  if (units.length === 0) return;
+  const stored = units.map(normalizeLayerUnitForStorage);
+  await db.dexie.layer_units.bulkPut(stored);
+  for (const unit of stored) {
+    await readBackDexieId('bulkUpsertLayerUnits', unit.id, () => db.dexie.layer_units.get(unit.id));
+  }
+}
+
+export async function putLayerUnitContent(
+  db: JieyuDatabase,
+  content: LayerUnitContentDocType,
+): Promise<void> {
+  const stored = normalizeLayerUnitContentForStorage(content);
+  await db.dexie.layer_unit_contents.put(stored);
+  await readBackDexieId('putLayerUnitContent', stored.id, () =>
+    db.dexie.layer_unit_contents.get(stored.id),
+  );
+}
+
+export async function listLayerUnitContentsByUnitId(
+  db: JieyuDatabase,
+  unitId: string,
+): Promise<LayerUnitContentDocType[]> {
+  return db.dexie.layer_unit_contents.where('unitId').equals(unitId).toArray();
+}
+
+export async function listLayerUnitContentsByUnitIds(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<LayerUnitContentDocType[]> {
+  const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
+  if (ids.length === 0) return [];
+  return db.dexie.layer_unit_contents.where('unitId').anyOf(ids).toArray();
+}
+
+export async function bulkUpsertLayerUnitContents(
+  db: JieyuDatabase,
+  contents: readonly LayerUnitContentDocType[],
+): Promise<void> {
+  if (contents.length === 0) return;
+  const stored = contents.map(normalizeLayerUnitContentForStorage);
+  await db.dexie.layer_unit_contents.bulkPut(stored);
+  for (const content of stored) {
+    await readBackDexieId('bulkUpsertLayerUnitContents', content.id, () =>
+      db.dexie.layer_unit_contents.get(content.id),
+    );
+  }
+}
+
+export async function putUnitRelation(
+  db: JieyuDatabase,
+  relation: UnitRelationDocType,
+): Promise<void> {
+  const normalized = normalizeUnitRelationForStorage(relation);
+  validateUnitRelationDoc(normalized);
+  await db.dexie.unit_relations.put(normalized);
+  await readBackDexieId('putUnitRelation', normalized.id, () =>
+    db.dexie.unit_relations.get(normalized.id),
+  );
+}
+
+export async function bulkUpsertUnitRelations(
+  db: JieyuDatabase,
+  relations: readonly UnitRelationDocType[],
+): Promise<void> {
+  if (relations.length === 0) return;
+  const normalized = relations.map(normalizeUnitRelationForStorage);
+  for (const rel of normalized) {
+    validateUnitRelationDoc(rel);
+  }
+  await db.dexie.unit_relations.bulkPut(normalized);
+  for (const relation of normalized) {
+    await readBackDexieId('bulkUpsertUnitRelations', relation.id, () =>
+      db.dexie.unit_relations.get(relation.id),
+    );
+  }
+}
+
+/** 同一写事务内 upsert 多层 segment 图三表，供无外层 `withTransaction` 的调用方使用。 */
+export type LayerSegmentGraphUpsert = {
+  units?: readonly LayerUnitDocType[];
+  contents?: readonly LayerUnitContentDocType[];
+  relations?: readonly UnitRelationDocType[];
+};
+
+export async function bulkUpsertLayerSegmentGraph(
+  db: JieyuDatabase,
+  graph: LayerSegmentGraphUpsert,
+): Promise<void> {
+  const units = graph.units ?? [];
+  const contents = graph.contents ?? [];
+  const relations = graph.relations ?? [];
+  if (units.length === 0 && contents.length === 0 && relations.length === 0) return;
+
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
+      if (units.length > 0) {
+        await db.dexie.layer_units.bulkPut(units.map(normalizeLayerUnitForStorage));
+      }
+      if (contents.length > 0) {
+        await db.dexie.layer_unit_contents.bulkPut(
+          contents.map(normalizeLayerUnitContentForStorage),
+        );
+      }
+      if (relations.length > 0) {
+        const normalizedRelations = relations.map(normalizeUnitRelationForStorage);
+        for (const rel of normalizedRelations) {
+          validateUnitRelationDoc(rel);
+        }
+        await db.dexie.unit_relations.bulkPut(normalizedRelations);
+      }
+    },
+    { label: 'bulkUpsertLayerSegmentGraph' },
+  );
+  for (const unit of units) {
+    await readBackDexieId('bulkUpsertLayerSegmentGraph', unit.id, () =>
+      db.dexie.layer_units.get(unit.id),
+    );
+  }
+  for (const content of contents) {
+    await readBackDexieId('bulkUpsertLayerSegmentGraph', content.id, () =>
+      db.dexie.layer_unit_contents.get(content.id),
+    );
+  }
+  for (const relation of relations) {
+    await readBackDexieId('bulkUpsertLayerSegmentGraph', relation.id, () =>
+      db.dexie.unit_relations.get(relation.id),
+    );
+  }
+}
+
+export async function bulkDeleteLayerUnitContentsByIds(
+  db: JieyuDatabase,
+  contentIds: readonly string[],
+): Promise<void> {
+  const ids = [...new Set(contentIds.filter((id) => id.trim().length > 0))];
+  if (ids.length === 0) return;
+  await db.dexie.layer_unit_contents.bulkDelete(ids);
+  for (const id of ids) {
+    await readBackDexieGone('bulkDeleteLayerUnitContentsByIds', () =>
+      db.dexie.layer_unit_contents.get(id),
+    );
+  }
+}
+
+export async function deleteSegmentLayerUnitCascade(
+  db: JieyuDatabase,
+  segmentIds: readonly string[],
+): Promise<void> {
+  await deleteLayerUnitCascade(db, segmentIds);
+}
+
+async function collectLayerUnitCascadeIds(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<{
+  contentIds: string[];
+  relationIds: string[];
+}> {
+  const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
+  if (ids.length === 0) {
+    return { contentIds: [], relationIds: [] };
+  }
+
+  const [contentIds, sourceRelationIds, targetRelationIds] = await Promise.all([
+    db.dexie.layer_unit_contents.where('unitId').anyOf(ids).primaryKeys() as Promise<string[]>,
+    db.dexie.unit_relations.where('sourceUnitId').anyOf(ids).primaryKeys() as Promise<string[]>,
+    db.dexie.unit_relations.where('targetUnitId').anyOf(ids).primaryKeys() as Promise<string[]>,
+  ]);
+
+  return {
+    contentIds,
+    relationIds: [...new Set([...sourceRelationIds, ...targetRelationIds])],
+  };
+}
+
+export async function collectLayerUnitGraphIdsByTextId(
+  db: JieyuDatabase,
+  textId: string,
+): Promise<{
+  unitIds: string[];
+  contentIds: string[];
+  relationIds: string[];
+}> {
+  const normalizedTextId = textId.trim();
+  if (normalizedTextId.length === 0) {
+    return { unitIds: [], contentIds: [], relationIds: [] };
+  }
+
+  const [contentIds, unitIds, relationIds] = await Promise.all([
+    db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).primaryKeys() as Promise<
+      string[]
+    >,
+    db.dexie.layer_units.where('textId').equals(normalizedTextId).primaryKeys() as Promise<
+      string[]
+    >,
+    db.dexie.unit_relations.where('textId').equals(normalizedTextId).primaryKeys() as Promise<
+      string[]
+    >,
+  ]);
+
+  return { unitIds, contentIds, relationIds };
+}
+
+export async function listLayerUnitIdsByMediaId(
+  db: JieyuDatabase,
+  mediaId: string,
+): Promise<string[]> {
+  const normalizedMediaId = mediaId.trim();
+  if (normalizedMediaId.length === 0) return [];
+  return (await db.dexie.layer_units
+    .where('mediaId')
+    .equals(normalizedMediaId)
+    .primaryKeys()) as string[];
+}
+
+export async function deleteLayerUnitCascade(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<void> {
+  await deleteLayerUnitGraphByIds(db, unitIds);
+}
+
+export async function deleteLayerUnitGraphByRecordIds(
+  db: JieyuDatabase,
+  graph: {
+    unitIds?: readonly string[];
+    contentIds?: readonly string[];
+    relationIds?: readonly string[];
+  },
+): Promise<{
+  deletedUnitIds: string[];
+  deletedContentIds: string[];
+  deletedRelationIds: string[];
+}> {
+  const deletedUnitIds = [...new Set((graph.unitIds ?? []).filter((id) => id.trim().length > 0))];
+  const deletedContentIds = [
+    ...new Set((graph.contentIds ?? []).filter((id) => id.trim().length > 0)),
+  ];
+  const deletedRelationIds = [
+    ...new Set((graph.relationIds ?? []).filter((id) => id.trim().length > 0)),
+  ];
+
+  if (
+    deletedContentIds.length === 0 &&
+    deletedRelationIds.length === 0 &&
+    deletedUnitIds.length === 0
+  ) {
+    return {
+      deletedUnitIds,
+      deletedContentIds,
+      deletedRelationIds,
+    };
+  }
+
+  const deleted = await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
+      if (deletedContentIds.length > 0) {
+        await db.dexie.layer_unit_contents.bulkDelete(deletedContentIds);
+      }
+      if (deletedRelationIds.length > 0) {
+        await db.dexie.unit_relations.bulkDelete(deletedRelationIds);
+      }
+      if (deletedUnitIds.length > 0) {
+        await db.dexie.layer_units.bulkDelete(deletedUnitIds);
+      }
+
+      return {
+        deletedUnitIds,
+        deletedContentIds,
+        deletedRelationIds,
+      };
+    },
+    { label: 'deleteLayerUnitGraphByRecordIds' },
+  );
+  for (const id of deleted.deletedUnitIds) {
+    await readBackDexieGone('deleteLayerUnitGraphByRecordIds', () => db.dexie.layer_units.get(id));
+  }
+  for (const id of deleted.deletedContentIds) {
+    await readBackDexieGone('deleteLayerUnitGraphByRecordIds', () =>
+      db.dexie.layer_unit_contents.get(id),
+    );
+  }
+  for (const id of deleted.deletedRelationIds) {
+    await readBackDexieGone('deleteLayerUnitGraphByRecordIds', () =>
+      db.dexie.unit_relations.get(id),
+    );
+  }
+  return deleted;
+}
+
+export async function deleteLayerUnitGraphByIds(
+  db: JieyuDatabase,
+  unitIds: readonly string[],
+): Promise<{
+  deletedUnitIds: string[];
+  deletedContentIds: string[];
+  deletedRelationIds: string[];
+}> {
+  const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
+  if (ids.length === 0) {
+    return { deletedUnitIds: [], deletedContentIds: [], deletedRelationIds: [] };
+  }
+
+  const { contentIds, relationIds } = await collectLayerUnitCascadeIds(db, ids);
+  return deleteLayerUnitGraphByRecordIds(db, {
+    unitIds: ids,
+    contentIds,
+    relationIds,
+  });
+}
+
+export async function buildClonedLayerUnitGraphForSplit(
+  db: JieyuDatabase,
+  unitId: string,
+  nextUnitId: string,
+  now: string,
+): Promise<{
+  clonedContents: LayerUnitContentDocType[];
+  clonedRelations: UnitRelationDocType[];
+}> {
+  const [existingContents, sourceRelations] = await Promise.all([
+    db.dexie.layer_unit_contents.where('unitId').equals(unitId).toArray(),
+    db.dexie.unit_relations.where('sourceUnitId').equals(unitId).toArray(),
+  ]);
+
+  const clonedContents: LayerUnitContentDocType[] = existingContents.map((content) => ({
+    ...content,
+    id: newId('luc'),
+    unitId: nextUnitId,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  const clonedRelations: UnitRelationDocType[] = sourceRelations.map((relation) => ({
+    ...relation,
+    id: newId('lur'),
+    sourceUnitId: nextUnitId,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  return {
+    clonedContents,
+    clonedRelations,
+  };
+}

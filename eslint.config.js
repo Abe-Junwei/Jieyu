@@ -145,6 +145,14 @@ export default [
     },
   },
   {
+    // These modules were moved out of src/services, which is outside the strict-boolean
+    // rollout. The conditionals are the previous service behavior.
+    files: ['src/db/storagePortService*.ts'],
+    rules: {
+      '@typescript-eslint/strict-boolean-expressions': 'off',
+    },
+  },
+  {
     ignores: ['dist/', 'node_modules/', 'src/data/generated/'],
   },
 ];

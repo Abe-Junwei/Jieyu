@@ -157,6 +157,26 @@ describe('useAiChatToolAudit', () => {
     ).resolves.toBe(false);
   });
 
+  it('writes a tool decision audit and reads that row back', async () => {
+    const { result } = renderHook(() => useAiChatToolAudit());
+    await result.current.writeToolDecisionAuditLog(
+      'assistant-write',
+      'pending:propose_changes',
+      'confirmed:propose_changes',
+      'human',
+      'req-write',
+    );
+    const rows = await db.audit_logs.where('documentId').equals('assistant-write').toArray();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        requestId: 'req-write',
+        newValue: 'confirmed:propose_changes',
+      }),
+    ]);
+  });
+
   it('compact auto_failed with gate reason is not persisted', async () => {
     await db.audit_logs.put({
       id: 'audit-auto-gate',

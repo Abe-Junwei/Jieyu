@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { db, getDb } from '../../db';
+import { db } from '../../db';
 import { TaskRunner, backoffDelay } from './TaskRunner';
 
 async function clearTables(): Promise<void> {
@@ -54,7 +54,6 @@ describe('TaskRunner', () => {
 
   it('does not rerun a completed business task when recording done fails', async () => {
     const runner = new TaskRunner(1);
-    const database = await getDb();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
@@ -64,14 +63,13 @@ describe('TaskRunner', () => {
       return 'saved';
     });
     const task = await runner.enqueue({ taskType: 'embed', targetId: 'x', maxAttempts: 2, run });
-    const original = database.collections.ai_tasks.update.bind(database.collections.ai_tasks);
-    const update = vi
-      .spyOn(database.collections.ai_tasks, 'update')
-      .mockImplementation((id, patch) =>
-        patch.status === 'done'
-          ? Promise.reject(new Error('status unavailable'))
-          : original(id, patch),
-      );
+    const original = db.ai_tasks.update.bind(db.ai_tasks);
+    const update = vi.spyOn(db.ai_tasks, 'update').mockImplementation((id, patch) => {
+      if ((patch as { status?: string }).status === 'done') {
+        return Promise.reject(new Error('status unavailable')) as ReturnType<typeof original>;
+      }
+      return original(id as string, patch);
+    });
     try {
       release();
       await expect(task.result).resolves.toBe('saved');
@@ -84,15 +82,13 @@ describe('TaskRunner', () => {
 
   it('settles a failed task even when recording failed status also fails', async () => {
     const runner = new TaskRunner(1);
-    const database = await getDb();
-    const original = database.collections.ai_tasks.update.bind(database.collections.ai_tasks);
-    const update = vi
-      .spyOn(database.collections.ai_tasks, 'update')
-      .mockImplementation((id, patch) =>
-        patch.status === 'failed'
-          ? Promise.reject(new Error('status unavailable'))
-          : original(id, patch),
-      );
+    const original = db.ai_tasks.update.bind(db.ai_tasks);
+    const update = vi.spyOn(db.ai_tasks, 'update').mockImplementation((id, patch) => {
+      if ((patch as { status?: string }).status === 'failed') {
+        return Promise.reject(new Error('status unavailable')) as ReturnType<typeof original>;
+      }
+      return original(id as string, patch);
+    });
     try {
       const task = await runner.enqueue({
         taskType: 'embed',

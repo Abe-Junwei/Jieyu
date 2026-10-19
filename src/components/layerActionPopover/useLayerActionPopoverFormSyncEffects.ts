@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { getDb, layerTranscriptionTreeParentId } from '../../db';
+import { layerTranscriptionTreeParentId } from '../../db/types';
+import { readTierDefinitionForLayerForm } from '../../db/storagePortImportTiers';
 import { getLayerLabelParts } from '../../utils/transcriptionFormatters';
 import { normalizeLanguageInputAssetId } from '../../utils/languageInputHostState';
 import {
@@ -198,8 +199,7 @@ export function useLayerActionPopoverFormSyncEffects(
     if (!isEditMetadataAction || !editingLayer?.id) return;
     let cancelled = false;
     void (async () => {
-      const db = await getDb();
-      const tier = await db.dexie.tier_definitions.get(editingLayer.id);
+      const tier = await readTierDefinitionForLayerForm(editingLayer.id);
       if (cancelled) return;
       const nextSnapshot = {
         participantId: tier?.participantId ?? '',

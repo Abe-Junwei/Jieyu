@@ -19,6 +19,11 @@ const mockDownloadFlextext = vi.hoisted(() => vi.fn());
 const mockExportToToolbox = vi.hoisted(() => vi.fn(() => '\\_sh v3.0'));
 const mockDownloadToolbox = vi.hoisted(() => vi.fn());
 const mockGetDb = vi.hoisted(() => vi.fn());
+const mockReadTextRow = vi.hoisted(() => vi.fn());
+const mockListUnitNotes = vi.hoisted(() => vi.fn(async () => []));
+const mockListLayerLinksByLayerIds = vi.hoisted(() => vi.fn(async () => []));
+const mockListSpeakersByIds = vi.hoisted(() => vi.fn(async () => []));
+const mockReadOpenDatabaseName = vi.hoisted(() => vi.fn(async () => 'jieyu-test'));
 const mockDownloadLiteExport = vi.hoisted(() => vi.fn());
 const mockUseOrthographies = vi.hoisted(() => vi.fn(() => []));
 const mockApplyOrthographyBridgeIfNeeded = vi.hoisted(() =>
@@ -72,6 +77,22 @@ vi.mock('../../db', async () => {
     getDb: mockGetDb,
   };
 });
+
+vi.mock('../../db/engine', async () => {
+  const actual = await vi.importActual<typeof import('../../db/engine')>('../../db/engine');
+  return {
+    ...actual,
+    getDb: mockGetDb,
+  };
+});
+
+vi.mock('../../db/storagePortImportReads', () => ({
+  readTextRow: mockReadTextRow,
+  listUnitNotes: mockListUnitNotes,
+  listLayerLinksByLayerIds: mockListLayerLinksByLayerIds,
+  listSpeakersByIds: mockListSpeakersByIds,
+  readOpenDatabaseName: mockReadOpenDatabaseName,
+}));
 
 vi.mock('../../utils/transcriptionLiteExport', async () => {
   const actual = await vi.importActual<typeof import('../../utils/transcriptionLiteExport')>(
@@ -305,6 +326,11 @@ describe('useImportExport - export eaf behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDb.mockResolvedValue(buildMockDb());
+    mockReadTextRow.mockResolvedValue({ metadata: { primaryOrthographyId: 'orth-project' } });
+    mockListUnitNotes.mockResolvedValue([]);
+    mockListLayerLinksByLayerIds.mockResolvedValue([]);
+    mockListSpeakersByIds.mockResolvedValue([]);
+    mockReadOpenDatabaseName.mockResolvedValue('jieyu-test');
     mockUseOrthographies.mockReturnValue([]);
     mockApplyOrthographyBridgeIfNeeded.mockImplementation(async ({ text }: { text: string }) => ({
       text: `xf:${text}`,
@@ -398,6 +424,11 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     vi.clearAllMocks();
     // stop-read 默认关闭后，导出基线应以 LayerUnit 视图为准 | With stop-read off, export baseline should use the LayerUnit view
     mockGetDb.mockResolvedValue(buildMockDb());
+    mockReadTextRow.mockResolvedValue({ metadata: { primaryOrthographyId: 'orth-project' } });
+    mockListUnitNotes.mockResolvedValue([]);
+    mockListLayerLinksByLayerIds.mockResolvedValue([]);
+    mockListSpeakersByIds.mockResolvedValue([]);
+    mockReadOpenDatabaseName.mockResolvedValue('jieyu-test');
     mockUseOrthographies.mockReturnValue([]);
   });
 
@@ -474,8 +505,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
   });
 
   it('TextGrid: passes active text logical timeline metadata into export payload', async () => {
-    const dbWithTimelineMetadata = buildMockDb();
-    (dbWithTimelineMetadata.dexie.texts.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockReadTextRow.mockResolvedValue({
       metadata: {
         primaryOrthographyId: 'orth-project',
         timelineMode: 'document',
@@ -483,7 +513,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
         timebaseLabel: 'logical-second',
       },
     });
-    mockGetDb.mockResolvedValue(dbWithTimelineMetadata);
+    mockGetDb.mockResolvedValue(buildMockDb());
     const { result } = renderHook(() => useImportExport(makeInputWithSegmentLayers()));
 
     await act(async () => {
@@ -573,6 +603,11 @@ describe('useImportExport - lite SRT/CSV export', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDb.mockResolvedValue(buildMockDb());
+    mockReadTextRow.mockResolvedValue({ metadata: { primaryOrthographyId: 'orth-project' } });
+    mockListUnitNotes.mockResolvedValue([]);
+    mockListLayerLinksByLayerIds.mockResolvedValue([]);
+    mockListSpeakersByIds.mockResolvedValue([]);
+    mockReadOpenDatabaseName.mockResolvedValue('jieyu-test');
     mockUseOrthographies.mockReturnValue([]);
     mockApplyOrthographyBridgeIfNeeded.mockImplementation(async ({ text }: { text: string }) => ({
       text: `xf:${text}`,

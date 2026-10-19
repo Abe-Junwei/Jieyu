@@ -1,4 +1,4 @@
-import { getDb } from '../db';
+import { storagePort } from '../db/storagePort';
 import type { Locale } from '../i18n';
 import { pickTextTitle } from '../utils/homeTranscriptionRecordProgress';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from '../utils/mediaItemState';
@@ -10,7 +10,7 @@ import {
   translatedSentenceIds,
   type ProjectProgressCounts,
 } from '../utils/projectOverviewStats';
-import { resolveDefaultTranscriptionLayerId } from './LayerSegmentGraphService';
+import { resolveDefaultTranscriptionLayerIdForText } from './LayerSegmentGraphService';
 import { LinguisticService } from './LinguisticService';
 import { listProjectSourceFiles } from './projectFileOps';
 import { WorkspaceReadModelService } from './WorkspaceReadModelService';
@@ -48,17 +48,16 @@ export async function loadProjectOverview(
   } catch {
     /* Keep the overview visible from snapshots already on disk. */
   }
-  const db = await getDb();
   const [media, sources, speakers, lexemes, tokenCount, metaRows, translationRows, defaultLayerId] =
     await Promise.all([
       settled(LinguisticService.media.listByTextId(textId), []),
       settled(listProjectSourceFiles(textId), []),
       settled(LinguisticService.speakers.listForProject(textId), []),
       settled(LinguisticService.lexemes.list(textId), []),
-      settled(db.dexie.unit_tokens.where('textId').equals(textId).count(), 0),
-      settled(db.dexie.segment_meta.where('textId').equals(textId).toArray(), []),
-      settled(db.dexie.translation_status_snapshots.where('textId').equals(textId).toArray(), []),
-      settled(resolveDefaultTranscriptionLayerId(db, textId), undefined),
+      settled(storagePort().countUnitTokensByText(textId), 0),
+      settled(storagePort().listSegmentMetaByText(textId), []),
+      settled(storagePort().listTranslationSnapshotsByText(textId), []),
+      settled(resolveDefaultTranscriptionLayerIdForText(textId), undefined),
     ]);
   const audio = media.filter(
     (row) => !isMediaItemPlaceholderRow(row) && !isAuxiliaryRecordingMediaRow(row),

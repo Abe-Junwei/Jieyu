@@ -1,5 +1,5 @@
 import type { UnitMorphemeDocType, UnitTokenDocType } from '../../../db/types';
-import { getDb } from '../../../db';
+import { storagePort } from '../../../db/storagePort';
 import {
   concordanceKwic,
   findCounterexamples,
@@ -40,10 +40,9 @@ function toRows(tokens: UnitTokenDocType[], morphemes: UnitMorphemeDocType[]): A
 }
 
 async function loadRows(textId: string): Promise<AnalysisMorpheme[]> {
-  const db = await getDb();
   const [tokens, morphemes] = await Promise.all([
-    db.dexie.unit_tokens.where('textId').equals(textId).toArray(),
-    db.dexie.unit_morphemes.where('textId').equals(textId).toArray(),
+    storagePort().listUnitTokensByText(textId),
+    storagePort().listUnitMorphemesByText(textId),
   ]);
   return toRows(tokens, morphemes);
 }

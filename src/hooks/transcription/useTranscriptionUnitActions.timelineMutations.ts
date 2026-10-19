@@ -1,5 +1,4 @@
 import { startTransition } from 'react';
-import { getDb } from '../../db';
 import type {
   AnchorDocType,
   LayerDocType,
@@ -7,7 +6,13 @@ import type {
   LayerUnitContentDocType,
   MediaItemDocType,
   ProvenanceEnvelope,
-} from '../../db';
+} from '../../db/types';
+import {
+  readTranscriptionMediaById,
+  readTranscriptionUnitById,
+  readTranscriptionUnitsForMedia,
+  syncTranscriptionUnitText,
+} from '../../db/storagePortTranscriptionUnits';
 import { LinguisticService } from '../../services/LinguisticService';
 import { newId, formatTime } from '../../utils/transcriptionFormatters';
 import { shouldPushTimingUndo, type TimingUndoState } from '../../utils/selectionUtils';
@@ -20,7 +25,6 @@ import {
   resolveProjectionLayerIdsForNewUnit,
 } from './useTranscriptionUnitActions.helpers';
 import type { SaveState } from './transcriptionTypes';
-import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import {
   withUnitTextLayerId,
   type UnitTextWithoutLayerId,
@@ -43,20 +47,9 @@ export interface TimelineMutationDeps {
   allowOverlapInTranscription: boolean;
   timingGestureRef: React.MutableRefObject<{ active: boolean; unitId: string | null }>;
   timingUndoRef: React.MutableRefObject<TimingUndoState | null>;
-  updateAnchorTime: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    anchorId: string,
-    newTime: number,
-  ) => Promise<void>;
-  createAnchor: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    mediaId: string,
-    time: number,
-  ) => Promise<AnchorDocType>;
-  pruneOrphanAnchors: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    removedUnitIds: Set<string>,
-  ) => Promise<void>;
+  updateAnchorTime: (anchorId: string, newTime: number) => Promise<void>;
+  createAnchor: (mediaId: string, time: number) => Promise<AnchorDocType>;
+  pruneOrphanAnchors: (removedUnitIds: Set<string>) => Promise<void>;
   selectUnitPrimary: (id: string) => void;
   clearSelection: () => void;
   ensureTimelineMediaRowResolved: () => Promise<MediaItemDocType | null>;
@@ -64,10 +57,7 @@ export interface TimelineMutationDeps {
   defaultTranscriptionLayerId: string | undefined;
   layerById: Map<string, LayerDocType>;
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
-  resolveUnitById: (
-    db: Awaited<ReturnType<typeof getDb>>,
-    unitId: string,
-  ) => Promise<LayerUnitDocType | null>;
+  resolveUnitById: (unitId: string) => Promise<LayerUnitDocType | null>;
   translations: LayerUnitContentDocType[];
   scheduleCreatePerfPaintProbe: (startedAtMs: number, context: Record<string, unknown>) => void;
 }
@@ -97,10 +87,7 @@ export function createSaveUnitTiming(
   } = deps;
 
   return async (unitId: string, startTime: number, endTime: number) => {
-    const db = await getDb();
-    const current = await (
-      await import('../../services/LayerSegmentGraphService')
-    ).getUnitDocProjectionById(db, unitId);
+    const current = await readTranscriptionUnitById(unitId);
     if (!current) {
       reportValidationError({
         message: t(locale, 'transcription.error.validation.updateTimingTargetMissing'),
@@ -114,11 +101,8 @@ export function createSaveUnitTiming(
     const minSpan = 0.05;
 
     // 只取同一媒体上的 unit（JY-15，原先每次拖动都扫全库）| Same-media units only (JY-15)
-    const sameMediaUnits = current.mediaId
-      ? await (
-          await import('../../services/LayerSegmentGraphService')
-        ).listUnitDocsForMedia(db, current.mediaId)
-      : [];
+    const mediaId = current.mediaId?.trim() ?? '';
+    const sameMediaUnits = mediaId.length > 0 ? await readTranscriptionUnitsForMedia(mediaId) : [];
     const siblings = sameMediaUnits
       .filter((item) => item.id !== unitId && item.mediaId === current.mediaId)
       .sort((a, b) => a.startTime - b.startTime);
@@ -179,11 +163,13 @@ export function createSaveUnitTiming(
 
     await LinguisticService.units.save(updated);
 
-    if (updated.startAnchorId && updated.startTime !== current.startTime) {
-      await updateAnchorTime(db, updated.startAnchorId, updated.startTime);
+    const startAnchorId = updated.startAnchorId ?? '';
+    const endAnchorId = updated.endAnchorId ?? '';
+    if (startAnchorId.length > 0 && updated.startTime !== current.startTime) {
+      await updateAnchorTime(startAnchorId, updated.startTime);
     }
-    if (updated.endAnchorId && updated.endTime !== current.endTime) {
-      await updateAnchorTime(db, updated.endAnchorId, updated.endTime);
+    if (endAnchorId.length > 0 && updated.endTime !== current.endTime) {
+      await updateAnchorTime(endAnchorId, updated.endTime);
     }
 
     setUnits((prev) => prev.map((item) => (item.id === unitId ? updated : item)));
@@ -224,11 +210,9 @@ export function createCreateAdjacentUnit(
   } = deps;
 
   return async (base: LayerUnitDocType, playerDuration: number) => {
-    const db = await getDb();
-    const fromBaseDoc = base.mediaId
-      ? await db.collections.media_items.findOne({ selector: { id: base.mediaId } }).exec()
-      : null;
-    const fromBase = fromBaseDoc ? fromBaseDoc.toJSON() : undefined;
+    const baseMediaId = base.mediaId?.trim() ?? '';
+    const fromBase =
+      baseMediaId.length > 0 ? await readTranscriptionMediaById(baseMediaId) : undefined;
     let media = selectedUnitMedia ?? fromBase ?? null;
     if (!media) {
       media = await ensureTimelineMediaRowResolved();
@@ -245,8 +229,8 @@ export function createCreateAdjacentUnit(
     const finalEnd = end <= start ? start + 0.8 : end;
 
     const mediaId = base.mediaId ?? '';
-    const startAnchor = await createAnchor(db, mediaId, start);
-    const endAnchor = await createAnchor(db, mediaId, finalEnd);
+    const startAnchor = await createAnchor(mediaId, start);
+    const endAnchor = await createAnchor(mediaId, finalEnd);
 
     const createdId = newId('utt');
     const newUnit: LayerUnitDocType = {
@@ -378,13 +362,12 @@ export function createCreateUnitFromSelection(
     const afterUndoMs = perfDebugEnabled ? performance.now() : 0;
 
     const beforeCreateMs = perfDebugEnabled ? performance.now() : 0;
-    const db = await getDb();
     const now = new Date().toISOString();
     const finalStart = Number(boundedStart.toFixed(3));
     const finalEnd = Number(boundedEnd.toFixed(3));
 
-    const startAnchor = await createAnchor(db, media.id, finalStart);
-    const endAnchor = await createAnchor(db, media.id, finalEnd);
+    const startAnchor = await createAnchor(media.id, finalStart);
+    const endAnchor = await createAnchor(media.id, finalEnd);
 
     const createdId = newId('utt');
     const newUnit: LayerUnitDocType = {
@@ -425,7 +408,7 @@ export function createCreateUnitFromSelection(
             { layerId: projectionLayerId },
           ),
         } as LayerUnitContentDocType;
-        await syncUnitTextToSegmentationV2(db, newUnit, emptyText);
+        await syncTranscriptionUnitText(newUnit, emptyText);
         projectedTexts.push(emptyText);
       }
     }
@@ -475,17 +458,12 @@ export function createReassignTranslations(
 ) {
   const { resolveUnitById, translations } = deps;
 
-  return async (
-    survivorId: string,
-    removedId: string,
-    db: Awaited<ReturnType<typeof getDb>>,
-    now: string,
-  ) => {
+  return async (survivorId: string, removedId: string, now: string) => {
     const removedTranslations = translations.filter((t) => t.unitId === removedId);
     const survivorTranslations = translations.filter((t) => t.unitId === survivorId);
     const newTranslations: LayerUnitContentDocType[] = [];
     const updatedTranslations: LayerUnitContentDocType[] = [];
-    const survivorUnit = await resolveUnitById(db, survivorId);
+    const survivorUnit = await resolveUnitById(survivorId);
 
     for (const rt of removedTranslations) {
       const targetLayerId = rt.layerId;
@@ -499,7 +477,7 @@ export function createReassignTranslations(
           updatedAt: now,
         } as LayerUnitContentDocType;
         if (survivorUnit) {
-          await syncUnitTextToSegmentationV2(db, survivorUnit, merged);
+          await syncTranscriptionUnitText(survivorUnit, merged);
         }
         updatedTranslations.push(merged);
       } else if (!match) {
@@ -509,7 +487,7 @@ export function createReassignTranslations(
           updatedAt: now,
         } as LayerUnitContentDocType;
         if (survivorUnit) {
-          await syncUnitTextToSegmentationV2(db, survivorUnit, reassigned);
+          await syncTranscriptionUnitText(survivorUnit, reassigned);
         }
         newTranslations.push(reassigned);
       }
@@ -566,7 +544,6 @@ export function createMergeWithPrevious(
     const curr = sorted[idx]!;
 
     pushUndo(getUndoLabel(locale, 'mergeWithPrevious'));
-    const db = await getDb();
     const now = new Date().toISOString();
     const mergedCertainty = mergeUnitSelfCertaintyConservative([
       prev.selfCertainty,
@@ -588,7 +565,7 @@ export function createMergeWithPrevious(
     const { newTranslations, updatedTranslations } = await createReassignTranslations({
       resolveUnitById,
       translations,
-    })(prev.id, curr.id, db, now);
+    })(prev.id, curr.id, now);
 
     setUnits((p) => p.filter((u) => u.id !== curr.id).map((u) => (u.id === prev.id ? updated : u)));
     setTranslations((p) => {
@@ -600,7 +577,7 @@ export function createMergeWithPrevious(
       ];
     });
     selectUnitPrimary(prev.id);
-    await pruneOrphanAnchors(db, new Set([curr.id]));
+    await pruneOrphanAnchors(new Set([curr.id]));
     setSaveState({
       kind: 'done',
       message: tf(locale, 'transcription.unitAction.done.mergePrevious', {
@@ -657,7 +634,6 @@ export function createMergeWithNext(
     const next = sorted[idx + 1]!;
 
     pushUndo(getUndoLabel(locale, 'mergeWithNext'));
-    const db = await getDb();
     const now = new Date().toISOString();
     const mergedCertaintyNext = mergeUnitSelfCertaintyConservative([
       curr.selfCertainty,
@@ -679,7 +655,7 @@ export function createMergeWithNext(
     const { newTranslations, updatedTranslations } = await createReassignTranslations({
       resolveUnitById,
       translations,
-    })(curr.id, next.id, db, now);
+    })(curr.id, next.id, now);
 
     setUnits((p) => p.filter((u) => u.id !== next.id).map((u) => (u.id === curr.id ? updated : u)));
     setTranslations((p) => {
@@ -691,7 +667,7 @@ export function createMergeWithNext(
       ];
     });
     selectUnitPrimary(curr.id);
-    await pruneOrphanAnchors(db, new Set([next.id]));
+    await pruneOrphanAnchors(new Set([next.id]));
     setSaveState({
       kind: 'done',
       message: tf(locale, 'transcription.unitAction.done.mergeNext', {
@@ -755,11 +731,10 @@ export function createSplitUnit(
     }
 
     pushUndo(getUndoLabel(locale, 'splitUnit'));
-    const db = await getDb();
     const now = new Date().toISOString();
     const text = getUnitTextForLayer(target);
     const splitTimeFixed = Number(splitTime.toFixed(3));
-    const splitAnchor = await createAnchor(db, target.mediaId ?? '', splitTimeFixed);
+    const splitAnchor = await createAnchor(target.mediaId ?? '', splitTimeFixed);
     const preservedSelfCertainty = target.selfCertainty;
 
     const updatedFirst: LayerUnitDocType = {
@@ -775,7 +750,7 @@ export function createSplitUnit(
     }
     await LinguisticService.units.save(updatedFirst);
 
-    const secondStartAnchor = await createAnchor(db, target.mediaId ?? '', splitTimeFixed);
+    const secondStartAnchor = await createAnchor(target.mediaId ?? '', splitTimeFixed);
     const secondId = newId('utt');
     const secondHalf: LayerUnitDocType = {
       ...target,
@@ -805,7 +780,7 @@ export function createSplitUnit(
         createdAt: now,
         updatedAt: now,
       } as LayerUnitContentDocType;
-      await syncUnitTextToSegmentationV2(db, secondHalf, copy);
+      await syncTranscriptionUnitText(secondHalf, copy);
       copiedTranslations.push(copy);
     }
 
@@ -868,8 +843,7 @@ export function createDeleteUnit(
     setTranslations((prev) => prev.filter((t) => t.unitId !== unitId));
     if (activeUnitId === unitId) clearSelection();
 
-    const db = await getDb();
-    await pruneOrphanAnchors(db, new Set([unitId]));
+    await pruneOrphanAnchors(new Set([unitId]));
 
     setSaveState({
       kind: 'done',
@@ -915,8 +889,7 @@ export function createDeleteSelectedUnits(
     setTranslations((prev) => prev.filter((t) => !(t.unitId && idsToDeleteSet.has(t.unitId))));
     clearSelection();
 
-    const dbInst = await getDb();
-    await pruneOrphanAnchors(dbInst, idsToDeleteSet);
+    await pruneOrphanAnchors(idsToDeleteSet);
     setSaveState({
       kind: 'done',
       message: tf(locale, 'transcription.unitAction.done.deleteSelection', {

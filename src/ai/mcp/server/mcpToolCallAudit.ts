@@ -3,7 +3,7 @@
  * 写入失败不阻断 MCP 响应（best-effort）。
  */
 import { createLogger } from '../../../observability/logger';
-import { getDb } from '../../../db';
+import { storagePort } from '../../../db/storagePort';
 import type { McpToolCallAuditDoc, McpToolCallAuditOutcome } from '../../../db/types';
 import type { McpServerRuntimeContext, McpToolCallResult } from './types';
 
@@ -70,8 +70,7 @@ export async function persistMcpToolCallAudit(input: PersistMcpToolCallAuditInpu
     doc.errorDataJson = truncateJson(stableJson(input.error.data), 200_000);
   }
   try {
-    const db = await getDb();
-    await db.collections.mcp_tool_call_audits.insert(doc);
+    await storagePort().insertMcpToolCallAudit(doc);
   } catch (err) {
     log.warn('mcp_tool_call_audits insert failed', {
       toolName: input.toolName,

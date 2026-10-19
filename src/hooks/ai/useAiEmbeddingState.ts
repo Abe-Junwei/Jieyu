@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getActiveProjectTextId } from '../../utils/transcriptionUrlDeepLink';
-import { getDb, type AiTaskDoc } from '../../db';
+import type { AiTaskDoc } from '../../db/types';
+import { listAiTasks, patchAiTask, readAiTask } from '../../db/storagePortChatTasks';
 import {
   buildEmbeddingFallbackWarning,
   readFallbackReason,
@@ -20,10 +21,8 @@ type AiTaskRuntimeRow = Pick<
 >;
 
 async function readAiTaskRuntimeRow(taskId: string): Promise<AiTaskRuntimeRow | null> {
-  const db = await getDb();
-  const doc = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
-  if (!doc) return null;
-  const row = doc.toJSON();
+  const row = await readAiTask(taskId);
+  if (!row) return null;
   return {
     id: row.id,
     taskType: row.taskType,
@@ -44,9 +43,8 @@ async function markDurableAgentLoopTaskCancelled(taskId: string): Promise<boolea
   if (!isDurableAgentLoopTask(row)) return false;
   if (row.status !== 'pending' && row.status !== 'running') return false;
 
-  const db = await getDb();
   const timestamp = new Date().toISOString();
-  await db.collections.ai_tasks.update(taskId, {
+  await patchAiTask(taskId, {
     status: 'failed',
     resumable: false,
     errorMessage: 'cancelled_by_user',
@@ -61,9 +59,8 @@ async function retryDurableAgentLoopTask(taskId: string): Promise<string | null>
   if (!isDurableAgentLoopTask(row)) return null;
   if (row.status !== 'failed') return null;
 
-  const db = await getDb();
   const timestamp = new Date().toISOString();
-  await db.collections.ai_tasks.update(taskId, {
+  await patchAiTask(taskId, {
     status: 'pending',
     resumable: true,
     lastHeartbeatAt: timestamp,
@@ -254,11 +251,8 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     isMountedRef.current && activeRequestIdRef.current === requestId;
 
   const refreshEmbeddingTasksNow = useCallback(async () => {
-    const db = await getDb();
-    // shortcut(P2-3): 全局表，量小 | global table, small
-    const rows = await db.collections.ai_tasks.find().exec();
+    const rows = await listAiTasks();
     const normalized = rows
-      .map((item) => item.toJSON())
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 8)
       .map((item) => ({

@@ -1,12 +1,10 @@
 import type { AiSessionMemory } from '../../ai/chat/chatDomain.types';
-import { getDb } from '../../db';
+import { insertAiConversation } from '../../db/storagePortChatConversations';
+import { insertAiSessionMemory, readAiSessionMemory } from '../../db/storagePortChatSessionMemory';
 
 export async function readDexieSessionMemory(conversationId: string): Promise<AiSessionMemory> {
-  const db = await getDb();
-  const row = await db.collections.ai_session_memories
-    .findOne({ selector: { conversationId } })
-    .exec();
-  return (row?.toJSON().payload ?? {}) as AiSessionMemory;
+  const row = await readAiSessionMemory(conversationId);
+  return (row?.payload ?? {}) as AiSessionMemory;
 }
 
 /** Seed a conversation row + Dexie session memory so bootstrap + binding hydrate correctly. */
@@ -14,10 +12,9 @@ export async function seedAiChatConversationWithSessionMemory(
   memory: AiSessionMemory,
   options?: { conversationId?: string; updatedAt?: string },
 ): Promise<string> {
-  const db = await getDb();
   const conversationId = options?.conversationId ?? `conv-test-${crypto.randomUUID()}`;
   const timestamp = options?.updatedAt ?? new Date().toISOString();
-  await db.collections.ai_conversations.insert({
+  await insertAiConversation({
     id: conversationId,
     title: 'Test conversation',
     mode: 'assistant',
@@ -26,7 +23,7 @@ export async function seedAiChatConversationWithSessionMemory(
     createdAt: timestamp,
     updatedAt: timestamp,
   });
-  await db.collections.ai_session_memories.insert({
+  await insertAiSessionMemory({
     id: conversationId,
     conversationId,
     payload: memory,
