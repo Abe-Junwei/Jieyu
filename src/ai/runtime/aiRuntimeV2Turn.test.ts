@@ -18,14 +18,43 @@ import {
   unansweredApprovals,
 } from './aiRuntimeV2Pending';
 import {
+  buildRuntimeV2ToolSpecs,
   createAiSdkModelFromSettings,
+  RUNTIME_V2_EAGER_TOOLS,
   runAiRuntimeV2Turn,
   runtimeV2ToolApproval,
   withLegacyFallback,
   type RunAiRuntimeV2TurnParams,
   type RuntimeV2Decision,
 } from './aiRuntimeV2Turn';
-import { isNoToolsThisSession, resetNoToolsThisSessionForTests } from './toolLoopAgentPilot';
+import { externalMcpToolSpecs } from './runtimeV2CorpusTools';
+import {
+  countEagerPilotTools,
+  isNoToolsThisSession,
+  PILOT_EAGER_TOOL_LIMIT,
+  PILOT_TOOL_SEARCH_NAME,
+  resetNoToolsThisSessionForTests,
+} from './toolLoopAgentPilot';
+
+describe('buildRuntimeV2ToolSpecs (ADR-0065)', () => {
+  it('stays within the eager tool limit with corpus tools and the maximum external MCP tools', () => {
+    const mcp = externalMcpToolSpecs(
+      Array.from({ length: 5 }, (_, i) => ({
+        name: `extmcp__h-t${i}__00000000`,
+        description: 'x',
+        inputSchema: { type: 'object', properties: {} },
+      })),
+    );
+    const specs = { ...buildRuntimeV2ToolSpecs({ corpusAnalysis: true }), ...mcp };
+    expect(Object.keys(specs).length).toBeGreaterThan(PILOT_EAGER_TOOL_LIMIT);
+    expect(countEagerPilotTools(specs)).toBeLessThanOrEqual(PILOT_EAGER_TOOL_LIMIT);
+  });
+
+  it('every eager tool name is a real tool', () => {
+    const names = Object.keys(buildRuntimeV2ToolSpecs());
+    for (const name of RUNTIME_V2_EAGER_TOOLS) expect(names).toContain(name);
+  });
+});
 
 const usage = {
   inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
@@ -50,6 +79,8 @@ const toolCallStream = (toolName: string, input: string, more: Array<[string, st
     ],
   }),
 });
+const searchStream = (query: string) =>
+  toolCallStream(PILOT_TOOL_SEARCH_NAME, JSON.stringify({ query }));
 const textStream = (text: string) => ({
   stream: simulateReadableStream({
     chunks: [
@@ -86,13 +117,11 @@ function params(
     userText: 'delete s1',
     signal: new AbortController().signal,
     genRequestId: (call) => `req-${call.name}-${JSON.stringify(call.arguments)}`,
-    decide: vi.fn(
-      async (): Promise<RuntimeV2Decision> => ({
-        finalContent: 'ok',
-        finalStatus: 'done',
-        pending: false,
-      }),
-    ),
+    decide: vi.fn(async (): Promise<RuntimeV2Decision> => ({
+      finalContent: 'ok',
+      finalStatus: 'done',
+      pending: false,
+    })),
     requestApproval: vi.fn(async (call) => ({
       pending: true,
       text: `请确认 ${call.name}`,
@@ -134,6 +163,7 @@ describe('runAiRuntimeV2Turn', () => {
         requestId: 'req-set_transcription_text-{}',
       }),
       'auto',
+      expect.any(AbortSignal),
     );
     expect(p.requestApproval).not.toHaveBeenCalled();
     expect(chunks.map((c) => c.delta).join('')).toBe('done');
@@ -168,6 +198,7 @@ describe('runAiRuntimeV2Turn', () => {
   it('feeds a corpus query result back into the next model step', async () => {
     const model = new MockLanguageModelV4({
       doStream: [
+        searchStream('concordance kwic'),
         toolCallStream('concordance_kwic', '{"gloss":"PST"}'),
         textStream('{"claims":[{"claimId":"c1","text":"past","rowIds":["m2"]}]}'),
       ],
@@ -184,9 +215,10 @@ describe('runAiRuntimeV2Turn', () => {
     expect(p.decide).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'concordance_kwic' }),
       'auto',
+      expect.any(AbortSignal),
     );
-    expect(model.doStreamCalls).toHaveLength(2);
-    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain('m2');
+    expect(model.doStreamCalls).toHaveLength(3);
+    expect(JSON.stringify(model.doStreamCalls[2]!.prompt)).toContain('m2');
     expect(chunks.map((c) => c.delta ?? '').join('')).toContain('rowIds');
   });
 
@@ -194,7 +226,11 @@ describe('runAiRuntimeV2Turn', () => {
     const { externalMcpToolSpecs } = await import('./runtimeV2CorpusTools');
     const name = 'extmcp__https---mcp.example.test-mcp__search_literature';
     const model = new MockLanguageModelV4({
-      doStream: [toolCallStream(name, '{}'), textStream('cited')],
+      doStream: [
+        searchStream('search literature'),
+        toolCallStream(name, '{}'),
+        textStream('cited'),
+      ],
     });
     const p = params(model, {
       extraTools: externalMcpToolSpecs([
@@ -211,8 +247,41 @@ describe('runAiRuntimeV2Turn', () => {
       })),
     });
     await collect(runAiRuntimeV2Turn(p));
-    expect(p.decide).toHaveBeenCalledWith(expect.objectContaining({ name }), 'auto');
-    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain('ev1');
+    expect(p.decide).toHaveBeenCalledWith(
+      expect.objectContaining({ name }),
+      'auto',
+      expect.any(AbortSignal),
+    );
+    expect(JSON.stringify(model.doStreamCalls[2]!.prompt)).toContain('ev1');
+  });
+
+  it('stops the loop when an external MCP tool asks for user input, so it is not called again', async () => {
+    const { externalMcpToolSpecs } = await import('./runtimeV2CorpusTools');
+    const name = 'extmcp__mcp-example-test-search_works__0badc0de';
+    const model = new MockLanguageModelV4({
+      doStream: [
+        searchStream('search works'),
+        toolCallStream(name, '{}'),
+        toolCallStream(name, '{}'),
+        textStream('again'),
+      ],
+    });
+    const p = params(model, {
+      extraTools: externalMcpToolSpecs([
+        { name, description: 'Search.', inputSchema: { type: 'object', properties: {} } },
+      ]),
+      decide: vi.fn(async () => ({
+        finalContent: 'input_required',
+        finalStatus: 'error' as const,
+        pending: false,
+        stopLoop: true,
+      })),
+    });
+    const chunks = await collect(runAiRuntimeV2Turn(p));
+    expect(model.doStreamCalls).toHaveLength(2);
+    expect(p.decide).toHaveBeenCalledTimes(1);
+    expect(chunks.at(-1)).toMatchObject({ done: true });
+    expect(chunks.map((c) => c.delta ?? '').join('')).not.toContain('again');
   });
 
   it('a write stops with a native approval request: never executed, card + state saved in Dexie', async () => {
@@ -242,6 +311,7 @@ describe('runAiRuntimeV2Turn', () => {
   it('two writes in one step: both get their own approval, and each executes with its own requestId', async () => {
     const model = new MockLanguageModelV4({
       doStream: [
+        searchStream('delete layer'),
         toolCallStream('delete_transcription_segment', '{"segmentId":"s1"}', [
           ['delete_layer', '{"layerId":"L"}'],
         ]),
@@ -306,6 +376,7 @@ describe('runAiRuntimeV2Turn', () => {
     expect(p.decide).toHaveBeenCalledWith(
       expect.objectContaining({ requestId: 'req-a1' }),
       'approved',
+      expect.any(AbortSignal),
     );
     expect(onApprovalClosed).toHaveBeenCalledWith('req-a2', 'delete_layer', 'unanswered');
     const prompt = JSON.stringify(model.doStreamCalls[0]!.prompt);
@@ -383,6 +454,7 @@ describe('runAiRuntimeV2Turn', () => {
     expect(p.decide).toHaveBeenCalledWith(
       expect.objectContaining({ arguments: { segmentId: 'seg-A' }, requestId: 'req-a1' }),
       'approved',
+      expect.any(AbortSignal),
     );
   });
 

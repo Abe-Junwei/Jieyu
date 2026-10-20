@@ -116,3 +116,19 @@ describe('runSendTurnStreamAgentLoopAfterPrimaryCompletion', () => {
     expect(guardedPersist).toHaveBeenCalledWith({ preferences: { lastLanguage: 'cmn' } });
   });
 });
+
+describe('runSendTurnStreamAgentLoopAfterPrimaryCompletion on a ToolLoopAgent turn', () => {
+  it('skips the legacy agent loop and keeps the turn result', async () => {
+    capturedAgentLoopDeps = null;
+    const args = minimalPostCompletionArgs(vi.fn(() => ({})) as never);
+    const resolution = { content: '', status: 'done' as 'done' | 'error' };
+    await runSendTurnStreamAgentLoopAfterPrimaryCompletion({
+      ...args,
+      streamCompletionResult: { ...args.streamCompletionResult, finalContent: 'v2 answer' },
+      ranOnToolLoopAgent: true,
+      resolution,
+    });
+    expect(capturedAgentLoopDeps).toBeNull();
+    expect(resolution).toEqual({ content: 'v2 answer', status: 'done' });
+  });
+});

@@ -415,16 +415,16 @@ export function summarizeLocalContextToolResult(
       return summarizeDetailResult(result, locale);
     case 'concordance_kwic': {
       const count = asFiniteNumber(body?.count) ?? 0;
-      return formatConcordanceSummary(count, zh);
+      return formatConcordanceSummary(count, locale);
     }
     case 'query_morpheme_paradigm': {
       const tokenCount = asFiniteNumber(body?.tokenCount) ?? 0;
-      return formatParadigmSummary(tokenCount, zh);
+      return formatParadigmSummary(tokenCount, locale);
     }
     case 'find_counterexamples': {
       const matchCount = asFiniteNumber(body?.matchCount) ?? 0;
       const counterexampleCount = asFiniteNumber(body?.counterexampleCount) ?? 0;
-      return formatCounterexampleSummary(matchCount, counterexampleCount, zh);
+      return formatCounterexampleSummary(matchCount, counterexampleCount, locale);
     }
     case 'diagnose_quality':
       return summarizeDiagnoseQualityResult(body ?? {}, locale, userText);

@@ -7,9 +7,11 @@
  */
 import {
   APICallError,
+  NoSuchToolError,
   ToolLoopAgent,
   isStepCount,
   tool,
+  toolSearch,
   type LanguageModel,
   type TextStreamPart,
   type ToolApprovalStatus,
@@ -21,6 +23,36 @@ import type { z } from 'zod';
 export interface PilotToolSpec {
   description: string;
   inputSchema: z.ZodType | Schema;
+  /** Hidden from the model until `tool_search` finds it; callable from the next step. */
+  deferLoading?: boolean;
+}
+
+/** ADR-0065: tool definitions the model sees at the start of a turn, `tool_search` included. */
+export const PILOT_EAGER_TOOL_LIMIT = 20;
+
+export const PILOT_TOOL_SEARCH_NAME = 'tool_search';
+
+const TOOL_SEARCH_INSTRUCTIONS =
+  'Only some tools are listed. If none fits, call tool_search with English keywords (for example "layer", "gloss", "notes", "speaker", "corpus") and call the found tool on the next step.';
+
+export function deferredPilotToolNames(tools: Record<string, PilotToolSpec>): ReadonlySet<string> {
+  return new Set(Object.keys(tools).filter((name) => tools[name]!.deferLoading));
+}
+
+/** The model called a deferred tool before searching. The SDK sends the error back so it can search. */
+function isUndiscoveredDeferredCall(
+  call: { invalid?: boolean; toolName: string; error?: unknown },
+  deferred: ReadonlySet<string>,
+): boolean {
+  return (
+    call.invalid === true && deferred.has(call.toolName) && NoSuchToolError.isInstance(call.error)
+  );
+}
+
+export function countEagerPilotTools(tools: Record<string, PilotToolSpec>): number {
+  const specs = Object.values(tools);
+  const eager = specs.filter((s) => !s.deferLoading).length;
+  return specs.some((s) => s.deferLoading) ? eager + 1 : eager;
 }
 
 /** 工具决策结果（审批由 SDK toolApproval 完成，这里只有执行结果）| execution outcome */
@@ -28,6 +60,10 @@ export interface PilotToolOutcome {
   status: 'done' | 'error';
   message: string;
   requestId?: string;
+  /** Not sent to the model. End the loop after this step, e.g. the tool waits for user input. */
+  stopLoop?: boolean;
+  /** Not sent to the model. Text shown in the chat when an approved call runs from the card. */
+  userMessage?: string;
 }
 
 export interface PilotAgentOptions {
@@ -37,7 +73,12 @@ export interface PilotAgentOptions {
    * 每个工具调用的唯一执行入口（生产 = resolveToolDecisionPipeline：策略、确认、写入门禁、审计）。
    * The only execution path for every tool call (prod: the existing decision pipeline).
    */
-  runToolDecision: (name: string, input: unknown, toolCallId: string) => Promise<PilotToolOutcome>;
+  runToolDecision: (
+    name: string,
+    input: unknown,
+    toolCallId: string,
+    abortSignal?: AbortSignal,
+  ) => Promise<PilotToolOutcome>;
   /**
    * SDK 原生审批（toolApproval 回调）；'user-approval' 时循环停下并发出 tool-approval-request。
    * Native SDK approval; 'user-approval' stops the loop and emits tool-approval-request parts.
@@ -65,13 +106,38 @@ export function assertProviderInstance(
 export function createPilotAgent(options: PilotAgentOptions) {
   assertProviderInstance(options.model);
   const tools: ToolSet = {};
+  const stopAfter = new Set<string>();
+  const eagerCount = countEagerPilotTools(options.tools);
+  if (eagerCount > PILOT_EAGER_TOOL_LIMIT) {
+    throw new Error(
+      `AI runtime: ${eagerCount} tools visible at turn start, limit ${PILOT_EAGER_TOOL_LIMIT}`,
+    );
+  }
+  const deferred = deferredPilotToolNames(options.tools);
+  const hasDeferred = deferred.size > 0;
+  if (hasDeferred && PILOT_TOOL_SEARCH_NAME in options.tools) {
+    throw new Error(`AI runtime: tool name ${PILOT_TOOL_SEARCH_NAME} is reserved`);
+  }
   for (const [name, spec] of Object.entries(options.tools)) {
     tools[name] = tool({
       description: spec.description,
       inputSchema: spec.inputSchema,
-      execute: (input, { toolCallId }) => options.runToolDecision(name, input, toolCallId),
+      ...(spec.deferLoading ? { deferLoading: true } : {}),
+      execute: async (input, { toolCallId, abortSignal }) => {
+        const {
+          stopLoop,
+          userMessage: _userMessage,
+          ...outcome
+        } = await options.runToolDecision(name, input, toolCallId, abortSignal);
+        if (stopLoop) stopAfter.add(toolCallId);
+        return outcome;
+      },
     });
   }
+  if (hasDeferred) tools[PILOT_TOOL_SEARCH_NAME] = toolSearch();
+  const instructions = hasDeferred
+    ? [options.instructions, TOOL_SEARCH_INSTRUCTIONS].filter(Boolean).join('\n\n')
+    : options.instructions;
   return new ToolLoopAgent({
     model: options.model,
     tools,
@@ -81,15 +147,22 @@ export function createPilotAgent(options: PilotAgentOptions) {
       isStepCount(options.maxSteps ?? 6),
       // B2：参数不可解析即停，交给澄清，不让模型盲重试 | stop on invalid args, clarification takes over
       ({ steps }) =>
-        (steps.at(-1)?.toolCalls ?? []).some((c) => (c as { invalid?: boolean }).invalid === true),
+        (steps.at(-1)?.toolCalls ?? []).some((c) => {
+          const call = c as { invalid?: boolean; toolName: string; error?: unknown };
+          return call.invalid === true && !isUndiscoveredDeferredCall(call, deferred);
+        }),
+      // A tool asked for user input: do not let the model call it again in this turn.
+      ({ steps }) => (steps.at(-1)?.toolResults ?? []).some((r) => stopAfter.has(r.toolCallId)),
     ],
     ...(options.toolApproval
       ? {
           toolApproval: ({ toolCall }: { toolCall: { toolName: string; input: unknown } }) =>
-            options.toolApproval!(toolCall.toolName, toolCall.input),
+            hasDeferred && toolCall.toolName === PILOT_TOOL_SEARCH_NAME
+              ? 'not-applicable'
+              : options.toolApproval!(toolCall.toolName, toolCall.input),
         }
       : {}),
-    ...(options.instructions ? { instructions: options.instructions } : {}),
+    ...(instructions ? { instructions } : {}),
   });
 }
 
@@ -113,7 +186,10 @@ export type PilotEvent =
  * 护栏 3：providerExecuted 丢弃；护栏 4：tool-error / tool-result 不是 provider 故障；
  * 护栏 5：invalid 调用走 invalid-args，不默认 `{}`；护栏 8：tool-input-* 只供 UI。
  */
-export function mapStreamPart(part: TextStreamPart<ToolSet>): PilotEvent | null {
+export function mapStreamPart(
+  part: TextStreamPart<ToolSet>,
+  deferred: ReadonlySet<string> = new Set(),
+): PilotEvent | null {
   if ('providerExecuted' in part && part.providerExecuted) return null;
   switch (part.type) {
     case 'text-delta':
@@ -124,6 +200,7 @@ export function mapStreamPart(part: TextStreamPart<ToolSet>): PilotEvent | null 
     case 'tool-input-delta':
       return { type: 'tool-input-ui', toolCallId: part.id };
     case 'tool-call':
+      if (part.invalid && isUndiscoveredDeferredCall(part, deferred)) return null;
       if (part.invalid)
         return {
           type: 'invalid-args',

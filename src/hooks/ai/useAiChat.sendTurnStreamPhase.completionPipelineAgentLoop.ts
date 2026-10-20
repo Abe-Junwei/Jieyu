@@ -7,7 +7,7 @@ import {
   persistAgentLoopCheckpointTask,
 } from '../../ai/chat/agentLoopCheckpoint';
 import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
-import { runAgentLoop } from './useAiChat.agentLoopRunner';
+import { runAgentLoop, type AgentLoopRunnerResult } from './useAiChat.agentLoopRunner';
 import { nowIso } from './useAiChat.helpers';
 import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat.sendTurnStreamPhase.verticalAudit';
 import { notifyAiTasksUpdated } from '../../ai/tasks/taskRefreshEvents';
@@ -74,64 +74,79 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
 
   const streamCompletionEnv = buildStreamCompletionEnv();
 
-  const loopResult = await runAgentLoop(
-    {
-      assistantId,
-      agentLoopSourceUserText,
-      history,
-      historyCharBudget,
-      systemPrompt,
-      aiContext,
-      signal: controller.signal,
-      routingPlan,
-      aiChatAgentLoopEnabled: flags.aiChatAgentLoopEnabled,
-      getSessionMemory: () => sessionMemoryRef.current,
-      setSessionMemory: (next) => {
-        streamCompletionEnv.updateSessionMemory(next);
-      },
-      getSettings: () => settingsRef.current,
-      getLocaleIsZhCn: () =>
-        resolveAiChatResponsePolicy(
-          sessionMemoryRef.current,
-          toolFeedbackLocaleRef.current,
-          settingsRef.current.toolFeedbackStyle,
-        ).locale === 'zh-CN',
-      getAiContext: () => getContextRef.current?.() ?? null,
-      getTaskSession: () => taskSessionRef.current,
-      setTaskSession,
-      setMetrics,
-      persistSessionMemory: streamCompletionEnv.persistSessionMemory,
-      persistAgentLoopCheckpoint: async (checkpoint) => {
-        if (!checkpoint) return undefined;
-        const taskId = await persistAgentLoopCheckpointTask({
-          checkpoint,
-          targetId: assistantId,
-          modelId: settingsRef.current.model,
+  // ADR-0056: a ToolLoopAgent turn already ran its own loop; the frozen legacy loop does not continue it.
+  const loopResult: AgentLoopRunnerResult = args.ranOnToolLoopAgent
+    ? {
+        resolvedContent: streamCompletionResult.finalContent,
+        resolvedStatus: streamCompletionResult.finalStatus,
+        resolvedErrorMessage: streamCompletionResult.finalErrorMessage,
+        resolvedConnectionErrorMessage: streamCompletionResult.connectionErrorMessage,
+        resolvedLocalToolResults: streamCompletionResult.localToolResults,
+        loopExecuted: false,
+        assistantReasoningContent: s.assistantReasoningContent,
+        totalOutputTokens: s.totalReportedOutputTokens,
+        reportedInputTokens: s.reportedInputTokens,
+      }
+    : await runAgentLoop(
+        {
+          assistantId,
+          agentLoopSourceUserText,
+          history,
+          historyCharBudget,
+          systemPrompt,
+          aiContext,
+          signal: controller.signal,
+          routingPlan,
+          aiChatAgentLoopEnabled: flags.aiChatAgentLoopEnabled,
+          getSessionMemory: () => sessionMemoryRef.current,
+          setSessionMemory: (next) => {
+            streamCompletionEnv.updateSessionMemory(next);
+          },
+          getSettings: () => settingsRef.current,
+          getLocaleIsZhCn: () =>
+            resolveAiChatResponsePolicy(
+              sessionMemoryRef.current,
+              toolFeedbackLocaleRef.current,
+              settingsRef.current.toolFeedbackStyle,
+            ).locale === 'zh-CN',
+          getAiContext: () => getContextRef.current?.() ?? null,
+          getTaskSession: () => taskSessionRef.current,
+          setTaskSession,
+          setMetrics,
+          persistSessionMemory: streamCompletionEnv.persistSessionMemory,
+          persistAgentLoopCheckpoint: async (checkpoint) => {
+            if (!checkpoint) return undefined;
+            const taskId = await persistAgentLoopCheckpointTask({
+              checkpoint,
+              targetId: assistantId,
+              modelId: settingsRef.current.model,
+              ...(streamCompletionEnv.agentRunId
+                ? { agentRunId: streamCompletionEnv.agentRunId }
+                : {}),
+            });
+            notifyAiTasksUpdated();
+            return taskId;
+          },
+          buildStreamCompletionEnv,
+          coordinationLiteEnabled: flags.aiCoordinationLiteEnabled,
+          orchestrator,
+          insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
+          ...(workflowAnswerReady !== undefined ? { workflowAnswerReady } : {}),
           ...(streamCompletionEnv.agentRunId ? { agentRunId: streamCompletionEnv.agentRunId } : {}),
-        });
-        notifyAiTasksUpdated();
-        return taskId;
-      },
-      buildStreamCompletionEnv,
-      coordinationLiteEnabled: flags.aiCoordinationLiteEnabled,
-      orchestrator,
-      insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
-      ...(workflowAnswerReady !== undefined ? { workflowAnswerReady } : {}),
-      ...(streamCompletionEnv.agentRunId ? { agentRunId: streamCompletionEnv.agentRunId } : {}),
-    },
-    {
-      resolvedContent: streamCompletionResult.finalContent,
-      resolvedStatus: streamCompletionResult.finalStatus,
-      resolvedErrorMessage: streamCompletionResult.finalErrorMessage,
-      resolvedConnectionErrorMessage: streamCompletionResult.connectionErrorMessage,
-      resolvedLocalToolResults: streamCompletionResult.localToolResults,
-      rawAssistantContentForLoop: s.assistantContent,
-      assistantReasoningContent: s.assistantReasoningContent,
-      reportedInputTokens: s.reportedInputTokens,
-      totalOutputTokens: s.totalReportedOutputTokens,
-      startStep: resumeCheckpoint ? Math.max(1, resumeCheckpoint.step + 1) : 1,
-    },
-  );
+        },
+        {
+          resolvedContent: streamCompletionResult.finalContent,
+          resolvedStatus: streamCompletionResult.finalStatus,
+          resolvedErrorMessage: streamCompletionResult.finalErrorMessage,
+          resolvedConnectionErrorMessage: streamCompletionResult.connectionErrorMessage,
+          resolvedLocalToolResults: streamCompletionResult.localToolResults,
+          rawAssistantContentForLoop: s.assistantContent,
+          assistantReasoningContent: s.assistantReasoningContent,
+          reportedInputTokens: s.reportedInputTokens,
+          totalOutputTokens: s.totalReportedOutputTokens,
+          startStep: resumeCheckpoint ? Math.max(1, resumeCheckpoint.step + 1) : 1,
+        },
+      );
 
   resolution.content = loopResult.resolvedContent;
   resolution.status = loopResult.resolvedStatus;

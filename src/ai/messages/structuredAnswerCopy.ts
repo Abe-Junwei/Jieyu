@@ -17,14 +17,16 @@ export function formatCorpusAnalysisUnlabeled(locale?: Locale | string): string 
   return locale === 'en-US' ? 'not yet glossed' : '尚未标注';
 }
 
-export function formatConcordanceSummary(count: number, zh: boolean): string {
-  return zh
+const isZh = (locale?: Locale | string) => (locale ?? '').toLowerCase().startsWith('zh');
+
+export function formatConcordanceSummary(count: number, locale?: Locale | string): string {
+  return isZh(locale)
     ? `共现命中 ${count} 条，每条带句子 id。`
     : `Concordance returned ${count} hits, each with a unit id.`;
 }
 
-export function formatParadigmSummary(tokenCount: number, zh: boolean): string {
-  return zh
+export function formatParadigmSummary(tokenCount: number, locale?: Locale | string): string {
+  return isZh(locale)
     ? `该词类共 ${tokenCount} 个词，已统计相邻 gloss。`
     : `Counted adjacent glosses across ${tokenCount} tokens of that part of speech.`;
 }
@@ -32,9 +34,9 @@ export function formatParadigmSummary(tokenCount: number, zh: boolean): string {
 export function formatCounterexampleSummary(
   matchCount: number,
   counterexampleCount: number,
-  zh: boolean,
+  locale?: Locale | string,
 ): string {
-  return zh
+  return isZh(locale)
     ? `符合 ${matchCount} 句，反例 ${counterexampleCount} 句。`
     : `${matchCount} units match; ${counterexampleCount} are counterexamples.`;
 }

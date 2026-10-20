@@ -43,6 +43,8 @@ export interface ApprovalMeta {
 export interface ToolOutcomeLike {
   status: 'done' | 'error';
   message: string;
+  /** Not sent to the model. Text shown in the chat instead of `message`. */
+  userMessage?: string;
 }
 
 export interface UnansweredApproval {

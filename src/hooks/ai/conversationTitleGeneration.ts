@@ -16,6 +16,7 @@ const log = createLogger('conversationTitleGeneration');
 export { CONVERSATION_TITLE_MAX_CHARS };
 
 const inFlightTitlePatches = new Map<string, Promise<boolean>>();
+const titlePatchFailures: unknown[] = [];
 
 export function buildConversationTitleRuleBased(userText: string): string {
   const withoutCode = userText.replace(/```[\s\S]*?```/g, '\n').replace(/`[^`]+`/g, ' ');
@@ -143,5 +144,36 @@ export function scheduleConversationTitlePatch(
     inFlightTitlePatches.delete(conversationId);
   });
   inFlightTitlePatches.set(conversationId, job);
-  void job;
+  // The send path does not await this. A handler has to be attached now, or a
+  // later read-back failure becomes an unhandled rejection after the test ends.
+  // The original promise still rejects; awaitScheduledConversationTitlePatches rethrows it.
+  job.catch((error: unknown) => {
+    titlePatchFailures.push(error);
+    log.error('conversation title patch failed', {
+      conversationId,
+      error: error instanceof Error ? error.name : 'unknown',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  });
+}
+
+function consumeTitlePatchFailure(): unknown {
+  const failure = titlePatchFailures.shift();
+  titlePatchFailures.length = 0;
+  return failure;
+}
+
+/** Fail the test if a scheduled title patch already rejected. Does not wait for one still in flight. */
+export function rethrowSettledConversationTitlePatchFailure(): void {
+  const failure = consumeTitlePatchFailure();
+  if (failure !== undefined) throw failure;
+}
+
+/** Settle title patches started off the send path. Read-back failures still reject. */
+export async function awaitScheduledConversationTitlePatches(): Promise<void> {
+  while (inFlightTitlePatches.size > 0) {
+    await Promise.allSettled([...inFlightTitlePatches.values()]);
+  }
+  const failure = consumeTitlePatchFailure();
+  if (failure !== undefined) throw failure;
 }
