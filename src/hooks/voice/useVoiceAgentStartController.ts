@@ -299,11 +299,13 @@ export function useVoiceAgentStartController({
       })();
 
       exclusiveStartPromiseRef.current = p;
-      void p.finally(() => {
-        if (exclusiveStartPromiseRef.current === p) {
-          exclusiveStartPromiseRef.current = null;
-        }
-      });
+      void p
+        .finally(() => {
+          if (exclusiveStartPromiseRef.current === p) {
+            exclusiveStartPromiseRef.current = null;
+          }
+        })
+        .catch(() => undefined); // callers get `p` itself; this side chain only clears the ref
       return p;
     },
     [
