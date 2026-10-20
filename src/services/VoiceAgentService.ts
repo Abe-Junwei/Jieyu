@@ -151,8 +151,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _sttEnhancementKind: import('./stt').SttEnhancementSelectionKind;
   private _sttEnhancementConfig: import('./stt').SttEnhancementConfig;
   private readonly _onExecuteAction:
-    | ((actionId: ActionId, params?: { segmentIndex?: number }) => void)
-    | undefined;
+    ((actionId: ActionId, params?: { segmentIndex?: number }) => void) | undefined;
   private readonly _onInsertDictation: ((text: string) => void) | undefined;
 
   private readonly _onSendToAiChat: ((text: string) => void) | undefined;
@@ -399,11 +398,13 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     }
     const p = this._runExclusiveStart(targetMode);
     this._exclusiveStartPromise = p;
-    void p.finally(() => {
-      if (this._exclusiveStartPromise === p) {
-        this._exclusiveStartPromise = null;
-      }
-    });
+    void p
+      .finally(() => {
+        if (this._exclusiveStartPromise === p) {
+          this._exclusiveStartPromise = null;
+        }
+      })
+      .catch(() => undefined); // callers get `p` itself; this side chain only clears the ref
     return p;
   }
 

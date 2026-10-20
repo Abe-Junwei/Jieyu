@@ -139,9 +139,14 @@ export function scheduleConversationTitlePatch(
 ): void {
   if (inFlightTitlePatches.has(conversationId)) return;
 
-  const job = patchConversationTitleIfNeeded(conversationId, userText, options).finally(() => {
-    inFlightTitlePatches.delete(conversationId);
-  });
+  const job = patchConversationTitleIfNeeded(conversationId, userText, options)
+    .catch((error: unknown) => {
+      log.warn('Background conversation title patch failed', { conversationId, error });
+      return false;
+    })
+    .finally(() => {
+      inFlightTitlePatches.delete(conversationId);
+    });
   inFlightTitlePatches.set(conversationId, job);
   void job;
 }
