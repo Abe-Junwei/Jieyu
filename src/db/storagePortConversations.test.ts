@@ -1,7 +1,9 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './engine';
+import { StorageReadbackError } from './storageReadbackError';
 import { storagePort } from './storagePort';
+import { patchAiConversation as patchChatAiConversation } from './storagePortChatConversations';
 import type { AiConversationDoc, AiMessageDoc } from './types';
 
 const NOW = '2026-10-18T00:00:00.000Z';
@@ -42,6 +44,42 @@ describe('storage port conversations', () => {
     await expect(
       storagePort().patchAiConversation('missing', { title: 'x' }),
     ).resolves.toBeUndefined();
+  });
+
+  it('keeps concurrent title and timestamp patches from failing read-back', async () => {
+    await db.ai_conversations.put(conversation('conv', NOW));
+    const titlePatch = storagePort().patchAiConversation('conv', {
+      title: 'Renamed',
+      updatedAt: '2026-10-18T03:00:00.000Z',
+    });
+    const timestampPatch = patchChatAiConversation('conv', {
+      updatedAt: '2026-10-18T04:00:00.000Z',
+    });
+    await expect(Promise.all([titlePatch, timestampPatch])).resolves.toEqual([
+      expect.objectContaining({ id: 'conv' }),
+      expect.objectContaining({ id: 'conv' }),
+    ]);
+    await expect(db.ai_conversations.get('conv')).resolves.toMatchObject({
+      id: 'conv',
+      title: 'Renamed',
+    });
+  });
+
+  it('still throws StorageReadbackError when the stored conversation does not match the patch', async () => {
+    await db.ai_conversations.put(conversation('conv', NOW));
+    vi.spyOn(db.ai_conversations, 'get')
+      .mockResolvedValueOnce(conversation('conv', NOW))
+      .mockResolvedValueOnce({ ...conversation('conv', NOW), title: 'tampered' });
+    try {
+      await expect(
+        storagePort().patchAiConversation('conv', {
+          title: 'Renamed',
+          updatedAt: '2026-10-18T03:00:00.000Z',
+        }),
+      ).rejects.toBeInstanceOf(StorageReadbackError);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('clears messages and stamps the conversation updatedAt', async () => {

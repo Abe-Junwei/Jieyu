@@ -18,6 +18,7 @@ import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat
 import { applyOutboundSemanticGuard } from '../../ai/security/semanticGuard';
 import { hidesUnverifiedDraft } from '../../ai/vertical/corpusAnalysisReport';
 import { executeLocalContextToolCall } from '../../ai/chat/localContextToolExecutors';
+import { formatLocalContextToolResultMessage } from '../../ai/chat/localContextToolFormatters';
 import {
   batchApplyApprovalLines,
   corpusToolMessage,
@@ -27,6 +28,7 @@ import {
   isRuntimeV2LocalReadTool,
 } from '../../ai/runtime/runtimeV2CorpusTools';
 import {
+  EXTERNAL_MCP_MAX_CALLS_PER_TURN,
   executeExternalMcpCall,
   externalMcpModelMessage,
   listRuntimeV2ExternalMcpTools,
@@ -41,6 +43,7 @@ import {
 } from './useAiChat.streamCompletion';
 import { buildToolAuditContext } from '../../ai/chat/toolCallHelpers';
 import { handleInvalidToolArguments } from './useAiChat.argsValidation';
+import { buildExternalMcpInputPendingCall } from './useAiChat.externalMcpInput';
 import { t } from '../../i18n';
 import type { AssistantStreamChunk } from './useAiChat.streamFactory';
 import type { AiChatToolCall, PendingAiToolCall } from './useAiChat.types';
@@ -102,6 +105,8 @@ export async function runAiChatSendTurnStreamPhase(
   let stream: AsyncGenerator<AssistantStreamChunk> = input.stream;
   let runtimeV2 = false;
   let legacyTookOver = false;
+  let v2InputCardShown = false;
+  let v2ExternalCalls = 0;
   const v2CorpusResults: LocalContextToolResult[] = [];
   const v2EvidencePackets: EvidencePacketV0[] = [];
   if (
@@ -115,6 +120,33 @@ export async function runAiChatSendTurnStreamPhase(
       : v2.createAiSdkModelFromSettings(settings);
     if (model) {
       runtimeV2 = true;
+      // The first MCP input card of the turn wins; later cards stay in the turn state.
+      // A stopped turn or a switched conversation gets no card; approvals stay in the turn state.
+      const setTurnCard = (card: PendingAiToolCall | null) => {
+        if (v2InputCardShown || controller.signal.aborted || !canUpdateStreamUi()) return;
+        if (card?.mcpInput) v2InputCardShown = true;
+        input.setPendingToolCall(card);
+      };
+      const auditLocalExecution = (
+        call: { name: string; requestId?: string },
+        ok: boolean,
+        approved: boolean,
+      ) => {
+        const outcome = approved
+          ? ok
+            ? 'confirmed'
+            : 'confirm_failed'
+          : ok
+            ? 'auto_confirmed'
+            : 'auto_failed';
+        return input.writeToolDecisionAuditLog(
+          assistantId,
+          `${approved ? 'pending' : 'auto'}:${call.name}`,
+          `${outcome}:${call.name}`,
+          approved ? 'human' : 'ai',
+          call.requestId,
+        );
+      };
       const runV2Pipeline = async (
         call: AiChatToolCall,
         approval: 'request' | 'approved' | undefined,
@@ -136,7 +168,7 @@ export async function runAiChatSendTurnStreamPhase(
               const tagged =
                 value && runtimeV2Card ? { ...value, runtimeV2: runtimeV2Card } : value;
               if (tagged) card = tagged;
-              env.setPendingToolCall(tagged);
+              setTurnCard(tagged);
             },
           },
           { ...(planner?.call ?? call), ...(call.requestId ? { requestId: call.requestId } : {}) },
@@ -203,9 +235,21 @@ export async function runAiChatSendTurnStreamPhase(
             return finalContent;
           },
           // 执行与审批请求都走同一决策管线（策略、写入门禁、审计）| one pipeline for both
-          decide: async (call, mode) => {
+          decide: async (call, mode, signal) => {
             const externalTool = externalMcpByName.get(call.name);
             if (externalTool) {
+              if (v2ExternalCalls >= EXTERNAL_MCP_MAX_CALLS_PER_TURN) {
+                return {
+                  finalContent: externalMcpModelMessage({
+                    name: call.name,
+                    ok: false,
+                    reason: 'turn_call_limit',
+                  }),
+                  finalStatus: 'error',
+                  pending: false,
+                };
+              }
+              v2ExternalCalls += 1;
               const payload = await executeExternalMcpCall(
                 {
                   name: call.name,
@@ -214,29 +258,26 @@ export async function runAiChatSendTurnStreamPhase(
                   arguments: call.arguments,
                 },
                 input.agentRunId,
+                undefined,
+                signal,
               );
               v2EvidencePackets.push(...(payload.evidencePackets ?? []));
               if (payload.form) {
-                const snapshot = {
-                  name: call.name,
-                  arguments: call.arguments,
-                  ...(call.requestId ? { requestId: call.requestId } : {}),
-                } as PendingAiToolCall['call'];
-                const prompt = payload.form.requests[0]?.message;
-                input.setPendingToolCall({
-                  call: snapshot,
-                  assistantMessageId: assistantId,
-                  ...(prompt ? { riskSummary: prompt } : {}),
-                  approvalMode: 'user_preference',
-                  policyReasonCode: 'input_required',
-                  mcpInput: payload.form,
-                  ...(call.requestId ? { requestId: call.requestId } : {}),
-                });
+                setTurnCard(
+                  buildExternalMcpInputPendingCall({
+                    name: call.name,
+                    form: payload.form,
+                    assistantMessageId: assistantId,
+                    requestId: call.requestId,
+                    conversationId: input.sendTurnConversationId,
+                  }),
+                );
               }
               return {
                 finalContent: externalMcpModelMessage(payload),
                 finalStatus: payload.ok ? 'done' : 'error',
                 pending: false,
+                ...(payload.reason === 'input_required' ? { stopLoop: true } : {}),
               };
             }
             if (isRuntimeV2BatchApply(call.name)) {
@@ -252,12 +293,18 @@ export async function runAiChatSendTurnStreamPhase(
                 aiContext,
                 input.localToolCallCountRef,
               );
+              await auditLocalExecution(call, toolResult.ok, true);
               return {
                 finalContent: toolResult.ok
                   ? corpusToolMessage(toolResult.result)
                   : (toolResult.error ?? 'batch_apply preview failed'),
                 finalStatus: toolResult.ok ? 'done' : 'error',
                 pending: false,
+                userMessage: formatLocalContextToolResultMessage(
+                  toolResult,
+                  toolFeedbackLocaleRef.current,
+                  effectiveUserText,
+                ),
               };
             }
             if (isRuntimeV2CorpusAnalysisTool(call.name) || isRuntimeV2LocalReadTool(call.name)) {
@@ -267,6 +314,7 @@ export async function runAiChatSendTurnStreamPhase(
                 input.localToolCallCountRef,
               );
               if (isRuntimeV2CorpusAnalysisTool(call.name)) v2CorpusResults.push(toolResult);
+              await auditLocalExecution(call, toolResult.ok, false);
               return {
                 finalContent: toolResult.ok
                   ? corpusToolMessage(toolResult.result)
@@ -313,13 +361,17 @@ export async function runAiChatSendTurnStreamPhase(
                 policyReasonCode: 'write_gate_preview_required',
                 policyReasonLabel: pendingText,
                 riskTier: 'medium',
+                conversationIdAtCapture: input.sendTurnConversationId,
+                ...(aiContext?.shortTerm?.timelineReadModelEpoch !== undefined
+                  ? { readModelEpochCaptured: aiContext.shortTerm.timelineReadModelEpoch }
+                  : {}),
                 ...(call.requestId ? { requestId: call.requestId } : {}),
                 runtimeV2: {
                   conversationId: input.sendTurnConversationId,
                   approvalId,
                 },
               };
-              input.setPendingToolCall(card);
+              setTurnCard(card);
               await input.writeToolDecisionAuditLog(
                 assistantId,
                 'pending:batch_apply',
@@ -469,7 +521,14 @@ export async function runAiChatSendTurnStreamPhase(
       } =
         runtimeV2 && !legacyTookOver
           ? {
-              finalContent: s.assistantContent,
+              finalContent: v2InputCardShown
+                ? [
+                    s.assistantContent,
+                    t(toolFeedbackLocaleRef.current, 'ai.externalMcp.inputNeeded'),
+                  ]
+                    .filter((part) => part.trim().length > 0)
+                    .join('\n\n')
+                : s.assistantContent,
               finalStatus: 'done' as const,
               finalErrorMessage: undefined,
               connectionErrorMessage: undefined,
@@ -501,10 +560,10 @@ export async function runAiChatSendTurnStreamPhase(
       };
 
       await runSendTurnStreamPostCompletionPipeline({
-        // v2 的语料查询放在 corpusToolResults，不放 localToolResults，旧循环不会续跑
         input,
         phaseState: s,
         streamCompletionResult,
+        ranOnToolLoopAgent: runtimeV2 && !legacyTookOver,
         buildStreamCompletionEnv,
       });
       break;

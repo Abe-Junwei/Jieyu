@@ -21,7 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
-import { completeExternalMcpInputForm } from '../../ai/mcp/client/externalMcpTurnBridge';
+import { confirmExternalMcpInputCard, showQueuedApprovalCard } from './useAiChat.externalMcpInput';
 import { expireApprovalIfStale, resolveApproval } from '../../ai/runtime/aiRuntimeV2Pending';
 import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
@@ -102,20 +102,15 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
 
       const assistantMessageId = pending.assistantMessageId;
       if (pending.mcpInput) {
-        const outcome = await completeExternalMcpInputForm(pending.mcpInput, draft ?? {});
-        if (!outcome.ok && outcome.text === 'input_required') return;
-        setPendingToolCall(null);
-        setTaskSession({
-          id: taskSessionRef.current.id,
-          status: 'idle',
-          updatedAt: nowIso(),
+        await confirmExternalMcpInputCard({ ...pending, mcpInput: pending.mcpInput }, draft ?? {}, {
+          locale: toolFeedbackLocale,
+          currentConversationId: conversationIdRef.current,
+          setPendingToolCall,
+          setTaskIdle: () =>
+            setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() }),
+          applyAssistantMessageResult,
+          writeToolDecisionAuditLog,
         });
-        await applyAssistantMessageResult(
-          assistantMessageId,
-          outcome.text,
-          outcome.ok ? 'done' : 'error',
-          outcome.ok ? undefined : outcome.text,
-        );
         return;
       }
       const changeSet = buildAiChangeSetFromPendingToolCall(pending);
@@ -253,7 +248,9 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
           assistantMessageId,
           r?.stale
             ? t(toolFeedbackLocale, 'ai.runtimeV2.approvalStale')
-            : (r?.outcome?.message ?? t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
+            : (r?.outcome?.userMessage ??
+                r?.outcome?.message ??
+                t(toolFeedbackLocale, 'ai.runtimeV2.approvedRunsNextTurn')),
           r?.outcome?.status === 'error' ? 'error' : 'done',
         );
         if (r?.nextCard) setPendingToolCall(r.nextCard as PendingAiToolCall);
@@ -400,11 +397,13 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     });
     await applyAssistantMessageResult(
       pending.assistantMessageId,
-      toNaturalToolCancelled(
-        toolFeedbackLocale,
-        pending.call.name,
-        settingsRef.current.toolFeedbackStyle,
-      ),
+      pending.mcpInput
+        ? t(toolFeedbackLocale, 'ai.externalMcp.inputCancelled')
+        : toNaturalToolCancelled(
+            toolFeedbackLocale,
+            pending.call.name,
+            settingsRef.current.toolFeedbackStyle,
+          ),
     );
 
     await writeToolDecisionAuditLog(
@@ -422,13 +421,17 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         false,
       ),
     );
-    publishAgentWriteCancelled({
-      toolName: pending.call.name,
-      ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
-      ...((pending.call.requestId ?? pending.requestId)
-        ? { requestId: pending.call.requestId ?? pending.requestId }
-        : {}),
-    });
+    // An MCP input card guards a read; it is not a cancelled write.
+    if (!pending.mcpInput) {
+      publishAgentWriteCancelled({
+        toolName: pending.call.name,
+        ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+        ...((pending.call.requestId ?? pending.requestId)
+          ? { requestId: pending.call.requestId ?? pending.requestId }
+          : {}),
+      });
+    }
+    if (pending.mcpInput) await showQueuedApprovalCard(pending, setPendingToolCall);
     // v2：取消 = 原生拒绝 response + execution-denied；有下一张卡片则接着显示 | native denial, show next card
     if (pending.runtimeV2) {
       const r = await resolveApproval(

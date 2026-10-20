@@ -399,11 +399,13 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     }
     const p = this._runExclusiveStart(targetMode);
     this._exclusiveStartPromise = p;
-    void p.finally(() => {
-      if (this._exclusiveStartPromise === p) {
-        this._exclusiveStartPromise = null;
-      }
-    });
+    void p
+      .finally(() => {
+        if (this._exclusiveStartPromise === p) {
+          this._exclusiveStartPromise = null;
+        }
+      })
+      .catch(() => undefined); // callers get `p` itself; this side chain only clears the ref
     return p;
   }
 

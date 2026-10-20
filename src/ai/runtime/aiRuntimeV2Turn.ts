@@ -16,6 +16,7 @@ import { TOOL_STRATEGY_TABLE } from '../chat/toolCallStrategy';
 import { createThinkTagStripper } from '../providers/streamUtils';
 import {
   createPilotAgent,
+  deferredPilotToolNames,
   isToolsRejectedError,
   mapStreamPart,
   type PilotToolOutcome,
@@ -73,6 +74,27 @@ const decodeEscapedLabel = (label: string) =>
   label.replace(/\\u([0-9a-f]{4})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
 
 /**
+ * ADR-0065: the tools the model sees at turn start. Every other tool is found through `tool_search`.
+ * Recorded fixtures call delete_transcription_segment and list_layers directly.
+ */
+export const RUNTIME_V2_EAGER_TOOLS: ReadonlySet<string> = new Set([
+  'get_current_selection',
+  'get_unit_detail',
+  'list_units',
+  'search_units',
+  'list_layers',
+  'get_project_stats',
+  'set_transcription_text',
+  'set_translation_text',
+  'create_transcription_segment',
+  'split_transcription_segment',
+  'merge_transcription_segments',
+  'delete_transcription_segment',
+  'propose_changes',
+  'batch_apply',
+]);
+
+/**
  * 工具定义由现有 zod schema 派生（参数 + 描述）给模型看；SDK 边界不校验（jsonSchema 无 validate），
  * 严格校验仍在 toolDecisionPipeline，invalid_args 走澄清。
  * Tool definitions derived from the zod schemas; no validation at the SDK boundary.
@@ -106,6 +128,9 @@ export function buildRuntimeV2ToolSpecs(options?: {
   Object.assign(specs, localReadToolSpecs());
   specs.batch_apply = batchApplyToolSpec();
   if (options?.corpusAnalysis) Object.assign(specs, corpusAnalysisToolSpecs());
+  for (const [name, spec] of Object.entries(specs)) {
+    if (!RUNTIME_V2_EAGER_TOOLS.has(name)) spec.deferLoading = true;
+  }
   return specs;
 }
 
@@ -117,6 +142,10 @@ export interface RuntimeV2Decision {
   finalStatus: 'done' | 'error';
   /** 管线是否仍把调用交给了确认界面 | whether the pipeline still handed the call to the confirm UI */
   pending: boolean;
+  /** End the loop after this step (the tool waits for user input). */
+  stopLoop?: boolean;
+  /** Not sent to the model. Text shown in the chat when an approved call runs from the card. */
+  userMessage?: string;
 }
 
 /** 审批请求的管线结果：pending=已出确认卡片；card=卡片快照（存 Dexie，重载后重渲染）| request outcome */
@@ -141,8 +170,7 @@ export function runtimeV2ToolApproval(name: string): ToolApprovalStatus {
   if (name.startsWith('extmcp__')) return 'not-applicable';
   if (!(AI_CHAT_TOOL_NAMES_FROM_PARSER as readonly string[]).includes(name)) return 'denied';
   const policy = getAiToolPolicy(name as AiChatToolName) as
-    | ReturnType<typeof getAiToolPolicy>
-    | undefined;
+    ReturnType<typeof getAiToolPolicy> | undefined;
   if (policy?.effect === 'read') return 'not-applicable';
   return {
     type: 'user-approval',
@@ -161,7 +189,11 @@ export interface RunAiRuntimeV2TurnParams {
   signal: AbortSignal;
   genRequestId: (call: AiChatToolCall) => string;
   /** 执行：auto=无需审批的工具；approved=用户已批准（管线跳过确认分支，仍过写入门禁与审计）| execute */
-  decide: (call: AiChatToolCall, mode: 'auto' | 'approved') => Promise<RuntimeV2Decision>;
+  decide: (
+    call: AiChatToolCall,
+    mode: 'auto' | 'approved',
+    signal?: AbortSignal,
+  ) => Promise<RuntimeV2Decision>;
   /** 每个 tool-approval-request：经管线出确认卡片并写 pending 审计 | per approval request */
   requestApproval: (
     call: AiChatToolCall,
@@ -294,9 +326,10 @@ export async function* runAiRuntimeV2Turn(
   const executeCall = async (
     call: AiChatToolCall,
     mode: 'auto' | 'approved',
+    signal?: AbortSignal,
   ): Promise<PilotToolOutcome> => {
     executedAny = true;
-    const decision = await p.decide(call, mode);
+    const decision = await p.decide(call, mode, signal);
     if (decision.pending) {
       // 审批已由 SDK 完成；管线若仍要确认，按失败返回，不留第二张卡 | never a second confirmation
       return { status: 'error', message: decision.finalContent, requestId: call.requestId ?? '' };
@@ -305,23 +338,27 @@ export async function* runAiRuntimeV2Turn(
       status: decision.finalStatus,
       message: decision.finalContent,
       requestId: call.requestId ?? '',
+      ...(decision.stopLoop ? { stopLoop: true } : {}),
+      ...(decision.userMessage !== undefined ? { userMessage: decision.userMessage } : {}),
     };
   };
 
+  const toolSpecs = {
+    ...buildRuntimeV2ToolSpecs({ corpusAnalysis: p.corpusAnalysisTools === true }),
+    ...(p.extraTools ?? {}),
+  };
+  const deferredTools = deferredPilotToolNames(toolSpecs);
   const agent = createPilotAgent({
     model: p.model,
-    tools: {
-      ...buildRuntimeV2ToolSpecs({ corpusAnalysis: p.corpusAnalysisTools === true }),
-      ...(p.extraTools ?? {}),
-    },
+    tools: toolSpecs,
     instructions: p.systemPrompt,
     toolApproval: (name) => approvalFor(name),
-    runToolDecision: (name, input, toolCallId) => {
+    runToolDecision: (name, input, toolCallId, abortSignal) => {
       const requestId =
         requestIdByToolCallId.get(toolCallId) ?? p.genRequestId(toCall(name, input, ''));
       // SDK 只在批准后才执行写工具 | the SDK only executes write tools after approval
       const mode = approvalFor(name) === 'not-applicable' ? 'auto' : 'approved';
-      return executeCall(toCall(name, input, requestId), mode);
+      return executeCall(toCall(name, input, requestId), mode, abortSignal);
     },
   });
 
@@ -329,7 +366,7 @@ export async function* runAiRuntimeV2Turn(
   registerApprovalExecutor(p.conversationId, (item) => executeCall(approvedCall(item), 'approved'));
 
   const messages = await resolveStartMessages(p, now(), (item) =>
-    executeCall(approvedCall(item), 'approved'),
+    executeCall(approvedCall(item), 'approved', p.signal),
   );
   let yieldedAny = false;
   // 未输出、也未执行过工具时，拒收 tools 才改走旧路径。已经执行的调用留着审计，不再重跑。
@@ -350,7 +387,7 @@ export async function* runAiRuntimeV2Turn(
   try {
     const result = await agent.stream({ messages, abortSignal: p.signal });
     for await (const part of result.fullStream) {
-      const ev = mapStreamPart(part);
+      const ev = mapStreamPart(part, deferredTools);
       if (!ev) continue;
       if (ev.type === 'text') {
         yieldedAny = true;

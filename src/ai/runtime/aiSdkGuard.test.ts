@@ -40,6 +40,8 @@ describe('aiSdkGuard', () => {
   it('pilot tools execute only through runToolDecision (the existing decision pipeline)', () => {
     const text = readFileSync(join(__dirname, 'toolLoopAgentPilot.ts'), 'utf8');
     expect(text.match(/execute:/g)).toHaveLength(1);
-    expect(text).toMatch(/execute: \(input, \{ toolCallId \}\) => options\.runToolDecision/);
+    expect(text).toMatch(
+      /execute: async \(input, \{ toolCallId, abortSignal \}\) => \{\s+const \{[^}]*\.\.\.outcome\s*\} = await options\.runToolDecision\(/,
+    );
   });
 });

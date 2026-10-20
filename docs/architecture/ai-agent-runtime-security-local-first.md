@@ -134,7 +134,7 @@ Parallel:
 | 项 | 代码 | 行为 |
 | --- | --- | --- |
 | 缓存 | `external_mcp_trust.lastToolsJson` | 成功 `tools/list` 或启用时带 schema 写入；不升 Dexie 版本 |
-| 命名 | `extmcp__<originKey>__<tool>` | 适配 Claude `mcp__server__tool`；不进 `AI_TOOL_CATALOG` |
+| 命名 | `extmcp__<host>-<tool>__<hash8>` | 符合 `^[a-zA-Z0-9_-]{1,64}$`；按缓存工具表反查，不解析名字；不进 `AI_TOOL_CATALOG` |
 | Guide | `buildExternalMcpToolCallGuide` | 只读 Dexie；send-turn persist 不发 HTTP |
 | 执行 | `resolveExternalMcpSendTurn` | local `tool_call` 优先；空则走 B13 `tools/call` |
 | UI | Settings 拉取按钮 | 仅 `aiExternalMcpHttpClientEnabled` |
