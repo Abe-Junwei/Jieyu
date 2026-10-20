@@ -5,6 +5,7 @@ import {
   getTrackEntityState,
   loadTrackEntityStateMapFromDb,
 } from '../app/transcriptionServicesPageAccess';
+import { fireAndForget } from '../utils/fireAndForget';
 
 interface UseTrackEntityStateControllerInput {
   activeTextId: string | null;
@@ -40,16 +41,19 @@ export function useTrackEntityStateController(
     if (!activeTextId) return;
     let cancelled = false;
 
-    void loadTrackEntityStateMapFromDb(activeTextId).then((dbStateMap) => {
-      if (cancelled) return;
-      trackEntityStateByMediaRef.current = dbStateMap;
-      if (trackEntityScopedKey) {
-        const saved = dbStateMap[trackEntityScopedKey] ?? null;
-        setLaneLockMap(saved?.laneLockMap ?? {});
-        setTranscriptionTrackMode(saved?.mode ?? 'single');
-        trackEntityHydratedKeyRef.current = trackEntityScopedKey;
-      }
-    });
+    fireAndForget(
+      loadTrackEntityStateMapFromDb(activeTextId).then((dbStateMap) => {
+        if (cancelled) return;
+        trackEntityStateByMediaRef.current = dbStateMap;
+        if (trackEntityScopedKey) {
+          const saved = dbStateMap[trackEntityScopedKey] ?? null;
+          setLaneLockMap(saved?.laneLockMap ?? {});
+          setTranscriptionTrackMode(saved?.mode ?? 'single');
+          trackEntityHydratedKeyRef.current = trackEntityScopedKey;
+        }
+      }),
+      { context: 'src/pages/useTrackEntityStateController.ts:L44', policy: 'user-visible' },
+    );
 
     return () => {
       cancelled = true;

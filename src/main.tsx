@@ -10,6 +10,7 @@ import { createLogger } from './observability/logger';
 import { initIconEffect } from './utils/iconEffect';
 import { initTheme } from './utils/theme';
 import { requestPersistAtStartup } from './utils/storageDurability';
+import { fireAndForget } from './utils/fireAndForget';
 import './styles/app-foundation.css';
 
 const log = createLogger('main');
@@ -48,8 +49,11 @@ void requestPersistAtStartup();
 
 // 4a：浏览器自动化下加载迁移框架探针（只操作合成库）| 4a: migration probe under webdriver only
 if (typeof navigator !== 'undefined' && navigator.webdriver) {
-  void import('./db/migration/e2eMigrationHarness').then((module) =>
-    module.installE2eMigrationHarness(),
+  fireAndForget(
+    import('./db/migration/e2eMigrationHarness').then((module) =>
+      module.installE2eMigrationHarness(),
+    ),
+    { context: 'src/main.tsx:L52', policy: 'background' },
   );
 }
 // 上次没做完的项目清理（删除 / 仅从本机移除 / 云端已删除）在启动时接着做完（rev5 9.1，T24）

@@ -14,6 +14,7 @@ import {
 import { getActiveProjectTextId } from '../utils/transcriptionUrlDeepLink';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { FormField, ModalPanel, PanelButton, PanelFeedback } from './ui';
+import { fireAndForget } from '../utils/fireAndForget';
 
 const EDIT_EVENT = 'jieyu:project-languages-edit';
 
@@ -65,26 +66,29 @@ export function ProjectLanguageListsEditorHost() {
         setLoaded(true);
         return;
       }
-      void LinguisticService.timeline.getTextById(id).then((text) => {
-        const lists = readProjectLanguageLists(text?.metadata);
-        setPrimaryTitle(text?.title.und?.trim() ?? '');
-        setEnglishTitle(text?.title.eng?.trim() ?? '');
-        setObjectInputs(
-          lists.objectLanguageIds.length > 0
-            ? lists.objectLanguageIds.map((languageId) =>
-                buildLanguageInputSeed(languageId, locale),
-              )
-            : [{ languageName: '', languageCode: '' }],
-        );
-        setWorkingInputs(
-          lists.workingLanguageIds.length > 0
-            ? lists.workingLanguageIds.map((languageId) =>
-                buildLanguageInputSeed(languageId, locale),
-              )
-            : [{ languageName: '', languageCode: '' }],
-        );
-        setLoaded(true);
-      });
+      fireAndForget(
+        LinguisticService.timeline.getTextById(id).then((text) => {
+          const lists = readProjectLanguageLists(text?.metadata);
+          setPrimaryTitle(text?.title.und?.trim() ?? '');
+          setEnglishTitle(text?.title.eng?.trim() ?? '');
+          setObjectInputs(
+            lists.objectLanguageIds.length > 0
+              ? lists.objectLanguageIds.map((languageId) =>
+                  buildLanguageInputSeed(languageId, locale),
+                )
+              : [{ languageName: '', languageCode: '' }],
+          );
+          setWorkingInputs(
+            lists.workingLanguageIds.length > 0
+              ? lists.workingLanguageIds.map((languageId) =>
+                  buildLanguageInputSeed(languageId, locale),
+                )
+              : [{ languageName: '', languageCode: '' }],
+          );
+          setLoaded(true);
+        }),
+        { context: 'src/components/ProjectLanguageListsDialog.tsx:L69', policy: 'user-visible' },
+      );
     };
     window.addEventListener(EDIT_EVENT, onOpen);
     return () => window.removeEventListener(EDIT_EVENT, onOpen);

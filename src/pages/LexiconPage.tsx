@@ -41,6 +41,7 @@ import { exportLexemesAsLift, resolveLiftObjectLang } from '../utils/lexiconLift
 import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
 import { formatLexiconImportNotice } from '../utils/interchangeLossReport';
 import { formatXmlSanitizeNotice } from '../utils/xmlSafeText';
+import { fireAndForget } from '../utils/fireAndForget';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -424,30 +425,33 @@ export function LexiconPage() {
                 const file = event.currentTarget.files?.[0];
                 event.currentTarget.value = '';
                 if (!file) return;
-                void importLexemesFromLiftFile(file, projectTextId).then((result) => {
-                  if (!result.ok) {
-                    const key =
-                      result.reason === 'empty'
-                        ? 'workspace.lexicon.importLiftEmpty'
-                        : result.reason === 'unsupported-version'
-                          ? 'workspace.lexicon.importLiftUnsupported'
-                          : 'workspace.lexicon.importLiftInvalid';
-                    setImportError(t(locale, key));
-                    return;
-                  }
-                  setImportError('');
-                  queryClient.setQueryData(['lexemes', projectTextId], result.readback);
-                  const importNotice = formatLexiconImportNotice(
-                    result.diagnostics,
-                    result.losses,
-                    (key, params) =>
-                      params ? tf(locale, key as DictKey, params) : t(locale, key as DictKey),
-                  );
-                  if (importNotice.length > 0) setImportError(importNotice);
-                  void queryClient.invalidateQueries({ queryKey: ['dmlex-resource'] });
-                  const first = result.readback[0];
-                  if (first) setSelectedLexemeId(first.id);
-                });
+                fireAndForget(
+                  importLexemesFromLiftFile(file, projectTextId).then((result) => {
+                    if (!result.ok) {
+                      const key =
+                        result.reason === 'empty'
+                          ? 'workspace.lexicon.importLiftEmpty'
+                          : result.reason === 'unsupported-version'
+                            ? 'workspace.lexicon.importLiftUnsupported'
+                            : 'workspace.lexicon.importLiftInvalid';
+                      setImportError(t(locale, key));
+                      return;
+                    }
+                    setImportError('');
+                    queryClient.setQueryData(['lexemes', projectTextId], result.readback);
+                    const importNotice = formatLexiconImportNotice(
+                      result.diagnostics,
+                      result.losses,
+                      (key, params) =>
+                        params ? tf(locale, key as DictKey, params) : t(locale, key as DictKey),
+                    );
+                    if (importNotice.length > 0) setImportError(importNotice);
+                    void queryClient.invalidateQueries({ queryKey: ['dmlex-resource'] });
+                    const first = result.readback[0];
+                    if (first) setSelectedLexemeId(first.id);
+                  }),
+                  { context: 'src/pages/LexiconPage.tsx:L428', policy: 'user-visible' },
+                );
               }}
             />
             <button

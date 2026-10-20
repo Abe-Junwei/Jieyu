@@ -48,6 +48,7 @@ import type { SettingsModalMessages } from '../../i18n/messages';
 import type { Locale } from '../../i18n';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { SettingsAiMcpTrustSection } from './SettingsAiMcpTrustSection';
+import { fireAndForget } from '../../utils/fireAndForget';
 
 interface SettingsAiTabProps {
   locale: Locale;
@@ -62,10 +63,13 @@ export function SettingsAiTab({ locale: _locale, msg }: SettingsAiTabProps) {
   useEffect(() => {
     if (aiSettings !== null) return;
     setAiLoading(true);
-    void loadAiChatSettingsFromStorage().then((s) => {
-      setAiSettings(s);
-      setAiLoading(false);
-    });
+    fireAndForget(
+      loadAiChatSettingsFromStorage().then((s) => {
+        setAiSettings(s);
+        setAiLoading(false);
+      }),
+      { context: 'src/components/settings/SettingsAiTab.tsx:L66', policy: 'user-visible' },
+    );
   }, [aiSettings]);
 
   const handleAiSettingsChange = (patch: Partial<AiChatSettings>) => {
@@ -550,10 +554,7 @@ export function SettingsAiTab({ locale: _locale, msg }: SettingsAiTabProps) {
                 onChange={(e) =>
                   handleVoiceEnhancementKindChange(
                     e.currentTarget.value as
-                      | 'none'
-                      | 'whisperx-align'
-                      | 'mfa-align'
-                      | 'pyannote-diarize',
+                      'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize',
                   )
                 }
               >

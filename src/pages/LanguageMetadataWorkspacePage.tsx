@@ -37,6 +37,7 @@ import {
   type LanguageMetadataDraft,
   type WorkspaceLocale,
 } from './languageMetadataWorkspace.shared';
+import { fireAndForget } from '../utils/fireAndForget';
 export function LanguageMetadataWorkspacePage({
   registerSidePane = true,
   onClose,
@@ -102,17 +103,20 @@ export function LanguageMetadataWorkspacePage({
   // Merge data loading + auto-select into one effect, eliminating entries→setSearchParams→entries cycle
   useEffect(() => {
     let cancelled = false;
-    void loadEntries(deferredSearchText.trim()).then((records) => {
-      if (cancelled || !records) return;
-      const currentId = selectedLanguageIdRef.current;
-      if (currentId === NEW_LANGUAGE_ID || records.length === 0) return;
-      // 仅在无当前选择时自动选中首项，搜索缩窄时不强制切换 | Only auto-select first on initial load; do NOT force-switch when current is filtered out
-      if (!currentId) {
-        const nextParams = new URLSearchParams(searchParamsRef.current);
-        nextParams.set(LANGUAGE_ID_PARAM, records[0]!.id);
-        setSearchParams(nextParams, { replace: true });
-      }
-    });
+    fireAndForget(
+      loadEntries(deferredSearchText.trim()).then((records) => {
+        if (cancelled || !records) return;
+        const currentId = selectedLanguageIdRef.current;
+        if (currentId === NEW_LANGUAGE_ID || records.length === 0) return;
+        // 仅在无当前选择时自动选中首项，搜索缩窄时不强制切换 | Only auto-select first on initial load; do NOT force-switch when current is filtered out
+        if (!currentId) {
+          const nextParams = new URLSearchParams(searchParamsRef.current);
+          nextParams.set(LANGUAGE_ID_PARAM, records[0]!.id);
+          setSearchParams(nextParams, { replace: true });
+        }
+      }),
+      { context: 'src/pages/LanguageMetadataWorkspacePage.tsx:L106', policy: 'user-visible' },
+    );
     return () => {
       cancelled = true;
     };
@@ -559,11 +563,17 @@ export function LanguageMetadataWorkspacePage({
             type="button"
             className="btn btn-ghost"
             onClick={() => {
-              void loadEntries(deferredSearchText.trim(), { preserveEntriesOnError: true }).then(
-                (records) => {
-                  if (!records) return;
-                  setListStale(false);
-                  setSaveSuccess('');
+              fireAndForget(
+                loadEntries(deferredSearchText.trim(), { preserveEntriesOnError: true }).then(
+                  (records) => {
+                    if (!records) return;
+                    setListStale(false);
+                    setSaveSuccess('');
+                  },
+                ),
+                {
+                  context: 'src/pages/LanguageMetadataWorkspacePage.tsx:L566',
+                  policy: 'user-visible',
                 },
               );
             }}

@@ -20,6 +20,7 @@ import {
   writeBackupIntervalHours,
 } from '../../services/backupFolderService';
 import { SettingRow, SettingsSection } from '../settingsModalPrimitives';
+import { fireAndForget } from '../../utils/fireAndForget';
 
 const MIB = 1024 * 1024;
 const mib = (bytes: number) => (bytes / MIB).toFixed(1);
@@ -41,7 +42,10 @@ const TRIGGER_KEYS: Record<PersistTrigger, DictKey> = {
 export function StorageDiagnosticsPanel({ locale }: { locale: Locale }) {
   const [diag, setDiag] = useState<StorageDiagnostics | null>(null);
   const refresh = useCallback(() => {
-    void readStorageDiagnostics().then(setDiag);
+    fireAndForget(readStorageDiagnostics().then(setDiag), {
+      context: 'src/components/settings/StorageDiagnosticsPanel.tsx:L45',
+      policy: 'user-visible',
+    });
   }, []);
 
   useEffect(() => {
@@ -128,7 +132,13 @@ function BackupFolderSection({ locale }: { locale: Locale }) {
   const refresh = useCallback(() => {
     setStatus(readBackupFolderStatus());
     setIntervalHours(readBackupIntervalHours());
-    void readBackupFolder().then((folder) => setFolderName(folder?.name ?? null));
+    fireAndForget(
+      readBackupFolder().then((folder) => setFolderName(folder?.name ?? null)),
+      {
+        context: 'src/components/settings/StorageDiagnosticsPanel.tsx:L135',
+        policy: 'user-visible',
+      },
+    );
   }, []);
   useEffect(() => {
     refresh();

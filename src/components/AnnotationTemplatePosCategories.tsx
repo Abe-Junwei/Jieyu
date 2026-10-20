@@ -11,6 +11,7 @@ import {
   getActiveProjectTextId,
   subscribeActiveProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
+import { fireAndForget } from '../utils/fireAndForget';
 
 export function AnnotationTemplatePosCategories() {
   const locale = useLocale();
@@ -48,7 +49,10 @@ export function AnnotationTemplatePosCategories() {
 
   const reload = () => {
     if (!textId) return;
-    void listAnnotationPosCategories(textId).then(setRows);
+    fireAndForget(listAnnotationPosCategories(textId).then(setRows), {
+      context: 'src/components/AnnotationTemplatePosCategories.tsx:L52',
+      policy: 'user-visible',
+    });
   };
 
   return (
@@ -71,7 +75,13 @@ export function AnnotationTemplatePosCategories() {
               onBlur={(event) => {
                 const next = event.target.value.trim();
                 if (!textId || !next || next === row.name) return;
-                void renameAnnotationPosCategory(textId, row.abbreviation, next).then(reload);
+                fireAndForget(
+                  renameAnnotationPosCategory(textId, row.abbreviation, next).then(reload),
+                  {
+                    context: 'src/components/AnnotationTemplatePosCategories.tsx:L78',
+                    policy: 'user-visible',
+                  },
+                );
               }}
             />
             <span className="annotation-template-abbreviation-code">{row.abbreviation}</span>
@@ -80,7 +90,10 @@ export function AnnotationTemplatePosCategories() {
               className="btn btn-quiet"
               onClick={() => {
                 if (!textId) return;
-                void removeAnnotationPosCategory(textId, row.abbreviation).then(reload);
+                fireAndForget(removeAnnotationPosCategory(textId, row.abbreviation).then(reload), {
+                  context: 'src/components/AnnotationTemplatePosCategories.tsx:L93',
+                  policy: 'user-visible',
+                });
               }}
             >
               {t(locale, 'workspace.structuralProfile.posRemove')}
@@ -93,17 +106,23 @@ export function AnnotationTemplatePosCategories() {
         onSubmit={(event) => {
           event.preventDefault();
           if (!textId) return;
-          void addAnnotationPosCategory(textId, code, name || code).then((result) => {
-            if (result === 'duplicate') {
-              setError(t(locale, 'workspace.structuralProfile.posDuplicate'));
-              return;
-            }
-            if (result === 'empty') return;
-            setCode('');
-            setName('');
-            setError('');
-            reload();
-          });
+          fireAndForget(
+            addAnnotationPosCategory(textId, code, name || code).then((result) => {
+              if (result === 'duplicate') {
+                setError(t(locale, 'workspace.structuralProfile.posDuplicate'));
+                return;
+              }
+              if (result === 'empty') return;
+              setCode('');
+              setName('');
+              setError('');
+              reload();
+            }),
+            {
+              context: 'src/components/AnnotationTemplatePosCategories.tsx:L109',
+              policy: 'user-visible',
+            },
+          );
         }}
       >
         <input

@@ -10,6 +10,7 @@ import { isPersistedTitleEmptyOrDefault } from '../../hooks/ai/conversationTitle
 import { AiConversationListGroup } from './AiConversationListGroup';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../../utils/jieyuMaterialIcon';
+import { fireAndForget } from '../../utils/fireAndForget';
 
 export function AiConversationListPopover({
   locale,
@@ -77,9 +78,12 @@ export function AiConversationListPopover({
         cancelled = true;
       };
     }
-    void loadRecentMessageBodiesByConversation(ids).then((map) => {
-      if (!cancelled) setMessageBodiesByConversationId(map);
-    });
+    fireAndForget(
+      loadRecentMessageBodiesByConversation(ids).then((map) => {
+        if (!cancelled) setMessageBodiesByConversationId(map);
+      }),
+      { context: 'src/components/ai/AiConversationListPopover.tsx:L81', policy: 'user-visible' },
+    );
     return () => {
       cancelled = true;
     };

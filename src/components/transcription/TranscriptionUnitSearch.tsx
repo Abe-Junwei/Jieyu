@@ -11,6 +11,7 @@ import {
   loadCharacterVariantLines,
   saveCharacterVariantLines,
 } from '../../app/languageAssetPageAccess';
+import { fireAndForget } from '../../utils/fireAndForget';
 
 function formText(form: Transcription): string {
   const direct = (form.default ?? '').trim();
@@ -150,8 +151,14 @@ export function TranscriptionUnitSearch({
           onChange={(event) => setVariantText(event.target.value)}
           onBlur={() => {
             if (textId.length === 0) return;
-            void saveCharacterVariantLines(textId, variantText).then(() =>
-              queryClient.invalidateQueries({ queryKey: ['project-character-variants', textId] }),
+            fireAndForget(
+              saveCharacterVariantLines(textId, variantText).then(() =>
+                queryClient.invalidateQueries({ queryKey: ['project-character-variants', textId] }),
+              ),
+              {
+                context: 'src/components/transcription/TranscriptionUnitSearch.tsx:L154',
+                policy: 'user-visible',
+              },
             );
           }}
         />
