@@ -88,12 +88,16 @@ async function postJsonRpc(input: {
   authToken?: string;
   timeoutMs: number;
   fetchImpl: FetchLike;
+  signal?: AbortSignal | undefined;
 }): Promise<
   | { ok: true; response?: JsonRpcResponse }
   | { ok: false; reason: ExternalMcpHttpDenial; message: string }
 > {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+  const abort = () => controller.abort();
+  if (input.signal?.aborted) controller.abort();
+  input.signal?.addEventListener('abort', abort, { once: true });
   try {
     const headers: Record<string, string> = {
       Accept: 'application/json, text/event-stream',
@@ -132,6 +136,7 @@ async function postJsonRpc(input: {
     };
   } finally {
     clearTimeout(timer);
+    input.signal?.removeEventListener('abort', abort);
   }
 }
 
@@ -167,6 +172,7 @@ export async function invokeExternalMcpJsonRpc(input: {
   authToken?: string;
   timeoutMs?: number;
   fetchImpl?: FetchLike;
+  signal?: AbortSignal;
 }): Promise<
   | { ok: true; origin: string; result?: unknown }
   | { ok: false; reason: ExternalMcpHttpDenial; message?: string }
@@ -188,6 +194,7 @@ export async function invokeExternalMcpJsonRpc(input: {
     timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     fetchImpl: input.fetchImpl ?? fetch,
     ...(input.authToken ? { authToken: input.authToken } : {}),
+    signal: input.signal,
   });
   if (!rpc.ok) {
     return { ok: false, reason: rpc.reason, ...(rpc.message ? { message: rpc.message } : {}) };
@@ -201,6 +208,7 @@ export async function listExternalMcpToolsViaHttp<T extends ExternalMcpToolSchem
   authToken?: string;
   timeoutMs?: number;
   fetchImpl?: FetchLike;
+  signal?: AbortSignal;
 }): Promise<ExternalMcpHttpListResult<T>> {
   const startedAtMs = Date.now();
   const jsonRpcId = nextRpcId();
@@ -273,6 +281,7 @@ export async function callExternalMcpToolViaHttp(input: {
   authToken?: string;
   timeoutMs?: number;
   fetchImpl?: FetchLike;
+  signal?: AbortSignal;
 }): Promise<ExternalMcpHttpCallResult> {
   const startedAtMs = Date.now();
   const jsonRpcId = nextRpcId();

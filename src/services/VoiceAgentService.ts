@@ -151,7 +151,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _sttEnhancementKind: import('./stt').SttEnhancementSelectionKind;
   private _sttEnhancementConfig: import('./stt').SttEnhancementConfig;
   private readonly _onExecuteAction:
-    ((actionId: ActionId, params?: { segmentIndex?: number }) => void) | undefined;
+    | ((actionId: ActionId, params?: { segmentIndex?: number }) => void)
+    | undefined;
   private readonly _onInsertDictation: ((text: string) => void) | undefined;
 
   private readonly _onSendToAiChat: ((text: string) => void) | undefined;

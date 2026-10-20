@@ -6,6 +6,7 @@ import { db } from '../../db';
 import { persistAgentLoopCheckpointTask } from '../../ai/chat/agentLoopCheckpoint';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { useAiChat, type AiChatToolCall } from '../useAiChat';
+import { rethrowSettledConversationTitlePatchFailure } from './conversationTitleGeneration';
 import { INITIAL_METRICS } from './useAiChat.config';
 import {
   publishAssistantDialogueVoiceLayer,
@@ -449,6 +450,7 @@ describe('useAiChat abort and recovery', () => {
 
   afterEach(async () => {
     cleanup();
+    rethrowSettledConversationTitlePatchFailure();
     vi.restoreAllMocks();
     (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatGrayMode =
       false;
@@ -456,6 +458,7 @@ describe('useAiChat abort and recovery', () => {
       false;
     clearAiLocalStorage();
     await clearAiTables();
+    rethrowSettledConversationTitlePatchFailure();
   });
 
   it('should mark assistant message as aborted when stream is stopped', async () => {
@@ -4408,6 +4411,7 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
 
   afterEach(async () => {
     cleanup();
+    rethrowSettledConversationTitlePatchFailure();
     vi.restoreAllMocks();
     (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatGrayMode =
       false;
@@ -4415,6 +4419,7 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
       false;
     clearAiLocalStorage();
     await clearAiTables();
+    rethrowSettledConversationTitlePatchFailure();
   });
 
   it('clears ledger-applied response preference and persists when only directiveLedger matches (no sessionDirectives)', async () => {

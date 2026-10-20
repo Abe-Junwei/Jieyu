@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
   assertProviderInstance,
+  countEagerPilotTools,
   createPilotAgent,
+  PILOT_EAGER_TOOL_LIMIT,
+  PILOT_TOOL_SEARCH_NAME,
   isToolsRejectedError,
   mapStreamPart,
   type PilotToolOutcome,
@@ -80,18 +83,33 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
     expect(result.content.some((p) => p.type === 'tool-approval-request')).toBe(true);
   });
 
-  it('every tool call goes only through runToolDecision, with the parsed input and call id', async () => {
+  it('every tool call goes only through runToolDecision, with the parsed input, call id and abort signal', async () => {
     const { agent, runToolDecision } = buildAgent([
       toolCallTurn('delete_transcription_segment', '{"segmentId":"s1"}', 'call-9'),
       textTurn('deleted'),
     ]);
-    await agent.generate({ messages: [{ role: 'user', content: 'delete s1' }] });
+    await agent.generate({
+      messages: [{ role: 'user', content: 'delete s1' }],
+      abortSignal: new AbortController().signal,
+    });
     expect(runToolDecision).toHaveBeenCalledTimes(1);
     expect(runToolDecision).toHaveBeenCalledWith(
       'delete_transcription_segment',
       { segmentId: 's1' },
       'call-9',
+      expect.any(AbortSignal),
     );
+  });
+
+  it('keeps the chat-only userMessage out of the tool result sent to the model', async () => {
+    const { agent, model } = buildAgent(
+      [toolCallTurn('list_layers', '{}'), textTurn('done')],
+      () => ({ status: 'done', message: '{"layers":[]}', userMessage: 'CHAT-ONLY-TEXT' }),
+    );
+    await agent.generate({ messages: [{ role: 'user', content: 'layers' }] });
+    const prompt = JSON.stringify(model.doGenerateCalls[1]!.prompt);
+    expect(prompt).toContain('layers');
+    expect(prompt).not.toContain('CHAT-ONLY-TEXT');
   });
 
   it('G5: invalid args never execute and never become {}', async () => {
@@ -193,6 +211,83 @@ describe('toolLoopAgentPilot guardrails (§3.3)', () => {
     expect(isToolsRejectedError(api(500, 'tool backend down'))).toBe(false);
     expect(isToolsRejectedError(api(400, 'context too long'))).toBe(false);
     expect(isToolsRejectedError('不支持函数调用')).toBe(true);
+  });
+
+  describe('deferred tools (ADR-0065)', () => {
+    const toolNames = (call: { tools?: Array<{ name: string }> }) =>
+      (call.tools ?? []).map((t) => t.name).sort();
+    const deferredAgent = (turns: ReturnType<typeof toolCallTurn | typeof textTurn>[]) => {
+      const model = new MockLanguageModelV4({ doGenerate: turns as never });
+      const runToolDecision = vi.fn(async (_name: string) => ({
+        status: 'done' as const,
+        message: 'ok',
+      }));
+      const agent = createPilotAgent({
+        model,
+        tools: {
+          list_layers: { description: 'layers', inputSchema: z.object({}) },
+          delete_layer: {
+            description: 'Delete one layer',
+            inputSchema: z.object({ layerId: z.string() }),
+            deferLoading: true,
+          },
+        },
+        runToolDecision,
+        // Unknown names are denied, as in runtimeV2ToolApproval.
+        toolApproval: (name) =>
+          name === 'list_layers' || name === 'delete_layer' ? 'not-applicable' : 'denied',
+      });
+      return { agent, model, runToolDecision };
+    };
+
+    it('hides a deferred tool until tool_search finds it, then runs it through runToolDecision', async () => {
+      const { agent, model, runToolDecision } = deferredAgent([
+        toolCallTurn(PILOT_TOOL_SEARCH_NAME, '{"query":"delete layer"}'),
+        toolCallTurn('delete_layer', '{"layerId":"L1"}'),
+        textTurn('done'),
+      ]);
+      await agent.generate({ messages: [{ role: 'user', content: 'delete layer L1' }] });
+      expect(toolNames(model.doGenerateCalls[0]!)).toEqual(['list_layers', PILOT_TOOL_SEARCH_NAME]);
+      expect(toolNames(model.doGenerateCalls[1]!)).toContain('delete_layer');
+      expect(runToolDecision.mock.calls.map((c) => c[0])).toEqual(['delete_layer']);
+    });
+
+    it('calling a deferred tool before searching does not run it, and the model may search and retry', async () => {
+      const { agent, model, runToolDecision } = deferredAgent([
+        toolCallTurn('delete_layer', '{"layerId":"L1"}', 'early'),
+        toolCallTurn(PILOT_TOOL_SEARCH_NAME, '{"query":"delete layer"}'),
+        toolCallTurn('delete_layer', '{"layerId":"L1"}'),
+        textTurn('done'),
+      ]);
+      const result = await agent.generate({
+        messages: [{ role: 'user', content: 'delete layer L1' }],
+      });
+      expect(model.doGenerateCalls).toHaveLength(4);
+      expect(JSON.stringify(model.doGenerateCalls[1]!.prompt)).toContain('early');
+      expect(runToolDecision.mock.calls.map((c) => c[0])).toEqual(['delete_layer']);
+      const early = result.steps[0]!.toolCalls[0]!;
+      expect(
+        mapStreamPart({ ...early, type: 'tool-call' } as never, new Set(['delete_layer'])),
+      ).toBeNull();
+    });
+
+    it('refuses more eager tools than the limit', () => {
+      const tools = Object.fromEntries(
+        Array.from({ length: PILOT_EAGER_TOOL_LIMIT + 1 }, (_, i) => [
+          `t${i}`,
+          { description: 't', inputSchema: z.object({}) },
+        ]),
+      );
+      expect(() =>
+        createPilotAgent({ model: new MockLanguageModelV4(), tools, runToolDecision: vi.fn() }),
+      ).toThrow(/limit 20/);
+    });
+
+    it('counts tool_search as an eager tool when anything is deferred', () => {
+      const spec = { description: 't', inputSchema: z.object({}) };
+      expect(countEagerPilotTools({ a: spec, b: spec })).toBe(2);
+      expect(countEagerPilotTools({ a: spec, b: { ...spec, deferLoading: true } })).toBe(2);
+    });
   });
 
   it('G8: tool-input-start/delta only reach the UI channel', () => {

@@ -1,7 +1,11 @@
+import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { installStoragePort, storagePort } from '../../db/storagePort';
+import { db } from '../../db';
+import { StorageReadbackError } from '../../db/storageReadbackError';
+import * as storagePortModule from '../../db/storagePort';
 import { t } from '../../i18n';
 import {
+  awaitScheduledConversationTitlePatches,
   buildConversationTitleRuleBased,
   isPersistedTitleEmptyOrDefault,
   scheduleConversationTitlePatch,
@@ -39,27 +43,73 @@ describe('buildConversationTitleRuleBased', () => {
 });
 
 describe('scheduleConversationTitlePatch', () => {
-  const original = storagePort();
-  afterEach(() => installStoragePort(original));
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await db.ai_conversations.clear();
+  });
 
-  it('swallows a rejected background patch instead of leaking an unhandled rejection', async () => {
-    const patch = vi.fn(async () => {
-      throw new Error('read-back failed');
+  it('lets the test observe the scheduled patch before the conversation row is cleared', async () => {
+    await db.open();
+    await db.ai_conversations.put({
+      id: 'conv-title',
+      title: '默认会话',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock',
+      createdAt: '2026-05-17T10:00:00.000Z',
+      updatedAt: '2026-05-17T10:00:00.000Z',
     });
-    installStoragePort({
-      ...original,
-      readAiConversation: vi.fn(async () => ({ id: 'conv-x', title: '' })),
-      patchAiConversation: patch,
-    } as unknown as ReturnType<typeof storagePort>);
-    const unhandled = vi.fn();
-    process.on('unhandledRejection', unhandled);
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
     try {
-      scheduleConversationTitlePatch('conv-x', '整理第二段');
-      await vi.waitFor(() => expect(patch).toHaveBeenCalled());
+      scheduleConversationTitlePatch('conv-title', '请检查第二句。', { locale: 'zh-CN' });
+      await expect(awaitScheduledConversationTitlePatches()).resolves.toBeUndefined();
+      await expect(db.ai_conversations.get('conv-title')).resolves.toMatchObject({
+        title: '请检查第二句。',
+      });
+      await db.ai_conversations.clear();
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(unhandled).not.toHaveBeenCalled();
+      expect(unhandled).toEqual([]);
     } finally {
-      process.off('unhandledRejection', unhandled);
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it('still rejects with StorageReadbackError when the scheduled patch cannot read back', async () => {
+    await db.open();
+    await db.ai_conversations.put({
+      id: 'conv-fail',
+      title: '默认会话',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock',
+      createdAt: '2026-05-17T10:00:00.000Z',
+      updatedAt: '2026-05-17T10:00:00.000Z',
+    });
+    const failure = new StorageReadbackError('patchAiConversation');
+    const real = storagePortModule.storagePort();
+    vi.spyOn(storagePortModule, 'storagePort').mockReturnValue({
+      ...real,
+      readAiConversation: (id) => real.readAiConversation(id),
+      patchAiConversation: () => Promise.reject(failure),
+    });
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      scheduleConversationTitlePatch('conv-fail', '请检查第二句。', { locale: 'zh-CN' });
+      await expect(awaitScheduledConversationTitlePatches()).rejects.toBe(failure);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
     }
   });
 });

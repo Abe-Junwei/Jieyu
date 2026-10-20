@@ -29,6 +29,7 @@ import { t, type Locale } from '../../i18n';
 import { resolveLocalContextToolPolicyDecision } from '../../ai/policy/resolveExecutionPolicy';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { resolveExternalMcpSendTurn } from '../../ai/mcp/client/externalMcpTurnBridge';
+import { buildExternalMcpInputPendingCall } from './useAiChat.externalMcpInput';
 import type { EvidencePacketV0 } from '../../ai/vertical/evidencePacket';
 import { runWithToolCallbacks } from '../../ai/runtime/agentCallbacks';
 import {
@@ -563,8 +564,21 @@ export async function resolveAiChatStreamCompletion(
       ...(agentRunId ? { agentRunId } : {}),
     });
     if (externalTurn.handled) {
+      if (externalTurn.inputCard) {
+        params.setPendingToolCall(
+          buildExternalMcpInputPendingCall({
+            ...externalTurn.inputCard,
+            assistantMessageId: assistantId,
+            conversationId: params.turnConversationId,
+          }),
+        );
+      }
       return {
-        finalContent: externalTurn.finalContent,
+        finalContent: externalTurn.inputCard
+          ? [t(toolFeedbackLocale, 'ai.externalMcp.inputNeeded'), externalTurn.finalContent]
+              .filter(Boolean)
+              .join('\n\n')
+          : externalTurn.finalContent,
         finalStatus: externalTurn.finalStatus,
         ...(externalTurn.finalErrorMessage
           ? { finalErrorMessage: externalTurn.finalErrorMessage }

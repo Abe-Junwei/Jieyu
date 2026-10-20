@@ -392,7 +392,7 @@ export async function persistOpeningTurnAndBuildPromptContext(
     systemPrompt += '\n\n' + buildElanFlexCompatibilitySystemPrompt();
   }
   if (input.verticalWorkflowSelection?.workflowId === 'corpus_analysis_report') {
-    systemPrompt += '\n\n' + buildCorpusAnalysisReportSystemPrompt();
+    systemPrompt += '\n\n' + buildCorpusAnalysisReportSystemPrompt(responsePolicy.locale);
   }
   void insertChatAuditLog({
     id: newMessageId('audit'),

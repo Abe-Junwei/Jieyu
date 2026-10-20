@@ -4,6 +4,12 @@ import { StorageReadbackError } from './storageReadbackError';
 import type { AiConversationDoc } from './types';
 import { withTransaction } from './withTransaction';
 
+function rethrowStorageReadback(error: unknown): never {
+  if (error instanceof StorageReadbackError) throw error;
+  if (error instanceof Error && error.cause instanceof StorageReadbackError) throw error.cause;
+  throw error;
+}
+
 export interface AiConversationPatch {
   title?: string;
   updatedAt?: string;
@@ -30,25 +36,37 @@ export async function patchAiConversation(
   const key = id.trim();
   if (key.length === 0) return undefined;
   const database = await getDb();
-  const current = await database.dexie.ai_conversations.get(key);
-  if (!current) return undefined;
-  const next: AiConversationDoc = {
-    ...current,
-    ...(patch.title !== undefined ? { title: patch.title } : {}),
-    ...(patch.updatedAt !== undefined ? { updatedAt: patch.updatedAt } : {}),
-  };
-  validateAiConversationDoc(next);
-  await database.dexie.ai_conversations.put(next);
-  const stored = await database.dexie.ai_conversations.get(key);
-  if (
-    !stored ||
-    stored.id !== key ||
-    stored.title !== next.title ||
-    stored.updatedAt !== next.updatedAt
-  ) {
-    throw new StorageReadbackError('patchAiConversation');
+  try {
+    return await withTransaction(
+      database,
+      'rw',
+      [database.dexie.ai_conversations],
+      async () => {
+        const current = await database.dexie.ai_conversations.get(key);
+        if (!current) return undefined;
+        const next: AiConversationDoc = {
+          ...current,
+          ...(patch.title !== undefined ? { title: patch.title } : {}),
+          ...(patch.updatedAt !== undefined ? { updatedAt: patch.updatedAt } : {}),
+        };
+        validateAiConversationDoc(next);
+        await database.dexie.ai_conversations.put(next);
+        const stored = await database.dexie.ai_conversations.get(key);
+        if (
+          !stored ||
+          stored.id !== key ||
+          stored.title !== next.title ||
+          stored.updatedAt !== next.updatedAt
+        ) {
+          throw new StorageReadbackError('patchAiConversation');
+        }
+        return stored;
+      },
+      { label: 'patchAiConversation' },
+    );
+  } catch (error) {
+    rethrowStorageReadback(error);
   }
-  return stored;
 }
 
 /** 删掉这个会话的消息；会话行还在时只改 updatedAt。消息删不干净就抛错。 */

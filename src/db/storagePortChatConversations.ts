@@ -2,6 +2,13 @@ import { getDb } from './engine';
 import { validateAiConversationDoc } from './schemas';
 import { StorageReadbackError } from './storageReadbackError';
 import type { AiConversationDoc } from './types';
+import { withTransaction } from './withTransaction';
+
+function rethrowStorageReadback(error: unknown): never {
+  if (error instanceof StorageReadbackError) throw error;
+  if (error instanceof Error && error.cause instanceof StorageReadbackError) throw error.cause;
+  throw error;
+}
 
 function trimmed(id: string): string {
   return id.trim();
@@ -57,16 +64,28 @@ export async function patchAiConversation(
   const key = trimmed(id);
   if (key.length === 0) return undefined;
   const database = await getDb();
-  const current = await database.dexie.ai_conversations.get(key);
-  if (!current) return undefined;
-  const next: AiConversationDoc = { ...current, ...patch, id: key };
-  validateAiConversationDoc(next);
-  await database.dexie.ai_conversations.put(next);
-  const stored = await database.dexie.ai_conversations.get(key);
-  if (!stored || !conversationReadbackMatches(stored, key, patch)) {
-    throw new StorageReadbackError('patchAiConversation');
+  try {
+    return await withTransaction(
+      database,
+      'rw',
+      [database.dexie.ai_conversations],
+      async () => {
+        const current = await database.dexie.ai_conversations.get(key);
+        if (!current) return undefined;
+        const next: AiConversationDoc = { ...current, ...patch, id: key };
+        validateAiConversationDoc(next);
+        await database.dexie.ai_conversations.put(next);
+        const stored = await database.dexie.ai_conversations.get(key);
+        if (!stored || !conversationReadbackMatches(stored, key, patch)) {
+          throw new StorageReadbackError('patchAiConversation');
+        }
+        return stored;
+      },
+      { label: 'patchAiConversation' },
+    );
+  } catch (error) {
+    rethrowStorageReadback(error);
   }
-  return stored;
 }
 
 export async function deleteAiConversation(id: string): Promise<void> {

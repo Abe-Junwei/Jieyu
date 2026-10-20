@@ -9,6 +9,7 @@ import {
   type RunAiRuntimeV2TurnParams,
   type RuntimeV2Decision,
 } from './aiRuntimeV2Turn';
+import { PILOT_TOOL_SEARCH_NAME } from './toolLoopAgentPilot';
 
 const usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
@@ -33,6 +34,7 @@ const calls = (...cs: Array<[string, string, string]>) => ({
     ],
   }),
 });
+const search = (query: string) => calls(['s', PILOT_TOOL_SEARCH_NAME, JSON.stringify({ query })]);
 const text = (t: string) => ({
   stream: simulateReadableStream({
     chunks: [
@@ -68,13 +70,11 @@ const base = (
   userText: 'u',
   signal: new AbortController().signal,
   genRequestId: (c) => `req-${c.name}-${JSON.stringify(c.arguments)}`,
-  decide: vi.fn(
-    async (): Promise<RuntimeV2Decision> => ({
-      finalContent: 'ok',
-      finalStatus: 'done',
-      pending: false,
-    }),
-  ),
+  decide: vi.fn(async (): Promise<RuntimeV2Decision> => ({
+    finalContent: 'ok',
+    finalStatus: 'done',
+    pending: false,
+  })),
   requestApproval: vi.fn(async () => ({ pending: true, text: 'confirm?' })),
   ...over,
 });
@@ -110,6 +110,7 @@ describe('R2 review probes (after native toolApproval)', () => {
     await run(
       base(
         seq(
+          search('delete layer'),
           calls(
             ['a', 'delete_transcription_segment', '{"segmentId":"s1"}'],
             ['b', 'delete_layer', '{"layerId":"L"}'],
@@ -150,16 +151,21 @@ describe('R2 review probes (after native toolApproval)', () => {
     expect(out.map((c) => c.delta ?? '').join('')).toBe('clarify-me');
   });
   it('P4: a new message while an approval is unanswered denies it, then the model may ask again', async () => {
-    await run(base(seq(calls(['a', 'delete_layer', '{"layerId":"L"}']), text('x'))));
+    await run(
+      base(seq(search('delete layer'), calls(['a', 'delete_layer', '{"layerId":"L"}']), text('x'))),
+    );
     expect((await loadTurnState('c', Date.now())).kind).toBe('active');
     const onApprovalClosed = vi.fn(async () => {});
     const requestApproval = vi.fn(async () => ({ pending: true, text: 'confirm?' }));
     await run(
-      base(seq(calls(['a2', 'delete_layer', '{"layerId":"L"}']), text('x')), {
-        userText: 'ok go',
-        onApprovalClosed,
-        requestApproval,
-      }),
+      base(
+        seq(search('delete layer'), calls(['a2', 'delete_layer', '{"layerId":"L"}']), text('x')),
+        {
+          userText: 'ok go',
+          onApprovalClosed,
+          requestApproval,
+        },
+      ),
     );
     expect(onApprovalClosed).toHaveBeenCalledWith(
       'req-delete_layer-{"layerId":"L"}',
