@@ -20,6 +20,7 @@ import {
 } from '../utils/dbIntegrityPreference';
 import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
 import { t } from '../i18n';
+import { fireAndForget } from '../utils/fireAndForget';
 
 const BACKUP_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const E2E_DB_OPEN_FAILED_EVENT = 'jieyu:e2e-db-open-failed';
@@ -107,19 +108,22 @@ export function useAppDataResilienceEffects(locale: Locale): {
     if (import.meta.env.MODE === 'test') return;
     let reminded = false;
     const tick = () => {
-      void import('../services/backupFolderService').then(async (service) => {
-        const outcome = await service.runScheduledBackupIfDue();
-        if (!(outcome instanceof Error) || reminded) return;
-        reminded = true;
-        dispatchAppGlobalToast({
-          message:
-            outcome instanceof service.BackupFolderError && outcome.reason === 'permission-needed'
-              ? t(locale, 'msg.appData.storageBackupPermissionNeeded')
-              : t(locale, 'msg.appData.storageBackupScheduledFailed'),
-          variant: 'warning',
-          autoDismissMs: 14_000,
-        });
-      });
+      fireAndForget(
+        import('../services/backupFolderService').then(async (service) => {
+          const outcome = await service.runScheduledBackupIfDue();
+          if (!(outcome instanceof Error) || reminded) return;
+          reminded = true;
+          dispatchAppGlobalToast({
+            message:
+              outcome instanceof service.BackupFolderError && outcome.reason === 'permission-needed'
+                ? t(locale, 'msg.appData.storageBackupPermissionNeeded')
+                : t(locale, 'msg.appData.storageBackupScheduledFailed'),
+            variant: 'warning',
+            autoDismissMs: 14_000,
+          });
+        }),
+        { context: 'src/hooks/useAppDataResilienceEffects.ts:L111', policy: 'background' },
+      );
     };
     tick();
     const id = window.setInterval(tick, BACKUP_CHECK_INTERVAL_MS);

@@ -24,6 +24,7 @@ import {
   readEntryKindLabel,
   type WorkspaceLocale,
 } from './languageMetadataWorkspace.shared';
+import { fireAndForget } from '../utils/fireAndForget';
 
 const DEFAULT_GLOSS_SAMPLE = '1SG=COP dog-PL';
 
@@ -104,16 +105,19 @@ export function StructuralProfileWorkspacePage({
 
   useEffect(() => {
     let cancelled = false;
-    void loadEntries().then((records) => {
-      if (cancelled) return;
-      const currentId = selectedLanguageIdRef.current;
-      if (records.length === 0) return;
-      if (!currentId) {
-        const nextParams = new URLSearchParams(searchParamsRef.current);
-        nextParams.set(LANGUAGE_ID_PARAM, records[0]!.id);
-        setSearchParams(nextParams, { replace: true });
-      }
-    });
+    fireAndForget(
+      loadEntries().then((records) => {
+        if (cancelled) return;
+        const currentId = selectedLanguageIdRef.current;
+        if (records.length === 0) return;
+        if (!currentId) {
+          const nextParams = new URLSearchParams(searchParamsRef.current);
+          nextParams.set(LANGUAGE_ID_PARAM, records[0]!.id);
+          setSearchParams(nextParams, { replace: true });
+        }
+      }),
+      { context: 'src/pages/StructuralProfileWorkspacePage.tsx:L108', policy: 'user-visible' },
+    );
     return () => {
       cancelled = true;
     };

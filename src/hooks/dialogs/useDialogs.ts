@@ -5,6 +5,7 @@ import {
   readTranscriptionWorkspaceReturnHint,
 } from '../../utils/transcriptionUrlDeepLink';
 import type { TextDocType, LayerUnitDocType } from '../../db/types';
+import { fireAndForget } from '../../utils/fireAndForget';
 
 type DialogUnit = Pick<LayerUnitDocType, 'textId'>;
 export type TextTimelineMode = 'document' | 'media';
@@ -225,14 +226,17 @@ export function useDialogs(units: DialogUnit[]) {
     const targetId = activeTextId ?? firstUnitTextId;
     if (!targetId) return;
     let cancelled = false;
-    void LinguisticService.timeline.getTextById(targetId).then((activeText) => {
-      if (cancelled || !activeText) return;
-      if (activeText.id !== targetId) return;
-      setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(activeText));
-      setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(activeText));
-      setExportTimelineModeLabel(resolveTimelineMode(activeText));
-      setActiveTextTimeMapping(resolveTextTimeMapping(activeText));
-    });
+    fireAndForget(
+      LinguisticService.timeline.getTextById(targetId).then((activeText) => {
+        if (cancelled || !activeText) return;
+        if (activeText.id !== targetId) return;
+        setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(activeText));
+        setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(activeText));
+        setExportTimelineModeLabel(resolveTimelineMode(activeText));
+        setActiveTextTimeMapping(resolveTextTimeMapping(activeText));
+      }),
+      { context: 'src/hooks/dialogs/useDialogs.ts:L229', policy: 'background' },
+    );
     return () => {
       cancelled = true;
     };

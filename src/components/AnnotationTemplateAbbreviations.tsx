@@ -12,6 +12,7 @@ import {
   getActiveProjectTextId,
   subscribeActiveProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
+import { fireAndForget } from '../utils/fireAndForget';
 
 export function AnnotationTemplateAbbreviations() {
   const locale = useLocale();
@@ -58,7 +59,10 @@ export function AnnotationTemplateAbbreviations() {
 
   const reload = () => {
     if (!textId) return;
-    void listAnnotationAbbreviations(textId).then(setRows);
+    fireAndForget(listAnnotationAbbreviations(textId).then(setRows), {
+      context: 'src/components/AnnotationTemplateAbbreviations.tsx:L62',
+      policy: 'user-visible',
+    });
   };
 
   return (
@@ -86,7 +90,13 @@ export function AnnotationTemplateAbbreviations() {
               onBlur={(event) => {
                 const next = event.target.value.trim();
                 if (!textId || !next || next === row.name) return;
-                void renameAnnotationAbbreviation(textId, row.abbreviation, next).then(reload);
+                fireAndForget(
+                  renameAnnotationAbbreviation(textId, row.abbreviation, next).then(reload),
+                  {
+                    context: 'src/components/AnnotationTemplateAbbreviations.tsx:L93',
+                    policy: 'user-visible',
+                  },
+                );
               }}
             />
             <span className="annotation-template-abbreviation-code">{row.abbreviation}</span>
@@ -101,7 +111,10 @@ export function AnnotationTemplateAbbreviations() {
               aria-label={t(locale, 'workspace.structuralProfile.abbreviationRemove')}
               onClick={() => {
                 if (!textId) return;
-                void removeAnnotationAbbreviation(textId, row.abbreviation).then(reload);
+                fireAndForget(removeAnnotationAbbreviation(textId, row.abbreviation).then(reload), {
+                  context: 'src/components/AnnotationTemplateAbbreviations.tsx:L114',
+                  policy: 'user-visible',
+                });
               }}
             >
               {t(locale, 'workspace.structuralProfile.abbreviationRemove')}
@@ -114,17 +127,23 @@ export function AnnotationTemplateAbbreviations() {
         onSubmit={(event) => {
           event.preventDefault();
           if (!textId) return;
-          void addAnnotationAbbreviation(textId, code, name || code).then((result) => {
-            if (result === 'duplicate') {
-              setError(t(locale, 'workspace.structuralProfile.abbreviationDuplicate'));
-              return;
-            }
-            if (result === 'empty') return;
-            setCode('');
-            setName('');
-            setError('');
-            reload();
-          });
+          fireAndForget(
+            addAnnotationAbbreviation(textId, code, name || code).then((result) => {
+              if (result === 'duplicate') {
+                setError(t(locale, 'workspace.structuralProfile.abbreviationDuplicate'));
+                return;
+              }
+              if (result === 'empty') return;
+              setCode('');
+              setName('');
+              setError('');
+              reload();
+            }),
+            {
+              context: 'src/components/AnnotationTemplateAbbreviations.tsx:L130',
+              policy: 'user-visible',
+            },
+          );
         }}
       >
         <input
