@@ -1473,6 +1473,195 @@ describe('planLegacyMigration', () => {
     expect(plan).toEqual({ status: 'rejected', reason: 'ai-without-project' });
   });
 
+  it('rejects session memory and model runs when the library has no project row', () => {
+    expect(
+      planLegacyMigration({
+        ...library(),
+        sessionMemories: [
+          {
+            id: 'conv-1',
+            conversationId: 'conv-1',
+            payload: {},
+            updatedAt: '2026-10-21T00:00:00.000Z',
+          },
+        ],
+      }),
+    ).toEqual({ status: 'rejected', reason: 'ai-without-project' });
+    expect(
+      planLegacyMigration({
+        ...library(),
+        modelRuns: [
+          {
+            id: 'run-1',
+            textId: 'p-1',
+            modelId: 'example.whisper',
+            modelVersion: '1',
+            manifestSha256: 'abc',
+            capability: 'transcribe',
+            params: {},
+            mediaId: 'audio-a',
+            rangeStart: 0,
+            rangeEnd: 1,
+            startedAt: '2026-10-21T00:00:00.000Z',
+            status: 'running',
+            chunkCount: 1,
+            acceptedCount: 0,
+            rejectedCount: 0,
+            pendingCount: 1,
+          },
+        ],
+      }),
+    ).toEqual({ status: 'rejected', reason: 'model-runs-without-project' });
+  });
+
+  it('keeps a session-memory payload and a transcribe run, and drops rows that do not fit', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      conversations: [
+        {
+          id: 'conv-1',
+          textId: 'p-1',
+          title: '会话',
+          mode: 'assistant',
+          providerId: 'local',
+          model: 'none',
+        },
+      ],
+      sessionMemories: [
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: { lastLanguage: 'zh', nested: { ok: true } },
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'other',
+          conversationId: 'missing',
+          payload: {},
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'gone',
+          conversationId: 'gone',
+          payload: {},
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: [],
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: { dropped: true },
+          updatedAt: '',
+        },
+      ],
+      modelRuns: [
+        {
+          id: 'run-1',
+          textId: 'p-1',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'transcribe',
+          params: { chunkSec: 30 },
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1.5,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          finishedAt: '2026-10-21T00:00:02.000Z',
+          status: 'ok',
+          chunkCount: 1,
+          acceptedCount: 1,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+        {
+          id: 'run-other',
+          textId: 'other',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'transcribe',
+          params: {},
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          status: 'ok',
+          chunkCount: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+        {
+          id: 'run-align',
+          textId: 'p-1',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'align',
+          params: {},
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          status: 'ok',
+          chunkCount: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.sessionMemories).toEqual([
+      {
+        id: 'conv-1',
+        conversationId: 'conv-1',
+        payload: { lastLanguage: 'zh', nested: { ok: true } },
+        updatedAt: '2026-10-21T00:00:00.000Z',
+      },
+    ]);
+    expect(plan.droppedSessionMemories).toEqual([
+      { id: 'other', reason: 'id-mismatch' },
+      { id: 'gone', reason: 'missing-conversation' },
+      { id: 'conv-1', reason: 'payload' },
+      { id: 'conv-1', reason: 'updated-at' },
+    ]);
+    expect(plan.modelRuns).toEqual([
+      {
+        id: 'run-1',
+        textId: 'p-1',
+        modelId: 'example.whisper',
+        modelVersion: '1',
+        manifestSha256: 'abc',
+        capability: 'transcribe',
+        params: { chunkSec: 30 },
+        mediaId: 'audio-a',
+        rangeStart: 0,
+        rangeEnd: 1.5,
+        startedAt: '2026-10-21T00:00:00.000Z',
+        finishedAt: '2026-10-21T00:00:02.000Z',
+        status: 'ok',
+        chunkCount: 1,
+        acceptedCount: 1,
+        rejectedCount: 0,
+        pendingCount: 0,
+      },
+    ]);
+    expect(plan.droppedModelRuns).toEqual([
+      { id: 'run-other', reason: 'wrong-project' },
+      { id: 'run-align', reason: 'shape' },
+    ]);
+    expect(plan.manuscripts[0]?.definitions).toEqual(emptyDefinitions);
+  });
+
   it('writes a ready plan and reads the same ids back', () => {
     const plan = planLegacyMigration({
       ...library(),
@@ -1710,6 +1899,35 @@ describe('planLegacyMigration', () => {
       aiSourceSets: [
         { id: 'set-1', projectId: 'p-1', name: '当前', scope: 'project', status: 'active' },
       ],
+      sessionMemories: [
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: { lastLanguage: 'zh' },
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+      ],
+      modelRuns: [
+        {
+          id: 'run-1',
+          textId: 'p-1',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'transcribe',
+          params: { chunkSec: 30 },
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1.5,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          finishedAt: '2026-10-21T00:00:02.000Z',
+          status: 'ok',
+          chunkCount: 1,
+          acceptedCount: 1,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+      ],
       lexemeLinks: [{ id: 'link-1', targetType: 'token', targetId: 't-1', lexemeId: 'lex-1' }],
       tokens: [{ id: 't-1', unitId: 'u-1', tokenIndex: 0, form: 'ta' }],
       morphemes: [{ id: 'm-1', unitId: 'u-1', tokenId: 't-1', morphemeIndex: 0, form: 't' }],
@@ -1751,6 +1969,8 @@ describe('planLegacyMigration', () => {
           projectMemories: plan.projectMemories,
           agentArtifacts: plan.agentArtifacts,
           aiSourceSets: plan.aiSourceSets,
+          sessionMemories: plan.sessionMemories,
+          modelRuns: plan.modelRuns,
           notes: plan.notes,
           audios: plan.audios.map((audio) => ({
             audioId: audio.audioId,
@@ -1971,6 +2191,35 @@ describe('planLegacyMigration', () => {
         ],
         aiSourceSets: [
           { id: 'set-1', projectId: 'p-1', name: '当前', scope: 'project', status: 'active' },
+        ],
+        sessionMemories: [
+          {
+            id: 'conv-1',
+            conversationId: 'conv-1',
+            payload: { lastLanguage: 'zh' },
+            updatedAt: '2026-10-21T00:00:00.000Z',
+          },
+        ],
+        modelRuns: [
+          {
+            id: 'run-1',
+            textId: 'p-1',
+            modelId: 'example.whisper',
+            modelVersion: '1',
+            manifestSha256: 'abc',
+            capability: 'transcribe',
+            params: { chunkSec: 30 },
+            mediaId: 'audio-a',
+            rangeStart: 0,
+            rangeEnd: 1.5,
+            startedAt: '2026-10-21T00:00:00.000Z',
+            finishedAt: '2026-10-21T00:00:02.000Z',
+            status: 'ok',
+            chunkCount: 1,
+            acceptedCount: 1,
+            rejectedCount: 0,
+            pendingCount: 0,
+          },
         ],
         notes: [{ id: 'n-speaker', targetType: 'speaker', targetId: 's-1', text: '说话人备注' }],
         audios: [{ id: 'audio-a', relPath: '录音01.wav', sha256: plan.audios[0]?.sha256 }],

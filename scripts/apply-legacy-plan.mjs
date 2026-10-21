@@ -53,6 +53,26 @@ const LANGUAGE_EXTRAS = [
   ['visibility', 'visibility', 'TEXT'],
 ];
 
+function objectJson(value, label) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`applyPlan: ${label} is not an object`);
+  }
+  const json = JSON.stringify(value);
+  const parsed = JSON.parse(json);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`applyPlan: ${label} is not an object`);
+  }
+  return json;
+}
+
+function parseObjectColumn(json, label) {
+  const value = JSON.parse(json);
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${label} is not an object`);
+  }
+  return value;
+}
+
 function definedFields(row, pairs) {
   const out = {};
   for (const [camel, column] of pairs) {
@@ -343,6 +363,12 @@ export function applyPlan(
         'CREATE TABLE ai_source_sets (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, media_id TEXT, layer_id TEXT, bound_session_id TEXT)',
       );
       db.exec(
+        'CREATE TABLE ai_session_memories (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL UNIQUE, payload_json TEXT NOT NULL, updated_at TEXT NOT NULL)',
+      );
+      db.exec(
+        'CREATE TABLE model_runs (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, model_id TEXT NOT NULL, model_version TEXT NOT NULL, manifest_sha256 TEXT NOT NULL, capability TEXT NOT NULL, params_json TEXT NOT NULL, media_id TEXT NOT NULL, range_start REAL NOT NULL, range_end REAL NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, status TEXT NOT NULL, error_code TEXT, chunk_count INTEGER NOT NULL, accepted_count INTEGER NOT NULL, rejected_count INTEGER NOT NULL, pending_count INTEGER NOT NULL)',
+      );
+      db.exec(
         'CREATE TABLE user_notes (id TEXT PRIMARY KEY, target_type TEXT NOT NULL, target_id TEXT NOT NULL, text TEXT NOT NULL)',
       );
       const insert = db.prepare('INSERT INTO audio (id, relpath, sha256) VALUES (?, ?, ?)');
@@ -584,6 +610,49 @@ export function applyPlan(
           conversation.model,
           bit(conversation.archived),
           conversation.clearedAt ?? null,
+        );
+      }
+      const insertSessionMemory = db.prepare(
+        'INSERT INTO ai_session_memories (id, conversation_id, payload_json, updated_at) VALUES (?, ?, ?, ?)',
+      );
+      for (const memory of plan.sessionMemories ?? []) {
+        if (memory.id !== memory.conversationId) {
+          throw new Error(`applyPlan: session memory ${memory.id} does not match its conversation`);
+        }
+        insertSessionMemory.run(
+          memory.id,
+          memory.conversationId,
+          objectJson(memory.payload, `session memory ${memory.id}`),
+          memory.updatedAt,
+        );
+      }
+      const modelRunStatuses = new Set(['running', 'ok', 'error', 'cancelled']);
+      const insertModelRun = db.prepare(
+        'INSERT INTO model_runs (id, text_id, model_id, model_version, manifest_sha256, capability, params_json, media_id, range_start, range_end, started_at, finished_at, status, error_code, chunk_count, accepted_count, rejected_count, pending_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const run of plan.modelRuns ?? []) {
+        if (run.capability !== 'transcribe' || !modelRunStatuses.has(run.status)) {
+          throw new Error(`applyPlan: model run ${run.id} is outside ADR-0057`);
+        }
+        insertModelRun.run(
+          run.id,
+          run.textId,
+          run.modelId,
+          run.modelVersion,
+          run.manifestSha256,
+          run.capability,
+          objectJson(run.params, `model run ${run.id}`),
+          run.mediaId,
+          run.rangeStart,
+          run.rangeEnd,
+          run.startedAt,
+          run.finishedAt ?? null,
+          run.status,
+          run.errorCode ?? null,
+          run.chunkCount,
+          run.acceptedCount,
+          run.rejectedCount,
+          run.pendingCount,
         );
       }
       const insertMessage = db.prepare(
@@ -1046,6 +1115,14 @@ export function readProject(dest) {
       'SELECT id, project_id, name, scope, status, media_id, layer_id, bound_session_id FROM ai_source_sets ORDER BY id',
     )
     .all();
+  const sessionMemories = project
+    .prepare('SELECT id, conversation_id, payload_json, updated_at FROM ai_session_memories ORDER BY id')
+    .all();
+  const modelRuns = project
+    .prepare(
+      'SELECT id, text_id, model_id, model_version, manifest_sha256, capability, params_json, media_id, range_start, range_end, started_at, finished_at, status, error_code, chunk_count, accepted_count, rejected_count, pending_count FROM model_runs ORDER BY id',
+    )
+    .all();
   const notes = project
     .prepare('SELECT id, target_type, target_id, text FROM user_notes ORDER BY id')
     .all();
@@ -1444,6 +1521,32 @@ export function readProject(dest) {
       ...(artifact.agent_run_id !== null ? { agentRunId: artifact.agent_run_id } : {}),
       ...(artifact.adoption_item_id !== null ? { adoptionItemId: artifact.adoption_item_id } : {}),
     })),
+    sessionMemories: sessionMemories.map((memory) => ({
+      id: memory.id,
+      conversationId: memory.conversation_id,
+      payload: parseObjectColumn(memory.payload_json, `session memory ${memory.id}`),
+      updatedAt: memory.updated_at,
+    })),
+    modelRuns: modelRuns.map((run) => ({
+      id: run.id,
+      textId: run.text_id,
+      modelId: run.model_id,
+      modelVersion: run.model_version,
+      manifestSha256: run.manifest_sha256,
+      capability: run.capability,
+      params: parseObjectColumn(run.params_json, `model run ${run.id}`),
+      mediaId: run.media_id,
+      rangeStart: run.range_start,
+      rangeEnd: run.range_end,
+      startedAt: run.started_at,
+      ...(run.finished_at !== null ? { finishedAt: run.finished_at } : {}),
+      status: run.status,
+      ...(run.error_code !== null ? { errorCode: run.error_code } : {}),
+      chunkCount: run.chunk_count,
+      acceptedCount: run.accepted_count,
+      rejectedCount: run.rejected_count,
+      pendingCount: run.pending_count,
+    })),
     aiSourceSets: aiSourceSets.map((sourceSet) => ({
       id: sourceSet.id,
       projectId: sourceSet.project_id,
@@ -1514,6 +1617,8 @@ if (isDirectRun) {
       projectMemories: raw.projectMemories ?? [],
       agentArtifacts: raw.agentArtifacts ?? [],
       aiSourceSets: raw.aiSourceSets ?? [],
+      sessionMemories: raw.sessionMemories ?? [],
+      modelRuns: raw.modelRuns ?? [],
       notes: raw.notes ?? [],
       audios: raw.audios.map((audio) => ({ ...audio, bytes: Buffer.from(audio.bytes, 'base64') })),
       manuscripts: raw.manuscripts,

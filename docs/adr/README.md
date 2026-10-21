@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-21
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0066**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0067**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -35,6 +35,8 @@ source_of_truth: decision-index
 | D14 冻结 | 尚未冻结。一份文稿同时只关联一条音频，父子链接不能跨文稿；已经同时挂着两条的旧文稿迁移时拒绝，不自动拆。冻结前还要有：格式原型、含音频的备份恢复并播放、桌面写路径验证 | ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；「没有要保留的真实数据」不能当作丢弃本机已导入录音的依据 |
 | `unit_relations`、`user_notes` 放哪 | ADR-0062 第 3、4 条：按每行所指对象归属；跨文稿的关系一律不存 | 把整表划进 `.jyd` 或项目库 |
 | 存储接口的边界 | ADR-0062 第 7 条：业务操作走端口（一事务）；弹窗和订阅分开 | 把弹窗、订阅、业务操作收进同一个可选 `files` 对象 |
+| 会话记忆载荷 | ADR-0066：项目库 `ai_session_memories.payload_json`，不进 `.jyd`、不进定义副本 | 按 AI 层的键拆列，或把载荷放进文稿文件 |
+| `model_runs` | ADR-0057 第 8 条，落在项目库 | 写进 `source_records` 或 `.jyd` |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -102,6 +104,7 @@ source_of_truth: decision-index
 - [0063-desktop-only-after-electron-skeleton.md](./0063-desktop-only-after-electron-skeleton.md)
 - [0064-storage-freeze-until-desktop-opens-real-projects.md](./0064-storage-freeze-until-desktop-opens-real-projects.md)
 - [0065-toolloopagent-eager-tool-limit.md](./0065-toolloopagent-eager-tool-limit.md)
+- [0066-session-memory-payload-json.md](./0066-session-memory-payload-json.md)
 
 ## 已关闭的另一套编号
 

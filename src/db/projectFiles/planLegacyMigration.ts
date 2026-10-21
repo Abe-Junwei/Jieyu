@@ -17,7 +17,7 @@
  * 语言记录的标量字段进项目库，不进定义副本。数组、行政区划、多语备注和自定义字段值还没写。
  * 词条另记种类、使用次数和访问权限。词条附件只记种类、媒体类型、显示名、字节数和引用次数，不写二进制。附件链接两端都在留下的行里才保留。DMLex 正文还没写。
  * 结构规则进项目库，只记 id、项目、范围、是否启用和优先级，以及可选的语言和来源模板。规则正文还没写。
- * 项目 AI 进项目库：会话、消息、任务、任务快照、项目记忆、产物和来源集。会话记忆载荷不写。`model_runs` 在库里没有这张表，不发明。
+ * 项目 AI 进项目库：会话、消息、任务、任务快照、项目记忆、产物、来源集和会话记忆。会话记忆载荷是 JSON 对象（ADR-0066），不进定义副本。`model_runs` 按 ADR-0057 第 8 条进项目库，能力只收 `transcribe`。
  * 锚点跟着录音进对应的 `.jyd`，不进项目库，也不进定义副本。
  * 层内容跟着语段进 `.jyd`，只记 id、语段、角色和文本。
  * 两端都在同一份文稿里的单元关系写进该 `.jyd`。跨文稿的不存。
@@ -422,6 +422,66 @@ export interface LegacyAiSourceSet {
   boundSessionId?: string;
 }
 
+/** 旧快照里的会话记忆。载荷先不假定是对象，不合的行在规划时丢掉。 */
+export interface LegacyAiSessionMemoryInput {
+  id: string;
+  conversationId: string;
+  payload: unknown;
+  updatedAt?: string;
+}
+
+/** 载荷在数据层是不透明对象。列形状见 ADR-0066。 */
+export interface LegacyAiSessionMemory {
+  id: string;
+  conversationId: string;
+  payload: Record<string, unknown>;
+  updatedAt: string;
+}
+
+/** 旧快照里的一次模型运行。能力不是 `transcribe` 的行不写。 */
+export interface LegacyModelRunInput {
+  id: string;
+  textId: string;
+  modelId?: string;
+  modelVersion?: string;
+  manifestSha256?: string;
+  capability?: string;
+  params?: unknown;
+  mediaId?: string;
+  rangeStart?: number;
+  rangeEnd?: number;
+  startedAt?: string;
+  finishedAt?: string;
+  status?: string;
+  errorCode?: string;
+  chunkCount?: number;
+  acceptedCount?: number;
+  rejectedCount?: number;
+  pendingCount?: number;
+}
+
+/** 字段照 ADR-0057 第 8 条，不另加列。 */
+export interface LegacyModelRun {
+  id: string;
+  textId: string;
+  modelId: string;
+  modelVersion: string;
+  manifestSha256: string;
+  capability: 'transcribe';
+  params: Record<string, unknown>;
+  mediaId: string;
+  rangeStart: number;
+  rangeEnd: number;
+  startedAt: string;
+  finishedAt?: string;
+  status: 'running' | 'ok' | 'error' | 'cancelled';
+  errorCode?: string;
+  chunkCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  pendingCount: number;
+}
+
 export type LegacyPhonemeType = 'consonant' | 'vowel' | 'tone' | 'diphthong' | 'other';
 
 export type LegacyAbbreviationCategory =
@@ -528,6 +588,8 @@ export interface LegacyLibrary {
   projectMemories?: readonly LegacyProjectMemory[];
   agentArtifacts?: readonly LegacyAgentArtifact[];
   aiSourceSets?: readonly LegacyAiSourceSet[];
+  sessionMemories?: readonly LegacyAiSessionMemoryInput[];
+  modelRuns?: readonly LegacyModelRunInput[];
   lexemeLinks?: readonly LegacyLexemeLink[];
   anchors?: readonly LegacyAnchor[];
   contents?: readonly LegacyUnitContent[];
@@ -708,6 +770,13 @@ export type LegacyMigrationPlan =
       agentArtifacts: LegacyAgentArtifact[];
       aiSourceSets: LegacyAiSourceSet[];
       droppedAiSourceSets: { id: string; projectId: string }[];
+      sessionMemories: LegacyAiSessionMemory[];
+      droppedSessionMemories: {
+        id: string;
+        reason: 'missing-conversation' | 'id-mismatch' | 'payload' | 'updated-at';
+      }[];
+      modelRuns: LegacyModelRun[];
+      droppedModelRuns: { id: string; reason: 'wrong-project' | 'shape' }[];
       droppedLexemeLinks: DroppedLexemeLink[];
       droppedAnchors: { id: string; mediaId: string }[];
       droppedContents: { id: string; unitId: string }[];
@@ -745,6 +814,7 @@ export type LegacyMigrationPlan =
   | { status: 'rejected'; reason: 'lexeme-asset-links-without-project' }
   | { status: 'rejected'; reason: 'structural-rules-without-project' }
   | { status: 'rejected'; reason: 'ai-without-project' }
+  | { status: 'rejected'; reason: 'model-runs-without-project' }
   | { status: 'rejected'; reason: 'notes-without-project' };
 
 function sha256(bytes: Uint8Array): string {
@@ -1157,6 +1227,129 @@ function keepConversations(
   return { kept, dropped };
 }
 
+function jsonObject(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(JSON.stringify(value));
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined;
+  return parsed as Record<string, unknown>;
+}
+
+function nonEmpty(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function wholeCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function keepSessionMemories(
+  rows: readonly LegacyAiSessionMemoryInput[],
+  conversationIds: ReadonlySet<string>,
+): {
+  kept: LegacyAiSessionMemory[];
+  dropped: {
+    id: string;
+    reason: 'missing-conversation' | 'id-mismatch' | 'payload' | 'updated-at';
+  }[];
+} {
+  const kept: LegacyAiSessionMemory[] = [];
+  const dropped: {
+    id: string;
+    reason: 'missing-conversation' | 'id-mismatch' | 'payload' | 'updated-at';
+  }[] = [];
+  for (const row of rows) {
+    if (row.id !== row.conversationId) {
+      dropped.push({ id: row.id, reason: 'id-mismatch' });
+      continue;
+    }
+    if (!conversationIds.has(row.conversationId)) {
+      dropped.push({ id: row.id, reason: 'missing-conversation' });
+      continue;
+    }
+    const payload = jsonObject(row.payload);
+    if (payload === undefined) {
+      dropped.push({ id: row.id, reason: 'payload' });
+      continue;
+    }
+    if (!nonEmpty(row.updatedAt)) {
+      dropped.push({ id: row.id, reason: 'updated-at' });
+      continue;
+    }
+    kept.push({
+      id: row.id,
+      conversationId: row.conversationId,
+      payload,
+      updatedAt: row.updatedAt,
+    });
+  }
+  return { kept, dropped };
+}
+
+function keepModelRuns(
+  rows: readonly LegacyModelRunInput[],
+  projectId: string | undefined,
+): { kept: LegacyModelRun[]; dropped: { id: string; reason: 'wrong-project' | 'shape' }[] } {
+  const kept: LegacyModelRun[] = [];
+  const dropped: { id: string; reason: 'wrong-project' | 'shape' }[] = [];
+  for (const row of rows) {
+    if (projectId === undefined || row.textId !== projectId) {
+      dropped.push({ id: row.id, reason: 'wrong-project' });
+      continue;
+    }
+    const params = jsonObject(row.params);
+    const status = row.status;
+    if (
+      row.capability !== 'transcribe' ||
+      params === undefined ||
+      (status !== 'running' && status !== 'ok' && status !== 'error' && status !== 'cancelled') ||
+      !nonEmpty(row.modelId) ||
+      !nonEmpty(row.modelVersion) ||
+      !nonEmpty(row.manifestSha256) ||
+      !nonEmpty(row.mediaId) ||
+      !nonEmpty(row.startedAt) ||
+      (row.finishedAt !== undefined && !nonEmpty(row.finishedAt)) ||
+      (row.errorCode !== undefined && typeof row.errorCode !== 'string') ||
+      !wholeCount(row.chunkCount) ||
+      !wholeCount(row.acceptedCount) ||
+      !wholeCount(row.rejectedCount) ||
+      !wholeCount(row.pendingCount) ||
+      typeof row.rangeStart !== 'number' ||
+      !Number.isFinite(row.rangeStart) ||
+      typeof row.rangeEnd !== 'number' ||
+      !Number.isFinite(row.rangeEnd)
+    ) {
+      dropped.push({ id: row.id, reason: 'shape' });
+      continue;
+    }
+    kept.push({
+      id: row.id,
+      textId: row.textId,
+      modelId: row.modelId,
+      modelVersion: row.modelVersion,
+      manifestSha256: row.manifestSha256,
+      capability: 'transcribe',
+      params,
+      mediaId: row.mediaId,
+      rangeStart: row.rangeStart,
+      rangeEnd: row.rangeEnd,
+      startedAt: row.startedAt,
+      ...(row.finishedAt !== undefined ? { finishedAt: row.finishedAt } : {}),
+      status,
+      ...(row.errorCode !== undefined ? { errorCode: row.errorCode } : {}),
+      chunkCount: row.chunkCount,
+      acceptedCount: row.acceptedCount,
+      rejectedCount: row.rejectedCount,
+      pendingCount: row.pendingCount,
+    });
+  }
+  return { kept, dropped };
+}
+
 function keepMessages(
   rows: readonly LegacyAiMessage[],
   conversationIds: ReadonlySet<string>,
@@ -1553,9 +1746,13 @@ export function planLegacyMigration(
       (library.aiTaskSnapshots?.length ?? 0) > 0 ||
       (library.projectMemories?.length ?? 0) > 0 ||
       (library.agentArtifacts?.length ?? 0) > 0 ||
-      (library.aiSourceSets?.length ?? 0) > 0)
+      (library.aiSourceSets?.length ?? 0) > 0 ||
+      (library.sessionMemories?.length ?? 0) > 0)
   ) {
     return { status: 'rejected', reason: 'ai-without-project' };
+  }
+  if ((library.modelRuns?.length ?? 0) > 0 && library.project === undefined) {
+    return { status: 'rejected', reason: 'model-runs-without-project' };
   }
   if ((library.notes?.length ?? 0) > 0 && library.project === undefined) {
     return { status: 'rejected', reason: 'notes-without-project' };
@@ -1589,6 +1786,11 @@ export function planLegacyMigration(
     library.aiMessages ?? [],
     new Set(ownedConversations.kept.map((conversation) => conversation.id)),
   );
+  const ownedSessionMemories = keepSessionMemories(
+    library.sessionMemories ?? [],
+    new Set(ownedConversations.kept.map((conversation) => conversation.id)),
+  );
+  const ownedModelRuns = keepModelRuns(library.modelRuns ?? [], projectId);
   const aiTasks = library.project === undefined ? [] : [...(library.aiTasks ?? [])];
   const ownedSnapshots = keepSnapshots(
     library.aiTaskSnapshots ?? [],
@@ -1876,6 +2078,10 @@ export function planLegacyMigration(
     agentArtifacts,
     aiSourceSets: ownedSourceSets.kept,
     droppedAiSourceSets: ownedSourceSets.dropped,
+    sessionMemories: ownedSessionMemories.kept,
+    droppedSessionMemories: ownedSessionMemories.dropped,
+    modelRuns: ownedModelRuns.kept,
+    droppedModelRuns: ownedModelRuns.dropped,
     droppedLexemeLinks,
     droppedAnchors,
     droppedContents,
