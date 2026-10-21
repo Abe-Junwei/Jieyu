@@ -15,7 +15,7 @@
  * 自定义字段进项目库，只记 id、所属项目、类型和排序，以及可选的是否必填、上下限和校验式，不进定义副本。多语名称、说明和选项列表还没写。
  * 语言目录历史进项目库，只记 id、所属项目、语言、动作和摘要，以及可选的原因、原因码、操作者、来源类型和来源引用，不进定义副本。变更字段和修改前后的补丁还没写。
  * 语言记录的标量字段进项目库，不进定义副本。数组、行政区划、多语备注和自定义字段值是语言行上的 JSON（ADR-0067），也不进定义副本。
- * 词条另记种类、使用次数和访问权限。词条附件只记种类、媒体类型、显示名、字节数和引用次数，不写二进制。附件链接两端都在留下的行里才保留。DMLex 正文还没写。
+ * 词条另记种类、使用次数和访问权限。DMLex 正文是词条行上的 JSON 对象（ADR-0068），不进定义副本。词条附件只记种类、媒体类型、显示名、字节数和引用次数，不写二进制。附件链接两端都在留下的行里才保留。
  * 结构规则进项目库，只记 id、项目、范围、是否启用和优先级，以及可选的语言和来源模板。规则正文还没写。
  * 项目 AI 进项目库：会话、消息、任务、任务快照、项目记忆、产物、来源集和会话记忆。会话记忆载荷是 JSON 对象（ADR-0066），不进定义副本。`model_runs` 按 ADR-0057 第 8 条进项目库，能力只收 `transcribe`。
  * 锚点跟着录音进对应的 `.jyd`，不进项目库，也不进定义副本。
@@ -360,6 +360,10 @@ export interface LegacyLexeme {
   kind?: 'entry' | 'resource';
   usageCount?: number;
   accessRights?: 'open' | 'restricted' | 'confidential';
+  /** DMLex 词条正文。列是 JSON 对象，schema 仍由词条校验负责。 */
+  entry?: Record<string, unknown>;
+  /** 不含内嵌词条的 DMLex 词典资源。 */
+  resource?: Record<string, unknown>;
 }
 
 export type LegacyLexemeAssetKind = 'image' | 'audio' | 'document';
@@ -786,6 +790,11 @@ export type LegacyMigrationPlan =
       droppedSourceRecords: { id: string; textId: string }[];
       lexemes: LegacyLexeme[];
       droppedLexemes: { id: string; textId: string }[];
+      droppedLexemeBodies: {
+        id: string;
+        field: 'entry' | 'resource';
+        reason: 'shape' | 'kind';
+      }[];
       phonemes: LegacyPhoneme[];
       droppedPhonemes: { id: string; textId: string }[];
       abbreviations: LegacyAbbreviation[];
@@ -1552,6 +1561,31 @@ function settleLanguage(language: LegacyLanguage): {
   return { kept, dropped };
 }
 
+function settleLexeme(lexeme: LegacyLexeme): {
+  kept: LegacyLexeme;
+  dropped: { id: string; field: 'entry' | 'resource'; reason: 'shape' | 'kind' }[];
+} {
+  const kept: LegacyLexeme = { ...lexeme };
+  const dropped: { id: string; field: 'entry' | 'resource'; reason: 'shape' | 'kind' }[] = [];
+  const resourceKind = lexeme.kind === 'resource';
+  const mismatched = resourceKind ? 'entry' : 'resource';
+  const matched = resourceKind ? 'resource' : 'entry';
+  if (lexeme[mismatched] !== undefined) {
+    delete kept[mismatched];
+    dropped.push({ id: lexeme.id, field: mismatched, reason: 'kind' });
+  }
+  if (lexeme[matched] !== undefined) {
+    const body = jsonObject(lexeme[matched]);
+    if (body === undefined) {
+      delete kept[matched];
+      dropped.push({ id: lexeme.id, field: matched, reason: 'shape' });
+    } else {
+      kept[matched] = body;
+    }
+  }
+  return { kept, dropped };
+}
+
 function keepOwned<T extends { id: string; textId: string }>(
   rows: readonly T[],
   projectId: string | undefined,
@@ -1926,7 +1960,13 @@ export function planLegacyMigration(
   const aliasRows = keepOwned(library.aliases ?? [], projectId);
   const ownedAliases = keepByLanguage(aliasRows.kept, ownedLanguageIds);
   const ownedSources = keepOwned(library.sourceRecords ?? [], projectId);
-  const ownedLexemes = keepOwned(library.lexemes ?? [], projectId);
+  const ownedLexemeRows = keepOwned(library.lexemes ?? [], projectId);
+  const settledLexemes = ownedLexemeRows.kept.map(settleLexeme);
+  const ownedLexemes = {
+    kept: settledLexemes.map((row) => row.kept),
+    dropped: ownedLexemeRows.dropped,
+  };
+  const droppedLexemeBodies = settledLexemes.flatMap((row) => row.dropped);
   const ownedPhonemes = keepOwned(library.phonemes ?? [], projectId);
   const ownedAbbreviations = keepOwned(library.abbreviations ?? [], projectId);
   const ownedTags = keepOwned(library.tagDefinitions ?? [], projectId);
@@ -2194,6 +2234,7 @@ export function planLegacyMigration(
     droppedSourceRecords: ownedSources.dropped,
     lexemes: ownedLexemes.kept,
     droppedLexemes: ownedLexemes.dropped,
+    droppedLexemeBodies,
     phonemes: ownedPhonemes.kept,
     droppedPhonemes: ownedPhonemes.dropped,
     abbreviations: ownedAbbreviations.kept,

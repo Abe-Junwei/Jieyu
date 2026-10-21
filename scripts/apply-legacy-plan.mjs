@@ -315,7 +315,7 @@ export function applyPlan(
         'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT)',
       );
       db.exec(
-        'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT)',
+        'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT, entry_json TEXT, resource_json TEXT)',
       );
       db.exec(
         'CREATE TABLE phonemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, ipa TEXT NOT NULL, type TEXT NOT NULL)',
@@ -451,9 +451,15 @@ export function applyPlan(
         );
       }
       const insertLexeme = db.prepare(
-        'INSERT INTO lexemes (id, text_id, headword, kind, usage_count, access_rights) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO lexemes (id, text_id, headword, kind, usage_count, access_rights, entry_json, resource_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       );
       for (const lexeme of plan.lexemes ?? []) {
+        if (lexeme.kind === 'resource' && lexeme.entry !== undefined) {
+          throw new Error(`applyPlan: lexeme ${lexeme.id} resource row has an entry`);
+        }
+        if (lexeme.kind !== 'resource' && lexeme.resource !== undefined) {
+          throw new Error(`applyPlan: lexeme ${lexeme.id} entry row has a resource`);
+        }
         insertLexeme.run(
           lexeme.id,
           lexeme.textId,
@@ -461,6 +467,10 @@ export function applyPlan(
           lexeme.kind ?? null,
           lexeme.usageCount ?? null,
           lexeme.accessRights ?? null,
+          lexeme.entry === undefined ? null : objectJson(lexeme.entry, `lexeme ${lexeme.id} entry`),
+          lexeme.resource === undefined
+            ? null
+            : objectJson(lexeme.resource, `lexeme ${lexeme.id} resource`),
         );
       }
       const insertPhoneme = db.prepare(
@@ -1042,7 +1052,7 @@ export function readProject(dest) {
     .all();
   const lexemes = project
     .prepare(
-      'SELECT id, text_id, headword, kind, usage_count, access_rights FROM lexemes ORDER BY id',
+      'SELECT id, text_id, headword, kind, usage_count, access_rights, entry_json, resource_json FROM lexemes ORDER BY id',
     )
     .all();
   const phonemes = project
@@ -1362,6 +1372,12 @@ export function readProject(dest) {
       ...(lexeme.kind !== null ? { kind: lexeme.kind } : {}),
       ...(lexeme.usage_count !== null ? { usageCount: lexeme.usage_count } : {}),
       ...(lexeme.access_rights !== null ? { accessRights: lexeme.access_rights } : {}),
+      ...(lexeme.entry_json !== null
+        ? { entry: parseObjectColumn(lexeme.entry_json, `lexeme ${lexeme.id} entry`) }
+        : {}),
+      ...(lexeme.resource_json !== null
+        ? { resource: parseObjectColumn(lexeme.resource_json, `lexeme ${lexeme.id} resource`) }
+        : {}),
     })),
     phonemes: phonemes.map((phoneme) => ({
       id: phoneme.id,

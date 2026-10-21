@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { planLegacyMigration, type LegacyLanguage } from './planLegacyMigration';
+import { planLegacyMigration, type LegacyLanguage, type LegacyLexeme } from './planLegacyMigration';
 
 const audioA = { id: 'audio-a', filename: '录音01.wav', bytes: new Uint8Array([1, 2, 3]) };
 const audioB = { id: 'audio-b', filename: '录音02.wav', bytes: new Uint8Array([4, 5]) };
@@ -1705,6 +1705,53 @@ describe('planLegacyMigration', () => {
     expect(plan.manuscripts[0]?.definitions.languages).toEqual([{ id: 'lang-1', name: '语言甲' }]);
   });
 
+  it('keeps a DMLex document on the lexeme row and drops a body that does not match the kind', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      lexemes: [
+        {
+          id: 'lex-1',
+          textId: 'p-1',
+          headword: 'ta',
+          entry: { headword: 'ta' },
+        },
+        {
+          id: 'lex-res',
+          textId: 'p-1',
+          headword: '资源',
+          kind: 'resource',
+          resource: { title: '合成' },
+          entry: { headword: '资源' },
+        },
+        {
+          id: 'lex-bad',
+          textId: 'p-1',
+          headword: '坏',
+          entry: ['不是对象'],
+        } as unknown as LegacyLexeme,
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.lexemes).toEqual([
+      { id: 'lex-1', textId: 'p-1', headword: 'ta', entry: { headword: 'ta' } },
+      {
+        id: 'lex-res',
+        textId: 'p-1',
+        headword: '资源',
+        kind: 'resource',
+        resource: { title: '合成' },
+      },
+      { id: 'lex-bad', textId: 'p-1', headword: '坏' },
+    ]);
+    expect(plan.droppedLexemeBodies).toEqual([
+      { id: 'lex-res', field: 'entry', reason: 'kind' },
+      { id: 'lex-bad', field: 'entry', reason: 'shape' },
+    ]);
+    expect(plan.manuscripts[0]?.lexemeLinks).toEqual([]);
+  });
+
   it('writes a ready plan and reads the same ids back', () => {
     const plan = planLegacyMigration({
       ...library(),
@@ -1799,6 +1846,7 @@ describe('planLegacyMigration', () => {
           kind: 'entry',
           usageCount: 2,
           accessRights: 'restricted',
+          entry: { headword: 'ta', senses: [{ definition: '合成' }] },
         },
       ],
       phonemes: [{ id: 'ph-1', textId: 'p-1', languageId: 'lang-1', ipa: 't', type: 'consonant' }],
@@ -2083,6 +2131,7 @@ describe('planLegacyMigration', () => {
             kind: 'entry',
             usageCount: 2,
             accessRights: 'restricted',
+            entry: { headword: 'ta', senses: [{ definition: '合成' }] },
           },
         ],
         phonemes: [

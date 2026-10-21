@@ -29,7 +29,8 @@ depends_on:
 - [x] 会话记忆载荷：项目库 `ai_session_memories.payload_json`，JSON 对象，不进定义副本（ADR-0066）。关掉再打开读回 → 验证：`npx vitest run src/db/projectFiles/planLegacyMigration.test.ts`
 - [x] `model_runs`：按 ADR-0057 第 8 条建在项目库，能力只收 `transcribe`。关掉再打开读回 → 验证：同上
 - [x] 语言记录上的数组、行政区划、多语备注和自定义字段值：语言行上的 JSON（ADR-0067），不进定义副本。关掉再打开读回 → 验证：`npx vitest run src/db/projectFiles/planLegacyMigration.test.ts`
-- [ ] 仍不写：词条 DMLex 正文、结构规则正文、正字法转换规则与样例、车道锁定表。词条、标签、自定义字段、缩写是否进定义副本仍待定。不读 IndexedDB，不放进定义副本。列形状仍在 [#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 一块一块定 → 验证：还没写
+- [x] 词条 DMLex 正文：词条行上的 `entry_json` 或 `resource_json`（ADR-0068），不进定义副本。关掉再打开读回 → 验证：`npx vitest run src/db/projectFiles/planLegacyMigration.test.ts`
+- [ ] 仍不写：结构规则正文、正字法转换规则与样例、车道锁定表。词条、标签、自定义字段、缩写是否进定义副本仍待定。不读 IndexedDB，不放进定义副本。列形状仍在 [#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 一块一块定 → 验证：还没写
 
 ## Pre-merge gates
 
