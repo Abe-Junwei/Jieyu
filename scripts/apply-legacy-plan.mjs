@@ -53,6 +53,18 @@ const LANGUAGE_EXTRAS = [
   ['visibility', 'visibility', 'TEXT'],
 ];
 
+const LANGUAGE_JSON = [
+  ['countries', 'countries'],
+  ['countriesOfficial', 'countries_official'],
+  ['administrativeDivisions', 'administrative_divisions'],
+  ['domains', 'domains'],
+  ['dialects', 'dialects'],
+  ['vernaculars', 'vernaculars'],
+  ['writingSystems', 'writing_systems'],
+  ['notes', 'notes'],
+  ['customFields', 'custom_fields'],
+];
+
 function objectJson(value, label) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error(`applyPlan: ${label} is not an object`);
@@ -288,7 +300,7 @@ export function applyPlan(
         'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL)',
       );
       db.exec(
-        `CREATE TABLE languages (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, ${LANGUAGE_EXTRAS.map(([, column, type]) => `${column} ${type}`).join(', ')})`,
+        `CREATE TABLE languages (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, ${LANGUAGE_EXTRAS.map(([, column, type]) => `${column} ${type}`).join(', ')}, ${LANGUAGE_JSON.map(([, column]) => `${column} TEXT`).join(', ')})`,
       );
       db.exec(
         'CREATE TABLE language_display_names (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, locale TEXT NOT NULL, value TEXT NOT NULL)',
@@ -384,7 +396,7 @@ export function applyPlan(
         insertSpeaker.run(speaker.id, speaker.textId, speaker.name);
       }
       const insertLanguage = db.prepare(
-        `INSERT INTO languages (id, text_id, name, ${LANGUAGE_EXTRAS.map(([, column]) => column).join(', ')}) VALUES (${['?', '?', '?', ...LANGUAGE_EXTRAS.map(() => '?')].join(', ')})`,
+        `INSERT INTO languages (id, text_id, name, ${[...LANGUAGE_EXTRAS.map(([, column]) => column), ...LANGUAGE_JSON.map(([, column]) => column)].join(', ')}) VALUES (${['?', '?', '?', ...LANGUAGE_EXTRAS.map(() => '?'), ...LANGUAGE_JSON.map(() => '?')].join(', ')})`,
       );
       for (const language of plan.languages ?? []) {
         insertLanguage.run(
@@ -392,6 +404,9 @@ export function applyPlan(
           language.textId,
           language.name,
           ...LANGUAGE_EXTRAS.map(([camel]) => language[camel] ?? null),
+          ...LANGUAGE_JSON.map(([camel]) =>
+            language[camel] === undefined ? null : JSON.stringify(language[camel]),
+          ),
         );
       }
       const insertDisplayName = db.prepare(
@@ -1006,7 +1021,7 @@ export function readProject(dest) {
   const speakers = project.prepare('SELECT id, text_id, name FROM speakers ORDER BY id').all();
   const languages = project
     .prepare(
-      `SELECT id, text_id, name, ${LANGUAGE_EXTRAS.map(([, column]) => column).join(', ')} FROM languages ORDER BY id`,
+      `SELECT id, text_id, name, ${[...LANGUAGE_EXTRAS.map(([, column]) => column), ...LANGUAGE_JSON.map(([, column]) => column)].join(', ')} FROM languages ORDER BY id`,
     )
     .all();
   const displayNames = project
@@ -1311,6 +1326,15 @@ export function readProject(dest) {
       textId: language.text_id,
       name: language.name,
       ...definedFields(language, LANGUAGE_EXTRAS),
+      ...definedFields(
+        Object.fromEntries(
+          LANGUAGE_JSON.map(([, column]) => [
+            column,
+            language[column] === null ? null : JSON.parse(language[column]),
+          ]),
+        ),
+        LANGUAGE_JSON,
+      ),
     })),
     displayNames: displayNames.map((displayName) => ({
       id: displayName.id,

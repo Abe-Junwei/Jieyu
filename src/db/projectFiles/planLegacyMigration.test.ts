@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { planLegacyMigration } from './planLegacyMigration';
+import { planLegacyMigration, type LegacyLanguage } from './planLegacyMigration';
 
 const audioA = { id: 'audio-a', filename: '录音01.wav', bytes: new Uint8Array([1, 2, 3]) };
 const audioB = { id: 'audio-b', filename: '录音02.wav', bytes: new Uint8Array([4, 5]) };
@@ -1662,6 +1662,49 @@ describe('planLegacyMigration', () => {
     expect(plan.manuscripts[0]?.definitions).toEqual(emptyDefinitions);
   });
 
+  it('keeps language document fields on the project row and out of the definition copy', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      layers: [{ id: 'layer-1', documentId: 'doc-1', languageId: 'lang-1' }],
+      languages: [
+        {
+          id: 'lang-1',
+          textId: 'p-1',
+          name: '语言甲',
+          countries: ['CN'],
+          vernaculars: [],
+          notes: { zh: '备注' },
+          customFields: { count: 1, flag: false, tags: ['a'] },
+        },
+        {
+          id: 'lang-bad',
+          textId: 'p-1',
+          name: '残缺',
+          countries: 'CN',
+          domains: ['home', 'nope'],
+          notes: ['备注'],
+        } as unknown as LegacyLanguage,
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.languages.map((language) => language.id)).toEqual(['lang-1', 'lang-bad']);
+    expect(plan.languages[0]).toMatchObject({
+      countries: ['CN'],
+      vernaculars: [],
+      notes: { zh: '备注' },
+      customFields: { count: 1, flag: false, tags: ['a'] },
+    });
+    expect(plan.languages[1]).toEqual({ id: 'lang-bad', textId: 'p-1', name: '残缺' });
+    expect(plan.droppedLanguageFields).toEqual([
+      { id: 'lang-bad', field: 'countries', reason: 'shape' },
+      { id: 'lang-bad', field: 'domains', reason: 'shape' },
+      { id: 'lang-bad', field: 'notes', reason: 'shape' },
+    ]);
+    expect(plan.manuscripts[0]?.definitions.languages).toEqual([{ id: 'lang-1', name: '语言甲' }]);
+  });
+
   it('writes a ready plan and reads the same ids back', () => {
     const plan = planLegacyMigration({
       ...library(),
@@ -1735,6 +1778,12 @@ describe('planLegacyMigration', () => {
           iso6393: 'zzz',
           glottocode: 'abcd1234',
           speakerCountL1: 0,
+          countries: ['CN'],
+          administrativeDivisions: [{ country: 'CN', province: '四川' }],
+          domains: ['home'],
+          vernaculars: [],
+          notes: { zh: '备注' },
+          customFields: { count: 1, flag: true, tags: ['a'] },
         },
       ],
       displayNames: [
@@ -2003,6 +2052,12 @@ describe('planLegacyMigration', () => {
             iso6393: 'zzz',
             glottocode: 'abcd1234',
             speakerCountL1: 0,
+            countries: ['CN'],
+            administrativeDivisions: [{ country: 'CN', province: '四川' }],
+            domains: ['home'],
+            vernaculars: [],
+            notes: { zh: '备注' },
+            customFields: { count: 1, flag: true, tags: ['a'] },
           },
         ],
         displayNames: [

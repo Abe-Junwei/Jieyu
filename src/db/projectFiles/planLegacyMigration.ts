@@ -14,7 +14,7 @@
  * 正字法转换进项目库，只记 id、所属项目、两端正字法和转换方式，以及可选的状态和是否可逆，不进定义副本。规则正文、样例和多语名称还没写。
  * 自定义字段进项目库，只记 id、所属项目、类型和排序，以及可选的是否必填、上下限和校验式，不进定义副本。多语名称、说明和选项列表还没写。
  * 语言目录历史进项目库，只记 id、所属项目、语言、动作和摘要，以及可选的原因、原因码、操作者、来源类型和来源引用，不进定义副本。变更字段和修改前后的补丁还没写。
- * 语言记录的标量字段进项目库，不进定义副本。数组、行政区划、多语备注和自定义字段值还没写。
+ * 语言记录的标量字段进项目库，不进定义副本。数组、行政区划、多语备注和自定义字段值是语言行上的 JSON（ADR-0067），也不进定义副本。
  * 词条另记种类、使用次数和访问权限。词条附件只记种类、媒体类型、显示名、字节数和引用次数，不写二进制。附件链接两端都在留下的行里才保留。DMLex 正文还没写。
  * 结构规则进项目库，只记 id、项目、范围、是否启用和优先级，以及可选的语言和来源模板。规则正文还没写。
  * 项目 AI 进项目库：会话、消息、任务、任务快照、项目记忆、产物、来源集和会话记忆。会话记忆载荷是 JSON 对象（ADR-0066），不进定义副本。`model_runs` 按 ADR-0057 第 8 条进项目库，能力只收 `transcribe`。
@@ -220,7 +220,65 @@ export interface LegacyLanguage {
   sourceType?: string;
   reviewStatus?: string;
   visibility?: string;
+  countries?: string[];
+  countriesOfficial?: string[];
+  administrativeDivisions?: LegacyAdministrativeDivision[];
+  domains?: LegacyLanguageDomain[];
+  dialects?: string[];
+  vernaculars?: string[];
+  writingSystems?: string[];
+  notes?: Record<string, string>;
+  customFields?: Record<string, LegacyCustomFieldValue>;
 }
+
+export interface LegacyAdministrativeDivision {
+  country?: string;
+  province?: string;
+  city?: string;
+  county?: string;
+  township?: string;
+  village?: string;
+  freeText?: string;
+}
+
+export type LegacyLanguageDomain =
+  'home' | 'education' | 'government' | 'media' | 'religion' | 'commerce' | 'literature';
+
+export type LegacyCustomFieldValue = string | number | boolean | string[];
+
+const LANGUAGE_DOMAINS: readonly LegacyLanguageDomain[] = [
+  'home',
+  'education',
+  'government',
+  'media',
+  'religion',
+  'commerce',
+  'literature',
+];
+
+const DIVISION_KEYS = [
+  'country',
+  'province',
+  'city',
+  'county',
+  'township',
+  'village',
+  'freeText',
+] as const;
+
+const LANGUAGE_JSON_FIELDS = [
+  'countries',
+  'countriesOfficial',
+  'administrativeDivisions',
+  'domains',
+  'dialects',
+  'vernaculars',
+  'writingSystems',
+  'notes',
+  'customFields',
+] as const;
+
+type LanguageJsonField = (typeof LANGUAGE_JSON_FIELDS)[number];
 
 export interface LegacyLanguageDisplayName {
   id: string;
@@ -720,6 +778,7 @@ export type LegacyMigrationPlan =
       speakers: { id: string; textId: string; name: string }[];
       droppedSpeakers: { id: string; textId: string }[];
       languages: LegacyLanguage[];
+      droppedLanguageFields: { id: string; field: LanguageJsonField; reason: 'shape' }[];
       displayNames: LegacyLanguageDisplayName[];
       aliases: LegacyLanguageAlias[];
       orthographies: LegacyOrthography[];
@@ -1399,6 +1458,100 @@ function keepAssetLinks(
   return { kept, dropped };
 }
 
+function stringList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) return undefined;
+  return value.slice();
+}
+
+function divisionList(value: unknown): LegacyAdministrativeDivision[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const kept: LegacyAdministrativeDivision[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) return undefined;
+    const source = item as Record<string, unknown>;
+    const row: LegacyAdministrativeDivision = {};
+    for (const key of Object.keys(source)) {
+      if (!DIVISION_KEYS.includes(key as (typeof DIVISION_KEYS)[number])) return undefined;
+      const field = source[key];
+      if (field === undefined) continue;
+      if (typeof field !== 'string') return undefined;
+      row[key as keyof LegacyAdministrativeDivision] = field;
+    }
+    kept.push(row);
+  }
+  return kept;
+}
+
+function domainList(value: unknown): LegacyLanguageDomain[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const kept: LegacyLanguageDomain[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string' || !LANGUAGE_DOMAINS.includes(item as LegacyLanguageDomain)) {
+      return undefined;
+    }
+    kept.push(item as LegacyLanguageDomain);
+  }
+  return kept;
+}
+
+function stringMap(value: unknown): Record<string, string> | undefined {
+  const object = jsonObject(value);
+  if (object === undefined) return undefined;
+  if (Object.values(object).some((item) => typeof item !== 'string')) return undefined;
+  return object as Record<string, string>;
+}
+
+function customFieldMap(value: unknown): Record<string, LegacyCustomFieldValue> | undefined {
+  const object = jsonObject(value);
+  if (object === undefined) return undefined;
+  const out: Record<string, LegacyCustomFieldValue> = {};
+  for (const [key, item] of Object.entries(object)) {
+    if (typeof item === 'string' || typeof item === 'boolean') {
+      out[key] = item;
+      continue;
+    }
+    if (typeof item === 'number' && Number.isFinite(item)) {
+      out[key] = item;
+      continue;
+    }
+    const list = stringList(item);
+    if (list !== undefined) {
+      out[key] = list;
+      continue;
+    }
+    return undefined;
+  }
+  return out;
+}
+
+function parseLanguageField(field: LanguageJsonField, value: unknown): unknown {
+  if (field === 'administrativeDivisions') return divisionList(value);
+  if (field === 'domains') return domainList(value);
+  if (field === 'notes') return stringMap(value);
+  if (field === 'customFields') return customFieldMap(value);
+  return stringList(value);
+}
+
+function settleLanguage(language: LegacyLanguage): {
+  kept: LegacyLanguage;
+  dropped: { id: string; field: LanguageJsonField; reason: 'shape' }[];
+} {
+  const kept: LegacyLanguage = { ...language };
+  const dropped: { id: string; field: LanguageJsonField; reason: 'shape' }[] = [];
+  for (const field of LANGUAGE_JSON_FIELDS) {
+    const value = language[field];
+    if (value === undefined) continue;
+    const parsed = parseLanguageField(field, value);
+    if (parsed === undefined) {
+      delete kept[field];
+      dropped.push({ id: language.id, field, reason: 'shape' });
+      continue;
+    }
+    kept[field] = parsed as never;
+  }
+  return { kept, dropped };
+}
+
 function keepOwned<T extends { id: string; textId: string }>(
   rows: readonly T[],
   projectId: string | undefined,
@@ -1759,7 +1912,13 @@ export function planLegacyMigration(
   }
 
   const projectId = library.project?.id;
-  const ownedLanguages = keepOwned(library.languages ?? [], projectId);
+  const ownedLanguageRows = keepOwned(library.languages ?? [], projectId);
+  const settledLanguages = ownedLanguageRows.kept.map(settleLanguage);
+  const ownedLanguages = {
+    kept: settledLanguages.map((row) => row.kept),
+    dropped: ownedLanguageRows.dropped,
+  };
+  const droppedLanguageFields = settledLanguages.flatMap((row) => row.dropped);
   const ownedOrthographies = keepOwned(library.orthographies ?? [], projectId);
   const ownedLanguageIds = new Set(ownedLanguages.kept.map((language) => language.id));
   const displayNameRows = keepOwned(library.displayNames ?? [], projectId);
@@ -2027,6 +2186,7 @@ export function planLegacyMigration(
     speakers,
     droppedSpeakers,
     languages: ownedLanguages.kept,
+    droppedLanguageFields,
     displayNames: ownedDisplayNames.kept,
     aliases: ownedAliases.kept,
     orthographies: ownedOrthographies.kept,
