@@ -11,19 +11,19 @@
  * 文献来源进项目库，只记 id、所属项目、标题，以及可选的年份、类型、引用键和访问权限，不进定义副本。作者、出版方、DOI、链接和备注还没写。
  * 地点进项目库，只记 id、所属项目，以及可选的纬度、经度、地区和国家，不进定义副本。多语名称和备注还没写。
  * 语法文档进项目库，记 id、所属项目、标题和正文，以及可选的排序、访问权限和同一项目内的父级，不进定义副本。关联来源和例证还没写。
- * 正字法转换进项目库，只记 id、所属项目、两端正字法和转换方式，以及可选的状态和是否可逆，不进定义副本。规则正文、样例和多语名称还没写。
+ * 正字法转换进项目库，只记 id、所属项目、两端正字法和转换方式，以及可选的状态和是否可逆，不进定义副本。多语名称、规则、样例和备注是行上的 JSON 或文本（ADR-0069），也不进定义副本。
  * 自定义字段进项目库，只记 id、所属项目、类型和排序，以及可选的是否必填、上下限和校验式，不进定义副本。多语名称、说明和选项列表还没写。
  * 语言目录历史进项目库，只记 id、所属项目、语言、动作和摘要，以及可选的原因、原因码、操作者、来源类型和来源引用，不进定义副本。变更字段和修改前后的补丁还没写。
  * 语言记录的标量字段进项目库，不进定义副本。数组、行政区划、多语备注和自定义字段值是语言行上的 JSON（ADR-0067），也不进定义副本。
  * 词条另记种类、使用次数和访问权限。DMLex 正文是词条行上的 JSON 对象（ADR-0068），不进定义副本。词条附件只记种类、媒体类型、显示名、字节数和引用次数，不写二进制。附件链接两端都在留下的行里才保留。
- * 结构规则进项目库，只记 id、项目、范围、是否启用和优先级，以及可选的语言和来源模板。规则正文还没写。
+ * 结构规则进项目库，只记 id、项目、范围、是否启用和优先级，以及可选的语言和来源模板。规则正文是行上的 JSON 对象（ADR-0069），不进定义副本。完整 schema 仍由结构规则校验负责。
  * 项目 AI 进项目库：会话、消息、任务、任务快照、项目记忆、产物、来源集和会话记忆。会话记忆载荷是 JSON 对象（ADR-0066），不进定义副本。`model_runs` 按 ADR-0057 第 8 条进项目库，能力只收 `transcribe`。
  * 锚点跟着录音进对应的 `.jyd`，不进项目库，也不进定义副本。
  * 层内容跟着语段进 `.jyd`，只记 id、语段、角色和文本。
  * 两端都在同一份文稿里的单元关系写进该 `.jyd`。跨文稿的不存。
  * 指语段、词、词素的备注随那份文稿。指语言、说话人、正字法、词条或项目行的备注进项目库。
  * 两端层都在同一份文稿里的层链接写进该 `.jyd`。拆开后不在同一份文件里的不存。
- * 轨道跟着录音进对应的 `.jyd`。车道锁定表还没写。
+ * 轨道跟着录音进对应的 `.jyd`。车道锁定表是轨道行上的 JSON（ADR-0069）。
  * 层标注跟着所在的层进 `.jyd`，只记 id、层、文本、是否已核和可选起止时间。同一层出现在多份文稿时不复制。
  * 层对不上的语段、词和词素记入丢弃，不进文稿。显示名和别名带项目 id，别的项目即使语言号相同也不进。
  * 没有语段引用的音频也写出，看板上是录音卡片（ADR-0061 第 3 条）。
@@ -113,6 +113,8 @@ export interface LegacyTrack {
   id: string;
   mediaId: string;
   mode: LegacyTrackMode;
+  /** 车道号 → 锁定值。空对象也写。值必须是有限数字。 */
+  laneLockMap?: Record<string, number>;
 }
 
 export interface LegacyAnnotation {
@@ -304,6 +306,26 @@ export interface LegacyOrthography {
 
 export type LegacyOrthographyBridgeEngine = 'table-map' | 'icu-rule' | 'manual';
 
+const ORTHOGRAPHY_NORMALIZATIONS = ['NFC', 'NFD', 'NFKC', 'NFKD'] as const;
+
+type OrthographyNormalization = (typeof ORTHOGRAPHY_NORMALIZATIONS)[number];
+
+export interface LegacyOrthographyBridgeRules {
+  mappings?: { from: string; to: string }[];
+  ruleText?: string;
+  normalizeInput?: OrthographyNormalization;
+  normalizeOutput?: OrthographyNormalization;
+  caseSensitive?: boolean;
+}
+
+export interface LegacyOrthographySampleCase {
+  input: string;
+  expectedOutput?: string;
+}
+
+type BridgeDocumentField =
+  'name' | 'rules' | 'sampleInput' | 'sampleOutput' | 'sampleCases' | 'notes';
+
 export type LegacyCatalogHistoryAction = 'create' | 'update' | 'delete';
 
 export interface LegacyCatalogHistory {
@@ -342,6 +364,12 @@ export interface LegacyOrthographyBridge {
   engine: LegacyOrthographyBridgeEngine;
   status?: 'draft' | 'active' | 'deprecated';
   isReversible?: boolean;
+  name?: Record<string, string>;
+  rules?: LegacyOrthographyBridgeRules;
+  sampleInput?: string;
+  sampleOutput?: string;
+  sampleCases?: LegacyOrthographySampleCase[];
+  notes?: Record<string, string>;
 }
 
 export interface LegacySourceRecord {
@@ -395,6 +423,8 @@ export interface LegacyStructuralRule {
   derivedFromSystemId?: string;
   enabled: boolean;
   priority: number;
+  /** 结构规则正文。列是 JSON 对象，schema 仍由结构规则校验负责。 */
+  profile?: Record<string, unknown>;
 }
 
 export interface LegacyAiConversation {
@@ -810,6 +840,7 @@ export type LegacyMigrationPlan =
       droppedGrammarParents: { id: string; parentId: string }[];
       orthographyBridges: LegacyOrthographyBridge[];
       droppedOrthographyBridges: { id: string; textId: string }[];
+      droppedBridgeFields: { id: string; field: BridgeDocumentField; reason: 'shape' }[];
       customFields: LegacyCustomField[];
       droppedCustomFields: { id: string; textId: string }[];
       catalogHistory: LegacyCatalogHistory[];
@@ -826,6 +857,7 @@ export type LegacyMigrationPlan =
       }[];
       structuralRules: LegacyStructuralRule[];
       droppedStructuralRules: { id: string; projectId: string }[];
+      droppedRuleProfiles: { id: string; reason: 'shape' }[];
       conversations: LegacyAiConversation[];
       droppedConversations: { id: string; textId: string }[];
       aiMessages: LegacyAiMessage[];
@@ -854,6 +886,7 @@ export type LegacyMigrationPlan =
       droppedNoteTargets: { id: string; targetType: LegacyNoteTarget; targetId: string }[];
       droppedLayerLinks: DroppedLayerLink[];
       droppedTracks: { id: string; mediaId: string }[];
+      droppedLaneLocks: { id: string; reason: 'shape' }[];
       droppedAnnotations: DroppedAnnotation[];
       droppedSourceRefs: DroppedSourceRef[];
       copiedIds: CopiedId[];
@@ -1586,6 +1619,149 @@ function settleLexeme(lexeme: LegacyLexeme): {
   return { kept, dropped };
 }
 
+function bridgeRules(value: unknown): LegacyOrthographyBridgeRules | undefined {
+  const object = jsonObject(value);
+  if (object === undefined) return undefined;
+  const allowed = new Set([
+    'mappings',
+    'ruleText',
+    'normalizeInput',
+    'normalizeOutput',
+    'caseSensitive',
+  ]);
+  if (Object.keys(object).some((key) => !allowed.has(key))) return undefined;
+  const rules: LegacyOrthographyBridgeRules = {};
+  if (object.mappings !== undefined) {
+    if (!Array.isArray(object.mappings)) return undefined;
+    const mappings: { from: string; to: string }[] = [];
+    for (const item of object.mappings) {
+      if (typeof item !== 'object' || item === null || Array.isArray(item)) return undefined;
+      const row = item as Record<string, unknown>;
+      if (Object.keys(row).some((key) => key !== 'from' && key !== 'to')) return undefined;
+      if (typeof row.from !== 'string' || typeof row.to !== 'string') return undefined;
+      mappings.push({ from: row.from, to: row.to });
+    }
+    rules.mappings = mappings;
+  }
+  if (object.ruleText !== undefined) {
+    if (typeof object.ruleText !== 'string') return undefined;
+    rules.ruleText = object.ruleText;
+  }
+  for (const field of ['normalizeInput', 'normalizeOutput'] as const) {
+    if (object[field] === undefined) continue;
+    if (
+      typeof object[field] !== 'string' ||
+      !ORTHOGRAPHY_NORMALIZATIONS.includes(object[field] as OrthographyNormalization)
+    ) {
+      return undefined;
+    }
+    rules[field] = object[field] as OrthographyNormalization;
+  }
+  if (object.caseSensitive !== undefined) {
+    if (typeof object.caseSensitive !== 'boolean') return undefined;
+    rules.caseSensitive = object.caseSensitive;
+  }
+  return rules;
+}
+
+function sampleCases(value: unknown): LegacyOrthographySampleCase[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const cases: LegacyOrthographySampleCase[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) return undefined;
+    const row = item as Record<string, unknown>;
+    if (Object.keys(row).some((key) => key !== 'input' && key !== 'expectedOutput')) {
+      return undefined;
+    }
+    if (typeof row.input !== 'string') return undefined;
+    const sample: LegacyOrthographySampleCase = { input: row.input };
+    if (row.expectedOutput !== undefined) {
+      if (typeof row.expectedOutput !== 'string') return undefined;
+      sample.expectedOutput = row.expectedOutput;
+    }
+    cases.push(sample);
+  }
+  return cases;
+}
+
+function laneLockMap(value: unknown): Record<string, number> | undefined {
+  const object = jsonObject(value);
+  if (object === undefined) return undefined;
+  const out: Record<string, number> = {};
+  for (const [key, item] of Object.entries(object)) {
+    if (typeof item !== 'number' || !Number.isFinite(item)) return undefined;
+    out[key] = item;
+  }
+  return out;
+}
+
+function settleBridge(bridge: LegacyOrthographyBridge): {
+  kept: LegacyOrthographyBridge;
+  dropped: { id: string; field: BridgeDocumentField; reason: 'shape' }[];
+} {
+  const kept: LegacyOrthographyBridge = { ...bridge };
+  const dropped: { id: string; field: BridgeDocumentField; reason: 'shape' }[] = [];
+  const drop = (field: BridgeDocumentField) => {
+    delete kept[field];
+    dropped.push({ id: bridge.id, field, reason: 'shape' });
+  };
+  if (bridge.name !== undefined) {
+    const name = stringMap(bridge.name);
+    if (name === undefined) drop('name');
+    else kept.name = name;
+  }
+  if (bridge.rules !== undefined) {
+    const rules = bridgeRules(bridge.rules);
+    if (rules === undefined) drop('rules');
+    else kept.rules = rules;
+  }
+  if (bridge.sampleInput !== undefined && typeof bridge.sampleInput !== 'string') {
+    drop('sampleInput');
+  }
+  if (bridge.sampleOutput !== undefined && typeof bridge.sampleOutput !== 'string') {
+    drop('sampleOutput');
+  }
+  if (bridge.sampleCases !== undefined) {
+    const cases = sampleCases(bridge.sampleCases);
+    if (cases === undefined) drop('sampleCases');
+    else kept.sampleCases = cases;
+  }
+  if (bridge.notes !== undefined) {
+    const notes = stringMap(bridge.notes);
+    if (notes === undefined) drop('notes');
+    else kept.notes = notes;
+  }
+  return { kept, dropped };
+}
+
+function settleStructuralRule(rule: LegacyStructuralRule): {
+  kept: LegacyStructuralRule;
+  dropped: { id: string; reason: 'shape' }[];
+} {
+  if (rule.profile === undefined) return { kept: { ...rule }, dropped: [] };
+  const profile = jsonObject(rule.profile);
+  if (profile === undefined) {
+    const kept: LegacyStructuralRule = { ...rule };
+    delete kept.profile;
+    return { kept, dropped: [{ id: rule.id, reason: 'shape' }] };
+  }
+  return { kept: { ...rule, profile }, dropped: [] };
+}
+
+function settleTrack(track: LegacyTrack): {
+  kept: LegacyTrack;
+  dropped: { id: string; reason: 'shape' }[];
+} {
+  if (track.laneLockMap === undefined) return { kept: { ...track }, dropped: [] };
+  const locks = laneLockMap(track.laneLockMap);
+  if (locks === undefined) {
+    const kept: LegacyTrack = { ...track };
+    delete kept.laneLockMap;
+    return { kept, dropped: [{ id: track.id, reason: 'shape' }] };
+  }
+  return { kept: { ...track, laneLockMap: locks }, dropped: [] };
+}
+
 function keepOwned<T extends { id: string; textId: string }>(
   rows: readonly T[],
   projectId: string | undefined,
@@ -1974,12 +2150,24 @@ export function planLegacyMigration(
   const ownedLocations = keepOwned(library.locations ?? [], projectId);
   const ownedGrammar = keepOwned(library.grammarDocs ?? [], projectId);
   const grammarDocs = plannedGrammarDocs(ownedGrammar.kept);
-  const ownedBridges = keepOwned(library.orthographyBridges ?? [], projectId);
+  const ownedBridgeRows = keepOwned(library.orthographyBridges ?? [], projectId);
+  const settledBridges = ownedBridgeRows.kept.map(settleBridge);
+  const ownedBridges = {
+    kept: settledBridges.map((row) => row.kept),
+    dropped: ownedBridgeRows.dropped,
+  };
+  const droppedBridgeFields = settledBridges.flatMap((row) => row.dropped);
   const ownedCustomFields = keepOwned(library.customFields ?? [], projectId);
   const ownedCatalogHistory = keepOwned(library.catalogHistory ?? [], projectId);
   const ownedLexemeAssets = keepOwned(library.lexemeAssets ?? [], projectId);
   const ownedLexemeAssetLinkRows = keepOwned(library.lexemeAssetLinks ?? [], projectId);
-  const ownedStructuralRules = keepByProjectId(library.structuralRules ?? [], projectId);
+  const ownedStructuralRuleRows = keepByProjectId(library.structuralRules ?? [], projectId);
+  const settledStructuralRules = ownedStructuralRuleRows.kept.map(settleStructuralRule);
+  const ownedStructuralRules = {
+    kept: settledStructuralRules.map((row) => row.kept),
+    dropped: ownedStructuralRuleRows.dropped,
+  };
+  const droppedRuleProfiles = settledStructuralRules.flatMap((row) => row.dropped);
   const ownedConversations = keepConversations(library.conversations ?? [], projectId);
   const ownedMessages = keepMessages(
     library.aiMessages ?? [],
@@ -2194,7 +2382,12 @@ export function planLegacyMigration(
   }
   const droppedRelations = assignUnitRelations(library.relations ?? [], manuscripts);
   const droppedLayerLinks = assignLayerLinks(library.layerLinks ?? [], manuscripts);
-  const droppedTracks = assignTracks(library.tracks ?? [], manuscripts);
+  const settledTracks = (library.tracks ?? []).map(settleTrack);
+  const droppedLaneLocks = settledTracks.flatMap((row) => row.dropped);
+  const droppedTracks = assignTracks(
+    settledTracks.map((row) => row.kept),
+    manuscripts,
+  );
   const droppedAnnotations = assignAnnotations(library.annotations ?? [], manuscripts);
   const ownedNotes = keepOwned(library.notes ?? [], projectId);
   const assignedNotes = assignNotes(ownedNotes.kept, manuscripts, projectId, {
@@ -2250,6 +2443,7 @@ export function planLegacyMigration(
     droppedGrammarParents: grammarDocs.droppedParents,
     orthographyBridges: ownedBridges.kept,
     droppedOrthographyBridges: ownedBridges.dropped,
+    droppedBridgeFields,
     customFields: ownedCustomFields.kept,
     droppedCustomFields: ownedCustomFields.dropped,
     catalogHistory: ownedCatalogHistory.kept,
@@ -2267,6 +2461,7 @@ export function planLegacyMigration(
     ],
     structuralRules: ownedStructuralRules.kept,
     droppedStructuralRules: ownedStructuralRules.dropped,
+    droppedRuleProfiles,
     conversations: ownedConversations.kept,
     droppedConversations: ownedConversations.dropped,
     aiMessages: ownedMessages.kept,
@@ -2292,6 +2487,7 @@ export function planLegacyMigration(
     droppedNoteTargets: assignedNotes.droppedTargets,
     droppedLayerLinks,
     droppedTracks,
+    droppedLaneLocks,
     droppedAnnotations,
     droppedSourceRefs,
     copiedIds,

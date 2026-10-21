@@ -22,7 +22,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 - `model_runs` 已按 [ADR-0057](../../../adr/0057-model-interface-transcribe.md) 第 8 条建在项目库，不另行设计。能力只收 `transcribe`。
 - 词条 DMLex 正文已定（[ADR-0068](../../../adr/0068-lexeme-dmlex-json.md)）：词条行上的 JSON 对象，不把义项拆成表，不进定义副本。
 - 语言记录上的数组、行政区划、多语备注和自定义字段值已定（[ADR-0067](../../../adr/0067-language-document-json-columns.md)）：语言行上的 JSON，不进定义副本。
-- 结构规则正文、正字法转换规则与样例、车道锁定表。
+- 结构规则正文、正字法转换规则与样例、车道锁定表已定（[ADR-0069](../../../adr/0069-document-bodies-as-json.md)）：规则正文和转换文档在项目库行上，车道锁定表在 `.jyd` 轨道行上。关掉再打开能读回。
 - 词条、标签、自定义字段、缩写要不要进 `.jyd` 的定义副本。
 
 定一块写一块，每块写完关掉重开读回。之后才是存储端口的 SQLite 实现。

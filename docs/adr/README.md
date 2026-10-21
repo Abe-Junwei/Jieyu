@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0069**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0070**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -39,6 +39,7 @@ source_of_truth: decision-index
 | 语言记录上的数组、行政区划、多语备注、自定义字段值 | ADR-0067：项目库语言行上的 JSON 列，不进定义副本 | 为这些值另建子表，或放进 `.jyd` |
 | `model_runs` | ADR-0057 第 8 条，落在项目库 | 写进 `source_records` 或 `.jyd` |
 | 词条 DMLex 正文 | ADR-0068：项目库词条行上的 `entry_json` 或 `resource_json`，不进定义副本 | 把义项、关系、形式拆成子表 |
+| 结构规则正文、正字法转换规则与样例、车道锁定表 | ADR-0069：规则正文和转换文档在项目库行上的 JSON，车道锁定表在 `.jyd` 轨道行上，都不进定义副本 | 把符号、对照和车道号拆成子表 |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -109,6 +110,7 @@ source_of_truth: decision-index
 - [0066-session-memory-payload-json.md](./0066-session-memory-payload-json.md)
 - [0067-language-document-json-columns.md](./0067-language-document-json-columns.md)
 - [0068-lexeme-dmlex-json.md](./0068-lexeme-dmlex-json.md)
+- [0069-document-bodies-as-json.md](./0069-document-bodies-as-json.md)
 
 ## 已关闭的另一套编号
 

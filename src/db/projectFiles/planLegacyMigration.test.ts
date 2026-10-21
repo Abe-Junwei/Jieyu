@@ -3,7 +3,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { planLegacyMigration, type LegacyLanguage, type LegacyLexeme } from './planLegacyMigration';
+import {
+  planLegacyMigration,
+  type LegacyLanguage,
+  type LegacyLexeme,
+  type LegacyOrthographyBridge,
+  type LegacyStructuralRule,
+  type LegacyTrack,
+} from './planLegacyMigration';
 
 const audioA = { id: 'audio-a', filename: '录音01.wav', bytes: new Uint8Array([1, 2, 3]) };
 const audioB = { id: 'audio-b', filename: '录音02.wav', bytes: new Uint8Array([4, 5]) };
@@ -1752,6 +1759,136 @@ describe('planLegacyMigration', () => {
     expect(plan.manuscripts[0]?.lexemeLinks).toEqual([]);
   });
 
+  it('keeps bridge rules, a structural profile, and a lane lock, and drops a bad field', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      orthographyBridges: [
+        {
+          id: 'br-1',
+          textId: 'p-1',
+          sourceOrthographyId: 'orth-1',
+          targetOrthographyId: 'orth-2',
+          engine: 'table-map',
+          name: { zh: '甲' },
+          rules: {
+            mappings: [{ from: '', to: 'ɑ' }],
+            ruleText: '',
+            normalizeInput: 'NFC',
+            normalizeOutput: 'NFD',
+            caseSensitive: false,
+          },
+          sampleInput: '',
+          sampleOutput: 'ɑ',
+          sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }, { input: '' }],
+          notes: {},
+        },
+        {
+          id: 'br-bad',
+          textId: 'p-1',
+          sourceOrthographyId: 'orth-1',
+          targetOrthographyId: 'orth-2',
+          engine: 'manual',
+          name: ['甲'],
+          rules: { extra: true },
+          sampleInput: 1,
+          sampleCases: [{ output: 'x' }],
+          notes: { zh: 1 },
+        } as unknown as LegacyOrthographyBridge,
+      ],
+      structuralRules: [
+        {
+          id: 'rule-1',
+          projectId: 'p-1',
+          scope: 'project',
+          enabled: true,
+          priority: 1,
+          profile: { id: 'rule-1', label: '甲' },
+        },
+        {
+          id: 'rule-bad',
+          projectId: 'p-1',
+          scope: 'language',
+          languageId: 'lang-1',
+          enabled: false,
+          priority: 0,
+          profile: ['不是对象'],
+        } as unknown as LegacyStructuralRule,
+      ],
+      tracks: [
+        { id: 'track-1', mediaId: 'audio-a', mode: 'multi-locked', laneLockMap: { 'lane-1': 0 } },
+        {
+          id: 'track-bad',
+          mediaId: 'audio-a',
+          mode: 'single',
+          laneLockMap: { 'lane-1': '0' },
+        } as unknown as LegacyTrack,
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.orthographyBridges).toEqual([
+      {
+        id: 'br-1',
+        textId: 'p-1',
+        sourceOrthographyId: 'orth-1',
+        targetOrthographyId: 'orth-2',
+        engine: 'table-map',
+        name: { zh: '甲' },
+        rules: {
+          mappings: [{ from: '', to: 'ɑ' }],
+          ruleText: '',
+          normalizeInput: 'NFC',
+          normalizeOutput: 'NFD',
+          caseSensitive: false,
+        },
+        sampleInput: '',
+        sampleOutput: 'ɑ',
+        sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }, { input: '' }],
+        notes: {},
+      },
+      {
+        id: 'br-bad',
+        textId: 'p-1',
+        sourceOrthographyId: 'orth-1',
+        targetOrthographyId: 'orth-2',
+        engine: 'manual',
+      },
+    ]);
+    expect(plan.droppedBridgeFields).toEqual([
+      { id: 'br-bad', field: 'name', reason: 'shape' },
+      { id: 'br-bad', field: 'rules', reason: 'shape' },
+      { id: 'br-bad', field: 'sampleInput', reason: 'shape' },
+      { id: 'br-bad', field: 'sampleCases', reason: 'shape' },
+      { id: 'br-bad', field: 'notes', reason: 'shape' },
+    ]);
+    expect(plan.structuralRules).toEqual([
+      {
+        id: 'rule-1',
+        projectId: 'p-1',
+        scope: 'project',
+        enabled: true,
+        priority: 1,
+        profile: { id: 'rule-1', label: '甲' },
+      },
+      {
+        id: 'rule-bad',
+        projectId: 'p-1',
+        scope: 'language',
+        languageId: 'lang-1',
+        enabled: false,
+        priority: 0,
+      },
+    ]);
+    expect(plan.droppedRuleProfiles).toEqual([{ id: 'rule-bad', reason: 'shape' }]);
+    expect(plan.manuscripts[0]?.tracks).toEqual([
+      { id: 'track-1', mediaId: 'audio-a', mode: 'multi-locked', laneLockMap: { 'lane-1': 0 } },
+      { id: 'track-bad', mediaId: 'audio-a', mode: 'single' },
+    ]);
+    expect(plan.droppedLaneLocks).toEqual([{ id: 'track-bad', reason: 'shape' }]);
+    expect(plan.manuscripts[0]?.definitions).toEqual(emptyDefinitions);
+  });
+
   it('writes a ready plan and reads the same ids back', () => {
     const plan = planLegacyMigration({
       ...library(),
@@ -1781,7 +1918,7 @@ describe('planLegacyMigration', () => {
           isPreferred: true,
         },
       ],
-      tracks: [{ id: 'track-1', mediaId: 'audio-a', mode: 'single' }],
+      tracks: [{ id: 'track-1', mediaId: 'audio-a', mode: 'single', laneLockMap: { 'lane-1': 0 } }],
       annotations: [
         {
           id: 'ann-1',
@@ -1901,6 +2038,12 @@ describe('planLegacyMigration', () => {
           engine: 'table-map',
           status: 'active',
           isReversible: false,
+          name: { zh: '甲' },
+          rules: { mappings: [{ from: 'a', to: 'ɑ' }], caseSensitive: false },
+          sampleInput: 'a',
+          sampleOutput: 'ɑ',
+          sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }],
+          notes: {},
         },
         {
           id: 'br-2',
@@ -1952,7 +2095,14 @@ describe('planLegacyMigration', () => {
       ],
       lexemeAssetLinks: [{ id: 'al-1', textId: 'p-1', lexemeId: 'lex-1', assetId: 'asset-1' }],
       structuralRules: [
-        { id: 'rule-1', projectId: 'p-1', scope: 'project', enabled: true, priority: 1 },
+        {
+          id: 'rule-1',
+          projectId: 'p-1',
+          scope: 'project',
+          enabled: true,
+          priority: 1,
+          profile: { id: 'rule-1', label: '甲' },
+        },
       ],
       conversations: [
         {
@@ -2195,6 +2345,12 @@ describe('planLegacyMigration', () => {
             engine: 'table-map',
             status: 'active',
             isReversible: false,
+            name: { zh: '甲' },
+            rules: { mappings: [{ from: 'a', to: 'ɑ' }], caseSensitive: false },
+            sampleInput: 'a',
+            sampleOutput: 'ɑ',
+            sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }],
+            notes: {},
           },
           {
             id: 'br-2',
@@ -2252,7 +2408,14 @@ describe('planLegacyMigration', () => {
         ],
         lexemeAssetLinks: [{ id: 'al-1', textId: 'p-1', lexemeId: 'lex-1', assetId: 'asset-1' }],
         structuralRules: [
-          { id: 'rule-1', projectId: 'p-1', scope: 'project', enabled: true, priority: 1 },
+          {
+            id: 'rule-1',
+            projectId: 'p-1',
+            scope: 'project',
+            enabled: true,
+            priority: 1,
+            profile: { id: 'rule-1', label: '甲' },
+          },
         ],
         conversations: [
           {
@@ -2344,7 +2507,14 @@ describe('planLegacyMigration', () => {
                 isPreferred: true,
               },
             ],
-            tracks: [{ id: 'track-1', mediaId: 'audio-a', mode: 'single' }],
+            tracks: [
+              {
+                id: 'track-1',
+                mediaId: 'audio-a',
+                mode: 'single',
+                laneLockMap: { 'lane-1': 0 },
+              },
+            ],
             annotations: [
               {
                 id: 'ann-1',
