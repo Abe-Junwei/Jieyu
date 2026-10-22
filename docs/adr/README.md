@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-22
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0066**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0071**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -29,12 +29,17 @@ source_of_truth: decision-index
 | JYT/JYM 是交换包不是活文件；JYB 只在浏览器构建（旧浏览器数据迁入桌面时例外，见 0062 第 6 条）；每日 JYM 快照留 3 份，在含音频的备份通过恢复演练前保持不动 | ADR-0046 第 2、6 条；ADR-0062 第 1、6 条 | 用「只备份数据库、音频只留哈希」替换每日 JYM。该替换未批准；将来的备份必须含可播放的音频字节 |
 | 文件夹里放什么 | ADR-0061 第 1–4、6 条：音频是原文件，一份文稿一个 `.jyd`，声文稿只是展示 | ADR-0046 第 1、5 条的 `project.sqlite` + `media/`；ADR-0058-card 第 1 条（音频字节在卡片文件里） |
 | 认回与删除状态 | 还没有。ADR-0061 第 5 条写了「按 sha256 认回」，多个文件哈希相同时不够，规格里先约束为必须问用户。同名判断把「已隐藏」算进去（ADR-0062 第 2 条） | 把第 5 条直接当成实现规格 |
-| 共用定义、定义副本、清单缓存、操作 id、同名合并时机 | ADR-0060 第 2、3、4、7 条 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`） |
+| 共用定义、定义副本、清单缓存、操作 id、同名合并时机 | ADR-0060 第 2、3、4、7 条。词条、标签定义、自定义字段定义、缩写不进定义副本，见 ADR-0070 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`）；把这四类目录复制进每份 `.jyd` |
 | 隐藏、系统垃圾箱、协作删除只动本机 | ADR-0058-card 第 5、6 条 | — |
 | IndexedDB 归哪一层 | ADR-0058-indexeddb；项目文件夹里再按 ADR-0060、ADR-0061 分 | 该篇里「项目内容全进 `project.sqlite` + `media/`」 |
 | D14 冻结 | 尚未冻结。一份文稿同时只关联一条音频，父子链接不能跨文稿；已经同时挂着两条的旧文稿迁移时拒绝，不自动拆。冻结前还要有：格式原型、含音频的备份恢复并播放、桌面写路径验证 | ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；「没有要保留的真实数据」不能当作丢弃本机已导入录音的依据 |
 | `unit_relations`、`user_notes` 放哪 | ADR-0062 第 3、4 条：按每行所指对象归属；跨文稿的关系一律不存 | 把整表划进 `.jyd` 或项目库 |
 | 存储接口的边界 | ADR-0062 第 7 条：业务操作走端口（一事务）；弹窗和订阅分开 | 把弹窗、订阅、业务操作收进同一个可选 `files` 对象 |
+| 会话记忆载荷 | ADR-0066：项目库 `ai_session_memories.payload_json`，不进 `.jyd`、不进定义副本 | 按 AI 层的键拆列，或把载荷放进文稿文件 |
+| 语言记录上的数组、行政区划、多语备注、自定义字段值 | ADR-0067：项目库语言行上的 JSON 列，不进定义副本 | 为这些值另建子表，或放进 `.jyd` |
+| `model_runs` | ADR-0057 第 8 条，落在项目库 | 写进 `source_records` 或 `.jyd` |
+| 词条 DMLex 正文 | ADR-0068：项目库词条行上的 `entry_json` 或 `resource_json`，不进定义副本 | 把义项、关系、形式拆成子表 |
+| 结构规则正文、正字法转换规则与样例、车道锁定表 | ADR-0069：规则正文和转换文档在项目库行上的 JSON，车道锁定表在 `.jyd` 轨道行上，都不进定义副本 | 把符号、对照和车道号拆成子表 |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -102,6 +107,11 @@ source_of_truth: decision-index
 - [0063-desktop-only-after-electron-skeleton.md](./0063-desktop-only-after-electron-skeleton.md)
 - [0064-storage-freeze-until-desktop-opens-real-projects.md](./0064-storage-freeze-until-desktop-opens-real-projects.md)
 - [0065-toolloopagent-eager-tool-limit.md](./0065-toolloopagent-eager-tool-limit.md)
+- [0066-session-memory-payload-json.md](./0066-session-memory-payload-json.md)
+- [0067-language-document-json-columns.md](./0067-language-document-json-columns.md)
+- [0068-lexeme-dmlex-json.md](./0068-lexeme-dmlex-json.md)
+- [0069-document-bodies-as-json.md](./0069-document-bodies-as-json.md)
+- [0070-definition-copy-stays-language-orthography-speaker.md](./0070-definition-copy-stays-language-orthography-speaker.md)
 
 ## 已关闭的另一套编号
 

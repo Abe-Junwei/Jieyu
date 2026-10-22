@@ -1,8 +1,8 @@
 /**
  * 设置面板 | Settings Modal
  *
- * 统一设置入口：外观、快捷键、AI、播放、数据、扩展（Phase A）、关于。
- * Unified settings: Appearance, Shortcuts, AI, Playback, Data, Extensions (Phase A), About.
+ * 统一设置入口：外观、快捷键、AI、播放、数据、关于。
+ * Unified settings: Appearance, Shortcuts, AI, Playback, Data, About.
  */
 import '../styles/panels/settings-modal.css';
 
@@ -21,18 +21,9 @@ import { SettingsShortcutsTab } from './settings/SettingsShortcutsTab';
 import { SettingsAiTab } from './settings/SettingsAiTab';
 import { SettingsPlaybackTab } from './settings/SettingsPlaybackTab';
 import { SettingsDataTab } from './settings/SettingsDataTab';
-import { SettingsExtensionsTab } from './settings/SettingsExtensionsTab';
 import { SettingsAboutTab } from './settings/SettingsAboutTab';
 
-type SettingsTab =
-  | 'appearance'
-  | 'language'
-  | 'shortcuts'
-  | 'ai'
-  | 'playback'
-  | 'data'
-  | 'extensions'
-  | 'about';
+type SettingsTab = 'appearance' | 'language' | 'shortcuts' | 'ai' | 'playback' | 'data' | 'about';
 
 export const SettingsModal = memo(function SettingsModal({
   isOpen,
@@ -66,7 +57,6 @@ export const SettingsModal = memo(function SettingsModal({
       { id: 'ai' as const, label: msg.tabAi },
       { id: 'playback' as const, label: msg.tabPlayback },
       { id: 'data' as const, label: msg.tabData },
-      { id: 'extensions' as const, label: msg.tabExtensions },
       { id: 'about' as const, label: msg.tabAbout },
     ],
     [msg],
@@ -133,8 +123,6 @@ export const SettingsModal = memo(function SettingsModal({
           {activeTab === 'data' && (
             <SettingsDataTab locale={locale} msg={msg} resilienceMsg={resilienceMsg} />
           )}
-
-          {activeTab === 'extensions' && <SettingsExtensionsTab version={version} msg={msg} />}
 
           {activeTab === 'about' && <SettingsAboutTab version={version} msg={msg} />}
         </div>

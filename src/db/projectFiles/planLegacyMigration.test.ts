@@ -3,7 +3,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { planLegacyMigration } from './planLegacyMigration';
+import {
+  planLegacyMigration,
+  type LegacyLanguage,
+  type LegacyLexeme,
+  type LegacyOrthographyBridge,
+  type LegacyStructuralRule,
+  type LegacyTrack,
+} from './planLegacyMigration';
 
 const audioA = { id: 'audio-a', filename: '录音01.wav', bytes: new Uint8Array([1, 2, 3]) };
 const audioB = { id: 'audio-b', filename: '录音02.wav', bytes: new Uint8Array([4, 5]) };
@@ -1473,6 +1480,455 @@ describe('planLegacyMigration', () => {
     expect(plan).toEqual({ status: 'rejected', reason: 'ai-without-project' });
   });
 
+  it('rejects session memory and model runs when the library has no project row', () => {
+    expect(
+      planLegacyMigration({
+        ...library(),
+        sessionMemories: [
+          {
+            id: 'conv-1',
+            conversationId: 'conv-1',
+            payload: {},
+            updatedAt: '2026-10-21T00:00:00.000Z',
+          },
+        ],
+      }),
+    ).toEqual({ status: 'rejected', reason: 'ai-without-project' });
+    expect(
+      planLegacyMigration({
+        ...library(),
+        modelRuns: [
+          {
+            id: 'run-1',
+            textId: 'p-1',
+            modelId: 'example.whisper',
+            modelVersion: '1',
+            manifestSha256: 'abc',
+            capability: 'transcribe',
+            params: {},
+            mediaId: 'audio-a',
+            rangeStart: 0,
+            rangeEnd: 1,
+            startedAt: '2026-10-21T00:00:00.000Z',
+            status: 'running',
+            chunkCount: 1,
+            acceptedCount: 0,
+            rejectedCount: 0,
+            pendingCount: 1,
+          },
+        ],
+      }),
+    ).toEqual({ status: 'rejected', reason: 'model-runs-without-project' });
+  });
+
+  it('keeps a session-memory payload and a transcribe run, and drops rows that do not fit', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      conversations: [
+        {
+          id: 'conv-1',
+          textId: 'p-1',
+          title: '会话',
+          mode: 'assistant',
+          providerId: 'local',
+          model: 'none',
+        },
+      ],
+      sessionMemories: [
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: { lastLanguage: 'zh', nested: { ok: true } },
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'other',
+          conversationId: 'missing',
+          payload: {},
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'gone',
+          conversationId: 'gone',
+          payload: {},
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: [],
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: { dropped: true },
+          updatedAt: '',
+        },
+      ],
+      modelRuns: [
+        {
+          id: 'run-1',
+          textId: 'p-1',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'transcribe',
+          params: { chunkSec: 30 },
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1.5,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          finishedAt: '2026-10-21T00:00:02.000Z',
+          status: 'ok',
+          chunkCount: 1,
+          acceptedCount: 1,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+        {
+          id: 'run-other',
+          textId: 'other',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'transcribe',
+          params: {},
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          status: 'ok',
+          chunkCount: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+        {
+          id: 'run-align',
+          textId: 'p-1',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'align',
+          params: {},
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          status: 'ok',
+          chunkCount: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.sessionMemories).toEqual([
+      {
+        id: 'conv-1',
+        conversationId: 'conv-1',
+        payload: { lastLanguage: 'zh', nested: { ok: true } },
+        updatedAt: '2026-10-21T00:00:00.000Z',
+      },
+    ]);
+    expect(plan.droppedSessionMemories).toEqual([
+      { id: 'other', reason: 'id-mismatch' },
+      { id: 'gone', reason: 'missing-conversation' },
+      { id: 'conv-1', reason: 'payload' },
+      { id: 'conv-1', reason: 'updated-at' },
+    ]);
+    expect(plan.modelRuns).toEqual([
+      {
+        id: 'run-1',
+        textId: 'p-1',
+        modelId: 'example.whisper',
+        modelVersion: '1',
+        manifestSha256: 'abc',
+        capability: 'transcribe',
+        params: { chunkSec: 30 },
+        mediaId: 'audio-a',
+        rangeStart: 0,
+        rangeEnd: 1.5,
+        startedAt: '2026-10-21T00:00:00.000Z',
+        finishedAt: '2026-10-21T00:00:02.000Z',
+        status: 'ok',
+        chunkCount: 1,
+        acceptedCount: 1,
+        rejectedCount: 0,
+        pendingCount: 0,
+      },
+    ]);
+    expect(plan.droppedModelRuns).toEqual([
+      { id: 'run-other', reason: 'wrong-project' },
+      { id: 'run-align', reason: 'shape' },
+    ]);
+    expect(plan.manuscripts[0]?.definitions).toEqual(emptyDefinitions);
+  });
+
+  it('keeps language document fields on the project row and out of the definition copy', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      layers: [{ id: 'layer-1', documentId: 'doc-1', languageId: 'lang-1' }],
+      languages: [
+        {
+          id: 'lang-1',
+          textId: 'p-1',
+          name: '语言甲',
+          countries: ['CN'],
+          vernaculars: [],
+          notes: { zh: '备注' },
+          customFields: { count: 1, flag: false, tags: ['a'] },
+        },
+        {
+          id: 'lang-bad',
+          textId: 'p-1',
+          name: '残缺',
+          countries: 'CN',
+          domains: ['home', 'nope'],
+          notes: ['备注'],
+        } as unknown as LegacyLanguage,
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.languages.map((language) => language.id)).toEqual(['lang-1', 'lang-bad']);
+    expect(plan.languages[0]).toMatchObject({
+      countries: ['CN'],
+      vernaculars: [],
+      notes: { zh: '备注' },
+      customFields: { count: 1, flag: false, tags: ['a'] },
+    });
+    expect(plan.languages[1]).toEqual({ id: 'lang-bad', textId: 'p-1', name: '残缺' });
+    expect(plan.droppedLanguageFields).toEqual([
+      { id: 'lang-bad', field: 'countries', reason: 'shape' },
+      { id: 'lang-bad', field: 'domains', reason: 'shape' },
+      { id: 'lang-bad', field: 'notes', reason: 'shape' },
+    ]);
+    expect(plan.manuscripts[0]?.definitions.languages).toEqual([{ id: 'lang-1', name: '语言甲' }]);
+  });
+
+  it('keeps a DMLex document on the lexeme row and drops a body that does not match the kind', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      lexemes: [
+        {
+          id: 'lex-1',
+          textId: 'p-1',
+          headword: 'ta',
+          entry: { headword: 'ta' },
+        },
+        {
+          id: 'lex-res',
+          textId: 'p-1',
+          headword: '资源',
+          kind: 'resource',
+          resource: { title: '合成' },
+          entry: { headword: '资源' },
+        },
+        {
+          id: 'lex-bad',
+          textId: 'p-1',
+          headword: '坏',
+          entry: ['不是对象'],
+        } as unknown as LegacyLexeme,
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.lexemes).toEqual([
+      { id: 'lex-1', textId: 'p-1', headword: 'ta', entry: { headword: 'ta' } },
+      {
+        id: 'lex-res',
+        textId: 'p-1',
+        headword: '资源',
+        kind: 'resource',
+        resource: { title: '合成' },
+      },
+      { id: 'lex-bad', textId: 'p-1', headword: '坏' },
+    ]);
+    expect(plan.droppedLexemeBodies).toEqual([
+      { id: 'lex-res', field: 'entry', reason: 'kind' },
+      { id: 'lex-bad', field: 'entry', reason: 'shape' },
+    ]);
+    expect(plan.manuscripts[0]?.lexemeLinks).toEqual([]);
+  });
+
+  it('keeps bridge rules, a structural profile, and a lane lock, and drops a bad field', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      orthographyBridges: [
+        {
+          id: 'br-1',
+          textId: 'p-1',
+          sourceOrthographyId: 'orth-1',
+          targetOrthographyId: 'orth-2',
+          engine: 'table-map',
+          name: { zh: '甲' },
+          rules: {
+            mappings: [{ from: '', to: 'ɑ' }],
+            ruleText: '',
+            normalizeInput: 'NFC',
+            normalizeOutput: 'NFD',
+            caseSensitive: false,
+          },
+          sampleInput: '',
+          sampleOutput: 'ɑ',
+          sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }, { input: '' }],
+          notes: {},
+        },
+        {
+          id: 'br-bad',
+          textId: 'p-1',
+          sourceOrthographyId: 'orth-1',
+          targetOrthographyId: 'orth-2',
+          engine: 'manual',
+          name: ['甲'],
+          rules: { extra: true },
+          sampleInput: 1,
+          sampleCases: [{ output: 'x' }],
+          notes: { zh: 1 },
+        } as unknown as LegacyOrthographyBridge,
+      ],
+      structuralRules: [
+        {
+          id: 'rule-1',
+          projectId: 'p-1',
+          scope: 'project',
+          enabled: true,
+          priority: 1,
+          profile: { id: 'rule-1', label: '甲' },
+        },
+        {
+          id: 'rule-bad',
+          projectId: 'p-1',
+          scope: 'language',
+          languageId: 'lang-1',
+          enabled: false,
+          priority: 0,
+          profile: ['不是对象'],
+        } as unknown as LegacyStructuralRule,
+      ],
+      tracks: [
+        { id: 'track-1', mediaId: 'audio-a', mode: 'multi-locked', laneLockMap: { 'lane-1': 0 } },
+        {
+          id: 'track-bad',
+          mediaId: 'audio-a',
+          mode: 'single',
+          laneLockMap: { 'lane-1': '0' },
+        } as unknown as LegacyTrack,
+      ],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.orthographyBridges).toEqual([
+      {
+        id: 'br-1',
+        textId: 'p-1',
+        sourceOrthographyId: 'orth-1',
+        targetOrthographyId: 'orth-2',
+        engine: 'table-map',
+        name: { zh: '甲' },
+        rules: {
+          mappings: [{ from: '', to: 'ɑ' }],
+          ruleText: '',
+          normalizeInput: 'NFC',
+          normalizeOutput: 'NFD',
+          caseSensitive: false,
+        },
+        sampleInput: '',
+        sampleOutput: 'ɑ',
+        sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }, { input: '' }],
+        notes: {},
+      },
+      {
+        id: 'br-bad',
+        textId: 'p-1',
+        sourceOrthographyId: 'orth-1',
+        targetOrthographyId: 'orth-2',
+        engine: 'manual',
+      },
+    ]);
+    expect(plan.droppedBridgeFields).toEqual([
+      { id: 'br-bad', field: 'name', reason: 'shape' },
+      { id: 'br-bad', field: 'rules', reason: 'shape' },
+      { id: 'br-bad', field: 'sampleInput', reason: 'shape' },
+      { id: 'br-bad', field: 'sampleCases', reason: 'shape' },
+      { id: 'br-bad', field: 'notes', reason: 'shape' },
+    ]);
+    expect(plan.structuralRules).toEqual([
+      {
+        id: 'rule-1',
+        projectId: 'p-1',
+        scope: 'project',
+        enabled: true,
+        priority: 1,
+        profile: { id: 'rule-1', label: '甲' },
+      },
+      {
+        id: 'rule-bad',
+        projectId: 'p-1',
+        scope: 'language',
+        languageId: 'lang-1',
+        enabled: false,
+        priority: 0,
+      },
+    ]);
+    expect(plan.droppedRuleProfiles).toEqual([{ id: 'rule-bad', reason: 'shape' }]);
+    expect(plan.manuscripts[0]?.tracks).toEqual([
+      { id: 'track-1', mediaId: 'audio-a', mode: 'multi-locked', laneLockMap: { 'lane-1': 0 } },
+      { id: 'track-bad', mediaId: 'audio-a', mode: 'single' },
+    ]);
+    expect(plan.droppedLaneLocks).toEqual([{ id: 'track-bad', reason: 'shape' }]);
+    expect(plan.manuscripts[0]?.definitions).toEqual(emptyDefinitions);
+  });
+
+  it('keeps lexemes, tags, custom fields, and abbreviations out of the definition copy', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      layers: [
+        { id: 'layer-1', documentId: 'doc-1', languageId: 'lang-1', orthographyId: 'orth-1' },
+      ],
+      units: [{ id: 'u-1', layerId: 'layer-1', mediaId: 'audio-a', speakerId: 's-1' }],
+      speakers: [{ id: 's-1', textId: 'p-1', name: '甲' }],
+      languages: [{ id: 'lang-1', textId: 'p-1', name: '语言甲', countries: ['CN'] }],
+      displayNames: [
+        { id: 'dn-1', textId: 'p-1', languageId: 'lang-1', locale: 'zh', value: '甲' },
+      ],
+      aliases: [{ id: 'alias-1', textId: 'p-1', languageId: 'lang-1', alias: '甲语' }],
+      orthographies: [{ id: 'orth-1', textId: 'p-1', name: '拼音', languageId: 'lang-1' }],
+      lexemes: [{ id: 'lex-1', textId: 'p-1', headword: 'ta', entry: { headword: 'ta' } }],
+      lexemeLinks: [{ id: 'link-1', targetType: 'token', targetId: 't-1', lexemeId: 'lex-1' }],
+      tokens: [{ id: 't-1', unitId: 'u-1', tokenIndex: 0, form: 'ta' }],
+      abbreviations: [{ id: 'abbr-1', textId: 'p-1', abbreviation: '1SG', category: 'person' }],
+      tagDefinitions: [{ id: 'tag-1', textId: 'p-1', key: 'loan', color: '#fff' }],
+      customFields: [{ id: 'cf-1', textId: 'p-1', fieldType: 'text', sortOrder: 0 }],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.manuscripts[0]?.definitions).toEqual({
+      languages: [{ id: 'lang-1', name: '语言甲' }],
+      displayNames: [{ id: 'dn-1', languageId: 'lang-1', locale: 'zh', value: '甲' }],
+      aliases: [{ id: 'alias-1', languageId: 'lang-1', alias: '甲语' }],
+      orthographies: [{ id: 'orth-1', name: '拼音', languageId: 'lang-1' }],
+      speakers: [{ id: 's-1', name: '甲' }],
+    });
+    expect(plan.manuscripts[0]?.lexemeLinks).toEqual([
+      { id: 'link-1', targetType: 'token', targetId: 't-1', lexemeId: 'lex-1' },
+    ]);
+    expect(plan.lexemes.map((row) => row.id)).toEqual(['lex-1']);
+    expect(plan.abbreviations.map((row) => row.id)).toEqual(['abbr-1']);
+    expect(plan.tagDefinitions.map((row) => row.id)).toEqual(['tag-1']);
+    expect(plan.customFields.map((row) => row.id)).toEqual(['cf-1']);
+  });
+
   it('writes a ready plan and reads the same ids back', () => {
     const plan = planLegacyMigration({
       ...library(),
@@ -1502,7 +1958,14 @@ describe('planLegacyMigration', () => {
           isPreferred: true,
         },
       ],
-      tracks: [{ id: 'track-1', mediaId: 'audio-a', mode: 'single' }],
+      tracks: [
+        {
+          id: 'track-1',
+          mediaId: 'audio-a',
+          mode: 'single',
+          laneLockMap: { 'lane-1': 0, ['__proto__']: 1 },
+        },
+      ],
       annotations: [
         {
           id: 'ann-1',
@@ -1546,6 +2009,12 @@ describe('planLegacyMigration', () => {
           iso6393: 'zzz',
           glottocode: 'abcd1234',
           speakerCountL1: 0,
+          countries: ['CN'],
+          administrativeDivisions: [{ country: 'CN', province: '四川' }],
+          domains: ['home'],
+          vernaculars: [],
+          notes: { zh: '备注' },
+          customFields: { count: 1, flag: true, tags: ['a'], ['__proto__']: ['saved'] },
         },
       ],
       displayNames: [
@@ -1561,6 +2030,7 @@ describe('planLegacyMigration', () => {
           kind: 'entry',
           usageCount: 2,
           accessRights: 'restricted',
+          entry: { headword: 'ta', senses: [{ definition: '合成' }] },
         },
       ],
       phonemes: [{ id: 'ph-1', textId: 'p-1', languageId: 'lang-1', ipa: 't', type: 'consonant' }],
@@ -1615,6 +2085,12 @@ describe('planLegacyMigration', () => {
           engine: 'table-map',
           status: 'active',
           isReversible: false,
+          name: { zh: '甲' },
+          rules: { mappings: [{ from: 'a', to: 'ɑ' }], caseSensitive: false },
+          sampleInput: 'a',
+          sampleOutput: 'ɑ',
+          sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }],
+          notes: {},
         },
         {
           id: 'br-2',
@@ -1666,7 +2142,14 @@ describe('planLegacyMigration', () => {
       ],
       lexemeAssetLinks: [{ id: 'al-1', textId: 'p-1', lexemeId: 'lex-1', assetId: 'asset-1' }],
       structuralRules: [
-        { id: 'rule-1', projectId: 'p-1', scope: 'project', enabled: true, priority: 1 },
+        {
+          id: 'rule-1',
+          projectId: 'p-1',
+          scope: 'project',
+          enabled: true,
+          priority: 1,
+          profile: { id: 'rule-1', label: '甲' },
+        },
       ],
       conversations: [
         {
@@ -1710,6 +2193,35 @@ describe('planLegacyMigration', () => {
       aiSourceSets: [
         { id: 'set-1', projectId: 'p-1', name: '当前', scope: 'project', status: 'active' },
       ],
+      sessionMemories: [
+        {
+          id: 'conv-1',
+          conversationId: 'conv-1',
+          payload: { lastLanguage: 'zh' },
+          updatedAt: '2026-10-21T00:00:00.000Z',
+        },
+      ],
+      modelRuns: [
+        {
+          id: 'run-1',
+          textId: 'p-1',
+          modelId: 'example.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          capability: 'transcribe',
+          params: { chunkSec: 30 },
+          mediaId: 'audio-a',
+          rangeStart: 0,
+          rangeEnd: 1.5,
+          startedAt: '2026-10-21T00:00:00.000Z',
+          finishedAt: '2026-10-21T00:00:02.000Z',
+          status: 'ok',
+          chunkCount: 1,
+          acceptedCount: 1,
+          rejectedCount: 0,
+          pendingCount: 0,
+        },
+      ],
       lexemeLinks: [{ id: 'link-1', targetType: 'token', targetId: 't-1', lexemeId: 'lex-1' }],
       tokens: [{ id: 't-1', unitId: 'u-1', tokenIndex: 0, form: 'ta' }],
       morphemes: [{ id: 'm-1', unitId: 'u-1', tokenId: 't-1', morphemeIndex: 0, form: 't' }],
@@ -1751,6 +2263,8 @@ describe('planLegacyMigration', () => {
           projectMemories: plan.projectMemories,
           agentArtifacts: plan.agentArtifacts,
           aiSourceSets: plan.aiSourceSets,
+          sessionMemories: plan.sessionMemories,
+          modelRuns: plan.modelRuns,
           notes: plan.notes,
           audios: plan.audios.map((audio) => ({
             audioId: audio.audioId,
@@ -1772,7 +2286,16 @@ describe('planLegacyMigration', () => {
         { encoding: 'utf8' },
       );
       expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      const readback = JSON.parse(result.stdout);
+      expect(readback.languages[0].customFields).toEqual(plan.languages[0]?.customFields);
+      expect(readback.languages[0].customFields).toHaveProperty('__proto__', ['saved']);
+      expect(readback.manuscripts[0].tracks[0].laneLockMap).toEqual({
+        'lane-1': 0,
+        ['__proto__']: 1,
+      });
+      expect(plan.droppedLanguageFields).toEqual([]);
+      expect(plan.droppedLaneLocks).toEqual([]);
+      expect(readback).toMatchObject({
         project: { id: 'p-1', name: '项目' },
         speakers: [{ id: 's-1', textId: 'p-1', name: '甲' }],
         languages: [
@@ -1783,6 +2306,12 @@ describe('planLegacyMigration', () => {
             iso6393: 'zzz',
             glottocode: 'abcd1234',
             speakerCountL1: 0,
+            countries: ['CN'],
+            administrativeDivisions: [{ country: 'CN', province: '四川' }],
+            domains: ['home'],
+            vernaculars: [],
+            notes: { zh: '备注' },
+            customFields: { count: 1, flag: true, tags: ['a'], ['__proto__']: ['saved'] },
           },
         ],
         displayNames: [
@@ -1808,6 +2337,7 @@ describe('planLegacyMigration', () => {
             kind: 'entry',
             usageCount: 2,
             accessRights: 'restricted',
+            entry: { headword: 'ta', senses: [{ definition: '合成' }] },
           },
         ],
         phonemes: [
@@ -1871,6 +2401,12 @@ describe('planLegacyMigration', () => {
             engine: 'table-map',
             status: 'active',
             isReversible: false,
+            name: { zh: '甲' },
+            rules: { mappings: [{ from: 'a', to: 'ɑ' }], caseSensitive: false },
+            sampleInput: 'a',
+            sampleOutput: 'ɑ',
+            sampleCases: [{ input: 'a', expectedOutput: 'ɑ' }],
+            notes: {},
           },
           {
             id: 'br-2',
@@ -1928,7 +2464,14 @@ describe('planLegacyMigration', () => {
         ],
         lexemeAssetLinks: [{ id: 'al-1', textId: 'p-1', lexemeId: 'lex-1', assetId: 'asset-1' }],
         structuralRules: [
-          { id: 'rule-1', projectId: 'p-1', scope: 'project', enabled: true, priority: 1 },
+          {
+            id: 'rule-1',
+            projectId: 'p-1',
+            scope: 'project',
+            enabled: true,
+            priority: 1,
+            profile: { id: 'rule-1', label: '甲' },
+          },
         ],
         conversations: [
           {
@@ -1972,6 +2515,35 @@ describe('planLegacyMigration', () => {
         aiSourceSets: [
           { id: 'set-1', projectId: 'p-1', name: '当前', scope: 'project', status: 'active' },
         ],
+        sessionMemories: [
+          {
+            id: 'conv-1',
+            conversationId: 'conv-1',
+            payload: { lastLanguage: 'zh' },
+            updatedAt: '2026-10-21T00:00:00.000Z',
+          },
+        ],
+        modelRuns: [
+          {
+            id: 'run-1',
+            textId: 'p-1',
+            modelId: 'example.whisper',
+            modelVersion: '1',
+            manifestSha256: 'abc',
+            capability: 'transcribe',
+            params: { chunkSec: 30 },
+            mediaId: 'audio-a',
+            rangeStart: 0,
+            rangeEnd: 1.5,
+            startedAt: '2026-10-21T00:00:00.000Z',
+            finishedAt: '2026-10-21T00:00:02.000Z',
+            status: 'ok',
+            chunkCount: 1,
+            acceptedCount: 1,
+            rejectedCount: 0,
+            pendingCount: 0,
+          },
+        ],
         notes: [{ id: 'n-speaker', targetType: 'speaker', targetId: 's-1', text: '说话人备注' }],
         audios: [{ id: 'audio-a', relPath: '录音01.wav', sha256: plan.audios[0]?.sha256 }],
         manuscripts: [
@@ -1991,7 +2563,14 @@ describe('planLegacyMigration', () => {
                 isPreferred: true,
               },
             ],
-            tracks: [{ id: 'track-1', mediaId: 'audio-a', mode: 'single' }],
+            tracks: [
+              {
+                id: 'track-1',
+                mediaId: 'audio-a',
+                mode: 'single',
+                laneLockMap: { 'lane-1': 0, ['__proto__']: 1 },
+              },
+            ],
             annotations: [
               {
                 id: 'ann-1',

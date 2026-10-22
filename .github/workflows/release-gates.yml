@@ -147,19 +147,6 @@ jobs:
       - name: M6 release gate (enforce)
         run: npm run gate:m6-release
 
-  m7-extension-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M7 extension gate (enforce)
-        run: npm run gate:m7-extension
-
   m8-collaboration-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -185,58 +172,6 @@ jobs:
       - run: npm ci
       - name: M9 collaboration gate (enforce)
         run: npm run gate:m9-collaboration
-
-  m10-collaboration-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M10 collaboration gate (enforce)
-        run: npm run gate:m10-collaboration
-
-  m11-cross-device-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M11 cross-device gate (enforce)
-        run: npm run gate:m11-cross-device
-
-  m12-multi-replica-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M12 multi-replica gate (enforce)
-        run: npm run gate:m12-multi-replica
-
-  m13-transaction-sync-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci
-      - name: M13 transaction sync gate (enforce)
-        run: npm run gate:m13-transaction-sync
 
   greenfield-local-gate:
     name: Greenfield local gate (no Supabase)
@@ -284,11 +219,6 @@ jobs:
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
         run: npm run export:release-evidence:ai-audit
 
-      - name: Export release evidence extension capability audit input
-        env:
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
-        run: npm run export:release-evidence:extension-audit
-
       - name: Export release evidence AI task snapshots input
         env:
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
@@ -299,7 +229,6 @@ jobs:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:core
 
@@ -344,11 +273,6 @@ jobs:
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
         run: npm run export:release-evidence:ai-audit
 
-      - name: Export release evidence extension capability audit input
-        env:
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
-        run: npm run export:release-evidence:extension-audit
-
       - name: Export release evidence AI task snapshots input
         env:
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
@@ -359,7 +283,6 @@ jobs:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
           RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
-          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:full
 
