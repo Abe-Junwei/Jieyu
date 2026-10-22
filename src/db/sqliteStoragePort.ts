@@ -3,6 +3,7 @@
  * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
  * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
  * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
+ * 去掉一条空录音先改文稿，再改项目库（ADR-0076）。
  * 这里不安装成默认实现。
  */
 import path from 'node:path';
@@ -13,6 +14,7 @@ import {
   saveMediaItemInProject,
 } from './sqliteMediaItems';
 import { commitRegexSplitInProject } from './sqliteRegexSplit';
+import { removeEmptyRecordingInProject } from './sqliteRemoveEmptyRecording';
 import {
   linkSourceRecordMediaInProject,
   listSourceRecordsInProject,
@@ -180,8 +182,14 @@ export function openSqliteStoragePort(
         return row === undefined ? undefined : payload(row.payload_json, 'getAuditLog');
       },
     },
-    async removeEmptyRecording(mediaId: string): Promise<never> {
-      throw new RecordingRemovalBlockedError(mediaId, 'missing');
+    async removeEmptyRecording(mediaId: string) {
+      if (mediaId.trim().length === 0) {
+        throw new RecordingRemovalBlockedError(mediaId, 'missing');
+      }
+      if (project === undefined || projectDir === undefined) {
+        throw new Error('sqlite storage port has not opened a project folder');
+      }
+      return removeEmptyRecordingInProject(project, projectDir, mediaId);
     },
     async assignSpeakerToMixedSelection(write: MixedSpeakerSelectionWrite) {
       if (project === undefined || projectDir === undefined) {

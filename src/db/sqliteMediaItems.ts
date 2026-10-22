@@ -152,7 +152,7 @@ function sameMedia(stored: MediaItemDocType, written: MediaItemDocType): boolean
   );
 }
 
-function readById(db: SqliteDatabase, id: string): MediaItemDocType | undefined {
+export function readMediaItemById(db: SqliteDatabase, id: string): MediaItemDocType | undefined {
   const row: unknown = db.prepare(`SELECT ${COLUMNS} FROM media_items WHERE id = ?`).get(id);
   if (row === undefined) return undefined;
   return readDoc(row);
@@ -222,7 +222,7 @@ export function saveMediaItemInProject(db: SqliteDatabase, data: MediaItemDocTyp
   })();
   let stored: MediaItemDocType | undefined;
   try {
-    stored = readById(db, row.id);
+    stored = readMediaItemById(db, row.id);
   } catch {
     throw new StorageReadbackError(OPERATION);
   }

@@ -1,10 +1,11 @@
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
 import { SourceMediaLinkError, SourceProjectNotFoundError } from '../services/sourceRecordPlan';
+import { HIDDEN_DIRECTORY } from './projectFiles/fileOps';
 import { StorageReadbackError } from './storageReadbackError';
 import { recordingRemovalBlockReason, type StoragePort } from './storagePort';
 import { describeStoragePortContract } from './storagePortContract';
@@ -84,10 +85,13 @@ describe('sqlite storage port userData slice', () => {
     await expect(port.fingerprintTarget('missing')).resolves.toBeUndefined();
   });
 
-  it('refuses to remove a recording this slice does not store', async () => {
+  it('refuses to remove a recording when no project folder is open', async () => {
     const port = open();
-    await expect(port.removeEmptyRecording('missing-media')).rejects.toSatisfy(
+    await expect(port.removeEmptyRecording('  ')).rejects.toSatisfy(
       (error: unknown) => recordingRemovalBlockReason(error) === 'missing',
+    );
+    await expect(port.removeEmptyRecording('missing-media')).rejects.toThrow(
+      /has not opened a project folder/,
     );
   });
 
@@ -1014,5 +1018,212 @@ describe('sqlite storage port project folder', () => {
     expect(kept).toEqual([record]);
     const linked = await handle!.port.linkSourceRecordMedia(TEXT_ID, record.id, 'media-1');
     expect(linked?.mediaId).toBe('media-1');
+  });
+
+  function insertSource(id: string, mediaId: string): void {
+    const project = new Database(join(projectDir, 'project.sqlite'));
+    project
+      .prepare(
+        `INSERT INTO source_records (
+          id, text_id, original_name, display_name, format, media_id, imported_at, import_batch_id,
+          stored_bytes, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, TEXT_ID, `${id}.eaf`, `${id}.eaf`, 'eaf', mediaId, NOW, 'batch-1', 0, NOW);
+    project.close();
+  }
+
+  it('refuses a placeholder or a playable recording and writes nothing', async () => {
+    reset();
+    await handle!.port.saveMediaItem({
+      ...recording('media-placeholder', TEXT_ID),
+      timelineKind: 'placeholder',
+    });
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript
+      .prepare('INSERT INTO units (id, media_id, updated_at) VALUES (?, ?, ?)')
+      .run('unit-url', 'media-url', NOW);
+    manuscript.close();
+    await expect(handle!.port.removeEmptyRecording('media-placeholder')).rejects.toSatisfy(
+      (error: unknown) => recordingRemovalBlockReason(error) === 'not-acoustic',
+    );
+    await expect(handle!.port.removeEmptyRecording('  ')).rejects.toSatisfy(
+      (error: unknown) => recordingRemovalBlockReason(error) === 'missing',
+    );
+    await expect(handle!.port.removeEmptyRecording('missing-media')).rejects.toSatisfy(
+      (error: unknown) => recordingRemovalBlockReason(error) === 'missing',
+    );
+    await handle!.port.saveMediaItem({
+      ...recording('media-url', TEXT_ID),
+      url: 'https://example.test/a.wav',
+    });
+    await expect(handle!.port.removeEmptyRecording('media-url')).rejects.toSatisfy(
+      (error: unknown) => recordingRemovalBlockReason(error) === 'has-bytes',
+    );
+    const stored = new Database(join(projectDir, 'mixed.jyd'));
+    const project = new Database(join(projectDir, 'project.sqlite'));
+    try {
+      expect(
+        project.prepare('SELECT id FROM media_items WHERE id = ?').get('media-placeholder'),
+      ).toMatchObject({
+        id: 'media-placeholder',
+      });
+      expect(
+        project.prepare('SELECT id FROM media_items WHERE id = ?').get('media-url'),
+      ).toMatchObject({
+        id: 'media-url',
+      });
+      expect(stored.prepare('SELECT media_id FROM units WHERE id = ?').get('unit-url')).toEqual({
+        media_id: 'media-url',
+      });
+    } finally {
+      stored.close();
+      project.close();
+    }
+  });
+
+  it('removes an empty recording, unbinds manuscripts, and leaves the file and sibling', async () => {
+    reset();
+    writeFileSync(join(projectDir, 'same.wav'), 'wav');
+    await handle!.port.saveMediaItem({
+      ...recording('media-empty', TEXT_ID),
+      filename: 'same.wav',
+      byteLocation: 'managed',
+      availability: 'available',
+    });
+    await handle!.port.saveMediaItem({
+      ...recording('media-sibling', TEXT_ID),
+      filename: 'same.wav',
+      url: 'https://example.test/sibling.wav',
+    });
+    insertSource('src-b', 'media-empty');
+    insertSource('src-a', 'media-empty');
+    insertSource('src-sib', 'media-sibling');
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript.exec(
+      'CREATE TABLE meta (id TEXT PRIMARY KEY, audio_id TEXT, source_document_id TEXT)',
+    );
+    manuscript
+      .prepare('INSERT INTO meta (id, audio_id) VALUES (?, ?)')
+      .run('meta-1', 'media-empty');
+    manuscript
+      .prepare('INSERT INTO units (id, media_id, updated_at) VALUES (?, ?, ?)')
+      .run('unit-empty', 'media-empty', NOW);
+    manuscript
+      .prepare('INSERT INTO units (id, media_id, updated_at) VALUES (?, ?, ?)')
+      .run('unit-sibling', 'media-sibling', NOW);
+    manuscript
+      .prepare('INSERT INTO anchors (id, media_id, time) VALUES (?, ?, ?)')
+      .run('anchor-empty', 'media-empty', 0);
+    manuscript
+      .prepare(
+        'INSERT INTO track_entities (id, media_id, mode, lane_lock_json, text_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('track-empty', 'media-empty', 'single', '{}', TEXT_ID, NOW);
+    manuscript
+      .prepare(
+        'INSERT INTO track_entities (id, media_id, mode, lane_lock_json, text_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('track-sibling', 'media-sibling', 'single', '{}', TEXT_ID, NOW);
+    manuscript.close();
+    const hiddenDir = join(projectDir, HIDDEN_DIRECTORY);
+    mkdirSync(hiddenDir);
+    pragmaFile(
+      join(hiddenDir, 'hidden.jyd'),
+      MANUSCRIPT_APPLICATION_ID,
+      `CREATE TABLE units (
+        id TEXT PRIMARY KEY,
+        media_id TEXT,
+        updated_at TEXT
+      );`,
+    );
+    const hidden = new Database(join(hiddenDir, 'hidden.jyd'));
+    hidden
+      .prepare('INSERT INTO units (id, media_id, updated_at) VALUES (?, ?, ?)')
+      .run('unit-hidden', 'media-empty', NOW);
+    hidden.close();
+    pragmaFile(
+      join(projectDir, 'other.jyd'),
+      MANUSCRIPT_APPLICATION_ID,
+      `CREATE TABLE units (
+        id TEXT PRIMARY KEY,
+        media_id TEXT,
+        updated_at TEXT
+      );
+      CREATE TABLE anchors (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, time REAL NOT NULL);
+      CREATE TABLE track_entities (
+        id TEXT PRIMARY KEY,
+        media_id TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        lane_lock_json TEXT,
+        text_id TEXT,
+        updated_at TEXT
+      );`,
+    );
+    const other = new Database(join(projectDir, 'other.jyd'));
+    other
+      .prepare('INSERT INTO units (id, media_id, updated_at) VALUES (?, ?, ?)')
+      .run('unit-other', 'media-empty', NOW);
+    other.close();
+
+    await expect(handle!.port.removeEmptyRecording('media-empty')).resolves.toEqual({
+      unboundSourceIds: ['src-a', 'src-b'],
+    });
+
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    await expect(reopened.port.listMediaIdsByText(TEXT_ID)).resolves.toEqual(['media-sibling']);
+    const sources = await reopened.port.listSourceRecords(TEXT_ID);
+    expect(sources.map((row) => row.id).sort()).toEqual(['src-a', 'src-b', 'src-sib']);
+    expect(sources.find((row) => row.id === 'src-a')?.mediaId).toBeUndefined();
+    expect(sources.find((row) => row.id === 'src-sib')?.mediaId).toBe('media-sibling');
+
+    const mixed = new Database(join(projectDir, 'mixed.jyd'));
+    const again = new Database(join(projectDir, 'other.jyd'));
+    const hiddenAgain = new Database(join(hiddenDir, 'hidden.jyd'));
+    try {
+      expect(existsSync(join(projectDir, 'same.wav'))).toBe(true);
+      expect(mixed.prepare('SELECT audio_id FROM meta WHERE id = ?').get('meta-1')).toEqual({
+        audio_id: 'media-empty',
+      });
+      expect(mixed.prepare('SELECT media_id FROM units WHERE id = ?').get('unit-empty')).toEqual({
+        media_id: '__unknown_media__',
+      });
+      expect(
+        mixed.prepare('SELECT updated_at FROM units WHERE id = ?').get('unit-empty'),
+      ).not.toEqual({
+        updated_at: NOW,
+      });
+      expect(mixed.prepare('SELECT media_id FROM units WHERE id = ?').get('unit-sibling')).toEqual({
+        media_id: 'media-sibling',
+      });
+      expect(
+        mixed.prepare('SELECT media_id FROM anchors WHERE id = ?').get('anchor-empty'),
+      ).toEqual({
+        media_id: '__unknown_media__',
+      });
+      expect(
+        mixed.prepare('SELECT id FROM track_entities WHERE id = ?').get('track-empty'),
+      ).toBeUndefined();
+      expect(
+        mixed.prepare('SELECT media_id FROM track_entities WHERE id = ?').get('track-sibling'),
+      ).toEqual({
+        media_id: 'media-sibling',
+      });
+      expect(again.prepare('SELECT media_id FROM units WHERE id = ?').get('unit-other')).toEqual({
+        media_id: '__unknown_media__',
+      });
+      expect(
+        hiddenAgain.prepare('SELECT media_id FROM units WHERE id = ?').get('unit-hidden'),
+      ).toEqual({
+        media_id: 'media-empty',
+      });
+    } finally {
+      mixed.close();
+      again.close();
+      hiddenAgain.close();
+    }
   });
 });
