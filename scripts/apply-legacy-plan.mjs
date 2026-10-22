@@ -342,7 +342,7 @@ export function applyPlan(
         'CREATE TABLE orthographies (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, language_id TEXT)',
       );
       db.exec(
-        'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT)',
+        'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT, byte_size INTEGER, sha256 TEXT, external_doc_id TEXT, imported_at TEXT, import_batch_id TEXT, stored_bytes INTEGER, linked_media_filename TEXT, updated_at TEXT)',
       );
       db.exec(
         'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT, entry_json TEXT, resource_json TEXT)',
@@ -1099,7 +1099,7 @@ export function readProject(dest) {
     .all();
   const sourceRecords = project
     .prepare(
-      'SELECT id, text_id, original_name, display_name, format, media_id FROM source_records ORDER BY id',
+      'SELECT id, text_id, original_name, display_name, format, media_id, byte_size, sha256, external_doc_id, imported_at, import_batch_id, stored_bytes, linked_media_filename, updated_at FROM source_records ORDER BY id',
     )
     .all();
   const lexemes = project
@@ -1721,6 +1721,16 @@ export function readProject(dest) {
       displayName: source.display_name,
       format: source.format,
       ...(source.media_id !== null ? { mediaId: source.media_id } : {}),
+      ...(source.byte_size !== null ? { byteSize: source.byte_size } : {}),
+      ...(source.sha256 !== null ? { sha256: source.sha256 } : {}),
+      ...(source.external_doc_id !== null ? { externalDocId: source.external_doc_id } : {}),
+      ...(source.imported_at !== null ? { importedAt: source.imported_at } : {}),
+      ...(source.import_batch_id !== null ? { importBatchId: source.import_batch_id } : {}),
+      ...(source.stored_bytes !== null ? { storedBytes: source.stored_bytes !== 0 } : {}),
+      ...(source.linked_media_filename !== null
+        ? { linkedMediaFilename: source.linked_media_filename }
+        : {}),
+      ...(source.updated_at !== null ? { updatedAt: source.updated_at } : {}),
     })),
     audios: audios.map((audio) => ({
       id: audio.id,

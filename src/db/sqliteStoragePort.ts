@@ -2,11 +2,17 @@
  * 存储接口的 SQLite 切片：本机 userData 里的回合和审计，项目文件夹里的说话人分配、正则拆分和轨道行。
  * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
  * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
- * 这里不安装成默认实现。
+ * 来源记录写在项目库里（ADR-0074）。这里不安装成默认实现。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { commitRegexSplitInProject } from './sqliteRegexSplit';
+import {
+  linkSourceRecordMediaInProject,
+  listSourceRecordsInProject,
+  registerImportedSourceInProject,
+  renameSourceRecordInProject,
+} from './sqliteSourceRecords';
 import { assignSpeakerInProject, PROJECT_APPLICATION_ID } from './sqliteSpeakerAssignment';
 import { listTrackEntitiesInProject, putTrackEntityInProject } from './sqliteTrackEntity';
 import {
@@ -15,6 +21,7 @@ import {
   type RegexSplitCommit,
   type StoragePort,
 } from './storagePort';
+import type { SourceRecordRegistration } from './storagePortSourceRecords';
 import { StorageReadbackError } from './storageReadbackError';
 import type { TrackEntityDocType } from './types';
 
@@ -95,6 +102,13 @@ export function openSqliteStoragePort(
      ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, payload_json = excluded.payload_json`,
   );
   const readAudit = db.prepare('SELECT payload_json FROM audit_logs WHERE id = ?');
+
+  function requireProject(): SqliteDatabase {
+    if (project === undefined) {
+      throw new Error('sqlite storage port has not opened a project folder');
+    }
+    return project;
+  }
 
   const commitTurn = db.transaction(
     (row: TurnRow, json: string, createdAt: number, expiresAt: number) => {
@@ -186,6 +200,18 @@ export function openSqliteStoragePort(
         throw new Error('sqlite storage port has not opened a project folder');
       }
       return listTrackEntitiesInProject(projectDir, textId);
+    },
+    async listSourceRecords(textId: string) {
+      return listSourceRecordsInProject(requireProject(), textId);
+    },
+    async registerImportedSource(input: SourceRecordRegistration) {
+      return registerImportedSourceInProject(requireProject(), input);
+    },
+    async renameSourceRecord(textId: string, recordId: string, displayName: string) {
+      return renameSourceRecordInProject(requireProject(), textId, recordId, displayName);
+    },
+    async linkSourceRecordMedia(textId: string, recordId: string, mediaId: string | null) {
+      return linkSourceRecordMediaInProject(requireProject(), textId, recordId, mediaId);
     },
   };
 

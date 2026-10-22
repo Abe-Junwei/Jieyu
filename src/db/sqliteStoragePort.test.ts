@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
+import { SourceMediaLinkError, SourceProjectNotFoundError } from '../services/sourceRecordPlan';
 import { recordingRemovalBlockReason, type StoragePort } from './storagePort';
 import { describeStoragePortContract } from './storagePortContract';
 import { MANUSCRIPT_APPLICATION_ID, PROJECT_APPLICATION_ID } from './sqliteSpeakerAssignment';
@@ -135,6 +136,22 @@ function createProjectFixture(projectDir: string): void {
       text_id TEXT NOT NULL,
       name TEXT NOT NULL,
       created_at TEXT,
+      updated_at TEXT
+    );
+    CREATE TABLE source_records (
+      id TEXT PRIMARY KEY,
+      text_id TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      format TEXT NOT NULL,
+      media_id TEXT,
+      byte_size INTEGER,
+      sha256 TEXT,
+      external_doc_id TEXT,
+      imported_at TEXT,
+      import_batch_id TEXT,
+      stored_bytes INTEGER,
+      linked_media_filename TEXT,
       updated_at TEXT
     );`,
   );
@@ -665,6 +682,225 @@ describe('sqlite storage port project folder', () => {
     } finally {
       mixed.close();
       other.close();
+    }
+  });
+
+  const SHA_A = 'a'.repeat(64);
+  const SHA_B = 'b'.repeat(64);
+  const URN = 'urn:jieyu:source-record-test';
+
+  function sourceCount(): number {
+    const project = new Database(join(projectDir, 'project.sqlite'));
+    try {
+      const row: unknown = project.prepare('SELECT COUNT(*) AS n FROM source_records').get();
+      return typeof row === 'object' && row !== null ? Number((row as { n?: unknown }).n) : 0;
+    } finally {
+      project.close();
+    }
+  }
+
+  it('refuses a source record when no project folder is open', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'jieyu-sqlite-port-')), 'user-data.sqlite');
+    const alone = openSqliteStoragePort(file);
+    const input = {
+      textId: TEXT_ID,
+      originalName: 'notes.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-1',
+    };
+    await expect(alone.port.listSourceRecords(TEXT_ID)).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    await expect(alone.port.registerImportedSource(input)).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    await expect(alone.port.renameSourceRecord(TEXT_ID, 'src', 'notes.eaf')).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    await expect(alone.port.linkSourceRecordMedia(TEXT_ID, 'src', null)).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    alone.close();
+  });
+
+  it('reads a source record back after the project library is closed and opened again', async () => {
+    reset();
+    insertMixedSelection(projectDir);
+    const { plan, record } = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'Story.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-1',
+      sha256: SHA_A,
+      byteSize: 12,
+      linkedMediaFilename: 'story.wav',
+    });
+    expect(plan.kind).toBe('new');
+    expect(record.displayName).toBe('Story.eaf');
+    expect(record.storedBytes).toBe(false);
+    expect(record.sha256).toBe(SHA_A);
+    expect(record.byteSize).toBe(12);
+    const again = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'story.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-2',
+      sha256: SHA_B,
+    });
+    expect(again.plan.kind).toBe('new');
+    expect(again.record.displayName).toBe('story (2).eaf');
+    expect(again.record.id).not.toBe(record.id);
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    const listed = await reopened.port.listSourceRecords(TEXT_ID);
+    expect([...listed].sort((left, right) => left.id.localeCompare(right.id))).toEqual(
+      [record, again.record].sort((left, right) => left.id.localeCompare(right.id)),
+    );
+    await expect(reopened.port.listSourceRecords('text-b')).resolves.toEqual([]);
+    await expect(reopened.port.listSourceRecords('  ')).resolves.toEqual([]);
+  });
+
+  it('keeps one row when the same content is registered again', async () => {
+    reset();
+    insertMixedSelection(projectDir);
+    const first = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'a.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-1',
+      sha256: SHA_A,
+    });
+    const again = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'copy-of-a.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-2',
+      sha256: SHA_A,
+    });
+    expect(again.plan.kind).toBe('same-content');
+    expect(again.record).toEqual(first.record);
+    expect(sourceCount()).toBe(1);
+  });
+
+  it('updates the row for the same external id and keeps a renamed display name', async () => {
+    reset();
+    insertMixedSelection(projectDir);
+    const first = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'story.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-1',
+      sha256: SHA_A,
+      externalDocId: URN,
+    });
+    const renamed = await handle!.port.renameSourceRecord(
+      TEXT_ID,
+      first.record.id,
+      'Story revised.eaf',
+    );
+    expect(renamed?.displayName).toBe('Story revised.eaf');
+    const updated = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'story-final.eaf',
+      format: 'textgrid',
+      importBatchId: 'batch-2',
+      sha256: SHA_B,
+      externalDocId: URN,
+    });
+    expect(updated.plan.kind).toBe('update-existing');
+    expect(updated.record.id).toBe(first.record.id);
+    expect(updated.record.displayName).toBe('Story revised.eaf');
+    expect(updated.record.originalName).toBe('story-final.eaf');
+    expect(updated.record.format).toBe('textgrid');
+    expect(updated.record.sha256).toBe(SHA_B);
+    expect(sourceCount()).toBe(1);
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    await expect(reopened.port.listSourceRecords(TEXT_ID)).resolves.toEqual([updated.record]);
+  });
+
+  it('writes nothing when the project row is missing or the recording is not stored yet', async () => {
+    reset();
+    await expect(
+      handle!.port.registerImportedSource({
+        textId: TEXT_ID,
+        originalName: 'a.eaf',
+        format: 'eaf',
+        importBatchId: 'batch-1',
+      }),
+    ).rejects.toBeInstanceOf(SourceProjectNotFoundError);
+    expect(sourceCount()).toBe(0);
+    insertMixedSelection(projectDir);
+    const { record } = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'a.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-1',
+    });
+    await expect(
+      handle!.port.registerImportedSource({
+        textId: TEXT_ID,
+        originalName: 'b.eaf',
+        format: 'eaf',
+        importBatchId: 'batch-2',
+        sha256: SHA_A,
+        mediaId: 'media-missing',
+      }),
+    ).rejects.toMatchObject({ name: 'SourceMediaLinkError', reason: 'media-missing' });
+    expect(sourceCount()).toBe(1);
+    await expect(
+      handle!.port.linkSourceRecordMedia(TEXT_ID, record.id, 'media-missing'),
+    ).rejects.toBeInstanceOf(SourceMediaLinkError);
+    await expect(handle!.port.linkSourceRecordMedia(TEXT_ID, 'missing-row', null)).resolves.toBe(
+      undefined,
+    );
+    await expect(handle!.port.renameSourceRecord(TEXT_ID, record.id, '   ')).resolves.toBe(
+      undefined,
+    );
+    const listed = await handle!.port.listSourceRecords(TEXT_ID);
+    expect(listed).toEqual([record]);
+  });
+
+  it('clears a stored recording link without deleting the source row', async () => {
+    reset();
+    insertMixedSelection(projectDir);
+    const project = new Database(join(projectDir, 'project.sqlite'));
+    project
+      .prepare(
+        `INSERT INTO source_records (
+          id, text_id, original_name, display_name, format, media_id, imported_at, import_batch_id,
+          stored_bytes, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        'src-linked',
+        TEXT_ID,
+        'notes.eaf',
+        'notes.eaf',
+        'eaf',
+        'media-old',
+        NOW,
+        'batch-1',
+        0,
+        NOW,
+      );
+    project.close();
+    const cleared = await handle!.port.linkSourceRecordMedia(TEXT_ID, 'src-linked', null);
+    expect(cleared?.mediaId).toBeUndefined();
+    expect(cleared?.displayName).toBe('notes.eaf');
+    const stored = new Database(join(projectDir, 'project.sqlite'));
+    try {
+      expect(
+        stored
+          .prepare('SELECT media_id, display_name FROM source_records WHERE id = ?')
+          .get('src-linked'),
+      ).toMatchObject({ media_id: null, display_name: 'notes.eaf' });
+    } finally {
+      stored.close();
     }
   });
 });
