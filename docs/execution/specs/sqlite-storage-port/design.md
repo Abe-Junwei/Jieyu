@@ -18,7 +18,7 @@ depends_on:
 - 业内 best practice / 事实标准 / 规范：SQLite 一个连接上的事务只覆盖那一个库文件。两份文稿、文件位置或系统垃圾箱用 ADR-0060 第 4 条的操作记录。说话人分配改的是项目库和一份文稿，各提交一次，见 ADR-0071。
 - 公认不可行 / 反模式 / 已弃用方案：ADR-0048 已放弃 `node:sqlite` 和跨多次 IPC 持有事务。
 - 潜在的坑：better-sqlite3 是原生模块，要跟 Electron 的 ABI 一起编译。userData 库不是 `.jyd`，不占用文稿的 `application_id`。
-- 决定：**复用** better-sqlite3 的同步事务和现有 `StoragePort` 合同。userData 文件和项目文件夹由调用方传入。说话人分配不装成一个跨文件事务。正则拆分落在一份 `.jyd` 里，见 ADR-0072。轨道行也落在一份 `.jyd` 里，见 ADR-0073。来源记录落在项目库，见 ADR-0074。录音行也落在项目库，字节仍是普通文件，见 ADR-0075。去掉一条空录音先改文稿再改项目库，见 ADR-0076。文稿改挂录音只替换一份 `.jyd` 上的那一条，见 ADR-0077。语段关系和父子链接只写在同一份文稿里，见 ADR-0078。桌面壳在开关打开时每个方法一次 IPC，见 ADR-0079。会话和消息留在项目库，见 ADR-0080。
+- 决定：**复用** better-sqlite3 的同步事务和现有 `StoragePort` 合同。userData 文件和项目文件夹由调用方传入。说话人分配不装成一个跨文件事务。正则拆分落在一份 `.jyd` 里，见 ADR-0072。轨道行也落在一份 `.jyd` 里，见 ADR-0073。来源记录落在项目库，见 ADR-0074。录音行也落在项目库，字节仍是普通文件，见 ADR-0075。另一项目的录音用这一行已有的 `text_id` 辨认。去掉一条空录音先改文稿再改项目库，见 ADR-0076。文稿改挂录音只替换一份 `.jyd` 上的那一条，见 ADR-0077。语段关系和父子链接只写在同一份文稿里，见 ADR-0078。桌面壳在开关打开时每个方法一次 IPC，见 ADR-0079。会话和消息留在项目库，见 ADR-0080。
 
 ## 2. 架构选择
 
@@ -35,7 +35,7 @@ depends_on:
 | `src/db/sqliteRegexSplit.ts`                    | 一份 `.jyd` 上的正则拆分                                                                                                                             | < 360 行   |
 | `src/db/sqliteTrackEntity.ts`                   | 一份 `.jyd` 上的轨道行写入和按项目列出                                                                                                               | < 280 行   |
 | `src/db/sqliteSourceRecords.ts`                 | 项目库上的来源记录登记、改名和关联                                                                                                                   | < 320 行   |
-| `src/db/sqliteMediaItems.ts`                    | 项目库上的录音行保存和按项目列出                                                                                                                     | < 280 行   |
+| `src/db/sqliteMediaItems.ts`                    | 项目库上的录音行保存、按项目列出，以及标出另一项目的录音                                                                                             | < 280 行   |
 | `src/db/sqliteRemoveEmptyRecording.ts`          | 去掉一条空录音：先改碰到的 `.jyd`，再改项目库                                                                                                        | < 220 行   |
 | `src/db/sqliteManuscriptAudio.ts`               | 一份 `.jyd` 上替换文稿关联的录音                                                                                                                     | < 160 行   |
 | `src/db/sqliteUnitLinks.ts`                     | 同一份 `.jyd` 上的语段关系和父子链接                                                                                                                 | < 180 行   |

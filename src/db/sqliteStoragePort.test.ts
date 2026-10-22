@@ -962,6 +962,9 @@ describe('sqlite storage port project folder', () => {
     await expect(alone.port.listMediaIdsByText(TEXT_ID)).rejects.toThrow(
       /has not opened a project folder/,
     );
+    await expect(alone.port.listForeignOwnedMedia(['media-1'], TEXT_ID)).rejects.toThrow(
+      /has not opened a project folder/,
+    );
     alone.close();
   });
 
@@ -982,6 +985,32 @@ describe('sqlite storage port project folder', () => {
     const reopened = openSqliteStoragePort(userData, projectDir);
     handle = reopened;
     await expect(reopened.port.listMediaByText(TEXT_ID)).resolves.toEqual([stored]);
+  });
+
+  it('lists a recording owned by another project after the library is reopened', async () => {
+    reset();
+    await handle!.port.saveMediaItem(recording('media-a', TEXT_ID));
+    await handle!.port.saveMediaItem(recording('media-b', 'text-other'));
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    await expect(
+      reopened.port.listForeignOwnedMedia(['media-a', ' media-b ', 'gone', ''], TEXT_ID),
+    ).resolves.toEqual([{ id: 'media-b', textId: 'text-other' }]);
+    await expect(reopened.port.listForeignOwnedMedia([], TEXT_ID)).resolves.toEqual([]);
+    const project = new Database(join(projectDir, 'project.sqlite'));
+    project
+      .prepare(
+        `INSERT INTO media_items (
+          id, text_id, filename, is_offline_cached, created_at, timeline_kind, byte_location, availability
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run('media-blank', '', 'blank.wav', 0, NOW, 'acoustic', 'none', 'missing');
+    project.close();
+    await expect(reopened.port.listForeignOwnedMedia(['media-blank'], TEXT_ID)).rejects.toThrow(
+      /media row is incomplete/,
+    );
   });
 
   it('writes nothing for a blank recording id or for audio bytes in the row', async () => {

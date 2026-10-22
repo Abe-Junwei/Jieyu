@@ -20,6 +20,7 @@ depends_on:
 - [x] 轨道行：一份 `.jyd` 里的 `track_entities` 一次事务，提交后读回；关掉再打开仍在 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 来源记录：项目库里登记、改名、解开关联各一次事务，提交后读回；关掉再打开仍在 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 录音行：项目库里保存并按项目列出，提交后读回；关掉再打开仍在。音频字节不进这一行 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
+- [x] 另一项目的录音：按已有的 `text_id` 列出，缺行跳过，空的项目编号拒绝。关掉再打开仍在 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 去掉一条空录音：先改碰到的 `.jyd`，再改项目库，提交后读回；关掉再打开仍在。不删音频文件，不改 `meta.audio_id` → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 文稿改挂录音：一份 `.jyd` 里替换 `meta.audio_id`，语段改成同一条，提交后读回；关掉再打开仍是一条 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 跨文稿关系：同一份 `.jyd` 里的语段关系和父子链接提交后读回；两端不在同一份文稿就不写 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`

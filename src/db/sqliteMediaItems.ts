@@ -171,6 +171,35 @@ export function listMediaIdsByTextInProject(db: SqliteDatabase, textId: string):
   return listMediaByTextInProject(db, textId).map((row) => row.id);
 }
 
+function mediaOwner(value: unknown): { id: string; textId: string } {
+  if (typeof value !== 'object' || value === null) throw new Error('media row is incomplete');
+  const row = value as Record<string, unknown>;
+  const id = row.id;
+  const textId = row.text_id;
+  if (typeof id !== 'string' || id.length === 0) throw new Error('media row is incomplete');
+  if (typeof textId !== 'string' || textId.length === 0) throw new Error('media row is incomplete');
+  return { id, textId };
+}
+
+/** 另一项目的录音：`text_id` 对不上这次的项目。缺行跳过。空的项目编号拒绝，不把那一行算成别的项目。 */
+export function listForeignOwnedMediaInProject(
+  db: SqliteDatabase,
+  mediaIds: Iterable<string>,
+  textId: string,
+): { id: string; textId: string }[] {
+  const ids = [...new Set([...mediaIds].map((id) => id.trim()).filter((id) => id.length > 0))];
+  if (ids.length === 0) return [];
+  const statement = db.prepare('SELECT id, text_id FROM media_items WHERE id = ?');
+  const foreign: { id: string; textId: string }[] = [];
+  for (const id of ids) {
+    const row: unknown = statement.get(id);
+    if (row === undefined) continue;
+    const owner = mediaOwner(row);
+    if (owner.textId !== textId) foreign.push(owner);
+  }
+  return foreign;
+}
+
 export function saveMediaItemInProject(db: SqliteDatabase, data: MediaItemDocType): string {
   const id = data.id.trim();
   if (id.length === 0) throw new StorageReadbackError(OPERATION);

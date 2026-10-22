@@ -3,6 +3,7 @@
  * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
  * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
  * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
+ * 另一项目的录音用这一行已有的 text_id 辨认。
  * 去掉一条空录音先改文稿，再改项目库（ADR-0076）。
  * 文稿改挂录音只改一份 `.jyd`，已有的是替换（ADR-0077）。
  * 语段关系和父子链接只写在同一份文稿里（ADR-0078）。
@@ -14,6 +15,7 @@ import Database from 'better-sqlite3';
 import { aiConversationMethods } from './sqliteAiConversations';
 import { replaceManuscriptAudioInProject } from './sqliteManuscriptAudio';
 import {
+  listForeignOwnedMediaInProject,
   listMediaByTextInProject,
   listMediaIdsByTextInProject,
   saveMediaItemInProject,
@@ -263,6 +265,9 @@ export function openSqliteStoragePort(
     },
     async listMediaIdsByText(textId: string) {
       return listMediaIdsByTextInProject(requireProject(), textId);
+    },
+    async listForeignOwnedMedia(mediaIds: Iterable<string>, textId: string) {
+      return listForeignOwnedMediaInProject(requireProject(), mediaIds, textId);
     },
     async saveMediaItem(data: MediaItemDocType) {
       return saveMediaItemInProject(requireProject(), data);
