@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0077**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0078**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -46,6 +46,7 @@ source_of_truth: decision-index
 | 来源记录                                                                                                                                                  | ADR-0074：项目库 `source_records` 记下哈希、外部编号、导入时间和更新时间。登记、改名、解开关联各一次事务。不保存原件字节。挂录音见 ADR-0075                                                              | 把来源记录放进 `.jyd` 或定义副本                                                                                         |
 | 录音行                                                                                                                                                    | ADR-0075：项目库 `media_items` 记下文件名、时长和字节状态。`details_json` 不收音频字节。来源挂录音读这张表                                                                                               | 把音频字节写进录音行，或把录音行并进迁移用的 `audio` 表                                                                  |
 | 去掉一条空录音                                                                                                                                            | ADR-0076：先改碰到的 `.jyd`，再改项目库。语段和锚点改成未挂接，删掉轨道行，清掉来源关联，删掉录音行。不删音频文件，不改 `meta.audio_id`                                                                  | 先删项目库里的录音行，或为了删句段元数据和快照先把这些表建出来                                                           |
+| 文稿改挂录音                                                                                                                                              | ADR-0077：一份 `.jyd` 里替换 `meta.audio_id`，语段改成同一条。不另插一行。锚点和音频文件不动                                                                                                             | 让一份文稿同时挂上两条录音，或在浏览器库里补一个文稿头                                                                   |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -124,6 +125,7 @@ source_of_truth: decision-index
 - [0074-source-record-project-columns.md](./0074-source-record-project-columns.md)
 - [0075-recording-row-project-library.md](./0075-recording-row-project-library.md)
 - [0076-remove-empty-recording.md](./0076-remove-empty-recording.md)
+- [0077-manuscript-audio-replace.md](./0077-manuscript-audio-replace.md)
 
 ## 已关闭的另一套编号
 

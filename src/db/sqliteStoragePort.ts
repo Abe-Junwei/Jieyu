@@ -4,10 +4,12 @@
  * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
  * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
  * 去掉一条空录音先改文稿，再改项目库（ADR-0076）。
+ * 文稿改挂录音只改一份 `.jyd`，已有的是替换（ADR-0077）。
  * 这里不安装成默认实现。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import { replaceManuscriptAudioInProject } from './sqliteManuscriptAudio';
 import {
   listMediaByTextInProject,
   listMediaIdsByTextInProject,
@@ -190,6 +192,12 @@ export function openSqliteStoragePort(
         throw new Error('sqlite storage port has not opened a project folder');
       }
       return removeEmptyRecordingInProject(project, projectDir, mediaId);
+    },
+    async replaceManuscriptAudio(manuscriptId: string, audioId: string | null) {
+      if (project === undefined || projectDir === undefined) {
+        throw new Error('sqlite storage port has not opened a project folder');
+      }
+      replaceManuscriptAudioInProject(project, projectDir, manuscriptId, audioId);
     },
     async assignSpeakerToMixedSelection(write: MixedSpeakerSelectionWrite) {
       if (project === undefined || projectDir === undefined) {

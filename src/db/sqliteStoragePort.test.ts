@@ -1226,4 +1226,153 @@ describe('sqlite storage port project folder', () => {
       hiddenAgain.close();
     }
   });
+
+  function seedManuscript(audioId: string): void {
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript.exec(
+      'CREATE TABLE IF NOT EXISTS meta (id TEXT PRIMARY KEY, audio_id TEXT, source_document_id TEXT)',
+    );
+    manuscript
+      .prepare('INSERT INTO meta (id, audio_id, source_document_id) VALUES (?, ?, ?)')
+      .run('ms-1', audioId, 'src-doc');
+    manuscript
+      .prepare('INSERT INTO units (id, media_id, text_id, updated_at) VALUES (?, ?, ?, ?)')
+      .run('unit-audio', audioId, TEXT_ID, NOW);
+    manuscript
+      .prepare('INSERT INTO anchors (id, media_id, time) VALUES (?, ?, ?)')
+      .run('anchor-audio', audioId, 1);
+    manuscript.close();
+  }
+
+  function manuscriptAudio(): {
+    audioId: string | null;
+    unitMediaId: string | null;
+    anchorMediaId: string;
+    metaCount: number;
+    sourceDocumentId: string | null;
+  } {
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      const meta = manuscript.prepare('SELECT audio_id, source_document_id FROM meta').all();
+      const unit = manuscript.prepare('SELECT media_id FROM units WHERE id = ?').get('unit-audio');
+      const anchor = manuscript
+        .prepare('SELECT media_id FROM anchors WHERE id = ?')
+        .get('anchor-audio');
+      return {
+        metaCount: meta.length,
+        audioId:
+          typeof meta[0] === 'object' && meta[0] !== null
+            ? ((meta[0] as { audio_id?: string | null }).audio_id ?? null)
+            : null,
+        sourceDocumentId:
+          typeof meta[0] === 'object' && meta[0] !== null
+            ? ((meta[0] as { source_document_id?: string | null }).source_document_id ?? null)
+            : null,
+        unitMediaId:
+          typeof unit === 'object' && unit !== null
+            ? ((unit as { media_id?: string | null }).media_id ?? null)
+            : null,
+        anchorMediaId:
+          typeof anchor === 'object' && anchor !== null
+            ? String((anchor as { media_id?: unknown }).media_id)
+            : '',
+      };
+    } finally {
+      manuscript.close();
+    }
+  }
+
+  it('refuses to replace a manuscript recording when no project folder is open', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'jieyu-sqlite-port-')), 'user-data.sqlite');
+    const alone = openSqliteStoragePort(file);
+    await expect(alone.port.replaceManuscriptAudio('ms-1', 'media-1')).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    alone.close();
+  });
+
+  it('replaces the manuscript recording and leaves one audio after reopen', async () => {
+    reset();
+    await handle!.port.saveMediaItem(recording('media-a', TEXT_ID));
+    await handle!.port.saveMediaItem(recording('media-b', TEXT_ID));
+    seedManuscript('media-a');
+    await handle!.port.replaceManuscriptAudio('ms-1', 'media-b');
+    await handle!.port.replaceManuscriptAudio(' ms-1 ', 'media-a');
+    expect(manuscriptAudio()).toMatchObject({
+      metaCount: 1,
+      audioId: 'media-a',
+      unitMediaId: 'media-a',
+      anchorMediaId: 'media-a',
+      sourceDocumentId: 'src-doc',
+    });
+    await handle!.port.replaceManuscriptAudio('ms-1', 'media-b');
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    const stored = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(stored.prepare('SELECT COUNT(*) AS n FROM meta').get()).toMatchObject({ n: 1 });
+      expect(stored.prepare('SELECT audio_id FROM meta').get()).toEqual({ audio_id: 'media-b' });
+      expect(stored.prepare('SELECT media_id FROM units').get()).toEqual({ media_id: 'media-b' });
+      expect(stored.prepare('SELECT media_id FROM anchors').get()).toEqual({ media_id: 'media-a' });
+      expect(stored.prepare('SELECT source_document_id FROM meta').get()).toEqual({
+        source_document_id: 'src-doc',
+      });
+    } finally {
+      stored.close();
+    }
+    await reopened.port.replaceManuscriptAudio('ms-1', null);
+    expect(manuscriptAudio()).toMatchObject({
+      metaCount: 1,
+      audioId: null,
+      unitMediaId: null,
+      anchorMediaId: 'media-a',
+    });
+  });
+
+  it('writes nothing when the recording is missing, foreign, or the manuscript id is duplicated', async () => {
+    reset();
+    await handle!.port.saveMediaItem(recording('media-a', TEXT_ID));
+    await handle!.port.saveMediaItem(recording('media-b', 'text-other'));
+    seedManuscript('media-a');
+    await expect(handle!.port.replaceManuscriptAudio('  ', 'media-a')).rejects.toThrow(
+      /manuscript not found/,
+    );
+    await expect(handle!.port.replaceManuscriptAudio('missing-ms', 'media-a')).rejects.toThrow(
+      /manuscript not found/,
+    );
+    await expect(handle!.port.replaceManuscriptAudio('ms-1', 'media-missing')).rejects.toThrow(
+      /recording not found/,
+    );
+    await expect(handle!.port.replaceManuscriptAudio('ms-1', 'media-b')).rejects.toThrow(
+      /another project/,
+    );
+    pragmaFile(
+      join(projectDir, 'other.jyd'),
+      MANUSCRIPT_APPLICATION_ID,
+      `CREATE TABLE meta (id TEXT PRIMARY KEY, audio_id TEXT, source_document_id TEXT);
+       CREATE TABLE units (
+         id TEXT PRIMARY KEY,
+         media_id TEXT,
+         text_id TEXT,
+         updated_at TEXT
+       );
+       CREATE TABLE anchors (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, time REAL NOT NULL);`,
+    );
+    const other = new Database(join(projectDir, 'other.jyd'));
+    other
+      .prepare('INSERT INTO meta (id, audio_id, source_document_id) VALUES (?, ?, ?)')
+      .run('ms-1', 'media-a', 'other-doc');
+    other.close();
+    await expect(handle!.port.replaceManuscriptAudio('ms-1', 'media-a')).rejects.toThrow(
+      /duplicate manuscript/,
+    );
+    expect(manuscriptAudio()).toMatchObject({
+      metaCount: 1,
+      audioId: 'media-a',
+      unitMediaId: 'media-a',
+      anchorMediaId: 'media-a',
+    });
+  });
 });

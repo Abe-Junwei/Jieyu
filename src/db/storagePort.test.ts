@@ -565,6 +565,12 @@ describe('dexie storage port', () => {
     await expect(db.media_items.get('media-stale')).resolves.toBeUndefined();
   });
 
+  it('does not replace a manuscript recording in the browser library', async () => {
+    await expect(dexieStoragePort.replaceManuscriptAudio('ms-1', 'media-1')).rejects.toThrow(
+      /has not implemented replaceManuscriptAudio/,
+    );
+  });
+
   it('routes the turn store through the installed implementation', async () => {
     const fake: StoragePort = {
       ...dexieStoragePort,

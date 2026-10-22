@@ -163,6 +163,8 @@ export interface StoragePort {
    * 同名的其他录音不动。
    */
   removeEmptyRecording(mediaId: string): Promise<{ unboundSourceIds: string[] }>;
+  /** 把一份文稿改挂到另一条录音，或摘掉。已有的就是替换。浏览器库没有文稿文件，会拒绝。 */
+  replaceManuscriptAudio(manuscriptId: string, audioId: string | null): Promise<void>;
   readProject(textId: string): Promise<TextDocType | undefined>;
   listForeignOwnedUnits(unitIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
   listForeignOwnedLayers(layerIds: Iterable<string>, textId: string): Promise<ForeignOwnedRow[]>;
@@ -419,6 +421,12 @@ export const dexieStoragePort: StoragePort = {
   assignSpeakerToMixedSelection,
 
   removeEmptyRecording,
+
+  replaceManuscriptAudio() {
+    return Promise.reject(
+      new Error('dexie storage port has not implemented replaceManuscriptAudio'),
+    );
+  },
 
   readProject,
   listForeignOwnedUnits,
