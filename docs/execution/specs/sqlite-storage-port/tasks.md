@@ -22,7 +22,8 @@ depends_on:
 - [x] 录音行：项目库里保存并按项目列出，提交后读回；关掉再打开仍在。音频字节不进这一行 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 去掉一条空录音：先改碰到的 `.jyd`，再改项目库，提交后读回；关掉再打开仍在。不删音频文件，不改 `meta.audio_id` → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 文稿改挂录音：一份 `.jyd` 里替换 `meta.audio_id`，语段改成同一条，提交后读回；关掉再打开仍是一条 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
-- [ ] 其余项目库和 `.jyd` 上的业务操作（跨文稿的 `unit_relations` 等）→ 验证：这些方法不再拒绝
+- [x] 跨文稿关系：同一份 `.jyd` 里的语段关系和父子链接提交后读回；两端不在同一份文稿就不写 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
+- [ ] 其余项目库和 `.jyd` 上的业务操作 → 验证：这些方法不再拒绝
 - [ ] 桌面壳 `installStoragePort` 换上这个实现，默认仍不在浏览器里启用 → 验证：Electron 冒烟能打开本机库
 - [x] 不适用：界面、E2E、`src/ai/**`
 

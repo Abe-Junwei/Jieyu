@@ -5,6 +5,7 @@
  * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
  * 去掉一条空录音先改文稿，再改项目库（ADR-0076）。
  * 文稿改挂录音只改一份 `.jyd`，已有的是替换（ADR-0077）。
+ * 语段关系和父子链接只写在同一份文稿里（ADR-0078）。
  * 这里不安装成默认实现。
  */
 import path from 'node:path';
@@ -25,8 +26,10 @@ import {
 } from './sqliteSourceRecords';
 import { assignSpeakerInProject, PROJECT_APPLICATION_ID } from './sqliteSpeakerAssignment';
 import { listTrackEntitiesInProject, putTrackEntityInProject } from './sqliteTrackEntity';
+import { putUnitRelationInProject, setUnitParentInProject } from './sqliteUnitLinks';
 import {
   RecordingRemovalBlockedError,
+  type ManuscriptRelationWrite,
   type MixedSpeakerSelectionWrite,
   type RegexSplitCommit,
   type StoragePort,
@@ -198,6 +201,18 @@ export function openSqliteStoragePort(
         throw new Error('sqlite storage port has not opened a project folder');
       }
       replaceManuscriptAudioInProject(project, projectDir, manuscriptId, audioId);
+    },
+    async putUnitRelation(relation: ManuscriptRelationWrite) {
+      if (projectDir === undefined) {
+        throw new Error('sqlite storage port has not opened a project folder');
+      }
+      putUnitRelationInProject(projectDir, relation);
+    },
+    async setUnitParent(unitId: string, parentUnitId: string | null) {
+      if (projectDir === undefined) {
+        throw new Error('sqlite storage port has not opened a project folder');
+      }
+      setUnitParentInProject(projectDir, unitId, parentUnitId);
     },
     async assignSpeakerToMixedSelection(write: MixedSpeakerSelectionWrite) {
       if (project === undefined || projectDir === undefined) {

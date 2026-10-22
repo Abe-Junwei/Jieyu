@@ -1375,4 +1375,148 @@ describe('sqlite storage port project folder', () => {
       anchorMediaId: 'media-a',
     });
   });
+
+  function relationCount(fileName: string): number {
+    const manuscript = new Database(join(projectDir, fileName));
+    try {
+      const row: unknown = manuscript.prepare('SELECT COUNT(*) AS n FROM unit_relations').get();
+      return typeof row === 'object' && row !== null ? Number((row as { n?: unknown }).n) : 0;
+    } finally {
+      manuscript.close();
+    }
+  }
+
+  it('writes a unit relation in one manuscript and refuses one that crosses', async () => {
+    reset();
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript.exec(
+      'CREATE TABLE unit_relations (id TEXT PRIMARY KEY, source_unit_id TEXT NOT NULL, target_unit_id TEXT NOT NULL, relation_type TEXT NOT NULL)',
+    );
+    manuscript
+      .prepare('INSERT INTO units (id, parent_unit_id, updated_at) VALUES (?, ?, ?)')
+      .run('unit-src', null, NOW);
+    manuscript
+      .prepare('INSERT INTO units (id, parent_unit_id, updated_at) VALUES (?, ?, ?)')
+      .run('unit-tgt', null, NOW);
+    manuscript.close();
+    const file = join(mkdtempSync(join(tmpdir(), 'jieyu-sqlite-port-')), 'user-data.sqlite');
+    const alone = openSqliteStoragePort(file);
+    await expect(
+      alone.port.putUnitRelation({
+        id: 'rel-1',
+        sourceUnitId: 'unit-src',
+        targetUnitId: 'unit-tgt',
+        relationType: 'aligned_to',
+      }),
+    ).rejects.toThrow(/has not opened a project folder/);
+    await expect(alone.port.setUnitParent('unit-src', 'unit-tgt')).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    alone.close();
+    await expect(
+      handle!.port.putUnitRelation({
+        id: '  ',
+        sourceUnitId: 'unit-src',
+        targetUnitId: 'unit-tgt',
+        relationType: 'aligned_to',
+      }),
+    ).rejects.toThrow(/unit relation id is empty/);
+    await expect(
+      handle!.port.putUnitRelation({
+        id: 'rel-missing',
+        sourceUnitId: 'unit-src',
+        targetUnitId: 'missing-unit',
+        relationType: 'aligned_to',
+      }),
+    ).rejects.toThrow(/unit not found/);
+    expect(relationCount('mixed.jyd')).toBe(0);
+    await handle!.port.putUnitRelation({
+      id: 'rel-1',
+      sourceUnitId: 'unit-src',
+      targetUnitId: 'unit-tgt',
+      relationType: 'aligned_to',
+    });
+    await handle!.port.putUnitRelation({
+      id: 'rel-1',
+      sourceUnitId: 'unit-tgt',
+      targetUnitId: 'unit-src',
+      relationType: 'derived_from',
+    });
+    await handle!.port.setUnitParent('unit-src', 'unit-tgt');
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    const stored = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(
+        stored
+          .prepare('SELECT source_unit_id, target_unit_id, relation_type FROM unit_relations')
+          .get(),
+      ).toEqual({
+        source_unit_id: 'unit-tgt',
+        target_unit_id: 'unit-src',
+        relation_type: 'derived_from',
+      });
+      expect(
+        stored.prepare('SELECT parent_unit_id FROM units WHERE id = ?').get('unit-src'),
+      ).toEqual({
+        parent_unit_id: 'unit-tgt',
+      });
+    } finally {
+      stored.close();
+    }
+    pragmaFile(
+      join(projectDir, 'other.jyd'),
+      MANUSCRIPT_APPLICATION_ID,
+      `CREATE TABLE units (
+        id TEXT PRIMARY KEY,
+        parent_unit_id TEXT,
+        updated_at TEXT
+      );
+      CREATE TABLE unit_relations (
+        id TEXT PRIMARY KEY,
+        source_unit_id TEXT NOT NULL,
+        target_unit_id TEXT NOT NULL,
+        relation_type TEXT NOT NULL
+      );`,
+    );
+    const other = new Database(join(projectDir, 'other.jyd'));
+    other.prepare('INSERT INTO units (id) VALUES (?)').run('unit-other');
+    other.close();
+    await expect(
+      reopened.port.putUnitRelation({
+        id: 'rel-cross',
+        sourceUnitId: 'unit-src',
+        targetUnitId: 'unit-other',
+        relationType: 'linked_reference',
+      }),
+    ).rejects.toThrow(/crosses manuscripts/);
+    await expect(reopened.port.setUnitParent('unit-src', 'unit-other')).rejects.toThrow(
+      /crosses manuscripts/,
+    );
+    expect(relationCount('mixed.jyd')).toBe(1);
+    expect(relationCount('other.jyd')).toBe(0);
+    const kept = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(kept.prepare('SELECT parent_unit_id FROM units WHERE id = ?').get('unit-src')).toEqual(
+        {
+          parent_unit_id: 'unit-tgt',
+        },
+      );
+    } finally {
+      kept.close();
+    }
+    await reopened.port.setUnitParent('unit-src', null);
+    const cleared = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(
+        cleared.prepare('SELECT parent_unit_id FROM units WHERE id = ?').get('unit-src'),
+      ).toEqual({
+        parent_unit_id: null,
+      });
+    } finally {
+      cleared.close();
+    }
+  });
 });

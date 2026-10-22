@@ -571,6 +571,20 @@ describe('dexie storage port', () => {
     );
   });
 
+  it('does not write a manuscript unit link in the browser library', async () => {
+    await expect(
+      dexieStoragePort.putUnitRelation({
+        id: 'rel-1',
+        sourceUnitId: 'u-1',
+        targetUnitId: 'u-2',
+        relationType: 'aligned_to',
+      }),
+    ).rejects.toThrow(/has not implemented putUnitRelation/);
+    await expect(dexieStoragePort.setUnitParent('u-1', 'u-2')).rejects.toThrow(
+      /has not implemented setUnitParent/,
+    );
+  });
+
   it('routes the turn store through the installed implementation', async () => {
     const fake: StoragePort = {
       ...dexieStoragePort,
