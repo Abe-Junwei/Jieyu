@@ -387,10 +387,10 @@ export function applyPlan(
         'CREATE TABLE structural_rule_profiles (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, scope TEXT NOT NULL, language_id TEXT, derived_from_system_id TEXT, enabled INTEGER NOT NULL, priority INTEGER NOT NULL, profile_json TEXT)',
       );
       db.exec(
-        'CREATE TABLE ai_conversations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, mode TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, archived INTEGER, cleared_at TEXT)',
+        'CREATE TABLE ai_conversations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, mode TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, archived INTEGER, cleared_at TEXT, created_at TEXT, updated_at TEXT)',
       );
       db.exec(
-        'CREATE TABLE ai_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, generation_source TEXT, generation_model TEXT, error_message TEXT)',
+        'CREATE TABLE ai_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, generation_source TEXT, generation_model TEXT, error_message TEXT, created_at TEXT, updated_at TEXT)',
       );
       db.exec(
         'CREATE TABLE ai_tasks (id TEXT PRIMARY KEY, task_type TEXT NOT NULL, status TEXT NOT NULL, target_id TEXT NOT NULL, target_type TEXT, model_id TEXT, error_message TEXT, attempt INTEGER, max_attempts INTEGER, timeout_ms INTEGER, resumable INTEGER, handoff_reason TEXT, agent_run_id TEXT)',

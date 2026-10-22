@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0080**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0081**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -49,6 +49,7 @@ source_of_truth: decision-index
 | 文稿改挂录音                                                                                                                                              | ADR-0077：一份 `.jyd` 里替换 `meta.audio_id`，语段改成同一条。不另插一行。锚点和音频文件不动                                                                                                             | 让一份文稿同时挂上两条录音，或在浏览器库里补一个文稿头                                                                   |
 | 跨文稿关系                                                                                                                                                | ADR-0078：语段关系和父子链接只写在同一份 `.jyd` 里。两端不在同一份文稿就不写                                                                                                                             | 把跨文稿关系放进项目库，或改浏览器里已有的关系写入                                                                       |
 | 桌面壳安装 SQLite 存储接口                                                                                                                                | ADR-0079：开关默认关。打开时渲染进程每个方法一次 IPC，主进程打开调用方传入的 userData 库和已锁定文件夹里的 `project.sqlite`。浏览器不安装                                                                | 默认打开，或只打开 userData，或把 userData 放进项目文件夹                                                                |
+| 会话和消息                                                                                                                                                | ADR-0080：会话和消息留在项目库。可空的创建时间和更新时间给活的读写用。迁移不读这两列。引用和推理正文不进消息行                                                                                           | 把会话放进 userData，或为引用另加 JSON 列                                                                                |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -130,6 +131,7 @@ source_of_truth: decision-index
 - [0077-manuscript-audio-replace.md](./0077-manuscript-audio-replace.md)
 - [0078-cross-manuscript-links-refused.md](./0078-cross-manuscript-links-refused.md)
 - [0079-desktop-shell-installs-sqlite-storage-port.md](./0079-desktop-shell-installs-sqlite-storage-port.md)
+- [0080-conversations-stay-in-project-library.md](./0080-conversations-stay-in-project-library.md)
 
 ## 已关闭的另一套编号
 

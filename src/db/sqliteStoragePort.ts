@@ -6,10 +6,12 @@
  * 去掉一条空录音先改文稿，再改项目库（ADR-0076）。
  * 文稿改挂录音只改一份 `.jyd`，已有的是替换（ADR-0077）。
  * 语段关系和父子链接只写在同一份文稿里（ADR-0078）。
+ * 会话和消息写在项目库里（ADR-0080）。
  * 桌面壳只在开关打开时经 IPC 安装（ADR-0079）。默认不安装。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import { aiConversationMethods } from './sqliteAiConversations';
 import { replaceManuscriptAudioInProject } from './sqliteManuscriptAudio';
 import {
   listMediaByTextInProject,
@@ -265,6 +267,7 @@ export function openSqliteStoragePort(
     async saveMediaItem(data: MediaItemDocType) {
       return saveMediaItemInProject(requireProject(), data);
     },
+    ...aiConversationMethods(requireProject),
   };
 
   const port = new Proxy(implemented, {
