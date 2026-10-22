@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0075**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0076**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -43,7 +43,8 @@ source_of_truth: decision-index
 | 说话人分配                                                                                                                                                | ADR-0071：名单在项目行 `speaker_ids_json`，语段种类在 `.jyd` `units.unit_type`。项目库和每一份文稿各一次事务，提交后读回。不进 ADR-0060 第 4 条的文件操作记录                                            | 把两个库合成一个事务，或把语段搬进项目库                                                                                 |
 | 正则拆分                                                                                                                                                  | ADR-0072：一份 `.jyd` 里一次事务写锚点、语段和正文。语段行带 `text_id`、起止时间和 `updated_at`，正文行带 `text_id` 和 `updated_at`                                                                      | 把一次拆分拆进两份文稿，或只把时间留在锚点上                                                                             |
 | 轨道行                                                                                                                                                    | ADR-0073：一份 `.jyd` 里一次事务写 `track_entities`。轨道行带 `text_id` 和 `updated_at`，车道锁定表仍是 `lane_lock_json`                                                                                 | 把轨道行放进项目库，或在活写入时丢掉坏的车道锁定表再留下该行                                                             |
-| 来源记录                                                                                                                                                  | ADR-0074：项目库 `source_records` 记下哈希、外部编号、导入时间和更新时间。登记、改名、解开关联各一次事务。这一刀不保存原件字节，也不建录音表                                                             | 把来源记录放进 `.jyd` 或定义副本，或为了挂录音先建录音表                                                                 |
+| 来源记录                                                                                                                                                  | ADR-0074：项目库 `source_records` 记下哈希、外部编号、导入时间和更新时间。登记、改名、解开关联各一次事务。不保存原件字节。挂录音见 ADR-0075                                                              | 把来源记录放进 `.jyd` 或定义副本                                                                                         |
+| 录音行                                                                                                                                                    | ADR-0075：项目库 `media_items` 记下文件名、时长和字节状态。`details_json` 不收音频字节。来源挂录音读这张表                                                                                               | 把音频字节写进录音行，或把录音行并进迁移用的 `audio` 表                                                                  |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -120,6 +121,7 @@ source_of_truth: decision-index
 - [0072-regex-split-manuscript-columns.md](./0072-regex-split-manuscript-columns.md)
 - [0073-track-entity-manuscript-columns.md](./0073-track-entity-manuscript-columns.md)
 - [0074-source-record-project-columns.md](./0074-source-record-project-columns.md)
+- [0075-recording-row-project-library.md](./0075-recording-row-project-library.md)
 
 ## 已关闭的另一套编号
 

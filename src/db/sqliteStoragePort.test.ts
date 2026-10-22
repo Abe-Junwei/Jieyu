@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
 import { CatalogOwnershipMismatchError } from '../services/projectCatalogScope';
 import { SourceMediaLinkError, SourceProjectNotFoundError } from '../services/sourceRecordPlan';
+import { StorageReadbackError } from './storageReadbackError';
 import { recordingRemovalBlockReason, type StoragePort } from './storagePort';
 import { describeStoragePortContract } from './storagePortContract';
 import { MANUSCRIPT_APPLICATION_ID, PROJECT_APPLICATION_ID } from './sqliteSpeakerAssignment';
@@ -153,6 +154,22 @@ function createProjectFixture(projectDir: string): void {
       stored_bytes INTEGER,
       linked_media_filename TEXT,
       updated_at TEXT
+    );
+    CREATE TABLE media_items (
+      id TEXT PRIMARY KEY,
+      text_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      url TEXT,
+      duration REAL,
+      details_json TEXT,
+      is_offline_cached INTEGER NOT NULL,
+      access_rights TEXT,
+      created_at TEXT NOT NULL,
+      timeline_kind TEXT NOT NULL,
+      byte_location TEXT NOT NULL,
+      availability TEXT NOT NULL,
+      content_size REAL,
+      content_sha256 TEXT
     );`,
   );
   pragmaFile(
@@ -902,5 +919,100 @@ describe('sqlite storage port project folder', () => {
     } finally {
       stored.close();
     }
+  });
+
+  function recording(id: string, textId: string) {
+    return {
+      id,
+      textId,
+      filename: `${id}.wav`,
+      duration: 1.5,
+      isOfflineCached: false,
+      createdAt: NOW,
+      timelineKind: 'acoustic' as const,
+      byteLocation: 'none' as const,
+      availability: 'missing' as const,
+      details: { label: id },
+    };
+  }
+
+  function mediaCount(): number {
+    const project = new Database(join(projectDir, 'project.sqlite'));
+    try {
+      const row: unknown = project.prepare('SELECT COUNT(*) AS n FROM media_items').get();
+      return typeof row === 'object' && row !== null ? Number((row as { n?: unknown }).n) : 0;
+    } finally {
+      project.close();
+    }
+  }
+
+  it('refuses a recording row when no project folder is open', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'jieyu-sqlite-port-')), 'user-data.sqlite');
+    const alone = openSqliteStoragePort(file);
+    await expect(alone.port.saveMediaItem(recording('media-1', TEXT_ID))).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    await expect(alone.port.listMediaByText(TEXT_ID)).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    await expect(alone.port.listMediaIdsByText(TEXT_ID)).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    alone.close();
+  });
+
+  it('reads a recording row back after the project library is closed and opened again', async () => {
+    reset();
+    const row = recording('media-1', TEXT_ID);
+    await expect(handle!.port.saveMediaItem(row)).resolves.toBe('media-1');
+    await expect(handle!.port.saveMediaItem({ ...row, filename: 'renamed.wav' })).resolves.toBe(
+      'media-1',
+    );
+    const stored = { ...row, filename: 'renamed.wav' };
+    await expect(handle!.port.listMediaByText(TEXT_ID)).resolves.toEqual([stored]);
+    await expect(handle!.port.listMediaIdsByText(TEXT_ID)).resolves.toEqual(['media-1']);
+    await expect(handle!.port.listMediaByText('text-b')).resolves.toEqual([]);
+    await expect(handle!.port.listMediaByText('  ')).resolves.toEqual([]);
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    await expect(reopened.port.listMediaByText(TEXT_ID)).resolves.toEqual([stored]);
+  });
+
+  it('writes nothing for a blank recording id or for audio bytes in the row', async () => {
+    reset();
+    await expect(handle!.port.saveMediaItem(recording('  ', TEXT_ID))).rejects.toBeInstanceOf(
+      StorageReadbackError,
+    );
+    await expect(
+      handle!.port.saveMediaItem({
+        ...recording('media-blob', TEXT_ID),
+        details: { audioBlob: new Blob(['wav']) },
+      }),
+    ).rejects.toThrow(/audio bytes/);
+    expect(mediaCount()).toBe(0);
+  });
+
+  it('links a source to a recording in the same project and refuses one from another', async () => {
+    reset();
+    insertMixedSelection(projectDir);
+    await handle!.port.saveMediaItem(recording('media-1', TEXT_ID));
+    await handle!.port.saveMediaItem(recording('media-b', 'text-other'));
+    const { record } = await handle!.port.registerImportedSource({
+      textId: TEXT_ID,
+      originalName: 'notes.eaf',
+      format: 'eaf',
+      importBatchId: 'batch-1',
+      mediaId: 'media-1',
+    });
+    expect(record.mediaId).toBe('media-1');
+    await expect(
+      handle!.port.linkSourceRecordMedia(TEXT_ID, record.id, 'media-b'),
+    ).rejects.toMatchObject({ reason: 'media-other-project' });
+    const kept = await handle!.port.listSourceRecords(TEXT_ID);
+    expect(kept).toEqual([record]);
+    const linked = await handle!.port.linkSourceRecordMedia(TEXT_ID, record.id, 'media-1');
+    expect(linked?.mediaId).toBe('media-1');
   });
 });

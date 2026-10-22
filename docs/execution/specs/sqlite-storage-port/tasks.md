@@ -19,7 +19,8 @@ depends_on:
 - [x] 正则拆分：一份 `.jyd` 里的锚点、语段和正文一次事务，提交后读回；关掉再打开仍在 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 轨道行：一份 `.jyd` 里的 `track_entities` 一次事务，提交后读回；关掉再打开仍在 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 来源记录：项目库里登记、改名、解开关联各一次事务，提交后读回；关掉再打开仍在 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
-- [ ] 其余项目库和 `.jyd` 上的业务操作（录音等）→ 验证：这些方法不再拒绝
+- [x] 录音行：项目库里保存并按项目列出，提交后读回；关掉再打开仍在。音频字节不进这一行 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
+- [ ] 其余项目库和 `.jyd` 上的业务操作（去掉一条空录音、文稿改挂录音等）→ 验证：这些方法不再拒绝
 - [ ] 桌面壳 `installStoragePort` 换上这个实现，默认仍不在浏览器里启用 → 验证：Electron 冒烟能打开本机库
 - [x] 不适用：界面、E2E、`src/ai/**`
 

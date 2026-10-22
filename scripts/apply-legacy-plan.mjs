@@ -345,6 +345,9 @@ export function applyPlan(
         'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT, byte_size INTEGER, sha256 TEXT, external_doc_id TEXT, imported_at TEXT, import_batch_id TEXT, stored_bytes INTEGER, linked_media_filename TEXT, updated_at TEXT)',
       );
       db.exec(
+        'CREATE TABLE media_items (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, filename TEXT NOT NULL, url TEXT, duration REAL, details_json TEXT, is_offline_cached INTEGER NOT NULL, access_rights TEXT, created_at TEXT NOT NULL, timeline_kind TEXT NOT NULL, byte_location TEXT NOT NULL, availability TEXT NOT NULL, content_size REAL, content_sha256 TEXT)',
+      );
+      db.exec(
         'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT, entry_json TEXT, resource_json TEXT)',
       );
       db.exec(

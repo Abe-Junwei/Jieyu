@@ -2,10 +2,16 @@
  * 存储接口的 SQLite 切片：本机 userData 里的回合和审计，项目文件夹里的说话人分配、正则拆分和轨道行。
  * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
  * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
- * 来源记录写在项目库里（ADR-0074）。这里不安装成默认实现。
+ * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
+ * 这里不安装成默认实现。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import {
+  listMediaByTextInProject,
+  listMediaIdsByTextInProject,
+  saveMediaItemInProject,
+} from './sqliteMediaItems';
 import { commitRegexSplitInProject } from './sqliteRegexSplit';
 import {
   linkSourceRecordMediaInProject,
@@ -23,7 +29,7 @@ import {
 } from './storagePort';
 import type { SourceRecordRegistration } from './storagePortSourceRecords';
 import { StorageReadbackError } from './storageReadbackError';
-import type { TrackEntityDocType } from './types';
+import type { MediaItemDocType, TrackEntityDocType } from './types';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -212,6 +218,15 @@ export function openSqliteStoragePort(
     },
     async linkSourceRecordMedia(textId: string, recordId: string, mediaId: string | null) {
       return linkSourceRecordMediaInProject(requireProject(), textId, recordId, mediaId);
+    },
+    async listMediaByText(textId: string) {
+      return listMediaByTextInProject(requireProject(), textId);
+    },
+    async listMediaIdsByText(textId: string) {
+      return listMediaIdsByTextInProject(requireProject(), textId);
+    },
+    async saveMediaItem(data: MediaItemDocType) {
+      return saveMediaItemInProject(requireProject(), data);
     },
   };
 

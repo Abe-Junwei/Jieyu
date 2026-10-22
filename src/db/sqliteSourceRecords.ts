@@ -1,7 +1,7 @@
 /**
  * 来源记录写在项目库里（ADR-0074）。
  * 登记、改名和改关联各是一次事务，提交后再读回。读回失败不撤销。
- * 这一刀不保存原件字节，也不建录音表。
+ * 这一刀不保存原件字节。录音编号对着项目库的 media_items 核对（ADR-0075）。
  */
 import Database from 'better-sqlite3';
 import { newCatalogUuid } from '../services/projectCatalogScope';
@@ -137,9 +137,16 @@ function readById(db: SqliteDatabase, id: string): SourceRecordDocType | undefin
   return readDoc(row);
 }
 
-function refuseMissingMedia(mediaId: string | undefined): void {
+function assertMediaInProject(db: SqliteDatabase, textId: string, mediaId: string): void {
+  const row: unknown = db.prepare('SELECT text_id FROM media_items WHERE id = ?').get(mediaId);
+  if (row === undefined) throw new SourceMediaLinkError('media-missing', mediaId);
+  const owner = field(row, 'text_id');
+  if (owner !== textId) throw new SourceMediaLinkError('media-other-project', mediaId);
+}
+
+function refuseMissingMedia(db: SqliteDatabase, textId: string, mediaId: string | undefined): void {
   if (!filled(mediaId)) return;
-  throw new SourceMediaLinkError('media-missing', mediaId);
+  assertMediaInProject(db, textId, mediaId);
 }
 
 function readBack(
@@ -235,7 +242,7 @@ export function registerImportedSourceInProject(
   input: SourceRecordRegistration,
 ): { plan: SourceImportPlan; record: SourceRecordDocType } {
   if (!projectExists(db, input.textId)) throw new SourceProjectNotFoundError(input.textId);
-  refuseMissingMedia(input.mediaId);
+  refuseMissingMedia(db, input.textId, input.mediaId);
   const existing = rowsForProject(db, input.textId);
   const plan = planSourceImport(
     {
@@ -293,9 +300,13 @@ export function linkSourceRecordMediaInProject(
   const target = mediaId?.trim() ?? '';
   const row = readById(db, recordId);
   if (row === undefined || row.textId !== textId) return undefined;
-  if (target.length > 0) throw new SourceMediaLinkError('media-missing', target);
+  if (target.length > 0) assertMediaInProject(db, textId, target);
   const { mediaId: _previous, ...rest } = row;
-  const written: SourceRecordDocType = { ...rest, updatedAt: new Date().toISOString() };
+  const written: SourceRecordDocType = {
+    ...rest,
+    ...(target.length > 0 ? { mediaId: target } : {}),
+    updatedAt: new Date().toISOString(),
+  };
   db.transaction(() => {
     updateRecord(db, written);
   })();
