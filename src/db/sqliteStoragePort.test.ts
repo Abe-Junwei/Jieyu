@@ -149,7 +149,24 @@ function createProjectFixture(projectDir: string): void {
       speaker_id TEXT,
       start_anchor_id TEXT,
       end_anchor_id TEXT,
-      unit_type TEXT
+      unit_type TEXT,
+      text_id TEXT,
+      start_time REAL,
+      end_time REAL,
+      updated_at TEXT
+    );
+    CREATE TABLE unit_contents (
+      id TEXT PRIMARY KEY,
+      unit_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      text TEXT NOT NULL,
+      text_id TEXT,
+      updated_at TEXT
+    );
+    CREATE TABLE anchors (
+      id TEXT PRIMARY KEY,
+      media_id TEXT NOT NULL,
+      time REAL NOT NULL
     );
     CREATE TABLE speakers (id TEXT PRIMARY KEY, name TEXT NOT NULL);`,
   );
@@ -300,5 +317,178 @@ describe('sqlite storage port project folder', () => {
       }),
     ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
     expect(readAssignment(projectDir, 'speaker-other').unitSpeakerId).toBeUndefined();
+  });
+
+  it('refuses a regex split when no project folder is open', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'jieyu-sqlite-port-')), 'user-data.sqlite');
+    const alone = openSqliteStoragePort(file);
+    await expect(
+      alone.port.commitRegexSplit({ anchors: [], units: [], contents: [] }),
+    ).rejects.toThrow(/has not opened a project folder/);
+    alone.close();
+  });
+
+  it('reads a regex split back after the manuscript is closed and opened again', async () => {
+    reset();
+    const result = await handle!.port.commitRegexSplit({
+      anchors: [{ id: 'anc-1', mediaId: 'm1', time: 1, createdAt: NOW }],
+      units: [
+        {
+          id: 'u1',
+          textId: TEXT_ID,
+          mediaId: 'm1',
+          unitType: 'unit',
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+      contents: [
+        {
+          id: 'c1',
+          textId: TEXT_ID,
+          unitId: 'u1',
+          text: 'left',
+          contentRole: 'primary_text',
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    });
+    expect(result.resizedSegmentIds).toEqual([]);
+    handle!.close();
+    handle = undefined;
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      const unit: unknown = manuscript
+        .prepare('SELECT end_time, text_id FROM units WHERE id = ?')
+        .get('u1');
+      const content: unknown = manuscript
+        .prepare('SELECT text FROM unit_contents WHERE id = ?')
+        .get('c1');
+      const anchor: unknown = manuscript
+        .prepare('SELECT time FROM anchors WHERE id = ?')
+        .get('anc-1');
+      expect(unit).toMatchObject({ end_time: 1, text_id: TEXT_ID });
+      expect(content).toMatchObject({ text: 'left' });
+      expect(anchor).toMatchObject({ time: 1 });
+    } finally {
+      manuscript.close();
+    }
+  });
+
+  it('writes nothing when a regex split mixes two projects', async () => {
+    reset();
+    await expect(
+      handle!.port.commitRegexSplit({
+        anchors: [],
+        units: [
+          {
+            id: 'u1',
+            textId: 'a',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+          {
+            id: 'u2',
+            textId: 'b',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+        contents: [],
+      }),
+    ).rejects.toThrow(/belongs to project/);
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(manuscript.prepare('SELECT COUNT(*) AS n FROM units').get()).toMatchObject({ n: 0 });
+    } finally {
+      manuscript.close();
+    }
+  });
+
+  it('writes nothing when a regex split overwrites a row stored for another project', async () => {
+    reset();
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript
+      .prepare(
+        'INSERT INTO units (id, text_id, unit_type, start_time, end_time, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('u-other', 'project-b', 'unit', 0, 1, NOW);
+    manuscript.close();
+    await expect(
+      handle!.port.commitRegexSplit({
+        anchors: [{ id: 'anc-x', mediaId: 'm1', time: 1, createdAt: NOW }],
+        units: [
+          {
+            id: 'u-other',
+            textId: 'project-a',
+            startTime: 0,
+            endTime: 0.5,
+            createdAt: NOW,
+            updatedAt: '2026-10-16T00:00:00.000Z',
+          },
+        ],
+        contents: [],
+      }),
+    ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
+    const stored = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(
+        stored.prepare('SELECT end_time, text_id FROM units WHERE id = ?').get('u-other'),
+      ).toMatchObject({ end_time: 1, text_id: 'project-b' });
+      expect(stored.prepare('SELECT id FROM anchors WHERE id = ?').get('anc-x')).toBeUndefined();
+    } finally {
+      stored.close();
+    }
+  });
+
+  it('moves split-unit segments to the new bounds in the same commit', async () => {
+    reset();
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    const insert = manuscript.prepare(
+      'INSERT INTO units (id, text_id, unit_type, parent_unit_id, start_time, end_time, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    );
+    insert.run('seg-1', TEXT_ID, 'segment', 'u1', 0, 3, NOW);
+    insert.run('seg-other', TEXT_ID, 'segment', 'u2', 3, 4, NOW);
+    manuscript.close();
+    const later = '2026-10-16T00:00:00.000Z';
+    const { resizedSegmentIds } = await handle!.port.commitRegexSplit({
+      anchors: [],
+      units: [
+        {
+          id: 'u1',
+          textId: TEXT_ID,
+          unitType: 'unit',
+          startTime: 0,
+          endTime: 1.2,
+          createdAt: NOW,
+          updatedAt: later,
+        },
+      ],
+      contents: [],
+      resizeSegmentsOf: ['u1'],
+    });
+    expect(resizedSegmentIds).toEqual(['seg-1']);
+    const stored = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(
+        stored
+          .prepare('SELECT start_time, end_time, updated_at FROM units WHERE id = ?')
+          .get('seg-1'),
+      ).toMatchObject({ start_time: 0, end_time: 1.2, updated_at: later });
+      expect(
+        stored.prepare('SELECT end_time FROM units WHERE id = ?').get('seg-other'),
+      ).toMatchObject({
+        end_time: 4,
+      });
+    } finally {
+      stored.close();
+    }
   });
 });

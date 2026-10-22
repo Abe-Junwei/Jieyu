@@ -11,20 +11,21 @@ source_of_truth: sqlite-storage-port-spec
 
 ## 1. What & Why
 
-- **要做什么**：给存储接口加一个 better-sqlite3 实现。先覆盖本机 userData 里的回合和审计，再覆盖跨文件的说话人分配。
+- **要做什么**：给存储接口加一个 better-sqlite3 实现。先覆盖本机 userData 里的回合和审计，再覆盖跨文件的说话人分配，以及一份文稿里的正则拆分。
 - **为什么现在做**：#275 的列形状和定义副本已经定完。ADR-0048 要求桌面写入走这个接口，并用同一组读回。
-- **不做什么**：这一轮不安装成默认实现，不写说话人分配以外的项目库和 `.jyd` 操作，不迁 #280 的直连调用。
+- **不做什么**：这一轮不安装成默认实现，不写录音、层、来源这些还没接上的操作，不迁 #280 的直连调用。
 
 ## 2. 用户场景
 
 1. 桌面进程把一轮 AI 回合写入本机库，关掉再打开，读到的是最后一次写入。
-2. 审计行写入后能按 id 读回。说话人分配写进项目库和 `.jyd`，关掉再打开仍在。其余项目文件夹操作还没接到这个实现上，调用会失败而不是写进错误的库。
+2. 审计行写入后能按 id 读回。说话人分配写进项目库和 `.jyd`，正则拆分写进一份 `.jyd`，关掉再打开仍在。其余项目文件夹操作还没接到这个实现上，调用会失败而不是写进错误的库。
 
 ## 3. 验收标准
 
 - [x] 回合写入、覆盖、删除、过期清理，关掉再打开读回。
 - [x] 审计行写入后读回 id 和时间。
 - [x] 说话人分配走这个接口。项目库和每一份 `.jyd` 各一次事务，提交后读回。
+- [x] 正则拆分走这个接口。一份 `.jyd` 一次事务，提交后读回。
 - [ ] 其余项目库和 `.jyd` 上的业务操作走这个接口，一次操作一次事务，提交后读回。
 - [ ] 桌面壳用 `installStoragePort` 换上这个实现。
 
@@ -32,7 +33,7 @@ source_of_truth: sqlite-storage-port-spec
 
 | 类别 | 文件 / 目录 | 改动性质 |
 | --- | --- | --- |
-| Schema / DB | `src/db/sqliteStoragePort.ts`、`src/db/sqliteSpeakerAssignment.ts` | 新增 |
+| Schema / DB | `src/db/sqliteStoragePort.ts`、`src/db/sqliteSpeakerAssignment.ts`、`src/db/sqliteRegexSplit.ts` | 新增 |
 | 测试 | `src/db/sqliteStoragePort.test.ts` | 新增 |
 
 ## 5. 已知风险与依赖

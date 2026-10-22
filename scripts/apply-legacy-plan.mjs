@@ -842,13 +842,13 @@ export function applyPlan(
           'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT)',
         );
         db.exec(
-          'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT, unit_type TEXT)',
+          'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT, unit_type TEXT, text_id TEXT, start_time REAL, end_time REAL, updated_at TEXT)',
         );
         db.exec(
           'CREATE TABLE anchors (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, time REAL NOT NULL)',
         );
         db.exec(
-          'CREATE TABLE unit_contents (id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL)',
+          'CREATE TABLE unit_contents (id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL, text_id TEXT, updated_at TEXT)',
         );
         db.exec(
           'CREATE TABLE unit_relations (id TEXT PRIMARY KEY, source_unit_id TEXT NOT NULL, target_unit_id TEXT NOT NULL, relation_type TEXT NOT NULL)',
@@ -1221,7 +1221,7 @@ export function readProject(dest) {
         .all();
       const units = db
         .prepare(
-          'SELECT id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id, unit_type FROM units ORDER BY id',
+          'SELECT id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id, unit_type, text_id, start_time, end_time, updated_at FROM units ORDER BY id',
         )
         .all();
       const snapshotLanguages = db.prepare('SELECT id, name FROM languages ORDER BY id').all();
@@ -1243,7 +1243,9 @@ export function readProject(dest) {
         .all();
       const anchors = db.prepare('SELECT id, media_id, time FROM anchors ORDER BY id').all();
       const contents = db
-        .prepare('SELECT id, unit_id, role, text FROM unit_contents ORDER BY id')
+        .prepare(
+          'SELECT id, unit_id, role, text, text_id, updated_at FROM unit_contents ORDER BY id',
+        )
         .all();
       const relations = db
         .prepare(
@@ -1326,6 +1328,8 @@ export function readProject(dest) {
           unitId: content.unit_id,
           role: content.role,
           text: content.text,
+          ...(content.text_id !== null ? { textId: content.text_id } : {}),
+          ...(content.updated_at !== null ? { updatedAt: content.updated_at } : {}),
         })),
         relations: relations.map((relation) => ({
           id: relation.id,
@@ -1387,6 +1391,10 @@ export function readProject(dest) {
           parentUnitId: unit.parent_unit_id,
           ...(unit.speaker_id !== null ? { speakerId: unit.speaker_id } : {}),
           ...(unit.unit_type !== null ? { unitType: unit.unit_type } : {}),
+          ...(unit.text_id !== null ? { textId: unit.text_id } : {}),
+          ...(unit.start_time !== null ? { startTime: unit.start_time } : {}),
+          ...(unit.end_time !== null ? { endTime: unit.end_time } : {}),
+          ...(unit.updated_at !== null ? { updatedAt: unit.updated_at } : {}),
           ...(unit.start_anchor_id !== null ? { startAnchorId: unit.start_anchor_id } : {}),
           ...(unit.end_anchor_id !== null ? { endAnchorId: unit.end_anchor_id } : {}),
         })),
