@@ -34,15 +34,16 @@ source_of_truth: sqlite-storage-port-spec
 - [x] 文稿改挂录音走这个接口。一份 `.jyd` 一次事务，提交后读回。再挂一条仍只剩这一条。
 - [x] 语段关系和父子链接走这个接口。同一份 `.jyd` 一次事务，提交后读回。跨文稿不写。
 - [x] 会话和消息走这个接口。项目库一次事务，提交后读回。引用和推理正文不进消息行。
+- [x] 语段编号走这个接口。用 `.jyd` 里已有的 `id` 和 `text_id`，不读整份语段文档。
 - [ ] 其余项目库和 `.jyd` 上的业务操作走这个接口，一次操作一次事务，提交后读回。
 - [x] 桌面壳用 `installStoragePort` 换上这个实现。开关默认关，浏览器不安装。冒烟写入一条回合，关掉再打开读回。
 
 ## 4. 受影响代码地图
 
-| 类别        | 文件 / 目录                                                                                                                                                                                                                                                                                                                               | 改动性质 |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| Schema / DB | `src/db/sqliteStoragePort.ts`、`src/db/sqliteSpeakerAssignment.ts`、`src/db/sqliteRegexSplit.ts`、`src/db/sqliteTrackEntity.ts`、`src/db/sqliteSourceRecords.ts`、`src/db/sqliteMediaItems.ts`、`src/db/sqliteRemoveEmptyRecording.ts`、`src/db/sqliteManuscriptAudio.ts`、`src/db/sqliteUnitLinks.ts`、`src/db/sqliteAiConversations.ts` | 新增     |
-| 测试        | `src/db/sqliteStoragePort.test.ts`、`src/db/sqliteAiConversations.test.ts`、`src/db/ipcStoragePort.test.ts`、`src/desktop/skeleton/sqliteStorageHost.test.ts`                                                                                                                                                                             | 新增     |
+| 类别        | 文件 / 目录                                                                                                                                                                                                                                                                                                                                                               | 改动性质 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Schema / DB | `src/db/sqliteStoragePort.ts`、`src/db/sqliteSpeakerAssignment.ts`、`src/db/sqliteRegexSplit.ts`、`src/db/sqliteTrackEntity.ts`、`src/db/sqliteSourceRecords.ts`、`src/db/sqliteMediaItems.ts`、`src/db/sqliteRemoveEmptyRecording.ts`、`src/db/sqliteManuscriptAudio.ts`、`src/db/sqliteUnitLinks.ts`、`src/db/sqliteAiConversations.ts`、`src/db/sqliteLayerUnitIds.ts` | 新增     |
+| 测试        | `src/db/sqliteStoragePort.test.ts`、`src/db/sqliteAiConversations.test.ts`、`src/db/sqliteLayerUnitIds.test.ts`、`src/db/ipcStoragePort.test.ts`、`src/desktop/skeleton/sqliteStorageHost.test.ts`                                                                                                                                                                        | 新增     |
 
 ## 5. 已知风险与依赖
 
