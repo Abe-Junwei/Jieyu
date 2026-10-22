@@ -16,6 +16,7 @@ vi.mock('../../services/LinguisticService', () => ({
 }));
 
 import { hydrateCollaborationProjectFromCloud } from './collaborationCloudHydration';
+import { ProjectSnapshotMissingProjectError } from '../../services/linguisticServiceDatabaseIo';
 
 function changeStub(): CollaborationProjectChangeRecord {
   return {
@@ -63,6 +64,30 @@ describe('hydrateCollaborationProjectFromCloud', () => {
     expect(result.hydrated).toBe(true);
     expect(importProjectScopedFromJSON).toHaveBeenCalledWith(payload, 'text-a');
     expect(importFromJSON).not.toHaveBeenCalled();
+  });
+
+  it('#355: a snapshot without the project is skipped (warn only) and hydration carries on', async () => {
+    importProjectScopedFromJSON.mockRejectedValueOnce(
+      new ProjectSnapshotMissingProjectError('text-a'),
+    );
+    const applyRemoteChangeToLocal = vi.fn(async () => undefined);
+    const result = await hydrateCollaborationProjectFromCloud({
+      collaborationProjectId: 'text-a',
+      hasProjectLocalData: false,
+      getLatestKnownRevision: () => 0,
+      listProjectSnapshots: async () => [{ id: 'snap-1', changeCursor: 4 }],
+      queryProjectChangeTimeline: async () => ({ changes: [changeStub()] }),
+      restoreProjectSnapshotById: async () => ({
+        payloadJson: JSON.stringify({ schemaVersion: 5, collections: {} }),
+      }),
+      runWithDbMutex: async (fn) => fn(),
+      loadSnapshot: async () => undefined,
+      applyRemoteChangeToLocal,
+      markProjectRevisionSeen: () => undefined,
+      isCancelled: () => false,
+    });
+    expect(result.hydrated).toBe(true);
+    expect(importProjectScopedFromJSON).toHaveBeenCalledTimes(1);
   });
 
   it('does not import a snapshot when the project already has local units', async () => {

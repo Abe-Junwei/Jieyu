@@ -33,6 +33,7 @@ export const DICT_KEYS = [
   'app.home.removedCloudProjects.reason.projectNotFound',
   'app.home.removedCloudProjects.reason.projectDeleted',
   'app.home.removedCloudProjects.reason.noSnapshot',
+  'app.home.removedCloudProjects.reason.snapshotMissingProject',
   'app.home.noProgressData',
   'app.home.openProject',
   'app.home.openTranscriptionRecord',

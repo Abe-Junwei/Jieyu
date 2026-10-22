@@ -377,6 +377,20 @@ async function pruneProjectOwnedRows(db: JieyuDatabase, textId: string): Promise
   );
 }
 
+/**
+ * 快照里没有目标项目（或不止一条）时抛出；本机项目没有被改动（#355）。
+ * Thrown when the snapshot lacks the target project (or has several); local data is unchanged.
+ */
+export class ProjectSnapshotMissingProjectError extends Error {
+  readonly projectId: string;
+
+  constructor(projectId: string) {
+    super(`Project snapshot does not contain project ${projectId}; local data unchanged.`);
+    this.name = 'ProjectSnapshotMissingProjectError';
+    this.projectId = projectId;
+  }
+}
+
 function parseSnapshotCollections(input: unknown): SnapshotCollections {
   const parsed: unknown = typeof input === 'string' ? JSON.parse(input) : input;
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -406,6 +420,10 @@ export async function importProjectScopedDatabaseFromJson(
     parseSnapshotCollections(input),
     projectId,
   );
+  // 清理之前确认快照里正好有目标项目，否则整体拒绝，本机项目不动 | refuse before pruning
+  if ((filteredCollections.texts ?? []).length !== 1) {
+    throw new ProjectSnapshotMissingProjectError(projectId);
+  }
   const envelope =
     typeof input === 'string'
       ? (JSON.parse(input) as Record<string, unknown>)
