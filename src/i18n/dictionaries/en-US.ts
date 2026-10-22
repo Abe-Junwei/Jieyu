@@ -3882,7 +3882,6 @@ export const enUSDictionary = {
     tabAi: 'AI',
     tabPlayback: 'Playback',
     tabData: 'Data',
-    tabExtensions: 'Extensions',
     tabAbout: 'About',
     themeLabel: 'Theme',
     themeLight: 'Light',
@@ -4036,24 +4035,6 @@ export const enUSDictionary = {
     aboutBrowserSupportTitle: 'Where it runs',
     aboutBrowserSupportBody:
       'Jieyu ships as a desktop app (Apple silicon Mac, and Windows 10 or later on x64). Opening it in a browser is for development and testing only, with no browser support commitment.',
-    extensionsHostTitle: 'Host & compatibility',
-    extensionsHostVersionLabel: 'Host version (semver)',
-    extensionsBlurb:
-      'Phase A host-governed extensions: lists registered extensions, capabilities, and compatibility only. Third-party install is not enabled. A built-in probe registers the first time you open this tab to validate runtime contracts.',
-    extensionsLoading: 'Loading extensions…',
-    extensionsLoadFailed: 'Failed to load extension details',
-    extensionsNone: 'No extensions registered.',
-    extensionsColExtension: 'Extension',
-    extensionsColVersion: 'Version',
-    extensionsColState: 'State',
-    extensionsColCapabilities: 'Capabilities',
-    extensionsColCompatible: 'Compatible',
-    extensionsColCompatNote: 'Compatibility note',
-    extensionsColEntry: 'Declared entry',
-    extensionsYes: 'Yes',
-    extensionsNo: 'No',
-    extensionsAuditTitle: 'Recent capability calls (audit)',
-    extensionsAuditEmpty: 'No capability invocations yet.',
   }),
 
   'msg.orthoBridge.catalog': JSON.stringify({
