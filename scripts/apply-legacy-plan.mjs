@@ -320,9 +320,11 @@ export function applyPlan(
     writeDatabase(projectFile, PROJECT_APPLICATION_ID, created, (db) => {
       if (failDuringProject) throw new Error('injected project failure');
       db.exec('CREATE TABLE audio (id TEXT PRIMARY KEY, relpath TEXT, sha256 TEXT)');
-      db.exec('CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
       db.exec(
-        'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL)',
+        'CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL, speaker_ids_json TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT, updated_at TEXT)',
       );
       db.exec(
         `CREATE TABLE languages (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, ${LANGUAGE_EXTRAS.map(([, column, type]) => `${column} ${type}`).join(', ')}, ${LANGUAGE_JSON.map(([, column]) => `${column} TEXT`).join(', ')})`,
@@ -840,7 +842,7 @@ export function applyPlan(
           'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT)',
         );
         db.exec(
-          'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT)',
+          'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT, unit_type TEXT)',
         );
         db.exec(
           'CREATE TABLE anchors (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, time REAL NOT NULL)',
@@ -1078,8 +1080,12 @@ export function applyPlan(
 export function readProject(dest) {
   const project = new DatabaseSync(path.join(dest, 'project.sqlite'), { readOnly: true });
   const audios = project.prepare('SELECT id, relpath, sha256 FROM audio ORDER BY id').all();
-  const projectRow = project.prepare('SELECT id, name FROM project').get();
-  const speakers = project.prepare('SELECT id, text_id, name FROM speakers ORDER BY id').all();
+  const projectRow = project
+    .prepare('SELECT id, name, speaker_ids_json FROM project')
+    .get();
+  const speakers = project
+    .prepare('SELECT id, text_id, name, created_at, updated_at FROM speakers ORDER BY id')
+    .all();
   const languages = project
     .prepare(
       `SELECT id, text_id, name, ${[...LANGUAGE_EXTRAS.map(([, column]) => column), ...LANGUAGE_JSON.map(([, column]) => column)].join(', ')} FROM languages ORDER BY id`,
@@ -1215,7 +1221,7 @@ export function readProject(dest) {
         .all();
       const units = db
         .prepare(
-          'SELECT id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id FROM units ORDER BY id',
+          'SELECT id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id, unit_type FROM units ORDER BY id',
         )
         .all();
       const snapshotLanguages = db.prepare('SELECT id, name FROM languages ORDER BY id').all();
@@ -1380,17 +1386,28 @@ export function readProject(dest) {
           mediaId: unit.media_id,
           parentUnitId: unit.parent_unit_id,
           ...(unit.speaker_id !== null ? { speakerId: unit.speaker_id } : {}),
+          ...(unit.unit_type !== null ? { unitType: unit.unit_type } : {}),
           ...(unit.start_anchor_id !== null ? { startAnchorId: unit.start_anchor_id } : {}),
           ...(unit.end_anchor_id !== null ? { endAnchorId: unit.end_anchor_id } : {}),
         })),
       };
     });
   return {
-    project: projectRow ? { id: projectRow.id, name: projectRow.name } : null,
+    project: projectRow
+      ? {
+          id: projectRow.id,
+          name: projectRow.name,
+          ...(projectRow.speaker_ids_json !== null
+            ? { speakerIds: JSON.parse(projectRow.speaker_ids_json) }
+            : {}),
+        }
+      : null,
     speakers: speakers.map((speaker) => ({
       id: speaker.id,
       textId: speaker.text_id,
       name: speaker.name,
+      ...(speaker.created_at !== null ? { createdAt: speaker.created_at } : {}),
+      ...(speaker.updated_at !== null ? { updatedAt: speaker.updated_at } : {}),
     })),
     languages: languages.map((language) => ({
       id: language.id,

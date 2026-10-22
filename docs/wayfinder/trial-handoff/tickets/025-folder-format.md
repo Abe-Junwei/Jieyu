@@ -25,7 +25,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 - 结构规则正文、正字法转换规则与样例、车道锁定表已定（[ADR-0069](../../../adr/0069-document-bodies-as-json.md)）：规则正文和转换文档在项目库行上，车道锁定表在 `.jyd` 轨道行上。关掉再打开能读回。
 - 定义副本的范围已定（[ADR-0070](../../../adr/0070-definition-copy-stays-language-orthography-speaker.md)）：只含这张文稿用到的语言、显示名、别名、正字法和说话人。词条、标签定义、自定义字段定义、缩写留在项目库。
 
-定一块写一块，每块写完关掉重开读回。存储接口的 SQLite 实现已开始：本机 userData 的回合和审计能关掉再打开读回。项目库和 `.jyd` 上的操作还没接上。
+定一块写一块，每块写完关掉重开读回。存储接口的 SQLite 实现已开始：本机 userData 的回合和审计，以及跨文件的说话人分配，能关掉再打开读回（ADR-0071）。其余项目库和 `.jyd` 上的操作还没接上。
 
 SQLite 实现里的业务操作要守住（2026-10-17 从 #327 并入，[ADR-0063](../../../adr/0063-desktop-only-after-electron-skeleton.md) 第 3 条）：给文稿挂录音时，已有录音就是替换，不是追加，替换前提示（措辞由用户确认）；新建或修改 `unit_relations` 时两端不在同一份 `.jyd` 就不写，并说明原因。检查函数用 `src/db/projectFiles/manuscriptAudio.ts`、`manuscriptParents.ts`。验收：写入后关掉重开读回；挂第二条录音后只剩一条；跨文稿关系写不进去。
 

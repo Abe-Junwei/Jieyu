@@ -1,11 +1,19 @@
 /**
- * 存储接口的 SQLite 切片：本机 userData 里的回合和审计。
+ * 存储接口的 SQLite 切片：本机 userData 里的回合和审计，以及项目文件夹里的说话人分配。
  * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
- * 项目库和 `.jyd` 上的操作还没写。调用方传入文件路径，这里不安装成默认实现。
+ * 说话人分配改两个文件，各提交一次（ADR-0071）。这里不安装成默认实现。
  */
+import path from 'node:path';
 import Database from 'better-sqlite3';
-import { RecordingRemovalBlockedError, type StoragePort } from './storagePort';
+import { assignSpeakerInProject, PROJECT_APPLICATION_ID } from './sqliteSpeakerAssignment';
+import {
+  RecordingRemovalBlockedError,
+  type MixedSpeakerSelectionWrite,
+  type StoragePort,
+} from './storagePort';
 import { StorageReadbackError } from './storageReadbackError';
+
+type SqliteDatabase = InstanceType<typeof Database>;
 
 type TurnRow = { conversationId: string; createdAt?: unknown; expiresAt?: unknown };
 
@@ -39,9 +47,28 @@ function notReady(method: string): () => Promise<never> {
   return () => Promise.reject(new Error(`sqlite storage port has not implemented ${method}`));
 }
 
-export function openSqliteStoragePort(file: string): { port: StoragePort; close: () => void } {
+function openProject(projectDir: string): SqliteDatabase {
+  const project = new Database(path.join(projectDir, 'project.sqlite'));
+  project.exec('PRAGMA journal_mode = DELETE');
+  const row: unknown = project.prepare('PRAGMA application_id').get();
+  const id =
+    typeof row === 'object' && row !== null
+      ? (row as { application_id?: unknown }).application_id
+      : undefined;
+  if (id !== PROJECT_APPLICATION_ID) {
+    project.close();
+    throw new Error('project.sqlite application_id is not a Jieyu project library');
+  }
+  return project;
+}
+
+export function openSqliteStoragePort(
+  file: string,
+  projectDir?: string,
+): { port: StoragePort; close: () => void } {
   const db = new Database(file);
   db.exec(SCHEMA);
+  const project = projectDir === undefined ? undefined : openProject(projectDir);
   const writeTurn = db.prepare(
     `INSERT INTO ai_runtime_v2_turns (conversation_id, created_at, expires_at, payload_json)
      VALUES (?, ?, ?, ?)
@@ -131,6 +158,12 @@ export function openSqliteStoragePort(file: string): { port: StoragePort; close:
     async removeEmptyRecording(mediaId: string): Promise<never> {
       throw new RecordingRemovalBlockedError(mediaId, 'missing');
     },
+    async assignSpeakerToMixedSelection(write: MixedSpeakerSelectionWrite) {
+      if (project === undefined || projectDir === undefined) {
+        throw new Error('sqlite storage port has not opened a project folder');
+      }
+      return assignSpeakerInProject(project, projectDir, write);
+    },
   };
 
   const port = new Proxy(implemented, {
@@ -145,6 +178,7 @@ export function openSqliteStoragePort(file: string): { port: StoragePort; close:
     port,
     close() {
       db.close();
+      project?.close();
     },
   };
 }
