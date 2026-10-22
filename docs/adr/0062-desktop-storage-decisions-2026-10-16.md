@@ -38,7 +38,7 @@ accepted。用户 2026-10-16 在逐张确认的设计访谈里选定，每条都
 
 ## 影响
 
-- [`docs/execution/specs/card-sqlite-file/design.md`](../execution/specs/card-sqlite-file/design.md) §2 的 `unit_relations` 行要改成本篇第 3、4 条的口径（原写「跨文件的其他关系类型还没定」，已过时）。
+- `unit_relations` 与备注的口径是本篇第 3、4 条。原先规格里「跨文件的其他关系类型还没定」已过时；该规格目录在任务勾完后按 ADR-0051 删除。
 - 同名判断的范围在规格里不再待定，统一为第 2 条。
 - 迁移的入口在规格里不再待定，统一为第 5、6 条。
 - 每日 JYM 备份在规格里保持有效，替换方案仍未批准。

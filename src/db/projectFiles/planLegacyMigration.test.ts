@@ -1889,6 +1889,46 @@ describe('planLegacyMigration', () => {
     expect(plan.manuscripts[0]?.definitions).toEqual(emptyDefinitions);
   });
 
+  it('keeps lexemes, tags, custom fields, and abbreviations out of the definition copy', () => {
+    const plan = planLegacyMigration({
+      ...library(),
+      project: { id: 'p-1', name: '项目' },
+      layers: [
+        { id: 'layer-1', documentId: 'doc-1', languageId: 'lang-1', orthographyId: 'orth-1' },
+      ],
+      units: [{ id: 'u-1', layerId: 'layer-1', mediaId: 'audio-a', speakerId: 's-1' }],
+      speakers: [{ id: 's-1', textId: 'p-1', name: '甲' }],
+      languages: [{ id: 'lang-1', textId: 'p-1', name: '语言甲', countries: ['CN'] }],
+      displayNames: [
+        { id: 'dn-1', textId: 'p-1', languageId: 'lang-1', locale: 'zh', value: '甲' },
+      ],
+      aliases: [{ id: 'alias-1', textId: 'p-1', languageId: 'lang-1', alias: '甲语' }],
+      orthographies: [{ id: 'orth-1', textId: 'p-1', name: '拼音', languageId: 'lang-1' }],
+      lexemes: [{ id: 'lex-1', textId: 'p-1', headword: 'ta', entry: { headword: 'ta' } }],
+      lexemeLinks: [{ id: 'link-1', targetType: 'token', targetId: 't-1', lexemeId: 'lex-1' }],
+      tokens: [{ id: 't-1', unitId: 'u-1', tokenIndex: 0, form: 'ta' }],
+      abbreviations: [{ id: 'abbr-1', textId: 'p-1', abbreviation: '1SG', category: 'person' }],
+      tagDefinitions: [{ id: 'tag-1', textId: 'p-1', key: 'loan', color: '#fff' }],
+      customFields: [{ id: 'cf-1', textId: 'p-1', fieldType: 'text', sortOrder: 0 }],
+    });
+    expect(plan.status).toBe('ready');
+    if (plan.status !== 'ready') return;
+    expect(plan.manuscripts[0]?.definitions).toEqual({
+      languages: [{ id: 'lang-1', name: '语言甲' }],
+      displayNames: [{ id: 'dn-1', languageId: 'lang-1', locale: 'zh', value: '甲' }],
+      aliases: [{ id: 'alias-1', languageId: 'lang-1', alias: '甲语' }],
+      orthographies: [{ id: 'orth-1', name: '拼音', languageId: 'lang-1' }],
+      speakers: [{ id: 's-1', name: '甲' }],
+    });
+    expect(plan.manuscripts[0]?.lexemeLinks).toEqual([
+      { id: 'link-1', targetType: 'token', targetId: 't-1', lexemeId: 'lex-1' },
+    ]);
+    expect(plan.lexemes.map((row) => row.id)).toEqual(['lex-1']);
+    expect(plan.abbreviations.map((row) => row.id)).toEqual(['abbr-1']);
+    expect(plan.tagDefinitions.map((row) => row.id)).toEqual(['tag-1']);
+    expect(plan.customFields.map((row) => row.id)).toEqual(['cf-1']);
+  });
+
   it('writes a ready plan and reads the same ids back', () => {
     const plan = planLegacyMigration({
       ...library(),

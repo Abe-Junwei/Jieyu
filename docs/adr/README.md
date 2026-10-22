@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-21
+last_reviewed: 2026-10-22
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0070**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0071**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -29,7 +29,7 @@ source_of_truth: decision-index
 | JYT/JYM 是交换包不是活文件；JYB 只在浏览器构建（旧浏览器数据迁入桌面时例外，见 0062 第 6 条）；每日 JYM 快照留 3 份，在含音频的备份通过恢复演练前保持不动 | ADR-0046 第 2、6 条；ADR-0062 第 1、6 条 | 用「只备份数据库、音频只留哈希」替换每日 JYM。该替换未批准；将来的备份必须含可播放的音频字节 |
 | 文件夹里放什么 | ADR-0061 第 1–4、6 条：音频是原文件，一份文稿一个 `.jyd`，声文稿只是展示 | ADR-0046 第 1、5 条的 `project.sqlite` + `media/`；ADR-0058-card 第 1 条（音频字节在卡片文件里） |
 | 认回与删除状态 | 还没有。ADR-0061 第 5 条写了「按 sha256 认回」，多个文件哈希相同时不够，规格里先约束为必须问用户。同名判断把「已隐藏」算进去（ADR-0062 第 2 条） | 把第 5 条直接当成实现规格 |
-| 共用定义、定义副本、清单缓存、操作 id、同名合并时机 | ADR-0060 第 2、3、4、7 条 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`） |
+| 共用定义、定义副本、清单缓存、操作 id、同名合并时机 | ADR-0060 第 2、3、4、7 条。词条、标签定义、自定义字段定义、缩写不进定义副本，见 ADR-0070 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`）；把这四类目录复制进每份 `.jyd` |
 | 隐藏、系统垃圾箱、协作删除只动本机 | ADR-0058-card 第 5、6 条 | — |
 | IndexedDB 归哪一层 | ADR-0058-indexeddb；项目文件夹里再按 ADR-0060、ADR-0061 分 | 该篇里「项目内容全进 `project.sqlite` + `media/`」 |
 | D14 冻结 | 尚未冻结。一份文稿同时只关联一条音频，父子链接不能跨文稿；已经同时挂着两条的旧文稿迁移时拒绝，不自动拆。冻结前还要有：格式原型、含音频的备份恢复并播放、桌面写路径验证 | ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；「没有要保留的真实数据」不能当作丢弃本机已导入录音的依据 |
@@ -111,6 +111,7 @@ source_of_truth: decision-index
 - [0067-language-document-json-columns.md](./0067-language-document-json-columns.md)
 - [0068-lexeme-dmlex-json.md](./0068-lexeme-dmlex-json.md)
 - [0069-document-bodies-as-json.md](./0069-document-bodies-as-json.md)
+- [0070-definition-copy-stays-language-orthography-speaker.md](./0070-definition-copy-stays-language-orthography-speaker.md)
 
 ## 已关闭的另一套编号
 

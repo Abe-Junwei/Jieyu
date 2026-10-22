@@ -16,7 +16,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/259
 
 原先已定、现已不够：D14 在第一个试用版发布之前冻结，冻结对象曾写成项目文件夹格式（SQLite + media/）（[ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md) 第 8 条）。剩下仍要定：冻结前必须先合进 main 的在途改动（[#260](https://github.com/Abe-Junwei/Jieyu/issues/260)）、冻结前的加法迁移演练（[#281](https://github.com/Abe-Junwei/Jieyu/issues/281)）、版本号、谁确认、现有冻结检查（schemaFreeze.ts）如何扩到 SQLite 格式。
 
-冻结前四项各归哪张单子（2026-10-16）：格式原型与跨录音文稿的迁移对拍已有合成版（[card-sqlite-file 规格](../../../execution/specs/card-sqlite-file/tasks.md)），剩下的列形状在 [025](025-folder-format.md)；含音频的恢复播放在 [008](008-backup-restore.md)；桌面写路径在 [043](043-desktop-file-ops.md)。旧浏览器库迁入（[044](044-browser-library-to-desktop.md)）不是冻结条件。
+冻结前四项各归哪张单子（2026-10-16）：格式原型与跨录音文稿的迁移对拍已有合成版（规格已按 ADR-0051 删除，记录在 git 历史），剩下的列形状在 [025](025-folder-format.md)；含音频的恢复播放在 [008](008-backup-restore.md)；桌面写路径在 [043](043-desktop-file-ops.md)。旧浏览器库迁入（[044](044-browser-library-to-desktop.md)）不是冻结条件。
 
 ## Related
 
