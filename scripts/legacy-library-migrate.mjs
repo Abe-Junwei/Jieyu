@@ -247,6 +247,8 @@ test('a ready plan writes the audio and the manuscript, then reads the same ids 
       projectMemories: [],
       agentArtifacts: [],
       aiSourceSets: [],
+      sessionMemories: [],
+      modelRuns: [],
       notes: [],
       audios: [{ id: 'audio-a', relPath: '录音01.wav', sha256: plan.audios[0].sha256 }],
       manuscripts: [

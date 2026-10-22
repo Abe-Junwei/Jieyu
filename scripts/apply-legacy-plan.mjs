@@ -53,6 +53,63 @@ const LANGUAGE_EXTRAS = [
   ['visibility', 'visibility', 'TEXT'],
 ];
 
+const LANGUAGE_JSON = [
+  ['countries', 'countries'],
+  ['countriesOfficial', 'countries_official'],
+  ['administrativeDivisions', 'administrative_divisions'],
+  ['domains', 'domains'],
+  ['dialects', 'dialects'],
+  ['vernaculars', 'vernaculars'],
+  ['writingSystems', 'writing_systems'],
+  ['notes', 'notes'],
+  ['customFields', 'custom_fields'],
+];
+
+function objectJson(value, label) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`applyPlan: ${label} is not an object`);
+  }
+  const json = JSON.stringify(value);
+  const parsed = JSON.parse(json);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`applyPlan: ${label} is not an object`);
+  }
+  return json;
+}
+
+function parseObjectColumn(json, label) {
+  const value = JSON.parse(json);
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${label} is not an object`);
+  }
+  return value;
+}
+
+function stringColumn(value, label) {
+  if (typeof value !== 'string') throw new Error(`applyPlan: ${label} is not a string`);
+  return value;
+}
+
+function sampleCasesJson(value, label) {
+  if (!Array.isArray(value)) throw new Error(`applyPlan: ${label} is not an array`);
+  return JSON.stringify(value);
+}
+
+function parseArrayColumn(json, label) {
+  const value = JSON.parse(json);
+  if (!Array.isArray(value)) throw new Error(`${label} is not an array`);
+  return value;
+}
+
+function laneLockJson(value, label) {
+  const json = objectJson(value, label);
+  const parsed = JSON.parse(json);
+  if (Object.values(parsed).some((item) => typeof item !== 'number' || !Number.isFinite(item))) {
+    throw new Error(`applyPlan: ${label} is not a map of finite numbers`);
+  }
+  return json;
+}
+
 function definedFields(row, pairs) {
   const out = {};
   for (const [camel, column] of pairs) {
@@ -268,7 +325,7 @@ export function applyPlan(
         'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL)',
       );
       db.exec(
-        `CREATE TABLE languages (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, ${LANGUAGE_EXTRAS.map(([, column, type]) => `${column} ${type}`).join(', ')})`,
+        `CREATE TABLE languages (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, ${LANGUAGE_EXTRAS.map(([, column, type]) => `${column} ${type}`).join(', ')}, ${LANGUAGE_JSON.map(([, column]) => `${column} TEXT`).join(', ')})`,
       );
       db.exec(
         'CREATE TABLE language_display_names (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, locale TEXT NOT NULL, value TEXT NOT NULL)',
@@ -283,7 +340,7 @@ export function applyPlan(
         'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT)',
       );
       db.exec(
-        'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT)',
+        'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT, entry_json TEXT, resource_json TEXT)',
       );
       db.exec(
         'CREATE TABLE phonemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, language_id TEXT NOT NULL, ipa TEXT NOT NULL, type TEXT NOT NULL)',
@@ -304,7 +361,7 @@ export function applyPlan(
         'CREATE TABLE grammar_docs (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, parent_id TEXT, sort_order INTEGER, access_rights TEXT)',
       );
       db.exec(
-        'CREATE TABLE orthography_bridges (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, source_orthography_id TEXT NOT NULL, target_orthography_id TEXT NOT NULL, engine TEXT NOT NULL, status TEXT, is_reversible INTEGER)',
+        'CREATE TABLE orthography_bridges (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, source_orthography_id TEXT NOT NULL, target_orthography_id TEXT NOT NULL, engine TEXT NOT NULL, status TEXT, is_reversible INTEGER, name_json TEXT, rules_json TEXT, sample_input TEXT, sample_output TEXT, sample_cases_json TEXT, notes_json TEXT)',
       );
       db.exec(
         'CREATE TABLE custom_field_definitions (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, field_type TEXT NOT NULL, sort_order INTEGER NOT NULL, required INTEGER, min_value REAL, max_value REAL, pattern TEXT)',
@@ -319,7 +376,7 @@ export function applyPlan(
         'CREATE TABLE lexeme_asset_links (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, lexeme_id TEXT NOT NULL, asset_id TEXT NOT NULL)',
       );
       db.exec(
-        'CREATE TABLE structural_rule_profiles (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, scope TEXT NOT NULL, language_id TEXT, derived_from_system_id TEXT, enabled INTEGER NOT NULL, priority INTEGER NOT NULL)',
+        'CREATE TABLE structural_rule_profiles (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, scope TEXT NOT NULL, language_id TEXT, derived_from_system_id TEXT, enabled INTEGER NOT NULL, priority INTEGER NOT NULL, profile_json TEXT)',
       );
       db.exec(
         'CREATE TABLE ai_conversations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, mode TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, archived INTEGER, cleared_at TEXT)',
@@ -343,6 +400,12 @@ export function applyPlan(
         'CREATE TABLE ai_source_sets (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, media_id TEXT, layer_id TEXT, bound_session_id TEXT)',
       );
       db.exec(
+        'CREATE TABLE ai_session_memories (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL UNIQUE, payload_json TEXT NOT NULL, updated_at TEXT NOT NULL)',
+      );
+      db.exec(
+        'CREATE TABLE model_runs (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, model_id TEXT NOT NULL, model_version TEXT NOT NULL, manifest_sha256 TEXT NOT NULL, capability TEXT NOT NULL, params_json TEXT NOT NULL, media_id TEXT NOT NULL, range_start REAL NOT NULL, range_end REAL NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, status TEXT NOT NULL, error_code TEXT, chunk_count INTEGER NOT NULL, accepted_count INTEGER NOT NULL, rejected_count INTEGER NOT NULL, pending_count INTEGER NOT NULL)',
+      );
+      db.exec(
         'CREATE TABLE user_notes (id TEXT PRIMARY KEY, target_type TEXT NOT NULL, target_id TEXT NOT NULL, text TEXT NOT NULL)',
       );
       const insert = db.prepare('INSERT INTO audio (id, relpath, sha256) VALUES (?, ?, ?)');
@@ -358,7 +421,7 @@ export function applyPlan(
         insertSpeaker.run(speaker.id, speaker.textId, speaker.name);
       }
       const insertLanguage = db.prepare(
-        `INSERT INTO languages (id, text_id, name, ${LANGUAGE_EXTRAS.map(([, column]) => column).join(', ')}) VALUES (${['?', '?', '?', ...LANGUAGE_EXTRAS.map(() => '?')].join(', ')})`,
+        `INSERT INTO languages (id, text_id, name, ${[...LANGUAGE_EXTRAS.map(([, column]) => column), ...LANGUAGE_JSON.map(([, column]) => column)].join(', ')}) VALUES (${['?', '?', '?', ...LANGUAGE_EXTRAS.map(() => '?'), ...LANGUAGE_JSON.map(() => '?')].join(', ')})`,
       );
       for (const language of plan.languages ?? []) {
         insertLanguage.run(
@@ -366,6 +429,9 @@ export function applyPlan(
           language.textId,
           language.name,
           ...LANGUAGE_EXTRAS.map(([camel]) => language[camel] ?? null),
+          ...LANGUAGE_JSON.map(([camel]) =>
+            language[camel] === undefined ? null : JSON.stringify(language[camel]),
+          ),
         );
       }
       const insertDisplayName = db.prepare(
@@ -410,9 +476,15 @@ export function applyPlan(
         );
       }
       const insertLexeme = db.prepare(
-        'INSERT INTO lexemes (id, text_id, headword, kind, usage_count, access_rights) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO lexemes (id, text_id, headword, kind, usage_count, access_rights, entry_json, resource_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       );
       for (const lexeme of plan.lexemes ?? []) {
+        if (lexeme.kind === 'resource' && lexeme.entry !== undefined) {
+          throw new Error(`applyPlan: lexeme ${lexeme.id} resource row has an entry`);
+        }
+        if (lexeme.kind !== 'resource' && lexeme.resource !== undefined) {
+          throw new Error(`applyPlan: lexeme ${lexeme.id} entry row has a resource`);
+        }
         insertLexeme.run(
           lexeme.id,
           lexeme.textId,
@@ -420,6 +492,10 @@ export function applyPlan(
           lexeme.kind ?? null,
           lexeme.usageCount ?? null,
           lexeme.accessRights ?? null,
+          lexeme.entry === undefined ? null : objectJson(lexeme.entry, `lexeme ${lexeme.id} entry`),
+          lexeme.resource === undefined
+            ? null
+            : objectJson(lexeme.resource, `lexeme ${lexeme.id} resource`),
         );
       }
       const insertPhoneme = db.prepare(
@@ -488,7 +564,7 @@ export function applyPlan(
         );
       }
       const insertBridge = db.prepare(
-        'INSERT INTO orthography_bridges (id, text_id, source_orthography_id, target_orthography_id, engine, status, is_reversible) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO orthography_bridges (id, text_id, source_orthography_id, target_orthography_id, engine, status, is_reversible, name_json, rules_json, sample_input, sample_output, sample_cases_json, notes_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       );
       for (const bridge of plan.orthographyBridges ?? []) {
         insertBridge.run(
@@ -499,6 +575,22 @@ export function applyPlan(
           bridge.engine,
           bridge.status ?? null,
           bridge.isReversible === undefined ? null : bridge.isReversible ? 1 : 0,
+          bridge.name === undefined ? null : objectJson(bridge.name, `bridge ${bridge.id} name`),
+          bridge.rules === undefined
+            ? null
+            : objectJson(bridge.rules, `bridge ${bridge.id} rules`),
+          bridge.sampleInput === undefined
+            ? null
+            : stringColumn(bridge.sampleInput, `bridge ${bridge.id} sampleInput`),
+          bridge.sampleOutput === undefined
+            ? null
+            : stringColumn(bridge.sampleOutput, `bridge ${bridge.id} sampleOutput`),
+          bridge.sampleCases === undefined
+            ? null
+            : sampleCasesJson(bridge.sampleCases, `bridge ${bridge.id} sampleCases`),
+          bridge.notes === undefined
+            ? null
+            : objectJson(bridge.notes, `bridge ${bridge.id} notes`),
         );
       }
       const insertCustomField = db.prepare(
@@ -558,7 +650,7 @@ export function applyPlan(
         insertAssetLink.run(link.id, link.textId, link.lexemeId, link.assetId);
       }
       const insertRule = db.prepare(
-        'INSERT INTO structural_rule_profiles (id, project_id, scope, language_id, derived_from_system_id, enabled, priority) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO structural_rule_profiles (id, project_id, scope, language_id, derived_from_system_id, enabled, priority, profile_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       );
       for (const rule of plan.structuralRules ?? []) {
         insertRule.run(
@@ -569,6 +661,9 @@ export function applyPlan(
           rule.derivedFromSystemId ?? null,
           rule.enabled ? 1 : 0,
           rule.priority,
+          rule.profile === undefined
+            ? null
+            : objectJson(rule.profile, `rule ${rule.id} profile`),
         );
       }
       const insertConversation = db.prepare(
@@ -584,6 +679,49 @@ export function applyPlan(
           conversation.model,
           bit(conversation.archived),
           conversation.clearedAt ?? null,
+        );
+      }
+      const insertSessionMemory = db.prepare(
+        'INSERT INTO ai_session_memories (id, conversation_id, payload_json, updated_at) VALUES (?, ?, ?, ?)',
+      );
+      for (const memory of plan.sessionMemories ?? []) {
+        if (memory.id !== memory.conversationId) {
+          throw new Error(`applyPlan: session memory ${memory.id} does not match its conversation`);
+        }
+        insertSessionMemory.run(
+          memory.id,
+          memory.conversationId,
+          objectJson(memory.payload, `session memory ${memory.id}`),
+          memory.updatedAt,
+        );
+      }
+      const modelRunStatuses = new Set(['running', 'ok', 'error', 'cancelled']);
+      const insertModelRun = db.prepare(
+        'INSERT INTO model_runs (id, text_id, model_id, model_version, manifest_sha256, capability, params_json, media_id, range_start, range_end, started_at, finished_at, status, error_code, chunk_count, accepted_count, rejected_count, pending_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+      for (const run of plan.modelRuns ?? []) {
+        if (run.capability !== 'transcribe' || !modelRunStatuses.has(run.status)) {
+          throw new Error(`applyPlan: model run ${run.id} is outside ADR-0057`);
+        }
+        insertModelRun.run(
+          run.id,
+          run.textId,
+          run.modelId,
+          run.modelVersion,
+          run.manifestSha256,
+          run.capability,
+          objectJson(run.params, `model run ${run.id}`),
+          run.mediaId,
+          run.rangeStart,
+          run.rangeEnd,
+          run.startedAt,
+          run.finishedAt ?? null,
+          run.status,
+          run.errorCode ?? null,
+          run.chunkCount,
+          run.acceptedCount,
+          run.rejectedCount,
+          run.pendingCount,
         );
       }
       const insertMessage = db.prepare(
@@ -720,7 +858,7 @@ export function applyPlan(
           'CREATE TABLE layer_links (id TEXT PRIMARY KEY, host_layer_id TEXT NOT NULL, layer_id TEXT NOT NULL, link_type TEXT NOT NULL, is_preferred INTEGER NOT NULL)',
         );
         db.exec(
-          'CREATE TABLE track_entities (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, mode TEXT NOT NULL)',
+          'CREATE TABLE track_entities (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, mode TEXT NOT NULL, lane_lock_json TEXT)',
         );
         db.exec(
           'CREATE TABLE tier_annotations (id TEXT PRIMARY KEY, tier_id TEXT NOT NULL, value TEXT NOT NULL, is_verified INTEGER NOT NULL, start_time REAL, end_time REAL)',
@@ -818,10 +956,17 @@ export function applyPlan(
           );
         }
         const insertTrack = db.prepare(
-          'INSERT INTO track_entities (id, media_id, mode) VALUES (?, ?, ?)',
+          'INSERT INTO track_entities (id, media_id, mode, lane_lock_json) VALUES (?, ?, ?, ?)',
         );
         for (const track of manuscript.tracks ?? []) {
-          insertTrack.run(track.id, track.mediaId, track.mode);
+          insertTrack.run(
+            track.id,
+            track.mediaId,
+            track.mode,
+            track.laneLockMap === undefined
+              ? null
+              : laneLockJson(track.laneLockMap, `track ${track.id} laneLockMap`),
+          );
         }
         const insertAnnotation = db.prepare(
           'INSERT INTO tier_annotations (id, tier_id, value, is_verified, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)',
@@ -937,7 +1082,7 @@ export function readProject(dest) {
   const speakers = project.prepare('SELECT id, text_id, name FROM speakers ORDER BY id').all();
   const languages = project
     .prepare(
-      `SELECT id, text_id, name, ${LANGUAGE_EXTRAS.map(([, column]) => column).join(', ')} FROM languages ORDER BY id`,
+      `SELECT id, text_id, name, ${[...LANGUAGE_EXTRAS.map(([, column]) => column), ...LANGUAGE_JSON.map(([, column]) => column)].join(', ')} FROM languages ORDER BY id`,
     )
     .all();
   const displayNames = project
@@ -958,7 +1103,7 @@ export function readProject(dest) {
     .all();
   const lexemes = project
     .prepare(
-      'SELECT id, text_id, headword, kind, usage_count, access_rights FROM lexemes ORDER BY id',
+      'SELECT id, text_id, headword, kind, usage_count, access_rights, entry_json, resource_json FROM lexemes ORDER BY id',
     )
     .all();
   const phonemes = project
@@ -985,7 +1130,7 @@ export function readProject(dest) {
     .all();
   const orthographyBridges = project
     .prepare(
-      'SELECT id, text_id, source_orthography_id, target_orthography_id, engine, status, is_reversible FROM orthography_bridges ORDER BY id',
+      'SELECT id, text_id, source_orthography_id, target_orthography_id, engine, status, is_reversible, name_json, rules_json, sample_input, sample_output, sample_cases_json, notes_json FROM orthography_bridges ORDER BY id',
     )
     .all();
   const customFields = project
@@ -1008,7 +1153,7 @@ export function readProject(dest) {
     .all();
   const structuralRules = project
     .prepare(
-      'SELECT id, project_id, scope, language_id, derived_from_system_id, enabled, priority FROM structural_rule_profiles ORDER BY id',
+      'SELECT id, project_id, scope, language_id, derived_from_system_id, enabled, priority, profile_json FROM structural_rule_profiles ORDER BY id',
     )
     .all();
   const conversations = project
@@ -1044,6 +1189,14 @@ export function readProject(dest) {
   const aiSourceSets = project
     .prepare(
       'SELECT id, project_id, name, scope, status, media_id, layer_id, bound_session_id FROM ai_source_sets ORDER BY id',
+    )
+    .all();
+  const sessionMemories = project
+    .prepare('SELECT id, conversation_id, payload_json, updated_at FROM ai_session_memories ORDER BY id')
+    .all();
+  const modelRuns = project
+    .prepare(
+      'SELECT id, text_id, model_id, model_version, manifest_sha256, capability, params_json, media_id, range_start, range_end, started_at, finished_at, status, error_code, chunk_count, accepted_count, rejected_count, pending_count FROM model_runs ORDER BY id',
     )
     .all();
   const notes = project
@@ -1099,7 +1252,9 @@ export function readProject(dest) {
           'SELECT id, host_layer_id, layer_id, link_type, is_preferred FROM layer_links ORDER BY id',
         )
         .all();
-      const tracks = db.prepare('SELECT id, media_id, mode FROM track_entities ORDER BY id').all();
+      const tracks = db
+        .prepare('SELECT id, media_id, mode, lane_lock_json FROM track_entities ORDER BY id')
+        .all();
       const annotations = db
         .prepare(
           'SELECT id, tier_id, value, is_verified, start_time, end_time FROM tier_annotations ORDER BY id',
@@ -1189,6 +1344,14 @@ export function readProject(dest) {
           id: track.id,
           mediaId: track.media_id,
           mode: track.mode,
+          ...(track.lane_lock_json !== null
+            ? {
+                laneLockMap: parseObjectColumn(
+                  track.lane_lock_json,
+                  `track ${track.id} laneLockMap`,
+                ),
+              }
+            : {}),
         })),
         annotations: annotations.map((annotation) => ({
           id: annotation.id,
@@ -1234,6 +1397,15 @@ export function readProject(dest) {
       textId: language.text_id,
       name: language.name,
       ...definedFields(language, LANGUAGE_EXTRAS),
+      ...definedFields(
+        Object.fromEntries(
+          LANGUAGE_JSON.map(([, column]) => [
+            column,
+            language[column] === null ? null : JSON.parse(language[column]),
+          ]),
+        ),
+        LANGUAGE_JSON,
+      ),
     })),
     displayNames: displayNames.map((displayName) => ({
       id: displayName.id,
@@ -1261,6 +1433,12 @@ export function readProject(dest) {
       ...(lexeme.kind !== null ? { kind: lexeme.kind } : {}),
       ...(lexeme.usage_count !== null ? { usageCount: lexeme.usage_count } : {}),
       ...(lexeme.access_rights !== null ? { accessRights: lexeme.access_rights } : {}),
+      ...(lexeme.entry_json !== null
+        ? { entry: parseObjectColumn(lexeme.entry_json, `lexeme ${lexeme.id} entry`) }
+        : {}),
+      ...(lexeme.resource_json !== null
+        ? { resource: parseObjectColumn(lexeme.resource_json, `lexeme ${lexeme.id} resource`) }
+        : {}),
     })),
     phonemes: phonemes.map((phoneme) => ({
       id: phoneme.id,
@@ -1316,6 +1494,25 @@ export function readProject(dest) {
       engine: bridge.engine,
       ...(bridge.status !== null ? { status: bridge.status } : {}),
       ...(bridge.is_reversible !== null ? { isReversible: bridge.is_reversible !== 0 } : {}),
+      ...(bridge.name_json !== null
+        ? { name: parseObjectColumn(bridge.name_json, `bridge ${bridge.id} name`) }
+        : {}),
+      ...(bridge.rules_json !== null
+        ? { rules: parseObjectColumn(bridge.rules_json, `bridge ${bridge.id} rules`) }
+        : {}),
+      ...(bridge.sample_input !== null ? { sampleInput: bridge.sample_input } : {}),
+      ...(bridge.sample_output !== null ? { sampleOutput: bridge.sample_output } : {}),
+      ...(bridge.sample_cases_json !== null
+        ? {
+            sampleCases: parseArrayColumn(
+              bridge.sample_cases_json,
+              `bridge ${bridge.id} sampleCases`,
+            ),
+          }
+        : {}),
+      ...(bridge.notes_json !== null
+        ? { notes: parseObjectColumn(bridge.notes_json, `bridge ${bridge.id} notes`) }
+        : {}),
     })),
     customFields: customFields.map((field) => ({
       id: field.id,
@@ -1369,6 +1566,9 @@ export function readProject(dest) {
         : {}),
       enabled: rule.enabled !== 0,
       priority: rule.priority,
+      ...(rule.profile_json !== null
+        ? { profile: parseObjectColumn(rule.profile_json, `rule ${rule.id} profile`) }
+        : {}),
     })),
     conversations: conversations.map((conversation) => ({
       id: conversation.id,
@@ -1444,6 +1644,32 @@ export function readProject(dest) {
       ...(artifact.agent_run_id !== null ? { agentRunId: artifact.agent_run_id } : {}),
       ...(artifact.adoption_item_id !== null ? { adoptionItemId: artifact.adoption_item_id } : {}),
     })),
+    sessionMemories: sessionMemories.map((memory) => ({
+      id: memory.id,
+      conversationId: memory.conversation_id,
+      payload: parseObjectColumn(memory.payload_json, `session memory ${memory.id}`),
+      updatedAt: memory.updated_at,
+    })),
+    modelRuns: modelRuns.map((run) => ({
+      id: run.id,
+      textId: run.text_id,
+      modelId: run.model_id,
+      modelVersion: run.model_version,
+      manifestSha256: run.manifest_sha256,
+      capability: run.capability,
+      params: parseObjectColumn(run.params_json, `model run ${run.id}`),
+      mediaId: run.media_id,
+      rangeStart: run.range_start,
+      rangeEnd: run.range_end,
+      startedAt: run.started_at,
+      ...(run.finished_at !== null ? { finishedAt: run.finished_at } : {}),
+      status: run.status,
+      ...(run.error_code !== null ? { errorCode: run.error_code } : {}),
+      chunkCount: run.chunk_count,
+      acceptedCount: run.accepted_count,
+      rejectedCount: run.rejected_count,
+      pendingCount: run.pending_count,
+    })),
     aiSourceSets: aiSourceSets.map((sourceSet) => ({
       id: sourceSet.id,
       projectId: sourceSet.project_id,
@@ -1514,6 +1740,8 @@ if (isDirectRun) {
       projectMemories: raw.projectMemories ?? [],
       agentArtifacts: raw.agentArtifacts ?? [],
       aiSourceSets: raw.aiSourceSets ?? [],
+      sessionMemories: raw.sessionMemories ?? [],
+      modelRuns: raw.modelRuns ?? [],
       notes: raw.notes ?? [],
       audios: raw.audios.map((audio) => ({ ...audio, bytes: Buffer.from(audio.bytes, 'base64') })),
       manuscripts: raw.manuscripts,
