@@ -100,10 +100,12 @@ function secretPath(): string {
   return path.join(app.getPath('userData'), 'preferences', 'secret.bin');
 }
 
-function readStoredSecret(): string | null {
+async function readStoredSecret(): Promise<string | null> {
   const file = secretPath();
-  if (!fs.existsSync(file) || !safeStorage.isEncryptionAvailable()) return null;
-  return safeStorage.decryptString(fs.readFileSync(file));
+  if (!fs.existsSync(file) || !(await safeStorage.isAsyncEncryptionAvailable())) return null;
+  const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(fs.readFileSync(file));
+  if (shouldReEncrypt) fs.writeFileSync(file, await safeStorage.encryptStringAsync(result));
+  return result;
 }
 
 function handle<T extends unknown[]>(
@@ -121,7 +123,7 @@ async function runOutboundRequest(
   requestId: string,
   url: string,
 ): Promise<{ status: number; chunks: number; aborted: boolean }> {
-  const secret = readStoredSecret();
+  const secret = await readStoredSecret();
   if (!secret) throw new Error('missing secret');
   const controller = new AbortController();
   inFlightRequests.set(requestId, controller);
@@ -181,10 +183,10 @@ function registerIpc(): void {
     return opened;
   });
 
-  handle('skeleton:store-secret', (plain: unknown) => {
+  handle('skeleton:store-secret', async (plain: unknown) => {
     if (typeof plain !== 'string' || plain.length === 0) throw new Error('empty secret');
     const refusal = secretStoreRefusal(
-      safeStorage.isEncryptionAvailable(),
+      await safeStorage.isAsyncEncryptionAvailable(),
       process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null,
       SMOKE,
     );
@@ -194,7 +196,7 @@ function registerIpc(): void {
     if (refusal) return { stored: false, reason: refusal };
     const file = secretPath();
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, safeStorage.encryptString(plain));
+    fs.writeFileSync(file, await safeStorage.encryptStringAsync(plain));
     return { stored: true };
   });
 
@@ -294,6 +296,10 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     const synced = path.join(root, BAIDU_MARKER, 'field');
     fs.mkdirSync(mediaRoot(), { recursive: true });
     fs.writeFileSync(path.join(mediaRoot(), 'clip.bin'), 'abcdefgh');
+    // Keys saved before the async switch were written by the deprecated sync encryptString (gone in Electron 46).
+    fs.mkdirSync(path.dirname(secretPath()), { recursive: true });
+    fs.writeFileSync(secretPath(), safeStorage.encryptString('legacy-secret'));
+    const legacySecret = await readStoredSecret();
     const script = `(async () => {
       const opened = await window.jieyuDesktop.openProject(${JSON.stringify(project)});
       const probe = await window.jieyuDesktop.writeProbe('ping');
@@ -336,6 +342,7 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
       media: { status: number; body: string };
     };
     const failures: string[] = [];
+    if (legacySecret !== 'legacy-secret') failures.push('legacy-secret');
     if (result.probe.note !== 'ping') failures.push('probe');
     if (result.opened.lock !== 'acquired') failures.push('lock');
     if (result.busy.lock !== 'busy' || result.busy.message !== '已在别处打开') failures.push('second-window');
