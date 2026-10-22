@@ -108,7 +108,8 @@ export async function convertRawSnapshotToJyb(
       `The raw snapshot is of ${manifest.dbName}, not ${JIEYU_DEXIE_DB_NAME}.`,
     );
   }
-  if (manifest.dexieVersion > target) {
+  // 补丁库原生版本不是 10 的倍数（1.1）；和启动检测一样取整比较（#357）| floor like startup detection
+  if (Math.floor(manifest.dexieVersion) > target) {
     throw new RawSnapshotConversionError(
       'newer-than-app',
       `The raw snapshot is at version ${manifest.dexieVersion}; this app only knows up to ${target}. Update the app first.`,

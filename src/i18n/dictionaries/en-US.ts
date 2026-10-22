@@ -38,6 +38,8 @@ export const enUSDictionary = {
     'The cloud project was not found, or you no longer have access.',
   'app.home.removedCloudProjects.reason.projectDeleted': 'The owner deleted the cloud project.',
   'app.home.removedCloudProjects.reason.noSnapshot': 'The cloud project has no snapshot yet.',
+  'app.home.removedCloudProjects.reason.snapshotMissingProject':
+    'The latest cloud snapshot does not contain this project, so it could not be downloaded. Local data is unchanged.',
   'app.home.noProgressData':
     'No transcription record or text-layer progress yet (transcription layer may be missing).',
   'app.home.openProject': 'Open project',
@@ -4136,6 +4138,8 @@ export const enUSDictionary = {
     confirmDeleteCloudProjectFinal: 'Confirm once more: permanently delete this cloud project?',
     cloudProjectDeleted: 'Cloud project deleted; the copy on this device was cleaned up.',
     deleteCloudProjectOwnerOnly: 'Only the project owner can delete the cloud project.',
+    snapshotMissingProject:
+      'This version does not contain the current project, so nothing was restored. Your local project is unchanged.',
   }),
   'msg.layerConstraint.catalog': JSON.stringify({
     issueConstraintUnsupported:

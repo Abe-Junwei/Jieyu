@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithLocale } from '../../test/localeTestUtils';
 import { CollaborationCloudPanel } from './CollaborationCloudPanel';
+import { ProjectSnapshotMissingProjectError } from '../../services/linguisticServiceDatabaseIo';
 
 describe('CollaborationCloudPanel', () => {
   it('renders as a standalone collaboration surface', async () => {
@@ -133,6 +134,60 @@ describe('CollaborationCloudPanel', () => {
       expect(screen.getByText(/upsert_unit_content/)).toBeTruthy();
     });
   });
+
+  it.each([
+    [
+      'zh-CN',
+      '版本历史',
+      '刷新版本',
+      '恢复到本地',
+      '这个版本里没有当前项目，未恢复；本机项目保持原样。',
+    ],
+    [
+      'en-US',
+      'Versions',
+      'Refresh Versions',
+      'Restore To Local',
+      'This version does not contain the current project, so nothing was restored. Your local project is unchanged.',
+    ],
+  ] as const)(
+    '#355 (%s): a snapshot without the current project shows a readable error',
+    async (locale, tabName, refreshName, restoreName, expected) => {
+      cleanup(); // 前面的用例没有卸载 | earlier cases leave their render mounted
+      renderWithLocale(
+        <CollaborationCloudPanel
+          listProjectAssets={vi.fn(async () => [])}
+          removeProjectAsset={vi.fn(async () => undefined)}
+          getProjectAssetSignedUrl={vi.fn(async () => '')}
+          listProjectSnapshots={vi.fn(async () => [
+            {
+              id: 'snap-1',
+              projectId: 'project-1',
+              version: 3,
+              schemaVersion: 1,
+              createdBy: 'u-1',
+              snapshotStorageBucket: 'project-exports',
+              snapshotStoragePath: 'p/snap-1.json',
+              checksum: 'abc',
+              sizeBytes: 123,
+              changeCursor: 9,
+              createdAt: '2026-04-17T12:05:00.000Z',
+            },
+          ])}
+          restoreProjectSnapshotToLocalById={vi.fn(async () => {
+            throw new ProjectSnapshotMissingProjectError('project-1');
+          })}
+          queryProjectChangeTimeline={vi.fn(async () => ({ changes: [], total: 0 }))}
+        />,
+        locale,
+      );
+      fireEvent.click(screen.getByRole('tab', { name: tabName }));
+      fireEvent.click(screen.getByRole('button', { name: refreshName }));
+      fireEvent.click(await screen.findByRole('button', { name: restoreName }));
+      expect(await screen.findByText(expected)).toBeTruthy();
+      cleanup();
+    },
+  );
 
   it('cloud delete needs two confirmations and reports owner-only rejections (rev5 9.2)', async () => {
     const deleteProjectFromCloud = vi

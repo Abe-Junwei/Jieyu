@@ -35,6 +35,8 @@ export const zhCNDictionary = {
     '云端找不到这个项目，或者你已经没有访问权限。',
   'app.home.removedCloudProjects.reason.projectDeleted': '云端项目已被所有者删除。',
   'app.home.removedCloudProjects.reason.noSnapshot': '云端还没有快照，暂时无法重新下载。',
+  'app.home.removedCloudProjects.reason.snapshotMissingProject':
+    '云端最新快照里没有这个项目，无法重新下载；本机数据没有改动。',
   'app.home.noProgressData': '暂无声文稿或文本层进度（可能尚未创建转写层）。',
   'app.home.openProject': '打开项目',
   'app.home.openTranscriptionRecord': '打开该声文稿（定位到对应媒体）',
@@ -3814,6 +3816,7 @@ export const zhCNDictionary = {
     confirmDeleteCloudProjectFinal: '再确认一次：确定永久删除这个云端项目吗？',
     cloudProjectDeleted: '云端项目已删除，本机副本已清理。',
     deleteCloudProjectOwnerOnly: '只有项目所有者可以删除云端项目。',
+    snapshotMissingProject: '这个版本里没有当前项目，未恢复；本机项目保持原样。',
   }),
   'msg.layerConstraint.catalog': JSON.stringify({
     issueConstraintUnsupported: '层 {layerKey} 使用了当前运行时未启用的约束：{constraint}',

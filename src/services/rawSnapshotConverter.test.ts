@@ -221,6 +221,33 @@ describe('T41: raw snapshot → JYB converter', () => {
     expect((await db.texts.get('pA'))?.title).toEqual({ default: 'Project pA' });
   });
 
+  it('#357: a raw export of a Dexie-patched DB (native 11) converts and imports in the same app', async () => {
+    // 模拟 Dexie schema 补丁：原生版本 10 → 11，Dexie 版本仍是 1 | simulate a Dexie schema patch
+    db.close();
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('jieyu', 11);
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+    const raw = await rawExport();
+    const manifest = JSON.parse(strFromU8(unzipSync(raw)['manifest.json']!)) as {
+      nativeVersion: number;
+    };
+    expect(manifest.nativeVersion).toBe(11);
+
+    const result = await convertRawSnapshotToJyb(raw);
+    expect(result.source).toMatchObject({ nativeVersion: 11 });
+    expect(result.upgradedToVersion).toBe(1);
+    await clearAll();
+    const imported = await importJybProjectsAsNew(result.jyb, { projectIds: ['pA'] });
+    const newId = imported.projects[0]!.projectId;
+    expect((await db.texts.get(newId))?.title).toEqual({ default: 'Project pA' });
+    expect(await db.layer_units.where('textId').equals(newId).count()).toBe(1);
+  });
+
   it('refuses snapshots newer than the app, of another database, or not raw at all', async () => {
     const raw = await rawExport();
     const newer = rewriteManifest(raw, { nativeVersion: 990, dexieVersion: 99 });

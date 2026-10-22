@@ -97,17 +97,29 @@ function snapshotForDecision(result: TakeSnapshotResult): SnapshotOutcomeForDeci
   return { status: 'failed', reason: `${result.kind}: ${result.reason}` };
 }
 
-async function cleanupLeftovers(params: MigrationGateParams): Promise<string[]> {
+async function cleanupLeftovers(
+  params: MigrationGateParams,
+  lockTimeoutMs: number,
+): Promise<string[]> {
   if (!params.policy.cleanupUnverifiedSnapshots) return [];
   const snapshotDbName = params.snapshotDbName ?? JIEYU_MIGRATION_SNAPSHOT_DB_NAME;
-  try {
-    // 不为清理而创建快照库 | do not create the snapshot DB just to clean it
-    const info = await detectInstalledDatabase(params.factory, snapshotDbName);
-    if (!info.exists) return [];
-    return await cleanupUnverifiedSnapshots(params.factory, snapshotDbName);
-  } catch {
-    return [];
-  }
+  const cleanup = async (): Promise<string[]> => {
+    try {
+      // 不为清理而创建快照库 | do not create the snapshot DB just to clean it
+      const info = await detectInstalledDatabase(params.factory, snapshotDbName);
+      if (!info.exists) return [];
+      return await cleanupUnverifiedSnapshots(params.factory, snapshotDbName);
+    } catch {
+      return [];
+    }
+  };
+  if (!params.policy.multiTabCoordination) return cleanup();
+  // 和写快照共用升级锁：锁内正在写的槽位不是残留；等不到锁就跳过 | share the snapshot writer's lock
+  const locked = await withUpgradeLock(cleanup, {
+    timeoutMs: lockTimeoutMs,
+    ...(params.locks !== undefined ? { locks: params.locks } : {}),
+  });
+  return locked.acquired ? locked.value : [];
 }
 
 /** 经过闸门打开主库 | Open the main DB through the gate */
@@ -123,7 +135,7 @@ export async function openThroughMigrationGate(
     return { path: 'gate-disabled', targetVersion, cleanedSnapshotSlots: [] };
   }
 
-  const cleanedSnapshotSlots = await cleanupLeftovers(params);
+  const cleanedSnapshotSlots = await cleanupLeftovers(params, timeouts.upgradeLockMs);
   const installed = await detectInstalledDatabase(params.factory, dbName);
   const comparison = compareInstalledVersion(installed, targetVersion);
 
