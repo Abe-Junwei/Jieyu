@@ -2,7 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
+import { featureFlags } from './ai/config/featureFlags';
 import { App } from './App';
+import { installSqliteIpcPortIfEnabled, readDesktopStorageCall } from './db/installSqliteIpcPort';
 import { initOtelForReleaseStage } from './observability/otel';
 import { initSentryForReleaseStage } from './observability/sentry';
 import { initLcpMetricObserver } from './observability/webVitals';
@@ -14,6 +16,11 @@ import { fireAndForget } from './utils/fireAndForget';
 import './styles/app-foundation.css';
 
 const log = createLogger('main');
+
+installSqliteIpcPortIfEnabled({
+  enabled: featureFlags.sqliteStoragePortEnabled,
+  invoke: readDesktopStorageCall(),
+});
 
 function initGlobalErrorHandlers(): void {
   if (typeof window === 'undefined') return;

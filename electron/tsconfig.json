@@ -17,5 +17,9 @@
     "esModuleInterop": true
   },
   "include": ["./**/*.ts", "../src/desktop/skeleton/**/*.ts"],
-  "exclude": ["../src/desktop/skeleton/**/*.test.ts", "dist"]
+  "exclude": [
+    "../src/desktop/skeleton/**/*.test.ts",
+    "../src/desktop/skeleton/sqliteStorageHost.ts",
+    "dist"
+  ]
 }

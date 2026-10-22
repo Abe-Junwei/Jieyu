@@ -1,3 +1,5 @@
+import { sqliteStoragePortFlagEnabled } from '../../desktop/skeleton/sqliteStoragePortFlag';
+
 // 系统功能开关 | System feature flags
 type FeatureFlagDeploymentEnvironment = 'local' | 'dogfood' | 'staging' | 'prod';
 
@@ -306,4 +308,12 @@ export const featureFlags = {
    * Default false; flag off hides the attachment section on the live lexicon page.
    */
   lexiconAttachmentsEnabled: lexiconAttachmentsEnabledFromEnv ?? false,
+  /**
+   * #275：桌面壳经 IPC 换上 SQLite 存储接口。
+   * Default false. Browser builds never install it. Electron installs it only when this
+   * flag and `JIEYU_SQLITE_STORAGE_PORT` are both on (ADR-0079).
+   */
+  sqliteStoragePortEnabled: sqliteStoragePortFlagEnabled(
+    import.meta.env.VITE_SQLITE_STORAGE_PORT_ENABLED,
+  ),
 } as const;

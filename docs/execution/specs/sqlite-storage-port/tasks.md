@@ -24,7 +24,7 @@ depends_on:
 - [x] 文稿改挂录音：一份 `.jyd` 里替换 `meta.audio_id`，语段改成同一条，提交后读回；关掉再打开仍是一条 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [x] 跨文稿关系：同一份 `.jyd` 里的语段关系和父子链接提交后读回；两端不在同一份文稿就不写 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [ ] 其余项目库和 `.jyd` 上的业务操作 → 验证：这些方法不再拒绝
-- [ ] 桌面壳 `installStoragePort` 换上这个实现，默认仍不在浏览器里启用 → 验证：Electron 冒烟能打开本机库
+- [x] 桌面壳 `installStoragePort` 换上这个实现，默认仍不在浏览器里启用 → 验证：`npm run desktop:smoke` 写入一条回合，关掉再打开读回
 - [x] 不适用：界面、E2E、`src/ai/**`
 
 ## Pre-merge gates
@@ -35,4 +35,4 @@ depends_on:
 - [x] 不适用：`npm run check:architecture-guard`。未改编排层
 - [x] 不适用：`src/ai/**`
 - [x] `npm run check:docs-governance`
-- [x] 不适用：feature flag。还没换成默认实现
+- [x] feature flag `sqliteStoragePortEnabled` 默认关。冒烟设置 `JIEYU_SQLITE_STORAGE_PORT=1`
