@@ -8,6 +8,15 @@ describe('canonical value encoding', () => {
     expect(await canonicalSha256({ b: 1, a: 2 })).toBe(await canonicalSha256({ a: 2, b: 1 }));
   });
 
+  it('#358: keeps an own __proto__ key in the encoding and the digest', async () => {
+    const value = JSON.parse('{"d":{"__proto__":{"keep":1},"n":"ok"}}') as unknown;
+    expect(await toCanonicalJson(value)).toBe('{"d":{"__proto__":{"keep":1},"n":"ok"}}');
+    expect(await canonicalSha256(value)).not.toBe(await canonicalSha256({ d: { n: 'ok' } }));
+    const back = fromTaggedTree(JSON.parse(await toCanonicalJson(value))) as { d: object };
+    expect(Object.keys(back.d)).toEqual(['__proto__', 'n']);
+    expect(Object.getPrototypeOf(back.d)).toBe(Object.prototype);
+  });
+
   it('round-trips structured-clone types', async () => {
     const value = {
       n: Number.NaN,

@@ -50,6 +50,11 @@ export const inlineBinaryEncoder: BinaryEncoder = async (data, meta) => {
     : { $bytes: bytesToBase64(bytes), ctor: meta.ctor ?? 'Uint8Array' };
 };
 
+/** 写自有属性：`out.__proto__ = v` 会改原型而不是留下键（#358）| own data property, safe for `__proto__` */
+function setOwn(out: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(out, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 /** 把值转成可 JSON 化的标签树 | Convert a value into a JSON-safe tagged tree */
 export async function toTaggedTree(
   value: unknown,
@@ -96,7 +101,7 @@ export async function toTaggedTree(
     const out: Record<string, unknown> = {};
     const keys = Object.keys(value as Record<string, unknown>).sort();
     for (const key of keys) {
-      out[key] = await toTaggedTree((value as Record<string, unknown>)[key], encodeBinary);
+      setOwn(out, key, await toTaggedTree((value as Record<string, unknown>)[key], encodeBinary));
     }
     // 用户对象自己带 `$` 开头的键时整体转义，避免与标签混淆 | escape objects whose own keys look like tags
     return keys.some((key) => key.startsWith('$')) ? { $obj: out } : out;
@@ -167,7 +172,7 @@ export function fromTaggedTree(
   if ('$obj' in tag && tag.$obj !== null && typeof tag.$obj === 'object') {
     const escaped: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(tag.$obj as Record<string, unknown>)) {
-      escaped[key] = fromTaggedTree(value, decodeBinary);
+      setOwn(escaped, key, fromTaggedTree(value, decodeBinary));
     }
     return escaped;
   }
@@ -186,6 +191,7 @@ export function fromTaggedTree(
   if ('$set' in tag && Array.isArray(tag.$set))
     return new Set((tag.$set as unknown[]).map((item) => fromTaggedTree(item, decodeBinary)));
   const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(tag)) out[key] = fromTaggedTree(value, decodeBinary);
+  for (const [key, value] of Object.entries(tag))
+    setOwn(out, key, fromTaggedTree(value, decodeBinary));
   return out;
 }
