@@ -570,7 +570,16 @@ export async function takeVerifiedSnapshot(
     };
     await done;
   } catch (error) {
-    if (lostSlot !== null) return fail('verification-failed', lostSlot);
+    // 槽位已不是我们写的那份：可能是别人刚 verified，不能再删（#354 follow-up）| slot may be another's verified; do not delete
+    if (lostSlot !== null) {
+      snapshotDb.close();
+      return {
+        status: 'failed',
+        kind: 'verification-failed',
+        reason: lostSlot,
+        previousVerifiedSlot,
+      };
+    }
     const storageFailure = classifyStorageFailure(error);
     return fail('write-failed', describeStorageFailure(storageFailure), storageFailure);
   }

@@ -142,6 +142,30 @@ describe('two-slot migration snapshots', () => {
     expect(slots.map((slot) => [slot.slot, slot.state])).toEqual([['A', 'verified']]);
   });
 
+  it('#354 follow-up: when the free slot was verified by another writer, fail without deleting it', async () => {
+    await createRawSourceDb(indexedDB, SOURCE);
+    const first = await snapshot();
+    expect(first.status).toBe('verified');
+    // 模拟无锁双写：读回之后乙清掉甲的 writing B，自己写好并标为 verified | unlocked double-write
+    const second = await snapshot({
+      beforeMarkVerified: async () => {
+        expect(await cleanupUnverifiedSnapshots(indexedDB, SNAP)).toEqual(['B']);
+        const other = await takeVerifiedSnapshot({
+          factory: indexedDB,
+          sourceDbName: SOURCE,
+          snapshotDbName: SNAP,
+          estimate: null,
+        });
+        expect(other.status).toBe('verified');
+        if (other.status === 'verified') expect(other.meta.slot).toBe('B');
+      },
+    });
+    expect(second).toMatchObject({ status: 'failed', kind: 'verification-failed' });
+    const slots = await listSnapshotSlots(indexedDB, SNAP);
+    // 乙的 verified B 必须还在；不能被甲的 fail() 删掉 | the other writer's verified B must remain
+    expect(slots.map((slot) => [slot.slot, slot.state])).toEqual([['B', 'verified']]);
+  });
+
   it('#354: a leftover cleanup that runs during verification makes the snapshot fail and keeps the previous slot', async () => {
     await createRawSourceDb(indexedDB, SOURCE);
     const first = await snapshot();
