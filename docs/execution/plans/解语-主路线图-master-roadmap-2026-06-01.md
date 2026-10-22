@@ -226,7 +226,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-10-22）**：[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 的列形状和定义副本范围已经定完，下一刀是存储接口的 SQLite 实现。定义副本只含这张文稿用到的语言、显示名、别名、正字法和说话人（ADR-0070）。会话记忆载荷（ADR-0066）、`model_runs`（ADR-0057 第 8 条）、语言记录上的数组与备注（ADR-0067）、词条 DMLex 正文（ADR-0068），以及结构规则正文、正字法转换规则与样例、车道锁定表（ADR-0069）已写入并读回。[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 与之并行。#276 与 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 已落地。已落成的决定：存储接口 [ADR-0048](../../adr/0048-storage-port.md)、模型接口 [ADR-0057](../../adr/0057-model-interface-transcribe.md)、IndexedDB 归层 [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、文件夹内容 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)、[ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)、只做桌面版 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、新功能冻结 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-10-22）**：[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 的存储接口开始写 SQLite。本机 userData 里的回合和审计已经用 better-sqlite3 写入并关掉再打开读回，还没换成默认实现。项目库和 `.jyd` 上的操作，包括跨文件的说话人分配，是这一刀剩下的部分。定义副本只含这张文稿用到的语言、显示名、别名、正字法和说话人（ADR-0070）。会话记忆载荷（ADR-0066）、`model_runs`（ADR-0057 第 8 条）、语言记录上的数组与备注（ADR-0067）、词条 DMLex 正文（ADR-0068），以及结构规则正文、正字法转换规则与样例、车道锁定表（ADR-0069）已写入并读回。[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 与之并行。#276 与 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 已落地。已落成的决定：存储接口 [ADR-0048](../../adr/0048-storage-port.md)、模型接口 [ADR-0057](../../adr/0057-model-interface-transcribe.md)、IndexedDB 归层 [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、文件夹内容 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)、[ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)、只做桌面版 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、新功能冻结 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 >
 > **新功能冻结（2026-10-17 起，ADR-0064）**：到下面第 3 步（#275 与 #325 都落地）为止。
 >
@@ -401,6 +401,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-10-22 | **存储接口 SQLite 切片**。本机 userData 的回合和审计用 better-sqlite3 写入，提交后读回，关掉再打开仍在。还没安装成默认实现。项目库和 `.jyd` 上的操作仍是下一刀。 |
 | 2026-10-22 | **定义副本范围**（ADR-0070）。副本只含这张文稿用到的语言、显示名、别名、正字法和说话人。词条、标签定义、自定义字段定义、缩写留在项目库。#275 的下一刀改为存储接口的 SQLite 实现。 |
 | 2026-10-21 | **#275 列形状**。会话记忆载荷（ADR-0066）、`model_runs`（ADR-0057 第 8 条）、语言记录上的数组与备注（ADR-0067）、词条 DMLex 正文（ADR-0068）写入项目库。结构规则正文、正字法转换规则与样例、车道锁定表（ADR-0069）写入项目库或 `.jyd`。关掉再打开读回。定义副本范围仍未定。存储接口的 SQLite 实现仍是下一刀。 |
 | 2026-10-18 | **#328 落地**。删除浏览器支持策略页；`browserslist` 改为 Chromium 152；Playwright 与每晚任务去掉 Firefox、WebKit。关于页不再承诺浏览器。浏览器专用代码只列清单，不删。当前下一刀改为 #275（#280 并行）。本地 045 删除。 |

@@ -1,0 +1,55 @@
+---
+title: sqlite-storage-port design
+doc_type: execution-spec-design
+status: draft
+owner: repo
+last_reviewed: 2026-10-22
+source_of_truth: sqlite-storage-port-spec
+depends_on:
+  - ./requirements.md
+---
+
+# Design — sqlite-storage-port
+
+## 1. 成熟方案扫描 / Research
+
+- 仓库既有最相似的模式：`src/desktop/skeleton/probeStore.ts` 用 better-sqlite3 的 `transaction` 做一次 BEGIN/COMMIT，提交后读回。迁移脚本用 `node:sqlite`，那是文件原型，不是这个接口。
+- 同类产品 / 标杆实现：SQLite 作者和 better-sqlite3 都把一次事务写成同步函数，不把事务挂在多次 IPC 上。
+- 业内 best practice / 事实标准 / 规范：SQLite 一个连接上的事务只覆盖那一个库文件。跨文件用操作记录续做，仓库里已有 ADR-0060 第 4 条。
+- 公认不可行 / 反模式 / 已弃用方案：ADR-0048 已放弃 `node:sqlite` 和跨多次 IPC 持有事务。
+- 潜在的坑：better-sqlite3 是原生模块，要跟 Electron 的 ABI 一起编译。userData 库不是 `.jyd`，不占用文稿的 `application_id`。
+- 决定：**复用** better-sqlite3 的同步事务和现有 `StoragePort` 合同。本切片只打开调用方传入的 userData 文件。
+
+## 2. 架构选择
+
+- 落位类别：effect。写入在 `src/db/sqliteStoragePort.ts`，不进页面。
+- 关键 trade-off：先做 userData 里的回合和审计，因为它们属于一个库。说话人分配跨项目库和 `.jyd`，留到下一刀。
+- 拒绝的方案：把语段先写进 userData，迁就合同测试。那会和 ADR-0061 的文件分工相反。
+
+## 3. 落位清单
+
+| 文件 | 职责 | 复杂度估计 |
+| --- | --- | --- |
+| `src/db/sqliteStoragePort.ts` | 打开 userData 库，写回合和审计，其余方法拒绝 | < 200 行 |
+| `src/db/sqliteStoragePort.test.ts` | 关掉再打开读回 | 测试 |
+
+约束自查：
+
+- [x] 不新增 hook
+- [x] 编排层不写库
+- [x] 不引入 `src/features/…`
+- [x] 不涉及面板
+
+## 4. ADR 引用
+
+- 相关 ADR：ADR-0048、ADR-0058、ADR-0060、ADR-0061
+- 是否需要新建 ADR：否。库的分工已经定过。本切片没有新的格式决定。
+
+## 5. Feature flag
+
+- 不换默认实现，所以不加 flag。桌面壳接上时再套。
+
+## 6. 失败模式 / 兼容性
+
+- 旧用户路径：浏览器仍用 Dexie。这个实现没有被 `installStoragePort` 装上。
+- 读回失败抛 `StorageReadbackError`，不在提交后撤销。
