@@ -76,6 +76,59 @@ describe('importDatabaseFromJson', () => {
     expect(remainingTexts.map((item) => item.id)).toEqual(['text_existing']);
   });
 
+  it('#356: replace-all leaves layer_units/layer_unit_contents of every project alone when the snapshot omits them', async () => {
+    for (const textId of ['text_a', 'text_b']) {
+      await db.texts.put({
+        id: textId,
+        title: { default: textId },
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      await db.layer_units.put({
+        id: `unit_${textId}`,
+        textId,
+        layerId: `layer_${textId}`,
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as never);
+      await db.layer_unit_contents.put({
+        id: `content_${textId}`,
+        textId,
+        unitId: `unit_${textId}`,
+        layerId: `layer_${textId}`,
+        contentRole: 'primary_text',
+        modality: 'text',
+        text: `hello ${textId}`,
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as never);
+    }
+    const unitsBefore = await db.layer_units.orderBy('id').toArray();
+    const contentsBefore = await db.layer_unit_contents.orderBy('id').toArray();
+
+    const result = await importDatabaseFromJson(
+      {
+        schemaVersion: 5,
+        exportedAt: NOW,
+        dbName: JIEYU_DEXIE_DB_NAME,
+        collections: {
+          texts: [
+            { id: 'text_a', title: { default: 'A renamed' }, createdAt: NOW, updatedAt: NOW },
+          ],
+        },
+      },
+      { strategy: 'replace-all' },
+    );
+
+    expect(Object.keys(result.collections)).toEqual(['texts']);
+    expect(await db.layer_units.orderBy('id').toArray()).toEqual(unitsBefore);
+    expect(await db.layer_unit_contents.orderBy('id').toArray()).toEqual(contentsBefore);
+  });
+
   it('ignores removed transformId compatibility fields during snapshot import', async () => {
     const snapshot = {
       schemaVersion: 5,
