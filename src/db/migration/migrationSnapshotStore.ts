@@ -82,13 +82,12 @@ export type TakeSnapshotOptions = {
   now?: () => Date;
   /** 测试钩子：在写入每一行之前调用，可抛错或中止事务 | Test hook before each row write */
   beforeRowWrite?: SnapshotWriteHook;
+  /** 测试钩子：读回验证之后、标为已验证之前调用 | Test hook between read-back and marking verified */
+  beforeMarkVerified?: () => Promise<void>;
 };
 
 export type SnapshotFailureKind =
-  | 'quota-precheck'
-  | 'source-missing'
-  | 'write-failed'
-  | 'verification-failed';
+  'quota-precheck' | 'source-missing' | 'write-failed' | 'verification-failed';
 
 export type TakeSnapshotResult =
   | { status: 'verified'; meta: SnapshotSlotMeta; deletedPreviousSlot: SnapshotSlotId | null }
@@ -536,21 +535,42 @@ export async function takeVerifiedSnapshot(
   }
 
   // 5. 标为已验证，同一事务里删除上一份 | 5. mark verified and delete the previous slot atomically
+  await options.beforeMarkVerified?.();
   const verifiedMeta: SnapshotSlotMeta = {
     ...writingMeta,
     state: 'verified',
     verifiedAt: now().toISOString(),
   };
+  const expectedRows = storesMeta.reduce((sum, store) => sum + store.rowCount, 0);
+  let lostSlot: string | null = null;
   try {
     const tx = snapshotDb.transaction([SLOTS, ROWS], 'readwrite');
     const done = idbTransactionDone(tx);
-    tx.objectStore(SLOTS).put(verifiedMeta);
-    if (previousVerifiedSlot !== null) {
-      tx.objectStore(ROWS).delete(slotRange(previousVerifiedSlot));
-      tx.objectStore(SLOTS).delete(previousVerifiedSlot);
-    }
+    const slots = tx.objectStore(SLOTS);
+    const rows = tx.objectStore(ROWS);
+    // 同一事务里重新核对槽位仍是我们写的那份：读回之后别的标签页可能清掉了它 | re-check in the same tx
+    const metaRequest = slots.get(freeSlot);
+    const countRequest = rows.count(slotRange(freeSlot));
+    countRequest.onsuccess = () => {
+      const meta = metaRequest.result as SnapshotSlotMeta | undefined;
+      if (
+        meta?.state !== 'writing' ||
+        meta.createdAt !== createdAt ||
+        countRequest.result !== expectedRows
+      ) {
+        lostSlot = `slot ${freeSlot} changed before it was marked verified`;
+        tx.abort();
+        return;
+      }
+      slots.put(verifiedMeta);
+      if (previousVerifiedSlot !== null) {
+        rows.delete(slotRange(previousVerifiedSlot));
+        slots.delete(previousVerifiedSlot);
+      }
+    };
     await done;
   } catch (error) {
+    if (lostSlot !== null) return fail('verification-failed', lostSlot);
     const storageFailure = classifyStorageFailure(error);
     return fail('write-failed', describeStorageFailure(storageFailure), storageFailure);
   }

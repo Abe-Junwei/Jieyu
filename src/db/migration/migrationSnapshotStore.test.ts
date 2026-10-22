@@ -142,6 +142,36 @@ describe('two-slot migration snapshots', () => {
     expect(slots.map((slot) => [slot.slot, slot.state])).toEqual([['A', 'verified']]);
   });
 
+  it('#354: a leftover cleanup that runs during verification makes the snapshot fail and keeps the previous slot', async () => {
+    await createRawSourceDb(indexedDB, SOURCE);
+    const first = await snapshot();
+    expect(first.status).toBe('verified');
+    const before = await sourceFingerprint();
+    // 另一个标签页在读回与标为已验证之间清掉了 'writing' 槽位 | another tab cleans the writing slot mid-verify
+    const second = await snapshot({
+      beforeMarkVerified: async () => {
+        expect(await cleanupUnverifiedSnapshots(indexedDB, SNAP)).toEqual(['B']);
+      },
+    });
+    expect(second).toMatchObject({
+      status: 'failed',
+      kind: 'verification-failed',
+      previousVerifiedSlot: 'A',
+    });
+    const slots = await listSnapshotSlots(indexedDB, SNAP);
+    expect(slots.map((slot) => [slot.slot, slot.state])).toEqual([['A', 'verified']]);
+    // 上一份仍能完整恢复 | the previous slot still restores in full
+    await idbDeleteDatabase(indexedDB, SOURCE);
+    const restored = await restoreSnapshot({
+      factory: indexedDB,
+      targetDbName: SOURCE,
+      snapshotDbName: SNAP,
+    });
+    expect(restored.slot).toBe('A');
+    expect(restored.restoredRows).toMatchObject({ items: RAW_SOURCE_ITEM_COUNT, blobs: 2 });
+    expect(await sourceFingerprint()).toBe(before);
+  });
+
   it('T45: the quota precheck assumes two coexisting snapshots and keeps the previous verified one', async () => {
     await createRawSourceDb(indexedDB, SOURCE);
     const first = await snapshot();
