@@ -1,13 +1,14 @@
 /**
- * 存储接口的 SQLite 切片：本机 userData 里的回合和审计，项目文件夹里的说话人分配和正则拆分。
+ * 存储接口的 SQLite 切片：本机 userData 里的回合和审计，项目文件夹里的说话人分配、正则拆分和轨道行。
  * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
- * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分写在一份 `.jyd` 里（ADR-0072）。
+ * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
  * 这里不安装成默认实现。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { commitRegexSplitInProject } from './sqliteRegexSplit';
 import { assignSpeakerInProject, PROJECT_APPLICATION_ID } from './sqliteSpeakerAssignment';
+import { listTrackEntitiesInProject, putTrackEntityInProject } from './sqliteTrackEntity';
 import {
   RecordingRemovalBlockedError,
   type MixedSpeakerSelectionWrite,
@@ -15,6 +16,7 @@ import {
   type StoragePort,
 } from './storagePort';
 import { StorageReadbackError } from './storageReadbackError';
+import type { TrackEntityDocType } from './types';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -172,6 +174,18 @@ export function openSqliteStoragePort(
         throw new Error('sqlite storage port has not opened a project folder');
       }
       return commitRegexSplitInProject(projectDir, write);
+    },
+    async putTrackEntity(doc: TrackEntityDocType) {
+      if (projectDir === undefined) {
+        throw new Error('sqlite storage port has not opened a project folder');
+      }
+      putTrackEntityInProject(projectDir, doc);
+    },
+    async listTrackEntities(textId: string) {
+      if (projectDir === undefined) {
+        throw new Error('sqlite storage port has not opened a project folder');
+      }
+      return listTrackEntitiesInProject(projectDir, textId);
     },
   };
 

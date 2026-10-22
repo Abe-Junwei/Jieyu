@@ -168,7 +168,15 @@ function createProjectFixture(projectDir: string): void {
       media_id TEXT NOT NULL,
       time REAL NOT NULL
     );
-    CREATE TABLE speakers (id TEXT PRIMARY KEY, name TEXT NOT NULL);`,
+    CREATE TABLE speakers (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+    CREATE TABLE track_entities (
+      id TEXT PRIMARY KEY,
+      media_id TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      lane_lock_json TEXT,
+      text_id TEXT,
+      updated_at TEXT
+    );`,
   );
 }
 
@@ -489,6 +497,174 @@ describe('sqlite storage port project folder', () => {
       });
     } finally {
       stored.close();
+    }
+  });
+
+  it('refuses a track entity when no project folder is open', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'jieyu-sqlite-port-')), 'user-data.sqlite');
+    const alone = openSqliteStoragePort(file);
+    const doc = {
+      id: 'track-1',
+      textId: TEXT_ID,
+      mediaId: 'm1',
+      mode: 'single' as const,
+      laneLockMap: {},
+      updatedAt: NOW,
+    };
+    await expect(alone.port.putTrackEntity(doc)).rejects.toThrow(/has not opened a project folder/);
+    await expect(alone.port.listTrackEntities(TEXT_ID)).rejects.toThrow(
+      /has not opened a project folder/,
+    );
+    alone.close();
+  });
+
+  it('reads a track entity back after the manuscript is closed and opened again', async () => {
+    reset();
+    const doc = {
+      id: 'track-1',
+      textId: TEXT_ID,
+      mediaId: 'm1',
+      mode: 'multi-locked' as const,
+      laneLockMap: { s1: 1 },
+      updatedAt: NOW,
+    };
+    await handle!.port.putTrackEntity(doc);
+    await expect(handle!.port.listTrackEntities(TEXT_ID)).resolves.toEqual([doc]);
+    await expect(handle!.port.listTrackEntities('text-b')).resolves.toEqual([]);
+    await expect(handle!.port.listTrackEntities('  ')).resolves.toEqual([]);
+    handle!.close();
+    handle = undefined;
+    const reopened = openSqliteStoragePort(userData, projectDir);
+    handle = reopened;
+    await expect(reopened.port.listTrackEntities(TEXT_ID)).resolves.toEqual([doc]);
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(
+        manuscript
+          .prepare(
+            'SELECT text_id, media_id, mode, lane_lock_json, updated_at FROM track_entities WHERE id = ?',
+          )
+          .get('track-1'),
+      ).toMatchObject({
+        text_id: TEXT_ID,
+        media_id: 'm1',
+        mode: 'multi-locked',
+        lane_lock_json: '{"s1":1}',
+        updated_at: NOW,
+      });
+    } finally {
+      manuscript.close();
+    }
+  });
+
+  it('writes an empty lane lock and claims a row whose project id was blank', async () => {
+    reset();
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript
+      .prepare('INSERT INTO track_entities (id, media_id, mode) VALUES (?, ?, ?)')
+      .run('track-blank', 'm1', 'single');
+    manuscript.close();
+    const doc = {
+      id: 'track-blank',
+      textId: TEXT_ID,
+      mediaId: 'm1',
+      mode: 'single' as const,
+      laneLockMap: {},
+      updatedAt: NOW,
+    };
+    await handle!.port.putTrackEntity(doc);
+    await expect(handle!.port.listTrackEntities(TEXT_ID)).resolves.toEqual([doc]);
+  });
+
+  it('writes nothing when a track entity overwrites a row stored for another project', async () => {
+    reset();
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript
+      .prepare(
+        'INSERT INTO track_entities (id, media_id, mode, lane_lock_json, text_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('track-other', 'm1', 'single', '{}', 'project-b', NOW);
+    manuscript.close();
+    await expect(
+      handle!.port.putTrackEntity({
+        id: 'track-other',
+        textId: 'project-a',
+        mediaId: 'm2',
+        mode: 'multi-auto',
+        laneLockMap: { s1: 2 },
+        updatedAt: '2026-10-16T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
+    const stored = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(
+        stored
+          .prepare('SELECT media_id, text_id FROM track_entities WHERE id = ?')
+          .get('track-other'),
+      ).toMatchObject({ media_id: 'm1', text_id: 'project-b' });
+    } finally {
+      stored.close();
+    }
+  });
+
+  it('writes nothing when a lane lock is not a map of finite numbers', async () => {
+    reset();
+    await expect(
+      handle!.port.putTrackEntity({
+        id: 'track-bad',
+        textId: TEXT_ID,
+        mediaId: 'm1',
+        mode: 'single',
+        laneLockMap: { s1: Number.NaN },
+        updatedAt: NOW,
+      }),
+    ).rejects.toThrow(/finite numbers/);
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(manuscript.prepare('SELECT COUNT(*) AS n FROM track_entities').get()).toMatchObject({
+        n: 0,
+      });
+    } finally {
+      manuscript.close();
+    }
+  });
+
+  it('writes nothing when a new track entity has more than one manuscript', async () => {
+    reset();
+    pragmaFile(
+      join(projectDir, 'other.jyd'),
+      MANUSCRIPT_APPLICATION_ID,
+      `CREATE TABLE track_entities (
+        id TEXT PRIMARY KEY,
+        media_id TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        lane_lock_json TEXT,
+        text_id TEXT,
+        updated_at TEXT
+      );`,
+    );
+    await expect(
+      handle!.port.putTrackEntity({
+        id: 'track-new',
+        textId: TEXT_ID,
+        mediaId: 'm1',
+        mode: 'single',
+        laneLockMap: {},
+        updatedAt: NOW,
+      }),
+    ).rejects.toThrow(/no manuscript/);
+    const mixed = new Database(join(projectDir, 'mixed.jyd'));
+    const other = new Database(join(projectDir, 'other.jyd'));
+    try {
+      expect(mixed.prepare('SELECT COUNT(*) AS n FROM track_entities').get()).toMatchObject({
+        n: 0,
+      });
+      expect(other.prepare('SELECT COUNT(*) AS n FROM track_entities').get()).toMatchObject({
+        n: 0,
+      });
+    } finally {
+      mixed.close();
+      other.close();
     }
   });
 });

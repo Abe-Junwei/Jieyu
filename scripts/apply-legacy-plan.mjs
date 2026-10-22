@@ -208,7 +208,10 @@ function verifyStaged(plan, staging) {
   }
   const read = readProject(staging);
   const audioKey = (rows) =>
-    rows.map((row) => `${row.id}\0${row.relPath}\0${row.sha256}`).sort().join('\n');
+    rows
+      .map((row) => `${row.id}\0${row.relPath}\0${row.sha256}`)
+      .sort()
+      .join('\n');
   const plannedAudios = plan.audios.map((audio) => ({
     id: audio.audioId,
     relPath: audio.fileName,
@@ -578,9 +581,7 @@ export function applyPlan(
           bridge.status ?? null,
           bridge.isReversible === undefined ? null : bridge.isReversible ? 1 : 0,
           bridge.name === undefined ? null : objectJson(bridge.name, `bridge ${bridge.id} name`),
-          bridge.rules === undefined
-            ? null
-            : objectJson(bridge.rules, `bridge ${bridge.id} rules`),
+          bridge.rules === undefined ? null : objectJson(bridge.rules, `bridge ${bridge.id} rules`),
           bridge.sampleInput === undefined
             ? null
             : stringColumn(bridge.sampleInput, `bridge ${bridge.id} sampleInput`),
@@ -590,9 +591,7 @@ export function applyPlan(
           bridge.sampleCases === undefined
             ? null
             : sampleCasesJson(bridge.sampleCases, `bridge ${bridge.id} sampleCases`),
-          bridge.notes === undefined
-            ? null
-            : objectJson(bridge.notes, `bridge ${bridge.id} notes`),
+          bridge.notes === undefined ? null : objectJson(bridge.notes, `bridge ${bridge.id} notes`),
         );
       }
       const insertCustomField = db.prepare(
@@ -663,9 +662,7 @@ export function applyPlan(
           rule.derivedFromSystemId ?? null,
           rule.enabled ? 1 : 0,
           rule.priority,
-          rule.profile === undefined
-            ? null
-            : objectJson(rule.profile, `rule ${rule.id} profile`),
+          rule.profile === undefined ? null : objectJson(rule.profile, `rule ${rule.id} profile`),
         );
       }
       const insertConversation = db.prepare(
@@ -860,7 +857,7 @@ export function applyPlan(
           'CREATE TABLE layer_links (id TEXT PRIMARY KEY, host_layer_id TEXT NOT NULL, layer_id TEXT NOT NULL, link_type TEXT NOT NULL, is_preferred INTEGER NOT NULL)',
         );
         db.exec(
-          'CREATE TABLE track_entities (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, mode TEXT NOT NULL, lane_lock_json TEXT)',
+          'CREATE TABLE track_entities (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, mode TEXT NOT NULL, lane_lock_json TEXT, text_id TEXT, updated_at TEXT)',
         );
         db.exec(
           'CREATE TABLE tier_annotations (id TEXT PRIMARY KEY, tier_id TEXT NOT NULL, value TEXT NOT NULL, is_verified INTEGER NOT NULL, start_time REAL, end_time REAL)',
@@ -1080,9 +1077,7 @@ export function applyPlan(
 export function readProject(dest) {
   const project = new DatabaseSync(path.join(dest, 'project.sqlite'), { readOnly: true });
   const audios = project.prepare('SELECT id, relpath, sha256 FROM audio ORDER BY id').all();
-  const projectRow = project
-    .prepare('SELECT id, name, speaker_ids_json FROM project')
-    .get();
+  const projectRow = project.prepare('SELECT id, name, speaker_ids_json FROM project').get();
   const speakers = project
     .prepare('SELECT id, text_id, name, created_at, updated_at FROM speakers ORDER BY id')
     .all();
@@ -1198,7 +1193,9 @@ export function readProject(dest) {
     )
     .all();
   const sessionMemories = project
-    .prepare('SELECT id, conversation_id, payload_json, updated_at FROM ai_session_memories ORDER BY id')
+    .prepare(
+      'SELECT id, conversation_id, payload_json, updated_at FROM ai_session_memories ORDER BY id',
+    )
     .all();
   const modelRuns = project
     .prepare(
@@ -1261,7 +1258,9 @@ export function readProject(dest) {
         )
         .all();
       const tracks = db
-        .prepare('SELECT id, media_id, mode, lane_lock_json FROM track_entities ORDER BY id')
+        .prepare(
+          'SELECT id, media_id, mode, lane_lock_json, text_id, updated_at FROM track_entities ORDER BY id',
+        )
         .all();
       const annotations = db
         .prepare(
@@ -1362,6 +1361,8 @@ export function readProject(dest) {
                 ),
               }
             : {}),
+          ...(track.text_id !== null ? { textId: track.text_id } : {}),
+          ...(track.updated_at !== null ? { updatedAt: track.updated_at } : {}),
         })),
         annotations: annotations.map((annotation) => ({
           id: annotation.id,

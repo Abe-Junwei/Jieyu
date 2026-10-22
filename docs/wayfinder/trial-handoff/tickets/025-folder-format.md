@@ -4,7 +4,7 @@ label: wayfinder:grilling
 mode: HITL
 status: open
 assignee:
-blocked_by: [029,024,036]
+blocked_by: [029, 024, 036]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 ---
 
@@ -25,12 +25,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 - 结构规则正文、正字法转换规则与样例、车道锁定表已定（[ADR-0069](../../../adr/0069-document-bodies-as-json.md)）：规则正文和转换文档在项目库行上，车道锁定表在 `.jyd` 轨道行上。关掉再打开能读回。
 - 定义副本的范围已定（[ADR-0070](../../../adr/0070-definition-copy-stays-language-orthography-speaker.md)）：只含这张文稿用到的语言、显示名、别名、正字法和说话人。词条、标签定义、自定义字段定义、缩写留在项目库。
 
-定一块写一块，每块写完关掉重开读回。存储接口的 SQLite 实现已开始：本机 userData 的回合和审计、跨文件的说话人分配（ADR-0071），以及一份文稿里的正则拆分（ADR-0072），能关掉再打开读回。其余项目库和 `.jyd` 上的操作还没接上。
+定一块写一块，每块写完关掉重开读回。存储接口的 SQLite 实现已开始：本机 userData 的回合和审计、跨文件的说话人分配（ADR-0071）、一份文稿里的正则拆分（ADR-0072），以及一份文稿里的轨道行（ADR-0073），能关掉再打开读回。录音、来源和其余操作还没接上。
 
 SQLite 实现里的业务操作要守住（2026-10-17 从 #327 并入，[ADR-0063](../../../adr/0063-desktop-only-after-electron-skeleton.md) 第 3 条）：给文稿挂录音时，已有录音就是替换，不是追加，替换前提示（措辞由用户确认）；新建或修改 `unit_relations` 时两端不在同一份 `.jyd` 就不写，并说明原因。检查函数用 `src/db/projectFiles/manuscriptAudio.ts`、`manuscriptParents.ts`。验收：写入后关掉重开读回；挂第二条录音后只剩一条；跨文稿关系写不进去。
 
 已定，文件夹里要有（ADR-0061，不再是 `media/`）：
+
 - 音频 WAV/MP3/M4A/FLAC 原样复制进项目文件夹，不进数据库。
 - 视频仍抽出音轨供播放与波形；音轨与原视频都留在项目文件夹里。
 - JYM 跨版本：新版自动升级旧包、旧版拒绝新包（见 [#266](https://github.com/Abe-Junwei/Jieyu/issues/266)）。
-
