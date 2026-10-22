@@ -404,7 +404,7 @@
     "country-state-city": "^3.2.1",
     "cross-env": "^10.1.0",
     "css-tree": "^3.2.1",
-    "electron": "^44.9.0",
+    "electron": "^44.9.3",
     "electron-builder": "^26.15.3",
     "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
