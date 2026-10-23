@@ -59,6 +59,7 @@ export type CollaborationCloudPanelMessages = {
   confirmDeleteCloudProjectFinal: string;
   cloudProjectDeleted: string;
   deleteCloudProjectOwnerOnly: string;
+  snapshotMissingProject: string;
   currentProjectHeading: (projectId: string) => string;
 };
 

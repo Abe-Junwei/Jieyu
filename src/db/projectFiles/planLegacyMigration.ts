@@ -1546,7 +1546,7 @@ function stringMap(value: unknown): Record<string, string> | undefined {
 function customFieldMap(value: unknown): Record<string, LegacyCustomFieldValue> | undefined {
   const object = jsonObject(value);
   if (object === undefined) return undefined;
-  const out: Record<string, LegacyCustomFieldValue> = {};
+  const out: Record<string, LegacyCustomFieldValue> = Object.create(null);
   for (const [key, item] of Object.entries(object)) {
     if (typeof item === 'string' || typeof item === 'boolean') {
       out[key] = item;
@@ -1687,7 +1687,7 @@ function sampleCases(value: unknown): LegacyOrthographySampleCase[] | undefined 
 function laneLockMap(value: unknown): Record<string, number> | undefined {
   const object = jsonObject(value);
   if (object === undefined) return undefined;
-  const out: Record<string, number> = {};
+  const out: Record<string, number> = Object.create(null);
   for (const [key, item] of Object.entries(object)) {
     if (typeof item !== 'number' || !Number.isFinite(item)) return undefined;
     out[key] = item;

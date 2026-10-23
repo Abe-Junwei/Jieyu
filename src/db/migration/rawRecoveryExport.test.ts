@@ -11,7 +11,7 @@ import {
   rawRecoveryFileName,
   writeRawIdbSnapshotToNewDatabase,
 } from './rawRecoveryExport';
-import { idbDeleteDatabase } from './rawIdb';
+import { idbDeleteDatabase, idbTransactionDone } from './rawIdb';
 import { createRawSourceDb, RAW_SOURCE_ITEM_COUNT, readAllRaw } from './__fixtures__/rawSourceDb';
 import { canonicalSha256 } from './canonicalValue';
 import { detectInstalledDatabase } from './versionDetection';
@@ -92,6 +92,35 @@ describe('raw recovery export', () => {
         targetDbName: TARGET,
       }),
     ).rejects.toThrow(/already exists/);
+  });
+
+  it('#358: an own __proto__ key survives export → restore → re-read', async () => {
+    const row = JSON.parse('{"id":"p1","d":{"__proto__":{"keep":1},"n":"ok"}}') as { d: object };
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(SOURCE, 10);
+      request.onupgradeneeded = () => request.result.createObjectStore('items', { keyPath: 'id' });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const tx = db.transaction('items', 'readwrite');
+    const done = idbTransactionDone(tx);
+    tx.objectStore('items').put(row);
+    await done;
+    db.close();
+    const before = await readAllRaw(indexedDB, SOURCE, 'items');
+    expect(Object.keys((before.values[0] as { d: object }).d)).toEqual(['__proto__', 'n']);
+
+    const result = await exportRawIdbSnapshot({ factory: indexedDB, dbName: SOURCE });
+    const parsed = await parseRawIdbSnapshot(result.blob, JYB_PACKAGE_POLICY);
+    await writeRawIdbSnapshotToNewDatabase({
+      factory: indexedDB,
+      snapshot: parsed,
+      targetDbName: TARGET,
+    });
+    const after = (await readAllRaw(indexedDB, TARGET, 'items')).values[0] as { d: object };
+    expect(Object.keys(after.d)).toEqual(['__proto__', 'n']);
+    expect(Object.getOwnPropertyDescriptor(after.d, '__proto__')?.value).toEqual({ keep: 1 });
+    expect(Object.getPrototypeOf(after.d)).toBe(Object.prototype);
   });
 
   it('rejects archives that are not raw-idb snapshots or whose row counts disagree', async () => {

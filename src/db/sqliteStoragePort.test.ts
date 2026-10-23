@@ -223,9 +223,11 @@ function insertMixedSelection(projectDir: string): void {
   project.prepare('INSERT INTO project (id, name) VALUES (?, ?)').run(TEXT_ID, 'Mixed');
   project.close();
   const manuscript = new Database(join(projectDir, 'mixed.jyd'));
-  const insert = manuscript.prepare('INSERT INTO units (id, layer_id, unit_type) VALUES (?, ?, ?)');
-  insert.run(SEGMENT_ID, 'layer-mixed-contract', 'segment');
-  insert.run(UNIT_ID, 'layer-mixed-contract', 'unit');
+  const insert = manuscript.prepare(
+    'INSERT INTO units (id, layer_id, unit_type, text_id) VALUES (?, ?, ?, ?)',
+  );
+  insert.run(SEGMENT_ID, 'layer-mixed-contract', 'segment', TEXT_ID);
+  insert.run(UNIT_ID, 'layer-mixed-contract', 'unit', TEXT_ID);
   manuscript.close();
 }
 
@@ -363,6 +365,70 @@ describe('sqlite storage port project folder', () => {
       }),
     ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
     expect(readAssignment(projectDir, 'speaker-other').unitSpeakerId).toBeUndefined();
+  });
+
+  it.each([
+    ['segment', 'existing'],
+    ['segment', 'create'],
+    ['segment', 'clear'],
+    ['unit', 'existing'],
+    ['unit', 'create'],
+    ['unit', 'clear'],
+  ] as const)('rejects a foreign %s before %s speaker writes', async (unitType, action) => {
+    reset();
+    insertMixedSelection(projectDir);
+    const project = new Database(join(projectDir, 'project.sqlite'));
+    project
+      .prepare('INSERT INTO speakers (id, text_id, name) VALUES (?, ?, ?)')
+      .run('speaker-local', TEXT_ID, 'Local');
+    project
+      .prepare('UPDATE project SET speaker_ids_json = ? WHERE id = ?')
+      .run('["speaker-local"]', TEXT_ID);
+    project.close();
+    const foreignId = unitType === 'segment' ? SEGMENT_ID : UNIT_ID;
+    const manuscript = new Database(join(projectDir, 'mixed.jyd'));
+    manuscript
+      .prepare('UPDATE units SET text_id = ?, speaker_id = ? WHERE id = ?')
+      .run('foreign-project', 'speaker-original', foreignId);
+    manuscript
+      .prepare('INSERT INTO speakers (id, name) VALUES (?, ?)')
+      .run('speaker-original', 'Original');
+    manuscript.close();
+    await expect(
+      handle!.port.assignSpeakerToMixedSelection({
+        textId: TEXT_ID,
+        segmentIds: [SEGMENT_ID],
+        unitIds: [UNIT_ID],
+        ...(action === 'existing' ? { speakerId: 'speaker-local' } : {}),
+        ...(action === 'create' ? { createSpeaker: { name: 'New', textId: TEXT_ID } } : {}),
+      }),
+    ).rejects.toBeInstanceOf(CatalogOwnershipMismatchError);
+    handle!.close();
+    handle = openSqliteStoragePort(userData, projectDir);
+    const storedProject = new Database(join(projectDir, 'project.sqlite'));
+    const storedManuscript = new Database(join(projectDir, 'mixed.jyd'));
+    try {
+      expect(storedProject.prepare('SELECT id FROM speakers').all()).toEqual([
+        { id: 'speaker-local' },
+      ]);
+      expect(
+        storedProject.prepare('SELECT speaker_ids_json FROM project WHERE id = ?').get(TEXT_ID),
+      ).toEqual({ speaker_ids_json: '["speaker-local"]' });
+      expect(
+        storedManuscript.prepare('SELECT id, speaker_id FROM units ORDER BY id').all(),
+      ).toEqual(
+        [SEGMENT_ID, UNIT_ID].sort().map((id) => ({
+          id,
+          speaker_id: id === foreignId ? 'speaker-original' : null,
+        })),
+      );
+      expect(storedManuscript.prepare('SELECT id, name FROM speakers').all()).toEqual([
+        { id: 'speaker-original', name: 'Original' },
+      ]);
+    } finally {
+      storedProject.close();
+      storedManuscript.close();
+    }
   });
 
   it('refuses a regex split when no project folder is open', async () => {
@@ -563,7 +629,7 @@ describe('sqlite storage port project folder', () => {
       textId: TEXT_ID,
       mediaId: 'm1',
       mode: 'multi-locked' as const,
-      laneLockMap: { s1: 1 },
+      laneLockMap: { s1: 1, ['__proto__']: 2 },
       updatedAt: NOW,
     };
     await handle!.port.putTrackEntity(doc);
@@ -587,7 +653,7 @@ describe('sqlite storage port project folder', () => {
         text_id: TEXT_ID,
         media_id: 'm1',
         mode: 'multi-locked',
-        lane_lock_json: '{"s1":1}',
+        lane_lock_json: '{"s1":1,"__proto__":2}',
         updated_at: NOW,
       });
     } finally {

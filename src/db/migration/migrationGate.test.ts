@@ -328,4 +328,39 @@ describe('migration gate', () => {
     expect(outcome.path).toBe('current');
     expect(outcome.cleanedSnapshotSlots).toEqual(['A']);
   });
+
+  it('#354: startup cleanup waits for the upgrade lock and leaves a slot another tab is writing', async () => {
+    await seedV1();
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(SNAP, 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('slots', { keyPath: 'slot' });
+        request.result.createObjectStore('rows', { keyPath: ['slot', 'store', 'seq'] });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('slots', 'readwrite');
+      tx.objectStore('slots').put({ slot: 'B', state: 'writing', stores: [], samples: [] });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    // 另一个标签页持有升级锁，正在写快照 | another tab holds the upgrade lock while snapshotting
+    const heldLock: LockManagerLike = {
+      request: (_name, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }),
+    };
+    const outcome = await openThroughMigrationGate(gateParams([SYNTH_V1], { locks: heldLock }));
+    expect(outcome.path).toBe('current');
+    expect(outcome.cleanedSnapshotSlots).toEqual([]);
+    expect(
+      (await listSnapshotSlots(indexedDB, SNAP)).map((slot) => [slot.slot, slot.state]),
+    ).toEqual([['B', 'writing']]);
+  });
 });

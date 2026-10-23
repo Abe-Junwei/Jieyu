@@ -68,7 +68,7 @@ function parseLaneLock(json: unknown): Record<string, number> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('track entity laneLockMap is not an object');
   }
-  const map: Record<string, number> = {};
+  const map: Record<string, number> = Object.create(null);
   for (const [key, item] of Object.entries(value)) {
     if (typeof item !== 'number' || !Number.isFinite(item)) {
       throw new Error('track entity laneLockMap is not a map of finite numbers');

@@ -3,6 +3,8 @@ import {
   exportProjectScopedDatabaseAsJson,
   importProjectScopedDatabaseFromJson,
 } from '../db/projectScopedSnapshot';
+
+export { ProjectSnapshotMissingProjectError } from '../db/projectScopedSnapshot';
 import type { ImportConflictStrategy, ImportResult } from '../db/types';
 
 export async function exportToJSON(): Promise<string> {

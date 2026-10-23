@@ -3,21 +3,29 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsModal, type SettingsModalProps } from './SettingsModal';
 
-const extensionSingletonMocks = vi.hoisted(() => ({
-  ensureBuiltinExtensionsLoaded: vi.fn(async () => {}),
-  getExtensionRegistry: vi.fn(() => ({
-    getHostVersion: () => '1.0.0' as string,
-    list: () => [] as Array<{ id: string; name: string; version: string; capabilities: string[]; state: string; source: string; compatible: boolean; compatibilityReason: string; lastLoadReason: string; entryActivate: string }>,
-    getCapabilityAuditTail: () => [],
-  })),
-}));
-
 // Mock ModalPanel / PanelSection — render children directly
 vi.mock('./ui', () => ({
-  ModalPanel: ({ isOpen, children, title }: { isOpen: boolean; children: React.ReactNode; title?: string }) =>
-    isOpen ? <div data-testid="modal">{title && <h2>{title}</h2>}{children}</div> : null,
-  PanelSection: ({ children, title }: { children: React.ReactNode; title?: string }) =>
-    <section><h3>{title}</h3>{children}</section>,
+  ModalPanel: ({
+    isOpen,
+    children,
+    title,
+  }: {
+    isOpen: boolean;
+    children: React.ReactNode;
+    title?: string;
+  }) =>
+    isOpen ? (
+      <div data-testid="modal">
+        {title && <h2>{title}</h2>}
+        {children}
+      </div>
+    ) : null,
+  PanelSection: ({ children, title }: { children: React.ReactNode; title?: string }) => (
+    <section>
+      <h3>{title}</h3>
+      {children}
+    </section>
+  ),
 }));
 
 // Mock AI settings storage (async crypto)
@@ -41,10 +49,27 @@ vi.mock('../ai/config/aiChatSettingsStorage', () => ({
 vi.mock('../ai/providers/providerCatalog', () => ({
   aiChatProviderDefinitions: [
     { kind: 'mock', label: 'Mock', description: 'Local mock', fields: [] },
-    { kind: 'deepseek', label: 'DeepSeek', description: 'DeepSeek API', fields: [
-      { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://...', required: true },
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...', required: true },
-    ] },
+    {
+      kind: 'deepseek',
+      label: 'DeepSeek',
+      description: 'DeepSeek API',
+      fields: [
+        {
+          key: 'baseUrl',
+          label: 'Base URL',
+          type: 'text',
+          placeholder: 'https://...',
+          required: true,
+        },
+        {
+          key: 'apiKey',
+          label: 'API Key',
+          type: 'password',
+          placeholder: 'sk-...',
+          required: true,
+        },
+      ],
+    },
   ],
   normalizeAiChatSettings: vi.fn((raw: Record<string, unknown> = {}) => ({
     providerKind: 'mock',
@@ -61,23 +86,30 @@ vi.mock('../ai/providers/providerCatalog', () => ({
   })),
 }));
 
-vi.mock('../extensions/extensionRegistrySingleton', () => ({
-  ensureBuiltinExtensionsLoaded: extensionSingletonMocks.ensureBuiltinExtensionsLoaded,
-  getExtensionRegistry: extensionSingletonMocks.getExtensionRegistry,
-}));
-
 // Mock KeybindingService — keep minimal
 const mockOverrides = new Map<string, string>();
 vi.mock('../services/KeybindingService', () => ({
   DEFAULT_KEYBINDINGS: [
-    { id: 'playPause', label: '播放/暂停', defaultKey: 'space', scope: 'waveform', category: 'playback' },
+    {
+      id: 'playPause',
+      label: '播放/暂停',
+      defaultKey: 'space',
+      scope: 'waveform',
+      category: 'playback',
+    },
     { id: 'undo', label: '撤销', defaultKey: 'mod+z', scope: 'global', category: 'editing' },
   ],
   formatKeyComboForDisplay: (combo: string) => combo.toUpperCase(),
   loadUserOverrides: () => new Map(mockOverrides),
-  saveUserOverride: vi.fn((id: string, combo: string) => { mockOverrides.set(id, combo); }),
-  removeUserOverride: vi.fn((id: string) => { mockOverrides.delete(id); }),
-  resetUserOverrides: vi.fn(() => { mockOverrides.clear(); }),
+  saveUserOverride: vi.fn((id: string, combo: string) => {
+    mockOverrides.set(id, combo);
+  }),
+  removeUserOverride: vi.fn((id: string) => {
+    mockOverrides.delete(id);
+  }),
+  resetUserOverrides: vi.fn(() => {
+    mockOverrides.clear();
+  }),
 }));
 
 function renderModal(overrides: Partial<SettingsModalProps> = {}) {
@@ -104,14 +136,6 @@ beforeEach(() => {
   mockOverrides.clear();
   localStorage.clear();
   document.documentElement.classList.remove('jieyu-reduced-motion', 'jieyu-high-contrast');
-  extensionSingletonMocks.ensureBuiltinExtensionsLoaded.mockReset();
-  extensionSingletonMocks.getExtensionRegistry.mockReset();
-  extensionSingletonMocks.ensureBuiltinExtensionsLoaded.mockResolvedValue(undefined);
-  extensionSingletonMocks.getExtensionRegistry.mockReturnValue({
-    getHostVersion: () => '1.0.0',
-    list: () => [],
-    getCapabilityAuditTail: () => [],
-  });
 });
 
 afterEach(cleanup);
@@ -239,7 +263,9 @@ describe('AI tab', () => {
     await waitFor(() => expect(screen.getByText('AI 服务商')).toBeTruthy());
     const providerSection = document.querySelector('.settings-ai-provider-selector-section');
     expect(providerSection).toBeTruthy();
-    const select = within(providerSection as HTMLElement).getByRole('combobox') as HTMLSelectElement;
+    const select = within(providerSection as HTMLElement).getByRole(
+      'combobox',
+    ) as HTMLSelectElement;
     expect(select.value).toBe('mock');
     expect(screen.queryByTestId('settings-ai-mcp-trust')).toBeNull();
     expect(screen.queryByText('外部 MCP 信任名单')).toBeNull();
@@ -251,7 +277,9 @@ describe('AI tab', () => {
 
     await waitFor(() => expect(screen.getByText('Embedding 默认值')).toBeTruthy());
 
-    const embeddingRow = screen.getByText('Embedding 服务商').closest('.settings-row') as HTMLElement;
+    const embeddingRow = screen
+      .getByText('Embedding 服务商')
+      .closest('.settings-row') as HTMLElement;
     fireEvent.click(within(embeddingRow).getByRole('button', { name: 'MiniMax' }));
     expect(localStorage.getItem('jieyu.embeddingProvider')).toContain('"kind":"minimax"');
 
@@ -283,7 +311,9 @@ describe('Playback tab', () => {
     renderModal();
     fireEvent.click(screen.getByText('播放'));
 
-    const autoFollowRow = screen.getByText('自动跟随选中语段').closest('.settings-row') as HTMLElement;
+    const autoFollowRow = screen
+      .getByText('自动跟随选中语段')
+      .closest('.settings-row') as HTMLElement;
     fireEvent.click(within(autoFollowRow).getByRole('button', { name: '关闭' }));
     expect(localStorage.getItem('jieyu:workspace-auto-scroll-enabled')).toBe('0');
 
@@ -304,7 +334,9 @@ describe('Playback tab', () => {
     fireEvent.click(within(doubleClickRow).getByRole('button', { name: '按双击区间创建语段' }));
     expect(localStorage.getItem('jieyu:waveform-double-click-action')).toBe('create-segment');
 
-    const newSegmentSelectionRow = screen.getByText('新建后选中行为').closest('.settings-row') as HTMLElement;
+    const newSegmentSelectionRow = screen
+      .getByText('新建后选中行为')
+      .closest('.settings-row') as HTMLElement;
     fireEvent.click(within(newSegmentSelectionRow).getByRole('button', { name: '保持当前选中' }));
     expect(localStorage.getItem('jieyu:new-segment-selection-behavior')).toBe('keep-current');
   });
@@ -356,7 +388,9 @@ describe('Playback tab', () => {
     renderModal();
     fireEvent.click(screen.getByText('播放'));
 
-    const reducedMotionRow = screen.getByText('减少动态效果').closest('.settings-row') as HTMLElement;
+    const reducedMotionRow = screen
+      .getByText('减少动态效果')
+      .closest('.settings-row') as HTMLElement;
     fireEvent.click(within(reducedMotionRow).getByRole('button', { name: '开启' }));
     expect(document.documentElement.classList.contains('jieyu-reduced-motion')).toBe(true);
     expect(localStorage.getItem('jieyu:accessibility-reduced-motion')).toBe('1');
@@ -400,7 +434,9 @@ describe('Data tab', () => {
     renderModal();
     fireEvent.click(screen.getByText('数据'));
 
-    const mapProviderRow = screen.getByText('地图服务商默认值').closest('.settings-row') as HTMLElement;
+    const mapProviderRow = screen
+      .getByText('地图服务商默认值')
+      .closest('.settings-row') as HTMLElement;
     fireEvent.click(within(mapProviderRow).getByRole('button', { name: 'MapTiler' }));
     expect(localStorage.getItem('jieyu:map-provider')).toContain('"kind":"maptiler"');
 
@@ -420,51 +456,12 @@ describe('About tab', () => {
   });
 });
 
-describe('Extensions tab', () => {
-  it('loads extension registry rows when opening extensions tab', async () => {
-    extensionSingletonMocks.getExtensionRegistry.mockReturnValue({
-      getHostVersion: () => '1.2.3',
-      list: () => [{
-        id: 'ext.registry.test',
-        name: 'Registry Test',
-        version: '1.0.0',
-        capabilities: ['read.transcription'],
-        state: 'active',
-        source: 'official',
-        compatible: true,
-        compatibilityReason: 'ok',
-        lastLoadReason: 'activated',
-        entryActivate: 'test#activate',
-      }],
-      getCapabilityAuditTail: () => [],
-    });
-
-    renderModal();
-    fireEvent.click(screen.getByRole('tab', { name: '扩展' }));
-
-    await waitFor(() => expect(screen.getByText('ext.registry.test')).toBeTruthy());
-    expect(screen.getByText('1.2.3')).toBeTruthy();
-  });
-
-  it('shows load error when builtin extension registration fails', async () => {
-    extensionSingletonMocks.ensureBuiltinExtensionsLoaded.mockRejectedValueOnce(
-      new Error('compatibility_denied: hostVersion 0.0.0 is lower than minHostVersion 1.0.0'),
-    );
-
-    renderModal({ version: '0.0.0' });
-    fireEvent.click(screen.getByRole('tab', { name: '扩展' }));
-
-    await waitFor(() => expect(screen.getAllByText(/扩展信息加载失败/).length).toBeGreaterThan(0));
-    expect(screen.getAllByText(/hostVersion 0.0.0 is lower than minHostVersion 1.0.0/).length).toBeGreaterThan(0);
-  });
-});
-
 // ── 标签切换 | Tab switching ───────────────────────────────
 
 describe('Tab switching', () => {
-  it('switches between all 8 tabs', () => {
+  it('switches between all 7 tabs', () => {
     renderModal();
-    const tabLabels = ['外观', '语言', '快捷键', 'AI', '播放', '数据', '扩展', '关于'];
+    const tabLabels = ['外观', '语言', '快捷键', 'AI', '播放', '数据', '关于'];
     for (const label of tabLabels) {
       fireEvent.click(screen.getByRole('tab', { name: label }));
     }

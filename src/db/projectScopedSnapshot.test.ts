@@ -9,6 +9,7 @@ import {
   exportProjectScopedDatabaseAsJson,
   filterCollectionsForProject,
   importProjectScopedDatabaseFromJson,
+  ProjectSnapshotMissingProjectError,
 } from './projectScopedSnapshot';
 
 const NOW = '2026-09-20T00:00:00.000Z';
@@ -95,6 +96,71 @@ describe('project-scoped snapshot export/import', () => {
     expect(await db.layer_units.get('unit-a')).toBeTruthy();
     expect(await db.layer_units.get('unit-a-stale')).toBeUndefined();
     expect(await db.texts.get('text-a')).toBeTruthy();
+  });
+
+  it('#355/#356 follow-up: refuses a project row without content collections and leaves local units/contents intact', async () => {
+    await seedText('text-a', 'unit-a');
+    await db.layer_unit_contents.put({
+      id: 'content-a',
+      textId: 'text-a',
+      unitId: 'unit-a',
+      layerId: 'layer-a',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'keep me',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+    const before = {
+      text: await db.texts.get('text-a'),
+      units: await db.layer_units.where('textId').equals('text-a').toArray(),
+      contents: await db.layer_unit_contents.where('textId').equals('text-a').toArray(),
+    };
+    expect(before.units).toHaveLength(1);
+    expect(before.contents).toHaveLength(1);
+    for (const payload of [
+      {
+        schemaVersion: 5,
+        collections: {
+          texts: [{ id: 'text-a', title: { default: 'A' }, createdAt: NOW, updatedAt: NOW }],
+        },
+      },
+      {
+        schemaVersion: 5,
+        collections: {
+          texts: [{ id: 'text-a', title: { default: 'A' }, createdAt: NOW, updatedAt: NOW }],
+          layer_units: null,
+          layer_unit_contents: null,
+        },
+      },
+    ]) {
+      await expect(importProjectScopedDatabaseFromJson(payload, 'text-a')).rejects.toThrow();
+      expect(await db.texts.get('text-a')).toEqual(before.text);
+      expect(await db.layer_units.where('textId').equals('text-a').toArray()).toEqual(before.units);
+      expect(await db.layer_unit_contents.where('textId').equals('text-a').toArray()).toEqual(
+        before.contents,
+      );
+    }
+  });
+
+  it('#355: refuses a snapshot without the target project and leaves the local project intact', async () => {
+    await seedText('text-a', 'unit-a');
+    await seedText('text-b', 'unit-b');
+    const otherProject = await exportProjectScopedDatabaseAsJson('text-b');
+    const before = async () => ({
+      text: await db.texts.get('text-a'),
+      media: await db.media_items.where('textId').equals('text-a').toArray(),
+      units: await db.layer_units.where('textId').equals('text-a').toArray(),
+    });
+    const original = await before();
+    expect(original.text).toBeDefined();
+    for (const payload of [{ schemaVersion: 5, collections: {} }, otherProject]) {
+      await expect(importProjectScopedDatabaseFromJson(payload, 'text-a')).rejects.toBeInstanceOf(
+        ProjectSnapshotMissingProjectError,
+      );
+      expect(await before()).toEqual(original);
+    }
   });
 
   it('keeps local lexeme links for tokens the snapshot still contains', async () => {

@@ -4,6 +4,7 @@
  */
 import { CloudProjectRedownloadError } from '../collaboration/cloud/collaborationProjectRedownload';
 import { LinguisticService } from '../services/LinguisticService';
+import { ProjectSnapshotMissingProjectError } from '../services/linguisticServiceDatabaseIo';
 import {
   ProjectHasUnsyncedChangesError,
   type ProjectRemovalMode,
@@ -84,6 +85,7 @@ export type RedownloadOutcome =
         | 'project-not-found'
         | 'project-deleted'
         | 'no-snapshot'
+        | 'snapshot-missing-project'
         | 'other';
       message: string;
     };
@@ -94,7 +96,12 @@ export async function redownloadRemovedCloudProject(projectId: string): Promise<
     await LinguisticService.cleanup.redownloadLocallyRemovedCloudProject(projectId);
     return { ok: true };
   } catch (error) {
-    const reason = error instanceof CloudProjectRedownloadError ? error.reason : ('other' as const);
+    const reason =
+      error instanceof CloudProjectRedownloadError
+        ? error.reason
+        : error instanceof ProjectSnapshotMissingProjectError
+          ? ('snapshot-missing-project' as const)
+          : ('other' as const);
     return { ok: false, reason, message: error instanceof Error ? error.message : String(error) };
   }
 }

@@ -639,9 +639,8 @@ export async function prepareSnapshotImport(
     );
   }
 
+  // 缺席的集合不补空：replace-all 只替换包里出现的表（#356）| absent ≠ empty; replace-all replaces only present tables
   const cols = snapshot.collections as Record<string, unknown[]>;
-  if (!Array.isArray(cols['layer_units'])) cols['layer_units'] = [];
-  if (!Array.isArray(cols['layer_unit_contents'])) cols['layer_unit_contents'] = [];
 
   const legacyUnits = cols['units'];
   if (Array.isArray(legacyUnits) && legacyUnits.length > 0) {

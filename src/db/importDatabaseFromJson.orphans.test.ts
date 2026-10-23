@@ -91,6 +91,8 @@ describe('project-scoped JSON import checks orphans after the prune (PF-1)', () 
   });
 
   it('a parent that exists only locally and is pruned by preWrite does not keep its child alive', async () => {
+    // 项目快照必须带项目行（#355）| a project snapshot must carry its project row (#355)
+    await db.texts.put({ id: 'pA', title: { default: 'A' }, createdAt: NOW, updatedAt: NOW });
     await db.layer_units.put(unit('pA-unit', 'pA'));
     await db.unit_tokens.put(token('pA-tok', 'pA', 'pA-unit'));
     const exported = (await exportProjectScopedDatabaseAsJson('pA')) as unknown as {
