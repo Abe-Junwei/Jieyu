@@ -4,7 +4,9 @@ import {
 } from './syncTypes';
 
 export interface CollaborationInboundApplierOptions {
-  applier: (change: CollaborationProjectChangeRecord) => Promise<void>;
+  applier: (
+    change: CollaborationProjectChangeRecord,
+  ) => Promise<void | { commitRevision?: boolean }>;
 }
 
 export class CollaborationInboundApplier {

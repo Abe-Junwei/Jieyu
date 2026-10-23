@@ -14,13 +14,19 @@ const {
   mockWrappedSaveUnitText,
   mockRawSaveUnitText,
   mockEnqueueMutation,
+  mockMarkProjectRevisionSeen,
   mockGetDb,
 } = vi.hoisted(() => {
   const bridgeState: {
-    onApplyRemoteChange: ((change: CollaborationProjectChangeRecord) => Promise<void>) | null;
+    onApplyRemoteChange:
+      | ((
+          change: CollaborationProjectChangeRecord,
+        ) => Promise<void | { commitRevision?: boolean }>)
+      | null;
   } = {
     onApplyRemoteChange: null,
   };
+  const mockMarkProjectRevisionSeen = vi.fn();
 
   const mockHasSupabaseBrowserClientConfig = vi.fn<() => boolean>().mockReturnValue(false);
   const mockGetSupabaseUserId = vi.fn<() => Promise<string | null>>().mockResolvedValue('user-1');
@@ -64,6 +70,7 @@ const {
     mockWrappedSaveUnitText,
     mockRawSaveUnitText,
     mockEnqueueMutation,
+    mockMarkProjectRevisionSeen,
     mockAuditLogRows,
     mockGetDb,
   };
@@ -71,7 +78,9 @@ const {
 
 vi.mock('./useTranscriptionCollaborationBridge', () => ({
   useTranscriptionCollaborationBridge: (params: {
-    onApplyRemoteChange?: (change: CollaborationProjectChangeRecord) => Promise<void>;
+    onApplyRemoteChange?: (
+      change: CollaborationProjectChangeRecord,
+    ) => Promise<void | { commitRevision?: boolean }>;
   }) => {
     bridgeState.onApplyRemoteChange = params.onApplyRemoteChange ?? null;
     return {
@@ -83,7 +92,7 @@ vi.mock('./useTranscriptionCollaborationBridge', () => ({
       },
       collaborationOutboundPendingCount: 0,
       enqueueMutation: mockEnqueueMutation,
-      markProjectRevisionSeen: vi.fn(),
+      markProjectRevisionSeen: mockMarkProjectRevisionSeen,
       getLatestKnownRevision: vi.fn(() => 0),
       registerProjectAsset: vi.fn(),
       listProjectAssets: vi.fn(async () => []),
@@ -195,6 +204,7 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
     mockWrappedSaveUnitText.mockClear();
     mockRawSaveUnitText.mockClear();
     mockEnqueueMutation.mockClear();
+    mockMarkProjectRevisionSeen.mockClear();
     await clearAuditLogs();
   });
 
@@ -248,6 +258,36 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
       expect(mockRawSaveUnitText).toHaveBeenCalledWith('u-1', 'remote-a', undefined);
       expect(result.current.conflictReviewTickets).toHaveLength(0);
     });
+  });
+
+  it('#363: parks cursor on manual-review and advances only after resolve', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.saveUnitText('u-1', 'local-cursor');
+    });
+
+    await act(async () => {
+      await triggerRemote(createRemoteContentChange('remote-cursor'));
+    });
+
+    await waitFor(() => {
+      expect(result.current.conflictReviewTickets).toHaveLength(1);
+    });
+
+    // Inbound parked — resolve path has not run, so cursor must stay put.
+    expect(mockMarkProjectRevisionSeen).not.toHaveBeenCalled();
+
+    const ticketId = result.current.conflictReviewTickets[0]!.ticketId;
+    await act(async () => {
+      const kept = result.current.keepLocalConflictTicket(ticketId);
+      expect(kept).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.conflictReviewTickets).toHaveLength(0);
+    });
+    expect(mockMarkProjectRevisionSeen).toHaveBeenCalledWith(12);
   });
 
   it('persists conflict governance logs into audit storage', async () => {

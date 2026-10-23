@@ -60,11 +60,16 @@ export interface CollaborationInboundChangeApplierDeps {
  * Applies an inbound collaboration change with optional conflict governance.
  * React-free; hook wires setState via callbacks.
  */
+export interface ApplyCollaborationInboundResult {
+  /** False when parked for manual review — caller must not advance the revision cursor. */
+  commitRevision: boolean;
+}
+
 export async function applyCollaborationInboundChange(
   change: CollaborationProjectChangeRecord,
   options: ApplyRemoteChangeOptions | undefined,
   deps: CollaborationInboundChangeApplierDeps,
-): Promise<void> {
+): Promise<ApplyCollaborationInboundResult> {
   const shadowKey = createEntityShadowKey(change.entityType, change.entityId);
   let resolvedLog: CollaborationOperationLog | null = null;
 
@@ -108,7 +113,7 @@ export async function applyCollaborationInboundChange(
           arbitration,
         };
         deps.enqueueConflictReviewTicket(reviewTicket);
-        return;
+        return { commitRevision: false };
       }
 
       const resolution = resolveCollaborationConflicts(
@@ -139,6 +144,8 @@ export async function applyCollaborationInboundChange(
   if (mutated) {
     deps.deleteLocalShadow(shadowKey);
   }
+
+  return { commitRevision: true };
 }
 
 export function createConflictResolutionLogForTicket(

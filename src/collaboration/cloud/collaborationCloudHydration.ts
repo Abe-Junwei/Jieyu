@@ -30,7 +30,7 @@ export interface CollaborationCloudHydrationDeps {
   applyRemoteChangeToLocal: (
     change: CollaborationProjectChangeRecord,
     options?: { skipLoadSnapshot?: boolean; skipConflictGovernance?: boolean },
-  ) => Promise<void>;
+  ) => Promise<void | { commitRevision?: boolean }>;
   markProjectRevisionSeen: (revision: number) => void;
   isCancelled: () => boolean;
 }
