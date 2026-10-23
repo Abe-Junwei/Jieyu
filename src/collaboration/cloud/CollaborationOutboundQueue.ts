@@ -18,6 +18,7 @@ const DEFAULT_DROP_BATCH_AFTER_MAX_RETRIES = false;
 
 /**
  * 内存 + 定时节流 flush。已入队的操作由 `CollaborationSyncBridge` 立刻按条落盘。
+ * 未确认集合 = 等待发送 + 发送中；仅服务端确认后才从回调里消失（#360）。
  */
 export class CollaborationOutboundQueue {
   private readonly sender: (changes: CollaborationProjectChangeRecord[]) => Promise<void>;
@@ -32,6 +33,8 @@ export class CollaborationOutboundQueue {
   private readonly maxRetries: number;
   private readonly dropBatchAfterMaxRetries: boolean;
   private readonly pending: CollaborationProjectChangeRecord[];
+  /** 已交给 sender、尚未确认的批次 | Batch handed to sender but not yet acknowledged */
+  private inFlightBatch: CollaborationProjectChangeRecord[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight = false;
   private consecutiveFailures = 0;
@@ -48,8 +51,12 @@ export class CollaborationOutboundQueue {
     this.pending = options.initialPending?.slice() ?? [];
   }
 
+  private unconfirmed(): CollaborationProjectChangeRecord[] {
+    return [...this.inFlightBatch, ...this.pending];
+  }
+
   private emitPendingChanged(): void {
-    this.onPendingChanged?.(this.pending.slice());
+    this.onPendingChanged?.(this.unconfirmed());
   }
 
   start(): void {
@@ -81,7 +88,7 @@ export class CollaborationOutboundQueue {
   }
 
   size(): number {
-    return this.pending.length;
+    return this.inFlightBatch.length + this.pending.length;
   }
 
   async flush(): Promise<void> {
@@ -91,15 +98,18 @@ export class CollaborationOutboundQueue {
 
     this.inFlight = true;
     const batch = this.pending.splice(0, this.maxBatchSize);
+    this.inFlightBatch = batch;
 
     try {
       await this.sender(batch);
       this.consecutiveFailures = 0;
+      this.inFlightBatch = [];
       this.emitPendingChanged();
     } catch (error) {
       this.consecutiveFailures += 1;
       const shouldDropBatch =
         this.dropBatchAfterMaxRetries && this.consecutiveFailures > this.maxRetries;
+      this.inFlightBatch = [];
       if (!shouldDropBatch) {
         // 默认失败不丢弃，持续回退重试，避免静默数据丢失。
         // Keep retrying by default to avoid silent data loss.
