@@ -126,6 +126,15 @@ export async function applyCollaborationInboundChange(
           arbitration.ticketId,
           resolution.resolutionTraceId,
         );
+        // #364: 裁决选本地时保留本地，不写远端、不删 shadow
+        // When LWW (or auto-resolve) picks local, keep local — do not apply remote.
+        const localWon =
+          resolution.resolvedRecord !== null &&
+          resolution.resolvedRecord.sessionId === localRecord.sessionId;
+        if (localWon) {
+          deps.appendConflictLogs([resolvedLog]);
+          return;
+        }
       }
     }
   }

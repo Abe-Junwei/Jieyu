@@ -198,7 +198,7 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
     await clearAuditLogs();
   });
 
-  it('auto-resolves low risk conflicts and applies remote mutation', async () => {
+  it('#364: auto-resolves low risk LWW to local — keeps local, does not apply older remote', async () => {
     const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
 
     await act(async () => {
@@ -208,6 +208,28 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
     await act(async () => {
       await triggerRemote(
         createRemoteContentChange('remote text', new Date(Date.now() - 10_000).toISOString()),
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockRawSaveUnitText).not.toHaveBeenCalled();
+      expect(result.current.conflictReviewTickets).toHaveLength(0);
+      expect(
+        result.current.conflictOperationLogs.some((item) => item.type === 'conflict_resolved'),
+      ).toBe(true);
+    });
+  });
+
+  it('#364: auto-resolves low risk LWW to remote — applies newer remote mutation', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.saveUnitText('u-1', 'local text');
+    });
+
+    await act(async () => {
+      await triggerRemote(
+        createRemoteContentChange('remote text', new Date(Date.now() + 10_000).toISOString()),
       );
     });
 
