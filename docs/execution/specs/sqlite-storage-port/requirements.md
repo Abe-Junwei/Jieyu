@@ -3,7 +3,7 @@ title: sqlite-storage-port requirements
 doc_type: execution-spec-requirements
 status: draft
 owner: repo
-last_reviewed: 2026-10-22
+last_reviewed: 2026-10-23
 source_of_truth: sqlite-storage-port-spec
 ---
 
@@ -18,7 +18,7 @@ source_of_truth: sqlite-storage-port-spec
 ## 2. 用户场景
 
 1. 桌面进程把一轮 AI 回合写入本机库，关掉再打开，读到的是最后一次写入。开关打开时，这条写入从渲染进程走一次 IPC，主进程关掉再打开后仍能读回。
-2. 审计行写入后能按 id 读回。说话人分配写进项目库和 `.jyd`，正则拆分和轨道行各写进一份 `.jyd`，来源记录和录音行写进项目库，去掉一条空录音先改文稿再改项目库，文稿改挂录音只替换这一份文稿上的那一条，语段关系和父子链接只写在同一份文稿里，会话和消息写在项目库里，关掉再打开仍在。其余项目文件夹操作还没接到这个实现上，调用会失败而不是写进错误的库。
+2. 审计行写入后能按 id 读回。说话人分配写进项目库和 `.jyd`，正则拆分和轨道行各写进一份 `.jyd`，来源记录和录音行写进项目库，去掉一条空录音先改文稿再改项目库，文稿改挂录音只替换这一份文稿上的那一条，语段关系和父子链接只写在同一份文稿里，会话和消息写在项目库里，锚点按已有的 `media_id` 计数，关掉再打开仍在。其余项目文件夹操作还没接到这个实现上，调用会失败而不是写进错误的库。
 
 ## 3. 验收标准
 
@@ -36,15 +36,16 @@ source_of_truth: sqlite-storage-port-spec
 - [x] 会话和消息走这个接口。项目库一次事务，提交后读回。引用和推理正文不进消息行。
 - [x] 语段编号走这个接口。用 `.jyd` 里已有的 `id` 和 `text_id`，不读整份语段文档。
 - [x] 另一项目的语段走这个接口。空的 `text_id` 不算另一项目。
+- [x] 锚点计数走这个接口。用 `.jyd` 里已有的 `media_id`，不另加列。
 - [ ] 其余项目库和 `.jyd` 上的业务操作走这个接口，一次操作一次事务，提交后读回。
 - [x] 桌面壳用 `installStoragePort` 换上这个实现。开关默认关，浏览器不安装。冒烟写入一条回合，关掉再打开读回。
 
 ## 4. 受影响代码地图
 
-| 类别        | 文件 / 目录                                                                                                                                                                                                                                                                                                                                                               | 改动性质 |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| Schema / DB | `src/db/sqliteStoragePort.ts`、`src/db/sqliteSpeakerAssignment.ts`、`src/db/sqliteRegexSplit.ts`、`src/db/sqliteTrackEntity.ts`、`src/db/sqliteSourceRecords.ts`、`src/db/sqliteMediaItems.ts`、`src/db/sqliteRemoveEmptyRecording.ts`、`src/db/sqliteManuscriptAudio.ts`、`src/db/sqliteUnitLinks.ts`、`src/db/sqliteAiConversations.ts`、`src/db/sqliteLayerUnitIds.ts` | 新增     |
-| 测试        | `src/db/sqliteStoragePort.test.ts`、`src/db/sqliteAiConversations.test.ts`、`src/db/sqliteLayerUnitIds.test.ts`、`src/db/ipcStoragePort.test.ts`、`src/desktop/skeleton/sqliteStorageHost.test.ts`                                                                                                                                                                        | 新增     |
+| 类别        | 文件 / 目录                                                                                                                                                                                                                                                                                                                                                                                          | 改动性质 |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Schema / DB | `src/db/sqliteStoragePort.ts`、`src/db/sqliteSpeakerAssignment.ts`、`src/db/sqliteRegexSplit.ts`、`src/db/sqliteTrackEntity.ts`、`src/db/sqliteSourceRecords.ts`、`src/db/sqliteMediaItems.ts`、`src/db/sqliteRemoveEmptyRecording.ts`、`src/db/sqliteManuscriptAudio.ts`、`src/db/sqliteUnitLinks.ts`、`src/db/sqliteAiConversations.ts`、`src/db/sqliteLayerUnitIds.ts`、`src/db/sqliteAnchors.ts` | 新增     |
+| 测试        | `src/db/sqliteStoragePort.test.ts`、`src/db/sqliteAiConversations.test.ts`、`src/db/sqliteLayerUnitIds.test.ts`、`src/db/sqliteAnchors.test.ts`、`src/db/ipcStoragePort.test.ts`、`src/desktop/skeleton/sqliteStorageHost.test.ts`                                                                                                                                                                   | 新增     |
 
 ## 5. 已知风险与依赖
 
