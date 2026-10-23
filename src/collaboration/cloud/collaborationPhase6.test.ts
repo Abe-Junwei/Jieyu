@@ -430,6 +430,28 @@ describe('CollaborationAuditLogService', () => {
     expect(chain.gte).toHaveBeenCalledWith('project_revision', 5);
   });
 
+  it('#362: queryTimeline uses ascending order when ascending:true', async () => {
+    const chain = createQueryChain({ data: [], error: null, count: 0 });
+    mockSupabaseFrom.mockReturnValue(chain);
+
+    await service.queryTimeline({
+      projectId: 'proj-1',
+      sinceRevision: 1,
+      ascending: true,
+    });
+
+    expect(chain.order).toHaveBeenCalledWith('project_revision', { ascending: true });
+  });
+
+  it('#362: queryTimeline defaults to newest-first for audit UI', async () => {
+    const chain = createQueryChain({ data: [], error: null, count: 0 });
+    mockSupabaseFrom.mockReturnValue(chain);
+
+    await service.queryTimeline({ projectId: 'proj-1' });
+
+    expect(chain.order).toHaveBeenCalledWith('project_revision', { ascending: false });
+  });
+
   it('[queryTimeline] 省略可选筛选时不调用对应 filter | omits unused filters', async () => {
     const chain = createQueryChain({ data: [], error: null, count: 0 });
     mockSupabaseFrom.mockReturnValue(chain);
