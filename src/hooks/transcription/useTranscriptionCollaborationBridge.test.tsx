@@ -463,7 +463,7 @@ describe('useTranscriptionCollaborationBridge', () => {
 
   it('advances last-seen revision only after remote apply succeeds', async () => {
     const onApplyRemoteChange = vi.fn().mockResolvedValue(undefined);
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useTranscriptionCollaborationBridge({
         enabled: true,
         projectId: 'project-1',
@@ -473,6 +473,11 @@ describe('useTranscriptionCollaborationBridge', () => {
 
     await waitFor(() => {
       expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    // Contiguous inbound (#361): seed predecessor via force (hydration/outbound)
+    act(() => {
+      result.current.markProjectRevisionSeen(6);
     });
 
     const options = lastBridgeOptions.current as {
@@ -498,6 +503,106 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(onApplyRemoteChange).toHaveBeenCalledTimes(1);
     expect(loadProjectLastSeenRevision('project-1')).toBe(7);
   });
+
+  it('#361: 入站 10 失败后 11 成功不得把游标跨到 11 | failed rev must block later success from advancing cursor', async () => {
+    const onApplyRemoteChange = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('apply-10-failed'))
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+        onApplyRemoteChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    // Seed contiguous base at 9 via force (hydration/outbound path)
+    act(() => {
+      result.current.markProjectRevisionSeen(9);
+    });
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+
+    const options = lastBridgeOptions.current as {
+      onApplyRemoteChange: (
+        change: CollaborationProjectChangeRecord,
+      ) => Promise<void | { commitRevision?: boolean }>;
+    };
+    const makeChange = (revision: number): CollaborationProjectChangeRecord => ({
+      id: `ch-${revision}`,
+      projectId: 'project-1',
+      actorId: 'user-2',
+      clientId: 'other-client',
+      clientOpId: `op-${revision}`,
+      protocolVersion: 1,
+      projectRevision: revision,
+      baseRevision: revision - 1,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'sync',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    });
+
+    await expect(options.onApplyRemoteChange(makeChange(10))).rejects.toThrow('apply-10-failed');
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+
+    await options.onApplyRemoteChange(makeChange(11));
+    // Must stay at 9 (gap at 10); old bug advanced to 11
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+    expect(result.current.getLatestKnownRevision()).toBe(9);
+
+    // Filling the gap later advances through 11
+    onApplyRemoteChange.mockResolvedValueOnce(undefined);
+    await options.onApplyRemoteChange(makeChange(10));
+    expect(loadProjectLastSeenRevision('project-1')).toBe(11);
+    expect(result.current.getLatestKnownRevision()).toBe(11);
+  });
+
+  it('#363: does not advance last-seen when apply returns commitRevision:false', async () => {
+    const onApplyRemoteChange = vi.fn().mockResolvedValue({ commitRevision: false });
+    renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+        onApplyRemoteChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    const options = lastBridgeOptions.current as {
+      onApplyRemoteChange: (
+        change: CollaborationProjectChangeRecord,
+      ) => Promise<void | { commitRevision?: boolean }>;
+    };
+    const change: CollaborationProjectChangeRecord = {
+      id: 'ch-manual',
+      projectId: 'project-1',
+      actorId: 'user-2',
+      clientId: 'other-client',
+      clientOpId: 'op-manual',
+      protocolVersion: 1,
+      projectRevision: 8,
+      baseRevision: 7,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'sync',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    };
+
+    await options.onApplyRemoteChange(change);
+    expect(onApplyRemoteChange).toHaveBeenCalledTimes(1);
+    expect(loadProjectLastSeenRevision('project-1')).toBe(0);
+  });
+
 
   it('does not advance last-seen revision when remote apply throws', async () => {
     const onApplyRemoteChange = vi.fn().mockRejectedValue(new Error('apply-failed'));

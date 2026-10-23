@@ -4,6 +4,7 @@ import { createLogger } from '../../observability/logger';
 import {
   applyCollaborationInboundChange,
   createConflictResolutionLogForTicket,
+  type ApplyCollaborationInboundResult,
   type CloudSyncConflictReviewTicket,
 } from '../../collaboration/cloud/collaborationInboundChangeApplier';
 import { buildLocalConflictRecord } from '../../collaboration/cloud/collaborationConflictRecordBuilders';
@@ -53,6 +54,11 @@ export interface UseCollaborationConflictReviewParams {
   loadSnapshot: LoadTranscriptionSnapshot;
   /** P1-2：远端变更写进本地后调用（清空撤销）| After a remote change lands (clears undo) */
   onRemoteChangeApplied?: () => void;
+  /**
+   * Advance the project revision cursor after a manual conflict decision completes (#363).
+   * Inbound manual-review parks without committing; resolve paths must mark the revision.
+   */
+  markProjectRevisionSeen?: (revision: number) => void;
 }
 
 export interface UseCollaborationConflictReviewResult {
@@ -61,7 +67,7 @@ export interface UseCollaborationConflictReviewResult {
   applyRemoteChangeToLocal: (
     change: CollaborationProjectChangeRecord,
     options?: ApplyRemoteChangeOptions,
-  ) => Promise<void>;
+  ) => Promise<ApplyCollaborationInboundResult>;
   applyRemoteConflictTicket: (ticketId: string) => Promise<boolean>;
   keepLocalConflictTicket: (ticketId: string) => boolean;
   postponeConflictTicket: (ticketId: string) => void;
@@ -82,6 +88,7 @@ export function useCollaborationConflictReview({
   runWithDbMutex,
   loadSnapshot,
   onRemoteChangeApplied,
+  markProjectRevisionSeen,
 }: UseCollaborationConflictReviewParams): UseCollaborationConflictReviewResult {
   const [conflictReviewTickets, setConflictReviewTickets] = useState<
     CloudSyncConflictReviewTicket[]
@@ -161,8 +168,8 @@ export function useCollaborationConflictReview({
     async (
       change: CollaborationProjectChangeRecord,
       options?: ApplyRemoteChangeOptions,
-    ): Promise<void> => {
-      await applyCollaborationInboundChange(change, options, {
+    ): Promise<ApplyCollaborationInboundResult> => {
+      return applyCollaborationInboundChange(change, options, {
         applyRemoteMutation,
         resolveLocalConflictRecord,
         appendConflictLogs,
@@ -195,9 +202,10 @@ export function useCollaborationConflictReview({
       localShadowRecordsRef.current.delete(
         createEntityShadowKey(ticket.entityType, ticket.entityId),
       );
+      markProjectRevisionSeen?.(ticket.remoteChange.projectRevision);
       return true;
     },
-    [appendConflictLogs, applyRemoteChangeToLocal],
+    [appendConflictLogs, applyRemoteChangeToLocal, markProjectRevisionSeen],
   );
 
   const keepLocalConflictTicket = useCallback(
@@ -208,9 +216,10 @@ export function useCollaborationConflictReview({
       appendConflictLogs([createConflictResolutionLogForTicket(ticket, 'manual-keep-local')]);
 
       setConflictReviewTickets((prev) => prev.filter((item) => item.ticketId !== ticketId));
+      markProjectRevisionSeen?.(ticket.remoteChange.projectRevision);
       return true;
     },
-    [appendConflictLogs],
+    [appendConflictLogs, markProjectRevisionSeen],
   );
 
   const postponeConflictTicket = useCallback((ticketId: string): void => {

@@ -32,6 +32,10 @@ import {
   saveProjectLastSeenRevision,
 } from '../../collaboration/cloud/CollaborationClientStateStore';
 import {
+  advanceContiguousRevision,
+  forceRevisionCursor,
+} from '../../collaboration/cloud/collaborationRevisionCursor';
+import {
   getSupabaseBrowserClient,
   getSupabaseUserId,
   hasSupabaseBrowserClientConfig,
@@ -63,7 +67,9 @@ import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 interface UseTranscriptionCollaborationBridgeParams {
   enabled: boolean;
   projectId: string;
-  onApplyRemoteChange?: (change: CollaborationProjectChangeRecord) => Promise<void>;
+  onApplyRemoteChange?: (
+    change: CollaborationProjectChangeRecord,
+  ) => Promise<void | { commitRevision?: boolean }>;
 }
 
 interface CollaborationChangeInsertRow {
@@ -230,6 +236,8 @@ export function useTranscriptionCollaborationBridge({
   // 每个安装实例一个 clientId（9.4）| One clientId per installation (9.4)
   const clientIdRef = useRef<string>(getCollaborationClientId());
   const latestRevisionRef = useRef<number>(0);
+  /** #361: applied but not yet contiguous with committed cursor */
+  const pendingHigherRevisionsRef = useRef<Set<number>>(new Set());
   const writeGuardRef = useRef<CollaborationProtocolGuardEvaluation>(DEFAULT_PROTOCOL_GUARD);
   const [isBridgeReady, setIsBridgeReady] = useState(false);
   const [protocolGuard, setProtocolGuard] =
@@ -269,6 +277,7 @@ export function useTranscriptionCollaborationBridge({
     bridgeRef.current = null;
     codecRef.current = null;
     latestRevisionRef.current = 0;
+    pendingHigherRevisionsRef.current.clear();
     applyProtocolGuard(DEFAULT_PROTOCOL_GUARD);
     setOutboundPendingCount(0);
     setIsBridgeReady(false);
@@ -283,13 +292,29 @@ export function useTranscriptionCollaborationBridge({
   }, [resetBridgeRuntimeState]);
 
   const commitLatestRevision = useCallback(
-    (revision: number): void => {
-      if (!Number.isFinite(revision)) return;
-      const normalizedRevision = Math.max(0, Math.floor(revision));
-      if (normalizedRevision <= latestRevisionRef.current) return;
-      latestRevisionRef.current = normalizedRevision;
+    (revision: number, options?: { mode?: 'contiguous' | 'force' }): void => {
+      const mode = options?.mode ?? 'force';
+      if (mode === 'contiguous') {
+        const result = advanceContiguousRevision(
+          latestRevisionRef.current,
+          pendingHigherRevisionsRef.current,
+          revision,
+        );
+        if (!result.didAdvance) return;
+        latestRevisionRef.current = result.committed;
+        if (normalizedProjectId) {
+          saveProjectLastSeenRevision(normalizedProjectId, result.committed);
+        }
+        return;
+      }
+      const next = forceRevisionCursor(latestRevisionRef.current, revision);
+      if (next === latestRevisionRef.current) return;
+      latestRevisionRef.current = next;
+      for (const pending of [...pendingHigherRevisionsRef.current]) {
+        if (pending <= next) pendingHigherRevisionsRef.current.delete(pending);
+      }
       if (normalizedProjectId) {
-        saveProjectLastSeenRevision(normalizedProjectId, normalizedRevision);
+        saveProjectLastSeenRevision(normalizedProjectId, next);
       }
     },
     [normalizedProjectId],
@@ -379,6 +404,7 @@ export function useTranscriptionCollaborationBridge({
       if (disposed) return;
 
       latestRevisionRef.current = Math.max(0, loadProjectLastSeenRevision(normalizedProjectId));
+      pendingHigherRevisionsRef.current.clear();
 
       const {
         guard,
@@ -418,13 +444,21 @@ export function useTranscriptionCollaborationBridge({
         },
         onApplyRemoteChange: async (change) => {
           if (change.clientId === clientIdRef.current) {
+            // Own echo: treat as force (we authored the write)
             commitLatestRevision(change.projectRevision);
             return;
           }
+          let applyResult: void | { commitRevision?: boolean } = undefined;
           if (onApplyRemoteChange) {
-            await onApplyRemoteChange(change);
+            applyResult = await onApplyRemoteChange(change);
           }
-          commitLatestRevision(change.projectRevision);
+          // #363: manual-review parks the change without applying — do not advance
+          // the cursor until the operator resolves the ticket.
+          if (applyResult && applyResult.commitRevision === false) {
+            return;
+          }
+          // #361: only advance through contiguous applied revisions
+          commitLatestRevision(change.projectRevision, { mode: 'contiguous' });
         },
         onSendLocalChanges: async (changes) => {
           if (changes.length === 0) return;

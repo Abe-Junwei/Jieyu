@@ -60,11 +60,16 @@ export interface CollaborationInboundChangeApplierDeps {
  * Applies an inbound collaboration change with optional conflict governance.
  * React-free; hook wires setState via callbacks.
  */
+export interface ApplyCollaborationInboundResult {
+  /** False when parked for manual review — caller must not advance the revision cursor. */
+  commitRevision: boolean;
+}
+
 export async function applyCollaborationInboundChange(
   change: CollaborationProjectChangeRecord,
   options: ApplyRemoteChangeOptions | undefined,
   deps: CollaborationInboundChangeApplierDeps,
-): Promise<void> {
+): Promise<ApplyCollaborationInboundResult> {
   const shadowKey = createEntityShadowKey(change.entityType, change.entityId);
   let resolvedLog: CollaborationOperationLog | null = null;
 
@@ -108,7 +113,7 @@ export async function applyCollaborationInboundChange(
           arbitration,
         };
         deps.enqueueConflictReviewTicket(reviewTicket);
-        return;
+        return { commitRevision: false };
       }
 
       const resolution = resolveCollaborationConflicts(
@@ -126,6 +131,16 @@ export async function applyCollaborationInboundChange(
           arbitration.ticketId,
           resolution.resolutionTraceId,
         );
+        // #364: 裁决选本地时保留本地，不写远端、不删 shadow
+        // When LWW (or auto-resolve) picks local, keep local — do not apply remote.
+        const localWon =
+          resolution.resolvedRecord !== null &&
+          resolution.resolvedRecord.sessionId === localRecord.sessionId;
+        if (localWon) {
+          deps.appendConflictLogs([resolvedLog]);
+          // Revision was resolved (kept local); caller may advance the cursor.
+          return { commitRevision: true };
+        }
       }
     }
   }
@@ -139,6 +154,8 @@ export async function applyCollaborationInboundChange(
   if (mutated) {
     deps.deleteLocalShadow(shadowKey);
   }
+
+  return { commitRevision: true };
 }
 
 export function createConflictResolutionLogForTicket(

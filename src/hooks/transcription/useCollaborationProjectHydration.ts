@@ -15,7 +15,7 @@ export interface UseCollaborationProjectHydrationParams {
   applyRemoteChangeToLocal: (
     change: CollaborationProjectChangeRecord,
     options?: { skipLoadSnapshot?: boolean; skipConflictGovernance?: boolean },
-  ) => Promise<void>;
+  ) => Promise<void | { commitRevision?: boolean }>;
   getLatestKnownRevision: () => number;
   listProjectSnapshots: (options: {
     limit: number;
@@ -25,6 +25,7 @@ export interface UseCollaborationProjectHydrationParams {
     sinceRevision: number;
     limit: number;
     offset: number;
+    ascending?: boolean;
   }) => Promise<{ changes: CollaborationProjectChangeRecord[] }>;
   restoreProjectSnapshotById: (snapshotId: string) => Promise<{ payloadJson: string }>;
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;

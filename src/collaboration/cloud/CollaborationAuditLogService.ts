@@ -30,6 +30,11 @@ export interface QueryChangeTimelineInput {
   until?: string;
   /** 起始 revision（含）| Minimum project revision (inclusive) */
   sinceRevision?: number;
+  /**
+   * Sort by project_revision ascending when true (recovery hydration).
+   * Default false keeps newest-first for audit UI.
+   */
+  ascending?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -66,7 +71,7 @@ export class CollaborationAuditLogService {
       .from('project_changes')
       .select('*', { count: 'exact' })
       .eq('project_id', input.projectId)
-      .order('project_revision', { ascending: false });
+      .order('project_revision', { ascending: input.ascending === true });
 
     if (input.entityType !== undefined) {
       query = query.eq('entity_type', input.entityType);

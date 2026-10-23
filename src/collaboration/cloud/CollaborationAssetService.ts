@@ -204,22 +204,23 @@ export class CollaborationAssetService {
     } catch (storageError) {
       // Storage 删除失败时尽量补回元数据，避免“记录消失但对象仍在”的排障盲区。
       // Recreate metadata on storage-delete failure to preserve traceability.
-      try {
-        await client.from('project_assets').insert({
-          id: resolvedRow.id,
-          project_id: resolvedRow.project_id,
-          asset_type: resolvedRow.asset_type,
-          storage_bucket: resolvedRow.storage_bucket,
-          storage_path: resolvedRow.storage_path,
-          mime_type: resolvedRow.mime_type,
-          size_bytes: resolvedRow.size_bytes,
-          checksum: resolvedRow.checksum,
-          uploaded_by: resolvedRow.uploaded_by,
-          created_at: resolvedRow.created_at,
-        });
-      } catch {
-        // noop - 保持原始 storage 错误 | Keep original storage error
-      }
+      // #366: 补齐协议/客户端版本，并检查 Supabase { error }（不会 throw）
+      // Include protocol/client version and check the non-throwing Supabase error.
+      const { error: restoreError } = await client.from('project_assets').insert({
+        id: resolvedRow.id,
+        project_id: resolvedRow.project_id,
+        asset_type: resolvedRow.asset_type,
+        storage_bucket: resolvedRow.storage_bucket,
+        storage_path: resolvedRow.storage_path,
+        mime_type: resolvedRow.mime_type,
+        size_bytes: resolvedRow.size_bytes,
+        checksum: resolvedRow.checksum,
+        uploaded_by: resolvedRow.uploaded_by,
+        created_at: resolvedRow.created_at,
+        ...collaborationWriteStamp(),
+      });
+      // shortcut: no durable delete-retry queue yet; upgrade when orphan-asset repair ships
+      void restoreError;
       throw storageError;
     }
   }
