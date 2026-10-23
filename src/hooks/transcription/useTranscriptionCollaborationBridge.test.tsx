@@ -528,7 +528,9 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(loadProjectLastSeenRevision('project-1')).toBe(9);
 
     const options = lastBridgeOptions.current as {
-      onApplyRemoteChange: (change: CollaborationProjectChangeRecord) => Promise<void>;
+      onApplyRemoteChange: (
+        change: CollaborationProjectChangeRecord,
+      ) => Promise<void | { commitRevision?: boolean }>;
     };
     const makeChange = (revision: number): CollaborationProjectChangeRecord => ({
       id: `ch-${revision}`,
@@ -560,6 +562,47 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(loadProjectLastSeenRevision('project-1')).toBe(11);
     expect(result.current.getLatestKnownRevision()).toBe(11);
   });
+
+  it('#363: does not advance last-seen when apply returns commitRevision:false', async () => {
+    const onApplyRemoteChange = vi.fn().mockResolvedValue({ commitRevision: false });
+    renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+        onApplyRemoteChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    const options = lastBridgeOptions.current as {
+      onApplyRemoteChange: (
+        change: CollaborationProjectChangeRecord,
+      ) => Promise<void | { commitRevision?: boolean }>;
+    };
+    const change: CollaborationProjectChangeRecord = {
+      id: 'ch-manual',
+      projectId: 'project-1',
+      actorId: 'user-2',
+      clientId: 'other-client',
+      clientOpId: 'op-manual',
+      protocolVersion: 1,
+      projectRevision: 8,
+      baseRevision: 7,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'sync',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    };
+
+    await options.onApplyRemoteChange(change);
+    expect(onApplyRemoteChange).toHaveBeenCalledTimes(1);
+    expect(loadProjectLastSeenRevision('project-1')).toBe(0);
+  });
+
 
   it('does not advance last-seen revision when remote apply throws', async () => {
     const onApplyRemoteChange = vi.fn().mockRejectedValue(new Error('apply-failed'));

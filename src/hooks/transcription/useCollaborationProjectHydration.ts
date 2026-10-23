@@ -15,7 +15,7 @@ export interface UseCollaborationProjectHydrationParams {
   applyRemoteChangeToLocal: (
     change: CollaborationProjectChangeRecord,
     options?: { skipLoadSnapshot?: boolean; skipConflictGovernance?: boolean },
-  ) => Promise<void>;
+  ) => Promise<void | { commitRevision?: boolean }>;
   getLatestKnownRevision: () => number;
   listProjectSnapshots: (options: {
     limit: number;

@@ -67,7 +67,9 @@ import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 interface UseTranscriptionCollaborationBridgeParams {
   enabled: boolean;
   projectId: string;
-  onApplyRemoteChange?: (change: CollaborationProjectChangeRecord) => Promise<void>;
+  onApplyRemoteChange?: (
+    change: CollaborationProjectChangeRecord,
+  ) => Promise<void | { commitRevision?: boolean }>;
 }
 
 interface CollaborationChangeInsertRow {
@@ -446,8 +448,14 @@ export function useTranscriptionCollaborationBridge({
             commitLatestRevision(change.projectRevision);
             return;
           }
+          let applyResult: void | { commitRevision?: boolean } = undefined;
           if (onApplyRemoteChange) {
-            await onApplyRemoteChange(change);
+            applyResult = await onApplyRemoteChange(change);
+          }
+          // #363: manual-review parks the change without applying — do not advance
+          // the cursor until the operator resolves the ticket.
+          if (applyResult && applyResult.commitRevision === false) {
+            return;
           }
           // #361: only advance through contiguous applied revisions
           commitLatestRevision(change.projectRevision, { mode: 'contiguous' });
