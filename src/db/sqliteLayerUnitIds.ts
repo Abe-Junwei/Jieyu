@@ -2,6 +2,7 @@
  * 语段编号在项目文件夹的 `.jyd` 里（ADR-0072 已有的 id 和 text_id）。
  * 只读这些编号。不读整份语段文档，不进子目录。
  * 同一个编号出现在两份文稿里就拒绝。
+ * 另一项目的语段也用这一列。空的 text_id 不算另一项目。
  */
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -39,6 +40,15 @@ function unitId(value: unknown): string {
   const id = (value as Record<string, unknown>).id;
   if (typeof id !== 'string' || id.length === 0) throw new Error('unit row is incomplete');
   return id;
+}
+
+function ownerText(value: unknown): string | null {
+  if (typeof value !== 'object' || value === null) throw new Error('unit row is incomplete');
+  const textId = (value as Record<string, unknown>).text_id;
+  if (textId === null || textId === undefined) return null;
+  if (typeof textId !== 'string') throw new Error('unit row is incomplete');
+  const trimmed = textId.trim();
+  return trimmed.length === 0 ? null : trimmed;
 }
 
 function eachManuscript<T>(projectDir: string, read: (db: SqliteDatabase) => T[]): T[] {
@@ -90,6 +100,32 @@ export function countPresentLayerUnitsInProject(
   return present;
 }
 
+export function listForeignOwnedUnitsInProject(
+  projectDir: string,
+  unitIds: Iterable<string>,
+  textId: string,
+): { id: string; textId: string }[] {
+  const ids = [...new Set([...unitIds].map((id) => id.trim()).filter((id) => id.length > 0))];
+  if (ids.length === 0) return [];
+  const wanted = new Set(ids);
+  const found = new Map<string, string | null>();
+  for (const row of eachManuscript(projectDir, (db) =>
+    db.prepare('SELECT id, text_id FROM units').all(),
+  )) {
+    const id = unitId(row);
+    if (!wanted.has(id)) continue;
+    if (found.has(id)) throw new Error(`duplicate unit ${id} in project folder`);
+    found.set(id, ownerText(row));
+  }
+  const foreign: { id: string; textId: string }[] = [];
+  for (const id of ids) {
+    const owner = found.get(id);
+    if (owner === undefined || owner === null || owner === textId) continue;
+    foreign.push({ id, textId: owner });
+  }
+  return foreign;
+}
+
 export function layerUnitIdMethods(projectDir: string | undefined) {
   function folder(): string {
     if (projectDir === undefined) {
@@ -103,6 +139,9 @@ export function layerUnitIdMethods(projectDir: string | undefined) {
     },
     async countPresentLayerUnits(ids: readonly string[]) {
       return countPresentLayerUnitsInProject(folder(), ids);
+    },
+    async listForeignOwnedUnits(unitIds: Iterable<string>, textId: string) {
+      return listForeignOwnedUnitsInProject(folder(), unitIds, textId);
     },
   };
 }
