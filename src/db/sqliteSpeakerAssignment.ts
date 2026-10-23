@@ -102,9 +102,10 @@ function manuscriptFiles(projectDir: string): string[] {
 
 function locateUnits(
   projectDir: string,
+  projectId: string,
   touched: readonly { id: string; unitType: 'segment' | 'unit' }[],
 ): LocatedUnit[] {
-  const found = new Map<string, { file: string; unitType: string | null }>();
+  const found = new Map<string, { file: string; unitType: string | null; textId: string }>();
   for (const file of manuscriptFiles(projectDir)) {
     const db = new Database(file);
     try {
@@ -112,18 +113,19 @@ function locateUnits(
       if (applicationId(db) !== MANUSCRIPT_APPLICATION_ID) {
         throw new Error(`${path.basename(file)} application_id is not a Jieyu manuscript`);
       }
-      const rows = db.prepare('SELECT id, unit_type FROM units').all();
+      const rows = db.prepare('SELECT id, unit_type, text_id FROM units').all();
       for (const value of rows) {
         if (typeof value !== 'object' || value === null) {
           throw new Error('mixed speaker selection changed before writing');
         }
-        const row = value as { id?: unknown; unit_type?: unknown };
+        const row = value as { id?: unknown; unit_type?: unknown; text_id?: unknown };
         if (typeof row.id !== 'string')
           throw new Error('mixed speaker selection changed before writing');
         if (found.has(row.id)) throw new Error(`duplicate unit ${row.id} in project folder`);
         const unitType = row.unit_type;
         found.set(row.id, {
           file,
+          textId: typeof row.text_id === 'string' ? row.text_id : '',
           unitType: unitType === null ? null : typeof unitType === 'string' ? unitType : null,
         });
       }
@@ -135,6 +137,9 @@ function locateUnits(
     const row = found.get(unit.id);
     if (row === undefined || row.unitType !== unit.unitType) {
       throw new Error('mixed speaker selection changed before writing');
+    }
+    if (row.textId.trim() !== projectId) {
+      throw new CatalogOwnershipMismatchError('layer_units', unit.id, row.textId, projectId);
     }
     return { id: unit.id, unitType: unit.unitType, file: row.file };
   });
@@ -257,7 +262,7 @@ export function assignSpeakerInProject(
   }
   const roster = readRoster(rosterJson);
 
-  const located = locateUnits(projectDir, [
+  const located = locateUnits(projectDir, projectId, [
     ...segmentIds.map((id) => ({ id, unitType: 'segment' as const })),
     ...unitIds.map((id) => ({ id, unitType: 'unit' as const })),
   ]);
