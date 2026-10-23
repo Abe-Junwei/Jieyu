@@ -34,7 +34,9 @@ import { parsePostgresProjectChangeRow } from './projectChangeRowParse';
 
 export interface CollaborationSyncBridgeOptions {
   projectId: string;
-  onApplyRemoteChange: (change: CollaborationProjectChangeRecord) => Promise<void>;
+  onApplyRemoteChange: (
+    change: CollaborationProjectChangeRecord,
+  ) => Promise<void | { commitRevision?: boolean }>;
   onSendLocalChanges: (changes: CollaborationProjectChangeRecord[]) => Promise<void>;
   onError?: (error: unknown, context: string) => void;
   /** 出站队列长度变化（含持久化恢复的待发送批次）| Pending outbound batch size changes */

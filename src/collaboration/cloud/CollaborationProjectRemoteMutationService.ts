@@ -294,9 +294,11 @@ export async function applyCollaborationRemoteMutation(
       unitIds.length > 0 &&
       certaintyValue !== undefined
     ) {
-      await runWithDbMutex(() =>
-        rawActions.saveUnitSelfCertainty(unitIds, certaintyValue as UnitSelfCertainty | undefined),
-      );
+      // #365: 协议用 null 表示清除，映射回本地 undefined 语义
+      // Protocol null means clear; map back to local undefined semantics
+      const localCertainty =
+        certaintyValue === null ? undefined : (certaintyValue as UnitSelfCertainty);
+      await runWithDbMutex(() => rawActions.saveUnitSelfCertainty(unitIds, localCertainty));
       mutated = true;
     }
 
