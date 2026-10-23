@@ -12,6 +12,7 @@ import type {
   CollaborationCloudDirectoryProject,
 } from '../../collaboration/cloud/collaborationSyncDerived';
 import { useLocale } from '../../i18n';
+import { ProjectSnapshotMissingProjectError } from '../../services/linguisticServiceDatabaseIo';
 import { getCollaborationCloudPanelMessages } from '../../i18n/messages';
 import '../../styles/collaboration-sync-surface.css';
 
@@ -224,7 +225,11 @@ export function CollaborationCloudPanel({
         const restored = await restoreProjectSnapshotToLocalById(snapshotId);
         setStatusMessage(messages.snapshotRestored(restored));
       } catch (error) {
-        setErrorMessage(messages.loadFailed(normalizeErrorMessage(error)));
+        setErrorMessage(
+          error instanceof ProjectSnapshotMissingProjectError
+            ? messages.snapshotMissingProject
+            : messages.loadFailed(normalizeErrorMessage(error)),
+        );
       } finally {
         setIsBusy(false);
       }

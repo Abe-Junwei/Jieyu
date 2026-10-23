@@ -1958,7 +1958,14 @@ describe('planLegacyMigration', () => {
           isPreferred: true,
         },
       ],
-      tracks: [{ id: 'track-1', mediaId: 'audio-a', mode: 'single', laneLockMap: { 'lane-1': 0 } }],
+      tracks: [
+        {
+          id: 'track-1',
+          mediaId: 'audio-a',
+          mode: 'single',
+          laneLockMap: { 'lane-1': 0, ['__proto__']: 1 },
+        },
+      ],
       annotations: [
         {
           id: 'ann-1',
@@ -2007,7 +2014,7 @@ describe('planLegacyMigration', () => {
           domains: ['home'],
           vernaculars: [],
           notes: { zh: '备注' },
-          customFields: { count: 1, flag: true, tags: ['a'] },
+          customFields: { count: 1, flag: true, tags: ['a'], ['__proto__']: ['saved'] },
         },
       ],
       displayNames: [
@@ -2279,7 +2286,16 @@ describe('planLegacyMigration', () => {
         { encoding: 'utf8' },
       );
       expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      const readback = JSON.parse(result.stdout);
+      expect(readback.languages[0].customFields).toEqual(plan.languages[0]?.customFields);
+      expect(readback.languages[0].customFields).toHaveProperty('__proto__', ['saved']);
+      expect(readback.manuscripts[0].tracks[0].laneLockMap).toEqual({
+        'lane-1': 0,
+        ['__proto__']: 1,
+      });
+      expect(plan.droppedLanguageFields).toEqual([]);
+      expect(plan.droppedLaneLocks).toEqual([]);
+      expect(readback).toMatchObject({
         project: { id: 'p-1', name: '项目' },
         speakers: [{ id: 's-1', textId: 'p-1', name: '甲' }],
         languages: [
@@ -2295,7 +2311,7 @@ describe('planLegacyMigration', () => {
             domains: ['home'],
             vernaculars: [],
             notes: { zh: '备注' },
-            customFields: { count: 1, flag: true, tags: ['a'] },
+            customFields: { count: 1, flag: true, tags: ['a'], ['__proto__']: ['saved'] },
           },
         ],
         displayNames: [
@@ -2552,7 +2568,7 @@ describe('planLegacyMigration', () => {
                 id: 'track-1',
                 mediaId: 'audio-a',
                 mode: 'single',
-                laneLockMap: { 'lane-1': 0 },
+                laneLockMap: { 'lane-1': 0, ['__proto__']: 1 },
               },
             ],
             annotations: [

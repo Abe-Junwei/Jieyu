@@ -377,6 +377,20 @@ async function pruneProjectOwnedRows(db: JieyuDatabase, textId: string): Promise
   );
 }
 
+/**
+ * 快照里没有目标项目（或不止一条）时抛出；本机项目没有被改动（#355）。
+ * Thrown when the snapshot lacks the target project (or has several); local data is unchanged.
+ */
+export class ProjectSnapshotMissingProjectError extends Error {
+  readonly projectId: string;
+
+  constructor(projectId: string) {
+    super(`Project snapshot does not contain project ${projectId}; local data unchanged.`);
+    this.name = 'ProjectSnapshotMissingProjectError';
+    this.projectId = projectId;
+  }
+}
+
 function parseSnapshotCollections(input: unknown): SnapshotCollections {
   const parsed: unknown = typeof input === 'string' ? JSON.parse(input) : input;
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -388,7 +402,11 @@ function parseSnapshotCollections(input: unknown): SnapshotCollections {
   }
   const asRows: SnapshotCollections = {};
   for (const [name, value] of Object.entries(collections as Record<string, unknown>)) {
-    asRows[name] = Array.isArray(value) ? value : [];
+    // 非数组是结构错误，不能当成空表（#355/#356 同类漏洞）| a non-array is structural; never treat as empty
+    if (!Array.isArray(value)) {
+      throw new Error(`Project snapshot collection "${name}" must be an array`);
+    }
+    asRows[name] = value;
   }
   return asRows;
 }
@@ -406,6 +424,19 @@ export async function importProjectScopedDatabaseFromJson(
     parseSnapshotCollections(input),
     projectId,
   );
+  // 清理之前确认快照里正好有目标项目，否则整体拒绝，本机项目不动 | refuse before pruning
+  if ((filteredCollections.texts ?? []).length !== 1) {
+    throw new ProjectSnapshotMissingProjectError(projectId);
+  }
+  // 缺内容集合不能当“清空该项目句段/正文”（#356 同类）| absent content tables ≠ wipe this project's rows
+  if (
+    !Array.isArray(filteredCollections.layer_units) ||
+    !Array.isArray(filteredCollections.layer_unit_contents)
+  ) {
+    throw new Error(
+      `Project snapshot for ${projectId} is missing layer_units or layer_unit_contents; local data unchanged.`,
+    );
+  }
   const envelope =
     typeof input === 'string'
       ? (JSON.parse(input) as Record<string, unknown>)

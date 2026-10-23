@@ -35,6 +35,8 @@ export const zhCNDictionary = {
     '云端找不到这个项目，或者你已经没有访问权限。',
   'app.home.removedCloudProjects.reason.projectDeleted': '云端项目已被所有者删除。',
   'app.home.removedCloudProjects.reason.noSnapshot': '云端还没有快照，暂时无法重新下载。',
+  'app.home.removedCloudProjects.reason.snapshotMissingProject':
+    '云端最新快照里没有这个项目，无法重新下载；本机数据没有改动。',
   'app.home.noProgressData': '暂无声文稿或文本层进度（可能尚未创建转写层）。',
   'app.home.openProject': '打开项目',
   'app.home.openTranscriptionRecord': '打开该声文稿（定位到对应媒体）',
@@ -3564,7 +3566,6 @@ export const zhCNDictionary = {
     tabAi: 'AI',
     tabPlayback: '播放',
     tabData: '数据',
-    tabExtensions: '扩展',
     tabAbout: '关于',
     themeLabel: '主题',
     themeLight: '浅色',
@@ -3715,24 +3716,6 @@ export const zhCNDictionary = {
     aboutBrowserSupportTitle: '运行环境',
     aboutBrowserSupportBody:
       '解语以桌面版交付（Apple 芯片 Mac、Windows 10 及以上的 x64）。在浏览器里打开只用于开发与测试，不对任何浏览器作支持承诺。',
-    extensionsHostTitle: '宿主与兼容',
-    extensionsHostVersionLabel: '宿主版本（semver）',
-    extensionsBlurb:
-      '当前为受控扩展框架 Phase A：仅展示已注册扩展、能力与兼容结果；不开放任意第三方安装。内置探针在首次打开本页时注册，用于验证运行时契约。',
-    extensionsLoading: '正在加载扩展信息…',
-    extensionsLoadFailed: '扩展信息加载失败',
-    extensionsNone: '暂无已注册扩展。',
-    extensionsColExtension: '扩展',
-    extensionsColVersion: '版本',
-    extensionsColState: '状态',
-    extensionsColCapabilities: '能力',
-    extensionsColCompatible: '兼容',
-    extensionsColCompatNote: '兼容说明',
-    extensionsColEntry: '入口声明',
-    extensionsYes: '是',
-    extensionsNo: '否',
-    extensionsAuditTitle: '最近能力调用（审计摘要）',
-    extensionsAuditEmpty: '尚无能力调用记录。',
   }),
 
   'msg.orthoBridge.catalog': JSON.stringify({
@@ -3833,6 +3816,7 @@ export const zhCNDictionary = {
     confirmDeleteCloudProjectFinal: '再确认一次：确定永久删除这个云端项目吗？',
     cloudProjectDeleted: '云端项目已删除，本机副本已清理。',
     deleteCloudProjectOwnerOnly: '只有项目所有者可以删除云端项目。',
+    snapshotMissingProject: '这个版本里没有当前项目，未恢复；本机项目保持原样。',
   }),
   'msg.layerConstraint.catalog': JSON.stringify({
     issueConstraintUnsupported: '层 {layerKey} 使用了当前运行时未启用的约束：{constraint}',

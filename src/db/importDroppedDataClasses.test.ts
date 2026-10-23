@@ -123,8 +123,15 @@ describe('JY-04: dropped data classes on import / restore', () => {
   });
 
   it('project-scoped snapshot restore drops the classes too', async () => {
+    // 项目快照须带内容集合键（#355/#356 follow-up）；空数组表示该项目没有句段/正文 | content keys required
     const result = await importProjectScopedDatabaseFromJson(
-      JSON.stringify(snapshotOf(hostileCollections('evil-proj'))),
+      JSON.stringify(
+        snapshotOf({
+          ...hostileCollections('evil-proj'),
+          layer_units: [],
+          layer_unit_contents: [],
+        }),
+      ),
       'evil-proj',
     );
     await expectNothingPlanted();

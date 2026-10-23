@@ -16,6 +16,7 @@ const REASON_KEYS: Record<Exclude<RedownloadOutcome, { ok: true }>['reason'], Di
   'project-not-found': 'app.home.removedCloudProjects.reason.projectNotFound',
   'project-deleted': 'app.home.removedCloudProjects.reason.projectDeleted',
   'no-snapshot': 'app.home.removedCloudProjects.reason.noSnapshot',
+  'snapshot-missing-project': 'app.home.removedCloudProjects.reason.snapshotMissingProject',
   other: null,
 };
 
