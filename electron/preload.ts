@@ -20,6 +20,10 @@ const desktop = {
     };
   },
   mediaUrl: (name: string) => ipcRenderer.invoke('skeleton:media-url', name),
+  openStorage: (folder: string) => ipcRenderer.invoke('storage:open', folder),
+  storageCall: (method: string, args: readonly unknown[]) =>
+    ipcRenderer.invoke('storage:call', method, args),
+  reopenStorage: () => ipcRenderer.invoke('storage:reopen'),
 };
 
 contextBridge.exposeInMainWorld('jieyuDesktop', desktop);

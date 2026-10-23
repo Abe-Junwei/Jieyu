@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-function run(command, args) {
-  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' });
+function run(command, args, env = process.env) {
+  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', env });
   return result.status ?? 1;
 }
 
@@ -22,10 +22,11 @@ if (process.platform === 'linux') {
 }
 electronArgs.push('electron/dist/main.js', '--smoke');
 const needsXvfb = process.platform === 'linux' && !process.env.DISPLAY;
+const smokeEnv = { ...process.env, JIEYU_SQLITE_STORAGE_PORT: '1' };
 const smoke = rebuilt === 0
   ? needsXvfb
-    ? run('xvfb-run', ['-a', node, ...electronArgs])
-    : run(node, electronArgs)
+    ? run('xvfb-run', ['-a', node, ...electronArgs], smokeEnv)
+    : run(node, electronArgs, smokeEnv)
   : rebuilt;
 const npmExec = process.env.npm_execpath;
 const restored = npmExec

@@ -4,7 +4,7 @@ label: wayfinder:grilling
 mode: HITL
 status: open
 assignee:
-blocked_by: [029,024,036]
+blocked_by: [029, 024, 036]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 ---
 
@@ -25,12 +25,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 - 结构规则正文、正字法转换规则与样例、车道锁定表已定（[ADR-0069](../../../adr/0069-document-bodies-as-json.md)）：规则正文和转换文档在项目库行上，车道锁定表在 `.jyd` 轨道行上。关掉再打开能读回。
 - 定义副本的范围已定（[ADR-0070](../../../adr/0070-definition-copy-stays-language-orthography-speaker.md)）：只含这张文稿用到的语言、显示名、别名、正字法和说话人。词条、标签定义、自定义字段定义、缩写留在项目库。
 
-定一块写一块，每块写完关掉重开读回。之后才是存储端口的 SQLite 实现。
+定一块写一块，每块写完关掉重开读回。存储接口的 SQLite 实现已开始：本机 userData 的回合和审计、跨文件的说话人分配（ADR-0071）、一份文稿里的正则拆分（ADR-0072），一份文稿里的轨道行（ADR-0073），项目库里的来源记录（ADR-0074），以及项目库里的录音行（ADR-0075），能关掉再打开读回。音频字节仍是普通文件。去掉一条空录音先改文稿再改项目库，不删音频文件（ADR-0076）。文稿改挂录音是替换，关掉再打开仍只剩一条（ADR-0077）。替换前的确认措辞还没定。跨文稿的语段关系和父子链接写不进去（ADR-0078）。桌面壳在开关打开时经一次 IPC 换上这个实现，冒烟写入一条回合并关掉再打开读回（ADR-0079）。开关默认关，浏览器仍用 Dexie。会话和消息留在项目库，关掉再打开仍在（ADR-0080）。引用和推理正文不进消息行。
 
 SQLite 实现里的业务操作要守住（2026-10-17 从 #327 并入，[ADR-0063](../../../adr/0063-desktop-only-after-electron-skeleton.md) 第 3 条）：给文稿挂录音时，已有录音就是替换，不是追加，替换前提示（措辞由用户确认）；新建或修改 `unit_relations` 时两端不在同一份 `.jyd` 就不写，并说明原因。检查函数用 `src/db/projectFiles/manuscriptAudio.ts`、`manuscriptParents.ts`。验收：写入后关掉重开读回；挂第二条录音后只剩一条；跨文稿关系写不进去。
 
 已定，文件夹里要有（ADR-0061，不再是 `media/`）：
+
 - 音频 WAV/MP3/M4A/FLAC 原样复制进项目文件夹，不进数据库。
 - 视频仍抽出音轨供播放与波形；音轨与原视频都留在项目文件夹里。
 - JYM 跨版本：新版自动升级旧包、旧版拒绝新包（见 [#266](https://github.com/Abe-Junwei/Jieyu/issues/266)）。
-

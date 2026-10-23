@@ -208,7 +208,10 @@ function verifyStaged(plan, staging) {
   }
   const read = readProject(staging);
   const audioKey = (rows) =>
-    rows.map((row) => `${row.id}\0${row.relPath}\0${row.sha256}`).sort().join('\n');
+    rows
+      .map((row) => `${row.id}\0${row.relPath}\0${row.sha256}`)
+      .sort()
+      .join('\n');
   const plannedAudios = plan.audios.map((audio) => ({
     id: audio.audioId,
     relPath: audio.fileName,
@@ -320,9 +323,11 @@ export function applyPlan(
     writeDatabase(projectFile, PROJECT_APPLICATION_ID, created, (db) => {
       if (failDuringProject) throw new Error('injected project failure');
       db.exec('CREATE TABLE audio (id TEXT PRIMARY KEY, relpath TEXT, sha256 TEXT)');
-      db.exec('CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
       db.exec(
-        'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL)',
+        'CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL, speaker_ids_json TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT, updated_at TEXT)',
       );
       db.exec(
         `CREATE TABLE languages (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, ${LANGUAGE_EXTRAS.map(([, column, type]) => `${column} ${type}`).join(', ')}, ${LANGUAGE_JSON.map(([, column]) => `${column} TEXT`).join(', ')})`,
@@ -337,7 +342,10 @@ export function applyPlan(
         'CREATE TABLE orthographies (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, language_id TEXT)',
       );
       db.exec(
-        'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT)',
+        'CREATE TABLE source_records (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, original_name TEXT NOT NULL, display_name TEXT NOT NULL, format TEXT NOT NULL, media_id TEXT, byte_size INTEGER, sha256 TEXT, external_doc_id TEXT, imported_at TEXT, import_batch_id TEXT, stored_bytes INTEGER, linked_media_filename TEXT, updated_at TEXT)',
+      );
+      db.exec(
+        'CREATE TABLE media_items (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, filename TEXT NOT NULL, url TEXT, duration REAL, details_json TEXT, is_offline_cached INTEGER NOT NULL, access_rights TEXT, created_at TEXT NOT NULL, timeline_kind TEXT NOT NULL, byte_location TEXT NOT NULL, availability TEXT NOT NULL, content_size REAL, content_sha256 TEXT)',
       );
       db.exec(
         'CREATE TABLE lexemes (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, headword TEXT NOT NULL, kind TEXT, usage_count INTEGER, access_rights TEXT, entry_json TEXT, resource_json TEXT)',
@@ -379,10 +387,10 @@ export function applyPlan(
         'CREATE TABLE structural_rule_profiles (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, scope TEXT NOT NULL, language_id TEXT, derived_from_system_id TEXT, enabled INTEGER NOT NULL, priority INTEGER NOT NULL, profile_json TEXT)',
       );
       db.exec(
-        'CREATE TABLE ai_conversations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, mode TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, archived INTEGER, cleared_at TEXT)',
+        'CREATE TABLE ai_conversations (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, title TEXT NOT NULL, mode TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, archived INTEGER, cleared_at TEXT, created_at TEXT, updated_at TEXT)',
       );
       db.exec(
-        'CREATE TABLE ai_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, generation_source TEXT, generation_model TEXT, error_message TEXT)',
+        'CREATE TABLE ai_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, generation_source TEXT, generation_model TEXT, error_message TEXT, created_at TEXT, updated_at TEXT)',
       );
       db.exec(
         'CREATE TABLE ai_tasks (id TEXT PRIMARY KEY, task_type TEXT NOT NULL, status TEXT NOT NULL, target_id TEXT NOT NULL, target_type TEXT, model_id TEXT, error_message TEXT, attempt INTEGER, max_attempts INTEGER, timeout_ms INTEGER, resumable INTEGER, handoff_reason TEXT, agent_run_id TEXT)',
@@ -576,9 +584,7 @@ export function applyPlan(
           bridge.status ?? null,
           bridge.isReversible === undefined ? null : bridge.isReversible ? 1 : 0,
           bridge.name === undefined ? null : objectJson(bridge.name, `bridge ${bridge.id} name`),
-          bridge.rules === undefined
-            ? null
-            : objectJson(bridge.rules, `bridge ${bridge.id} rules`),
+          bridge.rules === undefined ? null : objectJson(bridge.rules, `bridge ${bridge.id} rules`),
           bridge.sampleInput === undefined
             ? null
             : stringColumn(bridge.sampleInput, `bridge ${bridge.id} sampleInput`),
@@ -588,9 +594,7 @@ export function applyPlan(
           bridge.sampleCases === undefined
             ? null
             : sampleCasesJson(bridge.sampleCases, `bridge ${bridge.id} sampleCases`),
-          bridge.notes === undefined
-            ? null
-            : objectJson(bridge.notes, `bridge ${bridge.id} notes`),
+          bridge.notes === undefined ? null : objectJson(bridge.notes, `bridge ${bridge.id} notes`),
         );
       }
       const insertCustomField = db.prepare(
@@ -661,9 +665,7 @@ export function applyPlan(
           rule.derivedFromSystemId ?? null,
           rule.enabled ? 1 : 0,
           rule.priority,
-          rule.profile === undefined
-            ? null
-            : objectJson(rule.profile, `rule ${rule.id} profile`),
+          rule.profile === undefined ? null : objectJson(rule.profile, `rule ${rule.id} profile`),
         );
       }
       const insertConversation = db.prepare(
@@ -840,13 +842,13 @@ export function applyPlan(
           'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT)',
         );
         db.exec(
-          'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT)',
+          'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT, unit_type TEXT, text_id TEXT, start_time REAL, end_time REAL, updated_at TEXT)',
         );
         db.exec(
           'CREATE TABLE anchors (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, time REAL NOT NULL)',
         );
         db.exec(
-          'CREATE TABLE unit_contents (id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL)',
+          'CREATE TABLE unit_contents (id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL, text_id TEXT, updated_at TEXT)',
         );
         db.exec(
           'CREATE TABLE unit_relations (id TEXT PRIMARY KEY, source_unit_id TEXT NOT NULL, target_unit_id TEXT NOT NULL, relation_type TEXT NOT NULL)',
@@ -858,7 +860,7 @@ export function applyPlan(
           'CREATE TABLE layer_links (id TEXT PRIMARY KEY, host_layer_id TEXT NOT NULL, layer_id TEXT NOT NULL, link_type TEXT NOT NULL, is_preferred INTEGER NOT NULL)',
         );
         db.exec(
-          'CREATE TABLE track_entities (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, mode TEXT NOT NULL, lane_lock_json TEXT)',
+          'CREATE TABLE track_entities (id TEXT PRIMARY KEY, media_id TEXT NOT NULL, mode TEXT NOT NULL, lane_lock_json TEXT, text_id TEXT, updated_at TEXT)',
         );
         db.exec(
           'CREATE TABLE tier_annotations (id TEXT PRIMARY KEY, tier_id TEXT NOT NULL, value TEXT NOT NULL, is_verified INTEGER NOT NULL, start_time REAL, end_time REAL)',
@@ -1078,8 +1080,10 @@ export function applyPlan(
 export function readProject(dest) {
   const project = new DatabaseSync(path.join(dest, 'project.sqlite'), { readOnly: true });
   const audios = project.prepare('SELECT id, relpath, sha256 FROM audio ORDER BY id').all();
-  const projectRow = project.prepare('SELECT id, name FROM project').get();
-  const speakers = project.prepare('SELECT id, text_id, name FROM speakers ORDER BY id').all();
+  const projectRow = project.prepare('SELECT id, name, speaker_ids_json FROM project').get();
+  const speakers = project
+    .prepare('SELECT id, text_id, name, created_at, updated_at FROM speakers ORDER BY id')
+    .all();
   const languages = project
     .prepare(
       `SELECT id, text_id, name, ${[...LANGUAGE_EXTRAS.map(([, column]) => column), ...LANGUAGE_JSON.map(([, column]) => column)].join(', ')} FROM languages ORDER BY id`,
@@ -1098,7 +1102,7 @@ export function readProject(dest) {
     .all();
   const sourceRecords = project
     .prepare(
-      'SELECT id, text_id, original_name, display_name, format, media_id FROM source_records ORDER BY id',
+      'SELECT id, text_id, original_name, display_name, format, media_id, byte_size, sha256, external_doc_id, imported_at, import_batch_id, stored_bytes, linked_media_filename, updated_at FROM source_records ORDER BY id',
     )
     .all();
   const lexemes = project
@@ -1192,7 +1196,9 @@ export function readProject(dest) {
     )
     .all();
   const sessionMemories = project
-    .prepare('SELECT id, conversation_id, payload_json, updated_at FROM ai_session_memories ORDER BY id')
+    .prepare(
+      'SELECT id, conversation_id, payload_json, updated_at FROM ai_session_memories ORDER BY id',
+    )
     .all();
   const modelRuns = project
     .prepare(
@@ -1215,7 +1221,7 @@ export function readProject(dest) {
         .all();
       const units = db
         .prepare(
-          'SELECT id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id FROM units ORDER BY id',
+          'SELECT id, layer_id, media_id, parent_unit_id, speaker_id, start_anchor_id, end_anchor_id, unit_type, text_id, start_time, end_time, updated_at FROM units ORDER BY id',
         )
         .all();
       const snapshotLanguages = db.prepare('SELECT id, name FROM languages ORDER BY id').all();
@@ -1237,7 +1243,9 @@ export function readProject(dest) {
         .all();
       const anchors = db.prepare('SELECT id, media_id, time FROM anchors ORDER BY id').all();
       const contents = db
-        .prepare('SELECT id, unit_id, role, text FROM unit_contents ORDER BY id')
+        .prepare(
+          'SELECT id, unit_id, role, text, text_id, updated_at FROM unit_contents ORDER BY id',
+        )
         .all();
       const relations = db
         .prepare(
@@ -1253,7 +1261,9 @@ export function readProject(dest) {
         )
         .all();
       const tracks = db
-        .prepare('SELECT id, media_id, mode, lane_lock_json FROM track_entities ORDER BY id')
+        .prepare(
+          'SELECT id, media_id, mode, lane_lock_json, text_id, updated_at FROM track_entities ORDER BY id',
+        )
         .all();
       const annotations = db
         .prepare(
@@ -1320,6 +1330,8 @@ export function readProject(dest) {
           unitId: content.unit_id,
           role: content.role,
           text: content.text,
+          ...(content.text_id !== null ? { textId: content.text_id } : {}),
+          ...(content.updated_at !== null ? { updatedAt: content.updated_at } : {}),
         })),
         relations: relations.map((relation) => ({
           id: relation.id,
@@ -1352,6 +1364,8 @@ export function readProject(dest) {
                 ),
               }
             : {}),
+          ...(track.text_id !== null ? { textId: track.text_id } : {}),
+          ...(track.updated_at !== null ? { updatedAt: track.updated_at } : {}),
         })),
         annotations: annotations.map((annotation) => ({
           id: annotation.id,
@@ -1380,17 +1394,32 @@ export function readProject(dest) {
           mediaId: unit.media_id,
           parentUnitId: unit.parent_unit_id,
           ...(unit.speaker_id !== null ? { speakerId: unit.speaker_id } : {}),
+          ...(unit.unit_type !== null ? { unitType: unit.unit_type } : {}),
+          ...(unit.text_id !== null ? { textId: unit.text_id } : {}),
+          ...(unit.start_time !== null ? { startTime: unit.start_time } : {}),
+          ...(unit.end_time !== null ? { endTime: unit.end_time } : {}),
+          ...(unit.updated_at !== null ? { updatedAt: unit.updated_at } : {}),
           ...(unit.start_anchor_id !== null ? { startAnchorId: unit.start_anchor_id } : {}),
           ...(unit.end_anchor_id !== null ? { endAnchorId: unit.end_anchor_id } : {}),
         })),
       };
     });
   return {
-    project: projectRow ? { id: projectRow.id, name: projectRow.name } : null,
+    project: projectRow
+      ? {
+          id: projectRow.id,
+          name: projectRow.name,
+          ...(projectRow.speaker_ids_json !== null
+            ? { speakerIds: JSON.parse(projectRow.speaker_ids_json) }
+            : {}),
+        }
+      : null,
     speakers: speakers.map((speaker) => ({
       id: speaker.id,
       textId: speaker.text_id,
       name: speaker.name,
+      ...(speaker.created_at !== null ? { createdAt: speaker.created_at } : {}),
+      ...(speaker.updated_at !== null ? { updatedAt: speaker.updated_at } : {}),
     })),
     languages: languages.map((language) => ({
       id: language.id,
@@ -1695,6 +1724,16 @@ export function readProject(dest) {
       displayName: source.display_name,
       format: source.format,
       ...(source.media_id !== null ? { mediaId: source.media_id } : {}),
+      ...(source.byte_size !== null ? { byteSize: source.byte_size } : {}),
+      ...(source.sha256 !== null ? { sha256: source.sha256 } : {}),
+      ...(source.external_doc_id !== null ? { externalDocId: source.external_doc_id } : {}),
+      ...(source.imported_at !== null ? { importedAt: source.imported_at } : {}),
+      ...(source.import_batch_id !== null ? { importBatchId: source.import_batch_id } : {}),
+      ...(source.stored_bytes !== null ? { storedBytes: source.stored_bytes !== 0 } : {}),
+      ...(source.linked_media_filename !== null
+        ? { linkedMediaFilename: source.linked_media_filename }
+        : {}),
+      ...(source.updated_at !== null ? { updatedAt: source.updated_at } : {}),
     })),
     audios: audios.map((audio) => ({
       id: audio.id,

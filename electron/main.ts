@@ -6,11 +6,19 @@ import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import {
+  callLockedSqliteStorage,
+  closeLockedSqliteStorage,
+  openLockedSqliteStorage,
+  reopenLockedSqliteStorage,
+  writeProjectLibraryMarker,
+} from '@sqlite-host';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
 import { isAppNavigation, secretStoreRefusal } from '../src/desktop/skeleton/desktopSecurity';
 import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import { writeProbeAndReadBack } from '../src/desktop/skeleton/probeStore';
+import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
 import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
 
 const SMOKE = process.argv.includes('--smoke');
@@ -26,7 +34,13 @@ const MEDIA_SCHEME = 'jieyu-media';
 protocol.registerSchemesAsPrivileged([
   {
     scheme: MEDIA_SCHEME,
-    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true },
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      corsEnabled: true,
+    },
   },
 ]);
 
@@ -89,11 +103,16 @@ function installMediaProtocol(): void {
 }
 
 let openedFolder: string | null = null;
+let smokeSqliteUserDataFile: string | undefined;
 const inFlightRequests = new Map<string, AbortController>();
 
 function databasePath(): string {
   const root = openedFolder ?? path.join(app.getPath('temp'), 'jieyu-skeleton');
   return path.join(root, 'project.sqlite');
+}
+
+function sqliteUserDataFile(): string {
+  return smokeSqliteUserDataFile ?? path.join(app.getPath('userData'), 'user-data.sqlite');
 }
 
 function secretPath(): string {
@@ -108,10 +127,7 @@ async function readStoredSecret(): Promise<string | null> {
   return result;
 }
 
-function handle<T extends unknown[]>(
-  channel: string,
-  listener: (...args: T) => unknown,
-): void {
+function handle<T extends unknown[]>(channel: string, listener: (...args: T) => unknown): void {
   ipcMain.handle(channel, (event: IpcMainInvokeEvent, ...args: T) => {
     void event;
     return listener(...args);
@@ -218,6 +234,28 @@ function registerIpc(): void {
     if (typeof name !== 'string' || name.length === 0) throw new Error('empty media');
     return `${MEDIA_SCHEME}://local/${path.basename(name)}`;
   });
+
+  if (sqliteStoragePortFlagEnabled(process.env.JIEYU_SQLITE_STORAGE_PORT)) {
+    handle('storage:open', (folder: unknown) => {
+      if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
+      openLockedSqliteStorage({
+        folder,
+        userDataFile: sqliteUserDataFile(),
+        pid: process.pid,
+      });
+      return { opened: true };
+    });
+    handle('storage:call', (method: unknown, args: unknown) => {
+      if (typeof method !== 'string' || method.length === 0)
+        throw new Error('empty storage method');
+      if (!Array.isArray(args)) throw new Error('storage args must be a list');
+      return callLockedSqliteStorage(method, args);
+    });
+    handle('storage:reopen', () => {
+      reopenLockedSqliteStorage();
+      return { reopened: true };
+    });
+  }
 }
 
 async function openWindow(): Promise<BrowserWindow> {
@@ -294,6 +332,9 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     const root = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'jieyu-smoke-'));
     const project = path.join(root, 'field');
     const synced = path.join(root, BAIDU_MARKER, 'field');
+    fs.mkdirSync(project, { recursive: true });
+    writeProjectLibraryMarker(path.join(project, 'project.sqlite'));
+    smokeSqliteUserDataFile = path.join(root, 'user-data.sqlite');
     fs.mkdirSync(mediaRoot(), { recursive: true });
     fs.writeFileSync(path.join(mediaRoot(), 'clip.bin'), 'abcdefgh');
     // Keys saved before the async switch were written by the deprecated sync encryptString (gone in Electron 46).
@@ -320,6 +361,11 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
       off();
       const mediaUrl = await window.jieyuDesktop.mediaUrl('clip.bin');
       const mediaResponse = await fetch(mediaUrl, { headers: { Range: 'bytes=0-3' } });
+      const turn = { conversationId: 'smoke-turn', createdAt: 1, expiresAt: 70, note: 'kept' };
+      await window.jieyuDesktop.openStorage(${JSON.stringify(project)});
+      await window.jieyuDesktop.storageCall('turns.putTurn', [turn]);
+      await window.jieyuDesktop.reopenStorage();
+      const storedTurn = await window.jieyuDesktop.storageCall('turns.getTurn', ['smoke-turn']);
       return {
         probe,
         opened,
@@ -329,6 +375,7 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
         outbound,
         streamed,
         media: { status: mediaResponse.status, body: await mediaResponse.text() },
+        storedTurn,
       };
     })()`;
     const result = (await win.webContents.executeJavaScript(script, true)) as {
@@ -340,12 +387,14 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
       outbound: { status: number; chunks: number; aborted: boolean };
       streamed: string[];
       media: { status: number; body: string };
+      storedTurn: { conversationId?: string; note?: string };
     };
     const failures: string[] = [];
     if (legacySecret !== 'legacy-secret') failures.push('legacy-secret');
     if (result.probe.note !== 'ping') failures.push('probe');
     if (result.opened.lock !== 'acquired') failures.push('lock');
-    if (result.busy.lock !== 'busy' || result.busy.message !== '已在别处打开') failures.push('second-window');
+    if (result.busy.lock !== 'busy' || result.busy.message !== '已在别处打开')
+      failures.push('second-window');
     if (result.synced.warning !== 'sync-folder') failures.push('sync-folder');
     if (result.secret.stored !== true) failures.push('secret');
     if (!loopback.sawExpectedAuth()) failures.push('outbound-auth');
@@ -363,6 +412,9 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
       failures.push('secret-plaintext');
     }
     if (result.media.status !== 206 || result.media.body !== 'abcd') failures.push('range');
+    if (result.storedTurn.conversationId !== 'smoke-turn' || result.storedTurn.note !== 'kept') {
+      failures.push('storage-turn');
+    }
     if (failures.length > 0) {
       console.error(failures.join(','), JSON.stringify(result));
       app.exit(1);
@@ -371,6 +423,7 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     console.log('skeleton smoke ok');
     app.exit(0);
   } finally {
+    closeLockedSqliteStorage();
     await loopback.close();
   }
 }
@@ -394,24 +447,27 @@ async function chooseProject(): Promise<void> {
   }
 }
 
-app.whenReady().then(async () => {
-  ensureUserDataLayout(app.getPath('userData'));
-  installCsp();
-  installMediaProtocol();
-  registerIpc();
-  const win = await openWindow();
-  if (process.argv.includes('--smoke')) {
-    await runSmoke(win);
-    return;
-  }
-  ipcMain.handle('skeleton:choose-project', () => chooseProject());
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) void openWindow();
+app
+  .whenReady()
+  .then(async () => {
+    ensureUserDataLayout(app.getPath('userData'));
+    installCsp();
+    installMediaProtocol();
+    registerIpc();
+    const win = await openWindow();
+    if (process.argv.includes('--smoke')) {
+      await runSmoke(win);
+      return;
+    }
+    ipcMain.handle('skeleton:choose-project', () => chooseProject());
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) void openWindow();
+    });
+  })
+  .catch((error: unknown) => {
+    console.error(error);
+    app.exit(1);
   });
-}).catch((error: unknown) => {
-  console.error(error);
-  app.exit(1);
-});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !process.argv.includes('--smoke')) app.quit();

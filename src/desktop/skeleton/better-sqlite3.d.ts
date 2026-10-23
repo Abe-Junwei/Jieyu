@@ -6,6 +6,7 @@ declare module 'better-sqlite3' {
   export interface Statement {
     run(...params: unknown[]): RunResult;
     get(...params: unknown[]): unknown;
+    all(...params: unknown[]): unknown[];
   }
 
   export interface Database {
