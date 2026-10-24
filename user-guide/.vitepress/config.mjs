@@ -6,11 +6,14 @@ const zhSidebar = [
   {
     text: '使用说明',
     items: [
-      { text: '首页 / 快速开始', link: '/' },
+      { text: '首页', link: '/' },
+      { text: '快速开始', link: '/getting-started' },
       { text: '录音与转写', link: '/recording' },
       { text: '标注与 IGT', link: '/annotation' },
       { text: '词典', link: '/lexicon' },
-      { text: '导出与建档', link: '/export' },
+      { text: '语料库', link: '/corpus' },
+      { text: '导入导出与备份', link: '/export' },
+      { text: '设置与快捷键', link: '/settings' },
       { text: '协作与同步冲突', link: '/collaboration' },
       { text: '常见问题', link: '/faq' },
     ],
@@ -59,6 +62,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '使用说明', link: '/' },
+          { text: '快速开始', link: '/getting-started' },
           { text: '常见问题', link: '/faq' },
           { text: '开发者文档', link: 'https://deepwiki.com/Abe-Junwei/Jieyu' },
         ],
