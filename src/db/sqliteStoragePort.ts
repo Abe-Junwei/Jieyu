@@ -1,19 +1,15 @@
 /**
- * 存储接口的 SQLite 切片：本机 userData 里的回合和审计，项目文件夹里的说话人分配、正则拆分和轨道行。
- * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
- * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
- * 语段编号用 `.jyd` 里已有的 id 和 text_id 列出，不读整份语段文档。
- * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
- * 另一项目的录音用这一行已有的 text_id 辨认。
- * 去掉一条空录音先改文稿，再改项目库（ADR-0076）。
- * 文稿改挂录音只改一份 `.jyd`，已有的是替换（ADR-0077）。
- * 语段关系和父子链接只写在同一份文稿里（ADR-0078）。
- * 会话和消息写在项目库里（ADR-0080）。
- * 桌面壳只在开关打开时经 IPC 安装（ADR-0079）。默认不安装。
+ * 存储接口的 SQLite 切片。一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
+ * 语段编号、锚点、词和另一项目的层只读 `.jyd`。层的项目编号是可空的 `text_id`（ADR-0082）。
+ * 会话见 ADR-0080。产物见 ADR-0081。桌面壳只在开关打开时经 IPC 安装（ADR-0079）。默认不安装。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import { agentArtifactMethods } from './sqliteAgentArtifacts';
 import { aiConversationMethods } from './sqliteAiConversations';
+import { anchorCountMethods } from './sqliteAnchors';
+import { auditListMethods } from './sqliteAuditLogs';
+import { layerForeignMethods } from './sqliteForeignLayers';
 import { layerUnitIdMethods } from './sqliteLayerUnitIds';
 import { replaceManuscriptAudioInProject } from './sqliteManuscriptAudio';
 import {
@@ -33,6 +29,7 @@ import {
 import { assignSpeakerInProject, PROJECT_APPLICATION_ID } from './sqliteSpeakerAssignment';
 import { listTrackEntitiesInProject, putTrackEntityInProject } from './sqliteTrackEntity';
 import { putUnitRelationInProject, setUnitParentInProject } from './sqliteUnitLinks';
+import { tokenCountMethods } from './sqliteUnitTokens';
 import {
   RecordingRemovalBlockedError,
   type ManuscriptRelationWrite,
@@ -275,7 +272,12 @@ export function openSqliteStoragePort(
       return saveMediaItemInProject(requireProject(), data);
     },
     ...layerUnitIdMethods(projectDir),
+    ...layerForeignMethods(projectDir),
+    ...anchorCountMethods(projectDir),
+    ...tokenCountMethods(projectDir),
+    ...auditListMethods(db),
     ...aiConversationMethods(requireProject),
+    ...agentArtifactMethods(requireProject, db),
   };
 
   const port = new Proxy(implemented, {

@@ -402,7 +402,7 @@ export function applyPlan(
         'CREATE TABLE project_ai_memories (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, fact TEXT NOT NULL, confidence REAL NOT NULL, source_conversation_id TEXT, expires_at TEXT)',
       );
       db.exec(
-        'CREATE TABLE agent_artifacts (id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, kind TEXT NOT NULL, uri TEXT NOT NULL, title TEXT NOT NULL, mime_type TEXT NOT NULL, body_json TEXT NOT NULL, agent_run_id TEXT, adoption_item_id TEXT)',
+        'CREATE TABLE agent_artifacts (id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, kind TEXT NOT NULL, uri TEXT NOT NULL, title TEXT NOT NULL, mime_type TEXT NOT NULL, body_json TEXT NOT NULL, agent_run_id TEXT, adoption_item_id TEXT, created_at TEXT)',
       );
       db.exec(
         'CREATE TABLE ai_source_sets (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, media_id TEXT, layer_id TEXT, bound_session_id TEXT)',
@@ -839,7 +839,7 @@ export function applyPlan(
       writeDatabase(file, JYD_APPLICATION_ID, created, (db) => {
         db.exec('CREATE TABLE meta (id TEXT PRIMARY KEY, audio_id TEXT, source_document_id TEXT)');
         db.exec(
-          'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT)',
+          'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT, text_id TEXT)',
         );
         db.exec(
           'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT, unit_type TEXT, text_id TEXT, start_time REAL, end_time REAL, updated_at TEXT)',
