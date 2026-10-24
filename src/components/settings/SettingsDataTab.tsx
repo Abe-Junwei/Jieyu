@@ -111,6 +111,7 @@ export function SettingsDataTab({ locale, msg, resilienceMsg }: SettingsDataTabP
         <SettingRow label={msg.dataMapStyleLabel}>
           <select
             className="settings-select"
+            aria-label={msg.dataMapStyleLabel}
             value={mapProviderDefault.styleId}
             onChange={(e) => handleMapProviderStyleChange(e.currentTarget.value)}
           >
@@ -192,6 +193,7 @@ export function SettingsDataTab({ locale, msg, resilienceMsg }: SettingsDataTabP
               <button
                 type="button"
                 className="settings-link-btn"
+                aria-label={`${msg[entry.msgKey]} ${msg.dataClearBtn}`}
                 onClick={() => handleClearCache(entry)}
               >
                 {msg.dataClearBtn}
