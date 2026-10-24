@@ -64,6 +64,7 @@ export const AiAnalysisPanelAcousticProviderSection = memo(
                 <span className="transcription-analysis-stats-value">
                   {onChangeAcousticProvider ? (
                     <select
+                      aria-label={t(locale, 'ai.acoustic.providerEnhanced')}
                       className="transcription-analysis-acoustic-preset-select"
                       value={acousticProviderPreference ?? PROVIDER_PREFERENCE_AUTO}
                       onChange={(event) =>
@@ -94,6 +95,7 @@ export const AiAnalysisPanelAcousticProviderSection = memo(
                 </span>
                 <span className="transcription-analysis-stats-value">
                   <select
+                    aria-label={t(locale, 'ai.acoustic.providerRoutingStrategy')}
                     className="transcription-analysis-acoustic-preset-select"
                     value={providerRuntimeConfig.routingStrategy}
                     onChange={handleProviderRoutingStrategyChange}

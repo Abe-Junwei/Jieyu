@@ -1,0 +1,188 @@
+[
+  {
+    "width": 1440,
+    "height": 1000,
+    "scale": 1,
+    "bounds": [
+      {
+        "selector": ".transcription-chat-window",
+        "rect": {
+          "x": 784,
+          "y": 186,
+          "width": 480,
+          "height": 518,
+          "bottom": 704,
+          "right": 1264
+        }
+      },
+      {
+        "selector": ".transcription-acoustic-inspector",
+        "rect": {
+          "x": 324,
+          "y": 549,
+          "width": 1116,
+          "height": 400,
+          "bottom": 949,
+          "right": 1440
+        }
+      },
+      {
+        "selector": ".transcription-list-main",
+        "rect": {
+          "x": 324,
+          "y": 330.5,
+          "width": 1116,
+          "height": 218.5,
+          "bottom": 549,
+          "right": 1440
+        }
+      },
+      {
+        "selector": ".transcription-waveform-area",
+        "rect": {
+          "x": 324,
+          "y": 122.5,
+          "width": 1116,
+          "height": 181,
+          "bottom": 303.5,
+          "right": 1440
+        }
+      },
+      {
+        "selector": ".transcription-list-toolbar",
+        "rect": {
+          "x": 324,
+          "y": 949,
+          "width": 1116,
+          "height": 51,
+          "bottom": 1000,
+          "right": 1440
+        }
+      }
+    ]
+  },
+  {
+    "width": 1280,
+    "height": 720,
+    "scale": 1,
+    "bounds": [
+      {
+        "selector": ".transcription-chat-window",
+        "rect": {
+          "x": 784,
+          "y": 186,
+          "width": 480,
+          "height": 518,
+          "bottom": 704,
+          "right": 1264
+        }
+      },
+      {
+        "selector": ".transcription-acoustic-inspector",
+        "rect": {
+          "x": 324,
+          "y": 381.5,
+          "width": 956,
+          "height": 288,
+          "bottom": 669.5,
+          "right": 1280
+        }
+      },
+      {
+        "selector": ".transcription-list-main",
+        "rect": {
+          "x": 324,
+          "y": 332.09375,
+          "width": 956,
+          "height": 49.40625,
+          "bottom": 381.5,
+          "right": 1280
+        }
+      },
+      {
+        "selector": ".transcription-waveform-area",
+        "rect": {
+          "x": 324,
+          "y": 124.09375,
+          "width": 956,
+          "height": 181,
+          "bottom": 305.09375,
+          "right": 1280
+        }
+      },
+      {
+        "selector": ".transcription-list-toolbar",
+        "rect": {
+          "x": 324,
+          "y": 669.5,
+          "width": 956,
+          "height": 51,
+          "bottom": 720.5,
+          "right": 1280
+        }
+      }
+    ]
+  },
+  {
+    "width": 1280,
+    "height": 720,
+    "scale": 1.4,
+    "bounds": [
+      {
+        "selector": ".transcription-chat-window",
+        "rect": {
+          "x": 784,
+          "y": 186,
+          "width": 480,
+          "height": 518,
+          "bottom": 704,
+          "right": 1264
+        }
+      },
+      {
+        "selector": ".transcription-acoustic-inspector",
+        "rect": {
+          "x": 324,
+          "y": 389.296875,
+          "width": 956,
+          "height": 288,
+          "bottom": 677.296875,
+          "right": 1280
+        }
+      },
+      {
+        "selector": ".transcription-list-main",
+        "rect": {
+          "x": 324,
+          "y": 380.34375,
+          "width": 956,
+          "height": 8.953125,
+          "bottom": 389.296875,
+          "right": 1280
+        }
+      },
+      {
+        "selector": ".transcription-waveform-area",
+        "rect": {
+          "x": 324,
+          "y": 172.34375,
+          "width": 956,
+          "height": 181,
+          "bottom": 353.34375,
+          "right": 1280
+        }
+      },
+      {
+        "selector": ".transcription-list-toolbar",
+        "rect": {
+          "x": 324,
+          "y": 677.296875,
+          "width": 956,
+          "height": 51,
+          "bottom": 728.296875,
+          "right": 1280
+        }
+      }
+    ]
+  }
+]

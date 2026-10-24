@@ -20,6 +20,7 @@ depends_on:
 - 风险：窗口遮挡未必是标准违规；200%缩放不同于应用字体倍率；旧主题、异步保存/项目切换、IME和RTL易回归。
 - 决定：**复用+适配**现有系统；先证实修正再上外观，无新UI依赖，无包体/许可/维护增量。
 - 展开侧栏修复：按 [React 外部订阅](https://react.dev/reference/react/useSyncExternalStore)分离标题与内容订阅，固定 snapshot 身份直至内容变更，避免内容变化重绘整个壳层；按 [APG Tabs](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/)补竖向标签焦点与关联。沿用已有滚动容器，禁止用多层卡片掩盖收缩和空态问题。
+- 转写组合修复：复用`useFocusTrap`与DialogShell的containerRef；输入法和已消费事件优先于浮窗快捷键。声学检查器可收缩、正文滚动，时间轴保留最小操作区；网格行使用minmax(0,1fr)防止内容最小尺寸撑出视口。对读原文读取子段自己的内容，不借用共享父句文本。
 
 ## 2. 架构选择
 

@@ -166,6 +166,8 @@ export function useTranscriptionChatWindowLayout({
   useEffect(() => {
     if (!isMounted || typeof window === 'undefined') return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
+      if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
       const action = resolveChatWindowKeyboardAction(
         openRef.current,
         minimizedRef.current,

@@ -16,6 +16,7 @@
 - `ui-ux-execution/report.md`、`before/`、`verified/`：首批审查与修复证据，对应 `d605753b`。
 - `sidebar-audit/report.md`、`confirmed/`：侧栏修复前的确认数据与截图。
 - `sidebar-fixes/report.md`、`final-e2e/`：侧栏修复结果，对应 `f960c901`；最终完整E2E关闭重试112通过/1既有跳过。
+- `transcription-workflow/report.md`、`red/`、`final-e2e/`：转写保存、多面板与焦点修复；最终完整E2E关闭重试115通过/1既有跳过，另有播放计时/定位加强验证。
 - 正式自动回归入口是 `tests/e2e/sidebarContent.spec.ts`；侧栏临时采集脚本只用于复现审查，不能代替缺陷断言。
 
 ## 版本控制边界

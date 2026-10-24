@@ -74,6 +74,32 @@ describe('TranscriptionPageChatWindow agent-loop resume bridge', () => {
     window.localStorage.removeItem('jieyu.aiChatWindow.v1');
   });
 
+  it('leaves composing and already-handled shortcuts to their current control', async () => {
+    render(
+      <TranscriptionPageChatWindow
+        locale="zh-CN"
+        assistantRuntimeProps={makeAssistantRuntimeProps()}
+      />,
+    );
+    fireEvent.click(
+      document.querySelector('.transcription-chat-window-trigger') as HTMLButtonElement,
+    );
+    await waitFor(() =>
+      expect(document.querySelector('.transcription-chat-window')).not.toBeNull(),
+    );
+    const panel = document.querySelector('.transcription-chat-window') as HTMLElement;
+    fireEvent.keyDown(panel, { key: 'Escape', isComposing: true });
+    expect(panel.classList.contains('is-minimized')).toBe(false);
+    const handled = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    handled.preventDefault();
+    fireEvent(panel, handled);
+    expect(panel.classList.contains('is-minimized')).toBe(false);
+  });
+
   it('stores requested task id and sends default resume input when resume event arrives', async () => {
     const onSendAiMessage = vi.fn(async () => undefined);
     render(
