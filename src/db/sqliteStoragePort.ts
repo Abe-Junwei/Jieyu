@@ -5,15 +5,14 @@
  * 语段编号和锚点只读 `.jyd` 已有的列。词连语段的 text_id 计数，不读整行。
  * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
  * 另一项目的录音用这一行已有的 text_id 辨认。去掉一条空录音先改文稿，再改项目库（ADR-0076）。
- * 文稿改挂录音只改一份 `.jyd`，已有的是替换（ADR-0077）。
- * 语段关系和父子链接只写在同一份文稿里（ADR-0078）。
- * 会话和消息写在项目库里（ADR-0080）。
- * 桌面壳只在开关打开时经 IPC 安装（ADR-0079）。默认不安装。
+ * 文稿改挂录音只改一份 `.jyd`，已有的是替换（ADR-0077）。语段关系和父子链接只写在同一份文稿里（ADR-0078）。
+ * 会话和消息写在项目库里（ADR-0080）。桌面壳只在开关打开时经 IPC 安装（ADR-0079）。默认不安装。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { aiConversationMethods } from './sqliteAiConversations';
 import { anchorCountMethods } from './sqliteAnchors';
+import { auditListMethods } from './sqliteAuditLogs';
 import { layerUnitIdMethods } from './sqliteLayerUnitIds';
 import { replaceManuscriptAudioInProject } from './sqliteManuscriptAudio';
 import {
@@ -278,6 +277,7 @@ export function openSqliteStoragePort(
     ...layerUnitIdMethods(projectDir),
     ...anchorCountMethods(projectDir),
     ...tokenCountMethods(projectDir),
+    ...auditListMethods(db),
     ...aiConversationMethods(requireProject),
   };
 

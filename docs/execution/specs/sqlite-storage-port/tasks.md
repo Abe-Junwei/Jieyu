@@ -3,7 +3,7 @@ title: sqlite-storage-port tasks
 doc_type: execution-spec-tasks
 status: draft
 owner: repo
-last_reviewed: 2026-10-23
+last_reviewed: 2026-10-24
 source_of_truth: sqlite-storage-port-spec
 depends_on:
   - ./requirements.md
@@ -29,6 +29,7 @@ depends_on:
 - [x] 另一项目的语段：按已有的 `text_id` 列出。空的项目编号跳过，缺行跳过。同一个编号在两份文稿里就拒绝 → 验证：`npx vitest run src/db/sqliteLayerUnitIds.test.ts`
 - [x] 锚点计数：按 `.jyd` 里已有的 `media_id` 数。空白编号是 0。同一个编号在两份文稿里又落在同一条录音上就拒绝。不另加列，不进子目录 → 验证：`npx vitest run src/db/sqliteAnchors.test.ts`
 - [x] 词计数：按语段已有的 `text_id` 数。空白编号是 0。没有对应语段的行不数。同一个编号在两份文稿里又属于同一项目就拒绝。不另加列，不读整行，不进子目录 → 验证：`npx vitest run src/db/sqliteUnitTokens.test.ts`
+- [x] 审计列表：读 userData 里已有的 `payload_json`。按 collection，或 collection、field、requestId 一起过滤。空白查询是空列表。不另加列 → 验证：`npx vitest run src/db/sqliteAuditLogs.test.ts`
 - [x] 私密审查回归：说话人分配在任何写入前拒绝外项目语段，关闭重开确认语段、副本、名单不变；轨道车道锁保留 `__proto__`，写入并关闭重开读回 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
 - [ ] 其余项目库和 `.jyd` 上的业务操作 → 验证：这些方法不再拒绝
 - [x] 桌面壳 `installStoragePort` 换上这个实现，默认仍不在浏览器里启用 → 验证：`npm run desktop:smoke` 写入一条回合，关掉再打开读回
