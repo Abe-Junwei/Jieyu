@@ -4,6 +4,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { requestPlayUnitRange } from './transcription/playUnitRange';
 import { useWaveformBridgeSegmentPlaybackControls } from './waveformBridgeSegmentPlaybackControls';
+import { emitDefaultPlaybackRateChanged } from '~/utils/workspaceLayoutPreferenceSync';
 
 describe('useWaveformBridgeSegmentPlaybackControls', () => {
   it('does not repeatedly zoomToUnit for the same selected segment in fit-selection mode', () => {
@@ -18,6 +19,7 @@ describe('useWaveformBridgeSegmentPlaybackControls', () => {
         seekTo,
         stop: vi.fn(),
         playRegion: vi.fn(),
+        setPlaybackRate: vi.fn(),
       },
       segmentLoopPlayback: false,
       setSegmentLoopPlayback: vi.fn(),
@@ -65,6 +67,7 @@ describe('useWaveformBridgeSegmentPlaybackControls', () => {
         seekTo: vi.fn(),
         stop: vi.fn(),
         playRegion,
+        setPlaybackRate: vi.fn(),
       },
       segmentLoopPlayback: false,
       setSegmentLoopPlayback: vi.fn(),
@@ -84,5 +87,41 @@ describe('useWaveformBridgeSegmentPlaybackControls', () => {
     requestPlayUnitRange(1.25, 2.5);
     rerender(makeInput('seg-2', { startTime: 1.25, endTime: 2.5 }));
     expect(playRegion).toHaveBeenCalledWith(1.25, 2.5, true);
+  });
+
+  it('applies a settings playback-rate change without switching units', () => {
+    localStorage.setItem('jieyu:default-playback-rate', '1');
+    const setSegmentPlaybackRate = vi.fn();
+    const setPlaybackRate = vi.fn();
+    renderHook(() =>
+      useWaveformBridgeSegmentPlaybackControls({
+        player: {
+          instanceRef: { current: null },
+          isReady: true,
+          isPlaying: false,
+          seekTo: vi.fn(),
+          stop: vi.fn(),
+          playRegion: vi.fn(),
+          setPlaybackRate,
+        },
+        segmentLoopPlayback: false,
+        setSegmentLoopPlayback: vi.fn(),
+        setSegmentPlaybackRate,
+        selectedWaveformTimelineItem: null,
+        subSelectionRange: null,
+        selectedTimelineUnitId: 'seg-1',
+        zoomMode: 'fit-selection',
+        selectedTimelineUnitForTime: { startTime: 0, endTime: 1 },
+        zoomToUnit: vi.fn(),
+        skipSeekForIdRef: { current: null },
+      }),
+    );
+    setSegmentPlaybackRate.mockClear();
+    setPlaybackRate.mockClear();
+    localStorage.setItem('jieyu:default-playback-rate', '1.5');
+    emitDefaultPlaybackRateChanged();
+    expect(setSegmentPlaybackRate).toHaveBeenCalledWith(1.5);
+    expect(setPlaybackRate).toHaveBeenCalledWith(1.5);
+    localStorage.removeItem('jieyu:default-playback-rate');
   });
 });
