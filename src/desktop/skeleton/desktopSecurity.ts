@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 /** Linux `basic_text` encrypts with a hardcoded password, so real runs must not store keys with it. */
 export function secretStoreRefusal(
   encryptionAvailable: boolean,
@@ -23,6 +25,14 @@ export function isAllowedAiOutboundUrl(url: string, configuredOrigins: readonly 
   if (parsed.username !== '' || parsed.password !== '') return false;
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
   return configuredOrigins.includes(parsed.origin);
+}
+
+/** Exact resolved path. A prefix, `..`, or a sibling name does not match. */
+export function isAllowedProjectFolder(folder: string, allowedFolders: readonly string[]): boolean {
+  if (folder.length === 0) return false;
+  const resolved = path.resolve(folder);
+  if (resolved === path.parse(resolved).root) return false;
+  return allowedFolders.some((allowed) => allowed.length > 0 && path.resolve(allowed) === resolved);
 }
 
 /** Only same-document file loads or same-origin http(s) loads may replace the app page. */

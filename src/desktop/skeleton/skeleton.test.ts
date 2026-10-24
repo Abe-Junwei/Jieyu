@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DESKTOP_CSP } from './desktopCsp';
-import { isAllowedAiOutboundUrl, isAppNavigation, secretStoreRefusal } from './desktopSecurity';
+import {
+  isAllowedAiOutboundUrl,
+  isAllowedProjectFolder,
+  isAppNavigation,
+  secretStoreRefusal,
+} from './desktopSecurity';
 import { sliceForRange } from './mediaRange';
 import { openProjectFolder } from './openProject';
 import { writeProbeAndReadBack } from './probeStore';
@@ -41,6 +46,21 @@ describe('desktop skeleton', () => {
     expect(isAllowedAiOutboundUrl('http://user:pass@127.0.0.1:4312/stream', allowed)).toBe(false);
     expect(isAllowedAiOutboundUrl('file:///etc/passwd', allowed)).toBe(false);
     expect(isAllowedAiOutboundUrl('http://127.0.0.1:4312/stream', [])).toBe(false);
+  });
+
+  it('rejects a project folder main did not grant', () => {
+    const granted = path.resolve(path.join(tempDir(), 'notes'));
+    expect(isAllowedProjectFolder(granted, [granted])).toBe(true);
+    expect(isAllowedProjectFolder(`${granted}${path.sep}`, [granted])).toBe(true);
+    expect(
+      isAllowedProjectFolder(path.join(granted, '..', path.basename(granted)), [granted]),
+    ).toBe(true);
+    expect(isAllowedProjectFolder(path.join(granted, 'child'), [granted])).toBe(false);
+    expect(isAllowedProjectFolder(`${granted}-evil`, [granted])).toBe(false);
+    expect(isAllowedProjectFolder(path.parse(granted).root, [path.parse(granted).root])).toBe(
+      false,
+    );
+    expect(isAllowedProjectFolder(granted, [])).toBe(false);
   });
 
   it('only allows navigation that stays on the app page', () => {
