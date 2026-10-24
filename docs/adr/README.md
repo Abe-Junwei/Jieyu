@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-22
+last_reviewed: 2026-10-24
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0081**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0082**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -50,6 +50,7 @@ source_of_truth: decision-index
 | 跨文稿关系                                                                                                                                                | ADR-0078：语段关系和父子链接只写在同一份 `.jyd` 里。两端不在同一份文稿就不写                                                                                                                             | 把跨文稿关系放进项目库，或改浏览器里已有的关系写入                                                                       |
 | 桌面壳安装 SQLite 存储接口                                                                                                                                | ADR-0079：开关默认关。打开时渲染进程每个方法一次 IPC，主进程打开调用方传入的 userData 库和已锁定文件夹里的 `project.sqlite`。浏览器不安装                                                                | 默认打开，或只打开 userData，或把 userData 放进项目文件夹                                                                |
 | 会话和消息                                                                                                                                                | ADR-0080：会话和消息留在项目库。可空的创建时间和更新时间给活的读写用。迁移不读这两列。引用和推理正文不进消息行                                                                                           | 把会话放进 userData，或为引用另加 JSON 列                                                                                |
+| 产物创建时间                                                                                                                                              | ADR-0081：项目库 `agent_artifacts` 另加可空的 `created_at`。迁移不读这列，旧库不加列。空的创建时间拒绝读取。写入先提交产物，再提交 userData 里的审计；审计失败时产物留下                                 | 从审计行反推创建时间，把时间塞进 `body_json`，或打开旧库时 `ALTER TABLE`                                                 |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -132,6 +133,7 @@ source_of_truth: decision-index
 - [0078-cross-manuscript-links-refused.md](./0078-cross-manuscript-links-refused.md)
 - [0079-desktop-shell-installs-sqlite-storage-port.md](./0079-desktop-shell-installs-sqlite-storage-port.md)
 - [0080-conversations-stay-in-project-library.md](./0080-conversations-stay-in-project-library.md)
+- [0081-agent-artifact-created-at.md](./0081-agent-artifact-created-at.md)
 
 ## 已关闭的另一套编号
 
