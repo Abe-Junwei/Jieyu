@@ -1,0 +1,19 @@
+{
+  "name": "jieyu-user-guide",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "解语（Jieyu）使用说明站点。VitePress 源码在本目录，不进入仓库 docs/。",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  }
+}

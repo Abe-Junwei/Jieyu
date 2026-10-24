@@ -14,6 +14,8 @@
 - 安全漏洞（请私下报告）：[SECURITY.md](SECURITY.md)
 - 社区行为准则：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - 文档总索引：[docs/README.md](docs/README.md)
+- 使用说明（使用者，VitePress）：[user-guide/README.md](user-guide/README.md)。发布地址在开启 Pages 后为 <https://abe-junwei.github.io/Jieyu/>
+- 开发者文档（DeepWiki）：<https://deepwiki.com/Abe-Junwei/Jieyu>
 - 学术引用：[CITATION.cff](CITATION.cff)
 
 Node 版本与常用门禁命令见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
