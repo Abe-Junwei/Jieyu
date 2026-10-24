@@ -1,0 +1,907 @@
+[
+  {
+    "name": "home",
+    "width": 1440,
+    "height": 900,
+    "paneWidth": 272,
+    "scale": 1,
+    "geometry": {
+      "text": "Project\n\nNew project\nsidebar-audit\nOct 24, 02:00 PM\nActive\n···",
+      "width": 272,
+      "height": 871.5,
+      "children": [
+        {
+          "className": "home-workbench-roster",
+          "top": 82,
+          "bottom": 892,
+          "height": 810,
+          "width": 259,
+          "scrollHeight": 810,
+          "clientHeight": 810,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "auto"
+        }
+      ]
+    }
+  },
+  {
+    "name": "transcription",
+    "width": 1440,
+    "height": 900,
+    "paneWidth": 272,
+    "scale": 1,
+    "geometry": {
+      "text": "Text Layer Workspace\n\nLayer list, current layer details and quick actions\n\nPROJECT FILES\nAudio\nsidebar-audit.wav\nAnnotation\n✎\nEAF\nsidebar.eaf\nAnnotation\n✎\n⠇\nChinese zho\nChinese Simplified Standard Orthography\n·Independent boundary\n⠇\nFrench fra\nFrench Standard Orthography\n·Symbolic association\n·Host transcription layer：Chinese★\nFind\nSource\nWord\nMorpheme\nHide ungrammatical\nCharacter variants\nFilters\n▾\n00:00.0 – 00:01.0\nSidebar review sentence\nLAYER MANAGEMENT QUICK ACTIONS\nConstraint repair",
+      "width": 272,
+      "height": 777.5,
+      "children": [
+        {
+          "className": "transcription-side-pane-portaled-stack",
+          "top": 206.78125,
+          "bottom": 884,
+          "height": 677.21875,
+          "width": 259,
+          "scrollHeight": 677,
+          "clientHeight": 677,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "auto"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-files-group",
+          "top": 206.78125,
+          "bottom": 357.375,
+          "height": 150.59375,
+          "width": 259,
+          "scrollHeight": 149,
+          "clientHeight": 149,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-layer-group",
+          "top": 365.375,
+          "bottom": 453.46875,
+          "height": 88.09375,
+          "width": 259,
+          "scrollHeight": 87,
+          "clientHeight": 87,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-segment-list-group",
+          "top": 630.96875,
+          "bottom": 719.765625,
+          "height": 88.796875,
+          "width": 259,
+          "scrollHeight": 88,
+          "clientHeight": 88,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-segment-list-scroll",
+          "top": 672.96875,
+          "bottom": 718.765625,
+          "height": 45.796875,
+          "width": 259,
+          "scrollHeight": 46,
+          "clientHeight": 46,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "auto"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group",
+          "top": 727.765625,
+          "bottom": 828.953125,
+          "height": 101.1875,
+          "width": 259,
+          "scrollHeight": 99,
+          "clientHeight": 99,
+          "scrollWidth": 257,
+          "clientWidth": 257,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "annotation",
+    "width": 1440,
+    "height": 900,
+    "paneWidth": 272,
+    "scale": 1,
+    "geometry": {
+      "text": "Annotation workspace\n\nCurrent scope and IGT list\n\nPROJECT FILES\nAudio\nsidebar-audit.wav\nTranscription\n✎\nEAF\nsidebar.eaf\nTranscription\n✎\nIGT editing\n\n1 units\n\nOpen transcription workspace\n\nValidator template: system.leipzig-structural.v1\n\nOpen annotation template\nFind\nSource\nWord\nMorpheme\nHide ungrammatical\nCharacter variants\nWaveform\nSpectrogram\nPitch\n\nCurrent scope\n\nSplit into words\nApply retokenize\nTranscription note\nTranslation note\nNote\nNote category\nComment\nQuestion\nTodo\nLinguistic\nFieldwork\nCorrection\nSave note\nUngrammatical\nAddressee\nActual form\nTarget form\nSelf-certainty\nUnset\nNot understood\nUncertain\nCertain",
+      "width": 272,
+      "height": 871.5,
+      "children": [
+        {
+          "className": "annotation-side-pane-portaled-stack",
+          "top": 95.390625,
+          "bottom": 884,
+          "height": 788.609375,
+          "width": 259,
+          "scrollHeight": 789,
+          "clientHeight": 789,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-files-group",
+          "top": 95.390625,
+          "bottom": 202.671875,
+          "height": 107.28125,
+          "width": 259,
+          "scrollHeight": 105,
+          "clientHeight": 105,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "annotation-document-tools",
+          "top": 212.671875,
+          "bottom": 884,
+          "height": 671.328125,
+          "width": 259,
+          "scrollHeight": 943,
+          "clientHeight": 671,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "auto"
+        }
+      ]
+    }
+  },
+  {
+    "name": "lexicon",
+    "width": 1440,
+    "height": 900,
+    "paneWidth": 272,
+    "scale": 1,
+    "geometry": {
+      "text": "Lexicon Workspace\n\nCurrent entry, filtered scope, and quick access\n\nCURRENT ENTRY\n\nNo lexeme exists in the lexicon yet. Import, annotation backlinks, or manual creation can fill this later.\n\nQUICK ACCESS\nBack to available workspace\nOpen orthography manager",
+      "width": 272,
+      "height": 871.5,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 120.78125,
+          "bottom": 343.96875,
+          "height": 223.1875,
+          "width": 259,
+          "scrollHeight": 223,
+          "clientHeight": 223,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 120.78125,
+          "bottom": 211.375,
+          "height": 90.59375,
+          "width": 259,
+          "scrollHeight": 89,
+          "clientHeight": 89,
+          "scrollWidth": 257,
+          "clientWidth": 257,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 219.375,
+          "bottom": 343.96875,
+          "height": 124.59375,
+          "width": 259,
+          "scrollHeight": 123,
+          "clientHeight": 123,
+          "scrollWidth": 257,
+          "clientWidth": 257,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "corpus",
+    "width": 1440,
+    "height": 900,
+    "paneWidth": 272,
+    "scale": 1,
+    "geometry": {
+      "text": "Corpus library\n\nCurrent scope and workset\n\nCURRENT SCOPE\nTemporary workset (not saved)\n\n0 units\n\n0 selected\n\nOpen transcription workspace",
+      "width": 272,
+      "height": 871.5,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 103.390625,
+          "bottom": 220.484375,
+          "height": 117.09375,
+          "width": 259,
+          "scrollHeight": 117,
+          "clientHeight": 117,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 103.390625,
+          "bottom": 220.484375,
+          "height": 117.09375,
+          "width": 259,
+          "scrollHeight": 115,
+          "clientHeight": 115,
+          "scrollWidth": 257,
+          "clientWidth": 257,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "analysis",
+    "width": 1440,
+    "height": 900,
+    "paneWidth": 272,
+    "scale": 1,
+    "geometry": {
+      "text": "Analysis\n\nCurrent corpus scope\n\nCURRENT SCOPE\nRestricted workspace\n\n0 units\n\nOpen transcription workspace",
+      "width": 272,
+      "height": 871.5,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 103.390625,
+          "bottom": 202.484375,
+          "height": 99.09375,
+          "width": 259,
+          "scrollHeight": 99,
+          "clientHeight": 99,
+          "scrollWidth": 259,
+          "clientWidth": 259,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 103.390625,
+          "bottom": 202.484375,
+          "height": 99.09375,
+          "width": 259,
+          "scrollHeight": 97,
+          "clientHeight": 97,
+          "scrollWidth": 257,
+          "clientWidth": 257,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "home",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 240,
+    "scale": 1,
+    "geometry": {
+      "text": "Project\n\nNew project\nsidebar-audit\nOct 24, 02:00 PM\nActive\n···",
+      "width": 240,
+      "height": 691.5,
+      "children": [
+        {
+          "className": "home-workbench-roster",
+          "top": 82,
+          "bottom": 712,
+          "height": 630,
+          "width": 227,
+          "scrollHeight": 630,
+          "clientHeight": 630,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "auto"
+        }
+      ]
+    }
+  },
+  {
+    "name": "transcription",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 240,
+    "scale": 1,
+    "geometry": {
+      "text": "Text Layer Workspace\n\nLayer list, current layer details and quick actions\n\nPROJECT FILES\nAudio\nsidebar-audit.wav\nAnnotation\n✎\nEAF\nsidebar.eaf\nAnnotation\n✎\n⠇\nChinese zho\nChinese Simplified Standard Orthography\n·Independent boundary\n⠇\nFrench fra\nFrench Standard Orthography\n·Symbolic association\n·Host transcription layer：Chinese★\nFind\nSource\nWord\nMorpheme\nHide ungrammatical\nCharacter variants\nFilters\n▾\n00:00.0 – 00:01.0\nSidebar review sentence\nLAYER MANAGEMENT QUICK ACTIONS\nConstraint repair",
+      "width": 240,
+      "height": 595.5,
+      "children": [
+        {
+          "className": "transcription-side-pane-portaled-stack",
+          "top": 208.78125,
+          "bottom": 704,
+          "height": 495.21875,
+          "width": 227,
+          "scrollHeight": 495,
+          "clientHeight": 495,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "auto"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-files-group",
+          "top": 208.78125,
+          "bottom": 321.875,
+          "height": 113.09375,
+          "width": 227,
+          "scrollHeight": 111,
+          "clientHeight": 111,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-layer-group",
+          "top": 329.875,
+          "bottom": 373.421875,
+          "height": 43.546875,
+          "width": 227,
+          "scrollHeight": 43,
+          "clientHeight": 43,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-segment-list-group",
+          "top": 550.921875,
+          "bottom": 594.8125,
+          "height": 43.890625,
+          "width": 227,
+          "scrollHeight": 43,
+          "clientHeight": 43,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-segment-list-scroll",
+          "top": 592.921875,
+          "bottom": 593.8125,
+          "height": 0.890625,
+          "width": 227,
+          "scrollHeight": 46,
+          "clientHeight": 1,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "auto"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group",
+          "top": 602.8125,
+          "bottom": 704,
+          "height": 101.1875,
+          "width": 227,
+          "scrollHeight": 99,
+          "clientHeight": 99,
+          "scrollWidth": 225,
+          "clientWidth": 225,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "annotation",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 240,
+    "scale": 1,
+    "geometry": {
+      "text": "Annotation workspace\n\nCurrent scope and IGT list\n\nPROJECT FILES\nAudio\nsidebar-audit.wav\nTranscription\n✎\nEAF\nsidebar.eaf\nTranscription\n✎\nIGT editing\n\n1 units\n\nOpen transcription workspace\n\nValidator template: system.leipzig-structural.v1\n\nOpen annotation template\nFind\nSource\nWord\nMorpheme\nHide ungrammatical\nCharacter variants\nWaveform\nSpectrogram\nPitch\n\nCurrent scope\n\nSplit into words\nApply retokenize\nTranscription note\nTranslation note\nNote\nNote category\nComment\nQuestion\nTodo\nLinguistic\nFieldwork\nCorrection\nSave note\nUngrammatical\nAddressee\nActual form\nTarget form\nSelf-certainty\nUnset\nNot understood\nUncertain\nCertain",
+      "width": 240,
+      "height": 691.5,
+      "children": [
+        {
+          "className": "annotation-side-pane-portaled-stack",
+          "top": 95.390625,
+          "bottom": 704,
+          "height": 608.609375,
+          "width": 227,
+          "scrollHeight": 609,
+          "clientHeight": 609,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-files-group",
+          "top": 95.390625,
+          "bottom": 169.984375,
+          "height": 74.59375,
+          "width": 227,
+          "scrollHeight": 73,
+          "clientHeight": 73,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "annotation-document-tools",
+          "top": 179.984375,
+          "bottom": 704,
+          "height": 524.015625,
+          "width": 227,
+          "scrollHeight": 1060,
+          "clientHeight": 524,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "auto"
+        }
+      ]
+    }
+  },
+  {
+    "name": "lexicon",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 240,
+    "scale": 1,
+    "geometry": {
+      "text": "Lexicon Workspace\n\nCurrent entry, filtered scope, and quick access\n\nCURRENT ENTRY\n\nNo lexeme exists in the lexicon yet. Import, annotation backlinks, or manual creation can fill this later.\n\nQUICK ACCESS\nBack to available workspace\nOpen orthography manager",
+      "width": 240,
+      "height": 691.5,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 120.78125,
+          "bottom": 391.96875,
+          "height": 271.1875,
+          "width": 227,
+          "scrollHeight": 271,
+          "clientHeight": 271,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 120.78125,
+          "bottom": 211.375,
+          "height": 90.59375,
+          "width": 227,
+          "scrollHeight": 89,
+          "clientHeight": 89,
+          "scrollWidth": 225,
+          "clientWidth": 225,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 219.375,
+          "bottom": 391.96875,
+          "height": 172.59375,
+          "width": 227,
+          "scrollHeight": 171,
+          "clientHeight": 171,
+          "scrollWidth": 225,
+          "clientWidth": 225,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "corpus",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 240,
+    "scale": 1,
+    "geometry": {
+      "text": "Corpus library\n\nCurrent scope and workset\n\nCURRENT SCOPE\nTemporary workset (not saved)\n\n0 units\n\n0 selected\n\nOpen transcription workspace",
+      "width": 240,
+      "height": 691.5,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 103.390625,
+          "bottom": 220.484375,
+          "height": 117.09375,
+          "width": 227,
+          "scrollHeight": 117,
+          "clientHeight": 117,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 103.390625,
+          "bottom": 220.484375,
+          "height": 117.09375,
+          "width": 227,
+          "scrollHeight": 115,
+          "clientHeight": 115,
+          "scrollWidth": 225,
+          "clientWidth": 225,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "analysis",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 240,
+    "scale": 1,
+    "geometry": {
+      "text": "Analysis\n\nCurrent corpus scope\n\nCURRENT SCOPE\nRestricted workspace\n\n0 units\n\nOpen transcription workspace",
+      "width": 240,
+      "height": 691.5,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 103.390625,
+          "bottom": 202.484375,
+          "height": 99.09375,
+          "width": 227,
+          "scrollHeight": 99,
+          "clientHeight": 99,
+          "scrollWidth": 227,
+          "clientWidth": 227,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 103.390625,
+          "bottom": 202.484375,
+          "height": 99.09375,
+          "width": 227,
+          "scrollHeight": 97,
+          "clientHeight": 97,
+          "scrollWidth": 225,
+          "clientWidth": 225,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "home",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 420,
+    "scale": 1.4,
+    "geometry": {
+      "text": "Project\n\nNew project\nsidebar-audit\nOct 24, 02:00 PM\nActive\n···",
+      "width": 420,
+      "height": 683.703125,
+      "children": [
+        {
+          "className": "home-workbench-roster",
+          "top": 98.796875,
+          "bottom": 712,
+          "height": 613.203125,
+          "width": 407,
+          "scrollHeight": 613,
+          "clientHeight": 613,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "auto"
+        }
+      ]
+    }
+  },
+  {
+    "name": "transcription",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 420,
+    "scale": 1.4,
+    "geometry": {
+      "text": "Text Layer Workspace\n\nLayer list, current layer details and quick actions\n\nPROJECT FILES\nAudio\nsidebar-audit.wav\nAnnotation\n✎\nEAF\nsidebar.eaf\nAnnotation\n✎\n⠇\nChinese zho\nChinese Simplified Standard Orthography\n·Independent boundary\n⠇\nFrench fra\nFrench Standard Orthography\n·Symbolic association\n·Host transcription layer：Chinese★\nFind\nSource\nWord\nMorpheme\nHide ungrammatical\nCharacter variants\nFilters\n▾\n00:00.0 – 00:01.0\nSidebar review sentence\nLAYER MANAGEMENT QUICK ACTIONS\nConstraint repair",
+      "width": 420,
+      "height": 547.703125,
+      "children": [
+        {
+          "className": "transcription-side-pane-portaled-stack",
+          "top": 255.140625,
+          "bottom": 704,
+          "height": 448.859375,
+          "width": 407,
+          "scrollHeight": 449,
+          "clientHeight": 449,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "auto"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-files-group",
+          "top": 255.140625,
+          "bottom": 350.34375,
+          "height": 95.203125,
+          "width": 407,
+          "scrollHeight": 93,
+          "clientHeight": 93,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-layer-group",
+          "top": 358.34375,
+          "bottom": 383.28125,
+          "height": 24.9375,
+          "width": 407,
+          "scrollHeight": 24,
+          "clientHeight": 24,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-segment-list-group",
+          "top": 578.53125,
+          "bottom": 601.6875,
+          "height": 23.15625,
+          "width": 407,
+          "scrollHeight": 42,
+          "clientHeight": 22,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-segment-list-scroll",
+          "top": 620.53125,
+          "bottom": 620.53125,
+          "height": 0,
+          "width": 407,
+          "scrollHeight": 58,
+          "clientHeight": 0,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "auto"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group",
+          "top": 609.6875,
+          "bottom": 704,
+          "height": 94.3125,
+          "width": 407,
+          "scrollHeight": 92,
+          "clientHeight": 92,
+          "scrollWidth": 405,
+          "clientWidth": 405,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "annotation",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 420,
+    "scale": 1.4,
+    "geometry": {
+      "text": "Annotation workspace\n\nCurrent scope and IGT list\n\nPROJECT FILES\nAudio\nsidebar-audit.wav\nTranscription\n✎\nEAF\nsidebar.eaf\nTranscription\n✎\nIGT editing\n\n1 units\n\nOpen transcription workspace\n\nValidator template: system.leipzig-structural.v1\n\nOpen annotation template\nFind\nSource\nWord\nMorpheme\nHide ungrammatical\nCharacter variants\nWaveform\nSpectrogram\nPitch\n\nCurrent scope\n\nSplit into words\nApply retokenize\nTranscription note\nTranslation note\nNote\nNote category\nComment\nQuestion\nTodo\nLinguistic\nFieldwork\nCorrection\nSave note\nUngrammatical\nAddressee\nActual form\nTarget form\nSelf-certainty\nUnset\nNot understood\nUncertain\nCertain",
+      "width": 420,
+      "height": 683.703125,
+      "children": [
+        {
+          "className": "annotation-side-pane-portaled-stack",
+          "top": 119.140625,
+          "bottom": 704,
+          "height": 584.859375,
+          "width": 407,
+          "scrollHeight": 585,
+          "clientHeight": 585,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "app-side-pane-group app-side-pane-files-group",
+          "top": 119.140625,
+          "bottom": 201.78125,
+          "height": 82.640625,
+          "width": 407,
+          "scrollHeight": 81,
+          "clientHeight": 81,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "hidden"
+        },
+        {
+          "className": "annotation-document-tools",
+          "top": 211.78125,
+          "bottom": 704,
+          "height": 492.21875,
+          "width": 407,
+          "scrollHeight": 934,
+          "clientHeight": 492,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "auto"
+        }
+      ]
+    }
+  },
+  {
+    "name": "lexicon",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 420,
+    "scale": 1.4,
+    "geometry": {
+      "text": "Lexicon Workspace\n\nCurrent entry, filtered scope, and quick access\n\nCURRENT ENTRY\n\nNo lexeme exists in the lexicon yet. Import, annotation backlinks, or manual creation can fill this later.\n\nQUICK ACCESS\nBack to available workspace\nOpen orthography manager",
+      "width": 420,
+      "height": 683.703125,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 127.140625,
+          "bottom": 359.171875,
+          "height": 232.03125,
+          "width": 407,
+          "scrollHeight": 232,
+          "clientHeight": 232,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 127.140625,
+          "bottom": 220.34375,
+          "height": 93.203125,
+          "width": 407,
+          "scrollHeight": 91,
+          "clientHeight": 91,
+          "scrollWidth": 405,
+          "clientWidth": 405,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 228.34375,
+          "bottom": 359.171875,
+          "height": 130.828125,
+          "width": 407,
+          "scrollHeight": 129,
+          "clientHeight": 129,
+          "scrollWidth": 405,
+          "clientWidth": 405,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "corpus",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 420,
+    "scale": 1.4,
+    "geometry": {
+      "text": "Corpus library\n\nCurrent scope and workset\n\nCURRENT SCOPE\nTemporary workset (not saved)\n\n0 units\n\n0 selected\n\nOpen transcription workspace",
+      "width": 420,
+      "height": 683.703125,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 127.140625,
+          "bottom": 271.453125,
+          "height": 144.3125,
+          "width": 407,
+          "scrollHeight": 144,
+          "clientHeight": 144,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 127.140625,
+          "bottom": 271.453125,
+          "height": 144.3125,
+          "width": 407,
+          "scrollHeight": 142,
+          "clientHeight": 142,
+          "scrollWidth": 405,
+          "clientWidth": 405,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "analysis",
+    "width": 1280,
+    "height": 720,
+    "paneWidth": 420,
+    "scale": 1.4,
+    "geometry": {
+      "text": "Analysis\n\nCurrent corpus scope\n\nCURRENT SCOPE\nRestricted workspace\n\n0 units\n\nOpen transcription workspace",
+      "width": 420,
+      "height": 683.703125,
+      "children": [
+        {
+          "className": "app-side-pane-feature-stack",
+          "top": 127.140625,
+          "bottom": 246.265625,
+          "height": 119.125,
+          "width": 407,
+          "scrollHeight": 119,
+          "clientHeight": 119,
+          "scrollWidth": 407,
+          "clientWidth": 407,
+          "overflowY": "visible"
+        },
+        {
+          "className": "app-side-pane-group",
+          "top": 127.140625,
+          "bottom": 246.265625,
+          "height": 119.125,
+          "width": 407,
+          "scrollHeight": 117,
+          "clientHeight": 117,
+          "scrollWidth": 405,
+          "clientWidth": 405,
+          "overflowY": "visible"
+        }
+      ]
+    }
+  },
+  {
+    "name": "language-metadata",
+    "shell": "Language Metadata Workspace\nclose\nCreate custom language\n\nAfter typing, the workspace auto-focuses the first matched language entry.\n\nChinese\nzho\nFrench\nfra\nChinese\nTemplate\nVisible\nLanguage code\nzho\nCanonical tag · Not set\nLanguage ID (unique identifier)\nzho\nTemplate · Visible\nLanguage affiliation\nNot set\nMaintain the family, subfamily, branch, dialects, vernaculars, macrolanguage, and catalog attributes here; the lineage path is generated automatically from them.\nIdentity and primary names\n\nMaintain the asset ID, language codes, primary labels, aliases, and display-name rows together because they drive default labels across the workspace and search.\n\nLanguage ID (unique identifier)\nLanguage code\nCanonical tag\nCurrent-language name\nEnglish name\nAutonym\nAliases / search labels\n\nComma-separated aliases or search labels\n\nDisplay matrix\n\nEdit only the supplemental display names for the active interface language. Saved names for other interface languages are preserved automatically on save, and the primary name fields remain separate.\n\nStandard identifiers\n\nMaintain ISO, Glottocode, Wikidata, and other external reference identifiers here.\n\nLanguage affiliation\n\nMaintain the family, subfamily, branch, dialects, vernaculars, macrolanguage, and catalog attributes here; the lineage path is generated automatically from them.\n\nFamily\nSubfamily\nBranch\nDialects\nVernaculars\nMacrolanguage\nScope\nNot set\nIndividual\nMacrolanguage\nCollection\nSpecial\nPrivate use\nLanguage type\nNot set\nLiving\nHistorical\nExtinct\nAncient\nConstructed\nSpecial\nVisibility\nVisible\nHidden\nLineage path\nGeography and distribution\n\nMaintain reference coordinates and distribution coverage together so the map preview and region notes stay in sync.\n\nDistribution coverage\n\nMaintain country and macroarea coverage first, then complete state, city, county, township, and village levels with the address-style selector.\n\nMacroarea\nAfrica\nEurasia\nPapunesia\nAustralia\nNorth America\nSouth America\nCountries\nChina\n×\nProject language location\nSearch a place and complete the hierarchy\nSearch\nCountry\nState / province\nCity\nCounty / district\nTownship / town\nVillage\nAdd to list\nClear current selection\nSelected administrative-division entries\nOfficial-status countries (editable)\n\nOverrides the Unicode CLDR officialStatus baseline for search and display; not the same as the “Official status” enum field.\n\nOfficial-status countries (CLDR baseline)\n\nFrom Unicode CLDR supplemental officialStatus data (read-only). Not the same as the “Official status” field below.\n\nNames in UI language\nChina, Hong Kong, Macao, Singapore, +1\nEndonym-style names\nChina / Hong Kong / Macao / Singapore / …\nCoordinates and map\n\nUse coordinates, place search, and basemap settings to define the primary reference point for this language.\n\nLOCATION INPUT\n\nEnter coordinates and place search first, then adjust the basemap settings below.\n\nLatitude\nLongitude\nSearch by place name\n🔍\nBasemap\nOpenStreetMap (free)\nTianditu\nMapTiler\nMAP PREVIEW\n\nPlace the preview below the location inputs so selected or adjusted coordinates can be checked without crowding the editors.\n\nEnter coordinates to show the map preview\n\nUsage and vitality\n\nConsolidates speaker counts, literacy, transmission, domains of use, and official status.\n\nWriting & documentation\n\nTrack writing systems, dialects, and documentation depth for the language.\n\nNotes and audit\n\nKeep durable notes and the current save reason together so review and handoff stay traceable.\n\nCustom fields\n\nAdd custom fields to extend language metadata.\n\nRecent changes\n\nRecent create, update, or delete actions on overrides are summarized here.\n\nThis entry has no persisted history yet.\n\nThis workspace manages language-name matrices, aliases, standard identifiers, and user overrides from one bottom-layer catalog that other surfaces can project from.\n\nReset changes\nSave entry"
+  },
+  {
+    "name": "structural-profiles",
+    "shell": "Structural rules\nclose\nChinese\nzho\nFrench\nfra\nStructural profile\n\nPreview configurable gloss structure rules before they write candidate analysis graphs.\n\nGloss sandbox\nPreview\n\nPick a catalog language, then preview how its resolved structural rule profile parses interlinear gloss strings."
+  },
+  {
+    "name": "orthographies",
+    "shell": "Orthography Manager\nOpen orthography bridge workspace\nclose\nFrench Standard Orthography · Latn · practical\nFrench\nReviewed primary\nLanguage ID (unique identifier)\nfra\nfra-latn\nWriting system\nLatn\nFrench\nType\npractical\nDirection · ltr\nOrthography list\n\nChoose a target orthography first, then inspect its metadata and write bridge rules on the right.\n\nProject languages\nAll\nFrench Standard Orthography · Latn · practical\nFrench\nReviewed primary\nHanyu Pinyin · Latn · practical\nChinese\nReviewed secondary\nChinese Traditional Standard Orthography · Hant · practical\nChinese\nReviewed secondary\nChinese Simplified Standard Orthography · Hans · practical\nChinese\nReviewed primary\nNaming\nLanguage\nSource language code\nLanguage ID (unique identifier)\nWriting system\nType\nPhonemic (phonemic)\nPhonetic (phonetic)\nPractical (practical)\nHistorical (historical)\nOther\nDirection\nLeft-to-right (LTR)\nRight-to-left (RTL)\nTop to bottom\nBottom to top\nAutonym\nEnglish name\nAbbreviation\nLocale\nRegion\nVariant\nRendering\nPrimary fonts\nFallback fonts\nMonospace fonts\nLine-height scale\nSize adjust\nEnable isolation for inline bidirectional text\nPrefer writing dir attribute during render\nAdditional language labels\nAdd language label\nExemplar sets\nExemplar characters\nAuxiliary characters\nNumber exemplars\nPunctuation exemplars\nIndex characters\nAdvanced settings\nReviewed primary · Primary\nReset changes\nSave metadata"
+  },
+  {
+    "name": "orthography-bridges",
+    "shell": "Orthography Bridge Workspace\nclose\nFrench Standard Orthography · Latn · practical\nReviewed primary\nBridge target overview\nFrench Standard Orthography · Latn · practical\nReviewed primary\nLanguage\nFrench\nfra\nLanguage ID (unique identifier)\nfra\nfra-latn\nOpen language metadata workspace\nOpen orthography manager\nTarget orthography list\n\nSelect a target orthography first, then maintain incoming bridge rules on the right.\n\nProject languages\nAll\nFrench Standard Orthography · Latn · practical\nfra\nHanyu Pinyin · Latn · practical\nzho\nChinese Traditional Standard Orthography · Hant · practical\nzho\nChinese Simplified Standard Orthography · Hans · practical\nzho\nBridge manager\n\nMaintain source language, source orthography, rule text, examples, and activation state here.\n\nNew rule\nTarget orthography\nFrench Standard Orthography · Latn · practical\nReviewed primary\n\nNo inbound bridge rule is configured for this orthography yet. Imports and automated writes will keep the original text."
+  },
+  {
+    "name": "lexicon-gloss-update",
+    "sidebar": "Lexicon Workspace\n\nSidebar review long headword with several words\n\nCURRENT ENTRY\nSkeleton\n\nSidebar review long headword with several words\n\noriginal glossary\n\n1 entries match the current filter; this side pane can later host entry editing and backlink entry points.\n\nQUICK ACCESS\nBack to available workspace\nOpen orthography manager",
+    "editor": "updated glossary"
+  },
+  {
+    "name": "lexicon-long-summary",
+    "bounds": {
+      "height": 855.6875,
+      "bottom": 959.078125,
+      "scrollHeight": 856,
+      "parentBottom": 712,
+      "parentOverflow": "hidden"
+    }
+  },
+  {
+    "name": "corpus-basket-update",
+    "before": "Corpus library\n\nCurrent scope and workset\n\nCURRENT SCOPE\nTemporary workset (not saved)\n\n0 units\n\n0 selected\n\nOpen transcription workspace",
+    "after": "Corpus library\n\nCurrent scope and workset\n\nCURRENT SCOPE\nTemporary workset (not saved)\n\n0 units\n\n0 selected\n\nOpen transcription workspace"
+  },
+  {
+    "name": "settings-arrow-key",
+    "focused": "Appearance",
+    "selected": "Appearance"
+  }
+]

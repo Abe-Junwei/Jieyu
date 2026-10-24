@@ -1,0 +1,178 @@
+
+ RUN  v4.1.11 /Users/junwei/开发/Jieyu
+
+ ❯ src/components/SettingsModal.test.tsx (29 tests | 1 failed) 602ms
+     ✓ renders icon effect toggle (Material vs motion) 115ms
+     ✓ renders theme and font-scale settings 12ms
+     ✓ persists selected accent color to localStorage and root attribute 26ms
+     ✓ calls onThemeChange when clicking theme option 9ms
+     ✓ calls onFontScaleModeChange when toggling font mode 26ms
+     ✓ renders section title above section body 8ms
+     ✓ renders locale options 13ms
+     ✓ calls onLocaleChange when clicking locale option 12ms
+     ✓ shows keybinding entries grouped by category 10ms
+     ✓ enters editing mode on kbd click and cancels with Escape 15ms
+     ✓ shows "全部恢复默认" when there are overrides 8ms
+     ✓ stops shortcut capture after leaving shortcuts tab 17ms
+     ✓ loads AI settings and renders provider select 20ms
+     ✓ persists embedding defaults and acoustic runtime defaults 36ms
+     ✓ renders default playback rate options 13ms
+     ✓ persists selected rate to localStorage 16ms
+     ✓ persists workflow defaults to localStorage 25ms
+     ✓ persists selection and edit defaults to localStorage 20ms
+     ✓ persists waveform display defaults to localStorage 20ms
+     ✓ persists advanced waveform defaults to localStorage 31ms
+     ✓ persists video layout defaults to localStorage 23ms
+     ✓ applies accessibility toggles to html class and localStorage 18ms
+     ✓ shows cache entries with clear buttons 9ms
+     ✓ clears a specific cache and shows "已清除" 8ms
+     ✓ shows storage usage estimate 10ms
+     ✓ persists map defaults and resets voice dock position 18ms
+     ✓ shows version and description 5ms
+     × moves focus and selection with vertical tab keys and associates the active panel 15ms
+     ✓ switches between all 7 tabs 42ms
+ ❯ src/contexts/AppSidePaneContext.test.tsx (4 tests | 2 failed) 1152ms
+     × registers and clears side pane content through the shell host 1024ms
+     × updates visible content and callbacks without broadcasting to the shell 58ms
+     ✓ does not re-notify snapshot subscribers on unrelated producer rerenders when payload is stable 18ms
+     ✓ does not notify-loop when producer passes fresh elements with new callback identities 51ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/contexts/AppSidePaneContext.test.tsx > AppSidePaneContext > registers and clears side pane content through the shell host
+AssertionError: expected '首屏内容' to contain '更新后的内容'
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mdata-testid[39m=[32m"title"[39m
+      [36m>[39m
+        [0m测试面板[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mdata-testid[39m=[32m"subtitle"[39m
+      [36m>[39m
+        [0m注册内容同步到壳层[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mdata-testid[39m=[32m"content"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m首屏内容[0m
+        [36m</span>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+Expected: "更新后的内容"
+Received: "首屏内容"
+
+ ❯ src/contexts/AppSidePaneContext.test.tsx:83:57
+     81|
+     82|     await waitFor(() => {
+     83|       expect(screen.getByTestId('content').textContent).toContain('更新后…
+       |                                                         ^
+     84|     });
+     85|
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/contexts/AppSidePaneContext.test.tsx > AppSidePaneContext > updates visible content and callbacks without broadcasting to the shell
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Selected 1"
+
+Here are the accessible roles:
+
+  button:
+
+  Name "Selected 0":
+  [36m<button />[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mdata-testid[39m=[32m"title"[39m
+    [36m>[39m
+      [0mLive content[0m
+    [36m</div>[39m
+    [36m<div[39m
+      [33mdata-testid[39m=[32m"subtitle"[39m
+    [36m/>[39m
+    [36m<div[39m
+      [33mdata-testid[39m=[32m"content"[39m
+    [36m>[39m
+      [36m<button>[39m
+        [0mSelected [0m
+        [0m0[0m
+      [36m</button>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/contexts/AppSidePaneContext.test.tsx:117:34
+    115|     const renders = onHostRender.mock.calls.length;
+    116|     await act(async () => screen.getByRole('button', { name: 'Selected…
+    117|     await act(async () => screen.getByRole('button', { name: 'Selected…
+       |                                  ^
+    118|     expect(screen.getByRole('button', { name: 'Selected 2' })).toBeTru…
+    119|     expect(onHostRender.mock.calls.length).toBe(renders);
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:890:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ src/contexts/AppSidePaneContext.test.tsx:117:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/components/SettingsModal.test.tsx > Tab switching > moves focus and selection with vertical tab keys and associates the active panel
+AssertionError: expected <button type="button" …(3)>…(1)</button> to be <button type="button" …(3)>…(1)</button> // Object.is equality
+
+- Expected
++ Received
+
+  <button
+-   aria-selected="false"
++   aria-selected="true"
+    class="settings-tab-btn panel-edge-nav-btn"
+    role="tab"
+    type="button"
+  >
+    <span
+      class="panel-edge-nav-label"
+    >
+      <strong
+        class="panel-edge-nav-title"
+      >
+-       语言
++       外观
+      </strong>
+    </span>
+  </button>
+
+ ❯ src/components/SettingsModal.test.tsx:468:36
+    466|     fireEvent.keyDown(first, { key: 'ArrowDown' });
+    467|     const language = screen.getByRole('tab', { name: '语言' });
+    468|     expect(document.activeElement).toBe(language);
+       |                                    ^
+    469|     expect(language.getAttribute('aria-selected')).toBe('true');
+    470|     expect(first.tabIndex).toBe(-1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 30 passed (33)
+   Start at  14:04:23
+   Duration  2.12s (transform 596ms, setup 493ms, import 562ms, tests 1.75s, environment 1.13s)
+

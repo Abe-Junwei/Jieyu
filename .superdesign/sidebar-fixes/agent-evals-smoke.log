@@ -1,0 +1,20 @@
+
+> jieyu@1.1.0 check:agent-evals:smoke
+> node scripts/run-agent-evals.mjs --mode=enforce --tier=smoke
+
+[agent-evals] tier filter active: --tier=smoke (4/18 cases selected)
+
+[agent-evals] running case typecheck: npm run typecheck
+[agent-evals] typecheck: passed (171581ms)
+
+[agent-evals] running case architecture-guard-core: npm run check:architecture-guard:core
+[agent-evals] architecture-guard-core: passed (1074ms)
+
+[agent-evals] running case ai-messages-isolation: node scripts/check-ai-messages-isolation.mjs
+[agent-evals] ai-messages-isolation: passed (49ms)
+
+[agent-evals] running case agent-evals-semantic-cases: npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts
+[agent-evals] agent-evals-semantic-cases: passed (1841ms)
+
+[agent-evals] report written: docs/execution/release-gates/release-evidence/agent-evals-report.smoke.json
+[agent-evals] summary: passed=4/4, passRate=1, goldenTasks=12, missingTrajectorySignals=0, auditTracePassed=true, thresholdPassed=true
