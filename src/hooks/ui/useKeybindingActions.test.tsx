@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useRef } from 'react';
 import type { TimelineUnitView } from '../transcription/timelineUnitView';
+import { resetUserOverrides, saveUserOverride } from '../../services/KeybindingService';
 import { useKeybindingActions } from './useKeybindingActions';
 
 function makeTimelineUnit(
@@ -85,6 +86,64 @@ describe('useKeybindingActions segment routing', () => {
     expect(setShowSearch).not.toHaveBeenCalled();
 
     input.remove();
+  });
+
+  it('uses a shortcut override saved after the workspace is already open', () => {
+    const setShowSearch = vi.fn();
+    renderHook(() => {
+      const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+      return useKeybindingActions({
+        player: {
+          isReady: true,
+          isPlaying: false,
+          playbackRate: 1,
+          instanceRef: { current: null },
+          stop: vi.fn(),
+          playRegion: vi.fn(),
+          togglePlayback: vi.fn(),
+          seekBySeconds: vi.fn(),
+        },
+        subSelectionRange: null,
+        setSubSelectionRange: vi.fn(),
+        selectedUnit: undefined,
+        selectedTimelineUnit: null,
+        selectedUnitIds: new Set<string>(),
+        selectedMediaUrl: 'blob:test',
+        segMarkStart: null,
+        setSegMarkStart: vi.fn(),
+        segmentLoopPlayback: false,
+        setSegmentLoopPlayback: vi.fn(),
+        timelineUnitsOnCurrentMedia: [],
+        markingModeRef: { current: false },
+        skipSeekForIdRef: { current: null },
+        creatingSegmentRef: { current: false },
+        manualSelectTsRef: { current: 0 },
+        waveformAreaRef,
+        createUnitFromSelection: vi.fn(async () => undefined),
+        selectUnit: vi.fn(),
+        selectAllUnits: vi.fn(),
+        runDeleteSelection: vi.fn(),
+        runMergePrev: vi.fn(),
+        runMergeNext: vi.fn(),
+        runSplitAtTime: vi.fn(),
+        runSelectBefore: vi.fn(),
+        runSelectAfter: vi.fn(),
+        undo: vi.fn(async () => undefined),
+        redo: vi.fn(async () => undefined),
+        setShowSearch,
+        toggleNotes: vi.fn(),
+      });
+    });
+
+    saveUserOverride('search', 'mod+k');
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'f', metaKey: true, bubbles: true, cancelable: true }),
+    );
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true, cancelable: true }),
+    );
+    expect(setShowSearch).toHaveBeenCalledTimes(1);
+    resetUserOverrides();
   });
 
   it('routes delete/merge/split shortcuts to selected segment when unit is empty', () => {
