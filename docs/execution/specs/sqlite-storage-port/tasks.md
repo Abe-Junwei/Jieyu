@@ -32,7 +32,8 @@ depends_on:
 - [x] 审计列表：读 userData 里已有的 `payload_json`。按 collection，或 collection、field、requestId 一起过滤。空白查询是空列表。不另加列 → 验证：`npx vitest run src/db/sqliteAuditLogs.test.ts`
 - [x] 产物：项目库另加可空的 `created_at`。迁移不读这列，旧库不加列。空的创建时间拒绝读取。写入先提交产物，再提交 userData 里的审计；审计失败时产物留下 → 验证：`npx vitest run src/db/sqliteAgentArtifacts.test.ts`
 - [x] 私密审查回归：说话人分配在任何写入前拒绝外项目语段，关闭重开确认语段、副本、名单不变；轨道车道锁保留 `__proto__`，写入并关闭重开读回 → 验证：`npx vitest run src/db/sqliteStoragePort.test.ts`
-- [ ] 其余项目库和 `.jyd` 上的业务操作。草稿在 [存储接口剩余方法](../../plans/sqlite-storage-port-remainder-2026-10-24.md)。接受前须核对基线，还没接受 → 验证：这些方法不再拒绝
+- [x] 另一项目的层：`.jyd` 的 `layers` 另加可空的 `text_id`。迁移不读这列，旧库不加列。空的项目编号拒绝读取。没有这列的旧文稿，非空查询拒绝 → 验证：`npx vitest run src/db/sqliteForeignLayers.test.ts`
+- [ ] 其余项目库和 `.jyd` 上的业务操作。草稿在 [存储接口剩余方法](../../plans/sqlite-storage-port-remainder-2026-10-24.md)。层这一条已接受，其余还没接受 → 验证：这些方法不再拒绝
 - [x] 桌面壳 `installStoragePort` 换上这个实现，默认仍不在浏览器里启用 → 验证：`npm run desktop:smoke` 写入一条回合，关掉再打开读回
 - [x] 不适用：界面、E2E、`src/ai/**`
 

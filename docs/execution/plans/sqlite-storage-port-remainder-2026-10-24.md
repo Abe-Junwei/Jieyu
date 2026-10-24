@@ -9,19 +9,15 @@ source_of_truth: sqlite-storage-port-remainder-plan
 
 # 存储接口剩余方法
 
-本页是待确认的设计，不是已接受的决定。下一号 ADR 暂拟 0082，接受前须核对基线和编号。某一条被接受之后，才另写 ADR，再写那一条的代码。规格里「其余」保持未勾。不开始 #325、#329、#280。
+另一项目的层已于 2026-10-24 接受，记在 ADR-0082。其余决定还没接受。下一号 ADR 是 0083。规格里「其余」保持未勾。不开始 #325、#329、#280。
 
 ## 目标
 
 #275 里还能用已有列做完的方法已经做完。剩下的方法继续拒绝，直到下面的决定被接受。本规划只把下一条可以单独落地的方法写成可执行合同；其余方法说明缺口，不给实现。
 
-## 实施基线待核实
+## 实施基线
 
-本文由用户提供的设计正文落盘。正文所依赖的完成状态尚未与当前检出对齐，不能直接作为实施起点：
-
-- 2026-10-24 审查时当前 HEAD 为 `bd4e7017`，本地 ADR 仅到 0080，未找到 ADR-0081。
-- 当前 SQLite 端口尚未实现正文列为已落地的审计列表、另一项目的语段、锚点计数、词计数及产物创建时间相关切片。
-- 接受前须补齐这些前置切片所在分支或提交，并核对其实现、测试、ADR-0081 与规格任务。核实后更新本节，重新确认下一号 ADR；不为消除差异而在本计划中补做前置实现。
+2026-10-24 在分支 `cursor/sqlite-anchor-counts-53bb` 上核对。ADR-0081 在这个检出里。审计列表、另一项目的语段、锚点计数、词计数和产物创建时间的测试是 `npx vitest run src/db/sqliteAuditLogs.test.ts src/db/sqliteLayerUnitIds.test.ts src/db/sqliteAnchors.test.ts src/db/sqliteUnitTokens.test.ts src/db/sqliteAgentArtifacts.test.ts`，17 passed。当时 ADR 目录的下一号是 0082，本条写下后下一号是 0083。审查检出 `bd4e7017` 不在这个克隆里，没有为它补做前置切片。
 
 ## 全局约束
 
@@ -34,7 +30,7 @@ source_of_truth: sqlite-storage-port-remainder-plan
 
 ## 已经落地，本规划不重做
 
-以下为设计正文声明的前置完成范围，当前检出差异见「实施基线待核实」：回合、审计的写入和按 id 读取、审计列表、说话人分配、正则拆分、轨道、来源记录、录音行、另一项目的录音、去掉空录音、文稿改挂录音、同一份文稿里的语段关系、会话和消息、语段编号、另一项目的语段、锚点计数、词计数、产物创建时间。fingerprintTarget 仍返回 undefined。
+以下前置范围已在本分支核对，见「实施基线」：回合、审计的写入和按 id 读取、审计列表、说话人分配、正则拆分、轨道、来源记录、录音行、另一项目的录音、去掉空录音、文稿改挂录音、同一份文稿里的语段关系、会话和消息、语段编号、另一项目的语段、锚点计数、词计数、产物创建时间。fingerprintTarget 仍返回 undefined。
 
 ## 核对过的事实
 
@@ -43,13 +39,13 @@ source_of_truth: sqlite-storage-port-remainder-plan
 - meta.id 是这份文稿的编号。迁移把 manuscript.id 写入这一列，replaceManuscriptAudio 用它找文件。样例规划里它是 doc-1，和 project 行的编号不是同一字段。一个项目文件夹可以有多份 .jyd。所以 meta.id 不能当成层的项目编号。
 - project 行是 id、name、speaker_ids_json。TextDocType 要多语言标题，以及 createdAt、updatedAt。
 - units 有 text_id、start_time、end_time、updated_at，没有 created_at，也没有转写正文。正文在 unit_contents.text，是普通文本。LayerUnitDocType 要求 createdAt，转写是另一套结构。
-- tokens 和 morphemes 的 form 是普通文本。词计数已经连到 units.text_id（此切片须按实施基线核实）。整行列表要的是 UnitTokenDocType / UnitMorphemeDocType。
+- tokens 和 morphemes 的 form 是普通文本。词计数已经连到 units.text_id。本分支的前置测试已通过。整行列表要的是 UnitTokenDocType / UnitMorphemeDocType。
 - 两处 user_notes 都是 id、target_type、target_id、text。ADR-0062 第 3 条只定了行跟着被指对象走，没有把活文档映到这些列上。
 - 迁移里没有 annotation_documents、segment_meta、translation_status_snapshots、mcp_tool_call_audits。tier_annotations 是另一张表，不是标注文档，也不是层定义。
 
 ## 下一条：另一项目的层
 
-这一条还没被接受。接受并核对编号之后写 ADR-0082，再按下面的合同实现。现在不写代码。
+这一条已于 2026-10-24 接受，记在 ADR-0082。实现按下面的合同。
 
 推荐：
 
@@ -62,7 +58,7 @@ source_of_truth: sqlite-storage-port-remainder-plan
 7. 不打开文件夹时抛 `sqlite storage port has not opened a project folder`。
 8. 旧结构没有 text_id 列时，非空查询整体拒绝，统一抛 `layer row is incomplete`；即使请求编号不存在，也不返回空结果。不补列，不跳过旧文件，不回退到其他归属字段。不得把已经收集的部分结果返回给调用方。空编号查询仍按第 3 条返回，不打开文稿。
 
-这和前置切片已经落地的语段规则不同：语段上空的 text_id 不算另一项目。层上没有记项目编号时，协作检查不能把它当成「属于当前项目」。开关仍默认关，所以这条在被装上之前不改变现有协作路径。前置切片实际行为须按实施基线核实。
+这和前置切片已经落地的语段规则不同：语段上空的 text_id 不算另一项目。层上没有记项目编号时，协作检查不能把它当成「属于当前项目」。开关仍默认关，所以这条在被装上之前不改变现有协作路径。前置切片的测试已在本分支通过。
 
 不选：
 
@@ -121,7 +117,7 @@ test:project-files-scripts 必须仍然通过，因为迁移读回的层对象�
 | listTranslationSnapshotsByMedia、listTranslationSnapshotsByText | 首页进度、项目概览 | 没有这张表 | 不从层或正文现算翻译状态 |
 | insertMcpToolCallAudit | mcpToolCallAudit | 没有这张表 | 不把工具调用审计塞进现有 audit_logs |
 
-以后如果要做其中一组，沿用 ADR-0080 和设计正文引用的 ADR-0081 的形状（ADR-0081 须先按实施基线核实）：可空列只加在新的 CREATE 上，迁移不读，旧库不加列，空的必填字段拒绝读取，不从审计或别的表补字段。那也是新的 ADR，不是本页的接受。
+以后如果要做其中一组，沿用 ADR-0080 和 ADR-0081 的形状：可空列只加在新的 CREATE 上，迁移不读，旧库不加列，空的必填字段拒绝读取，不从审计或别的表补字段。那也是新的 ADR，不是本页的接受。
 
 ## 本规划不做
 

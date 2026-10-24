@@ -1,10 +1,7 @@
 /**
- * 存储接口的 SQLite 切片：本机 userData 里的回合和审计，项目文件夹里的说话人分配、正则拆分和轨道行。
- * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
- * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
- * 语段编号、锚点和词只读 `.jyd` 已有的列。来源记录和录音行写在项目库里（ADR-0074、ADR-0075）。
- * 去掉空录音、改挂录音、语段关系见 ADR-0076、ADR-0077、ADR-0078。会话见 ADR-0080。产物见 ADR-0081。
- * 桌面壳只在开关打开时经 IPC 安装（ADR-0079）。默认不安装。
+ * 存储接口的 SQLite 切片。一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
+ * 语段编号、锚点、词和另一项目的层只读 `.jyd`。层的项目编号是可空的 `text_id`（ADR-0082）。
+ * 会话见 ADR-0080。产物见 ADR-0081。桌面壳只在开关打开时经 IPC 安装（ADR-0079）。默认不安装。
  */
 import path from 'node:path';
 import Database from 'better-sqlite3';
@@ -12,6 +9,7 @@ import { agentArtifactMethods } from './sqliteAgentArtifacts';
 import { aiConversationMethods } from './sqliteAiConversations';
 import { anchorCountMethods } from './sqliteAnchors';
 import { auditListMethods } from './sqliteAuditLogs';
+import { layerForeignMethods } from './sqliteForeignLayers';
 import { layerUnitIdMethods } from './sqliteLayerUnitIds';
 import { replaceManuscriptAudioInProject } from './sqliteManuscriptAudio';
 import {
@@ -274,6 +272,7 @@ export function openSqliteStoragePort(
       return saveMediaItemInProject(requireProject(), data);
     },
     ...layerUnitIdMethods(projectDir),
+    ...layerForeignMethods(projectDir),
     ...anchorCountMethods(projectDir),
     ...tokenCountMethods(projectDir),
     ...auditListMethods(db),

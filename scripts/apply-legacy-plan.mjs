@@ -839,7 +839,7 @@ export function applyPlan(
       writeDatabase(file, JYD_APPLICATION_ID, created, (db) => {
         db.exec('CREATE TABLE meta (id TEXT PRIMARY KEY, audio_id TEXT, source_document_id TEXT)');
         db.exec(
-          'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT)',
+          'CREATE TABLE layers (id TEXT PRIMARY KEY, key TEXT NOT NULL, language_id TEXT, orthography_id TEXT, text_id TEXT)',
         );
         db.exec(
           'CREATE TABLE units (id TEXT PRIMARY KEY, layer_id TEXT, media_id TEXT, parent_unit_id TEXT, speaker_id TEXT, start_anchor_id TEXT, end_anchor_id TEXT, unit_type TEXT, text_id TEXT, start_time REAL, end_time REAL, updated_at TEXT)',
