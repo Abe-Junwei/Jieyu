@@ -65,6 +65,19 @@ npm ci
 
 - 长期架构与决策：`docs/architecture/`、`docs/adr/`。
 - 执行计划与审计：`docs/execution/plans/`、`docs/execution/audits/`。
+- 开发者文档：[DeepWiki](https://deepwiki.com/Abe-Junwei/Jieyu)。
+
+## 使用说明站点
+
+使用者说明在 [`user-guide/`](user-guide/README.md)，不在 `docs/`。本地预览：
+
+```bash
+cd user-guide
+npm ci
+npm run docs:dev
+```
+
+用户可见变化 → 合并后抽查 user-guide。无用户可见变化则在 PR 里注明 N/A。
 
 ## PWA / 离线（本地验证）
 
