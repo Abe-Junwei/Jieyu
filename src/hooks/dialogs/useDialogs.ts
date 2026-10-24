@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinguisticService } from '../../services/LinguisticService';
+import { newestProjectText } from '../../utils/homeTranscriptionRecordProgress';
 import {
   publishActiveProjectTextId,
   readTranscriptionWorkspaceReturnHint,
@@ -163,7 +164,7 @@ export function useDialogs(units: DialogUnit[]) {
       return hinted;
     }
     const texts = await LinguisticService.timeline.listTexts();
-    const first = texts[0];
+    const first = newestProjectText(texts);
     if (first) {
       setActiveTextId(first.id);
       setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(first));
@@ -178,7 +179,7 @@ export function useDialogs(units: DialogUnit[]) {
   const getActiveTextPrimaryLanguageId = useCallback(async (): Promise<string | null> => {
     if (activeTextPrimaryLanguageId) return activeTextPrimaryLanguageId;
     const texts = await LinguisticService.timeline.listTexts();
-    const resolvedTextId = activeTextId ?? texts[0]?.id;
+    const resolvedTextId = activeTextId ?? newestProjectText(texts)?.id;
     if (!resolvedTextId) return null;
     const activeText = texts.find((text) => text.id === resolvedTextId);
     if (!activeText) return null;
@@ -194,7 +195,7 @@ export function useDialogs(units: DialogUnit[]) {
   const getExportTimelineModeLabel = useCallback(async (): Promise<TextTimelineMode | null> => {
     if (exportTimelineModeLabel) return exportTimelineModeLabel;
     const texts = await LinguisticService.timeline.listTexts();
-    const resolvedTextId = activeTextId ?? texts[0]?.id;
+    const resolvedTextId = activeTextId ?? newestProjectText(texts)?.id;
     if (!resolvedTextId) return null;
     const activeText = texts.find((text) => text.id === resolvedTextId);
     if (!activeText) return null;
