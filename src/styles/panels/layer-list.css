@@ -427,7 +427,7 @@
   /* Stay inside overflow:hidden body-slot; do not bleed past padding. */
   width: 100%;
   height: auto;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   min-width: 0;
   display: flex;
@@ -453,6 +453,7 @@
 }
 
 .transcription-side-pane-portaled-stack > .app-side-pane-files-group {
+  flex: 0 0 auto;
   border-left: 0;
   border-right: 0;
   border-radius: 0;
@@ -505,7 +506,7 @@
 }
 
 .transcription-side-pane-portaled-stack .app-side-pane-segment-list-scroll {
-  min-height: 0;
+  min-height: min(18vh, 144px);
   max-height: min(30vh, 300px);
   padding: 0;
 }
@@ -1001,7 +1002,7 @@
 }
 
 .transcription-side-pane-portaled-stack .app-side-pane-segment-list-group {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
 }
 

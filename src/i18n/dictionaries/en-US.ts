@@ -203,7 +203,7 @@ export const enUSDictionary = {
   'workspace.annotation.openInTranscription': 'Open in transcription',
   'workspace.annotation.sidePaneTitle': 'Annotation workspace',
   'workspace.annotation.sidePaneSubtitle': 'Current scope and IGT list',
-  'workspace.annotation.sidePaneCurrent': 'Current scope',
+  'workspace.annotation.sidePaneCurrent': 'Current sentence',
   'workspace.annotation.unitCount': '{count} units',
   'workspace.annotation.surfaceLabel': 'Surface',
   'workspace.annotation.surfaceEmpty': 'This sentence has no source text',
@@ -438,7 +438,7 @@ export const enUSDictionary = {
   'workspace.lexicon.unavailable.scope.entry': 'Entry and sense management',
   'workspace.lexicon.unavailable.scope.backlink': 'Reverse references from entries to corpus',
   'workspace.lexicon.unavailable.scope.review': 'Lexicon import/export and review flow',
-  'workspace.lexicon.badge': 'Skeleton',
+  'workspace.lexicon.badge': 'Lexicon',
   'workspace.lexicon.title': 'Lexicon Workspace',
   'workspace.lexicon.summary':
     'Browse, search, and edit lemma, primary gloss, and notes. Linked hits open transcription. Attachments stay behind their own flag.',
@@ -448,8 +448,7 @@ export const enUSDictionary = {
   'workspace.lexicon.sidePaneSubtitle': 'Current entry, filtered scope, and quick access',
   'workspace.lexicon.sidePaneCurrent': 'Current entry',
   'workspace.lexicon.sidePaneQuickAccess': 'Quick access',
-  'workspace.lexicon.sidePaneSelectedHint':
-    '{count} entries match the current filter; this side pane can later host entry editing and backlink entry points.',
+  'workspace.lexicon.sidePaneSelectedHint': '{count} entries match the current filter.',
   'workspace.lexicon.sidePaneEmpty':
     'No lexeme exists in the lexicon yet. Import, annotation backlinks, or manual creation can fill this later.',
   'workspace.lexicon.openOrthographyManager': 'Open orthography manager',
@@ -4603,7 +4602,7 @@ export const enUSDictionary = {
     repairDetailsExpand: 'Expand details',
     repairDetailsCollapse: 'Collapse details',
     quickActionsCardAria: 'Layer management quick actions card',
-    quickActionsCardTitle: 'Layer management quick actions',
+    quickActionsCardTitle: 'Layer tools',
     presenceCardAria: 'Online collaborators',
     presenceCardTitle: 'Presence',
     presenceEmpty: 'No collaborators online right now',

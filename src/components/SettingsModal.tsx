@@ -7,7 +7,7 @@
 import '../styles/panels/settings-modal.css';
 
 export type { SettingsModalProps } from './settings/settingsConstants';
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, useId, memo } from 'react';
 import { type SettingsModalProps } from './settings/settingsConstants';
 import { getSettingsModalMessages } from '../i18n/messages';
 import { getShortcutsPanelMessages } from '../i18n/messages';
@@ -41,6 +41,7 @@ export const SettingsModal = memo(function SettingsModal({
   version,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+  const tabIdPrefix = useId();
   const msg = getSettingsModalMessages(locale);
   const shortcutsMsg = getShortcutsPanelMessages(locale);
   const resilienceMsg = useMemo(() => getAppDataResilienceMessages(locale), [locale]);
@@ -85,9 +86,21 @@ export const SettingsModal = memo(function SettingsModal({
       closeLabel={msg.close}
     >
       <div className="settings-layout">
-        <SettingsTabBar activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
+        <SettingsTabBar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabs={tabs}
+          idPrefix={tabIdPrefix}
+          label={msg.title}
+        />
 
-        <div className="settings-tab-content" role="tabpanel">
+        <div
+          className="settings-tab-content"
+          role="tabpanel"
+          id={`${tabIdPrefix}-panel`}
+          aria-labelledby={`${tabIdPrefix}-${activeTab}`}
+          tabIndex={0}
+        >
           {activeTab === 'appearance' && (
             <SettingsAppearanceTab
               locale={locale}
