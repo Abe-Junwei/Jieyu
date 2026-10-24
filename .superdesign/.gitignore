@@ -1,0 +1,30 @@
+# Generated source snapshots and intermediate runs remain local.
+init/
+transcription-preflight/live-*.png
+transcription-preflight/*.wav
+ui-ux-execution/after/
+ui-ux-execution/asset-check/
+ui-ux-execution/final/
+ui-ux-execution/task-checks/
+sidebar-audit/runtime/
+sidebar-audit/populated/
+sidebar-audit/final/
+sidebar-fixes/first/
+sidebar-fixes/verified/
+sidebar-fixes/checked/
+sidebar-fixes/full-e2e/
+
+# Runtime payloads are reproducible; keep screenshots and small observations.
+**/*.jym
+**/trace.zip
+**/.last-run.json
+**/error-context.md
+
+# Retain the final verification journal despite the repository-wide *.log rule.
+!sidebar-audit/confirmed.log
+!sidebar-fixes/final-e2e.log
+!sidebar-fixes/domain-vitest.log
+!sidebar-fixes/agent-evals-smoke.log
+!sidebar-fixes/red-vitest.log
+!sidebar-fixes/r1-r8.log
+!ui-ux-execution/verified-e2e.log

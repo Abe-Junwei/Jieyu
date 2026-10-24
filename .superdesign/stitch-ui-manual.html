@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>解语 Jieyu - Desktop Linguistic Documentation &amp; Multi-tier Annotation Tool UI Design System Spec</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Charis+SIL:ital,wght@0,400;0,700;1,400&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-surface-variant": "#484555",
+            "tertiary-container": "#747281",
+            "error-container": "#ffdad6",
+            "on-surface": "#151c23",
+            "on-error-container": "#93000a",
+            "tertiary": "#5b5a68",
+            "primary-fixed-dim": "#cabeff",
+            "surface-container-high": "#e2e9f3",
+            "on-primary-container": "#fffbff",
+            "on-tertiary-fixed-variant": "#474553",
+            "outline-variant": "#c9c4d7",
+            "on-secondary": "#ffffff",
+            "surface": "#f7f9ff",
+            "on-primary": "#ffffff",
+            "on-secondary-fixed-variant": "#43474e",
+            "on-error": "#ffffff",
+            "surface-container-low": "#edf4fe",
+            "tertiary-fixed-dim": "#c8c4d6",
+            "inverse-primary": "#cabeff",
+            "on-background": "#151c23",
+            "on-secondary-fixed": "#181c22",
+            "surface-container-lowest": "#ffffff",
+            "outline": "#797586",
+            "surface-bright": "#f7f9ff",
+            "primary": "#5d3bdc",
+            "primary-container": "#7658f6",
+            "surface-dim": "#d4dbe5",
+            "surface-tint": "#603edf",
+            "on-primary-fixed-variant": "#471bc7",
+            "tertiary-fixed": "#e4e0f2",
+            "on-secondary-container": "#61646c",
+            "surface-variant": "#dce3ed",
+            "surface-container-highest": "#dce3ed",
+            "secondary-fixed-dim": "#c3c6cf",
+            "inverse-on-surface": "#eaf1fc",
+            "secondary-container": "#dfe2ec",
+            "error": "#ba1a1a",
+            "on-tertiary-container": "#fefaff",
+            "on-tertiary-fixed": "#1b1a27",
+            "background": "#f7f9ff",
+            "primary-fixed": "#e6deff",
+            "surface-container": "#e8eef9",
+            "inverse-surface": "#2a3139",
+            "secondary": "#5b5e66",
+            "secondary-fixed": "#dfe2ec",
+            "on-primary-fixed": "#1c0062",
+            "on-tertiary": "#ffffff"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "margin": "0.75rem",
+            "margin-desktop": "1rem",
+            "space-lg": "0.75rem",
+            "space-xl": "1rem",
+            "gutter": "0.5rem",
+            "space-md": "0.5rem",
+            "space-xs": "0.25rem",
+            "gutter-desktop": "0.75rem",
+            "space-sm": "0.375rem"
+          },
+          fontFamily: {
+            "code-timecode": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Inter", "Noto Sans SC", "sans-serif"],
+            "body-md": ["Inter", "Noto Sans SC", "sans-serif"],
+            "ipa-display": ["Charis SIL", "serif"],
+            "label-caps": ["JetBrains Mono", "monospace"],
+            "cjk-body": ["Noto Sans SC", "Inter", "sans-serif"],
+            "ipa-inline": ["Charis SIL", "serif"],
+            "headline-sm": ["Inter", "Noto Sans SC", "sans-serif"],
+            "headline-md": ["Inter", "Noto Sans SC", "sans-serif"],
+            "body-sm": ["Inter", "Noto Sans SC", "sans-serif"],
+            "body-lg": ["Inter", "Noto Sans SC", "sans-serif"]
+          },
+          fontSize: {
+            "code-timecode": ["11px", { lineHeight: "14px", letterSpacing: "0.02em", fontWeight: "500" }],
+            "headline-lg": ["24px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "body-md": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+            "ipa-display": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+            "label-caps": ["10px", { lineHeight: "12px", letterSpacing: "0.06em", fontWeight: "600" }],
+            "cjk-body": ["13px", { lineHeight: "20px", fontWeight: "400" }],
+            "ipa-inline": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+            "headline-sm": ["15px", { lineHeight: "20px", fontWeight: "600" }],
+            "headline-md": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            "body-lg": ["14px", { lineHeight: "22px", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    :root {
+      --surface-bg: #F7F9FF;
+      --surface-panel: #EDF0F4;
+      --surface-canvas: #FFFFFF;
+      --text-primary: #20242C;
+      --text-secondary: #647084;
+      --border-subtle: #CBD2DC;
+      --theme-accent-solid: #7658F6;
+      --theme-accent-hover: #6444E4;
+      --theme-accent-active: #5335D2;
+      --theme-selection-tint: #F1EDFF;
+      --status-danger: #E5484D;
+      --status-warning: #F59E0B;
+      --status-success: #10B981;
+      --status-info: #3B82F6;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+    /* Restrained scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #EDF0F4;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD2DC;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #A0AEC0;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md antialiased overflow-x-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- ==================== TOP NAVIGATION DOCKED ==================== -->
+<header class="fixed top-0 left-0 w-full h-10 px-gutter-desktop z-50 flex items-center justify-between bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-space-sm">
+<span class="w-5 h-5 bg-primary text-on-primary flex items-center justify-center font-headline-sm text-headline-sm rounded">解</span>
+<span class="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">Jieyu 解语</span>
+</div>
+<span class="h-4 w-px bg-outline-variant"></span>
+<span class="font-label-caps text-label-caps text-secondary uppercase bg-surface-container-high px-space-xs py-0.5 rounded">Design System Spec v2.4.8</span>
+<div class="relative hidden lg:flex items-center">
+<span class="material-symbols-outlined absolute left-2 text-secondary" style="font-size: 14px;">search</span>
+<input class="pl-7 pr-3 py-1 h-7 w-64 bg-surface-container-low text-body-sm font-body-sm border border-outline-variant rounded focus:outline-none focus:border-primary" placeholder="Search tokens, components, rules... (Cmd+K)" type="text"/>
+</div>
+</div>
+<!-- Center Navigation Links -->
+<nav class="hidden md:flex items-center gap-space-xl h-full">
+<a class="text-primary border-b-2 border-primary font-semibold h-full flex items-center px-1 font-body-sm text-body-sm" href="#ch1">Tokens &amp; Scale</a>
+<a class="text-secondary hover:text-on-surface h-full flex items-center px-1 font-body-sm text-body-sm transition-colors" href="#ch3">Workspace Layout</a>
+<a class="text-secondary hover:text-on-surface h-full flex items-center px-1 font-body-sm text-body-sm transition-colors" href="#ch8">Linguistic Tiers</a>
+<a class="text-secondary hover:text-on-surface h-full flex items-center px-1 font-body-sm text-body-sm transition-colors" href="#ch9">Component Sandbox</a>
+</nav>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center gap-1 text-secondary">
+<button class="p-1 hover:bg-surface-container-high rounded text-secondary" title="Acoustic tuning"><span class="material-symbols-outlined">tune</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded text-secondary" title="Terminal"><span class="material-symbols-outlined">terminal</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded text-secondary" title="Documentation"><span class="material-symbols-outlined">help</span></button>
+</div>
+<span class="h-4 w-px bg-outline-variant"></span>
+<button class="px-space-md py-1 text-body-sm font-body-sm text-secondary bg-surface-container-lowest border border-outline-variant hover:bg-surface-container rounded active:scale-[0.98] transition-all">
+        Sync Pipeline
+      </button>
+<button class="px-space-md py-1 text-body-sm font-body-sm text-on-primary bg-primary hover:bg-[#6444e4] active:bg-[#5335d2] rounded font-medium active:scale-[0.98] transition-all flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">download</span>
+        Export Spec
+      </button>
+</div>
+</header>
+<!-- ==================== MAIN WORKSPACE FRAMEWORK ==================== -->
+<div class="pt-10 flex min-h-screen">
+<!-- LEFT SIDEBAR TOC NAVIGATION (Fixed 272px) -->
+<aside class="fixed left-0 top-10 bottom-0 w-[272px] flex flex-col justify-between py-space-md border-r border-outline-variant bg-surface-container-low z-40 overflow-y-auto">
+<div>
+<!-- SideNav Header -->
+<div class="px-space-lg pb-space-md border-b border-outline-variant">
+<div class="flex items-center gap-space-sm mb-1">
+<span class="w-6 h-6 rounded bg-primary-container text-on-primary flex items-center justify-center font-code-timecode text-code-timecode">JY</span>
+<div>
+<div class="font-headline-sm text-headline-sm font-bold text-on-surface">System Spec v2.4</div>
+<div class="font-label-caps text-label-caps text-secondary">Field Linguistics &amp; IPA</div>
+</div>
+</div>
+<div class="mt-space-sm flex items-center justify-between text-secondary font-code-timecode text-[10px]">
+<span>ENGINE: PRAAT-WASM</span>
+<span class="text-[#10B981] flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>ONLINE</span>
+</div>
+</div>
+<!-- TOC Menu List (10 Chapters) -->
+<div class="pt-space-sm px-space-xs space-y-0.5">
+<div class="px-space-md py-1 font-label-caps text-label-caps text-secondary uppercase tracking-wider">Chapters &amp; Subsystems</div>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-on-surface hover:bg-surface-container font-body-sm text-body-sm group border-l-[3px] border-primary bg-surface-container-lowest" href="#ch1">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">01</span>
+<span>基础色彩系统</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">7 Grps</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch2">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">02</span>
+<span>字体与排版层级</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">IPA / CJK</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch3">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">03</span>
+<span>桌面工作台布局架构</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">1440px</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch4">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">04</span>
+<span>间距、圆角与图标网格</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">4px Base</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch5">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">05</span>
+<span>按钮系统与六阶交互态</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">6 States</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch6">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">06</span>
+<span>表单输入与数据采集规范</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">9 Controls</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch7">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">07</span>
+<span>导航、数据表格与标注树</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">32/40px</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch8">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">08</span>
+<span>媒体时间轴与音画多层对齐</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">Waveform</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch9">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">09</span>
+<span>浮层、弹出菜单与AI助手</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">Acoustic AI</span>
+</a>
+<a class="flex items-center justify-between px-space-md py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-sm text-body-sm group" href="#ch10">
+<span class="flex items-center gap-2">
+<span class="font-code-timecode text-secondary text-[11px]">10</span>
+<span>全局状态、异常与可访问性</span>
+</span>
+<span class="font-code-timecode text-[10px] text-secondary">A11y/Edges</span>
+</a>
+</div>
+</div>
+<!-- SideNav Footer -->
+<div class="px-space-md pt-space-md border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-2 px-2 py-1.5 text-secondary hover:text-on-surface font-body-sm text-body-sm rounded hover:bg-surface-container" href="#ch8">
+<span class="material-symbols-outlined">analytics</span>
+<span>Acoustic Rules</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 text-secondary hover:text-on-surface font-body-sm text-body-sm rounded hover:bg-surface-container" href="#ch2">
+<span class="material-symbols-outlined">keyboard</span>
+<span>Keyboard Map (IPA)</span>
+</a>
+<div class="mt-2 p-2 bg-surface-container rounded border border-outline-variant">
+<div class="font-label-caps text-[9px] text-secondary uppercase">Quick Telemetry</div>
+<div class="font-code-timecode text-[10px] text-on-surface">SR: 44.1kHz | 16-bit PCM</div>
+<div class="font-code-timecode text-[10px] text-primary">Buffer: 0.12ms (Synced)</div>
+</div>
+</div>
+</aside>
+<!-- ==================== MAIN SCROLLABLE CONTENT CANVAS ==================== -->
+<main class="ml-[272px] flex-1 max-w-[1168px] px-8 py-8 space-y-16">
+<!-- HERO HEADER / OVERVIEW -->
+<section class="border-b border-outline-variant pb-8">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 bg-primary-fixed text-on-primary-fixed font-code-timecode text-label-caps rounded font-semibold uppercase">Official Specification</span>
+<span class="text-secondary font-code-timecode text-code-timecode">Doc ID: JY-SPEC-2025-V2.4</span>
+</div>
+<h1 class="font-headline-lg text-[32px] leading-tight font-bold text-on-surface mt-2 tracking-tight">
+              解语 Jieyu UI 设计系统技术工程规范
+            </h1>
+<p class="font-body-lg text-secondary mt-2 max-w-3xl">
+              专为田野语言学调查、方言语音学分析与计算语料库标注定制的桌面级设计系统。遵循极简技术工具主义（Refined Technical Precision），完全剔除多余装饰阴影与厚重卡片包裹，提供纯净微秒级对齐体验。
+            </p>
+</div>
+<div class="text-right">
+<span class="inline-block px-3 py-1 bg-surface-container-high border border-outline-variant rounded font-code-timecode text-code-timecode text-on-surface">
+              Screen: 1440 × 900 (Baseline)
+            </span>
+<div class="text-[11px] text-secondary font-body-sm mt-1">Status: Production Frozen</div>
+</div>
+</div>
+<div class="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-outline-variant/60 font-body-sm text-body-sm">
+<div>
+<div class="text-secondary text-[11px] font-label-caps uppercase">Design Target</div>
+<div class="font-medium text-on-surface mt-0.5">Desktop Workstation (macOS / Linux / Win)</div>
+</div>
+<div>
+<div class="text-secondary text-[11px] font-label-caps uppercase">Color Discipline</div>
+<div class="font-medium text-on-surface mt-0.5">Flat Planes &amp; Hairline Grids (1px)</div>
+</div>
+<div>
+<div class="text-secondary text-[11px] font-label-caps uppercase">Primary Font Stacks</div>
+<div class="font-medium text-on-surface mt-0.5">Inter, Noto Sans SC, Charis SIL, JetBrains</div>
+</div>
+<div>
+<div class="text-secondary text-[11px] font-label-caps uppercase">Sampling Precision</div>
+<div class="font-medium text-on-surface mt-0.5">0.001ms Waveform Resolution</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 1 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch1">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">01</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">基础色彩系统 (Base Color System)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Token Registry: 7 Core Groups · WCAG AA 4.5:1 Target</span>
+</div>
+<p class="text-secondary font-body-md">
+          色彩系统严格服务于多轨道频谱与音标的可读性。工作面禁用非功能性彩色渐变，主要工作画布维持纯白（#FFFFFF）与极浅底色（#EDF0F4），辅以克制的 #7658F6 作为高优先级标记色。所有文字层均保证严格满足或超越 4.5:1 对比度基准。
+        </p>
+<!-- Color Tokens Grid (Bento Matrix) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<!-- Group 1: Surface & Canvas -->
+<div class="border border-outline-variant bg-surface-container-lowest p-4 rounded">
+<div class="flex items-center justify-between pb-2 mb-3 border-b border-outline-variant">
+<span class="font-headline-sm text-body-md font-semibold">1. Surface &amp; Canvas 面基底</span>
+<span class="font-label-caps text-[10px] text-secondary">BG TOKENS</span>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-2 rounded bg-[#FFFFFF] border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded border border-outline-variant bg-[#FFFFFF]"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Canvas Base</div>
+<div class="font-code-timecode text-[10px] text-secondary">--surface-canvas</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#FFFFFF</div>
+<span class="text-[#10B981] text-[10px]">Ratio 19.5:1</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-[#EDF0F4] border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded border border-outline-variant bg-[#EDF0F4]"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Context Rail Base</div>
+<div class="font-code-timecode text-[10px] text-secondary">--surface-panel</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#EDF0F4</div>
+<span class="text-[#10B981] text-[10px]">Ratio 15.2:1</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-[#2A2E35] text-white">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded border border-outline-variant bg-[#2A2E35]"></span>
+<div>
+<div class="font-medium text-white text-body-sm">Top Global Nav</div>
+<div class="font-code-timecode text-[10px] text-gray-300">--surface-nav-dark</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#2A2E35</div>
+<span class="text-[#10B981] text-[10px]">Inverted</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Group 2: Typography & Text -->
+<div class="border border-outline-variant bg-surface-container-lowest p-4 rounded">
+<div class="flex items-center justify-between pb-2 mb-3 border-b border-outline-variant">
+<span class="font-headline-sm text-body-md font-semibold">2. Typography 文本标度</span>
+<span class="font-label-caps text-[10px] text-secondary">CONTRAST 4.5:1+</span>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded bg-[#20242C]"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Text Primary</div>
+<div class="font-code-timecode text-[10px] text-secondary">--text-primary</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#20242C</div>
+<span class="text-[#10B981] text-[10px]">Ratio 14.8:1 (AAA)</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded bg-[#647084]"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Text Secondary</div>
+<div class="font-code-timecode text-[10px] text-secondary">--text-secondary</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#647084</div>
+<span class="text-[#10B981] text-[10px]">Ratio 4.9:1 (AA)</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded bg-[#CBD2DC]"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Structural Border</div>
+<div class="font-code-timecode text-[10px] text-secondary">--border-subtle</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#CBD2DC</div>
+<span class="text-[#3B82F6] text-[10px]">3.1:1 Non-text</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Group 3: Accent & Highlighting -->
+<div class="border border-outline-variant bg-surface-container-lowest p-4 rounded">
+<div class="flex items-center justify-between pb-2 mb-3 border-b border-outline-variant">
+<span class="font-headline-sm text-body-md font-semibold">3. Accent &amp; Selection 标注着色</span>
+<span class="font-label-caps text-[10px] text-secondary">BRAND TINT</span>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded bg-[#7658F6]"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Accent Solid (Playhead)</div>
+<div class="font-code-timecode text-[10px] text-secondary">--theme-accent-solid</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#7658F6</div>
+<span class="text-[#10B981] text-[10px]">Active Focus</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded bg-[#F1EDFF] border border-[#7658F6]/30"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Segment Selection Soft</div>
+<div class="font-code-timecode text-[10px] text-secondary">--theme-selection-tint</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#F1EDFF</div>
+<span class="text-secondary text-[10px]">Alpha 0.12 Tier</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded bg-[#5335D2]"></span>
+<div>
+<div class="font-medium text-on-surface text-body-sm">Accent Active State</div>
+<div class="font-code-timecode text-[10px] text-secondary">--theme-accent-active</div>
+</div>
+</div>
+<div class="text-right font-code-timecode text-[11px]">
+<div>#5335D2</div>
+<span class="text-[#10B981] text-[10px]">Deep Action</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Group 4: Functional Semantic Status -->
+<div class="border border-outline-variant bg-surface-container-lowest p-4 rounded md:col-span-2 lg:col-span-3">
+<div class="flex items-center justify-between pb-2 mb-3 border-b border-outline-variant">
+<span class="font-headline-sm text-body-md font-semibold">4. Functional Status 状态信号与告警色系</span>
+<span class="font-label-caps text-[10px] text-secondary">SEMANTIC VALIDATION</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+<div class="p-3 border border-outline-variant rounded bg-[#FFF5F5]">
+<div class="flex items-center justify-between">
+<span class="font-semibold text-[#E5484D] text-body-sm">Danger / Error</span>
+<span class="w-3 h-3 rounded-full bg-[#E5484D]"></span>
+</div>
+<div class="font-code-timecode text-[11px] text-secondary mt-1">#E5484D</div>
+<div class="text-[11px] text-secondary mt-2">音频丢帧 / 语法断点解析冲突 / 校验失败</div>
+</div>
+<div class="p-3 border border-outline-variant rounded bg-[#FFFBEB]">
+<div class="flex items-center justify-between">
+<span class="font-semibold text-[#B45309] text-body-sm">Warning / Clip</span>
+<span class="w-3 h-3 rounded-full bg-[#F59E0B]"></span>
+</div>
+<div class="font-code-timecode text-[11px] text-secondary mt-1">#F59E0B</div>
+<div class="text-[11px] text-secondary mt-2">波形过载削顶 (&gt;-0.1dB) / 未绑定词典词目</div>
+</div>
+<div class="p-3 border border-outline-variant rounded bg-[#ECFDF5]">
+<div class="flex items-center justify-between">
+<span class="font-semibold text-[#047857] text-body-sm">Success / Synced</span>
+<span class="w-3 h-3 rounded-full bg-[#10B981]"></span>
+</div>
+<div class="font-code-timecode text-[11px] text-secondary mt-1">#10B981</div>
+<div class="text-[11px] text-secondary mt-2">TextGrid 成功导出 / 云端语料版本已锁定</div>
+</div>
+<div class="p-3 border border-outline-variant rounded bg-[#EFF6FF]">
+<div class="flex items-center justify-between">
+<span class="font-semibold text-[#1D4ED8] text-body-sm">Info / Alignment</span>
+<span class="w-3 h-3 rounded-full bg-[#3B82F6]"></span>
+</div>
+<div class="font-code-timecode text-[11px] text-secondary mt-1">#3B82F6</div>
+<div class="text-[11px] text-secondary mt-2">Praat 强迫对齐就绪 / 元数据自动提取中</div>
+</div>
+</div>
+</div>
+</div>
+<!-- CSS Variable Mapping Code Block -->
+<div class="p-4 bg-surface-container rounded border border-outline-variant">
+<div class="flex items-center justify-between mb-2">
+<span class="font-label-caps text-label-caps text-secondary uppercase font-semibold">CSS Tokens Variable Definition (:root)</span>
+<span class="font-code-timecode text-[10px] text-secondary">CSS3 Specification Verbatim</span>
+</div>
+<pre class="font-code-timecode text-[11px] text-on-surface bg-surface-container-lowest p-3 rounded border border-outline-variant overflow-x-auto">:root {
+  /* Surfaces &amp; Dividers */
+  --surface-canvas: #FFFFFF;         /* Primary Waveform &amp; Tier Work Area */
+  --surface-panel:  #EDF0F4;         /* Persistent Side Navigation &amp; Inspector Rails */
+  --surface-nav:    #2A2E35;         /* Top 40px System Status Anchor */
+  --border-subtle:  #CBD2DC;         /* 1px Structural Dividers strictly applied */
+  
+  /* Text Tokens */
+  --text-primary:   #20242C;         /* 14.8:1 AAA contrast against #FFFFFF */
+  --text-secondary: #647084;         /* 4.9:1 AA contrast for timecodes &amp; metadata */
+  
+  /* Accent &amp; Annotations */
+  --theme-accent-solid:    #7658F6;  /* Boundary cursors, playheads &amp; primary CTA */
+  --theme-selection-tint:  #F1EDFF;  /* Selected tier background */
+  --theme-accent-hover:    #6444E4;  /* Button hover delta */
+}</pre>
+</div>
+</section>
+<!-- ==================== CHAPTER 2 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch2">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">02</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">字体与排版层级 (Typography &amp; Font Hierarchy)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Inter / Noto Sans SC / Charis SIL / JetBrains Mono</span>
+</div>
+<p class="text-secondary font-body-md">
+          语音学软件核心挑战在于准确呈现国际音标（IPA）扩展符号、声调调符、汉字方言异体字以及等宽微秒时间戳。本系统采用严格的四字体协同架构，防止调符漂移并保证对齐紧凑度。
+        </p>
+<!-- Font Stacks Demonstrations -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Stack A: IPA & Dialect -->
+<div class="border border-outline-variant p-4 rounded bg-surface-container-lowest">
+<div class="flex items-center justify-between pb-2 border-b border-outline-variant mb-3">
+<span class="font-semibold text-body-md">国际音标与方言字 (IPA &amp; CJK Dialect)</span>
+<span class="px-1.5 py-0.5 bg-surface-container font-code-timecode text-[10px] text-secondary rounded">Charis SIL + Noto Sans SC</span>
+</div>
+<div class="space-y-3">
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant">
+<div class="text-[10px] font-label-caps text-secondary mb-1">SUZHOU WU DIALECT PHONETICS [苏州吴语白读示例]</div>
+<div class="text-[20px] font-ipa-display text-primary leading-tight">
+                  [ sɯ³³⁻²¹ ʦøʏ⁴⁴⁻²¹ ]
+                </div>
+<div class="text-body-sm font-cjk-body text-on-surface mt-1">
+                  汉字转写：<span class="font-medium">苏州</span>（清齿龈擦音 + 鼻化阴平调型）
+                </div>
+<div class="text-[11px] font-code-timecode text-secondary mt-1">
+                  Morphemes: /su/ (city) + /t͡səu/ (province) · Tone sandhi: 44-21
+                </div>
+</div>
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant">
+<div class="text-[10px] font-label-caps text-secondary mb-1">CANTONESE YUE DIALECT [广州话入声塞音演示]</div>
+<div class="text-[20px] font-ipa-display text-primary leading-tight">
+                  [ sik̚⁵⁵ faːn²¹ ]
+                </div>
+<div class="text-body-sm font-cjk-body text-on-surface mt-1">
+                  汉字转写：<span class="font-medium">食饭</span>（非除阻闭塞音 -k̚ 与 阳平调 21）
+                </div>
+<div class="text-[11px] font-code-timecode text-secondary mt-1">
+                  Acoustic cue: Unreleased velar closure duration: 62ms
+                </div>
+</div>
+</div>
+</div>
+<!-- Stack B: Timecode & UI Metrics -->
+<div class="border border-outline-variant p-4 rounded bg-surface-container-lowest">
+<div class="flex items-center justify-between pb-2 border-b border-outline-variant mb-3">
+<span class="font-semibold text-body-md">微秒时间戳与遥测数据 (Timecode &amp; Telemetry)</span>
+<span class="px-1.5 py-0.5 bg-surface-container font-code-timecode text-[10px] text-secondary rounded">JetBrains Mono 500</span>
+</div>
+<div class="space-y-3">
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant">
+<div class="text-[10px] font-label-caps text-secondary mb-1">CURSOR ABSOLUTE POSITION &amp; FRAME</div>
+<div class="font-code-timecode text-[18px] text-on-surface font-semibold tracking-wider">
+                  00:02:14.380 <span class="text-secondary text-[12px] font-normal">/ 00:15:00.000</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-code-timecode text-secondary mt-2">
+<span>Frame Index: #354,291</span>
+<span>Sample: @44,100Hz</span>
+</div>
+</div>
+<!-- RTL Bidirectional Language Fallback Test -->
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant">
+<div class="text-[10px] font-label-caps text-secondary mb-1">BIDI DIRECTIONALITY TEST (ARABIC / HEBREW GLOSS)</div>
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-secondary">RTL Gloss Layer:</span>
+<span class="font-body-md text-on-surface font-medium" dir="rtl">
+                    مرحبا بالعالم <span class="font-code-timecode text-[11px] text-primary" dir="ltr">[mar.ħa.baː]</span>
+</span>
+</div>
+<div class="text-[10px] text-secondary font-code-timecode mt-1">
+                  Engine: CSS unicode-bidi: isolate; dir="rtl" safe containment.
+                </div>
+</div>
+</div>
+</div>
+</div>
+<!-- Comprehensive Type Scale Table -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest overflow-hidden">
+<div class="p-3 bg-surface-container-low border-b border-outline-variant font-label-caps text-label-caps text-secondary">
+            TYPE SCALE DEFINITIONS &amp; APPLICATION MAPPING
+          </div>
+<table class="w-full text-left font-body-sm text-body-sm border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container/50 text-[11px] font-label-caps text-secondary">
+<th class="p-3">Level Token</th>
+<th class="p-3">Font &amp; Size / LineHeight</th>
+<th class="p-3">Weight</th>
+<th class="p-3">Context Usage</th>
+<th class="p-3">Live Sample Preview</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr>
+<td class="p-3 font-code-timecode text-primary text-[12px]">headline-lg</td>
+<td class="p-3 font-code-timecode text-[11px]">Inter 24px / 32px</td>
+<td class="p-3">600 SemiBold</td>
+<td class="p-3 text-secondary">工作区主面板标题、项目语料集大标题</td>
+<td class="p-3 font-headline-lg text-[24px]">语料集声学总览</td>
+</tr>
+<tr>
+<td class="p-3 font-code-timecode text-primary text-[12px]">headline-md</td>
+<td class="p-3 font-code-timecode text-[11px]">Inter 18px / 24px</td>
+<td class="p-3">600 SemiBold</td>
+<td class="p-3 text-secondary">时间轴轨道标题、声学参数检查器大类</td>
+<td class="p-3 font-headline-md text-[18px]">共振峰轨迹 (F1/F2 Formants)</td>
+</tr>
+<tr>
+<td class="p-3 font-code-timecode text-primary text-[12px]">body-md</td>
+<td class="p-3 font-code-timecode text-[11px]">Inter 13px / 18px</td>
+<td class="p-3">400 Regular</td>
+<td class="p-3 text-secondary">标准表格条目、转写说明、右侧属性参数文本</td>
+<td class="p-3 font-body-md text-on-surface">基频曲线自动平滑插值滤波已启用</td>
+</tr>
+<tr>
+<td class="p-3 font-code-timecode text-primary text-[12px]">ipa-display</td>
+<td class="p-3 font-code-timecode text-[11px]">Charis SIL 16px / 24px</td>
+<td class="p-3">400 Regular</td>
+<td class="p-3 text-secondary">音轨下方标准国际音标（IPA）标注分段</td>
+<td class="p-3 font-ipa-display text-[16px] text-primary">/tɕiɛ²¹⁴⁻²¹ y³⁵/ [解语]</td>
+</tr>
+<tr>
+<td class="p-3 font-code-timecode text-primary text-[12px]">code-timecode</td>
+<td class="p-3 font-code-timecode text-[11px]">JetBrains Mono 11px / 14px</td>
+<td class="p-3">500 Medium</td>
+<td class="p-3 text-secondary">毫秒时间刻度标尺、基频Hz读数、采样率标签</td>
+<td class="p-3 font-code-timecode text-on-surface">00:04:12.894 (Δ23.4ms)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- ==================== CHAPTER 3 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch3">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">03</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">桌面工作台布局架构 (Workspace Layout Architecture)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Tri-Zone Studio: 40px Top · 272px Left · Fluid Canvas · 300px Inspector</span>
+</div>
+<p class="text-secondary font-body-md">
+          三栏式零间隙平铺架构。彻底消除窗口内部嵌套卡片带来的层叠损耗，使 85% 以上的可视面积直接归属于声学波形与多层转写标注轨。左右边栏均支持硬件加速弹性拖拽（6px 隐式命中区域）。
+        </p>
+<!-- Interactive Layout Architecture Diagram -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest p-6 space-y-4">
+<div class="flex items-center justify-between text-body-sm font-medium">
+<span>工作区 1440px 基准布局图解 (Zero-Margin Docked Studio Schema)</span>
+<span class="font-code-timecode text-[11px] text-secondary">Interactive Resize Preview</span>
+</div>
+<!-- Wireframe Box Structure -->
+<div class="border-2 border-dashed border-outline-variant rounded p-2 bg-surface-container-low">
+<!-- Top Global Nav 40px -->
+<div class="h-8 bg-[#2A2E35] text-white flex items-center justify-between px-3 text-[11px] font-code-timecode rounded-t">
+<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-primary"></span>TOP GLOBAL NAV: 40px (Pinned Fixed)</span>
+<span>100% Fluid Width</span>
+</div>
+<!-- Main Body Split -->
+<div class="flex h-56 mt-1 gap-1">
+<!-- Left Rail -->
+<div class="w-[22%] bg-surface-container border border-outline-variant p-2 flex flex-col justify-between text-[11px]">
+<div>
+<div class="font-bold text-on-surface flex items-center justify-between">
+<span>CONTEXT RAIL</span>
+<span class="font-code-timecode text-[10px] text-primary">272px</span>
+</div>
+<div class="text-[10px] text-secondary mt-1">语料树、词典索引与标注层元数据</div>
+<div class="mt-2 space-y-1">
+<div class="h-4 bg-surface-container-high rounded w-3/4"></div>
+<div class="h-4 bg-surface-container-high rounded w-1/2"></div>
+<div class="h-4 bg-surface-container-high rounded w-2/3"></div>
+</div>
+</div>
+<div class="font-code-timecode text-[10px] text-secondary border-t border-outline-variant pt-1">
+                  Resizer Hit: 6px
+                </div>
+</div>
+<!-- Center Fluid Canvas -->
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant p-2 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-[11px] border-b border-outline-variant pb-1">
+<span class="font-bold text-primary">MAIN EDITOR CANVAS (Fluid W)</span>
+<span class="font-code-timecode text-[10px] text-secondary">Min: 680px | Baseline: 868px</span>
+</div>
+<!-- Mock Waveform -->
+<div class="h-16 mt-2 bg-surface-container-low border border-outline-variant rounded flex items-center justify-center relative overflow-hidden">
+<div class="absolute inset-0 flex items-center justify-around opacity-30">
+<div class="w-1 h-8 bg-primary"></div>
+<div class="w-1 h-12 bg-primary"></div>
+<div class="w-1 h-5 bg-primary"></div>
+<div class="w-1 h-14 bg-primary"></div>
+<div class="w-1 h-10 bg-primary"></div>
+<div class="w-1 h-7 bg-primary"></div>
+<div class="w-1 h-12 bg-primary"></div>
+</div>
+<div class="absolute left-1/3 top-0 bottom-0 w-0.5 bg-[#7658F6]"></div>
+<span class="font-code-timecode text-[10px] text-secondary relative z-10 bg-white/80 px-2 py-0.5 rounded">
+                      Audio Spectrogram + Multi-tier Timelines (Track 1-6)
+                    </span>
+</div>
+<!-- Mock Tier Stack -->
+<div class="mt-2 space-y-1">
+<div class="h-5 bg-surface-container text-[10px] flex items-center px-2 text-secondary border border-outline-variant/60">Tier 1: Orthography 汉字正字层</div>
+<div class="h-5 bg-primary-fixed text-[10px] flex items-center px-2 text-on-primary-fixed border border-primary/30">Tier 2: IPA Phonetic 严式音标层 (Active)</div>
+<div class="h-5 bg-surface-container text-[10px] flex items-center px-2 text-secondary border border-outline-variant/60">Tier 3: Gloss 义类标注与词性</div>
+</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-code-timecode text-secondary pt-1 border-t border-outline-variant">
+<span>Transport: 00:01:23.400</span>
+<span>Zoom: 100ms/div</span>
+</div>
+</div>
+<!-- Right Acoustic Inspector -->
+<div class="w-[24%] bg-surface-container border border-outline-variant p-2 flex flex-col justify-between text-[11px]">
+<div>
+<div class="font-bold text-on-surface flex items-center justify-between">
+<span>ACOUSTIC INSPECTOR</span>
+<span class="font-code-timecode text-[10px] text-primary">300px</span>
+</div>
+<div class="text-[10px] text-secondary mt-1">F1/F2 调型共振峰、音高曲线基频</div>
+<div class="mt-2 space-y-2">
+<div class="p-1.5 bg-surface-container-high rounded text-[10px]">
+<div class="text-secondary">Pitch (F0):</div>
+<div class="font-code-timecode font-bold">184.2 Hz</div>
+</div>
+<div class="p-1.5 bg-surface-container-high rounded text-[10px]">
+<div class="text-secondary">Intensity:</div>
+<div class="font-code-timecode font-bold">68.4 dB</div>
+</div>
+</div>
+</div>
+<div class="font-code-timecode text-[10px] text-secondary border-t border-outline-variant pt-1">
+                  Collapsible (Cmd+\)
+                </div>
+</div>
+</div>
+</div>
+<!-- Responsive Comparison Matrix -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-outline-variant text-[12px]">
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant">
+<div class="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
+                1440px 桌面推荐全屏规格 (Ideal Baseline)
+              </div>
+<ul class="list-disc list-inside text-secondary space-y-1">
+<li>左侧语料目录树固定为 272px，展示层级深度至 Level 4</li>
+<li>中央多轨标注区占据 868px，可完整容纳 8 秒连续语流</li>
+<li>右侧检查器保持 300px 展开态，实时动态绘制共振峰散点</li>
+</ul>
+</div>
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant">
+<div class="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
+                1280px 笔记本紧凑适配模式 (Compact Fallback)
+              </div>
+<ul class="list-disc list-inside text-secondary space-y-1">
+<li>左侧边栏自动微调为 240px，次级元数据自动折叠</li>
+<li>右侧检查器转为浮动抽屉或点击唤醒模式（占位 0px）</li>
+<li>中央工作区维持 1040px 优先保障声学采样点无重叠挤压</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 4 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch4">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">04</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">间距、圆角与图标网格 (Spacing, Radius &amp; Icon Rules)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">4px Base Increment · Hard 0px Studio Panels · 16/20px Icon Align</span>
+</div>
+<p class="text-secondary font-body-md">
+          在密集型科学软件中，过大圆角和松散间距会大幅削弱单位像素的信息密度。本规范严格执行 4px 增量步长，工作台主功能面板实施 0px 直角紧密咬合，仅在交互控件采用微圆角（4px-6px）。
+        </p>
+<!-- Spacing Scale Demo -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest p-4">
+<div class="text-body-sm font-semibold mb-3">4px 紧凑级间距进阶标尺 (Spacing Scale Matrix)</div>
+<div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low">
+<div class="font-code-timecode text-primary font-bold text-[13px]">4px (space-xs)</div>
+<div class="h-3 bg-primary/20 w-1 mt-2"></div>
+<div class="text-[10px] text-secondary mt-2">轨道微型手柄、标签内联间隙</div>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low">
+<div class="font-code-timecode text-primary font-bold text-[13px]">6px (space-sm)</div>
+<div class="h-3 bg-primary/30 w-1.5 mt-2"></div>
+<div class="text-[10px] text-secondary mt-2">图标按钮与短文本横向间距</div>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low">
+<div class="font-code-timecode text-primary font-bold text-[13px]">8px (space-md)</div>
+<div class="h-3 bg-primary/40 w-2 mt-2"></div>
+<div class="text-[10px] text-secondary mt-2">表单控件行距、菜单项纵向留白</div>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low">
+<div class="font-code-timecode text-primary font-bold text-[13px]">12px (space-lg)</div>
+<div class="h-3 bg-primary/50 w-3 mt-2"></div>
+<div class="text-[10px] text-secondary mt-2">面板标题栏两端 Padding</div>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low">
+<div class="font-code-timecode text-primary font-bold text-[13px]">16px (space-xl)</div>
+<div class="h-3 bg-primary/60 w-4 mt-2"></div>
+<div class="text-[10px] text-secondary mt-2">模态弹窗外沿边距、主卡片间隙</div>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low">
+<div class="font-code-timecode text-primary font-bold text-[13px]">24px / 32px</div>
+<div class="h-3 bg-primary/80 w-6 mt-2"></div>
+<div class="text-[10px] text-secondary mt-2">章节大板块间隔、断点边界留白</div>
+</div>
+</div>
+</div>
+<!-- Radius System Rules -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div class="p-4 border border-outline-variant rounded bg-surface-container-lowest">
+<div class="text-body-sm font-semibold">0px (Straight Angle)</div>
+<div class="w-16 h-12 bg-surface-container-high border border-outline-variant mt-2 rounded-none flex items-center justify-center font-code-timecode text-[11px]">
+              0px
+            </div>
+<div class="text-[11px] text-secondary mt-2">
+              工作区三栏边框、音频波形窗口、分段标注轨道切块。禁止使用圆角造成视觉缝隙。
+            </div>
+</div>
+<div class="p-4 border border-outline-variant rounded bg-surface-container-lowest">
+<div class="text-body-sm font-semibold">4px (Micro Radius)</div>
+<div class="w-16 h-12 bg-surface-container-high border border-outline-variant mt-2 rounded text-[11px] flex items-center justify-center font-code-timecode">
+              4px
+            </div>
+<div class="text-[11px] text-secondary mt-2">
+              下拉菜单条目 Hover 状态底色、工具栏紧凑小图标按键、词性高亮 Chip。
+            </div>
+</div>
+<div class="p-4 border border-outline-variant rounded bg-surface-container-lowest">
+<div class="text-body-sm font-semibold">6px (Standard Control)</div>
+<div class="w-16 h-12 bg-surface-container-high border border-outline-variant mt-2 rounded-lg text-[11px] flex items-center justify-center font-code-timecode">
+              6px
+            </div>
+<div class="text-[11px] text-secondary mt-2">
+              主次按钮、单行文本输入框、Select 下拉框、播放控制器外框。
+            </div>
+</div>
+<div class="p-4 border border-outline-variant rounded bg-surface-container-lowest">
+<div class="text-body-sm font-semibold">8px / 10px (Floating Layer)</div>
+<div class="w-16 h-12 bg-surface-container-high border border-outline-variant mt-2 rounded-xl text-[11px] flex items-center justify-center font-code-timecode">
+              8-10px
+            </div>
+<div class="text-[11px] text-secondary mt-2">
+              独立悬浮浮层、上下文右键菜单（8px）、声学纠错确认模态弹窗（10px）。
+            </div>
+</div>
+</div>
+<!-- Optical Stroke Icon System (16px & 20px) -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest p-4">
+<div class="flex items-center justify-between mb-3 pb-2 border-b border-outline-variant">
+<span class="font-semibold text-body-md">图标网格与光学微调规范 (Optical Grid Alignment)</span>
+<span class="font-code-timecode text-[11px] text-secondary">Material Symbols Outlined · 1.5px Stroke</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 text-center">
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-primary" style="font-size: 20px;">graphic_eq</span>
+<span class="font-code-timecode text-[10px] mt-1">graphic_eq</span>
+<span class="text-[9px] text-secondary">20px Base</span>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-on-surface" style="font-size: 20px;">play_arrow</span>
+<span class="font-code-timecode text-[10px] mt-1">play_arrow</span>
+<span class="text-[9px] text-secondary">Transport</span>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-on-surface" style="font-size: 20px;">pause</span>
+<span class="font-code-timecode text-[10px] mt-1">pause</span>
+<span class="text-[9px] text-secondary">Transport</span>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-on-surface" style="font-size: 20px;">replay</span>
+<span class="font-code-timecode text-[10px] mt-1">replay</span>
+<span class="text-[9px] text-secondary">Loop Region</span>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-on-surface" style="font-size: 16px;">zoom_in</span>
+<span class="font-code-timecode text-[10px] mt-1">zoom_in</span>
+<span class="text-[9px] text-secondary">16px Track</span>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-on-surface" style="font-size: 16px;">zoom_out</span>
+<span class="font-code-timecode text-[10px] mt-1">zoom_out</span>
+<span class="text-[9px] text-secondary">16px Track</span>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-[#E5484D]" style="font-size: 16px;">bookmark</span>
+<span class="font-code-timecode text-[10px] mt-1">bookmark</span>
+<span class="text-[9px] text-secondary">Phoneme Tag</span>
+</div>
+<div class="p-2 border border-outline-variant rounded bg-surface-container-low flex flex-col items-center">
+<span class="material-symbols-outlined text-[#10B981]" style="font-size: 16px;">check_circle</span>
+<span class="font-code-timecode text-[10px] mt-1">check_circle</span>
+<span class="text-[9px] text-secondary">Validated</span>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 5 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch5">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">05</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">按钮系统与六阶交互态 (Button Hierarchy &amp; 6 Interactive States)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Primary / Secondary / Ghost / Danger · 28px/32px/36px</span>
+</div>
+<p class="text-secondary font-body-md">
+          严格实行「单一主要行动法则（One Primary CTA Rule）」：单个视窗功能域内禁止出现两个以上并列的 Primary 按钮。六阶交互态（默认 Default、悬停 Hover、按下 Pressed、聚焦 Focus、禁用 Disabled、加载 Loading）均具备明确的可量化微交互反馈。
+        </p>
+<!-- Button Matrix Table with Live Functional States -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest overflow-hidden">
+<table class="w-full text-left font-body-sm text-body-sm border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant text-[11px] font-label-caps text-secondary">
+<th class="p-3">Button Type</th>
+<th class="p-3">1. Default</th>
+<th class="p-3">2. Hover</th>
+<th class="p-3">3. Pressed (Active)</th>
+<th class="p-3">4. Focus Ring (2px)</th>
+<th class="p-3">5. Disabled</th>
+<th class="p-3">6. Loading Spinner</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1: Primary -->
+<tr>
+<td class="p-3 font-semibold text-primary">
+<div>Primary (32px)</div>
+<span class="font-code-timecode text-[10px] text-secondary">#7658F6</span>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-primary text-white font-medium text-[12px] flex items-center gap-1">
+<span>Export Grid</span>
+</button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-[#6444e4] text-white font-medium text-[12px]">
+                    Export Grid
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-[#5335d2] text-white font-medium text-[12px] scale-[0.98]">
+                    Export Grid
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-primary text-white font-medium text-[12px] ring-2 ring-primary ring-offset-2">
+                    Export Grid
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-high text-secondary/50 font-medium text-[12px] cursor-not-allowed border border-outline-variant" disabled="">
+                    Export Grid
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-primary text-white font-medium text-[12px] flex items-center gap-1.5 opacity-90 cursor-wait">
+<svg class="animate-spin h-3.5 w-3.5 text-white" viewbox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" fill="none" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path></svg>
+<span>Parsing...</span>
+</button>
+</td>
+</tr>
+<!-- Row 2: Secondary / Outlined -->
+<tr>
+<td class="p-3 font-semibold text-on-surface">
+<div>Secondary (32px)</div>
+<span class="font-code-timecode text-[10px] text-secondary">1px #CBD2DC</span>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-lowest border border-outline-variant text-on-surface font-medium text-[12px]">
+                    Resample
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container border border-outline-variant text-on-surface font-medium text-[12px]">
+                    Resample
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-high border border-outline text-on-surface font-medium text-[12px] scale-[0.98]">
+                    Resample
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-lowest border border-primary text-on-surface font-medium text-[12px] ring-2 ring-primary/40 ring-offset-1">
+                    Resample
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-low border border-outline-variant/50 text-secondary/40 font-medium text-[12px] cursor-not-allowed" disabled="">
+                    Resample
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-low border border-outline-variant text-secondary font-medium text-[12px] flex items-center gap-1.5 cursor-wait">
+<svg class="animate-spin h-3.5 w-3.5 text-secondary" viewbox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" fill="none" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path></svg>
+<span>44.1kHz</span>
+</button>
+</td>
+</tr>
+<!-- Row 3: Danger -->
+<tr>
+<td class="p-3 font-semibold text-[#E5484D]">
+<div>Danger (28px Compact)</div>
+<span class="font-code-timecode text-[10px] text-secondary">#E5484D</span>
+</td>
+<td class="p-3">
+<button class="h-7 px-2.5 rounded bg-[#FFF5F5] border border-[#E5484D]/40 text-[#E5484D] font-medium text-[11px]">
+                    Delete Tier
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-7 px-2.5 rounded bg-[#E5484D] text-white font-medium text-[11px]">
+                    Delete Tier
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-7 px-2.5 rounded bg-[#B91C1C] text-white font-medium text-[11px] scale-[0.98]">
+                    Delete Tier
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-7 px-2.5 rounded bg-[#FFF5F5] border border-[#E5484D] text-[#E5484D] font-medium text-[11px] ring-2 ring-[#E5484D]/30 ring-offset-1">
+                    Delete Tier
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-7 px-2.5 rounded bg-surface-container-low border border-outline-variant text-secondary/40 font-medium text-[11px] cursor-not-allowed" disabled="">
+                    Delete Tier
+                  </button>
+</td>
+<td class="p-3">
+<button class="h-7 px-2.5 rounded bg-[#FFF5F5] border border-[#E5484D]/50 text-[#E5484D] font-medium text-[11px] flex items-center gap-1 cursor-wait">
+<svg class="animate-spin h-3 w-3 text-[#E5484D]" viewbox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" fill="none" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path></svg>
+<span>Purging...</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- ==================== CHAPTER 6 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch6">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">06</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">表单输入与数据采集规范 (Form Controls &amp; Input Specification)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Permanent Labels · Required Mark · Zero Drop-shadow Focus</span>
+</div>
+<p class="text-secondary font-body-md">
+          语音学参数录入具有极高容错敏感度。系统严格禁止纯 Placeholder 替代 Label 的设计；所有字段必须具备永久性顶部标签、必填标记星号（*）、内联容错警示，并配备专业音标快捷输入键盘。
+        </p>
+<!-- 9 Core Input Controls Bento Form -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest p-6 space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- 1. Text Input with IPA Inline Keyboard -->
+<div>
+<label class="block font-medium text-[12px] text-on-surface mb-1">
+                音标标注 (Phonetic IPA) <span class="text-[#E5484D]">*</span>
+</label>
+<div class="relative">
+<input class="w-full h-8 px-2.5 bg-surface-container-lowest border border-outline-variant rounded text-on-surface font-ipa-inline text-[14px] focus:outline-none focus:border-primary" type="text" value="t͡ɕiɛ²¹⁴"/>
+<button class="absolute right-1.5 top-1.5 text-secondary hover:text-primary font-code-timecode text-[11px] px-1 bg-surface-container rounded" title="Open IPA virtual board">
+                  [ə]
+                </button>
+</div>
+<span class="text-[10px] text-secondary font-code-timecode mt-1 block">Unicode: U+0255 + U+0283 + Tone</span>
+</div>
+<!-- 2. Select Dropdown -->
+<div>
+<label class="block font-medium text-[12px] text-on-surface mb-1">
+                汉语方言分区 (Sinitic Phylum) <span class="text-[#E5484D]">*</span>
+</label>
+<select class="w-full h-8 px-2 bg-surface-container-lowest border border-outline-variant rounded text-on-surface text-[12px] focus:outline-none focus:border-primary">
+<option selected="">吴语 - 太湖片 - 苏沪嘉小片 (Suzhou Wu)</option>
+<option>粤语 - 广府片 (Guangzhou Yue)</option>
+<option>闽语 - 闽南片 (Southern Min / Hokkien)</option>
+<option>官话 - 西南官话 (Southwestern Mandarin)</option>
+</select>
+<span class="text-[10px] text-secondary mt-1 block">Glottolog Code: wuuu1238</span>
+</div>
+<!-- 3. Validation Failed State Input -->
+<div>
+<label class="block font-medium text-[12px] text-[#E5484D] mb-1">
+                基频分析上限 (F0 Upper Limit) <span class="text-[#E5484D]">*</span>
+</label>
+<input class="w-full h-8 px-2.5 bg-[#FFF5F5] border border-[#E5484D] rounded text-[#E5484D] font-code-timecode text-[12px] focus:outline-none" type="text" value="850 Hz (Over Limit)"/>
+<span class="text-[10px] text-[#E5484D] mt-1 block flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 12px;">error</span>
+                超出正常人声基频范围 (≤ 600Hz)
+              </span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-outline-variant">
+<!-- 4. Textarea for Field Transcription Notes -->
+<div class="md:col-span-2">
+<label class="block font-medium text-[12px] text-on-surface mb-1">
+                田野录音发音人背景与声学环境备注 (Informant Metadata &amp; Acoustic Setting)
+              </label>
+<textarea class="w-full p-2 bg-surface-container-lowest border border-outline-variant rounded text-[12px] text-on-surface font-cjk-body focus:outline-none focus:border-primary" rows="2">发音人：王某（男，72岁，未离乡）。录音环境：隔音房（RT60 = 0.22s），话筒距离口唇 15cm，45度斜角防喷防破气。</textarea>
+<div class="flex justify-between items-center text-[10px] text-secondary mt-1">
+<span>支持 Markdown 语法与 IPA 符号混排</span>
+<span>88 / 500 字</span>
+</div>
+</div>
+<!-- 5. Range Slider: Spectrogram Dynamic Range -->
+<div>
+<div class="flex justify-between items-center mb-1">
+<label class="font-medium text-[12px] text-on-surface">语图动态范围 (Dynamic Range)</label>
+<span class="font-code-timecode text-primary font-bold text-[11px]">50 dB</span>
+</div>
+<input class="w-full accent-primary h-1.5 bg-surface-container-high rounded cursor-pointer" max="80" min="20" type="range" value="50"/>
+<div class="flex justify-between text-[10px] font-code-timecode text-secondary mt-1">
+<span>20 dB</span>
+<span>Default 50 dB</span>
+<span>80 dB</span>
+</div>
+</div>
+</div>
+<!-- Toggles, Checkboxes & Radios -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 border-t border-outline-variant">
+<!-- Switch Toggle -->
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded border border-outline-variant">
+<div>
+<div class="font-medium text-[12px] text-on-surface">磁性吸附零交叉点</div>
+<div class="text-[10px] text-secondary">Snap to Zero-Crossing</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Checkbox Group -->
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant space-y-2">
+<div class="font-medium text-[12px] text-on-surface">共振峰显示轨迹</div>
+<div class="flex items-center gap-4 text-[12px]">
+<label class="flex items-center gap-1.5 cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span>F1 (红)</span>
+</label>
+<label class="flex items-center gap-1.5 cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span>F2 (绿)</span>
+</label>
+<label class="flex items-center gap-1.5 cursor-pointer">
+<input class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="text-secondary">F3 (蓝)</span>
+</label>
+</div>
+</div>
+<!-- Radio Group: Pitch Tracking Algorithm -->
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant space-y-1.5">
+<div class="font-medium text-[12px] text-on-surface">基频追踪核算法</div>
+<div class="flex items-center gap-3 text-[11px] font-code-timecode">
+<label class="flex items-center gap-1 cursor-pointer">
+<input checked="" class="text-primary focus:ring-0 w-3.5 h-3.5" name="algo" type="radio"/>
+<span>Praat-AC</span>
+</label>
+<label class="flex items-center gap-1 cursor-pointer">
+<input class="text-primary focus:ring-0 w-3.5 h-3.5" name="algo" type="radio"/>
+<span>YIN-FFT</span>
+</label>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 7 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch7">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">07</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">导航、数据表格与多级标注树 (Navigation, Tables &amp; Tree Views)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">32px Compact &amp; 40px Standard · 3px Active Indicator · Multi-select Floating Bar</span>
+</div>
+<p class="text-secondary font-body-md">
+          语料库列表与分词表格是语言学家的常驻分析界面。采用 32px 紧凑表格与 40px 标准表格两种模态。选中行左侧伴随 3px 纯紫高亮条与 #F1EDFF 染色底色，配合顶部浮动批量操作条。
+        </p>
+<!-- Linguistic Dataset Table Component with Synthetic Dialect Data -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest overflow-hidden">
+<!-- Floating Action Bulk Batch Bar (Demonstrated inside component) -->
+<div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-3">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="font-semibold text-body-sm text-on-surface">已选定 2 个音段条目 [合成演示数据]</span>
+<span class="h-3 w-px bg-outline-variant"></span>
+<span class="font-code-timecode text-[11px] text-secondary">Total Duration: 1.482s</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-2 py-1 text-[11px] font-medium bg-surface-container-lowest border border-outline-variant hover:bg-surface-container rounded text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">merge</span>
+                合并区间
+              </button>
+<button class="px-2 py-1 text-[11px] font-medium bg-surface-container-lowest border border-outline-variant hover:bg-surface-container rounded text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">spellcheck</span>
+                批量音标重预测
+              </button>
+<button class="px-2 py-1 text-[11px] font-medium bg-[#FFF5F5] border border-[#E5484D]/40 text-[#E5484D] rounded flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+                清除层标
+              </button>
+</div>
+</div>
+<!-- Table Content -->
+<table class="w-full text-left font-body-sm text-body-sm border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant text-[11px] font-label-caps text-secondary">
+<th class="p-3 w-8"></th>
+<th class="p-3 w-16">ID</th>
+<th class="p-3">起始时间 (Timecode)</th>
+<th class="p-3">正字法 (Hanzi)</th>
+<th class="p-3">国际音标 (IPA Phonetic)</th>
+<th class="p-3">词性/语法格 (POS / Gloss)</th>
+<th class="p-3">基频均值 (F0)</th>
+<th class="p-3 text-right">操作 (Action)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant text-[12px]">
+<!-- Selected Row 1 (With 3px Active Indicator) -->
+<tr class="bg-primary-fixed/40 border-l-[3px] border-primary">
+<td class="p-3 text-center">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+</td>
+<td class="p-3 font-code-timecode text-primary font-bold">#014</td>
+<td class="p-3 font-code-timecode">00:01:23.400 - 00:01:24.120</td>
+<td class="p-3 font-cjk-body font-medium">吃物事 (吃东西)</td>
+<td class="p-3 font-ipa-display text-primary text-[14px]">[ t͡ɕʰiɪʔ⁵⁵ məʔ²¹ zɿ²² ]</td>
+<td class="p-3"><span class="px-1.5 py-0.5 rounded bg-surface-container font-code-timecode text-[10px] text-secondary">VERB + NOUN</span></td>
+<td class="p-3 font-code-timecode">210.4 Hz</td>
+<td class="p-3 text-right">
+<button class="p-1 text-secondary hover:text-primary"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-1 text-secondary hover:text-primary"><span class="material-symbols-outlined">play_circle</span></button>
+</td>
+</tr>
+<!-- Selected Row 2 -->
+<tr class="bg-primary-fixed/40 border-l-[3px] border-primary">
+<td class="p-3 text-center">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+</td>
+<td class="p-3 font-code-timecode text-primary font-bold">#015</td>
+<td class="p-3 font-code-timecode">00:01:24.120 - 00:01:24.882</td>
+<td class="p-3 font-cjk-body font-medium">去白相 (去玩耍)</td>
+<td class="p-3 font-ipa-display text-primary text-[14px]">[ kʰi⁵⁵ baʔ²¹ sɪɑ̃²² ]</td>
+<td class="p-3"><span class="px-1.5 py-0.5 rounded bg-surface-container font-code-timecode text-[10px] text-secondary">DIR + VERB</span></td>
+<td class="p-3 font-code-timecode">188.7 Hz</td>
+<td class="p-3 text-right">
+<button class="p-1 text-secondary hover:text-primary"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-1 text-secondary hover:text-primary"><span class="material-symbols-outlined">play_circle</span></button>
+</td>
+</tr>
+<!-- Normal Row -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-3 text-center">
+<input class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+</td>
+<td class="p-3 font-code-timecode text-secondary">#016</td>
+<td class="p-3 font-code-timecode text-secondary">00:01:24.882 - 00:01:25.640</td>
+<td class="p-3 font-cjk-body">明朝会 (明天见)</td>
+<td class="p-3 font-ipa-display text-[14px]">[ mɪɲ²¹ ʦɒ⁴⁴ ɦue²¹ ]</td>
+<td class="p-3"><span class="px-1.5 py-0.5 rounded bg-surface-container font-code-timecode text-[10px] text-secondary">TIME + VERB</span></td>
+<td class="p-3 font-code-timecode text-secondary">165.2 Hz</td>
+<td class="p-3 text-right">
+<button class="p-1 text-secondary hover:text-primary"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-1 text-secondary hover:text-primary"><span class="material-symbols-outlined">play_circle</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- ==================== CHAPTER 8 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch8">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">08</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">媒体时间轴与音画多层对齐规范 (Media Waveform &amp; Tier Alignment)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Sub-millisecond Time Ruler · Hairline Tiers · Playhead #7658F6</span>
+</div>
+<p class="text-secondary font-body-md">
+          解语系统的核心视窗。弃用厚重的单独卡片分词框，严格使用 1px 细线发丝网格（Hairline Grids）对齐分段边界。提供毫秒标尺、循环选区区间（In/Out Loop）、当前激光播放头（Solid 1.5px #7658F6）与多层标注分轨。
+        </p>
+<!-- Live Interactive-Style Waveform & Tier Component -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest overflow-hidden">
+<!-- Timeline Controls Header Bar -->
+<div class="h-9 px-3 bg-surface-container-low border-b border-outline-variant flex items-center justify-between text-body-sm">
+<div class="flex items-center gap-2">
+<button class="p-1 hover:bg-surface-container rounded text-primary font-bold"><span class="material-symbols-outlined">play_arrow</span></button>
+<button class="p-1 hover:bg-surface-container rounded text-secondary"><span class="material-symbols-outlined">pause</span></button>
+<button class="p-1 hover:bg-surface-container rounded text-secondary"><span class="material-symbols-outlined">replay</span></button>
+<span class="h-3 w-px bg-outline-variant"></span>
+<span class="font-code-timecode text-[11px] font-bold text-on-surface">PLAYHEAD: 00:01:24.450</span>
+<span class="font-code-timecode text-[10px] text-secondary">(Selection: 762ms)</span>
+</div>
+<div class="flex items-center gap-3 font-code-timecode text-[11px]">
+<span class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined" style="font-size: 14px;">speed</span>
+                1.0x Pitch Preserved
+              </span>
+<span class="h-3 w-px bg-outline-variant"></span>
+<label class="flex items-center gap-1 cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-0 w-3 h-3" type="checkbox"/>
+<span>Snap 0-X</span>
+</label>
+<button class="px-1.5 py-0.5 bg-surface-container border border-outline-variant rounded hover:bg-surface-container-high">
+                Zoom In (+)
+              </button>
+</div>
+</div>
+<!-- Timecode Ruler Sub-millisecond -->
+<div class="h-6 bg-surface-container border-b border-outline-variant flex items-end justify-between px-2 font-code-timecode text-[9px] text-secondary select-none">
+<div class="flex items-end gap-1"><span>00:01:23.000</span><div class="h-2 w-px bg-outline-variant"></div></div>
+<div class="h-1.5 w-px bg-outline-variant/60"></div>
+<div class="flex items-end gap-1"><span>00:01:23.500</span><div class="h-2 w-px bg-outline-variant"></div></div>
+<div class="h-1.5 w-px bg-outline-variant/60"></div>
+<div class="flex items-end gap-1"><span class="text-primary font-bold">00:01:24.000</span><div class="h-3 w-px bg-primary"></div></div>
+<div class="h-1.5 w-px bg-outline-variant/60"></div>
+<div class="flex items-end gap-1"><span>00:01:24.500</span><div class="h-2 w-px bg-outline-variant"></div></div>
+<div class="h-1.5 w-px bg-outline-variant/60"></div>
+<div class="flex items-end gap-1"><span>00:01:25.000</span><div class="h-2 w-px bg-outline-variant"></div></div>
+</div>
+<!-- Waveform Canvas Track (Simulation) -->
+<div class="h-24 bg-surface-container-lowest relative border-b border-outline-variant overflow-hidden flex items-center">
+<!-- Left Channel Indicator -->
+<div class="absolute left-2 top-1.5 font-code-timecode text-[9px] text-secondary z-20">
+              CH 1 · 44.1kHz · Peak: -1.2 dB
+            </div>
+<!-- Loop In/Out Region Overlay -->
+<div class="absolute left-[38%] right-[32%] top-0 bottom-0 bg-primary/10 border-x border-primary z-10">
+<div class="absolute top-0 left-0 bg-primary text-white font-code-timecode text-[8px] px-1">IN</div>
+<div class="absolute top-0 right-0 bg-primary text-white font-code-timecode text-[8px] px-1">OUT</div>
+</div>
+<!-- Simulated SVG Audio Waveform Peaks -->
+<div class="w-full flex items-center justify-between px-1 h-16 opacity-75">
+<div class="w-1 bg-[#20242C] h-4"></div>
+<div class="w-1 bg-[#20242C] h-6"></div>
+<div class="w-1 bg-[#20242C] h-10"></div>
+<div class="w-1 bg-[#20242C] h-14"></div>
+<div class="w-1 bg-[#20242C] h-8"></div>
+<div class="w-1 bg-[#20242C] h-4"></div>
+<div class="w-1 bg-[#20242C] h-12"></div>
+<div class="w-1 bg-primary h-16"></div>
+<div class="w-1 bg-primary h-14"></div>
+<div class="w-1 bg-primary h-10"></div>
+<div class="w-1 bg-primary h-16"></div>
+<div class="w-1 bg-primary h-12"></div>
+<div class="w-1 bg-[#20242C] h-8"></div>
+<div class="w-1 bg-[#20242C] h-4"></div>
+<div class="w-1 bg-[#20242C] h-12"></div>
+<div class="w-1 bg-[#20242C] h-15"></div>
+<div class="w-1 bg-[#20242C] h-6"></div>
+<div class="w-1 bg-[#20242C] h-3"></div>
+</div>
+<!-- Active Laser Playhead (1.5px Solid Purple) -->
+<div class="absolute left-[54%] top-0 bottom-0 w-[2px] bg-primary z-30 pointer-events-none">
+<div class="w-2.5 h-2.5 bg-primary rounded-full -ml-[4.5px] -top-1 absolute"></div>
+</div>
+</div>
+<!-- Spectrogram Heatmap Simulation Track -->
+<div class="h-14 bg-gradient-to-b from-[#2A3139] via-[#3B82F6]/30 to-[#F7F9FF] border-b border-outline-variant relative flex items-center justify-between px-2">
+<span class="font-code-timecode text-[9px] text-white/70 absolute top-1 left-2">Spectrogram: 0 - 5000 Hz</span>
+<!-- Formant line overlay -->
+<div class="w-full h-0.5 bg-[#E5484D]/70 absolute top-6"></div>
+<div class="w-full h-0.5 bg-[#10B981]/70 absolute top-9"></div>
+</div>
+<!-- Linguistic Multi-Tier Stack (Hairline 1px Grid Alignment) -->
+<div class="divide-y divide-outline-variant">
+<!-- Tier 1: Orthography 汉字正字层 -->
+<div class="flex h-8 items-center">
+<div class="w-40 bg-surface-container px-2 h-full flex items-center justify-between border-r border-outline-variant font-label-caps text-[10px] text-secondary">
+<span>1. 正字法 (WORD)</span>
+<span class="material-symbols-outlined" style="font-size: 12px;">lock</span>
+</div>
+<div class="flex-1 flex h-full font-cjk-body text-[12px]">
+<div class="w-[38%] border-r border-outline-variant flex items-center justify-center text-secondary hover:bg-surface-container-low">
+                  我伲大家
+                </div>
+<!-- Active Selected Interval -->
+<div class="w-[30%] border-r border-primary bg-primary-fixed flex items-center justify-center font-bold text-on-primary-fixed">
+                  苏州白话
+                </div>
+<div class="flex-1 flex items-center justify-center text-secondary hover:bg-surface-container-low">
+                  蛮好听个
+                </div>
+</div>
+</div>
+<!-- Tier 2: IPA Phonetic 严式音标层 -->
+<div class="flex h-9 items-center">
+<div class="w-40 bg-surface-container px-2 h-full flex items-center justify-between border-r border-outline-variant font-label-caps text-[10px] text-primary font-bold">
+<span>2. 音标层 (IPA PHON)</span>
+<span class="material-symbols-outlined text-primary" style="font-size: 12px;">edit</span>
+</div>
+<div class="flex-1 flex h-full font-ipa-display text-[14px]">
+<div class="w-[38%] border-r border-outline-variant flex items-center justify-center text-secondary">
+                  [ ŋu²¹ ni³³ da⁵⁵ ɡᴀ³¹ ]
+                </div>
+<!-- Active Edit Box with 1px Accent Outline -->
+<div class="w-[30%] border-r border-primary bg-surface-container-lowest ring-1 ring-primary flex items-center justify-center text-primary font-semibold">
+                  [ sɯ³³⁻²¹ ʦøʏ⁴⁴⁻²¹ baʔ²¹ ɦo²² ]
+                </div>
+<div class="flex-1 flex items-center justify-center text-secondary">
+                  [ mɛ²² hɔ⁵² tʰiɲ³³ ɡəʔ² ]
+                </div>
+</div>
+</div>
+<!-- Tier 3: Tone Letters 声调五度标记 -->
+<div class="flex h-7 items-center">
+<div class="w-40 bg-surface-container px-2 h-full flex items-center justify-between border-r border-outline-variant font-label-caps text-[10px] text-secondary">
+<span>3. 声调五度 (TONE)</span>
+<span class="material-symbols-outlined" style="font-size: 12px;">tune</span>
+</div>
+<div class="flex-1 flex h-full font-code-timecode text-[11px] text-secondary">
+<div class="w-[38%] border-r border-outline-variant flex items-center justify-center">
+                  21 - 33 - 55 - 31
+                </div>
+<div class="w-[30%] border-r border-outline-variant bg-surface-container-low flex items-center justify-center font-bold text-on-surface">
+                  44 → 21 (Sandhi 连读变调)
+                </div>
+<div class="flex-1 flex items-center justify-center">
+                  22 - 52 - 33 - 2
+                </div>
+</div>
+</div>
+<!-- Tier 4: Gloss 义类与词法切分 -->
+<div class="flex h-7 items-center">
+<div class="w-40 bg-surface-container px-2 h-full flex items-center justify-between border-r border-outline-variant font-label-caps text-[10px] text-secondary">
+<span>4. 语素对齐 (GLOSS)</span>
+<span class="material-symbols-outlined" style="font-size: 12px;">translate</span>
+</div>
+<div class="flex-1 flex h-full font-body-sm text-[11px] text-secondary">
+<div class="w-[38%] border-r border-outline-variant flex items-center justify-center">
+                  1PL.EXCL (We)
+                </div>
+<div class="w-[30%] border-r border-outline-variant bg-surface-container-low flex items-center justify-center font-medium">
+                  Suzhou-Dialect (Toponym+N)
+                </div>
+<div class="flex-1 flex items-center justify-center">
+                  very pleasant-sounding-PTCL
+                </div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 9 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch9">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">09</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">浮层、弹出菜单与上下文抽屉 (Overlays, Popovers, Drawers &amp; AI Assistant)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Restrained Shadow (0 4px 16px rgba(0,0,0,0.08)) · AI Acoustic Inspector</span>
+</div>
+<p class="text-secondary font-body-md">
+          工作区平面内无阴影，所有投影（0 4px 16px rgba(0,0,0,0.08)）仅出现在脱离文档流的浮层与上下文菜单上。抽屉与模态层需遵循焦点捕获（Focus Trap）与 ESC 键即时关闭策略。
+        </p>
+<!-- Overlays Demonstration Bento -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Component A: Contextual Right-Click Tier Menu -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest p-4">
+<div class="flex items-center justify-between pb-2 mb-3 border-b border-outline-variant">
+<span class="font-semibold text-body-md">右键上下文级联菜单 (Context Popover Menu)</span>
+<span class="font-code-timecode text-[10px] text-secondary">Elevation: Minimal Soft</span>
+</div>
+<!-- Floating Menu Simulation Box -->
+<div class="w-64 bg-surface-container-lowest border border-outline-variant rounded-xl p-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.08)] space-y-0.5">
+<div class="px-2 py-1 font-label-caps text-[9px] text-secondary uppercase">Tier Actions (Segment #015)</div>
+<button class="w-full px-2 py-1.5 text-left text-[12px] hover:bg-surface-container rounded flex items-center justify-between text-on-surface">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined">call_split</span> 拆分所选音段</span>
+<span class="font-code-timecode text-[10px] text-secondary">Cmd+B</span>
+</button>
+<button class="w-full px-2 py-1.5 text-left text-[12px] hover:bg-surface-container rounded flex items-center justify-between text-on-surface">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined">merge</span> 与右侧合并</span>
+<span class="font-code-timecode text-[10px] text-secondary">Cmd+M</span>
+</button>
+<button class="w-full px-2 py-1.5 text-left text-[12px] hover:bg-surface-container rounded flex items-center justify-between text-on-surface">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined">volume_up</span> 独立循环此段</span>
+<span class="font-code-timecode text-[10px] text-secondary">Space</span>
+</button>
+<div class="h-px bg-outline-variant my-1"></div>
+<button class="w-full px-2 py-1.5 text-left text-[12px] hover:bg-[#FFF5F5] text-[#E5484D] rounded flex items-center justify-between">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined">delete</span> 删除此标注块</span>
+<span class="font-code-timecode text-[10px] text-[#E5484D]">Backspace</span>
+</button>
+</div>
+</div>
+<!-- Component B: Floating AI Acoustic Assistant Panel -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest p-4">
+<div class="flex items-center justify-between pb-2 mb-3 border-b border-outline-variant">
+<span class="font-semibold text-body-md">独立声学 AI 协同助手 (Acoustic AI Drawer)</span>
+<span class="px-1.5 py-0.5 bg-primary-fixed text-on-primary-fixed font-code-timecode text-[10px] rounded">WASM Engine</span>
+</div>
+<!-- Drawer Container Box -->
+<div class="bg-surface-container-low border border-outline-variant rounded p-3 space-y-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-semibold text-[12px]">自动音段对齐置信度建议</span>
+</div>
+<span class="font-code-timecode text-[11px] text-[#10B981]">98.4% Confidence</span>
+</div>
+<div class="p-2.5 bg-surface-container-lowest rounded border border-outline-variant text-[12px] space-y-1">
+<div class="text-secondary text-[10px] font-label-caps">MFA FORCED ALIGNMENT SUGGESTION:</div>
+<div class="font-ipa-display text-[14px] text-primary">/baʔ²¹/ → 闭塞音冲头点偏前 8.2ms</div>
+<div class="text-[11px] text-secondary">检测到底层声门紧缩波形，建议将左边界左移至 00:01:24.112 以包含爆破除阻瞬间。</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 h-7 bg-primary hover:bg-[#6444e4] text-white rounded text-[11px] font-medium flex items-center justify-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 12px;">done</span>
+                  采纳 AI 边界修正
+                </button>
+<button class="h-7 px-3 bg-surface-container-lowest border border-outline-variant hover:bg-surface-container rounded text-[11px] text-secondary">
+                  忽略
+                </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 10 ==================== -->
+<section class="scroll-mt-16 space-y-6" id="ch10">
+<div class="flex items-baseline justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<span class="font-code-timecode text-primary font-bold text-headline-sm">10</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">全局状态、异常兜底与可访问性 (System States, Edge Cases &amp; Accessibility)</h2>
+</div>
+<span class="font-code-timecode text-[11px] text-secondary">Sync Pipeline · Loss Alerts · 100/200/300ms Motion</span>
+</div>
+<p class="text-secondary font-body-md">
+          野外语料采集场景下网络极其不可靠。规范制定了明确的离线缓存同步流水线状态，并杜绝 AI 审核状态对普通成功的颜色复用。动效严格限制在 100ms - 300ms 纯功能性平移。
+        </p>
+<!-- System Pipeline & Status Banners Grid -->
+<div class="space-y-4">
+<!-- 1. Offline & Sync Status Pipeline Bar -->
+<div class="p-3 bg-surface-container-high border border-outline-variant rounded flex items-center justify-between text-[12px]">
+<div class="flex items-center gap-3">
+<span class="flex items-center gap-1.5 font-semibold text-on-surface">
+<span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
+                离线本地存储已锁定 (Offline IndexedDB Buffer Active)
+              </span>
+<span class="text-secondary">|</span>
+<span class="font-code-timecode text-[11px] text-secondary">未同步语料变动：18 处 · 内存占用：4.2 MB</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 bg-surface-container-lowest border border-outline-variant hover:bg-surface-container rounded font-medium text-[11px]">
+                备份本地快照 (.tar.gz)
+              </button>
+<button class="px-2.5 py-1 bg-primary text-white rounded font-medium text-[11px]">
+                重试建立连接
+              </button>
+</div>
+</div>
+<!-- 2. Media Asset Lost Critical Banner -->
+<div class="p-3 bg-[#FFF5F5] border border-[#E5484D] rounded flex items-center justify-between text-[12px]">
+<div class="flex items-center gap-2 text-[#E5484D]">
+<span class="material-symbols-outlined" style="font-size: 18px;">broken_image</span>
+<span class="font-bold">音频资源源文件缺失 (Audio WAV Lost)</span>
+<span class="font-code-timecode text-[11px] text-[#E5484D]/80">Expected: /Volumes/FieldDrive/Wu_2025_Audio04.wav</span>
+</div>
+<button class="px-2.5 py-1 bg-[#E5484D] text-white rounded font-medium text-[11px] hover:bg-[#B91C1C]">
+              重新关联本地文件路径...
+            </button>
+</div>
+<!-- 3. AI Pipeline Review States Matrix (Strictly Distinct) -->
+<div class="border border-outline-variant rounded bg-surface-container-lowest p-4">
+<div class="text-body-sm font-semibold mb-3">AI 语料自动审核三阶流转态 (Non-ambiguous AI States)</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<!-- Pending Review -->
+<div class="p-3 bg-surface-container-low border border-outline-variant rounded">
+<div class="flex items-center justify-between">
+<span class="font-code-timecode text-[11px] font-bold text-secondary">STATE 1: PENDING</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-secondary font-code-timecode text-[10px] rounded">待复核</span>
+</div>
+<div class="text-[12px] text-on-surface mt-2 font-medium">算法预切分完成，等待语言学家确认</div>
+<div class="text-[10px] text-secondary mt-1">Border: #CBD2DC · Background: #EDF0F4</div>
+</div>
+<!-- Accepted State (Unique Purple / Solid Validation) -->
+<div class="p-3 bg-[#F1EDFF] border border-primary rounded">
+<div class="flex items-center justify-between">
+<span class="font-code-timecode text-[11px] font-bold text-primary">STATE 2: ACCEPTED</span>
+<span class="px-1.5 py-0.5 bg-primary text-white font-code-timecode text-[10px] rounded">人工采纳</span>
+</div>
+<div class="text-[12px] text-primary mt-2 font-medium">已由调查员人工核准并合并至语料库金标集</div>
+<div class="text-[10px] text-primary/80 mt-1">Distinct from general success · Accent Solid #7658F6</div>
+</div>
+<!-- Rejected State -->
+<div class="p-3 bg-[#FFF5F5] border border-[#E5484D]/40 rounded">
+<div class="flex items-center justify-between">
+<span class="font-code-timecode text-[11px] font-bold text-[#E5484D]">STATE 3: REJECTED</span>
+<span class="px-1.5 py-0.5 bg-[#E5484D] text-white font-code-timecode text-[10px] rounded">拒绝废弃</span>
+</div>
+<div class="text-[12px] text-[#E5484D] mt-2 font-medium">模型声学误报（背景突发瞬态噪声干扰）</div>
+<div class="text-[10px] text-[#E5484D]/80 mt-1">Marked for model retrain buffer</div>
+</div>
+</div>
+</div>
+<!-- Motion & A11y Standards Table -->
+<div class="p-4 bg-surface-container rounded border border-outline-variant space-y-2">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-secondary uppercase font-semibold">Accessibility &amp; Motion Timing Tokens</span>
+<span class="font-code-timecode text-[10px] text-secondary">WCAG 2.1 AA Compliant</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] font-code-timecode">
+<div class="p-2 bg-surface-container-lowest border border-outline-variant rounded">
+<div class="text-primary font-bold">100ms (Micro Feedback)</div>
+<div class="text-secondary font-body-sm mt-0.5">按键 Hover 色值过渡、轨道游标吸附抖动消除。</div>
+</div>
+<div class="p-2 bg-surface-container-lowest border border-outline-variant rounded">
+<div class="text-primary font-bold">200ms (Panel Toggle)</div>
+<div class="text-secondary font-body-sm mt-0.5">右侧检查器抽屉展开/折叠、弹出菜单淡入。</div>
+</div>
+<div class="p-2 bg-surface-container-lowest border border-outline-variant rounded">
+<div class="text-primary font-bold">@media (prefers-reduced-motion)</div>
+<div class="text-secondary font-body-sm mt-0.5">完全切断非必要过渡，直接进行帧切换防晕动。</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== FOOTER ==================== -->
+<footer class="pt-12 pb-16 border-t border-outline-variant flex flex-col sm:flex-row items-center justify-between text-secondary font-body-sm text-body-sm">
+<div class="flex items-center gap-2">
+<span class="font-bold text-on-surface">解语 Jieyu</span>
+<span>— Desktop Linguistic Annotation System Specification</span>
+</div>
+<div class="font-code-timecode text-[11px] mt-2 sm:mt-0">
+          Built with Inter, Charis SIL &amp; JetBrains Mono · Precision Audio Tooling
+        </div>
+</footer>
+</main>
+</div>
+<!-- Inline Vanilla Micro-interactions -->
+<script>
+    // Subtle active TOC tracker
+    document.addEventListener('DOMContentLoaded', () => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute('id');
+            document.querySelectorAll('aside a[href^="#"]').forEach(link => {
+              if (link.getAttribute('href') === `#${id}`) {
+                link.classList.add('border-l-[3px]', 'border-primary', 'bg-surface-container-lowest', 'text-on-surface');
+                link.classList.remove('text-secondary');
+              } else {
+                link.classList.remove('border-l-[3px]', 'border-primary', 'bg-surface-container-lowest', 'text-on-surface');
+                link.classList.add('text-secondary');
+              }
+            });
+          }
+        });
+      }, { threshold: 0.2 });
+
+      document.querySelectorAll('section[id^="ch"]').forEach(section => {
+        observer.observe(section);
+      });
+    });
+  </script>
+</body></html>
