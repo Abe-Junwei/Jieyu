@@ -9,16 +9,13 @@ hero:
   tagline: 给做濒危语言调查和整理的人。一次田野工作留在同一套本地工作区里。
   actions:
     - theme: brand
-      text: 从快速开始看
-      link: /getting-started
+      text: 录音与转写
+      link: /recording
     - theme: alt
       text: 开发者文档（DeepWiki）
       link: https://deepwiki.com/Abe-Junwei/Jieyu
 
 features:
-  - title: 快速开始
-    details: 新建项目、导入第一条录音、切段并写下第一句转写。
-    link: /getting-started
   - title: 录音与转写
     details: 导入媒体、波形与时间轴、VAD/手动切段、翻译层录音、播放与快捷键。
     link: /recording
@@ -34,6 +31,9 @@ features:
   - title: 导入导出与备份
     details: EAF/TextGrid/JYT/JYM/JYB 等交换与备份；档案建档另见占位说明。
     link: /export
+  - title: 设置与快捷键
+    details: 主题、播放默认、以及应用内可查的快捷键一览。
+    link: /settings
 ---
 
 ## 怎么读本站
@@ -44,9 +44,10 @@ features:
 
 侧栏主要入口（应用内文案）：**首页**、**转写**、**标注**、**词典**、**语料库**、**分析**（受限），以及资产侧的语言元数据 / 正字法 / 正字法桥接等。
 
+按专题深入时用下表：
+
 | 你想…… | 打开 |
 | --- | --- |
-| 跟着做一遍最短路径 | [快速开始](/getting-started) |
 | 把导入、切段、播放、层录音做细 | [录音与转写](/recording) |
 | 做行际标注（IGT） | [标注与 IGT](/annotation) |
 | 收词、导入导出词表 | [词典](/lexicon) |
