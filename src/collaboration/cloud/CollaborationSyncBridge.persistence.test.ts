@@ -180,4 +180,45 @@ describe('CollaborationSyncBridge persistence flow', () => {
 
     await bridge.stop();
   });
+
+  it('#360: 发送等待期间新入队不得删掉飞行中批次的持久化 | in-flight batch stays persisted when enqueue happens mid-send', async () => {
+    let resolveSend!: () => void;
+    const sender = vi
+      .fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+
+    const bridge = new CollaborationSyncBridge({
+      projectId: 'project-1',
+      onApplyRemoteChange: async () => {},
+      onSendLocalChanges: sender,
+      flushIntervalMs: 60_000,
+    });
+
+    await bridge.start();
+    await bridge.enqueueLocalChange(makeChange('op-A'));
+    const flushA = bridge.flushLocalChanges();
+    await flushMicroTasks();
+    expect(sender).toHaveBeenCalledWith([expect.objectContaining({ clientOpId: 'op-A' })]);
+
+    await bridge.enqueueLocalChange(makeChange('op-B'));
+    await flushMicroTasks();
+
+    const pendingKeys = loadProjectPendingOutboundChanges('project-1').map((c) => c.clientOpId);
+    expect(pendingKeys.sort()).toEqual(['op-A', 'op-B']);
+
+    resolveSend();
+    await flushA;
+    await bridge.flushLocalChanges();
+    await flushMicroTasks();
+
+    expect(loadProjectPendingOutboundChanges('project-1')).toEqual([]);
+    await bridge.stop();
+  });
+
 });

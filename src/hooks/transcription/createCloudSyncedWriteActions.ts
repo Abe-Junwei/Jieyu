@@ -95,10 +95,14 @@ export function createCloudSyncedWriteActions({
         unitIdList.length === 1
           ? (unitIdList[0] ?? 'batch:self-certainty')
           : 'batch:self-certainty';
+      // #365: undefined 表示清除；协议用 null，避免 JSON 丢掉该字段
+      // undefined means clear; wire null so JSON does not drop the field
+      // #365: undefined 表示清除；协议用 null，避免 JSON 丢掉该字段
+      // undefined means clear; wire null so JSON does not drop the field
       const payload: Record<string, unknown> = {
         action: 'self-certainty',
         unitIds: unitIdList,
-        value,
+        value: value === undefined ? null : value,
       };
       await enqueueMutation({
         entityType: 'layer_unit',

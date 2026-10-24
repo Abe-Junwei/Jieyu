@@ -22,6 +22,7 @@ export interface CollaborationCloudHydrationDeps {
     sinceRevision: number;
     limit: number;
     offset: number;
+    ascending?: boolean;
   }) => Promise<{ changes: CollaborationProjectChangeRecord[] }>;
   restoreProjectSnapshotById: (snapshotId: string) => Promise<{ payloadJson: string }>;
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
@@ -30,7 +31,7 @@ export interface CollaborationCloudHydrationDeps {
   applyRemoteChangeToLocal: (
     change: CollaborationProjectChangeRecord,
     options?: { skipLoadSnapshot?: boolean; skipConflictGovernance?: boolean },
-  ) => Promise<void>;
+  ) => Promise<void | { commitRevision?: boolean }>;
   markProjectRevisionSeen: (revision: number) => void;
   isCancelled: () => boolean;
 }
@@ -54,6 +55,7 @@ export async function hydrateCollaborationProjectFromCloud(
       sinceRevision: 1,
       limit: 1,
       offset: 0,
+      ascending: true,
     });
     const cloudHasData = headSnapshots.length > 0 || probe.changes.length > 0;
     if (!cloudHasData) {
@@ -90,20 +92,27 @@ export async function hydrateCollaborationProjectFromCloud(
   const sinceRevision = Math.max(1, latestRevision + 1);
   const replayChanges: CollaborationProjectChangeRecord[] = [];
   let offset = 0;
+  let truncatedByPageCap = false;
 
   for (let page = 0; page < MAX_RECOVERY_TIMELINE_PAGES; page += 1) {
     const pageResult = await deps.queryProjectChangeTimeline({
       sinceRevision,
       limit: RECOVERY_TIMELINE_PAGE_SIZE,
       offset,
+      ascending: true,
     });
     const pageChanges = pageResult.changes;
     if (pageChanges.length === 0) break;
     replayChanges.push(...pageChanges);
     if (pageChanges.length < RECOVERY_TIMELINE_PAGE_SIZE) break;
     offset += RECOVERY_TIMELINE_PAGE_SIZE;
+    if (page === MAX_RECOVERY_TIMELINE_PAGES - 1) {
+      // Full round of pages with a full final page — more may remain on the server.
+      truncatedByPageCap = true;
+    }
   }
 
+  // Ascending fetch already yields oldest→newest; keep a stable sort for safety.
   const orderedReplayChanges = replayChanges
     .slice()
     .sort((a, b) => a.projectRevision - b.projectRevision);
@@ -125,6 +134,11 @@ export async function hydrateCollaborationProjectFromCloud(
     await deps.loadSnapshot(deps.collaborationProjectId);
   }
 
+  // Persist progress through what we applied. When truncated, do not claim complete
+  // hydration — leave hydrated:false so a later round can continue from the cursor.
   deps.markProjectRevisionSeen(latestRevision);
+  if (truncatedByPageCap) {
+    return { latestRevision, hydrated: false };
+  }
   return { latestRevision, hydrated: !deps.isCancelled() };
 }

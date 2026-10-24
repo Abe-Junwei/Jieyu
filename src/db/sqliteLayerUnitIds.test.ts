@@ -81,8 +81,33 @@ describe('sqlite manuscript unit ids', () => {
         'unit-c',
       ]);
       await expect(second.port.countPresentLayerUnits(['unit-a', 'unit-hidden'])).resolves.toBe(1);
+      await expect(
+        second.port.listForeignOwnedUnits(
+          ['unit-a', ' unit-b ', 'unit-blank', 'unit-hidden', 'gone', ''],
+          TEXT_ID,
+        ),
+      ).resolves.toEqual([{ id: 'unit-b', textId: 'text-other' }]);
+      await expect(second.port.listForeignOwnedUnits([], TEXT_ID)).resolves.toEqual([]);
     } finally {
       second.close();
+    }
+  });
+
+  it('skips a blank project id and keeps the requested order after reopen', async () => {
+    const { folder, userData } = tempProject();
+    insertUnit(join(folder, 'mixed.jyd'), 'unit-late', 'text-z');
+    insertUnit(join(folder, 'mixed.jyd'), 'unit-pad', '   ');
+    insertUnit(join(folder, 'other.jyd'), 'unit-early', 'text-other');
+    const opened = openSqliteStoragePort(userData, folder);
+    try {
+      await expect(
+        opened.port.listForeignOwnedUnits(['unit-late', 'unit-pad', 'unit-early'], TEXT_ID),
+      ).resolves.toEqual([
+        { id: 'unit-late', textId: 'text-z' },
+        { id: 'unit-early', textId: 'text-other' },
+      ]);
+    } finally {
+      opened.close();
     }
   });
 
@@ -100,6 +125,9 @@ describe('sqlite manuscript unit ids', () => {
         'duplicate unit unit-dup in project folder',
       );
       await expect(opened.port.countPresentLayerUnits(['unit-ok'])).resolves.toBe(1);
+      await expect(opened.port.listForeignOwnedUnits(['unit-dup'], TEXT_ID)).rejects.toThrow(
+        'duplicate unit unit-dup in project folder',
+      );
     } finally {
       opened.close();
     }
@@ -121,6 +149,9 @@ describe('sqlite manuscript unit ids', () => {
         /has not opened a project folder/,
       );
       await expect(opened.port.countPresentLayerUnits(['unit-a'])).rejects.toThrow(
+        /has not opened a project folder/,
+      );
+      await expect(opened.port.listForeignOwnedUnits(['unit-a'], TEXT_ID)).rejects.toThrow(
         /has not opened a project folder/,
       );
     } finally {

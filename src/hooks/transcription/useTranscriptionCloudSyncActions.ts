@@ -151,6 +151,10 @@ export function useTranscriptionCloudSyncActions({
     };
   }, []);
 
+  // #363: bridge owns markProjectRevisionSeen; conflict resolve must call it via ref
+  // because the conflict-review hook is created before the bridge hook.
+  const markProjectRevisionSeenRef = useRef<(revision: number) => void>(() => undefined);
+
   const {
     conflictReviewTickets,
     conflictOperationLogs,
@@ -168,6 +172,9 @@ export function useTranscriptionCloudSyncActions({
     runWithDbMutex,
     loadSnapshot,
     ...(onRemoteChangeApplied ? { onRemoteChangeApplied } : {}),
+    markProjectRevisionSeen: (revision) => {
+      markProjectRevisionSeenRef.current(revision);
+    },
   });
 
   const {
@@ -191,6 +198,10 @@ export function useTranscriptionCloudSyncActions({
     projectId: collaborationProjectId,
     onApplyRemoteChange: applyRemoteChangeToLocal,
   });
+
+  useEffect(() => {
+    markProjectRevisionSeenRef.current = markProjectRevisionSeen;
+  }, [markProjectRevisionSeen]);
 
   const { presenceMembers, presenceCurrentUserId } = useCollaborationPresence({
     phase,

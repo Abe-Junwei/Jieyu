@@ -209,7 +209,7 @@ describe('CollaborationAssetService', () => {
     expect(removeProjectAsset).toHaveBeenCalledWith('project-audio', 'proj-1/audio-abc/file.wav');
   });
 
-  it('[remove] Storage 删除失败时补回元数据 | restores metadata when storage deletion fails', async () => {
+  it('#366: Storage 删除失败时补回元数据须带协议/客户端版本 | compensate insert includes write stamp', async () => {
     const row = makeAssetRow();
     const chain = createQueryChain({ data: row, error: null });
     mockSupabaseFrom.mockReturnValue(chain);
@@ -224,7 +224,32 @@ describe('CollaborationAssetService', () => {
       project_id: 'proj-1',
       storage_path: 'proj-1/audio-abc/file.wav',
       created_at: '2026-04-17T00:00:00.000Z',
+      protocol_version: expect.any(Number),
+      client_app_version: expect.any(String),
     }));
+  });
+
+  it('#366: 补偿 INSERT 返回 error 时仍抛出 Storage 错误 | compensate insert error still surfaces storage failure', async () => {
+    const row = makeAssetRow();
+    const chain = createQueryChain({ data: row, error: null });
+    // insert 单独返回 error（Supabase 不 throw）| insert alone returns error (Supabase does not throw)
+    chain.insert = vi.fn().mockReturnValue({
+      then: (resolve: (v: unknown) => void) =>
+        resolve({ data: null, error: new Error('compensate-rejected') }),
+    });
+    mockSupabaseFrom.mockReturnValue(chain);
+
+    const { removeProjectAsset } = await import('../../integrations/supabase/storage');
+    const mockedRemoveProjectAsset = vi.mocked(removeProjectAsset);
+    mockedRemoveProjectAsset.mockRejectedValueOnce(new Error('storage-down'));
+
+    await expect(service.remove('asset-1')).rejects.toThrow('storage-down');
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protocol_version: expect.any(Number),
+        client_app_version: expect.any(String),
+      }),
+    );
   });
 });
 
@@ -403,6 +428,28 @@ describe('CollaborationAuditLogService', () => {
     expect(chain.gte).toHaveBeenCalledWith('created_at', '2026-04-01T00:00:00Z');
     expect(chain.lte).toHaveBeenCalledWith('created_at', '2026-04-17T23:59:59Z');
     expect(chain.gte).toHaveBeenCalledWith('project_revision', 5);
+  });
+
+  it('#362: queryTimeline uses ascending order when ascending:true', async () => {
+    const chain = createQueryChain({ data: [], error: null, count: 0 });
+    mockSupabaseFrom.mockReturnValue(chain);
+
+    await service.queryTimeline({
+      projectId: 'proj-1',
+      sinceRevision: 1,
+      ascending: true,
+    });
+
+    expect(chain.order).toHaveBeenCalledWith('project_revision', { ascending: true });
+  });
+
+  it('#362: queryTimeline defaults to newest-first for audit UI', async () => {
+    const chain = createQueryChain({ data: [], error: null, count: 0 });
+    mockSupabaseFrom.mockReturnValue(chain);
+
+    await service.queryTimeline({ projectId: 'proj-1' });
+
+    expect(chain.order).toHaveBeenCalledWith('project_revision', { ascending: false });
   });
 
   it('[queryTimeline] 省略可选筛选时不调用对应 filter | omits unused filters', async () => {
