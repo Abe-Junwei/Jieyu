@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
-import { importMediaViaDialog, seedThreeSegmentsOnCurrentProject, waitForDexie } from './_helpers/transcriptionProjectFlow';
-import { createTranscriptionAndTranslationLayersViaLeftRail } from './_helpers/layerCreationFlow';
-import { buildMinimalWavBytes } from './_helpers/minimalWav';
+import { importMediaViaDialog, seedThreeSegmentsOnCurrentProject, waitForDexie } from '../../tests/e2e/_helpers/transcriptionProjectFlow';
+import { createTranscriptionAndTranslationLayersViaLeftRail } from '../../tests/e2e/_helpers/layerCreationFlow';
+import { buildMinimalWavBytes } from '../../tests/e2e/_helpers/minimalWav';
 
 test('capture expanded sidebar geometry and live summaries', async ({ page }, info) => {
   test.setTimeout(180_000);
