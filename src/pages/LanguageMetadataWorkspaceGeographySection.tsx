@@ -182,6 +182,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                 <button
                   type="button"
                   className="btn btn-ghost lm-geocode-btn"
+                  aria-label={t(locale, 'workspace.languageMetadata.geocodeSearch')}
                   onClick={map.handleGeocodeSearch}
                   disabled={map.geocodeLoading}
                 >

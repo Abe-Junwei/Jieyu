@@ -802,6 +802,7 @@ export const enUSDictionary = {
   'workspace.languageMetadata.mapTiandituKeyPlaceholder': 'Free token from lbs.tianditu.gov.cn',
   'workspace.languageMetadata.mapMaptilerKeyPlaceholder': 'Get API key from maptiler.com',
   'workspace.languageMetadata.geocodePlaceholder': 'Search by place name…',
+  'workspace.languageMetadata.geocodeSearch': 'Search place',
   'workspace.languageMetadata.geocodeSearching': 'Searching…',
   'workspace.languageMetadata.geocodeNoResults': 'No matching places found',
   'workspace.languageMetadata.geocodeError': 'Place lookup failed. Please try again.',

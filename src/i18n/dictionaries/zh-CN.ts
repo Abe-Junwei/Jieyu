@@ -756,6 +756,7 @@ export const zhCNDictionary = {
   'workspace.languageMetadata.mapTiandituKeyPlaceholder': '在 lbs.tianditu.gov.cn 免费申请',
   'workspace.languageMetadata.mapMaptilerKeyPlaceholder': '在 maptiler.com 获取 API Key',
   'workspace.languageMetadata.geocodePlaceholder': '输入地名搜索定位…',
+  'workspace.languageMetadata.geocodeSearch': '搜索定位',
   'workspace.languageMetadata.geocodeSearching': '搜索中…',
   'workspace.languageMetadata.geocodeNoResults': '未找到匹配地点',
   'workspace.languageMetadata.geocodeError': '地点解析失败，请稍后重试。',
