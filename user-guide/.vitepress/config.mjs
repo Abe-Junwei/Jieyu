@@ -62,7 +62,6 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '使用说明', link: '/' },
-          { text: '快速开始', link: '/getting-started' },
           { text: '常见问题', link: '/faq' },
           { text: '开发者文档', link: 'https://deepwiki.com/Abe-Junwei/Jieyu' },
         ],
