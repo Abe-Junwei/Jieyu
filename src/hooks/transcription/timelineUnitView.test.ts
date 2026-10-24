@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../../db';
 import {
+  appendUnitsNotShadowedBySegments,
   buildTimelineUnitViewIndex,
   mergedTimelineUnitSemanticKeyCount,
   pickTimelineUnitsForTranscriptionLayer,
@@ -687,5 +688,18 @@ describe('mergedTimelineUnitSemanticKeyCount', () => {
         segments: [{ id: 's1', layerId: 'l1' }],
       }),
     ).toBe(2);
+  });
+});
+
+describe('appendUnitsNotShadowedBySegments', () => {
+  it('drops only units a segment refers to', () => {
+    const units = [{ id: 'parent' }, { id: 'alone' }];
+    expect(
+      appendUnitsNotShadowedBySegments(units, [{ parentUnitId: 'parent' }]).map((unit) => unit.id),
+    ).toEqual(['alone']);
+    expect(appendUnitsNotShadowedBySegments(units, []).map((unit) => unit.id)).toEqual([
+      'parent',
+      'alone',
+    ]);
   });
 });
