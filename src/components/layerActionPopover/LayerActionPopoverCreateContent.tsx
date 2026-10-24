@@ -251,9 +251,11 @@ export function LayerActionPopoverCreateContent(props: LayerActionPopoverCreateC
               <option value="mixed">{actionMessages.modalityMixed}</option>
             </select>
           </FormField>
-          <PanelNote className="layer-action-dialog-meta-note">
-            {actionMessages.translationBoundarySource}
-          </PanelNote>
+          {action === 'create-translation' && (
+            <PanelNote className="layer-action-dialog-meta-note">
+              {actionMessages.translationBoundarySource}
+            </PanelNote>
+          )}
           {action === 'create-translation' && independentParentLayers.length > 1 && (
             <div className="dialog-field">
               <div className="dialog-field-label" id={`${translationParentLayerFieldId}-legend`}>

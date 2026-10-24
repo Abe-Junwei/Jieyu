@@ -1907,7 +1907,11 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(hookCode.includes('const applyRecoveryBanner = useCallback((): void => {')).toBe(true);
     expect(hookCode.includes('const dismissRecoveryBanner = useCallback((): void => {')).toBe(true);
-    expect(hookCode.includes('if (ok) hideRecoveryBanner();')).toBe(true);
+    expect(
+      hookCode.includes(
+        'if (ok && checkedScopeRef.current === scopeKey && recoveryDataRef.current === snap)',
+      ),
+    ).toBe(true);
   });
 
   it('keeps timeline filtering and editor context composition extracted into dedicated hook', () => {

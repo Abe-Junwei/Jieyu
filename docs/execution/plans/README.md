@@ -12,10 +12,11 @@ source_of_truth: execution-plan-index
 > 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。
 > SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。
 
-## 进行中（5）
+## 进行中（6）
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| active | [解语 UI/UX 审查、修正与视觉落地实施方案](./UI-UX审查修正与视觉落地-2026-10-24.md) | 2026-10-24 |
 | draft | [存储接口剩余方法](./sqlite-storage-port-remainder-2026-10-24.md) | 2026-10-24 |
 | active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-10-24 |
 | active | [解语 AI 智能体运行时迁移评估](./AI智能体运行时迁移评估-2026-10-13.md) | 2026-10-17 |

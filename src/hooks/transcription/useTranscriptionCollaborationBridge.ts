@@ -622,7 +622,8 @@ export function useTranscriptionCollaborationBridge({
 
   const enqueueMutation = useCallback(
     (input: TranscriptionCollaborationMutationInput): Promise<void> => {
-      if (!enabled || !normalizedProjectId) return Promise.resolve();
+      if (!enabled || !normalizedProjectId || !hasSupabaseBrowserClientConfig())
+        return Promise.resolve();
       const codec = codecRef.current;
       const bridge = bridgeRef.current;
       if (writeGuardRef.current.cloudWritesDisabled) {

@@ -26,6 +26,76 @@ function makeRecoveryData(
 }
 
 describe('useRecoveryBanner', () => {
+  it('ignores a late snapshot from the previous project', async () => {
+    let resolveOld!: (value: RecoveryData | null) => void;
+    const current = makeRecoveryData([{ id: 'current-unit' }], [], []);
+    const checkRecovery = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<RecoveryData | null>((resolve) => {
+            resolveOld = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(current);
+    const applyRecovery = vi.fn(async () => true);
+    const { result, rerender } = renderHook(
+      (props: { scopeKey: string }) =>
+        useRecoveryBanner({
+          ...props,
+          phase: 'ready',
+          unitsLength: 0,
+          translationsLength: 0,
+          layersLength: 0,
+          checkRecovery,
+          applyRecovery,
+        }),
+      { initialProps: { scopeKey: 'old' } },
+    );
+    rerender({ scopeKey: 'current' });
+    await waitFor(() => expect(result.current.recoveryAvailable).toBe(true));
+    await act(async () => resolveOld(makeRecoveryData([{ id: 'old-unit' }], [], [])));
+    await act(async () => result.current.applyRecoveryBanner());
+    expect(applyRecovery).toHaveBeenCalledWith(current);
+  });
+
+  it('clears the previous project snapshot before checking the next project', async () => {
+    const snapshot = makeRecoveryData([{ id: 'project-a-unit' }], [], []);
+    let resolveNext!: (value: RecoveryData | null) => void;
+    const checkRecovery = vi
+      .fn()
+      .mockResolvedValueOnce(snapshot)
+      .mockImplementationOnce(
+        () =>
+          new Promise<RecoveryData | null>((resolve) => {
+            resolveNext = resolve;
+          }),
+      );
+    const applyRecovery = vi.fn(async () => true);
+    const { result, rerender } = renderHook(
+      (props: { scopeKey: string }) =>
+        useRecoveryBanner({
+          ...props,
+          phase: 'ready',
+          unitsLength: 0,
+          translationsLength: 0,
+          layersLength: 0,
+          checkRecovery,
+          applyRecovery,
+        }),
+      { initialProps: { scopeKey: 'project-a' } },
+    );
+    await waitFor(() => expect(result.current.recoveryAvailable).toBe(true));
+    rerender({ scopeKey: 'project-b' });
+    expect(result.current.recoveryAvailable).toBe(false);
+    act(() => result.current.applyRecoveryBanner());
+    expect(applyRecovery).not.toHaveBeenCalled();
+    expect(result.current.recoveryDataRef.current).toBeNull();
+    await act(async () => resolveNext(null));
+    expect(checkRecovery).toHaveBeenCalledTimes(2);
+    expect(result.current.recoveryDiffSummary).toBeNull();
+  });
+
   it('does not re-open banner after dismiss when lengths change', async () => {
     const checkRecovery = vi.fn(async () =>
       makeRecoveryData([{ id: 'u1' }, { id: 'u2' }], [{ id: 't1' }], [{ id: 'l1' }]),
@@ -39,6 +109,7 @@ describe('useRecoveryBanner', () => {
         layersLength: number;
       }) =>
         useRecoveryBanner({
+          scopeKey: 'test-project',
           ...props,
           checkRecovery,
         }),
@@ -85,6 +156,7 @@ describe('useRecoveryBanner', () => {
 
     const { result } = renderHook(() =>
       useRecoveryBanner({
+        scopeKey: 'test-project',
         phase: 'ready',
         unitsLength: 0,
         translationsLength: 0,

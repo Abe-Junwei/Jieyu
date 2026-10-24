@@ -420,6 +420,12 @@
   min-width: 0;
 }
 
+.annotation-document-tools-nav + .annotation-document-tools-field,
+.annotation-document-tools-sentence {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2, 8px);
+}
+
 .annotation-document-tools-nav,
 .annotation-document-tools-sentence,
 .annotation-document-tools-checks {

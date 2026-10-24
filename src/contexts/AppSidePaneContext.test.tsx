@@ -79,12 +79,9 @@ describe('AppSidePaneContext', () => {
       </AppSidePaneProvider>,
     );
 
-    // Content-only identity changes are stored silently (no shell notify) to avoid
-    // update-depth storms from unstable ReactNode trees. Host still shows mount content.
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitFor(() => {
+      expect(screen.getByTestId('content').textContent).toContain('更新后的内容');
     });
-    expect(screen.getByTestId('content').textContent).toContain('首屏内容');
 
     rerender(
       <AppSidePaneProvider>
@@ -97,6 +94,29 @@ describe('AppSidePaneContext', () => {
     expect(screen.getByTestId('title').textContent).toBe('');
     expect(screen.getByTestId('subtitle').textContent).toBe('');
     expect(screen.getByTestId('content').textContent).toBe('');
+  });
+
+  it('updates visible content and callbacks without broadcasting to the shell', async () => {
+    const onHostRender = vi.fn();
+    function LiveProbe() {
+      const [count, setCount] = useState(0);
+      useRegisterAppSidePane({
+        title: 'Live content',
+        content: <button onClick={() => setCount(count + 1)}>Selected {count}</button>,
+      });
+      return null;
+    }
+    render(
+      <AppSidePaneProvider>
+        <HostSnapshotWithRenderCount onRender={onHostRender} />
+        <LiveProbe />
+      </AppSidePaneProvider>,
+    );
+    const renders = onHostRender.mock.calls.length;
+    await act(async () => screen.getByRole('button', { name: 'Selected 0' }).click());
+    await act(async () => screen.getByRole('button', { name: 'Selected 1' }).click());
+    expect(screen.getByRole('button', { name: 'Selected 2' })).toBeTruthy();
+    expect(onHostRender.mock.calls.length).toBe(renders);
   });
 
   it('does not re-notify snapshot subscribers on unrelated producer rerenders when payload is stable', async () => {

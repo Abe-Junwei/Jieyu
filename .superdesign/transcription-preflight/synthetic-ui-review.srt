@@ -1,0 +1,15 @@
+1
+00:00:01,000 --> 00:00:03,000
+Bonjour, ceci est une démonstration.
+
+2
+00:00:04,000 --> 00:00:06,000
+Nous vérifions la transcription.
+
+3
+00:00:07,000 --> 00:00:09,000
+Un segment avec un texte un peu plus long pour vérifier la lisibilité.
+
+4
+00:00:10,000 --> 00:00:11,000
+Merci.

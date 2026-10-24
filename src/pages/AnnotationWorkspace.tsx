@@ -184,6 +184,90 @@ export function AnnotationWorkspace() {
         ) : null}
       </header>
 
+      <AnnotationDocumentToolsSlot
+        textId={controller.textId}
+        isEmpty={controller.isEmpty}
+        unitCount={controller.unitCount}
+        transcriptionHref={controller.transcriptionHref}
+        structuralProfilesHref={morphology.structuralProfilesHref}
+        validatorProfileId={morphology.validatorProfileId}
+        searchQuery={searchQuery}
+        searchMode={searchMode}
+        excludeUngrammatical={excludeUngrammatical}
+        variantText={variantText}
+        showWave={showWave}
+        showSpectrum={showSpectrum}
+        showPitch={showPitch}
+        onSearchQuery={setSearchQuery}
+        onSearchMode={setSearchMode}
+        onExcludeUngrammatical={setExcludeUngrammatical}
+        onVariantText={setVariantText}
+        onVariantBlur={onVariantBlur}
+        onToggleWave={() => setShowWave((current) => !current)}
+        onToggleSpectrum={() => setShowSpectrum((current) => !current)}
+        onTogglePitch={() => setShowPitch((current) => !current)}
+        focused={
+          focusedRow
+            ? {
+                row: focusedRow,
+                unitMeta,
+                autoGloss,
+                retokenize,
+                validator,
+                mweReady: (mwe.selectedByUnit[focusedRow.id] ?? []).length >= 2,
+                onConfirmMwe: () => {
+                  void mwe.confirm({
+                    row: focusedRow,
+                    tokenDrafts: controller.drafts,
+                    morphDrafts: morphology.drafts,
+                    morphsByTokenId: morphology.morphsByTokenId,
+                    linksByTokenId: morphology.linksByTokenId,
+                  });
+                },
+                onExportSentence: () => {
+                  const record = exportFocusedAnnotationSentence({
+                    textId: controller.textId,
+                    row: focusedRow,
+                    senseIdByTokenId: Object.fromEntries(
+                      focusedRow.tokens.map((token) => [
+                        token.id,
+                        morphology.linksByTokenId[token.id]?.senseId,
+                      ]),
+                    ),
+                    morphemes: focusedRow.tokens.flatMap((token) =>
+                      (morphology.morphsByTokenId[token.id] ?? []).map((morph) => ({
+                        id: morph.id,
+                        tokenId: morph.tokenId,
+                        form: morph.form,
+                        gloss: morph.gloss,
+                        pos: morph.pos ?? '',
+                      })),
+                    ),
+                  });
+                  downloadTextFile(
+                    `${focusedRow.id}.sentence.json`,
+                    JSON.stringify(record, null, 2),
+                    'application/json',
+                  );
+                },
+                onExportAnalysis: (kind) => {
+                  mwe.exportAnalysis(
+                    {
+                      row: focusedRow,
+                      tokenDrafts: controller.drafts,
+                      morphDrafts: morphology.drafts,
+                      morphsByTokenId: morphology.morphsByTokenId,
+                      linksByTokenId: morphology.linksByTokenId,
+                    },
+                    kind,
+                  );
+                },
+                onFocusInput: controller.onFocusInput,
+              }
+            : null
+        }
+      />
+
       {controller.isEmpty ? (
         <p className="annotation-workspace-empty">{t(locale, 'workspace.annotation.empty')}</p>
       ) : controller.isLoading ? (
@@ -210,89 +294,6 @@ export function AnnotationWorkspace() {
           >
             {saveStatusText}
           </p>
-          <AnnotationDocumentToolsSlot
-            textId={controller.textId}
-            isEmpty={controller.isEmpty}
-            unitCount={controller.unitCount}
-            transcriptionHref={controller.transcriptionHref}
-            structuralProfilesHref={morphology.structuralProfilesHref}
-            validatorProfileId={morphology.validatorProfileId}
-            searchQuery={searchQuery}
-            searchMode={searchMode}
-            excludeUngrammatical={excludeUngrammatical}
-            variantText={variantText}
-            showWave={showWave}
-            showSpectrum={showSpectrum}
-            showPitch={showPitch}
-            onSearchQuery={setSearchQuery}
-            onSearchMode={setSearchMode}
-            onExcludeUngrammatical={setExcludeUngrammatical}
-            onVariantText={setVariantText}
-            onVariantBlur={onVariantBlur}
-            onToggleWave={() => setShowWave((current) => !current)}
-            onToggleSpectrum={() => setShowSpectrum((current) => !current)}
-            onTogglePitch={() => setShowPitch((current) => !current)}
-            focused={
-              focusedRow
-                ? {
-                    row: focusedRow,
-                    unitMeta,
-                    autoGloss,
-                    retokenize,
-                    validator,
-                    mweReady: (mwe.selectedByUnit[focusedRow.id] ?? []).length >= 2,
-                    onConfirmMwe: () => {
-                      void mwe.confirm({
-                        row: focusedRow,
-                        tokenDrafts: controller.drafts,
-                        morphDrafts: morphology.drafts,
-                        morphsByTokenId: morphology.morphsByTokenId,
-                        linksByTokenId: morphology.linksByTokenId,
-                      });
-                    },
-                    onExportSentence: () => {
-                      const record = exportFocusedAnnotationSentence({
-                        textId: controller.textId,
-                        row: focusedRow,
-                        senseIdByTokenId: Object.fromEntries(
-                          focusedRow.tokens.map((token) => [
-                            token.id,
-                            morphology.linksByTokenId[token.id]?.senseId,
-                          ]),
-                        ),
-                        morphemes: focusedRow.tokens.flatMap((token) =>
-                          (morphology.morphsByTokenId[token.id] ?? []).map((morph) => ({
-                            id: morph.id,
-                            tokenId: morph.tokenId,
-                            form: morph.form,
-                            gloss: morph.gloss,
-                            pos: morph.pos ?? '',
-                          })),
-                        ),
-                      });
-                      downloadTextFile(
-                        `${focusedRow.id}.sentence.json`,
-                        JSON.stringify(record, null, 2),
-                        'application/json',
-                      );
-                    },
-                    onExportAnalysis: (kind) => {
-                      mwe.exportAnalysis(
-                        {
-                          row: focusedRow,
-                          tokenDrafts: controller.drafts,
-                          morphDrafts: morphology.drafts,
-                          morphsByTokenId: morphology.morphsByTokenId,
-                          linksByTokenId: morphology.linksByTokenId,
-                        },
-                        kind,
-                      );
-                    },
-                    onFocusInput: controller.onFocusInput,
-                  }
-                : null
-            }
-          />
           <ul className="annotation-igt-list">
             {visibleRows.map((row) => (
               <AnnotationIgtRowView

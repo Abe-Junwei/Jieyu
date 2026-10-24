@@ -203,7 +203,7 @@ export const enUSDictionary = {
   'workspace.annotation.openInTranscription': 'Open in transcription',
   'workspace.annotation.sidePaneTitle': 'Annotation workspace',
   'workspace.annotation.sidePaneSubtitle': 'Current scope and IGT list',
-  'workspace.annotation.sidePaneCurrent': 'Current scope',
+  'workspace.annotation.sidePaneCurrent': 'Current sentence',
   'workspace.annotation.unitCount': '{count} units',
   'workspace.annotation.surfaceLabel': 'Surface',
   'workspace.annotation.surfaceEmpty': 'This sentence has no source text',
@@ -438,7 +438,7 @@ export const enUSDictionary = {
   'workspace.lexicon.unavailable.scope.entry': 'Entry and sense management',
   'workspace.lexicon.unavailable.scope.backlink': 'Reverse references from entries to corpus',
   'workspace.lexicon.unavailable.scope.review': 'Lexicon import/export and review flow',
-  'workspace.lexicon.badge': 'Skeleton',
+  'workspace.lexicon.badge': 'Lexicon',
   'workspace.lexicon.title': 'Lexicon Workspace',
   'workspace.lexicon.summary':
     'Browse, search, and edit lemma, primary gloss, and notes. Linked hits open transcription. Attachments stay behind their own flag.',
@@ -448,8 +448,7 @@ export const enUSDictionary = {
   'workspace.lexicon.sidePaneSubtitle': 'Current entry, filtered scope, and quick access',
   'workspace.lexicon.sidePaneCurrent': 'Current entry',
   'workspace.lexicon.sidePaneQuickAccess': 'Quick access',
-  'workspace.lexicon.sidePaneSelectedHint':
-    '{count} entries match the current filter; this side pane can later host entry editing and backlink entry points.',
+  'workspace.lexicon.sidePaneSelectedHint': '{count} entries match the current filter.',
   'workspace.lexicon.sidePaneEmpty':
     'No lexeme exists in the lexicon yet. Import, annotation backlinks, or manual creation can fill this later.',
   'workspace.lexicon.openOrthographyManager': 'Open orthography manager',
@@ -797,6 +796,7 @@ export const enUSDictionary = {
   'workspace.languageMetadata.mapApiKeyClear': 'Clear',
   'workspace.languageMetadata.mapConfigToggle': 'Configure key',
   'workspace.languageMetadata.mapProviderLabel': 'Basemap',
+  'workspace.languageMetadata.mapStyleLabel': 'Basemap style',
   'workspace.languageMetadata.mapProviderMissingKey':
     'This basemap needs a configured key before the preview can be shown.',
   'workspace.languageMetadata.mapTiandituKeyPlaceholder': 'Free token from lbs.tianditu.gov.cn',
@@ -3428,7 +3428,7 @@ export const enUSDictionary = {
   'ai.acoustic.exportJson': 'Export JSON',
   'ai.acoustic.exportSampleCount': '{count} frames',
   'ai.acoustic.exportBackendNote':
-    'The local phase now covers tone, slice, and export. True formant and vowel-space views still require a dedicated spectral descriptor backend, so they are not fabricated from F0-only data.',
+    'Export pitch, intensity, and contour data for the current selection. Formant and vowel-space views are not available and cannot be inferred from pitch data.',
   'ai.acoustic.navigationTitle': 'Quick Navigation',
   'ai.acoustic.navigationDescription':
     'Jump to the selection boundaries or the strongest hotspot from fixed controls.',
@@ -4459,9 +4459,9 @@ export const enUSDictionary = {
       'Required: select a transcription layer language first (custom languages require a code).',
     translationLanguageRequired:
       'Required: select a translation layer language first (custom languages require a code).',
-    modalityText: 'Text (text-only translation)',
+    modalityText: 'Text',
     modalityLabel: 'Modality',
-    modalityAudio: 'Audio (interpreting recording)',
+    modalityAudio: 'Audio (recording)',
     modalityMixed: 'Mixed (text + recording)',
     translationBoundarySource:
       'Boundary source: translation layers inherit the boundary range of the selected transcription layer.',
@@ -4602,7 +4602,7 @@ export const enUSDictionary = {
     repairDetailsExpand: 'Expand details',
     repairDetailsCollapse: 'Collapse details',
     quickActionsCardAria: 'Layer management quick actions card',
-    quickActionsCardTitle: 'Layer management quick actions',
+    quickActionsCardTitle: 'Layer tools',
     presenceCardAria: 'Online collaborators',
     presenceCardTitle: 'Presence',
     presenceEmpty: 'No collaborators online right now',

@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { RECOVERY_SCHEMA_VERSION, type RecoveryData } from '../../services/SnapshotService';
+import {
+  getRecoverySnapshot,
+  RECOVERY_SCHEMA_VERSION,
+  type RecoveryData,
+} from '../../services/SnapshotService';
 import type { LayerUnitDocType } from '../../db';
 import { JIEYU_DEXIE_DB_NAME } from '../../db/engine';
 import { useTranscriptionRecoveryActions } from './useTranscriptionRecoveryActions';
@@ -85,6 +89,25 @@ describe('useTranscriptionRecoveryActions', () => {
     vi.clearAllMocks();
     mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValue([]);
     mockClearRecoverySnapshot.mockResolvedValue(undefined);
+  });
+
+  it('checks the requested project while previous project units are still loaded', async () => {
+    const snapshot = makeRecoveryDataWithTranslation([
+      { ...makeUnit('new-unit', '2026-01-01'), textId: 't2' },
+    ]);
+    vi.mocked(getRecoverySnapshot).mockResolvedValueOnce(snapshot);
+    const { result } = renderHook(() =>
+      useTranscriptionRecoveryActions({
+        dbNameRef: { current: JIEYU_DEXIE_DB_NAME },
+        unitsRef: { current: [makeUnit('old-unit', '2099-01-01')] },
+        loadSnapshot: vi.fn(async () => undefined),
+        runWithDbMutex: async (task) => task(),
+        setSaveState: vi.fn(),
+      }),
+    );
+    await expect(result.current.checkRecovery('t2')).resolves.toEqual(snapshot);
+    expect(getRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME, 't2');
+    expect(mockClearRecoverySnapshot).not.toHaveBeenCalled();
   });
 
   it('applyRecovery conflict should return false and set friendly saveState error', async () => {

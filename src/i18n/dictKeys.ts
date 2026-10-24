@@ -709,6 +709,7 @@ export const DICT_KEYS = [
   'workspace.languageMetadata.mapApiKeyClear',
   'workspace.languageMetadata.mapConfigToggle',
   'workspace.languageMetadata.mapProviderLabel',
+  'workspace.languageMetadata.mapStyleLabel',
   'workspace.languageMetadata.mapProviderMissingKey',
   'workspace.languageMetadata.mapTiandituKeyPlaceholder',
   'workspace.languageMetadata.mapMaptilerKeyPlaceholder',

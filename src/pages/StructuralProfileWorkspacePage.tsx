@@ -270,6 +270,7 @@ export function StructuralProfileWorkspacePage({
       bodyClassName="lm-layout la-panel-stack"
       footerClassName="lm-footer"
       title={panelTitle}
+      titleHeadingLevel={2}
       actions={panelActions}
       {...(panelFooter ? { footer: panelFooter } : {})}
       aria-label={panelTitle}

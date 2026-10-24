@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+
+<html class="h-full w-full" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>解语 Jieyu - 田野语言学记录与标注工作台</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- JetBrains Mono & Noto Sans SC / Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#7658F6",
+            "primary-dark": "#5F41D0",
+            "primary-subtle": "#F1EDFF",
+            "rail-bg": "#2A2E35",
+            "sub-bg": "#EDF0F4",
+            "sub-border": "#D4DBE5",
+            "sub-text": "#5B6577",
+            "main-bg": "#FFFFFF",
+            "main-border": "#E2E8F0",
+            "heading": "#181C23"
+          },
+          fontFamily: {
+            sans: ['"Noto Sans SC"', 'Inter', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    .text-selectable {
+      user-select: text;
+    }
+    /* Minimal precision scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #edf0f4;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c3cad6;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #9aa4b2;
+    }
+    /* Rail tooltip */
+    .nav-item[data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 58px;
+      padding: 4px 8px;
+      background: #181C23;
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      border-radius: 4px;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex bg-main-bg text-heading font-sans text-xs antialiased">
+<!-- ================= 1. GLOBAL 52px VERTICAL RAIL (100vh) ================= -->
+<aside class="w-[52px] h-full bg-rail-bg flex flex-col items-center justify-between py-3 shrink-0 z-50 select-none">
+<!-- Top: Brand Icon + 7 Module Nav Icons -->
+<div class="flex flex-col items-center w-full gap-4">
+<!-- Brand Geometric Logo -->
+<div class="w-8 h-8 rounded-[6px] bg-primary flex items-center justify-center text-white mb-2 shadow-sm" title="解语 Jieyu 工作台">
+<span class="material-symbols-outlined text-[20px]">graphic_eq</span>
+</div>
+<!-- 7 Module Icons -->
+<nav class="flex flex-col items-center w-full gap-1.5" id="rail-nav">
+<!-- 01 项目文稿 -->
+<button class="nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-white bg-primary transition-colors" data-tab="01" data-tooltip="01 项目文稿" onclick="switchTab('01')">
+<span class="material-symbols-outlined text-[19px]">description</span>
+</button>
+<!-- 02 音频转写 -->
+<button class="nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" data-tab="02" data-tooltip="02 音频转写" onclick="switchTab('02')">
+<span class="material-symbols-outlined text-[19px]">graphic_eq</span>
+</button>
+<!-- 03 行间标注 IGT -->
+<button class="nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" data-tab="03" data-tooltip="03 行间标注 IGT" onclick="switchTab('03')">
+<span class="material-symbols-outlined text-[19px]">subtitles</span>
+</button>
+<!-- 04 词典体系 -->
+<button class="nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" data-tab="04" data-tooltip="04 词典体系" onclick="switchTab('04')">
+<span class="material-symbols-outlined text-[19px]">menu_book</span>
+</button>
+<!-- 05 语料检索 -->
+<button class="nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" data-tab="05" data-tooltip="05 语料检索" onclick="switchTab('05')">
+<span class="material-symbols-outlined text-[19px]">travel_explore</span>
+</button>
+<!-- 06 语言资产 -->
+<button class="nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" data-tab="06" data-tooltip="06 语言资产" onclick="switchTab('06')">
+<span class="material-symbols-outlined text-[19px]">dataset</span>
+</button>
+<!-- 07 设置与规范 -->
+<button class="nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" data-tab="07" data-tooltip="07 系统设置与状态规范" onclick="switchTab('07')">
+<span class="material-symbols-outlined text-[19px]">tune</span>
+</button>
+</nav>
+</div>
+<!-- Bottom: Utility + User Avatar -->
+<div class="flex flex-col items-center w-full gap-2">
+<button class="w-8 h-8 rounded-[6px] text-zinc-400 hover:text-white flex items-center justify-center transition-colors" title="使用指引">
+<span class="material-symbols-outlined text-[18px]">help_outline</span>
+</button>
+<button class="w-8 h-8 rounded-[6px] text-zinc-400 hover:text-white flex items-center justify-center relative transition-colors" title="系统通知">
+<span class="material-symbols-outlined text-[18px]">notifications</span>
+<span class="w-1.5 h-1.5 bg-primary rounded-full absolute top-1.5 right-1.5"></span>
+</button>
+<div class="w-7 h-7 rounded-[6px] bg-[#3A3F49] text-white flex items-center justify-center font-mono text-[11px] font-semibold border border-white/20 mt-1 cursor-default" title="研究员工作空间">
+        LY
+      </div>
+</div>
+</aside>
+<!-- ================= 2. 272px CONTEXT SIDEBAR ================= -->
+<aside class="w-[272px] h-full bg-sub-bg border-r border-sub-border flex flex-col justify-between shrink-0 select-none">
+<!-- Project Meta Header -->
+<div class="flex flex-col">
+<div class="p-3 border-b border-sub-border bg-[#F5F7FA]">
+<div class="flex items-center justify-between mb-1">
+<span class="font-semibold text-heading text-[13px] truncate">法语教学与田野音系演示</span>
+<span class="px-1.5 py-0.2 bg-primary-subtle text-primary-dark font-mono text-[10px] font-bold rounded-[4px] border border-primary/20">fra</span>
+</div>
+<div class="text-[11px] font-mono text-sub-text flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-primary">audiotrack</span>
+<span class="truncate">synthetic-demo.wav (44.1kHz/16b)</span>
+</div>
+</div>
+<!-- Quick Action CTA -->
+<div class="p-2 border-b border-sub-border">
+<button class="w-full h-8 bg-main-bg hover:bg-white text-heading border border-sub-border rounded-[6px] font-medium text-xs flex items-center justify-center gap-1.5 transition-colors shadow-none">
+<span class="material-symbols-outlined text-[16px] text-primary">add</span>
+<span>新建层级与语段</span>
+</button>
+</div>
+<!-- Navigation Hierarchy Tree List -->
+<div class="p-2 flex flex-col gap-0.5" id="context-tree">
+<div class="text-[10px] uppercase font-semibold text-sub-text px-2 py-1 tracking-wider">工程工作结构</div>
+<button class="h-8 px-2 rounded-[6px] bg-primary-subtle text-primary-dark font-medium flex items-center justify-between text-xs">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">folder_open</span>
+<span class="truncate">当前调查录音与语段</span>
+</span>
+<span class="font-mono text-[10px] bg-white/70 px-1 rounded text-primary-dark">8段</span>
+</button>
+<button class="h-8 px-2 rounded-[6px] text-sub-text hover:bg-sub-border/50 hover:text-heading flex items-center gap-1.5 text-xs transition-colors">
+<span class="material-symbols-outlined text-[15px]">format_list_bulleted</span>
+<span class="truncate">音位音标对照表</span>
+</button>
+<button class="h-8 px-2 rounded-[6px] text-sub-text hover:bg-sub-border/50 hover:text-heading flex items-center gap-1.5 text-xs transition-colors">
+<span class="material-symbols-outlined text-[15px]">badge</span>
+<span class="truncate">发音合作人编码档案</span>
+</button>
+<button class="h-8 px-2 rounded-[6px] text-sub-text hover:bg-sub-border/50 hover:text-heading flex items-center gap-1.5 text-xs transition-colors">
+<span class="material-symbols-outlined text-[15px]">graphic_eq</span>
+<span class="truncate">基频与声学切片层</span>
+</button>
+<button class="h-8 px-2 rounded-[6px] text-sub-text hover:bg-sub-border/50 hover:text-heading flex items-center gap-1.5 text-xs transition-colors">
+<span class="material-symbols-outlined text-[15px]">rule</span>
+<span class="truncate">Leipzig 词素规则映射</span>
+</button>
+</div>
+<!-- Anonymous Speaker Profile -->
+<div class="mx-2 mt-2 p-2.5 bg-main-bg border border-sub-border rounded-[6px] flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="font-semibold text-heading text-[11px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">person</span>
+            发音合作人档案
+          </span>
+<span class="font-mono text-[10px] text-sub-text">SPK_DEMO_01</span>
+</div>
+<div class="text-[11px] text-sub-text space-y-0.5 leading-relaxed">
+<div>母语方言：标准法语 (Île-de-France)</div>
+<div>录制属性：合成演示样本 · 44.1kHz</div>
+<div>采样环境：无损 PCM 单声道模拟流</div>
+</div>
+</div>
+</div>
+<!-- Sidebar Bottom Status Indicator -->
+<div class="p-2.5 border-t border-sub-border flex items-center justify-between text-[11px] font-mono text-sub-text bg-[#F5F7FA]">
+<span class="flex items-center gap-1 text-primary-dark font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+        工作区就绪
+      </span>
+<span>1440×1000</span>
+</div>
+</aside>
+<!-- ================= 3. WHITE FLAT CORE WORKSPACE ================= -->
+<main class="flex-1 h-full overflow-hidden flex flex-col bg-main-bg">
+<!-- ========================================================================= -->
+<!-- MODULE 01: 项目文稿 (Corpus Manuscripts)                                -->
+<!-- ========================================================================= -->
+<section class="module-view h-full flex flex-col" id="module-01">
+<!-- Local Sub-Toolbar (32px components) -->
+<div class="h-12 border-b border-main-border px-4 flex items-center justify-between shrink-0 bg-main-bg">
+<div class="flex items-center gap-2">
+<span class="font-semibold text-sm text-heading">项目文稿库</span>
+<span class="text-sub-text font-mono text-xs">/ fra_demonstration_project</span>
+<span class="px-2 py-0.5 bg-sub-bg border border-sub-border rounded-[4px] text-[11px] font-mono text-sub-text">共 5 篇演示文本</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative w-56 h-8">
+<span class="material-symbols-outlined absolute left-2 top-1.5 text-sub-text text-[16px]">search</span>
+<input class="w-full h-8 pl-7 pr-2 text-xs border border-main-border rounded-[6px] focus:outline-none focus:border-primary placeholder:text-sub-text bg-white" placeholder="检索文稿标题或标签..." type="text"/>
+</div>
+<button class="h-8 px-3 bg-primary hover:bg-primary-dark text-white rounded-[6px] font-medium text-xs flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>新建调查文稿
+          </button>
+<button class="h-8 px-3 bg-white hover:bg-sub-bg text-heading border border-main-border rounded-[6px] font-medium text-xs flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">upload_file</span>导入 Praat/ELAN
+          </button>
+</div>
+</div>
+<!-- Main 2-Column Split: Table + Summary Panel -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Manuscripts Table -->
+<div class="flex-1 overflow-auto border-r border-main-border">
+<table class="w-full text-left border-collapse text-xs">
+<thead class="bg-sub-bg text-sub-text border-b border-sub-border sticky top-0 font-medium">
+<tr>
+<th class="py-2.5 px-3 w-10 text-center font-mono">#</th>
+<th class="py-2.5 px-3 font-medium">文稿标题 (Title)</th>
+<th class="py-2.5 px-3 w-28">语言编码</th>
+<th class="py-2.5 px-3 w-36">关联媒体属性</th>
+<th class="py-2.5 px-3 w-24">有效时长</th>
+<th class="py-2.5 px-3 w-28">处理状态</th>
+<th class="py-2.5 px-3 w-24 text-right">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-main-border text-heading">
+<tr class="bg-primary-subtle/50 hover:bg-primary-subtle transition-colors cursor-pointer" onclick="switchTab('02')">
+<td class="py-3 px-3 text-center font-mono text-sub-text">01</td>
+<td class="py-3 px-3 font-medium">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary-dark text-[16px]">description</span>
+<span class="font-semibold text-heading">法语元音鼻化语流段落_合成演示</span>
+<span class="px-1.5 py-0.2 bg-primary-subtle border border-primary/20 text-primary-dark text-[10px] rounded font-mono font-medium">当前</span>
+</div>
+</td>
+<td class="py-3 px-3 font-mono text-sub-text">fra / 法语</td>
+<td class="py-3 px-3 font-mono text-sub-text">synthetic-demo.wav</td>
+<td class="py-3 px-3 font-mono">00:01:24.320</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-[4px] bg-amber-50 text-amber-800 border border-amber-300">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>演示样本
+                  </span>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="text-primary-dark hover:underline font-medium">进入转写</button>
+</td>
+</tr>
+<tr class="hover:bg-sub-bg/50 transition-colors">
+<td class="py-3 px-3 text-center font-mono text-sub-text">02</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sub-text text-[16px]">description</span>
+<span>双元音连续发音过渡声学样本</span>
+</div>
+</td>
+<td class="py-3 px-3 font-mono text-sub-text">fra / 法语</td>
+<td class="py-3 px-3 font-mono text-sub-text">vowels_transition.wav</td>
+<td class="py-3 px-3 font-mono">00:03:10.500</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-[4px] bg-zinc-100 text-zinc-700 border border-zinc-300">
+<span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>未校验
+                  </span>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="text-sub-text hover:text-heading">打开</button>
+</td>
+</tr>
+<tr class="hover:bg-sub-bg/50 transition-colors">
+<td class="py-3 px-3 text-center font-mono text-sub-text">03</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sub-text text-[16px]">description</span>
+<span>连诵 (Liaison) 与辅音弱化语流记录</span>
+</div>
+</td>
+<td class="py-3 px-3 font-mono text-sub-text">fra / 法语</td>
+<td class="py-3 px-3 font-mono text-sub-text">liaison_test_03.wav</td>
+<td class="py-3 px-3 font-mono">00:02:45.000</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-[4px] bg-blue-50 text-blue-800 border border-blue-200">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>待对齐
+                  </span>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="text-sub-text hover:text-heading">打开</button>
+</td>
+</tr>
+<tr class="hover:bg-sub-bg/50 transition-colors">
+<td class="py-3 px-3 text-center font-mono text-sub-text">04</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sub-text text-[16px]">description</span>
+<span>语调短语 (Intonational Phrase) 升降调对照</span>
+</div>
+</td>
+<td class="py-3 px-3 font-mono text-sub-text">fra / 法语</td>
+<td class="py-3 px-3 font-mono text-sub-text">contour_cadence.wav</td>
+<td class="py-3 px-3 font-mono">00:04:12.800</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-[4px] bg-zinc-100 text-zinc-700 border border-zinc-300">
+<span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>未校验
+                  </span>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="text-sub-text hover:text-heading">打开</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Right Side: Document Overview & Metadata Inspector -->
+<div class="w-80 h-full bg-main-bg p-4 flex flex-col gap-4 overflow-auto">
+<div>
+<span class="text-[10px] uppercase font-mono font-semibold text-sub-text tracking-wider">选中文档元信息</span>
+<h3 class="text-sm font-semibold text-heading mt-0.5">法语元音鼻化语流段落_合成演示</h3>
+</div>
+<div class="p-3 bg-sub-bg border border-sub-border rounded-[6px] flex flex-col gap-2">
+<div class="flex justify-between">
+<span class="text-sub-text">关联工程</span>
+<span class="font-medium text-heading">fra_demo_corpus</span>
+</div>
+<div class="flex justify-between">
+<span class="text-sub-text">ISO 语言编码</span>
+<span class="font-mono text-heading">fra (French)</span>
+</div>
+<div class="flex justify-between">
+<span class="text-sub-text">语段切片总数</span>
+<span class="font-mono text-heading">8 个切片单元</span>
+</div>
+<div class="flex justify-between">
+<span class="text-sub-text">声学层匹配</span>
+<span class="font-mono text-primary-dark font-medium">TextGrid 4层对齐</span>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<span class="text-[10px] uppercase font-mono font-semibold text-sub-text tracking-wider">当前段落速览 (Preview)</span>
+<div class="p-2.5 border border-main-border rounded-[6px] space-y-1.5 text-xs text-selectable">
+<div class="font-mono text-primary-dark font-medium">/il j a œ̃ bɔ̃ vɛ̃ blɑ̃/</div>
+<div class="text-heading">"Il y a un bon vin blanc."</div>
+<div class="text-sub-text text-[11px]">释义：这里有一瓶上好的白葡萄酒。</div>
+</div>
+</div>
+<div class="mt-auto pt-3 border-t border-main-border flex gap-2">
+<button class="flex-1 h-8 bg-primary hover:bg-primary-dark text-white rounded-[6px] font-medium text-xs transition-colors" onclick="switchTab('02')">
+              载入音频转写
+            </button>
+<button class="h-8 px-3 bg-white hover:bg-sub-bg text-heading border border-main-border rounded-[6px] text-xs font-medium" onclick="switchTab('03')">
+              IGT标注
+            </button>
+</div>
+</div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- MODULE 02: 音频转写 (Audio Transcription)                                -->
+<!-- ========================================================================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-02">
+<!-- Top Transport & Waveform Container -->
+<div class="bg-[#20242C] text-white p-2.5 border-b border-sub-border shrink-0 flex flex-col gap-2">
+<!-- Playback Control Bar -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-mono text-xs text-primary-subtle">synthetic-demo.wav</span>
+<span class="text-[10px] font-mono bg-white/10 px-1.5 py-0.5 rounded text-zinc-300">44.1kHz · 16bit · PCM</span>
+</div>
+<!-- Center Transport Buttons -->
+<div class="flex items-center gap-2">
+<button class="w-7 h-7 rounded-[4px] hover:bg-white/10 flex items-center justify-center text-zinc-300"><span class="material-symbols-outlined text-[18px]">skip_previous</span></button>
+<button class="w-7 h-7 rounded-[4px] hover:bg-white/10 flex items-center justify-center text-zinc-300"><span class="material-symbols-outlined text-[18px]">replay_5</span></button>
+<button class="w-8 h-8 rounded-[6px] bg-primary hover:bg-primary-dark text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">play_arrow</span>
+</button>
+<button class="w-7 h-7 rounded-[4px] hover:bg-white/10 flex items-center justify-center text-zinc-300"><span class="material-symbols-outlined text-[18px]">forward_5</span></button>
+<button class="w-7 h-7 rounded-[4px] hover:bg-white/10 flex items-center justify-center text-zinc-300"><span class="material-symbols-outlined text-[18px]">skip_next</span></button>
+<div class="font-mono text-xs text-emerald-400 bg-black/50 px-2.5 py-1 rounded-[4px] border border-white/10 tracking-wider ml-2">
+              00:00:01.420 / 00:01:24.320
+            </div>
+</div>
+<!-- Align & Speed Options -->
+<div class="flex items-center gap-2">
+<span class="text-xs text-zinc-400">倍速:</span>
+<select class="h-7 bg-black/40 border border-white/20 text-xs text-white rounded-[4px] px-1 focus:outline-none">
+<option>1.0x</option>
+<option>0.8x</option>
+<option>0.5x</option>
+</select>
+<button class="h-7 px-2 bg-white/10 hover:bg-white/20 text-white rounded-[4px] text-xs flex items-center gap-1 border border-white/20">
+<span class="material-symbols-outlined text-[14px]">grid_4x4</span>过零吸附
+            </button>
+</div>
+</div>
+<!-- Interactive Waveform Display Strip -->
+<div class="h-16 w-full bg-[#16181E] rounded-[6px] border border-white/10 relative p-1 flex flex-col justify-between overflow-hidden">
+<div class="w-full flex justify-between font-mono text-[9px] text-zinc-500 border-b border-white/5 pb-0.5">
+<span>00:00.000</span>
+<span>00:00.500</span>
+<span class="text-primary-subtle font-bold">00:01.000 (切片#002)</span>
+<span>00:01.500</span>
+<span>00:02.000</span>
+</div>
+<!-- Waveform Visualizer Bars -->
+<div class="h-9 w-full flex items-center gap-[2px] px-1 relative">
+<div class="absolute left-[26%] w-[28%] h-full bg-primary/25 border-x border-primary z-0">
+<span class="absolute top-0 right-1 text-[9px] font-mono text-primary-subtle bg-black/60 px-1 rounded-bl">切片区间: 1.180s</span>
+</div>
+<div class="absolute left-[38%] top-0 bottom-0 w-[1px] bg-primary z-10">
+<div class="w-2 h-2 -ml-[3.5px] bg-primary rotate-45"></div>
+</div>
+<!-- Bar Simulation -->
+<div class="w-1 h-2 bg-zinc-600"></div><div class="w-1 h-4 bg-zinc-500"></div><div class="w-1 h-7 bg-zinc-500"></div><div class="w-1 h-3 bg-zinc-600"></div>
+<div class="w-1 h-6 bg-zinc-400"></div><div class="w-1 h-9 bg-zinc-300"></div><div class="w-1 h-8 bg-zinc-400"></div><div class="w-1 h-4 bg-zinc-600"></div>
+<div class="w-1 h-8 bg-primary-subtle"></div><div class="w-1 h-10 bg-primary"></div><div class="w-1 h-9 bg-primary"></div><div class="w-1 h-7 bg-primary-subtle"></div>
+<div class="w-1 h-8 bg-primary-subtle"></div><div class="w-1 h-10 bg-primary"></div><div class="w-1 h-6 bg-primary-subtle"></div>
+<div class="w-1 h-3 bg-zinc-600"></div><div class="w-1 h-5 bg-zinc-500"></div><div class="w-1 h-2 bg-zinc-600"></div><div class="w-1 h-4 bg-zinc-500"></div>
+</div>
+<div class="flex justify-between text-[9px] font-mono text-zinc-400 border-t border-white/5 pt-0.5">
+<span>声学层：基频 F0 = 138Hz · 能量 64dB</span>
+<span>演示样本切片</span>
+</div>
+</div>
+</div>
+<!-- Transcription Tiers + Slices Matrix -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Left: Tier Definitions (fra / ipa / zh) -->
+<div class="w-44 bg-sub-bg border-r border-sub-border p-3 flex flex-col justify-between shrink-0">
+<div class="flex flex-col gap-2">
+<span class="font-semibold text-heading text-xs">层级结构 (Tiers)</span>
+<div class="flex flex-col gap-1.5 text-xs">
+<label class="flex items-center gap-1.5 p-1.5 bg-white border border-sub-border rounded-[6px] text-primary-dark font-medium cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span>1. 正字法 (fra-orth)</span>
+</label>
+<label class="flex items-center gap-1.5 p-1.5 bg-white border border-sub-border rounded-[6px] text-heading font-medium cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span>2. IPA 音标 (fra-ipa)</span>
+</label>
+<label class="flex items-center gap-1.5 p-1.5 bg-white border border-sub-border rounded-[6px] text-heading font-medium cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span>3. 汉语对译 (cmn-trans)</span>
+</label>
+</div>
+</div>
+<div class="p-2 bg-white border border-sub-border rounded-[6px] text-[11px] text-sub-text space-y-1 font-mono">
+<div class="font-bold text-heading">按键提示</div>
+<div>Tab: 播放当前片</div>
+<div>Enter: 确认切片</div>
+<div>Alt+B: 插入边界</div>
+</div>
+</div>
+<!-- Center: Slice Rows Alignment Editor -->
+<div class="flex-1 overflow-auto p-4 flex flex-col gap-3">
+<!-- Active Editable Slice (#002) -->
+<div class="border-2 border-primary bg-primary-subtle/30 p-3 rounded-[6px] flex flex-col gap-2.5">
+<div class="flex items-center justify-between border-b border-primary/20 pb-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 bg-primary text-white font-mono text-[11px] font-bold rounded-[4px]">#002</span>
+<span class="font-mono text-xs font-semibold text-heading">[00:00:00.840 - 00:00:02.020]</span>
+<span class="text-sub-text font-mono text-xs">(Δ 1.180s)</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-7 px-2.5 bg-white hover:bg-sub-bg border border-sub-border text-xs rounded-[4px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-primary">play_circle</span>试听切片
+                </button>
+<span class="text-[10px] bg-amber-50 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded-[4px]">待对齐</span>
+</div>
+</div>
+<!-- 3 Input Tier Fields -->
+<div class="grid grid-cols-1 gap-2 text-xs">
+<div class="flex items-center gap-2">
+<span class="w-24 text-sub-text font-medium">法语正字法:</span>
+<input class="flex-1 h-8 border border-sub-border rounded-[6px] px-2.5 text-xs text-heading font-medium focus:outline-none focus:border-primary bg-white text-selectable" type="text" value="Il y a un bon vin blanc."/>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-24 text-sub-text font-medium">IPA 严式音标:</span>
+<input class="flex-1 h-8 border border-primary rounded-[6px] px-2.5 text-xs text-primary-dark font-mono font-medium focus:outline-none bg-white text-selectable" type="text" value="il j a œ̃ bɔ̃ vɛ̃ blɑ̃"/>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-24 text-sub-text font-medium">汉语自由对译:</span>
+<input class="flex-1 h-8 border border-sub-border rounded-[6px] px-2.5 text-xs text-heading focus:outline-none focus:border-primary bg-white text-selectable" type="text" value="这里有一瓶好喝的白葡萄酒。"/>
+</div>
+</div>
+</div>
+<!-- Inactive Slice #001 -->
+<div class="border border-main-border bg-white p-3 rounded-[6px] flex flex-col gap-1 hover:border-primary/50 transition-colors">
+<div class="flex items-center justify-between text-sub-text">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.2 bg-sub-bg font-mono text-[11px] rounded text-sub-text">#001</span>
+<span class="font-mono text-xs">[00:00:00.000 - 00:00:00.840]</span>
+<span class="font-medium text-heading text-xs">Bonjour tout le monde.</span>
+</div>
+<span class="font-mono text-primary-dark">bɔ̃ʒuʁ tu lə mɔ̃d</span>
+<span class="text-[10px] text-zinc-500">演示样本</span>
+</div>
+</div>
+<!-- Inactive Slice #003 -->
+<div class="border border-main-border bg-white p-3 rounded-[6px] flex flex-col gap-1 hover:border-primary/50 transition-colors">
+<div class="flex items-center justify-between text-sub-text">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.2 bg-sub-bg font-mono text-[11px] rounded text-sub-text">#003</span>
+<span class="font-mono text-xs">[00:00:02.020 - 00:00:03.450]</span>
+<span class="font-medium text-heading text-xs">Les enfants mangent du pain.</span>
+</div>
+<span class="font-mono text-primary-dark">le.z‿ɑ̃fɑ̃ mɑ̃ʒ dy pɛ̃</span>
+<span class="text-[10px] text-amber-700">未校验</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- MODULE 03: 行间标注 IGT (Interlinear Glossed Text)                       -->
+<!-- ========================================================================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-03">
+<!-- Top Control Bar -->
+<div class="h-12 border-b border-main-border px-4 flex items-center justify-between shrink-0 bg-main-bg">
+<div class="flex items-center gap-3">
+<span class="font-semibold text-sm text-heading">行间标注工作台 (Leipzig 4-Tier IGT)</span>
+<span class="px-2 py-0.5 bg-primary-subtle text-primary-dark font-mono text-xs font-semibold rounded-[4px] border border-primary/20">句段 02 / 08</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-8 px-3 bg-white hover:bg-sub-bg border border-main-border text-heading rounded-[6px] text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-primary">play_circle</span>重播语段 [00:00:00.840]
+          </button>
+<button class="h-8 px-3 bg-white hover:bg-sub-bg border border-main-border text-heading rounded-[6px] text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">spellcheck</span>Leipzig 规则检查
+          </button>
+<button class="h-8 px-3 bg-primary hover:bg-primary-dark text-white rounded-[6px] text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">check</span>标记为演示样本
+          </button>
+</div>
+</div>
+<!-- IGT Canvas + Separate AI Assistant Drawer -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Main IGT Interlinear Area -->
+<div class="flex-1 overflow-auto p-4 flex flex-col gap-4">
+<!-- Leipzig Block Sentence 1 (Active) -->
+<div class="border border-primary rounded-[6px] p-4 flex flex-col gap-4 bg-main-bg">
+<div class="flex items-center justify-between border-b border-main-border pb-2">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-xs bg-primary text-white px-2 py-0.5 rounded-[4px]">SNT_002</span>
+<span class="font-mono text-xs text-sub-text">时间轴: 00:00:00.840 - 00:00:02.020</span>
+<span class="text-[11px] px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-300 rounded-[4px]">演示切片 · 待核验</span>
+</div>
+<span class="text-sub-text text-[11px] font-mono">规则库：Leipzig Glossing Rules 2015</span>
+</div>
+<!-- Leipzig 4-Tier Grid -->
+<div class="overflow-x-auto pb-2 text-selectable">
+<div class="inline-flex flex-col gap-2 min-w-full">
+<!-- Tier 1: Orthography -->
+<div class="flex items-center">
+<div class="w-32 shrink-0 font-medium text-sub-text">1. 正字法/词素</div>
+<div class="flex gap-4">
+<div class="w-24 font-semibold text-sm text-heading pb-1 border-b border-main-border">Il</div>
+<div class="w-24 font-semibold text-sm text-heading pb-1 border-b border-main-border">y</div>
+<div class="w-24 font-semibold text-sm text-heading pb-1 border-b border-main-border">a</div>
+<div class="w-24 font-semibold text-sm text-heading pb-1 border-b border-main-border">un</div>
+<div class="w-24 font-semibold text-sm text-heading pb-1 border-b border-main-border">bon</div>
+<div class="w-24 font-semibold text-sm text-heading pb-1 border-b border-main-border">vin</div>
+<div class="w-24 font-semibold text-sm text-heading pb-1 border-b border-main-border">blanc</div>
+</div>
+</div>
+<!-- Tier 2: IPA Transcription -->
+<div class="flex items-center">
+<div class="w-32 shrink-0 font-medium text-primary-dark">2. 严式 IPA</div>
+<div class="flex gap-4 font-mono text-primary-dark font-medium">
+<div class="w-24 pb-1 border-b border-main-border">il</div>
+<div class="w-24 pb-1 border-b border-main-border">j</div>
+<div class="w-24 pb-1 border-b border-main-border">a</div>
+<div class="w-24 pb-1 border-b border-main-border">œ̃</div>
+<div class="w-24 pb-1 border-b border-main-border">bɔ̃</div>
+<div class="w-24 pb-1 border-b border-main-border">vɛ̃</div>
+<div class="w-24 pb-1 border-b border-main-border">blɑ̃</div>
+</div>
+</div>
+<!-- Tier 3: Leipzig Morpheme Gloss -->
+<div class="flex items-center">
+<div class="w-32 shrink-0 font-medium text-sub-text">3. 语法分析 (Gloss)</div>
+<div class="flex gap-4 font-mono text-xs">
+<div class="w-24 px-1.5 py-0.5 bg-sub-bg rounded text-sub-text font-bold">3SG.M</div>
+<div class="w-24 px-1.5 py-0.5 bg-sub-bg rounded text-sub-text font-bold">LOC</div>
+<div class="w-24 px-1.5 py-0.5 bg-sub-bg rounded text-sub-text font-bold">have.PRS</div>
+<div class="w-24 px-1.5 py-0.5 bg-sub-bg rounded text-sub-text font-bold">INDF.M.SG</div>
+<div class="w-24 px-1.5 py-0.5 bg-sub-bg rounded text-sub-text font-bold">good.M.SG</div>
+<div class="w-24 px-1.5 py-0.5 bg-sub-bg rounded text-sub-text font-bold">wine\N</div>
+<div class="w-24 px-1.5 py-0.5 bg-sub-bg rounded text-sub-text font-bold">white.M.SG</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Tier 4: Free Translation -->
+<div class="p-3 bg-sub-bg border border-sub-border rounded-[6px] flex flex-col gap-1 text-selectable">
+<div class="flex items-baseline gap-2">
+<span class="font-medium text-sub-text w-24">汉语自由译:</span>
+<span class="font-medium text-heading">“这里有一瓶上好的白葡萄酒。”</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-medium text-sub-text w-24">英语学术译:</span>
+<span class="italic font-mono text-sub-text text-[11px]">"There is a good white wine."</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Separate Independent AI Assistant Drawer (Not acoustic inspector) -->
+<div class="w-72 bg-sub-bg border-l border-sub-border p-3 flex flex-col gap-3 shrink-0">
+<div class="flex items-center justify-between border-b border-sub-border pb-2">
+<span class="font-semibold text-heading text-xs flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">psychology</span>
+              AI 词法助手 (Morphology Drawer)
+            </span>
+<span class="text-[10px] font-mono bg-primary-subtle text-primary-dark px-1.5 rounded">示范引擎</span>
+</div>
+<div class="p-3 bg-white border border-sub-border rounded-[6px] flex flex-col gap-2">
+<div class="font-medium text-heading text-xs">形态切分建议</div>
+<p class="text-[11px] text-sub-text leading-relaxed">
+              针对词目 <span class="font-mono text-primary-dark font-medium">blɑ̃ (blanc)</span>，检测为单语素阳性单数形容词，对应阴性曲折形式为 <span class="font-mono text-primary-dark">blɑ̃ʃ (blanche)</span>。
+            </p>
+<div class="text-[10px] font-mono text-sub-text bg-sub-bg p-1.5 rounded">
+              置信度评分: 0.94 (演示样本)
+            </div>
+<button class="w-full h-7 bg-primary hover:bg-primary-dark text-white rounded-[4px] text-xs font-medium transition-colors">
+              填入 Leipzig 层
+            </button>
+</div>
+<div class="p-3 bg-white border border-sub-border rounded-[6px] flex flex-col gap-1.5">
+<div class="font-medium text-heading text-xs">句法连诵规则预警</div>
+<p class="text-[11px] text-sub-text leading-relaxed">
+              在 <span class="font-mono font-medium text-heading">un + bon</span> 连读中，未出现鼻化元音脱落，保持四个鼻化元音完整共振峰特征。
+            </p>
+</div>
+</div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- MODULE 04: 词典体系 (Lexicon System)                                    -->
+<!-- ========================================================================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-04">
+<div class="h-12 border-b border-main-border px-4 flex items-center justify-between shrink-0 bg-main-bg">
+<div class="flex items-center gap-3">
+<span class="font-semibold text-sm text-heading">音系词典体系 (Lexicon System)</span>
+<span class="text-sub-text font-mono text-xs">收录词条: 124 演示词目</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-8 px-3 bg-primary hover:bg-primary-dark text-white rounded-[6px] text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">add</span>新增词条
+          </button>
+<button class="h-8 px-3 bg-white hover:bg-sub-bg border border-main-border text-heading rounded-[6px] text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">file_download</span>导出 Toolbox / FLEx
+          </button>
+</div>
+</div>
+<div class="flex-1 flex overflow-hidden">
+<!-- Lexicon List Sidebar -->
+<div class="w-72 bg-sub-bg border-r border-sub-border flex flex-col shrink-0">
+<div class="p-2 border-b border-sub-border">
+<input class="w-full h-8 px-2.5 text-xs bg-white border border-sub-border rounded-[6px] focus:outline-none focus:border-primary placeholder:text-sub-text" placeholder="按词形 / IPA / 释义检索..." type="text"/>
+</div>
+<div class="flex-1 overflow-auto divide-y divide-sub-border">
+<div class="p-2.5 bg-primary-subtle border-l-2 border-primary cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-bold text-xs text-heading">vin (vɛ̃)</span>
+<span class="text-[10px] bg-primary-subtle text-primary-dark font-mono font-semibold px-1 rounded">Noun</span>
+</div>
+<span class="text-[11px] text-sub-text mt-0.5 truncate block">酒，特指发酵葡萄酿制酒</span>
+</div>
+<div class="p-2.5 hover:bg-white cursor-pointer transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-medium text-xs text-heading">blanc (blɑ̃)</span>
+<span class="text-[10px] bg-sub-bg text-sub-text font-mono font-semibold px-1 rounded">Adj</span>
+</div>
+<span class="text-[11px] text-sub-text mt-0.5 truncate block">白色的；无色的</span>
+</div>
+<div class="p-2.5 hover:bg-white cursor-pointer transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-medium text-xs text-heading">bon (bɔ̃)</span>
+<span class="text-[10px] bg-sub-bg text-sub-text font-mono font-semibold px-1 rounded">Adj</span>
+</div>
+<span class="text-[11px] text-sub-text mt-0.5 truncate block">好的，美味的，令人满意的</span>
+</div>
+<div class="p-2.5 hover:bg-white cursor-pointer transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-medium text-xs text-heading">pain (pɛ̃)</span>
+<span class="text-[10px] bg-sub-bg text-sub-text font-mono font-semibold px-1 rounded">Noun</span>
+</div>
+<span class="text-[11px] text-sub-text mt-0.5 truncate block">面包，主粮</span>
+</div>
+</div>
+</div>
+<!-- Lexicon Detail View -->
+<div class="flex-1 overflow-auto p-4 flex flex-col gap-4 text-selectable">
+<div class="flex items-center justify-between border-b border-main-border pb-3">
+<div class="flex items-center gap-3">
+<h2 class="text-xl font-bold text-heading">vin</h2>
+<span class="text-lg font-mono text-primary-dark font-medium">/vɛ̃/</span>
+<span class="px-2 py-0.5 bg-primary-subtle text-primary-dark text-xs font-semibold rounded-[4px]">阳性名词 (Noun. Masc)</span>
+</div>
+<button class="h-8 px-3 bg-primary hover:bg-primary-dark text-white rounded-[6px] text-xs font-medium">保存词条</button>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<div class="p-3 bg-sub-bg border border-sub-border rounded-[6px] flex flex-col gap-1">
+<span class="text-sub-text font-semibold">音系学特征 (Phonology)</span>
+<span class="font-mono text-xs">声母音位: /v/ (浊唇齿擦音)</span>
+<span class="font-mono text-xs">韵母音位: /ɛ̃/ (前开次开鼻化元音)</span>
+<span class="text-sub-text text-[11px]">声调/重音: 词末轻重音</span>
+</div>
+<div class="p-3 bg-sub-bg border border-sub-border rounded-[6px] flex flex-col gap-1">
+<span class="text-sub-text font-semibold">形态学关联 (Morphology)</span>
+<span class="text-xs">单语素词根 (Root)</span>
+<span class="text-xs text-sub-text">衍生词: vignoble (葡萄园), vinification (酿造)</span>
+</div>
+<div class="p-3 bg-sub-bg border border-sub-border rounded-[6px] flex flex-col gap-1">
+<span class="text-sub-text font-semibold">词源与对应 (Etymology)</span>
+<span class="text-xs">拉丁源词: vīnum</span>
+<span class="text-xs text-sub-text">同源词: 西班牙语 vino, 意大利语 vino</span>
+</div>
+</div>
+<!-- Citation context -->
+<div class="border border-main-border rounded-[6px] p-3 flex flex-col gap-2">
+<span class="font-semibold text-heading flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">volume_up</span>
+              真实语料例句关联 (Corpus Context)
+            </span>
+<div class="p-2.5 bg-sub-bg rounded-[6px] text-xs flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-medium text-heading">"Il y a un bon vin blanc."</span>
+<span class="font-mono text-[11px] text-sub-text">[synthetic-demo.wav · 00:00:00.840]</span>
+</div>
+<div class="font-mono text-primary-dark">il j a œ̃ bɔ̃ vɛ̃ blɑ̃</div>
+<div class="text-sub-text text-[11px]">句段标识: SNT_002 · 发音人: SPK_DEMO_01</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- MODULE 05: 语料检索 (Corpus Concordance KWIC)                             -->
+<!-- ========================================================================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-05">
+<!-- Search Filter Bar -->
+<div class="p-3 bg-sub-bg border-b border-sub-border flex flex-col gap-2 shrink-0">
+<div class="flex items-center gap-2">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-2.5 top-2 text-sub-text text-[16px]">search</span>
+<input class="w-full h-8 bg-white border border-sub-border rounded-[6px] pl-8 pr-3 text-xs focus:outline-none focus:border-primary text-selectable" placeholder="输入搜索词、正则表达式或 CQL (如 [pos='Noun' &amp; phon='.*ɛ̃'])..." type="text" value="vin"/>
+</div>
+<select class="h-8 bg-white border border-sub-border text-xs rounded-[6px] px-2 focus:outline-none">
+<option>全部示范文稿 (5篇)</option>
+<option>法语元音鼻化段落</option>
+</select>
+<select class="h-8 bg-white border border-sub-border text-xs rounded-[6px] px-2 focus:outline-none">
+<option>目标层：正字法</option>
+<option>目标层：IPA音标</option>
+<option>目标层：Gloss标注</option>
+</select>
+<button class="h-8 px-4 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-[6px] transition-colors">
+            执行 KWIC 检索
+          </button>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-sub-text font-mono">
+<span>语法引擎：Corpus Query Language (CQL)</span>
+<span>匹配结果：3 条共现记录</span>
+<span class="text-primary-dark font-medium">检索用时: 8ms</span>
+</div>
+</div>
+<!-- KWIC Table -->
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left border-collapse text-xs">
+<thead class="bg-sub-bg text-sub-text border-b border-sub-border sticky top-0 font-medium">
+<tr>
+<th class="py-2.5 px-3 w-12 text-center font-mono">#</th>
+<th class="py-2.5 px-3 w-36">文稿与时间戳</th>
+<th class="py-2.5 px-3 text-right w-1/3">左侧上下文 (Left Context)</th>
+<th class="py-2.5 px-3 text-center w-28 font-bold text-primary">关键词 (KWIC)</th>
+<th class="py-2.5 px-3 text-left w-1/3">右侧上下文 (Right Context)</th>
+<th class="py-2.5 px-3 w-20 text-center">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-main-border text-heading text-selectable">
+<tr class="bg-primary-subtle/40 hover:bg-primary-subtle transition-colors">
+<td class="py-3 px-3 text-center font-mono text-sub-text">01</td>
+<td class="py-3 px-3 font-mono text-[11px] text-sub-text">
+<div>synthetic-demo</div>
+<div class="text-primary-dark">00:00:01.420</div>
+</td>
+<td class="py-3 px-3 text-right">Il y a un bon</td>
+<td class="py-3 px-3 text-center font-bold text-primary-dark bg-primary-subtle/80 font-mono">vin [vɛ̃]</td>
+<td class="py-3 px-3 text-left">blanc sur la table.</td>
+<td class="py-3 px-3 text-center">
+<button class="text-primary-dark hover:underline font-mono text-[11px]">定位</button>
+</td>
+</tr>
+<tr class="hover:bg-sub-bg/50 transition-colors">
+<td class="py-3 px-3 text-center font-mono text-sub-text">02</td>
+<td class="py-3 px-3 font-mono text-[11px] text-sub-text">
+<div>vowels_transition</div>
+<div>00:01:12.800</div>
+</td>
+<td class="py-3 px-3 text-right">Ce n'est pas du</td>
+<td class="py-3 px-3 text-center font-bold text-heading bg-sub-bg font-mono">vin [vɛ̃]</td>
+<td class="py-3 px-3 text-left">mais du cidre doux.</td>
+<td class="py-3 px-3 text-center">
+<button class="text-sub-text hover:text-heading font-mono text-[11px]">定位</button>
+</td>
+</tr>
+<tr class="hover:bg-sub-bg/50 transition-colors">
+<td class="py-3 px-3 text-center font-mono text-sub-text">03</td>
+<td class="py-3 px-3 font-mono text-[11px] text-sub-text">
+<div>contour_cadence</div>
+<div>00:02:44.150</div>
+</td>
+<td class="py-3 px-3 text-right">Tu préfères le</td>
+<td class="py-3 px-3 text-center font-bold text-heading bg-sub-bg font-mono">vin [vɛ̃]</td>
+<td class="py-3 px-3 text-left">rouge ou le blanc ?</td>
+<td class="py-3 px-3 text-center">
+<button class="text-sub-text hover:text-heading font-mono text-[11px]">定位</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Bottom Inspector Context -->
+<div class="h-24 border-t border-main-border bg-sub-bg p-3 flex flex-col justify-between shrink-0">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-heading">当前命中语段上下文联动</span>
+<button class="text-primary-dark font-medium flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-[14px]">play_circle</span>试听此句片段
+          </button>
+</div>
+<div class="text-xs bg-white p-2 border border-sub-border rounded-[6px] text-sub-text text-selectable">
+          完整句：“Il y a un bon <strong class="text-primary-dark font-semibold">vin</strong> blanc sur la table.” · [SNT_002 · 44.1kHz]
+        </div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- MODULE 06: 语言资产 (Language Assets & Phonemic Inventory)               -->
+<!-- ========================================================================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-06">
+<div class="h-12 border-b border-main-border px-4 flex items-center justify-between shrink-0 bg-main-bg">
+<div class="flex items-center gap-3">
+<span class="font-semibold text-sm text-heading">语言资产与音位矩阵 (Language Assets)</span>
+<span class="text-xs text-sub-text font-mono">ISO 639-3: fra</span>
+</div>
+<button class="h-8 px-3 bg-primary hover:bg-primary-dark text-white rounded-[6px] text-xs font-medium">
+          导出音位表 JSON
+        </button>
+</div>
+<div class="flex-1 p-4 overflow-auto flex flex-col gap-4 text-selectable">
+<!-- Vowels Matrix Grid -->
+<div class="border border-main-border rounded-[6px] p-4 flex flex-col gap-2">
+<span class="font-semibold text-heading text-xs">法语元音音位矩阵 (Vowel Inventory)</span>
+<table class="w-full text-xs border border-sub-border">
+<thead class="bg-sub-bg text-sub-text font-mono">
+<tr>
+<th class="p-2 border-b border-r text-left">舌位 / 开闭度</th>
+<th class="p-2 border-b border-r text-center">前不圆唇</th>
+<th class="p-2 border-b border-r text-center">前圆唇</th>
+<th class="p-2 border-b border-r text-center">后圆唇</th>
+<th class="p-2 border-b text-center">鼻化元音 (Nasal)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-sub-border font-mono text-center">
+<tr>
+<td class="p-2 border-r bg-sub-bg/50 text-left font-sans text-sub-text">闭元音 (Close)</td>
+<td class="p-2 border-r font-bold text-heading">i</td>
+<td class="p-2 border-r font-bold text-heading">y</td>
+<td class="p-2 border-r font-bold text-heading">u</td>
+<td class="p-2 text-sub-text">-</td>
+</tr>
+<tr>
+<td class="p-2 border-r bg-sub-bg/50 text-left font-sans text-sub-text">半闭元音 (Close-mid)</td>
+<td class="p-2 border-r font-bold text-heading">e</td>
+<td class="p-2 border-r font-bold text-heading">ø</td>
+<td class="p-2 border-r font-bold text-heading">o</td>
+<td class="p-2 text-sub-text">-</td>
+</tr>
+<tr>
+<td class="p-2 border-r bg-sub-bg/50 text-left font-sans text-sub-text">半开元音 (Open-mid)</td>
+<td class="p-2 border-r font-bold text-heading">ɛ</td>
+<td class="p-2 border-r font-bold text-heading">œ</td>
+<td class="p-2 border-r font-bold text-heading">ɔ</td>
+<td class="p-2 font-bold text-primary-dark bg-primary-subtle/50">ɛ̃ / œ̃ / ɔ̃ / ɑ̃</td>
+</tr>
+<tr>
+<td class="p-2 border-r bg-sub-bg/50 text-left font-sans text-sub-text">开元音 (Open)</td>
+<td class="p-2 border-r font-bold text-heading">a</td>
+<td class="p-2 border-r text-sub-text">-</td>
+<td class="p-2 border-r font-bold text-heading">ɑ</td>
+<td class="p-2 text-sub-text">-</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Speaker & Meta Specification -->
+<div class="grid grid-cols-2 gap-4">
+<div class="border border-main-border rounded-[6px] p-3 flex flex-col gap-2">
+<span class="font-semibold text-heading text-xs">录音元数据规范</span>
+<div class="text-xs text-sub-text space-y-1 font-mono">
+<div>采样格式: 44,100 Hz @ 16-bit Linear PCM</div>
+<div>声道配置: 单声道 Mono</div>
+<div>声学对齐精度: 10ms 窗长，5ms 步长</div>
+<div>音位转写标注规范: IPA 2020 国际音标</div>
+</div>
+</div>
+<div class="border border-main-border rounded-[6px] p-3 flex flex-col gap-2">
+<span class="font-semibold text-heading text-xs">发音合作人编码档案</span>
+<div class="text-xs text-sub-text space-y-1">
+<div>匿名编码: SPK_DEMO_01</div>
+<div>语言背景: 现代标准法语 (Standard French)</div>
+<div>语料权限: 教学与演示科研数据集</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- MODULE 07: 系统设置与状态规范 (Settings & State Specifications)          -->
+<!-- ========================================================================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-07">
+<div class="h-12 border-b border-main-border px-4 flex items-center justify-between shrink-0 bg-main-bg">
+<div class="flex items-center gap-3">
+<span class="font-semibold text-sm text-heading">系统设置与规范预览</span>
+<span class="text-xs text-sub-text font-mono">Standard Specification Matrix</span>
+</div>
+</div>
+<div class="flex-1 flex overflow-hidden">
+<!-- Settings Sub-Navigation -->
+<div class="w-48 bg-sub-bg border-r border-sub-border p-2 flex flex-col gap-1 text-xs shrink-0">
+<button class="h-8 px-2.5 rounded-[6px] bg-primary-subtle text-primary-dark font-medium text-left">1. 状态规范预览</button>
+<button class="h-8 px-2.5 rounded-[6px] text-sub-text hover:bg-white text-left transition-colors">2. 声学引擎参数</button>
+<button class="h-8 px-2.5 rounded-[6px] text-sub-text hover:bg-white text-left transition-colors">3. 快捷键映射方案</button>
+<button class="h-8 px-2.5 rounded-[6px] text-sub-text hover:bg-white text-left transition-colors">4. 导出格式支持</button>
+</div>
+<!-- 9 State Specification Grid -->
+<div class="flex-1 p-4 overflow-auto flex flex-col gap-4">
+<div>
+<h3 class="text-xs font-bold text-heading uppercase tracking-wide">九大系统交互状态规范组件 (Flat Strict Design)</h3>
+<p class="text-[11px] text-sub-text mt-0.5">面向长时间田野语言学作业，杜绝刺眼眩光，控件严格 32px 高度与 6px 圆角。</p>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<!-- 1. 空状态 -->
+<div class="border border-sub-border p-3 bg-white rounded-[6px] flex flex-col items-center justify-center text-center gap-1 min-h-[120px]">
+<span class="material-symbols-outlined text-zinc-400 text-2xl">folder_open</span>
+<span class="font-semibold text-xs text-heading">空态 (Empty)</span>
+<span class="text-[11px] text-sub-text">当前分类下暂无录音样本</span>
+</div>
+<!-- 2. 加载态 -->
+<div class="border border-sub-border p-3 bg-white rounded-[6px] flex flex-col items-center justify-center text-center gap-2 min-h-[120px]">
+<div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+<span class="font-semibold text-xs text-heading">加载态 (Loading)</span>
+<span class="text-[11px] text-sub-text font-mono">基频计算中 72%</span>
+</div>
+<!-- 3. 无结果 -->
+<div class="border border-sub-border p-3 bg-white rounded-[6px] flex flex-col items-center justify-center text-center gap-1 min-h-[120px]">
+<span class="material-symbols-outlined text-zinc-400 text-2xl">search_off</span>
+<span class="font-semibold text-xs text-heading">无匹配结果</span>
+<span class="text-[11px] text-sub-text">未检索到目标词目</span>
+</div>
+<!-- 4. 媒体丢失 -->
+<div class="border border-red-200 bg-red-50/50 p-3 rounded-[6px] flex flex-col items-center justify-center text-center gap-1 min-h-[120px]">
+<span class="material-symbols-outlined text-red-600 text-2xl">broken_image</span>
+<span class="font-semibold text-xs text-red-700">媒体丢失 (Missing)</span>
+<span class="text-[10px] text-sub-text font-mono">wav 路径不可达</span>
+</div>
+<!-- 5. 未保存状态 -->
+<div class="border border-amber-300 bg-amber-50/50 p-3 rounded-[6px] flex flex-col items-center justify-center text-center gap-1 min-h-[120px]">
+<span class="material-symbols-outlined text-amber-600 text-2xl">edit_note</span>
+<span class="font-semibold text-xs text-amber-800">未保存变动 (Unsaved)</span>
+<span class="text-[11px] text-amber-700">切片标注已修改</span>
+</div>
+<!-- 6. 只读锁定 -->
+<div class="border border-sub-border bg-sub-bg p-3 rounded-[6px] flex flex-col items-center justify-center text-center gap-1 min-h-[120px]">
+<span class="material-symbols-outlined text-sub-text text-2xl">lock</span>
+<span class="font-semibold text-xs text-heading">只读锁定 (Read-Only)</span>
+<span class="text-[11px] text-sub-text">基准归档库不可覆写</span>
+</div>
+<!-- 7. 删除确认 -->
+<div class="border border-sub-border p-3 bg-white rounded-[6px] flex flex-col items-center justify-center text-center gap-1.5 min-h-[120px]">
+<span class="font-semibold text-xs text-heading">确认移除该切片？</span>
+<div class="flex gap-2 mt-1">
+<button class="h-6 px-2 bg-red-600 text-white rounded text-[11px]">删除</button>
+<button class="h-6 px-2 bg-sub-bg text-heading rounded text-[11px]">取消</button>
+</div>
+</div>
+<!-- 8. AI 待审核 -->
+<div class="border border-primary bg-primary-subtle/50 p-3 rounded-[6px] flex flex-col items-center justify-center text-center gap-1 min-h-[120px]">
+<span class="material-symbols-outlined text-primary-dark text-2xl">auto_awesome</span>
+<span class="font-semibold text-xs text-primary-dark">AI 建议待核验</span>
+<span class="text-[11px] text-sub-text">模型预对齐切片需人工裁定</span>
+</div>
+<!-- 9. 2px 硬焦点态 -->
+<div class="border-2 border-primary bg-white p-3 rounded-[6px] flex flex-col justify-center gap-1.5 min-h-[120px]">
+<span class="font-bold text-xs text-primary-dark">2px 轮廓硬焦点态 (:focus)</span>
+<input class="h-8 border-2 border-primary rounded-[6px] px-2 text-xs bg-primary-subtle/30 text-heading outline-none" type="text" value="选中的输入框"/>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- ================= JAVASCRIPT SWITCHER ================= -->
+<script>
+    function switchTab(tabId) {
+      // 1. Hide all module sections
+      const views = document.querySelectorAll('.module-view');
+      views.forEach(view => {
+        view.classList.add('hidden');
+      });
+
+      // 2. Show active module section
+      const activeView = document.getElementById('module-' + tabId);
+      if (activeView) {
+        activeView.classList.remove('hidden');
+      }
+
+      // 3. Highlight 52px left rail icon
+      const navButtons = document.querySelectorAll('#rail-nav .nav-item');
+      navButtons.forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabId) {
+          btn.className = "nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-white bg-primary transition-colors";
+        } else {
+          btn.className = "nav-item relative w-9 h-9 rounded-[6px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors";
+        }
+      });
+    }
+  </script>
+</body></html>

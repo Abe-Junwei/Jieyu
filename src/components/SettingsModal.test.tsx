@@ -459,6 +459,29 @@ describe('About tab', () => {
 // ── 标签切换 | Tab switching ───────────────────────────────
 
 describe('Tab switching', () => {
+  it('moves focus and selection with vertical tab keys and associates the active panel', () => {
+    renderModal();
+    const first = screen.getByRole('tab', { name: '外观' });
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowDown' });
+    const language = screen.getByRole('tab', { name: '语言' });
+    expect(document.activeElement).toBe(language);
+    expect(language.getAttribute('aria-selected')).toBe('true');
+    expect(first.tabIndex).toBe(-1);
+    const panel = screen.getByRole('tabpanel');
+    expect(panel.getAttribute('aria-labelledby')).toBe(language.id);
+    expect(language.getAttribute('aria-controls')).toBe(panel.id);
+    fireEvent.keyDown(language, { key: 'End' });
+    const last = screen.getByRole('tab', { name: '关于' });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(last, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(last, { key: 'Home' });
+    expect(document.activeElement).toBe(first);
+  });
+
   it('switches between all 7 tabs', () => {
     renderModal();
     const tabLabels = ['外观', '语言', '快捷键', 'AI', '播放', '数据', '关于'];

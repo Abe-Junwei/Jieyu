@@ -619,6 +619,7 @@ export function LanguageMetadataWorkspacePage({
       bodyClassName="lm-layout la-panel-stack"
       footerClassName="lm-footer"
       title={t(locale, 'workspace.languageMetadata.title')}
+      titleHeadingLevel={2}
       actions={panelActions}
       footer={panelFooter}
       aria-label={t(locale, 'workspace.languageMetadata.title')}
