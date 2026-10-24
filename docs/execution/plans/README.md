@@ -16,7 +16,7 @@ source_of_truth: execution-plan-index
 
 | status | title | last_reviewed |
 | --- | --- | --- |
-| proposed | [存储接口剩余方法](./sqlite-storage-port-remainder-2026-10-24.md) | 2026-10-24 |
+| draft | [存储接口剩余方法](./sqlite-storage-port-remainder-2026-10-24.md) | 2026-10-24 |
 | active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-10-24 |
 | active | [解语 AI 智能体运行时迁移评估](./AI智能体运行时迁移评估-2026-10-13.md) | 2026-10-17 |
 | proposed | [卡片文件、项目与删除恢复改造方案](./deletion-policy-industry-research-2026-10-15.md) | 2026-10-17 |
