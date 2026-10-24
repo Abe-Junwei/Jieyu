@@ -55,8 +55,14 @@
   overflow-wrap: anywhere;
 }
 
-.app-side-pane-feature-link:hover {
+.app-side-pane-feature-link:hover,
+.app-side-pane-feature-link:focus-visible {
   text-decoration: underline;
+}
+
+.app-side-pane-feature-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--theme-accent-solid) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .feature-availability-panel {
