@@ -797,6 +797,7 @@ export const enUSDictionary = {
   'workspace.languageMetadata.mapApiKeyClear': 'Clear',
   'workspace.languageMetadata.mapConfigToggle': 'Configure key',
   'workspace.languageMetadata.mapProviderLabel': 'Basemap',
+  'workspace.languageMetadata.mapStyleLabel': 'Basemap style',
   'workspace.languageMetadata.mapProviderMissingKey':
     'This basemap needs a configured key before the preview can be shown.',
   'workspace.languageMetadata.mapTiandituKeyPlaceholder': 'Free token from lbs.tianditu.gov.cn',
@@ -3428,7 +3429,7 @@ export const enUSDictionary = {
   'ai.acoustic.exportJson': 'Export JSON',
   'ai.acoustic.exportSampleCount': '{count} frames',
   'ai.acoustic.exportBackendNote':
-    'The local phase now covers tone, slice, and export. True formant and vowel-space views still require a dedicated spectral descriptor backend, so they are not fabricated from F0-only data.',
+    'Export pitch, intensity, and contour data for the current selection. Formant and vowel-space views are not available and cannot be inferred from pitch data.',
   'ai.acoustic.navigationTitle': 'Quick Navigation',
   'ai.acoustic.navigationDescription':
     'Jump to the selection boundaries or the strongest hotspot from fixed controls.',
@@ -4459,9 +4460,9 @@ export const enUSDictionary = {
       'Required: select a transcription layer language first (custom languages require a code).',
     translationLanguageRequired:
       'Required: select a translation layer language first (custom languages require a code).',
-    modalityText: 'Text (text-only translation)',
+    modalityText: 'Text',
     modalityLabel: 'Modality',
-    modalityAudio: 'Audio (interpreting recording)',
+    modalityAudio: 'Audio (recording)',
     modalityMixed: 'Mixed (text + recording)',
     translationBoundarySource:
       'Boundary source: translation layers inherit the boundary range of the selected transcription layer.',

@@ -100,6 +100,8 @@ describe('LayerActionPopover orthography creation', () => {
     expect(closeButton.closest('.dialog-header')).toBeTruthy();
     expect(createButton.className).toContain('panel-button--primary');
     expect(screen.getAllByText('新建转写层').length).toBeGreaterThan(0);
+    expect(within(dialog).getByRole('option', { name: '文本' })).toBeTruthy();
+    expect(within(dialog).queryByText(/翻译层会沿用/)).toBeNull();
   });
 
   it('switches metadata sections for transcription edit rows and submits advanced fields', async () => {

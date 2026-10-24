@@ -255,6 +255,21 @@ describe('useTranscriptionCollaborationBridge', () => {
       changes: [],
       total: 0,
     });
+    const toast = vi.fn();
+    window.addEventListener('jieyu:app-global-toast', toast);
+    try {
+      await act(async () => {
+        await result.current.enqueueMutation({
+          entityType: 'layer_unit_content',
+          entityId: 'local-unit',
+          opType: 'upsert_unit_content',
+        });
+      });
+      expect(loadUnverifiedCollabMutations('project-1')).toEqual([]);
+      expect(toast).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('jieyu:app-global-toast', toast);
+    }
   });
 
   it('未登录时降级，不启动桥接 | degrades without authenticated user and does not start bridge', async () => {
