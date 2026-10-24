@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DESKTOP_CSP } from './desktopCsp';
-import { isAppNavigation, secretStoreRefusal } from './desktopSecurity';
+import { isAllowedAiOutboundUrl, isAppNavigation, secretStoreRefusal } from './desktopSecurity';
 import { sliceForRange } from './mediaRange';
 import { openProjectFolder } from './openProject';
 import { writeProbeAndReadBack } from './probeStore';
@@ -30,6 +30,17 @@ describe('desktop skeleton', () => {
     expect(secretStoreRefusal(true, 'gnome_libsecret', false)).toBeNull();
     expect(secretStoreRefusal(true, null, false)).toBeNull();
     expect(secretStoreRefusal(false, null, true)).toBe('unavailable');
+  });
+
+  it('attaches a bearer only for origins main configured', () => {
+    const allowed = ['http://127.0.0.1:4312', 'https://api.example.test'];
+    expect(isAllowedAiOutboundUrl('http://127.0.0.1:4312/stream', allowed)).toBe(true);
+    expect(isAllowedAiOutboundUrl('https://api.example.test/v1', allowed)).toBe(true);
+    expect(isAllowedAiOutboundUrl('http://127.0.0.1:1/nope', allowed)).toBe(false);
+    expect(isAllowedAiOutboundUrl('https://evil.example/v1', allowed)).toBe(false);
+    expect(isAllowedAiOutboundUrl('http://user:pass@127.0.0.1:4312/stream', allowed)).toBe(false);
+    expect(isAllowedAiOutboundUrl('file:///etc/passwd', allowed)).toBe(false);
+    expect(isAllowedAiOutboundUrl('http://127.0.0.1:4312/stream', [])).toBe(false);
   });
 
   it('only allows navigation that stays on the app page', () => {

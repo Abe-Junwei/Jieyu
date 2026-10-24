@@ -14,7 +14,11 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
-import { isAppNavigation, secretStoreRefusal } from '../src/desktop/skeleton/desktopSecurity';
+import {
+  isAllowedAiOutboundUrl,
+  isAppNavigation,
+  secretStoreRefusal,
+} from '../src/desktop/skeleton/desktopSecurity';
 import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import { writeProbeAndReadBack } from '../src/desktop/skeleton/probeStore';
@@ -105,6 +109,8 @@ function installMediaProtocol(): void {
 let openedFolder: string | null = null;
 let smokeSqliteUserDataFile: string | undefined;
 const inFlightRequests = new Map<string, AbortController>();
+/** Origins registered by main. IPC cannot add to this set. */
+const allowedOutboundOrigins = new Set<string>();
 
 function databasePath(): string {
   const root = openedFolder ?? path.join(app.getPath('temp'), 'jieyu-skeleton');
@@ -139,6 +145,9 @@ async function runOutboundRequest(
   requestId: string,
   url: string,
 ): Promise<{ status: number; chunks: number; aborted: boolean }> {
+  if (!isAllowedAiOutboundUrl(url, [...allowedOutboundOrigins])) {
+    throw new Error('outbound url refused');
+  }
   const secret = await readStoredSecret();
   if (!secret) throw new Error('missing secret');
   const controller = new AbortController();
@@ -147,6 +156,7 @@ async function runOutboundRequest(
   try {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${secret}` },
+      redirect: 'error',
       signal: controller.signal,
     });
     const reader = response.body?.getReader();
@@ -326,9 +336,10 @@ function startSmokeLoopback(expectedSecret: string): Promise<{
 }
 
 async function runSmoke(win: BrowserWindow): Promise<void> {
-  const secretValue = 'super-secret-value';
-  const loopback = await startSmokeLoopback(secretValue);
-  try {
+    const secretValue = 'super-secret-value';
+    const loopback = await startSmokeLoopback(secretValue);
+    allowedOutboundOrigins.add(new URL(loopback.baseUrl).origin);
+    try {
     const root = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'jieyu-smoke-'));
     const project = path.join(root, 'field');
     const synced = path.join(root, BAIDU_MARKER, 'field');
@@ -423,6 +434,7 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     console.log('skeleton smoke ok');
     app.exit(0);
   } finally {
+    allowedOutboundOrigins.clear();
     closeLockedSqliteStorage();
     await loopback.close();
   }
