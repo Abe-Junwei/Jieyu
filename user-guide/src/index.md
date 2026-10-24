@@ -10,14 +10,17 @@ hero:
   actions:
     - theme: brand
       text: 从快速开始看
-      link: /#快速开始
+      link: /getting-started
     - theme: alt
       text: 开发者文档（DeepWiki）
       link: https://deepwiki.com/Abe-Junwei/Jieyu
 
 features:
+  - title: 快速开始
+    details: 新建项目、导入第一条录音、写下第一句转写。
+    link: /getting-started
   - title: 录音与转写
-    details: 把录音放进项目，在时间轴上切语段、写转写。
+    details: 导入媒体、VAD 或手动切段、编辑转写正文。
     link: /recording
   - title: 标注与 IGT
     details: 行际标注。形态（Morph）和 B4 的操作说明稍后补上。
@@ -30,15 +33,16 @@ features:
     link: /export
 ---
 
-## 快速开始
+## 怎么读本站
 
-解语是桌面应用。一条材料在本地工作区里按这个顺序往下走：
+解语是桌面应用方向的田野工作台。一条材料在本地工作区里大致按这个顺序往下走：
 
-**录音 → 转写 → 标注 → 词典 → 导出。**
+**录音 → 转写 → 标注 → 词典 → 语料库 → 导出。**
 
-1. 打开解语。公开安装包的下载步骤还没写进本说明；从源码启动见仓库 [README](https://github.com/Abe-Junwei/Jieyu/blob/main/README.md)。
-2. 为这一次田野工作建立一个本地项目。录音、转写、标注和词典都留在这个项目里。
-3. 按上面的顺序做。每一段的页面只标出这条路径，按钮和快捷键以你安装的版本界面为准。
-4. 协作同步还没有使用说明。见 [协作与同步冲突](/collaboration)。
+- 要**跟着做一遍**：打开 [快速开始](/getting-started)（目标 → 前置 → 逐步操作 → 结果核对 → 常见坑）。
+- 要把**导入、切段、改写**做细：打开 [录音与转写](/recording)。
+- 标注 / 导出 / 协作里仍标「稍后补」或「占位」的章节，不要当成已上线功能说明书。
+
+公开安装包下载步骤尚未写入本站；从源码启动见仓库 [README](https://github.com/Abe-Junwei/Jieyu/blob/main/README.md)。
 
 开发者文档在 [DeepWiki](https://deepwiki.com/Abe-Junwei/Jieyu)。本站是使用者说明，两边各看各的。
