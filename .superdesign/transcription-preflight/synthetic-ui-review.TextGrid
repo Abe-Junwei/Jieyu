@@ -1,0 +1,50 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 12
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "fra"
+        xmin = 0
+        xmax = 12
+        intervals: size = 9
+        intervals [1]:
+            xmin = 0
+            xmax = 1
+            text = ""
+        intervals [2]:
+            xmin = 1
+            xmax = 3
+            text = "Bonjour, ceci est une démonstration."
+        intervals [3]:
+            xmin = 3
+            xmax = 4
+            text = ""
+        intervals [4]:
+            xmin = 4
+            xmax = 6
+            text = "Nous vérifions la transcription."
+        intervals [5]:
+            xmin = 6
+            xmax = 7
+            text = ""
+        intervals [6]:
+            xmin = 7
+            xmax = 9
+            text = "Un segment avec un texte plus long pour vérifier la lisibilité."
+        intervals [7]:
+            xmin = 9
+            xmax = 10
+            text = ""
+        intervals [8]:
+            xmin = 10
+            xmax = 11
+            text = "Merci."
+        intervals [9]:
+            xmin = 11
+            xmax = 12
+            text = ""
