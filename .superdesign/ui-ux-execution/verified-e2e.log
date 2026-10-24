@@ -1,0 +1,705 @@
+
+> jieyu@1.1.0 test:e2e:chromium
+> playwright test --project=chromium --workers=6
+
+[WebServer] (node:89660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [INEFFECTIVE_DYNAMIC_IMPORT] src/utils/devRuntimeRecovery.ts is dynamically imported by src/main.tsx but also statically imported by src/components/ErrorBoundary.tsx, dynamic import will not move module into another chunk.
+[WebServer] 
+[WebServer] [INEFFECTIVE_DYNAMIC_IMPORT] src/services/backupFolderService.ts is dynamically imported by src/hooks/useAppDataResilienceEffects.ts but also statically imported by src/components/settings/StorageDiagnosticsPanel.tsx, dynamic import will not move module into another chunk.
+[WebServer] 
+[WebServer] [INEFFECTIVE_DYNAMIC_IMPORT] src/services/languageCatalog/languageCatalogCore.ts is dynamically imported by src/services/LinguisticService.languageCatalog.refreshBridge.ts but also statically imported by src/services/LinguisticService.languageCatalog.ts, dynamic import will not move module into another chunk.
+[WebServer] 
+[WebServer] (node:90657) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 110 tests using 6 workers
+
+(node:90681) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90683) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90682) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90685) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    3 [chromium] › tests/e2e/aiConversationManagementSmoke.spec.ts:8:3 › AI conversation management smoke › shows conversation list controls in floating chat window header (3.6s)
+  ✓    1 [chromium] › tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts:156:3 › T1-c AI agent loop handoff after reload › shows handoff alerts region after reload when durable task exists and session was empty (3.7s)
+  ✓    2 [chromium] › tests/e2e/aiChatSendTurnSmoke.spec.ts:9:3 › AI chat send-turn shell smoke › 转写页浮窗聊天输入壳挂载 | Transcription AI composer shell mounted (4.8s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820965464_ve8z27","layerType":"transcription","key":"trc_zho_pscu7"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820965704_poouqs","layerType":"transcription","key":"trc_zho_jtzg4"}]
+  ✓    7 [chromium] › tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts:176:3 › T1-c AI agent loop handoff after reload › second tab reload also sees handoff after shared IndexedDB seed (4.9s)
+  ✓    6 [chromium] › tests/e2e/a11ySmoke.spec.ts:16:3 › Accessibility smoke | Axe › major routes reflow at a 200%-equivalent desktop viewport with no full-page axe violations (9.6s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820970559_rrhrff","layerType":"transcription","key":"trc_zho_zrdg6"}]
+Window layers next: [{"id":"layer_1792820970602_jadzeq","layerType":"transcription","key":"trc_zho_k0vkx"}]
+  ✓    4 [chromium] › tests/e2e/aiRuntimeV2FlagOffAuditReplay.spec.ts:14:3 › AI runtime v2 flag off + audit replay › flag off keeps the legacy path; tool decision reads back by requestId (12.3s)
+  ✓   10 [chromium] › tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts:203:3 › T1-c AI agent loop handoff after reload › shows search-no-results clarify copy from aiChatCardMessages in the transcript (4.6s)
+  ✓    5 [chromium] › tests/e2e/aiRuntimeV2FlagOnRealEntry.spec.ts:116:3 › AI runtime v2 flag on — real chat entry › native tool path loads v2 chunk, executes create, audit by requestId (13.4s)
+  ✓   12 [chromium] › tests/e2e/batch2aBaselineReset.spec.ts:44:3 › Batch 2A 基线重置 | Batch 2A baseline reset › T56: 开发期版本提示常驻 | dev-build banner is shown (1.4s)
+  ✓    8 [chromium] › tests/e2e/aiStructuralRollbackSmoke.spec.ts:9:3 › AI structural rollback smoke › 转写工作台加载且 AI 侧栏壳挂载 | Transcription workspace and AI panel mounted (10.9s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820973809_ad1ggp","layerType":"transcription","key":"trc_zho_99ta9"}]
+  ✓   16 [chromium] › tests/e2e/batch2bCatalogOwnership.spec.ts:88:3 › Slice 2B-B catalog ownership | 切片 2B-B 目录归属 › T48: without an active project the lexicon shows the gate and writes nothing (735ms)
+  ✓   15 [chromium] › tests/e2e/batch2aBaselineReset.spec.ts:59:3 › Batch 2A 基线重置 | Batch 2A baseline reset › T2: 确认后只删除旧库与清单键 | confirm deletes only the listed DBs and keys (3.3s)
+  ✓    9 [chromium] › tests/e2e/batch1MediaPreservation.spec.ts:25:3 › Batch 1 media byte preservation | 第一批媒体字节保护 › real audio bytes survive JYT overwrite / restore-as-new and a JYM overwrite with the same bytes (12.1s)
+  ✓   17 [chromium] › tests/e2e/batch2bCatalogOwnership.spec.ts:106:3 › Slice 2B-B catalog ownership | 切片 2B-B 目录归属 › T48/T51: a new entry belongs to the active project only; no system rows are stored (3.1s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820977670_w5a9zd","layerType":"transcription","key":"trc_zho_hchf6"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820977766_rt6hsj","layerType":"transcription","key":"trc_zho_fl2vs"}]
+  ✓   18 [chromium] › tests/e2e/batch2aBaselineReset.spec.ts:115:3 › Batch 2A 基线重置 | Batch 2A baseline reset › T47: 拒绝后新库照常工作，旧库保留，下次再提示 | decline keeps everything and asks again (2.5s)
+  ✓   11 [chromium] › tests/e2e/a11ySmoke.spec.ts:46:3 › Accessibility smoke | Axe › project workspaces remain accessible at a 200%-equivalent desktop viewport (10.0s)
+  ✓   22 [chromium] › tests/e2e/a11ySmoke.spec.ts:74:3 › Accessibility smoke | Axe › home and transcription expose a page heading and no unnamed image icons (1.7s)
+  ✓   23 [chromium] › tests/e2e/a11ySmoke.spec.ts:91:3 › Accessibility smoke | Axe › home: primary nav has no axe violations (877ms)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820980757_dix1xo","layerType":"transcription","key":"trc_zho_a27p5"}]
+  ✓   13 [chromium] › tests/e2e/batch2bAnnotationDocuments.spec.ts:106:3 › Slice 2B-E: annotation documents › oversized annotation is rejected before changing the project (9.5s)
+  ✓   24 [chromium] › tests/e2e/a11ySmoke.spec.ts:98:3 › Accessibility smoke | Axe › home: main landmark has no axe violations (801ms)
+  ✓   14 [chromium] › tests/e2e/aiRuntimeV2FlagOnRealEntry.spec.ts:151:3 › AI runtime v2 flag on — real chat entry › unparseable tool args go to clarification with an invalid_args audit row (B2) (9.6s)
+  ✓   19 [chromium] › tests/e2e/batch1MediaPreservation.spec.ts:79:3 › Batch 1 media byte preservation | 第一批媒体字节保护 › workbench audio import adds a recording next to byte-missing ones and the overview count updates (6.3s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820982268_i0hhl9","layerType":"transcription","key":"trc_zho_86iid"}]
+  ✓   26 [chromium] › tests/e2e/a11ySmoke.spec.ts:105:3 › Accessibility smoke | Axe › home: settings modal has no axe violations when open (965ms)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820983339_729ou7","layerType":"transcription","key":"trc_zho_zpizf"}]
+  ✓   29 [chromium] › tests/e2e/a11ySmoke.spec.ts:116:3 › Accessibility smoke | Axe › transcription: workspace + project hub regions have no axe violations (2.0s)
+  ✓   20 [chromium] › tests/e2e/batch2bMediaState.spec.ts:40:3 › Slice 2B-C media state | 切片 2B-C 媒体状态 › T19: deleting recording bytes keeps the row, name and unit times across a reload (7.3s)
+  ✓   21 [chromium] › tests/e2e/batch2bSourceRecords.spec.ts:85:3 › Slice 2B-D: source record identity › T12: Story.eaf then story.eaf with different content keep two records (8.0s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820986411_5epgqr","layerType":"transcription","key":"trc_zho_vxfxy"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+  ✓   30 [chromium] › tests/e2e/a11ySmoke.spec.ts:130:3 › Accessibility smoke | Axe › transcription: ai chat window has no axe violations when open (2.8s)
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+Translation button data-disable-reason: ok
+SidePaneSidebar [data-debug-disable] count: 1
+Number of .left-rail-layer-actions-root elements: 1
+Window layers next: [{"id":"layer_1792820987282_yr540z","layerType":"transcription","key":"trc_zho_4kxm2"}]
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820987283_c1trrc","layerType":"transcription","key":"trc_zho_272q7"}]
+  ✓   31 [chromium] › tests/e2e/batch2cProjectRemoval.spec.ts:52:3 › Batch 2C local removal | 第 2C 批仅从本机移除 › collaborated project is removed locally and listed; local-only project is deleted (3.3s)
+  ✓   28 [chromium] › tests/e2e/batch1MediaPreservation.spec.ts:154:3 › Batch 1 media byte preservation | 第一批媒体字节保护 › workbench asks for a placeholder selection instead of adding a third track (6.6s)
+  ✓   25 [chromium] › tests/e2e/batch2bAnnotationDocuments.spec.ts:126:3 › Slice 2B-E: annotation documents › T18/T22: re-import previews the replace; cancel keeps everything; confirm replaces in place (7.6s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+Left rail button: "layersCreate transcription layer", disabled=false
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820992530_5ytmkv","layerType":"transcription","key":"trc_zho_2834m"}]
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820992580_tdzz5h","layerType":"transcription","key":"trc_zho_cd9pp"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820993936_wai5sm","layerType":"transcription","key":"trc_zho_hfu65"}]
+  ✓   32 [chromium] › tests/e2e/batch2bSourceRecords.spec.ts:125:3 › Slice 2B-D: source record identity › T14: same-name recordings never auto-link; a manual link survives a reload (8.3s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820994868_846sqq","layerType":"transcription","key":"trc_zho_ln76h"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+  ✓   33 [chromium] › tests/e2e/batch3Jyb.spec.ts:96:3 › Batch 3 JYB | 第三批 JYB 整库备份 › T53/T30: JYB with audio carries the bytes, no secrets, and imports per project as new (8.0s)
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792820995137_xmo0by","layerType":"transcription","key":"trc_zho_849e3"}]
+  ✓   34 [chromium] › tests/e2e/batch3Jym.spec.ts:75:3 › Batch 3 JYM | 第三批 JYM › T28/T37: a JYM carries the real recording bytes and restores them into a new project (8.1s)
+  ✓   35 [chromium] › tests/e2e/batch1MediaPreservation.spec.ts:202:3 › Batch 1 media byte preservation | 第一批媒体字节保护 › with two placeholder timelines, importing audio promotes only the selected one (8.6s)
+  ✓   37 [chromium] › tests/e2e/batch4aMigrationFramework.spec.ts:65:3 › Batch 4a 迁移框架 | Batch 4a migration framework › T54(a) 主库：另一标签页升级后提示刷新；数据比应用新时拒绝打开并可导出恢复快照 (3.0s)
+  ✓   27 [chromium] › tests/e2e/aiRuntimeV2FlagOnRealEntry.spec.ts:173:3 › AI runtime v2 flag on — real chat entry › pending approval survives reload; approving after reload deletes exactly the card target once (N1/N2) (15.9s)
+  ✓   36 [chromium] › tests/e2e/batch3Jyt.spec.ts:77:3 › Batch 3 JYT | 第三批 JYT › T28/T29: export the current project as JYT, then restore it as a new project (8.7s)
+  ✓   41 [chromium] › tests/e2e/batch4aMigrationFramework.spec.ts:140:3 › Batch 4a 迁移框架 | Batch 4a migration framework › T38 / T39：合成 v1 → v2 的 additive 与 rewriting 闸门 (3.0s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821002112_3zbex5","layerType":"transcription","key":"trc_zho_kdrey"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821002493_fe2jcn","layerType":"transcription","key":"trc_zho_ccpff"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821003416_9fdv2o","layerType":"transcription","key":"trc_zho_hnd5n"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821003766_jy2gqg","layerType":"transcription","key":"trc_zho_2u2ay"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821003887_k71pek","layerType":"transcription","key":"trc_zho_7pqal"}]
+  ✓   44 [chromium] › tests/e2e/batch4aMigrationFramework.spec.ts:194:3 › Batch 4a 迁移框架 | Batch 4a migration framework › T54：其他标签页处理 versionchange 时升级继续；不关闭连接时升级中止 (3.5s)
+  ✓   38 [chromium] › tests/e2e/batch3Jyb.spec.ts:156:3 › Batch 3 JYB | 第三批 JYB 整库备份 › T30: JYB without audio states it and keeps the recording out of the package (9.2s)
+  ✓   39 [chromium] › tests/e2e/batch3Jym.spec.ts:144:3 › Batch 3 JYM | 第三批 JYM › overwrite: identical bytes are allowed; different local bytes block the overwrite (9.6s)
+  ✓   43 [chromium] › tests/e2e/batch3Jyt.spec.ts:130:3 › Batch 3 JYT | 第三批 JYT › T33(a): overwrite the never-collaborated current project after a double confirm and a snapshot (9.3s)
+  ✓   40 [chromium] › tests/e2e/batch1MediaPreservation.spec.ts:309:3 › Batch 1 media byte preservation | 第一批媒体字节保护 › crash-recovery restore keeps real audio bytes (10.2s)
+  ✓   42 [chromium] › tests/e2e/batch4bDurability.spec.ts:48:3 › Batch 4b durability | 第 4b 批存储耐久 › T44: persist on first import, quota error changes nothing, diagnostics and backup rotation (11.2s)
+  ✓   45 [chromium] › tests/e2e/batch4aMigrationFramework.spec.ts:236:3 › Batch 4a 迁移框架 | Batch 4a migration framework › T55：快照写入中途失败保留上一份已验证快照，残留在下次启动被清理 (4.9s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821013417_tvqkvx","layerType":"transcription","key":"trc_zho_da1js"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821013761_2ye25e","layerType":"transcription","key":"trc_zho_d9c8n"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Left rail button: "layersCreate transcription layer", disabled=false
+Side pane layer count after creating transcription: 1
+Number of .left-rail-layer-actions-root elements: 1
+Transcription layers in side pane: 0
+SidePaneSidebar [data-debug-disable] count: 1
+Left rail button: "translateCreate translation layer", disabled=false
+Window layers next: [{"id":"layer_1792821014186_gpoc1u","layerType":"transcription","key":"trc_zho_7sajl"}]
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821014911_fp0r6m","layerType":"transcription","key":"trc_zho_hif2x"}]
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821014325_haxrz3","layerType":"transcription","key":"trc_zho_rdhd4"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821015325_pwkx3q","layerType":"transcription","key":"trc_zho_7kb5z"}]
+  ✓   47 [chromium] › tests/e2e/batch3Jym.spec.ts:203:3 › Batch 3 JYM | 第三批 JYM › T32: an old whole-database JYM is refused with a clear message and writes nothing (10.6s)
+  ✓   46 [chromium] › tests/e2e/batch3Jyb.spec.ts:178:3 › Batch 3 JYB | 第三批 JYB 整库备份 › T34: disaster restore needs two clicks and brings the library back to the backup (12.2s)
+  ✓   48 [chromium] › tests/e2e/batch3Jyt.spec.ts:176:3 › Batch 3 JYT | 第三批 JYT › T33(b): a collaborated project offers no overwrite (10.8s)
+  ✓   49 [chromium] › tests/e2e/batch4bRawSnapshot.spec.ts:59:3 › Batch 4b raw snapshot | 第 4b 批原始快照 › T41: raw export → convert to JYB → per-project import as a new project with bytes (10.8s)
+  ✓   52 [chromium] › tests/e2e/collaborationCloudPanelSmoke.spec.ts:6:3 › 协同云面板烟测 | Collaboration cloud panel smoke › 本地协同面板可打开并刷新基础标签页 | local collaboration panel opens and refreshes base tabs (3.3s)
+  ✓   51 [chromium] › tests/e2e/batch5MultiDocument.spec.ts:162:3 › Batch 5: multiple annotation documents | 第五批：多份标注文稿 › T46: create, import into, switch, round-trip and delete documents (11.4s)
+  ✓   50 [chromium] › tests/e2e/batch4bDurability.spec.ts:176:3 › Batch 4b durability | 第 4b 批存储耐久 › #5: a large JYM (160 MiB recording) streams through export and restore with sha256 intact (13.0s)
+  ✓   58 [chromium] › tests/e2e/criticalPaths.spec.ts:14:3 › 关键路径 | Critical paths › 首屏加载并显示应用壳 | App shell loads (616ms)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821023270_d8zvaj","layerType":"transcription","key":"trc_zho_sb5jx"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821024174_5ylkkf","layerType":"transcription","key":"trc_zho_e123g"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821024613_2p1p7j","layerType":"transcription","key":"trc_zho_1vao1"}]
+  ✓   56 [chromium] › tests/e2e/compatibilityReportRendering.spec.ts:100:3 › compatibility report rendering (fixture) › compatibility report card is visible after history hydrate (5.0s)
+  ✓   53 [chromium] › tests/e2e/batch3Jyb.spec.ts:238:3 › Batch 3 JYB | 第三批 JYB 整库备份 › T34: a collaborated project blocks disaster restore; per-project import stays available (8.5s)
+  ✓   59 [chromium] › tests/e2e/criticalPaths.spec.ts:24:3 › 关键路径 | Critical paths › 转写页渲染核心区域 | Transcription page renders main area (3.2s)
+  ✓   60 [chromium] › tests/e2e/cspAiOrigin.spec.ts:33:1 › Ollama and the stored AI origin are allowed, others blocked (899ms)
+  ✓   54 [chromium] › tests/e2e/batch3Jyt.spec.ts:206:3 › Batch 3 JYT | 第三批 JYT › T32: an old whole-database JYT is refused with a clear message and writes nothing (8.1s)
+  ✓   61 [chromium] › tests/e2e/cspFallback.spec.ts:11:3 › csp template: app boots and local capabilities work (654ms)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+  ✓   62 [chromium] › tests/e2e/criticalPaths.spec.ts:39:3 › 关键路径 | Critical paths › 左侧导航切换到各页面 | Navigation to other pages (766ms)
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821026308_0d07n6","layerType":"transcription","key":"trc_zho_oif4a"}]
+  ✓   66 [chromium] › tests/e2e/criticalPaths.spec.ts:46:3 › 关键路径 | Critical paths › 未知路由显示 404 | Unknown route shows 404 (872ms)
+  ✓   63 [chromium] › tests/e2e/cspAiOrigin.spec.ts:44:1 › without a stored origin, or with a wildcard, the policy stays strict (1.8s)
+  ✓   65 [chromium] › tests/e2e/cspFallback.spec.ts:11:3 › csp fallback: app boots and local capabilities work (1.3s)
+  ✓   55 [chromium] › tests/e2e/collaborationDualTabIndexedDb.spec.ts:13:3 › R-B dual tab IndexedDB | Local collaboration data plane › tab B sees tab A segment edit after reload (9.4s)
+  ✓   64 [chromium] › tests/e2e/dbOpenFailureRecoverySmoke.spec.ts:6:3 › 数据库 open 失败恢复入口 | DB open failure recovery entry › 浏览器自动化路径显示恢复遮罩并触发恢复按钮 | automation path shows recovery overlay without pre-migration restore (2.0s)
+  ✓   68 [chromium] › tests/e2e/cspAiOrigin.spec.ts:54:3 › directive injection is rejected: "https://llm.example.org:8443; script-src 'unsafe-inline'" (553ms)
+  ✓   67 [chromium] › tests/e2e/criticalPaths.spec.ts:52:3 › 关键路径 | Critical paths › 词典页可加载（语言资产主路径烟测子集） | Lexicon page loads (ARCH-9 smoke) (1.2s)
+  ✓   72 [chromium] › tests/e2e/cspAiOrigin.spec.ts:54:3 › directive injection is rejected: "https://llm.example.org:8443 'unsafe-eval'" (843ms)
+  ✓   73 [chromium] › tests/e2e/criticalPaths.spec.ts:72:3 › 关键路径 | Critical paths › 语料库页可加载（规划页烟测子集） | Corpus page loads (ARCH-9 smoke) (937ms)
+  ✓   74 [chromium] › tests/e2e/cspAiOrigin.spec.ts:54:3 › directive injection is rejected: "https://llm.example.org:8443\nscript-src *" (745ms)
+  ✓   76 [chromium] › tests/e2e/cspAiOrigin.spec.ts:59:1 › if the template cannot be imported, a strict fallback policy is still inserted (PF-H1) (799ms)
+  ✓   75 [chromium] › tests/e2e/criticalPaths.spec.ts:80:3 › 关键路径 | Critical paths › 标注页打开工作台 | Annotation workspace opens (1.0s)
+  ✓   57 [chromium] › tests/e2e/batch5MultiDocument.spec.ts:258:3 › Batch 5: multiple annotation documents | 第五批：多份标注文稿 › T46: two EAF files imported "as a new document" coexist; deleting one keeps the other (10.6s)
+  ✓   70 [chromium] › tests/e2e/languageMapSmoke.spec.ts:18:3 › 语言地图冒烟 | Language map smoke › maplibre worker 加载且地图触发 load | maplibre worker loads and the map fires load (4.1s)
+  ✓   79 [chromium] › tests/e2e/r4FieldScenarioMatrix.spec.ts:28:3 › R4 场景矩阵 | Field scenario matrix › S1：JYM 导入后 Dexie 含 3 语段 | JYM import restores three segments in Dexie (2.0s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821033409_oppfws","layerType":"transcription","key":"trc_zho_j657y"}]
+  ✓   77 [chromium] › tests/e2e/criticalPaths.spec.ts:87:3 › 关键路径 | Critical paths › CSP 不阻断核心资源加载 | CSP does not block core resources (3.6s)
+  ✓   81 [chromium] › tests/e2e/r4FieldScenarioMatrix.spec.ts:86:3 › R4 场景矩阵 | Field scenario matrix › S5：深链进入转写后 sessionStorage 返回提示可往返 | Deep link return hint round-trips (1.6s)
+  ✓   71 [chromium] › tests/e2e/offlineStatusSmoke.spec.ts:4:3 › 离线状态提示 | Offline status banner › Service Worker 生效后可冷启动转写主路径 | cold-opens transcription after Service Worker activation (7.5s)
+  ✓   69 [chromium] › tests/e2e/eafWordTierImport.spec.ts:72:3 › EAF word-tier annotation import › imports Symbolic_Subdivision words into unit_tokens with lexemeId (8.0s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821036328_852x07","layerType":"transcription","key":"trc_zho_7njen"}]
+  ✓   84 [chromium] › tests/e2e/offlineStatusSmoke.spec.ts:20:3 › 离线状态提示 | Offline status banner › 断网后提示离线且本地转写工作区仍可读 | shows offline status while local workspace remains readable (1.6s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821037646_sh191b","layerType":"transcription","key":"trc_zho_2c8mu"}]
+ROLE tabaq-eaf
+Choose what each tier is
+close
+
+tabaq.eaf
+
+The first tier stays the transcription and later independent tiers stay translations unless you change them.
+
+tx@NHK
+Transcription
+Translation
+Notes
+Exclude
+ft@NHK
+Transcription
+Translation
+Notes
+Exclude
+trs@KBK
+Transcription
+Translation
+Notes
+Exclude
+ft@KBK
+Transcription
+Translation
+Notes
+Exclude
+fn@KBK
+Transcription
+Translation
+Notes
+Exclude
+fn@NHK
+Transcription
+Translation
+Notes
+Exclude
+Cancel
+Import
+MISMATCH tabaq-eaf
+Timeline length mismatch
+close
+
+tabaq.eaf
+
+This file declares a timeline of 00:25.8, longer than the current project span (00:03.0). After you confirm, import will keep segment times and automatically extend the logical axis.
+
+This file is only 00:00.3 long, but segments extend to 00:25.8. Import will not trim segments; playback may not cover the overrun.
+
+I understand and want to continue importing
+Cancel
+Import
+  ✓   78 [chromium] › tests/e2e/openCorporaAnnotationImport.spec.ts:112:3 › open-corpus annotation import › imports Tabaq EAF through the transcription page (8.2s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821039944_8q3wto","layerType":"transcription","key":"trc_zho_luo2w"}]
+  ✓   86 [chromium] › tests/e2e/reflectionPanelRendering.spec.ts:88:3 › reflection panel rendering (fixture) › reflection panel lists only failed checks (passed checks stay silent) (3.3s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821040911_7ya00y","layerType":"transcription","key":"trc_zho_rlkj1"}]
+  ✓   80 [chromium] › tests/e2e/r4S1FullFieldRoundTrip.spec.ts:15:3 › R4 S1 full field round-trip | Full JYM UI chain › imports wav, seeds segments, exports JYM, re-imports in fresh tab (9.4s)
+  ✓   82 [chromium] › tests/e2e/criticalPaths.spec.ts:122:3 › 关键路径 | Critical paths › ARCH-9：创建语言层与翻译层并导出 Toolbox | ARCH-9: create language layer + translation and export Toolbox (7.0s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821041745_x0dfgb","layerType":"transcription","key":"trc_zho_xkv3a"}]
+  ✓   89 [chromium] › tests/e2e/criticalPaths.spec.ts:152:3 › 关键路径 | Critical paths › 导出菜单包含归档导出项 | Export menu exposes archive actions (1.8s)
+  ✓   90 [chromium] › tests/e2e/sidebarHandle.spec.ts:9:1 › side pane handle: toggle aria-expanded, keyboard and double-click resize (2.2s)
+  ✓   85 [chromium] › tests/e2e/eafWordTierImport.spec.ts:134:3 › EAF word-tier annotation import › shows the sentence and phrase gloss, not the word gloss, in the layer list (8.3s)
+  ✓   88 [chromium] › tests/e2e/segmentQaEvidenceJump.spec.ts:84:3 › segment_qa evidence jump (fixture) › evidence jump control is enabled and clickable after history hydrate (3.4s)
+  ✓   83 [chromium] › tests/e2e/r4S6OfflineEditPersistence.spec.ts:13:3 › R4 S6 offline edit persistence | Offline segment edit › cold-opens a local project offline, edits a segment, and reads it back after reopening (9.9s)
+  ✓   91 [chromium] › tests/e2e/criticalPaths.spec.ts:167:3 › 关键路径 | Critical paths › 应用壳搜索事件打开搜索定位面板 | App shell search event opens search panel (1.5s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821044728_97jonq","layerType":"transcription","key":"trc_zho_4ycx8"}]
+  ✓   96 [chromium] › tests/e2e/criticalPaths.spec.ts:186:3 › 关键路径 | Critical paths › 资产深链路由进入转写工作区 | Asset deep-link routes into transcription workspace (1.6s)
+  ✓   94 [chromium] › tests/e2e/sourceSetBarSmoke.spec.ts:61:3 › source set bar smoke › empty source set bar renders with project scope label (3.2s)
+  ✓   97 [chromium] › tests/e2e/transcriptionKeyboardTelemetrySmoke.spec.ts:8:3 › 转写键盘遥测烟测 | Transcription keyboard telemetry smoke › 全局快捷键路径可触发且无未捕获异常 | Global shortcut path fires without page errors (1.9s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821049531_xrulqa","layerType":"transcription","key":"trc_zho_8ga4e"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821049899_5d3vk7","layerType":"transcription","key":"trc_zho_3l4kc"}]
+  ✓   99 [chromium] › tests/e2e/transcriptionKeyboardTelemetrySmoke.spec.ts:34:3 › 转写键盘遥测烟测 | Transcription keyboard telemetry smoke › 时间轴区滚轮可驱动横向滚动 | Timeline wheel pans horizontally (1.9s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821050589_baowqx","layerType":"transcription","key":"trc_zho_czcbu"}]
+  ✓   92 [chromium] › tests/e2e/sidebarHandle.spec.ts:39:1 › paired reading editor stays clear of the expanded left pane (8.8s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821052951_jsuvc7","layerType":"transcription","key":"trc_zho_jwyb2"}]
+  ✓   93 [chromium] › tests/e2e/snapshotRestore.spec.ts:124:3 › Recovery snapshots | 从快照恢复 › restores the pre-overwrite snapshot after a preview and a double confirm; bytes kept (9.2s)
+  ✓   98 [chromium] › tests/e2e/transcriptionVerticalReadingLayerMetadata.spec.ts:14:3 › 转写轨头层元信息 | Timeline lane header layer metadata › 轨头上下文菜单可打开编辑元信息弹层并可关闭 | Lane header opens edit-metadata dialog (6.3s)
+  ✓   95 [chromium] › tests/e2e/r4S6OfflineEditPersistence.spec.ts:50:3 › R4 S6 offline edit persistence | Offline segment edit › persists segment text to Dexie while offline (9.6s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+  ✓   87 [chromium] › tests/e2e/openCorporaAnnotationImport.spec.ts:175:3 › open-corpus annotation import › imports Sundanese FLEx through the transcription page (16.7s)
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821055363_yopt0g","layerType":"transcription","key":"trc_zho_c5ypd"}]
+  ✓  105 [chromium] › tests/e2e/ws8X2AcousticOversize.spec.ts:40:3 › WS8-X2 acoustic oversize soft-skip › chromium: forced oversize analyzeAudioBuffer yields skip and zero payload rejections (1.5s)
+  -  106 [chromium] › tests/e2e/ws8X2AcousticOversize.spec.ts:117:3 › WS8-X2 acoustic oversize soft-skip › firefox: long audio paints waveform with zero payload pageerror/unhandledrejection
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821057596_7siksw","layerType":"transcription","key":"trc_zho_1fwlr"}]
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821058643_yz3zly","layerType":"transcription","key":"trc_zho_90g6y"}]
+  ✓  103 [chromium] › tests/e2e/vadWorkerSmoke.spec.ts:12:3 › VAD worker 冒烟 | VAD worker smoke › Silero VAD worker 以 JS 加载并产出 silero 结果 | Silero VAD worker loads as JS and produces silero results (5.4s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821060499_n46i0q","layerType":"transcription","key":"trc_zho_dsktw"}]
+  ✓  101 [chromium] › tests/e2e/sidebarHandle.spec.ts:129:1 › waveform gutter controls fit at minimum width and for video (9.1s)
+  ✓  102 [chromium] › tests/e2e/snapshotRestore.spec.ts:173:3 › Recovery snapshots | 从快照恢复 › refuses a restore that would lose local bytes and writes nothing (9.1s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821064090_7oncxl","layerType":"transcription","key":"trc_zho_m7vhb"}]
+  ✓  107 [chromium] › tests/e2e/ws8X3WaveformRegions.spec.ts:83:3 › WS8-X3 waveform regions › a long project has one waveform region per segment (9.6s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821067935_wcom9l","layerType":"transcription","key":"trc_zho_76s09"}]
+  ✓  104 [chromium] › tests/e2e/ws8X1React185Zoom.spec.ts:94:3 › WS8-X1 React #185 on zoom/scroll › Ctrl+wheel zoom then scroll on 80-segment project yields zero #185 pageerrors (13.8s)
+  ✓  108 [chromium] › tests/e2e/snapshotRestore.spec.ts:228:3 › Recovery snapshots | 从快照恢复 › refuses same-size changed audio bytes before writing the snapshot (8.8s)
+  ✓  100 [chromium] › tests/e2e/uiUxPreflight.spec.ts:7:1 › populated workspaces retain usable desktop bounds and accessible controls (39.6s)
+  ✓  109 [chromium] › tests/e2e/uiUxPreflight.spec.ts:60:1 › transcription creation explains its own modality without translation boundary instructions (1.2s)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792821095913_f24nxk","layerType":"transcription","key":"trc_zho_1qbza"}]
+  ✓  110 [chromium] › tests/e2e/uiUxPreflight.spec.ts:73:1 › lexicon entry edits survive reopening and empty search can be cleared (6.2s)
+
+  1 skipped
+  109 passed (2.6m)

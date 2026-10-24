@@ -799,10 +799,7 @@ export function ProjectFilePaneSection(props: {
   const locale = useLocale();
   if (props.textId.trim().length === 0) return null;
   return (
-    <section
-      className="app-side-pane-group app-side-pane-files-group"
-      aria-label={t(locale, 'app.files.list')}
-    >
+    <section className="app-side-pane-group app-side-pane-files-group">
       <div
         className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
         role="presentation"

@@ -1,0 +1,5 @@
+
+> jieyu@1.1.0 check:r1-r8
+> node scripts/check-r1-r8-cross-page.mjs
+
+[check-r1-r8] PASS: R1–R8 ticked or marked N/A (2 trigger file(s))

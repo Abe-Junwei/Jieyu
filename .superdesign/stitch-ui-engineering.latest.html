@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>解语 Jieyu - UI 交互工程与设计系统规范手册 (Design Spec)</title>
+<!-- Google Fonts: Charis SIL (IPA), Inter (UI), JetBrains Mono (Code/Timecode), Noto Sans SC (CJK) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Charis+SIL:ital,wght@0,400;0,700;1,400&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-bg": "#EDF0F4",
+            "surface-panel": "#FFFFFF",
+            "surface-header": "#F6F7F9",
+            "surface-elevated": "#FFFFFF",
+            "surface-overlay": "#FFFFFF",
+            "text-primary": "#20242C",
+            "text-secondary": "#5B6577",
+            "text-tertiary": "#687487",
+            "border-subtle": "#E1E6ED",
+            "border-soft": "#CBD2DC",
+            "border-strong": "#AEB7C4",
+            "theme-accent-solid": "#7658F6",
+            "theme-accent-text": "#5F41D0",
+            "theme-selection-tint": "#F1EDFF",
+            "state-success-text": "#15803D", "state-success-solid": "#16A34A", "state-success-bg": "#F0FDF4", "state-success-border": "#BBF7D0",
+            "state-warning-text": "#92400E", "state-warning-solid": "#D97706", "state-warning-bg": "#FFFBEB", "state-warning-border": "#FCD34D",
+            "state-danger-text": "#B91C1C", "state-danger-solid": "#DC2626", "state-danger-bg": "#FEF2F2", "state-danger-border": "#FECACA",
+            "state-info-text": "#1D4ED8", "state-info-solid": "#2563EB", "state-info-bg": "#EFF6FF", "state-info-border": "#BFDBFE",
+            "rail-dark": "#2A2E35"
+          },
+          fontFamily: {
+            sans: ["Inter", "Noto Sans SC", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"],
+            ipa: ["Charis SIL", "serif"],
+            cjk: ["Noto Sans SC", "sans-serif"]
+          },
+          fontSize: {
+            "main-h": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+            "sub-h": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+            "body-reg": ["14px", { lineHeight: "22px", fontWeight: "400" }],
+            "meta-tool": ["13px", { lineHeight: "20px", fontWeight: "400" }],
+            "dense": ["12px", { lineHeight: "18px", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    :root {
+      --surface-bg: #EDF0F4;
+      --surface-panel: #FFFFFF;
+      --surface-header: #F6F7F9;
+      --surface-elevated: #FFFFFF;
+      --surface-overlay: #FFFFFF;
+      --text-primary: #20242C;
+      --text-secondary: #5B6577;
+      --text-tertiary: #687487;
+      --border-subtle: #E1E6ED;
+      --border-soft: #CBD2DC;
+      --border-strong: #AEB7C4;
+      --theme-accent-solid: #7658F6;
+      --theme-accent-text: #5F41D0;
+      --theme-selection-tint: #F1EDFF;
+      --state-success-text: #15803D; --state-success-solid: #16A34A; --state-success-bg: #F0FDF4; --state-success-border: #BBF7D0;
+      --state-warning-text: #92400E; --state-warning-solid: #D97706; --state-warning-bg: #FFFBEB; --state-warning-border: #FCD34D;
+      --state-danger-text: #B91C1C; --state-danger-solid: #DC2626; --state-danger-bg: #FEF2F2; --state-danger-border: #FECACA;
+      --state-info-text: #1D4ED8; --state-info-solid: #2563EB; --state-info-bg: #EFF6FF; --state-info-border: #BFDBFE;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #EDF0F4; }
+    ::-webkit-scrollbar-thumb { background: #CBD2DC; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #AEB7C4; }
+  
+    body { font-family: Inter,"Noto Sans SC",sans-serif; color:#20242C; background:#EDF0F4; font-size:14px; line-height:1.57; }
+    table { max-width:100%; } th,td { overflow-wrap:anywhere; }
+    #source-keyboard-contract th,#source-keyboard-contract td { padding:10px; border-bottom:1px solid #E1E6ED; vertical-align:top; }
+    :where(button,input,select,textarea,a):focus-visible { outline:2px solid #7658F6; outline-offset:2px; }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+    @media (max-width:1100px) { body>header { height:auto!important; min-height:40px; flex-wrap:wrap; } body>div>aside { display:none!important; } }
+  
+    /* Product containers inside specimen frames are flat; chapter frames are document scaffolding. */
+    main>section>div { box-shadow:none; }
+    @media (prefers-reduced-motion:reduce) { html {scroll-behavior:auto!important;} }
+  </style>
+</head>
+<body class="bg-surface-bg text-text-primary font-sans text-body-reg antialiased selection:bg-[#F1EDFF] selection:text-[#5F41D0]">
+<!-- ==================== TOP SPEC BAR ==================== -->
+<header class="h-10 bg-surface-panel border-b border-border-soft px-4 flex items-center justify-between sticky top-0 z-20">
+<div class="flex items-center gap-3">
+<span class="w-5 h-5 bg-rail-dark text-white text-xs font-mono font-bold flex items-center justify-center rounded-[2px]">JY</span>
+<h1 class="text-sub-h font-bold text-text-primary tracking-tight">解语 Jieyu - UI 交互工程与设计系统规范手册 (Design Spec)</h1>
+<span class="text-text-tertiary text-xs">|</span>
+<span class="text-text-secondary text-meta-tool">田野语言学、语音学桌面工作台规范</span>
+</div>
+<div class="flex items-center gap-4 text-xs font-mono text-text-secondary">
+<span>Baseline: 1440×1000 Desktop</span>
+<span class="h-3 w-px bg-border-soft"></span>
+<span class="text-text-primary font-semibold">Design Review · 设计审校版 · 待运行验收</span>
+</div>
+</header>
+<div class="flex min-h-[calc(100vh-40px)]">
+<!-- ==================== LEFT FIXED TOC ==================== -->
+<aside class="w-64 bg-surface-panel border-r border-border-soft flex flex-col justify-between p-3 sticky top-10 h-[calc(100vh-40px)] overflow-y-auto">
+<div class="space-y-1">
+<div class="px-2 py-1 text-xs font-mono uppercase text-text-tertiary tracking-wider font-semibold">规范章节目录 (10 Modules)</div>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch1">
+<span class="font-mono text-text-tertiary">01</span><span>基础色系与排版 Tokens</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch2">
+<span class="font-mono text-text-tertiary">02</span><span>浮层与层级系统 (Z-Index)</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch3">
+<span class="font-mono text-text-tertiary">03</span><span>编辑器状态优先级组合矩阵</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch4">
+<span class="font-mono text-text-tertiary">04</span><span>时间轴操作交互状态板</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch5">
+<span class="font-mono text-text-tertiary">05</span><span>输入与行间标注 IGT 状态板</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch6">
+<span class="font-mono text-text-tertiary">06</span><span>高危任务流程与媒体摄入</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch7">
+<span class="font-mono text-text-tertiary">07</span><span>AI 任务与修改审核流水线</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch8">
+<span class="font-mono text-text-tertiary">08</span><span>复杂资产与正字法桥接板</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch9">
+<span class="font-mono text-text-tertiary">09</span><span>窗口适配、无障碍与暗色对比</span>
+</a>
+<a class="flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-dense text-text-secondary hover:text-text-primary hover:bg-surface-header transition-colors" href="#ch10">
+<span class="font-mono text-text-tertiary">10</span><span>组件映射与工程验收矩阵</span>
+</a>
+</div>
+<div class="p-2 border border-border-subtle bg-surface-header text-dense text-text-secondary">
+<div class="font-mono text-dense text-text-primary font-semibold">WORKSPACE ARCH:</div>
+<div>52px 贯穿主轨 · 零顶部通栏</div>
+<div>纯平 1px 细线 · 严禁嵌套卡片</div>
+</div>
+</aside>
+<!-- ==================== MAIN CONTENT CANVAS ==================== -->
+<main class="flex-1 p-6 space-y-12 max-w-[1240px]">
+<aside class="p-4 mb-5 bg-surface-panel border-l-2 border-theme-accent-solid" id="audit-status"><strong>设计审校版 · 2026-10-24</strong><p>本地 HTML 已直接修订，并与工程补全文档对齐。画板中的数据、关系与AI推断仅为合成状态图例，不是研究结论或功能开放承诺。产品代码与运行行为未在本轮修改或验收；浏览器file://视觉复核被安全策略阻止，未执行。精确规则见同目录 stitch-ui-engineering-addendum.md；桌面骨架中的条件状态与开发期界面必须显式区分。</p></aside>
+<!-- WORKSPACE ARCHITECTURE OVERVIEW -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-4">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div>
+<span class="text-xs font-mono uppercase text-theme-accent-solid font-semibold">Architectural Schema</span>
+<h2 class="text-main-h font-bold text-text-primary">桌面工作台主架构方案示意图 (Docked Workspace Layout)</h2>
+</div>
+<span class="text-dense font-mono text-state-danger-text bg-red-50 border border-red-200 px-2 py-0.5 font-medium">严禁顶部横跨全屏长导航条</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          解语系统采用工业级平铺架构：由 <strong>52px 左贯穿主轨（#2A2E35）</strong> 锚定全局应用模块，向右依次平铺 <strong>272px 上下文栏（#EDF0F4）</strong>、<strong>中央主编辑区（#FFFFFF）</strong> 与 <strong>280-360px 可收起属性/声学检查器</strong>。消除所有卡片嵌套包边，纯平 1px 边界咬合。
+        </p>
+<!-- Architectural Wireframe Diagram -->
+<div class="border border-border-strong bg-surface-bg p-3">
+<div class="flex h-64 border border-border-strong bg-white overflow-hidden text-dense font-mono">
+<!-- 52px Primary Rail -->
+<div class="w-[52px] bg-rail-dark text-white flex flex-col items-center justify-between py-3 border-r border-black shrink-0">
+<div class="flex flex-col items-center gap-4">
+<span class="w-7 h-7 bg-theme-accent-solid text-white font-bold flex items-center justify-center rounded-[2px] text-xs">JY</span>
+<span class="material-symbols-outlined text-gray-300">graphic_eq</span>
+<span class="material-symbols-outlined text-gray-400">table_rows</span>
+<span class="material-symbols-outlined text-gray-400">menu_book</span>
+</div>
+<div class="flex flex-col items-center gap-3">
+<span class="material-symbols-outlined text-gray-400">settings</span>
+<span class="text-dense text-gray-400">52px</span>
+</div>
+</div>
+<!-- 272px Context Rail -->
+<div class="w-[272px] bg-surface-bg border-r border-border-soft p-3 flex flex-col justify-between shrink-0">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-border-soft">
+<span class="font-bold text-text-primary text-xs">语料上下文 (Context Rail)</span>
+<span class="text-text-tertiary text-xs">272px</span>
+</div>
+<div class="mt-2 space-y-1.5 text-xs text-text-secondary">
+<div class="p-1.5 bg-white border border-border-subtle flex justify-between"><span>Session_014_Wu.wav</span><span class="text-state-success-text font-semibold">✓</span></div>
+<div class="p-1.5 bg-surface-header border border-border-subtle flex justify-between"><span>Session_015_Wu.wav</span><span class="text-text-tertiary">42 Tiers</span></div>
+<div class="p-1.5 bg-surface-header border border-border-subtle flex justify-between"><span>Session_016_Wu.wav</span><span class="text-text-tertiary">Draft</span></div>
+</div>
+</div>
+<div class="text-dense text-text-tertiary border-t border-border-soft pt-1 flex justify-between">
+<span>Resizer Bar: 6px hit</span>
+<span>收起上下文栏（快捷键未规定）</span>
+</div>
+</div>
+<!-- Fluid Center Editor -->
+<div class="flex-1 bg-surface-panel flex flex-col justify-between p-3 border-r border-border-soft overflow-hidden">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-border-subtle">
+<span class="font-bold text-theme-accent-solid text-xs">中央主编辑区 (Fluid Editor Canvas - Min 680px)</span>
+<span class="text-text-secondary text-xs">Timecode: 00:01:24.450 / 00:08:12.000</span>
+</div>
+<!-- Mini Waveform + Tiers -->
+<div class="mt-2 h-20 bg-surface-header border border-border-subtle flex flex-col justify-center px-2 relative">
+<div class="h-8 flex items-center gap-1 opacity-70">
+<span class="w-1 h-3 bg-text-primary"></span><span class="w-1 h-6 bg-text-primary"></span><span class="w-1 h-7 bg-theme-accent-solid"></span><span class="w-1 h-4 bg-text-primary"></span><span class="w-1 h-8 bg-theme-accent-solid"></span><span class="w-1 h-2 bg-text-primary"></span><span class="w-1 h-5 bg-text-primary"></span>
+</div>
+<div class="absolute left-1/3 top-0 bottom-0 w-0.5 bg-state-danger-solid"></div>
+<span class="text-dense text-text-secondary mt-1">波形渲染区与频谱层 (0-5000Hz)</span>
+</div>
+<div class="mt-2 space-y-1">
+<div class="h-6 bg-surface-bg border border-border-subtle px-2 flex items-center text-xs">Tier 1: 汉字正字法 (Orthography)</div>
+<div class="h-6 bg-[#F1EDFF] border border-theme-accent-solid/40 px-2 flex items-center text-xs text-[#5F41D0] font-semibold">Tier 2: 国际音标 (IPA Phonetic) [Active]</div>
+</div>
+</div>
+<div class="text-dense text-text-tertiary border-t border-border-subtle pt-1 flex justify-between">
+<span>Zero-Margin Flat Studio</span>
+<span>Zoom: 100ms/div</span>
+</div>
+</div>
+<!-- 280-360px Inspector -->
+<div class="w-[300px] bg-surface-panel p-3 flex flex-col justify-between shrink-0">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-border-subtle">
+<span class="font-bold text-text-primary text-xs">声学/属性检查器 (Inspector)</span>
+<span class="text-text-tertiary text-xs">300px (280-360)</span>
+</div>
+<div class="mt-2 space-y-2 text-xs">
+<div class="p-2 bg-surface-header border border-border-subtle">
+<div class="text-text-secondary">Pitch F0:</div>
+<div class="font-bold text-text-primary">184.2 Hz (Praat-AC)</div>
+</div>
+<div class="p-2 bg-surface-header border border-border-subtle">
+<div class="text-text-secondary">Formants:</div>
+<div class="text-text-primary">F1: 432 Hz · F2: 1980 Hz</div>
+</div>
+</div>
+</div>
+<div class="text-dense text-text-tertiary border-t border-border-subtle pt-1 flex justify-between">
+<span>非模态工作区抽屉</span>
+<span>收起检查器（快捷键未规定）</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 1 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch1">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">01</span>
+<h3 class="text-main-h font-bold text-text-primary">基础色系与排版 Tokens (Color, Typography &amp; Metrics)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">CSS 变量全量规范 · 严禁 8px 可读字号</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          色彩严格执行 WCAG AA 4.5:1 / 3:1 标准。工作面以白色与浅灰底建立结构，强调色严格统一为 <code>--theme-accent-solid: #7658F6</code>；在选区浅紫底 <code>#F1EDFF</code> 上的高亮文字严格使用 <code>--theme-accent-text: #5F41D0</code>。
+        </p>
+<!-- Color Tokens Swatch Matrix -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Surfaces -->
+<div class="border border-border-subtle p-3 space-y-2">
+<div class="font-mono text-xs font-bold text-text-primary border-b border-border-subtle pb-1">1. Surfaces (面基底)</div>
+<div class="space-y-1.5 text-dense font-mono">
+<div class="flex justify-between items-center p-1.5 border border-border-subtle bg-[#EDF0F4]"><span>--surface-bg</span><span class="text-text-secondary">#EDF0F4</span></div>
+<div class="flex justify-between items-center p-1.5 border border-border-subtle bg-[#FFFFFF]"><span>--surface-panel</span><span class="text-text-secondary">#FFFFFF</span></div>
+<div class="flex justify-between items-center p-1.5 border border-border-subtle bg-[#F6F7F9]"><span>--surface-header</span><span class="text-text-secondary">#F6F7F9</span></div>
+<div class="flex justify-between items-center p-1.5 border border-border-subtle bg-[#2A2E35] text-white"><span>--surface-rail</span><span class="text-gray-300">#2A2E35</span></div>
+</div>
+</div>
+<!-- Text & Borders -->
+<div class="border border-border-subtle p-3 space-y-2"><div class="font-mono text-xs font-bold text-text-primary border-b border-border-subtle pb-1">2. Typography &amp; Borders (文本、中灰线与控件边框)</div><div class="space-y-1.5 text-dense font-mono"><div class="flex justify-between items-center p-1.5 border border-border-subtle bg-white"><span class="text-[#20242C] font-sans font-bold">--text-primary (14.8:1)</span><span class="text-text-secondary">#20242C</span></div><div class="flex justify-between items-center p-1.5 border border-border-subtle bg-white"><span class="text-[#5B6577] font-sans">--text-secondary (4.9:1)</span><span class="text-text-secondary">#5B6577</span></div><div class="flex justify-between items-center p-1.5 border border-border-subtle bg-white"><span class="text-[#687487] font-sans">--text-tertiary</span><span class="text-text-secondary">#687487</span></div><div class="flex justify-between items-center p-1.5 border border-[#CBD2DC] bg-white"><span>--border-soft (结构分割线)</span><span class="text-text-secondary">#CBD2DC</span></div><div class="flex justify-between items-center p-1.5 border border-[#7F8A9B] bg-white"><span>--border-control (控件专用边框)</span><span class="text-text-secondary">#7F8A9B</span></div></div><div class="text-dense text-text-secondary pt-1">注：<code>--border-soft</code> 仅用于结构分割，不承担无底色控件识别。<code>--border-control: #7F8A9B</code> 专用于仅靠边框识别的控件（白底 3.494:1，浅灰底 3.056:1，达标 WCAG 3:1）。控件交互焦点严格使用「2px 实线轮廓 offset 2px」，绝不是仅改边框色。</div></div>
+<!-- Accent & States -->
+<div class="border border-border-subtle p-3 space-y-2">
+<div class="font-mono text-xs font-bold text-text-primary border-b border-border-subtle pb-1">3. Accent &amp; States (强调与功能状态)</div>
+<div class="space-y-1.5 text-dense font-mono">
+<div class="flex justify-between items-center p-1.5 border border-border-subtle bg-[#7658F6] text-white font-sans font-medium"><span>--theme-accent-solid</span><span>#7658F6</span></div>
+<div class="flex justify-between items-center p-1.5 border border-[#7658F6]/30 bg-[#F1EDFF] text-[#5F41D0] font-sans font-bold"><span>--theme-accent-text</span><span>#5F41D0</span></div>
+<div class="flex justify-between items-center p-1.5 border border-border-subtle bg-red-50 text-state-danger-text font-sans"><span>--state-danger</span><span>#E5484D</span></div>
+<div class="flex justify-between items-center p-1.5 border border-border-subtle bg-green-50 text-state-success-text font-sans"><span>--state-success</span><span>#10B981</span></div>
+</div>
+</div>
+</div>
+<!-- Typography Scales & Metric Rules Table -->
+<div class="border border-border-subtle overflow-hidden">
+<div class="bg-surface-header px-3 py-2 border-b border-border-subtle font-mono text-xs font-semibold text-text-primary">
+            排版层级表与尺寸规范 (Font Scale Matrix - Strict Inter, Charis SIL, JetBrains Mono)
+          </div>
+<table class="w-full text-left text-dense border-collapse">
+<thead>
+<tr class="bg-surface-bg border-b border-border-subtle text-text-secondary font-mono text-dense">
+<th class="p-2.5">级别 Token</th>
+<th class="p-2.5">字号 / 行高</th>
+<th class="p-2.5">字体家族</th>
+<th class="p-2.5">工程使用场景</th>
+<th class="p-2.5">高保真实时预览</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle text-text-primary">
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-semibold">main-h</td>
+<td class="p-2.5 font-mono">20px / 28px</td>
+<td class="p-2.5 font-mono">Inter / Noto Sans</td>
+<td class="p-2.5 text-text-secondary">工作区主面板标题、语料集大分类</td>
+<td class="p-2.5 text-main-h font-bold">语料声学多轨标注工程</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-semibold">sub-h</td>
+<td class="p-2.5 font-mono">16px / 24px</td>
+<td class="p-2.5 font-mono">Inter / Noto Sans</td>
+<td class="p-2.5 text-text-secondary">轨道分栏标题、模态对话框标题</td>
+<td class="p-2.5 text-sub-h font-semibold">音标层参数对齐 (F1/F2)</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-semibold">body-reg</td>
+<td class="p-2.5 font-mono">14px / 22px</td>
+<td class="p-2.5 font-mono">Inter / Noto Sans</td>
+<td class="p-2.5 text-text-secondary">正文说明、表单标签、自由翻译文本</td>
+<td class="p-2.5 text-body-reg">基频曲线插值滤波已就绪，保持微秒连续性。</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-semibold">meta-tool</td>
+<td class="p-2.5 font-mono">13px / 20px</td>
+<td class="p-2.5 font-mono">Inter / JetBrains</td>
+<td class="p-2.5 text-text-secondary">工具栏按钮、属性检查器参数键值</td>
+<td class="p-2.5 text-meta-tool text-text-secondary">Dynamic Range: 50dB · Bandwidth: 300Hz</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-semibold">ipa-display</td>
+<td class="p-2.5 font-mono">14px-18px</td>
+<td class="p-2.5 font-mono text-theme-accent-solid">Charis SIL (Serif)</td>
+<td class="p-2.5 text-text-secondary">国际音标 (IPA) 扩展集、声调调型</td>
+<td class="p-2.5 font-ipa text-base text-[#5F41D0]">[ sɯ³³⁻²¹ ʦøʏ⁴⁴⁻²¹ ] / [ t͡ɕʰiɪʔ⁵⁵ ]</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-semibold">code-time</td>
+<td class="p-2.5 font-mono">12px / 18px</td>
+<td class="p-2.5 font-mono">JetBrains Mono</td>
+<td class="p-2.5 text-text-secondary">时间标尺毫秒读数（固定 LTR 方向）</td>
+<td class="p-2.5 font-mono text-dense" dir="ltr">00:01:24.450 (Δ 62ms)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-dense">
+<div class="p-2.5 border border-border-subtle bg-surface-header">
+<span class="font-mono text-text-primary font-bold">面板圆角: 0px (直角)</span>
+<div class="text-text-secondary mt-1">工作台侧栏、时间轴与轨道零缝隙咬合</div>
+</div>
+<div class="p-2.5 border border-border-subtle bg-surface-header"><div class="font-mono text-xs font-bold text-text-primary border-b border-border-subtle pb-1">2. Typography &amp; Borders (文本、中灰线与控件边框)</div><div class="space-y-1.5 text-dense font-mono"><div class="flex justify-between items-center p-1.5 border border-border-subtle bg-white"><span class="text-[#20242C] font-sans font-bold">--text-primary (14.8:1)</span><span class="text-text-secondary">#20242C</span></div><div class="flex justify-between items-center p-1.5 border border-border-subtle bg-white"><span class="text-[#5B6577] font-sans">--text-secondary (4.9:1)</span><span class="text-text-secondary">#5B6577</span></div><div class="flex justify-between items-center p-1.5 border border-border-subtle bg-white"><span class="text-[#687487] font-sans">--text-tertiary</span><span class="text-text-secondary">#687487</span></div><div class="flex justify-between items-center p-1.5 border border-[#CBD2DC] bg-white"><span>--border-soft (结构分割线)</span><span class="text-text-secondary">#CBD2DC</span></div><div class="flex justify-between items-center p-1.5 border border-[#7F8A9B] bg-white"><span>--border-control (控件专用边框)</span><span class="text-text-secondary">#7F8A9B</span></div></div><div class="text-dense text-text-secondary pt-1">注：<code>--border-soft</code> 仅用于结构分割，不承担无底色控件识别。<code>--border-control: #7F8A9B</code> 专用于仅靠边框识别的控件（白底 3.494:1，浅灰底 3.056:1，达标 WCAG 3:1）。控件交互焦点严格使用「2px 实线轮廓 offset 2px」，绝不是仅改边框色。</div></div>
+<div class="p-2.5 border border-border-subtle bg-surface-header">
+<span class="font-mono text-text-primary font-bold">菜单/浮层: 8px</span>
+<div class="text-text-secondary mt-1">右键上下文菜单、Tooltip 气泡</div>
+</div>
+<div class="p-2.5 border border-border-subtle bg-surface-header">
+<span class="font-mono text-text-primary font-bold">模态对话框: 10px</span>
+<div class="text-text-secondary mt-1">删除层、格式转换确认阻断弹窗</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 2 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch2">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">02</span>
+<h3 class="text-main-h font-bold text-text-primary">浮层与层级系统 (Overlays, Focus &amp; Z-Index System)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">非模态抽屉 vs 焦点锁定模态</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          严格区分非模态（声学检查器、独立 AI 聊天窗口）与真正锁焦点的模态弹窗。菜单按 Esc 关闭后必须将焦点还给触发控件；具有脏数据的表单关闭必须阻断确认，完整性校验绝对不得因点击遮罩背景或按 Esc 逃逸。
+        </p>
+<!-- Z-Index Hierarchy Spec Table -->
+<div class="border border-border-subtle overflow-hidden">
+<table class="w-full text-left text-dense border-collapse">
+<thead>
+<tr class="bg-surface-bg border-b border-border-subtle text-text-secondary font-mono text-dense">
+<th class="p-2.5 w-20">Z-Index</th>
+<th class="p-2.5">UI 层级类型</th>
+<th class="p-2.5">模态性质</th>
+<th class="p-2.5">焦点行为规范 (Focus Management)</th>
+<th class="p-2.5">Esc / 遮罩点击响应</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<tr>
+<td class="p-2.5 font-mono font-bold">0</td>
+<td class="p-2.5 font-medium">主体画布 (Main Editor Canvas)</td>
+<td class="p-2.5 text-text-secondary">无</td>
+<td class="p-2.5 text-text-secondary">原生 DOM 顺序焦点</td>
+<td class="p-2.5 text-text-secondary">-</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">10</td>
+<td class="p-2.5 font-medium">粘性刻度栏 (Sticky Time Ruler)</td>
+<td class="p-2.5 text-text-secondary">无</td>
+<td class="p-2.5 text-text-secondary">不截获焦点</td>
+<td class="p-2.5 text-text-secondary">-</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">20</td>
+<td class="p-2.5 font-medium">左贯穿主轨 (52px Global Rail)</td>
+<td class="p-2.5 text-text-secondary">无</td>
+<td class="p-2.5 text-text-secondary">Tab 按顺序遍历，可离开导航轨</td>
+<td class="p-2.5 text-text-secondary">-</td>
+</tr>
+<tr class="bg-surface-header/50">
+<td class="p-2.5 font-mono font-bold text-theme-accent-solid">30</td>
+<td class="p-2.5 font-medium">声学检查器抽屉 (Inspector Drawer)</td>
+<td class="p-2.5 text-[#5F41D0] font-semibold">非模态 (Non-modal)</td>
+<td class="p-2.5 text-text-secondary">主工作区保持可交互，焦点可自由移入移出</td>
+<td class="p-2.5 text-text-secondary">显式关闭/收起；不虚构未登记快捷键</td>
+</tr>
+<tr class="bg-surface-header/50">
+<td class="p-2.5 font-mono font-bold text-theme-accent-solid">40</td>
+<td class="p-2.5 font-medium">独立 AI 聊天窗口 (AI Chat Window)</td>
+<td class="p-2.5 text-[#5F41D0] font-semibold">非模态浮窗 (Dockable)</td>
+<td class="p-2.5 text-text-secondary">独立焦点域，可与主编辑器多任务并行</td>
+<td class="p-2.5 text-text-secondary">Cmd/Ctrl+J 切换打开/还原/最小化；Esc 最小化</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">50</td>
+<td class="p-2.5 font-medium">上下文弹出菜单 (Context Menu)</td>
+<td class="p-2.5 text-text-secondary">轻量瞬态</td>
+<td class="p-2.5 text-text-secondary">方向键遍历项，关闭时将焦点还给触发锚点</td>
+<td class="p-2.5 text-text-secondary">Esc 立即关闭；点击外部关闭</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">60</td>
+<td class="p-2.5 font-medium">文字提示 (Tooltip)</td>
+<td class="p-2.5 text-text-secondary">无交互只读</td>
+<td class="p-2.5 text-text-secondary">不可获取焦点 (role="tooltip")</td>
+<td class="p-2.5 text-text-secondary">鼠标移出或 Esc 立即隐去</td>
+</tr>
+<tr class="bg-red-50/50"><td class="p-2.5 font-mono font-bold text-state-danger-text">120</td><td class="p-2.5 font-medium">数据库打开/完整性阻断 (Integrity Blocker)</td><td class="p-2.5 text-state-danger-text font-semibold">硬性阻断</td><td class="p-2.5 text-text-secondary">初始焦点在可用的安全恢复动作</td><td class="p-2.5 text-text-secondary">Esc与遮罩点击均不得关闭或绕过，只能使用明确的恢复动作</td></tr>
+<tr class="bg-red-50/50">
+<td class="p-2.5 font-mono font-bold text-state-danger-text">100</td>
+<td class="p-2.5 font-medium">危险操作确认 (Destructive Confirmation)</td>
+<td class="p-2.5 text-state-danger-text font-semibold">硬性阻断</td>
+<td class="p-2.5 text-text-secondary">必须显式点击操作，取消键优先高亮</td>
+<td class="p-2.5 text-text-secondary">Esc 走取消路径；执行中能否取消按业务能力，不能绕过完整性阻断</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- High-Fidelity Non-Modal vs Modal Diagram -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Non-Modal Window Example -->
+<div class="border border-border-soft p-3 space-y-2 bg-surface-header">
+<div class="flex items-center justify-between border-b border-border-subtle pb-1.5">
+<span class="text-xs font-mono font-bold text-text-primary">非模态窗口图例：独立 AI 聊天 (Z-Index 40)</span>
+<span class="text-dense font-mono text-state-success-text">非模态主画布可操作（图例）</span>
+</div>
+<div class="w-full bg-white border border-border-strong rounded-[8px] p-2.5 shadow-sm space-y-2">
+<div class="flex items-center justify-between border-b border-border-subtle pb-1 text-xs">
+<span class="font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-theme-accent-solid"></span>Jieyu 语言学 AI 协作者</span>
+<div class="flex items-center gap-1 text-text-tertiary">
+<span class="material-symbols-outlined cursor-pointer hover:text-text-primary">minimize</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-text-primary">close</span>
+</div>
+</div>
+<div class="text-dense text-text-secondary p-1.5 bg-surface-bg border border-border-subtle">
+                对所选苏州话音段 [sɯ³³⁻²¹ ʦøʏ⁴⁴⁻²¹] 示意：此处展示待审核的文本修改，不声明自动识别变调能力。
+              </div>
+<div class="flex gap-2">
+<input class="h-7 text-xs border border-[#7F8A9B] px-2 rounded-[6px] flex-1" placeholder="输入分析指令..." type="text"/>
+<button class="h-7 px-2.5 bg-theme-accent-solid text-white text-xs rounded-[6px]">发送</button>
+</div>
+</div>
+</div>
+<!-- Modal Blocker Example with Focus Trap & Local Dropdown -->
+<div class="border border-border-soft p-3 space-y-2 bg-surface-header">
+<div class="flex items-center justify-between border-b border-border-subtle pb-1.5">
+<span class="text-xs font-mono font-bold text-state-danger-text">锁焦点模态阻断图例 (Z-Index 100)</span>
+<span class="text-dense font-mono text-state-danger-text">严格捕获焦点</span>
+</div>
+<div class="w-full bg-white border-2 border-state-danger-border rounded-[10px] p-3 space-y-2">
+<div class="flex items-center gap-1.5 text-state-danger-text text-xs font-bold">
+<span class="material-symbols-outlined">warning</span>存在未保存的修改，确认退出？（流程示例）
+              </div>
+<p class="text-dense text-text-secondary">您在音标层 (IPA Tier) 编辑的 3 处变动尚未持久化写入，直接退出可能丢失，须按实际保存/草稿机制判断。</p>
+<div class="flex justify-end gap-2 pt-1">
+<button class="h-7 px-3 border border-border-soft text-text-secondary text-xs rounded-[6px] hover:bg-surface-bg">放弃修改并退出</button>
+<button class="h-7 px-3 bg-theme-accent-solid text-white text-xs rounded-[6px] font-medium ring-2 ring-theme-accent-solid ring-offset-2">返回继续编辑 (Esc)</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 3 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch3">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">03</span>
+<h3 class="text-main-h font-bold text-text-primary">编辑器状态优先级可视组合矩阵 (State Priority Matrix)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">复合状态共存规则 · 杜绝单紫涂抹</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          在多轨编辑中，一个音段单元可能同时处于多种交互状态。系统严格规避使用单一紫色涂满所有态，通过 <strong>底色、边框线型、左侧活动指示条、轮廓 Ring</strong> 多维度解耦呈现。
+        </p>
+<!-- Composite State Visual Demonstration -->
+<div class="border border-border-soft p-4 space-y-4 bg-surface-header">
+<div class="text-xs font-mono font-bold text-text-primary">
+            真实复合状态实例展示：[ 选中态 #F1EDFF + 输入焦点 2px Ring + 保存失败重试提示 ]
+          </div>
+<!-- Track lane container -->
+<div class="border border-border-strong bg-white">
+<div class="h-7 bg-surface-bg border-b border-border-soft px-3 flex items-center justify-between text-dense font-mono">
+<span class="font-semibold text-text-primary">Tier 2: 国际音标严式转写 (IPA Phonetic Tier)</span>
+<span class="text-text-secondary">Lane #02 · Sub-segment Multi-state</span>
+</div>
+<div class="h-16 flex items-stretch divide-x divide-border-soft">
+<!-- Item 1: Normal Inactive -->
+<div class="w-1/4 p-2 flex flex-col justify-between text-dense bg-white hover:bg-surface-header transition-colors">
+<span class="font-mono text-dense text-text-tertiary">00:01:23.400</span>
+<span class="font-ipa text-text-primary">[ ŋu²¹ ni³³ ]</span>
+<span class="text-dense text-state-success-text flex items-center gap-0.5">● 人工标记示例</span>
+</div>
+<!-- Item 2: The Multi-Composite State Item -->
+<div class="w-2/4 p-2 bg-[#F1EDFF] border-l-[3px] border-l-theme-accent-solid ring-2 ring-theme-accent-solid ring-offset-2 flex flex-col justify-between relative">
+<div class="flex items-center justify-between text-dense font-mono">
+<span class="text-[#5F41D0] font-bold">00:01:24.120 - 00:01:24.882 (Active Focus)</span>
+<span class="bg-red-100 text-state-danger-text px-1 py-0.2 rounded font-mono font-semibold flex items-center gap-1 cursor-pointer" title="点击重试">
+<span class="material-symbols-outlined" style="font-size:12px;">error</span>保存失败，点击重试
+                  </span>
+</div>
+<!-- Inline active input inputting IPA -->
+<div class="flex items-center gap-2">
+<input class="h-6 w-full bg-white border border-state-danger-border text-text-primary font-ipa text-sm px-1.5 rounded-[4px] focus:outline-none" type="text" value="[ sɯ³³⁻²¹ ʦøʏ⁴⁴⁻²¹ ]"/>
+</div>
+<div class="flex items-center justify-between text-dense">
+<span class="text-text-secondary font-mono">AI置信度: 94.2%</span>
+<span class="text-[#5F41D0] font-semibold">人工确信度: 未核准</span>
+</div>
+</div>
+<!-- Item 3: Ambiguous / Skip State -->
+<div class="w-1/4 p-2 flex flex-col justify-between text-dense bg-white">
+<span class="font-mono text-dense text-text-tertiary">00:01:24.882</span>
+<span class="font-ipa text-text-secondary line-through">[ mɪɲ²¹ ʦɒ⁴⁴ ]</span>
+<span class="text-dense text-state-warning-text flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size:12px;">help_outline</span>存疑/跳过
+                </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Priority Resolution Rules Table -->
+<div class="border border-border-subtle overflow-hidden">
+<table class="w-full text-left text-dense border-collapse">
+<thead>
+<tr class="bg-surface-bg border-b border-border-subtle text-text-secondary font-mono text-dense">
+<th class="p-2">视觉维度</th>
+<th class="p-2">表达的交互状态</th>
+<th class="p-2">视觉规则与色值</th>
+<th class="p-2">冲突覆盖策略</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<tr>
+<td class="p-2 font-mono font-semibold">背景底色 (Background)</td>
+<td class="p-2">选中态 (Selection)</td>
+<td class="p-2 font-mono">#F1EDFF (文字严格使用 #5F41D0)</td>
+<td class="p-2 text-text-secondary">多选或单选高亮优先；未选中保持 #FFFFFF</td>
+</tr>
+<tr>
+<td class="p-2 font-mono font-semibold">左边界线 (Left Border)</td>
+<td class="p-2">当前活动语段 (Active Segment)</td>
+<td class="p-2 font-mono">3px 纯紫实线 (#7658F6)</td>
+<td class="p-2 text-text-secondary">无论是否在编辑态，左侧指示条均锚定主光标</td>
+</tr>
+<tr>
+<td class="p-2 font-mono font-semibold">外轮廓 (Focus Ring)</td>
+<td class="p-2">键盘输入焦点 (Input Focus)</td>
+<td class="p-2 font-mono">2px solid #7658F6, offset 2px</td>
+<td class="p-2 text-text-secondary">高于背景层，确保 Tab 焦点与文本光标清晰定位</td>
+</tr>
+<tr>
+<td class="p-2 font-mono font-semibold">边框线型 (Border Style)</td>
+<td class="p-2">拖拽中 (Dragging / Resizing)</td>
+<td class="p-2 font-mono">1px 虚线边框 (#7658F6)</td>
+<td class="p-2 text-text-secondary">拖动释放前覆盖常规 1px 实线</td>
+</tr>
+<tr>
+<td class="p-2 font-mono font-semibold">状态徽标 (Status Badge)</td>
+<td class="p-2">网络/持久化错误 (Error)</td>
+<td class="p-2 font-mono text-state-danger-text">红色感叹号 +「保存失败，点击重试」</td>
+<td class="p-2 text-text-secondary">最高优先级错误信号，禁止因失去焦点而丢弃错误提示</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- ==================== CHAPTER 4 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch4">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">04</span>
+<h3 class="text-main-h font-bold text-text-primary">时间轴操作交互状态板 (Timeline Interactive States)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">八种时间轴真实状态 · 播放头与选区双重区分</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          手柄可见宽度为 <strong>2px</strong>，但触控/光标命中热区必须至少 <strong>8px</strong>。拖动中必须实时显示旧范围的淡影虚线框与新起止时间，释放确认前<strong>绝不画出「保存成功」</strong>。播放头（红色实线 #E5484D）与循环选区（半透明紫色填充）从色彩与形态严格双重区分。
+        </p>
+<!-- 8 Timeline States Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- State 1: Default -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-text-primary">1. 默认态 (Default)</span>
+<span class="text-text-tertiary">Hairline 1px Divider</span>
+</div>
+<div class="h-10 bg-surface-header border border-border-soft flex items-center px-3 text-dense font-mono justify-between">
+<span>00:01:20.000</span><span class="text-text-secondary">[baʔ²¹]</span><span>00:01:21.000</span>
+</div>
+<div class="text-dense text-text-secondary">常规静止状态，2px 手柄静态内联。</div>
+</div>
+<!-- State 2: Hover Handle -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-theme-accent-solid">2. Hover 手柄 (Cursor Hit 8px)</span>
+<span class="text-text-tertiary">col-resize</span>
+</div>
+<div class="h-10 bg-surface-header border border-border-soft flex items-center px-3 text-dense font-mono justify-between relative">
+<span>00:01:20.000</span>
+<span class="text-text-secondary">[baʔ²¹]</span>
+<div class="absolute right-0 top-0 bottom-0 w-2 bg-theme-accent-solid/30 flex items-center justify-center cursor-col-resize">
+<div class="w-0.5 h-full bg-theme-accent-solid"></div>
+</div>
+<span>00:01:21.000</span>
+</div>
+<div class="text-dense text-text-secondary">边缘命中区扩至 8px，手柄高亮，鼠标指针变为 col-resize。</div>
+</div>
+<!-- State 3: Dragging Edge -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-theme-accent-solid">3. 拖动手柄调节边界 (Dragging Resize)</span>
+<span class="text-text-tertiary">Ghost Box Delta</span>
+</div>
+<div class="h-10 bg-surface-header border border-border-soft flex items-center px-3 text-dense font-mono relative overflow-hidden">
+<div class="absolute left-2 right-12 top-1 bottom-1 border border-dashed border-border-strong opacity-50"></div>
+<div class="absolute left-2 right-6 top-1 bottom-1 bg-[#F1EDFF] border border-theme-accent-solid flex items-center justify-between px-2 text-dense">
+<span class="text-[#5F41D0] font-bold">新边界: 00:01:21.320 (+320ms)</span>
+<span class="w-1 h-full bg-theme-accent-solid"></span>
+</div>
+</div>
+<div class="text-dense text-text-secondary">显示旧范围虚影与当前实况起止时间，释放前绝不提示已保存。</div>
+</div>
+<!-- State 4: Whole Translation -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-text-primary">4. 整体平移 (Whole Segment Shift)</span>
+<span class="text-text-tertiary">grab / grabbing</span>
+</div>
+<div class="h-10 bg-surface-header border border-border-soft flex items-center px-3 text-dense font-mono relative">
+<div class="w-3/4 mx-auto h-8 bg-surface-panel border-2 border-dashed border-theme-accent-solid flex items-center justify-center text-xs text-theme-accent-solid cursor-grabbing">
+<span class="material-symbols-outlined text-xs mr-1">drag_indicator</span>平移中 Δ+140ms
+              </div>
+</div>
+<div class="text-dense text-text-secondary">保留内部时长结构，全局水平位移。</div>
+</div>
+<!-- State 5: Snap Guide -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-state-success-text">5. 磁性吸附 (Snap to Zero-Crossing)</span>
+<span class="text-text-tertiary">Magnetic Guide</span>
+</div>
+<div class="h-10 bg-surface-header border border-border-soft flex items-center px-3 text-dense font-mono relative">
+<div class="absolute left-1/2 top-0 bottom-0 w-px bg-state-success-solid"></div>
+<span class="absolute left-1/2 -top-1 -translate-x-1/2 bg-state-success-solid text-white text-dense px-1 rounded-sm">0-Crossing Snap!</span>
+<span class="text-xs text-text-secondary mx-auto">与相邻音段零交叉无缝咬合</span>
+</div>
+<div class="text-dense text-text-secondary">磁吸引导虚线呈现绿色，消除接缝爆音。</div>
+</div>
+<!-- State 6: Out of Bounds Reject -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-state-danger-text">6. 越界拒绝态 (Reject Collision)</span>
+<span class="text-text-tertiary">No Silent Crop</span>
+</div>
+<div class="h-10 bg-red-50 border border-state-danger-border flex items-center justify-between px-3 text-dense font-mono text-state-danger-text">
+<span class="flex items-center gap-1 font-bold"><span class="material-symbols-outlined">block</span>禁止重叠超越</span>
+<span class="text-dense">达到相邻锁边界 (00:01:22.000)</span>
+</div>
+<div class="text-dense text-text-secondary">严格拒绝非法拖动，不进行静默裁剪破坏语料。</div>
+</div>
+<!-- State 7: Overlap Stack -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-state-warning-text">7. 重叠堆叠态 (Overlap Stack)</span>
+<span class="text-text-tertiary">Stack 1-of-3</span>
+</div>
+<div class="h-10 bg-amber-50 border border-state-warning-border flex items-center justify-between px-2 text-dense font-mono text-amber-900">
+<span class="text-xs font-semibold">多发音人交叠片段</span>
+<span class="bg-state-warning-solid text-white px-1.5 py-0.5 rounded text-dense font-bold">1-of-3 Stacked</span>
+</div>
+<div class="text-dense text-text-secondary">声学重叠时采用副轨堆叠计数，不强行抹平。</div>
+</div>
+<!-- State 8: Ultra Narrow -->
+<div class="border border-border-subtle p-3 bg-white space-y-1.5">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-text-primary">8. 极窄片段 (Narrow Segment &lt;20px)</span>
+<span class="text-text-tertiary">Tooltip / Inspector Detail</span>
+</div>
+<div class="h-10 bg-surface-header border border-border-soft flex items-center px-1 text-dense font-mono relative">
+<div class="w-3 h-8 bg-theme-accent-solid text-white flex items-center justify-center font-bold text-dense cursor-pointer" title="[t̚] Non-released closure (18ms)">
+                |
+              </div>
+<span class="text-dense text-text-tertiary ml-2">隐藏内联文字，点击由检查器展现详情</span>
+</div>
+<div class="text-dense text-text-secondary">窄片段不强塞文字，悬停通过 Tooltip 展现完整音标。</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 5 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch5">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">05</span>
+<h3 class="text-main-h font-bold text-text-primary">输入与行间标注 IGT 状态板 (Input Lifecycle &amp; Interlinear Gloss)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">输入法 IME 组合保护 · 动态对齐 IGT</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">输入生命周期经历七个阶段：<strong>浏览态 → 编辑态 → IME 组合中（虚下划线） → 未保存（脏数据黄点） → 保存中（Spinner） → 失败重试 → 只读态</strong>。在 IME 组合输入中，按 Enter 严禁触发表单提交或媒体播放。各输入场景遵循具体的按键调度规约，详见下表规范。</p>
+<div class="overflow-x-auto" id="source-keyboard-contract"><h4 class="text-sub-h font-semibold mb-2">已对照源码的按键契约（读码结论，非运行验收）</h4><table class="w-full text-left text-dense border-collapse"><thead><tr><th>场景</th><th>实际处理</th><th>设计提示边界</th></tr></thead><tbody><tr><td>时间轴 annotation 输入</td><td>Enter/Tab 下一项，Shift 反向；IME组合期间不处理；Esc 失焦回波形区</td><td>Esc 不撤销草稿，失焦写入由 adapter 决定</td></tr><tr><td>标注 IGT</td><td>行焦点 Enter 进入输入；输入 Enter 提交留在当前；Ctrl+Enter 提交下一项；有建议时 Tab 可采纳；输入内空格插入，行焦点空格播放</td><td>不为全部编辑器设置统一快捷键</td></tr><tr><td>媒体层草稿</td><td>变化排程自动保存，失焦按差异写入</td><td>失败保留输入；undefined saveStatus 不等于保存成功</td></tr><tr><td>独立 AI 窗口</td><td>Cmd/Ctrl+J 打开/还原/最小化；Esc 最小化</td><td>最小化不等于取消任务</td></tr></tbody></table></div>
+<!-- Seven Input Lifecycle States Strip -->
+<div class="border border-border-subtle p-3 bg-surface-header space-y-2">
+<div class="text-xs font-mono font-bold text-text-primary">输入控件生命周期七阶示意 (Input Lifecycle States)</div>
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 text-dense">
+<!-- 1. Browse -->
+<div class="p-2 bg-white border border-border-soft rounded-[6px]">
+<div class="font-mono text-dense text-text-tertiary">1. 浏览态</div>
+<div class="text-xs text-text-primary mt-1 font-ipa">[ sɯ³³⁻²¹ ]</div>
+<div class="text-dense text-text-tertiary mt-1">只展示，无轮廓</div>
+</div>
+<!-- 2. Edit -->
+<div class="p-2 bg-white border border-theme-accent-solid rounded-[6px] ring-1 ring-theme-accent-solid">
+<div class="font-mono text-dense text-theme-accent-solid font-semibold">2. 编辑态</div>
+<div class="text-xs text-text-primary mt-1 font-ipa">[ sɯ³³⁻²¹ |]</div>
+<div class="text-dense text-theme-accent-solid mt-1">光标闪烁激活</div>
+</div>
+<!-- 3. IME -->
+<div class="p-2 bg-white border border-theme-accent-solid rounded-[6px]">
+<div class="font-mono text-dense text-theme-accent-solid font-semibold">3. IME 组合中</div>
+<div class="text-xs text-text-primary mt-1 font-ipa underline decoration-dashed">[ <span class="bg-purple-100">suzh</span> ]</div>
+<div class="text-dense text-state-danger-text mt-1">Enter 严禁提交</div>
+</div>
+<!-- 4. Dirty -->
+<div class="p-2 bg-white border border-border-soft rounded-[6px]">
+<div class="font-mono text-dense text-state-warning-text flex items-center gap-1 font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-state-warning-solid"></span>4. 未保存
+              </div>
+<div class="text-xs text-text-primary mt-1 font-ipa">[ ʦøʏ⁴⁴ ]</div>
+<div class="text-dense text-state-warning-text mt-1">脏数据黄点锚定</div>
+</div>
+<!-- 5. Saving -->
+<div class="p-2 bg-white border border-border-soft rounded-[6px]">
+<div class="font-mono text-dense text-text-secondary flex items-center gap-1">
+<svg class="animate-spin h-3 w-3 text-theme-accent-solid" viewbox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" fill="none" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path></svg>
+                5. 保存中
+              </div>
+<div class="text-xs text-text-secondary mt-1 font-ipa">保存当前编辑…</div>
+<div class="text-dense text-text-tertiary mt-1">本地写入进行中（状态示例）</div>
+</div>
+<!-- 6. Failed -->
+<div class="p-2 bg-red-50 border border-state-danger-border rounded-[6px]">
+<div class="font-mono text-dense text-state-danger-text font-semibold">6. 失败重试</div>
+<div class="text-xs text-state-danger-text mt-1 font-ipa font-bold">写入超时</div>
+<div class="text-dense text-state-danger-text mt-1 underline cursor-pointer">保留输入并重试</div>
+</div>
+<!-- 7. Readonly -->
+<div class="p-2 bg-surface-bg border border-border-subtle rounded-[6px]">
+<div class="font-mono text-dense text-text-tertiary">7. 只读态</div>
+<div class="text-xs text-text-tertiary mt-1 font-ipa">[ LOCKED ]</div>
+<div class="text-dense text-text-tertiary mt-1">只读不可修改</div>
+</div>
+</div>
+</div>
+<!-- High-Fidelity Interlinear Glossed Text (IGT) Spec -->
+<div class="border border-border-strong bg-white p-4 space-y-3">
+<div class="flex items-center justify-between border-b border-border-subtle pb-2">
+<span class="text-xs font-mono font-bold text-text-primary">合成内容的行间标注布局示例 (Leipzig Glossing Rules 动态词边界对齐)</span>
+<span class="text-dense font-mono text-theme-accent-solid">按词边界动态横向对齐 (无僵硬嵌套卡片)</span>
+</div>
+<!-- Free Translation Header -->
+<div class="text-dense text-text-secondary bg-surface-header p-2 border-l-2 border-theme-accent-solid">
+<strong>语段上下文：</strong> 合成演示文本（非真实调查资料，示意对齐结构）
+          </div>
+<!-- IGT Dynamic Matrix -->
+<div class="overflow-x-auto pb-2">
+<div class="inline-flex gap-4 border border-border-soft p-3 bg-white">
+<!-- Word 1 -->
+<div class="flex flex-col gap-1 border-r border-border-subtle pr-4">
+<span class="text-xs font-mono text-text-tertiary">Word 1</span>
+<span class="text-body-reg font-cjk font-bold text-text-primary">我伲大家</span>
+<span class="font-ipa text-sm text-[#5F41D0]">[ ŋu²¹-ni³³ da⁵⁵-ɡᴀ³¹ ]</span>
+<span class="text-dense font-mono text-text-secondary">1PL.EXCL-everyone</span>
+<span class="text-dense text-text-tertiary">我们大家</span>
+</div>
+<!-- Word 2 (Active Selected Box with Candidate Switching) -->
+<div class="flex flex-col gap-1 border-r border-theme-accent-solid pr-4 bg-[#F1EDFF] p-1.5 rounded-[4px] relative">
+<div class="flex justify-between items-center text-xs font-mono">
+<span class="text-theme-accent-solid font-bold">Word 2 [Focus]</span>
+<span class="bg-white border border-theme-accent-solid text-theme-accent-solid text-dense px-1 rounded cursor-pointer">切换候选(2)</span>
+</div>
+<span class="text-body-reg font-cjk font-bold text-text-primary">吃物事</span>
+<span class="font-ipa text-sm text-[#5F41D0] font-bold">[ t͡ɕʰiɪʔ⁵⁵-məʔ²¹-zɿ²² ]</span>
+<span class="text-dense font-mono text-theme-accent-solid font-semibold">eat-thing(food)</span>
+<span class="text-dense text-text-secondary">吃东西</span>
+<!-- In-line validation cue -->
+<span class="text-dense text-state-success-text flex items-center gap-0.5 mt-1">
+<span class="material-symbols-outlined" style="font-size:12px;">check</span>连读喉塞音已校核
+                </span>
+</div>
+<!-- Word 3 -->
+<div class="flex flex-col gap-1 border-r border-border-subtle pr-4">
+<span class="text-xs font-mono text-text-tertiary">Word 3</span>
+<span class="text-body-reg font-cjk font-bold text-text-primary">去白相</span>
+<span class="font-ipa text-sm text-[#5F41D0]">[ kʰi⁵⁵ baʔ²¹-sɪɑ̃²² ]</span>
+<span class="text-dense font-mono text-text-secondary">go-play</span>
+<span class="text-dense text-text-tertiary">去玩耍</span>
+</div>
+<!-- Word 4 -->
+<div class="flex flex-col gap-1 pr-2">
+<span class="text-xs font-mono text-text-tertiary">Word 4</span>
+<span class="text-body-reg font-cjk font-bold text-text-primary">蛮欢喜个</span>
+<span class="font-ipa text-sm text-[#5F41D0]">[ mɛ²² huø⁵⁵-ɕi⁵²-ɡəʔ² ]</span>
+<span class="text-dense font-mono text-text-secondary">very-like-PTCL</span>
+<span class="text-dense text-text-tertiary">非常喜欢</span>
+</div>
+</div>
+</div>
+<!-- Free Translation Line -->
+<div class="text-dense text-text-primary bg-surface-header p-2 border border-border-subtle flex justify-between items-center">
+<div>
+<span class="font-bold text-text-secondary mr-2">整句自由翻译 (Free Translation):</span>
+              “我们大家一起吃点东西、去玩耍，感到非常欢喜。”
+            </div>
+<span class="font-mono text-xs text-text-tertiary">Lang: CJK (zh-CN)</span>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 6 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch6">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">06</span>
+<h3 class="text-main-h font-bold text-text-primary">高危任务流程板 (Destructive Actions &amp; Media Ingestion)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">不可逆级联删除 · 媒体六阶段摄入</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          删除高危层级时必须清晰展示影响范围；清楚区分「仅删除层结构（保留语段单元）」与「一并级联删除所有文本与标注」。<strong>取消按钮优先高亮获取焦点</strong>，不可撤销操作绝不伪造「撤销」提示。
+        </p>
+<!-- Destructive Action & Media Ingestion Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Destructive Modal Diagram -->
+<div class="border border-state-danger-border p-4 bg-white rounded-[10px] space-y-3">
+<div class="flex items-center justify-between border-b border-border-subtle pb-2">
+<span class="text-sub-h font-bold text-state-danger-text flex items-center gap-1.5">
+<span class="material-symbols-outlined">delete_forever</span>删除标注层确认 (Delete Tier Blocker)
+              </span>
+<span class="text-dense font-mono text-state-danger-text font-bold">不可撤销</span>
+</div>
+<div class="text-dense space-y-2 text-text-secondary">
+<div class="p-2 bg-red-50 border border-red-200 text-state-danger-text">
+<strong>目标层：</strong> Tier #03: 词素切分与义类 (Morpheme Gloss Tier)
+              </div>
+<ul class="list-disc list-inside space-y-1 text-xs">
+<li>关联文本标注记录：<strong>142 个词条单元</strong></li>
+<li>关联声学时间边界：演示关联范围，非真实媒体校验结果</li>
+<li>关联影响：按真实引用结果显示，不预设固定损失</li>
+</ul>
+<!-- Cascading choice options -->
+<div class="space-y-1 pt-1">
+<label class="flex items-center gap-2 cursor-pointer text-xs text-text-primary">
+<input class="text-state-danger-text focus:ring-0" name="del_scope" type="radio"/>
+<span>仅删除层结构并保留单元（具体归属按业务结果显示，不虚构通用备忘）</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-xs text-state-danger-text font-semibold">
+<input checked="" class="text-state-danger-text focus:ring-0" name="del_scope" type="radio"/>
+<span>一并彻底级联物理删除层及其包含的全部 142 条标注数据</span>
+</label>
+</div>
+</div>
+<div class="flex justify-end gap-2 pt-2 border-t border-border-subtle">
+<button class="h-8 px-4 bg-surface-header border border-border-strong text-text-primary text-xs font-bold rounded-[6px] ring-2 ring-border-strong">
+                取消操作（初始焦点）
+              </button>
+<button class="h-8 px-4 bg-state-danger-solid text-white text-xs font-bold rounded-[6px] hover:bg-red-700">
+                确认永久删除
+              </button>
+</div>
+</div>
+<!-- Media Ingestion Pipeline 6-Stages -->
+<div class="border border-border-soft p-4 bg-white rounded-[10px] space-y-3">
+<div class="flex items-center justify-between border-b border-border-subtle pb-2">
+<span class="text-sub-h font-bold text-text-primary flex items-center gap-1.5">
+<span class="material-symbols-outlined">queue_music</span>媒体摄入六阶段预检流水线
+              </span>
+<span class="text-dense font-mono text-state-success-text font-semibold">Stage 4: 用户确认</span>
+</div>
+<!-- Timeline discrepancy comparison banner -->
+<div class="p-2.5 bg-amber-50 border border-amber-300 text-dense text-amber-900 space-y-1">
+<div class="font-bold flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size:14px;">warning</span>音频时长与既有工程语段终点差异提示
+              </div>
+<div class="font-mono text-xs flex justify-between">
+<span>新导入音频时长: 00:12:30.000</span>
+<span>示例工程最大语段终点: 00:14:15.200</span>
+</div>
+<div class="text-dense text-amber-800">
+                注意：音频早于现有文本标注 01:45.200 结束，超出的 18 个语段将失去底层声学波形支持。
+              </div>
+</div>
+<!-- 6-stage tracker -->
+<div class="grid grid-cols-6 gap-1 text-center font-mono text-dense">
+<div class="p-1 bg-green-100 text-green-800 border border-green-300">1.选媒体<br/>✓</div>
+<div class="p-1 bg-green-100 text-green-800 border border-green-300">2.预检<br/>44.1k</div>
+<div class="p-1 bg-green-100 text-green-800 border border-green-300">3.影响<br/>告警</div>
+<div class="p-1 bg-theme-accent-solid text-white font-bold border border-theme-accent-solid">4.确认<br/>待定</div>
+<div class="p-1 bg-surface-header text-text-tertiary border border-border-subtle">5.执行<br/>按实际能力</div>
+<div class="p-1 bg-surface-header text-text-tertiary border border-border-subtle">6.报告<br/>落库</div>
+</div>
+<div class="flex justify-end gap-2 pt-1">
+<button class="h-7 px-3 bg-surface-header border border-border-soft text-text-secondary text-xs rounded-[6px]">中止导入</button>
+<button class="h-7 px-3 bg-theme-accent-solid text-white text-xs rounded-[6px] font-medium">确认影响并继续导入</button>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 7 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch7">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">07</span>
+<h3 class="text-main-h font-bold text-text-primary">AI 任务与修改审核流水线 (AI Tasks &amp; Diff Review Pipeline)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">建议采纳 ≠ 写入成功 · 冲突重新校验</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          AI 审核实行严谨异步流水线：<strong>范围选择 → 执行中（仅真实支持时提供取消） → 待审核看板 → 前后 Diff 对照（高亮删除与插入） → 用户采纳 → 异步写入落库</strong>。若底层语料已发生版本过期，必须阻断并触发「版本冲突，重新校验」；API Key 默认遮蔽且报错绝不回显。
+        </p>
+<!-- AI Diff Review Pipeline Component -->
+<div class="border border-border-strong bg-white p-4 space-y-3">
+<div class="flex items-center justify-between border-b border-border-subtle pb-2">
+<div class="flex items-center gap-2">
+<span class="font-bold text-text-primary text-xs">AI 修改审核状态示例 (Diff Review，非已开放能力声明)</span>
+<span class="text-dense font-mono text-theme-accent-solid bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">合成演示任务 #DEMO-01</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-mono text-text-secondary">API Key: ••••••••（合成占位，无真实密钥）</span>
+<button class="h-6 px-2 bg-surface-header border border-border-soft text-xs text-text-secondary rounded">取消任务</button>
+</div>
+</div>
+<!-- Diff Inspection Table -->
+<div class="border border-border-subtle overflow-hidden text-dense">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-bg border-b border-border-subtle font-mono text-text-secondary text-dense">
+<th class="p-2 w-16">音段</th>
+<th class="p-2 w-48">原始内容 (Original Base)</th>
+<th class="p-2 w-48">AI 建议变更 (Diff Proposal)</th>
+<th class="p-2">置信度与声学依据</th>
+<th class="p-2 text-right">审核决策</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<tr>
+<td class="p-2 font-mono font-bold">#014</td>
+<td class="p-2 font-ipa bg-red-50 text-state-danger-text line-through">[ sɯ³³ ʦøʏ⁴⁴ ]</td>
+<td class="p-2 font-ipa bg-green-50 text-state-success-text font-bold">[ sɯ³³⁻²¹ ʦøʏ⁴⁴⁻²¹ ]</td>
+<td class="p-2 text-xs text-text-secondary">合成解释示例，不代表真实测量或已实现的推断能力。</td>
+<td class="p-2 text-right space-x-1">
+<button class="h-6 px-2 bg-theme-accent-solid text-white text-dense rounded">采纳</button>
+<button class="h-6 px-2 bg-surface-header border border-border-soft text-dense rounded">忽略</button>
+</td>
+</tr>
+<tr>
+<td class="p-2 font-mono font-bold">#015</td>
+<td class="p-2 font-ipa bg-red-50 text-state-danger-text line-through">[ baʔ⁵⁵ ]</td>
+<td class="p-2 font-ipa bg-green-50 text-state-success-text font-bold">[ baʔ²¹ ]</td>
+<td class="p-2 text-xs text-text-secondary">合成候选示例，需要人工核查来源与影响。</td>
+<td class="p-2 text-right space-x-1">
+<button class="h-6 px-2 bg-theme-accent-solid text-white text-dense rounded">采纳</button>
+<button class="h-6 px-2 bg-surface-header border border-border-soft text-dense rounded">忽略</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Bottom Action & 4-way Branching Specification -->
+<div class="flex items-center justify-between pt-2 border-t border-border-subtle text-dense">
+<div class="flex items-center gap-3 text-xs">
+<span class="font-semibold text-text-primary">四分支流转标准：</span>
+<span class="text-state-success-text">① 采纳落库</span>
+<span class="text-text-tertiary">② 放弃拒绝</span>
+<span class="text-state-warning-text">③ 需发音人澄清</span>
+<span class="text-state-danger-text">④ 人工强制介入</span>
+</div>
+<button class="h-8 px-4 bg-theme-accent-solid text-white text-xs font-semibold rounded-[6px] hover:bg-[#6444e4]">
+              批量确认采纳所选项并写入语料库
+            </button>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 8 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch8">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">08</span>
+<h3 class="text-main-h font-bold text-text-primary">复杂资产与正字法桥接板 (Complex Assets &amp; Orthography Bridges)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">自定义元字段解耦 · 多候选映射关系</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          正字法映射支持源与目标系统的多对多桥接，并清晰指示「无匹配项」、「一对多候选」与「无效映射」。多模态词典资源展现<strong>图片、波形播放器、文档、404 缺失挂起</strong>四态，并严格遵循「解除绑定 ≠ 删除磁盘原文件」准则。
+        </p>
+<!-- Orthography Bridge Table Component -->
+<div class="border border-border-subtle overflow-hidden">
+<div class="bg-surface-header px-3 py-2 border-b border-border-subtle flex justify-between items-center text-xs font-mono">
+<span class="font-bold text-text-primary">方言正字法到标准 IPA 与汉字转写桥接矩阵 (Orthography Mapping)</span>
+<span class="text-text-secondary">Source: 苏州话拉丁化方案 → Target: 国际音标</span>
+</div>
+<table class="w-full text-left text-dense border-collapse">
+<thead>
+<tr class="bg-surface-bg border-b border-border-subtle font-mono text-text-secondary text-dense">
+<th class="p-2.5">源正字法拼写 (Source)</th>
+<th class="p-2.5">目标 IPA 转换 (Target)</th>
+<th class="p-2.5">映射匹配状态</th>
+<th class="p-2.5">规则影响分析</th>
+<th class="p-2.5 text-right">调校操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<tr>
+<td class="p-2.5 font-mono text-text-primary font-bold">soetzhou</td>
+<td class="p-2.5 font-ipa text-theme-accent-solid font-bold">[ sɯ³³ ʦøʏ⁴⁴ ]</td>
+<td class="p-2.5"><span class="px-1.5 py-0.5 bg-green-50 text-state-success-text font-mono text-dense rounded">1:1 精准匹配</span></td>
+<td class="p-2.5 text-text-secondary">规则字典内置核心词目 (Lexicon #102)</td>
+<td class="p-2.5 text-right"><button class="h-6 px-2 text-xs border border-border-soft rounded">编辑</button></td>
+</tr>
+<tr class="bg-amber-50/50">
+<td class="p-2.5 font-mono text-text-primary font-bold">bah-xiang</td>
+<td class="p-2.5 font-ipa text-state-warning-text font-bold">[ baʔ²¹ sɪɑ̃²² ] / [ baʔ⁵⁵ ɕiɑ̃³¹ ]</td>
+<td class="p-2.5"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 font-mono text-dense rounded font-bold">一对多候选匹配</span></td>
+<td class="p-2.5 text-text-secondary">文白异读存在歧义，需根据语境人工挑选</td>
+<td class="p-2.5 text-right"><button class="h-6 px-2 text-xs bg-state-warning-solid text-white rounded">选择候选</button></td>
+</tr>
+<tr class="bg-red-50/50">
+<td class="p-2.5 font-mono text-text-primary font-bold">ny-geq-fa</td>
+<td class="p-2.5 font-ipa text-state-danger-text font-bold">[ 未知音位串 ]</td>
+<td class="p-2.5"><span class="px-1.5 py-0.5 bg-red-100 text-state-danger-text font-mono text-dense rounded font-bold">无匹配项 (404)</span></td>
+<td class="p-2.5 text-state-danger-text">拼写不在当前音节表内，存在非法字符组合</td>
+<td class="p-2.5 text-right"><button class="h-6 px-2 text-xs border border-state-danger-border text-state-danger-text rounded">创建新词条</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Dictionary Multimodal Assets: 4 States -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-dense">
+<div class="border border-border-subtle p-2.5 bg-white space-y-1.5">
+<div class="font-mono text-dense text-text-secondary font-bold">1. 图片预览区</div>
+<div class="h-16 bg-surface-bg border border-border-subtle flex items-center justify-center text-text-tertiary">
+<span class="material-symbols-outlined">image</span>发音唇形侧面切片.png
+            </div>
+<div class="text-dense text-text-tertiary">演示绑定解剖学标本</div>
+</div>
+<div class="border border-border-subtle p-2.5 bg-white space-y-1.5">
+<div class="font-mono text-dense text-text-secondary font-bold">2. 音频波形播放器</div>
+<div class="h-16 bg-surface-header border border-border-subtle p-1 flex items-center gap-2">
+<button class="w-7 h-7 rounded-full bg-theme-accent-solid text-white flex items-center justify-center"><span class="material-symbols-outlined">play_arrow</span></button>
+<div class="flex-1 font-mono text-dense">0.42s · 44.1kHz</div>
+</div>
+<div class="text-dense text-text-tertiary">单音节标准示范音频</div>
+</div>
+<div class="border border-border-subtle p-2.5 bg-white space-y-1.5">
+<div class="font-mono text-dense text-text-secondary font-bold">3. 语法文档下载</div>
+<div class="h-16 bg-surface-bg border border-border-subtle flex items-center justify-center gap-1 text-text-primary text-xs">
+<span class="material-symbols-outlined">description</span>方言语法志.pdf
+            </div>
+<div class="text-dense text-text-tertiary">1.2MB 离线副本</div>
+</div>
+<div class="border border-state-danger-border p-2.5 bg-red-50 space-y-1.5">
+<div class="font-mono text-dense text-state-danger-text font-bold">4. 资源缺失 (404 挂起)</div>
+<div class="h-16 border border-dashed border-state-danger-border flex flex-col items-center justify-center text-state-danger-text text-dense">
+<span class="material-symbols-outlined">broken_image</span>原文件未挂载
+            </div>
+<div class="text-dense text-state-danger-text">解除绑定不等于删除原文件</div>
+</div>
+</div>
+</section>
+<!-- ==================== CHAPTER 9 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch9">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">09</span>
+<h3 class="text-main-h font-bold text-text-primary">窗口适配、无障碍与暗色对比 (Adaptive Schemas &amp; A11y)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">1440 vs 1280 桌面断点 · 独立分栏纵向滚动</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          桌面断点采用 <strong>1440px 与 1280px</strong>。当视窗收窄时，52px 左轨固定，先收起检查器，再允许上下文栏收起；中央主区空间不足时提供明显可辨的横向平移滚条，<strong>绝不退化为手机单列卡片</strong>。时间标尺与波形轨道强绑定横向同步滚动；时间码永远保持 LTR。
+        </p>
+<!-- Responsive Comparison Diagrams (1440 vs 1280) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="border border-border-strong p-3 bg-white space-y-2">
+<div class="flex justify-between items-center text-xs font-mono font-bold text-text-primary border-b border-border-subtle pb-1">
+<span>1440px 完整桌面工作站 (Default Studio)</span>
+<span class="text-state-success-text">全开展开态</span>
+</div>
+<div class="h-28 bg-surface-bg border border-border-soft flex p-1 gap-1 text-dense font-mono">
+<div class="w-8 bg-rail-dark text-white flex items-center justify-center">52</div>
+<div class="w-24 bg-white border border-border-subtle p-1">上下文<br/>272px</div>
+<div class="flex-1 bg-white border border-theme-accent-solid p-1 flex flex-col justify-between">
+<span>主编辑区 (816px)</span>
+<span class="text-dense text-theme-accent-solid">完整展示波形与多层 IGT</span>
+</div>
+<div class="w-24 bg-white border border-border-subtle p-1">检查器<br/>300px</div>
+</div>
+<div class="text-dense text-text-secondary">所有栏目同时铺开，多轨直接物理对齐。</div>
+</div>
+<div class="border border-border-strong p-3 bg-white space-y-2">
+<div class="flex justify-between items-center text-xs font-mono font-bold text-text-primary border-b border-border-subtle pb-1">
+<span>1280px 笔记本紧凑模式 (Compact Desktop)</span>
+<span class="text-state-warning-text">智能抽屉化</span>
+</div>
+<div class="h-28 bg-surface-bg border border-border-soft flex p-1 gap-1 text-dense font-mono">
+<div class="w-8 bg-rail-dark text-white flex items-center justify-center">52</div>
+<div class="w-16 bg-surface-header border border-border-subtle p-1 text-text-secondary">折叠<br/>(图标)</div>
+<div class="flex-1 bg-white border border-theme-accent-solid p-1 flex flex-col justify-between">
+<span>主编辑区 (保持 920px 宽容度)</span>
+<span class="text-dense text-state-warning-text flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size:12px;">swap_horiz</span>出现明显横滚提示，绝不转手机流
+                </span>
+</div>
+<div class="w-8 bg-surface-header border border-dashed border-border-strong flex items-center justify-center text-text-tertiary">收起</div>
+</div>
+<div class="text-dense text-text-secondary">检查器收起为浮动图标，主编辑区优先保障波形连续。</div>
+</div>
+</div>
+<!-- Dark Mode Spec Demonstration -->
+<div class="border border-black bg-[#181B21] text-[#F2F4F8] p-4 rounded-[6px] space-y-3"><div class="flex items-center justify-between border-b border-[#2A2E35] pb-2 text-xs font-mono"><span class="font-bold text-[#F2F4F8] flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-purple-400"></span>暗色模式色板与对比度规范 (Dark Mode Design Proposal)</span><span class="text-gray-400">普通文字 4.5:1 和图形控件 3:1 是工程验收门槛 (Gateposts)</span></div><div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-dense font-mono"><div class="p-2.5 bg-[#20242C] border border-[#343A46] rounded-[4px]"><div class="text-gray-400 text-xs">面板基底 (Panel)</div><div class="text-sm font-bold text-white mt-1">#20242C</div><div class="text-xs text-green-400 mt-1">设计提案，需逐组合计算验证</div></div><div class="p-2.5 bg-[#20242C] border border-[#343A46] rounded-[4px]"><div class="text-gray-400 text-xs">次级文案 (Secondary)</div><div class="text-sm font-bold text-[#B4BDCC] mt-1">#B4BDCC</div><div class="text-xs text-green-400 mt-1">设计提案，需逐组合计算验证</div></div><div class="p-2.5 bg-[#20242C] border border-[#343A46] rounded-[4px]"><div class="text-gray-400 text-xs">声学波形渲染</div><div class="text-sm font-bold text-[#9D84FF] mt-1">波形保持正向明晰</div><div class="text-xs text-yellow-400 mt-1">需在具体渲染环境中实测检验</div></div></div><div class="text-dense text-gray-400 pt-1">注：暗色模式仅作为设计提案，需在具体渲染环境与屏幕设备实测检验，不代表全状态已通过验收。</div></div>
+</section>
+<!-- ==================== CHAPTER 10 ==================== -->
+<section class="border border-border-soft bg-surface-panel p-5 space-y-5" id="ch10">
+<div class="flex items-baseline justify-between border-b border-border-subtle pb-3">
+<div class="flex items-center gap-2">
+<span class="font-mono font-bold text-theme-accent-solid text-sub-h">10</span>
+<h3 class="text-main-h font-bold text-text-primary">组件映射与工程验收矩阵 (Component Taxonomy &amp; QA Matrix)</h3>
+</div>
+<span class="font-mono text-xs text-text-tertiary">前端工程映射 · 产品UI严禁第3层容器边框；手册图例外框仅作标尺</span>
+</div>
+<p class="text-meta-tool text-text-secondary leading-relaxed">
+          将设计规约与真实前端组件强绑定。所有编辑草稿组件（TimelineDraftEditorSurface）必须严格处理 <strong>dirty、saving、error</strong> 状态，严禁将 <code>undefined</code> 误判为已验证持久化；语段单元点击需使用 <code>stopPropagation</code> 阻止外部画布平移手势冲突。
+        </p>
+<!-- Front-end Component Taxonomy Matrix -->
+<div class="border border-border-subtle overflow-hidden">
+<div class="bg-surface-header px-3 py-2 border-b border-border-subtle font-mono text-xs font-semibold text-text-primary">
+            前端组件命名与属性映射规约 (React Component Mapping)
+          </div>
+<table class="w-full text-left text-dense border-collapse">
+<thead>
+<tr class="bg-surface-bg border-b border-border-subtle text-text-secondary font-mono text-dense">
+<th class="p-2.5">抽象组件名</th>
+<th class="p-2.5">高度/规格变体</th>
+<th class="p-2.5">关键属性 (Props)</th>
+<th class="p-2.5">事件与交互约束</th>
+<th class="p-2.5">实现代码预览</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-bold">PanelButton</td>
+<td class="p-2.5 font-mono">default 32px / sm 28px / compact 28px；36px仅为场景规格</td>
+<td class="p-2.5 font-mono">variant: default | primary | ghost | danger | success</td>
+<td class="p-2.5 text-text-secondary">禁止同时出现两个同级 Primary；加载中态捕获点击</td>
+<td class="p-2.5">
+<button class="h-8 px-3 bg-theme-accent-solid text-white text-xs rounded-[6px] font-medium">Primary 32px</button>
+<button class="h-7 px-2.5 bg-surface-header border border-border-soft text-text-primary text-xs rounded-[6px] ml-1">sm 28px</button>
+</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-bold">FormField</td>
+<td class="p-2.5 font-mono">控件min-height: 32px；字段容器含label/hint可增长</td>
+<td class="p-2.5 font-mono">label, htmlFor, hint, error, span；必填标记由调用方提供</td>
+<td class="p-2.5 text-text-secondary">顶部永久标签，禁止仅用 placeholder，错误时轮廓描红</td>
+<td class="p-2.5">
+<input class="min-h-8 w-32 border border-[#7F8A9B] text-xs px-2 rounded-[6px]" type="text" value="Form input"/>
+</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-bold">ModalPanel</td>
+<td class="p-2.5 font-mono">radius: 10px / Z-Index: 100</td>
+<td class="p-2.5 font-mono">isOpen, onClose, title, footer, closeDisabled；脏表单保护由调用方处理</td>
+<td class="p-2.5 text-text-secondary">严格 Focus Trap，Tab 键循环，脏数据拦截阻断关闭</td>
+<td class="p-2.5 font-mono text-dense text-state-danger-text">&lt;ModalPanel isOpen onClose={…}/&gt;</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono text-theme-accent-solid font-bold">TimelineLaneDraftEditorCell</td>
+<td class="p-2.5 font-mono">Hairline 1px / 0px panel radius</td>
+<td class="p-2.5 font-mono">value, onChange, onBlur, onKeyDown, saveStatus；bubbleClick为宿主例外</td>
+<td class="p-2.5 text-text-secondary">内置 e.stopPropagation()，阻止外部平移画布冲突</td>
+<td class="p-2.5">
+<span class="px-2 py-1 bg-[#F1EDFF] border border-theme-accent-solid text-[#5F41D0] text-xs font-mono font-bold rounded-[2px]">LaneCell</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Strict Engineering QA Matrix Table -->
+<div class="border border-border-subtle overflow-hidden">
+<div class="bg-surface-header px-3 py-2 border-b border-border-subtle font-mono text-xs font-semibold text-text-primary flex justify-between">
+<span>工程验收矩阵表 (Engineering QA Verification Checklist)</span>
+<span class="text-text-tertiary">普通文本 ≥4.5:1 · 交互边界 ≥3:1</span>
+</div>
+<table class="w-full text-left text-dense border-collapse">
+<thead>
+<tr class="bg-surface-bg border-b border-border-subtle text-text-secondary font-mono text-dense">
+<th class="p-2.5">核验维度</th>
+<th class="p-2.5">验收指标与工程门禁</th>
+<th class="p-2.5">违规表现 (Fail Scenario)</th>
+<th class="p-2.5">通过标准 (Pass Criteria)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle text-text-primary">
+<tr>
+<td class="p-2.5 font-mono font-bold">卡片嵌套层数</td>
+<td class="p-2.5">层级纯平原则</td>
+<td class="p-2.5 text-state-danger-text">出现第 3 层边框/投影卡片嵌套包裹</td>
+<td class="p-2.5 text-state-success-text font-semibold">严格最多 2 层（主面板 + 交互单元），纯平 1px 细线分隔</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">对比度门禁</td>
+<td class="p-2.5">WCAG 2.1 AA</td>
+<td class="p-2.5 text-state-danger-text">次级文本在白色上对比度 &lt; 4.5:1</td>
+<td class="p-2.5 text-state-success-text font-semibold">须逐组合实测：普通文字≥4.5:1，关键图形/识别边界≥3:1；未作全屏验收</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">键盘全可达</td>
+<td class="p-2.5">Tab Navigation</td>
+<td class="p-2.5 text-state-danger-text">时间轴片段丢失焦点环，无法纯键盘标记</td>
+<td class="p-2.5 text-state-success-text font-semibold">所有可操作手柄、表格行与模态弹窗均有可见 2px 轮廓环</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">异常保护</td>
+<td class="p-2.5">Crash &amp; Network Resilience</td>
+<td class="p-2.5 text-state-danger-text">网络超时直接清空或吞掉用户刚输入的音标</td>
+<td class="p-2.5 text-state-success-text font-semibold">保存失败必须在输入框常驻保留文本草稿，并提供原地重试</td>
+</tr>
+<tr>
+<td class="p-2.5 font-mono font-bold">大字号与双向文本</td>
+<td class="p-2.5">200% Zoom &amp; LTR Fixed</td>
+<td class="p-2.5 text-state-danger-text">系统字号放大 200% 时按钮文字截断溢出</td>
+<td class="p-2.5 text-state-success-text font-semibold">控件容器支持按内容高度弹性撑开；时间码强制保持 LTR 方向</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- QA Disclaimer Notice Footer -->
+<div class="p-3 bg-surface-header border border-border-strong text-dense flex items-center justify-between">
+<div class="flex items-center gap-2 text-text-secondary">
+<span class="material-symbols-outlined text-state-warning-text">info</span>
+<span><strong>声明：</strong>本文件严格作为解语系统高保真工程技术设计规范（Design Spec）。</span>
+</div>
+<div class="font-mono text-xs text-text-tertiary">
+            『设计规定，不代表代码已实现或通过验收』
+          </div>
+</div>
+</section>
+<section id="final-audit" class="bg-surface-panel p-5 mt-6 border-t border-border-soft"><h2 class="text-main-h font-semibold">终审补充与验收边界</h2><p class="text-meta-tool text-text-secondary">2026-10-24：本地规范已修正键盘、组件接口、token、字号和误导性声明。以下条目为人工核对内容。产品运行及数据验收未执行。</p><h3 class="text-main-h font-semibold mt-5 mb-3">13. 终审补充：遗漏任务与适用范围</h3><p class="mb-3 text-body-reg">- **音频层与混合层录音**：区分未录音、录音中、已有录音、播放中、转写中、失败、不可用。另一单元正在录音时，其他录音入口解释禁用原因；停止录音、暂停播放、取消转写是不同动作。麦克风权限未请求/拒绝/设备不可用提供对应说明，不用普通网络错误替代。依据 TimelineTranslationAudioControls 与媒体层modality分支；权限完整流程须另作运行验收。</p><p class="mb-3 text-body-reg">- **桌面项目生命周期（条件界面）**：打开/锁被占用/同步盘风险/备份目录失败应分别提示，不保证可强制解锁、不虚构只读打开能力。桌面骨架 openProjectFolder 返回 lock、warning、backupDir，不证明全部已接真实产品。条件状态可以有设计规格，但必须标为目标/骨架路径。</p><p class="mb-3 text-body-reg">- **关闭应用/项目/对象**：窗口关闭与关闭AI窗不同；保存中应表明尚未完成；脏草稿保护按实际可恢复能力实施。不能把模态取消或Esc最小化当成数据已保存。</p><p class="mb-3 text-body-reg">- **导出与交换**：明确项目/文稿/层/选区范围、格式、媒体是否包含、附件省略、正在处理、失败与输出位置。仅真实支持时提供覆盖/取消/重试；导出完成不能表示文件已由目标软件正确打开。长文件名/无写入权限/位置失效用具体原因。</p><p class="mb-3 text-body-reg">- **清理与重置**：清缓存、重置偏好、删除项目、解除媒体关联分别命名。SettingsDataTab 中部分“重置”只移除偏好键，不能画成已删除全部项目数据，也不能对用户保证项目数据不受所有重置分支影响，需逐路径核对。</p><p class="mb-3 text-body-reg">- **技术错误与隐私**：界面先给可执行简述，详情展开显示错误码与可复制诊断；密钥、身份资料、原文内容和完整本机路径不默认暴露于日志/示例截图。示例AI推断必须标明合成说明，不包装成真实测量结果。</p><p class="mb-3 text-body-reg">- **快捷键平台与冲突**：Mac显示Cmd，其他平台Ctrl，实际组合以action registry/handler为准；输入法、文本输入、最上层浮层优先消费相应键，不发明Cmd+[、Cmd+]、Cmd+Shift+A。需为精确拖拽提供数值输入或其他已实现替代，不只依赖鼠标。</p><p class="mb-3 text-body-reg">- **模式与来源**：开发期、骨架、flag条件、设计目标、默认可见功能明确区分；没有读回或运行证据的写入不能贴已保存/已同步。设计图中的示例操作不构成真实产品能力承诺。</p><h3 class="text-main-h font-semibold mt-5 mb-3">14. 最终对齐约束</h3><p class="mb-3 text-body-reg">1. 参考画布统一为1440×1000；1280用于适配检查，不写成产品强制断点；矮窗口另验。</p><p class="mb-3 text-body-reg">2. PanelButton只有default/sm/compact三种现有size；36px是场景规格，不新增hero属性。</p><p class="mb-3 text-body-reg">3. FormField真实接口为label/htmlFor/hint/error/span，required提示由调用方提供；不得写不存在的isRequired属性。</p><p class="mb-3 text-body-reg">4. ModalPanel真实接口包含isOpen/onClose/title/footer/closeDisabled等；没有hasDirtyForm/onDismiss/trapFocus这些公共属性。焦点trap由组件内部处理，脏内容由业务onClose保护；closeDisabled不自动禁止所有关闭路径。</p><p class="mb-3 text-body-reg">5. 真正组件名为TimelineLaneDraftEditorCell；saveStatus为dirty/saving/error或undefined，不能替换为虚构的isDirty/isSaving/hasError接口。</p><p class="mb-3 text-body-reg">6. 完整性阻断层与危险确认分成两类：前者不能Esc绕过，后者取消须按onClose和任务可中断性执行，不混用120硬阻断。</p><p class="mb-3 text-body-reg">7. 字号不得为可阅读信息使用8-11px；正文、密集信息、时间码均遵守排版规范。图标/几何标尺的尺寸不等于文字字号。</p><p class="mb-3 text-body-reg">8. 文档与状态图不写Frozen、已上线、全部达标、已核验等无验证声明。单个纯色组合的计算不等于整屏可访问性通过。</p><p class="mb-3 text-body-reg">9. 功能状态沿用--state-*-text/solid/bg/border语义，不再引入无后缀的--state-success等另一体系。</p><p class="mb-3 text-body-reg">10. 历史自动生成图稿只作过程记录；当前本地HTML已直接审校。Stitch精确文本节点与本文件同步后才可作为实施依据，旧图稿的冲突文案不再有效。</p><p class="mb-3 text-body-reg">本轮设计终审范围：源码与文档对照、HTML结构与关键内容检查；浏览器file://视觉复核被策略阻止，未执行。产品运行、数据读写、桌面设备、跨平台及全量辅助技术验收仍为HOLD，不因设计审校而自动通过。</p><p><a id="engineering-source-link" class="underline" href="stitch-ui-engineering-addendum.md">完整工程规则与代码事实映射</a> · <a id="audit-report-link" class="underline" href="design-final-audit.md">本轮终审记录</a></p></section>
+<!-- ==================== FOOTER ==================== -->
+<footer class="pt-6 pb-12 border-t border-border-soft flex flex-col sm:flex-row items-center justify-between text-text-tertiary text-dense">
+<div>
+<span class="font-bold text-text-primary">解语 Jieyu</span>
+<span> — Linguistic Workstation Interaction Specification</span>
+</div>
+<div class="font-mono text-dense mt-2 sm:mt-0">
+          Charis SIL · Inter · JetBrains Mono · Precision Technical System
+        </div>
+</footer>
+</main>
+</div>
+</body></html>

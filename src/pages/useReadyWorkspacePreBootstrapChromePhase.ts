@@ -68,6 +68,7 @@ export function useReadyWorkspacePreBootstrapChromePhase(
 
   const { recoveryAvailable, recoveryDiffSummary, applyRecoveryBanner, dismissRecoveryBanner } =
     useRecoveryBanner({
+      scopeKey: domainShell.activeTextId ?? '',
       phase: data.state.phase,
       unitsLength: units.length,
       translationsLength: translations.length,

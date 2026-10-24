@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>解语 Jieyu - 桌面语言记录工具</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- JetBrains Mono & Noto Sans SC / Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-surface-variant": "#484555",
+            "tertiary-container": "#70747c",
+            "surface-container-low": "#f1f3fe",
+            "on-error": "#ffffff",
+            "primary-fixed-dim": "#cabeff",
+            "outline": "#797586",
+            "on-secondary-fixed-variant": "#474553",
+            "surface-container-high": "#e5e8f3",
+            "on-tertiary-fixed": "#181c22",
+            "on-background": "#181c23",
+            "on-tertiary": "#ffffff",
+            "error-container": "#ffdad6",
+            "tertiary-fixed": "#dfe2ec",
+            "on-primary-fixed-variant": "#471bc7",
+            "surface": "#f9f9ff",
+            "surface-container-highest": "#dfe2ed",
+            "on-surface": "#181c23",
+            "surface-variant": "#dfe2ed",
+            "on-primary-container": "#fffbff",
+            "inverse-primary": "#cabeff",
+            "surface-bright": "#f9f9ff",
+            "surface-dim": "#d7dae5",
+            "primary-container": "#7658f6",
+            "on-secondary-fixed": "#1b1a27",
+            "surface-container": "#ebedf9",
+            "inverse-surface": "#2c3039",
+            "secondary": "#5e5d6b",
+            "on-secondary-container": "#646372",
+            "on-error-container": "#93000a",
+            "surface-tint": "#603edf",
+            "secondary-fixed-dim": "#c8c4d6",
+            "background": "#f9f9ff",
+            "surface-container-lowest": "#ffffff",
+            "on-secondary": "#ffffff",
+            "on-tertiary-fixed-variant": "#43474e",
+            "primary": "#5d3bdc",
+            "tertiary": "#585c63",
+            "on-tertiary-container": "#fcfbff",
+            "tertiary-fixed-dim": "#c3c6cf",
+            "secondary-container": "#e4e0f2",
+            "secondary-fixed": "#e4e0f2",
+            "on-primary-fixed": "#1c0062",
+            "inverse-on-surface": "#eef0fc",
+            "error": "#ba1a1a",
+            "primary-fixed": "#e6deff",
+            "outline-variant": "#c9c4d7",
+            "on-primary": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xl": "24px",
+            "space-sm": "8px",
+            "space-md": "12px",
+            "gutter": "0px",
+            "space-lg": "16px",
+            "margin": "0px",
+            "space-xs": "4px"
+          },
+          "fontFamily": {
+            "headline-lg": ["\"Inter, Noto Sans SC\""],
+            "body-md": ["\"Noto Sans SC, Inter\""],
+            "label-timecode": ["JetBrains Mono"],
+            "body-lg": ["\"Noto Sans SC, Inter\""],
+            "body-sm": ["\"Noto Sans SC, Inter\""],
+            "headline-md": ["\"Inter, Noto Sans SC\""],
+            "headline-sm": ["\"Inter, Noto Sans SC\""],
+            "label-meta": ["\"Inter, Noto Sans SC\""],
+            "label-ipa": ["\"Inter, Noto Sans SC\""]
+          },
+          "fontSize": {
+            "headline-lg": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+            "body-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "label-timecode": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-lg": ["14px", { "lineHeight": "22px", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "headline-md": ["15px", { "lineHeight": "20px", "fontWeight": "600" }],
+            "headline-sm": ["13px", { "lineHeight": "18px", "fontWeight": "600" }],
+            "label-meta": ["11px", { "lineHeight": "14px", "fontWeight": "500" }],
+            "label-ipa": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Absolute Flat Minimalist Rules */
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    .text-input-selectable {
+      user-select: text;
+    }
+    /* Thin custom scrollbar for technical density */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #edf0f4;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c9c4d7;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #797586;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface m-0 p-0 font-body-sm text-body-sm h-screen w-screen overflow-hidden flex flex-col antialiased">
+<!-- ==================== TOP NAVIGATION BAR (52px) ==================== -->
+<header class="w-full h-[52px] bg-[#2A2E35] border-b border-outline-variant flex items-center justify-between px-space-md shrink-0 z-50">
+<!-- Brand Title & Synthetic Indicator -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim text-lg">graphic_eq</span>
+<span class="font-headline-md text-headline-md font-semibold text-surface-container-lowest tracking-tight">解语 Jieyu</span>
+</div>
+<span class="text-[10px] font-label-timecode font-medium text-[#f59e0b] bg-[#f59e0b]/10 border border-[#f59e0b]/30 px-1.5 py-0.5 rounded">合成演示 [SYNTH-DEMO]</span>
+<span class="text-xs font-label-timecode text-tertiary-fixed-dim">| 湘语-娄底双峰调查点_2024S1</span>
+</div>
+<!-- Navigation Tabs (7 modules strictly as defined) -->
+<nav class="flex items-center h-full gap-0" id="main-nav">
+<button class="tab-btn text-surface-container-lowest border-b-2 border-primary-container font-semibold h-full flex items-center px-3 font-label-meta text-label-meta transition-colors" data-tab="01" onclick="switchTab('01')">
+        01 项目文稿
+      </button>
+<button class="tab-btn text-surface-container-highest hover:text-surface-container-lowest flex items-center px-3 h-full font-label-meta text-label-meta transition-colors" data-tab="02" onclick="switchTab('02')">
+        02 音频转写
+      </button>
+<button class="tab-btn text-surface-container-highest hover:text-surface-container-lowest flex items-center px-3 h-full font-label-meta text-label-meta transition-colors" data-tab="03" onclick="switchTab('03')">
+        03 行间标注 IGT
+      </button>
+<button class="tab-btn text-surface-container-highest hover:text-surface-container-lowest flex items-center px-3 h-full font-label-meta text-label-meta transition-colors" data-tab="04" onclick="switchTab('04')">
+        04 词典体系
+      </button>
+<button class="tab-btn text-surface-container-highest hover:text-surface-container-lowest flex items-center px-3 h-full font-label-meta text-label-meta transition-colors" data-tab="05" onclick="switchTab('05')">
+        05 语料检索
+      </button>
+<button class="tab-btn text-surface-container-highest hover:text-surface-container-lowest flex items-center px-3 h-full font-label-meta text-label-meta transition-colors" data-tab="06" onclick="switchTab('06')">
+        06 语言资产
+      </button>
+<button class="tab-btn text-surface-container-highest hover:text-surface-container-lowest flex items-center px-3 h-full font-label-meta text-label-meta transition-colors" data-tab="07" onclick="switchTab('07')">
+        07 系统设置与状态规范
+      </button>
+</nav>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-space-sm">
+<button class="bg-surface-container-highest/20 hover:bg-surface-container-highest/30 text-surface-container-lowest border border-outline px-2.5 py-1 text-xs font-medium rounded flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[15px]">graphic_eq</span>
+<span>合成演示</span>
+</button>
+<button class="bg-primary-container hover:bg-primary text-surface-container-lowest px-3 py-1 text-xs font-semibold rounded flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">file_download</span>
+<span>导出工程</span>
+</button>
+<div class="w-[1px] h-4 bg-outline-variant mx-1"></div>
+<button class="text-tertiary-fixed-dim hover:text-surface-container-lowest p-1 rounded flex items-center" title="帮助手册">
+<span class="material-symbols-outlined text-[18px]">help_outline</span>
+</button>
+<button class="text-tertiary-fixed-dim hover:text-surface-container-lowest p-1 rounded relative flex items-center" title="通知">
+<span class="material-symbols-outlined text-[18px]">notifications</span>
+<span class="absolute top-1 right-1 w-1.5 h-1.5 bg-primary-container rounded-full"></span>
+</button>
+<div class="w-6 h-6 rounded bg-[#3A3F49] border border-outline text-surface-container-lowest flex items-center justify-center font-label-timecode text-xs ml-1 font-semibold" title="User profile avatar of field linguist researcher">
+        LY
+      </div>
+</div>
+</header>
+<!-- ==================== MAIN WORKSPACE CONTAINER ==================== -->
+<main class="w-full flex-1 flex overflow-hidden relative">
+<!-- SHARED LEFT CONTEXT SIDEBAR (272px) -->
+<aside class="w-[272px] h-full bg-[#EDF0F4] border-r border-outline-variant flex flex-col justify-between shrink-0 p-space-sm select-none">
+<!-- Top Group: Project Meta & Hierarchical Actions -->
+<div class="flex flex-col gap-2">
+<div class="p-2 bg-surface-container-lowest border border-outline-variant flex flex-col gap-1 rounded">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface truncate">湘语-娄底双峰调查点</span>
+<span class="px-1 text-[10px] font-label-timecode bg-[#F1EDFF] text-primary border border-primary-container/30 rounded">HN-04</span>
+</div>
+<div class="text-[11px] font-label-timecode text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-primary">mic</span>
+<span>48kHz / 24bit PCM · SPK_01</span>
+</div>
+</div>
+<!-- New Hierarchy CTA -->
+<button class="w-full bg-surface-container-lowest hover:bg-[#E2E7ED] border border-outline-variant text-on-surface font-headline-sm text-xs py-1.5 px-2 flex items-center justify-center gap-1 rounded transition-colors font-medium">
+<span class="material-symbols-outlined text-[15px] text-primary">add</span>
+<span>新建调查分层</span>
+</button>
+<!-- Hierarchy Navigation list -->
+<div class="flex flex-col gap-0.5 mt-1">
+<div class="text-[11px] font-label-meta text-on-surface-variant px-1.5 py-0.5 font-semibold">调查录音层级</div>
+<button class="bg-[#F1EDFF] text-primary border-l-2 border-primary-container font-semibold px-space-sm py-1.5 flex items-center gap-space-xs text-xs rounded-r">
+<span class="material-symbols-outlined text-[16px]">folder_open</span>
+<span class="truncate">调查录音层级</span>
+</button>
+<button class="text-on-surface-variant hover:bg-[#E2E7ED] px-space-sm py-1.5 flex items-center gap-space-xs text-xs transition-colors rounded">
+<span class="material-symbols-outlined text-[16px]">format_list_bulleted</span>
+<span class="truncate">音系词目列表</span>
+</button>
+<button class="text-on-surface-variant hover:bg-[#E2E7ED] px-space-sm py-1.5 flex items-center gap-space-xs text-xs transition-colors rounded">
+<span class="material-symbols-outlined text-[16px]">badge</span>
+<span class="truncate">发音合作人档案</span>
+</button>
+<button class="text-on-surface-variant hover:bg-[#E2E7ED] px-space-sm py-1.5 flex items-center gap-space-xs text-xs transition-colors rounded">
+<span class="material-symbols-outlined text-[16px]">multiline_chart</span>
+<span class="truncate">声学切片层级</span>
+</button>
+<button class="text-on-surface-variant hover:bg-[#E2E7ED] px-space-sm py-1.5 flex items-center gap-space-xs text-xs transition-colors rounded">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+<span class="truncate">标注对齐配置</span>
+</button>
+<button class="text-on-surface-variant hover:bg-[#E2E7ED] px-space-sm py-1.5 flex items-center gap-space-xs text-xs transition-colors rounded">
+<span class="material-symbols-outlined text-[16px]">history</span>
+<span class="truncate">语料导入日志</span>
+</button>
+</div>
+<!-- Speaker Info Module -->
+<div class="mt-2 p-2 bg-surface-container-lowest border border-outline-variant rounded">
+<div class="text-[11px] font-label-meta font-semibold text-on-surface mb-1 flex items-center justify-between">
+<span>核心合作人</span>
+<span class="text-primary text-[10px]">已验证</span>
+</div>
+<div class="text-xs text-on-surface-variant space-y-0.5 font-label-meta">
+<div>姓名：陈*生（72岁·双峰荷叶）</div>
+<div>语言能力：双峰老派新化土语</div>
+<div>录音环境：隔音静室 (Zoom H6)</div>
+</div>
+</div>
+</div>
+<!-- Footer Action & Status -->
+<div class="pt-2 border-t border-outline-variant flex flex-col gap-1 text-[11px] font-label-meta">
+<div class="text-on-surface-variant flex items-center justify-between px-1">
+<span class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[14px]">cloud_done</span>
+<span>存储状态: 本地同步</span>
+</span>
+<span class="text-on-surface-variant/70">v2.4-rc3</span>
+</div>
+<button class="w-full text-on-surface-variant hover:text-on-surface hover:bg-[#E2E7ED] py-1 px-1 flex items-center gap-1 rounded transition-colors text-xs">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span>工作区布局锁定</span>
+</button>
+</div>
+</aside>
+<!-- ==================== CONTENT CANVAS SECTIONS ==================== -->
+<div class="flex-1 h-full overflow-hidden flex flex-col bg-surface-container-lowest">
+<!-- ================= 01 项目首页与文稿库 ================= -->
+<section class="module-view h-full flex flex-col" id="module-01">
+<!-- Action Header -->
+<div class="h-10 border-b border-outline-variant bg-surface flex items-center justify-between px-4">
+<div class="flex items-center gap-3">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">文稿归档列表 (Corpus Manuscripts)</span>
+<span class="px-2 py-0.5 text-xs bg-surface-container-high text-on-surface-variant font-label-timecode border border-outline-variant rounded">共 14 篇已归档语料</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="flex items-center bg-surface-container-lowest border border-outline-variant rounded px-2 py-0.5">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant mr-1">search</span>
+<input class="text-xs bg-transparent border-none p-0 focus:ring-0 w-44" placeholder="按文稿名/发音人搜索..." type="text"/>
+</div>
+<button class="bg-primary-container text-white px-2.5 py-1 text-xs font-medium rounded flex items-center gap-1 hover:bg-primary">
+<span class="material-symbols-outlined text-[14px]">add</span>新建调查文稿
+            </button>
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface px-2.5 py-1 text-xs font-medium rounded flex items-center gap-1 hover:bg-[#EDF0F4]">
+<span class="material-symbols-outlined text-[14px]">upload_file</span>导入 Praat/ELAN
+            </button>
+</div>
+</div>
+<!-- Table View -->
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left border-collapse text-xs">
+<thead class="bg-[#EDF0F4] text-on-surface-variant border-b border-outline-variant sticky top-0 font-label-meta">
+<tr>
+<th class="py-2 px-3 font-semibold w-10 text-center">#</th>
+<th class="py-2 px-3 font-semibold">文稿标题 (Title)</th>
+<th class="py-2 px-3 font-semibold w-28">语言编码</th>
+<th class="py-2 px-3 font-semibold w-36">关联媒体属性</th>
+<th class="py-2 px-3 font-semibold w-24">有效时长</th>
+<th class="py-2 px-3 font-semibold w-32">最近修改</th>
+<th class="py-2 px-3 font-semibold w-28">校验状态</th>
+<th class="py-2 px-3 font-semibold w-24 text-right">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant text-on-surface">
+<tr class="hover:bg-[#F1EDFF]/50 transition-colors cursor-pointer bg-[#F1EDFF]/20" onclick="switchTab('02')">
+<td class="py-2.5 px-3 text-center font-label-timecode text-on-surface-variant">01</td>
+<td class="py-2.5 px-3 font-medium flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[16px]">description</span>
+<span class="font-semibold text-on-surface">双峰方言神话故事_老虎与水牛_第1段</span>
+<span class="text-[10px] bg-primary/10 text-primary px-1 rounded">当前编辑</span>
+</td>
+<td class="py-2.5 px-3 font-label-timecode">hsn (湘语) / fra</td>
+<td class="py-2.5 px-3 font-label-timecode text-on-surface-variant">48kHz · 24bit PCM</td>
+<td class="py-2.5 px-3 font-label-timecode">00:04:38.210</td>
+<td class="py-2.5 px-3 text-on-surface-variant">2025-02-23 10:45</td>
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] font-label-meta px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>已双重复核
+                  </span>
+</td>
+<td class="py-2.5 px-3 text-right">
+<button class="text-primary hover:underline font-medium">进入转写</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="py-2.5 px-3 text-center font-label-timecode text-on-surface-variant">02</td>
+<td class="py-2.5 px-3 font-medium flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">description</span>
+<span>双峰荷叶农耕具方言词汇专项调查表</span>
+</td>
+<td class="py-2.5 px-3 font-label-timecode">hsn / cmn</td>
+<td class="py-2.5 px-3 font-label-timecode text-on-surface-variant">48kHz · 24bit PCM</td>
+<td class="py-2.5 px-3 font-label-timecode">00:18:12.500</td>
+<td class="py-2.5 px-3 text-on-surface-variant">2025-02-22 16:10</td>
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] font-label-meta px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>待IGT标注
+                  </span>
+</td>
+<td class="py-2.5 px-3 text-right">
+<button class="text-on-surface-variant hover:text-on-surface">打开</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="py-2.5 px-3 text-center font-label-timecode text-on-surface-variant">03</td>
+<td class="py-2.5 px-3 font-medium flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">description</span>
+<span>亲属称谓与人称代词变调语流调查录音</span>
+</td>
+<td class="py-2.5 px-3 font-label-timecode">hsn / cmn</td>
+<td class="py-2.5 px-3 font-label-timecode text-on-surface-variant">48kHz · 24bit PCM</td>
+<td class="py-2.5 px-3 font-label-timecode">00:09:44.000</td>
+<td class="py-2.5 px-3 text-on-surface-variant">2025-02-21 09:30</td>
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] font-label-meta px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>音频切片中
+                  </span>
+</td>
+<td class="py-2.5 px-3 text-right">
+<button class="text-on-surface-variant hover:text-on-surface">打开</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="py-2.5 px-3 text-center font-label-timecode text-on-surface-variant">04</td>
+<td class="py-2.5 px-3 font-medium flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">description</span>
+<span>自然口语会话：建房上梁古歌民谣</span>
+</td>
+<td class="py-2.5 px-3 font-label-timecode">hsn / cmn</td>
+<td class="py-2.5 px-3 font-label-timecode text-on-surface-variant">44.1kHz · 16bit</td>
+<td class="py-2.5 px-3 font-label-timecode">00:32:05.120</td>
+<td class="py-2.5 px-3 text-on-surface-variant">2025-02-20 14:15</td>
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center gap-1 text-[11px] font-label-meta px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-300">
+<span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>未转写
+                  </span>
+</td>
+<td class="py-2.5 px-3 text-right">
+<button class="text-on-surface-variant hover:text-on-surface">打开</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Footer Info -->
+<div class="h-8 border-t border-outline-variant bg-[#EDF0F4] px-4 flex items-center justify-between text-[11px] font-label-timecode text-on-surface-variant">
+<span>存储路径：/Volumes/FieldData_2024/Hunan_Xiang/SF_Project.jyp</span>
+<span>语料库校验和：SHA256: 9b2d8f7a...14f2</span>
+</div>
+</section>
+<!-- ================= 02 音频转写运行态 ================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-02">
+<!-- Top Waveform & Transport Toolbar (160px Total) -->
+<div class="bg-[#20242C] text-white p-2 border-b border-outline-variant shrink-0 flex flex-col gap-1.5">
+<!-- Audio transport & controls -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-label-timecode text-xs text-primary-fixed-dim">synthetic-demo.wav</span>
+<span class="text-[10px] bg-white/10 text-zinc-300 font-label-timecode px-1 py-0.2 border border-white/20 rounded">48kHz · 24bit</span>
+</div>
+<!-- Center Transport -->
+<div class="flex items-center gap-3">
+<button class="p-1 hover:bg-white/10 rounded"><span class="material-symbols-outlined text-[18px]">skip_previous</span></button>
+<button class="p-1 hover:bg-white/10 rounded"><span class="material-symbols-outlined text-[18px]">replay_5</span></button>
+<button class="w-7 h-7 bg-primary-container text-white rounded flex items-center justify-center hover:bg-primary">
+<span class="material-symbols-outlined text-[20px]">play_arrow</span>
+</button>
+<button class="p-1 hover:bg-white/10 rounded"><span class="material-symbols-outlined text-[18px]">forward_5</span></button>
+<button class="p-1 hover:bg-white/10 rounded"><span class="material-symbols-outlined text-[18px]">skip_next</span></button>
+<div class="font-label-timecode text-xs text-emerald-400 bg-black/40 px-2 py-0.5 rounded border border-white/10 tracking-widest">
+                00:01:23.400 / 00:04:38.210
+              </div>
+</div>
+<!-- Alignment and snapping actions -->
+<div class="flex items-center gap-2">
+<span class="text-xs text-zinc-400 font-label-meta">倍速:</span>
+<select class="bg-black/40 border border-white/20 text-xs text-white rounded px-1 py-0.5">
+<option>1.0x</option>
+<option>0.8x</option>
+<option>0.5x</option>
+</select>
+<button class="px-2 py-0.5 text-xs bg-white/10 hover:bg-white/20 rounded border border-white/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">grid_4x4</span>吸附过零点
+              </button>
+<button class="px-2 py-0.5 text-xs bg-primary-container text-white rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">auto_fix_high</span>AI 对齐
+              </button>
+</div>
+</div>
+<!-- Waveform Canvas Display Mock -->
+<div class="h-20 w-full bg-[#181a20] relative rounded border border-white/10 overflow-hidden flex flex-col justify-between p-1">
+<!-- Time ruler ticks -->
+<div class="w-full flex justify-between font-label-timecode text-[9px] text-zinc-500 border-b border-white/5 pb-0.5">
+<span>00:01:20.000</span>
+<span>00:01:21.000</span>
+<span>00:01:22.000</span>
+<span class="text-primary-fixed-dim font-bold">00:01:23.000</span>
+<span>00:01:24.000</span>
+<span>00:01:25.000</span>
+<span>00:01:26.000</span>
+</div>
+<!-- Stylized Waveform Bars -->
+<div class="h-10 w-full flex items-center gap-[2px] px-1 relative">
+<!-- Selected slice background mask -->
+<div class="absolute left-[38%] w-[24%] h-full bg-primary-container/20 border-x border-primary-container z-0">
+<span class="absolute top-0 right-1 text-[9px] font-label-timecode text-primary-fixed-dim bg-black/70 px-1">选段: 1.480s</span>
+</div>
+<!-- Playhead needle -->
+<div class="absolute left-[45%] top-0 bottom-0 w-[1px] bg-primary-container shadow-sm z-10">
+<div class="w-2 h-2 -ml-[3.5px] bg-primary-container rotate-45"></div>
+</div>
+<!-- Bar visualizer -->
+<div class="w-1 h-3 bg-zinc-600"></div><div class="w-1 h-5 bg-zinc-500"></div><div class="w-1 h-8 bg-zinc-500"></div><div class="w-1 h-4 bg-zinc-600"></div>
+<div class="w-1 h-2 bg-zinc-600"></div><div class="w-1 h-6 bg-zinc-400"></div><div class="w-1 h-9 bg-zinc-400"></div><div class="w-1 h-7 bg-zinc-500"></div>
+<div class="w-1 h-3 bg-zinc-600"></div><div class="w-1 h-6 bg-zinc-500"></div><div class="w-1 h-8 bg-zinc-400"></div><div class="w-1 h-4 bg-zinc-600"></div>
+<!-- Region inside selection -->
+<div class="w-1 h-7 bg-primary-fixed-dim"></div><div class="w-1 h-9 bg-primary-fixed-dim"></div><div class="w-1 h-10 bg-primary-fixed-dim"></div>
+<div class="w-1 h-8 bg-primary-fixed-dim"></div><div class="w-1 h-6 bg-primary-fixed-dim"></div><div class="w-1 h-9 bg-primary-fixed-dim"></div>
+<div class="w-1 h-7 bg-primary-fixed-dim"></div><div class="w-1 h-8 bg-primary-fixed-dim"></div><div class="w-1 h-5 bg-primary-fixed-dim"></div>
+<!-- Tail -->
+<div class="w-1 h-4 bg-zinc-600"></div><div class="w-1 h-2 bg-zinc-600"></div><div class="w-1 h-5 bg-zinc-500"></div><div class="w-1 h-7 bg-zinc-500"></div>
+<div class="w-1 h-3 bg-zinc-600"></div><div class="w-1 h-6 bg-zinc-400"></div><div class="w-1 h-4 bg-zinc-600"></div>
+</div>
+<!-- Tier indicators below waveform -->
+<div class="h-4 w-full flex items-center justify-between text-[10px] font-label-meta text-zinc-400 border-t border-white/5">
+<span>声学层 [Acoustic]: F0基频 142Hz · 声强 68dB</span>
+<span class="text-zinc-500">缩放等级: 100ms/div</span>
+</div>
+</div>
+</div>
+<!-- Lower Transcription Tier Slices Layout -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Left: Tier list (fra / ipa / zh) -->
+<div class="w-36 bg-[#EDF0F4] border-r border-outline-variant p-2 flex flex-col gap-2 shrink-0">
+<span class="text-xs font-semibold text-on-surface">层级设定 (Tiers)</span>
+<div class="flex flex-col gap-1 text-xs">
+<label class="flex items-center gap-1.5 p-1 bg-white border border-outline-variant rounded font-medium text-primary">
+<input checked="" class="rounded text-primary focus:ring-0 w-3 h-3" type="checkbox"/>
+<span>1. hsn-IPA (音标)</span>
+</label>
+<label class="flex items-center gap-1.5 p-1 bg-white border border-outline-variant rounded font-medium text-on-surface">
+<input checked="" class="rounded text-primary focus:ring-0 w-3 h-3" type="checkbox"/>
+<span>2. hsn-ORTH (土字)</span>
+</label>
+<label class="flex items-center gap-1.5 p-1 bg-white border border-outline-variant rounded font-medium text-on-surface">
+<input checked="" class="rounded text-primary focus:ring-0 w-3 h-3" type="checkbox"/>
+<span>3. cmn-GLOSS (字义)</span>
+</label>
+<label class="flex items-center gap-1.5 p-1 bg-white border border-outline-variant rounded font-medium text-on-surface">
+<input checked="" class="rounded text-primary focus:ring-0 w-3 h-3" type="checkbox"/>
+<span>4. cmn-TRANS (整译)</span>
+</label>
+</div>
+<div class="mt-auto p-2 bg-surface-container-high rounded text-[11px] text-on-surface-variant">
+<span>快捷键：</span>
+<div class="font-label-timecode text-[10px] mt-1 space-y-0.5">
+<div>Tab: 播放当前切片</div>
+<div>Ctrl+B: 插入边界</div>
+<div>Enter: 确认并推进</div>
+</div>
+</div>
+</div>
+<!-- Middle: Slice rows editing matrix -->
+<div class="flex-1 overflow-auto p-3 flex flex-col gap-2">
+<!-- Active Slice Unit -->
+<div class="border-2 border-primary-container bg-[#F1EDFF]/30 p-2.5 rounded flex flex-col gap-2">
+<div class="flex items-center justify-between border-b border-primary-container/20 pb-1.5">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 bg-primary-container text-white font-label-timecode text-xs rounded">#004</span>
+<span class="font-label-timecode text-xs text-on-surface font-semibold">[00:01:22.840 - 00:01:24.320]</span>
+<span class="text-xs text-on-surface-variant font-label-timecode">(Δ 1.480s)</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-2 py-0.5 bg-surface-container-lowest border border-outline-variant text-xs hover:bg-[#EDF0F4] rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">play_circle</span>试听
+                  </button>
+<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded">置信度 96%</span>
+</div>
+</div>
+<!-- Editable tier inputs -->
+<div class="grid grid-cols-1 gap-1.5 text-xs">
+<div class="flex items-center">
+<span class="w-24 text-on-surface-variant font-label-meta">IPA 宽式记音:</span>
+<input class="flex-1 border border-primary-container bg-surface-container-lowest rounded px-2 py-1 font-label-ipa text-sm text-primary font-medium focus:ring-1 focus:ring-primary" type="text" value="tɕiəu³³ ɕi²¹ tʰou²¹ lu³³ pən²¹"/>
+</div>
+<div class="flex items-center">
+<span class="w-24 text-on-surface-variant font-label-meta">汉字/本字拟订:</span>
+<input class="flex-1 border border-outline-variant bg-surface-container-lowest rounded px-2 py-1 font-body-sm focus:border-primary" type="text" value="就像头水牛跑"/>
+</div>
+<div class="flex items-center">
+<span class="w-24 text-on-surface-variant font-label-meta">现代汉语意译:</span>
+<input class="flex-1 border border-outline-variant bg-surface-container-lowest rounded px-2 py-1 font-body-sm focus:border-primary" type="text" value="正如一头水牛疯狂飞奔的样子"/>
+</div>
+</div>
+</div>
+<!-- Inactive Slice #003 -->
+<div class="border border-outline-variant bg-surface-container-lowest p-2 rounded flex flex-col gap-1.5 hover:border-primary/50 transition-colors">
+<div class="flex items-center justify-between text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 bg-surface-container-high font-label-timecode text-xs rounded">#003</span>
+<span class="font-label-timecode text-xs">[00:01:20.100 - 00:01:22.840]</span>
+</div>
+<span class="text-xs font-label-ipa">ko⁴⁴ li³³ ŋa⁵⁵ tsei³³ (那只小崽)</span>
+<span class="text-[10px] text-zinc-500">已核准</span>
+</div>
+</div>
+<!-- Inactive Slice #005 -->
+<div class="border border-outline-variant bg-surface-container-lowest p-2 rounded flex flex-col gap-1.5 hover:border-primary/50 transition-colors">
+<div class="flex items-center justify-between text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 bg-surface-container-high font-label-timecode text-xs rounded">#005</span>
+<span class="font-label-timecode text-xs">[00:01:24.320 - 00:01:26.900]</span>
+</div>
+<span class="text-xs font-label-ipa">xou³³ kəu⁴⁴ tsou²¹ pan³³ (从山沟里走过)</span>
+<span class="text-[10px] text-amber-600">待调音校验</span>
+</div>
+</div>
+</div>
+<!-- Right: Acoustic Inspector Floating/Docked Palette -->
+<div class="w-64 bg-[#EDF0F4] border-l border-outline-variant p-2.5 flex flex-col gap-3 shrink-0">
+<div class="flex items-center justify-between border-b border-outline-variant pb-1">
+<span class="font-semibold text-xs text-on-surface">声学检查器 (Inspector)</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">equalizer</span>
+</div>
+<div class="flex flex-col gap-2 text-xs">
+<div class="bg-surface-container-lowest p-2 border border-outline-variant rounded">
+<div class="text-[11px] text-on-surface-variant mb-1">基频曲线调类估测 (Pitch Tone)</div>
+<div class="text-sm font-semibold text-primary font-label-timecode">33 (高平调 / 阴去)</div>
+<div class="w-full bg-zinc-200 h-1.5 rounded mt-1.5 overflow-hidden">
+<div class="bg-primary w-2/3 h-full"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-2 border border-outline-variant rounded">
+<div class="text-[11px] text-on-surface-variant mb-1">共振峰估算 (Formants)</div>
+<div class="grid grid-cols-2 gap-1 font-label-timecode text-[11px]">
+<div>F1: 420 Hz</div>
+<div>F2: 2150 Hz</div>
+<div>F3: 2890 Hz</div>
+<div>BW: 75 Hz</div>
+</div>
+</div>
+<!-- AI Assistant Transcription Box (Modal/Widget) -->
+<div class="bg-[#F1EDFF] border border-primary-container p-2.5 rounded flex flex-col gap-2">
+<div class="flex items-center justify-between text-primary font-semibold">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">psychology</span>AI 语流预识别
+                  </span>
+<span class="text-[9px] bg-primary-container text-white px-1 rounded">Whisper-Linguist</span>
+</div>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">
+                  模型预测音段：<code class="text-primary font-label-ipa bg-white px-1 rounded">tɕiəu³³ ɕi²¹</code>，共振峰收敛于高舌位前元音。
+                </p>
+<button class="w-full bg-primary-container text-white text-xs py-1 rounded hover:bg-primary font-medium">
+                  采纳并填充层级
+                </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ================= 03 行间标注 IGT 工作台 ================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-03">
+<!-- Top Control Bar -->
+<div class="h-10 border-b border-outline-variant bg-surface flex items-center justify-between px-4">
+<div class="flex items-center gap-3">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">行间标注工作台 (Leipzig Glossing Rules 4-Tier IGT)</span>
+<span class="text-xs bg-[#F1EDFF] text-primary px-2 py-0.5 rounded font-label-timecode border border-primary-container/30">句段 04 / 32</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="bg-surface-container-lowest border border-outline-variant text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-[#EDF0F4]">
+<span class="material-symbols-outlined text-[14px]">volume_up</span>回溯当前音频 [00:01:22.840]
+            </button>
+<span class="text-outline-variant">|</span>
+<button class="bg-surface-container-lowest border border-outline-variant text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-[#EDF0F4]">
+<span class="material-symbols-outlined text-[14px]">spellcheck</span>Leipzig规则语法校验
+            </button>
+<button class="bg-primary-container text-white text-xs px-3 py-1 rounded font-medium hover:bg-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check</span>标记当前句为[已确认]
+            </button>
+</div>
+</div>
+<!-- Main IGT Interlinear Aligned Canvas -->
+<div class="flex-1 overflow-auto p-4 flex flex-col gap-6">
+<!-- Leipzig Block Sentence 1 (Active) -->
+<div class="border border-primary-container bg-surface-container-lowest p-4 rounded flex flex-col gap-4">
+<!-- Header status row -->
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-2">
+<span class="font-label-timecode font-bold text-xs bg-primary text-white px-1.5 py-0.5 rounded">SNT_004</span>
+<span class="text-xs text-on-surface-variant font-label-timecode">时间锚点: 00:01:22.840 - 00:01:24.320</span>
+<span class="text-xs px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded font-label-meta">待审核·需声调复核</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-xs text-on-surface-variant hover:text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">replay</span>重播原句
+                </button>
+</div>
+</div>
+<!-- Strict Interlinear Table Grid (Leipzig Standard Alignment) -->
+<div class="overflow-x-auto pb-2">
+<div class="inline-flex flex-col gap-1 min-w-full">
+<!-- Row 1: Source Orthography -->
+<div class="flex items-center">
+<div class="w-28 shrink-0 text-xs font-semibold text-on-surface-variant font-label-meta">1. 土白字原句</div>
+<div class="flex gap-4">
+<div class="w-24 text-base font-semibold text-on-surface pb-1 border-b border-outline-variant">就</div>
+<div class="w-24 text-base font-semibold text-on-surface pb-1 border-b border-outline-variant">象</div>
+<div class="w-28 text-base font-semibold text-on-surface pb-1 border-b border-outline-variant">头</div>
+<div class="w-36 text-base font-semibold text-on-surface pb-1 border-b border-outline-variant">水牛</div>
+<div class="w-24 text-base font-semibold text-on-surface pb-1 border-b border-outline-variant">跑</div>
+</div>
+</div>
+<!-- Row 2: Phonetic (IPA) -->
+<div class="flex items-center">
+<div class="w-28 shrink-0 text-xs font-semibold text-primary font-label-meta">2. 严式国际音标</div>
+<div class="flex gap-4">
+<div class="w-24 font-label-ipa text-base text-primary font-medium pb-1 border-b border-outline-variant">tɕiəu³³</div>
+<div class="w-24 font-label-ipa text-base text-primary font-medium pb-1 border-b border-outline-variant">ɕi²¹</div>
+<div class="w-28 font-label-ipa text-base text-primary font-medium pb-1 border-b border-outline-variant">tʰou²¹</div>
+<div class="w-36 font-label-ipa text-base text-primary font-medium pb-1 border-b border-outline-variant">ɕy³³-ɲiou²¹</div>
+<div class="w-24 font-label-ipa text-base text-primary font-medium pb-1 border-b border-outline-variant">pən²¹</div>
+</div>
+</div>
+<!-- Row 3: Morpheme Breakdown -->
+<div class="flex items-center">
+<div class="w-28 shrink-0 text-xs font-semibold text-on-surface-variant font-label-meta">3. 词素切分</div>
+<div class="flex gap-4">
+<div class="w-24 font-label-timecode text-xs text-on-surface pb-1 border-b border-outline-variant">tɕiəu</div>
+<div class="w-24 font-label-timecode text-xs text-on-surface pb-1 border-b border-outline-variant">ɕi</div>
+<div class="w-28 font-label-timecode text-xs text-on-surface pb-1 border-b border-outline-variant">tʰou</div>
+<div class="w-36 font-label-timecode text-xs text-on-surface pb-1 border-b border-outline-variant">ɕy - ɲiou</div>
+<div class="w-24 font-label-timecode text-xs text-on-surface pb-1 border-b border-outline-variant">pən</div>
+</div>
+</div>
+<!-- Row 4: Leipzig Grammatical Gloss -->
+<div class="flex items-center">
+<div class="w-28 shrink-0 text-xs font-semibold text-secondary font-label-meta">4. 语法标注 (Gloss)</div>
+<div class="flex gap-4">
+<div class="w-24 font-label-timecode text-xs text-primary font-semibold bg-[#F1EDFF] px-1 py-0.5 rounded">ADV</div>
+<div class="w-24 font-label-timecode text-xs text-primary font-semibold bg-[#F1EDFF] px-1 py-0.5 rounded">SIMIL</div>
+<div class="w-28 font-label-timecode text-xs text-primary font-semibold bg-[#F1EDFF] px-1 py-0.5 rounded">CL:head</div>
+<div class="w-36 font-label-timecode text-xs text-primary font-semibold bg-[#F1EDFF] px-1 py-0.5 rounded">water-ox\N</div>
+<div class="w-24 font-label-timecode text-xs text-primary font-semibold bg-[#F1EDFF] px-1 py-0.5 rounded">V.run</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Row 5: Free Translation (Chinese & English) -->
+<div class="bg-[#EDF0F4] p-3 rounded flex flex-col gap-1">
+<div class="flex items-baseline gap-2">
+<span class="text-xs font-semibold text-on-surface-variant font-label-meta w-24">汉语自由意译:</span>
+<span class="text-xs font-medium text-on-surface">“就宛如一头水牛在田坎上拔腿狂奔。”</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-xs font-semibold text-on-surface-variant font-label-meta w-24">英语学术对译:</span>
+<span class="text-xs italic text-secondary font-label-timecode">"Just like a water buffalo running recklessly on the ridge."</span>
+</div>
+</div>
+</div>
+<!-- Leipzig Block Sentence 2 (Static confirmed state) -->
+<div class="border border-outline-variant bg-surface-container-lowest p-4 rounded flex flex-col gap-4 opacity-80 hover:opacity-100 transition-opacity">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-2">
+<span class="font-label-timecode font-bold text-xs bg-surface-container-high text-on-surface px-1.5 py-0.5 rounded">SNT_005</span>
+<span class="text-xs text-on-surface-variant font-label-timecode">时间锚点: 00:01:24.320 - 00:01:26.900</span>
+<span class="text-xs px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-label-meta">已确认归档</span>
+</div>
+<button class="text-xs text-on-surface-variant hover:text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">replay</span>重播原句
+              </button>
+</div>
+<div class="overflow-x-auto pb-1">
+<div class="inline-flex flex-col gap-1 min-w-full">
+<div class="flex items-center text-xs">
+<div class="w-28 text-on-surface-variant font-semibold">1. 原句:</div>
+<div class="flex gap-6 font-semibold"><span>那只</span><span>小老虎</span><span>吓得</span><span>走开去</span></div>
+</div>
+<div class="flex items-center text-xs">
+<div class="w-28 text-primary font-semibold">2. IPA:</div>
+<div class="flex gap-6 font-label-ipa text-primary"><span>ko⁴⁴ li³³</span><span>lao³³ fu²¹ tsei³³</span><span>xa²¹ tɤ</span><span>tsou²¹ kʰe³³ tɕʰi⁴⁴</span></div>
+</div>
+<div class="flex items-center text-xs">
+<div class="w-28 text-secondary font-semibold">3. Gloss:</div>
+<div class="flex gap-6 font-label-timecode text-xs text-secondary"><span>DEM-CL</span><span>tiger-DIM</span><span>frighten-RES</span><span>walk-away-DIR</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ================= 04 词典体系 ================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-04">
+<div class="h-10 border-b border-outline-variant bg-surface flex items-center justify-between px-4">
+<div class="flex items-center gap-3">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">田野音系词典库 (Lexicon System)</span>
+<span class="text-xs text-on-surface-variant font-label-timecode">双峰音系在册词条: 1,842 条</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="bg-primary-container text-white text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1 hover:bg-primary">
+<span class="material-symbols-outlined text-[14px]">add</span>录入新词条
+            </button>
+<button class="bg-surface-container-lowest border border-outline-variant text-xs px-2.5 py-1 rounded flex items-center gap-1 hover:bg-[#EDF0F4]">
+<span class="material-symbols-outlined text-[14px]">file_download</span>导出 Toolbox/FLEx
+            </button>
+</div>
+</div>
+<div class="flex-1 flex overflow-hidden">
+<!-- Lexeme Tree / List on left -->
+<div class="w-72 bg-[#EDF0F4] border-r border-outline-variant flex flex-col">
+<div class="p-2 border-b border-outline-variant">
+<input class="w-full text-xs bg-white border border-outline-variant rounded px-2 py-1 focus:ring-0" placeholder="按 IPA / 汉字 / 义项检索..." type="text"/>
+</div>
+<div class="flex-1 overflow-auto divide-y divide-outline-variant">
+<div class="p-2 bg-[#F1EDFF] border-l-2 border-primary-container flex flex-col cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-bold text-xs text-on-surface">水牛 (ɕy³³-ɲiou²¹)</span>
+<span class="text-[10px] bg-primary/10 text-primary font-semibold px-1 rounded">Noun</span>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-0.5 truncate">家畜：牛科沼泽水牛，农耕主畜</span>
+</div>
+<div class="p-2 hover:bg-white flex flex-col cursor-pointer transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-medium text-xs text-on-surface">跑 (pən²¹)</span>
+<span class="text-[10px] bg-zinc-200 text-zinc-700 font-semibold px-1 rounded">Verb</span>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-0.5 truncate">急速迈步前进、奔走</span>
+</div>
+<div class="p-2 hover:bg-white flex flex-col cursor-pointer transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-medium text-xs text-on-surface">崽 (tsei³³)</span>
+<span class="text-[10px] bg-zinc-200 text-zinc-700 font-semibold px-1 rounded">Noun/SUF</span>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-0.5 truncate">儿子；指小词缀（小崽、狗崽）</span>
+</div>
+<div class="p-2 hover:bg-white flex flex-col cursor-pointer transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-medium text-xs text-on-surface">象 (ɕi²¹)</span>
+<span class="text-[10px] bg-zinc-200 text-zinc-700 font-semibold px-1 rounded">SIMIL</span>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-0.5 truncate">如同，类似，比拟虚词</span>
+</div>
+</div>
+</div>
+<!-- Lexeme Detail Working Canvas -->
+<div class="flex-1 overflow-auto p-4 flex flex-col gap-4">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<div class="flex items-center gap-3">
+<h2 class="text-xl font-bold font-headline-lg text-on-surface">水牛</h2>
+<span class="text-lg font-label-ipa text-primary font-medium">/ɕy³³-ɲiou²¹/</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">名词 (Noun)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">校验完整度: 100%</span>
+<button class="bg-primary-container text-white px-3 py-1 text-xs font-medium rounded hover:bg-primary">保存修改</button>
+</div>
+</div>
+<!-- Morphological details grid -->
+<div class="grid grid-cols-3 gap-3 text-xs">
+<div class="p-2.5 bg-[#EDF0F4] border border-outline-variant rounded flex flex-col gap-1">
+<span class="text-on-surface-variant font-semibold">声韵母切分 (Phonemes)</span>
+<span class="font-label-timecode">声母: [ɕ], [ɲ]</span>
+<span class="font-label-timecode">韵母: [y], [iou]</span>
+<span class="font-label-timecode">调类: 阴去(33) + 阳平(21)</span>
+</div>
+<div class="p-2.5 bg-[#EDF0F4] border border-outline-variant rounded flex flex-col gap-1">
+<span class="text-on-surface-variant font-semibold">词根语素来源</span>
+<span>复合词素 (Compound Morpheme)</span>
+<span class="text-on-surface-variant">词素1: ɕy (水) + 词素2: ɲiou (牛)</span>
+</div>
+<div class="p-2.5 bg-[#EDF0F4] border border-outline-variant rounded flex flex-col gap-1">
+<span class="text-on-surface-variant font-semibold">方言地理分布</span>
+<span>湘语双峰全境（梓门桥/荷叶/甘棠）</span>
+<span class="text-on-surface-variant">同源词: 益阳 [sy-niəu]</span>
+</div>
+</div>
+<!-- Field Provenance Audio Citation -->
+<div class="border border-outline-variant bg-surface-container-lowest p-3 rounded flex flex-col gap-2">
+<span class="text-xs font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-primary">audiotrack</span>田野录音真实溯源例句 (Field Recorded Context)
+              </span>
+<div class="p-2 bg-surface-container-high rounded text-xs flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-semibold text-on-surface">例句 1: “就像头水牛跑” (SNT_004)</span>
+<button class="text-primary text-xs font-label-timecode flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-[14px]">play_circle</span>播放对应切片 (00:01:23.200)
+                  </button>
+</div>
+<div class="font-label-ipa text-primary">tɕiəu³³ ɕi²¹ tʰou²¹ ɕy³³-ɲiou²¹ pən²¹</div>
+<div class="text-on-surface-variant">出处：双峰方言神话故事_老虎与水牛_第1段 · 发音人：陈*生 (SPK_01)</div>
+</div>
+</div>
+<!-- Field Warning Alert -->
+<div class="p-2 bg-amber-50 border border-amber-300 rounded text-xs flex items-center justify-between text-amber-800">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+<span>警示：该词目缺少【历史汉字通假文献考证】字段，请在归档前补充。</span>
+</div>
+<button class="text-xs font-semibold underline text-amber-900">立即补充</button>
+</div>
+</div>
+</div>
+</section>
+<!-- ================= 05 语料检索 (KWIC) ================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-05">
+<!-- Advanced Search Filter Bar -->
+<div class="p-3 bg-[#EDF0F4] border-b border-outline-variant flex flex-col gap-2 shrink-0">
+<div class="flex items-center gap-2">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-2.5 top-1.5 text-on-surface-variant text-[16px]">search</span>
+<input class="w-full bg-white border border-outline-variant rounded pl-8 pr-3 py-1 text-xs focus:border-primary" placeholder="输入搜索目标词、正则表达式或 IPA 模式 (如 /ɕ.*iou/)..." type="text" value="水牛"/>
+</div>
+<select class="bg-white border border-outline-variant text-xs rounded px-2 py-1">
+<option>全部调查文稿 (14篇)</option>
+<option>神话故事集</option>
+<option>农耕口语会话</option>
+</select>
+<select class="bg-white border border-outline-variant text-xs rounded px-2 py-1">
+<option>检索目标层：IPA音标行</option>
+<option>检索目标层：正字法土字</option>
+<option>检索目标层：自由意译</option>
+</select>
+<button class="bg-primary-container text-white px-4 py-1 text-xs font-semibold rounded hover:bg-primary">
+              执行 KWIC 检索
+            </button>
+</div>
+<div class="flex items-center gap-4 text-xs text-on-surface-variant font-label-meta">
+<span>匹配规则：跨语素精确匹配</span>
+<span>大小写敏感：关闭</span>
+<span>检索耗时：18ms</span>
+<span class="text-primary font-semibold">命中记录：3 条行间实例</span>
+</div>
+</div>
+<!-- KWIC Results Table -->
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left border-collapse text-xs">
+<thead class="bg-surface-container-high text-on-surface-variant border-b border-outline-variant sticky top-0 font-label-meta">
+<tr>
+<th class="py-2 px-3 w-12 text-center">#</th>
+<th class="py-2 px-3 w-36">文稿及时间戳</th>
+<th class="py-2 px-3 text-right w-1/3">左侧上下文 (Left Context)</th>
+<th class="py-2 px-3 text-center w-32 font-bold text-primary">关键词 (Keyword)</th>
+<th class="py-2 px-3 text-left w-1/3">右侧上下文 (Right Context)</th>
+<th class="py-2 px-3 w-20 text-center">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant text-on-surface">
+<tr class="hover:bg-[#F1EDFF] transition-colors cursor-pointer bg-[#F1EDFF]/40">
+<td class="py-2.5 px-3 text-center font-label-timecode">01</td>
+<td class="py-2.5 px-3 font-label-timecode text-on-surface-variant">
+<div>老虎与水牛_01</div>
+<div class="text-[10px] text-primary">00:01:23.400</div>
+</td>
+<td class="py-2.5 px-3 text-right font-label-ipa text-on-surface-variant">tɕiəu³³ ɕi²¹ tʰou²¹</td>
+<td class="py-2.5 px-3 text-center font-bold text-primary bg-[#F1EDFF] font-label-ipa border-x border-primary-container/20">
+                  ɕy³³-ɲiou²¹ [水牛]
+                </td>
+<td class="py-2.5 px-3 text-left font-label-ipa text-on-surface-variant">pən²¹ ko⁴⁴ li³³ xou³³...</td>
+<td class="py-2.5 px-3 text-center">
+<button class="p-1 text-primary hover:bg-white rounded" title="定位"><span class="material-symbols-outlined text-[16px]">open_in_new</span></button>
+</td>
+</tr>
+<tr class="hover:bg-[#F1EDFF] transition-colors cursor-pointer">
+<td class="py-2.5 px-3 text-center font-label-timecode">02</td>
+<td class="py-2.5 px-3 font-label-timecode text-on-surface-variant">
+<div>农耕具调查表</div>
+<div class="text-[10px] text-zinc-500">00:04:12.180</div>
+</td>
+<td class="py-2.5 px-3 text-right font-label-ipa text-on-surface-variant">iəu²¹ i²¹ tɕiəu⁴⁴</td>
+<td class="py-2.5 px-3 text-center font-bold text-primary bg-zinc-50 font-label-ipa border-x border-outline-variant">
+                  ɕy³³-ɲiou²¹ [水牛]
+                </td>
+<td class="py-2.5 px-3 text-left font-label-ipa text-on-surface-variant">la⁴⁴ tʰiən³³ pan⁵⁵ liəu...</td>
+<td class="py-2.5 px-3 text-center">
+<button class="p-1 text-on-surface-variant hover:text-primary rounded"><span class="material-symbols-outlined text-[16px]">open_in_new</span></button>
+</td>
+</tr>
+<tr class="hover:bg-[#F1EDFF] transition-colors cursor-pointer">
+<td class="py-2.5 px-3 text-center font-label-timecode">03</td>
+<td class="py-2.5 px-3 font-label-timecode text-on-surface-variant">
+<div>建房上梁古歌民谣</div>
+<div class="text-[10px] text-zinc-500">00:15:30.900</div>
+</td>
+<td class="py-2.5 px-3 text-right font-label-ipa text-on-surface-variant">tsʰao³³ tʰou²¹ tɕiəu²¹</td>
+<td class="py-2.5 px-3 text-center font-bold text-primary bg-zinc-50 font-label-ipa border-x border-outline-variant">
+                  ɕy³³-ɲiou²¹ [水牛]
+                </td>
+<td class="py-2.5 px-3 text-left font-label-ipa text-on-surface-variant">tɕiən³³ li²¹ to²¹...</td>
+<td class="py-2.5 px-3 text-center">
+<button class="p-1 text-on-surface-variant hover:text-primary rounded"><span class="material-symbols-outlined text-[16px]">open_in_new</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- KWIC Bottom Linked Context Inspector -->
+<div class="h-28 border-t border-outline-variant bg-[#EDF0F4] p-3 flex flex-col justify-between">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-on-surface">联动原句上下文 (Linked Sentence Playback)</span>
+<button class="text-primary font-medium hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">play_circle</span>播放此行音频片段
+            </button>
+</div>
+<div class="text-xs bg-white p-2 border border-outline-variant rounded space-y-0.5">
+<div><strong>汉字完整对照：</strong>“那阵子就像头<strong>水牛</strong>跑过山沟，根本拉都拉不住。”</div>
+<div class="text-on-surface-variant font-label-timecode">时间范围: [00:01:21.000 - 00:01:25.800] · 语段编号: SNT_004</div>
+</div>
+</div>
+</section>
+<!-- ================= 06 语言资产 ================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-06">
+<div class="h-10 border-b border-outline-variant bg-surface flex items-center justify-between px-4">
+<div class="flex items-center gap-3">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">语言资产规范与正字法桥接 (Language Assets)</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="bg-primary-container text-white px-2.5 py-1 text-xs font-medium rounded hover:bg-primary">
+              导出 ISO 规范元数据
+            </button>
+</div>
+</div>
+<!-- Tabbed View Container -->
+<div class="flex-1 p-4 flex flex-col gap-4 overflow-auto">
+<!-- 4 Category Tabs -->
+<div class="flex border-b border-outline-variant gap-4 text-xs font-semibold">
+<button class="border-b-2 border-primary-container text-primary pb-2">1. 语言元数据 (Metadata)</button>
+<button class="text-on-surface-variant hover:text-on-surface pb-2">2. 结构概况 (Structural Profile)</button>
+<button class="text-on-surface-variant hover:text-on-surface pb-2">3. 正字法规则 (Orthography)</button>
+<button class="text-on-surface-variant hover:text-on-surface pb-2">4. 正字法桥接映射 (Orthography Bridge)</button>
+</div>
+<!-- Metadata & ISO table -->
+<div class="grid grid-cols-2 gap-4">
+<div class="border border-outline-variant p-3 bg-surface rounded flex flex-col gap-2">
+<span class="text-xs font-semibold text-on-surface">ISO-639 国际代码映射规范</span>
+<table class="w-full text-xs border border-outline-variant bg-white">
+<thead class="bg-[#EDF0F4] text-on-surface-variant font-label-meta">
+<tr><th class="p-1.5 text-left border-b">层级代号</th><th class="p-1.5 text-left border-b">ISO 编码</th><th class="p-1.5 text-left border-b">全称</th></tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-label-timecode">
+<tr><td class="p-1.5 font-bold text-primary">hsn</td><td class="p-1.5">ISO 639-3</td><td class="p-1.5">Xiang Chinese (湘语·娄邵片)</td></tr>
+<tr><td class="p-1.5 font-bold text-zinc-700">cmn</td><td class="p-1.5">ISO 639-3</td><td class="p-1.5">Mandarin Chinese (现代标准汉语)</td></tr>
+<tr><td class="p-1.5 font-bold text-zinc-700">eng</td><td class="p-1.5">ISO 639-3</td><td class="p-1.5">English (国际学术对译)</td></tr>
+</tbody>
+</table>
+</div>
+<div class="border border-outline-variant p-3 bg-surface rounded flex flex-col gap-2">
+<span class="text-xs font-semibold text-on-surface">声学转录规范参数</span>
+<div class="text-xs space-y-1 font-label-meta text-on-surface-variant">
+<div>采样规范：48.0 kHz @ 24-bit Linear PCM 无损单声道</div>
+<div>时间码基准：SMPTE 毫秒时间轴对齐 (1ms 粒度)</div>
+<div>IPA 标音体系：国际音标 2020 扩展版本 (ExtIPA)</div>
+<div>音位变体标注：方括号严格区分宽式与严式切分</div>
+</div>
+</div>
+</div>
+<!-- Orthography Bridge Matrix Table -->
+<div class="border border-outline-variant bg-surface rounded p-3 flex flex-col gap-2">
+<span class="text-xs font-semibold text-on-surface">源-目标正字法转换映射矩阵表 (Orthography Bridge Table)</span>
+<table class="w-full text-left text-xs border border-outline-variant bg-white">
+<thead class="bg-[#EDF0F4] text-on-surface-variant font-label-meta">
+<tr>
+<th class="p-2 border-b">方言土字 (Source)</th>
+<th class="p-2 border-b">IPA 严式读音</th>
+<th class="p-2 border-b">本字考据 (Etymon)</th>
+<th class="p-2 border-b">标准对译汉语 (Target cmn)</th>
+<th class="p-2 border-b">转换置信度</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr>
+<td class="p-2 font-semibold">跑 (pən²¹)</td>
+<td class="p-2 font-label-ipa text-primary">pən²¹</td>
+<td class="p-2">奔（《广韵》博昆切）</td>
+<td class="p-2">跑、奔走</td>
+<td class="p-2 font-label-timecode text-emerald-600">0.99 (确凿)</td>
+</tr>
+<tr>
+<td class="p-2 font-semibold">崽 (tsei³³)</td>
+<td class="p-2 font-label-ipa text-primary">tsei³³</td>
+<td class="p-2">子（小称词尾音变）</td>
+<td class="p-2">孩子、儿子</td>
+<td class="p-2 font-label-timecode text-emerald-600">0.98 (确凿)</td>
+</tr>
+<tr>
+<td class="p-2 font-semibold">走开去 (kʰe³³ tɕʰi⁴⁴)</td>
+<td class="p-2 font-label-ipa text-primary">tsou²¹ kʰe³³ tɕʰi⁴⁴</td>
+<td class="p-2">行开去</td>
+<td class="p-2">走避、离开</td>
+<td class="p-2 font-label-timecode text-amber-600">0.85 (需讨论)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- ================= 07 系统设置与状态规范 ================= -->
+<section class="module-view h-full flex flex-col hidden" id="module-07">
+<div class="h-10 border-b border-outline-variant bg-surface flex items-center justify-between px-4">
+<div class="flex items-center gap-3">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">系统设置与 9 种状态规范预览 (System States Matrix)</span>
+</div>
+<span class="text-xs text-on-surface-variant font-label-timecode">Design System v2.4 Technical Precision Minimalist</span>
+</div>
+<div class="flex-1 flex overflow-hidden">
+<!-- Left Settings Subnav (7 items) -->
+<div class="w-48 bg-[#EDF0F4] border-r border-outline-variant p-2 flex flex-col gap-1 text-xs">
+<button class="bg-[#F1EDFF] text-primary border-l-2 border-primary-container font-semibold p-1.5 text-left rounded">1. 状态规范矩阵</button>
+<button class="text-on-surface-variant hover:bg-white p-1.5 text-left rounded">2. 外观与无眩光配置</button>
+<button class="text-on-surface-variant hover:bg-white p-1.5 text-left rounded">3. 键盘快捷键映射</button>
+<button class="text-on-surface-variant hover:bg-white p-1.5 text-left rounded">4. AI 模型端点集成</button>
+<button class="text-on-surface-variant hover:bg-white p-1.5 text-left rounded">5. Praat 路径关联</button>
+<button class="text-on-surface-variant hover:bg-white p-1.5 text-left rounded">6. 自动保存与快照</button>
+<button class="text-on-surface-variant hover:bg-white p-1.5 text-left rounded">7. 关于与学术引用</button>
+</div>
+<!-- Right: 9 Comprehensive System States Demonstration Grid -->
+<div class="flex-1 overflow-auto p-4 flex flex-col gap-4">
+<div>
+<h3 class="text-xs font-bold text-on-surface uppercase tracking-wide">九大系统交互状态组件预览 (Strict Flat Design)</h3>
+<p class="text-[11px] text-on-surface-variant mt-0.5">面向长时间学术作业，彻底去除眩光阴影，采用单像素低反差边框与 2px 轮廓焦点态。</p>
+</div>
+<!-- 3x3 Grid of 9 States -->
+<div class="grid grid-cols-3 gap-3">
+<!-- State 1: 空状态 Empty -->
+<div class="border border-outline-variant p-3 bg-surface-container-lowest rounded flex flex-col items-center justify-center text-center gap-1.5 min-h-[140px]">
+<span class="material-symbols-outlined text-zinc-400 text-2xl">folder_off</span>
+<span class="text-xs font-semibold text-on-surface">空态 (Empty)</span>
+<span class="text-[11px] text-on-surface-variant">暂无未归档的音频切片数据</span>
+<button class="text-[11px] text-primary underline mt-1">导入新样本</button>
+</div>
+<!-- State 2: 加载 Loading -->
+<div class="border border-outline-variant p-3 bg-surface-container-lowest rounded flex flex-col items-center justify-center text-center gap-2 min-h-[140px]">
+<div class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+<span class="text-xs font-semibold text-on-surface">加载态 (Loading)</span>
+<span class="text-[11px] text-on-surface-variant font-label-timecode">计算 F0 声学基频曲线中... 68%</span>
+</div>
+<!-- State 3: 无结果 No Results -->
+<div class="border border-outline-variant p-3 bg-surface-container-lowest rounded flex flex-col items-center justify-center text-center gap-1.5 min-h-[140px]">
+<span class="material-symbols-outlined text-zinc-400 text-2xl">find_replace</span>
+<span class="text-xs font-semibold text-on-surface">无匹配 (No Results)</span>
+<span class="text-[11px] text-on-surface-variant">未检索到包含 "/tɕʰy⁵⁵/" 的记录</span>
+<button class="text-[11px] text-on-surface-variant underline">重置筛选条件</button>
+</div>
+<!-- State 4: 媒体丢失 Media Missing -->
+<div class="border border-error/40 bg-error-container/20 p-3 rounded flex flex-col items-center justify-center text-center gap-1.5 min-h-[140px]">
+<span class="material-symbols-outlined text-error text-2xl">broken_image</span>
+<span class="text-xs font-semibold text-error">媒体丢失 (Media Missing)</span>
+<span class="text-[10px] text-on-surface-variant font-label-timecode">raw_audio_track_02.wav 路径无效</span>
+<button class="text-[11px] bg-white border border-error/30 text-error px-2 py-0.5 rounded font-medium">重定位文件</button>
+</div>
+<!-- State 5: 未保存/保存失败 Unsaved/Failed -->
+<div class="border border-amber-300 bg-amber-50/50 p-3 rounded flex flex-col items-center justify-center text-center gap-1.5 min-h-[140px]">
+<span class="material-symbols-outlined text-amber-600 text-2xl">cloud_sync</span>
+<span class="text-xs font-semibold text-amber-800">有修改未同步 (Unsaved)</span>
+<span class="text-[11px] text-amber-700">3 处音标标注本地变动待写入</span>
+<button class="text-[11px] bg-amber-600 text-white px-2 py-0.5 rounded font-medium">立即保存 (Ctrl+S)</button>
+</div>
+<!-- State 6: 只读锁定 Read-Only -->
+<div class="border border-outline-variant bg-[#EDF0F4] p-3 rounded flex flex-col items-center justify-center text-center gap-1.5 min-h-[140px]">
+<span class="material-symbols-outlined text-on-surface-variant text-2xl">lock</span>
+<span class="text-xs font-semibold text-on-surface">只读锁定 (Read-Only)</span>
+<span class="text-[11px] text-on-surface-variant">已归档国家语保工程主干库</span>
+<span class="text-[10px] text-zinc-500 font-label-timecode">只读校验码: ARK-2024-HSN</span>
+</div>
+<!-- State 7: 删除确认 Delete Confirm -->
+<div class="border border-outline-variant bg-surface-container-lowest p-3 rounded flex flex-col items-center justify-center text-center gap-2 min-h-[140px]">
+<span class="text-xs font-semibold text-on-surface">确定移除切片 #004？</span>
+<span class="text-[10px] text-on-surface-variant">此操作不可逆，将同步删除对齐标注</span>
+<div class="flex gap-2">
+<button class="px-2 py-0.5 bg-error text-white text-[11px] rounded">确认删除</button>
+<button class="px-2 py-0.5 bg-[#EDF0F4] text-on-surface text-[11px] rounded">取消</button>
+</div>
+</div>
+<!-- State 8: AI 待审核 Pending Review -->
+<div class="border border-primary-container bg-[#F1EDFF] p-3 rounded flex flex-col items-center justify-center text-center gap-1.5 min-h-[140px]">
+<span class="material-symbols-outlined text-primary text-2xl">auto_awesome</span>
+<span class="text-xs font-semibold text-primary">AI 待核准 (Pending Review)</span>
+<span class="text-[11px] text-on-surface-variant">模型预标注自动切片需人工裁决</span>
+<div class="flex gap-1.5 mt-1">
+<button class="text-[10px] bg-primary text-white px-1.5 py-0.5 rounded">采纳</button>
+<button class="text-[10px] bg-white border border-outline-variant px-1.5 py-0.5 rounded">微调</button>
+</div>
+</div>
+<!-- State 9: 2px 轮廓焦点态 Focus State Demo -->
+<div class="border-2 border-primary-container bg-surface-container-lowest p-3 rounded flex flex-col justify-center gap-2 min-h-[140px]">
+<div class="flex items-center justify-between">
+<span class="text-xs font-bold text-primary">2px 轮廓硬焦点态 (Focus)</span>
+<span class="text-[10px] bg-primary text-white px-1 rounded font-label-timecode">:focus-visible</span>
+</div>
+<input class="text-xs border-2 border-primary-container rounded p-1.5 bg-[#F1EDFF]/30 text-on-surface outline-none" type="text" value="选中的高敏输入框"/>
+<span class="text-[10px] text-on-surface-variant">无模糊外发光，杜绝视觉眩光疲劳</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Inline Tab Switcher Script -->
+<script>
+    function switchTab(tabId) {
+      // Hide all module views
+      const views = document.querySelectorAll('.module-view');
+      views.forEach(v => v.classList.add('hidden'));
+
+      // Show selected module
+      const target = document.getElementById('module-' + tabId);
+      if (target) {
+        target.classList.remove('hidden');
+      }
+
+      // Update Top Nav button styles
+      const navButtons = document.querySelectorAll('#main-nav .tab-btn');
+      navButtons.forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabId) {
+          btn.className = "tab-btn text-surface-container-lowest border-b-2 border-primary-container font-semibold h-full flex items-center px-3 font-label-meta text-label-meta transition-colors";
+        } else {
+          btn.className = "tab-btn text-surface-container-highest hover:text-surface-container-lowest flex items-center px-3 h-full font-label-meta text-label-meta transition-colors";
+        }
+      });
+    }
+  </script>
+</body></html>

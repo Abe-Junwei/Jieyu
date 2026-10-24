@@ -1,5 +1,11 @@
 .app-side-pane-feature-stack {
   display: grid;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  align-content: start;
+  overflow-y: auto;
+  overflow-x: hidden;
   gap: 8px;
   width: 100%;
 }
@@ -28,6 +34,7 @@
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .app-side-pane-feature-item {
@@ -41,7 +48,21 @@
 }
 
 .app-side-pane-feature-link {
-  justify-content: center;
+  display: block;
+  padding-block: 4px;
+  color: var(--theme-accent-solid);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.app-side-pane-feature-link:hover,
+.app-side-pane-feature-link:focus-visible {
+  text-decoration: underline;
+}
+
+.app-side-pane-feature-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--theme-accent-solid) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .feature-availability-panel {

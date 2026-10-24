@@ -381,6 +381,7 @@ export function OrthographyBridgeWorkspacePage({
       bodyClassName="ob-layout la-panel-stack"
       footerClassName="ob-shell-footer"
       title={t(locale, 'workspace.orthographyBridge.title')}
+      titleHeadingLevel={2}
       actions={panelActions}
       footer={
         shellFooterState ? (
@@ -609,7 +610,7 @@ export function OrthographyBridgeWorkspacePage({
 
         <div
           className="ob-list la-list-scroll"
-          role="list"
+          role="group"
           ref={kbListRef}
           aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}
         >
@@ -621,6 +622,7 @@ export function OrthographyBridgeWorkspacePage({
                 key={orthography.id}
                 id={`ob-item-${orthography.id}`}
                 type="button"
+                aria-pressed={active}
                 className={`ob-list-item${active ? ' ob-list-item-active' : ''}${highlighted ? ' ob-list-item-highlight' : ''}`}
                 onClick={() => {
                   const nextParams = new URLSearchParams(searchParams);

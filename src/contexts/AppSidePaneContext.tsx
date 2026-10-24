@@ -5,6 +5,7 @@ import {
   useId,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
@@ -37,6 +38,14 @@ export interface AppSidePaneHostValue {
 }
 
 const AppSidePaneContext = createContext<AppSidePaneHostValue | null>(null);
+
+function LiveSidePaneContent({
+  store,
+}: {
+  store: { subscribe: (listener: () => void) => () => void; getSnapshot: () => ReactNode };
+}) {
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
 
 /** Stable fallbacks for `useSyncExternalStore` when no host (identity must not change per render). */
 function emptySidePaneSubscribe(_listener: () => void): () => void {
@@ -114,10 +123,7 @@ export function AppSidePaneProvider({ children }: { children: ReactNode }) {
         const prevMeta = metaRef.current;
         if (prevMeta?.ownerId !== ownerId) return;
 
-        // Always store latest content, but never bump revision for content-only changes.
-        // Unstable ReactNode identity (Maps/callbacks inside SidePane) must not notify the shell;
-        // producers that need live UI with stable title/subtitle should portal into
-        // `#app-side-pane-body-slot`. Host re-reads content when title/subtitle/owner notify.
+        // Content has its own subscription; identity churn must not rerender the shell.
         contentByOwnerRef.current.set(ownerId, patch.content);
 
         // Callers omit empty title/subtitle keys; keep previous meta when a key is absent.
@@ -183,12 +189,36 @@ export function useRegisterAppSidePane({
   const host = useAppSidePaneHostOptional();
   const ownerId = useId();
 
-  const contentRef = useRef(content);
+  const [contentStore] = useState(() => {
+    let snapshot = content;
+    const listeners = new Set<() => void>();
+    return {
+      getSnapshot: () => snapshot,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      update: (next: ReactNode) => {
+        if (Object.is(snapshot, next)) return;
+        snapshot = next;
+        listeners.forEach((listener) => listener());
+      },
+    };
+  });
+  const registeredContent = useMemo(
+    () => <LiveSidePaneContent store={contentStore} />,
+    [contentStore],
+  );
   const titleRef = useRef(title);
   const subtitleRef = useRef(subtitle);
-  contentRef.current = content;
   titleRef.current = title;
   subtitleRef.current = subtitle;
+
+  useEffect(() => {
+    contentStore.update(content);
+  }, [content, contentStore]);
 
   // Mount / unmount lifecycle — sync notify so the shell sees the first paint immediately.
   useEffect(() => {
@@ -200,13 +230,13 @@ export function useRegisterAppSidePane({
         ? { title: titleRef.current }
         : {}),
       ...(subtitleRef.current !== undefined ? { subtitle: subtitleRef.current } : {}),
-      content: contentRef.current,
+      content: registeredContent,
     });
 
     return () => {
       host.unmountRegistration(ownerId);
     };
-  }, [enabled, host, ownerId]);
+  }, [enabled, host, ownerId, registeredContent]);
 
   // Push title/subtitle/content; store notifies only when title/subtitle change.
   useEffect(() => {
@@ -214,9 +244,9 @@ export function useRegisterAppSidePane({
     host.updateRegistrationContent(ownerId, {
       ...(title !== undefined && title.length > 0 ? { title } : {}),
       ...(subtitle !== undefined ? { subtitle } : {}),
-      content,
+      content: registeredContent,
     });
-  }, [content, enabled, host, ownerId, subtitle, title]);
+  }, [enabled, host, ownerId, registeredContent, subtitle, title]);
 
   return host !== null && enabled;
 }

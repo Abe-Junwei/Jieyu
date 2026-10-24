@@ -8,16 +8,18 @@ import {
 } from '../../services/SnapshotService';
 
 type UseRecoveryBannerParams = {
+  scopeKey: string;
   phase: string;
   unitsLength: number;
   translationsLength: number;
   layersLength: number;
-  checkRecovery: () => Promise<RecoveryData | null>;
+  checkRecovery: (scopeKey?: string) => Promise<RecoveryData | null>;
   applyRecovery?: (snapshot: RecoveryData) => Promise<boolean>;
   dismissRecovery?: () => Promise<void>;
 };
 
 export function useRecoveryBanner({
+  scopeKey,
   phase,
   unitsLength,
   translationsLength,
@@ -33,6 +35,7 @@ export function useRecoveryBanner({
     layers: number;
   } | null>(null);
   const recoveryDataRef = useRef<RecoveryData | null>(null);
+  const checkedScopeRef = useRef(scopeKey);
   const dismissedRef = useRef(false);
   const currentLengthsRef = useRef({
     units: unitsLength,
@@ -49,15 +52,21 @@ export function useRecoveryBanner({
   }, [layersLength, translationsLength, unitsLength]);
 
   useEffect(() => {
-    if (phase === 'ready') return;
+    checkedScopeRef.current = scopeKey;
+    recoveryDataRef.current = null;
+    setRecoveryAvailable(false);
+    setRecoveryDiffSummary(null);
     dismissedRef.current = false;
-  }, [phase]);
+  }, [phase, scopeKey]);
 
   useEffect(() => {
-    if (phase !== 'ready' || dismissedRef.current) return;
+    if (phase !== 'ready' || !scopeKey || dismissedRef.current) return;
     let cancelled = false;
+    recoveryDataRef.current = null;
+    setRecoveryAvailable(false);
+    setRecoveryDiffSummary(null);
     fireAndForget(
-      checkRecovery().then((snap) => {
+      checkRecovery(scopeKey).then((snap) => {
         if (cancelled || !snap) return;
         const currentLengths = currentLengthsRef.current;
         const recoveryUnits = getRecoveryLayerUnits(snap);
@@ -76,7 +85,7 @@ export function useRecoveryBanner({
     return () => {
       cancelled = true;
     };
-  }, [checkRecovery, phase]);
+  }, [checkRecovery, phase, scopeKey]);
 
   const hideRecoveryBanner = (): void => {
     dismissedRef.current = true;
@@ -84,20 +93,22 @@ export function useRecoveryBanner({
   };
 
   const applyRecoveryBanner = useCallback((): void => {
-    if (!applyRecovery) return;
+    if (!applyRecovery || phase !== 'ready' || checkedScopeRef.current !== scopeKey) return;
     const snap = recoveryDataRef.current;
     if (!snap) return;
 
     fireAndForget(
       (async () => {
         const ok = await applyRecovery(snap);
-        if (ok) hideRecoveryBanner();
+        if (ok && checkedScopeRef.current === scopeKey && recoveryDataRef.current === snap)
+          hideRecoveryBanner();
       })(),
       { context: 'src/hooks/ui/useRecoveryBanner.ts:L83', policy: 'user-visible' },
     );
-  }, [applyRecovery]);
+  }, [applyRecovery, phase, scopeKey]);
 
   const dismissRecoveryBanner = useCallback((): void => {
+    if (phase !== 'ready' || checkedScopeRef.current !== scopeKey) return;
     if (dismissRecovery) {
       fireAndForget(dismissRecovery(), {
         context: 'src/hooks/ui/useRecoveryBanner.ts:L91',
@@ -105,11 +116,12 @@ export function useRecoveryBanner({
       });
     }
     hideRecoveryBanner();
-  }, [dismissRecovery]);
+  }, [dismissRecovery, phase, scopeKey]);
 
   return {
-    recoveryAvailable,
-    recoveryDiffSummary,
+    recoveryAvailable:
+      recoveryAvailable && phase === 'ready' && checkedScopeRef.current === scopeKey,
+    recoveryDiffSummary: checkedScopeRef.current === scopeKey ? recoveryDiffSummary : null,
     recoveryDataRef,
     hideRecoveryBanner,
     applyRecoveryBanner,

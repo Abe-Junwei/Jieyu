@@ -43,27 +43,31 @@ export function useTranscriptionRecoveryActions({
   runWithDbMutex,
   setSaveState,
 }: Params) {
-  const checkRecovery = useCallback(async (): Promise<RecoveryData | null> => {
-    const name = dbNameRef.current;
-    if (!name) return null;
-    const projectId = resolveCurrentProjectTextId(unitsRef.current[0]?.textId);
-    const snap = await getRecoverySnapshot(name, projectId);
-    const recoveryUnits = snap ? getRecoveryLayerUnits(snap) : [];
-    if (!snap || recoveryUnits.length === 0) return null;
+  const checkRecovery = useCallback(
+    async (scopeKey?: string): Promise<RecoveryData | null> => {
+      const name = dbNameRef.current;
+      if (!name) return null;
+      const projectId = resolveCurrentProjectTextId(scopeKey ?? unitsRef.current[0]?.textId);
+      const snap = await getRecoverySnapshot(name, projectId);
+      const recoveryUnits = snap ? getRecoveryLayerUnits(snap) : [];
+      if (!snap || recoveryUnits.length === 0) return null;
 
-    const latestUpdatedAt = unitsRef.current.reduce((max, u) => {
-      const t = new Date(u.updatedAt).getTime();
-      return t > max ? t : max;
-    }, 0);
+      const latestUpdatedAt = unitsRef.current.reduce((max, u) => {
+        if (u.textId !== projectId) return max;
+        const t = new Date(u.updatedAt).getTime();
+        return t > max ? t : max;
+      }, 0);
 
-    if (snap.timestamp > latestUpdatedAt + 2000) return snap;
+      if (snap.timestamp > latestUpdatedAt + 2000) return snap;
 
-    fireAndForget(clearRecoverySnapshot(name, projectId), {
-      context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L50',
-      policy: 'background',
-    });
-    return null;
-  }, [dbNameRef, unitsRef]);
+      fireAndForget(clearRecoverySnapshot(name, projectId), {
+        context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L50',
+        policy: 'background',
+      });
+      return null;
+    },
+    [dbNameRef, unitsRef],
+  );
 
   const applyRecovery = useCallback(
     async (data: RecoveryData): Promise<boolean> => {

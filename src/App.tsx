@@ -261,6 +261,7 @@ function AppShellSidePane({
           <div
             id="app-side-pane-body-slot"
             className="app-side-pane-body-slot"
+            role="group"
             aria-label={t(locale, 'app.sidePane.aria.content')}
           >
             {sidePaneBody}
