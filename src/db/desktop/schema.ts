@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 2;
+export const DESKTOP_PROJECT_USER_VERSION = 3;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -53,6 +53,204 @@ CREATE TABLE manuscripts (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE languages (
+  id TEXT PRIMARY KEY,
+  name_json TEXT NOT NULL CHECK (json_valid(name_json) AND json_type(name_json) = 'object'),
+  language_code TEXT CHECK (language_code IS NULL OR length(language_code) > 0),
+  canonical_tag TEXT CHECK (canonical_tag IS NULL OR length(canonical_tag) > 0),
+  iso6391 TEXT CHECK (iso6391 IS NULL OR iso6391 GLOB '[a-z][a-z]'),
+  iso6392b TEXT CHECK (iso6392b IS NULL OR iso6392b GLOB '[a-z][a-z][a-z]'),
+  iso6392t TEXT CHECK (iso6392t IS NULL OR iso6392t GLOB '[a-z][a-z][a-z]'),
+  iso6393 TEXT CHECK (iso6393 IS NULL OR iso6393 GLOB '[a-z][a-z][a-z]'),
+  autonym TEXT CHECK (autonym IS NULL OR length(autonym) > 0),
+  glottocode TEXT CHECK (glottocode IS NULL OR glottocode GLOB '[a-z][a-z][a-z][a-z][0-9][0-9][0-9][0-9]'),
+  wikidata_id TEXT CHECK (wikidata_id IS NULL OR length(wikidata_id) > 0),
+  scope TEXT CHECK (scope IS NULL OR scope IN (
+    'individual', 'macrolanguage', 'collection', 'special', 'private-use'
+  )),
+  macrolanguage TEXT CHECK (macrolanguage IS NULL OR length(macrolanguage) > 0),
+  genus TEXT CHECK (genus IS NULL OR length(genus) > 0),
+  subfamily TEXT CHECK (subfamily IS NULL OR length(subfamily) > 0),
+  branch TEXT CHECK (branch IS NULL OR length(branch) > 0),
+  classification_path TEXT CHECK (classification_path IS NULL OR length(classification_path) > 0),
+  modality TEXT CHECK (modality IS NULL OR modality IN ('spoken', 'signed', 'written', 'mixed')),
+  language_type TEXT CHECK (language_type IS NULL OR language_type IN (
+    'living', 'historical', 'extinct', 'ancient', 'constructed', 'special'
+  )),
+  endangerment_level TEXT CHECK (endangerment_level IS NULL OR endangerment_level IN (
+    'safe', 'vulnerable', 'definitely_endangered', 'severely_endangered', 'critically_endangered', 'extinct'
+  )),
+  aes_status TEXT CHECK (aes_status IS NULL OR aes_status IN (
+    'not_endangered', 'threatened', 'shifting', 'moribund', 'nearly_extinct', 'extinct'
+  )),
+  endangerment_source TEXT CHECK (endangerment_source IS NULL OR length(endangerment_source) > 0),
+  endangerment_assessment_year INTEGER,
+  speaker_count_l1 INTEGER CHECK (speaker_count_l1 IS NULL OR speaker_count_l1 >= 0),
+  speaker_count_l2 INTEGER CHECK (speaker_count_l2 IS NULL OR speaker_count_l2 >= 0),
+  speaker_count_source TEXT CHECK (speaker_count_source IS NULL OR length(speaker_count_source) > 0),
+  speaker_count_year INTEGER,
+  speaker_trend TEXT CHECK (speaker_trend IS NULL OR speaker_trend IN (
+    'growing', 'stable', 'shrinking', 'unknown'
+  )),
+  countries_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(countries_json) AND json_type(countries_json) = 'array'),
+  countries_official_json TEXT NOT NULL DEFAULT '[]' CHECK (
+    json_valid(countries_official_json) AND json_type(countries_official_json) = 'array'
+  ),
+  macroarea TEXT CHECK (macroarea IS NULL OR macroarea IN (
+    'Africa', 'Eurasia', 'Papunesia', 'Australia', 'North America', 'South America'
+  )),
+  administrative_divisions_json TEXT NOT NULL DEFAULT '[]' CHECK (
+    json_valid(administrative_divisions_json) AND json_type(administrative_divisions_json) = 'array'
+  ),
+  intergenerational_transmission TEXT CHECK (
+    intergenerational_transmission IS NULL OR intergenerational_transmission IN (
+      'all_ages', 'adults_only', 'elderly_only', 'very_few', 'none'
+    )
+  ),
+  domains_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(domains_json) AND json_type(domains_json) = 'array'),
+  official_status TEXT CHECK (official_status IS NULL OR official_status IN (
+    'national', 'regional', 'recognized_minority', 'none'
+  )),
+  egids TEXT CHECK (egids IS NULL OR length(egids) > 0),
+  documentation_level TEXT CHECK (documentation_level IS NULL OR documentation_level IN (
+    'undocumented', 'marginally', 'fragmentary', 'fair', 'well_documented'
+  )),
+  dialects_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(dialects_json) AND json_type(dialects_json) = 'array'),
+  vernaculars_json TEXT NOT NULL DEFAULT '[]' CHECK (
+    json_valid(vernaculars_json) AND json_type(vernaculars_json) = 'array'
+  ),
+  writing_systems_json TEXT NOT NULL DEFAULT '[]' CHECK (
+    json_valid(writing_systems_json) AND json_type(writing_systems_json) = 'array'
+  ),
+  literacy_rate REAL CHECK (literacy_rate IS NULL OR literacy_rate >= 0),
+  latitude REAL,
+  longitude REAL,
+  location_id TEXT CHECK (location_id IS NULL OR length(location_id) > 0),
+  source_type TEXT NOT NULL CHECK (source_type IN (
+    'built-in-generated', 'built-in-reviewed', 'user-override', 'user-custom'
+  )),
+  review_status TEXT CHECK (review_status IS NULL OR review_status IN ('needs-review', 'verified')),
+  visibility TEXT CHECK (visibility IS NULL OR visibility IN ('visible', 'hidden')),
+  notes_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(notes_json) AND json_type(notes_json) = 'object'),
+  custom_fields_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(custom_fields_json) AND json_type(custom_fields_json) = 'object'
+  ),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX languages_iso6393 ON languages(iso6393) WHERE iso6393 IS NOT NULL;
+CREATE UNIQUE INDEX languages_glottocode ON languages(glottocode) WHERE glottocode IS NOT NULL;
+
+CREATE TABLE language_display_names (
+  id TEXT PRIMARY KEY,
+  language_id TEXT NOT NULL REFERENCES languages(id),
+  locale TEXT NOT NULL CHECK (length(locale) > 0),
+  role TEXT NOT NULL CHECK (role IN (
+    'preferred', 'autonym', 'exonym', 'historical', 'menu', 'academic', 'search'
+  )),
+  value TEXT NOT NULL CHECK (length(value) > 0),
+  is_preferred INTEGER NOT NULL DEFAULT 0 CHECK (is_preferred IN (0, 1)),
+  source_type TEXT NOT NULL CHECK (source_type IN (
+    'built-in-generated', 'built-in-reviewed', 'user-override', 'user-custom'
+  )),
+  review_status TEXT CHECK (review_status IS NULL OR review_status IN ('needs-review', 'verified')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE language_aliases (
+  id TEXT PRIMARY KEY,
+  language_id TEXT NOT NULL REFERENCES languages(id),
+  alias TEXT NOT NULL CHECK (length(alias) > 0),
+  normalized_alias TEXT NOT NULL CHECK (length(normalized_alias) > 0),
+  locale TEXT CHECK (locale IS NULL OR length(locale) > 0),
+  alias_type TEXT NOT NULL CHECK (alias_type IN ('search', 'display', 'legacy', 'short', 'variant')),
+  source_type TEXT NOT NULL CHECK (source_type IN (
+    'built-in-generated', 'built-in-reviewed', 'user-override', 'user-custom'
+  )),
+  review_status TEXT CHECK (review_status IS NULL OR review_status IN ('needs-review', 'verified')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX language_aliases_normalized ON language_aliases(normalized_alias);
+
+-- This slice does not delete languages. The foreign key is NO ACTION, not CASCADE.
+CREATE TABLE language_catalog_history (
+  id TEXT PRIMARY KEY,
+  language_id TEXT NOT NULL REFERENCES languages(id),
+  action TEXT NOT NULL CHECK (action IN ('create', 'update', 'delete')),
+  summary TEXT NOT NULL CHECK (length(summary) > 0),
+  changed_fields_json TEXT CHECK (
+    changed_fields_json IS NULL OR (
+      json_valid(changed_fields_json) AND json_type(changed_fields_json) = 'array'
+    )
+  ),
+  reason TEXT CHECK (reason IS NULL OR length(reason) > 0),
+  reason_code TEXT CHECK (reason_code IS NULL OR length(reason_code) > 0),
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE orthographies (
+  id TEXT PRIMARY KEY,
+  language_id TEXT NOT NULL REFERENCES languages(id),
+  name_json TEXT NOT NULL CHECK (json_valid(name_json) AND json_type(name_json) = 'object'),
+  abbreviation TEXT CHECK (abbreviation IS NULL OR length(abbreviation) > 0),
+  type TEXT CHECK (type IS NULL OR type IN ('phonemic', 'phonetic', 'practical', 'historical', 'other')),
+  script_tag TEXT CHECK (script_tag IS NULL OR length(script_tag) > 0),
+  locale_tag TEXT CHECK (locale_tag IS NULL OR length(locale_tag) > 0),
+  region_tag TEXT CHECK (region_tag IS NULL OR length(region_tag) > 0),
+  variant_tag TEXT CHECK (variant_tag IS NULL OR length(variant_tag) > 0),
+  direction TEXT CHECK (direction IS NULL OR direction IN ('ltr', 'rtl', 'ttb', 'btt')),
+  catalog_metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(catalog_metadata_json) AND json_type(catalog_metadata_json) = 'object'
+  ),
+  exemplar_characters_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(exemplar_characters_json) AND json_type(exemplar_characters_json) = 'object'
+  ),
+  normalization_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(normalization_json) AND json_type(normalization_json) = 'object'
+  ),
+  collation_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(collation_json) AND json_type(collation_json) = 'object'
+  ),
+  font_preferences_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(font_preferences_json) AND json_type(font_preferences_json) = 'object'
+  ),
+  input_hints_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(input_hints_json) AND json_type(input_hints_json) = 'object'
+  ),
+  bidi_policy_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(bidi_policy_json) AND json_type(bidi_policy_json) = 'object'
+  ),
+  conversion_rules_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(conversion_rules_json) AND json_type(conversion_rules_json) = 'object'
+  ),
+  notes_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(notes_json) AND json_type(notes_json) = 'object'),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE orthography_bridges (
+  id TEXT PRIMARY KEY,
+  source_orthography_id TEXT NOT NULL REFERENCES orthographies(id),
+  target_orthography_id TEXT NOT NULL REFERENCES orthographies(id),
+  name_json TEXT CHECK (name_json IS NULL OR (json_valid(name_json) AND json_type(name_json) = 'object')),
+  engine TEXT NOT NULL CHECK (engine IN ('table-map', 'icu-rule', 'manual')),
+  rules_json TEXT NOT NULL CHECK (json_valid(rules_json) AND json_type(rules_json) = 'object'),
+  sample_input TEXT,
+  sample_output TEXT,
+  sample_cases_json TEXT NOT NULL DEFAULT '[]' CHECK (
+    json_valid(sample_cases_json) AND json_type(sample_cases_json) = 'array'
+  ),
+  notes_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(notes_json) AND json_type(notes_json) = 'object'),
+  is_reversible INTEGER NOT NULL DEFAULT 0 CHECK (is_reversible IN (0, 1)),
+  status TEXT CHECK (status IS NULL OR status IN ('draft', 'active', 'deprecated')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE layers (
   id TEXT PRIMARY KEY,
   manuscript_id TEXT NOT NULL REFERENCES manuscripts(id),
@@ -64,8 +262,8 @@ CREATE TABLE layers (
   content_type TEXT NOT NULL CHECK (content_type IN (
     'transcription', 'translation', 'gloss', 'pos', 'note', 'custom'
   )),
-  language_id TEXT,
-  orthography_id TEXT,
+  language_id TEXT REFERENCES languages(id),
+  orthography_id TEXT REFERENCES orthographies(id),
   parent_id TEXT,
   sort_order INTEGER NOT NULL,
   created_at TEXT NOT NULL,

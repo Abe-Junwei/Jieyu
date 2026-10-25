@@ -66,7 +66,7 @@ function layer(
 }
 
 describe('desktop project schema', () => {
-  it('creates only the ADR-0085 tables', () => {
+  it('creates the desktop project tables', () => {
     const db = open();
     const names = db
       .prepare(
@@ -76,12 +76,18 @@ describe('desktop project schema', () => {
     db.close();
     expect(names).toEqual([
       { name: 'conversations' },
+      { name: 'language_aliases' },
+      { name: 'language_catalog_history' },
+      { name: 'language_display_names' },
+      { name: 'languages' },
       { name: 'layers' },
       { name: 'manuscripts' },
       { name: 'media' },
       { name: 'messages' },
       { name: 'morphemes' },
       { name: 'notes' },
+      { name: 'orthographies' },
+      { name: 'orthography_bridges' },
       { name: 'project' },
       { name: 'sources' },
       { name: 'speakers' },
@@ -215,6 +221,18 @@ describe('desktop project schema', () => {
         ).run('n1', 'manuscript', 'ms1', 'x', T, T);
       }),
     ).toBe('SQLITE_CONSTRAINT_CHECK');
+    db.close();
+  });
+
+  it('rejects an empty language code and a repeated ISO 639-3', () => {
+    const db = open();
+    const insert = db.prepare(
+      `INSERT INTO languages (id, name_json, source_type, iso6393, created_at, updated_at)
+       VALUES (?, '{"en":"Example"}', 'user-custom', ?, ?, ?)`,
+    );
+    expect(constraintCode(() => insert.run('l1', '', T, T))).toBe('SQLITE_CONSTRAINT_CHECK');
+    insert.run('l1', 'eng', T, T);
+    expect(constraintCode(() => insert.run('l2', 'eng', T, T))).toBe('SQLITE_CONSTRAINT_UNIQUE');
     db.close();
   });
 });

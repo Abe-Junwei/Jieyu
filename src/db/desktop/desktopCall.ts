@@ -1,3 +1,13 @@
+import {
+  createBridge,
+  createOrthography,
+  ensureProjectLanguage,
+  getBridge,
+  getProjectLanguage,
+  type BridgeCreate,
+  type LanguageEnsure,
+  type OrthographyCreate,
+} from './catalog';
 import { createLayer, listLayers, type LayerCreate } from './layers';
 import { createMedia, type MediaCreate } from './media';
 import {
@@ -29,6 +39,11 @@ const METHODS = [
   'manuscripts.rollbackTimeMapping',
   'layers.create',
   'layers.list',
+  'catalog.ensureProjectDefinition',
+  'catalog.getLanguage',
+  'orthographies.create',
+  'bridges.create',
+  'bridges.get',
   'units.create',
   'units.get',
   'units.list',
@@ -65,6 +80,16 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return createLayer(project.db, layerCreate(input));
     case 'layers.list':
       return listLayers(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
+    case 'catalog.ensureProjectDefinition':
+      return ensureProjectLanguage(project.db, languageEnsure(input));
+    case 'catalog.getLanguage':
+      return getProjectLanguage(project.db, requiredString(input.id, 'id'));
+    case 'orthographies.create':
+      return createOrthography(project.db, orthographyCreate(input));
+    case 'bridges.create':
+      return createBridge(project.db, bridgeCreate(input));
+    case 'bridges.get':
+      return getBridge(project.db, requiredString(input.id, 'id'));
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
     case 'units.get':
@@ -147,6 +172,8 @@ function layerCreate(input: Record<string, unknown>): LayerCreate {
     name: stringMap(input.name, 'name'),
     tierType: requiredString(input.tierType, 'tierType'),
     contentType: requiredString(input.contentType, 'contentType'),
+    ...(typeof input.languageId === 'string' ? { languageId: input.languageId } : {}),
+    ...(typeof input.orthographyId === 'string' ? { orthographyId: input.orthographyId } : {}),
   };
 }
 
@@ -164,6 +191,62 @@ function timeMappingSet(input: Record<string, unknown>): {
     offsetSec: requiredNumber(input.offsetSec, 'offsetSec'),
     scale: requiredNumber(input.scale, 'scale'),
     ...(typeof sourceMediaId === 'string' ? { sourceMediaId } : {}),
+  };
+}
+
+function languageEnsure(input: Record<string, unknown>): LanguageEnsure {
+  const aliases = input.aliases;
+  return {
+    name: stringMap(input.name, 'name'),
+    sourceType: requiredString(input.sourceType, 'sourceType'),
+    ...(typeof input.iso6393 === 'string' ? { iso6393: input.iso6393 } : {}),
+    ...(typeof input.glottocode === 'string' ? { glottocode: input.glottocode } : {}),
+    ...(Array.isArray(aliases) ? { aliases: aliases.map(aliasInput) } : {}),
+  };
+}
+
+function aliasInput(value: unknown): { alias: string; aliasType: string } {
+  const record = objectArg(value);
+  return {
+    alias: requiredString(record.alias, 'alias'),
+    aliasType: requiredString(record.aliasType, 'aliasType'),
+  };
+}
+
+function orthographyCreate(input: Record<string, unknown>): OrthographyCreate {
+  return {
+    languageId: requiredString(input.languageId, 'languageId'),
+    name: stringMap(input.name, 'name'),
+    scriptTag: requiredString(input.scriptTag, 'scriptTag'),
+    sourceType: requiredString(input.sourceType, 'sourceType'),
+  };
+}
+
+function bridgeCreate(input: Record<string, unknown>): BridgeCreate {
+  const rules = input.rules;
+  if (typeof rules !== 'object' || rules === null || Array.isArray(rules)) {
+    throw new Error('bridge rules must be an object');
+  }
+  const sampleCases = input.sampleCases;
+  return {
+    sourceOrthographyId: requiredString(input.sourceOrthographyId, 'sourceOrthographyId'),
+    targetOrthographyId: requiredString(input.targetOrthographyId, 'targetOrthographyId'),
+    engine: requiredString(input.engine, 'engine'),
+    rules: rules as Record<string, unknown>,
+    ...(typeof input.sampleInput === 'string' ? { sampleInput: input.sampleInput } : {}),
+    ...(typeof input.sampleOutput === 'string' ? { sampleOutput: input.sampleOutput } : {}),
+    ...(Array.isArray(sampleCases)
+      ? {
+          sampleCases: sampleCases.map((item) => {
+            const record = objectArg(item);
+            const expectedOutput = record.expectedOutput;
+            return {
+              input: requiredString(record.input, 'input'),
+              ...(typeof expectedOutput === 'string' ? { expectedOutput } : {}),
+            };
+          }),
+        }
+      : {}),
   };
 }
 

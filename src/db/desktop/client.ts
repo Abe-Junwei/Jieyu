@@ -1,3 +1,11 @@
+import type {
+  BridgeCreate,
+  LanguageEnsure,
+  OrthographyCreate,
+  ProjectBridge,
+  ProjectLanguage,
+  ProjectOrthography,
+} from './catalog';
 import type { Layer, LayerCreate } from './layers';
 import type { Media, MediaCreate } from './media';
 import type { Manuscript, ManuscriptCreate } from './manuscripts';
@@ -45,6 +53,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
       sessionId: string,
       input: { manuscriptId: string; expectedRevision: number },
     ) => once<Manuscript>(sessionId, 'manuscripts.rollbackTimeMapping', input),
+    ensureProjectDefinition: (sessionId: string, input: LanguageEnsure) =>
+      once<ProjectLanguage>(sessionId, 'catalog.ensureProjectDefinition', input),
+    getLanguage: (sessionId: string, id: string) =>
+      once<ProjectLanguage | null>(sessionId, 'catalog.getLanguage', { id }),
+    createOrthography: (sessionId: string, input: OrthographyCreate) =>
+      once<ProjectOrthography>(sessionId, 'orthographies.create', input),
+    createBridge: (sessionId: string, input: BridgeCreate) =>
+      once<ProjectBridge>(sessionId, 'bridges.create', input),
+    getBridge: (sessionId: string, id: string) =>
+      once<ProjectBridge | null>(sessionId, 'bridges.get', { id }),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
   };
 }
