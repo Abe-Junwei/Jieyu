@@ -14,7 +14,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/275
 <!-- desktop-sqlite-slices:v1:start -->
 ## 当前可执行切片与关闭条件（2026-10-25 本轮重排）
 
-本单保持“首发单库集成终验”，不是 M1 完成单。M1 至 M5-A 已落地。下一刀是单库计划 M5-B。M5-A 把模板或代码写成项目语言行，层只引用该行。user_version 升到 3，旧文件只拒绝。M4 用户流程已在 macOS Electron 上走通。有限开放按 ADR-0086，不冻结格式，不关闭本单。
+本单保持“首发单库集成终验”，不是 M1 完成单。M1 至 M5-B 已落地。下一刀是单库计划 M5-C。M5-B 把词条存成一行 DMLex JSON，仍被引用的义项不能删。不建附件表。user_version 升到 4，旧文件只拒绝。M4 用户流程已在 macOS Electron 上走通。有限开放按 ADR-0086，不冻结格式，不关闭本单。
 
 ### M1：最小内部工程交付
 - [x] M1-S1：schema.ts 仅 ADR-0085 初始表集，定向检查必填/枚举/唯一/引用/时间约束。

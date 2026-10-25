@@ -97,19 +97,20 @@ describe('manuscript time mapping', () => {
     const restored = callDesktopSession(session.sessionId, 'manuscripts.rollbackTimeMapping', {
       manuscriptId: manuscript.id,
       expectedRevision: 2,
-    }) as { timeMapping: { revision: number } | null };
-    expect(restored.timeMapping?.revision).toBe(1);
+    }) as { timeMapping: { offsetSec: number; scale: number; revision: number } | null };
+    expect(restored.timeMapping).toMatchObject({ offsetSec: 2, scale: 2, revision: 3 });
     const identity = callDesktopSession(session.sessionId, 'manuscripts.rollbackTimeMapping', {
       manuscriptId: manuscript.id,
-      expectedRevision: 1,
-    }) as { timeMapping: null };
+      expectedRevision: 3,
+    }) as { timeMapping: null; timeMappingRevision: number };
     expect(identity.timeMapping).toBeNull();
+    expect(identity.timeMappingRevision).toBe(4);
     expect(unitTimes(session.sessionId, left.id, right.id)).toEqual([
       [1, 3],
       [3, 5],
     ]);
 
-    let revision = 0;
+    let revision = identity.timeMappingRevision;
     let historyLength = 0;
     for (let step = 0; step < 9; step += 1) {
       const saved = callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
@@ -121,12 +122,62 @@ describe('manuscript time mapping', () => {
       revision = saved.timeMapping.revision;
       historyLength = saved.timeMappingHistory.length;
     }
-    expect(revision).toBe(9);
+    expect(revision).toBe(13);
     expect(historyLength).toBe(8);
     expect(unitTimes(session.sessionId, left.id, right.id)).toEqual([
       [1, 3],
       [3, 5],
     ]);
+  });
+
+  it('rejects a mapping revision that undo has already replaced', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
+      manuscriptId: manuscript.id,
+      expectedRevision: 0,
+      offsetSec: 1,
+      scale: 1,
+    });
+    callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
+      manuscriptId: manuscript.id,
+      expectedRevision: 1,
+      offsetSec: 2,
+      scale: 1,
+    });
+    const undone = callDesktopSession(session.sessionId, 'manuscripts.rollbackTimeMapping', {
+      manuscriptId: manuscript.id,
+      expectedRevision: 2,
+    }) as { timeMapping: { offsetSec: number; revision: number } };
+    expect(undone.timeMapping).toMatchObject({ offsetSec: 1, revision: 3 });
+    callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
+      manuscriptId: manuscript.id,
+      expectedRevision: 3,
+      offsetSec: 9,
+      scale: 1,
+    });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
+        manuscriptId: manuscript.id,
+        expectedRevision: 2,
+        offsetSec: 8,
+        scale: 1,
+      }),
+    ).toThrow('time mapping revision mismatch');
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const listed = callDesktopSession(session.sessionId, 'manuscripts.list', {}) as {
+      timeMapping: { offsetSec: number; revision: number } | null;
+    }[];
+    expect(listed[0]?.timeMapping).toMatchObject({ offsetSec: 9, revision: 4 });
   });
 
   it('rolls back a rejected mapping and edits text without moving the boundary pair', () => {

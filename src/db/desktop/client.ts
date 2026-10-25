@@ -7,6 +7,7 @@ import type {
   ProjectOrthography,
 } from './catalog';
 import type { Layer, LayerCreate } from './layers';
+import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
 import type { Media, MediaCreate } from './media';
 import type { Manuscript, ManuscriptCreate } from './manuscripts';
 import type { Unit, UnitCreate } from './units';
@@ -63,6 +64,14 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<ProjectBridge>(sessionId, 'bridges.create', input),
     getBridge: (sessionId: string, id: string) =>
       once<ProjectBridge | null>(sessionId, 'bridges.get', { id }),
+    saveLexemeEntry: (sessionId: string, input: LexemeSave) =>
+      once<ProjectLexeme>(sessionId, 'lexicon.saveEntry', input),
+    getLexemeEntry: (sessionId: string, id: string) =>
+      once<ProjectLexeme | null>(sessionId, 'lexicon.getEntry', { id }),
+    linkSense: (sessionId: string, input: LexemeLinkWrite & { lexemeId: string }) =>
+      once<ProjectLexemeLink>(sessionId, 'lexicon.linkSense', input),
+    removeSense: (sessionId: string, input: { lexemeId: string; senseId: string }) =>
+      once<ProjectLexeme>(sessionId, 'lexicon.removeSense', input),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
   };
 }

@@ -9,6 +9,14 @@ import {
   type OrthographyCreate,
 } from './catalog';
 import { createLayer, listLayers, type LayerCreate } from './layers';
+import {
+  linkSense,
+  removeSense,
+  saveLexemeEntry,
+  getLexemeEntry,
+  type LexemeLinkWrite,
+  type LexemeSave,
+} from './lexicon';
 import { createMedia, type MediaCreate } from './media';
 import {
   createManuscript,
@@ -44,6 +52,10 @@ const METHODS = [
   'orthographies.create',
   'bridges.create',
   'bridges.get',
+  'lexicon.saveEntry',
+  'lexicon.getEntry',
+  'lexicon.linkSense',
+  'lexicon.removeSense',
   'units.create',
   'units.get',
   'units.list',
@@ -90,6 +102,17 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return createBridge(project.db, bridgeCreate(input));
     case 'bridges.get':
       return getBridge(project.db, requiredString(input.id, 'id'));
+    case 'lexicon.saveEntry':
+      return saveLexemeEntry(project.db, lexemeSave(input));
+    case 'lexicon.getEntry':
+      return getLexemeEntry(project.db, requiredString(input.id, 'id'));
+    case 'lexicon.linkSense':
+      return linkSense(project.db, lexemeLink(input));
+    case 'lexicon.removeSense':
+      return removeSense(project.db, {
+        lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+        senseId: requiredString(input.senseId, 'senseId'),
+      });
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
     case 'units.get':
@@ -248,6 +271,46 @@ function bridgeCreate(input: Record<string, unknown>): BridgeCreate {
         }
       : {}),
   };
+}
+
+function lexemeSave(input: Record<string, unknown>): LexemeSave {
+  const tags = input.tags;
+  const link = input.link;
+  return {
+    ...(typeof input.id === 'string' ? { id: input.id } : {}),
+    entry: objectArg(input.entry),
+    ...(input.jieyu === undefined ? {} : { jieyu: objectArg(input.jieyu) }),
+    ...(tags === undefined ? {} : { tags: booleanMap(tags) }),
+    ...(typeof input.accessRights === 'string' ? { accessRights: input.accessRights } : {}),
+    ...(link === undefined ? {} : { link: linkWrite(link) }),
+  };
+}
+
+function lexemeLink(input: Record<string, unknown>): LexemeLinkWrite & { lexemeId: string } {
+  return {
+    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+    ...linkWrite(input),
+  };
+}
+
+function linkWrite(value: unknown): LexemeLinkWrite {
+  const record = objectArg(value);
+  return {
+    targetType: requiredString(record.targetType, 'targetType'),
+    targetId: requiredString(record.targetId, 'targetId'),
+    senseId: requiredString(record.senseId, 'senseId'),
+    ...(typeof record.role === 'string' ? { role: record.role } : {}),
+  };
+}
+
+function booleanMap(value: unknown): Record<string, boolean> {
+  const record = objectArg(value);
+  const tags: Record<string, boolean> = {};
+  for (const [key, item] of Object.entries(record)) {
+    if (typeof item !== 'boolean') throw new Error('lexeme tags are invalid');
+    tags[key] = item;
+  }
+  return tags;
 }
 
 function unitCreate(input: Record<string, unknown>): UnitCreate {

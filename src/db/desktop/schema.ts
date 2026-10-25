@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 3;
+export const DESKTOP_PROJECT_USER_VERSION = 4;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -337,6 +337,59 @@ CREATE TABLE morphemes (
   form TEXT NOT NULL,
   UNIQUE (token_id, morpheme_index)
 );
+
+CREATE TABLE lexemes (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('entry', 'resource')),
+  entry_json TEXT CHECK (
+    entry_json IS NULL OR (json_valid(entry_json) AND json_type(entry_json) = 'object')
+  ),
+  resource_json TEXT CHECK (
+    resource_json IS NULL OR (json_valid(resource_json) AND json_type(resource_json) = 'object')
+  ),
+  jieyu_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(jieyu_json) AND json_type(jieyu_json) = 'object'
+  ),
+  tags_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(tags_json) AND json_type(tags_json) = 'object'
+  ),
+  access_rights TEXT CHECK (
+    access_rights IS NULL OR access_rights IN ('open', 'restricted', 'confidential')
+  ),
+  provenance_json TEXT CHECK (
+    provenance_json IS NULL OR (
+      json_valid(provenance_json) AND json_type(provenance_json) = 'object'
+    )
+  ),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (
+    (kind = 'entry' AND entry_json IS NOT NULL AND resource_json IS NULL) OR
+    (kind = 'resource' AND resource_json IS NOT NULL AND entry_json IS NULL)
+  )
+);
+
+CREATE UNIQUE INDEX lexemes_one_resource ON lexemes(kind) WHERE kind = 'resource';
+
+CREATE TABLE token_lexeme_links (
+  id TEXT PRIMARY KEY,
+  target_type TEXT NOT NULL CHECK (target_type IN ('token', 'morpheme')),
+  target_id TEXT NOT NULL,
+  lexeme_id TEXT NOT NULL REFERENCES lexemes(id),
+  sense_id TEXT CHECK (sense_id IS NULL OR length(sense_id) > 0),
+  role TEXT CHECK (role IS NULL OR role IN ('exact', 'stem', 'gloss_candidate', 'manual')),
+  confidence REAL CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
+  provenance_json TEXT CHECK (
+    provenance_json IS NULL OR (
+      json_valid(provenance_json) AND json_type(provenance_json) = 'object'
+    )
+  ),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX token_lexeme_links_target ON token_lexeme_links(target_type, target_id);
+CREATE INDEX token_lexeme_links_lexeme ON token_lexeme_links(lexeme_id, sense_id);
 
 CREATE TABLE notes (
   id TEXT PRIMARY KEY,

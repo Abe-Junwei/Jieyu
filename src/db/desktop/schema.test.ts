@@ -81,6 +81,7 @@ describe('desktop project schema', () => {
       { name: 'language_display_names' },
       { name: 'languages' },
       { name: 'layers' },
+      { name: 'lexemes' },
       { name: 'manuscripts' },
       { name: 'media' },
       { name: 'messages' },
@@ -91,6 +92,7 @@ describe('desktop project schema', () => {
       { name: 'project' },
       { name: 'sources' },
       { name: 'speakers' },
+      { name: 'token_lexeme_links' },
       { name: 'tokens' },
       { name: 'unit_texts' },
       { name: 'units' },
@@ -233,6 +235,23 @@ describe('desktop project schema', () => {
     expect(constraintCode(() => insert.run('l1', '', T, T))).toBe('SQLITE_CONSTRAINT_CHECK');
     insert.run('l1', 'eng', T, T);
     expect(constraintCode(() => insert.run('l2', 'eng', T, T))).toBe('SQLITE_CONSTRAINT_UNIQUE');
+    db.close();
+  });
+
+  it('keeps an entry body and a resource body apart', () => {
+    const db = open();
+    const insert = db.prepare(
+      `INSERT INTO lexemes (id, kind, entry_json, resource_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    );
+    expect(constraintCode(() => insert.run('both', 'entry', '{}', '{}', T, T))).toBe(
+      'SQLITE_CONSTRAINT_CHECK',
+    );
+    insert.run('entry', 'entry', '{}', null, T, T);
+    insert.run('resource', 'resource', null, '{}', T, T);
+    expect(constraintCode(() => insert.run('resource-2', 'resource', null, '{}', T, T))).toBe(
+      'SQLITE_CONSTRAINT_UNIQUE',
+    );
     db.close();
   });
 });

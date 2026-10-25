@@ -1,9 +1,12 @@
+import { spawn } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -157,7 +160,117 @@ describe('openProject', () => {
     next.close();
     expect(readdirSync(dir).includes(PROJECT_LOCK_NAME)).toBe(false);
   });
+
+  it('reopens a library whose writer died inside a transaction', async () => {
+    const dir = folder();
+    const created = openProject(dir);
+    created.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 1.5, T);
+    created.close();
+    const file = join(dir, 'project.sqlite');
+    await killDuringTransaction(file, 'm1');
+    expect(existsSync(`${file}-journal`)).toBe(true);
+
+    const reopened = openProject(dir);
+    expect(reopened.db.prepare('SELECT duration FROM media WHERE id = ?').get('m1')).toEqual({
+      duration: 1.5,
+    });
+    expect(reopened.db.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({ n: 1 });
+    reopened.close();
+    expect(existsSync(`${file}-journal`)).toBe(false);
+    expect(readdirSync(dir).some((name) => name.includes('recover'))).toBe(false);
+  }, 15000);
+
+  it('does not rewrite an incompatible library that still has a hot journal', async () => {
+    const dir = folder();
+    const created = openProject(dir);
+    created.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 1.5, T);
+    created.close();
+    const file = join(dir, 'project.sqlite');
+    const altered = new Database(file);
+    altered.exec('ALTER TABLE notes ADD COLUMN extra TEXT');
+    altered.close();
+    await killDuringTransaction(file, 'm1');
+    const before = readFileSync(file);
+    const journal = readFileSync(`${file}-journal`);
+
+    expect(() => openProject(dir)).toThrow('project.sqlite is not a Jieyu project library');
+    expect(readFileSync(file)).toEqual(before);
+    expect(readFileSync(`${file}-journal`)).toEqual(journal);
+    expect(readdirSync(dir).includes(PROJECT_LOCK_NAME)).toBe(false);
+    expect(readdirSync(dir).some((name) => name.includes('recover'))).toBe(false);
+  }, 15000);
+
+  it('rejects a database symlink that points outside the folder', () => {
+    const source = folder();
+    const alias = folder();
+    const created = openProject(source);
+    created.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 1.5, T);
+    created.close();
+    const file = join(source, 'project.sqlite');
+    const before = readFileSync(file);
+    symlinkSync(file, join(alias, 'project.sqlite'));
+
+    expect(() => openProject(alias)).toThrow('project.sqlite points outside the project folder');
+    expect(readFileSync(file)).toEqual(before);
+    expect(readdirSync(alias).includes(PROJECT_LOCK_NAME)).toBe(false);
+    const held = openProject(source);
+    expect(held.db.prepare('SELECT id FROM media WHERE id = ?').get('m1')).toEqual({ id: 'm1' });
+    held.close();
+  });
 });
+
+function killDuringTransaction(file: string, mediaId: string): Promise<void> {
+  const script = join(
+    process.cwd(),
+    `.jieyu-crash-${process.pid}-${Math.random().toString(16).slice(2)}.mjs`,
+  );
+  roots.push(script);
+  writeFileSync(
+    script,
+    [
+      "import Database from 'better-sqlite3';",
+      'const db = new Database(process.argv[2]);',
+      "db.exec('BEGIN');",
+      "db.prepare('UPDATE media SET duration = 99 WHERE id = ?').run(process.argv[3]);",
+      "const insert = db.prepare('INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)');",
+      'for (let i = 0; i < 40; i += 1) {',
+      "  insert.run('crash-' + i, 'crash-' + i + '.wav', 'bb', 'crash.wav', 3, '2026-10-25T00:00:00.000Z');",
+      '}',
+      "process.kill(process.pid, 'SIGKILL');",
+      '',
+    ].join('\n'),
+  );
+  const child = spawn(process.execPath, [script, file, mediaId], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return new Promise((resolve, reject) => {
+    let stderr = '';
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error(`crash helper timed out: ${stderr}`));
+    }, 8000);
+    child.on('exit', (code, signal) => {
+      clearTimeout(timer);
+      if (signal === 'SIGKILL' && stderr.length === 0) resolve();
+      else reject(new Error(`crash helper exited ${code} ${signal}: ${stderr}`));
+    });
+  });
+}
 
 function unchanged(dir: string, mutate: (file: string) => void): () => void {
   const file = join(dir, 'project.sqlite');
