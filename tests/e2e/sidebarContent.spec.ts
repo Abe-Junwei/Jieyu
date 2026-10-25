@@ -88,16 +88,19 @@ test('short desktop sidebar keeps segment navigation usable at minimum and maxim
   ]) {
     await page.setViewportSize({ width: 1280, height: 720 });
     const resizer = page.locator('.app-side-pane-resizer');
-    await resizer.press('Home');
+    // 与 sidebarHandle.spec 一致：先 focus 再 page.keyboard，避免 locator.press 丢键导致 flake
+    // Match sidebarHandle.spec: focus then page.keyboard so locator.press cannot drop the key.
+    await resizer.focus();
+    await page.keyboard.press('Home');
     await expect(resizer).toHaveAttribute('aria-valuenow', '272');
     if (width === 240) {
-      await resizer.press('ArrowLeft');
+      await page.keyboard.press('ArrowLeft');
       await expect(resizer).toHaveAttribute('aria-valuenow', '248');
-      await resizer.press('ArrowLeft');
+      await page.keyboard.press('ArrowLeft');
     } else if (width === 420) {
-      await resizer.press('Shift+ArrowRight');
+      await page.keyboard.press('Shift+ArrowRight');
       await expect(resizer).toHaveAttribute('aria-valuenow', '352');
-      await resizer.press('Shift+ArrowRight');
+      await page.keyboard.press('Shift+ArrowRight');
     }
     await expect(resizer).toHaveAttribute('aria-valuenow', String(width));
     await page.evaluate(
