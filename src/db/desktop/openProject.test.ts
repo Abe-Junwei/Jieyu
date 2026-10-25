@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import {
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -173,6 +174,7 @@ describe('openProject', () => {
     const file = join(dir, 'project.sqlite');
     await killDuringTransaction(file, 'm1');
     expect(existsSync(`${file}-journal`)).toBe(true);
+    expect(readFileSync(`${file}-journal`).subarray(0, 8).toString('hex')).toBe('d9d505f920a163d7');
 
     const reopened = openProject(dir);
     expect(reopened.db.prepare('SELECT duration FROM media WHERE id = ?').get('m1')).toEqual({
@@ -180,6 +182,11 @@ describe('openProject', () => {
     });
     expect(reopened.db.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({ n: 1 });
     reopened.close();
+    const again = openProject(dir);
+    expect(again.db.prepare('SELECT duration FROM media WHERE id = ?').get('m1')).toEqual({
+      duration: 1.5,
+    });
+    again.close();
     expect(existsSync(`${file}-journal`)).toBe(false);
     expect(readdirSync(dir).some((name) => name.includes('recover'))).toBe(false);
   }, 15000);
@@ -200,6 +207,7 @@ describe('openProject', () => {
     await killDuringTransaction(file, 'm1');
     const before = readFileSync(file);
     const journal = readFileSync(`${file}-journal`);
+    expect(journal.subarray(0, 8).toString('hex')).toBe('d9d505f920a163d7');
 
     expect(() => openProject(dir)).toThrow('project.sqlite is not a Jieyu project library');
     expect(readFileSync(file)).toEqual(before);
@@ -207,6 +215,30 @@ describe('openProject', () => {
     expect(readdirSync(dir).includes(PROJECT_LOCK_NAME)).toBe(false);
     expect(readdirSync(dir).some((name) => name.includes('recover'))).toBe(false);
   }, 15000);
+
+  it('rejects a hard-linked library while its original is open without changing bytes', () => {
+    const source = folder();
+    const alias = folder();
+    const held = openProject(source);
+    try {
+      const file = join(source, 'project.sqlite');
+      const before = readFileSync(file);
+      linkSync(file, join(alias, 'project.sqlite'));
+      let opened: ReturnType<typeof openProject> | undefined;
+      try {
+        expect(() => {
+          opened = openProject(alias);
+        }).toThrow('project.sqlite has multiple hard links');
+      } finally {
+        opened?.close();
+      }
+      expect(readFileSync(file)).toEqual(before);
+      expect(readdirSync(alias).includes(PROJECT_LOCK_NAME)).toBe(false);
+      expect(held.db.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({ n: 0 });
+    } finally {
+      held.close();
+    }
+  });
 
   it('rejects a database symlink that points outside the folder', () => {
     const source = folder();
@@ -242,11 +274,11 @@ function killDuringTransaction(file: string, mediaId: string): Promise<void> {
     [
       "import Database from 'better-sqlite3';",
       'const db = new Database(process.argv[2]);',
-      "db.exec('BEGIN');",
+      "db.exec('PRAGMA cache_size = 5; BEGIN');",
       "db.prepare('UPDATE media SET duration = 99 WHERE id = ?').run(process.argv[3]);",
       "const insert = db.prepare('INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)');",
-      'for (let i = 0; i < 40; i += 1) {',
-      "  insert.run('crash-' + i, 'crash-' + i + '.wav', 'bb', 'crash.wav', 3, '2026-10-25T00:00:00.000Z');",
+      'for (let i = 0; i < 2000; i += 1) {',
+      "  insert.run('crash-' + i, 'crash-' + i + '.wav', 'bb', 'x'.repeat(1000), 3, '2026-10-25T00:00:00.000Z');",
       '}',
       "process.kill(process.pid, 'SIGKILL');",
       '',
@@ -266,7 +298,7 @@ function killDuringTransaction(file: string, mediaId: string): Promise<void> {
     }, 8000);
     child.on('exit', (code, signal) => {
       clearTimeout(timer);
-      if (signal === 'SIGKILL' && stderr.length === 0) resolve();
+      if (signal === 'SIGKILL') resolve();
       else reject(new Error(`crash helper exited ${code} ${signal}: ${stderr}`));
     });
   });

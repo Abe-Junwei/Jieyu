@@ -15,6 +15,7 @@ export interface Manuscript {
   mediaId: string;
   logicalDurationSec: number | null;
   timeMapping: TextTimeMapping | null;
+  timeMappingRevision: number;
   timeMappingHistory: TextTimeMapping[];
   exportTimelineMode: 'document' | 'media' | null;
   tierRoles: Record<string, string>;
@@ -85,9 +86,9 @@ export function setManuscriptTimeMapping(
 ): Manuscript {
   const write = db.transaction(() => {
     const row = manuscriptRow(db, input.manuscriptId);
-    const current = readMapping(row.time_mapping_json);
-    const revision = current?.revision ?? 0;
-    if (input.expectedRevision !== revision) throw new Error('time mapping revision mismatch');
+    const stored = readStored(row.time_mapping_json);
+    if (input.expectedRevision !== stored.revision)
+      throw new Error('time mapping revision mismatch');
     assertMappingNumbers(input.offsetSec, input.scale);
     if (input.sourceMediaId !== undefined && input.sourceMediaId !== row.media_id) {
       throw new Error('time mapping media does not match the manuscript');
@@ -96,12 +97,15 @@ export function setManuscriptTimeMapping(
     const next: TextTimeMapping = {
       offsetSec: input.offsetSec,
       scale: input.scale,
-      revision: revision + 1,
+      revision: stored.revision + 1,
       updatedAt: now,
       sourceMediaId: row.media_id,
     };
     const history =
-      mergeTextTimeMappingHistory(current, readHistory(row.time_mapping_history_json)) ?? [];
+      mergeTextTimeMappingHistory(
+        stored.mapping ?? undefined,
+        readHistory(row.time_mapping_history_json),
+      ) ?? [];
     db.prepare(
       `UPDATE manuscripts
        SET time_mapping_json = ?, time_mapping_history_json = ?, updated_at = ?
@@ -121,26 +125,29 @@ export function rollbackManuscriptTimeMapping(
 ): Manuscript {
   const write = db.transaction(() => {
     const row = manuscriptRow(db, input.manuscriptId);
-    const current = readMapping(row.time_mapping_json);
-    if (!current) throw new Error('time mapping is identity');
-    if (input.expectedRevision !== current.revision) {
+    const stored = readStored(row.time_mapping_json);
+    if (!stored.mapping) throw new Error('time mapping is identity');
+    if (input.expectedRevision !== stored.revision) {
       throw new Error('time mapping revision mismatch');
     }
     const history = readHistory(row.time_mapping_history_json);
     const restored = history[0];
     const now = new Date().toISOString();
+    const revision = stored.revision + 1;
+    // ponytail: counter stays in the JSON. Identity keeps {identity,revision} so undo cannot reuse a version. A column is the upgrade if SQL NULL must mean "never mapped".
+    const mappingJson =
+      restored === undefined
+        ? JSON.stringify({ identity: true, revision })
+        : JSON.stringify(restoredMapping(restored, revision, now));
     db.prepare(
       `UPDATE manuscripts
        SET time_mapping_json = ?, time_mapping_history_json = ?, updated_at = ?
        WHERE id = ?`,
-    ).run(
-      restored === undefined ? null : JSON.stringify(restored),
-      JSON.stringify(restored === undefined ? [] : history.slice(1)),
-      now,
-      row.id,
-    );
+    ).run(mappingJson, JSON.stringify(restored === undefined ? [] : history.slice(1)), now, row.id);
     const manuscript = getManuscript(db, row.id);
-    if (!manuscript) throw new Error('time mapping readback failed');
+    if (!manuscript || manuscript.timeMappingRevision !== revision) {
+      throw new Error('time mapping readback failed');
+    }
     return manuscript;
   });
   return write();
@@ -155,12 +162,14 @@ function manuscriptRow(db: SqliteDatabase, id: string): ManuscriptRow {
 
 function mapManuscript(row: ManuscriptRow): Manuscript {
   const mode = row.export_timeline_mode;
+  const stored = readStored(row.time_mapping_json);
   return {
     id: row.id,
     title: readStringMap(row.title_json),
     mediaId: row.media_id,
     logicalDurationSec: row.logical_duration_sec,
-    timeMapping: readMapping(row.time_mapping_json) ?? null,
+    timeMapping: stored.mapping,
+    timeMappingRevision: stored.revision,
     timeMappingHistory: readHistory(row.time_mapping_history_json),
     exportTimelineMode: mode === 'document' || mode === 'media' ? mode : null,
     tierRoles: readStringMap(row.tier_roles_json),
@@ -169,11 +178,43 @@ function mapManuscript(row: ManuscriptRow): Manuscript {
   };
 }
 
-function readMapping(json: string | null): TextTimeMapping | undefined {
-  if (json === null) return undefined;
-  const mapping = normalizeTextTimeMapping(JSON.parse(json));
+function readStored(json: string | null): { mapping: TextTimeMapping | null; revision: number } {
+  if (json === null) return { mapping: null, revision: 0 };
+  const parsed: unknown = JSON.parse(json);
+  const identity = identityMarker(parsed);
+  if (identity) return { mapping: null, revision: identity.revision };
+  const mapping = normalizeTextTimeMapping(parsed);
   if (!mapping) throw new Error('time mapping is invalid');
-  return mapping;
+  return { mapping, revision: mapping.revision };
+}
+
+function identityMarker(value: unknown): { identity: true; revision: number } | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const record = value as { identity?: unknown; revision?: unknown; offsetSec?: unknown };
+  if (
+    record.identity !== true ||
+    record.offsetSec !== undefined ||
+    typeof record.revision !== 'number' ||
+    !Number.isInteger(record.revision) ||
+    record.revision < 1
+  ) {
+    return undefined;
+  }
+  return { identity: true, revision: record.revision };
+}
+
+function restoredMapping(
+  previous: TextTimeMapping,
+  revision: number,
+  updatedAt: string,
+): TextTimeMapping {
+  return {
+    offsetSec: previous.offsetSec,
+    scale: previous.scale,
+    revision,
+    updatedAt,
+    ...(previous.sourceMediaId === undefined ? {} : { sourceMediaId: previous.sourceMediaId }),
+  };
 }
 
 function readHistory(json: string): TextTimeMapping[] {

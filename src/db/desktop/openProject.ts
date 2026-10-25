@@ -1,6 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { closeSync, existsSync, linkSync, openSync, readSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  linkSync,
+  openSync,
+  readSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { releaseProjectLock, tryAcquireProjectLock } from '../../desktop/skeleton/projectLock';
 import { createLayer, getLayer, type Layer, type LayerCreate } from './layers';
@@ -74,7 +84,10 @@ export function openProject(
   try {
     const target = join(folder, 'project.sqlite');
     if (!existsSync(target)) publishNewProject(folder, target, schemaSql);
-    else assertExistingProject(target, schemaSql);
+    else {
+      assertDatabaseInsideFolder(folder, target);
+      assertExistingProject(target, schemaSql);
+    }
     if (!existsSync(target)) throw new Error('project.sqlite was not created');
     const db = new Database(target);
     db.exec('PRAGMA foreign_keys = ON');
@@ -147,18 +160,83 @@ function publishNewProject(folder: string, target: string, schemaSql: string): v
 }
 
 const SQLITE_MAGIC = Buffer.from('SQLite format 3\0', 'utf8');
+const JOURNAL_MAGIC = Buffer.from('d9d505f920a163d7', 'hex');
+
+function assertDatabaseInsideFolder(folder: string, target: string): void {
+  const realFolder = realpathSync(folder);
+  if (realpathSync(target) !== join(realFolder, 'project.sqlite')) {
+    throw new Error('project.sqlite points outside the project folder');
+  }
+  if (statSync(target).nlink > 1) {
+    throw new Error('project.sqlite has multiple hard links');
+  }
+}
 
 function assertExistingProject(file: string, schemaSql: string): void {
   assertProjectHeader(file);
+  if (journalIsHot(file)) {
+    assertRecoverableSchema(file, schemaSql);
+    replayJournal(file);
+  }
   const db = new Database(file, { readonly: true, fileMustExist: true });
   try {
-    const journal = pragmaValue(db, 'journal_mode');
-    if (journal !== 'delete' || schemaSignature(db) !== expectedSignature(schemaSql)) {
+    if (!acceptedSchema(db, schemaSql)) {
       throw new Error('project.sqlite is not a Jieyu project library');
     }
   } finally {
     db.close();
   }
+  if (existsSync(`${file}-journal`) && !journalIsHot(file)) rmSync(`${file}-journal`);
+}
+
+function journalIsHot(file: string): boolean {
+  const journal = `${file}-journal`;
+  if (!existsSync(journal)) return false;
+  const header = Buffer.alloc(8);
+  const fd = openSync(journal, 'r');
+  try {
+    return readSync(fd, header, 0, 8, 0) === 8 && header.equals(JOURNAL_MAGIC);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+// Copy first: replaying a hot journal writes. An incompatible file must stay byte-for-byte.
+function assertRecoverableSchema(file: string, schemaSql: string): void {
+  const temp = join(dirname(file), `.${randomUUID()}.recover.sqlite`);
+  try {
+    copyFileSync(file, temp);
+    copyFileSync(`${file}-journal`, `${temp}-journal`);
+    replayJournal(temp);
+    const db = new Database(temp, { readonly: true, fileMustExist: true });
+    try {
+      if (!acceptedSchema(db, schemaSql)) {
+        throw new Error('project.sqlite is not a Jieyu project library');
+      }
+    } finally {
+      db.close();
+    }
+  } finally {
+    rmSync(temp, { force: true });
+    rmSync(`${temp}-journal`, { force: true });
+  }
+}
+
+function replayJournal(file: string): void {
+  const db = new Database(file, { fileMustExist: true });
+  try {
+    // Opening alone is lazy; reading the schema triggers SQLite's hot-journal recovery.
+    db.prepare('SELECT COUNT(*) FROM sqlite_master').get();
+  } finally {
+    db.close();
+  }
+}
+
+function acceptedSchema(db: SqliteDatabase, schemaSql: string): boolean {
+  return (
+    pragmaValue(db, 'journal_mode') === 'delete' &&
+    schemaSignature(db) === expectedSignature(schemaSql)
+  );
 }
 
 function assertProjectHeader(file: string): void {

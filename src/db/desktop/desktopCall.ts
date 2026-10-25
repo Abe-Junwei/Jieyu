@@ -189,14 +189,31 @@ function manuscriptCreate(input: Record<string, unknown>): ManuscriptCreate {
 }
 
 function layerCreate(input: Record<string, unknown>): LayerCreate {
+  knownKeys(input, [
+    'manuscriptId',
+    'key',
+    'name',
+    'tierType',
+    'contentType',
+    'languageId',
+    'orthographyId',
+    'parentId',
+    'sortOrder',
+  ]);
   return {
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
     key: requiredString(input.key, 'key'),
     name: stringMap(input.name, 'name'),
     tierType: requiredString(input.tierType, 'tierType'),
     contentType: requiredString(input.contentType, 'contentType'),
-    ...(typeof input.languageId === 'string' ? { languageId: input.languageId } : {}),
-    ...(typeof input.orthographyId === 'string' ? { orthographyId: input.orthographyId } : {}),
+    ...('languageId' in input
+      ? { languageId: optionalString(input.languageId, 'languageId') }
+      : {}),
+    ...('orthographyId' in input
+      ? { orthographyId: optionalString(input.orthographyId, 'orthographyId') }
+      : {}),
+    ...('parentId' in input ? { parentId: optionalString(input.parentId, 'parentId') } : {}),
+    ...('sortOrder' in input ? { sortOrder: requiredNumber(input.sortOrder, 'sortOrder') } : {}),
   };
 }
 
@@ -314,10 +331,26 @@ function booleanMap(value: unknown): Record<string, boolean> {
 }
 
 function unitCreate(input: Record<string, unknown>): UnitCreate {
+  knownKeys(input, ['layerId', 'startTime', 'endTime', 'text', 'speakerId', 'parentUnitId']);
   return {
     layerId: requiredString(input.layerId, 'layerId'),
     startTime: requiredNumber(input.startTime, 'startTime'),
     endTime: requiredNumber(input.endTime, 'endTime'),
     text: requiredString(input.text, 'text'),
+    ...('speakerId' in input ? { speakerId: optionalString(input.speakerId, 'speakerId') } : {}),
+    ...('parentUnitId' in input
+      ? { parentUnitId: optionalString(input.parentUnitId, 'parentUnitId') }
+      : {}),
   };
+}
+
+function knownKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
+  for (const key of Object.keys(input)) {
+    if (!allowed.includes(key)) throw new Error(`desktop call field ${key} is not supported`);
+  }
+}
+
+function optionalString(value: unknown, name: string): string | null {
+  if (value === null) return null;
+  return requiredString(value, name);
 }

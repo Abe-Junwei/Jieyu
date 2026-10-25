@@ -1,15 +1,29 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
+import { callDesktopSession } from '../db/desktop/desktopCall';
+import {
+  openDesktopSession,
+  reopenDesktopSession,
+  requireDesktopSession,
+  resetDesktopSessions,
+} from '../db/desktop/projectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { LocaleProvider } from '../i18n';
 import { DesktopProjectReadPage } from './DesktopProjectReadPage';
 
+const roots: string[] = [];
+
 afterEach(() => {
+  cleanup();
   delete (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop;
+  resetDesktopSessions();
+  for (const root of roots) rmSync(root, { recursive: true, force: true });
+  roots.length = 0;
 });
 
 function renderPage() {
@@ -29,8 +43,14 @@ describe('DesktopProjectReadPage', () => {
   it('does not read the folder library through Dexie', () => {
     const page = readFileSync(join(process.cwd(), 'src/pages/DesktopProjectReadPage.tsx'), 'utf8');
     const view = readFileSync(join(process.cwd(), 'src/pages/DesktopProjectReadView.tsx'), 'utf8');
+    const controller = readFileSync(
+      join(process.cwd(), 'src/pages/useDesktopProjectReadController.ts'),
+      'utf8',
+    );
     expect(page.includes('dexie') || page.includes('Dexie') || page.includes('getDb')).toBe(false);
     expect(page.includes('storageCall')).toBe(false);
+    expect(page.includes("from '../db")).toBe(false);
+    expect(controller.includes("from '../db")).toBe(false);
     expect(view.includes('dexie') || view.includes('Dexie') || view.includes('getDb')).toBe(false);
   });
 
@@ -109,4 +129,144 @@ describe('DesktopProjectReadPage', () => {
     expect(calls.filter((call) => call === 'choose')).toEqual(['choose']);
     expect(calls.filter((call) => call === 'units.updateText')).toEqual(['units.updateText']);
   });
+
+  it('saves the current manuscript offset after a switch', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const first = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '甲' },
+      mediaId: media.id,
+    }) as { id: string };
+    const second = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '乙' },
+      mediaId: media.id,
+    }) as { id: string };
+    const db = requireDesktopSession(session.sessionId).db;
+    db.prepare('UPDATE manuscripts SET created_at = ? WHERE id = ?').run(
+      '2026-10-25T00:00:00.000Z',
+      first.id,
+    );
+    db.prepare('UPDATE manuscripts SET created_at = ? WHERE id = ?').run(
+      '2026-10-25T00:00:01.000Z',
+      second.id,
+    );
+    callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
+      manuscriptId: first.id,
+      expectedRevision: 0,
+      offsetSec: 1,
+      scale: 1,
+    });
+    callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
+      manuscriptId: second.id,
+      expectedRevision: 0,
+      offsetSec: 9,
+      scale: 1,
+    });
+    mount(session.sessionId);
+    expect(await screen.findByRole('button', { name: '甲' })).toBeTruthy();
+    expect(textValue('Offset seconds')).toBe('1');
+    fireEvent.click(screen.getByRole('button', { name: '乙' }));
+    await waitFor(() => {
+      expect(textValue('Offset seconds')).toBe('9');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save time mapping' }));
+    await waitFor(() => {
+      const saved = requireDesktopSession(session.sessionId).manuscripts.get(second.id);
+      expect(saved?.timeMapping).toMatchObject({ offsetSec: 9, revision: 2 });
+    });
+    expect(
+      requireDesktopSession(session.sessionId).manuscripts.get(first.id)?.timeMapping,
+    ).toMatchObject({
+      offsetSec: 1,
+      revision: 1,
+    });
+    reopenDesktopSession(session.sessionId);
+    expect(
+      requireDesktopSession(session.sessionId).manuscripts.get(second.id)?.timeMapping,
+    ).toMatchObject({
+      offsetSec: 9,
+      revision: 2,
+    });
+  });
+
+  it('saves the selected unit boundary after a switch', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const units = [
+      [0, 2, '一'],
+      [2, 4, '二'],
+      [4, 6, '三'],
+    ].map(([start, end, text]) =>
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId: layer.id,
+        startTime: start,
+        endTime: end,
+        text,
+      }),
+    ) as { id: string }[];
+    mount(session.sessionId);
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 一' }));
+    expect(textValue('Literature boundary')).toBe('2');
+    fireEvent.click(screen.getByRole('button', { name: '2.0–4.0 二' }));
+    expect(textValue('Literature boundary')).toBe('4');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Literature boundary' }), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Move boundary' }));
+    expect(await screen.findByRole('button', { name: '2.0–3.0 二' })).toBeTruthy();
+    reopenDesktopSession(session.sessionId);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: units[1]?.id })).toMatchObject({
+      startTime: 2,
+      endTime: 3,
+    });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: units[2]?.id })).toMatchObject({
+      startTime: 3,
+      endTime: 6,
+    });
+  });
 });
+
+function tempFolder(): string {
+  const root = mkdtempSync(join(tmpdir(), 'jieyu-desktop-read-'));
+  roots.push(root);
+  return root;
+}
+
+function mount(sessionId: string): void {
+  const host: DesktopReadHost = {
+    projectReadEnabled: true,
+    chooseDesktopFolder: () => Promise.resolve({ sessionId }),
+    desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+    desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+  };
+  (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+}
+
+function textValue(name: string): string {
+  return (screen.getByRole('textbox', { name }) as HTMLInputElement).value;
+}

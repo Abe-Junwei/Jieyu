@@ -106,6 +106,7 @@ export function DesktopProjectReadView(props: {
             <>
               <input
                 ref={boundaryRef}
+                key={selected.id}
                 aria-label={props.boundaryLabel}
                 defaultValue={String(selected.endTime)}
               />
@@ -126,13 +127,13 @@ export function DesktopProjectReadView(props: {
       <div className="desktop-project-read-units">
         <input
           ref={offsetRef}
-          key={`offset-${props.timeMapping?.revision ?? 0}`}
+          key={`offset-${props.manuscriptId ?? ''}-${props.timeMapping?.revision ?? 0}`}
           aria-label={props.offsetLabel}
           defaultValue={String(props.timeMapping?.offsetSec ?? 0)}
         />
         <input
           ref={scaleRef}
-          key={`scale-${props.timeMapping?.revision ?? 0}`}
+          key={`scale-${props.manuscriptId ?? ''}-${props.timeMapping?.revision ?? 0}`}
           aria-label={props.scaleLabel}
           defaultValue={String(props.timeMapping?.scale ?? 1)}
         />

@@ -125,4 +125,127 @@ describe('desktop call', () => {
     expect(client.includes("from './projectSession'")).toBe(false);
     expect(mainBuild.includes("'better-sqlite3'")).toBe(true);
   });
+
+  it('keeps declared layer and unit fields, and rejects a field it does not declare', () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 4,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const language = callDesktopSession(session.sessionId, 'catalog.ensureProjectDefinition', {
+      name: { zh: '示例' },
+      sourceType: 'built-in-reviewed',
+      iso6393: 'eng',
+    }) as { id: string };
+    const orthography = callDesktopSession(session.sessionId, 'orthographies.create', {
+      languageId: language.id,
+      name: { en: 'Latin' },
+      scriptTag: 'Latn',
+      sourceType: 'built-in-reviewed',
+    }) as { id: string };
+    const parent = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'parent',
+      name: { zh: '父层' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      languageId: language.id,
+      orthographyId: orthography.id,
+      parentId: parent.id,
+      sortOrder: 7,
+    }) as {
+      id: string;
+      parentId: string | null;
+      sortOrder: number;
+      languageId: string | null;
+      orthographyId: string | null;
+    };
+    expect(layer).toMatchObject({
+      parentId: parent.id,
+      sortOrder: 7,
+      languageId: language.id,
+      orthographyId: orthography.id,
+    });
+    const speaker = requireDesktopSession(session.sessionId).speakers.create({ name: '甲' });
+    const parentUnit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 1,
+      text: '父',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 1,
+      endTime: 2,
+      text: '子',
+      speakerId: speaker.id,
+      parentUnitId: parentUnit.id,
+    }) as { id: string; speakerId: string | null; parentUnitId: string | null };
+    expect(unit).toMatchObject({ speakerId: speaker.id, parentUnitId: parentUnit.id });
+    const layersBefore = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT COUNT(*) AS n FROM layers')
+      .get() as { n: number };
+    const unitsBefore = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT COUNT(*) AS n FROM units')
+      .get() as { n: number };
+    expect(() =>
+      callDesktopSession(session.sessionId, 'layers.create', {
+        manuscriptId: manuscript.id,
+        key: 'extra',
+        name: { zh: '多' },
+        tierType: 'time-aligned',
+        contentType: 'note',
+        extra: true,
+      }),
+    ).toThrow('desktop call field extra is not supported');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId: layer.id,
+        startTime: 2,
+        endTime: 3,
+        text: '丢',
+        note: 'nope',
+      }),
+    ).toThrow('desktop call field note is not supported');
+    expect(
+      requireDesktopSession(session.sessionId).db.prepare('SELECT COUNT(*) AS n FROM layers').get(),
+    ).toEqual(layersBefore);
+    expect(
+      requireDesktopSession(session.sessionId).db.prepare('SELECT COUNT(*) AS n FROM units').get(),
+    ).toEqual(unitsBefore);
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const layers = callDesktopSession(session.sessionId, 'layers.list', {
+      manuscriptId: manuscript.id,
+    }) as {
+      key: string;
+      parentId: string | null;
+      sortOrder: number;
+      languageId: string | null;
+      orthographyId: string | null;
+    }[];
+    expect(layers.find((item) => item.key === 'tx')).toMatchObject({
+      parentId: parent.id,
+      sortOrder: 7,
+      languageId: language.id,
+      orthographyId: orthography.id,
+    });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      speakerId: speaker.id,
+      parentUnitId: parentUnit.id,
+    });
+  });
 });
