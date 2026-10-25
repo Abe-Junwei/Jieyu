@@ -13,6 +13,7 @@ import {
   reopenLockedSqliteStorage,
   writeProjectLibraryMarker,
 } from '@sqlite-host';
+import { callDesktopSession } from '../src/db/desktop/desktopCall';
 import { closeDesktopSession, openDesktopSession } from '../src/db/desktop/projectSession';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
 import {
@@ -196,6 +197,12 @@ function registerIpc(): void {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     closeDesktopSession(sessionId);
     return { closed: true };
+  });
+
+  handle('desktop:call', (sessionId: unknown, method: unknown, args: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    if (typeof method !== 'string' || method.length === 0) throw new Error('empty desktop call');
+    return callDesktopSession(sessionId, method, args);
   });
 
   handle('skeleton:open-project', (folder: unknown) => {

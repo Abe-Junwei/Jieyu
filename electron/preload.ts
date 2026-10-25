@@ -11,6 +11,8 @@ const desktop = {
   openDesktopSession: (folder: string) => ipcRenderer.invoke('desktop:open-session', folder),
   closeDesktopSession: (sessionId: string) =>
     ipcRenderer.invoke('desktop:close-session', sessionId),
+  desktopCall: (sessionId: string, method: string, args: unknown) =>
+    ipcRenderer.invoke('desktop:call', sessionId, method, args),
   storeSecret: (plain: string) => ipcRenderer.invoke('skeleton:store-secret', plain),
   startRequest: (requestId: string, url: string) =>
     ipcRenderer.invoke('skeleton:start-request', requestId, url),

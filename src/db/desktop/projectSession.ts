@@ -35,6 +35,18 @@ export function requireDesktopSession(sessionId: string): DesktopProject {
   return current.project;
 }
 
+export function desktopSessionFolder(sessionId: string): string {
+  if (current?.id !== sessionId) throw new Error('project session expired');
+  return current.folder;
+}
+
+export function reopenDesktopSession(sessionId: string): void {
+  const folder = desktopSessionFolder(sessionId);
+  requireDesktopSession(sessionId).close();
+  current = undefined;
+  current = { id: sessionId, folder, project: openProject(folder) };
+}
+
 export function resetDesktopSessions(): void {
   current?.project.close();
   current = undefined;
