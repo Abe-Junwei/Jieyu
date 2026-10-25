@@ -15,7 +15,11 @@ import {
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
-import { closeDesktopSession, openDesktopSession } from '../src/db/desktop/projectSession';
+import {
+  closeDesktopSession,
+  openDesktopSession,
+  resetDesktopSessions,
+} from '../src/db/desktop/projectSession';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
 import {
   isAllowedAiOutboundUrl,
@@ -28,11 +32,17 @@ import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import {
   bindDesktopMediaSession,
   releaseDesktopMediaSession,
+  resetDesktopMediaGrants,
   resolveDesktopMedia,
 } from '../src/desktop/skeleton/desktopMediaGrant';
 import { fileContainsProbeTable, writeSkeletonProbe } from '../src/desktop/skeleton/probeStore';
 import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
 import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
+
+const userDataDir = process.env.JIEYU_DESKTOP_USER_DATA;
+if (typeof userDataDir === 'string' && userDataDir.length > 0) {
+  app.setPath('userData', userDataDir);
+}
 
 const SMOKE = process.argv.includes('--smoke');
 // Linux CI has no secret service; only the smoke run may fall back to the hardcoded-password store.
@@ -530,6 +540,11 @@ app
     console.error(error);
     app.exit(1);
   });
+
+app.on('before-quit', () => {
+  resetDesktopSessions();
+  resetDesktopMediaGrants();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !process.argv.includes('--smoke')) app.quit();
