@@ -11,6 +11,7 @@ import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjec
 import { replaceProjection } from './analysis';
 import { detachAnalysisAssociations } from './analysisCandidates';
 import type { AnalysisCredentials } from './analysisRestore';
+import { assertStoredCustomFields } from './customFields';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -79,6 +80,7 @@ export function importAnalysis(
     const graph = structuredClone(current.graph);
     applyImport(graph, nodes, relations, removeNodes, removeRelations, counts);
     const validated = validateAnalysisGraphPayload(graph, current.graph.text);
+    assertStoredCustomFields(db, validated, input.unitId);
     const fingerprint = analysisGraphFingerprint(validated);
     const generation = current.analysisGeneration + 1;
     const now = new Date().toISOString();

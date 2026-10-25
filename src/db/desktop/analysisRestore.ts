@@ -19,6 +19,7 @@ import {
   type AnalysisCandidateRecord,
   type AnalysisMaterial,
 } from './analysisCandidates';
+import { assertStoredCustomFields } from './customFields';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -213,6 +214,7 @@ function assertCredentials(material: AnalysisMaterial, expected: AnalysisCredent
 
 function writeGraph(db: SqliteDatabase, material: AnalysisMaterial, graph: unknown): AnalysisRoot {
   const validated = validateAnalysisGraphPayload(graph, material.text);
+  assertStoredCustomFields(db, validated, material.unitId);
   const fingerprint = analysisGraphFingerprint(validated);
   const generation = material.analysisGeneration + 1;
   const now = new Date().toISOString();

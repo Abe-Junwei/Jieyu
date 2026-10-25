@@ -14,6 +14,11 @@ import type { AnalysisApplyResult } from './analysis';
 import type { AnalysisImportResult } from './analysisImport';
 import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestore';
 import type { AnalysisCandidateRecord } from './analysisCandidates';
+import type {
+  CustomFieldDefinition,
+  CustomFieldPreview,
+  CustomFieldUnitValue,
+} from './customFields';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 
 export interface DesktopBridge {
@@ -44,6 +49,24 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<Unit>(sessionId, 'units.updateText', input),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
       once<{ left: Unit; right: Unit }>(sessionId, 'units.updateBoundary', input),
+    createCustomFieldDefinition: (sessionId: string, input: unknown) =>
+      once<CustomFieldDefinition>(sessionId, 'customFields.createDefinition', input),
+    updateCustomFieldDefinition: (sessionId: string, input: unknown) =>
+      once<CustomFieldDefinition>(sessionId, 'customFields.updateDefinition', input),
+    addCustomFieldOption: (sessionId: string, input: unknown) =>
+      once<CustomFieldDefinition>(sessionId, 'customFields.addOption', input),
+    updateCustomFieldOptionLabel: (sessionId: string, input: unknown) =>
+      once<CustomFieldDefinition>(sessionId, 'customFields.updateOptionLabel', input),
+    importCustomFieldDefinition: (sessionId: string, input: unknown) =>
+      once<CustomFieldDefinition>(sessionId, 'customFields.importDefinition', input),
+    previewUnitValue: (sessionId: string, input: unknown) =>
+      once<CustomFieldPreview>(sessionId, 'customFields.previewUnitValue', input),
+    setUnitValue: (sessionId: string, input: unknown) =>
+      once<CustomFieldUnitValue>(sessionId, 'customFields.setUnitValue', input),
+    removeUnitValue: (sessionId: string, input: unknown) =>
+      once<void>(sessionId, 'customFields.removeUnitValue', input),
+    missingUnitFields: (sessionId: string, unitId: string) =>
+      once<string[]>(sessionId, 'customFields.missingUnitFields', { unitId }),
     setTimeMapping: (
       sessionId: string,
       input: {

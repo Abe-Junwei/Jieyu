@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 7;
+export const DESKTOP_PROJECT_USER_VERSION = 8;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -464,6 +464,79 @@ CREATE TABLE analysis_candidates (
 );
 
 CREATE INDEX analysis_candidates_unit ON analysis_candidates(unit_id, kind, status);
+
+CREATE TABLE custom_field_definitions (
+  id TEXT PRIMARY KEY,
+  target_type TEXT NOT NULL CHECK (target_type IN (
+    'project', 'manuscript', 'layer', 'unit', 'media', 'source', 'speaker', 'note',
+    'conversation', 'message', 'language', 'orthography', 'orthography-bridge',
+    'lexeme', 'lexeme-sense', 'analysis-node', 'analysis-relation'
+  )),
+  name_json TEXT NOT NULL CHECK (json_valid(name_json) AND json_type(name_json) = 'object'),
+  description_json TEXT CHECK (
+    description_json IS NULL OR (json_valid(description_json) AND json_type(description_json) = 'object')
+  ),
+  placeholder_json TEXT CHECK (
+    placeholder_json IS NULL OR (json_valid(placeholder_json) AND json_type(placeholder_json) = 'object')
+  ),
+  help_text_json TEXT CHECK (
+    help_text_json IS NULL OR (json_valid(help_text_json) AND json_type(help_text_json) = 'object')
+  ),
+  field_type TEXT NOT NULL CHECK (field_type IN (
+    'text', 'number', 'boolean', 'select', 'multiselect', 'url', 'ref'
+  )),
+  required INTEGER NOT NULL DEFAULT 0 CHECK (required IN (0, 1)),
+  default_value_json TEXT CHECK (default_value_json IS NULL OR json_valid(default_value_json)),
+  pattern TEXT,
+  min_value REAL,
+  max_value REAL,
+  target_types_json TEXT CHECK (
+    target_types_json IS NULL OR (
+      json_valid(target_types_json) AND json_type(target_types_json) = 'array'
+    )
+  ),
+  cardinality TEXT CHECK (cardinality IS NULL OR cardinality IN ('one', 'many')),
+  min_items INTEGER CHECK (min_items IS NULL OR min_items >= 0),
+  max_items INTEGER CHECK (max_items IS NULL OR max_items >= 0),
+  sort_order INTEGER NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (pattern IS NULL OR field_type IN ('text', 'url')),
+  CHECK ((min_value IS NULL AND max_value IS NULL) OR field_type = 'number'),
+  CHECK (min_value IS NULL OR max_value IS NULL OR min_value <= max_value),
+  CHECK (min_items IS NULL OR max_items IS NULL OR min_items <= max_items),
+  CHECK (
+    (field_type = 'ref' AND target_types_json IS NOT NULL AND cardinality IS NOT NULL) OR
+    (field_type <> 'ref' AND target_types_json IS NULL AND cardinality IS NULL
+      AND min_items IS NULL AND max_items IS NULL)
+  ),
+  CHECK (cardinality IS NULL OR cardinality <> 'one' OR max_items IS NULL OR max_items <= 1),
+  CHECK (cardinality IS NULL OR cardinality <> 'one' OR min_items IS NULL OR min_items <= 1)
+);
+
+CREATE TABLE custom_field_options (
+  id TEXT PRIMARY KEY,
+  definition_id TEXT NOT NULL REFERENCES custom_field_definitions(id),
+  label_json TEXT NOT NULL CHECK (json_valid(label_json) AND json_type(label_json) = 'object'),
+  sort_order INTEGER NOT NULL
+);
+
+CREATE INDEX custom_field_options_definition ON custom_field_options(definition_id, sort_order);
+
+CREATE TABLE custom_field_values (
+  definition_id TEXT NOT NULL REFERENCES custom_field_definitions(id),
+  target_type TEXT NOT NULL CHECK (target_type IN (
+    'project', 'manuscript', 'layer', 'unit', 'media', 'source', 'speaker', 'note',
+    'conversation', 'message', 'orthography', 'orthography-bridge'
+  )),
+  target_id TEXT NOT NULL,
+  value_json TEXT NOT NULL CHECK (json_valid(value_json)),
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (definition_id, target_type, target_id)
+);
+
+CREATE INDEX custom_field_values_target ON custom_field_values(target_type, target_id);
 
 CREATE TABLE sources (
   id TEXT PRIMARY KEY,

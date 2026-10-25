@@ -77,6 +77,9 @@ describe('desktop project schema', () => {
     expect(names).toEqual([
       { name: 'analysis_candidates' },
       { name: 'conversations' },
+      { name: 'custom_field_definitions' },
+      { name: 'custom_field_options' },
+      { name: 'custom_field_values' },
       { name: 'language_aliases' },
       { name: 'language_catalog_history' },
       { name: 'language_display_names' },

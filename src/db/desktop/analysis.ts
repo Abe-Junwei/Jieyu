@@ -12,6 +12,7 @@ import {
   type ProjectedMorpheme,
   type ProjectedToken,
 } from '../../annotation/analysisGraphDomainProjection';
+import { assertStoredCustomFields } from './customFields';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -54,7 +55,15 @@ interface SurfaceChange {
   surfaceParts?: AnalysisGraphSurfacePart[];
 }
 
-type AnalysisChange = MapChange | FieldChange | ReorderChange | DisplayChange | SurfaceChange;
+interface CustomFieldChange {
+  action: 'customField.set' | 'customField.remove';
+  nodeId: string;
+  definitionId: string;
+  value?: unknown;
+}
+
+type AnalysisChange =
+  MapChange | FieldChange | ReorderChange | DisplayChange | SurfaceChange | CustomFieldChange;
 
 const SET_FIELDS = new Set(['pos', 'languageId', 'lexemeId']);
 
@@ -90,6 +99,7 @@ export function applyAnalysis(
     const nextGraph = structuredClone(current.graph);
     for (const change of changes) applyChange(nextGraph, change);
     const graph = validateAnalysisGraphPayload(nextGraph, current.graph.text);
+    assertStoredCustomFields(db, graph, input.unitId);
     const fingerprint = analysisGraphFingerprint(graph);
     const generation = reorderOnly ? current.analysisGeneration : current.analysisGeneration + 1;
     const now = new Date().toISOString();
@@ -267,6 +277,10 @@ function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void 
     rewriteNext(graph);
     return;
   }
+  if (change.action === 'customField.set' || change.action === 'customField.remove') {
+    applyCustomField(graph, change);
+    return;
+  }
   const node = requireLinear(graph, change.nodeId);
   if (node.domain === undefined) throw new Error('token domain is missing');
   if (change.action === 'node.clearSurfaceParts') {
@@ -297,6 +311,21 @@ function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void 
     throw new Error('analysis change is invalid');
   }
   markContentEdit(node, field);
+}
+
+function applyCustomField(graph: AnalysisGraphPayload, change: CustomFieldChange): void {
+  const node = graph.nodes.find((item) => item.id === change.nodeId);
+  if (node === undefined) throw new Error(`analysis node is missing: ${change.nodeId}`);
+  const fields = { ...(node.customFields ?? {}) };
+  if (change.action === 'customField.remove') {
+    if (!(change.definitionId in fields)) throw new Error('custom field value is missing');
+    delete fields[change.definitionId];
+  } else {
+    fields[change.definitionId] = change.value;
+  }
+  if (Object.keys(fields).length === 0) delete node.customFields;
+  else node.customFields = fields;
+  markContentEdit(node, `customField:${change.definitionId}`);
 }
 
 function markContentEdit(node: AnalysisGraphNode, field: string): void {
@@ -434,6 +463,26 @@ function parseChange(value: unknown): AnalysisChange {
       surface.surfaceParts = change.surfaceParts as AnalysisGraphSurfacePart[];
     }
     return surface;
+  }
+  if (action === 'customField.set' || action === 'customField.remove') {
+    if (typeof change.nodeId !== 'string' || change.nodeId.length === 0) {
+      throw new Error('analysis node is missing');
+    }
+    if (typeof change.definitionId !== 'string' || change.definitionId.length === 0) {
+      throw new Error('custom field definition is missing');
+    }
+    if (action === 'customField.remove') {
+      return { action, nodeId: change.nodeId, definitionId: change.definitionId };
+    }
+    if (!('value' in change) || change.value === undefined || change.value === null) {
+      throw new Error('custom field value is missing');
+    }
+    return {
+      action,
+      nodeId: change.nodeId,
+      definitionId: change.definitionId,
+      value: change.value,
+    };
   }
   if (action === 'node.reorder') {
     if (!Array.isArray(change.indexes) || change.indexes.length === 0) {

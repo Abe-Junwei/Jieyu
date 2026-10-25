@@ -183,7 +183,7 @@ label、普通显示 gloss/POS 节点、next、displayGloss 是由完整载荷�
 - [x] 确定批次与局部 id 映射的种类/语段作用域、扩展命名空间及容器校验、未知扩展进入已定义字段的显式转换规则。
 - [x] 明确永久清除遍历的全部库内载体、历史内容清除标记、凭据失效与不改写曾经接受事实的规则；给出清除失败的原子回滚和重开验收。
 - [x] 将第 11 节场景写成具体输入/预期输出合同例；评审 ADR 变更提案与路线图扩展范围。
-- [x] 用户审阅并确认完整字段合同、ADR 变更及实施切片；之后才可规划并实现 M5-C。R5 附件协议、R6 逐列空值仍不并入共同入口。C1 至 C4 的主进程导入已落地，旧页面入口和 C5 起尚未开始。
+- [x] 用户审阅并确认完整字段合同、ADR 变更及实施切片；之后才可规划并实现 M5-C。R5 附件协议、R6 逐列空值仍不并入共同入口。C1 至 C5 已落地，旧页面入口和 C6 起尚未开始。
 
 ## 11. 验收场景草案（未执行）
 
@@ -207,7 +207,7 @@ label、普通显示 gloss/POS 节点、next、displayGloss 是由完整载荷�
 
 ### 状态与边界
 
-已接受为 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。2026-10-25 用户确认第 13 节和本提案的替代范围。既有 ADR 正文未改。M5-C 的 C1 至 C4 导入已开始，旧页面入口和 C5 起尚未开始。
+已接受为 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。2026-10-25 用户确认第 13 节和本提案的替代范围。既有 ADR 正文未改。M5-C 的 C1 至 C5 已落地，旧页面入口和 C6 起尚未开始。
 
 产品方向与范围见[合同草案第 7–9 节](./design.md#7-审查状态与三类内容)。字段结构草案在第 13 节，确认仍以第 10 节的勾选为准。本提案只记取舍，不重复维护字段清单。
 
@@ -258,7 +258,7 @@ ADR-0088 已决定图为分析真值、线性词项与词义表为投影；单�
 
 ## 13. 字段编码与实施切片（已确认，未实现）
 
-审阅版本：**R1-contract-2026-10-25-r3**，同日补上 C4 再导入。用户 2026-10-25 确认本节与 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。C1 至 C4 的导入已写入主进程。旧标注页未改。C5 起的产品代码未改。仅合成项目，实验编码不作为协议。
+审阅版本：**R1-contract-2026-10-25-r3**，同日补上 C4 再导入。用户 2026-10-25 确认本节与 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。C1 至 C5 已写入主进程。旧标注页未改。C6 起的产品代码未改。仅合成项目，实验编码不作为协议。
 
 ### 13.1 文件、载荷及写入版本
 
@@ -410,7 +410,7 @@ body 缺省保留、删除显式；归属对象退出随其可恢复材料保存
 
 ### 13.8 实施切片、文件与验收
 
-以下落位已确认。C1 至 C4 导入的新文件已创建；C5 起所列新文件尚未创建。不把所有 DDL 塞进一片，也不以表存在宣称能力交付。每片需要改表时递增当时 user_version，不绑定“只有 C7 才能再次升版”。
+以下落位已确认。C1 至 C5 的新文件已创建；C6 起所列新文件尚未创建。不把所有 DDL 塞进一片，也不以表存在宣称能力交付。每片需要改表时递增当时 user_version，不绑定“只有 C7 才能再次升版”。
 
 | 片与依赖 | 落位提案 | 最小交付及验证 |
 | --- | --- | --- |
@@ -418,7 +418,7 @@ body 缺省保留、删除显式；归属对象退出随其可恢复材料保存
 | C2 依赖C1；已落地 | src/db/desktop/analysis.ts、src/annotation/analysisGraphDomainProjection.ts 及对应测试；client.ts、desktopCall.ts、schema.ts。词条模块没有独立词项写入口，未改 lexicon.ts | analysis.apply 的编辑与重排。图为真值，投影多语列只在该事务写入。E1、E2、E10 的重排半边，原子失败后重开仍是旧图。导入、接受和恢复留到后续切片 |
 | C3 依赖C2；已落地 | 现有 src/db/desktop/units.ts；src/db/desktop/analysisRestore.ts、analysisCandidates.ts 及对应测试；client.ts、desktopCall.ts、schema.ts | 候选与待复核快照、改正文时的快照并清图。E3、E11、E9，过期接受、重复接受，以及恢复时保留后改备注。user_version 7，旧文件只拒绝 |
 | C4 导入；已落地。旧页面入口未改接 | src/db/desktop/analysisImport.ts 及测试；analysis.ts 的显示键和跨度动作；client.ts、desktopCall.ts。未改旧标注页，未加 external_ref，未升 user_version | E12、E13–E16 在主进程读回：未提及的键保留，无 id 再导入会追加，坏 id 与又改又删整次拒绝，失配跨度重开后仍失配，删节点不带关系删除则拒绝。响应丢失沿用现有一次调用，不自动重试。旧标注页、导入页和接受页仍不改接 |
-| C5 依赖C3 | 拟新增 src/db/desktop/customFields.ts、customFieldValidation.ts 及测试；schema/client/desktopCall | 定义/稳定选项/约束/值/预览凭据；先 unit 端到端，E8 与 E10 的自定义值半边；JSON 容器不等于完整校验，未知 definitionId 拒绝 |
+| C5 依赖C3；已落地 | src/db/desktop/customFields.ts、customFieldValidation.ts 及测试；schema/client/desktopCall/units/analysis | 定义、稳定选项、约束、语段值和预览凭据。E8：旧语段缺必填值仍可改正文，新语段必须带值，同名导入按复用或新建，类型冲突不合并，默认值不追填。E10 的 customField.set 把 residue 标为需复核并推进分析代际。未知 definitionId 拒绝。user_version 8。旧页面未改接。C6 起未做 |
 | C6a/b/c 依赖C5及相应业务宿主 | customFields.ts；现有 catalog.ts/lexicon.ts；拟新增 src/db/desktop/customFieldTargets.ts；各对象现有/随后接替的业务写入口 | a项目/文稿/层/媒体/目录/说话人；b词条/义项/图节点/关系；c来源/备注/对话/消息。逐注册行真实读写/重开/引用/清除定位验收；底层未就绪记录依赖未完成，不删除范围 |
 | C7a/b/c 依赖C6全部宿主登记 | 拟新增 src/db/desktop/customFieldMigration.ts、customFieldPurge.ts、referenceState.ts 及测试；schema.ts、lexicon.ts、候选/快照服务 | a迁移+定义依赖；b永久清除全部已知载体；c去相关目标外键并改删除/恢复与索引事务。E4/E5/E6每片独立验证。引用放宽前要有完整读回/失效查询，不能仅去外键 |
 | C8a/b 依赖C7主进程验收 | 拟新增 src/pages/useProjectCustomFieldController.ts、ProjectCustomFieldManager.tsx；复用现有语言字段表单与校验语义；i18n/dictKeys及字典；featureFlags.ts | a定义/字段编辑、导入映射与迁移预览；b永久清除影响确认和缺值/失效引用提示。语义token、两层边框、i18n，默认关闭的桌面内部flag。各对象字段入口不是仅语言页演示 |
@@ -437,4 +437,4 @@ C1 至 C3 是未开放工程中间态：现有 unit 创建仍只建语段及转�
 
 ### 13.9 本版确认范围
 
-本版字段结构、原键保留、17 类宿主、E1–E16 及 C1–C8，连同 ADR-0090，已确认。C4 的再导入边界在决策 11，主进程导入已落地。`user_version` 5 只属于 C1，6 只属于 C2，7 只属于 C3。C4 未改表。不改既有 ADR 正文。文档检查只证明落位和格式。下一片是 C5。旧标注页不改接。不把原 JSON 实验当验收。
+本版字段结构、原键保留、17 类宿主、E1–E16 及 C1–C8，连同 ADR-0090，已确认。C4 的再导入边界在决策 11，主进程导入已落地。`user_version` 5 只属于 C1，6 只属于 C2，7 只属于 C3。C4 未改表。C5 升到 8。不改既有 ADR 正文。文档检查只证明落位和格式。下一片是 C6a。旧标注页不改接。不把原 JSON 实验当验收。

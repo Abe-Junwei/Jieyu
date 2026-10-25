@@ -86,6 +86,7 @@ const nodeSchema = z
     features: z.record(z.string(), z.unknown()).optional(),
     surfaceParts: z.array(surfacePartSchema).optional(),
     residue: z.array(residueSchema).optional(),
+    customFields: z.record(z.string().min(1), z.unknown()).optional(),
   })
   .strict();
 
@@ -98,6 +99,7 @@ const relationSchema = z
     role: z.string().trim().min(1).max(64).optional(),
     features: z.record(z.string(), z.unknown()).optional(),
     link: z.unknown().optional(),
+    customFields: z.record(z.string().min(1), z.unknown()).optional(),
   })
   .strict();
 
@@ -134,6 +136,7 @@ export interface AnalysisGraphNode {
   features?: Record<string, unknown> | undefined;
   surfaceParts?: AnalysisGraphSurfacePart[] | undefined;
   residue?: AnalysisResidue[] | undefined;
+  customFields?: Record<string, unknown> | undefined;
 }
 
 export interface AnalysisGraphRelation {
@@ -144,6 +147,7 @@ export interface AnalysisGraphRelation {
   role?: string | undefined;
   features?: Record<string, unknown> | undefined;
   link?: AnalysisGraphLink | undefined;
+  customFields?: Record<string, unknown> | undefined;
 }
 
 export interface AnalysisGraphPayload {

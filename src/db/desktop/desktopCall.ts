@@ -18,6 +18,19 @@ import {
   type LanguageEnsure,
   type OrthographyCreate,
 } from './catalog';
+import {
+  CUSTOM_FIELD_DEFINITION_KEYS,
+  CUSTOM_FIELD_UPDATE_KEYS,
+  addOption,
+  createDefinition,
+  importDefinition,
+  missingUnitFields,
+  previewUnitValue,
+  removeUnitValue,
+  setUnitValue,
+  updateDefinition,
+  updateOptionLabel,
+} from './customFields';
 import { createLayer, listLayers, type LayerCreate } from './layers';
 import {
   linkSense,
@@ -71,6 +84,15 @@ const METHODS = [
   'units.list',
   'units.updateText',
   'units.updateBoundary',
+  'customFields.createDefinition',
+  'customFields.updateDefinition',
+  'customFields.addOption',
+  'customFields.updateOptionLabel',
+  'customFields.importDefinition',
+  'customFields.previewUnitValue',
+  'customFields.setUnitValue',
+  'customFields.removeUnitValue',
+  'customFields.missingUnitFields',
   'analysis.apply',
   'analysis.import',
   'analysis.submit',
@@ -147,6 +169,33 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         rightId: requiredString(input.rightId, 'rightId'),
         time: requiredNumber(input.time, 'time'),
       });
+    case 'customFields.createDefinition':
+      knownKeys(input, CUSTOM_FIELD_DEFINITION_KEYS);
+      return createDefinition(project.db, input);
+    case 'customFields.updateDefinition':
+      knownKeys(input, CUSTOM_FIELD_UPDATE_KEYS);
+      return updateDefinition(project.db, input);
+    case 'customFields.addOption':
+      knownKeys(input, ['definitionId', 'expectedRevision', 'label', 'sortOrder']);
+      return addOption(project.db, input);
+    case 'customFields.updateOptionLabel':
+      knownKeys(input, ['definitionId', 'optionId', 'expectedRevision', 'label']);
+      return updateOptionLabel(project.db, input);
+    case 'customFields.importDefinition':
+      knownKeys(input, ['mode', 'definition']);
+      return importDefinition(project.db, input);
+    case 'customFields.previewUnitValue':
+      knownKeys(input, ['definitionId', 'unitId', 'value']);
+      return previewUnitValue(project.db, input);
+    case 'customFields.setUnitValue':
+      knownKeys(input, ['definitionId', 'unitId', 'value', 'expectedRevision']);
+      return setUnitValue(project.db, input);
+    case 'customFields.removeUnitValue':
+      knownKeys(input, ['definitionId', 'unitId']);
+      return removeUnitValue(project.db, input);
+    case 'customFields.missingUnitFields':
+      knownKeys(input, ['unitId']);
+      return missingUnitFields(project.db, requiredString(input.unitId, 'unitId'));
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.import':
@@ -477,7 +526,15 @@ function booleanMap(value: unknown): Record<string, boolean> {
 }
 
 function unitCreate(input: Record<string, unknown>): UnitCreate {
-  knownKeys(input, ['layerId', 'startTime', 'endTime', 'text', 'speakerId', 'parentUnitId']);
+  knownKeys(input, [
+    'layerId',
+    'startTime',
+    'endTime',
+    'text',
+    'speakerId',
+    'parentUnitId',
+    'fieldValues',
+  ]);
   return {
     layerId: requiredString(input.layerId, 'layerId'),
     startTime: requiredNumber(input.startTime, 'startTime'),
@@ -487,7 +544,15 @@ function unitCreate(input: Record<string, unknown>): UnitCreate {
     ...('parentUnitId' in input
       ? { parentUnitId: optionalString(input.parentUnitId, 'parentUnitId') }
       : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
+}
+
+function fieldValueMap(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('desktop call fieldValues must be an object');
+  }
+  return value as Record<string, unknown>;
 }
 
 function knownKeys(input: Record<string, unknown>, allowed: readonly string[]): void {

@@ -12,6 +12,7 @@ import {
   nodeIdsOf,
   readAnalysisMaterial,
 } from './analysisCandidates';
+import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -34,6 +35,7 @@ export interface UnitCreate {
   text: string;
   speakerId?: string | null;
   parentUnitId?: string | null;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface UnitRow {
@@ -83,6 +85,7 @@ export function createUnit(
     db.prepare(
       `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES (?, ?, 'transcription', ?, ?)`,
     ).run(randomUUID(), id, input.text, now);
+    writeUnitFieldValues(db, id, input.fieldValues);
     const unit = getUnit(db, id);
     if (!unit) throw new Error('unit readback failed');
     return unit;
@@ -254,6 +257,7 @@ export function writeAnalysisRoot(
     const text = getUnit(db, input.unitId)?.text;
     if (text === undefined) throw new Error('unit is missing');
     const graph = validateAnalysisGraphPayload(input.graph, text);
+    assertStoredCustomFields(db, graph, input.unitId);
     const fingerprint = analysisGraphFingerprint(graph);
     const generation = current.analysisGeneration + 1;
     const now = new Date().toISOString();
