@@ -18,7 +18,7 @@
     "stop": [
       {
         "command": "node .cursor/hooks/stop-verify.mjs",
-        "timeout": 300,
+        "timeout": 90,
         "loop_limit": 2
       }
     ]
