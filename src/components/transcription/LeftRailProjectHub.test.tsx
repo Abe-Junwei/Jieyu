@@ -428,6 +428,29 @@ describe('LeftRailProjectHub project import dialog', () => {
     });
   });
 
+  it('keeps the file and strategy after an uncommitted import and closes after a successful retry', async () => {
+    const onImportAnnotationFile = vi
+      .fn()
+      .mockResolvedValueOnce({ committed: false })
+      .mockResolvedValueOnce({ committed: true });
+    renderHub({ onImportAnnotationFile });
+    const file = new File(['annotation'], 'retry.eaf', { type: 'application/xml' });
+    const input = document.querySelector('input[accept^=".eaf"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole('dialog', { name: '导入标注文件' });
+    fireEvent.click(screen.getByRole('radio', { name: /仅写入目标表示/ }));
+    fireEvent.click(screen.getByRole('button', { name: '开始导入标注' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: '开始导入标注' })).toBeEnabled());
+    expect(screen.getByRole('radio', { name: /仅写入目标表示/ })).toBeChecked();
+    expect(screen.getByText('retry.eaf')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '开始导入标注' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '导入标注文件' })).toBeNull());
+    expect(onImportAnnotationFile.mock.calls).toEqual([
+      [file, 'bridge-target', 'current-document'],
+      [file, 'bridge-target', 'current-document'],
+    ]);
+  });
+
   it('shows logical timeline hint and mapping preview in export submenu when time mapping is present', async () => {
     renderHub({
       exportTimelineModeLabel: 'document',
