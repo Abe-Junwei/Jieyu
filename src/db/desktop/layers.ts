@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 import { readStringMap } from './stringMap';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -29,6 +30,7 @@ export interface LayerCreate {
   orthographyId?: string | null;
   parentId?: string | null;
   sortOrder?: number;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface LayerRow {
@@ -69,6 +71,7 @@ export function createLayer(db: SqliteDatabase, input: LayerCreate): Layer {
       now,
       now,
     );
+    writeRequiredFieldValues(db, 'layer', id, input.fieldValues);
     const layer = getLayer(db, id);
     if (!layer) throw new Error('layer readback failed');
     return layer;

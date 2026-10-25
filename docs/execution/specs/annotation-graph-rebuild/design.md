@@ -21,29 +21,29 @@ depends_on:
 
 ## 2. 逐字段归属（字段编码草案，尚未批准实施）
 
-| 现有字段 | 真值／推导来源 | 线性投影与修改规则 |
-| --- | --- | --- |
-| token/morpheme.id | 项目内稳定的图节点 id | 作为行 id；新建/导入局部 id 先映射到项目 id，重排不换 id，不按词形猜同一节点 |
-| textId | 当前项目库 | 不复制进新词项行；实验借用旧校验器时补合成 project-a，仅为现有类型适配 |
-| unitId | 当前图所属 units 行 | 投影补回所属 unit；不得跨语段移动同一节点以“复用” id |
-| tokenIndex / morphemeIndex | token/morpheme 节点完整载荷的非负 index | 原序号保留，包括合法间隔；next 由同级 index 排序生成，不反向从节点数组位置猜顺序 |
-| morpheme.tokenId | 唯一 token→morpheme 的 hasPart | 重建时必须唯一；零节点等非线性 hasPart 不生成词素行 |
-| form | 节点完整载荷的正字法→字符串映射 | 原正字法键和值保留，包括尚未绑定目录的 default；若显式转换为项目目录键，先预览映射并核对冲突，见第 13.2 节；不以 label 补值 |
-| gloss | 节点完整载荷的语言→字符串映射 | 保留缺省与显式空对象的区别，编辑某语言不删其他语言；不得用 displayGloss 逆推 |
-| pos | 节点完整载荷的词类值 | 与词条 entry.partsOfSpeech 分开；词条建议不自动变成已接受 POS |
-| token.languageId | 节点完整载荷的语言引用 | 投影保留；目录存在性由后续业务事务核对，不把显示语言当对象语言 |
-| token/morpheme.lexemeId | 节点完整载荷中的现有直接词条引用 | 保留原语义与值，不从第一条 sense 链接任意挑一条覆盖；与完整 links 一并核对，不静默合并冲突 |
-| morpheme.surfaceParts | 图节点 surfaceParts 的 tokenId、formKey、offset、alignedForm | 偏移按 form[formKey] 的 UTF-16 码元计数。换正字法键不改已有跨度。form 与 alignedForm 不一致，或 end 超出当前词形，状态为失配；显示、导出、投影不把它当成已验证对齐。修正只走显式 setSurfaceParts |
-| provenance（词项） | 节点上的完整 ProvenanceEnvelope | actor、method、taskId、model/version、参数、审校和时间全部保留，重建不伪造新作者或审校状态 |
-| createdAt / updatedAt（词项） | 节点的记录元数据 | 重建沿用；真实业务编辑才更新 updatedAt，不以重建时间覆盖历史 |
-| 词义链接 id | linksLexeme relation 的稳定 id | 一条关系对应一条线性索引；同一目标可以有多条，不用 lexemeId/senseId 拼接替代 id |
-| targetType / targetId | relation.source 指向的 token/morpheme | 类型与目标必须对应；非线性复杂链接继续留图，不伪造 token 索引 |
-| lexemeId / senseId（链接） | relation 的 lexemeRef 目标及链接载荷 | 两者组合才识别义项；两个词条可有同名 sense；无 sense 的条目级链接也有效 |
-| role / confidence（链接） | linksLexeme 的完整载荷 | 缺省保留；有值时校验既有枚举和有限 [0,1]，不从当前 UI 默认值补写 |
-| provenance / createdAt / updatedAt（链接） | linksLexeme 的完整载荷 | 重建保留，不用词项来源代替链接来源；payload 与关系 id/目标矛盾时拒绝 |
-| notes 的 id/目标/正文/category/provenance/时间及可选定位字段 | 独立 notes 行 | 不由 graph 的 note 节点覆盖；重建不删 notes。目标节点消失时脱离保留；拆分/合并及恢复的新增约定见第 7 节，已接受 R4 规则仍按 ADR-0089 |
-| graph.text / displayGloss / label | graph.text 是所分析正文快照；另两项是显示数据 | unit_texts 是正文真值；显示内容不反向覆盖完整映射。正文变更失效规则见 R2/R4 |
-| 非线性节点、typed relations、projectionDiagnostics | 原图 | 保留零词素、MWE、形态过程及关系；线性行不是整个图的往返载体，不可从线性行重造全图 |
+| 现有字段                                                     | 真值／推导来源                                               | 线性投影与修改规则                                                                                                                                                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| token/morpheme.id                                            | 项目内稳定的图节点 id                                        | 作为行 id；新建/导入局部 id 先映射到项目 id，重排不换 id，不按词形猜同一节点                                                                                                                     |
+| textId                                                       | 当前项目库                                                   | 不复制进新词项行；实验借用旧校验器时补合成 project-a，仅为现有类型适配                                                                                                                           |
+| unitId                                                       | 当前图所属 units 行                                          | 投影补回所属 unit；不得跨语段移动同一节点以“复用” id                                                                                                                                             |
+| tokenIndex / morphemeIndex                                   | token/morpheme 节点完整载荷的非负 index                      | 原序号保留，包括合法间隔；next 由同级 index 排序生成，不反向从节点数组位置猜顺序                                                                                                                 |
+| morpheme.tokenId                                             | 唯一 token→morpheme 的 hasPart                               | 重建时必须唯一；零节点等非线性 hasPart 不生成词素行                                                                                                                                              |
+| form                                                         | 节点完整载荷的正字法→字符串映射                              | 原正字法键和值保留，包括尚未绑定目录的 default；若显式转换为项目目录键，先预览映射并核对冲突，见第 13.2 节；不以 label 补值                                                                      |
+| gloss                                                        | 节点完整载荷的语言→字符串映射                                | 保留缺省与显式空对象的区别，编辑某语言不删其他语言；不得用 displayGloss 逆推                                                                                                                     |
+| pos                                                          | 节点完整载荷的词类值                                         | 与词条 entry.partsOfSpeech 分开；词条建议不自动变成已接受 POS                                                                                                                                    |
+| token.languageId                                             | 节点完整载荷的语言引用                                       | 投影保留；目录存在性由后续业务事务核对，不把显示语言当对象语言                                                                                                                                   |
+| token/morpheme.lexemeId                                      | 节点完整载荷中的现有直接词条引用                             | 保留原语义与值，不从第一条 sense 链接任意挑一条覆盖；与完整 links 一并核对，不静默合并冲突                                                                                                       |
+| morpheme.surfaceParts                                        | 图节点 surfaceParts 的 tokenId、formKey、offset、alignedForm | 偏移按 form[formKey] 的 UTF-16 码元计数。换正字法键不改已有跨度。form 与 alignedForm 不一致，或 end 超出当前词形，状态为失配；显示、导出、投影不把它当成已验证对齐。修正只走显式 setSurfaceParts |
+| provenance（词项）                                           | 节点上的完整 ProvenanceEnvelope                              | actor、method、taskId、model/version、参数、审校和时间全部保留，重建不伪造新作者或审校状态                                                                                                       |
+| createdAt / updatedAt（词项）                                | 节点的记录元数据                                             | 重建沿用；真实业务编辑才更新 updatedAt，不以重建时间覆盖历史                                                                                                                                     |
+| 词义链接 id                                                  | linksLexeme relation 的稳定 id                               | 一条关系对应一条线性索引；同一目标可以有多条，不用 lexemeId/senseId 拼接替代 id                                                                                                                  |
+| targetType / targetId                                        | relation.source 指向的 token/morpheme                        | 类型与目标必须对应；非线性复杂链接继续留图，不伪造 token 索引                                                                                                                                    |
+| lexemeId / senseId（链接）                                   | relation 的 lexemeRef 目标及链接载荷                         | 两者组合才识别义项；两个词条可有同名 sense；无 sense 的条目级链接也有效                                                                                                                          |
+| role / confidence（链接）                                    | linksLexeme 的完整载荷                                       | 缺省保留；有值时校验既有枚举和有限 [0,1]，不从当前 UI 默认值补写                                                                                                                                 |
+| provenance / createdAt / updatedAt（链接）                   | linksLexeme 的完整载荷                                       | 重建保留，不用词项来源代替链接来源；payload 与关系 id/目标矛盾时拒绝                                                                                                                             |
+| notes 的 id/目标/正文/category/provenance/时间及可选定位字段 | 独立 notes 行                                                | 不由 graph 的 note 节点覆盖；重建不删 notes。目标节点消失时脱离保留；拆分/合并及恢复的新增约定见第 7 节，已接受 R4 规则仍按 ADR-0089                                                             |
+| graph.text / displayGloss / label                            | graph.text 是所分析正文快照；另两项是显示数据                | unit_texts 是正文真值；显示内容不反向覆盖完整映射。正文变更失效规则见 R2/R4                                                                                                                      |
+| 非线性节点、typed relations、projectionDiagnostics           | 原图                                                         | 保留零词素、MWE、形态过程及关系；线性行不是整个图的往返载体，不可从线性行重造全图                                                                                                                |
 
 ## 3. 实验编码与防止双真值
 
@@ -60,11 +60,11 @@ label、普通显示 gloss/POS 节点、next、displayGloss 是由完整载荷�
 
 人工编辑、导入和候选接受共用一份完整标注状态、一套校验和一个提交入口。调用方提交业务操作和预期版本，不提交整份快照。主进程读取完整现值、合并、校验。界面把旧快照整份送回会覆盖已经保存的其他内容。
 
-| 路径 | 调用方提交 | 主进程如何使用完整状态 |
-| --- | --- | --- |
-| 人工编辑 | 某节点、某正字法词形或某语言 gloss 的修改 | 在完整现值上应用补丁，保留其余映射、关系和来源 |
-| 导入 | 外部材料转换成的领域数据，以及本次覆盖范围 | 新建时组成完整状态；更新时保留该格式没有提供的内容。没提供不是删除 |
-| 候选接受 | 候选内容、生成基线和接受动作 | 核对当前版本后形成新的已接受状态。待定候选只保存候选，不改当前状态 |
+| 路径     | 调用方提交                                 | 主进程如何使用完整状态                                             |
+| -------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| 人工编辑 | 某节点、某正字法词形或某语言 gloss 的修改  | 在完整现值上应用补丁，保留其余映射、关系和来源                     |
+| 导入     | 外部材料转换成的领域数据，以及本次覆盖范围 | 新建时组成完整状态；更新时保留该格式没有提供的内容。没提供不是删除 |
+| 候选接受 | 候选内容、生成基线和接受动作               | 核对当前版本后形成新的已接受状态。待定候选只保存候选，不改当前状态 |
 
 提交过程只有一套：读取完整当前状态 → 核对版本和写入资格 → 应用操作 → 完整校验 → 同步图、词项投影及词义索引 → 事务内读回 → 提交并返回。之后不再向调用方开放可以绕过图的独立词项写入。
 
@@ -84,11 +84,11 @@ label、普通显示 gloss/POS 节点、next、displayGloss 是由完整载荷�
 
 2026-10-25 用户通过逐项访谈确认下列产品方向，并授权整理合同草案及 ADR 变更提案。**确认访谈理解不等于批准具体字段编码或实施。** 本文件仍为 draft；生产 schema、共同提交入口和 UI 均不得据此开工。新增架构取舍见[ADR 变更提案](./design.md#12-adr-变更提案)，提案不覆盖已接受 ADR。
 
-| 类别 | 含义与校验 | 可参与的行为 |
-| --- | --- | --- |
-| 内置领域载荷 | 系统理解词形、gloss、词类、来源和链接等含义；严格校验完整状态 | 从真值生成显示、线性投影及链接索引；非线性关系仍留图 |
-| 已定义自定义字段 | 引用同项目、对应对象类型的稳定字段定义；按类型、选项、归属和约束校验 | 按配置编辑、显示、查询；不自动进入核心分析投影 |
-| 未解释来源扩展 | 保留来源内容及作用域；校验容器和身份，不宣称校验了未知语义 | 不直接参与显示、投影或有效链接；理解并转换后才可进入受支持字段 |
+| 类别             | 含义与校验                                                           | 可参与的行为                                                   |
+| ---------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 内置领域载荷     | 系统理解词形、gloss、词类、来源和链接等含义；严格校验完整状态        | 从真值生成显示、线性投影及链接索引；非线性关系仍留图           |
+| 已定义自定义字段 | 引用同项目、对应对象类型的稳定字段定义；按类型、选项、归属和约束校验 | 按配置编辑、显示、查询；不自动进入核心分析投影                 |
+| 未解释来源扩展   | 保留来源内容及作用域；校验容器和身份，不宣称校验了未知语义           | 不直接参与显示、投影或有效链接；理解并转换后才可进入受支持字段 |
 
 “未知”不包括已定义映射中的新语言/正字法键；这些键按其合同校验。已有缺值或失效引用须保留为明确问题，不能通过容错丢字段后假装完整有效。来源扩展保留不等于任意位置允许未知字段：内置载荷与自定义定义仍有明确结构。
 
@@ -183,31 +183,30 @@ label、普通显示 gloss/POS 节点、next、displayGloss 是由完整载荷�
 - [x] 确定批次与局部 id 映射的种类/语段作用域、扩展命名空间及容器校验、未知扩展进入已定义字段的显式转换规则。
 - [x] 明确永久清除遍历的全部库内载体、历史内容清除标记、凭据失效与不改写曾经接受事实的规则；给出清除失败的原子回滚和重开验收。
 - [x] 将第 11 节场景写成具体输入/预期输出合同例；评审 ADR 变更提案与路线图扩展范围。
-- [x] 用户审阅并确认完整字段合同、ADR 变更及实施切片；之后才可规划并实现 M5-C。R5 附件协议、R6 逐列空值仍不并入共同入口。C1 至 C5 已落地，旧页面入口和 C6 起尚未开始。
+- [x] 用户审阅并确认完整字段合同、ADR 变更及实施切片；之后才可规划并实现 M5-C。R5 附件协议、R6 逐列空值仍不并入共同入口。C1 至 C6a 已落地，旧页面入口和 C6b 起尚未开始。
 
 ## 11. 验收场景草案（未执行）
 
-| 场景 | 必须验证的结果 |
-| --- | --- |
-| 人工只改一种语言 gloss | 其他语言/正字法、复杂关系和原来源不丢；编辑记录定位到实际字段；显示/投影统一生成 |
-| 同名局部 id 跨来源/语段 | 批次和作用域隔离；稳定 id 及已知引用一致映射，未知扩展不误改 |
-| 拆分/合并后重开与恢复 | 新节点新 id；旧备注/链接/扩展可查可恢复，不自动改指向；后来编辑备注不被覆盖 |
-| 修改自定义值/只重排 | 前者只标所属对象扩展需复核，后者不触发；未传扩展不丢 |
-| 字段定义与选项迁移 | 当前值全校验后同成败；历史值和定义保真，旧候选/任务凭据失效，恢复需转换 |
-| 永久清除后重开、恢复、故障 | 当前库全部对应载体无残留可恢复值；不伪造旧凭据；中途失败全回滚；外部包范围明确 |
-| 删目标与恢复同 id | 核心/自定义引用失效但不消失；有效计数排除；同 id 恢复有效，同名新 id 不接替 |
-| 新非法引用/已有失效引用 | 前者整次拒绝；后者无关修改可保存，不能伪装成新建有效引用；结构边仍严格 |
-| 已有对象新增必填/导入定义 | 缺值不假填；新建校验、批量补值有来源；导入映射明确后定义和值同成败 |
-| analysis.apply 与 units.updateText | 三条业务入口写→关库→重开一致；中途失败图/投影/链接/代际/正文/快照无半提交 |
+| 场景                               | 必须验证的结果                                                                   |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| 人工只改一种语言 gloss             | 其他语言/正字法、复杂关系和原来源不丢；编辑记录定位到实际字段；显示/投影统一生成 |
+| 同名局部 id 跨来源/语段            | 批次和作用域隔离；稳定 id 及已知引用一致映射，未知扩展不误改                     |
+| 拆分/合并后重开与恢复              | 新节点新 id；旧备注/链接/扩展可查可恢复，不自动改指向；后来编辑备注不被覆盖      |
+| 修改自定义值/只重排                | 前者只标所属对象扩展需复核，后者不触发；未传扩展不丢                             |
+| 字段定义与选项迁移                 | 当前值全校验后同成败；历史值和定义保真，旧候选/任务凭据失效，恢复需转换          |
+| 永久清除后重开、恢复、故障         | 当前库全部对应载体无残留可恢复值；不伪造旧凭据；中途失败全回滚；外部包范围明确   |
+| 删目标与恢复同 id                  | 核心/自定义引用失效但不消失；有效计数排除；同 id 恢复有效，同名新 id 不接替      |
+| 新非法引用/已有失效引用            | 前者整次拒绝；后者无关修改可保存，不能伪装成新建有效引用；结构边仍严格           |
+| 已有对象新增必填/导入定义          | 缺值不假填；新建校验、批量补值有来源；导入映射明确后定义和值同成败               |
+| analysis.apply 与 units.updateText | 三条业务入口写→关库→重开一致；中途失败图/投影/链接/代际/正文/快照无半提交        |
 
 这些是后续实现的测试要求，不是现有六项 JSON 实验的通过证据。
 
 ## 12. ADR 变更提案
 
-
 ### 状态与边界
 
-已接受为 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。2026-10-25 用户确认第 13 节和本提案的替代范围。既有 ADR 正文未改。M5-C 的 C1 至 C5 已落地，旧页面入口和 C6 起尚未开始。
+已接受为 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。2026-10-25 用户确认第 13 节和本提案的替代范围。既有 ADR 正文未改。M5-C 的 C1 至 C6a 已落地，旧页面入口和 C6b 起尚未开始。
 
 产品方向与范围见[合同草案第 7–9 节](./design.md#7-审查状态与三类内容)。字段结构草案在第 13 节，确认仍以第 10 节的勾选为准。本提案只记取舍，不重复维护字段清单。
 
@@ -232,13 +231,13 @@ ADR-0088 已决定图为分析真值、线性词项与词义表为投影；单�
 
 ### 对既有条款的拟调整
 
-| 原决定 | 接受本提案后改变什么 | 保留什么 |
-| --- | --- | --- |
-| ADR-0088 第 9 条：有词义链接、例句/出现引用时拒绝删词条/义项 | 核心词义链接不再一律阻塞显式删除，保留失效身份及来源；本次明确放宽核心词义与自定义引用，例句/出现引用等其他机制的具体接替不得未经合同就机械放宽 | 新建引用有效、词条/义项组合身份校验、不猜改指向 |
-| ADR-0089 第 10 条：快照引用不满足则整次拒绝 | 核心词义/自定义对象引用因目标缺失可明确失效并恢复；结构、类型矛盾及未放宽的目录必需约束仍拒绝 | 正文一致、恢复是新写入、单调代际、后来编辑备注不被旧正文覆盖 |
-| ADR-0089 第 6/10 条：完整图和关联快照 | 为真正拆分/合并保留退出对象、扩展及关联的可恢复材料；字段永久清除可删除历史中的对应内容，快照必须说明不再完整 | 普通词形/gloss/POS 编辑不因此一律新增可恢复快照；普通新建议不改快照 |
-| ADR-0087 当前库清除范围 | 不扩大到追删外部副本；明示字段可由外部旧包再引入 | 不自动清除备份/导出包、不把外部副本不存在当承诺 |
-| ADR-0067/0070/0088 的领域载体 | 此提案只统一定义/值管理与操作合同，不自行改语言、词典等值的存储落点 | 项目归属、不复制成每文稿目录、各领域真值载体 |
+| 原决定                                                       | 接受本提案后改变什么                                                                                                                            | 保留什么                                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| ADR-0088 第 9 条：有词义链接、例句/出现引用时拒绝删词条/义项 | 核心词义链接不再一律阻塞显式删除，保留失效身份及来源；本次明确放宽核心词义与自定义引用，例句/出现引用等其他机制的具体接替不得未经合同就机械放宽 | 新建引用有效、词条/义项组合身份校验、不猜改指向                     |
+| ADR-0089 第 10 条：快照引用不满足则整次拒绝                  | 核心词义/自定义对象引用因目标缺失可明确失效并恢复；结构、类型矛盾及未放宽的目录必需约束仍拒绝                                                   | 正文一致、恢复是新写入、单调代际、后来编辑备注不被旧正文覆盖        |
+| ADR-0089 第 6/10 条：完整图和关联快照                        | 为真正拆分/合并保留退出对象、扩展及关联的可恢复材料；字段永久清除可删除历史中的对应内容，快照必须说明不再完整                                   | 普通词形/gloss/POS 编辑不因此一律新增可恢复快照；普通新建议不改快照 |
+| ADR-0087 当前库清除范围                                      | 不扩大到追删外部副本；明示字段可由外部旧包再引入                                                                                                | 不自动清除备份/导出包、不把外部副本不存在当承诺                     |
+| ADR-0067/0070/0088 的领域载体                                | 此提案只统一定义/值管理与操作合同，不自行改语言、词典等值的存储落点                                                                             | 项目归属、不复制成每文稿目录、各领域真值载体                        |
 
 上述是拟调整；本提案接受前原 ADR 仍有效。不能用“用户确认访谈方向”把表中规则偷偷当成已替代。
 
@@ -253,21 +252,21 @@ ADR-0088 已决定图为分析真值、线性词项与词义表为投影；单�
 
 - [x] 第 13 节具体编码、对象注册清单、引用与迁移/清除实例经用户审阅。写出草案不等于本项完成。
 - [x] 本提案的替代范围与未改条款经用户确认；再正式编号并更新 ADR 索引，原正文不改。
-- [x] M5-C 扩展范围与子片计划确认后才实施；只用合成材料验证真实入口、事务失败、关闭重开和恢复。C1 至 C4 导入已按该限制落地，其余子片尚未开始。
+- [x] M5-C 扩展范围与子片计划确认后才实施；只用合成材料验证真实入口、事务失败、关闭重开和恢复。C1 至 C6a 已按该限制落地，C6b 起尚未开始。
 - [ ] 规格实施完成后按 ADR-0051 删除；接受后的决定及验证证据留在对应长期载体。
 
 ## 13. 字段编码与实施切片（已确认，未实现）
 
-审阅版本：**R1-contract-2026-10-25-r3**，同日补上 C4 再导入。用户 2026-10-25 确认本节与 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。C1 至 C5 已写入主进程。旧标注页未改。C6 起的产品代码未改。仅合成项目，实验编码不作为协议。
+审阅版本：**R1-contract-2026-10-25-r3**，同日补上 C4 再导入。用户 2026-10-25 确认本节与 [ADR-0090](../../../adr/0090-analysis-payload-custom-fields-and-dangling-refs.md)。C1 至 C6a 已写入主进程。旧标注页未改。C6b 起的产品代码未改。C6a 未改表，user_version 仍是 8。仅合成项目，实验编码不作为协议。
 
 ### 13.1 文件、载荷及写入版本
 
-| 版本 | 编码提案 | 责任 |
-| --- | --- | --- |
-| SQLite `user_version` | C1 升到 5，C2 升到 6，C3 升到 7。其后每一片实际改表，在当时版本上再加一。7 不是整个 M5-C 的固定版本 | 不兼容文件拒绝且字节不变；只重建受控合成项目，不为旧文件补列 |
-| 图 `payloadVersion` | 图 JSON 根字段，整数 1 | 与文件版本独立；未知版本整次拒绝，不能丢字段后继续 |
-| 写入凭据 | `manuscriptGeneration`、`analysisGeneration`、`graphFingerprint` | 遵守 ADR-0089：主进程事务内检查；任一不符整次拒绝；空图指纹为空字符串 |
-| 字段依赖 | `definitionRevisions: [{ definitionId, revision }]` | 生成候选/任务时记录所用定义版本；主进程补全并校验依赖，不信任调用方漏报；定义缺失也拒绝 |
+| 版本                  | 编码提案                                                                                            | 责任                                                                                    |
+| --------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| SQLite `user_version` | C1 升到 5，C2 升到 6，C3 升到 7。其后每一片实际改表，在当时版本上再加一。7 不是整个 M5-C 的固定版本 | 不兼容文件拒绝且字节不变；只重建受控合成项目，不为旧文件补列                            |
+| 图 `payloadVersion`   | 图 JSON 根字段，整数 1                                                                              | 与文件版本独立；未知版本整次拒绝，不能丢字段后继续                                      |
+| 写入凭据              | `manuscriptGeneration`、`analysisGeneration`、`graphFingerprint`                                    | 遵守 ADR-0089：主进程事务内检查；任一不符整次拒绝；空图指纹为空字符串                   |
+| 字段依赖              | `definitionRevisions: [{ definitionId, revision }]`                                                 | 生成候选/任务时记录所用定义版本；主进程补全并校验依赖，不信任调用方漏报；定义缺失也拒绝 |
 
 图指纹覆盖 payloadVersion、graph.id、graph.text、非派生节点/关系上的全部领域载荷、自定义值、来源与扩展；排除显示上下文、派生显示、诊断及纯图数组存放顺序。按稳定 id 排序节点/关系、按键递归排序对象，领域有序数组（多引用、surfaceParts 等）不排序，然后使用主进程 node:crypto 的 sha256，输出小写十六进制。不能先丢掉未知扩展或把词序 index 排掉。此为新合同指纹，不冒称现有 fixture helper 已实现；用相同内容不同对象键序/数组存放序的反例验证。历史指纹保留当时事实，不用清除后的内容重签原凭据。
 
@@ -277,16 +276,16 @@ ADR-0088 已决定图为分析真值、线性词项与词义表为投影；单�
 
 原有图身份、正文快照和非线性结构保留。完整对象字段如下，未标可选者必填；以下是结构合同，不是只保留三个字段的简写。
 
-| 位置 | 字段与校验 |
-| --- | --- |
-| 图根 | `payloadVersion: 1`、`id`、`text`、`nodes[]`、`relations[]`；`text` 与当前 unit_texts 正文逐字符一致，不 trim 或 Unicode 归一化 |
-| 图显示 | `displayContext`（可选：`formKey`、`glossKey`）、`displayGloss`、`projectionDiagnostics[]`；后两项由完整数据与上下文生成，不可单独提交为真值 |
-| 普通节点 | `id`、现有 `type`、显示 `label`、可选 `features`、可选节点上的 `surfaceParts`；非线性 `features` 按现有领域校验。token/morpheme 与 `linksLexeme` 的 `features` 不得含 `jieyuLinear`、`jieyuProvenance`、`jieyuLexemeLink`，生产写入见到这些键整次拒绝。领域值只写 `domain` 和 `link` |
-| 线性节点 | `type=token/morpheme` 时额外必填 `domain`；word/MWE/zero/process 等不凭名称自动生成线性行 |
-| 普通关系 | `id`、现有 `type`、`sourceId`、`targetId`、可选 `role`/`features`；图内两端必须存在，不能以“失效引用”放过断裂结构边 |
-| 词义关系 | `type=linksLexeme` 时必填 `link`；图内 target 指向 lexemeRef 节点，词条在库外缺失也保留该图节点与身份 |
-| 派生标记 | 生成的节点及其显示关系同时标 `derived: true`、`sourceNodeId`、`sourceFields[]`；可选显示上下文。仅重建可验证标记的副本，不能让外部伪造标记删除独立语义 |
-| 自定义/扩展 | 节点和关系可有 `customFields`、`residue[]`；分别按定义和隔离容器校验，不能混为任意 features |
+| 位置        | 字段与校验                                                                                                                                                                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 图根        | `payloadVersion: 1`、`id`、`text`、`nodes[]`、`relations[]`；`text` 与当前 unit_texts 正文逐字符一致，不 trim 或 Unicode 归一化                                                                                                                                                      |
+| 图显示      | `displayContext`（可选：`formKey`、`glossKey`）、`displayGloss`、`projectionDiagnostics[]`；后两项由完整数据与上下文生成，不可单独提交为真值                                                                                                                                         |
+| 普通节点    | `id`、现有 `type`、显示 `label`、可选 `features`、可选节点上的 `surfaceParts`；非线性 `features` 按现有领域校验。token/morpheme 与 `linksLexeme` 的 `features` 不得含 `jieyuLinear`、`jieyuProvenance`、`jieyuLexemeLink`，生产写入见到这些键整次拒绝。领域值只写 `domain` 和 `link` |
+| 线性节点    | `type=token/morpheme` 时额外必填 `domain`；word/MWE/zero/process 等不凭名称自动生成线性行                                                                                                                                                                                            |
+| 普通关系    | `id`、现有 `type`、`sourceId`、`targetId`、可选 `role`/`features`；图内两端必须存在，不能以“失效引用”放过断裂结构边                                                                                                                                                                  |
+| 词义关系    | `type=linksLexeme` 时必填 `link`；图内 target 指向 lexemeRef 节点，词条在库外缺失也保留该图节点与身份                                                                                                                                                                                |
+| 派生标记    | 生成的节点及其显示关系同时标 `derived: true`、`sourceNodeId`、`sourceFields[]`；可选显示上下文。仅重建可验证标记的副本，不能让外部伪造标记删除独立语义                                                                                                                               |
+| 自定义/扩展 | 节点和关系可有 `customFields`、`residue[]`；分别按定义和隔离容器校验，不能混为任意 features                                                                                                                                                                                          |
 
 `domain` 字段：`form: Record<string,string>`、非负整数 `index`、`createdAt`、`updatedAt`；可选 `gloss: Record<string,string>`、`pos: string`、`lexemeId`、`provenance`、`edits[]`。token 可选 `languageId`；词素从唯一 token→morpheme hasPart 得到父 token，不另存可独立修改的 tokenId。跨度只在该节点的 `surfaceParts`，不放进 `domain`，也不另放在图根。每项有 `tokenId`、`formKey`、可选成对的 `startOffset`/`endOffset`，以及设置当时的 `alignedForm`。偏移按该 token 的 `form[formKey]` 计数，单位是 UTF-16 码元，与 JavaScript 字符串下标相同。新建或 `node.setSurfaceParts` 时，有偏移则 end 必须落在当时这串词形的长度内，并把 `alignedForm` 写成这串原文。只换显示用的正字法键，不改已有跨度。之后 `form[formKey]` 与 `alignedForm` 逐字符不同，或 end 超出当前字符串，跨度仍保留原值，状态为失配。失配包括仍未越界、但字符已经对不上的情况。显示、导出和投影不得把失配跨度切进当前词形，当成已验证的对齐；可以显示原偏移和 `alignedForm`。修正只通过 `node.setSurfaceParts` 或 `node.clearSurfaceParts`。
 
@@ -300,25 +299,25 @@ provenance 复用现有严格 ProvenanceEnvelope schema，保留原生成/导入
 
 全项目范围不因实施顺序缩成十类。下表是本次提议的明确宿主清单；每一行都有读写、引用、清除和恢复责任。基础业务接口未就绪的对象仍在交付范围，在对应 C6 子片等待依赖，界面不开放；不能以“转交 M5-E”记作 M5-C 已交付。
 
-| targetType | 身份 | 字段值载体 | 依赖/边界 |
-| --- | --- | --- | --- |
-| project | project.id | custom_field_values | 不进 settings_json |
-| manuscript | manuscripts.id | custom_field_values | 时间映射和定义值分开 |
-| layer | layers.id | custom_field_values | 既有目录外键保留 |
-| unit | units.id | custom_field_values | 正文与图载荷分开 |
-| media | media.id | custom_field_values | 只管元数据；文件协议不纳入 |
-| source | sources.id | custom_field_values | 等来源业务接口，不删除范围 |
-| speaker | speakers.id | custom_field_values | 不复制说话人正文 |
-| note | notes.id | custom_field_values | 正文仍为独立备注，等备注业务接口 |
-| conversation | conversations.id | custom_field_values | 等对话业务接口 |
-| message | messages.id | custom_field_values | 等消息业务接口，不读取密钥/运行时内部对象 |
-| language | languages.id | languages.custom_fields_json | 不复制到通用值表 |
-| orthography | orthographies.id | custom_field_values | 项目目录归属核对 |
-| orthography-bridge | orthography_bridges.id | custom_field_values | 桥规则正文不改 |
-| lexeme | lexemes.id | jieyu_json.customFields | 不进 entry_json/tags_json；包含词条/资源既有种类 |
-| lexeme-sense | lexemeId + senseId | jieyu_json.senseCustomFields[senseId] | 复合身份定位 DMLex 内义项，不建 sense 表或把义项 id 当全库 id |
-| analysis-node | unitId + nodeId | 该图节点 customFields | token/morpheme 和非线性节点均可；不建节点表 |
-| analysis-relation | unitId + relationId | 该图关系 customFields | linksLexeme 和其他关系同样纳入；不建关系表 |
+| targetType         | 身份                   | 字段值载体                            | 依赖/边界                                                     |
+| ------------------ | ---------------------- | ------------------------------------- | ------------------------------------------------------------- |
+| project            | project.id             | custom_field_values                   | 不进 settings_json                                            |
+| manuscript         | manuscripts.id         | custom_field_values                   | 时间映射和定义值分开                                          |
+| layer              | layers.id              | custom_field_values                   | 既有目录外键保留                                              |
+| unit               | units.id               | custom_field_values                   | 正文与图载荷分开                                              |
+| media              | media.id               | custom_field_values                   | 只管元数据；文件协议不纳入                                    |
+| source             | sources.id             | custom_field_values                   | 等来源业务接口，不删除范围                                    |
+| speaker            | speakers.id            | custom_field_values                   | 不复制说话人正文                                              |
+| note               | notes.id               | custom_field_values                   | 正文仍为独立备注，等备注业务接口                              |
+| conversation       | conversations.id       | custom_field_values                   | 等对话业务接口                                                |
+| message            | messages.id            | custom_field_values                   | 等消息业务接口，不读取密钥/运行时内部对象                     |
+| language           | languages.id           | languages.custom_fields_json          | 不复制到通用值表                                              |
+| orthography        | orthographies.id       | custom_field_values                   | 项目目录归属核对                                              |
+| orthography-bridge | orthography_bridges.id | custom_field_values                   | 桥规则正文不改                                                |
+| lexeme             | lexemes.id             | jieyu_json.customFields               | 不进 entry_json/tags_json；包含词条/资源既有种类              |
+| lexeme-sense       | lexemeId + senseId     | jieyu_json.senseCustomFields[senseId] | 复合身份定位 DMLex 内义项，不建 sense 表或把义项 id 当全库 id |
+| analysis-node      | unitId + nodeId        | 该图节点 customFields                 | token/morpheme 和非线性节点均可；不建节点表                   |
+| analysis-relation  | unitId + relationId    | 该图关系 customFields                 | linksLexeme 和其他关系同样纳入；不建关系表                    |
 
 候选/快照是上列对象的历史载体，不是用户另设字段的宿主；候选/快照里的值及历史定义仍完整纳入迁移/清除扫描。附件的字节与关联生命周期仍留 R5。未来新增宿主必须显式修改注册与验收，不接受任意表名。线性词项行不再另挂第二份字段值。
 
@@ -330,15 +329,15 @@ custom_field_values 仅服务该表明确指定的宿主：definition_id、targe
 
 定义字段提案：id、targetType、多语 name、可选 description/placeholder/helpText、fieldType、required（默认 false）、可选 defaultValue、sortOrder、revision、createdAt、updatedAt。name 至少一种语言有非空文本；定义 id 由主进程生成且不随改名变化。删除后不保留正常可恢复的定义副本或可用默认值。
 
-| 类型 | 值与适用约束 |
-| --- | --- |
-| text | string；可选 pattern，正则定义时编译校验；不自动 trim 研究内容 |
-| number | 有限 number；可选 minValue/maxValue，min≤max；0 是值，NaN/Infinity 拒绝 |
-| boolean | boolean；false 是值 |
-| select | 一个属于该定义的 optionId |
-| multiselect | optionId[]；有序无重复，每个选项都属于该定义 |
-| url | string；按现有字段 URL 校验语义验证，可选 pattern；文本保存不意味着允许主进程任意访问 URL |
-| ref | ObjectRef 或有序无重复 ObjectRef[]；targetTypes[] 非空，cardinality 为 one/many；可选 minItems/maxItems 为非负整数且 min≤max，单引用上限 1 |
+| 类型        | 值与适用约束                                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| text        | string；可选 pattern，正则定义时编译校验；不自动 trim 研究内容                                                                             |
+| number      | 有限 number；可选 minValue/maxValue，min≤max；0 是值，NaN/Infinity 拒绝                                                                    |
+| boolean     | boolean；false 是值                                                                                                                        |
+| select      | 一个属于该定义的 optionId                                                                                                                  |
+| multiselect | optionId[]；有序无重复，每个选项都属于该定义                                                                                               |
+| url         | string；按现有字段 URL 校验语义验证，可选 pattern；文本保存不意味着允许主进程任意访问 URL                                                  |
+| ref         | ObjectRef 或有序无重复 ObjectRef[]；targetTypes[] 非空，cardinality 为 one/many；可选 minItems/maxItems 为非负整数且 min≤max，单引用上限 1 |
 
 选项：id、definitionId、多语 label、sortOrder；无独立 option 身份的字符串选项只能经显式映射接收。options 只用于选择类型，数值范围只用于 number，pattern 只用于 text/url，引用约束只用于 ref；不适用约束不是静默忽略，而是定义非法。defaultValue 按完整类型/约束校验，不自动追填旧对象；ref 默认值也须同项目有效。引用的显示有效状态由主进程计算，不是客户端可提交的证据。
 
@@ -362,14 +361,14 @@ custom_field_values 仅服务该表明确指定的宿主：definition_id、targe
 
 永久清除以 definitionId 扫描全部**库内已知载体**，下表每项都属于同一次事务，任何阶段失败整次回滚：
 
-| 载体 | 清除要求 |
-| --- | --- |
-| 当前定义、选项、默认值 | 删除该定义、全部选项和默认值，不留正常恢复入口 |
-| 当前值 | 注册清单的通用值、语言 JSON、词条/义项扩展、全部当前图节点/关系上的值删除；不能只清定义所属页面当前选中对象 |
-| 候选载荷 | pending/rejected/曾 accepted 候选的对应字段值、定义副本和默认值也清除；候选行、种类及曾经接受事实可保留，但接受凭据失效。**不是只失效凭据、把原值留在候选正文里** |
-| 快照与恢复材料 | 完整图、投影历史、关联值、拆分/合并恢复材料及历史字段定义副本的同 definitionId 内容清除；标 redactedDefinitionIds，不把删后剩余内容当原完整快照 |
-| 来源/操作记录中的字段副本 | 只按有类型定位的定义引用清除字段旧值/默认值副本；编辑审计只留操作者、时间、字段定位和清除事实。不得另留可回填完整值的通用日志/撤销缓存 |
-| 在途候选及缓存 | 清除相关凭据/更新代际和依赖；提交后才发失效事件，旧任务晚到不能回填；主进程无另一份可恢复值缓存 |
+| 载体                      | 清除要求                                                                                                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 当前定义、选项、默认值    | 删除该定义、全部选项和默认值，不留正常恢复入口                                                                                                                    |
+| 当前值                    | 注册清单的通用值、语言 JSON、词条/义项扩展、全部当前图节点/关系上的值删除；不能只清定义所属页面当前选中对象                                                       |
+| 候选载荷                  | pending/rejected/曾 accepted 候选的对应字段值、定义副本和默认值也清除；候选行、种类及曾经接受事实可保留，但接受凭据失效。**不是只失效凭据、把原值留在候选正文里** |
+| 快照与恢复材料            | 完整图、投影历史、关联值、拆分/合并恢复材料及历史字段定义副本的同 definitionId 内容清除；标 redactedDefinitionIds，不把删后剩余内容当原完整快照                   |
+| 来源/操作记录中的字段副本 | 只按有类型定位的定义引用清除字段旧值/默认值副本；编辑审计只留操作者、时间、字段定位和清除事实。不得另留可回填完整值的通用日志/撤销缓存                            |
+| 在途候选及缓存            | 清除相关凭据/更新代际和依赖；提交后才发失效事件，旧任务晚到不能回填；主进程无另一份可恢复值缓存                                                                   |
 
 原指纹和曾接受时间是历史事实，可以保留但明确已 redacted 且不可再用于接受/直接恢复；不以新内容替换原指纹伪装原始候选。清除后空图指纹/当前图的新指纹和代际按当前实际状态返回。扩展 body 是未解释原件，不能做任意字符串搜索替换并声称其语义已清；若显式转换/来源映射已记录某扩展为该字段的原值副本，清除预览必须包含该副本，否则不宣称清除它。该限定须在确认预览显示，不能暗中扩大或缩小“对应字段内容”。
 
@@ -387,41 +386,41 @@ body 缺省保留、删除显式；归属对象退出随其可恢复材料保存
 
 以下 T 为固定合成时间，expected 由读取结果取得。每例通过后都须关闭库、重开并比较业务结果；不能只测 helper 返回。
 
-| 例 | 已有状态与请求 | 必须返回/拒绝的结果 |
-| --- | --- | --- |
-| E1 局部多语编辑 | token n1.form={default:"ka",orthoA:"kā"}，gloss={zh:"过去",en:"past"}；edit: node.setMapValue(n1,gloss,zh,"已往") | form 两键原样、gloss.en=past；只 zh 改；原 provenance 不变，新增字段级 edit；同归属扩展 needs-review；派生显示/投影一致，analysisGeneration+1 |
-| E2 显式清空 | 接 E1。第一次 node.removeMapKey(n1,gloss,zh)；第二次 node.clearMap(n1,gloss)；第三次 node.removeField(n1,gloss) | 第一次仅剩 en；第二次 gloss={}；第三次没有 gloss 字段。三步互不相同。旧 expected 重发拒绝。setField(id/derived/provenance) 与 removeField(form) 拒绝 |
-| E3 拆分身份 | n1 有 link l1、note q1、residue r1；显式 split n1→两个新节点 | n1 退出，新 id 不是 n1；l1/q1 脱离可查，r1 随旧对象快照；新节点不自动继承关联；恢复保留后改备注 |
-| E4 类型迁移 | unit 数字字段 f，revision1，u1=3；预览后迁移为文本，显式映射 u1→"3" | 定义 rev2 和当前值同提交；历史仍为数字3+旧定义；旧候选/任务 rev1 拒绝；恢复时须转换；另有 u2 无法转换则全部回滚 |
-| E5 永久清除 | f 同时在当前、pending候选、曾accepted候选、快照及历史定义默认值中 | 预览列出全部定位；确认后这些值/副本全部移除，曾accepted事实仍在并标redacted；候选不能再接受、快照不能带回；中途任一阶段抛错则重开后全保持清除前状态 |
-| E6 失效引用 | l1→lexemeA/sense1；显式删除 sense1，之后编辑 n1.gloss.zh | l1仍可读且target-missing，不计有效数；无关编辑可存；新建l2→同一缺失sense1拒绝；同id恢复后l1有效，同名新id不接替 |
-| E7 跨来源局部id | 语段u1批次b1和u2批次b2均含局部n1 | 两个项目节点id不同；已知边/跨度/备注映射到各自目标；body里的"n1"保持原文，不能串映射 |
-| E8 新必填与定义导入 | 给既有unit新增required字段f；导入另一个同名字段 | 旧unit提示缺值但可改正文；新unit必须有值；导入先选择复用/新建，类型冲突不按同名合并；默认值不自动追填 |
-| E9 正文原子写入 | 当前正文"ka"、图A；units.updateText→"ta"，在快照后注入失败 | 正文、图、投影、链接、备注卸下状态和两种代际全回到旧值；成功则正文ta、图清空、保留正文ka的完整快照；恢复正文不一致仍拒绝 |
-| E10 重排与自定义值 | n1.index=0，residue.review=unreviewed。先 node.reorder 把 index 改为 2；另一次 customField.set(n1,f,"x") | 只重排：id 仍是 n1，review 不变，analysisGeneration 不变，图指纹改变。改自定义值：review=needs-review，analysisGeneration+1 |
-| E11 合并身份 | n1、n2 各有链接和 residue；显式 merge 成一个新节点 | 两个旧 id 都退出；新 id 不是二者之一；旧链接和 residue 不自动挂到新节点，随旧对象可查；不按词形猜继承者 |
-| E12 导入未提及的键 | n1.gloss 已有 zh 和 en，form 已有 default。import 只提交 gloss.zh 的新值 | zh 更新；en 和 form.default 还在。未提及的键不是删除 |
+| 例                   | 已有状态与请求                                                                                                                                                                                             | 必须返回/拒绝的结果                                                                                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1 局部多语编辑      | token n1.form={default:"ka",orthoA:"kā"}，gloss={zh:"过去",en:"past"}；edit: node.setMapValue(n1,gloss,zh,"已往")                                                                                          | form 两键原样、gloss.en=past；只 zh 改；原 provenance 不变，新增字段级 edit；同归属扩展 needs-review；派生显示/投影一致，analysisGeneration+1                          |
+| E2 显式清空          | 接 E1。第一次 node.removeMapKey(n1,gloss,zh)；第二次 node.clearMap(n1,gloss)；第三次 node.removeField(n1,gloss)                                                                                            | 第一次仅剩 en；第二次 gloss={}；第三次没有 gloss 字段。三步互不相同。旧 expected 重发拒绝。setField(id/derived/provenance) 与 removeField(form) 拒绝                   |
+| E3 拆分身份          | n1 有 link l1、note q1、residue r1；显式 split n1→两个新节点                                                                                                                                               | n1 退出，新 id 不是 n1；l1/q1 脱离可查，r1 随旧对象快照；新节点不自动继承关联；恢复保留后改备注                                                                        |
+| E4 类型迁移          | unit 数字字段 f，revision1，u1=3；预览后迁移为文本，显式映射 u1→"3"                                                                                                                                        | 定义 rev2 和当前值同提交；历史仍为数字3+旧定义；旧候选/任务 rev1 拒绝；恢复时须转换；另有 u2 无法转换则全部回滚                                                        |
+| E5 永久清除          | f 同时在当前、pending候选、曾accepted候选、快照及历史定义默认值中                                                                                                                                          | 预览列出全部定位；确认后这些值/副本全部移除，曾accepted事实仍在并标redacted；候选不能再接受、快照不能带回；中途任一阶段抛错则重开后全保持清除前状态                    |
+| E6 失效引用          | l1→lexemeA/sense1；显式删除 sense1，之后编辑 n1.gloss.zh                                                                                                                                                   | l1仍可读且target-missing，不计有效数；无关编辑可存；新建l2→同一缺失sense1拒绝；同id恢复后l1有效，同名新id不接替                                                        |
+| E7 跨来源局部id      | 语段u1批次b1和u2批次b2均含局部n1                                                                                                                                                                           | 两个项目节点id不同；已知边/跨度/备注映射到各自目标；body里的"n1"保持原文，不能串映射                                                                                   |
+| E8 新必填与定义导入  | 给既有unit新增required字段f；导入另一个同名字段                                                                                                                                                            | 旧unit提示缺值但可改正文；新unit必须有值；导入先选择复用/新建，类型冲突不按同名合并；默认值不自动追填                                                                  |
+| E9 正文原子写入      | 当前正文"ka"、图A；units.updateText→"ta"，在快照后注入失败                                                                                                                                                 | 正文、图、投影、链接、备注卸下状态和两种代际全回到旧值；成功则正文ta、图清空、保留正文ka的完整快照；恢复正文不一致仍拒绝                                               |
+| E10 重排与自定义值   | n1.index=0，residue.review=unreviewed。先 node.reorder 把 index 改为 2；另一次 customField.set(n1,f,"x")                                                                                                   | 只重排：id 仍是 n1，review 不变，analysisGeneration 不变，图指纹改变。改自定义值：review=needs-review，analysisGeneration+1                                            |
+| E11 合并身份         | n1、n2 各有链接和 residue；显式 merge 成一个新节点                                                                                                                                                         | 两个旧 id 都退出；新 id 不是二者之一；旧链接和 residue 不自动挂到新节点，随旧对象可查；不按词形猜继承者                                                                |
+| E12 导入未提及的键   | n1.gloss 已有 zh 和 en，form 已有 default。import 只提交 gloss.zh 的新值                                                                                                                                   | zh 更新；en 和 form.default 还在。未提及的键不是删除                                                                                                                   |
 | E13 再导入对上的语段 | 语段已由 unitId 指定。n1 有 gloss.zh 和 en，n2 不在材料里。材料只更新 n1 的 gloss.zh，并带一个没有项目 id 的新词。同一份无项目 id 的材料再由用户导入一次。另一次把 import.removeNodes 写成不在该语段上的 x | 第一次预览为更新 1、追加 1、删除 0；n1.en 还在，n2 的 id 不变，新词得到新 id。第二次再追加一个新 id，不与上一词合并。删除 x 整次拒绝，已有节点不变。响应丢失不自动重试 |
-| E14 失配跨度 | n1.form 为 default:"ka"、orthoA:"kā"。跨度 formKey=default，偏移 0–2，alignedForm="ka"。把显示键换成 orthoA，关闭再打开，再 node.setSurfaceParts 指到 orthoA | 换键并重开后，偏移和 alignedForm 仍是 ka 的 0–2。两串都长 2，但字符已不同，状态为失配；导出不得把 "kā" 的 0–2 当成已验证对齐。显式修正后 alignedForm 为 "kā"，失配解除 |
-| E15 更新 id 的边界 | 更新一个不在本语段的节点 id。另一请求同时更新并 import.removeNodes 同一个 n1 | 两次都整次拒绝。不存在的 id 不降级为新建。同一 id 不能又改又删 |
-| E16 关系的更新与删除 | 图上有 hasPart r1 和 linksLexeme l1，材料都没提到。另一次按 l1 的 id 改 role。再一次只 import.removeNodes 掉 r1 的端点，不列 r1 | 没提到的 r1、l1 都在。改 role 后 l1 的其他字段还在。只删端点、不显式 removeRelations，整次拒绝，边还在 |
+| E14 失配跨度         | n1.form 为 default:"ka"、orthoA:"kā"。跨度 formKey=default，偏移 0–2，alignedForm="ka"。把显示键换成 orthoA，关闭再打开，再 node.setSurfaceParts 指到 orthoA                                               | 换键并重开后，偏移和 alignedForm 仍是 ka 的 0–2。两串都长 2，但字符已不同，状态为失配；导出不得把 "kā" 的 0–2 当成已验证对齐。显式修正后 alignedForm 为 "kā"，失配解除 |
+| E15 更新 id 的边界   | 更新一个不在本语段的节点 id。另一请求同时更新并 import.removeNodes 同一个 n1                                                                                                                               | 两次都整次拒绝。不存在的 id 不降级为新建。同一 id 不能又改又删                                                                                                         |
+| E16 关系的更新与删除 | 图上有 hasPart r1 和 linksLexeme l1，材料都没提到。另一次按 l1 的 id 改 role。再一次只 import.removeNodes 掉 r1 的端点，不列 r1                                                                            | 没提到的 r1、l1 都在。改 role 后 l1 的其他字段还在。只删端点、不显式 removeRelations，整次拒绝，边还在                                                                 |
 
 第 11 节各行对应：局部 gloss 为 E1，跨来源局部 id 为 E7，拆分为 E3、合并为 E11，重排与自定义值为 E10，定义迁移为 E4，永久清除为 E5，失效引用为 E6，新必填与定义导入为 E8，正文原子写入为 E9，导入未提供的映射为 E12，再导入、失配跨度和关系删除为 E13–E16。
 
 ### 13.8 实施切片、文件与验收
 
-以下落位已确认。C1 至 C5 的新文件已创建；C6 起所列新文件尚未创建。不把所有 DDL 塞进一片，也不以表存在宣称能力交付。每片需要改表时递增当时 user_version，不绑定“只有 C7 才能再次升版”。
+以下落位已确认。C1 至 C6a 已落地。C6a 没有新增 `customFieldTargets.ts`，宿主分发留在 `customFields.ts`。C6b 起所列新文件尚未创建。不把所有 DDL 塞进一片，也不以表存在宣称能力交付。每片需要改表时递增当时 user_version，不绑定“只有 C7 才能再次升版”。
 
-| 片与依赖 | 落位提案 | 最小交付及验证 |
-| --- | --- | --- |
-| C1 基础；已落地 | 现有 src/db/desktop/schema.ts、units.ts；src/annotation/analysisGraphDomain.ts 及对应测试。openProject 沿用 user_version 常量 | 分析根列、代际及本片最小载荷校验；投影多语列留到 C2。不接人工路径，不开放新独立词项写入口。新库重开、旧文件字节不变、非法 domain 拒绝、实验键 jieyuLinear / jieyuProvenance / jieyuLexemeLink 拒绝、schema/事务失败回滚 |
-| C2 依赖C1；已落地 | src/db/desktop/analysis.ts、src/annotation/analysisGraphDomainProjection.ts 及对应测试；client.ts、desktopCall.ts、schema.ts。词条模块没有独立词项写入口，未改 lexicon.ts | analysis.apply 的编辑与重排。图为真值，投影多语列只在该事务写入。E1、E2、E10 的重排半边，原子失败后重开仍是旧图。导入、接受和恢复留到后续切片 |
-| C3 依赖C2；已落地 | 现有 src/db/desktop/units.ts；src/db/desktop/analysisRestore.ts、analysisCandidates.ts 及对应测试；client.ts、desktopCall.ts、schema.ts | 候选与待复核快照、改正文时的快照并清图。E3、E11、E9，过期接受、重复接受，以及恢复时保留后改备注。user_version 7，旧文件只拒绝 |
-| C4 导入；已落地。旧页面入口未改接 | src/db/desktop/analysisImport.ts 及测试；analysis.ts 的显示键和跨度动作；client.ts、desktopCall.ts。未改旧标注页，未加 external_ref，未升 user_version | E12、E13–E16 在主进程读回：未提及的键保留，无 id 再导入会追加，坏 id 与又改又删整次拒绝，失配跨度重开后仍失配，删节点不带关系删除则拒绝。响应丢失沿用现有一次调用，不自动重试。旧标注页、导入页和接受页仍不改接 |
-| C5 依赖C3；已落地 | src/db/desktop/customFields.ts、customFieldValidation.ts 及测试；schema/client/desktopCall/units/analysis | 定义、稳定选项、约束、语段值和预览凭据。E8：旧语段缺必填值仍可改正文，新语段必须带值，同名导入按复用或新建，类型冲突不合并，默认值不追填。E10 的 customField.set 把 residue 标为需复核并推进分析代际。未知 definitionId 拒绝。user_version 8。旧页面未改接。C6 起未做 |
-| C6a/b/c 依赖C5及相应业务宿主 | customFields.ts；现有 catalog.ts/lexicon.ts；拟新增 src/db/desktop/customFieldTargets.ts；各对象现有/随后接替的业务写入口 | a项目/文稿/层/媒体/目录/说话人；b词条/义项/图节点/关系；c来源/备注/对话/消息。逐注册行真实读写/重开/引用/清除定位验收；底层未就绪记录依赖未完成，不删除范围 |
-| C7a/b/c 依赖C6全部宿主登记 | 拟新增 src/db/desktop/customFieldMigration.ts、customFieldPurge.ts、referenceState.ts 及测试；schema.ts、lexicon.ts、候选/快照服务 | a迁移+定义依赖；b永久清除全部已知载体；c去相关目标外键并改删除/恢复与索引事务。E4/E5/E6每片独立验证。引用放宽前要有完整读回/失效查询，不能仅去外键 |
-| C8a/b 依赖C7主进程验收 | 拟新增 src/pages/useProjectCustomFieldController.ts、ProjectCustomFieldManager.tsx；复用现有语言字段表单与校验语义；i18n/dictKeys及字典；featureFlags.ts | a定义/字段编辑、导入映射与迁移预览；b永久清除影响确认和缺值/失效引用提示。语义token、两层边框、i18n，默认关闭的桌面内部flag。各对象字段入口不是仅语言页演示 |
+| 片与依赖                          | 落位提案                                                                                                                                                                  | 最小交付及验证                                                                                                                                                                                                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| C1 基础；已落地                   | 现有 src/db/desktop/schema.ts、units.ts；src/annotation/analysisGraphDomain.ts 及对应测试。openProject 沿用 user_version 常量                                             | 分析根列、代际及本片最小载荷校验；投影多语列留到 C2。不接人工路径，不开放新独立词项写入口。新库重开、旧文件字节不变、非法 domain 拒绝、实验键 jieyuLinear / jieyuProvenance / jieyuLexemeLink 拒绝、schema/事务失败回滚                                                                                |
+| C2 依赖C1；已落地                 | src/db/desktop/analysis.ts、src/annotation/analysisGraphDomainProjection.ts 及对应测试；client.ts、desktopCall.ts、schema.ts。词条模块没有独立词项写入口，未改 lexicon.ts | analysis.apply 的编辑与重排。图为真值，投影多语列只在该事务写入。E1、E2、E10 的重排半边，原子失败后重开仍是旧图。导入、接受和恢复留到后续切片                                                                                                                                                          |
+| C3 依赖C2；已落地                 | 现有 src/db/desktop/units.ts；src/db/desktop/analysisRestore.ts、analysisCandidates.ts 及对应测试；client.ts、desktopCall.ts、schema.ts                                   | 候选与待复核快照、改正文时的快照并清图。E3、E11、E9，过期接受、重复接受，以及恢复时保留后改备注。user_version 7，旧文件只拒绝                                                                                                                                                                          |
+| C4 导入；已落地。旧页面入口未改接 | src/db/desktop/analysisImport.ts 及测试；analysis.ts 的显示键和跨度动作；client.ts、desktopCall.ts。未改旧标注页，未加 external_ref，未升 user_version                    | E12、E13–E16 在主进程读回：未提及的键保留，无 id 再导入会追加，坏 id 与又改又删整次拒绝，失配跨度重开后仍失配，删节点不带关系删除则拒绝。响应丢失沿用现有一次调用，不自动重试。旧标注页、导入页和接受页仍不改接                                                                                        |
+| C5 依赖C3；已落地                 | src/db/desktop/customFields.ts、customFieldValidation.ts 及测试；schema/client/desktopCall/units/analysis                                                                 | 定义、稳定选项、约束、语段值和预览凭据。E8：旧语段缺必填值仍可改正文，新语段必须带值，同名导入按复用或新建，类型冲突不合并，默认值不追填。E10 的 customField.set 把 residue 标为需复核并推进分析代际。未知 definitionId 拒绝。user_version 8。旧页面未改接                                             |
+| C6a 依赖C5；已落地。C6b/c 未做    | customFields.ts 内部分发，未新增 customFieldTargets.ts。文稿、层、媒体、说话人、语言、正字法和桥的创建入口在同一事务检查必填值。C6b 仍用 lexicon.ts 与 analysis.ts        | 项目、文稿、层、媒体、说话人、语言、正字法、正字法桥可读写、重开、引用和清除定位。语言值在 languages.custom_fields_json，不进 custom_field_values。旧行缺必填仍可改无关字段，新建缺值回滚，默认值不追填。未改表，user_version 仍是 8。图节点 set 已在 C5。词条、义项、关系、来源、备注、对话、消息未做 |
+| C7a/b/c 依赖C6全部宿主登记        | 拟新增 src/db/desktop/customFieldMigration.ts、customFieldPurge.ts、referenceState.ts 及测试；schema.ts、lexicon.ts、候选/快照服务                                        | a迁移+定义依赖；b永久清除全部已知载体；c去相关目标外键并改删除/恢复与索引事务。E4/E5/E6每片独立验证。引用放宽前要有完整读回/失效查询，不能仅去外键                                                                                                                                                     |
+| C8a/b 依赖C7主进程验收            | 拟新增 src/pages/useProjectCustomFieldController.ts、ProjectCustomFieldManager.tsx；复用现有语言字段表单与校验语义；i18n/dictKeys及字典；featureFlags.ts                  | a定义/字段编辑、导入映射与迁移预览；b永久清除影响确认和缺值/失效引用提示。语义token、两层边框、i18n，默认关闭的桌面内部flag。各对象字段入口不是仅语言页演示                                                                                                                                            |
 
 C1 至 C3 是未开放工程中间态：现有 unit 创建仍只建语段及转写正文，不伪造分析；现有测试词项 fixture 可在测试中插入，但不能因此暴露独立投影写 API。导入入口仍不可用，不回退旧写路径。C8 之前不对试用者开放；完成 C3 不等于 M5-C 可用。若任一子片超出半天可验证范围，在同一任务表细分后再实施，不合并为巨型提交。
 
@@ -437,4 +436,4 @@ C1 至 C3 是未开放工程中间态：现有 unit 创建仍只建语段及转�
 
 ### 13.9 本版确认范围
 
-本版字段结构、原键保留、17 类宿主、E1–E16 及 C1–C8，连同 ADR-0090，已确认。C4 的再导入边界在决策 11，主进程导入已落地。`user_version` 5 只属于 C1，6 只属于 C2，7 只属于 C3。C4 未改表。C5 升到 8。不改既有 ADR 正文。文档检查只证明落位和格式。下一片是 C6a。旧标注页不改接。不把原 JSON 实验当验收。
+本版字段结构、原键保留、17 类宿主、E1–E16 及 C1–C8，连同 ADR-0090，已确认。C4 的再导入边界在决策 11，主进程导入已落地。`user_version` 5 只属于 C1，6 只属于 C2，7 只属于 C3。C4 未改表。C5 升到 8。C6a 未改表。不改既有 ADR 正文。文档检查只证明落位和格式。下一片是 C6b。旧标注页不改接。不把原 JSON 实验当验收。

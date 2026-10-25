@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -18,6 +19,7 @@ export interface MediaCreate {
   relpath: string;
   sha256: string;
   duration: number;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface MediaRow {
@@ -60,6 +62,7 @@ export function createMedia(db: SqliteDatabase, folder: string, input: MediaCrea
       `INSERT INTO media (id, relpath, sha256, filename, duration, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(id, relpath, input.sha256, path.posix.basename(relpath), input.duration, now);
+    writeRequiredFieldValues(db, 'media', id, input.fieldValues);
     const media = getMedia(db, id);
     if (!media) throw new Error('media readback failed');
     return media;

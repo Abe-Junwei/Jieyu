@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -12,6 +13,7 @@ export interface Speaker {
 
 export interface SpeakerCreate {
   name: string;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface SpeakerRow {
@@ -31,6 +33,7 @@ export function createSpeaker(db: SqliteDatabase, input: SpeakerCreate): Speaker
       now,
       now,
     );
+    writeRequiredFieldValues(db, 'speaker', id, input.fieldValues);
     const speaker = getSpeaker(db, id);
     if (!speaker) throw new Error('speaker readback failed');
     return speaker;

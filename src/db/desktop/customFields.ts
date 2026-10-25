@@ -60,6 +60,37 @@ export interface CustomFieldUnitValue {
   value: unknown;
 }
 
+export interface CustomFieldHostPreview {
+  definitionId: string;
+  revision: number;
+  targetType: string;
+  targetId: string;
+}
+
+export interface CustomFieldHostValue {
+  definitionId: string;
+  targetType: string;
+  targetId: string;
+  revision: number;
+  value: unknown;
+}
+
+export interface CustomFieldLocation {
+  targetType: string;
+  targetId: string;
+}
+
+const TABLE_VALUE_HOSTS = [
+  'project',
+  'manuscript',
+  'layer',
+  'unit',
+  'media',
+  'speaker',
+  'orthography',
+  'orthography-bridge',
+] as const;
+
 export const CUSTOM_FIELD_UPDATE_KEYS = [
   'id',
   'expectedRevision',
@@ -278,23 +309,17 @@ export function importDefinition(db: SqliteDatabase, input: unknown): CustomFiel
 export function previewUnitValue(db: SqliteDatabase, input: unknown): CustomFieldPreview {
   const patch = record(input, 'custom field definition is invalid');
   assertAllowed(patch, ['definitionId', 'unitId', 'value']);
-  const definitionId = requiredText(patch.definitionId, 'custom field definition is missing');
-  const unitId = requiredText(patch.unitId, 'unit is missing');
-  if (!('value' in patch) || patch.value === undefined || patch.value === null) {
-    throw new Error('custom field value is missing');
-  }
-  requireUnit(db, unitId);
-  const definition = requireDefinition(db, definitionId);
-  if (definition.targetType !== 'unit') throw new Error('custom field target does not match');
-  assertCustomFieldValue(
-    ruleOf(
-      definition,
-      definition.options.map((option) => option.id),
-    ),
-    patch.value,
-    (ref) => targetExists(db, ref),
-  );
-  return { definitionId, revision: definition.revision, unitId };
+  const preview = previewFieldValue(db, {
+    definitionId: patch.definitionId,
+    targetType: 'unit',
+    targetId: patch.unitId,
+    value: patch.value,
+  });
+  return {
+    definitionId: preview.definitionId,
+    revision: preview.revision,
+    unitId: preview.targetId,
+  };
 }
 
 export function setUnitValue(
@@ -310,20 +335,16 @@ export function setUnitValue(
   if (!('value' in patch) || patch.value === undefined || patch.value === null) {
     throw new Error('custom field value is missing');
   }
-  const value = patch.value;
-  const write = db.transaction(() => {
-    requireUnit(db, unitId);
-    const definition = requireDefinition(db, definitionId);
-    if (definition.revision !== expectedRevision)
-      throw new Error('custom field revision does not match');
-    storeUnitValue(db, definition, unitId, value);
-    afterWrite?.();
-    const stored = readUnitValue(db, definitionId, unitId);
-    if (canonicalJson(stored) !== canonicalJson(value))
-      throw new Error('custom field readback failed');
-    return { definitionId, unitId, revision: definition.revision, value: stored };
-  });
-  return write();
+  const stored = writeFieldValue(
+    db,
+    'unit',
+    unitId,
+    definitionId,
+    patch.value,
+    expectedRevision,
+    afterWrite,
+  );
+  return { definitionId, unitId, revision: stored.revision, value: stored.value };
 }
 
 export function removeUnitValue(db: SqliteDatabase, input: unknown): void {
@@ -331,34 +352,11 @@ export function removeUnitValue(db: SqliteDatabase, input: unknown): void {
   assertAllowed(patch, ['definitionId', 'unitId']);
   const definitionId = requiredText(patch.definitionId, 'custom field definition is missing');
   const unitId = requiredText(patch.unitId, 'unit is missing');
-  const write = db.transaction(() => {
-    if (readUnitValue(db, definitionId, unitId) === null)
-      throw new Error('custom field value is missing');
-    db.prepare(
-      `DELETE FROM custom_field_values
-       WHERE definition_id = ? AND target_type = 'unit' AND target_id = ?`,
-    ).run(definitionId, unitId);
-    if (readUnitValue(db, definitionId, unitId) !== null)
-      throw new Error('custom field readback failed');
-  });
-  write();
+  removeFieldValue(db, { definitionId, targetType: 'unit', targetId: unitId });
 }
 
 export function missingUnitFields(db: SqliteDatabase, unitId: string): string[] {
-  requireUnit(db, unitId);
-  const rows = db
-    .prepare(
-      `SELECT id FROM custom_field_definitions
-       WHERE target_type = 'unit' AND required = 1
-         AND NOT EXISTS (
-           SELECT 1 FROM custom_field_values
-           WHERE definition_id = custom_field_definitions.id
-             AND target_type = 'unit' AND target_id = ?
-         )
-       ORDER BY sort_order, id`,
-    )
-    .all(unitId) as { id: string }[];
-  return rows.map((row) => row.id);
+  return missingFields(db, 'unit', unitId);
 }
 
 export function readUnitValue(
@@ -366,14 +364,7 @@ export function readUnitValue(
   definitionId: string,
   unitId: string,
 ): unknown | null {
-  const row = db
-    .prepare(
-      `SELECT value_json FROM custom_field_values
-       WHERE definition_id = ? AND target_type = 'unit' AND target_id = ?`,
-    )
-    .get(definitionId, unitId) as { value_json: string } | undefined;
-  if (row === undefined) return null;
-  return JSON.parse(row.value_json) as unknown;
+  return readFieldValue(db, definitionId, 'unit', unitId);
 }
 
 /** Called inside the unit-create transaction. Does not fill defaults. */
@@ -382,20 +373,167 @@ export function writeUnitFieldValues(
   unitId: string,
   values: Record<string, unknown> | undefined,
 ): void {
-  const required = db
+  writeRequiredFieldValues(db, 'unit', unitId, values);
+}
+
+export function previewFieldValue(db: SqliteDatabase, input: unknown): CustomFieldHostPreview {
+  const value = fieldValueInput(input, false);
+  requireHost(db, value.targetType, value.targetId);
+  const definition = requireDefinition(db, value.definitionId);
+  if (definition.targetType !== value.targetType)
+    throw new Error('custom field target does not match');
+  assertCustomFieldValue(
+    ruleOf(
+      definition,
+      definition.options.map((option) => option.id),
+    ),
+    value.value,
+    (ref) => targetExists(db, ref),
+  );
+  return {
+    definitionId: value.definitionId,
+    revision: definition.revision,
+    targetType: value.targetType,
+    targetId: value.targetId,
+  };
+}
+
+export function setFieldValue(
+  db: SqliteDatabase,
+  input: unknown,
+  afterWrite?: () => void,
+): CustomFieldHostValue {
+  const value = fieldValueInput(input, true);
+  return writeFieldValue(
+    db,
+    value.targetType,
+    value.targetId,
+    value.definitionId,
+    value.value,
+    value.expectedRevision,
+    afterWrite,
+  );
+}
+
+export function removeFieldValue(db: SqliteDatabase, input: unknown): void {
+  const patch = record(input, 'custom field definition is invalid');
+  assertAllowed(patch, ['definitionId', 'targetType', 'targetId']);
+  const definitionId = requiredText(patch.definitionId, 'custom field definition is missing');
+  const targetType = requiredText(patch.targetType, 'custom field target does not match');
+  const targetId = requiredText(patch.targetId, 'custom field target is missing');
+  const write = db.transaction(() => {
+    if (readFieldValue(db, definitionId, targetType, targetId) === null) {
+      throw new Error('custom field value is missing');
+    }
+    if (targetType === 'language') {
+      const map = languageMap(db, targetId);
+      delete map[definitionId];
+      db.prepare('UPDATE languages SET custom_fields_json = ?, updated_at = ? WHERE id = ?').run(
+        JSON.stringify(map),
+        new Date().toISOString(),
+        targetId,
+      );
+    } else {
+      db.prepare(
+        `DELETE FROM custom_field_values
+         WHERE definition_id = ? AND target_type = ? AND target_id = ?`,
+      ).run(definitionId, targetType, targetId);
+    }
+    if (readFieldValue(db, definitionId, targetType, targetId) !== null) {
+      throw new Error('custom field readback failed');
+    }
+  });
+  write();
+}
+
+export function missingFields(db: SqliteDatabase, targetType: string, targetId: string): string[] {
+  requireHost(db, targetType, targetId);
+  const required = requiredDefinitionIds(db, targetType);
+  if (targetType === 'language') {
+    const map = languageMap(db, targetId);
+    return required.filter((id) => !(id in map));
+  }
+  const rows = db
     .prepare(
       `SELECT id FROM custom_field_definitions
-       WHERE target_type = 'unit' AND required = 1
+       WHERE target_type = ? AND required = 1
+         AND NOT EXISTS (
+           SELECT 1 FROM custom_field_values
+           WHERE definition_id = custom_field_definitions.id
+             AND target_type = ? AND target_id = ?
+         )
        ORDER BY sort_order, id`,
     )
-    .all() as { id: string }[];
+    .all(targetType, targetType, targetId) as { id: string }[];
+  return rows.map((row) => row.id);
+}
+
+export function readFieldValue(
+  db: SqliteDatabase,
+  definitionId: string,
+  targetType: string,
+  targetId: string,
+): unknown | null {
+  if (targetType === 'language') {
+    const row = db
+      .prepare('SELECT custom_fields_json FROM languages WHERE id = ?')
+      .get(targetId) as { custom_fields_json: string } | undefined;
+    if (row === undefined) return null;
+    const map = objectMap(row.custom_fields_json);
+    return definitionId in map ? map[definitionId] : null;
+  }
+  const row = db
+    .prepare(
+      `SELECT value_json FROM custom_field_values
+       WHERE definition_id = ? AND target_type = ? AND target_id = ?`,
+    )
+    .get(definitionId, targetType, targetId) as { value_json: string } | undefined;
+  if (row === undefined) return null;
+  return JSON.parse(row.value_json) as unknown;
+}
+
+export function locateCustomFieldValues(
+  db: SqliteDatabase,
+  definitionId: string,
+): CustomFieldLocation[] {
+  requireDefinition(db, definitionId);
+  const rows = db
+    .prepare(
+      `SELECT target_type, target_id FROM custom_field_values
+       WHERE definition_id = ?`,
+    )
+    .all(definitionId) as { target_type: string; target_id: string }[];
+  const located = rows.map((row) => ({ targetType: row.target_type, targetId: row.target_id }));
+  const languages = db.prepare('SELECT id, custom_fields_json FROM languages').all() as {
+    id: string;
+    custom_fields_json: string;
+  }[];
+  for (const language of languages) {
+    if (definitionId in objectMap(language.custom_fields_json)) {
+      located.push({ targetType: 'language', targetId: language.id });
+    }
+  }
+  located.sort((left, right) => {
+    const byType = left.targetType.localeCompare(right.targetType);
+    if (byType !== 0) return byType;
+    return left.targetId.localeCompare(right.targetId);
+  });
+  return located;
+}
+
+/** Called inside a host-create transaction. Does not fill defaults. */
+export function writeRequiredFieldValues(
+  db: SqliteDatabase,
+  targetType: string,
+  targetId: string,
+  values: Record<string, unknown> | undefined,
+): void {
   const provided = values ?? {};
-  for (const row of required) {
-    if (!(row.id in provided)) throw new Error('unit is missing a required field');
+  for (const id of requiredDefinitionIds(db, targetType)) {
+    if (!(id in provided)) throw new Error(`${targetType} is missing a required field`);
   }
   for (const [definitionId, value] of Object.entries(provided)) {
-    const definition = requireDefinition(db, definitionId);
-    storeUnitValue(db, definition, unitId, value);
+    storeFieldValue(db, requireDefinition(db, definitionId), targetType, targetId, value);
   }
 }
 
@@ -491,13 +629,122 @@ function insertDefinition(
   return stored;
 }
 
-function storeUnitValue(
+function writeFieldValue(
   db: SqliteDatabase,
-  definition: CustomFieldDefinition,
-  unitId: string,
+  targetType: string,
+  targetId: string,
+  definitionId: string,
+  value: unknown,
+  expectedRevision: number,
+  afterWrite?: () => void,
+): CustomFieldHostValue {
+  const write = db.transaction(() => {
+    requireHost(db, targetType, targetId);
+    const definition = requireDefinition(db, definitionId);
+    if (definition.revision !== expectedRevision)
+      throw new Error('custom field revision does not match');
+    storeFieldValue(db, definition, targetType, targetId, value);
+    afterWrite?.();
+    const stored = readFieldValue(db, definitionId, targetType, targetId);
+    if (canonicalJson(stored) !== canonicalJson(value))
+      throw new Error('custom field readback failed');
+    return { definitionId, targetType, targetId, revision: definition.revision, value: stored };
+  });
+  return write();
+}
+
+function fieldValueInput(
+  input: unknown,
+  withRevision: boolean,
+): {
+  definitionId: string;
+  targetType: string;
+  targetId: string;
+  value: unknown;
+  expectedRevision: number;
+} {
+  const patch = record(input, 'custom field definition is invalid');
+  assertAllowed(
+    patch,
+    withRevision
+      ? ['definitionId', 'targetType', 'targetId', 'value', 'expectedRevision']
+      : ['definitionId', 'targetType', 'targetId', 'value'],
+  );
+  if (!('value' in patch) || patch.value === undefined || patch.value === null) {
+    throw new Error('custom field value is missing');
+  }
+  return {
+    definitionId: requiredText(patch.definitionId, 'custom field definition is missing'),
+    targetType: requiredText(patch.targetType, 'custom field target does not match'),
+    targetId: requiredText(patch.targetId, 'custom field target is missing'),
+    value: patch.value,
+    expectedRevision: withRevision ? requiredRevision(patch.expectedRevision) : 0,
+  };
+}
+
+function requireHost(db: SqliteDatabase, targetType: string, targetId: string): void {
+  if (targetType !== 'language' && !isTableHost(targetType)) {
+    throw new Error('custom field target is not writable yet');
+  }
+  if (!targetExists(db, { targetType: storedTarget(targetType), targetId })) {
+    throw new Error(`${targetType} is missing`);
+  }
+}
+
+function requiredDefinitionIds(db: SqliteDatabase, targetType: string): string[] {
+  const rows = db
+    .prepare(
+      `SELECT id FROM custom_field_definitions
+       WHERE target_type = ? AND required = 1
+       ORDER BY sort_order, id`,
+    )
+    .all(targetType) as { id: string }[];
+  return rows.map((row) => row.id);
+}
+
+function languageMap(db: SqliteDatabase, languageId: string): Record<string, unknown> {
+  const row = db
+    .prepare('SELECT custom_fields_json FROM languages WHERE id = ?')
+    .get(languageId) as { custom_fields_json: string } | undefined;
+  if (row === undefined) throw new Error('language is missing');
+  return objectMap(row.custom_fields_json);
+}
+
+function objectMap(json: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(json);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('custom field value is invalid');
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function storeLanguageValue(
+  db: SqliteDatabase,
+  definitionId: string,
+  languageId: string,
   value: unknown,
 ): void {
-  if (definition.targetType !== 'unit') throw new Error('custom field target does not match');
+  const map = languageMap(db, languageId);
+  map[definitionId] = value;
+  db.prepare('UPDATE languages SET custom_fields_json = ?, updated_at = ? WHERE id = ?').run(
+    JSON.stringify(map),
+    new Date().toISOString(),
+    languageId,
+  );
+}
+
+function isTableHost(value: string): boolean {
+  return (TABLE_VALUE_HOSTS as readonly string[]).includes(value);
+}
+
+function storeFieldValue(
+  db: SqliteDatabase,
+  definition: CustomFieldDefinition,
+  targetType: string,
+  targetId: string,
+  value: unknown,
+): void {
+  if (definition.targetType !== targetType) throw new Error('custom field target does not match');
   assertCustomFieldValue(
     ruleOf(
       definition,
@@ -508,12 +755,17 @@ function storeUnitValue(
   );
   const text = JSON.stringify(value);
   if (typeof text !== 'string') throw new Error('custom field value is invalid');
+  if (targetType === 'language') {
+    storeLanguageValue(db, definition.id, targetId, JSON.parse(text) as unknown);
+    return;
+  }
+  if (!isTableHost(targetType)) throw new Error('custom field target is not writable yet');
   db.prepare(
     `INSERT INTO custom_field_values (definition_id, target_type, target_id, value_json, updated_at)
-     VALUES (?, 'unit', ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(definition_id, target_type, target_id) DO UPDATE SET
        value_json = excluded.value_json, updated_at = excluded.updated_at`,
-  ).run(definition.id, unitId, text, new Date().toISOString());
+  ).run(definition.id, targetType, targetId, text, new Date().toISOString());
 }
 
 function reuseMatch(
@@ -707,10 +959,6 @@ function senseExists(db: SqliteDatabase, lexemeId: string | undefined, senseId: 
 
 function idExists(db: SqliteDatabase, sql: string, id: string): boolean {
   return db.prepare(sql).get(id) !== undefined;
-}
-
-function requireUnit(db: SqliteDatabase, unitId: string): void {
-  if (!idExists(db, 'SELECT 1 FROM units WHERE id = ?', unitId)) throw new Error('unit is missing');
 }
 
 function requireDefinition(db: SqliteDatabase, id: string): CustomFieldDefinition {

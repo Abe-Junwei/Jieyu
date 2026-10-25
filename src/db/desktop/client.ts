@@ -16,6 +16,9 @@ import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestor
 import type { AnalysisCandidateRecord } from './analysisCandidates';
 import type {
   CustomFieldDefinition,
+  CustomFieldHostPreview,
+  CustomFieldHostValue,
+  CustomFieldLocation,
   CustomFieldPreview,
   CustomFieldUnitValue,
 } from './customFields';
@@ -67,6 +70,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<void>(sessionId, 'customFields.removeUnitValue', input),
     missingUnitFields: (sessionId: string, unitId: string) =>
       once<string[]>(sessionId, 'customFields.missingUnitFields', { unitId }),
+    previewFieldValue: (sessionId: string, input: unknown) =>
+      once<CustomFieldHostPreview>(sessionId, 'customFields.previewValue', input),
+    setFieldValue: (sessionId: string, input: unknown) =>
+      once<CustomFieldHostValue>(sessionId, 'customFields.setValue', input),
+    removeFieldValue: (sessionId: string, input: unknown) =>
+      once<void>(sessionId, 'customFields.removeValue', input),
+    missingFields: (sessionId: string, targetType: string, targetId: string) =>
+      once<string[]>(sessionId, 'customFields.missingFields', { targetType, targetId }),
+    locateFieldValues: (sessionId: string, definitionId: string) =>
+      once<CustomFieldLocation[]>(sessionId, 'customFields.locateValues', { definitionId }),
     setTimeMapping: (
       sessionId: string,
       input: {

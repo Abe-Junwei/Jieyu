@@ -5,6 +5,7 @@ import {
   normalizeTextTimeMapping,
   type TextTimeMapping,
 } from '../../services/LinguisticService.timeMapping';
+import { writeRequiredFieldValues } from './customFields';
 import { readStringMap } from './stringMap';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -26,6 +27,7 @@ export interface Manuscript {
 export interface ManuscriptCreate {
   title: Record<string, string>;
   mediaId: string;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface ManuscriptRow {
@@ -52,6 +54,7 @@ export function createManuscript(db: SqliteDatabase, input: ManuscriptCreate): M
       `INSERT INTO manuscripts (id, title_json, media_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?)`,
     ).run(id, JSON.stringify(input.title), input.mediaId, now, now);
+    writeRequiredFieldValues(db, 'manuscript', id, input.fieldValues);
     const manuscript = getManuscript(db, id);
     if (!manuscript) throw new Error('manuscript readback failed');
     return manuscript;

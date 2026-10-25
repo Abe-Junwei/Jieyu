@@ -24,9 +24,14 @@ import {
   addOption,
   createDefinition,
   importDefinition,
+  locateCustomFieldValues,
+  missingFields,
   missingUnitFields,
+  previewFieldValue,
   previewUnitValue,
+  removeFieldValue,
   removeUnitValue,
+  setFieldValue,
   setUnitValue,
   updateDefinition,
   updateOptionLabel,
@@ -93,6 +98,11 @@ const METHODS = [
   'customFields.setUnitValue',
   'customFields.removeUnitValue',
   'customFields.missingUnitFields',
+  'customFields.previewValue',
+  'customFields.setValue',
+  'customFields.removeValue',
+  'customFields.missingFields',
+  'customFields.locateValues',
   'analysis.apply',
   'analysis.import',
   'analysis.submit',
@@ -196,6 +206,28 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'customFields.missingUnitFields':
       knownKeys(input, ['unitId']);
       return missingUnitFields(project.db, requiredString(input.unitId, 'unitId'));
+    case 'customFields.previewValue':
+      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'value']);
+      return previewFieldValue(project.db, input);
+    case 'customFields.setValue':
+      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'value', 'expectedRevision']);
+      return setFieldValue(project.db, input);
+    case 'customFields.removeValue':
+      knownKeys(input, ['definitionId', 'targetType', 'targetId']);
+      return removeFieldValue(project.db, input);
+    case 'customFields.missingFields':
+      knownKeys(input, ['targetType', 'targetId']);
+      return missingFields(
+        project.db,
+        requiredString(input.targetType, 'targetType'),
+        requiredString(input.targetId, 'targetId'),
+      );
+    case 'customFields.locateValues':
+      knownKeys(input, ['definitionId']);
+      return locateCustomFieldValues(
+        project.db,
+        requiredString(input.definitionId, 'definitionId'),
+      );
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.import':
@@ -373,6 +405,7 @@ function mediaCreate(input: Record<string, unknown>): MediaCreate {
     relpath: requiredString(input.relpath, 'relpath'),
     sha256: requiredString(input.sha256, 'sha256'),
     duration: requiredNumber(input.duration, 'duration'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 
@@ -380,6 +413,7 @@ function manuscriptCreate(input: Record<string, unknown>): ManuscriptCreate {
   return {
     title: stringMap(input.title, 'title'),
     mediaId: requiredString(input.mediaId, 'mediaId'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 
@@ -394,6 +428,7 @@ function layerCreate(input: Record<string, unknown>): LayerCreate {
     'orthographyId',
     'parentId',
     'sortOrder',
+    'fieldValues',
   ]);
   return {
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
@@ -409,6 +444,7 @@ function layerCreate(input: Record<string, unknown>): LayerCreate {
       : {}),
     ...('parentId' in input ? { parentId: optionalString(input.parentId, 'parentId') } : {}),
     ...('sortOrder' in input ? { sortOrder: requiredNumber(input.sortOrder, 'sortOrder') } : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 
@@ -437,6 +473,7 @@ function languageEnsure(input: Record<string, unknown>): LanguageEnsure {
     ...(typeof input.iso6393 === 'string' ? { iso6393: input.iso6393 } : {}),
     ...(typeof input.glottocode === 'string' ? { glottocode: input.glottocode } : {}),
     ...(Array.isArray(aliases) ? { aliases: aliases.map(aliasInput) } : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 
@@ -454,6 +491,7 @@ function orthographyCreate(input: Record<string, unknown>): OrthographyCreate {
     name: stringMap(input.name, 'name'),
     scriptTag: requiredString(input.scriptTag, 'scriptTag'),
     sourceType: requiredString(input.sourceType, 'sourceType'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 
@@ -482,6 +520,7 @@ function bridgeCreate(input: Record<string, unknown>): BridgeCreate {
           }),
         }
       : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 import { readStringMap } from './stringMap';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -42,6 +43,7 @@ export interface LanguageEnsure {
   iso6393?: string;
   glottocode?: string;
   aliases?: { alias: string; aliasType: string }[];
+  fieldValues?: Record<string, unknown>;
 }
 
 export interface OrthographyCreate {
@@ -49,6 +51,7 @@ export interface OrthographyCreate {
   name: Record<string, string>;
   scriptTag: string;
   sourceType: string;
+  fieldValues?: Record<string, unknown>;
 }
 
 export interface ProjectOrthography {
@@ -67,6 +70,7 @@ export interface BridgeCreate {
   sampleInput?: string;
   sampleOutput?: string;
   sampleCases?: { input: string; expectedOutput?: string }[];
+  fieldValues?: Record<string, unknown>;
 }
 
 export interface ProjectBridge {
@@ -125,6 +129,7 @@ export function ensureProjectLanguage(db: SqliteDatabase, input: LanguageEnsure)
       `INSERT INTO language_catalog_history (id, language_id, action, summary, created_at)
        VALUES (?, ?, 'create', 'created', ?)`,
     ).run(randomUUID(), id, now);
+    writeRequiredFieldValues(db, 'language', id, input.fieldValues);
     const created = getProjectLanguage(db, id);
     if (!created) throw new Error('language readback failed');
     return created;
@@ -206,6 +211,7 @@ export function createOrthography(
       now,
       now,
     );
+    writeRequiredFieldValues(db, 'orthography', id, input.fieldValues);
     return readOrthography(db, id);
   });
   return write();
@@ -246,6 +252,7 @@ export function createBridge(db: SqliteDatabase, input: BridgeCreate): ProjectBr
       now,
       now,
     );
+    writeRequiredFieldValues(db, 'orthography-bridge', id, input.fieldValues);
     return readBridge(db, id);
   });
   return write();
