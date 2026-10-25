@@ -1,7 +1,10 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
+import { PROJECT_LOCK_NAME, pidIsAlive } from '../../desktop/skeleton/projectLock';
+import { writeProbeAndReadBack } from '../../desktop/skeleton/probeStore';
 import { openProject } from './openProject';
 import { DESKTOP_PROJECT_APPLICATION_ID } from './schema';
 
@@ -65,4 +68,81 @@ describe('openProject', () => {
     expect(() => openProject(dir, 'NOT SQL')).toThrow();
     expect(readdirSync(dir)).toEqual([]);
   });
+
+  it('rejects a wrong application id, column, journal, or probe without changing bytes', () => {
+    const wrongId = folder();
+    openProject(wrongId).close();
+    expect(
+      unchanged(wrongId, (file) => {
+        const db = new Database(file);
+        db.exec('PRAGMA application_id = 1');
+        db.close();
+      }),
+    ).toThrow('project.sqlite is not a Jieyu project library');
+
+    const wrongColumn = folder();
+    openProject(wrongColumn).close();
+    expect(
+      unchanged(wrongColumn, (file) => {
+        const db = new Database(file);
+        db.exec('ALTER TABLE notes ADD COLUMN extra TEXT');
+        db.close();
+      }),
+    ).toThrow('project.sqlite is not a Jieyu project library');
+
+    const wal = folder();
+    openProject(wal).close();
+    expect(
+      unchanged(wal, (file) => {
+        const db = new Database(file);
+        db.exec('PRAGMA journal_mode = WAL');
+        db.close();
+      }),
+    ).toThrow('project.sqlite is not a Jieyu project library');
+
+    const probe = folder();
+    const probeFile = join(probe, 'project.sqlite');
+    writeProbeAndReadBack(probeFile, 'skeleton');
+    const before = readFileSync(probeFile);
+    expect(() => openProject(probe)).toThrow('project.sqlite is not a Jieyu project library');
+    expect(readFileSync(probeFile)).toEqual(before);
+    expect(readdirSync(probe).includes(PROJECT_LOCK_NAME)).toBe(false);
+  });
+
+  it('blocks a second opener until the holder closes', () => {
+    const dir = folder();
+    const held = openProject(dir);
+    expect(readdirSync(dir)).toContain(PROJECT_LOCK_NAME);
+    expect(() => openProject(dir)).toThrow('project folder is busy');
+    held.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m-held', 'held.wav', 'hh', 'held.wav', 1, T);
+    held.close();
+
+    const dead = 2_147_483_646;
+    expect(pidIsAlive(dead)).toBe(false);
+    writeFileSync(join(dir, PROJECT_LOCK_NAME), `${dead}\n`);
+    const next = openProject(dir);
+    expect(next.db.prepare('SELECT id FROM media WHERE id = ?').get('m-held')).toEqual({
+      id: 'm-held',
+    });
+    next.close();
+    expect(readdirSync(dir).includes(PROJECT_LOCK_NAME)).toBe(false);
+  });
 });
+
+function unchanged(dir: string, mutate: (file: string) => void): () => void {
+  const file = join(dir, 'project.sqlite');
+  mutate(file);
+  const before = readFileSync(file);
+  return () => {
+    try {
+      openProject(dir);
+    } finally {
+      expect(readFileSync(file)).toEqual(before);
+      expect(readdirSync(dir).includes(PROJECT_LOCK_NAME)).toBe(false);
+    }
+  };
+}
