@@ -548,14 +548,17 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
             layerLinks,
           );
           const storedSegments = sourceLayer ? (segmentsByLayer?.get(sourceLayer.id) ?? []) : [];
-          // Segment rows shadow their parent unit. Other units on the lane stay in the layout.
+          // Owner lanes keep units that segments do not point at; dependent lanes stay segment-only.
           const segmentDocs =
             sourceLayer && storedSegments.length > 0
               ? (visibleSegmentsBySourceLayer.get(sourceLayer.id) ?? storedSegments)
               : [];
+          const ownsSegmentSource = Boolean(sourceLayer && sourceLayer.id === layer.id);
           const docs =
             segmentDocs.length > 0
-              ? [...segmentDocs, ...appendUnitsNotShadowedBySegments(laneUnits, segmentDocs)]
+              ? ownsSegmentSource
+                ? [...segmentDocs, ...appendUnitsNotShadowedBySegments(laneUnits, segmentDocs)]
+                : segmentDocs
               : laneUnits;
           lanes.push({
             layerId: layer.id,
@@ -709,7 +712,9 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
                   ? (unitsByOverlapGroupId.get(overlapGroupId) ?? [])
                   : laneUnits;
               const unshadowedUnits =
-                drawSegmentRows && overlapGroupId === undefined
+                drawSegmentRows &&
+                overlapGroupId === undefined &&
+                segmentSourceLayerId === layer.id
                   ? appendUnitsNotShadowedBySegments(laneUnits, storedSegments)
                   : [];
               const visibleUnits: TimelineUnitView[] = drawSegmentRows
