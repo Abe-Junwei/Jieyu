@@ -242,4 +242,61 @@ test('annotation import cancellation and malformed input preserve the isolated p
   await page.reload();
   await waitForDexie(page);
   expect(await readProjectData(page)).toBe(before);
+
+  const validTextGrid = `File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 1
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "transcription"
+        xmin = 0
+        xmax = 1
+        intervals: size = 1
+        intervals [1]:
+            xmin = 0
+            xmax = 1
+            text = "textgrid import sample"
+`;
+  await input.setInputFiles({
+    name: 'valid.TextGrid',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(validTextGrid),
+  });
+  await expect(dialog).toBeVisible();
+  await dialog.getByTestId('annotation-import-as-new-document').check();
+  const acceptImportConfirmation = (browserDialog: import('@playwright/test').Dialog) => {
+    void browserDialog.accept();
+  };
+  page.on('dialog', acceptImportConfirmation);
+  await dialog.getByRole('button', { name: /开始导入标注|Start annotation import/ }).click();
+  const timelineMismatch = page.getByRole('dialog', {
+    name: /Timeline length mismatch|时间轴长度不匹配/,
+  });
+  await expect(timelineMismatch).toBeVisible();
+  await timelineMismatch
+    .getByRole('checkbox', { name: /I understand and want to continue importing|我理解并继续导入/ })
+    .check();
+  await timelineMismatch.getByRole('button', { name: /^Import$/ }).click();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(async () =>
+          (await (globalThis as any).__jieyuDexie__.table('layer_unit_contents').toArray()).some(
+            (row: { text?: string }) => row.text === 'textgrid import sample',
+          ),
+        ),
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+  page.off('dialog', acceptImportConfirmation);
+  await expect(dialog).toBeHidden();
+  const afterValidImport = await readProjectData(page);
+  await page.reload();
+  await waitForDexie(page);
+  expect(await readProjectData(page)).toBe(afterValidImport);
 });
