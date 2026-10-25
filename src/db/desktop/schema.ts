@@ -2,6 +2,9 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
+/** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
+export const DESKTOP_PROJECT_USER_VERSION = 1;
+
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
   id TEXT PRIMARY KEY,

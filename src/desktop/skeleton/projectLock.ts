@@ -4,52 +4,105 @@ import path from 'node:path';
 
 export const PROJECT_LOCK_NAME = '.jieyu.lock';
 
+/** ponytail: mtime refresh, not flock. A holder whose event loop stalls longer than this can be taken over. Upgrade path is LockFileEx / flock when Node exposes both. */
+export const PROJECT_LOCK_STALE_MS = 10_000;
+
+const UPDATE_MS = PROJECT_LOCK_STALE_MS / 2;
+
 export type ProjectLockResult = { ok: true } | { ok: false; reason: 'busy' };
 
-export function pidIsAlive(pid: number): boolean {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+type HeldLock = {
+  token: string;
+  timer: ReturnType<typeof setInterval>;
+  lockDir: string;
+};
+
+const heldByFolder = new Map<string, HeldLock>();
+
+export function tryAcquireProjectLock(projectDir: string): ProjectLockResult {
+  const folder = path.resolve(projectDir);
+  fs.mkdirSync(folder, { recursive: true });
+  if (heldByFolder.has(folder)) return { ok: false, reason: 'busy' };
+  const lockDir = path.join(folder, PROJECT_LOCK_NAME);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      fs.mkdirSync(lockDir);
+    } catch (error) {
+      if (errorCode(error) !== 'EEXIST') throw error;
+      if (!lockIsStale(lockDir) || !removeStaleLock(lockDir)) return { ok: false, reason: 'busy' };
+      continue;
+    }
+    const token = randomUUID();
+    try {
+      fs.writeFileSync(path.join(lockDir, 'owner'), token);
+    } catch (error) {
+      fs.rmSync(lockDir, { recursive: true, force: true });
+      throw error;
+    }
+    const timer = setInterval(() => {
+      const held = heldByFolder.get(folder);
+      if (held === undefined || held.token !== token) return;
+      try {
+        const now = new Date();
+        fs.utimesSync(lockDir, now, now);
+      } catch {
+        clearInterval(timer);
+        if (heldByFolder.get(folder)?.token === token) heldByFolder.delete(folder);
+      }
+    }, UPDATE_MS);
+    timer.unref();
+    heldByFolder.set(folder, { token, timer, lockDir });
+    return { ok: true };
+  }
+  return { ok: false, reason: 'busy' };
+}
+
+export function releaseProjectLock(projectDir: string): void {
+  const folder = path.resolve(projectDir);
+  const held = heldByFolder.get(folder);
+  if (held === undefined) return;
+  clearInterval(held.timer);
+  heldByFolder.delete(folder);
+  let owner = '';
   try {
-    process.kill(pid, 0);
+    owner = fs.readFileSync(path.join(held.lockDir, 'owner'), 'utf8');
+  } catch {
+    return;
+  }
+  if (owner !== held.token) return;
+  fs.rmSync(held.lockDir, { recursive: true, force: true });
+}
+
+export function releaseAllProjectLocks(): void {
+  for (const folder of [...heldByFolder.keys()]) releaseProjectLock(folder);
+}
+
+export function projectFolderLockedByThisProcess(projectDir: string): boolean {
+  return heldByFolder.has(path.resolve(projectDir));
+}
+
+function lockIsStale(lockDir: string): boolean {
+  try {
+    return Date.now() - fs.statSync(lockDir).mtimeMs > PROJECT_LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function removeStaleLock(lockDir: string): boolean {
+  try {
+    if (Date.now() - fs.statSync(lockDir).mtimeMs <= PROJECT_LOCK_STALE_MS) return false;
+    fs.rmSync(lockDir, { recursive: true, force: true });
     return true;
   } catch {
     return false;
   }
 }
 
-export function tryAcquireProjectLock(
-  projectDir: string,
-  pid: number,
-  isAlive: (candidate: number) => boolean = pidIsAlive,
-): ProjectLockResult {
-  fs.mkdirSync(projectDir, { recursive: true });
-  const lockPath = path.join(projectDir, PROJECT_LOCK_NAME);
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const temp = path.join(projectDir, `.${PROJECT_LOCK_NAME}.${pid}.${randomUUID()}.tmp`);
-    fs.writeFileSync(temp, `${pid}\n`);
-    try {
-      fs.linkSync(temp, lockPath);
-      return { ok: true };
-    } catch (error) {
-      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : '';
-      if (code !== 'EEXIST') throw error;
-      const existing = Number.parseInt(fs.readFileSync(lockPath, 'utf8'), 10);
-      if (Number.isFinite(existing) && isAlive(existing)) return { ok: false, reason: 'busy' };
-      try {
-        fs.unlinkSync(lockPath);
-      } catch {
-        // another process removed the stale lock
-      }
-    } finally {
-      fs.rmSync(temp, { force: true });
-    }
-  }
-  return { ok: false, reason: 'busy' };
+function errorCode(error: unknown): string {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return '';
+  const code = error.code;
+  return typeof code === 'string' ? code : '';
 }
 
-export function releaseProjectLock(projectDir: string, pid: number): void {
-  const lockPath = path.join(projectDir, PROJECT_LOCK_NAME);
-  if (!fs.existsSync(lockPath)) return;
-  const existing = Number.parseInt(fs.readFileSync(lockPath, 'utf8'), 10);
-  if (existing !== pid) return;
-  fs.unlinkSync(lockPath);
-}
+process.on('exit', releaseAllProjectLocks);

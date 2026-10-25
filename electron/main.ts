@@ -201,7 +201,6 @@ function registerIpc(): void {
     }
     const opened = openProjectFolder({
       folder,
-      pid: process.pid,
       extraMarkers: [BAIDU_MARKER],
       userDataRoot: app.getPath('userData'),
     });
@@ -260,7 +259,6 @@ function registerIpc(): void {
       openLockedSqliteStorage({
         folder,
         userDataFile: sqliteUserDataFile(),
-        pid: process.pid,
       });
       return { opened: true };
     });
@@ -459,7 +457,6 @@ async function chooseProject(): Promise<void> {
   allowedProjectFolders.add(path.resolve(folder));
   const opened = openProjectFolder({
     folder,
-    pid: process.pid,
     extraMarkers: [BAIDU_MARKER],
     userDataRoot: app.getPath('userData'),
   });

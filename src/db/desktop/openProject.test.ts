@@ -1,12 +1,24 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
-import { PROJECT_LOCK_NAME, pidIsAlive } from '../../desktop/skeleton/projectLock';
+import {
+  PROJECT_LOCK_NAME,
+  PROJECT_LOCK_STALE_MS,
+  releaseAllProjectLocks,
+} from '../../desktop/skeleton/projectLock';
 import { writeProbeAndReadBack } from '../../desktop/skeleton/probeStore';
 import { openProject } from './openProject';
-import { DESKTOP_PROJECT_APPLICATION_ID } from './schema';
+import { DESKTOP_PROJECT_APPLICATION_ID, DESKTOP_PROJECT_USER_VERSION } from './schema';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
@@ -24,6 +36,7 @@ function folder(): string {
 }
 
 afterEach(() => {
+  releaseAllProjectLocks();
   for (const root of roots) rmSync(root, { recursive: true, force: true });
   roots.length = 0;
 });
@@ -35,6 +48,8 @@ describe('openProject', () => {
     expect(pragma(created.db, 'foreign_keys')).toBe(1);
     expect(pragma(created.db, 'journal_mode')).toBe('delete');
     expect(pragma(created.db, 'application_id')).toBe(DESKTOP_PROJECT_APPLICATION_ID);
+    expect(pragma(created.db, 'user_version')).toBe(DESKTOP_PROJECT_USER_VERSION);
+    expect(created.db.prepare('PRAGMA busy_timeout').get()).toEqual({ timeout: 5000 });
     created.db
       .prepare(
         'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -69,13 +84,23 @@ describe('openProject', () => {
     expect(readdirSync(dir)).toEqual([]);
   });
 
-  it('rejects a wrong application id, column, journal, or probe without changing bytes', () => {
+  it('rejects a wrong application id, version, column, journal, or probe without changing bytes', () => {
     const wrongId = folder();
     openProject(wrongId).close();
     expect(
       unchanged(wrongId, (file) => {
         const db = new Database(file);
         db.exec('PRAGMA application_id = 1');
+        db.close();
+      }),
+    ).toThrow('project.sqlite is not a Jieyu project library');
+
+    const wrongVersion = folder();
+    openProject(wrongVersion).close();
+    expect(
+      unchanged(wrongVersion, (file) => {
+        const db = new Database(file);
+        db.exec('PRAGMA user_version = 2');
         db.close();
       }),
     ).toThrow('project.sqlite is not a Jieyu project library');
@@ -121,9 +146,10 @@ describe('openProject', () => {
       .run('m-held', 'held.wav', 'hh', 'held.wav', 1, T);
     held.close();
 
-    const dead = 2_147_483_646;
-    expect(pidIsAlive(dead)).toBe(false);
-    writeFileSync(join(dir, PROJECT_LOCK_NAME), `${dead}\n`);
+    const stale = join(dir, PROJECT_LOCK_NAME);
+    mkdirSync(stale);
+    const old = new Date(Date.now() - PROJECT_LOCK_STALE_MS - 1000);
+    utimesSync(stale, old, old);
     const next = openProject(dir);
     expect(next.db.prepare('SELECT id FROM media WHERE id = ?').get('m-held')).toEqual({
       id: 'm-held',

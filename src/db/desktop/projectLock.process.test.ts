@@ -27,12 +27,12 @@ function holder(dir: string): Promise<{ child: ReturnType<typeof spawn>; line: s
   const lockModule = pathToFileURL(join(process.cwd(), 'src/desktop/skeleton/projectLock.ts')).href;
   writeFileSync(
     script,
-    `import { tryAcquireProjectLock } from ${JSON.stringify(lockModule)};
+    `import { releaseProjectLock, tryAcquireProjectLock } from ${JSON.stringify(lockModule)};
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 
 const dir = process.argv[2];
-const result = tryAcquireProjectLock(dir, process.pid);
+const result = tryAcquireProjectLock(dir);
 if (!result.ok) {
   process.stdout.write('busy\\n');
   process.exit(0);
@@ -43,7 +43,10 @@ db.prepare('INSERT INTO writes (pid) VALUES (?)').run(process.pid);
 db.close();
 process.stdout.write('acquired\\n');
 process.stdin.resume();
-process.stdin.on('end', () => process.exit(0));
+process.stdin.on('end', () => {
+  releaseProjectLock(dir);
+  process.exit(0);
+});
 `,
   );
   const child = spawn(

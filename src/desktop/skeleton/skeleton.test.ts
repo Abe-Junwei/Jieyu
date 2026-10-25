@@ -12,7 +12,7 @@ import {
 import { sliceForRange } from './mediaRange';
 import { openProjectFolder } from './openProject';
 import { writeProbeAndReadBack } from './probeStore';
-import { PROJECT_LOCK_NAME } from './projectLock';
+import { PROJECT_LOCK_NAME, PROJECT_LOCK_STALE_MS, releaseAllProjectLocks } from './projectLock';
 import { syncFolderWarning } from './syncFolder';
 import { USER_DATA_DIRS, ensureUserDataLayout } from './userDataLayout';
 
@@ -25,6 +25,7 @@ function tempDir(): string {
 }
 
 afterEach(() => {
+  releaseAllProjectLocks();
   for (const dir of temps.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -90,7 +91,7 @@ describe('desktop skeleton', () => {
     expect(syncFolderWarning('/tmp/BaiduNetdisk/proj')).toBe('sync-folder');
   });
 
-  it('blocks a second opener while the lock pid is alive', () => {
+  it('blocks a second opener while this process holds the lock', () => {
     const dir = tempDir();
     const userData = tempDir();
     ensureUserDataLayout(userData);
@@ -100,36 +101,28 @@ describe('desktop skeleton', () => {
     const project = path.join(dir, 'notes');
     const first = openProjectFolder({
       folder: project,
-      pid: 10,
-      isAlive: () => true,
-      userDataRoot: userData,
-    });
-    const sameProcess = openProjectFolder({
-      folder: project,
-      pid: 10,
-      isAlive: () => true,
       userDataRoot: userData,
     });
     const second = openProjectFolder({
       folder: project,
-      pid: 11,
-      isAlive: () => true,
       userDataRoot: userData,
     });
     expect(first.lock).toBe('acquired');
-    expect(sameProcess.lock).toBe('busy');
     expect(second.lock).toBe('busy');
-    expect(fs.readFileSync(path.join(project, PROJECT_LOCK_NAME), 'utf8')).toBe('10\n');
+    expect(fs.statSync(path.join(project, PROJECT_LOCK_NAME)).isDirectory()).toBe(true);
     expect(first.backupDir && fs.statSync(first.backupDir).isDirectory()).toBe(true);
   });
 
-  it('takes over a lock whose pid is gone', () => {
+  it('takes over a lock that has not been refreshed', () => {
     const project = path.join(tempDir(), 'notes');
-    const isAlive = (pid: number) => pid !== 10;
-    openProjectFolder({ folder: project, pid: 10, isAlive });
-    const next = openProjectFolder({ folder: project, pid: 12, isAlive });
+    fs.mkdirSync(project, { recursive: true });
+    const lockDir = path.join(project, PROJECT_LOCK_NAME);
+    fs.mkdirSync(lockDir);
+    const old = new Date(Date.now() - PROJECT_LOCK_STALE_MS - 1000);
+    fs.utimesSync(lockDir, old, old);
+    const next = openProjectFolder({ folder: project });
     expect(next.lock).toBe('acquired');
-    expect(fs.readFileSync(path.join(project, PROJECT_LOCK_NAME), 'utf8')).toBe('12\n');
+    expect(fs.existsSync(path.join(lockDir, 'owner'))).toBe(true);
   });
 
   it('slices a Range header and rejects an empty span', () => {
