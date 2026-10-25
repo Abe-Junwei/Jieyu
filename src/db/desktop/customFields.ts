@@ -82,6 +82,21 @@ export interface CustomFieldLocation {
   unitId?: string;
 }
 
+export interface StoredDefinitionValue {
+  targetType: string;
+  targetId: string;
+  value: unknown;
+  lexemeId?: string;
+  unitId?: string;
+}
+
+export interface StoredDefinitionRevision {
+  definitionId: string;
+  revision: number;
+  fieldType: string;
+  values: StoredDefinitionValue[];
+}
+
 const TABLE_VALUE_HOSTS = [
   'project',
   'manuscript',
@@ -167,55 +182,66 @@ export function updateDefinition(db: SqliteDatabase, input: unknown): CustomFiel
     if (current.revision !== expectedRevision)
       throw new Error('custom field revision does not match');
     const parsed = parseCustomFieldDefinition(patchedInput(current, patch));
-    const revision = semanticsChanged(current, parsed) ? current.revision + 1 : current.revision;
-    const now = new Date().toISOString();
-    if (parsed.defaultValue !== null) {
-      assertCustomFieldValue(
-        ruleOf(
-          parsed,
-          current.options.map((option) => option.id),
-        ),
-        parsed.defaultValue,
-        (ref) => targetExists(db, ref),
-      );
+    if (semanticsChanged(current, parsed)) {
+      throw new Error('custom field change needs a migration');
     }
-    db.prepare(
-      `UPDATE custom_field_definitions
-       SET name_json = ?, description_json = ?, placeholder_json = ?, help_text_json = ?,
-           field_type = ?, required = ?, default_value_json = ?, pattern = ?,
-           min_value = ?, max_value = ?, target_types_json = ?, cardinality = ?,
-           min_items = ?, max_items = ?, sort_order = ?, revision = ?, updated_at = ?
-       WHERE id = ?`,
-    ).run(
-      JSON.stringify(parsed.name),
-      jsonMap(parsed.description),
-      jsonMap(parsed.placeholder),
-      jsonMap(parsed.helpText),
-      parsed.fieldType,
-      parsed.required ? 1 : 0,
-      parsed.defaultValue === null ? null : JSON.stringify(parsed.defaultValue),
-      parsed.pattern,
-      parsed.minValue,
-      parsed.maxValue,
-      parsed.targetTypes === null ? null : JSON.stringify(parsed.targetTypes),
-      parsed.cardinality,
-      parsed.minItems,
-      parsed.maxItems,
-      parsed.sortOrder,
-      revision,
-      now,
-      id,
-    );
-    if (parsed.fieldType !== 'select' && parsed.fieldType !== 'multiselect') {
-      db.prepare('DELETE FROM custom_field_options WHERE definition_id = ?').run(id);
-    }
-    const stored = requireDefinition(db, id);
-    if (stored.revision !== revision || canonicalJson(stored.name) !== canonicalJson(parsed.name)) {
-      throw new Error('custom field readback failed');
-    }
-    return stored;
+    return commitDefinitionChange(db, current, parsed, current.revision);
   });
   return write();
+}
+
+export function commitDefinitionChange(
+  db: SqliteDatabase,
+  current: CustomFieldDefinition,
+  parsed: ParsedCustomFieldDefinition,
+  revision: number,
+): CustomFieldDefinition {
+  const now = new Date().toISOString();
+  if (parsed.defaultValue !== null) {
+    assertCustomFieldValue(
+      ruleOf(
+        parsed,
+        current.options.map((option) => option.id),
+      ),
+      parsed.defaultValue,
+      (ref) => targetExists(db, ref),
+    );
+  }
+  db.prepare(
+    `UPDATE custom_field_definitions
+     SET name_json = ?, description_json = ?, placeholder_json = ?, help_text_json = ?,
+         field_type = ?, required = ?, default_value_json = ?, pattern = ?,
+         min_value = ?, max_value = ?, target_types_json = ?, cardinality = ?,
+         min_items = ?, max_items = ?, sort_order = ?, revision = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(
+    JSON.stringify(parsed.name),
+    jsonMap(parsed.description),
+    jsonMap(parsed.placeholder),
+    jsonMap(parsed.helpText),
+    parsed.fieldType,
+    parsed.required ? 1 : 0,
+    parsed.defaultValue === null ? null : JSON.stringify(parsed.defaultValue),
+    parsed.pattern,
+    parsed.minValue,
+    parsed.maxValue,
+    parsed.targetTypes === null ? null : JSON.stringify(parsed.targetTypes),
+    parsed.cardinality,
+    parsed.minItems,
+    parsed.maxItems,
+    parsed.sortOrder,
+    revision,
+    now,
+    current.id,
+  );
+  if (parsed.fieldType !== 'select' && parsed.fieldType !== 'multiselect') {
+    db.prepare('DELETE FROM custom_field_options WHERE definition_id = ?').run(current.id);
+  }
+  const stored = requireDefinition(db, current.id);
+  if (stored.revision !== revision || canonicalJson(stored.name) !== canonicalJson(parsed.name)) {
+    throw new Error('custom field readback failed');
+  }
+  return stored;
 }
 
 export function addOption(db: SqliteDatabase, input: unknown): CustomFieldDefinition {
@@ -515,6 +541,84 @@ export function locateCustomFieldValues(
   locateGraphValues(db, definitionId, located);
   located.sort(compareLocation);
   return located;
+}
+
+export function currentDefinitionRevisions(db: SqliteDatabase): StoredDefinitionRevision[] {
+  // ponytail: copies every current value onto the candidate row; drop the value copy if unit history gets its own table
+  return readAll(db)
+    .map((definition) => ({
+      definitionId: definition.id,
+      revision: definition.revision,
+      fieldType: definition.fieldType,
+      values: locateCustomFieldValues(db, definition.id).map((location) => {
+        const captured: StoredDefinitionValue = {
+          targetType: location.targetType,
+          targetId: location.targetId,
+          value: readLocatedValue(db, definition.id, location),
+        };
+        if (location.lexemeId !== undefined) captured.lexemeId = location.lexemeId;
+        if (location.unitId !== undefined) captured.unitId = location.unitId;
+        return captured;
+      }),
+    }))
+    .sort((left, right) => left.definitionId.localeCompare(right.definitionId));
+}
+
+export function assertDefinitionRevisions(
+  db: SqliteDatabase,
+  stored: readonly StoredDefinitionRevision[],
+): void {
+  for (const record of stored) {
+    const definition = readDefinition(db, record.definitionId);
+    if (definition === null) throw new Error('custom field definition is missing');
+    if (definition.revision !== record.revision) {
+      throw new Error('custom field revision does not match');
+    }
+  }
+}
+
+export function assertDefinitionValue(
+  db: SqliteDatabase,
+  parsed: ParsedCustomFieldDefinition,
+  optionIds: readonly string[],
+  value: unknown,
+): void {
+  assertCustomFieldValue(ruleOf(parsed, optionIds), value, (ref) => targetExists(db, ref));
+}
+
+function readLocatedValue(
+  db: SqliteDatabase,
+  definitionId: string,
+  location: CustomFieldLocation,
+): unknown {
+  if (location.targetType === 'analysis-node' || location.targetType === 'analysis-relation') {
+    if (location.unitId === undefined) throw new Error('analysis node is missing');
+    const row = db
+      .prepare('SELECT analysis_graph_json FROM units WHERE id = ?')
+      .get(location.unitId) as { analysis_graph_json: string | null } | undefined;
+    if (row === undefined || row.analysis_graph_json === null) {
+      throw new Error('analysis graph is missing');
+    }
+    const graph = JSON.parse(row.analysis_graph_json) as {
+      nodes?: { id: string; customFields?: Record<string, unknown> }[];
+      relations?: { id: string; customFields?: Record<string, unknown> }[];
+    };
+    const items = location.targetType === 'analysis-node' ? graph.nodes : graph.relations;
+    const value = items?.find((entry) => entry.id === location.targetId)?.customFields?.[
+      definitionId
+    ];
+    if (value === undefined) throw new Error('custom field value is invalid');
+    return value;
+  }
+  const value = readFieldValue(
+    db,
+    definitionId,
+    location.targetType,
+    location.targetId,
+    location.lexemeId,
+  );
+  if (value === null) throw new Error('custom field value is invalid');
+  return value;
 }
 
 /** Called inside a host-create transaction. Does not fill defaults. */
@@ -1049,7 +1153,7 @@ function reuseMatch(
   return match;
 }
 
-function patchedInput(
+export function patchedInput(
   current: CustomFieldDefinition,
   patch: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -1110,7 +1214,7 @@ function copyPatch(
   if (value !== undefined) input[key] = value;
 }
 
-function semanticsChanged(
+export function semanticsChanged(
   current: CustomFieldDefinition,
   parsed: ParsedCustomFieldDefinition,
 ): boolean {
@@ -1227,7 +1331,7 @@ function idExists(db: SqliteDatabase, sql: string, id: string): boolean {
   return db.prepare(sql).get(id) !== undefined;
 }
 
-function requireDefinition(db: SqliteDatabase, id: string): CustomFieldDefinition {
+export function requireDefinition(db: SqliteDatabase, id: string): CustomFieldDefinition {
   const definition = readDefinition(db, id);
   if (definition === null) throw new Error('custom field definition is missing');
   return definition;

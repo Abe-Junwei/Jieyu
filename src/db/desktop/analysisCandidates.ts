@@ -9,6 +9,7 @@ import type {
   ProjectedMorpheme,
   ProjectedToken,
 } from '../../annotation/analysisGraphDomainProjection';
+import { currentDefinitionRevisions, type StoredDefinitionRevision } from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -61,6 +62,7 @@ export interface AnalysisCandidateRecord {
   projection: { tokens: ProjectedToken[]; morphemes: ProjectedMorpheme[] };
   links: AnalysisAssociationLink[];
   notes: AnalysisAssociationNote[];
+  definitionRevisions: StoredDefinitionRevision[];
   createdAt: string;
   updatedAt: string;
 }
@@ -101,6 +103,7 @@ interface CandidateRow {
   projection_json: string;
   links_json: string;
   notes_json: string;
+  definition_revisions_json: string;
   created_at: string;
   updated_at: string;
 }
@@ -147,8 +150,9 @@ export function insertAnalysisCandidate(
   db.prepare(
     `INSERT INTO analysis_candidates (
       id, unit_id, kind, status, graph_json, graph_fingerprint, manuscript_generation,
-      analysis_generation, text, projection_json, links_json, notes_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      analysis_generation, text, projection_json, links_json, notes_json,
+      definition_revisions_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.unitId,
@@ -162,6 +166,7 @@ export function insertAnalysisCandidate(
     JSON.stringify(input.projection),
     JSON.stringify(input.links),
     JSON.stringify(input.notes),
+    JSON.stringify(currentDefinitionRevisions(db)),
     now,
     now,
   );
@@ -288,9 +293,53 @@ function mapCandidate(row: CandidateRow): AnalysisCandidateRecord {
     projection,
     links,
     notes,
+    definitionRevisions: storedRevisions(row.definition_revisions_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function storedRevisions(json: string): StoredDefinitionRevision[] {
+  const parsed = JSON.parse(json) as unknown;
+  if (!Array.isArray(parsed)) throw new Error('analysis candidate is invalid');
+  return parsed.map((item) => {
+    if (typeof item !== 'object' || item === null) throw new Error('analysis candidate is invalid');
+    const record = item as Record<string, unknown>;
+    if (
+      typeof record.definitionId !== 'string' ||
+      typeof record.revision !== 'number' ||
+      typeof record.fieldType !== 'string' ||
+      !Array.isArray(record.values)
+    ) {
+      throw new Error('analysis candidate is invalid');
+    }
+    return {
+      definitionId: record.definitionId,
+      revision: record.revision,
+      fieldType: record.fieldType,
+      values: record.values.map((value) => storedValue(value)),
+    };
+  });
+}
+
+function storedValue(value: unknown): StoredDefinitionRevision['values'][number] {
+  if (typeof value !== 'object' || value === null) throw new Error('analysis candidate is invalid');
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.targetType !== 'string' ||
+    typeof record.targetId !== 'string' ||
+    !('value' in record)
+  ) {
+    throw new Error('analysis candidate is invalid');
+  }
+  const captured: StoredDefinitionRevision['values'][number] = {
+    targetType: record.targetType,
+    targetId: record.targetId,
+    value: record.value,
+  };
+  if (typeof record.lexemeId === 'string') captured.lexemeId = record.lexemeId;
+  if (typeof record.unitId === 'string') captured.unitId = record.unitId;
+  return captured;
 }
 
 function readProjection(

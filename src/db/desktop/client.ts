@@ -14,6 +14,7 @@ import type { AnalysisApplyResult } from './analysis';
 import type { AnalysisImportResult } from './analysisImport';
 import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestore';
 import type { AnalysisCandidateRecord } from './analysisCandidates';
+import type { CustomFieldMigrationPreview } from './customFieldMigration';
 import type {
   CustomFieldDefinition,
   CustomFieldHostPreview,
@@ -84,6 +85,12 @@ export function createDesktopClient(bridge: DesktopBridge) {
       }),
     locateFieldValues: (sessionId: string, definitionId: string) =>
       once<CustomFieldLocation[]>(sessionId, 'customFields.locateValues', { definitionId }),
+    previewCustomFieldMigration: (sessionId: string, definitionId: string) =>
+      once<CustomFieldMigrationPreview>(sessionId, 'customFields.previewMigration', {
+        definitionId,
+      }),
+    migrateCustomFieldDefinition: (sessionId: string, input: unknown) =>
+      once<CustomFieldDefinition>(sessionId, 'customFields.migrateDefinition', input),
     setTimeMapping: (
       sessionId: string,
       input: {
@@ -147,7 +154,7 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once<AnalysisAcceptResult>(sessionId, 'analysis.accept', input),
     restoreAnalysis: (
       sessionId: string,
-      input: { candidateId: string; expected: AnalysisCredentials },
+      input: { candidateId: string; expected: AnalysisCredentials; conversions?: unknown[] },
     ) => once<AnalysisRoot>(sessionId, 'analysis.restore', input),
     splitAnalysisNode: (
       sessionId: string,

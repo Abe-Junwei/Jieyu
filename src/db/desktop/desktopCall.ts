@@ -36,6 +36,7 @@ import {
   updateDefinition,
   updateOptionLabel,
 } from './customFields';
+import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { createLayer, listLayers, type LayerCreate } from './layers';
 import {
   linkSense,
@@ -103,6 +104,8 @@ const METHODS = [
   'customFields.removeValue',
   'customFields.missingFields',
   'customFields.locateValues',
+  'customFields.previewMigration',
+  'customFields.migrateDefinition',
   'analysis.apply',
   'analysis.import',
   'analysis.submit',
@@ -236,6 +239,12 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         project.db,
         requiredString(input.definitionId, 'definitionId'),
       );
+    case 'customFields.previewMigration':
+      knownKeys(input, ['definitionId']);
+      return previewMigration(project.db, requiredString(input.definitionId, 'definitionId'));
+    case 'customFields.migrateDefinition':
+      knownKeys(input, ['definitionId', 'expectedRevision', 'definition', 'conversions']);
+      return migrateDefinition(project.db, input);
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.import':
@@ -245,7 +254,7 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'analysis.accept':
       return acceptAnalysis(project.db, analysisCandidate(input));
     case 'analysis.restore':
-      return restoreAnalysis(project.db, analysisCandidate(input));
+      return restoreAnalysis(project.db, analysisRestore(input));
     case 'analysis.split':
       return splitAnalysisNode(project.db, analysisSplit(input));
     case 'analysis.merge':
@@ -346,6 +355,21 @@ function analysisCandidate(input: Record<string, unknown>): {
   return {
     candidateId: requiredString(input.candidateId, 'candidateId'),
     expected: analysisCredentials(input),
+  };
+}
+
+function analysisRestore(input: Record<string, unknown>): {
+  candidateId: string;
+  expected: AnalysisCredentials;
+  conversions?: unknown[];
+} {
+  knownKeys(input, ['candidateId', 'expected', 'conversions']);
+  return {
+    candidateId: requiredString(input.candidateId, 'candidateId'),
+    expected: analysisCredentials(input),
+    ...(input.conversions === undefined
+      ? {}
+      : { conversions: listArg(input.conversions, 'conversions') }),
   };
 }
 

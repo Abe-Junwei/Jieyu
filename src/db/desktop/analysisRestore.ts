@@ -19,7 +19,8 @@ import {
   type AnalysisCandidateRecord,
   type AnalysisMaterial,
 } from './analysisCandidates';
-import { assertStoredCustomFields } from './customFields';
+import { assertDefinitionRevisions, assertStoredCustomFields } from './customFields';
+import { convertSnapshotGraph } from './customFieldMigration';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -84,6 +85,7 @@ export function acceptAnalysis(
     ) {
       throw new Error('analysis credentials do not match');
     }
+    assertDefinitionRevisions(db, candidate.definitionRevisions);
     const written = writeGraph(db, material, candidate.graph);
     detachAnalysisAssociations(
       db,
@@ -98,7 +100,7 @@ export function acceptAnalysis(
 
 export function restoreAnalysis(
   db: SqliteDatabase,
-  input: { candidateId: string; expected: AnalysisCredentials },
+  input: { candidateId: string; expected: AnalysisCredentials; conversions?: unknown },
 ): AnalysisRoot {
   const write = db.transaction(() => {
     const candidate = requireCandidate(db, input.candidateId);
@@ -110,7 +112,17 @@ export function restoreAnalysis(
     if (material.graph !== null) insertReviewSnapshot(db, material);
     const now = new Date().toISOString();
     detachAnalysisAssociations(db, nodeIdsOf(material.graph), now);
-    const written = writeGraph(db, material, candidate.graph);
+    const written = writeGraph(
+      db,
+      material,
+      convertSnapshotGraph(
+        db,
+        candidate.graph,
+        candidate.unitId,
+        candidate.definitionRevisions,
+        input.conversions ?? [],
+      ),
+    );
     reattach(db, candidate, nodeIdsOf(written.graph), now);
     return written;
   });
