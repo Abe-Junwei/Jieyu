@@ -117,7 +117,7 @@ export const enUSDictionary = {
   'app.errorBoundary.retry': 'Retry',
   'app.errorBoundary.reload': 'Reload Page',
   'app.offlineStatus.message':
-    'Offline. Local data remains available; cloud sync will resume after reconnection.',
+    'Offline. Local data remains available. Reconnect to use features that need the internet.',
   'app.devBuildBanner.message':
     'Development build: data may be reset. Do not store anything you need to keep.',
   'app.workspaceReturn.backToLexicon': 'Back to lexicon',

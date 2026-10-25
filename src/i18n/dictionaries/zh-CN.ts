@@ -109,7 +109,7 @@ export const zhCNDictionary = {
   'app.errorBoundary.title': '应用出错',
   'app.errorBoundary.retry': '重试',
   'app.errorBoundary.reload': '重载页面',
-  'app.offlineStatus.message': '当前离线。本地数据仍可使用，云同步会在恢复联网后继续。',
+  'app.offlineStatus.message': '当前离线。本地数据仍可使用，需要联网的功能请在恢复连接后重试。',
   'app.devBuildBanner.message': '开发期版本：数据可能被重置，请勿存放需要保留的资料。',
   'app.workspaceReturn.backToLexicon': '返回词典',
   'app.sidePane.defaultTitle': '工作台',
