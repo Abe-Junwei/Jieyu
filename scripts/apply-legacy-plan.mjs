@@ -324,7 +324,7 @@ export function applyPlan(
       if (failDuringProject) throw new Error('injected project failure');
       db.exec('CREATE TABLE audio (id TEXT PRIMARY KEY, relpath TEXT, sha256 TEXT)');
       db.exec(
-        'CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL, speaker_ids_json TEXT)',
+        'CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT NOT NULL, speaker_ids_json TEXT, title_json TEXT, created_at TEXT, updated_at TEXT)',
       );
       db.exec(
         'CREATE TABLE speakers (id TEXT PRIMARY KEY, text_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT, updated_at TEXT)',
