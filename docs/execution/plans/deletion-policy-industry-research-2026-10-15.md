@@ -1,9 +1,10 @@
 ---
 title: 卡片文件、项目与删除恢复改造方案
 doc_type: execution-plan
-status: proposed
+status: deferred
 owner: repo
-last_reviewed: 2026-10-17
+revisit_when: 用户另行要求核对既有录音保留与只读诊断时，仅复查未解决的数据保护事项
+last_reviewed: 2026-10-25
 source_of_truth: execution-plan
 depends_on:
   - ../../adr/0046-desktop-sqlite-project-folder.md
@@ -12,7 +13,7 @@ depends_on:
 
 # 卡片文件、项目与删除恢复改造方案
 
-本页是待执行步骤，不表示代码已经实现。
+本页不再作为单库或删除功能的活动实施计划；布局与交付由 ADR-0085/0086、删除恢复由 ADR-0087 及其规格接替。原文暂留只为尚未授权的既有录音保留/只读诊断事项，不据此实施 .jyd、隐藏或旧垃圾箱方案，不读取或清理真实语料。已取代的实现条目不可领取，所需历史今后由 Git 保存。
 
 | 状态 | 现在 |
 | --- | --- |

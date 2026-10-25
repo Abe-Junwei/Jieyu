@@ -716,7 +716,8 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
     expect(translationLane).toBeTruthy();
     expect(within(translationLane as HTMLElement).getByTestId('ann-seg-1')).toBeTruthy();
     expect(within(translationLane as HTMLElement).getByTestId('ann-seg-2')).toBeTruthy();
-    expect(screen.queryByTestId('ann-u-main')).toBeNull();
+    // Parent owner lane may still draw unshadowed units; the dependent translation lane must not.
+    expect(within(translationLane as HTMLElement).queryByTestId('ann-u-main')).toBeNull();
   });
 
   it('renders newly added parent segments immediately in a dependent transcription lane after rerender', () => {

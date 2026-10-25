@@ -9,6 +9,8 @@ const WORKSPACE_SNAP_STORAGE_KEY = 'jieyu:workspace-snap-enabled';
 export const WORKSPACE_VERTICAL_VIEW_STORAGE_KEY = 'jieyu:workspace-vertical-view';
 
 const WORKSPACE_LAYOUT_PREFERENCE_CHANGED_EVENT = 'jieyu:workspace-layout-preference-changed';
+const DEFAULT_PLAYBACK_RATE_CHANGED_EVENT = 'jieyu:default-playback-rate-changed';
+const DEFAULT_PLAYBACK_RATE_STORAGE_KEY = 'jieyu:default-playback-rate';
 
 export function readStoredVideoLayoutModePreference(): VideoLayoutMode {
   try {
@@ -41,6 +43,28 @@ export function readStoredVideoRightPanelWidthPreference(): number {
   } catch {
     return 360;
   }
+}
+
+export function emitDefaultPlaybackRateChanged(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new Event(DEFAULT_PLAYBACK_RATE_CHANGED_EVENT));
+  } catch {
+    // no-op
+  }
+}
+
+export function subscribeDefaultPlaybackRateChanged(listener: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === DEFAULT_PLAYBACK_RATE_STORAGE_KEY) listener();
+  };
+  window.addEventListener(DEFAULT_PLAYBACK_RATE_CHANGED_EVENT, listener);
+  window.addEventListener('storage', handleStorage);
+  return () => {
+    window.removeEventListener(DEFAULT_PLAYBACK_RATE_CHANGED_EVENT, listener);
+    window.removeEventListener('storage', handleStorage);
+  };
 }
 
 export function emitWorkspaceLayoutPreferenceChanged(): void {

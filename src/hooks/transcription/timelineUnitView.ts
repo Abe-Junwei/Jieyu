@@ -68,6 +68,23 @@ export interface BuildTimelineUnitViewIndexInput {
   }>;
 }
 
+/**
+ * Segments hide only the units they point at. Other units on the same lane stay visible.
+ * An empty segment list returns the units unchanged.
+ */
+export function appendUnitsNotShadowedBySegments<
+  TUnit extends { id: string },
+  TSegment extends { parentUnitId?: string | undefined; unitId?: string | undefined },
+>(units: readonly TUnit[], segments: readonly TSegment[]): TUnit[] {
+  if (segments.length === 0) return [...units];
+  const parents = new Set<string>();
+  for (const row of segments) {
+    const parent = (row.parentUnitId ?? row.unitId)?.trim() ?? '';
+    if (parent.length > 0) parents.add(parent);
+  }
+  return units.filter((unit) => !parents.has(unit.id));
+}
+
 /** Read `byLayer` for a transcription or translation lane id (ADR 0020); returns empty when unknown. */
 export function pickTimelineUnitsForTranscriptionLayer(
   index: Pick<TimelineUnitViewIndex, 'byLayer'>,

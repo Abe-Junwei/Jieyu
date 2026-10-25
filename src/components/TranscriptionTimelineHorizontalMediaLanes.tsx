@@ -34,6 +34,7 @@ import {
 import { layerTextLookupUnitId, recordingScopeUnitId } from '../utils/recordingScopeUnitId';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import {
+  appendUnitsNotShadowedBySegments,
   unitToView,
   segmentToView,
   scopeTimelineUnitViewToLayer,
@@ -547,11 +548,17 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
             layerLinks,
           );
           const storedSegments = sourceLayer ? (segmentsByLayer?.get(sourceLayer.id) ?? []) : [];
-          // Independent-boundary lanes render unit rows when no segment rows exist
-          // (EAF import without media). Layout must use those same rows.
-          const docs =
+          // Owner lanes keep units that segments do not point at; dependent lanes stay segment-only.
+          const segmentDocs =
             sourceLayer && storedSegments.length > 0
               ? (visibleSegmentsBySourceLayer.get(sourceLayer.id) ?? storedSegments)
+              : [];
+          const ownsSegmentSource = Boolean(sourceLayer && sourceLayer.id === layer.id);
+          const docs =
+            segmentDocs.length > 0
+              ? ownsSegmentSource
+                ? [...segmentDocs, ...appendUnitsNotShadowedBySegments(laneUnits, segmentDocs)]
+                : segmentDocs
               : laneUnits;
           lanes.push({
             layerId: layer.id,
@@ -695,18 +702,31 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
                   : segmentRows
                 : [];
               const drawSegmentRows = usesSegmentTimeline && storedSegments.length > 0;
+              const overlapGroupId =
+                isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
+                  ? activeOverlapGroupId
+                  : undefined;
               const rawVisibleUnits: LayerUnitDocType[] = drawSegmentRows
                 ? []
-                : isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
-                  ? (unitsByOverlapGroupId.get(activeOverlapGroupId) ?? [])
+                : overlapGroupId
+                  ? (unitsByOverlapGroupId.get(overlapGroupId) ?? [])
                   : laneUnits;
+              const unshadowedUnits =
+                drawSegmentRows &&
+                overlapGroupId === undefined &&
+                segmentSourceLayerId === layer.id
+                  ? appendUnitsNotShadowedBySegments(laneUnits, storedSegments)
+                  : [];
               const visibleUnits: TimelineUnitView[] = drawSegmentRows
-                ? rawVisibleSegments.map((s) =>
-                    scopeTimelineUnitViewToLayer(
-                      segmentToView(s, () => ''),
-                      layer.id,
+                ? [
+                    ...rawVisibleSegments.map((s) =>
+                      scopeTimelineUnitViewToLayer(
+                        segmentToView(s, () => ''),
+                        layer.id,
+                      ),
                     ),
-                  )
+                    ...unshadowedUnits.map((unit) => unitToView(unit, layer.id)),
+                  ]
                 : rawVisibleUnits.map((u) => unitToView(u, layer.id));
               const overlapCycleItemsByUnitId =
                 isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId

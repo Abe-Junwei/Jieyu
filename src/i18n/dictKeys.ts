@@ -714,6 +714,7 @@ export const DICT_KEYS = [
   'workspace.languageMetadata.mapTiandituKeyPlaceholder',
   'workspace.languageMetadata.mapMaptilerKeyPlaceholder',
   'workspace.languageMetadata.geocodePlaceholder',
+  'workspace.languageMetadata.geocodeSearch',
   'workspace.languageMetadata.geocodeSearching',
   'workspace.languageMetadata.geocodeNoResults',
   'workspace.languageMetadata.geocodeError',

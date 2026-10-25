@@ -668,7 +668,7 @@ describe('AiAnalysisPanel embedding integration', () => {
     expect(within(container).getAllByText(/560 Hz/i).length).toBeGreaterThan(0);
     expect(within(container).getAllByText(/1760 Hz/i).length).toBeGreaterThan(0);
     expect(
-      within(container).getByText(/频谱 hover|Spectrogram hover/i, {
+      within(container).getByText(/频谱指针|Spectrogram pointer/i, {
         selector: '.transcription-analysis-stats-value',
       }),
     ).toBeTruthy();

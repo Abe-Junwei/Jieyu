@@ -383,6 +383,24 @@ describe('AnnotationPage', () => {
     expect(status.getAttribute('data-action')).not.toBe('playToggle');
   });
 
+  it('preserves native Tab focus and ignores composing Enter in an annotation field', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const word = await screen.findByTestId('annotation-igt-form-tok-1');
+    fireEvent.focus(word);
+    expect(fireEvent.keyDown(word, { key: 'Tab' })).toBe(true);
+    expect(fireEvent.keyDown(word, { key: 'Tab', shiftKey: true })).toBe(true);
+    const gloss = await screen.findByTestId('annotation-igt-gloss-tok-1');
+    fireEvent.focus(gloss);
+    fireEvent.change(gloss, { target: { value: 'draft' } });
+    expect(fireEvent.keyDown(gloss, { key: 'Enter', isComposing: true })).toBe(true);
+    expect(fireEvent.keyDown(gloss, { key: 'Enter', keyCode: 229 })).toBe(true);
+    expect(mockUpdateTokenGloss).not.toHaveBeenCalled();
+    expect(screen.getByTestId('annotation-keyboard-status').getAttribute('data-save')).not.toBe(
+      'saved',
+    );
+  });
+
   it('saves POS/gloss on Enter and readback replaces the row', async () => {
     const tokens: TokenFixture[] = [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')];
     seedWorkspace(tokens);

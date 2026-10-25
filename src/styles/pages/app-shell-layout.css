@@ -78,6 +78,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: var(--left-rail-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .app-main {

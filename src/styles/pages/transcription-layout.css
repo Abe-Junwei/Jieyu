@@ -508,12 +508,16 @@
 }
 
 .transcription-acoustic-inspector {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   max-height: 40vh;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--surface-header) 88%, var(--surface-panel));
+}
+
+.transcription-list-panel:has(> .transcription-acoustic-inspector) > .transcription-list-main {
+  min-height: 96px;
 }
 
 .transcription-acoustic-inspector-header {

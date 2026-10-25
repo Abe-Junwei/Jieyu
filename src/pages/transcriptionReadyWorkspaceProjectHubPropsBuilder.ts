@@ -26,7 +26,7 @@ export type BuildReadyWorkspaceProjectHubPropsInput = {
     file: File,
     strategy: AnnotationImportBridgeStrategy,
     target?: AnnotationImportTarget,
-  ) => Promise<void>;
+  ) => Promise<void | { committed: boolean }>;
   onAnnotationDocumentsChanged: ReadyWorkspaceProjectHubProps['onAnnotationDocumentsChanged'];
   onPreviewProjectArchiveImport: ReadyWorkspaceProjectHubProps['onPreviewProjectArchiveImport'];
   onImportProjectArchive: ReadyWorkspaceProjectHubProps['onImportProjectArchive'];
@@ -74,7 +74,7 @@ export function buildReadyWorkspaceProjectHubProps(
     },
     onImportAnnotationFile: async (file, strategy, target) => {
       recordTranscriptionKeyboardAction('toolbarImportAnnotationFile');
-      await input.handleImportFile(file, strategy, target);
+      return input.handleImportFile(file, strategy, target);
     },
     onAnnotationDocumentsChanged: input.onAnnotationDocumentsChanged,
     onPreviewProjectArchiveImport: async (file: File) => {

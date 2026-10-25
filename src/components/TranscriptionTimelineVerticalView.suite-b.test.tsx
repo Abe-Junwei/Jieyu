@@ -16,7 +16,7 @@ vi.mock('../contexts/ToastContext', () => ({
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import {
   TranscriptionEditorContext,
   type TranscriptionEditorContextValue,
@@ -35,16 +35,58 @@ afterEach(() => {
   mockShowToast.mockReset();
 });
 
-
 /** selectionState items are menuitemradio; categories stay menuitem. */
 function getMenuItem(name: string | RegExp): HTMLElement {
-  return (
-    screen.queryByRole('menuitemradio', { name }) ??
-    screen.getByRole('menuitem', { name })
-  );
+  return screen.queryByRole('menuitemradio', { name }) ?? screen.getByRole('menuitem', { name });
 }
 
 describe('TranscriptionTimelineVerticalView', () => {
+  it('shows each child segment text instead of repeating its shared parent text', () => {
+    const units = ['s1', 's2', 's3'].map((id, i) => ({
+      ...makeUnit(id, 'tr-a', i, i + 1),
+      unitType: 'segment' as const,
+      parentUnitId: 'parent',
+    }));
+    const ownTexts = ['saved ʃa', 'beta', ''];
+    const content = new Map(
+      units.map((unit, i) => [
+        unit.id,
+        {
+          id: `c-${unit.id}`,
+          layerId: 'tr-a',
+          unitId: unit.id,
+          text: ownTexts[i],
+          modality: 'text',
+        } as LayerUnitContentDocType,
+      ]),
+    );
+    const context = { ...makeEditorContext(), getUnitTextForLayer: () => 'shared parent text' };
+    const { container } = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={context}>
+          <TranscriptionTimelineVerticalView
+            transcriptionLayers={[makeLayer('tr-a', 'transcription')]}
+            translationLayers={[]}
+            unitsOnCurrentMedia={units}
+            segmentsByLayer={new Map([['tr-a', units]])}
+            segmentContentByLayer={new Map([['tr-a', content]])}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+    expect(
+      Array.from(
+        container.querySelectorAll<HTMLTextAreaElement>(
+          'textarea.timeline-paired-reading-source-input',
+        ),
+        (input) => input.value,
+      ),
+    ).toEqual(ownTexts);
+  });
+
   it('shows per-row layer rails, focuses layers from the rail, and only reveals bundle chips when multiple bundles exist', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
@@ -738,8 +780,7 @@ describe('TranscriptionTimelineVerticalView', () => {
 
     const saveCallsSeg = (contextValue.scheduleAutoSave as ReturnType<typeof vi.fn>).mock.calls;
     const scheduledTask = saveCallsSeg[saveCallsSeg.length - 1]?.[1] as
-      | (() => Promise<void>)
-      | undefined;
+      (() => Promise<void>) | undefined;
     expect(scheduledTask).toBeTypeOf('function');
     await scheduledTask?.();
 

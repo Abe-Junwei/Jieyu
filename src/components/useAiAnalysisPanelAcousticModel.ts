@@ -454,7 +454,7 @@ export function useAiAnalysisPanelAcousticModel(panel: AiPanelContextValue) {
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setAcousticExportError(`Export failed: ${message}`);
+      setAcousticExportError(tf(locale, 'transcription.importExport.exportFailed', { message }));
     } finally {
       setAcousticExporting(false);
     }

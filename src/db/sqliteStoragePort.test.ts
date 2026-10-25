@@ -97,7 +97,9 @@ describe('sqlite storage port userData slice', () => {
 
   it('refuses a project-folder operation', async () => {
     const port = open();
-    await expect(port.readProject('p-1')).rejects.toThrow(/has not implemented readProject/);
+    await expect(port.readProject('p-1')).rejects.toThrow(
+      /sqlite storage port has not opened a project folder/,
+    );
   });
 
   it('refuses speaker assignment when no project folder is open', async () => {
