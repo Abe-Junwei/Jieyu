@@ -57,7 +57,8 @@ interface SurfaceChange {
 
 interface CustomFieldChange {
   action: 'customField.set' | 'customField.remove';
-  nodeId: string;
+  nodeId?: string;
+  relationId?: string;
   definitionId: string;
   value?: unknown;
 }
@@ -281,6 +282,7 @@ function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void 
     applyCustomField(graph, change);
     return;
   }
+  if (change.nodeId === undefined) throw new Error('analysis node is missing');
   const node = requireLinear(graph, change.nodeId);
   if (node.domain === undefined) throw new Error('token domain is missing');
   if (change.action === 'node.clearSurfaceParts') {
@@ -314,6 +316,11 @@ function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void 
 }
 
 function applyCustomField(graph: AnalysisGraphPayload, change: CustomFieldChange): void {
+  if (change.relationId !== undefined) {
+    applyRelationCustomField(graph, change.relationId, change);
+    return;
+  }
+  if (change.nodeId === undefined) throw new Error('analysis node is missing');
   const node = graph.nodes.find((item) => item.id === change.nodeId);
   if (node === undefined) throw new Error(`analysis node is missing: ${change.nodeId}`);
   const fields = { ...(node.customFields ?? {}) };
@@ -326,6 +333,34 @@ function applyCustomField(graph: AnalysisGraphPayload, change: CustomFieldChange
   if (Object.keys(fields).length === 0) delete node.customFields;
   else node.customFields = fields;
   markContentEdit(node, `customField:${change.definitionId}`);
+}
+
+function applyRelationCustomField(
+  graph: AnalysisGraphPayload,
+  relationId: string,
+  change: CustomFieldChange,
+): void {
+  const relation = graph.relations.find((item) => item.id === relationId);
+  if (relation === undefined) throw new Error(`analysis relation is missing: ${relationId}`);
+  const fields = { ...(relation.customFields ?? {}) };
+  if (change.action === 'customField.remove') {
+    if (!(change.definitionId in fields)) throw new Error('custom field value is missing');
+    delete fields[change.definitionId];
+  } else {
+    fields[change.definitionId] = change.value;
+  }
+  if (Object.keys(fields).length === 0) delete relation.customFields;
+  else relation.customFields = fields;
+  if (relation.link === undefined) return;
+  const at = new Date().toISOString();
+  relation.link = {
+    ...relation.link,
+    updatedAt: at,
+    edits: [
+      ...(relation.link.edits ?? []),
+      { at, actorType: 'human', fields: [`customField:${change.definitionId}`] },
+    ],
+  };
 }
 
 function markContentEdit(node: AnalysisGraphNode, field: string): void {
@@ -437,6 +472,23 @@ function parseChanges(value: unknown[]): AnalysisChange[] {
   return value.map(parseChange);
 }
 
+function customFieldTarget(
+  change: Record<string, unknown>,
+): { nodeId: string } | { relationId: string } {
+  const nodeId =
+    typeof change.nodeId === 'string' && change.nodeId.length > 0 ? change.nodeId : undefined;
+  const relationId =
+    typeof change.relationId === 'string' && change.relationId.length > 0
+      ? change.relationId
+      : undefined;
+  if (nodeId !== undefined && relationId !== undefined) {
+    throw new Error('analysis change is invalid');
+  }
+  if (nodeId !== undefined) return { nodeId };
+  if (relationId !== undefined) return { relationId };
+  throw new Error('analysis node is missing');
+}
+
 function parseChange(value: unknown): AnalysisChange {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('analysis change is invalid');
@@ -465,24 +517,17 @@ function parseChange(value: unknown): AnalysisChange {
     return surface;
   }
   if (action === 'customField.set' || action === 'customField.remove') {
-    if (typeof change.nodeId !== 'string' || change.nodeId.length === 0) {
-      throw new Error('analysis node is missing');
-    }
+    const target = customFieldTarget(change);
     if (typeof change.definitionId !== 'string' || change.definitionId.length === 0) {
       throw new Error('custom field definition is missing');
     }
     if (action === 'customField.remove') {
-      return { action, nodeId: change.nodeId, definitionId: change.definitionId };
+      return { action, ...target, definitionId: change.definitionId };
     }
     if (!('value' in change) || change.value === undefined || change.value === null) {
       throw new Error('custom field value is missing');
     }
-    return {
-      action,
-      nodeId: change.nodeId,
-      definitionId: change.definitionId,
-      value: change.value,
-    };
+    return { action, ...target, definitionId: change.definitionId, value: change.value };
   }
   if (action === 'node.reorder') {
     if (!Array.isArray(change.indexes) || change.indexes.length === 0) {

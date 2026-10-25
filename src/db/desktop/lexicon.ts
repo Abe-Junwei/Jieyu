@@ -2,6 +2,12 @@ import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { parseStoredDmlexEntry, parseStoredJieyuLexeme } from '../dmlexEntrySchema';
 import { withLexemeNestedIds } from '../dmlexNestedIds';
+import {
+  dropSenseFieldBag,
+  lexemeExtensionForSave,
+  splitLexemeExtension,
+  writeRequiredFieldValues,
+} from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -22,6 +28,8 @@ export interface LexemeSave {
   tags?: Record<string, boolean>;
   accessRights?: string;
   link?: LexemeLinkWrite;
+  fieldValues?: Record<string, unknown>;
+  senseFieldValues?: Record<string, Record<string, unknown>>;
 }
 
 export interface ProjectLexeme {
@@ -67,6 +75,30 @@ export function saveLexemeEntry(db: SqliteDatabase, input: LexemeSave): ProjectL
     }
     if (existing !== undefined) assertRemovedSensesFree(db, existing, prepared);
     upsertEntry(db, prepared, existing !== undefined);
+    if (existing === undefined) {
+      writeRequiredFieldValues(db, 'lexeme', prepared.id, input.fieldValues);
+      for (const senseId of prepared.senseIds) {
+        writeRequiredFieldValues(
+          db,
+          'lexeme-sense',
+          senseId,
+          input.senseFieldValues?.[senseId],
+          prepared.id,
+        );
+      }
+    } else {
+      const previous = senseIdsOf(JSON.parse(existing.entry_json) as Record<string, unknown>);
+      for (const senseId of prepared.senseIds) {
+        if (previous.includes(senseId)) continue;
+        writeRequiredFieldValues(
+          db,
+          'lexeme-sense',
+          senseId,
+          input.senseFieldValues?.[senseId],
+          prepared.id,
+        );
+      }
+    }
     if (prepared.link !== undefined) {
       insertLink(db, prepared.id, prepared.link, prepared.senseIds);
     }
@@ -138,6 +170,7 @@ export function removeSense(
       new Date().toISOString(),
       lexemeId,
     );
+    dropSenseFieldBag(db, lexemeId, senseId);
     const stored = getLexemeEntry(db, lexemeId);
     if (stored === null) throw new Error('lexeme readback failed');
     return stored;
@@ -155,7 +188,7 @@ function prepareEntry(input: LexemeSave): PreparedEntry {
   const jieyu =
     input.jieyu === undefined
       ? {}
-      : (parseStoredJieyuLexeme(input.jieyu) as Record<string, unknown>);
+      : (parseStoredJieyuLexeme(splitLexemeExtension(input.jieyu)) as Record<string, unknown>);
   const link = input.link === undefined ? undefined : normalizeLink(input.link);
   return {
     id,
@@ -171,7 +204,10 @@ function prepareEntry(input: LexemeSave): PreparedEntry {
 function upsertEntry(db: SqliteDatabase, prepared: PreparedEntry, exists: boolean): void {
   const now = new Date().toISOString();
   const entryJson = JSON.stringify(prepared.entry);
-  const jieyuJson = JSON.stringify(prepared.jieyu);
+  const existingJson = exists ? readRow(db, prepared.id)?.jieyu_json : undefined;
+  const jieyuJson = JSON.stringify(
+    lexemeExtensionForSave(existingJson, prepared.jieyu, prepared.senseIds),
+  );
   const tagsJson = JSON.stringify(prepared.tags);
   if (exists) {
     db.prepare(

@@ -78,6 +78,8 @@ export interface CustomFieldHostValue {
 export interface CustomFieldLocation {
   targetType: string;
   targetId: string;
+  lexemeId?: string;
+  unitId?: string;
 }
 
 const TABLE_VALUE_HOSTS = [
@@ -378,7 +380,7 @@ export function writeUnitFieldValues(
 
 export function previewFieldValue(db: SqliteDatabase, input: unknown): CustomFieldHostPreview {
   const value = fieldValueInput(input, false);
-  requireHost(db, value.targetType, value.targetId);
+  requireHost(db, value.targetType, value.targetId, value.lexemeId);
   const definition = requireDefinition(db, value.definitionId);
   if (definition.targetType !== value.targetType)
     throw new Error('custom field target does not match');
@@ -412,45 +414,39 @@ export function setFieldValue(
     value.value,
     value.expectedRevision,
     afterWrite,
+    value.lexemeId,
   );
 }
 
 export function removeFieldValue(db: SqliteDatabase, input: unknown): void {
   const patch = record(input, 'custom field definition is invalid');
-  assertAllowed(patch, ['definitionId', 'targetType', 'targetId']);
+  assertAllowed(patch, ['definitionId', 'targetType', 'targetId', 'lexemeId']);
   const definitionId = requiredText(patch.definitionId, 'custom field definition is missing');
   const targetType = requiredText(patch.targetType, 'custom field target does not match');
   const targetId = requiredText(patch.targetId, 'custom field target is missing');
+  const lexemeId = lexemeScope(patch, targetType);
   const write = db.transaction(() => {
-    if (readFieldValue(db, definitionId, targetType, targetId) === null) {
+    if (readFieldValue(db, definitionId, targetType, targetId, lexemeId) === null) {
       throw new Error('custom field value is missing');
     }
-    if (targetType === 'language') {
-      const map = languageMap(db, targetId);
-      delete map[definitionId];
-      db.prepare('UPDATE languages SET custom_fields_json = ?, updated_at = ? WHERE id = ?').run(
-        JSON.stringify(map),
-        new Date().toISOString(),
-        targetId,
-      );
-    } else {
-      db.prepare(
-        `DELETE FROM custom_field_values
-         WHERE definition_id = ? AND target_type = ? AND target_id = ?`,
-      ).run(definitionId, targetType, targetId);
-    }
-    if (readFieldValue(db, definitionId, targetType, targetId) !== null) {
+    clearFieldValue(db, definitionId, targetType, targetId, lexemeId);
+    if (readFieldValue(db, definitionId, targetType, targetId, lexemeId) !== null) {
       throw new Error('custom field readback failed');
     }
   });
   write();
 }
 
-export function missingFields(db: SqliteDatabase, targetType: string, targetId: string): string[] {
-  requireHost(db, targetType, targetId);
+export function missingFields(
+  db: SqliteDatabase,
+  targetType: string,
+  targetId: string,
+  lexemeId?: string,
+): string[] {
+  requireHost(db, targetType, targetId, lexemeId);
   const required = requiredDefinitionIds(db, targetType);
-  if (targetType === 'language') {
-    const map = languageMap(db, targetId);
+  if (targetType === 'language' || targetType === 'lexeme' || targetType === 'lexeme-sense') {
+    const map = jsonValueMap(db, targetType, targetId, lexemeId);
     return required.filter((id) => !(id in map));
   }
   const rows = db
@@ -473,13 +469,10 @@ export function readFieldValue(
   definitionId: string,
   targetType: string,
   targetId: string,
+  lexemeId?: string,
 ): unknown | null {
-  if (targetType === 'language') {
-    const row = db
-      .prepare('SELECT custom_fields_json FROM languages WHERE id = ?')
-      .get(targetId) as { custom_fields_json: string } | undefined;
-    if (row === undefined) return null;
-    const map = objectMap(row.custom_fields_json);
+  if (targetType === 'language' || targetType === 'lexeme' || targetType === 'lexeme-sense') {
+    const map = jsonValueMap(db, targetType, targetId, lexemeId);
     return definitionId in map ? map[definitionId] : null;
   }
   const row = db
@@ -513,11 +506,10 @@ export function locateCustomFieldValues(
       located.push({ targetType: 'language', targetId: language.id });
     }
   }
-  located.sort((left, right) => {
-    const byType = left.targetType.localeCompare(right.targetType);
-    if (byType !== 0) return byType;
-    return left.targetId.localeCompare(right.targetId);
-  });
+  // ponytail: scans every lexeme and graph row; index when purge runs on large projects
+  locateLexemeValues(db, definitionId, located);
+  locateGraphValues(db, definitionId, located);
+  located.sort(compareLocation);
   return located;
 }
 
@@ -527,14 +519,53 @@ export function writeRequiredFieldValues(
   targetType: string,
   targetId: string,
   values: Record<string, unknown> | undefined,
+  lexemeId?: string,
 ): void {
   const provided = values ?? {};
   for (const id of requiredDefinitionIds(db, targetType)) {
     if (!(id in provided)) throw new Error(`${targetType} is missing a required field`);
   }
   for (const [definitionId, value] of Object.entries(provided)) {
-    storeFieldValue(db, requireDefinition(db, definitionId), targetType, targetId, value);
+    storeFieldValue(db, requireDefinition(db, definitionId), targetType, targetId, value, lexemeId);
   }
+}
+
+/** Save keeps stored bags. Callers edit values through setFieldValue, not jieyu. */
+export function splitLexemeExtension(jieyu: unknown): unknown {
+  if (typeof jieyu !== 'object' || jieyu === null || Array.isArray(jieyu)) return jieyu;
+  const domain = { ...(jieyu as Record<string, unknown>) };
+  delete domain.customFields;
+  delete domain.senseCustomFields;
+  return domain;
+}
+
+export function lexemeExtensionForSave(
+  existingJieyuJson: string | undefined,
+  domain: Record<string, unknown>,
+  senseIds: readonly string[],
+): Record<string, unknown> {
+  const stored = existingJieyuJson === undefined ? {} : objectMap(existingJieyuJson);
+  const next: Record<string, unknown> = { ...domain };
+  const fields = bag(stored.customFields);
+  if (Object.keys(fields).length > 0) next.customFields = fields;
+  const senses = bag(stored.senseCustomFields);
+  const kept: Record<string, unknown> = {};
+  for (const senseId of senseIds) {
+    if (senseId in senses) kept[senseId] = senses[senseId];
+  }
+  if (Object.keys(kept).length > 0) next.senseCustomFields = kept;
+  return next;
+}
+
+export function dropSenseFieldBag(db: SqliteDatabase, lexemeId: string, senseId: string): void {
+  const jieyu = readJieyu(db, lexemeId);
+  if (jieyu === null) return;
+  const senses = bag(jieyu.senseCustomFields);
+  if (!(senseId in senses)) return;
+  delete senses[senseId];
+  if (Object.keys(senses).length === 0) delete jieyu.senseCustomFields;
+  else jieyu.senseCustomFields = senses;
+  writeJieyu(db, lexemeId, jieyu);
 }
 
 export function assertStoredCustomFields(
@@ -637,15 +668,16 @@ function writeFieldValue(
   value: unknown,
   expectedRevision: number,
   afterWrite?: () => void,
+  lexemeId?: string,
 ): CustomFieldHostValue {
   const write = db.transaction(() => {
-    requireHost(db, targetType, targetId);
+    requireHost(db, targetType, targetId, lexemeId);
     const definition = requireDefinition(db, definitionId);
     if (definition.revision !== expectedRevision)
       throw new Error('custom field revision does not match');
-    storeFieldValue(db, definition, targetType, targetId, value);
+    storeFieldValue(db, definition, targetType, targetId, value, lexemeId);
     afterWrite?.();
-    const stored = readFieldValue(db, definitionId, targetType, targetId);
+    const stored = readFieldValue(db, definitionId, targetType, targetId, lexemeId);
     if (canonicalJson(stored) !== canonicalJson(value))
       throw new Error('custom field readback failed');
     return { definitionId, targetType, targetId, revision: definition.revision, value: stored };
@@ -662,33 +694,52 @@ function fieldValueInput(
   targetId: string;
   value: unknown;
   expectedRevision: number;
+  lexemeId?: string;
 } {
   const patch = record(input, 'custom field definition is invalid');
   assertAllowed(
     patch,
     withRevision
-      ? ['definitionId', 'targetType', 'targetId', 'value', 'expectedRevision']
-      : ['definitionId', 'targetType', 'targetId', 'value'],
+      ? ['definitionId', 'targetType', 'targetId', 'value', 'expectedRevision', 'lexemeId']
+      : ['definitionId', 'targetType', 'targetId', 'value', 'lexemeId'],
   );
   if (!('value' in patch) || patch.value === undefined || patch.value === null) {
     throw new Error('custom field value is missing');
   }
+  const targetType = requiredText(patch.targetType, 'custom field target does not match');
+  const lexemeId = lexemeScope(patch, targetType);
   return {
     definitionId: requiredText(patch.definitionId, 'custom field definition is missing'),
-    targetType: requiredText(patch.targetType, 'custom field target does not match'),
+    targetType,
     targetId: requiredText(patch.targetId, 'custom field target is missing'),
     value: patch.value,
     expectedRevision: withRevision ? requiredRevision(patch.expectedRevision) : 0,
+    ...(lexemeId === undefined ? {} : { lexemeId }),
   };
 }
 
-function requireHost(db: SqliteDatabase, targetType: string, targetId: string): void {
-  if (targetType !== 'language' && !isTableHost(targetType)) {
-    throw new Error('custom field target is not writable yet');
+function lexemeScope(patch: Record<string, unknown>, targetType: string): string | undefined {
+  if (targetType === 'lexeme-sense') return requiredText(patch.lexemeId, 'lexeme id is missing');
+  if ('lexemeId' in patch) throw new Error('custom field target does not match');
+  return undefined;
+}
+
+function requireHost(
+  db: SqliteDatabase,
+  targetType: string,
+  targetId: string,
+  lexemeId?: string,
+): void {
+  if (!isWritableHost(targetType)) throw new Error('custom field target is not writable yet');
+  if (targetType === 'lexeme-sense' && lexemeId === undefined) {
+    throw new Error('lexeme id is missing');
   }
-  if (!targetExists(db, { targetType: storedTarget(targetType), targetId })) {
-    throw new Error(`${targetType} is missing`);
-  }
+  const ref = {
+    targetType: storedTarget(targetType),
+    targetId,
+    ...(lexemeId === undefined ? {} : { lexemeId }),
+  };
+  if (!targetExists(db, ref)) throw new Error(`${targetType} is missing`);
 }
 
 function requiredDefinitionIds(db: SqliteDatabase, targetType: string): string[] {
@@ -737,12 +788,214 @@ function isTableHost(value: string): boolean {
   return (TABLE_VALUE_HOSTS as readonly string[]).includes(value);
 }
 
+function isWritableHost(value: string): boolean {
+  return (
+    value === 'language' || value === 'lexeme' || value === 'lexeme-sense' || isTableHost(value)
+  );
+}
+
+function jsonValueMap(
+  db: SqliteDatabase,
+  targetType: string,
+  targetId: string,
+  lexemeId?: string,
+): Record<string, unknown> {
+  if (targetType === 'language') {
+    const row = db
+      .prepare('SELECT custom_fields_json FROM languages WHERE id = ?')
+      .get(targetId) as { custom_fields_json: string } | undefined;
+    return row === undefined ? {} : objectMap(row.custom_fields_json);
+  }
+  const jieyu = readJieyu(db, targetType === 'lexeme' ? targetId : (lexemeId ?? ''));
+  if (jieyu === null) return {};
+  if (targetType === 'lexeme') return bag(jieyu.customFields);
+  return bag(bag(jieyu.senseCustomFields)[targetId]);
+}
+
+function clearFieldValue(
+  db: SqliteDatabase,
+  definitionId: string,
+  targetType: string,
+  targetId: string,
+  lexemeId?: string,
+): void {
+  if (targetType === 'language') {
+    const map = languageMap(db, targetId);
+    delete map[definitionId];
+    db.prepare('UPDATE languages SET custom_fields_json = ?, updated_at = ? WHERE id = ?').run(
+      JSON.stringify(map),
+      new Date().toISOString(),
+      targetId,
+    );
+    return;
+  }
+  if (targetType === 'lexeme' || targetType === 'lexeme-sense') {
+    clearLexemeValue(db, definitionId, targetType, targetId, lexemeId);
+    return;
+  }
+  db.prepare(
+    `DELETE FROM custom_field_values
+     WHERE definition_id = ? AND target_type = ? AND target_id = ?`,
+  ).run(definitionId, targetType, targetId);
+}
+
+function clearLexemeValue(
+  db: SqliteDatabase,
+  definitionId: string,
+  targetType: string,
+  targetId: string,
+  lexemeId?: string,
+): void {
+  const ownerId = targetType === 'lexeme' ? targetId : lexemeId;
+  if (ownerId === undefined) throw new Error('lexeme id is missing');
+  const jieyu = readJieyu(db, ownerId);
+  if (jieyu === null) throw new Error('lexeme is missing');
+  if (targetType === 'lexeme') {
+    const fields = bag(jieyu.customFields);
+    delete fields[definitionId];
+    if (Object.keys(fields).length === 0) delete jieyu.customFields;
+    else jieyu.customFields = fields;
+  } else {
+    const senses = bag(jieyu.senseCustomFields);
+    const fields = bag(senses[targetId]);
+    delete fields[definitionId];
+    if (Object.keys(fields).length === 0) delete senses[targetId];
+    else senses[targetId] = fields;
+    if (Object.keys(senses).length === 0) delete jieyu.senseCustomFields;
+    else jieyu.senseCustomFields = senses;
+  }
+  writeJieyu(db, ownerId, jieyu);
+}
+
+function storeLexemeBag(
+  db: SqliteDatabase,
+  definitionId: string,
+  lexemeId: string,
+  value: unknown,
+): void {
+  const jieyu = readJieyu(db, lexemeId);
+  if (jieyu === null) throw new Error('lexeme is missing');
+  const fields = bag(jieyu.customFields);
+  fields[definitionId] = value;
+  jieyu.customFields = fields;
+  writeJieyu(db, lexemeId, jieyu);
+}
+
+function storeSenseBag(
+  db: SqliteDatabase,
+  definitionId: string,
+  senseId: string,
+  value: unknown,
+  lexemeId: string | undefined,
+): void {
+  if (lexemeId === undefined) throw new Error('lexeme id is missing');
+  const jieyu = readJieyu(db, lexemeId);
+  if (jieyu === null) throw new Error('lexeme is missing');
+  if (!senseExists(db, lexemeId, senseId)) throw new Error('lexeme-sense is missing');
+  const senses = bag(jieyu.senseCustomFields);
+  const fields = bag(senses[senseId]);
+  fields[definitionId] = value;
+  senses[senseId] = fields;
+  jieyu.senseCustomFields = senses;
+  writeJieyu(db, lexemeId, jieyu);
+}
+
+function readJieyu(db: SqliteDatabase, lexemeId: string): Record<string, unknown> | null {
+  const row = db.prepare('SELECT jieyu_json FROM lexemes WHERE id = ?').get(lexemeId) as
+    { jieyu_json: string } | undefined;
+  return row === undefined ? null : objectMap(row.jieyu_json);
+}
+
+function writeJieyu(db: SqliteDatabase, lexemeId: string, jieyu: Record<string, unknown>): void {
+  db.prepare('UPDATE lexemes SET jieyu_json = ?, updated_at = ? WHERE id = ?').run(
+    JSON.stringify(jieyu),
+    new Date().toISOString(),
+    lexemeId,
+  );
+}
+
+function bag(value: unknown): Record<string, unknown> {
+  if (value === undefined) return {};
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('custom field value is invalid');
+  }
+  return value as Record<string, unknown>;
+}
+
+function locateLexemeValues(
+  db: SqliteDatabase,
+  definitionId: string,
+  located: CustomFieldLocation[],
+): void {
+  const rows = db.prepare('SELECT id, jieyu_json FROM lexemes').all() as {
+    id: string;
+    jieyu_json: string;
+  }[];
+  for (const row of rows) {
+    const jieyu = objectMap(row.jieyu_json);
+    if (definitionId in bag(jieyu.customFields)) {
+      located.push({ targetType: 'lexeme', targetId: row.id });
+    }
+    const senses = bag(jieyu.senseCustomFields);
+    for (const [senseId, fields] of Object.entries(senses)) {
+      if (definitionId in bag(fields)) {
+        located.push({ targetType: 'lexeme-sense', targetId: senseId, lexemeId: row.id });
+      }
+    }
+  }
+}
+
+function locateGraphValues(
+  db: SqliteDatabase,
+  definitionId: string,
+  located: CustomFieldLocation[],
+): void {
+  const rows = db
+    .prepare('SELECT id, analysis_graph_json FROM units WHERE analysis_graph_json IS NOT NULL')
+    .all() as { id: string; analysis_graph_json: string }[];
+  for (const row of rows) {
+    const graph = JSON.parse(row.analysis_graph_json) as {
+      nodes?: { id?: string; customFields?: unknown }[];
+      relations?: { id?: string; customFields?: unknown }[];
+    };
+    collectGraphFields(located, 'analysis-node', row.id, definitionId, graph.nodes);
+    collectGraphFields(located, 'analysis-relation', row.id, definitionId, graph.relations);
+  }
+}
+
+function collectGraphFields(
+  located: CustomFieldLocation[],
+  targetType: 'analysis-node' | 'analysis-relation',
+  unitId: string,
+  definitionId: string,
+  items: { id?: string; customFields?: unknown }[] | undefined,
+): void {
+  if (!Array.isArray(items)) return;
+  for (const item of items) {
+    if (typeof item.id !== 'string') continue;
+    if (definitionId in bag(item.customFields)) {
+      located.push({ targetType, targetId: item.id, unitId });
+    }
+  }
+}
+
+function compareLocation(left: CustomFieldLocation, right: CustomFieldLocation): number {
+  const byType = left.targetType.localeCompare(right.targetType);
+  if (byType !== 0) return byType;
+  const byId = left.targetId.localeCompare(right.targetId);
+  if (byId !== 0) return byId;
+  const byLexeme = (left.lexemeId ?? '').localeCompare(right.lexemeId ?? '');
+  if (byLexeme !== 0) return byLexeme;
+  return (left.unitId ?? '').localeCompare(right.unitId ?? '');
+}
+
 function storeFieldValue(
   db: SqliteDatabase,
   definition: CustomFieldDefinition,
   targetType: string,
   targetId: string,
   value: unknown,
+  lexemeId?: string,
 ): void {
   if (definition.targetType !== targetType) throw new Error('custom field target does not match');
   assertCustomFieldValue(
@@ -755,8 +1008,17 @@ function storeFieldValue(
   );
   const text = JSON.stringify(value);
   if (typeof text !== 'string') throw new Error('custom field value is invalid');
+  const stored = JSON.parse(text) as unknown;
   if (targetType === 'language') {
-    storeLanguageValue(db, definition.id, targetId, JSON.parse(text) as unknown);
+    storeLanguageValue(db, definition.id, targetId, stored);
+    return;
+  }
+  if (targetType === 'lexeme') {
+    storeLexemeBag(db, definition.id, targetId, stored);
+    return;
+  }
+  if (targetType === 'lexeme-sense') {
+    storeSenseBag(db, definition.id, targetId, stored, lexemeId);
     return;
   }
   if (!isTableHost(targetType)) throw new Error('custom field target is not writable yet');

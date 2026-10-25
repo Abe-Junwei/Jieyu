@@ -207,20 +207,28 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       knownKeys(input, ['unitId']);
       return missingUnitFields(project.db, requiredString(input.unitId, 'unitId'));
     case 'customFields.previewValue':
-      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'value']);
+      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'value', 'lexemeId']);
       return previewFieldValue(project.db, input);
     case 'customFields.setValue':
-      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'value', 'expectedRevision']);
+      knownKeys(input, [
+        'definitionId',
+        'targetType',
+        'targetId',
+        'value',
+        'expectedRevision',
+        'lexemeId',
+      ]);
       return setFieldValue(project.db, input);
     case 'customFields.removeValue':
-      knownKeys(input, ['definitionId', 'targetType', 'targetId']);
+      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'lexemeId']);
       return removeFieldValue(project.db, input);
     case 'customFields.missingFields':
-      knownKeys(input, ['targetType', 'targetId']);
+      knownKeys(input, ['targetType', 'targetId', 'lexemeId']);
       return missingFields(
         project.db,
         requiredString(input.targetType, 'targetType'),
         requiredString(input.targetId, 'targetId'),
+        input.lexemeId === undefined ? undefined : requiredString(input.lexemeId, 'lexemeId'),
       );
     case 'customFields.locateValues':
       knownKeys(input, ['definitionId']);
@@ -534,6 +542,10 @@ function lexemeSave(input: Record<string, unknown>): LexemeSave {
     ...(tags === undefined ? {} : { tags: booleanMap(tags) }),
     ...(typeof input.accessRights === 'string' ? { accessRights: input.accessRights } : {}),
     ...(link === undefined ? {} : { link: linkWrite(link) }),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+    ...('senseFieldValues' in input
+      ? { senseFieldValues: senseFieldValueMap(input.senseFieldValues) }
+      : {}),
   };
 }
 
@@ -585,6 +597,15 @@ function unitCreate(input: Record<string, unknown>): UnitCreate {
       : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
+}
+
+function senseFieldValueMap(value: unknown): Record<string, Record<string, unknown>> {
+  const record = fieldValueMap(value);
+  const senses: Record<string, Record<string, unknown>> = {};
+  for (const [senseId, item] of Object.entries(record)) {
+    senses[senseId] = fieldValueMap(item);
+  }
+  return senses;
 }
 
 function fieldValueMap(value: unknown): Record<string, unknown> {

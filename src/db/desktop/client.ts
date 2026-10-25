@@ -76,8 +76,12 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<CustomFieldHostValue>(sessionId, 'customFields.setValue', input),
     removeFieldValue: (sessionId: string, input: unknown) =>
       once<void>(sessionId, 'customFields.removeValue', input),
-    missingFields: (sessionId: string, targetType: string, targetId: string) =>
-      once<string[]>(sessionId, 'customFields.missingFields', { targetType, targetId }),
+    missingFields: (sessionId: string, targetType: string, targetId: string, lexemeId?: string) =>
+      once<string[]>(sessionId, 'customFields.missingFields', {
+        targetType,
+        targetId,
+        ...(lexemeId === undefined ? {} : { lexemeId }),
+      }),
     locateFieldValues: (sessionId: string, definitionId: string) =>
       once<CustomFieldLocation[]>(sessionId, 'customFields.locateValues', { definitionId }),
     setTimeMapping: (
