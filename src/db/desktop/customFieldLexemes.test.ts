@@ -165,8 +165,8 @@ describe('lexeme custom fields', () => {
     expect(() =>
       setFieldValue(project.db, {
         definitionId: lexemeField.id,
-        targetType: 'source',
-        targetId: 's1',
+        targetType: 'analysis-node',
+        targetId: 'n1',
         value: 'x',
         expectedRevision: 1,
       }),

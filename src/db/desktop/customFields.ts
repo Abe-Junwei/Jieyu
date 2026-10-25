@@ -88,7 +88,11 @@ const TABLE_VALUE_HOSTS = [
   'layer',
   'unit',
   'media',
+  'source',
   'speaker',
+  'note',
+  'conversation',
+  'message',
   'orthography',
   'orthography-bridge',
 ] as const;
