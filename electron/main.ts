@@ -14,6 +14,7 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
+import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import { closeDesktopSession, openDesktopSession } from '../src/db/desktop/projectSession';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
 import {
@@ -24,6 +25,11 @@ import {
 } from '../src/desktop/skeleton/desktopSecurity';
 import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
+import {
+  bindDesktopMediaSession,
+  releaseDesktopMediaSession,
+  resolveDesktopMedia,
+} from '../src/desktop/skeleton/desktopMediaGrant';
 import { fileContainsProbeTable, writeSkeletonProbe } from '../src/desktop/skeleton/probeStore';
 import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
 import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
@@ -56,6 +62,8 @@ function mediaRoot(): string {
 }
 
 function mediaFile(name: string): string | null {
+  const granted = resolveDesktopMedia(path.basename(name));
+  if (granted) return granted;
   const root = path.resolve(mediaRoot());
   const filePath = path.resolve(root, path.basename(name));
   const relative = path.relative(root, filePath);
@@ -190,13 +198,33 @@ function registerIpc(): void {
 
   handle('desktop:open-session', (folder: unknown) => {
     if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
-    return openDesktopSession(folder, [...allowedProjectFolders]);
+    const opened = openDesktopSession(folder, [...allowedProjectFolders]);
+    bindDesktopMediaSession(opened.sessionId);
+    return opened;
   });
 
   handle('desktop:close-session', (sessionId: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     closeDesktopSession(sessionId);
+    releaseDesktopMediaSession(sessionId);
     return { closed: true };
+  });
+
+  handle('desktop:media-url', (sessionId: unknown, mediaId: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    if (typeof mediaId !== 'string' || mediaId.length === 0) throw new Error('empty media');
+    return desktopMediaPlayUrl(sessionId, mediaId);
+  });
+
+  handle('desktop:choose-folder', async () => {
+    const picked = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+    const folder = picked.filePaths[0];
+    if (folder === undefined) return { cancelled: true };
+    const resolved = path.resolve(folder);
+    allowedProjectFolders.add(resolved);
+    const opened = openDesktopSession(resolved, [...allowedProjectFolders]);
+    bindDesktopMediaSession(opened.sessionId);
+    return opened;
   });
 
   handle('desktop:call', (sessionId: unknown, method: unknown, args: unknown) => {

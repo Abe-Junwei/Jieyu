@@ -76,6 +76,17 @@ export function createLayer(db: SqliteDatabase, input: LayerCreate): Layer {
   return write();
 }
 
+export function listLayers(db: SqliteDatabase, manuscriptId: string): Layer[] {
+  const rows = db
+    .prepare(
+      `SELECT id, manuscript_id, key, name_json, tier_type, content_type,
+              language_id, orthography_id, parent_id, sort_order, created_at, updated_at
+       FROM layers WHERE manuscript_id = ? ORDER BY sort_order, id`,
+    )
+    .all(manuscriptId) as LayerRow[];
+  return rows.map(mapLayer);
+}
+
 export function getLayer(db: SqliteDatabase, id: string): Layer | null {
   const row = db
     .prepare(
@@ -85,6 +96,10 @@ export function getLayer(db: SqliteDatabase, id: string): Layer | null {
     )
     .get(id) as LayerRow | undefined;
   if (!row) return null;
+  return mapLayer(row);
+}
+
+function mapLayer(row: LayerRow): Layer {
   return {
     id: row.id,
     manuscriptId: row.manuscript_id,

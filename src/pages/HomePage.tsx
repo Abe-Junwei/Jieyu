@@ -1,5 +1,6 @@
 import '../styles/pages/home-page.css';
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ContextMenu } from '../components/ContextMenu';
@@ -25,6 +26,7 @@ import {
   publishActiveProjectTextId,
   subscribeActiveProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
+import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { WorkbenchFilePane } from './workbench/WorkbenchFilePane';
 
 type EditDraft = {
@@ -267,6 +269,11 @@ export function HomePage() {
           ? null
           : projectRoster}
       <div className="home-workbench-main">
+        {readDesktopProjectHost() ? (
+          <p>
+            <Link to="/desktop-project">{t(locale, 'app.desktopRead.entry')}</Link>
+          </p>
+        ) : null}
         {opened ? (
           <WorkbenchFilePane
             locale={locale}

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { desktopProjectReadEnabled } from '../src/desktop/skeleton/desktopProjectReadFlag';
 
 export interface RequestChunkEvent {
   requestId: string;
@@ -13,6 +14,10 @@ const desktop = {
     ipcRenderer.invoke('desktop:close-session', sessionId),
   desktopCall: (sessionId: string, method: string, args: unknown) =>
     ipcRenderer.invoke('desktop:call', sessionId, method, args),
+  projectReadEnabled: desktopProjectReadEnabled(process.env.JIEYU_DESKTOP_PROJECT_READ),
+  chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
+  desktopMediaUrl: (sessionId: string, mediaId: string) =>
+    ipcRenderer.invoke('desktop:media-url', sessionId, mediaId),
   storeSecret: (plain: string) => ipcRenderer.invoke('skeleton:store-secret', plain),
   startRequest: (requestId: string, url: string) =>
     ipcRenderer.invoke('skeleton:start-request', requestId, url),

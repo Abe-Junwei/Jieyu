@@ -47,6 +47,20 @@ export function getManuscript(db: SqliteDatabase, id: string): Manuscript | null
     )
     .get(id) as ManuscriptRow | undefined;
   if (!row) return null;
+  return mapManuscript(row);
+}
+
+export function listManuscripts(db: SqliteDatabase): Manuscript[] {
+  const rows = db
+    .prepare(
+      `SELECT id, title_json, media_id, created_at, updated_at
+       FROM manuscripts ORDER BY created_at, id`,
+    )
+    .all() as ManuscriptRow[];
+  return rows.map(mapManuscript);
+}
+
+function mapManuscript(row: ManuscriptRow): Manuscript {
   return {
     id: row.id,
     title: readStringMap(row.title_json),

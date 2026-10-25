@@ -43,6 +43,11 @@ export const enUSDictionary = {
   'app.home.noProgressData':
     'No transcription record or text-layer progress yet (transcription layer may be missing).',
   'app.home.openProject': 'Open project',
+  'app.desktopRead.entry': 'Open folder library',
+  'app.desktopRead.openFolder': 'Open folder',
+  'app.desktopRead.empty': 'This folder has no manuscripts',
+  'app.desktopRead.audio': 'Recording',
+  'app.desktopRead.loadFailed': 'Could not read this folder',
   'app.home.openTranscriptionRecord': 'Open this transcription record (focus its media)',
   'app.glossary.transcriptionRecord': 'Transcription record',
   'app.glossary.textRecord': 'Text record',

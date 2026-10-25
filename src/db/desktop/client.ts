@@ -22,6 +22,11 @@ export function createDesktopClient(bridge: DesktopBridge) {
     createUnit: (sessionId: string, input: UnitCreate) =>
       once<Unit>(sessionId, 'units.create', input),
     getUnit: (sessionId: string, id: string) => once<Unit | null>(sessionId, 'units.get', { id }),
+    listManuscripts: (sessionId: string) => once<Manuscript[]>(sessionId, 'manuscripts.list', {}),
+    listLayers: (sessionId: string, manuscriptId: string) =>
+      once<Layer[]>(sessionId, 'layers.list', { manuscriptId }),
+    listUnits: (sessionId: string, layerId: string) =>
+      once<Unit[]>(sessionId, 'units.list', { layerId }),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
   };
 }

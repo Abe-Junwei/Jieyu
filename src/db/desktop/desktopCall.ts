@@ -1,19 +1,22 @@
-import { createLayer, type LayerCreate } from './layers';
+import { createLayer, listLayers, type LayerCreate } from './layers';
 import { createMedia, type MediaCreate } from './media';
-import { createManuscript, type ManuscriptCreate } from './manuscripts';
+import { createManuscript, listManuscripts, type ManuscriptCreate } from './manuscripts';
 import {
   desktopSessionFolder,
   reopenDesktopSession,
   requireDesktopSession,
 } from './projectSession';
-import { createUnit, getUnit, type UnitCreate } from './units';
+import { createUnit, getUnit, listUnits, type UnitCreate } from './units';
 
 const METHODS = [
   'media.create',
   'manuscripts.create',
+  'manuscripts.list',
   'layers.create',
+  'layers.list',
   'units.create',
   'units.get',
+  'units.list',
   'reopen',
 ] as const;
 
@@ -32,12 +35,18 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return createMedia(project.db, desktopSessionFolder(sessionId), mediaCreate(input));
     case 'manuscripts.create':
       return createManuscript(project.db, manuscriptCreate(input));
+    case 'manuscripts.list':
+      return listManuscripts(project.db);
     case 'layers.create':
       return createLayer(project.db, layerCreate(input));
+    case 'layers.list':
+      return listLayers(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
     case 'units.get':
       return getUnit(project.db, requiredString(input.id, 'id'));
+    case 'units.list':
+      return listUnits(project.db, requiredString(input.layerId, 'layerId'));
     default: {
       const unreachable: never = parsed;
       return unreachable;

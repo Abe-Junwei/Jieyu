@@ -66,6 +66,9 @@ import { CatalogProjectGate } from './components/CatalogProjectGate';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const DesktopProjectReadPage = lazy(() =>
+  import('./pages/DesktopProjectReadPage').then((m) => ({ default: m.DesktopProjectReadPage })),
+);
 const TranscriptionPage = lazy(() =>
   import('./pages/TranscriptionPage').then((m) => ({ default: m.TranscriptionPage })),
 );
@@ -852,6 +855,7 @@ export function App() {
                     <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
                       <Routes location={location}>
                         <Route path="/" element={<HomePage />} />
+                        <Route path="/desktop-project" element={<DesktopProjectReadPage />} />
                         <Route path="/transcription" element={<TranscriptionPage />} />
                         <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
                         <Route path="/assets/structural-profiles" element={<TranscriptionPage />} />
