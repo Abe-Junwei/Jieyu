@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { releaseProjectLock, tryAcquireProjectLock } from '../../desktop/skeleton/projectLock';
 import { createLayer, getLayer, type Layer, type LayerCreate } from './layers';
+import { createMedia, getMedia, type Media, type MediaCreate } from './media';
 import {
   createManuscript,
   getManuscript,
@@ -15,7 +16,16 @@ import {
   DESKTOP_PROJECT_SCHEMA_SQL,
   DESKTOP_PROJECT_USER_VERSION,
 } from './schema';
-import { createUnit, getUnit, type Unit, type UnitCreate } from './units';
+import { getSettings, replaceSettings } from './settings';
+import { createSpeaker, getSpeaker, type Speaker, type SpeakerCreate } from './speakers';
+import {
+  createUnit,
+  getUnit,
+  listUnits,
+  updateBoundary,
+  type Unit,
+  type UnitCreate,
+} from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -33,6 +43,23 @@ export interface DesktopProject {
   units: {
     create(input: UnitCreate): Unit;
     get(id: string): Unit | null;
+    list(layerId: string): Unit[];
+    updateBoundary(input: { leftId: string; rightId: string; time: number }): {
+      left: Unit;
+      right: Unit;
+    };
+  };
+  media: {
+    create(input: MediaCreate): Media;
+    get(id: string): Media | null;
+  };
+  speakers: {
+    create(input: SpeakerCreate): Speaker;
+    get(id: string): Speaker | null;
+  };
+  settings: {
+    get(projectId: string): Record<string, unknown> | null;
+    replace(projectId: string, settings: Record<string, unknown>): Record<string, unknown>;
   };
 }
 
@@ -52,7 +79,7 @@ export function openProject(
     const db = new Database(target);
     db.exec('PRAGMA foreign_keys = ON');
     db.exec('PRAGMA busy_timeout = 5000');
-    return bindProject(db, () => {
+    return bindProject(db, folder, () => {
       db.close();
       releaseProjectLock(folder);
     });
@@ -62,7 +89,7 @@ export function openProject(
   }
 }
 
-function bindProject(db: SqliteDatabase, close: () => void): DesktopProject {
+function bindProject(db: SqliteDatabase, folder: string, close: () => void): DesktopProject {
   return {
     db,
     close,
@@ -77,6 +104,20 @@ function bindProject(db: SqliteDatabase, close: () => void): DesktopProject {
     units: {
       create: (input) => createUnit(db, input),
       get: (id) => getUnit(db, id),
+      list: (layerId) => listUnits(db, layerId),
+      updateBoundary: (input) => updateBoundary(db, input),
+    },
+    media: {
+      create: (input) => createMedia(db, folder, input),
+      get: (id) => getMedia(db, id),
+    },
+    speakers: {
+      create: (input) => createSpeaker(db, input),
+      get: (id) => getSpeaker(db, id),
+    },
+    settings: {
+      get: (projectId) => getSettings(db, projectId),
+      replace: (projectId, settings) => replaceSettings(db, projectId, settings),
     },
   };
 }

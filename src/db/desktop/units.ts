@@ -78,9 +78,62 @@ export function createUnit(
   return write();
 }
 
+const LIST = `
+SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
+       units.start_time, units.end_time, units.created_at, units.updated_at,
+       unit_texts.body AS text
+FROM units
+JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
+WHERE units.layer_id = ?
+ORDER BY units.start_time, units.id
+`;
+
 export function getUnit(db: SqliteDatabase, id: string): Unit | null {
   const row = db.prepare(READ).get(id) as UnitRow | undefined;
   if (!row) return null;
+  return mapUnit(row);
+}
+
+export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
+  return (db.prepare(LIST).all(layerId) as UnitRow[]).map(mapUnit);
+}
+
+export function updateBoundary(
+  db: SqliteDatabase,
+  input: { leftId: string; rightId: string; time: number },
+  afterLeftUpdate?: () => void,
+): { left: Unit; right: Unit } {
+  const write = db.transaction(() => {
+    const left = getUnit(db, input.leftId);
+    const right = getUnit(db, input.rightId);
+    if (!left || !right) throw new Error('boundary units are missing');
+    if (left.layerId !== right.layerId || left.endTime !== right.startTime) {
+      throw new Error('boundary units are not adjacent');
+    }
+    if (input.time < left.startTime || input.time > right.endTime) {
+      throw new Error('boundary is outside the pair');
+    }
+    const now = new Date().toISOString();
+    db.prepare('UPDATE units SET end_time = ?, updated_at = ? WHERE id = ?').run(
+      input.time,
+      now,
+      left.id,
+    );
+    afterLeftUpdate?.();
+    db.prepare('UPDATE units SET start_time = ?, updated_at = ? WHERE id = ?').run(
+      input.time,
+      now,
+      right.id,
+    );
+    const nextLeft = getUnit(db, left.id);
+    const nextRight = getUnit(db, right.id);
+    if (!nextLeft || !nextRight) throw new Error('boundary readback failed');
+    return { left: nextLeft, right: nextRight };
+  });
+  return write();
+}
+
+function mapUnit(row: UnitRow): Unit {
   return {
     id: row.id,
     layerId: row.layer_id,
