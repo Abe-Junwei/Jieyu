@@ -4,11 +4,16 @@ label: wayfinder:task
 mode: AFK
 status: open
 assignee:
-blocked_by: [025,026,043]
+blocked_by: [026]
+execution_gate: M4
 issue: https://github.com/Abe-Junwei/Jieyu/issues/312
 ---
 
 # 诊断与反馈
+
+## 2026-10-25 已确认范围
+
+M4 后按白名单开工，不等 #275/#325 整单终验；反馈/诊断交付由本单与 #282 验收，不作为 #275 的发布能力实现。 依据 [ADR-0086](../../../adr/0086-desktop-release-scope-and-format-freeze.md)、[ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 和[单库计划](../../../execution/plans/desktop-project-sqlite-2026-10-25.md)。GitHub 已于 2026-10-25 写入当前范围。以下原 Question 留作历史输入，冲突处按本节执行。
 
 ## Question
 

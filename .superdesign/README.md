@@ -23,4 +23,4 @@
 
 提交设计源稿、审查结论、最终合成数据截图与小型验证日志。生成的源码快照、重复运行目录、trace、大型备份包、旧真实会话截图和合成音频留在本地，不删除；详见本目录 `.gitignore`。
 
-SQLite剩余接口规划是独立的待确认草稿，位于 `docs/execution/plans/sqlite-storage-port-remainder-2026-10-24.md`，与视觉提案和本轮侧栏修复分开提交。
+SQLite 剩余接口那份草稿已停止，下一步是 `docs/execution/plans/desktop-project-sqlite-2026-10-25.md`，与视觉提案和本轮侧栏修复分开提交。

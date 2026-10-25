@@ -5,10 +5,13 @@ mode: AFK
 status: open
 assignee:
 blocked_by: []
+execution_gate: M4
 issue: https://github.com/Abe-Junwei/Jieyu/issues/307
 ---
 
 # 改用 GPL-3.0-or-later
+
+与发布流水线 #277 同期，安装包对外发出前完成。M1–M3 不领取。这不是新功能白名单。
 
 ## Question
 

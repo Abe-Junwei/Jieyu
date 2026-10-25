@@ -4,11 +4,33 @@ label: wayfinder:task
 mode: AFK
 status: open
 assignee:
-blocked_by: [025,026,036,043]
+blocked_by: [026, 036]
+execution_gate: M4
 issue: https://github.com/Abe-Junwei/Jieyu/issues/305
 ---
 
 # 主进程本机 HTTP 模型宿主（ModelHost）
+
+
+<!-- desktop-sqlite-slices:v1:start -->
+## 当前可执行切片与关闭条件（2026-10-25 本轮重排）
+
+归 M5-F：M4-C 后按接口就绪推进，不等 #275/#325 全关闭。
+
+- [ ] 先完成声明/本机 HTTP/大小及响应校验、取消/超时/IPC 的宿主合同，用模拟服务验证。
+- [ ] #303 在接口上接真实引擎；#306 在同一接口上接候选/采纳，两者不以整单关闭互相等待。
+- [ ] 启动任务时保存目标凭据，结果回来不能换取最新代际；业务提交层在事务内校验，宿主不读运行时私有字段。
+- [ ] 与 #306 在新库重开核对运行和接受结果，覆盖删除前/删除中/恢复后的迟到结果。
+
+模型宿主不自行开表名事务写语言行。#304 已关闭的 ADR 输入保留，#275 接本项集成证据。
+
+
+详细前置/验收见[单库切片清单](../../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。本轮同步不代表实现完成；下方较早范围保留，冲突以本节为准。
+<!-- desktop-sqlite-slices:v1:end -->
+
+## 2026-10-25 已确认范围
+
+M4 后按白名单开工，不等 #275/#325 整单关闭；任务取消/迟到结果沿领域写门禁处理，不读智能体运行时私有字段。本机转写集成后回归删除中的可控任务场景。 依据 [ADR-0086](../../../adr/0086-desktop-release-scope-and-format-freeze.md)、[ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 和[单库计划](../../../execution/plans/desktop-project-sqlite-2026-10-25.md)。GitHub 已于 2026-10-25 写入当前范围。以下原 Question 留作历史输入，冲突处按本节执行。
 
 ## Question
 

@@ -4,11 +4,35 @@ label: wayfinder:prototype
 mode: HITL
 status: open
 assignee:
-blocked_by: [025]
+blocked_by: []
+execution_gate: M6-package-api-ready
 issue: https://github.com/Abe-Junwei/Jieyu/issues/258
 ---
 
 # 备份与恢复对非开发者的呈现
+
+
+<!-- desktop-sqlite-slices:v1:start -->
+## 当前可执行切片与关闭条件（2026-10-25 本轮重排）
+
+本单的呈现/恢复能力按 M6-B 交付，不等 #275 关闭；#275 接受本单的恢复证据，不能反过来要求本单先等它终验。
+
+- [ ] M4 后可准备呈现和失败流程；实现等 M6-A 所需包/读写 API 就绪，不以父 issue 状态代替 API 条件。
+- [ ] 每日含音频 JYM 及保留策略继续独立验收；SQLite 在线备份不等于完整项目备份。
+- [ ] 合成多文稿/多录音项目备份，恢复到另一文件夹，重开核对 id/内容/哈希并实际播放；失败不损坏源项目。
+- [ ] 和 #325 D3 联合验证：包保留尚未清除对象、音频和删除状态；恢复重新展示提醒，至少再留 7 天，不按旧提醒立即清除。
+- [ ] 附件文件化后把 R5 产物纳入完整备份，文件读回；永久清除不追删已有副本。
+- [ ] 用户看得懂的快照入口、恢复提示和结果可用，并留工程/交互证据。
+
+当前无实现片完成。格式冻结 #259 使用本单恢复证据；取消 #281/#326 不授权清数据。
+
+
+详细前置/验收见[单库切片清单](../../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。本轮同步不代表实现完成；下方较早范围保留，冲突以本节为准。
+<!-- desktop-sqlite-slices:v1:end -->
+
+## 2026-10-25 已确认范围
+
+不等待 #275 终验才开工；相关存储/交换能力就绪后在 M6 验收含音频恢复与播放。完整包/备份保留未清除对象和删除状态，恢复重给提醒后至少 7 天；永久清除不追删旧备份。SQLite 在线备份不覆盖音频。 依据 [ADR-0086](../../../adr/0086-desktop-release-scope-and-format-freeze.md)、[ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 和[单库计划](../../../execution/plans/desktop-project-sqlite-2026-10-25.md)。GitHub 已于 2026-10-25 写入当前范围。以下原 Question 留作历史输入，冲突处按本节执行。
 
 ## Question
 

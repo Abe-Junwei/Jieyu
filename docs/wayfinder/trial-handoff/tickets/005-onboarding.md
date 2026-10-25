@@ -5,10 +5,13 @@ mode: HITL
 status: open
 assignee:
 blocked_by: []
+execution_gate: M4
 issue: https://github.com/Abe-Junwei/Jieyu/issues/255
 ---
 
 # 首次启动与上手流程长什么样
+
+M4-C 通过前不领取。与示例首启（#313）同期。
 
 ## Question
 

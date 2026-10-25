@@ -5,10 +5,13 @@ mode: HITL
 status: open
 assignee:
 blocked_by: [026]
+execution_gate: outside-m4-whitelist
 issue: https://github.com/Abe-Junwei/Jieyu/issues/257
 ---
 
 # AI 服务设置界面：密钥、服务商与用量
+
+不在 ADR-0086 白名单。M4 通过后也不领取，除非用户把 #257 列入白名单。026 已关闭，不能因此把本单当成前线。
 
 ## Question
 

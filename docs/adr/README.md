@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-24
+last_reviewed: 2026-10-25
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0083**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0090**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -21,39 +21,55 @@ source_of_truth: decision-index
 
 ## 桌面存储：当前有效条款
 
-下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。
+下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。基础单库布局以 [ADR-0085](./0085-desktop-project-one-sqlite.md) 为准；范围/冻结与开发格式见 [ADR-0086](./0086-desktop-release-scope-and-format-freeze.md)，删除/恢复见 [ADR-0087](./0087-project-deletion-retention-and-media-cleanup.md)，M1 未覆盖的领域落点见 [ADR-0088](./0088-desktop-sqlite-domain-landings.md)。分析过期、曾经接受与恢复见 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)。冲突条款按对应新篇执行。
 
 | 事项                                                                                                                                                      | 唯一权威                                                                                                                                                                                                 | 不要再当成权威                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| 桌面用 SQLite、浏览器用 Dexie、新代码走存储接口                                                                                                           | ADR-0046 第 3 条，操作形状见 ADR-0048；Electron 骨架跑通后浏览器构建只作开发与测试、新功能只按桌面实现（ADR-0063）；#275 之后新操作只写 SQLite，Dexie 冻结，E2E 迁完且旧库迁完后删浏览器构建（ADR-0064） | 按浏览器保存路径先实现一遍新规则；Dexie 与 SQLite 两边都写                                                               |
-| JYT/JYM 是交换包不是活文件；JYB 只在浏览器构建（旧浏览器数据迁入桌面时例外，见 0062 第 6 条）；每日 JYM 快照留 3 份，在含音频的备份通过恢复演练前保持不动 | ADR-0046 第 2、6 条；ADR-0062 第 1、6 条                                                                                                                                                                 | 用「只备份数据库、音频只留哈希」替换每日 JYM。该替换未批准；将来的备份必须含可播放的音频字节                             |
-| 文件夹里放什么                                                                                                                                            | ADR-0061 第 1–4、6 条：音频是原文件，一份文稿一个 `.jyd`，声文稿只是展示                                                                                                                                 | ADR-0046 第 1、5 条的 `project.sqlite` + `media/`；ADR-0058-card 第 1 条（音频字节在卡片文件里）                         |
-| 认回与删除状态                                                                                                                                            | 还没有。ADR-0061 第 5 条写了「按 sha256 认回」，多个文件哈希相同时不够，规格里先约束为必须问用户。同名判断把「已隐藏」算进去（ADR-0062 第 2 条）                                                         | 把第 5 条直接当成实现规格                                                                                                |
+| 桌面用 SQLite、浏览器用 Dexie、新代码走存储接口                                                                                                           | ADR-0085：新存储只写 SQLite，一次操作一次事务。操作仍是业务方法，不接受表名（ADR-0048 第 3 条的这一句）                                                                                                 | Dexie 与 SQLite 各写一套；按浏览器保存路径先实现新规则                                                                   |
+| 交换包与每日备份 | ADR-0046 第 2、6 条中不冲突要求；ADR-0086 取消旧 JYB 迁入，ADR-0087 定已删除对象的包保留与恢复 | 只备数据库替代含音频备份、把 #326 当首发阻塞、恢复旧包立即清除 |
+| 文件夹里放什么                                                                                                                                            | ADR-0085：音频是原文件，结构化数据只有 `project.sqlite`，文稿是表里的一行                                                                                                                                | 一份文稿一个 `.jyd`（ADR-0061 第 1–4、6 条）；ADR-0046 第 1、5 条的 `project.sqlite` + `media/`                          |
+| 删除、恢复、提醒与录音清除 | [ADR-0087](./0087-project-deletion-retention-and-media-cleanup.md) | 文稿 .jyd 立即送垃圾箱、独立隐藏、按缺失路径猜成功、永久清除后恢复原 id |
 | 共用定义、定义副本、清单缓存、操作 id、同名合并时机                                                                                                       | ADR-0060 第 2、3、4、7 条。词条、标签定义、自定义字段定义、缩写不进定义副本，见 ADR-0070                                                                                                                 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`）；把这四类目录复制进每份 `.jyd`                                                |
-| 隐藏、系统垃圾箱、协作删除只动本机                                                                                                                        | ADR-0058-card 第 5、6 条                                                                                                                                                                                 | —                                                                                                                        |
-| IndexedDB 归哪一层                                                                                                                                        | ADR-0058-indexeddb；项目文件夹里再按 ADR-0060、ADR-0061 分                                                                                                                                               | 该篇里「项目内容全进 `project.sqlite` + `media/`」                                                                       |
-| D14 冻结                                                                                                                                                  | 尚未冻结。一份文稿同时只关联一条音频，父子链接不能跨文稿；已经同时挂着两条的旧文稿迁移时拒绝，不自动拆。冻结前还要有：格式原型、含音频的备份恢复并播放、桌面写路径验证                                   | ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；「没有要保留的真实数据」不能当作丢弃本机已导入录音的依据 |
-| `unit_relations`、`user_notes` 放哪                                                                                                                       | ADR-0062 第 3、4 条：按每行所指对象归属；跨文稿的关系一律不存                                                                                                                                            | 把整表划进 `.jyd` 或项目库                                                                                               |
-| 存储接口的边界                                                                                                                                            | ADR-0062 第 7 条：业务操作走端口（一事务）；弹窗和订阅分开                                                                                                                                               | 把弹窗、订阅、业务操作收进同一个可选 `files` 对象                                                                        |
-| 会话记忆载荷                                                                                                                                              | ADR-0066：项目库 `ai_session_memories.payload_json`，不进 `.jyd`、不进定义副本                                                                                                                           | 按 AI 层的键拆列，或把载荷放进文稿文件                                                                                   |
-| 语言记录上的数组、行政区划、多语备注、自定义字段值                                                                                                        | ADR-0067：项目库语言行上的 JSON 列，不进定义副本                                                                                                                                                         | 为这些值另建子表，或放进 `.jyd`                                                                                          |
-| `model_runs`                                                                                                                                              | ADR-0057 第 8 条，落在项目库                                                                                                                                                                             | 写进 `source_records` 或 `.jyd`                                                                                          |
-| 词条 DMLex 正文                                                                                                                                           | ADR-0068：项目库词条行上的 `entry_json` 或 `resource_json`，不进定义副本                                                                                                                                 | 把义项、关系、形式拆成子表                                                                                               |
-| 结构规则正文、正字法转换规则与样例、车道锁定表                                                                                                            | ADR-0069：规则正文和转换文档在项目库行上的 JSON，车道锁定表在 `.jyd` 轨道行上，都不进定义副本                                                                                                            | 把符号、对照和车道号拆成子表                                                                                             |
-| 说话人分配                                                                                                                                                | ADR-0071：名单在项目行 `speaker_ids_json`，语段种类在 `.jyd` `units.unit_type`。项目库和每一份文稿各一次事务，提交后读回。不进 ADR-0060 第 4 条的文件操作记录                                            | 把两个库合成一个事务，或把语段搬进项目库                                                                                 |
-| 正则拆分                                                                                                                                                  | ADR-0072：一份 `.jyd` 里一次事务写锚点、语段和正文。语段行带 `text_id`、起止时间和 `updated_at`，正文行带 `text_id` 和 `updated_at`                                                                      | 把一次拆分拆进两份文稿，或只把时间留在锚点上                                                                             |
-| 轨道行                                                                                                                                                    | ADR-0073：一份 `.jyd` 里一次事务写 `track_entities`。轨道行带 `text_id` 和 `updated_at`，车道锁定表仍是 `lane_lock_json`                                                                                 | 把轨道行放进项目库，或在活写入时丢掉坏的车道锁定表再留下该行                                                             |
-| 来源记录                                                                                                                                                  | ADR-0074：项目库 `source_records` 记下哈希、外部编号、导入时间和更新时间。登记、改名、解开关联各一次事务。不保存原件字节。挂录音见 ADR-0075                                                              | 把来源记录放进 `.jyd` 或定义副本                                                                                         |
-| 录音行                                                                                                                                                    | ADR-0075：项目库 `media_items` 记下文件名、时长和字节状态。`details_json` 不收音频字节。来源挂录音读这张表                                                                                               | 把音频字节写进录音行，或把录音行并进迁移用的 `audio` 表                                                                  |
-| 去掉一条空录音                                                                                                                                            | ADR-0076：先改碰到的 `.jyd`，再改项目库。语段和锚点改成未挂接，删掉轨道行，清掉来源关联，删掉录音行。不删音频文件，不改 `meta.audio_id`                                                                  | 先删项目库里的录音行，或为了删句段元数据和快照先把这些表建出来                                                           |
-| 文稿改挂录音                                                                                                                                              | ADR-0077：一份 `.jyd` 里替换 `meta.audio_id`，语段改成同一条。不另插一行。锚点和音频文件不动                                                                                                             | 让一份文稿同时挂上两条录音，或在浏览器库里补一个文稿头                                                                   |
-| 跨文稿关系                                                                                                                                                | ADR-0078：语段关系和父子链接只写在同一份 `.jyd` 里。两端不在同一份文稿就不写                                                                                                                             | 把跨文稿关系放进项目库，或改浏览器里已有的关系写入                                                                       |
-| 桌面壳安装 SQLite 存储接口                                                                                                                                | ADR-0079：开关默认关。打开时渲染进程每个方法一次 IPC，主进程打开调用方传入的 userData 库和已锁定文件夹里的 `project.sqlite`。浏览器不安装                                                                | 默认打开，或只打开 userData，或把 userData 放进项目文件夹                                                                |
-| 会话和消息                                                                                                                                                | ADR-0080：会话和消息留在项目库。可空的创建时间和更新时间给活的读写用。迁移不读这两列。引用和推理正文不进消息行                                                                                           | 把会话放进 userData，或为引用另加 JSON 列                                                                                |
-| 产物创建时间                                                                                                                                              | ADR-0081：项目库 `agent_artifacts` 另加可空的 `created_at`。迁移不读这列，旧库不加列。空的创建时间拒绝读取。写入先提交产物，再提交 userData 里的审计；审计失败时产物留下                                 | 从审计行反推创建时间，把时间塞进 `body_json`，或打开旧库时 `ALTER TABLE`                                                 |
-| 另一项目的层                                                                                                                                              | ADR-0082：`.jyd` 的 `layers` 另加可空的 `text_id`。迁移不读这列，旧库不加列。空的项目编号拒绝读取。没有这列的旧文稿，非空查询拒绝                                                         | 用 `meta.id` 或 `project.id` 当层的项目编号，或把空的 `text_id` 当成当前项目                                             |
+| 隐藏、系统垃圾箱、协作删除只动本机                                                                                                                        | ADR-0087：首发不做独立隐藏。录音满足清除条件后才送系统垃圾箱，文稿不是被送走的文件。协作删除仍只动本机 | 按 ADR-0058-card 第 5、6 条做独立隐藏，或把文稿立即送垃圾箱 |
+| IndexedDB 归哪一层                                                                                                                                        | ADR-0058-indexeddb 管浏览器库归层。项目文件夹以 ADR-0085 为准                                                                                                                                               | 该篇里「项目内容全进 `project.sqlite` + `media/`」                                                                       |
+| D14 冻结                                                                                                                                                  | 尚未冻结。一份文稿一条录音，父链接不跨文稿。不兼容文件拒绝打开，不自动拆，不做迁移器（ADR-0086）。冻结前要有含音频的备份恢复并播放，以及桌面写路径验证。不再等 #281、#326 | ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；把 #281、#326 当冻结前置；「没有要保留的真实数据」不能当作丢弃本机已导入录音的依据 |
+| `unit_relations`、`user_notes` 放哪                                                                                                                       | ADR-0085：备注在 `notes`，关系不跨文稿。标记删除保留备注；最终清除时同一事务删掉所属备注（ADR-0087） | 按 ADR-0062 第 3、4 条把备注拆进 `.jyd`；用户一删除就清掉备注 |
+| 存储接口的边界                                                                                                                                            | ADR-0085：一次业务操作一次事务，调用方不传表名。弹窗和订阅仍分开（ADR-0062 第 7 条这一句） | 把新库装回旧 StoragePort；把弹窗、订阅、业务操作收进同一个可选 `files` 对象 |
+| 会话记忆载荷                                                                                                                                              | 能力保留。ADR-0085 未列此表。接替前另写 ADR，不塞进 `settings_json`（ADR-0086） | 沿 ADR-0066 直接建 `ai_session_memories`，或放进 `.jyd` |
+| 语言记录上的数组、行政区划、多语备注、自定义字段值                                                                                                        | ADR-0067 的具名 JSON 列留在单库 `languages` 行。内置模板先复制成项目行后再被层引用（ADR-0088） | 沿 ADR-0067 写进 `.jyd`，或因未列出就撤掉语言记录 |
+| `model_runs`                                                                                                                                              | [ADR-0088](./0088-desktop-sqlite-domain-landings.md)：运行记录、内容行来源和可恢复任务分开。字段仍是 ADR-0057 第 8 条 | 把运行记录塞进 `source_records`、`provenance_json` 或 `ai_tasks` |
+| 词条 DMLex 正文                                                                                                                                           | ADR-0068 的 `entry_json` / `resource_json`，加 ADR-0088 的 `jieyu_json` 与义项引用核对 | 因 ADR-0085 未列出就撤掉词条，或把义项拆成子表 |
+| 结构规则正文、正字法转换规则与样例、车道锁定表                                                                                                            | 正字法转换沿用 ADR-0069 第 2 条，落在单库 `orthography_bridges`（ADR-0088）。结构规则正文仍是 ADR-0069 第 1 条。车道锁定另写决定 | 沿 ADR-0069 把车道锁定写进 `.jyd` |
+| 说话人分配                                                                                                                                                | ADR-0085：`speakers` 属于整个项目，一次事务写入 | ADR-0071 的项目库和每份 `.jyd` 各提交一次 |
+| 正则拆分                                                                                                                                                  | ADR-0085：起止时间在语段行，单位是秒。语段和转写正文同一次事务。不另建锚点表 | ADR-0072 的 `.jyd` 锚点行 |
+| 轨道行                                                                                                                                                    | ADR-0085 未列轨道表。能力若仍要，接替前另写 ADR，不塞进 `settings_json`（ADR-0086） | 沿 ADR-0073 把 `track_entities` 写进 `.jyd` |
+| 来源记录                                                                                                                                                  | ADR-0085：`sources` 在 `project.sqlite`，不存原件字节。最终移除录音登记时同事务解除关联，不删来源（ADR-0087） | ADR-0074 的跨库登记 |
+| 录音行                                                                                                                                                    | ADR-0085：`media` 只登记相对路径，字节是项目里的文件。一份文稿一条录音 | ADR-0075 的 `media_items` 加 `.jyd`；把音频字节写进库 |
+| 去掉一条空录音                                                                                                                                            | 新库不沿 ADR-0076 的两次提交。录音清除以 ADR-0087 为准，未满足条件不删音频文件 | 先改 `.jyd` 再改项目库 |
+| 文稿改挂录音                                                                                                                                              | ADR-0085：`manuscripts.media_id` 只有一条，替换是同库一次事务 | ADR-0077 替换 `.jyd` 的 `meta.audio_id` |
+| 跨文稿关系                                                                                                                                                | ADR-0085：父层、父语段不空时必须在同一文稿。不要求父语段落在父层上 | ADR-0078 只在同一份 `.jyd` 里写 |
+| 桌面壳安装 SQLite 存储接口                                                                                                                                | 新路径一次函数一次 IPC，不把新库装进旧 StoragePort 代理。旧代理留到屏幕改接（ADR-0086） | 按 ADR-0079 默认安装旧端口 |
+| 会话和消息                                                                                                                                                | ADR-0085：`conversations` 和 `messages` 在 `project.sqlite`。不存引用和推理正文 | 把会话放进 userData，或为引用另加列 |
+| 产物创建时间                                                                                                                                              | ADR-0085 要求产物与必要记录同成败；userData 审计的位置与失败语义尚有冲突，见[边界草案](../execution/specs/desktop-domain-write-boundaries/design.md)。密钥仍留 userData；草案不放宽回滚承诺 | ADR-0081 的先提交产物、审计失败时产物留下 |
+| 另一项目的层                                                                                                                                              | ADR-0085：`layers.manuscript_id`。不靠可空 `text_id` 判断归属 | ADR-0082 的 `.jyd` `layers.text_id` 和缺列拒绝 |
+| 项目行的标题和时间                                                                                                                                        | ADR-0085：`title_json` 至少一条非空字符串。`created_at`、`updated_at` 必填 | ADR-0083 的可空列和空标题拒绝读取；把 `name` 当成标题 |
+| 后加列的空值                                                                                                                                              | ADR-0085：必填是 `NOT NULL`。`NULL` 只表示可以没有的关系，不是未补全 | ADR-0084 把后加列的空值当成未补全并计数 |
+| 语段时间与播放器时间 | ADR-0088：语段存文献轴秒。播放器时间由文稿 `timeMapping` 换算 | 把 ADR-0085「单位与播放器相同」理解成不保存映射 |
+| 分析图与词项投影 | ADR-0088：已接受图是真值。`tokens` / `morphemes` 是同事务同步的线性投影。过期、曾经接受与恢复以 [ADR-0089](./0089-analysis-generation-accept-and-restore.md) 为准 | 用词项父子表代替分析图，或接受时整表删除再插入。用图内容相等判断当前正在使用，或把旧图直接放到新正文上 |
+| 外部标注重导入 | ADR-0088：EAF 按文稿、层和标注 id 匹配。`external_ref` 单独不是匹配键 | 只按标注 id 字符串更新任意层 |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
+
+详细结构与业务操作的待实施载体见[领域接替规格](../execution/specs/desktop-sqlite-domain-landings/requirements.md)及其[设计、关系图与验收矩阵](../execution/specs/desktop-sqlite-domain-landings/design.md)。ADR-0088 与 ADR-0089 保留决定正文。R1、R5、R6 仍未决定。可执行 DDL 仍只在 `src/db/desktop/schema.ts`，当前尚未实现。
+
+## 本轮范围与生命周期
+
+- [0086：首发单库集成、有限开放与开发格式](./0086-desktop-release-scope-and-format-freeze.md)
+- [0087：项目内可恢复删除与录音清除](./0087-project-deletion-retention-and-media-cleanup.md)
+- [0088：单库承接现有领域落点](./0088-desktop-sqlite-domain-landings.md)
+- [0089：分析代际、曾经接受与恢复写入](./0089-analysis-generation-accept-and-restore.md)
+
+R1 的[逐字段合同、合成验证与待确认决定文本](../execution/specs/annotation-graph-rebuild/design.md)留在执行规格；尚未接受，不分配 ADR 编号。R5、R6 仍在领域接替规格，不在 ADR-0089。
 
 ## superseded
 
@@ -136,6 +152,13 @@ source_of_truth: decision-index
 - [0080-conversations-stay-in-project-library.md](./0080-conversations-stay-in-project-library.md)
 - [0081-agent-artifact-created-at.md](./0081-agent-artifact-created-at.md)
 - [0082-foreign-layer-text-id.md](./0082-foreign-layer-text-id.md)
+- [0083-project-row-title-and-times.md](./0083-project-row-title-and-times.md)
+- [0084-unbackfilled-column-is-not-a-bad-row.md](./0084-unbackfilled-column-is-not-a-bad-row.md)
+- [0085-desktop-project-one-sqlite.md](./0085-desktop-project-one-sqlite.md)
+- [0086-desktop-release-scope-and-format-freeze.md](./0086-desktop-release-scope-and-format-freeze.md)
+- [0087-project-deletion-retention-and-media-cleanup.md](./0087-project-deletion-retention-and-media-cleanup.md)
+- [0088-desktop-sqlite-domain-landings.md](./0088-desktop-sqlite-domain-landings.md)
+- [0089-analysis-generation-accept-and-restore.md](./0089-analysis-generation-accept-and-restore.md)
 
 ## 已关闭的另一套编号
 

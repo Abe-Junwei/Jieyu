@@ -4,11 +4,34 @@ label: wayfinder:task
 mode: AFK
 status: open
 assignee:
-blocked_by: [025,037,043]
+blocked_by: []
+execution_gate: M4-and-model-host-api-ready
 issue: https://github.com/Abe-Junwei/Jieyu/issues/306
 ---
 
 # 统一模型候选面板 + 模拟模型 + 自测脚本 + 1 条 e2e
+
+
+<!-- desktop-sqlite-slices:v1:start -->
+## 当前可执行切片与关闭条件（2026-10-25 本轮重排）
+
+归 M5-F：M4-C 通过且 #305 宿主接口/目标单库写入门禁就绪即可推进，不等 #305 或 #275/#325 整单关闭。
+
+- [ ] 模拟服务→转写候选面板→人工/阈值采纳→重启读回；已有正文不静默覆盖。
+- [ ] 运行记录含零产出/失败/取消；接受时正文、来源与运行计数同事务，失败全部回滚。
+- [ ] 媒体秒按文稿映射换算；保存启动凭据，删除恢复后的旧任务不能写，新任务仍可写。
+- [ ] 待审转写候选正文不落库，拒绝只计数；它不是 ADR-0089 的持久图建议/快照，不混用 accepted 历史规则。
+- [ ] Electron 证据交 #275 M6-D 和 #282。本单原有 conformance/模拟模型范围保留。
+
+若采纳触发已有分析失效，走 units.updateText 的内部原子逻辑，不由面板凑多次写入。
+
+
+详细前置/验收见[单库切片清单](../../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。本轮同步不代表实现完成；下方较早范围保留，冲突以本节为准。
+<!-- desktop-sqlite-slices:v1:end -->
+
+## 2026-10-25 已确认范围
+
+M4 后并在模型宿主 API 就绪时开工，不等 #275/#325 整单关闭；候选采纳同事务写新单库，已删除文稿/旧任务迟到结果不能写。 依据 [ADR-0086](../../../adr/0086-desktop-release-scope-and-format-freeze.md)、[ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 和[单库计划](../../../execution/plans/desktop-project-sqlite-2026-10-25.md)。GitHub 已于 2026-10-25 写入当前范围。以下原 Question 留作历史输入，冲突处按本节执行。
 
 ## Question
 
