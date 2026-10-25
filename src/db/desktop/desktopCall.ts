@@ -1,5 +1,13 @@
 import { applyAnalysis } from './analysis';
 import {
+  acceptAnalysis,
+  mergeAnalysisNodes,
+  restoreAnalysis,
+  splitAnalysisNode,
+  submitAnalysis,
+  type AnalysisCredentials,
+} from './analysisRestore';
+import {
   createBridge,
   createOrthography,
   ensureProjectLanguage,
@@ -63,6 +71,11 @@ const METHODS = [
   'units.updateText',
   'units.updateBoundary',
   'analysis.apply',
+  'analysis.submit',
+  'analysis.accept',
+  'analysis.restore',
+  'analysis.split',
+  'analysis.merge',
   'reopen',
 ] as const;
 
@@ -134,6 +147,16 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       });
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
+    case 'analysis.submit':
+      return submitAnalysis(project.db, analysisSubmit(input));
+    case 'analysis.accept':
+      return acceptAnalysis(project.db, analysisCandidate(input));
+    case 'analysis.restore':
+      return restoreAnalysis(project.db, analysisCandidate(input));
+    case 'analysis.split':
+      return splitAnalysisNode(project.db, analysisSplit(input));
+    case 'analysis.merge':
+      return mergeAnalysisNodes(project.db, analysisMerge(input));
     default: {
       const unreachable: never = parsed;
       return unreachable;
@@ -160,6 +183,11 @@ function requiredString(value: unknown, name: string): string {
   return value;
 }
 
+function fingerprintString(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('desktop call graphFingerprint must be a string');
+  return value;
+}
+
 function requiredNumber(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new Error(`desktop call ${name} must be a number`);
@@ -175,6 +203,71 @@ function stringMap(value: unknown, name: string): Record<string, string> {
     out[key] = item;
   }
   return out;
+}
+
+function analysisCredentials(input: Record<string, unknown>): AnalysisCredentials {
+  const expected = objectArg(input.expected);
+  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
+  return {
+    manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
+    analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
+    graphFingerprint: fingerprintString(expected.graphFingerprint),
+  };
+}
+
+function analysisSubmit(input: Record<string, unknown>): { unitId: string; graph: unknown } {
+  knownKeys(input, ['unitId', 'graph']);
+  return { unitId: requiredString(input.unitId, 'unitId'), graph: input.graph };
+}
+
+function analysisCandidate(input: Record<string, unknown>): {
+  candidateId: string;
+  expected: AnalysisCredentials;
+} {
+  knownKeys(input, ['candidateId', 'expected']);
+  return {
+    candidateId: requiredString(input.candidateId, 'candidateId'),
+    expected: analysisCredentials(input),
+  };
+}
+
+function analysisSplit(input: Record<string, unknown>): {
+  unitId: string;
+  nodeId: string;
+  into: [unknown, unknown];
+  expected: AnalysisCredentials;
+} {
+  knownKeys(input, ['unitId', 'nodeId', 'into', 'expected']);
+  if (!Array.isArray(input.into) || input.into.length !== 2) {
+    throw new Error('desktop call into must be a pair');
+  }
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    nodeId: requiredString(input.nodeId, 'nodeId'),
+    into: [input.into[0], input.into[1]],
+    expected: analysisCredentials(input),
+  };
+}
+
+function analysisMerge(input: Record<string, unknown>): {
+  unitId: string;
+  nodeIds: [string, string];
+  into: unknown;
+  expected: AnalysisCredentials;
+} {
+  knownKeys(input, ['unitId', 'nodeIds', 'into', 'expected']);
+  if (!Array.isArray(input.nodeIds) || input.nodeIds.length !== 2) {
+    throw new Error('desktop call nodeIds must be a pair');
+  }
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    nodeIds: [
+      requiredString(input.nodeIds[0], 'nodeIds'),
+      requiredString(input.nodeIds[1], 'nodeIds'),
+    ],
+    into: input.into,
+    expected: analysisCredentials(input),
+  };
 }
 
 function analysisApply(input: Record<string, unknown>): {

@@ -119,7 +119,7 @@ function readManuscriptGeneration(db: SqliteDatabase, unitId: string): number {
   return row.generation;
 }
 
-function replaceProjection(
+export function replaceProjection(
   db: SqliteDatabase,
   unitId: string,
   tokens: ProjectedToken[],

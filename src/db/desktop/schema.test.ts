@@ -75,6 +75,7 @@ describe('desktop project schema', () => {
       .all();
     db.close();
     expect(names).toEqual([
+      { name: 'analysis_candidates' },
       { name: 'conversations' },
       { name: 'language_aliases' },
       { name: 'language_catalog_history' },

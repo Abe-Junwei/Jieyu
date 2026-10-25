@@ -11,7 +11,9 @@ import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } fr
 import type { Media, MediaCreate } from './media';
 import type { Manuscript, ManuscriptCreate } from './manuscripts';
 import type { AnalysisApplyResult } from './analysis';
-import type { Unit, UnitCreate } from './units';
+import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestore';
+import type { AnalysisCandidateRecord } from './analysisCandidates';
+import type { AnalysisRoot, Unit, UnitCreate } from './units';
 
 export interface DesktopBridge {
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
@@ -85,6 +87,34 @@ export function createDesktopClient(bridge: DesktopBridge) {
         changes: unknown[];
       },
     ) => once<AnalysisApplyResult>(sessionId, 'analysis.apply', input),
+    submitAnalysis: (sessionId: string, input: { unitId: string; graph: unknown }) =>
+      once<AnalysisCandidateRecord>(sessionId, 'analysis.submit', input),
+    acceptAnalysis: (
+      sessionId: string,
+      input: { candidateId: string; expected: AnalysisCredentials },
+    ) => once<AnalysisAcceptResult>(sessionId, 'analysis.accept', input),
+    restoreAnalysis: (
+      sessionId: string,
+      input: { candidateId: string; expected: AnalysisCredentials },
+    ) => once<AnalysisRoot>(sessionId, 'analysis.restore', input),
+    splitAnalysisNode: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        nodeId: string;
+        into: [unknown, unknown];
+        expected: AnalysisCredentials;
+      },
+    ) => once<AnalysisRoot>(sessionId, 'analysis.split', input),
+    mergeAnalysisNodes: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        nodeIds: [string, string];
+        into: unknown;
+        expected: AnalysisCredentials;
+      },
+    ) => once<AnalysisRoot>(sessionId, 'analysis.merge', input),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
   };
 }

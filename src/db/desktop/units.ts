@@ -5,6 +5,13 @@ import {
   validateAnalysisGraphPayload,
   type AnalysisGraphPayload,
 } from '../../annotation/analysisGraphDomain';
+import {
+  clearAnalysisProjection,
+  detachAnalysisAssociations,
+  insertReviewSnapshot,
+  nodeIdsOf,
+  readAnalysisMaterial,
+} from './analysisCandidates';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -138,25 +145,55 @@ export function updateBoundary(
   return write();
 }
 
-export function updateUnitText(db: SqliteDatabase, input: { unitId: string; text: string }): Unit {
+export function updateUnitText(
+  db: SqliteDatabase,
+  input: { unitId: string; text: string },
+  afterSnapshot?: () => void,
+): Unit {
   if (input.text.length === 0) throw new Error('unit text is empty');
   const write = db.transaction(() => {
     const existing = getUnit(db, input.unitId);
     if (!existing) throw new Error('unit is missing');
-    // ponytail: a stored graph must stay aligned with the transcription. Clearing it is C3's snapshot transaction.
-    const stored = db
-      .prepare('SELECT analysis_graph_json FROM units WHERE id = ?')
-      .get(input.unitId) as { analysis_graph_json: string | null } | undefined;
-    if (stored?.analysis_graph_json != null) {
-      throw new Error('unit text cannot change while an analysis graph is stored');
+    const material = readAnalysisMaterial(db, input.unitId);
+    if (material.graph !== null) {
+      insertReviewSnapshot(db, material);
+      afterSnapshot?.();
     }
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
     ).run(input.text, now, input.unitId);
-    db.prepare('UPDATE units SET updated_at = ? WHERE id = ?').run(now, input.unitId);
+    if (material.graph !== null) {
+      db.prepare(
+        `UPDATE units
+         SET analysis_graph_json = NULL, graph_fingerprint = '', analysis_generation = analysis_generation + 1,
+             updated_at = ?
+         WHERE id = ?`,
+      ).run(now, input.unitId);
+      clearAnalysisProjection(db, input.unitId);
+      detachAnalysisAssociations(db, nodeIdsOf(material.graph), now);
+    } else {
+      db.prepare('UPDATE units SET updated_at = ? WHERE id = ?').run(now, input.unitId);
+    }
+    db.prepare(
+      'UPDATE manuscripts SET generation = generation + 1, updated_at = ? WHERE id = ?',
+    ).run(now, material.manuscriptId);
     const unit = getUnit(db, input.unitId);
-    if (!unit || unit.text !== input.text) throw new Error('unit text readback failed');
+    const manuscript = db
+      .prepare('SELECT generation FROM manuscripts WHERE id = ?')
+      .get(material.manuscriptId) as { generation: number } | undefined;
+    const root = getAnalysisRoot(db, input.unitId);
+    if (!unit || unit.text !== input.text || !manuscript || !root) {
+      throw new Error('unit text readback failed');
+    }
+    if (manuscript.generation !== material.manuscriptGeneration + 1) {
+      throw new Error('unit text readback failed');
+    }
+    if (material.graph !== null) {
+      if (root.graph !== null || root.analysisGeneration !== material.analysisGeneration + 1) {
+        throw new Error('unit text readback failed');
+      }
+    }
     return unit;
   });
   return write();

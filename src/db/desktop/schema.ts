@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 6;
+export const DESKTOP_PROJECT_USER_VERSION = 7;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -419,6 +419,7 @@ CREATE TABLE token_lexeme_links (
       json_valid(provenance_json) AND json_type(provenance_json) = 'object'
     )
   ),
+  attachment TEXT NOT NULL DEFAULT 'active' CHECK (attachment IN ('active', 'detached')),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -431,9 +432,38 @@ CREATE TABLE notes (
   target_type TEXT NOT NULL CHECK (target_type IN ('layer', 'unit', 'token', 'morpheme')),
   target_id TEXT NOT NULL,
   body TEXT NOT NULL,
+  attachment TEXT NOT NULL DEFAULT 'active' CHECK (attachment IN ('active', 'detached')),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE analysis_candidates (
+  id TEXT PRIMARY KEY,
+  unit_id TEXT NOT NULL REFERENCES units(id),
+  kind TEXT NOT NULL CHECK (kind IN ('suggestion', 'review-snapshot')),
+  status TEXT NOT NULL CHECK (status IN ('pending', 'rejected', 'accepted', 'stored')),
+  graph_json TEXT NOT NULL CHECK (json_valid(graph_json) AND json_type(graph_json) = 'object'),
+  graph_fingerprint TEXT NOT NULL,
+  manuscript_generation INTEGER NOT NULL CHECK (manuscript_generation >= 0),
+  analysis_generation INTEGER NOT NULL CHECK (analysis_generation >= 0),
+  text TEXT NOT NULL,
+  projection_json TEXT NOT NULL CHECK (
+    json_valid(projection_json) AND json_type(projection_json) = 'object'
+  ),
+  links_json TEXT NOT NULL CHECK (json_valid(links_json) AND json_type(links_json) = 'array'),
+  notes_json TEXT NOT NULL CHECK (json_valid(notes_json) AND json_type(notes_json) = 'array'),
+  actor_json TEXT CHECK (
+    actor_json IS NULL OR (json_valid(actor_json) AND json_type(actor_json) = 'object')
+  ),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (
+    (kind = 'suggestion' AND status IN ('pending', 'rejected', 'accepted')) OR
+    (kind = 'review-snapshot' AND status = 'stored')
+  )
+);
+
+CREATE INDEX analysis_candidates_unit ON analysis_candidates(unit_id, kind, status);
 
 CREATE TABLE sources (
   id TEXT PRIMARY KEY,
