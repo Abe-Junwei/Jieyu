@@ -157,6 +157,28 @@ export interface AnalysisGraphPayload {
 
 const FINGERPRINT_EXCLUDED = new Set(['displayContext', 'displayGloss', 'projectionDiagnostics']);
 
+/** Stale means the span still describes another form. Export must not treat it as verified alignment. */
+export function surfacePartAlignment(
+  graph: AnalysisGraphPayload,
+  part: AnalysisGraphSurfacePart,
+): 'aligned' | 'stale' {
+  const displayKey = graph.displayContext?.formKey;
+  if (displayKey === undefined || displayKey === part.formKey) return 'aligned';
+  const token = graph.nodes.find((node) => node.id === part.tokenId);
+  const displayed = token?.domain?.form[displayKey];
+  if (
+    displayed === undefined ||
+    part.startOffset === undefined ||
+    part.endOffset === undefined ||
+    part.alignedForm === undefined
+  ) {
+    return 'stale';
+  }
+  return part.alignedForm === displayed.slice(part.startOffset, part.endOffset)
+    ? 'aligned'
+    : 'stale';
+}
+
 export function analysisGraphFingerprint(graph: unknown): string {
   if (graph === null || graph === undefined) return '';
   if (typeof graph !== 'object' || Array.isArray(graph)) {

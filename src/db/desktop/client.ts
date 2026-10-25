@@ -11,6 +11,7 @@ import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } fr
 import type { Media, MediaCreate } from './media';
 import type { Manuscript, ManuscriptCreate } from './manuscripts';
 import type { AnalysisApplyResult } from './analysis';
+import type { AnalysisImportResult } from './analysisImport';
 import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestore';
 import type { AnalysisCandidateRecord } from './analysisCandidates';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
@@ -87,6 +88,17 @@ export function createDesktopClient(bridge: DesktopBridge) {
         changes: unknown[];
       },
     ) => once<AnalysisApplyResult>(sessionId, 'analysis.apply', input),
+    importAnalysis: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        expected: AnalysisCredentials;
+        nodes?: unknown[];
+        relations?: unknown[];
+        removeNodes?: string[];
+        removeRelations?: string[];
+      },
+    ) => once<AnalysisImportResult>(sessionId, 'analysis.import', input),
     submitAnalysis: (sessionId: string, input: { unitId: string; graph: unknown }) =>
       once<AnalysisCandidateRecord>(sessionId, 'analysis.submit', input),
     acceptAnalysis: (

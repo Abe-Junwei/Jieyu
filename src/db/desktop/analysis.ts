@@ -42,7 +42,19 @@ interface ReorderChange {
   indexes: { nodeId: string; index: number }[];
 }
 
-type AnalysisChange = MapChange | FieldChange | ReorderChange;
+interface DisplayChange {
+  action: 'graph.setDisplayContext';
+  formKey?: string;
+  glossKey?: string;
+}
+
+interface SurfaceChange {
+  action: 'node.setSurfaceParts' | 'node.clearSurfaceParts';
+  nodeId: string;
+  surfaceParts?: AnalysisGraphSurfacePart[];
+}
+
+type AnalysisChange = MapChange | FieldChange | ReorderChange | DisplayChange | SurfaceChange;
 
 const SET_FIELDS = new Set(['pos', 'languageId', 'lexemeId']);
 
@@ -239,6 +251,13 @@ function readProjection(
 }
 
 function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void {
+  if (change.action === 'graph.setDisplayContext') {
+    graph.displayContext = {
+      ...(change.formKey !== undefined ? { formKey: change.formKey } : {}),
+      ...(change.glossKey !== undefined ? { glossKey: change.glossKey } : {}),
+    };
+    return;
+  }
   if (change.action === 'node.reorder') {
     for (const item of change.indexes) {
       const node = requireLinear(graph, item.nodeId);
@@ -250,6 +269,16 @@ function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void 
   }
   const node = requireLinear(graph, change.nodeId);
   if (node.domain === undefined) throw new Error('token domain is missing');
+  if (change.action === 'node.clearSurfaceParts') {
+    delete node.surfaceParts;
+    markContentEdit(node, 'surfaceParts');
+    return;
+  }
+  if (change.action === 'node.setSurfaceParts') {
+    node.surfaceParts = change.surfaceParts ?? [];
+    markContentEdit(node, 'surfaceParts');
+    return;
+  }
   let field: string;
   if (change.action === 'node.setField' || change.action === 'node.removeField') {
     applyField(node, change);
@@ -267,10 +296,16 @@ function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void 
   } else {
     throw new Error('analysis change is invalid');
   }
-  node.domain.edits = [
-    ...(node.domain.edits ?? []),
-    { at: new Date().toISOString(), actorType: 'human', fields: [field] },
-  ];
+  markContentEdit(node, field);
+}
+
+function markContentEdit(node: AnalysisGraphNode, field: string): void {
+  if (node.domain !== undefined) {
+    node.domain.edits = [
+      ...(node.domain.edits ?? []),
+      { at: new Date().toISOString(), actorType: 'human', fields: [field] },
+    ];
+  }
   if (node.residue !== undefined) {
     node.residue = node.residue.map((item) => ({ ...item, review: 'needs-review' as const }));
   }
@@ -379,6 +414,27 @@ function parseChange(value: unknown): AnalysisChange {
   }
   const change = value as Record<string, unknown>;
   const action = change.action;
+  if (action === 'graph.setDisplayContext') {
+    const display: DisplayChange = { action };
+    if (typeof change.formKey === 'string') display.formKey = change.formKey;
+    if (typeof change.glossKey === 'string') display.glossKey = change.glossKey;
+    if (display.formKey === undefined && display.glossKey === undefined) {
+      throw new Error('analysis display context is empty');
+    }
+    return display;
+  }
+  if (action === 'node.setSurfaceParts' || action === 'node.clearSurfaceParts') {
+    if (typeof change.nodeId !== 'string' || change.nodeId.length === 0) {
+      throw new Error('analysis node is missing');
+    }
+    const surface: SurfaceChange = { action, nodeId: change.nodeId };
+    if (action === 'node.setSurfaceParts') {
+      if (!Array.isArray(change.surfaceParts))
+        throw new Error('analysis surface parts are missing');
+      surface.surfaceParts = change.surfaceParts as AnalysisGraphSurfacePart[];
+    }
+    return surface;
+  }
   if (action === 'node.reorder') {
     if (!Array.isArray(change.indexes) || change.indexes.length === 0) {
       throw new Error('analysis reorder is empty');

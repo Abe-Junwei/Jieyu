@@ -1,4 +1,5 @@
 import { applyAnalysis } from './analysis';
+import { importAnalysis } from './analysisImport';
 import {
   acceptAnalysis,
   mergeAnalysisNodes,
@@ -71,6 +72,7 @@ const METHODS = [
   'units.updateText',
   'units.updateBoundary',
   'analysis.apply',
+  'analysis.import',
   'analysis.submit',
   'analysis.accept',
   'analysis.restore',
@@ -147,6 +149,8 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       });
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
+    case 'analysis.import':
+      return importAnalysis(project.db, analysisImport(input));
     case 'analysis.submit':
       return submitAnalysis(project.db, analysisSubmit(input));
     case 'analysis.accept':
@@ -213,6 +217,31 @@ function analysisCredentials(input: Record<string, unknown>): AnalysisCredential
     analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
     graphFingerprint: fingerprintString(expected.graphFingerprint),
   };
+}
+
+function analysisImport(input: Record<string, unknown>): {
+  unitId: string;
+  expected: AnalysisCredentials;
+  nodes: unknown[];
+  relations: unknown[];
+  removeNodes: unknown[];
+  removeRelations: unknown[];
+} {
+  knownKeys(input, ['unitId', 'expected', 'nodes', 'relations', 'removeNodes', 'removeRelations']);
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    expected: analysisCredentials(input),
+    nodes: listArg(input.nodes, 'nodes'),
+    relations: listArg(input.relations, 'relations'),
+    removeNodes: listArg(input.removeNodes, 'removeNodes'),
+    removeRelations: listArg(input.removeRelations, 'removeRelations'),
+  };
+}
+
+function listArg(value: unknown, name: string): unknown[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`desktop call ${name} must be a list`);
+  return value;
 }
 
 function analysisSubmit(input: Record<string, unknown>): { unitId: string; graph: unknown } {
