@@ -3313,7 +3313,7 @@ export const enUSDictionary = {
   'ai.acoustic.inspectorDescription':
     'Shows acoustic readings at the pointer position over the waveform or spectrogram.',
   'ai.acoustic.inspectorHint':
-    'Point to the waveform or spectrogram to view the time, frequency, F0, and intensity at that position.',
+    'First enable an acoustic overlay or spectrogram in “Waveform & acoustic display”, then point to the waveform or spectrogram to view its acoustic values.',
   'ai.acoustic.inspectorSource': 'Readout source',
   'ai.acoustic.inspectorSource.waveform': 'Waveform pointer',
   'ai.acoustic.inspectorSource.spectrogram': 'Spectrogram pointer',

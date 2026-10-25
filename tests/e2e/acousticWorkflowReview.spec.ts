@@ -57,6 +57,24 @@ for (const locale of ['zh-CN', 'en-US'] as const) {
     );
     await expect(exportJson).toBeEnabled({ timeout: 60_000 });
 
+    await expect(page.getByRole('button', { name: /^(播放|Play)$/ }).first()).toBeEnabled();
+    const readout = panel.locator('.transcription-analysis-acoustic-inspector-section');
+    await expect(readout).toContainText(/波形与声学显示|Waveform & acoustic display/);
+    await page.locator('.waveform-view-options-trigger').click();
+    await page
+      .locator('.waveform-view-options-panel')
+      .getByRole('button', { name: 'F0', exact: true })
+      .click();
+    await page.locator('.waveform-view-options-trigger').click();
+    const waveform = (await page.locator('.transcription-wave-canvas').boundingBox())!;
+    await page.mouse.move(waveform.x + waveform.width / 8, waveform.y + waveform.height / 2);
+    await page.screenshot({ path: info.outputPath('acoustic-pointer.png') });
+    await expect(readout).toContainText(/波形指针|Waveform pointer/);
+    await readout.getByRole('button', { name: /^(固定|Pin)$/ }).click({ timeout: 8000 });
+    await expect(readout.locator('.transcription-analysis-acoustic-pinned-readout')).toBeVisible();
+    await readout.getByRole('button', { name: /^(取消固定|Unpin)$/ }).click();
+    await expect(readout.locator('.transcription-analysis-acoustic-pinned-readout')).toBeHidden();
+
     const downloadText = async (name: RegExp) => {
       const [download] = await Promise.all([
         page.waitForEvent('download'),

@@ -3030,7 +3030,8 @@ export const zhCNDictionary = {
   'ai.acoustic.summaryDescription': '把当前选区的 F0、强度和热点汇总成一个可导航的右侧工作区。',
   'ai.acoustic.inspectorTitle': '频谱指针读数',
   'ai.acoustic.inspectorDescription': '显示波形或频谱上指针位置的声学读数，便于持续查看。',
-  'ai.acoustic.inspectorHint': '将指针移到波形或频谱上，即可查看该位置的时间、频率、F0 和强度。',
+  'ai.acoustic.inspectorHint':
+    '先在“波形与声学显示”中启用声学叠加或频谱视图，再将指针移到波形或频谱上查看该位置的声学读数。',
   'ai.acoustic.inspectorSource': '读数来源',
   'ai.acoustic.inspectorSource.waveform': '波形指针',
   'ai.acoustic.inspectorSource.spectrogram': '频谱指针',
