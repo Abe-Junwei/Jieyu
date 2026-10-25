@@ -5,10 +5,13 @@ mode: AFK
 status: open
 assignee:
 blocked_by: []
+execution_gate: M6-package-api-ready
 issue: https://github.com/Abe-Junwei/Jieyu/issues/266
 ---
 
 # 项目包互传的试用流程是否已够用
+
+等单库交换 API（M6-A）。不用当前旧包路径当验收。
 
 ## Question
 

@@ -5,10 +5,13 @@ mode: AFK
 status: open
 assignee:
 blocked_by: []
+execution_gate: M4
 issue: https://github.com/Abe-Junwei/Jieyu/issues/265
 ---
 
 # 试用版功能面：列出核心流程之外要隐藏或标实验的功能
+
+只盘点，不改代码。M4-C 通过前不领取。
 
 ## Question
 

@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 /** Linux `basic_text` encrypts with a hardcoded password, so real runs must not store keys with it. */
 export function secretStoreRefusal(
   encryptionAvailable: boolean,
@@ -7,6 +9,30 @@ export function secretStoreRefusal(
   if (!encryptionAvailable) return 'unavailable';
   if (!smoke && linuxBackend === 'basic_text') return 'basic_text';
   return null;
+}
+
+/**
+ * Renderer-supplied URLs may carry the stored bearer only when main already
+ * registered that exact origin. Userinfo and non-http(s) schemes never match.
+ */
+export function isAllowedAiOutboundUrl(url: string, configuredOrigins: readonly string[]): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.username !== '' || parsed.password !== '') return false;
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+  return configuredOrigins.includes(parsed.origin);
+}
+
+/** Exact resolved path. A prefix, `..`, or a sibling name does not match. */
+export function isAllowedProjectFolder(folder: string, allowedFolders: readonly string[]): boolean {
+  if (folder.length === 0) return false;
+  const resolved = path.resolve(folder);
+  if (resolved === path.parse(resolved).root) return false;
+  return allowedFolders.some((allowed) => allowed.length > 0 && path.resolve(allowed) === resolved);
 }
 
 /** Only same-document file loads or same-origin http(s) loads may replace the app page. */

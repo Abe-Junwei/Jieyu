@@ -5,6 +5,7 @@ import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '..
 import { clearRecoverySnapshot, saveRecoverySnapshot } from '../../services/SnapshotService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { LinguisticService } from '../../services/LinguisticService';
+import { newestProjectText } from '../../utils/homeTranscriptionRecordProgress';
 import {
   getActiveProjectTextId,
   publishActiveProjectTextId,
@@ -32,15 +33,15 @@ type Params = {
 };
 
 /**
- * 首屏要载入的项目：已发布的活动项目（深链 / 返回提示），否则第一个文本（与 `useDialogs` 的回退一致）。
+ * 首屏要载入的项目：已发布的活动项目（深链 / 返回提示），否则最近更新的文本（与首页、`useDialogs` 一致）。
  * 不再整库载入后按 `units[0]` 猜项目（JY-02）。
- * Project for the first load: the published active project (deep link / return hint), else the first
- * text (same fallback as `useDialogs`). No more whole-DB load + `units[0]` guess (JY-02).
+ * Project for the first load: the published active project (deep link / return hint), else the
+ * newest text (same fallback as home and `useDialogs`). No whole-DB load + `units[0]` guess (JY-02).
  */
 async function resolveInitialWorkspaceTextId(): Promise<string> {
   const active = getActiveProjectTextId();
   if (active.length > 0) return active;
-  const first = (await LinguisticService.timeline.listTexts())[0]?.id?.trim() ?? '';
+  const first = newestProjectText(await LinguisticService.timeline.listTexts())?.id?.trim() ?? '';
   if (first.length > 0) publishActiveProjectTextId(first);
   return first;
 }

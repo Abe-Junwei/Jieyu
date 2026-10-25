@@ -47,6 +47,7 @@ import {
   WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY,
   WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY,
   WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY,
+  emitDefaultPlaybackRateChanged,
   emitWorkspaceLayoutPreferenceChanged,
 } from '../../utils/workspaceLayoutPreferenceSync';
 import type { SettingsModalMessages } from '../../i18n/messages';
@@ -112,6 +113,7 @@ export function SettingsPlaybackTab({ locale: _locale, msg }: SettingsPlaybackTa
     setDefaultPlaybackRate(rate);
     try {
       localStorage.setItem(DEFAULT_PLAYBACK_RATE_KEY, String(rate));
+      emitDefaultPlaybackRateChanged();
     } catch {
       /* ignore */
     }

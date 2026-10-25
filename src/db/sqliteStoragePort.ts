@@ -3,6 +3,7 @@
  * 一次写入是 better-sqlite3 的一次事务，提交后再读回（ADR-0048）。
  * 说话人分配改两个文件，各提交一次（ADR-0071）。正则拆分和轨道行各写在一份 `.jyd` 里（ADR-0072、ADR-0073）。
  * 语段编号、锚点、词和另一项目的层只读 `.jyd`。层的项目编号是可空的 `text_id`（ADR-0082）。
+ * 项目行的标题和时间是可空的 `title_json`、`created_at`、`updated_at`（ADR-0083）。
  * 来源记录写在项目库里（ADR-0074）。录音行也写在项目库里，字节仍是普通文件（ADR-0075）。
  * 另一项目的录音用这一行已有的 text_id 辨认。
  * 去掉一条空录音先改文稿，再改项目库（ADR-0076）。
@@ -26,6 +27,7 @@ import {
   listMediaIdsByTextInProject,
   saveMediaItemInProject,
 } from './sqliteMediaItems';
+import { projectReadMethods } from './sqliteProjects';
 import { commitRegexSplitInProject } from './sqliteRegexSplit';
 import { removeEmptyRecordingInProject } from './sqliteRemoveEmptyRecording';
 import {
@@ -286,6 +288,7 @@ export function openSqliteStoragePort(
     ...auditListMethods(db),
     ...aiConversationMethods(requireProject),
     ...agentArtifactMethods(requireProject, db),
+    ...projectReadMethods(requireProject),
   };
 
   const port = new Proxy(implemented, {

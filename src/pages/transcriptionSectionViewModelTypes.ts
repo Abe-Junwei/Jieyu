@@ -73,7 +73,7 @@ export interface UseTranscriptionSectionViewModelsInput {
   handleExportJyt: () => Promise<void>;
   handleExportJym: () => Promise<void>;
   handleExportLite: (format: TranscriptionOutboundExportFormat) => Promise<void>;
-  handleImportFile: (file: File) => Promise<void>;
+  handleImportFile: (file: File) => Promise<void | { committed: boolean }>;
   unitsOnCurrentMedia: LayerUnitDocType[];
   rulerView: { start: number; end: number } | null;
   documentSpanSec: number;

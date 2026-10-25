@@ -125,6 +125,7 @@ export const AiAnalysisPanelAcousticRuntimeSection = memo(
                     </span>
                     <span className="transcription-analysis-stats-value">
                       <select
+                        aria-label={t(locale, 'ai.acoustic.paramPreset')}
                         className="transcription-analysis-acoustic-preset-select"
                         value={activePreset}
                         onChange={(event) =>

@@ -1,0 +1,61 @@
+
+ RUN  v4.1.11 /Users/junwei/开发/Jieyu
+
+ ❯ src/pages/TranscriptionPage.ChatWindow.test.tsx (5 tests | 1 failed) 74ms
+     × leaves composing and already-handled shortcuts to their current control 39ms
+     ✓ stores requested task id and sends default resume input when resume event arrives 11ms
+     ✓ still stores task id but does not send resume input while chat is streaming 5ms
+     ✓ opens the floating window when a tool confirmation appears 5ms
+     ✓ temporarily maximizes the floating window and restores the previous size 14ms
+ ❯ src/components/LayerActionPopover.test.tsx (11 tests | 1 failed) 783ms
+     ✓ renders create-transcription path through DialogShell with panel footer actions 164ms
+     × handles Escape inside its modal and consumes the event 16ms
+     ✓ switches metadata sections for transcription edit rows and submits advanced fields 118ms
+     ✓ switches metadata sections for translation edit rows 47ms
+     ✓ renders delete path through DialogShell with destructive footer action 11ms
+     ✓ derives a new current-language orthography from another language before layer creation 124ms
+     ✓ shows the selected orthography status badge in the dialog 35ms
+     ✓ prefills project default language and orthography and reset restores them 104ms
+     ✓ passes selected translation host ids when creating a translation layer 61ms
+     ✓ shows an inline invalid language-code error after the user finishes editing an invalid value 20ms
+     ✓ keeps user edits when locale changes instead of resetting back to defaults 82ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/LayerActionPopover.test.tsx > LayerActionPopover orthography creation > handles Escape inside its modal and consumes the event
+AssertionError: expected "vi.fn()" to be called once, but got 0 times
+ ❯ src/components/LayerActionPopover.test.tsx:117:21
+    115|     const event = new KeyboardEvent('keydown', { key: 'Escape', bubble…
+    116|     fireEvent(dialog, event);
+    117|     expect(onClose).toHaveBeenCalledOnce();
+       |                     ^
+    118|     expect(event.defaultPrevented).toBe(true);
+    119|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/pages/TranscriptionPage.ChatWindow.test.tsx > TranscriptionPageChatWindow agent-loop resume bridge > leaves composing and already-handled shortcuts to their current control
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/pages/TranscriptionPage.ChatWindow.test.tsx:83:54
+     81|     const panel = document.querySelector('.transcription-chat-window')…
+     82|     fireEvent.keyDown(panel, { key: 'Escape', isComposing: true });
+     83|     expect(panel.classList.contains('is-minimized')).toBe(false);
+       |                                                      ^
+     84|     const handled = new KeyboardEvent('keydown', { key: 'Escape', bubb…
+     85|     handled.preventDefault();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 14 passed (16)
+   Start at  20:29:48
+   Duration  2.73s (transform 1.17s, setup 542ms, import 1.47s, tests 858ms, environment 1.27s)
+

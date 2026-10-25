@@ -1,0 +1,23 @@
+
+ RUN  v4.1.11 /Users/junwei/开发/Jieyu
+
+stderr | src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx > TranscriptionTimelineVerticalView > shows shared save feedback and retry affordance for comparison target saves
+[TranscriptionTimelineVerticalView] cell save failed { cellKey: 'pr-target:translation-1:pr-u1-src-tr-a', err: {} }
+
+ ✓ src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx (15 tests) 438ms
+ ✓ src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx (13 tests) 446ms
+ ✓ src/components/AiAnalysisPanel.test.tsx (29 tests) 1908ms
+ ✓ src/components/LayerActionPopover.test.tsx (11 tests) 1016ms
+ ✓ src/pages/TranscriptionPage.ChatWindow.layout.test.ts (11 tests) 10ms
+ ✓ src/hooks/ui/useFocusTrap.test.tsx (1 test) 132ms
+ ✓ src/pages/TranscriptionPage.ChatWindow.test.tsx (5 tests) 74ms
+stderr | src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx > TranscriptionTimelineVerticalView > keeps target-side save feedback on a separate slot when vertical cards also show note markers
+[TranscriptionTimelineVerticalView] cell save failed { cellKey: 'pr-target:translation-1:pr-u1-src-tr-a', err: {} }
+
+ ✓ src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx (14 tests) 379ms
+
+ Test Files  8 passed (8)
+      Tests  99 passed (99)
+   Start at  20:36:48
+   Duration  5.70s (transform 6.30s, setup 2.06s, import 8.63s, tests 4.40s, environment 5.10s)
+

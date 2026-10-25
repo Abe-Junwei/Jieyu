@@ -53,6 +53,7 @@ export function useFocusTrap(
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!active || !containerRef.current) return;
+      if (e.defaultPrevented || e.isComposing) return;
 
       // Escape to close. Read the latest callback so typing in the dialog
       // does not rebuild this listener and re-run the initial focus effect.

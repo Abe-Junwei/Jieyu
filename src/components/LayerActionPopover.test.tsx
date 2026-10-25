@@ -104,6 +104,34 @@ describe('LayerActionPopover orthography creation', () => {
     expect(within(dialog).queryByText(/翻译层会沿用/)).toBeNull();
   });
 
+  it('handles Escape inside its modal and consumes the event', () => {
+    mockUseOrthographies.mockReturnValue([]);
+    const onClose = vi.fn();
+    renderWithLocale(
+      <LayerActionPopover
+        action="create-transcription"
+        layerId={undefined}
+        deletableLayers={[]}
+        createLayer={vi.fn(async () => true)}
+        deleteLayer={vi.fn(async () => undefined)}
+        onClose={onClose}
+      />,
+    );
+    const dialog = screen.getByRole('dialog', { name: '新建转写层' });
+    const composing = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+      isComposing: true,
+    });
+    fireEvent(dialog, composing);
+    expect(onClose).not.toHaveBeenCalled();
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    fireEvent(dialog, event);
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it('switches metadata sections for transcription edit rows and submits advanced fields', async () => {
     mockUseOrthographies.mockReturnValue([]);
     const layer = makeLayer({

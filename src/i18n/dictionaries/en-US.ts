@@ -117,7 +117,7 @@ export const enUSDictionary = {
   'app.errorBoundary.retry': 'Retry',
   'app.errorBoundary.reload': 'Reload Page',
   'app.offlineStatus.message':
-    'Offline. Local data remains available; cloud sync will resume after reconnection.',
+    'Offline. Local data remains available. Reconnect to use features that need the internet.',
   'app.devBuildBanner.message':
     'Development build: data may be reset. Do not store anything you need to keep.',
   'app.workspaceReturn.backToLexicon': 'Back to lexicon',
@@ -802,6 +802,7 @@ export const enUSDictionary = {
   'workspace.languageMetadata.mapTiandituKeyPlaceholder': 'Free token from lbs.tianditu.gov.cn',
   'workspace.languageMetadata.mapMaptilerKeyPlaceholder': 'Get API key from maptiler.com',
   'workspace.languageMetadata.geocodePlaceholder': 'Search by place name…',
+  'workspace.languageMetadata.geocodeSearch': 'Search place',
   'workspace.languageMetadata.geocodeSearching': 'Searching…',
   'workspace.languageMetadata.geocodeNoResults': 'No matching places found',
   'workspace.languageMetadata.geocodeError': 'Place lookup failed. Please try again.',
@@ -3308,14 +3309,14 @@ export const enUSDictionary = {
   'ai.stats.acousticHotspot.unstableSpan': 'Unstable span',
   'ai.acoustic.summaryDescription':
     'Summarize F0, intensity, and hotspots for the current selection in a navigable side workspace.',
-  'ai.acoustic.inspectorTitle': 'Spectrogram Inspector',
+  'ai.acoustic.inspectorTitle': 'Spectrogram pointer readout',
   'ai.acoustic.inspectorDescription':
-    'Project the current waveform or spectrogram hover readout into the side panel for stable inspection.',
+    'Shows acoustic readings at the pointer position over the waveform or spectrogram.',
   'ai.acoustic.inspectorHint':
-    'Hover over the waveform or spectrogram to inspect time, frequency, F0, and intensity here.',
+    'First enable an acoustic overlay or spectrogram in “Waveform & acoustic display”, then point to the waveform or spectrogram to view its acoustic values.',
   'ai.acoustic.inspectorSource': 'Readout source',
-  'ai.acoustic.inspectorSource.waveform': 'Waveform hover',
-  'ai.acoustic.inspectorSource.spectrogram': 'Spectrogram hover',
+  'ai.acoustic.inspectorSource.waveform': 'Waveform pointer',
+  'ai.acoustic.inspectorSource.spectrogram': 'Spectrogram pointer',
   'ai.acoustic.inspectorTime': 'Current time',
   'ai.acoustic.inspectorFrequency': 'Current frequency',
   'ai.acoustic.inspectorNearestHotspot': 'Linked hotspot',

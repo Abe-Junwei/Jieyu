@@ -68,6 +68,36 @@ export interface HomeProjectProgressBundle {
   records: TranscriptionRecordProgressRow[];
 }
 
+function projectUpdatedAtMs(updatedAt: string | undefined): number {
+  const parsed = Date.parse(updatedAt ?? '');
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Newest `updatedAt` first. Equal timestamps keep the incoming order. */
+export function compareProjectUpdatedAtDesc(
+  a: { updatedAt?: string },
+  b: { updatedAt?: string },
+): number {
+  return projectUpdatedAtMs(b.updatedAt) - projectUpdatedAtMs(a.updatedAt);
+}
+
+/** First text when several share the newest timestamp. Skips a blank id. */
+export function newestProjectText<T extends { id?: string; updatedAt?: string }>(
+  texts: readonly T[],
+): T | undefined {
+  let best: T | undefined;
+  let bestTime = Number.NEGATIVE_INFINITY;
+  for (const text of texts) {
+    if ((text.id?.trim() ?? '').length === 0) continue;
+    const time = projectUpdatedAtMs(text.updatedAt);
+    if (best === undefined || time > bestTime) {
+      best = text;
+      bestTime = time;
+    }
+  }
+  return best;
+}
+
 export function pickTextTitle(text: TextDocType, locale: Locale): string {
   const title = text.title ?? {};
   const prefer =
@@ -285,13 +315,7 @@ export async function loadAllHomeProjectProgressBundles(
   locale: Locale,
 ): Promise<HomeProjectProgressBundle[]> {
   const texts = await LinguisticService.timeline.listTexts();
-  const sorted = [...texts].sort((a, b) => {
-    const parsedA = Date.parse(a.updatedAt);
-    const parsedB = Date.parse(b.updatedAt);
-    const ta = Number.isFinite(parsedA) ? parsedA : 0;
-    const tb = Number.isFinite(parsedB) ? parsedB : 0;
-    return tb - ta;
-  });
+  const sorted = [...texts].sort(compareProjectUpdatedAtDesc);
   return Promise.all(sorted.map((text) => loadHomeProjectProgressBundle(text, locale)));
 }
 

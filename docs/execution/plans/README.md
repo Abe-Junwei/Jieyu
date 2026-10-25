@@ -3,7 +3,7 @@ title: execution/plans 文档索引（自动生成）
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-10-24
+last_reviewed: 2026-10-25
 source_of_truth: execution-plan-index
 ---
 
@@ -12,23 +12,23 @@ source_of_truth: execution-plan-index
 > 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。
 > SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。
 
-## 进行中（6）
+## 进行中（5）
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| active | [桌面项目单库](./desktop-project-sqlite-2026-10-25.md) | 2026-10-25 |
+| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-10-25 |
 | active | [解语 UI/UX 审查、修正与视觉落地实施方案](./UI-UX审查修正与视觉落地-2026-10-24.md) | 2026-10-24 |
-| draft | [存储接口剩余方法](./sqlite-storage-port-remainder-2026-10-24.md) | 2026-10-24 |
-| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-10-24 |
 | active | [解语 AI 智能体运行时迁移评估](./AI智能体运行时迁移评估-2026-10-13.md) | 2026-10-17 |
-| proposed | [卡片文件、项目与删除恢复改造方案](./deletion-policy-industry-research-2026-10-15.md) | 2026-10-17 |
 | proposed | [用户自带语音与 NLP 模型接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) | 2026-10-15 |
 
-## 搁置（10）
+## 搁置（11）
 
 不在当前试用程。`revisit_when` 发生时改回 `active`，确定不做就删除。
 
 | title | revisit_when | last_reviewed |
 | --- | --- | --- |
+| [卡片文件、项目与删除恢复改造方案](./deletion-policy-industry-research-2026-10-15.md) | 用户另行要求核对既有录音保留与只读诊断时，仅复查未解决的数据保护事项 | 2026-10-25 |
 | [托管实时协同 Supabase 完整落地方案](./托管实时协同-Supabase完整落地方案-2026-04-17.md) | 桌面版发布后，主路线图 C4 协作云重新排期 | 2026-10-14 |
 | [协作云桥接审查改进方案](./协作云桥接审查改进方案-2026-04-18.md) | 桌面版发布后，主路线图 C4 协作云重新排期 | 2026-10-14 |
 | [M10-协作可用化-2026-04-13](./M10-协作可用化-2026-04-13.md) | 桌面版发布后，主路线图 C4 协作云重新排期 | 2026-10-14 |

@@ -27,6 +27,8 @@ test.describe('R4 S6 offline edit persistence | Offline segment edit', () => {
       await expect(offlinePage.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
       await waitForDexie(offlinePage);
       expect(await readSegmentText(offlinePage, 'seg_e2e_a', project.layerId)).toBe('alpha');
+      await expect(offlinePage.getByText('Collab: off', { exact: true })).toBeVisible();
+      await expect(offlinePage.getByTestId('app-offline-status')).not.toContainText(/cloud sync will resume/i);
 
       await offlinePage.getByTestId('left-rail-workspace-layout-toggle').click();
       const editor = offlinePage.locator('textarea.timeline-paired-reading-source-input').first();
@@ -34,6 +36,7 @@ test.describe('R4 S6 offline edit persistence | Offline segment edit', () => {
       await editor.fill('offline-cold-edit');
       await editor.press('Tab');
       await expect.poll(() => readSegmentText(offlinePage, 'seg_e2e_a', project.layerId)).toBe('offline-cold-edit');
+      await expect(offlinePage.getByText(/Cloud sync is not guaranteed yet/i)).toHaveCount(0);
 
       await offlinePage.close();
       const reopened = await context.newPage();
@@ -42,6 +45,8 @@ test.describe('R4 S6 offline edit persistence | Offline segment edit', () => {
       await waitForDexie(reopened);
       await expect(reopened.getByRole('region', { name: 'Segment list' }).getByRole('button', { name: /offline-cold-edit/ })).toBeVisible();
       expect(await readSegmentText(reopened, 'seg_e2e_a', project.layerId)).toBe('offline-cold-edit');
+      await expect(reopened.getByText('Collab: off', { exact: true })).toBeVisible();
+      await expect(reopened.getByText(/Cloud sync is not guaranteed yet/i)).toHaveCount(0);
     } finally {
       await context.setOffline(false);
     }

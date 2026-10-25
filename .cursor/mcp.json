@@ -1,7 +1,3 @@
 {
-  "mcpServers": {
-    "supermemory": {
-      "url": "https://mcp.supermemory.ai/mcp"
-    }
-  }
+  "mcpServers": {}
 }

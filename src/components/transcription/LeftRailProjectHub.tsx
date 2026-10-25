@@ -141,7 +141,7 @@ interface LeftRailProjectHubProps {
     file: File,
     strategy: AnnotationImportBridgeStrategy,
     target?: AnnotationImportTarget,
-  ) => Promise<void>;
+  ) => Promise<void | { committed: boolean }>;
   /** 第 5 批：文稿新建/切换/删除后重载工作台 | Batch 5: reload the workspace after a document change */
   onAnnotationDocumentsChanged: () => Promise<void>;
   onPreviewProjectArchiveImport: (file: File) => Promise<JieyuArchiveImportPreview>;
@@ -468,7 +468,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     if (!current) return;
 
     try {
-      await onImportAnnotationFile(current.file, current.strategy, current.target);
+      const result = await onImportAnnotationFile(current.file, current.strategy, current.target);
+      if (result?.committed === false) {
+        setAnnotationImportState((prev) => (prev ? { ...prev, importing: false } : prev));
+        return;
+      }
       setAnnotationImportState(null);
       setIsOpen(false);
     } catch (e) {

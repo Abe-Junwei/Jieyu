@@ -670,6 +670,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
   });
 
+  it('names the place search control', async () => {
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+    expect(await screen.findByRole('button', { name: '搜索定位' })).toBeTruthy();
+  });
+
   it('renders the map immediately after manually entering valid coordinates', async () => {
     renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
 

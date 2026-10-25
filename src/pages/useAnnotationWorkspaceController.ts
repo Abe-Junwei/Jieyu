@@ -219,7 +219,17 @@ export function useAnnotationWorkspaceController() {
       shiftKey: boolean;
       preventDefault: () => void;
       target: EventTarget | null;
+      defaultPrevented?: boolean;
+      nativeEvent?: { isComposing?: boolean; keyCode?: number };
     }): AnnotationKeyboardAction => {
+      if (
+        event.defaultPrevented ||
+        event.nativeEvent?.isComposing ||
+        event.nativeEvent?.keyCode === 229
+      ) {
+        return 'none';
+      }
+      if (event.key === 'Tab' && isAnnotationTypingTarget(event.target)) return 'none';
       if (isAnnotationSpaceShortcutKey(event.key)) {
         if (isAnnotationTypingTarget(event.target)) return 'insertSpace';
         if (isAnnotationNativeSpaceActivationTarget(event.target)) return 'none';

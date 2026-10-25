@@ -630,6 +630,11 @@ export function TranscriptionTimelineVerticalView({
       getSourceText: (unit) => {
         const layerId =
           (typeof unit.layerId === 'string' && unit.layerId.trim()) || sourceLayer?.id;
+        // Segment source text belongs to the child, not its shared parent utterance.
+        if (unit.unitType === 'segment' && layerId) {
+          const ownText = segmentContentByLayer?.get(layerId)?.get(unit.id)?.text;
+          if (typeof ownText === 'string') return ownText;
+        }
         return getUnitTextForLayer(unit, layerId) || getUnitTextForLayer(unit) || '';
       },
       getTargetText: (unit) => {

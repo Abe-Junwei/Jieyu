@@ -6,6 +6,7 @@ import {
 } from './transcription/playUnitRange';
 import { useLatest } from '~/hooks/ui/useLatest';
 import { DEFAULT_PLAYBACK_RATE_KEY, readDefaultPlaybackRate } from './useWaveformViewportSizing';
+import { subscribeDefaultPlaybackRateChanged } from '~/utils/workspaceLayoutPreferenceSync';
 import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
 import type { UseTranscriptionWaveformBridgeControllerInput } from './transcriptionWaveformBridge.types';
 
@@ -17,7 +18,7 @@ type WaveformTimelineItemLike = {
 
 type PlayerSlice = Pick<
   ReturnType<typeof useWaveSurfer>,
-  'instanceRef' | 'isReady' | 'isPlaying' | 'seekTo' | 'stop' | 'playRegion'
+  'instanceRef' | 'isReady' | 'isPlaying' | 'seekTo' | 'stop' | 'playRegion' | 'setPlaybackRate'
 >;
 
 export function useWaveformBridgeSegmentPlaybackControls(input: {
@@ -77,6 +78,19 @@ export function useWaveformBridgeSegmentPlaybackControls(input: {
   }, []);
 
   const isPlayingRef = useLatest(player.isPlaying);
+  const { instanceRef, setPlaybackRate } = player;
+  useEffect(() => {
+    const apply = () => {
+      const rate = readDefaultPlaybackRate();
+      setSegmentPlaybackRate(rate);
+      setPlaybackRate(rate);
+      const ws = instanceRef.current;
+      if (ws && isPlayingRef.current) ws.setPlaybackRate(rate);
+    };
+    apply();
+    return subscribeDefaultPlaybackRateChanged(apply);
+  }, [instanceRef, isPlayingRef, setPlaybackRate, setSegmentPlaybackRate]);
+
   useEffect(() => {
     const selectedRange = selectedTimelineUnitForTime;
     if (!selectedRange || !player.isReady) {

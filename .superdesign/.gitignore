@@ -28,3 +28,16 @@ sidebar-fixes/full-e2e/
 !sidebar-fixes/red-vitest.log
 !sidebar-fixes/r1-r8.log
 !ui-ux-execution/verified-e2e.log
+
+# Transcription workflow: keep confirmed before/after evidence, not every run.
+transcription-workflow/baseline/
+transcription-workflow/verified/
+transcription-workflow/second/
+transcription-workflow/final-focused/
+transcription-workflow/playback-verified/
+transcription-workflow/final-e2e/*
+!transcription-workflow/final-e2e/transcriptionWorkflowRevie*/
+!transcription-workflow/final-e2e.log
+!transcription-workflow/domain-vitest.log
+!transcription-workflow/red-vitest.log
+!transcription-workflow/playback-verified.log

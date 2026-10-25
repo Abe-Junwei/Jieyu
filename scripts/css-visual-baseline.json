@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-24T07:03:05.308Z",
-  "aggregate": "90fefb6958ddaa0b39409d11613bd8f2d8b1e94841065ed89f21781939bc232c",
+  "generatedAt": "2026-10-25T08:50:45.430Z",
+  "aggregate": "e638faa0bc9c7d79cd0e92a779144fe36f9f1e92ca61e0cb8665bf9216c76b68",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -25,7 +25,7 @@
     "src/styles/pages/ai-sidebar-shell.css": "2d56d94491ad22b5617d1409fa8c84e67e3dfad980be26f6e9530370db5cc069",
     "src/styles/pages/analysis-workspace.css": "280ed99f046e1247d5d5e5862b790b29798ae41ce5381a3f75d3eeea6b744db9",
     "src/styles/pages/annotation-workspace.css": "9897c0e0264010022ef299f84b9a492035ff6684458d13942f6ea32bd30e9a16",
-    "src/styles/pages/app-shell-layout.css": "f91797eea561fcb184596bae5ba5c5247fe10632f9ee0fffab230f0338dc2431",
+    "src/styles/pages/app-shell-layout.css": "dc7f94d7405e92ad25b25a67c59a9eeddcaf43a7cc82ab1ef7119aeca57e1c8b",
     "src/styles/pages/corpus-library-workspace.css": "010f51e6efdbd1f622877f9285a4bbf67fcd98758ac31431633307ed96ae9480",
     "src/styles/pages/feature-availability.css": "41085a30ed3f77bd180c65cf0842dd839dcf81ff0496684b5cb4bb6231872c09",
     "src/styles/pages/home-page.css": "6f10b0a6de15abbbd8afec7ceb585f5c18d5ec5d931a466f128850ea9db3145b",
@@ -46,7 +46,7 @@
     "src/styles/pages/timeline/timeline-segment-narrow.css": "16da99a7fe61c770d8a13b2c37c81a821af544300c851a2af204e2a567b79b27",
     "src/styles/pages/timeline/timeline-text-item.css": "11c72235f20ddc9ba6ed2e9190fb515073c159bbd386fda2922901f5bd68129a",
     "src/styles/pages/timeline/timeline-translation-audio.css": "077453a23737ff562b2cd8ad808feefe17ec83d863676418c5a7189db26cf105",
-    "src/styles/pages/transcription-layout.css": "38bf352a2f51c7fdd8ce23e37b2b20b66567da3ea5d9b360bfefc427097e9f9f",
+    "src/styles/pages/transcription-layout.css": "5b4b8894ef64a7d40c08e40ec11d70f30cdf21d91b94e558b344949210d8ff0c",
     "src/styles/pages/transcription-timeline.css": "a6e9ae7c512fb7bec801198bc7e9caf5d938bcc5f28e6737a8c9526f8087cb35",
     "src/styles/pages/transcription-toolbar.css": "facb03941a9195eb66e6980883c59008cce5a90e6730d15bd4226015ebb4f3ea",
     "src/styles/pages/transcription-waveform-shell.css": "6efcc9716d3d80152a89112f9f34e6b6f196def207ac9321f9d48a80494e8acb",

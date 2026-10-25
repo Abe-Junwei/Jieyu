@@ -3,6 +3,7 @@ import {
   aggregateProjectProgressRates,
   computeAnnotationProgressRate,
   computeTranslationProgressRate,
+  newestProjectText,
   pickTextTitle,
 } from './homeTranscriptionRecordProgress';
 import type {
@@ -12,6 +13,24 @@ import type {
   TranslationStatusSnapshotDocType,
 } from '../db/types';
 import { isAuxiliaryRecordingMediaRow, isMediaItemPlaceholderRow } from './mediaItemState';
+
+describe('newestProjectText', () => {
+  it('picks the newest updatedAt and keeps the first id on a tie', () => {
+    expect(
+      newestProjectText([
+        { id: 'old', updatedAt: '2020-01-01T00:00:00.000Z' },
+        { id: 'new', updatedAt: '2099-01-01T00:00:00.000Z' },
+      ])?.id,
+    ).toBe('new');
+    expect(
+      newestProjectText([
+        { id: 'first', updatedAt: '2024-01-01T00:00:00.000Z' },
+        { id: 'second', updatedAt: '2024-01-01T00:00:00.000Z' },
+      ])?.id,
+    ).toBe('first');
+    expect(newestProjectText([{ id: ' ', updatedAt: '2099-01-01T00:00:00.000Z' }])).toBeUndefined();
+  });
+});
 
 describe('computeTranslationProgressRate', () => {
   it('returns null when no rows', () => {

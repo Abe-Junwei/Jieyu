@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { LayerUnitDocType } from '../../db/types';
 import type { TimelineUnitView } from '../transcription/timelineUnitView';
 import type { TimelineUnit } from '../transcription/transcriptionTypes';
@@ -115,8 +115,6 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     toggleNotes,
     toggleVoice,
   } = input;
-
-  const keymap = useMemo(() => getEffectiveKeymap(), []);
 
   const writeSelection = useCallback(
     (command: TimelineSelectionCommand) => {
@@ -381,7 +379,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
-      for (const [actionId, combo] of keymap) {
+      for (const [actionId, combo] of getEffectiveKeymap()) {
         const entry = DEFAULT_KEYBINDINGS.find((b) => b.id === actionId);
         if (!entry || entry.scope !== 'global') continue;
         if (matchKeyEvent(e, combo) && globalActions[actionId]) {
@@ -394,7 +392,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo, redo, keymap, setShowSearch, toggleNotes, toggleVoice]);
+  }, [undo, redo, setShowSearch, toggleNotes, toggleVoice]);
 
   // Navigate to prev/next unit from an inline input
   const navigateUnitFromInput = useCallback(
@@ -415,24 +413,21 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   );
 
   // Waveform keydown via keybinding dispatch
-  const handleWaveformKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+  const handleWaveformKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
 
-      for (const [actionId, combo] of keymap) {
-        const entry = DEFAULT_KEYBINDINGS.find((b) => b.id === actionId);
-        if (!entry || entry.scope !== 'waveform') continue;
-        if (matchKeyEvent(e, combo)) {
-          e.preventDefault();
-          waveformActionsRef.current[actionId]?.(e);
-          recordTranscriptionKeyboardAction(actionId);
-          return;
-        }
+    for (const [actionId, combo] of getEffectiveKeymap()) {
+      const entry = DEFAULT_KEYBINDINGS.find((b) => b.id === actionId);
+      if (!entry || entry.scope !== 'waveform') continue;
+      if (matchKeyEvent(e, combo)) {
+        e.preventDefault();
+        waveformActionsRef.current[actionId]?.(e);
+        recordTranscriptionKeyboardAction(actionId);
+        return;
       }
-    },
-    [keymap],
-  );
+    }
+  }, []);
 
   // Auto-focus waveform when multiple units selected
   useEffect(() => {

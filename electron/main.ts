@@ -14,7 +14,12 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
-import { isAppNavigation, secretStoreRefusal } from '../src/desktop/skeleton/desktopSecurity';
+import {
+  isAllowedAiOutboundUrl,
+  isAllowedProjectFolder,
+  isAppNavigation,
+  secretStoreRefusal,
+} from '../src/desktop/skeleton/desktopSecurity';
 import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import { writeProbeAndReadBack } from '../src/desktop/skeleton/probeStore';
@@ -105,6 +110,10 @@ function installMediaProtocol(): void {
 let openedFolder: string | null = null;
 let smokeSqliteUserDataFile: string | undefined;
 const inFlightRequests = new Map<string, AbortController>();
+/** Origins registered by main. IPC cannot add to this set. */
+const allowedOutboundOrigins = new Set<string>();
+/** Project roots registered by main (dialog or the smoke harness). IPC cannot add to this set. */
+const allowedProjectFolders = new Set<string>();
 
 function databasePath(): string {
   const root = openedFolder ?? path.join(app.getPath('temp'), 'jieyu-skeleton');
@@ -139,6 +148,9 @@ async function runOutboundRequest(
   requestId: string,
   url: string,
 ): Promise<{ status: number; chunks: number; aborted: boolean }> {
+  if (!isAllowedAiOutboundUrl(url, [...allowedOutboundOrigins])) {
+    throw new Error('outbound url refused');
+  }
   const secret = await readStoredSecret();
   if (!secret) throw new Error('missing secret');
   const controller = new AbortController();
@@ -147,6 +159,7 @@ async function runOutboundRequest(
   try {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${secret}` },
+      redirect: 'error',
       signal: controller.signal,
     });
     const reader = response.body?.getReader();
@@ -183,6 +196,9 @@ function registerIpc(): void {
 
   handle('skeleton:open-project', (folder: unknown) => {
     if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
+    if (!isAllowedProjectFolder(folder, [...allowedProjectFolders])) {
+      throw new Error('project folder refused');
+    }
     const opened = openProjectFolder({
       folder,
       pid: process.pid,
@@ -238,6 +254,9 @@ function registerIpc(): void {
   if (sqliteStoragePortFlagEnabled(process.env.JIEYU_SQLITE_STORAGE_PORT)) {
     handle('storage:open', (folder: unknown) => {
       if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
+      if (!isAllowedProjectFolder(folder, [...allowedProjectFolders])) {
+        throw new Error('project folder refused');
+      }
       openLockedSqliteStorage({
         folder,
         userDataFile: sqliteUserDataFile(),
@@ -326,13 +345,16 @@ function startSmokeLoopback(expectedSecret: string): Promise<{
 }
 
 async function runSmoke(win: BrowserWindow): Promise<void> {
-  const secretValue = 'super-secret-value';
-  const loopback = await startSmokeLoopback(secretValue);
-  try {
+    const secretValue = 'super-secret-value';
+    const loopback = await startSmokeLoopback(secretValue);
+    allowedOutboundOrigins.add(new URL(loopback.baseUrl).origin);
+    try {
     const root = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'jieyu-smoke-'));
     const project = path.join(root, 'field');
     const synced = path.join(root, BAIDU_MARKER, 'field');
     fs.mkdirSync(project, { recursive: true });
+    allowedProjectFolders.add(path.resolve(project));
+    allowedProjectFolders.add(path.resolve(synced));
     writeProjectLibraryMarker(path.join(project, 'project.sqlite'));
     smokeSqliteUserDataFile = path.join(root, 'user-data.sqlite');
     fs.mkdirSync(mediaRoot(), { recursive: true });
@@ -423,6 +445,8 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     console.log('skeleton smoke ok');
     app.exit(0);
   } finally {
+    allowedOutboundOrigins.clear();
+    allowedProjectFolders.clear();
     closeLockedSqliteStorage();
     await loopback.close();
   }
@@ -432,12 +456,14 @@ async function chooseProject(): Promise<void> {
   const picked = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
   const folder = picked.filePaths[0];
   if (!folder) return;
+  allowedProjectFolders.add(path.resolve(folder));
   const opened = openProjectFolder({
     folder,
     pid: process.pid,
     extraMarkers: [BAIDU_MARKER],
     userDataRoot: app.getPath('userData'),
   });
+  if (opened.lock === 'acquired') openedFolder = folder;
   if (opened.lock === 'busy') {
     await dialog.showMessageBox({ message: '已在别处打开' });
     return;

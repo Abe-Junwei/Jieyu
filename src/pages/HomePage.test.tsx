@@ -6,13 +6,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider } from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
 import * as HomeProgress from '../utils/homeTranscriptionRecordProgress';
+import {
+  clearActiveProjectTextId,
+  getActiveProjectTextId,
+} from '../utils/transcriptionUrlDeepLink';
 import { HomePage } from './HomePage';
+
+let unmountHome: (() => void) | undefined;
 
 function renderHome() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <LocaleProvider locale="zh-CN">
         <MemoryRouter>
@@ -24,10 +30,13 @@ function renderHome() {
       </LocaleProvider>
     </QueryClientProvider>,
   );
+  unmountHome = view.unmount;
+  return view;
 }
 
 describe('HomePage', () => {
   beforeEach(() => {
+    clearActiveProjectTextId();
     vi.spyOn(HomeProgress, 'loadAllHomeProjectProgressBundles').mockResolvedValue([
       {
         textId: 'text-demo',
@@ -58,6 +67,8 @@ describe('HomePage', () => {
   });
 
   afterEach(() => {
+    unmountHome?.();
+    unmountHome = undefined;
     vi.restoreAllMocks();
   });
 
@@ -70,5 +81,30 @@ describe('HomePage', () => {
     const recordLink = screen.getByRole('link', { name: 'field.wav' });
     expect(recordLink.getAttribute('href')).toContain('textId=text-demo');
     expect(recordLink.getAttribute('href')).toContain('mediaId=media-1');
+    expect(getActiveProjectTextId()).toBe('text-demo');
   }, 20_000);
+
+  it('publishes the first listed project when nothing is selected yet', async () => {
+    vi.mocked(HomeProgress.loadAllHomeProjectProgressBundles).mockResolvedValue([
+      {
+        textId: 'text-new',
+        titleLabel: 'Newer project',
+        updatedAt: '2099-01-01T00:00:00.000Z',
+        languageCode: 'und',
+        hasTranslationLayers: false,
+        records: [],
+      },
+      {
+        textId: 'text-old',
+        titleLabel: 'Older project',
+        updatedAt: '2020-01-01T00:00:00.000Z',
+        languageCode: 'und',
+        hasTranslationLayers: false,
+        records: [],
+      },
+    ]);
+    renderHome();
+    expect(await screen.findByRole('heading', { name: 'Newer project' })).toBeTruthy();
+    expect(getActiveProjectTextId()).toBe('text-new');
+  });
 });

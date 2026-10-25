@@ -29,7 +29,7 @@ interface CreateTranscriptionExportCallbacksInput {
   handleExportJyt: () => Promise<void>;
   handleExportJym: () => Promise<void>;
   handleExportLite: (format: TranscriptionOutboundExportFormat) => Promise<void>;
-  handleImportFile: (file: File) => Promise<void>;
+  handleImportFile: (file: File) => Promise<void | { committed: boolean }>;
 }
 
 export function createTranscriptionExportCallbacks(

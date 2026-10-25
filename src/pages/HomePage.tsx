@@ -80,6 +80,13 @@ export function HomePage() {
     staleTime: 0,
   });
 
+  useEffect(() => {
+    if (selectedTextId.length > 0 || activeTextId.length > 0) return;
+    const fallback = bundles[0]?.textId ?? '';
+    if (fallback.length === 0) return;
+    publishActiveProjectTextId(fallback);
+  }, [activeTextId, bundles, selectedTextId]);
+
   const opened = bundles.find((bundle) => bundle.textId === openedTextId) ?? bundles[0];
   const selectedId = opened?.textId ?? '';
 

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_PANEL_CLOSE_LG, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
@@ -20,9 +20,12 @@ import {
   LayerActionPopoverEditFooter,
 } from './layerActionPopover/LayerActionPopoverFooters';
 import { LayerActionPopoverDialogContent } from './layerActionPopover/LayerActionPopoverDialogContent';
+import { useFocusTrap } from '../hooks/ui/useFocusTrap';
 
 export const LayerActionPopover = memo(function LayerActionPopover(props: LayerActionPopoverProps) {
   const { action, deletableLayers, layerId, onClose, updateLayerMetadata } = props;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true, onClose);
   const form = useLayerActionPopoverFormState(props);
   useLayerActionPopoverFormSyncEffects(props, form);
   const actions = useLayerActionPopoverActions(props, form);
@@ -118,6 +121,8 @@ export const LayerActionPopover = memo(function LayerActionPopover(props: LayerA
   const popover = (
     <DialogOverlay onClose={onClose} topmost closeOn="mousedown">
       <DialogShell
+        containerRef={dialogRef}
+        tabIndex={-1}
         className={`layer-action-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
         layoutStyle={
           {

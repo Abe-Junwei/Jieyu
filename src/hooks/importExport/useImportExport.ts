@@ -36,7 +36,10 @@ import type {
   AnnotationImportTarget,
 } from './useImportExport.annotationImport';
 import { runInNewAnnotationDocument } from '../../services/annotationDocumentService';
-import type { ImportExportImportHandlerOptions } from './useImportExport.importHandlers';
+import type {
+  AnnotationImportCommit,
+  ImportExportImportHandlerOptions,
+} from './useImportExport.importHandlers';
 import {
   downloadTranscriptionExportText,
   serializeTranscriptionLiteExport,
@@ -1067,7 +1070,7 @@ export function useImportExport(input: UseImportExportInput) {
       strategy: AnnotationImportBridgeStrategy | undefined,
       target: AnnotationImportTarget | undefined,
       options: ImportExportImportHandlerOptions,
-    ): Promise<void> => {
+    ): Promise<AnnotationImportCommit> => {
       const asNewDocument = target === 'new-document';
       const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
       const { handleImportFile: importFile } =
@@ -1085,22 +1088,21 @@ export function useImportExport(input: UseImportExportInput) {
           normalizeSpeakerLookupKey,
         });
       if (!asNewDocument) {
-        await importFile(file, strategy, options);
-        return;
+        return importFile(file, strategy, options);
       }
       const textId = activeTextId ?? (await getActiveTextId());
       if (!textId) {
-        await importFile(file, strategy, options);
-        return;
+        return importFile(file, strategy, options);
       }
       // B5-2：要换文稿了，旧范围的恢复快照作废 | B5-2: the document changes; drop the old recovery snapshot
       await clearRecoverySnapshot(await readOpenDatabaseName(), textId);
       try {
-        const { kept } = await runInNewAnnotationDocument(textId, () =>
+        const { kept, result } = await runInNewAnnotationDocument(textId, () =>
           importFile(file, strategy, options),
         );
         // 新文稿没留下（导入失败或没写进内容）时切回了原文稿，重载 | Rolled back to the previous document
         if (!kept) await loadSnapshot(textId);
+        return result;
       } catch (err) {
         await loadSnapshot(textId);
         throw err;

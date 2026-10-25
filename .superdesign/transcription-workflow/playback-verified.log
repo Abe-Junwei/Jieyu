@@ -1,0 +1,24 @@
+
+> jieyu@1.1.0 test:e2e:chromium
+> playwright test --project=chromium transcriptionWorkflowReview.spec.ts --grep paired and multi-track --workers=1 --retries=0 --output=.superdesign/transcription-workflow/playback-verified
+
+[WebServer] (node:98637) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:98694) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Side pane layer count after creating transcription: 1
+Transcription layers in side pane: 0
+Left rail button: "layersCreate transcription layer", disabled=false
+Left rail button: "translateCreate translation layer", disabled=false
+Left rail button: "view_column_2Multi-track timeline", disabled=false
+Layer button classes: transcription-side-pane-item transcription-side-pane-item-flash  transcription-side-pane-item-transcription 
+Translation button data-disable-reason: ok
+Number of .left-rail-layer-actions-root elements: 1
+SidePaneSidebar [data-debug-disable] count: 1
+Window layers next: [{"id":"layer_1792845648679_v5n6se","layerType":"transcription","key":"trc_zho_i2rut"}]
+  ✓  1 [chromium] › tests/e2e/transcriptionWorkflowReview.spec.ts:47:1 › paired and multi-track editing preserve text while playback and auxiliary panels remain usable (8.0s)
+
+  1 passed (9.7s)
