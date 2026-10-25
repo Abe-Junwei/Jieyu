@@ -3309,14 +3309,14 @@ export const enUSDictionary = {
   'ai.stats.acousticHotspot.unstableSpan': 'Unstable span',
   'ai.acoustic.summaryDescription':
     'Summarize F0, intensity, and hotspots for the current selection in a navigable side workspace.',
-  'ai.acoustic.inspectorTitle': 'Spectrogram Inspector',
+  'ai.acoustic.inspectorTitle': 'Spectrogram pointer readout',
   'ai.acoustic.inspectorDescription':
-    'Project the current waveform or spectrogram hover readout into the side panel for stable inspection.',
+    'Shows acoustic readings at the pointer position over the waveform or spectrogram.',
   'ai.acoustic.inspectorHint':
-    'Hover over the waveform or spectrogram to inspect time, frequency, F0, and intensity here.',
+    'Point to the waveform or spectrogram to view the time, frequency, F0, and intensity at that position.',
   'ai.acoustic.inspectorSource': 'Readout source',
-  'ai.acoustic.inspectorSource.waveform': 'Waveform hover',
-  'ai.acoustic.inspectorSource.spectrogram': 'Spectrogram hover',
+  'ai.acoustic.inspectorSource.waveform': 'Waveform pointer',
+  'ai.acoustic.inspectorSource.spectrogram': 'Spectrogram pointer',
   'ai.acoustic.inspectorTime': 'Current time',
   'ai.acoustic.inspectorFrequency': 'Current frequency',
   'ai.acoustic.inspectorNearestHotspot': 'Linked hotspot',
