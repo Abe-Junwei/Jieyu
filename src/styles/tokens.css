@@ -63,6 +63,7 @@
   --text-primary: var(--gray-12);
   --text-secondary: var(--gray-11);
   --text-tertiary: var(--gray-9);
+  --text-muted: var(--text-tertiary);
   --text-on-solid: #fcfcf8;
   --color-white: #ffffff;
 
@@ -462,6 +463,7 @@
   --text-primary: var(--gray-12);
   --text-secondary: var(--gray-10);
   --text-tertiary: var(--gray-9);
+  --text-muted: var(--text-tertiary);
 
   /* 与浅色根一致，供 color-mix / 语言资产面板等引用 | Same paper-white token as light root */
   --color-white: #ffffff;
@@ -982,6 +984,7 @@
   --text-primary: #cbd5e1; /* slate-300 正文默认 */
   --text-secondary: #e2e8f0; /* slate-200 标题/强调 */
   --text-tertiary: #94a3b8; /* slate-400 导航/标签 */
+  --text-muted: var(--gray-6); /* slate-500 辅助/占位 */
 
   --header-accent: #3b82f6; /* blue-500 图标/品牌 */
   --accent-secondary: #60a5fa; /* blue-400 激活态 */
