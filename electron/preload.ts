@@ -8,6 +8,9 @@ export interface RequestChunkEvent {
 const desktop = {
   writeProbe: (note: string) => ipcRenderer.invoke('skeleton:write-probe', note),
   openProject: (folder: string) => ipcRenderer.invoke('skeleton:open-project', folder),
+  openDesktopSession: (folder: string) => ipcRenderer.invoke('desktop:open-session', folder),
+  closeDesktopSession: (sessionId: string) =>
+    ipcRenderer.invoke('desktop:close-session', sessionId),
   storeSecret: (plain: string) => ipcRenderer.invoke('skeleton:store-secret', plain),
   startRequest: (requestId: string, url: string) =>
     ipcRenderer.invoke('skeleton:start-request', requestId, url),

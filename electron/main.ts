@@ -13,6 +13,7 @@ import {
   reopenLockedSqliteStorage,
   writeProjectLibraryMarker,
 } from '@sqlite-host';
+import { closeDesktopSession, openDesktopSession } from '../src/db/desktop/projectSession';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
 import {
   isAllowedAiOutboundUrl,
@@ -22,7 +23,7 @@ import {
 } from '../src/desktop/skeleton/desktopSecurity';
 import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
-import { writeProbeAndReadBack } from '../src/desktop/skeleton/probeStore';
+import { fileContainsProbeTable, writeSkeletonProbe } from '../src/desktop/skeleton/probeStore';
 import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
 import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
 
@@ -107,18 +108,12 @@ function installMediaProtocol(): void {
   });
 }
 
-let openedFolder: string | null = null;
 let smokeSqliteUserDataFile: string | undefined;
 const inFlightRequests = new Map<string, AbortController>();
 /** Origins registered by main. IPC cannot add to this set. */
 const allowedOutboundOrigins = new Set<string>();
 /** Project roots registered by main (dialog or the smoke harness). IPC cannot add to this set. */
 const allowedProjectFolders = new Set<string>();
-
-function databasePath(): string {
-  const root = openedFolder ?? path.join(app.getPath('temp'), 'jieyu-skeleton');
-  return path.join(root, 'project.sqlite');
-}
 
 function sqliteUserDataFile(): string {
   return smokeSqliteUserDataFile ?? path.join(app.getPath('userData'), 'user-data.sqlite');
@@ -189,9 +184,18 @@ async function runOutboundRequest(
 function registerIpc(): void {
   handle('skeleton:write-probe', (note: unknown) => {
     if (typeof note !== 'string' || note.length === 0) throw new Error('empty probe');
-    const file = databasePath();
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    return writeProbeAndReadBack(file, note);
+    return writeSkeletonProbe(app.getPath('temp'), note);
+  });
+
+  handle('desktop:open-session', (folder: unknown) => {
+    if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
+    return openDesktopSession(folder, [...allowedProjectFolders]);
+  });
+
+  handle('desktop:close-session', (sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    closeDesktopSession(sessionId);
+    return { closed: true };
   });
 
   handle('skeleton:open-project', (folder: unknown) => {
@@ -204,7 +208,6 @@ function registerIpc(): void {
       extraMarkers: [BAIDU_MARKER],
       userDataRoot: app.getPath('userData'),
     });
-    if (opened.lock === 'acquired') openedFolder = folder;
     if (opened.lock === 'busy') {
       return { ...opened, message: '已在别处打开' };
     }
@@ -343,10 +346,10 @@ function startSmokeLoopback(expectedSecret: string): Promise<{
 }
 
 async function runSmoke(win: BrowserWindow): Promise<void> {
-    const secretValue = 'super-secret-value';
-    const loopback = await startSmokeLoopback(secretValue);
-    allowedOutboundOrigins.add(new URL(loopback.baseUrl).origin);
-    try {
+  const secretValue = 'super-secret-value';
+  const loopback = await startSmokeLoopback(secretValue);
+  allowedOutboundOrigins.add(new URL(loopback.baseUrl).origin);
+  try {
     const root = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'jieyu-smoke-'));
     const project = path.join(root, 'field');
     const synced = path.join(root, BAIDU_MARKER, 'field');
@@ -412,6 +415,8 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     const failures: string[] = [];
     if (legacySecret !== 'legacy-secret') failures.push('legacy-secret');
     if (result.probe.note !== 'ping') failures.push('probe');
+    if (fileContainsProbeTable(path.join(project, 'project.sqlite')))
+      failures.push('probe-touched-project');
     if (result.opened.lock !== 'acquired') failures.push('lock');
     if (result.busy.lock !== 'busy' || result.busy.message !== '已在别处打开')
       failures.push('second-window');
@@ -460,7 +465,6 @@ async function chooseProject(): Promise<void> {
     extraMarkers: [BAIDU_MARKER],
     userDataRoot: app.getPath('userData'),
   });
-  if (opened.lock === 'acquired') openedFolder = folder;
   if (opened.lock === 'busy') {
     await dialog.showMessageBox({ message: '已在别处打开' });
     return;

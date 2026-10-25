@@ -22,7 +22,7 @@ depends_on:
 - `sqliteAgentArtifacts.ts` 用两个连接先提交项目产物，再写 userData 审计。ADR-0085 要求新路径审计失败整次回滚，ADR 索引又称审计在 userData，二者尚未收口。
 - `noteTextId.ts` 解析九类备注目标；`useNoteHandlers.ts` 有单元格备注入口，导入有 text 备注。枚举/解析支持不等于每类都已证明存在用户入口。
 - `unlinkLexemeAttachment` 删除最后引用时删的是行内 Blob。文件化后的收尾协议仍待 R5，不因本片有设计文字而变成已实现。
-- `electron/main.ts` 的 skeleton:write-probe 使用 openedFolder 下的 project.sqlite；`probeStore.ts` 可创建 skeleton_probe，不能复用为新格式打开器。
+- `skeleton:write-probe` 只写系统临时目录里的探针库，不写已打开项目的 `project.sqlite`。`probeStore.ts` 仍不能当作新格式打开器。
 - 首次声学绑定重写语段时间的旧行为由 `LinguisticService.test.ts` 明确断言；新时间映射片不能继承它。
 
 ## 3. 行为合同与待定决定
