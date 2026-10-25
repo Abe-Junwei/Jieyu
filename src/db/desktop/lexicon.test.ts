@@ -179,11 +179,10 @@ function seedToken(dir: string): void {
   db.prepare(
     'INSERT INTO units (id, layer_id, start_time, end_time, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
   ).run('u1', 'ly1', 0, 1, T, T);
-  db.prepare('INSERT INTO tokens (id, unit_id, token_index, form) VALUES (?, ?, ?, ?)').run(
-    'tok-1',
-    'u1',
-    0,
-    'run',
-  );
+  db.prepare(
+    `INSERT INTO tokens (
+      id, unit_id, token_index, form_json, gloss_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run('tok-1', 'u1', 0, '{"default":"run"}', '{}', T, T);
   project.close();
 }

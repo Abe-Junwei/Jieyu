@@ -1,3 +1,4 @@
+import { applyAnalysis } from './analysis';
 import {
   createBridge,
   createOrthography,
@@ -61,6 +62,7 @@ const METHODS = [
   'units.list',
   'units.updateText',
   'units.updateBoundary',
+  'analysis.apply',
   'reopen',
 ] as const;
 
@@ -130,6 +132,8 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         rightId: requiredString(input.rightId, 'rightId'),
         time: requiredNumber(input.time, 'time'),
       });
+    case 'analysis.apply':
+      return applyAnalysis(project.db, analysisApply(input));
     default: {
       const unreachable: never = parsed;
       return unreachable;
@@ -171,6 +175,26 @@ function stringMap(value: unknown, name: string): Record<string, string> {
     out[key] = item;
   }
   return out;
+}
+
+function analysisApply(input: Record<string, unknown>): {
+  unitId: string;
+  expected: { manuscriptGeneration: number; analysisGeneration: number; graphFingerprint: string };
+  changes: unknown[];
+} {
+  knownKeys(input, ['unitId', 'expected', 'changes']);
+  const expected = objectArg(input.expected);
+  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
+  if (!Array.isArray(input.changes)) throw new Error('desktop call changes must be a list');
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    expected: {
+      manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
+      analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
+      graphFingerprint: requiredString(expected.graphFingerprint, 'graphFingerprint'),
+    },
+    changes: input.changes,
+  };
 }
 
 function mediaCreate(input: Record<string, unknown>): MediaCreate {

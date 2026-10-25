@@ -17,7 +17,7 @@ const editSchema = z
   .strict();
 
 const domainFields = {
-  form: stringMapSchema.refine((form) => Object.keys(form).length > 0, 'form is empty'),
+  form: stringMapSchema,
   index: z.number().int().nonnegative(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -60,6 +60,23 @@ const surfacePartSchema = z
   })
   .strict();
 
+const residueSchema = z
+  .object({
+    id: idSchema,
+    namespace: z.string().min(1),
+    batchId: idSchema,
+    localId: z.string().min(1),
+    body: z.unknown(),
+    review: z.enum(['unreviewed', 'needs-review', 'reviewed']),
+    reviews: z.array(z.unknown()),
+  })
+  .strict()
+  .superRefine((residue, ctx) => {
+    if (!isJsonValue(residue.body) || !residue.reviews.every(isJsonValue)) {
+      ctx.addIssue({ code: 'custom', message: 'residue is not json' });
+    }
+  });
+
 const nodeSchema = z
   .object({
     id: idSchema,
@@ -68,6 +85,7 @@ const nodeSchema = z
     domain: z.unknown().optional(),
     features: z.record(z.string(), z.unknown()).optional(),
     surfaceParts: z.array(surfacePartSchema).optional(),
+    residue: z.array(residueSchema).optional(),
   })
   .strict();
 
@@ -104,6 +122,7 @@ const payloadSchema = z
 export type AnalysisGraphDomain = z.infer<typeof tokenDomainSchema>;
 export type AnalysisGraphLink = z.infer<typeof linkSchema>;
 export type AnalysisGraphSurfacePart = z.infer<typeof surfacePartSchema>;
+export type AnalysisResidue = z.infer<typeof residueSchema>;
 type ParsedNode = z.infer<typeof nodeSchema>;
 type ParsedRelation = z.infer<typeof relationSchema>;
 
@@ -114,6 +133,7 @@ export interface AnalysisGraphNode {
   domain?: AnalysisGraphDomain | undefined;
   features?: Record<string, unknown> | undefined;
   surfaceParts?: AnalysisGraphSurfacePart[] | undefined;
+  residue?: AnalysisResidue[] | undefined;
 }
 
 export interface AnalysisGraphRelation {
@@ -246,6 +266,15 @@ function acceptSurfaceParts(
       throw new Error('surface part is not aligned');
     }
   }
+}
+
+function isJsonValue(value: unknown): boolean {
+  if (value === null) return true;
+  if (typeof value === 'string' || typeof value === 'boolean') return true;
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(isJsonValue);
+  if (typeof value === 'object') return Object.values(value).every(isJsonValue);
+  return false;
 }
 
 function experimentalKey(features: Record<string, unknown> | undefined): string | null {

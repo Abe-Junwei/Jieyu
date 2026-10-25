@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 5;
+export const DESKTOP_PROJECT_USER_VERSION = 6;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -49,6 +49,7 @@ CREATE TABLE manuscripts (
   tier_roles_json TEXT NOT NULL DEFAULT '{}' CHECK (
     json_valid(tier_roles_json) AND json_type(tier_roles_json) = 'object'
   ),
+  generation INTEGER NOT NULL DEFAULT 0 CHECK (generation >= 0),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -338,16 +339,37 @@ CREATE TABLE unit_texts (
 CREATE TABLE tokens (
   id TEXT PRIMARY KEY,
   unit_id TEXT NOT NULL REFERENCES units(id),
-  token_index INTEGER NOT NULL,
-  form TEXT NOT NULL,
+  token_index INTEGER NOT NULL CHECK (token_index >= 0),
+  form_json TEXT NOT NULL CHECK (json_valid(form_json) AND json_type(form_json) = 'object'),
+  gloss_json TEXT NOT NULL CHECK (json_valid(gloss_json) AND json_type(gloss_json) = 'object'),
+  pos TEXT CHECK (pos IS NULL OR length(pos) > 0),
+  provenance_json TEXT CHECK (
+    provenance_json IS NULL OR (
+      json_valid(provenance_json) AND json_type(provenance_json) = 'object'
+    )
+  ),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
   UNIQUE (unit_id, token_index)
 );
 
 CREATE TABLE morphemes (
   id TEXT PRIMARY KEY,
   token_id TEXT NOT NULL REFERENCES tokens(id),
-  morpheme_index INTEGER NOT NULL,
-  form TEXT NOT NULL,
+  morpheme_index INTEGER NOT NULL CHECK (morpheme_index >= 0),
+  form_json TEXT NOT NULL CHECK (json_valid(form_json) AND json_type(form_json) = 'object'),
+  gloss_json TEXT NOT NULL CHECK (json_valid(gloss_json) AND json_type(gloss_json) = 'object'),
+  pos TEXT CHECK (pos IS NULL OR length(pos) > 0),
+  provenance_json TEXT CHECK (
+    provenance_json IS NULL OR (
+      json_valid(provenance_json) AND json_type(provenance_json) = 'object'
+    )
+  ),
+  surface_parts_json TEXT NOT NULL CHECK (
+    json_valid(surface_parts_json) AND json_type(surface_parts_json) = 'array'
+  ),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
   UNIQUE (token_id, morpheme_index)
 );
 

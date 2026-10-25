@@ -10,6 +10,7 @@ import type { Layer, LayerCreate } from './layers';
 import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
 import type { Media, MediaCreate } from './media';
 import type { Manuscript, ManuscriptCreate } from './manuscripts';
+import type { AnalysisApplyResult } from './analysis';
 import type { Unit, UnitCreate } from './units';
 
 export interface DesktopBridge {
@@ -72,6 +73,18 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<ProjectLexemeLink>(sessionId, 'lexicon.linkSense', input),
     removeSense: (sessionId: string, input: { lexemeId: string; senseId: string }) =>
       once<ProjectLexeme>(sessionId, 'lexicon.removeSense', input),
+    applyAnalysis: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        expected: {
+          manuscriptGeneration: number;
+          analysisGeneration: number;
+          graphFingerprint: string;
+        };
+        changes: unknown[];
+      },
+    ) => once<AnalysisApplyResult>(sessionId, 'analysis.apply', input),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
   };
 }

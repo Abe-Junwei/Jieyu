@@ -210,20 +210,18 @@ describe('desktop project schema', () => {
         id, layer_id, start_time, end_time, created_at, updated_at
       ) VALUES ('u1', 'ly1', 0, 1, ?, ?)`,
     ).run(T, T);
-    db.prepare('INSERT INTO tokens (id, unit_id, token_index, form) VALUES (?, ?, ?, ?)').run(
-      't1',
-      'u1',
-      0,
-      'a',
-    );
+    db.prepare(
+      `INSERT INTO tokens (
+        id, unit_id, token_index, form_json, gloss_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run('t1', 'u1', 0, '{"default":"a"}', '{}', T, T);
     expect(
       constraintCode(() => {
-        db.prepare('INSERT INTO tokens (id, unit_id, token_index, form) VALUES (?, ?, ?, ?)').run(
-          't2',
-          'u1',
-          0,
-          'b',
-        );
+        db.prepare(
+          `INSERT INTO tokens (
+            id, unit_id, token_index, form_json, gloss_json, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run('t2', 'u1', 0, '{"default":"b"}', '{}', T, T);
       }),
     ).toBe('SQLITE_CONSTRAINT_UNIQUE');
     expect(
