@@ -167,6 +167,16 @@ describe('desktop project schema', () => {
     );
     insertUnit.run('u-child', 'ly1', null, 'u1', 0, 0, T, T);
     expect(
+      constraintCode(() => {
+        db.prepare('UPDATE units SET analysis_graph_json = ? WHERE id = ?').run('[]', 'u1');
+      }),
+    ).toBe('SQLITE_CONSTRAINT_CHECK');
+    expect(
+      constraintCode(() => {
+        db.prepare('UPDATE units SET analysis_generation = ? WHERE id = ?').run(-1, 'u1');
+      }),
+    ).toBe('SQLITE_CONSTRAINT_CHECK');
+    expect(
       constraintCode(() => insertUnit.run('u-speaker', 'ly1', 'missing', null, 0, 1, T, T)),
     ).toBe('SQLITE_CONSTRAINT_FOREIGNKEY');
     db.close();

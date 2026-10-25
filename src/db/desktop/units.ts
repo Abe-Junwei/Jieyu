@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import {
+  analysisGraphFingerprint,
+  validateAnalysisGraphPayload,
+  type AnalysisGraphPayload,
+} from '../../annotation/analysisGraphDomain';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -138,6 +143,13 @@ export function updateUnitText(db: SqliteDatabase, input: { unitId: string; text
   const write = db.transaction(() => {
     const existing = getUnit(db, input.unitId);
     if (!existing) throw new Error('unit is missing');
+    // ponytail: a stored graph must stay aligned with the transcription. Clearing it is C3's snapshot transaction.
+    const stored = db
+      .prepare('SELECT analysis_graph_json FROM units WHERE id = ?')
+      .get(input.unitId) as { analysis_graph_json: string | null } | undefined;
+    if (stored?.analysis_graph_json != null) {
+      throw new Error('unit text cannot change while an analysis graph is stored');
+    }
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
@@ -146,6 +158,84 @@ export function updateUnitText(db: SqliteDatabase, input: { unitId: string; text
     const unit = getUnit(db, input.unitId);
     if (!unit || unit.text !== input.text) throw new Error('unit text readback failed');
     return unit;
+  });
+  return write();
+}
+
+export interface AnalysisRoot {
+  unitId: string;
+  graph: AnalysisGraphPayload | null;
+  analysisGeneration: number;
+  graphFingerprint: string;
+}
+
+interface AnalysisRootRow {
+  analysis_graph_json: string | null;
+  analysis_generation: number;
+  graph_fingerprint: string;
+  text: string;
+}
+
+const ANALYSIS_ROOT = `
+SELECT units.analysis_graph_json, units.analysis_generation, units.graph_fingerprint,
+       unit_texts.body AS text
+FROM units
+JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
+WHERE units.id = ?
+`;
+
+export function getAnalysisRoot(db: SqliteDatabase, unitId: string): AnalysisRoot | null {
+  const row = db.prepare(ANALYSIS_ROOT).get(unitId) as AnalysisRootRow | undefined;
+  if (!row) return null;
+  if (row.analysis_graph_json === null) {
+    return {
+      unitId,
+      graph: null,
+      analysisGeneration: row.analysis_generation,
+      graphFingerprint: '',
+    };
+  }
+  return {
+    unitId,
+    graph: validateAnalysisGraphPayload(JSON.parse(row.analysis_graph_json) as unknown, row.text),
+    analysisGeneration: row.analysis_generation,
+    graphFingerprint: row.graph_fingerprint,
+  };
+}
+
+export function writeAnalysisRoot(
+  db: SqliteDatabase,
+  input: { unitId: string; graph: unknown; expectedAnalysisGeneration: number },
+  afterWrite?: () => void,
+): AnalysisRoot {
+  const write = db.transaction(() => {
+    const current = getAnalysisRoot(db, input.unitId);
+    if (!current) throw new Error('unit is missing');
+    if (current.analysisGeneration !== input.expectedAnalysisGeneration) {
+      throw new Error('analysis generation does not match');
+    }
+    const text = getUnit(db, input.unitId)?.text;
+    if (text === undefined) throw new Error('unit is missing');
+    const graph = validateAnalysisGraphPayload(input.graph, text);
+    const fingerprint = analysisGraphFingerprint(graph);
+    const generation = current.analysisGeneration + 1;
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE units
+       SET analysis_graph_json = ?, analysis_generation = ?, graph_fingerprint = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(JSON.stringify(graph), generation, fingerprint, now, input.unitId);
+    afterWrite?.();
+    const stored = getAnalysisRoot(db, input.unitId);
+    if (
+      !stored?.graph ||
+      stored.analysisGeneration !== generation ||
+      stored.graphFingerprint !== fingerprint ||
+      JSON.stringify(stored.graph) !== JSON.stringify(graph)
+    ) {
+      throw new Error('analysis root readback failed');
+    }
+    return stored;
   });
   return write();
 }

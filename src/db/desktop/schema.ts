@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 4;
+export const DESKTOP_PROJECT_USER_VERSION = 5;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -281,7 +281,20 @@ CREATE TABLE units (
   start_time REAL NOT NULL,
   end_time REAL NOT NULL CHECK (end_time >= start_time),
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  analysis_graph_json TEXT CHECK (
+    analysis_graph_json IS NULL OR (
+      json_valid(analysis_graph_json) AND json_type(analysis_graph_json) = 'object'
+    )
+  ),
+  analysis_generation INTEGER NOT NULL DEFAULT 0 CHECK (analysis_generation >= 0),
+  graph_fingerprint TEXT NOT NULL DEFAULT '' CHECK (
+    graph_fingerprint = '' OR length(graph_fingerprint) = 64
+  ),
+  CHECK (
+    (analysis_graph_json IS NULL AND graph_fingerprint = '') OR
+    (analysis_graph_json IS NOT NULL AND length(graph_fingerprint) = 64)
+  )
 );
 
 CREATE TRIGGER units_parent_same_manuscript_insert
