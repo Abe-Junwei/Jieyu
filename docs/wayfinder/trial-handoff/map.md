@@ -9,14 +9,14 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## 当前执行队列（2026-10-25 本轮重排）
 
-- 下一刀 M4-B。M1 至 M4-A 已落地，只记 #275 子进度，不关闭 issue、不解冻。完整领取顺序见[单库计划](../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。
+- 下一刀 M4-C。M1 至 M4-B 已落地，只记 #275 子进度，不关闭 issue、不解冻。完整领取顺序见[单库计划](../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。
 - M2-A/B→M3-A/B→M4-A/B/C；M4 整体合成流程通过后才开放白名单。R1、审计、备注、R5/R6 不阻塞 M1，各在相关领域开工前收口。
 - #280 按 M5-A–H 追踪真实业务接替；#325 按 D1–D4，D1/D2 联合开放；#329 从 M3 准备并随场景迁移。
 - M6-A–D 交付交换/合成示例、含音频备份与 D3、D4、单库终验；#275/#325 及必要恢复/接替完成后 #259 D14→#282 首发。安装更新/反馈仍 #277/#312 独立验收。
 - #313-A 真实材料仍仅用户本人制作，代理不读；D14 前 B 用合成等价材料，最终真实示例试用归 #282，不倒过来阻塞格式冻结。
 - #311/#333/#299 在 M4 后可开工但不挡首发；#298/B7 仍第二程。#281/#326 保持 not planned 关闭，不重开、不记验收通过。
 - 本地 005、015 的门槛是 M4；016 等 M6 交换 API；039 与 #277 同期。007/#257 不在白名单，未另获准不得开工。#342 是未排期的 C4 草案，试用协作仍是互传项目包。#368、#369 是冻结期可修的安全缺陷，不改变下一刀。
-- M1 至 M4-A 已勾上。M4-B 起仍未实施，规划同步不表示那些切片已完成。GitHub 正文保留历史，但当前清单优先。与文首或 ADR-0086 冲突的旧句不要执行。
+- M1 至 M4-B 已勾上。M4-C 起仍未实施，规划同步不表示那些切片已完成。GitHub 正文保留历史，但当前清单优先。与文首或 ADR-0086 冲突的旧句不要执行。
 
 ## Long-term destination
 
@@ -179,7 +179,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-18：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架落地（[#331](https://github.com/Abe-Junwei/Jieyu/pull/331)）。三平台烟测覆盖启动、选项目文件夹、同步盘警告、第二窗口被锁挡住、一次 `project.sqlite` 写入读回、主进程带密钥的出站请求（渲染进程看不到明文）、媒体 Range。浏览器端到端仍是主回归。协作编译期剔除留给 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328)。本地 026 删除。
 - 2026-10-18 用户：Field Matters 调研（本机笔记，2022–2026 论文）里值得做的四项挂第二程：[#333](https://github.com/Abe-Junwei/Jieyu/issues/333) 词表音位配列质检、[#334](https://github.com/Abe-Junwei/Jieyu/issues/334) ASR 训练集导出与编辑记录、[#335](https://github.com/Abe-Junwei/Jieyu/issues/335) 注释 LLM 后校正（先做三方对比实验，产品接入归 #315）、[#336](https://github.com/Abe-Junwei/Jieyu/issues/336) 离线说话人分离原型。当时全部排在 ADR-0064 解冻与 #250 之后（#333 已改为 M4 后可开工且不挡首发；#334 与 #336 仍等第一程。解冻不再等于 #275 与 #325 都关闭）；自训模型都不设默认。暂缓不开单：CLDF 导出（等 #309、#310）、CRF 注释器（先看 #335 的结果）、ZIPA 音素识别与强制对齐（等推理后端）、PolyGloss（只跟踪，许可未明）。
 - 2026-10-18 11:20 用户：#335 第一步（三方对比实验）提前，不受冻结、不等 #250。实验脚本在本机由用户在自己的数据上跑，代理不读语料；第二步（产品接入）仍排在解冻与 #250 之后。
-- 2026-10-18：[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 落地。删除浏览器支持策略页；`browserslist` 改为 Electron 44 的 Chromium 152；Playwright 与每晚任务去掉 Firefox、WebKit；关于页改为桌面版说明。源码不删。清单：协作与 Supabase 保留（编译期剔除仍按 ADR-0047，本单未改构建）；随浏览器构建删除的有 `src/ai/config/keyVault.ts`（桌面用 `safeStorage`）和 Vite PWA；待用户逐项定的有 `src/services/backupFolderService.ts`（File System Access 站点外备份）和只在 Firefox 上跑的 `tests/e2e/ws8X2AcousticOversize.spec.ts`。Dexie 与浏览器里的 JYB 导出不再等已取消的 #326；退出见 #329 与 ADR-0086。本地 045 删除。当时写的下一刀「#275，#280 并行」作废。活指针在文首队列，当前是单库计划 M4-B。
+- 2026-10-18：[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 落地。删除浏览器支持策略页；`browserslist` 改为 Electron 44 的 Chromium 152；Playwright 与每晚任务去掉 Firefox、WebKit；关于页改为桌面版说明。源码不删。清单：协作与 Supabase 保留（编译期剔除仍按 ADR-0047，本单未改构建）；随浏览器构建删除的有 `src/ai/config/keyVault.ts`（桌面用 `safeStorage`）和 Vite PWA；待用户逐项定的有 `src/services/backupFolderService.ts`（File System Access 站点外备份）和只在 Firefox 上跑的 `tests/e2e/ws8X2AcousticOversize.spec.ts`。Dexie 与浏览器里的 JYB 导出不再等已取消的 #326；退出见 #329 与 ADR-0086。本地 045 删除。当时写的下一刀「#275，#280 并行」作废。活指针在文首队列，当前是单库计划 M4-C。
 
 ## Next leg
 

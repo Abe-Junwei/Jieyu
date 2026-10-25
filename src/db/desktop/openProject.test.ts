@@ -100,7 +100,7 @@ describe('openProject', () => {
     expect(
       unchanged(wrongVersion, (file) => {
         const db = new Database(file);
-        db.exec('PRAGMA user_version = 2');
+        db.exec('PRAGMA user_version = 9');
         db.close();
       }),
     ).toThrow('project.sqlite is not a Jieyu project library');

@@ -27,6 +27,24 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<Layer[]>(sessionId, 'layers.list', { manuscriptId }),
     listUnits: (sessionId: string, layerId: string) =>
       once<Unit[]>(sessionId, 'units.list', { layerId }),
+    updateUnitText: (sessionId: string, input: { unitId: string; text: string }) =>
+      once<Unit>(sessionId, 'units.updateText', input),
+    updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
+      once<{ left: Unit; right: Unit }>(sessionId, 'units.updateBoundary', input),
+    setTimeMapping: (
+      sessionId: string,
+      input: {
+        manuscriptId: string;
+        expectedRevision: number;
+        offsetSec: number;
+        scale: number;
+        sourceMediaId?: string;
+      },
+    ) => once<Manuscript>(sessionId, 'manuscripts.setTimeMapping', input),
+    rollbackTimeMapping: (
+      sessionId: string,
+      input: { manuscriptId: string; expectedRevision: number },
+    ) => once<Manuscript>(sessionId, 'manuscripts.rollbackTimeMapping', input),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
   };
 }

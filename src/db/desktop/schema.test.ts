@@ -164,6 +164,25 @@ describe('desktop project schema', () => {
     db.close();
   });
 
+  it('rejects a non-positive literature duration and a non-array mapping history', () => {
+    const db = open();
+    seed(db);
+    expect(
+      constraintCode(() => {
+        db.prepare('UPDATE manuscripts SET logical_duration_sec = 0 WHERE id = ?').run('ms1');
+      }),
+    ).toBe('SQLITE_CONSTRAINT_CHECK');
+    expect(
+      constraintCode(() => {
+        db.prepare('UPDATE manuscripts SET time_mapping_history_json = ? WHERE id = ?').run(
+          '{}',
+          'ms1',
+        );
+      }),
+    ).toBe('SQLITE_CONSTRAINT_CHECK');
+    db.close();
+  });
+
   it('rejects a duplicate token index and an unknown note target', () => {
     const db = open();
     seed(db);

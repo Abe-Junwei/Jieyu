@@ -72,6 +72,7 @@ describe('DesktopProjectReadPage', () => {
             },
           ]);
         }
+        if (method === 'units.updateText') return Promise.resolve({});
         if (method === 'units.list') {
           return Promise.resolve([
             {
@@ -103,7 +104,9 @@ describe('DesktopProjectReadPage', () => {
     expect(audio.getAttribute('src')).toBe('jieyu-media://local/token');
     fireEvent.click(unit);
     expect(audio.currentTime).toBe(0.4);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), { target: { value: '改过' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
     expect(calls.filter((call) => call === 'choose')).toEqual(['choose']);
-    expect(calls.filter((call) => call === 'manuscripts.list')).toEqual(['manuscripts.list']);
+    expect(calls.filter((call) => call === 'units.updateText')).toEqual(['units.updateText']);
   });
 });

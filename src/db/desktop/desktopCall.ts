@@ -1,22 +1,39 @@
 import { createLayer, listLayers, type LayerCreate } from './layers';
 import { createMedia, type MediaCreate } from './media';
-import { createManuscript, listManuscripts, type ManuscriptCreate } from './manuscripts';
+import {
+  createManuscript,
+  listManuscripts,
+  rollbackManuscriptTimeMapping,
+  setManuscriptTimeMapping,
+  type ManuscriptCreate,
+} from './manuscripts';
 import {
   desktopSessionFolder,
   reopenDesktopSession,
   requireDesktopSession,
 } from './projectSession';
-import { createUnit, getUnit, listUnits, type UnitCreate } from './units';
+import {
+  createUnit,
+  getUnit,
+  listUnits,
+  updateBoundary,
+  updateUnitText,
+  type UnitCreate,
+} from './units';
 
 const METHODS = [
   'media.create',
   'manuscripts.create',
   'manuscripts.list',
+  'manuscripts.setTimeMapping',
+  'manuscripts.rollbackTimeMapping',
   'layers.create',
   'layers.list',
   'units.create',
   'units.get',
   'units.list',
+  'units.updateText',
+  'units.updateBoundary',
   'reopen',
 ] as const;
 
@@ -37,6 +54,13 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return createManuscript(project.db, manuscriptCreate(input));
     case 'manuscripts.list':
       return listManuscripts(project.db);
+    case 'manuscripts.setTimeMapping':
+      return setManuscriptTimeMapping(project.db, timeMappingSet(input));
+    case 'manuscripts.rollbackTimeMapping':
+      return rollbackManuscriptTimeMapping(project.db, {
+        manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+        expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
+      });
     case 'layers.create':
       return createLayer(project.db, layerCreate(input));
     case 'layers.list':
@@ -47,6 +71,17 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return getUnit(project.db, requiredString(input.id, 'id'));
     case 'units.list':
       return listUnits(project.db, requiredString(input.layerId, 'layerId'));
+    case 'units.updateText':
+      return updateUnitText(project.db, {
+        unitId: requiredString(input.unitId, 'unitId'),
+        text: requiredString(input.text, 'text'),
+      });
+    case 'units.updateBoundary':
+      return updateBoundary(project.db, {
+        leftId: requiredString(input.leftId, 'leftId'),
+        rightId: requiredString(input.rightId, 'rightId'),
+        time: requiredNumber(input.time, 'time'),
+      });
     default: {
       const unreachable: never = parsed;
       return unreachable;
@@ -112,6 +147,23 @@ function layerCreate(input: Record<string, unknown>): LayerCreate {
     name: stringMap(input.name, 'name'),
     tierType: requiredString(input.tierType, 'tierType'),
     contentType: requiredString(input.contentType, 'contentType'),
+  };
+}
+
+function timeMappingSet(input: Record<string, unknown>): {
+  manuscriptId: string;
+  expectedRevision: number;
+  offsetSec: number;
+  scale: number;
+  sourceMediaId?: string;
+} {
+  const sourceMediaId = input.sourceMediaId;
+  return {
+    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+    expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
+    offsetSec: requiredNumber(input.offsetSec, 'offsetSec'),
+    scale: requiredNumber(input.scale, 'scale'),
+    ...(typeof sourceMediaId === 'string' ? { sourceMediaId } : {}),
   };
 }
 

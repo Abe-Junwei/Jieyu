@@ -1,4 +1,8 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import {
+  previewTextTimeMapping,
+  type TextTimeMapping,
+} from '../services/LinguisticService.timeMapping';
 
 export interface DesktopProjectReadManuscript {
   id: string;
@@ -17,11 +21,33 @@ export function DesktopProjectReadView(props: {
   manuscriptId: string | null;
   units: readonly DesktopProjectReadUnit[];
   audioUrl: string | null;
+  timeMapping: TextTimeMapping | null;
   emptyLabel: string;
   audioLabel: string;
+  textLabel: string;
+  saveTextLabel: string;
+  boundaryLabel: string;
+  moveBoundaryLabel: string;
+  offsetLabel: string;
+  scaleLabel: string;
+  saveMappingLabel: string;
   onSelectManuscript: (id: string) => void;
+  onSaveText: (unitId: string, text: string) => void;
+  onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
+  onSaveMapping: (offsetSec: number, scale: number) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const textRef = useRef<HTMLInputElement>(null);
+  const boundaryRef = useRef<HTMLInputElement>(null);
+  const offsetRef = useRef<HTMLInputElement>(null);
+  const scaleRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
+  const next =
+    selected === null
+      ? null
+      : (props.units.find((unit) => unit.startTime === selected.endTime) ?? null);
+
   return (
     <div className="desktop-project-read">
       <div className="desktop-project-read-manuscripts">
@@ -42,21 +68,105 @@ export function DesktopProjectReadView(props: {
       )}
       <div className="desktop-project-read-units">
         {props.units.map((unit) => (
+          <div key={unit.id}>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedId(unit.id);
+                const audio = audioRef.current;
+                if (audio === null) return;
+                audio.currentTime = playerStart(unit, props.timeMapping);
+              }}
+            >
+              {`${unit.startTime.toFixed(1)}–${unit.endTime.toFixed(1)} ${unit.text}`}
+            </button>
+            <span>{playerRange(unit, props.timeMapping)}</span>
+          </div>
+        ))}
+      </div>
+      {selected === null ? null : (
+        <div className="desktop-project-read-units">
+          <input
+            ref={textRef}
+            key={selected.id}
+            aria-label={props.textLabel}
+            defaultValue={selected.text}
+          />
           <button
-            key={unit.id}
             type="button"
             onClick={() => {
-              const audio = audioRef.current;
-              if (audio === null) return;
-              audio.currentTime = unit.startTime;
+              const text = textRef.current?.value ?? '';
+              if (text.length === 0) return;
+              props.onSaveText(selected.id, text);
             }}
           >
-            {`${unit.startTime.toFixed(1)}–${unit.endTime.toFixed(1)} ${unit.text}`}
+            {props.saveTextLabel}
           </button>
-        ))}
+          {next === null ? null : (
+            <>
+              <input
+                ref={boundaryRef}
+                aria-label={props.boundaryLabel}
+                defaultValue={String(selected.endTime)}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const time = Number(boundaryRef.current?.value);
+                  if (!Number.isFinite(time)) return;
+                  props.onMoveBoundary(selected.id, next.id, time);
+                }}
+              >
+                {props.moveBoundaryLabel}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      <div className="desktop-project-read-units">
+        <input
+          ref={offsetRef}
+          key={`offset-${props.timeMapping?.revision ?? 0}`}
+          aria-label={props.offsetLabel}
+          defaultValue={String(props.timeMapping?.offsetSec ?? 0)}
+        />
+        <input
+          ref={scaleRef}
+          key={`scale-${props.timeMapping?.revision ?? 0}`}
+          aria-label={props.scaleLabel}
+          defaultValue={String(props.timeMapping?.scale ?? 1)}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const offsetSec = Number(offsetRef.current?.value);
+            const scale = Number(scaleRef.current?.value);
+            if (!Number.isFinite(offsetSec) || !Number.isFinite(scale)) return;
+            props.onSaveMapping(offsetSec, scale);
+          }}
+        >
+          {props.saveMappingLabel}
+        </button>
       </div>
     </div>
   );
+}
+
+function playerStart(unit: DesktopProjectReadUnit, mapping: TextTimeMapping | null): number {
+  return previewTextTimeMapping({
+    startTime: unit.startTime,
+    endTime: unit.endTime,
+    ...(mapping === null ? {} : { offsetSec: mapping.offsetSec, scale: mapping.scale }),
+  }).realStartTime;
+}
+
+function playerRange(unit: DesktopProjectReadUnit, mapping: TextTimeMapping | null): string {
+  const preview = previewTextTimeMapping({
+    startTime: unit.startTime,
+    endTime: unit.endTime,
+    ...(mapping === null ? {} : { offsetSec: mapping.offsetSec, scale: mapping.scale }),
+  });
+  return `${preview.realStartTime.toFixed(1)}–${preview.realEndTime.toFixed(1)}`;
 }
 
 function manuscriptLabel(title: Record<string, string>, id: string): string {

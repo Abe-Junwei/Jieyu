@@ -133,6 +133,23 @@ export function updateBoundary(
   return write();
 }
 
+export function updateUnitText(db: SqliteDatabase, input: { unitId: string; text: string }): Unit {
+  if (input.text.length === 0) throw new Error('unit text is empty');
+  const write = db.transaction(() => {
+    const existing = getUnit(db, input.unitId);
+    if (!existing) throw new Error('unit is missing');
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
+    ).run(input.text, now, input.unitId);
+    db.prepare('UPDATE units SET updated_at = ? WHERE id = ?').run(now, input.unitId);
+    const unit = getUnit(db, input.unitId);
+    if (!unit || unit.text !== input.text) throw new Error('unit text readback failed');
+    return unit;
+  });
+  return write();
+}
+
 function mapUnit(row: UnitRow): Unit {
   return {
     id: row.id,

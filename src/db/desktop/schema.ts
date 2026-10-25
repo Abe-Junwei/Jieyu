@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 1;
+export const DESKTOP_PROJECT_USER_VERSION = 2;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -34,6 +34,21 @@ CREATE TABLE manuscripts (
   id TEXT PRIMARY KEY,
   title_json TEXT NOT NULL,
   media_id TEXT NOT NULL REFERENCES media(id),
+  logical_duration_sec REAL CHECK (logical_duration_sec IS NULL OR logical_duration_sec > 0),
+  time_mapping_json TEXT CHECK (
+    time_mapping_json IS NULL OR (
+      json_valid(time_mapping_json) AND json_type(time_mapping_json) = 'object'
+    )
+  ),
+  time_mapping_history_json TEXT NOT NULL DEFAULT '[]' CHECK (
+    json_valid(time_mapping_history_json) AND json_type(time_mapping_history_json) = 'array'
+  ),
+  export_timeline_mode TEXT CHECK (
+    export_timeline_mode IS NULL OR export_timeline_mode IN ('document', 'media')
+  ),
+  tier_roles_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    json_valid(tier_roles_json) AND json_type(tier_roles_json) = 'object'
+  ),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

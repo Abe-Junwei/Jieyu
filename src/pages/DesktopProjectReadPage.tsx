@@ -44,6 +44,56 @@ export function DesktopProjectReadPage() {
       });
   };
 
+  const reload = () => {
+    if (sessionId === null) return Promise.resolve();
+    const manuscriptId = model?.manuscriptId ?? undefined;
+    return loadDesktopProjectRead(readApi(host), sessionId, manuscriptId).then(setModel);
+  };
+
+  const saveText = (unitId: string, text: string) => {
+    if (sessionId === null) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .updateUnitText(sessionId, { unitId, text })
+      .then(() => reload())
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const moveBoundary = (leftId: string, rightId: string, time: number) => {
+    if (sessionId === null) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .updateBoundary(sessionId, { leftId, rightId, time })
+      .then(() => reload())
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const saveMapping = (offsetSec: number, scale: number) => {
+    if (sessionId === null || model?.manuscriptId === null || model?.manuscriptId === undefined) {
+      return;
+    }
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .setTimeMapping(sessionId, {
+        manuscriptId: model.manuscriptId,
+        expectedRevision:
+          model.manuscripts.find((item) => item.id === model.manuscriptId)?.timeMapping?.revision ??
+          0,
+        offsetSec,
+        scale,
+      })
+      .then(() => reload())
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const selected = model?.manuscripts.find((item) => item.id === model.manuscriptId);
+
   return (
     <section className="desktop-project-read">
       <button type="button" className="btn btn-primary" onClick={openFolder}>
@@ -56,9 +106,20 @@ export function DesktopProjectReadPage() {
           manuscriptId={model.manuscriptId}
           units={model.units}
           audioUrl={model.audioUrl}
+          timeMapping={selected?.timeMapping ?? null}
           emptyLabel={t(locale, 'app.desktopRead.empty')}
           audioLabel={t(locale, 'app.desktopRead.audio')}
+          textLabel={t(locale, 'app.desktopRead.text')}
+          saveTextLabel={t(locale, 'app.desktopRead.saveText')}
+          boundaryLabel={t(locale, 'app.desktopRead.boundary')}
+          moveBoundaryLabel={t(locale, 'app.desktopRead.moveBoundary')}
+          offsetLabel={t(locale, 'app.desktopRead.offset')}
+          scaleLabel={t(locale, 'app.desktopRead.scale')}
+          saveMappingLabel={t(locale, 'app.desktopRead.saveMapping')}
           onSelectManuscript={selectManuscript}
+          onSaveText={saveText}
+          onMoveBoundary={moveBoundary}
+          onSaveMapping={saveMapping}
         />
       )}
     </section>
