@@ -37,6 +37,7 @@ import {
   updateOptionLabel,
 } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
+import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers, type LayerCreate } from './layers';
 import {
   linkSense,
@@ -106,6 +107,8 @@ const METHODS = [
   'customFields.locateValues',
   'customFields.previewMigration',
   'customFields.migrateDefinition',
+  'customFields.previewPurge',
+  'customFields.purgeDefinition',
   'analysis.apply',
   'analysis.import',
   'analysis.submit',
@@ -245,6 +248,12 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'customFields.migrateDefinition':
       knownKeys(input, ['definitionId', 'expectedRevision', 'definition', 'conversions']);
       return migrateDefinition(project.db, input);
+    case 'customFields.previewPurge':
+      knownKeys(input, ['definitionId']);
+      return previewPurge(project.db, requiredString(input.definitionId, 'definitionId'));
+    case 'customFields.purgeDefinition':
+      knownKeys(input, ['definitionId', 'expectedRevision', 'current', 'historyIds']);
+      return purgeDefinition(project.db, input);
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.import':

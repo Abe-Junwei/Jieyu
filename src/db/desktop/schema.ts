@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 9;
+export const DESKTOP_PROJECT_USER_VERSION = 10;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -454,6 +454,9 @@ CREATE TABLE analysis_candidates (
   notes_json TEXT NOT NULL CHECK (json_valid(notes_json) AND json_type(notes_json) = 'array'),
   definition_revisions_json TEXT NOT NULL CHECK (
     json_valid(definition_revisions_json) AND json_type(definition_revisions_json) = 'array'
+  ),
+  redacted_definition_ids_json TEXT NOT NULL CHECK (
+    json_valid(redacted_definition_ids_json) AND json_type(redacted_definition_ids_json) = 'array'
   ),
   actor_json TEXT CHECK (
     actor_json IS NULL OR (json_valid(actor_json) AND json_type(actor_json) = 'object')

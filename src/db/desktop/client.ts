@@ -15,6 +15,7 @@ import type { AnalysisImportResult } from './analysisImport';
 import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestore';
 import type { AnalysisCandidateRecord } from './analysisCandidates';
 import type { CustomFieldMigrationPreview } from './customFieldMigration';
+import type { CustomFieldPurgePreview } from './customFieldPurge';
 import type {
   CustomFieldDefinition,
   CustomFieldHostPreview,
@@ -91,6 +92,10 @@ export function createDesktopClient(bridge: DesktopBridge) {
       }),
     migrateCustomFieldDefinition: (sessionId: string, input: unknown) =>
       once<CustomFieldDefinition>(sessionId, 'customFields.migrateDefinition', input),
+    previewCustomFieldPurge: (sessionId: string, definitionId: string) =>
+      once<CustomFieldPurgePreview>(sessionId, 'customFields.previewPurge', { definitionId }),
+    purgeCustomFieldDefinition: (sessionId: string, input: unknown) =>
+      once<void>(sessionId, 'customFields.purgeDefinition', input),
     setTimeMapping: (
       sessionId: string,
       input: {

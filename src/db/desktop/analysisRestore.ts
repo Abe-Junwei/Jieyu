@@ -77,6 +77,9 @@ export function acceptAnalysis(
     if (!root) throw new Error('unit is missing');
     if (candidate.status === 'accepted') return { applied: false, root };
     if (candidate.status !== 'pending') throw new Error('analysis suggestion is not pending');
+    if (candidate.redactedDefinitionIds.length > 0) {
+      throw new Error('custom field value was removed');
+    }
     assertCredentials(material, input.expected);
     if (
       candidate.manuscriptGeneration !== material.manuscriptGeneration ||
@@ -108,6 +111,9 @@ export function restoreAnalysis(
       throw new Error('analysis candidate is not a snapshot');
     const material = readAnalysisMaterial(db, candidate.unitId);
     if (candidate.text !== material.text) throw new Error('restore text does not match');
+    if (candidate.redactedDefinitionIds.length > 0) {
+      throw new Error('custom field value was removed');
+    }
     assertCredentials(material, input.expected);
     if (material.graph !== null) insertReviewSnapshot(db, material);
     const now = new Date().toISOString();

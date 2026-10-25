@@ -63,6 +63,7 @@ export interface AnalysisCandidateRecord {
   links: AnalysisAssociationLink[];
   notes: AnalysisAssociationNote[];
   definitionRevisions: StoredDefinitionRevision[];
+  redactedDefinitionIds: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -104,6 +105,7 @@ interface CandidateRow {
   links_json: string;
   notes_json: string;
   definition_revisions_json: string;
+  redacted_definition_ids_json: string;
   created_at: string;
   updated_at: string;
 }
@@ -151,8 +153,8 @@ export function insertAnalysisCandidate(
     `INSERT INTO analysis_candidates (
       id, unit_id, kind, status, graph_json, graph_fingerprint, manuscript_generation,
       analysis_generation, text, projection_json, links_json, notes_json,
-      definition_revisions_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      definition_revisions_json, redacted_definition_ids_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.unitId,
@@ -167,6 +169,7 @@ export function insertAnalysisCandidate(
     JSON.stringify(input.links),
     JSON.stringify(input.notes),
     JSON.stringify(currentDefinitionRevisions(db)),
+    '[]',
     now,
     now,
   );
@@ -294,9 +297,18 @@ function mapCandidate(row: CandidateRow): AnalysisCandidateRecord {
     links,
     notes,
     definitionRevisions: storedRevisions(row.definition_revisions_json),
+    redactedDefinitionIds: storedIds(row.redacted_definition_ids_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function storedIds(json: string): string[] {
+  const parsed = JSON.parse(json) as unknown;
+  if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) {
+    throw new Error('analysis candidate is invalid');
+  }
+  return parsed;
 }
 
 function storedRevisions(json: string): StoredDefinitionRevision[] {
