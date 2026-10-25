@@ -125,6 +125,30 @@ test('project import/export cancellation and failures preserve the isolated proj
   expect(downloads).toEqual(['e2e-field-sample.TextGrid']);
   expect(await readProjectData(page)).toBe(before);
 
+  for (const format of [
+    { label: /ELAN|EAF/i, signature: 'ANNOTATION_DOCUMENT' },
+    { label: /Transcriber|TRS/i, signature: '<Trans' },
+    { label: /FLEx/i, signature: '<document' },
+    { label: /Toolbox/i, signature: '\\tx export sample' },
+  ]) {
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 15_000 }),
+      (async () => {
+        await page.locator('.left-rail-project-hub-btn').click();
+        await page.getByRole('menuitem', { name: /导出|Export/ }).hover();
+        await page
+          .locator('.context-menu-submenu-export')
+          .getByRole('menuitem', { name: format.label })
+          .click();
+      })(),
+    ]);
+    const path = await download.path();
+    expect(path).toBeTruthy();
+    expect(await readFile(path!, 'utf8')).toContain(format.signature);
+    expect(await readProjectData(page)).toBe(before);
+  }
+  const formatDownloadCount = downloads.length;
+
   // Open the real export menu and cancel its first confirmation.
   page.once('dialog', (dialog) => void dialog.dismiss());
   await page.locator('.left-rail-project-hub-btn').click();
@@ -134,7 +158,7 @@ test('project import/export cancellation and failures preserve the isolated proj
     .getByRole('menuitem', { name: /JYM/i })
     .click();
   await expect(page.locator('.context-menu-submenu-export')).toBeHidden();
-  expect(downloads).toHaveLength(1);
+  expect(downloads).toHaveLength(formatDownloadCount);
   expect(await readProjectData(page)).toBe(before);
 
   const acceptExport = (dialog: import('@playwright/test').Dialog) => {
@@ -143,7 +167,7 @@ test('project import/export cancellation and failures preserve the isolated proj
   page.on('dialog', acceptExport);
   const archive = await exportArchiveFromProjectHub(page, 'JYM');
   expect(unzipSync(new Uint8Array(archive))['META-INF/manifest.json']).toBeDefined();
-  expect(downloads).toHaveLength(2);
+  expect(downloads).toHaveLength(formatDownloadCount + 1);
 
   const input = page.locator('input.left-rail-project-hub-file-input[accept=".jyt,.jym,.jyb"]');
   const preview = page.getByRole('dialog', { name: /Project import preview|导入项目预览/i });
@@ -185,7 +209,7 @@ test('project import/export cancellation and failures preserve the isolated proj
       .getByText(/导出失败.*isolated-download-failure|Export failed.*isolated-download-failure/)
       .first(),
   ).toBeVisible();
-  expect(downloads).toHaveLength(2);
+  expect(downloads).toHaveLength(formatDownloadCount + 1);
   await page.reload();
   await waitForDexie(page);
   expect(await readProjectData(page)).toBe(before);
@@ -299,4 +323,63 @@ item []:
   await page.reload();
   await waitForDexie(page);
   expect(await readProjectData(page)).toBe(afterValidImport);
+
+  const additionalFormats = [
+    {
+      name: 'valid.eaf',
+      mimeType: 'text/xml',
+      text: '<?xml version="1.0"?><ANNOTATION_DOCUMENT AUTHOR="E2E" DATE="2026-01-01T00:00:00.000Z" FORMAT="3.0" VERSION="3.0"><HEADER MEDIA_FILE="" TIME_UNITS="milliseconds"/><TIME_ORDER><TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0"/><TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="200"/></TIME_ORDER><TIER TIER_ID="transcription" LINGUISTIC_TYPE_REF="default-lt"><ANNOTATION><ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2"><ANNOTATION_VALUE>eaf import sample</ANNOTATION_VALUE></ALIGNABLE_ANNOTATION></ANNOTATION></TIER><LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false"/></ANNOTATION_DOCUMENT>',
+      importedText: 'eaf import sample',
+    },
+    {
+      name: 'valid.trs',
+      mimeType: 'text/xml',
+      text: '<?xml version="1.0"?><Trans><Speakers><Speaker id="spk1" name="Alice" /></Speakers><Episode><Section type="report" startTime="0" endTime="0.2"><Turn speaker="spk1" startTime="0" endTime="0.2"><Sync time="0"/>trs import sample</Turn></Section></Episode></Trans>',
+      importedText: 'trs import sample',
+    },
+    {
+      name: 'valid.flextext',
+      mimeType: 'text/xml',
+      text: '<?xml version="1.0"?><document version="2"><interlinear-text><paragraphs><paragraph><phrases><phrase guid="p1" begin-time-offset="0" end-time-offset="200"><item type="txt" lang="en">flextext import sample</item></phrase></phrases></paragraph></paragraphs></interlinear-text></document>',
+      importedText: 'flextext import sample',
+    },
+    {
+      name: 'valid.toolbox',
+      mimeType: 'text/plain',
+      text: '\\ref rec1\n\\ts 0.000\n\\te 0.200\n\\tx toolbox import sample\n',
+      importedText: 'toolbox import sample',
+    },
+  ];
+  for (const sample of additionalFormats) {
+    await input.setInputFiles({
+      name: sample.name,
+      mimeType: sample.mimeType,
+      buffer: Buffer.from(sample.text),
+    });
+    await expect(dialog).toBeVisible();
+    await dialog.getByTestId('annotation-import-as-new-document').check();
+    await dialog.getByRole('button', { name: /开始导入标注|Start annotation import/ }).click();
+    const mismatch = page.getByRole('dialog', { name: /Timeline length mismatch|时间轴长度不匹配/ });
+    if (await mismatch.isVisible().catch(() => false)) {
+      await mismatch
+        .getByRole('checkbox', { name: /I understand and want to continue importing|我理解并继续导入/ })
+        .check();
+      await mismatch.getByRole('button', { name: /^Import$/ }).click();
+    }
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(async (text) =>
+            (await (globalThis as any).__jieyuDexie__.table('layer_unit_contents').toArray()).some(
+              (row: { text?: string }) => row.text === text,
+            ), sample.importedText),
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+    await expect(dialog).toBeHidden();
+    const afterImport = await readProjectData(page);
+    await page.reload();
+    await waitForDexie(page);
+    expect(await readProjectData(page)).toBe(afterImport);
+  }
 });
