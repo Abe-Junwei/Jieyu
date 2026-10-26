@@ -113,16 +113,14 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
       });
   };
 
-  const saveTierNote = (
-    unitId: string,
-    layerId: string,
-    kind: 'tier_timeline' | 'tier_waveform',
-    text: string,
-  ) => {
+  const saveTierNote = (unitId: string, view: 'timeline' | 'waveform', text: string) => {
     if (host === null || sessionId === null || text.length === 0) return;
     setError('');
     void createDesktopClient({ desktopCall: host.desktopCall })
-      .createNote(sessionId, { anchor: { kind, unitId, layerId }, content: { default: text } })
+      .createNote(sessionId, {
+        anchor: { kind: 'unit', unitId, view },
+        content: { default: text },
+      })
       .then(() => loadShownNotes(host, sessionId, model?.manuscriptId ?? null))
       .then(setNotes)
       .catch(() => {
@@ -151,7 +149,7 @@ interface UnitNote {
   text: string;
 }
 
-const SHOWN_NOTE_KINDS = ['unit', 'tier_timeline', 'tier_waveform'] as const;
+const SHOWN_NOTE_KINDS = ['unit'] as const;
 
 async function loadShownNotes(
   host: DesktopReadHost,

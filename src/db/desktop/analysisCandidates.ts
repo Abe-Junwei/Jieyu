@@ -10,7 +10,7 @@ import type {
   ProjectedToken,
 } from '../../annotation/analysisGraphDomainProjection';
 import { currentDefinitionRevisions, type StoredDefinitionRevision } from './customFields';
-import { readActiveAnalysisNotes } from './notes';
+import { detachAnalysisNotes, detachProjectionNotes, readActiveAnalysisNotes } from './notes';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -31,6 +31,7 @@ export interface AnalysisAssociationNote {
   id: string;
   targetType: string;
   targetId: string;
+  tokenId?: string;
   body: string;
   content?: Record<string, string>;
   category?: string | null;
@@ -142,7 +143,7 @@ export function readAnalysisMaterial(db: SqliteDatabase, unitId: string): Analys
     manuscriptGeneration: row.manuscript_generation,
     projection: readProjection(db, unitId),
     links: readLinks(db, nodeIds),
-    notes: readNotes(db, nodeIds),
+    notes: readNotes(db, unitId, nodeIds),
   };
 }
 
@@ -242,6 +243,7 @@ export function listAnalysisCandidates(
 }
 
 export function clearAnalysisProjection(db: SqliteDatabase, unitId: string): void {
+  detachProjectionNotes(db, unitId, new Date().toISOString());
   db.prepare(
     'DELETE FROM morphemes WHERE token_id IN (SELECT id FROM tokens WHERE unit_id = ?)',
   ).run(unitId);
@@ -250,6 +252,7 @@ export function clearAnalysisProjection(db: SqliteDatabase, unitId: string): voi
 
 export function detachAnalysisAssociations(
   db: SqliteDatabase,
+  unitId: string,
   targetIds: readonly string[],
   now: string,
 ): void {
@@ -258,14 +261,8 @@ export function detachAnalysisAssociations(
      SET attachment = 'detached', updated_at = ?
      WHERE target_id = ? AND attachment = 'active'`,
   );
-  const note = db.prepare(
-    `UPDATE notes SET attachment = 'detached', updated_at = ?
-     WHERE node_id = ? AND anchor_kind IN ('token', 'morpheme', 'graph_node') AND attachment = 'active'`,
-  );
-  for (const targetId of targetIds) {
-    link.run(now, targetId);
-    note.run(now, targetId);
-  }
+  for (const targetId of targetIds) link.run(now, targetId);
+  detachAnalysisNotes(db, unitId, targetIds, now);
 }
 
 export function nodeIdsOf(graph: AnalysisGraphPayload | null): string[] {
@@ -466,8 +463,12 @@ function readLinks(db: SqliteDatabase, targetIds: readonly string[]): AnalysisAs
   return links;
 }
 
-function readNotes(db: SqliteDatabase, targetIds: readonly string[]): AnalysisAssociationNote[] {
-  return readActiveAnalysisNotes(db, targetIds);
+function readNotes(
+  db: SqliteDatabase,
+  unitId: string,
+  targetIds: readonly string[],
+): AnalysisAssociationNote[] {
+  return readActiveAnalysisNotes(db, unitId, targetIds);
 }
 
 function objectJson(value: string): Record<string, string> {

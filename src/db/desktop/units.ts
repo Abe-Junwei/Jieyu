@@ -176,7 +176,7 @@ export function updateUnitText(
          WHERE id = ?`,
       ).run(now, input.unitId);
       clearAnalysisProjection(db, input.unitId);
-      detachAnalysisAssociations(db, nodeIdsOf(material.graph), now);
+      detachAnalysisAssociations(db, input.unitId, nodeIdsOf(material.graph), now);
     } else {
       db.prepare('UPDATE units SET updated_at = ? WHERE id = ?').run(now, input.unitId);
     }

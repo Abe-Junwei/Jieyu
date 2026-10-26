@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 14;
+export const DESKTOP_PROJECT_USER_VERSION = 15;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -430,18 +430,18 @@ CREATE INDEX token_lexeme_links_lexeme ON token_lexeme_links(lexeme_id, sense_id
 CREATE TABLE notes (
   id TEXT PRIMARY KEY,
   anchor_kind TEXT NOT NULL CHECK (anchor_kind IN (
-    'project', 'manuscript', 'layer', 'unit', 'token', 'morpheme',
-    'tier_timeline', 'tier_waveform', 'translation_comment',
-    'content_row', 'graph_node', 'cell'
+    'project', 'manuscript', 'layer', 'unit', 'unit_text',
+    'token', 'morpheme', 'analysis_node'
   )),
   project_id TEXT CHECK (project_id IS NULL OR length(project_id) > 0),
   manuscript_id TEXT CHECK (manuscript_id IS NULL OR length(manuscript_id) > 0),
   layer_id TEXT CHECK (layer_id IS NULL OR length(layer_id) > 0),
   unit_id TEXT CHECK (unit_id IS NULL OR length(unit_id) > 0),
-  node_id TEXT CHECK (node_id IS NULL OR length(node_id) > 0),
   unit_text_id TEXT CHECK (unit_text_id IS NULL OR length(unit_text_id) > 0),
-  text_role TEXT CHECK (text_role IS NULL OR length(text_role) > 0),
-  cell_key TEXT CHECK (cell_key IS NULL OR length(cell_key) > 0),
+  token_id TEXT CHECK (token_id IS NULL OR length(token_id) > 0),
+  morpheme_id TEXT CHECK (morpheme_id IS NULL OR length(morpheme_id) > 0),
+  node_id TEXT CHECK (node_id IS NULL OR length(node_id) > 0),
+  view TEXT CHECK (view IS NULL OR view IN ('timeline', 'waveform')),
   content_json TEXT NOT NULL CHECK (json_valid(content_json) AND json_type(content_json) = 'object'),
   category TEXT CHECK (category IS NULL OR category IN (
     'comment', 'question', 'todo', 'linguistic', 'fieldwork', 'correction', 'topic'
@@ -458,41 +458,44 @@ CREATE TABLE notes (
     (anchor_kind = 'project'
       AND project_id IS NOT NULL
       AND manuscript_id IS NULL AND layer_id IS NULL AND unit_id IS NULL
-      AND node_id IS NULL AND unit_text_id IS NULL AND text_role IS NULL AND cell_key IS NULL)
+      AND unit_text_id IS NULL AND token_id IS NULL AND morpheme_id IS NULL
+      AND node_id IS NULL AND view IS NULL)
     OR (anchor_kind = 'manuscript'
       AND manuscript_id IS NOT NULL
       AND layer_id IS NULL AND unit_id IS NULL
-      AND node_id IS NULL AND unit_text_id IS NULL AND text_role IS NULL AND cell_key IS NULL)
+      AND unit_text_id IS NULL AND token_id IS NULL AND morpheme_id IS NULL
+      AND node_id IS NULL AND view IS NULL)
     OR (anchor_kind = 'layer'
       AND manuscript_id IS NOT NULL AND layer_id IS NOT NULL
-      AND unit_id IS NULL AND node_id IS NULL
-      AND unit_text_id IS NULL AND text_role IS NULL AND cell_key IS NULL)
+      AND unit_id IS NULL AND unit_text_id IS NULL AND token_id IS NULL
+      AND morpheme_id IS NULL AND node_id IS NULL AND view IS NULL)
     OR (anchor_kind = 'unit'
       AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL
-      AND layer_id IS NULL AND node_id IS NULL
-      AND unit_text_id IS NULL AND text_role IS NULL AND cell_key IS NULL)
-    OR (anchor_kind IN ('token', 'morpheme', 'graph_node')
-      AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL AND node_id IS NOT NULL
-      AND layer_id IS NULL AND unit_text_id IS NULL AND text_role IS NULL AND cell_key IS NULL)
-    OR (anchor_kind IN ('tier_timeline', 'tier_waveform')
-      AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL AND layer_id IS NOT NULL
-      AND node_id IS NULL AND unit_text_id IS NULL AND text_role IS NULL AND cell_key IS NULL)
-    OR (anchor_kind = 'translation_comment'
-      AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL
-      AND unit_text_id IS NOT NULL AND text_role IS NOT NULL
-      AND layer_id IS NULL AND node_id IS NULL AND cell_key IS NULL)
-    OR (anchor_kind = 'content_row'
+      AND layer_id IS NULL AND unit_text_id IS NULL AND token_id IS NULL
+      AND morpheme_id IS NULL AND node_id IS NULL)
+    OR (anchor_kind = 'unit_text'
       AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL AND unit_text_id IS NOT NULL
-      AND layer_id IS NULL AND node_id IS NULL AND text_role IS NULL AND cell_key IS NULL)
-    OR (anchor_kind = 'cell'
-      AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL AND layer_id IS NOT NULL
-      AND cell_key IS NOT NULL
-      AND node_id IS NULL AND unit_text_id IS NULL AND text_role IS NULL)
+      AND layer_id IS NULL AND token_id IS NULL AND morpheme_id IS NULL
+      AND node_id IS NULL AND view IS NULL)
+    OR (anchor_kind = 'token'
+      AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL AND token_id IS NOT NULL
+      AND layer_id IS NULL AND unit_text_id IS NULL AND morpheme_id IS NULL
+      AND node_id IS NULL AND view IS NULL)
+    OR (anchor_kind = 'morpheme'
+      AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL
+      AND token_id IS NOT NULL AND morpheme_id IS NOT NULL
+      AND layer_id IS NULL AND unit_text_id IS NULL AND node_id IS NULL AND view IS NULL)
+    OR (anchor_kind = 'analysis_node'
+      AND manuscript_id IS NOT NULL AND unit_id IS NOT NULL AND node_id IS NOT NULL
+      AND layer_id IS NULL AND unit_text_id IS NULL AND token_id IS NULL
+      AND morpheme_id IS NULL AND view IS NULL)
   )
 );
 
 CREATE INDEX notes_unit ON notes(unit_id) WHERE unit_id IS NOT NULL;
-CREATE INDEX notes_node ON notes(anchor_kind, node_id) WHERE node_id IS NOT NULL;
+CREATE INDEX notes_token ON notes(unit_id, token_id) WHERE token_id IS NOT NULL;
+CREATE INDEX notes_morpheme ON notes(unit_id, morpheme_id) WHERE morpheme_id IS NOT NULL;
+CREATE INDEX notes_node ON notes(unit_id, node_id) WHERE node_id IS NOT NULL;
 
 CREATE TABLE analysis_candidates (
   id TEXT PRIMARY KEY,

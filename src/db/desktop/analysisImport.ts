@@ -97,7 +97,7 @@ export function importAnalysis(
     const projected = projectAnalysisGraph(validated, input.unitId);
     replaceProjection(db, input.unitId, projected.tokens, projected.morphemes);
     syncProjectedLinks(db, validated);
-    detachAnalysisAssociations(db, removeNodes, now);
+    detachAnalysisAssociations(db, input.unitId, removeNodes, now);
     afterWrite?.();
     const stored = getAnalysisRoot(db, input.unitId);
     if (

@@ -544,15 +544,13 @@ const NOTE_KINDS = [
   'manuscript',
   'layer',
   'unit',
+  'unit_text',
   'token',
   'morpheme',
-  'tier_timeline',
-  'tier_waveform',
-  'translation_comment',
-  'content_row',
-  'graph_node',
-  'cell',
+  'analysis_node',
 ] as const;
+
+const NOTE_VIEWS = ['timeline', 'waveform'] as const;
 
 const NOTE_CATEGORIES = [
   'comment',
@@ -615,51 +613,48 @@ function noteAnchor(value: unknown): ContentNoteAnchor {
       knownKeys(anchor, ['kind', 'layerId']);
       return { kind, layerId: requiredString(anchor.layerId, 'layerId') };
     case 'unit':
-      knownKeys(anchor, ['kind', 'unitId']);
-      return { kind, unitId: requiredString(anchor.unitId, 'unitId') };
+      knownKeys(anchor, ['kind', 'unitId', 'view']);
+      return {
+        kind,
+        unitId: requiredString(anchor.unitId, 'unitId'),
+        ...('view' in anchor ? { view: noteView(anchor.view) } : {}),
+      };
+    case 'unit_text':
+      knownKeys(anchor, ['kind', 'unitTextId']);
+      return { kind, unitTextId: requiredString(anchor.unitTextId, 'unitTextId') };
     case 'token':
-    case 'graph_node':
+      knownKeys(anchor, ['kind', 'unitId', 'tokenId']);
+      return {
+        kind,
+        unitId: requiredString(anchor.unitId, 'unitId'),
+        tokenId: requiredString(anchor.tokenId, 'tokenId'),
+      };
+    case 'morpheme':
+      knownKeys(anchor, ['kind', 'unitId', 'morphemeId']);
+      return {
+        kind,
+        unitId: requiredString(anchor.unitId, 'unitId'),
+        morphemeId: requiredString(anchor.morphemeId, 'morphemeId'),
+      };
+    case 'analysis_node':
       knownKeys(anchor, ['kind', 'unitId', 'nodeId']);
       return {
         kind,
         unitId: requiredString(anchor.unitId, 'unitId'),
         nodeId: requiredString(anchor.nodeId, 'nodeId'),
       };
-    case 'morpheme':
-      knownKeys(anchor, ['kind', 'unitId', 'nodeId', 'parentNodeId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        nodeId: requiredString(anchor.nodeId, 'nodeId'),
-        ...('parentNodeId' in anchor
-          ? { parentNodeId: requiredString(anchor.parentNodeId, 'parentNodeId') }
-          : {}),
-      };
-    case 'tier_timeline':
-    case 'tier_waveform':
-      knownKeys(anchor, ['kind', 'unitId', 'layerId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        layerId: requiredString(anchor.layerId, 'layerId'),
-      };
-    case 'translation_comment':
-    case 'content_row':
-      knownKeys(anchor, ['kind', 'unitTextId']);
-      return { kind, unitTextId: requiredString(anchor.unitTextId, 'unitTextId') };
-    case 'cell':
-      knownKeys(anchor, ['kind', 'unitId', 'layerId', 'cellKey']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        layerId: requiredString(anchor.layerId, 'layerId'),
-        cellKey: requiredString(anchor.cellKey, 'cellKey'),
-      };
     default: {
       const unreachable: never = kind;
       throw new Error(`note anchor is invalid: ${String(unreachable)}`);
     }
   }
+}
+
+function noteView(value: unknown): 'timeline' | 'waveform' {
+  if (typeof value !== 'string') throw new Error('note anchor is invalid');
+  const found = NOTE_VIEWS.find((view) => view === value);
+  if (found === undefined) throw new Error('note anchor is invalid');
+  return found;
 }
 
 function noteKind(value: unknown): ContentNoteAnchor['kind'] {

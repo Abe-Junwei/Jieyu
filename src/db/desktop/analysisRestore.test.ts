@@ -136,7 +136,7 @@ function associate(db: InstanceType<typeof Database>, id: string, targetId: stri
     .get(targetId) as { unit_id: string; manuscript_id: string };
   db.prepare(
     `INSERT INTO notes (
-      id, anchor_kind, manuscript_id, unit_id, node_id, content_json, created_at, updated_at
+      id, anchor_kind, manuscript_id, unit_id, token_id, content_json, created_at, updated_at
     ) VALUES (?, 'token', ?, ?, ?, ?, ?, ?)`,
   ).run(`note-${id}`, place.manuscript_id, place.unit_id, targetId, '{"default":"original"}', T, T);
 }
