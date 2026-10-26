@@ -3,12 +3,13 @@ title: desktop-domain-write-boundaries requirements
 doc_type: execution-spec-requirements
 status: draft
 owner: repo
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-26
 source_of_truth: desktop-domain-write-boundaries-spec
 depends_on:
   - ../../../adr/0085-desktop-project-one-sqlite.md
   - ../../../adr/0088-desktop-sqlite-domain-landings.md
   - ../../../adr/0089-analysis-generation-accept-and-restore.md
+  - ../../../adr/0091-field-revisions-diagnostic-delivery-and-later-milestones.md
 ---
 
 # Requirements — 领域接替的事务与外部副作用边界
@@ -36,8 +37,8 @@ depends_on:
 ## 4. 验收（未来实现，当前不预填通过）
 
 - [ ] 正文已写入、快照/投影处理中途失败，重开后正文、图、关联、快照及代际全部保持操作前；成功则全部一致。
-- [ ] 必须同成败的记录失败时整体回滚；若采用提交后诊断方案，诊断失败不能把已提交业务报成保存失败；IPC 丢失仍按 ADR-0085 处理结果未知。
-- [ ] 九类旧备注目标都有能力去向/保留或取消依据和入口证据；评论不覆盖译文，恢复不覆盖后来编辑的备注。
+- [ ] 解释写入所必需的项目内记录失败时整体回滚。诊断库失败时内容保持已提交并显示日志待补交，不重复内容；全部完成只在诊断库已接收后显示。IPC 丢失不自动重试写入。规则见 ADR-0091。
+- [ ] 九类旧备注按 ADR-0091 和后续里程碑规格落位；评论不覆盖译文，恢复不覆盖后来编辑的备注。没有生产构造点的类仍能被导入和恢复核对。
 - [ ] 解除最后附件链接后发生文件失败/崩溃，重开仍能发现需处理的文件，且不会误删新关联或替换文件。
 - [ ] 新格式打开后调用旧 probe 不改变项目文件或结构；探针仅写独立临时夹具。首次声学绑定及改映射均不改文献秒。
 
