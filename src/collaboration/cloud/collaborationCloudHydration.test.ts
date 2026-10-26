@@ -173,7 +173,7 @@ describe('hydrateCollaborationProjectFromCloud', () => {
     expect(result.hydrated).toBe(false);
     expect(result.latestRevision).toBe(pageSize * maxPages + 1);
     expect(result.latestRevision).toBeLessThan(cloudMax);
-    expect(markProjectRevisionSeen).toHaveBeenCalledWith(pageSize * maxPages + 1);
+    expect(markProjectRevisionSeen).toHaveBeenCalledWith(pageSize * maxPages + 1, { mode: 'force' });
     expect(markProjectRevisionSeen).not.toHaveBeenCalledWith(cloudMax);
   });
 
