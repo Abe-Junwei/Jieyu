@@ -193,9 +193,17 @@ export function createDesktopClient(bridge: DesktopBridge) {
     readAnalysisState: (sessionId: string, unitId: string) =>
       once<AnalysisReadState>(sessionId, 'analysis.readState', { unitId }),
     listWords: (sessionId: string, unitId: string) =>
-      once<{ id: string; form: string }[]>(sessionId, 'analysis.listWords', { unitId }),
+      once<{ id: string; form: string; gloss: Record<string, string> }[]>(
+        sessionId,
+        'analysis.listWords',
+        { unitId },
+      ),
     segmentWords: (sessionId: string, unitId: string) =>
-      once<{ id: string; form: string }[]>(sessionId, 'analysis.segmentWords', { unitId }),
+      once<{ id: string; form: string; gloss: Record<string, string> }[]>(
+        sessionId,
+        'analysis.segmentWords',
+        { unitId },
+      ),
     listMorphemes: (sessionId: string, unitId: string) =>
       once<{ id: string; tokenId: string; form: string }[]>(sessionId, 'analysis.listMorphemes', {
         unitId,

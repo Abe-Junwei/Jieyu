@@ -6,6 +6,7 @@ import { t, useLocale } from '../i18n';
 export interface AnnotationWord {
   id: string;
   form: string;
+  gloss: Record<string, string>;
 }
 
 export interface AnnotationMorpheme {
@@ -20,6 +21,7 @@ export function useDesktopAnnotationWords(
   unitId: string | null,
 ) {
   const locale = useLocale();
+  const glossKey = locale === 'zh-CN' ? 'zh' : 'en';
   const [words, setWords] = useState<AnnotationWord[]>([]);
   const [morphemes, setMorphemes] = useState<AnnotationMorpheme[]>([]);
   const [error, setError] = useState('');
@@ -88,5 +90,41 @@ export function useDesktopAnnotationWords(
       });
   };
 
-  return { words, morphemes, error, segment, segmentMorphemes };
+  const setGloss = (wordId: string, value: string) => {
+    if (host === null || sessionId === null || unitId === null) return;
+    const current = words.find((word) => word.id === wordId)?.gloss[glossKey] ?? '';
+    if (current === value) return;
+    const id = ++request.current;
+    const client = createDesktopClient({ desktopCall: host.desktopCall });
+    void client
+      .readAnalysisState(sessionId, unitId)
+      .then((state) =>
+        client.applyAnalysis(sessionId, {
+          unitId,
+          expected: {
+            manuscriptGeneration: state.manuscriptGeneration,
+            analysisGeneration: state.analysisGeneration,
+            graphFingerprint: state.graphFingerprint,
+          },
+          changes: [
+            {
+              action: 'node.setMapValue',
+              nodeId: wordId,
+              field: 'gloss',
+              key: glossKey,
+              value,
+            },
+          ],
+        }),
+      )
+      .then(() => client.listWords(sessionId, unitId))
+      .then((next) => {
+        if (id === request.current) setWords(next);
+      })
+      .catch(() => {
+        if (id === request.current) setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  return { words, morphemes, error, glossKey, segment, segmentMorphemes, setGloss };
 }

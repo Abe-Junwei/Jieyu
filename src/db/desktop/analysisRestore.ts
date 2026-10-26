@@ -434,6 +434,7 @@ export function writeGraph(
 export interface UnitWord {
   id: string;
   form: string;
+  gloss: Record<string, string>;
 }
 
 export function listUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
@@ -441,9 +442,15 @@ export function listUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
     throw new Error('unit is missing');
   }
   const rows = db
-    .prepare('SELECT id, form_json FROM tokens WHERE unit_id = ? ORDER BY token_index, id')
-    .all(unitId) as { id: string; form_json: string }[];
-  return rows.map((row) => ({ id: row.id, form: wordForm(row.form_json) }));
+    .prepare(
+      'SELECT id, form_json, gloss_json FROM tokens WHERE unit_id = ? ORDER BY token_index, id',
+    )
+    .all(unitId) as { id: string; form_json: string; gloss_json: string }[];
+  return rows.map((row) => ({
+    id: row.id,
+    form: wordForm(row.form_json),
+    gloss: JSON.parse(row.gloss_json) as Record<string, string>,
+  }));
 }
 
 export function segmentUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {

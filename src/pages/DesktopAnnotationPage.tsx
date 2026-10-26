@@ -80,7 +80,16 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
               <p>{selected.text}</p>
               <ul>
                 {words.words.map((word) => (
-                  <li key={word.id}>{word.form}</li>
+                  <li key={word.id}>
+                    <span>{word.form}</span>
+                    <input
+                      aria-label={`${t(locale, 'workspace.annotation.glossLabel')}: ${word.form}`}
+                      defaultValue={word.gloss[words.glossKey] ?? ''}
+                      onBlur={(event) => {
+                        words.setGloss(word.id, event.currentTarget.value.trim());
+                      }}
+                    />
+                  </li>
                 ))}
               </ul>
               <button

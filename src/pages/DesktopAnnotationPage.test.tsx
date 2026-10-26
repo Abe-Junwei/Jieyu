@@ -261,6 +261,17 @@ describe('DesktopAnnotationPage', () => {
       'disabled',
       true,
     );
+    const gloss = screen.getByRole('textbox', { name: 'Gloss: alpha' });
+    fireEvent.change(gloss, { target: { value: 'dog' } });
+    fireEvent.blur(gloss);
+    await waitFor(() => {
+      expect(
+        callDesktopSession(session.sessionId, 'analysis.listWords', { unitId: unit.id }),
+      ).toMatchObject([
+        { form: 'alpha', gloss: { en: 'dog' } },
+        { form: 'beta', gloss: {} },
+      ]);
+    });
     view.unmount();
     resetDesktopSessions();
     const reopened = openDesktopSession(folder, [folder]);
@@ -269,9 +280,13 @@ describe('DesktopAnnotationPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 alpha beta' }));
     expect(await screen.findByText('alpha')).toBeTruthy();
     expect(screen.getByText('beta')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Gloss: alpha' })).toHaveProperty('value', 'dog');
     expect(
       callDesktopSession(reopened.sessionId, 'analysis.listWords', { unitId: unit.id }),
-    ).toMatchObject([{ form: 'alpha' }, { form: 'beta' }]);
+    ).toMatchObject([
+      { form: 'alpha', gloss: { en: 'dog' } },
+      { form: 'beta', gloss: {} },
+    ]);
     expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       text: 'alpha beta',
     });
