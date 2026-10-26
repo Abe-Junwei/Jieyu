@@ -493,7 +493,7 @@ describe('useTranscriptionCollaborationBridge', () => {
 
     // Contiguous inbound (#361): seed predecessor via force (hydration/outbound)
     act(() => {
-      result.current.markProjectRevisionSeen(6);
+      result.current.markProjectRevisionSeen(6, { mode: 'force' });
     });
 
     const options = lastBridgeOptions.current as {
@@ -539,7 +539,7 @@ describe('useTranscriptionCollaborationBridge', () => {
 
     // Seed contiguous base at 9 via force (hydration/outbound path)
     act(() => {
-      result.current.markProjectRevisionSeen(9);
+      result.current.markProjectRevisionSeen(9, { mode: 'force' });
     });
     expect(loadProjectLastSeenRevision('project-1')).toBe(9);
 
@@ -597,7 +597,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     });
 
     act(() => {
-      result.current.markProjectRevisionSeen(9);
+      result.current.markProjectRevisionSeen(9, { mode: 'force' });
     });
     expect(loadProjectLastSeenRevision('project-1')).toBe(9);
 
@@ -665,7 +665,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     });
 
     act(() => {
-      result.current.markProjectRevisionSeen(9);
+      result.current.markProjectRevisionSeen(9, { mode: 'force' });
     });
 
     const options = lastBridgeOptions.current as {
