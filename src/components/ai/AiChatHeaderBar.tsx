@@ -100,7 +100,6 @@ export function AiChatHeaderBar({
                   onClick={toggleConversationList}
                   aria-expanded={conversationListOpen}
                   aria-haspopup="dialog"
-                  aria-label={t(locale, 'ai.chat.conversationList.titleButton')}
                   title={chatTitle}
                 >
                   <span className="ai-chat-conversation-title-text">{chatTitle}</span>

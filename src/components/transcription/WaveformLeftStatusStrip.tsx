@@ -120,13 +120,15 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(
             }
             aria-label={
               snapEnabled
-                ? t(locale, 'transcription.statusStrip.snapDisable')
-                : t(locale, 'transcription.statusStrip.snapEnable')
+                ? `${t(locale, 'transcription.statusStrip.snapOnShort')}: ${t(locale, 'transcription.statusStrip.snapDisable')}`
+                : `${t(locale, 'transcription.statusStrip.snapOffShort')}: ${t(locale, 'transcription.statusStrip.snapEnable')}`
             }
           >
-            {snapEnabled
-              ? t(locale, 'transcription.statusStrip.snapOnShort')
-              : t(locale, 'transcription.statusStrip.snapOffShort')}
+            <span aria-hidden="true">
+              {snapEnabled
+                ? t(locale, 'transcription.statusStrip.snapOnShort')
+                : t(locale, 'transcription.statusStrip.snapOffShort')}
+            </span>
           </button>
         </div>
         <div className="waveform-left-status-item">

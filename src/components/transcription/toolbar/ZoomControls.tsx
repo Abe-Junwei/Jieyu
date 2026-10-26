@@ -151,11 +151,13 @@ const ZoomControls: FC<ZoomControlsProps> = ({
             }
             aria-label={
               autoScrollEnabled
-                ? t(locale, 'transcription.zoom.autoScrollOff')
-                : t(locale, 'transcription.zoom.autoScrollOn')
+                ? `AS: ${t(locale, 'transcription.zoom.autoScrollOff')}`
+                : `AS: ${t(locale, 'transcription.zoom.autoScrollOn')}`
             }
           >
-            <span className="icon-btn-label">AS</span>
+            <span className="icon-btn-label" aria-hidden="true">
+              AS
+            </span>
           </button>
         </>
       ) : null}

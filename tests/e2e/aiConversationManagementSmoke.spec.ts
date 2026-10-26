@@ -5,11 +5,17 @@ import { expect, test } from '@playwright/test';
 import { openTranscriptionChatWindow } from './_helpers/openTranscriptionChatWindow';
 
 test.describe('AI conversation management smoke', () => {
-  test('shows conversation list controls in floating chat window header', async ({ page, browserName }) => {
+  test('shows conversation list controls in floating chat window header', async ({
+    page,
+    browserName,
+  }) => {
     const errors: string[] = [];
     page.on('pageerror', (err) => {
       const message = err.message;
-      if (browserName === 'webkit' && message.includes("Unexpected identifier 'AiStateWorkerRequest'")) {
+      if (
+        browserName === 'webkit' &&
+        message.includes("Unexpected identifier 'AiStateWorkerRequest'")
+      ) {
         return;
       }
       errors.push(message);
@@ -23,17 +29,15 @@ test.describe('AI conversation management smoke', () => {
     });
     await expect(listButton).toBeVisible({ timeout: 15_000 });
 
-    const titleButton = page.getByRole('button', {
-      name: /Current conversation title|当前会话标题/i,
-    });
+    // Accessible name is the visible chat title (WCAG 2.5.3), not a generic label.
+    const titleButton = page.locator('.ai-chat-conversation-title-btn.is-floating');
     await expect(titleButton).toBeVisible();
+    await expect(titleButton).toHaveAccessibleName(/New chat|新对话/i);
 
     await listButton.click();
     const popover = page.locator('.ai-conversation-list-popover');
     await expect(popover).toBeVisible({ timeout: 5_000 });
-    await expect(
-      popover.getByRole('button', { name: /New chat|新对话/i }),
-    ).toBeVisible();
+    await expect(popover.getByRole('button', { name: /New chat|新对话/i })).toBeVisible();
 
     await page.waitForTimeout(1000);
     expect(errors).toHaveLength(0);

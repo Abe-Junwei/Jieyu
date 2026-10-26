@@ -109,7 +109,6 @@ export function TranscriptionPageChatWindowHeader({
                 onClick={onToggleConversationList}
                 aria-expanded={conversationListOpen}
                 aria-haspopup="dialog"
-                aria-label={t(uiLocale, 'ai.chat.conversationList.titleButton')}
                 title={chatTitle}
               >
                 <span id={windowTitleId} className="ai-chat-conversation-title-text">
