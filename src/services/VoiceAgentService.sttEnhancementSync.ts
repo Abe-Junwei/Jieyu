@@ -13,6 +13,8 @@ export function scheduleSyncVoiceServiceSttEnhancement(input: {
   getVoiceService: () => VoiceInputServiceType | null;
   enhancementKind: SttEnhancementSelectionKind;
   enhancementConfig: SttEnhancementConfig;
+  /** #384: false when a newer sync superseded this call */
+  isCurrent: () => boolean;
 }): void {
   const voiceService = input.getVoiceService();
   if (!voiceService) {
@@ -26,6 +28,10 @@ export function scheduleSyncVoiceServiceSttEnhancement(input: {
 
   void loadSttRuntime()
     .then(({ createSttEnhancementProvider }) => {
+      // Stale load after setSttEnhancementKind('none') / a newer kind must not re-enable (#384)
+      if (!input.isCurrent()) {
+        return;
+      }
       const svc = input.getVoiceService();
       if (!svc) {
         return;
