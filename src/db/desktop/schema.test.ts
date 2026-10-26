@@ -76,6 +76,7 @@ describe('desktop project schema', () => {
     db.close();
     expect(names).toEqual([
       { name: 'analysis_candidates' },
+      { name: 'bibliography' },
       { name: 'conversations' },
       { name: 'custom_field_definitions' },
       { name: 'custom_field_options' },

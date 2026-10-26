@@ -53,14 +53,14 @@ depends_on:
 | --- | --- | --- | --- |
 | 说话人 | `name`、`pseudonym`、`gender`、`birthYear`、`languageIds`、`dialect`、`accent`、`role`、`consentStatus`、`accessRights`、`address`、多语 `notes`、`textId`、时间 | `speakers` 已有这些列和 `field_revisions_json` | 旧 `textId` 不建列：本文件就是一个项目。说话人不挂文稿，清除文稿不删行。字段修订和诊断补交与来源相同 |
 | 媒体来源 | 新表自己的 `label`、`external_id`、`media_id` | `sources` 已是这三列加时间 | 只表示媒体来源。清录音时解除它 |
-| 书目 | `title`、`authors`、`year`、`publisher`、`doi`、`url`、`citationKey`、`sourceType`、多语 `notes`、`accessRights`、`textId` | 新库没有书目表 | 不能塞进 `sources.external_id`。共享书目保留 |
+| 书目 | `title`、`authors`、`year`、`publisher`、`doi`、`url`、`citationKey`、`sourceType`、多语 `notes`、`accessRights`、`textId` | `bibliography` 已有这些列和 `field_revisions_json` | 不进 `sources`。旧 `textId` 不建列。共享书目不随文稿清除 |
 | 对话 | `title`、`mode`、`providerId`、`model`、`archived`、`clearedAt`、`textId`、时间 | `conversations` 已有这些列和 `field_revisions_json` | 旧 `textId` 不建列。`archived` 的 false 和空缺分开。历史审批不进这张表 |
 | 消息 | `role`、`content`、`status`、`generationSource`、`generationModel`、`citations`、`errorMessage`、`reasoningContent`、`reflectionChecks`、`compatibilityReport`、`sourceScopeSummary`、时间 | `messages` 只有 `role`、`body`、`created_at` | 追加消息带稳定 id，不整份替换数组。引用和推理正文按 ADR-0080 不进消息行的规则继续有效，不能为了接替把它们塞进 `body` |
 | 项目设置 | `project.settings_json` 已是对象 | 同列 | 只接受已经点名的键。会话记忆和车道锁定继续排除，见 ADR-0086 |
 | 保存的查询 | `AiSourceSetDoc` 仍在旧类型里 | 新库没有表 | 没有已达产品功能就不建表 |
 | AI 写入 | 现有提案、审批、执行分开 | 无新的通用写入口 | 复用具体领域操作 |
 
-来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。说话人和对话已按同一规则接上除 `textId` 外的旧字段。对话不保存历史审批。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
+来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。说话人、对话和书目已按同一规则接上除 `textId` 外的旧字段。对话不保存历史审批。书目不进来源表。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
 
 ## 4. 诊断库
 
