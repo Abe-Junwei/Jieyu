@@ -40,6 +40,11 @@ import {
 } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
+import {
+  patchConversation,
+  redeliverConversation,
+  type ConversationPatch,
+} from './conversationFields';
 import { patchSpeaker, redeliverSpeaker, type SpeakerPatch } from './speakerFields';
 import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
@@ -133,6 +138,8 @@ const METHODS = [
   'sources.redeliver',
   'speakers.patch',
   'speakers.redeliver',
+  'conversations.patch',
+  'conversations.redeliver',
   'analysis.apply',
   'analysis.readState',
   'analysis.import',
@@ -308,6 +315,11 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'speakers.redeliver':
       knownKeys(input, ['operationId']);
       return redeliverSpeaker(project.db, requiredString(input.operationId, 'operationId'));
+    case 'conversations.patch':
+      return patchConversation(project.db, conversationPatch(input));
+    case 'conversations.redeliver':
+      knownKeys(input, ['operationId']);
+      return redeliverConversation(project.db, requiredString(input.operationId, 'operationId'));
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.readState':
@@ -362,6 +374,54 @@ function sourcePatch(input: Record<string, unknown>): SourcePatch {
     ...(label === undefined ? {} : { label }),
     ...(externalId === undefined ? {} : { externalId }),
   };
+}
+
+function conversationPatch(input: Record<string, unknown>): ConversationPatch {
+  knownKeys(input, [
+    'operationId',
+    'id',
+    'title',
+    'mode',
+    'providerId',
+    'model',
+    'archived',
+    'clearedAt',
+  ]);
+  const title = speakerText(input.title, 'title', false);
+  const providerId = speakerText(input.providerId, 'providerId', true);
+  const model = speakerText(input.model, 'model', true);
+  const clearedAt = speakerText(input.clearedAt, 'clearedAt', true);
+  const mode = speakerEnum(input.mode, 'mode', ['assistant', 'analysis', 'review']);
+  const archived = conversationArchived(input.archived);
+  const patch: ConversationPatch = {
+    operationId: requiredString(input.operationId, 'operationId'),
+    id: requiredString(input.id, 'id'),
+  };
+  if (title !== undefined) {
+    if (typeof title.value !== 'string')
+      throw new Error('desktop call title.value must be a string');
+    patch.title = { expectedRevision: title.expectedRevision, value: title.value };
+  }
+  if (mode !== undefined) patch.mode = mode;
+  if (providerId !== undefined) patch.providerId = providerId;
+  if (model !== undefined) patch.model = model;
+  if (archived !== undefined) patch.archived = archived;
+  if (clearedAt !== undefined) patch.clearedAt = clearedAt;
+  if (Object.keys(patch).length === 2) throw new Error('conversation patch is empty');
+  return patch;
+}
+
+function conversationArchived(
+  value: unknown,
+): { expectedRevision: number; value: boolean | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const archived = record.value;
+  if (archived !== null && typeof archived !== 'boolean') {
+    throw new Error('desktop call archived.value must be a boolean');
+  }
+  return { expectedRevision: revisionOf(record.expectedRevision, 'archived'), value: archived };
 }
 
 function speakerPatch(input: Record<string, unknown>): SpeakerPatch {
