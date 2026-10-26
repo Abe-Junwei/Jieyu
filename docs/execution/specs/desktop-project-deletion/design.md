@@ -3,7 +3,7 @@ title: desktop-project-deletion design
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-26
 source_of_truth: desktop-project-deletion-spec
 depends_on:
   - ./requirements.md
@@ -35,7 +35,7 @@ depends_on:
 - 删除录音时各文稿清除期限取原期限与本次删除+90 天的较晚者；本周期提醒不足以覆盖新窗口时仍需满足新的清除资格。
 - 恢复一份文稿在同事务取消录音待清除状态；其他文稿不变。清除与恢复并发时重读有效状态，不能用提前缓存的候选列表直接清除。
 - 文稿清除只清自身标注/备注；共享说话人、录音等不级联。录音无任何文稿引用且自身期限满足才移走音频。
-- trash 前记录意图并核查文件身份，成功后事务清理 media/来源关联；崩溃未知时进入需处理状态，不自动按路径重试移走另一个文件。
+- 清除阶段、删除前的新工作限制和备份快照期间的文件保留以 ADR-0091 为准。调用垃圾箱前再查一次数据库不是互斥。trash 成功后才清理 media 和来源关联；失败或未知进入可处理状态，不按路径缺失重试。
 - 包恢复保留删除状态但使旧提醒不再授权立即清除；重新实际展示后至少留 7 天。旧备份副本不追删。
 
 ## 4. 四片与落位

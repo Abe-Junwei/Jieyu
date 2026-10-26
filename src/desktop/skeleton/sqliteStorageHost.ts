@@ -2,13 +2,12 @@
  * 主进程打开已锁定项目文件夹上的两份库，并按一次方法调用转发（ADR-0079）。
  * userData 文件由调用方传入，不在项目文件夹里。
  */
-import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { callStorageMethod } from '../../db/ipcStoragePort';
 import { PROJECT_APPLICATION_ID } from '../../db/sqliteSpeakerAssignment';
 import { openSqliteStoragePort } from '../../db/sqliteStoragePort';
-import { PROJECT_LOCK_NAME } from './projectLock';
+import { projectFolderLockedByThisProcess } from './projectLock';
 
 interface OpenHandle {
   port: object;
@@ -19,11 +18,8 @@ interface OpenHandle {
 
 let current: OpenHandle | undefined;
 
-function assertProjectFolderLocked(folder: string, pid: number): void {
-  const lockPath = path.join(folder, PROJECT_LOCK_NAME);
-  if (!fs.existsSync(lockPath)) throw new Error('project folder is not locked');
-  const existing = Number.parseInt(fs.readFileSync(lockPath, 'utf8'), 10);
-  if (existing !== pid) throw new Error('project folder is not locked');
+function assertProjectFolderLocked(folder: string): void {
+  if (!projectFolderLockedByThisProcess(folder)) throw new Error('project folder is not locked');
 }
 
 function assertUserDataOutsideProject(file: string, projectDir: string): void {
@@ -49,12 +45,8 @@ export function closeLockedSqliteStorage(): void {
   current = undefined;
 }
 
-export function openLockedSqliteStorage(input: {
-  folder: string;
-  userDataFile: string;
-  pid: number;
-}): void {
-  assertProjectFolderLocked(input.folder, input.pid);
+export function openLockedSqliteStorage(input: { folder: string; userDataFile: string }): void {
+  assertProjectFolderLocked(input.folder);
   assertUserDataOutsideProject(input.userDataFile, input.folder);
   const previous = current;
   current = undefined;

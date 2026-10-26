@@ -9,14 +9,14 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 
 ## 当前执行队列（2026-10-25 本轮重排）
 
-- 下一刀 M1-S1；M1 四片全过只记 #275 子进度。完整领取顺序、每片交付/失败验收见[单库计划](../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。
+- 下一刀是 M5-D 旧标注页。文件夹页已能保存语段备注，并把时间轴备注和波形备注分成两行。新库旁注按八类本库对象锚定，当前 user_version 以 schema.ts 为准，旧文件只拒绝。来源、说话人、对话和书目的字段修订与诊断补交已落地。说话人和书目不挂文稿。对话不保存历史审批。书目不进来源表。规则见 [ADR-0092](../../adr/0092-desktop-note-anchors.md)。M5-C 的 C1 至 C8b 已落地。旧标注页未改接。M1 至 M5-B 已落地。M4 用户流程已在 macOS Electron 上走通，按 ADR-0086 有限开放，不冻结格式，不关闭 #275。完整领取顺序见[单库计划](../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。
 - M2-A/B→M3-A/B→M4-A/B/C；M4 整体合成流程通过后才开放白名单。R1、审计、备注、R5/R6 不阻塞 M1，各在相关领域开工前收口。
 - #280 按 M5-A–H 追踪真实业务接替；#325 按 D1–D4，D1/D2 联合开放；#329 从 M3 准备并随场景迁移。
 - M6-A–D 交付交换/合成示例、含音频备份与 D3、D4、单库终验；#275/#325 及必要恢复/接替完成后 #259 D14→#282 首发。安装更新/反馈仍 #277/#312 独立验收。
 - #313-A 真实材料仍仅用户本人制作，代理不读；D14 前 B 用合成等价材料，最终真实示例试用归 #282，不倒过来阻塞格式冻结。
 - #311/#333/#299 在 M4 后可开工但不挡首发；#298/B7 仍第二程。#281/#326 保持 not planned 关闭，不重开、不记验收通过。
 - 本地 005、015 的门槛是 M4；016 等 M6 交换 API；039 与 #277 同期。007/#257 不在白名单，未另获准不得开工。#342 是未排期的 C4 草案，试用协作仍是互传项目包。#368、#369 是冻结期可修的安全缺陷，不改变下一刀。
-- 本轮规划与远端同步不表示代码已实现，也不勾完成任何新切片。GitHub 正文保留历史，但当前清单优先。与文首或 ADR-0086 冲突的旧句不要执行。
+- M1 至 M5-B 已勾上。M5-C 的 C1 至 C8b 已落地。来源、说话人、对话和书目的字段修订已落地。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页和 ADR-0091 的其余产品代码仍未实施。规划同步不表示那些切片已完成。GitHub 正文保留历史，但当前清单优先。与文首或 ADR-0086 冲突的旧句不要执行。
 
 ## Long-term destination
 
@@ -64,8 +64,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
   12. 崩溃上报：试用者选择开启的自动上报（如 Sentry），按主路线图 C1 脱敏（关闭 [#261](https://github.com/Abe-Junwei/Jieyu/issues/261)）。
   13. 试用名单与节奏由用户本人决定，不进路线图（关闭 [#264](https://github.com/Abe-Junwei/Jieyu/issues/264)）。
   14. 用户手册：图文中文快速上手，应用内帮助 + PDF（[#263](https://github.com/Abe-Junwei/Jieyu/issues/263) 转为任务）。
-- 2026-10-13 19:33–19:51 用户拍板（grill-with-docs；写成 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md)、[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)，术语见 [术语表](../../architecture/术语表.md)）：
-  0. 用户没有需要保留的真实数据；D14 未触发，基线仍可重置。
+- 2026-10-13 19:33–19:51 用户拍板（grill-with-docs；写成 [ADR-0046](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0046-desktop-sqlite-project-folder.md)、[ADR-0047](https://github.com/Abe-Junwei/Jieyu/blob/main/docs/adr/0047-desktop-build-strips-collab-keys-telemetry.md)，术语见 [术语表](../../architecture/术语表.md)）：0. 用户没有需要保留的真实数据；D14 未触发，基线仍可重置。
   1. **取代上面第 2 条**：桌面版规范存储 = SQLite，项目文件夹 = `project.sqlite` + `media/`。JYM/JYT 仍是 JSON 交换包，导出导入时互转。磁盘不加密（加密 JYM 只用于导出）。（[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 改为表结构）
   2. 存储层方案 B：统一存储接口；桌面实现 = 主进程 SQLite（如 better-sqlite3），浏览器构建 = Dexie；约 297 个直连 db 模块分批迁移，新代码必须走接口。（[#274](https://github.com/Abe-Junwei/Jieyu/issues/274)、新单 [#280](https://github.com/Abe-Junwei/Jieyu/issues/280)）
   3. 术语：项目 = `textId` = 一个项目文件夹；项目包 = JYM/JYT，只用于交换与归档；文稿 = 项目内的标注文档；工作区只指界面布局。
@@ -179,7 +178,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-18：[#276](https://github.com/Abe-Junwei/Jieyu/issues/276) Electron 骨架落地（[#331](https://github.com/Abe-Junwei/Jieyu/pull/331)）。三平台烟测覆盖启动、选项目文件夹、同步盘警告、第二窗口被锁挡住、一次 `project.sqlite` 写入读回、主进程带密钥的出站请求（渲染进程看不到明文）、媒体 Range。浏览器端到端仍是主回归。协作编译期剔除留给 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328)。本地 026 删除。
 - 2026-10-18 用户：Field Matters 调研（本机笔记，2022–2026 论文）里值得做的四项挂第二程：[#333](https://github.com/Abe-Junwei/Jieyu/issues/333) 词表音位配列质检、[#334](https://github.com/Abe-Junwei/Jieyu/issues/334) ASR 训练集导出与编辑记录、[#335](https://github.com/Abe-Junwei/Jieyu/issues/335) 注释 LLM 后校正（先做三方对比实验，产品接入归 #315）、[#336](https://github.com/Abe-Junwei/Jieyu/issues/336) 离线说话人分离原型。当时全部排在 ADR-0064 解冻与 #250 之后（#333 已改为 M4 后可开工且不挡首发；#334 与 #336 仍等第一程。解冻不再等于 #275 与 #325 都关闭）；自训模型都不设默认。暂缓不开单：CLDF 导出（等 #309、#310）、CRF 注释器（先看 #335 的结果）、ZIPA 音素识别与强制对齐（等推理后端）、PolyGloss（只跟踪，许可未明）。
 - 2026-10-18 11:20 用户：#335 第一步（三方对比实验）提前，不受冻结、不等 #250。实验脚本在本机由用户在自己的数据上跑，代理不读语料；第二步（产品接入）仍排在解冻与 #250 之后。
-- 2026-10-18：[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 落地。删除浏览器支持策略页；`browserslist` 改为 Electron 44 的 Chromium 152；Playwright 与每晚任务去掉 Firefox、WebKit；关于页改为桌面版说明。源码不删。清单：协作与 Supabase 保留（编译期剔除仍按 ADR-0047，本单未改构建）；随浏览器构建删除的有 `src/ai/config/keyVault.ts`（桌面用 `safeStorage`）和 Vite PWA；待用户逐项定的有 `src/services/backupFolderService.ts`（File System Access 站点外备份）和只在 Firefox 上跑的 `tests/e2e/ws8X2AcousticOversize.spec.ts`。Dexie 与浏览器里的 JYB 导出不再等已取消的 #326；退出见 #329 与 ADR-0086。本地 045 删除。当时写的下一刀「#275，#280 并行」作废，当前下一刀是单库计划 M1-S1。
+- 2026-10-18：[#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 落地。删除浏览器支持策略页；`browserslist` 改为 Electron 44 的 Chromium 152；Playwright 与每晚任务去掉 Firefox、WebKit；关于页改为桌面版说明。源码不删。清单：协作与 Supabase 保留（编译期剔除仍按 ADR-0047，本单未改构建）；随浏览器构建删除的有 `src/ai/config/keyVault.ts`（桌面用 `safeStorage`）和 Vite PWA；待用户逐项定的有 `src/services/backupFolderService.ts`（File System Access 站点外备份）和只在 Firefox 上跑的 `tests/e2e/ws8X2AcousticOversize.spec.ts`。Dexie 与浏览器里的 JYB 导出不再等已取消的 #326；退出见 #329 与 ADR-0086。本地 045 删除。当时写的下一刀「#275，#280 并行」作废。活指针在文首队列，当前是单库计划 M5-C。
 
 ## Next leg
 
@@ -221,7 +220,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 ## Not yet specified
 
 - 语言学者试用告一段落之后的去向：数据保留、转正式版与收费（2026-10-13 用户：以后再定）。
-（2026-10-14 移除已定项：换电脑靠导出 JYM、性能只记录不设门槛（21:18 第 7 条）；冻结后迁移验证（21:14 第 6 条、#281）；隐私承诺（A9 默认开、首次云端转写伦理对话框，20:16 第 1 条、21:18 第 6 条，中文隐私说明见 #307）。）
+  （2026-10-14 移除已定项：换电脑靠导出 JYM、性能只记录不设门槛（21:18 第 7 条）；冻结后迁移验证（21:14 第 6 条、#281）；隐私承诺（A9 默认开、首次云端转写伦理对话框，20:16 第 1 条、21:18 第 6 条，中文隐私说明见 #307）。）
 
 ## Out of scope
 

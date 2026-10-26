@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
-import { PROJECT_LOCK_NAME } from './projectLock';
+import { releaseAllProjectLocks, tryAcquireProjectLock } from './projectLock';
 import { sqliteStoragePortFlagEnabled } from './sqliteStoragePortFlag';
 import {
   callLockedSqliteStorage,
@@ -21,12 +21,14 @@ function tempRoot(): string {
   return root;
 }
 
-function lock(folder: string, pid: number): void {
-  writeFileSync(join(folder, PROJECT_LOCK_NAME), `${pid}\n`);
+function lock(folder: string): void {
+  const result = tryAcquireProjectLock(folder);
+  if (!result.ok) throw new Error('project folder is busy');
 }
 
 afterEach(() => {
   closeLockedSqliteStorage();
+  releaseAllProjectLocks();
   for (const root of roots) rmSync(root, { recursive: true, force: true });
   roots.length = 0;
 });
@@ -50,9 +52,9 @@ describe('locked sqlite storage host', () => {
     const userDataFile = join(root, 'user-data.sqlite');
     mkdirSync(folder, { recursive: true });
     writeProjectLibraryMarker(join(folder, 'project.sqlite'));
-    lock(folder, process.pid);
+    lock(folder);
     const turn = { conversationId: 'c1', createdAt: 1, expiresAt: 70, note: 'kept' };
-    openLockedSqliteStorage({ folder, userDataFile, pid: process.pid });
+    openLockedSqliteStorage({ folder, userDataFile });
     await callLockedSqliteStorage('turns.putTurn', [turn]);
     reopenLockedSqliteStorage();
     await expect(callLockedSqliteStorage('turns.getTurn', ['c1'])).resolves.toEqual(turn);
@@ -67,8 +69,8 @@ describe('locked sqlite storage host', () => {
     const db = new Database(join(folder, 'project.sqlite'));
     db.exec('PRAGMA application_id = 1');
     db.close();
-    lock(folder, process.pid);
-    expect(() => openLockedSqliteStorage({ folder, userDataFile, pid: process.pid })).toThrow(
+    lock(folder);
+    expect(() => openLockedSqliteStorage({ folder, userDataFile })).toThrow(
       /application_id is not a Jieyu project library/,
     );
   });
@@ -78,12 +80,11 @@ describe('locked sqlite storage host', () => {
     const folder = join(root, 'project');
     mkdirSync(folder, { recursive: true });
     writeProjectLibraryMarker(join(folder, 'project.sqlite'));
-    lock(folder, process.pid);
+    lock(folder);
     expect(() =>
       openLockedSqliteStorage({
         folder,
         userDataFile: join(folder, 'user-data.sqlite'),
-        pid: process.pid,
       }),
     ).toThrow(/inside the project folder/);
   });
@@ -97,7 +98,6 @@ describe('locked sqlite storage host', () => {
       openLockedSqliteStorage({
         folder,
         userDataFile: join(root, 'user-data.sqlite'),
-        pid: process.pid,
       }),
     ).toThrow(/not locked/);
   });

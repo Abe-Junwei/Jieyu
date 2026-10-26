@@ -2,11 +2,7 @@
 declare module '@sqlite-host' {
   export function writeProjectLibraryMarker(file: string): void;
   export function closeLockedSqliteStorage(): void;
-  export function openLockedSqliteStorage(input: {
-    folder: string;
-    userDataFile: string;
-    pid: number;
-  }): void;
+  export function openLockedSqliteStorage(input: { folder: string; userDataFile: string }): void;
   export function reopenLockedSqliteStorage(): void;
   export function callLockedSqliteStorage(
     method: string,

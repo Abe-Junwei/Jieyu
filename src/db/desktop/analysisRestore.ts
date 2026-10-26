@@ -1,0 +1,500 @@
+import type Database from 'better-sqlite3';
+import { randomUUID } from 'node:crypto';
+import {
+  analysisGraphFingerprint,
+  assertEditedSurfaceParts,
+  validateAnalysisGraphPayload,
+  type AnalysisGraphPayload,
+} from '../../annotation/analysisGraphDomain';
+import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
+import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
+import {
+  detachAnalysisAssociations,
+  getAnalysisCandidate,
+  insertAnalysisCandidate,
+  insertReviewSnapshot,
+  markSuggestionAccepted,
+  nodeIdsOf,
+  readAnalysisMaterial,
+  rejectOtherPendingSuggestions,
+  type AnalysisAssociationLink,
+  type AnalysisCandidateRecord,
+  type AnalysisMaterial,
+} from './analysisCandidates';
+import {
+  assertDefinitionRevisions,
+  assertStoredCustomFields,
+  listDefinitions,
+} from './customFields';
+import { assertRetargetedReferences } from './referenceState';
+import { convertSnapshotGraph } from './customFieldMigration';
+import { restoreAnalysisNote } from './notes';
+import { getAnalysisRoot, type AnalysisRoot } from './units';
+
+type SqliteDatabase = InstanceType<typeof Database>;
+
+export interface AnalysisCredentials {
+  manuscriptGeneration: number;
+  analysisGeneration: number;
+  graphFingerprint: string;
+}
+
+export interface AnalysisAcceptResult {
+  applied: boolean;
+  root: AnalysisRoot;
+}
+
+export interface DefinitionRevisionBasis {
+  definitionId: string;
+  revision: number;
+}
+
+export interface AnalysisReadState {
+  unitId: string;
+  text: string;
+  graph: AnalysisGraphPayload | null;
+  manuscriptGeneration: number;
+  analysisGeneration: number;
+  graphFingerprint: string;
+  definitionRevisions: DefinitionRevisionBasis[];
+}
+
+export function readAnalysisState(db: SqliteDatabase, unitId: string): AnalysisReadState {
+  const material = readAnalysisMaterial(db, unitId);
+  return {
+    unitId: material.unitId,
+    text: material.text,
+    graph: material.graph,
+    manuscriptGeneration: material.manuscriptGeneration,
+    analysisGeneration: material.analysisGeneration,
+    graphFingerprint: material.graphFingerprint,
+    definitionRevisions: definitionRevisionBasis(db),
+  };
+}
+
+function receiveLocalGraph(
+  db: SqliteDatabase,
+  unitId: string,
+  graph: AnalysisGraphPayload,
+): AnalysisGraphPayload {
+  const batchId = randomUUID();
+  db.prepare(
+    `INSERT INTO reception_batches (id, unit_id, source_kind, created_at) VALUES (?, ?, 'accept', ?)`,
+  ).run(batchId, unitId, new Date().toISOString());
+  const nodeIds = new Map<string, string>();
+  const relationIds = new Map<string, string>();
+  const remember = (scope: 'node' | 'relation', localId: string, into: Map<string, string>) => {
+    if (into.has(localId)) throw new Error('local id is duplicated');
+    const projectId = randomUUID();
+    into.set(localId, projectId);
+    db.prepare(
+      `INSERT INTO local_id_map (batch_id, scope, local_id, project_id) VALUES (?, ?, ?, ?)`,
+    ).run(batchId, scope, localId, projectId);
+  };
+  for (const node of graph.nodes) remember('node', node.id, nodeIds);
+  for (const relation of graph.relations) remember('relation', relation.id, relationIds);
+  const received = structuredClone(graph);
+  for (const node of received.nodes) {
+    node.id = nodeIds.get(node.id) ?? node.id;
+    if (node.surfaceParts !== undefined) {
+      node.surfaceParts = node.surfaceParts.map((part) => ({
+        ...part,
+        tokenId: nodeIds.get(part.tokenId) ?? part.tokenId,
+      }));
+    }
+    if (node.customFields !== undefined) {
+      node.customFields = remapRefs(node.customFields, unitId, nodeIds, relationIds);
+    }
+  }
+  for (const relation of received.relations) {
+    relation.id = relationIds.get(relation.id) ?? relation.id;
+    relation.sourceId = nodeIds.get(relation.sourceId) ?? relation.sourceId;
+    relation.targetId = nodeIds.get(relation.targetId) ?? relation.targetId;
+    if (relation.customFields !== undefined) {
+      relation.customFields = remapRefs(relation.customFields, unitId, nodeIds, relationIds);
+    }
+  }
+  return validateAnalysisGraphPayload(received, graph.text);
+}
+
+function remapRefs(
+  fields: Record<string, unknown>,
+  unitId: string,
+  nodeIds: ReadonlyMap<string, string>,
+  relationIds: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    next[key] = remapRef(value, unitId, nodeIds, relationIds);
+  }
+  return next;
+}
+
+function remapRef(
+  value: unknown,
+  unitId: string,
+  nodeIds: ReadonlyMap<string, string>,
+  relationIds: ReadonlyMap<string, string>,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => remapRef(item, unitId, nodeIds, relationIds));
+  }
+  if (typeof value !== 'object' || value === null) return value;
+  const record = value as Record<string, unknown>;
+  const targetType = record.targetType;
+  if (
+    (targetType === 'analysis-node' || targetType === 'analysis-relation') &&
+    typeof record.targetId === 'string' &&
+    record.unitId === unitId
+  ) {
+    const projectId = (targetType === 'analysis-node' ? nodeIds : relationIds).get(record.targetId);
+    if (projectId === undefined) throw new Error('analysis reference is missing');
+    return { ...record, targetId: projectId };
+  }
+  return value;
+}
+
+export function submitAnalysis(
+  db: SqliteDatabase,
+  input: {
+    unitId: string;
+    graph: unknown;
+    expected: AnalysisCredentials;
+    definitionRevisions: readonly DefinitionRevisionBasis[];
+  },
+): AnalysisCandidateRecord {
+  const write = db.transaction(() => {
+    const material = readAnalysisMaterial(db, input.unitId);
+    assertCredentials(material, input.expected);
+    assertRevisionBasis(db, input.definitionRevisions);
+    const graph = validateAnalysisGraphPayload(input.graph, material.text);
+    const received = material.graph === null ? receiveLocalGraph(db, input.unitId, graph) : graph;
+    const record = insertAnalysisCandidate(db, {
+      unitId: input.unitId,
+      kind: 'suggestion',
+      status: 'pending',
+      graph: received,
+      graphFingerprint: material.graphFingerprint,
+      manuscriptGeneration: material.manuscriptGeneration,
+      analysisGeneration: material.analysisGeneration,
+      text: material.text,
+      projection: { tokens: [], morphemes: [] },
+      links: [],
+      notes: [],
+    });
+    rejectOtherPendingSuggestions(db, input.unitId, record.id);
+    const stored = getAnalysisCandidate(db, record.id);
+    if (!stored || stored.status !== 'pending')
+      throw new Error('analysis suggestion readback failed');
+    return stored;
+  });
+  return write();
+}
+
+export function acceptAnalysis(
+  db: SqliteDatabase,
+  input: { candidateId: string; expected: AnalysisCredentials },
+): AnalysisAcceptResult {
+  const write = db.transaction(() => {
+    const candidate = requireCandidate(db, input.candidateId);
+    if (candidate.kind !== 'suggestion') throw new Error('analysis candidate is not a suggestion');
+    const material = readAnalysisMaterial(db, candidate.unitId);
+    const root = getAnalysisRoot(db, candidate.unitId);
+    if (!root) throw new Error('unit is missing');
+    if (candidate.status === 'accepted') return { applied: false, root };
+    if (candidate.status !== 'pending') throw new Error('analysis suggestion is not pending');
+    if (candidate.redactedDefinitionIds.length > 0) {
+      throw new Error('custom field value was removed');
+    }
+    assertCredentials(material, input.expected);
+    if (
+      candidate.manuscriptGeneration !== material.manuscriptGeneration ||
+      candidate.analysisGeneration !== material.analysisGeneration ||
+      candidate.graphFingerprint !== material.graphFingerprint
+    ) {
+      throw new Error('analysis credentials do not match');
+    }
+    assertDefinitionRevisions(db, candidate.definitionRevisions);
+    const written = writeGraph(db, material, candidate.graph, false);
+    detachAnalysisAssociations(
+      db,
+      material.unitId,
+      nodeIdsOf(material.graph).filter((id) => !new Set(nodeIdsOf(written.graph)).has(id)),
+      new Date().toISOString(),
+    );
+    markSuggestionAccepted(db, candidate.id);
+    return { applied: true, root: written };
+  });
+  return write();
+}
+
+export function restoreAnalysis(
+  db: SqliteDatabase,
+  input: { candidateId: string; expected: AnalysisCredentials; conversions?: unknown },
+): AnalysisRoot {
+  const write = db.transaction(() => {
+    const candidate = requireCandidate(db, input.candidateId);
+    const restorable =
+      candidate.kind === 'review-snapshot' ||
+      (candidate.kind === 'suggestion' && candidate.status === 'accepted');
+    if (!restorable) throw new Error('analysis candidate is not a snapshot');
+    const material = readAnalysisMaterial(db, candidate.unitId);
+    if (candidate.text !== material.text) throw new Error('restore text does not match');
+    if (candidate.redactedDefinitionIds.length > 0) {
+      throw new Error('custom field value was removed');
+    }
+    assertCredentials(material, input.expected);
+    if (material.graph !== null) insertReviewSnapshot(db, material);
+    const now = new Date().toISOString();
+    detachAnalysisAssociations(db, material.unitId, nodeIdsOf(material.graph), now);
+    const written = writeGraph(
+      db,
+      material,
+      convertSnapshotGraph(
+        db,
+        candidate.graph,
+        candidate.unitId,
+        candidate.definitionRevisions,
+        input.conversions ?? [],
+      ),
+      true,
+    );
+    reattach(db, candidate, nodeIdsOf(written.graph), now);
+    return written;
+  });
+  return write();
+}
+
+export function splitAnalysisNode(
+  db: SqliteDatabase,
+  input: {
+    unitId: string;
+    nodeId: string;
+    into: [unknown, unknown];
+    expected: AnalysisCredentials;
+  },
+): AnalysisRoot {
+  const write = db.transaction(() => {
+    const material = requireGraph(db, input.unitId);
+    assertCredentials(material, input.expected);
+    const graph = material.graph;
+    if (!graph.nodes.some((node) => node.id === input.nodeId)) {
+      throw new Error(`analysis node is missing: ${input.nodeId}`);
+    }
+    const intoIds = input.into.map(readNodeId);
+    if (intoIds.includes(input.nodeId) || new Set(intoIds).size !== intoIds.length) {
+      throw new Error('analysis split reuses a node id');
+    }
+    insertReviewSnapshot(db, material);
+    detachAnalysisAssociations(db, input.unitId, [input.nodeId], new Date().toISOString());
+    return writeGraph(db, material, {
+      ...graph,
+      nodes: [...graph.nodes.filter((node) => node.id !== input.nodeId), ...input.into],
+      relations: graph.relations.filter(
+        (relation) => relation.sourceId !== input.nodeId && relation.targetId !== input.nodeId,
+      ),
+    });
+  });
+  return write();
+}
+
+export function mergeAnalysisNodes(
+  db: SqliteDatabase,
+  input: {
+    unitId: string;
+    nodeIds: [string, string];
+    into: unknown;
+    expected: AnalysisCredentials;
+  },
+): AnalysisRoot {
+  const write = db.transaction(() => {
+    const material = requireGraph(db, input.unitId);
+    assertCredentials(material, input.expected);
+    const graph = material.graph;
+    if (input.nodeIds[0] === input.nodeIds[1]) throw new Error('analysis merge needs two nodes');
+    const intoId = readNodeId(input.into);
+    if (input.nodeIds.includes(intoId)) {
+      throw new Error('analysis merge target reuses an old node id');
+    }
+    for (const nodeId of input.nodeIds) {
+      if (!graph.nodes.some((node) => node.id === nodeId)) {
+        throw new Error(`analysis node is missing: ${nodeId}`);
+      }
+    }
+    const removed = new Set<string>(input.nodeIds);
+    insertReviewSnapshot(db, material);
+    detachAnalysisAssociations(db, input.unitId, input.nodeIds, new Date().toISOString());
+    return writeGraph(db, material, {
+      ...graph,
+      nodes: [...graph.nodes.filter((node) => !removed.has(node.id)), input.into],
+      relations: graph.relations.filter(
+        (relation) => !removed.has(relation.sourceId) && !removed.has(relation.targetId),
+      ),
+    });
+  });
+  return write();
+}
+
+function requireCandidate(db: SqliteDatabase, id: string): AnalysisCandidateRecord {
+  const candidate = getAnalysisCandidate(db, id);
+  if (!candidate) throw new Error('analysis candidate is missing');
+  return candidate;
+}
+
+function requireGraph(
+  db: SqliteDatabase,
+  unitId: string,
+): AnalysisMaterial & { graph: AnalysisGraphPayload } {
+  const material = readAnalysisMaterial(db, unitId);
+  if (material.graph === null) throw new Error('analysis graph is missing');
+  return { ...material, graph: material.graph };
+}
+
+function assertCredentials(material: AnalysisMaterial, expected: AnalysisCredentials): void {
+  if (
+    material.manuscriptGeneration !== expected.manuscriptGeneration ||
+    material.analysisGeneration !== expected.analysisGeneration ||
+    material.graphFingerprint !== expected.graphFingerprint
+  ) {
+    throw new Error('analysis credentials do not match');
+  }
+}
+
+function definitionRevisionBasis(db: SqliteDatabase): DefinitionRevisionBasis[] {
+  return listDefinitions(db)
+    .map((definition) => ({ definitionId: definition.id, revision: definition.revision }))
+    .sort((left, right) => left.definitionId.localeCompare(right.definitionId));
+}
+
+function assertRevisionBasis(
+  db: SqliteDatabase,
+  supplied: readonly DefinitionRevisionBasis[],
+): void {
+  const seen = new Set<string>();
+  for (const record of supplied) {
+    if (seen.has(record.definitionId)) throw new Error('custom field revision does not match');
+    seen.add(record.definitionId);
+  }
+  const current = definitionRevisionBasis(db);
+  const given = [...supplied].sort((left, right) =>
+    left.definitionId.localeCompare(right.definitionId),
+  );
+  if (given.length !== current.length) throw new Error('custom field revision does not match');
+  for (let index = 0; index < current.length; index += 1) {
+    if (
+      given[index]?.definitionId !== current[index]?.definitionId ||
+      given[index]?.revision !== current[index]?.revision
+    ) {
+      throw new Error('custom field revision does not match');
+    }
+  }
+}
+
+export function writeGraph(
+  db: SqliteDatabase,
+  material: AnalysisMaterial,
+  graph: unknown,
+  historical = false,
+): AnalysisRoot {
+  const validated = validateAnalysisGraphPayload(graph, material.text);
+  if (!historical) {
+    assertRetargetedReferences(db, material.graph, validated);
+    assertTokenLanguages(db, material.graph, validated);
+    assertEditedSurfaceParts(material.graph, validated);
+  } else {
+    assertTokenLanguages(db, null, validated);
+  }
+  assertStoredCustomFields(db, validated, material.unitId, {
+    prior: material.graph,
+    historical,
+  });
+  const fingerprint = analysisGraphFingerprint(validated);
+  const generation = material.analysisGeneration + 1;
+  const now = new Date().toISOString();
+  db.prepare(
+    `UPDATE units
+     SET analysis_graph_json = ?, analysis_generation = ?, graph_fingerprint = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(JSON.stringify(validated), generation, fingerprint, now, material.unitId);
+  const projected = projectAnalysisGraph(validated, material.unitId);
+  replaceProjection(db, material.unitId, projected.tokens, projected.morphemes);
+  syncProjectedLinks(db, validated);
+  const stored = getAnalysisRoot(db, material.unitId);
+  if (
+    !stored?.graph ||
+    stored.analysisGeneration !== generation ||
+    stored.graphFingerprint !== fingerprint ||
+    JSON.stringify(stored.graph) !== JSON.stringify(validated)
+  ) {
+    throw new Error('analysis write readback failed');
+  }
+  return stored;
+}
+
+function reattach(
+  db: SqliteDatabase,
+  candidate: AnalysisCandidateRecord,
+  liveIds: readonly string[],
+  now: string,
+): void {
+  const live = new Set(liveIds);
+  const link = db.prepare(
+    `INSERT INTO token_lexeme_links (
+      id, target_type, target_id, lexeme_id, sense_id, role, confidence, provenance_json,
+      attachment, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      target_type = excluded.target_type,
+      target_id = excluded.target_id,
+      lexeme_id = excluded.lexeme_id,
+      sense_id = excluded.sense_id,
+      role = excluded.role,
+      confidence = excluded.confidence,
+      provenance_json = excluded.provenance_json,
+      attachment = excluded.attachment,
+      updated_at = excluded.updated_at`,
+  );
+  for (const item of candidate.links) {
+    writeLink(link, item, live.has(item.targetId) ? 'active' : 'detached', now);
+  }
+  for (const item of candidate.notes) {
+    restoreAnalysisNote(
+      db,
+      item,
+      candidate.unitId,
+      live.has(item.targetId) ? 'active' : 'detached',
+      candidate.createdAt,
+      now,
+    );
+  }
+}
+
+function writeLink(
+  statement: { run: (...params: unknown[]) => unknown },
+  item: AnalysisAssociationLink,
+  attachment: 'active' | 'detached',
+  now: string,
+): void {
+  statement.run(
+    item.id,
+    item.targetType,
+    item.targetId,
+    item.lexemeId,
+    item.senseId,
+    item.role,
+    item.confidence,
+    item.provenance === null ? null : JSON.stringify(item.provenance),
+    attachment,
+    item.createdAt,
+    now,
+  );
+}
+
+function readNodeId(value: unknown): string {
+  if (typeof value !== 'object' || value === null || !('id' in value)) {
+    throw new Error('analysis node is invalid');
+  }
+  const id = value.id;
+  if (typeof id !== 'string' || id.length === 0) throw new Error('analysis node is invalid');
+  return id;
+}
