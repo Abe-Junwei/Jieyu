@@ -579,7 +579,6 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(result.current.getLatestKnownRevision()).toBe(11);
   });
 
-<<<<<<< HEAD
   it('#383: 切项目后旧出站 RPC 回调不得污染新项目游标 | stale outbound ack must not pollute new project cursor', async () => {
     let resolveRpc!: (value: { data: Array<{ project_revision: number }>; error: null }) => void;
     const deferredRpc = new Promise<{ data: Array<{ project_revision: number }>; error: null }>(
@@ -592,21 +591,12 @@ describe('useTranscriptionCollaborationBridge', () => {
       (props: { enabled: boolean; projectId: string }) =>
         useTranscriptionCollaborationBridge(props),
       { initialProps: { enabled: true, projectId: 'project-a' } },
-=======
-  it('#385: 乱序冲突决议不得 force 跨过未决 revision | out-of-order resolve stays contiguous', async () => {
-    const { result } = renderHook(() =>
-      useTranscriptionCollaborationBridge({
-        enabled: true,
-        projectId: 'project-1',
-      }),
->>>>>>> origin/main
     );
 
     await waitFor(() => {
       expect(bridgeStart).toHaveBeenCalledTimes(1);
     });
 
-<<<<<<< HEAD
     act(() => {
       result.current.markProjectRevisionSeen(5, { mode: 'force' });
     });
@@ -659,7 +649,20 @@ describe('useTranscriptionCollaborationBridge', () => {
     // Stale A ack must not rewrite B's shared in-memory cursor
     expect(result.current.getLatestKnownRevision()).toBe(3);
     expect(loadProjectLastSeenRevision('project-b')).toBe(3);
-=======
+  });
+
+  it('#385: 乱序冲突决议不得 force 跨过未决 revision | out-of-order resolve stays contiguous', async () => {
+    const { result } = renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
     // Hydration baseline uses force
     act(() => {
       result.current.markProjectRevisionSeen(10, { mode: 'force' });
@@ -680,8 +683,8 @@ describe('useTranscriptionCollaborationBridge', () => {
     });
     expect(loadProjectLastSeenRevision('project-1')).toBe(12);
     expect(result.current.getLatestKnownRevision()).toBe(12);
->>>>>>> origin/main
   });
+
 
   it('#363: does not advance last-seen when apply returns commitRevision:false', async () => {
     const onApplyRemoteChange = vi.fn().mockResolvedValue({ commitRevision: false });
