@@ -431,6 +431,61 @@ export function writeGraph(
   return stored;
 }
 
+export interface UnitWord {
+  id: string;
+  form: string;
+}
+
+export function listUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
+  if (db.prepare('SELECT 1 FROM units WHERE id = ?').get(unitId) === undefined) {
+    throw new Error('unit is missing');
+  }
+  const rows = db
+    .prepare('SELECT id, form_json FROM tokens WHERE unit_id = ? ORDER BY token_index, id')
+    .all(unitId) as { id: string; form_json: string }[];
+  return rows.map((row) => ({ id: row.id, form: wordForm(row.form_json) }));
+}
+
+export function segmentUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
+  const material = readAnalysisMaterial(db, unitId);
+  if (material.graph?.nodes.some((node) => node.type === 'token') === true) {
+    return listUnitWords(db, unitId);
+  }
+  const forms = material.text.split(/\s+/).filter((form) => form.length > 0);
+  if (forms.length === 0) throw new Error('unit text is empty');
+  const now = new Date().toISOString();
+  // ponytail: whitespace split only. Switch to annotationRetokenize when the page needs a preview, morphemes, or non-space orthographies.
+  const tokens = forms.map((form, index) => ({
+    id: randomUUID(),
+    type: 'token' as const,
+    label: form,
+    domain: {
+      form: { default: form },
+      index,
+      createdAt: now,
+      updatedAt: now,
+      provenance: { actorType: 'human' as const, method: 'manual' as const, createdAt: now },
+    },
+  }));
+  const graph =
+    material.graph === null
+      ? {
+          payloadVersion: 1 as const,
+          id: randomUUID(),
+          text: material.text,
+          nodes: tokens,
+          relations: [],
+        }
+      : { ...material.graph, nodes: [...material.graph.nodes, ...tokens] };
+  writeGraph(db, material, graph);
+  return listUnitWords(db, unitId);
+}
+
+function wordForm(formJson: string): string {
+  const form = JSON.parse(formJson) as { default?: unknown };
+  return typeof form.default === 'string' ? form.default : '';
+}
+
 function reattach(
   db: SqliteDatabase,
   candidate: AnalysisCandidateRecord,

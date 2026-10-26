@@ -209,4 +209,71 @@ describe('DesktopAnnotationPage', () => {
       text: 'sentence',
     });
   });
+
+  it('splits the selected unit into words and shows them after the project is reopened', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-desktop-annotation-'));
+    roots.push(folder);
+    writeFileSync(join(folder, 'a.wav'), '');
+    const session = openDesktopSession(folder, [folder]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { en: 'Manuscript' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { en: 'Transcription' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 2,
+      text: 'alpha beta',
+    }) as { id: string };
+    rememberOpenProjectSession(session.sessionId);
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.reject(new Error('should not choose a folder')),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.reject(new Error('annotation must not request media')),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    const page = () => (
+      <LocaleProvider locale="en-US">
+        <MemoryRouter>
+          <AnnotationPage />
+        </MemoryRouter>
+      </LocaleProvider>
+    );
+    const view = render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 alpha beta' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
+    expect(await screen.findByText('alpha')).toBeTruthy();
+    expect(screen.getByText('beta')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Split into words' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    view.unmount();
+    resetDesktopSessions();
+    const reopened = openDesktopSession(folder, [folder]);
+    rememberOpenProjectSession(reopened.sessionId);
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 alpha beta' }));
+    expect(await screen.findByText('alpha')).toBeTruthy();
+    expect(screen.getByText('beta')).toBeTruthy();
+    expect(
+      callDesktopSession(reopened.sessionId, 'analysis.listWords', { unitId: unit.id }),
+    ).toMatchObject([{ form: 'alpha' }, { form: 'beta' }]);
+    expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'alpha beta',
+    });
+  });
 });

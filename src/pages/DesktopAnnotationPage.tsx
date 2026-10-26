@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { ContentNoteCategory } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
+import { useDesktopAnnotationWords } from './useDesktopAnnotationWords';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import '../styles/pages/desktop-project-read.css';
 
@@ -20,6 +21,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
   const locale = useLocale();
   const read = useDesktopProjectReadController(host, false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const words = useDesktopAnnotationWords(host, read.sessionId, selectedId);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [category, setCategory] = useState<ContentNoteCategory>('comment');
   const [body, setBody] = useState('');
@@ -31,7 +33,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
       {read.sessionId === null ? (
         <Link to="/desktop-project">{t(locale, 'app.desktopRead.openFolder')}</Link>
       ) : null}
-      {read.error ? <p role="alert">{read.error}</p> : null}
+      {read.error || words.error ? <p role="alert">{read.error || words.error}</p> : null}
       {read.model === null && read.sessionId !== null && !read.error ? (
         <p>{t(locale, 'workspace.annotation.loading')}</p>
       ) : null}
@@ -76,6 +78,18 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
           {selected === undefined ? null : (
             <div className="desktop-project-read-units">
               <p>{selected.text}</p>
+              <ul>
+                {words.words.map((word) => (
+                  <li key={word.id}>{word.form}</li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                disabled={words.words.length > 0}
+                onClick={() => words.segment()}
+              >
+                {t(locale, 'workspace.annotation.segmentWords')}
+              </button>
               <ul>
                 {read.notes
                   .filter((note) => note.unitId === selected.id && note.view === null)

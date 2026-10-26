@@ -2,9 +2,11 @@ import { applyAnalysis } from './analysis';
 import { importAnalysis } from './analysisImport';
 import {
   acceptAnalysis,
+  listUnitWords,
   mergeAnalysisNodes,
   readAnalysisState,
   restoreAnalysis,
+  segmentUnitWords,
   splitAnalysisNode,
   submitAnalysis,
   type AnalysisCredentials,
@@ -153,6 +155,8 @@ const METHODS = [
   'bibliography.redeliver',
   'analysis.apply',
   'analysis.readState',
+  'analysis.listWords',
+  'analysis.segmentWords',
   'analysis.import',
   'analysis.submit',
   'analysis.accept',
@@ -346,6 +350,12 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'analysis.readState':
       knownKeys(input, ['unitId']);
       return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.listWords':
+      knownKeys(input, ['unitId']);
+      return listUnitWords(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.segmentWords':
+      knownKeys(input, ['unitId']);
+      return segmentUnitWords(project.db, requiredString(input.unitId, 'unitId'));
     case 'analysis.import':
       return importAnalysis(project.db, analysisImport(input));
     case 'analysis.submit':
