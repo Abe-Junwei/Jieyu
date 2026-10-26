@@ -41,6 +41,11 @@ import {
 import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
 import {
+  patchBibliography,
+  redeliverBibliography,
+  type BibliographyPatch,
+} from './bibliographyFields';
+import {
   patchConversation,
   redeliverConversation,
   type ConversationPatch,
@@ -140,6 +145,8 @@ const METHODS = [
   'speakers.redeliver',
   'conversations.patch',
   'conversations.redeliver',
+  'bibliography.patch',
+  'bibliography.redeliver',
   'analysis.apply',
   'analysis.readState',
   'analysis.import',
@@ -320,6 +327,11 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'conversations.redeliver':
       knownKeys(input, ['operationId']);
       return redeliverConversation(project.db, requiredString(input.operationId, 'operationId'));
+    case 'bibliography.patch':
+      return patchBibliography(project.db, bibliographyPatch(input));
+    case 'bibliography.redeliver':
+      knownKeys(input, ['operationId']);
+      return redeliverBibliography(project.db, requiredString(input.operationId, 'operationId'));
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.readState':
@@ -374,6 +386,113 @@ function sourcePatch(input: Record<string, unknown>): SourcePatch {
     ...(label === undefined ? {} : { label }),
     ...(externalId === undefined ? {} : { externalId }),
   };
+}
+
+function bibliographyPatch(input: Record<string, unknown>): BibliographyPatch {
+  knownKeys(input, [
+    'operationId',
+    'id',
+    'title',
+    'authors',
+    'year',
+    'publisher',
+    'doi',
+    'url',
+    'citationKey',
+    'sourceType',
+    'notes',
+    'accessRights',
+  ]);
+  const title = speakerText(input.title, 'title', false);
+  const publisher = speakerText(input.publisher, 'publisher', true);
+  const doi = speakerText(input.doi, 'doi', true);
+  const url = speakerText(input.url, 'url', true);
+  const citationKey = speakerText(input.citationKey, 'citationKey', true);
+  const year = bibliographyYear(input.year);
+  const authors = bibliographyAuthors(input.authors);
+  const sourceType = speakerEnum(input.sourceType, 'sourceType', [
+    'book',
+    'article',
+    'thesis',
+    'fieldnotes',
+    'grammar',
+    'other',
+  ]);
+  const accessRights = speakerEnum(input.accessRights, 'accessRights', [
+    'open',
+    'restricted',
+    'confidential',
+  ]);
+  const notes = speakerNotes(input.notes);
+  const patch: BibliographyPatch = {
+    operationId: requiredString(input.operationId, 'operationId'),
+    id: requiredString(input.id, 'id'),
+  };
+  if (title !== undefined) {
+    if (typeof title.value !== 'string')
+      throw new Error('desktop call title.value must be a string');
+    patch.title = { expectedRevision: title.expectedRevision, value: title.value };
+  }
+  if (authors !== undefined) patch.authors = authors;
+  if (year !== undefined) patch.year = year;
+  if (publisher !== undefined) patch.publisher = publisher;
+  if (doi !== undefined) patch.doi = doi;
+  if (url !== undefined) patch.url = url;
+  if (citationKey !== undefined) patch.citationKey = citationKey;
+  if (sourceType !== undefined) patch.sourceType = sourceType;
+  if (notes !== undefined) patch.notes = orderedNotes(notes);
+  if (accessRights !== undefined) patch.accessRights = accessRights;
+  if (Object.keys(patch).length === 2) throw new Error('bibliography patch is empty');
+  return patch;
+}
+
+function bibliographyYear(
+  value: unknown,
+): { expectedRevision: number; value: number | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const year = record.value;
+  if (year !== null && (typeof year !== 'number' || !Number.isInteger(year))) {
+    throw new Error('desktop call year.value must be a year');
+  }
+  return { expectedRevision: revisionOf(record.expectedRevision, 'year'), value: year };
+}
+
+function bibliographyAuthors(
+  value: unknown,
+): { expectedRevision: number; value: string[] | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const authors = record.value;
+  if (authors === null) {
+    return { expectedRevision: revisionOf(record.expectedRevision, 'authors'), value: null };
+  }
+  if (
+    !Array.isArray(authors) ||
+    authors.some((item) => typeof item !== 'string' || item.length === 0)
+  ) {
+    throw new Error('desktop call authors.value must be author names');
+  }
+  return {
+    expectedRevision: revisionOf(record.expectedRevision, 'authors'),
+    value: authors as string[],
+  };
+}
+
+function orderedNotes(patch: { expectedRevision: number; value: Record<string, string> | null }): {
+  expectedRevision: number;
+  value: Record<string, string> | null;
+} {
+  if (patch.value === null) return patch;
+  const keys = Object.keys(patch.value).sort();
+  if (keys.length === 0 || keys.some((key) => patch.value?.[key]?.length === 0)) {
+    throw new Error('desktop call notes.value must be notes');
+  }
+  const ordered: Record<string, string> = {};
+  for (const key of keys) ordered[key] = patch.value[key] ?? '';
+  return { expectedRevision: patch.expectedRevision, value: ordered };
 }
 
 function conversationPatch(input: Record<string, unknown>): ConversationPatch {
