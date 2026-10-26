@@ -31,7 +31,7 @@ export function advanceContiguousRevision(
   return { committed: next, didAdvance: next !== committed };
 }
 
-/** Force the committed cursor to at least `revision` (outbound / hydration). */
+/** Force the committed cursor to at least `revision` (authoritative hydration baseline). */
 export function forceRevisionCursor(committed: number, revision: number): number {
   const rev = normalizeProjectRevision(revision);
   if (rev === null) return committed;
