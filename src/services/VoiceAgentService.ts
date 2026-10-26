@@ -150,6 +150,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private readonly _whisperServerModel: string;
   private _sttEnhancementKind: import('./stt').SttEnhancementSelectionKind;
   private _sttEnhancementConfig: import('./stt').SttEnhancementConfig;
+  /** #384: invalidate in-flight loadSttRuntime sync callbacks */
+  private _sttEnhancementSyncEpoch = 0;
   private readonly _onExecuteAction:
     | ((actionId: ActionId, params?: { segmentIndex?: number }) => void)
     | undefined;
@@ -635,10 +637,12 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   private _syncVoiceServiceEnhancementConfig(): void {
+    const epoch = ++this._sttEnhancementSyncEpoch;
     scheduleSyncVoiceServiceSttEnhancement({
       getVoiceService: () => this._voiceService,
       enhancementKind: this._sttEnhancementKind,
       enhancementConfig: this._sttEnhancementConfig,
+      isCurrent: () => epoch === this._sttEnhancementSyncEpoch,
     });
   }
 
