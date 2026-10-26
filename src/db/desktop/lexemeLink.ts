@@ -4,7 +4,7 @@ import type { AnalysisGraphPayload } from '../../annotation/analysisGraphDomain'
 import { foldSearchText } from '../../utils/searchTextNormalization';
 import { readAnalysisMaterial } from './analysisCandidates';
 import { writeGraph } from './analysisRestore';
-import { getLexemeEntry } from './lexicon';
+import { getLexemeEntry, saveLexemeEntry } from './lexicon';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -53,6 +53,33 @@ export function matchLexemeLink(
 
 export function matchLexemeLinkQuery(db: SqliteDatabase, query: string): LexemeLinkCandidate {
   return matchLexemeLink(listLexemeLinkCandidates(db), query);
+}
+
+export function createLinkedLexeme(
+  db: SqliteDatabase,
+  input: { targetId: string; headword: string; translation: string },
+): TokenLexemeLink {
+  const headword = input.headword.trim();
+  const translation = input.translation.trim();
+  if (headword.length === 0 || translation.length === 0) {
+    throw new Error('lexeme create is empty');
+  }
+  const write = db.transaction(() => {
+    const folded = foldSearchText(headword);
+    const taken = listLexemeLinkCandidates(db).some(
+      (candidate) => foldSearchText(candidate.headword) === folded,
+    );
+    if (taken) throw new Error('lexeme headword exists');
+    const saved = saveLexemeEntry(db, {
+      entry: { headword, senses: [{ headwordTranslations: [{ text: translation }] }] },
+    });
+    return replaceTokenLexemeLink(db, {
+      tokenId: input.targetId,
+      lexemeId: saved.id,
+      senseId: firstSenseId(saved.entry),
+    });
+  });
+  return write();
 }
 
 export function listTokenLexemeLinks(db: SqliteDatabase, unitId: string): TokenLexemeLink[] {
@@ -179,6 +206,15 @@ function unitIdOfTarget(db: SqliteDatabase, targetId: string): string {
     .get(targetId) as { unit_id: string } | undefined;
   if (morpheme === undefined) throw new Error('link target is missing');
   return morpheme.unit_id;
+}
+
+function firstSenseId(entry: Record<string, unknown>): string {
+  const senses = entry['senses'];
+  const sense = Array.isArray(senses) ? senses[0] : undefined;
+  const id =
+    typeof sense === 'object' && sense !== null ? (sense as { id?: unknown }).id : undefined;
+  if (typeof id !== 'string' || id.length === 0) throw new Error('lexeme has no sense');
+  return id;
 }
 
 function headwordOf(db: SqliteDatabase, lexemeId: string): string | null {

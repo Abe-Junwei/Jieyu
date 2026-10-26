@@ -594,6 +594,106 @@ describe('DesktopAnnotationPage', () => {
       text: 'ka-ra',
     });
   });
+
+  it('creates a lexeme from the word gloss and shows that headword after reopen', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-desktop-annotation-'));
+    roots.push(folder);
+    writeFileSync(join(folder, 'a.wav'), '');
+    const session = openDesktopSession(folder, [folder]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { en: 'Manuscript' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { en: 'Transcription' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 2,
+      text: 'ka',
+    }) as { id: string };
+    rememberOpenProjectSession(session.sessionId);
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.reject(new Error('should not choose a folder')),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.reject(new Error('annotation must not request media')),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    const page = () => (
+      <LocaleProvider locale="en-US">
+        <MemoryRouter>
+          <AnnotationPage />
+        </MemoryRouter>
+      </LocaleProvider>
+    );
+    const view = render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
+    const gloss = await screen.findByRole('textbox', { name: 'Gloss: ka' });
+    fireEvent.blur(gloss, { target: { value: 'dog' } });
+    await waitFor(() => {
+      const listed = callDesktopSession(session.sessionId, 'analysis.listWords', {
+        unitId: unit.id,
+      }) as { gloss: Record<string, string> }[];
+      expect(listed[0]?.gloss.en).toBe('dog');
+    });
+    fireEvent.blur(screen.getByRole('textbox', { name: 'POS: ka' }), { target: { value: 'n' } });
+    await waitFor(() => {
+      const listed = callDesktopSession(session.sessionId, 'analysis.listWords', {
+        unitId: unit.id,
+      }) as { pos: string }[];
+      expect(listed[0]?.pos).toBe('n');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'New lexeme: ka' }));
+    expect(screen.getByRole('textbox', { name: 'Headword: ka' })).toHaveValue('ka');
+    expect(screen.getByRole('textbox', { name: 'Sense translation: ka' })).toHaveValue('dog');
+    expect(screen.getByRole('textbox', { name: 'Headword: ka' })).toHaveValue('ka');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Headword: ka' }), {
+      target: { value: 'kappa' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sense translation: ka' }), {
+      target: { value: 'animal' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create lexeme: ka' }));
+    expect(await screen.findByText('Linked kappa')).toBeTruthy();
+    const linked = callDesktopSession(session.sessionId, 'lexicon.listTokenLinks', {
+      unitId: unit.id,
+    }) as { lexemeId: string }[];
+    const stored = callDesktopSession(session.sessionId, 'lexicon.getEntry', {
+      id: linked[0]?.lexemeId,
+    }) as { entry: { partsOfSpeech?: unknown; headword: string } };
+    expect(stored.entry.headword).toBe('kappa');
+    expect(stored.entry.partsOfSpeech).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'New lexeme: ka' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Headword: ka' }), {
+      target: { value: 'kappa' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create lexeme: ka' }));
+    expect(
+      await screen.findByText('This headword already exists. Link the existing entry.'),
+    ).toBeTruthy();
+    view.unmount();
+    resetDesktopSessions();
+    const reopened = openDesktopSession(folder, [folder]);
+    rememberOpenProjectSession(reopened.sessionId);
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka' }));
+    expect(await screen.findByText('Linked kappa')).toBeTruthy();
+    expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'ka',
+    });
+  });
 });
 
 function linkRelations(sessionId: string, unitId: string) {

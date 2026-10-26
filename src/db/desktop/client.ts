@@ -171,6 +171,15 @@ export function createDesktopClient(bridge: DesktopBridge) {
         'lexicon.replaceTokenLink',
         input,
       ),
+    createLinkedLexeme: (
+      sessionId: string,
+      input: { targetId: string; headword: string; translation: string },
+    ) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }>(
+        sessionId,
+        'lexicon.createLinkedEntry',
+        input,
+      ),
     clearTokenLink: (sessionId: string, tokenId: string) =>
       once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }[]>(
         sessionId,

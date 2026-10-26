@@ -68,6 +68,7 @@ import {
 } from './lexicon';
 import {
   clearTokenLexemeLink,
+  createLinkedLexeme,
   listLexemeLinkCandidates,
   listTokenLexemeLinks,
   matchLexemeLinkQuery,
@@ -128,6 +129,7 @@ const METHODS = [
   'lexicon.listTokenLinks',
   'lexicon.replaceTokenLink',
   'lexicon.clearTokenLink',
+  'lexicon.createLinkedEntry',
   'notes.create',
   'notes.update',
   'notes.delete',
@@ -246,6 +248,13 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         tokenId: requiredString(input.tokenId, 'tokenId'),
         lexemeId: requiredString(input.lexemeId, 'lexemeId'),
         senseId: requiredString(input.senseId, 'senseId'),
+      });
+    case 'lexicon.createLinkedEntry':
+      knownKeys(input, ['targetId', 'headword', 'translation']);
+      return createLinkedLexeme(project.db, {
+        targetId: requiredString(input.targetId, 'targetId'),
+        headword: requiredString(input.headword, 'headword'),
+        translation: requiredString(input.translation, 'translation'),
       });
     case 'lexicon.clearTokenLink':
       knownKeys(input, ['tokenId']);

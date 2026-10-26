@@ -342,6 +342,13 @@ export const enUSDictionary = {
   'workspace.annotation.chooseSense': 'Sense: {label}',
   'workspace.annotation.lexemeLinkMiss': 'No single entry matches this headword',
   'workspace.annotation.lexemeLinkNoSense': 'This entry has no sense to link',
+  'workspace.annotation.lexemeCreate': 'New lexeme',
+  'workspace.annotation.lexemeCreateHeadword': 'Headword',
+  'workspace.annotation.lexemeCreateTranslation': 'Sense translation',
+  'workspace.annotation.lexemeCreateSubmit': 'Create lexeme',
+  'workspace.annotation.lexemeCreateExists':
+    'This headword already exists. Link the existing entry.',
+  'workspace.annotation.lexemeCreateEmpty': 'Headword and sense translation are both required',
   'workspace.annotation.senseGlossHint': 'Sense gloss {gloss}',
   'workspace.annotation.lexemeBroken': 'Lexeme link is broken (CITATION_LEXEME_NOT_FOUND)',
   'workspace.annotation.validatorTemplate': 'Validator template: {id}',

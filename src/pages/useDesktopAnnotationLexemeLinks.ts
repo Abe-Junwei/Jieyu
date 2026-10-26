@@ -28,6 +28,11 @@ export function useDesktopAnnotationLexemeLinks(
     lexemeId: string;
     senses: AnnotationSenseChoice[];
   } | null>(null);
+  const [creating, setCreating] = useState<{
+    targetId: string;
+    headword: string;
+    translation: string;
+  } | null>(null);
   const [error, setError] = useState('');
   const request = useRef(0);
 
@@ -35,6 +40,7 @@ export function useDesktopAnnotationLexemeLinks(
     if (host === null || sessionId === null || unitId === null) {
       setLinks([]);
       setChoices(null);
+      setCreating(null);
       return;
     }
     const id = ++request.current;
@@ -72,6 +78,14 @@ export function useDesktopAnnotationLexemeLinks(
     }
     if (message === 'lexeme has no sense') {
       setError(t(locale, 'workspace.annotation.lexemeLinkNoSense'));
+      return;
+    }
+    if (message === 'lexeme headword exists') {
+      setError(t(locale, 'workspace.annotation.lexemeCreateExists'));
+      return;
+    }
+    if (message === 'lexeme create is empty') {
+      setError(t(locale, 'workspace.annotation.lexemeCreateEmpty'));
       return;
     }
     setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -130,6 +144,35 @@ export function useDesktopAnnotationLexemeLinks(
       });
   };
 
+  const beginCreate = (targetId: string, form: string, gloss: string) => {
+    setError('');
+    setCreating({ targetId, headword: form, translation: gloss });
+  };
+
+  const create = () => {
+    if (host === null || sessionId === null || unitId === null || creating === null) return;
+    const headword = creating.headword.trim();
+    const translation = creating.translation.trim();
+    if (headword.length === 0 || translation.length === 0) {
+      setError(t(locale, 'workspace.annotation.lexemeCreateEmpty'));
+      return;
+    }
+    setError('');
+    const id = ++request.current;
+    const targetId = creating.targetId;
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .createLinkedLexeme(sessionId, { targetId, headword, translation })
+      .then(() => {
+        if (id !== request.current) return;
+        setCreating(null);
+        setChoices(null);
+        reload(sessionId, unitId, id);
+      })
+      .catch((caught: unknown) => {
+        if (id === request.current) fail(caught);
+      });
+  };
+
   const clear = (tokenId: string) => {
     if (host === null || sessionId === null || unitId === null) return;
     setError('');
@@ -146,5 +189,18 @@ export function useDesktopAnnotationLexemeLinks(
       });
   };
 
-  return { links, drafts, setDrafts, choices, error, submit, choose, clear };
+  return {
+    links,
+    drafts,
+    setDrafts,
+    choices,
+    creating,
+    setCreating,
+    error,
+    submit,
+    choose,
+    clear,
+    beginCreate,
+    create,
+  };
 }

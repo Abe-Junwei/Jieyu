@@ -28,7 +28,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
   const [category, setCategory] = useState<ContentNoteCategory>('comment');
   const [body, setBody] = useState('');
   const selected = read.model?.units.find((unit) => unit.id === selectedId);
-  const lexemeLinkFields = (id: string, form: string) => (
+  const lexemeLinkFields = (id: string, form: string, gloss: string) => (
     <>
       {links.links
         .filter((link) => link.tokenId === id)
@@ -68,6 +68,44 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
             </button>
           ))
         : null}
+      <button
+        type="button"
+        aria-label={`${t(locale, 'workspace.annotation.lexemeCreate')}: ${form}`}
+        onClick={() => links.beginCreate(id, form, gloss)}
+      >
+        {t(locale, 'workspace.annotation.lexemeCreate')}
+      </button>
+      {links.creating?.targetId === id ? (
+        <>
+          <input
+            aria-label={`${t(locale, 'workspace.annotation.lexemeCreateHeadword')}: ${form}`}
+            value={links.creating.headword}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              links.setCreating((current) =>
+                current?.targetId === id ? { ...current, headword: value } : current,
+              );
+            }}
+          />
+          <input
+            aria-label={`${t(locale, 'workspace.annotation.lexemeCreateTranslation')}: ${form}`}
+            value={links.creating.translation}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              links.setCreating((current) =>
+                current?.targetId === id ? { ...current, translation: value } : current,
+              );
+            }}
+          />
+          <button
+            type="button"
+            aria-label={`${t(locale, 'workspace.annotation.lexemeCreateSubmit')}: ${form}`}
+            onClick={() => links.create()}
+          >
+            {t(locale, 'workspace.annotation.lexemeCreateSubmit')}
+          </button>
+        </>
+      ) : null}
     </>
   );
 
@@ -142,7 +180,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                         words.setPos(word.id, event.currentTarget.value.trim());
                       }}
                     />
-                    {lexemeLinkFields(word.id, word.form)}
+                    {lexemeLinkFields(word.id, word.form, word.gloss[words.glossKey] ?? '')}
                   </li>
                 ))}
               </ul>
@@ -157,7 +195,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                 {words.morphemes.map((morpheme) => (
                   <li key={morpheme.id}>
                     <span>{morpheme.form}</span>
-                    {lexemeLinkFields(morpheme.id, morpheme.form)}
+                    {lexemeLinkFields(morpheme.id, morpheme.form, '')}
                   </li>
                 ))}
               </ul>

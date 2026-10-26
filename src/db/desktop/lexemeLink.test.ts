@@ -176,10 +176,92 @@ describe('token lexeme link', () => {
       text: 'ka-ra',
     });
   });
+
+  it('creates a headword and one sense, links it, and rolls back a failed link', () => {
+    const dir = folder();
+    seed(dir);
+    const session = openDesktopSession(dir, [dir]);
+    save(session.sessionId, 'go', 'go', ['move'], [{ text: 'went' }]);
+    const created = callDesktopSession(session.sessionId, 'lexicon.createLinkedEntry', {
+      targetId: 'tok-1',
+      headword: 'went',
+      translation: 'past',
+    }) as { tokenId: string; lexemeId: string; senseId: string; headword: string };
+    expect(created).toMatchObject({ tokenId: 'tok-1', headword: 'went' });
+    expect(created.senseId.startsWith('sense_')).toBe(true);
+    const stored = callDesktopSession(session.sessionId, 'lexicon.getEntry', {
+      id: created.lexemeId,
+    }) as { entry: { partsOfSpeech?: unknown } };
+    expect(stored).toMatchObject({
+      entry: {
+        headword: 'went',
+        senses: [{ id: created.senseId, headwordTranslations: [{ text: 'past' }] }],
+      },
+    });
+    expect(stored.entry.partsOfSpeech).toBeUndefined();
+    expect(manualLinks(session.sessionId, 'u1')).toEqual([
+      { sourceId: 'tok-1', lexemeId: created.lexemeId, senseId: created.senseId, role: 'manual' },
+    ]);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'lexicon.createLinkedEntry', {
+        targetId: 'tok-1',
+        headword: 'Went',
+        translation: 'again',
+      }),
+    ).toThrow('lexeme headword exists');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'lexicon.createLinkedEntry', {
+        targetId: 'missing',
+        headword: 'other',
+        translation: 'else',
+      }),
+    ).toThrow('link target is missing');
+    const heads = (
+      callDesktopSession(session.sessionId, 'lexicon.listLinkCandidates', {}) as {
+        headword: string;
+      }[]
+    ).map((item) => item.headword);
+    expect(heads).toEqual(['go', 'went']);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: 'u1' })).toMatchObject({
+      text: 'ka',
+    });
+    resetDesktopSessions();
+    const reopened = openDesktopSession(dir, [dir]);
+    expect(
+      callDesktopSession(reopened.sessionId, 'lexicon.listTokenLinks', { unitId: 'u1' }),
+    ).toEqual([
+      {
+        tokenId: 'tok-1',
+        lexemeId: created.lexemeId,
+        senseId: created.senseId,
+        headword: 'went',
+      },
+    ]);
+  });
 });
 
 function graphLinks(sessionId: string): { type: string }[] {
   return linksOf(sessionId, 'u1');
+}
+
+function manualLinks(sessionId: string, unitId: string) {
+  const state = callDesktopSession(sessionId, 'analysis.readState', { unitId }) as {
+    graph: {
+      relations: {
+        type: string;
+        sourceId: string;
+        link?: { lexemeId?: string; senseId?: string; role?: string };
+      }[];
+    };
+  };
+  return state.graph.relations
+    .filter((relation) => relation.type === 'linksLexeme')
+    .map((relation) => ({
+      sourceId: relation.sourceId,
+      lexemeId: relation.link?.lexemeId,
+      senseId: relation.link?.senseId,
+      role: relation.link?.role,
+    }));
 }
 
 function linksOf(sessionId: string, unitId: string): { type: string }[] {
