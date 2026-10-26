@@ -32,7 +32,10 @@ export interface CollaborationCloudHydrationDeps {
     change: CollaborationProjectChangeRecord,
     options?: { skipLoadSnapshot?: boolean; skipConflictGovernance?: boolean },
   ) => Promise<void | { commitRevision?: boolean }>;
-  markProjectRevisionSeen: (revision: number) => void;
+  markProjectRevisionSeen: (
+    revision: number,
+    options?: { mode?: 'contiguous' | 'force' },
+  ) => void;
   isCancelled: () => boolean;
 }
 
@@ -136,7 +139,8 @@ export async function hydrateCollaborationProjectFromCloud(
 
   // Persist progress through what we applied. When truncated, do not claim complete
   // hydration — leave hydrated:false so a later round can continue from the cursor.
-  deps.markProjectRevisionSeen(latestRevision);
+  // Authoritative hydration baseline may jump the cursor (#385 reserves force here)
+  deps.markProjectRevisionSeen(latestRevision, { mode: 'force' });
   if (truncatedByPageCap) {
     return { latestRevision, hydrated: false };
   }

@@ -153,7 +153,9 @@ export function useTranscriptionCloudSyncActions({
 
   // #363: bridge owns markProjectRevisionSeen; conflict resolve must call it via ref
   // because the conflict-review hook is created before the bridge hook.
-  const markProjectRevisionSeenRef = useRef<(revision: number) => void>(() => undefined);
+  const markProjectRevisionSeenRef = useRef<
+    (revision: number, options?: { mode?: 'contiguous' | 'force' }) => void
+  >(() => undefined);
 
   const {
     conflictReviewTickets,
