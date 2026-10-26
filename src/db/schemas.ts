@@ -2,8 +2,10 @@
  * Zod 验证 Schema 与 validate 函数 | Zod validation schemas and validate functions
  */
 import { z } from 'zod';
+import { dmlexEntrySchema, dmlexText, jieyuLexemeSchema } from './dmlexEntrySchema';
 import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
+import { isoDateSchema, provenanceSchema } from './provenanceSchema';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
 import type {
   TextDocType,
@@ -61,9 +63,8 @@ import type {
   AiSourceSetDoc,
 } from './types';
 
-export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
-  message: 'Expected ISO date-time string',
-});
+export { isoDateSchema, provenanceSchema };
+
 /** 目录行的项目归属（2B-B，写入时强制）| Catalog row owner (2B-B, enforced on write) */
 const catalogOwnerIdSchema = z.string().min(1);
 
@@ -77,46 +78,6 @@ const aiMetadataSchema = z
     generatedAt: isoDateSchema.optional(),
   })
   .passthrough();
-
-const reviewStatusSchema = z.enum(['draft', 'suggested', 'confirmed', 'rejected']);
-const actorTypeSchema = z.enum(['human', 'ai', 'system', 'importer']);
-const creationMethodSchema = z.enum([
-  'manual',
-  'import',
-  'auto-segmentation',
-  'auto-transcription',
-  'auto-gloss',
-  'alignment',
-  'projection',
-  'merge',
-  'split',
-  'migration',
-]);
-/** 生成参数：扁平键值，限制规模 | Generation params: flat key-value with bounded size */
-const PROVENANCE_PARAMS_MAX_KEYS = 32;
-const provenanceParamsSchema = z
-  .record(
-    z.string().min(1).max(64),
-    z.union([z.string().max(256), z.number().finite(), z.boolean()]),
-  )
-  .refine((value) => Object.keys(value).length <= PROVENANCE_PARAMS_MAX_KEYS, {
-    message: `provenance.params allows at most ${PROVENANCE_PARAMS_MAX_KEYS} keys`,
-  });
-const provenanceSchema = z.object({
-  actorType: actorTypeSchema,
-  actorId: z.string().optional(),
-  method: creationMethodSchema,
-  taskId: z.string().optional(),
-  model: z.string().optional(),
-  modelVersion: z.string().optional(),
-  confidence: z.number().min(0).max(1).optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema.optional(),
-  reviewStatus: reviewStatusSchema.optional(),
-  reviewedBy: z.string().optional(),
-  reviewedAt: isoDateSchema.optional(),
-  params: provenanceParamsSchema.optional(),
-});
 
 const textDocSchema = z.object({
   id: z.string().min(1),
@@ -242,185 +203,6 @@ const unitMorphemeDocSchema = z.object({
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
-
-const dmlexText = z.string().min(1);
-
-const dmlexSenseSchema = z
-  .object({
-    id: dmlexText.optional(),
-    indicator: z.string().optional(),
-    labels: z.array(dmlexText).optional(),
-    definitions: z
-      .array(
-        z
-          .object({
-            text: dmlexText,
-            definitionType: z.string().optional(),
-          })
-          .strict(),
-      )
-      .optional(),
-    examples: z
-      .array(
-        z
-          .object({
-            text: dmlexText,
-            sourceIdentity: z.string().optional(),
-            sourceElaboration: dmlexText.optional(),
-            soundFile: z.string().optional(),
-            labels: z.array(dmlexText).optional(),
-            exampleTranslations: z
-              .array(
-                z
-                  .object({
-                    text: dmlexText,
-                    langCode: z.string().optional(),
-                    labels: z.array(dmlexText).optional(),
-                  })
-                  .strict(),
-              )
-              .optional(),
-          })
-          .strict(),
-      )
-      .optional(),
-    headwordExplanations: z
-      .array(
-        z
-          .object({
-            text: dmlexText,
-            langCode: z.string().optional(),
-          })
-          .strict(),
-      )
-      .optional(),
-    headwordTranslations: z
-      .array(
-        z
-          .object({
-            text: dmlexText,
-            langCode: z.string().optional(),
-            partsOfSpeech: z.array(dmlexText).optional(),
-            labels: z.array(dmlexText).optional(),
-          })
-          .strict(),
-      )
-      .optional(),
-  })
-  .strict();
-
-const dmlexEntrySchema = z
-  .object({
-    id: z.string().optional(),
-    headword: dmlexText,
-    homographNumber: z.string().optional(),
-    partsOfSpeech: z.array(dmlexText).optional(),
-    labels: z.array(dmlexText).optional(),
-    pronunciations: z
-      .array(
-        z
-          .object({
-            soundFile: z.string().optional(),
-            transcriptions: z
-              .array(
-                z
-                  .object({
-                    text: dmlexText,
-                    scheme: z.string().optional(),
-                  })
-                  .strict(),
-              )
-              .min(1)
-              .optional(),
-            labels: z.array(dmlexText).optional(),
-          })
-          .strict(),
-      )
-      .optional(),
-    inflectedForms: z
-      .array(
-        z
-          .object({
-            text: dmlexText,
-            tag: dmlexText.optional(),
-            labels: z.array(dmlexText).optional(),
-          })
-          .strict(),
-      )
-      .optional(),
-    senses: z.array(dmlexSenseSchema).optional(),
-    etymologies: z
-      .array(
-        z
-          .object({
-            description: z.string().optional(),
-            etymons: z
-              .array(
-                z
-                  .object({
-                    etymonUnits: z
-                      .array(
-                        z
-                          .object({
-                            langCode: z.string(),
-                            text: z.string(),
-                          })
-                          .strict(),
-                      )
-                      .min(1),
-                    when: z.string().optional(),
-                    type: z.string().optional(),
-                    note: z.string().optional(),
-                  })
-                  .strict(),
-              )
-              .optional(),
-          })
-          .strict(),
-      )
-      .optional(),
-  })
-  .strict();
-
-const jieyuLexemeSchema = z
-  .object({
-    exampleRefs: z
-      .array(
-        z
-          .object({
-            senseId: dmlexText,
-            exampleIndex: z.number().int().nonnegative(),
-            segmentId: dmlexText,
-          })
-          .strict(),
-      )
-      .optional(),
-    notes: z
-      .array(
-        z
-          .object({
-            owner: z.enum(['entry', 'sense']),
-            ref: dmlexText,
-            text: dmlexText,
-          })
-          .strict(),
-      )
-      .optional(),
-    occurrenceCitations: z
-      .array(
-        z
-          .object({
-            textId: dmlexText,
-            unitId: dmlexText,
-            tokenId: dmlexText,
-            lexemeId: dmlexText,
-            senseId: dmlexText,
-          })
-          .strict(),
-      )
-      .optional(),
-  })
-  .strict();
 
 const lexemeEntryDocSchema = z
   .object({

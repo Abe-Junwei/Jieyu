@@ -1,0 +1,14 @@
+.desktop-project-read {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.desktop-project-read-manuscripts,
+.desktop-project-read-units {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}

@@ -12,15 +12,11 @@ export interface OpenedProject {
 
 export function openProjectFolder(input: {
   folder: string;
-  pid: number;
-  isAlive?: (candidate: number) => boolean;
   extraMarkers?: readonly string[];
   userDataRoot?: string;
 }): OpenedProject {
   const warning = syncFolderWarning(input.folder, input.extraMarkers ?? []);
-  const lock = input.isAlive
-    ? tryAcquireProjectLock(input.folder, input.pid, input.isAlive)
-    : tryAcquireProjectLock(input.folder, input.pid);
+  const lock = tryAcquireProjectLock(input.folder);
   const backupDir =
     lock.ok && input.userDataRoot
       ? ensureProjectBackupDir(input.userDataRoot, path.basename(input.folder))

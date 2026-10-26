@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-26
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0090**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0092**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -21,7 +21,7 @@ source_of_truth: decision-index
 
 ## 桌面存储：当前有效条款
 
-下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。基础单库布局以 [ADR-0085](./0085-desktop-project-one-sqlite.md) 为准；范围/冻结与开发格式见 [ADR-0086](./0086-desktop-release-scope-and-format-freeze.md)，删除/恢复见 [ADR-0087](./0087-project-deletion-retention-and-media-cleanup.md)，M1 未覆盖的领域落点见 [ADR-0088](./0088-desktop-sqlite-domain-landings.md)。分析过期、曾经接受与恢复见 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)。冲突条款按对应新篇执行。
+下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。基础单库布局以 [ADR-0085](./0085-desktop-project-one-sqlite.md) 为准；范围/冻结与开发格式见 [ADR-0086](./0086-desktop-release-scope-and-format-freeze.md)，删除/恢复见 [ADR-0087](./0087-project-deletion-retention-and-media-cleanup.md)，M1 未覆盖的领域落点见 [ADR-0088](./0088-desktop-sqlite-domain-landings.md)。分析过期、曾经接受与恢复见 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)。完整载荷、全项目字段和失效引用见 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md)。字段修订、诊断补交、备注锚点、转写接受回执、删除准入、备份快照和恢复执行隔离见 [ADR-0091](./0091-field-revisions-diagnostic-delivery-and-later-milestones.md)。冲突条款按对应新篇执行。
 
 | 事项                                                                                                                                                      | 唯一权威                                                                                                                                                                                                 | 不要再当成权威                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -38,7 +38,7 @@ source_of_truth: decision-index
 | 会话记忆载荷                                                                                                                                              | 能力保留。ADR-0085 未列此表。接替前另写 ADR，不塞进 `settings_json`（ADR-0086） | 沿 ADR-0066 直接建 `ai_session_memories`，或放进 `.jyd` |
 | 语言记录上的数组、行政区划、多语备注、自定义字段值                                                                                                        | ADR-0067 的具名 JSON 列留在单库 `languages` 行。内置模板先复制成项目行后再被层引用（ADR-0088） | 沿 ADR-0067 写进 `.jyd`，或因未列出就撤掉语言记录 |
 | `model_runs`                                                                                                                                              | [ADR-0088](./0088-desktop-sqlite-domain-landings.md)：运行记录、内容行来源和可恢复任务分开。字段仍是 ADR-0057 第 8 条 | 把运行记录塞进 `source_records`、`provenance_json` 或 `ai_tasks` |
-| 词条 DMLex 正文                                                                                                                                           | ADR-0068 的 `entry_json` / `resource_json`，加 ADR-0088 的 `jieyu_json` 与义项引用核对 | 因 ADR-0085 未列出就撤掉词条，或把义项拆成子表 |
+| 词条 DMLex 正文                                                                                                                                           | ADR-0068 的 `entry_json` / `resource_json`，加 ADR-0088 的 `jieyu_json`。核心词义链接的删除和失效引用以 ADR-0090 为准。例句引用和出现引用仍按 ADR-0088 第 9 条拒绝删除 | 因 ADR-0085 未列出就撤掉词条，或把义项拆成子表。用 ADR-0088 第 9 条挡住已允许失效的核心词义链接 |
 | 结构规则正文、正字法转换规则与样例、车道锁定表                                                                                                            | 正字法转换沿用 ADR-0069 第 2 条，落在单库 `orthography_bridges`（ADR-0088）。结构规则正文仍是 ADR-0069 第 1 条。车道锁定另写决定 | 沿 ADR-0069 把车道锁定写进 `.jyd` |
 | 说话人分配                                                                                                                                                | ADR-0085：`speakers` 属于整个项目，一次事务写入 | ADR-0071 的项目库和每份 `.jyd` 各提交一次 |
 | 正则拆分                                                                                                                                                  | ADR-0085：起止时间在语段行，单位是秒。语段和转写正文同一次事务。不另建锚点表 | ADR-0072 的 `.jyd` 锚点行 |
@@ -55,12 +55,12 @@ source_of_truth: decision-index
 | 项目行的标题和时间                                                                                                                                        | ADR-0085：`title_json` 至少一条非空字符串。`created_at`、`updated_at` 必填 | ADR-0083 的可空列和空标题拒绝读取；把 `name` 当成标题 |
 | 后加列的空值                                                                                                                                              | ADR-0085：必填是 `NOT NULL`。`NULL` 只表示可以没有的关系，不是未补全 | ADR-0084 把后加列的空值当成未补全并计数 |
 | 语段时间与播放器时间 | ADR-0088：语段存文献轴秒。播放器时间由文稿 `timeMapping` 换算 | 把 ADR-0085「单位与播放器相同」理解成不保存映射 |
-| 分析图与词项投影 | ADR-0088：已接受图是真值。`tokens` / `morphemes` 是同事务同步的线性投影。过期、曾经接受与恢复以 [ADR-0089](./0089-analysis-generation-accept-and-restore.md) 为准 | 用词项父子表代替分析图，或接受时整表删除再插入。用图内容相等判断当前正在使用，或把旧图直接放到新正文上 |
+| 分析图与词项投影 | ADR-0088：已接受图是真值。`tokens` / `morphemes` 是同事务同步的线性投影。过期、曾经接受与恢复以 [ADR-0089](./0089-analysis-generation-accept-and-restore.md) 为准。完整载荷、字段管理和失效引用以 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md) 为准 | 用词项父子表代替分析图，或接受时整表删除再插入。用图内容相等判断当前正在使用，或把旧图直接放到新正文上。把实验键当成协议 |
 | 外部标注重导入 | ADR-0088：EAF 按文稿、层和标注 id 匹配。`external_ref` 单独不是匹配键 | 只按标注 id 字符串更新任意层 |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
-详细结构与业务操作的待实施载体见[领域接替规格](../execution/specs/desktop-sqlite-domain-landings/requirements.md)及其[设计、关系图与验收矩阵](../execution/specs/desktop-sqlite-domain-landings/design.md)。ADR-0088 与 ADR-0089 保留决定正文。R1、R5、R6 仍未决定。可执行 DDL 仍只在 `src/db/desktop/schema.ts`，当前尚未实现。
+详细结构与业务操作的待实施载体见[领域接替规格](../execution/specs/desktop-sqlite-domain-landings/requirements.md)及其[设计、关系图与验收矩阵](../execution/specs/desktop-sqlite-domain-landings/design.md)。ADR-0088 与 ADR-0089 保留决定正文。R1 的取舍已由 ADR-0090 接受，字段编码仍在[该规格](../execution/specs/annotation-graph-rebuild/design.md)直到实施完成。R5、R6 仍未决定。可执行 DDL 仍只在 `src/db/desktop/schema.ts`，ADR-0090 尚未实现。
 
 ## 本轮范围与生命周期
 
@@ -68,8 +68,9 @@ source_of_truth: decision-index
 - [0087：项目内可恢复删除与录音清除](./0087-project-deletion-retention-and-media-cleanup.md)
 - [0088：单库承接现有领域落点](./0088-desktop-sqlite-domain-landings.md)
 - [0089：分析代际、曾经接受与恢复写入](./0089-analysis-generation-accept-and-restore.md)
+- [0090：完整分析载荷、全项目字段与失效引用](./0090-analysis-payload-custom-fields-and-dangling-refs.md)
 
-R1 的[逐字段合同、合成验证与待确认决定文本](../execution/specs/annotation-graph-rebuild/design.md)留在执行规格；尚未接受，不分配 ADR 编号。R5、R6 仍在领域接替规格，不在 ADR-0089。
+R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebuild/design.md)，取舍已接受为 ADR-0090，代码未改。R5、R6 仍在领域接替规格，不在 ADR-0089 或 ADR-0090。
 
 ## superseded
 
@@ -159,6 +160,7 @@ R1 的[逐字段合同、合成验证与待确认决定文本](../execution/spec
 - [0087-project-deletion-retention-and-media-cleanup.md](./0087-project-deletion-retention-and-media-cleanup.md)
 - [0088-desktop-sqlite-domain-landings.md](./0088-desktop-sqlite-domain-landings.md)
 - [0089-analysis-generation-accept-and-restore.md](./0089-analysis-generation-accept-and-restore.md)
+- [0090-analysis-payload-custom-fields-and-dangling-refs.md](./0090-analysis-payload-custom-fields-and-dangling-refs.md)
 
 ## 已关闭的另一套编号
 

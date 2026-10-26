@@ -137,6 +137,18 @@ export interface JieyuNote {
   text: string;
 }
 
+/** Lexeme or sense note stored only in jieyu_json. Not a row in notes. */
+export interface JieyuAnchoredNote {
+  id: string;
+  scope: 'lexeme' | 'sense';
+  senseId?: string;
+  content: Record<string, string>;
+  category?: 'comment' | 'question' | 'todo' | 'linguistic' | 'fieldwork' | 'correction' | 'topic';
+  provenance?: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** A sentence occurrence cited from a sense. The sentence is read live, not copied. */
 export interface JieyuOccurrenceCitation {
   textId: string;
@@ -149,6 +161,7 @@ export interface JieyuOccurrenceCitation {
 export interface JieyuLexemeExtras {
   exampleRefs?: JieyuExampleRef[];
   notes?: JieyuNote[];
+  anchoredNotes?: JieyuAnchoredNote[];
   occurrenceCitations?: JieyuOccurrenceCitation[];
 }
 
