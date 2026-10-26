@@ -28,6 +28,48 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
   const [category, setCategory] = useState<ContentNoteCategory>('comment');
   const [body, setBody] = useState('');
   const selected = read.model?.units.find((unit) => unit.id === selectedId);
+  const lexemeLinkFields = (id: string, form: string) => (
+    <>
+      {links.links
+        .filter((link) => link.tokenId === id)
+        .map((link) => (
+          <span key={link.senseId}>
+            {link.headword === null
+              ? t(locale, 'workspace.annotation.lexemeBroken')
+              : tf(locale, 'workspace.annotation.lexemeLinked', { lemma: link.headword })}
+          </span>
+        ))}
+      <input
+        aria-label={`${t(locale, 'workspace.annotation.lexemeLinkLabel')}: ${form}`}
+        value={links.drafts[id] ?? ''}
+        onChange={(event) => {
+          const value = event.currentTarget.value;
+          links.setDrafts((current) => ({ ...current, [id]: value }));
+        }}
+      />
+      <button
+        type="button"
+        aria-label={`${t(locale, 'workspace.annotation.lexemeLink')}: ${form}`}
+        onClick={() => links.submit(id)}
+      >
+        {t(locale, 'workspace.annotation.lexemeLink')}
+      </button>
+      <button
+        type="button"
+        aria-label={`${t(locale, 'workspace.annotation.lexemeUnlink')}: ${form}`}
+        onClick={() => links.clear(id)}
+      >
+        {t(locale, 'workspace.annotation.lexemeUnlink')}
+      </button>
+      {links.choices?.tokenId === id
+        ? links.choices.senses.map((sense) => (
+            <button key={sense.id} type="button" onClick={() => links.choose(id, sense.id)}>
+              {tf(locale, 'workspace.annotation.chooseSense', { label: sense.label })}
+            </button>
+          ))
+        : null}
+    </>
+  );
 
   return (
     <section className="desktop-project-read">
@@ -100,50 +142,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                         words.setPos(word.id, event.currentTarget.value.trim());
                       }}
                     />
-                    {links.links
-                      .filter((link) => link.tokenId === word.id)
-                      .map((link) => (
-                        <span key={link.senseId}>
-                          {link.headword === null
-                            ? t(locale, 'workspace.annotation.lexemeBroken')
-                            : tf(locale, 'workspace.annotation.lexemeLinked', {
-                                lemma: link.headword,
-                              })}
-                        </span>
-                      ))}
-                    <input
-                      aria-label={`${t(locale, 'workspace.annotation.lexemeLinkLabel')}: ${word.form}`}
-                      value={links.drafts[word.id] ?? ''}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value;
-                        links.setDrafts((current) => ({ ...current, [word.id]: value }));
-                      }}
-                    />
-                    <button
-                      type="button"
-                      aria-label={`${t(locale, 'workspace.annotation.lexemeLink')}: ${word.form}`}
-                      onClick={() => links.submit(word.id)}
-                    >
-                      {t(locale, 'workspace.annotation.lexemeLink')}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`${t(locale, 'workspace.annotation.lexemeUnlink')}: ${word.form}`}
-                      onClick={() => links.clear(word.id)}
-                    >
-                      {t(locale, 'workspace.annotation.lexemeUnlink')}
-                    </button>
-                    {links.choices?.tokenId === word.id
-                      ? links.choices.senses.map((sense) => (
-                          <button
-                            key={sense.id}
-                            type="button"
-                            onClick={() => links.choose(word.id, sense.id)}
-                          >
-                            {tf(locale, 'workspace.annotation.chooseSense', { label: sense.label })}
-                          </button>
-                        ))
-                      : null}
+                    {lexemeLinkFields(word.id, word.form)}
                   </li>
                 ))}
               </ul>
@@ -156,7 +155,10 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
               </button>
               <ul>
                 {words.morphemes.map((morpheme) => (
-                  <li key={morpheme.id}>{morpheme.form}</li>
+                  <li key={morpheme.id}>
+                    <span>{morpheme.form}</span>
+                    {lexemeLinkFields(morpheme.id, morpheme.form)}
+                  </li>
                 ))}
               </ul>
               <button

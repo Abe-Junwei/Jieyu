@@ -62,7 +62,7 @@ export function listTokenLexemeLinks(db: SqliteDatabase, unitId: string): TokenL
   for (const relation of material.graph.relations) {
     if (relation.type !== 'linksLexeme' || relation.link === undefined) continue;
     const source = material.graph.nodes.find((node) => node.id === relation.sourceId);
-    if (source?.type !== 'token') continue;
+    if (source === undefined || (source.type !== 'token' && source.type !== 'morpheme')) continue;
     const senseId = relation.link.senseId;
     if (senseId === undefined) continue;
     links.push({
@@ -82,7 +82,7 @@ export function replaceTokenLexemeLink(
   const write = db.transaction(() => {
     assertSense(db, input.lexemeId, input.senseId);
     rewriteTokenLink(db, input.tokenId, input);
-    const stored = listTokenLexemeLinks(db, unitIdOfToken(db, input.tokenId)).find(
+    const stored = listTokenLexemeLinks(db, unitIdOfTarget(db, input.tokenId)).find(
       (link) => link.tokenId === input.tokenId && link.senseId === input.senseId,
     );
     if (stored === undefined) throw new Error('lexeme readback failed');
@@ -93,7 +93,7 @@ export function replaceTokenLexemeLink(
 
 export function clearTokenLexemeLink(db: SqliteDatabase, tokenId: string): TokenLexemeLink[] {
   const write = db.transaction(() => {
-    const unitId = unitIdOfToken(db, tokenId);
+    const unitId = unitIdOfTarget(db, tokenId);
     rewriteTokenLink(db, tokenId, null);
     return listTokenLexemeLinks(db, unitId).filter((link) => link.tokenId === tokenId);
   });
@@ -105,11 +105,12 @@ function rewriteTokenLink(
   tokenId: string,
   next: { lexemeId: string; senseId: string } | null,
 ): void {
-  const unitId = unitIdOfToken(db, tokenId);
+  const unitId = unitIdOfTarget(db, tokenId);
   const material = readAnalysisMaterial(db, unitId);
   if (material.graph === null) throw new Error('analysis graph is missing');
   const graph = structuredClone(material.graph);
-  if (!graph.nodes.some((node) => node.id === tokenId && node.type === 'token')) {
+  const target = graph.nodes.find((node) => node.id === tokenId);
+  if (target === undefined || (target.type !== 'token' && target.type !== 'morpheme')) {
     throw new Error('link target is missing');
   }
   const had = graph.relations.some(
@@ -164,11 +165,20 @@ function assertSense(db: SqliteDatabase, lexemeId: string, senseId: string): voi
   if (!found) throw new Error('sense is missing');
 }
 
-function unitIdOfToken(db: SqliteDatabase, tokenId: string): string {
-  const row = db.prepare('SELECT unit_id FROM tokens WHERE id = ?').get(tokenId) as
+function unitIdOfTarget(db: SqliteDatabase, targetId: string): string {
+  const token = db.prepare('SELECT unit_id FROM tokens WHERE id = ?').get(targetId) as
     { unit_id: string } | undefined;
-  if (row === undefined) throw new Error('link target is missing');
-  return row.unit_id;
+  if (token !== undefined) return token.unit_id;
+  const morpheme = db
+    .prepare(
+      `SELECT tokens.unit_id AS unit_id
+       FROM morphemes
+       JOIN tokens ON tokens.id = morphemes.token_id
+       WHERE morphemes.id = ?`,
+    )
+    .get(targetId) as { unit_id: string } | undefined;
+  if (morpheme === undefined) throw new Error('link target is missing');
+  return morpheme.unit_id;
 }
 
 function headwordOf(db: SqliteDatabase, lexemeId: string): string | null {

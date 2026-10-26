@@ -112,10 +112,78 @@ describe('token lexeme link', () => {
       callDesktopSession(reopened.sessionId, 'lexicon.listTokenLinks', { unitId: 'u1' }),
     ).toEqual([]);
   });
+
+  it('links a morpheme on the graph and clears that link without changing the unit text', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    project.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 3, T);
+    const manuscript = project.manuscripts.create({ title: { zh: '文稿' }, mediaId: 'm1' });
+    const layer = project.layers.create({
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const unit = project.units.create({
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 1,
+      text: 'ka-ra',
+    });
+    project.close();
+
+    const session = openDesktopSession(dir, [dir]);
+    callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id });
+    const morphemes = callDesktopSession(session.sessionId, 'analysis.segmentMorphemes', {
+      unitId: unit.id,
+    }) as { id: string; form: string }[];
+    const ka = morphemes.find((item) => item.form === 'ka');
+    if (ka === undefined) throw new Error('morpheme ka is missing');
+    save(session.sessionId, 'ka-entry', 'ka', ['animal', 'other']);
+    callDesktopSession(session.sessionId, 'lexicon.replaceTokenLink', {
+      tokenId: ka.id,
+      lexemeId: 'ka-entry',
+      senseId: 'animal',
+    });
+    callDesktopSession(session.sessionId, 'lexicon.replaceTokenLink', {
+      tokenId: ka.id,
+      lexemeId: 'ka-entry',
+      senseId: 'other',
+    });
+    expect(linksOf(session.sessionId, unit.id)).toHaveLength(1);
+    expect(
+      callDesktopSession(session.sessionId, 'lexicon.listTokenLinks', { unitId: unit.id }),
+    ).toEqual([{ tokenId: ka.id, lexemeId: 'ka-entry', senseId: 'other', headword: 'ka' }]);
+    resetDesktopSessions();
+
+    const wiped = openProject(dir);
+    wiped.db.prepare('DELETE FROM token_lexeme_links').run();
+    wiped.close();
+    const reread = openDesktopSession(dir, [dir]);
+    expect(
+      callDesktopSession(reread.sessionId, 'lexicon.listTokenLinks', { unitId: unit.id }),
+    ).toEqual([{ tokenId: ka.id, lexemeId: 'ka-entry', senseId: 'other', headword: 'ka' }]);
+    expect(
+      callDesktopSession(reread.sessionId, 'lexicon.clearTokenLink', { tokenId: ka.id }),
+    ).toEqual([]);
+    expect(linksOf(reread.sessionId, unit.id)).toEqual([]);
+    expect(callDesktopSession(reread.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'ka-ra',
+    });
+  });
 });
 
 function graphLinks(sessionId: string): { type: string }[] {
-  const state = callDesktopSession(sessionId, 'analysis.readState', { unitId: 'u1' }) as {
+  return linksOf(sessionId, 'u1');
+}
+
+function linksOf(sessionId: string, unitId: string): { type: string }[] {
+  const state = callDesktopSession(sessionId, 'analysis.readState', { unitId }) as {
     graph: { relations: { type: string }[] };
   };
   return state.graph.relations.filter((relation) => relation.type === 'linksLexeme');
