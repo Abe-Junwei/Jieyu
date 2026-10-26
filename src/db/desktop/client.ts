@@ -84,6 +84,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
         targetId,
         ...(lexemeId === undefined ? {} : { lexemeId }),
       }),
+    listCustomFieldDefinitions: (sessionId: string) =>
+      once<CustomFieldDefinition[]>(sessionId, 'customFields.listDefinitions', {}),
     locateFieldValues: (sessionId: string, definitionId: string) =>
       once<CustomFieldLocation[]>(sessionId, 'customFields.locateValues', { definitionId }),
     previewCustomFieldMigration: (sessionId: string, definitionId: string) =>

@@ -1,7 +1,9 @@
 import { Navigate } from 'react-router-dom';
+import { featureFlags } from '../ai/config/featureFlags';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 import { DesktopProjectReadView } from './DesktopProjectReadView';
+import { ProjectCustomFieldManager } from './ProjectCustomFieldManager';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import '../styles/pages/desktop-project-read.css';
 
@@ -42,6 +44,9 @@ export function DesktopProjectReadPage() {
           onSaveMapping={read.saveMapping}
         />
       )}
+      {featureFlags.projectCustomFieldsEnabled && read.sessionId !== null ? (
+        <ProjectCustomFieldManager desktopCall={host.desktopCall} sessionId={read.sessionId} />
+      ) : null}
     </section>
   );
 }

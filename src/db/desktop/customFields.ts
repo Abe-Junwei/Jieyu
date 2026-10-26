@@ -545,7 +545,7 @@ export function locateCustomFieldValues(
 
 export function currentDefinitionRevisions(db: SqliteDatabase): StoredDefinitionRevision[] {
   // ponytail: copies every current value onto the candidate row; drop the value copy if unit history gets its own table
-  return readAll(db)
+  return listDefinitions(db)
     .map((definition) => ({
       definitionId: definition.id,
       revision: definition.revision,
@@ -1143,7 +1143,7 @@ function reuseMatch(
   parsed: ParsedCustomFieldDefinition,
 ): CustomFieldDefinition | null {
   const name = canonicalJson(parsed.name);
-  const named = readAll(db).filter((definition) => canonicalJson(definition.name) === name);
+  const named = listDefinitions(db).filter((definition) => canonicalJson(definition.name) === name);
   if (named.length === 0) return null;
   const match = named.find(
     (definition) =>
@@ -1344,7 +1344,7 @@ function readDefinition(db: SqliteDatabase, id: string): CustomFieldDefinition |
   return mapDefinition(row, readOptions(db, id));
 }
 
-function readAll(db: SqliteDatabase): CustomFieldDefinition[] {
+export function listDefinitions(db: SqliteDatabase): CustomFieldDefinition[] {
   const rows = db.prepare('SELECT * FROM custom_field_definitions').all() as DefinitionRow[];
   return rows.map((row) => mapDefinition(row, readOptions(db, row.id)));
 }

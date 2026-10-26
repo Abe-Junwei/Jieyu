@@ -92,7 +92,16 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
       });
   };
 
-  return { model, error, openFolder, selectManuscript, saveText, moveBoundary, saveMapping };
+  return {
+    sessionId,
+    model,
+    error,
+    openFolder,
+    selectManuscript,
+    saveText,
+    moveBoundary,
+    saveMapping,
+  };
 }
 
 function readApi(host: DesktopReadHost): DesktopProjectReadApi {

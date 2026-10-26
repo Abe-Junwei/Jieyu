@@ -316,4 +316,10 @@ export const featureFlags = {
   sqliteStoragePortEnabled: sqliteStoragePortFlagEnabled(
     import.meta.env.VITE_SQLITE_STORAGE_PORT_ENABLED,
   ),
+  /**
+   * M5-C / C8：桌面项目字段管理。默认关闭，不进旧标注页。
+   * Env `VITE_PROJECT_CUSTOM_FIELDS_ENABLED=true` opens it on the folder library page.
+   */
+  projectCustomFieldsEnabled:
+    readOptionalBooleanFlag(import.meta.env.VITE_PROJECT_CUSTOM_FIELDS_ENABLED) ?? false,
 } as const;

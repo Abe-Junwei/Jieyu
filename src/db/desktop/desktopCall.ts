@@ -24,6 +24,7 @@ import {
   addOption,
   createDefinition,
   importDefinition,
+  listDefinitions,
   locateCustomFieldValues,
   missingFields,
   missingUnitFields,
@@ -104,6 +105,7 @@ const METHODS = [
   'customFields.setValue',
   'customFields.removeValue',
   'customFields.missingFields',
+  'customFields.listDefinitions',
   'customFields.locateValues',
   'customFields.previewMigration',
   'customFields.migrateDefinition',
@@ -236,6 +238,9 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         requiredString(input.targetId, 'targetId'),
         input.lexemeId === undefined ? undefined : requiredString(input.lexemeId, 'lexemeId'),
       );
+    case 'customFields.listDefinitions':
+      knownKeys(input, []);
+      return listDefinitions(project.db);
     case 'customFields.locateValues':
       knownKeys(input, ['definitionId']);
       return locateCustomFieldValues(
