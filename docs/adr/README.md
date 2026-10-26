@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0092**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0094**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -49,7 +49,7 @@ source_of_truth: decision-index
 | 文稿改挂录音                                                                                                                                              | ADR-0085：`manuscripts.media_id` 只有一条，替换是同库一次事务 | ADR-0077 替换 `.jyd` 的 `meta.audio_id` |
 | 跨文稿关系                                                                                                                                                | ADR-0085：父层、父语段不空时必须在同一文稿。不要求父语段落在父层上 | ADR-0078 只在同一份 `.jyd` 里写 |
 | 桌面壳安装 SQLite 存储接口                                                                                                                                | 新路径一次函数一次 IPC，不把新库装进旧 StoragePort 代理。旧代理留到屏幕改接（ADR-0086） | 按 ADR-0079 默认安装旧端口 |
-| 会话和消息                                                                                                                                                | ADR-0085：`conversations` 和 `messages` 在 `project.sqlite`。不存引用和推理正文 | 把会话放进 userData，或为引用另加列 |
+| 会话和消息 | ADR-0085：`conversations` 和 `messages` 在 `project.sqlite`；[ADR-0093](./0093-ai-chat-message-evidence-and-export.md)：消息保存引用和推理正文，不存上下文快照 | ADR-0080 第 5 条对引用和推理的排除；把会话放进 userData |
 | 产物创建时间                                                                                                                                              | ADR-0085 要求产物与必要记录同成败；userData 审计的位置与失败语义尚有冲突，见[边界草案](../execution/specs/desktop-domain-write-boundaries/design.md)。密钥仍留 userData；草案不放宽回滚承诺 | ADR-0081 的先提交产物、审计失败时产物留下 |
 | 另一项目的层                                                                                                                                              | ADR-0085：`layers.manuscript_id`。不靠可空 `text_id` 判断归属 | ADR-0082 的 `.jyd` `layers.text_id` 和缺列拒绝 |
 | 项目行的标题和时间                                                                                                                                        | ADR-0085：`title_json` 至少一条非空字符串。`created_at`、`updated_at` 必填 | ADR-0083 的可空列和空标题拒绝读取；把 `name` 当成标题 |
@@ -69,6 +69,7 @@ source_of_truth: decision-index
 - [0088：单库承接现有领域落点](./0088-desktop-sqlite-domain-landings.md)
 - [0089：分析代际、曾经接受与恢复写入](./0089-analysis-generation-accept-and-restore.md)
 - [0090：完整分析载荷、全项目字段与失效引用](./0090-analysis-payload-custom-fields-and-dangling-refs.md)
+- [0093：AI 聊天消息的引用、推理与导出](./0093-ai-chat-message-evidence-and-export.md)
 
 R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebuild/design.md)，取舍已接受为 ADR-0090，代码未改。R5、R6 仍在领域接替规格，不在 ADR-0089 或 ADR-0090。
 
@@ -161,6 +162,9 @@ R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebui
 - [0088-desktop-sqlite-domain-landings.md](./0088-desktop-sqlite-domain-landings.md)
 - [0089-analysis-generation-accept-and-restore.md](./0089-analysis-generation-accept-and-restore.md)
 - [0090-analysis-payload-custom-fields-and-dangling-refs.md](./0090-analysis-payload-custom-fields-and-dangling-refs.md)
+- [0091-field-revisions-diagnostic-delivery-and-later-milestones.md](./0091-field-revisions-diagnostic-delivery-and-later-milestones.md)
+- [0092-desktop-note-anchors.md](./0092-desktop-note-anchors.md)
+- [0093-ai-chat-message-evidence-and-export.md](./0093-ai-chat-message-evidence-and-export.md)
 
 ## 已关闭的另一套编号
 

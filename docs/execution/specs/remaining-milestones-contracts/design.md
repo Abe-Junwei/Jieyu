@@ -8,6 +8,7 @@ source_of_truth: remaining-milestones-contracts-spec
 depends_on:
   - ./requirements.md
   - ../../../adr/0091-field-revisions-diagnostic-delivery-and-later-milestones.md
+  - ../../../adr/0093-ai-chat-message-evidence-and-export.md
 ---
 
 # Design — 字段映射、诊断库与文件原语
@@ -22,6 +23,7 @@ depends_on:
 - [ELAN 评论](https://www.mpi.nl/corpus/html/elan/ch01s08.html) 与标注值分开，评论可以引用时间片和层。父标注引用是 [EAF](https://www.mpi.nl/tools/elan/EAF_Annotation_Format_3.0_and_ELAN.pdf) 里的另一种机制。决定：**适配**「评论不写进正文」。译文正文留在 `unit_texts`，评论指向那一行。
 - [FLEx LIFT 技术说明第 6 节](https://downloads.languagetechnology.org/fieldworks/Documentation/Technical%20Notes%20on%20LIFT%20used%20in%20FLEx.pdf) 把 sense id 定义为项目内唯一。本库不采用这个全局性。决定：**适配** 词条上的多语 note，义项备注按 `(lexeme_id, sense_id)` 留在该词条的 `jieyu_json.anchoredNotes`。
 - 仓库里 `lexemes.kind` 和 `token_lexeme_links` 已经用 CHECK 把互斥形状定死。决定：**复用** 排他列，不新增依赖，不用一个 `target_id` 兼代九类。没有外键，目标消失后备注行还在，附着状态另行标成 detached。
+- 旧聊天消息已有引用和推理字段，聊天界面已有推理折叠展示；新单库消息行和普通聊天导出尚未接入。决定：**适配** 现有消息形状和展示，JSON 用平台原生编码，Markdown 用文本生成，不新增导出依赖；流式保存须覆盖正文和推理。
 
 ## 2. 备注：旧字段与构造点
 
@@ -55,12 +57,23 @@ depends_on:
 | 媒体来源 | 新表自己的 `label`、`external_id`、`media_id` | `sources` 已是这三列加时间 | 只表示媒体来源。清录音时解除它 |
 | 书目 | `title`、`authors`、`year`、`publisher`、`doi`、`url`、`citationKey`、`sourceType`、多语 `notes`、`accessRights`、`textId` | `bibliography` 已有这些列和 `field_revisions_json` | 不进 `sources`。旧 `textId` 不建列。共享书目不随文稿清除 |
 | 对话 | `title`、`mode`、`providerId`、`model`、`archived`、`clearedAt`、`textId`、时间 | `conversations` 已有这些列和 `field_revisions_json` | 旧 `textId` 不建列。`archived` 的 false 和空缺分开。历史审批不进这张表 |
-| 消息 | `role`、`content`、`status`、`generationSource`、`generationModel`、`citations`、`errorMessage`、`reasoningContent`、`reflectionChecks`、`compatibilityReport`、`sourceScopeSummary`、时间 | `messages` 只有 `role`、`body`、`created_at` | 追加消息带稳定 id，不整份替换数组。引用和推理正文按 ADR-0080 不进消息行的规则继续有效，不能为了接替把它们塞进 `body` |
+| 消息 | `role`、`content`、`status`、`generationSource`、`generationModel`、`citations`、`errorMessage`、`reasoningContent`、`reflectionChecks`、`compatibilityReport`、`sourceScopeSummary`、时间 | `messages` 只有 `role`、`body`、`created_at` | 追加消息带稳定 id，不整份替换数组。按 ADR-0093 接替引用和推理正文；上下文快照仍不进消息行，其余旧字段逐项核对 |
 | 项目设置 | `project.settings_json` 已是对象 | 同列 | 只接受已经点名的键。会话记忆和车道锁定继续排除，见 ADR-0086 |
 | 保存的查询 | `AiSourceSetDoc` 仍在旧类型里 | 新库没有表 | 没有已达产品功能就不建表 |
 | AI 写入 | 现有提案、审批、执行分开 | 无新的通用写入口 | 复用具体领域操作 |
 
 来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。说话人、对话和书目已按同一规则接上除 `textId` 外的旧字段。对话不保存历史审批。书目不进来源表。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
+
+### 3.1 分域开工条件
+
+以下四块不以 #392、#393、#394、#395 先合并为共同前置，分别按自己的条件开工；本节不授权绕过既有领域校验或改变已接受的 ADR。
+
+- **项目设置**：当前 `settings_json` 保持空对象。等具体产品功能需要项目设置时，逐键在规格或新 ADR 点名允许的键、值类型、默认值及清空语义，再实现这些键的读写和字段修订。不把旧设置对象整包接入，不接受未列出的键。会话记忆和车道锁定保留各自存储，不成为设置键。
+- **保存的查询**：本轮不为 `AiSourceSetDoc` 建表。出现实际保存、列出、重用或删除查询的产品功能后，再定义存储合同。M5-G 的语料查询可以独立推进，读取库中已有正文、gloss、词类和义项，不另建语料真值；仍按主计划等待 M5-B/C 所需数据就绪，并核对领域读取入口；普通查询过滤已删除内容。
+- **AI 写入**：不另设通用写入口或统一启用任务。每次具体写入复用该域已有业务操作，沿用其归属核验、字段冲突、事务和诊断交付规则。提案、审批、执行保持分开；某域尚无满足合同的操作，就先补该域操作，再接该次执行。
+- **消息**：状态、生成来源、模型和错误信息可按字段修订接替。[ADR-0093](../../../adr/0093-ai-chat-message-evidence-and-export.md) 已决定消息保存引用（身份、标签、短摘录）及实际返回的推理正文；上下文快照继续排除，ADR-0080 正文不改。处理中定期保存正文和推理；停止、失败、中断保留已提交部分，重生成为新消息。新增当前整段聊天的 JSON/Markdown 用户导出，推理默认折叠但可展开。其余旧消息字段仍须逐项核对。
+
+各实施切片分别记录真实依赖和验证证据。设置在有实际键名后验证允许键与非法键、默认与清空、并发字段修订及关闭重开读回；语料查询验证现有数据上的查询结果且不复制真值；AI 执行验证领域操作的审批边界、失败回滚和读回；消息验证追加幂等、字段冲突、处理中保存后崩溃重开、停止/失败保留、失效引用、清空与备份恢复，以及整段聊天两种导出格式。未实施的切片不得勾为完成。
 
 ## 4. 诊断库
 

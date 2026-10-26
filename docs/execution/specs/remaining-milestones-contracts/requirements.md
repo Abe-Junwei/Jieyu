@@ -7,6 +7,7 @@ last_reviewed: 2026-10-26
 source_of_truth: remaining-milestones-contracts-spec
 depends_on:
   - ../../../adr/0091-field-revisions-diagnostic-delivery-and-later-milestones.md
+  - ../../../adr/0093-ai-chat-message-evidence-and-export.md
   - ../desktop-domain-write-boundaries/requirements.md
   - ../desktop-project-deletion/requirements.md
 ---
@@ -30,5 +31,6 @@ depends_on:
 
 - [ ] 来源单域：两个入口改不同字段都保留；同一字段和改回原值的冲突保留草稿；诊断库拒绝或崩溃后内容仍在，重试只补日志且不重复。
 - [x] 备注：九类合成输入关闭重开；时间轴和波形不串；两个词条的同名义项不串；分析恢复不覆盖后来的备注正文。旧页面未接。
+- [ ] 消息：关闭重开仍能读取引用、短摘录和实际返回的推理；停止、失败和崩溃后保留最后成功提交的部分回复；失效引用不误跳转；清空和备份恢复遵循消息生命周期；整段聊天 JSON/Markdown 导出含推理和引用，不含上下文快照。
 - [ ] 转写：映射变化后旧预览不能接受；响应丢失能查到原接受事实；同一候选不重复写入。
 - [ ] 删除与文件：closing 期间新写入被拒绝；垃圾箱调用开始后不报告恢复成功；备份复制期间清单内文件不被移走。
