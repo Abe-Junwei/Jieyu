@@ -147,6 +147,7 @@ import {
   subscribeCollaborationLifecycle,
 } from '../../collaboration/cloud/collaborationLifecycleBroadcast';
 import { markProjectRemovedLocally } from '../../collaboration/cloud/collaborationLocalProjectRegistry';
+import { getCollaborationClientId } from '../../collaboration/cloud/collaborationClientIdentity';
 
 describe('useTranscriptionCollaborationBridge', () => {
   beforeEach(async () => {
@@ -576,6 +577,78 @@ describe('useTranscriptionCollaborationBridge', () => {
     await options.onApplyRemoteChange(makeChange(10));
     expect(loadProjectLastSeenRevision('project-1')).toBe(11);
     expect(result.current.getLatestKnownRevision()).toBe(11);
+  });
+
+  it('#383: 切项目后旧出站 RPC 回调不得污染新项目游标 | stale outbound ack must not pollute new project cursor', async () => {
+    let resolveRpc!: (value: { data: Array<{ project_revision: number }>; error: null }) => void;
+    const deferredRpc = new Promise<{ data: Array<{ project_revision: number }>; error: null }>(
+      (resolve) => {
+        resolveRpc = resolve;
+      },
+    );
+
+    const { rerender, result } = renderHook(
+      (props: { enabled: boolean; projectId: string }) =>
+        useTranscriptionCollaborationBridge(props),
+      { initialProps: { enabled: true, projectId: 'project-a' } },
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.markProjectRevisionSeen(5);
+    });
+    expect(result.current.getLatestKnownRevision()).toBe(5);
+
+    const optionsA = lastBridgeOptions.current as {
+      onSendLocalChanges: (changes: CollaborationProjectChangeRecord[]) => Promise<void>;
+    };
+
+    supabaseInsert.mockImplementationOnce(() => deferredRpc as never);
+
+    const outbound: CollaborationProjectChangeRecord = {
+      id: 'ch-a-out',
+      projectId: 'project-a',
+      actorId: 'user-1',
+      clientId: getCollaborationClientId(),
+      clientOpId: 'op-a-out',
+      protocolVersion: 1,
+      projectRevision: 0,
+      baseRevision: 5,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'user',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    };
+
+    const sendPromise = optionsA.onSendLocalChanges([outbound]);
+
+    // Wait until A's RPC is in flight, then switch — exercises the post-await guard.
+    await waitFor(() => {
+      expect(supabaseInsert).toHaveBeenCalled();
+    });
+
+    rerender({ enabled: true, projectId: 'project-b' });
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(2);
+    });
+
+    act(() => {
+      result.current.markProjectRevisionSeen(3);
+    });
+    expect(result.current.getLatestKnownRevision()).toBe(3);
+    expect(loadProjectLastSeenRevision('project-b')).toBe(3);
+
+    resolveRpc({ data: [{ project_revision: 100 }], error: null });
+    await sendPromise;
+
+    // Stale A ack must not rewrite B's shared in-memory cursor
+    expect(result.current.getLatestKnownRevision()).toBe(3);
+    expect(loadProjectLastSeenRevision('project-b')).toBe(3);
   });
 
   it('#363: does not advance last-seen when apply returns commitRevision:false', async () => {
