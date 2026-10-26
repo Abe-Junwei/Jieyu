@@ -579,6 +579,74 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(result.current.getLatestKnownRevision()).toBe(11);
   });
 
+  it('#382: 远端应用失败后出站确认不得 force 跨过缺口 | outbound ack must not force past unapplied gap', async () => {
+    const onApplyRemoteChange = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('apply-10-failed'))
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+        onApplyRemoteChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.markProjectRevisionSeen(9, { mode: 'force' });
+    });
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+
+    const options = lastBridgeOptions.current as {
+      onApplyRemoteChange: (
+        change: CollaborationProjectChangeRecord,
+      ) => Promise<void | { commitRevision?: boolean }>;
+      onSendLocalChanges: (changes: CollaborationProjectChangeRecord[]) => Promise<void>;
+    };
+    const makeChange = (
+      revision: number,
+      clientId = 'other-client',
+    ): CollaborationProjectChangeRecord => ({
+      id: `ch-${revision}`,
+      projectId: 'project-1',
+      actorId: 'user-2',
+      clientId,
+      clientOpId: `op-${revision}`,
+      protocolVersion: 1,
+      projectRevision: revision,
+      baseRevision: revision - 1,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'sync',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    });
+
+    await expect(options.onApplyRemoteChange(makeChange(10))).rejects.toThrow('apply-10-failed');
+    await options.onApplyRemoteChange(makeChange(11));
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+
+    supabaseInsert.mockResolvedValueOnce({
+      data: [{ project_revision: 12 }],
+      error: null,
+    } as never);
+    await options.onSendLocalChanges([makeChange(12, getCollaborationClientId())]);
+
+    // Gap at 10 remains; old bug force-advanced to 12
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+    expect(result.current.getLatestKnownRevision()).toBe(9);
+
+    // Filling the gap later advances through pending 11 and outbound 12
+    onApplyRemoteChange.mockResolvedValueOnce(undefined);
+    await options.onApplyRemoteChange(makeChange(10));
+    expect(loadProjectLastSeenRevision('project-1')).toBe(12);
+    expect(result.current.getLatestKnownRevision()).toBe(12);
+  });
+
   it('#383: 切项目后旧出站 RPC 回调不得污染新项目游标 | stale outbound ack must not pollute new project cursor', async () => {
     let resolveRpc!: (value: { data: Array<{ project_revision: number }>; error: null }) => void;
     const deferredRpc = new Promise<{ data: Array<{ project_revision: number }>; error: null }>(
@@ -685,6 +753,63 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(result.current.getLatestKnownRevision()).toBe(12);
   });
 
+  it('#382: 自身回声也按连续推进，不得 force 跨过缺口 | own echo must not force past unapplied gap', async () => {
+    const onApplyRemoteChange = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('apply-10-failed'))
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+        onApplyRemoteChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.markProjectRevisionSeen(9, { mode: 'force' });
+    });
+
+    const options = lastBridgeOptions.current as {
+      onApplyRemoteChange: (
+        change: CollaborationProjectChangeRecord,
+      ) => Promise<void | { commitRevision?: boolean }>;
+    };
+    const makeChange = (
+      revision: number,
+      clientId: string,
+    ): CollaborationProjectChangeRecord => ({
+      id: `ch-echo-${revision}`,
+      projectId: 'project-1',
+      actorId: 'user-1',
+      clientId,
+      clientOpId: `op-echo-${revision}`,
+      protocolVersion: 1,
+      projectRevision: revision,
+      baseRevision: revision - 1,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'sync',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    });
+
+    await expect(options.onApplyRemoteChange(makeChange(10, 'other-client'))).rejects.toThrow(
+      'apply-10-failed',
+    );
+    await options.onApplyRemoteChange(makeChange(11, 'other-client'));
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+
+    // Own echo of 12 must not force past gap 10
+    await options.onApplyRemoteChange(makeChange(12, getCollaborationClientId()));
+    expect(onApplyRemoteChange).toHaveBeenCalledTimes(2); // own echo short-circuits apply
+    expect(loadProjectLastSeenRevision('project-1')).toBe(9);
+    expect(result.current.getLatestKnownRevision()).toBe(9);
+  });
 
   it('#363: does not advance last-seen when apply returns commitRevision:false', async () => {
     const onApplyRemoteChange = vi.fn().mockResolvedValue({ commitRevision: false });
