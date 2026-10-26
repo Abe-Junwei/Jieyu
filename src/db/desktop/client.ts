@@ -16,6 +16,7 @@ import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestor
 import type { AnalysisCandidateRecord } from './analysisCandidates';
 import type { CustomFieldMigrationPreview } from './customFieldMigration';
 import type { CustomFieldPurgePreview } from './customFieldPurge';
+import type { LexemeLinkReading } from './referenceState';
 import type {
   CustomFieldDefinition,
   CustomFieldHostPreview,
@@ -86,6 +87,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
       }),
     listCustomFieldDefinitions: (sessionId: string) =>
       once<CustomFieldDefinition[]>(sessionId, 'customFields.listDefinitions', {}),
+    listLexemeLinks: (sessionId: string) =>
+      once<LexemeLinkReading[]>(sessionId, 'references.listLinks', {}),
     locateFieldValues: (sessionId: string, definitionId: string) =>
       once<CustomFieldLocation[]>(sessionId, 'customFields.locateValues', { definitionId }),
     previewCustomFieldMigration: (sessionId: string, definitionId: string) =>

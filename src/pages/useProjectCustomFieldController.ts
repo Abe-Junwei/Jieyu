@@ -17,6 +17,18 @@ export interface ProjectFieldPreview {
   history: number;
 }
 
+export interface ProjectFieldPurge {
+  revision: number;
+  current: { targetType: string; targetId: string; lexemeId?: string; unitId?: string }[];
+  historyIds: string[];
+}
+
+export interface ProjectFieldDangling {
+  lexemeId: string;
+  senseId: string | null;
+  gap?: string;
+}
+
 export function fieldName(text: string, locale: string): Record<string, string> {
   return { [locale.startsWith('zh') ? 'zh' : 'en']: text.trim() };
 }
@@ -36,8 +48,13 @@ export function useProjectCustomFieldController(
   const [targetType, setTargetType] = useState('unit');
   const [fieldType, setFieldType] = useState('text');
   const [name, setName] = useState('');
+  const [required, setRequired] = useState(false);
+  const [targetId, setTargetId] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [preview, setPreview] = useState<ProjectFieldPreview | null>(null);
+  const [purge, setPurge] = useState<ProjectFieldPurge | null>(null);
+  const [missingNames, setMissingNames] = useState<string[] | null>(null);
+  const [dangling, setDangling] = useState<ProjectFieldDangling[] | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -71,11 +88,17 @@ export function useProjectCustomFieldController(
     if (Object.values(label)[0]?.length === 0) return;
     setError('');
     void client
-      .createCustomFieldDefinition(sessionId, { targetType, name: label, fieldType })
+      .createCustomFieldDefinition(sessionId, {
+        targetType,
+        name: label,
+        fieldType,
+        ...(required ? { required: true } : {}),
+      })
       .then(async (created) => {
         await reload();
         setSelectedId(created.id);
         setPreview(null);
+        setPurge(null);
       })
       .catch(fail);
   };
@@ -130,10 +153,80 @@ export function useProjectCustomFieldController(
       .catch(fail);
   };
 
+  const previewPurge = () => {
+    if (selected === null) return;
+    setError('');
+    void client
+      .previewCustomFieldPurge(sessionId, selected.id)
+      .then((result) => {
+        setPurge({
+          revision: result.revision,
+          current: result.current,
+          historyIds: result.history.map((item) => item.id),
+        });
+      })
+      .catch(fail);
+  };
+
+  const confirmPurge = () => {
+    if (selected === null || purge === null) return;
+    setError('');
+    void client
+      .purgeCustomFieldDefinition(sessionId, {
+        definitionId: selected.id,
+        expectedRevision: purge.revision,
+        current: purge.current,
+        historyIds: purge.historyIds,
+      })
+      .then(async () => {
+        setSelectedId(null);
+        setPurge(null);
+        setPreview(null);
+        await reload();
+      })
+      .catch(fail);
+  };
+
+  const checkMissing = () => {
+    if (targetId.trim().length === 0) return;
+    setError('');
+    void client
+      .missingFields(sessionId, targetType, targetId.trim())
+      .then((ids) => {
+        setMissingNames(
+          ids.map((id) => {
+            const found = definitions.find((definition) => definition.id === id);
+            return found === undefined ? id : fieldLabel(found.name, locale);
+          }),
+        );
+      })
+      .catch(fail);
+  };
+
+  const showDangling = () => {
+    setError('');
+    void client
+      .listLexemeLinks(sessionId)
+      .then((links) => {
+        setDangling(
+          links
+            .filter((link) => link.linkState === 'target-missing')
+            .map((link) => ({
+              lexemeId: link.lexemeId,
+              senseId: link.senseId,
+              ...(link.gap === undefined ? {} : { gap: link.gap }),
+            })),
+        );
+      })
+      .catch(fail);
+  };
+
   const chooseTarget = (next: string) => {
     setTargetType(next);
     setSelectedId(null);
     setPreview(null);
+    setPurge(null);
+    setMissingNames(null);
   };
 
   const chooseDefinition = (definition: ProjectFieldDefinition) => {
@@ -141,6 +234,7 @@ export function useProjectCustomFieldController(
     setName(fieldLabel(definition.name, locale));
     setFieldType(definition.fieldType);
     setPreview(null);
+    setPurge(null);
   };
 
   return {
@@ -150,9 +244,16 @@ export function useProjectCustomFieldController(
     targetType,
     fieldType,
     name,
+    required,
+    targetId,
     preview,
+    purge,
+    missingNames,
+    dangling,
     error,
     setName,
+    setRequired,
+    setTargetId,
     setFieldType,
     chooseTarget,
     chooseDefinition,
@@ -160,5 +261,9 @@ export function useProjectCustomFieldController(
     renameDefinition,
     importDefinition,
     previewMigration,
+    previewPurge,
+    confirmPurge,
+    checkMissing,
+    showDangling,
   };
 }

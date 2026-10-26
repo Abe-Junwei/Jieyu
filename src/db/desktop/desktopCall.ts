@@ -38,6 +38,7 @@ import {
   updateOptionLabel,
 } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
+import { readLexemeLinks } from './referenceState';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers, type LayerCreate } from './layers';
 import {
@@ -106,6 +107,7 @@ const METHODS = [
   'customFields.removeValue',
   'customFields.missingFields',
   'customFields.listDefinitions',
+  'references.listLinks',
   'customFields.locateValues',
   'customFields.previewMigration',
   'customFields.migrateDefinition',
@@ -241,6 +243,9 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'customFields.listDefinitions':
       knownKeys(input, []);
       return listDefinitions(project.db);
+    case 'references.listLinks':
+      knownKeys(input, []);
+      return readLexemeLinks(project.db);
     case 'customFields.locateValues':
       knownKeys(input, ['definitionId']);
       return locateCustomFieldValues(
