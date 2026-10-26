@@ -91,6 +91,18 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                 {t(locale, 'workspace.annotation.segmentWords')}
               </button>
               <ul>
+                {words.morphemes.map((morpheme) => (
+                  <li key={morpheme.id}>{morpheme.form}</li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                disabled={words.words.length === 0 || words.morphemes.length > 0}
+                onClick={() => words.segmentMorphemes()}
+              >
+                {t(locale, 'workspace.annotation.morphemeSeed')}
+              </button>
+              <ul>
                 {read.notes
                   .filter((note) => note.unitId === selected.id && note.view === null)
                   .map((note) => (

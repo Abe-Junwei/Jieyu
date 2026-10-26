@@ -2,10 +2,12 @@ import { applyAnalysis } from './analysis';
 import { importAnalysis } from './analysisImport';
 import {
   acceptAnalysis,
+  listUnitMorphemes,
   listUnitWords,
   mergeAnalysisNodes,
   readAnalysisState,
   restoreAnalysis,
+  segmentUnitMorphemes,
   segmentUnitWords,
   splitAnalysisNode,
   submitAnalysis,
@@ -157,6 +159,8 @@ const METHODS = [
   'analysis.readState',
   'analysis.listWords',
   'analysis.segmentWords',
+  'analysis.listMorphemes',
+  'analysis.segmentMorphemes',
   'analysis.import',
   'analysis.submit',
   'analysis.accept',
@@ -356,6 +360,12 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'analysis.segmentWords':
       knownKeys(input, ['unitId']);
       return segmentUnitWords(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.listMorphemes':
+      knownKeys(input, ['unitId']);
+      return listUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.segmentMorphemes':
+      knownKeys(input, ['unitId']);
+      return segmentUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
     case 'analysis.import':
       return importAnalysis(project.db, analysisImport(input));
     case 'analysis.submit':

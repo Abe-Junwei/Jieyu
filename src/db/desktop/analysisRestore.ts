@@ -486,6 +486,60 @@ function wordForm(formJson: string): string {
   return typeof form.default === 'string' ? form.default : '';
 }
 
+export interface UnitMorpheme {
+  id: string;
+  tokenId: string;
+  form: string;
+}
+
+export function listUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorpheme[] {
+  if (db.prepare('SELECT 1 FROM units WHERE id = ?').get(unitId) === undefined) {
+    throw new Error('unit is missing');
+  }
+  const rows = db
+    .prepare(
+      `SELECT morphemes.id, morphemes.token_id, morphemes.form_json
+       FROM morphemes
+       JOIN tokens ON tokens.id = morphemes.token_id
+       WHERE tokens.unit_id = ?
+       ORDER BY tokens.token_index, morphemes.morpheme_index, morphemes.id`,
+    )
+    .all(unitId) as { id: string; token_id: string; form_json: string }[];
+  return rows.map((row) => ({ id: row.id, tokenId: row.token_id, form: wordForm(row.form_json) }));
+}
+
+export function segmentUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorpheme[] {
+  const material = readAnalysisMaterial(db, unitId);
+  if (material.graph === null) throw new Error('unit has no words');
+  if (material.graph.nodes.some((node) => node.type === 'morpheme')) {
+    return listUnitMorphemes(db, unitId);
+  }
+  const now = new Date().toISOString();
+  const nodes = [...material.graph.nodes];
+  const relations = [...material.graph.relations];
+  // ponytail: split on "-" and "=" only. Use the annotation morpheme editor when glosses or non-segmented forms matter.
+  for (const token of material.graph.nodes) {
+    if (token.type !== 'token' || token.domain === undefined) continue;
+    const parts = (token.domain.form.default ?? '').split(/[-=]/).filter((part) => part.length > 0);
+    if (parts.length < 2) continue;
+    for (const [index, part] of parts.entries()) {
+      const id = randomUUID();
+      nodes.push({
+        id,
+        type: 'morpheme',
+        label: part,
+        domain: { form: { default: part }, index, createdAt: now, updatedAt: now },
+        surfaceParts: [{ tokenId: token.id, formKey: 'default' }],
+      });
+      relations.push({ id: randomUUID(), type: 'hasPart', sourceId: token.id, targetId: id });
+    }
+  }
+  if (nodes.length === material.graph.nodes.length)
+    throw new Error('morpheme split needs a separator');
+  writeGraph(db, material, { ...material.graph, nodes, relations });
+  return listUnitMorphemes(db, unitId);
+}
+
 function reattach(
   db: SqliteDatabase,
   candidate: AnalysisCandidateRecord,

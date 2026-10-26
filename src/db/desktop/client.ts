@@ -196,6 +196,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<{ id: string; form: string }[]>(sessionId, 'analysis.listWords', { unitId }),
     segmentWords: (sessionId: string, unitId: string) =>
       once<{ id: string; form: string }[]>(sessionId, 'analysis.segmentWords', { unitId }),
+    listMorphemes: (sessionId: string, unitId: string) =>
+      once<{ id: string; tokenId: string; form: string }[]>(sessionId, 'analysis.listMorphemes', {
+        unitId,
+      }),
+    segmentMorphemes: (sessionId: string, unitId: string) =>
+      once<{ id: string; tokenId: string; form: string }[]>(
+        sessionId,
+        'analysis.segmentMorphemes',
+        { unitId },
+      ),
     submitAnalysis: (
       sessionId: string,
       input: {

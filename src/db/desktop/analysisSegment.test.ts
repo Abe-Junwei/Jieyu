@@ -75,4 +75,57 @@ describe('segmentUnitWords', () => {
     ).toEqual(first);
     resetDesktopSessions();
   });
+
+  it('splits hyphenated words into morphemes once and reads them after reopen', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    project.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 3, T);
+    const manuscript = project.manuscripts.create({ title: { zh: '文稿' }, mediaId: 'm1' });
+    const layer = project.layers.create({
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const unit = project.units.create({
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 1,
+      text: 'ka-ra na',
+    });
+    project.close();
+
+    const session = openDesktopSession(dir, [dir]);
+    callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id });
+    const morphemes = callDesktopSession(session.sessionId, 'analysis.segmentMorphemes', {
+      unitId: unit.id,
+    }) as { id: string; tokenId: string; form: string }[];
+    expect(morphemes.map((item) => item.form)).toEqual(['ka', 'ra']);
+    const generation = (
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: unit.id }) as {
+        analysisGeneration: number;
+      }
+    ).analysisGeneration;
+    expect(
+      callDesktopSession(session.sessionId, 'analysis.segmentMorphemes', { unitId: unit.id }),
+    ).toEqual(morphemes);
+    expect(
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: unit.id }),
+    ).toMatchObject({ analysisGeneration: generation });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'ka-ra na',
+    });
+    resetDesktopSessions();
+
+    const reopened = openDesktopSession(dir, [dir]);
+    expect(
+      callDesktopSession(reopened.sessionId, 'analysis.listMorphemes', { unitId: unit.id }),
+    ).toEqual(morphemes);
+    resetDesktopSessions();
+  });
 });
