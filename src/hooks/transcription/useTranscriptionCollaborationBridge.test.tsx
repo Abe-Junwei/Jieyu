@@ -647,6 +647,40 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(result.current.getLatestKnownRevision()).toBe(12);
   });
 
+  it('#385: 乱序冲突决议不得 force 跨过未决 revision | out-of-order resolve stays contiguous', async () => {
+    const { result } = renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    // Hydration baseline uses force
+    act(() => {
+      result.current.markProjectRevisionSeen(10, { mode: 'force' });
+    });
+    expect(loadProjectLastSeenRevision('project-1')).toBe(10);
+
+    // Resolve newer ticket first (keep-local / apply-remote both call markProjectRevisionSeen)
+    act(() => {
+      result.current.markProjectRevisionSeen(12);
+    });
+    // Must stay at 10; old bug force-advanced to 12 and skipped 11 on reload
+    expect(loadProjectLastSeenRevision('project-1')).toBe(10);
+    expect(result.current.getLatestKnownRevision()).toBe(10);
+
+    // Resolve older ticket later — contiguous advances through 12
+    act(() => {
+      result.current.markProjectRevisionSeen(11);
+    });
+    expect(loadProjectLastSeenRevision('project-1')).toBe(12);
+    expect(result.current.getLatestKnownRevision()).toBe(12);
+  });
+
   it('#382: 自身回声也按连续推进，不得 force 跨过缺口 | own echo must not force past unapplied gap', async () => {
     const onApplyRemoteChange = vi
       .fn()
