@@ -238,6 +238,8 @@ export function useTranscriptionCollaborationBridge({
   const latestRevisionRef = useRef<number>(0);
   /** #361: applied but not yet contiguous with committed cursor */
   const pendingHigherRevisionsRef = useRef<Set<number>>(new Set());
+  /** #383: invalidate in-flight callbacks when the bridge effect restarts */
+  const bridgeGenerationRef = useRef(0);
   const writeGuardRef = useRef<CollaborationProtocolGuardEvaluation>(DEFAULT_PROTOCOL_GUARD);
   const [isBridgeReady, setIsBridgeReady] = useState(false);
   const [protocolGuard, setProtocolGuard] =
@@ -370,6 +372,9 @@ export function useTranscriptionCollaborationBridge({
 
   useEffect(() => {
     let disposed = false;
+    const runGeneration = ++bridgeGenerationRef.current;
+    const isBridgeRunActive = (): boolean =>
+      !disposed && bridgeGenerationRef.current === runGeneration;
 
     if (
       !enabled ||
@@ -381,6 +386,9 @@ export function useTranscriptionCollaborationBridge({
       void stopBridgeRuntime();
       return () => {
         disposed = true;
+        if (bridgeGenerationRef.current === runGeneration) {
+          bridgeGenerationRef.current += 1;
+        }
       };
     }
 
@@ -438,20 +446,23 @@ export function useTranscriptionCollaborationBridge({
           ? []
           : loadProjectPendingOutboundChanges(normalizedProjectId),
         onOutboundPendingSizeChanged: (count) => {
-          if (!disposed) {
+          if (isBridgeRunActive()) {
             setOutboundPendingCount(count);
           }
         },
         onApplyRemoteChange: async (change) => {
+          if (!isBridgeRunActive()) return;
           if (change.clientId === clientIdRef.current) {
-            // Own echo: treat as force (we authored the write)
-            commitLatestRevision(change.projectRevision);
+            // Own echo: contiguous — ack alone does not prove prior remote gaps applied (#382)
+            commitLatestRevision(change.projectRevision, { mode: 'contiguous' });
             return;
           }
           let applyResult: void | { commitRevision?: boolean } = undefined;
           if (onApplyRemoteChange) {
             applyResult = await onApplyRemoteChange(change);
           }
+          // #383: project switch / stop must ignore late inbound apply results
+          if (!isBridgeRunActive()) return;
           // #363: manual-review parks the change without applying — do not advance
           // the cursor until the operator resolves the ticket.
           if (applyResult && applyResult.commitRevision === false) {
@@ -462,8 +473,11 @@ export function useTranscriptionCollaborationBridge({
         },
         onSendLocalChanges: async (changes) => {
           if (changes.length === 0) return;
+          if (!isBridgeRunActive()) return;
           // 每次推送前重新读取项目行（9.3）| Re-read the project row before every push (9.3)
           const fresh = await loadProtocolGuardFromCloud(normalizedProjectId);
+          // #383: drop late outbound work after project switch / bridge stop
+          if (!isBridgeRunActive()) return;
           if (!fresh.error) {
             if (fresh.guard.projectDeleted === true) {
               handleCloudTombstone(normalizedProjectId, fresh.deletedAt);
@@ -483,6 +497,11 @@ export function useTranscriptionCollaborationBridge({
           }
           const rows = changes.map(toChangeInsertRow);
           const { data, error } = await client.rpc('append_project_changes', { p_changes: rows });
+          // #383: in-flight RPC must not mutate the next project's cursor/guards
+          if (!isBridgeRunActive()) {
+            if (error) throw error;
+            return;
+          }
           if (error) {
             handleServerWriteRejection(error);
             throw error;
@@ -494,7 +513,8 @@ export function useTranscriptionCollaborationBridge({
                   ? (row as { project_revision?: unknown }).project_revision
                   : null,
               );
-              if (revision !== null) commitLatestRevision(revision);
+              // Contiguous: outbound ack must not skip unapplied remote gaps (#382)
+              if (revision !== null) commitLatestRevision(revision, { mode: 'contiguous' });
             }
           }
         },
@@ -504,7 +524,7 @@ export function useTranscriptionCollaborationBridge({
       });
 
       await bridge.start();
-      if (disposed) {
+      if (!isBridgeRunActive()) {
         await bridge.stop();
         return;
       }
@@ -541,6 +561,9 @@ export function useTranscriptionCollaborationBridge({
 
     return () => {
       disposed = true;
+      if (bridgeGenerationRef.current === runGeneration) {
+        bridgeGenerationRef.current += 1;
+      }
       void stopBridgeRuntime();
     };
   }, [
@@ -673,8 +696,9 @@ export function useTranscriptionCollaborationBridge({
   );
 
   const markProjectRevisionSeen = useCallback(
-    (revision: number): void => {
-      commitLatestRevision(revision);
+    (revision: number, options?: { mode?: 'contiguous' | 'force' }): void => {
+      // #385: manual conflict decisions use contiguous; force is hydration baseline only
+      commitLatestRevision(revision, { mode: options?.mode ?? 'contiguous' });
     },
     [commitLatestRevision],
   );
