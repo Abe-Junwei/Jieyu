@@ -21,6 +21,7 @@ import type { AnalysisCandidateRecord } from './analysisCandidates';
 import type { CustomFieldMigrationPreview } from './customFieldMigration';
 import type { CustomFieldPurgePreview } from './customFieldPurge';
 import type { LexemeLinkReading } from './referenceState';
+import type { SourcePatch, SourceReading } from './sourceFields';
 import type {
   CustomFieldDefinition,
   CustomFieldHostPreview,
@@ -198,5 +199,9 @@ export function createDesktopClient(bridge: DesktopBridge) {
       },
     ) => once<AnalysisRoot>(sessionId, 'analysis.merge', input),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
+    patchSource: (sessionId: string, input: SourcePatch) =>
+      once<SourceReading>(sessionId, 'sources.patch', input),
+    redeliverSource: (sessionId: string, operationId: string) =>
+      once<SourceReading>(sessionId, 'sources.redeliver', { operationId }),
   };
 }

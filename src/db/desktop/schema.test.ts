@@ -80,6 +80,7 @@ describe('desktop project schema', () => {
       { name: 'custom_field_definitions' },
       { name: 'custom_field_options' },
       { name: 'custom_field_values' },
+      { name: 'diagnostic_deliveries' },
       { name: 'language_aliases' },
       { name: 'language_catalog_history' },
       { name: 'language_display_names' },

@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 12;
+export const DESKTOP_PROJECT_USER_VERSION = 13;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -549,8 +549,24 @@ CREATE TABLE sources (
   media_id TEXT NOT NULL REFERENCES media(id),
   label TEXT NOT NULL,
   external_id TEXT NOT NULL,
+  field_revisions_json TEXT NOT NULL DEFAULT '{"label":0,"externalId":0}' CHECK (
+    json_valid(field_revisions_json) AND json_type(field_revisions_json) = 'object'
+  ),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
+);
+
+CREATE TABLE diagnostic_deliveries (
+  origin_project_id TEXT NOT NULL,
+  operation_id TEXT NOT NULL,
+  event_seq INTEGER NOT NULL CHECK (event_seq >= 0),
+  payload_hash TEXT NOT NULL,
+  input_fingerprint TEXT NOT NULL,
+  summary_json TEXT NOT NULL CHECK (
+    json_valid(summary_json) AND json_type(summary_json) = 'object'
+  ),
+  status TEXT NOT NULL CHECK (status IN ('pending', 'confirmed')),
+  PRIMARY KEY (origin_project_id, operation_id, event_seq)
 );
 
 CREATE TABLE conversations (

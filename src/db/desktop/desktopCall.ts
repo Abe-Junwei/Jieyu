@@ -40,6 +40,7 @@ import {
 } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
+import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers, type LayerCreate } from './layers';
 import {
@@ -114,6 +115,8 @@ const METHODS = [
   'customFields.migrateDefinition',
   'customFields.previewPurge',
   'customFields.purgeDefinition',
+  'sources.patch',
+  'sources.redeliver',
   'analysis.apply',
   'analysis.readState',
   'analysis.import',
@@ -270,6 +273,11 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'customFields.purgeDefinition':
       knownKeys(input, ['definitionId', 'expectedRevision', 'previewFingerprint']);
       return purgeDefinition(project.db, input, undefined, sessionId);
+    case 'sources.patch':
+      return patchSource(project.db, sourcePatch(input));
+    case 'sources.redeliver':
+      knownKeys(input, ['operationId']);
+      return redeliverSource(project.db, requiredString(input.operationId, 'operationId'));
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.readState':
@@ -311,6 +319,33 @@ function requiredString(value: unknown, name: string): string {
     throw new Error(`desktop call ${name} must be a string`);
   }
   return value;
+}
+
+function sourcePatch(input: Record<string, unknown>): SourcePatch {
+  knownKeys(input, ['operationId', 'id', 'label', 'externalId']);
+  const label = sourceField(input.label, 'label');
+  const externalId = sourceField(input.externalId, 'externalId');
+  if (label === undefined && externalId === undefined) throw new Error('source patch is empty');
+  return {
+    operationId: requiredString(input.operationId, 'operationId'),
+    id: requiredString(input.id, 'id'),
+    ...(label === undefined ? {} : { label }),
+    ...(externalId === undefined ? {} : { externalId }),
+  };
+}
+
+function sourceField(
+  value: unknown,
+  name: 'label' | 'externalId',
+): { expectedRevision: number; value: string } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const expectedRevision = requiredNumber(record.expectedRevision, `${name}.expectedRevision`);
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
+  }
+  return { expectedRevision, value: requiredString(record.value, `${name}.value`) };
 }
 
 function fingerprintString(value: unknown): string {
