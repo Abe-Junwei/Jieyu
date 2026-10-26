@@ -20,6 +20,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
   const locale = useLocale();
   const read = useDesktopProjectReadController(host, false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [category, setCategory] = useState<ContentNoteCategory>('comment');
   const [body, setBody] = useState('');
   const selected = read.model?.units.find((unit) => unit.id === selectedId);
@@ -44,6 +45,8 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                 aria-current={manuscript.id === read.model?.manuscriptId ? 'true' : 'false'}
                 onClick={() => {
                   setSelectedId(null);
+                  setEditingId(null);
+                  setBody('');
                   read.selectManuscript(manuscript.id);
                 }}
               >
@@ -57,7 +60,11 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                 key={unit.id}
                 type="button"
                 aria-pressed={unit.id === selectedId}
-                onClick={() => setSelectedId(unit.id)}
+                onClick={() => {
+                  setSelectedId(unit.id);
+                  setEditingId(null);
+                  setBody('');
+                }}
               >
                 {`${unit.startTime.toFixed(1)}–${unit.endTime.toFixed(1)} ${unit.text}`}
               </button>
@@ -74,18 +81,50 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                   .filter((note) => note.unitId === selected.id && note.view === null)
                   .map((note) => (
                     <li key={note.id}>
-                      {note.category === null
-                        ? null
-                        : `${t(locale, `workspace.annotation.noteCategory.${note.category}`)}: `}
-                      {note.text}
+                      <span>
+                        {note.category === null
+                          ? null
+                          : `${t(locale, `workspace.annotation.noteCategory.${note.category}`)}: `}
+                        {note.text}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`${t(locale, 'msg.notePanel.editNote')}: ${note.text}`}
+                        onClick={() => {
+                          setEditingId(note.id);
+                          setBody(note.text);
+                          setCategory(note.category ?? 'comment');
+                        }}
+                      >
+                        {t(locale, 'msg.notePanel.editNote')}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${t(locale, 'msg.notePanel.deleteNote')}: ${note.text}`}
+                        onClick={() => {
+                          void read.deleteUnitNote(note.id).then((deleted) => {
+                            if (!deleted || editingId !== note.id) return;
+                            setEditingId(null);
+                            setBody('');
+                          });
+                        }}
+                      >
+                        {t(locale, 'msg.notePanel.deleteNote')}
+                      </button>
                     </li>
                   ))}
               </ul>
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void read.saveCategorizedUnitNote(selected.id, body, category).then((saved) => {
-                    if (saved) setBody('');
+                  const saving =
+                    editingId === null
+                      ? read.saveCategorizedUnitNote(selected.id, body, category)
+                      : read.updateCategorizedUnitNote(editingId, body, category);
+                  void saving.then((saved) => {
+                    if (!saved) return;
+                    setBody('');
+                    setEditingId(null);
                   });
                 }}
               >
@@ -109,6 +148,17 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                 <button type="submit" disabled={body.trim().length === 0}>
                   {t(locale, 'app.desktopRead.saveNote')}
                 </button>
+                {editingId === null ? null : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(null);
+                      setBody('');
+                    }}
+                  >
+                    {t(locale, 'msg.notePanel.cancel')}
+                  </button>
+                )}
               </form>
             </div>
           )}

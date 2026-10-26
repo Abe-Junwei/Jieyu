@@ -39,6 +39,12 @@ export interface ContentNoteWrite {
   provenance?: unknown | null;
 }
 
+export interface ContentNoteRevision {
+  id: string;
+  content?: Record<string, string>;
+  category?: ContentNoteCategory | null;
+}
+
 export interface ContentNote {
   id: string;
   anchorKind: ContentNoteAnchor['kind'];
@@ -159,6 +165,38 @@ export function readContentNote(db: SqliteDatabase, id: string): ContentNote | n
   const row = db.prepare(`SELECT ${NOTE_COLUMNS} FROM notes WHERE id = ?`).get(id) as
     NoteRow | undefined;
   return row === undefined ? null : mapNote(row);
+}
+
+export function updateContentNote(db: SqliteDatabase, input: ContentNoteRevision): ContentNote {
+  const id = noteId(input.id);
+  if (input.content === undefined && input.category === undefined) {
+    throw new Error('note revision is empty');
+  }
+  const write = db.transaction(() => {
+    const existing = readContentNote(db, id);
+    if (existing === null) throw new Error('note is missing');
+    db.prepare(`UPDATE notes SET content_json = ?, category = ?, updated_at = ? WHERE id = ?`).run(
+      input.content === undefined ? contentJson(existing.content) : contentJson(input.content),
+      input.category === undefined ? existing.category : categoryOf(input.category),
+      new Date().toISOString(),
+      id,
+    );
+    const stored = readContentNote(db, id);
+    if (stored === null) throw new Error('note readback failed');
+    return stored;
+  });
+  return write();
+}
+
+export function deleteContentNote(db: SqliteDatabase, id: string): { id: string } {
+  const note = noteId(id);
+  const write = db.transaction(() => {
+    if (readContentNote(db, note) === null) throw new Error('note is missing');
+    db.prepare('DELETE FROM notes WHERE id = ?').run(note);
+    if (readContentNote(db, note) !== null) throw new Error('note readback failed');
+    return { id: note };
+  });
+  return write();
 }
 
 export function listContentNotes(db: SqliteDatabase, query: ContentNoteQuery = {}): ContentNote[] {

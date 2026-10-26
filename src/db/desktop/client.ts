@@ -142,6 +142,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<ProjectLexeme>(sessionId, 'lexicon.removeSense', input),
     createNote: (sessionId: string, input: ContentNoteWrite) =>
       once<ContentNote>(sessionId, 'notes.create', input),
+    updateNote: (
+      sessionId: string,
+      input: {
+        id: string;
+        content?: Record<string, string>;
+        category?: ContentNoteWrite['category'];
+      },
+    ) => once<ContentNote>(sessionId, 'notes.update', input),
+    deleteNote: (sessionId: string, id: string) =>
+      once<{ id: string }>(sessionId, 'notes.delete', { id }),
     listNotes: (sessionId: string, input: ContentNoteQuery = {}) =>
       once<ContentNote[]>(sessionId, 'notes.list', input),
     saveLexemeNote: (

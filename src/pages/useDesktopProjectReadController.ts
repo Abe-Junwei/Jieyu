@@ -165,6 +165,54 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
       });
   };
 
+  const segmentNote = (noteId: string) =>
+    notes.find(
+      (note) =>
+        note.id === noteId &&
+        note.view === null &&
+        (model?.units.some((unit) => unit.id === note.unitId) ?? false),
+    );
+
+  const updateCategorizedUnitNote = (
+    noteId: string,
+    text: string,
+    category: ContentNoteCategory,
+  ): Promise<boolean> => {
+    if (host === null || sessionId === null || text.trim().length === 0 || !segmentNote(noteId)) {
+      return Promise.resolve(false);
+    }
+    setError('');
+    return createDesktopClient({ desktopCall: host.desktopCall })
+      .updateNote(sessionId, {
+        id: noteId,
+        content: { default: text.trim() },
+        category,
+      })
+      .then(async () => {
+        setNotes(await loadShownNotes(host, sessionId, model?.manuscriptId ?? null));
+        return true;
+      })
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+        return false;
+      });
+  };
+
+  const deleteUnitNote = (noteId: string): Promise<boolean> => {
+    if (host === null || sessionId === null || !segmentNote(noteId)) return Promise.resolve(false);
+    setError('');
+    return createDesktopClient({ desktopCall: host.desktopCall })
+      .deleteNote(sessionId, noteId)
+      .then(async () => {
+        setNotes(await loadShownNotes(host, sessionId, model?.manuscriptId ?? null));
+        return true;
+      })
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+        return false;
+      });
+  };
+
   const saveTierNote = (unitId: string, view: 'timeline' | 'waveform', text: string) => {
     if (host === null || sessionId === null || text.length === 0) return;
     setError('');
@@ -192,6 +240,8 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
     saveMapping,
     saveUnitNote,
     saveCategorizedUnitNote,
+    updateCategorizedUnitNote,
+    deleteUnitNote,
     saveTierNote,
   };
 }

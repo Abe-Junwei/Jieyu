@@ -65,9 +65,11 @@ import {
 import { createMedia, type MediaCreate } from './media';
 import {
   createContentNote,
+  deleteContentNote,
   listContentNotes,
   listLexemeNotes,
   saveLexemeNote,
+  updateContentNote,
   type ContentNoteAnchor,
   type ContentNoteCategory,
   type ContentNoteQuery,
@@ -111,6 +113,8 @@ const METHODS = [
   'lexicon.linkSense',
   'lexicon.removeSense',
   'notes.create',
+  'notes.update',
+  'notes.delete',
   'notes.list',
   'notes.saveLexeme',
   'notes.listLexeme',
@@ -209,6 +213,11 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       });
     case 'notes.create':
       return createContentNote(project.db, noteCreate(input));
+    case 'notes.update':
+      return updateContentNote(project.db, noteRevise(input));
+    case 'notes.delete':
+      knownKeys(input, ['id']);
+      return deleteContentNote(project.db, requiredString(input.id, 'id'));
     case 'notes.list':
       return listContentNotes(project.db, noteList(input));
     case 'notes.saveLexeme':
@@ -914,6 +923,16 @@ function noteCreate(input: Record<string, unknown>) {
     content: stringMap(input.content, 'content'),
     ...('category' in input ? { category: noteCategory(input.category) } : {}),
     ...('provenance' in input ? { provenance: input.provenance } : {}),
+  };
+}
+
+function noteRevise(input: Record<string, unknown>) {
+  knownKeys(input, ['id', 'content', 'category']);
+  if (!('content' in input) && !('category' in input)) throw new Error('note revision is empty');
+  return {
+    id: requiredString(input.id, 'id'),
+    ...('content' in input ? { content: stringMap(input.content, 'content') } : {}),
+    ...('category' in input ? { category: noteCategory(input.category) } : {}),
   };
 }
 
