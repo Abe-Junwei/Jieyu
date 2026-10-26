@@ -444,8 +444,8 @@ export function useTranscriptionCollaborationBridge({
         },
         onApplyRemoteChange: async (change) => {
           if (change.clientId === clientIdRef.current) {
-            // Own echo: treat as force (we authored the write)
-            commitLatestRevision(change.projectRevision);
+            // Own echo: contiguous — ack alone does not prove prior remote gaps applied (#382)
+            commitLatestRevision(change.projectRevision, { mode: 'contiguous' });
             return;
           }
           let applyResult: void | { commitRevision?: boolean } = undefined;
@@ -494,7 +494,8 @@ export function useTranscriptionCollaborationBridge({
                   ? (row as { project_revision?: unknown }).project_revision
                   : null,
               );
-              if (revision !== null) commitLatestRevision(revision);
+              // Contiguous: outbound ack must not skip unapplied remote gaps (#382)
+              if (revision !== null) commitLatestRevision(revision, { mode: 'contiguous' });
             }
           }
         },
@@ -673,8 +674,9 @@ export function useTranscriptionCollaborationBridge({
   );
 
   const markProjectRevisionSeen = useCallback(
-    (revision: number): void => {
-      commitLatestRevision(revision);
+    (revision: number, options?: { mode?: 'contiguous' | 'force' }): void => {
+      // #385: manual conflict decisions use contiguous; force is hydration baseline only
+      commitLatestRevision(revision, { mode: options?.mode ?? 'contiguous' });
     },
     [commitLatestRevision],
   );

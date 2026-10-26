@@ -31,7 +31,10 @@ export interface UseCollaborationProjectHydrationParams {
   runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
   /** 必须传当前项目 textId（JY-02）| Must pass the current project textId (JY-02) */
   loadSnapshot: LoadTranscriptionSnapshot;
-  markProjectRevisionSeen: (revision: number) => void;
+  markProjectRevisionSeen: (
+    revision: number,
+    options?: { mode?: 'contiguous' | 'force' },
+  ) => void;
 }
 
 /** Auto-hydrates local project state from cloud snapshot + timeline once per project. */
