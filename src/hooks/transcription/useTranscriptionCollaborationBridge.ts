@@ -673,8 +673,9 @@ export function useTranscriptionCollaborationBridge({
   );
 
   const markProjectRevisionSeen = useCallback(
-    (revision: number): void => {
-      commitLatestRevision(revision);
+    (revision: number, options?: { mode?: 'contiguous' | 'force' }): void => {
+      // #385: manual conflict decisions use contiguous; force is hydration baseline only
+      commitLatestRevision(revision, { mode: options?.mode ?? 'contiguous' });
     },
     [commitLatestRevision],
   );

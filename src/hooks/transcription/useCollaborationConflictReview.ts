@@ -55,10 +55,14 @@ export interface UseCollaborationConflictReviewParams {
   /** P1-2：远端变更写进本地后调用（清空撤销）| After a remote change lands (clears undo) */
   onRemoteChangeApplied?: () => void;
   /**
-   * Advance the project revision cursor after a manual conflict decision completes (#363).
-   * Inbound manual-review parks without committing; resolve paths must mark the revision.
+   * Advance the project revision cursor after a manual conflict decision completes (#363/#385).
+   * Inbound manual-review parks without committing; resolve paths must mark the revision
+   * with contiguous advancement (default) so out-of-order tickets cannot skip gaps.
    */
-  markProjectRevisionSeen?: (revision: number) => void;
+  markProjectRevisionSeen?: (
+    revision: number,
+    options?: { mode?: 'contiguous' | 'force' },
+  ) => void;
 }
 
 export interface UseCollaborationConflictReviewResult {
