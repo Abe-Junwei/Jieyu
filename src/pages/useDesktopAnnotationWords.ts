@@ -7,6 +7,7 @@ export interface AnnotationWord {
   id: string;
   form: string;
   gloss: Record<string, string>;
+  pos: string;
 }
 
 export interface AnnotationMorpheme {
@@ -90,10 +91,8 @@ export function useDesktopAnnotationWords(
       });
   };
 
-  const setGloss = (wordId: string, value: string) => {
-    if (host === null || sessionId === null || unitId === null) return;
-    const current = words.find((word) => word.id === wordId)?.gloss[glossKey] ?? '';
-    if (current === value) return;
+  const writeWord = (current: string, value: string, changes: unknown[]) => {
+    if (host === null || sessionId === null || unitId === null || current === value) return;
     const id = ++request.current;
     const client = createDesktopClient({ desktopCall: host.desktopCall });
     void client
@@ -106,15 +105,7 @@ export function useDesktopAnnotationWords(
             analysisGeneration: state.analysisGeneration,
             graphFingerprint: state.graphFingerprint,
           },
-          changes: [
-            {
-              action: 'node.setMapValue',
-              nodeId: wordId,
-              field: 'gloss',
-              key: glossKey,
-              value,
-            },
-          ],
+          changes,
         }),
       )
       .then(() => client.listWords(sessionId, unitId))
@@ -126,5 +117,21 @@ export function useDesktopAnnotationWords(
       });
   };
 
-  return { words, morphemes, error, glossKey, segment, segmentMorphemes, setGloss };
+  const setGloss = (wordId: string, value: string) => {
+    const current = words.find((word) => word.id === wordId)?.gloss[glossKey] ?? '';
+    writeWord(current, value, [
+      { action: 'node.setMapValue', nodeId: wordId, field: 'gloss', key: glossKey, value },
+    ]);
+  };
+
+  const setPos = (wordId: string, value: string) => {
+    const current = words.find((word) => word.id === wordId)?.pos ?? '';
+    writeWord(current, value, [
+      value.length === 0
+        ? { action: 'node.removeField', nodeId: wordId, field: 'pos' }
+        : { action: 'node.setField', nodeId: wordId, field: 'pos', value },
+    ]);
+  };
+
+  return { words, morphemes, error, glossKey, segment, segmentMorphemes, setGloss, setPos };
 }

@@ -272,6 +272,37 @@ describe('DesktopAnnotationPage', () => {
         { form: 'beta', gloss: {} },
       ]);
     });
+    const pos = screen.getByRole('textbox', { name: 'POS: alpha' });
+    fireEvent.change(pos, { target: { value: 'N' } });
+    fireEvent.blur(pos);
+    await waitFor(() => {
+      expect(
+        callDesktopSession(session.sessionId, 'analysis.listWords', { unitId: unit.id }),
+      ).toMatchObject([
+        { form: 'alpha', pos: 'N' },
+        { form: 'beta', pos: '' },
+      ]);
+    });
+    fireEvent.change(pos, { target: { value: '' } });
+    fireEvent.blur(pos);
+    await waitFor(() => {
+      expect(
+        callDesktopSession(session.sessionId, 'analysis.listWords', { unitId: unit.id }),
+      ).toMatchObject([
+        { form: 'alpha', pos: '' },
+        { form: 'beta', pos: '' },
+      ]);
+    });
+    fireEvent.change(pos, { target: { value: 'N' } });
+    fireEvent.blur(pos);
+    await waitFor(() => {
+      expect(
+        callDesktopSession(session.sessionId, 'analysis.listWords', { unitId: unit.id }),
+      ).toMatchObject([
+        { form: 'alpha', pos: 'N' },
+        { form: 'beta', pos: '' },
+      ]);
+    });
     view.unmount();
     resetDesktopSessions();
     const reopened = openDesktopSession(folder, [folder]);
@@ -281,6 +312,7 @@ describe('DesktopAnnotationPage', () => {
     expect(await screen.findByText('alpha')).toBeTruthy();
     expect(screen.getByText('beta')).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Gloss: alpha' })).toHaveProperty('value', 'dog');
+    expect(screen.getByRole('textbox', { name: 'POS: alpha' })).toHaveProperty('value', 'N');
     expect(
       callDesktopSession(reopened.sessionId, 'analysis.listWords', { unitId: unit.id }),
     ).toMatchObject([

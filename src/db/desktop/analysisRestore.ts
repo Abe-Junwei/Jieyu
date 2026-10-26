@@ -435,6 +435,7 @@ export interface UnitWord {
   id: string;
   form: string;
   gloss: Record<string, string>;
+  pos: string;
 }
 
 export function listUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
@@ -443,13 +444,14 @@ export function listUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
   }
   const rows = db
     .prepare(
-      'SELECT id, form_json, gloss_json FROM tokens WHERE unit_id = ? ORDER BY token_index, id',
+      'SELECT id, form_json, gloss_json, pos FROM tokens WHERE unit_id = ? ORDER BY token_index, id',
     )
-    .all(unitId) as { id: string; form_json: string; gloss_json: string }[];
+    .all(unitId) as { id: string; form_json: string; gloss_json: string; pos: string | null }[];
   return rows.map((row) => ({
     id: row.id,
     form: wordForm(row.form_json),
     gloss: JSON.parse(row.gloss_json) as Record<string, string>,
+    pos: row.pos ?? '',
   }));
 }
 

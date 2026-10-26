@@ -89,6 +89,13 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                         words.setGloss(word.id, event.currentTarget.value.trim());
                       }}
                     />
+                    <input
+                      aria-label={`${t(locale, 'workspace.annotation.posLabel')}: ${word.form}`}
+                      defaultValue={word.pos}
+                      onBlur={(event) => {
+                        words.setPos(word.id, event.currentTarget.value.trim());
+                      }}
+                    />
                   </li>
                 ))}
               </ul>
