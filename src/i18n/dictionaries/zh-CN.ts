@@ -51,6 +51,8 @@ export const zhCNDictionary = {
   'app.desktopRead.offset': '偏移秒',
   'app.desktopRead.scale': '比例',
   'app.desktopRead.saveMapping': '保存时间映射',
+  'app.desktopRead.note': '备注',
+  'app.desktopRead.saveNote': '保存备注',
   'app.projectFields.title': '项目字段',
   'app.projectFields.target': '对象',
   'app.projectFields.name': '名称',

@@ -20,6 +20,7 @@ export function DesktopProjectReadView(props: {
   manuscripts: readonly DesktopProjectReadManuscript[];
   manuscriptId: string | null;
   units: readonly DesktopProjectReadUnit[];
+  notes: readonly { id: string; unitId: string | null; text: string }[];
   audioUrl: string | null;
   timeMapping: TextTimeMapping | null;
   emptyLabel: string;
@@ -31,16 +32,20 @@ export function DesktopProjectReadView(props: {
   offsetLabel: string;
   scaleLabel: string;
   saveMappingLabel: string;
+  noteLabel: string;
+  saveNoteLabel: string;
   onSelectManuscript: (id: string) => void;
   onSaveText: (unitId: string, text: string) => void;
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
   onSaveMapping: (offsetSec: number, scale: number) => void;
+  onSaveNote: (unitId: string, text: string) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textRef = useRef<HTMLInputElement>(null);
   const boundaryRef = useRef<HTMLInputElement>(null);
   const offsetRef = useRef<HTMLInputElement>(null);
   const scaleRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
   const next =
@@ -122,6 +127,25 @@ export function DesktopProjectReadView(props: {
               </button>
             </>
           )}
+          <ul>
+            {props.notes
+              .filter((note) => note.unitId === selected.id)
+              .map((note) => (
+                <li key={note.id}>{note.text}</li>
+              ))}
+          </ul>
+          <input ref={noteRef} key={`note-${selected.id}`} aria-label={props.noteLabel} />
+          <button
+            type="button"
+            onClick={() => {
+              const text = noteRef.current?.value ?? '';
+              if (text.length === 0) return;
+              props.onSaveNote(selected.id, text);
+              if (noteRef.current !== null) noteRef.current.value = '';
+            }}
+          >
+            {props.saveNoteLabel}
+          </button>
         </div>
       )}
       <div className="desktop-project-read-units">

@@ -55,6 +55,8 @@ export const enUSDictionary = {
   'app.desktopRead.offset': 'Offset seconds',
   'app.desktopRead.scale': 'Scale',
   'app.desktopRead.saveMapping': 'Save time mapping',
+  'app.desktopRead.note': 'Note',
+  'app.desktopRead.saveNote': 'Save note',
   'app.projectFields.title': 'Project fields',
   'app.projectFields.target': 'Object',
   'app.projectFields.name': 'Name',

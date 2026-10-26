@@ -27,6 +27,7 @@ export function DesktopProjectReadPage() {
           manuscripts={read.model.manuscripts}
           manuscriptId={read.model.manuscriptId}
           units={read.model.units}
+          notes={read.notes}
           audioUrl={read.model.audioUrl}
           timeMapping={selected?.timeMapping ?? null}
           emptyLabel={t(locale, 'app.desktopRead.empty')}
@@ -38,10 +39,13 @@ export function DesktopProjectReadPage() {
           offsetLabel={t(locale, 'app.desktopRead.offset')}
           scaleLabel={t(locale, 'app.desktopRead.scale')}
           saveMappingLabel={t(locale, 'app.desktopRead.saveMapping')}
+          noteLabel={t(locale, 'app.desktopRead.note')}
+          saveNoteLabel={t(locale, 'app.desktopRead.saveNote')}
           onSelectManuscript={read.selectManuscript}
           onSaveText={read.saveText}
           onMoveBoundary={read.moveBoundary}
           onSaveMapping={read.saveMapping}
+          onSaveNote={read.saveUnitNote}
         />
       )}
       {featureFlags.projectCustomFieldsEnabled && read.sessionId !== null ? (

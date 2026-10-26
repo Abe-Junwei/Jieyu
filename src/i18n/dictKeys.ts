@@ -48,6 +48,8 @@ export const DICT_KEYS = [
   'app.desktopRead.offset',
   'app.desktopRead.scale',
   'app.desktopRead.saveMapping',
+  'app.desktopRead.note',
+  'app.desktopRead.saveNote',
   'app.projectFields.title',
   'app.projectFields.target',
   'app.projectFields.name',

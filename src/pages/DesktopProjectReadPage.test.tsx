@@ -93,6 +93,7 @@ describe('DesktopProjectReadPage', () => {
           ]);
         }
         if (method === 'units.updateText') return Promise.resolve({});
+        if (method === 'notes.list') return Promise.resolve([]);
         if (method === 'units.list') {
           return Promise.resolve([
             {
@@ -245,6 +246,52 @@ describe('DesktopProjectReadPage', () => {
     expect(callDesktopSession(session.sessionId, 'units.get', { id: units[2]?.id })).toMatchObject({
       startTime: 3,
       endTime: 6,
+    });
+  });
+
+  it('saves a unit note and reads it back without changing the text', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 2,
+      text: 'sentence',
+    }) as { id: string };
+    mount(session.sessionId);
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), {
+      target: { value: 'remember' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save note' }));
+    expect(await screen.findByText('remember')).toBeTruthy();
+    reopenDesktopSession(session.sessionId);
+    expect(
+      callDesktopSession(session.sessionId, 'notes.list', {
+        unitId: unit.id,
+        anchorKind: 'unit',
+        attachment: 'active',
+      }),
+    ).toMatchObject([{ anchorKind: 'unit', unitId: unit.id, content: { default: 'remember' } }]);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'sentence',
     });
   });
 });
