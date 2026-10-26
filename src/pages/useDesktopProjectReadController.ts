@@ -12,6 +12,7 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
   const locale = useLocale();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [model, setModel] = useState<DesktopProjectRead | null>(null);
+  const [notes, setNotes] = useState<UnitNote[]>([]);
   const [error, setError] = useState('');
 
   const openFolder = () => {
@@ -22,7 +23,9 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
       .then(async (picked) => {
         if (!('sessionId' in picked)) return;
         setSessionId(picked.sessionId);
-        setModel(await loadDesktopProjectRead(readApi(host), picked.sessionId));
+        const next = await loadDesktopProjectRead(readApi(host), picked.sessionId);
+        setModel(next);
+        setNotes(await loadShownNotes(host, picked.sessionId, next.manuscriptId));
       })
       .catch(() => {
         setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -33,7 +36,10 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
     if (host === null || sessionId === null) return;
     setError('');
     void loadDesktopProjectRead(readApi(host), sessionId, manuscriptId)
-      .then(setModel)
+      .then(async (next) => {
+        setModel(next);
+        setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
+      })
       .catch(() => {
         setError(t(locale, 'app.desktopRead.loadFailed'));
       });
@@ -42,7 +48,10 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
   const reload = () => {
     if (host === null || sessionId === null) return Promise.resolve();
     const manuscriptId = model?.manuscriptId ?? undefined;
-    return loadDesktopProjectRead(readApi(host), sessionId, manuscriptId).then(setModel);
+    return loadDesktopProjectRead(readApi(host), sessionId, manuscriptId).then(async (next) => {
+      setModel(next);
+      setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
+    });
   };
 
   const saveText = (unitId: string, text: string) => {
@@ -92,16 +101,75 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
       });
   };
 
+  const saveUnitNote = (unitId: string, text: string) => {
+    if (host === null || sessionId === null || text.length === 0) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .createNote(sessionId, { anchor: { kind: 'unit', unitId }, content: { default: text } })
+      .then(() => loadShownNotes(host, sessionId, model?.manuscriptId ?? null))
+      .then(setNotes)
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const saveTierNote = (
+    unitId: string,
+    layerId: string,
+    kind: 'tier_timeline' | 'tier_waveform',
+    text: string,
+  ) => {
+    if (host === null || sessionId === null || text.length === 0) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .createNote(sessionId, { anchor: { kind, unitId, layerId }, content: { default: text } })
+      .then(() => loadShownNotes(host, sessionId, model?.manuscriptId ?? null))
+      .then(setNotes)
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
   return {
     sessionId,
     model,
+    notes,
     error,
     openFolder,
     selectManuscript,
     saveText,
     moveBoundary,
     saveMapping,
+    saveUnitNote,
+    saveTierNote,
   };
+}
+
+interface UnitNote {
+  id: string;
+  unitId: string | null;
+  text: string;
+}
+
+const SHOWN_NOTE_KINDS = ['unit', 'tier_timeline', 'tier_waveform'] as const;
+
+async function loadShownNotes(
+  host: DesktopReadHost,
+  sessionId: string,
+  manuscriptId: string | null,
+): Promise<UnitNote[]> {
+  if (manuscriptId === null) return [];
+  const rows = await createDesktopClient({ desktopCall: host.desktopCall }).listNotes(sessionId, {
+    manuscriptId,
+    attachment: 'active',
+  });
+  return rows
+    .filter((row) => SHOWN_NOTE_KINDS.some((kind) => kind === row.anchorKind))
+    .map((row) => ({
+      id: row.id,
+      unitId: row.unitId,
+      text: row.content.default ?? '',
+    }));
 }
 
 function readApi(host: DesktopReadHost): DesktopProjectReadApi {

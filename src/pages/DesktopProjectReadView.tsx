@@ -11,6 +11,7 @@ export interface DesktopProjectReadManuscript {
 
 export interface DesktopProjectReadUnit {
   id: string;
+  layerId?: string;
   startTime: number;
   endTime: number;
   text: string;
@@ -20,6 +21,7 @@ export function DesktopProjectReadView(props: {
   manuscripts: readonly DesktopProjectReadManuscript[];
   manuscriptId: string | null;
   units: readonly DesktopProjectReadUnit[];
+  notes: readonly { id: string; unitId: string | null; text: string }[];
   audioUrl: string | null;
   timeMapping: TextTimeMapping | null;
   emptyLabel: string;
@@ -31,18 +33,34 @@ export function DesktopProjectReadView(props: {
   offsetLabel: string;
   scaleLabel: string;
   saveMappingLabel: string;
+  noteLabel: string;
+  saveNoteLabel: string;
+  saveTimelineNoteLabel: string;
+  saveWaveformNoteLabel: string;
   onSelectManuscript: (id: string) => void;
   onSaveText: (unitId: string, text: string) => void;
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
   onSaveMapping: (offsetSec: number, scale: number) => void;
+  onSaveNote: (unitId: string, text: string) => void;
+  onSaveTierNote: (
+    unitId: string,
+    layerId: string,
+    kind: 'tier_timeline' | 'tier_waveform',
+    text: string,
+  ) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textRef = useRef<HTMLInputElement>(null);
   const boundaryRef = useRef<HTMLInputElement>(null);
   const offsetRef = useRef<HTMLInputElement>(null);
   const scaleRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
+  const readNoteText = () => noteRef.current?.value ?? '';
+  const clearNoteText = () => {
+    if (noteRef.current !== null) noteRef.current.value = '';
+  };
   const next =
     selected === null
       ? null
@@ -119,6 +137,53 @@ export function DesktopProjectReadView(props: {
                 }}
               >
                 {props.moveBoundaryLabel}
+              </button>
+            </>
+          )}
+          <ul>
+            {props.notes
+              .filter((note) => note.unitId === selected.id)
+              .map((note) => (
+                <li key={note.id}>{note.text}</li>
+              ))}
+          </ul>
+          <input ref={noteRef} key={`note-${selected.id}`} aria-label={props.noteLabel} />
+          <button
+            type="button"
+            onClick={() => {
+              const text = readNoteText();
+              if (text.length === 0) return;
+              props.onSaveNote(selected.id, text);
+              clearNoteText();
+            }}
+          >
+            {props.saveNoteLabel}
+          </button>
+          {selected.layerId === undefined ? null : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  const text = readNoteText();
+                  const layerId = selected.layerId;
+                  if (text.length === 0 || layerId === undefined) return;
+                  props.onSaveTierNote(selected.id, layerId, 'tier_timeline', text);
+                  clearNoteText();
+                }}
+              >
+                {props.saveTimelineNoteLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const text = readNoteText();
+                  const layerId = selected.layerId;
+                  if (text.length === 0 || layerId === undefined) return;
+                  props.onSaveTierNote(selected.id, layerId, 'tier_waveform', text);
+                  clearNoteText();
+                }}
+              >
+                {props.saveWaveformNoteLabel}
               </button>
             </>
           )}
