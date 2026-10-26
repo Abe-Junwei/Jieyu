@@ -311,6 +311,8 @@ export const DICT_KEYS = [
   'workspace.annotation.lexemeUnlink',
   'workspace.annotation.lexemeLinked',
   'workspace.annotation.chooseSense',
+  'workspace.annotation.lexemeLinkMiss',
+  'workspace.annotation.lexemeLinkNoSense',
   'workspace.annotation.senseGlossHint',
   'workspace.annotation.lexemeBroken',
   'workspace.annotation.validatorTemplate',

@@ -66,6 +66,13 @@ import {
   type LexemeLinkWrite,
   type LexemeSave,
 } from './lexicon';
+import {
+  clearTokenLexemeLink,
+  listLexemeLinkCandidates,
+  listTokenLexemeLinks,
+  matchLexemeLinkQuery,
+  replaceTokenLexemeLink,
+} from './lexemeLink';
 import { createMedia, type MediaCreate } from './media';
 import {
   createContentNote,
@@ -116,6 +123,11 @@ const METHODS = [
   'lexicon.getEntry',
   'lexicon.linkSense',
   'lexicon.removeSense',
+  'lexicon.listLinkCandidates',
+  'lexicon.matchLink',
+  'lexicon.listTokenLinks',
+  'lexicon.replaceTokenLink',
+  'lexicon.clearTokenLink',
   'notes.create',
   'notes.update',
   'notes.delete',
@@ -219,6 +231,25 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         lexemeId: requiredString(input.lexemeId, 'lexemeId'),
         senseId: requiredString(input.senseId, 'senseId'),
       });
+    case 'lexicon.listLinkCandidates':
+      knownKeys(input, []);
+      return listLexemeLinkCandidates(project.db);
+    case 'lexicon.matchLink':
+      knownKeys(input, ['query']);
+      return matchLexemeLinkQuery(project.db, requiredString(input.query, 'query'));
+    case 'lexicon.listTokenLinks':
+      knownKeys(input, ['unitId']);
+      return listTokenLexemeLinks(project.db, requiredString(input.unitId, 'unitId'));
+    case 'lexicon.replaceTokenLink':
+      knownKeys(input, ['tokenId', 'lexemeId', 'senseId']);
+      return replaceTokenLexemeLink(project.db, {
+        tokenId: requiredString(input.tokenId, 'tokenId'),
+        lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+        senseId: requiredString(input.senseId, 'senseId'),
+      });
+    case 'lexicon.clearTokenLink':
+      knownKeys(input, ['tokenId']);
+      return clearTokenLexemeLink(project.db, requiredString(input.tokenId, 'tokenId'));
     case 'notes.create':
       return createContentNote(project.db, noteCreate(input));
     case 'notes.update':

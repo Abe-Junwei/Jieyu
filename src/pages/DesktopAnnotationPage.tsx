@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ContentNoteCategory } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
+import { useDesktopAnnotationLexemeLinks } from './useDesktopAnnotationLexemeLinks';
 import { useDesktopAnnotationWords } from './useDesktopAnnotationWords';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import '../styles/pages/desktop-project-read.css';
@@ -22,6 +23,7 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
   const read = useDesktopProjectReadController(host, false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const words = useDesktopAnnotationWords(host, read.sessionId, selectedId);
+  const links = useDesktopAnnotationLexemeLinks(host, read.sessionId, selectedId);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [category, setCategory] = useState<ContentNoteCategory>('comment');
   const [body, setBody] = useState('');
@@ -33,7 +35,9 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
       {read.sessionId === null ? (
         <Link to="/desktop-project">{t(locale, 'app.desktopRead.openFolder')}</Link>
       ) : null}
-      {read.error || words.error ? <p role="alert">{read.error || words.error}</p> : null}
+      {read.error || words.error || links.error ? (
+        <p role="alert">{read.error || words.error || links.error}</p>
+      ) : null}
       {read.model === null && read.sessionId !== null && !read.error ? (
         <p>{t(locale, 'workspace.annotation.loading')}</p>
       ) : null}
@@ -96,6 +100,50 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                         words.setPos(word.id, event.currentTarget.value.trim());
                       }}
                     />
+                    {links.links
+                      .filter((link) => link.tokenId === word.id)
+                      .map((link) => (
+                        <span key={link.senseId}>
+                          {link.headword === null
+                            ? t(locale, 'workspace.annotation.lexemeBroken')
+                            : tf(locale, 'workspace.annotation.lexemeLinked', {
+                                lemma: link.headword,
+                              })}
+                        </span>
+                      ))}
+                    <input
+                      aria-label={`${t(locale, 'workspace.annotation.lexemeLinkLabel')}: ${word.form}`}
+                      value={links.drafts[word.id] ?? ''}
+                      onChange={(event) => {
+                        const value = event.currentTarget.value;
+                        links.setDrafts((current) => ({ ...current, [word.id]: value }));
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={`${t(locale, 'workspace.annotation.lexemeLink')}: ${word.form}`}
+                      onClick={() => links.submit(word.id)}
+                    >
+                      {t(locale, 'workspace.annotation.lexemeLink')}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${t(locale, 'workspace.annotation.lexemeUnlink')}: ${word.form}`}
+                      onClick={() => links.clear(word.id)}
+                    >
+                      {t(locale, 'workspace.annotation.lexemeUnlink')}
+                    </button>
+                    {links.choices?.tokenId === word.id
+                      ? links.choices.senses.map((sense) => (
+                          <button
+                            key={sense.id}
+                            type="button"
+                            onClick={() => links.choose(word.id, sense.id)}
+                          >
+                            {tf(locale, 'workspace.annotation.chooseSense', { label: sense.label })}
+                          </button>
+                        ))
+                      : null}
                   </li>
                 ))}
               </ul>

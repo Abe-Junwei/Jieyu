@@ -324,6 +324,8 @@ export const zhCNDictionary = {
   'workspace.annotation.lexemeUnlink': '解除链接',
   'workspace.annotation.lexemeLinked': '已链接 {lemma}',
   'workspace.annotation.chooseSense': '义项：{label}',
+  'workspace.annotation.lexemeLinkMiss': '没有唯一匹配的词条',
+  'workspace.annotation.lexemeLinkNoSense': '这个词条没有可链接的义项',
   'workspace.annotation.senseGlossHint': '义项译文 {gloss}',
   'workspace.annotation.lexemeBroken': '词条引用已断裂（CITATION_LEXEME_NOT_FOUND）',
   'workspace.annotation.validatorTemplate': 'Validator 模板：{id}',

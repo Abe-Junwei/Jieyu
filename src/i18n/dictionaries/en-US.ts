@@ -340,6 +340,8 @@ export const enUSDictionary = {
   'workspace.annotation.lexemeUnlink': 'Unlink',
   'workspace.annotation.lexemeLinked': 'Linked {lemma}',
   'workspace.annotation.chooseSense': 'Sense: {label}',
+  'workspace.annotation.lexemeLinkMiss': 'No single entry matches this headword',
+  'workspace.annotation.lexemeLinkNoSense': 'This entry has no sense to link',
   'workspace.annotation.senseGlossHint': 'Sense gloss {gloss}',
   'workspace.annotation.lexemeBroken': 'Lexeme link is broken (CITATION_LEXEME_NOT_FOUND)',
   'workspace.annotation.validatorTemplate': 'Validator template: {id}',

@@ -140,6 +140,43 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<ProjectLexemeLink>(sessionId, 'lexicon.linkSense', input),
     removeSense: (sessionId: string, input: { lexemeId: string; senseId: string }) =>
       once<ProjectLexeme>(sessionId, 'lexicon.removeSense', input),
+    listLinkCandidates: (sessionId: string) =>
+      once<
+        {
+          id: string;
+          headword: string;
+          matchValues: string[];
+          senses: { id: string; label: string }[];
+        }[]
+      >(sessionId, 'lexicon.listLinkCandidates', {}),
+    matchLexemeLink: (sessionId: string, query: string) =>
+      once<{
+        id: string;
+        headword: string;
+        matchValues: string[];
+        senses: { id: string; label: string }[];
+      }>(sessionId, 'lexicon.matchLink', { query }),
+    listTokenLinks: (sessionId: string, unitId: string) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }[]>(
+        sessionId,
+        'lexicon.listTokenLinks',
+        { unitId },
+      ),
+    replaceTokenLink: (
+      sessionId: string,
+      input: { tokenId: string; lexemeId: string; senseId: string },
+    ) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }>(
+        sessionId,
+        'lexicon.replaceTokenLink',
+        input,
+      ),
+    clearTokenLink: (sessionId: string, tokenId: string) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }[]>(
+        sessionId,
+        'lexicon.clearTokenLink',
+        { tokenId },
+      ),
     createNote: (sessionId: string, input: ContentNoteWrite) =>
       once<ContentNote>(sessionId, 'notes.create', input),
     updateNote: (

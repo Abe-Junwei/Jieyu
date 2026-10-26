@@ -393,4 +393,118 @@ describe('DesktopAnnotationPage', () => {
       text: 'ka-ra',
     });
   });
+
+  it('links a word by exact headword, replaces the one link, and clears it', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-desktop-annotation-'));
+    roots.push(folder);
+    writeFileSync(join(folder, 'a.wav'), '');
+    const session = openDesktopSession(folder, [folder]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { en: 'Manuscript' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { en: 'Transcription' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 2,
+      text: 'ka na',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'lex-ka',
+      entry: { headword: 'ka', senses: [{ id: 'animal', definitions: [{ text: 'animal' }] }] },
+    });
+    callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'lex-na',
+      entry: {
+        headword: 'na',
+        senses: [
+          { id: 'one', definitions: [{ text: 'one' }] },
+          { id: 'two', definitions: [{ text: 'two' }] },
+        ],
+      },
+    });
+    rememberOpenProjectSession(session.sessionId);
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.reject(new Error('should not choose a folder')),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.reject(new Error('annotation must not request media')),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    const page = () => (
+      <LocaleProvider locale="en-US">
+        <MemoryRouter>
+          <AnnotationPage />
+        </MemoryRouter>
+      </LocaleProvider>
+    );
+    const view = render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka na' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
+    await screen.findByText('ka');
+    const kaLink = screen.getByRole('textbox', { name: 'Lexeme link: ka' });
+    fireEvent.change(kaLink, { target: { value: 'ka' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Link lexeme: ka' }));
+    expect(await screen.findByText('Linked ka')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Link lexeme: ka' }));
+    await waitFor(() => {
+      expect(linkRelations(session.sessionId, unit.id)).toHaveLength(1);
+    });
+    const naLink = screen.getByRole('textbox', { name: 'Lexeme link: na' });
+    fireEvent.change(naLink, { target: { value: 'na' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Link lexeme: na' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sense: one' }));
+    expect(await screen.findByText('Linked na')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Link lexeme: na' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sense: two' }));
+    await waitFor(() => {
+      const relations = linkRelations(session.sessionId, unit.id);
+      expect(relations.filter((relation) => relation.tokenForm === 'na')).toHaveLength(1);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Unlink: ka' }));
+    await waitFor(() => {
+      expect(screen.queryByText('Linked ka')).toBeNull();
+    });
+    view.unmount();
+    resetDesktopSessions();
+    const reopened = openDesktopSession(folder, [folder]);
+    rememberOpenProjectSession(reopened.sessionId);
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka na' }));
+    expect(await screen.findByText('Linked na')).toBeTruthy();
+    expect(screen.queryByText('Linked ka')).toBeNull();
+    expect(
+      callDesktopSession(reopened.sessionId, 'lexicon.listTokenLinks', { unitId: unit.id }),
+    ).toMatchObject([{ headword: 'na', senseId: 'two' }]);
+    expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'ka na',
+    });
+  });
 });
+
+function linkRelations(sessionId: string, unitId: string) {
+  const state = callDesktopSession(sessionId, 'analysis.readState', { unitId }) as {
+    graph: {
+      nodes: { id: string; type: string; label?: string }[];
+      relations: { type: string; sourceId: string }[];
+    };
+  };
+  return state.graph.relations
+    .filter((relation) => relation.type === 'linksLexeme')
+    .map((relation) => ({
+      ...relation,
+      tokenForm: state.graph.nodes.find((node) => node.id === relation.sourceId)?.label,
+    }));
+}
