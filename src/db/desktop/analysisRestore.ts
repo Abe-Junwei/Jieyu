@@ -28,6 +28,7 @@ import {
 } from './customFields';
 import { assertRetargetedReferences } from './referenceState';
 import { convertSnapshotGraph } from './customFieldMigration';
+import { restoreAnalysisNote } from './notes';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -101,33 +102,54 @@ function receiveLocalGraph(
         tokenId: nodeIds.get(part.tokenId) ?? part.tokenId,
       }));
     }
-    if (node.customFields !== undefined)
-      node.customFields = remapNodeRefs(node.customFields, nodeIds);
+    if (node.customFields !== undefined) {
+      node.customFields = remapRefs(node.customFields, unitId, nodeIds, relationIds);
+    }
   }
   for (const relation of received.relations) {
     relation.id = relationIds.get(relation.id) ?? relation.id;
     relation.sourceId = nodeIds.get(relation.sourceId) ?? relation.sourceId;
     relation.targetId = nodeIds.get(relation.targetId) ?? relation.targetId;
+    if (relation.customFields !== undefined) {
+      relation.customFields = remapRefs(relation.customFields, unitId, nodeIds, relationIds);
+    }
   }
-  return received;
+  return validateAnalysisGraphPayload(received, graph.text);
 }
 
-function remapNodeRefs(
+function remapRefs(
   fields: Record<string, unknown>,
+  unitId: string,
   nodeIds: ReadonlyMap<string, string>,
+  relationIds: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
   const next: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(fields)) next[key] = remapRef(value, nodeIds);
+  for (const [key, value] of Object.entries(fields)) {
+    next[key] = remapRef(value, unitId, nodeIds, relationIds);
+  }
   return next;
 }
 
-function remapRef(value: unknown, nodeIds: ReadonlyMap<string, string>): unknown {
-  if (Array.isArray(value)) return value.map((item) => remapRef(item, nodeIds));
+function remapRef(
+  value: unknown,
+  unitId: string,
+  nodeIds: ReadonlyMap<string, string>,
+  relationIds: ReadonlyMap<string, string>,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => remapRef(item, unitId, nodeIds, relationIds));
+  }
   if (typeof value !== 'object' || value === null) return value;
   const record = value as Record<string, unknown>;
-  if (record.targetType === 'analysis-node' && typeof record.targetId === 'string') {
-    const projectId = nodeIds.get(record.targetId);
-    if (projectId !== undefined) return { ...record, targetId: projectId };
+  const targetType = record.targetType;
+  if (
+    (targetType === 'analysis-node' || targetType === 'analysis-relation') &&
+    typeof record.targetId === 'string' &&
+    record.unitId === unitId
+  ) {
+    const projectId = (targetType === 'analysis-node' ? nodeIds : relationIds).get(record.targetId);
+    if (projectId === undefined) throw new Error('analysis reference is missing');
+    return { ...record, targetId: projectId };
   }
   return value;
 }
@@ -434,37 +456,15 @@ function reattach(
   for (const item of candidate.links) {
     writeLink(link, item, live.has(item.targetId) ? 'active' : 'detached', now);
   }
-  const existingNote = db.prepare('SELECT updated_at FROM notes WHERE id = ?');
-  const insertNote = db.prepare(
-    `INSERT INTO notes (id, target_type, target_id, body, attachment, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const keepNote = db.prepare(
-    'UPDATE notes SET target_type = ?, target_id = ?, attachment = ? WHERE id = ?',
-  );
-  const replaceNote = db.prepare(
-    'UPDATE notes SET target_type = ?, target_id = ?, body = ?, attachment = ?, updated_at = ? WHERE id = ?',
-  );
   for (const item of candidate.notes) {
-    const attachment = live.has(item.targetId) ? 'active' : 'detached';
-    const existing = existingNote.get(item.id) as { updated_at: string } | undefined;
-    if (!existing) {
-      insertNote.run(
-        item.id,
-        item.targetType,
-        item.targetId,
-        item.body,
-        attachment,
-        item.createdAt,
-        now,
-      );
-      continue;
-    }
-    if (existing.updated_at > candidate.createdAt) {
-      keepNote.run(item.targetType, item.targetId, attachment, item.id);
-      continue;
-    }
-    replaceNote.run(item.targetType, item.targetId, item.body, attachment, now, item.id);
+    restoreAnalysisNote(
+      db,
+      item,
+      candidate.unitId,
+      live.has(item.targetId) ? 'active' : 'detached',
+      candidate.createdAt,
+      now,
+    );
   }
 }
 

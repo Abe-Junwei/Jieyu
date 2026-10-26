@@ -247,9 +247,14 @@ function newNode(graph: AnalysisGraphPayload, item: Record<string, unknown>): An
       updatedAt: now,
       provenance: { actorType: 'importer', method: 'import', createdAt: now },
       ...(typeof domain.pos === 'string' ? { pos: domain.pos } : {}),
+      ...(typeof domain.languageId === 'string' ? { languageId: domain.languageId } : {}),
+      ...(typeof domain.lexemeId === 'string' ? { lexemeId: domain.lexemeId } : {}),
     },
     ...('customFields' in item ? { customFields: fieldBag(item.customFields) } : {}),
     ...('residue' in item ? { residue: residueList(item.residue) } : {}),
+    ...(Array.isArray(item.surfaceParts)
+      ? { surfaceParts: item.surfaceParts as AnalysisGraphNode['surfaceParts'] }
+      : {}),
   };
 }
 
@@ -267,17 +272,52 @@ const IMPORT_RELATION_KEYS = ['id', 'role'];
 
 function assertImportNode(item: Record<string, unknown>): void {
   assertKnown(item, IMPORT_NODE_KEYS);
-  const domain = objectValue(item.domain);
-  if (domain !== null) {
-    assertKnown(domain, IMPORT_DOMAIN_KEYS);
-    if ('pos' in domain && typeof domain.pos !== 'string') {
-      throw new Error('analysis import item is invalid');
-    }
+  if ('label' in item && (typeof item.label !== 'string' || item.label.length === 0)) {
+    throw new Error('analysis import item is invalid');
   }
+  if ('surfaceParts' in item && !Array.isArray(item.surfaceParts)) {
+    throw new Error('analysis import item is invalid');
+  }
+  if ('customFields' in item) fieldBag(item.customFields);
+  if ('residue' in item && !Array.isArray(item.residue)) {
+    throw new Error('analysis import item is invalid');
+  }
+  const domain = objectValue(item.domain);
+  if (domain === null) return;
+  assertKnown(domain, IMPORT_DOMAIN_KEYS);
+  if ('form' in domain) stringMap(requiredObject(domain.form));
+  if ('gloss' in domain) stringMap(requiredObject(domain.gloss));
+  if ('pos' in domain && typeof domain.pos !== 'string') {
+    throw new Error('analysis import item is invalid');
+  }
+  if ('index' in domain && !nonNegativeInteger(domain.index)) {
+    throw new Error('analysis import item is invalid');
+  }
+  if ('languageId' in domain) requiredId(domain.languageId);
+  if ('lexemeId' in domain) requiredId(domain.lexemeId);
 }
 
 function assertImportRelation(item: Record<string, unknown>): void {
   assertKnown(item, IMPORT_RELATION_KEYS);
+  if ('role' in item && typeof item.role !== 'string') {
+    throw new Error('analysis import item is invalid');
+  }
+}
+
+function requiredObject(value: unknown): Record<string, unknown> {
+  const record = objectValue(value);
+  if (record === null) throw new Error('analysis import item is invalid');
+  return record;
+}
+
+function requiredId(value: unknown): void {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error('analysis import item is invalid');
+  }
+}
+
+function nonNegativeInteger(value: unknown): boolean {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 function assertKnown(item: Record<string, unknown>, keys: readonly string[]): void {

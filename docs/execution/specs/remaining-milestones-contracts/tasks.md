@@ -23,8 +23,10 @@ depends_on:
 
 ## 实施
 
-- [x] 来源单域的字段修订和诊断补交。不同字段合并，改回原值拒绝，诊断库失败后只补日志。user_version 13。备注未开始。
-- [ ] 备注载体与九类定位。当前 `notes.body` 和 `JieyuNote` 都不是最终形状。
+- [x] 来源单域的字段修订和诊断补交。不同字段合并，改回原值拒绝，诊断库失败后只补日志。当时 user_version 13。
+- [x] 备注载体与九类定位。`notes` 用排他锚点列；词条和义项进 `jieyu_json.anchoredNotes`。时间轴和波形不串，同名义项不串，分析恢复留下后来的正文和分类。user_version 14，旧文件只拒绝。旧 `JieyuNote` 自由文本还在。旧页面未接。
+- [x] 桌面会话入口 `notes.create`、`notes.list`、`notes.saveLexeme`、`notes.listLexeme`。关会话再开仍读回。未映射的 `annotation` 拒绝。译文评论不改正文。
+- [ ] 旧标注页的 `useNoteHandlers` 仍走旧库。本片不改那一页。
 - [ ] 说话人、对话、设置、查询和 AI 写入按 design 第 3 节继续接替。不要求先于备注全部完成。
 - [ ] 转写预览凭据、接受事实和崩溃计数。
 - [ ] 删除准入、文件阶段、备份快照和恢复执行隔离。

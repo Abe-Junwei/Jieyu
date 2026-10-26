@@ -673,6 +673,9 @@ export function lexemeExtensionForSave(
 ): Record<string, unknown> {
   const stored = existingJieyuJson === undefined ? {} : objectMap(existingJieyuJson);
   const next: Record<string, unknown> = { ...domain };
+  if (next.anchoredNotes === undefined && stored.anchoredNotes !== undefined) {
+    next.anchoredNotes = stored.anchoredNotes;
+  }
   const fields = bag(stored.customFields);
   if (Object.keys(fields).length > 0) next.customFields = fields;
   const senses = bag(stored.senseCustomFields);

@@ -65,12 +65,20 @@ interface CustomFieldChange {
   value?: unknown;
 }
 
-interface LinkFieldChange {
+interface LinkSetChange {
   action: 'link.setField';
   relationId: string;
   field: string;
   value?: unknown;
 }
+
+interface LinkRemoveChange {
+  action: 'link.removeField';
+  relationId: string;
+  field: string;
+}
+
+type LinkFieldChange = LinkSetChange | LinkRemoveChange;
 
 type AnalysisChange =
   | MapChange
@@ -83,6 +91,7 @@ type AnalysisChange =
 
 const SET_FIELDS = new Set(['pos', 'languageId', 'lexemeId']);
 const REMOVABLE_FIELDS = new Set(['gloss', 'pos', 'languageId', 'lexemeId']);
+const LINK_FIELDS = new Set(['lexemeId', 'senseId', 'role', 'confidence']);
 
 export function applyAnalysis(
   db: SqliteDatabase,
@@ -302,7 +311,7 @@ function readProjection(
 }
 
 function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void {
-  if (change.action === 'link.setField') {
+  if (change.action === 'link.setField' || change.action === 'link.removeField') {
     applyLinkField(graph, change);
     return;
   }
@@ -467,17 +476,74 @@ function applyField(node: AnalysisGraphNode, change: FieldChange): void {
 function applyLinkField(graph: AnalysisGraphPayload, change: LinkFieldChange): void {
   const relation = graph.relations.find((item) => item.id === change.relationId);
   if (relation?.link === undefined) throw new Error('analysis link is missing');
-  if (change.field !== 'confidence' || typeof change.value !== 'number') {
-    throw new Error('analysis field cannot be set');
+  if (!LINK_FIELDS.has(change.field)) {
+    throw new Error(
+      change.action === 'link.removeField'
+        ? 'analysis field cannot be removed'
+        : 'analysis field cannot be set',
+    );
   }
-  if (change.value < 0 || change.value > 1) throw new Error('analysis field value is missing');
   const at = new Date().toISOString();
-  relation.link = {
+  const next = {
     ...relation.link,
-    confidence: change.value,
     updatedAt: at,
-    edits: [...(relation.link.edits ?? []), { at, actorType: 'human', fields: ['confidence'] }],
+    edits: [
+      ...(relation.link.edits ?? []),
+      { at, actorType: 'human' as const, fields: [change.field] },
+    ],
   };
+  if (change.action === 'link.removeField') {
+    if (change.field === 'lexemeId') throw new Error('lexeme link is invalid');
+    if (change.field === 'senseId') delete next.senseId;
+    else if (change.field === 'role') delete next.role;
+    else delete next.confidence;
+    relation.link = next;
+    return;
+  }
+  if (change.field === 'confidence') {
+    if (typeof change.value !== 'number' || change.value < 0 || change.value > 1) {
+      throw new Error('analysis field value is missing');
+    }
+    next.confidence = change.value;
+  } else if (change.field === 'role') {
+    next.role = linkRole(change.value);
+  } else if (change.field === 'lexemeId' || change.field === 'senseId') {
+    if (typeof change.value !== 'string' || change.value.length === 0) {
+      throw new Error('analysis field value is missing');
+    }
+    if (change.field === 'lexemeId') {
+      next.lexemeId = change.value;
+      syncLexemeRef(graph, relation, change.value);
+    } else next.senseId = change.value;
+  }
+  relation.link = next;
+}
+
+function syncLexemeRef(
+  graph: AnalysisGraphPayload,
+  relation: AnalysisGraphPayload['relations'][number],
+  lexemeId: string,
+): void {
+  const target = graph.nodes.find((node) => node.id === relation.targetId);
+  if (target?.type !== 'lexemeRef') throw new Error('lexeme link target is not a lexeme reference');
+  if (target.label === lexemeId) return;
+  const existing = graph.nodes.find((node) => node.type === 'lexemeRef' && node.label === lexemeId);
+  if (existing !== undefined) {
+    relation.targetId = existing.id;
+    return;
+  }
+  const shared = graph.relations.some(
+    (item) => item.id !== relation.id && item.targetId === target.id,
+  );
+  if (shared) throw new Error('lexeme reference is missing');
+  target.label = lexemeId;
+}
+
+function linkRole(value: unknown): 'exact' | 'stem' | 'gloss_candidate' | 'manual' {
+  if (value === 'exact' || value === 'stem' || value === 'gloss_candidate' || value === 'manual') {
+    return value;
+  }
+  throw new Error('analysis link role is invalid');
 }
 
 export function assertTokenLanguages(
@@ -658,7 +724,7 @@ function parseChange(value: unknown): AnalysisChange {
   }
   const change = value as Record<string, unknown>;
   const action = change.action;
-  if (action === 'link.setField') {
+  if (action === 'link.setField' || action === 'link.removeField') {
     if (typeof change.relationId !== 'string' || change.relationId.length === 0) {
       throw new Error('analysis relation is missing');
     }

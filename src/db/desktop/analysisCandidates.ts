@@ -10,6 +10,7 @@ import type {
   ProjectedToken,
 } from '../../annotation/analysisGraphDomainProjection';
 import { currentDefinitionRevisions, type StoredDefinitionRevision } from './customFields';
+import { readActiveAnalysisNotes } from './notes';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -31,6 +32,8 @@ export interface AnalysisAssociationNote {
   targetType: string;
   targetId: string;
   body: string;
+  content?: Record<string, string>;
+  category?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -256,7 +259,8 @@ export function detachAnalysisAssociations(
      WHERE target_id = ? AND attachment = 'active'`,
   );
   const note = db.prepare(
-    `UPDATE notes SET attachment = 'detached', updated_at = ? WHERE target_id = ? AND attachment = 'active'`,
+    `UPDATE notes SET attachment = 'detached', updated_at = ?
+     WHERE node_id = ? AND anchor_kind IN ('token', 'morpheme', 'graph_node') AND attachment = 'active'`,
   );
   for (const targetId of targetIds) {
     link.run(now, targetId);
@@ -463,32 +467,7 @@ function readLinks(db: SqliteDatabase, targetIds: readonly string[]): AnalysisAs
 }
 
 function readNotes(db: SqliteDatabase, targetIds: readonly string[]): AnalysisAssociationNote[] {
-  const select = db.prepare(
-    `SELECT id, target_type, target_id, body, created_at, updated_at
-     FROM notes WHERE target_id = ? AND attachment = 'active' ORDER BY id`,
-  );
-  const notes: AnalysisAssociationNote[] = [];
-  for (const targetId of targetIds) {
-    const rows = select.all(targetId) as {
-      id: string;
-      target_type: string;
-      target_id: string;
-      body: string;
-      created_at: string;
-      updated_at: string;
-    }[];
-    for (const row of rows) {
-      notes.push({
-        id: row.id,
-        targetType: row.target_type,
-        targetId: row.target_id,
-        body: row.body,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      });
-    }
-  }
-  return notes;
+  return readActiveAnalysisNotes(db, targetIds);
 }
 
 function objectJson(value: string): Record<string, string> {

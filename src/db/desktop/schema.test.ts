@@ -234,8 +234,8 @@ describe('desktop project schema', () => {
     expect(
       constraintCode(() => {
         db.prepare(
-          'INSERT INTO notes (id, target_type, target_id, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        ).run('n1', 'manuscript', 'ms1', 'x', T, T);
+          'INSERT INTO notes (id, anchor_kind, content_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        ).run('n1', 'speaker', '{}', T, T);
       }),
     ).toBe('SQLITE_CONSTRAINT_CHECK');
     db.close();

@@ -7,6 +7,7 @@ import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { applyAnalysis } from './analysis';
 import { importAnalysis } from './analysisImport';
 import { createDefinition } from './customFields';
+import { saveLexemeEntry } from './lexicon';
 import { openProject } from './openProject';
 import { getAnalysisRoot, writeAnalysisRoot } from './units';
 
@@ -555,6 +556,88 @@ describe('analysis import', () => {
           graphFingerprint: imported.root.graphFingerprint,
         },
         nodes: [{ id: 'n1', domain: { gloss: { en: 'changed' }, pos: 42 }, unrecognized: 'lost' }],
+      }),
+    ).toThrow('analysis import item is invalid');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.en).toBe('past');
+    project.close();
+  });
+
+  it('keeps language, lexeme, and surface parts on a new token', () => {
+    const { dir, project, unitId, expected } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [token('n1', 0)],
+      relations: [],
+    });
+    project.db
+      .prepare(
+        `INSERT INTO languages (id, name_json, source_type, iso6393, created_at, updated_at)
+         VALUES (?, '{"en":"English"}', 'user-custom', ?, ?, ?)`,
+      )
+      .run('lang-1', 'eng', T, T);
+    saveLexemeEntry(project.db, {
+      id: 'lex-1',
+      entry: { headword: 'ta', senses: [{ id: 'sense', definitions: [{ text: 'that' }] }] },
+    });
+    const imported = importAnalysis(project.db, {
+      unitId,
+      expected,
+      nodes: [
+        {
+          type: 'token',
+          domain: { form: { default: 'ta' }, languageId: 'lang-1', lexemeId: 'lex-1' },
+          surfaceParts: [{ tokenId: 'n1', formKey: 'default' }],
+        },
+      ],
+    });
+    const added = imported.root.graph?.nodes.find((node) => node.domain?.form.default === 'ta');
+    expect(added?.domain?.languageId).toBe('lang-1');
+    expect(added?.domain?.lexemeId).toBe('lex-1');
+    expect(added?.surfaceParts).toEqual([{ tokenId: 'n1', formKey: 'default' }]);
+    project.close();
+    const reopened = openProject(dir);
+    const stored = getAnalysisRoot(reopened.db, unitId)?.graph?.nodes.find(
+      (node) => node.domain?.form.default === 'ta',
+    );
+    expect(stored?.domain?.languageId).toBe('lang-1');
+    expect(stored?.domain?.lexemeId).toBe('lex-1');
+    expect(stored?.surfaceParts).toEqual([{ tokenId: 'n1', formKey: 'default' }]);
+    reopened.close();
+  });
+
+  it('rejects a string index without writing the gloss sent with it', () => {
+    const { project, unitId, expected } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [token('n1', 0)],
+      relations: [],
+    });
+    expect(() =>
+      importAnalysis(project.db, {
+        unitId,
+        expected,
+        nodes: [{ id: 'n1', domain: { gloss: { en: 'changed' }, index: 'invalid' } }],
+      }),
+    ).toThrow('analysis import item is invalid');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.en).toBe('past');
+    project.close();
+  });
+
+  it('rejects a non-string language id without writing the gloss sent with it', () => {
+    const { project, unitId, expected } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [token('n1', 0)],
+      relations: [],
+    });
+    expect(() =>
+      importAnalysis(project.db, {
+        unitId,
+        expected,
+        nodes: [{ id: 'n1', domain: { gloss: { en: 'changed' }, languageId: 7 } }],
       }),
     ).toThrow('analysis import item is invalid');
     expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.en).toBe('past');

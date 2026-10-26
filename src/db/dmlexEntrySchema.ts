@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isoDateSchema, provenanceSchema } from './provenanceSchema';
 
 export const dmlexText = z.string().min(1);
 
@@ -162,6 +163,43 @@ export const jieyuLexemeSchema = z
           })
           .strict(),
       )
+      .optional(),
+    anchoredNotes: z
+      .array(
+        z
+          .object({
+            id: dmlexText,
+            scope: z.enum(['lexeme', 'sense']),
+            senseId: dmlexText.optional(),
+            content: z
+              .record(z.string().min(1), z.string())
+              .refine((value) => Object.keys(value).length > 0),
+            category: z
+              .enum([
+                'comment',
+                'question',
+                'todo',
+                'linguistic',
+                'fieldwork',
+                'correction',
+                'topic',
+              ])
+              .optional(),
+            provenance: provenanceSchema.strict().optional(),
+            createdAt: isoDateSchema,
+            updatedAt: isoDateSchema,
+          })
+          .strict()
+          .superRefine((note, ctx) => {
+            if (note.scope === 'sense' && note.senseId === undefined) {
+              ctx.addIssue({ code: 'custom', message: 'sense id is missing' });
+            }
+            if (note.scope === 'lexeme' && note.senseId !== undefined) {
+              ctx.addIssue({ code: 'custom', message: 'lexeme note has a sense id' });
+            }
+          }),
+      )
+      .refine((notes) => new Set(notes.map((note) => note.id)).size === notes.length)
       .optional(),
     occurrenceCitations: z
       .array(

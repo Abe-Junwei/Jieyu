@@ -10,6 +10,7 @@ import {
   listAnalysisCandidates,
   readAnalysisMaterial,
 } from './analysisCandidates';
+import { createDefinition } from './customFields';
 import { removeSense, saveLexemeEntry } from './lexicon';
 import {
   acceptAnalysis,
@@ -124,10 +125,20 @@ function associate(db: InstanceType<typeof Database>, id: string, targetId: stri
     `INSERT INTO token_lexeme_links (id, target_type, target_id, lexeme_id, created_at, updated_at)
      VALUES (?, 'token', ?, ?, ?, ?)`,
   ).run(id, targetId, `lex-${id}`, T, T);
+  const place = db
+    .prepare(
+      `SELECT units.id AS unit_id, layers.manuscript_id AS manuscript_id
+       FROM units
+       JOIN layers ON layers.id = units.layer_id
+       JOIN json_each(units.analysis_graph_json, '$.nodes') AS node
+       WHERE json_extract(node.value, '$.id') = ?`,
+    )
+    .get(targetId) as { unit_id: string; manuscript_id: string };
   db.prepare(
-    `INSERT INTO notes (id, target_type, target_id, body, created_at, updated_at)
-     VALUES (?, 'token', ?, ?, ?, ?)`,
-  ).run(`note-${id}`, targetId, 'original', T, T);
+    `INSERT INTO notes (
+      id, anchor_kind, manuscript_id, unit_id, node_id, content_json, created_at, updated_at
+    ) VALUES (?, 'token', ?, ?, ?, ?, ?, ?)`,
+  ).run(`note-${id}`, place.manuscript_id, place.unit_id, targetId, '{"default":"original"}', T, T);
 }
 
 function linkAttachment(db: InstanceType<typeof Database>, id: string): string {
@@ -140,11 +151,16 @@ function linkAttachment(db: InstanceType<typeof Database>, id: string): string {
 function noteRow(
   db: InstanceType<typeof Database>,
   id: string,
-): { attachment: string; body: string } {
-  return db.prepare('SELECT attachment, body FROM notes WHERE id = ?').get(id) as {
+): { attachment: string; body: string; category: string | null } {
+  const row = db
+    .prepare('SELECT attachment, content_json, category FROM notes WHERE id = ?')
+    .get(id) as {
     attachment: string;
-    body: string;
+    content_json: string;
+    category: string | null;
   };
+  const content = JSON.parse(row.content_json) as { default?: string };
+  return { attachment: row.attachment, body: content.default ?? '', category: row.category };
 }
 
 describe('analysis text invalidation', () => {
@@ -181,6 +197,7 @@ describe('analysis text invalidation', () => {
     expect(noteRow(reopened.db, 'note-l1')).toEqual({
       attachment: 'active',
       body: 'original',
+      category: null,
     });
     expect(reopened.db.prepare('SELECT COUNT(*) AS n FROM analysis_candidates').get()).toEqual({
       n: 0,
@@ -315,8 +332,8 @@ describe('analysis split and merge', () => {
     const snapshot = listAnalysisCandidates(project.db, unitId)[0];
     expect(snapshot?.graph.nodes[0]?.residue?.[0]?.id).toBe('r1');
     project.db
-      .prepare('UPDATE notes SET body = ?, updated_at = ? WHERE id = ?')
-      .run('later', '2099-01-01T00:00:00.000Z', 'note-l1');
+      .prepare('UPDATE notes SET content_json = ?, category = ?, updated_at = ? WHERE id = ?')
+      .run('{"default":"later"}', 'comment', '2099-01-01T00:00:00.000Z', 'note-l1');
     const restored = restoreAnalysis(project.db, {
       candidateId: snapshot?.id ?? '',
       expected: {
@@ -331,6 +348,7 @@ describe('analysis split and merge', () => {
     expect(noteRow(project.db, 'note-l1')).toEqual({
       attachment: 'active',
       body: 'later',
+      category: 'comment',
     });
     expect(linkAttachment(project.db, 'l1')).toBe('active');
     expect(project.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
@@ -516,6 +534,67 @@ describe('analysis split and merge', () => {
     expect(project.db.prepare('SELECT id, confidence FROM token_lexeme_links').all()).toEqual([
       { id: 'rel-1', confidence: 0.8 },
     ]);
+    const role = applyAnalysis(project.db, {
+      unitId,
+      expected: creds(getAnalysisRoot(project.db, unitId) ?? stored),
+      changes: [{ action: 'link.setField', relationId: 'rel-1', field: 'role', value: 'manual' }],
+    });
+    const linked = role.root.graph?.relations.find((relation) => relation.id === 'rel-1')?.link;
+    expect(linked?.role).toBe('manual');
+    expect(linked?.lexemeId).toBe('lex');
+    expect(linked?.createdAt).toBe(T);
+    expect(linked?.edits?.at(-1)?.fields).toEqual(['role']);
+    saveLexemeEntry(project.db, {
+      id: 'lex-2',
+      entry: { headword: 'ta', senses: [{ id: 'other', definitions: [{ text: 'that' }] }] },
+    });
+    const unsensed = applyAnalysis(project.db, {
+      unitId,
+      expected: creds(role.root),
+      changes: [{ action: 'link.removeField', relationId: 'rel-1', field: 'senseId' }],
+    });
+    const moved = applyAnalysis(project.db, {
+      unitId,
+      expected: creds(unsensed.root),
+      changes: [
+        { action: 'link.setField', relationId: 'rel-1', field: 'lexemeId', value: 'lex-2' },
+      ],
+    });
+    const movedLink = moved.root.graph?.relations.find((relation) => relation.id === 'rel-1');
+    expect(movedLink?.link?.lexemeId).toBe('lex-2');
+    expect(movedLink?.link?.senseId).toBeUndefined();
+    expect(moved.root.graph?.nodes.find((node) => node.id === movedLink?.targetId)?.label).toBe(
+      'lex-2',
+    );
+    const cleared = applyAnalysis(project.db, {
+      unitId,
+      expected: creds(moved.root),
+      changes: [{ action: 'link.removeField', relationId: 'rel-1', field: 'confidence' }],
+    });
+    expect(
+      cleared.root.graph?.relations.find((relation) => relation.id === 'rel-1')?.link?.confidence,
+    ).toBeUndefined();
+    expect(
+      project.db.prepare('SELECT confidence FROM token_lexeme_links WHERE id = ?').get('rel-1'),
+    ).toEqual({
+      confidence: null,
+    });
+    const before = getAnalysisRoot(project.db, unitId);
+    expect(() =>
+      applyAnalysis(project.db, {
+        unitId,
+        expected: creds(cleared.root),
+        changes: [{ action: 'link.setField', relationId: 'rel-1', field: 'updatedAt', value: T }],
+      }),
+    ).toThrow('analysis field cannot be set');
+    expect(() =>
+      applyAnalysis(project.db, {
+        unitId,
+        expected: creds(cleared.root),
+        changes: [{ action: 'link.removeField', relationId: 'rel-1', field: 'updatedAt' }],
+      }),
+    ).toThrow('analysis field cannot be removed');
+    expect(getAnalysisRoot(project.db, unitId)).toEqual(before);
     project.close();
   });
 
@@ -560,6 +639,138 @@ describe('analysis split and merge', () => {
     expect(left.root.graph?.nodes[0]?.id).not.toBe('n1');
     expect(right.root.graph?.nodes[0]?.id).not.toBe(left.root.graph?.nodes[0]?.id);
     expect(left.root.graph?.nodes[0]?.residue?.[0]?.body).toEqual({ keep: true, raw: 'n1' });
+    project.close();
+  });
+
+  it('remaps custom references to nodes and relations received in the same graph', () => {
+    const project = openProject(folder());
+    project.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 3, T);
+    const manuscript = project.manuscripts.create({ title: { zh: '文稿' }, mediaId: 'm1' });
+    const layer = project.layers.create({
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const first = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const second = project.units.create({
+      layerId: layer.id,
+      startTime: 1,
+      endTime: 2,
+      text: 'ka',
+    });
+    writeAnalysisRoot(project.db, {
+      unitId: second.id,
+      graph: {
+        ...graph([token('kept', 0), token('next', 1)]),
+        relations: [{ id: 'r1', type: 'next', sourceId: 'kept', targetId: 'next' }],
+      },
+      expectedAnalysisGeneration: 0,
+    });
+    const relationField = createDefinition(project.db, {
+      targetType: 'analysis-node',
+      name: { en: 'Relation' },
+      fieldType: 'ref',
+      targetTypes: ['analysis-relation'],
+      cardinality: 'one',
+    });
+    const crossField = createDefinition(project.db, {
+      targetType: 'analysis-node',
+      name: { en: 'Other unit' },
+      fieldType: 'ref',
+      targetTypes: ['analysis-relation'],
+      cardinality: 'one',
+    });
+    const nodeField = createDefinition(project.db, {
+      targetType: 'analysis-relation',
+      name: { en: 'Node' },
+      fieldType: 'ref',
+      targetTypes: ['analysis-node'],
+      cardinality: 'one',
+    });
+    const local = {
+      ...graph([token('n1', 0), token('n2', 1)]),
+      nodes: [
+        {
+          ...token('n1', 0),
+          customFields: {
+            [relationField.id]: {
+              targetType: 'analysis-relation',
+              targetId: 'r1',
+              unitId: first.id,
+            },
+            [crossField.id]: { targetType: 'analysis-relation', targetId: 'r1', unitId: second.id },
+          },
+        },
+        token('n2', 1),
+      ],
+      relations: [
+        {
+          id: 'r1',
+          type: 'next',
+          sourceId: 'n1',
+          targetId: 'n2',
+          customFields: {
+            [nodeField.id]: { targetType: 'analysis-node', targetId: 'n1', unitId: first.id },
+          },
+        },
+      ],
+    };
+    const submitted = submitNow(project.db, first.id, local);
+    const accepted = acceptAnalysis(project.db, {
+      candidateId: submitted.id,
+      expected: creds(
+        getAnalysisRoot(project.db, first.id) ?? { analysisGeneration: 0, graphFingerprint: '' },
+      ),
+    });
+    const node = accepted.root.graph?.nodes.find((item) => item.label === 'n1');
+    const relation = accepted.root.graph?.relations.find((item) => item.type === 'next');
+    expect(node?.customFields?.[relationField.id]).toEqual({
+      targetType: 'analysis-relation',
+      targetId: relation?.id,
+      unitId: first.id,
+    });
+    expect(relation?.id).not.toBe('r1');
+    expect(node?.customFields?.[crossField.id]).toEqual({
+      targetType: 'analysis-relation',
+      targetId: 'r1',
+      unitId: second.id,
+    });
+    expect(relation?.customFields?.[nodeField.id]).toEqual({
+      targetType: 'analysis-node',
+      targetId: node?.id,
+      unitId: first.id,
+    });
+    const empty = project.units.create({
+      layerId: layer.id,
+      startTime: 2,
+      endTime: 3,
+      text: 'ka',
+    });
+    expect(() =>
+      submitNow(project.db, empty.id, {
+        ...graph([token('n1', 0), token('n2', 1)]),
+        relations: [{ id: 'r1', type: 'next', sourceId: 'n1', targetId: 'n2' }],
+        nodes: [
+          {
+            ...token('n1', 0),
+            customFields: {
+              [relationField.id]: {
+                targetType: 'analysis-relation',
+                targetId: 'missing',
+                unitId: empty.id,
+              },
+            },
+          },
+          token('n2', 1),
+        ],
+      }),
+    ).toThrow('analysis reference is missing');
     project.close();
   });
 });

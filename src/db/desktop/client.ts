@@ -31,6 +31,8 @@ import type {
   CustomFieldUnitValue,
 } from './customFields';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
+import type { ContentNote, ContentNoteQuery, ContentNoteWrite } from './notes';
+import type { JieyuAnchoredNote } from '../dmlexTypes';
 
 export interface DesktopBridge {
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
@@ -138,6 +140,23 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<ProjectLexemeLink>(sessionId, 'lexicon.linkSense', input),
     removeSense: (sessionId: string, input: { lexemeId: string; senseId: string }) =>
       once<ProjectLexeme>(sessionId, 'lexicon.removeSense', input),
+    createNote: (sessionId: string, input: ContentNoteWrite) =>
+      once<ContentNote>(sessionId, 'notes.create', input),
+    listNotes: (sessionId: string, input: ContentNoteQuery = {}) =>
+      once<ContentNote[]>(sessionId, 'notes.list', input),
+    saveLexemeNote: (
+      sessionId: string,
+      input: {
+        lexemeId: string;
+        id?: string;
+        senseId?: string;
+        content: Record<string, string>;
+        category?: ContentNoteWrite['category'];
+        provenance?: unknown | null;
+      },
+    ) => once<JieyuAnchoredNote>(sessionId, 'notes.saveLexeme', input),
+    listLexemeNotes: (sessionId: string, lexemeId: string) =>
+      once<JieyuAnchoredNote[]>(sessionId, 'notes.listLexeme', { lexemeId }),
     applyAnalysis: (
       sessionId: string,
       input: {

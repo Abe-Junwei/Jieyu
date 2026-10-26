@@ -47,8 +47,9 @@ describe('record custom fields', () => {
       .run(T, T);
     project.db
       .prepare(
-        `INSERT INTO notes (id, target_type, target_id, body, created_at, updated_at)
-         VALUES ('n1', 'unit', 'u1', 'old', ?, ?)`,
+        `INSERT INTO notes (
+          id, anchor_kind, manuscript_id, unit_id, content_json, created_at, updated_at
+        ) VALUES ('n1', 'unit', 'm1', 'u1', '{"default":"old"}', ?, ?)`,
       )
       .run(T, T);
     project.db
@@ -83,7 +84,9 @@ describe('record custom fields', () => {
       expect(readFieldValue(project.db, definition.id, targetType, targetId)).toBeNull();
       expect(missingFields(project.db, targetType, targetId)).toEqual([definition.id]);
     }
-    project.db.prepare(`UPDATE notes SET body = 'next' WHERE id = 'n1'`).run();
+    project.db
+      .prepare(`UPDATE notes SET content_json = '{"default":"next"}' WHERE id = 'n1'`)
+      .run();
     project.db.prepare(`UPDATE sources SET label = 'reel' WHERE id = 's1'`).run();
     project.db.prepare(`UPDATE conversations SET title = 'later' WHERE id = 'c1'`).run();
     project.db.prepare(`UPDATE messages SET body = 'again' WHERE id = 'g1'`).run();
@@ -164,10 +167,10 @@ describe('record custom fields', () => {
     expect(locateCustomFieldValues(reopened.db, sourceField.id)).toEqual([
       { targetType: 'source', targetId: 's1' },
     ]);
-    const note = reopened.db.prepare(`SELECT body FROM notes WHERE id = 'n1'`).get() as {
-      body: string;
+    const note = reopened.db.prepare(`SELECT content_json FROM notes WHERE id = 'n1'`).get() as {
+      content_json: string;
     };
-    expect(note.body).toBe('next');
+    expect(JSON.parse(note.content_json)).toEqual({ default: 'next' });
     reopened.close();
   });
 });
