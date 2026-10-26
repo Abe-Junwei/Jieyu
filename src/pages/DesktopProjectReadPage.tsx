@@ -41,11 +41,14 @@ export function DesktopProjectReadPage() {
           saveMappingLabel={t(locale, 'app.desktopRead.saveMapping')}
           noteLabel={t(locale, 'app.desktopRead.note')}
           saveNoteLabel={t(locale, 'app.desktopRead.saveNote')}
+          saveTimelineNoteLabel={t(locale, 'app.desktopRead.saveTimelineNote')}
+          saveWaveformNoteLabel={t(locale, 'app.desktopRead.saveWaveformNote')}
           onSelectManuscript={read.selectManuscript}
           onSaveText={read.saveText}
           onMoveBoundary={read.moveBoundary}
           onSaveMapping={read.saveMapping}
           onSaveNote={read.saveUnitNote}
+          onSaveTierNote={read.saveTierNote}
         />
       )}
       {featureFlags.projectCustomFieldsEnabled && read.sessionId !== null ? (

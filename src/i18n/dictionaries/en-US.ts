@@ -57,6 +57,8 @@ export const enUSDictionary = {
   'app.desktopRead.saveMapping': 'Save time mapping',
   'app.desktopRead.note': 'Note',
   'app.desktopRead.saveNote': 'Save note',
+  'app.desktopRead.saveTimelineNote': 'Save timeline note',
+  'app.desktopRead.saveWaveformNote': 'Save waveform note',
   'app.projectFields.title': 'Project fields',
   'app.projectFields.target': 'Object',
   'app.projectFields.name': 'Name',

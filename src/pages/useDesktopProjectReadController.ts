@@ -25,7 +25,7 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
         setSessionId(picked.sessionId);
         const next = await loadDesktopProjectRead(readApi(host), picked.sessionId);
         setModel(next);
-        setNotes(await loadUnitNotes(host, picked.sessionId, next.manuscriptId));
+        setNotes(await loadShownNotes(host, picked.sessionId, next.manuscriptId));
       })
       .catch(() => {
         setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -38,7 +38,7 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
     void loadDesktopProjectRead(readApi(host), sessionId, manuscriptId)
       .then(async (next) => {
         setModel(next);
-        setNotes(await loadUnitNotes(host, sessionId, next.manuscriptId));
+        setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
       })
       .catch(() => {
         setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -50,7 +50,7 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
     const manuscriptId = model?.manuscriptId ?? undefined;
     return loadDesktopProjectRead(readApi(host), sessionId, manuscriptId).then(async (next) => {
       setModel(next);
-      setNotes(await loadUnitNotes(host, sessionId, next.manuscriptId));
+      setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
     });
   };
 
@@ -106,7 +106,24 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
     setError('');
     void createDesktopClient({ desktopCall: host.desktopCall })
       .createNote(sessionId, { anchor: { kind: 'unit', unitId }, content: { default: text } })
-      .then(() => loadUnitNotes(host, sessionId, model?.manuscriptId ?? null))
+      .then(() => loadShownNotes(host, sessionId, model?.manuscriptId ?? null))
+      .then(setNotes)
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const saveTierNote = (
+    unitId: string,
+    layerId: string,
+    kind: 'tier_timeline' | 'tier_waveform',
+    text: string,
+  ) => {
+    if (host === null || sessionId === null || text.length === 0) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .createNote(sessionId, { anchor: { kind, unitId, layerId }, content: { default: text } })
+      .then(() => loadShownNotes(host, sessionId, model?.manuscriptId ?? null))
       .then(setNotes)
       .catch(() => {
         setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -124,6 +141,7 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
     moveBoundary,
     saveMapping,
     saveUnitNote,
+    saveTierNote,
   };
 }
 
@@ -133,7 +151,9 @@ interface UnitNote {
   text: string;
 }
 
-async function loadUnitNotes(
+const SHOWN_NOTE_KINDS = ['unit', 'tier_timeline', 'tier_waveform'] as const;
+
+async function loadShownNotes(
   host: DesktopReadHost,
   sessionId: string,
   manuscriptId: string | null,
@@ -141,14 +161,15 @@ async function loadUnitNotes(
   if (manuscriptId === null) return [];
   const rows = await createDesktopClient({ desktopCall: host.desktopCall }).listNotes(sessionId, {
     manuscriptId,
-    anchorKind: 'unit',
     attachment: 'active',
   });
-  return rows.map((row) => ({
-    id: row.id,
-    unitId: row.unitId,
-    text: row.content.default ?? '',
-  }));
+  return rows
+    .filter((row) => SHOWN_NOTE_KINDS.some((kind) => kind === row.anchorKind))
+    .map((row) => ({
+      id: row.id,
+      unitId: row.unitId,
+      text: row.content.default ?? '',
+    }));
 }
 
 function readApi(host: DesktopReadHost): DesktopProjectReadApi {

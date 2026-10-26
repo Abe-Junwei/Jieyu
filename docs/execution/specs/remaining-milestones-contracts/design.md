@@ -43,7 +43,7 @@ depends_on:
 
 另有新库已决定的 layer 备注，旧枚举里没有这个类型。包和 JSON 导入仍可能带上没有按钮的四类，恢复时按上表核对，对不上就拒绝，不丢成空备注。
 
-载体已落到 `notes`：`anchor_kind` 决定哪些锚点列必须有值，其余必须为空。项目或文稿归属在写入时核对后放进 `project_id` / `manuscript_id`。`tier_timeline` 与 `tier_waveform` 即使指向同一个语段和层也是两行。`translation_comment` 只指向译文那一行，不改它的 `body`。`content_row`、`graph_node`、`cell` 是旧 `annotation` 的显式映射；没有对应目标就拒绝。词条和义项不写这张表，写在该词条的 `jieyu_json.anchoredNotes`，并保留原来的 `notes` 自由文本。分析恢复只改附着和锚点；备注若在候选之后改过，正文和分类留在行上。`user_version` 14。旧文件只拒绝。文件夹页可以给选中语段写一条备注并读回。旧标注页还没改接，因为它的语段不在这个文件里。
+载体已落到 `notes`：`anchor_kind` 决定哪些锚点列必须有值，其余必须为空。项目或文稿归属在写入时核对后放进 `project_id` / `manuscript_id`。`tier_timeline` 与 `tier_waveform` 即使指向同一个语段和层也是两行。`translation_comment` 只指向译文那一行，不改它的 `body`。`content_row`、`graph_node`、`cell` 是旧 `annotation` 的显式映射；没有对应目标就拒绝。词条和义项不写这张表，写在该词条的 `jieyu_json.anchoredNotes`，并保留原来的 `notes` 自由文本。分析恢复只改附着和锚点；备注若在候选之后改过，正文和分类留在行上。`user_version` 14。旧文件只拒绝。文件夹页可以给选中语段写备注并读回。同一层上的时间轴和波形各写一行。旧标注页还没改接，因为它的语段不在这个文件里。
 
 ## 3. 其他域：旧字段与今天的新表
 
@@ -60,7 +60,7 @@ depends_on:
 | 保存的查询 | `AiSourceSetDoc` 仍在旧类型里 | 新库没有表 | 没有已达产品功能就不建表 |
 | AI 写入 | 现有提案、审批、执行分开 | 无新的通用写入口 | 复用具体领域操作 |
 
-来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。备注载体、桌面会话和文件夹页的语段备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
+来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
 
 ## 4. 诊断库
 

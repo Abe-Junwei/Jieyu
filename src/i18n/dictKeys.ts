@@ -50,6 +50,8 @@ export const DICT_KEYS = [
   'app.desktopRead.saveMapping',
   'app.desktopRead.note',
   'app.desktopRead.saveNote',
+  'app.desktopRead.saveTimelineNote',
+  'app.desktopRead.saveWaveformNote',
   'app.projectFields.title',
   'app.projectFields.target',
   'app.projectFields.name',
