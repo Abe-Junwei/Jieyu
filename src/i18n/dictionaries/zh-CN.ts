@@ -403,6 +403,7 @@ export const zhCNDictionary = {
   'workspace.annotation.noteCategory.linguistic': '语言学',
   'workspace.annotation.noteCategory.fieldwork': '田野',
   'workspace.annotation.noteCategory.correction': '修订',
+  'workspace.annotation.noteCategory.topic': '主题',
   'workspace.annotation.autoGlossPreview': '预览自动对译',
   'workspace.annotation.autoGlossApply': '采纳建议',
   'workspace.annotation.autoGlossEmpty': '没有可采纳的自动对译建议。',

@@ -13,6 +13,7 @@ import {
   resetDesktopSessions,
 } from '../db/desktop/projectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { forgetOpenProjectSession, readOpenProjectSession } from '../desktop/openProjectSession';
 import { LocaleProvider } from '../i18n';
 import { DesktopProjectReadPage } from './DesktopProjectReadPage';
 
@@ -22,6 +23,7 @@ afterEach(() => {
   cleanup();
   delete (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop;
   resetDesktopSessions();
+  forgetOpenProjectSession();
   for (const root of roots) rmSync(root, { recursive: true, force: true });
   roots.length = 0;
 });
@@ -276,6 +278,7 @@ describe('DesktopProjectReadPage', () => {
       text: 'sentence',
     }) as { id: string };
     mount(session.sessionId);
+    await waitFor(() => expect(readOpenProjectSession()).toBe(session.sessionId));
     fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), {
       target: { value: 'remember' },

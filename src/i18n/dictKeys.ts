@@ -389,6 +389,7 @@ export const DICT_KEYS = [
   'workspace.annotation.noteCategory.linguistic',
   'workspace.annotation.noteCategory.fieldwork',
   'workspace.annotation.noteCategory.correction',
+  'workspace.annotation.noteCategory.topic',
   'workspace.annotation.autoGlossPreview',
   'workspace.annotation.autoGlossApply',
   'workspace.annotation.autoGlossEmpty',

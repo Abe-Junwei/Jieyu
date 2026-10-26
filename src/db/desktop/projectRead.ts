@@ -20,6 +20,7 @@ export async function loadDesktopProjectRead(
   api: DesktopProjectReadApi,
   sessionId: string,
   manuscriptId?: string,
+  includeMedia = true,
 ): Promise<DesktopProjectRead> {
   const manuscripts = await api.listManuscripts(sessionId);
   const selected =
@@ -37,6 +38,6 @@ export async function loadDesktopProjectRead(
     (item) => item.tierType === 'time-aligned' && item.contentType === 'transcription',
   );
   const units = layer === undefined ? [] : await api.listUnits(sessionId, layer.id);
-  const audioUrl = await api.mediaPlayUrl(sessionId, selected.mediaId);
+  const audioUrl = includeMedia ? await api.mediaPlayUrl(sessionId, selected.mediaId) : null;
   return { manuscripts, manuscriptId: selected.id, audioUrl, units };
 }
