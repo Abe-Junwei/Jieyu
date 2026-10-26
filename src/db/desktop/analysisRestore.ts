@@ -218,6 +218,7 @@ export function acceptAnalysis(
     const written = writeGraph(db, material, candidate.graph, false);
     detachAnalysisAssociations(
       db,
+      material.unitId,
       nodeIdsOf(material.graph).filter((id) => !new Set(nodeIdsOf(written.graph)).has(id)),
       new Date().toISOString(),
     );
@@ -245,7 +246,7 @@ export function restoreAnalysis(
     assertCredentials(material, input.expected);
     if (material.graph !== null) insertReviewSnapshot(db, material);
     const now = new Date().toISOString();
-    detachAnalysisAssociations(db, nodeIdsOf(material.graph), now);
+    detachAnalysisAssociations(db, material.unitId, nodeIdsOf(material.graph), now);
     const written = writeGraph(
       db,
       material,
@@ -285,7 +286,7 @@ export function splitAnalysisNode(
       throw new Error('analysis split reuses a node id');
     }
     insertReviewSnapshot(db, material);
-    detachAnalysisAssociations(db, [input.nodeId], new Date().toISOString());
+    detachAnalysisAssociations(db, input.unitId, [input.nodeId], new Date().toISOString());
     return writeGraph(db, material, {
       ...graph,
       nodes: [...graph.nodes.filter((node) => node.id !== input.nodeId), ...input.into],
@@ -322,7 +323,7 @@ export function mergeAnalysisNodes(
     }
     const removed = new Set<string>(input.nodeIds);
     insertReviewSnapshot(db, material);
-    detachAnalysisAssociations(db, input.nodeIds, new Date().toISOString());
+    detachAnalysisAssociations(db, input.unitId, input.nodeIds, new Date().toISOString());
     return writeGraph(db, material, {
       ...graph,
       nodes: [...graph.nodes.filter((node) => !removed.has(node.id)), input.into],

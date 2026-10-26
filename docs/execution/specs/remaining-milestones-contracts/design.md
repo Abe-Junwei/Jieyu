@@ -19,31 +19,31 @@ depends_on:
 - [SQLite ATTACH](https://www.sqlite.org/lang_attach.html) 在限定条件下可以跨库提交。当前项目库和 userData 是两个独立连接，不能据此声称已经原子。决定：**不采用** ATTACH。
 - [Electron shell.trashItem](https://www.electronjs.org/docs/latest/api/shell#shelltrashitempath) 返回完成后的 Promise，不返回垃圾箱句柄。决定：**复用** 这个 API，失败和未知按 ADR-0091 的阶段处理。
 - 反模式：用 `audit_logs` 的覆盖写入当去重；用整行旧快照当字段合并；用一次目录改名当作三平台原子替换。
-- [EAF](https://www.mpi.nl/tools/elan/EAF_Annotation_Format_3.0_and_ELAN.pdf) 用 `ANNOTATION_ID` 指向层或父标注，不用下标。ELAN 评论是标注值之外的另一份集合。决定：**适配** 这个分法。译文正文留在 `unit_texts`，评论另起锚点。
-- [LIFT / FLEx](https://downloads.languagetechnology.org/fieldworks/Documentation/Technical%20Notes%20on%20LIFT%20used%20in%20FLEx.pdf) 把词条备注写成该词条上的多语 `note`，义项身份是词条内的 id。决定：**适配** 到 `jieyu_json.anchoredNotes`，不进 `notes` 表。同名 `senseId` 因此不会串到另一个词条。
+- [ELAN 评论](https://www.mpi.nl/corpus/html/elan/ch01s08.html) 与标注值分开，评论可以引用时间片和层。父标注引用是 [EAF](https://www.mpi.nl/tools/elan/EAF_Annotation_Format_3.0_and_ELAN.pdf) 里的另一种机制。决定：**适配**「评论不写进正文」。译文正文留在 `unit_texts`，评论指向那一行。
+- [FLEx LIFT 技术说明第 6 节](https://downloads.languagetechnology.org/fieldworks/Documentation/Technical%20Notes%20on%20LIFT%20used%20in%20FLEx.pdf) 把 sense id 定义为项目内唯一。本库不采用这个全局性。决定：**适配** 词条上的多语 note，义项备注按 `(lexeme_id, sense_id)` 留在该词条的 `jieyu_json.anchoredNotes`。
 - 仓库里 `lexemes.kind` 和 `token_lexeme_links` 已经用 CHECK 把互斥形状定死。决定：**复用** 排他列，不新增依赖，不用一个 `target_id` 兼代九类。没有外键，目标消失后备注行还在，附着状态另行标成 detached。
 
 ## 2. 备注：旧字段与构造点
 
 旧行是 `UserNoteDocType`：`id`、`textId`、`targetType`、`targetId`、`targetIndex?`、`parentTargetId?`、多语 `content`、可选 `category`、可选 `provenance`、`createdAt`、`updatedAt`。`targetIndex` 只在一次交换解析时使用，解析后保存稳定身份。
 
-新库 `notes` 目前只有 `layer|unit|token|morpheme`、`target_id`、单字符串 `body` 和 `attachment`。它不是本表的落点，实施时要换载体。词条侧当前 `JieyuNote` 是 `{ owner, ref, text }`，没有稳定备注 id，也没有多语、分类和来源。
+旧库的 `JieyuNote` 是 `{ owner, ref, text }`，没有稳定备注 id。新表不沿用那个形状。下表只说明以后导入时怎么对照，不决定 `notes` 的列。
 
 | 旧目标 | 生产构造点 | 新锚点 | 归属 |
 | --- | --- | --- | --- |
-| unit | `useNoteHandlers`、导入、Flex、EAF、`saveAnnotationUnitMeta` | unitId | 由层核对文稿 |
-| token | `useNoteHandlers`、`useNotes`、导入词图、自动 gloss | unitId + 稳定节点 id | 接收批次映射，不按 token 下标找回 |
-| morpheme | `useNoteHandlers`、`useNotes`、导入词图 | unitId + 稳定节点 id | 父词只校验，不代替身份 |
-| tier_annotation | `useNoteHandlers` 的 `unitId::layerId` 与 `::@waveform` | unitId + layerId + timeline 或 waveform | 不粗化成语段或整层 |
-| text | 导入标题备注、Flex 文稿头 | projectId | 旧项目范围备注留在项目；文稿头注必须由导入合同显式指定文稿 |
-| translation | 本轮没有生产构造点。解析在 `noteTextId.ts`，夹具在测试 | unitTextId + role | 评论不写入译文正文行 |
-| annotation | 本轮没有生产构造点。解析和清除测试覆盖它 | 交换给出的内容行、图节点或单元格 | 没有显式映射就拒绝并给出损失，不持久化 |
-| lexeme | 本轮没有 `user_notes` 生产构造点 | lexemeId + 稳定 noteId | 只进 `jieyu_json` |
-| sense | 本轮没有生产构造点。`saveUserNote` 的义项用例只在测试 | lexemeId + senseId + 稳定 noteId | 先核对属于该词条 |
+| unit | `useNoteHandlers`、导入、Flex、EAF、`saveAnnotationUnitMeta` | `unit` | 由层核对文稿 |
+| token | `useNoteHandlers`、`useNotes`、导入词图、自动 gloss | `token` 投影行 id | 创建时核对语段 |
+| morpheme | `useNoteHandlers`、`useNotes`、导入词图 | `morpheme` 投影行 id，并保存 `token_id` | 恢复时与投影上的父词一致 |
+| tier_annotation | `useNoteHandlers` 的 `unitId::layerId` 与 `::@waveform` | `unit` 加 `view` | 不是单独的对象种类 |
+| text | 导入标题备注、Flex 文稿头 | `project` 或 `manuscript` | 文稿头注必须由导入合同显式指定文稿 |
+| translation | 本轮没有生产构造点。解析在 `noteTextId.ts`，夹具在测试 | `unit_text` | 评论不写入译文正文行 |
+| annotation | 本轮没有生产构造点。解析和清除测试覆盖它 | 有对应正文行或图节点才映射 | 没有显式映射就拒绝，不持久化 |
+| lexeme | 本轮没有 `user_notes` 生产构造点 | `(lexeme_id, noteId)` | 只进 `jieyu_json` |
+| sense | 本轮没有生产构造点。`saveUserNote` 的义项用例只在测试 | `(lexeme_id, sense_id, noteId)` | 先核对属于该词条 |
 
 另有新库已决定的 layer 备注，旧枚举里没有这个类型。包和 JSON 导入仍可能带上没有按钮的四类，恢复时按上表核对，对不上就拒绝，不丢成空备注。
 
-载体已落到 `notes`：`anchor_kind` 决定哪些锚点列必须有值，其余必须为空。项目或文稿归属在写入时核对后放进 `project_id` / `manuscript_id`。`tier_timeline` 与 `tier_waveform` 即使指向同一个语段和层也是两行。`translation_comment` 只指向译文那一行，不改它的 `body`。`content_row`、`graph_node`、`cell` 是旧 `annotation` 的显式映射；没有对应目标就拒绝。词条和义项不写这张表，写在该词条的 `jieyu_json.anchoredNotes`，并保留原来的 `notes` 自由文本。分析恢复只改附着和锚点；备注若在候选之后改过，正文和分类留在行上。`user_version` 14。旧文件只拒绝。文件夹页可以给选中语段写备注并读回。同一层上的时间轴和波形各写一行。旧标注页还没改接，因为它的语段不在这个文件里。
+旁注锚点是 `project`、`manuscript`、`layer`、`unit`、`unit_text`、`token`、`morpheme`、`analysis_node`。`view` 只属于语段，可为空、`timeline` 或 `waveform`，同一处可以有多条。词和词素用投影行 id。图节点身份是 `(unit_id, node_id)`。目标被物理删除时，同一事务把相关旁注标为 `detached`，正文和分类不动。文稿最终清除才按 `manuscript_id` 删行。已有行恢复只改锚点和附着，不补回缺失行。词条和义项备注仍只在 `jieyu_json.anchoredNotes`。版本以 `src/db/desktop/schema.ts` 为准。旧文件只拒绝。规则在 [ADR-0092](../../../adr/0092-desktop-note-anchors.md)。文件夹页的语段、时间轴和波形备注仍是三条语段旁注。旧标注页还没改接。
 
 ## 3. 其他域：旧字段与今天的新表
 

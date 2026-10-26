@@ -19,19 +19,17 @@ const CATEGORIES = [
 
 export type ContentNoteCategory = (typeof CATEGORIES)[number];
 
+export type ContentNoteView = 'timeline' | 'waveform';
+
 export type ContentNoteAnchor =
   | { kind: 'project' }
   | { kind: 'manuscript'; manuscriptId: string }
   | { kind: 'layer'; layerId: string }
-  | { kind: 'unit'; unitId: string }
-  | { kind: 'token'; unitId: string; nodeId: string }
-  | { kind: 'morpheme'; unitId: string; nodeId: string; parentNodeId?: string }
-  | { kind: 'tier_timeline'; unitId: string; layerId: string }
-  | { kind: 'tier_waveform'; unitId: string; layerId: string }
-  | { kind: 'translation_comment'; unitTextId: string }
-  | { kind: 'content_row'; unitTextId: string }
-  | { kind: 'graph_node'; unitId: string; nodeId: string }
-  | { kind: 'cell'; unitId: string; layerId: string; cellKey: string };
+  | { kind: 'unit'; unitId: string; view?: ContentNoteView }
+  | { kind: 'unit_text'; unitTextId: string }
+  | { kind: 'token'; unitId: string; tokenId: string }
+  | { kind: 'morpheme'; unitId: string; morphemeId: string }
+  | { kind: 'analysis_node'; unitId: string; nodeId: string };
 
 export interface ContentNoteWrite {
   id?: string;
@@ -48,10 +46,11 @@ export interface ContentNote {
   manuscriptId: string | null;
   layerId: string | null;
   unitId: string | null;
-  nodeId: string | null;
   unitTextId: string | null;
-  textRole: string | null;
-  cellKey: string | null;
+  tokenId: string | null;
+  morphemeId: string | null;
+  nodeId: string | null;
+  view: ContentNoteView | null;
   content: Record<string, string>;
   category: ContentNoteCategory | null;
   provenance: unknown | null;
@@ -73,6 +72,7 @@ export interface AnalysisNoteSnapshot {
   id: string;
   targetType: string;
   targetId: string;
+  tokenId?: string;
   body: string;
   content?: Record<string, string>;
   category?: string | null;
@@ -87,10 +87,11 @@ interface NoteRow {
   manuscript_id: string | null;
   layer_id: string | null;
   unit_id: string | null;
-  node_id: string | null;
   unit_text_id: string | null;
-  text_role: string | null;
-  cell_key: string | null;
+  token_id: string | null;
+  morpheme_id: string | null;
+  node_id: string | null;
+  view: ContentNoteView | null;
   content_json: string;
   category: ContentNoteCategory | null;
   provenance_json: string | null;
@@ -104,15 +105,16 @@ interface Place {
   manuscriptId: string | null;
   layerId: string | null;
   unitId: string | null;
-  nodeId: string | null;
   unitTextId: string | null;
-  textRole: string | null;
-  cellKey: string | null;
+  tokenId: string | null;
+  morphemeId: string | null;
+  nodeId: string | null;
+  view: ContentNoteView | null;
 }
 
-const NOTE_COLUMNS = `id, anchor_kind, project_id, manuscript_id, layer_id, unit_id, node_id,
-  unit_text_id, text_role, cell_key, content_json, category, provenance_json, attachment,
-  created_at, updated_at`;
+const NOTE_COLUMNS = `id, anchor_kind, project_id, manuscript_id, layer_id, unit_id,
+  unit_text_id, token_id, morpheme_id, node_id, view, content_json, category, provenance_json,
+  attachment, created_at, updated_at`;
 
 export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): ContentNote {
   const write = db.transaction(() => {
@@ -124,10 +126,10 @@ export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): 
     const place = resolveAnchor(db, input.anchor);
     db.prepare(
       `INSERT INTO notes (
-        id, anchor_kind, project_id, manuscript_id, layer_id, unit_id, node_id,
-        unit_text_id, text_role, cell_key, content_json, category, provenance_json,
+        id, anchor_kind, project_id, manuscript_id, layer_id, unit_id, unit_text_id,
+        token_id, morpheme_id, node_id, view, content_json, category, provenance_json,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       input.anchor.kind,
@@ -135,10 +137,11 @@ export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): 
       place.manuscriptId,
       place.layerId,
       place.unitId,
-      place.nodeId,
       place.unitTextId,
-      place.textRole,
-      place.cellKey,
+      place.tokenId,
+      place.morphemeId,
+      place.nodeId,
+      place.view,
       contentJson(input.content),
       categoryOf(input.category),
       provenanceJson(input.provenance),
@@ -174,6 +177,7 @@ export function listContentNotes(db: SqliteDatabase, query: ContentNoteQuery = {
     params.push(query.unitId);
   }
   if (query.nodeId !== undefined) {
+    if (query.unitId === undefined) throw new Error('note query needs a unit');
     clauses.push('node_id = ?');
     params.push(query.nodeId);
   }
@@ -195,20 +199,28 @@ export function listContentNotes(db: SqliteDatabase, query: ContentNoteQuery = {
 
 export function readActiveAnalysisNotes(
   db: SqliteDatabase,
+  unitId: string,
   targetIds: readonly string[],
 ): AnalysisNoteSnapshot[] {
   const select = db.prepare(
-    `SELECT id, anchor_kind, node_id, content_json, category, created_at, updated_at
+    `SELECT id, anchor_kind, token_id, morpheme_id, node_id, content_json, category,
+            created_at, updated_at
      FROM notes
-     WHERE node_id = ? AND attachment = 'active' AND anchor_kind IN ('token', 'morpheme')
+     WHERE unit_id = ? AND attachment = 'active' AND (
+       (anchor_kind = 'token' AND token_id = ?)
+       OR (anchor_kind = 'morpheme' AND morpheme_id = ?)
+       OR (anchor_kind = 'analysis_node' AND node_id = ?)
+     )
      ORDER BY id`,
   );
   const notes: AnalysisNoteSnapshot[] = [];
   for (const targetId of targetIds) {
-    const rows = select.all(targetId) as {
+    const rows = select.all(unitId, targetId, targetId, targetId) as {
       id: string;
       anchor_kind: string;
-      node_id: string;
+      token_id: string | null;
+      morpheme_id: string | null;
+      node_id: string | null;
       content_json: string;
       category: string | null;
       created_at: string;
@@ -216,10 +228,20 @@ export function readActiveAnalysisNotes(
     }[];
     for (const row of rows) {
       const content = parseContent(row.content_json);
+      const target =
+        row.anchor_kind === 'token'
+          ? row.token_id
+          : row.anchor_kind === 'morpheme'
+            ? row.morpheme_id
+            : row.node_id;
+      if (target === null) continue;
       notes.push({
         id: row.id,
         targetType: row.anchor_kind,
-        targetId: row.node_id,
+        targetId: target,
+        ...(row.anchor_kind === 'morpheme' && row.token_id !== null
+          ? { tokenId: row.token_id }
+          : {}),
         body: analysisNoteBody(content),
         content,
         category: row.category,
@@ -231,63 +253,97 @@ export function readActiveAnalysisNotes(
   return notes;
 }
 
-/** Restores whether a token or morpheme note is still attached. Leaves a later body and category. */
+/** Restores the anchor and attachment of an existing analysis note. Does not write its body. */
 export function restoreAnalysisNote(
   db: SqliteDatabase,
   note: AnalysisNoteSnapshot,
   unitId: string,
   attachment: 'active' | 'detached',
-  candidateCreatedAt: string,
+  _candidateCreatedAt: string,
   now: string,
 ): void {
-  if (note.targetType !== 'token' && note.targetType !== 'morpheme') {
-    throw new Error('analysis note target is invalid');
-  }
-  const place = unitPlace(db, unitId);
-  const existing = db.prepare('SELECT updated_at FROM notes WHERE id = ?').get(note.id) as
-    { updated_at: string } | undefined;
-  const content = noteContent(note);
-  if (existing === undefined) {
-    db.prepare(
-      `INSERT INTO notes (
-        id, anchor_kind, project_id, manuscript_id, unit_id, node_id, content_json, category,
-        attachment, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      note.id,
-      note.targetType,
-      savedProjectId(db),
-      place.manuscriptId,
-      unitId,
-      note.targetId,
-      JSON.stringify(content),
-      categoryOf(note.category),
-      attachment,
-      note.createdAt,
+  const existing = db
+    .prepare('SELECT token_id, manuscript_id FROM notes WHERE id = ?')
+    .get(note.id) as { token_id: string | null; manuscript_id: string | null } | undefined;
+  if (existing === undefined) return;
+  const unit = unitPlace(db, unitId);
+  if (existing.manuscript_id !== unit.manuscriptId) {
+    db.prepare('UPDATE notes SET attachment = ?, updated_at = ? WHERE id = ?').run(
+      'detached',
       now,
+      note.id,
     );
     return;
   }
-  const keep = existing.updated_at > candidateCreatedAt;
+  const place = restoredAnalysisPlace(note, existing.token_id);
+  const next =
+    attachment === 'active' && analysisTargetMatches(db, unitId, place) ? 'active' : 'detached';
   db.prepare(
     `UPDATE notes SET
-      anchor_kind = ?, unit_id = ?, node_id = ?,
-      layer_id = NULL, unit_text_id = NULL, text_role = NULL, cell_key = NULL,
-      content_json = CASE WHEN ? = 1 THEN content_json ELSE ? END,
-      updated_at = CASE WHEN ? = 1 THEN updated_at ELSE ? END,
-      attachment = ?
+      anchor_kind = ?, unit_id = ?, token_id = ?, morpheme_id = ?, node_id = ?,
+      layer_id = NULL, unit_text_id = NULL, view = NULL,
+      attachment = ?, updated_at = ?
     WHERE id = ?`,
-  ).run(
-    note.targetType,
-    unitId,
-    note.targetId,
-    keep ? 1 : 0,
-    JSON.stringify(content),
-    keep ? 1 : 0,
-    now,
-    attachment,
-    note.id,
+  ).run(place.kind, unitId, place.tokenId, place.morphemeId, place.nodeId, next, now, note.id);
+}
+
+export function detachAnalysisNotes(
+  db: SqliteDatabase,
+  unitId: string,
+  targetIds: readonly string[],
+  now: string,
+): void {
+  const note = db.prepare(
+    `UPDATE notes SET attachment = 'detached', updated_at = ?
+     WHERE unit_id = ? AND attachment = 'active' AND (
+       (anchor_kind = 'token' AND token_id = ?)
+       OR (anchor_kind = 'morpheme' AND morpheme_id = ?)
+       OR (anchor_kind = 'analysis_node' AND node_id = ?)
+     )`,
   );
+  for (const targetId of targetIds) note.run(now, unitId, targetId, targetId, targetId);
+}
+
+export function detachProjectionNotes(db: SqliteDatabase, unitId: string, now: string): void {
+  db.prepare(
+    `UPDATE notes SET attachment = 'detached', updated_at = ?
+     WHERE unit_id = ? AND attachment = 'active' AND anchor_kind IN ('token', 'morpheme')`,
+  ).run(now, unitId);
+}
+
+export function detachNotesForDeletedTarget(
+  db: SqliteDatabase,
+  target:
+    | { kind: 'layer'; layerId: string }
+    | { kind: 'unit'; unitId: string }
+    | { kind: 'unit_text'; unitTextId: string },
+  now: string,
+): void {
+  if (target.kind === 'unit_text') {
+    db.prepare(
+      `UPDATE notes SET attachment = 'detached', updated_at = ?
+       WHERE unit_text_id = ? AND attachment = 'active'`,
+    ).run(now, target.unitTextId);
+    return;
+  }
+  if (target.kind === 'unit') {
+    db.prepare(
+      `UPDATE notes SET attachment = 'detached', updated_at = ?
+       WHERE unit_id = ? AND attachment = 'active'`,
+    ).run(now, target.unitId);
+    return;
+  }
+  db.prepare(
+    `UPDATE notes SET attachment = 'detached', updated_at = ?
+     WHERE attachment = 'active' AND (
+       layer_id = ?
+       OR unit_id IN (SELECT id FROM units WHERE layer_id = ?)
+     )`,
+  ).run(now, target.layerId, target.layerId);
+}
+
+export function deleteManuscriptNotes(db: SqliteDatabase, manuscriptId: string): void {
+  db.prepare('DELETE FROM notes WHERE manuscript_id = ?').run(manuscriptId);
 }
 
 export function saveLexemeNote(
@@ -400,10 +456,11 @@ function resolveAnchor(db: SqliteDatabase, anchor: ContentNoteAnchor): Place {
     manuscriptId: null,
     layerId: null,
     unitId: null,
-    nodeId: null,
     unitTextId: null,
-    textRole: null,
-    cellKey: null,
+    tokenId: null,
+    morphemeId: null,
+    nodeId: null,
+    view: null,
   };
   switch (anchor.kind) {
     case 'project': {
@@ -420,76 +477,50 @@ function resolveAnchor(db: SqliteDatabase, anchor: ContentNoteAnchor): Place {
     }
     case 'unit': {
       const unit = unitPlace(db, anchor.unitId);
-      return { ...empty, manuscriptId: unit.manuscriptId, unitId: anchor.unitId };
-    }
-    case 'token':
-      requireNode(db, anchor.unitId, anchor.nodeId, 'token');
-      return {
-        ...empty,
-        manuscriptId: unitPlace(db, anchor.unitId).manuscriptId,
-        unitId: anchor.unitId,
-        nodeId: anchor.nodeId,
-      };
-    case 'morpheme': {
-      const node = requireNode(db, anchor.unitId, anchor.nodeId, 'morpheme');
-      if (anchor.parentNodeId !== undefined) {
-        const parts = Array.isArray(node.surfaceParts) ? node.surfaceParts : [];
-        if (!parts.some((part) => part.tokenId === anchor.parentNodeId)) {
-          throw new Error('morpheme parent does not match');
-        }
-      }
-      return {
-        ...empty,
-        manuscriptId: unitPlace(db, anchor.unitId).manuscriptId,
-        unitId: anchor.unitId,
-        nodeId: anchor.nodeId,
-      };
-    }
-    case 'graph_node':
-      requireNode(db, anchor.unitId, anchor.nodeId);
-      return {
-        ...empty,
-        manuscriptId: unitPlace(db, anchor.unitId).manuscriptId,
-        unitId: anchor.unitId,
-        nodeId: anchor.nodeId,
-      };
-    case 'tier_timeline':
-    case 'tier_waveform': {
-      const unit = unitPlace(db, anchor.unitId);
-      const layer = layerPlace(db, anchor.layerId);
-      if (unit.manuscriptId !== layer.manuscriptId) {
-        throw new Error('note target is in another manuscript');
-      }
       return {
         ...empty,
         manuscriptId: unit.manuscriptId,
         unitId: anchor.unitId,
-        layerId: anchor.layerId,
+        view: anchor.view ?? null,
       };
     }
-    case 'cell': {
-      const unit = unitPlace(db, anchor.unitId);
-      const layer = layerPlace(db, anchor.layerId);
-      if (unit.manuscriptId !== layer.manuscriptId) {
-        throw new Error('note target is in another manuscript');
-      }
-      return {
-        ...empty,
-        manuscriptId: unit.manuscriptId,
-        unitId: anchor.unitId,
-        layerId: anchor.layerId,
-        cellKey: requiredKey(anchor.cellKey),
-      };
-    }
-    case 'translation_comment':
-    case 'content_row': {
+    case 'unit_text': {
       const text = textPlace(db, anchor.unitTextId);
       return {
         ...empty,
         manuscriptId: text.manuscriptId,
         unitId: text.unitId,
         unitTextId: anchor.unitTextId,
-        textRole: anchor.kind === 'translation_comment' ? text.role : null,
+      };
+    }
+    case 'token': {
+      const token = tokenPlace(db, anchor.tokenId);
+      if (token.unitId !== anchor.unitId) throw new Error('note target is missing');
+      return {
+        ...empty,
+        manuscriptId: token.manuscriptId,
+        unitId: anchor.unitId,
+        tokenId: anchor.tokenId,
+      };
+    }
+    case 'morpheme': {
+      const morpheme = morphemePlace(db, anchor.morphemeId);
+      if (morpheme.unitId !== anchor.unitId) throw new Error('note target is missing');
+      return {
+        ...empty,
+        manuscriptId: morpheme.manuscriptId,
+        unitId: anchor.unitId,
+        tokenId: morpheme.tokenId,
+        morphemeId: anchor.morphemeId,
+      };
+    }
+    case 'analysis_node': {
+      requireGraphNode(db, anchor.unitId, anchor.nodeId);
+      return {
+        ...empty,
+        manuscriptId: unitPlace(db, anchor.unitId).manuscriptId,
+        unitId: anchor.unitId,
+        nodeId: anchor.nodeId,
       };
     }
     default: {
@@ -547,30 +578,115 @@ function textPlace(
   return row;
 }
 
-function requireNode(
+function tokenPlace(db: SqliteDatabase, tokenId: string): { unitId: string; manuscriptId: string } {
+  const row = db
+    .prepare(
+      `SELECT tokens.unit_id AS unitId, layers.manuscript_id AS manuscriptId
+       FROM tokens
+       JOIN units ON units.id = tokens.unit_id
+       JOIN layers ON layers.id = units.layer_id
+       WHERE tokens.id = ?`,
+    )
+    .get(tokenId) as { unitId: string; manuscriptId: string } | undefined;
+  if (row === undefined) throw new Error('note target is missing');
+  return row;
+}
+
+function morphemePlace(
   db: SqliteDatabase,
-  unitId: string,
-  nodeId: string,
-  type?: string,
-): { surfaceParts?: { tokenId?: string }[] } {
+  morphemeId: string,
+): { unitId: string; manuscriptId: string; tokenId: string } {
+  const row = db
+    .prepare(
+      `SELECT tokens.unit_id AS unitId, layers.manuscript_id AS manuscriptId,
+              morphemes.token_id AS tokenId
+       FROM morphemes
+       JOIN tokens ON tokens.id = morphemes.token_id
+       JOIN units ON units.id = tokens.unit_id
+       JOIN layers ON layers.id = units.layer_id
+       WHERE morphemes.id = ?`,
+    )
+    .get(morphemeId) as { unitId: string; manuscriptId: string; tokenId: string } | undefined;
+  if (row === undefined) throw new Error('note target is missing');
+  return row;
+}
+
+function requireGraphNode(db: SqliteDatabase, unitId: string, nodeId: string): void {
   const row = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(unitId) as
     { analysis_graph_json: string | null } | undefined;
   if (row?.analysis_graph_json == null) throw new Error('note target is missing');
   const parsed = JSON.parse(row.analysis_graph_json) as { nodes?: unknown };
   if (!Array.isArray(parsed.nodes)) throw new Error('note target is missing');
-  const node = parsed.nodes.find(
-    (item): item is { id?: unknown; type?: unknown; surfaceParts?: { tokenId?: string }[] } =>
-      typeof item === 'object' && item !== null && (item as { id?: unknown }).id === nodeId,
+  const found = parsed.nodes.some(
+    (item) => typeof item === 'object' && item !== null && (item as { id?: unknown }).id === nodeId,
   );
-  if (node === undefined || (type !== undefined && node.type !== type)) {
-    throw new Error('note target is missing');
-  }
-  return node;
+  if (!found) throw new Error('note target is missing');
 }
 
-function noteContent(note: AnalysisNoteSnapshot): Record<string, string> {
-  if (note.content !== undefined && Object.keys(note.content).length > 0) return note.content;
-  return { default: note.body };
+function restoredAnalysisPlace(
+  note: AnalysisNoteSnapshot,
+  storedTokenId: string | null,
+): {
+  kind: 'token' | 'morpheme' | 'analysis_node';
+  tokenId: string | null;
+  morphemeId: string | null;
+  nodeId: string | null;
+} {
+  if (note.targetType === 'token') {
+    return { kind: 'token', tokenId: note.targetId, morphemeId: null, nodeId: null };
+  }
+  if (note.targetType === 'morpheme') {
+    const tokenId = note.tokenId ?? storedTokenId;
+    if (tokenId === null) throw new Error('analysis note target is invalid');
+    return { kind: 'morpheme', tokenId, morphemeId: note.targetId, nodeId: null };
+  }
+  if (note.targetType === 'analysis_node') {
+    return { kind: 'analysis_node', tokenId: null, morphemeId: null, nodeId: note.targetId };
+  }
+  throw new Error('analysis note target is invalid');
+}
+
+function analysisTargetMatches(
+  db: SqliteDatabase,
+  unitId: string,
+  place: {
+    kind: 'token' | 'morpheme' | 'analysis_node';
+    tokenId: string | null;
+    morphemeId: string | null;
+    nodeId: string | null;
+  },
+): boolean {
+  if (place.kind === 'token' && place.tokenId !== null) {
+    const row = db.prepare('SELECT unit_id FROM tokens WHERE id = ?').get(place.tokenId) as
+      { unit_id: string } | undefined;
+    return row?.unit_id === unitId;
+  }
+  if (place.kind === 'morpheme' && place.morphemeId !== null && place.tokenId !== null) {
+    const row = db
+      .prepare(
+        `SELECT morphemes.token_id AS tokenId, tokens.unit_id AS unitId
+         FROM morphemes JOIN tokens ON tokens.id = morphemes.token_id
+         WHERE morphemes.id = ?`,
+      )
+      .get(place.morphemeId) as { tokenId: string; unitId: string } | undefined;
+    return row?.tokenId === place.tokenId && row.unitId === unitId;
+  }
+  if (place.kind === 'analysis_node' && place.nodeId !== null) {
+    const row = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(unitId) as
+      { analysis_graph_json: string | null } | undefined;
+    if (row?.analysis_graph_json == null) return false;
+    const parsed = JSON.parse(row.analysis_graph_json) as { nodes?: unknown };
+    return (
+      Array.isArray(parsed.nodes) &&
+      parsed.nodes.some(
+        (item) =>
+          typeof item === 'object' &&
+          item !== null &&
+          (item as { id?: unknown }).id === place.nodeId,
+      )
+    );
+  }
+  return false;
 }
 
 function mapNote(row: NoteRow): ContentNote {
@@ -581,10 +697,11 @@ function mapNote(row: NoteRow): ContentNote {
     manuscriptId: row.manuscript_id,
     layerId: row.layer_id,
     unitId: row.unit_id,
-    nodeId: row.node_id,
     unitTextId: row.unit_text_id,
-    textRole: row.text_role,
-    cellKey: row.cell_key,
+    tokenId: row.token_id,
+    morphemeId: row.morpheme_id,
+    nodeId: row.node_id,
+    view: row.view,
     content: parseContent(row.content_json),
     category: row.category,
     provenance: row.provenance_json === null ? null : (JSON.parse(row.provenance_json) as unknown),
@@ -640,11 +757,6 @@ function noteId(id: string | undefined): string {
   if (id === undefined) return randomUUID();
   if (id.length === 0 || id.length > 128 || id.trim() !== id) throw new Error('note id is invalid');
   return id;
-}
-
-function requiredKey(value: string): string {
-  if (value.trim() !== value || value.length === 0) throw new Error('note anchor is invalid');
-  return value;
 }
 
 function senseIdsOf(senses: unknown): string[] {

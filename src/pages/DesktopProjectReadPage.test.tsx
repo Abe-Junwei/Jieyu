@@ -340,17 +340,17 @@ describe('DesktopProjectReadPage', () => {
     }) as {
       id: string;
       anchorKind: string;
-      layerId: string | null;
+      view: string | null;
       content: { default: string };
     }[];
-    const timeline = listed.find((note) => note.anchorKind === 'tier_timeline');
-    const waveform = listed.find((note) => note.anchorKind === 'tier_waveform');
+    const timeline = listed.find((note) => note.view === 'timeline');
+    const waveform = listed.find((note) => note.view === 'waveform');
     expect(timeline).toMatchObject({
-      layerId: layer.id,
+      anchorKind: 'unit',
       content: { default: 'on the line' },
     });
     expect(waveform).toMatchObject({
-      layerId: layer.id,
+      anchorKind: 'unit',
       content: { default: 'on the wave' },
     });
     expect(timeline?.id).not.toBe(waveform?.id);

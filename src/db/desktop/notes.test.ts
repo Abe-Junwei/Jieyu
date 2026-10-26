@@ -3,11 +3,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
+import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
+import { replaceProjection } from './analysis';
 import { callDesktopSession } from './desktopCall';
 import { saveLexemeEntry } from './lexicon';
 import {
   createContentNote,
+  deleteManuscriptNotes,
+  detachAnalysisNotes,
+  detachNotesForDeletedTarget,
   listContentNotes,
   listLexemeNotes,
   readContentNote,
@@ -39,7 +44,7 @@ function provenance() {
 }
 
 describe('content notes', () => {
-  it('keeps the nine anchors apart and still lists a detached note', () => {
+  it('keeps the eight anchors apart and still lists a detached note', () => {
     const dir = folder();
     const project = openProject(dir);
     project.db
@@ -51,16 +56,8 @@ describe('content notes', () => {
       .prepare('INSERT INTO project (id, title_json, created_at, updated_at) VALUES (?, ?, ?, ?)')
       .run('p1', '{"zh":"项目"}', T, T);
     const manuscript = project.manuscripts.create({ title: { zh: '文稿' }, mediaId: 'm1' });
-    const other = project.manuscripts.create({ title: { zh: '另一份' }, mediaId: 'm1' });
     const layer = project.layers.create({
       manuscriptId: manuscript.id,
-      key: 'tx',
-      name: { zh: '转写' },
-      tierType: 'time-aligned',
-      contentType: 'transcription',
-    });
-    const otherLayer = project.layers.create({
-      manuscriptId: other.id,
       key: 'tx',
       name: { zh: '转写' },
       tierType: 'time-aligned',
@@ -72,7 +69,7 @@ describe('content notes', () => {
       endTime: 1,
       text: 'ka',
     });
-    writeAnalysisRoot(project.db, {
+    const root = writeAnalysisRoot(project.db, {
       unitId: unit.id,
       expectedAnalysisGeneration: 0,
       graph: {
@@ -103,9 +100,9 @@ describe('content notes', () => {
         relations: [{ id: 'h', type: 'hasPart', sourceId: 'n1', targetId: 'm1' }],
       },
     });
-    const transcription = project.db
-      .prepare(`SELECT id FROM unit_texts WHERE unit_id = ? AND role = 'transcription'`)
-      .get(unit.id) as { id: string };
+    if (root.graph === null) throw new Error('graph missing');
+    const projected = projectAnalysisGraph(root.graph, unit.id);
+    replaceProjection(project.db, unit.id, projected.tokens, projected.morphemes);
     project.db
       .prepare(
         `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('tr1', ?, 'translation', '你好', ?)`,
@@ -137,76 +134,64 @@ describe('content notes', () => {
       }),
       createContentNote(project.db, {
         id: 'token',
-        anchor: { kind: 'token', unitId: unit.id, nodeId: 'n1' },
+        anchor: { kind: 'token', unitId: unit.id, tokenId: 'n1' },
         content: { default: '词', zh: '词注' },
       }),
       createContentNote(project.db, {
         id: 'morpheme',
-        anchor: { kind: 'morpheme', unitId: unit.id, nodeId: 'm1', parentNodeId: 'n1' },
+        anchor: { kind: 'morpheme', unitId: unit.id, morphemeId: 'm1' },
         content: { zh: '词素' },
       }),
       createContentNote(project.db, {
         id: 'timeline',
-        anchor: { kind: 'tier_timeline', unitId: unit.id, layerId: layer.id },
+        anchor: { kind: 'unit', unitId: unit.id, view: 'timeline' },
         content: { zh: '时间轴' },
       }),
       createContentNote(project.db, {
         id: 'waveform',
-        anchor: { kind: 'tier_waveform', unitId: unit.id, layerId: layer.id },
+        anchor: { kind: 'unit', unitId: unit.id, view: 'waveform' },
         content: { zh: '波形' },
       }),
       createContentNote(project.db, {
         id: 'comment',
-        anchor: { kind: 'translation_comment', unitTextId: 'tr1' },
+        anchor: { kind: 'unit_text', unitTextId: 'tr1' },
         content: { zh: '评论' },
       }),
       createContentNote(project.db, {
-        id: 'row',
-        anchor: { kind: 'content_row', unitTextId: transcription.id },
-        content: { zh: '内容行' },
-      }),
-      createContentNote(project.db, {
         id: 'node',
-        anchor: { kind: 'graph_node', unitId: unit.id, nodeId: 'n1' },
+        anchor: { kind: 'analysis_node', unitId: unit.id, nodeId: 'n1' },
         content: { zh: '图节点' },
       }),
-      createContentNote(project.db, {
-        id: 'cell',
-        anchor: { kind: 'cell', unitId: unit.id, layerId: layer.id, cellKey: 'gloss' },
-        content: { zh: '单元格' },
-      }),
     ];
-    expect(written.map((note) => note.projectId)).toEqual(Array(12).fill('p1'));
+    expect(written.map((note) => note.projectId)).toEqual(Array(10).fill('p1'));
     expect(project.db.prepare(`SELECT body FROM unit_texts WHERE id = 'tr1'`).get()).toEqual({
       body: '你好',
     });
     expect(readContentNote(project.db, 'comment')).toMatchObject({
-      textRole: 'translation',
+      anchorKind: 'unit_text',
       unitTextId: 'tr1',
     });
-    expect(readContentNote(project.db, 'timeline')?.anchorKind).toBe('tier_timeline');
-    expect(readContentNote(project.db, 'waveform')?.anchorKind).toBe('tier_waveform');
-    expect(
-      listContentNotes(project.db, { anchorKind: 'tier_timeline' }).map((note) => note.id),
-    ).toEqual(['timeline']);
+    expect(readContentNote(project.db, 'timeline')).toMatchObject({
+      anchorKind: 'unit',
+      view: 'timeline',
+    });
+    expect(readContentNote(project.db, 'waveform')).toMatchObject({
+      anchorKind: 'unit',
+      view: 'waveform',
+    });
+    expect(readContentNote(project.db, 'morpheme')).toMatchObject({ tokenId: 'n1' });
     expect(() =>
       createContentNote(project.db, {
-        anchor: { kind: 'morpheme', unitId: unit.id, nodeId: 'm1', parentNodeId: 'other' },
-        content: { zh: '不对' },
-      }),
-    ).toThrow('morpheme parent does not match');
-    expect(() =>
-      createContentNote(project.db, {
-        anchor: { kind: 'graph_node', unitId: unit.id, nodeId: 'missing' },
+        anchor: { kind: 'analysis_node', unitId: unit.id, nodeId: 'missing' },
         content: { zh: '没有映射' },
       }),
     ).toThrow('note target is missing');
     expect(() =>
       createContentNote(project.db, {
-        anchor: { kind: 'tier_timeline', unitId: unit.id, layerId: otherLayer.id },
-        content: { zh: '跨文稿' },
+        anchor: { kind: 'token', unitId: unit.id, tokenId: 'missing' },
+        content: { zh: '没有词' },
       }),
-    ).toThrow('note target is in another manuscript');
+    ).toThrow('note target is missing');
 
     project.db.prepare(`UPDATE notes SET attachment = 'detached' WHERE id = 'token'`).run();
     restoreAnalysisNote(
@@ -228,7 +213,7 @@ describe('content notes', () => {
     );
     expect(readContentNote(project.db, 'token')).toMatchObject({
       attachment: 'active',
-      content: { default: 'snapshot' },
+      content: { default: '词', zh: '词注' },
       category: null,
     });
     project.db
@@ -272,9 +257,26 @@ describe('content notes', () => {
     ).not.toContain('token');
     expect(readContentNote(reopened.db, 'unit')?.provenance).toMatchObject({ method: 'manual' });
     expect(readContentNote(reopened.db, 'morpheme')).toMatchObject({
-      nodeId: 'm1',
+      morphemeId: 'm1',
+      tokenId: 'n1',
       unitId: unit.id,
     });
+    restoreAnalysisNote(
+      reopened.db,
+      {
+        id: 'gone',
+        targetType: 'token',
+        targetId: 'n1',
+        body: 'revived',
+        createdAt: T,
+        updatedAt: T,
+      },
+      unit.id,
+      'active',
+      T,
+      T,
+    );
+    expect(readContentNote(reopened.db, 'gone')).toBeNull();
     reopened.close();
   });
 
@@ -382,17 +384,17 @@ describe('content notes', () => {
     });
     callDesktopSession(session.sessionId, 'notes.create', {
       id: 'timeline',
-      anchor: { kind: 'tier_timeline', unitId: unit.id, layerId: layer.id },
+      anchor: { kind: 'unit', unitId: unit.id, view: 'timeline' },
       content: { zh: '时间轴' },
     });
     callDesktopSession(session.sessionId, 'notes.create', {
       id: 'waveform',
-      anchor: { kind: 'tier_waveform', unitId: unit.id, layerId: layer.id },
+      anchor: { kind: 'unit', unitId: unit.id, view: 'waveform' },
       content: { zh: '波形' },
     });
     callDesktopSession(session.sessionId, 'notes.create', {
       id: 'comment',
-      anchor: { kind: 'translation_comment', unitTextId: 'tr1' },
+      anchor: { kind: 'unit_text', unitTextId: 'tr1' },
       content: { zh: '评论' },
     });
     callDesktopSession(session.sessionId, 'notes.saveLexeme', {
@@ -414,8 +416,8 @@ describe('content notes', () => {
       }),
     ).toThrow('note anchor is invalid');
     expect(
-      callDesktopSession(session.sessionId, 'notes.list', { anchorKind: 'tier_timeline' }),
-    ).toMatchObject([{ id: 'timeline' }]);
+      callDesktopSession(session.sessionId, 'notes.list', { anchorKind: 'unit', unitId: unit.id }),
+    ).toMatchObject([{ id: 'timeline' }, { id: 'unit-note' }, { id: 'waveform' }]);
     expect(
       callDesktopSession(session.sessionId, 'notes.listLexeme', { lexemeId: 'left' }),
     ).toMatchObject([{ content: { zh: '左' } }]);
@@ -424,10 +426,10 @@ describe('content notes', () => {
     const reopened = openDesktopSession(dir, [dir]);
     expect(callDesktopSession(reopened.sessionId, 'notes.list', { unitId: unit.id })).toMatchObject(
       [
-        { id: 'comment', textRole: 'translation' },
-        { id: 'timeline', anchorKind: 'tier_timeline' },
-        { id: 'unit-note', content: { zh: '语段' }, category: 'comment' },
-        { id: 'waveform', anchorKind: 'tier_waveform' },
+        { id: 'comment', anchorKind: 'unit_text', unitTextId: 'tr1' },
+        { id: 'timeline', anchorKind: 'unit', view: 'timeline' },
+        { id: 'unit-note', content: { zh: '语段' }, category: 'comment', view: null },
+        { id: 'waveform', anchorKind: 'unit', view: 'waveform' },
       ],
     );
     expect(
@@ -442,11 +444,103 @@ describe('content notes', () => {
     stored.close();
   });
 
+  it('detaches notes for a deleted layer or text and drops them when the manuscript is cleared', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    project.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 3, T);
+    const manuscript = project.manuscripts.create({ title: { zh: '文稿' }, mediaId: 'm1' });
+    const layer = project.layers.create({
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const text = project.db.prepare(`SELECT id FROM unit_texts WHERE unit_id = ?`).get(unit.id) as {
+      id: string;
+    };
+    createContentNote(project.db, {
+      id: 'layer-note',
+      anchor: { kind: 'layer', layerId: layer.id },
+      content: { zh: '层' },
+    });
+    createContentNote(project.db, {
+      id: 'text-note',
+      anchor: { kind: 'unit_text', unitTextId: text.id },
+      content: { zh: '正文' },
+    });
+    const other = project.units.create({
+      layerId: layer.id,
+      startTime: 1,
+      endTime: 2,
+      text: 'ta',
+    });
+    writeAnalysisRoot(project.db, {
+      unitId: other.id,
+      expectedAnalysisGeneration: 0,
+      graph: {
+        payloadVersion: 1,
+        id: 'g2',
+        text: 'ta',
+        nodes: [
+          {
+            id: 'shared',
+            type: 'gloss',
+            label: 'G',
+          },
+        ],
+        relations: [],
+      },
+    });
+    writeAnalysisRoot(project.db, {
+      unitId: unit.id,
+      expectedAnalysisGeneration: 0,
+      graph: {
+        payloadVersion: 1,
+        id: 'g1',
+        text: 'ka',
+        nodes: [{ id: 'shared', type: 'gloss', label: 'G' }],
+        relations: [],
+      },
+    });
+    createContentNote(project.db, {
+      id: 'node-a',
+      anchor: { kind: 'analysis_node', unitId: unit.id, nodeId: 'shared' },
+      content: { zh: '甲' },
+    });
+    createContentNote(project.db, {
+      id: 'node-b',
+      anchor: { kind: 'analysis_node', unitId: other.id, nodeId: 'shared' },
+      content: { zh: '乙' },
+    });
+    detachAnalysisNotes(project.db, unit.id, ['shared'], T);
+    expect(readContentNote(project.db, 'node-a')?.attachment).toBe('detached');
+    expect(readContentNote(project.db, 'node-b')?.attachment).toBe('active');
+    expect(
+      listContentNotes(project.db, { unitId: other.id, nodeId: 'shared' }).map((note) => note.id),
+    ).toEqual(['node-b']);
+    detachNotesForDeletedTarget(project.db, { kind: 'unit_text', unitTextId: text.id }, T);
+    expect(readContentNote(project.db, 'text-note')).toMatchObject({
+      attachment: 'detached',
+      content: { zh: '正文' },
+    });
+    detachNotesForDeletedTarget(project.db, { kind: 'layer', layerId: layer.id }, T);
+    expect(readContentNote(project.db, 'layer-note')?.attachment).toBe('detached');
+    deleteManuscriptNotes(project.db, manuscript.id);
+    expect(listContentNotes(project.db)).toEqual([]);
+    project.close();
+  });
+
   it('rejects a library written before the note carrier', () => {
     const dir = folder();
     openProject(dir).close();
     const db = new Database(join(dir, 'project.sqlite'));
-    db.exec('PRAGMA user_version = 13');
+    db.exec('PRAGMA user_version = 14');
     db.close();
     expect(() => openProject(dir)).toThrow('project.sqlite is not a Jieyu project library');
   });

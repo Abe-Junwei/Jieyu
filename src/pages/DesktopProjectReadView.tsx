@@ -42,12 +42,7 @@ export function DesktopProjectReadView(props: {
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
   onSaveMapping: (offsetSec: number, scale: number) => void;
   onSaveNote: (unitId: string, text: string) => void;
-  onSaveTierNote: (
-    unitId: string,
-    layerId: string,
-    kind: 'tier_timeline' | 'tier_waveform',
-    text: string,
-  ) => void;
+  onSaveTierNote: (unitId: string, view: 'timeline' | 'waveform', text: string) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textRef = useRef<HTMLInputElement>(null);
@@ -167,7 +162,7 @@ export function DesktopProjectReadView(props: {
                   const text = readNoteText();
                   const layerId = selected.layerId;
                   if (text.length === 0 || layerId === undefined) return;
-                  props.onSaveTierNote(selected.id, layerId, 'tier_timeline', text);
+                  props.onSaveTierNote(selected.id, 'timeline', text);
                   clearNoteText();
                 }}
               >
@@ -179,7 +174,7 @@ export function DesktopProjectReadView(props: {
                   const text = readNoteText();
                   const layerId = selected.layerId;
                   if (text.length === 0 || layerId === undefined) return;
-                  props.onSaveTierNote(selected.id, layerId, 'tier_waveform', text);
+                  props.onSaveTierNote(selected.id, 'waveform', text);
                   clearNoteText();
                 }}
               >
