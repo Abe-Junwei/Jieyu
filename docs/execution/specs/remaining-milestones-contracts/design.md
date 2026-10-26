@@ -51,7 +51,7 @@ depends_on:
 
 | 域 | 旧字段（`src/db/types.ts`） | 今天的新表 | 落地 |
 | --- | --- | --- | --- |
-| 说话人 | `name`、`pseudonym`、`gender`、`birthYear`、`languageIds`、`dialect`、`accent`、`role`、`consentStatus`、`accessRights`、`address`、多语 `notes`、`textId`、时间 | `speakers` 只有 `id`、`name`、时间 | 除 `name` 外都还没有列。共享定义不随文稿清除 |
+| 说话人 | `name`、`pseudonym`、`gender`、`birthYear`、`languageIds`、`dialect`、`accent`、`role`、`consentStatus`、`accessRights`、`address`、多语 `notes`、`textId`、时间 | `speakers` 已有这些列和 `field_revisions_json` | 旧 `textId` 不建列：本文件就是一个项目。说话人不挂文稿，清除文稿不删行。字段修订和诊断补交与来源相同 |
 | 媒体来源 | 新表自己的 `label`、`external_id`、`media_id` | `sources` 已是这三列加时间 | 只表示媒体来源。清录音时解除它 |
 | 书目 | `title`、`authors`、`year`、`publisher`、`doi`、`url`、`citationKey`、`sourceType`、多语 `notes`、`accessRights`、`textId` | 新库没有书目表 | 不能塞进 `sources.external_id`。共享书目保留 |
 | 对话 | `title`、`mode`、`providerId`、`model`、`archived`、`clearedAt`、`textId`、时间 | `conversations` 只有 `title` 和时间 | 其余字段尚未承接。历史审批不是有效审批 |
@@ -60,7 +60,7 @@ depends_on:
 | 保存的查询 | `AiSourceSetDoc` 仍在旧类型里 | 新库没有表 | 没有已达产品功能就不建表 |
 | AI 写入 | 现有提案、审批、执行分开 | 无新的通用写入口 | 复用具体领域操作 |
 
-来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
+来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。说话人已按同一规则接上除 `textId` 外的旧字段。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
 
 ## 4. 诊断库
 

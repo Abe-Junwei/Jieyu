@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 15;
+export const DESKTOP_PROJECT_USER_VERSION = 16;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -25,7 +25,31 @@ CREATE TABLE media (
 
 CREATE TABLE speakers (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL CHECK (length(name) > 0),
+  pseudonym TEXT CHECK (pseudonym IS NULL OR length(pseudonym) > 0),
+  gender TEXT CHECK (gender IS NULL OR length(gender) > 0),
+  birth_year INTEGER,
+  language_ids_json TEXT CHECK (
+    language_ids_json IS NULL OR (
+      json_valid(language_ids_json) AND json_type(language_ids_json) = 'array'
+    )
+  ),
+  dialect TEXT CHECK (dialect IS NULL OR length(dialect) > 0),
+  accent TEXT CHECK (accent IS NULL OR length(accent) > 0),
+  role TEXT CHECK (role IS NULL OR role IN ('speaker', 'translator', 'annotator', 'researcher')),
+  consent_status TEXT CHECK (
+    consent_status IS NULL OR consent_status IN ('granted', 'restricted', 'anonymous')
+  ),
+  access_rights TEXT CHECK (
+    access_rights IS NULL OR access_rights IN ('open', 'restricted', 'confidential')
+  ),
+  address TEXT CHECK (address IS NULL OR length(address) > 0),
+  notes_json TEXT CHECK (
+    notes_json IS NULL OR (json_valid(notes_json) AND json_type(notes_json) = 'object')
+  ),
+  field_revisions_json TEXT NOT NULL DEFAULT '{"name":0,"pseudonym":0,"gender":0,"birthYear":0,"languageIds":0,"dialect":0,"accent":0,"role":0,"consentStatus":0,"accessRights":0,"address":0,"notes":0}' CHECK (
+    json_valid(field_revisions_json) AND json_type(field_revisions_json) = 'object'
+  ),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

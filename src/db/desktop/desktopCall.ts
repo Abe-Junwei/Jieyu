@@ -40,6 +40,7 @@ import {
 } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
+import { patchSpeaker, redeliverSpeaker, type SpeakerPatch } from './speakerFields';
 import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers, type LayerCreate } from './layers';
@@ -130,6 +131,8 @@ const METHODS = [
   'customFields.purgeDefinition',
   'sources.patch',
   'sources.redeliver',
+  'speakers.patch',
+  'speakers.redeliver',
   'analysis.apply',
   'analysis.readState',
   'analysis.import',
@@ -300,6 +303,11 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'sources.redeliver':
       knownKeys(input, ['operationId']);
       return redeliverSource(project.db, requiredString(input.operationId, 'operationId'));
+    case 'speakers.patch':
+      return patchSpeaker(project.db, speakerPatch(input));
+    case 'speakers.redeliver':
+      knownKeys(input, ['operationId']);
+      return redeliverSpeaker(project.db, requiredString(input.operationId, 'operationId'));
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.readState':
@@ -354,6 +362,163 @@ function sourcePatch(input: Record<string, unknown>): SourcePatch {
     ...(label === undefined ? {} : { label }),
     ...(externalId === undefined ? {} : { externalId }),
   };
+}
+
+function speakerPatch(input: Record<string, unknown>): SpeakerPatch {
+  knownKeys(input, [
+    'operationId',
+    'id',
+    'name',
+    'pseudonym',
+    'gender',
+    'birthYear',
+    'languageIds',
+    'dialect',
+    'accent',
+    'role',
+    'consentStatus',
+    'accessRights',
+    'address',
+    'notes',
+  ]);
+  const patch: SpeakerPatch = {
+    operationId: requiredString(input.operationId, 'operationId'),
+    id: requiredString(input.id, 'id'),
+  };
+  const name = speakerText(input.name, 'name', false);
+  const pseudonym = speakerText(input.pseudonym, 'pseudonym', true);
+  const gender = speakerText(input.gender, 'gender', true);
+  const dialect = speakerText(input.dialect, 'dialect', true);
+  const accent = speakerText(input.accent, 'accent', true);
+  const address = speakerText(input.address, 'address', true);
+  const birthYear = speakerBirthYear(input.birthYear);
+  const languageIds = speakerLanguageIds(input.languageIds);
+  const role = speakerEnum(input.role, 'role', [
+    'speaker',
+    'translator',
+    'annotator',
+    'researcher',
+  ]);
+  const consentStatus = speakerEnum(input.consentStatus, 'consentStatus', [
+    'granted',
+    'restricted',
+    'anonymous',
+  ]);
+  const accessRights = speakerEnum(input.accessRights, 'accessRights', [
+    'open',
+    'restricted',
+    'confidential',
+  ]);
+  const notes = speakerNotes(input.notes);
+  if (name !== undefined) {
+    if (typeof name.value !== 'string') throw new Error('desktop call name.value must be a string');
+    patch.name = { expectedRevision: name.expectedRevision, value: name.value };
+  }
+  if (pseudonym !== undefined) patch.pseudonym = pseudonym;
+  if (gender !== undefined) patch.gender = gender;
+  if (birthYear !== undefined) patch.birthYear = birthYear;
+  if (languageIds !== undefined) patch.languageIds = languageIds;
+  if (dialect !== undefined) patch.dialect = dialect;
+  if (accent !== undefined) patch.accent = accent;
+  if (role !== undefined) patch.role = role;
+  if (consentStatus !== undefined) patch.consentStatus = consentStatus;
+  if (accessRights !== undefined) patch.accessRights = accessRights;
+  if (address !== undefined) patch.address = address;
+  if (notes !== undefined) patch.notes = notes;
+  if (Object.keys(patch).length === 2) throw new Error('speaker patch is empty');
+  return patch;
+}
+
+function speakerText(
+  value: unknown,
+  name: string,
+  nullable: boolean,
+): { expectedRevision: number; value: string | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const text = record.value;
+  if (text === null && nullable) {
+    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
+  }
+  return {
+    expectedRevision: revisionOf(record.expectedRevision, name),
+    value: requiredString(text, `${name}.value`),
+  };
+}
+
+function speakerBirthYear(
+  value: unknown,
+): { expectedRevision: number; value: number | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const year = record.value;
+  if (year !== null && (typeof year !== 'number' || !Number.isInteger(year))) {
+    throw new Error('desktop call birthYear.value must be a year');
+  }
+  return { expectedRevision: revisionOf(record.expectedRevision, 'birthYear'), value: year };
+}
+
+function speakerLanguageIds(
+  value: unknown,
+): { expectedRevision: number; value: string[] | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const ids = record.value;
+  if (ids === null) {
+    return { expectedRevision: revisionOf(record.expectedRevision, 'languageIds'), value: null };
+  }
+  if (!Array.isArray(ids) || ids.some((item) => typeof item !== 'string' || item.length === 0)) {
+    throw new Error('desktop call languageIds.value must be language ids');
+  }
+  if (new Set(ids).size !== ids.length)
+    throw new Error('desktop call languageIds.value must be language ids');
+  return {
+    expectedRevision: revisionOf(record.expectedRevision, 'languageIds'),
+    value: ids as string[],
+  };
+}
+
+function speakerEnum<T extends string>(
+  value: unknown,
+  name: string,
+  allowed: readonly T[],
+): { expectedRevision: number; value: T | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const item = record.value;
+  if (item === null)
+    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
+  if (typeof item !== 'string' || !allowed.includes(item as T)) {
+    throw new Error(`desktop call ${name}.value is invalid`);
+  }
+  return { expectedRevision: revisionOf(record.expectedRevision, name), value: item as T };
+}
+
+function speakerNotes(
+  value: unknown,
+): { expectedRevision: number; value: Record<string, string> | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  if (record.value === null) {
+    return { expectedRevision: revisionOf(record.expectedRevision, 'notes'), value: null };
+  }
+  return {
+    expectedRevision: revisionOf(record.expectedRevision, 'notes'),
+    value: stringMap(record.value, 'notes.value'),
+  };
+}
+
+function revisionOf(value: unknown, name: string): number {
+  const revision = requiredNumber(value, `${name}.expectedRevision`);
+  if (!Number.isInteger(revision) || revision < 0) {
+    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
+  }
+  return revision;
 }
 
 function sourceField(
