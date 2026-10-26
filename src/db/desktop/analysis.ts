@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import {
   analysisGraphFingerprint,
+  assertEditedSurfaceParts,
   validateAnalysisGraphPayload,
   type AnalysisGraphDomain,
   type AnalysisGraphNode,
@@ -64,10 +65,24 @@ interface CustomFieldChange {
   value?: unknown;
 }
 
+interface LinkFieldChange {
+  action: 'link.setField';
+  relationId: string;
+  field: string;
+  value?: unknown;
+}
+
 type AnalysisChange =
-  MapChange | FieldChange | ReorderChange | DisplayChange | SurfaceChange | CustomFieldChange;
+  | MapChange
+  | FieldChange
+  | ReorderChange
+  | DisplayChange
+  | SurfaceChange
+  | CustomFieldChange
+  | LinkFieldChange;
 
 const SET_FIELDS = new Set(['pos', 'languageId', 'lexemeId']);
+const REMOVABLE_FIELDS = new Set(['gloss', 'pos', 'languageId', 'lexemeId']);
 
 export function applyAnalysis(
   db: SqliteDatabase,
@@ -102,7 +117,9 @@ export function applyAnalysis(
     for (const change of changes) applyChange(nextGraph, change);
     const graph = validateAnalysisGraphPayload(nextGraph, current.graph.text);
     assertRetargetedReferences(db, current.graph, graph);
-    assertStoredCustomFields(db, graph, input.unitId);
+    assertTokenLanguages(db, current.graph, graph);
+    assertEditedSurfaceParts(current.graph, graph);
+    assertStoredCustomFields(db, graph, input.unitId, { prior: current.graph });
     const fingerprint = analysisGraphFingerprint(graph);
     const generation = reorderOnly ? current.analysisGeneration : current.analysisGeneration + 1;
     const now = new Date().toISOString();
@@ -113,6 +130,7 @@ export function applyAnalysis(
     ).run(JSON.stringify(graph), generation, fingerprint, now, input.unitId);
     const projected = projectAnalysisGraph(graph, input.unitId);
     replaceProjection(db, input.unitId, projected.tokens, projected.morphemes);
+    syncProjectedLinks(db, graph);
     afterWrite?.();
     const stored = getAnalysisRoot(db, input.unitId);
     const readBack = readProjection(db, input.unitId);
@@ -121,13 +139,33 @@ export function applyAnalysis(
       stored.analysisGeneration !== generation ||
       stored.graphFingerprint !== fingerprint ||
       JSON.stringify(stored.graph) !== JSON.stringify(graph) ||
-      JSON.stringify(readBack) !== JSON.stringify(projected)
+      JSON.stringify(orderedProjection(readBack)) !== JSON.stringify(orderedProjection(projected))
     ) {
       throw new Error('analysis apply readback failed');
     }
     return { root: stored, tokens: readBack.tokens, morphemes: readBack.morphemes };
   });
   return write();
+}
+
+function orderedProjection(value: { tokens: ProjectedToken[]; morphemes: ProjectedMorpheme[] }): {
+  tokens: ProjectedToken[];
+  morphemes: ProjectedMorpheme[];
+} {
+  return {
+    tokens: [...value.tokens].sort((left, right) => {
+      if (left.tokenIndex !== right.tokenIndex) return left.tokenIndex - right.tokenIndex;
+      return left.id.localeCompare(right.id);
+    }),
+    morphemes: [...value.morphemes].sort((left, right) => {
+      const token = left.tokenId.localeCompare(right.tokenId);
+      if (token !== 0) return token;
+      if (left.morphemeIndex !== right.morphemeIndex) {
+        return left.morphemeIndex - right.morphemeIndex;
+      }
+      return left.id.localeCompare(right.id);
+    }),
+  };
 }
 
 function readManuscriptGeneration(db: SqliteDatabase, unitId: string): number {
@@ -264,6 +302,10 @@ function readProjection(
 }
 
 function applyChange(graph: AnalysisGraphPayload, change: AnalysisChange): void {
+  if (change.action === 'link.setField') {
+    applyLinkField(graph, change);
+    return;
+  }
   if (change.action === 'graph.setDisplayContext') {
     graph.displayContext = {
       ...(change.formKey !== undefined ? { formKey: change.formKey } : {}),
@@ -403,8 +445,11 @@ function applyMap(domain: AnalysisGraphDomain, change: MapChange): void {
 function applyField(node: AnalysisGraphNode, change: FieldChange): void {
   if (node.domain === undefined) throw new Error('token domain is missing');
   if (change.action === 'node.removeField') {
-    if (change.field !== 'gloss') throw new Error('analysis field cannot be removed');
-    delete node.domain.gloss;
+    if (!REMOVABLE_FIELDS.has(change.field)) throw new Error('analysis field cannot be removed');
+    if (change.field === 'gloss') delete node.domain.gloss;
+    else if (change.field === 'pos') delete node.domain.pos;
+    else if (change.field === 'languageId') delete node.domain.languageId;
+    else delete node.domain.lexemeId;
     return;
   }
   if (!SET_FIELDS.has(change.field)) throw new Error('analysis field cannot be set');
@@ -419,8 +464,124 @@ function applyField(node: AnalysisGraphNode, change: FieldChange): void {
   else node.domain.languageId = change.value;
 }
 
+function applyLinkField(graph: AnalysisGraphPayload, change: LinkFieldChange): void {
+  const relation = graph.relations.find((item) => item.id === change.relationId);
+  if (relation?.link === undefined) throw new Error('analysis link is missing');
+  if (change.field !== 'confidence' || typeof change.value !== 'number') {
+    throw new Error('analysis field cannot be set');
+  }
+  if (change.value < 0 || change.value > 1) throw new Error('analysis field value is missing');
+  const at = new Date().toISOString();
+  relation.link = {
+    ...relation.link,
+    confidence: change.value,
+    updatedAt: at,
+    edits: [...(relation.link.edits ?? []), { at, actorType: 'human', fields: ['confidence'] }],
+  };
+}
+
+export function assertTokenLanguages(
+  db: SqliteDatabase,
+  before: AnalysisGraphPayload | null,
+  after: AnalysisGraphPayload,
+): void {
+  const previous = new Map((before?.nodes ?? []).map((node) => [node.id, node.domain?.languageId]));
+  for (const node of after.nodes) {
+    const languageId = node.type === 'token' ? node.domain?.languageId : undefined;
+    if (languageId === undefined || previous.get(node.id) === languageId) continue;
+    const row = db.prepare('SELECT id FROM languages WHERE id = ?').get(languageId);
+    if (row === undefined) throw new Error('language is missing');
+  }
+}
+
+export function syncProjectedLinks(db: SqliteDatabase, graph: AnalysisGraphPayload): void {
+  const projected = graph.nodes.filter(
+    (node) => (node.type === 'token' || node.type === 'morpheme') && node.domain !== undefined,
+  );
+  const ids = new Set(projected.map((node) => node.id));
+  const desired = graph.relations.filter(
+    (relation) =>
+      relation.type === 'linksLexeme' && relation.link !== undefined && ids.has(relation.sourceId),
+  );
+  const now = new Date().toISOString();
+  const upsert = db.prepare(
+    `INSERT INTO token_lexeme_links (
+      id, target_type, target_id, lexeme_id, sense_id, role, confidence, attachment, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      target_type = excluded.target_type,
+      target_id = excluded.target_id,
+      lexeme_id = excluded.lexeme_id,
+      sense_id = excluded.sense_id,
+      role = excluded.role,
+      confidence = excluded.confidence,
+      attachment = 'active',
+      updated_at = excluded.updated_at`,
+  );
+  for (const relation of desired) {
+    const source = projected.find((node) => node.id === relation.sourceId);
+    if (source === undefined || relation.link === undefined) continue;
+    upsert.run(
+      relation.id,
+      source.type,
+      source.id,
+      relation.link.lexemeId,
+      relation.link.senseId ?? null,
+      relation.link.role ?? null,
+      relation.link.confidence ?? null,
+      now,
+      now,
+    );
+  }
+  if (ids.size === 0) return;
+  const targets = [...ids];
+  const kept = desired.map((relation) => relation.id);
+  const targetSlots = targets.map(() => '?').join(', ');
+  const keepSql = kept.length === 0 ? '' : ` AND id NOT IN (${kept.map(() => '?').join(', ')})`;
+  db.prepare(
+    `UPDATE token_lexeme_links
+     SET attachment = 'detached', updated_at = ?
+     WHERE attachment = 'active' AND target_id IN (${targetSlots})${keepSql}`,
+  ).run(now, ...targets, ...kept);
+}
+
 function rewriteNext(graph: AnalysisGraphPayload): void {
   const nextRelations = graph.relations.filter((relation) => relation.type === 'next');
+  for (const component of nextComponents(nextRelations)) rewriteChain(graph, component);
+}
+
+function nextComponents(
+  relations: AnalysisGraphPayload['relations'],
+): AnalysisGraphPayload['relations'][] {
+  const unused = new Set(relations);
+  const components: AnalysisGraphPayload['relations'][] = [];
+  while (unused.size > 0) {
+    const seed = unused.values().next().value;
+    if (seed === undefined) break;
+    const ids = new Set([seed.sourceId, seed.targetId]);
+    const group = [seed];
+    unused.delete(seed);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const relation of unused) {
+        if (!ids.has(relation.sourceId) && !ids.has(relation.targetId)) continue;
+        group.push(relation);
+        ids.add(relation.sourceId);
+        ids.add(relation.targetId);
+        unused.delete(relation);
+        grew = true;
+      }
+    }
+    components.push(group);
+  }
+  return components;
+}
+
+function rewriteChain(
+  graph: AnalysisGraphPayload,
+  nextRelations: AnalysisGraphPayload['relations'],
+): void {
   if (nextRelations.length === 0) return;
   const memberIds = new Set<string>();
   for (const relation of nextRelations) {
@@ -497,6 +658,13 @@ function parseChange(value: unknown): AnalysisChange {
   }
   const change = value as Record<string, unknown>;
   const action = change.action;
+  if (action === 'link.setField') {
+    if (typeof change.relationId !== 'string' || change.relationId.length === 0) {
+      throw new Error('analysis relation is missing');
+    }
+    if (typeof change.field !== 'string') throw new Error('analysis field is missing');
+    return { action, relationId: change.relationId, field: change.field, value: change.value };
+  }
   if (action === 'graph.setDisplayContext') {
     const display: DisplayChange = { action };
     if (typeof change.formKey === 'string') display.formKey = change.formKey;

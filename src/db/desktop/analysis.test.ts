@@ -232,6 +232,140 @@ describe('analysis apply', () => {
     reopened.close();
   });
 
+  it('reorders two tokens and reads them back by index', () => {
+    const { project, unitId, stored } = seeded();
+    const first = stored.graph?.nodes[0];
+    if (first?.domain === undefined) throw new Error('token is missing');
+    const written = writeAnalysisRoot(project.db, {
+      unitId,
+      expectedAnalysisGeneration: stored.analysisGeneration,
+      graph: {
+        ...stored.graph,
+        nodes: [
+          first,
+          {
+            id: 'n2',
+            type: 'token',
+            label: 'ta',
+            domain: { ...first.domain, form: { default: 'ta' }, index: 1 },
+          },
+        ],
+      },
+    });
+    const reordered = applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: written.analysisGeneration,
+        graphFingerprint: written.graphFingerprint,
+      },
+      changes: [
+        {
+          action: 'node.reorder',
+          indexes: [
+            { nodeId: 'n1', index: 1 },
+            { nodeId: 'n2', index: 0 },
+          ],
+        },
+      ],
+    });
+    expect(reordered.tokens.map((token) => token.id)).toEqual(['n2', 'n1']);
+    expect(reordered.root.graph?.nodes.map((node) => node.domain?.index)).toEqual([1, 0]);
+    project.close();
+  });
+
+  it('reorders tokens without collapsing separate morpheme chains', () => {
+    const { project, unitId, stored } = seeded();
+    const first = stored.graph?.nodes[0];
+    if (first?.domain === undefined || stored.graph === undefined)
+      throw new Error('token is missing');
+    const node = (id: string, index: number, type: 'token' | 'morpheme') => ({
+      id,
+      type,
+      label: id,
+      domain: { ...first.domain, form: { default: 'ka' }, index },
+    });
+    const written = writeAnalysisRoot(project.db, {
+      unitId,
+      expectedAnalysisGeneration: stored.analysisGeneration,
+      graph: {
+        ...stored.graph,
+        nodes: [
+          node('t1', 0, 'token'),
+          node('t2', 1, 'token'),
+          node('m1', 0, 'morpheme'),
+          node('m2', 1, 'morpheme'),
+          node('m3', 0, 'morpheme'),
+          node('m4', 1, 'morpheme'),
+        ],
+        relations: [
+          { id: 'nt', type: 'next', sourceId: 't1', targetId: 't2' },
+          { id: 'nm1', type: 'next', sourceId: 'm1', targetId: 'm2' },
+          { id: 'nm2', type: 'next', sourceId: 'm3', targetId: 'm4' },
+          { id: 'hm1', type: 'hasPart', sourceId: 't1', targetId: 'm1' },
+          { id: 'hm2', type: 'hasPart', sourceId: 't1', targetId: 'm2' },
+          { id: 'hm3', type: 'hasPart', sourceId: 't2', targetId: 'm3' },
+          { id: 'hm4', type: 'hasPart', sourceId: 't2', targetId: 'm4' },
+        ],
+      },
+    });
+    const reordered = applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: written.analysisGeneration,
+        graphFingerprint: written.graphFingerprint,
+      },
+      changes: [
+        {
+          action: 'node.reorder',
+          indexes: [
+            { nodeId: 't1', index: 1 },
+            { nodeId: 't2', index: 0 },
+          ],
+        },
+      ],
+    });
+    const next = reordered.root.graph?.relations.find((relation) => relation.id === 'nt');
+    expect(next).toMatchObject({ sourceId: 't2', targetId: 't1' });
+    expect(reordered.root.analysisGeneration).toBe(written.analysisGeneration);
+    project.close();
+  });
+
+  it('rejects a token language that is not in the project and can clear pos', () => {
+    const { project, unitId, stored } = seeded();
+    const expected = {
+      manuscriptGeneration: 0,
+      analysisGeneration: stored.analysisGeneration,
+      graphFingerprint: stored.graphFingerprint,
+    };
+    expect(() =>
+      applyAnalysis(project.db, {
+        unitId,
+        expected,
+        changes: [
+          { action: 'node.setField', nodeId: 'n1', field: 'languageId', value: 'missing-language' },
+        ],
+      }),
+    ).toThrow('language is missing');
+    const withPos = applyAnalysis(project.db, {
+      unitId,
+      expected,
+      changes: [{ action: 'node.setField', nodeId: 'n1', field: 'pos', value: 'noun' }],
+    });
+    const cleared = applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: withPos.root.analysisGeneration,
+        graphFingerprint: withPos.root.graphFingerprint,
+      },
+      changes: [{ action: 'node.removeField', nodeId: 'n1', field: 'pos' }],
+    });
+    expect(cleared.root.graph?.nodes[0]?.domain?.pos).toBeUndefined();
+    project.close();
+  });
+
   it('applies one gloss edit through a single desktop call', async () => {
     const dir = folder();
     writeFileSync(join(dir, 'a.wav'), '');

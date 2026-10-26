@@ -12,7 +12,7 @@ import {
   setFieldValue,
 } from './customFields';
 import { callDesktopSession } from './desktopCall';
-import { getLexemeEntry, saveLexemeEntry } from './lexicon';
+import { getLexemeEntry, removeSense, saveLexemeEntry } from './lexicon';
 import { openProject } from './openProject';
 import { openDesktopSession, resetDesktopSessions } from './projectSession';
 import { getAnalysisRoot, writeAnalysisRoot } from './units';
@@ -325,6 +325,37 @@ describe('lexeme custom fields', () => {
         ?.customFields,
     ).toEqual({ [relationField.id]: 'edge' });
     reopened.close();
+  });
+
+  it('does not count a dangling required reference as filled', () => {
+    const project = openProject(folder());
+    saveLexemeEntry(project.db, {
+      id: 'lex',
+      entry: { headword: 'ka', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+    });
+    const field = createDefinition(project.db, {
+      targetType: 'lexeme',
+      name: { en: 'Required ref' },
+      fieldType: 'ref',
+      required: true,
+      targetTypes: ['lexeme-sense'],
+      cardinality: 'one',
+    });
+    setFieldValue(project.db, {
+      definitionId: field.id,
+      expectedRevision: 1,
+      targetType: 'lexeme',
+      targetId: 'lex',
+      value: { targetType: 'lexeme-sense', targetId: 'sense', lexemeId: 'lex' },
+    });
+    removeSense(project.db, { lexemeId: 'lex', senseId: 'sense' });
+    expect(missingFields(project.db, 'lexeme', 'lex')).toEqual([field.id]);
+    expect(readFieldValue(project.db, field.id, 'lexeme', 'lex')).toEqual({
+      targetType: 'lexeme-sense',
+      targetId: 'sense',
+      lexemeId: 'lex',
+    });
+    project.close();
   });
 });
 

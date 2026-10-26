@@ -6,6 +6,7 @@ import { surfacePartAlignment } from '../../annotation/analysisGraphDomain';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { applyAnalysis } from './analysis';
 import { importAnalysis } from './analysisImport';
+import { createDefinition } from './customFields';
 import { openProject } from './openProject';
 import { getAnalysisRoot, writeAnalysisRoot } from './units';
 
@@ -316,5 +317,247 @@ describe('analysis import', () => {
       'aligned',
     );
     reopened.close();
+  });
+
+  it('keeps a span when the form it cites changes', () => {
+    const span = {
+      tokenId: 'n1',
+      formKey: 'default',
+      startOffset: 0,
+      endOffset: 1,
+      alignedForm: 'k',
+    };
+    const { project, unitId, stored } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [{ ...token('n1', 0), surfaceParts: [span] }],
+      relations: [],
+    });
+    const edited = applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'form', key: 'default', value: 'ta' },
+      ],
+    });
+    const part = edited.root.graph?.nodes[0]?.surfaceParts?.[0];
+    expect(part).toMatchObject(span);
+    expect(
+      edited.root.graph && part ? surfacePartAlignment(edited.root.graph, part) : 'aligned',
+    ).toBe('stale');
+    expect(() =>
+      applyAnalysis(project.db, {
+        unitId,
+        expected: {
+          manuscriptGeneration: 0,
+          analysisGeneration: edited.root.analysisGeneration,
+          graphFingerprint: edited.root.graphFingerprint,
+        },
+        changes: [
+          {
+            action: 'node.setSurfaceParts',
+            nodeId: 'n1',
+            surfaceParts: [{ ...span, alignedForm: 'x' }],
+          },
+        ],
+      }),
+    ).toThrow('surface part is not aligned');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.surfaceParts?.[0]).toMatchObject(
+      span,
+    );
+    project.close();
+  });
+
+  it('rejects a new lexeme id and keeps an existing custom reference when its target is removed', () => {
+    const { project, unitId, stored } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [token('n1', 0), token('n2', 1)],
+      relations: [],
+    });
+    const field = createDefinition(project.db, {
+      targetType: 'analysis-node',
+      name: { en: 'ref' },
+      fieldType: 'ref',
+      targetTypes: ['analysis-node'],
+      cardinality: 'one',
+    });
+    const linked = applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        {
+          action: 'customField.set',
+          nodeId: 'n1',
+          definitionId: field.id,
+          value: { targetType: 'analysis-node', targetId: 'n2', unitId },
+        },
+      ],
+    });
+    expect(() =>
+      importAnalysis(project.db, {
+        unitId,
+        expected: {
+          manuscriptGeneration: 0,
+          analysisGeneration: linked.root.analysisGeneration,
+          graphFingerprint: linked.root.graphFingerprint,
+        },
+        nodes: [{ id: 'n1', domain: { lexemeId: 'does-not-exist' } }],
+      }),
+    ).toThrow('lexeme is missing');
+    const removed = importAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: linked.root.analysisGeneration,
+        graphFingerprint: linked.root.graphFingerprint,
+      },
+      removeNodes: ['n2'],
+    });
+    expect(removed.root.graph?.nodes.map((node) => node.id)).toEqual(['n1']);
+    expect(removed.root.graph?.nodes[0]?.customFields?.[field.id]).toEqual({
+      targetType: 'analysis-node',
+      targetId: 'n2',
+      unitId,
+    });
+    expect(() =>
+      applyAnalysis(project.db, {
+        unitId,
+        expected: {
+          manuscriptGeneration: 0,
+          analysisGeneration: removed.root.analysisGeneration,
+          graphFingerprint: removed.root.graphFingerprint,
+        },
+        changes: [
+          {
+            action: 'customField.set',
+            nodeId: 'n1',
+            definitionId: field.id,
+            value: { targetType: 'analysis-node', targetId: 'missing', unitId },
+          },
+        ],
+      }),
+    ).toThrow('custom field value is invalid');
+    project.close();
+  });
+
+  it('requires a custom field on a new analysis node and still edits an old one', () => {
+    const { project, unitId, expected } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [token('n1', 0)],
+      relations: [],
+    });
+    createDefinition(project.db, {
+      targetType: 'analysis-node',
+      name: { en: 'Required' },
+      fieldType: 'text',
+      required: true,
+    });
+    const edited = importAnalysis(project.db, {
+      unitId,
+      expected,
+      nodes: [{ id: 'n1', domain: { gloss: { zh: '已往' } } }],
+    });
+    expect(edited.root.graph?.nodes[0]?.domain?.gloss?.zh).toBe('已往');
+    expect(() =>
+      importAnalysis(project.db, {
+        unitId,
+        expected: {
+          manuscriptGeneration: 0,
+          analysisGeneration: edited.root.analysisGeneration,
+          graphFingerprint: edited.root.graphFingerprint,
+        },
+        nodes: [{ type: 'token', domain: { form: { default: 'new' } } }],
+      }),
+    ).toThrow('analysis-node is missing a required field');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes).toHaveLength(1);
+    project.close();
+  });
+
+  it('accepts a surface part that only names its token', () => {
+    const { project, stored } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [
+        token('n1', 0),
+        {
+          id: 'm',
+          type: 'morpheme',
+          label: 'k',
+          domain: { form: { default: 'k' }, index: 0, createdAt: T, updatedAt: T },
+          surfaceParts: [{ tokenId: 'n1', formKey: 'default' }],
+        },
+      ],
+      relations: [{ id: 'h', type: 'hasPart', sourceId: 'n1', targetId: 'm' }],
+    });
+    expect(stored.graph?.nodes[1]?.surfaceParts).toEqual([{ tokenId: 'n1', formKey: 'default' }]);
+    project.close();
+  });
+
+  it('keeps supplied fields on a new token and rejects an unknown field', () => {
+    const { project, unitId, expected } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [token('n1', 0)],
+      relations: [],
+    });
+    const field = createDefinition(project.db, {
+      targetType: 'analysis-node',
+      name: { en: 'Optional' },
+      fieldType: 'text',
+    });
+    const imported = importAnalysis(project.db, {
+      unitId,
+      expected,
+      nodes: [
+        {
+          type: 'token',
+          domain: { form: { default: 'ta' }, pos: 'NOUN' },
+          customFields: { [field.id]: 'research-value' },
+          residue: [
+            {
+              id: 'r',
+              namespace: 'source',
+              batchId: 'b',
+              localId: 'local',
+              body: { raw: 'keep-me' },
+              review: 'unreviewed',
+              reviews: [],
+            },
+          ],
+        },
+      ],
+    });
+    const added = imported.root.graph?.nodes[1];
+    expect(added?.domain?.pos).toBe('NOUN');
+    expect(added?.customFields).toEqual({ [field.id]: 'research-value' });
+    expect(added?.residue?.[0]?.body).toEqual({ raw: 'keep-me' });
+    expect(() =>
+      importAnalysis(project.db, {
+        unitId,
+        expected: {
+          manuscriptGeneration: 0,
+          analysisGeneration: imported.root.analysisGeneration,
+          graphFingerprint: imported.root.graphFingerprint,
+        },
+        nodes: [{ id: 'n1', domain: { gloss: { en: 'changed' }, pos: 42 }, unrecognized: 'lost' }],
+      }),
+    ).toThrow('analysis import item is invalid');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.en).toBe('past');
+    project.close();
   });
 });

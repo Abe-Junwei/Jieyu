@@ -10,7 +10,12 @@ import {
   insertReviewSnapshot,
   readAnalysisMaterial,
 } from './analysisCandidates';
-import { acceptAnalysis, restoreAnalysis, submitAnalysis } from './analysisRestore';
+import {
+  acceptAnalysis,
+  readAnalysisState,
+  restoreAnalysis,
+  submitAnalysis,
+} from './analysisRestore';
 import { createDesktopClient } from './client';
 import { createDefinition } from './customFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
@@ -86,12 +91,25 @@ function seeded() {
   return { dir, project, unit };
 }
 
+function submitNow(db: InstanceType<typeof Database>, unitId: string, graph: unknown) {
+  const state = readAnalysisState(db, unitId);
+  return submitAnalysis(db, {
+    unitId,
+    graph,
+    expected: {
+      manuscriptGeneration: state.manuscriptGeneration,
+      analysisGeneration: state.analysisGeneration,
+      graphFingerprint: state.graphFingerprint,
+    },
+    definitionRevisions: state.definitionRevisions,
+  });
+}
+
 function requestOf(preview: ReturnType<typeof previewPurge>, definitionId: string) {
   return {
     definitionId,
     expectedRevision: preview.revision,
-    current: preview.current,
-    historyIds: preview.history.map((item) => item.id),
+    previewFingerprint: preview.previewFingerprint,
   };
 }
 
@@ -126,7 +144,7 @@ describe('custom field purge', () => {
       changes: [{ action: 'customField.set', nodeId: 'n1', definitionId: field.id, value: 3 }],
     });
     const snapshotId = insertReviewSnapshot(project.db, readAnalysisMaterial(project.db, unit.id));
-    const accepted = submitAnalysis(project.db, { unitId: unit.id, graph: edited.root.graph });
+    const accepted = submitNow(project.db, unit.id, edited.root.graph);
     acceptAnalysis(project.db, {
       candidateId: accepted.id,
       expected: {
@@ -135,7 +153,7 @@ describe('custom field purge', () => {
         graphFingerprint: edited.root.graphFingerprint,
       },
     });
-    const pending = submitAnalysis(project.db, { unitId: unit.id, graph: edited.root.graph });
+    const pending = submitNow(project.db, unit.id, edited.root.graph);
     const before = project.db
       .prepare('SELECT graph_fingerprint FROM analysis_candidates WHERE id = ?')
       .get(accepted.id) as { graph_fingerprint: string };
@@ -148,7 +166,7 @@ describe('custom field purge', () => {
       [accepted.id, pending.id, snapshotId].sort(),
     );
     expect(() =>
-      purgeDefinition(project.db, { ...requestOf(preview, field.id), historyIds: [] }),
+      purgeDefinition(project.db, { ...requestOf(preview, field.id), previewFingerprint: 'stale' }),
     ).toThrow('custom field purge is stale');
     expect(() =>
       purgeDefinition(project.db, requestOf(preview, field.id), () => {
@@ -238,5 +256,27 @@ describe('custom field purge', () => {
         .db.prepare('SELECT id FROM custom_field_definitions WHERE id = ?')
         .get(field.id),
     ).toBeUndefined();
+  });
+
+  it('rejects a purge fingerprint taken from another definition', () => {
+    const { project } = seeded();
+    const first = createDefinition(project.db, {
+      targetType: 'unit',
+      name: { en: 'A' },
+      fieldType: 'text',
+    });
+    const second = createDefinition(project.db, {
+      targetType: 'unit',
+      name: { en: 'B' },
+      fieldType: 'text',
+    });
+    const preview = previewPurge(project.db, first.id);
+    expect(() => purgeDefinition(project.db, requestOf(preview, second.id))).toThrow(
+      'custom field purge is stale',
+    );
+    expect(
+      project.db.prepare('SELECT id FROM custom_field_definitions WHERE id = ?').get(second.id),
+    ).toEqual({ id: second.id });
+    project.close();
   });
 });

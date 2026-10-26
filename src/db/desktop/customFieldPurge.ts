@@ -1,10 +1,13 @@
+import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import {
   analysisGraphFingerprint,
   validateAnalysisGraphPayload,
   type AnalysisGraphPayload,
 } from '../../annotation/analysisGraphDomain';
+import { canonicalJson } from './customFieldValidation';
 import {
+  customFieldValueFingerprint,
   locateCustomFieldValues,
   removeFieldValue,
   requireDefinition,
@@ -16,33 +19,55 @@ import { getUnit } from './units';
 type SqliteDatabase = InstanceType<typeof Database>;
 
 export interface CustomFieldPurgePreview {
+  definitionId: string;
   revision: number;
   current: CustomFieldLocation[];
   history: { id: string; kind: string }[];
+  previewFingerprint: string;
 }
 
-export function previewPurge(db: SqliteDatabase, definitionId: string): CustomFieldPurgePreview {
+export function previewPurge(
+  db: SqliteDatabase,
+  definitionId: string,
+  sessionId = '',
+): CustomFieldPurgePreview {
   const definition = requireDefinition(db, definitionId);
+  const current = locateCustomFieldValues(db, definitionId);
+  const history = historyOf(db, definitionId);
   return {
+    definitionId,
     revision: definition.revision,
-    current: locateCustomFieldValues(db, definitionId),
-    history: historyOf(db, definitionId),
+    current,
+    history,
+    previewFingerprint: purgeFingerprint(
+      db,
+      sessionId,
+      definitionId,
+      definition.revision,
+      current,
+      history,
+    ),
   };
 }
 
-export function purgeDefinition(db: SqliteDatabase, input: unknown, afterWrite?: () => void): void {
+export function purgeDefinition(
+  db: SqliteDatabase,
+  input: unknown,
+  afterWrite?: () => void,
+  sessionId = '',
+): void {
   const body = record(input, 'custom field purge is invalid');
-  allowed(body, ['definitionId', 'expectedRevision', 'current', 'historyIds']);
+  allowed(body, ['definitionId', 'expectedRevision', 'previewFingerprint']);
   const definitionId = requiredText(body.definitionId, 'custom field definition is missing');
   const expectedRevision = requiredRevision(body.expectedRevision);
-  const current = locationList(body.current);
-  const historyIds = idList(body.historyIds);
+  const previewFingerprint = requiredText(body.previewFingerprint, 'custom field purge is stale');
   const write = db.transaction(() => {
     const definition = requireDefinition(db, definitionId);
     if (definition.revision !== expectedRevision)
       throw new Error('custom field revision does not match');
-    const fresh = previewPurge(db, definitionId);
-    if (!samePreview(fresh, current, historyIds)) throw new Error('custom field purge is stale');
+    const fresh = previewPurge(db, definitionId, sessionId);
+    if (fresh.previewFingerprint !== previewFingerprint)
+      throw new Error('custom field purge is stale');
     for (const location of fresh.current) {
       if (location.targetType === 'analysis-node' || location.targetType === 'analysis-relation') {
         stripUnitGraph(db, location, definitionId);
@@ -179,49 +204,31 @@ function historyOf(db: SqliteDatabase, definitionId: string): CustomFieldPurgePr
   return history;
 }
 
-function samePreview(
-  fresh: CustomFieldPurgePreview,
+function purgeFingerprint(
+  db: SqliteDatabase,
+  sessionId: string,
+  definitionId: string,
+  revision: number,
   current: readonly CustomFieldLocation[],
-  historyIds: readonly string[],
-): boolean {
-  const left = fresh.current.map(hostKey).sort();
-  const right = current.map(hostKey).sort();
-  const seen = fresh.history.map((item) => item.id).sort();
-  const expected = [...historyIds].sort();
-  return (
-    left.length === right.length &&
-    left.every((key, index) => key === right[index]) &&
-    seen.length === expected.length &&
-    seen.every((id, index) => id === expected[index])
-  );
-}
-
-function hostKey(input: CustomFieldLocation): string {
-  return `${input.targetType}\0${input.targetId}\0${input.lexemeId ?? ''}\0${input.unitId ?? ''}`;
-}
-
-function locationList(value: unknown): CustomFieldLocation[] {
-  if (!Array.isArray(value)) throw new Error('custom field purge is invalid');
-  return value.map((item) => {
-    const body = record(item, 'custom field purge is invalid');
-    const location: CustomFieldLocation = {
-      targetType: requiredText(body.targetType, 'custom field target does not match'),
-      targetId: requiredText(body.targetId, 'custom field target is missing'),
+  history: readonly { id: string; kind: string }[],
+): string {
+  const values = current.map((location) => ({
+    location,
+    value: customFieldValueFingerprint(db, definitionId, location),
+  }));
+  const rows = history.map((item) => {
+    const stored = db
+      .prepare('SELECT definition_revisions_json FROM analysis_candidates WHERE id = ?')
+      .get(item.id) as { definition_revisions_json: string } | undefined;
+    return {
+      id: item.id,
+      kind: item.kind,
+      revisions: stored?.definition_revisions_json ?? '',
     };
-    if (typeof body.lexemeId === 'string') location.lexemeId = body.lexemeId;
-    if (typeof body.unitId === 'string') location.unitId = body.unitId;
-    return location;
   });
-}
-
-function idList(value: unknown): string[] {
-  if (
-    !Array.isArray(value) ||
-    value.some((item) => typeof item !== 'string' || item.length === 0)
-  ) {
-    throw new Error('custom field purge is invalid');
-  }
-  return value;
+  return createHash('sha256')
+    .update(canonicalJson({ sessionId, definitionId, revision, values, rows }))
+    .digest('hex');
 }
 
 function allowed(input: Record<string, unknown>, keys: readonly string[]): void {

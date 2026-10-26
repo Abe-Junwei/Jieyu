@@ -3,6 +3,7 @@ import { importAnalysis } from './analysisImport';
 import {
   acceptAnalysis,
   mergeAnalysisNodes,
+  readAnalysisState,
   restoreAnalysis,
   splitAnalysisNode,
   submitAnalysis,
@@ -114,6 +115,7 @@ const METHODS = [
   'customFields.previewPurge',
   'customFields.purgeDefinition',
   'analysis.apply',
+  'analysis.readState',
   'analysis.import',
   'analysis.submit',
   'analysis.accept',
@@ -260,12 +262,19 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return migrateDefinition(project.db, input);
     case 'customFields.previewPurge':
       knownKeys(input, ['definitionId']);
-      return previewPurge(project.db, requiredString(input.definitionId, 'definitionId'));
+      return previewPurge(
+        project.db,
+        requiredString(input.definitionId, 'definitionId'),
+        sessionId,
+      );
     case 'customFields.purgeDefinition':
-      knownKeys(input, ['definitionId', 'expectedRevision', 'current', 'historyIds']);
-      return purgeDefinition(project.db, input);
+      knownKeys(input, ['definitionId', 'expectedRevision', 'previewFingerprint']);
+      return purgeDefinition(project.db, input, undefined, sessionId);
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
+    case 'analysis.readState':
+      knownKeys(input, ['unitId']);
+      return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
     case 'analysis.import':
       return importAnalysis(project.db, analysisImport(input));
     case 'analysis.submit':
@@ -361,9 +370,31 @@ function listArg(value: unknown, name: string): unknown[] {
   return value;
 }
 
-function analysisSubmit(input: Record<string, unknown>): { unitId: string; graph: unknown } {
-  knownKeys(input, ['unitId', 'graph']);
-  return { unitId: requiredString(input.unitId, 'unitId'), graph: input.graph };
+function analysisSubmit(input: Record<string, unknown>): {
+  unitId: string;
+  graph: unknown;
+  expected: AnalysisCredentials;
+  definitionRevisions: { definitionId: string; revision: number }[];
+} {
+  knownKeys(input, ['unitId', 'graph', 'expected', 'definitionRevisions']);
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    graph: input.graph,
+    expected: analysisCredentials(input),
+    definitionRevisions: revisionBasis(input.definitionRevisions),
+  };
+}
+
+function revisionBasis(value: unknown): { definitionId: string; revision: number }[] {
+  if (!Array.isArray(value)) throw new Error('custom field revision does not match');
+  return value.map((item) => {
+    const record = objectArg(item);
+    knownKeys(record, ['definitionId', 'revision']);
+    return {
+      definitionId: requiredString(record.definitionId, 'definitionId'),
+      revision: requiredNumber(record.revision, 'revision'),
+    };
+  });
 }
 
 function analysisCandidate(input: Record<string, unknown>): {
@@ -583,7 +614,7 @@ function lexemeSave(input: Record<string, unknown>): LexemeSave {
     entry: objectArg(input.entry),
     ...(input.jieyu === undefined ? {} : { jieyu: objectArg(input.jieyu) }),
     ...(tags === undefined ? {} : { tags: booleanMap(tags) }),
-    ...(typeof input.accessRights === 'string' ? { accessRights: input.accessRights } : {}),
+    ...('accessRights' in input ? { accessRights: accessArg(input.accessRights) } : {}),
     ...(link === undefined ? {} : { link: linkWrite(link) }),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
     ...('senseFieldValues' in input
@@ -607,6 +638,12 @@ function linkWrite(value: unknown): LexemeLinkWrite {
     senseId: requiredString(record.senseId, 'senseId'),
     ...(typeof record.role === 'string' ? { role: record.role } : {}),
   };
+}
+
+function accessArg(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string') throw new Error('lexeme access is invalid');
+  return value;
 }
 
 function booleanMap(value: unknown): Record<string, boolean> {

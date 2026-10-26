@@ -166,21 +166,57 @@ export function surfacePartAlignment(
   graph: AnalysisGraphPayload,
   part: AnalysisGraphSurfacePart,
 ): 'aligned' | 'stale' {
+  const token = graph.nodes.find((node) => node.id === part.tokenId);
+  if (!sliceMatches(token?.domain?.form[part.formKey], part)) return 'stale';
   const displayKey = graph.displayContext?.formKey;
   if (displayKey === undefined || displayKey === part.formKey) return 'aligned';
-  const token = graph.nodes.find((node) => node.id === part.tokenId);
-  const displayed = token?.domain?.form[displayKey];
+  return sliceMatches(token?.domain?.form[displayKey], part) ? 'aligned' : 'stale';
+}
+
+/** New or rewritten spans must match the form they cite. Unchanged spans may stay stale. */
+export function assertEditedSurfaceParts(
+  before: AnalysisGraphPayload | null,
+  after: AnalysisGraphPayload,
+): void {
+  const previous = new Map(
+    (before?.nodes ?? []).map((node) => [node.id, JSON.stringify(node.surfaceParts ?? null)]),
+  );
+  const nodes = new Map(after.nodes.map((node) => [node.id, node]));
+  for (const node of after.nodes) {
+    if (previous.get(node.id) === JSON.stringify(node.surfaceParts ?? null)) continue;
+    for (const part of node.surfaceParts ?? []) {
+      const token = nodes.get(part.tokenId);
+      if (!token || token.type !== 'token' || !token.domain) {
+        throw new Error('surface part is not aligned');
+      }
+      if (!sliceMatches(token.domain.form[part.formKey], part)) {
+        if (
+          part.startOffset === undefined &&
+          part.endOffset === undefined &&
+          part.alignedForm === undefined
+        ) {
+          continue;
+        }
+        throw new Error('surface part is not aligned');
+      }
+    }
+  }
+}
+
+function sliceMatches(form: string | undefined, part: AnalysisGraphSurfacePart): boolean {
   if (
-    displayed === undefined ||
+    form === undefined ||
     part.startOffset === undefined ||
     part.endOffset === undefined ||
     part.alignedForm === undefined
   ) {
-    return 'stale';
+    return false;
   }
-  return part.alignedForm === displayed.slice(part.startOffset, part.endOffset)
-    ? 'aligned'
-    : 'stale';
+  return (
+    part.endOffset > part.startOffset &&
+    part.endOffset <= form.length &&
+    part.alignedForm === form.slice(part.startOffset, part.endOffset)
+  );
 }
 
 export function analysisGraphFingerprint(graph: unknown): string {
@@ -288,9 +324,8 @@ function acceptSurfaceParts(
     }
     const start = part.startOffset ?? 0;
     const end = part.endOffset ?? 0;
-    if (end <= start || end > form.length || part.alignedForm !== form.slice(start, end)) {
-      throw new Error('surface part is not aligned');
-    }
+    if (end <= start) throw new Error('surface part is not aligned');
+    if (part.alignedForm === undefined) throw new Error('surface part alignment is incomplete');
   }
 }
 

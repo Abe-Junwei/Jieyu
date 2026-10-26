@@ -123,7 +123,7 @@ label、普通显示 gloss/POS 节点、next、displayGloss 是由完整载荷�
 ### 8.3 项目稳定身份
 
 - 首次接收新的投影节点和持久词义关系时分配项目稳定 id，同次改完边、跨度、链接和备注的已知引用；一般不落表的关系仍可采用图内身份。
-- 每次首次接收生成独立接收批次 id；来源扩展及其局部 id→项目 id 映射绑定批次，内部编辑沿用。映射须带局部作用域，不能把不同语段或不同对象种类同名 id 混成一项。表见第 13.6 节，已确认，未实现。
+- 每次首次接收生成独立接收批次 id；来源扩展及其局部 id→项目 id 映射绑定批次，内部编辑沿用。映射须带局部作用域，不能把不同语段或不同对象种类同名 id 混成一项。空图上的建议提交按局部 id 分配项目 id，表见第 13.6 节。user_version 12。
 - 未知扩展中的原值不猜测改写，也不自动解释为项目引用。批次映射供来源追溯，不保证任意未知引用已变成有效项目关联。
 - 内部修改/重排保留 id；真正拆分/合并时旧节点退出，新节点分配新 id。旧链接/备注脱离保留，只有显式指定去向才重新关联，不按词形或位置猜。
 - 对象退出时扩展随对象保留在可恢复快照中，恢复连同稳定 id、批次与映射恢复。拆分/合并所需保留材料是 ADR-0089“不为每次普通编辑另存快照”之外的新增取舍，待提案接受；不能扩成所有普通编辑都保存完整项目历史。
@@ -419,8 +419,8 @@ body 缺省保留、删除显式；归属对象退出随其可恢复材料保存
 | C4 导入；已落地。旧页面入口未改接   | src/db/desktop/analysisImport.ts 及测试；analysis.ts 的显示键和跨度动作；client.ts、desktopCall.ts。未改旧标注页，未加 external_ref，未升 user_version                    | E12、E13–E16 在主进程读回：未提及的键保留，无 id 再导入会追加，坏 id 与又改又删整次拒绝，失配跨度重开后仍失配，删节点不带关系删除则拒绝。响应丢失沿用现有一次调用，不自动重试。旧标注页、导入页和接受页仍不改接                                            |
 | C5 依赖C3；已落地                   | src/db/desktop/customFields.ts、customFieldValidation.ts 及测试；schema/client/desktopCall/units/analysis                                                                 | 定义、稳定选项、约束、语段值和预览凭据。E8：旧语段缺必填值仍可改正文，新语段必须带值，同名导入按复用或新建，类型冲突不合并，默认值不追填。E10 的 customField.set 把 residue 标为需复核并推进分析代际。未知 definitionId 拒绝。user_version 8。旧页面未改接 |
 | C6 依赖C5及相应宿主；C6a/b/c 已落地 | customFields.ts 内部分发，未新增 customFieldTargets.ts。C6b 用 lexicon.ts 与 analysis.ts。来源、备注、对话、消息还没有业务创建入口                                        | 已有行可读写、重开、引用和清除定位。语言值和词条扩展不进值表。旧行缺必填仍可改无关字段；有创建入口的宿主，新建缺值回滚。来源、备注、对话、消息的新建必填留到各自的业务入口，恢复备注不追填。未改表，user_version 仍是 8。旧页面未做                        |
-| C7a/b/c 已落地。C8 依赖C7主进程验收 | C7a 已新增 customFieldMigration.ts，C7b 已新增 customFieldPurge.ts，C7c 已新增 referenceState.ts。schema.ts 去掉词条外键                                      | C7a：E4，user_version 9。C7b：E5，user_version 10。C7c：E6，user_version 11。已删除的义项读出来是失效引用，不计入有效数。新建或改指向仍须有效。同一 id 放回后重新有效。旧文件只拒绝。旧页面未做 |
-| C8a/C8b 已落地                  | 已新增 src/pages/useProjectCustomFieldController.ts、ProjectCustomFieldManager.tsx；featureFlags.projectCustomFieldsEnabled 默认关闭                  | 按对象新建定义、改名称、复用或新建导入、预览迁移。清除前先看到当前和历史行数，确认后定义消失。缺必填和失效引用在同一面板提示。未改表，user_version 仍是 11。语义 token、一层外壳边框、i18n。旧页面未接 |
+| C7a/b/c 已落地。C8 依赖C7主进程验收 | C7a 已新增 customFieldMigration.ts，C7b 已新增 customFieldPurge.ts，C7c 已新增 referenceState.ts。schema.ts 去掉词条外键                                                  | C7a：E4，user_version 9。C7b：E5，user_version 10。C7c：E6，user_version 11。已删除的义项读出来是失效引用，不计入有效数。新建或改指向仍须有效。同一 id 放回后重新有效。旧文件只拒绝。旧页面未做                                                            |
+| C8a/C8b 已落地                      | 已新增 src/pages/useProjectCustomFieldController.ts、ProjectCustomFieldManager.tsx；featureFlags.projectCustomFieldsEnabled 默认关闭                                      | 按对象新建定义、改名称、复用或新建导入、预览迁移。清除前先看到当前和历史行数，确认后定义消失。缺必填和失效引用在同一面板提示。未改表，user_version 仍是 11。语义 token、一层外壳边框、i18n。旧页面未接                                                     |
 
 C1 至 C3 是未开放工程中间态：现有 unit 创建仍只建语段及转写正文，不伪造分析；现有测试词项 fixture 可在测试中插入，但不能因此暴露独立投影写 API。导入入口仍不可用，不回退旧写路径。C8 之前不对试用者开放；完成 C3 不等于 M5-C 可用。若任一子片超出半天可验证范围，在同一任务表细分后再实施，不合并为巨型提交。
 

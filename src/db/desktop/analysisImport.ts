@@ -2,16 +2,18 @@ import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import {
   analysisGraphFingerprint,
+  assertEditedSurfaceParts,
   validateAnalysisGraphPayload,
   type AnalysisGraphNode,
   type AnalysisGraphPayload,
   type AnalysisGraphRelation,
 } from '../../annotation/analysisGraphDomain';
 import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
-import { replaceProjection } from './analysis';
+import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
 import { detachAnalysisAssociations } from './analysisCandidates';
 import type { AnalysisCredentials } from './analysisRestore';
 import { assertStoredCustomFields } from './customFields';
+import { assertRetargetedReferences } from './referenceState';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -80,7 +82,10 @@ export function importAnalysis(
     const graph = structuredClone(current.graph);
     applyImport(graph, nodes, relations, removeNodes, removeRelations, counts);
     const validated = validateAnalysisGraphPayload(graph, current.graph.text);
-    assertStoredCustomFields(db, validated, input.unitId);
+    assertRetargetedReferences(db, current.graph, validated);
+    assertTokenLanguages(db, current.graph, validated);
+    assertEditedSurfaceParts(current.graph, validated);
+    assertStoredCustomFields(db, validated, input.unitId, { prior: current.graph });
     const fingerprint = analysisGraphFingerprint(validated);
     const generation = current.analysisGeneration + 1;
     const now = new Date().toISOString();
@@ -91,6 +96,7 @@ export function importAnalysis(
     ).run(JSON.stringify(validated), generation, fingerprint, now, input.unitId);
     const projected = projectAnalysisGraph(validated, input.unitId);
     replaceProjection(db, input.unitId, projected.tokens, projected.morphemes);
+    syncProjectedLinks(db, validated);
     detachAnalysisAssociations(db, removeNodes, now);
     afterWrite?.();
     const stored = getAnalysisRoot(db, input.unitId);
@@ -115,6 +121,8 @@ function applyImport(
   removeRelations: string[],
   counts: AnalysisImportCounts,
 ): void {
+  for (const item of nodes) assertImportNode(item);
+  for (const item of relations) assertImportRelation(item);
   const nodeIds = new Set(graph.nodes.map((node) => node.id));
   const relationIds = new Set(graph.relations.map((relation) => relation.id));
   const updatedNodeIds = new Set<string>();
@@ -193,11 +201,13 @@ function mergeNode(node: AnalysisGraphNode, item: Record<string, unknown>): void
     if (typeof domain.languageId === 'string') node.domain.languageId = domain.languageId;
     if (typeof domain.lexemeId === 'string') node.domain.lexemeId = domain.lexemeId;
   }
+  if ('customFields' in item) node.customFields = fieldBag(item.customFields);
+  if ('residue' in item) node.residue = residueList(item.residue);
+  else if (node.residue !== undefined && domain !== null) {
+    node.residue = node.residue.map((residue) => ({ ...residue, review: 'needs-review' as const }));
+  }
   if (Array.isArray(item.surfaceParts)) {
     node.surfaceParts = item.surfaceParts as AnalysisGraphNode['surfaceParts'];
-  }
-  if (node.residue !== undefined) {
-    node.residue = node.residue.map((residue) => ({ ...residue, review: 'needs-review' as const }));
   }
 }
 
@@ -236,8 +246,56 @@ function newNode(graph: AnalysisGraphPayload, item: Record<string, unknown>): An
       createdAt: now,
       updatedAt: now,
       provenance: { actorType: 'importer', method: 'import', createdAt: now },
+      ...(typeof domain.pos === 'string' ? { pos: domain.pos } : {}),
     },
+    ...('customFields' in item ? { customFields: fieldBag(item.customFields) } : {}),
+    ...('residue' in item ? { residue: residueList(item.residue) } : {}),
   };
+}
+
+const IMPORT_NODE_KEYS = [
+  'id',
+  'type',
+  'label',
+  'domain',
+  'surfaceParts',
+  'customFields',
+  'residue',
+];
+const IMPORT_DOMAIN_KEYS = ['form', 'gloss', 'pos', 'index', 'languageId', 'lexemeId'];
+const IMPORT_RELATION_KEYS = ['id', 'role'];
+
+function assertImportNode(item: Record<string, unknown>): void {
+  assertKnown(item, IMPORT_NODE_KEYS);
+  const domain = objectValue(item.domain);
+  if (domain !== null) {
+    assertKnown(domain, IMPORT_DOMAIN_KEYS);
+    if ('pos' in domain && typeof domain.pos !== 'string') {
+      throw new Error('analysis import item is invalid');
+    }
+  }
+}
+
+function assertImportRelation(item: Record<string, unknown>): void {
+  assertKnown(item, IMPORT_RELATION_KEYS);
+}
+
+function assertKnown(item: Record<string, unknown>, keys: readonly string[]): void {
+  for (const key of Object.keys(item)) {
+    if (!keys.includes(key)) throw new Error('analysis import item is invalid');
+  }
+}
+
+function fieldBag(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('analysis import item is invalid');
+  }
+  return value as Record<string, unknown>;
+}
+
+function residueList(value: unknown): NonNullable<AnalysisGraphNode['residue']> {
+  if (!Array.isArray(value)) throw new Error('analysis import item is invalid');
+  return value as NonNullable<AnalysisGraphNode['residue']>;
 }
 
 function mergeStrings(

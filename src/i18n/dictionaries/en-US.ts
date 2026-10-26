@@ -94,7 +94,7 @@ export const enUSDictionary = {
   'app.projectFields.required': 'Required',
   'app.projectFields.purgePreview': 'Preview removal',
   'app.projectFields.purgeConfirm': 'Confirm removal',
-  'app.projectFields.purgeResult': 'Remove {current} current and {history} history',
+  'app.projectFields.purgeResult': 'Remove {name}: {current} current and {history} history',
   'app.projectFields.targetId': 'Object id',
   'app.projectFields.checkMissing': 'Check missing values',
   'app.projectFields.missingNone': 'No required value is missing',

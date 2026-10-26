@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import {
   analysisGraphFingerprint,
+  assertEditedSurfaceParts,
   validateAnalysisGraphPayload,
   type AnalysisGraphPayload,
 } from '../../annotation/analysisGraphDomain';
@@ -157,6 +158,7 @@ export function updateUnitText(
   const write = db.transaction(() => {
     const existing = getUnit(db, input.unitId);
     if (!existing) throw new Error('unit is missing');
+    if (existing.text === input.text) return existing;
     const material = readAnalysisMaterial(db, input.unitId);
     if (material.graph !== null) {
       insertReviewSnapshot(db, material);
@@ -257,7 +259,8 @@ export function writeAnalysisRoot(
     const text = getUnit(db, input.unitId)?.text;
     if (text === undefined) throw new Error('unit is missing');
     const graph = validateAnalysisGraphPayload(input.graph, text);
-    assertStoredCustomFields(db, graph, input.unitId);
+    assertEditedSurfaceParts(current.graph, graph);
+    assertStoredCustomFields(db, graph, input.unitId, { prior: current.graph });
     const fingerprint = analysisGraphFingerprint(graph);
     const generation = current.analysisGeneration + 1;
     const now = new Date().toISOString();

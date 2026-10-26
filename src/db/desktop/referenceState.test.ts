@@ -9,7 +9,7 @@ import { saveLexemeEntry, linkSense, removeSense } from './lexicon';
 import { openProject } from './openProject';
 import { resetDesktopSessions } from './projectSession';
 import { countActiveLexemeLinks, readGraphReferences, readLexemeLinks } from './referenceState';
-import { getAnalysisRoot, writeAnalysisRoot } from './units';
+import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
@@ -37,23 +37,26 @@ describe('lexeme reference state', () => {
       id: 'lexemeA',
       entry: { headword: 'ka', senses: [{ id: 'sense1', definitions: [{ text: 'past' }] }] },
     });
-    const link = linkSense(project.db, {
-      lexemeId: 'lexemeA',
-      targetType: 'token',
-      targetId: 'tok-1',
-      senseId: 'sense1',
-    });
     const stored = writeAnalysisRoot(project.db, {
       unitId: 'u1',
       graph: linkedGraph(),
       expectedAnalysisGeneration: 0,
+    });
+    const linked = applyAnalysis(project.db, {
+      unitId: 'u1',
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [{ action: 'node.setField', nodeId: 'n1', field: 'pos', value: 'noun' }],
     });
     removeSense(project.db, { lexemeId: 'lexemeA', senseId: 'sense1' });
 
     const readings = readLexemeLinks(project.db);
     expect(readings).toEqual([
       expect.objectContaining({
-        id: link.id,
+        id: 'l1',
         lexemeId: 'lexemeA',
         senseId: 'sense1',
         linkState: 'target-missing',
@@ -78,8 +81,8 @@ describe('lexeme reference state', () => {
       unitId: 'u1',
       expected: {
         manuscriptGeneration: 0,
-        analysisGeneration: stored.analysisGeneration,
-        graphFingerprint: stored.graphFingerprint,
+        analysisGeneration: linked.root.analysisGeneration,
+        graphFingerprint: linked.root.graphFingerprint,
       },
       changes: [
         { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
@@ -127,6 +130,11 @@ describe('lexeme reference state', () => {
       id: 'lexemeA',
       entry: { headword: 'ka', senses: [{ id: 'sense1', definitions: [{ text: 'past' }] }] },
     });
+    writeAnalysisRoot(project.db, {
+      unitId: 'u1',
+      graph: bareGraph(),
+      expectedAnalysisGeneration: 0,
+    });
     linkSense(project.db, {
       lexemeId: 'lexemeA',
       targetType: 'token',
@@ -169,6 +177,49 @@ describe('lexeme reference state', () => {
     project.close();
   });
 
+  it('keeps a detached link out of the active count', () => {
+    const project = openProject(folder());
+    seedUnit(project.db);
+    writeAnalysisRoot(project.db, {
+      unitId: 'u1',
+      graph: {
+        payloadVersion: 1,
+        id: 'g1',
+        text: 'ka',
+        nodes: [
+          {
+            id: 'tok-1',
+            type: 'token',
+            label: 'ka',
+            domain: { form: { default: 'ka' }, index: 0, createdAt: T, updatedAt: T },
+          },
+        ],
+        relations: [],
+      },
+      expectedAnalysisGeneration: 0,
+    });
+    saveLexemeEntry(project.db, {
+      id: 'lex',
+      entry: { headword: 'ka', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+    });
+    linkSense(project.db, {
+      lexemeId: 'lex',
+      targetType: 'token',
+      targetId: 'tok-1',
+      senseId: 'sense',
+    });
+    updateUnitText(project.db, { unitId: 'u1', text: 'ta' });
+    expect(project.db.prepare('SELECT attachment FROM token_lexeme_links').get()).toEqual({
+      attachment: 'detached',
+    });
+    expect(readLexemeLinks(project.db)[0]).toMatchObject({
+      attachment: 'detached',
+      linkState: 'active',
+    });
+    expect(countActiveLexemeLinks(project.db)).toBe(0);
+    project.close();
+  });
+
   it('rejects a version 10 library without changing its bytes', () => {
     const dir = folder();
     const file = join(dir, 'project.sqlite');
@@ -206,6 +257,23 @@ function seedUnit(db: InstanceType<typeof Database>): void {
       id, unit_id, token_index, form_json, gloss_json, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run('tok-1', 'u1', 0, '{"default":"ka"}', '{}', T, T);
+}
+
+function bareGraph() {
+  return {
+    payloadVersion: 1 as const,
+    id: 'g0',
+    text: 'ka',
+    nodes: [
+      {
+        id: 'tok-1',
+        type: 'token' as const,
+        label: 'ka',
+        domain: { form: { default: 'ka' }, index: 0, createdAt: T, updatedAt: T },
+      },
+    ],
+    relations: [],
+  };
 }
 
 function linkedGraph() {

@@ -6,6 +6,7 @@ import { callDesktopSession } from './desktopCall';
 import { saveLexemeEntry } from './lexicon';
 import { openProject } from './openProject';
 import { openDesktopSession, resetDesktopSessions } from './projectSession';
+import { writeAnalysisRoot } from './units';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
@@ -140,6 +141,50 @@ describe('project lexicon', () => {
     expect(links.n).toBe(0);
     project.close();
   });
+
+  it('keeps omitted attachments and rejects a repeated sense id', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    entry(session.sessionId, {
+      id: 'lex',
+      entry: { headword: 'ka', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+      jieyu: {
+        notes: [{ owner: 'entry', ref: 'lex', text: 'independent note' }],
+        exampleRefs: [{ senseId: 'sense', exampleIndex: 0, segmentId: 'synthetic-segment' }],
+      },
+      tags: { reviewed: true },
+      accessRights: 'confidential',
+    });
+    const changed = callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'lex',
+      entry: { headword: 'kaa', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+    }) as {
+      jieyu: { notes: { text: string }[] };
+      tags: Record<string, boolean>;
+      accessRights: string;
+    };
+    expect(changed.jieyu.notes[0]?.text).toBe('independent note');
+    expect(changed.tags).toEqual({ reviewed: true });
+    expect(changed.accessRights).toBe('confidential');
+    expect(() =>
+      entry(session.sessionId, {
+        id: 'lex',
+        entry: { headword: 'kaa', senses: [] },
+      }),
+    ).toThrow('sense is still referenced');
+    expect(() =>
+      entry(session.sessionId, {
+        id: 'dup',
+        entry: {
+          headword: 'ka',
+          senses: [
+            { id: 'same', definitions: [{ text: 'one' }] },
+            { id: 'same', definitions: [{ text: 'two' }] },
+          ],
+        },
+      }),
+    ).toThrow('sense id is duplicated');
+  });
 });
 
 function entry(
@@ -174,5 +219,26 @@ function seedToken(dir: string): void {
       id, unit_id, token_index, form_json, gloss_json, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run('tok-1', 'u1', 0, '{"default":"run"}', '{}', T, T);
+  db.prepare(
+    `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('ut1', 'u1', 'transcription', 'run', ?)`,
+  ).run(T);
+  writeAnalysisRoot(project.db, {
+    unitId: 'u1',
+    expectedAnalysisGeneration: 0,
+    graph: {
+      payloadVersion: 1,
+      id: 'g',
+      text: 'run',
+      nodes: [
+        {
+          id: 'tok-1',
+          type: 'token',
+          label: 'run',
+          domain: { form: { default: 'run' }, index: 0, createdAt: T, updatedAt: T },
+        },
+      ],
+      relations: [],
+    },
+  });
   project.close();
 }

@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import type { AnalysisGraphPayload } from '../../annotation/analysisGraphDomain';
+import { readAnalysisMaterial } from './analysisCandidates';
+import { writeGraph } from './analysisRestore';
 import { parseStoredDmlexEntry, parseStoredJieyuLexeme } from '../dmlexEntrySchema';
 import { withLexemeNestedIds } from '../dmlexNestedIds';
 import {
@@ -26,7 +29,7 @@ export interface LexemeSave {
   entry: Record<string, unknown>;
   jieyu?: Record<string, unknown>;
   tags?: Record<string, boolean>;
-  accessRights?: string;
+  accessRights?: string | null;
   link?: LexemeLinkWrite;
   fieldValues?: Record<string, unknown>;
   senseFieldValues?: Record<string, Record<string, unknown>>;
@@ -56,6 +59,9 @@ interface PreparedEntry {
   tags: Record<string, boolean>;
   accessRights: string | null;
   senseIds: string[];
+  jieyuProvided: boolean;
+  tagsProvided: boolean;
+  accessProvided: boolean;
   link?: LexemeLinkWrite;
 }
 
@@ -73,7 +79,10 @@ export function saveLexemeEntry(db: SqliteDatabase, input: LexemeSave): ProjectL
     if (existing !== undefined && existing.kind !== 'entry') {
       throw new Error('lexeme kind conflicts');
     }
-    if (existing !== undefined) assertRemovedSensesFree(db, existing, prepared);
+    if (existing !== undefined) {
+      keepOmittedAttachments(db, existing, prepared);
+      assertRemovedSensesFree(db, existing, prepared);
+    }
     upsertEntry(db, prepared, existing !== undefined);
     if (existing === undefined) {
       writeRequiredFieldValues(db, 'lexeme', prepared.id, input.fieldValues);
@@ -100,7 +109,7 @@ export function saveLexemeEntry(db: SqliteDatabase, input: LexemeSave): ProjectL
       }
     }
     if (prepared.link !== undefined) {
-      insertLink(db, prepared.id, prepared.link, prepared.senseIds);
+      attachSense(db, prepared.id, prepared.link, prepared.senseIds);
     }
     const stored = getLexemeEntry(db, prepared.id);
     if (stored === null) throw new Error('lexeme readback failed');
@@ -143,7 +152,7 @@ export function linkSense(
   const write = db.transaction(() => {
     const entry = getLexemeEntry(db, lexemeId);
     if (entry === null) throw new Error('lexeme is missing');
-    return insertLink(db, lexemeId, input, senseIdsOf(entry.entry));
+    return attachSense(db, lexemeId, input, senseIdsOf(entry.entry));
   });
   return write();
 }
@@ -189,16 +198,36 @@ function prepareEntry(input: LexemeSave): PreparedEntry {
     input.jieyu === undefined
       ? {}
       : (parseStoredJieyuLexeme(splitLexemeExtension(input.jieyu)) as Record<string, unknown>);
+  const ids = senseIdsOf(entry);
+  if (new Set(ids).size !== ids.length) throw new Error('sense id is duplicated');
   const link = input.link === undefined ? undefined : normalizeLink(input.link);
   return {
     id,
     entry,
     jieyu,
-    tags: tagMap(input.tags),
-    accessRights: accessRights(input.accessRights),
-    senseIds: senseIdsOf(entry),
+    tags: input.tags === undefined ? {} : tagMap(input.tags),
+    accessRights: input.accessRights === undefined ? null : accessRights(input.accessRights),
+    senseIds: ids,
+    jieyuProvided: input.jieyu !== undefined,
+    tagsProvided: input.tags !== undefined,
+    accessProvided: input.accessRights !== undefined,
     ...(link === undefined ? {} : { link }),
   };
+}
+
+function keepOmittedAttachments(
+  db: SqliteDatabase,
+  existing: StoredRow,
+  prepared: PreparedEntry,
+): void {
+  if (!prepared.jieyuProvided)
+    prepared.jieyu = JSON.parse(existing.jieyu_json) as Record<string, unknown>;
+  if (prepared.tagsProvided && prepared.accessProvided) return;
+  const row = db
+    .prepare('SELECT tags_json, access_rights FROM lexemes WHERE id = ?')
+    .get(existing.id) as { tags_json: string; access_rights: string | null };
+  if (!prepared.tagsProvided) prepared.tags = JSON.parse(row.tags_json) as Record<string, boolean>;
+  if (!prepared.accessProvided) prepared.accessRights = row.access_rights;
 }
 
 function upsertEntry(db: SqliteDatabase, prepared: PreparedEntry, exists: boolean): void {
@@ -224,7 +253,7 @@ function upsertEntry(db: SqliteDatabase, prepared: PreparedEntry, exists: boolea
   ).run(prepared.id, entryJson, jieyuJson, tagsJson, prepared.accessRights, now, now);
 }
 
-function insertLink(
+function attachSense(
   db: SqliteDatabase,
   lexemeId: string,
   link: LexemeLinkWrite,
@@ -232,31 +261,75 @@ function insertLink(
 ): ProjectLexemeLink {
   const normalized = normalizeLink(link);
   if (!senseIds.includes(normalized.senseId)) throw new Error('sense is missing');
-  assertTarget(db, normalized.targetType, normalized.targetId);
-  const id = randomUUID();
+  const unitId = unitOfTarget(db, normalized.targetType, normalized.targetId);
+  const material = readAnalysisMaterial(db, unitId);
+  if (material.graph === null) throw new Error('analysis graph is missing');
+  const graph = structuredClone(material.graph);
+  const ref = lexemeRef(graph, lexemeId);
   const now = new Date().toISOString();
-  db.prepare(
-    `INSERT INTO token_lexeme_links (
-      id, target_type, target_id, lexeme_id, sense_id, role, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    normalized.targetType,
-    normalized.targetId,
-    lexemeId,
-    normalized.senseId,
-    normalized.role ?? null,
-    now,
-    now,
-  );
+  const relationId = randomUUID();
+  graph.relations.push({
+    id: relationId,
+    type: 'linksLexeme',
+    sourceId: normalized.targetId,
+    targetId: ref.id,
+    link: {
+      lexemeId,
+      senseId: normalized.senseId,
+      ...(normalized.role === undefined ? {} : { role: normalized.role }),
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  writeGraph(db, material, graph, false);
+  const row = db
+    .prepare(
+      `SELECT id, target_type, target_id, lexeme_id, sense_id, role
+       FROM token_lexeme_links WHERE id = ?`,
+    )
+    .get(relationId) as
+    | {
+        id: string;
+        target_type: string;
+        target_id: string;
+        lexeme_id: string;
+        sense_id: string;
+        role: string | null;
+      }
+    | undefined;
+  if (row === undefined) throw new Error('lexeme readback failed');
   return {
-    id,
-    targetType: normalized.targetType,
-    targetId: normalized.targetId,
-    lexemeId,
-    senseId: normalized.senseId,
-    role: normalized.role ?? null,
+    id: row.id,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    lexemeId: row.lexeme_id,
+    senseId: row.sense_id,
+    role: row.role,
   };
+}
+
+function lexemeRef(graph: AnalysisGraphPayload, lexemeId: string): { id: string } {
+  const existing = graph.nodes.find((node) => node.type === 'lexemeRef' && node.label === lexemeId);
+  if (existing !== undefined) return existing;
+  const created = { id: randomUUID(), type: 'lexemeRef' as const, label: lexemeId };
+  graph.nodes.push(created);
+  return created;
+}
+
+function unitOfTarget(db: SqliteDatabase, targetType: string, targetId: string): string {
+  const row =
+    targetType === 'token'
+      ? (db.prepare('SELECT unit_id FROM tokens WHERE id = ?').get(targetId) as
+          { unit_id: string } | undefined)
+      : (db
+          .prepare(
+            `SELECT tokens.unit_id AS unit_id
+             FROM morphemes JOIN tokens ON tokens.id = morphemes.token_id
+             WHERE morphemes.id = ?`,
+          )
+          .get(targetId) as { unit_id: string } | undefined);
+  if (row === undefined) throw new Error('link target is missing');
+  return row.unit_id;
 }
 
 function assertRemovedSensesFree(
@@ -287,13 +360,6 @@ function assertSenseFree(
   if (cited) throw new Error('sense is still referenced');
 }
 
-function assertTarget(db: SqliteDatabase, targetType: string, targetId: string): void {
-  const table = targetType === 'token' ? 'tokens' : 'morphemes';
-  const row = db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(targetId) as
-    { id: string } | undefined;
-  if (row === undefined) throw new Error('link target is missing');
-}
-
 function readRow(db: SqliteDatabase, id: string): StoredRow | undefined {
   return db.prepare('SELECT id, kind, entry_json, jieyu_json FROM lexemes WHERE id = ?').get(id) as
     StoredRow | undefined;
@@ -314,15 +380,18 @@ function senseIdsOf(entry: Record<string, unknown>): string[] {
   return senseList(entry).map((sense) => sense.id);
 }
 
-function normalizeLink(link: LexemeLinkWrite): LexemeLinkWrite {
+function normalizeLink(link: LexemeLinkWrite): {
+  targetType: 'token' | 'morpheme';
+  targetId: string;
+  senseId: string;
+  role?: (typeof ROLES)[number];
+} {
   const targetType = link.targetType;
   if (targetType !== 'token' && targetType !== 'morpheme') {
     throw new Error('link target is invalid');
   }
-  const role = link.role;
-  if (role !== undefined && !(ROLES as readonly string[]).includes(role)) {
-    throw new Error('link role is invalid');
-  }
+  const role = link.role === undefined ? undefined : ROLES.find((item) => item === link.role);
+  if (link.role !== undefined && role === undefined) throw new Error('link role is invalid');
   return {
     targetType,
     targetId: requiredId(link.targetId, 'link target'),
@@ -339,8 +408,8 @@ function tagMap(tags: Record<string, boolean> | undefined): Record<string, boole
   return tags;
 }
 
-function accessRights(value: string | undefined): string | null {
-  if (value === undefined) return null;
+function accessRights(value: string | null): string | null {
+  if (value === null) return null;
   if (!(ACCESS as readonly string[]).includes(value)) throw new Error('lexeme access is invalid');
   return value;
 }

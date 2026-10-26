@@ -1,11 +1,13 @@
 import type Database from 'better-sqlite3';
+import { randomUUID } from 'node:crypto';
 import {
   analysisGraphFingerprint,
+  assertEditedSurfaceParts,
   validateAnalysisGraphPayload,
   type AnalysisGraphPayload,
 } from '../../annotation/analysisGraphDomain';
 import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
-import { replaceProjection } from './analysis';
+import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
 import {
   detachAnalysisAssociations,
   getAnalysisCandidate,
@@ -19,7 +21,12 @@ import {
   type AnalysisCandidateRecord,
   type AnalysisMaterial,
 } from './analysisCandidates';
-import { assertDefinitionRevisions, assertStoredCustomFields } from './customFields';
+import {
+  assertDefinitionRevisions,
+  assertStoredCustomFields,
+  listDefinitions,
+} from './customFields';
+import { assertRetargetedReferences } from './referenceState';
 import { convertSnapshotGraph } from './customFieldMigration';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
@@ -36,18 +43,115 @@ export interface AnalysisAcceptResult {
   root: AnalysisRoot;
 }
 
+export interface DefinitionRevisionBasis {
+  definitionId: string;
+  revision: number;
+}
+
+export interface AnalysisReadState {
+  unitId: string;
+  text: string;
+  graph: AnalysisGraphPayload | null;
+  manuscriptGeneration: number;
+  analysisGeneration: number;
+  graphFingerprint: string;
+  definitionRevisions: DefinitionRevisionBasis[];
+}
+
+export function readAnalysisState(db: SqliteDatabase, unitId: string): AnalysisReadState {
+  const material = readAnalysisMaterial(db, unitId);
+  return {
+    unitId: material.unitId,
+    text: material.text,
+    graph: material.graph,
+    manuscriptGeneration: material.manuscriptGeneration,
+    analysisGeneration: material.analysisGeneration,
+    graphFingerprint: material.graphFingerprint,
+    definitionRevisions: definitionRevisionBasis(db),
+  };
+}
+
+function receiveLocalGraph(
+  db: SqliteDatabase,
+  unitId: string,
+  graph: AnalysisGraphPayload,
+): AnalysisGraphPayload {
+  const batchId = randomUUID();
+  db.prepare(
+    `INSERT INTO reception_batches (id, unit_id, source_kind, created_at) VALUES (?, ?, 'accept', ?)`,
+  ).run(batchId, unitId, new Date().toISOString());
+  const nodeIds = new Map<string, string>();
+  const relationIds = new Map<string, string>();
+  const remember = (scope: 'node' | 'relation', localId: string, into: Map<string, string>) => {
+    if (into.has(localId)) throw new Error('local id is duplicated');
+    const projectId = randomUUID();
+    into.set(localId, projectId);
+    db.prepare(
+      `INSERT INTO local_id_map (batch_id, scope, local_id, project_id) VALUES (?, ?, ?, ?)`,
+    ).run(batchId, scope, localId, projectId);
+  };
+  for (const node of graph.nodes) remember('node', node.id, nodeIds);
+  for (const relation of graph.relations) remember('relation', relation.id, relationIds);
+  const received = structuredClone(graph);
+  for (const node of received.nodes) {
+    node.id = nodeIds.get(node.id) ?? node.id;
+    if (node.surfaceParts !== undefined) {
+      node.surfaceParts = node.surfaceParts.map((part) => ({
+        ...part,
+        tokenId: nodeIds.get(part.tokenId) ?? part.tokenId,
+      }));
+    }
+    if (node.customFields !== undefined)
+      node.customFields = remapNodeRefs(node.customFields, nodeIds);
+  }
+  for (const relation of received.relations) {
+    relation.id = relationIds.get(relation.id) ?? relation.id;
+    relation.sourceId = nodeIds.get(relation.sourceId) ?? relation.sourceId;
+    relation.targetId = nodeIds.get(relation.targetId) ?? relation.targetId;
+  }
+  return received;
+}
+
+function remapNodeRefs(
+  fields: Record<string, unknown>,
+  nodeIds: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) next[key] = remapRef(value, nodeIds);
+  return next;
+}
+
+function remapRef(value: unknown, nodeIds: ReadonlyMap<string, string>): unknown {
+  if (Array.isArray(value)) return value.map((item) => remapRef(item, nodeIds));
+  if (typeof value !== 'object' || value === null) return value;
+  const record = value as Record<string, unknown>;
+  if (record.targetType === 'analysis-node' && typeof record.targetId === 'string') {
+    const projectId = nodeIds.get(record.targetId);
+    if (projectId !== undefined) return { ...record, targetId: projectId };
+  }
+  return value;
+}
+
 export function submitAnalysis(
   db: SqliteDatabase,
-  input: { unitId: string; graph: unknown },
+  input: {
+    unitId: string;
+    graph: unknown;
+    expected: AnalysisCredentials;
+    definitionRevisions: readonly DefinitionRevisionBasis[];
+  },
 ): AnalysisCandidateRecord {
   const write = db.transaction(() => {
     const material = readAnalysisMaterial(db, input.unitId);
+    assertCredentials(material, input.expected);
+    assertRevisionBasis(db, input.definitionRevisions);
     const graph = validateAnalysisGraphPayload(input.graph, material.text);
+    const received = material.graph === null ? receiveLocalGraph(db, input.unitId, graph) : graph;
     const record = insertAnalysisCandidate(db, {
       unitId: input.unitId,
       kind: 'suggestion',
       status: 'pending',
-      graph,
+      graph: received,
       graphFingerprint: material.graphFingerprint,
       manuscriptGeneration: material.manuscriptGeneration,
       analysisGeneration: material.analysisGeneration,
@@ -89,7 +193,7 @@ export function acceptAnalysis(
       throw new Error('analysis credentials do not match');
     }
     assertDefinitionRevisions(db, candidate.definitionRevisions);
-    const written = writeGraph(db, material, candidate.graph);
+    const written = writeGraph(db, material, candidate.graph, false);
     detachAnalysisAssociations(
       db,
       nodeIdsOf(material.graph).filter((id) => !new Set(nodeIdsOf(written.graph)).has(id)),
@@ -107,8 +211,10 @@ export function restoreAnalysis(
 ): AnalysisRoot {
   const write = db.transaction(() => {
     const candidate = requireCandidate(db, input.candidateId);
-    if (candidate.kind !== 'review-snapshot')
-      throw new Error('analysis candidate is not a snapshot');
+    const restorable =
+      candidate.kind === 'review-snapshot' ||
+      (candidate.kind === 'suggestion' && candidate.status === 'accepted');
+    if (!restorable) throw new Error('analysis candidate is not a snapshot');
     const material = readAnalysisMaterial(db, candidate.unitId);
     if (candidate.text !== material.text) throw new Error('restore text does not match');
     if (candidate.redactedDefinitionIds.length > 0) {
@@ -128,6 +234,7 @@ export function restoreAnalysis(
         candidate.definitionRevisions,
         input.conversions ?? [],
       ),
+      true,
     );
     reattach(db, candidate, nodeIdsOf(written.graph), now);
     return written;
@@ -230,9 +337,54 @@ function assertCredentials(material: AnalysisMaterial, expected: AnalysisCredent
   }
 }
 
-function writeGraph(db: SqliteDatabase, material: AnalysisMaterial, graph: unknown): AnalysisRoot {
+function definitionRevisionBasis(db: SqliteDatabase): DefinitionRevisionBasis[] {
+  return listDefinitions(db)
+    .map((definition) => ({ definitionId: definition.id, revision: definition.revision }))
+    .sort((left, right) => left.definitionId.localeCompare(right.definitionId));
+}
+
+function assertRevisionBasis(
+  db: SqliteDatabase,
+  supplied: readonly DefinitionRevisionBasis[],
+): void {
+  const seen = new Set<string>();
+  for (const record of supplied) {
+    if (seen.has(record.definitionId)) throw new Error('custom field revision does not match');
+    seen.add(record.definitionId);
+  }
+  const current = definitionRevisionBasis(db);
+  const given = [...supplied].sort((left, right) =>
+    left.definitionId.localeCompare(right.definitionId),
+  );
+  if (given.length !== current.length) throw new Error('custom field revision does not match');
+  for (let index = 0; index < current.length; index += 1) {
+    if (
+      given[index]?.definitionId !== current[index]?.definitionId ||
+      given[index]?.revision !== current[index]?.revision
+    ) {
+      throw new Error('custom field revision does not match');
+    }
+  }
+}
+
+export function writeGraph(
+  db: SqliteDatabase,
+  material: AnalysisMaterial,
+  graph: unknown,
+  historical = false,
+): AnalysisRoot {
   const validated = validateAnalysisGraphPayload(graph, material.text);
-  assertStoredCustomFields(db, validated, material.unitId);
+  if (!historical) {
+    assertRetargetedReferences(db, material.graph, validated);
+    assertTokenLanguages(db, material.graph, validated);
+    assertEditedSurfaceParts(material.graph, validated);
+  } else {
+    assertTokenLanguages(db, null, validated);
+  }
+  assertStoredCustomFields(db, validated, material.unitId, {
+    prior: material.graph,
+    historical,
+  });
   const fingerprint = analysisGraphFingerprint(validated);
   const generation = material.analysisGeneration + 1;
   const now = new Date().toISOString();
@@ -243,6 +395,7 @@ function writeGraph(db: SqliteDatabase, material: AnalysisMaterial, graph: unkno
   ).run(JSON.stringify(validated), generation, fingerprint, now, material.unitId);
   const projected = projectAnalysisGraph(validated, material.unitId);
   replaceProjection(db, material.unitId, projected.tokens, projected.morphemes);
+  syncProjectedLinks(db, validated);
   const stored = getAnalysisRoot(db, material.unitId);
   if (
     !stored?.graph ||

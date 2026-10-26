@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
@@ -18,7 +18,11 @@ export interface ProjectFieldPreview {
 }
 
 export interface ProjectFieldPurge {
+  sessionId: string;
+  definitionId: string;
+  label: string;
   revision: number;
+  previewFingerprint: string;
   current: { targetType: string; targetId: string; lexemeId?: string; unitId?: string }[];
   historyIds: string[];
 }
@@ -56,8 +60,14 @@ export function useProjectCustomFieldController(
   const [missingNames, setMissingNames] = useState<string[] | null>(null);
   const [dangling, setDangling] = useState<ProjectFieldDangling[] | null>(null);
   const [error, setError] = useState('');
+  const purgeTicket = useRef(0);
+  const dropPurge = () => {
+    purgeTicket.current += 1;
+    setPurge(null);
+  };
 
   useEffect(() => {
+    dropPurge();
     let cancelled = false;
     void client
       .listCustomFieldDefinitions(sessionId)
@@ -98,7 +108,7 @@ export function useProjectCustomFieldController(
         await reload();
         setSelectedId(created.id);
         setPreview(null);
-        setPurge(null);
+        dropPurge();
       })
       .catch(fail);
   };
@@ -134,6 +144,7 @@ export function useProjectCustomFieldController(
         await reload();
         setSelectedId(imported.id);
         setPreview(null);
+        dropPurge();
       })
       .catch(fail);
   };
@@ -156,11 +167,20 @@ export function useProjectCustomFieldController(
   const previewPurge = () => {
     if (selected === null) return;
     setError('');
+    const ticket = ++purgeTicket.current;
+    const definitionId = selected.id;
+    const label = fieldLabel(selected.name, locale);
+    const boundSession = sessionId;
     void client
-      .previewCustomFieldPurge(sessionId, selected.id)
+      .previewCustomFieldPurge(boundSession, definitionId)
       .then((result) => {
+        if (ticket !== purgeTicket.current || result.definitionId !== definitionId) return;
         setPurge({
+          sessionId: boundSession,
+          definitionId,
+          label,
           revision: result.revision,
+          previewFingerprint: result.previewFingerprint,
           current: result.current,
           historyIds: result.history.map((item) => item.id),
         });
@@ -169,18 +189,17 @@ export function useProjectCustomFieldController(
   };
 
   const confirmPurge = () => {
-    if (selected === null || purge === null) return;
+    if (purge === null || purge.sessionId !== sessionId) return;
     setError('');
     void client
       .purgeCustomFieldDefinition(sessionId, {
-        definitionId: selected.id,
+        definitionId: purge.definitionId,
         expectedRevision: purge.revision,
-        current: purge.current,
-        historyIds: purge.historyIds,
+        previewFingerprint: purge.previewFingerprint,
       })
       .then(async () => {
         setSelectedId(null);
-        setPurge(null);
+        dropPurge();
         setPreview(null);
         await reload();
       })
@@ -222,19 +241,19 @@ export function useProjectCustomFieldController(
   };
 
   const chooseTarget = (next: string) => {
+    dropPurge();
     setTargetType(next);
     setSelectedId(null);
     setPreview(null);
-    setPurge(null);
     setMissingNames(null);
   };
 
   const chooseDefinition = (definition: ProjectFieldDefinition) => {
+    dropPurge();
     setSelectedId(definition.id);
     setName(fieldLabel(definition.name, locale));
     setFieldType(definition.fieldType);
     setPreview(null);
-    setPurge(null);
   };
 
   return {

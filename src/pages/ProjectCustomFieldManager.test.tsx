@@ -3,16 +3,27 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { featureFlags } from '../ai/config/featureFlags';
+import { createDesktopClient } from '../db/desktop/client';
 import { callDesktopSession } from '../db/desktop/desktopCall';
 import { linkSense, removeSense, saveLexemeEntry } from '../db/desktop/lexicon';
 import { openProject } from '../db/desktop/openProject';
+import { writeAnalysisRoot } from '../db/desktop/units';
 import { openDesktopSession, resetDesktopSessions } from '../db/desktop/projectSession';
 import { releaseAllProjectLocks } from '../desktop/skeleton/projectLock';
 import { LocaleProvider } from '../i18n';
 import { ProjectCustomFieldManager } from './ProjectCustomFieldManager';
+import { useProjectCustomFieldController } from './useProjectCustomFieldController';
 
 const roots: string[] = [];
 
@@ -105,7 +116,7 @@ describe('project custom fields', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'count' }));
     fireEvent.click(screen.getByRole('button', { name: 'Preview removal' }));
-    await screen.findByText('Remove 0 current and 0 history');
+    await screen.findByText('Remove count: 0 current and 0 history');
     fireEvent.click(screen.getByRole('button', { name: 'Confirm removal' }));
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'count' })).toBeNull();
@@ -129,6 +140,51 @@ describe('project custom fields', () => {
         gap: 'missing-sense',
       }),
     ]);
+  });
+
+  it('ignores a late purge preview after the selection changes', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'jieyu-fields-ui-'));
+    roots.push(dir);
+    const session = openDesktopSession(dir, [dir]);
+    const client = createDesktopClient({
+      desktopCall: (sessionId, method, args) =>
+        Promise.resolve(callDesktopSession(sessionId, method, args)),
+    });
+    const first = await client.createCustomFieldDefinition(session.sessionId, {
+      targetType: 'unit',
+      name: { en: 'A' },
+      fieldType: 'text',
+    });
+    const second = await client.createCustomFieldDefinition(session.sessionId, {
+      targetType: 'unit',
+      name: { en: 'B' },
+      fieldType: 'text',
+    });
+    let deliver: () => void = () => {
+      throw new Error('preview not started');
+    };
+    const desktopCall = (sessionId: string, method: string, args: unknown) => {
+      const result = callDesktopSession(sessionId, method, args);
+      if (method === 'customFields.previewPurge') {
+        return new Promise((resolve) => {
+          deliver = () => resolve(result);
+        });
+      }
+      return Promise.resolve(result);
+    };
+    const hook = renderHook(() => useProjectCustomFieldController(desktopCall, session.sessionId), {
+      wrapper: ({ children }) => <LocaleProvider locale="en-US">{children}</LocaleProvider>,
+    });
+    await waitFor(() => expect(hook.result.current.visible).toHaveLength(2));
+    act(() => hook.result.current.chooseDefinition(hook.result.current.visible[0]!));
+    act(() => hook.result.current.previewPurge());
+    act(() => hook.result.current.chooseDefinition(hook.result.current.visible[1]!));
+    await act(async () => deliver());
+    expect(hook.result.current.purge).toBeNull();
+    act(() => hook.result.current.confirmPurge());
+    expect(
+      (await client.listCustomFieldDefinitions(session.sessionId)).map((item) => item.id).sort(),
+    ).toEqual([first.id, second.id].sort());
   });
 });
 
@@ -156,6 +212,27 @@ function seedHost(dir: string): void {
       id, unit_id, token_index, form_json, gloss_json, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run('tok-1', 'u1', 0, '{"default":"ka"}', '{}', T, T);
+  db.prepare(
+    `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('ut1', 'u1', 'transcription', 'ka', ?)`,
+  ).run(T);
+  writeAnalysisRoot(db, {
+    unitId: 'u1',
+    expectedAnalysisGeneration: 0,
+    graph: {
+      payloadVersion: 1,
+      id: 'g0',
+      text: 'ka',
+      nodes: [
+        {
+          id: 'tok-1',
+          type: 'token',
+          label: 'ka',
+          domain: { form: { default: 'ka' }, index: 0, createdAt: T, updatedAt: T },
+        },
+      ],
+      relations: [],
+    },
+  });
   saveLexemeEntry(db, {
     id: 'lexemeA',
     entry: { headword: 'ka', senses: [{ id: 'sense1', definitions: [{ text: 'past' }] }] },

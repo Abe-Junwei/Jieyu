@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 11;
+export const DESKTOP_PROJECT_USER_VERSION = 12;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -566,6 +566,21 @@ CREATE TABLE messages (
   role TEXT NOT NULL,
   body TEXT NOT NULL,
   created_at TEXT NOT NULL
+);
+
+CREATE TABLE reception_batches (
+  id TEXT PRIMARY KEY,
+  unit_id TEXT NOT NULL REFERENCES units(id),
+  source_kind TEXT NOT NULL CHECK (source_kind IN ('manual', 'import', 'accept')),
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE local_id_map (
+  batch_id TEXT NOT NULL REFERENCES reception_batches(id),
+  scope TEXT NOT NULL CHECK (scope IN ('node', 'relation', 'note')),
+  local_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  PRIMARY KEY (batch_id, scope, local_id)
 );
 
 CREATE TRIGGER project_title_nonempty_insert

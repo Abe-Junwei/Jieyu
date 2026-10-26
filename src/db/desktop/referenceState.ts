@@ -18,6 +18,7 @@ export interface LexemeLinkReading {
   lexemeId: string;
   senseId: string | null;
   role: string | null;
+  attachment: 'active' | 'detached';
   linkState: ReferenceLinkState;
   gap?: ReferenceGap;
 }
@@ -48,7 +49,7 @@ export function classifyLexemeReference(
 export function readLexemeLinks(db: SqliteDatabase): LexemeLinkReading[] {
   const rows = db
     .prepare(
-      `SELECT id, target_type, target_id, lexeme_id, sense_id, role
+      `SELECT id, target_type, target_id, lexeme_id, sense_id, role, attachment
        FROM token_lexeme_links
        ORDER BY id`,
     )
@@ -59,6 +60,7 @@ export function readLexemeLinks(db: SqliteDatabase): LexemeLinkReading[] {
     lexeme_id: string;
     sense_id: string | null;
     role: string | null;
+    attachment: 'active' | 'detached';
   }[];
   return rows.map((row) => ({
     id: row.id,
@@ -67,12 +69,15 @@ export function readLexemeLinks(db: SqliteDatabase): LexemeLinkReading[] {
     lexemeId: row.lexeme_id,
     senseId: row.sense_id,
     role: row.role,
+    attachment: row.attachment,
     ...classifyLexemeReference(db, row.lexeme_id, row.sense_id),
   }));
 }
 
 export function countActiveLexemeLinks(db: SqliteDatabase): number {
-  return readLexemeLinks(db).filter((link) => link.linkState === 'active').length;
+  return readLexemeLinks(db).filter(
+    (link) => link.linkState === 'active' && link.attachment === 'active',
+  ).length;
 }
 
 export function readGraphReferences(
@@ -107,10 +112,12 @@ export function readGraphReferences(
 
 export function assertRetargetedReferences(
   db: SqliteDatabase,
-  before: AnalysisGraphPayload,
+  before: AnalysisGraphPayload | null,
   after: AnalysisGraphPayload,
 ): void {
-  const previousNodes = new Map(before.nodes.map((node) => [node.id, node.domain?.lexemeId]));
+  const previousNodes = new Map(
+    (before?.nodes ?? []).map((node) => [node.id, node.domain?.lexemeId]),
+  );
   for (const node of after.nodes) {
     const lexemeId = node.domain?.lexemeId;
     if (lexemeId === undefined || lexemeId === previousNodes.get(node.id)) continue;
@@ -118,7 +125,9 @@ export function assertRetargetedReferences(
       throw new Error('lexeme is missing');
     }
   }
-  const previousLinks = new Map(before.relations.map((relation) => [relation.id, relation.link]));
+  const previousLinks = new Map(
+    (before?.relations ?? []).map((relation) => [relation.id, relation.link]),
+  );
   for (const relation of after.relations) {
     if (relation.link === undefined) continue;
     const senseId = relation.link.senseId ?? null;

@@ -5,13 +5,39 @@ import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks, PROJECT_LOCK_NAME } from '../../desktop/skeleton/projectLock';
 import { applyAnalysis } from './analysis';
-import { listAnalysisCandidates } from './analysisCandidates';
-import { mergeAnalysisNodes, restoreAnalysis, splitAnalysisNode } from './analysisRestore';
+import {
+  insertReviewSnapshot,
+  listAnalysisCandidates,
+  readAnalysisMaterial,
+} from './analysisCandidates';
+import { removeSense, saveLexemeEntry } from './lexicon';
+import {
+  acceptAnalysis,
+  mergeAnalysisNodes,
+  readAnalysisState,
+  restoreAnalysis,
+  splitAnalysisNode,
+  submitAnalysis,
+} from './analysisRestore';
 import { openProject } from './openProject';
 import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
+
+function submitNow(db: InstanceType<typeof Database>, unitId: string, graph: unknown) {
+  const state = readAnalysisState(db, unitId);
+  return submitAnalysis(db, {
+    unitId,
+    graph,
+    expected: {
+      manuscriptGeneration: state.manuscriptGeneration,
+      analysisGeneration: state.analysisGeneration,
+      graphFingerprint: state.graphFingerprint,
+    },
+    definitionRevisions: state.definitionRevisions,
+  });
+}
 
 function folder(): string {
   const root = mkdtempSync(join(tmpdir(), 'jieyu-analysis-restore-'));
@@ -163,6 +189,49 @@ describe('analysis text invalidation', () => {
       generation: 0,
     });
     reopened.close();
+  });
+
+  it('leaves the accepted graph in place when the text is unchanged', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
+    const updated = updateUnitText(project.db, { unitId, text: 'ka' });
+    expect(updated.text).toBe('ka');
+    expect(getAnalysisRoot(project.db, unitId)).toEqual(stored);
+    expect(listAnalysisCandidates(project.db, unitId)).toEqual([]);
+    expect(project.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 0,
+    });
+    project.close();
+  });
+
+  it('rejects a suggestion that still carries the credentials from before a later edit', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
+    const before = readAnalysisState(project.db, unitId);
+    applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: before.manuscriptGeneration,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+      ],
+    });
+    expect(() =>
+      submitAnalysis(project.db, {
+        unitId,
+        graph: stored.graph,
+        expected: {
+          manuscriptGeneration: before.manuscriptGeneration,
+          analysisGeneration: before.analysisGeneration,
+          graphFingerprint: before.graphFingerprint,
+        },
+        definitionRevisions: before.definitionRevisions,
+      }),
+    ).toThrow('analysis credentials do not match');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.zh).toBe('已往');
+    expect(listAnalysisCandidates(project.db, unitId)).toEqual([]);
+    project.close();
   });
 
   it('clears the graph, keeps the old snapshot, and refuses a restore onto different text', () => {
@@ -318,7 +387,190 @@ describe('analysis split and merge', () => {
     ).toThrow('analysis node is missing: n1');
     project.close();
   });
+
+  it('rejects a suggestion whose lexeme or sense disappeared', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0)]);
+    if (stored.graph === null) throw new Error('graph is missing');
+    const missing = structuredClone(stored.graph);
+    const missingNode = missing.nodes[0];
+    if (missingNode?.domain === undefined) throw new Error('token is missing');
+    missingNode.domain.lexemeId = 'does-not-exist';
+    const invented = submitNow(project.db, unitId, missing);
+    expect(() =>
+      acceptAnalysis(project.db, { candidateId: invented.id, expected: creds(stored) }),
+    ).toThrow('lexeme is missing');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.lexemeId).toBeUndefined();
+
+    saveLexemeEntry(project.db, {
+      id: 'lex',
+      entry: { headword: 'ka', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+    });
+    const pointed = structuredClone(stored.graph);
+    const pointedNode = pointed.nodes[0];
+    if (pointedNode?.domain === undefined) throw new Error('token is missing');
+    pointedNode.domain.lexemeId = 'lex';
+    const pending = submitNow(project.db, unitId, pointed);
+    project.db.prepare('DELETE FROM lexemes WHERE id = ?').run('lex');
+    expect(() =>
+      acceptAnalysis(project.db, { candidateId: pending.id, expected: creds(stored) }),
+    ).toThrow('lexeme is missing');
+
+    saveLexemeEntry(project.db, {
+      id: 'lex',
+      entry: { headword: 'ka', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+    });
+    const linked = structuredClone(stored.graph);
+    linked.nodes.push({ id: 'ref', type: 'lexemeRef', label: 'lex' });
+    linked.relations.push({
+      id: 'l1',
+      type: 'linksLexeme',
+      sourceId: 'n1',
+      targetId: 'ref',
+      link: { lexemeId: 'lex', senseId: 'sense', createdAt: T, updatedAt: T },
+    });
+    const sensed = submitNow(project.db, unitId, linked);
+    removeSense(project.db, { lexemeId: 'lex', senseId: 'sense' });
+    expect(() =>
+      acceptAnalysis(project.db, { candidateId: sensed.id, expected: creds(stored) }),
+    ).toThrow('sense is missing');
+    expect(getAnalysisRoot(project.db, unitId)?.graphFingerprint).toBe(stored.graphFingerprint);
+    project.close();
+  });
+
+  it('restores a snapshot lexeme reference after the lexeme is deleted', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0)]);
+    saveLexemeEntry(project.db, {
+      id: 'lex',
+      entry: { headword: 'ka', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+    });
+    const linked = applyAnalysis(project.db, {
+      unitId,
+      expected: creds(stored),
+      changes: [{ action: 'node.setField', nodeId: 'n1', field: 'lexemeId', value: 'lex' }],
+    });
+    const snapshotId = insertReviewSnapshot(project.db, readAnalysisMaterial(project.db, unitId));
+    const replaced = writeAnalysisRoot(project.db, {
+      unitId,
+      graph: graph([token('n1', 0)]),
+      expectedAnalysisGeneration: linked.root.analysisGeneration,
+    });
+    project.db.prepare('DELETE FROM lexemes WHERE id = ?').run('lex');
+    const restored = restoreAnalysis(project.db, {
+      candidateId: snapshotId,
+      expected: creds(replaced),
+    });
+    expect(restored.graph?.nodes[0]?.domain?.lexemeId).toBe('lex');
+    project.close();
+  });
+
+  it('restores an accepted suggestion after a later gloss edit', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0)]);
+    const submitted = submitNow(project.db, unitId, graph([token('n1', 0)]));
+    acceptAnalysis(project.db, { candidateId: submitted.id, expected: creds(stored) });
+    const edited = applyAnalysis(project.db, {
+      unitId,
+      expected: creds(readAnalysisMaterial(project.db, unitId)),
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'en', value: 'later' },
+      ],
+    });
+    const restored = restoreAnalysis(project.db, {
+      candidateId: submitted.id,
+      expected: creds(edited.root),
+    });
+    expect(restored.graph?.nodes[0]?.domain?.gloss).toEqual({ zh: '过去' });
+    expect(
+      project.db.prepare('SELECT status FROM analysis_candidates WHERE id = ?').get(submitted.id),
+    ).toEqual({ status: 'accepted' });
+    project.close();
+  });
+
+  it('writes a graph lexeme link into the link table', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0)]);
+    saveLexemeEntry(project.db, {
+      id: 'lex',
+      entry: { headword: 'ka', senses: [{ id: 'sense', definitions: [{ text: 'past' }] }] },
+    });
+    const written = writeAnalysisRoot(project.db, {
+      unitId,
+      expectedAnalysisGeneration: stored.analysisGeneration,
+      graph: {
+        ...graph([token('n1', 0)]),
+        nodes: [...graph([token('n1', 0)]).nodes, { id: 'ref', type: 'lexemeRef', label: 'lex' }],
+        relations: [
+          {
+            id: 'rel-1',
+            type: 'linksLexeme',
+            sourceId: 'n1',
+            targetId: 'ref',
+            link: { lexemeId: 'lex', senseId: 'sense', createdAt: T, updatedAt: T },
+          },
+        ],
+      },
+    });
+    applyAnalysis(project.db, {
+      unitId,
+      expected: creds(written),
+      changes: [{ action: 'link.setField', relationId: 'rel-1', field: 'confidence', value: 0.8 }],
+    });
+    expect(project.db.prepare('SELECT id, confidence FROM token_lexeme_links').all()).toEqual([
+      { id: 'rel-1', confidence: 0.8 },
+    ]);
+    project.close();
+  });
+
+  it('allocates a different project id for the same local node on another unit', () => {
+    const project = openProject(folder());
+    project.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 3, T);
+    const manuscript = project.manuscripts.create({ title: { zh: '文稿' }, mediaId: 'm1' });
+    const layer = project.layers.create({
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const first = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const second = project.units.create({
+      layerId: layer.id,
+      startTime: 1,
+      endTime: 2,
+      text: 'ka',
+    });
+    const node = token('n1', 0, 'r1');
+    const residue = node.residue?.[0];
+    if (residue === undefined) throw new Error('residue is missing');
+    residue.body = { keep: true, raw: 'n1' } as { keep: boolean };
+    const local = graph([node]);
+    const accept = (unitId: string) => {
+      const submitted = submitNow(project.db, unitId, local);
+      return acceptAnalysis(project.db, {
+        candidateId: submitted.id,
+        expected: creds(
+          getAnalysisRoot(project.db, unitId) ?? { analysisGeneration: 0, graphFingerprint: '' },
+        ),
+      });
+    };
+    const left = accept(first.id);
+    const right = accept(second.id);
+    expect(left.root.graph?.nodes[0]?.id).not.toBe('n1');
+    expect(right.root.graph?.nodes[0]?.id).not.toBe(left.root.graph?.nodes[0]?.id);
+    expect(left.root.graph?.nodes[0]?.residue?.[0]?.body).toEqual({ keep: true, raw: 'n1' });
+    project.close();
+  });
 });
+
+function creds(root: { analysisGeneration: number; graphFingerprint: string }) {
+  return {
+    manuscriptGeneration: 0,
+    analysisGeneration: root.analysisGeneration,
+    graphFingerprint: root.graphFingerprint,
+  };
+}
 
 describe('analysis library version', () => {
   it('rejects a version 6 library without changing its bytes', () => {

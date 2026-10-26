@@ -10,7 +10,12 @@ import {
   insertReviewSnapshot,
   readAnalysisMaterial,
 } from './analysisCandidates';
-import { acceptAnalysis, restoreAnalysis, submitAnalysis } from './analysisRestore';
+import {
+  acceptAnalysis,
+  restoreAnalysis,
+  submitAnalysis,
+  readAnalysisState,
+} from './analysisRestore';
 import { createDesktopClient } from './client';
 import { createDefinition, readUnitValue, setUnitValue, updateDefinition } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
@@ -21,6 +26,20 @@ import { getAnalysisRoot, writeAnalysisRoot } from './units';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
+
+function submitNow(db: InstanceType<typeof Database>, unitId: string, graph: unknown) {
+  const state = readAnalysisState(db, unitId);
+  return submitAnalysis(db, {
+    unitId,
+    graph,
+    expected: {
+      manuscriptGeneration: state.manuscriptGeneration,
+      analysisGeneration: state.analysisGeneration,
+      graphFingerprint: state.graphFingerprint,
+    },
+    definitionRevisions: state.definitionRevisions,
+  });
+}
 
 function folder(): string {
   const root = mkdtempSync(join(tmpdir(), 'jieyu-field-migration-'));
@@ -86,6 +105,32 @@ function seeded() {
   return { dir, project, layer, unit };
 }
 
+function stamp(
+  db: ReturnType<typeof openProject>['db'],
+  definitionId: string,
+  conversions: {
+    definitionId: string;
+    targetType: string;
+    targetId: string;
+    value: unknown;
+    unitId?: string;
+    lexemeId?: string;
+  }[],
+) {
+  const current = previewMigration(db, definitionId).current;
+  return conversions.map((conversion) => {
+    const host = current.find(
+      (item) =>
+        item.targetType === conversion.targetType &&
+        item.targetId === conversion.targetId &&
+        (item.unitId ?? '') === (conversion.unitId ?? '') &&
+        (item.lexemeId ?? '') === (conversion.lexemeId ?? ''),
+    );
+    if (host === undefined) throw new Error(`migration host is missing: ${conversion.targetId}`);
+    return { ...conversion, valueFingerprint: host.valueFingerprint };
+  });
+}
+
 function candidateRow(
   db: InstanceType<typeof Database>,
   id: string,
@@ -131,7 +176,7 @@ describe('custom field migration', () => {
       value: 3,
       expectedRevision: 1,
     });
-    const candidate = submitAnalysis(project.db, { unitId: unit.id, graph: root.graph });
+    const candidate = submitNow(project.db, unit.id, root.graph);
     const recorded = candidate.definitionRevisions.find((item) => item.definitionId === field.id);
     expect(recorded).toMatchObject({ revision: 1, fieldType: 'number' });
     expect(recorded?.values.map((item) => item.value)).toEqual([3, 3]);
@@ -152,10 +197,10 @@ describe('custom field migration', () => {
         definitionId: field.id,
         expectedRevision: 1,
         definition: { fieldType: 'text', pattern: '^3$' },
-        conversions: [
+        conversions: stamp(project.db, field.id, [
           { definitionId: field.id, targetType: 'unit', targetId: unit.id, value: '3' },
           { definitionId: field.id, targetType: 'unit', targetId: other.id, value: '4' },
-        ],
+        ]),
       }),
     ).toThrow('custom field value is invalid');
     expect(readUnitValue(project.db, field.id, unit.id)).toBe(3);
@@ -163,10 +208,10 @@ describe('custom field migration', () => {
       definitionId: field.id,
       expectedRevision: 1,
       definition: { fieldType: 'text' },
-      conversions: [
+      conversions: stamp(project.db, field.id, [
         { definitionId: field.id, targetType: 'unit', targetId: unit.id, value: '3' },
         { definitionId: field.id, targetType: 'unit', targetId: other.id, value: '3' },
-      ],
+      ]),
     });
     expect(migrated.revision).toBe(2);
     expect(migrated.fieldType).toBe('text');
@@ -237,7 +282,7 @@ describe('custom field migration', () => {
       definitionId: field.id,
       expectedRevision: 1,
       definition: { fieldType: 'text' },
-      conversions: [
+      conversions: stamp(project.db, field.id, [
         {
           definitionId: field.id,
           targetType: 'analysis-node',
@@ -245,7 +290,7 @@ describe('custom field migration', () => {
           unitId: unit.id,
           value: '3',
         },
-      ],
+      ]),
     });
     expect(migrated.revision).toBe(2);
     const live = getAnalysisRoot(project.db, unit.id);
@@ -299,6 +344,120 @@ describe('custom field migration', () => {
     reopened.close();
   });
 
+  it('rejects a migration after the previewed value changes', () => {
+    const { project, unit } = seeded();
+    const field = createDefinition(project.db, {
+      targetType: 'unit',
+      name: { zh: '数' },
+      fieldType: 'number',
+    });
+    setUnitValue(project.db, {
+      definitionId: field.id,
+      unitId: unit.id,
+      value: 3,
+      expectedRevision: 1,
+    });
+    const host = previewMigration(project.db, field.id).current[0];
+    setUnitValue(project.db, {
+      definitionId: field.id,
+      unitId: unit.id,
+      value: 4,
+      expectedRevision: 1,
+    });
+    expect(() =>
+      migrateDefinition(project.db, {
+        definitionId: field.id,
+        expectedRevision: 1,
+        definition: { fieldType: 'text' },
+        conversions: [
+          {
+            definitionId: field.id,
+            targetType: 'unit',
+            targetId: unit.id,
+            value: '3',
+            valueFingerprint: host?.valueFingerprint,
+          },
+        ],
+      }),
+    ).toThrow('custom field migration is stale');
+    expect(readUnitValue(project.db, field.id, unit.id)).toBe(4);
+    project.close();
+  });
+
+  it('converts every value on one analysis graph', () => {
+    const { dir, project, unit } = seeded();
+    const field = createDefinition(project.db, {
+      targetType: 'analysis-node',
+      name: { zh: '数' },
+      fieldType: 'number',
+    });
+    const body = graph();
+    const first = body.nodes[0];
+    if (first === undefined) throw new Error('node is missing');
+    body.nodes.push({
+      ...first,
+      id: 'n2',
+      label: 'ta',
+      domain: { ...first.domain, form: { default: 'ta' }, index: 1 },
+      residue: [],
+    });
+    for (const node of body.nodes) Object.assign(node, { customFields: { [field.id]: 3 } });
+    writeAnalysisRoot(project.db, {
+      unitId: unit.id,
+      graph: body,
+      expectedAnalysisGeneration: 0,
+    });
+    migrateDefinition(project.db, {
+      definitionId: field.id,
+      expectedRevision: 1,
+      definition: { fieldType: 'text' },
+      conversions: stamp(project.db, field.id, [
+        {
+          definitionId: field.id,
+          targetType: 'analysis-node',
+          targetId: 'n1',
+          unitId: unit.id,
+          value: '3',
+        },
+        {
+          definitionId: field.id,
+          targetType: 'analysis-node',
+          targetId: 'n2',
+          unitId: unit.id,
+          value: '3',
+        },
+      ]),
+    });
+    const live = getAnalysisRoot(project.db, unit.id);
+    expect(live?.graph?.nodes.map((node) => node.customFields?.[field.id])).toEqual(['3', '3']);
+    project.close();
+    const reopened = openProject(dir);
+    expect(
+      getAnalysisRoot(reopened.db, unit.id)?.graph?.nodes.map(
+        (node) => node.customFields?.[field.id],
+      ),
+    ).toEqual(['3', '3']);
+    reopened.close();
+  });
+
+  it('migrates a text field to select when the patch supplies options', () => {
+    const { project } = seeded();
+    const field = createDefinition(project.db, {
+      targetType: 'unit',
+      name: { en: 'Choice' },
+      fieldType: 'text',
+    });
+    const migrated = migrateDefinition(project.db, {
+      definitionId: field.id,
+      expectedRevision: field.revision,
+      definition: { fieldType: 'select', options: [{ label: { en: 'one' } }] },
+      conversions: [],
+    });
+    expect(migrated.fieldType).toBe('select');
+    expect(migrated.options.map((option) => option.label)).toEqual([{ en: 'one' }]);
+    project.close();
+  });
+
   it('rejects a version 8 library without changing its bytes', () => {
     const dir = folder();
     const file = join(dir, 'project.sqlite');
@@ -333,12 +492,22 @@ describe('custom field migration', () => {
         Promise.resolve(callDesktopSession(sessionId, method, args)),
     });
     const preview = await client.previewCustomFieldMigration(session.sessionId, field.id);
-    expect(preview.current).toEqual([{ targetType: 'unit', targetId: unit.id }]);
+    expect(preview.current).toEqual([
+      { targetType: 'unit', targetId: unit.id, valueFingerprint: '3' },
+    ]);
     const migrated = await client.migrateCustomFieldDefinition(session.sessionId, {
       definitionId: field.id,
       expectedRevision: 1,
       definition: { fieldType: 'text' },
-      conversions: [{ definitionId: field.id, targetType: 'unit', targetId: unit.id, value: '3' }],
+      conversions: [
+        {
+          definitionId: field.id,
+          targetType: 'unit',
+          targetId: unit.id,
+          value: '3',
+          valueFingerprint: preview.current[0]?.valueFingerprint,
+        },
+      ],
     });
     expect(migrated.revision).toBe(2);
     expect(readUnitValue(requireDesktopSession(session.sessionId).db, field.id, unit.id)).toBe('3');

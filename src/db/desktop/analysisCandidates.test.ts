@@ -5,7 +5,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { applyAnalysis } from './analysis';
 import { listAnalysisCandidates } from './analysisCandidates';
-import { acceptAnalysis, splitAnalysisNode, submitAnalysis } from './analysisRestore';
+import {
+  acceptAnalysis,
+  readAnalysisState,
+  splitAnalysisNode,
+  submitAnalysis,
+} from './analysisRestore';
 import { createDesktopClient } from './client';
 import { callDesktopSession } from './desktopCall';
 import { openProject } from './openProject';
@@ -14,6 +19,20 @@ import { getAnalysisRoot, writeAnalysisRoot } from './units';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
+
+function submitNow(db: ReturnType<typeof openProject>['db'], unitId: string, graph: unknown) {
+  const state = readAnalysisState(db, unitId);
+  return submitAnalysis(db, {
+    unitId,
+    graph,
+    expected: {
+      manuscriptGeneration: state.manuscriptGeneration,
+      analysisGeneration: state.analysisGeneration,
+      graphFingerprint: state.graphFingerprint,
+    },
+    definitionRevisions: state.definitionRevisions,
+  });
+}
 
 function folder(): string {
   const root = mkdtempSync(join(tmpdir(), 'jieyu-analysis-candidates-'));
@@ -80,7 +99,7 @@ describe('analysis suggestions', () => {
   it('accepts a pending suggestion once and leaves a repeated accept in place', () => {
     const { project, unitId } = seeded();
     const before = getAnalysisRoot(project.db, unitId);
-    const suggestion = submitAnalysis(project.db, { unitId, graph: graph('建议') });
+    const suggestion = submitNow(project.db, unitId, graph('建议'));
     expect(getAnalysisRoot(project.db, unitId)).toEqual(before);
     const expected = {
       manuscriptGeneration: 0,
@@ -105,7 +124,7 @@ describe('analysis suggestions', () => {
       graph: graph('已接受'),
       expectedAnalysisGeneration: 0,
     });
-    const suggestion = submitAnalysis(project.db, { unitId, graph: graph('建议') });
+    const suggestion = submitNow(project.db, unitId, graph('建议'));
     const edited = applyAnalysis(project.db, {
       unitId,
       expected: {
@@ -166,8 +185,8 @@ describe('analysis suggestions', () => {
         graphFingerprint: edited.root.graphFingerprint,
       },
     });
-    const first = submitAnalysis(project.db, { unitId, graph: graph('一') });
-    const second = submitAnalysis(project.db, { unitId, graph: graph('二') });
+    const first = submitNow(project.db, unitId, graph('一'));
+    const second = submitNow(project.db, unitId, graph('二'));
     const records = listAnalysisCandidates(project.db, unitId);
     expect(records.find((item) => item.kind === 'review-snapshot')?.status).toBe('stored');
     expect(records.find((item) => item.id === first.id)?.status).toBe('rejected');
@@ -206,9 +225,16 @@ describe('analysis suggestions', () => {
       endTime: 1,
       text: 'ka',
     });
+    const state = await client.readAnalysisState(session.sessionId, unit.id);
     const suggestion = await client.submitAnalysis(session.sessionId, {
       unitId: unit.id,
       graph: graph('建议'),
+      expected: {
+        manuscriptGeneration: state.manuscriptGeneration,
+        analysisGeneration: state.analysisGeneration,
+        graphFingerprint: state.graphFingerprint,
+      },
+      definitionRevisions: state.definitionRevisions,
     });
     const accepted = await client.acceptAnalysis(session.sessionId, {
       candidateId: suggestion.id,

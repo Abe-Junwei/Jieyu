@@ -90,7 +90,7 @@ export const zhCNDictionary = {
   'app.projectFields.required': '必填',
   'app.projectFields.purgePreview': '预览清除',
   'app.projectFields.purgeConfirm': '确认清除',
-  'app.projectFields.purgeResult': '将清除当前 {current} 处、历史 {history} 行',
+  'app.projectFields.purgeResult': '将清除{name}：当前 {current} 处、历史 {history} 行',
   'app.projectFields.targetId': '对象编号',
   'app.projectFields.checkMissing': '检查缺值',
   'app.projectFields.missingNone': '没有缺必填值',

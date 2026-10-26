@@ -16,6 +16,7 @@ import {
   assertStoredCustomFields,
   commitDefinitionChange,
   currentDefinitionRevisions,
+  customFieldValueFingerprint,
   locateCustomFieldValues,
   patchedInput,
   requireDefinition,
@@ -33,13 +34,18 @@ export interface FieldConversion {
   targetType: CustomFieldTarget;
   targetId: string;
   value: unknown;
+  valueFingerprint?: string;
   lexemeId?: string;
   unitId?: string;
 }
 
+export interface MigrationLocation extends CustomFieldLocation {
+  valueFingerprint: string;
+}
+
 export interface CustomFieldMigrationPreview {
   revision: number;
-  current: CustomFieldLocation[];
+  current: MigrationLocation[];
   history: { id: string; kind: string; revision: number; fieldType: string }[];
 }
 
@@ -54,7 +60,10 @@ export function previewMigration(
   const definition = requireDefinition(db, definitionId);
   return {
     revision: definition.revision,
-    current: locateCustomFieldValues(db, definitionId),
+    current: locateCustomFieldValues(db, definitionId).map((location) => ({
+      ...location,
+      valueFingerprint: customFieldValueFingerprint(db, definitionId, location),
+    })),
     history: historyOf(db, definitionId),
   };
 }
@@ -65,7 +74,7 @@ export function migrateDefinition(db: SqliteDatabase, input: unknown): CustomFie
   const definitionId = requiredText(body.definitionId, 'custom field definition is missing');
   const expectedRevision = requiredRevision(body.expectedRevision);
   const patch = record(body.definition, 'custom field definition is invalid');
-  allowed(patch, PATCH_KEYS);
+  allowed(patch, [...PATCH_KEYS, 'options']);
   const conversions = conversionList(body.conversions);
   const write = db.transaction(() => {
     const current = requireDefinition(db, definitionId);
@@ -81,6 +90,13 @@ export function migrateDefinition(db: SqliteDatabase, input: unknown): CustomFie
     if (!sameHosts(currentLocations, conversions, definitionId)) {
       throw new Error('custom field migration is stale');
     }
+    for (const conversion of conversions) {
+      if (conversion.definitionId !== definitionId) continue;
+      const fingerprint = customFieldValueFingerprint(db, definitionId, conversion);
+      if (conversion.valueFingerprint !== fingerprint) {
+        throw new Error('custom field migration is stale');
+      }
+    }
     const optionIds =
       parsed.fieldType === 'select' || parsed.fieldType === 'multiselect'
         ? current.options.map((option) => option.id)
@@ -89,7 +105,21 @@ export function migrateDefinition(db: SqliteDatabase, input: unknown): CustomFie
       assertDefinitionValue(db, parsed, optionIds, conversion.value);
     }
     const stored = commitDefinitionChange(db, current, parsed, current.revision + 1);
-    for (const conversion of conversions) writeConverted(db, stored, conversion);
+    const graphs = new Map<string, FieldConversion[]>();
+    for (const conversion of conversions) {
+      if (
+        conversion.targetType !== 'analysis-node' &&
+        conversion.targetType !== 'analysis-relation'
+      ) {
+        writeConverted(db, stored, conversion);
+        continue;
+      }
+      if (conversion.unitId === undefined) throw new Error('custom field value is invalid');
+      const group = graphs.get(conversion.unitId) ?? [];
+      group.push(conversion);
+      graphs.set(conversion.unitId, group);
+    }
+    for (const [unitId, group] of graphs) writeGraphValues(db, stored.id, unitId, group);
     return stored;
   });
   return write();
@@ -126,10 +156,6 @@ function writeConverted(
   definition: CustomFieldDefinition,
   conversion: FieldConversion,
 ): void {
-  if (conversion.targetType === 'analysis-node' || conversion.targetType === 'analysis-relation') {
-    writeGraphValue(db, definition.id, conversion);
-    return;
-  }
   setFieldValue(db, {
     definitionId: definition.id,
     expectedRevision: definition.revision,
@@ -140,16 +166,15 @@ function writeConverted(
   });
 }
 
-function writeGraphValue(
+function writeGraphValues(
   db: SqliteDatabase,
   definitionId: string,
-  conversion: FieldConversion,
+  unitId: string,
+  conversions: readonly FieldConversion[],
 ): void {
-  if (conversion.unitId === undefined) throw new Error('custom field value is invalid');
-  const unit = getUnit(db, conversion.unitId);
-  const row = db
-    .prepare('SELECT analysis_graph_json FROM units WHERE id = ?')
-    .get(conversion.unitId) as { analysis_graph_json: string | null } | undefined;
+  const unit = getUnit(db, unitId);
+  const row = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(unitId) as
+    { analysis_graph_json: string | null } | undefined;
   if (unit === null || row === undefined || row.analysis_graph_json === null) {
     throw new Error('analysis graph is missing');
   }
@@ -157,25 +182,23 @@ function writeGraphValue(
     JSON.parse(row.analysis_graph_json) as unknown,
     unit.text,
   );
-  const items = conversion.targetType === 'analysis-node' ? graph.nodes : graph.relations;
-  const item = items.find((entry) => entry.id === conversion.targetId);
-  if (!item) {
-    throw new Error(
-      conversion.targetType === 'analysis-node'
-        ? 'analysis node is missing'
-        : 'analysis relation is missing',
-    );
+  const prior = structuredClone(graph);
+  for (const conversion of conversions) {
+    const items = conversion.targetType === 'analysis-node' ? graph.nodes : graph.relations;
+    const item = items.find((entry) => entry.id === conversion.targetId);
+    if (!item) {
+      throw new Error(
+        conversion.targetType === 'analysis-node'
+          ? 'analysis node is missing'
+          : 'analysis relation is missing',
+      );
+    }
+    item.customFields = { ...(item.customFields ?? {}), [definitionId]: conversion.value };
   }
-  item.customFields = { ...(item.customFields ?? {}), [definitionId]: conversion.value };
-  assertStoredCustomFields(db, graph, conversion.unitId);
+  assertStoredCustomFields(db, graph, unitId, { prior });
   db.prepare(
     'UPDATE units SET analysis_graph_json = ?, graph_fingerprint = ?, updated_at = ? WHERE id = ?',
-  ).run(
-    JSON.stringify(graph),
-    analysisGraphFingerprint(graph),
-    new Date().toISOString(),
-    conversion.unitId,
-  );
+  ).run(JSON.stringify(graph), analysisGraphFingerprint(graph), new Date().toISOString(), unitId);
 }
 
 function assignStale(
@@ -270,6 +293,9 @@ function conversionList(value: unknown): FieldConversion[] {
       targetId: requiredText(recordValue.targetId, 'custom field target is missing'),
       value: recordValue.value,
     };
+    if (typeof recordValue.valueFingerprint === 'string') {
+      conversion.valueFingerprint = recordValue.valueFingerprint;
+    }
     if (typeof recordValue.lexemeId === 'string') conversion.lexemeId = recordValue.lexemeId;
     if (typeof recordValue.unitId === 'string') conversion.unitId = recordValue.unitId;
     return conversion;

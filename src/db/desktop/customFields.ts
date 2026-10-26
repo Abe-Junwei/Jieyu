@@ -236,6 +236,13 @@ export function commitDefinitionChange(
   );
   if (parsed.fieldType !== 'select' && parsed.fieldType !== 'multiselect') {
     db.prepare('DELETE FROM custom_field_options WHERE definition_id = ?').run(current.id);
+  } else if (current.options.length === 0 && parsed.options.length > 0) {
+    const insert = db.prepare(
+      `INSERT INTO custom_field_options (id, definition_id, label_json, sort_order) VALUES (?, ?, ?, ?)`,
+    );
+    for (const option of parsed.options) {
+      insert.run(randomUUID(), current.id, JSON.stringify(option.label), option.sortOrder);
+    }
   }
   const stored = requireDefinition(db, current.id);
   if (stored.revision !== revision || canonicalJson(stored.name) !== canonicalJson(parsed.name)) {
@@ -474,24 +481,28 @@ export function missingFields(
   lexemeId?: string,
 ): string[] {
   requireHost(db, targetType, targetId, lexemeId);
-  const required = requiredDefinitionIds(db, targetType);
-  if (targetType === 'language' || targetType === 'lexeme' || targetType === 'lexeme-sense') {
-    const map = jsonValueMap(db, targetType, targetId, lexemeId);
-    return required.filter((id) => !(id in map));
+  return requiredDefinitionIds(db, targetType).filter(
+    (id) => !requirementMet(db, id, targetType, targetId, lexemeId),
+  );
+}
+
+function requirementMet(
+  db: SqliteDatabase,
+  definitionId: string,
+  targetType: string,
+  targetId: string,
+  lexemeId?: string,
+): boolean {
+  const definition = readDefinition(db, definitionId);
+  const value = readFieldValue(db, definitionId, targetType, targetId, lexemeId);
+  if (definition === null || value === null) return false;
+  if (definition.fieldType !== 'ref') return true;
+  try {
+    assertCustomFieldValue(ruleOf(definition, []), value, (ref) => targetExists(db, ref));
+    return true;
+  } catch {
+    return false;
   }
-  const rows = db
-    .prepare(
-      `SELECT id FROM custom_field_definitions
-       WHERE target_type = ? AND required = 1
-         AND NOT EXISTS (
-           SELECT 1 FROM custom_field_values
-           WHERE definition_id = custom_field_definitions.id
-             AND target_type = ? AND target_id = ?
-         )
-       ORDER BY sort_order, id`,
-    )
-    .all(targetType, targetType, targetId) as { id: string }[];
-  return rows.map((row) => row.id);
 }
 
 export function readFieldValue(
@@ -586,6 +597,14 @@ export function assertDefinitionValue(
   assertCustomFieldValue(ruleOf(parsed, optionIds), value, (ref) => targetExists(db, ref));
 }
 
+export function customFieldValueFingerprint(
+  db: SqliteDatabase,
+  definitionId: string,
+  location: CustomFieldLocation,
+): string {
+  return canonicalJson(readLocatedValue(db, definitionId, location));
+}
+
 function readLocatedValue(
   db: SqliteDatabase,
   definitionId: string,
@@ -676,15 +695,37 @@ export function dropSenseFieldBag(db: SqliteDatabase, lexemeId: string, senseId:
   writeJieyu(db, lexemeId, jieyu);
 }
 
+export interface StoredCustomFieldCheck {
+  prior: AnalysisGraphPayload | null;
+  historical?: boolean;
+}
+
 export function assertStoredCustomFields(
   db: SqliteDatabase,
   graph: AnalysisGraphPayload,
   unitId: string,
+  check: StoredCustomFieldCheck,
 ): void {
   const scope = { unitId, graph };
-  for (const node of graph.nodes) assertFieldMap(db, node.customFields, 'analysis-node', scope);
+  const priorNodes = new Map((check.prior?.nodes ?? []).map((node) => [node.id, node]));
+  const priorRelations = new Map(
+    (check.prior?.relations ?? []).map((relation) => [relation.id, relation]),
+  );
+  for (const node of graph.nodes) {
+    const priorFields = priorNodes.get(node.id)?.customFields;
+    assertFieldMap(db, node.customFields, 'analysis-node', scope, {
+      isNew: !priorNodes.has(node.id),
+      historical: check.historical === true,
+      ...(priorFields === undefined ? {} : { priorFields }),
+    });
+  }
   for (const relation of graph.relations) {
-    assertFieldMap(db, relation.customFields, 'analysis-relation', scope);
+    const priorFields = priorRelations.get(relation.id)?.customFields;
+    assertFieldMap(db, relation.customFields, 'analysis-relation', scope, {
+      isNew: !priorRelations.has(relation.id),
+      historical: check.historical === true,
+      ...(priorFields === undefined ? {} : { priorFields }),
+    });
   }
 }
 
@@ -693,19 +734,30 @@ function assertFieldMap(
   fields: Record<string, unknown> | undefined,
   targetType: 'analysis-node' | 'analysis-relation',
   scope: GraphScope,
+  edit: { isNew: boolean; historical: boolean; priorFields?: Record<string, unknown> },
 ): void {
+  if (edit.isNew && !edit.historical) {
+    for (const id of requiredDefinitionIds(db, targetType)) {
+      if (fields === undefined || !(id in fields)) {
+        throw new Error(`${targetType} is missing a required field`);
+      }
+    }
+  }
   if (fields === undefined) return;
   for (const [definitionId, value] of Object.entries(fields)) {
     const definition = readDefinition(db, definitionId);
     if (definition === null) throw new Error('custom field definition is missing');
     if (definition.targetType !== targetType) throw new Error('custom field target does not match');
+    const priorValue = edit.priorFields?.[definitionId];
+    const unchanged =
+      priorValue !== undefined && canonicalJson(priorValue) === canonicalJson(value);
     assertCustomFieldValue(
       ruleOf(
         definition,
         definition.options.map((option) => option.id),
       ),
       value,
-      (ref) => targetExists(db, ref, scope),
+      (ref) => edit.historical || unchanged || targetExists(db, ref, scope),
     );
   }
 }
@@ -1166,10 +1218,12 @@ export function patchedInput(
     sortOrder: patch.sortOrder === undefined ? current.sortOrder : patch.sortOrder,
   };
   if (fieldType === 'select' || fieldType === 'multiselect') {
-    input.options = current.options.map((option) => ({
-      label: option.label,
-      sortOrder: option.sortOrder,
-    }));
+    input.options = Array.isArray(patch.options)
+      ? patch.options
+      : current.options.map((option) => ({
+          label: option.label,
+          sortOrder: option.sortOrder,
+        }));
   }
   copyPatch(input, patch, current, 'description');
   copyPatch(input, patch, current, 'placeholder');

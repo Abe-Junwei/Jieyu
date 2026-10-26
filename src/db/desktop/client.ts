@@ -12,7 +12,11 @@ import type { Media, MediaCreate } from './media';
 import type { Manuscript, ManuscriptCreate } from './manuscripts';
 import type { AnalysisApplyResult } from './analysis';
 import type { AnalysisImportResult } from './analysisImport';
-import type { AnalysisAcceptResult, AnalysisCredentials } from './analysisRestore';
+import type {
+  AnalysisAcceptResult,
+  AnalysisCredentials,
+  AnalysisReadState,
+} from './analysisRestore';
 import type { AnalysisCandidateRecord } from './analysisCandidates';
 import type { CustomFieldMigrationPreview } from './customFieldMigration';
 import type { CustomFieldPurgePreview } from './customFieldPurge';
@@ -156,8 +160,17 @@ export function createDesktopClient(bridge: DesktopBridge) {
         removeRelations?: string[];
       },
     ) => once<AnalysisImportResult>(sessionId, 'analysis.import', input),
-    submitAnalysis: (sessionId: string, input: { unitId: string; graph: unknown }) =>
-      once<AnalysisCandidateRecord>(sessionId, 'analysis.submit', input),
+    readAnalysisState: (sessionId: string, unitId: string) =>
+      once<AnalysisReadState>(sessionId, 'analysis.readState', { unitId }),
+    submitAnalysis: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        graph: unknown;
+        expected: AnalysisCredentials;
+        definitionRevisions: { definitionId: string; revision: number }[];
+      },
+    ) => once<AnalysisCandidateRecord>(sessionId, 'analysis.submit', input),
     acceptAnalysis: (
       sessionId: string,
       input: { candidateId: string; expected: AnalysisCredentials },

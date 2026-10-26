@@ -188,6 +188,7 @@ export function ProjectCustomFieldManager(props: {
       {fields.purge === null ? null : (
         <p>
           {tf(fields.locale, 'app.projectFields.purgeResult', {
+            name: fields.purge.label,
             current: fields.purge.current.length,
             history: fields.purge.historyIds.length,
           })}
