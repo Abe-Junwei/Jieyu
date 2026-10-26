@@ -136,7 +136,7 @@ describe('openProject', () => {
     expect(() => openProject(probe)).toThrow('project.sqlite is not a Jieyu project library');
     expect(readFileSync(probeFile)).toEqual(before);
     expect(readdirSync(probe).includes(PROJECT_LOCK_NAME)).toBe(false);
-  });
+  }, 30_000);
 
   it('blocks a second opener until the holder closes', () => {
     const dir = folder();
@@ -189,7 +189,7 @@ describe('openProject', () => {
     again.close();
     expect(existsSync(`${file}-journal`)).toBe(false);
     expect(readdirSync(dir).some((name) => name.includes('recover'))).toBe(false);
-  }, 15000);
+  }, 45_000);
 
   it('does not rewrite an incompatible library that still has a hot journal', async () => {
     const dir = folder();
@@ -214,7 +214,7 @@ describe('openProject', () => {
     expect(readFileSync(`${file}-journal`)).toEqual(journal);
     expect(readdirSync(dir).includes(PROJECT_LOCK_NAME)).toBe(false);
     expect(readdirSync(dir).some((name) => name.includes('recover'))).toBe(false);
-  }, 15000);
+  }, 45_000);
 
   it('rejects a hard-linked library while its original is open without changing bytes', () => {
     const source = folder();

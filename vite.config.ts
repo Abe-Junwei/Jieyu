@@ -561,8 +561,15 @@ export default defineConfig({
     },
   },
   test: {
-    /* Playwright 规格放在 tests/e2e，由 npm run test:e2e 执行；勿让 Vitest 收集 | E2E specs run via Playwright only */
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/e2e-sandbox/**', '.superdesign/**'],
+    /* Playwright 规格放在 tests/e2e 与 tests/e2e-desktop；勿让 Vitest 收集 | E2E specs run via Playwright only */
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'tests/e2e/**',
+      'tests/e2e-desktop/**',
+      'tests/e2e-sandbox/**',
+      '.superdesign/**',
+    ],
     /* threads：单进程内跑用例，避免 forks 多进程各拉一份巨型 i18n 导致堆 OOM | Avoid per-fork duplicate heaps for large dict imports */
     pool: 'threads',
     maxWorkers: resolveVitestMaxWorkers(),
