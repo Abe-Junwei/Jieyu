@@ -419,6 +419,7 @@ export const enUSDictionary = {
   'workspace.annotation.noteCategory.linguistic': 'Linguistic',
   'workspace.annotation.noteCategory.fieldwork': 'Fieldwork',
   'workspace.annotation.noteCategory.correction': 'Correction',
+  'workspace.annotation.noteCategory.topic': 'Topic',
   'workspace.annotation.autoGlossPreview': 'Preview auto-gloss',
   'workspace.annotation.autoGlossApply': 'Apply suggestions',
   'workspace.annotation.autoGlossEmpty': 'No auto-gloss suggestions to apply.',
