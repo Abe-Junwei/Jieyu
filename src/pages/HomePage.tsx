@@ -225,11 +225,10 @@ export function HomePage() {
           <button
             type="button"
             className="home-project-row-main"
-            aria-label={bundle.titleLabel}
             onClick={() => selectProject(bundle.textId)}
           >
             <span className="home-project-row-title">{bundle.titleLabel}</span>
-            <span className="home-project-row-meta">
+            <span className="home-project-row-meta" aria-hidden="true">
               <span className="home-project-row-time">
                 {formatUpdated(locale, bundle.updatedAt)}
               </span>
@@ -244,7 +243,7 @@ export function HomePage() {
             aria-label={t(locale, 'app.home.projectActions')}
             onClick={(event) => openRowMenu(bundle.textId, event)}
           >
-            ···
+            <span aria-hidden="true">···</span>
           </button>
         </div>
       ))}
