@@ -13,6 +13,7 @@ import {
   type ProjectedToken,
 } from '../../annotation/analysisGraphDomainProjection';
 import { assertStoredCustomFields } from './customFields';
+import { assertRetargetedReferences } from './referenceState';
 import { getAnalysisRoot, type AnalysisRoot } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -100,6 +101,7 @@ export function applyAnalysis(
     const nextGraph = structuredClone(current.graph);
     for (const change of changes) applyChange(nextGraph, change);
     const graph = validateAnalysisGraphPayload(nextGraph, current.graph.text);
+    assertRetargetedReferences(db, current.graph, graph);
     assertStoredCustomFields(db, graph, input.unitId);
     const fingerprint = analysisGraphFingerprint(graph);
     const generation = reorderOnly ? current.analysisGeneration : current.analysisGeneration + 1;

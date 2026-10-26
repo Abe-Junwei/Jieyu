@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 10;
+export const DESKTOP_PROJECT_USER_VERSION = 11;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -410,7 +410,7 @@ CREATE TABLE token_lexeme_links (
   id TEXT PRIMARY KEY,
   target_type TEXT NOT NULL CHECK (target_type IN ('token', 'morpheme')),
   target_id TEXT NOT NULL,
-  lexeme_id TEXT NOT NULL REFERENCES lexemes(id),
+  lexeme_id TEXT NOT NULL,
   sense_id TEXT CHECK (sense_id IS NULL OR length(sense_id) > 0),
   role TEXT CHECK (role IS NULL OR role IN ('exact', 'stem', 'gloss_candidate', 'manual')),
   confidence REAL CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),

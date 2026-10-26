@@ -272,15 +272,11 @@ function assertRemovedSensesFree(
 }
 
 function assertSenseFree(
-  db: SqliteDatabase,
-  lexemeId: string,
+  _db: SqliteDatabase,
+  _lexemeId: string,
   senseId: string,
   jieyuJson: string,
 ): void {
-  const link = db
-    .prepare('SELECT id FROM token_lexeme_links WHERE lexeme_id = ? AND sense_id = ? LIMIT 1')
-    .get(lexemeId, senseId) as { id: string } | undefined;
-  if (link !== undefined) throw new Error('sense is still referenced');
   const jieyu = JSON.parse(jieyuJson) as {
     exampleRefs?: { senseId: string }[];
     occurrenceCitations?: { senseId: string }[];

@@ -93,27 +93,17 @@ describe('project lexicon', () => {
       role: 'manual',
     }) as { senseId: string; role: string };
     expect(link).toMatchObject({ senseId: 'manage', role: 'manual' });
-    expect(() =>
-      callDesktopSession(session.sessionId, 'lexicon.removeSense', {
-        lexemeId: 'run',
-        senseId: 'manage',
-      }),
-    ).toThrow('sense is still referenced');
-    expect(() =>
-      entry(session.sessionId, {
-        id: 'run',
-        entry: { headword: 'run', senses: [{ id: 'move', definitions: [{ text: 'to move' }] }] },
-      }),
-    ).toThrow('sense is still referenced');
+    const removedLinked = callDesktopSession(session.sessionId, 'lexicon.removeSense', {
+      lexemeId: 'run',
+      senseId: 'manage',
+    }) as { entry: { senses: { id: string }[] } };
+    expect(removedLinked.entry.senses).toEqual([]);
 
     resetDesktopSessions();
     const reopened = openDesktopSession(dir, [dir]);
     expect(callDesktopSession(reopened.sessionId, 'lexicon.getEntry', { id: 'run' })).toMatchObject(
       {
-        entry: {
-          headword: 'run',
-          senses: [{ id: 'manage', definitions: [{ text: 'to manage' }] }],
-        },
+        entry: { headword: 'run', senses: [] },
         jieyu: { notes: [{ owner: 'entry', ref: 'run', text: 'kept' }] },
       },
     );
