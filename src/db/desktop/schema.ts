@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 20;
+export const DESKTOP_PROJECT_USER_VERSION = 21;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -705,9 +705,10 @@ CREATE TABLE bibliography (
 CREATE TABLE messages (
   id TEXT PRIMARY KEY,
   conversation_id TEXT NOT NULL REFERENCES conversations(id),
-  role TEXT NOT NULL,
-  body TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant', 'tool')),
+  body TEXT NOT NULL CHECK (length(body) > 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
 );
 
 CREATE TABLE model_runs (

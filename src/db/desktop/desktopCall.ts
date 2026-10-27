@@ -99,6 +99,7 @@ import {
   type ContentNoteCategory,
   type ContentNoteQuery,
 } from './notes';
+import { appendMessage, listMessages, type MessageAppend } from './messages';
 import {
   createManuscript,
   deleteManuscript,
@@ -194,6 +195,8 @@ const METHODS = [
   'speakers.redeliver',
   'conversations.patch',
   'conversations.redeliver',
+  'messages.append',
+  'messages.list',
   'bibliography.patch',
   'bibliography.redeliver',
   'analysis.apply',
@@ -420,6 +423,11 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'conversations.redeliver':
       knownKeys(input, ['operationId']);
       return redeliverConversation(project.db, requiredString(input.operationId, 'operationId'));
+    case 'messages.append':
+      return appendMessage(project.db, messageAppend(input));
+    case 'messages.list':
+      knownKeys(input, ['conversationId']);
+      return listMessages(project.db, requiredString(input.conversationId, 'conversationId'));
     case 'bibliography.patch':
       return patchBibliography(project.db, bibliographyPatch(input));
     case 'bibliography.redeliver':
@@ -621,6 +629,23 @@ function orderedNotes(patch: { expectedRevision: number; value: Record<string, s
   const ordered: Record<string, string> = {};
   for (const key of keys) ordered[key] = patch.value[key] ?? '';
   return { expectedRevision: patch.expectedRevision, value: ordered };
+}
+
+function messageAppend(input: Record<string, unknown>): MessageAppend {
+  knownKeys(input, ['id', 'conversationId', 'role', 'body']);
+  return {
+    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
+    conversationId: requiredString(input.conversationId, 'conversationId'),
+    role: messageRole(input.role),
+    body: requiredString(input.body, 'body'),
+  };
+}
+
+function messageRole(value: unknown): MessageAppend['role'] {
+  if (value === 'system' || value === 'user' || value === 'assistant' || value === 'tool') {
+    return value;
+  }
+  throw new Error('desktop call role must be a message role');
 }
 
 function conversationPatch(input: Record<string, unknown>): ConversationPatch {
