@@ -1,4 +1,5 @@
 import { applyAnalysis } from './analysis';
+import { queryCorpus, type CorpusQuery, type CorpusQueryCursor } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
 import {
   acceptAnalysis,
@@ -170,6 +171,7 @@ const METHODS = [
   'modelRuns.interrupt',
   'modelRuns.get',
   'modelRuns.readAcceptance',
+  'corpus.query',
   'units.create',
   'units.get',
   'units.list',
@@ -320,6 +322,8 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'notes.listLexeme':
       knownKeys(input, ['lexemeId']);
       return listLexemeNotes(project.db, requiredString(input.lexemeId, 'lexemeId'));
+    case 'corpus.query':
+      return queryCorpus(project.db, corpusQuery(input));
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
     case 'units.get':
@@ -1484,6 +1488,61 @@ function booleanMap(value: unknown): Record<string, boolean> {
     tags[key] = item;
   }
   return tags;
+}
+
+function corpusQuery(input: Record<string, unknown>): CorpusQuery {
+  knownKeys(input, [
+    'manuscriptId',
+    'text',
+    'form',
+    'gloss',
+    'pos',
+    'lexemeId',
+    'senseId',
+    'limit',
+    'cursor',
+  ]);
+  const lexemeId = optionalQueryString(input, 'lexemeId');
+  const senseId = optionalQueryString(input, 'senseId');
+  if ((lexemeId === null) !== (senseId === null)) {
+    throw new Error('sense query needs lexemeId and senseId');
+  }
+  return {
+    manuscriptId: optionalQueryString(input, 'manuscriptId'),
+    text: optionalQueryString(input, 'text'),
+    form: optionalQueryString(input, 'form'),
+    gloss: optionalQueryString(input, 'gloss'),
+    pos: optionalQueryString(input, 'pos'),
+    lexemeId,
+    senseId,
+    limit: requiredLimit(input.limit),
+    cursor: corpusCursor(input.cursor),
+  };
+}
+
+function optionalQueryString(input: Record<string, unknown>, name: string): string | null {
+  if (!(name in input) || input[name] === null) return null;
+  if (typeof input[name] !== 'string') throw new Error(`desktop call ${name} must be a string`);
+  return input[name];
+}
+
+function requiredLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new Error('desktop call limit must be a positive integer');
+  }
+  return value;
+}
+
+function corpusCursor(value: unknown): CorpusQueryCursor | null {
+  if (value === undefined || value === null) return null;
+  const cursor = objectArg(value);
+  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
+  return {
+    manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
+    layerId: requiredString(cursor.layerId, 'layerId'),
+    startTime: requiredNumber(cursor.startTime, 'startTime'),
+    unitId: requiredString(cursor.unitId, 'unitId'),
+  };
 }
 
 function unitCreate(input: Record<string, unknown>): UnitCreate {

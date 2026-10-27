@@ -361,6 +361,114 @@ describe('DesktopProjectReadPage', () => {
       text: 'sentence',
     });
   });
+
+  it('searches the open project and locates the segment', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 1,
+      text: 'Alpha beta',
+    });
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 2,
+      endTime: 3,
+      text: 'other',
+    });
+    mount(session.sessionId);
+    await screen.findByRole('button', { name: '0.0–1.0 Alpha beta' });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Query lexeme' }), {
+      target: { value: 'lex' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Search corpus' }));
+    expect(screen.getByRole('alert').textContent).toBe(
+      'A sense query needs both a lexeme and a sense',
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Query lexeme' }), {
+      target: { value: '' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Query text' }), {
+      target: { value: 'beta' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Search corpus' }));
+    const result = await screen.findByRole('button', { name: 'Result 0.0–1.0 Alpha beta' });
+    expect(result.querySelector('mark')?.textContent).toBe('beta');
+    fireEvent.click(result);
+    expect(textValue('Text')).toBe('Alpha beta');
+    expect(screen.queryByRole('button', { name: 'Result 2.0–3.0 other' })).toBeNull();
+  });
+
+  it('opens the layer that contains the hit', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const first = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      sortOrder: 0,
+    }) as { id: string };
+    const second = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tl',
+      name: { zh: '第二层' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      sortOrder: 1,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: first.id,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    });
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: second.id,
+      startTime: 0,
+      endTime: 1,
+      text: 'other layer',
+    });
+    mount(session.sessionId);
+    await screen.findByRole('button', { name: '0.0–1.0 keep' });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Query text' }), {
+      target: { value: 'layer' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Search corpus' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Result 0.0–1.0 other layer' }));
+    expect(await screen.findByRole('button', { name: '0.0–1.0 other layer' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '0.0–1.0 keep' })).toBeNull();
+    expect(textValue('Text')).toBe('other layer');
+  });
 });
 
 function tempFolder(): string {

@@ -30,6 +30,7 @@ import type {
   CustomFieldPreview,
   CustomFieldUnitValue,
 } from './customFields';
+import type { CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 import type { ContentNote, ContentNoteQuery, ContentNoteWrite } from './notes';
 import type { JieyuAnchoredNote } from '../dmlexTypes';
@@ -58,6 +59,20 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<Layer[]>(sessionId, 'layers.list', { manuscriptId }),
     listUnits: (sessionId: string, layerId: string) =>
       once<Unit[]>(sessionId, 'units.list', { layerId }),
+    queryCorpus: (
+      sessionId: string,
+      input: {
+        manuscriptId?: string;
+        text?: string;
+        form?: string;
+        gloss?: string;
+        pos?: string;
+        lexemeId?: string;
+        senseId?: string;
+        limit: number;
+        cursor?: CorpusQueryCursor;
+      },
+    ) => once<CorpusQueryPage>(sessionId, 'corpus.query', input),
     updateUnitText: (sessionId: string, input: { unitId: string; text: string }) =>
       once<Unit>(sessionId, 'units.updateText', input),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>

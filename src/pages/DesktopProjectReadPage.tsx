@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { featureFlags } from '../ai/config/featureFlags';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
+import { DesktopCorpusQueryPanel } from './DesktopCorpusQueryPanel';
 import { DesktopProjectReadView } from './DesktopProjectReadView';
 import { ProjectCustomFieldManager } from './ProjectCustomFieldManager';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
@@ -11,6 +13,7 @@ export function DesktopProjectReadPage() {
   const locale = useLocale();
   const host = readDesktopProjectHost();
   const read = useDesktopProjectReadController(host);
+  const [focusUnitId, setFocusUnitId] = useState<string | null>(null);
 
   if (host === null) return <Navigate to="/" replace />;
 
@@ -22,10 +25,23 @@ export function DesktopProjectReadPage() {
         {t(locale, 'app.desktopRead.openFolder')}
       </button>
       {read.error.length > 0 ? <p role="alert">{read.error}</p> : null}
+      {read.model === null || host === null || read.sessionId === null ? null : (
+        <DesktopCorpusQueryPanel
+          host={host}
+          sessionId={read.sessionId}
+          onLocate={(manuscriptId, layerId, unitId) => {
+            setFocusUnitId(unitId);
+            if (read.model?.manuscriptId !== manuscriptId || read.model.layerId !== layerId) {
+              read.selectManuscript(manuscriptId, layerId);
+            }
+          }}
+        />
+      )}
       {read.model === null ? null : (
         <DesktopProjectReadView
           manuscripts={read.model.manuscripts}
           manuscriptId={read.model.manuscriptId}
+          focusUnitId={focusUnitId}
           units={read.model.units}
           notes={read.notes}
           audioUrl={read.model.audioUrl}

@@ -52,10 +52,10 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
       });
   };
 
-  const selectManuscript = (manuscriptId: string) => {
+  const selectManuscript = (manuscriptId: string, layerId?: string) => {
     if (host === null || sessionId === null) return;
     setError('');
-    void loadDesktopProjectRead(readApi(host), sessionId, manuscriptId, includeMedia)
+    void loadDesktopProjectRead(readApi(host), sessionId, manuscriptId, includeMedia, layerId)
       .then(async (next) => {
         setModel(next);
         setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
@@ -68,12 +68,16 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
   const reload = () => {
     if (host === null || sessionId === null) return Promise.resolve();
     const manuscriptId = model?.manuscriptId ?? undefined;
-    return loadDesktopProjectRead(readApi(host), sessionId, manuscriptId, includeMedia).then(
-      async (next) => {
-        setModel(next);
-        setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
-      },
-    );
+    return loadDesktopProjectRead(
+      readApi(host),
+      sessionId,
+      manuscriptId,
+      includeMedia,
+      model?.layerId ?? undefined,
+    ).then(async (next) => {
+      setModel(next);
+      setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
+    });
   };
 
   const saveText = (unitId: string, text: string) => {
