@@ -14,6 +14,7 @@ export interface AnnotationMorpheme {
   id: string;
   tokenId: string;
   form: string;
+  gloss: Record<string, string>;
 }
 
 export function useDesktopAnnotationWords(
@@ -91,7 +92,12 @@ export function useDesktopAnnotationWords(
       });
   };
 
-  const writeWord = (current: string, value: string, changes: unknown[]) => {
+  const writeNode = (
+    current: string,
+    value: string,
+    changes: unknown[],
+    kind: 'words' | 'morphemes',
+  ) => {
     if (host === null || sessionId === null || unitId === null || current === value) return;
     const id = ++request.current;
     const client = createDesktopClient({ desktopCall: host.desktopCall });
@@ -108,9 +114,15 @@ export function useDesktopAnnotationWords(
           changes,
         }),
       )
-      .then(() => client.listWords(sessionId, unitId))
-      .then((next) => {
-        if (id === request.current) setWords(next);
+      .then(() => {
+        if (kind === 'words') {
+          return client.listWords(sessionId, unitId).then((next) => {
+            if (id === request.current) setWords(next);
+          });
+        }
+        return client.listMorphemes(sessionId, unitId).then((next) => {
+          if (id === request.current) setMorphemes(next);
+        });
       })
       .catch(() => {
         if (id === request.current) setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -119,19 +131,47 @@ export function useDesktopAnnotationWords(
 
   const setGloss = (wordId: string, value: string) => {
     const current = words.find((word) => word.id === wordId)?.gloss[glossKey] ?? '';
-    writeWord(current, value, [
-      { action: 'node.setMapValue', nodeId: wordId, field: 'gloss', key: glossKey, value },
-    ]);
+    writeNode(
+      current,
+      value,
+      [{ action: 'node.setMapValue', nodeId: wordId, field: 'gloss', key: glossKey, value }],
+      'words',
+    );
+  };
+
+  const setMorphemeGloss = (morphemeId: string, value: string) => {
+    const current = morphemes.find((item) => item.id === morphemeId)?.gloss[glossKey] ?? '';
+    writeNode(
+      current,
+      value,
+      [{ action: 'node.setMapValue', nodeId: morphemeId, field: 'gloss', key: glossKey, value }],
+      'morphemes',
+    );
   };
 
   const setPos = (wordId: string, value: string) => {
     const current = words.find((word) => word.id === wordId)?.pos ?? '';
-    writeWord(current, value, [
-      value.length === 0
-        ? { action: 'node.removeField', nodeId: wordId, field: 'pos' }
-        : { action: 'node.setField', nodeId: wordId, field: 'pos', value },
-    ]);
+    writeNode(
+      current,
+      value,
+      [
+        value.length === 0
+          ? { action: 'node.removeField', nodeId: wordId, field: 'pos' }
+          : { action: 'node.setField', nodeId: wordId, field: 'pos', value },
+      ],
+      'words',
+    );
   };
 
-  return { words, morphemes, error, glossKey, segment, segmentMorphemes, setGloss, setPos };
+  return {
+    words,
+    morphemes,
+    error,
+    glossKey,
+    segment,
+    segmentMorphemes,
+    setGloss,
+    setMorphemeGloss,
+    setPos,
+  };
 }

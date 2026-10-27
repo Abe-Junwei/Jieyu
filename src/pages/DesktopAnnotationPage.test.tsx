@@ -378,6 +378,17 @@ describe('DesktopAnnotationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Split morphemes on -/=' }));
     expect(await screen.findByText('ka')).toBeTruthy();
     expect(screen.getByText('ra')).toBeTruthy();
+    const gloss = screen.getByRole('textbox', { name: 'Morpheme gloss: ka' });
+    fireEvent.change(gloss, { target: { value: 'animal' } });
+    fireEvent.blur(gloss);
+    await waitFor(() => {
+      expect(
+        callDesktopSession(session.sessionId, 'analysis.listMorphemes', { unitId: unit.id }),
+      ).toMatchObject([
+        { form: 'ka', gloss: { en: 'animal' } },
+        { form: 'ra', gloss: {} },
+      ]);
+    });
     view.unmount();
     resetDesktopSessions();
     const reopened = openDesktopSession(folder, [folder]);
@@ -386,9 +397,16 @@ describe('DesktopAnnotationPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka-ra' }));
     expect(await screen.findByText('ka')).toBeTruthy();
     expect(screen.getByText('ra')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Morpheme gloss: ka' })).toHaveProperty(
+      'value',
+      'animal',
+    );
     expect(
       callDesktopSession(reopened.sessionId, 'analysis.listMorphemes', { unitId: unit.id }),
-    ).toMatchObject([{ form: 'ka' }, { form: 'ra' }]);
+    ).toMatchObject([
+      { form: 'ka', gloss: { en: 'animal' } },
+      { form: 'ra', gloss: {} },
+    ]);
     expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       text: 'ka-ra',
     });

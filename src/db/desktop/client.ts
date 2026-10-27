@@ -251,11 +251,15 @@ export function createDesktopClient(bridge: DesktopBridge) {
         { unitId },
       ),
     listMorphemes: (sessionId: string, unitId: string) =>
-      once<{ id: string; tokenId: string; form: string }[]>(sessionId, 'analysis.listMorphemes', {
-        unitId,
-      }),
+      once<{ id: string; tokenId: string; form: string; gloss: Record<string, string> }[]>(
+        sessionId,
+        'analysis.listMorphemes',
+        {
+          unitId,
+        },
+      ),
     segmentMorphemes: (sessionId: string, unitId: string) =>
-      once<{ id: string; tokenId: string; form: string }[]>(
+      once<{ id: string; tokenId: string; form: string; gloss: Record<string, string> }[]>(
         sessionId,
         'analysis.segmentMorphemes',
         { unitId },

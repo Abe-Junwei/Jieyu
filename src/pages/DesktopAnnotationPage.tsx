@@ -195,7 +195,18 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                 {words.morphemes.map((morpheme) => (
                   <li key={morpheme.id}>
                     <span>{morpheme.form}</span>
-                    {lexemeLinkFields(morpheme.id, morpheme.form, '')}
+                    <input
+                      aria-label={`${t(locale, 'workspace.annotation.morphemeGlossLabel')}: ${morpheme.form}`}
+                      defaultValue={morpheme.gloss[words.glossKey] ?? ''}
+                      onBlur={(event) => {
+                        words.setMorphemeGloss(morpheme.id, event.currentTarget.value.trim());
+                      }}
+                    />
+                    {lexemeLinkFields(
+                      morpheme.id,
+                      morpheme.form,
+                      morpheme.gloss[words.glossKey] ?? '',
+                    )}
                   </li>
                 ))}
               </ul>

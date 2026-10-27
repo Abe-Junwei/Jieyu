@@ -499,6 +499,7 @@ export interface UnitMorpheme {
   id: string;
   tokenId: string;
   form: string;
+  gloss: Record<string, string>;
 }
 
 export function listUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorpheme[] {
@@ -507,14 +508,19 @@ export function listUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorph
   }
   const rows = db
     .prepare(
-      `SELECT morphemes.id, morphemes.token_id, morphemes.form_json
+      `SELECT morphemes.id, morphemes.token_id, morphemes.form_json, morphemes.gloss_json
        FROM morphemes
        JOIN tokens ON tokens.id = morphemes.token_id
        WHERE tokens.unit_id = ?
        ORDER BY tokens.token_index, morphemes.morpheme_index, morphemes.id`,
     )
-    .all(unitId) as { id: string; token_id: string; form_json: string }[];
-  return rows.map((row) => ({ id: row.id, tokenId: row.token_id, form: wordForm(row.form_json) }));
+    .all(unitId) as { id: string; token_id: string; form_json: string; gloss_json: string }[];
+  return rows.map((row) => ({
+    id: row.id,
+    tokenId: row.token_id,
+    form: wordForm(row.form_json),
+    gloss: JSON.parse(row.gloss_json) as Record<string, string>,
+  }));
 }
 
 export function segmentUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorpheme[] {
