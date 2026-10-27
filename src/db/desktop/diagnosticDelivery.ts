@@ -32,7 +32,7 @@ export function diagnosticStoreFile(): string | null {
 
 /** Desktop host: receipts live under userData, outside any project folder. */
 export function configureDesktopDiagnosticStore(userDataRoot: string): void {
-  useDiagnosticStore(path.join(userDataRoot, 'diagnostics.sqlite'));
+  storeFile = path.join(userDataRoot, 'diagnostics.sqlite');
 }
 
 export function payloadHash(summary: unknown): string {
