@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
-import type { CorpusQueryCursor, CorpusQueryItem } from '../db/desktop/corpusQuery';
+import {
+  createDesktopClient,
+  type CorpusQueryCursor,
+  type CorpusQueryItem,
+} from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 

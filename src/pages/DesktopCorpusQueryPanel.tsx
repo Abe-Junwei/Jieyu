@@ -1,4 +1,4 @@
-import type { CorpusQueryHit, CorpusTextSpan } from '../db/desktop/corpusQuery';
+import type { CorpusQueryHit, CorpusTextSpan } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopCorpusQuery } from './useDesktopCorpusQuery';
