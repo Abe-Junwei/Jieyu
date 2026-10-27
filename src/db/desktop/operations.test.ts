@@ -72,19 +72,28 @@ describe('desktop project operations', () => {
     const speaker = created.speakers.create({ name: '甲' });
     expect(created.speakers.get('missing')).toBeNull();
     expect(created.settings.get('p1')).toEqual({});
-    const first = created.settings.replace('p1', { variant: 'a', abbrev: 'x' });
-    const second = created.settings.replace('p1', { variant: 'b' });
-    expect(first).toEqual({ variant: 'a', abbrev: 'x' });
-    expect(second).toEqual({ variant: 'b' });
-    expect(() =>
-      created.settings.replace('p1', [] as unknown as Record<string, unknown>),
-    ).toThrow();
-    expect(created.settings.get('p1')).toEqual({ variant: 'b' });
+    const first = created.settings.replace('p1', {
+      characterVariantLines: 'a',
+      annotationAbbreviations: 'x',
+    });
+    const second = created.settings.replace('p1', { characterVariantLines: 'b' });
+    expect(first).toEqual({ characterVariantLines: 'a', annotationAbbreviations: 'x' });
+    expect(second).toEqual({ characterVariantLines: 'b' });
+    expect(() => created.settings.replace('p1', [] as unknown as Record<string, unknown>)).toThrow(
+      'project settings must be an object',
+    );
+    expect(() => created.settings.replace('p1', { sessionMemory: { facts: [] } })).toThrow(
+      'project setting is unknown',
+    );
+    expect(() => created.settings.replace('p1', { laneLocks: [] })).toThrow(
+      'project setting is unknown',
+    );
+    expect(created.settings.get('p1')).toEqual({ characterVariantLines: 'b' });
     created.close();
 
     const reopened = openProject(dir);
     expect(reopened.speakers.get(speaker.id)).toEqual(speaker);
-    expect(reopened.settings.get('p1')).toEqual({ variant: 'b' });
+    expect(reopened.settings.get('p1')).toEqual({ characterVariantLines: 'b' });
     reopened.close();
   });
 
