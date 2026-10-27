@@ -10,6 +10,7 @@ import type {
   ProjectedToken,
 } from '../../annotation/analysisGraphDomainProjection';
 import { currentDefinitionRevisions, type StoredDefinitionRevision } from './customFields';
+import { unitBelongsToDeletedManuscript } from './manuscripts';
 import { detachAnalysisNotes, detachProjectionNotes, readActiveAnalysisNotes } from './notes';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -236,6 +237,7 @@ export function listAnalysisCandidates(
   db: SqliteDatabase,
   unitId: string,
 ): AnalysisCandidateRecord[] {
+  if (unitBelongsToDeletedManuscript(db, unitId)) return [];
   const rows = db
     .prepare('SELECT * FROM analysis_candidates WHERE unit_id = ? ORDER BY created_at, id')
     .all(unitId) as CandidateRow[];

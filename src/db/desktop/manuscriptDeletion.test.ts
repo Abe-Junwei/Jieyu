@@ -24,6 +24,49 @@ afterEach(() => {
 });
 
 describe('manuscript mark delete', () => {
+  it('hides lexeme links of a deleted manuscript and keeps the graph', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    const words = callDesktopSession(session.sessionId, 'analysis.segmentWords', {
+      unitId: unit.id,
+    }) as { id: string }[];
+    const word = words[0];
+    if (word === undefined) throw new Error('word missing');
+    callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'lex1',
+      entry: {
+        headword: 'keep',
+        senses: [{ id: 's1', definitions: [{ text: 's1' }] }],
+      },
+    });
+    callDesktopSession(session.sessionId, 'lexicon.replaceTokenLink', {
+      tokenId: word.id,
+      lexemeId: 'lex1',
+      senseId: 's1',
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'lexicon.listTokenLinks', { unitId: unit.id }),
+    ).toEqual([expect.objectContaining({ tokenId: word.id, lexemeId: 'lex1', senseId: 's1' })]);
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    expect(
+      callDesktopSession(session.sessionId, 'lexicon.listTokenLinks', { unitId: unit.id }),
+    ).toEqual([]);
+    resetDesktopSessions();
+    const db = new Database(join(dir, 'project.sqlite'), { readonly: true });
+    const row = db
+      .prepare('SELECT analysis_graph_json AS graph FROM units WHERE id = ?')
+      .get(unit.id) as { graph: string };
+    db.close();
+    expect(row.graph).toContain('linksLexeme');
+  });
+
   it('hides a deleted manuscript, blocks its text, and leaves another manuscript writable', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);

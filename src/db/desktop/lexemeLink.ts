@@ -5,6 +5,7 @@ import { foldSearchText } from '../../utils/searchTextNormalization';
 import { readAnalysisMaterial } from './analysisCandidates';
 import { writeGraph } from './analysisRestore';
 import { getLexemeEntry, saveLexemeEntry } from './lexicon';
+import { unitBelongsToDeletedManuscript } from './manuscripts';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -83,6 +84,7 @@ export function createLinkedLexeme(
 }
 
 export function listTokenLexemeLinks(db: SqliteDatabase, unitId: string): TokenLexemeLink[] {
+  if (unitBelongsToDeletedManuscript(db, unitId)) return [];
   const material = readAnalysisMaterial(db, unitId);
   if (material.graph === null) return [];
   const links: TokenLexemeLink[] = [];
