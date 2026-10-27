@@ -4,6 +4,44 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AudioImportDialog } from './AudioImportDialog';
 import { renderWithLocale } from '../test/localeTestUtils';
 
+
+function installControllableMediaMetadataMock() {
+  const originalCreateElement = document.createElement.bind(document);
+  const controllers: Array<{
+    setDuration: (value: number) => void;
+    fireLoaded: () => void;
+  }> = [];
+  vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-media');
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+  vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    if (tagName === 'audio' || tagName === 'video') {
+      const listeners = new Map<string, EventListener>();
+      let duration = 0;
+      const media = {
+        get duration() {
+          return duration;
+        },
+        addEventListener: vi.fn((type: string, cb: EventListener) => {
+          listeners.set(type, cb);
+        }),
+        removeEventListener: vi.fn(),
+        set src(_value: string) {},
+      };
+      controllers.push({
+        setDuration: (value: number) => {
+          duration = value;
+        },
+        fireLoaded: () => {
+          listeners.get('loadedmetadata')?.(new Event('loadedmetadata'));
+        },
+      });
+      return media as unknown as HTMLElement;
+    }
+    return originalCreateElement(tagName);
+  });
+  return controllers;
+}
+
 function installMediaMetadataMock(duration = 12.5) {
   const originalCreateElement = document.createElement.bind(document);
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-media');
@@ -216,5 +254,41 @@ describe('AudioImportDialog', () => {
       expect(screen.getByRole('button', { name: '确认导入' }).hasAttribute('disabled')).toBe(false);
     });
     expect(screen.queryByText(/按比例压缩|proportionally compressed/i)).toBeNull();
+  });
+
+  it('ignores stale metadata when a newer file is selected first', async () => {
+    const controllers = installControllableMediaMetadataMock();
+    const onImport = vi.fn(async () => undefined);
+    renderWithLocale(
+      <AudioImportDialog
+        isOpen
+        onClose={vi.fn()}
+        disposition={{ kind: 'simple' }}
+        onImport={onImport}
+      />,
+    );
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const fileA = new File(['a'], 'a.wav', { type: 'audio/wav' });
+    const fileB = new File(['b'], 'b.wav', { type: 'audio/wav' });
+
+    fireEvent.change(input, { target: { files: [fileA] } });
+    fireEvent.change(input, { target: { files: [fileB] } });
+    expect(controllers).toHaveLength(2);
+
+    controllers[1]!.setDuration(20);
+    controllers[1]!.fireLoaded();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '确认导入' }).hasAttribute('disabled')).toBe(false);
+      expect(screen.getByText('b.wav')).toBeTruthy();
+    });
+
+    controllers[0]!.setDuration(100);
+    controllers[0]!.fireLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: '确认导入' }));
+    await waitFor(() => {
+      expect(onImport).toHaveBeenCalledWith(fileB, 20);
+    });
   });
 });
