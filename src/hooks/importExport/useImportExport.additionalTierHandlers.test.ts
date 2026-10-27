@@ -257,13 +257,13 @@ describe('importAdditionalTiers', () => {
       name: { eng: 'Gloss Tier' },
       constraint: 'independent_boundary',
     } as LayerDocType;
-    const unit = { ...makeUnit('utt-1', 0, 10), mediaId: undefined };
+    const unit = makeUnit('utt-1', 0, 10);
+    delete (unit as { mediaId?: string }).mediaId;
 
     await importAdditionalTiers({
       db: {} as never,
       now: NOW,
       textId: 'text-import',
-      mediaId: undefined,
       layers: [defaultLayer, glossLayer],
       additionalTiers: new Map([
         [
