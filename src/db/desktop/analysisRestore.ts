@@ -8,6 +8,7 @@ import {
 } from '../../annotation/analysisGraphDomain';
 import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
 import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
+import { unitBelongsToDeletedManuscript } from './manuscripts';
 import {
   detachAnalysisAssociations,
   getAnalysisCandidate,
@@ -442,6 +443,7 @@ export function listUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
   if (db.prepare('SELECT 1 FROM units WHERE id = ?').get(unitId) === undefined) {
     throw new Error('unit is missing');
   }
+  if (unitBelongsToDeletedManuscript(db, unitId)) return [];
   const rows = db
     .prepare(
       'SELECT id, form_json, gloss_json, pos FROM tokens WHERE unit_id = ? ORDER BY token_index, id',
@@ -506,6 +508,7 @@ export function listUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorph
   if (db.prepare('SELECT 1 FROM units WHERE id = ?').get(unitId) === undefined) {
     throw new Error('unit is missing');
   }
+  if (unitBelongsToDeletedManuscript(db, unitId)) return [];
   const rows = db
     .prepare(
       `SELECT morphemes.id, morphemes.token_id, morphemes.form_json, morphemes.gloss_json

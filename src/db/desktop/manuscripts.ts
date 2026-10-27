@@ -84,6 +84,19 @@ export function listManuscripts(db: SqliteDatabase): Manuscript[] {
   return rows.map(mapManuscript);
 }
 
+export function unitBelongsToDeletedManuscript(db: SqliteDatabase, unitId: string): boolean {
+  const row = db
+    .prepare(
+      `SELECT manuscripts.deleted_at AS deletedAt
+       FROM units
+       JOIN layers ON layers.id = units.layer_id
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       WHERE units.id = ?`,
+    )
+    .get(unitId) as { deletedAt: string | null } | undefined;
+  return row !== undefined && row.deletedAt !== null;
+}
+
 export function listDeletedManuscripts(db: SqliteDatabase): Manuscript[] {
   const rows = db
     .prepare(

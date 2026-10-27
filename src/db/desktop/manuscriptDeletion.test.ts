@@ -46,6 +46,17 @@ describe('manuscript mark delete', () => {
       endTime: 1,
       text: 'stay',
     }) as { id: string };
+    callDesktopSession(session.sessionId, 'notes.create', {
+      anchor: { kind: 'unit', unitId: unit.id },
+      content: { zh: '语段' },
+    });
+    callDesktopSession(session.sessionId, 'notes.create', {
+      anchor: { kind: 'unit', unitId: other.id },
+      content: { zh: '另一份' },
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id }),
+    ).toEqual([expect.objectContaining({ form: 'keep' })]);
     const deleted = callDesktopSession(session.sessionId, 'manuscripts.delete', {
       id: first.manuscriptId,
     }) as { deletedAt: string | null; lifecycleGeneration: number };
@@ -63,9 +74,21 @@ describe('manuscript mark delete', () => {
     expect(() =>
       callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'gone' }),
     ).toThrow('manuscript is deleted');
+    expect(
+      callDesktopSession(session.sessionId, 'layers.list', { manuscriptId: first.manuscriptId }),
+    ).toEqual([]);
     expect(callDesktopSession(session.sessionId, 'units.list', { layerId: first.layerId })).toEqual(
-      [expect.objectContaining({ id: unit.id, text: 'keep' })],
+      [],
     );
+    expect(
+      callDesktopSession(session.sessionId, 'analysis.listWords', { unitId: unit.id }),
+    ).toEqual([]);
+    expect(callDesktopSession(session.sessionId, 'notes.list', {})).toEqual([
+      expect.objectContaining({ content: { zh: '另一份' } }),
+    ]);
+    expect(
+      callDesktopSession(session.sessionId, 'layers.list', { manuscriptId: second.manuscriptId }),
+    ).toEqual([expect.objectContaining({ id: second.layerId })]);
     expect(
       callDesktopSession(session.sessionId, 'units.updateText', { unitId: other.id, text: 'kept' }),
     ).toMatchObject({ text: 'kept' });
@@ -77,6 +100,20 @@ describe('manuscript mark delete', () => {
     expect(callDesktopSession(reopened.sessionId, 'manuscripts.listDeleted', {})).toEqual([
       expect.objectContaining({ id: first.manuscriptId, deletedAt: deleted.deletedAt }),
     ]);
+    expect(
+      callDesktopSession(reopened.sessionId, 'units.list', { layerId: first.layerId }),
+    ).toEqual([]);
+    resetDesktopSessions();
+    const db = new Database(join(dir, 'project.sqlite'), { readonly: true });
+    const body = db.prepare('SELECT body FROM unit_texts WHERE unit_id = ?').get(unit.id) as {
+      body: string;
+    };
+    const words = db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unit.id) as {
+      n: number;
+    };
+    db.close();
+    expect(body).toEqual({ body: 'keep' });
+    expect(words).toEqual({ n: 1 });
   });
 
   it('refuses delete while a run is going, then makes that run stale across restore', () => {
@@ -161,6 +198,14 @@ describe('manuscript mark delete', () => {
     expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
       expect.objectContaining({ id: seeded.manuscriptId, lifecycleGeneration: 2, deletedAt: null }),
     ]);
+    expect(
+      callDesktopSession(session.sessionId, 'units.list', { layerId: seeded.layerId }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'after' }),
+        expect.objectContaining({ text: 'handed' }),
+      ]),
+    );
     resetDesktopSessions();
     const db = new Database(join(dir, 'project.sqlite'), { readonly: true });
     const row = db

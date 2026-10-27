@@ -223,6 +223,11 @@ export function listContentNotes(db: SqliteDatabase, query: ContentNoteQuery = {
     clauses.push('layer_id = ?');
     params.push(query.layerId);
   }
+  clauses.push(`(
+    manuscript_id IS NULL OR manuscript_id NOT IN (
+      SELECT id FROM manuscripts WHERE deleted_at IS NOT NULL
+    )
+  )`);
   const attachment = query.attachment ?? 'any';
   if (attachment !== 'any') {
     clauses.push('attachment = ?');
