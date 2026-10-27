@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import path from 'node:path';
 import Database from 'better-sqlite3';
 
 const RECEIPTS = `
@@ -27,6 +28,11 @@ export function useDiagnosticStore(file: string | null): void {
 
 export function diagnosticStoreFile(): string | null {
   return storeFile;
+}
+
+/** Desktop host: receipts live under userData, outside any project folder. */
+export function configureDesktopDiagnosticStore(userDataRoot: string): void {
+  useDiagnosticStore(path.join(userDataRoot, 'diagnostics.sqlite'));
 }
 
 export function payloadHash(summary: unknown): string {
