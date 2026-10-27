@@ -3,7 +3,7 @@ title: desktop-project-deletion design
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-10-26
+last_reviewed: 2026-10-27
 source_of_truth: desktop-project-deletion-spec
 depends_on:
   - ./requirements.md
@@ -26,6 +26,7 @@ depends_on:
 - 文稿持久写入代际，任务启动携带该代际；每次写入在同事务检查有效性。删除后即使恢复旧任务也不再匹配；同步编辑与后台结果不能绕过校验。
 - 以最小项目内清除操作记录保存操作 id、目标身份/路径、意图/已确认/失败/未知状态；字段和枚举在该片正式设计时写入 schema.ts，不放 userData/settings_json。
 - 上述是必要状态提案，不代表已实现或已最终确定具体列名；实际 DDL 前需审阅 API、写入入口及受影响业务，不提前为 M1 增加字段。
+- 文稿标记删除这一刀已经落地，只增加 `manuscripts.deleted_at`（空表示有效）。删除和恢复各把 `lifecycle_generation` 加一。普通列表排除已删除行，`manuscripts.listDeleted` 只返回它们。已删除期间，文稿、层、语段、正文、备注、转写运行、词、词素、分析候选，以及挂在文稿、层、语段上的自定义字段写入会被 SQLite 触发器拒绝。仍有 `running` 转写时删除不生效，也不代为中断。恢复后旧运行仍不能接受。清除期限、提醒时点、录音连带、删除界面和垃圾箱仍是提案，不在这一刀。
 - 已删除列表有专用读接口；普通领域查询默认只读有效对象，不能靠每个 UI 记得手动加过滤。
 - 标记删除时同库一次事务改全部目标；前置保存/任务停止按 ADR 保留已完成效果，不声明跨整个 UI 流程回滚。
 

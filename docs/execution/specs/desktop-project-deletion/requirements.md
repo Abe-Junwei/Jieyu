@@ -3,7 +3,7 @@ title: desktop-project-deletion requirements
 doc_type: execution-spec-requirements
 status: draft
 owner: repo
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-27
 source_of_truth: desktop-project-deletion-spec
 ---
 
@@ -11,7 +11,7 @@ source_of_truth: desktop-project-deletion-spec
 
 ## 1. 目的与范围
 
-执行 [ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 的 #325 删除生命周期，不改 M1；本规格是待实施设计，产品行为已确定，代码未写。
+执行 [ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 的 #325 删除生命周期，不改 M1。文稿标记删除和恢复已写入；期限、提醒、录音连带、删除界面和垃圾箱仍未写。
 按四个有依赖的切片交付，每片完成读写、过滤与重开验证；先追实际入口再填实施文件清单。
 
 ## 2. 场景

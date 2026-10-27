@@ -120,11 +120,14 @@ export function startModelRun(db: SqliteDatabase, input: ModelRunStart): ModelRu
   const write = db.transaction(() => {
     const manuscript = db
       .prepare(
-        `SELECT media_id AS mediaId, lifecycle_generation AS lifecycleGeneration
+        `SELECT media_id AS mediaId, lifecycle_generation AS lifecycleGeneration,
+                deleted_at AS deletedAt
          FROM manuscripts WHERE id = ?`,
       )
-      .get(input.manuscriptId) as { mediaId: string; lifecycleGeneration: number } | undefined;
+      .get(input.manuscriptId) as
+      { mediaId: string; lifecycleGeneration: number; deletedAt: string | null } | undefined;
     if (!manuscript) throw new Error('transcription manuscript is missing');
+    if (manuscript.deletedAt !== null) throw new Error('manuscript is deleted');
     const layer = db
       .prepare(
         'SELECT manuscript_id AS manuscriptId, content_type AS contentType FROM layers WHERE id = ?',

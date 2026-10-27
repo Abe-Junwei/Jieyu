@@ -20,6 +20,8 @@ export interface Manuscript {
   timeMappingHistory: TextTimeMapping[];
   exportTimelineMode: 'document' | 'media' | null;
   tierRoles: Record<string, string>;
+  lifecycleGeneration: number;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,12 +41,15 @@ interface ManuscriptRow {
   time_mapping_history_json: string;
   export_timeline_mode: string | null;
   tier_roles_json: string;
+  lifecycle_generation: number;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 const MANUSCRIPT_COLUMNS = `id, title_json, media_id, logical_duration_sec, time_mapping_json,
-  time_mapping_history_json, export_timeline_mode, tier_roles_json, created_at, updated_at`;
+  time_mapping_history_json, export_timeline_mode, tier_roles_json, lifecycle_generation,
+  deleted_at, created_at, updated_at`;
 
 export function createManuscript(db: SqliteDatabase, input: ManuscriptCreate): Manuscript {
   const id = randomUUID();
@@ -71,9 +76,74 @@ export function getManuscript(db: SqliteDatabase, id: string): Manuscript | null
 
 export function listManuscripts(db: SqliteDatabase): Manuscript[] {
   const rows = db
-    .prepare(`SELECT ${MANUSCRIPT_COLUMNS} FROM manuscripts ORDER BY created_at, id`)
+    .prepare(
+      `SELECT ${MANUSCRIPT_COLUMNS} FROM manuscripts
+       WHERE deleted_at IS NULL ORDER BY created_at, id`,
+    )
     .all() as ManuscriptRow[];
   return rows.map(mapManuscript);
+}
+
+export function listDeletedManuscripts(db: SqliteDatabase): Manuscript[] {
+  const rows = db
+    .prepare(
+      `SELECT ${MANUSCRIPT_COLUMNS} FROM manuscripts
+       WHERE deleted_at IS NOT NULL ORDER BY deleted_at, id`,
+    )
+    .all() as ManuscriptRow[];
+  return rows.map(mapManuscript);
+}
+
+export function deleteManuscript(db: SqliteDatabase, id: string): Manuscript {
+  const write = db.transaction(() => {
+    const current = getManuscript(db, id);
+    if (!current) throw new Error('manuscript is missing');
+    if (current.deletedAt !== null) throw new Error('manuscript is deleted');
+    const running = db
+      .prepare(`SELECT id FROM model_runs WHERE manuscript_id = ? AND status = 'running' LIMIT 1`)
+      .get(id) as { id: string } | undefined;
+    if (running) throw new Error('manuscript has a running task');
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE manuscripts
+       SET deleted_at = ?, lifecycle_generation = lifecycle_generation + 1, updated_at = ?
+       WHERE id = ? AND deleted_at IS NULL`,
+    ).run(now, now, id);
+    const next = getManuscript(db, id);
+    if (
+      !next ||
+      next.deletedAt !== now ||
+      next.lifecycleGeneration !== current.lifecycleGeneration + 1
+    ) {
+      throw new Error('manuscript delete readback failed');
+    }
+    return next;
+  });
+  return write();
+}
+
+export function restoreManuscript(db: SqliteDatabase, id: string): Manuscript {
+  const write = db.transaction(() => {
+    const current = getManuscript(db, id);
+    if (!current) throw new Error('manuscript is missing');
+    if (current.deletedAt === null) throw new Error('manuscript is active');
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE manuscripts
+       SET deleted_at = NULL, lifecycle_generation = lifecycle_generation + 1, updated_at = ?
+       WHERE id = ? AND deleted_at IS NOT NULL`,
+    ).run(now, id);
+    const next = getManuscript(db, id);
+    if (
+      !next ||
+      next.deletedAt !== null ||
+      next.lifecycleGeneration !== current.lifecycleGeneration + 1
+    ) {
+      throw new Error('manuscript restore readback failed');
+    }
+    return next;
+  });
+  return write();
 }
 
 export function setManuscriptTimeMapping(
@@ -176,6 +246,8 @@ function mapManuscript(row: ManuscriptRow): Manuscript {
     timeMappingHistory: readHistory(row.time_mapping_history_json),
     exportTimelineMode: mode === 'document' || mode === 'media' ? mode : null,
     tierRoles: readStringMap(row.tier_roles_json),
+    lifecycleGeneration: row.lifecycle_generation,
+    deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

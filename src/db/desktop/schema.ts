@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 19;
+export const DESKTOP_PROJECT_USER_VERSION = 20;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -75,6 +75,7 @@ CREATE TABLE manuscripts (
   ),
   generation INTEGER NOT NULL DEFAULT 0 CHECK (generation >= 0),
   lifecycle_generation INTEGER NOT NULL DEFAULT 0 CHECK (lifecycle_generation >= 0),
+  deleted_at TEXT CHECK (deleted_at IS NULL OR length(deleted_at) > 0),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -786,5 +787,241 @@ BEGIN
     SELECT 1 FROM json_each(NEW.title_json)
     WHERE json_each.type = 'text' AND json_each.value <> ''
   );
+END;
+
+-- ponytail: one trigger per content table. A check in every writer gets missed.
+CREATE TRIGGER manuscripts_reject_update_when_deleted
+BEFORE UPDATE ON manuscripts
+WHEN OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER layers_reject_deleted_manuscript_insert
+BEFORE INSERT ON layers
+WHEN EXISTS (
+  SELECT 1 FROM manuscripts
+  WHERE manuscripts.id = NEW.manuscript_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER layers_reject_deleted_manuscript_update
+BEFORE UPDATE ON layers
+WHEN EXISTS (
+  SELECT 1 FROM manuscripts
+  WHERE manuscripts.id = NEW.manuscript_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER units_reject_deleted_manuscript_insert
+BEFORE INSERT ON units
+WHEN EXISTS (
+  SELECT 1 FROM layers
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE layers.id = NEW.layer_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER units_reject_deleted_manuscript_update
+BEFORE UPDATE ON units
+WHEN EXISTS (
+  SELECT 1 FROM layers
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE layers.id = NEW.layer_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER unit_texts_reject_deleted_manuscript_insert
+BEFORE INSERT ON unit_texts
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER unit_texts_reject_deleted_manuscript_update
+BEFORE UPDATE ON unit_texts
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER notes_reject_deleted_manuscript_insert
+BEFORE INSERT ON notes
+WHEN NEW.manuscript_id IS NOT NULL AND EXISTS (
+  SELECT 1 FROM manuscripts
+  WHERE manuscripts.id = NEW.manuscript_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER notes_reject_deleted_manuscript_update
+BEFORE UPDATE ON notes
+WHEN NEW.manuscript_id IS NOT NULL AND EXISTS (
+  SELECT 1 FROM manuscripts
+  WHERE manuscripts.id = NEW.manuscript_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER model_runs_reject_deleted_manuscript_insert
+BEFORE INSERT ON model_runs
+WHEN EXISTS (
+  SELECT 1 FROM manuscripts
+  WHERE manuscripts.id = NEW.manuscript_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER model_runs_reject_deleted_manuscript_update
+BEFORE UPDATE ON model_runs
+WHEN EXISTS (
+  SELECT 1 FROM manuscripts
+  WHERE manuscripts.id = NEW.manuscript_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER tokens_reject_deleted_manuscript_insert
+BEFORE INSERT ON tokens
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER tokens_reject_deleted_manuscript_update
+BEFORE UPDATE ON tokens
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER morphemes_reject_deleted_manuscript_insert
+BEFORE INSERT ON morphemes
+WHEN EXISTS (
+  SELECT 1 FROM tokens
+  JOIN units ON units.id = tokens.unit_id
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE tokens.id = NEW.token_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER morphemes_reject_deleted_manuscript_update
+BEFORE UPDATE ON morphemes
+WHEN EXISTS (
+  SELECT 1 FROM tokens
+  JOIN units ON units.id = tokens.unit_id
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE tokens.id = NEW.token_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER analysis_candidates_reject_deleted_manuscript_insert
+BEFORE INSERT ON analysis_candidates
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER analysis_candidates_reject_deleted_manuscript_update
+BEFORE UPDATE ON analysis_candidates
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER custom_field_values_reject_deleted_manuscript_insert
+BEFORE INSERT ON custom_field_values
+WHEN (
+  NEW.target_type = 'manuscript' AND EXISTS (
+    SELECT 1 FROM manuscripts WHERE id = NEW.target_id AND deleted_at IS NOT NULL
+  )
+) OR (
+  NEW.target_type = 'layer' AND EXISTS (
+    SELECT 1 FROM layers
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE layers.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+) OR (
+  NEW.target_type = 'unit' AND EXISTS (
+    SELECT 1 FROM units
+    JOIN layers ON layers.id = units.layer_id
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE units.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER custom_field_values_reject_deleted_manuscript_update
+BEFORE UPDATE ON custom_field_values
+WHEN (
+  NEW.target_type = 'manuscript' AND EXISTS (
+    SELECT 1 FROM manuscripts WHERE id = NEW.target_id AND deleted_at IS NOT NULL
+  )
+) OR (
+  NEW.target_type = 'layer' AND EXISTS (
+    SELECT 1 FROM layers
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE layers.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+) OR (
+  NEW.target_type = 'unit' AND EXISTS (
+    SELECT 1 FROM units
+    JOIN layers ON layers.id = units.layer_id
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE units.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
 END;
 `;

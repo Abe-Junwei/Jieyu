@@ -101,7 +101,10 @@ import {
 } from './notes';
 import {
   createManuscript,
+  deleteManuscript,
+  listDeletedManuscripts,
   listManuscripts,
+  restoreManuscript,
   rollbackManuscriptTimeMapping,
   setManuscriptTimeMapping,
   type ManuscriptCreate,
@@ -124,6 +127,9 @@ const METHODS = [
   'media.create',
   'manuscripts.create',
   'manuscripts.list',
+  'manuscripts.listDeleted',
+  'manuscripts.delete',
+  'manuscripts.restore',
   'manuscripts.setTimeMapping',
   'manuscripts.rollbackTimeMapping',
   'layers.create',
@@ -222,6 +228,15 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return createManuscript(project.db, manuscriptCreate(input));
     case 'manuscripts.list':
       return listManuscripts(project.db);
+    case 'manuscripts.listDeleted':
+      knownKeys(input, []);
+      return listDeletedManuscripts(project.db);
+    case 'manuscripts.delete':
+      knownKeys(input, ['id']);
+      return deleteManuscript(project.db, requiredString(input.id, 'id'));
+    case 'manuscripts.restore':
+      knownKeys(input, ['id']);
+      return restoreManuscript(project.db, requiredString(input.id, 'id'));
     case 'manuscripts.setTimeMapping':
       return setManuscriptTimeMapping(project.db, timeMappingSet(input));
     case 'manuscripts.rollbackTimeMapping':

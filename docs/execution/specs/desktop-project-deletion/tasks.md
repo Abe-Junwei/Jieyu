@@ -3,7 +3,7 @@ title: desktop-project-deletion tasks
 doc_type: execution-spec-tasks
 status: draft
 owner: repo
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-27
 source_of_truth: desktop-project-deletion-spec
 depends_on:
   - ./requirements.md
@@ -19,6 +19,7 @@ depends_on:
 
 ## D1：删除与恢复
 
+- [x] 文稿 `deleted_at` 为空表示有效。标记删除和恢复各推进 `lifecycle_generation`。普通列表不含已删除文稿，专用列表只含它们。已删除期间正文写入被拒绝。仍在运行的转写使删除不生效。恢复后旧运行不能接受，新运行可以。关掉再打开仍在。不开放删除界面。期限、提醒、录音连带和垃圾箱未做。
 - [ ] schema.ts 中必要删除周期/期限/提醒状态，普通查询排除与专用已删除读取。
 - [ ] 文稿/录音连带标记与选择性恢复同事务，范围确认和字典。
 - [ ] 关闭重开、关联期限保留、不影响其他文稿、AI 只读状态测试；D2 通过前不开放删除入口。
