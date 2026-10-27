@@ -73,7 +73,18 @@ describe('desktop project schema', () => {
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
       )
       .all();
+    const acceptance = db
+      .prepare("SELECT name FROM pragma_table_info('transcription_acceptances') ORDER BY name")
+      .all() as { name: string }[];
     db.close();
+    expect(acceptance.map((column) => column.name)).toEqual([
+      'candidate_id',
+      'created_at',
+      'id',
+      'operation_id',
+      'run_id',
+      'unit_id',
+    ]);
     expect(names).toEqual([
       { name: 'analysis_candidates' },
       { name: 'bibliography' },
@@ -92,6 +103,7 @@ describe('desktop project schema', () => {
       { name: 'manuscripts' },
       { name: 'media' },
       { name: 'messages' },
+      { name: 'model_runs' },
       { name: 'morphemes' },
       { name: 'notes' },
       { name: 'orthographies' },
@@ -102,6 +114,7 @@ describe('desktop project schema', () => {
       { name: 'speakers' },
       { name: 'token_lexeme_links' },
       { name: 'tokens' },
+      { name: 'transcription_acceptances' },
       { name: 'unit_texts' },
       { name: 'units' },
     ]);

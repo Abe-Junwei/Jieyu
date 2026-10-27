@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 18;
+export const DESKTOP_PROJECT_USER_VERSION = 19;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -74,6 +74,7 @@ CREATE TABLE manuscripts (
     json_valid(tier_roles_json) AND json_type(tier_roles_json) = 'object'
   ),
   generation INTEGER NOT NULL DEFAULT 0 CHECK (generation >= 0),
+  lifecycle_generation INTEGER NOT NULL DEFAULT 0 CHECK (lifecycle_generation >= 0),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -357,6 +358,11 @@ CREATE TABLE unit_texts (
   unit_id TEXT NOT NULL REFERENCES units(id),
   role TEXT NOT NULL,
   body TEXT NOT NULL,
+  provenance_json TEXT CHECK (
+    provenance_json IS NULL OR (
+      json_valid(provenance_json) AND json_type(provenance_json) = 'object'
+    )
+  ),
   updated_at TEXT NOT NULL
 );
 
@@ -701,6 +707,48 @@ CREATE TABLE messages (
   role TEXT NOT NULL,
   body TEXT NOT NULL,
   created_at TEXT NOT NULL
+);
+
+CREATE TABLE model_runs (
+  id TEXT PRIMARY KEY,
+  manuscript_id TEXT NOT NULL REFERENCES manuscripts(id),
+  media_id TEXT NOT NULL REFERENCES media(id),
+  layer_id TEXT NOT NULL REFERENCES layers(id),
+  lifecycle_generation INTEGER NOT NULL CHECK (lifecycle_generation >= 0),
+  model_id TEXT NOT NULL CHECK (length(model_id) > 0),
+  model_version TEXT NOT NULL CHECK (length(model_version) > 0),
+  manifest_sha256 TEXT NOT NULL CHECK (length(manifest_sha256) > 0),
+  capability TEXT NOT NULL CHECK (capability = 'transcribe'),
+  params_json TEXT NOT NULL CHECK (json_valid(params_json) AND json_type(params_json) = 'object'),
+  range_start REAL NOT NULL,
+  range_end REAL NOT NULL CHECK (range_end >= range_start),
+  started_at TEXT NOT NULL,
+  finished_at TEXT,
+  status TEXT NOT NULL CHECK (status IN ('running', 'ok', 'error', 'cancelled', 'interrupted')),
+  error_code TEXT CHECK (error_code IS NULL OR length(error_code) > 0),
+  chunk_count INTEGER NOT NULL DEFAULT 0 CHECK (chunk_count >= 0),
+  accepted_count INTEGER NOT NULL DEFAULT 0 CHECK (accepted_count >= 0),
+  rejected_count INTEGER NOT NULL DEFAULT 0 CHECK (rejected_count >= 0),
+  pending_count INTEGER NOT NULL DEFAULT 0 CHECK (pending_count >= 0),
+  abandoned_count INTEGER NOT NULL DEFAULT 0 CHECK (abandoned_count >= 0),
+  CHECK (
+    (status = 'running' AND finished_at IS NULL) OR
+    (status <> 'running' AND finished_at IS NOT NULL)
+  ),
+  CHECK (
+    (status = 'error' AND error_code IS NOT NULL) OR
+    (status <> 'error' AND error_code IS NULL)
+  )
+);
+
+CREATE TABLE transcription_acceptances (
+  id TEXT PRIMARY KEY,
+  operation_id TEXT NOT NULL UNIQUE,
+  run_id TEXT NOT NULL REFERENCES model_runs(id),
+  candidate_id TEXT NOT NULL CHECK (length(candidate_id) > 0),
+  unit_id TEXT NOT NULL REFERENCES units(id),
+  created_at TEXT NOT NULL,
+  UNIQUE (run_id, candidate_id)
 );
 
 CREATE TABLE reception_batches (
