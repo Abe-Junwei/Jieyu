@@ -8,6 +8,11 @@ import {
 } from '../utils/transcriptionUrlDeepLink';
 import { upsertLanguageCatalogEntry } from './storagePortServiceLanguageCatalogMutations';
 
+function isOwnershipMismatch(err: unknown): boolean {
+  if (err instanceof CatalogOwnershipMismatchError) return true;
+  return err instanceof Error && err.cause instanceof CatalogOwnershipMismatchError;
+}
+
 async function clearLanguageTables(): Promise<void> {
   await Promise.all([
     db.languages.clear(),
