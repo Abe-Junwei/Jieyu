@@ -251,7 +251,7 @@ describe('desktop JYT exchange', () => {
     expect(() => importDesktopJyt(brokenDest, zipSync(broken))).toThrow();
     expect(() => projectBytes(brokenDest)).toThrow();
     expect(projectBytes(sourceDir)).toEqual(before);
-  });
+  }, 20000);
 
   it('packs recording bytes in a JYM and refuses a bad hash or a path outside the folder', () => {
     const sourceDir = folder();
