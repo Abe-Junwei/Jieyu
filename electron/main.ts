@@ -37,7 +37,10 @@ import {
 } from '../src/desktop/skeleton/desktopMediaGrant';
 import { fileContainsProbeTable, writeSkeletonProbe } from '../src/desktop/skeleton/probeStore';
 import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
-import { ensureUserDataLayout } from '../src/desktop/skeleton/userDataLayout';
+import {
+  ensureProjectBackupDir,
+  ensureUserDataLayout,
+} from '../src/desktop/skeleton/userDataLayout';
 
 const userDataDir = process.env.JIEYU_DESKTOP_USER_DATA;
 if (typeof userDataDir === 'string' && userDataDir.length > 0) {
@@ -200,6 +203,12 @@ async function runOutboundRequest(
   }
 }
 
+function openUserProjectSession(folder: string): { sessionId: string } {
+  return openDesktopSession(folder, [...allowedProjectFolders], {
+    dir: ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
+  });
+}
+
 function registerIpc(): void {
   handle('skeleton:write-probe', (note: unknown) => {
     if (typeof note !== 'string' || note.length === 0) throw new Error('empty probe');
@@ -208,7 +217,7 @@ function registerIpc(): void {
 
   handle('desktop:open-session', (folder: unknown) => {
     if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
-    const opened = openDesktopSession(folder, [...allowedProjectFolders]);
+    const opened = openUserProjectSession(folder);
     bindDesktopMediaSession(opened.sessionId);
     return opened;
   });
@@ -232,7 +241,7 @@ function registerIpc(): void {
     if (folder === undefined) return { cancelled: true };
     const resolved = path.resolve(folder);
     allowedProjectFolders.add(resolved);
-    const opened = openDesktopSession(resolved, [...allowedProjectFolders]);
+    const opened = openUserProjectSession(resolved);
     bindDesktopMediaSession(opened.sessionId);
     return opened;
   });
