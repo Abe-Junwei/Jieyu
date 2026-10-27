@@ -63,6 +63,7 @@ export async function listLanguageCatalogEntries(input: {
     input.locale,
     input.includeHidden,
     input.languageIds,
+    projectId,
   );
   const visible = await languageEntriesForProject(entries, projectId);
   return filterLanguageCatalogEntriesBySearchText(visible, input.searchText);
@@ -72,9 +73,13 @@ export async function getLanguageCatalogEntry(input: {
   languageId: string;
   locale: Locale;
 }): Promise<LanguageCatalogEntry | null> {
-  const entries = await lcProj.readLanguageCatalogProjection(input.locale, true, [
-    input.languageId,
-  ]);
+  const projectId = activeCatalogProjectId();
+  const entries = await lcProj.readLanguageCatalogProjection(
+    input.locale,
+    true,
+    [input.languageId],
+    projectId,
+  );
   return entries.find((entry) => entry.id === input.languageId) ?? null;
 }
 

@@ -274,6 +274,8 @@ export async function readLanguageCatalogProjection(
   locale: string,
   includeHidden = false,
   requestedLanguageIds?: readonly string[],
+  /** When set, only this project's persisted override/name/alias rows participate. */
+  projectId?: string,
 ): Promise<LanguageCatalogEntry[]> {
   const scopedLanguageIds = lcNorm.normalizeRequestedLanguageIds(requestedLanguageIds);
   if (scopedLanguageIds && scopedLanguageIds.length === 0) {
@@ -307,14 +309,22 @@ export async function readLanguageCatalogProjection(
             ]),
       )
       .then(([languages, displayNames, aliases]) => {
-        const persistedLanguages = languages.filter((row): row is LanguageDocType => Boolean(row));
+        const persistedLanguages = languages
+          .filter((row): row is LanguageDocType => Boolean(row))
+          .filter((row) => projectId === undefined || row.textId === projectId);
+        const projectDisplayNames =
+          projectId === undefined
+            ? displayNames
+            : displayNames.filter((row) => row.textId === projectId);
+        const projectAliases =
+          projectId === undefined ? aliases : aliases.filter((row) => row.textId === projectId);
 
         const languageIds = new Set<string>(
           scopedLanguageIds ?? [
             ...lcNorm.buildBaselineCodes(),
             ...persistedLanguages.map((row) => row.id),
-            ...displayNames.map((row) => row.languageId),
-            ...aliases.map((row) => row.languageId),
+            ...projectDisplayNames.map((row) => row.languageId),
+            ...projectAliases.map((row) => row.languageId),
           ],
         );
 
@@ -322,13 +332,13 @@ export async function readLanguageCatalogProjection(
         const displayNamesByLanguageId = new Map<string, LanguageDisplayNameDocType[]>();
         const aliasesByLanguageId = new Map<string, LanguageAliasDocType[]>();
 
-        displayNames.forEach((row) => {
+        projectDisplayNames.forEach((row) => {
           const bucket = displayNamesByLanguageId.get(row.languageId) ?? [];
           bucket.push(row);
           displayNamesByLanguageId.set(row.languageId, bucket);
         });
 
-        aliases.forEach((row) => {
+        projectAliases.forEach((row) => {
           const bucket = aliasesByLanguageId.get(row.languageId) ?? [];
           bucket.push(row);
           aliasesByLanguageId.set(row.languageId, bucket);
