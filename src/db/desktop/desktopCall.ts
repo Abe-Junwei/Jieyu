@@ -99,7 +99,13 @@ import {
   type ContentNoteCategory,
   type ContentNoteQuery,
 } from './notes';
-import { appendMessage, listMessages, type MessageAppend } from './messages';
+import {
+  appendMessage,
+  clearConversationMessages,
+  listMessages,
+  updateMessageBody,
+  type MessageAppend,
+} from './messages';
 import {
   createManuscript,
   deleteManuscript,
@@ -196,6 +202,8 @@ const METHODS = [
   'conversations.patch',
   'conversations.redeliver',
   'messages.append',
+  'messages.update',
+  'messages.clear',
   'messages.list',
   'bibliography.patch',
   'bibliography.redeliver',
@@ -425,6 +433,18 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return redeliverConversation(project.db, requiredString(input.operationId, 'operationId'));
     case 'messages.append':
       return appendMessage(project.db, messageAppend(input));
+    case 'messages.update':
+      knownKeys(input, ['id', 'body']);
+      return updateMessageBody(project.db, {
+        id: requiredString(input.id, 'id'),
+        body: requiredString(input.body, 'body'),
+      });
+    case 'messages.clear':
+      knownKeys(input, ['conversationId']);
+      return clearConversationMessages(
+        project.db,
+        requiredString(input.conversationId, 'conversationId'),
+      );
     case 'messages.list':
       knownKeys(input, ['conversationId']);
       return listMessages(project.db, requiredString(input.conversationId, 'conversationId'));

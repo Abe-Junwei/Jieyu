@@ -62,6 +62,63 @@ export function appendMessage(db: SqliteDatabase, input: MessageAppend): Message
   return write();
 }
 
+export function updateMessageBody(
+  db: SqliteDatabase,
+  input: { id: string; body: string },
+): Message {
+  const write = db.transaction(() => {
+    const current = getMessage(db, input.id);
+    if (!current) throw new Error('message is missing');
+    const now = new Date().toISOString();
+    db.prepare('UPDATE messages SET body = ?, updated_at = ? WHERE id = ?').run(
+      input.body,
+      now,
+      input.id,
+    );
+    const next = getMessage(db, input.id);
+    if (
+      !next ||
+      next.body !== input.body ||
+      next.role !== current.role ||
+      next.createdAt !== current.createdAt ||
+      next.conversationId !== current.conversationId ||
+      next.updatedAt !== now
+    ) {
+      throw new Error('message readback failed');
+    }
+    return next;
+  });
+  return write();
+}
+
+export function clearConversationMessages(
+  db: SqliteDatabase,
+  conversationId: string,
+): { conversationId: string; cleared: number } {
+  const write = db.transaction(() => {
+    if (db.prepare('SELECT 1 FROM conversations WHERE id = ?').get(conversationId) === undefined) {
+      throw new Error('conversation is missing');
+    }
+    const before = db
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?')
+      .get(conversationId) as { n: number };
+    const now = new Date().toISOString();
+    db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(conversationId);
+    db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(now, conversationId);
+    const after = db
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?')
+      .get(conversationId) as { n: number };
+    const conversation = db
+      .prepare('SELECT updated_at AS updatedAt FROM conversations WHERE id = ?')
+      .get(conversationId) as { updatedAt: string } | undefined;
+    if (after.n !== 0 || conversation?.updatedAt !== now) {
+      throw new Error('message clear readback failed');
+    }
+    return { conversationId, cleared: before.n };
+  });
+  return write();
+}
+
 export function listMessages(db: SqliteDatabase, conversationId: string): Message[] {
   if (db.prepare('SELECT 1 FROM conversations WHERE id = ?').get(conversationId) === undefined) {
     throw new Error('conversation is missing');

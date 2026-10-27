@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { createConversation } from './conversations';
@@ -98,6 +99,74 @@ describe('message append', () => {
       expect.objectContaining({ id: 'm1', body: '第一句', role: 'user' }),
       expect.objectContaining({ id: second.id, body: '第二句', role: 'assistant' }),
     ]);
+  });
+
+  it('rewrites one body and clears only that conversation', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    const first = createConversation(project.db, { title: '一' });
+    const second = createConversation(project.db, { title: '二' });
+    project.db
+      .prepare('UPDATE conversations SET updated_at = ? WHERE id = ?')
+      .run('2020-01-01T00:00:00.000Z', first.id);
+    project.close();
+    const sessionId = openDesktopSession(dir, [dir]).sessionId;
+    const written = callDesktopSession(sessionId, 'messages.append', {
+      id: 'm1',
+      conversationId: first.id,
+      role: 'user',
+      body: '原句',
+    }) as { createdAt: string; role: string };
+    callDesktopSession(sessionId, 'messages.append', {
+      id: 'm2',
+      conversationId: second.id,
+      role: 'assistant',
+      body: '留下',
+    });
+    expect(
+      callDesktopSession(sessionId, 'messages.update', { id: 'm1', body: '改后' }),
+    ).toMatchObject({
+      id: 'm1',
+      role: written.role,
+      body: '改后',
+      createdAt: written.createdAt,
+    });
+    expect(() =>
+      callDesktopSession(sessionId, 'messages.update', { id: 'missing', body: '没有' }),
+    ).toThrow('message is missing');
+    expect(() =>
+      callDesktopSession(sessionId, 'messages.update', {
+        id: 'm1',
+        body: '带引用',
+        citations: [],
+      }),
+    ).toThrow('desktop call field citations is not supported');
+    expect(callDesktopSession(sessionId, 'messages.clear', { conversationId: first.id })).toEqual({
+      conversationId: first.id,
+      cleared: 1,
+    });
+    expect(callDesktopSession(sessionId, 'messages.list', { conversationId: first.id })).toEqual(
+      [],
+    );
+    expect(callDesktopSession(sessionId, 'messages.list', { conversationId: second.id })).toEqual([
+      expect.objectContaining({ id: 'm2', body: '留下' }),
+    ]);
+    resetDesktopSessions();
+    const reopened = openDesktopSession(dir, [dir]);
+    expect(
+      callDesktopSession(reopened.sessionId, 'messages.list', { conversationId: first.id }),
+    ).toEqual([]);
+    expect(
+      callDesktopSession(reopened.sessionId, 'messages.list', { conversationId: second.id }),
+    ).toEqual([expect.objectContaining({ id: 'm2', body: '留下' })]);
+    resetDesktopSessions();
+    const db = new Database(join(dir, 'project.sqlite'), { readonly: true });
+    const row = db
+      .prepare('SELECT title, updated_at AS updatedAt FROM conversations WHERE id = ?')
+      .get(first.id) as { title: string; updatedAt: string };
+    db.close();
+    expect(row.title).toBe('一');
+    expect(row.updatedAt).not.toBe('2020-01-01T00:00:00.000Z');
   });
 });
 
