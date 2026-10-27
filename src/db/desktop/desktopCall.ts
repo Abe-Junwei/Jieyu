@@ -110,6 +110,7 @@ import {
 import {
   createManuscript,
   deleteManuscript,
+  deleteRecording,
   listDeletedManuscripts,
   listManuscripts,
   restoreManuscript,
@@ -133,6 +134,7 @@ import {
 
 const METHODS = [
   'media.create',
+  'media.delete',
   'manuscripts.create',
   'manuscripts.list',
   'manuscripts.listDeleted',
@@ -237,6 +239,9 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
   switch (parsed) {
     case 'media.create':
       return createMedia(project.db, desktopSessionFolder(sessionId), mediaCreate(input));
+    case 'media.delete':
+      knownKeys(input, ['id']);
+      return deleteRecording(project.db, requiredString(input.id, 'id'));
     case 'manuscripts.create':
       return createManuscript(project.db, manuscriptCreate(input));
     case 'manuscripts.list':

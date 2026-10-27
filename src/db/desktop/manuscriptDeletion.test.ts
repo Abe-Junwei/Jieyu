@@ -102,9 +102,18 @@ describe('manuscript mark delete', () => {
     ).toEqual([expect.objectContaining({ form: 'keep' })]);
     const deleted = callDesktopSession(session.sessionId, 'manuscripts.delete', {
       id: first.manuscriptId,
-    }) as { deletedAt: string | null; lifecycleGeneration: number };
+    }) as {
+      deletedAt: string | null;
+      retainUntil: string | null;
+      reminderShownAt: string | null;
+      lifecycleGeneration: number;
+    };
     expect(deleted.deletedAt).toEqual(expect.any(String));
     expect(deleted.lifecycleGeneration).toBe(1);
+    expect(deleted.reminderShownAt).toBeNull();
+    const retainUntil = new Date(String(deleted.deletedAt));
+    retainUntil.setUTCDate(retainUntil.getUTCDate() + 90);
+    expect(deleted.retainUntil).toBe(retainUntil.toISOString());
     expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
       expect.objectContaining({ id: second.manuscriptId, deletedAt: null }),
     ]);
@@ -141,7 +150,12 @@ describe('manuscript mark delete', () => {
       expect.objectContaining({ id: second.manuscriptId }),
     ]);
     expect(callDesktopSession(reopened.sessionId, 'manuscripts.listDeleted', {})).toEqual([
-      expect.objectContaining({ id: first.manuscriptId, deletedAt: deleted.deletedAt }),
+      expect.objectContaining({
+        id: first.manuscriptId,
+        deletedAt: deleted.deletedAt,
+        retainUntil: deleted.retainUntil,
+        reminderShownAt: null,
+      }),
     ]);
     expect(
       callDesktopSession(reopened.sessionId, 'units.list', { layerId: first.layerId }),
@@ -195,7 +209,12 @@ describe('manuscript mark delete', () => {
     const restored = callDesktopSession(session.sessionId, 'manuscripts.restore', {
       id: seeded.manuscriptId,
     }) as { deletedAt: string | null; lifecycleGeneration: number };
-    expect(restored).toMatchObject({ deletedAt: null, lifecycleGeneration: 2 });
+    expect(restored).toMatchObject({
+      deletedAt: null,
+      retainUntil: null,
+      reminderShownAt: null,
+      lifecycleGeneration: 2,
+    });
     expect(() =>
       callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId }),
     ).toThrow('manuscript is active');
@@ -253,15 +272,96 @@ describe('manuscript mark delete', () => {
     const db = new Database(join(dir, 'project.sqlite'), { readonly: true });
     const row = db
       .prepare(
-        'SELECT generation, lifecycle_generation AS lifecycleGeneration, deleted_at AS deletedAt FROM manuscripts WHERE id = ?',
+        `SELECT generation, lifecycle_generation AS lifecycleGeneration, deleted_at AS deletedAt,
+                retain_until AS retainUntil, reminder_shown_at AS reminderShownAt
+         FROM manuscripts WHERE id = ?`,
       )
       .get(seeded.manuscriptId) as {
       generation: number;
       lifecycleGeneration: number;
       deletedAt: string | null;
+      retainUntil: string | null;
+      reminderShownAt: string | null;
     };
     db.close();
-    expect(row).toEqual({ generation: 1, lifecycleGeneration: 2, deletedAt: null });
+    expect(row).toEqual({
+      generation: 1,
+      lifecycleGeneration: 2,
+      deletedAt: null,
+      retainUntil: null,
+      reminderShownAt: null,
+    });
+  });
+
+  it('rejects a deletion mark that has no retain-until', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    resetDesktopSessions();
+    const db = new Database(join(dir, 'project.sqlite'));
+    expect(() =>
+      db
+        .prepare('UPDATE manuscripts SET deleted_at = ? WHERE id = ?')
+        .run('2026-10-27T00:00:00.000Z', seeded.manuscriptId),
+    ).toThrow(/CHECK constraint failed/);
+    db.close();
+  });
+
+  it('deletes a recording and only lengthens manuscript deadlines', () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'b.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const early = seed(session.sessionId, '较早');
+    const current = seed(session.sessionId, '当前', early.mediaId);
+    const otherMedia = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'b.wav',
+      sha256: 'bb',
+      duration: 8,
+    }) as { id: string };
+    const other = seed(session.sessionId, '别的', otherMedia.id);
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: early.manuscriptId });
+    resetDesktopSessions();
+    const setup = new Database(join(dir, 'project.sqlite'));
+    setup
+      .prepare('UPDATE manuscripts SET retain_until = ? WHERE id = ?')
+      .run('2099-01-01T00:00:00.000Z', early.manuscriptId);
+    setup.close();
+
+    const reopened = openDesktopSession(dir, [dir]);
+    const deleted = callDesktopSession(reopened.sessionId, 'media.delete', {
+      id: early.mediaId,
+    }) as { deletedAt: string; retainUntil: string; reminderShownAt: null };
+    expect(deleted.reminderShownAt).toBeNull();
+    expect(callDesktopSession(reopened.sessionId, 'manuscripts.list', {})).toEqual([
+      expect.objectContaining({ id: other.manuscriptId, deletedAt: null }),
+    ]);
+    expect(callDesktopSession(reopened.sessionId, 'manuscripts.listDeleted', {})).toEqual([
+      expect.objectContaining({
+        id: early.manuscriptId,
+        retainUntil: '2099-01-01T00:00:00.000Z',
+      }),
+      expect.objectContaining({ id: current.manuscriptId, retainUntil: deleted.retainUntil }),
+    ]);
+    resetDesktopSessions();
+    const db = new Database(join(dir, 'project.sqlite'), { readonly: true });
+    const media = db
+      .prepare('SELECT relpath, deleted_at AS deletedAt FROM media WHERE id = ?')
+      .get(early.mediaId) as { relpath: string; deletedAt: string | null };
+    db.close();
+    expect(media).toEqual({ relpath: 'a.wav', deletedAt: deleted.deletedAt });
+  });
+
+  it('refuses a recording delete while a manuscript run is going', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    start(session.sessionId, seeded);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'media.delete', { id: seeded.mediaId }),
+    ).toThrow('manuscript has a running task');
+    expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
+      expect.objectContaining({ id: seeded.manuscriptId, deletedAt: null }),
+    ]);
   });
 });
 
@@ -269,7 +369,7 @@ function seed(
   sessionId: string,
   title: string,
   mediaId?: string,
-): { manuscriptId: string; layerId: string } {
+): { manuscriptId: string; layerId: string; mediaId: string } {
   const media =
     mediaId === undefined
       ? (callDesktopSession(sessionId, 'media.create', {
@@ -289,7 +389,7 @@ function seed(
     tierType: 'time-aligned',
     contentType: 'transcription',
   }) as { id: string };
-  return { manuscriptId: manuscript.id, layerId: layer.id };
+  return { manuscriptId: manuscript.id, layerId: layer.id, mediaId: media.id };
 }
 
 function start(

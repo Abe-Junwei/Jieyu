@@ -22,6 +22,8 @@ export interface Manuscript {
   tierRoles: Record<string, string>;
   lifecycleGeneration: number;
   deletedAt: string | null;
+  retainUntil: string | null;
+  reminderShownAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,13 +45,15 @@ interface ManuscriptRow {
   tier_roles_json: string;
   lifecycle_generation: number;
   deleted_at: string | null;
+  retain_until: string | null;
+  reminder_shown_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 const MANUSCRIPT_COLUMNS = `id, title_json, media_id, logical_duration_sec, time_mapping_json,
   time_mapping_history_json, export_timeline_mode, tier_roles_json, lifecycle_generation,
-  deleted_at, created_at, updated_at`;
+  deleted_at, retain_until, reminder_shown_at, created_at, updated_at`;
 
 export function createManuscript(db: SqliteDatabase, input: ManuscriptCreate): Manuscript {
   const id = randomUUID();
@@ -107,6 +111,12 @@ export function listDeletedManuscripts(db: SqliteDatabase): Manuscript[] {
   return rows.map(mapManuscript);
 }
 
+function plusUtcDays(iso: string, days: number): string {
+  const date = new Date(iso);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString();
+}
+
 export function deleteManuscript(db: SqliteDatabase, id: string): Manuscript {
   const write = db.transaction(() => {
     const current = getManuscript(db, id);
@@ -117,20 +127,115 @@ export function deleteManuscript(db: SqliteDatabase, id: string): Manuscript {
       .get(id) as { id: string } | undefined;
     if (running) throw new Error('manuscript has a running task');
     const now = new Date().toISOString();
+    const retainUntil = plusUtcDays(now, 90);
     db.prepare(
       `UPDATE manuscripts
-       SET deleted_at = ?, lifecycle_generation = lifecycle_generation + 1, updated_at = ?
+       SET deleted_at = ?, retain_until = ?, reminder_shown_at = NULL,
+           lifecycle_generation = lifecycle_generation + 1, updated_at = ?
        WHERE id = ? AND deleted_at IS NULL`,
-    ).run(now, now, id);
+    ).run(now, retainUntil, now, id);
     const next = getManuscript(db, id);
     if (
       !next ||
       next.deletedAt !== now ||
+      next.retainUntil !== retainUntil ||
+      next.reminderShownAt !== null ||
       next.lifecycleGeneration !== current.lifecycleGeneration + 1
     ) {
       throw new Error('manuscript delete readback failed');
     }
     return next;
+  });
+  return write();
+}
+
+export interface RecordingDeletion {
+  id: string;
+  deletedAt: string;
+  retainUntil: string;
+  reminderShownAt: null;
+}
+
+export function deleteRecording(db: SqliteDatabase, mediaId: string): RecordingDeletion {
+  const write = db.transaction(() => {
+    const media = db
+      .prepare('SELECT deleted_at AS deletedAt FROM media WHERE id = ?')
+      .get(mediaId) as { deletedAt: string | null } | undefined;
+    if (!media) throw new Error('media is missing');
+    if (media.deletedAt !== null) throw new Error('media is deleted');
+    const linked = db
+      .prepare(
+        `SELECT id, deleted_at, retain_until, lifecycle_generation
+         FROM manuscripts WHERE media_id = ?`,
+      )
+      .all(mediaId) as {
+      id: string;
+      deleted_at: string | null;
+      retain_until: string | null;
+      lifecycle_generation: number;
+    }[];
+    for (const row of linked) {
+      const running = db
+        .prepare(`SELECT id FROM model_runs WHERE manuscript_id = ? AND status = 'running' LIMIT 1`)
+        .get(row.id) as { id: string } | undefined;
+      if (running) throw new Error('manuscript has a running task');
+    }
+    const now = new Date().toISOString();
+    const retainUntil = plusUtcDays(now, 90);
+    db.prepare(
+      `UPDATE media
+       SET deleted_at = ?, retain_until = ?, reminder_shown_at = NULL
+       WHERE id = ? AND deleted_at IS NULL`,
+    ).run(now, retainUntil, mediaId);
+    for (const row of linked) {
+      if (row.deleted_at === null) {
+        db.prepare(
+          `UPDATE manuscripts
+           SET deleted_at = ?, retain_until = ?, reminder_shown_at = NULL,
+               lifecycle_generation = lifecycle_generation + 1, updated_at = ?
+           WHERE id = ? AND deleted_at IS NULL`,
+        ).run(now, retainUntil, now, row.id);
+      } else if (row.retain_until !== null && row.retain_until < retainUntil) {
+        db.prepare('UPDATE manuscripts SET retain_until = ?, updated_at = ? WHERE id = ?').run(
+          retainUntil,
+          now,
+          row.id,
+        );
+      }
+    }
+    const stored = db
+      .prepare(
+        `SELECT deleted_at AS deletedAt, retain_until AS retainUntil,
+                reminder_shown_at AS reminderShownAt
+         FROM media WHERE id = ?`,
+      )
+      .get(mediaId) as {
+      deletedAt: string | null;
+      retainUntil: string | null;
+      reminderShownAt: string | null;
+    };
+    if (
+      stored.deletedAt !== now ||
+      stored.retainUntil !== retainUntil ||
+      stored.reminderShownAt !== null
+    ) {
+      throw new Error('media delete readback failed');
+    }
+    for (const row of linked) {
+      const next = getManuscript(db, row.id);
+      const lengthened =
+        row.deleted_at === null || (row.retain_until !== null && row.retain_until < retainUntil);
+      if (
+        !next ||
+        next.deletedAt !== (row.deleted_at ?? now) ||
+        next.retainUntil !== (lengthened ? retainUntil : row.retain_until) ||
+        next.lifecycleGeneration !==
+          (row.deleted_at === null ? row.lifecycle_generation + 1 : row.lifecycle_generation)
+      ) {
+        throw new Error('manuscript delete readback failed');
+      }
+    }
+    return { id: mediaId, deletedAt: now, retainUntil, reminderShownAt: null };
   });
   return write();
 }
@@ -143,13 +248,21 @@ export function restoreManuscript(db: SqliteDatabase, id: string): Manuscript {
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE manuscripts
-       SET deleted_at = NULL, lifecycle_generation = lifecycle_generation + 1, updated_at = ?
+       SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL,
+           lifecycle_generation = lifecycle_generation + 1, updated_at = ?
        WHERE id = ? AND deleted_at IS NOT NULL`,
     ).run(now, id);
+    db.prepare(
+      `UPDATE media
+       SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL
+       WHERE id = ?`,
+    ).run(current.mediaId);
     const next = getManuscript(db, id);
     if (
       !next ||
       next.deletedAt !== null ||
+      next.retainUntil !== null ||
+      next.reminderShownAt !== null ||
       next.lifecycleGeneration !== current.lifecycleGeneration + 1
     ) {
       throw new Error('manuscript restore readback failed');
@@ -261,6 +374,8 @@ function mapManuscript(row: ManuscriptRow): Manuscript {
     tierRoles: readStringMap(row.tier_roles_json),
     lifecycleGeneration: row.lifecycle_generation,
     deletedAt: row.deleted_at,
+    retainUntil: row.retain_until,
+    reminderShownAt: row.reminder_shown_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

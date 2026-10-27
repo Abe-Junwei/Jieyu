@@ -11,7 +11,7 @@ source_of_truth: desktop-project-deletion-spec
 
 ## 1. 目的与范围
 
-执行 [ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 的 #325 删除生命周期，不改 M1。文稿标记删除和恢复已写入；期限、提醒、录音连带、删除界面和垃圾箱仍未写。
+执行 [ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 的 #325 删除生命周期，不改 M1。文稿标记删除和恢复已写入。期限和提醒列已写入 schema。文稿删除、恢复和录音连带删除会维护这一周期。删除界面和垃圾箱仍未写。
 按四个有依赖的切片交付，每片完成读写、过滤与重开验证；先追实际入口再填实施文件清单。
 
 ## 2. 场景

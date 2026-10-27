@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 21;
+export const DESKTOP_PROJECT_USER_VERSION = 23;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -20,7 +20,12 @@ CREATE TABLE media (
   sha256 TEXT NOT NULL,
   filename TEXT NOT NULL,
   duration REAL NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  deleted_at TEXT CHECK (deleted_at IS NULL OR length(deleted_at) > 0),
+  retain_until TEXT CHECK (retain_until IS NULL OR length(retain_until) > 0),
+  reminder_shown_at TEXT CHECK (reminder_shown_at IS NULL OR length(reminder_shown_at) > 0),
+  CHECK ((retain_until IS NULL) = (deleted_at IS NULL)),
+  CHECK (reminder_shown_at IS NULL OR deleted_at IS NOT NULL)
 );
 
 CREATE TABLE speakers (
@@ -76,8 +81,12 @@ CREATE TABLE manuscripts (
   generation INTEGER NOT NULL DEFAULT 0 CHECK (generation >= 0),
   lifecycle_generation INTEGER NOT NULL DEFAULT 0 CHECK (lifecycle_generation >= 0),
   deleted_at TEXT CHECK (deleted_at IS NULL OR length(deleted_at) > 0),
+  retain_until TEXT CHECK (retain_until IS NULL OR length(retain_until) > 0),
+  reminder_shown_at TEXT CHECK (reminder_shown_at IS NULL OR length(reminder_shown_at) > 0),
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  CHECK ((retain_until IS NULL) = (deleted_at IS NULL)),
+  CHECK (reminder_shown_at IS NULL OR deleted_at IS NOT NULL)
 );
 
 CREATE TABLE languages (
@@ -792,7 +801,9 @@ END;
 
 -- ponytail: one trigger per content table. A check in every writer gets missed.
 CREATE TRIGGER manuscripts_reject_update_when_deleted
-BEFORE UPDATE ON manuscripts
+BEFORE UPDATE OF title_json, media_id, logical_duration_sec, time_mapping_json,
+  time_mapping_history_json, export_timeline_mode, tier_roles_json, generation
+ON manuscripts
 WHEN OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NOT NULL
 BEGIN
   SELECT RAISE(ABORT, 'manuscript is deleted');
