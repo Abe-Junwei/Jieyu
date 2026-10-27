@@ -107,6 +107,18 @@ describe('ZoomControls Component', () => {
     expect(container.querySelectorAll('.icon-btn').length).toBe(2);
   });
 
+  it('keeps AS follow-scroll accessible name from aria-label, not the abbreviation', () => {
+    const { container } = render(
+      <ZoomControls {...createMockProps({ autoScrollEnabled: true })} />,
+    );
+    const asLabel = [...container.querySelectorAll('.icon-btn-label')].find(
+      (node) => node.textContent === 'AS',
+    );
+    expect(asLabel?.getAttribute('aria-hidden')).toBe('true');
+    const button = asLabel?.closest('button');
+    expect(button?.getAttribute('aria-label')).toMatch(/^AS:.*follow-scroll/i);
+  });
+
   it('has correct button elements for zoom operations', () => {
     const { container } = render(<ZoomControls {...createMockProps()} />);
     const buttons = container.querySelectorAll('.icon-btn');

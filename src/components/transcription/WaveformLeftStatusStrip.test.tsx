@@ -62,4 +62,26 @@ describe('WaveformLeftStatusStrip', () => {
     fireEvent.pointerDown(handle as Element, { clientX: 200, clientY: 40 });
     expect(onLaneLabelWidthResize).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes snap toggle via aria-label while short On/Off stays presentational', () => {
+    const { container } = render(
+      <WaveformLeftStatusStrip
+        zoomPercent={100}
+        snapEnabled={false}
+        onSnapToggle={() => {}}
+        playbackRate={1}
+        selectedUnitDuration={null}
+        amplitudeScale={1}
+        onAmplitudeChange={() => {}}
+        onAmplitudeReset={() => {}}
+        selectedMediaIsVideo={false}
+        videoLayoutMode="top"
+        onVideoLayoutModeChange={() => {}}
+        formatTime={(seconds) => `${seconds}s`}
+      />,
+    );
+    const toggle = container.querySelector('.waveform-left-status-toggle');
+    expect(toggle?.getAttribute('aria-label')).toMatch(/^Off:.*snap/i);
+    expect(toggle?.querySelector('[aria-hidden="true"]')?.textContent).toMatch(/off/i);
+  });
 });
