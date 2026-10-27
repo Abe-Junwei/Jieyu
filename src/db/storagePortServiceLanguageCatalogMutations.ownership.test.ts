@@ -52,33 +52,24 @@ describe('language catalog ownership (#397)', () => {
         localName: '英语B',
         englishName: 'English B',
       }),
-    ).rejects.toSatisfy((err: unknown) => {
-        return (
-          err instanceof Error &&
-          err.cause instanceof CatalogOwnershipMismatchError
-        );
-      });
+    ).rejects.toSatisfy(isOwnershipMismatch);
 
     const kept = await db.languages.get('eng');
     expect(kept?.textId).toBe('project-a');
   });
 
   it('re-reads ownership inside the write txn so a just-committed peer row is not overwritten', async () => {
-    // Simulate the pre-fix race: both callers observed "no row" before either txn ran.
-    // With the check inside the txn, the second writer must still refuse.
     publishActiveProjectTextId('project-a');
-    const first = upsertLanguageCatalogEntry({
+    await upsertLanguageCatalogEntry({
       id: 'eng',
       languageCode: 'eng',
       locale: 'en-US',
       localName: 'English A',
       englishName: 'English A',
     });
-    await first;
     expect((await db.languages.get('eng'))?.textId).toBe('project-a');
 
     publishActiveProjectTextId('project-b');
-    // Pre-txn view: row exists for A; in-txn check must reject B.
     await expect(
       upsertLanguageCatalogEntry({
         id: 'eng',
@@ -87,12 +78,7 @@ describe('language catalog ownership (#397)', () => {
         localName: 'English B',
         englishName: 'English B',
       }),
-    ).rejects.toSatisfy((err: unknown) => {
-        return (
-          err instanceof Error &&
-          err.cause instanceof CatalogOwnershipMismatchError
-        );
-      });
+    ).rejects.toSatisfy(isOwnershipMismatch);
     expect((await db.languages.get('eng'))?.textId).toBe('project-a');
   });
 });
