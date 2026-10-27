@@ -4,7 +4,6 @@ import type { EafImportResult } from '../../services/EafService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../../services/LayerSegmentationV2Service';
-import { LayerUnitSegmentWriteService } from '../../services/LayerUnitSegmentWriteService';
 import { newId, humanizeTierName } from '../../utils/transcriptionFormatters';
 import type { ImportedHostToken, ImportedTokenGraphWriter } from './persistImportedTokenGraph';
 import { createLogger } from '../../observability/logger';
@@ -323,7 +322,7 @@ export async function importAdditionalTiers(input: {
       const firstUtt = input.insertedUnits[0];
       const importMediaId = input.mediaId ?? firstUtt?.unit.mediaId;
       const importTextId = firstUtt?.unit.textId ?? input.textId;
-      if (!importMediaId && input.insertedUnits.length === 0) {
+      if (!importMediaId) {
         droppedTranslationSegmentCount += annotations.filter((annotation) =>
           annotation.text.trim(),
         ).length;
@@ -373,25 +372,23 @@ export async function importAdditionalTiers(input: {
         });
         const segNow = new Date().toISOString();
         for (const write of writes) {
-          if (importMediaId) {
-            const segId = newId('seg');
-            await LayerSegmentationV2Service.createSegment({
+          const segId = newId('seg');
+          await LayerSegmentationV2Service.createSegmentWithContentAtomic(
+            {
               id: segId,
               textId: importTextId,
               mediaId: importMediaId,
               layerId: write.layerId,
-              unitId: parentMatch.id,
+              parentUnitId: parentMatch.id,
               startTime: annStart,
               endTime: annEnd,
               createdAt: segNow,
               updatedAt: segNow,
-            });
-          }
-          await LayerUnitSegmentWriteService.insertSegmentContents(input.db, [
+            },
             {
               id: newId('utr'),
               textId: importTextId,
-              unitId: parentMatch.id,
+              unitId: segId,
               layerId: write.layerId,
               modality: 'text',
               text: write.text,
@@ -400,10 +397,10 @@ export async function importAdditionalTiers(input: {
               createdAt: segNow,
               updatedAt: segNow,
             },
-          ]);
+          );
           if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
             await input.tokenGraph.write({
-              hostUnitId: parentMatch.id,
+              hostUnitId: segId,
               tokens: annotation.tokens,
               now: segNow,
               language: tierLang,
