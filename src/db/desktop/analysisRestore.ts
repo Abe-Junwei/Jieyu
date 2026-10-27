@@ -18,6 +18,7 @@ import {
   nodeIdsOf,
   readAnalysisMaterial,
   rejectOtherPendingSuggestions,
+  requireCurrentCandidateLifecycle,
   type AnalysisAssociationLink,
   type AnalysisCandidateRecord,
   type AnalysisMaterial,
@@ -199,6 +200,7 @@ export function acceptAnalysis(
   const write = db.transaction(() => {
     const candidate = requireCandidate(db, input.candidateId);
     if (candidate.kind !== 'suggestion') throw new Error('analysis candidate is not a suggestion');
+    requireCurrentCandidateLifecycle(db, candidate);
     const material = readAnalysisMaterial(db, candidate.unitId);
     const root = getAnalysisRoot(db, candidate.unitId);
     if (!root) throw new Error('unit is missing');
@@ -239,6 +241,7 @@ export function restoreAnalysis(
       candidate.kind === 'review-snapshot' ||
       (candidate.kind === 'suggestion' && candidate.status === 'accepted');
     if (!restorable) throw new Error('analysis candidate is not a snapshot');
+    requireCurrentCandidateLifecycle(db, candidate);
     const material = readAnalysisMaterial(db, candidate.unitId);
     if (candidate.text !== material.text) throw new Error('restore text does not match');
     if (candidate.redactedDefinitionIds.length > 0) {

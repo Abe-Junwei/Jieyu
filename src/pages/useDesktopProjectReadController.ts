@@ -60,7 +60,18 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
         setModel(next);
         setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.message === 'manuscript is missing') {
+          void loadDesktopProjectRead(readApi(host), sessionId, undefined, includeMedia)
+            .then(async (next) => {
+              setModel(next);
+              setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
+            })
+            .catch(() => {
+              setError(t(locale, 'app.desktopRead.loadFailed'));
+            });
+          return;
+        }
         setError(t(locale, 'app.desktopRead.loadFailed'));
       });
   };

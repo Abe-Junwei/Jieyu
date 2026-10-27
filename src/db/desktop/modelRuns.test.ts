@@ -377,6 +377,85 @@ describe('transcription run storage', () => {
       }),
     ).toBeNull();
   });
+
+  it('refuses a run from before deletion after restore, then accepts a new run', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId);
+    const run = finishOk(session.sessionId, start(session.sessionId, seeded).id);
+    callDesktopSession(session.sessionId, 'modelRuns.preview', {
+      runId: run.id,
+      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
+    });
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.preview', {
+        runId: run.id,
+        candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 1, mediaEnd: 2 }],
+      }),
+    ).toThrow('transcription run is stale');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.abandon', { runId: run.id }),
+    ).toThrow('transcription run is stale');
+    expect(callDesktopSession(session.sessionId, 'modelRuns.get', { runId: run.id })).toMatchObject(
+      {
+        status: 'ok',
+        pendingCount: 1,
+        abandonedCount: 0,
+      },
+    );
+    const next = finishOk(session.sessionId, start(session.sessionId, seeded).id);
+    const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
+      runId: next.id,
+      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
+    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    const candidate = preview.candidates[0];
+    if (candidate === undefined) throw new Error('preview missing');
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'op-next',
+        runId: next.id,
+        chunkIndex: 0,
+        segmentIndex: 0,
+        mediaStart: 2,
+        mediaEnd: 3,
+        timeMappingRevision: preview.timeMappingRevision,
+        targetFingerprint: candidate.targetFingerprint,
+        text: 'next',
+      }),
+    ).toMatchObject({ text: 'next' });
+  });
+
+  it('refuses finish and preview when the lifecycle generation moves during a running task', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId);
+    const running = start(session.sessionId, seeded);
+    resetDesktopSessions();
+    const db = new Database(join(dir, 'project.sqlite'));
+    db.prepare(
+      'UPDATE manuscripts SET lifecycle_generation = lifecycle_generation + 1 WHERE id = ?',
+    ).run(seeded.manuscriptId);
+    db.close();
+    const reopened = openDesktopSession(dir, [dir]);
+    expect(() =>
+      callDesktopSession(reopened.sessionId, 'modelRuns.finish', {
+        runId: running.id,
+        status: 'ok',
+        chunkCount: 1,
+      }),
+    ).toThrow('transcription run is stale');
+    expect(() =>
+      callDesktopSession(reopened.sessionId, 'modelRuns.preview', {
+        runId: running.id,
+        candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
+      }),
+    ).toThrow('transcription run is stale');
+    expect(
+      callDesktopSession(reopened.sessionId, 'modelRuns.get', { runId: running.id }),
+    ).toMatchObject({ status: 'running', pendingCount: 0, finishedAt: null });
+  });
 });
 
 function seed(sessionId: string): { manuscriptId: string; layerId: string } {

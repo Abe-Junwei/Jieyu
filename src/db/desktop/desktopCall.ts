@@ -1,3 +1,9 @@
+import {
+  publishAttachment,
+  removeAttachmentLink,
+  type AttachmentKind,
+  type AttachmentPublish,
+} from './attachments';
 import { applyAnalysis } from './analysis';
 import { queryCorpus, type CorpusQuery, type CorpusQueryCursor } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
@@ -82,6 +88,8 @@ import {
   finishModelRun,
   getModelRun,
   interruptUnfinishedRuns,
+  stopManuscriptTasks,
+  stopRecordingTasks,
   previewModelRun,
   readTranscriptionAcceptance,
   startModelRun,
@@ -107,12 +115,15 @@ import {
   updateMessageBody,
   type MessageAppend,
 } from './messages';
+import { listDueDeletionReminders, purgeManuscript, showDeletionReminder } from './manuscriptPurge';
 import {
   createManuscript,
   deleteManuscript,
   deleteRecording,
   listDeletedManuscripts,
   listManuscripts,
+  previewManuscriptDelete,
+  previewRecordingDelete,
   restoreManuscript,
   rollbackManuscriptTimeMapping,
   setManuscriptTimeMapping,
@@ -135,11 +146,19 @@ import {
 const METHODS = [
   'media.create',
   'media.delete',
+  'media.previewDelete',
+  'media.showReminder',
+  'deletion.listDue',
+  'attachments.publish',
+  'attachments.removeLink',
   'manuscripts.create',
   'manuscripts.list',
   'manuscripts.listDeleted',
   'manuscripts.delete',
+  'manuscripts.previewDelete',
   'manuscripts.restore',
+  'manuscripts.showReminder',
+  'manuscripts.purge',
   'manuscripts.setTimeMapping',
   'manuscripts.rollbackTimeMapping',
   'layers.create',
@@ -171,6 +190,8 @@ const METHODS = [
   'modelRuns.accept',
   'modelRuns.abandon',
   'modelRuns.interrupt',
+  'modelRuns.stopManuscript',
+  'modelRuns.stopRecording',
   'modelRuns.get',
   'modelRuns.readAcceptance',
   'corpus.query',
@@ -242,6 +263,24 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'media.delete':
       knownKeys(input, ['id']);
       return deleteRecording(project.db, requiredString(input.id, 'id'));
+    case 'media.previewDelete':
+      knownKeys(input, ['id']);
+      return previewRecordingDelete(project.db, requiredString(input.id, 'id'));
+    case 'media.showReminder':
+      knownKeys(input, ['id']);
+      return showDeletionReminder(project.db, 'media', requiredString(input.id, 'id'));
+    case 'deletion.listDue':
+      knownKeys(input, []);
+      return listDueDeletionReminders(project.db);
+    case 'attachments.publish':
+      return publishAttachment(
+        project.db,
+        desktopSessionFolder(sessionId),
+        attachmentPublish(input),
+      );
+    case 'attachments.removeLink':
+      knownKeys(input, ['linkId']);
+      return removeAttachmentLink(project.db, requiredString(input.linkId, 'linkId'));
     case 'manuscripts.create':
       return createManuscript(project.db, manuscriptCreate(input));
     case 'manuscripts.list':
@@ -252,9 +291,18 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'manuscripts.delete':
       knownKeys(input, ['id']);
       return deleteManuscript(project.db, requiredString(input.id, 'id'));
+    case 'manuscripts.previewDelete':
+      knownKeys(input, ['id']);
+      return previewManuscriptDelete(project.db, requiredString(input.id, 'id'));
     case 'manuscripts.restore':
       knownKeys(input, ['id']);
       return restoreManuscript(project.db, requiredString(input.id, 'id'));
+    case 'manuscripts.showReminder':
+      knownKeys(input, ['id']);
+      return showDeletionReminder(project.db, 'manuscript', requiredString(input.id, 'id'));
+    case 'manuscripts.purge':
+      knownKeys(input, ['id']);
+      return purgeManuscript(project.db, requiredString(input.id, 'id'));
     case 'manuscripts.setTimeMapping':
       return setManuscriptTimeMapping(project.db, timeMappingSet(input));
     case 'manuscripts.rollbackTimeMapping':
@@ -505,6 +553,12 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'modelRuns.interrupt':
       knownKeys(input, []);
       return interruptUnfinishedRuns(project.db);
+    case 'modelRuns.stopManuscript':
+      knownKeys(input, ['id']);
+      return stopManuscriptTasks(project.db, requiredString(input.id, 'id'));
+    case 'modelRuns.stopRecording':
+      knownKeys(input, ['id']);
+      return stopRecordingTasks(project.db, requiredString(input.id, 'id'));
     case 'modelRuns.get':
       knownKeys(input, ['runId']);
       return getModelRun(project.db, requiredString(input.runId, 'runId'));
@@ -519,6 +573,28 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return unreachable;
     }
   }
+}
+
+function attachmentPublish(input: Record<string, unknown>): AttachmentPublish {
+  knownKeys(input, ['lexemeId', 'displayName', 'kind', 'mimeType', 'bytes', 'operationId']);
+  return {
+    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+    displayName: requiredString(input.displayName, 'displayName'),
+    kind: attachmentKind(input.kind),
+    mimeType: requiredString(input.mimeType, 'mimeType'),
+    bytes: attachmentBytes(input.bytes),
+    operationId: requiredString(input.operationId, 'operationId'),
+  };
+}
+
+function attachmentKind(value: unknown): AttachmentKind {
+  if (value === 'image' || value === 'audio' || value === 'document') return value;
+  throw new Error('attachment kind is invalid');
+}
+
+function attachmentBytes(value: unknown): Uint8Array {
+  if (value instanceof Uint8Array) return value;
+  throw new Error('attachment bytes are invalid');
 }
 
 function parseMethod(method: string): DesktopMethod {

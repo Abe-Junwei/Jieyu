@@ -9,7 +9,8 @@ import type {
 import type { Layer, LayerCreate } from './layers';
 import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
 import type { Media, MediaCreate } from './media';
-import type { Manuscript, ManuscriptCreate } from './manuscripts';
+import type { Manuscript, ManuscriptCreate, ManuscriptDeletePreview } from './manuscripts';
+import type { DeletionReminder, DueDeletionReminder } from './manuscriptPurge';
 import type { AnalysisApplyResult } from './analysis';
 import type { AnalysisImportResult } from './analysisImport';
 import type {
@@ -55,6 +56,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<Unit>(sessionId, 'units.create', input),
     getUnit: (sessionId: string, id: string) => once<Unit | null>(sessionId, 'units.get', { id }),
     listManuscripts: (sessionId: string) => once<Manuscript[]>(sessionId, 'manuscripts.list', {}),
+    previewManuscriptDelete: (sessionId: string, id: string) =>
+      once<ManuscriptDeletePreview>(sessionId, 'manuscripts.previewDelete', { id }),
+    deleteManuscript: (sessionId: string, id: string) =>
+      once<Manuscript>(sessionId, 'manuscripts.delete', { id }),
+    listDueReminders: (sessionId: string) =>
+      once<DueDeletionReminder[]>(sessionId, 'deletion.listDue', {}),
+    showManuscriptReminder: (sessionId: string, id: string) =>
+      once<DeletionReminder>(sessionId, 'manuscripts.showReminder', { id }),
+    showRecordingReminder: (sessionId: string, id: string) =>
+      once<DeletionReminder>(sessionId, 'media.showReminder', { id }),
     listLayers: (sessionId: string, manuscriptId: string) =>
       once<Layer[]>(sessionId, 'layers.list', { manuscriptId }),
     listUnits: (sessionId: string, layerId: string) =>

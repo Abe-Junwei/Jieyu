@@ -14,7 +14,7 @@ depends_on:
 
 ## 状态
 
-accepted。用户 2026-10-27 确认本篇为 M5-H 的 R5 状态机，并确认本域列的空值（R6）。`schema.ts` 尚未建这两张表。Dexie 的 `lexeme_assets` 仍是浏览器库里的行内 Blob，不作为桌面项目的附件存储。
+accepted。用户 2026-10-27 确认本篇为 M5-H 的 R5 状态机，并确认本域列的空值（R6）。`attachment_files` 与 `attachment_links` 已写入 schema.ts。发布先落哈希文件再提交登记；解除最后一条链接提交 `cleanup_pending`，收尾失败或结果未知保留文件行。旧文件只拒绝。不打开词典附件界面。Dexie 的 `lexeme_assets` 仍是浏览器库里的行内 Blob，不作为桌面项目的附件存储。
 
 ## 背景
 

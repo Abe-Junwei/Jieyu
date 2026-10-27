@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 23;
+export const DESKTOP_PROJECT_USER_VERSION = 26;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -446,6 +446,26 @@ CREATE TABLE lexemes (
 
 CREATE UNIQUE INDEX lexemes_one_resource ON lexemes(kind) WHERE kind = 'resource';
 
+CREATE TABLE attachment_files (
+  id TEXT PRIMARY KEY,
+  sha256 TEXT NOT NULL UNIQUE CHECK (length(sha256) = 64 AND sha256 NOT GLOB '*[^0-9a-f]*'),
+  relpath TEXT NOT NULL UNIQUE CHECK (relpath = 'attachments/objects/' || sha256),
+  byte_size INTEGER NOT NULL CHECK (byte_size >= 0),
+  kind TEXT NOT NULL CHECK (kind IN ('image', 'audio', 'document')),
+  mime_type TEXT NOT NULL CHECK (length(mime_type) > 0),
+  state TEXT NOT NULL CHECK (state IN ('ready', 'cleanup_pending', 'cleanup_unknown')),
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE attachment_links (
+  id TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL REFERENCES attachment_files(id),
+  lexeme_id TEXT NOT NULL REFERENCES lexemes(id),
+  display_name TEXT NOT NULL CHECK (length(display_name) > 0),
+  created_at TEXT NOT NULL,
+  UNIQUE (file_id, lexeme_id)
+);
+
 CREATE TABLE token_lexeme_links (
   id TEXT PRIMARY KEY,
   target_type TEXT NOT NULL CHECK (target_type IN ('token', 'morpheme')),
@@ -546,6 +566,7 @@ CREATE TABLE analysis_candidates (
   graph_fingerprint TEXT NOT NULL,
   manuscript_generation INTEGER NOT NULL CHECK (manuscript_generation >= 0),
   analysis_generation INTEGER NOT NULL CHECK (analysis_generation >= 0),
+  lifecycle_generation INTEGER NOT NULL CHECK (lifecycle_generation >= 0),
   text TEXT NOT NULL,
   projection_json TEXT NOT NULL CHECK (
     json_valid(projection_json) AND json_type(projection_json) = 'object'
@@ -1008,6 +1029,12 @@ WHEN (
     JOIN manuscripts ON manuscripts.id = layers.manuscript_id
     WHERE units.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
   )
+) OR (
+  NEW.target_type = 'note' AND EXISTS (
+    SELECT 1 FROM notes
+    JOIN manuscripts ON manuscripts.id = notes.manuscript_id
+    WHERE notes.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
 )
 BEGIN
   SELECT RAISE(ABORT, 'manuscript is deleted');
@@ -1032,6 +1059,97 @@ WHEN (
     JOIN manuscripts ON manuscripts.id = layers.manuscript_id
     WHERE units.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
   )
+) OR (
+  NEW.target_type = 'note' AND EXISTS (
+    SELECT 1 FROM notes
+    JOIN manuscripts ON manuscripts.id = notes.manuscript_id
+    WHERE notes.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER token_lexeme_links_reject_deleted_manuscript_insert
+BEFORE INSERT ON token_lexeme_links
+WHEN (
+  NEW.target_type = 'token' AND EXISTS (
+    SELECT 1 FROM tokens
+    JOIN units ON units.id = tokens.unit_id
+    JOIN layers ON layers.id = units.layer_id
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE tokens.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+) OR (
+  NEW.target_type = 'morpheme' AND EXISTS (
+    SELECT 1 FROM morphemes
+    JOIN tokens ON tokens.id = morphemes.token_id
+    JOIN units ON units.id = tokens.unit_id
+    JOIN layers ON layers.id = units.layer_id
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE morphemes.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER token_lexeme_links_reject_deleted_manuscript_update
+BEFORE UPDATE ON token_lexeme_links
+WHEN (
+  NEW.target_type = 'token' AND EXISTS (
+    SELECT 1 FROM tokens
+    JOIN units ON units.id = tokens.unit_id
+    JOIN layers ON layers.id = units.layer_id
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE tokens.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+) OR (
+  NEW.target_type = 'morpheme' AND EXISTS (
+    SELECT 1 FROM morphemes
+    JOIN tokens ON tokens.id = morphemes.token_id
+    JOIN units ON units.id = tokens.unit_id
+    JOIN layers ON layers.id = units.layer_id
+    JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+    WHERE morphemes.id = NEW.target_id AND manuscripts.deleted_at IS NOT NULL
+  )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER transcription_acceptances_reject_deleted_manuscript_insert
+BEFORE INSERT ON transcription_acceptances
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER reception_batches_reject_deleted_manuscript_insert
+BEFORE INSERT ON reception_batches
+WHEN EXISTS (
+  SELECT 1 FROM units
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER local_id_map_reject_deleted_manuscript_insert
+BEFORE INSERT ON local_id_map
+WHEN EXISTS (
+  SELECT 1 FROM reception_batches
+  JOIN units ON units.id = reception_batches.unit_id
+  JOIN layers ON layers.id = units.layer_id
+  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+  WHERE reception_batches.id = NEW.batch_id AND manuscripts.deleted_at IS NOT NULL
 )
 BEGIN
   SELECT RAISE(ABORT, 'manuscript is deleted');

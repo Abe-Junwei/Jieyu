@@ -87,6 +87,8 @@ describe('desktop project schema', () => {
     ]);
     expect(names).toEqual([
       { name: 'analysis_candidates' },
+      { name: 'attachment_files' },
+      { name: 'attachment_links' },
       { name: 'bibliography' },
       { name: 'conversations' },
       { name: 'custom_field_definitions' },
@@ -279,6 +281,36 @@ describe('desktop project schema', () => {
     insert.run('entry', 'entry', '{}', null, T, T);
     insert.run('resource', 'resource', null, '{}', T, T);
     expect(constraintCode(() => insert.run('resource-2', 'resource', null, '{}', T, T))).toBe(
+      'SQLITE_CONSTRAINT_UNIQUE',
+    );
+    db.close();
+  });
+
+  it('rejects a bad attachment state and a second link from the same lexeme', () => {
+    const db = open();
+    db.prepare(
+      `INSERT INTO lexemes (id, kind, entry_json, created_at, updated_at)
+       VALUES ('entry', 'entry', '{}', ?, ?)`,
+    ).run(T, T);
+    const sha = 'ab'.repeat(32);
+    const file = db.prepare(
+      `INSERT INTO attachment_files (
+        id, sha256, relpath, byte_size, kind, mime_type, state, created_at
+      ) VALUES (?, ?, ?, 1, 'image', 'image/png', ?, ?)`,
+    );
+    expect(
+      constraintCode(() => file.run('bad', sha, `attachments/objects/${sha}`, 'gone', T)),
+    ).toBe('SQLITE_CONSTRAINT_CHECK');
+    file.run('f', sha, `attachments/objects/${sha}`, 'ready', T);
+    const link = db.prepare(
+      `INSERT INTO attachment_links (id, file_id, lexeme_id, display_name, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    );
+    expect(constraintCode(() => link.run('empty', 'f', 'entry', '', T))).toBe(
+      'SQLITE_CONSTRAINT_CHECK',
+    );
+    link.run('l1', 'f', 'entry', 'a.png', T);
+    expect(constraintCode(() => link.run('l2', 'f', 'entry', 'b.png', T))).toBe(
       'SQLITE_CONSTRAINT_UNIQUE',
     );
     db.close();

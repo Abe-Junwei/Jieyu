@@ -117,6 +117,100 @@ function plusUtcDays(iso: string, days: number): string {
   return date.toISOString();
 }
 
+export interface ManuscriptDeletePreview {
+  id: string;
+  title: Record<string, string>;
+  mediaId: string;
+  mediaRelpath: string;
+  alreadyDeleted: boolean;
+  running: boolean;
+}
+
+export interface RecordingDeletePreview {
+  id: string;
+  relpath: string;
+  alreadyDeleted: boolean;
+  running: boolean;
+  manuscripts: {
+    id: string;
+    title: Record<string, string>;
+    alreadyDeleted: boolean;
+    retainUntil: string | null;
+  }[];
+}
+
+export function previewManuscriptDelete(db: SqliteDatabase, id: string): ManuscriptDeletePreview {
+  const row = db
+    .prepare(
+      `SELECT manuscripts.id, manuscripts.title_json AS titleJson, manuscripts.media_id AS mediaId,
+              manuscripts.deleted_at AS deletedAt, media.relpath AS mediaRelpath,
+              EXISTS (
+                SELECT 1 FROM model_runs
+                WHERE model_runs.manuscript_id = manuscripts.id AND model_runs.status = 'running'
+              ) AS running
+       FROM manuscripts JOIN media ON media.id = manuscripts.media_id
+       WHERE manuscripts.id = ?`,
+    )
+    .get(id) as
+    | {
+        id: string;
+        titleJson: string;
+        mediaId: string;
+        deletedAt: string | null;
+        mediaRelpath: string;
+        running: number;
+      }
+    | undefined;
+  if (row === undefined) throw new Error('manuscript is missing');
+  return {
+    id: row.id,
+    title: readStringMap(row.titleJson),
+    mediaId: row.mediaId,
+    mediaRelpath: row.mediaRelpath,
+    alreadyDeleted: row.deletedAt !== null,
+    running: row.running === 1,
+  };
+}
+
+export function previewRecordingDelete(
+  db: SqliteDatabase,
+  mediaId: string,
+): RecordingDeletePreview {
+  const media = db
+    .prepare('SELECT id, relpath, deleted_at AS deletedAt FROM media WHERE id = ?')
+    .get(mediaId) as { id: string; relpath: string; deletedAt: string | null } | undefined;
+  if (media === undefined) throw new Error('media is missing');
+  const manuscripts = db
+    .prepare(
+      `SELECT id, title_json AS titleJson, deleted_at AS deletedAt, retain_until AS retainUntil,
+              EXISTS (
+                SELECT 1 FROM model_runs
+                WHERE model_runs.manuscript_id = manuscripts.id AND model_runs.status = 'running'
+              ) AS running
+       FROM manuscripts WHERE media_id = ?
+       ORDER BY id`,
+    )
+    .all(mediaId) as {
+    id: string;
+    titleJson: string;
+    deletedAt: string | null;
+    retainUntil: string | null;
+    running: number;
+  }[];
+  return {
+    id: media.id,
+    relpath: media.relpath,
+    alreadyDeleted: media.deletedAt !== null,
+    running: manuscripts.some((row) => row.running === 1),
+    manuscripts: manuscripts.map((row) => ({
+      id: row.id,
+      title: readStringMap(row.titleJson),
+      alreadyDeleted: row.deletedAt !== null,
+      retainUntil: row.retainUntil,
+    })),
+  };
+}
+
 export function deleteManuscript(db: SqliteDatabase, id: string): Manuscript {
   const write = db.transaction(() => {
     const current = getManuscript(db, id);

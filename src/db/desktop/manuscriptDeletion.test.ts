@@ -5,7 +5,7 @@ import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { callDesktopSession } from './desktopCall';
-import { openDesktopSession, resetDesktopSessions } from './projectSession';
+import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
 
@@ -349,6 +349,343 @@ describe('manuscript mark delete', () => {
       .get(early.mediaId) as { relpath: string; deletedAt: string | null };
     db.close();
     expect(media).toEqual({ relpath: 'a.wav', deletedAt: deleted.deletedAt });
+  });
+
+  it('stops only the targeted running transcription and leaves the delete mark for a later call', () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'b.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const early = seed(session.sessionId, '较早');
+    const current = seed(session.sessionId, '当前', early.mediaId);
+    const otherMedia = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'b.wav',
+      sha256: 'bb',
+      duration: 8,
+    }) as { id: string };
+    const other = seed(session.sessionId, '别的', otherMedia.id);
+    const earlyRun = start(session.sessionId, early);
+    const currentRun = start(session.sessionId, current);
+    const otherRun = start(session.sessionId, other);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.stopManuscript', { id: 'missing' }),
+    ).toThrow('manuscript is missing');
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.get', { runId: earlyRun.id }),
+    ).toMatchObject({
+      status: 'running',
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.stopManuscript', { id: early.manuscriptId }),
+    ).toMatchObject([{ id: earlyRun.id, status: 'interrupted' }]);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'media.delete', { id: early.mediaId }),
+    ).toThrow('manuscript has a running task');
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.get', { runId: earlyRun.id }),
+    ).toMatchObject({
+      status: 'interrupted',
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.get', { runId: currentRun.id }),
+    ).toMatchObject({
+      status: 'running',
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.stopRecording', { id: early.mediaId }),
+    ).toMatchObject([{ id: currentRun.id, status: 'interrupted' }]);
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.get', { runId: otherRun.id }),
+    ).toMatchObject({
+      status: 'running',
+    });
+    callDesktopSession(session.sessionId, 'media.delete', { id: early.mediaId });
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.get', { runId: earlyRun.id }),
+    ).toMatchObject({
+      status: 'interrupted',
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.get', { runId: otherRun.id }),
+    ).toMatchObject({
+      status: 'running',
+    });
+    expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
+      expect.objectContaining({ id: other.manuscriptId, deletedAt: null }),
+    ]);
+  });
+
+  it('rejects the pre-delete run after restore and still accepts a new one', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const other = seed(session.sessionId, '另一份', seeded.mediaId);
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'saved',
+    }) as { id: string };
+    const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: other.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'other',
+    }) as { id: string };
+    const running = start(session.sessionId, seeded);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId }),
+    ).toThrow('manuscript has a running task');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'media.delete', { id: seeded.mediaId }),
+    ).toThrow('manuscript has a running task');
+    expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: seeded.manuscriptId,
+          deletedAt: null,
+          lifecycleGeneration: 0,
+        }),
+        expect.objectContaining({ id: other.manuscriptId, deletedAt: null }),
+      ]),
+    );
+    expect(
+      callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'kept' }),
+    ).toMatchObject({ text: 'kept' });
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.stopManuscript', {
+        id: seeded.manuscriptId,
+      }),
+    ).toMatchObject([{ id: running.id, status: 'interrupted' }]);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.finish', {
+        runId: running.id,
+        status: 'ok',
+        chunkCount: 1,
+      }),
+    ).toThrow('transcription run is not running');
+    const run = callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: start(session.sessionId, seeded).id,
+      status: 'ok',
+      chunkCount: 1,
+    }) as { id: string };
+    const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
+      runId: run.id,
+      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
+    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    const candidate = preview.candidates[0];
+    if (candidate === undefined) throw new Error('preview missing');
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'gone' }),
+    ).toThrow('manuscript is deleted');
+    expect(
+      callDesktopSession(session.sessionId, 'units.updateText', {
+        unitId: otherUnit.id,
+        text: 'other-kept',
+      }),
+    ).toMatchObject({ text: 'other-kept' });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.preview', {
+        runId: run.id,
+        candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
+      }),
+    ).toThrow('transcription run is stale');
+    expect(() =>
+      accept(session.sessionId, run.id, preview.timeMappingRevision, candidate.targetFingerprint),
+    ).toThrow('transcription run is stale');
+    resetDesktopSessions();
+    const closed = new Database(join(dir, 'project.sqlite'), { readonly: true });
+    const body = closed.prepare('SELECT body FROM unit_texts WHERE unit_id = ?').get(unit.id) as {
+      body: string;
+    };
+    closed.close();
+    expect(body).toEqual({ body: 'kept' });
+
+    const reopened = openDesktopSession(dir, [dir]);
+    callDesktopSession(reopened.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(
+      callDesktopSession(reopened.sessionId, 'units.updateText', {
+        unitId: unit.id,
+        text: 'rewritten',
+      }),
+    ).toMatchObject({ text: 'rewritten' });
+    expect(() =>
+      accept(reopened.sessionId, run.id, preview.timeMappingRevision, candidate.targetFingerprint),
+    ).toThrow('transcription run is stale');
+    const next = callDesktopSession(reopened.sessionId, 'modelRuns.finish', {
+      runId: start(reopened.sessionId, seeded).id,
+      status: 'ok',
+      chunkCount: 1,
+    }) as { id: string };
+    const fresh = callDesktopSession(reopened.sessionId, 'modelRuns.preview', {
+      runId: next.id,
+      candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
+    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    const freshCandidate = fresh.candidates[0];
+    if (freshCandidate === undefined) throw new Error('preview missing');
+    expect(
+      callDesktopSession(reopened.sessionId, 'modelRuns.accept', {
+        operationId: 'op-new',
+        runId: next.id,
+        chunkIndex: 1,
+        segmentIndex: 0,
+        mediaStart: 2,
+        mediaEnd: 3,
+        timeMappingRevision: fresh.timeMappingRevision,
+        targetFingerprint: freshCandidate.targetFingerprint,
+        text: 'after',
+      }),
+    ).toMatchObject({ text: 'after' });
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    expect(callDesktopSession(again.sessionId, 'units.list', { layerId: seeded.layerId })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'rewritten' }),
+        expect.objectContaining({ text: 'after' }),
+      ]),
+    );
+  });
+
+  it('rejects manuscript-owned link, batch, acceptance, and note writes while deleted', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const other = seed(session.sessionId, '另一份', seeded.mediaId);
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: other.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'stay',
+    }) as { id: string };
+    const word = (
+      callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id }) as {
+        id: string;
+      }[]
+    )[0];
+    const otherWord = (
+      callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: otherUnit.id }) as {
+        id: string;
+      }[]
+    )[0];
+    if (word === undefined || otherWord === undefined) throw new Error('word missing');
+    const note = callDesktopSession(session.sessionId, 'notes.create', {
+      anchor: { kind: 'unit', unitId: unit.id },
+      content: { zh: '语段' },
+    }) as { id: string };
+    const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'note',
+      name: { zh: '注' },
+      fieldType: 'text',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'lex1',
+      entry: { headword: 'keep', senses: [{ id: 's1', definitions: [{ text: 's1' }] }] },
+    });
+    const run = callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: start(session.sessionId, seeded).id,
+      status: 'ok',
+      chunkCount: 1,
+    }) as { id: string };
+    const db = requireDesktopSession(session.sessionId).db;
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO morphemes (
+        id, token_id, morpheme_index, form_json, gloss_json, surface_parts_json, created_at, updated_at
+      ) VALUES ('m1', ?, 0, '{}', '{}', '[]', ?, ?)`,
+    ).run(word.id, now, now);
+    db.prepare(
+      `INSERT INTO reception_batches (id, unit_id, source_kind, created_at) VALUES ('batch-kept', ?, 'manual', ?)`,
+    ).run(unit.id, now);
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+
+    expect(() =>
+      callDesktopSession(session.sessionId, 'lexicon.replaceTokenLink', {
+        tokenId: word.id,
+        lexemeId: 'lex1',
+        senseId: 's1',
+      }),
+    ).toThrow('manuscript is deleted');
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO token_lexeme_links (
+            id, target_type, target_id, lexeme_id, created_at, updated_at
+          ) VALUES ('link-deleted', 'token', ?, 'lex1', ?, ?)`,
+        )
+        .run(word.id, now, now),
+    ).toThrow('manuscript is deleted');
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO token_lexeme_links (
+            id, target_type, target_id, lexeme_id, created_at, updated_at
+          ) VALUES ('link-morpheme', 'morpheme', 'm1', 'lex1', ?, ?)`,
+        )
+        .run(now, now),
+    ).toThrow('manuscript is deleted');
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO reception_batches (id, unit_id, source_kind, created_at) VALUES ('batch-new', ?, 'manual', ?)`,
+        )
+        .run(unit.id, now),
+    ).toThrow('manuscript is deleted');
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO local_id_map (batch_id, scope, local_id, project_id) VALUES ('batch-kept', 'node', 'local', 'project')`,
+        )
+        .run(),
+    ).toThrow('manuscript is deleted');
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO transcription_acceptances (
+            id, operation_id, run_id, candidate_id, unit_id, created_at
+          ) VALUES ('acc-1', 'op-1', ?, 'cand', ?, ?)`,
+        )
+        .run(run.id, unit.id, now),
+    ).toThrow('manuscript is deleted');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'customFields.setValue', {
+        definitionId: field.id,
+        targetType: 'note',
+        targetId: note.id,
+        value: 'late',
+        expectedRevision: 1,
+      }),
+    ).toThrow('manuscript is deleted');
+    db.prepare(
+      `INSERT INTO token_lexeme_links (
+        id, target_type, target_id, lexeme_id, created_at, updated_at
+      ) VALUES ('link-other', 'token', ?, 'lex1', ?, ?)`,
+    ).run(otherWord.id, now, now);
+
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    db.prepare(
+      `INSERT INTO reception_batches (id, unit_id, source_kind, created_at) VALUES ('batch-after', ?, 'manual', ?)`,
+    ).run(unit.id, now);
+    expect(
+      callDesktopSession(session.sessionId, 'customFields.setValue', {
+        definitionId: field.id,
+        targetType: 'note',
+        targetId: note.id,
+        value: 'after',
+        expectedRevision: 1,
+      }),
+    ).toMatchObject({ value: 'after' });
+    expect(
+      db.prepare(`SELECT COUNT(*) AS n FROM reception_batches WHERE id = 'batch-after'`).get(),
+    ).toEqual({ n: 1 });
+    expect(
+      db.prepare(`SELECT COUNT(*) AS n FROM token_lexeme_links WHERE id = 'link-deleted'`).get(),
+    ).toEqual({ n: 0 });
   });
 
   it('refuses a recording delete while a manuscript run is going', () => {

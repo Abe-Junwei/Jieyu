@@ -22,6 +22,7 @@ import {
 } from './analysisRestore';
 import { openProject } from './openProject';
 import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
+import { deleteManuscript, restoreManuscript } from './manuscripts';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
@@ -771,6 +772,33 @@ describe('analysis split and merge', () => {
         ],
       }),
     ).toThrow('analysis reference is missing');
+    project.close();
+  });
+
+  it('refuses an analysis result saved before the manuscript was restored', () => {
+    const { project, unitId, manuscriptId } = projectWith([token('n1', 0)]);
+    const suggestion = submitNow(project.db, unitId, graph([token('n1', 0), token('n2', 1)]));
+    const snapshot = insertReviewSnapshot(project.db, readAnalysisMaterial(project.db, unitId));
+    const before = getAnalysisRoot(project.db, unitId)?.analysisGeneration;
+    deleteManuscript(project.db, manuscriptId);
+    restoreManuscript(project.db, manuscriptId);
+    const expected = creds(
+      getAnalysisRoot(project.db, unitId) ?? { analysisGeneration: 0, graphFingerprint: '' },
+    );
+    expect(() => acceptAnalysis(project.db, { candidateId: suggestion.id, expected })).toThrow(
+      'analysis candidate is stale',
+    );
+    expect(() => restoreAnalysis(project.db, { candidateId: snapshot, expected })).toThrow(
+      'analysis candidate is stale',
+    );
+    expect(getAnalysisRoot(project.db, unitId)?.analysisGeneration).toBe(before);
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes.map((node) => node.id)).toEqual([
+      'n1',
+    ]);
+    const again = submitNow(project.db, unitId, graph([token('n1', 0), token('n2', 1)]));
+    const accepted = acceptAnalysis(project.db, { candidateId: again.id, expected });
+    expect(accepted.applied).toBe(true);
+    expect(accepted.root.graph?.nodes.map((node) => node.id)).toEqual(['n1', 'n2']);
     project.close();
   });
 });

@@ -174,6 +174,7 @@ export function finishModelRun(db: SqliteDatabase, input: ModelRunFinish): Model
   const write = db.transaction(() => {
     const current = requireRun(db, input.runId);
     if (current.status !== 'running') throw new Error('transcription run is not running');
+    requireCurrentLifecycle(db, current);
     const errorCode = input.status === 'error' ? input.errorCode : null;
     db.prepare(
       `UPDATE model_runs
@@ -203,6 +204,7 @@ export function previewModelRun(
     if (run.status !== 'running' && run.status !== 'ok') {
       throw new Error('transcription run is not open');
     }
+    requireCurrentLifecycle(db, run);
     const seen = new Set<string>();
     for (const candidate of input.candidates) {
       const candidateId = candidateIdentity(candidate.chunkIndex, candidate.segmentIndex);
@@ -251,13 +253,7 @@ export function acceptTranscriptionCandidate(
     const run = requireRun(db, input.runId);
     if (run.status !== 'ok') throw new Error('transcription run is not acceptable');
     if (run.pendingCount < 1) throw new Error('transcription run has no pending candidate');
-    const manuscript = db
-      .prepare('SELECT lifecycle_generation AS lifecycleGeneration FROM manuscripts WHERE id = ?')
-      .get(run.manuscriptId) as { lifecycleGeneration: number } | undefined;
-    if (!manuscript) throw new Error('transcription manuscript is missing');
-    if (manuscript.lifecycleGeneration !== run.lifecycleGeneration) {
-      throw new Error('transcription run is stale');
-    }
+    requireCurrentLifecycle(db, run);
     const mapping = mappingOf(db, run.manuscriptId);
     if (mapping.revision !== input.timeMappingRevision)
       throw new Error('transcription preview is stale');
@@ -319,6 +315,7 @@ export function abandonPending(db: SqliteDatabase, runId: string): ModelRun {
   const write = db.transaction(() => {
     const current = requireRun(db, runId);
     if (current.status !== 'ok') throw new Error('transcription run is not acceptable');
+    requireCurrentLifecycle(db, current);
     db.prepare(
       `UPDATE model_runs
        SET abandoned_count = abandoned_count + pending_count, pending_count = 0
@@ -340,11 +337,35 @@ export function abandonPending(db: SqliteDatabase, runId: string): ModelRun {
 }
 
 export function interruptUnfinishedRuns(db: SqliteDatabase): ModelRun[] {
+  return interruptRunning(db, '');
+}
+
+export function stopManuscriptTasks(db: SqliteDatabase, manuscriptId: string): ModelRun[] {
+  const manuscript = db
+    .prepare('SELECT deleted_at AS deletedAt FROM manuscripts WHERE id = ?')
+    .get(manuscriptId) as { deletedAt: string | null } | undefined;
+  if (!manuscript) throw new Error('manuscript is missing');
+  if (manuscript.deletedAt !== null) throw new Error('manuscript is deleted');
+  return interruptRunning(db, ' AND manuscript_id = ?', manuscriptId);
+}
+
+export function stopRecordingTasks(db: SqliteDatabase, mediaId: string): ModelRun[] {
+  const media = db
+    .prepare('SELECT deleted_at AS deletedAt FROM media WHERE id = ?')
+    .get(mediaId) as { deletedAt: string | null } | undefined;
+  if (!media) throw new Error('media is missing');
+  if (media.deletedAt !== null) throw new Error('media is deleted');
+  return interruptRunning(db, ' AND media_id = ?', mediaId);
+}
+
+function interruptRunning(db: SqliteDatabase, clause: string, param?: string): ModelRun[] {
   const now = new Date().toISOString();
   const write = db.transaction(() => {
     const ids = db
-      .prepare(`SELECT id FROM model_runs WHERE status = 'running' ORDER BY started_at, id`)
-      .all() as { id: string }[];
+      .prepare(
+        `SELECT id FROM model_runs WHERE status = 'running'${clause} ORDER BY started_at, id`,
+      )
+      .all(...(param === undefined ? [] : [param])) as { id: string }[];
     const update = db.prepare(
       `UPDATE model_runs
        SET status = 'interrupted',
@@ -458,6 +479,16 @@ function requireRun(db: SqliteDatabase, id: string): ModelRun {
   const run = getModelRun(db, id);
   if (!run) throw new Error('transcription run is missing');
   return run;
+}
+
+function requireCurrentLifecycle(db: SqliteDatabase, run: ModelRun): void {
+  const manuscript = db
+    .prepare('SELECT lifecycle_generation AS lifecycleGeneration FROM manuscripts WHERE id = ?')
+    .get(run.manuscriptId) as { lifecycleGeneration: number } | undefined;
+  if (!manuscript) throw new Error('transcription manuscript is missing');
+  if (manuscript.lifecycleGeneration !== run.lifecycleGeneration) {
+    throw new Error('transcription run is stale');
+  }
 }
 
 function mappingOf(

@@ -63,6 +63,7 @@ export interface AnalysisCandidateRecord {
   graphFingerprint: string;
   manuscriptGeneration: number;
   analysisGeneration: number;
+  lifecycleGeneration: number;
   text: string;
   projection: { tokens: ProjectedToken[]; morphemes: ProjectedMorpheme[] };
   links: AnalysisAssociationLink[];
@@ -105,6 +106,7 @@ interface CandidateRow {
   graph_fingerprint: string;
   manuscript_generation: number;
   analysis_generation: number;
+  lifecycle_generation: number;
   text: string;
   projection_json: string;
   links_json: string;
@@ -157,9 +159,9 @@ export function insertAnalysisCandidate(
   db.prepare(
     `INSERT INTO analysis_candidates (
       id, unit_id, kind, status, graph_json, graph_fingerprint, manuscript_generation,
-      analysis_generation, text, projection_json, links_json, notes_json,
+      analysis_generation, lifecycle_generation, text, projection_json, links_json, notes_json,
       definition_revisions_json, redacted_definition_ids_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.unitId,
@@ -169,6 +171,7 @@ export function insertAnalysisCandidate(
     input.graphFingerprint,
     input.manuscriptGeneration,
     input.analysisGeneration,
+    lifecycleGenerationOf(db, input.unitId),
     input.text,
     JSON.stringify(input.projection),
     JSON.stringify(input.links),
@@ -181,6 +184,29 @@ export function insertAnalysisCandidate(
   const stored = getAnalysisCandidate(db, id);
   if (!stored) throw new Error('analysis candidate readback failed');
   return stored;
+}
+
+export function requireCurrentCandidateLifecycle(
+  db: SqliteDatabase,
+  candidate: AnalysisCandidateRecord,
+): void {
+  if (lifecycleGenerationOf(db, candidate.unitId) !== candidate.lifecycleGeneration) {
+    throw new Error('analysis candidate is stale');
+  }
+}
+
+function lifecycleGenerationOf(db: SqliteDatabase, unitId: string): number {
+  const row = db
+    .prepare(
+      `SELECT manuscripts.lifecycle_generation AS lifecycleGeneration
+       FROM units
+       JOIN layers ON layers.id = units.layer_id
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       WHERE units.id = ?`,
+    )
+    .get(unitId) as { lifecycleGeneration: number } | undefined;
+  if (row === undefined) throw new Error('unit is missing');
+  return row.lifecycleGeneration;
 }
 
 export function insertReviewSnapshot(db: SqliteDatabase, material: AnalysisMaterial): string {
@@ -295,6 +321,7 @@ function mapCandidate(row: CandidateRow): AnalysisCandidateRecord {
     graphFingerprint: row.graph_fingerprint,
     manuscriptGeneration: row.manuscript_generation,
     analysisGeneration: row.analysis_generation,
+    lifecycleGeneration: row.lifecycle_generation,
     text: row.text,
     projection,
     links,
