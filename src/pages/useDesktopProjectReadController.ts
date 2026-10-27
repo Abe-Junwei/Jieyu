@@ -243,12 +243,14 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const saveUnitNote = (unitId: string, text: string) => {
-    if (host === null || sessionId === null || text.length === 0) return;
+  const saveUnitNote = (unitId: string, text: string): Promise<void> => {
+    if (host === null || sessionId === null || text.length === 0) {
+      return Promise.reject(new Error('note save unavailable'));
+    }
     const seen = sessionId;
     setError('');
     const generation = loadGenerationRef.current;
-    void createDesktopClient({ desktopCall: host.desktopCall })
+    return createDesktopClient({ desktopCall: host.desktopCall })
       .createNote(seen, { anchor: { kind: 'unit', unitId }, content: { default: text } })
       .then(() => loadShownNotes(host, seen, model?.manuscriptId ?? null))
       .then((shown) => {
@@ -256,10 +258,11 @@ export function useDesktopProjectReadController(
           setNotes(shown);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (shownSession.current === seen && generation === loadGenerationRef.current) {
           setError(t(locale, 'app.desktopRead.loadFailed'));
         }
+        throw err;
       });
   };
 
@@ -347,12 +350,18 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const saveTierNote = (unitId: string, view: 'timeline' | 'waveform', text: string) => {
-    if (host === null || sessionId === null || text.length === 0) return;
+  const saveTierNote = (
+    unitId: string,
+    view: 'timeline' | 'waveform',
+    text: string,
+  ): Promise<void> => {
+    if (host === null || sessionId === null || text.length === 0) {
+      return Promise.reject(new Error('note save unavailable'));
+    }
     const seen = sessionId;
     setError('');
     const generation = loadGenerationRef.current;
-    void createDesktopClient({ desktopCall: host.desktopCall })
+    return createDesktopClient({ desktopCall: host.desktopCall })
       .createNote(seen, {
         anchor: { kind: 'unit', unitId, view },
         content: { default: text },
@@ -363,10 +372,11 @@ export function useDesktopProjectReadController(
           setNotes(shown);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (shownSession.current === seen && generation === loadGenerationRef.current) {
           setError(t(locale, 'app.desktopRead.loadFailed'));
         }
+        throw err;
       });
   };
 

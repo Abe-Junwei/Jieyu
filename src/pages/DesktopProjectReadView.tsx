@@ -51,8 +51,12 @@ export function DesktopProjectReadView(props: {
   onMerge: (keepId: string, removeId: string) => void;
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
   onSaveMapping: (offsetSec: number, scale: number) => void;
-  onSaveNote: (unitId: string, text: string) => void;
-  onSaveTierNote: (unitId: string, view: 'timeline' | 'waveform', text: string) => void;
+  onSaveNote: (unitId: string, text: string) => void | Promise<void>;
+  onSaveTierNote: (
+    unitId: string,
+    view: 'timeline' | 'waveform',
+    text: string,
+  ) => void | Promise<void>;
   noteSessionId?: string | null;
   noteDesktopCall?: DesktopReadHost['desktopCall'];
   textNoteLabel?: string;
@@ -201,8 +205,14 @@ export function DesktopProjectReadView(props: {
             onClick={() => {
               const text = readNoteText();
               if (text.length === 0) return;
-              props.onSaveNote(selected.id, text);
-              clearNoteText();
+              void Promise.resolve(props.onSaveNote(selected.id, text)).then(
+                () => {
+                  clearNoteText();
+                },
+                () => {
+                  // Keep the draft; the controller surfaces the error.
+                },
+              );
             }}
           >
             {props.saveNoteLabel}
@@ -215,8 +225,16 @@ export function DesktopProjectReadView(props: {
                   const text = readNoteText();
                   const layerId = selected.layerId;
                   if (text.length === 0 || layerId === undefined) return;
-                  props.onSaveTierNote(selected.id, 'timeline', text);
-                  clearNoteText();
+                  void Promise.resolve(
+                    props.onSaveTierNote(selected.id, 'timeline', text),
+                  ).then(
+                    () => {
+                      clearNoteText();
+                    },
+                    () => {
+                      // Keep the draft; the controller surfaces the error.
+                    },
+                  );
                 }}
               >
                 {props.saveTimelineNoteLabel}
@@ -227,8 +245,16 @@ export function DesktopProjectReadView(props: {
                   const text = readNoteText();
                   const layerId = selected.layerId;
                   if (text.length === 0 || layerId === undefined) return;
-                  props.onSaveTierNote(selected.id, 'waveform', text);
-                  clearNoteText();
+                  void Promise.resolve(
+                    props.onSaveTierNote(selected.id, 'waveform', text),
+                  ).then(
+                    () => {
+                      clearNoteText();
+                    },
+                    () => {
+                      // Keep the draft; the controller surfaces the error.
+                    },
+                  );
                 }}
               >
                 {props.saveWaveformNoteLabel}
