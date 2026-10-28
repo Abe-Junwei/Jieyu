@@ -41,6 +41,7 @@ export const DICT_KEYS = [
   'app.desktopRead.empty',
   'app.desktopRead.audio',
   'app.desktopRead.loadFailed',
+  'app.desktopRead.unavailable',
   'app.desktopRead.text',
   'app.desktopRead.saveText',
   'app.desktopRead.boundary',

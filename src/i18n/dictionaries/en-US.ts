@@ -48,6 +48,7 @@ export const enUSDictionary = {
   'app.desktopRead.empty': 'This folder has no manuscripts',
   'app.desktopRead.audio': 'Recording',
   'app.desktopRead.loadFailed': 'Could not read this folder',
+  'app.desktopRead.unavailable': 'The desktop project is not available',
   'app.desktopRead.text': 'Text',
   'app.desktopRead.saveText': 'Save text',
   'app.desktopRead.boundary': 'Literature boundary',

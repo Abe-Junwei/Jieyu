@@ -44,6 +44,7 @@ export const zhCNDictionary = {
   'app.desktopRead.empty': '这个文件夹里还没有文稿',
   'app.desktopRead.audio': '录音',
   'app.desktopRead.loadFailed': '没能读出这个文件夹',
+  'app.desktopRead.unavailable': '桌面项目还不可用',
   'app.desktopRead.text': '正文',
   'app.desktopRead.saveText': '保存正文',
   'app.desktopRead.boundary': '文献边界',
