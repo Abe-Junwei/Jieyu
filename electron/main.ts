@@ -14,6 +14,7 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
+import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
   closeDesktopSession,
@@ -539,6 +540,11 @@ app
     if (process.argv.includes('--smoke')) {
       await runSmoke(win);
       return;
+    }
+    try {
+      ensureBundledSample(path.join(app.getPath('userData'), SAMPLE_PROJECT_DIRNAME));
+    } catch (error) {
+      console.error(error);
     }
     ipcMain.handle('skeleton:choose-project', () => chooseProject());
     app.on('activate', () => {
