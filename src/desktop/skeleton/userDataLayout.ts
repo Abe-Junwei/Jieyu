@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -9,8 +10,13 @@ export function ensureUserDataLayout(root: string): void {
   }
 }
 
-export function ensureProjectBackupDir(root: string, projectName: string): string {
-  const dir = path.join(root, 'backups', projectName);
+/** Stable backup subdir key: full resolved path hash, not basename (#404). */
+export function projectBackupKey(folder: string): string {
+  return createHash('sha256').update(path.resolve(folder)).digest('hex');
+}
+
+export function ensureProjectBackupDir(root: string, projectKey: string): string {
+  const dir = path.join(root, 'backups', projectKey);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }

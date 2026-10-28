@@ -136,4 +136,30 @@ describe('desktop skeleton', () => {
     expect(DESKTOP_CSP).toContain("connect-src 'self'");
     expect(DESKTOP_CSP).not.toContain('https:');
   });
+
+  it('keeps daily backups apart when two projects share a folder basename (#404)', () => {
+    const userData = tempDir();
+    ensureUserDataLayout(userData);
+    const left = path.join(tempDir(), 'shared-name');
+    const right = path.join(tempDir(), 'shared-name');
+    fs.mkdirSync(left, { recursive: true });
+    fs.mkdirSync(right, { recursive: true });
+
+    const openedLeft = openProjectFolder({ folder: left, userDataRoot: userData });
+    const openedRight = openProjectFolder({ folder: right, userDataRoot: userData });
+    expect(openedLeft.backupDir).toBeTruthy();
+    expect(openedRight.backupDir).toBeTruthy();
+    expect(openedLeft.backupDir).not.toBe(openedRight.backupDir);
+    expect(path.basename(openedLeft.backupDir!)).not.toBe('shared-name');
+    expect(path.basename(openedRight.backupDir!)).not.toBe('shared-name');
+
+    fs.writeFileSync(path.join(openedLeft.backupDir!, '2026-10-28.jym'), Buffer.from('left-jym'));
+    fs.writeFileSync(path.join(openedRight.backupDir!, '2026-10-28.jym'), Buffer.from('right-jym'));
+    expect(fs.readFileSync(path.join(openedLeft.backupDir!, '2026-10-28.jym'))).toEqual(
+      Buffer.from('left-jym'),
+    );
+    expect(fs.readFileSync(path.join(openedRight.backupDir!, '2026-10-28.jym'))).toEqual(
+      Buffer.from('right-jym'),
+    );
+  });
 });

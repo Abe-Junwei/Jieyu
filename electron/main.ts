@@ -45,6 +45,7 @@ import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStor
 import {
   ensureProjectBackupDir,
   ensureUserDataLayout,
+  projectBackupKey,
 } from '../src/desktop/skeleton/userDataLayout';
 
 const userDataDir = process.env.JIEYU_DESKTOP_USER_DATA;
@@ -210,7 +211,7 @@ async function runOutboundRequest(
 
 function openUserProjectSession(folder: string): { sessionId: string } {
   return openDesktopSession(folder, [...allowedProjectFolders], {
-    dir: ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
+    dir: ensureProjectBackupDir(app.getPath('userData'), projectBackupKey(folder)),
   });
 }
 

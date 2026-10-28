@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
+import { ensureProjectBackupDir, projectBackupKey } from '../../desktop/skeleton/userDataLayout';
 import { listDailyBackupDays, restoreDailyBackup, saveDailyProjectBackup } from './dailyBackup';
 import { deleteManuscript, getManuscript, listManuscripts } from './manuscripts';
 import { listDueDeletionReminders, purgeManuscript, showDeletionReminder } from './manuscriptPurge';
@@ -322,6 +323,68 @@ describe('daily project backup', () => {
     expect(readFileSync(join(projectDir, 'project.sqlite'))).toEqual(source);
     expect(readFileSync(join(backupDir, '2026-10-27.jym')).byteLength).toBeGreaterThan(0);
     project.close();
+  });
+
+  it('restores two same-basename projects from separate backup dirs (#404)', () => {
+    const userData = folder();
+    const leftParent = folder();
+    const rightParent = folder();
+    const left = join(leftParent, 'shared-name');
+    const right = join(rightParent, 'shared-name');
+    mkdirSync(left);
+    mkdirSync(right);
+    const leftBackup = ensureProjectBackupDir(userData, projectBackupKey(left));
+    const rightBackup = ensureProjectBackupDir(userData, projectBackupKey(right));
+    expect(leftBackup).not.toBe(rightBackup);
+
+    const leftProject = openProject(left);
+    const rightProject = openProject(right);
+    writeFileSync(join(left, 'a.wav'), Buffer.from('left-audio'));
+    writeFileSync(join(right, 'a.wav'), Buffer.from('right-audio'));
+    const leftHash = createHash('sha256').update(Buffer.from('left-audio')).digest('hex');
+    const rightHash = createHash('sha256').update(Buffer.from('right-audio')).digest('hex');
+    leftProject.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('media-a', 'a.wav', leftHash, 'a.wav', 1, T);
+    rightProject.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('media-a', 'a.wav', rightHash, 'a.wav', 1, T);
+
+    const leftSaved = saveDailyProjectBackup({
+      db: leftProject.db,
+      folder: left,
+      backupDir: leftBackup,
+      now: new Date('2026-10-28T12:00:00.000Z'),
+    });
+    const rightSaved = saveDailyProjectBackup({
+      db: rightProject.db,
+      folder: right,
+      backupDir: rightBackup,
+      now: new Date('2026-10-28T12:00:00.000Z'),
+    });
+    expect(leftSaved).not.toBe(rightSaved);
+    expect(readFileSync(leftSaved)).not.toEqual(readFileSync(rightSaved));
+
+    const leftRestored = folder();
+    const rightRestored = folder();
+    importDesktopJym(leftRestored, readFileSync(leftSaved));
+    importDesktopJym(rightRestored, readFileSync(rightSaved));
+    expect(
+      createHash('sha256')
+        .update(readFileSync(join(leftRestored, 'a.wav')))
+        .digest('hex'),
+    ).toBe(leftHash);
+    expect(
+      createHash('sha256')
+        .update(readFileSync(join(rightRestored, 'a.wav')))
+        .digest('hex'),
+    ).toBe(rightHash);
+    leftProject.close();
+    rightProject.close();
   });
 });
 
