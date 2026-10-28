@@ -65,6 +65,7 @@ export const DICT_KEYS = [
   'app.desktopRead.reminderManuscript',
   'app.desktopRead.reminderRecording',
   'app.desktopRead.reminderClose',
+  'app.desktopRead.reminderBackups',
   'app.desktopRead.queryText',
   'app.desktopRead.queryForm',
   'app.desktopRead.queryGloss',

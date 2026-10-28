@@ -68,6 +68,7 @@ export const zhCNDictionary = {
   'app.desktopRead.reminderManuscript': '文稿 {title}，保留到 {until}',
   'app.desktopRead.reminderRecording': '录音 {path}，保留到 {until}',
   'app.desktopRead.reminderClose': '关闭',
+  'app.desktopRead.reminderBackups': '清除只删当前项目里的内容，已有备份还在',
   'app.desktopRead.queryText': '查询正文',
   'app.desktopRead.queryForm': '查询词形',
   'app.desktopRead.queryGloss': '查询注释',

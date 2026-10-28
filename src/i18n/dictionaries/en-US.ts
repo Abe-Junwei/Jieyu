@@ -72,6 +72,8 @@ export const enUSDictionary = {
   'app.desktopRead.reminderManuscript': 'Manuscript {title}, kept until {until}',
   'app.desktopRead.reminderRecording': 'Recording {path}, kept until {until}',
   'app.desktopRead.reminderClose': 'Close',
+  'app.desktopRead.reminderBackups':
+    'Removal deletes only what is in the current project. Existing backups stay',
   'app.desktopRead.queryText': 'Query text',
   'app.desktopRead.queryForm': 'Query form',
   'app.desktopRead.queryGloss': 'Query gloss',
