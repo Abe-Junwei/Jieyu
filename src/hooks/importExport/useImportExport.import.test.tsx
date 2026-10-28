@@ -3138,7 +3138,7 @@ describe('useImportExport - import success under stop-write', () => {
       detectedEncoding: 'utf-8',
       confidence: 'high' as const,
     });
-    const { result } = renderImporter(textId, [defaultLayer]);
+    const { result, setSaveState } = renderImporter(textId, [defaultLayer]);
     await act(async () => {
       await result.current.handleImportFile(
         new File(['x'], 'minimal.eaf', { type: 'application/xml' }),
@@ -3246,7 +3246,7 @@ describe('useImportExport - import success under stop-write', () => {
       detectedEncoding: 'utf-8',
       confidence: 'high' as const,
     });
-    const { result, setSaveState } = renderImporter(textId, [defaultLayer]);
+    const { result } = renderImporter(textId, [defaultLayer]);
     let commit: { committed: boolean } | undefined;
     await act(async () => {
       commit = await result.current.handleImportFile(
