@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   previewTextTimeMapping,
   type TextTimeMapping,
@@ -43,6 +43,7 @@ export function DesktopProjectReadView(props: {
   onSaveMapping: (offsetSec: number, scale: number) => void;
   onSaveNote: (unitId: string, text: string) => void;
   onSaveTierNote: (unitId: string, view: 'timeline' | 'waveform', text: string) => void;
+  focusUnitId?: string | null;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textRef = useRef<HTMLInputElement>(null);
@@ -51,7 +52,28 @@ export function DesktopProjectReadView(props: {
   const scaleRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const pendingFocus = useRef<string | null>(null);
   const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
+  const focusUnit = (unit: DesktopProjectReadUnit) => {
+    setSelectedId(unit.id);
+    const audio = audioRef.current;
+    if (audio === null) return;
+    audio.currentTime = playerStart(unit, props.timeMapping);
+  };
+  useEffect(() => {
+    pendingFocus.current = props.focusUnitId ?? null;
+  }, [props.focusUnitId]);
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (id === null) return;
+    const unit = props.units.find((item) => item.id === id);
+    if (unit === undefined) return;
+    pendingFocus.current = null;
+    setSelectedId(unit.id);
+    const audio = audioRef.current;
+    if (audio === null) return;
+    audio.currentTime = playerStart(unit, props.timeMapping);
+  }, [props.focusUnitId, props.units, props.timeMapping]);
   const readNoteText = () => noteRef.current?.value ?? '';
   const clearNoteText = () => {
     if (noteRef.current !== null) noteRef.current.value = '';
@@ -82,15 +104,7 @@ export function DesktopProjectReadView(props: {
       <div className="desktop-project-read-units">
         {props.units.map((unit) => (
           <div key={unit.id}>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedId(unit.id);
-                const audio = audioRef.current;
-                if (audio === null) return;
-                audio.currentTime = playerStart(unit, props.timeMapping);
-              }}
-            >
+            <button type="button" onClick={() => focusUnit(unit)}>
               {`${unit.startTime.toFixed(1)}–${unit.endTime.toFixed(1)} ${unit.text}`}
             </button>
             <span>{playerRange(unit, props.timeMapping)}</span>

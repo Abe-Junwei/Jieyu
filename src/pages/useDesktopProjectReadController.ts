@@ -1,19 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   createDesktopClient,
   loadDesktopProjectRead,
+  type ContentNoteCategory,
   type DesktopProjectRead,
   type DesktopProjectReadApi,
 } from '../app/desktopProjectReadPageAccess';
+import { readOpenProjectSession, rememberOpenProjectSession } from '../desktop/openProjectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 
-export function useDesktopProjectReadController(host: DesktopReadHost | null) {
+export function useDesktopProjectReadController(host: DesktopReadHost | null, includeMedia = true) {
   const locale = useLocale();
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState(readOpenProjectSession);
   const [model, setModel] = useState<DesktopProjectRead | null>(null);
   const [notes, setNotes] = useState<UnitNote[]>([]);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (host === null || sessionId === null) return;
+    let cancelled = false;
+    void loadDesktopProjectRead(readApi(host), sessionId, undefined, includeMedia)
+      .then(async (next) => {
+        const shown = await loadShownNotes(host, sessionId, next.manuscriptId);
+        if (cancelled) return;
+        setModel(next);
+        setNotes(shown);
+      })
+      .catch(() => {
+        if (!cancelled) setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [host, includeMedia, locale, sessionId]);
 
   const openFolder = () => {
     if (host === null) return;
@@ -22,25 +42,36 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
       .chooseDesktopFolder()
       .then(async (picked) => {
         if (!('sessionId' in picked)) return;
+        rememberOpenProjectSession(picked.sessionId);
+        setModel(null);
+        setNotes([]);
         setSessionId(picked.sessionId);
-        const next = await loadDesktopProjectRead(readApi(host), picked.sessionId);
-        setModel(next);
-        setNotes(await loadShownNotes(host, picked.sessionId, next.manuscriptId));
       })
       .catch(() => {
         setError(t(locale, 'app.desktopRead.loadFailed'));
       });
   };
 
-  const selectManuscript = (manuscriptId: string) => {
+  const selectManuscript = (manuscriptId: string, layerId?: string) => {
     if (host === null || sessionId === null) return;
     setError('');
-    void loadDesktopProjectRead(readApi(host), sessionId, manuscriptId)
+    void loadDesktopProjectRead(readApi(host), sessionId, manuscriptId, includeMedia, layerId)
       .then(async (next) => {
         setModel(next);
         setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.message === 'manuscript is missing') {
+          void loadDesktopProjectRead(readApi(host), sessionId, undefined, includeMedia)
+            .then(async (next) => {
+              setModel(next);
+              setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
+            })
+            .catch(() => {
+              setError(t(locale, 'app.desktopRead.loadFailed'));
+            });
+          return;
+        }
         setError(t(locale, 'app.desktopRead.loadFailed'));
       });
   };
@@ -48,7 +79,13 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
   const reload = () => {
     if (host === null || sessionId === null) return Promise.resolve();
     const manuscriptId = model?.manuscriptId ?? undefined;
-    return loadDesktopProjectRead(readApi(host), sessionId, manuscriptId).then(async (next) => {
+    return loadDesktopProjectRead(
+      readApi(host),
+      sessionId,
+      manuscriptId,
+      includeMedia,
+      model?.layerId ?? undefined,
+    ).then(async (next) => {
       setModel(next);
       setNotes(await loadShownNotes(host, sessionId, next.manuscriptId));
     });
@@ -113,6 +150,84 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
       });
   };
 
+  const saveCategorizedUnitNote = (
+    unitId: string,
+    text: string,
+    category: ContentNoteCategory,
+  ): Promise<boolean> => {
+    if (
+      host === null ||
+      sessionId === null ||
+      text.trim().length === 0 ||
+      !model?.units.some((unit) => unit.id === unitId)
+    ) {
+      return Promise.resolve(false);
+    }
+    setError('');
+    return createDesktopClient({ desktopCall: host.desktopCall })
+      .createNote(sessionId, {
+        anchor: { kind: 'unit', unitId },
+        content: { default: text.trim() },
+        category,
+      })
+      .then(async () => {
+        setNotes(await loadShownNotes(host, sessionId, model.manuscriptId));
+        return true;
+      })
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+        return false;
+      });
+  };
+
+  const segmentNote = (noteId: string) =>
+    notes.find(
+      (note) =>
+        note.id === noteId &&
+        note.view === null &&
+        (model?.units.some((unit) => unit.id === note.unitId) ?? false),
+    );
+
+  const updateCategorizedUnitNote = (
+    noteId: string,
+    text: string,
+    category: ContentNoteCategory,
+  ): Promise<boolean> => {
+    if (host === null || sessionId === null || text.trim().length === 0 || !segmentNote(noteId)) {
+      return Promise.resolve(false);
+    }
+    setError('');
+    return createDesktopClient({ desktopCall: host.desktopCall })
+      .updateNote(sessionId, {
+        id: noteId,
+        content: { default: text.trim() },
+        category,
+      })
+      .then(async () => {
+        setNotes(await loadShownNotes(host, sessionId, model?.manuscriptId ?? null));
+        return true;
+      })
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+        return false;
+      });
+  };
+
+  const deleteUnitNote = (noteId: string): Promise<boolean> => {
+    if (host === null || sessionId === null || !segmentNote(noteId)) return Promise.resolve(false);
+    setError('');
+    return createDesktopClient({ desktopCall: host.desktopCall })
+      .deleteNote(sessionId, noteId)
+      .then(async () => {
+        setNotes(await loadShownNotes(host, sessionId, model?.manuscriptId ?? null));
+        return true;
+      })
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+        return false;
+      });
+  };
+
   const saveTierNote = (unitId: string, view: 'timeline' | 'waveform', text: string) => {
     if (host === null || sessionId === null || text.length === 0) return;
     setError('');
@@ -139,6 +254,9 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null) {
     moveBoundary,
     saveMapping,
     saveUnitNote,
+    saveCategorizedUnitNote,
+    updateCategorizedUnitNote,
+    deleteUnitNote,
     saveTierNote,
   };
 }
@@ -147,6 +265,8 @@ interface UnitNote {
   id: string;
   unitId: string | null;
   text: string;
+  category: ContentNoteCategory | null;
+  view: 'timeline' | 'waveform' | null;
 }
 
 const SHOWN_NOTE_KINDS = ['unit'] as const;
@@ -167,6 +287,8 @@ async function loadShownNotes(
       id: row.id,
       unitId: row.unitId,
       text: row.content.default ?? '',
+      category: row.category,
+      view: row.view,
     }));
 }
 

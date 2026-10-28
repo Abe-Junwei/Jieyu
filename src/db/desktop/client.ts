@@ -9,7 +9,8 @@ import type {
 import type { Layer, LayerCreate } from './layers';
 import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
 import type { Media, MediaCreate } from './media';
-import type { Manuscript, ManuscriptCreate } from './manuscripts';
+import type { Manuscript, ManuscriptCreate, ManuscriptDeletePreview } from './manuscripts';
+import type { DeletionReminder, DueDeletionReminder } from './manuscriptPurge';
 import type { AnalysisApplyResult } from './analysis';
 import type { AnalysisImportResult } from './analysisImport';
 import type {
@@ -30,6 +31,7 @@ import type {
   CustomFieldPreview,
   CustomFieldUnitValue,
 } from './customFields';
+import type { CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 import type { ContentNote, ContentNoteQuery, ContentNoteWrite } from './notes';
 import type { JieyuAnchoredNote } from '../dmlexTypes';
@@ -54,10 +56,34 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<Unit>(sessionId, 'units.create', input),
     getUnit: (sessionId: string, id: string) => once<Unit | null>(sessionId, 'units.get', { id }),
     listManuscripts: (sessionId: string) => once<Manuscript[]>(sessionId, 'manuscripts.list', {}),
+    previewManuscriptDelete: (sessionId: string, id: string) =>
+      once<ManuscriptDeletePreview>(sessionId, 'manuscripts.previewDelete', { id }),
+    deleteManuscript: (sessionId: string, id: string) =>
+      once<Manuscript>(sessionId, 'manuscripts.delete', { id }),
+    listDueReminders: (sessionId: string) =>
+      once<DueDeletionReminder[]>(sessionId, 'deletion.listDue', {}),
+    showManuscriptReminder: (sessionId: string, id: string) =>
+      once<DeletionReminder>(sessionId, 'manuscripts.showReminder', { id }),
+    showRecordingReminder: (sessionId: string, id: string) =>
+      once<DeletionReminder>(sessionId, 'media.showReminder', { id }),
     listLayers: (sessionId: string, manuscriptId: string) =>
       once<Layer[]>(sessionId, 'layers.list', { manuscriptId }),
     listUnits: (sessionId: string, layerId: string) =>
       once<Unit[]>(sessionId, 'units.list', { layerId }),
+    queryCorpus: (
+      sessionId: string,
+      input: {
+        manuscriptId?: string;
+        text?: string;
+        form?: string;
+        gloss?: string;
+        pos?: string;
+        lexemeId?: string;
+        senseId?: string;
+        limit: number;
+        cursor?: CorpusQueryCursor;
+      },
+    ) => once<CorpusQueryPage>(sessionId, 'corpus.query', input),
     updateUnitText: (sessionId: string, input: { unitId: string; text: string }) =>
       once<Unit>(sessionId, 'units.updateText', input),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
@@ -140,8 +166,64 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<ProjectLexemeLink>(sessionId, 'lexicon.linkSense', input),
     removeSense: (sessionId: string, input: { lexemeId: string; senseId: string }) =>
       once<ProjectLexeme>(sessionId, 'lexicon.removeSense', input),
+    listLinkCandidates: (sessionId: string) =>
+      once<
+        {
+          id: string;
+          headword: string;
+          matchValues: string[];
+          senses: { id: string; label: string }[];
+        }[]
+      >(sessionId, 'lexicon.listLinkCandidates', {}),
+    matchLexemeLink: (sessionId: string, query: string) =>
+      once<{
+        id: string;
+        headword: string;
+        matchValues: string[];
+        senses: { id: string; label: string }[];
+      }>(sessionId, 'lexicon.matchLink', { query }),
+    listTokenLinks: (sessionId: string, unitId: string) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }[]>(
+        sessionId,
+        'lexicon.listTokenLinks',
+        { unitId },
+      ),
+    replaceTokenLink: (
+      sessionId: string,
+      input: { tokenId: string; lexemeId: string; senseId: string },
+    ) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }>(
+        sessionId,
+        'lexicon.replaceTokenLink',
+        input,
+      ),
+    createLinkedLexeme: (
+      sessionId: string,
+      input: { targetId: string; headword: string; translation: string },
+    ) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }>(
+        sessionId,
+        'lexicon.createLinkedEntry',
+        input,
+      ),
+    clearTokenLink: (sessionId: string, tokenId: string) =>
+      once<{ tokenId: string; lexemeId: string; senseId: string; headword: string | null }[]>(
+        sessionId,
+        'lexicon.clearTokenLink',
+        { tokenId },
+      ),
     createNote: (sessionId: string, input: ContentNoteWrite) =>
       once<ContentNote>(sessionId, 'notes.create', input),
+    updateNote: (
+      sessionId: string,
+      input: {
+        id: string;
+        content?: Record<string, string>;
+        category?: ContentNoteWrite['category'];
+      },
+    ) => once<ContentNote>(sessionId, 'notes.update', input),
+    deleteNote: (sessionId: string, id: string) =>
+      once<{ id: string }>(sessionId, 'notes.delete', { id }),
     listNotes: (sessionId: string, input: ContentNoteQuery = {}) =>
       once<ContentNote[]>(sessionId, 'notes.list', input),
     saveLexemeNote: (
@@ -182,6 +264,32 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once<AnalysisImportResult>(sessionId, 'analysis.import', input),
     readAnalysisState: (sessionId: string, unitId: string) =>
       once<AnalysisReadState>(sessionId, 'analysis.readState', { unitId }),
+    listWords: (sessionId: string, unitId: string) =>
+      once<{ id: string; form: string; gloss: Record<string, string>; pos: string }[]>(
+        sessionId,
+        'analysis.listWords',
+        { unitId },
+      ),
+    segmentWords: (sessionId: string, unitId: string) =>
+      once<{ id: string; form: string; gloss: Record<string, string>; pos: string }[]>(
+        sessionId,
+        'analysis.segmentWords',
+        { unitId },
+      ),
+    listMorphemes: (sessionId: string, unitId: string) =>
+      once<{ id: string; tokenId: string; form: string; gloss: Record<string, string> }[]>(
+        sessionId,
+        'analysis.listMorphemes',
+        {
+          unitId,
+        },
+      ),
+    segmentMorphemes: (sessionId: string, unitId: string) =>
+      once<{ id: string; tokenId: string; form: string; gloss: Record<string, string> }[]>(
+        sessionId,
+        'analysis.segmentMorphemes',
+        { unitId },
+      ),
     submitAnalysis: (
       sessionId: string,
       input: {

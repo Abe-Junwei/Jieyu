@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0092**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0095**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -37,7 +37,9 @@ source_of_truth: decision-index
 | 存储接口的边界                                                                                                                                            | ADR-0085：一次业务操作一次事务，调用方不传表名。弹窗和订阅仍分开（ADR-0062 第 7 条这一句） | 把新库装回旧 StoragePort；把弹窗、订阅、业务操作收进同一个可选 `files` 对象 |
 | 会话记忆载荷                                                                                                                                              | 能力保留。ADR-0085 未列此表。接替前另写 ADR，不塞进 `settings_json`（ADR-0086） | 沿 ADR-0066 直接建 `ai_session_memories`，或放进 `.jyd` |
 | 语言记录上的数组、行政区划、多语备注、自定义字段值                                                                                                        | ADR-0067 的具名 JSON 列留在单库 `languages` 行。内置模板先复制成项目行后再被层引用（ADR-0088） | 沿 ADR-0067 写进 `.jyd`，或因未列出就撤掉语言记录 |
-| `model_runs`                                                                                                                                              | [ADR-0088](./0088-desktop-sqlite-domain-landings.md)：运行记录、内容行来源和可恢复任务分开。字段仍是 ADR-0057 第 8 条 | 把运行记录塞进 `source_records`、`provenance_json` 或 `ai_tasks` |
+| `model_runs`                                                                                                                                              | [ADR-0094](./0094-transcription-run-acceptance-facts.md)：桌面列、中断、放弃数、生命周期凭据和接受事实。运行表与来源、任务仍分开（ADR-0088）。ADR-0057 第 8、9 条的其余规则继续有效 | 把运行记录塞进 `source_records`、`provenance_json` 或 `ai_tasks`；用 `manuscripts.generation` 充当生命周期凭据 |
+| 词条附件文件                                                                                                                                              | [ADR-0095](./0095-attachment-file-publish-and-cleanup.md)：项目文件夹里按哈希放文件，链接数由行数得出。最后一条链接先提交 `cleanup_pending`，再送垃圾箱。结果未知则留下文件行 | 沿用 Dexie 的 `ref_count` 和行内 Blob；在数据库事务里删文件；给附件套 90 天 |
+| 删除周期列                                                                                                                                                | [ADR-0096](./0096-deletion-cycle-columns.md)：文稿与录音各用 `deleted_at`、`retain_until`、`reminder_shown_at`。可清除时刻由这三列算出 | 只存一个 `purge_after`；把 90 天和 7 天写进每一行 |
 | 词条 DMLex 正文                                                                                                                                           | ADR-0068 的 `entry_json` / `resource_json`，加 ADR-0088 的 `jieyu_json`。核心词义链接的删除和失效引用以 ADR-0090 为准。例句引用和出现引用仍按 ADR-0088 第 9 条拒绝删除 | 因 ADR-0085 未列出就撤掉词条，或把义项拆成子表。用 ADR-0088 第 9 条挡住已允许失效的核心词义链接 |
 | 结构规则正文、正字法转换规则与样例、车道锁定表                                                                                                            | 正字法转换沿用 ADR-0069 第 2 条，落在单库 `orthography_bridges`（ADR-0088）。结构规则正文仍是 ADR-0069 第 1 条。车道锁定另写决定 | 沿 ADR-0069 把车道锁定写进 `.jyd` |
 | 说话人分配                                                                                                                                                | ADR-0085：`speakers` 属于整个项目，一次事务写入 | ADR-0071 的项目库和每份 `.jyd` 各提交一次 |
@@ -60,7 +62,7 @@ source_of_truth: decision-index
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
-详细结构与业务操作的待实施载体见[领域接替规格](../execution/specs/desktop-sqlite-domain-landings/requirements.md)及其[设计、关系图与验收矩阵](../execution/specs/desktop-sqlite-domain-landings/design.md)。ADR-0088 与 ADR-0089 保留决定正文。R1 的取舍已由 ADR-0090 接受，字段编码仍在[该规格](../execution/specs/annotation-graph-rebuild/design.md)直到实施完成。R5、R6 仍未决定。可执行 DDL 仍只在 `src/db/desktop/schema.ts`，ADR-0090 尚未实现。
+详细结构与业务操作的待实施载体见[领域接替规格](../execution/specs/desktop-sqlite-domain-landings/requirements.md)及其[设计、关系图与验收矩阵](../execution/specs/desktop-sqlite-domain-landings/design.md)。ADR-0088 与 ADR-0089 保留决定正文。R1 的取舍已由 ADR-0090 接受，字段编码仍在[该规格](../execution/specs/annotation-graph-rebuild/design.md)直到实施完成。附件的 R5 与列空值已由 ADR-0095 接受，表还没建。删除周期列已由 ADR-0096 接受，并已写入 `schema.ts`。可执行 DDL 仍只在 `src/db/desktop/schema.ts`。
 
 ## 本轮范围与生命周期
 
@@ -69,8 +71,11 @@ source_of_truth: decision-index
 - [0088：单库承接现有领域落点](./0088-desktop-sqlite-domain-landings.md)
 - [0089：分析代际、曾经接受与恢复写入](./0089-analysis-generation-accept-and-restore.md)
 - [0090：完整分析载荷、全项目字段与失效引用](./0090-analysis-payload-custom-fields-and-dangling-refs.md)
+- [0094：转写运行与接受事实](./0094-transcription-run-acceptance-facts.md)
+- [0095：附件文件发布与最后引用收尾](./0095-attachment-file-publish-and-cleanup.md)
+- [0096：删除周期列](./0096-deletion-cycle-columns.md)
 
-R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebuild/design.md)，取舍已接受为 ADR-0090，代码未改。R5、R6 仍在领域接替规格，不在 ADR-0089 或 ADR-0090。
+R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebuild/design.md)，取舍已接受为 ADR-0090，代码未改。附件 R5 已接受为 ADR-0095，表未建。删除周期列已接受为 ADR-0096，并已写入 schema。
 
 ## superseded
 
@@ -161,6 +166,9 @@ R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebui
 - [0088-desktop-sqlite-domain-landings.md](./0088-desktop-sqlite-domain-landings.md)
 - [0089-analysis-generation-accept-and-restore.md](./0089-analysis-generation-accept-and-restore.md)
 - [0090-analysis-payload-custom-fields-and-dangling-refs.md](./0090-analysis-payload-custom-fields-and-dangling-refs.md)
+- [0094-transcription-run-acceptance-facts.md](./0094-transcription-run-acceptance-facts.md)
+- [0095-attachment-file-publish-and-cleanup.md](./0095-attachment-file-publish-and-cleanup.md)
+- [0096-deletion-cycle-columns.md](./0096-deletion-cycle-columns.md)
 
 ## 已关闭的另一套编号
 

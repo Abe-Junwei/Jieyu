@@ -43,7 +43,7 @@ depends_on:
 
 另有新库已决定的 layer 备注，旧枚举里没有这个类型。包和 JSON 导入仍可能带上没有按钮的四类，恢复时按上表核对，对不上就拒绝，不丢成空备注。
 
-旁注锚点是 `project`、`manuscript`、`layer`、`unit`、`unit_text`、`token`、`morpheme`、`analysis_node`。`view` 只属于语段，可为空、`timeline` 或 `waveform`，同一处可以有多条。词和词素用投影行 id。图节点身份是 `(unit_id, node_id)`。目标被物理删除时，同一事务把相关旁注标为 `detached`，正文和分类不动。文稿最终清除才按 `manuscript_id` 删行。已有行恢复只改锚点和附着，不补回缺失行。词条和义项备注仍只在 `jieyu_json.anchoredNotes`。版本以 `src/db/desktop/schema.ts` 为准。旧文件只拒绝。规则在 [ADR-0092](../../../adr/0092-desktop-note-anchors.md)。文件夹页的语段、时间轴和波形备注仍是三条语段旁注。旧标注页还没改接。
+旁注锚点是 `project`、`manuscript`、`layer`、`unit`、`unit_text`、`token`、`morpheme`、`analysis_node`。`view` 只属于语段，可为空、`timeline` 或 `waveform`，同一处可以有多条。词和词素用投影行 id。图节点身份是 `(unit_id, node_id)`。目标被物理删除时，同一事务把相关旁注标为 `detached`，正文和分类不动。文稿最终清除才按 `manuscript_id` 删行。已有行恢复只改锚点和附着，不补回缺失行。词条和义项备注仍只在 `jieyu_json.anchoredNotes`。版本以 `src/db/desktop/schema.ts` 为准。旧文件只拒绝。规则在 [ADR-0092](../../../adr/0092-desktop-note-anchors.md)。文件夹页的语段、时间轴和波形备注仍是三条语段旁注。桌面标注页的语段备注已走同次运行打开的项目会话，可创建、改正文和分类、删除；还没有词的语段可按空白切成词，带 `-` 或 `=` 的词可再切成词素，词的 gloss 和词类可改写，词素的 gloss 可按界面语言改写，词和词素可按精确词头链到已有词条的义项，也可按词头和一个义项译文新建词条并在同一事务链上；同词头已存在则拒绝。
 
 ## 3. 其他域：旧字段与今天的新表
 
@@ -55,12 +55,12 @@ depends_on:
 | 媒体来源 | 新表自己的 `label`、`external_id`、`media_id` | `sources` 已是这三列加时间 | 只表示媒体来源。清录音时解除它 |
 | 书目 | `title`、`authors`、`year`、`publisher`、`doi`、`url`、`citationKey`、`sourceType`、多语 `notes`、`accessRights`、`textId` | `bibliography` 已有这些列和 `field_revisions_json` | 不进 `sources`。旧 `textId` 不建列。共享书目不随文稿清除 |
 | 对话 | `title`、`mode`、`providerId`、`model`、`archived`、`clearedAt`、`textId`、时间 | `conversations` 已有这些列和 `field_revisions_json` | 旧 `textId` 不建列。`archived` 的 false 和空缺分开。历史审批不进这张表 |
-| 消息 | `role`、`content`、`status`、`generationSource`、`generationModel`、`citations`、`errorMessage`、`reasoningContent`、`reflectionChecks`、`compatibilityReport`、`sourceScopeSummary`、时间 | `messages` 只有 `role`、`body`、`created_at` | 追加消息带稳定 id，不整份替换数组。引用和推理正文按 ADR-0080 不进消息行的规则继续有效，不能为了接替把它们塞进 `body` |
+| 消息 | `role`、`content`、`status`、`generationSource`、`generationModel`、`citations`、`errorMessage`、`reasoningContent`、`reflectionChecks`、`compatibilityReport`、`sourceScopeSummary`、时间 | `messages` 有 `role`、`body`、`created_at`、`updated_at` | 追加消息带稳定 id，不整份替换数组。改正文只改这一条。清空只删这个会话的消息，会话行留下并改 `updated_at`。引用、推理正文和上下文快照拒绝，不写入 `body`。其余旧字段未建列 |
 | 项目设置 | `project.settings_json` 已是对象 | 同列 | 只接受已经点名的键。会话记忆和车道锁定继续排除，见 ADR-0086 |
 | 保存的查询 | `AiSourceSetDoc` 仍在旧类型里 | 新库没有表 | 没有已达产品功能就不建表 |
 | AI 写入 | 现有提案、审批、执行分开 | 无新的通用写入口 | 复用具体领域操作 |
 
-来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。说话人、对话和书目已按同一规则接上除 `textId` 外的旧字段。对话不保存历史审批。书目不进来源表。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。旧标注页仍不改接，不依赖先做完整个 M5-E。
+来源单域已落地：`label` 和 `external_id` 按字段修订合并，诊断摘要另写入 userData。说话人、对话和书目已按同一规则接上除 `textId` 外的旧字段。对话不保存历史审批。消息可按稳定 id 追加、改正文和清空；引用、推理正文和上下文快照拒绝。其余旧消息字段未建列。书目不进来源表。备注载体、桌面会话和文件夹页的语段、时间轴、波形备注已落地。桌面标注页的语段备注已接新库，可创建、改正文和分类、删除；还没有词的语段可按空白切成词，带 `-` 或 `=` 的词可再切成词素，词的 gloss 和词类可改写，词素的 gloss 可按界面语言改写，词和词素可按精确词头链到已有词条的义项，也可按词头和一个义项译文新建词条并在同一事务链上；同词头已存在则拒绝。项目设置只接受字符变体、缩写和词类。会话记忆和车道锁定拒绝，原设置不变。保存的查询不建表。AI 写入不新开通用入口。转写运行、预览凭据核对和接受事实已按 [ADR-0094](../../../adr/0094-transcription-run-acceptance-facts.md) 写入并关掉再打开读回；待审正文不落库。映射或生命周期变了就拒绝。模型宿主未接。文稿可标记删除和恢复，两者都推进生命周期；已删除期间不能改正文，运行中的转写使删除不生效。期限、提醒、录音连带、删除界面和垃圾箱未做。不依赖先做完整个 M5-E。
 
 ## 4. 诊断库
 

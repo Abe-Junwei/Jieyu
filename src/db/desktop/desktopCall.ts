@@ -1,10 +1,21 @@
+import {
+  publishAttachment,
+  removeAttachmentLink,
+  type AttachmentKind,
+  type AttachmentPublish,
+} from './attachments';
 import { applyAnalysis } from './analysis';
+import { queryCorpus, type CorpusQuery, type CorpusQueryCursor } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
 import {
   acceptAnalysis,
+  listUnitMorphemes,
+  listUnitWords,
   mergeAnalysisNodes,
   readAnalysisState,
   restoreAnalysis,
+  segmentUnitMorphemes,
+  segmentUnitWords,
   splitAnalysisNode,
   submitAnalysis,
   type AnalysisCredentials,
@@ -62,19 +73,58 @@ import {
   type LexemeLinkWrite,
   type LexemeSave,
 } from './lexicon';
+import {
+  clearTokenLexemeLink,
+  createLinkedLexeme,
+  listLexemeLinkCandidates,
+  listTokenLexemeLinks,
+  matchLexemeLinkQuery,
+  replaceTokenLexemeLink,
+} from './lexemeLink';
 import { createMedia, type MediaCreate } from './media';
 import {
+  abandonPending,
+  acceptTranscriptionCandidate,
+  finishModelRun,
+  getModelRun,
+  interruptUnfinishedRuns,
+  stopManuscriptTasks,
+  stopRecordingTasks,
+  previewModelRun,
+  readTranscriptionAcceptance,
+  startModelRun,
+  type ModelRunFinish,
+  type ModelRunStart,
+  type PreviewCandidateInput,
+} from './modelRuns';
+import {
   createContentNote,
+  deleteContentNote,
   listContentNotes,
   listLexemeNotes,
   saveLexemeNote,
+  updateContentNote,
   type ContentNoteAnchor,
   type ContentNoteCategory,
   type ContentNoteQuery,
 } from './notes';
 import {
+  appendMessage,
+  clearConversationMessages,
+  listMessages,
+  updateMessageBody,
+  type MessageAppend,
+} from './messages';
+import { listDueDeletionReminders, purgeManuscript, showDeletionReminder } from './manuscriptPurge';
+import {
   createManuscript,
+  deleteManuscript,
+  deleteRecording,
+  listDeletedManuscripts,
   listManuscripts,
+  previewManuscriptDelete,
+  previewRecordingDelete,
+  restoreManuscript,
   rollbackManuscriptTimeMapping,
   setManuscriptTimeMapping,
   type ManuscriptCreate,
@@ -95,8 +145,20 @@ import {
 
 const METHODS = [
   'media.create',
+  'media.delete',
+  'media.previewDelete',
+  'media.showReminder',
+  'deletion.listDue',
+  'attachments.publish',
+  'attachments.removeLink',
   'manuscripts.create',
   'manuscripts.list',
+  'manuscripts.listDeleted',
+  'manuscripts.delete',
+  'manuscripts.previewDelete',
+  'manuscripts.restore',
+  'manuscripts.showReminder',
+  'manuscripts.purge',
   'manuscripts.setTimeMapping',
   'manuscripts.rollbackTimeMapping',
   'layers.create',
@@ -110,10 +172,29 @@ const METHODS = [
   'lexicon.getEntry',
   'lexicon.linkSense',
   'lexicon.removeSense',
+  'lexicon.listLinkCandidates',
+  'lexicon.matchLink',
+  'lexicon.listTokenLinks',
+  'lexicon.replaceTokenLink',
+  'lexicon.clearTokenLink',
+  'lexicon.createLinkedEntry',
   'notes.create',
+  'notes.update',
+  'notes.delete',
   'notes.list',
   'notes.saveLexeme',
   'notes.listLexeme',
+  'modelRuns.start',
+  'modelRuns.finish',
+  'modelRuns.preview',
+  'modelRuns.accept',
+  'modelRuns.abandon',
+  'modelRuns.interrupt',
+  'modelRuns.stopManuscript',
+  'modelRuns.stopRecording',
+  'modelRuns.get',
+  'modelRuns.readAcceptance',
+  'corpus.query',
   'units.create',
   'units.get',
   'units.list',
@@ -145,10 +226,18 @@ const METHODS = [
   'speakers.redeliver',
   'conversations.patch',
   'conversations.redeliver',
+  'messages.append',
+  'messages.update',
+  'messages.clear',
+  'messages.list',
   'bibliography.patch',
   'bibliography.redeliver',
   'analysis.apply',
   'analysis.readState',
+  'analysis.listWords',
+  'analysis.segmentWords',
+  'analysis.listMorphemes',
+  'analysis.segmentMorphemes',
   'analysis.import',
   'analysis.submit',
   'analysis.accept',
@@ -171,10 +260,49 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
   switch (parsed) {
     case 'media.create':
       return createMedia(project.db, desktopSessionFolder(sessionId), mediaCreate(input));
+    case 'media.delete':
+      knownKeys(input, ['id']);
+      return deleteRecording(project.db, requiredString(input.id, 'id'));
+    case 'media.previewDelete':
+      knownKeys(input, ['id']);
+      return previewRecordingDelete(project.db, requiredString(input.id, 'id'));
+    case 'media.showReminder':
+      knownKeys(input, ['id']);
+      return showDeletionReminder(project.db, 'media', requiredString(input.id, 'id'));
+    case 'deletion.listDue':
+      knownKeys(input, []);
+      return listDueDeletionReminders(project.db);
+    case 'attachments.publish':
+      return publishAttachment(
+        project.db,
+        desktopSessionFolder(sessionId),
+        attachmentPublish(input),
+      );
+    case 'attachments.removeLink':
+      knownKeys(input, ['linkId']);
+      return removeAttachmentLink(project.db, requiredString(input.linkId, 'linkId'));
     case 'manuscripts.create':
       return createManuscript(project.db, manuscriptCreate(input));
     case 'manuscripts.list':
       return listManuscripts(project.db);
+    case 'manuscripts.listDeleted':
+      knownKeys(input, []);
+      return listDeletedManuscripts(project.db);
+    case 'manuscripts.delete':
+      knownKeys(input, ['id']);
+      return deleteManuscript(project.db, requiredString(input.id, 'id'));
+    case 'manuscripts.previewDelete':
+      knownKeys(input, ['id']);
+      return previewManuscriptDelete(project.db, requiredString(input.id, 'id'));
+    case 'manuscripts.restore':
+      knownKeys(input, ['id']);
+      return restoreManuscript(project.db, requiredString(input.id, 'id'));
+    case 'manuscripts.showReminder':
+      knownKeys(input, ['id']);
+      return showDeletionReminder(project.db, 'manuscript', requiredString(input.id, 'id'));
+    case 'manuscripts.purge':
+      knownKeys(input, ['id']);
+      return purgeManuscript(project.db, requiredString(input.id, 'id'));
     case 'manuscripts.setTimeMapping':
       return setManuscriptTimeMapping(project.db, timeMappingSet(input));
     case 'manuscripts.rollbackTimeMapping':
@@ -207,8 +335,39 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         lexemeId: requiredString(input.lexemeId, 'lexemeId'),
         senseId: requiredString(input.senseId, 'senseId'),
       });
+    case 'lexicon.listLinkCandidates':
+      knownKeys(input, []);
+      return listLexemeLinkCandidates(project.db);
+    case 'lexicon.matchLink':
+      knownKeys(input, ['query']);
+      return matchLexemeLinkQuery(project.db, requiredString(input.query, 'query'));
+    case 'lexicon.listTokenLinks':
+      knownKeys(input, ['unitId']);
+      return listTokenLexemeLinks(project.db, requiredString(input.unitId, 'unitId'));
+    case 'lexicon.replaceTokenLink':
+      knownKeys(input, ['tokenId', 'lexemeId', 'senseId']);
+      return replaceTokenLexemeLink(project.db, {
+        tokenId: requiredString(input.tokenId, 'tokenId'),
+        lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+        senseId: requiredString(input.senseId, 'senseId'),
+      });
+    case 'lexicon.createLinkedEntry':
+      knownKeys(input, ['targetId', 'headword', 'translation']);
+      return createLinkedLexeme(project.db, {
+        targetId: requiredString(input.targetId, 'targetId'),
+        headword: requiredString(input.headword, 'headword'),
+        translation: requiredString(input.translation, 'translation'),
+      });
+    case 'lexicon.clearTokenLink':
+      knownKeys(input, ['tokenId']);
+      return clearTokenLexemeLink(project.db, requiredString(input.tokenId, 'tokenId'));
     case 'notes.create':
       return createContentNote(project.db, noteCreate(input));
+    case 'notes.update':
+      return updateContentNote(project.db, noteRevise(input));
+    case 'notes.delete':
+      knownKeys(input, ['id']);
+      return deleteContentNote(project.db, requiredString(input.id, 'id'));
     case 'notes.list':
       return listContentNotes(project.db, noteList(input));
     case 'notes.saveLexeme':
@@ -216,6 +375,8 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'notes.listLexeme':
       knownKeys(input, ['lexemeId']);
       return listLexemeNotes(project.db, requiredString(input.lexemeId, 'lexemeId'));
+    case 'corpus.query':
+      return queryCorpus(project.db, corpusQuery(input));
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
     case 'units.get':
@@ -327,6 +488,23 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'conversations.redeliver':
       knownKeys(input, ['operationId']);
       return redeliverConversation(project.db, requiredString(input.operationId, 'operationId'));
+    case 'messages.append':
+      return appendMessage(project.db, messageAppend(input));
+    case 'messages.update':
+      knownKeys(input, ['id', 'body']);
+      return updateMessageBody(project.db, {
+        id: requiredString(input.id, 'id'),
+        body: requiredString(input.body, 'body'),
+      });
+    case 'messages.clear':
+      knownKeys(input, ['conversationId']);
+      return clearConversationMessages(
+        project.db,
+        requiredString(input.conversationId, 'conversationId'),
+      );
+    case 'messages.list':
+      knownKeys(input, ['conversationId']);
+      return listMessages(project.db, requiredString(input.conversationId, 'conversationId'));
     case 'bibliography.patch':
       return patchBibliography(project.db, bibliographyPatch(input));
     case 'bibliography.redeliver':
@@ -337,6 +515,18 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'analysis.readState':
       knownKeys(input, ['unitId']);
       return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.listWords':
+      knownKeys(input, ['unitId']);
+      return listUnitWords(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.segmentWords':
+      knownKeys(input, ['unitId']);
+      return segmentUnitWords(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.listMorphemes':
+      knownKeys(input, ['unitId']);
+      return listUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.segmentMorphemes':
+      knownKeys(input, ['unitId']);
+      return segmentUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
     case 'analysis.import':
       return importAnalysis(project.db, analysisImport(input));
     case 'analysis.submit':
@@ -349,11 +539,62 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return splitAnalysisNode(project.db, analysisSplit(input));
     case 'analysis.merge':
       return mergeAnalysisNodes(project.db, analysisMerge(input));
+    case 'modelRuns.start':
+      return startModelRun(project.db, modelRunStart(input));
+    case 'modelRuns.finish':
+      return finishModelRun(project.db, modelRunFinish(input));
+    case 'modelRuns.preview':
+      return previewModelRun(project.db, modelRunPreview(input));
+    case 'modelRuns.accept':
+      return acceptTranscriptionCandidate(project.db, modelRunAccept(input));
+    case 'modelRuns.abandon':
+      knownKeys(input, ['runId']);
+      return abandonPending(project.db, requiredString(input.runId, 'runId'));
+    case 'modelRuns.interrupt':
+      knownKeys(input, []);
+      return interruptUnfinishedRuns(project.db);
+    case 'modelRuns.stopManuscript':
+      knownKeys(input, ['id']);
+      return stopManuscriptTasks(project.db, requiredString(input.id, 'id'));
+    case 'modelRuns.stopRecording':
+      knownKeys(input, ['id']);
+      return stopRecordingTasks(project.db, requiredString(input.id, 'id'));
+    case 'modelRuns.get':
+      knownKeys(input, ['runId']);
+      return getModelRun(project.db, requiredString(input.runId, 'runId'));
+    case 'modelRuns.readAcceptance':
+      knownKeys(input, ['operationId']);
+      return readTranscriptionAcceptance(
+        project.db,
+        requiredString(input.operationId, 'operationId'),
+      );
     default: {
       const unreachable: never = parsed;
       return unreachable;
     }
   }
+}
+
+function attachmentPublish(input: Record<string, unknown>): AttachmentPublish {
+  knownKeys(input, ['lexemeId', 'displayName', 'kind', 'mimeType', 'bytes', 'operationId']);
+  return {
+    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+    displayName: requiredString(input.displayName, 'displayName'),
+    kind: attachmentKind(input.kind),
+    mimeType: requiredString(input.mimeType, 'mimeType'),
+    bytes: attachmentBytes(input.bytes),
+    operationId: requiredString(input.operationId, 'operationId'),
+  };
+}
+
+function attachmentKind(value: unknown): AttachmentKind {
+  if (value === 'image' || value === 'audio' || value === 'document') return value;
+  throw new Error('attachment kind is invalid');
+}
+
+function attachmentBytes(value: unknown): Uint8Array {
+  if (value instanceof Uint8Array) return value;
+  throw new Error('attachment bytes are invalid');
 }
 
 function parseMethod(method: string): DesktopMethod {
@@ -493,6 +734,23 @@ function orderedNotes(patch: { expectedRevision: number; value: Record<string, s
   const ordered: Record<string, string> = {};
   for (const key of keys) ordered[key] = patch.value[key] ?? '';
   return { expectedRevision: patch.expectedRevision, value: ordered };
+}
+
+function messageAppend(input: Record<string, unknown>): MessageAppend {
+  knownKeys(input, ['id', 'conversationId', 'role', 'body']);
+  return {
+    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
+    conversationId: requiredString(input.conversationId, 'conversationId'),
+    role: messageRole(input.role),
+    body: requiredString(input.body, 'body'),
+  };
+}
+
+function messageRole(value: unknown): MessageAppend['role'] {
+  if (value === 'system' || value === 'user' || value === 'assistant' || value === 'tool') {
+    return value;
+  }
+  throw new Error('desktop call role must be a message role');
 }
 
 function conversationPatch(input: Record<string, unknown>): ConversationPatch {
@@ -719,6 +977,13 @@ function fingerprintString(value: unknown): string {
   return value;
 }
 
+function requiredIndex(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error(`desktop call ${name} must be an index`);
+  }
+  return value;
+}
+
 function requiredNumber(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new Error(`desktop call ${name} must be a number`);
@@ -917,6 +1182,16 @@ function noteCreate(input: Record<string, unknown>) {
   };
 }
 
+function noteRevise(input: Record<string, unknown>) {
+  knownKeys(input, ['id', 'content', 'category']);
+  if (!('content' in input) && !('category' in input)) throw new Error('note revision is empty');
+  return {
+    id: requiredString(input.id, 'id'),
+    ...('content' in input ? { content: stringMap(input.content, 'content') } : {}),
+    ...('category' in input ? { category: noteCategory(input.category) } : {}),
+  };
+}
+
 function noteList(input: Record<string, unknown>): ContentNoteQuery {
   knownKeys(input, ['anchorKind', 'manuscriptId', 'unitId', 'nodeId', 'layerId', 'attachment']);
   return {
@@ -1086,6 +1361,107 @@ function timeMappingSet(input: Record<string, unknown>): {
   };
 }
 
+function modelRunStart(input: Record<string, unknown>): ModelRunStart {
+  knownKeys(input, [
+    'manuscriptId',
+    'layerId',
+    'modelId',
+    'modelVersion',
+    'manifestSha256',
+    'params',
+    'rangeStart',
+    'rangeEnd',
+  ]);
+  return {
+    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+    layerId: requiredString(input.layerId, 'layerId'),
+    modelId: requiredString(input.modelId, 'modelId'),
+    modelVersion: requiredString(input.modelVersion, 'modelVersion'),
+    manifestSha256: requiredString(input.manifestSha256, 'manifestSha256'),
+    params: objectArg(input.params),
+    rangeStart: requiredNumber(input.rangeStart, 'rangeStart'),
+    rangeEnd: requiredNumber(input.rangeEnd, 'rangeEnd'),
+  };
+}
+
+function modelRunFinish(input: Record<string, unknown>): ModelRunFinish {
+  const status = requiredString(input.status, 'status');
+  const runId = requiredString(input.runId, 'runId');
+  const chunkCount = requiredIndex(input.chunkCount, 'chunkCount');
+  if (status === 'error') {
+    knownKeys(input, ['runId', 'status', 'chunkCount', 'errorCode']);
+    return {
+      runId,
+      status,
+      chunkCount,
+      errorCode: requiredString(input.errorCode, 'errorCode'),
+    };
+  }
+  if (status === 'ok' || status === 'cancelled') {
+    knownKeys(input, ['runId', 'status', 'chunkCount']);
+    return { runId, status, chunkCount };
+  }
+  throw new Error('desktop call status must be a run status');
+}
+
+function modelRunPreview(input: Record<string, unknown>): {
+  runId: string;
+  candidates: PreviewCandidateInput[];
+} {
+  knownKeys(input, ['runId', 'candidates']);
+  if (!Array.isArray(input.candidates)) throw new Error('desktop call candidates must be an array');
+  return {
+    runId: requiredString(input.runId, 'runId'),
+    candidates: input.candidates.map((item, index) => previewCandidate(item, index)),
+  };
+}
+
+function previewCandidate(value: unknown, index: number): PreviewCandidateInput {
+  const candidate = objectArg(value);
+  knownKeys(candidate, ['chunkIndex', 'segmentIndex', 'mediaStart', 'mediaEnd']);
+  return {
+    chunkIndex: requiredIndex(candidate.chunkIndex, `candidates.${index}.chunkIndex`),
+    segmentIndex: requiredIndex(candidate.segmentIndex, `candidates.${index}.segmentIndex`),
+    mediaStart: requiredNumber(candidate.mediaStart, `candidates.${index}.mediaStart`),
+    mediaEnd: requiredNumber(candidate.mediaEnd, `candidates.${index}.mediaEnd`),
+  };
+}
+
+function modelRunAccept(input: Record<string, unknown>): {
+  operationId: string;
+  runId: string;
+  chunkIndex: number;
+  segmentIndex: number;
+  mediaStart: number;
+  mediaEnd: number;
+  timeMappingRevision: number;
+  targetFingerprint: string;
+  text: string;
+} {
+  knownKeys(input, [
+    'operationId',
+    'runId',
+    'chunkIndex',
+    'segmentIndex',
+    'mediaStart',
+    'mediaEnd',
+    'timeMappingRevision',
+    'targetFingerprint',
+    'text',
+  ]);
+  return {
+    operationId: requiredString(input.operationId, 'operationId'),
+    runId: requiredString(input.runId, 'runId'),
+    chunkIndex: requiredIndex(input.chunkIndex, 'chunkIndex'),
+    segmentIndex: requiredIndex(input.segmentIndex, 'segmentIndex'),
+    mediaStart: requiredNumber(input.mediaStart, 'mediaStart'),
+    mediaEnd: requiredNumber(input.mediaEnd, 'mediaEnd'),
+    timeMappingRevision: requiredIndex(input.timeMappingRevision, 'timeMappingRevision'),
+    targetFingerprint: requiredString(input.targetFingerprint, 'targetFingerprint'),
+    text: requiredString(input.text, 'text'),
+  };
+}
+
 function languageEnsure(input: Record<string, unknown>): LanguageEnsure {
   const aliases = input.aliases;
   return {
@@ -1193,6 +1569,61 @@ function booleanMap(value: unknown): Record<string, boolean> {
     tags[key] = item;
   }
   return tags;
+}
+
+function corpusQuery(input: Record<string, unknown>): CorpusQuery {
+  knownKeys(input, [
+    'manuscriptId',
+    'text',
+    'form',
+    'gloss',
+    'pos',
+    'lexemeId',
+    'senseId',
+    'limit',
+    'cursor',
+  ]);
+  const lexemeId = optionalQueryString(input, 'lexemeId');
+  const senseId = optionalQueryString(input, 'senseId');
+  if ((lexemeId === null) !== (senseId === null)) {
+    throw new Error('sense query needs lexemeId and senseId');
+  }
+  return {
+    manuscriptId: optionalQueryString(input, 'manuscriptId'),
+    text: optionalQueryString(input, 'text'),
+    form: optionalQueryString(input, 'form'),
+    gloss: optionalQueryString(input, 'gloss'),
+    pos: optionalQueryString(input, 'pos'),
+    lexemeId,
+    senseId,
+    limit: requiredLimit(input.limit),
+    cursor: corpusCursor(input.cursor),
+  };
+}
+
+function optionalQueryString(input: Record<string, unknown>, name: string): string | null {
+  if (!(name in input) || input[name] === null) return null;
+  if (typeof input[name] !== 'string') throw new Error(`desktop call ${name} must be a string`);
+  return input[name];
+}
+
+function requiredLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new Error('desktop call limit must be a positive integer');
+  }
+  return value;
+}
+
+function corpusCursor(value: unknown): CorpusQueryCursor | null {
+  if (value === undefined || value === null) return null;
+  const cursor = objectArg(value);
+  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
+  return {
+    manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
+    layerId: requiredString(cursor.layerId, 'layerId'),
+    startTime: requiredNumber(cursor.startTime, 'startTime'),
+    unitId: requiredString(cursor.unitId, 'unitId'),
+  };
 }
 
 function unitCreate(input: Record<string, unknown>): UnitCreate {

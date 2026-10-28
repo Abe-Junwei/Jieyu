@@ -100,7 +100,9 @@ SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
        unit_texts.body AS text
 FROM units
 JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
-WHERE units.layer_id = ?
+JOIN layers ON layers.id = units.layer_id
+JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+WHERE units.layer_id = ? AND manuscripts.deleted_at IS NULL
 ORDER BY units.start_time, units.id
 `;
 
