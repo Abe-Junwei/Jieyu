@@ -1,15 +1,16 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 import { saveDailyProjectBackup } from './dailyBackup';
-import { deleteManuscript, getManuscript } from './manuscripts';
+import { deleteManuscript, getManuscript, listManuscripts } from './manuscripts';
 import { purgeManuscript } from './manuscriptPurge';
 import { openProject } from './openProject';
 import { importDesktopJym } from './projectExchange';
-import { getUnit } from './units';
+import { getUnit, listUnits } from './units';
 import { sliceForRange } from '../../desktop/skeleton/mediaRange';
 
 const roots: string[] = [];
@@ -206,4 +207,168 @@ describe('daily project backup', () => {
     expect(Buffer.from(unzipSync(readFileSync(saved))['media/media-gone']!)).toEqual(audio);
     project.close();
   });
+
+  it('restores two manuscripts and two playable recordings without changing the source', () => {
+    const projectDir = folder();
+    const backupDir = folder();
+    const project = openProject(projectDir);
+    const firstSamples = [100, -100, 200];
+    const secondSamples = [300, -300, 50];
+    const firstWav = pcmWav(firstSamples);
+    const secondWav = pcmWav(secondSamples);
+    writeFileSync(join(projectDir, 'one.wav'), firstWav);
+    writeFileSync(join(projectDir, 'two.wav'), secondWav);
+    insertMedia(project.db, 'media-one', 'one.wav', firstWav);
+    insertMedia(project.db, 'media-two', 'two.wav', secondWav);
+    const first = writeSentence(project, 'media-one', '第一句');
+    const second = writeSentence(project, 'media-two', '第二句');
+    const source = readFileSync(join(projectDir, 'project.sqlite'));
+    const saved = saveDailyProjectBackup({
+      db: project.db,
+      folder: projectDir,
+      backupDir,
+      now: new Date('2026-10-27T12:00:00.000Z'),
+    });
+    const packed = readFileSync(saved);
+    const restoredDir = folder();
+    importDesktopJym(restoredDir, packed);
+    const restored = openProject(restoredDir);
+    const rows = listManuscripts(restored.db);
+    expect(rows.map((row) => row.id).sort()).toEqual([first.id, second.id].sort());
+    expect(sentence(restored.db, first.id)).toBe('第一句');
+    expect(sentence(restored.db, second.id)).toBe('第二句');
+    expect(playableSamples(restoredDir, restored.db, 'media-one')).toEqual(firstSamples);
+    expect(playableSamples(restoredDir, restored.db, 'media-two')).toEqual(secondSamples);
+    restored.close();
+    expect(() => importDesktopJym(projectDir, packed)).toThrow('import destination is not empty');
+    expect(readFileSync(join(projectDir, 'project.sqlite'))).toEqual(source);
+    project.close();
+  });
+
+  it('restores attachment bytes from the daily backup after the project copy is gone', () => {
+    const projectDir = folder();
+    const backupDir = folder();
+    const project = openProject(projectDir);
+    const body = Buffer.from('attachment-bytes');
+    const digest = createHash('sha256').update(body).digest('hex');
+    const relpath = `attachments/objects/${digest}`;
+    mkdirSync(join(projectDir, 'attachments', 'objects'), { recursive: true });
+    writeFileSync(join(projectDir, relpath), body);
+    project.db
+      .prepare(
+        `INSERT INTO attachment_files
+           (id, sha256, relpath, byte_size, kind, mime_type, state, created_at)
+         VALUES (?, ?, ?, ?, 'document', 'text/plain', 'ready', ?)`,
+      )
+      .run('file-1', digest, relpath, body.length, T);
+    const saved = saveDailyProjectBackup({
+      db: project.db,
+      folder: projectDir,
+      backupDir,
+      now: new Date('2026-10-27T12:00:00.000Z'),
+    });
+    rmSync(join(projectDir, relpath));
+    project.db.prepare('DELETE FROM attachment_files WHERE id = ?').run('file-1');
+    expect(existsSync(join(projectDir, relpath))).toBe(false);
+    expect(Buffer.from(unzipSync(readFileSync(saved))[relpath]!)).toEqual(body);
+
+    const restoredDir = folder();
+    importDesktopJym(restoredDir, readFileSync(saved));
+    expect(readFileSync(join(restoredDir, relpath))).toEqual(body);
+    const restored = openProject(restoredDir);
+    expect(
+      restored.db.prepare('SELECT sha256, state FROM attachment_files WHERE id = ?').get('file-1'),
+    ).toEqual({ sha256: digest, state: 'ready' });
+    restored.close();
+    project.close();
+  });
 });
+
+function pcmWav(samples: readonly number[]): Buffer {
+  const dataBytes = samples.length * 2;
+  const bytes = Buffer.alloc(44 + dataBytes);
+  bytes.write('RIFF', 0);
+  bytes.writeUInt32LE(36 + dataBytes, 4);
+  bytes.write('WAVE', 8);
+  bytes.write('fmt ', 12);
+  bytes.writeUInt32LE(16, 16);
+  bytes.writeUInt16LE(1, 20);
+  bytes.writeUInt16LE(1, 22);
+  bytes.writeUInt32LE(8000, 24);
+  bytes.writeUInt32LE(16000, 28);
+  bytes.writeUInt16LE(2, 32);
+  bytes.writeUInt16LE(16, 34);
+  bytes.write('data', 36);
+  bytes.writeUInt32LE(dataBytes, 40);
+  samples.forEach((sample, index) => bytes.writeInt16LE(sample, 44 + index * 2));
+  return bytes;
+}
+
+function insertMedia(
+  db: ReturnType<typeof openProject>['db'],
+  id: string,
+  filename: string,
+  body: Buffer,
+): void {
+  const sha256 = createHash('sha256').update(body).digest('hex');
+  db.prepare(
+    'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  ).run(id, filename, sha256, filename, 1, T);
+}
+
+function writeSentence(
+  project: ReturnType<typeof openProject>,
+  mediaId: string,
+  text: string,
+): { id: string } {
+  const manuscript = project.manuscripts.create({ title: { zh: text }, mediaId });
+  const layer = project.layers.create({
+    manuscriptId: manuscript.id,
+    key: 'tx',
+    name: { zh: '转写' },
+    tierType: 'time-aligned',
+    contentType: 'transcription',
+  });
+  project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text });
+  return manuscript;
+}
+
+function sentence(db: ReturnType<typeof openProject>['db'], manuscriptId: string): string {
+  const layer = db.prepare('SELECT id FROM layers WHERE manuscript_id = ?').get(manuscriptId) as {
+    id: string;
+  };
+  return listUnits(db, layer.id)
+    .map((unit) => unit.text)
+    .join('');
+}
+
+function playableSamples(
+  folderPath: string,
+  db: ReturnType<typeof openProject>['db'],
+  mediaId: string,
+): number[] {
+  const media = db.prepare('SELECT relpath, sha256 FROM media WHERE id = ?').get(mediaId) as {
+    relpath: string;
+    sha256: string;
+  };
+  const bytes = readFileSync(join(folderPath, media.relpath));
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe(media.sha256);
+  const slice = sliceForRange(bytes.byteLength, 'bytes=0-3');
+  expect(slice.status).toBe(206);
+  expect(Buffer.from(bytes.subarray(slice.start, slice.end + 1))).toEqual(bytes.subarray(0, 4));
+  if (process.platform === 'darwin') {
+    const info = spawnSync('afinfo', [join(folderPath, media.relpath)], { encoding: 'utf8' });
+    expect(info.status).toBe(0);
+    expect(info.stdout).toContain('8000 Hz');
+  }
+  return readPcm(bytes);
+}
+
+function readPcm(bytes: Buffer): number[] {
+  const dataBytes = bytes.readUInt32LE(40);
+  const samples: number[] = [];
+  for (let index = 0; index < dataBytes; index += 2) {
+    samples.push(bytes.readInt16LE(44 + index));
+  }
+  return samples;
+}
