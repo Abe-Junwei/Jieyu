@@ -22,13 +22,13 @@ export function buildSyntheticSamplePackage(): Uint8Array {
         )
         .run('media-sample', 'sample.wav', sha256, 'sample.wav', 1, '2026-10-27T00:00:00.000Z');
       const manuscript = project.manuscripts.create({
-        title: { zh: '示例' },
+        title: { zh: 'Sample' },
         mediaId: 'media-sample',
       });
       const layer = project.layers.create({
         manuscriptId: manuscript.id,
         key: 'tx',
-        name: { zh: '转写' },
+        name: { zh: 'Transcription' },
         tierType: 'time-aligned',
         contentType: 'transcription',
       });
