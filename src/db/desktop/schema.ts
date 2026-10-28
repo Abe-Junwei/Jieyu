@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
-export const DESKTOP_PROJECT_USER_VERSION = 26;
+export const DESKTOP_PROJECT_USER_VERSION = 27;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -26,6 +26,14 @@ CREATE TABLE media (
   reminder_shown_at TEXT CHECK (reminder_shown_at IS NULL OR length(reminder_shown_at) > 0),
   CHECK ((retain_until IS NULL) = (deleted_at IS NULL)),
   CHECK (reminder_shown_at IS NULL OR deleted_at IS NOT NULL)
+);
+
+CREATE TABLE media_cleanups (
+  id TEXT PRIMARY KEY,
+  media_id TEXT NOT NULL CHECK (length(media_id) > 0),
+  relpath TEXT NOT NULL CHECK (length(relpath) > 0),
+  sha256 TEXT NOT NULL CHECK (length(sha256) > 0),
+  state TEXT NOT NULL CHECK (state IN ('intent', 'confirmed', 'failed', 'unknown'))
 );
 
 CREATE TABLE speakers (
@@ -667,7 +675,7 @@ CREATE INDEX custom_field_values_target ON custom_field_values(target_type, targ
 
 CREATE TABLE sources (
   id TEXT PRIMARY KEY,
-  media_id TEXT NOT NULL REFERENCES media(id),
+  media_id TEXT REFERENCES media(id) CHECK (media_id IS NULL OR length(media_id) > 0),
   label TEXT NOT NULL,
   external_id TEXT NOT NULL,
   field_revisions_json TEXT NOT NULL DEFAULT '{"label":0,"externalId":0}' CHECK (

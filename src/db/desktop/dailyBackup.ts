@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
-import { exportDesktopJym } from './projectExchange';
+import { exportDesktopJym, importDesktopJym } from './projectExchange';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -53,6 +53,29 @@ export function saveDailyProjectBackup(input: {
     rmSync(path.join(backupRoot, name), { force: true });
   }
   return target;
+}
+
+export function listDailyBackupDays(backupDir: string): string[] {
+  if (!existsSync(backupDir)) return [];
+  return readdirSync(backupDir)
+    .map((name) => {
+      const match = DAY_FILE.exec(name);
+      return match?.[1];
+    })
+    .filter((day): day is string => day !== undefined)
+    .sort((left, right) => right.localeCompare(left))
+    .slice(0, DAILY_BACKUP_KEEP);
+}
+
+export function restoreDailyBackup(input: {
+  backupDir: string;
+  day: string;
+  destination: string;
+}): void {
+  if (!DAY_FILE.test(`${input.day}.jym`)) throw new Error('backup day is invalid');
+  const file = path.join(input.backupDir, `${input.day}.jym`);
+  if (!existsSync(file)) throw new Error('backup file is missing');
+  importDesktopJym(input.destination, readFileSync(file));
 }
 
 function canonicalPath(target: string): string {

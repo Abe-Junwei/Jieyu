@@ -14,9 +14,14 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
+import { cancelModelTranscribe, runModelTranscribe } from '../src/desktop/modelHost';
+import { trashFile } from './trashFile';
+import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/dailyBackup';
+import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
   closeDesktopSession,
+  desktopSessionFolder,
   openDesktopSession,
   resetDesktopSessions,
 } from '../src/db/desktop/projectSession';
@@ -235,6 +240,33 @@ function registerIpc(): void {
     return desktopMediaPlayUrl(sessionId, mediaId);
   });
 
+  handle('desktop:list-backups', (sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    const folder = desktopSessionFolder(sessionId);
+    return {
+      days: listDailyBackupDays(
+        ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
+      ),
+    };
+  });
+
+  handle('desktop:restore-backup', async (sessionId: unknown, day: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    if (typeof day !== 'string' || day.length === 0) throw new Error('empty backup day');
+    const folder = desktopSessionFolder(sessionId);
+    const picked = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    const destination = picked.filePaths[0];
+    if (destination === undefined) return { cancelled: true };
+    restoreDailyBackup({
+      backupDir: ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
+      day,
+      destination,
+    });
+    return { folder: destination };
+  });
+
   handle('desktop:choose-folder', async () => {
     const picked = await dialog.showOpenDialog({ properties: ['openDirectory'] });
     const folder = picked.filePaths[0];
@@ -246,10 +278,41 @@ function registerIpc(): void {
     return opened;
   });
 
+  handle('desktop:choose-import-file', async () => {
+    const picked = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'Annotation',
+          extensions: ['eaf', 'flextext', 'textgrid', 'toolbox', 'lift', 'jyb'],
+        },
+      ],
+    });
+    const file = picked.filePaths[0];
+    if (file === undefined) return { cancelled: true };
+    return { file };
+  });
+
+  handle('desktop:choose-export-file', async (name: unknown) => {
+    if (typeof name !== 'string' || name.length === 0) throw new Error('empty export name');
+    const picked = await dialog.showSaveDialog({ defaultPath: name });
+    if (picked.filePath === undefined) return { cancelled: true };
+    return { file: picked.filePath };
+  });
+
+  handle('model:transcribe', (input: unknown) => runModelTranscribe(input));
+  handle('model:cancel', (requestId: unknown) => {
+    if (typeof requestId !== 'string' || requestId.length === 0) {
+      throw new Error('empty model request');
+    }
+    cancelModelTranscribe(requestId);
+    return { cancelled: true };
+  });
+
   handle('desktop:call', (sessionId: unknown, method: unknown, args: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     if (typeof method !== 'string' || method.length === 0) throw new Error('empty desktop call');
-    return callDesktopSession(sessionId, method, args);
+    return callDesktopSession(sessionId, method, args, trashFile);
   });
 
   handle('skeleton:open-project', (folder: unknown) => {
@@ -539,6 +602,11 @@ app
     if (process.argv.includes('--smoke')) {
       await runSmoke(win);
       return;
+    }
+    try {
+      ensureBundledSample(path.join(app.getPath('userData'), SAMPLE_PROJECT_DIRNAME));
+    } catch (error) {
+      console.error(error);
     }
     ipcMain.handle('skeleton:choose-project', () => chooseProject());
     app.on('activate', () => {

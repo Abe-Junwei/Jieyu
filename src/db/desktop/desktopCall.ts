@@ -5,6 +5,14 @@ import {
   type AttachmentPublish,
 } from './attachments';
 import { applyAnalysis } from './analysis';
+import { importForeignFile } from './foreignImport';
+import { getProjectIdentity } from './projectIdentity';
+import {
+  exportDesktopJym,
+  exportDesktopJyt,
+  exportDesktopManuscriptJyt,
+  saveDesktopPackage,
+} from './projectExchange';
 import { queryCorpus, type CorpusQuery, type CorpusQueryCursor } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
 import {
@@ -18,6 +26,7 @@ import {
   segmentUnitWords,
   splitAnalysisNode,
   submitAnalysis,
+  undoUnitText,
   type AnalysisCredentials,
 } from './analysisRestore';
 import {
@@ -26,6 +35,12 @@ import {
   ensureProjectLanguage,
   getBridge,
   getProjectLanguage,
+  listBridges,
+  listOrthographies,
+  listProjectLanguages,
+  updateBridge,
+  updateOrthography,
+  updateProjectLanguage,
   type BridgeCreate,
   type LanguageEnsure,
   type OrthographyCreate,
@@ -61,7 +76,9 @@ import {
   redeliverConversation,
   type ConversationPatch,
 } from './conversationFields';
+import { assignSpeaker, undoAssignSpeaker } from './speakerAssign';
 import { patchSpeaker, redeliverSpeaker, type SpeakerPatch } from './speakerFields';
+import { createSpeaker, listSpeakers } from './speakers';
 import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers, type LayerCreate } from './layers';
@@ -82,6 +99,8 @@ import {
   replaceTokenLexemeLink,
 } from './lexemeLink';
 import { createMedia, type MediaCreate } from './media';
+import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
+import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
   abandonPending,
   acceptTranscriptionCandidate,
@@ -130,7 +149,13 @@ import {
   type ManuscriptCreate,
 } from './manuscripts';
 import {
+  clearUnitTextUndo,
   desktopSessionFolder,
+  peekUnitStep,
+  rememberUnitAssignUndo,
+  rememberUnitMergeUndo,
+  rememberUnitSplitUndo,
+  rememberUnitTextUndo,
   reopenDesktopSession,
   requireDesktopSession,
 } from './projectSession';
@@ -142,15 +167,20 @@ import {
   updateUnitText,
   type UnitCreate,
 } from './units';
+import { mergeUnits, splitUnit, undoMerge, undoSplit } from './unitSpan';
 
 const METHODS = [
   'media.create',
   'media.delete',
   'media.previewDelete',
   'media.showReminder',
+  'media.finishCleanup',
+  'media.reregister',
+  'media.restoreRegistered',
   'deletion.listDue',
   'attachments.publish',
   'attachments.removeLink',
+  'project.get',
   'manuscripts.create',
   'manuscripts.list',
   'manuscripts.listDeleted',
@@ -165,9 +195,15 @@ const METHODS = [
   'layers.list',
   'catalog.ensureProjectDefinition',
   'catalog.getLanguage',
+  'catalog.listLanguages',
+  'catalog.updateLanguage',
   'orthographies.create',
+  'orthographies.list',
+  'orthographies.update',
   'bridges.create',
   'bridges.get',
+  'bridges.list',
+  'bridges.update',
   'lexicon.saveEntry',
   'lexicon.getEntry',
   'lexicon.linkSense',
@@ -199,6 +235,10 @@ const METHODS = [
   'units.get',
   'units.list',
   'units.updateText',
+  'units.undoText',
+  'units.undo',
+  'units.split',
+  'units.merge',
   'units.updateBoundary',
   'customFields.createDefinition',
   'customFields.updateDefinition',
@@ -224,6 +264,9 @@ const METHODS = [
   'sources.redeliver',
   'speakers.patch',
   'speakers.redeliver',
+  'speakers.create',
+  'speakers.list',
+  'speakers.assign',
   'conversations.patch',
   'conversations.redeliver',
   'messages.append',
@@ -244,20 +287,80 @@ const METHODS = [
   'analysis.restore',
   'analysis.split',
   'analysis.merge',
+  'exchange.importFile',
+  'exchange.exportJyt',
+  'exchange.exportJym',
+  'exchange.exportManuscript',
   'reopen',
 ] as const;
 
 type DesktopMethod = (typeof METHODS)[number];
 
-export function callDesktopSession(sessionId: string, method: string, args: unknown): unknown {
+const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
+  'project.get',
+  'exchange.exportJyt',
+  'exchange.exportJym',
+  'exchange.exportManuscript',
+  'units.updateText',
+  'units.undoText',
+  'units.undo',
+  'speakers.assign',
+  'speakers.list',
+  'catalog.listLanguages',
+  'catalog.getLanguage',
+  'orthographies.list',
+  'bridges.list',
+  'bridges.get',
+  'units.get',
+  'units.list',
+  'manuscripts.list',
+  'manuscripts.listDeleted',
+  'manuscripts.previewDelete',
+  'layers.list',
+  'notes.list',
+  'notes.listLexeme',
+  'corpus.query',
+  'lexicon.getEntry',
+  'lexicon.listLinkCandidates',
+  'lexicon.matchLink',
+  'lexicon.listTokenLinks',
+  'modelRuns.get',
+  'modelRuns.readAcceptance',
+  'media.previewDelete',
+  'deletion.listDue',
+  'customFields.listDefinitions',
+  'customFields.missingUnitFields',
+  'customFields.missingFields',
+  'customFields.locateValues',
+  'customFields.previewUnitValue',
+  'customFields.previewValue',
+  'customFields.previewMigration',
+  'customFields.previewPurge',
+  'references.listLinks',
+  'analysis.readState',
+  'analysis.listWords',
+  'analysis.listMorphemes',
+  'messages.list',
+]);
+
+export function callDesktopSession(
+  sessionId: string,
+  method: string,
+  args: unknown,
+  trash?: MediaTrash,
+): unknown {
   const parsed = parseMethod(method);
   if (parsed === 'reopen') {
     reopenDesktopSession(sessionId);
     return { reopened: true };
   }
   const project = requireDesktopSession(sessionId);
+  if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearUnitTextUndo(sessionId);
   const input = objectArg(args);
   switch (parsed) {
+    case 'project.get':
+      knownKeys(input, []);
+      return getProjectIdentity(project.db);
     case 'media.create':
       return createMedia(project.db, desktopSessionFolder(sessionId), mediaCreate(input));
     case 'media.delete':
@@ -269,6 +372,25 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'media.showReminder':
       knownKeys(input, ['id']);
       return showDeletionReminder(project.db, 'media', requiredString(input.id, 'id'));
+    case 'media.finishCleanup':
+      knownKeys(input, ['id', 'operationId']);
+      if (trash === undefined) throw new Error('media trash is missing');
+      return finishMediaCleanup(
+        project.db,
+        desktopSessionFolder(sessionId),
+        requiredString(input.id, 'id'),
+        requiredString(input.operationId, 'operationId'),
+        trash,
+      );
+    case 'media.reregister':
+      knownKeys(input, ['relpath', 'duration']);
+      return reregisterMedia(project.db, desktopSessionFolder(sessionId), {
+        relpath: requiredString(input.relpath, 'relpath'),
+        duration: requiredNumber(input.duration, 'duration'),
+      });
+    case 'media.restoreRegistered':
+      knownKeys(input, ['id']);
+      return restoreRegisteredMedia(project.db, requiredString(input.id, 'id'));
     case 'deletion.listDue':
       knownKeys(input, []);
       return listDueDeletionReminders(project.db);
@@ -318,12 +440,45 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
       return ensureProjectLanguage(project.db, languageEnsure(input));
     case 'catalog.getLanguage':
       return getProjectLanguage(project.db, requiredString(input.id, 'id'));
+    case 'catalog.listLanguages':
+      knownKeys(input, []);
+      return listProjectLanguages(project.db);
+    case 'catalog.updateLanguage':
+      knownKeys(input, ['id', 'locale', 'value']);
+      return updateProjectLanguage(project.db, {
+        id: requiredString(input.id, 'id'),
+        locale: requiredString(input.locale, 'locale'),
+        value: requiredString(input.value, 'value'),
+      });
     case 'orthographies.create':
       return createOrthography(project.db, orthographyCreate(input));
+    case 'orthographies.list':
+      knownKeys(input, ['languageId']);
+      return listOrthographies(project.db, requiredString(input.languageId, 'languageId'));
+    case 'orthographies.update':
+      knownKeys(input, ['id', 'scriptTag']);
+      return updateOrthography(project.db, {
+        id: requiredString(input.id, 'id'),
+        scriptTag: requiredString(input.scriptTag, 'scriptTag'),
+      });
     case 'bridges.create':
       return createBridge(project.db, bridgeCreate(input));
     case 'bridges.get':
       return getBridge(project.db, requiredString(input.id, 'id'));
+    case 'bridges.list':
+      knownKeys(input, []);
+      return listBridges(project.db);
+    case 'bridges.update': {
+      knownKeys(input, ['id', 'rules']);
+      const rules = input.rules;
+      if (typeof rules !== 'object' || rules === null || Array.isArray(rules)) {
+        throw new Error('bridge rules must be an object');
+      }
+      return updateBridge(project.db, {
+        id: requiredString(input.id, 'id'),
+        rules: rules as Record<string, unknown>,
+      });
+    }
     case 'lexicon.saveEntry':
       return saveLexemeEntry(project.db, lexemeSave(input));
     case 'lexicon.getEntry':
@@ -384,10 +539,37 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'units.list':
       return listUnits(project.db, requiredString(input.layerId, 'layerId'));
     case 'units.updateText':
-      return updateUnitText(project.db, {
+      return updateUnitText(
+        project.db,
+        {
+          unitId: requiredString(input.unitId, 'unitId'),
+          text: requiredString(input.text, 'text'),
+        },
+        undefined,
+        (undo) => {
+          rememberUnitTextUndo(sessionId, undo);
+        },
+      );
+    case 'units.undoText':
+      return undoRemembered(sessionId, project.db, 'text');
+    case 'units.undo':
+      return undoRemembered(sessionId, project.db);
+    case 'units.split': {
+      const split = splitUnit(project.db, {
         unitId: requiredString(input.unitId, 'unitId'),
-        text: requiredString(input.text, 'text'),
+        time: requiredNumber(input.time, 'time'),
       });
+      rememberUnitSplitUndo(sessionId, split.undo);
+      return { left: split.left, right: split.right };
+    }
+    case 'units.merge': {
+      const merged = mergeUnits(project.db, {
+        keepId: requiredString(input.keepId, 'keepId'),
+        removeId: requiredString(input.removeId, 'removeId'),
+      });
+      rememberUnitMergeUndo(sessionId, merged.undo);
+      return merged.unit;
+    }
     case 'units.updateBoundary':
       return updateBoundary(project.db, {
         leftId: requiredString(input.leftId, 'leftId'),
@@ -483,6 +665,21 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'speakers.redeliver':
       knownKeys(input, ['operationId']);
       return redeliverSpeaker(project.db, requiredString(input.operationId, 'operationId'));
+    case 'speakers.create':
+      knownKeys(input, ['name']);
+      return createSpeaker(project.db, { name: requiredString(input.name, 'name') });
+    case 'speakers.list':
+      knownKeys(input, []);
+      return listSpeakers(project.db);
+    case 'speakers.assign': {
+      knownKeys(input, ['speakerId', 'unitIds']);
+      const assigned = assignSpeaker(project.db, {
+        speakerId: requiredString(input.speakerId, 'speakerId'),
+        unitIds: stringIds(input.unitIds, 'unitIds'),
+      });
+      if (assigned.undo !== null) rememberUnitAssignUndo(sessionId, assigned.undo);
+      return assigned.units;
+    }
     case 'conversations.patch':
       return patchConversation(project.db, conversationPatch(input));
     case 'conversations.redeliver':
@@ -568,11 +765,48 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
         project.db,
         requiredString(input.operationId, 'operationId'),
       );
+    case 'exchange.importFile':
+      return importExchangeFile(project.db, desktopSessionFolder(sessionId), input);
+    case 'exchange.exportJyt':
+      return saveDesktopPackage(exportFile(input), exportDesktopJyt(project.db));
+    case 'exchange.exportJym':
+      return saveDesktopPackage(
+        exportFile(input),
+        exportDesktopJym(project.db, desktopSessionFolder(sessionId)),
+      );
+    case 'exchange.exportManuscript':
+      knownKeys(input, ['file', 'manuscriptId']);
+      return saveDesktopPackage(
+        requiredString(input.file, 'file'),
+        exportDesktopManuscriptJyt(project.db, [
+          requiredString(input.manuscriptId, 'manuscriptId'),
+        ]),
+      );
     default: {
       const unreachable: never = parsed;
       return unreachable;
     }
   }
+}
+
+function exportFile(input: Record<string, unknown>): string {
+  knownKeys(input, ['file']);
+  return requiredString(input.file, 'file');
+}
+
+function importExchangeFile(
+  db: Parameters<typeof importForeignFile>[0]['db'],
+  folder: string,
+  input: Record<string, unknown>,
+): ReturnType<typeof importForeignFile> {
+  knownKeys(input, ['file', 'roles']);
+  const roles = input.roles === undefined ? undefined : requiredString(input.roles, 'roles');
+  return importForeignFile({
+    folder,
+    file: requiredString(input.file, 'file'),
+    ...(db === undefined ? {} : { db }),
+    ...(roles === undefined ? {} : { roles }),
+  });
 }
 
 function attachmentPublish(input: Record<string, unknown>): AttachmentPublish {
@@ -982,6 +1216,55 @@ function requiredIndex(value: unknown, name: string): number {
     throw new Error(`desktop call ${name} must be an index`);
   }
   return value;
+}
+
+function undoRemembered(
+  sessionId: string,
+  db: Parameters<typeof undoUnitText>[0],
+  only?: 'text',
+): ReturnType<typeof undoUnitText> | ReturnType<typeof undoAssignSpeaker> {
+  const current = peekUnitStep(sessionId);
+  if (current === null || (only === 'text' && current.kind !== 'text')) {
+    throw new Error('unit text undo is empty');
+  }
+  try {
+    const unit = applyRemembered(db, current);
+    clearUnitTextUndo(sessionId);
+    return unit;
+  } catch (error) {
+    if (error instanceof Error && error.message.endsWith('undo is stale')) {
+      clearUnitTextUndo(sessionId);
+    }
+    throw error;
+  }
+}
+
+function applyRemembered(
+  db: Parameters<typeof undoUnitText>[0],
+  current: NonNullable<ReturnType<typeof peekUnitStep>>,
+): ReturnType<typeof undoUnitText> | ReturnType<typeof undoAssignSpeaker> {
+  switch (current.kind) {
+    case 'text':
+      return undoUnitText(db, current.undo);
+    case 'split':
+      return undoSplit(db, current.undo);
+    case 'merge':
+      return undoMerge(db, current.undo);
+    case 'assign':
+      return undoAssignSpeaker(db, current.undo);
+    default: {
+      const unreachable: never = current;
+      return unreachable;
+    }
+  }
+}
+
+function stringIds(value: unknown, name: string): string[] {
+  const list = listArg(value, name);
+  if (list.some((item) => typeof item !== 'string' || item.length === 0)) {
+    throw new Error(`desktop call ${name} must be a list`);
+  }
+  return list as string[];
 }
 
 function requiredNumber(value: unknown, name: string): number {

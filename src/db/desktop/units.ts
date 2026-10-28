@@ -12,6 +12,8 @@ import {
   insertReviewSnapshot,
   nodeIdsOf,
   readAnalysisMaterial,
+  type AnalysisAssociationLink,
+  type AnalysisAssociationNote,
 } from './analysisCandidates';
 import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
 
@@ -151,12 +153,32 @@ export function updateBoundary(
   return write();
 }
 
+export interface UnitTextUndo {
+  unitId: string;
+  prior: {
+    text: string;
+    graph: AnalysisGraphPayload | null;
+    manuscriptId: string;
+    links: AnalysisAssociationLink[];
+    notes: AnalysisAssociationNote[];
+    projectionTokenCount: number;
+  };
+  after: {
+    text: string;
+    graphFingerprint: string;
+    analysisGeneration: number;
+    manuscriptGeneration: number;
+  };
+}
+
 export function updateUnitText(
   db: SqliteDatabase,
   input: { unitId: string; text: string },
   afterSnapshot?: () => void,
+  remember?: (undo: UnitTextUndo) => void,
 ): Unit {
   if (input.text.length === 0) throw new Error('unit text is empty');
+  let remembered: UnitTextUndo | null = null;
   const write = db.transaction(() => {
     const existing = getUnit(db, input.unitId);
     if (!existing) throw new Error('unit is missing');
@@ -201,9 +223,29 @@ export function updateUnitText(
         throw new Error('unit text readback failed');
       }
     }
+    remembered = {
+      unitId: input.unitId,
+      prior: {
+        text: material.text,
+        graph: material.graph === null ? null : structuredClone(material.graph),
+        manuscriptId: material.manuscriptId,
+        links: structuredClone(material.links),
+        notes: structuredClone(material.notes),
+        projectionTokenCount: material.projection.tokens.length,
+      },
+      after: {
+        text: input.text,
+        graphFingerprint: material.graph === null ? material.graphFingerprint : '',
+        analysisGeneration:
+          material.graph === null ? material.analysisGeneration : material.analysisGeneration + 1,
+        manuscriptGeneration: material.manuscriptGeneration + 1,
+      },
+    };
     return unit;
   });
-  return write();
+  const unit = write();
+  if (remembered !== null && unit.text === input.text) remember?.(remembered);
+  return unit;
 }
 
 export interface AnalysisRoot {
