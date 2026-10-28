@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   closeDesktopSession,
   openDesktopSession,
+  reopenDesktopSession,
   requireDesktopSession,
   resetDesktopSessions,
 } from './projectSession';
@@ -118,5 +119,32 @@ describe('desktop project session', () => {
       }),
     ).toThrow('backup directory is inside the project');
     expect(existsSync(join(inside, 'backups'))).toBe(false);
+  });
+
+  it('does not write another daily package while the session stays open', () => {
+    const dir = folder();
+    const backupDir = folder();
+    const opened = openDesktopSession(dir, [dir], {
+      dir: backupDir,
+      now: new Date('2026-10-27T12:00:00.000Z'),
+    });
+    const day = join(backupDir, '2026-10-27.jym');
+    const packed = readFileSync(day);
+    requireDesktopSession(opened.sessionId)
+      .db.prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('media-live', 'live.wav', 'aa', 'live.wav', 1, T);
+    reopenDesktopSession(opened.sessionId);
+    expect(
+      requireDesktopSession(opened.sessionId).db.prepare('SELECT id FROM media').all(),
+    ).toEqual([{ id: 'media-live' }]);
+    expect(
+      readdirSync(backupDir)
+        .filter((name) => name.endsWith('.jym'))
+        .sort(),
+    ).toEqual(['2026-10-27.jym']);
+    expect(readFileSync(day)).toEqual(packed);
+    expect(existsSync(join(backupDir, '2026-10-28.jym'))).toBe(false);
   });
 });
