@@ -15,6 +15,7 @@ import {
 } from './projectExchange';
 import { queryCorpus, type CorpusQuery, type CorpusQueryCursor } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
+import { listAnalysisCandidates } from './analysisCandidates';
 import {
   acceptAnalysis,
   listUnitMorphemes,
@@ -277,6 +278,7 @@ const METHODS = [
   'bibliography.redeliver',
   'analysis.apply',
   'analysis.readState',
+  'analysis.listCandidates',
   'analysis.listWords',
   'analysis.segmentWords',
   'analysis.listMorphemes',
@@ -338,6 +340,7 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'customFields.previewPurge',
   'references.listLinks',
   'analysis.readState',
+  'analysis.listCandidates',
   'analysis.listWords',
   'analysis.listMorphemes',
   'messages.list',
@@ -712,6 +715,9 @@ export function callDesktopSession(
     case 'analysis.readState':
       knownKeys(input, ['unitId']);
       return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
+    case 'analysis.listCandidates':
+      knownKeys(input, ['unitId']);
+      return listAnalysisCandidates(project.db, requiredString(input.unitId, 'unitId'));
     case 'analysis.listWords':
       knownKeys(input, ['unitId']);
       return listUnitWords(project.db, requiredString(input.unitId, 'unitId'));

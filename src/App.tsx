@@ -95,6 +95,9 @@ const DesktopAnnotationPage = lazy(() =>
 const DesktopLexiconPage = lazy(() =>
   import('./pages/DesktopLexiconPage').then((m) => ({ default: m.DesktopLexiconPage })),
 );
+const DesktopAnalysisPage = lazy(() =>
+  import('./pages/DesktopAnalysisPage').then((m) => ({ default: m.DesktopAnalysisPage })),
+);
 const LanguageMetadataWorkspacePage = lazy(() =>
   import('./pages/LanguageMetadataWorkspacePage').then((m) => ({
     default: m.LanguageMetadataWorkspacePage,
@@ -940,7 +943,7 @@ export function App() {
                           path="/analysis"
                           element={
                             <DesktopRoute
-                              desktop={() => <Navigate to="/desktop-project" replace />}
+                              desktop={(host) => <DesktopAnalysisPage host={host} />}
                               legacy={<AnalysisPage />}
                             />
                           }

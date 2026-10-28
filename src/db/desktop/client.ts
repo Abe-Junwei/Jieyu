@@ -300,6 +300,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once<AnalysisImportResult>(sessionId, 'analysis.import', input),
     readAnalysisState: (sessionId: string, unitId: string) =>
       once<AnalysisReadState>(sessionId, 'analysis.readState', { unitId }),
+    listCandidates: (sessionId: string, unitId: string) =>
+      once<AnalysisCandidateRecord[]>(sessionId, 'analysis.listCandidates', { unitId }),
     listWords: (sessionId: string, unitId: string) =>
       once<{ id: string; form: string; gloss: Record<string, string>; pos: string }[]>(
         sessionId,
