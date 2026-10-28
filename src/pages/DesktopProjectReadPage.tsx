@@ -8,6 +8,7 @@ import {
 } from '../app/desktopProjectReadPageAccess';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
+import { DesktopConversationPanel } from './DesktopConversationPanel';
 import { DesktopCorpusQueryPanel } from './DesktopCorpusQueryPanel';
 import { DesktopExchangePanel } from './DesktopExchangePanel';
 import { DesktopDailyBackupPanel } from './DesktopDailyBackupPanel';
@@ -69,6 +70,9 @@ export function DesktopProjectReadPage() {
             }
           }}
         />
+      )}
+      {read.sessionId === null ? null : (
+        <DesktopConversationPanel host={host} sessionId={read.sessionId} />
       )}
       {read.model === null || host === null || read.sessionId === null ? null : (
         <DesktopSpeakerCatalogPanel

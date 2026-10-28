@@ -59,6 +59,14 @@ describe('DesktopProjectReadPage', () => {
       join(process.cwd(), 'src/pages/DesktopExchangePanel.tsx'),
       'utf8',
     );
+    const conversations = readFileSync(
+      join(process.cwd(), 'src/pages/DesktopConversationPanel.tsx'),
+      'utf8',
+    );
+    const conversationHook = readFileSync(
+      join(process.cwd(), 'src/pages/useDesktopConversations.ts'),
+      'utf8',
+    );
     expect(page.includes('dexie') || page.includes('Dexie') || page.includes('getDb')).toBe(false);
     expect(page.includes('storageCall')).toBe(false);
     expect(page.includes("from '../db")).toBe(false);
@@ -66,6 +74,11 @@ describe('DesktopProjectReadPage', () => {
     expect(view.includes('dexie') || view.includes('Dexie') || view.includes('getDb')).toBe(false);
     expect(corpus.includes("from '../db")).toBe(false);
     expect(exchange.includes("from '../db")).toBe(false);
+    expect(conversations.includes("from '../db")).toBe(false);
+    expect(conversationHook.includes("from '../db")).toBe(false);
+    expect(
+      conversationHook.includes('sessionMemory') || conversationHook.includes('embedding'),
+    ).toBe(false);
   });
 
   it('stays on the home page when the internal branch is off', () => {
@@ -119,7 +132,9 @@ describe('DesktopProjectReadPage', () => {
         if (
           method === 'speakers.list' ||
           method === 'catalog.listLanguages' ||
-          method === 'bridges.list'
+          method === 'bridges.list' ||
+          method === 'conversations.list' ||
+          method === 'messages.list'
         ) {
           return Promise.resolve([]);
         }

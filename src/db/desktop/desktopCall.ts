@@ -128,6 +128,7 @@ import {
   type ContentNoteCategory,
   type ContentNoteQuery,
 } from './notes';
+import { createConversation, listConversations } from './conversations';
 import {
   appendMessage,
   clearConversationMessages,
@@ -268,6 +269,8 @@ const METHODS = [
   'speakers.create',
   'speakers.list',
   'speakers.assign',
+  'conversations.create',
+  'conversations.list',
   'conversations.patch',
   'conversations.redeliver',
   'messages.append',
@@ -344,6 +347,7 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'analysis.listWords',
   'analysis.listMorphemes',
   'messages.list',
+  'conversations.list',
 ]);
 
 export function callDesktopSession(
@@ -683,6 +687,12 @@ export function callDesktopSession(
       if (assigned.undo !== null) rememberUnitAssignUndo(sessionId, assigned.undo);
       return assigned.units;
     }
+    case 'conversations.create':
+      knownKeys(input, ['title']);
+      return createConversation(project.db, { title: requiredString(input.title, 'title') });
+    case 'conversations.list':
+      knownKeys(input, []);
+      return listConversations(project.db);
     case 'conversations.patch':
       return patchConversation(project.db, conversationPatch(input));
     case 'conversations.redeliver':
