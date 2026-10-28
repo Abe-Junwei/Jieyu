@@ -62,6 +62,7 @@ export const zhCNDictionary = {
   'app.desktopRead.saveOrthography': '保存正字法',
   'app.desktopRead.bridgeRules': '转换规则',
   'app.desktopRead.saveBridge': '保存转换',
+  'app.desktopRead.structuralTemplatesStay': '结构模板不在这个桌面项目里',
   'app.desktopRead.importFile': '导入文件',
   'app.desktopRead.exportJyt': '导出 JYT',
   'app.desktopRead.exportJym': '导出 JYM',

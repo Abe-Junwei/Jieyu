@@ -59,6 +59,7 @@ export const DICT_KEYS = [
   'app.desktopRead.saveOrthography',
   'app.desktopRead.bridgeRules',
   'app.desktopRead.saveBridge',
+  'app.desktopRead.structuralTemplatesStay',
   'app.desktopRead.importFile',
   'app.desktopRead.exportJyt',
   'app.desktopRead.exportJym',

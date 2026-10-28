@@ -36,6 +36,11 @@ vi.mock('./pages/LexiconPage', () => ({ LexiconPage: () => <div>lexicon-page</di
 vi.mock('./pages/DesktopLexiconPage', () => ({
   DesktopLexiconPage: () => <div data-testid="desktop-lexicon-page">desktop-lexicon</div>,
 }));
+vi.mock('./pages/DesktopCatalogPage', () => ({
+  DesktopCatalogPage: ({ section }: { section: string }) => (
+    <div data-testid="desktop-catalog-page">{section}</div>
+  ),
+}));
 vi.mock('./pages/DesktopAnnotationPage', () => ({
   DesktopAnnotationPage: () => <div data-testid="desktop-annotation-page">desktop-annotation</div>,
 }));
@@ -504,6 +509,47 @@ describe('App shell', () => {
     expect(screen.queryByTestId('desktop-lexicon-page')).toBeNull();
     expect(screen.queryByTestId('catalog-project-gate')).toBeNull();
     expect(screen.queryByText('lexicon-page')).toBeNull();
+    expect(getActiveProjectTextId()).toBe('');
+  });
+
+  it.each([
+    ['/assets/language-metadata', 'language', 'language-metadata-page'],
+    ['/assets/orthographies', 'orthography', 'orthography-manager-page'],
+    ['/assets/orthography-bridges', 'bridge', 'orthography-bridge-workspace-page'],
+    ['/assets/structural-profiles', 'structure', 'structural-profile-page'],
+  ])(
+    'opens %s from the desktop session outside the old project gate',
+    async (path, section, oldPage) => {
+      rememberOpenProjectSession('session-1');
+      installDesktopHost(() => Promise.resolve([]));
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <App />
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByTestId('desktop-catalog-page')).toHaveTextContent(section);
+      expect(screen.queryByTestId('catalog-project-gate')).toBeNull();
+      expect(screen.queryByText(oldPage)).toBeNull();
+      expect(screen.queryByTestId('desktop-folder-page')).toBeNull();
+      expect(getActiveProjectTextId()).toBe('');
+    },
+  );
+
+  it('returns a desktop catalog route without a session to the folder page', async () => {
+    const desktopCall = vi.fn(() => Promise.resolve([]));
+    installDesktopHost(desktopCall);
+    render(
+      <MemoryRouter initialEntries={['/assets/language-metadata']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(desktopCall).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('desktop-catalog-page')).toBeNull();
+    expect(screen.queryByTestId('catalog-project-gate')).toBeNull();
+    expect(screen.queryByText('language-metadata-page')).toBeNull();
     expect(getActiveProjectTextId()).toBe('');
   });
 

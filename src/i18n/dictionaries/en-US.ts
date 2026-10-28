@@ -66,6 +66,8 @@ export const enUSDictionary = {
   'app.desktopRead.saveOrthography': 'Save orthography',
   'app.desktopRead.bridgeRules': 'Bridge rules',
   'app.desktopRead.saveBridge': 'Save bridge',
+  'app.desktopRead.structuralTemplatesStay':
+    'Structural templates are not stored in this desktop project',
   'app.desktopRead.importFile': 'Import file',
   'app.desktopRead.exportJyt': 'Export JYT',
   'app.desktopRead.exportJym': 'Export JYM',
