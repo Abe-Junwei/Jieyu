@@ -302,6 +302,26 @@ describe('FlexService RTL phrase round-trip', () => {
   });
 });
 
+
+  it('keeps phrase speakers on imported units (#409)', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase guid="a" speaker="Alice" begin-time-offset="0" end-time-offset="1000">
+        <item type="txt" lang="en">one</item>
+      </phrase>
+      <phrase guid="b" speaker="Bob" begin-time-offset="1000" end-time-offset="2000">
+        <item type="txt" lang="en">two</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.participants).toEqual(['Alice', 'Bob']);
+    expect(imported.units.map((unit) => unit.speakerId)).toEqual(['Alice', 'Bob']);
+  });
+
 describe('FlexService field mapping', () => {
   it('reads pos and msa, keeps one translation row per phrase writing system, and skips unmapped items', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -353,6 +373,7 @@ describe('FlexService field mapping', () => {
     expect(imported.translationTiers?.get('FLEx Literal (eng)')?.[0]?.text).toBe('story this');
     expect(imported.translationTiers?.size).toBe(2);
     expect(imported.participants).toEqual(['Lenny Saumar']);
+    expect(imported.units[0]?.speakerId).toBe('Lenny Saumar');
     expect(imported.documentTitle?.eng).toBe('Pear Story');
     expect(imported.userNotes).toEqual(
       expect.arrayContaining([
