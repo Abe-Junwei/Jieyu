@@ -363,6 +363,7 @@ export function App() {
     [location.pathname],
   );
   const isTranscriptionRoute = isTranscriptionWorkspacePathname(location.pathname);
+  const desktopBuild = electronDesktopPresent();
   const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
   const panelSearchRestoreRef = useRef<string | null>(null);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
@@ -850,7 +851,7 @@ export function App() {
                   aria-label={t(locale, 'app.leftRail.aria.footer')}
                 >
                   <div id="left-rail-project-hub-slot" className="left-rail-project-hub-anchor" />
-                  {isTranscriptionRoute ? (
+                  {isTranscriptionRoute && !desktopBuild ? (
                     <button
                       type="button"
                       className="left-rail-btn left-rail-btn-utility"
@@ -1062,7 +1063,7 @@ export function App() {
                 <BrowserDataResilience locale={locale} />
               </>
             )}
-            <CollaborationLifecycleNotices locale={locale} />
+            {desktopBuild ? null : <CollaborationLifecycleNotices locale={locale} />}
             <SettingsModal
               isOpen={isSettingsOpen}
               onClose={handleSettingsClose}

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
+import { broadcastCollaborationLifecycle } from './collaboration/cloud/collaborationLifecycleBroadcast';
 import {
   forgetOpenProjectSession,
   readOpenProjectSession,
@@ -551,6 +552,35 @@ describe('App shell', () => {
     expect(screen.queryByTestId('catalog-project-gate')).toBeNull();
     expect(screen.queryByText('language-metadata-page')).toBeNull();
     expect(getActiveProjectTextId()).toBe('');
+  });
+
+  it('keeps the collaboration log on the browser transcription route', () => {
+    publishActiveProjectTextId('text-demo');
+    render(
+      <MemoryRouter initialEntries={['/transcription']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Collaboration Cloud Workspace|协同云工作区/ }),
+    ).toBeTruthy();
+  });
+
+  it('does not open the collaboration log from a desktop session', () => {
+    publishActiveProjectTextId('text-demo');
+    installDesktopHost(() => Promise.resolve([]));
+    render(
+      <MemoryRouter initialEntries={['/transcription']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: /Collaboration Cloud Workspace|协同云工作区/ }),
+    ).toBeNull();
+    broadcastCollaborationLifecycle('project-deleted-cloud', 'text-demo');
+    expect(getActiveProjectTextId()).toBe('text-demo');
   });
 
   it('opens the desktop lexicon outside the old project gate', async () => {
