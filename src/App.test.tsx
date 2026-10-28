@@ -207,6 +207,45 @@ describe('App shell', () => {
     expect((await screen.findByTestId('home-page')).textContent).toContain('home-page');
   });
 
+  it('opens the desktop corpus page and leaves the old library unmounted', async () => {
+    rememberOpenProjectSession('session-1');
+    installDesktopHost(() => Promise.resolve([]));
+    render(
+      <MemoryRouter initialEntries={['/corpus']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Search corpus' })).toBeTruthy();
+    expect(screen.queryByText('corpus-library-page')).toBeNull();
+    expect(getActiveProjectTextId()).toBe('');
+  });
+
+  it('returns the desktop corpus route without a session to the folder page', async () => {
+    installDesktopHost(() => Promise.resolve([]));
+    render(
+      <MemoryRouter initialEntries={['/corpus']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(screen.queryByText('corpus-library-page')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Search corpus' })).toBeNull();
+  });
+
+  it('opens the desktop home on the folder page', async () => {
+    installDesktopHost(() => Promise.resolve([]));
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(screen.queryByTestId('home-page')).toBeNull();
+  });
+
   it('T48 shows the project gate instead of the lexicon when no project is active', async () => {
     render(
       <MemoryRouter initialEntries={['/lexicon']}>

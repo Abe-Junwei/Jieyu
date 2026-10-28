@@ -87,6 +87,15 @@ export function createSpeaker(db: SqliteDatabase, input: SpeakerCreate): Speaker
   return write();
 }
 
+export function listSpeakers(db: SqliteDatabase): Speaker[] {
+  const rows = db.prepare('SELECT id FROM speakers ORDER BY name, id').all() as { id: string }[];
+  return rows.map((row) => {
+    const speaker = getSpeaker(db, row.id);
+    if (!speaker) throw new Error('speaker readback failed');
+    return speaker;
+  });
+}
+
 export function getSpeaker(db: SqliteDatabase, id: string): Speaker | null {
   const row = db.prepare(`SELECT ${SPEAKER_COLUMNS} FROM speakers WHERE id = ?`).get(id) as
     SpeakerRow | undefined;

@@ -91,18 +91,22 @@ export function importForeignFile(input: {
   folder: string;
   file: string;
   roles?: string;
+  db?: Sqlite;
 }): ImportResult {
   const extension = path.extname(input.file).toLowerCase();
   if (!EXTENSIONS.has(extension)) throw new Error('import extension is unsupported');
   const bytes = readFileSync(input.file);
-  if (extension === '.jyb') return importJyb(input.folder, bytes);
+  if (extension === '.jyb') {
+    if (input.db !== undefined) throw new Error('import extension is unsupported');
+    return importJyb(input.folder, bytes);
+  }
   if (!existsSync(path.join(input.folder, 'project.sqlite'))) {
     throw new Error('project library is missing');
   }
   const roles =
     input.roles === undefined ? undefined : readRoleList(readFileSync(input.roles, 'utf8'));
   const text = bytes.toString('utf8');
-  if (extension === '.lift') return importLift(input.folder, input.file, bytes, text);
+  if (extension === '.lift') return importLift(input.folder, input.file, bytes, text, input.db);
   const parsed =
     extension === '.eaf'
       ? eafTiers(text, input.file)
@@ -112,7 +116,15 @@ export function importForeignFile(input: {
           ? textGridTiers(text, input.file)
           : toolboxTiers(text, input.file);
   assertRoleConflicts(parsed.tiers, roles);
-  return writeAnnotation(input.folder, path.dirname(input.file), input.file, bytes, parsed, roles);
+  return writeAnnotation(
+    input.folder,
+    path.dirname(input.file),
+    input.file,
+    bytes,
+    parsed,
+    roles,
+    input.db,
+  );
 }
 
 function readRoleList(text: string): Map<string, Role> {
@@ -144,6 +156,12 @@ function resolvedRole(tier: Tier, roles: Map<string, Role> | undefined): Role | 
   return tier.fileRole ?? roles?.get(tier.name);
 }
 
+function openOrReuse(folder: string, db: Sqlite | undefined): { db: Sqlite; release: () => void } {
+  if (db !== undefined) return { db, release: () => undefined };
+  const opened = openProject(folder);
+  return { db: opened.db, release: () => opened.close() };
+}
+
 function writeAnnotation(
   folder: string,
   sourceDir: string,
@@ -151,10 +169,11 @@ function writeAnnotation(
   bytes: Buffer,
   parsed: { tiers: Tier[]; audio: string[]; unprojected: ImportNotice[] },
   roles: Map<string, Role> | undefined,
+  db?: Sqlite,
 ): ImportResult {
   const unprojected = [...parsed.unprojected];
   const created: string[] = [];
-  let project: ReturnType<typeof openProject> | undefined;
+  let release = (): void => undefined;
   try {
     const source = remember(
       folder,
@@ -163,7 +182,8 @@ function writeAnnotation(
       created,
     );
     const chosen = chooseIntervals(parsed.tiers, roles, unprojected);
-    project = openProject(folder);
+    const held = openOrReuse(folder, db);
+    release = held.release;
     let written = 0;
     if (chosen.length > 0) {
       const audio = findAudio(sourceDir, parsed.audio);
@@ -174,15 +194,15 @@ function writeAnnotation(
         0,
         ...chosen.flatMap((tier) => tier.intervals.map((row) => row.end)),
       );
-      written = project.db.transaction(() => {
-        if (blocked(project!.db, 'manuscript')) {
+      written = held.db.transaction(() => {
+        if (blocked(held.db, 'manuscript')) {
           for (const tier of chosen) {
             unprojected.push({ name: tier.name, reason: 'manuscript is missing a required field' });
           }
           return 0;
         }
         const mediaId = readyMedia(
-          project!.db,
+          held.db,
           folder,
           relpath,
           audio.bytes,
@@ -196,13 +216,14 @@ function writeAnnotation(
           }
           return 0;
         }
-        return writeTiers(project!.db, mediaId, file, source, chosen, unprojected);
+        return writeTiers(held.db, mediaId, file, source, chosen, unprojected);
       })();
     }
-    project.close();
+    release();
+    release = () => undefined;
     return { paths: [folder], written, unprojected };
   } catch (error) {
-    project?.close();
+    release();
     for (const copied of created) rmSync(copied, { force: true });
     throw error;
   }
@@ -778,7 +799,13 @@ function audioName(file: string, named?: string): string[] {
   return [sameStemWav(file)];
 }
 
-function importLift(folder: string, file: string, bytes: Buffer, xml: string): ImportResult {
+function importLift(
+  folder: string,
+  file: string,
+  bytes: Buffer,
+  xml: string,
+  db?: Sqlite,
+): ImportResult {
   const parsed = parseLiftXml(xml, 'desktop');
   if (!parsed.ok) throw new Error('import field does not fit');
   const unprojected: ImportNotice[] = [
@@ -786,17 +813,18 @@ function importLift(folder: string, file: string, bytes: Buffer, xml: string): I
     ...lossNotices(parsed.losses),
   ];
   const created: string[] = [];
-  let project: ReturnType<typeof openProject> | undefined;
+  let release = (): void => undefined;
   try {
     const source = remember(folder, `sources/${digestOf(bytes)}.lift`, bytes, created);
     const images = liftImages(path.dirname(file), xml);
-    project = openProject(folder);
-    const written = project.db.transaction(() => {
-      if (blocked(project!.db, 'lexeme') || blocked(project!.db, 'lexeme-sense')) {
+    const held = openOrReuse(folder, db);
+    release = held.release;
+    const written = held.db.transaction(() => {
+      if (blocked(held.db, 'lexeme') || blocked(held.db, 'lexeme-sense')) {
         for (const lexeme of parsed.lexemes) {
           unprojected.push({
             name: headwordOf(lexeme.entry),
-            reason: blocked(project!.db, 'lexeme')
+            reason: blocked(held.db, 'lexeme')
               ? 'lexeme is missing a required field'
               : 'lexeme-sense is missing a required field',
           });
@@ -809,16 +837,16 @@ function importLift(folder: string, file: string, bytes: Buffer, xml: string): I
       for (const lexeme of parsed.lexemes) {
         const sourceEntryId = entryId(lexeme.entry);
         const rewritten = rewriteIds(lexeme.entry, idMap) as Record<string, unknown>;
-        const saved = saveLexemeEntry(project!.db, { id: String(rewritten.id), entry: rewritten });
+        const saved = saveLexemeEntry(held.db, { id: String(rewritten.id), entry: rewritten });
         const senses = sensePairs(lexeme.entry, idMap);
-        project!.db
+        held.db
           .prepare('UPDATE lexemes SET provenance_json = ? WHERE id = ?')
           .run(JSON.stringify({ ...source, sourceEntryId, senses }), saved.id);
         for (const href of images.get(sourceEntryId) ?? []) {
           const image = readFileSync(href.absolute);
           const digest = digestOf(image);
           remember(folder, `attachments/objects/${digest}`, image, created);
-          publishAttachment(project!.db, folder, {
+          publishAttachment(held.db, folder, {
             operationId: `img${digest.slice(0, 16)}${count}`,
             lexemeId: saved.id,
             bytes: image,
@@ -831,10 +859,11 @@ function importLift(folder: string, file: string, bytes: Buffer, xml: string): I
       }
       return count;
     })();
-    project.close();
+    release();
+    release = () => undefined;
     return { paths: [folder], written, unprojected };
   } catch (error) {
-    project?.close();
+    release();
     for (const copied of created) rmSync(copied, { force: true });
     throw error;
   }

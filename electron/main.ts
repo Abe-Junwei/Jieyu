@@ -278,6 +278,28 @@ function registerIpc(): void {
     return opened;
   });
 
+  handle('desktop:choose-import-file', async () => {
+    const picked = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'Annotation',
+          extensions: ['eaf', 'flextext', 'textgrid', 'toolbox', 'lift', 'jyb'],
+        },
+      ],
+    });
+    const file = picked.filePaths[0];
+    if (file === undefined) return { cancelled: true };
+    return { file };
+  });
+
+  handle('desktop:choose-export-file', async (name: unknown) => {
+    if (typeof name !== 'string' || name.length === 0) throw new Error('empty export name');
+    const picked = await dialog.showSaveDialog({ defaultPath: name });
+    if (picked.filePath === undefined) return { cancelled: true };
+    return { file: picked.filePath };
+  });
+
   handle('model:transcribe', (input: unknown) => runModelTranscribe(input));
   handle('model:cancel', (requestId: unknown) => {
     if (typeof requestId !== 'string' || requestId.length === 0) {

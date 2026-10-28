@@ -71,6 +71,9 @@ const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m
 const DesktopProjectReadPage = lazy(() =>
   import('./pages/DesktopProjectReadPage').then((m) => ({ default: m.DesktopProjectReadPage })),
 );
+const DesktopCorpusPage = lazy(() =>
+  import('./pages/DesktopCorpusPage').then((m) => ({ default: m.DesktopCorpusPage })),
+);
 const TranscriptionPage = lazy(() =>
   import('./pages/TranscriptionPage').then((m) => ({ default: m.TranscriptionPage })),
 );
@@ -947,7 +950,7 @@ export function App() {
                           path="/corpus"
                           element={
                             <DesktopRoute
-                              desktop={() => <Navigate to="/desktop-project" replace />}
+                              desktop={() => <DesktopCorpusPage />}
                               legacy={<CorpusLibraryPage />}
                             />
                           }

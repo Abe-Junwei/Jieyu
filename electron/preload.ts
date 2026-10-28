@@ -18,6 +18,8 @@ const desktop = {
   cancelModel: (requestId: string) => ipcRenderer.invoke('model:cancel', requestId),
   projectReadEnabled: desktopProjectReadEnabled(process.env.JIEYU_DESKTOP_PROJECT_READ),
   chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
+  chooseImportFile: () => ipcRenderer.invoke('desktop:choose-import-file'),
+  chooseExportFile: (name: string) => ipcRenderer.invoke('desktop:choose-export-file', name),
   listDailyBackups: (sessionId: string) => ipcRenderer.invoke('desktop:list-backups', sessionId),
   restoreDailyBackup: (sessionId: string, day: string) =>
     ipcRenderer.invoke('desktop:restore-backup', sessionId, day),
