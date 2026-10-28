@@ -14,6 +14,7 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
+import { trashFile } from './trashFile';
 import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/dailyBackup';
 import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
@@ -279,7 +280,7 @@ function registerIpc(): void {
   handle('desktop:call', (sessionId: unknown, method: unknown, args: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     if (typeof method !== 'string' || method.length === 0) throw new Error('empty desktop call');
-    return callDesktopSession(sessionId, method, args);
+    return callDesktopSession(sessionId, method, args, trashFile);
   });
 
   handle('skeleton:open-project', (folder: unknown) => {

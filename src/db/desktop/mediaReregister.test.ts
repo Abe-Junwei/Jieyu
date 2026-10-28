@@ -3,8 +3,10 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { callDesktopSession } from './desktopCall';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import { openProject } from './openProject';
+import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
 const PAST = '2020-01-01T00:00:00.000Z';
@@ -94,6 +96,34 @@ describe('media reregistration', () => {
     );
     expect(count(project.db, 'media')).toBe(1);
     project.close();
+  });
+
+  it('reregisters and restores through the desktop call', () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'fresh.wav'), Buffer.from('fresh-wav'));
+    const session = openDesktopSession(dir, [dir]);
+    try {
+      const created = callDesktopSession(session.sessionId, 'media.reregister', {
+        relpath: 'fresh.wav',
+        duration: 1,
+      });
+      expect(created).toMatchObject({ status: 'created' });
+      const id = (created as { id: string }).id;
+      const db = requireDesktopSession(session.sessionId).db;
+      db.prepare('UPDATE media SET deleted_at = ?, retain_until = ? WHERE id = ?').run(
+        PAST,
+        PAST,
+        id,
+      );
+      expect(callDesktopSession(session.sessionId, 'media.restoreRegistered', { id })).toEqual({
+        id,
+      });
+      expect(db.prepare('SELECT deleted_at FROM media WHERE id = ?').get(id)).toEqual({
+        deleted_at: null,
+      });
+    } finally {
+      resetDesktopSessions();
+    }
   });
 });
 

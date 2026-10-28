@@ -82,6 +82,8 @@ import {
   replaceTokenLexemeLink,
 } from './lexemeLink';
 import { createMedia, type MediaCreate } from './media';
+import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
+import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
   abandonPending,
   acceptTranscriptionCandidate,
@@ -148,6 +150,9 @@ const METHODS = [
   'media.delete',
   'media.previewDelete',
   'media.showReminder',
+  'media.finishCleanup',
+  'media.reregister',
+  'media.restoreRegistered',
   'deletion.listDue',
   'attachments.publish',
   'attachments.removeLink',
@@ -249,7 +254,12 @@ const METHODS = [
 
 type DesktopMethod = (typeof METHODS)[number];
 
-export function callDesktopSession(sessionId: string, method: string, args: unknown): unknown {
+export function callDesktopSession(
+  sessionId: string,
+  method: string,
+  args: unknown,
+  trash?: MediaTrash,
+): unknown {
   const parsed = parseMethod(method);
   if (parsed === 'reopen') {
     reopenDesktopSession(sessionId);
@@ -269,6 +279,25 @@ export function callDesktopSession(sessionId: string, method: string, args: unkn
     case 'media.showReminder':
       knownKeys(input, ['id']);
       return showDeletionReminder(project.db, 'media', requiredString(input.id, 'id'));
+    case 'media.finishCleanup':
+      knownKeys(input, ['id', 'operationId']);
+      if (trash === undefined) throw new Error('media trash is missing');
+      return finishMediaCleanup(
+        project.db,
+        desktopSessionFolder(sessionId),
+        requiredString(input.id, 'id'),
+        requiredString(input.operationId, 'operationId'),
+        trash,
+      );
+    case 'media.reregister':
+      knownKeys(input, ['relpath', 'duration']);
+      return reregisterMedia(project.db, desktopSessionFolder(sessionId), {
+        relpath: requiredString(input.relpath, 'relpath'),
+        duration: requiredNumber(input.duration, 'duration'),
+      });
+    case 'media.restoreRegistered':
+      knownKeys(input, ['id']);
+      return restoreRegisteredMedia(project.db, requiredString(input.id, 'id'));
     case 'deletion.listDue':
       knownKeys(input, []);
       return listDueDeletionReminders(project.db);

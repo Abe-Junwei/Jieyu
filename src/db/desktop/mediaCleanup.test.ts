@@ -3,8 +3,10 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { callDesktopSession } from './desktopCall';
 import { finishMediaCleanup } from './mediaCleanup';
 import { openProject } from './openProject';
+import { openDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
 const PAST = '2020-01-01T00:00:00.000Z';
@@ -159,6 +161,35 @@ describe('media file cleanup', () => {
     stayed.close();
     replaced.close();
     missing.close();
+  });
+
+  it('clears a recording through the desktop call and refuses a call without trash', async () => {
+    const dir = folder();
+    const project = openProject(dir);
+    writeReady(project.db, dir, 'gone.wav', 'gone-wav');
+    due(project.db);
+    project.close();
+    const session = openDesktopSession(dir, [dir]);
+    try {
+      expect(() =>
+        callDesktopSession(session.sessionId, 'media.finishCleanup', {
+          id: 'media-1',
+          operationId: 'op-call',
+        }),
+      ).toThrow('media trash is missing');
+      const cleared = await callDesktopSession(
+        session.sessionId,
+        'media.finishCleanup',
+        { id: 'media-1', operationId: 'op-call' },
+        async (file) => {
+          rmSync(file);
+          return 'moved';
+        },
+      );
+      expect(cleared).toEqual({ id: 'op-call', state: 'confirmed' });
+    } finally {
+      resetDesktopSessions();
+    }
   });
 });
 
