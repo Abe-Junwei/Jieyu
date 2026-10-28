@@ -14,8 +14,15 @@ const desktop = {
     ipcRenderer.invoke('desktop:close-session', sessionId),
   desktopCall: (sessionId: string, method: string, args: unknown) =>
     ipcRenderer.invoke('desktop:call', sessionId, method, args),
+  transcribeModel: (input: unknown) => ipcRenderer.invoke('model:transcribe', input),
+  cancelModel: (requestId: string) => ipcRenderer.invoke('model:cancel', requestId),
   projectReadEnabled: desktopProjectReadEnabled(process.env.JIEYU_DESKTOP_PROJECT_READ),
   chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
+  chooseImportFile: () => ipcRenderer.invoke('desktop:choose-import-file'),
+  chooseExportFile: (name: string) => ipcRenderer.invoke('desktop:choose-export-file', name),
+  listDailyBackups: (sessionId: string) => ipcRenderer.invoke('desktop:list-backups', sessionId),
+  restoreDailyBackup: (sessionId: string, day: string) =>
+    ipcRenderer.invoke('desktop:restore-backup', sessionId, day),
   desktopMediaUrl: (sessionId: string, mediaId: string) =>
     ipcRenderer.invoke('desktop:media-url', sessionId, mediaId),
   storeSecret: (plain: string) => ipcRenderer.invoke('skeleton:store-secret', plain),

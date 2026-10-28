@@ -32,6 +32,7 @@ export function DesktopDeletionReminderDialog(props: {
           <li key={`${item.target}:${item.id}`}>{reminderLine(locale, item)}</li>
         ))}
       </ul>
+      <p>{t(locale, 'app.desktopRead.reminderBackups')}</p>
       <button type="button" onClick={onClose}>
         {t(locale, 'app.desktopRead.reminderClose')}
       </button>

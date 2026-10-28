@@ -16,7 +16,7 @@ export interface SourceFieldRevisions {
 
 export interface SourceReading {
   id: string;
-  mediaId: string;
+  mediaId: string | null;
   label: string;
   externalId: string;
   revisions: SourceFieldRevisions;
@@ -188,7 +188,7 @@ function readSource(db: SqliteDatabase, id: string): Omit<SourceReading, 'delive
     .get(id) as
     | {
         id: string;
-        media_id: string;
+        media_id: string | null;
         label: string;
         external_id: string;
         field_revisions_json: string;
