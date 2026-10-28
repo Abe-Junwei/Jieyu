@@ -595,7 +595,8 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     const actual = await vi.importActual<typeof import('../../services/FlexService')>(
       '../../services/FlexService',
     );
-    mockExportToFlextext.mockImplementationOnce((args) => actual.exportToFlextext(args as never));
+    mockExportToFlextext.mockImplementationOnce(((args: unknown) =>
+      actual.exportToFlextext(args as never)) as () => string);
     const { result } = renderHook(() => useImportExport(input));
     await act(async () => {
       await result.current.handleExportFlextext();
