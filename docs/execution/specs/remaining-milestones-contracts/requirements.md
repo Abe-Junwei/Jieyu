@@ -24,7 +24,7 @@ depends_on:
 - 九类旧备注目标都有去向。有生产构造点的类写明入口。没有生产构造点的类保留导入和恢复能力，不因没有按钮而丢字段。
 - 词条和义项备注只进 `jieyu_json`。当前 `JieyuNote` 只有 `owner`、`ref`、`text`，装不下旧备注的多语正文、分类、来源和稳定 id。
 - 本机诊断复用 userData 里已有的 SQLite 文件和连接方式。不复用 `audit_logs` 的按 id 覆盖写入。
-- 系统垃圾箱使用 Electron `shell.trashItem`。它没有可回滚句柄。Linux 上调用失败是失败，不是已清除。本轮没有跑三个平台。
+- 系统垃圾箱使用 Electron `shell.trashItem`。它没有可回滚句柄。调用失败是失败，不是已清除。macOS 已把临时文件送进垃圾箱。Linux/Windows 未跑。
 
 ## 3. 验收（未来实现，当前不预填通过）
 
