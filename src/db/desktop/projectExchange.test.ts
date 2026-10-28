@@ -40,6 +40,11 @@ function projectBytes(dir: string): Buffer {
   return readFileSync(join(dir, 'project.sqlite'));
 }
 
+/** Byte compare without Vitest's per-byte diff. A full project.sqlite diff costs ~1s and blew the 5s default under the quality job. */
+function expectSameBytes(actual: Buffer, expected: Buffer): void {
+  expect([actual.length, actual.equals(expected)]).toEqual([expected.length, true]);
+}
+
 function wav(dir: string, name: string, body: string): { relpath: string; sha256: string } {
   const bytes = Buffer.from(body);
   writeFileSync(join(dir, name), bytes);
@@ -118,7 +123,7 @@ describe('desktop JYT exchange', () => {
 
     const destDir = folder();
     importDesktopJyt(destDir, packed);
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
     const dest = openProject(destDir);
     expect(
       listManuscripts(dest.db)
@@ -215,7 +220,7 @@ describe('desktop JYT exchange', () => {
     expect(() => importDesktopJyt(emptyDest, new Uint8Array([1, 2, 3]))).toThrow(
       'desktop package is unreadable',
     );
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
     expect(() => projectBytes(emptyDest)).toThrow();
 
     const occupied = folder();
@@ -223,8 +228,8 @@ describe('desktop JYT exchange', () => {
     existing.close();
     const occupiedBytes = projectBytes(occupied);
     expect(() => importDesktopJyt(occupied, packed)).toThrow('import destination is not empty');
-    expect(projectBytes(occupied)).toEqual(occupiedBytes);
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(occupied), occupiedBytes);
+    expectSameBytes(projectBytes(sourceDir), before);
 
     const files = unzipSync(packed);
     const data = JSON.parse(strFromU8(files['data/project.json']!)) as {
@@ -239,7 +244,7 @@ describe('desktop JYT exchange', () => {
       'desktop package version is unsupported',
     );
     expect(() => projectBytes(staleDest)).toThrow();
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
 
     const broken = unzipSync(packed);
     const body = JSON.parse(strFromU8(broken['data/project.json']!)) as {
@@ -250,8 +255,8 @@ describe('desktop JYT exchange', () => {
     const brokenDest = folder();
     expect(() => importDesktopJyt(brokenDest, zipSync(broken))).toThrow();
     expect(() => projectBytes(brokenDest)).toThrow();
-    expect(projectBytes(sourceDir)).toEqual(before);
-  }, 20000);
+    expectSameBytes(projectBytes(sourceDir), before);
+  });
 
   it('packs recording bytes in a JYM and refuses a bad hash or a path outside the folder', () => {
     const sourceDir = folder();
@@ -287,7 +292,7 @@ describe('desktop JYT exchange', () => {
     expect(getManuscript(dest.db, live.id)?.deletedAt).toBeNull();
     expect(listDeletedManuscripts(dest.db)).toEqual([removed]);
     dest.close();
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
 
     const emptyDest = folder();
     expect(() => importDesktopJyt(emptyDest, packed)).toThrow('desktop package is unreadable');
@@ -301,7 +306,7 @@ describe('desktop JYT exchange', () => {
     expect(() => projectBytes(badDest)).toThrow();
     expect(existsSync(join(badDest, 'live.wav'))).toBe(false);
     expect(existsSync(join(badDest, 'gone.wav'))).toBe(false);
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
 
     const escaped = unzipSync(packed);
     const body = JSON.parse(strFromU8(escaped['data/project.json']!)) as {
@@ -319,7 +324,7 @@ describe('desktop JYT exchange', () => {
     );
     expect(existsSync(join(root, 'escaped.wav'))).toBe(false);
     expect(() => projectBytes(nested)).toThrow();
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
 
     const missingDir = folder();
     const missing = openProject(missingDir);
@@ -371,7 +376,7 @@ describe('desktop JYT exchange', () => {
       dest.db.prepare('SELECT sha256, state FROM attachment_files WHERE id = ?').get('file-1'),
     ).toEqual({ sha256: digest, state: 'ready' });
     dest.close();
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
 
     const tampered = unzipSync(jym);
     const packedBytes = tampered[relpath]!;
@@ -382,7 +387,7 @@ describe('desktop JYT exchange', () => {
     );
     expect(() => projectBytes(badDest)).toThrow();
     expect(existsSync(join(badDest, 'attachments', 'objects', digest))).toBe(false);
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
 
     const missingDir = folder();
     const missing = openProject(missingDir);
@@ -395,7 +400,7 @@ describe('desktop JYT exchange', () => {
       .run('file-1', digest, relpath, body.length, T);
     expect(() => exportDesktopJym(missing.db, missingDir)).toThrow('attachment file is missing');
     missing.close();
-    expect(projectBytes(sourceDir)).toEqual(before);
+    expectSameBytes(projectBytes(sourceDir), before);
   });
 
   it('clears an expired reminder on import and still keeps the manuscript deleted', () => {
