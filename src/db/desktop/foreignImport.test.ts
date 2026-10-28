@@ -415,7 +415,7 @@ describe('foreign file import', () => {
          JOIN layers ON layers.manuscript_id = manuscripts.id
          JOIN units ON units.layer_id = layers.id
          JOIN unit_texts ON unit_texts.unit_id = units.id
-         ORDER BY manuscripts.created_at, units.id`,
+         ORDER BY manuscripts.title_json`,
       )
       .all() as Array<{ title: string; text: string }>;
     opened.close();
