@@ -7,7 +7,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 import { listDailyBackupDays, restoreDailyBackup, saveDailyProjectBackup } from './dailyBackup';
 import { deleteManuscript, getManuscript, listManuscripts } from './manuscripts';
-import { purgeManuscript } from './manuscriptPurge';
+import { listDueDeletionReminders, purgeManuscript, showDeletionReminder } from './manuscriptPurge';
 import { openProject } from './openProject';
 import { importDesktopJym } from './projectExchange';
 import { getUnit, listUnits } from './units';
@@ -172,7 +172,7 @@ describe('daily project backup', () => {
     expect(getManuscript(project.db, manuscript.id)?.reminderShownAt).toBe(shownAt);
 
     const restoredDir = folder();
-    importDesktopJym(restoredDir, packed);
+    restoreDailyBackup({ backupDir, day: '2026-10-27', destination: restoredDir });
     const restored = openProject(restoredDir);
     const copy = getManuscript(restored.db, manuscript.id);
     expect(copy?.deletedAt).not.toBeNull();
@@ -194,8 +194,17 @@ describe('daily project backup', () => {
         .update(readFileSync(join(restoredDir, 'gone.wav')))
         .digest('hex'),
     ).toBe(digest);
+    expect(
+      listDueDeletionReminders(restored.db)
+        .map((row) => row.id)
+        .sort(),
+    ).toEqual([manuscript.id, 'media-gone'].sort());
     expect(() => purgeManuscript(restored.db, manuscript.id)).toThrow(
       'reminder has not been shown',
+    );
+    showDeletionReminder(restored.db, 'manuscript', manuscript.id);
+    expect(() => purgeManuscript(restored.db, manuscript.id)).toThrow(
+      'manuscript is inside its retention window',
     );
     expect(getUnit(restored.db, unit.id)?.text).toBe('kept sentence');
     restored.close();
