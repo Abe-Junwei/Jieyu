@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
-import { saveDailyProjectBackup } from './dailyBackup';
+import { listDailyBackupDays, restoreDailyBackup, saveDailyProjectBackup } from './dailyBackup';
 import { deleteManuscript, getManuscript, listManuscripts } from './manuscripts';
 import { purgeManuscript } from './manuscriptPurge';
 import { openProject } from './openProject';
@@ -280,6 +280,38 @@ describe('daily project backup', () => {
       restored.db.prepare('SELECT sha256, state FROM attachment_files WHERE id = ?').get('file-1'),
     ).toEqual({ sha256: digest, state: 'ready' });
     restored.close();
+    project.close();
+  });
+
+  it('lists the three newest dated snapshots and restores one without opening it', () => {
+    expect(listDailyBackupDays(join(folder(), 'missing'))).toEqual([]);
+    const projectDir = folder();
+    const backupDir = folder();
+    const project = openProject(projectDir);
+    const body = Buffer.from('listed-wav');
+    writeFileSync(join(projectDir, 'listed.wav'), body);
+    insertMedia(project.db, 'media-listed', 'listed.wav', body);
+    writeSentence(project, 'media-listed', '列出');
+    saveDailyProjectBackup({
+      db: project.db,
+      folder: projectDir,
+      backupDir,
+      now: new Date('2026-10-27T12:00:00.000Z'),
+    });
+    writeFileSync(join(backupDir, 'upgrade.jym'), Buffer.from('keep'));
+    writeFileSync(join(backupDir, '2026-10-24.jym'), Buffer.from('old'));
+    writeFileSync(join(backupDir, '2026-10-25.jym'), Buffer.from('mid'));
+    writeFileSync(join(backupDir, '2026-10-26.jym'), Buffer.from('newer'));
+    expect(listDailyBackupDays(backupDir)).toEqual(['2026-10-27', '2026-10-26', '2026-10-25']);
+    const source = readFileSync(join(projectDir, 'project.sqlite'));
+    const destination = folder();
+    restoreDailyBackup({ backupDir, day: '2026-10-27', destination });
+    expect(readFileSync(join(destination, 'listed.wav'))).toEqual(body);
+    expect(() =>
+      restoreDailyBackup({ backupDir, day: '2026-10-27', destination: projectDir }),
+    ).toThrow('import destination is not empty');
+    expect(readFileSync(join(projectDir, 'project.sqlite'))).toEqual(source);
+    expect(readFileSync(join(backupDir, '2026-10-27.jym')).byteLength).toBeGreaterThan(0);
     project.close();
   });
 });

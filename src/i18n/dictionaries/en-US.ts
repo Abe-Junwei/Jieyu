@@ -74,6 +74,17 @@ export const enUSDictionary = {
   'app.desktopRead.reminderClose': 'Close',
   'app.desktopRead.reminderBackups':
     'Removal deletes only what is in the current project. Existing backups stay',
+  'app.desktopRead.backupTitle': 'Daily snapshots',
+  'app.desktopRead.backupEmpty': 'No snapshot yet',
+  'app.desktopRead.backupRestore': 'Restore',
+  'app.desktopRead.backupConfirmTitle': 'Restore this snapshot',
+  'app.desktopRead.backupConfirmBody':
+    'Restore writes into another empty folder. The current project stays, and this snapshot stays.',
+  'app.desktopRead.backupConfirm': 'Continue restore',
+  'app.desktopRead.backupCancel': 'Cancel',
+  'app.desktopRead.backupRestored': 'Restored to {path}',
+  'app.desktopRead.backupOccupied': 'That folder is not empty, so nothing was written',
+  'app.desktopRead.backupFailed': 'Restore did not finish',
   'app.desktopRead.queryText': 'Query text',
   'app.desktopRead.queryForm': 'Query form',
   'app.desktopRead.queryGloss': 'Query gloss',

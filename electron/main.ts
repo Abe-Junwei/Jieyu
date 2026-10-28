@@ -14,10 +14,12 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
+import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/dailyBackup';
 import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
   closeDesktopSession,
+  desktopSessionFolder,
   openDesktopSession,
   resetDesktopSessions,
 } from '../src/db/desktop/projectSession';
@@ -234,6 +236,33 @@ function registerIpc(): void {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     if (typeof mediaId !== 'string' || mediaId.length === 0) throw new Error('empty media');
     return desktopMediaPlayUrl(sessionId, mediaId);
+  });
+
+  handle('desktop:list-backups', (sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    const folder = desktopSessionFolder(sessionId);
+    return {
+      days: listDailyBackupDays(
+        ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
+      ),
+    };
+  });
+
+  handle('desktop:restore-backup', async (sessionId: unknown, day: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    if (typeof day !== 'string' || day.length === 0) throw new Error('empty backup day');
+    const folder = desktopSessionFolder(sessionId);
+    const picked = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    const destination = picked.filePaths[0];
+    if (destination === undefined) return { cancelled: true };
+    restoreDailyBackup({
+      backupDir: ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
+      day,
+      destination,
+    });
+    return { folder: destination };
   });
 
   handle('desktop:choose-folder', async () => {

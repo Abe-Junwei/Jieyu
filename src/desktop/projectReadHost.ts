@@ -1,6 +1,11 @@
 export interface DesktopReadHost {
   projectReadEnabled: boolean;
   chooseDesktopFolder(): Promise<{ sessionId: string } | { cancelled: true }>;
+  listDailyBackups?(sessionId: string): Promise<{ days: string[] }>;
+  restoreDailyBackup?(
+    sessionId: string,
+    day: string,
+  ): Promise<{ cancelled: true } | { folder: string }>;
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
   desktopMediaUrl(sessionId: string, mediaId: string): Promise<{ url: string }>;
 }

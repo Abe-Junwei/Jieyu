@@ -16,6 +16,9 @@ const desktop = {
     ipcRenderer.invoke('desktop:call', sessionId, method, args),
   projectReadEnabled: desktopProjectReadEnabled(process.env.JIEYU_DESKTOP_PROJECT_READ),
   chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
+  listDailyBackups: (sessionId: string) => ipcRenderer.invoke('desktop:list-backups', sessionId),
+  restoreDailyBackup: (sessionId: string, day: string) =>
+    ipcRenderer.invoke('desktop:restore-backup', sessionId, day),
   desktopMediaUrl: (sessionId: string, mediaId: string) =>
     ipcRenderer.invoke('desktop:media-url', sessionId, mediaId),
   storeSecret: (plain: string) => ipcRenderer.invoke('skeleton:store-secret', plain),

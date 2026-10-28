@@ -9,6 +9,7 @@ import {
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 import { DesktopCorpusQueryPanel } from './DesktopCorpusQueryPanel';
+import { DesktopDailyBackupPanel } from './DesktopDailyBackupPanel';
 import { DesktopDeletionReminderDialog } from './DesktopDeletionReminderDialog';
 import { DesktopManuscriptDeleteDialog } from './DesktopManuscriptDeleteDialog';
 import { DesktopProjectReadView } from './DesktopProjectReadView';
@@ -107,6 +108,15 @@ export function DesktopProjectReadPage() {
         >
           {t(locale, 'app.desktopRead.reminderOpen')}
         </button>
+      )}
+      {read.sessionId === null ||
+      host.listDailyBackups === undefined ||
+      host.restoreDailyBackup === undefined ? null : (
+        <DesktopDailyBackupPanel
+          sessionId={read.sessionId}
+          listDailyBackups={host.listDailyBackups}
+          restoreDailyBackup={host.restoreDailyBackup}
+        />
       )}
       {dueReminders === null || host === null || read.sessionId === null ? null : (
         <DesktopDeletionReminderDialog
