@@ -95,6 +95,9 @@ const DesktopAnnotationPage = lazy(() =>
 const DesktopLexiconPage = lazy(() =>
   import('./pages/DesktopLexiconPage').then((m) => ({ default: m.DesktopLexiconPage })),
 );
+const DesktopCatalogPage = lazy(() =>
+  import('./pages/DesktopCatalogPage').then((m) => ({ default: m.DesktopCatalogPage })),
+);
 const DesktopAnalysisPage = lazy(() =>
   import('./pages/DesktopAnalysisPage').then((m) => ({ default: m.DesktopAnalysisPage })),
 );
@@ -326,10 +329,12 @@ function AppShellSidePane({
   );
 }
 
-function LegacyCatalogRoute() {
+function DesktopCatalogRoute(props: {
+  section: 'language' | 'orthography' | 'bridge' | 'structure';
+}) {
   return (
     <DesktopRoute
-      desktop={() => <Navigate to="/desktop-project" replace />}
+      desktop={(host) => <DesktopCatalogPage host={host} section={props.section} />}
       legacy={<TranscriptionPage />}
     />
   );
@@ -920,15 +925,21 @@ export function App() {
                             />
                           }
                         />
-                        <Route path="/assets/language-metadata" element={<LegacyCatalogRoute />} />
+                        <Route
+                          path="/assets/language-metadata"
+                          element={<DesktopCatalogRoute section="language" />}
+                        />
                         <Route
                           path="/assets/structural-profiles"
-                          element={<LegacyCatalogRoute />}
+                          element={<DesktopCatalogRoute section="structure" />}
                         />
-                        <Route path="/assets/orthographies" element={<LegacyCatalogRoute />} />
+                        <Route
+                          path="/assets/orthographies"
+                          element={<DesktopCatalogRoute section="orthography" />}
+                        />
                         <Route
                           path="/assets/orthography-bridges"
-                          element={<LegacyCatalogRoute />}
+                          element={<DesktopCatalogRoute section="bridge" />}
                         />
                         <Route
                           path="/annotation"
