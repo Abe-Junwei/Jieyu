@@ -14,6 +14,7 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
+import { cancelModelTranscribe, runModelTranscribe } from '../src/desktop/modelHost';
 import { trashFile } from './trashFile';
 import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/dailyBackup';
 import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
@@ -275,6 +276,15 @@ function registerIpc(): void {
     const opened = openUserProjectSession(resolved);
     bindDesktopMediaSession(opened.sessionId);
     return opened;
+  });
+
+  handle('model:transcribe', (input: unknown) => runModelTranscribe(input));
+  handle('model:cancel', (requestId: unknown) => {
+    if (typeof requestId !== 'string' || requestId.length === 0) {
+      throw new Error('empty model request');
+    }
+    cancelModelTranscribe(requestId);
+    return { cancelled: true };
   });
 
   handle('desktop:call', (sessionId: unknown, method: unknown, args: unknown) => {

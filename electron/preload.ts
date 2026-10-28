@@ -14,6 +14,8 @@ const desktop = {
     ipcRenderer.invoke('desktop:close-session', sessionId),
   desktopCall: (sessionId: string, method: string, args: unknown) =>
     ipcRenderer.invoke('desktop:call', sessionId, method, args),
+  transcribeModel: (input: unknown) => ipcRenderer.invoke('model:transcribe', input),
+  cancelModel: (requestId: string) => ipcRenderer.invoke('model:cancel', requestId),
   projectReadEnabled: desktopProjectReadEnabled(process.env.JIEYU_DESKTOP_PROJECT_READ),
   chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
   listDailyBackups: (sessionId: string) => ipcRenderer.invoke('desktop:list-backups', sessionId),
