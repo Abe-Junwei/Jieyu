@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -91,7 +92,7 @@ describe('desktop project session', () => {
     expect(existsSync(join(plain, '2026-10-27.jym'))).toBe(false);
   });
 
-  it('drops the session when the daily package cannot be written', () => {
+  it('still opens when the daily package cannot be written (#405)', () => {
     const dir = folder();
     const backupDir = folder();
     const opened = openDesktopSession(dir, [dir]);
@@ -101,23 +102,23 @@ describe('desktop project session', () => {
       )
       .run('media-live', 'missing.wav', 'aa', 'missing.wav', 1, T);
     const before = readFileSync(join(dir, 'project.sqlite'));
-    expect(() =>
-      openDesktopSession(dir, [dir], {
-        dir: backupDir,
-        now: new Date('2026-10-27T12:00:00.000Z'),
-      }),
-    ).toThrow('media file is missing');
+    const again = openDesktopSession(dir, [dir], {
+      dir: backupDir,
+      now: new Date('2026-10-27T12:00:00.000Z'),
+    });
+    expect(again.backupSkipped).toMatch(/media file is missing/);
     expect(() => requireDesktopSession(opened.sessionId)).toThrow('project session expired');
+    expect(requireDesktopSession(again.sessionId).db).toBeDefined();
     expect(existsSync(join(backupDir, '2026-10-27.jym'))).toBe(false);
     expect(readFileSync(join(dir, 'project.sqlite'))).toEqual(before);
 
     const inside = folder();
-    expect(() =>
-      openDesktopSession(inside, [inside], {
-        dir: join(inside, 'backups'),
-        now: new Date('2026-10-27T12:00:00.000Z'),
-      }),
-    ).toThrow('backup directory is inside the project');
+    const insideOpen = openDesktopSession(inside, [inside], {
+      dir: join(inside, 'backups'),
+      now: new Date('2026-10-27T12:00:00.000Z'),
+    });
+    expect(insideOpen.backupSkipped).toMatch(/backup directory is inside the project/);
+    expect(requireDesktopSession(insideOpen.sessionId).db).toBeDefined();
     expect(existsSync(join(inside, 'backups'))).toBe(false);
   });
 
@@ -146,5 +147,32 @@ describe('desktop project session', () => {
     ).toEqual(['2026-10-27.jym']);
     expect(readFileSync(day)).toEqual(packed);
     expect(existsSync(join(backupDir, '2026-10-28.jym'))).toBe(false);
+  });
+
+  it('opens a project whose daily JYM would exceed the package limit (#405)', () => {
+    const dir = folder();
+    const backupDir = folder();
+    const opened = openDesktopSession(dir, [dir]);
+    const big = Buffer.alloc(33 * 1024 * 1024, 1);
+    writeFileSync(join(dir, 'big.wav'), big);
+    const digest = createHash('sha256').update(big).digest('hex');
+    requireDesktopSession(opened.sessionId)
+      .db.prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('media-big', 'big.wav', digest, 'big.wav', 1, T);
+
+    const again = openDesktopSession(dir, [dir], {
+      dir: backupDir,
+      now: new Date('2026-10-28T12:00:00.000Z'),
+    });
+    expect(again.backupSkipped).toMatch(/too large/);
+    expect(requireDesktopSession(again.sessionId).db).toBeDefined();
+    expect(existsSync(join(backupDir, '2026-10-28.jym'))).toBe(false);
+    expect(
+      requireDesktopSession(again.sessionId)
+        .db.prepare('SELECT id FROM media WHERE id = ?')
+        .get('media-big'),
+    ).toEqual({ id: 'media-big' });
   });
 });

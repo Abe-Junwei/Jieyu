@@ -22,11 +22,17 @@ type SessionStep =
 let current: Session | undefined;
 let step: { sessionId: string; step: SessionStep } | undefined;
 
+export type OpenDesktopSessionResult = {
+  sessionId: string;
+  /** Set when the open-time daily backup was skipped so a valid project can still open (#405). */
+  backupSkipped?: string;
+};
+
 export function openDesktopSession(
   folder: string,
   allowed: readonly string[],
   backup?: { dir: string; now?: Date },
-): { sessionId: string } {
+): OpenDesktopSessionResult {
   if (!isAllowedProjectFolder(folder, allowed)) throw new Error('project folder refused');
   const previous = current;
   current = undefined;
@@ -35,22 +41,28 @@ export function openDesktopSession(
   const project = openProject(folder);
   try {
     ensureProjectIdentity(project.db, folder);
-    // now stays off IPC. A session that stays open does not write another day.
-    if (backup) {
+  } catch (error) {
+    project.close();
+    throw error;
+  }
+  let backupSkipped: string | undefined;
+  if (backup) {
+    try {
+      // now stays off IPC. A session that stays open does not write another day.
       saveDailyProjectBackup({
         db: project.db,
         folder,
         backupDir: backup.dir,
         ...(backup.now === undefined ? {} : { now: backup.now }),
       });
+    } catch (error) {
+      // Daily backup must not block opening a valid project (oversized / missing media / bad dir).
+      backupSkipped = error instanceof Error ? error.message : 'daily backup failed';
     }
-  } catch (error) {
-    project.close();
-    throw error;
   }
   const id = randomUUID();
   current = { id, folder, project };
-  return { sessionId: id };
+  return backupSkipped === undefined ? { sessionId: id } : { sessionId: id, backupSkipped };
 }
 
 export function closeDesktopSession(sessionId: string): void {
