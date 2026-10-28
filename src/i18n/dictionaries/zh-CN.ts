@@ -499,6 +499,13 @@ export const zhCNDictionary = {
   'workspace.analysis.unitCount': '{count} 条句段',
   'workspace.analysis.loading': '正在载入分析范围',
   'workspace.analysis.errorPrefix': '无法载入分析范围。',
+  'workspace.analysis.emptyUnits': '这份文稿还没有语段。',
+  'workspace.analysis.currentLabels': '当前分析：{labels}',
+  'workspace.analysis.noGraph': '还没有当前分析',
+  'workspace.analysis.emptyCandidates': '没有可接受的建议，也没有可恢复的快照。',
+  'workspace.analysis.accept': '接受建议',
+  'workspace.analysis.restore': '恢复快照',
+  'workspace.analysis.writeFailed': '这次分析没有写上',
   'workspace.corpus.unavailable.title': '语料库未开放',
   'workspace.corpus.unavailable.summary':
     '项目内语料检索、多选与可追溯导出仍在建设中；术语备忘与智能体辅助将随里程碑逐步开放。',

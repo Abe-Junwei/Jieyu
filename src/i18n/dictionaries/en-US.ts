@@ -520,6 +520,13 @@ export const enUSDictionary = {
   'workspace.analysis.unitCount': '{count} units',
   'workspace.analysis.loading': 'Loading analysis scope',
   'workspace.analysis.errorPrefix': 'Could not load analysis scope.',
+  'workspace.analysis.emptyUnits': 'This manuscript has no units yet.',
+  'workspace.analysis.currentLabels': 'Current analysis: {labels}',
+  'workspace.analysis.noGraph': 'No current analysis',
+  'workspace.analysis.emptyCandidates': 'No suggestion to accept and no snapshot to restore.',
+  'workspace.analysis.accept': 'Accept suggestion',
+  'workspace.analysis.restore': 'Restore snapshot',
+  'workspace.analysis.writeFailed': 'This analysis was not written',
   'workspace.corpus.unavailable.title': 'Corpus library is not open yet',
   'workspace.corpus.unavailable.summary':
     'Search, multi-select, and traceable export for in-project corpus are still in progress; glossary notes and agent assists will roll out with milestones.',
