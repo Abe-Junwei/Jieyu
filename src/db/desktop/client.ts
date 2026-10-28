@@ -34,6 +34,8 @@ import type {
   CustomFieldUnitValue,
 } from './customFields';
 import type { CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
+import type { Conversation } from './conversations';
+import type { Message } from './messages';
 import type { Speaker } from './speakers';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 import type { ContentNote, ContentNoteQuery, ContentNoteWrite } from './notes';
@@ -363,6 +365,24 @@ export function createDesktopClient(bridge: DesktopBridge) {
         expected: AnalysisCredentials;
       },
     ) => once<AnalysisRoot>(sessionId, 'analysis.merge', input),
+    createConversation: (sessionId: string, title: string) =>
+      once<Conversation>(sessionId, 'conversations.create', { title }),
+    listConversations: (sessionId: string) =>
+      once<Conversation[]>(sessionId, 'conversations.list', {}),
+    appendMessage: (
+      sessionId: string,
+      input: { conversationId: string; role: Message['role']; body: string },
+    ) => once<Message>(sessionId, 'messages.append', input),
+    listMessages: (sessionId: string, conversationId: string) =>
+      once<Message[]>(sessionId, 'messages.list', { conversationId }),
+    patchConversation: (
+      sessionId: string,
+      input: {
+        operationId: string;
+        id: string;
+        title: { expectedRevision: number; value: string };
+      },
+    ) => once<Conversation>(sessionId, 'conversations.patch', input),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
     patchSource: (sessionId: string, input: SourcePatch) =>
       once<SourceReading>(sessionId, 'sources.patch', input),
