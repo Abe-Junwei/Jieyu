@@ -581,6 +581,36 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     expect(mockDownloadFlextext).toHaveBeenCalledWith('<?xml version="1.0"?>', 'demo');
   });
 
+
+  it('FLEx: production export passes transcription languageTag derived from the layer (#410)', async () => {
+    const input = makeInputWithSegmentLayers();
+    input.layers = input.layers.map((layer) =>
+      layer.layerType === 'transcription' && layer.isDefault
+        ? { ...layer, languageId: 'bod' }
+        : layer.layerType === 'translation'
+          ? { ...layer, languageId: 'zho' }
+          : layer,
+    );
+    // Use real FlexService for round-trip language metadata.
+    const actual = await vi.importActual<typeof import('../../services/FlexService')>(
+      '../../services/FlexService',
+    );
+    mockExportToFlextext.mockImplementationOnce((args) => actual.exportToFlextext(args as never));
+    const { result } = renderHook(() => useImportExport(input));
+    await act(async () => {
+      await result.current.handleExportFlextext();
+    });
+    expect(mockExportToFlextext).toHaveBeenCalledWith(
+      expect.objectContaining({ languageTag: 'bod' }),
+    );
+    const xml = String(mockDownloadFlextext.mock.calls[0]?.[0] ?? '');
+    expect(xml).toContain('type="txt" lang="bod"');
+    expect(xml).toMatch(/type="gls" lang="zho"/);
+    const imported = actual.importFromFlextext(xml);
+    expect(imported.sourceLanguage).toBe('bod');
+    expect(imported.glossLanguage).toBe('zho');
+  });
+
   it('Toolbox: 导出包含 independent_boundary 翻译层的 segment 数据 | includes independent_boundary translation layer segments', async () => {
     const { result } = renderHook(() => useImportExport(makeInputWithSegmentLayers()));
 

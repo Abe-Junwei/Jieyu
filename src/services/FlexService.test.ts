@@ -203,6 +203,74 @@ describe('FlexService RTL phrase round-trip', () => {
     expect(imported.units[0]?.annotationId).toBe('p1');
   });
 
+
+  it('derives txt and gls language tags from layers when languageTag is omitted (#410)', () => {
+    const sourceLayer = makeDefaultLayer();
+    sourceLayer.languageId = 'bod';
+    const glossLayer: LayerDocType = {
+      id: 'layer_gls_zh',
+      textId: 'text_1',
+      key: 'gls_zh',
+      name: { zho: '译文' },
+      layerType: 'translation',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      sortOrder: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_lang',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: sourceLayer.id,
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'བཀྲ་ཤིས་' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const translations: LayerUnitContentDocType[] = [
+      {
+        id: 'utr_src',
+        unitId: 'utt_lang',
+        layerId: sourceLayer.id,
+        modality: 'text',
+        text: 'བཀྲ་ཤིས་',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_gls',
+        unitId: 'utt_lang',
+        layerId: glossLayer.id,
+        modality: 'text',
+        text: '吉祥',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const flex = exportToFlextext({
+      units,
+      layers: [sourceLayer, glossLayer],
+      translations,
+    });
+    expect(flex).toContain('type="txt" lang="bod"');
+    expect(flex).toContain('type="gls" lang="zho"');
+    expect(flex).not.toContain('type="txt" lang="und"');
+    expect(flex).not.toContain('type="gls" lang="en"');
+    const imported = importFromFlextext(flex);
+    expect(imported.sourceLanguage).toBe('bod');
+    expect(imported.glossLanguage).toBe('zho');
+    expect(imported.phraseGlosses.get('p1')).toBe('吉祥');
+  });
+
   it('aligns phrase glosses by phrase guid, not array index', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <document version="2">

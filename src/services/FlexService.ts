@@ -242,7 +242,7 @@ export function exportToFlextext(input: FlexExportInput): string {
     orthographies,
     tokens = [],
     morphemes = [],
-    languageTag = 'und',
+    languageTag: languageTagOption,
     timelineMetadata,
     segmentsByLayer,
     segmentContents,
@@ -252,6 +252,12 @@ export function exportToFlextext(input: FlexExportInput): string {
     layers.find((l) => l.layerType === 'transcription' && l.isDefault) ??
     layers.find((l) => l.layerType === 'transcription');
   const firstTranslationLayer = layers.find((l) => l.layerType === 'translation');
+  // Prefer an explicit tag; otherwise derive from the transcription / translation layers (#410).
+  const languageTag =
+    languageTagOption?.trim() ||
+    defaultTranscriptionLayer?.languageId?.trim() ||
+    'und';
+  const glossLanguageTag = firstTranslationLayer?.languageId?.trim() || 'und';
   const wrapLayerText = (text: string, layer?: LayerDocType) => {
     if (!layer?.languageId) return text;
     const renderPolicy = resolveOrthographyRenderPolicy(
@@ -342,7 +348,7 @@ export function exportToFlextext(input: FlexExportInput): string {
               .join('\n')}\n              </words>`
           : '';
 
-      return `            <phrase guid="${phraseId}" begin-time-offset="${flexOffsetMs(u.startTime)}" end-time-offset="${flexOffsetMs(u.endTime)}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wrappedGls ? `\n              <item type="gls" lang="en">${escapeXml(wrappedGls)}</item>` : ''}${wordsXml}\n            </phrase>`;
+      return `            <phrase guid="${phraseId}" begin-time-offset="${flexOffsetMs(u.startTime)}" end-time-offset="${flexOffsetMs(u.endTime)}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wrappedGls ? `\n              <item type="gls" lang="${escapeXml(glossLanguageTag)}">${escapeXml(wrappedGls)}</item>` : ''}${wordsXml}\n            </phrase>`;
     })
     .join('\n');
 
