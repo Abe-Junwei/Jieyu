@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from '../db/desktop/desktopCall';
 import {
@@ -13,8 +13,13 @@ import {
   resetDesktopSessions,
 } from '../db/desktop/projectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { forgetOpenProjectSession, readOpenProjectSession } from '../desktop/openProjectSession';
+import {
+  forgetOpenProjectSession,
+  readOpenProjectSession,
+  rememberOpenProjectSession,
+} from '../desktop/openProjectSession';
 import { LocaleProvider } from '../i18n';
+import { DesktopCorpusPage } from './DesktopCorpusPage';
 import { DesktopProjectReadPage } from './DesktopProjectReadPage';
 
 const roots: string[] = [];
@@ -49,11 +54,31 @@ describe('DesktopProjectReadPage', () => {
       join(process.cwd(), 'src/pages/useDesktopProjectReadController.ts'),
       'utf8',
     );
+    const corpus = readFileSync(join(process.cwd(), 'src/pages/DesktopCorpusPage.tsx'), 'utf8');
+    const exchange = readFileSync(
+      join(process.cwd(), 'src/pages/DesktopExchangePanel.tsx'),
+      'utf8',
+    );
+    const conversations = readFileSync(
+      join(process.cwd(), 'src/pages/DesktopConversationPanel.tsx'),
+      'utf8',
+    );
+    const conversationHook = readFileSync(
+      join(process.cwd(), 'src/pages/useDesktopConversations.ts'),
+      'utf8',
+    );
     expect(page.includes('dexie') || page.includes('Dexie') || page.includes('getDb')).toBe(false);
     expect(page.includes('storageCall')).toBe(false);
     expect(page.includes("from '../db")).toBe(false);
     expect(controller.includes("from '../db")).toBe(false);
     expect(view.includes('dexie') || view.includes('Dexie') || view.includes('getDb')).toBe(false);
+    expect(corpus.includes("from '../db")).toBe(false);
+    expect(exchange.includes("from '../db")).toBe(false);
+    expect(conversations.includes("from '../db")).toBe(false);
+    expect(conversationHook.includes("from '../db")).toBe(false);
+    expect(
+      conversationHook.includes('sessionMemory') || conversationHook.includes('embedding'),
+    ).toBe(false);
   });
 
   it('stays on the home page when the internal branch is off', () => {
@@ -71,6 +96,14 @@ describe('DesktopProjectReadPage', () => {
       },
       desktopCall: (_sessionId, method) => {
         calls.push(method);
+        if (method === 'project.get') {
+          return Promise.resolve({
+            id: 'p1',
+            title: { und: 'folder' },
+            createdAt: '',
+            updatedAt: '',
+          });
+        }
         if (method === 'manuscripts.list') {
           return Promise.resolve([
             { id: 'ms-1', title: { zh: '文稿' }, mediaId: 'media-1', createdAt: '', updatedAt: '' },
@@ -96,6 +129,15 @@ describe('DesktopProjectReadPage', () => {
         }
         if (method === 'units.updateText') return Promise.resolve({});
         if (method === 'notes.list') return Promise.resolve([]);
+        if (
+          method === 'speakers.list' ||
+          method === 'catalog.listLanguages' ||
+          method === 'bridges.list' ||
+          method === 'conversations.list' ||
+          method === 'messages.list'
+        ) {
+          return Promise.resolve([]);
+        }
         if (method === 'units.list') {
           return Promise.resolve([
             {
@@ -131,6 +173,198 @@ describe('DesktopProjectReadPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
     expect(calls.filter((call) => call === 'choose')).toEqual(['choose']);
     expect(calls.filter((call) => call === 'units.updateText')).toEqual(['units.updateText']);
+  });
+
+  it('undoes one text edit from the page and reads it back after reopen', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 3,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 1,
+      text: '原句',
+    }) as { id: string };
+    mount(session.sessionId);
+    fireEvent.click(await screen.findByRole('button', { name: /原句/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), { target: { value: '改过' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
+    expect(await screen.findByRole('button', { name: /改过/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(await screen.findByRole('button', { name: /原句/ })).toBeTruthy();
+    expect(textValue('Text')).toBe('原句');
+    reopenDesktopSession(session.sessionId);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: '原句',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(textValue('Text')).toBe('原句');
+  });
+
+  it('splits a unit from the page, undoes it, and reads the span back', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const unit = seedReadUnit(session.sessionId, 0, 1, '原句');
+    mount(session.sessionId);
+    fireEvent.click(await screen.findByRole('button', { name: /原句/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Split' }));
+    expect(await screen.findByRole('button', { name: '0.0–0.5 原句' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '0.5–1.0 原句' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(await screen.findByRole('button', { name: '0.0–1.0 原句' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '0.5–1.0 原句' })).toBeNull();
+    reopenDesktopSession(session.sessionId);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      startTime: 0,
+      endTime: 1,
+      text: '原句',
+    });
+  });
+
+  it('merges the next unit from the page, undoes it, and reads both back', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const left = seedReadUnit(session.sessionId, 0, 1, '甲');
+    const right = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: left.layerId,
+      startTime: 1,
+      endTime: 2,
+      text: '乙',
+    }) as { id: string };
+    mount(session.sessionId);
+    fireEvent.click(await screen.findByRole('button', { name: /甲/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Merge next' }));
+    expect(await screen.findByRole('button', { name: '0.0–2.0 甲' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /乙/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(await screen.findByRole('button', { name: /乙/ })).toBeTruthy();
+    reopenDesktopSession(session.sessionId);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: left.id })).toMatchObject({
+      endTime: 1,
+      text: '甲',
+    });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: right.id })).toMatchObject({
+      startTime: 1,
+      text: '乙',
+    });
+  });
+
+  it('reads the project name after the folder is opened again', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    mount(session.sessionId);
+    expect(await screen.findByText(basename(dir))).toBeTruthy();
+    reopenDesktopSession(session.sessionId);
+    cleanup();
+    mount(session.sessionId);
+    expect(await screen.findByText(basename(dir))).toBeTruthy();
+  });
+
+  it('assigns a speaker, edits the catalog, and reads both back after reopen', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const left = seedReadUnit(session.sessionId, 0, 1, '原句');
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: left.layerId,
+      startTime: 1,
+      endTime: 2,
+      text: '后句',
+    });
+    const language = callDesktopSession(session.sessionId, 'catalog.ensureProjectDefinition', {
+      name: { zh: '示例', en: 'Example' },
+      sourceType: 'user-custom',
+      iso6393: 'eng',
+    }) as { id: string };
+    const source = callDesktopSession(session.sessionId, 'orthographies.create', {
+      languageId: language.id,
+      name: { en: 'Latin' },
+      scriptTag: 'Latn',
+      sourceType: 'user-custom',
+    }) as { id: string };
+    const target = callDesktopSession(session.sessionId, 'orthographies.create', {
+      languageId: language.id,
+      name: { en: 'Cyrillic' },
+      scriptTag: 'Cyrl',
+      sourceType: 'user-custom',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'bridges.create', {
+      sourceOrthographyId: source.id,
+      targetOrthographyId: target.id,
+      engine: 'table-map',
+      rules: { mappings: [{ from: 'a', to: 'b' }] },
+    });
+    mount(session.sessionId);
+    expect(await screen.findByRole('textbox', { name: 'Language name' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Speaker name' }), {
+      target: { value: 'Ada' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create speaker' }));
+    expect(await screen.findByRole('button', { name: 'Ada' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Speaker note' }), {
+      target: { value: '田野' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save speaker note' }));
+    expect(await screen.findByDisplayValue('田野')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Language name' }), {
+      target: { value: '木雅' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save language' }));
+    expect(await screen.findByRole('button', { name: '木雅' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Script' }), {
+      target: { value: 'Syrc' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save orthography' }));
+    expect(await screen.findByRole('button', { name: 'Syrc' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Bridge rules' }), {
+      target: { value: '{"mappings":[{"from":"a","to":"c"}]}' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save bridge' }));
+    expect(await screen.findByDisplayValue('{"mappings":[{"from":"a","to":"c"}]}')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Assign speaker' }));
+    expect(await screen.findByText('原句 · Ada')).toBeTruthy();
+    expect(screen.getByText('后句 · Ada')).toBeTruthy();
+
+    cleanup();
+    mount(session.sessionId);
+    expect(await screen.findByText('原句 · Ada')).toBeTruthy();
+    expect(screen.getByDisplayValue('田野')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '木雅' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Syrc' })).toBeTruthy();
+    expect(screen.getByDisplayValue('{"mappings":[{"from":"a","to":"c"}]}')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '0.0–1.0 原句' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => {
+      expect(screen.queryByText('原句 · Ada')).toBeNull();
+    });
+    reopenDesktopSession(session.sessionId);
+    cleanup();
+    mount(session.sessionId);
+    expect(await screen.findByDisplayValue('田野')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '木雅' })).toBeTruthy();
+    expect(screen.queryByText('原句 · Ada')).toBeNull();
+    expect(screen.getByText('原句')).toBeTruthy();
   });
 
   it('saves the current manuscript offset after a switch', async () => {
@@ -417,6 +651,85 @@ describe('DesktopProjectReadPage', () => {
     expect(screen.queryByRole('button', { name: 'Result 2.0–3.0 other' })).toBeNull();
   });
 
+  it('carries the manuscript, layer, and unit from the corpus page', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const first = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '甲' },
+      mediaId: media.id,
+    }) as { id: string };
+    const second = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '乙' },
+      mediaId: media.id,
+    }) as { id: string };
+    const firstLayer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: first.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const secondLayer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: second.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: firstLayer.id,
+      startTime: 0,
+      endTime: 1,
+      text: 'stay',
+    });
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: secondLayer.id,
+      startTime: 4,
+      endTime: 5,
+      text: 'jump',
+    }) as { id: string };
+    rememberOpenProjectSession(session.sessionId);
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.resolve({ cancelled: true }),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    render(
+      <LocaleProvider locale="en-US">
+        <MemoryRouter initialEntries={['/corpus']}>
+          <LocationProbe />
+          <Routes>
+            <Route path="/corpus" element={<DesktopCorpusPage />} />
+            <Route path="/desktop-project" element={<DesktopProjectReadPage />} />
+          </Routes>
+        </MemoryRouter>
+      </LocaleProvider>,
+    );
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Query text' }), {
+      target: { value: 'jump' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Search corpus' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Result 4.0–5.0 jump' }));
+    const location = screen.getByTestId('location').textContent ?? '';
+    expect(location).toContain('/desktop-project?');
+    expect(location).toContain(`manuscriptId=${second.id}`);
+    expect(location).toContain(`layerId=${secondLayer.id}`);
+    expect(location).toContain(`unitId=${unit.id}`);
+    expect(await screen.findByRole('button', { name: '乙', current: true })).toBeTruthy();
+    await waitFor(() => {
+      expect(textValue('Text')).toBe('jump');
+    });
+    expect(screen.queryByRole('button', { name: '0.0–1.0 stay' })).toBeNull();
+  });
+
   it('opens the layer that contains the hit', async () => {
     const dir = tempFolder();
     writeFileSync(join(dir, 'a.wav'), '');
@@ -607,6 +920,38 @@ describe('DesktopProjectReadPage', () => {
       expect(reminderAt(session.sessionId, 'media', recording.id)).toBe(recordingShown);
     });
   });
+
+  it('imports a field file into the open project and reads it after reopen', async () => {
+    const dir = tempFolder();
+    const session = openDesktopSession(dir, [dir]);
+    const source = join(dir, 'source');
+    mkdirSync(source);
+    writeFileSync(join(source, 'test.wav'), Buffer.from('synthetic-chain'));
+    const file = join(source, 'kept.eaf');
+    writeFileSync(file, keptEaf());
+    const exported = join(dir, 'out.jyt');
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.resolve({ sessionId: session.sessionId }),
+      chooseImportFile: () => Promise.resolve({ file }),
+      chooseExportFile: () => Promise.resolve({ file: exported }),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Import file' }));
+    expect(await screen.findByRole('button', { name: /kept sentence/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Export JYT' }));
+    await waitFor(() => {
+      expect(existsSync(exported)).toBe(true);
+    });
+    reopenDesktopSession(session.sessionId);
+    cleanup();
+    mount(session.sessionId);
+    expect(await screen.findByRole('button', { name: /kept sentence/ })).toBeTruthy();
+  });
 });
 
 function reminderAt(sessionId: string, table: 'manuscripts' | 'media', id: string): string | null {
@@ -628,6 +973,36 @@ function tempFolder(): string {
   return root;
 }
 
+function seedReadUnit(
+  sessionId: string,
+  startTime: number,
+  endTime: number,
+  text: string,
+): { id: string; layerId: string } {
+  const media = callDesktopSession(sessionId, 'media.create', {
+    relpath: 'a.wav',
+    sha256: 'aa',
+    duration: 3,
+  }) as { id: string };
+  const manuscript = callDesktopSession(sessionId, 'manuscripts.create', {
+    title: { zh: '文稿' },
+    mediaId: media.id,
+  }) as { id: string };
+  const layer = callDesktopSession(sessionId, 'layers.create', {
+    manuscriptId: manuscript.id,
+    key: 'tx',
+    name: { zh: '转写' },
+    tierType: 'time-aligned',
+    contentType: 'transcription',
+  }) as { id: string };
+  return callDesktopSession(sessionId, 'units.create', {
+    layerId: layer.id,
+    startTime,
+    endTime,
+    text,
+  }) as { id: string; layerId: string };
+}
+
 function mount(sessionId: string): void {
   const host: DesktopReadHost = {
     projectReadEnabled: true,
@@ -640,6 +1015,33 @@ function mount(sessionId: string): void {
   fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
 }
 
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
+}
+
 function textValue(name: string): string {
   return (screen.getByRole('textbox', { name }) as HTMLInputElement).value;
+}
+
+function keptEaf(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT>
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <MEDIA_DESCRIPTOR MEDIA_URL="test.wav" MIME_TYPE="audio/x-wav" />
+    <PROPERTY NAME="jieyu:layer-meta:transcription">{"role":"transcription"}</PROPERTY>
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="transcription" LINGUISTIC_TYPE_REF="default-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>kept sentence</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" />
+</ANNOTATION_DOCUMENT>`;
 }

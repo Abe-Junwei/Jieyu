@@ -104,6 +104,7 @@ describe('desktop project schema', () => {
       { name: 'local_id_map' },
       { name: 'manuscripts' },
       { name: 'media' },
+      { name: 'media_cleanups' },
       { name: 'messages' },
       { name: 'model_runs' },
       { name: 'morphemes' },

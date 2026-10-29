@@ -9,6 +9,8 @@ import type {
 import type { Layer, LayerCreate } from './layers';
 import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
 import type { Media, MediaCreate } from './media';
+import type { ImportResult } from './foreignImport';
+import type { ProjectIdentity } from './projectIdentity';
 import type { Manuscript, ManuscriptCreate, ManuscriptDeletePreview } from './manuscripts';
 import type { DeletionReminder, DueDeletionReminder } from './manuscriptPurge';
 import type { AnalysisApplyResult } from './analysis';
@@ -32,6 +34,9 @@ import type {
   CustomFieldUnitValue,
 } from './customFields';
 import type { CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
+import type { Conversation } from './conversations';
+import type { Message } from './messages';
+import type { Speaker } from './speakers';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 import type { ContentNote, ContentNoteQuery, ContentNoteWrite } from './notes';
 import type { JieyuAnchoredNote } from '../dmlexTypes';
@@ -56,6 +61,15 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<Unit>(sessionId, 'units.create', input),
     getUnit: (sessionId: string, id: string) => once<Unit | null>(sessionId, 'units.get', { id }),
     listManuscripts: (sessionId: string) => once<Manuscript[]>(sessionId, 'manuscripts.list', {}),
+    getProject: (sessionId: string) => once<ProjectIdentity | null>(sessionId, 'project.get', {}),
+    importFile: (sessionId: string, input: { file: string; roles?: string }) =>
+      once<ImportResult>(sessionId, 'exchange.importFile', input),
+    exportJyt: (sessionId: string, input: { file: string }) =>
+      once<{ file: string }>(sessionId, 'exchange.exportJyt', input),
+    exportJym: (sessionId: string, input: { file: string }) =>
+      once<{ file: string }>(sessionId, 'exchange.exportJym', input),
+    exportManuscript: (sessionId: string, input: { file: string; manuscriptId: string }) =>
+      once<{ file: string }>(sessionId, 'exchange.exportManuscript', input),
     previewManuscriptDelete: (sessionId: string, id: string) =>
       once<ManuscriptDeletePreview>(sessionId, 'manuscripts.previewDelete', { id }),
     deleteManuscript: (sessionId: string, id: string) =>
@@ -86,6 +100,12 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once<CorpusQueryPage>(sessionId, 'corpus.query', input),
     updateUnitText: (sessionId: string, input: { unitId: string; text: string }) =>
       once<Unit>(sessionId, 'units.updateText', input),
+    undoUnitText: (sessionId: string) => once<Unit>(sessionId, 'units.undoText', {}),
+    undoStep: (sessionId: string) => once<Unit | Unit[]>(sessionId, 'units.undo', {}),
+    splitUnit: (sessionId: string, input: { unitId: string; time: number }) =>
+      once<{ left: Unit; right: Unit }>(sessionId, 'units.split', input),
+    mergeUnits: (sessionId: string, input: { keepId: string; removeId: string }) =>
+      once<Unit>(sessionId, 'units.merge', input),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
       once<{ left: Unit; right: Unit }>(sessionId, 'units.updateBoundary', input),
     createCustomFieldDefinition: (sessionId: string, input: unknown) =>
@@ -158,6 +178,24 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<ProjectBridge>(sessionId, 'bridges.create', input),
     getBridge: (sessionId: string, id: string) =>
       once<ProjectBridge | null>(sessionId, 'bridges.get', { id }),
+    listLanguages: (sessionId: string) =>
+      once<ProjectLanguage[]>(sessionId, 'catalog.listLanguages', {}),
+    updateLanguage: (sessionId: string, input: { id: string; locale: string; value: string }) =>
+      once<ProjectLanguage>(sessionId, 'catalog.updateLanguage', input),
+    listOrthographies: (sessionId: string, languageId: string) =>
+      once<ProjectOrthography[]>(sessionId, 'orthographies.list', { languageId }),
+    updateOrthography: (sessionId: string, input: { id: string; scriptTag: string }) =>
+      once<ProjectOrthography>(sessionId, 'orthographies.update', input),
+    listBridges: (sessionId: string) => once<ProjectBridge[]>(sessionId, 'bridges.list', {}),
+    updateBridge: (sessionId: string, input: { id: string; rules: Record<string, unknown> }) =>
+      once<ProjectBridge>(sessionId, 'bridges.update', input),
+    createSpeaker: (sessionId: string, input: { name: string }) =>
+      once<Speaker>(sessionId, 'speakers.create', input),
+    listSpeakers: (sessionId: string) => once<Speaker[]>(sessionId, 'speakers.list', {}),
+    assignSpeaker: (sessionId: string, input: { speakerId: string; unitIds: string[] }) =>
+      once<Unit[]>(sessionId, 'speakers.assign', input),
+    patchSpeaker: (sessionId: string, input: unknown) =>
+      once<Speaker>(sessionId, 'speakers.patch', input),
     saveLexemeEntry: (sessionId: string, input: LexemeSave) =>
       once<ProjectLexeme>(sessionId, 'lexicon.saveEntry', input),
     getLexemeEntry: (sessionId: string, id: string) =>
@@ -264,6 +302,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once<AnalysisImportResult>(sessionId, 'analysis.import', input),
     readAnalysisState: (sessionId: string, unitId: string) =>
       once<AnalysisReadState>(sessionId, 'analysis.readState', { unitId }),
+    listCandidates: (sessionId: string, unitId: string) =>
+      once<AnalysisCandidateRecord[]>(sessionId, 'analysis.listCandidates', { unitId }),
     listWords: (sessionId: string, unitId: string) =>
       once<{ id: string; form: string; gloss: Record<string, string>; pos: string }[]>(
         sessionId,
@@ -325,6 +365,24 @@ export function createDesktopClient(bridge: DesktopBridge) {
         expected: AnalysisCredentials;
       },
     ) => once<AnalysisRoot>(sessionId, 'analysis.merge', input),
+    createConversation: (sessionId: string, title: string) =>
+      once<Conversation>(sessionId, 'conversations.create', { title }),
+    listConversations: (sessionId: string) =>
+      once<Conversation[]>(sessionId, 'conversations.list', {}),
+    appendMessage: (
+      sessionId: string,
+      input: { conversationId: string; role: Message['role']; body: string },
+    ) => once<Message>(sessionId, 'messages.append', input),
+    listMessages: (sessionId: string, conversationId: string) =>
+      once<Message[]>(sessionId, 'messages.list', { conversationId }),
+    patchConversation: (
+      sessionId: string,
+      input: {
+        operationId: string;
+        id: string;
+        title: { expectedRevision: number; value: string };
+      },
+    ) => once<Conversation>(sessionId, 'conversations.patch', input),
     reopen: (sessionId: string) => once<{ reopened: true }>(sessionId, 'reopen', {}),
     patchSource: (sessionId: string, input: SourcePatch) =>
       once<SourceReading>(sessionId, 'sources.patch', input),
