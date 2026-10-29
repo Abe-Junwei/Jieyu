@@ -2,7 +2,7 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. Bump when the table set changes; D14 freezes it. */
+/** SQLite header offset 60. D14 froze this at 27. A later table change needs a new decision and a new freeze record. */
 export const DESKTOP_PROJECT_USER_VERSION = 27;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `

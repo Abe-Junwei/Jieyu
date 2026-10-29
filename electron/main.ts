@@ -43,9 +43,8 @@ import {
 import { fileContainsProbeTable, writeSkeletonProbe } from '../src/desktop/skeleton/probeStore';
 import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
 import {
-  ensureProjectBackupDir,
   ensureUserDataLayout,
-  projectBackupKey,
+  projectBackupDir,
 } from '../src/desktop/skeleton/userDataLayout';
 
 const userDataDir = process.env.JIEYU_DESKTOP_USER_DATA;
@@ -211,7 +210,7 @@ async function runOutboundRequest(
 
 function openUserProjectSession(folder: string): { sessionId: string } {
   return openDesktopSession(folder, [...allowedProjectFolders], {
-    dir: ensureProjectBackupDir(app.getPath('userData'), projectBackupKey(folder)),
+    dir: projectBackupDir(app.getPath('userData'), folder),
   });
 }
 
@@ -245,9 +244,7 @@ function registerIpc(): void {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     const folder = desktopSessionFolder(sessionId);
     return {
-      days: listDailyBackupDays(
-        ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
-      ),
+      days: listDailyBackupDays(projectBackupDir(app.getPath('userData'), folder)),
     };
   });
 
@@ -261,7 +258,7 @@ function registerIpc(): void {
     const destination = picked.filePaths[0];
     if (destination === undefined) return { cancelled: true };
     restoreDailyBackup({
-      backupDir: ensureProjectBackupDir(app.getPath('userData'), path.basename(folder)),
+      backupDir: projectBackupDir(app.getPath('userData'), folder),
       day,
       destination,
     });
