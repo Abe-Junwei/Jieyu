@@ -9,6 +9,8 @@ export type {
   CorpusTextSpan,
 } from '../db/desktop/corpusQuery';
 export type { ContentNoteCategory } from '../db/desktop/notes';
+export type { Speaker } from '../db/desktop/speakers';
+export type { ProjectBridge, ProjectLanguage, ProjectOrthography } from '../db/desktop/catalog';
 export { CUSTOM_FIELD_TARGETS, CUSTOM_FIELD_TYPES } from '../db/desktop/customFieldValidation';
 export {
   loadDesktopProjectRead,
