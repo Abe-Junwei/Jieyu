@@ -667,10 +667,11 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
   };
 
   const interlinearTexts = Array.from(doc.querySelectorAll('interlinear-text'));
-  const phraseRoots =
-    interlinearTexts.length > 0
-      ? interlinearTexts
-      : ([doc.documentElement].filter(Boolean) as Element[]);
+  // Non-FLEx XML (e.g. <foo/>) must not parse as an empty import that can wipe a document (#407).
+  if (interlinearTexts.length === 0) {
+    throw new Error('flextext has no interlinear-text');
+  }
+  const phraseRoots = interlinearTexts;
 
   phraseRoots.forEach((root, rootIndex) => {
     const headerItems = itemsOf(root);
