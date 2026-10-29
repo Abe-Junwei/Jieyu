@@ -707,8 +707,11 @@ export function callDesktopSession(
       return assigned.units;
     }
     case 'conversations.create':
-      knownKeys(input, ['title']);
-      return createConversation(project.db, { title: requiredString(input.title, 'title') });
+      knownKeys(input, ['title', 'fieldValues']);
+      return createConversation(project.db, {
+        title: requiredString(input.title, 'title'),
+        ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+      });
     case 'conversations.list':
       knownKeys(input, []);
       return listConversations(project.db);
@@ -741,9 +744,14 @@ export function callDesktopSession(
       return redeliverBibliography(project.db, requiredString(input.operationId, 'operationId'));
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
-    case 'analysis.readState':
+    case 'analysis.readState': {
       knownKeys(input, ['unitId']);
-      return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
+      const unitId = requiredString(input.unitId, 'unitId');
+      if (unitBelongsToDeletedManuscript(project.db, unitId)) {
+        throw new Error('manuscript is deleted');
+      }
+      return readAnalysisState(project.db, unitId);
+    }
     case 'analysis.listCandidates':
       knownKeys(input, ['unitId']);
       return listAnalysisCandidates(project.db, requiredString(input.unitId, 'unitId'));
@@ -807,19 +815,19 @@ export function callDesktopSession(
       return importExchangeFile(project.db, desktopSessionFolder(sessionId), input);
     case 'exchange.exportJyt': {
       const file = exportFile(input);
-      assertExportTarget(desktopSessionFolder(sessionId), file);
+      assertExportTarget(desktopSessionFolder(sessionId), file, mediaRelpaths(project.db));
       return saveDesktopPackage(file, exportDesktopJyt(project.db));
     }
     case 'exchange.exportJym': {
       const file = exportFile(input);
       const folder = desktopSessionFolder(sessionId);
-      assertExportTarget(folder, file);
+      assertExportTarget(folder, file, mediaRelpaths(project.db));
       return saveDesktopPackage(file, exportDesktopJym(project.db, folder));
     }
     case 'exchange.exportManuscript': {
       knownKeys(input, ['file', 'manuscriptId']);
       const file = requiredString(input.file, 'file');
-      assertExportTarget(desktopSessionFolder(sessionId), file);
+      assertExportTarget(desktopSessionFolder(sessionId), file, mediaRelpaths(project.db));
       return saveDesktopPackage(
         file,
         exportDesktopManuscriptJyt(project.db, [
@@ -837,6 +845,12 @@ export function callDesktopSession(
 function exportFile(input: Record<string, unknown>): string {
   knownKeys(input, ['file']);
   return requiredString(input.file, 'file');
+}
+
+function mediaRelpaths(db: { prepare(sql: string): { all(): unknown[] } }): string[] {
+  return (db.prepare('SELECT relpath FROM media').all() as { relpath: string }[]).map(
+    (row) => row.relpath,
+  );
 }
 
 function importExchangeFile(
@@ -1016,12 +1030,13 @@ function orderedNotes(patch: { expectedRevision: number; value: Record<string, s
 }
 
 function messageAppend(input: Record<string, unknown>): MessageAppend {
-  knownKeys(input, ['id', 'conversationId', 'role', 'body']);
+  knownKeys(input, ['id', 'conversationId', 'role', 'body', 'fieldValues']);
   return {
     ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
     conversationId: requiredString(input.conversationId, 'conversationId'),
     role: messageRole(input.role),
     body: requiredString(input.body, 'body'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 
@@ -1500,13 +1515,14 @@ const NOTE_CATEGORIES = [
 ] as const;
 
 function noteCreate(input: Record<string, unknown>) {
-  knownKeys(input, ['id', 'anchor', 'content', 'category', 'provenance']);
+  knownKeys(input, ['id', 'anchor', 'content', 'category', 'provenance', 'fieldValues']);
   return {
     ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
     anchor: noteAnchor(input.anchor),
     content: stringMap(input.content, 'content'),
     ...('category' in input ? { category: noteCategory(input.category) } : {}),
     ...('provenance' in input ? { provenance: input.provenance } : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 

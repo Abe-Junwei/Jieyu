@@ -41,6 +41,7 @@ export interface ContentNoteWrite {
   content: Record<string, string>;
   category?: ContentNoteCategory | null;
   provenance?: unknown | null;
+  fieldValues?: Record<string, unknown>;
 }
 
 export interface ContentNoteRevision {
@@ -158,7 +159,7 @@ export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): 
       now,
       now,
     );
-    writeRequiredFieldValues(db, 'note', id, undefined);
+    writeRequiredFieldValues(db, 'note', id, input.fieldValues);
     const stored = readContentNote(db, id);
     if (stored === null) throw new Error('note readback failed');
     return stored;

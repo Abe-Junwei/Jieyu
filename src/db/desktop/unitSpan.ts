@@ -606,7 +606,10 @@ function copyGraph(
     if (!idMap.has(node.id)) idMap.set(node.id, randomUUID());
   }
   const remap = (id: string) => idMap.get(id) ?? id;
-  for (const node of graph.nodes) node.id = remap(node.id);
+  for (const node of graph.nodes) {
+    node.id = remap(node.id);
+    for (const part of node.surfaceParts ?? []) part.tokenId = remap(part.tokenId);
+  }
   for (const relation of graph.relations) {
     relation.id = randomUUID();
     relation.sourceId = remap(relation.sourceId);

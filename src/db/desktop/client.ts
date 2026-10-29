@@ -34,8 +34,8 @@ import type {
   CustomFieldUnitValue,
 } from './customFields';
 import type { CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
-import type { Conversation } from './conversations';
-import type { Message } from './messages';
+import type { Conversation, ConversationCreate } from './conversations';
+import type { Message, MessageAppend } from './messages';
 import type { Speaker } from './speakers';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 import type { ContentNote, ContentNoteQuery, ContentNoteWrite } from './notes';
@@ -373,14 +373,19 @@ export function createDesktopClient(bridge: DesktopBridge) {
         expected: AnalysisCredentials;
       },
     ) => once<AnalysisRoot>(sessionId, 'analysis.merge', input),
-    createConversation: (sessionId: string, title: string) =>
-      once<Conversation>(sessionId, 'conversations.create', { title }),
+    createConversation: (
+      sessionId: string,
+      title: string,
+      fieldValues?: ConversationCreate['fieldValues'],
+    ) =>
+      once<Conversation>(sessionId, 'conversations.create', {
+        title,
+        ...(fieldValues === undefined ? {} : { fieldValues }),
+      }),
     listConversations: (sessionId: string) =>
       once<Conversation[]>(sessionId, 'conversations.list', {}),
-    appendMessage: (
-      sessionId: string,
-      input: { conversationId: string; role: Message['role']; body: string },
-    ) => once<Message>(sessionId, 'messages.append', input),
+    appendMessage: (sessionId: string, input: MessageAppend) =>
+      once<Message>(sessionId, 'messages.append', input),
     listMessages: (sessionId: string, conversationId: string) =>
       once<Message[]>(sessionId, 'messages.list', { conversationId }),
     patchConversation: (

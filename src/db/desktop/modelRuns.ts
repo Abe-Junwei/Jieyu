@@ -237,6 +237,7 @@ export function previewModelRun(
       if (candidate.mediaStart < 0 || candidate.mediaEnd > duration) {
         throw new Error('transcription time is invalid');
       }
+      assertInsideRun(run, candidate.mediaStart, candidate.mediaEnd);
     }
     const placed = input.candidates.map((candidate) => placeCandidate(db, run, candidate));
     db.prepare('UPDATE model_runs SET pending_count = ? WHERE id = ?').run(placed.length, run.id);
@@ -310,6 +311,7 @@ export function acceptTranscriptionCandidate(
   const write = db.transaction(() => {
     const run = requireRun(db, input.runId);
     if (run.status !== 'ok') throw new Error('transcription run is not acceptable');
+    assertInsideRun(run, input.mediaStart, input.mediaEnd);
     if (run.pendingCount < 1) throw new Error('transcription run has no pending candidate');
     requireCurrentLifecycle(db, run);
     const mapping = mappingOf(db, run.manuscriptId);
@@ -554,6 +556,12 @@ function requireRun(db: SqliteDatabase, id: string): ModelRun {
   const run = getModelRun(db, id);
   if (!run) throw new Error('transcription run is missing');
   return run;
+}
+
+function assertInsideRun(run: ModelRun, start: number, end: number): void {
+  if (start < run.rangeStart || end > run.rangeEnd) {
+    throw new Error('transcription range is outside the run');
+  }
 }
 
 function requireCurrentLifecycle(db: SqliteDatabase, run: ModelRun): void {

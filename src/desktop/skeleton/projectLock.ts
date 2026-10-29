@@ -83,7 +83,7 @@ export function projectFolderLockedByThisProcess(projectDir: string): boolean {
 
 function lockIsStale(lockDir: string): boolean {
   try {
-    if (!fs.existsSync(path.join(lockDir, 'owner'))) return true;
+    // A directory without owner is still being created. Only an old mtime is stale.
     return Date.now() - fs.statSync(lockDir).mtimeMs > PROJECT_LOCK_STALE_MS;
   } catch {
     return false;

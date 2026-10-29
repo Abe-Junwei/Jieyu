@@ -62,19 +62,53 @@ export function saveDesktopPackage(file: string, bytes: Uint8Array): { file: str
   return { file };
 }
 
-export function assertExportTarget(folder: string, file: string): void {
-  const library = path.resolve(folder, 'project.sqlite');
-  const blocked = new Set([library, `${library}-journal`, `${library}-wal`, `${library}-shm`]);
+export function assertExportTarget(
+  folder: string,
+  file: string,
+  protectedRelpaths: readonly string[] = [],
+): void {
+  const blocked = new Set<string>();
+  const identities = new Set<string>();
+  const remember = (candidate: string) => {
+    const resolved = path.resolve(candidate);
+    blocked.add(resolved);
+    if (!existsSync(resolved)) return;
+    const info = statSync(resolved, { bigint: true });
+    identities.add(`${info.dev}:${info.ino}`);
+    try {
+      blocked.add(realpathSync(resolved));
+    } catch {
+      // The resolved path stays blocked when realpath cannot follow it.
+    }
+  };
+  for (const name of [
+    'project.sqlite',
+    'project.sqlite-journal',
+    'project.sqlite-wal',
+    'project.sqlite-shm',
+  ]) {
+    remember(path.join(folder, name));
+  }
+  for (const relpath of protectedRelpaths) remember(path.join(folder, relpath));
+  for (const directory of ['sources', 'attachments/objects']) {
+    const root = path.join(folder, directory);
+    if (existsSync(root)) {
+      for (const name of readdirSync(root)) remember(path.join(root, name));
+    }
+  }
   const target = path.resolve(file);
   if (blocked.has(target)) throw new Error('export target is the open project');
   if (!existsSync(target)) return;
-  let real = target;
-  try {
-    real = realpathSync(target);
-  } catch {
-    return;
+  const info = statSync(target, { bigint: true });
+  if (identities.has(`${info.dev}:${info.ino}`)) {
+    throw new Error('export target is the open project');
   }
-  if (blocked.has(real)) throw new Error('export target is the open project');
+  try {
+    if (blocked.has(realpathSync(target))) throw new Error('export target is the open project');
+  } catch (error) {
+    if (error instanceof Error && error.message === 'export target is the open project')
+      throw error;
+  }
 }
 
 export function exportDesktopJyt(db: SqliteDatabase): Uint8Array {
@@ -88,7 +122,7 @@ export function exportDesktopJym(db: SqliteDatabase, folder: string): Uint8Array
     null,
     readMediaFiles(folder, tables.media ?? []),
     readAttachmentFiles(folder, tables.attachment_files ?? []),
-    readSourceFiles(folder, tables.unit_texts ?? []),
+    readSourceFiles(folder, [...(tables.unit_texts ?? []), ...(tables.lexemes ?? [])]),
   );
 }
 
@@ -410,6 +444,17 @@ function insertPayload(db: SqliteDatabase, tables: Record<string, Row[]>): void 
           throw new Error('desktop package table shape is unsupported');
         }
         const storing = { ...row };
+        if (name === 'unit_texts') {
+          const unitId = storing.unit_id;
+          const role = storing.role;
+          if (typeof unitId !== 'string' || typeof role !== 'string') {
+            throw new Error('desktop package is unreadable');
+          }
+          const existing = db
+            .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = ?')
+            .get(unitId, role) as { n: number };
+          if (existing.n !== 0) throw new Error('unit text role is duplicated');
+        }
         if (name === 'manuscripts' || name === 'media') {
           deferred.push({ table: name, row });
           for (const col of DEFERRED_COLUMNS) storing[col] = null;

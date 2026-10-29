@@ -20,6 +20,7 @@ export interface MessageAppend {
   conversationId: string;
   role: MessageRole;
   body: string;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface MessageRow {
@@ -49,7 +50,7 @@ export function appendMessage(db: SqliteDatabase, input: MessageAppend): Message
       `INSERT INTO messages (id, conversation_id, role, body, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(id, input.conversationId, input.role, input.body, now, now);
-    writeRequiredFieldValues(db, 'message', id, undefined);
+    writeRequiredFieldValues(db, 'message', id, input.fieldValues);
     const message = getMessage(db, id);
     if (
       !message ||

@@ -30,6 +30,7 @@ export interface Conversation {
 
 export interface ConversationCreate {
   title: string;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface ConversationRow {
@@ -55,7 +56,7 @@ export function createConversation(db: SqliteDatabase, input: ConversationCreate
     db.prepare(
       'INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)',
     ).run(id, input.title, now, now);
-    writeRequiredFieldValues(db, 'conversation', id, undefined);
+    writeRequiredFieldValues(db, 'conversation', id, input.fieldValues);
     const conversation = getConversation(db, id);
     if (!conversation) throw new Error('conversation readback failed');
     return conversation;

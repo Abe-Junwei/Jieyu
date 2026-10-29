@@ -168,7 +168,7 @@ export async function assertLoopbackUrl(baseUrl: string): Promise<URL> {
   if (address === undefined || found.some((row) => !isLoopbackIp(row.address))) {
     throw new Error('model address is remote');
   }
-  url.hostname = address;
+  url.hostname = address.includes(':') ? `[${address}]` : address;
   return url;
 }
 
