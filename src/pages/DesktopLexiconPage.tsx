@@ -45,6 +45,7 @@ export function DesktopLexiconPage({ host }: { host: DesktopReadHost }) {
           <input
             aria-label={t(locale, 'workspace.annotation.lexemeCreateHeadword')}
             value={lexicon.headword}
+            disabled={!lexicon.ready}
             onChange={(event) => {
               lexicon.setHeadword(event.currentTarget.value);
             }}
@@ -52,11 +53,12 @@ export function DesktopLexiconPage({ host }: { host: DesktopReadHost }) {
           <input
             aria-label={t(locale, 'workspace.annotation.lexemeCreateTranslation')}
             value={lexicon.translation}
+            disabled={!lexicon.ready}
             onChange={(event) => {
               lexicon.setTranslation(event.currentTarget.value);
             }}
           />
-          <button type="button" onClick={lexicon.save}>
+          <button type="button" disabled={!lexicon.ready} onClick={lexicon.save}>
             {lexicon.creating
               ? t(locale, 'workspace.annotation.lexemeCreateSubmit')
               : t(locale, 'workspace.lexicon.edit.save')}
