@@ -19,9 +19,10 @@ import {
   restoreAnalysis,
   splitAnalysisNode,
   submitAnalysis,
+  undoUnitText,
 } from './analysisRestore';
 import { openProject } from './openProject';
-import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
+import { getAnalysisRoot, updateUnitText, writeAnalysisRoot, type UnitTextUndo } from './units';
 import { deleteManuscript, restoreManuscript } from './manuscripts';
 
 const roots: string[] = [];
@@ -309,6 +310,91 @@ describe('analysis text invalidation', () => {
     reopened.close();
   });
 });
+
+describe('unit text undo', () => {
+  it('restores the previous string, graph, projection, links, and notes in one write', () => {
+    const { dir, project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
+    applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+      ],
+    });
+    associate(project.db, 'l1', 'n1');
+    let undo: UnitTextUndo | undefined;
+    updateUnitText(project.db, { unitId, text: 'ta' }, undefined, (record) => {
+      undo = record;
+    });
+    const restored = undoUnitText(project.db, undo ?? fail('missing undo'));
+    expect(restored.text).toBe('ka');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.zh).toBe('已往');
+    expect(
+      project.db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId),
+    ).toEqual({ n: 1 });
+    expect(linkAttachment(project.db, 'l1')).toBe('active');
+    expect(noteRow(project.db, 'note-l1')).toEqual({
+      attachment: 'active',
+      body: 'original',
+      category: null,
+    });
+    expect(project.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 2,
+    });
+    project.close();
+
+    const reopened = openProject(dir);
+    expect(reopened.units.get(unitId)?.text).toBe('ka');
+    expect(getAnalysisRoot(reopened.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.zh).toBe('已往');
+    expect(linkAttachment(reopened.db, 'l1')).toBe('active');
+    reopened.close();
+  });
+
+  it('rolls back a failed undo and refuses a record after a later edit', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
+    applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+      ],
+    });
+    associate(project.db, 'l1', 'n1');
+    let undo: UnitTextUndo | undefined;
+    updateUnitText(project.db, { unitId, text: 'ta' }, undefined, (record) => {
+      undo = record;
+    });
+    const recorded = undo ?? fail('missing undo');
+    expect(() =>
+      undoUnitText(project.db, recorded, () => {
+        throw new Error('injected');
+      }),
+    ).toThrow('injected');
+    expect(project.units.get(unitId)?.text).toBe('ta');
+    expect(getAnalysisRoot(project.db, unitId)?.graph).toBeNull();
+    expect(linkAttachment(project.db, 'l1')).toBe('detached');
+    expect(project.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 1,
+    });
+    updateUnitText(project.db, { unitId, text: 'za' });
+    expect(() => undoUnitText(project.db, recorded)).toThrow('unit text undo is stale');
+    expect(project.units.get(unitId)?.text).toBe('za');
+    expect(getAnalysisRoot(project.db, unitId)?.graph).toBeNull();
+    project.close();
+  });
+});
+
+function fail(message: string): never {
+  throw new Error(message);
+}
 
 describe('analysis split and merge', () => {
   it('splits a node without carrying its link, note, or residue onto the new nodes', () => {

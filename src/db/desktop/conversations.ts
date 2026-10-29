@@ -62,6 +62,17 @@ export function getConversation(db: SqliteDatabase, id: string): Conversation | 
   const row = db.prepare(`SELECT ${COLUMNS} FROM conversations WHERE id = ?`).get(id) as
     ConversationRow | undefined;
   if (!row) return null;
+  return mapConversation(row);
+}
+
+export function listConversations(db: SqliteDatabase): Conversation[] {
+  const rows = db
+    .prepare(`SELECT ${COLUMNS} FROM conversations ORDER BY created_at, id`)
+    .all() as ConversationRow[];
+  return rows.map(mapConversation);
+}
+
+function mapConversation(row: ConversationRow): Conversation {
   return {
     id: row.id,
     title: row.title,

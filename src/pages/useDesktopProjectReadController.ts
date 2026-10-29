@@ -10,22 +10,39 @@ import { readOpenProjectSession, rememberOpenProjectSession } from '../desktop/o
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 
-export function useDesktopProjectReadController(host: DesktopReadHost | null, includeMedia = true) {
+export function useDesktopProjectReadController(
+  host: DesktopReadHost | null,
+  includeMedia = true,
+  locate: { manuscriptId: string; layerId: string } | null = null,
+) {
+  const locateManuscriptId = locate?.manuscriptId;
+  const locateLayerId = locate?.layerId;
   const locale = useLocale();
   const [sessionId, setSessionId] = useState(readOpenProjectSession);
   const [model, setModel] = useState<DesktopProjectRead | null>(null);
   const [notes, setNotes] = useState<UnitNote[]>([]);
+  const [projectTitle, setProjectTitle] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (host === null || sessionId === null) return;
     let cancelled = false;
-    void loadDesktopProjectRead(readApi(host), sessionId, undefined, includeMedia)
+    void loadDesktopProjectRead(
+      readApi(host),
+      sessionId,
+      locateManuscriptId,
+      includeMedia,
+      locateLayerId,
+    )
       .then(async (next) => {
-        const shown = await loadShownNotes(host, sessionId, next.manuscriptId);
+        const [shown, project] = await Promise.all([
+          loadShownNotes(host, sessionId, next.manuscriptId),
+          createDesktopClient({ desktopCall: host.desktopCall }).getProject(sessionId),
+        ]);
         if (cancelled) return;
         setModel(next);
         setNotes(shown);
+        setProjectTitle(shownProjectTitle(project?.title));
       })
       .catch(() => {
         if (!cancelled) setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -33,7 +50,7 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
     return () => {
       cancelled = true;
     };
-  }, [host, includeMedia, locale, sessionId]);
+  }, [host, includeMedia, locale, locateLayerId, locateManuscriptId, sessionId]);
 
   const openFolder = () => {
     if (host === null) return;
@@ -96,6 +113,40 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
     setError('');
     void createDesktopClient({ desktopCall: host.desktopCall })
       .updateUnitText(sessionId, { unitId, text })
+      .then(() => reload())
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const undoText = () => {
+    if (host === null || sessionId === null) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .undoStep(sessionId)
+      .then(() => reload())
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.message === 'unit text undo is empty') return;
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const splitUnit = (unitId: string, time: number) => {
+    if (host === null || sessionId === null) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .splitUnit(sessionId, { unitId, time })
+      .then(() => reload())
+      .catch(() => {
+        setError(t(locale, 'app.desktopRead.loadFailed'));
+      });
+  };
+
+  const mergeUnits = (keepId: string, removeId: string) => {
+    if (host === null || sessionId === null) return;
+    setError('');
+    void createDesktopClient({ desktopCall: host.desktopCall })
+      .mergeUnits(sessionId, { keepId, removeId })
       .then(() => reload())
       .catch(() => {
         setError(t(locale, 'app.desktopRead.loadFailed'));
@@ -247,10 +298,15 @@ export function useDesktopProjectReadController(host: DesktopReadHost | null, in
     sessionId,
     model,
     notes,
+    projectTitle,
     error,
     openFolder,
     selectManuscript,
     saveText,
+    undoText,
+    refresh: reload,
+    splitUnit,
+    mergeUnits,
     moveBoundary,
     saveMapping,
     saveUnitNote,
@@ -301,4 +357,15 @@ function readApi(host: DesktopReadHost): DesktopProjectReadApi {
     mediaPlayUrl: async (sessionId, mediaId) =>
       (await host.desktopMediaUrl(sessionId, mediaId)).url,
   };
+}
+
+function shownProjectTitle(title: Record<string, string> | undefined): string {
+  if (title === undefined) return '';
+  const und = title.und?.trim() ?? '';
+  if (und.length > 0) return und;
+  for (const value of Object.values(title)) {
+    const text = value.trim();
+    if (text.length > 0) return text;
+  }
+  return '';
 }

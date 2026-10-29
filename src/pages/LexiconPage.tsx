@@ -21,6 +21,8 @@ import { useLexiconSearch } from '~/hooks/lexicon/useLexiconSearch';
 import { t, tf, useLocale, type DictKey } from '../i18n';
 import { featureFlags } from '../ai/config/featureFlags';
 import { LinguisticService } from '../app/languageAssetPageAccess';
+import { readDesktopProjectHost } from '../desktop/projectReadHost';
+import { DesktopLexiconPage } from './DesktopLexiconPage';
 import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import {
   buildTranscriptionDeepLinkHref,
@@ -97,6 +99,12 @@ function resolveLexiconScrollRoot(workspace: HTMLElement | null): HTMLElement | 
 }
 
 export function LexiconPage() {
+  const desktopHost = readDesktopProjectHost();
+  if (desktopHost !== null) return <DesktopLexiconPage host={desktopHost} />;
+  return <LexiconWorkspace />;
+}
+
+function LexiconWorkspace() {
   const locale = useLocale();
   const queryClient = useQueryClient();
   const projectTextId = useSyncExternalStore(

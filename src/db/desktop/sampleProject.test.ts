@@ -4,12 +4,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { openProject } from './openProject';
-import { exportDesktopJym } from './projectExchange';
-import { ensureSampleProject } from './sampleProject';
+import {
+  buildSyntheticSamplePackage,
+  ensureBundledSample,
+  ensureSampleProject,
+} from './sampleProject';
 import { listUnits } from './units';
 
 const roots: string[] = [];
-const T = '2026-10-27T00:00:00.000Z';
 
 function folder(): string {
   const root = mkdtempSync(join(tmpdir(), 'jieyu-sample-project-'));
@@ -22,38 +24,9 @@ afterEach(() => {
   roots.length = 0;
 });
 
-function syntheticPackage(): Uint8Array {
-  const dir = folder();
-  writeFileSync(join(dir, 'sample.wav'), Buffer.from('sample-wav'));
-  const sha256 = createHash('sha256').update('sample-wav').digest('hex');
-  const project = openProject(dir);
-  project.db
-    .prepare(
-      'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    )
-    .run('media-sample', 'sample.wav', sha256, 'sample.wav', 1, T);
-  const manuscript = project.manuscripts.create({ title: { zh: '示例' }, mediaId: 'media-sample' });
-  const layer = project.layers.create({
-    manuscriptId: manuscript.id,
-    key: 'tx',
-    name: { zh: '转写' },
-    tierType: 'time-aligned',
-    contentType: 'transcription',
-  });
-  project.units.create({
-    layerId: layer.id,
-    startTime: 0,
-    endTime: 1,
-    text: 'synthetic sample',
-  });
-  const packed = exportDesktopJym(project.db, dir);
-  project.close();
-  return packed;
-}
-
 describe('sample project first launch', () => {
   it('imports a synthetic package once, then reads the same sentence and recording', () => {
-    const packed = syntheticPackage();
+    const packed = buildSyntheticSamplePackage();
     const sample = folder();
     expect(ensureSampleProject(sample, packed)).toBe('imported');
     const library = readFileSync(join(sample, 'project.sqlite'));
@@ -77,8 +50,20 @@ describe('sample project first launch', () => {
     reopened.close();
   });
 
+  it('imports the bundled sample once and leaves an existing library alone', () => {
+    const sample = folder();
+    expect(ensureBundledSample(sample)).toBe('imported');
+    const library = readFileSync(join(sample, 'project.sqlite'));
+    expect(ensureBundledSample(sample)).toBe('present');
+    expect(readFileSync(join(sample, 'project.sqlite'))).toEqual(library);
+    const reopened = openProject(sample);
+    const layer = reopened.db.prepare('SELECT id FROM layers').get() as { id: string };
+    expect(listUnits(reopened.db, layer.id).map((unit) => unit.text)).toEqual(['synthetic sample']);
+    reopened.close();
+  });
+
   it('does not replace an existing library or damage another project', () => {
-    const packed = syntheticPackage();
+    const packed = buildSyntheticSamplePackage();
     const root = folder();
     const neighbor = join(root, 'mine');
     mkdirSync(neighbor);
