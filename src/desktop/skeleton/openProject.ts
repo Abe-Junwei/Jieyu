@@ -1,7 +1,6 @@
-import path from 'node:path';
 import { tryAcquireProjectLock } from './projectLock';
 import { syncFolderWarning, type SyncFolderWarning } from './syncFolder';
-import { ensureProjectBackupDir } from './userDataLayout';
+import { ensureProjectBackupDir, projectBackupKey } from './userDataLayout';
 
 export interface OpenedProject {
   folder: string;
@@ -19,7 +18,7 @@ export function openProjectFolder(input: {
   const lock = tryAcquireProjectLock(input.folder);
   const backupDir =
     lock.ok && input.userDataRoot
-      ? ensureProjectBackupDir(input.userDataRoot, path.basename(input.folder))
+      ? ensureProjectBackupDir(input.userDataRoot, projectBackupKey(input.folder))
       : null;
   return {
     folder: input.folder,
