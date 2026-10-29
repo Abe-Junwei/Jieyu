@@ -338,4 +338,46 @@ describe('exportToToolbox', () => {
     expect(result.units[0]?.transcription).toBe('primary text');
     expect(result.additionalTiers.get('Extra Tier')?.[0]?.text).toBe('extra text');
   });
+
+  it('keeps sparse word glosses aligned on round-trip (#434)', () => {
+    const output = exportToToolbox({
+      units: [
+        {
+          id: 'u1',
+          startTime: 0,
+          endTime: 1,
+          transcription: { default: 'one two' },
+        } as never,
+      ],
+      layers: [],
+      translations: [],
+      tokens: [
+        {
+          id: 't1',
+          unitId: 'u1',
+          form: { default: 'one' },
+          startTime: 0,
+          endTime: 0.5,
+          ordinal: 0,
+        } as never,
+        {
+          id: 't2',
+          unitId: 'u1',
+          form: { default: 'two' },
+          gloss: { eng: 'TWO' },
+          startTime: 0.5,
+          endTime: 1,
+          ordinal: 1,
+        } as never,
+      ],
+      morphemes: [],
+    });
+    expect(output).toMatch(/\\ge \* TWO\b/);
+    const imported = importFromToolbox(output);
+    const words = imported.units[0]?.tokens ?? [];
+    expect(words).toHaveLength(2);
+    expect(words[0]?.gloss).toBeUndefined();
+    expect(words[1]?.gloss?.eng).toBe('TWO');
+  });
+
 });
