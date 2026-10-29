@@ -25,6 +25,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/259
 
 不等待已关闭 not planned 的 #281/#326。开发期仅可重建合成项目，不做开发格式迁移器；旧数据不清理。#303/#305/#306 的工程集成与 #313-B 合成导入验证在冻结前，D14 后用户的真实示例最终试用不反向卡住冻结。#260/#304 已关闭的历史决定证据保留。
 
+2026-10-29：实际 DDL、user_version 27 和拒绝规则已写入 `src/db/desktop/formatFreeze.record.json`，检查是 `npm run check:desktop-format-freeze`。上面的框不勾。#259/#275/#325/#280 仍开着。GitHub 上若还有未勾，以 main 为准。只用合成项目。
+
 
 详细前置/验收见[单库切片清单](../../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。本轮同步不代表实现完成；下方较早范围保留，冲突以本节为准。
 <!-- desktop-sqlite-slices:v1:end -->
