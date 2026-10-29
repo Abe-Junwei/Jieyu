@@ -232,7 +232,8 @@ function mergeImportedResource(
       ...existing.resource,
       langCode,
       translationLanguages,
-      ...(relations.length > 0 ? { relations } : {}),
+      // Always write relations so an empty merge clears stale subsense/homograph rows (#436).
+      relations,
       ...(relationTypes.length > 0 ? { relationTypes } : {}),
     },
     updatedAt: imported.updatedAt,
