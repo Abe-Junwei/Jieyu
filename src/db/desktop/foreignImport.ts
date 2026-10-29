@@ -570,7 +570,8 @@ function eafTiers(
   if (parsed.transcriptionTierName !== undefined) {
     tiers.push({
       name: parsed.transcriptionTierName,
-      fileRole: storedRole(parsed.tierMetadata.get(parsed.transcriptionTierName)?.role),
+      fileRole:
+        storedRole(parsed.tierMetadata.get(parsed.transcriptionTierName)?.role) ?? 'transcription',
       intervals: parsed.units.map((unit) => ({
         start: unit.startTime,
         end: unit.endTime,
@@ -583,7 +584,7 @@ function eafTiers(
   for (const extra of parsed.extraTranscriptionTiers ?? []) {
     tiers.push({
       name: extra.tierName,
-      fileRole: storedRole(parsed.tierMetadata.get(extra.tierName)?.role),
+      fileRole: storedRole(parsed.tierMetadata.get(extra.tierName)?.role) ?? 'transcription',
       intervals: extra.units.map((unit) => ({
         start: unit.startTime,
         end: unit.endTime,
@@ -595,7 +596,7 @@ function eafTiers(
   for (const [name, rows] of parsed.translationTiers) {
     tiers.push({
       name,
-      fileRole: storedRole(parsed.tierMetadata.get(name)?.role),
+      fileRole: storedRole(parsed.tierMetadata.get(name)?.role) ?? 'translation',
       intervals: rows.map((row) => ({ start: row.startTime, end: row.endTime, text: row.text })),
     });
   }
@@ -634,6 +635,7 @@ function flexTiers(
   if (parsed.transcriptionTierName !== undefined) {
     tiers.push({
       name: parsed.transcriptionTierName,
+      fileRole: 'transcription',
       intervals: units.map((unit) => ({
         start: unit.startTime,
         end: unit.endTime,
@@ -645,6 +647,7 @@ function flexTiers(
   if (parsed.phraseGlosses.size > 0) {
     tiers.push({
       name: 'FLEx Gloss',
+      fileRole: 'translation',
       intervals: units.flatMap((unit) => {
         const text =
           unit.phraseId === undefined ? undefined : parsed.phraseGlosses.get(unit.phraseId);
@@ -655,12 +658,14 @@ function flexTiers(
   for (const [name, rows] of parsed.translationTiers ?? []) {
     tiers.push({
       name,
+      fileRole: 'translation',
       intervals: rows.map((row) => ({ start: row.startTime, end: row.endTime, text: row.text })),
     });
   }
   if ((parsed.userNotes?.length ?? 0) > 0) {
     tiers.push({
       name: 'FLEx Note',
+      fileRole: 'note',
       intervals: (parsed.userNotes ?? []).map((row) => ({
         start: row.startTime,
         end: row.endTime,
@@ -703,7 +708,8 @@ function textGridTiers(
   if (parsed.transcriptionTierName !== undefined) {
     tiers.push({
       name: parsed.transcriptionTierName,
-      fileRole: storedRole(parsed.tierMetadata.get(parsed.transcriptionTierName)?.role),
+      fileRole:
+        storedRole(parsed.tierMetadata.get(parsed.transcriptionTierName)?.role) ?? 'transcription',
       intervals: parsed.units.map((unit) => ({
         start: unit.startTime,
         end: unit.endTime,
@@ -752,10 +758,12 @@ function toolboxTiers(
       });
     });
   }
-  const tiers: Tier[] = [{ name: 'tx', intervals }];
+  const tiers: Tier[] = [{ name: 'tx', fileRole: 'transcription', intervals }];
   for (const [name, rows] of parsed.additionalTiers) {
+    const tierName = name === 'Toolbox Free Translation' ? 'ft' : name;
     tiers.push({
-      name: name === 'Toolbox Free Translation' ? 'ft' : name,
+      name: tierName,
+      ...(tierName === 'ft' ? { fileRole: 'translation' as const } : {}),
       intervals: rows.map((row) => ({
         start: row.startTime,
         end: row.endTime,

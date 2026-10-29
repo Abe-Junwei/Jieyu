@@ -38,7 +38,10 @@ export function DesktopExchangePanel(props: {
       .chooseImportFile()
       .then(async (picked) => {
         if ('cancelled' in picked) return;
-        const result = await client.importFile(props.sessionId, { file: picked.file });
+        const result = await client.importFile(props.sessionId, {
+          file: picked.file,
+          ...(picked.roles === undefined ? {} : { roles: picked.roles }),
+        });
         if (result.written === 0) {
           setFailed(true);
           return;

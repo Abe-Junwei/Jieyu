@@ -288,7 +288,15 @@ function registerIpc(): void {
     });
     const file = picked.filePaths[0];
     if (file === undefined) return { cancelled: true };
-    return { file };
+    const extension = path.extname(file).toLowerCase();
+    // LIFT/JYB need no tier roles; other formats may supply an optional roles list (#429).
+    if (extension === '.lift' || extension === '.jyb') return { file };
+    const rolesPick = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Tier roles', extensions: ['txt'] }],
+    });
+    const roles = rolesPick.filePaths[0];
+    return roles === undefined ? { file } : { file, roles };
   });
 
   handle('desktop:choose-export-file', async (name: unknown) => {
