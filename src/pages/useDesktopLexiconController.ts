@@ -19,7 +19,11 @@ export function useDesktopLexiconController(host: DesktopReadHost) {
   const [translation, setTranslation] = useState('');
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const [ready, setReady] = useState(false);
   const stored = useRef<Record<string, unknown> | null>(null);
+  /** Entry id that `stored` / draft fields currently belong to (#430). */
+  const loadedId = useRef<string | null>(null);
+  const loadSeq = useRef(0);
 
   useEffect(() => {
     if (sessionId === null) return;
@@ -42,19 +46,30 @@ export function useDesktopLexiconController(host: DesktopReadHost) {
     setError('');
     setCreating(false);
     setSelectedId(id);
+    // Drop the previous entry immediately so Save cannot retarget it (#430).
+    stored.current = null;
+    loadedId.current = null;
+    setReady(false);
+    setHeadword('');
+    setTranslation('');
+    const seq = ++loadSeq.current;
     void createDesktopClient({ desktopCall: host.desktopCall })
       .getLexemeEntry(sessionId, id)
       .then((entry) => {
+        if (seq !== loadSeq.current) return;
         if (entry === null) {
           setError(t(locale, 'app.desktopRead.loadFailed'));
           return;
         }
         stored.current = entry.entry;
+        loadedId.current = id;
         const draft = readDesktopLexemeDraft(entry.entry);
         setHeadword(draft.headword);
         setTranslation(draft.translation);
+        setReady(true);
       })
       .catch(() => {
+        if (seq !== loadSeq.current) return;
         setError(t(locale, 'app.desktopRead.loadFailed'));
       });
   };
@@ -64,6 +79,9 @@ export function useDesktopLexiconController(host: DesktopReadHost) {
     setCreating(true);
     setSelectedId('');
     stored.current = null;
+    loadedId.current = null;
+    loadSeq.current += 1;
+    setReady(true);
     setHeadword('');
     setTranslation('');
   };
@@ -83,20 +101,22 @@ export function useDesktopLexiconController(host: DesktopReadHost) {
             senses: [{ headwordTranslations: [{ text: translation.trim() }] }],
           },
         })
-      : stored.current === null
+      : stored.current === null || loadedId.current === null || loadedId.current !== selectedId
         ? Promise.reject(new Error('lexeme is missing'))
         : client.saveLexemeEntry(sessionId, {
-            id: selectedId,
+            id: loadedId.current,
             entry: applyDesktopLexemeDraft(stored.current, headword, translation),
           });
     void write
       .then((saved) => {
         stored.current = saved.entry;
+        loadedId.current = saved.id;
         const draft = readDesktopLexemeDraft(saved.entry);
         setCreating(false);
         setSelectedId(saved.id);
         setHeadword(draft.headword);
         setTranslation(draft.translation);
+        setReady(true);
         setRevision((current) => current + 1);
       })
       .catch((caught: unknown) => {
@@ -117,6 +137,7 @@ export function useDesktopLexiconController(host: DesktopReadHost) {
     headword,
     translation,
     error,
+    ready,
     setHeadword,
     setTranslation,
     select,
