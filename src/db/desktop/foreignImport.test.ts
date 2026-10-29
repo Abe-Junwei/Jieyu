@@ -159,6 +159,44 @@ describe('foreign file import', () => {
     expect(texts(project)).toContain('kept sentence');
   });
 
+  it('parses flextext/eaf/lift in Node without a preinstalled DOMParser (#427)', () => {
+    const saved = globalThis.DOMParser;
+    // @ts-expect-error intentional: simulate Electron main
+    delete globalThis.DOMParser;
+    try {
+      const project = library();
+      const source = join(rootOf(project), 'source');
+      writeFileSync(join(source, 'phrase.wav'), Buffer.from('synthetic-chain'));
+      writeFileSync(join(source, 'phrase.flextext'), flex());
+      writeFileSync(join(source, 'flex-roles.txt'), 'primary 转写\nFLEx Gloss 译文\n');
+      expect(
+        importForeignFile({
+          folder: project,
+          file: join(source, 'phrase.flextext'),
+          roles: join(source, 'flex-roles.txt'),
+        }).written,
+      ).toBeGreaterThan(0);
+
+      writeFileSync(join(source, 'test.wav'), Buffer.from('synthetic-chain'));
+      writeFileSync(join(source, 'kept.eaf'), eaf());
+      writeFileSync(join(source, 'eaf-roles.txt'), 'transcription 转写\n');
+      expect(
+        importForeignFile({
+          folder: project,
+          file: join(source, 'kept.eaf'),
+          roles: join(source, 'eaf-roles.txt'),
+        }).written,
+      ).toBeGreaterThan(0);
+
+      writeFileSync(join(source, 'kept.lift'), lift());
+      expect(importForeignFile({ folder: project, file: join(source, 'kept.lift') }).written).toBeGreaterThan(
+        0,
+      );
+    } finally {
+      globalThis.DOMParser = saved;
+    }
+  });
+
   it('creates one folder per JYB project and refuses a field that does not fit', () => {
     const parent = mkdtempSync(join(tmpdir(), 'jieyu-foreign-jyb-'));
     roots.push(parent);
