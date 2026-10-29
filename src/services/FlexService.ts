@@ -28,6 +28,7 @@ import {
 } from '../utils/bidiPlainText';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 import { normalizeImportedLanguageTag } from '../utils/eafTierLanguage';
+import { ensureDomParser } from '../utils/ensureDomParser';
 
 type TimelineInteropMetadata = Pick<
   OrthographyInteropMetadata,
@@ -596,6 +597,7 @@ function parseFlexPhrase(
 }
 
 export function importFromFlextext(xmlString: string): FlexImportResult {
+  ensureDomParser();
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
 

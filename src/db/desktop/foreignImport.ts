@@ -14,6 +14,7 @@ import { importFromEaf } from '../../services/eaf/eafImport';
 import { importFromFlextext } from '../../services/FlexService';
 import { importFromTextGrid } from '../../services/TextGridService';
 import { importFromToolbox } from '../../services/ToolboxService';
+import { ensureDomParser } from '../../utils/ensureDomParser';
 import { parseLiftXml } from '../../utils/lexiconLiftImport';
 import { readAnalysisMaterial } from './analysisCandidates';
 import { writeGraph } from './analysisRestore';
@@ -93,6 +94,7 @@ export function importForeignFile(input: {
   roles?: string;
   db?: Sqlite;
 }): ImportResult {
+  ensureDomParser();
   const extension = path.extname(input.file).toLowerCase();
   if (!EXTENSIONS.has(extension)) throw new Error('import extension is unsupported');
   const bytes = readFileSync(input.file);

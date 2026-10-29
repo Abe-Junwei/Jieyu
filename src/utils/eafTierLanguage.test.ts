@@ -121,6 +121,21 @@ describe('resolveImportedEafTierLanguage', () => {
     ).toBe('mvm');
   });
 
+  it('does not treat a tier named transcription as a language name', () => {
+    expect(
+      resolveImportedEafTierLanguage({
+        tierId: 'transcription',
+        languages: new Map(),
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveImportedEafTierLanguage({
+        tierId: 'Transcription-ENG',
+        languages: new Map(),
+      }),
+    ).toBe('eng');
+  });
+
   it('keeps an unknown LANG_REF instead of substituting English', () => {
     expect(
       resolveImportedEafTierLanguage({
