@@ -73,6 +73,7 @@ const SEEDED_PROJECT_IDS = [
   'text-flex-map',
   'text-flex-title',
   'text-flex-gloss',
+  'text-flex-speaker',
   'text-flex-wipe',
   'text-grid',
   'text-grid-off',
@@ -3210,6 +3211,60 @@ describe('useImportExport - import success under stop-write', () => {
     expect(result.current.eafTierRoleDialog?.isOpen).not.toBe(true);
     const contents = await db.layer_unit_contents.toArray();
     expect(contents.some((row) => row.text === 'first sentence')).toBe(true);
+  });
+
+  it('attaches FLEx phrase speakers to the matching units (#409)', async () => {
+    const textId = 'text-flex-speaker';
+    const defaultLayer: LayerDocType = {
+      id: 'trc-flex-speaker',
+      textId,
+      key: 'trc_flex_speaker',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    const flex = `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase guid="phrase-alice" speaker="Alice" begin-time-offset="0" end-time-offset="1000">
+        <item type="txt" lang="en">hello</item>
+      </phrase>
+      <phrase guid="phrase-bob" speaker="Bob" begin-time-offset="1000" end-time-offset="2000">
+        <item type="txt" lang="en">world</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: flex,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter(textId, [defaultLayer]);
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File([flex], 'speakers.flextext', { type: 'application/xml' }),
+      );
+    });
+    const units = await db.layer_units.where('textId').equals(textId).toArray();
+    const byRef = new Map(
+      units
+        .filter((row) => typeof row.externalRef === 'string')
+        .map((row) => [row.externalRef!, row] as const),
+    );
+    expect(byRef.get('phrase-alice')?.speakerId).toBeTruthy();
+    expect(byRef.get('phrase-bob')?.speakerId).toBeTruthy();
+    expect(byRef.get('phrase-alice')?.speakerId).not.toBe(byRef.get('phrase-bob')?.speakerId);
+    const speakers = await db.speakers.toArray();
+    const names = new Map(speakers.map((row) => [row.id, row.name] as const));
+    expect(names.get(byRef.get('phrase-alice')!.speakerId!)).toMatch(/Alice/i);
+    expect(names.get(byRef.get('phrase-bob')!.speakerId!)).toMatch(/Bob/i);
   });
 
   it('attaches FLEx phrase glosses by GUID when two phrases share the same time (#408)', async () => {

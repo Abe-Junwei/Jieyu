@@ -65,6 +65,8 @@ export interface FlexImportResult {
     phraseId?: string;
     /** Present only when phrase@guid is non-empty. Synthetic pN keys are not stable ids. */
     annotationId?: string;
+    /** phrase@speaker when present; import maps this through the speaker resolver. */
+    speakerId?: string;
     tokens?: Array<{
       form: Record<string, string>;
       gloss?: Record<string, string>;
@@ -723,6 +725,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
           transcription: parsed.transcription,
           phraseId: parsed.phraseId,
           ...(parsed.stableGuid ? { annotationId: parsed.stableGuid } : {}),
+          ...(parsed.speaker ? { speakerId: parsed.speaker } : {}),
           ...(parsed.tokens ? { tokens: parsed.tokens } : {}),
         });
       });
