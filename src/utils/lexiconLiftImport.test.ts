@@ -161,6 +161,53 @@ describe('importLexemesFromLiftXml', () => {
     expect(second.readback).toHaveLength(1);
     expect(second.readback[0]?.id).toBe('lex-fox');
   });
+
+  it('clears the last cancelled subsense relation on re-import (#436)', async () => {
+    const withSubsense = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13"><entry id="lex-dog">
+  <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+  <sense id="sense-dog">
+    <gloss lang="en"><text>canine</text></gloss>
+    <subsense id="sense-pup"><gloss lang="en"><text>young dog</text></gloss></subsense>
+  </sense>
+</entry></lift>`;
+    const flatSenses = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13"><entry id="lex-dog">
+  <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+  <sense id="sense-dog"><gloss lang="en"><text>canine</text></gloss></sense>
+  <sense id="sense-pup"><gloss lang="en"><text>young dog</text></gloss></sense>
+</entry></lift>`;
+    const store = new Map<string, LexemeEntryDoc | LexemeResourceDoc>();
+    const deps = {
+      save: async (doc: LexemeEntryDoc | LexemeResourceDoc) => {
+        store.set(doc.id, doc);
+        return doc.id;
+      },
+      list: async () =>
+        [...store.values()].filter((row): row is LexemeEntryDoc => row.kind !== 'resource'),
+      loadResource: async () =>
+        ([...store.values()].find((row) => row.kind === 'resource') as LexemeResourceDoc | undefined) ??
+        null,
+      saveResource: async (doc: LexemeResourceDoc) => {
+        store.set(doc.id, doc);
+        return doc.id;
+      },
+    };
+    const first = await importLexemesFromLiftXml(withSubsense, 'text-1', deps);
+    expect(first.ok).toBe(true);
+    const resourceAfterFirst = [...store.values()].find((row) => row.kind === 'resource') as
+      | LexemeResourceDoc
+      | undefined;
+    expect(resourceAfterFirst?.resource.relations?.some((row) => row.type === 'subsense')).toBe(true);
+
+    const second = await importLexemesFromLiftXml(flatSenses, 'text-1', deps);
+    expect(second.ok).toBe(true);
+    const resourceAfterSecond = [...store.values()].find((row) => row.kind === 'resource') as
+      | LexemeResourceDoc
+      | undefined;
+    expect(resourceAfterSecond?.resource.relations ?? []).toEqual([]);
+  });
+
 });
 
 // ADR-0045 冻结：副本 id 会写进用户数据，固定值一变就说明算法被改了 | frozen by ADR-0045: a changed value means the algorithm changed
