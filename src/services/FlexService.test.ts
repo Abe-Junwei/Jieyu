@@ -91,6 +91,13 @@ describe('FlexService golden round-trip', () => {
     const imported = importFromFlextext(readGolden('empty.flextext'));
     expect(imported.units).toEqual([]);
   });
+
+  it('rejects non-FLEx XML that only shares the .flextext extension (#407)', () => {
+    expect(() => importFromFlextext('<foo/>')).toThrow(/no interlinear-text/);
+    expect(() => importFromFlextext('<?xml version="1.0"?><bar><baz/></bar>')).toThrow(
+      /no interlinear-text/,
+    );
+  });
 });
 
 describe('FlexService RTL phrase round-trip', () => {

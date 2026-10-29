@@ -73,6 +73,7 @@ const SEEDED_PROJECT_IDS = [
   'text-flex-map',
   'text-flex-title',
   'text-flex-gloss',
+  'text-flex-wipe',
   'text-grid',
   'text-grid-off',
   'text-import',
@@ -3278,4 +3279,110 @@ describe('useImportExport - import success under stop-write', () => {
     expect(textsForKey(keyB)).not.toContain('甲');
   });
 
+  it('keeps existing units when a valid empty flextext has no phrases (#407)', async () => {
+    const textId = 'text-flex-wipe';
+    const defaultLayer: LayerDocType = {
+      id: 'trc-flex-wipe-empty',
+      textId,
+      key: 'trc_flex_wipe_empty',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    await ensureDefaultAnnotationDocument(textId);
+    await db.layer_units.put({
+      id: 'unit-keep-empty-407',
+      textId,
+      mediaId: 'media-keep',
+      layerId: defaultLayer.id,
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+    const emptyFlex = `<?xml version="1.0" encoding="utf-8"?>
+<document version="2">
+  <interlinear-text>
+    <paragraphs><paragraph><phrases></phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: emptyFlex,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result, setSaveState } = renderImporter(textId, [defaultLayer]);
+    let commit: { committed: boolean } | undefined;
+    await act(async () => {
+      commit = await result.current.handleImportFile(
+        new File([emptyFlex], 'empty.flextext', { type: 'application/xml' }),
+      );
+    });
+    expect(commit?.committed).toBe(false);
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+    expect((await db.layer_units.get('unit-keep-empty-407'))?.id).toBe('unit-keep-empty-407');
+  });
+
+  it('keeps existing units when a fake .flextext has no interlinear-text (#407)', async () => {
+    const textId = 'text-flex-wipe';
+    const defaultLayer: LayerDocType = {
+      id: 'trc-flex-wipe',
+      textId,
+      key: 'trc_flex_wipe',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    await ensureDefaultAnnotationDocument(textId);
+    await db.layer_units.put({
+      id: 'unit-keep-407',
+      textId,
+      mediaId: 'media-keep',
+      layerId: defaultLayer.id,
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+    await db.layer_unit_contents.put({
+      id: 'content-keep-407',
+      unitId: 'unit-keep-407',
+      layerId: defaultLayer.id,
+      modality: 'text',
+      text: 'keep me',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: '<foo/>',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result, setSaveState } = renderImporter(textId, [defaultLayer]);
+    let commit: { committed: boolean } | undefined;
+    await act(async () => {
+      commit = await result.current.handleImportFile(
+        new File(['<foo/>'], 'wrong.flextext', { type: 'application/xml' }),
+      );
+    });
+    expect(commit?.committed).toBe(false);
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+    const units = await db.layer_units.where('textId').equals(textId).toArray();
+    expect(units.map((row) => row.id)).toEqual(['unit-keep-407']);
+    const contents = await db.layer_unit_contents.where('unitId').equals('unit-keep-407').toArray();
+    expect(contents.map((row) => row.text)).toEqual(['keep me']);
+  });
 });

@@ -262,7 +262,8 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
                 ? (u as { phraseId: string }).phraseId
                 : undefined;
             const annotationRef =
-              'annotationId' in u && typeof (u as { annotationId?: string }).annotationId === 'string'
+              'annotationId' in u &&
+              typeof (u as { annotationId?: string }).annotationId === 'string'
                 ? (u as { annotationId: string }).annotationId
                 : undefined;
             return {
@@ -339,6 +340,22 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       // 2B-E (N1): no up-front wipe of the project's unit graph. Ensure the default document; the
       // replace happens inside the import transaction below, committed with the new content and the
       // source record, so a failure leaves the original content intact.
+      const hasImportablePayload =
+        parsedUnits.length > 0 ||
+        roleExtraTranscriptionTiers.length > 0 ||
+        roleNoteSegments.length > 0 ||
+        [...additionalTiers.values()].some((rows) =>
+          rows.some((row) => typeof row.text === 'string' && row.text.trim().length > 0),
+        ) ||
+        (flexResult?.userNotes?.length ?? 0) > 0;
+      if (!hasImportablePayload) {
+        setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.importExport.unsupportedFormat'),
+        });
+        return { committed: false };
+      }
+
       const importDocumentId = await ensureDefaultAnnotationDocument(importTextId);
       // 4.2-3：来源哈希在事务外先算好 | Hash the source outside the transaction
       const importSourceSha256 = await computeBlobSha256(file);
