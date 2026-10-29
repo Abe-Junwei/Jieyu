@@ -134,4 +134,85 @@ describe('DesktopLexiconPage', () => {
       entry: { headword: 'new-word', senses: [{ headwordTranslations: [{ text: 'fresh' }] }] },
     });
   });
+
+  it('does not save the previous entry onto a newly selected id (#430)', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-desktop-lexicon-race-'));
+    roots.push(folder);
+    const session = openDesktopSession(folder, [folder]);
+    callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'alpha',
+      entry: {
+        headword: 'alpha',
+        senses: [{ id: 'sa', headwordTranslations: [{ text: 'A' }] }],
+      },
+    });
+    callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'beta',
+      entry: {
+        headword: 'beta',
+        senses: [{ id: 'sb', headwordTranslations: [{ text: 'B' }] }],
+      },
+    });
+    rememberOpenProjectSession(session.sessionId);
+
+    let releaseAlpha: ((value: unknown) => void) | undefined;
+    const deferredAlpha = new Promise((resolve) => {
+      releaseAlpha = resolve;
+    });
+    const base = hostFor();
+    const host: DesktopReadHost = {
+      ...base,
+      desktopCall: (id, method, args) => {
+        if (
+          method === 'lexicon.getEntry' &&
+          typeof args === 'object' &&
+          args !== null &&
+          (args as { id?: string }).id === 'alpha'
+        ) {
+          return deferredAlpha.then(() => callDesktopSession(id, method, args));
+        }
+        return Promise.resolve(callDesktopSession(id, method, args));
+      },
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'alpha' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'beta' }));
+    await waitFor(() => {
+      expect((screen.getByRole('textbox', { name: 'Headword' }) as HTMLInputElement).value).toBe(
+        'beta',
+      );
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Headword' }), {
+      target: { value: 'beta-new' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sense translation' }), {
+      target: { value: 'B2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save entry' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'beta-new' })).toBeTruthy();
+    });
+
+    releaseAlpha?.(undefined);
+    await waitFor(() => {
+      expect(
+        callDesktopSession(session.sessionId, 'lexicon.getEntry', { id: 'beta' }),
+      ).toMatchObject({
+        entry: {
+          headword: 'beta-new',
+          senses: [{ id: 'sb', headwordTranslations: [{ text: 'B2' }] }],
+        },
+      });
+    });
+    expect(callDesktopSession(session.sessionId, 'lexicon.getEntry', { id: 'alpha' })).toMatchObject(
+      {
+        entry: {
+          headword: 'alpha',
+          senses: [{ id: 'sa', headwordTranslations: [{ text: 'A' }] }],
+        },
+      },
+    );
+  });
 });

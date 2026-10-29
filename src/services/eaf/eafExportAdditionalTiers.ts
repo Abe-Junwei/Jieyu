@@ -7,7 +7,7 @@ import {
 } from '../../db/types';
 import { readEnglishFallbackMultiLangLabel } from '../../utils/multiLangLabels';
 import type { EafExportInput } from './eafTypes';
-import type { EafExportScratch } from './eafExportScratch';
+import { takeEafAnnId, type EafExportScratch } from './eafExportScratch';
 import { escapeXml, parseEafMetaFromLayerKey } from './eafXml';
 
 export function buildEafAdditionalTierXml(input: {
@@ -171,7 +171,8 @@ export function buildEafAdditionalTierXml(input: {
                   const tsEnd = `ts${tsCounter++}`;
                   timeSlots.push({ id: tsStart, ms: Math.round(seg.startTime * 1000) });
                   timeSlots.push({ id: tsEnd, ms: Math.round(seg.endTime * 1000) });
-                  const annotationId = tr.externalRef ?? `a${annCounter++}`;
+                  const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
+            annCounter = scratch.annCounter;
                   return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStart}" TIME_SLOT_REF2="${tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
@@ -185,7 +186,8 @@ export function buildEafAdditionalTierXml(input: {
 
             const tr = candidates[0];
             if (!tr?.text) return null;
-            const annotationId = tr.externalRef ?? `a${annCounter++}`;
+            const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
+            annCounter = scratch.annCounter;
             const slots = uttSlotMap.get(utt.id)!;
             return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
@@ -196,7 +198,8 @@ export function buildEafAdditionalTierXml(input: {
             // Symbolic association: use REF_ANNOTATION
             const tr = layerTranslationsByUnit.get(utt.id)?.[0];
             if (!tr?.text) return null;
-            const annotationId = tr.externalRef ?? `a${annCounter++}`;
+            const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
+            annCounter = scratch.annCounter;
             const parentAnnId = parentAnnotationIdForHost(effectivePreferredHostTranscriptionLayerId, utt.id);
             if (!parentAnnId) return null;
             return `        <ANNOTATION>
@@ -266,7 +269,8 @@ ${annotations.join('\n')}
             const tsStartId = `ts${tsCounter++}`;
             const tsEndId = `ts${tsCounter++}`;
             timeSlots.push({ id: tsStartId, ms: startMs }, { id: tsEndId, ms: endMs });
-            const annotationId = `a${annCounter++}`;
+            const annotationId = takeEafAnnId(scratch);
+            annCounter = scratch.annCounter;
             return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStartId}" TIME_SLOT_REF2="${tsEndId}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
@@ -300,7 +304,8 @@ ${segAnnotations.join('\n')}
             const tr = layerTranslations.find((t) => t.unitId === utt.id);
             if (!tr?.text) return null;
             const slots = uttSlotMap.get(utt.id)!;
-            const annotationId = tr?.externalRef ?? `a${annCounter++}`;
+            const annotationId = takeEafAnnId(scratch, { externalRef: tr?.externalRef });
+            annCounter = scratch.annCounter;
             registerLayerAnnotation(layer.id, utt.id, annotationId);
             return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
