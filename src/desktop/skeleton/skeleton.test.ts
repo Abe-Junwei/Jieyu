@@ -14,7 +14,13 @@ import { openProjectFolder } from './openProject';
 import { writeProbeAndReadBack } from './probeStore';
 import { PROJECT_LOCK_NAME, PROJECT_LOCK_STALE_MS, releaseAllProjectLocks } from './projectLock';
 import { syncFolderWarning } from './syncFolder';
-import { USER_DATA_DIRS, ensureUserDataLayout } from './userDataLayout';
+import {
+  USER_DATA_DIRS,
+  ensureUserDataLayout,
+  projectBackupDir,
+  projectBackupKey,
+} from './userDataLayout';
+import { listDailyBackupDays } from '../../db/desktop/dailyBackup';
 
 const temps: string[] = [];
 
@@ -135,6 +141,20 @@ describe('desktop skeleton', () => {
   it('keeps desktop connect-src on this machine', () => {
     expect(DESKTOP_CSP).toContain("connect-src 'self'");
     expect(DESKTOP_CSP).not.toContain('https:');
+  });
+
+  it('lists daily backups from the same path-hash dir used for writes (#428)', () => {
+    const userData = tempDir();
+    ensureUserDataLayout(userData);
+    const folder = path.join(tempDir(), 'shared-name');
+    fs.mkdirSync(folder, { recursive: true });
+    const opened = openProjectFolder({ folder, userDataRoot: userData });
+    expect(opened.backupDir).toBe(projectBackupDir(userData, folder));
+    expect(path.basename(opened.backupDir!)).toBe(projectBackupKey(folder));
+    expect(path.basename(opened.backupDir!)).not.toBe('shared-name');
+    fs.writeFileSync(path.join(opened.backupDir!, '2026-10-29.jym'), Buffer.from('day'));
+    expect(listDailyBackupDays(projectBackupDir(userData, folder))).toEqual(['2026-10-29']);
+    expect(listDailyBackupDays(path.join(userData, 'backups', path.basename(folder)))).toEqual([]);
   });
 
   it('keeps daily backups apart when two projects share a folder basename (#404)', () => {

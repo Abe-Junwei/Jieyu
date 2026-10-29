@@ -319,6 +319,19 @@ function buildIntervalsWithGaps(
 
 // ── Import ──────────────────────────────────────────────────
 
+function allocateUniqueTextGridTierKey(used: Set<string>, baseName: string): string {
+  const base = baseName.trim().length > 0 ? baseName : 'Tier';
+  if (!used.has(base)) {
+    used.add(base);
+    return base;
+  }
+  let n = 2;
+  while (used.has(`${base} (${n})`)) n += 1;
+  const key = `${base} (${n})`;
+  used.add(key);
+  return key;
+}
+
 export function importFromTextGrid(text: string): TextGridImportResult {
   const lines = text.split(/\r?\n/);
   let idx = 0;
@@ -403,13 +416,15 @@ export function importFromTextGrid(text: string): TextGridImportResult {
 
   const parsedTiers: ParsedTier[] = [];
   const tierMetadata = new Map<string, OrthographyInteropMetadata>();
+  const usedTierNames = new Set<string>();
 
   for (let t = 0; t < tierCount; t++) {
     nextLine(); // item [n]:
     const tierClass = readQuotedString('class');
     const rawTierName = readQuotedString('name');
     const decodedTierName = decodeTierNameWithMetadata(rawTierName);
-    const tierName = decodedTierName.name;
+    // Display names are labels only; disambiguate so same-name tiers are not overwritten (#435).
+    const tierName = allocateUniqueTextGridTierKey(usedTierNames, decodedTierName.name);
     if (decodedTierName.metadata) tierMetadata.set(tierName, decodedTierName.metadata);
     readNumber('xmin');
     readNumber('xmax');

@@ -1,12 +1,13 @@
 import type { LayerUnitDocType, SpeakerDocType, UserNoteDocType } from '../../db/types';
 import { formatEafSideChannelNote, parseEafSideChannelNote } from '../../utils/eafTierRole';
+import { takeEafAnnId, type EafExportScratch } from './eafExportScratch';
 import { escapeXml } from './eafXml';
 
 export function buildNoteTierXml(
   sorted: LayerUnitDocType[],
   uttSlotMap: Map<string, { tsStart: string; tsEnd: string }>,
   notes: UserNoteDocType[],
-  annCounterStart: number,
+  scratch: EafExportScratch,
   uttAnnotationIdMap: Map<string, string>,
   speakers: SpeakerDocType[],
   parentTierId: string,
@@ -19,7 +20,6 @@ export function buildNoteTierXml(
     else notesByUtt.set(note.targetId, [note]);
   }
 
-  let counter = annCounterStart;
   const annotations = sorted
     .map((utt) => {
       const uttNotes = notesByUtt.get(utt.id) ?? [];
@@ -39,16 +39,17 @@ export function buildNoteTierXml(
       if (parts.length === 0) return null;
       const text = parts.join(' | ');
       const parentAnnId = uttAnnotationIdMap.get(utt.id);
+      const annotationId = takeEafAnnId(scratch);
       if (parentAnnId) {
         return `        <ANNOTATION>
-            <REF_ANNOTATION ANNOTATION_ID="a${counter++}" ANNOTATION_REF="${escapeXml(parentAnnId)}">
+            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" ANNOTATION_REF="${escapeXml(parentAnnId)}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
             </REF_ANNOTATION>
         </ANNOTATION>`;
       }
       if (!slots) return null;
       return `        <ANNOTATION>
-            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a${counter++}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
             </ALIGNABLE_ANNOTATION>
         </ANNOTATION>`;
