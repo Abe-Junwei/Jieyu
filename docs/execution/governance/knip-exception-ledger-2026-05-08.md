@@ -3,7 +3,7 @@ title: Knip 例外清单（2026-05-08）
 doc_type: execution-governance-ledger
 status: active
 owner: repo
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-29
 source_of_truth: knip-exceptions
 ---
 
@@ -63,6 +63,7 @@ source_of_truth: knip-exceptions
 | 依赖名 | 理由 | 复审条件 |
 |--------|------|----------|
 | `cross-env` | npm scripts 通过命令行调用（`cross-env FOO=1 ...`），Knip 静态分析无法识别 | 全平台脚本切换为 Node ESM 包装时复审 |
+| `linkedom` | Electron 主进程在缺少 `DOMParser` 时经 `eval('require')('linkedom')` 加载（`src/utils/ensureDomParser.ts`，#427）。模块说明符故意不进静态 import 图，避免浏览器 Vite 打包拉进 cssom。Knip 看不到该动态引用，故登记为未使用依赖例外 | 若改为 Knip 可追踪且 Vite 仍不打包的加载方式，移出本表 |
 
 > 注：`country-state-city`、`knip` 等先前列入此处的依赖已被实际 import / `package.json` script 引用，Knip 不再报 unlisted，因此从忽略名单移除。
 
@@ -85,6 +86,7 @@ source_of_truth: knip-exceptions
 | 2026-05-11 | `knip.json`：`ignore` 增加例外 ledger §1 七文件；`ignoreBinaries`: `knip`；`ignoreDependencies` 增补 `country-state-city`（脚本入口已在 `devDependencies` 显式声明） |
 | 2026-05-12 | 删除死文件 `src/components/layerActionPopoverFieldIds.ts`；CI 门禁切换为 `check:knip:ci`（窄范围：files/dependencies/binaries/unlisted），`check:knip:full` 保留为本地宽范围参考；`ignoreBinaries` 清空、`ignoreDependencies` 收敛至仅 `cross-env` |
 | 2026-05-12 | `knip.json` 新增 `exclude: ["types"]`（unused types 规模 547 以假阳性为主，与 `--include-entry-exports` 口径一致；窄门禁已排除 types）；批量清理 AI chat / services / pages / db / extensions 共 64 个未使用导出，移除 `export` 或删除死代码；`ignoreIssues` 增补 12 项（动态 import、re-export、内部组织导出） | 技术债修复方案 |
+| 2026-10-29 | `ignoreDependencies` 增加 `linkedom`：运行时仅在缺少 `DOMParser` 时 `eval('require')` 加载，静态分析不可见（#427 / #440） | review-bugs |
 
 ---
 
