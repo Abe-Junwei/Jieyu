@@ -381,7 +381,7 @@ export async function restoreOverwriteSnapshot(
         schemaVersion: before.schemaVersion,
         collections: before.collections,
         ...(parsed.preferences.length > 0
-          ? { preferences: readCurrentUserPreferences(parsed.preferences.map((p) => p.key)) }
+          ? { preferences: await readCurrentUserPreferences(parsed.preferences.map((p) => p.key)) }
           : {}),
       },
     });
@@ -433,7 +433,7 @@ export async function restoreOverwriteSnapshot(
   try {
     await scoped.dropLexemeLinksWithMissingTargets();
     const restoredPreferenceKeys =
-      projectId === null ? restoreRecordedUserPreferences(parsed.preferences) : [];
+      projectId === null ? await restoreRecordedUserPreferences(parsed.preferences) : [];
 
     // 写完读回核对 | Read back and compare
     const after = await exportCurrent(projectId);
@@ -443,7 +443,7 @@ export async function restoreOverwriteSnapshot(
     ];
     if (restoredPreferenceKeys.length > 0) {
       const expected = new Map(parsed.preferences.map((entry) => [entry.key, entry.value]));
-      for (const entry of readCurrentUserPreferences(restoredPreferenceKeys)) {
+      for (const entry of await readCurrentUserPreferences(restoredPreferenceKeys)) {
         if (entry.value !== expected.get(entry.key)) missing.push(`preferences:${entry.key}`);
       }
     }
