@@ -880,7 +880,7 @@ export async function disasterRestoreFromJyb(
         // 会被覆盖的偏好的旧值，供从快照恢复 | Old values of preferences about to be overwritten
         ...(restorePreferences
           ? {
-              preferences: readCurrentUserPreferences(
+              preferences: await readCurrentUserPreferences(
                 inspected.preferences.entries.map((entry) => entry.key),
               ),
             }
