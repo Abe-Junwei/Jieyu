@@ -29,7 +29,6 @@ import {
   segmentUnitWords,
   splitAnalysisNode,
   submitAnalysis,
-  undoUnitText,
   type AnalysisCredentials,
 } from './analysisRestore';
 import {
@@ -79,12 +78,12 @@ import {
   redeliverConversation,
   type ConversationPatch,
 } from './conversationFields';
-import { assignSpeaker, undoAssignSpeaker } from './speakerAssign';
+import { assignSpeaker } from './speakerAssign';
 import { patchSpeaker, redeliverSpeaker, type SpeakerPatch } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
 import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
-import { createLayer, listLayers, type LayerCreate } from './layers';
+import { createLayer, listLayers } from './layers';
 import {
   linkSense,
   removeSense,
@@ -155,16 +154,12 @@ import {
   type ManuscriptCreate,
 } from './manuscripts';
 import {
-  clearUnitTextUndo,
   desktopSessionFolder,
-  peekUnitStep,
-  rememberUnitAssignUndo,
-  rememberUnitMergeUndo,
-  rememberUnitSplitUndo,
-  rememberUnitTextUndo,
   reopenDesktopSession,
   requireDesktopSession,
 } from './projectSession';
+import { clearSessionEdit, rememberSessionEdit, undoSessionEdit } from './sessionEdit';
+import { desktopOperations, isDesktopOperation, type DesktopOperations } from './operationContract';
 import {
   createUnit,
   getUnit,
@@ -172,15 +167,15 @@ import {
   updateBoundary,
   updateUnitText,
   type UnitCreate,
+  type UnitTextUndo,
 } from './units';
-import { mergeUnits, splitUnit, undoMerge, undoSplit } from './unitSpan';
+import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
   'media.create',
   'media.delete',
   'media.previewDelete',
   'media.showReminder',
-  'media.finishCleanup',
   'media.reregister',
   'media.restoreRegistered',
   'media.list',
@@ -188,7 +183,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'project.get',
   'manuscripts.create',
   'manuscripts.list',
   'manuscripts.listDeleted',
@@ -199,7 +193,6 @@ const METHODS = [
   'manuscripts.purge',
   'manuscripts.setTimeMapping',
   'manuscripts.rollbackTimeMapping',
-  'layers.create',
   'layers.list',
   'catalog.ensureProjectDefinition',
   'catalog.getLanguage',
@@ -243,7 +236,6 @@ const METHODS = [
   'units.create',
   'units.get',
   'units.list',
-  'units.updateText',
   'units.undoText',
   'units.undo',
   'units.split',
@@ -309,11 +301,9 @@ const METHODS = [
 type DesktopMethod = (typeof METHODS)[number];
 
 const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
-  'project.get',
   'exchange.exportJyt',
   'exchange.exportJym',
   'exchange.exportManuscript',
-  'units.updateText',
   'units.undoText',
   'units.undo',
   'speakers.assign',
@@ -360,24 +350,119 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'conversations.list',
 ]);
 
+type ContractCtx = {
+  db: ReturnType<typeof requireDesktopSession>['db'];
+  folder: string;
+  trash?: MediaTrash;
+};
+
+type ContractHandlers = {
+  [K in keyof DesktopOperations]: DesktopOperations[K]['undo'] extends 'replace-on-success'
+    ? {
+        run: (
+          ctx: ContractCtx,
+          input: ReturnType<DesktopOperations[K]['check']>,
+        ) => { value: DesktopOperations[K]['output']; undo: UnitTextUndo | null };
+        remember: (sessionId: string, undo: UnitTextUndo) => void;
+      }
+    : {
+        run: (
+          ctx: ContractCtx,
+          input: ReturnType<DesktopOperations[K]['check']>,
+        ) => DesktopOperations[K]['output'] | Promise<DesktopOperations[K]['output']>;
+      };
+};
+
+const operationHandlers = {
+  'project.get': {
+    run: (ctx: ContractCtx) => getProjectIdentity(ctx.db),
+  },
+  'layers.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.create']['check']>) =>
+      createLayer(ctx.db, input),
+  },
+  'units.updateText': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
+      const box: { undo: UnitTextUndo | null } = { undo: null };
+      const unit = updateUnitText(ctx.db, input, undefined, (undo) => {
+        box.undo = undo;
+      });
+      return { value: unit, undo: box.undo };
+    },
+    remember: (sessionId, undo) => {
+      rememberSessionEdit(sessionId, { kind: 'text', undo });
+    },
+  },
+  'media.finishCleanup': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['media.finishCleanup']['check']>,
+    ) => {
+      if (ctx.trash === undefined) throw new Error('media trash is missing');
+      return finishMediaCleanup(ctx.db, ctx.folder, input.id, input.operationId, ctx.trash);
+    },
+  },
+} satisfies ContractHandlers;
+
+function runContract(
+  method: keyof DesktopOperations,
+  sessionId: string,
+  args: unknown,
+  trash?: MediaTrash,
+): unknown {
+  const project = requireDesktopSession(sessionId);
+  if (desktopOperations[method].undo === 'clear') clearSessionEdit(sessionId);
+  const ctx: ContractCtx = {
+    db: project.db,
+    folder: desktopSessionFolder(sessionId),
+    ...(trash === undefined ? {} : { trash }),
+  };
+  const raw = objectArg(args);
+  switch (method) {
+    case 'project.get':
+      desktopOperations['project.get'].check(raw);
+      return operationHandlers['project.get'].run(ctx);
+    case 'layers.create':
+      return operationHandlers['layers.create'].run(
+        ctx,
+        desktopOperations['layers.create'].check(raw),
+      );
+    case 'units.updateText': {
+      const done = operationHandlers['units.updateText'].run(
+        ctx,
+        desktopOperations['units.updateText'].check(raw),
+      );
+      if (done.undo !== null) operationHandlers['units.updateText'].remember(sessionId, done.undo);
+      return done.value;
+    }
+    case 'media.finishCleanup':
+      return operationHandlers['media.finishCleanup'].run(
+        ctx,
+        desktopOperations['media.finishCleanup'].check(raw),
+      );
+    default: {
+      const unreachable: never = method;
+      return unreachable;
+    }
+  }
+}
+
 export function callDesktopSession(
   sessionId: string,
   method: string,
   args: unknown,
   trash?: MediaTrash,
 ): unknown {
+  if (isDesktopOperation(method)) return runContract(method, sessionId, args, trash);
   const parsed = parseMethod(method);
   if (parsed === 'reopen') {
     reopenDesktopSession(sessionId);
     return { reopened: true };
   }
   const project = requireDesktopSession(sessionId);
-  if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearUnitTextUndo(sessionId);
+  if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
   const input = objectArg(args);
   switch (parsed) {
-    case 'project.get':
-      knownKeys(input, []);
-      return getProjectIdentity(project.db);
     case 'media.create':
       return createMedia(project.db, desktopSessionFolder(sessionId), mediaCreate(input));
     case 'media.delete':
@@ -389,16 +474,6 @@ export function callDesktopSession(
     case 'media.showReminder':
       knownKeys(input, ['id']);
       return showDeletionReminder(project.db, 'media', requiredString(input.id, 'id'));
-    case 'media.finishCleanup':
-      knownKeys(input, ['id', 'operationId']);
-      if (trash === undefined) throw new Error('media trash is missing');
-      return finishMediaCleanup(
-        project.db,
-        desktopSessionFolder(sessionId),
-        requiredString(input.id, 'id'),
-        requiredString(input.operationId, 'operationId'),
-        trash,
-      );
     case 'media.reregister':
       knownKeys(input, ['relpath', 'duration']);
       return reregisterMedia(project.db, desktopSessionFolder(sessionId), {
@@ -455,8 +530,6 @@ export function callDesktopSession(
         manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
         expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
       });
-    case 'layers.create':
-      return createLayer(project.db, layerCreate(input));
     case 'layers.list':
       return listLayers(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
     case 'catalog.ensureProjectDefinition':
@@ -564,28 +637,16 @@ export function callDesktopSession(
     }
     case 'units.list':
       return listUnits(project.db, requiredString(input.layerId, 'layerId'));
-    case 'units.updateText':
-      return updateUnitText(
-        project.db,
-        {
-          unitId: requiredString(input.unitId, 'unitId'),
-          text: requiredString(input.text, 'text'),
-        },
-        undefined,
-        (undo) => {
-          rememberUnitTextUndo(sessionId, undo);
-        },
-      );
     case 'units.undoText':
-      return undoRemembered(sessionId, project.db, 'text');
+      return undoSessionEdit(sessionId, project.db, 'text');
     case 'units.undo':
-      return undoRemembered(sessionId, project.db);
+      return undoSessionEdit(sessionId, project.db);
     case 'units.split': {
       const split = splitUnit(project.db, {
         unitId: requiredString(input.unitId, 'unitId'),
         time: requiredNumber(input.time, 'time'),
       });
-      rememberUnitSplitUndo(sessionId, split.undo);
+      rememberSessionEdit(sessionId, { kind: 'split', undo: split.undo });
       return { left: split.left, right: split.right };
     }
     case 'units.merge': {
@@ -593,7 +654,7 @@ export function callDesktopSession(
         keepId: requiredString(input.keepId, 'keepId'),
         removeId: requiredString(input.removeId, 'removeId'),
       });
-      rememberUnitMergeUndo(sessionId, merged.undo);
+      rememberSessionEdit(sessionId, { kind: 'merge', undo: merged.undo });
       return merged.unit;
     }
     case 'units.updateBoundary':
@@ -703,7 +764,9 @@ export function callDesktopSession(
         speakerId: requiredString(input.speakerId, 'speakerId'),
         unitIds: stringIds(input.unitIds, 'unitIds'),
       });
-      if (assigned.undo !== null) rememberUnitAssignUndo(sessionId, assigned.undo);
+      if (assigned.undo !== null) {
+        rememberSessionEdit(sessionId, { kind: 'assign', undo: assigned.undo });
+      }
       return assigned.units;
     }
     case 'conversations.create':
@@ -1278,47 +1341,6 @@ function requiredIndex(value: unknown, name: string): number {
   return value;
 }
 
-function undoRemembered(
-  sessionId: string,
-  db: Parameters<typeof undoUnitText>[0],
-  only?: 'text',
-): ReturnType<typeof undoUnitText> | ReturnType<typeof undoAssignSpeaker> {
-  const current = peekUnitStep(sessionId);
-  if (current === null || (only === 'text' && current.kind !== 'text')) {
-    throw new Error('unit text undo is empty');
-  }
-  try {
-    const unit = applyRemembered(db, current);
-    clearUnitTextUndo(sessionId);
-    return unit;
-  } catch (error) {
-    if (error instanceof Error && error.message.endsWith('undo is stale')) {
-      clearUnitTextUndo(sessionId);
-    }
-    throw error;
-  }
-}
-
-function applyRemembered(
-  db: Parameters<typeof undoUnitText>[0],
-  current: NonNullable<ReturnType<typeof peekUnitStep>>,
-): ReturnType<typeof undoUnitText> | ReturnType<typeof undoAssignSpeaker> {
-  switch (current.kind) {
-    case 'text':
-      return undoUnitText(db, current.undo);
-    case 'split':
-      return undoSplit(db, current.undo);
-    case 'merge':
-      return undoMerge(db, current.undo);
-    case 'assign':
-      return undoAssignSpeaker(db, current.undo);
-    default: {
-      const unreachable: never = current;
-      return unreachable;
-    }
-  }
-}
-
 function stringIds(value: unknown, name: string): string[] {
   const list = listArg(value, name);
   if (list.some((item) => typeof item !== 'string' || item.length === 0)) {
@@ -1653,37 +1675,6 @@ function manuscriptCreate(input: Record<string, unknown>): ManuscriptCreate {
   return {
     title: stringMap(input.title, 'title'),
     mediaId: requiredString(input.mediaId, 'mediaId'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function layerCreate(input: Record<string, unknown>): LayerCreate {
-  knownKeys(input, [
-    'manuscriptId',
-    'key',
-    'name',
-    'tierType',
-    'contentType',
-    'languageId',
-    'orthographyId',
-    'parentId',
-    'sortOrder',
-    'fieldValues',
-  ]);
-  return {
-    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-    key: requiredString(input.key, 'key'),
-    name: stringMap(input.name, 'name'),
-    tierType: requiredString(input.tierType, 'tierType'),
-    contentType: requiredString(input.contentType, 'contentType'),
-    ...('languageId' in input
-      ? { languageId: optionalString(input.languageId, 'languageId') }
-      : {}),
-    ...('orthographyId' in input
-      ? { orthographyId: optionalString(input.orthographyId, 'orthographyId') }
-      : {}),
-    ...('parentId' in input ? { parentId: optionalString(input.parentId, 'parentId') } : {}),
-    ...('sortOrder' in input ? { sortOrder: requiredNumber(input.sortOrder, 'sortOrder') } : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }

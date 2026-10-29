@@ -95,6 +95,28 @@ describe('session unit text undo', () => {
     );
     expect(textOf(again.sessionId, unitId)).toBe('ta');
   });
+
+  it('keeps the step across a project read and a failed text write, and drops it when a layer create is refused', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const unitId = seed(session.sessionId);
+    callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'ta' });
+    callDesktopSession(session.sessionId, 'project.get', {});
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.updateText', { unitId: 'missing', text: 'no' }),
+    ).toThrow('unit is missing');
+    expect(callDesktopSession(session.sessionId, 'units.undoText', {})).toMatchObject({
+      text: 'ka',
+    });
+
+    callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'ta' });
+    expect(() => callDesktopSession(session.sessionId, 'layers.create', { extra: 1 })).toThrow(
+      'desktop call field extra is not supported',
+    );
+    expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
+      'unit text undo is empty',
+    );
+  });
 });
 
 function seed(sessionId: string): string {

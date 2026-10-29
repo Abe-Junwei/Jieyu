@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import type { DiagnosticReceipt } from './diagnosticDelivery';
 import {
-  diagnosticStoreFile,
-  payloadHash,
-  receiveDiagnostic,
-  type DiagnosticReceipt,
-} from './diagnosticDelivery';
+  finishFieldDelivery,
+  recordPendingDelivery,
+  replayDelivery,
+  resumeDelivery,
+} from './fieldDelivery';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -35,66 +36,14 @@ export interface SourcePatch {
   externalId?: FieldPatch;
 }
 
-interface DeliveryRow {
-  origin_project_id: string;
-  operation_id: string;
-  event_seq: number;
-  payload_hash: string;
-  input_fingerprint: string;
-  summary_json: string;
-  status: 'pending' | 'confirmed';
-}
-
 export function patchSource(db: SqliteDatabase, input: SourcePatch): SourceReading {
   const applied = db.transaction(() => applyPatch(db, input))();
   if (applied.receipt === null) return applied.reading;
-  return finishDelivery(
-    db,
-    applied.reading,
-    applied.receipt,
-    applied.reading.delivery === 'confirmed' ? 'confirmed' : 'pending',
-  );
+  return finishFieldDelivery(db, applied.reading, applied.receipt, applied.reading.delivery);
 }
 
 export function redeliverSource(db: SqliteDatabase, operationId: string): SourceReading {
-  const row = requireDelivery(db, operationId);
-  const summary = JSON.parse(row.summary_json) as { sourceId?: unknown };
-  if (typeof summary.sourceId !== 'string') throw new Error('diagnostic delivery is invalid');
-  const reading = readSource(db, summary.sourceId);
-  if (reading === null) throw new Error('source is missing');
-  return finishDelivery(
-    db,
-    reading,
-    {
-      originProjectId: row.origin_project_id,
-      operationId: row.operation_id,
-      eventSeq: row.event_seq,
-      payloadHash: row.payload_hash,
-    },
-    row.status,
-  );
-}
-
-function finishDelivery(
-  db: SqliteDatabase,
-  reading: Omit<SourceReading, 'delivery'>,
-  receipt: DiagnosticReceipt,
-  current: 'pending' | 'confirmed' = 'pending',
-): SourceReading {
-  const file = diagnosticStoreFile();
-  if (file === null)
-    return { ...reading, delivery: current === 'confirmed' ? 'confirmed' : 'pending' };
-  try {
-    receiveDiagnostic(file, receipt);
-  } catch (error) {
-    if (error instanceof Error && error.message === 'diagnostic payload conflict') throw error;
-    return { ...reading, delivery: 'pending' };
-  }
-  db.prepare(
-    `UPDATE diagnostic_deliveries SET status = 'confirmed'
-     WHERE origin_project_id = ? AND operation_id = ? AND event_seq = ?`,
-  ).run(receipt.originProjectId, receipt.operationId, receipt.eventSeq);
-  return { ...reading, delivery: 'confirmed' };
+  return resumeDelivery(db, operationId, (summary) => sourceReading(db, summary));
 }
 
 function applyPatch(
@@ -105,21 +54,13 @@ function applyPatch(
   receipt: DiagnosticReceipt | null;
 } {
   const fingerprint = inputFingerprint(input);
-  const existing = findDelivery(db, input.operationId);
-  if (existing !== null) {
-    if (existing.input_fingerprint !== fingerprint) throw new Error('diagnostic delivery conflict');
-    const summary = JSON.parse(existing.summary_json) as { sourceId?: unknown };
-    if (typeof summary.sourceId !== 'string') throw new Error('diagnostic delivery is invalid');
-    const reading = readSource(db, summary.sourceId);
-    if (reading === null) throw new Error('source is missing');
+  const replay = replayDelivery(db, input.operationId, fingerprint, (summary) =>
+    sourceReading(db, summary),
+  );
+  if (replay !== null) {
     return {
-      reading: { ...reading, delivery: existing.status },
-      receipt: {
-        originProjectId: existing.origin_project_id,
-        operationId: existing.operation_id,
-        eventSeq: existing.event_seq,
-        payloadHash: existing.payload_hash,
-      },
+      reading: { ...replay.reading, delivery: replay.status },
+      receipt: replay.receipt,
     };
   }
   const current = readSource(db, input.id);
@@ -147,24 +88,22 @@ function applyPatch(
      WHERE id = ?`,
   ).run(label.value, externalId.value, JSON.stringify(revisions), updatedAt, current.id);
   const summary = { sourceId: current.id, fields: changed, revisions };
-  const hash = payloadHash(summary);
-  const origin = originProjectId(db);
-  db.prepare(
-    `INSERT INTO diagnostic_deliveries (
-       origin_project_id, operation_id, event_seq, payload_hash, input_fingerprint, summary_json, status
-     ) VALUES (?, ?, 0, ?, ?, ?, 'pending')`,
-  ).run(origin, input.operationId, hash, fingerprint, JSON.stringify(summary));
+  const receipt = recordPendingDelivery(db, {
+    operationId: input.operationId,
+    fingerprint,
+    summary,
+  });
   const stored = readSource(db, current.id);
   if (stored === null) throw new Error('source readback failed');
-  return {
-    reading: { ...stored, delivery: 'pending' },
-    receipt: {
-      originProjectId: origin,
-      operationId: input.operationId,
-      eventSeq: 0,
-      payloadHash: hash,
-    },
-  };
+  return { reading: { ...stored, delivery: 'pending' }, receipt };
+}
+
+function sourceReading(db: SqliteDatabase, summary: unknown): Omit<SourceReading, 'delivery'> {
+  const record = summary as { sourceId?: unknown };
+  if (typeof record.sourceId !== 'string') throw new Error('diagnostic delivery is invalid');
+  const reading = readSource(db, record.sourceId);
+  if (reading === null) throw new Error('source is missing');
+  return reading;
 }
 
 function takeField(
@@ -213,29 +152,6 @@ function revisionsOf(json: string): SourceFieldRevisions {
     throw new Error('source revisions are invalid');
   }
   return { label: record.label, externalId: record.externalId };
-}
-
-function originProjectId(db: SqliteDatabase): string {
-  const rows = db.prepare('SELECT id FROM project').all() as { id: string }[];
-  const only = rows[0];
-  if (rows.length !== 1 || only === undefined) throw new Error('project is missing');
-  return only.id;
-}
-
-function requireDelivery(db: SqliteDatabase, operationId: string): DeliveryRow {
-  const row = findDelivery(db, operationId);
-  if (row === null) throw new Error('diagnostic delivery is missing');
-  return row;
-}
-
-function findDelivery(db: SqliteDatabase, operationId: string): DeliveryRow | null {
-  const rows = db
-    .prepare('SELECT * FROM diagnostic_deliveries WHERE operation_id = ?')
-    .all(operationId) as DeliveryRow[];
-  const row = rows[0];
-  if (row === undefined) return null;
-  if (rows.length !== 1) throw new Error('diagnostic delivery is invalid');
-  return row;
 }
 
 function inputFingerprint(input: SourcePatch): string {

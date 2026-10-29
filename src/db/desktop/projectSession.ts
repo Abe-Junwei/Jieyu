@@ -4,9 +4,7 @@ import { isAllowedProjectFolder } from '../../desktop/skeleton/desktopSecurity';
 import { saveDailyProjectBackup } from './dailyBackup';
 import { openProject, type DesktopProject } from './openProject';
 import { ensureProjectIdentity } from './projectIdentity';
-import type { SpeakerAssignUndo } from './speakerAssign';
-import type { UnitMergeUndo, UnitSplitUndo } from './unitSpan';
-import type { UnitTextUndo } from './units';
+import { bindSessionEdit, expireSessionEdit } from './sessionEdit';
 
 type Session = {
   id: string;
@@ -14,14 +12,7 @@ type Session = {
   project: DesktopProject;
 };
 
-type SessionStep =
-  | { kind: 'text'; undo: UnitTextUndo }
-  | { kind: 'split'; undo: UnitSplitUndo }
-  | { kind: 'merge'; undo: UnitMergeUndo }
-  | { kind: 'assign'; undo: SpeakerAssignUndo };
-
 let current: Session | undefined;
-let step: { sessionId: string; step: SessionStep } | undefined;
 
 export type OpenDesktopSessionResult = {
   sessionId: string;
@@ -39,7 +30,7 @@ export function openDesktopSession(
   current = undefined;
   previous?.project.close();
   if (previous !== undefined) releaseDesktopMediaSession(previous.id);
-  clearUnitTextUndo();
+  expireSessionEdit();
   const project = openProject(folder);
   try {
     ensureProjectIdentity(project.db, folder);
@@ -64,6 +55,7 @@ export function openDesktopSession(
   }
   const id = randomUUID();
   current = { id, folder, project };
+  bindSessionEdit(id);
   return backupSkipped === undefined ? { sessionId: id } : { sessionId: id, backupSkipped };
 }
 
@@ -72,7 +64,7 @@ export function abandonDesktopSession(): string | null {
   if (current === undefined) return null;
   current.project.close();
   current = undefined;
-  clearUnitTextUndo();
+  expireSessionEdit();
   return id;
 }
 
@@ -80,7 +72,7 @@ export function closeDesktopSession(sessionId: string): void {
   if (current?.id !== sessionId) return;
   current.project.close();
   current = undefined;
-  clearUnitTextUndo();
+  expireSessionEdit();
 }
 
 export function requireDesktopSession(sessionId: string): DesktopProject {
@@ -103,35 +95,5 @@ export function reopenDesktopSession(sessionId: string): void {
 export function resetDesktopSessions(): void {
   current?.project.close();
   current = undefined;
-  clearUnitTextUndo();
-}
-
-export function rememberUnitTextUndo(sessionId: string, undo: UnitTextUndo): void {
-  rememberStep(sessionId, { kind: 'text', undo });
-}
-
-export function rememberUnitSplitUndo(sessionId: string, undo: UnitSplitUndo): void {
-  rememberStep(sessionId, { kind: 'split', undo });
-}
-
-export function rememberUnitMergeUndo(sessionId: string, undo: UnitMergeUndo): void {
-  rememberStep(sessionId, { kind: 'merge', undo });
-}
-
-export function rememberUnitAssignUndo(sessionId: string, undo: SpeakerAssignUndo): void {
-  rememberStep(sessionId, { kind: 'assign', undo });
-}
-
-export function peekUnitStep(sessionId: string): SessionStep | null {
-  if (current?.id !== sessionId || step?.sessionId !== sessionId) return null;
-  return step.step;
-}
-
-export function clearUnitTextUndo(sessionId?: string): void {
-  if (sessionId === undefined || step?.sessionId === sessionId) step = undefined;
-}
-
-function rememberStep(sessionId: string, next: SessionStep): void {
-  if (current?.id !== sessionId) return;
-  step = { sessionId, step: next };
+  expireSessionEdit();
 }

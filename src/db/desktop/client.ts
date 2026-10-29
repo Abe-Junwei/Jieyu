@@ -6,11 +6,11 @@ import type {
   ProjectLanguage,
   ProjectOrthography,
 } from './catalog';
+import type { DesktopOperations } from './operationContract';
 import type { Layer, LayerCreate } from './layers';
 import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
 import type { Media, MediaCreate } from './media';
 import type { ImportResult } from './foreignImport';
-import type { ProjectIdentity } from './projectIdentity';
 import type { Manuscript, ManuscriptCreate, ManuscriptDeletePreview } from './manuscripts';
 import type { DeletionReminder, DueDeletionReminder } from './manuscriptPurge';
 import type { AnalysisApplyResult } from './analysis';
@@ -47,7 +47,6 @@ import type {
   PreviewCandidateInput,
   TranscriptionAcceptance,
 } from './modelRuns';
-import type { MediaCleanup } from './mediaCleanup';
 
 export interface DesktopBridge {
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
@@ -58,18 +57,25 @@ export function createDesktopClient(bridge: DesktopBridge) {
   async function once<T>(sessionId: string, method: string, args: unknown): Promise<T> {
     return (await bridge.desktopCall(sessionId, method, args)) as T;
   }
+  function contractCall<K extends keyof DesktopOperations>(
+    sessionId: string,
+    method: K,
+    args: ReturnType<DesktopOperations[K]['check']>,
+  ): Promise<DesktopOperations[K]['output']> {
+    return bridge.desktopCall(sessionId, method, args) as Promise<DesktopOperations[K]['output']>;
+  }
   return {
     createMedia: (sessionId: string, input: MediaCreate) =>
       once<Media>(sessionId, 'media.create', input),
     createManuscript: (sessionId: string, input: ManuscriptCreate) =>
       once<Manuscript>(sessionId, 'manuscripts.create', input),
     createLayer: (sessionId: string, input: LayerCreate) =>
-      once<Layer>(sessionId, 'layers.create', input),
+      contractCall(sessionId, 'layers.create', input),
     createUnit: (sessionId: string, input: UnitCreate) =>
       once<Unit>(sessionId, 'units.create', input),
     getUnit: (sessionId: string, id: string) => once<Unit | null>(sessionId, 'units.get', { id }),
     listManuscripts: (sessionId: string) => once<Manuscript[]>(sessionId, 'manuscripts.list', {}),
-    getProject: (sessionId: string) => once<ProjectIdentity | null>(sessionId, 'project.get', {}),
+    getProject: (sessionId: string) => contractCall(sessionId, 'project.get', {}),
     importFile: (sessionId: string, input: { file: string; roles?: string }) =>
       once<ImportResult>(sessionId, 'exchange.importFile', input),
     exportJyt: (sessionId: string, input: { file: string }) =>
@@ -107,7 +113,7 @@ export function createDesktopClient(bridge: DesktopBridge) {
       },
     ) => once<CorpusQueryPage>(sessionId, 'corpus.query', input),
     updateUnitText: (sessionId: string, input: { unitId: string; text: string }) =>
-      once<Unit>(sessionId, 'units.updateText', input),
+      contractCall(sessionId, 'units.updateText', input),
     undoUnitText: (sessionId: string) => once<Unit>(sessionId, 'units.undoText', {}),
     undoStep: (sessionId: string) => once<Unit | Unit[]>(sessionId, 'units.undo', {}),
     splitUnit: (sessionId: string, input: { unitId: string; time: number }) =>
@@ -404,7 +410,7 @@ export function createDesktopClient(bridge: DesktopBridge) {
     purgeManuscript: (sessionId: string, id: string) =>
       once<{ id: string }>(sessionId, 'manuscripts.purge', { id }),
     finishMediaCleanup: (sessionId: string, id: string, operationId: string) =>
-      once<MediaCleanup>(sessionId, 'media.finishCleanup', { id, operationId }),
+      contractCall(sessionId, 'media.finishCleanup', { id, operationId }),
     listMedia: (sessionId: string) => once<Media[]>(sessionId, 'media.list', {}),
     reregisterMedia: (sessionId: string, input: { relpath: string; duration: number }) =>
       once<{ status: 'created'; id: string } | { status: 'choose'; ids: string[] }>(
