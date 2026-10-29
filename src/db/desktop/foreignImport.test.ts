@@ -132,6 +132,23 @@ describe('foreign file import', () => {
     expect(JSON.parse(row.entry_json)).toMatchObject({ headword: 'kept' });
   });
 
+  it('writes FlexText and plain EAF without a roles file (#429)', () => {
+    const project = library();
+    const source = join(rootOf(project), 'source');
+    writeFileSync(join(source, 'phrase.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'phrase.flextext'), flex());
+    expect(
+      importForeignFile({ folder: project, file: join(source, 'phrase.flextext') }).written,
+    ).toBeGreaterThan(0);
+    expect(texts(project)).toContain('kept sentence');
+
+    writeFileSync(join(source, 'test.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'plain.eaf'), eaf());
+    expect(
+      importForeignFile({ folder: project, file: join(source, 'plain.eaf') }).written,
+    ).toBeGreaterThan(0);
+  });
+
   it('writes a Toolbox sentence and a FlexText sentence', () => {
     const project = library();
     const source = join(rootOf(project), 'source');
