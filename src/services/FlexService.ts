@@ -65,6 +65,8 @@ export interface FlexImportResult {
     phraseId?: string;
     /** Present only when phrase@guid is non-empty. Synthetic pN keys are not stable ids. */
     annotationId?: string;
+    /** phrase@speaker when present; import maps this through the speaker resolver. */
+    speakerId?: string;
     tokens?: Array<{
       form: Record<string, string>;
       gloss?: Record<string, string>;
@@ -673,10 +675,11 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
   };
 
   const interlinearTexts = Array.from(doc.querySelectorAll('interlinear-text'));
-  const phraseRoots =
-    interlinearTexts.length > 0
-      ? interlinearTexts
-      : ([doc.documentElement].filter(Boolean) as Element[]);
+  // Non-FLEx XML (e.g. <foo/>) must not parse as an empty import that can wipe a document (#407).
+  if (interlinearTexts.length === 0) {
+    throw new Error('flextext has no interlinear-text');
+  }
+  const phraseRoots = interlinearTexts;
 
   phraseRoots.forEach((root, rootIndex) => {
     const headerItems = itemsOf(root);
@@ -728,6 +731,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
           transcription: parsed.transcription,
           phraseId: parsed.phraseId,
           ...(parsed.stableGuid ? { annotationId: parsed.stableGuid } : {}),
+          ...(parsed.speaker ? { speakerId: parsed.speaker } : {}),
           ...(parsed.tokens ? { tokens: parsed.tokens } : {}),
         });
       });
