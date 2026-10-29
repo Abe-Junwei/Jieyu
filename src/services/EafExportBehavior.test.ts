@@ -302,8 +302,9 @@ describe('EAF export behavior for constraint layers', () => {
         }),
       ],
       translations: [
-        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello' }),
-        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child' }),
+        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello', externalRef: 'a_default' }),
+        makeTranslation({ id: 'utr_custom', layerId: customParent.id, unitId: 'utt_1', text: 'custom host', externalRef: 'a_custom' }),
+        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child', externalRef: 'a_child' }),
       ],
     });
 
@@ -311,6 +312,8 @@ describe('EAF export behavior for constraint layers', () => {
     const childTier = doc.querySelector('TIER[TIER_ID="TRL_CHILD"]');
     expect(childTier).not.toBeNull();
     expect(childTier?.getAttribute('PARENT_REF')).toBe('TRC_CUSTOM');
+    const ref = childTier?.querySelector('REF_ANNOTATION');
+    expect(ref?.getAttribute('ANNOTATION_REF')).toBe('a_custom');
   });
 
   it('exports only preferred host and emits multi-host warning', () => {
@@ -333,8 +336,9 @@ describe('EAF export behavior for constraint layers', () => {
         makeLayerLink({ id: 'link-b', layerId: trl.id, transcriptionLayerKey: trcB.key, hostTranscriptionLayerId: trcB.id, isPreferred: true }),
       ],
       translations: [
-        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello' }),
-        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child' }),
+        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello', externalRef: 'a_default' }),
+        makeTranslation({ id: 'utr_b', layerId: trcB.id, unitId: 'utt_1', text: 'host b', externalRef: 'a_host_b' }),
+        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child', externalRef: 'a_child' }),
       ],
       onWarning: warningSpy,
     });
@@ -343,6 +347,7 @@ describe('EAF export behavior for constraint layers', () => {
     const childTier = doc.querySelector('TIER[TIER_ID="TRL_CHILD"]');
     expect(childTier).not.toBeNull();
     expect(childTier?.getAttribute('PARENT_REF')).toBe('TRC_B');
+    expect(childTier?.querySelector('REF_ANNOTATION')?.getAttribute('ANNOTATION_REF')).toBe('a_host_b');
     expect(warningSpy).toHaveBeenCalledWith(expect.objectContaining({
       code: 'translation-multi-host-lossy',
       layerId: trl.id,
@@ -548,6 +553,110 @@ describe('EAF export behavior for constraint layers', () => {
     expect(tier?.getAttribute('LINGUISTIC_TYPE_REF')).toBe('translation-subdivision-lt');
     expect(tier?.querySelector('ANNOTATION_VALUE')?.textContent).toBe('sub-text');
   });
+
+  it('binds ANNOTATION_REF to the host transcription annotation, not the default (#433)', () => {
+    const defaultTrc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_default', 'TRC_DEFAULT'),
+    });
+    const hostTrc = makeLayer({
+      id: 'trc_host',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_host', 'TRC_HOST'),
+      isDefault: false,
+      sortOrder: 1,
+    });
+    const trl = makeLayer({
+      id: 'trl_child',
+      layerType: 'translation',
+      key: withEafKeyMeta('trl_child', 'TRL_CHILD'),
+      constraint: 'symbolic_association',
+    });
+    const xml = exportToEaf({
+      units: [makeUnit()],
+      // Put translation before host to ensure processing order cannot hide the bug.
+      layers: [defaultTrc, trl, hostTrc],
+      layerLinks: [
+        makeLayerLink({
+          id: 'link-host',
+          layerId: trl.id,
+          transcriptionLayerKey: hostTrc.key,
+          hostTranscriptionLayerId: hostTrc.id,
+          isPreferred: true,
+        }),
+      ],
+      translations: [
+        makeTranslation({
+          id: 'utr_default',
+          layerId: defaultTrc.id,
+          unitId: 'utt_1',
+          text: 'default text',
+          externalRef: 'a_default_only',
+        }),
+        makeTranslation({
+          id: 'utr_host',
+          layerId: hostTrc.id,
+          unitId: 'utt_1',
+          text: 'host text',
+          externalRef: 'a_host_only',
+        }),
+        makeTranslation({
+          id: 'utr_child',
+          layerId: trl.id,
+          unitId: 'utt_1',
+          text: 'child text',
+          externalRef: 'a_child_only',
+        }),
+      ],
+    });
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const childTier = doc.querySelector('TIER[TIER_ID="TRL_CHILD"]');
+    expect(childTier?.getAttribute('PARENT_REF')).toBe('TRC_HOST');
+    const ref = childTier?.querySelector('REF_ANNOTATION');
+    expect(ref?.getAttribute('ANNOTATION_REF')).toBe('a_host_only');
+    expect(ref?.getAttribute('ANNOTATION_REF')).not.toBe('a_default_only');
+  });
+
+  it('keeps PARENT_REF on the actual default tier id, not its display name (#432)', () => {
+    const defaultTrc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: 'trc_default',
+      name: { eng: 'Transcription', zho: '转写' },
+    });
+    const trl = makeLayer({
+      id: 'trl_en',
+      layerType: 'translation',
+      key: 'trl_en',
+      name: { eng: 'English', zho: '英译' },
+      constraint: 'symbolic_association',
+    });
+    const xml = exportToEaf({
+      units: [makeUnit()],
+      layers: [defaultTrc, trl],
+      layerLinks: [
+        makeLayerLink({
+          id: 'link-trl',
+          layerId: trl.id,
+          transcriptionLayerKey: defaultTrc.key,
+          hostTranscriptionLayerId: defaultTrc.id,
+          isPreferred: true,
+        }),
+      ],
+      translations: [
+        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello' }),
+        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: '你好' }),
+      ],
+    });
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const defaultTier = doc.querySelector('TIER[TIER_ID="default"]');
+    expect(defaultTier).not.toBeNull();
+    expect(doc.querySelector('TIER[TIER_ID="Transcription"]')).toBeNull();
+    const child = [...doc.querySelectorAll('TIER')].find((tier) => tier.getAttribute('PARENT_REF'));
+    expect(child?.getAttribute('PARENT_REF')).toBe('default');
+  });
+
   it('avoids colliding with preserved externalRef annotation IDs (#431)', () => {
     const trc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: 'trc_default' });
     const now = '2026-03-25T00:00:00.000Z';
