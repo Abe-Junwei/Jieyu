@@ -548,4 +548,53 @@ describe('EAF export behavior for constraint layers', () => {
     expect(tier?.getAttribute('LINGUISTIC_TYPE_REF')).toBe('translation-subdivision-lt');
     expect(tier?.querySelector('ANNOTATION_VALUE')?.textContent).toBe('sub-text');
   });
+  it('avoids colliding with preserved externalRef annotation IDs (#431)', () => {
+    const trc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: 'trc_default' });
+    const now = '2026-03-25T00:00:00.000Z';
+    const kept = {
+      id: 'utt_kept',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerUnitDocType;
+    const added = {
+      id: 'utt_new',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 1,
+      endTime: 2,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerUnitDocType;
+    const xml = exportToEaf({
+      units: [kept, added],
+      layers: [trc],
+      orthographies: [],
+      translations: [
+        makeTranslation({
+          id: 'tr_kept',
+          layerId: trc.id,
+          unitId: kept.id,
+          text: 'kept',
+          externalRef: 'a1',
+        }),
+        makeTranslation({
+          id: 'tr_new',
+          layerId: trc.id,
+          unitId: added.id,
+          text: 'new',
+        }),
+      ],
+    });
+    const ids = [...xml.matchAll(/ANNOTATION_ID="([^"]+)"/g)].map((match) => match[1]);
+    expect(ids).toContain('a1');
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => id === 'a1')).toHaveLength(1);
+  });
+
 });

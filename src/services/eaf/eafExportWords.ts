@@ -1,5 +1,5 @@
 import type { LayerUnitDocType, UnitMorphemeDocType, UnitTokenDocType } from '../../db/types';
-import type { EafExportScratch } from './eafExportScratch';
+import { takeEafAnnId, type EafExportScratch } from './eafExportScratch';
 import { escapeXml, readMultiLangDefault } from './eafXml';
 
 export function buildEafWordTierXml(input: {
@@ -20,7 +20,6 @@ export function buildEafWordTierXml(input: {
     defaultTrcLocale,
     scratch,
   } = input;
-  let annCounter = scratch.annCounter;
   const { usedConstraintTypes } = scratch;
 
   const wordTierXml: string[] = [];
@@ -62,7 +61,7 @@ export function buildEafWordTierXml(input: {
       for (const token of unitTokens) {
         const formText = readMultiLangDefault(token.form);
         if (!formText) continue;
-        const wordAnnId = `w${annCounter++}`;
+        const wordAnnId = takeEafAnnId(scratch, { prefix: 'w' });
         const previousAttr = previousWordAnnId
           ? ` PREVIOUS_ANNOTATION="${escapeXml(previousWordAnnId)}"`
           : '';
@@ -76,8 +75,9 @@ export function buildEafWordTierXml(input: {
         const glossText = readMultiLangDefault(token.gloss);
         if (glossText) {
           usedConstraintTypes.add('symbolic_association');
-          glossAnnRows.push(`        <ANNOTATION>
-            <REF_ANNOTATION ANNOTATION_ID="a${annCounter++}" ANNOTATION_REF="${escapeXml(wordAnnId)}">
+          const glossAnnId = takeEafAnnId(scratch);
+            glossAnnRows.push(`        <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(glossAnnId)}" ANNOTATION_REF="${escapeXml(wordAnnId)}">
                 <ANNOTATION_VALUE>${escapeXml(glossText)}</ANNOTATION_VALUE>
             </REF_ANNOTATION>
         </ANNOTATION>`);
@@ -87,8 +87,8 @@ export function buildEafWordTierXml(input: {
         for (const morph of tokenMorphs) {
           const morphText = readMultiLangDefault(morph.form);
           if (!morphText) continue;
-          const morphAnnId = `a${annCounter++}`;
-          const previousMorphAttr = previousMorphAnnId
+          const morphAnnId = takeEafAnnId(scratch);
+            const previousMorphAttr = previousMorphAnnId
             ? ` PREVIOUS_ANNOTATION="${escapeXml(previousMorphAnnId)}"`
             : '';
           const morphLexemeAttr = morph.lexemeId
@@ -103,8 +103,9 @@ export function buildEafWordTierXml(input: {
           const morphGlossText = readMultiLangDefault(morph.gloss);
           if (morphGlossText) {
             usedConstraintTypes.add('symbolic_association');
-            morphGlossAnnRows.push(`        <ANNOTATION>
-            <REF_ANNOTATION ANNOTATION_ID="a${annCounter++}" ANNOTATION_REF="${escapeXml(morphAnnId)}">
+            const morphGlossAnnId = takeEafAnnId(scratch);
+                morphGlossAnnRows.push(`        <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(morphGlossAnnId)}" ANNOTATION_REF="${escapeXml(morphAnnId)}">
                 <ANNOTATION_VALUE>${escapeXml(morphGlossText)}</ANNOTATION_VALUE>
             </REF_ANNOTATION>
         </ANNOTATION>`);
@@ -135,6 +136,5 @@ ${morphGlossAnnRows.join('\n')}
     }
   }
 
-  scratch.annCounter = annCounter;
   return wordTierXml;
 }
