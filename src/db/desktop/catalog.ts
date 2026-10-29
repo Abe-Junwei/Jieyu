@@ -258,6 +258,142 @@ export function createBridge(db: SqliteDatabase, input: BridgeCreate): ProjectBr
   return write();
 }
 
+export function listProjectLanguages(db: SqliteDatabase): ProjectLanguage[] {
+  const rows = db.prepare('SELECT id FROM languages ORDER BY id').all() as { id: string }[];
+  return rows.map((row) => {
+    const language = getProjectLanguage(db, row.id);
+    if (!language) throw new Error('language readback failed');
+    return language;
+  });
+}
+
+export function updateProjectLanguage(
+  db: SqliteDatabase,
+  input: { id: string; locale: string; value: string },
+  afterWrite?: () => void,
+): ProjectLanguage {
+  const locale = input.locale.trim();
+  const value = input.value.trim();
+  if (locale.length === 0 || value.length === 0) throw new Error('language name is empty');
+  const existing = getProjectLanguage(db, input.id);
+  if (!existing) throw new Error('language is missing');
+  if (existing.name[locale] === value) return existing;
+  const write = db.transaction(() => {
+    const name = { ...existing.name, [locale]: value };
+    const now = new Date().toISOString();
+    db.prepare('UPDATE languages SET name_json = ?, updated_at = ? WHERE id = ?').run(
+      JSON.stringify(name),
+      now,
+      existing.id,
+    );
+    db.prepare('DELETE FROM language_display_names WHERE language_id = ?').run(existing.id);
+    const preferred = existing.names.find((item) => item.isPreferred)?.locale ?? locale;
+    const preferredLocale = preferred in name ? preferred : locale;
+    for (const [itemLocale, itemValue] of Object.entries(name)) {
+      db.prepare(
+        `INSERT INTO language_display_names (
+          id, language_id, locale, role, value, is_preferred, source_type, created_at, updated_at
+        ) VALUES (?, ?, ?, 'preferred', ?, ?, ?, ?, ?)`,
+      ).run(
+        randomUUID(),
+        existing.id,
+        itemLocale,
+        itemValue,
+        itemLocale === preferredLocale ? 1 : 0,
+        existing.sourceType,
+        now,
+        now,
+      );
+    }
+    db.prepare(
+      `INSERT INTO language_catalog_history (id, language_id, action, summary, created_at)
+       VALUES (?, ?, 'update', 'updated', ?)`,
+    ).run(randomUUID(), existing.id, now);
+    afterWrite?.();
+    const stored = getProjectLanguage(db, existing.id);
+    if (!stored || stored.name[locale] !== value || !stored.history.includes('update')) {
+      throw new Error('language update readback failed');
+    }
+    return stored;
+  });
+  return write();
+}
+
+export function listOrthographies(db: SqliteDatabase, languageId: string): ProjectOrthography[] {
+  if (!getProjectLanguage(db, languageId)) throw new Error('language is missing');
+  const rows = db
+    .prepare('SELECT id FROM orthographies WHERE language_id = ? ORDER BY id')
+    .all(languageId) as { id: string }[];
+  return rows.map((row) => readOrthography(db, row.id));
+}
+
+export function updateOrthography(
+  db: SqliteDatabase,
+  input: { id: string; scriptTag: string },
+  afterWrite?: () => void,
+): ProjectOrthography {
+  const scriptTag = input.scriptTag.trim();
+  if (scriptTag.length === 0) throw new Error('script tag is empty');
+  const write = db.transaction(() => {
+    const existing = db.prepare('SELECT id FROM orthographies WHERE id = ?').get(input.id) as
+      { id: string } | undefined;
+    if (!existing) throw new Error('orthography is missing');
+    const current = readOrthography(db, existing.id);
+    if (current.scriptTag === scriptTag) return current;
+    const now = new Date().toISOString();
+    db.prepare('UPDATE orthographies SET script_tag = ?, updated_at = ? WHERE id = ?').run(
+      scriptTag,
+      now,
+      existing.id,
+    );
+    afterWrite?.();
+    const stored = readOrthography(db, existing.id);
+    if (
+      stored.scriptTag !== scriptTag ||
+      JSON.stringify(stored.name) !== JSON.stringify(current.name)
+    ) {
+      throw new Error('orthography update readback failed');
+    }
+    return stored;
+  });
+  return write();
+}
+
+export function listBridges(db: SqliteDatabase): ProjectBridge[] {
+  const rows = db.prepare('SELECT id FROM orthography_bridges ORDER BY id').all() as {
+    id: string;
+  }[];
+  return rows.map((row) => readBridge(db, row.id));
+}
+
+export function updateBridge(
+  db: SqliteDatabase,
+  input: { id: string; rules: Record<string, unknown> },
+  afterWrite?: () => void,
+): ProjectBridge {
+  if (typeof input.rules !== 'object' || input.rules === null || Array.isArray(input.rules)) {
+    throw new Error('bridge rules must be an object');
+  }
+  const write = db.transaction(() => {
+    const existing = getBridge(db, input.id);
+    if (!existing) throw new Error('bridge is missing');
+    if (JSON.stringify(existing.rules) === JSON.stringify(input.rules)) return existing;
+    const now = new Date().toISOString();
+    db.prepare('UPDATE orthography_bridges SET rules_json = ?, updated_at = ? WHERE id = ?').run(
+      JSON.stringify(input.rules),
+      now,
+      existing.id,
+    );
+    afterWrite?.();
+    const stored = getBridge(db, existing.id);
+    if (!stored || JSON.stringify(stored.rules) !== JSON.stringify(input.rules)) {
+      throw new Error('bridge update readback failed');
+    }
+    return stored;
+  });
+  return write();
+}
+
 function findLanguage(
   db: SqliteDatabase,
   iso6393: string | null,

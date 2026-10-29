@@ -20,6 +20,7 @@ import {
   rejectOtherPendingSuggestions,
   requireCurrentCandidateLifecycle,
   type AnalysisAssociationLink,
+  type AnalysisAssociationNote,
   type AnalysisCandidateRecord,
   type AnalysisMaterial,
 } from './analysisCandidates';
@@ -31,7 +32,7 @@ import {
 import { assertRetargetedReferences } from './referenceState';
 import { convertSnapshotGraph } from './customFieldMigration';
 import { restoreAnalysisNote } from './notes';
-import { getAnalysisRoot, type AnalysisRoot } from './units';
+import { getAnalysisRoot, getUnit, type AnalysisRoot, type Unit, type UnitTextUndo } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -265,6 +266,40 @@ export function restoreAnalysis(
     );
     reattach(db, candidate, nodeIdsOf(written.graph), now);
     return written;
+  });
+  return write();
+}
+
+export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?: () => void): Unit {
+  const write = db.transaction(() => {
+    const material = readAnalysisMaterial(db, undo.unitId);
+    if (!unitTextStillAfter(db, material, undo)) throw new Error('unit text undo is stale');
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
+    ).run(undo.prior.text, now, undo.unitId);
+    afterText?.();
+    if (undo.prior.graph !== null) {
+      const refreshed = readAnalysisMaterial(db, undo.unitId);
+      const written = writeGraph(db, refreshed, undo.prior.graph, true);
+      reattach(
+        db,
+        {
+          unitId: undo.unitId,
+          links: undo.prior.links,
+          notes: undo.prior.notes,
+          createdAt: now,
+        },
+        nodeIdsOf(written.graph),
+        now,
+      );
+    } else {
+      db.prepare('UPDATE units SET updated_at = ? WHERE id = ?').run(now, undo.unitId);
+    }
+    db.prepare(
+      'UPDATE manuscripts SET generation = generation + 1, updated_at = ? WHERE id = ?',
+    ).run(now, undo.prior.manuscriptId);
+    return readUnitTextUndo(db, undo);
   });
   return write();
 }
@@ -561,9 +596,126 @@ export function segmentUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMo
   return listUnitMorphemes(db, unitId);
 }
 
+function unitTextStillAfter(
+  db: SqliteDatabase,
+  material: AnalysisMaterial,
+  undo: UnitTextUndo,
+): boolean {
+  if (
+    material.unitId !== undo.unitId ||
+    material.text !== undo.after.text ||
+    material.graphFingerprint !== undo.after.graphFingerprint ||
+    material.analysisGeneration !== undo.after.analysisGeneration ||
+    material.manuscriptId !== undo.prior.manuscriptId ||
+    material.manuscriptGeneration !== undo.after.manuscriptGeneration
+  ) {
+    return false;
+  }
+  if (undo.prior.graph === null) return true;
+  if (material.graph !== null) return false;
+  const tokens = db
+    .prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?')
+    .get(undo.unitId) as {
+    n: number;
+  };
+  if (tokens.n !== 0) return false;
+  const linkRow = db.prepare(
+    `SELECT attachment, lexeme_id, sense_id, role, confidence, provenance_json
+     FROM token_lexeme_links WHERE id = ?`,
+  );
+  for (const link of undo.prior.links) {
+    const row = linkRow.get(link.id) as
+      | {
+          attachment: string;
+          lexeme_id: string;
+          sense_id: string | null;
+          role: string | null;
+          confidence: number | null;
+          provenance_json: string | null;
+        }
+      | undefined;
+    const provenance = row?.provenance_json == null ? null : JSON.parse(row.provenance_json);
+    if (
+      row === undefined ||
+      row.attachment !== 'detached' ||
+      row.lexeme_id !== link.lexemeId ||
+      row.sense_id !== link.senseId ||
+      row.role !== link.role ||
+      row.confidence !== link.confidence ||
+      JSON.stringify(provenance) !== JSON.stringify(link.provenance ?? null)
+    ) {
+      return false;
+    }
+  }
+  for (const nodeId of nodeIdsOf(undo.prior.graph)) {
+    const active = db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM token_lexeme_links
+         WHERE target_id = ? AND attachment = 'active'`,
+      )
+      .get(nodeId) as { n: number };
+    if (active.n !== 0) return false;
+  }
+  for (const note of undo.prior.notes) {
+    const row = db.prepare('SELECT attachment FROM notes WHERE id = ?').get(note.id) as
+      { attachment: string } | undefined;
+    if (row?.attachment !== 'detached') return false;
+  }
+  return true;
+}
+
+function readUnitTextUndo(db: SqliteDatabase, undo: UnitTextUndo): Unit {
+  const unit = getUnit(db, undo.unitId);
+  const root = getAnalysisRoot(db, undo.unitId);
+  const generation = db
+    .prepare('SELECT generation FROM manuscripts WHERE id = ?')
+    .get(undo.prior.manuscriptId) as { generation: number } | undefined;
+  if (
+    !unit ||
+    unit.text !== undo.prior.text ||
+    !root ||
+    generation?.generation !== undo.after.manuscriptGeneration + 1
+  ) {
+    throw new Error('unit text undo readback failed');
+  }
+  if (undo.prior.graph === null) {
+    if (root.graph !== null || root.graphFingerprint !== undo.after.graphFingerprint) {
+      throw new Error('unit text undo readback failed');
+    }
+    return unit;
+  }
+  if (!root.graph || root.graphFingerprint !== analysisGraphFingerprint(undo.prior.graph)) {
+    throw new Error('unit text undo readback failed');
+  }
+  const tokens = db
+    .prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?')
+    .get(undo.unitId) as {
+    n: number;
+  };
+  if (tokens.n !== undo.prior.projectionTokenCount)
+    throw new Error('unit text undo readback failed');
+  for (const link of undo.prior.links) {
+    const row = db
+      .prepare('SELECT attachment FROM token_lexeme_links WHERE id = ?')
+      .get(link.id) as { attachment: string } | undefined;
+    if (row?.attachment !== 'active') throw new Error('unit text undo readback failed');
+  }
+  for (const note of undo.prior.notes) {
+    const row = db.prepare('SELECT attachment FROM notes WHERE id = ?').get(note.id) as
+      { attachment: string } | undefined;
+    if (row?.attachment !== 'active') throw new Error('unit text undo readback failed');
+  }
+  return unit;
+}
+
 function reattach(
   db: SqliteDatabase,
-  candidate: AnalysisCandidateRecord,
+  candidate: {
+    unitId: string;
+    links: readonly AnalysisAssociationLink[];
+    notes: readonly AnalysisAssociationNote[];
+    createdAt: string;
+  },
   liveIds: readonly string[],
   now: string,
 ): void {

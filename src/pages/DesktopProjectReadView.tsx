@@ -28,6 +28,10 @@ export function DesktopProjectReadView(props: {
   audioLabel: string;
   textLabel: string;
   saveTextLabel: string;
+  undoTextLabel: string;
+  splitLabel: string;
+  splitTimeLabel: string;
+  mergeNextLabel: string;
   boundaryLabel: string;
   moveBoundaryLabel: string;
   offsetLabel: string;
@@ -39,6 +43,9 @@ export function DesktopProjectReadView(props: {
   saveWaveformNoteLabel: string;
   onSelectManuscript: (id: string) => void;
   onSaveText: (unitId: string, text: string) => void;
+  onUndoText: () => void;
+  onSplit: (unitId: string, time: number) => void;
+  onMerge: (keepId: string, removeId: string) => void;
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
   onSaveMapping: (offsetSec: number, scale: number) => void;
   onSaveNote: (unitId: string, text: string) => void;
@@ -48,6 +55,7 @@ export function DesktopProjectReadView(props: {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textRef = useRef<HTMLInputElement>(null);
   const boundaryRef = useRef<HTMLInputElement>(null);
+  const splitRef = useRef<HTMLInputElement>(null);
   const offsetRef = useRef<HTMLInputElement>(null);
   const scaleRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
@@ -115,7 +123,7 @@ export function DesktopProjectReadView(props: {
         <div className="desktop-project-read-units">
           <input
             ref={textRef}
-            key={selected.id}
+            key={`${selected.id}:${selected.text}`}
             aria-label={props.textLabel}
             defaultValue={selected.text}
           />
@@ -129,6 +137,30 @@ export function DesktopProjectReadView(props: {
           >
             {props.saveTextLabel}
           </button>
+          <button type="button" onClick={() => props.onUndoText()}>
+            {props.undoTextLabel}
+          </button>
+          <input
+            ref={splitRef}
+            key={`split-${selected.id}`}
+            aria-label={props.splitTimeLabel}
+            defaultValue={String((selected.startTime + selected.endTime) / 2)}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const time = Number(splitRef.current?.value);
+              if (!Number.isFinite(time)) return;
+              props.onSplit(selected.id, time);
+            }}
+          >
+            {props.splitLabel}
+          </button>
+          {next === null ? null : (
+            <button type="button" onClick={() => props.onMerge(selected.id, next.id)}>
+              {props.mergeNextLabel}
+            </button>
+          )}
           {next === null ? null : (
             <>
               <input

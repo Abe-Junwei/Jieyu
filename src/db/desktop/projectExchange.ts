@@ -53,6 +53,11 @@ interface Scope {
   batchIds: Set<string>;
 }
 
+export function saveDesktopPackage(file: string, bytes: Uint8Array): { file: string } {
+  writeFileSync(file, bytes);
+  return { file };
+}
+
 export function exportDesktopJyt(db: SqliteDatabase): Uint8Array {
   return pack(snapshot(db), null, null, null);
 }
