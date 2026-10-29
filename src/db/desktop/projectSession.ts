@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { releaseDesktopMediaSession } from '../../desktop/skeleton/desktopMediaGrant';
 import { isAllowedProjectFolder } from '../../desktop/skeleton/desktopSecurity';
 import { saveDailyProjectBackup } from './dailyBackup';
 import { openProject, type DesktopProject } from './openProject';
@@ -37,6 +38,7 @@ export function openDesktopSession(
   const previous = current;
   current = undefined;
   previous?.project.close();
+  if (previous !== undefined) releaseDesktopMediaSession(previous.id);
   clearUnitTextUndo();
   const project = openProject(folder);
   try {
@@ -63,6 +65,15 @@ export function openDesktopSession(
   const id = randomUUID();
   current = { id, folder, project };
   return backupSkipped === undefined ? { sessionId: id } : { sessionId: id, backupSkipped };
+}
+
+export function abandonDesktopSession(): string | null {
+  const id = current?.id ?? null;
+  if (current === undefined) return null;
+  current.project.close();
+  current = undefined;
+  clearUnitTextUndo();
+  return id;
 }
 
 export function closeDesktopSession(sessionId: string): void {

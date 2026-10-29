@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -50,12 +51,16 @@ const COLUMNS = `id, title, mode, provider_id, model, archived, cleared_at, fiel
 export function createConversation(db: SqliteDatabase, input: ConversationCreate): Conversation {
   const id = randomUUID();
   const now = new Date().toISOString();
-  db.prepare(
-    'INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)',
-  ).run(id, input.title, now, now);
-  const conversation = getConversation(db, id);
-  if (!conversation) throw new Error('conversation readback failed');
-  return conversation;
+  const write = db.transaction(() => {
+    db.prepare(
+      'INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    ).run(id, input.title, now, now);
+    writeRequiredFieldValues(db, 'conversation', id, undefined);
+    const conversation = getConversation(db, id);
+    if (!conversation) throw new Error('conversation readback failed');
+    return conversation;
+  });
+  return write();
 }
 
 export function getConversation(db: SqliteDatabase, id: string): Conversation | null {

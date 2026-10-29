@@ -29,11 +29,11 @@ export function DesktopExchangePanel(props: {
   onImported: () => Promise<unknown>;
 }) {
   const locale = useLocale();
-  const [failed, setFailed] = useState(false);
+  const [status, setStatus] = useState<'failed' | 'saved' | null>(null);
   const client = createDesktopClient({ desktopCall: props.desktopCall });
 
   const importFile = () => {
-    setFailed(false);
+    setStatus(null);
     void props
       .chooseImportFile()
       .then(async (picked) => {
@@ -43,17 +43,17 @@ export function DesktopExchangePanel(props: {
           ...(picked.roles === undefined ? {} : { roles: picked.roles }),
         });
         if (result.written === 0) {
-          setFailed(true);
+          setStatus('failed');
           return;
         }
         await props.onImported();
       })
-      .catch(() => setFailed(true));
+      .catch(() => setStatus('failed'));
   };
 
   const exportPackage = (kind: ExportKind) => {
     if (kind === 'manuscript' && props.manuscriptId === null) return;
-    setFailed(false);
+    setStatus(null);
     void props
       .chooseExportFile(exportName(kind))
       .then(async (picked) => {
@@ -61,24 +61,25 @@ export function DesktopExchangePanel(props: {
         switch (kind) {
           case 'jyt':
             await client.exportJyt(props.sessionId, { file: picked.file });
-            return;
+            break;
           case 'jym':
             await client.exportJym(props.sessionId, { file: picked.file });
-            return;
+            break;
           case 'manuscript':
             if (props.manuscriptId === null) return;
             await client.exportManuscript(props.sessionId, {
               file: picked.file,
               manuscriptId: props.manuscriptId,
             });
-            return;
+            break;
           default: {
             const unreachable: never = kind;
             return unreachable;
           }
         }
+        setStatus('saved');
       })
-      .catch(() => setFailed(true));
+      .catch(() => setStatus('failed'));
   };
 
   return (
@@ -99,7 +100,10 @@ export function DesktopExchangePanel(props: {
       >
         {t(locale, 'app.desktopRead.exportManuscript')}
       </button>
-      {failed ? <p role="alert">{t(locale, 'app.desktopRead.loadFailed')}</p> : null}
+      {status === 'failed' ? (
+        <p role="alert">{t(locale, 'app.desktopRead.exchangeFailed')}</p>
+      ) : null}
+      {status === 'saved' ? <p role="status">{t(locale, 'app.desktopRead.exportSaved')}</p> : null}
     </div>
   );
 }

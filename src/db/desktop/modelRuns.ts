@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { invertTextTimeMapping } from '../../services/LinguisticService.timeMapping';
 import { getManuscript } from './manuscripts';
+import { assertUnitTextRoleFree } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -231,6 +232,12 @@ export function previewModelRun(
         throw new Error('transcription range is invalid');
       }
     }
+    const duration = mediaDuration(db, run.mediaId);
+    for (const candidate of input.candidates) {
+      if (candidate.mediaStart < 0 || candidate.mediaEnd > duration) {
+        throw new Error('transcription time is invalid');
+      }
+    }
     const placed = input.candidates.map((candidate) => placeCandidate(db, run, candidate));
     db.prepare('UPDATE model_runs SET pending_count = ? WHERE id = ?').run(placed.length, run.id);
     const stored = getModelRun(db, run.id);
@@ -247,7 +254,41 @@ export function previewModelRun(
       candidates: placed,
     };
   });
-  return write();
+  const preview = write();
+  for (const key of [...previews.keys()]) {
+    if (key.startsWith(`${input.runId}\0`)) previews.delete(key);
+  }
+  for (const candidate of preview.candidates) rememberPreview(input.runId, candidate);
+  return preview;
+}
+
+const previews = new Map<string, { mediaStart: number; mediaEnd: number }>();
+
+function previewKey(runId: string, candidateId: string): string {
+  return `${runId}\0${candidateId}`;
+}
+
+function rememberPreview(runId: string, candidate: PreviewCandidate): void {
+  previews.set(previewKey(runId, candidate.candidateId), {
+    mediaStart: candidate.mediaStart,
+    mediaEnd: candidate.mediaEnd,
+  });
+}
+
+function previewedRange(
+  runId: string,
+  candidateId: string,
+): { mediaStart: number; mediaEnd: number } | undefined {
+  return previews.get(previewKey(runId, candidateId));
+}
+
+function mediaDuration(db: SqliteDatabase, mediaId: string): number {
+  const row = db.prepare('SELECT duration FROM media WHERE id = ?').get(mediaId) as
+    { duration: number } | undefined;
+  if (row === undefined || !Number.isFinite(row.duration) || row.duration < 0) {
+    throw new Error('transcription time is invalid');
+  }
+  return row.duration;
 }
 
 export function acceptTranscriptionCandidate(
@@ -282,8 +323,25 @@ export function acceptTranscriptionCandidate(
     if (targetFingerprint(overlaps) !== input.targetFingerprint) {
       throw new Error('transcription preview is stale');
     }
-    const unitId = randomUUID();
     const candidateId = candidateIdentity(input.chunkIndex, input.segmentIndex);
+    const operationTaken = db
+      .prepare('SELECT 1 AS ok FROM transcription_acceptances WHERE operation_id = ?')
+      .get(input.operationId);
+    if (operationTaken !== undefined) throw new Error('transcription operation is already used');
+    const preview = previewedRange(input.runId, candidateId);
+    if (
+      preview === undefined ||
+      preview.mediaStart !== input.mediaStart ||
+      preview.mediaEnd !== input.mediaEnd
+    ) {
+      throw new Error('transcription preview is stale');
+    }
+    const duration = mediaDuration(db, run.mediaId);
+    if (input.mediaStart < 0 || input.mediaEnd > duration) {
+      throw new Error('transcription time is invalid');
+    }
+    const unitId = randomUUID();
+    assertUnitTextRoleFree(db, unitId, 'transcription');
     db.prepare(
       `INSERT INTO units (
         id, layer_id, start_time, end_time, created_at, updated_at

@@ -9,6 +9,7 @@ import { applyAnalysis } from './analysis';
 import { importForeignFile } from './foreignImport';
 import { getProjectIdentity } from './projectIdentity';
 import {
+  assertExportTarget,
   exportDesktopJym,
   exportDesktopJyt,
   exportDesktopManuscriptJyt,
@@ -150,6 +151,7 @@ import {
   restoreManuscript,
   rollbackManuscriptTimeMapping,
   setManuscriptTimeMapping,
+  unitBelongsToDeletedManuscript,
   type ManuscriptCreate,
 } from './manuscripts';
 import {
@@ -555,8 +557,11 @@ export function callDesktopSession(
       return queryCorpus(project.db, corpusQuery(input));
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
-    case 'units.get':
-      return getUnit(project.db, requiredString(input.id, 'id'));
+    case 'units.get': {
+      const id = requiredString(input.id, 'id');
+      if (unitBelongsToDeletedManuscript(project.db, id)) return null;
+      return getUnit(project.db, id);
+    }
     case 'units.list':
       return listUnits(project.db, requiredString(input.layerId, 'layerId'));
     case 'units.updateText':
@@ -800,21 +805,28 @@ export function callDesktopSession(
       );
     case 'exchange.importFile':
       return importExchangeFile(project.db, desktopSessionFolder(sessionId), input);
-    case 'exchange.exportJyt':
-      return saveDesktopPackage(exportFile(input), exportDesktopJyt(project.db));
-    case 'exchange.exportJym':
-      return saveDesktopPackage(
-        exportFile(input),
-        exportDesktopJym(project.db, desktopSessionFolder(sessionId)),
-      );
-    case 'exchange.exportManuscript':
+    case 'exchange.exportJyt': {
+      const file = exportFile(input);
+      assertExportTarget(desktopSessionFolder(sessionId), file);
+      return saveDesktopPackage(file, exportDesktopJyt(project.db));
+    }
+    case 'exchange.exportJym': {
+      const file = exportFile(input);
+      const folder = desktopSessionFolder(sessionId);
+      assertExportTarget(folder, file);
+      return saveDesktopPackage(file, exportDesktopJym(project.db, folder));
+    }
+    case 'exchange.exportManuscript': {
       knownKeys(input, ['file', 'manuscriptId']);
+      const file = requiredString(input.file, 'file');
+      assertExportTarget(desktopSessionFolder(sessionId), file);
       return saveDesktopPackage(
-        requiredString(input.file, 'file'),
+        file,
         exportDesktopManuscriptJyt(project.db, [
           requiredString(input.manuscriptId, 'manuscriptId'),
         ]),
       );
+    }
     default: {
       const unreachable: never = parsed;
       return unreachable;

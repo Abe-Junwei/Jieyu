@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -12,6 +13,7 @@ import path from 'node:path';
 import type Database from 'better-sqlite3';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { openProject } from './openProject';
+import { assertZipBounded } from './zipBounds';
 import { DESKTOP_PROJECT_USER_VERSION } from './schema';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -27,6 +29,8 @@ const DATA_PATH = 'data/project.json';
 const MEDIA_PREFIX = 'media/';
 const MEDIA_ID = /^[A-Za-z0-9_-]+$/;
 const ATTACHMENT_PREFIX = 'attachments/objects/';
+const SOURCE_PREFIX = 'sources/';
+const SOURCE_PATH = /^sources\/[0-9a-f]{64}(?:\.[a-z0-9]+)?$/;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 /** ponytail: one zip, audio included, 32 MiB. Raise this when a real project exceeds it. */
 const MAX_PACKAGE_BYTES = 32 * 1024 * 1024;
@@ -58,8 +62,23 @@ export function saveDesktopPackage(file: string, bytes: Uint8Array): { file: str
   return { file };
 }
 
+export function assertExportTarget(folder: string, file: string): void {
+  const library = path.resolve(folder, 'project.sqlite');
+  const blocked = new Set([library, `${library}-journal`, `${library}-wal`, `${library}-shm`]);
+  const target = path.resolve(file);
+  if (blocked.has(target)) throw new Error('export target is the open project');
+  if (!existsSync(target)) return;
+  let real = target;
+  try {
+    real = realpathSync(target);
+  } catch {
+    return;
+  }
+  if (blocked.has(real)) throw new Error('export target is the open project');
+}
+
 export function exportDesktopJyt(db: SqliteDatabase): Uint8Array {
-  return pack(snapshot(db), null, null, null);
+  return pack(snapshot(db), null, null, null, null);
 }
 
 export function exportDesktopJym(db: SqliteDatabase, folder: string): Uint8Array {
@@ -69,6 +88,7 @@ export function exportDesktopJym(db: SqliteDatabase, folder: string): Uint8Array
     null,
     readMediaFiles(folder, tables.media ?? []),
     readAttachmentFiles(folder, tables.attachment_files ?? []),
+    readSourceFiles(folder, tables.unit_texts ?? []),
   );
 }
 
@@ -84,7 +104,7 @@ export function exportDesktopManuscriptJyt(
     if (!row) throw new Error('manuscript is missing');
     if (row.deleted_at !== null) throw new Error('manuscript is deleted');
   }
-  return pack(filterManuscripts(snapshot(db), selected), selected, null, null);
+  return pack(filterManuscripts(snapshot(db), selected), selected, null, null, null);
 }
 
 export function importDesktopJyt(folder: string, bytes: Uint8Array): void {
@@ -98,13 +118,16 @@ export function importDesktopJym(folder: string, bytes: Uint8Array): void {
 function installPackage(folder: string, bytes: Uint8Array, expected: 'jyt' | 'jym'): void {
   const parsed = readPackage(bytes);
   if (parsed.kind !== expected) throw new Error('desktop package is unreadable');
+  if (existsSync(folder) && readdirSync(folder).length > 0) {
+    throw new Error('import destination is not empty');
+  }
   const target = path.join(folder, 'project.sqlite');
-  if (existsSync(target)) throw new Error('import destination is not empty');
   const files =
     expected === 'jym'
       ? [
           ...mediaWrites(folder, parsed.tables.media ?? [], parsed.media),
           ...attachmentWrites(folder, parsed.tables.attachment_files ?? [], parsed.attachments),
+          ...sourceWrites(folder, parsed.sources),
         ]
       : [];
   const written: string[] = [];
@@ -116,8 +139,9 @@ function installPackage(folder: string, bytes: Uint8Array, expected: 'jyt' | 'jy
       if (parent !== root && !parent.startsWith(`${root}${path.sep}`)) {
         throw new Error('media path escapes the project folder');
       }
-      writeFileSync(file.path, file.bytes, { flag: 'wx' });
-      written.push(file.path);
+      const stored = path.join(parent, path.basename(file.path));
+      writeFileSync(stored, file.bytes, { flag: 'wx' });
+      written.push(stored);
     }
     const project = openProject(folder);
     try {
@@ -217,6 +241,7 @@ function pack(
   manuscriptIds: readonly string[] | null,
   media: Map<string, Uint8Array> | null,
   attachments: Map<string, Uint8Array> | null,
+  sources: Map<string, Uint8Array> | null,
 ): Uint8Array {
   const kind = media === null ? 'jyt' : 'jym';
   const manifest = {
@@ -239,6 +264,7 @@ function pack(
     for (const [digest, bytes] of attachments ?? []) {
       entries[`${ATTACHMENT_PREFIX}${digest}`] = [bytes, { level: 0 }];
     }
+    for (const [relpath, bytes] of sources ?? []) entries[relpath] = [bytes, { level: 0 }];
   }
   const zipped = zipSync(entries);
   if (zipped.byteLength > MAX_PACKAGE_BYTES) throw new Error('desktop package is too large');
@@ -250,8 +276,10 @@ function readPackage(bytes: Uint8Array): {
   tables: Record<string, Row[]>;
   media: Map<string, Uint8Array>;
   attachments: Map<string, Uint8Array>;
+  sources: Map<string, Uint8Array>;
 } {
   if (bytes.byteLength > MAX_PACKAGE_BYTES) throw new Error('desktop package is unreadable');
+  assertZipBounded(bytes);
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(bytes);
@@ -268,6 +296,7 @@ function readPackage(bytes: Uint8Array): {
   }
   const media = new Map<string, Uint8Array>();
   const attachments = new Map<string, Uint8Array>();
+  const sources = new Map<string, Uint8Array>();
   for (const name of Object.keys(files)) {
     if (name === MIME_PATH || name === MANIFEST_PATH || name === DATA_PATH) continue;
     if (name.startsWith(MEDIA_PREFIX)) {
@@ -284,6 +313,12 @@ function readPackage(bytes: Uint8Array): {
         throw new Error('desktop package is unreadable');
       }
       attachments.set(digest, files[name]!);
+      continue;
+    }
+    if (name.startsWith(SOURCE_PREFIX)) {
+      if (kind !== 'jym' || !SOURCE_PATH.test(name))
+        throw new Error('desktop package is unreadable');
+      sources.set(name, files[name]!);
       continue;
     }
     throw new Error('desktop package is unreadable');
@@ -319,7 +354,7 @@ function readPackage(bytes: Uint8Array): {
     checkMediaBytes(tables.media ?? [], media);
     checkAttachmentBytes(tables.attachment_files ?? [], attachments);
   }
-  return { kind, tables, media, attachments };
+  return { kind, tables, media, attachments, sources };
 }
 
 function checkAttachmentBytes(rows: Row[], files: Map<string, Uint8Array>): void {
@@ -524,6 +559,50 @@ function attachmentWrites(
     }
     return { path: containedMediaPath(folder, String(row.relpath)), bytes };
   });
+}
+
+function readSourceFiles(folder: string, rows: Row[]): Map<string, Uint8Array> {
+  const out = new Map<string, Uint8Array>();
+  for (const row of rows) {
+    if (typeof row.provenance_json !== 'string' || row.provenance_json.length === 0) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.provenance_json);
+    } catch {
+      continue;
+    }
+    if (
+      !isRecord(parsed) ||
+      typeof parsed.relpath !== 'string' ||
+      !SOURCE_PATH.test(parsed.relpath)
+    ) {
+      continue;
+    }
+    if (out.has(parsed.relpath)) continue;
+    const target = containedMediaPath(folder, parsed.relpath);
+    const root = realpathSync(path.resolve(folder));
+    let real: string;
+    try {
+      real = realpathSync(target);
+    } catch {
+      throw new Error('source file is missing');
+    }
+    if ((real !== root && !real.startsWith(`${root}${path.sep}`)) || !statSync(real).isFile()) {
+      throw new Error('source file is missing');
+    }
+    out.set(parsed.relpath, readFileSync(real));
+  }
+  return out;
+}
+
+function sourceWrites(
+  folder: string,
+  files: Map<string, Uint8Array>,
+): Array<{ path: string; bytes: Uint8Array }> {
+  return [...files].map(([relpath, bytes]) => ({
+    path: containedMediaPath(folder, relpath),
+    bytes,
+  }));
 }
 
 function mediaWrites(

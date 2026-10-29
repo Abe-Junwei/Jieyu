@@ -73,7 +73,7 @@ describe('desktop project session', () => {
     }
     const again = openDesktopSession(dir, [dir], {
       dir: backupDir,
-      now: new Date('2026-10-27T18:00:00.000Z'),
+      now: new Date(2026, 9, 27, 18, 0, 0),
     });
     expect(again.sessionId).not.toBe(sessionId);
     expect(() => requireDesktopSession(sessionId)).toThrow('project session expired');

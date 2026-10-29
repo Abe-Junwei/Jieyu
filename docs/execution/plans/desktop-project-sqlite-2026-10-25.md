@@ -95,9 +95,9 @@ const unit = await project.units.create({
 
 撤销是当前会话里的一步逆操作，不建表。记下逆操作要的状态，执行前核对对象仍是那次写入之后的样子。后面又改过、换了项目或关了会话，就清空记录，不用旧记录盖住新状态。正文的逆操作恢复旧字符串，并在同一次事务里恢复写入前的分析图和关联。切分的逆操作去掉新语段，以及它的备注、词、语素和链接。合并先定留下哪个 id，另一语段的关联按这个决定处理。再调一次切分或合并并不是撤销。时间映射用现有回滚。新函数在同一次事务里核对、执行并读回。
 
-对话要能创建、列出或选择。`createConversation` 已在库里，`desktopCall` 还没有创建和列出。`messages.append` 和 `conversations.patch` 都要求对话已经存在。只能读已有对话不算这一片完成。不恢复会话记忆、嵌入、任务和审计。
+对话要能创建、列出或选择。`desktopCall` 已有 `conversations.create`、`conversations.list`、`messages.append` 和 `conversations.patch`。追加和改标题都要求对话已经存在。不恢复会话记忆、嵌入、任务和审计。
 
-导入导出补主进程接线，复用已有的字段文件导入和 JYT/JYM。`desktopCall` 和现有桥接都还没有这些调用，也没有普通文件选择和导出保存。库的变更一次事务完成。文件失败沿已有的清理边界退回。导入当前打开的项目时不重新开库，以免撞上项目锁。
+导入导出已接到主进程。`desktopCall` 已有 `exchange.importFile`、`exchange.exportJyt`、`exchange.exportJym` 和 `exchange.exportManuscript`，文件选择和导出保存已接上。库的变更一次事务完成。文件失败沿已有的清理边界退回。导入当前打开的项目时不重新开库，以免撞上项目锁。
 
 语段的切分、合并和分析节点的 `analysis.split` 分开。说话人批量改派单独一次事务。目录调用按列表和编辑逐项核对，不能只看已有的 create/get。语料页跨路由定位时带上文稿、层和语段 id。分析页的 `accept` 和 `restore` 要有真实候选或快照，以及当前凭据。词典不挂 LIFT、引用跳转、多义项编辑、删除和附件画面。脚本先查调用者，测试工具按用途决定留不留。
 

@@ -164,9 +164,11 @@ export async function assertLoopbackUrl(baseUrl: string): Promise<URL> {
   if (isLoopbackIp(url.hostname)) return url;
   if (url.hostname.includes(':')) throw new Error('model address is remote');
   const found = await lookup(url.hostname, { all: true, verbatim: true });
-  if (found.length === 0 || found.some((row) => !isLoopbackIp(row.address))) {
+  const address = found[0]?.address;
+  if (address === undefined || found.some((row) => !isLoopbackIp(row.address))) {
     throw new Error('model address is remote');
   }
+  url.hostname = address;
   return url;
 }
 

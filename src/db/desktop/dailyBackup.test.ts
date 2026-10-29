@@ -68,7 +68,7 @@ describe('daily project backup', () => {
       db: project.db,
       folder: projectDir,
       backupDir,
-      now: new Date('2026-10-27T18:00:00.000Z'),
+      now: new Date(2026, 9, 27, 18, 0, 0),
     });
     expect(latest.endsWith('/2026-10-27.jym')).toBe(true);
     expect(existsSync(latest)).toBe(true);

@@ -67,6 +67,8 @@ export const zhCNDictionary = {
   'app.desktopRead.exportJyt': '导出 JYT',
   'app.desktopRead.exportJym': '导出 JYM',
   'app.desktopRead.exportManuscript': '导出文稿',
+  'app.desktopRead.exchangeFailed': '导入或导出没有完成',
+  'app.desktopRead.exportSaved': '已经保存导出的文件',
   'app.desktopRead.boundary': '文献边界',
   'app.desktopRead.moveBoundary': '移动边界',
   'app.desktopRead.offset': '偏移秒',

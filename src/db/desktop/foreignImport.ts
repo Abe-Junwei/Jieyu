@@ -1,8 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -25,6 +27,7 @@ import { saveLexemeEntry } from './lexicon';
 import { createMedia } from './media';
 import { createManuscript } from './manuscripts';
 import { openProject } from './openProject';
+import { assertZipBounded } from './zipBounds';
 import { createSpeaker } from './speakers';
 import { createUnit } from './units';
 
@@ -451,7 +454,7 @@ function blocked(db: Sqlite, targetType: string): boolean {
 
 function remember(folder: string, relpath: string, bytes: Buffer, created: string[]): SourceFile {
   const digest = digestOf(bytes);
-  const absolute = path.join(folder, relpath);
+  const absolute = insideProject(folder, relpath);
   if (existsSync(absolute)) {
     if (!statSync(absolute).isFile() || digestOf(readFileSync(absolute)) !== digest) {
       throw new Error('media hash does not match');
@@ -467,6 +470,28 @@ function remember(folder: string, relpath: string, bytes: Buffer, created: strin
   created.splice(created.indexOf(partial), 1);
   created.push(absolute);
   return { relpath, sha256: digest, format: path.extname(relpath).slice(1) };
+}
+
+function insideProject(folder: string, relpath: string): string {
+  if (relpath.length === 0 || relpath.includes('\0') || path.isAbsolute(relpath)) {
+    throw new Error('media path escapes the project folder');
+  }
+  const parts = relpath.split('\\').join('/').split('/');
+  if (parts.some((part) => part.length === 0 || part === '.' || part === '..')) {
+    throw new Error('media path escapes the project folder');
+  }
+  const root = realpathSync(path.resolve(folder));
+  const parent = path.resolve(root, ...parts.slice(0, -1));
+  mkdirSync(parent, { recursive: true });
+  const realParent = realpathSync(parent);
+  if (realParent !== root && !realParent.startsWith(`${root}${path.sep}`)) {
+    throw new Error('media path escapes the project folder');
+  }
+  const target = path.join(realParent, parts[parts.length - 1] ?? '');
+  if (existsSync(target) && (lstatSync(target).isSymbolicLink() || !statSync(target).isFile())) {
+    throw new Error('media path escapes the project folder');
+  }
+  return target;
 }
 
 function named(text: string, fallback: string): string {
@@ -643,6 +668,7 @@ function flexTiers(
         start: unit.startTime,
         end: unit.endTime,
         text: unit.transcription,
+        ...(unit.speakerId === undefined ? {} : { speaker: unit.speakerId }),
         ...(unit.tokens === undefined ? {} : { words: asWords(unit.tokens) }),
       })),
     });
@@ -983,6 +1009,7 @@ function imageMime(file: string): string {
 const JYB_MIME = 'application/vnd.jieyu.jyb';
 
 function importJyb(parent: string, bytes: Uint8Array): ImportResult {
+  assertZipBounded(bytes);
   const files = unzipSync(bytes);
   const mime = files.mimetype === undefined ? '' : strFromU8(files.mimetype).trim();
   if (mime !== JYB_MIME) throw new Error('desktop package is unreadable');
@@ -1202,6 +1229,11 @@ function writeJybProject(
         mediaIds.set(media.sourceId, id);
       }
       const layers = assignLayers(plan, unprojected);
+      const layerIds = new Set(layers.map((layer) => layer.sourceId));
+      for (const unit of plan.units) {
+        if (layerIds.has(unit.sourceLayerId)) continue;
+        unprojected.push({ name: unit.text, reason: 'import field does not fit' });
+      }
       let count = 0;
       for (const text of plan.texts) {
         const textLayers = layers.filter((layer) => layer.textId === text.sourceId);

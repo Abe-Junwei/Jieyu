@@ -20,6 +20,7 @@ import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/daily
 import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
+  abandonDesktopSession,
   closeDesktopSession,
   desktopSessionFolder,
   openDesktopSession,
@@ -36,6 +37,7 @@ import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import {
   bindDesktopMediaSession,
+  grantDesktopMedia,
   releaseDesktopMediaSession,
   resetDesktopMediaGrants,
   resolveDesktopMedia,
@@ -80,13 +82,7 @@ function mediaRoot(): string {
 }
 
 function mediaFile(name: string): string | null {
-  const granted = resolveDesktopMedia(path.basename(name));
-  if (granted) return granted;
-  const root = path.resolve(mediaRoot());
-  const filePath = path.resolve(root, path.basename(name));
-  const relative = path.relative(root, filePath);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) return null;
-  return filePath;
+  return resolveDesktopMedia(path.basename(name));
 }
 
 function installCsp(): void {
@@ -412,6 +408,15 @@ async function openWindow(): Promise<BrowserWindow> {
       sandbox: true,
     },
   });
+  let loadedOnce = false;
+  win.webContents.on('did-finish-load', () => {
+    if (!loadedOnce) {
+      loadedOnce = true;
+      return;
+    }
+    const abandoned = abandonDesktopSession();
+    if (abandoned !== null) releaseDesktopMediaSession(abandoned);
+  });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event, url) => {
     if (!isAppNavigation(url, win.webContents.getURL())) event.preventDefault();
@@ -481,8 +486,11 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     allowedProjectFolders.add(path.resolve(synced));
     writeProjectLibraryMarker(path.join(project, 'project.sqlite'));
     smokeSqliteUserDataFile = path.join(root, 'user-data.sqlite');
+    const clip = path.join(mediaRoot(), 'clip.bin');
     fs.mkdirSync(mediaRoot(), { recursive: true });
-    fs.writeFileSync(path.join(mediaRoot(), 'clip.bin'), 'abcdefgh');
+    fs.writeFileSync(clip, 'abcdefgh');
+    bindDesktopMediaSession('smoke-range');
+    const clipToken = grantDesktopMedia('smoke-range', clip);
     // Keys saved before the async switch were written by the deprecated sync encryptString (gone in Electron 46).
     fs.mkdirSync(path.dirname(secretPath()), { recursive: true });
     fs.writeFileSync(secretPath(), safeStorage.encryptString('legacy-secret'));
@@ -505,7 +513,7 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
         ${JSON.stringify(`${loopback.baseUrl}/stream`)},
       );
       off();
-      const mediaUrl = await window.jieyuDesktop.mediaUrl('clip.bin');
+      const mediaUrl = await window.jieyuDesktop.mediaUrl(${JSON.stringify(clipToken)});
       const mediaResponse = await fetch(mediaUrl, { headers: { Range: 'bytes=0-3' } });
       const turn = { conversationId: 'smoke-turn', createdAt: 1, expiresAt: 70, note: 'kept' };
       await window.jieyuDesktop.openStorage(${JSON.stringify(project)});

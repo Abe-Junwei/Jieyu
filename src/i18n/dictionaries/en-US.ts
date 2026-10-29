@@ -72,6 +72,8 @@ export const enUSDictionary = {
   'app.desktopRead.exportJyt': 'Export JYT',
   'app.desktopRead.exportJym': 'Export JYM',
   'app.desktopRead.exportManuscript': 'Export manuscript',
+  'app.desktopRead.exchangeFailed': 'Import or export did not finish',
+  'app.desktopRead.exportSaved': 'The export file is saved',
   'app.desktopRead.boundary': 'Literature boundary',
   'app.desktopRead.moveBoundary': 'Move boundary',
   'app.desktopRead.offset': 'Offset seconds',

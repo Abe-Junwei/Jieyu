@@ -450,24 +450,27 @@ export function writeGraph(
   const fingerprint = analysisGraphFingerprint(validated);
   const generation = material.analysisGeneration + 1;
   const now = new Date().toISOString();
-  db.prepare(
-    `UPDATE units
-     SET analysis_graph_json = ?, analysis_generation = ?, graph_fingerprint = ?, updated_at = ?
-     WHERE id = ?`,
-  ).run(JSON.stringify(validated), generation, fingerprint, now, material.unitId);
-  const projected = projectAnalysisGraph(validated, material.unitId);
-  replaceProjection(db, material.unitId, projected.tokens, projected.morphemes);
-  syncProjectedLinks(db, validated);
-  const stored = getAnalysisRoot(db, material.unitId);
-  if (
-    !stored?.graph ||
-    stored.analysisGeneration !== generation ||
-    stored.graphFingerprint !== fingerprint ||
-    JSON.stringify(stored.graph) !== JSON.stringify(validated)
-  ) {
-    throw new Error('analysis write readback failed');
-  }
-  return stored;
+  const write = db.transaction(() => {
+    db.prepare(
+      `UPDATE units
+       SET analysis_graph_json = ?, analysis_generation = ?, graph_fingerprint = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(JSON.stringify(validated), generation, fingerprint, now, material.unitId);
+    const projected = projectAnalysisGraph(validated, material.unitId);
+    replaceProjection(db, material.unitId, projected.tokens, projected.morphemes);
+    syncProjectedLinks(db, validated);
+    const stored = getAnalysisRoot(db, material.unitId);
+    if (
+      !stored?.graph ||
+      stored.analysisGeneration !== generation ||
+      stored.graphFingerprint !== fingerprint ||
+      JSON.stringify(stored.graph) !== JSON.stringify(validated)
+    ) {
+      throw new Error('analysis write readback failed');
+    }
+    return stored;
+  });
+  return write();
 }
 
 export interface UnitWord {

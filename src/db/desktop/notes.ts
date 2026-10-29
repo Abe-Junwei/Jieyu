@@ -3,7 +3,11 @@ import type Database from 'better-sqlite3';
 import type { JieyuAnchoredNote } from '../dmlexTypes';
 import { parseStoredJieyuLexeme } from '../dmlexEntrySchema';
 import { provenanceSchema } from '../provenanceSchema';
-import { lexemeExtensionForSave, splitLexemeExtension } from './customFields';
+import {
+  lexemeExtensionForSave,
+  splitLexemeExtension,
+  writeRequiredFieldValues,
+} from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -154,6 +158,7 @@ export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): 
       now,
       now,
     );
+    writeRequiredFieldValues(db, 'note', id, undefined);
     const stored = readContentNote(db, id);
     if (stored === null) throw new Error('note readback failed');
     return stored;
@@ -192,6 +197,17 @@ export function deleteContentNote(db: SqliteDatabase, id: string): { id: string 
   const note = noteId(id);
   const write = db.transaction(() => {
     if (readContentNote(db, note) === null) throw new Error('note is missing');
+    const place = db
+      .prepare('SELECT manuscript_id AS manuscriptId FROM notes WHERE id = ?')
+      .get(note) as { manuscriptId: string | null };
+    if (place.manuscriptId !== null) {
+      const manuscript = db
+        .prepare('SELECT deleted_at AS deletedAt FROM manuscripts WHERE id = ?')
+        .get(place.manuscriptId) as { deletedAt: string | null } | undefined;
+      if (manuscript !== undefined && manuscript.deletedAt !== null) {
+        throw new Error('manuscript is deleted');
+      }
+    }
     db.prepare('DELETE FROM notes WHERE id = ?').run(note);
     if (readContentNote(db, note) !== null) throw new Error('note readback failed');
     return { id: note };

@@ -1,5 +1,6 @@
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -30,7 +31,7 @@ export function saveDailyProjectBackup(input: {
   mkdirSync(requested, { recursive: true });
   const backupRoot = realpathSync(requested);
   if (isInside(folderRoot, backupRoot)) throw new Error('backup directory is inside the project');
-  const day = (input.now ?? new Date()).toISOString().slice(0, 10);
+  const day = localDay(input.now ?? new Date());
   if (!DAY_FILE.test(`${day}.jym`)) throw new Error('backup day is invalid');
   const bytes = exportDesktopJym(input.db, input.folder);
   const target = path.join(backupRoot, `${day}.jym`);
@@ -50,7 +51,14 @@ export function saveDailyProjectBackup(input: {
     .filter((name) => DAY_FILE.test(name))
     .sort();
   for (const name of names.slice(0, Math.max(0, names.length - DAILY_BACKUP_KEEP))) {
-    rmSync(path.join(backupRoot, name), { force: true });
+    const target = path.join(backupRoot, name);
+    const info = lstatSync(target);
+    if (info.isSymbolicLink()) {
+      rmSync(target);
+      continue;
+    }
+    if (!info.isFile()) throw new Error('backup day is invalid');
+    rmSync(target);
   }
   return target;
 }
@@ -76,6 +84,12 @@ export function restoreDailyBackup(input: {
   const file = path.join(input.backupDir, `${input.day}.jym`);
   if (!existsSync(file)) throw new Error('backup file is missing');
   importDesktopJym(input.destination, readFileSync(file));
+}
+
+function localDay(now: Date): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 function canonicalPath(target: string): string {

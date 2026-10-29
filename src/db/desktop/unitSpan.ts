@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import { getUnit, type Unit } from './units';
+import {
+  analysisGraphFingerprint,
+  type AnalysisGraphPayload,
+} from '../../annotation/analysisGraphDomain';
+import { assertUnitTextRoleFree, getUnit, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -216,6 +220,7 @@ export function splitUnit(
       now,
       now,
     );
+    assertUnitTextRoleFree(db, createdId, 'transcription');
     db.prepare(
       `INSERT INTO unit_texts (id, unit_id, role, body, updated_at)
        VALUES (?, ?, 'transcription', ?, ?)`,
@@ -576,12 +581,43 @@ function copyAssociations(
       note.updated_at,
     );
   }
+  copyGraph(db, fromId, toId, tokenMap, morphemeMap);
   return {
     noteIds,
     tokenIds: [...tokenMap.values()],
     morphemeIds: [...morphemeMap.values()],
     linkIds,
   };
+}
+
+function copyGraph(
+  db: SqliteDatabase,
+  fromId: string,
+  toId: string,
+  tokenMap: ReadonlyMap<string, string>,
+  morphemeMap: ReadonlyMap<string, string>,
+): void {
+  const row = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(fromId) as
+    { analysis_graph_json: string | null } | undefined;
+  if (row?.analysis_graph_json == null) return;
+  const graph = JSON.parse(row.analysis_graph_json) as AnalysisGraphPayload;
+  const idMap = new Map<string, string>([...tokenMap, ...morphemeMap]);
+  for (const node of graph.nodes) {
+    if (!idMap.has(node.id)) idMap.set(node.id, randomUUID());
+  }
+  const remap = (id: string) => idMap.get(id) ?? id;
+  for (const node of graph.nodes) node.id = remap(node.id);
+  for (const relation of graph.relations) {
+    relation.id = randomUUID();
+    relation.sourceId = remap(relation.sourceId);
+    relation.targetId = remap(relation.targetId);
+  }
+  graph.id = randomUUID();
+  db.prepare(
+    `UPDATE units
+     SET analysis_graph_json = ?, analysis_generation = 1, graph_fingerprint = ?
+     WHERE id = ?`,
+  ).run(JSON.stringify(graph), analysisGraphFingerprint(graph), toId);
 }
 
 function retargetSurface(json: string, tokenMap: ReadonlyMap<string, string>): string {
@@ -724,6 +760,7 @@ function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
      VALUES (?, ?, ?, ?, ?, ?)`,
   );
   for (const row of removed.texts) {
+    assertUnitTextRoleFree(db, unit.id, row.role);
     insertText.run(row.id, unit.id, row.role, row.body, row.provenance_json, row.updated_at);
   }
   const insertToken = db.prepare(

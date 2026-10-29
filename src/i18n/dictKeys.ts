@@ -64,6 +64,8 @@ export const DICT_KEYS = [
   'app.desktopRead.exportJyt',
   'app.desktopRead.exportJym',
   'app.desktopRead.exportManuscript',
+  'app.desktopRead.exchangeFailed',
+  'app.desktopRead.exportSaved',
   'app.desktopRead.boundary',
   'app.desktopRead.moveBoundary',
   'app.desktopRead.offset',

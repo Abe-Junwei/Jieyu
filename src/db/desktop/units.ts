@@ -64,11 +64,25 @@ JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcri
 WHERE units.id = ?
 `;
 
+export function assertUnitTextRoleFree(db: SqliteDatabase, unitId: string, role: string): void {
+  const row = db
+    .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = ?')
+    .get(unitId, role) as { n: number };
+  if (row.n !== 0) throw new Error('unit text role is duplicated');
+}
+
+function assertUnitSpan(start: number, end: number): void {
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
+    throw new Error('unit time is invalid');
+  }
+}
+
 export function createUnit(
   db: SqliteDatabase,
   input: UnitCreate,
   afterUnitInsert?: () => void,
 ): Unit {
+  assertUnitSpan(input.startTime, input.endTime);
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {
@@ -87,6 +101,7 @@ export function createUnit(
       now,
     );
     afterUnitInsert?.();
+    assertUnitTextRoleFree(db, id, 'transcription');
     db.prepare(
       `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES (?, ?, 'transcription', ?, ?)`,
     ).run(randomUUID(), id, input.text, now);
@@ -191,6 +206,10 @@ export function updateUnitText(
       afterSnapshot?.();
     }
     const now = new Date().toISOString();
+    const texts = db
+      .prepare(`SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = 'transcription'`)
+      .get(input.unitId) as { n: number };
+    if (texts.n !== 1) throw new Error('unit text role is duplicated');
     db.prepare(
       `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
     ).run(input.text, now, input.unitId);
