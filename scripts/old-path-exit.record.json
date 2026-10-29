@@ -1,0 +1,60 @@
+{
+  "entries": [
+    {
+      "id": "desktop-routes",
+      "surface": "production",
+      "action": "keep",
+      "paths": [
+        "src/pages/HomePage.tsx",
+        "src/pages/TranscriptionPage.tsx",
+        "src/pages/AnnotationPage.tsx",
+        "src/pages/AnalysisPage.tsx",
+        "src/pages/LexiconPage.tsx",
+        "src/pages/CorpusLibraryPage.tsx"
+      ],
+      "replacement": [
+        "src/App.tsx",
+        "src/pages/DesktopProjectReadPage.tsx",
+        "src/pages/DesktopAnalysisPage.tsx",
+        "src/pages/DesktopLexiconPage.tsx"
+      ]
+    },
+    {
+      "id": "script-guards",
+      "surface": "scripts",
+      "action": "keep",
+      "paths": ["scripts/check-direct-db-imports.mjs", "scripts/check-db-transaction-facade.mjs"],
+      "replacement": ["scripts/import-desktop-file.mjs", "scripts/check-script-desktop-callers.mjs"]
+    },
+    {
+      "id": "merge-gates",
+      "surface": "ci",
+      "action": "keep",
+      "paths": [".github/workflows/e2e-pr.yml"],
+      "replacement": [".github/workflows/electron-smoke.yml"]
+    },
+    {
+      "id": "browser-e2e",
+      "surface": "e2e",
+      "action": "keep",
+      "paths": ["playwright.config.ts"],
+      "replacement": ["scripts/desktop-project-flow.mjs", "scripts/electron-skeleton-smoke.mjs"]
+    },
+    {
+      "id": "user-data",
+      "surface": "keep",
+      "action": "keep",
+      "paths": ["src/desktop/skeleton/userDataLayout.ts", "src/db/sqliteAuditLogs.ts"],
+      "markers": ["preferences", "cache", "backups", "models"]
+    },
+    {
+      "id": "collaboration",
+      "surface": "keep",
+      "action": "keep",
+      "paths": [
+        "src/collaboration/collaborationOpLog.ts",
+        "src/collaboration/cloud/collaborationSupabaseFacade.ts"
+      ]
+    }
+  ]
+}
