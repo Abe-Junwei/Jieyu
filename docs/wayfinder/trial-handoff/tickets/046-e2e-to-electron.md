@@ -26,6 +26,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/329
 
 旧浏览器/Dexie/SQLite 模块退出属于 M7-C，须替代及数据保留证据；#326 已取消，不作为开工或删除前置。
 
+2026-10-29：生产、脚本、CI、E2E 的替代已写入 `scripts/old-path-exit.record.json`，检查是 `npm run check:old-path-exit`。旧页面和 Chromium 门槛还在，未删。独立 userData 和协作代码留下。上面的框不勾。#329/#280 仍开着。
+
 
 详细前置/验收见[单库切片清单](../../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。本轮同步不代表实现完成；下方较早范围保留，冲突以本节为准。
 <!-- desktop-sqlite-slices:v1:end -->
