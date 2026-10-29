@@ -192,6 +192,8 @@ export function exportToEaf(input: EafExportInput): string {
     tierNameByLayerId.set(defaultTrcLayer.id, defaultTierId);
   }
   for (const layer of layers) {
+    // Default tier must keep the actual exported TIER_ID (#432).
+    if (defaultTrcLayer && layer.id === defaultTrcLayer.id) continue;
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
     const tierName = layerMeta.tierId ?? readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
     tierNameByLayerId.set(layer.id, tierName);
@@ -215,6 +217,10 @@ export function exportToEaf(input: EafExportInput): string {
 
   // Transcription tier (default)
   const uttAnnotationIdMap = new Map<string, string>(); // uttId → annotationId（用于翻译层 REF_ANNOTATION）
+  const uttAnnotationIdByLayerId = new Map<string, Map<string, string>>();
+  if (defaultTrcId) {
+    uttAnnotationIdByLayerId.set(defaultTrcId, uttAnnotationIdMap);
+  }
   const scratch = {
     tsCounter,
     annCounter,
@@ -248,6 +254,7 @@ export function exportToEaf(input: EafExportInput): string {
     layerSegmentContents,
     uttSlotMap,
     uttAnnotationIdMap,
+    uttAnnotationIdByLayerId,
     defaultTierId,
     tierNameByLayerId,
     transcriptionLayerIdByKey,
