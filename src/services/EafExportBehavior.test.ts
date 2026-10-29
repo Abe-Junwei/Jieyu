@@ -548,6 +548,45 @@ describe('EAF export behavior for constraint layers', () => {
     expect(tier?.getAttribute('LINGUISTIC_TYPE_REF')).toBe('translation-subdivision-lt');
     expect(tier?.querySelector('ANNOTATION_VALUE')?.textContent).toBe('sub-text');
   });
+  it('keeps PARENT_REF on the actual default tier id, not its display name (#432)', () => {
+    const defaultTrc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: 'trc_default',
+      name: { eng: 'Transcription', zho: '转写' },
+    });
+    const trl = makeLayer({
+      id: 'trl_en',
+      layerType: 'translation',
+      key: 'trl_en',
+      name: { eng: 'English', zho: '英译' },
+      constraint: 'symbolic_association',
+    });
+    const xml = exportToEaf({
+      units: [makeUnit()],
+      layers: [defaultTrc, trl],
+      layerLinks: [
+        makeLayerLink({
+          id: 'link-trl',
+          layerId: trl.id,
+          transcriptionLayerKey: defaultTrc.key,
+          hostTranscriptionLayerId: defaultTrc.id,
+          isPreferred: true,
+        }),
+      ],
+      translations: [
+        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello' }),
+        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: '你好' }),
+      ],
+    });
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const defaultTier = doc.querySelector('TIER[TIER_ID="default"]');
+    expect(defaultTier).not.toBeNull();
+    expect(doc.querySelector('TIER[TIER_ID="Transcription"]')).toBeNull();
+    const child = [...doc.querySelectorAll('TIER')].find((tier) => tier.getAttribute('PARENT_REF'));
+    expect(child?.getAttribute('PARENT_REF')).toBe('default');
+  });
+
   it('avoids colliding with preserved externalRef annotation IDs (#431)', () => {
     const trc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: 'trc_default' });
     const now = '2026-03-25T00:00:00.000Z';
