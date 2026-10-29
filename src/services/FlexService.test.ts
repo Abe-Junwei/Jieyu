@@ -91,6 +91,13 @@ describe('FlexService golden round-trip', () => {
     const imported = importFromFlextext(readGolden('empty.flextext'));
     expect(imported.units).toEqual([]);
   });
+
+  it('rejects non-FLEx XML that only shares the .flextext extension (#407)', () => {
+    expect(() => importFromFlextext('<foo/>')).toThrow(/no interlinear-text/);
+    expect(() => importFromFlextext('<?xml version="1.0"?><bar><baz/></bar>')).toThrow(
+      /no interlinear-text/,
+    );
+  });
 });
 
 describe('FlexService RTL phrase round-trip', () => {
@@ -302,9 +309,8 @@ describe('FlexService RTL phrase round-trip', () => {
   });
 });
 
-
-  it('keeps phrase speakers on imported units (#409)', () => {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+it('keeps phrase speakers on imported units (#409)', () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <document>
   <interlinear-text>
     <paragraphs><paragraph><phrases>
@@ -317,10 +323,10 @@ describe('FlexService RTL phrase round-trip', () => {
     </phrases></paragraph></paragraphs>
   </interlinear-text>
 </document>`;
-    const imported = importFromFlextext(xml);
-    expect(imported.participants).toEqual(['Alice', 'Bob']);
-    expect(imported.units.map((unit) => unit.speakerId)).toEqual(['Alice', 'Bob']);
-  });
+  const imported = importFromFlextext(xml);
+  expect(imported.participants).toEqual(['Alice', 'Bob']);
+  expect(imported.units.map((unit) => unit.speakerId)).toEqual(['Alice', 'Bob']);
+});
 
 describe('FlexService field mapping', () => {
   it('reads pos and msa, keeps one translation row per phrase writing system, and skips unmapped items', () => {
