@@ -20,3 +20,9 @@ export function ensureProjectBackupDir(root: string, projectKey: string): string
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
+
+/** Write/list/restore share this path (#404 write, #428 list/restore). */
+export function projectBackupDir(userDataRoot: string, folder: string): string {
+  return ensureProjectBackupDir(userDataRoot, projectBackupKey(folder));
+}
+

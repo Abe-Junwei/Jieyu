@@ -24,6 +24,8 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/282
 
 #311/#333/#299 在 M4 后可做但不挡首发；#298/B7 仍第二程。#281/#326 保持取消，不再要求演练/迁入或授权删旧数据。
 
+2026-10-29：打包配置已核对，检查是 `npm run check:install-targets`。Mac arm64、Windows x64、GitHub 发布写在 `electron-builder.yml`。应用里没有更新器，CI 不出安装包。真机安装和真实示例未做。上面的框不勾。#282/#277 仍开着。
+
 
 详细前置/验收见[单库切片清单](../../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。本轮同步不代表实现完成；下方较早范围保留，冲突以本节为准。
 <!-- desktop-sqlite-slices:v1:end -->
