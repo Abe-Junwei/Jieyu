@@ -76,6 +76,26 @@ export function sweepAttachmentTmp(folder: string): void {
   }
 }
 
+export interface AttachmentLinkView {
+  id: string;
+  displayName: string;
+  kind: AttachmentKind;
+  mimeType: string;
+}
+
+export function listAttachmentLinks(db: SqliteDatabase, lexemeId: string): AttachmentLinkView[] {
+  return db
+    .prepare(
+      `SELECT links.id AS id, links.display_name AS displayName, files.kind AS kind,
+              files.mime_type AS mimeType
+       FROM attachment_links links
+       JOIN attachment_files files ON files.id = links.file_id
+       WHERE links.lexeme_id = ? AND files.state = 'ready'
+       ORDER BY links.created_at, links.id`,
+    )
+    .all(lexemeId) as AttachmentLinkView[];
+}
+
 export function publishAttachment(
   db: SqliteDatabase,
   folder: string,

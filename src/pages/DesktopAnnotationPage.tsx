@@ -5,6 +5,7 @@ import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopAnnotationLexemeLinks } from './useDesktopAnnotationLexemeLinks';
 import { useDesktopAnnotationWords } from './useDesktopAnnotationWords';
+import { DesktopAnchoredNoteField } from './DesktopAnchoredNoteField';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import '../styles/pages/desktop-project-read.css';
 
@@ -181,6 +182,16 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                       }}
                     />
                     {lexemeLinkFields(word.id, word.form, word.gloss[words.glossKey] ?? '')}
+                    {read.sessionId === null ? null : (
+                      <DesktopAnchoredNoteField
+                        sessionId={read.sessionId}
+                        unitId={selected.id}
+                        targetId={word.id}
+                        kind="token"
+                        form={word.form}
+                        desktopCall={host.desktopCall}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -206,6 +217,16 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                       morpheme.id,
                       morpheme.form,
                       morpheme.gloss[words.glossKey] ?? '',
+                    )}
+                    {read.sessionId === null ? null : (
+                      <DesktopAnchoredNoteField
+                        sessionId={read.sessionId}
+                        unitId={selected.id}
+                        targetId={morpheme.id}
+                        kind="morpheme"
+                        form={morpheme.form}
+                        desktopCall={host.desktopCall}
+                      />
                     )}
                   </li>
                 ))}

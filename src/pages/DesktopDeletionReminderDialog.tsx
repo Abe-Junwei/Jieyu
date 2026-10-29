@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { tf, t, useLocale } from '../i18n';
 
 export function DesktopDeletionReminderDialog(props: {
@@ -10,11 +10,14 @@ export function DesktopDeletionReminderDialog(props: {
     retainUntil: string;
   }[];
   onShown: (item: { target: 'manuscript' | 'media'; id: string }) => void;
+  onPurge: (id: string) => Promise<void>;
+  onRemoveFile: (id: string) => Promise<void>;
   onClose: () => void;
 }) {
-  const { items, onShown, onClose } = props;
+  const { items, onShown, onPurge, onRemoveFile, onClose } = props;
   const locale = useLocale();
   const sent = useRef(new Set<string>());
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     for (const item of items) {
       const key = `${item.target}:${item.id}`;
@@ -27,9 +30,33 @@ export function DesktopDeletionReminderDialog(props: {
     <div role="dialog" aria-labelledby="desktop-deletion-reminder-title">
       <h2 id="desktop-deletion-reminder-title">{t(locale, 'app.desktopRead.reminderTitle')}</h2>
       {items.length === 0 ? <p>{t(locale, 'app.desktopRead.reminderEmpty')}</p> : null}
+      {failed ? <p role="alert">{t(locale, 'app.desktopRead.loadFailed')}</p> : null}
       <ul>
         {items.map((item) => (
-          <li key={`${item.target}:${item.id}`}>{reminderLine(locale, item)}</li>
+          <li key={`${item.target}:${item.id}`}>
+            {reminderLine(locale, item)}
+            {item.target === 'manuscript' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setFailed(false);
+                  void onPurge(item.id).catch(() => setFailed(true));
+                }}
+              >
+                {t(locale, 'app.desktopRead.purgeManuscript')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setFailed(false);
+                  void onRemoveFile(item.id).catch(() => setFailed(true));
+                }}
+              >
+                {t(locale, 'app.desktopRead.removeRecordingFile')}
+              </button>
+            )}
+          </li>
         ))}
       </ul>
       <p>{t(locale, 'app.desktopRead.reminderBackups')}</p>

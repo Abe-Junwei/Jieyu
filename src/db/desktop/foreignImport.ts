@@ -105,8 +105,9 @@ export function importForeignFile(input: {
   if (!existsSync(path.join(input.folder, 'project.sqlite'))) {
     throw new Error('project library is missing');
   }
-  const roles =
-    input.roles === undefined ? undefined : readRoleList(readFileSync(input.roles, 'utf8'));
+  const beside = path.join(path.dirname(input.file), 'roles.txt');
+  const rolesFile = input.roles ?? (existsSync(beside) ? beside : undefined);
+  const roles = rolesFile === undefined ? undefined : readRoleList(readFileSync(rolesFile, 'utf8'));
   const text = bytes.toString('utf8');
   if (extension === '.lift') return importLift(input.folder, input.file, bytes, text, input.db);
   const parsed =

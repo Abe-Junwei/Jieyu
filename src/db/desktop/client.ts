@@ -40,6 +40,14 @@ import type { Speaker } from './speakers';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 import type { ContentNote, ContentNoteQuery, ContentNoteWrite } from './notes';
 import type { JieyuAnchoredNote } from '../dmlexTypes';
+import type { AttachmentLinkView } from './attachments';
+import type {
+  AcceptableRun,
+  PreviewCandidate,
+  PreviewCandidateInput,
+  TranscriptionAcceptance,
+} from './modelRuns';
+import type { MediaCleanup } from './mediaCleanup';
 
 export interface DesktopBridge {
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
@@ -388,5 +396,58 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once<SourceReading>(sessionId, 'sources.patch', input),
     redeliverSource: (sessionId: string, operationId: string) =>
       once<SourceReading>(sessionId, 'sources.redeliver', { operationId }),
+    purgeManuscript: (sessionId: string, id: string) =>
+      once<{ id: string }>(sessionId, 'manuscripts.purge', { id }),
+    finishMediaCleanup: (sessionId: string, id: string, operationId: string) =>
+      once<MediaCleanup>(sessionId, 'media.finishCleanup', { id, operationId }),
+    listMedia: (sessionId: string) => once<Media[]>(sessionId, 'media.list', {}),
+    reregisterMedia: (sessionId: string, input: { relpath: string; duration: number }) =>
+      once<{ status: 'created'; id: string } | { status: 'choose'; ids: string[] }>(
+        sessionId,
+        'media.reregister',
+        input,
+      ),
+    restoreRegisteredMedia: (sessionId: string, id: string) =>
+      once<{ id: string }>(sessionId, 'media.restoreRegistered', { id }),
+    listAcceptableRuns: (sessionId: string, manuscriptId: string) =>
+      once<AcceptableRun[]>(sessionId, 'modelRuns.listAcceptable', { manuscriptId }),
+    previewModelRun: (
+      sessionId: string,
+      input: { runId: string; candidates: PreviewCandidateInput[] },
+    ) =>
+      once<{ pendingCount: number; timeMappingRevision: number; candidates: PreviewCandidate[] }>(
+        sessionId,
+        'modelRuns.preview',
+        input,
+      ),
+    acceptModelRun: (
+      sessionId: string,
+      input: {
+        operationId: string;
+        runId: string;
+        chunkIndex: number;
+        segmentIndex: number;
+        mediaStart: number;
+        mediaEnd: number;
+        timeMappingRevision: number;
+        targetFingerprint: string;
+        text: string;
+      },
+    ) => once<TranscriptionAcceptance>(sessionId, 'modelRuns.accept', input),
+    listAttachments: (sessionId: string, lexemeId: string) =>
+      once<AttachmentLinkView[]>(sessionId, 'attachments.list', { lexemeId }),
+    publishAttachment: (
+      sessionId: string,
+      input: {
+        lexemeId: string;
+        displayName: string;
+        kind: 'image' | 'audio' | 'document';
+        mimeType: string;
+        bytes: Uint8Array;
+        operationId: string;
+      },
+    ) => once<unknown>(sessionId, 'attachments.publish', input),
+    removeAttachmentLink: (sessionId: string, linkId: string) =>
+      once<unknown>(sessionId, 'attachments.removeLink', { linkId }),
   };
 }

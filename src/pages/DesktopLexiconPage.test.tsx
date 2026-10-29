@@ -70,7 +70,7 @@ describe('DesktopLexiconPage', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'kept' }));
-    expect(screen.queryByText('Entry attachments')).toBeNull();
+    expect(await screen.findByText('This entry has no attachments yet.')).toBeTruthy();
     const headword = await screen.findByRole('textbox', { name: 'Headword' });
     const translation = screen.getByRole('textbox', { name: 'Sense translation' });
     expect((headword as HTMLInputElement).value).toBe('kept');
@@ -96,7 +96,23 @@ describe('DesktopLexiconPage', () => {
         },
       },
     );
-    expect(screen.queryByText('Entry attachments')).toBeNull();
+    expect(screen.getByText('This entry has no attachments yet.')).toBeTruthy();
+    const file = new File([Uint8Array.from([1, 2, 3, 4])], 'plate.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Choose an attachment file'), {
+      target: { files: [file] },
+    });
+    expect(await screen.findByText('plate.png')).toBeTruthy();
+
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(folder, [folder]);
+    rememberOpenProjectSession(again.sessionId);
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'kept-again' }));
+    expect(
+      ((await screen.findByRole('textbox', { name: 'Headword' })) as HTMLInputElement).value,
+    ).toBe('kept-again');
+    expect(await screen.findByText('plate.png')).toBeTruthy();
   });
 
   it('creates a lexeme in the open desktop project', async () => {

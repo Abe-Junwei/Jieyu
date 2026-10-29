@@ -29,6 +29,7 @@ export interface Unit {
   createdAt: string;
   updatedAt: string;
   text: string;
+  textId: string;
 }
 
 export interface UnitCreate {
@@ -51,12 +52,13 @@ interface UnitRow {
   created_at: string;
   updated_at: string;
   text: string;
+  text_id: string;
 }
 
 const READ = `
 SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
        units.start_time, units.end_time, units.created_at, units.updated_at,
-       unit_texts.body AS text
+       unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
 JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
 WHERE units.id = ?
@@ -99,7 +101,7 @@ export function createUnit(
 const LIST = `
 SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
        units.start_time, units.end_time, units.created_at, units.updated_at,
-       unit_texts.body AS text
+       unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
 JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
 JOIN layers ON layers.id = units.layer_id
@@ -339,5 +341,6 @@ function mapUnit(row: UnitRow): Unit {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     text: row.text,
+    textId: row.text_id,
   };
 }

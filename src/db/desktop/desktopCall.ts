@@ -1,4 +1,5 @@
 import {
+  listAttachmentLinks,
   publishAttachment,
   removeAttachmentLink,
   type AttachmentKind,
@@ -99,7 +100,7 @@ import {
   matchLexemeLinkQuery,
   replaceTokenLexemeLink,
 } from './lexemeLink';
-import { createMedia, type MediaCreate } from './media';
+import { createMedia, listActiveMedia, type MediaCreate } from './media';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
@@ -108,6 +109,7 @@ import {
   finishModelRun,
   getModelRun,
   interruptUnfinishedRuns,
+  listAcceptableRuns,
   stopManuscriptTasks,
   stopRecordingTasks,
   previewModelRun,
@@ -179,9 +181,11 @@ const METHODS = [
   'media.finishCleanup',
   'media.reregister',
   'media.restoreRegistered',
+  'media.list',
   'deletion.listDue',
   'attachments.publish',
   'attachments.removeLink',
+  'attachments.list',
   'project.get',
   'manuscripts.create',
   'manuscripts.list',
@@ -222,6 +226,7 @@ const METHODS = [
   'notes.list',
   'notes.saveLexeme',
   'notes.listLexeme',
+  'modelRuns.listAcceptable',
   'modelRuns.start',
   'modelRuns.finish',
   'modelRuns.preview',
@@ -324,6 +329,7 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'layers.list',
   'notes.list',
   'notes.listLexeme',
+  'attachments.list',
   'corpus.query',
   'lexicon.getEntry',
   'lexicon.listLinkCandidates',
@@ -331,7 +337,9 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'lexicon.listTokenLinks',
   'modelRuns.get',
   'modelRuns.readAcceptance',
+  'modelRuns.listAcceptable',
   'media.previewDelete',
+  'media.list',
   'deletion.listDue',
   'customFields.listDefinitions',
   'customFields.missingUnitFields',
@@ -398,6 +406,9 @@ export function callDesktopSession(
     case 'media.restoreRegistered':
       knownKeys(input, ['id']);
       return restoreRegisteredMedia(project.db, requiredString(input.id, 'id'));
+    case 'media.list':
+      knownKeys(input, []);
+      return listActiveMedia(project.db);
     case 'deletion.listDue':
       knownKeys(input, []);
       return listDueDeletionReminders(project.db);
@@ -410,6 +421,9 @@ export function callDesktopSession(
     case 'attachments.removeLink':
       knownKeys(input, ['linkId']);
       return removeAttachmentLink(project.db, requiredString(input.linkId, 'linkId'));
+    case 'attachments.list':
+      knownKeys(input, ['lexemeId']);
+      return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
     case 'manuscripts.create':
       return createManuscript(project.db, manuscriptCreate(input));
     case 'manuscripts.list':
@@ -752,6 +766,9 @@ export function callDesktopSession(
       return splitAnalysisNode(project.db, analysisSplit(input));
     case 'analysis.merge':
       return mergeAnalysisNodes(project.db, analysisMerge(input));
+    case 'modelRuns.listAcceptable':
+      knownKeys(input, ['manuscriptId']);
+      return listAcceptableRuns(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
     case 'modelRuns.start':
       return startModelRun(project.db, modelRunStart(input));
     case 'modelRuns.finish':

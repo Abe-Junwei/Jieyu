@@ -14,8 +14,11 @@ import { DesktopExchangePanel } from './DesktopExchangePanel';
 import { DesktopDailyBackupPanel } from './DesktopDailyBackupPanel';
 import { DesktopDeletionReminderDialog } from './DesktopDeletionReminderDialog';
 import { DesktopManuscriptDeleteDialog } from './DesktopManuscriptDeleteDialog';
+import { DesktopMediaReregisterPanel } from './DesktopMediaReregisterPanel';
 import { DesktopProjectReadView } from './DesktopProjectReadView';
+import { DesktopScopeNote } from './DesktopScopeNote';
 import { DesktopSpeakerCatalogPanel } from './DesktopSpeakerCatalogPanel';
+import { DesktopTranscriptionAcceptPanel } from './DesktopTranscriptionAcceptPanel';
 import { ProjectCustomFieldManager } from './ProjectCustomFieldManager';
 import { canConfirmManuscriptDelete } from './desktopManuscriptDelete';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
@@ -117,6 +120,48 @@ export function DesktopProjectReadPage() {
           onSaveMapping={read.saveMapping}
           onSaveNote={read.saveUnitNote}
           onSaveTierNote={read.saveTierNote}
+          noteSessionId={read.sessionId}
+          noteDesktopCall={host.desktopCall}
+          textNoteLabel={t(locale, 'app.desktopRead.textNote')}
+          saveTextNoteLabel={t(locale, 'app.desktopRead.saveTextNote')}
+        />
+      )}
+      {read.sessionId === null ? null : (
+        <DesktopScopeNote
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          scope={{ kind: 'project' }}
+          label={t(locale, 'app.desktopRead.projectNote')}
+          saveLabel={t(locale, 'app.desktopRead.saveProjectNote')}
+        />
+      )}
+      {read.sessionId === null || selected === undefined ? null : (
+        <DesktopScopeNote
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          scope={{ kind: 'manuscript', manuscriptId: selected.id }}
+          label={`${t(locale, 'app.desktopRead.manuscriptNote')}: ${manuscriptTitle(selected.title, locale)}`}
+          saveLabel={`${t(locale, 'app.desktopRead.saveManuscriptNote')}: ${manuscriptTitle(selected.title, locale)}`}
+        />
+      )}
+      {read.sessionId === null || read.model?.layerId == null ? null : (
+        <DesktopScopeNote
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          scope={{ kind: 'layer', layerId: read.model.layerId }}
+          label={t(locale, 'app.desktopRead.layerNote')}
+          saveLabel={t(locale, 'app.desktopRead.saveLayerNote')}
+        />
+      )}
+      {read.sessionId === null ? null : (
+        <DesktopMediaReregisterPanel sessionId={read.sessionId} desktopCall={host.desktopCall} />
+      )}
+      {read.model?.manuscriptId == null || host === null || read.sessionId === null ? null : (
+        <DesktopTranscriptionAcceptPanel
+          sessionId={read.sessionId}
+          manuscriptId={read.model.manuscriptId}
+          desktopCall={host.desktopCall}
+          onAccepted={() => read.refresh()}
         />
       )}
       {read.model?.manuscriptId == null || host === null || read.sessionId === null ? null : (
@@ -163,6 +208,27 @@ export function DesktopProjectReadPage() {
         <DesktopDeletionReminderDialog
           items={dueReminders}
           onClose={() => setDueReminders(null)}
+          onPurge={(id) => {
+            const sessionId = read.sessionId;
+            if (sessionId === null || host === null) return Promise.reject(new Error('missing'));
+            return createDesktopClient({ desktopCall: host.desktopCall })
+              .purgeManuscript(sessionId, id)
+              .then(() => {
+                setDueReminders(null);
+                return read.refresh();
+              });
+          }}
+          onRemoveFile={(id) => {
+            const sessionId = read.sessionId;
+            if (sessionId === null || host === null) return Promise.reject(new Error('missing'));
+            return createDesktopClient({ desktopCall: host.desktopCall })
+              .finishMediaCleanup(sessionId, id, crypto.randomUUID())
+              .then((result) => {
+                if (result.state !== 'confirmed') throw new Error('media file was not removed');
+                setDueReminders(null);
+                return read.refresh();
+              });
+          }}
           onShown={(item) => {
             const sessionId = read.sessionId;
             if (sessionId === null) return;
@@ -203,4 +269,8 @@ export function DesktopProjectReadPage() {
       ) : null}
     </section>
   );
+}
+
+function manuscriptTitle(title: Record<string, string>, locale: string): string {
+  return title[locale] ?? Object.values(title)[0] ?? '';
 }

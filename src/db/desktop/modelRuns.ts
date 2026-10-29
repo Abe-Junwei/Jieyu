@@ -195,6 +195,23 @@ export function finishModelRun(db: SqliteDatabase, input: ModelRunFinish): Model
   return write();
 }
 
+export interface AcceptableRun {
+  id: string;
+  rangeStart: number;
+  rangeEnd: number;
+}
+
+export function listAcceptableRuns(db: SqliteDatabase, manuscriptId: string): AcceptableRun[] {
+  return db
+    .prepare(
+      `SELECT id, range_start AS rangeStart, range_end AS rangeEnd
+       FROM model_runs
+       WHERE manuscript_id = ? AND status = 'ok'
+       ORDER BY started_at, id`,
+    )
+    .all(manuscriptId) as AcceptableRun[];
+}
+
 export function previewModelRun(
   db: SqliteDatabase,
   input: { runId: string; candidates: PreviewCandidateInput[] },

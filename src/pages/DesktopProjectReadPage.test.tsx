@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -813,6 +814,13 @@ describe('DesktopProjectReadPage', () => {
     });
     expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([]);
     expect(callDesktopSession(session.sessionId, 'manuscripts.listDeleted', {})).toHaveLength(1);
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByRole('button', { name: 'Register recording' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '文稿' })).toBeNull();
+    expect(callDesktopSession(again.sessionId, 'manuscripts.listDeleted', {})).toHaveLength(1);
   });
 
   it('does not confirm deletion while a transcription is running', async () => {
@@ -847,6 +855,7 @@ describe('DesktopProjectReadPage', () => {
     });
     mount(session.sessionId);
     expect(await screen.findByRole('button', { name: '文稿' })).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Transcript' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Delete manuscript' }));
     const confirm = await screen.findByRole('button', { name: 'Confirm delete' });
     expect((confirm as HTMLButtonElement).disabled).toBe(true);
@@ -987,6 +996,323 @@ describe('DesktopProjectReadPage', () => {
     mount(session.sessionId);
     expect(await screen.findByRole('button', { name: /kept sentence/ })).toBeTruthy();
   });
+
+  it('purges a reminded manuscript and leaves it gone after reopen', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 8,
+    }) as { id: string };
+    const live = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '留下' },
+      mediaId: media.id,
+    }) as { id: string };
+    const due = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '到期' },
+      mediaId: media.id,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: due.id });
+    requireDesktopSession(session.sessionId)
+      .db.prepare('UPDATE manuscripts SET retain_until = ?, reminder_shown_at = ? WHERE id = ?')
+      .run(PAST, PAST, due.id);
+    mount(session.sessionId);
+    fireEvent.click(await screen.findByRole('button', { name: 'Deletion reminders' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Purge manuscript' }));
+    await waitFor(() => {
+      expect(callDesktopSession(session.sessionId, 'manuscripts.listDeleted', {})).toEqual([]);
+    });
+    expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
+      expect.objectContaining({ id: live.id }),
+    ]);
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByRole('button', { name: '留下' })).toBeTruthy();
+    expect(callDesktopSession(again.sessionId, 'manuscripts.listDeleted', {})).toEqual([]);
+  });
+
+  it('removes a reminded recording file and leaves it gone after reopen', async () => {
+    const dir = tempFolder();
+    const bytes = Buffer.from('keep-me');
+    writeFileSync(join(dir, 'a.wav'), '');
+    writeFileSync(join(dir, 'b.wav'), bytes);
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 8,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    });
+    const recording = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'b.wav',
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      duration: 8,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'media.delete', { id: recording.id });
+    requireDesktopSession(session.sessionId)
+      .db.prepare('UPDATE media SET retain_until = ?, reminder_shown_at = ? WHERE id = ?')
+      .run(PAST, PAST, recording.id);
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.resolve({ sessionId: session.sessionId }),
+      desktopCall: (id, method, args) =>
+        Promise.resolve(
+          callDesktopSession(
+            id,
+            method,
+            args,
+            method === 'media.finishCleanup'
+              ? async (file) => {
+                  rmSync(file);
+                  return 'moved';
+                }
+              : undefined,
+          ),
+        ),
+      desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Deletion reminders' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove recording file' }));
+    await waitFor(() => {
+      expect(existsSync(join(dir, 'b.wav'))).toBe(false);
+    });
+    expect(callDesktopSession(session.sessionId, 'media.list', {})).toEqual([
+      expect.objectContaining({ filename: 'a.wav' }),
+    ]);
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByText('a.wav')).toBeTruthy();
+    expect(screen.queryByText('b.wav')).toBeNull();
+    expect(callDesktopSession(again.sessionId, 'media.list', {})).toEqual([
+      expect.objectContaining({ filename: 'a.wav' }),
+    ]);
+  });
+
+  it('accepts a finished transcript and reads the unit after reopen', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 8,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const run = callDesktopSession(session.sessionId, 'modelRuns.start', {
+      manuscriptId: manuscript.id,
+      layerId: layer.id,
+      modelId: 'local.whisper',
+      modelVersion: '1',
+      manifestSha256: 'abc',
+      params: {},
+      rangeStart: 0,
+      rangeEnd: 8,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: run.id,
+      status: 'ok',
+      chunkCount: 1,
+    });
+    mount(session.sessionId);
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Transcript' }), {
+      target: { value: 'said' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Accept transcript' }));
+    expect(await screen.findByRole('button', { name: '0.0–8.0 said' })).toBeTruthy();
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByRole('button', { name: '0.0–8.0 said' })).toBeTruthy();
+  });
+
+  it('accepts two transcript lines and reads both after reopen', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 8,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const run = callDesktopSession(session.sessionId, 'modelRuns.start', {
+      manuscriptId: manuscript.id,
+      layerId: layer.id,
+      modelId: 'local.whisper',
+      modelVersion: '1',
+      manifestSha256: 'abc',
+      params: {},
+      rangeStart: 0,
+      rangeEnd: 8,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: run.id,
+      status: 'ok',
+      chunkCount: 1,
+    });
+    mount(session.sessionId);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add transcript line' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Transcript' }), {
+      target: { value: 'one' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Transcript start 1' }), {
+      target: { value: '0' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Transcript end 1' }), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Transcript 2' }), {
+      target: { value: 'two' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Transcript start 2' }), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Transcript end 2' }), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Accept transcript' }));
+    expect(await screen.findByRole('button', { name: '0.0–1.0 one' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '1.0–2.0 two' })).toBeTruthy();
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByRole('button', { name: '0.0–1.0 one' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '1.0–2.0 two' })).toBeTruthy();
+  });
+
+  it('keeps project, manuscript, layer, and text notes after reopen', async () => {
+    const dir = tempFolder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    seedReadUnit(session.sessionId, 0, 1, 'keep');
+    mount(session.sessionId);
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Project note' }), {
+      target: { value: 'project-note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save project note' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Manuscript note: 文稿' }), {
+      target: { value: 'manuscript-note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save manuscript note: 文稿' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Layer note' }), {
+      target: { value: 'layer-note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save layer note' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 keep' }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Text note: keep' }), {
+      target: { value: 'text-note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save text note' }));
+    expect(await screen.findByText('project-note')).toBeTruthy();
+    expect(screen.getByText('manuscript-note')).toBeTruthy();
+    expect(screen.getByText('layer-note')).toBeTruthy();
+    expect(screen.getByText('text-note')).toBeTruthy();
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByText('project-note')).toBeTruthy();
+    expect(screen.getByText('manuscript-note')).toBeTruthy();
+    expect(screen.getByText('layer-note')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 keep' }));
+    expect(await screen.findByText('text-note')).toBeTruthy();
+  });
+
+  it('registers a recording and restores a deleted hash after reopen', async () => {
+    const dir = tempFolder();
+    const bytes = Buffer.from('same-bytes');
+    writeFileSync(join(dir, 'same.wav'), bytes);
+    const session = openDesktopSession(dir, [dir]);
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    const deleted = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'same.wav',
+      sha256: sha,
+      duration: 1,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'media.delete', { id: deleted.id });
+    mount(session.sessionId);
+    expect(await screen.findByRole('button', { name: 'Register recording' })).toBeTruthy();
+    expect(screen.queryByText('same.wav')).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Recording path' }), {
+      target: { value: 'same.wav' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Duration seconds' }), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Register recording' }));
+    expect(await screen.findByText('same.wav')).toBeTruthy();
+    expect(callDesktopSession(session.sessionId, 'media.list', {})).toEqual([
+      expect.objectContaining({ id: deleted.id, filename: 'same.wav' }),
+    ]);
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByText('same.wav')).toBeTruthy();
+  });
+
+  it('imports a TextGrid beside roles.txt and reads the sentence after reopen', async () => {
+    const dir = tempFolder();
+    const session = openDesktopSession(dir, [dir]);
+    const source = join(dir, 'source');
+    mkdirSync(source);
+    writeFileSync(join(source, 'kept.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'roles.txt'), 'tx 转写\n');
+    const file = join(source, 'kept.TextGrid');
+    writeFileSync(file, textGrid('kept sentence'));
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.resolve({ sessionId: session.sessionId }),
+      chooseImportFile: () => Promise.resolve({ file }),
+      chooseExportFile: () => Promise.resolve({ file: join(dir, 'unused.jyt') }),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Import file' }));
+    expect(await screen.findByRole('button', { name: /kept sentence/ })).toBeTruthy();
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(dir, [dir]);
+    mount(again.sessionId);
+    expect(await screen.findByRole('button', { name: /kept sentence/ })).toBeTruthy();
+  });
 });
 
 function reminderAt(sessionId: string, table: 'manuscripts' | 'media', id: string): string | null {
@@ -1001,6 +1327,8 @@ function daysFromNow(days: number): string {
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString();
 }
+
+const PAST = '2020-01-01T00:00:00.000Z';
 
 function tempFolder(): string {
   const root = mkdtempSync(join(tmpdir(), 'jieyu-desktop-read-'));
@@ -1057,6 +1385,28 @@ function LocationProbe() {
 
 function textValue(name: string): string {
   return (screen.getByRole('textbox', { name }) as HTMLInputElement).value;
+}
+
+function textGrid(text: string): string {
+  return `File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 1
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "tx"
+        xmin = 0
+        xmax = 1
+        intervals: size = 1
+        intervals [1]:
+            xmin = 0
+            xmax = 1
+            text = "${text}"
+`;
 }
 
 function keptEaf(): string {
