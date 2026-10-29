@@ -217,6 +217,10 @@ export function exportToEaf(input: EafExportInput): string {
 
   // Transcription tier (default)
   const uttAnnotationIdMap = new Map<string, string>(); // uttId → annotationId（用于翻译层 REF_ANNOTATION）
+  const uttAnnotationIdByLayerId = new Map<string, Map<string, string>>();
+  if (defaultTrcId) {
+    uttAnnotationIdByLayerId.set(defaultTrcId, uttAnnotationIdMap);
+  }
   const scratch = {
     tsCounter,
     annCounter,
@@ -250,6 +254,7 @@ export function exportToEaf(input: EafExportInput): string {
     layerSegmentContents,
     uttSlotMap,
     uttAnnotationIdMap,
+    uttAnnotationIdByLayerId,
     defaultTierId,
     tierNameByLayerId,
     transcriptionLayerIdByKey,
