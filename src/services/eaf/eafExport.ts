@@ -190,6 +190,8 @@ export function exportToEaf(input: EafExportInput): string {
     tierNameByLayerId.set(defaultTrcLayer.id, defaultTierId);
   }
   for (const layer of layers) {
+    // Default tier must keep the actual exported TIER_ID (#432).
+    if (defaultTrcLayer && layer.id === defaultTrcLayer.id) continue;
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
     const tierName = layerMeta.tierId ?? readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
     tierNameByLayerId.set(layer.id, tierName);
