@@ -12,6 +12,7 @@ import { dispatchWorkspaceLexemeUpdated } from './workspaceEvents';
 import { applyLexiconEntryFields, emptyDmlexResource, type LexiconSenseDraft } from './dmlexEntry';
 import { LIFT_VERSION } from './lexiconLiftExport';
 import type { InterchangeLoss } from './interchangeLossReport';
+import { ensureDomParser } from './ensureDomParser';
 
 export type LexiconLiftDiagnosticCode =
   | 'extra-headword'
@@ -432,7 +433,7 @@ function blankEntry(id: string, headword: string, now: string, textId: string): 
 }
 
 export function parseLiftXml(xml: string, textId: string): LexiconLiftParseResult {
-  if (typeof DOMParser === 'undefined') return { ok: false, reason: 'invalid-xml' };
+  ensureDomParser();
   const trimmed = xml.trim();
   if (trimmed.length === 0) return { ok: false, reason: 'empty' };
   const doc = new DOMParser().parseFromString(trimmed, 'application/xml');

@@ -921,6 +921,41 @@ describe('DesktopProjectReadPage', () => {
     });
   });
 
+  it('imports FlexText without embedded roles via the panel (#429)', async () => {
+    const dir = tempFolder();
+    const session = openDesktopSession(dir, [dir]);
+    const source = join(dir, 'source');
+    mkdirSync(source);
+    writeFileSync(join(source, 'phrase.wav'), Buffer.from('synthetic-chain'));
+    const file = join(source, 'phrase.flextext');
+    writeFileSync(
+      file,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase begin-time-offset="0" end-time-offset="1000">
+        <item type="txt" lang="und">kept sentence</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`,
+    );
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.resolve({ sessionId: session.sessionId }),
+      chooseImportFile: () => Promise.resolve({ file }),
+      chooseExportFile: () => Promise.resolve({ cancelled: true }),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Import file' }));
+    expect(await screen.findByRole('button', { name: /kept sentence/ })).toBeTruthy();
+  });
+
   it('imports a field file into the open project and reads it after reopen', async () => {
     const dir = tempFolder();
     const session = openDesktopSession(dir, [dir]);

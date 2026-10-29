@@ -48,15 +48,15 @@ describe('foreign file import', () => {
     ).toBe(true);
   });
 
-  it('keeps an unmarked TextGrid in the source file and writes nothing', () => {
+  it('writes an unmarked TextGrid with default transcription role when media is present (#429)', () => {
     const project = library();
-    const file = join(rootOf(project), 'kept.TextGrid');
+    const source = join(rootOf(project), 'source');
     const bytes = Buffer.from(textGrid('kept sentence'));
-    writeFileSync(file, bytes);
-    const result = importForeignFile({ folder: project, file });
-    expect(result.written).toBe(0);
-    expect(result.unprojected).toContainEqual({ name: 'tx', reason: 'tier role is missing' });
-    expect(texts(project)).toEqual([]);
+    writeFileSync(join(source, 'kept.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'kept.TextGrid'), bytes);
+    const result = importForeignFile({ folder: project, file: join(source, 'kept.TextGrid') });
+    expect(result.written).toBeGreaterThan(0);
+    expect(texts(project)).toEqual(['kept sentence']);
     expect(existsSync(sourceFile(project, bytes, '.textgrid'))).toBe(true);
   });
 
@@ -132,6 +132,23 @@ describe('foreign file import', () => {
     expect(JSON.parse(row.entry_json)).toMatchObject({ headword: 'kept' });
   });
 
+  it('writes FlexText and plain EAF without a roles file (#429)', () => {
+    const project = library();
+    const source = join(rootOf(project), 'source');
+    writeFileSync(join(source, 'phrase.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'phrase.flextext'), flex());
+    expect(
+      importForeignFile({ folder: project, file: join(source, 'phrase.flextext') }).written,
+    ).toBeGreaterThan(0);
+    expect(texts(project)).toContain('kept sentence');
+
+    writeFileSync(join(source, 'test.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'plain.eaf'), eaf());
+    expect(
+      importForeignFile({ folder: project, file: join(source, 'plain.eaf') }).written,
+    ).toBeGreaterThan(0);
+  });
+
   it('writes a Toolbox sentence and a FlexText sentence', () => {
     const project = library();
     const source = join(rootOf(project), 'source');
@@ -157,6 +174,44 @@ describe('foreign file import', () => {
       roles: join(source, 'flex-roles.txt'),
     });
     expect(texts(project)).toContain('kept sentence');
+  });
+
+  it('parses flextext/eaf/lift in Node without a preinstalled DOMParser (#427)', () => {
+    const saved = globalThis.DOMParser;
+    // @ts-expect-error intentional: simulate Electron main
+    delete globalThis.DOMParser;
+    try {
+      const project = library();
+      const source = join(rootOf(project), 'source');
+      writeFileSync(join(source, 'phrase.wav'), Buffer.from('synthetic-chain'));
+      writeFileSync(join(source, 'phrase.flextext'), flex());
+      writeFileSync(join(source, 'flex-roles.txt'), 'primary 转写\nFLEx Gloss 译文\n');
+      expect(
+        importForeignFile({
+          folder: project,
+          file: join(source, 'phrase.flextext'),
+          roles: join(source, 'flex-roles.txt'),
+        }).written,
+      ).toBeGreaterThan(0);
+
+      writeFileSync(join(source, 'test.wav'), Buffer.from('synthetic-chain'));
+      writeFileSync(join(source, 'kept.eaf'), eaf());
+      writeFileSync(join(source, 'eaf-roles.txt'), 'transcription 转写\n');
+      expect(
+        importForeignFile({
+          folder: project,
+          file: join(source, 'kept.eaf'),
+          roles: join(source, 'eaf-roles.txt'),
+        }).written,
+      ).toBeGreaterThan(0);
+
+      writeFileSync(join(source, 'kept.lift'), lift());
+      expect(importForeignFile({ folder: project, file: join(source, 'kept.lift') }).written).toBeGreaterThan(
+        0,
+      );
+    } finally {
+      globalThis.DOMParser = saved;
+    }
   });
 
   it('creates one folder per JYB project and refuses a field that does not fit', () => {
