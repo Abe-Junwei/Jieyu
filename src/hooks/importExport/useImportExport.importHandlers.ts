@@ -261,10 +261,17 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               'phraseId' in u && typeof (u as { phraseId?: string }).phraseId === 'string'
                 ? (u as { phraseId: string }).phraseId
                 : undefined;
+            const annotationRef =
+              'annotationId' in u &&
+              typeof (u as { annotationId?: string }).annotationId === 'string'
+                ? (u as { annotationId: string }).annotationId
+                : undefined;
             return {
               startTime: u.startTime,
               endTime: u.endTime,
               text: phraseId ? (flexResult.phraseGlosses.get(phraseId) ?? '') : '',
+              // Phrase GUID keeps same-time glosses on the right host (#408).
+              ...(annotationRef ? { annotationRef } : {}),
             };
           })
           .filter((s) => s.text.trim() !== '');

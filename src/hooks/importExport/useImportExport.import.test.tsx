@@ -72,6 +72,7 @@ const SEEDED_PROJECT_IDS = [
   'text-drop-trl',
   'text-flex-map',
   'text-flex-title',
+  'text-flex-gloss',
   'text-flex-wipe',
   'text-grid',
   'text-grid-off',
@@ -3211,6 +3212,72 @@ describe('useImportExport - import success under stop-write', () => {
     expect(contents.some((row) => row.text === 'first sentence')).toBe(true);
   });
 
+  it('attaches FLEx phrase glosses by GUID when two phrases share the same time (#408)', async () => {
+    const textId = 'text-flex-gloss';
+    const defaultLayer: LayerDocType = {
+      id: 'trc-flex-gloss',
+      textId,
+      key: 'trc_flex_gloss',
+      name: { eng: 'TRC' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    const flex = `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase guid="phrase-a" begin-time-offset="0" end-time-offset="0">
+        <item type="txt" lang="en">A</item>
+        <item type="gls" lang="zh">甲</item>
+      </phrase>
+      <phrase guid="phrase-b" begin-time-offset="0" end-time-offset="0">
+        <item type="txt" lang="en">B</item>
+        <item type="gls" lang="zh">乙</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: flex,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    const { result } = renderImporter(textId, [defaultLayer]);
+    let commit: { committed: boolean } | undefined;
+    await act(async () => {
+      commit = await result.current.handleImportFile(
+        new File([flex], 'same-time.flextext', { type: 'application/xml' }),
+      );
+    });
+    expect(commit?.committed).toBe(true);
+    const units = await db.layer_units.where('textId').equals(textId).toArray();
+    const uttKey = (externalRef: string): string => {
+      const ids = units.filter((row) => row.externalRef === externalRef).map((row) => row.id);
+      const raw = ids.find((id) => id.startsWith('utt_'));
+      if (raw) return raw;
+      const host = ids[0] ?? '';
+      const matched = /utt_[a-z0-9_]+$/i.exec(host);
+      return matched?.[0] ?? host;
+    };
+    const keyA = uttKey('phrase-a');
+    const keyB = uttKey('phrase-b');
+    expect(keyA.startsWith('utt_')).toBe(true);
+    expect(keyB.startsWith('utt_')).toBe(true);
+    const contents = await db.layer_unit_contents.toArray();
+    const textsForKey = (key: string) =>
+      contents
+        .filter((row) => typeof row.unitId === 'string' && row.unitId.includes(key))
+        .map((row) => row.text);
+    expect(textsForKey(keyA)).toEqual(expect.arrayContaining(['A', '甲']));
+    expect(textsForKey(keyB)).toEqual(expect.arrayContaining(['B', '乙']));
+    expect(textsForKey(keyA)).not.toContain('乙');
+    expect(textsForKey(keyB)).not.toContain('甲');
+  });
 
   it('keeps existing units when a valid empty flextext has no phrases (#407)', async () => {
     const textId = 'text-flex-wipe';
@@ -3258,9 +3325,7 @@ describe('useImportExport - import success under stop-write', () => {
       );
     });
     expect(commit?.committed).toBe(false);
-    expect(setSaveState).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'error' }),
-    );
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
     expect((await db.layer_units.get('unit-keep-empty-407'))?.id).toBe('unit-keep-empty-407');
   });
 
@@ -3314,13 +3379,10 @@ describe('useImportExport - import success under stop-write', () => {
       );
     });
     expect(commit?.committed).toBe(false);
-    expect(setSaveState).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'error' }),
-    );
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
     const units = await db.layer_units.where('textId').equals(textId).toArray();
     expect(units.map((row) => row.id)).toEqual(['unit-keep-407']);
     const contents = await db.layer_unit_contents.where('unitId').equals('unit-keep-407').toArray();
     expect(contents.map((row) => row.text)).toEqual(['keep me']);
   });
-
 });
