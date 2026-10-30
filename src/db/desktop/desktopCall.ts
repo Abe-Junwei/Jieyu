@@ -43,9 +43,6 @@ import {
   updateBridge,
   updateOrthography,
   updateProjectLanguage,
-  type BridgeCreate,
-  type LanguageEnsure,
-  type OrthographyCreate,
 } from './catalog';
 import {
   CUSTOM_FIELD_DEFINITION_KEYS,
@@ -174,17 +171,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'catalog.ensureProjectDefinition',
-  'catalog.getLanguage',
-  'catalog.listLanguages',
-  'catalog.updateLanguage',
-  'orthographies.create',
-  'orthographies.list',
-  'orthographies.update',
-  'bridges.create',
-  'bridges.get',
-  'bridges.list',
-  'bridges.update',
   'lexicon.saveEntry',
   'lexicon.getEntry',
   'lexicon.linkSense',
@@ -288,11 +274,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'units.undo',
   'speakers.assign',
   'speakers.list',
-  'catalog.listLanguages',
-  'catalog.getLanguage',
-  'orthographies.list',
-  'bridges.list',
-  'bridges.get',
   'units.get',
   'units.list',
   'notes.list',
@@ -358,6 +339,56 @@ const operationHandlers = {
   'layers.list': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.list']['check']>) =>
       listLayers(ctx.db, input.manuscriptId),
+  },
+  'catalog.ensureProjectDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['catalog.ensureProjectDefinition']['check']>,
+    ) => ensureProjectLanguage(ctx.db, input),
+  },
+  'catalog.getLanguage': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['catalog.getLanguage']['check']>) =>
+      getProjectLanguage(ctx.db, input.id),
+  },
+  'catalog.listLanguages': {
+    run: (ctx: ContractCtx) => listProjectLanguages(ctx.db),
+  },
+  'catalog.updateLanguage': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['catalog.updateLanguage']['check']>,
+    ) => updateProjectLanguage(ctx.db, input),
+  },
+  'orthographies.create': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['orthographies.create']['check']>,
+    ) => createOrthography(ctx.db, input),
+  },
+  'orthographies.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['orthographies.list']['check']>) =>
+      listOrthographies(ctx.db, input.languageId),
+  },
+  'orthographies.update': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['orthographies.update']['check']>,
+    ) => updateOrthography(ctx.db, input),
+  },
+  'bridges.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bridges.create']['check']>) =>
+      createBridge(ctx.db, input),
+  },
+  'bridges.get': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bridges.get']['check']>) =>
+      getBridge(ctx.db, input.id),
+  },
+  'bridges.list': {
+    run: (ctx: ContractCtx) => listBridges(ctx.db),
+  },
+  'bridges.update': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bridges.update']['check']>) =>
+      updateBridge(ctx.db, input),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -482,6 +513,54 @@ function runContract(
       );
     case 'layers.list':
       return operationHandlers['layers.list'].run(ctx, desktopOperations['layers.list'].check(raw));
+    case 'catalog.ensureProjectDefinition':
+      return operationHandlers['catalog.ensureProjectDefinition'].run(
+        ctx,
+        desktopOperations['catalog.ensureProjectDefinition'].check(raw),
+      );
+    case 'catalog.getLanguage':
+      return operationHandlers['catalog.getLanguage'].run(
+        ctx,
+        desktopOperations['catalog.getLanguage'].check(raw),
+      );
+    case 'catalog.listLanguages':
+      desktopOperations['catalog.listLanguages'].check(raw);
+      return operationHandlers['catalog.listLanguages'].run(ctx);
+    case 'catalog.updateLanguage':
+      return operationHandlers['catalog.updateLanguage'].run(
+        ctx,
+        desktopOperations['catalog.updateLanguage'].check(raw),
+      );
+    case 'orthographies.create':
+      return operationHandlers['orthographies.create'].run(
+        ctx,
+        desktopOperations['orthographies.create'].check(raw),
+      );
+    case 'orthographies.list':
+      return operationHandlers['orthographies.list'].run(
+        ctx,
+        desktopOperations['orthographies.list'].check(raw),
+      );
+    case 'orthographies.update':
+      return operationHandlers['orthographies.update'].run(
+        ctx,
+        desktopOperations['orthographies.update'].check(raw),
+      );
+    case 'bridges.create':
+      return operationHandlers['bridges.create'].run(
+        ctx,
+        desktopOperations['bridges.create'].check(raw),
+      );
+    case 'bridges.get':
+      return operationHandlers['bridges.get'].run(ctx, desktopOperations['bridges.get'].check(raw));
+    case 'bridges.list':
+      desktopOperations['bridges.list'].check(raw);
+      return operationHandlers['bridges.list'].run(ctx);
+    case 'bridges.update':
+      return operationHandlers['bridges.update'].run(
+        ctx,
+        desktopOperations['bridges.update'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -612,49 +691,6 @@ export function callDesktopSession(
     case 'attachments.list':
       knownKeys(input, ['lexemeId']);
       return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'catalog.ensureProjectDefinition':
-      return ensureProjectLanguage(project.db, languageEnsure(input));
-    case 'catalog.getLanguage':
-      return getProjectLanguage(project.db, requiredString(input.id, 'id'));
-    case 'catalog.listLanguages':
-      knownKeys(input, []);
-      return listProjectLanguages(project.db);
-    case 'catalog.updateLanguage':
-      knownKeys(input, ['id', 'locale', 'value']);
-      return updateProjectLanguage(project.db, {
-        id: requiredString(input.id, 'id'),
-        locale: requiredString(input.locale, 'locale'),
-        value: requiredString(input.value, 'value'),
-      });
-    case 'orthographies.create':
-      return createOrthography(project.db, orthographyCreate(input));
-    case 'orthographies.list':
-      knownKeys(input, ['languageId']);
-      return listOrthographies(project.db, requiredString(input.languageId, 'languageId'));
-    case 'orthographies.update':
-      knownKeys(input, ['id', 'scriptTag']);
-      return updateOrthography(project.db, {
-        id: requiredString(input.id, 'id'),
-        scriptTag: requiredString(input.scriptTag, 'scriptTag'),
-      });
-    case 'bridges.create':
-      return createBridge(project.db, bridgeCreate(input));
-    case 'bridges.get':
-      return getBridge(project.db, requiredString(input.id, 'id'));
-    case 'bridges.list':
-      knownKeys(input, []);
-      return listBridges(project.db);
-    case 'bridges.update': {
-      knownKeys(input, ['id', 'rules']);
-      const rules = input.rules;
-      if (typeof rules !== 'object' || rules === null || Array.isArray(rules)) {
-        throw new Error('bridge rules must be an object');
-      }
-      return updateBridge(project.db, {
-        id: requiredString(input.id, 'id'),
-        rules: rules as Record<string, unknown>,
-      });
-    }
     case 'lexicon.saveEntry':
       return saveLexemeEntry(project.db, lexemeSave(input));
     case 'lexicon.getEntry':
@@ -1833,65 +1869,6 @@ function modelRunAccept(input: Record<string, unknown>): {
     timeMappingRevision: requiredIndex(input.timeMappingRevision, 'timeMappingRevision'),
     targetFingerprint: requiredString(input.targetFingerprint, 'targetFingerprint'),
     text: requiredString(input.text, 'text'),
-  };
-}
-
-function languageEnsure(input: Record<string, unknown>): LanguageEnsure {
-  const aliases = input.aliases;
-  return {
-    name: stringMap(input.name, 'name'),
-    sourceType: requiredString(input.sourceType, 'sourceType'),
-    ...(typeof input.iso6393 === 'string' ? { iso6393: input.iso6393 } : {}),
-    ...(typeof input.glottocode === 'string' ? { glottocode: input.glottocode } : {}),
-    ...(Array.isArray(aliases) ? { aliases: aliases.map(aliasInput) } : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function aliasInput(value: unknown): { alias: string; aliasType: string } {
-  const record = objectArg(value);
-  return {
-    alias: requiredString(record.alias, 'alias'),
-    aliasType: requiredString(record.aliasType, 'aliasType'),
-  };
-}
-
-function orthographyCreate(input: Record<string, unknown>): OrthographyCreate {
-  return {
-    languageId: requiredString(input.languageId, 'languageId'),
-    name: stringMap(input.name, 'name'),
-    scriptTag: requiredString(input.scriptTag, 'scriptTag'),
-    sourceType: requiredString(input.sourceType, 'sourceType'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function bridgeCreate(input: Record<string, unknown>): BridgeCreate {
-  const rules = input.rules;
-  if (typeof rules !== 'object' || rules === null || Array.isArray(rules)) {
-    throw new Error('bridge rules must be an object');
-  }
-  const sampleCases = input.sampleCases;
-  return {
-    sourceOrthographyId: requiredString(input.sourceOrthographyId, 'sourceOrthographyId'),
-    targetOrthographyId: requiredString(input.targetOrthographyId, 'targetOrthographyId'),
-    engine: requiredString(input.engine, 'engine'),
-    rules: rules as Record<string, unknown>,
-    ...(typeof input.sampleInput === 'string' ? { sampleInput: input.sampleInput } : {}),
-    ...(typeof input.sampleOutput === 'string' ? { sampleOutput: input.sampleOutput } : {}),
-    ...(Array.isArray(sampleCases)
-      ? {
-          sampleCases: sampleCases.map((item) => {
-            const record = objectArg(item);
-            const expectedOutput = record.expectedOutput;
-            return {
-              input: requiredString(record.input, 'input'),
-              ...(typeof expectedOutput === 'string' ? { expectedOutput } : {}),
-            };
-          }),
-        }
-      : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
 

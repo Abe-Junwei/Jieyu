@@ -56,6 +56,7 @@ depends_on:
 - [x] W6 媒体：create、delete、previewDelete、showReminder、reregister、restoreRegistered、list 已进入目录。读操作保持撤销槽，写操作在检查前清槽。METHODS 里不再有这些键。
 - [x] W6 文稿：create、list、listDeleted、delete、previewDelete、restore、showReminder、purge、setTimeMapping、rollbackTimeMapping 已进入目录。list 仍忽略多余参数。读操作保持撤销槽，写操作在检查前清槽。
 - [x] W6 层：layers.list 已进入目录，保持撤销槽，仍不拒绝多余参数。layers.create 本来就在目录里。
+- [x] W6 目录：语言、正字法和桥的读写已进入目录。读操作保持撤销槽，写操作在检查前清槽。
 - [ ] W6 之后每域一刀。下一域再改实现、目录和测试。
 - [ ] W7 不拆功能。前面做完后按门禁逐条跑，含真实 Electron 的文件选择、媒体读取和垃圾箱。不过就不勾完成。
 

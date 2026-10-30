@@ -1,4 +1,12 @@
 // Renderer-safe: type imports and pure checks only. Handlers stay in the main process.
+import type {
+  BridgeCreate,
+  LanguageEnsure,
+  OrthographyCreate,
+  ProjectBridge,
+  ProjectLanguage,
+  ProjectOrthography,
+} from './catalog';
 import type { Layer, LayerCreate } from './layers';
 import type { DeletionReminder } from './manuscriptPurge';
 import type {
@@ -105,6 +113,68 @@ function checkLayerCreate(input: Record<string, unknown>): LayerCreate {
       : {}),
     ...('parentId' in input ? { parentId: optionalString(input.parentId, 'parentId') } : {}),
     ...('sortOrder' in input ? { sortOrder: requiredNumber(input.sortOrder, 'sortOrder') } : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
+function aliasInput(value: unknown): { alias: string; aliasType: string } {
+  const record = objectArg(value);
+  return {
+    alias: requiredString(record.alias, 'alias'),
+    aliasType: requiredString(record.aliasType, 'aliasType'),
+  };
+}
+
+function languageEnsure(input: Record<string, unknown>): LanguageEnsure {
+  const aliases = input.aliases;
+  return {
+    name: stringMap(input.name, 'name'),
+    sourceType: requiredString(input.sourceType, 'sourceType'),
+    ...(typeof input.iso6393 === 'string' ? { iso6393: input.iso6393 } : {}),
+    ...(typeof input.glottocode === 'string' ? { glottocode: input.glottocode } : {}),
+    ...(Array.isArray(aliases) ? { aliases: aliases.map(aliasInput) } : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
+function orthographyCreate(input: Record<string, unknown>): OrthographyCreate {
+  return {
+    languageId: requiredString(input.languageId, 'languageId'),
+    name: stringMap(input.name, 'name'),
+    scriptTag: requiredString(input.scriptTag, 'scriptTag'),
+    sourceType: requiredString(input.sourceType, 'sourceType'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
+function bridgeRules(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('bridge rules must be an object');
+  }
+  return value as Record<string, unknown>;
+}
+
+function bridgeCreate(input: Record<string, unknown>): BridgeCreate {
+  const sampleCases = input.sampleCases;
+  return {
+    sourceOrthographyId: requiredString(input.sourceOrthographyId, 'sourceOrthographyId'),
+    targetOrthographyId: requiredString(input.targetOrthographyId, 'targetOrthographyId'),
+    engine: requiredString(input.engine, 'engine'),
+    rules: bridgeRules(input.rules),
+    ...(typeof input.sampleInput === 'string' ? { sampleInput: input.sampleInput } : {}),
+    ...(typeof input.sampleOutput === 'string' ? { sampleOutput: input.sampleOutput } : {}),
+    ...(Array.isArray(sampleCases)
+      ? {
+          sampleCases: sampleCases.map((item) => {
+            const record = objectArg(item);
+            const expectedOutput = record.expectedOutput;
+            return {
+              input: requiredString(record.input, 'input'),
+              ...(typeof expectedOutput === 'string' ? { expectedOutput } : {}),
+            };
+          }),
+        }
+      : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
 }
@@ -235,6 +305,68 @@ export const desktopOperations = {
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
     expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
   })),
+  'catalog.ensureProjectDefinition': spec<'clear', LanguageEnsure, ProjectLanguage>(
+    'clear',
+    languageEnsure,
+  ),
+  'catalog.getLanguage': spec<'keep', { id: string }, ProjectLanguage | null>('keep', (input) => ({
+    id: requiredString(input.id, 'id'),
+  })),
+  'catalog.listLanguages': spec<'keep', Record<string, never>, ProjectLanguage[]>(
+    'keep',
+    (input) => {
+      knownKeys(input, []);
+      return {} as Record<string, never>;
+    },
+  ),
+  'catalog.updateLanguage': spec<
+    'clear',
+    { id: string; locale: string; value: string },
+    ProjectLanguage
+  >('clear', (input) => {
+    knownKeys(input, ['id', 'locale', 'value']);
+    return {
+      id: requiredString(input.id, 'id'),
+      locale: requiredString(input.locale, 'locale'),
+      value: requiredString(input.value, 'value'),
+    };
+  }),
+  'orthographies.create': spec<'clear', OrthographyCreate, ProjectOrthography>(
+    'clear',
+    orthographyCreate,
+  ),
+  'orthographies.list': spec<'keep', { languageId: string }, ProjectOrthography[]>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['languageId']);
+      return { languageId: requiredString(input.languageId, 'languageId') };
+    },
+  ),
+  'orthographies.update': spec<'clear', { id: string; scriptTag: string }, ProjectOrthography>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['id', 'scriptTag']);
+      return {
+        id: requiredString(input.id, 'id'),
+        scriptTag: requiredString(input.scriptTag, 'scriptTag'),
+      };
+    },
+  ),
+  'bridges.create': spec<'clear', BridgeCreate, ProjectBridge>('clear', bridgeCreate),
+  'bridges.get': spec<'keep', { id: string }, ProjectBridge | null>('keep', (input) => ({
+    id: requiredString(input.id, 'id'),
+  })),
+  'bridges.list': spec<'keep', Record<string, never>, ProjectBridge[]>('keep', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
+  'bridges.update': spec<'clear', { id: string; rules: Record<string, unknown> }, ProjectBridge>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['id', 'rules']);
+      return { id: requiredString(input.id, 'id'), rules: bridgeRules(input.rules) };
+    },
+  ),
 };
 
 export type DesktopOperations = typeof desktopOperations;
