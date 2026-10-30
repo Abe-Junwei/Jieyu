@@ -1,6 +1,6 @@
 appId: app.jieyu.desktop
 productName: 解语
-electronVersion: 44.9.3
+electronVersion: 44.10.0
 directories:
   output: release
 files:
