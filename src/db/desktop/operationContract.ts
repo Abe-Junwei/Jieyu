@@ -115,6 +115,9 @@ export const desktopOperations = {
     return {} as Record<string, never>;
   }),
   'layers.create': spec<'clear', LayerCreate, Layer>('clear', checkLayerCreate),
+  'layers.list': spec<'keep', { manuscriptId: string }, Layer[]>('keep', (input) => ({
+    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+  })),
   'units.updateText': spec<'replace-on-success', { unitId: string; text: string }, Unit>(
     'replace-on-success',
     (input) => ({

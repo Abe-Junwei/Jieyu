@@ -174,7 +174,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'layers.list',
   'catalog.ensureProjectDefinition',
   'catalog.getLanguage',
   'catalog.listLanguages',
@@ -296,7 +295,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'bridges.get',
   'units.get',
   'units.list',
-  'layers.list',
   'notes.list',
   'notes.listLexeme',
   'attachments.list',
@@ -356,6 +354,10 @@ const operationHandlers = {
   'layers.create': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.create']['check']>) =>
       createLayer(ctx.db, input),
+  },
+  'layers.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.list']['check']>) =>
+      listLayers(ctx.db, input.manuscriptId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -478,6 +480,8 @@ function runContract(
         ctx,
         desktopOperations['layers.create'].check(raw),
       );
+    case 'layers.list':
+      return operationHandlers['layers.list'].run(ctx, desktopOperations['layers.list'].check(raw));
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -608,8 +612,6 @@ export function callDesktopSession(
     case 'attachments.list':
       knownKeys(input, ['lexemeId']);
       return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'layers.list':
-      return listLayers(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
     case 'catalog.ensureProjectDefinition':
       return ensureProjectLanguage(project.db, languageEnsure(input));
     case 'catalog.getLanguage':
