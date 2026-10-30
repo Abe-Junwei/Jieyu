@@ -105,9 +105,6 @@ import {
   previewModelRun,
   readTranscriptionAcceptance,
   startModelRun,
-  type ModelRunFinish,
-  type ModelRunStart,
-  type PreviewCandidateInput,
 } from './modelRuns';
 import {
   createContentNote,
@@ -161,17 +158,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'modelRuns.listAcceptable',
-  'modelRuns.start',
-  'modelRuns.finish',
-  'modelRuns.preview',
-  'modelRuns.accept',
-  'modelRuns.abandon',
-  'modelRuns.interrupt',
-  'modelRuns.stopManuscript',
-  'modelRuns.stopRecording',
-  'modelRuns.get',
-  'modelRuns.readAcceptance',
   'corpus.query',
   'units.create',
   'units.get',
@@ -252,9 +238,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'units.list',
   'attachments.list',
   'corpus.query',
-  'modelRuns.get',
-  'modelRuns.readAcceptance',
-  'modelRuns.listAcceptable',
   'deletion.listDue',
   'customFields.listDefinitions',
   'customFields.missingUnitFields',
@@ -428,6 +411,57 @@ const operationHandlers = {
   'notes.listLexeme': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.listLexeme']['check']>) =>
       listLexemeNotes(ctx.db, input.lexemeId),
+  },
+  'modelRuns.listAcceptable': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.listAcceptable']['check']>,
+    ) => listAcceptableRuns(ctx.db, input.manuscriptId),
+  },
+  'modelRuns.start': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.start']['check']>) =>
+      startModelRun(ctx.db, input),
+  },
+  'modelRuns.finish': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.finish']['check']>) =>
+      finishModelRun(ctx.db, input),
+  },
+  'modelRuns.preview': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.preview']['check']>) =>
+      previewModelRun(ctx.db, input),
+  },
+  'modelRuns.accept': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.accept']['check']>) =>
+      acceptTranscriptionCandidate(ctx.db, input),
+  },
+  'modelRuns.abandon': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.abandon']['check']>) =>
+      abandonPending(ctx.db, input.runId),
+  },
+  'modelRuns.interrupt': {
+    run: (ctx: ContractCtx) => interruptUnfinishedRuns(ctx.db),
+  },
+  'modelRuns.stopManuscript': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.stopManuscript']['check']>,
+    ) => stopManuscriptTasks(ctx.db, input.id),
+  },
+  'modelRuns.stopRecording': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.stopRecording']['check']>,
+    ) => stopRecordingTasks(ctx.db, input.id),
+  },
+  'modelRuns.get': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.get']['check']>) =>
+      getModelRun(ctx.db, input.runId),
+  },
+  'modelRuns.readAcceptance': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.readAcceptance']['check']>,
+    ) => readTranscriptionAcceptance(ctx.db, input.operationId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -674,6 +708,59 @@ function runContract(
       return operationHandlers['notes.listLexeme'].run(
         ctx,
         desktopOperations['notes.listLexeme'].check(raw),
+      );
+    case 'modelRuns.listAcceptable':
+      return operationHandlers['modelRuns.listAcceptable'].run(
+        ctx,
+        desktopOperations['modelRuns.listAcceptable'].check(raw),
+      );
+    case 'modelRuns.start':
+      return operationHandlers['modelRuns.start'].run(
+        ctx,
+        desktopOperations['modelRuns.start'].check(raw),
+      );
+    case 'modelRuns.finish':
+      return operationHandlers['modelRuns.finish'].run(
+        ctx,
+        desktopOperations['modelRuns.finish'].check(raw),
+      );
+    case 'modelRuns.preview':
+      return operationHandlers['modelRuns.preview'].run(
+        ctx,
+        desktopOperations['modelRuns.preview'].check(raw),
+      );
+    case 'modelRuns.accept':
+      return operationHandlers['modelRuns.accept'].run(
+        ctx,
+        desktopOperations['modelRuns.accept'].check(raw),
+      );
+    case 'modelRuns.abandon':
+      return operationHandlers['modelRuns.abandon'].run(
+        ctx,
+        desktopOperations['modelRuns.abandon'].check(raw),
+      );
+    case 'modelRuns.interrupt':
+      desktopOperations['modelRuns.interrupt'].check(raw);
+      return operationHandlers['modelRuns.interrupt'].run(ctx);
+    case 'modelRuns.stopManuscript':
+      return operationHandlers['modelRuns.stopManuscript'].run(
+        ctx,
+        desktopOperations['modelRuns.stopManuscript'].check(raw),
+      );
+    case 'modelRuns.stopRecording':
+      return operationHandlers['modelRuns.stopRecording'].run(
+        ctx,
+        desktopOperations['modelRuns.stopRecording'].check(raw),
+      );
+    case 'modelRuns.get':
+      return operationHandlers['modelRuns.get'].run(
+        ctx,
+        desktopOperations['modelRuns.get'].check(raw),
+      );
+    case 'modelRuns.readAcceptance':
+      return operationHandlers['modelRuns.readAcceptance'].run(
+        ctx,
+        desktopOperations['modelRuns.readAcceptance'].check(raw),
       );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
@@ -1014,38 +1101,6 @@ export function callDesktopSession(
       return splitAnalysisNode(project.db, analysisSplit(input));
     case 'analysis.merge':
       return mergeAnalysisNodes(project.db, analysisMerge(input));
-    case 'modelRuns.listAcceptable':
-      knownKeys(input, ['manuscriptId']);
-      return listAcceptableRuns(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
-    case 'modelRuns.start':
-      return startModelRun(project.db, modelRunStart(input));
-    case 'modelRuns.finish':
-      return finishModelRun(project.db, modelRunFinish(input));
-    case 'modelRuns.preview':
-      return previewModelRun(project.db, modelRunPreview(input));
-    case 'modelRuns.accept':
-      return acceptTranscriptionCandidate(project.db, modelRunAccept(input));
-    case 'modelRuns.abandon':
-      knownKeys(input, ['runId']);
-      return abandonPending(project.db, requiredString(input.runId, 'runId'));
-    case 'modelRuns.interrupt':
-      knownKeys(input, []);
-      return interruptUnfinishedRuns(project.db);
-    case 'modelRuns.stopManuscript':
-      knownKeys(input, ['id']);
-      return stopManuscriptTasks(project.db, requiredString(input.id, 'id'));
-    case 'modelRuns.stopRecording':
-      knownKeys(input, ['id']);
-      return stopRecordingTasks(project.db, requiredString(input.id, 'id'));
-    case 'modelRuns.get':
-      knownKeys(input, ['runId']);
-      return getModelRun(project.db, requiredString(input.runId, 'runId'));
-    case 'modelRuns.readAcceptance':
-      knownKeys(input, ['operationId']);
-      return readTranscriptionAcceptance(
-        project.db,
-        requiredString(input.operationId, 'operationId'),
-      );
     case 'exchange.importFile':
       return importExchangeFile(project.db, desktopSessionFolder(sessionId), input);
     case 'exchange.exportJyt': {
@@ -1506,13 +1561,6 @@ function fingerprintString(value: unknown): string {
   return value;
 }
 
-function requiredIndex(value: unknown, name: string): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new Error(`desktop call ${name} must be an index`);
-  }
-  return value;
-}
-
 function stringIds(value: unknown, name: string): string[] {
   const list = listArg(value, name);
   if (list.some((item) => typeof item !== 'string' || item.length === 0)) {
@@ -1682,107 +1730,6 @@ function analysisApply(input: Record<string, unknown>): {
       graphFingerprint: requiredString(expected.graphFingerprint, 'graphFingerprint'),
     },
     changes: input.changes,
-  };
-}
-
-function modelRunStart(input: Record<string, unknown>): ModelRunStart {
-  knownKeys(input, [
-    'manuscriptId',
-    'layerId',
-    'modelId',
-    'modelVersion',
-    'manifestSha256',
-    'params',
-    'rangeStart',
-    'rangeEnd',
-  ]);
-  return {
-    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-    layerId: requiredString(input.layerId, 'layerId'),
-    modelId: requiredString(input.modelId, 'modelId'),
-    modelVersion: requiredString(input.modelVersion, 'modelVersion'),
-    manifestSha256: requiredString(input.manifestSha256, 'manifestSha256'),
-    params: objectArg(input.params),
-    rangeStart: requiredNumber(input.rangeStart, 'rangeStart'),
-    rangeEnd: requiredNumber(input.rangeEnd, 'rangeEnd'),
-  };
-}
-
-function modelRunFinish(input: Record<string, unknown>): ModelRunFinish {
-  const status = requiredString(input.status, 'status');
-  const runId = requiredString(input.runId, 'runId');
-  const chunkCount = requiredIndex(input.chunkCount, 'chunkCount');
-  if (status === 'error') {
-    knownKeys(input, ['runId', 'status', 'chunkCount', 'errorCode']);
-    return {
-      runId,
-      status,
-      chunkCount,
-      errorCode: requiredString(input.errorCode, 'errorCode'),
-    };
-  }
-  if (status === 'ok' || status === 'cancelled') {
-    knownKeys(input, ['runId', 'status', 'chunkCount']);
-    return { runId, status, chunkCount };
-  }
-  throw new Error('desktop call status must be a run status');
-}
-
-function modelRunPreview(input: Record<string, unknown>): {
-  runId: string;
-  candidates: PreviewCandidateInput[];
-} {
-  knownKeys(input, ['runId', 'candidates']);
-  if (!Array.isArray(input.candidates)) throw new Error('desktop call candidates must be an array');
-  return {
-    runId: requiredString(input.runId, 'runId'),
-    candidates: input.candidates.map((item, index) => previewCandidate(item, index)),
-  };
-}
-
-function previewCandidate(value: unknown, index: number): PreviewCandidateInput {
-  const candidate = objectArg(value);
-  knownKeys(candidate, ['chunkIndex', 'segmentIndex', 'mediaStart', 'mediaEnd']);
-  return {
-    chunkIndex: requiredIndex(candidate.chunkIndex, `candidates.${index}.chunkIndex`),
-    segmentIndex: requiredIndex(candidate.segmentIndex, `candidates.${index}.segmentIndex`),
-    mediaStart: requiredNumber(candidate.mediaStart, `candidates.${index}.mediaStart`),
-    mediaEnd: requiredNumber(candidate.mediaEnd, `candidates.${index}.mediaEnd`),
-  };
-}
-
-function modelRunAccept(input: Record<string, unknown>): {
-  operationId: string;
-  runId: string;
-  chunkIndex: number;
-  segmentIndex: number;
-  mediaStart: number;
-  mediaEnd: number;
-  timeMappingRevision: number;
-  targetFingerprint: string;
-  text: string;
-} {
-  knownKeys(input, [
-    'operationId',
-    'runId',
-    'chunkIndex',
-    'segmentIndex',
-    'mediaStart',
-    'mediaEnd',
-    'timeMappingRevision',
-    'targetFingerprint',
-    'text',
-  ]);
-  return {
-    operationId: requiredString(input.operationId, 'operationId'),
-    runId: requiredString(input.runId, 'runId'),
-    chunkIndex: requiredIndex(input.chunkIndex, 'chunkIndex'),
-    segmentIndex: requiredIndex(input.segmentIndex, 'segmentIndex'),
-    mediaStart: requiredNumber(input.mediaStart, 'mediaStart'),
-    mediaEnd: requiredNumber(input.mediaEnd, 'mediaEnd'),
-    timeMappingRevision: requiredIndex(input.timeMappingRevision, 'timeMappingRevision'),
-    targetFingerprint: requiredString(input.targetFingerprint, 'targetFingerprint'),
-    text: requiredString(input.text, 'text'),
   };
 }
 

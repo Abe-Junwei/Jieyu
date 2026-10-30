@@ -19,6 +19,15 @@ import type {
   ContentNoteWrite,
 } from './notes';
 import type { Layer, LayerCreate } from './layers';
+import type {
+  AcceptableRun,
+  ModelRun,
+  ModelRunFinish,
+  ModelRunStart,
+  PreviewCandidate,
+  PreviewCandidateInput,
+  TranscriptionAcceptance,
+} from './modelRuns';
 import type { DeletionReminder } from './manuscriptPurge';
 import type {
   Manuscript,
@@ -405,6 +414,114 @@ function lexemeNoteSave(input: Record<string, unknown>): {
   };
 }
 
+function requiredIndex(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error(`desktop call ${name} must be an index`);
+  }
+  return value;
+}
+
+function modelRunStart(input: Record<string, unknown>): ModelRunStart {
+  knownKeys(input, [
+    'manuscriptId',
+    'layerId',
+    'modelId',
+    'modelVersion',
+    'manifestSha256',
+    'params',
+    'rangeStart',
+    'rangeEnd',
+  ]);
+  return {
+    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+    layerId: requiredString(input.layerId, 'layerId'),
+    modelId: requiredString(input.modelId, 'modelId'),
+    modelVersion: requiredString(input.modelVersion, 'modelVersion'),
+    manifestSha256: requiredString(input.manifestSha256, 'manifestSha256'),
+    params: objectArg(input.params),
+    rangeStart: requiredNumber(input.rangeStart, 'rangeStart'),
+    rangeEnd: requiredNumber(input.rangeEnd, 'rangeEnd'),
+  };
+}
+
+function modelRunFinish(input: Record<string, unknown>): ModelRunFinish {
+  const status = requiredString(input.status, 'status');
+  const runId = requiredString(input.runId, 'runId');
+  const chunkCount = requiredIndex(input.chunkCount, 'chunkCount');
+  if (status === 'error') {
+    knownKeys(input, ['runId', 'status', 'chunkCount', 'errorCode']);
+    return {
+      runId,
+      status,
+      chunkCount,
+      errorCode: requiredString(input.errorCode, 'errorCode'),
+    };
+  }
+  if (status === 'ok' || status === 'cancelled') {
+    knownKeys(input, ['runId', 'status', 'chunkCount']);
+    return { runId, status, chunkCount };
+  }
+  throw new Error('desktop call status must be a run status');
+}
+
+function previewCandidate(value: unknown, index: number): PreviewCandidateInput {
+  const candidate = objectArg(value);
+  knownKeys(candidate, ['chunkIndex', 'segmentIndex', 'mediaStart', 'mediaEnd']);
+  return {
+    chunkIndex: requiredIndex(candidate.chunkIndex, `candidates.${index}.chunkIndex`),
+    segmentIndex: requiredIndex(candidate.segmentIndex, `candidates.${index}.segmentIndex`),
+    mediaStart: requiredNumber(candidate.mediaStart, `candidates.${index}.mediaStart`),
+    mediaEnd: requiredNumber(candidate.mediaEnd, `candidates.${index}.mediaEnd`),
+  };
+}
+
+function modelRunPreview(input: Record<string, unknown>): {
+  runId: string;
+  candidates: PreviewCandidateInput[];
+} {
+  knownKeys(input, ['runId', 'candidates']);
+  if (!Array.isArray(input.candidates)) throw new Error('desktop call candidates must be an array');
+  return {
+    runId: requiredString(input.runId, 'runId'),
+    candidates: input.candidates.map((item, index) => previewCandidate(item, index)),
+  };
+}
+
+function modelRunAccept(input: Record<string, unknown>): {
+  operationId: string;
+  runId: string;
+  chunkIndex: number;
+  segmentIndex: number;
+  mediaStart: number;
+  mediaEnd: number;
+  timeMappingRevision: number;
+  targetFingerprint: string;
+  text: string;
+} {
+  knownKeys(input, [
+    'operationId',
+    'runId',
+    'chunkIndex',
+    'segmentIndex',
+    'mediaStart',
+    'mediaEnd',
+    'timeMappingRevision',
+    'targetFingerprint',
+    'text',
+  ]);
+  return {
+    operationId: requiredString(input.operationId, 'operationId'),
+    runId: requiredString(input.runId, 'runId'),
+    chunkIndex: requiredIndex(input.chunkIndex, 'chunkIndex'),
+    segmentIndex: requiredIndex(input.segmentIndex, 'segmentIndex'),
+    mediaStart: requiredNumber(input.mediaStart, 'mediaStart'),
+    mediaEnd: requiredNumber(input.mediaEnd, 'mediaEnd'),
+    timeMappingRevision: requiredIndex(input.timeMappingRevision, 'timeMappingRevision'),
+    targetFingerprint: requiredString(input.targetFingerprint, 'targetFingerprint'),
+    text: requiredString(input.text, 'text'),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -677,6 +794,62 @@ export const desktopOperations = {
     knownKeys(input, ['lexemeId']);
     return { lexemeId: requiredString(input.lexemeId, 'lexemeId') };
   }),
+  'modelRuns.listAcceptable': spec<'keep', { manuscriptId: string }, AcceptableRun[]>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['manuscriptId']);
+      return { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') };
+    },
+  ),
+  'modelRuns.start': spec<'clear', ModelRunStart, ModelRun>('clear', modelRunStart),
+  'modelRuns.finish': spec<'clear', ModelRunFinish, ModelRun>('clear', modelRunFinish),
+  'modelRuns.preview': spec<
+    'clear',
+    { runId: string; candidates: PreviewCandidateInput[] },
+    { pendingCount: number; timeMappingRevision: number; candidates: PreviewCandidate[] }
+  >('clear', modelRunPreview),
+  'modelRuns.accept': spec<
+    'clear',
+    {
+      operationId: string;
+      runId: string;
+      chunkIndex: number;
+      segmentIndex: number;
+      mediaStart: number;
+      mediaEnd: number;
+      timeMappingRevision: number;
+      targetFingerprint: string;
+      text: string;
+    },
+    TranscriptionAcceptance
+  >('clear', modelRunAccept),
+  'modelRuns.abandon': spec<'clear', { runId: string }, ModelRun>('clear', (input) => {
+    knownKeys(input, ['runId']);
+    return { runId: requiredString(input.runId, 'runId') };
+  }),
+  'modelRuns.interrupt': spec<'clear', Record<string, never>, ModelRun[]>('clear', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
+  'modelRuns.stopManuscript': spec<'clear', { id: string }, ModelRun[]>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'modelRuns.stopRecording': spec<'clear', { id: string }, ModelRun[]>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'modelRuns.get': spec<'keep', { runId: string }, ModelRun | null>('keep', (input) => {
+    knownKeys(input, ['runId']);
+    return { runId: requiredString(input.runId, 'runId') };
+  }),
+  'modelRuns.readAcceptance': spec<'keep', { operationId: string }, TranscriptionAcceptance | null>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['operationId']);
+      return { operationId: requiredString(input.operationId, 'operationId') };
+    },
+  ),
 };
 
 export type DesktopOperations = typeof desktopOperations;
