@@ -134,21 +134,9 @@ import {
 } from './units';
 import { mergeUnits, splitUnit } from './unitSpan';
 
-const METHODS = [
-  'exchange.importFile',
-  'exchange.exportJyt',
-  'exchange.exportJym',
-  'exchange.exportManuscript',
-  'reopen',
-] as const;
+const METHODS = ['reopen'] as const;
 
 type DesktopMethod = (typeof METHODS)[number];
-
-const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
-  'exchange.exportJyt',
-  'exchange.exportJym',
-  'exchange.exportManuscript',
-]);
 
 type ContractCtx = {
   db: ReturnType<typeof requireDesktopSession>['db'];
@@ -667,6 +655,45 @@ const operationHandlers = {
   'analysis.merge': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.merge']['check']>) =>
       mergeAnalysisNodes(ctx.db, input),
+  },
+  'exchange.importFile': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['exchange.importFile']['check']>) =>
+      importForeignFile({
+        folder: ctx.folder,
+        file: input.file,
+        db: ctx.db,
+        ...(input.roles === undefined ? {} : { roles: input.roles }),
+      }),
+  },
+  'exchange.exportJyt': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['exchange.exportJyt']['check']>,
+    ) => {
+      assertExportTarget(ctx.folder, input, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(input, exportDesktopJyt(ctx.db));
+    },
+  },
+  'exchange.exportJym': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['exchange.exportJym']['check']>,
+    ) => {
+      assertExportTarget(ctx.folder, input, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(input, exportDesktopJym(ctx.db, ctx.folder));
+    },
+  },
+  'exchange.exportManuscript': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['exchange.exportManuscript']['check']>,
+    ) => {
+      assertExportTarget(ctx.folder, input.file, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(
+        input.file,
+        exportDesktopManuscriptJyt(ctx.db, [input.manuscriptId]),
+      );
+    },
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1257,6 +1284,26 @@ function runContract(
         ctx,
         desktopOperations['analysis.merge'].check(raw),
       );
+    case 'exchange.importFile':
+      return operationHandlers['exchange.importFile'].run(
+        ctx,
+        desktopOperations['exchange.importFile'].check(raw),
+      );
+    case 'exchange.exportJyt':
+      return operationHandlers['exchange.exportJyt'].run(
+        ctx,
+        desktopOperations['exchange.exportJyt'].check(raw),
+      );
+    case 'exchange.exportJym':
+      return operationHandlers['exchange.exportJym'].run(
+        ctx,
+        desktopOperations['exchange.exportJym'].check(raw),
+      );
+    case 'exchange.exportManuscript':
+      return operationHandlers['exchange.exportManuscript'].run(
+        ctx,
+        desktopOperations['exchange.exportManuscript'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1368,65 +1415,14 @@ export function callDesktopSession(
     reopenDesktopSession(sessionId);
     return { reopened: true };
   }
-  const project = requireDesktopSession(sessionId);
-  if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
-  const input = objectArg(args);
-  switch (parsed) {
-    case 'exchange.importFile':
-      return importExchangeFile(project.db, desktopSessionFolder(sessionId), input);
-    case 'exchange.exportJyt': {
-      const file = exportFile(input);
-      assertExportTarget(desktopSessionFolder(sessionId), file, mediaRelpaths(project.db));
-      return saveDesktopPackage(file, exportDesktopJyt(project.db));
-    }
-    case 'exchange.exportJym': {
-      const file = exportFile(input);
-      const folder = desktopSessionFolder(sessionId);
-      assertExportTarget(folder, file, mediaRelpaths(project.db));
-      return saveDesktopPackage(file, exportDesktopJym(project.db, folder));
-    }
-    case 'exchange.exportManuscript': {
-      knownKeys(input, ['file', 'manuscriptId']);
-      const file = requiredString(input.file, 'file');
-      assertExportTarget(desktopSessionFolder(sessionId), file, mediaRelpaths(project.db));
-      return saveDesktopPackage(
-        file,
-        exportDesktopManuscriptJyt(project.db, [
-          requiredString(input.manuscriptId, 'manuscriptId'),
-        ]),
-      );
-    }
-    default: {
-      const unreachable: never = parsed;
-      return unreachable;
-    }
-  }
-}
-
-function exportFile(input: Record<string, unknown>): string {
-  knownKeys(input, ['file']);
-  return requiredString(input.file, 'file');
+  const unreachable: never = parsed;
+  return unreachable;
 }
 
 function mediaRelpaths(db: { prepare(sql: string): { all(): unknown[] } }): string[] {
   return (db.prepare('SELECT relpath FROM media').all() as { relpath: string }[]).map(
     (row) => row.relpath,
   );
-}
-
-function importExchangeFile(
-  db: Parameters<typeof importForeignFile>[0]['db'],
-  folder: string,
-  input: Record<string, unknown>,
-): ReturnType<typeof importForeignFile> {
-  knownKeys(input, ['file', 'roles']);
-  const roles = input.roles === undefined ? undefined : requiredString(input.roles, 'roles');
-  return importForeignFile({
-    folder,
-    file: requiredString(input.file, 'file'),
-    ...(db === undefined ? {} : { db }),
-    ...(roles === undefined ? {} : { roles }),
-  });
 }
 
 function parseMethod(method: string): DesktopMethod {
@@ -1439,17 +1435,4 @@ function objectArg(args: unknown): Record<string, unknown> {
     throw new Error('desktop call args must be an object');
   }
   return args as Record<string, unknown>;
-}
-
-function requiredString(value: unknown, name: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`desktop call ${name} must be a string`);
-  }
-  return value;
-}
-
-function knownKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
-  for (const key of Object.keys(input)) {
-    if (!allowed.includes(key)) throw new Error(`desktop call field ${key} is not supported`);
-  }
 }

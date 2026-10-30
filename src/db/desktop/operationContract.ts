@@ -66,6 +66,7 @@ import type { Conversation, ConversationCreate } from './conversations';
 import type { Message, MessageAppend } from './messages';
 import type { BibliographyPatch, BibliographyReading } from './bibliographyFields';
 import type { LexemeLinkReading } from './referenceState';
+import type { ImportResult } from './foreignImport';
 import type { AnalysisApplyResult } from './analysis';
 import type { AnalysisImportResult } from './analysisImport';
 import type { AnalysisCandidateRecord } from './analysisCandidates';
@@ -1273,6 +1274,28 @@ function unitIdOf(input: Record<string, unknown>): { unitId: string } {
   return { unitId: requiredString(input.unitId, 'unitId') };
 }
 
+function exportFile(input: Record<string, unknown>): string {
+  knownKeys(input, ['file']);
+  return requiredString(input.file, 'file');
+}
+
+function exportManuscript(input: Record<string, unknown>): { file: string; manuscriptId: string } {
+  knownKeys(input, ['file', 'manuscriptId']);
+  return {
+    file: requiredString(input.file, 'file'),
+    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+  };
+}
+
+function exchangeImport(input: Record<string, unknown>): { file: string; roles?: string } {
+  knownKeys(input, ['file', 'roles']);
+  const roles = input.roles === undefined ? undefined : requiredString(input.roles, 'roles');
+  return {
+    file: requiredString(input.file, 'file'),
+    ...(roles === undefined ? {} : { roles }),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1860,6 +1883,17 @@ export const desktopOperations = {
     'clear',
     analysisMerge,
   ),
+  'exchange.importFile': spec<'clear', { file: string; roles?: string }, ImportResult>(
+    'clear',
+    exchangeImport,
+  ),
+  'exchange.exportJyt': spec<'keep', string, { file: string }>('keep', exportFile),
+  'exchange.exportJym': spec<'keep', string, { file: string }>('keep', exportFile),
+  'exchange.exportManuscript': spec<
+    'keep',
+    { file: string; manuscriptId: string },
+    { file: string }
+  >('keep', exportManuscript),
 };
 
 export type DesktopOperations = typeof desktopOperations;
