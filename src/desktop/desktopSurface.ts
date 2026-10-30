@@ -2,7 +2,7 @@ import type { DesktopReadHost } from './projectReadHost';
 
 export type DesktopSurface = 'desktop' | 'unavailable' | 'legacy';
 
-/** `jieyuDesktop` is present in Electron even when the bridge or the flag is off. */
+/** `jieyuDesktop` is present in Electron even when the bridge is unavailable. */
 export function electronDesktopPresent(): boolean {
   return 'jieyuDesktop' in globalThis;
 }

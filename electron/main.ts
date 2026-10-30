@@ -1,3 +1,12 @@
+import { startLocalWhisper, stopLocalWhisper } from '../src/desktop/localWhisper';
+import {
+  grantTranscriptionModel,
+  transcribeProject,
+  cancelProjectTranscription,
+  recoverProjectTranscriptions,
+  resetProjectTranscriptions,
+} from '../src/desktop/projectTranscription';
+import type { ProjectTranscriptionInput } from '../src/desktop/transcriptionTypes';
 import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, session } from 'electron';
 import type { IpcMainInvokeEvent, WebContents } from 'electron';
 import fs from 'node:fs';
@@ -17,15 +26,22 @@ import { callDesktopSession } from '../src/db/desktop/desktopCall';
 import { cancelModelTranscribe, runModelTranscribe } from '../src/desktop/modelHost';
 import { trashFile } from './trashFile';
 import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/dailyBackup';
+import {
+  grantRestoredProject,
+  readRestoredProjectGrant,
+} from '../src/desktop/restoredProjectGrant';
 import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
+  abandonDesktopSession,
   closeDesktopSession,
   desktopSessionFolder,
   openDesktopSession,
+  openPreparedDesktopSession,
   resetDesktopSessions,
 } from '../src/db/desktop/projectSession';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
+import { packagedPageFile } from '../src/desktop/skeleton/packagedPage';
 import {
   isAllowedAiOutboundUrl,
   isAllowedProjectFolder,
@@ -36,16 +52,14 @@ import { sliceForRange } from '../src/desktop/skeleton/mediaRange';
 import { openProjectFolder } from '../src/desktop/skeleton/openProject';
 import {
   bindDesktopMediaSession,
+  grantDesktopMedia,
   releaseDesktopMediaSession,
   resetDesktopMediaGrants,
   resolveDesktopMedia,
 } from '../src/desktop/skeleton/desktopMediaGrant';
 import { fileContainsProbeTable, writeSkeletonProbe } from '../src/desktop/skeleton/probeStore';
 import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
-import {
-  ensureUserDataLayout,
-  projectBackupDir,
-} from '../src/desktop/skeleton/userDataLayout';
+import { ensureUserDataLayout, projectBackupDir } from '../src/desktop/skeleton/userDataLayout';
 
 const userDataDir = process.env.JIEYU_DESKTOP_USER_DATA;
 if (typeof userDataDir === 'string' && userDataDir.length > 0) {
@@ -61,18 +75,18 @@ if (SMOKE) {
 
 const BAIDU_MARKER = '百度网盘';
 const MEDIA_SCHEME = 'jieyu-media';
+const APP_SCHEME = 'jieyu-app';
+const APP_PRIVILEGES = {
+  standard: true,
+  secure: true,
+  supportFetchAPI: true,
+  stream: true,
+  corsEnabled: true,
+};
 
 protocol.registerSchemesAsPrivileged([
-  {
-    scheme: MEDIA_SCHEME,
-    privileges: {
-      standard: true,
-      secure: true,
-      supportFetchAPI: true,
-      stream: true,
-      corsEnabled: true,
-    },
-  },
+  { scheme: MEDIA_SCHEME, privileges: APP_PRIVILEGES },
+  { scheme: APP_SCHEME, privileges: APP_PRIVILEGES },
 ]);
 
 function mediaRoot(): string {
@@ -80,13 +94,7 @@ function mediaRoot(): string {
 }
 
 function mediaFile(name: string): string | null {
-  const granted = resolveDesktopMedia(path.basename(name));
-  if (granted) return granted;
-  const root = path.resolve(mediaRoot());
-  const filePath = path.resolve(root, path.basename(name));
-  const relative = path.relative(root, filePath);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) return null;
-  return filePath;
+  return resolveDesktopMedia(path.basename(name));
 }
 
 function installCsp(): void {
@@ -98,6 +106,49 @@ function installCsp(): void {
       },
     });
   });
+}
+
+function installAppProtocol(): void {
+  const distRoot = path.join(app.getAppPath(), 'dist');
+  protocol.handle(APP_SCHEME, (request) => {
+    const file = packagedPageFile(distRoot, new URL(request.url).pathname, (candidate) => {
+      try {
+        return fs.statSync(candidate).isFile();
+      } catch {
+        return false;
+      }
+    });
+    if (file === null) return new Response(null, { status: 404 });
+    return new Response(fs.readFileSync(file), {
+      headers: { 'Content-Type': packagedContentType(file) },
+    });
+  });
+}
+
+function packagedContentType(file: string): string {
+  switch (path.extname(file)) {
+    case '.html':
+      return 'text/html; charset=utf-8';
+    case '.js':
+      return 'text/javascript; charset=utf-8';
+    case '.css':
+      return 'text/css; charset=utf-8';
+    case '.svg':
+      return 'image/svg+xml';
+    case '.woff2':
+      return 'font/woff2';
+    case '.json':
+    case '.map':
+      return 'application/json';
+    case '.webmanifest':
+      return 'application/manifest+json';
+    case '.wasm':
+      return 'application/wasm';
+    case '.png':
+      return 'image/png';
+    default:
+      return 'application/octet-stream';
+  }
 }
 
 function installMediaProtocol(): void {
@@ -209,9 +260,13 @@ async function runOutboundRequest(
 }
 
 function openUserProjectSession(folder: string): { sessionId: string } {
-  return openDesktopSession(folder, [...allowedProjectFolders], {
+  resetProjectTranscriptions();
+  void stopLocalWhisper();
+  const opened = openDesktopSession(folder, [...allowedProjectFolders], {
     dir: projectBackupDir(app.getPath('userData'), folder),
   });
+  recoverProjectTranscriptions(opened.sessionId);
+  return opened;
 }
 
 function registerIpc(): void {
@@ -229,6 +284,9 @@ function registerIpc(): void {
 
   handle('desktop:close-session', (sessionId: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    desktopSessionFolder(sessionId);
+    resetProjectTranscriptions();
+    void stopLocalWhisper();
     closeDesktopSession(sessionId);
     releaseDesktopMediaSession(sessionId);
     return { closed: true };
@@ -257,12 +315,36 @@ function registerIpc(): void {
     });
     const destination = picked.filePaths[0];
     if (destination === undefined) return { cancelled: true };
+    desktopSessionFolder(sessionId);
     restoreDailyBackup({
       backupDir: projectBackupDir(app.getPath('userData'), folder),
       day,
       destination,
     });
+    grantRestoredProject(sessionId, destination);
     return { folder: destination };
+  });
+
+  handle('desktop:open-restored-backup', (sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    desktopSessionFolder(sessionId);
+    const folder = readRestoredProjectGrant(sessionId);
+    const resolved = path.resolve(folder);
+    const alreadyAllowed = allowedProjectFolders.has(resolved);
+    if (!alreadyAllowed) allowedProjectFolders.add(resolved);
+    try {
+      const opened = openPreparedDesktopSession(resolved, [...allowedProjectFolders], {
+        dir: projectBackupDir(app.getPath('userData'), resolved),
+      });
+      resetProjectTranscriptions();
+      void stopLocalWhisper();
+      recoverProjectTranscriptions(opened.sessionId);
+      bindDesktopMediaSession(opened.sessionId);
+      return opened;
+    } catch (error) {
+      if (!alreadyAllowed) allowedProjectFolders.delete(resolved);
+      throw error;
+    }
   });
 
   handle('desktop:choose-folder', async () => {
@@ -304,6 +386,50 @@ function registerIpc(): void {
     const picked = await dialog.showSaveDialog({ defaultPath: name });
     if (picked.filePath === undefined) return { cancelled: true };
     return { file: picked.filePath };
+  });
+
+  handle('desktop:choose-local-whisper', async (sessionId: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
+    desktopSessionFolder(sessionId);
+    const picked = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Whisper weights', extensions: ['bin'] }],
+    });
+    const file = picked.filePaths[0];
+    if (file === undefined) return { cancelled: true };
+    desktopSessionFolder(sessionId);
+    // Development engine only until the signed per-platform binaries are bundled.
+    const cli = app.isPackaged
+      ? path.join(
+          process.resourcesPath,
+          'whisper',
+          process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli',
+        )
+      : process.env.WHISPER_CLI;
+    if (!cli) throw new Error('local whisper engine is unavailable');
+    return startLocalWhisper(sessionId, file, cli);
+  });
+
+  handle('desktop:choose-transcription-model', async (sessionId: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
+    desktopSessionFolder(sessionId);
+    const picked = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Model declaration', extensions: ['json'] }],
+    });
+    const file = picked.filePaths[0];
+    if (file === undefined) return { cancelled: true };
+    desktopSessionFolder(sessionId);
+    return grantTranscriptionModel(sessionId, file);
+  });
+  handle('desktop:transcribe-project', (sessionId: unknown, input: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
+    return transcribeProject(sessionId, input as ProjectTranscriptionInput);
+  });
+  handle('desktop:cancel-project-transcription', (sessionId: unknown, requestId: unknown) => {
+    if (typeof sessionId !== 'string' || typeof requestId !== 'string')
+      throw new Error('empty request');
+    cancelProjectTranscription(sessionId, requestId);
   });
 
   handle('model:transcribe', (input: unknown) => runModelTranscribe(input));
@@ -412,18 +538,32 @@ async function openWindow(): Promise<BrowserWindow> {
       sandbox: true,
     },
   });
+  let loadedOnce = false;
+  win.webContents.on('did-finish-load', () => {
+    if (!loadedOnce) {
+      loadedOnce = true;
+      return;
+    }
+    const abandoned = abandonDesktopSession();
+    if (abandoned !== null) releaseDesktopMediaSession(abandoned);
+  });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event, url) => {
     if (!isAppNavigation(url, win.webContents.getURL())) event.preventDefault();
   });
-  const devServer = process.env.JIEYU_VITE_DEV_SERVER;
-  if (devServer && !process.argv.includes('--smoke')) {
-    await win.loadURL(devServer);
-    return win;
-  }
-  const indexHtml = path.join(process.cwd(), 'dist', 'index.html');
-  if (!process.argv.includes('--smoke') && fs.existsSync(indexHtml)) {
-    await win.loadFile(indexHtml);
+  if (!app.isPackaged) {
+    const devServer = process.env.JIEYU_VITE_DEV_SERVER;
+    if (devServer && !process.argv.includes('--smoke')) {
+      await win.loadURL(devServer);
+      return win;
+    }
+    const indexHtml = path.join(process.cwd(), 'dist', 'index.html');
+    if (!process.argv.includes('--smoke') && fs.existsSync(indexHtml)) {
+      await win.loadFile(indexHtml);
+      return win;
+    }
+  } else if (!process.argv.includes('--smoke')) {
+    await win.loadURL(`${APP_SCHEME}://local/desktop-project`);
     return win;
   }
   const page = path.join(app.getPath('temp'), 'jieyu-skeleton-smoke.html');
@@ -481,8 +621,11 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
     allowedProjectFolders.add(path.resolve(synced));
     writeProjectLibraryMarker(path.join(project, 'project.sqlite'));
     smokeSqliteUserDataFile = path.join(root, 'user-data.sqlite');
+    const clip = path.join(mediaRoot(), 'clip.bin');
     fs.mkdirSync(mediaRoot(), { recursive: true });
-    fs.writeFileSync(path.join(mediaRoot(), 'clip.bin'), 'abcdefgh');
+    fs.writeFileSync(clip, 'abcdefgh');
+    bindDesktopMediaSession('smoke-range');
+    const clipToken = grantDesktopMedia('smoke-range', clip);
     // Keys saved before the async switch were written by the deprecated sync encryptString (gone in Electron 46).
     fs.mkdirSync(path.dirname(secretPath()), { recursive: true });
     fs.writeFileSync(secretPath(), safeStorage.encryptString('legacy-secret'));
@@ -505,7 +648,7 @@ async function runSmoke(win: BrowserWindow): Promise<void> {
         ${JSON.stringify(`${loopback.baseUrl}/stream`)},
       );
       off();
-      const mediaUrl = await window.jieyuDesktop.mediaUrl('clip.bin');
+      const mediaUrl = await window.jieyuDesktop.mediaUrl(${JSON.stringify(clipToken)});
       const mediaResponse = await fetch(mediaUrl, { headers: { Range: 'bytes=0-3' } });
       const turn = { conversationId: 'smoke-turn', createdAt: 1, expiresAt: 70, note: 'kept' };
       await window.jieyuDesktop.openStorage(${JSON.stringify(project)});
@@ -603,6 +746,7 @@ app
     ensureUserDataLayout(app.getPath('userData'));
     installCsp();
     installMediaProtocol();
+    installAppProtocol();
     registerIpc();
     const win = await openWindow();
     if (process.argv.includes('--smoke')) {
@@ -624,9 +768,17 @@ app
     app.exit(1);
   });
 
-app.on('before-quit', () => {
-  resetDesktopSessions();
-  resetDesktopMediaGrants();
+let quitting = false;
+app.on('before-quit', (event) => {
+  if (quitting) return;
+  event.preventDefault();
+  resetProjectTranscriptions();
+  void stopLocalWhisper().finally(() => {
+    resetDesktopSessions();
+    resetDesktopMediaGrants();
+    quitting = true;
+    app.quit();
+  });
 });
 
 app.on('window-all-closed', () => {

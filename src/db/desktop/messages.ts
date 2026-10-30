@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -19,6 +20,7 @@ export interface MessageAppend {
   conversationId: string;
   role: MessageRole;
   body: string;
+  fieldValues?: Record<string, unknown>;
 }
 
 interface MessageRow {
@@ -48,6 +50,7 @@ export function appendMessage(db: SqliteDatabase, input: MessageAppend): Message
       `INSERT INTO messages (id, conversation_id, role, body, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(id, input.conversationId, input.role, input.body, now, now);
+    writeRequiredFieldValues(db, 'message', id, input.fieldValues);
     const message = getMessage(db, id);
     if (
       !message ||

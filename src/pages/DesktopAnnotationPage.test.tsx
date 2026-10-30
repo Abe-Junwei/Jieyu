@@ -11,9 +11,15 @@ import {
   forgetOpenProjectSession,
   rememberOpenProjectSession,
 } from '../desktop/openProjectSession';
-import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { readDesktopProjectHost, type DesktopReadHost } from '../desktop/projectReadHost';
 import { LocaleProvider } from '../i18n';
-import { AnnotationPage } from './AnnotationPage';
+import { DesktopAnnotationPage } from './DesktopAnnotationPage';
+
+function DesktopAnnotationUnderTest() {
+  const host = readDesktopProjectHost();
+  if (host === null) return null;
+  return <DesktopAnnotationPage host={host} />;
+}
 
 const roots: string[] = [];
 
@@ -65,7 +71,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -138,7 +144,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -248,7 +254,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -362,7 +368,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -464,7 +470,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -563,7 +569,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -651,7 +657,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -711,6 +717,73 @@ describe('DesktopAnnotationPage', () => {
     expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       text: 'ka',
     });
+  });
+
+  it('keeps a word note and a morpheme note after the project is reopened', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-desktop-annotation-note-'));
+    roots.push(folder);
+    writeFileSync(join(folder, 'a.wav'), '');
+    const session = openDesktopSession(folder, [folder]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 12,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { en: 'Manuscript' },
+      mediaId: media.id,
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { en: 'Transcription' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 2,
+      text: 'pre-fix',
+    });
+    rememberOpenProjectSession(session.sessionId);
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: () => Promise.reject(new Error('should not choose a folder')),
+      desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
+      desktopMediaUrl: () => Promise.reject(new Error('annotation must not request media')),
+    };
+    const page = () => (
+      <LocaleProvider locale="en-US">
+        <MemoryRouter>
+          <DesktopAnnotationUnderTest />
+        </MemoryRouter>
+      </LocaleProvider>
+    );
+    const view = render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 pre-fix' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
+    expect(await screen.findByRole('textbox', { name: 'Word note: pre-fix' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Split morphemes on -/=' }));
+    expect(await screen.findByRole('textbox', { name: 'Morpheme note: pre' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Word note: pre-fix' }), {
+      target: { value: 'word-note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save word note: pre-fix' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Morpheme note: pre' }), {
+      target: { value: 'stem-note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save morpheme note: pre' }));
+    expect(await screen.findByText('word-note')).toBeTruthy();
+    expect(screen.getByText('stem-note')).toBeTruthy();
+    view.unmount();
+    resetDesktopSessions();
+    const reopened = openDesktopSession(folder, [folder]);
+    rememberOpenProjectSession(reopened.sessionId);
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 pre-fix' }));
+    expect(await screen.findByText('word-note')).toBeTruthy();
+    expect(await screen.findByText('stem-note')).toBeTruthy();
   });
 });
 
