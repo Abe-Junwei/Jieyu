@@ -6,7 +6,7 @@
 
 录音、转写时间轴、标注、项目词典和语料库默认留在本机浏览器里（IndexedDB / Dexie）。需要协作时，同步的是按项目裁剪的快照。这一版在浏览器里运行。桌面安装包仍是后续目标，见 [仓库现状](docs/architecture/仓库现状与代码地图.md)。
 
-著作权：见根目录 **[LICENSE](LICENSE)**（Copyright (c) **沂南灵创技术服务中心**，ISC）。
+著作权：见根目录 **[LICENSE](LICENSE)**（Copyright (c) **沂南灵创技术服务中心**，AGPL-3.0-or-later）。
 
 ## 参与与对外说明
 
@@ -122,7 +122,7 @@ VITE_MAP_PROXY_FALLBACK_ON_ERROR=true
 
 ## 许可证与版本
 
-- 许可证：[LICENSE](LICENSE)（ISC，与 `package.json` 的 `license` 字段一致）。
+- 许可证：[LICENSE](LICENSE)（AGPL-3.0-or-later，与 `package.json` 的 `license` 字段一致）。
 - 学术引用：[CITATION.cff](CITATION.cff)。
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)。
 - 语义化版本约定：[docs/development/VERSIONING.md](docs/development/VERSIONING.md)。
