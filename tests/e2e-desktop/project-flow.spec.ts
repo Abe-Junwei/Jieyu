@@ -5,13 +5,13 @@ import { join } from 'node:path';
 
 const folder = process.env.JIEYU_DESKTOP_FLOW_FOLDER;
 const devServer = process.env.JIEYU_VITE_DEV_SERVER;
-const openFolder = /Open folder|打开文件夹|app\.desktopRead\.openFolder/;
+const openFolder = /^(Open folder|打开文件夹|app\.desktopRead\.openFolder)$/;
 const textLabel = /^(Text|正文|app\.desktopRead\.text)$/;
-const saveText = /Save text|保存正文|app\.desktopRead\.saveText/;
-const boundaryLabel = /Literature boundary|文献边界|app\.desktopRead\.boundary/;
-const moveBoundary = /Move boundary|移动边界|app\.desktopRead\.moveBoundary/;
-const offsetLabel = /Offset seconds|偏移秒|app\.desktopRead\.offset/;
-const saveMapping = /Save time mapping|保存时间映射|app\.desktopRead\.saveMapping/;
+const saveText = /^(Save text|保存正文|app\.desktopRead\.saveText)$/;
+const boundaryLabel = /^(Literature boundary|文献边界|app\.desktopRead\.boundary)$/;
+const moveBoundary = /^(Move boundary|移动边界|app\.desktopRead\.moveBoundary)$/;
+const offsetLabel = /^(Offset seconds|偏移秒|app\.desktopRead\.offset)$/;
+const saveMapping = /^(Save time mapping|保存时间映射|app\.desktopRead\.saveMapping)$/;
 const edited = '0.0–0.2 edited';
 const played = '1.0–1.2';
 
@@ -50,7 +50,7 @@ test('opens, plays, edits, refuses a second process, and reads the edit back', a
     const again = await third.firstWindow();
     await stubFolderDialog(third, folder);
     await again.getByRole('button', { name: openFolder }).click();
-    await expect(again.getByRole('button', { name: 'Clip' })).toBeVisible();
+    await expect(again.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
     await expect(again.getByRole('button', { name: edited })).toBeVisible();
     await expect(again.getByText(played)).toBeVisible();
   } finally {
@@ -64,7 +64,7 @@ async function editProject(app: ElectronApplication, projectFolder: string): Pro
   await stubFolderDialog(app, projectFolder);
   const page = await app.firstWindow();
   await page.getByRole('button', { name: openFolder }).click();
-  await expect(page.getByRole('button', { name: 'Clip' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
   const audio = page.locator('audio');
   const audioState = await audio.evaluate((element) => {
     const media = element as HTMLAudioElement;
