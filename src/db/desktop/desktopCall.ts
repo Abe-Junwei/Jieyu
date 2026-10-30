@@ -23,7 +23,6 @@ import {
   segmentUnitWords,
   splitAnalysisNode,
   submitAnalysis,
-  type AnalysisCredentials,
 } from './analysisRestore';
 import {
   createBridge,
@@ -136,19 +135,6 @@ import {
 import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
-  'analysis.apply',
-  'analysis.readState',
-  'analysis.listCandidates',
-  'analysis.listWords',
-  'analysis.segmentWords',
-  'analysis.listMorphemes',
-  'analysis.segmentMorphemes',
-  'analysis.import',
-  'analysis.submit',
-  'analysis.accept',
-  'analysis.restore',
-  'analysis.split',
-  'analysis.merge',
   'exchange.importFile',
   'exchange.exportJyt',
   'exchange.exportJym',
@@ -162,10 +148,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'exchange.exportJyt',
   'exchange.exportJym',
   'exchange.exportManuscript',
-  'analysis.readState',
-  'analysis.listCandidates',
-  'analysis.listWords',
-  'analysis.listMorphemes',
 ]);
 
 type ContractCtx = {
@@ -625,6 +607,66 @@ const operationHandlers = {
   },
   'references.listLinks': {
     run: (ctx: ContractCtx) => readLexemeLinks(ctx.db),
+  },
+  'analysis.apply': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.apply']['check']>) =>
+      applyAnalysis(ctx.db, input),
+  },
+  'analysis.readState': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.readState']['check']>) =>
+      readAnalysisState(ctx.db, input.unitId),
+  },
+  'analysis.listCandidates': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.listCandidates']['check']>,
+    ) => listAnalysisCandidates(ctx.db, input.unitId),
+  },
+  'analysis.listWords': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.listWords']['check']>) =>
+      listUnitWords(ctx.db, input.unitId),
+  },
+  'analysis.segmentWords': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.segmentWords']['check']>,
+    ) => segmentUnitWords(ctx.db, input.unitId),
+  },
+  'analysis.listMorphemes': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.listMorphemes']['check']>,
+    ) => listUnitMorphemes(ctx.db, input.unitId),
+  },
+  'analysis.segmentMorphemes': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.segmentMorphemes']['check']>,
+    ) => segmentUnitMorphemes(ctx.db, input.unitId),
+  },
+  'analysis.import': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.import']['check']>) =>
+      importAnalysis(ctx.db, input),
+  },
+  'analysis.submit': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.submit']['check']>) =>
+      submitAnalysis(ctx.db, input),
+  },
+  'analysis.accept': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.accept']['check']>) =>
+      acceptAnalysis(ctx.db, input),
+  },
+  'analysis.restore': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.restore']['check']>) =>
+      restoreAnalysis(ctx.db, input),
+  },
+  'analysis.split': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.split']['check']>) =>
+      splitAnalysisNode(ctx.db, input),
+  },
+  'analysis.merge': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.merge']['check']>) =>
+      mergeAnalysisNodes(ctx.db, input),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1150,6 +1192,71 @@ function runContract(
     case 'references.listLinks':
       desktopOperations['references.listLinks'].check(raw);
       return operationHandlers['references.listLinks'].run(ctx);
+    case 'analysis.apply':
+      return operationHandlers['analysis.apply'].run(
+        ctx,
+        desktopOperations['analysis.apply'].check(raw),
+      );
+    case 'analysis.readState':
+      return operationHandlers['analysis.readState'].run(
+        ctx,
+        desktopOperations['analysis.readState'].check(raw),
+      );
+    case 'analysis.listCandidates':
+      return operationHandlers['analysis.listCandidates'].run(
+        ctx,
+        desktopOperations['analysis.listCandidates'].check(raw),
+      );
+    case 'analysis.listWords':
+      return operationHandlers['analysis.listWords'].run(
+        ctx,
+        desktopOperations['analysis.listWords'].check(raw),
+      );
+    case 'analysis.segmentWords':
+      return operationHandlers['analysis.segmentWords'].run(
+        ctx,
+        desktopOperations['analysis.segmentWords'].check(raw),
+      );
+    case 'analysis.listMorphemes':
+      return operationHandlers['analysis.listMorphemes'].run(
+        ctx,
+        desktopOperations['analysis.listMorphemes'].check(raw),
+      );
+    case 'analysis.segmentMorphemes':
+      return operationHandlers['analysis.segmentMorphemes'].run(
+        ctx,
+        desktopOperations['analysis.segmentMorphemes'].check(raw),
+      );
+    case 'analysis.import':
+      return operationHandlers['analysis.import'].run(
+        ctx,
+        desktopOperations['analysis.import'].check(raw),
+      );
+    case 'analysis.submit':
+      return operationHandlers['analysis.submit'].run(
+        ctx,
+        desktopOperations['analysis.submit'].check(raw),
+      );
+    case 'analysis.accept':
+      return operationHandlers['analysis.accept'].run(
+        ctx,
+        desktopOperations['analysis.accept'].check(raw),
+      );
+    case 'analysis.restore':
+      return operationHandlers['analysis.restore'].run(
+        ctx,
+        desktopOperations['analysis.restore'].check(raw),
+      );
+    case 'analysis.split':
+      return operationHandlers['analysis.split'].run(
+        ctx,
+        desktopOperations['analysis.split'].check(raw),
+      );
+    case 'analysis.merge':
+      return operationHandlers['analysis.merge'].run(
+        ctx,
+        desktopOperations['analysis.merge'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1265,39 +1372,6 @@ export function callDesktopSession(
   if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
   const input = objectArg(args);
   switch (parsed) {
-    case 'analysis.apply':
-      return applyAnalysis(project.db, analysisApply(input));
-    case 'analysis.readState': {
-      knownKeys(input, ['unitId']);
-      return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
-    }
-    case 'analysis.listCandidates':
-      knownKeys(input, ['unitId']);
-      return listAnalysisCandidates(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.listWords':
-      knownKeys(input, ['unitId']);
-      return listUnitWords(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.segmentWords':
-      knownKeys(input, ['unitId']);
-      return segmentUnitWords(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.listMorphemes':
-      knownKeys(input, ['unitId']);
-      return listUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.segmentMorphemes':
-      knownKeys(input, ['unitId']);
-      return segmentUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.import':
-      return importAnalysis(project.db, analysisImport(input));
-    case 'analysis.submit':
-      return submitAnalysis(project.db, analysisSubmit(input));
-    case 'analysis.accept':
-      return acceptAnalysis(project.db, analysisCandidate(input));
-    case 'analysis.restore':
-      return restoreAnalysis(project.db, analysisRestore(input));
-    case 'analysis.split':
-      return splitAnalysisNode(project.db, analysisSplit(input));
-    case 'analysis.merge':
-      return mergeAnalysisNodes(project.db, analysisMerge(input));
     case 'exchange.importFile':
       return importExchangeFile(project.db, desktopSessionFolder(sessionId), input);
     case 'exchange.exportJyt': {
@@ -1372,165 +1446,6 @@ function requiredString(value: unknown, name: string): string {
     throw new Error(`desktop call ${name} must be a string`);
   }
   return value;
-}
-
-function fingerprintString(value: unknown): string {
-  if (typeof value !== 'string') throw new Error('desktop call graphFingerprint must be a string');
-  return value;
-}
-
-function requiredNumber(value: unknown, name: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new Error(`desktop call ${name} must be a number`);
-  }
-  return value;
-}
-
-function analysisCredentials(input: Record<string, unknown>): AnalysisCredentials {
-  const expected = objectArg(input.expected);
-  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
-  return {
-    manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
-    analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
-    graphFingerprint: fingerprintString(expected.graphFingerprint),
-  };
-}
-
-function analysisImport(input: Record<string, unknown>): {
-  unitId: string;
-  expected: AnalysisCredentials;
-  nodes: unknown[];
-  relations: unknown[];
-  removeNodes: unknown[];
-  removeRelations: unknown[];
-} {
-  knownKeys(input, ['unitId', 'expected', 'nodes', 'relations', 'removeNodes', 'removeRelations']);
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    expected: analysisCredentials(input),
-    nodes: listArg(input.nodes, 'nodes'),
-    relations: listArg(input.relations, 'relations'),
-    removeNodes: listArg(input.removeNodes, 'removeNodes'),
-    removeRelations: listArg(input.removeRelations, 'removeRelations'),
-  };
-}
-
-function listArg(value: unknown, name: string): unknown[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value)) throw new Error(`desktop call ${name} must be a list`);
-  return value;
-}
-
-function analysisSubmit(input: Record<string, unknown>): {
-  unitId: string;
-  graph: unknown;
-  expected: AnalysisCredentials;
-  definitionRevisions: { definitionId: string; revision: number }[];
-} {
-  knownKeys(input, ['unitId', 'graph', 'expected', 'definitionRevisions']);
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    graph: input.graph,
-    expected: analysisCredentials(input),
-    definitionRevisions: revisionBasis(input.definitionRevisions),
-  };
-}
-
-function revisionBasis(value: unknown): { definitionId: string; revision: number }[] {
-  if (!Array.isArray(value)) throw new Error('custom field revision does not match');
-  return value.map((item) => {
-    const record = objectArg(item);
-    knownKeys(record, ['definitionId', 'revision']);
-    return {
-      definitionId: requiredString(record.definitionId, 'definitionId'),
-      revision: requiredNumber(record.revision, 'revision'),
-    };
-  });
-}
-
-function analysisCandidate(input: Record<string, unknown>): {
-  candidateId: string;
-  expected: AnalysisCredentials;
-} {
-  knownKeys(input, ['candidateId', 'expected']);
-  return {
-    candidateId: requiredString(input.candidateId, 'candidateId'),
-    expected: analysisCredentials(input),
-  };
-}
-
-function analysisRestore(input: Record<string, unknown>): {
-  candidateId: string;
-  expected: AnalysisCredentials;
-  conversions?: unknown[];
-} {
-  knownKeys(input, ['candidateId', 'expected', 'conversions']);
-  return {
-    candidateId: requiredString(input.candidateId, 'candidateId'),
-    expected: analysisCredentials(input),
-    ...(input.conversions === undefined
-      ? {}
-      : { conversions: listArg(input.conversions, 'conversions') }),
-  };
-}
-
-function analysisSplit(input: Record<string, unknown>): {
-  unitId: string;
-  nodeId: string;
-  into: [unknown, unknown];
-  expected: AnalysisCredentials;
-} {
-  knownKeys(input, ['unitId', 'nodeId', 'into', 'expected']);
-  if (!Array.isArray(input.into) || input.into.length !== 2) {
-    throw new Error('desktop call into must be a pair');
-  }
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    nodeId: requiredString(input.nodeId, 'nodeId'),
-    into: [input.into[0], input.into[1]],
-    expected: analysisCredentials(input),
-  };
-}
-
-function analysisMerge(input: Record<string, unknown>): {
-  unitId: string;
-  nodeIds: [string, string];
-  into: unknown;
-  expected: AnalysisCredentials;
-} {
-  knownKeys(input, ['unitId', 'nodeIds', 'into', 'expected']);
-  if (!Array.isArray(input.nodeIds) || input.nodeIds.length !== 2) {
-    throw new Error('desktop call nodeIds must be a pair');
-  }
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    nodeIds: [
-      requiredString(input.nodeIds[0], 'nodeIds'),
-      requiredString(input.nodeIds[1], 'nodeIds'),
-    ],
-    into: input.into,
-    expected: analysisCredentials(input),
-  };
-}
-
-function analysisApply(input: Record<string, unknown>): {
-  unitId: string;
-  expected: { manuscriptGeneration: number; analysisGeneration: number; graphFingerprint: string };
-  changes: unknown[];
-} {
-  knownKeys(input, ['unitId', 'expected', 'changes']);
-  const expected = objectArg(input.expected);
-  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
-  if (!Array.isArray(input.changes)) throw new Error('desktop call changes must be a list');
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    expected: {
-      manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
-      analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
-      graphFingerprint: requiredString(expected.graphFingerprint, 'graphFingerprint'),
-    },
-    changes: input.changes,
-  };
 }
 
 function knownKeys(input: Record<string, unknown>, allowed: readonly string[]): void {

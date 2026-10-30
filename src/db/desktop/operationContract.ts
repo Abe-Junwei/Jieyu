@@ -66,7 +66,17 @@ import type { Conversation, ConversationCreate } from './conversations';
 import type { Message, MessageAppend } from './messages';
 import type { BibliographyPatch, BibliographyReading } from './bibliographyFields';
 import type { LexemeLinkReading } from './referenceState';
-import type { Unit, UnitCreate } from './units';
+import type { AnalysisApplyResult } from './analysis';
+import type { AnalysisImportResult } from './analysisImport';
+import type { AnalysisCandidateRecord } from './analysisCandidates';
+import type {
+  AnalysisAcceptResult,
+  AnalysisCredentials,
+  AnalysisReadState,
+  UnitMorpheme,
+  UnitWord,
+} from './analysisRestore';
+import type { AnalysisRoot, Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
 
@@ -1106,6 +1116,163 @@ function orderedNotes(patch: { expectedRevision: number; value: Record<string, s
   return { expectedRevision: patch.expectedRevision, value: ordered };
 }
 
+function fingerprintString(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('desktop call graphFingerprint must be a string');
+  return value;
+}
+
+function analysisCredentials(input: Record<string, unknown>): AnalysisCredentials {
+  const expected = objectArg(input.expected);
+  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
+  return {
+    manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
+    analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
+    graphFingerprint: fingerprintString(expected.graphFingerprint),
+  };
+}
+
+function analysisImport(input: Record<string, unknown>): {
+  unitId: string;
+  expected: AnalysisCredentials;
+  nodes: unknown[];
+  relations: unknown[];
+  removeNodes: unknown[];
+  removeRelations: unknown[];
+} {
+  knownKeys(input, ['unitId', 'expected', 'nodes', 'relations', 'removeNodes', 'removeRelations']);
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    expected: analysisCredentials(input),
+    nodes: listArg(input.nodes, 'nodes'),
+    relations: listArg(input.relations, 'relations'),
+    removeNodes: listArg(input.removeNodes, 'removeNodes'),
+    removeRelations: listArg(input.removeRelations, 'removeRelations'),
+  };
+}
+
+function listArg(value: unknown, name: string): unknown[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`desktop call ${name} must be a list`);
+  return value;
+}
+
+function analysisSubmit(input: Record<string, unknown>): {
+  unitId: string;
+  graph: unknown;
+  expected: AnalysisCredentials;
+  definitionRevisions: { definitionId: string; revision: number }[];
+} {
+  knownKeys(input, ['unitId', 'graph', 'expected', 'definitionRevisions']);
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    graph: input.graph,
+    expected: analysisCredentials(input),
+    definitionRevisions: revisionBasis(input.definitionRevisions),
+  };
+}
+
+function revisionBasis(value: unknown): { definitionId: string; revision: number }[] {
+  if (!Array.isArray(value)) throw new Error('custom field revision does not match');
+  return value.map((item) => {
+    const record = objectArg(item);
+    knownKeys(record, ['definitionId', 'revision']);
+    return {
+      definitionId: requiredString(record.definitionId, 'definitionId'),
+      revision: requiredNumber(record.revision, 'revision'),
+    };
+  });
+}
+
+function analysisCandidate(input: Record<string, unknown>): {
+  candidateId: string;
+  expected: AnalysisCredentials;
+} {
+  knownKeys(input, ['candidateId', 'expected']);
+  return {
+    candidateId: requiredString(input.candidateId, 'candidateId'),
+    expected: analysisCredentials(input),
+  };
+}
+
+function analysisRestore(input: Record<string, unknown>): {
+  candidateId: string;
+  expected: AnalysisCredentials;
+  conversions?: unknown[];
+} {
+  knownKeys(input, ['candidateId', 'expected', 'conversions']);
+  return {
+    candidateId: requiredString(input.candidateId, 'candidateId'),
+    expected: analysisCredentials(input),
+    ...(input.conversions === undefined
+      ? {}
+      : { conversions: listArg(input.conversions, 'conversions') }),
+  };
+}
+
+function analysisSplit(input: Record<string, unknown>): {
+  unitId: string;
+  nodeId: string;
+  into: [unknown, unknown];
+  expected: AnalysisCredentials;
+} {
+  knownKeys(input, ['unitId', 'nodeId', 'into', 'expected']);
+  if (!Array.isArray(input.into) || input.into.length !== 2) {
+    throw new Error('desktop call into must be a pair');
+  }
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    nodeId: requiredString(input.nodeId, 'nodeId'),
+    into: [input.into[0], input.into[1]],
+    expected: analysisCredentials(input),
+  };
+}
+
+function analysisMerge(input: Record<string, unknown>): {
+  unitId: string;
+  nodeIds: [string, string];
+  into: unknown;
+  expected: AnalysisCredentials;
+} {
+  knownKeys(input, ['unitId', 'nodeIds', 'into', 'expected']);
+  if (!Array.isArray(input.nodeIds) || input.nodeIds.length !== 2) {
+    throw new Error('desktop call nodeIds must be a pair');
+  }
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    nodeIds: [
+      requiredString(input.nodeIds[0], 'nodeIds'),
+      requiredString(input.nodeIds[1], 'nodeIds'),
+    ],
+    into: input.into,
+    expected: analysisCredentials(input),
+  };
+}
+
+function analysisApply(input: Record<string, unknown>): {
+  unitId: string;
+  expected: { manuscriptGeneration: number; analysisGeneration: number; graphFingerprint: string };
+  changes: unknown[];
+} {
+  knownKeys(input, ['unitId', 'expected', 'changes']);
+  const expected = objectArg(input.expected);
+  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
+  if (!Array.isArray(input.changes)) throw new Error('desktop call changes must be a list');
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    expected: {
+      manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
+      analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
+      graphFingerprint: requiredString(expected.graphFingerprint, 'graphFingerprint'),
+    },
+    changes: input.changes,
+  };
+}
+
+function unitIdOf(input: Record<string, unknown>): { unitId: string } {
+  knownKeys(input, ['unitId']);
+  return { unitId: requiredString(input.unitId, 'unitId') };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1655,6 +1822,43 @@ export const desktopOperations = {
       knownKeys(input, []);
       return {} as Record<string, never>;
     },
+  ),
+  'analysis.apply': spec<'clear', ReturnType<typeof analysisApply>, AnalysisApplyResult>(
+    'clear',
+    analysisApply,
+  ),
+  'analysis.readState': spec<'keep', { unitId: string }, AnalysisReadState>('keep', unitIdOf),
+  'analysis.listCandidates': spec<'keep', { unitId: string }, AnalysisCandidateRecord[]>(
+    'keep',
+    unitIdOf,
+  ),
+  'analysis.listWords': spec<'keep', { unitId: string }, UnitWord[]>('keep', unitIdOf),
+  'analysis.segmentWords': spec<'clear', { unitId: string }, UnitWord[]>('clear', unitIdOf),
+  'analysis.listMorphemes': spec<'keep', { unitId: string }, UnitMorpheme[]>('keep', unitIdOf),
+  'analysis.segmentMorphemes': spec<'clear', { unitId: string }, UnitMorpheme[]>('clear', unitIdOf),
+  'analysis.import': spec<'clear', ReturnType<typeof analysisImport>, AnalysisImportResult>(
+    'clear',
+    analysisImport,
+  ),
+  'analysis.submit': spec<'clear', ReturnType<typeof analysisSubmit>, AnalysisCandidateRecord>(
+    'clear',
+    analysisSubmit,
+  ),
+  'analysis.accept': spec<'clear', ReturnType<typeof analysisCandidate>, AnalysisAcceptResult>(
+    'clear',
+    analysisCandidate,
+  ),
+  'analysis.restore': spec<'clear', ReturnType<typeof analysisRestore>, AnalysisRoot>(
+    'clear',
+    analysisRestore,
+  ),
+  'analysis.split': spec<'clear', ReturnType<typeof analysisSplit>, AnalysisRoot>(
+    'clear',
+    analysisSplit,
+  ),
+  'analysis.merge': spec<'clear', ReturnType<typeof analysisMerge>, AnalysisRoot>(
+    'clear',
+    analysisMerge,
   ),
 };
 
