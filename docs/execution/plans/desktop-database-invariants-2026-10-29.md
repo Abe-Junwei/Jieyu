@@ -18,9 +18,9 @@ depends_on:
 目标是让具名领域操作成功即产生完整、合法、可重开的业务结果，减少调用方需要记住的步骤。
 这不是重写数据库，也不以文件变短为验收标准。四条架构建议纳入同一计划，但目录去重不能替代领域一致性收口。
 
-本次检查基线：分支 feat/desktop-single-library-page-paths，HEAD 5fbc66f8，规划前工作区干净。
-既有修复按当前代码保留；历史漏洞只作为回归资产，不宣称仍然存在。本轮未重跑产品测试，之前测试数字不作新基线。
-现有 desktopCall 的方法表、switch、撤销保留集合与 client 字符串分散维护；四域字段 patch/补交重复；必填字段 helper 已共用但入口必须记得调用。
+本次检查基线：分支 feat/desktop-single-library-page-paths，HEAD abcdada5，核对前工作区干净。
+既有修复按当前代码保留；历史漏洞只作为回归资产，不宣称仍然存在。本轮重跑 7 文件 34 项通过：operationContract 2、unitTextUndo 3、四域 Fields 各 4、requiredCreateReadback 13。该证据只覆盖已落地切片，不代表完整重构完成。
+四操作合同、四域 fieldDelivery、sessionEdit 和 13 宿主创建回归已落地；旧分派仍承载其余操作。W0 入口清单、完整不变量矩阵和性能基线尚未完成。
 现有执行规格仍有过时的实施状态，不能照抄为当前事实；ADR 决定与本次代码核对优先。
 
 ## 保持与范围
@@ -55,7 +55,7 @@ depends_on:
 | 图真值与线性投影一致 | analysis/units/unitSpan 的内部写步骤 | 改正文/接受/恢复/切分/合并/导入 | 图/词项/关联/快照/代际对拍 |
 | 修订与补交一致 | 四域字段实现 + 共用补交协议 | patch/redeliver | 同身份重放、异载荷冲突、收件后崩溃 |
 | 磁盘结果可判定 | 各现有文件状态机 | 附件/原件/媒体/交换/备份/清除 | 阶段失败、替换/链接、重开收尾 |
-| 撤销不会执行陈旧逆操作 | sessionEdits + projectSession | 所有保留/清除/产生 undo 的操作 | 操作序列、失败、切换、关闭重开 |
+| 撤销不会执行陈旧逆操作 | sessionEdit + projectSession | 所有保留/清除/产生 undo 的操作 | 操作序列、失败、切换、关闭重开 |
 
 W0 把每行展开到全部实际入口，标明生产、脚本、内部、测试和不可达旧路径；禁止只靠方法名或文件存在勾覆盖。
 
@@ -69,26 +69,29 @@ W0 把每行展开到全部实际入口，标明生产、脚本、内部、测�
 用合成小项目和较大项目记录查询耗时、写入耗时、SQL/事务数、IPC 数、导入峰值内存、renderer 服务端依赖。
 退出：基线测试结果与现有失败归因齐；每条不变量至少有真实库反例/成功路径，性能数据可复跑。
 
-### W1：类型化操作合同试点
+### W1：四操作合同试点已落地，停止扩展
 
-落位：operationContract.ts、client.ts、desktopCall.ts。试点是 project.get、layers.create、units.updateText、media.finishCleanup。handler 留在 desktopCall.ts，不另建 operationHandlers.ts。
-输入/输出与显式 undo policy 从一个合同约束；主进程保留运行时 parser 和 knownKeys，不把 Node/fs/数据库带入 renderer。
-现有 named client 包装保留；once<T> 改为按键推导，不靠调用者自行宣称返回类型。
-迁移中只走一个 handler；保留未迁移旧分派且其键集合由合同校验互斥完备，过渡层须在 W6 删除。
-退出：试点不新增第四份清单；未知键/额外参数/过期会话仍拒绝；业务结果、错误与撤销序列等价。
-W1 不阻塞 W2/W3 的领域改造；新增操作先遵循试点合同，避免继续扩散目录。
+operationContract.ts 的四键为 project.get、layers.create、units.updateText、media.finishCleanup；handler 对象仍在 desktopCall.ts，不另建一套试点。
+layers.create 覆盖可选字段与 fieldValues；media.finishCleanup 覆盖会话目录和外部 trash 能力；conversations.create 未迁。
+client 四键按合同推导结果，其余仍用 once；四键已离开 METHODS 和旧 switch。集合对账的期望值是 `5fbc66f8` 的 128 个 `METHODS`，固定在 `operationCatalog.baseline.ts`，测试运行时不读 Git。生产入口与脚本普查仍属 W0。
+额外键：project.get、layers.create、media.finishCleanup 拒绝，units.updateText 按旧行为忽略；W6 不顺手收紧。
+撤销：project.get keep；正文写入失败保留旧步，事务提交后回调带回逆操作才 replace-on-success；layers.create 在参数检查前 clear，拒绝额外键也清槽。
+unitTextUndo.test.ts 已锁住这些时机；operationContract.test.ts 锁住参数与策略，不能把 clear 改为仅成功时清除。
+`operationContract.test.ts` 核对两集合各自无重复、互斥，并集等于上述固定目录。再迁键或新增操作时改实现和这份目录，不能把两集合拼起来当期望值。
+现有合同、operationHandlers、runContract switch、client 包装仍多处列键；never 只覆盖四键穷尽，不等于消除了重复分派。
+后续迁移前先让执行/记忆跟策略走，避免增加逐键 case；replace-on-success 当前写死 UnitTextUndo，不能直接接切分/合并/改派的 SessionEdit。
 
-### W2：四域修订与诊断补交共用协议
+### W2：四域补交协议已落地，剩余故障验收
 
-落位：sourceFields.ts → speakerFields.ts → conversationFields.ts → bibliographyFields.ts；复用 diagnosticDelivery.ts，共同步骤在 fieldDelivery.ts。
-逐域替换，保留字段级冲突判断、空值语义、SQL 与读回；共享幂等查重、pending 记录、提交后交付与确认。
-保持指纹、summary、event_seq 及 operationId 的已有兼容；不用统一序列化改变历史重放身份。
-退出：同 id 同输入不重复修改/推进修订；不同输入拒绝；多字段任一冲突全回滚；无变化不创建虚假交付。
-覆盖项目事务失败、提交后诊断不可用、收件已成功但确认未写、关闭重开后 redeliver；只补日志不重放业务。
+fieldDelivery.ts 已共用 replay/pending/finish/resume；四域仍拥有业务事务、列和字段冲突，并各自计算输入指纹。
+source 固定 id/label/externalId 加 null 的指纹保留，未变成统一 JSON.stringify(input)；其余域也维持既有重放身份。
+四份原字段测试本轮均通过；不再执行“先 source，再逐域提取”的旧拆分任务。
+sourceFields.test.ts 已注入：事务中止时正文和 pending 一起回滚；诊断文件先收件、项目里的确认更新失败后状态仍是 pending；关闭重开再补交只确认一次，修订不增加。提交后诊断不可用、同身份不重复写、异输入冲突、多字段任一冲突整回滚仍由四域原有测试锁住。只补日志，不重放业务。
 
 ### W3a：生命周期与对象范围收口
 
 落位：manuscripts/layers/units、analysisRestore/modelRuns、notes/customFields/customFieldPurge、lexicon/lexemeLink/corpusQuery 等实际入口。
+getUnit 与 units.get 只返回文稿未删除的语段；readStoredUnit 保留存储行，供写入、清除、迁移和保留期核对，删除触发器仍报 manuscript is deleted。readAnalysisState 已同样收进领域入口，已删除文稿仍报 manuscript is deleted；readAnalysisMaterial 保留存储行。readContentNote 与 notes.list 隐藏已删除文稿的备注；readStoredContentNote 给更新和删除，项目备注仍可见。readFieldValue 隐藏已删除文稿上的字段值；readStoredFieldValue 与 locateValues 给写入和清除。可接受任务名单只含未删除且代际仍匹配的运行；getModelRun 仍返回旧任务。getLayer 与 layers.list 隐藏已删除文稿的层，存储行仍在。readLexemeLinks 与 references.listLinks 隐藏已删除文稿上的词条链接，存储行仍在。切词、改图、创建、边界、切分、合并、备注、开任务、时间映射、切语素和提交分析在已删除文稿上仍由写入触发器报 manuscript is deleted，恢复后可以再写。删除前的分析候选在删除和恢复后接受仍报 analysis candidate is stale。语料查询不返回已删除文稿。不设 includeDeleted，也不把过滤只留在 dispatcher。
 优先复用已存在守卫；同语义重复才提 scopeGuards。写前在所属事务内核对祖先和生命周期，不依赖 UI 或较早检查。
 普通读取按查询过滤；专用状态/恢复/清除保留明确的内部或具名读取能力，禁止统一全局过滤误伤清除。
 旧任务的凭据与当前状态分别检查，恢复后旧任务仍无效；模型范围检查与文稿/语段归属不能互相替代。
@@ -97,6 +100,8 @@ W1 不阻塞 W2/W3 的领域改造；新增操作先遵循试点合同，避免�
 ### W3b：创建与必填字段不可分离
 
 落位：customFields.ts 及全部宿主 creator、foreignImport.ts、modelRuns.ts、analysisImport.ts 等实际创建路径。
+requiredCreateReadback.test.ts 已验证 13 个现有 helper 宿主缺值拒绝/回滚、合法创建和关闭重开读回；这只是部分证据，不能勾掉 W3b。
+project 与 source 仍直接 INSERT，分析图节点走 assertStoredCustomFields；导入、批量、接受及其他旁路未由 13 项覆盖。先确认各自支持的字段合同，再决定初始化落位，不擅自给无合同入口填默认值。
 先列清所有支持字段的宿主和创建方式，不仅列 UI 可见对象；涵盖图节点、词条/义项等实际支持范围。
 收窄宿主类型；继续使用现有 writeRequiredFieldValues。具名 creator 的外部成功必须包含合法初始化及读回。
 组合操作使用事务内创建步骤，外部不得先创建再补字段；只在复用足够时提取该步骤，不造 create(host,values)。
@@ -114,6 +119,9 @@ W1 不阻塞 W2/W3 的领域改造；新增操作先遵循试点合同，避免�
 ### W4b：会话一步撤销与编辑协调
 
 落位：projectSession.ts、sessionEdit.ts、desktopCall.ts。领域 SQL 函数不读取全局会话。
+sessionEdit 已管理一步内存状态，领域模块不读它；崩溃即丢、不改 user_version。
+`reopenDesktopSession` 只在 `openProject` 抛错时调用 `expireSessionEdit()`，随后原样抛出；成功重开不清槽。`sessionEdit` 不引用 `projectSession`。
+失败用例在下一次 `openDesktopSession` 之前，对一份正文已提交后的一致副本调用 `undoSessionEdit`。副本与槽里的 `after` 一致，未清槽时撤销会改写它。断言是 `unit text undo is empty`，且副本正文不变；`undo is stale` 也会清槽且不改数据，不能当作通过。成功重开后仍可撤销。
 把成功编辑返回 undo、会话记忆和逆操作选择集中；完整列出操作的 preserve/clear/replace 行为。
 先刻画失败尝试、无变化、读操作、reopen 的既有行为；若需改变失效时机，独立确认，不能混入等价搬迁。
 退出：交错编辑、失败、跨会话、旧凭据、切换项目、关闭重开都不能执行错误逆操作；进程崩溃仍不承诺撤销恢复。
@@ -130,6 +138,7 @@ W5c：projectLock/projectSession/desktopMediaGrant 与 electron main/preload；�
 ### W6：剩余契约迁移、旁路封口与删除过渡代码
 
 按项目/媒体 → 文稿/层/语段 → 分析/运行 → 字段/词典 → 备注/对话/目录 → 交换/清除逐域迁移，每域独立 typecheck/回归。
+扩展前先消除 runContract 逐键执行/记忆 case 和 UnitTextUndo 专用类型约束；不再迁一套四键试点，不以 never 声称消除了重复注册。
 删除 METHODS、KEEPS_UNIT_TEXT_UNDO 和已替代 switch；contract 定义键，handler 映射强制穷尽，client 不再手写独立结果泛型。
 脚本使用同一领域业务入口及项目锁，不要求强行走渲染会话/IPC；批处理事务边界按既有业务合同，不按每条 helper 提交。
 结构守卫阻止 renderer 服务端运行时导入、脚本/页面调用内部 InTransaction 步骤、未登记外部操作、迁移后旧分派残留。
@@ -146,7 +155,7 @@ W5c：projectLock/projectSession/desktopMediaGrant 与 electron main/preload；�
 
 ## 依赖与交付控制
 
-W0 → W1 试点；W2 与 W3 可独立推进；W3 → W4；W5 基于 W0 可独立；W1 + 领域阶段 → W6 → W7。
+A、B、W2 故障注入和 W3a 已封口，不借此迁新键。下一次实现是 W0 入口矩阵，或 W3b 其余创建宿主。W0 入口矩阵随已完成的 W3a 补建、性能基线在下一次实质实现迁移前补齐。W3b → W4a；W5 依赖对应入口基线；领域阶段 + 分派去重复 → W6 → W7。
 一个阶段可多次小提交，每次只迁一个有完整验收的领域。先保留业务结果测试，再替换实现，最后删除旧代码。
 不承诺一次大提交完成；每批失败可回退代码，无格式迁移。只有实际并行执行时才分配互不重叠所有权，本文不预设多 agent 编排。
 若风险评估要求新旧试用，遵守 flag 默认 false 和一周自用规则，单次操作只走一路；不得为了比较而双写真实数据。
@@ -158,16 +167,37 @@ W0 → W1 试点；W2 与 W3 可独立推进；W3 → W4；W5 基于 W0 可独�
 入口：npm run check:script-desktop-callers；npm run check:old-path-exit；npm run check:db-transaction-facade；npm run check:direct-db-imports。
 结构：npm run check:architecture-guard；npm run check:agent-evals:smoke；npm run check:dev-agent-workflow-verify；npm run check:docs-governance。
 宿主：npm run test:e2e:chromium；npm run test:e2e:desktop-project；触 src/ai 则 npm run check:agent-evals:full。
+现有 check:db-transaction-facade 和 check:direct-db-imports 不覆盖 desktop dispatcher→领域函数的约束落位，不能用它们替代集合和业务旁路验收。
 新边界检查优先接入现有架构守卫；循环依赖检查使用当前仓库实际存在工具，不抄旧文档里缺失的脚本。
 每条记录基线 commit、命令、结果、覆盖范围、失败归因与未验证项；原生模块 ABI/环境阻塞不能改写成产品通过。
 
-## 本轮交付与下一步
+## 本轮封口与下一刀
 
-已落地一小批，未做 W0，也没有把其余操作迁进合同：
+A、B、getUnit、readAnalysisState、备注、字段、可接受任务名单、层、词条链接和分析迟到写已落地，没有迁新操作，没有改跨语段引用，没有重拆 fieldDelivery。
 
-- W1：`operationContract.ts` 覆盖 project.get、layers.create、units.updateText、media.finishCleanup。client 按合同推导结果。handler 仍在 desktopCall.ts。
-- W2：`fieldDelivery.ts`。四域仍各自保留列、冲突判断和指纹。
-- W3b：13 个具名创建入口有缺值拒绝、合法成功、失败回滚、重开读回。没有通用 create，导入和批量未收口。
-- W4b：`sessionEdit.ts` 记住、过期并执行一步撤销。崩溃不恢复。user_version 仍是 27。
+1. A：`operationCatalog.baseline.ts` 固定 `5fbc66f8` 的 128 个键。`operationContract.test.ts` 核对 `METHODS` 与合同键各自无重复、互斥，并集等于这份目录。测试不读 Git，也不普查生产入口。
+2. B：`reopenDesktopSession` 仅在 `openProject` 失败时 `expireSessionEdit()` 后原样抛出。`unitTextUndo.test.ts` 在下一次 `openDesktopSession` 之前，对改后正文的文件副本调用 `undoSessionEdit`：错误是 `unit text undo is empty`，副本正文仍是改后的值。成功重开后仍可撤销。
 
-未勾的 W0、W3a、W4a、W5、W6、W7 仍按本计划推进。不把目录全量迁移设为下一步的前置。
+3. getUnit：普通读和 IPC `units.get` 隐藏已删除文稿的语段。`readStoredUnit` 给写入、清除、迁移和保留期核对。直接调用与 IPC 都测了；恢复后普通读重新可见。正文未改仍保留上一步撤销，留在 W4b。
+
+4. readAnalysisState：领域入口拒绝已删除文稿，错误仍是 `manuscript is deleted`。`readAnalysisMaterial` 仍返回存储行。直接调用与 IPC 都测了；恢复后重新可见。
+
+5. 备注：`readContentNote` 与 `notes.list` 隐藏已删除文稿的备注。`readStoredContentNote` 给更新和删除，错误仍是 `manuscript is deleted`。项目备注仍可见。直接调用与 IPC 都测了；恢复后重新可见。
+
+6. 字段：`readFieldValue` 隐藏已删除文稿上的文稿、层、语段和备注字段值。`readStoredFieldValue` 与 `locateValues` 给写入和清除。`missingUnitFields` 把藏起的必填值视为未填。直接调用与 IPC 都测了；恢复后重新可见。写入仍报 `manuscript is deleted`。
+
+7. 任务名单：`listAcceptableRuns` 只含未删除且代际仍匹配的运行。`modelRuns.get` 仍返回旧任务。删除后、恢复后、关闭重开后名单都是空的；新完成的任务重新出现。迟到接受仍报 `transcription run is stale`。
+
+8. 层：`getLayer` 与 `layers.list` 隐藏已删除文稿的层。存储行仍在。直接调用与 IPC 都测了；关闭重开后仍隐藏，恢复后重新可见。迟到创建仍报 `manuscript is deleted`，恢复后可以再建。
+
+9. 词条链接：`readLexemeLinks` 与 `references.listLinks` 隐藏已删除文稿上的链接。另一份文稿的链接仍在，存储行仍在。关闭重开后仍隐藏，恢复后重新可见。迟到改链仍报 `manuscript is deleted`。
+
+10. 分析迟到写：切词和改图在已删除文稿上仍报 `manuscript is deleted`。直接调用与 IPC 都测了。关闭重开后仍拒绝，图指纹不变，恢复后可以再写。写入实现没有改，这一组是把已有触发器锁进测试。
+
+11. 其余领域写：创建语段、改边界、切分、合并、新建备注、开任务、改时间映射、切语素和提交分析，在已删除文稿上仍报 `manuscript is deleted`。直接调用与 IPC 都测了。关闭重开后切分仍拒绝，边界时间不变，恢复后可以再建语段。删除前提交的候选，删除后和恢复后接受都报 `analysis candidate is stale`。语料查询不返回已删除文稿，恢复后重新可见。写入实现没有改。字段值删除仍走清除路径，没有 DELETE 触发器，本轮不改。
+
+12. 补交故障：source 的事务中止把正文和 pending 一起回滚。诊断文件已经收件、项目里的确认更新失败时，状态仍是 pending，修订不变。关闭重开后再补交只确认一次，再次补交不增加回执。协议实现没有改。
+
+W3a 和 W2 故障注入已收口。W0、W3b 其余宿主、分派策略泛化及最终宿主验收仍未完成。本轮没有重跑全域回归或 Electron。
+
+证据：`npm run typecheck` 通过。`npx vitest run src/db/desktop/sourceFields.test.ts` 为 5 项通过。`npx eslint` 覆盖本切片测试，`git diff --check` 通过。`npm run check:docs-governance` 通过。上一批文稿删除为 19 项。

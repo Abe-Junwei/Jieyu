@@ -19,15 +19,27 @@ depends_on:
 - [ ] W0 建入口清单，区分生产/脚本/测试/旧路径，固定测试与性能基线。
 - [ ] W0 建不变量归属矩阵，迁移第一组历史反例，验证新旧测试同等断言。
 - [x] W1 为 project.get / layers.create / units.updateText / media.finishCleanup 建类型化试点。handler 留在 desktopCall.ts。
-- [x] W1 验证 unknown、额外键、会话和撤销行为等价。units.updateText 仍不拒绝额外键。其余操作仍走旧分派。
-- [x] W2 收口四域共用 pending/receipt/redeliver（fieldDelivery.ts）。各域保留列、冲突判断和指纹。
-- [ ] W3a 梳理生命周期状态和凭据，提取已有重复守卫，迁移普通读/单条读。
-- [ ] W3a 分组迁移领域写、分析/任务、备注/字段入口；逐组关闭重开和迟到写入验证。
+- [x] W1 四键试点到此停止；现有测试锁住额外键与三种撤销时机，units.updateText 仍忽略额外键。
+- [x] A：operationContract.test.ts 用 5fbc66f8 的 128 键固定目录核对互斥、无重复和并集；不读 Git，不普查入口。
+- [x] B：reopen 打开失败时 expireSessionEdit 后原样抛出；成功重开仍可撤销。失败断言在再次 openDesktopSession 之前，空槽错误且一致副本正文不变。
+- [x] W2 共用协议已落地 fieldDelivery.ts，四域原有测试通过，各域保留列、冲突和指纹；不再重复拆分。
+- [x] W2 故障注入：source 事务中止时正文和 pending 一起回滚；诊断文件先收件、确认更新失败后状态仍是 pending，关闭重开再补交只确认一次且不改修订。四域原有冲突和 pending 测试仍在。
+- [x] W3a 首个切片：getUnit 与 units.get 隐藏已删除文稿的语段；readStoredUnit 保留写入、清除、迁移和保留期读取。直接调用和 IPC 都测了，恢复后普通读重新可见。
+- [x] W3a 分析普通读：readAnalysisState 在领域入口拒绝已删除文稿；readAnalysisMaterial 仍返回存储行。直接调用和 IPC 都测了，恢复后重新可见。
+- [x] W3a 备注普通读：readContentNote 与 notes.list 隐藏已删除文稿的备注；readStoredContentNote 给更新和删除。直接调用和 IPC 都测了，恢复后重新可见，项目备注仍可见。
+- [x] W3a 字段普通读：readFieldValue 隐藏已删除文稿上的文稿/层/语段/备注字段值；readStoredFieldValue 与 locateValues 给写入和清除。直接调用和 IPC missingUnitFields 都测了，恢复后重新可见。
+- [x] W3a 任务名单：listAcceptableRuns 只含未删除且代际匹配的运行。getModelRun 仍返回旧任务。删除、恢复和关闭重开都测了；新任务重新出现。迟到接受仍报 transcription run is stale。
+- [x] W3a 层普通读：getLayer 与 layers.list 隐藏已删除文稿的层，存储行仍在。直接调用和 IPC 都测了，关闭重开后仍隐藏，恢复后重新可见。迟到创建仍报 manuscript is deleted。
+- [x] W3a 词条链接普通读：readLexemeLinks 与 references.listLinks 隐藏已删除文稿上的链接，另一份文稿的链接仍在，存储行仍在。关闭重开后仍隐藏，恢复后重新可见。迟到改链仍报 manuscript is deleted。
+- [x] W3a 分析迟到写：切词和改图在已删除文稿上由触发器报 manuscript is deleted。直接调用和 IPC 都测了，关闭重开后仍拒绝，恢复后可以再写。图指纹不变。
+- [x] W3a 其余领域写：创建、边界、切分、合并、备注、开任务、时间映射、切语素和提交分析在已删除文稿上仍报 manuscript is deleted。直接调用和 IPC 都测了，关闭重开后仍拒绝，恢复后可以再建语段。删除前的分析候选在删除和恢复后接受仍报 analysis candidate is stale。语料查询不返回已删除文稿。写入实现没有改。
 - [ ] W3b 列全部字段宿主创建入口，包括导入/批量/接受；收窄宿主类型。
-- [ ] W3b 每宿主补缺值回滚/合法读回；消除创建与字段初始化可分离的外部入口。
+- [x] W3b 已有 13 宿主创建缺值回滚/合法重开读回测试通过。
+- [ ] W3b 继续审查 project/source、分析图节点、导入/批量/接受及全部旁路；13 项不能代表创建入口全覆盖。
 - [ ] W4a 复用正文/分析的事务内共同步骤，验证代际、快照、图投影同成败。
 - [ ] W4a 分组收口切分/合并/恢复的引用迁移；未确定的跨语段引用语义另列决定。
-- [x] W4b 提取 sessionEdit 的执行、记忆和撤销。领域函数不读会话。既有测试覆盖错误、失效、切换和重开。崩溃不恢复撤销。
+- [x] W4b 已提取 sessionEdit 的记忆和一步撤销；领域函数不读状态，崩溃即丢、不改格式。
+- [x] W4b 失败重开已清槽并有等价测试。runContract 逐键分派和 UnitTextUndo 写死类型仍在迁新键前处理。
 - [ ] W5a 对齐导入/导出/备份的文件保护和 owned-files 回滚；保留原件与未投影内容。
 - [ ] W5b 对齐附件/录音收尾共用保护，分别验证 pending/unknown/重关联状态机。
 - [ ] W5c 验证项目锁竞争、session/媒体授权撤销及真实 Electron 媒体路径。

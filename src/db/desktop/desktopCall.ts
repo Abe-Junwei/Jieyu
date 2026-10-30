@@ -150,7 +150,6 @@ import {
   restoreManuscript,
   rollbackManuscriptTimeMapping,
   setManuscriptTimeMapping,
-  unitBelongsToDeletedManuscript,
   type ManuscriptCreate,
 } from './manuscripts';
 import {
@@ -630,11 +629,8 @@ export function callDesktopSession(
       return queryCorpus(project.db, corpusQuery(input));
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
-    case 'units.get': {
-      const id = requiredString(input.id, 'id');
-      if (unitBelongsToDeletedManuscript(project.db, id)) return null;
-      return getUnit(project.db, id);
-    }
+    case 'units.get':
+      return getUnit(project.db, requiredString(input.id, 'id'));
     case 'units.list':
       return listUnits(project.db, requiredString(input.layerId, 'layerId'));
     case 'units.undoText':
@@ -809,11 +805,7 @@ export function callDesktopSession(
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.readState': {
       knownKeys(input, ['unitId']);
-      const unitId = requiredString(input.unitId, 'unitId');
-      if (unitBelongsToDeletedManuscript(project.db, unitId)) {
-        throw new Error('manuscript is deleted');
-      }
-      return readAnalysisState(project.db, unitId);
+      return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
     }
     case 'analysis.listCandidates':
       knownKeys(input, ['unitId']);

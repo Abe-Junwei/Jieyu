@@ -63,6 +63,7 @@ export interface AnalysisReadState {
 }
 
 export function readAnalysisState(db: SqliteDatabase, unitId: string): AnalysisReadState {
+  if (unitBelongsToDeletedManuscript(db, unitId)) throw new Error('manuscript is deleted');
   const material = readAnalysisMaterial(db, unitId);
   return {
     unitId: material.unitId,

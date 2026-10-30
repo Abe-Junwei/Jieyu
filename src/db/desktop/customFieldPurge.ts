@@ -14,7 +14,7 @@ import {
   type CustomFieldLocation,
   type StoredDefinitionRevision,
 } from './customFields';
-import { getUnit } from './units';
+import { readStoredUnit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -98,7 +98,7 @@ function stripUnitGraph(
   definitionId: string,
 ): void {
   if (location.unitId === undefined) throw new Error('analysis graph is missing');
-  const unit = getUnit(db, location.unitId);
+  const unit = readStoredUnit(db, location.unitId);
   const row = db
     .prepare('SELECT analysis_graph_json FROM units WHERE id = ?')
     .get(location.unitId) as { analysis_graph_json: string | null } | undefined;

@@ -89,7 +89,12 @@ export function reopenDesktopSession(sessionId: string): void {
   const folder = desktopSessionFolder(sessionId);
   requireDesktopSession(sessionId).close();
   current = undefined;
-  current = { id: sessionId, folder, project: openProject(folder) };
+  try {
+    current = { id: sessionId, folder, project: openProject(folder) };
+  } catch (error) {
+    expireSessionEdit();
+    throw error;
+  }
 }
 
 export function resetDesktopSessions(): void {

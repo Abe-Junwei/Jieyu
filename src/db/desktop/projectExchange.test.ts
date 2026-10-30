@@ -20,7 +20,7 @@ import {
   importDesktopJyt,
   importDesktopJym,
 } from './projectExchange';
-import { getUnit } from './units';
+import { getUnit, readStoredUnit } from './units';
 
 const roots: string[] = [];
 const T = '2026-10-27T00:00:00.000Z';
@@ -134,7 +134,7 @@ describe('desktop JYT exchange', () => {
     expect(getManuscript(dest.db, selected.id)).toEqual(selected);
     expect(getUnit(dest.db, selectedUnit.id)).toEqual(selectedUnit);
     expect(getUnit(dest.db, otherUnit.id)).toEqual(otherUnit);
-    expect(getUnit(dest.db, removedUnit.id)).toEqual(removedUnit);
+    expect(readStoredUnit(dest.db, removedUnit.id)).toEqual(removedUnit);
     dest.close();
   });
 
@@ -459,9 +459,9 @@ describe('desktop JYT exchange', () => {
     expect(media.deletedAt).toBe(shownAt);
     expect(media.retainUntil).toBe(retainUntil);
     expect(media.reminderShownAt).toBeNull();
-    expect(getUnit(dest.db, unit.id)?.text).toBe('kept sentence');
+    expect(readStoredUnit(dest.db, unit.id)?.text).toBe('kept sentence');
     expect(() => purgeManuscript(dest.db, manuscript.id)).toThrow('reminder has not been shown');
-    expect(getUnit(dest.db, unit.id)?.text).toBe('kept sentence');
+    expect(readStoredUnit(dest.db, unit.id)?.text).toBe('kept sentence');
     dest.close();
   });
 });

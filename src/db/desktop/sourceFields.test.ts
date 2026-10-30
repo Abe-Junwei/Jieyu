@@ -7,7 +7,7 @@ import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { callDesktopSession } from './desktopCall';
 import { receiveDiagnostic, useDiagnosticStore } from './diagnosticDelivery';
 import { openProject } from './openProject';
-import { openDesktopSession, resetDesktopSessions } from './projectSession';
+import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 import type { SourceReading } from './sourceFields';
 
 const roots: string[] = [];
@@ -153,6 +153,79 @@ describe('source field revisions', () => {
     expect(summary.status).toBe('confirmed');
     expect(summary.summary_json).not.toContain('tape-b');
     project.close();
+  });
+
+  it('rolls back a failed write, then confirms a saved receipt after reopen', () => {
+    const { dir, sessionId } = seed();
+    const db = requireDesktopSession(sessionId).db;
+    db.exec(
+      `CREATE TEMP TRIGGER abort_source_write BEFORE UPDATE ON sources
+       BEGIN SELECT RAISE(ABORT, 'injected'); END`,
+    );
+    expect(() =>
+      patch(sessionId, {
+        operationId: 'op-abort',
+        id: 's1',
+        label: { expectedRevision: 0, value: 'tape-b' },
+        externalId: { expectedRevision: 0, value: 'ext-b' },
+      }),
+    ).toThrow('injected');
+    expect(read(dir, 's1')).toMatchObject({
+      label: 'tape',
+      externalId: 'ext',
+      revisions: { label: 0, externalId: 0 },
+    });
+    expect(db.prepare('SELECT COUNT(*) AS n FROM diagnostic_deliveries').get()).toEqual({ n: 0 });
+    db.exec('DROP TRIGGER abort_source_write');
+
+    useDiagnosticStore(join(dir, 'missing', 'diagnostics.sqlite'));
+    expect(
+      patch(sessionId, {
+        operationId: 'op-1',
+        id: 's1',
+        label: { expectedRevision: 0, value: 'tape-b' },
+      }).delivery,
+    ).toBe('pending');
+    const store = folder();
+    const file = join(store, 'diagnostics.sqlite');
+    useDiagnosticStore(file);
+    db.exec(
+      `CREATE TEMP TRIGGER abort_delivery_confirm BEFORE UPDATE ON diagnostic_deliveries
+       BEGIN SELECT RAISE(ABORT, 'confirm failed'); END`,
+    );
+    expect(() =>
+      callDesktopSession(sessionId, 'sources.redeliver', { operationId: 'op-1' }),
+    ).toThrow('confirm failed');
+    const receipts = new Database(file, { readonly: true });
+    expect(receipts.prepare('SELECT COUNT(*) AS n FROM diagnostic_receipts').get()).toEqual({
+      n: 1,
+    });
+    receipts.close();
+    expect(db.prepare('SELECT status FROM diagnostic_deliveries').get()).toEqual({
+      status: 'pending',
+    });
+    expect(read(dir, 's1')).toMatchObject({
+      label: 'tape-b',
+      revisions: { label: 1, externalId: 0 },
+    });
+    db.exec('DROP TRIGGER abort_delivery_confirm');
+
+    resetDesktopSessions();
+    releaseAllProjectLocks();
+    const again = openDesktopSession(dir, [dir]).sessionId;
+    expect(callDesktopSession(again, 'sources.redeliver', { operationId: 'op-1' })).toMatchObject({
+      label: 'tape-b',
+      revisions: { label: 1, externalId: 0 },
+      delivery: 'confirmed',
+    });
+    callDesktopSession(again, 'sources.redeliver', { operationId: 'op-1' });
+    const after = new Database(file, { readonly: true });
+    expect(after.prepare('SELECT COUNT(*) AS n FROM diagnostic_receipts').get()).toEqual({ n: 1 });
+    after.close();
+    expect(read(dir, 's1')).toMatchObject({
+      label: 'tape-b',
+      revisions: { label: 1, externalId: 0 },
+    });
   });
 
   it('leaves the first diagnostic hash in place', () => {

@@ -4,7 +4,7 @@ import {
   analysisGraphFingerprint,
   type AnalysisGraphPayload,
 } from '../../annotation/analysisGraphDomain';
-import { assertUnitTextRoleFree, getUnit, type Unit } from './units';
+import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -228,8 +228,8 @@ export function splitUnit(
     const copied = copyAssociations(db, existing.id, createdId);
     bumpGeneration(db, place.manuscriptId, now);
     afterWrite?.();
-    const left = getUnit(db, existing.id);
-    const right = getUnit(db, createdId);
+    const left = readStoredUnit(db, existing.id);
+    const right = readStoredUnit(db, createdId);
     const generation = generationOf(db, place.manuscriptId);
     if (
       !left ||
@@ -277,8 +277,8 @@ export function undoSplit(db: SqliteDatabase, undo: UnitSplitUndo, afterWrite?: 
     );
     bumpGeneration(db, undo.manuscriptId, now);
     afterWrite?.();
-    const unit = getUnit(db, undo.unitId);
-    const created = getUnit(db, undo.createdId);
+    const unit = readStoredUnit(db, undo.unitId);
+    const created = readStoredUnit(db, undo.createdId);
     if (
       !unit ||
       created !== null ||
@@ -323,8 +323,8 @@ export function mergeUnits(
     deleteUnitTree(db, remove.id);
     bumpGeneration(db, place.manuscriptId, now);
     afterWrite?.();
-    const unit = getUnit(db, keep.id);
-    const gone = getUnit(db, remove.id);
+    const unit = readStoredUnit(db, keep.id);
+    const gone = readStoredUnit(db, remove.id);
     if (
       !unit ||
       gone !== null ||
@@ -369,8 +369,8 @@ export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: 
     insertRemovedUnit(db, undo.removed);
     bumpGeneration(db, undo.manuscriptId, now);
     afterWrite?.();
-    const keep = getUnit(db, undo.keepId);
-    const removed = getUnit(db, undo.removeId);
+    const keep = readStoredUnit(db, undo.keepId);
+    const removed = readStoredUnit(db, undo.removeId);
     if (
       !keep ||
       !removed ||
@@ -391,7 +391,7 @@ export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: 
 }
 
 function requireLiveUnit(db: SqliteDatabase, id: string): Unit {
-  const unit = getUnit(db, id);
+  const unit = readStoredUnit(db, id);
   if (!unit) throw new Error('unit is missing');
   return unit;
 }
@@ -635,8 +635,8 @@ function retargetSurface(json: string, tokenMap: ReadonlyMap<string, string>): s
 }
 
 function splitStillAfter(db: SqliteDatabase, undo: UnitSplitUndo): boolean {
-  const left = getUnit(db, undo.unitId);
-  const right = getUnit(db, undo.createdId);
+  const left = readStoredUnit(db, undo.unitId);
+  const right = readStoredUnit(db, undo.createdId);
   if (
     !left ||
     !right ||
@@ -663,10 +663,10 @@ function splitStillAfter(db: SqliteDatabase, undo: UnitSplitUndo): boolean {
 }
 
 function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
-  const keep = getUnit(db, undo.keepId);
+  const keep = readStoredUnit(db, undo.keepId);
   return (
     keep !== null &&
-    getUnit(db, undo.removeId) === null &&
+    readStoredUnit(db, undo.removeId) === null &&
     keep.startTime === undo.mergedStart &&
     keep.endTime === undo.mergedEnd &&
     keep.text === undo.keepText &&

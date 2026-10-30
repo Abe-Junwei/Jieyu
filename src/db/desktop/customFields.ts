@@ -463,11 +463,11 @@ export function removeFieldValue(db: SqliteDatabase, input: unknown): void {
   const targetId = requiredText(patch.targetId, 'custom field target is missing');
   const lexemeId = lexemeScope(patch, targetType);
   const write = db.transaction(() => {
-    if (readFieldValue(db, definitionId, targetType, targetId, lexemeId) === null) {
+    if (readStoredFieldValue(db, definitionId, targetType, targetId, lexemeId) === null) {
       throw new Error('custom field value is missing');
     }
     clearFieldValue(db, definitionId, targetType, targetId, lexemeId);
-    if (readFieldValue(db, definitionId, targetType, targetId, lexemeId) !== null) {
+    if (readStoredFieldValue(db, definitionId, targetType, targetId, lexemeId) !== null) {
       throw new Error('custom field readback failed');
     }
   });
@@ -505,7 +505,8 @@ function requirementMet(
   }
 }
 
-export function readFieldValue(
+/** Includes a value whose manuscript is deleted. Writers and purge use this so the delete trigger still reports. */
+export function readStoredFieldValue(
   db: SqliteDatabase,
   definitionId: string,
   targetType: string,
@@ -524,6 +525,43 @@ export function readFieldValue(
     .get(definitionId, targetType, targetId) as { value_json: string } | undefined;
   if (row === undefined) return null;
   return JSON.parse(row.value_json) as unknown;
+}
+
+export function readFieldValue(
+  db: SqliteDatabase,
+  definitionId: string,
+  targetType: string,
+  targetId: string,
+  lexemeId?: string,
+): unknown | null {
+  if (hostOnDeletedManuscript(db, targetType, targetId)) return null;
+  return readStoredFieldValue(db, definitionId, targetType, targetId, lexemeId);
+}
+
+function hostOnDeletedManuscript(
+  db: SqliteDatabase,
+  targetType: string,
+  targetId: string,
+): boolean {
+  const sql =
+    targetType === 'manuscript'
+      ? 'SELECT 1 FROM manuscripts WHERE id = ? AND deleted_at IS NOT NULL'
+      : targetType === 'layer'
+        ? `SELECT 1 FROM layers
+           JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+           WHERE layers.id = ? AND manuscripts.deleted_at IS NOT NULL`
+        : targetType === 'unit'
+          ? `SELECT 1 FROM units
+             JOIN layers ON layers.id = units.layer_id
+             JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+             WHERE units.id = ? AND manuscripts.deleted_at IS NOT NULL`
+          : targetType === 'note'
+            ? `SELECT 1 FROM notes
+               JOIN manuscripts ON manuscripts.id = notes.manuscript_id
+               WHERE notes.id = ? AND manuscripts.deleted_at IS NOT NULL`
+            : null;
+  if (sql === null) return false;
+  return db.prepare(sql).get(targetId) !== undefined;
 }
 
 export function locateCustomFieldValues(
@@ -629,7 +667,7 @@ function readLocatedValue(
     if (value === undefined) throw new Error('custom field value is invalid');
     return value;
   }
-  const value = readFieldValue(
+  const value = readStoredFieldValue(
     db,
     definitionId,
     location.targetType,
@@ -840,7 +878,7 @@ function writeFieldValue(
       throw new Error('custom field revision does not match');
     storeFieldValue(db, definition, targetType, targetId, value, lexemeId);
     afterWrite?.();
-    const stored = readFieldValue(db, definitionId, targetType, targetId, lexemeId);
+    const stored = readStoredFieldValue(db, definitionId, targetType, targetId, lexemeId);
     if (canonicalJson(stored) !== canonicalJson(value))
       throw new Error('custom field readback failed');
     return { definitionId, targetType, targetId, revision: definition.revision, value: stored };

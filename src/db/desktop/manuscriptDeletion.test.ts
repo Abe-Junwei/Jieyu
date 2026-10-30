@@ -4,8 +4,25 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
+import { readContentNote, readStoredContentNote } from './notes';
+import { applyAnalysis } from './analysis';
+import { queryCorpus } from './corpusQuery';
+import { readAnalysisMaterial } from './analysisCandidates';
+import {
+  acceptAnalysis,
+  readAnalysisState,
+  segmentUnitMorphemes,
+  segmentUnitWords,
+  submitAnalysis,
+} from './analysisRestore';
+import { readFieldValue, readStoredFieldValue } from './customFields';
+import { getLayer } from './layers';
+import { readLexemeLinks } from './referenceState';
+import { listAcceptableRuns, startModelRun } from './modelRuns';
 import { callDesktopSession } from './desktopCall';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
+import { createUnit, getUnit, readStoredUnit, updateBoundary } from './units';
+import { splitUnit } from './unitSpan';
 
 const roots: string[] = [];
 
@@ -171,6 +188,436 @@ describe('manuscript mark delete', () => {
     db.close();
     expect(body).toEqual({ body: 'keep' });
     expect(words).toEqual({ n: 1 });
+  });
+
+  it('hides a deleted manuscript from getUnit and shows the unit again after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(getUnit(db, unit.id)).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toBeNull();
+    expect(readStoredUnit(db, unit.id)?.text).toBe('keep');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'gone' }),
+    ).toThrow('manuscript is deleted');
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(getUnit(db, unit.id)?.text).toBe('keep');
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'keep',
+    });
+  });
+
+  it('hides analysis state of a deleted manuscript and shows it again after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(() => readAnalysisState(db, unit.id)).toThrow('manuscript is deleted');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: unit.id }),
+    ).toThrow('manuscript is deleted');
+    expect(readAnalysisMaterial(db, unit.id).text).toBe('keep');
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(readAnalysisState(db, unit.id).text).toBe('keep');
+    expect(
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: unit.id }),
+    ).toMatchObject({ text: 'keep' });
+  });
+
+  it('hides a note on a deleted manuscript and shows it again after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    const note = callDesktopSession(session.sessionId, 'notes.create', {
+      anchor: { kind: 'unit', unitId: unit.id },
+      content: { zh: '语段' },
+    }) as { id: string };
+    const projectNote = callDesktopSession(session.sessionId, 'notes.create', {
+      anchor: { kind: 'project' },
+      content: { zh: '项目' },
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(readContentNote(db, note.id)).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'notes.list', {})).toEqual([
+      expect.objectContaining({ id: projectNote.id, content: { zh: '项目' } }),
+    ]);
+    expect(readStoredContentNote(db, note.id)?.content).toEqual({ zh: '语段' });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'notes.update', {
+        id: note.id,
+        content: { zh: 'gone' },
+      }),
+    ).toThrow('manuscript is deleted');
+    expect(() => callDesktopSession(session.sessionId, 'notes.delete', { id: note.id })).toThrow(
+      'manuscript is deleted',
+    );
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(readContentNote(db, note.id)?.content).toEqual({ zh: '语段' });
+    expect(callDesktopSession(session.sessionId, 'notes.list', {})).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: note.id, content: { zh: '语段' } }),
+        expect.objectContaining({ id: projectNote.id, content: { zh: '项目' } }),
+      ]),
+    );
+  });
+
+  it('hides a field value on a deleted manuscript and shows it again after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'unit',
+      name: { zh: '注' },
+      fieldType: 'text',
+      required: true,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'customFields.setValue', {
+      definitionId: field.id,
+      targetType: 'unit',
+      targetId: unit.id,
+      value: 'keep',
+      expectedRevision: 1,
+    });
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(readFieldValue(db, field.id, 'unit', unit.id)).toBeNull();
+    expect(
+      callDesktopSession(session.sessionId, 'customFields.missingUnitFields', { unitId: unit.id }),
+    ).toEqual([field.id]);
+    expect(readStoredFieldValue(db, field.id, 'unit', unit.id)).toBe('keep');
+    expect(
+      callDesktopSession(session.sessionId, 'customFields.locateValues', {
+        definitionId: field.id,
+      }),
+    ).toEqual([{ targetType: 'unit', targetId: unit.id }]);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'customFields.setValue', {
+        definitionId: field.id,
+        targetType: 'unit',
+        targetId: unit.id,
+        value: 'gone',
+        expectedRevision: 1,
+      }),
+    ).toThrow('manuscript is deleted');
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(readFieldValue(db, field.id, 'unit', unit.id)).toBe('keep');
+    expect(
+      callDesktopSession(session.sessionId, 'customFields.missingUnitFields', { unitId: unit.id }),
+    ).toEqual([]);
+  });
+
+  it('drops a finished run from the acceptable list after delete and keeps it stale after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const run = callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: start(session.sessionId, seeded).id,
+      status: 'ok',
+      chunkCount: 1,
+    }) as { id: string };
+    const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
+      runId: run.id,
+      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
+    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    const candidate = preview.candidates[0];
+    if (candidate === undefined) throw new Error('preview missing');
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(listAcceptableRuns(db, seeded.manuscriptId)).toEqual([
+      expect.objectContaining({ id: run.id }),
+    ]);
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.listAcceptable', {
+        manuscriptId: seeded.manuscriptId,
+      }),
+    ).toEqual([expect.objectContaining({ id: run.id })]);
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    expect(listAcceptableRuns(db, seeded.manuscriptId)).toEqual([]);
+    expect(
+      callDesktopSession(session.sessionId, 'modelRuns.listAcceptable', {
+        manuscriptId: seeded.manuscriptId,
+      }),
+    ).toEqual([]);
+    expect(callDesktopSession(session.sessionId, 'modelRuns.get', { runId: run.id })).toMatchObject(
+      {
+        id: run.id,
+        status: 'ok',
+      },
+    );
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(listAcceptableRuns(db, seeded.manuscriptId)).toEqual([]);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'op-old',
+        runId: run.id,
+        chunkIndex: 0,
+        segmentIndex: 0,
+        mediaStart: 0,
+        mediaEnd: 1,
+        timeMappingRevision: preview.timeMappingRevision,
+        targetFingerprint: candidate.targetFingerprint,
+        text: 'late',
+      }),
+    ).toThrow('transcription run is stale');
+    resetDesktopSessions();
+    const reopened = openDesktopSession(dir, [dir]);
+    const again = requireDesktopSession(reopened.sessionId).db;
+    expect(listAcceptableRuns(again, seeded.manuscriptId)).toEqual([]);
+    expect(
+      callDesktopSession(reopened.sessionId, 'modelRuns.get', { runId: run.id }),
+    ).toMatchObject({ id: run.id, status: 'ok' });
+    const fresh = callDesktopSession(reopened.sessionId, 'modelRuns.finish', {
+      runId: start(reopened.sessionId, seeded).id,
+      status: 'ok',
+      chunkCount: 1,
+    }) as { id: string };
+    expect(listAcceptableRuns(again, seeded.manuscriptId)).toEqual([
+      expect.objectContaining({ id: fresh.id }),
+    ]);
+  });
+
+  it('hides a layer of a deleted manuscript and shows it again after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(getLayer(db, seeded.layerId)).toBeNull();
+    expect(
+      callDesktopSession(session.sessionId, 'layers.list', { manuscriptId: seeded.manuscriptId }),
+    ).toEqual([]);
+    expect(db.prepare('SELECT key FROM layers WHERE id = ?').get(seeded.layerId)).toEqual({
+      key: '文稿',
+    });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'layers.create', {
+        manuscriptId: seeded.manuscriptId,
+        key: 'late',
+        name: { zh: '迟到' },
+        tierType: 'time-aligned',
+        contentType: 'transcription',
+      }),
+    ).toThrow('manuscript is deleted');
+    resetDesktopSessions();
+    const closed = openDesktopSession(dir, [dir]);
+    expect(getLayer(requireDesktopSession(closed.sessionId).db, seeded.layerId)).toBeNull();
+    callDesktopSession(closed.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    const restored = requireDesktopSession(closed.sessionId).db;
+    expect(getLayer(restored, seeded.layerId)?.key).toBe('文稿');
+    expect(
+      callDesktopSession(closed.sessionId, 'layers.list', { manuscriptId: seeded.manuscriptId }),
+    ).toEqual([expect.objectContaining({ id: seeded.layerId })]);
+    expect(
+      callDesktopSession(closed.sessionId, 'layers.create', {
+        manuscriptId: seeded.manuscriptId,
+        key: 'after',
+        name: { zh: '恢复' },
+        tierType: 'time-aligned',
+        contentType: 'transcription',
+      }),
+    ).toMatchObject({ key: 'after' });
+  });
+
+  it('hides a lexeme link on a deleted manuscript and shows it again after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const other = seed(session.sessionId, '另一份', seeded.mediaId);
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: other.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'stay',
+    }) as { id: string };
+    const word = (
+      callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id }) as {
+        id: string;
+      }[]
+    )[0];
+    const otherWord = (
+      callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: otherUnit.id }) as {
+        id: string;
+      }[]
+    )[0];
+    if (word === undefined || otherWord === undefined) throw new Error('word missing');
+    callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
+      id: 'lex1',
+      entry: { headword: 'keep', senses: [{ id: 's1', definitions: [{ text: 's1' }] }] },
+    });
+    callDesktopSession(session.sessionId, 'lexicon.replaceTokenLink', {
+      tokenId: word.id,
+      lexemeId: 'lex1',
+      senseId: 's1',
+    });
+    callDesktopSession(session.sessionId, 'lexicon.replaceTokenLink', {
+      tokenId: otherWord.id,
+      lexemeId: 'lex1',
+      senseId: 's1',
+    });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(
+      readLexemeLinks(db)
+        .map((link) => link.targetId)
+        .sort(),
+    ).toEqual([word.id, otherWord.id].sort());
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    expect(readLexemeLinks(db).map((link) => link.targetId)).toEqual([otherWord.id]);
+    expect(
+      (
+        callDesktopSession(session.sessionId, 'references.listLinks', {}) as { targetId: string }[]
+      ).map((link) => link.targetId),
+    ).toEqual([otherWord.id]);
+    expect(
+      db.prepare('SELECT target_id AS targetId FROM token_lexeme_links ORDER BY target_id').all(),
+    ).toEqual(
+      [{ targetId: otherWord.id }, { targetId: word.id }].sort((left, right) =>
+        left.targetId < right.targetId ? -1 : 1,
+      ),
+    );
+    expect(() =>
+      callDesktopSession(session.sessionId, 'lexicon.replaceTokenLink', {
+        tokenId: word.id,
+        lexemeId: 'lex1',
+        senseId: 's1',
+      }),
+    ).toThrow('manuscript is deleted');
+    resetDesktopSessions();
+    const closed = openDesktopSession(dir, [dir]);
+    const closedDb = requireDesktopSession(closed.sessionId).db;
+    expect(readLexemeLinks(closedDb).map((link) => link.targetId)).toEqual([otherWord.id]);
+    callDesktopSession(closed.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(
+      readLexemeLinks(closedDb)
+        .map((link) => link.targetId)
+        .sort(),
+    ).toEqual([word.id, otherWord.id].sort());
+  });
+
+  it('rejects a late word split while the manuscript is deleted and allows it after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(() => segmentUnitWords(db, unit.id)).toThrow('manuscript is deleted');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id }),
+    ).toThrow('manuscript is deleted');
+    expect(
+      db.prepare('SELECT analysis_graph_json AS graph FROM units WHERE id = ?').get(unit.id),
+    ).toEqual({ graph: null });
+    resetDesktopSessions();
+    const closed = openDesktopSession(dir, [dir]);
+    expect(() => segmentUnitWords(requireDesktopSession(closed.sessionId).db, unit.id)).toThrow(
+      'manuscript is deleted',
+    );
+    callDesktopSession(closed.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(
+      callDesktopSession(closed.sessionId, 'analysis.segmentWords', { unitId: unit.id }),
+    ).toEqual([expect.objectContaining({ form: 'keep' })]);
+  });
+
+  it('rejects a late analysis edit while the manuscript is deleted and applies it after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'keep',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id });
+    const state = readAnalysisState(requireDesktopSession(session.sessionId).db, unit.id);
+    const nodeId = state.graph?.nodes[0]?.id;
+    if (nodeId === undefined) throw new Error('word missing');
+    const expected = {
+      manuscriptGeneration: state.manuscriptGeneration,
+      analysisGeneration: state.analysisGeneration,
+      graphFingerprint: state.graphFingerprint,
+    };
+    const change = { action: 'node.setMapValue', nodeId, field: 'gloss', key: 'zh', value: '保留' };
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(() => applyAnalysis(db, { unitId: unit.id, expected, changes: [change] })).toThrow(
+      'manuscript is deleted',
+    );
+    expect(() =>
+      callDesktopSession(session.sessionId, 'analysis.apply', {
+        unitId: unit.id,
+        expected,
+        changes: [change],
+      }),
+    ).toThrow('manuscript is deleted');
+    expect(
+      db
+        .prepare('SELECT graph_fingerprint AS graphFingerprint FROM units WHERE id = ?')
+        .get(unit.id),
+    ).toEqual({ graphFingerprint: state.graphFingerprint });
+    resetDesktopSessions();
+    const closed = openDesktopSession(dir, [dir]);
+    expect(() =>
+      applyAnalysis(requireDesktopSession(closed.sessionId).db, {
+        unitId: unit.id,
+        expected,
+        changes: [change],
+      }),
+    ).toThrow('manuscript is deleted');
+    callDesktopSession(closed.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(
+      callDesktopSession(closed.sessionId, 'analysis.apply', {
+        unitId: unit.id,
+        expected,
+        changes: [change],
+      }),
+    ).toMatchObject({
+      root: {
+        graph: {
+          nodes: [
+            expect.objectContaining({ domain: expect.objectContaining({ gloss: { zh: '保留' } }) }),
+          ],
+        },
+      },
+    });
   });
 
   it('refuses delete while a run is going, then makes that run stale across restore', () => {
@@ -699,6 +1146,156 @@ describe('manuscript mark delete', () => {
     expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
       expect.objectContaining({ id: seeded.manuscriptId, deletedAt: null }),
     ]);
+  });
+
+  it('rejects the remaining manuscript writes while deleted and allows a new unit after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const left = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'a-b',
+    }) as { id: string };
+    const right = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 1,
+      endTime: 2,
+      text: 'stay',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: left.id });
+    const db = requireDesktopSession(session.sessionId).db;
+    const state = readAnalysisState(db, left.id);
+    const graph = readAnalysisMaterial(db, left.id).graph;
+    const suggestion = {
+      unitId: left.id,
+      graph,
+      expected: {
+        manuscriptGeneration: state.manuscriptGeneration,
+        analysisGeneration: state.analysisGeneration,
+        graphFingerprint: state.graphFingerprint,
+      },
+      definitionRevisions: state.definitionRevisions,
+    };
+    const pending = submitAnalysis(db, suggestion);
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const rejected: [string, Record<string, unknown>][] = [
+      ['units.create', { layerId: seeded.layerId, startTime: 2, endTime: 3, text: 'late' }],
+      ['units.updateBoundary', { leftId: left.id, rightId: right.id, time: 0.5 }],
+      ['units.split', { unitId: left.id, time: 0.5 }],
+      ['units.merge', { keepId: left.id, removeId: right.id }],
+      ['notes.create', { anchor: { kind: 'unit', unitId: left.id }, content: { zh: '迟到' } }],
+      [
+        'modelRuns.start',
+        {
+          manuscriptId: seeded.manuscriptId,
+          layerId: seeded.layerId,
+          modelId: 'local.whisper',
+          modelVersion: '1',
+          manifestSha256: 'abc',
+          params: {},
+          rangeStart: 0,
+          rangeEnd: 8,
+        },
+      ],
+      [
+        'manuscripts.setTimeMapping',
+        { manuscriptId: seeded.manuscriptId, expectedRevision: 0, offsetSec: 1, scale: 1 },
+      ],
+      ['analysis.segmentMorphemes', { unitId: left.id }],
+    ];
+    for (const [method, args] of rejected) {
+      expect(() => callDesktopSession(session.sessionId, method, args), method).toThrow(
+        'manuscript is deleted',
+      );
+    }
+    expect(() =>
+      createUnit(db, { layerId: seeded.layerId, startTime: 2, endTime: 3, text: 'late' }),
+    ).toThrow('manuscript is deleted');
+    expect(() => updateBoundary(db, { leftId: left.id, rightId: right.id, time: 0.5 })).toThrow(
+      'manuscript is deleted',
+    );
+    expect(() => splitUnit(db, { unitId: left.id, time: 0.5 })).toThrow('manuscript is deleted');
+    expect(() => segmentUnitMorphemes(db, left.id)).toThrow('manuscript is deleted');
+    expect(() => submitAnalysis(db, suggestion)).toThrow('manuscript is deleted');
+    expect(() => callDesktopSession(session.sessionId, 'analysis.submit', suggestion)).toThrow(
+      'manuscript is deleted',
+    );
+    expect(() =>
+      acceptAnalysis(db, { candidateId: pending.id, expected: suggestion.expected }),
+    ).toThrow('analysis candidate is stale');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'analysis.accept', {
+        candidateId: pending.id,
+        expected: suggestion.expected,
+      }),
+    ).toThrow('analysis candidate is stale');
+    expect(() =>
+      startModelRun(db, {
+        manuscriptId: seeded.manuscriptId,
+        layerId: seeded.layerId,
+        modelId: 'local.whisper',
+        modelVersion: '1',
+        manifestSha256: 'abc',
+        params: {},
+        rangeStart: 0,
+        rangeEnd: 8,
+      }),
+    ).toThrow('manuscript is deleted');
+    expect(
+      queryCorpus(db, {
+        manuscriptId: seeded.manuscriptId,
+        text: 'a-b',
+        form: null,
+        gloss: null,
+        pos: null,
+        lexemeId: null,
+        senseId: null,
+        limit: 10,
+        cursor: null,
+      }),
+    ).toEqual({
+      items: [],
+      hasMore: false,
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'corpus.query', {
+        manuscriptId: seeded.manuscriptId,
+        text: 'a-b',
+        limit: 10,
+      }),
+    ).toEqual({ items: [], hasMore: false });
+    expect(db.prepare('SELECT end_time AS endTime FROM units WHERE id = ?').get(left.id)).toEqual({
+      endTime: 1,
+    });
+    resetDesktopSessions();
+    const closed = openDesktopSession(dir, [dir]);
+    expect(() =>
+      callDesktopSession(closed.sessionId, 'units.split', { unitId: left.id, time: 0.5 }),
+    ).toThrow('manuscript is deleted');
+    callDesktopSession(closed.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(() =>
+      callDesktopSession(closed.sessionId, 'analysis.accept', {
+        candidateId: pending.id,
+        expected: suggestion.expected,
+      }),
+    ).toThrow('analysis candidate is stale');
+    expect(
+      callDesktopSession(closed.sessionId, 'units.create', {
+        layerId: seeded.layerId,
+        startTime: 2,
+        endTime: 3,
+        text: 'after',
+      }),
+    ).toMatchObject({ text: 'after' });
+    expect(
+      callDesktopSession(closed.sessionId, 'corpus.query', {
+        manuscriptId: seeded.manuscriptId,
+        text: 'a-b',
+        limit: 10,
+      }),
+    ).toMatchObject({ items: [expect.objectContaining({ unitId: left.id })] });
   });
 });
 

@@ -28,7 +28,7 @@ depends_on:
 
 ## 3. 验收标准
 
-- [ ] 所有可达操作有类型化输入/输出、运行时解析、会话要求和显式撤销策略；未知操作、额外键、越权对象仍被拒绝。
+- [ ] 所有可达操作有类型化输入/输出、运行时解析、会话要求和显式撤销策略；未知操作和越权对象仍被拒绝，额外键保持各操作原行为（试点 units.updateText 忽略额外键，收紧须单列行为变更）。
 - [ ] 每种领域创建通过合法初始化入口完成，缺必填字段则对象和字段同回滚；包括导入及批量接受。
 - [ ] 生命周期守卫在领域持久入口生效；普通读取、专用删除列表、清除内部读取有不同而明确的合同。
 - [ ] 文本、图、线性投影、引用、快照和代际在所属操作同事务一致；未确定的引用迁移语义不擅自改变。
@@ -42,10 +42,10 @@ depends_on:
 
 | 类别 | 路径（均相对仓库根） | 改动性质 |
 | --- | --- | --- |
-| 契约/IPC | src/db/desktop/client.ts、desktopCall.ts、拟建 operationContract.ts、operationHandlers.ts | 契约与主进程装配收口 |
+| 契约/IPC | src/db/desktop/client.ts、desktopCall.ts、operationContract.ts；handler 当前仍在 desktopCall.ts | 契约与主进程装配收口 |
 | 生命周期/创建 | manuscripts.ts、layers.ts、units.ts、media.ts、customFields.ts、conversations.ts、messages.ts、notes.ts、catalog.ts、speakers.ts、lexicon.ts | 领域入口保证完整结果 |
-| 分析/撤销 | analysis*.ts、unitSpan.ts、modelRuns.ts、speakerAssign.ts、projectSession.ts | 事务责任、引用和会话状态 |
-| 修订/诊断 | sourceFields.ts、speakerFields.ts、conversationFields.ts、bibliographyFields.ts、diagnosticDelivery.ts | 删除重复协议 |
+| 分析/撤销 | analysis*.ts、unitSpan.ts、modelRuns.ts、speakerAssign.ts、projectSession.ts、sessionEdit.ts | 事务责任、引用和会话状态 |
+| 修订/诊断 | sourceFields.ts、speakerFields.ts、conversationFields.ts、bibliographyFields.ts、fieldDelivery.ts、diagnosticDelivery.ts | 删除重复协议 |
 | 文件/宿主 | projectExchange.ts、foreignImport.ts、attachments.ts、mediaCleanup.ts、dailyBackup.ts；src/desktop/skeleton/；electron/ | 公共保护与宿主验证 |
 | 页面/脚本 | src/desktop/ 各 client 调用入口、scripts/import-desktop-file.mjs、scripts/desktop-project-flow.mjs | 适配现有具名接口 |
 | 测试/守卫 | src/db/desktop/*.test.ts、__audit__/；scripts/check-*.mjs | 反例常规化、阻止旁路 |

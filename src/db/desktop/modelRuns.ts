@@ -205,10 +205,14 @@ export interface AcceptableRun {
 export function listAcceptableRuns(db: SqliteDatabase, manuscriptId: string): AcceptableRun[] {
   return db
     .prepare(
-      `SELECT id, range_start AS rangeStart, range_end AS rangeEnd
+      `SELECT model_runs.id, model_runs.range_start AS rangeStart, model_runs.range_end AS rangeEnd
        FROM model_runs
-       WHERE manuscript_id = ? AND status = 'ok'
-       ORDER BY started_at, id`,
+       JOIN manuscripts ON manuscripts.id = model_runs.manuscript_id
+       WHERE model_runs.manuscript_id = ?
+         AND model_runs.status = 'ok'
+         AND manuscripts.deleted_at IS NULL
+         AND model_runs.lifecycle_generation = manuscripts.lifecycle_generation
+       ORDER BY model_runs.started_at, model_runs.id`,
     )
     .all(manuscriptId) as AcceptableRun[];
 }
