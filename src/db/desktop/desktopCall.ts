@@ -70,7 +70,7 @@ import {
 import { assignSpeaker } from './speakerAssign';
 import { patchSpeaker, redeliverSpeaker, type SpeakerPatch } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
-import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
+import { patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers } from './layers';
 import { linkSense, removeSense, saveLexemeEntry, getLexemeEntry } from './lexicon';
@@ -146,8 +146,6 @@ import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
   'references.listLinks',
-  'sources.patch',
-  'sources.redeliver',
   'speakers.patch',
   'speakers.redeliver',
   'speakers.create',
@@ -577,6 +575,14 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['customFields.purgeDefinition']['check']>,
     ) => purgeDefinition(ctx.db, input, undefined, ctx.sessionId),
+  },
+  'sources.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.patch']['check']>) =>
+      patchSource(ctx.db, input),
+  },
+  'sources.redeliver': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.redeliver']['check']>) =>
+      redeliverSource(ctx.db, input.operationId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1018,6 +1024,16 @@ function runContract(
         ctx,
         desktopOperations['customFields.purgeDefinition'].check(raw),
       );
+    case 'sources.patch':
+      return operationHandlers['sources.patch'].run(
+        ctx,
+        desktopOperations['sources.patch'].check(raw),
+      );
+    case 'sources.redeliver':
+      return operationHandlers['sources.redeliver'].run(
+        ctx,
+        desktopOperations['sources.redeliver'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1136,11 +1152,6 @@ export function callDesktopSession(
     case 'references.listLinks':
       knownKeys(input, []);
       return readLexemeLinks(project.db);
-    case 'sources.patch':
-      return patchSource(project.db, sourcePatch(input));
-    case 'sources.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverSource(project.db, requiredString(input.operationId, 'operationId'));
     case 'speakers.patch':
       return patchSpeaker(project.db, speakerPatch(input));
     case 'speakers.redeliver':
@@ -1306,19 +1317,6 @@ function requiredString(value: unknown, name: string): string {
     throw new Error(`desktop call ${name} must be a string`);
   }
   return value;
-}
-
-function sourcePatch(input: Record<string, unknown>): SourcePatch {
-  knownKeys(input, ['operationId', 'id', 'label', 'externalId']);
-  const label = sourceField(input.label, 'label');
-  const externalId = sourceField(input.externalId, 'externalId');
-  if (label === undefined && externalId === undefined) throw new Error('source patch is empty');
-  return {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-    ...(label === undefined ? {} : { label }),
-    ...(externalId === undefined ? {} : { externalId }),
-  };
 }
 
 function bibliographyPatch(input: Record<string, unknown>): BibliographyPatch {
@@ -1649,20 +1647,6 @@ function revisionOf(value: unknown, name: string): number {
     throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
   }
   return revision;
-}
-
-function sourceField(
-  value: unknown,
-  name: 'label' | 'externalId',
-): { expectedRevision: number; value: string } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const expectedRevision = requiredNumber(record.expectedRevision, `${name}.expectedRevision`);
-  if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
-    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
-  }
-  return { expectedRevision, value: requiredString(record.value, `${name}.value`) };
 }
 
 function fingerprintString(value: unknown): string {

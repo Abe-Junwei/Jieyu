@@ -58,6 +58,7 @@ import type { Media, MediaCreate } from './media';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
+import type { SourcePatch, SourceReading } from './sourceFields';
 import type { Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
@@ -711,6 +712,33 @@ function allow(input: Record<string, unknown>, keys: readonly string[]): Record<
   return input;
 }
 
+function sourceField(
+  value: unknown,
+  name: 'label' | 'externalId',
+): { expectedRevision: number; value: string } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const expectedRevision = requiredNumber(record.expectedRevision, `${name}.expectedRevision`);
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
+  }
+  return { expectedRevision, value: requiredString(record.value, `${name}.value`) };
+}
+
+function sourcePatch(input: Record<string, unknown>): SourcePatch {
+  knownKeys(input, ['operationId', 'id', 'label', 'externalId']);
+  const label = sourceField(input.label, 'label');
+  const externalId = sourceField(input.externalId, 'externalId');
+  if (label === undefined && externalId === undefined) throw new Error('source patch is empty');
+  return {
+    operationId: requiredString(input.operationId, 'operationId'),
+    id: requiredString(input.id, 'id'),
+    ...(label === undefined ? {} : { label }),
+    ...(externalId === undefined ? {} : { externalId }),
+  };
+}
+
 function definitionIdOf(input: Record<string, unknown>): { definitionId: string } {
   knownKeys(input, ['definitionId']);
   return { definitionId: requiredString(input.definitionId, 'definitionId') };
@@ -1187,6 +1215,11 @@ export const desktopOperations = {
   'customFields.purgeDefinition': spec<'clear', Record<string, unknown>, void>('clear', (input) =>
     allow(input, ['definitionId', 'expectedRevision', 'previewFingerprint']),
   ),
+  'sources.patch': spec<'clear', SourcePatch, SourceReading>('clear', sourcePatch),
+  'sources.redeliver': spec<'clear', { operationId: string }, SourceReading>('clear', (input) => {
+    knownKeys(input, ['operationId']);
+    return { operationId: requiredString(input.operationId, 'operationId') };
+  }),
 };
 
 export type DesktopOperations = typeof desktopOperations;
