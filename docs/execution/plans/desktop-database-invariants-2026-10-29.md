@@ -147,7 +147,7 @@ sessionEdit 已管理一步内存状态，领域模块不读它；崩溃即丢�
 
 ## 依赖与交付控制
 
-A、B、W2 故障注入、W3a 和 W3b project 缺值回滚已封口，不借此迁新键。project 入口仍无 fieldValues，不能在创建时写入合法必填值。source 没有具名创建函数，缺值回滚未做，不新增入口。分析节点、关系和转写接受的缺值回滚已落地。媒体到附件、自定义字段、来源、发音人、会话、消息、书目、引用、分析和交换已迁入目录。W6 目录迁移以交换收口。逐键 switch 和 METHODS 已删，reopen 仍单独入口。client 目录操作的返回类型已改从合同推导，reopen 仍单独写结果。下一刀是 W0 反例，一次只迁一个 __audit__ 文件。host.test.ts 已迁出。domains-required.test.ts 已由 requiredCreateReadback 覆盖并删除。domains-corpus.test.ts 的大批量分页已进入 corpusQuery.test.ts。domains-purge.test.ts 已进入 customFieldPurge.test.ts。files-boundaries.test.ts 已进入常规测试。fix-schema.test.ts 已迁出。fix-files.test.ts 已进入常规测试。W0 和 W5 正文里的宽基线、完整文件验收和 Electron 媒体路径是最终阶段目标，不是本轮每一刀的范围；Electron 媒体路径留在 W7 门禁。不新写入口散文，不提取共用图函数。
+A、B、W2 故障注入、W3a 和 W3b project 缺值回滚已封口，不借此迁新键。project 入口仍无 fieldValues，不能在创建时写入合法必填值。source 没有具名创建函数，缺值回滚未做，不新增入口。分析节点、关系和转写接受的缺值回滚已落地。媒体到附件、自定义字段、来源、发音人、会话、消息、书目、引用、分析和交换已迁入目录。W6 目录迁移以交换收口。逐键 switch 和 METHODS 已删，reopen 仍单独入口。client 目录操作的返回类型已改从合同推导，reopen 仍单独写结果。下一刀是 W0 反例，一次只迁一个 __audit__ 文件。host.test.ts 已迁出。domains-required.test.ts 已由 requiredCreateReadback 覆盖并删除。domains-corpus.test.ts 的大批量分页已进入 corpusQuery.test.ts。domains-purge.test.ts 已进入 customFieldPurge.test.ts。files-boundaries.test.ts 已进入常规测试。fix-schema.test.ts 已迁出。fix-files.test.ts 已进入常规测试。fix-life.test.ts 已迁出。W0 和 W5 正文里的宽基线、完整文件验收和 Electron 媒体路径是最终阶段目标，不是本轮每一刀的范围；Electron 媒体路径留在 W7 门禁。不新写入口散文，不提取共用图函数。
 一个阶段可多次小提交，每次只迁一个有完整验收的领域。先保留业务结果测试，再替换实现，最后删除旧代码。
 不承诺一次大提交完成；每批失败可回退代码，无格式迁移。只有实际并行执行时才分配互不重叠所有权，本文不预设多 agent 编排。
 若风险评估要求新旧试用，遵守 flag 默认 false 和一周自用规则，单次操作只走一路；不得为了比较而双写真实数据。
@@ -190,6 +190,6 @@ A、B、getUnit、readAnalysisState、备注、字段、可接受任务名单、
 
 12. 补交故障：source 的事务中止把正文和 pending 一起回滚。诊断文件已经收件、项目里的确认更新失败时，状态仍是 pending，修订不变。关闭重开后再补交只确认一次，再次补交不增加回执。协议实现没有改。
 
-W3a 到 W5、W6 预备、媒体到附件、自定义字段、来源、发音人、会话、消息、书目、引用、分析和交换已收口。source 没有具名创建函数。W6 目录迁移以交换收口。逐键 switch 和 METHODS 已删，reopen 仍单独入口。client 目录操作的返回类型已改从合同推导，reopen 仍单独写结果。下一刀是 W0 反例，一次只迁一个 __audit__ 文件。host.test.ts 已迁出。domains-required.test.ts 已由 requiredCreateReadback 覆盖并删除。domains-corpus.test.ts 的大批量分页已进入 corpusQuery.test.ts。domains-purge.test.ts 已进入 customFieldPurge.test.ts。files-boundaries.test.ts 已进入常规测试。fix-schema.test.ts 已迁出。fix-files.test.ts 已进入常规测试。W0、W5 的宽基线和 Electron 媒体路径留在最终阶段，不从 W7 门禁删除。本轮没有重跑全域回归或 Electron。
+W3a 到 W5、W6 预备、媒体到附件、自定义字段、来源、发音人、会话、消息、书目、引用、分析和交换已收口。source 没有具名创建函数。W6 目录迁移以交换收口。逐键 switch 和 METHODS 已删，reopen 仍单独入口。client 目录操作的返回类型已改从合同推导，reopen 仍单独写结果。下一刀是 W0 反例，一次只迁一个 __audit__ 文件。host.test.ts 已迁出。domains-required.test.ts 已由 requiredCreateReadback 覆盖并删除。domains-corpus.test.ts 的大批量分页已进入 corpusQuery.test.ts。domains-purge.test.ts 已进入 customFieldPurge.test.ts。files-boundaries.test.ts 已进入常规测试。fix-schema.test.ts 已迁出。fix-files.test.ts 已进入常规测试。fix-life.test.ts 已迁出。W0、W5 的宽基线和 Electron 媒体路径留在最终阶段，不从 W7 门禁删除。本轮没有重跑全域回归或 Electron。
 
 证据：`npm run typecheck` 通过。`npx vitest run src/db/desktop/sourceFields.test.ts` 为 5 项通过。`npx eslint` 覆盖本切片测试，`git diff --check` 通过。`npm run check:docs-governance` 通过。上一批文稿删除为 19 项。

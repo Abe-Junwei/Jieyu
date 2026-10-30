@@ -506,6 +506,46 @@ describe('transcription run storage', () => {
       callDesktopSession(reopened.sessionId, 'modelRuns.get', { runId: running.id }),
     ).toMatchObject({ status: 'running', pendingCount: 0, finishedAt: null });
   });
+
+  it('rejects a preview and an accept outside the run range', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId);
+    const run = callDesktopSession(session.sessionId, 'modelRuns.start', {
+      manuscriptId: seeded.manuscriptId,
+      layerId: seeded.layerId,
+      modelId: 'm',
+      modelVersion: '1',
+      manifestSha256: 'x',
+      params: {},
+      rangeStart: 2,
+      rangeEnd: 3,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: run.id,
+      status: 'ok',
+      chunkCount: 1,
+    });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.preview', {
+        runId: run.id,
+        candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 3, mediaEnd: 4 }],
+      }),
+    ).toThrow('transcription range is outside the run');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'outside-run',
+        runId: run.id,
+        chunkIndex: 0,
+        segmentIndex: 0,
+        mediaStart: 3,
+        mediaEnd: 4,
+        timeMappingRevision: 0,
+        targetFingerprint: 'none',
+        text: 'outside-run',
+      }),
+    ).toThrow('transcription range is outside the run');
+  });
 });
 
 function seed(sessionId: string): { manuscriptId: string; layerId: string } {

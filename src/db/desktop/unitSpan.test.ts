@@ -310,6 +310,22 @@ describe('session unit span undo', () => {
       'unit text undo is empty',
     );
   });
+
+  it('reads the copied unit after a split that moved morpheme surfaces', () => {
+    const session = open();
+    const unitId = seed(session.sessionId, 0, 2, 'word');
+    callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'pre-fix' });
+    callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId });
+    callDesktopSession(session.sessionId, 'analysis.segmentMorphemes', { unitId });
+    const result = callDesktopSession(session.sessionId, 'units.split', {
+      unitId,
+      time: 1,
+    }) as { right: { id: string } };
+    callDesktopSession(session.sessionId, 'reopen', {});
+    expect(() =>
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: result.right.id }),
+    ).not.toThrow();
+  });
 });
 
 function open() {
