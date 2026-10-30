@@ -478,4 +478,34 @@ describe('desktop JYT exchange', () => {
     expect(() => importDesktopJyt(dest, bytes)).toThrow('import destination is not empty');
     expect(readFileSync(join(dest, 'existing.txt'), 'utf8')).toBe('keep');
   });
+
+  it('rejects a second transcription row for the same unit in a JYT', () => {
+    const source = folder();
+    const dest = folder();
+    const project = openProject(source);
+    project.db
+      .prepare(
+        'INSERT INTO media(id,relpath,sha256,filename,duration,created_at) VALUES(?,?,?,?,?,?)',
+      )
+      .run('m', 'a.wav', 'a', 'a.wav', 1, T);
+    const manuscript = project.manuscripts.create({ title: { und: 'm' }, mediaId: 'm' });
+    const layer = project.layers.create({
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { und: 'tx' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'first' });
+    const files = unzipSync(exportDesktopJyt(project.db));
+    project.close();
+    const payload = JSON.parse(strFromU8(files['data/project.json']!)) as {
+      tables: { unit_texts: Record<string, unknown>[] };
+    };
+    const first = payload.tables.unit_texts[0];
+    if (first === undefined) throw new Error('unit text missing');
+    payload.tables.unit_texts.push({ ...first, id: 'duplicate-role', body: 'second' });
+    files['data/project.json'] = strToU8(JSON.stringify(payload));
+    expect(() => importDesktopJyt(dest, zipSync(files))).toThrow('unit text role is duplicated');
+  });
 });
