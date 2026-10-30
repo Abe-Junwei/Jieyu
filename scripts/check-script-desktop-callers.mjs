@@ -4,7 +4,14 @@ import path from 'node:path';
 const root = process.cwd();
 const scriptsRoot = path.join(root, 'scripts');
 const importScript = 'scripts/import-desktop-file.mjs';
+const allowedDesktopModule = '/src/db/desktop/foreignImport.ts';
 const sessionTokens = ['openDesktopSession', 'callDesktopSession', 'projectSession'];
+const writeStepTokens = [
+  'writeRequiredFieldValues(',
+  'writeUnitFieldValues(',
+  'ensureProjectIdentity(',
+  'createUnit(',
+];
 
 export function scriptCallerViolations(files) {
   const violations = [];
@@ -14,6 +21,13 @@ export function scriptCallerViolations(files) {
     }
     if (file.text.includes('importForeignFile') && file.name !== importScript) {
       violations.push(`${file.name} imports a desktop folder`);
+    }
+    const loaded = file.text.match(/ssrLoadModule\('(\/src\/db\/desktop\/[^']+)'\)/);
+    if (loaded && !(file.name === importScript && loaded[1] === allowedDesktopModule)) {
+      violations.push(`${file.name} loads a desktop module`);
+    }
+    for (const token of writeStepTokens) {
+      if (file.text.includes(token)) violations.push(`${file.name} calls a desktop write step`);
     }
   }
   return violations;
@@ -56,7 +70,23 @@ function selfCheck() {
   const other = scriptCallerViolations([
     { name: 'scripts/other.mjs', text: 'importForeignFile({' },
   ]);
-  if (opened.length !== 1 || allowed.length !== 0 || listed.length !== 0 || other.length !== 1) {
+  const loaded = scriptCallerViolations([
+    {
+      name: 'scripts/other.mjs',
+      text: "ssrLoadModule('/src/db/desktop/units.ts')",
+    },
+  ]);
+  const step = scriptCallerViolations([
+    { name: 'scripts/other.mjs', text: 'createUnit(db, input)' },
+  ]);
+  if (
+    opened.length !== 1 ||
+    allowed.length !== 0 ||
+    listed.length !== 0 ||
+    other.length !== 1 ||
+    loaded.length !== 1 ||
+    step.length !== 1
+  ) {
     console.error('[check-script-desktop-callers] self-check failed');
     process.exit(1);
   }

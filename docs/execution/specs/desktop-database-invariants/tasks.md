@@ -16,7 +16,8 @@ depends_on:
 每项以半天内可评审为目标；超出即在该项下拆开再实施。W 编号与执行计划一致。
 
 - [x] 读取当前实现/ADR/既有规格，核对工作区，完成成熟方案调研及三件套。
-- [ ] W0 入口：扩展现有 check:script-desktop-callers。scripts/import-desktop-file.mjs 调用 importForeignFile 仍合法。拦住脚本直接拼接底层写函数、事务内步骤或 SQL。不重做入口普查，不记性能。
+- [x] W0 入口：check:script-desktop-callers 仍允许 import-desktop-file.mjs 只加载 foreignImport。其他脚本加载 src/db/desktop，或调用 writeRequiredFieldValues、writeUnitFieldValues、ensureProjectIdentity、createUnit，会被拦住。
+- [ ] W0 入口 SQL：既有 roundtrip 脚本含旧库 INSERT。全禁会误伤，合同未定，这一刀不改那些脚本。
 - [ ] W0 性能：只在 W6 第一刀之前，用合成项目记一次查询和写入耗时，数字写进该次提交说明。
 - [ ] W0 反例：一次只迁一个 __audit__ 文件。先有能捕获原缺陷的常规测试，再删该文件。
 - [x] W1 为 project.get / layers.create / units.updateText / media.finishCleanup 建类型化试点。handler 留在 desktopCall.ts。
