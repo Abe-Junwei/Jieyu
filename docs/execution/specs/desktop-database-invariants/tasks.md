@@ -37,10 +37,10 @@ depends_on:
 - [x] W3b 已有 13 宿主创建缺值回滚/合法重开读回测试通过。
 - [x] W3b project 缺值回滚：首次创建遇到必填项目字段且没有值时，报 project is missing a required field。失败后没有项目行或字段值，关闭重开后仍相同。已有项目行再次打开不因缺值拒绝。直接调用和 openDesktopSession 都测了。
 - [ ] W3b project 字段值：ensureProjectIdentity 仍无 fieldValues。这只说明入口还不能在创建时写入合法必填值，不是运行时拒绝多传参数。必填初始化仍有限制。
-- [ ] W3b source：只处理 source 创建，规则与 project 相同。
-- [ ] W3b analysis-node：缺必填节点字段时图写入整段回滚。沿用 assertStoredCustomFields。失败后旧图、投影及相关记录不变。
-- [ ] W3b analysis-relation：只处理关系。失败后旧图、投影及相关记录不变。
-- [ ] W3b 导入：一种导入路径缺必填值整段回滚，不按行提交。
+- [ ] W3b source：没有具名创建函数。生产代码不插入 sources 行，测试里的 INSERT 不是创建合同。缺值回滚未做，不新增创建入口。
+- [x] W3b analysis-node：缺必填新节点时 analysis import 整段回滚。旧图指纹、词项投影不变，关闭重开后仍是旧图。沿用 assertStoredCustomFields。
+- [x] W3b analysis-relation：缺必填新关系时 writeAnalysisRoot 整段回滚。旧图、词项投影不变，关闭重开后仍没有这条关系。
+- [x] W3b 导入：上面的 analysis import 就是这一条整段回滚路径。foreignImport 缺必填语段仍逐条跳过并记 unprojected，这是已有合同，本刀不改。
 - [ ] W3b 接受：一条接受路径缺必填值整段回滚。批量若调用同一函数，仍核对外层没有逐项提交，不能只凭同名函数免验。
 - [ ] W4a 改正文：正文写入后注入失败，重开后代际和图仍是前态。不提取共用函数。
 - [ ] W4a 改图：快照或投影写入后注入失败，重开后回到前态。只有和第二处是同一段代码时才提取。
