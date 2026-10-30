@@ -19,12 +19,12 @@ export interface DesktopBridge {
 
 /** One bridge call per action. A lost response is returned as a failure and is not sent again. */
 export function createDesktopClient(bridge: DesktopBridge) {
-  function once<K extends keyof DesktopOperations>(
+  async function once<K extends keyof DesktopOperations>(
     sessionId: string,
     method: K,
     args: unknown,
   ): Promise<DesktopOperations[K]['output']> {
-    return bridge.desktopCall(sessionId, method, args) as Promise<DesktopOperations[K]['output']>;
+    return (await bridge.desktopCall(sessionId, method, args)) as DesktopOperations[K]['output'];
   }
   return {
     createMedia: (sessionId: string, input: MediaCreate) => once(sessionId, 'media.create', input),
@@ -304,8 +304,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
         title: { expectedRevision: number; value: string };
       },
     ) => once(sessionId, 'conversations.patch', input),
-    reopen: (sessionId: string) =>
-      bridge.desktopCall(sessionId, 'reopen', {}) as Promise<{ reopened: true }>,
+    reopen: async (sessionId: string) =>
+      (await bridge.desktopCall(sessionId, 'reopen', {})) as { reopened: true },
     patchSource: (sessionId: string, input: SourcePatch) => once(sessionId, 'sources.patch', input),
     redeliverSource: (sessionId: string, operationId: string) =>
       once(sessionId, 'sources.redeliver', { operationId }),
