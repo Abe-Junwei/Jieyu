@@ -742,6 +742,8 @@ export function TranscriptionTimelineVerticalViewGroupList({
                               ),
                             );
                           }
+                          // Sync DOM before blur so onBlur does not persist the cancelled draft (#456).
+                          event.currentTarget.value = initialSourceText;
                           setUnitDrafts((prev) => ({
                             ...prev,
                             [sourceDraftKey]: initialSourceText,
@@ -1282,6 +1284,8 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                       if (event.key !== 'Escape') return;
                                       event.preventDefault();
                                       clearAutoSaveTimer(segAutoSaveKey);
+                                      // Sync DOM before blur so onBlur does not persist the cancelled draft (#456).
+                                      event.currentTarget.value = itemInitial;
                                       setTranslationDrafts((prev) => ({
                                         ...prev,
                                         [itemDraftKey]: itemInitial,
@@ -1630,6 +1634,8 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                       if (event.key !== 'Escape') return;
                                       event.preventDefault();
                                       clearAutoSaveTimer(pairedReadingAutoSaveKey);
+                                      // Sync DOM before blur so onBlur does not persist the cancelled draft (#456).
+                                      event.currentTarget.value = initialTargetText;
                                       setTranslationDrafts((prev) => ({
                                         ...prev,
                                         [draftKey]: initialTargetText,

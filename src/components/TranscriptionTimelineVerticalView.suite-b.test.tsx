@@ -14,7 +14,7 @@ vi.mock('../contexts/ToastContext', () => ({
   }),
 }));
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import {
@@ -498,6 +498,50 @@ describe('TranscriptionTimelineVerticalView', () => {
     expect(editors).toHaveLength(2);
     expect((editors[0] as HTMLTextAreaElement | undefined)?.value).toBe('第一行');
     expect((editors[1] as HTMLTextAreaElement | undefined)?.value).toBe('第二行');
+  });
+
+  it('Escape cancels source edit without persisting the discarded draft (#456)', async () => {
+    const handleAnnotationClick = vi.fn();
+    const onFocusLayer = vi.fn();
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+    const contextValue = makeEditorContext();
+    const saveUnitText = vi.fn(async () => undefined);
+    contextValue.saveUnitText = saveUnitText;
+    contextValue.getUnitTextForLayer = () => '原文';
+
+    const viewRender = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineVerticalView
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={onFocusLayer}
+            handleAnnotationClick={handleAnnotationClick}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const sourceEditor = viewRender.container.querySelector(
+      '.timeline-paired-reading-source-input',
+    ) as HTMLTextAreaElement;
+    expect(sourceEditor).toBeTruthy();
+    fireEvent.focus(sourceEditor);
+    fireEvent.change(sourceEditor, { target: { value: '被取消的文本' } });
+    fireEvent.keyDown(sourceEditor, { key: 'Escape' });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(saveUnitText).not.toHaveBeenCalledWith(
+      expect.anything(),
+      '被取消的文本',
+      expect.anything(),
+    );
+    expect(saveUnitText.mock.calls.every((call) => call[1] !== '被取消的文本')).toBe(true);
   });
 
   it('keeps the transcription column directly editable', () => {
