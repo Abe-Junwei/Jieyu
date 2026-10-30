@@ -248,8 +248,16 @@ describe('manuscript reminder and purge', () => {
         title: { zh: '到期' },
         relpath: null,
         retainUntil: soon,
+        removable: false,
       },
-      { target: 'media', id: recording.id, title: null, relpath: 'b.wav', retainUntil: soon },
+      {
+        target: 'media',
+        id: recording.id,
+        title: null,
+        relpath: 'b.wav',
+        retainUntil: soon,
+        removable: false,
+      },
     ]);
     expect(reminderAt(session.sessionId, 'manuscripts', later.manuscriptId)).toBeNull();
     expect(reminderAt(session.sessionId, 'manuscripts', due.manuscriptId)).toBeNull();

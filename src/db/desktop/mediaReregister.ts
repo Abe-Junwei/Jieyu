@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
+import { blockMediaRestore } from './mediaCleanup';
 import { createMedia, mediaRelpath } from './media';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -34,6 +35,7 @@ export function reregisterMedia(
 }
 
 export function restoreRegisteredMedia(db: SqliteDatabase, id: string): { id: string } {
+  blockMediaRestore(db, id);
   const write = db.transaction(() => {
     const row = db.prepare('SELECT deleted_at FROM media WHERE id = ?').get(id) as
       { deleted_at: string | null } | undefined;
@@ -43,6 +45,10 @@ export function restoreRegisteredMedia(db: SqliteDatabase, id: string): { id: st
       `UPDATE media
        SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL
        WHERE id = ? AND deleted_at IS NOT NULL`,
+    ).run(id);
+    db.prepare(
+      `DELETE FROM media_cleanups
+       WHERE media_id = ? AND state IN ('intent', 'failed', 'unknown')`,
     ).run(id);
     const next = db.prepare('SELECT deleted_at FROM media WHERE id = ?').get(id) as {
       deleted_at: string | null;

@@ -69,7 +69,11 @@ try {
         String(port),
         '--strictPort',
       ],
-      { cwd: root, stdio: 'inherit' },
+      {
+        cwd: root,
+        stdio: 'inherit',
+        env: { ...process.env, VITE_DESKTOP_MODEL_CANDIDATES_ENABLED: 'true' },
+      },
     );
     await waitForDevServer();
     status = run(node, [
@@ -89,6 +93,7 @@ try {
     const needsXvfb = process.platform === 'linux' && !process.env.DISPLAY;
     const flowEnv = {
       ...process.env,
+      VITE_DESKTOP_MODEL_CANDIDATES_ENABLED: 'true',
       JIEYU_DESKTOP_FLOW_FOLDER: folder,
       JIEYU_VITE_DEV_SERVER: devServer,
     };

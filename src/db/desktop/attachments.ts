@@ -76,6 +76,60 @@ export function sweepAttachmentTmp(folder: string): void {
   }
 }
 
+export interface AttachmentLinkView {
+  id: string;
+  displayName: string;
+  kind: AttachmentKind;
+  mimeType: string;
+}
+
+export interface AttachmentBytes {
+  mimeType: string;
+  bytes: Uint8Array;
+}
+
+export function listAttachmentLinks(db: SqliteDatabase, lexemeId: string): AttachmentLinkView[] {
+  return db
+    .prepare(
+      `SELECT links.id AS id, links.display_name AS displayName, files.kind AS kind,
+              files.mime_type AS mimeType
+       FROM attachment_links links
+       JOIN attachment_files files ON files.id = links.file_id
+       WHERE links.lexeme_id = ? AND files.state = 'ready'
+       ORDER BY links.created_at, links.id`,
+    )
+    .all(lexemeId) as AttachmentLinkView[];
+}
+
+export function readAttachmentLink(
+  db: SqliteDatabase,
+  folder: string,
+  linkId: string,
+): AttachmentBytes {
+  const row = db
+    .prepare(
+      `SELECT files.sha256 AS sha256, files.relpath AS relpath, files.state AS state,
+              files.mime_type AS mimeType
+       FROM attachment_links links
+       JOIN attachment_files files ON files.id = links.file_id
+       WHERE links.id = ?`,
+    )
+    .get(linkId) as
+    { sha256: string; relpath: string; state: string; mimeType: string } | undefined;
+  if (row === undefined) throw new Error('attachment link is missing');
+  if (row.state !== 'ready') throw new Error('attachment file is missing');
+  const absolute = objectFile(folder, {
+    id: linkId,
+    sha256: row.sha256,
+    relpath: row.relpath,
+    state: row.state,
+  });
+  if (absolute === undefined) throw new Error('attachment file is missing');
+  const bytes = readFileSync(absolute);
+  if (sha256(bytes) !== row.sha256) throw new Error('attachment hash does not match');
+  return { mimeType: row.mimeType, bytes };
+}
+
 export function publishAttachment(
   db: SqliteDatabase,
   folder: string,
@@ -94,6 +148,10 @@ export function publishAttachment(
     throw new Error('attachment display name is invalid');
   }
   const digest = sha256(input.bytes);
+  const unresolved = db
+    .prepare('SELECT state FROM attachment_files WHERE sha256 = ?')
+    .get(digest) as { state: string } | undefined;
+  if (unresolved?.state === 'cleanup_unknown') throw new Error('attachment file is unresolved');
   const relpath = `attachments/objects/${digest}`;
   const tempDir = attachmentDir(folder, 'tmp');
   const objectDir = attachmentDir(folder, 'objects');
@@ -184,6 +242,8 @@ export async function finishAttachmentCleanup(
     markState(db, fileId, 'cleanup_unknown');
     return { fileId, state: 'cleanup_unknown' };
   }
+  // Persist uncertainty before the external call: neither reopen nor publish may race the move.
+  markState(db, fileId, 'cleanup_unknown');
   let outcome: 'moved' | 'unknown' = 'unknown';
   try {
     const reported = await trash(absolute);
@@ -200,7 +260,7 @@ export async function finishAttachmentCleanup(
     const count = db
       .prepare('SELECT COUNT(*) AS n FROM attachment_links WHERE file_id = ?')
       .get(fileId) as { n: number };
-    if (current?.state !== 'cleanup_pending' || count.n !== 0) return false;
+    if (current?.state !== 'cleanup_unknown' || count.n !== 0) return false;
     db.prepare('DELETE FROM attachment_files WHERE id = ?').run(fileId);
     return true;
   })();

@@ -7,17 +7,21 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { killWhenReady } from './lib/sigkill-harness.mjs';
+import {
+  assertInsideSyntheticDir,
+  createSyntheticDir,
+  syntheticWriteFile,
+} from './lib/synthetic-write-target.mjs';
 
 const SENTENCE_COUNT = 10_000;
 const SPEED_LIMIT_MS = 2_000;
 
 function openNode(file) {
-  const db = new DatabaseSync(file);
+  const db = new DatabaseSync(syntheticWriteFile(file));
   return {
     exec(sql) {
       db.exec(sql);
@@ -36,7 +40,7 @@ function openNode(file) {
 
 function openBetter(file) {
   const Database = createRequire(import.meta.url)(process.env.JIEYU_BETTER_SQLITE);
-  const db = new Database(file);
+  const db = new Database(syntheticWriteFile(file));
   return {
     exec(sql) {
       db.exec(sql);
@@ -65,7 +69,7 @@ function errorCode(error) {
 
 for (const driver of drivers()) {
   test(`${driver.name}: a closed .jyd copies as one file and keeps ids`, () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-copy-'));
+    const dir = createSyntheticDir('jieyu-copy-');
     try {
       const file = path.join(dir, 'doc.jyd');
       const db = driver.open(file);
@@ -90,7 +94,7 @@ for (const driver of drivers()) {
   });
 
   test(`${driver.name}: ten thousand sentence writes finish within ${SPEED_LIMIT_MS}ms`, () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-speed-'));
+    const dir = createSyntheticDir('jieyu-speed-');
     try {
       const file = path.join(dir, 'doc.jyd');
       const db = driver.open(file);
@@ -114,13 +118,14 @@ for (const driver of drivers()) {
   });
 
   test(`${driver.name}: a killed write reopens as the committed state`, async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-kill-'));
+    const dir = createSyntheticDir('jieyu-kill-');
     try {
       const file = path.join(dir, 'doc.jyd');
       const child = path.join(dir, 'child.mjs');
-      const openLine = process.env.JIEYU_BETTER_SQLITE && driver.name === 'better-sqlite3'
-        ? `import { createRequire } from 'node:module'; const Database = createRequire(import.meta.url)(${JSON.stringify(process.env.JIEYU_BETTER_SQLITE)}); const db = new Database(process.env.DB);`
-        : `import { DatabaseSync } from 'node:sqlite'; const db = new DatabaseSync(process.env.DB);`;
+      const openLine =
+        process.env.JIEYU_BETTER_SQLITE && driver.name === 'better-sqlite3'
+          ? `import { createRequire } from 'node:module'; const Database = createRequire(import.meta.url)(${JSON.stringify(process.env.JIEYU_BETTER_SQLITE)}); const db = new Database(process.env.DB);`
+          : `import { DatabaseSync } from 'node:sqlite'; const db = new DatabaseSync(process.env.DB);`;
       fs.writeFileSync(
         child,
         `${openLine}
@@ -133,6 +138,7 @@ console.log('ready');
 setInterval(() => {}, 1000);
 `,
       );
+      assertInsideSyntheticDir(dir, file);
       await killWhenReady(child, { env: { DB: file } });
       const db = driver.open(file);
       const count = db.get('SELECT count(*) AS n FROM units').n;
@@ -147,7 +153,7 @@ setInterval(() => {}, 1000);
   });
 
   test(`${driver.name}: a full disk import removes the partial project files and keeps the original`, () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-full-'));
+    const dir = createSyntheticDir('jieyu-full-');
     try {
       const source = path.join(dir, 'outside.wav');
       const original = Buffer.from('original-audio');
