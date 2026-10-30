@@ -62,11 +62,7 @@ import {
   redeliverBibliography,
   type BibliographyPatch,
 } from './bibliographyFields';
-import {
-  patchConversation,
-  redeliverConversation,
-  type ConversationPatch,
-} from './conversationFields';
+import { patchConversation, redeliverConversation } from './conversationFields';
 import { assignSpeaker } from './speakerAssign';
 import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
@@ -154,10 +150,6 @@ import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
   'references.listLinks',
-  'conversations.create',
-  'conversations.list',
-  'conversations.patch',
-  'conversations.redeliver',
   'messages.append',
   'messages.update',
   'messages.clear',
@@ -196,7 +188,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'analysis.listWords',
   'analysis.listMorphemes',
   'messages.list',
-  'conversations.list',
 ]);
 
 type ContractCtx = {
@@ -608,6 +599,25 @@ const operationHandlers = {
       }
       return assigned.units;
     },
+  },
+  'conversations.create': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['conversations.create']['check']>,
+    ) => createConversation(ctx.db, input),
+  },
+  'conversations.list': {
+    run: (ctx: ContractCtx) => listConversations(ctx.db),
+  },
+  'conversations.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['conversations.patch']['check']>) =>
+      patchConversation(ctx.db, input),
+  },
+  'conversations.redeliver': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['conversations.redeliver']['check']>,
+    ) => redeliverConversation(ctx.db, input.operationId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1082,6 +1092,24 @@ function runContract(
         ctx,
         desktopOperations['speakers.assign'].check(raw),
       );
+    case 'conversations.create':
+      return operationHandlers['conversations.create'].run(
+        ctx,
+        desktopOperations['conversations.create'].check(raw),
+      );
+    case 'conversations.list':
+      desktopOperations['conversations.list'].check(raw);
+      return operationHandlers['conversations.list'].run(ctx);
+    case 'conversations.patch':
+      return operationHandlers['conversations.patch'].run(
+        ctx,
+        desktopOperations['conversations.patch'].check(raw),
+      );
+    case 'conversations.redeliver':
+      return operationHandlers['conversations.redeliver'].run(
+        ctx,
+        desktopOperations['conversations.redeliver'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1200,20 +1228,6 @@ export function callDesktopSession(
     case 'references.listLinks':
       knownKeys(input, []);
       return readLexemeLinks(project.db);
-    case 'conversations.create':
-      knownKeys(input, ['title', 'fieldValues']);
-      return createConversation(project.db, {
-        title: requiredString(input.title, 'title'),
-        ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-      });
-    case 'conversations.list':
-      knownKeys(input, []);
-      return listConversations(project.db);
-    case 'conversations.patch':
-      return patchConversation(project.db, conversationPatch(input));
-    case 'conversations.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverConversation(project.db, requiredString(input.operationId, 'operationId'));
     case 'messages.append':
       return appendMessage(project.db, messageAppend(input));
     case 'messages.update':
@@ -1468,54 +1482,6 @@ function messageRole(value: unknown): MessageAppend['role'] {
     return value;
   }
   throw new Error('desktop call role must be a message role');
-}
-
-function conversationPatch(input: Record<string, unknown>): ConversationPatch {
-  knownKeys(input, [
-    'operationId',
-    'id',
-    'title',
-    'mode',
-    'providerId',
-    'model',
-    'archived',
-    'clearedAt',
-  ]);
-  const title = speakerText(input.title, 'title', false);
-  const providerId = speakerText(input.providerId, 'providerId', true);
-  const model = speakerText(input.model, 'model', true);
-  const clearedAt = speakerText(input.clearedAt, 'clearedAt', true);
-  const mode = speakerEnum(input.mode, 'mode', ['assistant', 'analysis', 'review']);
-  const archived = conversationArchived(input.archived);
-  const patch: ConversationPatch = {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-  };
-  if (title !== undefined) {
-    if (typeof title.value !== 'string')
-      throw new Error('desktop call title.value must be a string');
-    patch.title = { expectedRevision: title.expectedRevision, value: title.value };
-  }
-  if (mode !== undefined) patch.mode = mode;
-  if (providerId !== undefined) patch.providerId = providerId;
-  if (model !== undefined) patch.model = model;
-  if (archived !== undefined) patch.archived = archived;
-  if (clearedAt !== undefined) patch.clearedAt = clearedAt;
-  if (Object.keys(patch).length === 2) throw new Error('conversation patch is empty');
-  return patch;
-}
-
-function conversationArchived(
-  value: unknown,
-): { expectedRevision: number; value: boolean | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const archived = record.value;
-  if (archived !== null && typeof archived !== 'boolean') {
-    throw new Error('desktop call archived.value must be a boolean');
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, 'archived'), value: archived };
 }
 
 function fingerprintString(value: unknown): string {

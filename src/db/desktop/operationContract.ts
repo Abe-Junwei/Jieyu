@@ -61,6 +61,8 @@ import type { ProjectIdentity } from './projectIdentity';
 import type { SourcePatch, SourceReading } from './sourceFields';
 import type { SpeakerPatch, SpeakerReading } from './speakerFields';
 import type { Speaker } from './speakers';
+import type { ConversationPatch, ConversationReading } from './conversationFields';
+import type { Conversation, ConversationCreate } from './conversations';
 import type { Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
@@ -920,6 +922,62 @@ function speakerAssign(input: Record<string, unknown>): { speakerId: string; uni
   };
 }
 
+function conversationPatch(input: Record<string, unknown>): ConversationPatch {
+  knownKeys(input, [
+    'operationId',
+    'id',
+    'title',
+    'mode',
+    'providerId',
+    'model',
+    'archived',
+    'clearedAt',
+  ]);
+  const title = speakerText(input.title, 'title', false);
+  const providerId = speakerText(input.providerId, 'providerId', true);
+  const model = speakerText(input.model, 'model', true);
+  const clearedAt = speakerText(input.clearedAt, 'clearedAt', true);
+  const mode = speakerEnum(input.mode, 'mode', ['assistant', 'analysis', 'review']);
+  const archived = conversationArchived(input.archived);
+  const patch: ConversationPatch = {
+    operationId: requiredString(input.operationId, 'operationId'),
+    id: requiredString(input.id, 'id'),
+  };
+  if (title !== undefined) {
+    if (typeof title.value !== 'string')
+      throw new Error('desktop call title.value must be a string');
+    patch.title = { expectedRevision: title.expectedRevision, value: title.value };
+  }
+  if (mode !== undefined) patch.mode = mode;
+  if (providerId !== undefined) patch.providerId = providerId;
+  if (model !== undefined) patch.model = model;
+  if (archived !== undefined) patch.archived = archived;
+  if (clearedAt !== undefined) patch.clearedAt = clearedAt;
+  if (Object.keys(patch).length === 2) throw new Error('conversation patch is empty');
+  return patch;
+}
+
+function conversationArchived(
+  value: unknown,
+): { expectedRevision: number; value: boolean | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const archived = record.value;
+  if (archived !== null && typeof archived !== 'boolean') {
+    throw new Error('desktop call archived.value must be a boolean');
+  }
+  return { expectedRevision: revisionOf(record.expectedRevision, 'archived'), value: archived };
+}
+
+function conversationCreate(input: Record<string, unknown>): ConversationCreate {
+  knownKeys(input, ['title', 'fieldValues']);
+  return {
+    title: requiredString(input.title, 'title'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1412,6 +1470,25 @@ export const desktopOperations = {
   'speakers.assign': spec<'keep', { speakerId: string; unitIds: string[] }, Unit[]>(
     'keep',
     speakerAssign,
+  ),
+  'conversations.create': spec<'clear', ConversationCreate, Conversation>(
+    'clear',
+    conversationCreate,
+  ),
+  'conversations.list': spec<'keep', Record<string, never>, Conversation[]>('keep', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
+  'conversations.patch': spec<'clear', ConversationPatch, ConversationReading>(
+    'clear',
+    conversationPatch,
+  ),
+  'conversations.redeliver': spec<'clear', { operationId: string }, ConversationReading>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['operationId']);
+      return { operationId: requiredString(input.operationId, 'operationId') };
+    },
   ),
 };
 
