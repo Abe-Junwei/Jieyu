@@ -136,6 +136,7 @@ describe('desktop skeleton', () => {
     expect(sliceForRange(8, 'bytes=0-3')).toEqual({ status: 206, start: 0, end: 3 });
     expect(sliceForRange(8, 'bytes=0-')).toEqual({ status: 206, start: 0, end: 7 });
     expect(sliceForRange(8, 'bytes=-')).toEqual({ status: 416, start: 0, end: 0 });
+    expect(sliceForRange(10, 'bytes=-20')).toEqual({ status: 206, start: 0, end: 9 });
   });
 
   it('keeps desktop connect-src on this machine', () => {
