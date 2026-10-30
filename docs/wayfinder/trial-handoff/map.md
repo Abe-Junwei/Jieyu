@@ -116,7 +116,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/250
 - 2026-10-13 21:18–21:20 用户拍板（路线图拷问，续）：
   1. 应用内反馈按钮打开邮件，预填版本、系统与脱敏日志（[#264](https://github.com/Abe-Junwei/Jieyu/issues/264)）。
   2. 应用版本从 0.x 起，走 beta 渠道；数据格式版本另用一个整数（[#271](https://github.com/Abe-Junwei/Jieyu/issues/271)、[#275](https://github.com/Abe-Junwei/Jieyu/issues/275)）。
-  3. 解语改用 GPL-3.0-or-later（现为 ISC，著作权人沂南灵创技术服务中心）；暂不改 LICENSE/package.json，由新单 [#307](https://github.com/Abe-Junwei/Jieyu/issues/307) 负责许可切换、依赖兼容核对、安装包第三方许可清单、中文隐私说明。
+  3. 解语改用 GPL-3.0-or-later（当时为 ISC，著作权人沂南灵创技术服务中心）；由新单 [#307](https://github.com/Abe-Junwei/Jieyu/issues/307) 负责许可切换、依赖兼容核对、安装包第三方许可清单、中文隐私说明。（2026-10-30 改为 **AGPL-3.0-or-later**；LICENSE / package.json / README / CITATION 已切换，依赖兼容与第三方清单仍见 #307。）
   4. ~~示例语料：撒都话（Sadu，CC BY 4.0）~~（2026-10-14 被木雅语公开示例取代，见 [#313](https://github.com/Abe-Junwei/Jieyu/issues/313)）。
   5. 数据恢复：应用内导出诊断包；用户自己从快照恢复（[#269](https://github.com/Abe-Junwei/Jieyu/issues/269)）。
   6. 首次用云端转写弹专门的伦理/隐私对话框；可按项目关闭云端转写（[#257](https://github.com/Abe-Junwei/Jieyu/issues/257)、[#283](https://github.com/Abe-Junwei/Jieyu/issues/283)）。

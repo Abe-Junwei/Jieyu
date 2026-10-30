@@ -292,7 +292,7 @@
   },
   "keywords": [],
   "author": "沂南灵创技术服务中心",
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "browserslist": [
     "chrome 152"
   ],

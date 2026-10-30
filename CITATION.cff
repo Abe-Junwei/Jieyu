@@ -14,7 +14,7 @@ authors:
     affiliation: Beijing Normal University
 version: 1.1.0
 date-released: 2026-04-24
-license: ISC
+license: AGPL-3.0-or-later
 url: https://github.com/Abe-Junwei/Jieyu
 repository-code: https://github.com/Abe-Junwei/Jieyu
 keywords:
