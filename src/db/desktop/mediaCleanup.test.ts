@@ -109,9 +109,16 @@ describe('media file cleanup', () => {
     ).resolves.toEqual({ id: 'op-fail', state: 'failed' });
     expect(count(failed.db, 'media')).toBe(1);
     expect(existsSync(join(failedDir, 'a.wav'))).toBe(true);
+    expect(state(failed.db, 'op-fail')).toBe('failed');
     await expect(
       finishMediaCleanup(failed.db, failedDir, 'media-1', 'op-other', async () => 'moved'),
     ).rejects.toThrow('media cleanup is already open');
+    failed.close();
+    const reopened = openProject(failedDir);
+    expect(state(reopened.db, 'op-fail')).toBe('failed');
+    expect(count(reopened.db, 'media')).toBe(1);
+    expect(existsSync(join(failedDir, 'a.wav'))).toBe(true);
+    reopened.close();
 
     const unknownDir = folder();
     const unknown = openProject(unknownDir);
@@ -156,7 +163,6 @@ describe('media file cleanup', () => {
     ).resolves.toEqual({ id: 'op-missing', state: 'unknown' });
     expect(count(missing.db, 'media')).toBe(1);
 
-    failed.close();
     unknown.close();
     stayed.close();
     replaced.close();
