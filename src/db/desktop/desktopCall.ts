@@ -68,7 +68,7 @@ import {
   type ConversationPatch,
 } from './conversationFields';
 import { assignSpeaker } from './speakerAssign';
-import { patchSpeaker, redeliverSpeaker, type SpeakerPatch } from './speakerFields';
+import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
 import { patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
@@ -133,7 +133,15 @@ import {
   requireDesktopSession,
 } from './projectSession';
 import { clearSessionEdit, rememberSessionEdit, undoSessionEdit } from './sessionEdit';
-import { desktopOperations, isDesktopOperation, type DesktopOperations } from './operationContract';
+import {
+  desktopOperations,
+  isDesktopOperation,
+  revisionOf,
+  speakerEnum,
+  speakerNotes,
+  speakerText,
+  type DesktopOperations,
+} from './operationContract';
 import {
   createUnit,
   getUnit,
@@ -146,11 +154,6 @@ import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
   'references.listLinks',
-  'speakers.patch',
-  'speakers.redeliver',
-  'speakers.create',
-  'speakers.list',
-  'speakers.assign',
   'conversations.create',
   'conversations.list',
   'conversations.patch',
@@ -187,8 +190,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'exchange.exportJyt',
   'exchange.exportJym',
   'exchange.exportManuscript',
-  'speakers.assign',
-  'speakers.list',
   'references.listLinks',
   'analysis.readState',
   'analysis.listCandidates',
@@ -583,6 +584,30 @@ const operationHandlers = {
   'sources.redeliver': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.redeliver']['check']>) =>
       redeliverSource(ctx.db, input.operationId),
+  },
+  'speakers.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.patch']['check']>) =>
+      patchSpeaker(ctx.db, input),
+  },
+  'speakers.redeliver': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.redeliver']['check']>) =>
+      redeliverSpeaker(ctx.db, input.operationId),
+  },
+  'speakers.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.create']['check']>) =>
+      createSpeaker(ctx.db, input),
+  },
+  'speakers.list': {
+    run: (ctx: ContractCtx) => listSpeakers(ctx.db),
+  },
+  'speakers.assign': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.assign']['check']>) => {
+      const assigned = assignSpeaker(ctx.db, input);
+      if (assigned.undo !== null) {
+        rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: assigned.undo });
+      }
+      return assigned.units;
+    },
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1034,6 +1059,29 @@ function runContract(
         ctx,
         desktopOperations['sources.redeliver'].check(raw),
       );
+    case 'speakers.patch':
+      return operationHandlers['speakers.patch'].run(
+        ctx,
+        desktopOperations['speakers.patch'].check(raw),
+      );
+    case 'speakers.redeliver':
+      return operationHandlers['speakers.redeliver'].run(
+        ctx,
+        desktopOperations['speakers.redeliver'].check(raw),
+      );
+    case 'speakers.create':
+      return operationHandlers['speakers.create'].run(
+        ctx,
+        desktopOperations['speakers.create'].check(raw),
+      );
+    case 'speakers.list':
+      desktopOperations['speakers.list'].check(raw);
+      return operationHandlers['speakers.list'].run(ctx);
+    case 'speakers.assign':
+      return operationHandlers['speakers.assign'].run(
+        ctx,
+        desktopOperations['speakers.assign'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1152,28 +1200,6 @@ export function callDesktopSession(
     case 'references.listLinks':
       knownKeys(input, []);
       return readLexemeLinks(project.db);
-    case 'speakers.patch':
-      return patchSpeaker(project.db, speakerPatch(input));
-    case 'speakers.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverSpeaker(project.db, requiredString(input.operationId, 'operationId'));
-    case 'speakers.create':
-      knownKeys(input, ['name']);
-      return createSpeaker(project.db, { name: requiredString(input.name, 'name') });
-    case 'speakers.list':
-      knownKeys(input, []);
-      return listSpeakers(project.db);
-    case 'speakers.assign': {
-      knownKeys(input, ['speakerId', 'unitIds']);
-      const assigned = assignSpeaker(project.db, {
-        speakerId: requiredString(input.speakerId, 'speakerId'),
-        unitIds: stringIds(input.unitIds, 'unitIds'),
-      });
-      if (assigned.undo !== null) {
-        rememberSessionEdit(sessionId, { kind: 'assign', undo: assigned.undo });
-      }
-      return assigned.units;
-    }
     case 'conversations.create':
       knownKeys(input, ['title', 'fieldValues']);
       return createConversation(project.db, {
@@ -1492,174 +1518,9 @@ function conversationArchived(
   return { expectedRevision: revisionOf(record.expectedRevision, 'archived'), value: archived };
 }
 
-function speakerPatch(input: Record<string, unknown>): SpeakerPatch {
-  knownKeys(input, [
-    'operationId',
-    'id',
-    'name',
-    'pseudonym',
-    'gender',
-    'birthYear',
-    'languageIds',
-    'dialect',
-    'accent',
-    'role',
-    'consentStatus',
-    'accessRights',
-    'address',
-    'notes',
-  ]);
-  const patch: SpeakerPatch = {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-  };
-  const name = speakerText(input.name, 'name', false);
-  const pseudonym = speakerText(input.pseudonym, 'pseudonym', true);
-  const gender = speakerText(input.gender, 'gender', true);
-  const dialect = speakerText(input.dialect, 'dialect', true);
-  const accent = speakerText(input.accent, 'accent', true);
-  const address = speakerText(input.address, 'address', true);
-  const birthYear = speakerBirthYear(input.birthYear);
-  const languageIds = speakerLanguageIds(input.languageIds);
-  const role = speakerEnum(input.role, 'role', [
-    'speaker',
-    'translator',
-    'annotator',
-    'researcher',
-  ]);
-  const consentStatus = speakerEnum(input.consentStatus, 'consentStatus', [
-    'granted',
-    'restricted',
-    'anonymous',
-  ]);
-  const accessRights = speakerEnum(input.accessRights, 'accessRights', [
-    'open',
-    'restricted',
-    'confidential',
-  ]);
-  const notes = speakerNotes(input.notes);
-  if (name !== undefined) {
-    if (typeof name.value !== 'string') throw new Error('desktop call name.value must be a string');
-    patch.name = { expectedRevision: name.expectedRevision, value: name.value };
-  }
-  if (pseudonym !== undefined) patch.pseudonym = pseudonym;
-  if (gender !== undefined) patch.gender = gender;
-  if (birthYear !== undefined) patch.birthYear = birthYear;
-  if (languageIds !== undefined) patch.languageIds = languageIds;
-  if (dialect !== undefined) patch.dialect = dialect;
-  if (accent !== undefined) patch.accent = accent;
-  if (role !== undefined) patch.role = role;
-  if (consentStatus !== undefined) patch.consentStatus = consentStatus;
-  if (accessRights !== undefined) patch.accessRights = accessRights;
-  if (address !== undefined) patch.address = address;
-  if (notes !== undefined) patch.notes = notes;
-  if (Object.keys(patch).length === 2) throw new Error('speaker patch is empty');
-  return patch;
-}
-
-function speakerText(
-  value: unknown,
-  name: string,
-  nullable: boolean,
-): { expectedRevision: number; value: string | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const text = record.value;
-  if (text === null && nullable) {
-    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
-  }
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, name),
-    value: requiredString(text, `${name}.value`),
-  };
-}
-
-function speakerBirthYear(
-  value: unknown,
-): { expectedRevision: number; value: number | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const year = record.value;
-  if (year !== null && (typeof year !== 'number' || !Number.isInteger(year))) {
-    throw new Error('desktop call birthYear.value must be a year');
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, 'birthYear'), value: year };
-}
-
-function speakerLanguageIds(
-  value: unknown,
-): { expectedRevision: number; value: string[] | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const ids = record.value;
-  if (ids === null) {
-    return { expectedRevision: revisionOf(record.expectedRevision, 'languageIds'), value: null };
-  }
-  if (!Array.isArray(ids) || ids.some((item) => typeof item !== 'string' || item.length === 0)) {
-    throw new Error('desktop call languageIds.value must be language ids');
-  }
-  if (new Set(ids).size !== ids.length)
-    throw new Error('desktop call languageIds.value must be language ids');
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, 'languageIds'),
-    value: ids as string[],
-  };
-}
-
-function speakerEnum<T extends string>(
-  value: unknown,
-  name: string,
-  allowed: readonly T[],
-): { expectedRevision: number; value: T | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const item = record.value;
-  if (item === null)
-    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
-  if (typeof item !== 'string' || !allowed.includes(item as T)) {
-    throw new Error(`desktop call ${name}.value is invalid`);
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, name), value: item as T };
-}
-
-function speakerNotes(
-  value: unknown,
-): { expectedRevision: number; value: Record<string, string> | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  if (record.value === null) {
-    return { expectedRevision: revisionOf(record.expectedRevision, 'notes'), value: null };
-  }
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, 'notes'),
-    value: stringMap(record.value, 'notes.value'),
-  };
-}
-
-function revisionOf(value: unknown, name: string): number {
-  const revision = requiredNumber(value, `${name}.expectedRevision`);
-  if (!Number.isInteger(revision) || revision < 0) {
-    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
-  }
-  return revision;
-}
-
 function fingerprintString(value: unknown): string {
   if (typeof value !== 'string') throw new Error('desktop call graphFingerprint must be a string');
   return value;
-}
-
-function stringIds(value: unknown, name: string): string[] {
-  const list = listArg(value, name);
-  if (list.some((item) => typeof item !== 'string' || item.length === 0)) {
-    throw new Error(`desktop call ${name} must be a list`);
-  }
-  return list as string[];
 }
 
 function requiredNumber(value: unknown, name: string): number {
@@ -1667,16 +1528,6 @@ function requiredNumber(value: unknown, name: string): number {
     throw new Error(`desktop call ${name} must be a number`);
   }
   return value;
-}
-
-function stringMap(value: unknown, name: string): Record<string, string> {
-  const record = objectArg(value);
-  const out: Record<string, string> = {};
-  for (const [key, item] of Object.entries(record)) {
-    if (typeof item !== 'string') throw new Error(`desktop call ${name} values must be strings`);
-    out[key] = item;
-  }
-  return out;
 }
 
 function analysisCredentials(input: Record<string, unknown>): AnalysisCredentials {

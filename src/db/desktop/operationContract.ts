@@ -59,6 +59,8 @@ import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
 import type { SourcePatch, SourceReading } from './sourceFields';
+import type { SpeakerPatch, SpeakerReading } from './speakerFields';
+import type { Speaker } from './speakers';
 import type { Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
@@ -744,6 +746,180 @@ function definitionIdOf(input: Record<string, unknown>): { definitionId: string 
   return { definitionId: requiredString(input.definitionId, 'definitionId') };
 }
 
+function speakerPatch(input: Record<string, unknown>): SpeakerPatch {
+  knownKeys(input, [
+    'operationId',
+    'id',
+    'name',
+    'pseudonym',
+    'gender',
+    'birthYear',
+    'languageIds',
+    'dialect',
+    'accent',
+    'role',
+    'consentStatus',
+    'accessRights',
+    'address',
+    'notes',
+  ]);
+  const patch: SpeakerPatch = {
+    operationId: requiredString(input.operationId, 'operationId'),
+    id: requiredString(input.id, 'id'),
+  };
+  const name = speakerText(input.name, 'name', false);
+  const pseudonym = speakerText(input.pseudonym, 'pseudonym', true);
+  const gender = speakerText(input.gender, 'gender', true);
+  const dialect = speakerText(input.dialect, 'dialect', true);
+  const accent = speakerText(input.accent, 'accent', true);
+  const address = speakerText(input.address, 'address', true);
+  const birthYear = speakerBirthYear(input.birthYear);
+  const languageIds = speakerLanguageIds(input.languageIds);
+  const role = speakerEnum(input.role, 'role', [
+    'speaker',
+    'translator',
+    'annotator',
+    'researcher',
+  ]);
+  const consentStatus = speakerEnum(input.consentStatus, 'consentStatus', [
+    'granted',
+    'restricted',
+    'anonymous',
+  ]);
+  const accessRights = speakerEnum(input.accessRights, 'accessRights', [
+    'open',
+    'restricted',
+    'confidential',
+  ]);
+  const notes = speakerNotes(input.notes);
+  if (name !== undefined) {
+    if (typeof name.value !== 'string') throw new Error('desktop call name.value must be a string');
+    patch.name = { expectedRevision: name.expectedRevision, value: name.value };
+  }
+  if (pseudonym !== undefined) patch.pseudonym = pseudonym;
+  if (gender !== undefined) patch.gender = gender;
+  if (birthYear !== undefined) patch.birthYear = birthYear;
+  if (languageIds !== undefined) patch.languageIds = languageIds;
+  if (dialect !== undefined) patch.dialect = dialect;
+  if (accent !== undefined) patch.accent = accent;
+  if (role !== undefined) patch.role = role;
+  if (consentStatus !== undefined) patch.consentStatus = consentStatus;
+  if (accessRights !== undefined) patch.accessRights = accessRights;
+  if (address !== undefined) patch.address = address;
+  if (notes !== undefined) patch.notes = notes;
+  if (Object.keys(patch).length === 2) throw new Error('speaker patch is empty');
+  return patch;
+}
+
+export function speakerText(
+  value: unknown,
+  name: string,
+  nullable: boolean,
+): { expectedRevision: number; value: string | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const text = record.value;
+  if (text === null && nullable) {
+    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
+  }
+  return {
+    expectedRevision: revisionOf(record.expectedRevision, name),
+    value: requiredString(text, `${name}.value`),
+  };
+}
+
+function speakerBirthYear(
+  value: unknown,
+): { expectedRevision: number; value: number | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const year = record.value;
+  if (year !== null && (typeof year !== 'number' || !Number.isInteger(year))) {
+    throw new Error('desktop call birthYear.value must be a year');
+  }
+  return { expectedRevision: revisionOf(record.expectedRevision, 'birthYear'), value: year };
+}
+
+function speakerLanguageIds(
+  value: unknown,
+): { expectedRevision: number; value: string[] | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const ids = record.value;
+  if (ids === null) {
+    return { expectedRevision: revisionOf(record.expectedRevision, 'languageIds'), value: null };
+  }
+  if (!Array.isArray(ids) || ids.some((item) => typeof item !== 'string' || item.length === 0)) {
+    throw new Error('desktop call languageIds.value must be language ids');
+  }
+  if (new Set(ids).size !== ids.length)
+    throw new Error('desktop call languageIds.value must be language ids');
+  return {
+    expectedRevision: revisionOf(record.expectedRevision, 'languageIds'),
+    value: ids as string[],
+  };
+}
+
+export function speakerEnum<T extends string>(
+  value: unknown,
+  name: string,
+  allowed: readonly T[],
+): { expectedRevision: number; value: T | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  const item = record.value;
+  if (item === null)
+    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
+  if (typeof item !== 'string' || !allowed.includes(item as T)) {
+    throw new Error(`desktop call ${name}.value is invalid`);
+  }
+  return { expectedRevision: revisionOf(record.expectedRevision, name), value: item as T };
+}
+
+export function speakerNotes(
+  value: unknown,
+): { expectedRevision: number; value: Record<string, string> | null } | undefined {
+  if (value === undefined) return undefined;
+  const record = objectArg(value);
+  knownKeys(record, ['expectedRevision', 'value']);
+  if (record.value === null) {
+    return { expectedRevision: revisionOf(record.expectedRevision, 'notes'), value: null };
+  }
+  return {
+    expectedRevision: revisionOf(record.expectedRevision, 'notes'),
+    value: stringMap(record.value, 'notes.value'),
+  };
+}
+
+export function revisionOf(value: unknown, name: string): number {
+  const revision = requiredNumber(value, `${name}.expectedRevision`);
+  if (!Number.isInteger(revision) || revision < 0) {
+    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
+  }
+  return revision;
+}
+
+function stringIds(value: unknown, name: string): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`desktop call ${name} must be a list`);
+  if (value.some((item) => typeof item !== 'string' || item.length === 0)) {
+    throw new Error(`desktop call ${name} must be a list`);
+  }
+  return value as string[];
+}
+
+function speakerAssign(input: Record<string, unknown>): { speakerId: string; unitIds: string[] } {
+  knownKeys(input, ['speakerId', 'unitIds']);
+  return {
+    speakerId: requiredString(input.speakerId, 'speakerId'),
+    unitIds: stringIds(input.unitIds, 'unitIds'),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1220,6 +1396,23 @@ export const desktopOperations = {
     knownKeys(input, ['operationId']);
     return { operationId: requiredString(input.operationId, 'operationId') };
   }),
+  'speakers.patch': spec<'clear', SpeakerPatch, SpeakerReading>('clear', speakerPatch),
+  'speakers.redeliver': spec<'clear', { operationId: string }, SpeakerReading>('clear', (input) => {
+    knownKeys(input, ['operationId']);
+    return { operationId: requiredString(input.operationId, 'operationId') };
+  }),
+  'speakers.create': spec<'clear', { name: string }, Speaker>('clear', (input) => {
+    knownKeys(input, ['name']);
+    return { name: requiredString(input.name, 'name') };
+  }),
+  'speakers.list': spec<'keep', Record<string, never>, Speaker[]>('keep', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
+  'speakers.assign': spec<'keep', { speakerId: string; unitIds: string[] }, Unit[]>(
+    'keep',
+    speakerAssign,
+  ),
 };
 
 export type DesktopOperations = typeof desktopOperations;
