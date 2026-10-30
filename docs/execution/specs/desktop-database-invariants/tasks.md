@@ -80,13 +80,13 @@ depends_on:
 
 ## Pre-merge gates
 
-- [ ] 每批 npm run typecheck + 触及域 vitest + eslint + git diff --check。
-- [ ] 最终 npx vitest run src/db src/desktop。
-- [ ] npm run check:schema-freeze + check:desktop-format-freeze。
-- [ ] npm run check:script-desktop-callers + check:old-path-exit + check:db-transaction-facade + check:direct-db-imports。
-- [ ] npm run check:architecture-guard + check:agent-evals:smoke + check:dev-agent-workflow-verify。
-- [ ] npm run test:e2e:chromium + npm run test:e2e:desktop-project；失败归因后仍未通过则不报完成。
-- [ ] npm run check:docs-governance；若触 src/ai 则升级 agent-evals:full。
-- [ ] 若引入试用 flag：默认 false、自用一周、稳定一周期移除；无 flag 则记录等价替换证据。
-- [ ] 提交仅包含当批授权内容，commit 正文附实际命令与结果；本规划不提交代码。
+- [x] 每批 npm run typecheck + 触及域 vitest + eslint + git diff --check。
+- [x] 最终 npx vitest run src/db src/desktop。131 文件，970 通过，3 跳过。
+- [x] npm run check:schema-freeze + check:desktop-format-freeze。11 + 3 通过。
+- [x] npm run check:script-desktop-callers + check:old-path-exit + check:db-transaction-facade + check:direct-db-imports。
+- [x] npm run check:architecture-guard + check:agent-evals:smoke + check:dev-agent-workflow-verify。smoke 4/4。
+- [ ] npm run test:e2e:chromium + npm run test:e2e:desktop-project；失败归因后仍未通过则不报完成。Chromium 122 通过、1 flaky 重试后过、1 跳过。Electron 在打开文件夹按钮超时，页面报 react preamble。不勾。
+- [x] npm run check:docs-governance；若触 src/ai 则升级 agent-evals:full。未改 src/ai，未跑 full。既有 M8/M9/M14/OTel WARN。
+- [x] 若引入试用 flag：默认 false、自用一周、稳定一周期移除；无 flag 则记录等价替换证据。本轮无 flag，目录是唯一调用路径。
+- [x] 提交仅包含当批授权内容，commit 正文附实际命令与结果；本规划不提交代码。
 - [ ] 全部完成后删除规格和本次计划，永久决定留 ADR，测试与结构守卫留代码。

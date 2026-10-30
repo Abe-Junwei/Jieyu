@@ -190,6 +190,6 @@ A、B、getUnit、readAnalysisState、备注、字段、可接受任务名单、
 
 12. 补交故障：source 的事务中止把正文和 pending 一起回滚。诊断文件已经收件、项目里的确认更新失败时，状态仍是 pending，修订不变。关闭重开后再补交只确认一次，再次补交不增加回执。协议实现没有改。
 
-W3a 到 W5、W6 预备、媒体到附件、自定义字段、来源、发音人、会话、消息、书目、引用、分析和交换已收口。source 没有具名创建函数。W6 目录迁移以交换收口。逐键 switch 和 METHODS 已删，reopen 仍单独入口。client 目录操作的返回类型已改从合同推导，reopen 仍单独写结果。W0 反例已全部迁出，__audit__ 已空。W0 SQL、项目字段值、来源创建和跨语段引用合同未定，不实施。W0、W5 的宽基线和 Electron 媒体路径留在最终阶段，不从 W7 门禁删除。本轮没有重跑全域回归或 Electron。
+W3a 到 W5、W6 预备、媒体到附件、自定义字段、来源、发音人、会话、消息、书目、引用、分析和交换已收口。source 没有具名创建函数。W6 目录迁移以交换收口。逐键 switch 和 METHODS 已删，reopen 仍单独入口。client 目录操作的返回类型已改从合同推导，reopen 仍单独写结果。W0 反例已全部迁出，__audit__ 已空。W0 SQL、项目字段值、来源创建和跨语段引用合同未定，不实施。W0、W5 的宽基线和 Electron 媒体路径留在最终阶段，不从 W7 门禁删除。全域 `npx vitest run src/db src/desktop` 为 131 文件、970 通过、3 跳过。schema freeze 11、format freeze 3、四个入口检查、architecture-guard、agent-evals smoke 4/4、workflow 和 docs-governance 通过。Chromium 122 通过、1 条 flaky 重试后过。Electron 项目流在打开文件夹按钮超时，同时 vite 报 react preamble，W7 不勾。垃圾箱探针在同一 vitest 里通过，不能代替这次文件选择和媒体读取。无试用 flag。
 
 证据：`npm run typecheck` 通过。`npx vitest run src/db/desktop/sourceFields.test.ts` 为 5 项通过。`npx eslint` 覆盖本切片测试，`git diff --check` 通过。`npm run check:docs-governance` 通过。上一批文稿删除为 19 项。
