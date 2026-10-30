@@ -1,7 +1,13 @@
 // Renderer-safe: type imports and pure checks only. Handlers stay in the main process.
 import type { Layer, LayerCreate } from './layers';
 import type { DeletionReminder } from './manuscriptPurge';
-import type { RecordingDeletePreview, RecordingDeletion } from './manuscripts';
+import type {
+  Manuscript,
+  ManuscriptCreate,
+  ManuscriptDeletePreview,
+  RecordingDeletePreview,
+  RecordingDeletion,
+} from './manuscripts';
 import type { Media, MediaCreate } from './media';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
@@ -162,6 +168,70 @@ export const desktopOperations = {
     knownKeys(input, []);
     return {} as Record<string, never>;
   }),
+  'manuscripts.create': spec<'clear', ManuscriptCreate, Manuscript>('clear', (input) => ({
+    title: stringMap(input.title, 'title'),
+    mediaId: requiredString(input.mediaId, 'mediaId'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  })),
+  'manuscripts.list': spec<'keep', Record<string, never>, Manuscript[]>(
+    'keep',
+    () => ({}) as Record<string, never>,
+  ),
+  'manuscripts.listDeleted': spec<'keep', Record<string, never>, Manuscript[]>('keep', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
+  'manuscripts.delete': spec<'clear', { id: string }, Manuscript>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'manuscripts.previewDelete': spec<'keep', { id: string }, ManuscriptDeletePreview>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['id']);
+      return { id: requiredString(input.id, 'id') };
+    },
+  ),
+  'manuscripts.restore': spec<'clear', { id: string }, Manuscript>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'manuscripts.showReminder': spec<'clear', { id: string }, DeletionReminder>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'manuscripts.purge': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'manuscripts.setTimeMapping': spec<
+    'clear',
+    {
+      manuscriptId: string;
+      expectedRevision: number;
+      offsetSec: number;
+      scale: number;
+      sourceMediaId?: string;
+    },
+    Manuscript
+  >('clear', (input) => {
+    const sourceMediaId = input.sourceMediaId;
+    return {
+      manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+      expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
+      offsetSec: requiredNumber(input.offsetSec, 'offsetSec'),
+      scale: requiredNumber(input.scale, 'scale'),
+      ...(typeof sourceMediaId === 'string' ? { sourceMediaId } : {}),
+    };
+  }),
+  'manuscripts.rollbackTimeMapping': spec<
+    'clear',
+    { manuscriptId: string; expectedRevision: number },
+    Manuscript
+  >('clear', (input) => ({
+    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+    expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
+  })),
 };
 
 export type DesktopOperations = typeof desktopOperations;

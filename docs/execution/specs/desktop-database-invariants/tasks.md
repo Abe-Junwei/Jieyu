@@ -54,6 +54,7 @@ depends_on:
 - [x] W5c 项目锁竞争沿用 projectLock.process.test.ts：两个进程只有一个能写。Electron 媒体路径仍留在 W7。
 - [x] W6 预备：project.get 保持撤销槽，layers.create 和 media.finishCleanup 在检查前清槽，units.updateText 只在成功后替换。键集仍是这四个。METHODS 还在。
 - [x] W6 媒体：create、delete、previewDelete、showReminder、reregister、restoreRegistered、list 已进入目录。读操作保持撤销槽，写操作在检查前清槽。METHODS 里不再有这些键。
+- [x] W6 文稿：create、list、listDeleted、delete、previewDelete、restore、showReminder、purge、setTimeMapping、rollbackTimeMapping 已进入目录。list 仍忽略多余参数。读操作保持撤销槽，写操作在检查前清槽。
 - [ ] W6 之后每域一刀。下一域再改实现、目录和测试。
 - [ ] W7 不拆功能。前面做完后按门禁逐条跑，含真实 Electron 的文件选择、媒体读取和垃圾箱。不过就不勾完成。
 

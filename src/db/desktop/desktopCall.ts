@@ -150,7 +150,6 @@ import {
   restoreManuscript,
   rollbackManuscriptTimeMapping,
   setManuscriptTimeMapping,
-  type ManuscriptCreate,
 } from './manuscripts';
 import {
   desktopSessionFolder,
@@ -175,16 +174,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'manuscripts.create',
-  'manuscripts.list',
-  'manuscripts.listDeleted',
-  'manuscripts.delete',
-  'manuscripts.previewDelete',
-  'manuscripts.restore',
-  'manuscripts.showReminder',
-  'manuscripts.purge',
-  'manuscripts.setTimeMapping',
-  'manuscripts.rollbackTimeMapping',
   'layers.list',
   'catalog.ensureProjectDefinition',
   'catalog.getLanguage',
@@ -307,9 +296,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'bridges.get',
   'units.get',
   'units.list',
-  'manuscripts.list',
-  'manuscripts.listDeleted',
-  'manuscripts.previewDelete',
   'layers.list',
   'notes.list',
   'notes.listLexeme',
@@ -421,6 +407,52 @@ const operationHandlers = {
   'media.list': {
     run: (ctx: ContractCtx) => listActiveMedia(ctx.db),
   },
+  'manuscripts.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.create']['check']>) =>
+      createManuscript(ctx.db, input),
+  },
+  'manuscripts.list': {
+    run: (ctx: ContractCtx) => listManuscripts(ctx.db),
+  },
+  'manuscripts.listDeleted': {
+    run: (ctx: ContractCtx) => listDeletedManuscripts(ctx.db),
+  },
+  'manuscripts.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.delete']['check']>) =>
+      deleteManuscript(ctx.db, input.id),
+  },
+  'manuscripts.previewDelete': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.previewDelete']['check']>,
+    ) => previewManuscriptDelete(ctx.db, input.id),
+  },
+  'manuscripts.restore': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.restore']['check']>) =>
+      restoreManuscript(ctx.db, input.id),
+  },
+  'manuscripts.showReminder': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.showReminder']['check']>,
+    ) => showDeletionReminder(ctx.db, 'manuscript', input.id),
+  },
+  'manuscripts.purge': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.purge']['check']>) =>
+      purgeManuscript(ctx.db, input.id),
+  },
+  'manuscripts.setTimeMapping': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.setTimeMapping']['check']>,
+    ) => setManuscriptTimeMapping(ctx.db, input),
+  },
+  'manuscripts.rollbackTimeMapping': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.rollbackTimeMapping']['check']>,
+    ) => rollbackManuscriptTimeMapping(ctx.db, input),
+  },
 } satisfies ContractHandlers;
 
 function runContract(
@@ -492,6 +524,52 @@ function runContract(
     case 'media.list':
       desktopOperations['media.list'].check(raw);
       return operationHandlers['media.list'].run(ctx);
+    case 'manuscripts.create':
+      return operationHandlers['manuscripts.create'].run(
+        ctx,
+        desktopOperations['manuscripts.create'].check(raw),
+      );
+    case 'manuscripts.list':
+      desktopOperations['manuscripts.list'].check(raw);
+      return operationHandlers['manuscripts.list'].run(ctx);
+    case 'manuscripts.listDeleted':
+      desktopOperations['manuscripts.listDeleted'].check(raw);
+      return operationHandlers['manuscripts.listDeleted'].run(ctx);
+    case 'manuscripts.delete':
+      return operationHandlers['manuscripts.delete'].run(
+        ctx,
+        desktopOperations['manuscripts.delete'].check(raw),
+      );
+    case 'manuscripts.previewDelete':
+      return operationHandlers['manuscripts.previewDelete'].run(
+        ctx,
+        desktopOperations['manuscripts.previewDelete'].check(raw),
+      );
+    case 'manuscripts.restore':
+      return operationHandlers['manuscripts.restore'].run(
+        ctx,
+        desktopOperations['manuscripts.restore'].check(raw),
+      );
+    case 'manuscripts.showReminder':
+      return operationHandlers['manuscripts.showReminder'].run(
+        ctx,
+        desktopOperations['manuscripts.showReminder'].check(raw),
+      );
+    case 'manuscripts.purge':
+      return operationHandlers['manuscripts.purge'].run(
+        ctx,
+        desktopOperations['manuscripts.purge'].check(raw),
+      );
+    case 'manuscripts.setTimeMapping':
+      return operationHandlers['manuscripts.setTimeMapping'].run(
+        ctx,
+        desktopOperations['manuscripts.setTimeMapping'].check(raw),
+      );
+    case 'manuscripts.rollbackTimeMapping':
+      return operationHandlers['manuscripts.rollbackTimeMapping'].run(
+        ctx,
+        desktopOperations['manuscripts.rollbackTimeMapping'].check(raw),
+      );
     default: {
       const unreachable: never = method;
       return unreachable;
@@ -530,35 +608,6 @@ export function callDesktopSession(
     case 'attachments.list':
       knownKeys(input, ['lexemeId']);
       return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'manuscripts.create':
-      return createManuscript(project.db, manuscriptCreate(input));
-    case 'manuscripts.list':
-      return listManuscripts(project.db);
-    case 'manuscripts.listDeleted':
-      knownKeys(input, []);
-      return listDeletedManuscripts(project.db);
-    case 'manuscripts.delete':
-      knownKeys(input, ['id']);
-      return deleteManuscript(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.previewDelete':
-      knownKeys(input, ['id']);
-      return previewManuscriptDelete(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.restore':
-      knownKeys(input, ['id']);
-      return restoreManuscript(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.showReminder':
-      knownKeys(input, ['id']);
-      return showDeletionReminder(project.db, 'manuscript', requiredString(input.id, 'id'));
-    case 'manuscripts.purge':
-      knownKeys(input, ['id']);
-      return purgeManuscript(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.setTimeMapping':
-      return setManuscriptTimeMapping(project.db, timeMappingSet(input));
-    case 'manuscripts.rollbackTimeMapping':
-      return rollbackManuscriptTimeMapping(project.db, {
-        manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-        expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
-      });
     case 'layers.list':
       return listLayers(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
     case 'catalog.ensureProjectDefinition':
@@ -1682,31 +1731,6 @@ function noteCategory(value: unknown): ContentNoteCategory | null {
 function noteAttachment(value: unknown): 'active' | 'detached' | 'any' {
   if (value === 'active' || value === 'detached' || value === 'any') return value;
   throw new Error('note attachment is invalid');
-}
-
-function manuscriptCreate(input: Record<string, unknown>): ManuscriptCreate {
-  return {
-    title: stringMap(input.title, 'title'),
-    mediaId: requiredString(input.mediaId, 'mediaId'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function timeMappingSet(input: Record<string, unknown>): {
-  manuscriptId: string;
-  expectedRevision: number;
-  offsetSec: number;
-  scale: number;
-  sourceMediaId?: string;
-} {
-  const sourceMediaId = input.sourceMediaId;
-  return {
-    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-    expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
-    offsetSec: requiredNumber(input.offsetSec, 'offsetSec'),
-    scale: requiredNumber(input.scale, 'scale'),
-    ...(typeof sourceMediaId === 'string' ? { sourceMediaId } : {}),
-  };
 }
 
 function modelRunStart(input: Record<string, unknown>): ModelRunStart {
