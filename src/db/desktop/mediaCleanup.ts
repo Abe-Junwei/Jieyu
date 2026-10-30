@@ -46,6 +46,16 @@ export async function finishMediaCleanup(
   }
   const media = readMedia(db, mediaId);
   if (media === undefined) throw new Error('media is missing');
+  if (existing?.state === 'unknown') {
+    if (
+      existing.media_id !== media.id ||
+      existing.relpath !== media.relpath ||
+      existing.sha256 !== media.sha256
+    ) {
+      throw new Error('media cleanup conflict');
+    }
+    return { id: operationId, state: 'unknown' };
+  }
   if (existing !== undefined) {
     if (
       existing.media_id !== media.id ||
@@ -76,6 +86,7 @@ export async function finishMediaCleanup(
     return { id: operationId, state: 'unknown' };
   }
 
+  beginTrashCall(db, mediaId);
   let outcome: 'moved' | 'failed' | 'unknown' = 'unknown';
   try {
     const reported = await trash(absolute);
@@ -88,11 +99,12 @@ export async function finishMediaCleanup(
   } catch {
     outcome = 'failed';
   }
+  const restoreAttempted = endTrashCall(db, mediaId);
   if (outcome === 'failed') {
     mark(db, operationId, 'failed');
     return { id: operationId, state: 'failed' };
   }
-  if (outcome !== 'moved' || fileStillThere(absolute)) {
+  if (outcome !== 'moved' || fileStillThere(absolute) || restoreAttempted) {
     mark(db, operationId, 'unknown');
     return { id: operationId, state: 'unknown' };
   }
@@ -114,6 +126,26 @@ const KNOWN_PATH_ERRORS = new Set([
   'media file is missing',
   'media path escapes the project folder',
 ]);
+
+const CLEANUP_NOT_READY = new Set([
+  'media is active',
+  'reminder has not been shown',
+  'media is inside its retention window',
+  'media is still referenced',
+]);
+
+/** Domain gate for the cleanup button. finishMediaCleanup checks the same conditions again. */
+export function mediaCleanupReady(db: SqliteDatabase, mediaId: string): boolean {
+  const media = readMedia(db, mediaId);
+  if (media === undefined) return false;
+  try {
+    assertReady(db, media);
+  } catch (error) {
+    if (error instanceof Error && CLEANUP_NOT_READY.has(error.message)) return false;
+    throw error;
+  }
+  return true;
+}
 
 function assertReady(db: SqliteDatabase, media: MediaCycle): void {
   if (media.deletedAt === null || media.retainUntil === null) throw new Error('media is active');
@@ -139,6 +171,33 @@ function plusUtcDays(iso: string, days: number): string {
   return date.toISOString();
 }
 
+const trashInFlight = new WeakMap<SqliteDatabase, Map<string, { restoreAttempted: boolean }>>();
+
+/** A trash call has started. Restore must not report success until it finishes. */
+export function blockMediaRestore(db: SqliteDatabase, mediaId: string): void {
+  const entry = trashInFlight.get(db)?.get(mediaId);
+  if (entry === undefined) return;
+  entry.restoreAttempted = true;
+  throw new Error('media cleanup is in progress');
+}
+
+function beginTrashCall(db: SqliteDatabase, mediaId: string): void {
+  let calls = trashInFlight.get(db);
+  if (calls === undefined) {
+    calls = new Map();
+    trashInFlight.set(db, calls);
+  }
+  if (calls.has(mediaId)) throw new Error('media cleanup is in progress');
+  calls.set(mediaId, { restoreAttempted: false });
+}
+
+function endTrashCall(db: SqliteDatabase, mediaId: string): boolean {
+  const calls = trashInFlight.get(db);
+  const entry = calls?.get(mediaId);
+  calls?.delete(mediaId);
+  return entry?.restoreAttempted === true;
+}
+
 function clearRegistration(db: SqliteDatabase, mediaId: string, operationId: string): boolean {
   const write = db.transaction(() => {
     const current = readMedia(db, mediaId);
@@ -146,7 +205,21 @@ function clearRegistration(db: SqliteDatabase, mediaId: string, operationId: str
     const refs = db
       .prepare('SELECT COUNT(*) AS n FROM manuscripts WHERE media_id = ?')
       .get(mediaId) as { n: number };
-    if (current === undefined || operation?.state !== 'intent' || refs.n > 0) return false;
+    if (
+      current === undefined ||
+      current.deletedAt === null ||
+      current.retainUntil === null ||
+      current.reminderShownAt === null ||
+      operation === undefined ||
+      operation.state !== 'intent' ||
+      operation.media_id !== mediaId ||
+      operation.relpath !== current.relpath ||
+      operation.sha256 !== current.sha256 ||
+      new Date().toISOString() < earliestPurgeAt(current.retainUntil, current.reminderShownAt) ||
+      refs.n > 0
+    ) {
+      return false;
+    }
     db.prepare('UPDATE sources SET media_id = NULL WHERE media_id = ?').run(mediaId);
     db.prepare('DELETE FROM media WHERE id = ?').run(mediaId);
     mark(db, operationId, 'confirmed');

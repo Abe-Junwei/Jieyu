@@ -12,6 +12,7 @@ import { DesktopConversationPanel } from './DesktopConversationPanel';
 import { DesktopCorpusQueryPanel } from './DesktopCorpusQueryPanel';
 import { DesktopExchangePanel } from './DesktopExchangePanel';
 import { DesktopDailyBackupPanel } from './DesktopDailyBackupPanel';
+import { DesktopDeletedItemsPanel } from './DesktopDeletedItemsPanel';
 import { DesktopDeletionReminderDialog } from './DesktopDeletionReminderDialog';
 import { DesktopManuscriptDeleteDialog } from './DesktopManuscriptDeleteDialog';
 import { DesktopMediaReregisterPanel } from './DesktopMediaReregisterPanel';
@@ -38,6 +39,7 @@ export function DesktopProjectReadPage() {
   const [focusUnitId, setFocusUnitId] = useState<string | null>(locate?.unitId ?? null);
   const [deletePreview, setDeletePreview] = useState<ManuscriptDeletePreview | null>(null);
   const [dueReminders, setDueReminders] = useState<DueDeletionReminder[] | null>(null);
+  const [deletedReload, setDeletedReload] = useState(0);
 
   if (host === null) return <Navigate to="/" replace />;
 
@@ -156,6 +158,14 @@ export function DesktopProjectReadPage() {
       {read.sessionId === null ? null : (
         <DesktopMediaReregisterPanel sessionId={read.sessionId} desktopCall={host.desktopCall} />
       )}
+      {read.sessionId === null ? null : (
+        <DesktopDeletedItemsPanel
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          reloadToken={deletedReload}
+          onRestored={() => read.refresh()}
+        />
+      )}
       {read.model?.manuscriptId == null || host === null || read.sessionId === null ? null : (
         <DesktopTranscriptionAcceptPanel
           sessionId={read.sessionId}
@@ -202,6 +212,8 @@ export function DesktopProjectReadPage() {
           sessionId={read.sessionId}
           listDailyBackups={host.listDailyBackups}
           restoreDailyBackup={host.restoreDailyBackup}
+          openRestoredBackup={host.openRestoredBackup}
+          onOpened={read.adoptOpenedSession}
         />
       )}
       {dueReminders === null || host === null || read.sessionId === null ? null : (
@@ -215,18 +227,22 @@ export function DesktopProjectReadPage() {
               .purgeManuscript(sessionId, id)
               .then(() => {
                 setDueReminders(null);
+                setDeletedReload((current) => current + 1);
                 return read.refresh();
               });
           }}
-          onRemoveFile={(id) => {
+          onRemoveFile={(id, operationId) => {
             const sessionId = read.sessionId;
             if (sessionId === null || host === null) return Promise.reject(new Error('missing'));
             return createDesktopClient({ desktopCall: host.desktopCall })
-              .finishMediaCleanup(sessionId, id, crypto.randomUUID())
+              .finishMediaCleanup(sessionId, id, operationId)
               .then((result) => {
-                if (result.state !== 'confirmed') throw new Error('media file was not removed');
-                setDueReminders(null);
-                return read.refresh();
+                if (result.state === 'confirmed') {
+                  setDueReminders(null);
+                  setDeletedReload((current) => current + 1);
+                  return read.refresh().then(() => result);
+                }
+                return result;
               });
           }}
           onShown={(item) => {

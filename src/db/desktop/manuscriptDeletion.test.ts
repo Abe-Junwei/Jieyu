@@ -21,7 +21,7 @@ import { readLexemeLinks } from './referenceState';
 import { listAcceptableRuns, startModelRun } from './modelRuns';
 import { callDesktopSession } from './desktopCall';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
-import { createUnit, getUnit, readStoredUnit, updateBoundary } from './units';
+import { createUnit, getUnit, readStoredUnit, updateBoundary, updateUnitText } from './units';
 import { splitUnit } from './unitSpan';
 
 const roots: string[] = [];
@@ -143,6 +143,9 @@ describe('manuscript mark delete', () => {
     expect(() =>
       callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'gone' }),
     ).toThrow('manuscript is deleted');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'keep' }),
+    ).toThrow('manuscript is deleted');
     expect(
       callDesktopSession(session.sessionId, 'layers.list', { manuscriptId: first.manuscriptId }),
     ).toEqual([]);
@@ -208,11 +211,17 @@ describe('manuscript mark delete', () => {
     expect(() =>
       callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'gone' }),
     ).toThrow('manuscript is deleted');
+    expect(() => updateUnitText(db, { unitId: unit.id, text: 'keep' })).toThrow(
+      'manuscript is deleted',
+    );
     callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
     expect(getUnit(db, unit.id)?.text).toBe('keep');
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       text: 'keep',
     });
+    expect(
+      callDesktopSession(session.sessionId, 'units.updateText', { unitId: unit.id, text: 'next' }),
+    ).toMatchObject({ text: 'next' });
   });
 
   it('hides analysis state of a deleted manuscript and shows it again after restore', () => {
@@ -796,6 +805,58 @@ describe('manuscript mark delete', () => {
       .get(early.mediaId) as { relpath: string; deletedAt: string | null };
     db.close();
     expect(media).toEqual({ relpath: 'a.wav', deletedAt: deleted.deletedAt });
+  });
+
+  it('lists deleted status without the unit text and reads the text back after restore', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startTime: 0,
+      endTime: 1,
+      text: 'secret-body',
+    });
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    const listed = callDesktopSession(session.sessionId, 'manuscripts.listDeleted', {}) as Array<{
+      id: string;
+      retainUntil: string | null;
+      reminderShownAt: string | null;
+    }>;
+    const recordings = callDesktopSession(session.sessionId, 'media.listDeleted', {});
+    expect(JSON.stringify({ listed, recordings })).not.toContain('secret-body');
+    expect(listed).toEqual([
+      expect.objectContaining({
+        id: seeded.manuscriptId,
+        reminderShownAt: null,
+        retainUntil: expect.any(String),
+      }),
+    ]);
+    expect(recordings).toEqual([]);
+    callDesktopSession(session.sessionId, 'media.delete', { id: seeded.mediaId });
+    const deletedMedia = callDesktopSession(session.sessionId, 'media.listDeleted', {}) as Array<{
+      id: string;
+      relpath: string;
+      deletedAt: string;
+      retainUntil: string;
+      reminderShownAt: string | null;
+    }>;
+    expect(JSON.stringify(deletedMedia)).not.toContain('secret-body');
+    expect(deletedMedia).toEqual([
+      {
+        id: seeded.mediaId,
+        relpath: 'a.wav',
+        deletedAt: expect.any(String),
+        retainUntil: expect.any(String),
+        reminderShownAt: null,
+      },
+    ]);
+    callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
+    expect(callDesktopSession(session.sessionId, 'manuscripts.listDeleted', {})).toEqual([]);
+    expect(callDesktopSession(session.sessionId, 'media.listDeleted', {})).toEqual([]);
+    expect(
+      callDesktopSession(session.sessionId, 'units.list', { layerId: seeded.layerId }),
+    ).toEqual([expect.objectContaining({ text: 'secret-body' })]);
   });
 
   it('stops only the targeted running transcription and leaves the delete mark for a later call', () => {

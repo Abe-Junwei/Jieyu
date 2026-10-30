@@ -1,6 +1,8 @@
 // Renderer-safe: type imports and pure checks only. Handlers stay in the main process.
 import type {
   AttachmentKind,
+  AttachmentBytes,
+  AttachmentCleanup,
   AttachmentLinkRemoval,
   AttachmentLinkView,
   AttachmentPublication,
@@ -54,11 +56,11 @@ import type {
   RecordingDeletePreview,
   RecordingDeletion,
 } from './manuscripts';
-import type { Media, MediaCreate } from './media';
+import type { DeletedMedia, Media, MediaCreate } from './media';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
-import type { SourcePatch, SourceReading } from './sourceFields';
+import type { SourceCreate, SourcePatch, SourceReading, SourceRecord } from './sourceFields';
 import type { SpeakerPatch, SpeakerReading } from './speakerFields';
 import type { Speaker } from './speakers';
 import type { ConversationPatch, ConversationReading } from './conversationFields';
@@ -744,6 +746,17 @@ function sourceField(
   return { expectedRevision, value: requiredString(record.value, `${name}.value`) };
 }
 
+function sourceCreate(input: Record<string, unknown>): SourceCreate {
+  knownKeys(input, ['label', 'externalId', 'mediaId', 'fieldValues']);
+  const mediaId = input.mediaId === undefined ? null : optionalString(input.mediaId, 'mediaId');
+  return {
+    label: requiredString(input.label, 'label'),
+    externalId: requiredString(input.externalId, 'externalId'),
+    mediaId,
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
 function sourcePatch(input: Record<string, unknown>): SourcePatch {
   knownKeys(input, ['operationId', 'id', 'label', 'externalId']);
   const label = sourceField(input.label, 'label');
@@ -1358,6 +1371,10 @@ export const desktopOperations = {
     knownKeys(input, []);
     return {} as Record<string, never>;
   }),
+  'media.listDeleted': spec<'keep', Record<string, never>, DeletedMedia[]>('keep', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
   'manuscripts.create': spec<'clear', ManuscriptCreate, Manuscript>('clear', (input) => ({
     title: stringMap(input.title, 'title'),
     mediaId: requiredString(input.mediaId, 'mediaId'),
@@ -1640,8 +1657,8 @@ export const desktopOperations = {
     'keep',
     () => ({}) as Record<string, never>,
   ),
-  'units.split': spec<'clear', { unitId: string; time: number }, { left: Unit; right: Unit }>(
-    'clear',
+  'units.split': spec<'keep', { unitId: string; time: number }, { left: Unit; right: Unit }>(
+    'keep',
     unitSplit,
   ),
   'units.merge': spec<'clear', { keepId: string; removeId: string }, Unit>('clear', unitMerge),
@@ -1672,6 +1689,17 @@ export const desktopOperations = {
     knownKeys(input, ['lexemeId']);
     return { lexemeId: requiredString(input.lexemeId, 'lexemeId') };
   }),
+  'attachments.read': spec<'keep', { linkId: string }, AttachmentBytes>('keep', (input) => {
+    knownKeys(input, ['linkId']);
+    return { linkId: requiredString(input.linkId, 'linkId') };
+  }),
+  'attachments.finishCleanup': spec<'clear', { fileId: string }, AttachmentCleanup>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['fileId']);
+      return { fileId: requiredString(input.fileId, 'fileId') };
+    },
+  ),
   'customFields.createDefinition': spec<'clear', Record<string, unknown>, CustomFieldDefinition>(
     'clear',
     (input) => allow(input, CUSTOM_FIELD_DEFINITION_KEYS),
@@ -1767,6 +1795,7 @@ export const desktopOperations = {
   'customFields.purgeDefinition': spec<'clear', Record<string, unknown>, void>('clear', (input) =>
     allow(input, ['definitionId', 'expectedRevision', 'previewFingerprint']),
   ),
+  'sources.create': spec<'clear', SourceCreate, SourceRecord>('clear', sourceCreate),
   'sources.patch': spec<'clear', SourcePatch, SourceReading>('clear', sourcePatch),
   'sources.redeliver': spec<'clear', { operationId: string }, SourceReading>('clear', (input) => {
     knownKeys(input, ['operationId']);

@@ -11,9 +11,15 @@ import {
   forgetOpenProjectSession,
   rememberOpenProjectSession,
 } from '../desktop/openProjectSession';
-import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { readDesktopProjectHost, type DesktopReadHost } from '../desktop/projectReadHost';
 import { LocaleProvider } from '../i18n';
-import { AnnotationPage } from './AnnotationPage';
+import { DesktopAnnotationPage } from './DesktopAnnotationPage';
+
+function DesktopAnnotationUnderTest() {
+  const host = readDesktopProjectHost();
+  if (host === null) return null;
+  return <DesktopAnnotationPage host={host} />;
+}
 
 const roots: string[] = [];
 
@@ -65,7 +71,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -138,7 +144,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -248,7 +254,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -362,7 +368,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -464,7 +470,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -563,7 +569,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -651,7 +657,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );
@@ -750,7 +756,7 @@ describe('DesktopAnnotationPage', () => {
     const page = () => (
       <LocaleProvider locale="en-US">
         <MemoryRouter>
-          <AnnotationPage />
+          <DesktopAnnotationUnderTest />
         </MemoryRouter>
       </LocaleProvider>
     );

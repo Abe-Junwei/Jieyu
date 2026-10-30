@@ -10,6 +10,7 @@ import {
   secretStoreRefusal,
 } from './desktopSecurity';
 import { sliceForRange } from './mediaRange';
+import { packagedPageFile } from './packagedPage';
 import { openProjectFolder } from './openProject';
 import { writeProbeAndReadBack } from './probeStore';
 import { PROJECT_LOCK_NAME, PROJECT_LOCK_STALE_MS, releaseAllProjectLocks } from './projectLock';
@@ -33,6 +34,24 @@ function tempDir(): string {
 afterEach(() => {
   releaseAllProjectLocks();
   for (const dir of temps.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+});
+
+describe('packaged page files', () => {
+  it('serves dist files and app routes, and refuses paths outside dist', () => {
+    const root = tempDir();
+    fs.mkdirSync(path.join(root, 'assets'));
+    fs.writeFileSync(path.join(root, 'index.html'), '<html></html>');
+    fs.writeFileSync(path.join(root, 'assets', 'main.js'), 'export {}');
+    const exists = (file: string) => fs.existsSync(file);
+    expect(packagedPageFile(root, '/assets/main.js', exists)).toBe(
+      path.join(root, 'assets', 'main.js'),
+    );
+    expect(packagedPageFile(root, '/desktop-project', exists)).toBe(path.join(root, 'index.html'));
+    expect(packagedPageFile(root, '/', exists)).toBe(path.join(root, 'index.html'));
+    expect(packagedPageFile(root, '/assets/missing.js', exists)).toBeNull();
+    expect(packagedPageFile(root, '/../secret', exists)).toBeNull();
+    expect(packagedPageFile(root, '/%2e%2e/secret', exists)).toBeNull();
+  });
 });
 
 describe('desktop skeleton', () => {
@@ -77,6 +96,12 @@ describe('desktop skeleton', () => {
       true,
     );
     expect(isAppNavigation('file:///etc/passwd', 'file:///app/dist/index.html')).toBe(false);
+    expect(
+      isAppNavigation('jieyu-app://local/desktop-project', 'jieyu-app://local/desktop-project'),
+    ).toBe(true);
+    expect(isAppNavigation('jieyu-app://local/lexicon', 'jieyu-app://other/desktop-project')).toBe(
+      false,
+    );
     expect(isAppNavigation('javascript:alert(1)', 'http://localhost:5173/')).toBe(false);
     expect(isAppNavigation('http://localhost:5173/', '')).toBe(false);
   });

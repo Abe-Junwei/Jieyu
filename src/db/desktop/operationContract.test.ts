@@ -50,7 +50,7 @@ describe('desktop operation contract', () => {
     expect(desktopOperations['media.finishCleanup'].undo).toBe('clear');
   });
 
-  it('keeps reopen outside the catalog and the union equal to the 5fbc66f8 keys', () => {
+  it('keeps reopen outside the catalog and registers keys added after 5fbc66f8', () => {
     const desktopCallSource = readFileSync(
       fileURLToPath(new URL('./desktopCall.ts', import.meta.url)),
       'utf8',
@@ -65,8 +65,18 @@ describe('desktop operation contract', () => {
     expect(unique(DESKTOP_METHODS_AT_5fbc66f8)).toEqual([...DESKTOP_METHODS_AT_5fbc66f8]);
     expect(unique(contract)).toEqual(contract);
     expect(contract).not.toContain('reopen');
+    const addedAfterSnapshot = [
+      'attachments.finishCleanup',
+      'attachments.read',
+      'media.listDeleted',
+      'sources.create',
+    ];
+    for (const key of addedAfterSnapshot) {
+      expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);
+      expect(contract).toContain(key);
+    }
     expect(unique(['reopen', ...contract]).sort()).toEqual(
-      unique(DESKTOP_METHODS_AT_5fbc66f8).sort(),
+      unique([...DESKTOP_METHODS_AT_5fbc66f8, ...addedAfterSnapshot]).sort(),
     );
     expect(Object.keys(desktopOperations).sort()).toEqual([...contract].sort());
   });

@@ -4,6 +4,7 @@ import {
   analysisGraphFingerprint,
   type AnalysisGraphPayload,
 } from '../../annotation/analysisGraphDomain';
+import { assertStoredCustomFields, missingFields } from './customFields';
 import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -580,14 +581,57 @@ function copyAssociations(
       note.created_at,
       note.updated_at,
     );
+    copyTableFields(db, 'note', note.id, id);
+    if (missingFields(db, 'note', id).length > 0) {
+      throw new Error('note is missing a required field');
+    }
   }
   copyGraph(db, fromId, toId, tokenMap, morphemeMap);
+  copyTableFields(db, 'unit', fromId, toId);
+  if (missingFields(db, 'unit', toId).length > 0) {
+    throw new Error('unit is missing a required field');
+  }
+  const copiedGraph = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(toId) as
+    { analysis_graph_json: string | null } | undefined;
+  if (copiedGraph?.analysis_graph_json != null) {
+    assertStoredCustomFields(
+      db,
+      JSON.parse(copiedGraph.analysis_graph_json) as AnalysisGraphPayload,
+      toId,
+      { prior: null, preserveDangling: true },
+    );
+  }
   return {
     noteIds,
     tokenIds: [...tokenMap.values()],
     morphemeIds: [...morphemeMap.values()],
     linkIds,
   };
+}
+
+function copyTableFields(
+  db: SqliteDatabase,
+  targetType: string,
+  fromId: string,
+  toId: string,
+): void {
+  const rows = db
+    .prepare(
+      `SELECT definition_id, value_json, updated_at
+       FROM custom_field_values WHERE target_type = ? AND target_id = ?`,
+    )
+    .all(targetType, fromId) as Array<{
+    definition_id: string;
+    value_json: string;
+    updated_at: string;
+  }>;
+  const insert = db.prepare(
+    `INSERT INTO custom_field_values (definition_id, target_type, target_id, value_json, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  );
+  for (const row of rows) {
+    insert.run(row.definition_id, targetType, toId, row.value_json, row.updated_at);
+  }
 }
 
 function copyGraph(

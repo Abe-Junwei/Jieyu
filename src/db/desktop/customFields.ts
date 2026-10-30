@@ -739,6 +739,8 @@ export function dropSenseFieldBag(db: SqliteDatabase, lexemeId: string, senseId:
 export interface StoredCustomFieldCheck {
   prior: AnalysisGraphPayload | null;
   historical?: boolean;
+  /** A copied graph may keep an optional reference whose target is already gone. */
+  preserveDangling?: boolean;
 }
 
 export function assertStoredCustomFields(
@@ -757,6 +759,7 @@ export function assertStoredCustomFields(
     assertFieldMap(db, node.customFields, 'analysis-node', scope, {
       isNew: !priorNodes.has(node.id),
       historical: check.historical === true,
+      preserveDangling: check.preserveDangling === true,
       ...(priorFields === undefined ? {} : { priorFields }),
     });
   }
@@ -765,6 +768,7 @@ export function assertStoredCustomFields(
     assertFieldMap(db, relation.customFields, 'analysis-relation', scope, {
       isNew: !priorRelations.has(relation.id),
       historical: check.historical === true,
+      preserveDangling: check.preserveDangling === true,
       ...(priorFields === undefined ? {} : { priorFields }),
     });
   }
@@ -775,7 +779,12 @@ function assertFieldMap(
   fields: Record<string, unknown> | undefined,
   targetType: 'analysis-node' | 'analysis-relation',
   scope: GraphScope,
-  edit: { isNew: boolean; historical: boolean; priorFields?: Record<string, unknown> },
+  edit: {
+    isNew: boolean;
+    historical: boolean;
+    preserveDangling: boolean;
+    priorFields?: Record<string, unknown>;
+  },
 ): void {
   if (edit.isNew && !edit.historical) {
     for (const id of requiredDefinitionIds(db, targetType)) {
@@ -798,7 +807,11 @@ function assertFieldMap(
         definition.options.map((option) => option.id),
       ),
       value,
-      (ref) => edit.historical || unchanged || targetExists(db, ref, scope),
+      (ref) =>
+        edit.historical ||
+        unchanged ||
+        targetExists(db, ref, scope) ||
+        (edit.preserveDangling && definition.required !== true),
     );
   }
 }

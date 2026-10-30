@@ -8,6 +8,7 @@ export interface DesktopReadHost {
     sessionId: string,
     day: string,
   ): Promise<{ cancelled: true } | { folder: string }>;
+  openRestoredBackup?(sessionId: string): Promise<{ sessionId: string }>;
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
   desktopMediaUrl(sessionId: string, mediaId: string): Promise<{ url: string }>;
 }

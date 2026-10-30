@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -10,12 +11,14 @@ const outFile = process.env.JIEYU_DESKTOP_FLOW_OUT;
 describe.skipIf(outFile === undefined)('desktop project flow seed', () => {
   it('writes a synthetic project and releases the folder lock', () => {
     const folder = mkdtempSync(join(tmpdir(), 'jieyu-m4c-'));
-    writeFileSync(join(folder, 'clip.wav'), wavSilence(2));
+    const clip = wavSilence(2);
+    const takeWav = wavSilence(1);
+    writeFileSync(join(folder, 'clip.wav'), clip);
     try {
       const session = openDesktopSession(folder, [folder]);
       const media = callDesktopSession(session.sessionId, 'media.create', {
         relpath: 'clip.wav',
-        sha256: 'clip',
+        sha256: sha256(clip),
         duration: 2,
       }) as { id: string };
       const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
@@ -41,6 +44,35 @@ describe.skipIf(outFile === undefined)('desktop project flow seed', () => {
         endTime: 0.8,
         text: 'two',
       });
+      writeFileSync(join(folder, 'take.wav'), takeWav);
+      const take = callDesktopSession(session.sessionId, 'media.create', {
+        relpath: 'take.wav',
+        sha256: sha256(takeWav),
+        duration: 1,
+      }) as { id: string };
+      const takeManuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+        title: { und: 'Take' },
+        mediaId: take.id,
+      }) as { id: string };
+      const takeLayer = callDesktopSession(session.sessionId, 'layers.create', {
+        manuscriptId: takeManuscript.id,
+        key: 'tx',
+        name: { und: 'Transcription' },
+        tierType: 'time-aligned',
+        contentType: 'transcription',
+      }) as { id: string };
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId: takeLayer.id,
+        startTime: 0.3,
+        endTime: 0.6,
+        text: 'three',
+      });
+      const manuscripts = callDesktopSession(session.sessionId, 'manuscripts.list', {}) as Array<{
+        title: Record<string, string>;
+      }>;
+      expect(manuscripts.map((item) => item.title.und).sort()).toEqual(['Clip', 'Take']);
+      expect(existsSync(join(folder, 'clip.wav'))).toBe(true);
+      expect(existsSync(join(folder, 'take.wav'))).toBe(true);
       resetDesktopSessions();
       writeFileSync(outFile ?? '', folder, 'utf8');
       expect(folder).toContain('jieyu-m4c-');
@@ -51,6 +83,10 @@ describe.skipIf(outFile === undefined)('desktop project flow seed', () => {
     }
   });
 });
+
+function sha256(bytes: Buffer): string {
+  return createHash('sha256').update(bytes).digest('hex');
+}
 
 function wavSilence(seconds: number): Buffer {
   const sampleRate = 8000;

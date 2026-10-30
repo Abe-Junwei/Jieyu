@@ -1,5 +1,6 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 import type { DiagnosticReceipt } from './diagnosticDelivery';
 import {
   finishFieldDelivery,
@@ -34,6 +35,63 @@ export interface SourcePatch {
   id: string;
   label?: FieldPatch;
   externalId?: FieldPatch;
+}
+
+export interface SourceCreate {
+  label: string;
+  externalId: string;
+  mediaId?: string | null;
+  fieldValues?: Record<string, unknown>;
+}
+
+export type SourceRecord = Omit<SourceReading, 'delivery'>;
+
+/** A new source row. Same label or external id does not merge, and no file or bibliography is copied. */
+export function createSource(db: SqliteDatabase, input: SourceCreate): SourceRecord {
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const mediaId = input.mediaId === undefined ? null : input.mediaId;
+  const write = db.transaction(() => {
+    if (mediaId !== null) assertCurrentMedia(db, mediaId);
+    db.prepare(
+      `INSERT INTO sources (
+        id, media_id, label, external_id, field_revisions_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(id, mediaId, input.label, input.externalId, '{"label":0,"externalId":0}', now, now);
+    writeRequiredFieldValues(db, 'source', id, input.fieldValues);
+    const stored = readSource(db, id);
+    if (
+      stored === null ||
+      stored.label !== input.label ||
+      stored.externalId !== input.externalId ||
+      stored.mediaId !== mediaId ||
+      stored.revisions.label !== 0 ||
+      stored.revisions.externalId !== 0
+    ) {
+      throw new Error('source readback failed');
+    }
+    for (const [definitionId, value] of Object.entries(input.fieldValues ?? {})) {
+      const kept = db
+        .prepare(
+          `SELECT value_json FROM custom_field_values
+           WHERE definition_id = ? AND target_type = 'source' AND target_id = ?`,
+        )
+        .get(definitionId, id) as { value_json: string } | undefined;
+      if (kept === undefined || kept.value_json !== JSON.stringify(value)) {
+        throw new Error('source readback failed');
+      }
+    }
+    return stored;
+  });
+  return write();
+}
+
+function assertCurrentMedia(db: SqliteDatabase, mediaId: string): void {
+  if (mediaId.length === 0) throw new Error('media is missing');
+  const row = db.prepare('SELECT deleted_at FROM media WHERE id = ?').get(mediaId) as
+    { deleted_at: string | null } | undefined;
+  if (row === undefined) throw new Error('media is missing');
+  if (row.deleted_at !== null) throw new Error('media is deleted');
 }
 
 export function patchSource(db: SqliteDatabase, input: SourcePatch): SourceReading {

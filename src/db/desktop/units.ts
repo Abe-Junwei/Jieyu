@@ -214,6 +214,7 @@ export function updateUnitText(
   const write = db.transaction(() => {
     const existing = readStoredUnit(db, input.unitId);
     if (!existing) throw new Error('unit is missing');
+    assertManuscriptEditable(db, input.unitId);
     if (existing.text === input.text) return existing;
     const material = readAnalysisMaterial(db, input.unitId);
     if (material.graph !== null) {
@@ -362,6 +363,19 @@ export function writeAnalysisRoot(
     return stored;
   });
   return write();
+}
+
+function assertManuscriptEditable(db: SqliteDatabase, unitId: string): void {
+  const row = db
+    .prepare(
+      `SELECT manuscripts.deleted_at AS deletedAt
+       FROM units
+       JOIN layers ON layers.id = units.layer_id
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       WHERE units.id = ?`,
+    )
+    .get(unitId) as { deletedAt: string | null } | undefined;
+  if (row?.deletedAt != null) throw new Error('manuscript is deleted');
 }
 
 function mapUnit(row: UnitRow): Unit {

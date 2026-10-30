@@ -130,6 +130,35 @@ describe('lexeme attachments', () => {
     expect(existsSync(object)).toBe(true);
   });
 
+  it('refuses republishing while trash is in flight and can publish again after cleanup', async () => {
+    const item = await pending();
+    let release!: () => void;
+    let calls = 0;
+    const finish = finishAttachmentCleanup(item.db, item.dir, item.fileId, async (file) => {
+      calls += 1;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      rmSync(file);
+      return 'moved';
+    });
+    expect(() => publish(item.sessionId, 'one', item.bytes, 'op-during-trash')).toThrow(
+      'attachment file is unresolved',
+    );
+    expect((await finishAttachmentCleanup(item.db, item.dir, item.fileId, moved)).state).toBe(
+      'cleanup_unknown',
+    );
+    expect(calls).toBe(1);
+    release();
+    expect((await finish).state).toBe('removed');
+    callDesktopSession(item.sessionId, 'reopen', {});
+    const next = publish(item.sessionId, 'one', item.bytes, 'op-after-trash');
+    callDesktopSession(item.sessionId, 'reopen', {});
+    expect(
+      callDesktopSession(item.sessionId, 'attachments.read', { linkId: next.linkId }),
+    ).toMatchObject({ bytes: item.bytes });
+  });
+
   it('drops the row only after the hashed file is confirmed gone', async () => {
     const thrown = await pending();
     let calls = 0;
@@ -214,6 +243,45 @@ describe('lexeme attachments', () => {
     );
     expect(readFileSync(join(outside, 'secret'))).toEqual(Buffer.from('keep'));
     expect(count(linked.sessionId, 'attachment_files')).toBe(0);
+  });
+
+  it('reads a link by id and refuses another project, a path, or a bad hash', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const otherDir = folder();
+    entry(session.sessionId, 'one');
+    const first = publish(session.sessionId, 'one', Buffer.from('alpha'), 'op-1');
+    const second = publish(session.sessionId, 'one', Buffer.from('beta'), 'op-2');
+    const listed = callDesktopSession(session.sessionId, 'attachments.list', {
+      lexemeId: 'one',
+    }) as { id: string; displayName: string }[];
+    expect(listed.map((row) => row.displayName)).toEqual(['a.png', 'a.png']);
+    expect(listed.map((row) => row.id).sort()).toEqual([first.linkId, second.linkId].sort());
+    const alpha = callDesktopSession(session.sessionId, 'attachments.read', {
+      linkId: first.linkId,
+    }) as { mimeType: string; bytes: Uint8Array };
+    const beta = callDesktopSession(session.sessionId, 'attachments.read', {
+      linkId: second.linkId,
+    }) as { mimeType: string; bytes: Uint8Array };
+    expect(alpha.mimeType).toBe('image/png');
+    expect(Buffer.from(alpha.bytes).equals(Buffer.from('alpha'))).toBe(true);
+    expect(Buffer.from(beta.bytes).equals(Buffer.from('beta'))).toBe(true);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'attachments.read', {
+        linkId: first.linkId,
+        path: join(otherDir, 'secret'),
+      }),
+    ).toThrow('desktop call field path is not supported');
+    writeFileSync(join(dir, 'attachments', 'objects', sha256(Buffer.from('alpha'))), 'nope');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'attachments.read', { linkId: first.linkId }),
+    ).toThrow('attachment hash does not match');
+    const other = openDesktopSession(otherDir, [otherDir]);
+    entry(other.sessionId, 'one');
+    expect(() =>
+      callDesktopSession(other.sessionId, 'attachments.read', { linkId: first.linkId }),
+    ).toThrow('attachment link is missing');
+    expect(existsSync(join(dir, 'attachments', 'objects', sha256(Buffer.from('beta'))))).toBe(true);
   });
 
   it('rejects a version 23 library without changing its bytes', () => {

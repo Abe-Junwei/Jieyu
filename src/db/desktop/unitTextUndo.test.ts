@@ -65,7 +65,9 @@ describe('session unit text undo', () => {
     callDesktopSession(session.sessionId, 'units.list', {
       layerId: layerId(session.sessionId, unitId),
     });
+    const generation = manuscriptGeneration(session.sessionId, unitId);
     callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'ta' });
+    expect(manuscriptGeneration(session.sessionId, unitId)).toBe(generation);
     expect(callDesktopSession(session.sessionId, 'units.undoText', {})).toMatchObject({
       text: 'ka',
     });
@@ -190,6 +192,20 @@ function transcription(db: ReturnType<typeof openProject>['db'], unitId: string)
       .prepare(`SELECT body FROM unit_texts WHERE unit_id = ? AND role = 'transcription'`)
       .get(unitId) as { body: string }
   ).body;
+}
+
+function manuscriptGeneration(sessionId: string, unitId: string): number {
+  return (
+    requireDesktopSession(sessionId)
+      .db.prepare(
+        `SELECT manuscripts.lifecycle_generation AS generation
+         FROM units
+         JOIN layers ON layers.id = units.layer_id
+         JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+         WHERE units.id = ?`,
+      )
+      .get(unitId) as { generation: number }
+  ).generation;
 }
 
 function layerId(sessionId: string, unitId: string): string {

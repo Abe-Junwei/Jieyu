@@ -1,4 +1,10 @@
-import { listAttachmentLinks, publishAttachment, removeAttachmentLink } from './attachments';
+import {
+  finishAttachmentCleanup,
+  listAttachmentLinks,
+  publishAttachment,
+  readAttachmentLink,
+  removeAttachmentLink,
+} from './attachments';
 import { applyAnalysis } from './analysis';
 import { importForeignFile } from './foreignImport';
 import { getProjectIdentity } from './projectIdentity';
@@ -61,7 +67,7 @@ import { patchConversation, redeliverConversation } from './conversationFields';
 import { assignSpeaker } from './speakerAssign';
 import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
-import { patchSource, redeliverSource } from './sourceFields';
+import { createSource, patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers } from './layers';
 import { linkSense, removeSense, saveLexemeEntry, getLexemeEntry } from './lexicon';
@@ -73,7 +79,7 @@ import {
   matchLexemeLinkQuery,
   replaceTokenLexemeLink,
 } from './lexemeLink';
-import { createMedia, listActiveMedia } from './media';
+import { createMedia, listActiveMedia, listDeletedMedia } from './media';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
@@ -401,6 +407,19 @@ const operationHandlers = {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.list']['check']>) =>
       listAttachmentLinks(ctx.db, input.lexemeId),
   },
+  'attachments.read': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.read']['check']>) =>
+      readAttachmentLink(ctx.db, ctx.folder, input.linkId),
+  },
+  'attachments.finishCleanup': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['attachments.finishCleanup']['check']>,
+    ) => {
+      if (ctx.trash === undefined) throw new Error('attachment trash is missing');
+      return finishAttachmentCleanup(ctx.db, ctx.folder, input.fileId, ctx.trash);
+    },
+  },
   'customFields.createDefinition': {
     run: (
       ctx: ContractCtx,
@@ -511,6 +530,10 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['customFields.purgeDefinition']['check']>,
     ) => purgeDefinition(ctx.db, input, undefined, ctx.sessionId),
+  },
+  'sources.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.create']['check']>) =>
+      createSource(ctx.db, input),
   },
   'sources.patch': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.patch']['check']>) =>
@@ -740,6 +763,9 @@ const operationHandlers = {
   },
   'media.list': {
     run: (ctx: ContractCtx) => listActiveMedia(ctx.db),
+  },
+  'media.listDeleted': {
+    run: (ctx: ContractCtx) => listDeletedMedia(ctx.db),
   },
   'manuscripts.create': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.create']['check']>) =>

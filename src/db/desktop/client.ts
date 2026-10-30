@@ -5,7 +5,7 @@ import type { LexemeLinkWrite, LexemeSave } from './lexicon';
 import type { MediaCreate } from './media';
 import type { ManuscriptCreate } from './manuscripts';
 import type { AnalysisCredentials } from './analysisRestore';
-import type { SourcePatch } from './sourceFields';
+import type { SourceCreate, SourcePatch } from './sourceFields';
 import type { CorpusQueryCursor } from './corpusQuery';
 import type { ConversationCreate } from './conversations';
 import type { MessageAppend } from './messages';
@@ -306,6 +306,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once(sessionId, 'conversations.patch', input),
     reopen: async (sessionId: string) =>
       (await bridge.desktopCall(sessionId, 'reopen', {})) as { reopened: true },
+    createSource: (sessionId: string, input: SourceCreate) =>
+      once(sessionId, 'sources.create', input),
     patchSource: (sessionId: string, input: SourcePatch) => once(sessionId, 'sources.patch', input),
     redeliverSource: (sessionId: string, operationId: string) =>
       once(sessionId, 'sources.redeliver', { operationId }),
@@ -313,6 +315,10 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'manuscripts.purge', { id }),
     finishMediaCleanup: (sessionId: string, id: string, operationId: string) =>
       once(sessionId, 'media.finishCleanup', { id, operationId }),
+    listDeletedManuscripts: (sessionId: string) => once(sessionId, 'manuscripts.listDeleted', {}),
+    listDeletedMedia: (sessionId: string) => once(sessionId, 'media.listDeleted', {}),
+    restoreManuscript: (sessionId: string, id: string) =>
+      once(sessionId, 'manuscripts.restore', { id }),
     listMedia: (sessionId: string) => once(sessionId, 'media.list', {}),
     reregisterMedia: (sessionId: string, input: { relpath: string; duration: number }) =>
       once(sessionId, 'media.reregister', input),
@@ -340,6 +346,10 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once(sessionId, 'modelRuns.accept', input),
     listAttachments: (sessionId: string, lexemeId: string) =>
       once(sessionId, 'attachments.list', { lexemeId }),
+    readAttachment: (sessionId: string, linkId: string) =>
+      once(sessionId, 'attachments.read', { linkId }),
+    finishAttachmentCleanup: (sessionId: string, fileId: string) =>
+      once(sessionId, 'attachments.finishCleanup', { fileId }),
     publishAttachment: (
       sessionId: string,
       input: {
