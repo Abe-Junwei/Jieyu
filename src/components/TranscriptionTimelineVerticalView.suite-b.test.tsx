@@ -507,7 +507,9 @@ describe('TranscriptionTimelineVerticalView', () => {
     const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
     const contextValue = makeEditorContext();
-    const saveUnitText = vi.fn(async () => undefined);
+    const saveUnitText = vi.fn(
+      async (_unitId: string, _text: string, _layerId?: string) => undefined,
+    );
     contextValue.saveUnitText = saveUnitText;
     contextValue.getUnitTextForLayer = () => '原文';
 
