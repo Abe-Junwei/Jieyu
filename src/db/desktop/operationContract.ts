@@ -1,5 +1,12 @@
 // Renderer-safe: type imports and pure checks only. Handlers stay in the main process.
 import type {
+  AttachmentKind,
+  AttachmentLinkRemoval,
+  AttachmentLinkView,
+  AttachmentPublication,
+  AttachmentPublish,
+} from './attachments';
+import type {
   BridgeCreate,
   LanguageEnsure,
   OrthographyCreate,
@@ -627,6 +634,28 @@ function unitBoundary(input: Record<string, unknown>): {
   };
 }
 
+function attachmentKind(value: unknown): AttachmentKind {
+  if (value === 'image' || value === 'audio' || value === 'document') return value;
+  throw new Error('attachment kind is invalid');
+}
+
+function attachmentBytes(value: unknown): Uint8Array {
+  if (value instanceof Uint8Array) return value;
+  throw new Error('attachment bytes are invalid');
+}
+
+function attachmentPublish(input: Record<string, unknown>): AttachmentPublish {
+  knownKeys(input, ['lexemeId', 'displayName', 'kind', 'mimeType', 'bytes', 'operationId']);
+  return {
+    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+    displayName: requiredString(input.displayName, 'displayName'),
+    kind: attachmentKind(input.kind),
+    mimeType: requiredString(input.mimeType, 'mimeType'),
+    bytes: attachmentBytes(input.bytes),
+    operationId: requiredString(input.operationId, 'operationId'),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -988,6 +1017,21 @@ export const desktopOperations = {
       return {} as Record<string, never>;
     },
   ),
+  'attachments.publish': spec<'clear', AttachmentPublish, AttachmentPublication>(
+    'clear',
+    attachmentPublish,
+  ),
+  'attachments.removeLink': spec<'clear', { linkId: string }, AttachmentLinkRemoval>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['linkId']);
+      return { linkId: requiredString(input.linkId, 'linkId') };
+    },
+  ),
+  'attachments.list': spec<'keep', { lexemeId: string }, AttachmentLinkView[]>('keep', (input) => {
+    knownKeys(input, ['lexemeId']);
+    return { lexemeId: requiredString(input.lexemeId, 'lexemeId') };
+  }),
 };
 
 export type DesktopOperations = typeof desktopOperations;

@@ -1,10 +1,4 @@
-import {
-  listAttachmentLinks,
-  publishAttachment,
-  removeAttachmentLink,
-  type AttachmentKind,
-  type AttachmentPublish,
-} from './attachments';
+import { listAttachmentLinks, publishAttachment, removeAttachmentLink } from './attachments';
 import { applyAnalysis } from './analysis';
 import { importForeignFile } from './foreignImport';
 import { getProjectIdentity } from './projectIdentity';
@@ -153,9 +147,6 @@ import {
 import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
-  'attachments.publish',
-  'attachments.removeLink',
-  'attachments.list',
   'customFields.createDefinition',
   'customFields.updateDefinition',
   'customFields.addOption',
@@ -221,7 +212,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'exchange.exportManuscript',
   'speakers.assign',
   'speakers.list',
-  'attachments.list',
   'customFields.listDefinitions',
   'customFields.missingUnitFields',
   'customFields.missingFields',
@@ -491,6 +481,20 @@ const operationHandlers = {
   },
   'deletion.listDue': {
     run: (ctx: ContractCtx) => listDueDeletionReminders(ctx.db),
+  },
+  'attachments.publish': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.publish']['check']>) =>
+      publishAttachment(ctx.db, ctx.folder, input),
+  },
+  'attachments.removeLink': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['attachments.removeLink']['check']>,
+    ) => removeAttachmentLink(ctx.db, input.linkId),
+  },
+  'attachments.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.list']['check']>) =>
+      listAttachmentLinks(ctx.db, input.lexemeId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -824,6 +828,21 @@ function runContract(
     case 'deletion.listDue':
       desktopOperations['deletion.listDue'].check(raw);
       return operationHandlers['deletion.listDue'].run(ctx);
+    case 'attachments.publish':
+      return operationHandlers['attachments.publish'].run(
+        ctx,
+        desktopOperations['attachments.publish'].check(raw),
+      );
+    case 'attachments.removeLink':
+      return operationHandlers['attachments.removeLink'].run(
+        ctx,
+        desktopOperations['attachments.removeLink'].check(raw),
+      );
+    case 'attachments.list':
+      return operationHandlers['attachments.list'].run(
+        ctx,
+        desktopOperations['attachments.list'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -939,18 +958,6 @@ export function callDesktopSession(
   if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
   const input = objectArg(args);
   switch (parsed) {
-    case 'attachments.publish':
-      return publishAttachment(
-        project.db,
-        desktopSessionFolder(sessionId),
-        attachmentPublish(input),
-      );
-    case 'attachments.removeLink':
-      knownKeys(input, ['linkId']);
-      return removeAttachmentLink(project.db, requiredString(input.linkId, 'linkId'));
-    case 'attachments.list':
-      knownKeys(input, ['lexemeId']);
-      return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
     case 'customFields.createDefinition':
       knownKeys(input, CUSTOM_FIELD_DEFINITION_KEYS);
       return createDefinition(project.db, input);
@@ -1181,28 +1188,6 @@ function importExchangeFile(
     ...(db === undefined ? {} : { db }),
     ...(roles === undefined ? {} : { roles }),
   });
-}
-
-function attachmentPublish(input: Record<string, unknown>): AttachmentPublish {
-  knownKeys(input, ['lexemeId', 'displayName', 'kind', 'mimeType', 'bytes', 'operationId']);
-  return {
-    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-    displayName: requiredString(input.displayName, 'displayName'),
-    kind: attachmentKind(input.kind),
-    mimeType: requiredString(input.mimeType, 'mimeType'),
-    bytes: attachmentBytes(input.bytes),
-    operationId: requiredString(input.operationId, 'operationId'),
-  };
-}
-
-function attachmentKind(value: unknown): AttachmentKind {
-  if (value === 'image' || value === 'audio' || value === 'document') return value;
-  throw new Error('attachment kind is invalid');
-}
-
-function attachmentBytes(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  throw new Error('attachment bytes are invalid');
 }
 
 function parseMethod(method: string): DesktopMethod {
