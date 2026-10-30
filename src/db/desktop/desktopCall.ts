@@ -148,7 +148,6 @@ import {
   listUnits,
   updateBoundary,
   updateUnitText,
-  type UnitCreate,
   type UnitTextUndo,
 } from './units';
 import { mergeUnits, splitUnit } from './unitSpan';
@@ -158,14 +157,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'units.create',
-  'units.get',
-  'units.list',
-  'units.undoText',
-  'units.undo',
-  'units.split',
-  'units.merge',
-  'units.updateBoundary',
   'customFields.createDefinition',
   'customFields.updateDefinition',
   'customFields.addOption',
@@ -229,12 +220,8 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'exchange.exportJyt',
   'exchange.exportJym',
   'exchange.exportManuscript',
-  'units.undoText',
-  'units.undo',
   'speakers.assign',
   'speakers.list',
-  'units.get',
-  'units.list',
   'attachments.list',
   'deletion.listDue',
   'customFields.listDefinitions',
@@ -257,6 +244,7 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
 type ContractCtx = {
   db: ReturnType<typeof requireDesktopSession>['db'];
   folder: string;
+  sessionId: string;
   trash?: MediaTrash;
 };
 
@@ -465,6 +453,44 @@ const operationHandlers = {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['corpus.query']['check']>) =>
       queryCorpus(ctx.db, input),
   },
+  'units.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.create']['check']>) =>
+      createUnit(ctx.db, input),
+  },
+  'units.get': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.get']['check']>) =>
+      getUnit(ctx.db, input.id),
+  },
+  'units.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.list']['check']>) =>
+      listUnits(ctx.db, input.layerId),
+  },
+  'units.undoText': {
+    run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db, 'text'),
+  },
+  'units.undo': {
+    run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db),
+  },
+  'units.split': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
+      const split = splitUnit(ctx.db, input);
+      rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
+      return { left: split.left, right: split.right };
+    },
+  },
+  'units.merge': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.merge']['check']>) => {
+      const merged = mergeUnits(ctx.db, input);
+      rememberSessionEdit(ctx.sessionId, { kind: 'merge', undo: merged.undo });
+      return merged.unit;
+    },
+  },
+  'units.updateBoundary': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.updateBoundary']['check']>,
+    ) => updateBoundary(ctx.db, input),
+  },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
       const box: { undo: UnitTextUndo | null } = { undo: null };
@@ -574,6 +600,7 @@ function runContract(
   const ctx: ContractCtx = {
     db: project.db,
     folder: desktopSessionFolder(sessionId),
+    sessionId,
     ...(trash === undefined ? {} : { trash }),
   };
   const raw = objectArg(args);
@@ -769,6 +796,30 @@ function runContract(
         ctx,
         desktopOperations['corpus.query'].check(raw),
       );
+    case 'units.create':
+      return operationHandlers['units.create'].run(
+        ctx,
+        desktopOperations['units.create'].check(raw),
+      );
+    case 'units.get':
+      return operationHandlers['units.get'].run(ctx, desktopOperations['units.get'].check(raw));
+    case 'units.list':
+      return operationHandlers['units.list'].run(ctx, desktopOperations['units.list'].check(raw));
+    case 'units.undoText':
+      desktopOperations['units.undoText'].check(raw);
+      return operationHandlers['units.undoText'].run(ctx);
+    case 'units.undo':
+      desktopOperations['units.undo'].check(raw);
+      return operationHandlers['units.undo'].run(ctx);
+    case 'units.split':
+      return operationHandlers['units.split'].run(ctx, desktopOperations['units.split'].check(raw));
+    case 'units.merge':
+      return operationHandlers['units.merge'].run(ctx, desktopOperations['units.merge'].check(raw));
+    case 'units.updateBoundary':
+      return operationHandlers['units.updateBoundary'].run(
+        ctx,
+        desktopOperations['units.updateBoundary'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -899,38 +950,6 @@ export function callDesktopSession(
     case 'attachments.list':
       knownKeys(input, ['lexemeId']);
       return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'units.create':
-      return createUnit(project.db, unitCreate(input));
-    case 'units.get':
-      return getUnit(project.db, requiredString(input.id, 'id'));
-    case 'units.list':
-      return listUnits(project.db, requiredString(input.layerId, 'layerId'));
-    case 'units.undoText':
-      return undoSessionEdit(sessionId, project.db, 'text');
-    case 'units.undo':
-      return undoSessionEdit(sessionId, project.db);
-    case 'units.split': {
-      const split = splitUnit(project.db, {
-        unitId: requiredString(input.unitId, 'unitId'),
-        time: requiredNumber(input.time, 'time'),
-      });
-      rememberSessionEdit(sessionId, { kind: 'split', undo: split.undo });
-      return { left: split.left, right: split.right };
-    }
-    case 'units.merge': {
-      const merged = mergeUnits(project.db, {
-        keepId: requiredString(input.keepId, 'keepId'),
-        removeId: requiredString(input.removeId, 'removeId'),
-      });
-      rememberSessionEdit(sessionId, { kind: 'merge', undo: merged.undo });
-      return merged.unit;
-    }
-    case 'units.updateBoundary':
-      return updateBoundary(project.db, {
-        leftId: requiredString(input.leftId, 'leftId'),
-        rightId: requiredString(input.rightId, 'rightId'),
-        time: requiredNumber(input.time, 'time'),
-      });
     case 'customFields.createDefinition':
       knownKeys(input, CUSTOM_FIELD_DEFINITION_KEYS);
       return createDefinition(project.db, input);
@@ -1738,29 +1757,6 @@ function analysisApply(input: Record<string, unknown>): {
   };
 }
 
-function unitCreate(input: Record<string, unknown>): UnitCreate {
-  knownKeys(input, [
-    'layerId',
-    'startTime',
-    'endTime',
-    'text',
-    'speakerId',
-    'parentUnitId',
-    'fieldValues',
-  ]);
-  return {
-    layerId: requiredString(input.layerId, 'layerId'),
-    startTime: requiredNumber(input.startTime, 'startTime'),
-    endTime: requiredNumber(input.endTime, 'endTime'),
-    text: requiredString(input.text, 'text'),
-    ...('speakerId' in input ? { speakerId: optionalString(input.speakerId, 'speakerId') } : {}),
-    ...('parentUnitId' in input
-      ? { parentUnitId: optionalString(input.parentUnitId, 'parentUnitId') }
-      : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
 function fieldValueMap(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('desktop call fieldValues must be an object');
@@ -1772,9 +1768,4 @@ function knownKeys(input: Record<string, unknown>, allowed: readonly string[]): 
   for (const key of Object.keys(input)) {
     if (!allowed.includes(key)) throw new Error(`desktop call field ${key} is not supported`);
   }
-}
-
-function optionalString(value: unknown, name: string): string | null {
-  if (value === null) return null;
-  return requiredString(value, name);
 }

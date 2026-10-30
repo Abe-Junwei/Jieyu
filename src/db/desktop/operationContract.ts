@@ -41,7 +41,7 @@ import type { Media, MediaCreate } from './media';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
-import type { Unit } from './units';
+import type { Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
 
@@ -578,6 +578,55 @@ function corpusQuery(input: Record<string, unknown>): CorpusQuery {
   };
 }
 
+function unitCreate(input: Record<string, unknown>): UnitCreate {
+  knownKeys(input, [
+    'layerId',
+    'startTime',
+    'endTime',
+    'text',
+    'speakerId',
+    'parentUnitId',
+    'fieldValues',
+  ]);
+  return {
+    layerId: requiredString(input.layerId, 'layerId'),
+    startTime: requiredNumber(input.startTime, 'startTime'),
+    endTime: requiredNumber(input.endTime, 'endTime'),
+    text: requiredString(input.text, 'text'),
+    ...('speakerId' in input ? { speakerId: optionalString(input.speakerId, 'speakerId') } : {}),
+    ...('parentUnitId' in input
+      ? { parentUnitId: optionalString(input.parentUnitId, 'parentUnitId') }
+      : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
+function unitSplit(input: Record<string, unknown>): { unitId: string; time: number } {
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    time: requiredNumber(input.time, 'time'),
+  };
+}
+
+function unitMerge(input: Record<string, unknown>): { keepId: string; removeId: string } {
+  return {
+    keepId: requiredString(input.keepId, 'keepId'),
+    removeId: requiredString(input.removeId, 'removeId'),
+  };
+}
+
+function unitBoundary(input: Record<string, unknown>): {
+  leftId: string;
+  rightId: string;
+  time: number;
+} {
+  return {
+    leftId: requiredString(input.leftId, 'leftId'),
+    rightId: requiredString(input.rightId, 'rightId'),
+    time: requiredNumber(input.time, 'time'),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -907,6 +956,31 @@ export const desktopOperations = {
     },
   ),
   'corpus.query': spec<'keep', CorpusQuery, CorpusQueryPage>('keep', corpusQuery),
+  'units.create': spec<'clear', UnitCreate, Unit>('clear', unitCreate),
+  'units.get': spec<'keep', { id: string }, Unit | null>('keep', (input) => ({
+    id: requiredString(input.id, 'id'),
+  })),
+  'units.list': spec<'keep', { layerId: string }, Unit[]>('keep', (input) => ({
+    layerId: requiredString(input.layerId, 'layerId'),
+  })),
+  'units.undoText': spec<'keep', Record<string, never>, Unit | Unit[]>(
+    'keep',
+    () => ({}) as Record<string, never>,
+  ),
+  'units.undo': spec<'keep', Record<string, never>, Unit | Unit[]>(
+    'keep',
+    () => ({}) as Record<string, never>,
+  ),
+  'units.split': spec<'clear', { unitId: string; time: number }, { left: Unit; right: Unit }>(
+    'clear',
+    unitSplit,
+  ),
+  'units.merge': spec<'clear', { keepId: string; removeId: string }, Unit>('clear', unitMerge),
+  'units.updateBoundary': spec<
+    'clear',
+    { leftId: string; rightId: string; time: number },
+    { left: Unit; right: Unit }
+  >('clear', unitBoundary),
 };
 
 export type DesktopOperations = typeof desktopOperations;
