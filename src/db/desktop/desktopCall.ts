@@ -81,14 +81,7 @@ import { createSpeaker, listSpeakers } from './speakers';
 import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { createLayer, listLayers } from './layers';
-import {
-  linkSense,
-  removeSense,
-  saveLexemeEntry,
-  getLexemeEntry,
-  type LexemeLinkWrite,
-  type LexemeSave,
-} from './lexicon';
+import { linkSense, removeSense, saveLexemeEntry, getLexemeEntry } from './lexicon';
 import {
   clearTokenLexemeLink,
   createLinkedLexeme,
@@ -171,16 +164,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'lexicon.saveEntry',
-  'lexicon.getEntry',
-  'lexicon.linkSense',
-  'lexicon.removeSense',
-  'lexicon.listLinkCandidates',
-  'lexicon.matchLink',
-  'lexicon.listTokenLinks',
-  'lexicon.replaceTokenLink',
-  'lexicon.clearTokenLink',
-  'lexicon.createLinkedEntry',
   'notes.create',
   'notes.update',
   'notes.delete',
@@ -280,10 +263,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'notes.listLexeme',
   'attachments.list',
   'corpus.query',
-  'lexicon.getEntry',
-  'lexicon.listLinkCandidates',
-  'lexicon.matchLink',
-  'lexicon.listTokenLinks',
   'modelRuns.get',
   'modelRuns.readAcceptance',
   'modelRuns.listAcceptable',
@@ -389,6 +368,53 @@ const operationHandlers = {
   'bridges.update': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bridges.update']['check']>) =>
       updateBridge(ctx.db, input),
+  },
+  'lexicon.saveEntry': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.saveEntry']['check']>) =>
+      saveLexemeEntry(ctx.db, input),
+  },
+  'lexicon.getEntry': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.getEntry']['check']>) =>
+      getLexemeEntry(ctx.db, input.id),
+  },
+  'lexicon.linkSense': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.linkSense']['check']>) =>
+      linkSense(ctx.db, input),
+  },
+  'lexicon.removeSense': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.removeSense']['check']>) =>
+      removeSense(ctx.db, input),
+  },
+  'lexicon.listLinkCandidates': {
+    run: (ctx: ContractCtx) => listLexemeLinkCandidates(ctx.db),
+  },
+  'lexicon.matchLink': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.matchLink']['check']>) =>
+      matchLexemeLinkQuery(ctx.db, input.query),
+  },
+  'lexicon.listTokenLinks': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.listTokenLinks']['check']>,
+    ) => listTokenLexemeLinks(ctx.db, input.unitId),
+  },
+  'lexicon.replaceTokenLink': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.replaceTokenLink']['check']>,
+    ) => replaceTokenLexemeLink(ctx.db, input),
+  },
+  'lexicon.clearTokenLink': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.clearTokenLink']['check']>,
+    ) => clearTokenLexemeLink(ctx.db, input.tokenId),
+  },
+  'lexicon.createLinkedEntry': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.createLinkedEntry']['check']>,
+    ) => createLinkedLexeme(ctx.db, input),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -561,6 +587,54 @@ function runContract(
         ctx,
         desktopOperations['bridges.update'].check(raw),
       );
+    case 'lexicon.saveEntry':
+      return operationHandlers['lexicon.saveEntry'].run(
+        ctx,
+        desktopOperations['lexicon.saveEntry'].check(raw),
+      );
+    case 'lexicon.getEntry':
+      return operationHandlers['lexicon.getEntry'].run(
+        ctx,
+        desktopOperations['lexicon.getEntry'].check(raw),
+      );
+    case 'lexicon.linkSense':
+      return operationHandlers['lexicon.linkSense'].run(
+        ctx,
+        desktopOperations['lexicon.linkSense'].check(raw),
+      );
+    case 'lexicon.removeSense':
+      return operationHandlers['lexicon.removeSense'].run(
+        ctx,
+        desktopOperations['lexicon.removeSense'].check(raw),
+      );
+    case 'lexicon.listLinkCandidates':
+      desktopOperations['lexicon.listLinkCandidates'].check(raw);
+      return operationHandlers['lexicon.listLinkCandidates'].run(ctx);
+    case 'lexicon.matchLink':
+      return operationHandlers['lexicon.matchLink'].run(
+        ctx,
+        desktopOperations['lexicon.matchLink'].check(raw),
+      );
+    case 'lexicon.listTokenLinks':
+      return operationHandlers['lexicon.listTokenLinks'].run(
+        ctx,
+        desktopOperations['lexicon.listTokenLinks'].check(raw),
+      );
+    case 'lexicon.replaceTokenLink':
+      return operationHandlers['lexicon.replaceTokenLink'].run(
+        ctx,
+        desktopOperations['lexicon.replaceTokenLink'].check(raw),
+      );
+    case 'lexicon.clearTokenLink':
+      return operationHandlers['lexicon.clearTokenLink'].run(
+        ctx,
+        desktopOperations['lexicon.clearTokenLink'].check(raw),
+      );
+    case 'lexicon.createLinkedEntry':
+      return operationHandlers['lexicon.createLinkedEntry'].run(
+        ctx,
+        desktopOperations['lexicon.createLinkedEntry'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -691,43 +765,6 @@ export function callDesktopSession(
     case 'attachments.list':
       knownKeys(input, ['lexemeId']);
       return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'lexicon.saveEntry':
-      return saveLexemeEntry(project.db, lexemeSave(input));
-    case 'lexicon.getEntry':
-      return getLexemeEntry(project.db, requiredString(input.id, 'id'));
-    case 'lexicon.linkSense':
-      return linkSense(project.db, lexemeLink(input));
-    case 'lexicon.removeSense':
-      return removeSense(project.db, {
-        lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-        senseId: requiredString(input.senseId, 'senseId'),
-      });
-    case 'lexicon.listLinkCandidates':
-      knownKeys(input, []);
-      return listLexemeLinkCandidates(project.db);
-    case 'lexicon.matchLink':
-      knownKeys(input, ['query']);
-      return matchLexemeLinkQuery(project.db, requiredString(input.query, 'query'));
-    case 'lexicon.listTokenLinks':
-      knownKeys(input, ['unitId']);
-      return listTokenLexemeLinks(project.db, requiredString(input.unitId, 'unitId'));
-    case 'lexicon.replaceTokenLink':
-      knownKeys(input, ['tokenId', 'lexemeId', 'senseId']);
-      return replaceTokenLexemeLink(project.db, {
-        tokenId: requiredString(input.tokenId, 'tokenId'),
-        lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-        senseId: requiredString(input.senseId, 'senseId'),
-      });
-    case 'lexicon.createLinkedEntry':
-      knownKeys(input, ['targetId', 'headword', 'translation']);
-      return createLinkedLexeme(project.db, {
-        targetId: requiredString(input.targetId, 'targetId'),
-        headword: requiredString(input.headword, 'headword'),
-        translation: requiredString(input.translation, 'translation'),
-      });
-    case 'lexicon.clearTokenLink':
-      knownKeys(input, ['tokenId']);
-      return clearTokenLexemeLink(project.db, requiredString(input.tokenId, 'tokenId'));
     case 'notes.create':
       return createContentNote(project.db, noteCreate(input));
     case 'notes.update':
@@ -1872,56 +1909,6 @@ function modelRunAccept(input: Record<string, unknown>): {
   };
 }
 
-function lexemeSave(input: Record<string, unknown>): LexemeSave {
-  const tags = input.tags;
-  const link = input.link;
-  return {
-    ...(typeof input.id === 'string' ? { id: input.id } : {}),
-    entry: objectArg(input.entry),
-    ...(input.jieyu === undefined ? {} : { jieyu: objectArg(input.jieyu) }),
-    ...(tags === undefined ? {} : { tags: booleanMap(tags) }),
-    ...('accessRights' in input ? { accessRights: accessArg(input.accessRights) } : {}),
-    ...(link === undefined ? {} : { link: linkWrite(link) }),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-    ...('senseFieldValues' in input
-      ? { senseFieldValues: senseFieldValueMap(input.senseFieldValues) }
-      : {}),
-  };
-}
-
-function lexemeLink(input: Record<string, unknown>): LexemeLinkWrite & { lexemeId: string } {
-  return {
-    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-    ...linkWrite(input),
-  };
-}
-
-function linkWrite(value: unknown): LexemeLinkWrite {
-  const record = objectArg(value);
-  return {
-    targetType: requiredString(record.targetType, 'targetType'),
-    targetId: requiredString(record.targetId, 'targetId'),
-    senseId: requiredString(record.senseId, 'senseId'),
-    ...(typeof record.role === 'string' ? { role: record.role } : {}),
-  };
-}
-
-function accessArg(value: unknown): string | null {
-  if (value === null) return null;
-  if (typeof value !== 'string') throw new Error('lexeme access is invalid');
-  return value;
-}
-
-function booleanMap(value: unknown): Record<string, boolean> {
-  const record = objectArg(value);
-  const tags: Record<string, boolean> = {};
-  for (const [key, item] of Object.entries(record)) {
-    if (typeof item !== 'boolean') throw new Error('lexeme tags are invalid');
-    tags[key] = item;
-  }
-  return tags;
-}
-
 function corpusQuery(input: Record<string, unknown>): CorpusQuery {
   knownKeys(input, [
     'manuscriptId',
@@ -1998,15 +1985,6 @@ function unitCreate(input: Record<string, unknown>): UnitCreate {
       : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   };
-}
-
-function senseFieldValueMap(value: unknown): Record<string, Record<string, unknown>> {
-  const record = fieldValueMap(value);
-  const senses: Record<string, Record<string, unknown>> = {};
-  for (const [senseId, item] of Object.entries(record)) {
-    senses[senseId] = fieldValueMap(item);
-  }
-  return senses;
 }
 
 function fieldValueMap(value: unknown): Record<string, unknown> {

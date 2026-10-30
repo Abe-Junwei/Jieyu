@@ -7,6 +7,8 @@ import type {
   ProjectLanguage,
   ProjectOrthography,
 } from './catalog';
+import type { LexemeLinkCandidate, TokenLexemeLink } from './lexemeLink';
+import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
 import type { Layer, LayerCreate } from './layers';
 import type { DeletionReminder } from './manuscriptPurge';
 import type {
@@ -176,6 +178,65 @@ function bridgeCreate(input: Record<string, unknown>): BridgeCreate {
         }
       : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
+function senseFieldValueMap(value: unknown): Record<string, Record<string, unknown>> {
+  const record = fieldValueMap(value);
+  const senses: Record<string, Record<string, unknown>> = {};
+  for (const [senseId, item] of Object.entries(record)) {
+    senses[senseId] = fieldValueMap(item);
+  }
+  return senses;
+}
+
+function booleanMap(value: unknown): Record<string, boolean> {
+  const record = objectArg(value);
+  const tags: Record<string, boolean> = {};
+  for (const [key, item] of Object.entries(record)) {
+    if (typeof item !== 'boolean') throw new Error('lexeme tags are invalid');
+    tags[key] = item;
+  }
+  return tags;
+}
+
+function accessArg(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string') throw new Error('lexeme access is invalid');
+  return value;
+}
+
+function linkWrite(value: unknown): LexemeLinkWrite {
+  const record = objectArg(value);
+  return {
+    targetType: requiredString(record.targetType, 'targetType'),
+    targetId: requiredString(record.targetId, 'targetId'),
+    senseId: requiredString(record.senseId, 'senseId'),
+    ...(typeof record.role === 'string' ? { role: record.role } : {}),
+  };
+}
+
+function lexemeSave(input: Record<string, unknown>): LexemeSave {
+  const tags = input.tags;
+  const link = input.link;
+  return {
+    ...(typeof input.id === 'string' ? { id: input.id } : {}),
+    entry: objectArg(input.entry),
+    ...(input.jieyu === undefined ? {} : { jieyu: objectArg(input.jieyu) }),
+    ...(tags === undefined ? {} : { tags: booleanMap(tags) }),
+    ...('accessRights' in input ? { accessRights: accessArg(input.accessRights) } : {}),
+    ...(link === undefined ? {} : { link: linkWrite(link) }),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+    ...('senseFieldValues' in input
+      ? { senseFieldValues: senseFieldValueMap(input.senseFieldValues) }
+      : {}),
+  };
+}
+
+function lexemeLink(input: Record<string, unknown>): LexemeLinkWrite & { lexemeId: string } {
+  return {
+    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+    ...linkWrite(input),
   };
 }
 
@@ -367,6 +428,67 @@ export const desktopOperations = {
       return { id: requiredString(input.id, 'id'), rules: bridgeRules(input.rules) };
     },
   ),
+  'lexicon.saveEntry': spec<'clear', LexemeSave, ProjectLexeme>('clear', lexemeSave),
+  'lexicon.getEntry': spec<'keep', { id: string }, ProjectLexeme | null>('keep', (input) => ({
+    id: requiredString(input.id, 'id'),
+  })),
+  'lexicon.linkSense': spec<'clear', LexemeLinkWrite & { lexemeId: string }, ProjectLexemeLink>(
+    'clear',
+    lexemeLink,
+  ),
+  'lexicon.removeSense': spec<'clear', { lexemeId: string; senseId: string }, ProjectLexeme>(
+    'clear',
+    (input) => ({
+      lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+      senseId: requiredString(input.senseId, 'senseId'),
+    }),
+  ),
+  'lexicon.listLinkCandidates': spec<'keep', Record<string, never>, LexemeLinkCandidate[]>(
+    'keep',
+    (input) => {
+      knownKeys(input, []);
+      return {} as Record<string, never>;
+    },
+  ),
+  'lexicon.matchLink': spec<'keep', { query: string }, LexemeLinkCandidate>('keep', (input) => {
+    knownKeys(input, ['query']);
+    return { query: requiredString(input.query, 'query') };
+  }),
+  'lexicon.listTokenLinks': spec<'keep', { unitId: string }, TokenLexemeLink[]>('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
+  'lexicon.replaceTokenLink': spec<
+    'clear',
+    { tokenId: string; lexemeId: string; senseId: string },
+    TokenLexemeLink
+  >('clear', (input) => {
+    knownKeys(input, ['tokenId', 'lexemeId', 'senseId']);
+    return {
+      tokenId: requiredString(input.tokenId, 'tokenId'),
+      lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+      senseId: requiredString(input.senseId, 'senseId'),
+    };
+  }),
+  'lexicon.clearTokenLink': spec<'clear', { tokenId: string }, TokenLexemeLink[]>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['tokenId']);
+      return { tokenId: requiredString(input.tokenId, 'tokenId') };
+    },
+  ),
+  'lexicon.createLinkedEntry': spec<
+    'clear',
+    { targetId: string; headword: string; translation: string },
+    TokenLexemeLink
+  >('clear', (input) => {
+    knownKeys(input, ['targetId', 'headword', 'translation']);
+    return {
+      targetId: requiredString(input.targetId, 'targetId'),
+      headword: requiredString(input.headword, 'headword'),
+      translation: requiredString(input.translation, 'translation'),
+    };
+  }),
 };
 
 export type DesktopOperations = typeof desktopOperations;
