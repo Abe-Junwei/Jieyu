@@ -15,7 +15,7 @@ import {
   exportDesktopManuscriptJyt,
   saveDesktopPackage,
 } from './projectExchange';
-import { queryCorpus, type CorpusQuery, type CorpusQueryCursor } from './corpusQuery';
+import { queryCorpus } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
 import { listAnalysisCandidates } from './analysisCandidates';
 import {
@@ -158,7 +158,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'corpus.query',
   'units.create',
   'units.get',
   'units.list',
@@ -237,7 +236,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'units.get',
   'units.list',
   'attachments.list',
-  'corpus.query',
   'deletion.listDue',
   'customFields.listDefinitions',
   'customFields.missingUnitFields',
@@ -462,6 +460,10 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['modelRuns.readAcceptance']['check']>,
     ) => readTranscriptionAcceptance(ctx.db, input.operationId),
+  },
+  'corpus.query': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['corpus.query']['check']>) =>
+      queryCorpus(ctx.db, input),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -762,6 +764,11 @@ function runContract(
         ctx,
         desktopOperations['modelRuns.readAcceptance'].check(raw),
       );
+    case 'corpus.query':
+      return operationHandlers['corpus.query'].run(
+        ctx,
+        desktopOperations['corpus.query'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -892,8 +899,6 @@ export function callDesktopSession(
     case 'attachments.list':
       knownKeys(input, ['lexemeId']);
       return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'corpus.query':
-      return queryCorpus(project.db, corpusQuery(input));
     case 'units.create':
       return createUnit(project.db, unitCreate(input));
     case 'units.get':
@@ -1730,61 +1735,6 @@ function analysisApply(input: Record<string, unknown>): {
       graphFingerprint: requiredString(expected.graphFingerprint, 'graphFingerprint'),
     },
     changes: input.changes,
-  };
-}
-
-function corpusQuery(input: Record<string, unknown>): CorpusQuery {
-  knownKeys(input, [
-    'manuscriptId',
-    'text',
-    'form',
-    'gloss',
-    'pos',
-    'lexemeId',
-    'senseId',
-    'limit',
-    'cursor',
-  ]);
-  const lexemeId = optionalQueryString(input, 'lexemeId');
-  const senseId = optionalQueryString(input, 'senseId');
-  if ((lexemeId === null) !== (senseId === null)) {
-    throw new Error('sense query needs lexemeId and senseId');
-  }
-  return {
-    manuscriptId: optionalQueryString(input, 'manuscriptId'),
-    text: optionalQueryString(input, 'text'),
-    form: optionalQueryString(input, 'form'),
-    gloss: optionalQueryString(input, 'gloss'),
-    pos: optionalQueryString(input, 'pos'),
-    lexemeId,
-    senseId,
-    limit: requiredLimit(input.limit),
-    cursor: corpusCursor(input.cursor),
-  };
-}
-
-function optionalQueryString(input: Record<string, unknown>, name: string): string | null {
-  if (!(name in input) || input[name] === null) return null;
-  if (typeof input[name] !== 'string') throw new Error(`desktop call ${name} must be a string`);
-  return input[name];
-}
-
-function requiredLimit(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    throw new Error('desktop call limit must be a positive integer');
-  }
-  return value;
-}
-
-function corpusCursor(value: unknown): CorpusQueryCursor | null {
-  if (value === undefined || value === null) return null;
-  const cursor = objectArg(value);
-  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
-  return {
-    manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
-    layerId: requiredString(cursor.layerId, 'layerId'),
-    startTime: requiredNumber(cursor.startTime, 'startTime'),
-    unitId: requiredString(cursor.unitId, 'unitId'),
   };
 }
 

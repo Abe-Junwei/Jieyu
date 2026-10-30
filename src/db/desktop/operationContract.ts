@@ -18,6 +18,7 @@ import type {
   ContentNoteRevision,
   ContentNoteWrite,
 } from './notes';
+import type { CorpusQuery, CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
 import type { Layer, LayerCreate } from './layers';
 import type {
   AcceptableRun,
@@ -522,6 +523,61 @@ function modelRunAccept(input: Record<string, unknown>): {
   };
 }
 
+function optionalQueryString(input: Record<string, unknown>, name: string): string | null {
+  if (!(name in input) || input[name] === null) return null;
+  if (typeof input[name] !== 'string') throw new Error(`desktop call ${name} must be a string`);
+  return input[name];
+}
+
+function requiredLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new Error('desktop call limit must be a positive integer');
+  }
+  return value;
+}
+
+function corpusCursor(value: unknown): CorpusQueryCursor | null {
+  if (value === undefined || value === null) return null;
+  const cursor = objectArg(value);
+  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
+  return {
+    manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
+    layerId: requiredString(cursor.layerId, 'layerId'),
+    startTime: requiredNumber(cursor.startTime, 'startTime'),
+    unitId: requiredString(cursor.unitId, 'unitId'),
+  };
+}
+
+function corpusQuery(input: Record<string, unknown>): CorpusQuery {
+  knownKeys(input, [
+    'manuscriptId',
+    'text',
+    'form',
+    'gloss',
+    'pos',
+    'lexemeId',
+    'senseId',
+    'limit',
+    'cursor',
+  ]);
+  const lexemeId = optionalQueryString(input, 'lexemeId');
+  const senseId = optionalQueryString(input, 'senseId');
+  if ((lexemeId === null) !== (senseId === null)) {
+    throw new Error('sense query needs lexemeId and senseId');
+  }
+  return {
+    manuscriptId: optionalQueryString(input, 'manuscriptId'),
+    text: optionalQueryString(input, 'text'),
+    form: optionalQueryString(input, 'form'),
+    gloss: optionalQueryString(input, 'gloss'),
+    pos: optionalQueryString(input, 'pos'),
+    lexemeId,
+    senseId,
+    limit: requiredLimit(input.limit),
+    cursor: corpusCursor(input.cursor),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -850,6 +906,7 @@ export const desktopOperations = {
       return { operationId: requiredString(input.operationId, 'operationId') };
     },
   ),
+  'corpus.query': spec<'keep', CorpusQuery, CorpusQueryPage>('keep', corpusQuery),
 };
 
 export type DesktopOperations = typeof desktopOperations;
