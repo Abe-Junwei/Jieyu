@@ -546,6 +546,46 @@ describe('transcription run storage', () => {
       }),
     ).toThrow('transcription range is outside the run');
   });
+
+  it('rejects an accept whose range differs from the preview', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId);
+    const run = callDesktopSession(session.sessionId, 'modelRuns.start', {
+      manuscriptId: seeded.manuscriptId,
+      layerId: seeded.layerId,
+      modelId: 'm',
+      modelVersion: '1',
+      manifestSha256: 'x',
+      params: {},
+      rangeStart: 2,
+      rangeEnd: 3,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: run.id,
+      status: 'ok',
+      chunkCount: 1,
+    });
+    const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
+      runId: run.id,
+      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
+    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    const candidate = preview.candidates[0];
+    if (candidate === undefined) throw new Error('preview missing');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'op',
+        runId: run.id,
+        chunkIndex: 0,
+        segmentIndex: 0,
+        mediaStart: 100,
+        mediaEnd: 101,
+        timeMappingRevision: preview.timeMappingRevision,
+        targetFingerprint: candidate.targetFingerprint,
+        text: 'outside',
+      }),
+    ).toThrow();
+  });
 });
 
 function seed(sessionId: string): { manuscriptId: string; layerId: string } {

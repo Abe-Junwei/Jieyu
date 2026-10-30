@@ -73,6 +73,9 @@ describe('unit span', () => {
     expect(
       count(db, 'SELECT COUNT(*) AS n FROM token_lexeme_links WHERE target_id = ?', copiedToken),
     ).toBe(1);
+    expect(
+      callDesktopSession(session.sessionId, 'lexicon.listTokenLinks', { unitId: split.right.id }),
+    ).toHaveLength(1);
 
     undoSplit(db, split.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
