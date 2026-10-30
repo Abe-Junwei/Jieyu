@@ -50,22 +50,22 @@ describe('desktop operation contract', () => {
     expect(desktopOperations['media.finishCleanup'].undo).toBe('clear');
   });
 
-  it('keeps the moved keys disjoint from METHODS and equal to the 5fbc66f8 catalog', () => {
+  it('keeps reopen outside the catalog and the union equal to the 5fbc66f8 keys', () => {
     const desktopCallSource = readFileSync(
       fileURLToPath(new URL('./desktopCall.ts', import.meta.url)),
       'utf8',
     );
-    const methods = quotedKeys(sliceBetween(desktopCallSource, 'const METHODS = [', '] as const'));
     const contract = [
       ...sliceBetween(contractSource, 'export const desktopOperations = {', '\n};').matchAll(
         /^\s+'([a-zA-Z0-9.]+)': spec/gm,
       ),
     ].map((match) => match[1] ?? '');
+    expect(desktopCallSource).toContain("method === 'reopen'");
+    expect(desktopCallSource).not.toContain('const METHODS');
     expect(unique(DESKTOP_METHODS_AT_5fbc66f8)).toEqual([...DESKTOP_METHODS_AT_5fbc66f8]);
-    expect(unique(methods)).toEqual(methods);
     expect(unique(contract)).toEqual(contract);
-    expect(methods.filter((key) => contract.includes(key))).toEqual([]);
-    expect(unique([...methods, ...contract]).sort()).toEqual(
+    expect(contract).not.toContain('reopen');
+    expect(unique(['reopen', ...contract]).sort()).toEqual(
       unique(DESKTOP_METHODS_AT_5fbc66f8).sort(),
     );
     expect(Object.keys(desktopOperations).sort()).toEqual([...contract].sort());
@@ -77,10 +77,6 @@ function sliceBetween(source: string, start: string, end: string): string {
   const to = source.indexOf(end, from + start.length);
   if (from < 0 || to < 0) throw new Error(`missing ${start}`);
   return source.slice(from + start.length, to);
-}
-
-function quotedKeys(source: string): string[] {
-  return [...source.matchAll(/'([a-zA-Z0-9.]+)'/g)].map((match) => match[1] ?? '');
 }
 
 function unique(keys: readonly string[]): string[] {
