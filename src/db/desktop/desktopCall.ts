@@ -57,11 +57,7 @@ import {
 } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
-import {
-  patchBibliography,
-  redeliverBibliography,
-  type BibliographyPatch,
-} from './bibliographyFields';
+import { patchBibliography, redeliverBibliography } from './bibliographyFields';
 import { patchConversation, redeliverConversation } from './conversationFields';
 import { assignSpeaker } from './speakerAssign';
 import { patchSpeaker, redeliverSpeaker } from './speakerFields';
@@ -128,15 +124,7 @@ import {
   requireDesktopSession,
 } from './projectSession';
 import { clearSessionEdit, rememberSessionEdit, undoSessionEdit } from './sessionEdit';
-import {
-  desktopOperations,
-  isDesktopOperation,
-  revisionOf,
-  speakerEnum,
-  speakerNotes,
-  speakerText,
-  type DesktopOperations,
-} from './operationContract';
+import { desktopOperations, isDesktopOperation, type DesktopOperations } from './operationContract';
 import {
   createUnit,
   getUnit,
@@ -149,8 +137,6 @@ import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
   'references.listLinks',
-  'bibliography.patch',
-  'bibliography.redeliver',
   'analysis.apply',
   'analysis.readState',
   'analysis.listCandidates',
@@ -628,6 +614,16 @@ const operationHandlers = {
   'messages.list': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.list']['check']>) =>
       listMessages(ctx.db, input.conversationId),
+  },
+  'bibliography.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bibliography.patch']['check']>) =>
+      patchBibliography(ctx.db, input),
+  },
+  'bibliography.redeliver': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['bibliography.redeliver']['check']>,
+    ) => redeliverBibliography(ctx.db, input.operationId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1140,6 +1136,16 @@ function runContract(
         ctx,
         desktopOperations['messages.list'].check(raw),
       );
+    case 'bibliography.patch':
+      return operationHandlers['bibliography.patch'].run(
+        ctx,
+        desktopOperations['bibliography.patch'].check(raw),
+      );
+    case 'bibliography.redeliver':
+      return operationHandlers['bibliography.redeliver'].run(
+        ctx,
+        desktopOperations['bibliography.redeliver'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1258,11 +1264,6 @@ export function callDesktopSession(
     case 'references.listLinks':
       knownKeys(input, []);
       return readLexemeLinks(project.db);
-    case 'bibliography.patch':
-      return patchBibliography(project.db, bibliographyPatch(input));
-    case 'bibliography.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverBibliography(project.db, requiredString(input.operationId, 'operationId'));
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.readState': {
@@ -1370,113 +1371,6 @@ function requiredString(value: unknown, name: string): string {
     throw new Error(`desktop call ${name} must be a string`);
   }
   return value;
-}
-
-function bibliographyPatch(input: Record<string, unknown>): BibliographyPatch {
-  knownKeys(input, [
-    'operationId',
-    'id',
-    'title',
-    'authors',
-    'year',
-    'publisher',
-    'doi',
-    'url',
-    'citationKey',
-    'sourceType',
-    'notes',
-    'accessRights',
-  ]);
-  const title = speakerText(input.title, 'title', false);
-  const publisher = speakerText(input.publisher, 'publisher', true);
-  const doi = speakerText(input.doi, 'doi', true);
-  const url = speakerText(input.url, 'url', true);
-  const citationKey = speakerText(input.citationKey, 'citationKey', true);
-  const year = bibliographyYear(input.year);
-  const authors = bibliographyAuthors(input.authors);
-  const sourceType = speakerEnum(input.sourceType, 'sourceType', [
-    'book',
-    'article',
-    'thesis',
-    'fieldnotes',
-    'grammar',
-    'other',
-  ]);
-  const accessRights = speakerEnum(input.accessRights, 'accessRights', [
-    'open',
-    'restricted',
-    'confidential',
-  ]);
-  const notes = speakerNotes(input.notes);
-  const patch: BibliographyPatch = {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-  };
-  if (title !== undefined) {
-    if (typeof title.value !== 'string')
-      throw new Error('desktop call title.value must be a string');
-    patch.title = { expectedRevision: title.expectedRevision, value: title.value };
-  }
-  if (authors !== undefined) patch.authors = authors;
-  if (year !== undefined) patch.year = year;
-  if (publisher !== undefined) patch.publisher = publisher;
-  if (doi !== undefined) patch.doi = doi;
-  if (url !== undefined) patch.url = url;
-  if (citationKey !== undefined) patch.citationKey = citationKey;
-  if (sourceType !== undefined) patch.sourceType = sourceType;
-  if (notes !== undefined) patch.notes = orderedNotes(notes);
-  if (accessRights !== undefined) patch.accessRights = accessRights;
-  if (Object.keys(patch).length === 2) throw new Error('bibliography patch is empty');
-  return patch;
-}
-
-function bibliographyYear(
-  value: unknown,
-): { expectedRevision: number; value: number | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const year = record.value;
-  if (year !== null && (typeof year !== 'number' || !Number.isInteger(year))) {
-    throw new Error('desktop call year.value must be a year');
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, 'year'), value: year };
-}
-
-function bibliographyAuthors(
-  value: unknown,
-): { expectedRevision: number; value: string[] | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const authors = record.value;
-  if (authors === null) {
-    return { expectedRevision: revisionOf(record.expectedRevision, 'authors'), value: null };
-  }
-  if (
-    !Array.isArray(authors) ||
-    authors.some((item) => typeof item !== 'string' || item.length === 0)
-  ) {
-    throw new Error('desktop call authors.value must be author names');
-  }
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, 'authors'),
-    value: authors as string[],
-  };
-}
-
-function orderedNotes(patch: { expectedRevision: number; value: Record<string, string> | null }): {
-  expectedRevision: number;
-  value: Record<string, string> | null;
-} {
-  if (patch.value === null) return patch;
-  const keys = Object.keys(patch.value).sort();
-  if (keys.length === 0 || keys.some((key) => patch.value?.[key]?.length === 0)) {
-    throw new Error('desktop call notes.value must be notes');
-  }
-  const ordered: Record<string, string> = {};
-  for (const key of keys) ordered[key] = patch.value[key] ?? '';
-  return { expectedRevision: patch.expectedRevision, value: ordered };
 }
 
 function fingerprintString(value: unknown): string {
