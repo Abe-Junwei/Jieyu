@@ -242,6 +242,40 @@ describe('analysis text invalidation', () => {
     reopened.close();
   });
 
+  it('rolls back a graph edit that fails after projection', () => {
+    const { dir, project, unitId, stored } = projectWith([token('n1', 0)]);
+    expect(() =>
+      applyAnalysis(
+        project.db,
+        {
+          unitId,
+          expected: {
+            manuscriptGeneration: 0,
+            analysisGeneration: stored.analysisGeneration,
+            graphFingerprint: stored.graphFingerprint,
+          },
+          changes: [
+            { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+          ],
+        },
+        () => {
+          throw new Error('injected');
+        },
+      ),
+    ).toThrow('injected');
+    project.close();
+
+    const reopened = openProject(dir);
+    expect(getAnalysisRoot(reopened.db, unitId)).toEqual(stored);
+    expect(
+      reopened.db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId),
+    ).toEqual({ n: 0 });
+    expect(reopened.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 0,
+    });
+    reopened.close();
+  });
+
   it('leaves the accepted graph in place when the text is unchanged', () => {
     const { project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
     const updated = updateUnitText(project.db, { unitId, text: 'ka' });
