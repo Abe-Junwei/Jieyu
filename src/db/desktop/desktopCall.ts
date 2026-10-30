@@ -136,7 +136,6 @@ import {
 import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
-  'references.listLinks',
   'analysis.apply',
   'analysis.readState',
   'analysis.listCandidates',
@@ -163,7 +162,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'exchange.exportJyt',
   'exchange.exportJym',
   'exchange.exportManuscript',
-  'references.listLinks',
   'analysis.readState',
   'analysis.listCandidates',
   'analysis.listWords',
@@ -624,6 +622,9 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['bibliography.redeliver']['check']>,
     ) => redeliverBibliography(ctx.db, input.operationId),
+  },
+  'references.listLinks': {
+    run: (ctx: ContractCtx) => readLexemeLinks(ctx.db),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1146,6 +1147,9 @@ function runContract(
         ctx,
         desktopOperations['bibliography.redeliver'].check(raw),
       );
+    case 'references.listLinks':
+      desktopOperations['references.listLinks'].check(raw);
+      return operationHandlers['references.listLinks'].run(ctx);
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1261,9 +1265,6 @@ export function callDesktopSession(
   if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
   const input = objectArg(args);
   switch (parsed) {
-    case 'references.listLinks':
-      knownKeys(input, []);
-      return readLexemeLinks(project.db);
     case 'analysis.apply':
       return applyAnalysis(project.db, analysisApply(input));
     case 'analysis.readState': {

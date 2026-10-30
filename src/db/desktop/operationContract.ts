@@ -65,6 +65,7 @@ import type { ConversationPatch, ConversationReading } from './conversationField
 import type { Conversation, ConversationCreate } from './conversations';
 import type { Message, MessageAppend } from './messages';
 import type { BibliographyPatch, BibliographyReading } from './bibliographyFields';
+import type { LexemeLinkReading } from './referenceState';
 import type { Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
@@ -1646,6 +1647,13 @@ export const desktopOperations = {
     (input) => {
       knownKeys(input, ['operationId']);
       return { operationId: requiredString(input.operationId, 'operationId') };
+    },
+  ),
+  'references.listLinks': spec<'keep', Record<string, never>, LexemeLinkReading[]>(
+    'keep',
+    (input) => {
+      knownKeys(input, []);
+      return {} as Record<string, never>;
     },
   ),
 };
