@@ -63,6 +63,7 @@ import type { SpeakerPatch, SpeakerReading } from './speakerFields';
 import type { Speaker } from './speakers';
 import type { ConversationPatch, ConversationReading } from './conversationFields';
 import type { Conversation, ConversationCreate } from './conversations';
+import type { Message, MessageAppend } from './messages';
 import type { Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
@@ -978,6 +979,24 @@ function conversationCreate(input: Record<string, unknown>): ConversationCreate 
   };
 }
 
+function messageAppend(input: Record<string, unknown>): MessageAppend {
+  knownKeys(input, ['id', 'conversationId', 'role', 'body', 'fieldValues']);
+  return {
+    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
+    conversationId: requiredString(input.conversationId, 'conversationId'),
+    role: messageRole(input.role),
+    body: requiredString(input.body, 'body'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
+function messageRole(value: unknown): MessageAppend['role'] {
+  if (value === 'system' || value === 'user' || value === 'assistant' || value === 'tool') {
+    return value;
+  }
+  throw new Error('desktop call role must be a message role');
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1490,6 +1509,26 @@ export const desktopOperations = {
       return { operationId: requiredString(input.operationId, 'operationId') };
     },
   ),
+  'messages.append': spec<'clear', MessageAppend, Message>('clear', messageAppend),
+  'messages.update': spec<'clear', { id: string; body: string }, Message>('clear', (input) => {
+    knownKeys(input, ['id', 'body']);
+    return {
+      id: requiredString(input.id, 'id'),
+      body: requiredString(input.body, 'body'),
+    };
+  }),
+  'messages.clear': spec<
+    'clear',
+    { conversationId: string },
+    { conversationId: string; cleared: number }
+  >('clear', (input) => {
+    knownKeys(input, ['conversationId']);
+    return { conversationId: requiredString(input.conversationId, 'conversationId') };
+  }),
+  'messages.list': spec<'keep', { conversationId: string }, Message[]>('keep', (input) => {
+    knownKeys(input, ['conversationId']);
+    return { conversationId: requiredString(input.conversationId, 'conversationId') };
+  }),
 };
 
 export type DesktopOperations = typeof desktopOperations;

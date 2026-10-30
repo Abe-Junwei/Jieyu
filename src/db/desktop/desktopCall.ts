@@ -108,7 +108,6 @@ import {
   clearConversationMessages,
   listMessages,
   updateMessageBody,
-  type MessageAppend,
 } from './messages';
 import { listDueDeletionReminders, purgeManuscript, showDeletionReminder } from './manuscriptPurge';
 import {
@@ -150,10 +149,6 @@ import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
   'references.listLinks',
-  'messages.append',
-  'messages.update',
-  'messages.clear',
-  'messages.list',
   'bibliography.patch',
   'bibliography.redeliver',
   'analysis.apply',
@@ -187,7 +182,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'analysis.listCandidates',
   'analysis.listWords',
   'analysis.listMorphemes',
-  'messages.list',
 ]);
 
 type ContractCtx = {
@@ -618,6 +612,22 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['conversations.redeliver']['check']>,
     ) => redeliverConversation(ctx.db, input.operationId),
+  },
+  'messages.append': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.append']['check']>) =>
+      appendMessage(ctx.db, input),
+  },
+  'messages.update': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.update']['check']>) =>
+      updateMessageBody(ctx.db, input),
+  },
+  'messages.clear': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.clear']['check']>) =>
+      clearConversationMessages(ctx.db, input.conversationId),
+  },
+  'messages.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.list']['check']>) =>
+      listMessages(ctx.db, input.conversationId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1110,6 +1120,26 @@ function runContract(
         ctx,
         desktopOperations['conversations.redeliver'].check(raw),
       );
+    case 'messages.append':
+      return operationHandlers['messages.append'].run(
+        ctx,
+        desktopOperations['messages.append'].check(raw),
+      );
+    case 'messages.update':
+      return operationHandlers['messages.update'].run(
+        ctx,
+        desktopOperations['messages.update'].check(raw),
+      );
+    case 'messages.clear':
+      return operationHandlers['messages.clear'].run(
+        ctx,
+        desktopOperations['messages.clear'].check(raw),
+      );
+    case 'messages.list':
+      return operationHandlers['messages.list'].run(
+        ctx,
+        desktopOperations['messages.list'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -1228,23 +1258,6 @@ export function callDesktopSession(
     case 'references.listLinks':
       knownKeys(input, []);
       return readLexemeLinks(project.db);
-    case 'messages.append':
-      return appendMessage(project.db, messageAppend(input));
-    case 'messages.update':
-      knownKeys(input, ['id', 'body']);
-      return updateMessageBody(project.db, {
-        id: requiredString(input.id, 'id'),
-        body: requiredString(input.body, 'body'),
-      });
-    case 'messages.clear':
-      knownKeys(input, ['conversationId']);
-      return clearConversationMessages(
-        project.db,
-        requiredString(input.conversationId, 'conversationId'),
-      );
-    case 'messages.list':
-      knownKeys(input, ['conversationId']);
-      return listMessages(project.db, requiredString(input.conversationId, 'conversationId'));
     case 'bibliography.patch':
       return patchBibliography(project.db, bibliographyPatch(input));
     case 'bibliography.redeliver':
@@ -1466,24 +1479,6 @@ function orderedNotes(patch: { expectedRevision: number; value: Record<string, s
   return { expectedRevision: patch.expectedRevision, value: ordered };
 }
 
-function messageAppend(input: Record<string, unknown>): MessageAppend {
-  knownKeys(input, ['id', 'conversationId', 'role', 'body', 'fieldValues']);
-  return {
-    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
-    conversationId: requiredString(input.conversationId, 'conversationId'),
-    role: messageRole(input.role),
-    body: requiredString(input.body, 'body'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function messageRole(value: unknown): MessageAppend['role'] {
-  if (value === 'system' || value === 'user' || value === 'assistant' || value === 'tool') {
-    return value;
-  }
-  throw new Error('desktop call role must be a message role');
-}
-
 function fingerprintString(value: unknown): string {
   if (typeof value !== 'string') throw new Error('desktop call graphFingerprint must be a string');
   return value;
@@ -1641,13 +1636,6 @@ function analysisApply(input: Record<string, unknown>): {
     },
     changes: input.changes,
   };
-}
-
-function fieldValueMap(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('desktop call fieldValues must be an object');
-  }
-  return value as Record<string, unknown>;
 }
 
 function knownKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
