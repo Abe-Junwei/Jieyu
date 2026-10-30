@@ -21,6 +21,7 @@ import {
   importDesktopJym,
 } from './projectExchange';
 import { getUnit, readStoredUnit } from './units';
+import { assertZipBounded } from './zipBounds';
 
 const roots: string[] = [];
 const T = '2026-10-27T00:00:00.000Z';
@@ -507,5 +508,12 @@ describe('desktop JYT exchange', () => {
     payload.tables.unit_texts.push({ ...first, id: 'duplicate-role', body: 'second' });
     files['data/project.json'] = strToU8(JSON.stringify(payload));
     expect(() => importDesktopJyt(dest, zipSync(files))).toThrow('unit text role is duplicated');
+  });
+
+  it('rejects a zip whose central size bypasses the local-header bound', () => {
+    const bytes = zipSync({ huge: new Uint8Array(64 * 1024 * 1024 + 1) });
+    new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint32(22, 0, true);
+    expect(unzipSync(bytes).huge!.length).toBeGreaterThan(64 * 1024 * 1024);
+    expect(() => assertZipBounded(bytes)).toThrow('desktop package is unreadable');
   });
 });

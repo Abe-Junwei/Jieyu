@@ -23,6 +23,7 @@ import { segmentUnitWords } from './analysisRestore';
 import { createDefinition } from './customFields';
 import { importForeignFile } from './foreignImport';
 import { openProject } from './openProject';
+import { exportDesktopJym, importDesktopJym } from './projectExchange';
 import { listUnits } from './units';
 
 const roots: string[] = [];
@@ -546,6 +547,29 @@ describe('foreign file import', () => {
       /* rejection is allowed */
     }
     expect(readdirSync(outside)).toEqual([]);
+  });
+
+  it('backs up a LIFT source referenced by lexeme provenance', () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-import-lift-'));
+    const restored = mkdtempSync(join(tmpdir(), 'jieyu-import-lift-restored-'));
+    roots.push(folder, restored);
+    const project = openProject(folder);
+    try {
+      const file = join(folder, 'sample.lift');
+      writeFileSync(
+        file,
+        '<lift version="0.13"><entry id="e1"><lexical-unit><form lang="und"><text>word</text></form></lexical-unit><sense id="s1"><definition><form lang="und"><text>meaning</text></form></definition></sense></entry></lift>',
+      );
+      expect(importForeignFile({ folder, file, db: project.db }).written).toBe(1);
+      const row = project.db
+        .prepare('SELECT provenance_json FROM lexemes WHERE provenance_json IS NOT NULL')
+        .get() as { provenance_json: string };
+      const relpath = (JSON.parse(row.provenance_json) as { relpath: string }).relpath;
+      importDesktopJym(restored, exportDesktopJym(project.db, folder));
+      expect(readFileSync(join(restored, relpath)).byteLength).toBeGreaterThan(0);
+    } finally {
+      project.close();
+    }
   });
 });
 

@@ -1,4 +1,13 @@
-import { linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
@@ -78,5 +87,47 @@ it('does not change the open database when an export names that file', () => {
   } finally {
     resetDesktopSessions();
     rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+it('protects a registered recording from export overwrite', () => {
+  const folder = mkdtempSync(join(tmpdir(), 'jieyu-export-recording-'));
+  try {
+    const { sessionId } = openDesktopSession(folder, [folder]);
+    const file = join(folder, 'a.wav');
+    const bytes = Buffer.from('recording');
+    writeFileSync(file, bytes);
+    callDesktopSession(sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      duration: 1,
+    });
+    expect(() => callDesktopSession(sessionId, 'exchange.exportJyt', { file })).toThrow(
+      'export target is the open project',
+    );
+    expect(readFileSync(file)).toEqual(bytes);
+  } finally {
+    resetDesktopSessions();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+it('protects the database when the project was opened through a symlink', () => {
+  const root = mkdtempSync(join(tmpdir(), 'jieyu-export-alias-'));
+  const folder = join(root, 'real');
+  mkdirSync(folder);
+  const alias = join(root, 'alias');
+  symlinkSync(folder, alias);
+  try {
+    const { sessionId } = openDesktopSession(alias, [alias]);
+    const file = join(folder, 'project.sqlite');
+    const header = readFileSync(file).subarray(0, 16).toString();
+    expect(() => callDesktopSession(sessionId, 'exchange.exportJyt', { file })).toThrow(
+      'export target is the open project',
+    );
+    expect(readFileSync(file).subarray(0, 16).toString()).toBe(header);
+  } finally {
+    resetDesktopSessions();
+    rmSync(root, { recursive: true, force: true });
   }
 });
