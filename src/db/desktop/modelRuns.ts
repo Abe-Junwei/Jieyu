@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { invertTextTimeMapping } from '../../services/LinguisticService.timeMapping';
+import { writeUnitFieldValues } from './customFields';
 import { getManuscript } from './manuscripts';
 import { assertUnitTextRoleFree } from './units';
 
@@ -357,6 +358,7 @@ export function acceptTranscriptionCandidate(
       `INSERT INTO unit_texts (id, unit_id, role, body, provenance_json, updated_at)
        VALUES (?, ?, 'transcription', ?, ?, ?)`,
     ).run(randomUUID(), unitId, input.text, provenanceJson(run, now), now);
+    writeUnitFieldValues(db, unitId, undefined);
     try {
       db.prepare(
         `INSERT INTO transcription_acceptances (

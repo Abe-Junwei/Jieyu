@@ -41,7 +41,7 @@ depends_on:
 - [x] W3b analysis-node：缺必填新节点时 analysis import 整段回滚。旧图指纹、词项投影不变，关闭重开后仍是旧图。沿用 assertStoredCustomFields。
 - [x] W3b analysis-relation：缺必填新关系时 writeAnalysisRoot 整段回滚。旧图、词项投影不变，关闭重开后仍没有这条关系。
 - [x] W3b 导入：上面的 analysis import 就是这一条整段回滚路径。foreignImport 缺必填语段仍逐条跳过并记 unprojected，这是已有合同，本刀不改。
-- [ ] W3b 接受：一条接受路径缺必填值整段回滚。批量若调用同一函数，仍核对外层没有逐项提交，不能只凭同名函数免验。
+- [x] W3b 接受：modelRuns.accept 缺必填语段字段时整段回滚。失败后没有新语段、没有接受记录，pending 仍是 1，关闭重开后仍相同。这条路径没有外层逐项提交。
 - [ ] W4a 改正文：正文写入后注入失败，重开后代际和图仍是前态。不提取共用函数。
 - [ ] W4a 改图：快照或投影写入后注入失败，重开后回到前态。只有和第二处是同一段代码时才提取。
 - [ ] W4a 跨语段引用：不实施。合同未定，保持独立决定。

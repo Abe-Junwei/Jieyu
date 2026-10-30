@@ -98,7 +98,7 @@ getUnit 与 units.get 只返回文稿未删除的语段；readStoredUnit 保留�
 
 落位：customFields.ts 及全部宿主 creator、foreignImport.ts、modelRuns.ts、analysisImport.ts 等实际创建路径。
 requiredCreateReadback.test.ts 已验证 13 个现有 helper 宿主缺值拒绝/回滚、合法创建和关闭重开读回；这只是部分证据，不能勾掉 W3b。
-project 缺值回滚已落地。ensureProjectIdentity 仍无 fieldValues。没有项目行时，插入和必填检查在同一事务里；必填项目字段没有值就报 project is missing a required field，项目行和字段值一起回滚，关闭重开后仍没有项目行。已有项目行则直接返回，不因缺值拒绝。入口还不能在创建时写入合法必填值；类型签名不能当作运行时拒绝多传参数。下一刀是 source。
+project 缺值回滚已落地。ensureProjectIdentity 仍无 fieldValues。没有项目行时，插入和必填检查在同一事务里；必填项目字段没有值就报 project is missing a required field，项目行和字段值一起回滚，关闭重开后仍没有项目行。已有项目行则直接返回，不因缺值拒绝。入口还不能在创建时写入合法必填值；类型签名不能当作运行时拒绝多传参数。source 没有具名创建函数，不新增入口。
 source 仍直接 INSERT。分析图节点和关系分开验证，沿用 assertStoredCustomFields，失败后旧图、投影及相关记录不变。一种导入、一条接受先证明完整事务；批量即使调用同一函数，仍核对外层没有逐项提交。先确认该宿主自己的字段合同，再决定初始化落位，不擅自填默认值。
 最终阶段仍要：继续使用 writeRequiredFieldValues，具名 creator 的外部成功包含合法初始化及读回；组合操作在事务内创建，不造 create(host,values)。每宿主缺必填值整次回滚、无错误宿主字段、合法值关闭重开可读；导入和批量不新增逐行独立提交。已有数据损坏可报告并拒绝相关写入，不顺手批量修复或填默认值。本轮不先做一份宿主总清单。
 
@@ -147,7 +147,7 @@ sessionEdit 已管理一步内存状态，领域模块不读它；崩溃即丢�
 
 ## 依赖与交付控制
 
-A、B、W2 故障注入、W3a 和 W3b project 缺值回滚已封口，不借此迁新键。project 入口仍无 fieldValues，不能在创建时写入合法必填值。source 没有具名创建函数，缺值回滚未做，不新增入口。分析节点和关系的缺值回滚已锁进测试。下一刀是 W3b 转写接受。W0 和 W5 正文里的宽基线、完整文件验收和 Electron 媒体路径是最终阶段目标，不是本轮每一刀的范围；Electron 媒体路径留在 W7 门禁。不新写入口散文，不提取共用图函数，不迁新操作键。
+A、B、W2 故障注入、W3a 和 W3b project 缺值回滚已封口，不借此迁新键。project 入口仍无 fieldValues，不能在创建时写入合法必填值。source 没有具名创建函数，缺值回滚未做，不新增入口。分析节点、关系和转写接受的缺值回滚已落地。下一刀是 W0 脚本守卫。W0 和 W5 正文里的宽基线、完整文件验收和 Electron 媒体路径是最终阶段目标，不是本轮每一刀的范围；Electron 媒体路径留在 W7 门禁。不新写入口散文，不提取共用图函数，不迁新操作键。
 一个阶段可多次小提交，每次只迁一个有完整验收的领域。先保留业务结果测试，再替换实现，最后删除旧代码。
 不承诺一次大提交完成；每批失败可回退代码，无格式迁移。只有实际并行执行时才分配互不重叠所有权，本文不预设多 agent 编排。
 若风险评估要求新旧试用，遵守 flag 默认 false 和一周自用规则，单次操作只走一路；不得为了比较而双写真实数据。
@@ -190,6 +190,6 @@ A、B、getUnit、readAnalysisState、备注、字段、可接受任务名单、
 
 12. 补交故障：source 的事务中止把正文和 pending 一起回滚。诊断文件已经收件、项目里的确认更新失败时，状态仍是 pending，修订不变。关闭重开后再补交只确认一次，再次补交不增加回执。协议实现没有改。
 
-W3a、W2 故障注入和 W3b project 缺值回滚已收口。project 创建仍不能传入字段值。下一刀是 W3b source。W0、W5 的宽基线和 Electron 媒体路径留在最终阶段，不从 W7 门禁删除。本轮没有重跑全域回归或 Electron。
+W3a、W2、project 缺值回滚、分析节点、分析关系和转写接受已收口。source 没有具名创建函数。下一刀是 W0 脚本守卫。W0、W5 的宽基线和 Electron 媒体路径留在最终阶段，不从 W7 门禁删除。本轮没有重跑全域回归或 Electron。
 
 证据：`npm run typecheck` 通过。`npx vitest run src/db/desktop/sourceFields.test.ts` 为 5 项通过。`npx eslint` 覆盖本切片测试，`git diff --check` 通过。`npm run check:docs-governance` 通过。上一批文稿删除为 19 项。
