@@ -18,7 +18,7 @@ depends_on:
 - [x] 读取当前实现/ADR/既有规格，核对工作区，完成成熟方案调研及三件套。
 - [x] W0 入口：check:script-desktop-callers 仍允许 import-desktop-file.mjs 只加载 foreignImport。其他脚本加载 src/db/desktop，或调用 writeRequiredFieldValues、writeUnitFieldValues、ensureProjectIdentity、createUnit，会被拦住。
 - [ ] W0 入口 SQL：既有 roundtrip 脚本含旧库 INSERT。全禁会误伤，合同未定，这一刀不改那些脚本。
-- [ ] W0 性能：只在 W6 第一刀之前，用合成项目记一次查询和写入耗时，数字写进该次提交说明。
+- [x] W0 性能：空合成项目上一次 media 计数查询 0.822 ms，一次 media 插入 0.412 ms。数字也写在媒体域那次提交说明里。
 - [ ] W0 反例：一次只迁一个 __audit__ 文件。先有能捕获原缺陷的常规测试，再删该文件。
 - [x] W1 为 project.get / layers.create / units.updateText / media.finishCleanup 建类型化试点。handler 留在 desktopCall.ts。
 - [x] W1 四键试点到此停止；现有测试锁住额外键与三种撤销时机，units.updateText 仍忽略额外键。
@@ -53,7 +53,8 @@ depends_on:
 - [x] W5b 录音收尾 trash 失败后状态是 failed。关闭重开后仍是 failed，录音行和文件还在。没有改附件。
 - [x] W5c 项目锁竞争沿用 projectLock.process.test.ts：两个进程只有一个能写。Electron 媒体路径仍留在 W7。
 - [x] W6 预备：project.get 保持撤销槽，layers.create 和 media.finishCleanup 在检查前清槽，units.updateText 只在成功后替换。键集仍是这四个。METHODS 还在。
-- [ ] W6 之后每域一刀，从项目/媒体开始。每刀改实现、目录和测试，再删该域旧分派。性能基线放在首次实质迁移之前。
+- [x] W6 媒体：create、delete、previewDelete、showReminder、reregister、restoreRegistered、list 已进入目录。读操作保持撤销槽，写操作在检查前清槽。METHODS 里不再有这些键。
+- [ ] W6 之后每域一刀。下一域再改实现、目录和测试。
 - [ ] W7 不拆功能。前面做完后按门禁逐条跑，含真实 Electron 的文件选择、媒体读取和垃圾箱。不过就不勾完成。
 
 ## Pre-merge gates

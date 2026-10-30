@@ -1,6 +1,10 @@
 // Renderer-safe: type imports and pure checks only. Handlers stay in the main process.
 import type { Layer, LayerCreate } from './layers';
+import type { DeletionReminder } from './manuscriptPurge';
+import type { RecordingDeletePreview, RecordingDeletion } from './manuscripts';
+import type { Media, MediaCreate } from './media';
 import type { MediaCleanup } from './mediaCleanup';
+import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
 import type { Unit } from './units';
 
@@ -122,6 +126,42 @@ export const desktopOperations = {
       };
     },
   ),
+  'media.create': spec<'clear', MediaCreate, Media>('clear', (input) => ({
+    relpath: requiredString(input.relpath, 'relpath'),
+    sha256: requiredString(input.sha256, 'sha256'),
+    duration: requiredNumber(input.duration, 'duration'),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  })),
+  'media.delete': spec<'clear', { id: string }, RecordingDeletion>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'media.previewDelete': spec<'keep', { id: string }, RecordingDeletePreview>('keep', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'media.showReminder': spec<'clear', { id: string }, DeletionReminder>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'media.reregister': spec<'clear', { relpath: string; duration: number }, MediaReregistration>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['relpath', 'duration']);
+      return {
+        relpath: requiredString(input.relpath, 'relpath'),
+        duration: requiredNumber(input.duration, 'duration'),
+      };
+    },
+  ),
+  'media.restoreRegistered': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'media.list': spec<'keep', Record<string, never>, Media[]>('keep', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
 };
 
 export type DesktopOperations = typeof desktopOperations;

@@ -100,7 +100,7 @@ import {
   matchLexemeLinkQuery,
   replaceTokenLexemeLink,
 } from './lexemeLink';
-import { createMedia, listActiveMedia, type MediaCreate } from './media';
+import { createMedia, listActiveMedia } from './media';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
@@ -171,13 +171,6 @@ import {
 import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
-  'media.create',
-  'media.delete',
-  'media.previewDelete',
-  'media.showReminder',
-  'media.reregister',
-  'media.restoreRegistered',
-  'media.list',
   'deletion.listDue',
   'attachments.publish',
   'attachments.removeLink',
@@ -329,8 +322,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'modelRuns.get',
   'modelRuns.readAcceptance',
   'modelRuns.listAcceptable',
-  'media.previewDelete',
-  'media.list',
   'deletion.listDue',
   'customFields.listDefinitions',
   'customFields.missingUnitFields',
@@ -401,6 +392,35 @@ const operationHandlers = {
       return finishMediaCleanup(ctx.db, ctx.folder, input.id, input.operationId, ctx.trash);
     },
   },
+  'media.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.create']['check']>) =>
+      createMedia(ctx.db, ctx.folder, input),
+  },
+  'media.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.delete']['check']>) =>
+      deleteRecording(ctx.db, input.id),
+  },
+  'media.previewDelete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.previewDelete']['check']>) =>
+      previewRecordingDelete(ctx.db, input.id),
+  },
+  'media.showReminder': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.showReminder']['check']>) =>
+      showDeletionReminder(ctx.db, 'media', input.id),
+  },
+  'media.reregister': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.reregister']['check']>) =>
+      reregisterMedia(ctx.db, ctx.folder, input),
+  },
+  'media.restoreRegistered': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['media.restoreRegistered']['check']>,
+    ) => restoreRegisteredMedia(ctx.db, input.id),
+  },
+  'media.list': {
+    run: (ctx: ContractCtx) => listActiveMedia(ctx.db),
+  },
 } satisfies ContractHandlers;
 
 function runContract(
@@ -439,6 +459,39 @@ function runContract(
         ctx,
         desktopOperations['media.finishCleanup'].check(raw),
       );
+    case 'media.create':
+      return operationHandlers['media.create'].run(
+        ctx,
+        desktopOperations['media.create'].check(raw),
+      );
+    case 'media.delete':
+      return operationHandlers['media.delete'].run(
+        ctx,
+        desktopOperations['media.delete'].check(raw),
+      );
+    case 'media.previewDelete':
+      return operationHandlers['media.previewDelete'].run(
+        ctx,
+        desktopOperations['media.previewDelete'].check(raw),
+      );
+    case 'media.showReminder':
+      return operationHandlers['media.showReminder'].run(
+        ctx,
+        desktopOperations['media.showReminder'].check(raw),
+      );
+    case 'media.reregister':
+      return operationHandlers['media.reregister'].run(
+        ctx,
+        desktopOperations['media.reregister'].check(raw),
+      );
+    case 'media.restoreRegistered':
+      return operationHandlers['media.restoreRegistered'].run(
+        ctx,
+        desktopOperations['media.restoreRegistered'].check(raw),
+      );
+    case 'media.list':
+      desktopOperations['media.list'].check(raw);
+      return operationHandlers['media.list'].run(ctx);
     default: {
       const unreachable: never = method;
       return unreachable;
@@ -462,29 +515,6 @@ export function callDesktopSession(
   if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
   const input = objectArg(args);
   switch (parsed) {
-    case 'media.create':
-      return createMedia(project.db, desktopSessionFolder(sessionId), mediaCreate(input));
-    case 'media.delete':
-      knownKeys(input, ['id']);
-      return deleteRecording(project.db, requiredString(input.id, 'id'));
-    case 'media.previewDelete':
-      knownKeys(input, ['id']);
-      return previewRecordingDelete(project.db, requiredString(input.id, 'id'));
-    case 'media.showReminder':
-      knownKeys(input, ['id']);
-      return showDeletionReminder(project.db, 'media', requiredString(input.id, 'id'));
-    case 'media.reregister':
-      knownKeys(input, ['relpath', 'duration']);
-      return reregisterMedia(project.db, desktopSessionFolder(sessionId), {
-        relpath: requiredString(input.relpath, 'relpath'),
-        duration: requiredNumber(input.duration, 'duration'),
-      });
-    case 'media.restoreRegistered':
-      knownKeys(input, ['id']);
-      return restoreRegisteredMedia(project.db, requiredString(input.id, 'id'));
-    case 'media.list':
-      knownKeys(input, []);
-      return listActiveMedia(project.db);
     case 'deletion.listDue':
       knownKeys(input, []);
       return listDueDeletionReminders(project.db);
@@ -1652,15 +1682,6 @@ function noteCategory(value: unknown): ContentNoteCategory | null {
 function noteAttachment(value: unknown): 'active' | 'detached' | 'any' {
   if (value === 'active' || value === 'detached' || value === 'any') return value;
   throw new Error('note attachment is invalid');
-}
-
-function mediaCreate(input: Record<string, unknown>): MediaCreate {
-  return {
-    relpath: requiredString(input.relpath, 'relpath'),
-    sha256: requiredString(input.sha256, 'sha256'),
-    duration: requiredNumber(input.duration, 'duration'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
 }
 
 function manuscriptCreate(input: Record<string, unknown>): ManuscriptCreate {
