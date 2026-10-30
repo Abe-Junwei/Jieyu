@@ -1,3 +1,5 @@
+import { featureFlags } from '../ai/config/featureFlags';
+import { DesktopModelCandidates } from './DesktopModelCandidates';
 import { useEffect, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
@@ -9,12 +11,37 @@ interface TranscriptRow {
   end: string;
 }
 
-export function DesktopTranscriptionAcceptPanel(props: {
+type AcceptProps = {
   sessionId: string;
   manuscriptId: string;
   desktopCall: DesktopReadHost['desktopCall'];
   onAccepted: () => void;
-}) {
+  host?: DesktopReadHost;
+  layerId?: string | null;
+};
+
+export function DesktopTranscriptionAcceptPanel(props: AcceptProps) {
+  if (
+    featureFlags.desktopModelCandidatesEnabled &&
+    props.host?.transcribeProject &&
+    props.host.chooseTranscriptionModel &&
+    props.host.cancelProjectTranscription &&
+    props.layerId
+  ) {
+    return (
+      <DesktopModelCandidates
+        host={props.host}
+        sessionId={props.sessionId}
+        manuscriptId={props.manuscriptId}
+        layerId={props.layerId}
+        onAccepted={props.onAccepted}
+      />
+    );
+  }
+  return <ManualTranscriptionCandidates {...props} />;
+}
+
+function ManualTranscriptionCandidates(props: AcceptProps) {
   const locale = useLocale();
   const [rows, setRows] = useState<TranscriptRow[]>([{ text: '', start: '', end: '' }]);
   const [runId, setRunId] = useState<string | null>(null);

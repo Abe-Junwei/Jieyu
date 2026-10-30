@@ -580,6 +580,20 @@ function requireCurrentLifecycle(db: SqliteDatabase, run: ModelRun): void {
   }
 }
 
+/** Read-only credential for the entire requested target, captured before external work. */
+export function modelRunTarget(db: SqliteDatabase, runId: string) {
+  const run = requireRun(db, runId);
+  requireCurrentLifecycle(db, run);
+  const mapping = mappingOf(db, run.manuscriptId);
+  const rows = overlappingTexts(
+    db,
+    run.layerId,
+    invertTextTimeMapping(run.rangeStart, mapping),
+    invertTextTimeMapping(run.rangeEnd, mapping),
+  );
+  return { revision: mapping.revision, fingerprint: targetFingerprint(rows) };
+}
+
 function mappingOf(
   db: SqliteDatabase,
   manuscriptId: string,

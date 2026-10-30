@@ -324,6 +324,10 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'media.reregister', input),
     restoreRegisteredMedia: (sessionId: string, id: string) =>
       once(sessionId, 'media.restoreRegistered', { id }),
+    readModelRunAcceptance: (sessionId: string, operationId: string) =>
+      once(sessionId, 'modelRuns.readAcceptance', { operationId }),
+    abandonModelRun: (sessionId: string, runId: string) =>
+      once(sessionId, 'modelRuns.abandon', { runId }),
     listAcceptableRuns: (sessionId: string, manuscriptId: string) =>
       once(sessionId, 'modelRuns.listAcceptable', { manuscriptId }),
     previewModelRun: (

@@ -1,3 +1,12 @@
+import { startLocalWhisper, stopLocalWhisper } from '../src/desktop/localWhisper';
+import {
+  grantTranscriptionModel,
+  transcribeProject,
+  cancelProjectTranscription,
+  recoverProjectTranscriptions,
+  resetProjectTranscriptions,
+} from '../src/desktop/projectTranscription';
+import type { ProjectTranscriptionInput } from '../src/desktop/transcriptionTypes';
 import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, session } from 'electron';
 import type { IpcMainInvokeEvent, WebContents } from 'electron';
 import fs from 'node:fs';
@@ -251,9 +260,13 @@ async function runOutboundRequest(
 }
 
 function openUserProjectSession(folder: string): { sessionId: string } {
-  return openDesktopSession(folder, [...allowedProjectFolders], {
+  resetProjectTranscriptions();
+  void stopLocalWhisper();
+  const opened = openDesktopSession(folder, [...allowedProjectFolders], {
     dir: projectBackupDir(app.getPath('userData'), folder),
   });
+  recoverProjectTranscriptions(opened.sessionId);
+  return opened;
 }
 
 function registerIpc(): void {
@@ -271,6 +284,9 @@ function registerIpc(): void {
 
   handle('desktop:close-session', (sessionId: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
+    desktopSessionFolder(sessionId);
+    resetProjectTranscriptions();
+    void stopLocalWhisper();
     closeDesktopSession(sessionId);
     releaseDesktopMediaSession(sessionId);
     return { closed: true };
@@ -320,6 +336,9 @@ function registerIpc(): void {
       const opened = openPreparedDesktopSession(resolved, [...allowedProjectFolders], {
         dir: projectBackupDir(app.getPath('userData'), resolved),
       });
+      resetProjectTranscriptions();
+      void stopLocalWhisper();
+      recoverProjectTranscriptions(opened.sessionId);
       bindDesktopMediaSession(opened.sessionId);
       return opened;
     } catch (error) {
@@ -367,6 +386,50 @@ function registerIpc(): void {
     const picked = await dialog.showSaveDialog({ defaultPath: name });
     if (picked.filePath === undefined) return { cancelled: true };
     return { file: picked.filePath };
+  });
+
+  handle('desktop:choose-local-whisper', async (sessionId: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
+    desktopSessionFolder(sessionId);
+    const picked = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Whisper weights', extensions: ['bin'] }],
+    });
+    const file = picked.filePaths[0];
+    if (file === undefined) return { cancelled: true };
+    desktopSessionFolder(sessionId);
+    // Development engine only until the signed per-platform binaries are bundled.
+    const cli = app.isPackaged
+      ? path.join(
+          process.resourcesPath,
+          'whisper',
+          process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli',
+        )
+      : process.env.WHISPER_CLI;
+    if (!cli) throw new Error('local whisper engine is unavailable');
+    return startLocalWhisper(sessionId, file, cli);
+  });
+
+  handle('desktop:choose-transcription-model', async (sessionId: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
+    desktopSessionFolder(sessionId);
+    const picked = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Model declaration', extensions: ['json'] }],
+    });
+    const file = picked.filePaths[0];
+    if (file === undefined) return { cancelled: true };
+    desktopSessionFolder(sessionId);
+    return grantTranscriptionModel(sessionId, file);
+  });
+  handle('desktop:transcribe-project', (sessionId: unknown, input: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
+    return transcribeProject(sessionId, input as ProjectTranscriptionInput);
+  });
+  handle('desktop:cancel-project-transcription', (sessionId: unknown, requestId: unknown) => {
+    if (typeof sessionId !== 'string' || typeof requestId !== 'string')
+      throw new Error('empty request');
+    cancelProjectTranscription(sessionId, requestId);
   });
 
   handle('model:transcribe', (input: unknown) => runModelTranscribe(input));
@@ -705,9 +768,17 @@ app
     app.exit(1);
   });
 
-app.on('before-quit', () => {
-  resetDesktopSessions();
-  resetDesktopMediaGrants();
+let quitting = false;
+app.on('before-quit', (event) => {
+  if (quitting) return;
+  event.preventDefault();
+  resetProjectTranscriptions();
+  void stopLocalWhisper().finally(() => {
+    resetDesktopSessions();
+    resetDesktopMediaGrants();
+    quitting = true;
+    app.quit();
+  });
 });
 
 app.on('window-all-closed', () => {

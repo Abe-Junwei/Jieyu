@@ -9,7 +9,8 @@ const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1']);
  * @param {string} [bindHost] WHISPER_HOST value; also accepted when not a wildcard
  */
 export function isAllowedHostHeader(hostHeader, bindHost = '127.0.0.1') {
-  if (typeof hostHeader !== 'string' || hostHeader === '') return false;
+  if (typeof hostHeader !== 'string' || hostHeader === '' || /[@/\\?#\s]/.test(hostHeader))
+    return false;
   let hostname;
   try {
     hostname = new URL(`http://${hostHeader}`).hostname.toLowerCase();

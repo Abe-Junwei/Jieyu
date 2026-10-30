@@ -1,3 +1,4 @@
+import type { ProjectTranscriptionInput } from '../src/desktop/transcriptionTypes';
 import { contextBridge, ipcRenderer } from 'electron';
 export interface RequestChunkEvent {
   requestId: string;
@@ -12,6 +13,14 @@ const desktop = {
     ipcRenderer.invoke('desktop:close-session', sessionId),
   desktopCall: (sessionId: string, method: string, args: unknown) =>
     ipcRenderer.invoke('desktop:call', sessionId, method, args),
+  chooseLocalWhisper: (sessionId: string) =>
+    ipcRenderer.invoke('desktop:choose-local-whisper', sessionId),
+  chooseTranscriptionModel: (sessionId: string) =>
+    ipcRenderer.invoke('desktop:choose-transcription-model', sessionId),
+  transcribeProject: (sessionId: string, input: ProjectTranscriptionInput) =>
+    ipcRenderer.invoke('desktop:transcribe-project', sessionId, input),
+  cancelProjectTranscription: (sessionId: string, requestId: string) =>
+    ipcRenderer.invoke('desktop:cancel-project-transcription', sessionId, requestId),
   transcribeModel: (input: unknown) => ipcRenderer.invoke('model:transcribe', input),
   cancelModel: (requestId: string) => ipcRenderer.invoke('model:cancel', requestId),
   projectReadEnabled: true,

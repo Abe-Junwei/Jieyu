@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { z } from 'zod';
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
@@ -298,6 +299,15 @@ function errorCode(parsed: unknown, requestId: string): ModelErrorCode {
   const code = body.data.error.code;
   if ((SERVER_CODES as readonly string[]).includes(code)) return code as ModelErrorCode;
   return 'internal';
+}
+
+export function loadModelDeclaration(file: string) {
+  if (statSync(file).size > 1024 * 1024) throw new Error('model declaration is invalid');
+  const bytes = readFileSync(file);
+  return {
+    ...readDeclaration(bytes.toString('utf8')),
+    manifestSha256: createHash('sha256').update(bytes).digest('hex'),
+  };
 }
 
 function readDeclaration(text: string): ModelDeclaration {

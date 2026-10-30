@@ -168,6 +168,8 @@ export function DesktopProjectReadPage() {
       )}
       {read.model?.manuscriptId == null || host === null || read.sessionId === null ? null : (
         <DesktopTranscriptionAcceptPanel
+          host={host}
+          layerId={read.model.layerId}
           sessionId={read.sessionId}
           manuscriptId={read.model.manuscriptId}
           desktopCall={host.desktopCall}

@@ -10,22 +10,21 @@
  * Environment variables (alternative to flags):
  *   WHISPER_MODEL   - Path to GGML model file (default: ~/.whisper-models/<modelFile from whisperModelDefaults.json>)
  *   WHISPER_PORT    - HTTP port (default: 3040)
- *   WHISPER_HOST    - Bind address (default: 127.0.0.1, local only). Set e.g. your LAN IP to expose it;
- *                     requests must then use that IP or localhost/127.0.0.1 as Host (others get 403).
+ *   WHISPER_HOST    - Bind address (127.0.0.1 only). Non-loopback binding is rejected.
  *   WHISPER_LANG    - Default language code e.g. 'zh' (default: 'auto')
  *   WHISPER_CLI     - Path to whisper-cli binary (default: whisper-cli on PATH)
  */
 
 import { createServer } from 'http';
 import { spawn } from 'child_process';
-import { readFile, unlink, writeFile, mkdir } from 'fs/promises';
+import { unlink, writeFile } from 'fs/promises';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { basename } from 'path';
-import { isAllowedHostHeader } from './hostGuard.js';
-import { buildTranscriptionResponse, buildWhisperCliArgs, parseWhisperCliJson } from './whisperCliJson.js';
+import { buildTranscriptionResponse } from './whisperCliJson.js';
+import { runWhisper } from './whisperProcess.js';
+import { isLocalWhisperRequest, whisperV1Handler } from './whisperV1.js';
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -147,53 +146,14 @@ function parseMultipart(buffer, boundary) {
 }
 
 /**
- * Spawn whisper-cli with JSON output (-ojf) and return the parsed whisper-cli JSON.
- * 以 JSON（-ojf，含 token 级时间戳）运行 whisper-cli，返回解析后的 JSON。
- */
-function runWhisper({ audioPath, model, language, signal }) {
-  const outputBase = path.join(tmpdir(), `whisper-result-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-  const jsonPath = `${outputBase}.json`;
-  return new Promise((resolve, reject) => {
-    const args = buildWhisperCliArgs({
-      model,
-      language,
-      audioPath,
-      outputBase,
-      threads: CONFIG.threads,
-    });
-
-    const proc = spawn(CONFIG.whisperCli, args);
-    let stderr = '';
-    proc.stdout.on('data', () => {});
-    proc.stderr.on('data', (d) => { stderr += d.toString(); });
-    signal?.addEventListener('abort', () => proc.kill('SIGTERM'));
-
-    proc.on('close', async (code) => {
-      try {
-        if (code !== 0) {
-          throw new Error(`whisper-cli exited ${code}: ${stderr}`);
-        }
-        const raw = await readFile(jsonPath, 'utf8');
-        resolve(parseWhisperCliJson(raw));
-      } catch (err) {
-        reject(err);
-      } finally {
-        await unlink(jsonPath).catch(() => {});
-      }
-    });
-    proc.on('error', reject);
-  });
-}
-
-/**
  * Convert audio buffer to wav using ffmpeg.
  * whisper-cli supports: flac, mp3, ogg, wav
  * MediaRecorder produces: audio/webm
  */
-async function convertToWav(inputBuffer, inputMimeType) {
-  const ext = inputMimeType.includes('webm') ? 'webm' : inputMimeType.split('/')[1] ?? 'webm';
-  const tmpIn = path.join(tmpdir(), `whisper-in-${Date.now()}.${ext}`);
-  const tmpOut = path.join(tmpdir(), `whisper-out-${Date.now()}.wav`);
+async function convertToWav(inputBuffer) {
+  const id = randomUUID();
+  const tmpIn = path.join(tmpdir(), `whisper-in-${id}.bin`);
+  const tmpOut = path.join(tmpdir(), `whisper-out-${id}.wav`);
   await writeFile(tmpIn, inputBuffer);
   try {
     // Use full paths for launchd compatibility
@@ -208,6 +168,9 @@ async function convertToWav(inputBuffer, inputMimeType) {
       proc.on('error', reject);
     });
     return tmpOut;
+  } catch (error) {
+    await unlink(tmpOut).catch(() => {});
+    throw error;
   } finally {
     await unlink(tmpIn).catch(() => {});
   }
@@ -215,8 +178,12 @@ async function convertToWav(inputBuffer, inputMimeType) {
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
+const v1 = whisperV1Handler({ model: CONFIG.model, whisperCli: CONFIG.whisperCli,
+  modelId: 'app.jieyu.whisper.local', modelVersion: '1', maxAudioSec: 30 });
+
 async function handleRequest(req, res) {
-  if (!isAllowedHostHeader(req.headers.host, CONFIG.host)) {
+  if (req.url === '/health' || req.url === '/transcribe') return v1(req, res);
+  if (!isLocalWhisperRequest(req)) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { message: 'Forbidden host' } }));
     return;
@@ -224,7 +191,7 @@ async function handleRequest(req, res) {
   const { pathname } = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
 
   // CORS preflight
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.headers.origin) res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -239,7 +206,7 @@ async function handleRequest(req, res) {
   // OpenAI-compatible transcription endpoint
   if (req.method === 'POST' && pathname === '/v1/audio/transcriptions') {
     const abortController = new AbortController();
-    req.on('close', () => { if (!res.writableEnded) abortController.abort(); });
+    res.on('close', () => { if (!res.writableEnded) abortController.abort(); });
 
     try {
       const chunks = [];
@@ -273,13 +240,13 @@ async function handleRequest(req, res) {
         fields = json;
       }
 
-      const modelPath = fields.model
-        ? path.join(path.dirname(CONFIG.model), fields.model)
-        : CONFIG.model;
+      if (fields.model && fields.model !== path.basename(CONFIG.model) && fields.model !== 'whisper-local') {
+        res.writeHead(400); res.end(JSON.stringify({ error: { message: 'Unknown model' } })); return;
+      }
+      const modelPath = CONFIG.model;
 
       const language = fields.language ?? CONFIG.defaultLang;
       const audioBuffer = files.file?.buffer ?? Buffer.from(fields.file ?? '', 'base64');
-      const inputMime = files.file?.filename ?? 'audio/webm';
 
       if (!audioBuffer || audioBuffer.length === 0) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -295,16 +262,17 @@ async function handleRequest(req, res) {
       }
 
       // Convert to wav if needed (webm from MediaRecorder)
-      const tmpWav = await convertToWav(audioBuffer, inputMime);
+      const tmpWav = await convertToWav(audioBuffer);
 
-      const cliJson = await runWhisper({
-        audioPath: tmpWav,
-        model: modelPath,
-        language,
-        signal: abortController.signal,
-      });
-
-      await unlink(tmpWav).catch(() => {});
+      let cliJson;
+      try {
+        cliJson = await runWhisper({
+          audioPath: tmpWav, model: modelPath, language,
+          signal: abortController.signal, whisperCli: CONFIG.whisperCli, threads: CONFIG.threads,
+        });
+      } finally {
+        await unlink(tmpWav).catch(() => {});
+      }
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       // verbose_json 风格：text + language（向后兼容）+ segments/words（秒）| text + language (back-compat) + segments/words (seconds)
@@ -336,8 +304,9 @@ if (!existsSync(CONFIG.model)) {
 }
 
 const server = createServer(handleRequest);
-server.listen(CONFIG.port, CONFIG.host, () => {
-  logInfo(`[whisper-server] listening on http://${CONFIG.host}:${CONFIG.port}`);
+if (CONFIG.host !== '127.0.0.1') throw new Error('whisper-server requires loopback binding');
+server.listen(CONFIG.port, '127.0.0.1', () => {
+  logInfo(`[whisper-server] listening on http://${CONFIG.host}:${server.address().port}`);
   logInfo(`[whisper-server] model: ${CONFIG.model}`);
   logInfo(`[whisper-server] default language: ${CONFIG.defaultLang}`);
   logInfo('[whisper-server] endpoints:');
