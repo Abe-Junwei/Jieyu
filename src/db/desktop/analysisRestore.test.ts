@@ -210,6 +210,38 @@ describe('analysis text invalidation', () => {
     reopened.close();
   });
 
+  it('rolls back after the text row update and keeps the previous graph', () => {
+    const { dir, project, unitId, stored } = projectWith([token('n1', 0)]);
+    const applied = applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+      ],
+    });
+    project.db.exec(
+      `CREATE TEMP TRIGGER abort_text_write AFTER UPDATE ON unit_texts
+       BEGIN SELECT RAISE(ABORT, 'injected'); END`,
+    );
+    expect(() => updateUnitText(project.db, { unitId, text: 'ta' })).toThrow('injected');
+    project.close();
+
+    const reopened = openProject(dir);
+    expect(reopened.units.get(unitId)?.text).toBe('ka');
+    expect(getAnalysisRoot(reopened.db, unitId)).toEqual(applied.root);
+    expect(
+      reopened.db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId),
+    ).toEqual({ n: 1 });
+    expect(reopened.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 0,
+    });
+    reopened.close();
+  });
+
   it('leaves the accepted graph in place when the text is unchanged', () => {
     const { project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
     const updated = updateUnitText(project.db, { unitId, text: 'ka' });
