@@ -29,7 +29,7 @@ import type {
   PreviewCandidateInput,
   TranscriptionAcceptance,
 } from './modelRuns';
-import type { DeletionReminder } from './manuscriptPurge';
+import type { DeletionReminder, DueDeletionReminder } from './manuscriptPurge';
 import type {
   Manuscript,
   ManuscriptCreate,
@@ -981,6 +981,13 @@ export const desktopOperations = {
     { leftId: string; rightId: string; time: number },
     { left: Unit; right: Unit }
   >('clear', unitBoundary),
+  'deletion.listDue': spec<'keep', Record<string, never>, DueDeletionReminder[]>(
+    'keep',
+    (input) => {
+      knownKeys(input, []);
+      return {} as Record<string, never>;
+    },
+  ),
 };
 
 export type DesktopOperations = typeof desktopOperations;

@@ -153,7 +153,6 @@ import {
 import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
-  'deletion.listDue',
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
@@ -223,7 +222,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'speakers.assign',
   'speakers.list',
   'attachments.list',
-  'deletion.listDue',
   'customFields.listDefinitions',
   'customFields.missingUnitFields',
   'customFields.missingFields',
@@ -490,6 +488,9 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.updateBoundary']['check']>,
     ) => updateBoundary(ctx.db, input),
+  },
+  'deletion.listDue': {
+    run: (ctx: ContractCtx) => listDueDeletionReminders(ctx.db),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -820,6 +821,9 @@ function runContract(
         ctx,
         desktopOperations['units.updateBoundary'].check(raw),
       );
+    case 'deletion.listDue':
+      desktopOperations['deletion.listDue'].check(raw);
+      return operationHandlers['deletion.listDue'].run(ctx);
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -935,9 +939,6 @@ export function callDesktopSession(
   if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
   const input = objectArg(args);
   switch (parsed) {
-    case 'deletion.listDue':
-      knownKeys(input, []);
-      return listDueDeletionReminders(project.db);
     case 'attachments.publish':
       return publishAttachment(
         project.db,
