@@ -206,9 +206,9 @@ describe('foreign file import', () => {
       ).toBeGreaterThan(0);
 
       writeFileSync(join(source, 'kept.lift'), lift());
-      expect(importForeignFile({ folder: project, file: join(source, 'kept.lift') }).written).toBeGreaterThan(
-        0,
-      );
+      expect(
+        importForeignFile({ folder: project, file: join(source, 'kept.lift') }).written,
+      ).toBeGreaterThan(0);
     } finally {
       globalThis.DOMParser = saved;
     }
@@ -287,6 +287,43 @@ describe('foreign file import', () => {
     ).toThrow('media hash does not match');
     expect(readFileSync(join(project, media.relpath)).equals(replaced)).toBe(true);
     expect(texts(project)).toEqual(['kept sentence']);
+  });
+
+  it('deletes only the files this import created when a later write fails', () => {
+    const project = library();
+    const source = join(rootOf(project), 'source');
+    const audio = Buffer.from('synthetic-chain');
+    const grid = textGrid('kept sentence');
+    writeFileSync(join(source, 'kept.wav'), audio);
+    writeFileSync(join(source, 'kept.TextGrid'), grid);
+    writeFileSync(join(source, 'roles.txt'), 'tx 转写\n');
+    const kept = join(project, 'already.txt');
+    writeFileSync(kept, 'stay');
+    const opened = openProject(project);
+    opened.db.exec(
+      `CREATE TEMP TRIGGER abort_import_manuscript BEFORE INSERT ON manuscripts
+       BEGIN SELECT RAISE(ABORT, 'injected'); END`,
+    );
+    expect(() =>
+      importForeignFile({
+        folder: project,
+        file: join(source, 'kept.TextGrid'),
+        roles: join(source, 'roles.txt'),
+        db: opened.db,
+      }),
+    ).toThrow('injected');
+    opened.close();
+    expect(existsSync(join(source, 'kept.wav'))).toBe(true);
+    expect(existsSync(join(source, 'kept.TextGrid'))).toBe(true);
+    expect(readFileSync(kept, 'utf8')).toBe('stay');
+    expect(existsSync(sourceFile(project, Buffer.from(grid), '.textgrid'))).toBe(false);
+    expect(
+      existsSync(join(project, 'media', `${createHash('sha256').update(audio).digest('hex')}.wav`)),
+    ).toBe(false);
+    const again = openProject(project);
+    expect(again.db.prepare('SELECT COUNT(*) AS n FROM manuscripts').get()).toEqual({ n: 0 });
+    expect(again.db.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({ n: 0 });
+    again.close();
   });
 
   it('projects a legal interval and reports the one that does not fit', () => {
