@@ -464,4 +464,18 @@ describe('desktop JYT exchange', () => {
     expect(readStoredUnit(dest.db, unit.id)?.text).toBe('kept sentence');
     dest.close();
   });
+
+  it('refuses a nonempty restore destination that has no project database', () => {
+    const root = folder();
+    const source = join(root, 'source');
+    mkdirSync(source);
+    const project = openProject(source);
+    const bytes = exportDesktopJyt(project.db);
+    project.close();
+    const dest = join(root, 'dest');
+    mkdirSync(dest);
+    writeFileSync(join(dest, 'existing.txt'), 'keep');
+    expect(() => importDesktopJyt(dest, bytes)).toThrow('import destination is not empty');
+    expect(readFileSync(join(dest, 'existing.txt'), 'utf8')).toBe('keep');
+  });
 });

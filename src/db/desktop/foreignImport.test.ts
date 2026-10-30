@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -515,6 +524,28 @@ describe('foreign file import', () => {
       { title: JSON.stringify({ und: 'One' }), text: 'first sentence' },
       { title: JSON.stringify({ und: 'Two' }), text: 'second sentence' },
     ]);
+  });
+
+  it('does not publish imported sources through a symlink outside the project', () => {
+    const root = mkdtempSync(join(tmpdir(), 'jieyu-import-sources-'));
+    roots.push(root);
+    const folder = join(root, 'project');
+    mkdirSync(folder);
+    openProject(folder).close();
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    symlinkSync(outside, join(folder, 'sources'));
+    const file = join(root, 'test.TextGrid');
+    writeFileSync(
+      file,
+      `File type = "ooTextFile"\nObject class = "TextGrid"\nxmin = 0\nxmax = 1\ntiers? <exists>\nsize = 0\nitem []:\n`,
+    );
+    try {
+      importForeignFile({ folder, file });
+    } catch {
+      /* rejection is allowed */
+    }
+    expect(readdirSync(outside)).toEqual([]);
   });
 });
 

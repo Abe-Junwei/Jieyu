@@ -62,3 +62,21 @@ it('protects retained sources and attachment objects, including their hard links
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+it('does not change the open database when an export names that file', () => {
+  const folder = mkdtempSync(join(tmpdir(), 'jieyu-export-database-'));
+  try {
+    const { sessionId } = openDesktopSession(folder, [folder]);
+    const file = join(folder, 'project.sqlite');
+    const before = readFileSync(file).subarray(0, 16).toString();
+    try {
+      callDesktopSession(sessionId, 'exchange.exportJyt', { file });
+    } catch {
+      /* rejection is allowed */
+    }
+    expect(readFileSync(file).subarray(0, 16).toString()).toBe(before);
+  } finally {
+    resetDesktopSessions();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});

@@ -19,7 +19,7 @@ depends_on:
 - [x] W0 入口：check:script-desktop-callers 仍允许 import-desktop-file.mjs 只加载 foreignImport。其他脚本加载 src/db/desktop，或调用 writeRequiredFieldValues、writeUnitFieldValues、ensureProjectIdentity、createUnit，会被拦住。
 - [ ] W0 入口 SQL：既有 roundtrip 脚本含旧库 INSERT。全禁会误伤，合同未定，这一刀不改那些脚本。
 - [x] W0 性能：空合成项目上一次 media 计数查询 0.822 ms，一次 media 插入 0.412 ms。数字也写在媒体域那次提交说明里。
-- [ ] W0 反例：一次只迁一个 __audit__ 文件。先有能捕获原缺陷的常规测试，再删该文件。host.test.ts 已迁出。domains-required.test.ts 已由 requiredCreateReadback 覆盖并删除。domains-corpus.test.ts 的大批量分页已进入 corpusQuery.test.ts。domains-purge.test.ts 已进入 customFieldPurge.test.ts。其余文件还在。
+- [ ] W0 反例：一次只迁一个 __audit__ 文件。先有能捕获原缺陷的常规测试，再删该文件。host.test.ts 已迁出。domains-required.test.ts 已由 requiredCreateReadback 覆盖并删除。domains-corpus.test.ts 的大批量分页已进入 corpusQuery.test.ts。domains-purge.test.ts 已进入 customFieldPurge.test.ts。files-boundaries.test.ts 的导出、非空恢复和来源符号链接已进入常规测试。其余文件还在。
 - [x] W1 为 project.get / layers.create / units.updateText / media.finishCleanup 建类型化试点。handler 留在 desktopCall.ts。
 - [x] W1 四键试点到此停止；现有测试锁住额外键与三种撤销时机，units.updateText 仍忽略额外键。
 - [x] A：operationContract.test.ts 用 5fbc66f8 的 128 键固定目录核对互斥、无重复和并集；不读 Git，不普查入口。
