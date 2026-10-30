@@ -116,9 +116,6 @@ import {
   listLexemeNotes,
   saveLexemeNote,
   updateContentNote,
-  type ContentNoteAnchor,
-  type ContentNoteCategory,
-  type ContentNoteQuery,
 } from './notes';
 import { createConversation, listConversations } from './conversations';
 import {
@@ -164,12 +161,6 @@ const METHODS = [
   'attachments.publish',
   'attachments.removeLink',
   'attachments.list',
-  'notes.create',
-  'notes.update',
-  'notes.delete',
-  'notes.list',
-  'notes.saveLexeme',
-  'notes.listLexeme',
   'modelRuns.listAcceptable',
   'modelRuns.start',
   'modelRuns.finish',
@@ -259,8 +250,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'speakers.list',
   'units.get',
   'units.list',
-  'notes.list',
-  'notes.listLexeme',
   'attachments.list',
   'corpus.query',
   'modelRuns.get',
@@ -415,6 +404,30 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['lexicon.createLinkedEntry']['check']>,
     ) => createLinkedLexeme(ctx.db, input),
+  },
+  'notes.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.create']['check']>) =>
+      createContentNote(ctx.db, input),
+  },
+  'notes.update': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.update']['check']>) =>
+      updateContentNote(ctx.db, input),
+  },
+  'notes.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.delete']['check']>) =>
+      deleteContentNote(ctx.db, input.id),
+  },
+  'notes.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.list']['check']>) =>
+      listContentNotes(ctx.db, input),
+  },
+  'notes.saveLexeme': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.saveLexeme']['check']>) =>
+      saveLexemeNote(ctx.db, input),
+  },
+  'notes.listLexeme': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.listLexeme']['check']>) =>
+      listLexemeNotes(ctx.db, input.lexemeId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -635,6 +648,33 @@ function runContract(
         ctx,
         desktopOperations['lexicon.createLinkedEntry'].check(raw),
       );
+    case 'notes.create':
+      return operationHandlers['notes.create'].run(
+        ctx,
+        desktopOperations['notes.create'].check(raw),
+      );
+    case 'notes.update':
+      return operationHandlers['notes.update'].run(
+        ctx,
+        desktopOperations['notes.update'].check(raw),
+      );
+    case 'notes.delete':
+      return operationHandlers['notes.delete'].run(
+        ctx,
+        desktopOperations['notes.delete'].check(raw),
+      );
+    case 'notes.list':
+      return operationHandlers['notes.list'].run(ctx, desktopOperations['notes.list'].check(raw));
+    case 'notes.saveLexeme':
+      return operationHandlers['notes.saveLexeme'].run(
+        ctx,
+        desktopOperations['notes.saveLexeme'].check(raw),
+      );
+    case 'notes.listLexeme':
+      return operationHandlers['notes.listLexeme'].run(
+        ctx,
+        desktopOperations['notes.listLexeme'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -765,20 +805,6 @@ export function callDesktopSession(
     case 'attachments.list':
       knownKeys(input, ['lexemeId']);
       return listAttachmentLinks(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'notes.create':
-      return createContentNote(project.db, noteCreate(input));
-    case 'notes.update':
-      return updateContentNote(project.db, noteRevise(input));
-    case 'notes.delete':
-      knownKeys(input, ['id']);
-      return deleteContentNote(project.db, requiredString(input.id, 'id'));
-    case 'notes.list':
-      return listContentNotes(project.db, noteList(input));
-    case 'notes.saveLexeme':
-      return saveLexemeNote(project.db, lexemeNoteSave(input));
-    case 'notes.listLexeme':
-      knownKeys(input, ['lexemeId']);
-      return listLexemeNotes(project.db, requiredString(input.lexemeId, 'lexemeId'));
     case 'corpus.query':
       return queryCorpus(project.db, corpusQuery(input));
     case 'units.create':
@@ -1657,155 +1683,6 @@ function analysisApply(input: Record<string, unknown>): {
     },
     changes: input.changes,
   };
-}
-
-const NOTE_KINDS = [
-  'project',
-  'manuscript',
-  'layer',
-  'unit',
-  'unit_text',
-  'token',
-  'morpheme',
-  'analysis_node',
-] as const;
-
-const NOTE_VIEWS = ['timeline', 'waveform'] as const;
-
-const NOTE_CATEGORIES = [
-  'comment',
-  'question',
-  'todo',
-  'linguistic',
-  'fieldwork',
-  'correction',
-  'topic',
-] as const;
-
-function noteCreate(input: Record<string, unknown>) {
-  knownKeys(input, ['id', 'anchor', 'content', 'category', 'provenance', 'fieldValues']);
-  return {
-    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
-    anchor: noteAnchor(input.anchor),
-    content: stringMap(input.content, 'content'),
-    ...('category' in input ? { category: noteCategory(input.category) } : {}),
-    ...('provenance' in input ? { provenance: input.provenance } : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function noteRevise(input: Record<string, unknown>) {
-  knownKeys(input, ['id', 'content', 'category']);
-  if (!('content' in input) && !('category' in input)) throw new Error('note revision is empty');
-  return {
-    id: requiredString(input.id, 'id'),
-    ...('content' in input ? { content: stringMap(input.content, 'content') } : {}),
-    ...('category' in input ? { category: noteCategory(input.category) } : {}),
-  };
-}
-
-function noteList(input: Record<string, unknown>): ContentNoteQuery {
-  knownKeys(input, ['anchorKind', 'manuscriptId', 'unitId', 'nodeId', 'layerId', 'attachment']);
-  return {
-    ...('anchorKind' in input ? { anchorKind: noteKind(input.anchorKind) } : {}),
-    ...('manuscriptId' in input
-      ? { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') }
-      : {}),
-    ...('unitId' in input ? { unitId: requiredString(input.unitId, 'unitId') } : {}),
-    ...('nodeId' in input ? { nodeId: requiredString(input.nodeId, 'nodeId') } : {}),
-    ...('layerId' in input ? { layerId: requiredString(input.layerId, 'layerId') } : {}),
-    ...('attachment' in input ? { attachment: noteAttachment(input.attachment) } : {}),
-  };
-}
-
-function lexemeNoteSave(input: Record<string, unknown>) {
-  knownKeys(input, ['lexemeId', 'id', 'senseId', 'content', 'category', 'provenance']);
-  return {
-    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
-    ...(input.senseId === undefined ? {} : { senseId: requiredString(input.senseId, 'senseId') }),
-    content: stringMap(input.content, 'content'),
-    ...('category' in input ? { category: noteCategory(input.category) } : {}),
-    ...('provenance' in input ? { provenance: input.provenance } : {}),
-  };
-}
-
-function noteAnchor(value: unknown): ContentNoteAnchor {
-  const anchor = objectArg(value);
-  const kind = noteKind(anchor.kind);
-  switch (kind) {
-    case 'project':
-      knownKeys(anchor, ['kind']);
-      return { kind };
-    case 'manuscript':
-      knownKeys(anchor, ['kind', 'manuscriptId']);
-      return { kind, manuscriptId: requiredString(anchor.manuscriptId, 'manuscriptId') };
-    case 'layer':
-      knownKeys(anchor, ['kind', 'layerId']);
-      return { kind, layerId: requiredString(anchor.layerId, 'layerId') };
-    case 'unit':
-      knownKeys(anchor, ['kind', 'unitId', 'view']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        ...('view' in anchor ? { view: noteView(anchor.view) } : {}),
-      };
-    case 'unit_text':
-      knownKeys(anchor, ['kind', 'unitTextId']);
-      return { kind, unitTextId: requiredString(anchor.unitTextId, 'unitTextId') };
-    case 'token':
-      knownKeys(anchor, ['kind', 'unitId', 'tokenId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        tokenId: requiredString(anchor.tokenId, 'tokenId'),
-      };
-    case 'morpheme':
-      knownKeys(anchor, ['kind', 'unitId', 'morphemeId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        morphemeId: requiredString(anchor.morphemeId, 'morphemeId'),
-      };
-    case 'analysis_node':
-      knownKeys(anchor, ['kind', 'unitId', 'nodeId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        nodeId: requiredString(anchor.nodeId, 'nodeId'),
-      };
-    default: {
-      const unreachable: never = kind;
-      throw new Error(`note anchor is invalid: ${String(unreachable)}`);
-    }
-  }
-}
-
-function noteView(value: unknown): 'timeline' | 'waveform' {
-  if (typeof value !== 'string') throw new Error('note anchor is invalid');
-  const found = NOTE_VIEWS.find((view) => view === value);
-  if (found === undefined) throw new Error('note anchor is invalid');
-  return found;
-}
-
-function noteKind(value: unknown): ContentNoteAnchor['kind'] {
-  if (typeof value !== 'string') throw new Error('note anchor is invalid');
-  const found = NOTE_KINDS.find((kind) => kind === value);
-  if (found === undefined) throw new Error('note anchor is invalid');
-  return found;
-}
-
-function noteCategory(value: unknown): ContentNoteCategory | null {
-  if (value === null) return null;
-  if (typeof value !== 'string') throw new Error('note category is invalid');
-  const found = NOTE_CATEGORIES.find((item) => item === value);
-  if (found === undefined) throw new Error('note category is invalid');
-  return found;
-}
-
-function noteAttachment(value: unknown): 'active' | 'detached' | 'any' {
-  if (value === 'active' || value === 'detached' || value === 'any') return value;
-  throw new Error('note attachment is invalid');
 }
 
 function modelRunStart(input: Record<string, unknown>): ModelRunStart {

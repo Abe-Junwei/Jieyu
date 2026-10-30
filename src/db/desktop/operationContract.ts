@@ -8,7 +8,16 @@ import type {
   ProjectOrthography,
 } from './catalog';
 import type { LexemeLinkCandidate, TokenLexemeLink } from './lexemeLink';
+import type { JieyuAnchoredNote } from '../dmlexTypes';
 import type { LexemeLinkWrite, LexemeSave, ProjectLexeme, ProjectLexemeLink } from './lexicon';
+import type {
+  ContentNote,
+  ContentNoteAnchor,
+  ContentNoteCategory,
+  ContentNoteQuery,
+  ContentNoteRevision,
+  ContentNoteWrite,
+} from './notes';
 import type { Layer, LayerCreate } from './layers';
 import type { DeletionReminder } from './manuscriptPurge';
 import type {
@@ -237,6 +246,162 @@ function lexemeLink(input: Record<string, unknown>): LexemeLinkWrite & { lexemeI
   return {
     lexemeId: requiredString(input.lexemeId, 'lexemeId'),
     ...linkWrite(input),
+  };
+}
+
+const NOTE_KINDS = [
+  'project',
+  'manuscript',
+  'layer',
+  'unit',
+  'unit_text',
+  'token',
+  'morpheme',
+  'analysis_node',
+] as const;
+
+const NOTE_VIEWS = ['timeline', 'waveform'] as const;
+
+const NOTE_CATEGORIES = [
+  'comment',
+  'question',
+  'todo',
+  'linguistic',
+  'fieldwork',
+  'correction',
+  'topic',
+] as const;
+
+function noteKind(value: unknown): ContentNoteAnchor['kind'] {
+  if (typeof value !== 'string') throw new Error('note anchor is invalid');
+  const found = NOTE_KINDS.find((kind) => kind === value);
+  if (found === undefined) throw new Error('note anchor is invalid');
+  return found;
+}
+
+function noteView(value: unknown): 'timeline' | 'waveform' {
+  if (typeof value !== 'string') throw new Error('note anchor is invalid');
+  const found = NOTE_VIEWS.find((view) => view === value);
+  if (found === undefined) throw new Error('note anchor is invalid');
+  return found;
+}
+
+function noteCategory(value: unknown): ContentNoteCategory | null {
+  if (value === null) return null;
+  if (typeof value !== 'string') throw new Error('note category is invalid');
+  const found = NOTE_CATEGORIES.find((item) => item === value);
+  if (found === undefined) throw new Error('note category is invalid');
+  return found;
+}
+
+function noteAttachment(value: unknown): 'active' | 'detached' | 'any' {
+  if (value === 'active' || value === 'detached' || value === 'any') return value;
+  throw new Error('note attachment is invalid');
+}
+
+function noteAnchor(value: unknown): ContentNoteAnchor {
+  const anchor = objectArg(value);
+  const kind = noteKind(anchor.kind);
+  switch (kind) {
+    case 'project':
+      knownKeys(anchor, ['kind']);
+      return { kind };
+    case 'manuscript':
+      knownKeys(anchor, ['kind', 'manuscriptId']);
+      return { kind, manuscriptId: requiredString(anchor.manuscriptId, 'manuscriptId') };
+    case 'layer':
+      knownKeys(anchor, ['kind', 'layerId']);
+      return { kind, layerId: requiredString(anchor.layerId, 'layerId') };
+    case 'unit':
+      knownKeys(anchor, ['kind', 'unitId', 'view']);
+      return {
+        kind,
+        unitId: requiredString(anchor.unitId, 'unitId'),
+        ...('view' in anchor ? { view: noteView(anchor.view) } : {}),
+      };
+    case 'unit_text':
+      knownKeys(anchor, ['kind', 'unitTextId']);
+      return { kind, unitTextId: requiredString(anchor.unitTextId, 'unitTextId') };
+    case 'token':
+      knownKeys(anchor, ['kind', 'unitId', 'tokenId']);
+      return {
+        kind,
+        unitId: requiredString(anchor.unitId, 'unitId'),
+        tokenId: requiredString(anchor.tokenId, 'tokenId'),
+      };
+    case 'morpheme':
+      knownKeys(anchor, ['kind', 'unitId', 'morphemeId']);
+      return {
+        kind,
+        unitId: requiredString(anchor.unitId, 'unitId'),
+        morphemeId: requiredString(anchor.morphemeId, 'morphemeId'),
+      };
+    case 'analysis_node':
+      knownKeys(anchor, ['kind', 'unitId', 'nodeId']);
+      return {
+        kind,
+        unitId: requiredString(anchor.unitId, 'unitId'),
+        nodeId: requiredString(anchor.nodeId, 'nodeId'),
+      };
+    default: {
+      const unreachable: never = kind;
+      throw new Error(`note anchor is invalid: ${String(unreachable)}`);
+    }
+  }
+}
+
+function noteCreate(input: Record<string, unknown>): ContentNoteWrite {
+  knownKeys(input, ['id', 'anchor', 'content', 'category', 'provenance', 'fieldValues']);
+  return {
+    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
+    anchor: noteAnchor(input.anchor),
+    content: stringMap(input.content, 'content'),
+    ...('category' in input ? { category: noteCategory(input.category) } : {}),
+    ...('provenance' in input ? { provenance: input.provenance } : {}),
+    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+  };
+}
+
+function noteRevise(input: Record<string, unknown>): ContentNoteRevision {
+  knownKeys(input, ['id', 'content', 'category']);
+  if (!('content' in input) && !('category' in input)) throw new Error('note revision is empty');
+  return {
+    id: requiredString(input.id, 'id'),
+    ...('content' in input ? { content: stringMap(input.content, 'content') } : {}),
+    ...('category' in input ? { category: noteCategory(input.category) } : {}),
+  };
+}
+
+function noteList(input: Record<string, unknown>): ContentNoteQuery {
+  knownKeys(input, ['anchorKind', 'manuscriptId', 'unitId', 'nodeId', 'layerId', 'attachment']);
+  return {
+    ...('anchorKind' in input ? { anchorKind: noteKind(input.anchorKind) } : {}),
+    ...('manuscriptId' in input
+      ? { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') }
+      : {}),
+    ...('unitId' in input ? { unitId: requiredString(input.unitId, 'unitId') } : {}),
+    ...('nodeId' in input ? { nodeId: requiredString(input.nodeId, 'nodeId') } : {}),
+    ...('layerId' in input ? { layerId: requiredString(input.layerId, 'layerId') } : {}),
+    ...('attachment' in input ? { attachment: noteAttachment(input.attachment) } : {}),
+  };
+}
+
+function lexemeNoteSave(input: Record<string, unknown>): {
+  lexemeId: string;
+  id?: string;
+  senseId?: string;
+  content: Record<string, string>;
+  category?: ContentNoteCategory | null;
+  provenance?: unknown;
+} {
+  knownKeys(input, ['lexemeId', 'id', 'senseId', 'content', 'category', 'provenance']);
+  return {
+    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
+    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
+    ...(input.senseId === undefined ? {} : { senseId: requiredString(input.senseId, 'senseId') }),
+    content: stringMap(input.content, 'content'),
+    ...('category' in input ? { category: noteCategory(input.category) } : {}),
+    ...('provenance' in input ? { provenance: input.provenance } : {}),
   };
 }
 
@@ -488,6 +653,29 @@ export const desktopOperations = {
       headword: requiredString(input.headword, 'headword'),
       translation: requiredString(input.translation, 'translation'),
     };
+  }),
+  'notes.create': spec<'clear', ContentNoteWrite, ContentNote>('clear', noteCreate),
+  'notes.update': spec<'clear', ContentNoteRevision, ContentNote>('clear', noteRevise),
+  'notes.delete': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'notes.list': spec<'keep', ContentNoteQuery, ContentNote[]>('keep', noteList),
+  'notes.saveLexeme': spec<
+    'clear',
+    {
+      lexemeId: string;
+      id?: string;
+      senseId?: string;
+      content: Record<string, string>;
+      category?: ContentNoteCategory | null;
+      provenance?: unknown;
+    },
+    JieyuAnchoredNote
+  >('clear', lexemeNoteSave),
+  'notes.listLexeme': spec<'keep', { lexemeId: string }, JieyuAnchoredNote[]>('keep', (input) => {
+    knownKeys(input, ['lexemeId']);
+    return { lexemeId: requiredString(input.lexemeId, 'lexemeId') };
   }),
 };
 
