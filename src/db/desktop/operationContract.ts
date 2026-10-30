@@ -6,6 +6,16 @@ import type {
   AttachmentPublication,
   AttachmentPublish,
 } from './attachments';
+import type { CustomFieldMigrationPreview } from './customFieldMigration';
+import type { CustomFieldPurgePreview } from './customFieldPurge';
+import type {
+  CustomFieldDefinition,
+  CustomFieldHostPreview,
+  CustomFieldHostValue,
+  CustomFieldLocation,
+  CustomFieldPreview,
+  CustomFieldUnitValue,
+} from './customFields';
 import type {
   BridgeCreate,
   LanguageEnsure,
@@ -656,6 +666,56 @@ function attachmentPublish(input: Record<string, unknown>): AttachmentPublish {
   };
 }
 
+const CUSTOM_FIELD_DEFINITION_KEYS = [
+  'targetType',
+  'name',
+  'description',
+  'placeholder',
+  'helpText',
+  'fieldType',
+  'required',
+  'defaultValue',
+  'pattern',
+  'minValue',
+  'maxValue',
+  'targetTypes',
+  'cardinality',
+  'minItems',
+  'maxItems',
+  'sortOrder',
+  'options',
+] as const;
+
+const CUSTOM_FIELD_UPDATE_KEYS = [
+  'id',
+  'expectedRevision',
+  'name',
+  'description',
+  'placeholder',
+  'helpText',
+  'fieldType',
+  'required',
+  'defaultValue',
+  'pattern',
+  'minValue',
+  'maxValue',
+  'targetTypes',
+  'cardinality',
+  'minItems',
+  'maxItems',
+  'sortOrder',
+] as const;
+
+function allow(input: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  knownKeys(input, keys);
+  return input;
+}
+
+function definitionIdOf(input: Record<string, unknown>): { definitionId: string } {
+  knownKeys(input, ['definitionId']);
+  return { definitionId: requiredString(input.definitionId, 'definitionId') };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1032,6 +1092,101 @@ export const desktopOperations = {
     knownKeys(input, ['lexemeId']);
     return { lexemeId: requiredString(input.lexemeId, 'lexemeId') };
   }),
+  'customFields.createDefinition': spec<'clear', Record<string, unknown>, CustomFieldDefinition>(
+    'clear',
+    (input) => allow(input, CUSTOM_FIELD_DEFINITION_KEYS),
+  ),
+  'customFields.updateDefinition': spec<'clear', Record<string, unknown>, CustomFieldDefinition>(
+    'clear',
+    (input) => allow(input, CUSTOM_FIELD_UPDATE_KEYS),
+  ),
+  'customFields.addOption': spec<'clear', Record<string, unknown>, CustomFieldDefinition>(
+    'clear',
+    (input) => allow(input, ['definitionId', 'expectedRevision', 'label', 'sortOrder']),
+  ),
+  'customFields.updateOptionLabel': spec<'clear', Record<string, unknown>, CustomFieldDefinition>(
+    'clear',
+    (input) => allow(input, ['definitionId', 'optionId', 'expectedRevision', 'label']),
+  ),
+  'customFields.importDefinition': spec<'clear', Record<string, unknown>, CustomFieldDefinition>(
+    'clear',
+    (input) => allow(input, ['mode', 'definition']),
+  ),
+  'customFields.previewUnitValue': spec<'keep', Record<string, unknown>, CustomFieldPreview>(
+    'keep',
+    (input) => allow(input, ['definitionId', 'unitId', 'value']),
+  ),
+  'customFields.setUnitValue': spec<'clear', Record<string, unknown>, CustomFieldUnitValue>(
+    'clear',
+    (input) => allow(input, ['definitionId', 'unitId', 'value', 'expectedRevision']),
+  ),
+  'customFields.removeUnitValue': spec<'clear', Record<string, unknown>, void>('clear', (input) =>
+    allow(input, ['definitionId', 'unitId']),
+  ),
+  'customFields.missingUnitFields': spec<'keep', { unitId: string }, string[]>('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
+  'customFields.previewValue': spec<'keep', Record<string, unknown>, CustomFieldHostPreview>(
+    'keep',
+    (input) => allow(input, ['definitionId', 'targetType', 'targetId', 'value', 'lexemeId']),
+  ),
+  'customFields.setValue': spec<'clear', Record<string, unknown>, CustomFieldHostValue>(
+    'clear',
+    (input) =>
+      allow(input, [
+        'definitionId',
+        'targetType',
+        'targetId',
+        'value',
+        'expectedRevision',
+        'lexemeId',
+      ]),
+  ),
+  'customFields.removeValue': spec<'clear', Record<string, unknown>, void>('clear', (input) =>
+    allow(input, ['definitionId', 'targetType', 'targetId', 'lexemeId']),
+  ),
+  'customFields.missingFields': spec<
+    'keep',
+    { targetType: string; targetId: string; lexemeId?: string },
+    string[]
+  >('keep', (input) => {
+    knownKeys(input, ['targetType', 'targetId', 'lexemeId']);
+    return {
+      targetType: requiredString(input.targetType, 'targetType'),
+      targetId: requiredString(input.targetId, 'targetId'),
+      ...(input.lexemeId === undefined
+        ? {}
+        : { lexemeId: requiredString(input.lexemeId, 'lexemeId') }),
+    };
+  }),
+  'customFields.listDefinitions': spec<'keep', Record<string, never>, CustomFieldDefinition[]>(
+    'keep',
+    (input) => {
+      knownKeys(input, []);
+      return {} as Record<string, never>;
+    },
+  ),
+  'customFields.locateValues': spec<'keep', { definitionId: string }, CustomFieldLocation[]>(
+    'keep',
+    definitionIdOf,
+  ),
+  'customFields.previewMigration': spec<
+    'keep',
+    { definitionId: string },
+    CustomFieldMigrationPreview
+  >('keep', definitionIdOf),
+  'customFields.migrateDefinition': spec<'clear', Record<string, unknown>, CustomFieldDefinition>(
+    'clear',
+    (input) => allow(input, ['definitionId', 'expectedRevision', 'definition', 'conversions']),
+  ),
+  'customFields.previewPurge': spec<'keep', { definitionId: string }, CustomFieldPurgePreview>(
+    'keep',
+    definitionIdOf,
+  ),
+  'customFields.purgeDefinition': spec<'clear', Record<string, unknown>, void>('clear', (input) =>
+    allow(input, ['definitionId', 'expectedRevision', 'previewFingerprint']),
+  ),
 };
 
 export type DesktopOperations = typeof desktopOperations;

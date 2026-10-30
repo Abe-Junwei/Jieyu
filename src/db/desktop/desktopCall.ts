@@ -39,8 +39,6 @@ import {
   updateProjectLanguage,
 } from './catalog';
 import {
-  CUSTOM_FIELD_DEFINITION_KEYS,
-  CUSTOM_FIELD_UPDATE_KEYS,
   addOption,
   createDefinition,
   importDefinition,
@@ -147,26 +145,7 @@ import {
 import { mergeUnits, splitUnit } from './unitSpan';
 
 const METHODS = [
-  'customFields.createDefinition',
-  'customFields.updateDefinition',
-  'customFields.addOption',
-  'customFields.updateOptionLabel',
-  'customFields.importDefinition',
-  'customFields.previewUnitValue',
-  'customFields.setUnitValue',
-  'customFields.removeUnitValue',
-  'customFields.missingUnitFields',
-  'customFields.previewValue',
-  'customFields.setValue',
-  'customFields.removeValue',
-  'customFields.missingFields',
-  'customFields.listDefinitions',
   'references.listLinks',
-  'customFields.locateValues',
-  'customFields.previewMigration',
-  'customFields.migrateDefinition',
-  'customFields.previewPurge',
-  'customFields.purgeDefinition',
   'sources.patch',
   'sources.redeliver',
   'speakers.patch',
@@ -212,14 +191,6 @@ const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
   'exchange.exportManuscript',
   'speakers.assign',
   'speakers.list',
-  'customFields.listDefinitions',
-  'customFields.missingUnitFields',
-  'customFields.missingFields',
-  'customFields.locateValues',
-  'customFields.previewUnitValue',
-  'customFields.previewValue',
-  'customFields.previewMigration',
-  'customFields.previewPurge',
   'references.listLinks',
   'analysis.readState',
   'analysis.listCandidates',
@@ -495,6 +466,117 @@ const operationHandlers = {
   'attachments.list': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.list']['check']>) =>
       listAttachmentLinks(ctx.db, input.lexemeId),
+  },
+  'customFields.createDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.createDefinition']['check']>,
+    ) => createDefinition(ctx.db, input),
+  },
+  'customFields.updateDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.updateDefinition']['check']>,
+    ) => updateDefinition(ctx.db, input),
+  },
+  'customFields.addOption': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.addOption']['check']>,
+    ) => addOption(ctx.db, input),
+  },
+  'customFields.updateOptionLabel': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.updateOptionLabel']['check']>,
+    ) => updateOptionLabel(ctx.db, input),
+  },
+  'customFields.importDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.importDefinition']['check']>,
+    ) => importDefinition(ctx.db, input),
+  },
+  'customFields.previewUnitValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewUnitValue']['check']>,
+    ) => previewUnitValue(ctx.db, input),
+  },
+  'customFields.setUnitValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.setUnitValue']['check']>,
+    ) => setUnitValue(ctx.db, input),
+  },
+  'customFields.removeUnitValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.removeUnitValue']['check']>,
+    ) => removeUnitValue(ctx.db, input),
+  },
+  'customFields.missingUnitFields': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.missingUnitFields']['check']>,
+    ) => missingUnitFields(ctx.db, input.unitId),
+  },
+  'customFields.previewValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewValue']['check']>,
+    ) => previewFieldValue(ctx.db, input),
+  },
+  'customFields.setValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.setValue']['check']>,
+    ) => setFieldValue(ctx.db, input),
+  },
+  'customFields.removeValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.removeValue']['check']>,
+    ) => removeFieldValue(ctx.db, input),
+  },
+  'customFields.missingFields': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.missingFields']['check']>,
+    ) => missingFields(ctx.db, input.targetType, input.targetId, input.lexemeId),
+  },
+  'customFields.listDefinitions': {
+    run: (ctx: ContractCtx) => listDefinitions(ctx.db),
+  },
+  'customFields.locateValues': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.locateValues']['check']>,
+    ) => locateCustomFieldValues(ctx.db, input.definitionId),
+  },
+  'customFields.previewMigration': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewMigration']['check']>,
+    ) => previewMigration(ctx.db, input.definitionId),
+  },
+  'customFields.migrateDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.migrateDefinition']['check']>,
+    ) => migrateDefinition(ctx.db, input),
+  },
+  'customFields.previewPurge': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewPurge']['check']>,
+    ) => previewPurge(ctx.db, input.definitionId, ctx.sessionId),
+  },
+  'customFields.purgeDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.purgeDefinition']['check']>,
+    ) => purgeDefinition(ctx.db, input, undefined, ctx.sessionId),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -843,6 +925,99 @@ function runContract(
         ctx,
         desktopOperations['attachments.list'].check(raw),
       );
+    case 'customFields.createDefinition':
+      return operationHandlers['customFields.createDefinition'].run(
+        ctx,
+        desktopOperations['customFields.createDefinition'].check(raw),
+      );
+    case 'customFields.updateDefinition':
+      return operationHandlers['customFields.updateDefinition'].run(
+        ctx,
+        desktopOperations['customFields.updateDefinition'].check(raw),
+      );
+    case 'customFields.addOption':
+      return operationHandlers['customFields.addOption'].run(
+        ctx,
+        desktopOperations['customFields.addOption'].check(raw),
+      );
+    case 'customFields.updateOptionLabel':
+      return operationHandlers['customFields.updateOptionLabel'].run(
+        ctx,
+        desktopOperations['customFields.updateOptionLabel'].check(raw),
+      );
+    case 'customFields.importDefinition':
+      return operationHandlers['customFields.importDefinition'].run(
+        ctx,
+        desktopOperations['customFields.importDefinition'].check(raw),
+      );
+    case 'customFields.previewUnitValue':
+      return operationHandlers['customFields.previewUnitValue'].run(
+        ctx,
+        desktopOperations['customFields.previewUnitValue'].check(raw),
+      );
+    case 'customFields.setUnitValue':
+      return operationHandlers['customFields.setUnitValue'].run(
+        ctx,
+        desktopOperations['customFields.setUnitValue'].check(raw),
+      );
+    case 'customFields.removeUnitValue':
+      return operationHandlers['customFields.removeUnitValue'].run(
+        ctx,
+        desktopOperations['customFields.removeUnitValue'].check(raw),
+      );
+    case 'customFields.missingUnitFields':
+      return operationHandlers['customFields.missingUnitFields'].run(
+        ctx,
+        desktopOperations['customFields.missingUnitFields'].check(raw),
+      );
+    case 'customFields.previewValue':
+      return operationHandlers['customFields.previewValue'].run(
+        ctx,
+        desktopOperations['customFields.previewValue'].check(raw),
+      );
+    case 'customFields.setValue':
+      return operationHandlers['customFields.setValue'].run(
+        ctx,
+        desktopOperations['customFields.setValue'].check(raw),
+      );
+    case 'customFields.removeValue':
+      return operationHandlers['customFields.removeValue'].run(
+        ctx,
+        desktopOperations['customFields.removeValue'].check(raw),
+      );
+    case 'customFields.missingFields':
+      return operationHandlers['customFields.missingFields'].run(
+        ctx,
+        desktopOperations['customFields.missingFields'].check(raw),
+      );
+    case 'customFields.listDefinitions':
+      desktopOperations['customFields.listDefinitions'].check(raw);
+      return operationHandlers['customFields.listDefinitions'].run(ctx);
+    case 'customFields.locateValues':
+      return operationHandlers['customFields.locateValues'].run(
+        ctx,
+        desktopOperations['customFields.locateValues'].check(raw),
+      );
+    case 'customFields.previewMigration':
+      return operationHandlers['customFields.previewMigration'].run(
+        ctx,
+        desktopOperations['customFields.previewMigration'].check(raw),
+      );
+    case 'customFields.migrateDefinition':
+      return operationHandlers['customFields.migrateDefinition'].run(
+        ctx,
+        desktopOperations['customFields.migrateDefinition'].check(raw),
+      );
+    case 'customFields.previewPurge':
+      return operationHandlers['customFields.previewPurge'].run(
+        ctx,
+        desktopOperations['customFields.previewPurge'].check(raw),
+      );
+    case 'customFields.purgeDefinition':
+      return operationHandlers['customFields.purgeDefinition'].run(
+        ctx,
+        desktopOperations['customFields.purgeDefinition'].check(raw),
+      );
     case 'units.updateText': {
       const done = operationHandlers['units.updateText'].run(
         ctx,
@@ -958,85 +1133,9 @@ export function callDesktopSession(
   if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearSessionEdit(sessionId);
   const input = objectArg(args);
   switch (parsed) {
-    case 'customFields.createDefinition':
-      knownKeys(input, CUSTOM_FIELD_DEFINITION_KEYS);
-      return createDefinition(project.db, input);
-    case 'customFields.updateDefinition':
-      knownKeys(input, CUSTOM_FIELD_UPDATE_KEYS);
-      return updateDefinition(project.db, input);
-    case 'customFields.addOption':
-      knownKeys(input, ['definitionId', 'expectedRevision', 'label', 'sortOrder']);
-      return addOption(project.db, input);
-    case 'customFields.updateOptionLabel':
-      knownKeys(input, ['definitionId', 'optionId', 'expectedRevision', 'label']);
-      return updateOptionLabel(project.db, input);
-    case 'customFields.importDefinition':
-      knownKeys(input, ['mode', 'definition']);
-      return importDefinition(project.db, input);
-    case 'customFields.previewUnitValue':
-      knownKeys(input, ['definitionId', 'unitId', 'value']);
-      return previewUnitValue(project.db, input);
-    case 'customFields.setUnitValue':
-      knownKeys(input, ['definitionId', 'unitId', 'value', 'expectedRevision']);
-      return setUnitValue(project.db, input);
-    case 'customFields.removeUnitValue':
-      knownKeys(input, ['definitionId', 'unitId']);
-      return removeUnitValue(project.db, input);
-    case 'customFields.missingUnitFields':
-      knownKeys(input, ['unitId']);
-      return missingUnitFields(project.db, requiredString(input.unitId, 'unitId'));
-    case 'customFields.previewValue':
-      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'value', 'lexemeId']);
-      return previewFieldValue(project.db, input);
-    case 'customFields.setValue':
-      knownKeys(input, [
-        'definitionId',
-        'targetType',
-        'targetId',
-        'value',
-        'expectedRevision',
-        'lexemeId',
-      ]);
-      return setFieldValue(project.db, input);
-    case 'customFields.removeValue':
-      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'lexemeId']);
-      return removeFieldValue(project.db, input);
-    case 'customFields.missingFields':
-      knownKeys(input, ['targetType', 'targetId', 'lexemeId']);
-      return missingFields(
-        project.db,
-        requiredString(input.targetType, 'targetType'),
-        requiredString(input.targetId, 'targetId'),
-        input.lexemeId === undefined ? undefined : requiredString(input.lexemeId, 'lexemeId'),
-      );
-    case 'customFields.listDefinitions':
-      knownKeys(input, []);
-      return listDefinitions(project.db);
     case 'references.listLinks':
       knownKeys(input, []);
       return readLexemeLinks(project.db);
-    case 'customFields.locateValues':
-      knownKeys(input, ['definitionId']);
-      return locateCustomFieldValues(
-        project.db,
-        requiredString(input.definitionId, 'definitionId'),
-      );
-    case 'customFields.previewMigration':
-      knownKeys(input, ['definitionId']);
-      return previewMigration(project.db, requiredString(input.definitionId, 'definitionId'));
-    case 'customFields.migrateDefinition':
-      knownKeys(input, ['definitionId', 'expectedRevision', 'definition', 'conversions']);
-      return migrateDefinition(project.db, input);
-    case 'customFields.previewPurge':
-      knownKeys(input, ['definitionId']);
-      return previewPurge(
-        project.db,
-        requiredString(input.definitionId, 'definitionId'),
-        sessionId,
-      );
-    case 'customFields.purgeDefinition':
-      knownKeys(input, ['definitionId', 'expectedRevision', 'previewFingerprint']);
-      return purgeDefinition(project.db, input, undefined, sessionId);
     case 'sources.patch':
       return patchSource(project.db, sourcePatch(input));
     case 'sources.redeliver':
