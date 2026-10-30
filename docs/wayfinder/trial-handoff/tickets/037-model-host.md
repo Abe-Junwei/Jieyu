@@ -5,12 +5,16 @@ mode: AFK
 status: open
 assignee:
 blocked_by: [026, 036]
-execution_gate: M4
+execution_gate: second-stage
 issue: https://github.com/Abe-Junwei/Jieyu/issues/305
 ---
 
 # 主进程本机 HTTP 模型宿主（ModelHost）
 
+
+## 当前排期覆盖（2026-10-30，ADR-0098）
+
+模型下载、持久管理、转码和随包分发移至第二程 #285，当前不做，不作为第一程 #250、单库 #275 或发布检查 #282 的前置。已完成的模拟/真实引擎开发闭环与人工采纳保留；默认关闭，不等于随包能力验收。下文较早的“挡首发”及整单依赖在这些余项上作废，见 [ADR-0098](../../../adr/0098-model-delivery-followups-in-second-stage.md)。
 
 <!-- desktop-sqlite-slices:v1:start -->
 ## 当前可执行切片与关闭条件（2026-10-25 本轮重排）

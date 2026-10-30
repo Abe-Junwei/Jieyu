@@ -9,6 +9,8 @@ source_of_truth: desktop-local-whisper-spec
 
 # 任务
 
+> 2026-10-30 排期覆盖：已完成实现与验证保留，未完成的模型产品余项按 [ADR-0098](../../../adr/0098-model-delivery-followups-in-second-stage.md) 后移至第二程/后续模型队列，当前不实施，不阻塞第一程；不自动打开默认关闭入口。
+
 - [x] Explore：核对旧包装/CLI/宿主/候选入口和 #303/#305 合同，复用现有默认关闭入口；Research 与具体落位已定。
 - [x] 服务端 v1、Host/Origin/地址、multipart 和 PCM16 校验；取消/超时/临时文件生命周期反例。
 - [x] 桌面本机权重授权、服务启动/切换/关闭与候选 UI。

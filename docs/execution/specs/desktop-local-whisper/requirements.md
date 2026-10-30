@@ -9,6 +9,8 @@ source_of_truth: desktop-local-whisper-spec
 
 # 本机 Whisper 第一条真实引擎闭环
 
+> 2026-10-30 排期覆盖：已完成实现与验证保留，未完成的模型产品余项按 [ADR-0098](../../../adr/0098-model-delivery-followups-in-second-stage.md) 后移至第二程/后续模型队列，当前不实施，不阻塞第一程；不自动打开默认关闭入口。
+
 承接已批准的 #303/#305 下一刀。只用合成输入，复用默认关闭的 desktopModelCandidatesEnabled，不动 DDL 或旧路由。
 
 - [x] 自带 whisper-server 提供 v1 /health 与 multipart /transcribe，旧 OpenAI 端点继续兼容。

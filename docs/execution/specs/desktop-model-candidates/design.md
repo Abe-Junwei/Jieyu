@@ -11,6 +11,8 @@ depends_on:
 
 # 设计
 
+> 2026-10-30 排期覆盖：已完成实现与验证保留，未完成的模型产品余项按 [ADR-0098](../../../adr/0098-model-delivery-followups-in-second-stage.md) 后移至第二程/后续模型队列，当前不实施，不阻塞第一程；不自动打开默认关闭入口。
+
 ## 1. 成熟方案扫描 / Research
 
 - 既有 modelHost 提供声明校验、回环 HTTP、大小限制与 AbortController；modelRuns 提供运行、预览、事务采纳和放弃。全部复用。
