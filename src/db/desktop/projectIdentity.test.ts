@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createDefinition } from './customFields';
 import { callDesktopSession } from './desktopCall';
 import { openProject } from './openProject';
 import { ensureProjectIdentity, getProjectIdentity } from './projectIdentity';
@@ -53,5 +54,50 @@ describe('project identity', () => {
       id: opened.id,
       title: { und: basename(dir) },
     });
+  });
+
+  it('rolls back a new project when a required project field is missing', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    createDefinition(project.db, {
+      targetType: 'project',
+      name: { zh: '必填' },
+      fieldType: 'text',
+      required: true,
+    });
+    expect(() => ensureProjectIdentity(project.db, dir)).toThrow(
+      'project is missing a required field',
+    );
+    expect(project.db.prepare('SELECT COUNT(*) AS n FROM project').get()).toEqual({ n: 0 });
+    expect(project.db.prepare('SELECT COUNT(*) AS n FROM custom_field_values').get()).toEqual({
+      n: 0,
+    });
+    project.close();
+
+    expect(() => openDesktopSession(dir, [dir])).toThrow('project is missing a required field');
+    const again = openProject(dir);
+    expect(again.db.prepare('SELECT COUNT(*) AS n FROM project').get()).toEqual({ n: 0 });
+    expect(again.db.prepare('SELECT COUNT(*) AS n FROM custom_field_values').get()).toEqual({
+      n: 0,
+    });
+    again.close();
+  });
+
+  it('keeps an existing project open when a required project field has no value', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    project.db
+      .prepare('INSERT INTO project (id, title_json, created_at, updated_at) VALUES (?, ?, ?, ?)')
+      .run('p1', '{"zh":"木雅"}', '2026-10-28T00:00:00.000Z', '2026-10-28T00:00:00.000Z');
+    createDefinition(project.db, {
+      targetType: 'project',
+      name: { zh: '必填' },
+      fieldType: 'text',
+      required: true,
+    });
+    expect(ensureProjectIdentity(project.db, dir)).toMatchObject({ id: 'p1' });
+    project.close();
+    const session = openDesktopSession(dir, [dir]);
+    expect(callDesktopSession(session.sessionId, 'project.get', {})).toMatchObject({ id: 'p1' });
   });
 });

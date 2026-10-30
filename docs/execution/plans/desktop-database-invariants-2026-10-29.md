@@ -3,7 +3,7 @@ title: 单库数据库业务约束重构方案
 doc_type: execution-plan
 status: draft
 owner: repo
-last_reviewed: 2026-10-29
+last_reviewed: 2026-10-30
 source_of_truth: desktop-database-invariants-refactor-plan
 depends_on:
   - ../specs/desktop-database-invariants/requirements.md
@@ -63,17 +63,14 @@ W0 把每行展开到全部实际入口，标明生产、脚本、内部、测�
 
 ### W0：固定基线与业务结果测试
 
-落位：现有 __audit__/*.test.ts、领域测试、现有守卫配置；证据保存在会话目录，叙述报告不放 audits/。
-列 entry → parser → domain → transaction → effects → readback；标明谁能绕过 dispatcher 直接调用领域函数。
-历史反例按领域迁入常规测试，先证明新测试仍能捕获原缺陷，再删除已被替代的审查测试；禁止整目录直接删除。
-用合成小项目和较大项目记录查询耗时、写入耗时、SQL/事务数、IPC 数、导入峰值内存、renderer 服务端依赖。
-退出：基线测试结果与现有失败归因齐；每条不变量至少有真实库反例/成功路径，性能数据可复跑。
+本轮顺序不取代最终目标。本轮只扩展 check:script-desktop-callers：scripts/import-desktop-file.mjs 调用 importForeignFile 仍合法；阻止脚本直接拼接底层写函数、事务内步骤或 SQL。不重做入口普查，不新写入口链清单。历史反例一次只迁一个 __audit__ 文件，先有能捕获原缺陷的常规测试，再删该文件；禁止整目录删除。
+最终阶段仍要列 entry → parser → domain → transaction → effects → readback，并用合成小项目和较大项目记录查询耗时、写入耗时、SQL/事务数、IPC 数、导入峰值内存、renderer 服务端依赖。查询和写入耗时放在首次 W6 实质迁移之前。其余宽基线留到 W7，不在前面的刀里做成入口散文。
 
 ### W1：四操作合同试点已落地，停止扩展
 
 operationContract.ts 的四键为 project.get、layers.create、units.updateText、media.finishCleanup；handler 对象仍在 desktopCall.ts，不另建一套试点。
 layers.create 覆盖可选字段与 fieldValues；media.finishCleanup 覆盖会话目录和外部 trash 能力；conversations.create 未迁。
-client 四键按合同推导结果，其余仍用 once；四键已离开 METHODS 和旧 switch。集合对账的期望值是 `5fbc66f8` 的 128 个 `METHODS`，固定在 `operationCatalog.baseline.ts`，测试运行时不读 Git。生产入口与脚本普查仍属 W0。
+client 四键按合同推导结果，其余仍用 once；四键已离开 METHODS 和旧 switch。集合对账的期望值是 `5fbc66f8` 的 128 个 `METHODS`，固定在 `operationCatalog.baseline.ts`，测试运行时不读 Git。生产入口宽普查留到 W0 最终阶段，本轮不重做。
 额外键：project.get、layers.create、media.finishCleanup 拒绝，units.updateText 按旧行为忽略；W6 不顺手收紧。
 撤销：project.get keep；正文写入失败保留旧步，事务提交后回调带回逆操作才 replace-on-success；layers.create 在参数检查前 clear，拒绝额外键也清槽。
 unitTextUndo.test.ts 已锁住这些时机；operationContract.test.ts 锁住参数与策略，不能把 clear 改为仅成功时清除。
@@ -101,15 +98,13 @@ getUnit 与 units.get 只返回文稿未删除的语段；readStoredUnit 保留�
 
 落位：customFields.ts 及全部宿主 creator、foreignImport.ts、modelRuns.ts、analysisImport.ts 等实际创建路径。
 requiredCreateReadback.test.ts 已验证 13 个现有 helper 宿主缺值拒绝/回滚、合法创建和关闭重开读回；这只是部分证据，不能勾掉 W3b。
-project 与 source 仍直接 INSERT，分析图节点走 assertStoredCustomFields；导入、批量、接受及其他旁路未由 13 项覆盖。先确认各自支持的字段合同，再决定初始化落位，不擅自给无合同入口填默认值。
-先列清所有支持字段的宿主和创建方式，不仅列 UI 可见对象；涵盖图节点、词条/义项等实际支持范围。
-收窄宿主类型；继续使用现有 writeRequiredFieldValues。具名 creator 的外部成功必须包含合法初始化及读回。
-组合操作使用事务内创建步骤，外部不得先创建再补字段；只在复用足够时提取该步骤，不造 create(host,values)。
-退出：每宿主缺必填值整次回滚、无错误宿主字段、合法值关闭重开可读；导入/批量共享规则且不新增逐行独立提交。
-已有数据损坏可报告并拒绝相关写入，不顺手批量修复或填默认值。
+project 缺值回滚已落地。ensureProjectIdentity 仍无 fieldValues。没有项目行时，插入和必填检查在同一事务里；必填项目字段没有值就报 project is missing a required field，项目行和字段值一起回滚，关闭重开后仍没有项目行。已有项目行则直接返回，不因缺值拒绝。入口还不能在创建时写入合法必填值；类型签名不能当作运行时拒绝多传参数。下一刀是 source。
+source 仍直接 INSERT。分析图节点和关系分开验证，沿用 assertStoredCustomFields，失败后旧图、投影及相关记录不变。一种导入、一条接受先证明完整事务；批量即使调用同一函数，仍核对外层没有逐项提交。先确认该宿主自己的字段合同，再决定初始化落位，不擅自填默认值。
+最终阶段仍要：继续使用 writeRequiredFieldValues，具名 creator 的外部成功包含合法初始化及读回；组合操作在事务内创建，不造 create(host,values)。每宿主缺必填值整次回滚、无错误宿主字段、合法值关闭重开可读；导入和批量不新增逐行独立提交。已有数据损坏可报告并拒绝相关写入，不顺手批量修复或填默认值。本轮不先做一份宿主总清单。
 
 ### W4a：图编辑作为完整领域操作
 
+本轮先对改正文注入一次写入后失败，重开后代际和图仍是前态。与改图是同一段代码时才提取共用步骤。跨语段引用不实施。下面的矩阵和全部注入点是最终阶段退出，不是下一刀。
 落位：units.ts、unitSpan.ts、analysis.ts、analysisCandidates.ts、analysisRestore.ts、modelRuns.ts、analysisImport.ts。
 按改正文、接受、恢复、切分、合并分别定义“保留/迁移/失效”矩阵：图节点、surfaceParts、词项链接、备注、字段引用、快照和代际。
 保持图为真值，线性投影同事务生成；移除多处手工重建的同义逻辑，不把完整业务硬塞进一个万能 graph mutation。
@@ -128,11 +123,8 @@ sessionEdit 已管理一步内存状态，领域模块不读它；崩溃即丢�
 
 ### W5：文件、锁与主进程副作用收口
 
-W5a：projectExchange/foreignImport/dailyBackup/zipBounds；统一实际重复的受保护文件身份和目标发布检查，保留 dev+ino、符号链接、空目标、ZIP 中央目录限制。
-导入明确区分本次创建文件与既有复用文件；失败仅撤销本次拥有的文件，不删除原件保留或既有哈希对象。逐格式保持来源身份和未投影内容报告。
-W5b：attachments/mediaCleanup/mediaReregister；只共享身份核对，分别保留附件最后引用和录音保留期协议。零链接不等于文件已删，路径缺失不等于已送垃圾箱。
-W5c：projectLock/projectSession/desktopMediaGrant 与 electron main/preload；核对多进程竞争、打开失败、项目切换/重载后的授权和资源释放。
-退出：数据库/文件各阶段失败与重开、同路径替换/硬链接、清除期间重关联/重新登记均通过；真实 Electron 核对文件选择、媒体读取与垃圾箱已知结果。
+本轮顺序不取代最终目标。本轮 W5a 只验证一次导入失败仅删除本次创建的文件，不动原件和已有哈希对象。W5b 只验证录音收尾的一个失败状态在重开后保持不变，不并入附件生命周期。W5c 项目锁沿用现有测试。
+最终阶段仍要：统一实际重复的受保护文件身份和目标发布检查，保留 dev+ino、符号链接、空目标、ZIP 中央目录限制；逐格式保持来源身份和未投影内容报告；附件与录音只共享身份核对，分别保留最后引用和录音保留期。零链接不等于文件已删，路径缺失不等于已送垃圾箱。数据库/文件各阶段失败与重开、同路径替换/硬链接、清除期间重关联/重新登记仍须通过。真实 Electron 的文件选择、媒体读取和垃圾箱延后到 W7，不从最终门禁删除。
 不引入全局文件事务框架，不自动收集删除 orphan；物理断电耐久性和跨平台 syscall 差异只按实际证据声明。
 
 ### W6：剩余契约迁移、旁路封口与删除过渡代码
@@ -155,7 +147,7 @@ W5c：projectLock/projectSession/desktopMediaGrant 与 electron main/preload；�
 
 ## 依赖与交付控制
 
-A、B、W2 故障注入和 W3a 已封口，不借此迁新键。下一次实现是 W0 入口矩阵，或 W3b 其余创建宿主。W0 入口矩阵随已完成的 W3a 补建、性能基线在下一次实质实现迁移前补齐。W3b → W4a；W5 依赖对应入口基线；领域阶段 + 分派去重复 → W6 → W7。
+A、B、W2 故障注入、W3a 和 W3b project 缺值回滚已封口，不借此迁新键。project 入口仍无 fieldValues，不能在创建时写入合法必填值。下一刀是 W3b source。其后按 tasks.md 逐刀做。W0 和 W5 正文里的宽基线、完整文件验收和 Electron 媒体路径是最终阶段目标，不是本轮每一刀的范围；Electron 媒体路径留在 W7 门禁。不新写入口散文，不提取共用图函数，不迁新操作键。
 一个阶段可多次小提交，每次只迁一个有完整验收的领域。先保留业务结果测试，再替换实现，最后删除旧代码。
 不承诺一次大提交完成；每批失败可回退代码，无格式迁移。只有实际并行执行时才分配互不重叠所有权，本文不预设多 agent 编排。
 若风险评估要求新旧试用，遵守 flag 默认 false 和一周自用规则，单次操作只走一路；不得为了比较而双写真实数据。
@@ -198,6 +190,6 @@ A、B、getUnit、readAnalysisState、备注、字段、可接受任务名单、
 
 12. 补交故障：source 的事务中止把正文和 pending 一起回滚。诊断文件已经收件、项目里的确认更新失败时，状态仍是 pending，修订不变。关闭重开后再补交只确认一次，再次补交不增加回执。协议实现没有改。
 
-W3a 和 W2 故障注入已收口。W0、W3b 其余宿主、分派策略泛化及最终宿主验收仍未完成。本轮没有重跑全域回归或 Electron。
+W3a、W2 故障注入和 W3b project 缺值回滚已收口。project 创建仍不能传入字段值。下一刀是 W3b source。W0、W5 的宽基线和 Electron 媒体路径留在最终阶段，不从 W7 门禁删除。本轮没有重跑全域回归或 Electron。
 
 证据：`npm run typecheck` 通过。`npx vitest run src/db/desktop/sourceFields.test.ts` 为 5 项通过。`npx eslint` 覆盖本切片测试，`git diff --check` 通过。`npm run check:docs-governance` 通过。上一批文稿删除为 19 项。

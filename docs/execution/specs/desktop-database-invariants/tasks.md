@@ -3,7 +3,7 @@ title: 单库业务约束收口 tasks
 doc_type: execution-spec-tasks
 status: draft
 owner: repo
-last_reviewed: 2026-10-29
+last_reviewed: 2026-10-30
 source_of_truth: desktop-database-invariants-spec
 depends_on:
   - ./requirements.md
@@ -16,8 +16,9 @@ depends_on:
 每项以半天内可评审为目标；超出即在该项下拆开再实施。W 编号与执行计划一致。
 
 - [x] 读取当前实现/ADR/既有规格，核对工作区，完成成熟方案调研及三件套。
-- [ ] W0 建入口清单，区分生产/脚本/测试/旧路径，固定测试与性能基线。
-- [ ] W0 建不变量归属矩阵，迁移第一组历史反例，验证新旧测试同等断言。
+- [ ] W0 入口：扩展现有 check:script-desktop-callers。scripts/import-desktop-file.mjs 调用 importForeignFile 仍合法。拦住脚本直接拼接底层写函数、事务内步骤或 SQL。不重做入口普查，不记性能。
+- [ ] W0 性能：只在 W6 第一刀之前，用合成项目记一次查询和写入耗时，数字写进该次提交说明。
+- [ ] W0 反例：一次只迁一个 __audit__ 文件。先有能捕获原缺陷的常规测试，再删该文件。
 - [x] W1 为 project.get / layers.create / units.updateText / media.finishCleanup 建类型化试点。handler 留在 desktopCall.ts。
 - [x] W1 四键试点到此停止；现有测试锁住额外键与三种撤销时机，units.updateText 仍忽略额外键。
 - [x] A：operationContract.test.ts 用 5fbc66f8 的 128 键固定目录核对互斥、无重复和并集；不读 Git，不普查入口。
@@ -33,19 +34,26 @@ depends_on:
 - [x] W3a 词条链接普通读：readLexemeLinks 与 references.listLinks 隐藏已删除文稿上的链接，另一份文稿的链接仍在，存储行仍在。关闭重开后仍隐藏，恢复后重新可见。迟到改链仍报 manuscript is deleted。
 - [x] W3a 分析迟到写：切词和改图在已删除文稿上由触发器报 manuscript is deleted。直接调用和 IPC 都测了，关闭重开后仍拒绝，恢复后可以再写。图指纹不变。
 - [x] W3a 其余领域写：创建、边界、切分、合并、备注、开任务、时间映射、切语素和提交分析在已删除文稿上仍报 manuscript is deleted。直接调用和 IPC 都测了，关闭重开后仍拒绝，恢复后可以再建语段。删除前的分析候选在删除和恢复后接受仍报 analysis candidate is stale。语料查询不返回已删除文稿。写入实现没有改。
-- [ ] W3b 列全部字段宿主创建入口，包括导入/批量/接受；收窄宿主类型。
 - [x] W3b 已有 13 宿主创建缺值回滚/合法重开读回测试通过。
-- [ ] W3b 继续审查 project/source、分析图节点、导入/批量/接受及全部旁路；13 项不能代表创建入口全覆盖。
-- [ ] W4a 复用正文/分析的事务内共同步骤，验证代际、快照、图投影同成败。
-- [ ] W4a 分组收口切分/合并/恢复的引用迁移；未确定的跨语段引用语义另列决定。
+- [x] W3b project 缺值回滚：首次创建遇到必填项目字段且没有值时，报 project is missing a required field。失败后没有项目行或字段值，关闭重开后仍相同。已有项目行再次打开不因缺值拒绝。直接调用和 openDesktopSession 都测了。
+- [ ] W3b project 字段值：ensureProjectIdentity 仍无 fieldValues。这只说明入口还不能在创建时写入合法必填值，不是运行时拒绝多传参数。必填初始化仍有限制。
+- [ ] W3b source：只处理 source 创建，规则与 project 相同。
+- [ ] W3b analysis-node：缺必填节点字段时图写入整段回滚。沿用 assertStoredCustomFields。失败后旧图、投影及相关记录不变。
+- [ ] W3b analysis-relation：只处理关系。失败后旧图、投影及相关记录不变。
+- [ ] W3b 导入：一种导入路径缺必填值整段回滚，不按行提交。
+- [ ] W3b 接受：一条接受路径缺必填值整段回滚。批量若调用同一函数，仍核对外层没有逐项提交，不能只凭同名函数免验。
+- [ ] W4a 改正文：正文写入后注入失败，重开后代际和图仍是前态。不提取共用函数。
+- [ ] W4a 改图：快照或投影写入后注入失败，重开后回到前态。只有和第二处是同一段代码时才提取。
+- [ ] W4a 跨语段引用：不实施。合同未定，保持独立决定。
 - [x] W4b 已提取 sessionEdit 的记忆和一步撤销；领域函数不读状态，崩溃即丢、不改格式。
 - [x] W4b 失败重开已清槽并有等价测试。runContract 逐键分派和 UnitTextUndo 写死类型仍在迁新键前处理。
-- [ ] W5a 对齐导入/导出/备份的文件保护和 owned-files 回滚；保留原件与未投影内容。
-- [ ] W5b 对齐附件/录音收尾共用保护，分别验证 pending/unknown/重关联状态机。
-- [ ] W5c 验证项目锁竞争、session/媒体授权撤销及真实 Electron 媒体路径。
-- [ ] W6 按域迁移剩余操作合同和 handler，删除 METHODS/撤销白名单/旧 switch，移除过渡层。
-- [ ] W6 更新结构守卫，验证所有生产/脚本入口没有事务/生命周期旁路。
-- [ ] W7 迁完历史反例、跑全域回归/故障链/性能对拍/真实 Electron，按证据更新路线图。
+- [ ] W4b 正文未改仍保留上一步撤销。只加测试，不改时机。
+- [ ] W5a 一次导入失败只删除本次创建的文件，不动原件和已有哈希对象。
+- [ ] W5b 录音收尾的一个失败状态在重开后保持不变。不并入附件。
+- [ ] W5c 项目锁竞争沿用现有测试。Electron 媒体路径延后到 W7，仍留在最终门禁。
+- [ ] W6 预备：四个已迁键的执行和撤销记忆跟策略走。不新增键，不删 METHODS。
+- [ ] W6 之后每域一刀，从项目/媒体开始。每刀改实现、目录和测试，再删该域旧分派。性能基线放在首次实质迁移之前。
+- [ ] W7 不拆功能。前面做完后按门禁逐条跑，含真实 Electron 的文件选择、媒体读取和垃圾箱。不过就不勾完成。
 
 ## Pre-merge gates
 
