@@ -20,7 +20,11 @@ afterEach(() => {
 
 function record(): DesktopDomainEvent[] {
   const seen: DesktopDomainEvent[] = [];
-  cleanups.push(subscribeDesktopDomainEvents((event) => seen.push(event)));
+  cleanups.push(
+    subscribeDesktopDomainEvents((event) => {
+      seen.push(event);
+    }),
+  );
   return seen;
 }
 
@@ -40,22 +44,38 @@ describe('desktopDomainEvents', () => {
     expect(seen).toEqual([]);
   });
 
-  it('stops delivering after unsubscribe', () => {
+  it('stops delivering after unsubscribe', async () => {
     const seen: DesktopDomainEvent[] = [];
-    const stop = subscribeDesktopDomainEvents((event) => seen.push(event));
+    const stop = subscribeDesktopDomainEvents((event) => {
+      seen.push(event);
+    });
     stop();
-    emitDesktopDomainEvent(saved);
+    await emitDesktopDomainEvent(saved);
     expect(seen).toEqual([]);
   });
 
-  it('keeps delivering when one listener throws', () => {
+  it('keeps delivering when one listener throws', async () => {
     cleanups.push(
       subscribeDesktopDomainEvents(() => {
         throw new Error('listener bug');
       }),
     );
     const seen = record();
-    emitDesktopDomainEvent(saved);
+    await emitDesktopDomainEvent(saved);
     expect(seen).toEqual([saved]);
+  });
+
+  it('waits for an async listener and survives one that rejects', async () => {
+    const order: string[] = [];
+    cleanups.push(subscribeDesktopDomainEvents(() => Promise.reject(new Error('refetch failed'))));
+    cleanups.push(
+      subscribeDesktopDomainEvents(async () => {
+        await Promise.resolve();
+        order.push('refetched');
+      }),
+    );
+    await emitAfterWrite(Promise.resolve('ok'), () => saved);
+    order.push('returned');
+    expect(order).toEqual(['refetched', 'returned']);
   });
 });

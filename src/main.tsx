@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { featureFlags } from './ai/config/featureFlags';
 import { App } from './App';
+import { connectDesktopInvalidation } from './desktop/desktopQueryKeys';
 import { installSqliteIpcPortIfEnabled, readDesktopStorageCall } from './db/installSqliteIpcPort';
 import { initOtelForReleaseStage } from './observability/otel';
 import { initSentryForReleaseStage } from './observability/sentry';
@@ -113,6 +114,8 @@ function mountApp(): void {
       },
     },
   });
+  // 桌面写入成功后的事件只经这一张表映射成查询失效（切片 0）
+  connectDesktopInvalidation(queryClient);
 
   // 数据路由才能用 useBlocker；单条 `*` 路由包住 App，App 里的 <Routes> 不变。
   const router = createBrowserRouter([

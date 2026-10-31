@@ -31,13 +31,13 @@ describe('desktopQueryKeys', () => {
     expect(desktopInvalidationsFor(saved)).toEqual([['desktop', 's1', 'projectRead']]);
   });
 
-  it('marks every manuscript read of the session stale and leaves other sessions alone', () => {
+  it('marks every manuscript read of the session stale and leaves other sessions alone', async () => {
     const client = connectedClient();
     client.setQueryData(desktopQueryKeys.projectRead('s1', 'm1'), 'a');
     client.setQueryData(desktopQueryKeys.projectRead('s1', 'm2'), 'b');
     client.setQueryData(desktopQueryKeys.projectRead('s2', 'm1'), 'c');
 
-    emitDesktopDomainEvent(saved);
+    await emitDesktopDomainEvent(saved);
 
     const stale = (key: readonly unknown[]) => client.getQueryState(key)?.isInvalidated;
     expect(stale(desktopQueryKeys.projectRead('s1', 'm1'))).toBe(true);
@@ -45,13 +45,13 @@ describe('desktopQueryKeys', () => {
     expect(stale(desktopQueryKeys.projectRead('s2', 'm1'))).toBe(false);
   });
 
-  it('stops invalidating after disconnect', () => {
+  it('stops invalidating after disconnect', async () => {
     const client = new QueryClient();
     const disconnect = connectDesktopInvalidation(client);
     client.setQueryData(desktopQueryKeys.projectRead('s1', 'm1'), 'a');
     disconnect();
 
-    emitDesktopDomainEvent(saved);
+    await emitDesktopDomainEvent(saved);
 
     expect(client.getQueryState(desktopQueryKeys.projectRead('s1', 'm1'))?.isInvalidated).toBe(
       false,

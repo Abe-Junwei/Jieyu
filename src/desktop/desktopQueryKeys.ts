@@ -5,8 +5,23 @@ import { subscribeDesktopDomainEvents, type DesktopDomainEvent } from './desktop
 export const desktopQueryKeys = {
   session: (sessionId: string) => ['desktop', sessionId] as const,
   projectReads: (sessionId: string) => ['desktop', sessionId, 'projectRead'] as const,
-  projectRead: (sessionId: string, manuscriptId: string | null) =>
-    ['desktop', sessionId, 'projectRead', manuscriptId ?? ''] as const,
+  project: (sessionId: string) => ['desktop', sessionId, 'project'] as const,
+  projectRead: (
+    sessionId: string,
+    manuscriptId: string | null,
+    layerId: string | null = null,
+    includeMedia = true,
+  ) =>
+    [
+      'desktop',
+      sessionId,
+      'projectRead',
+      manuscriptId ?? '',
+      layerId ?? '',
+      includeMedia ? 'media' : 'noMedia',
+    ] as const,
+  unitNotes: (sessionId: string, manuscriptId: string | null) =>
+    ['desktop', sessionId, 'projectRead', manuscriptId ?? '', 'notes'] as const,
 };
 
 /**
@@ -26,9 +41,9 @@ export function desktopInvalidationsFor(event: DesktopDomainEvent): QueryKey[] {
 }
 
 export function connectDesktopInvalidation(queryClient: QueryClient): () => void {
-  return subscribeDesktopDomainEvents((event) => {
-    for (const queryKey of desktopInvalidationsFor(event)) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  });
+  return subscribeDesktopDomainEvents((event) =>
+    Promise.all(
+      desktopInvalidationsFor(event).map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    ),
+  );
 }

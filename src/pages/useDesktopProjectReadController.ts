@@ -1,85 +1,41 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  createDesktopClient,
-  loadDesktopProjectRead,
-  type ContentNoteCategory,
-  type DesktopProjectRead,
-  type DesktopProjectReadApi,
-} from '../app/desktopProjectReadPageAccess';
+import { useRef, useState } from 'react';
+import { createDesktopClient, type ContentNoteCategory } from '../app/desktopProjectReadPageAccess';
+import { emitAfterWrite } from '../desktop/desktopDomainEvents';
 import { readOpenProjectSession, rememberOpenProjectSession } from '../desktop/openProjectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
+import { useDesktopProjectReadQueries } from './useDesktopProjectReadQueries';
 
 export function useDesktopProjectReadController(
   host: DesktopReadHost | null,
   includeMedia = true,
   locate: { manuscriptId: string; layerId: string } | null = null,
 ) {
-  const locateManuscriptId = locate?.manuscriptId;
-  const locateLayerId = locate?.layerId;
   const locale = useLocale();
   const [sessionId, setSessionId] = useState(readOpenProjectSession);
-  const [model, setModel] = useState<DesktopProjectRead | null>(null);
-  const [notes, setNotes] = useState<UnitNote[]>([]);
-  const [projectTitle, setProjectTitle] = useState('');
-  const [error, setError] = useState('');
-  const [loadEpoch, setLoadEpoch] = useState(0);
+  const [writeError, setWriteError] = useState('');
   const shownSession = useRef(sessionId);
-  const loadGenerationRef = useRef(0);
+  const reads = useDesktopProjectReadQueries(host, sessionId, includeMedia, {
+    manuscriptId: locate?.manuscriptId,
+    layerId: locate?.layerId,
+  });
+  const model = reads.model;
+  const notes = reads.notes;
+  const error =
+    writeError.length > 0
+      ? writeError
+      : reads.loadFailed
+        ? t(locale, 'app.desktopRead.loadFailed')
+        : '';
+  const setError = setWriteError;
 
   const adoptOpenedSession = (nextSessionId: string) => {
+    reads.dropSession(shownSession.current === nextSessionId ? null : shownSession.current);
     shownSession.current = nextSessionId;
-    ++loadGenerationRef.current;
     rememberOpenProjectSession(nextSessionId);
-    setModel(null);
-    setNotes([]);
-    setProjectTitle('');
     setError('');
     setSessionId(nextSessionId);
-    // Same sessionId alone won't re-run the effect; bump so remount/open-again reloads.
-    setLoadEpoch((epoch) => epoch + 1);
   };
-
-  useEffect(() => {
-    if (host === null || sessionId === null) return;
-    let cancelled = false;
-    const generation = loadGenerationRef.current;
-    void loadDesktopProjectRead(
-      readApi(host),
-      sessionId,
-      locateManuscriptId,
-      includeMedia,
-      locateLayerId,
-    )
-      .then(async (next) => {
-        const [shown, project] = await Promise.all([
-          loadShownNotes(host, sessionId, next.manuscriptId),
-          createDesktopClient({ desktopCall: host.desktopCall }).getProject(sessionId),
-        ]);
-        if (
-          cancelled ||
-          shownSession.current !== sessionId ||
-          generation !== loadGenerationRef.current
-        ) {
-          return;
-        }
-        setModel(next);
-        setNotes(shown);
-        setProjectTitle(shownProjectTitle(project?.title));
-      })
-      .catch(() => {
-        if (
-          !cancelled &&
-          shownSession.current === sessionId &&
-          generation === loadGenerationRef.current
-        ) {
-          setError(t(locale, 'app.desktopRead.loadFailed'));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [host, includeMedia, loadEpoch, locale, locateLayerId, locateManuscriptId, sessionId]);
 
   const openFolder = () => {
     if (host === null) return;
@@ -98,76 +54,36 @@ export function useDesktopProjectReadController(
 
   const selectManuscript = (manuscriptId: string, layerId?: string) => {
     if (host === null || sessionId === null) return;
-    const seen = sessionId;
     setError('');
-    const generation = ++loadGenerationRef.current;
-    void loadDesktopProjectRead(readApi(host), seen, manuscriptId, includeMedia, layerId)
-      .then(async (next) => {
-        if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-        setModel(next);
-        const nextNotes = await loadShownNotes(host, seen, next.manuscriptId);
-        if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-        setNotes(nextNotes);
-      })
-      .catch((error: unknown) => {
-        if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-        if (error instanceof Error && error.message === 'manuscript is missing') {
-          void loadDesktopProjectRead(readApi(host), seen, undefined, includeMedia)
-            .then(async (next) => {
-              if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-              setModel(next);
-              const nextNotes = await loadShownNotes(host, seen, next.manuscriptId);
-              if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-              setNotes(nextNotes);
-            })
-            .catch(() => {
-              if (shownSession.current === seen && generation === loadGenerationRef.current) {
-                setError(t(locale, 'app.desktopRead.loadFailed'));
-              }
-            });
-          return;
-        }
-        setError(t(locale, 'app.desktopRead.loadFailed'));
-      });
+    reads.selectManuscript(manuscriptId, layerId);
   };
 
+  /** Writes not yet on the event path (split, merge, boundary, mapping, undo) re-read through Query. */
   const reload = () => {
     if (host === null || sessionId === null) return Promise.resolve();
-    const manuscriptId = model?.manuscriptId ?? undefined;
     const seen = sessionId;
-    const generation = ++loadGenerationRef.current;
-    return loadDesktopProjectRead(
-      readApi(host),
-      sessionId,
-      manuscriptId,
-      includeMedia,
-      model?.layerId ?? undefined,
-    )
-      .then(async (next) => {
-        if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-        const shown = await loadShownNotes(host, seen, next.manuscriptId);
-        if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-        setModel(next);
-        setNotes(shown);
-      })
-      .catch((error: unknown) => {
-        if (shownSession.current !== seen || generation !== loadGenerationRef.current) return;
-        throw error;
-      });
+    return reads.refetch(seen).catch((error: unknown) => {
+      if (shownSession.current !== seen) return;
+      throw error;
+    });
   };
 
-  const saveText = (unitId: string, text: string) => {
-    if (host === null || sessionId === null) return;
+  /** Resolves true once saved and re-read through the invalidation table; false keeps the draft. */
+  const saveText = (unitId: string, text: string): Promise<boolean> => {
+    if (host === null || sessionId === null) return Promise.resolve(false);
+    const seen = sessionId;
+    const manuscriptId = model?.manuscriptId ?? '';
     setError('');
-    void createDesktopClient({ desktopCall: host.desktopCall })
-      .updateUnitText(sessionId, { unitId, text })
-      .then(() => reload())
+    return emitAfterWrite(
+      createDesktopClient({ desktopCall: host.desktopCall }).updateUnitText(seen, { unitId, text }),
+      () => ({ type: 'unit.textSaved', sessionId: seen, manuscriptId, unitId }),
+    )
+      .then(() => true)
       .catch(() => {
-        if (shownSession.current !== sessionId) return;
-        setError(t(locale, 'app.desktopRead.loadFailed'));
+        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.saveTextFailed'));
+        return false;
       });
   };
-
   const undoText = () => {
     if (host === null || sessionId === null) return;
     setError('');
@@ -249,18 +165,11 @@ export function useDesktopProjectReadController(
     }
     const seen = sessionId;
     setError('');
-    const generation = loadGenerationRef.current;
     return createDesktopClient({ desktopCall: host.desktopCall })
       .createNote(seen, { anchor: { kind: 'unit', unitId }, content: { default: text } })
-      .then(() => loadShownNotes(host, seen, model?.manuscriptId ?? null))
-      .then((shown) => {
-        if (shownSession.current === seen && generation === loadGenerationRef.current)
-          setNotes(shown);
-      })
+      .then(() => reads.refetchNotes(seen))
       .catch((err: unknown) => {
-        if (shownSession.current === seen && generation === loadGenerationRef.current) {
-          setError(t(locale, 'app.desktopRead.loadFailed'));
-        }
+        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.loadFailed'));
         throw err;
       });
   };
@@ -288,7 +197,7 @@ export function useDesktopProjectReadController(
       })
       .then(async () => {
         if (shownSession.current !== seen) return false;
-        setNotes(await loadShownNotes(host, seen, model.manuscriptId));
+        await reads.refetchNotes(seen);
         return true;
       })
       .catch(() => {
@@ -323,7 +232,7 @@ export function useDesktopProjectReadController(
       })
       .then(async () => {
         if (shownSession.current !== seen) return false;
-        setNotes(await loadShownNotes(host, seen, model?.manuscriptId ?? null));
+        await reads.refetchNotes(seen);
         return true;
       })
       .catch(() => {
@@ -340,7 +249,7 @@ export function useDesktopProjectReadController(
       .deleteNote(seen, noteId)
       .then(async () => {
         if (shownSession.current !== seen) return false;
-        setNotes(await loadShownNotes(host, seen, model?.manuscriptId ?? null));
+        await reads.refetchNotes(seen);
         return true;
       })
       .catch(() => {
@@ -359,21 +268,14 @@ export function useDesktopProjectReadController(
     }
     const seen = sessionId;
     setError('');
-    const generation = loadGenerationRef.current;
     return createDesktopClient({ desktopCall: host.desktopCall })
       .createNote(seen, {
         anchor: { kind: 'unit', unitId, view },
         content: { default: text },
       })
-      .then(() => loadShownNotes(host, seen, model?.manuscriptId ?? null))
-      .then((shown) => {
-        if (shownSession.current === seen && generation === loadGenerationRef.current)
-          setNotes(shown);
-      })
+      .then(() => reads.refetchNotes(seen))
       .catch((err: unknown) => {
-        if (shownSession.current === seen && generation === loadGenerationRef.current) {
-          setError(t(locale, 'app.desktopRead.loadFailed'));
-        }
+        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.loadFailed'));
         throw err;
       });
   };
@@ -382,7 +284,7 @@ export function useDesktopProjectReadController(
     sessionId,
     model,
     notes,
-    projectTitle,
+    projectTitle: reads.projectTitle,
     error,
     openFolder,
     selectManuscript,
@@ -400,57 +302,4 @@ export function useDesktopProjectReadController(
     deleteUnitNote,
     saveTierNote,
   };
-}
-
-interface UnitNote {
-  id: string;
-  unitId: string | null;
-  text: string;
-  category: ContentNoteCategory | null;
-  view: 'timeline' | 'waveform' | null;
-}
-
-const SHOWN_NOTE_KINDS = ['unit'] as const;
-
-async function loadShownNotes(
-  host: DesktopReadHost,
-  sessionId: string,
-  manuscriptId: string | null,
-): Promise<UnitNote[]> {
-  if (manuscriptId === null) return [];
-  const rows = await createDesktopClient({ desktopCall: host.desktopCall }).listNotes(sessionId, {
-    manuscriptId,
-    attachment: 'active',
-  });
-  return rows
-    .filter((row) => SHOWN_NOTE_KINDS.some((kind) => kind === row.anchorKind))
-    .map((row) => ({
-      id: row.id,
-      unitId: row.unitId,
-      text: row.content.default ?? '',
-      category: row.category,
-      view: row.view,
-    }));
-}
-
-function readApi(host: DesktopReadHost): DesktopProjectReadApi {
-  const client = createDesktopClient({ desktopCall: host.desktopCall });
-  return {
-    listManuscripts: (sessionId) => client.listManuscripts(sessionId),
-    listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
-    listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
-    mediaPlayUrl: async (sessionId, mediaId) =>
-      (await host.desktopMediaUrl(sessionId, mediaId)).url,
-  };
-}
-
-function shownProjectTitle(title: Record<string, string> | undefined): string {
-  if (title === undefined) return '';
-  const und = title.und?.trim() ?? '';
-  if (und.length > 0) return und;
-  for (const value of Object.values(title)) {
-    const text = value.trim();
-    if (text.length > 0) return text;
-  }
-  return '';
 }

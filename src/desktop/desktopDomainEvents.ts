@@ -8,7 +8,8 @@ export type DesktopDomainEvent = {
   unitId: string;
 };
 
-type Listener = (event: DesktopDomainEvent) => void;
+/** A listener may return a promise; `emitAfterWrite` waits for it (e.g. the refetch after invalidation). */
+type Listener = (event: DesktopDomainEvent) => void | Promise<unknown>;
 
 const log = createLogger('desktopDomainEvents');
 const listeners = new Set<Listener>();
@@ -20,23 +21,31 @@ export function subscribeDesktopDomainEvents(listener: Listener): () => void {
   };
 }
 
-/** A failing listener is logged and does not stop the others. */
-export function emitDesktopDomainEvent(event: DesktopDomainEvent): void {
+/** A failing listener is logged and does not stop the others. Resolves once every listener has settled. */
+export async function emitDesktopDomainEvent(event: DesktopDomainEvent): Promise<void> {
+  const pending: Promise<unknown>[] = [];
   for (const listener of [...listeners]) {
     try {
-      listener(event);
+      const result = listener(event);
+      if (result instanceof Promise)
+        pending.push(result.catch((error: unknown) => fail(event, error)));
     } catch (error) {
-      log.error('desktop domain event listener failed', { type: event.type, err: error });
+      fail(event, error);
     }
   }
+  await Promise.all(pending);
 }
 
-/** Emits only after the write resolves. A rejected write rethrows and emits nothing. */
+function fail(event: DesktopDomainEvent, error: unknown): void {
+  log.error('desktop domain event listener failed', { type: event.type, err: error });
+}
+
+/** Emits only after the write resolves, then waits for listeners. A rejected write rethrows and emits nothing. */
 export async function emitAfterWrite<T>(
   write: Promise<T>,
   toEvent: (result: T) => DesktopDomainEvent,
 ): Promise<T> {
   const result = await write;
-  emitDesktopDomainEvent(toEvent(result));
+  await emitDesktopDomainEvent(toEvent(result));
   return result;
 }

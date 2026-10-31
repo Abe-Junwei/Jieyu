@@ -28,13 +28,13 @@ depends_on:
 
 ## 3. 验收标准
 
-- [ ] 保存成功只经统一失效表触发重读，正文路径不再调 `reload()`（vitest 断言调用路径与读回值）
-- [ ] 保存失败不发事件、草稿保留、离开被拦（vitest + Chromium E2E）
-- [ ] 切项目/会话后，旧请求结果不写入新会话缓存（查询键含 `sessionId`；vitest 制造慢返回）
-- [ ] 关窗：有未提交草稿时弹确认（Electron 手测 + `tests/e2e-desktop/project-flow.spec.ts` 增一例）
-- [ ] 重开读回：已提交正文在，未提交的不在库中
-- [ ] IME `compositionstart` 后到 `compositionend` 前不提交
-- [ ] 改正文后分析图按 `updateUnitText` 事务清空（P0a 回归，复用 `unitTextUndo` / `analysisRestore` 测试）
+- [x] 保存成功只经统一失效表触发重读，正文路径不再调 `reload()`（vitest 断言调用路径与读回值）
+- [x] 保存失败不发事件、草稿保留、离开被拦（vitest + Chromium E2E）
+- [x] 切项目/会话后，旧请求结果不写入新会话缓存（查询键含 `sessionId`；vitest 制造慢返回）
+- [x] 关窗：有未提交草稿时弹确认（Electron 手测 + `tests/e2e-desktop/project-flow.spec.ts` 增一例）
+- [x] 重开读回：已提交正文在，未提交的不在库中
+- [x] IME `compositionstart` 后到 `compositionend` 前不提交
+- [x] 改正文后分析图按 `updateUnitText` 事务清空（P0a 回归，复用 `unitTextUndo` / `analysisRestore` 测试）
 
 ## 4. 受影响代码地图
 
