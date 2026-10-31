@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { LocaleProvider } from '../i18n';
@@ -6,7 +7,12 @@ import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return <LocaleProvider locale="en-US">{children}</LocaleProvider>;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={client}>
+      <LocaleProvider locale="en-US">{children}</LocaleProvider>
+    </QueryClientProvider>
+  );
 }
 
 describe('useDesktopProjectReadController (#401)', () => {
