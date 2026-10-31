@@ -16,7 +16,7 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] T1 `main.tsx` 换 `createBrowserRouter([{ path: '*', element: <App /> }])` + `RouterProvider`，`App.tsx` 不动 → 验证：`npm run test:e2e:chromium` 全绿
+- [x] T1 `main.tsx` 换 `createBrowserRouter([{ path: '*', element: <App /> }])` + `RouterProvider`，`App.tsx` 不动 → 验证：`npm run test:e2e:chromium` 全绿
 - [ ] T2 `desktopDomainEvents.ts` + 测试：失败不发、订阅可退 → 验证：`npx vitest run src/desktop/desktopDomainEvents.test.ts`
 - [ ] T3 `desktopQueryKeys.ts` + 单表：`unit.textSaved` → 读模型前缀 → 验证：`npx vitest run src/desktop/desktopQueryKeys.test.ts`
 - [ ] T4 读页读路径改 `useQuery`（键含 `sessionId`、显式 `staleTime`）；`reload()` 改 `refetch()` → 验证：`npx vitest run src/pages/DesktopProjectReadPage.test.tsx`

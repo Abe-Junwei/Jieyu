@@ -3,7 +3,7 @@ import '@vitejs/plugin-react/preamble';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { featureFlags } from './ai/config/featureFlags';
 import { App } from './App';
 import { installSqliteIpcPortIfEnabled, readDesktopStorageCall } from './db/installSqliteIpcPort';
@@ -114,13 +114,21 @@ function mountApp(): void {
     },
   });
 
-  ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <React.StrictMode>
-      <BrowserRouter>
+  // 数据路由才能用 useBlocker；单条 `*` 路由包住 App，App 里的 <Routes> 不变。
+  const router = createBrowserRouter([
+    {
+      path: '*',
+      element: (
         <QueryClientProvider client={queryClient}>
           <App />
         </QueryClientProvider>
-      </BrowserRouter>
+      ),
+    },
+  ]);
+
+  ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+    <React.StrictMode>
+      <RouterProvider router={router} />
     </React.StrictMode>,
   );
 }
