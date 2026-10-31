@@ -51,6 +51,7 @@ import {
   resolvePairedReadingHorizontalBundleKey,
   resolvePairedReadingLayerLabel,
   resolvePairedReadingTargetPlainTextForLayer,
+  resolvePairedReadingTargetMenuUnitId,
   resolvePairedReadingTranslationAudioScopeUnitId,
   partitionPairedReadingSourceItemsForDualTranscriptionColumns,
   partitionSecondarySourceItemsUnderPrimaryItems,
@@ -742,6 +743,8 @@ export function TranscriptionTimelineVerticalViewGroupList({
                               ),
                             );
                           }
+                          // Sync DOM before blur so onBlur does not persist the cancelled draft (#456).
+                          event.currentTarget.value = initialSourceText;
                           setUnitDrafts((prev) => ({
                             ...prev,
                             [sourceDraftKey]: initialSourceText,
@@ -1051,32 +1054,36 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                       .join(' ')}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onClick={(event) => {
-                                      if (!anchorForUi.unitId) return;
+                                      const selectId = resolvePairedReadingTargetMenuUnitId({
+                                        translationSegmentId: targetItem.translationSegmentId,
+                                        contextMenuSourceUnitId: anchorForUi.unitId,
+                                        sourceUnitIds: group.sourceItems.map((si) => si.unitId),
+                                        primaryUnitId,
+                                      });
+                                      const selectDoc = unitByIdForSpeaker.get(selectId);
+                                      if (!selectDoc) return;
                                       patchVerticalPaneFocus({
                                         activeVerticalReadingGroupId: group.id,
                                         activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
                                         pairedReadingTargetSide: 'target',
-                                        contextMenuSourceUnitId: anchorForUi.unitId,
+                                        contextMenuSourceUnitId: selectId,
                                       });
                                       handleAnnotationClick(
-                                        anchorForUi.unitId,
-                                        anchorForUi.startTime,
+                                        selectId,
+                                        selectDoc.startTime,
                                         tLayer.id,
                                         event,
                                       );
                                     }}
                                     onContextMenu={(event) => {
                                       if (!handleAnnotationContextMenu) return;
-                                      const menuSourceId =
-                                        contextMenuSourceUnitId != null &&
-                                        group.sourceItems.some(
-                                          (si) => si.unitId === contextMenuSourceUnitId,
-                                        )
-                                          ? contextMenuSourceUnitId
-                                          : primaryUnitId;
-                                      const menuUnitDoc = menuSourceId
-                                        ? unitByIdForSpeaker.get(menuSourceId)
-                                        : undefined;
+                                      const menuSourceId = resolvePairedReadingTargetMenuUnitId({
+                                        translationSegmentId: targetItem.translationSegmentId,
+                                        contextMenuSourceUnitId,
+                                        sourceUnitIds: group.sourceItems.map((si) => si.unitId),
+                                        primaryUnitId,
+                                      });
+                                      const menuUnitDoc = unitByIdForSpeaker.get(menuSourceId);
                                       if (!menuUnitDoc) return;
                                       patchVerticalPaneFocus({
                                         activeVerticalReadingGroupId: group.id,
@@ -1282,6 +1289,8 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                       if (event.key !== 'Escape') return;
                                       event.preventDefault();
                                       clearAutoSaveTimer(segAutoSaveKey);
+                                      // Sync DOM before blur so onBlur does not persist the cancelled draft (#456).
+                                      event.currentTarget.value = itemInitial;
                                       setTranslationDrafts((prev) => ({
                                         ...prev,
                                         [itemDraftKey]: itemInitial,
@@ -1290,32 +1299,36 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                       event.currentTarget.blur();
                                     }}
                                     onClick={(event) => {
-                                      if (!anchorForUi.unitId) return;
+                                      const selectId = resolvePairedReadingTargetMenuUnitId({
+                                        translationSegmentId: targetItem.translationSegmentId,
+                                        contextMenuSourceUnitId: anchorForUi.unitId,
+                                        sourceUnitIds: group.sourceItems.map((si) => si.unitId),
+                                        primaryUnitId,
+                                      });
+                                      const selectDoc = unitByIdForSpeaker.get(selectId);
+                                      if (!selectDoc) return;
                                       patchVerticalPaneFocus({
                                         activeVerticalReadingGroupId: group.id,
                                         activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
                                         pairedReadingTargetSide: 'target',
-                                        contextMenuSourceUnitId: anchorForUi.unitId,
+                                        contextMenuSourceUnitId: selectId,
                                       });
                                       handleAnnotationClick(
-                                        anchorForUi.unitId,
-                                        anchorForUi.startTime,
+                                        selectId,
+                                        selectDoc.startTime,
                                         tLayer.id,
                                         event,
                                       );
                                     }}
                                     onContextMenu={(event) => {
                                       if (!handleAnnotationContextMenu) return;
-                                      const menuSourceId =
-                                        contextMenuSourceUnitId != null &&
-                                        group.sourceItems.some(
-                                          (si) => si.unitId === contextMenuSourceUnitId,
-                                        )
-                                          ? contextMenuSourceUnitId
-                                          : primaryUnitId;
-                                      const menuUnitDoc = menuSourceId
-                                        ? unitByIdForSpeaker.get(menuSourceId)
-                                        : undefined;
+                                      const menuSourceId = resolvePairedReadingTargetMenuUnitId({
+                                        translationSegmentId: targetItem.translationSegmentId,
+                                        contextMenuSourceUnitId,
+                                        sourceUnitIds: group.sourceItems.map((si) => si.unitId),
+                                        primaryUnitId,
+                                      });
+                                      const menuUnitDoc = unitByIdForSpeaker.get(menuSourceId);
                                       if (!menuUnitDoc) return;
                                       patchVerticalPaneFocus({
                                         activeVerticalReadingGroupId: group.id,
@@ -1630,6 +1643,8 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                       if (event.key !== 'Escape') return;
                                       event.preventDefault();
                                       clearAutoSaveTimer(pairedReadingAutoSaveKey);
+                                      // Sync DOM before blur so onBlur does not persist the cancelled draft (#456).
+                                      event.currentTarget.value = initialTargetText;
                                       setTranslationDrafts((prev) => ({
                                         ...prev,
                                         [draftKey]: initialTargetText,

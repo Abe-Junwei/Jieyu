@@ -83,6 +83,7 @@ export function projectFolderLockedByThisProcess(projectDir: string): boolean {
 
 function lockIsStale(lockDir: string): boolean {
   try {
+    // A directory without owner is still being created. Only an old mtime is stale.
     return Date.now() - fs.statSync(lockDir).mtimeMs > PROJECT_LOCK_STALE_MS;
   } catch {
     return false;
@@ -90,11 +91,25 @@ function lockIsStale(lockDir: string): boolean {
 }
 
 function removeStaleLock(lockDir: string): boolean {
+  const aside = `${lockDir}.${randomUUID()}.stale`;
   try {
-    if (Date.now() - fs.statSync(lockDir).mtimeMs <= PROJECT_LOCK_STALE_MS) return false;
-    fs.rmSync(lockDir, { recursive: true, force: true });
+    fs.renameSync(lockDir, aside);
+  } catch {
+    return false;
+  }
+  try {
+    if (!lockIsStale(aside)) {
+      fs.renameSync(aside, lockDir);
+      return false;
+    }
+    fs.rmSync(aside, { recursive: true, force: true });
     return true;
   } catch {
+    try {
+      if (!fs.existsSync(lockDir)) fs.renameSync(aside, lockDir);
+    } catch {
+      // The aside name is unique. A failed restore is collected on the next acquire.
+    }
     return false;
   }
 }

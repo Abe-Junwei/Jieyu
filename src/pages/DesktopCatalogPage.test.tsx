@@ -168,6 +168,11 @@ describe('DesktopCatalogPage', () => {
     expect(callDesktopSession(reopened.sessionId, 'bridges.list', {})).toEqual([
       expect.objectContaining({ id: bridge.id, rules: { from: 'b' } }),
     ]);
+    cleanup();
+    resetDesktopSessions();
+    const shown = openDesktopSession(folder, [folder]);
+    renderCatalog(shown.sessionId, 'bridge', []);
+    expect(await screen.findByDisplayValue('{"from":"b"}')).toBeTruthy();
   });
 
   it('leaves structural templates off the old workspace', async () => {

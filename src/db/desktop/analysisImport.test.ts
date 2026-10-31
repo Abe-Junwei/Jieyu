@@ -453,7 +453,7 @@ describe('analysis import', () => {
   });
 
   it('requires a custom field on a new analysis node and still edits an old one', () => {
-    const { project, unitId, expected } = seeded({
+    const { dir, project, unitId, expected } = seeded({
       payloadVersion: 1,
       id: 'g1',
       text: 'ka',
@@ -472,6 +472,8 @@ describe('analysis import', () => {
       nodes: [{ id: 'n1', domain: { gloss: { zh: '已往' } } }],
     });
     expect(edited.root.graph?.nodes[0]?.domain?.gloss?.zh).toBe('已往');
+    const fingerprint = edited.root.graphFingerprint;
+    const tokens = project.db.prepare('SELECT COUNT(*) AS n FROM tokens').get();
     expect(() =>
       importAnalysis(project.db, {
         unitId,
@@ -483,8 +485,53 @@ describe('analysis import', () => {
         nodes: [{ type: 'token', domain: { form: { default: 'new' } } }],
       }),
     ).toThrow('analysis-node is missing a required field');
+    expect(getAnalysisRoot(project.db, unitId)?.graphFingerprint).toBe(fingerprint);
     expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes).toHaveLength(1);
+    expect(project.db.prepare('SELECT COUNT(*) AS n FROM tokens').get()).toEqual(tokens);
     project.close();
+    const again = openProject(dir);
+    expect(getAnalysisRoot(again.db, unitId)?.graphFingerprint).toBe(fingerprint);
+    expect(getAnalysisRoot(again.db, unitId)?.graph?.nodes).toHaveLength(1);
+    again.close();
+  });
+
+  it('rejects a new relation that misses a required field and keeps the old graph', () => {
+    const { dir, project, unitId, stored } = seeded({
+      payloadVersion: 1,
+      id: 'g1',
+      text: 'ka',
+      nodes: [token('n1', 0), token('n2', 1)],
+      relations: [],
+    });
+    createDefinition(project.db, {
+      targetType: 'analysis-relation',
+      name: { en: 'Required' },
+      fieldType: 'text',
+      required: true,
+    });
+    const before = getAnalysisRoot(project.db, unitId);
+    const tokens = project.db.prepare('SELECT COUNT(*) AS n FROM tokens').get();
+    expect(() =>
+      writeAnalysisRoot(project.db, {
+        unitId,
+        expectedAnalysisGeneration: stored.analysisGeneration,
+        graph: {
+          payloadVersion: 1,
+          id: 'g1',
+          text: 'ka',
+          nodes: [token('n1', 0), token('n2', 1)],
+          relations: [{ id: 'r1', type: 'next', sourceId: 'n1', targetId: 'n2' }],
+        },
+      }),
+    ).toThrow('analysis-relation is missing a required field');
+    expect(getAnalysisRoot(project.db, unitId)?.graphFingerprint).toBe(before?.graphFingerprint);
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.relations).toEqual([]);
+    expect(project.db.prepare('SELECT COUNT(*) AS n FROM tokens').get()).toEqual(tokens);
+    project.close();
+    const again = openProject(dir);
+    expect(getAnalysisRoot(again.db, unitId)?.graph?.relations).toEqual([]);
+    expect(getAnalysisRoot(again.db, unitId)?.graphFingerprint).toBe(before?.graphFingerprint);
+    again.close();
   });
 
   it('accepts a surface part that only names its token', () => {

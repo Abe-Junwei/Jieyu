@@ -5,7 +5,11 @@ export interface ByteSlice {
 }
 
 export function sliceForRange(total: number, rangeHeader: string | null): ByteSlice {
-  if (!rangeHeader) return { status: 200, start: 0, end: Math.max(0, total - 1) };
+  if (!rangeHeader) {
+    return total <= 0
+      ? { status: 200, start: 0, end: -1 }
+      : { status: 200, start: 0, end: total - 1 };
+  }
   const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
   const startRaw = match?.[1] ?? '';
   const endRaw = match?.[2] ?? '';
@@ -13,7 +17,8 @@ export function sliceForRange(total: number, rangeHeader: string | null): ByteSl
     return { status: 416, start: 0, end: 0 };
   }
   const suffix = startRaw === '';
-  const start = suffix ? total - Number.parseInt(endRaw, 10) : Number.parseInt(startRaw, 10);
+  const suffixLength = Number.parseInt(endRaw, 10);
+  const start = suffix ? Math.max(0, total - suffixLength) : Number.parseInt(startRaw, 10);
   const end = suffix || endRaw === '' ? total - 1 : Number.parseInt(endRaw, 10);
   if (
     !Number.isFinite(start) ||

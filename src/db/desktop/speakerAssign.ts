@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import { getSpeaker } from './speakers';
-import { getUnit, type Unit } from './units';
+import { readStoredUnit, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -21,7 +21,7 @@ export function assignSpeaker(
   const write = db.transaction(() => {
     if (getSpeaker(db, input.speakerId) === null) throw new Error('speaker is missing');
     const before = input.unitIds.map((id) => {
-      const unit = getUnit(db, id);
+      const unit = readStoredUnit(db, id);
       if (!unit) throw new Error('unit is missing');
       return unit;
     });
@@ -33,7 +33,7 @@ export function assignSpeaker(
     for (const unit of before) update.run(input.speakerId, now, unit.id);
     afterWrite?.();
     const units = before.map((unit) => {
-      const stored = getUnit(db, unit.id);
+      const stored = readStoredUnit(db, unit.id);
       if (!stored || stored.speakerId !== input.speakerId || stored.text !== unit.text) {
         throw new Error('speaker assign readback failed');
       }
@@ -62,7 +62,7 @@ export function undoAssignSpeaker(
     for (const unit of undo.units) update.run(unit.speakerId, now, unit.id);
     afterWrite?.();
     return undo.units.map((unit) => {
-      const stored = getUnit(db, unit.id);
+      const stored = readStoredUnit(db, unit.id);
       if (!stored || stored.speakerId !== unit.speakerId) {
         throw new Error('speaker assign undo readback failed');
       }
@@ -73,5 +73,5 @@ export function undoAssignSpeaker(
 }
 
 function assignStillAfter(db: SqliteDatabase, undo: SpeakerAssignUndo): boolean {
-  return undo.units.every((unit) => getUnit(db, unit.id)?.speakerId === undo.speakerId);
+  return undo.units.every((unit) => readStoredUnit(db, unit.id)?.speakerId === undo.speakerId);
 }

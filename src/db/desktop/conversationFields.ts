@@ -6,16 +6,16 @@ import {
   type ConversationFieldRevisions,
   type ConversationMode,
 } from './conversations';
+import type { DiagnosticReceipt } from './diagnosticDelivery';
 import {
-  diagnosticStoreFile,
-  payloadHash,
-  receiveDiagnostic,
-  type DiagnosticReceipt,
-} from './diagnosticDelivery';
+  finishFieldDelivery,
+  recordPendingDelivery,
+  replayDelivery,
+  resumeDelivery,
+} from './fieldDelivery';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
-// ponytail: third copy of the source/speaker delivery helpers. Extract when a fourth domain needs it.
 export interface ConversationReading extends Conversation {
   delivery: 'unchanged' | 'pending' | 'confirmed';
 }
@@ -36,68 +36,20 @@ export interface ConversationPatch {
   clearedAt?: FieldPatch<string | null>;
 }
 
-interface DeliveryRow {
-  origin_project_id: string;
-  operation_id: string;
-  event_seq: number;
-  payload_hash: string;
-  input_fingerprint: string;
-  summary_json: string;
-  status: 'pending' | 'confirmed';
-}
-
 export function patchConversation(
   db: SqliteDatabase,
   input: ConversationPatch,
 ): ConversationReading {
   const applied = db.transaction(() => applyPatch(db, input))();
   if (applied.receipt === null) return applied.reading;
-  return finishDelivery(db, applied.reading, applied.receipt, applied.reading.delivery);
+  return finishFieldDelivery(db, applied.reading, applied.receipt, applied.reading.delivery);
 }
 
 export function redeliverConversation(
   db: SqliteDatabase,
   operationId: string,
 ): ConversationReading {
-  const row = requireDelivery(db, operationId);
-  const summary = JSON.parse(row.summary_json) as { conversationId?: unknown };
-  if (typeof summary.conversationId !== 'string') throw new Error('diagnostic delivery is invalid');
-  const conversation = getConversation(db, summary.conversationId);
-  if (conversation === null) throw new Error('conversation is missing');
-  return finishDelivery(
-    db,
-    { ...conversation, delivery: row.status },
-    {
-      originProjectId: row.origin_project_id,
-      operationId: row.operation_id,
-      eventSeq: row.event_seq,
-      payloadHash: row.payload_hash,
-    },
-    row.status,
-  );
-}
-
-function finishDelivery(
-  db: SqliteDatabase,
-  reading: ConversationReading,
-  receipt: DiagnosticReceipt,
-  current: ConversationReading['delivery'] = 'pending',
-): ConversationReading {
-  const file = diagnosticStoreFile();
-  if (file === null) {
-    return { ...reading, delivery: current === 'confirmed' ? 'confirmed' : 'pending' };
-  }
-  try {
-    receiveDiagnostic(file, receipt);
-  } catch (error) {
-    if (error instanceof Error && error.message === 'diagnostic payload conflict') throw error;
-    return { ...reading, delivery: 'pending' };
-  }
-  db.prepare(
-    `UPDATE diagnostic_deliveries SET status = 'confirmed'
-     WHERE origin_project_id = ? AND operation_id = ? AND event_seq = ?`,
-  ).run(receipt.originProjectId, receipt.operationId, receipt.eventSeq);
-  return { ...reading, delivery: 'confirmed' };
+  return resumeDelivery(db, operationId, (summary) => conversationReading(db, summary));
 }
 
 function applyPatch(
@@ -105,22 +57,13 @@ function applyPatch(
   input: ConversationPatch,
 ): { reading: ConversationReading; receipt: DiagnosticReceipt | null } {
   const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex');
-  const existing = findDelivery(db, input.operationId);
-  if (existing !== null) {
-    if (existing.input_fingerprint !== fingerprint) throw new Error('diagnostic delivery conflict');
-    const summary = JSON.parse(existing.summary_json) as { conversationId?: unknown };
-    if (typeof summary.conversationId !== 'string')
-      throw new Error('diagnostic delivery is invalid');
-    const conversation = getConversation(db, summary.conversationId);
-    if (conversation === null) throw new Error('conversation is missing');
+  const replay = replayDelivery(db, input.operationId, fingerprint, (summary) =>
+    conversationReading(db, summary),
+  );
+  if (replay !== null) {
     return {
-      reading: { ...conversation, delivery: existing.status },
-      receipt: {
-        originProjectId: existing.origin_project_id,
-        operationId: existing.operation_id,
-        eventSeq: existing.event_seq,
-        payloadHash: existing.payload_hash,
-      },
+      reading: { ...replay.reading, delivery: replay.status },
+      receipt: replay.receipt,
     };
   }
   const current = getConversation(db, input.id);
@@ -180,24 +123,22 @@ function applyPatch(
     current.id,
   );
   const summary = { conversationId: current.id, fields: changed, revisions };
-  const hash = payloadHash(summary);
-  const origin = originProjectId(db);
-  db.prepare(
-    `INSERT INTO diagnostic_deliveries (
-       origin_project_id, operation_id, event_seq, payload_hash, input_fingerprint, summary_json, status
-     ) VALUES (?, ?, 0, ?, ?, ?, 'pending')`,
-  ).run(origin, input.operationId, hash, fingerprint, JSON.stringify(summary));
+  const receipt = recordPendingDelivery(db, {
+    operationId: input.operationId,
+    fingerprint,
+    summary,
+  });
   const stored = getConversation(db, current.id);
   if (stored === null) throw new Error('conversation readback failed');
-  return {
-    reading: { ...stored, delivery: 'pending' },
-    receipt: {
-      originProjectId: origin,
-      operationId: input.operationId,
-      eventSeq: 0,
-      payloadHash: hash,
-    },
-  };
+  return { reading: { ...stored, delivery: 'pending' }, receipt };
+}
+
+function conversationReading(db: SqliteDatabase, summary: unknown): Conversation {
+  const record = summary as { conversationId?: unknown };
+  if (typeof record.conversationId !== 'string') throw new Error('diagnostic delivery is invalid');
+  const conversation = getConversation(db, record.conversationId);
+  if (conversation === null) throw new Error('conversation is missing');
+  return conversation;
 }
 
 function take<T>(
@@ -210,27 +151,4 @@ function take<T>(
   if (patch.expectedRevision !== revision) throw new Error(`conversation field conflict: ${name}`);
   if (patch.value === value) return { value, revision, changed: false };
   return { value: patch.value, revision: revision + 1, changed: true };
-}
-
-function originProjectId(db: SqliteDatabase): string {
-  const rows = db.prepare('SELECT id FROM project').all() as { id: string }[];
-  const only = rows[0];
-  if (rows.length !== 1 || only === undefined) throw new Error('project is missing');
-  return only.id;
-}
-
-function requireDelivery(db: SqliteDatabase, operationId: string): DeliveryRow {
-  const row = findDelivery(db, operationId);
-  if (row === null) throw new Error('diagnostic delivery is missing');
-  return row;
-}
-
-function findDelivery(db: SqliteDatabase, operationId: string): DeliveryRow | null {
-  const rows = db
-    .prepare('SELECT * FROM diagnostic_deliveries WHERE operation_id = ?')
-    .all(operationId) as DeliveryRow[];
-  const row = rows[0];
-  if (row === undefined) return null;
-  if (rows.length !== 1) throw new Error('diagnostic delivery is invalid');
-  return row;
 }

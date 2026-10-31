@@ -35,7 +35,7 @@ export function isAllowedProjectFolder(folder: string, allowedFolders: readonly 
   return allowedFolders.some((allowed) => allowed.length > 0 && path.resolve(allowed) === resolved);
 }
 
-/** Only same-document file loads or same-origin http(s) loads may replace the app page. */
+/** Same-document file loads, same-origin http(s), or the packaged app scheme may replace the page. */
 export function isAppNavigation(target: string, current: string): boolean {
   let next: URL;
   let now: URL;
@@ -47,6 +47,7 @@ export function isAppNavigation(target: string, current: string): boolean {
   }
   if (next.protocol !== now.protocol) return false;
   if (next.protocol === 'file:') return next.pathname === now.pathname;
+  if (next.protocol === 'jieyu-app:') return next.host.length > 0 && next.host === now.host;
   if (next.protocol !== 'http:' && next.protocol !== 'https:') return false;
   return next.origin === now.origin;
 }

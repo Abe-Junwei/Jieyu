@@ -28,4 +28,29 @@ describe('ensureDomParser (#427)', () => {
     ensureDomParser();
     expect(globalThis.DOMParser).toBe(sentinel);
   });
+
+  it('loads linkedom when bare require is missing (#452)', () => {
+    // @ts-expect-error intentional: simulate Electron main
+    delete globalThis.DOMParser;
+    const host = globalThis as typeof globalThis & { require?: unknown };
+    const previous = Object.getOwnPropertyDescriptor(host, 'require');
+    Object.defineProperty(host, 'require', {
+      configurable: true,
+      get() {
+        throw new ReferenceError('require is not defined');
+      },
+    });
+    try {
+      ensureDomParser();
+      expect(typeof globalThis.DOMParser).toBe('function');
+      const doc = new DOMParser().parseFromString('<root><item/></root>', 'application/xml');
+      expect(doc.getElementsByTagName('item').length).toBe(1);
+    } finally {
+      if (previous === undefined) {
+        delete host.require;
+      } else {
+        Object.defineProperty(host, 'require', previous);
+      }
+    }
+  });
 });

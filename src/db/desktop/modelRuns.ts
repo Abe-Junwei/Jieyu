@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { invertTextTimeMapping } from '../../services/LinguisticService.timeMapping';
+import { writeUnitFieldValues } from './customFields';
 import { getManuscript } from './manuscripts';
+import { assertUnitTextRoleFree } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -195,6 +197,27 @@ export function finishModelRun(db: SqliteDatabase, input: ModelRunFinish): Model
   return write();
 }
 
+export interface AcceptableRun {
+  id: string;
+  rangeStart: number;
+  rangeEnd: number;
+}
+
+export function listAcceptableRuns(db: SqliteDatabase, manuscriptId: string): AcceptableRun[] {
+  return db
+    .prepare(
+      `SELECT model_runs.id, model_runs.range_start AS rangeStart, model_runs.range_end AS rangeEnd
+       FROM model_runs
+       JOIN manuscripts ON manuscripts.id = model_runs.manuscript_id
+       WHERE model_runs.manuscript_id = ?
+         AND model_runs.status = 'ok'
+         AND manuscripts.deleted_at IS NULL
+         AND model_runs.lifecycle_generation = manuscripts.lifecycle_generation
+       ORDER BY model_runs.started_at, model_runs.id`,
+    )
+    .all(manuscriptId) as AcceptableRun[];
+}
+
 export function previewModelRun(
   db: SqliteDatabase,
   input: { runId: string; candidates: PreviewCandidateInput[] },
@@ -214,6 +237,13 @@ export function previewModelRun(
         throw new Error('transcription range is invalid');
       }
     }
+    const duration = mediaDuration(db, run.mediaId);
+    for (const candidate of input.candidates) {
+      if (candidate.mediaStart < 0 || candidate.mediaEnd > duration) {
+        throw new Error('transcription time is invalid');
+      }
+      assertInsideRun(run, candidate.mediaStart, candidate.mediaEnd);
+    }
     const placed = input.candidates.map((candidate) => placeCandidate(db, run, candidate));
     db.prepare('UPDATE model_runs SET pending_count = ? WHERE id = ?').run(placed.length, run.id);
     const stored = getModelRun(db, run.id);
@@ -230,7 +260,41 @@ export function previewModelRun(
       candidates: placed,
     };
   });
-  return write();
+  const preview = write();
+  for (const key of [...previews.keys()]) {
+    if (key.startsWith(`${input.runId}\0`)) previews.delete(key);
+  }
+  for (const candidate of preview.candidates) rememberPreview(input.runId, candidate);
+  return preview;
+}
+
+const previews = new Map<string, { mediaStart: number; mediaEnd: number }>();
+
+function previewKey(runId: string, candidateId: string): string {
+  return `${runId}\0${candidateId}`;
+}
+
+function rememberPreview(runId: string, candidate: PreviewCandidate): void {
+  previews.set(previewKey(runId, candidate.candidateId), {
+    mediaStart: candidate.mediaStart,
+    mediaEnd: candidate.mediaEnd,
+  });
+}
+
+function previewedRange(
+  runId: string,
+  candidateId: string,
+): { mediaStart: number; mediaEnd: number } | undefined {
+  return previews.get(previewKey(runId, candidateId));
+}
+
+function mediaDuration(db: SqliteDatabase, mediaId: string): number {
+  const row = db.prepare('SELECT duration FROM media WHERE id = ?').get(mediaId) as
+    { duration: number } | undefined;
+  if (row === undefined || !Number.isFinite(row.duration) || row.duration < 0) {
+    throw new Error('transcription time is invalid');
+  }
+  return row.duration;
 }
 
 export function acceptTranscriptionCandidate(
@@ -252,6 +316,7 @@ export function acceptTranscriptionCandidate(
   const write = db.transaction(() => {
     const run = requireRun(db, input.runId);
     if (run.status !== 'ok') throw new Error('transcription run is not acceptable');
+    assertInsideRun(run, input.mediaStart, input.mediaEnd);
     if (run.pendingCount < 1) throw new Error('transcription run has no pending candidate');
     requireCurrentLifecycle(db, run);
     const mapping = mappingOf(db, run.manuscriptId);
@@ -265,8 +330,25 @@ export function acceptTranscriptionCandidate(
     if (targetFingerprint(overlaps) !== input.targetFingerprint) {
       throw new Error('transcription preview is stale');
     }
-    const unitId = randomUUID();
     const candidateId = candidateIdentity(input.chunkIndex, input.segmentIndex);
+    const operationTaken = db
+      .prepare('SELECT 1 AS ok FROM transcription_acceptances WHERE operation_id = ?')
+      .get(input.operationId);
+    if (operationTaken !== undefined) throw new Error('transcription operation is already used');
+    const preview = previewedRange(input.runId, candidateId);
+    if (
+      preview === undefined ||
+      preview.mediaStart !== input.mediaStart ||
+      preview.mediaEnd !== input.mediaEnd
+    ) {
+      throw new Error('transcription preview is stale');
+    }
+    const duration = mediaDuration(db, run.mediaId);
+    if (input.mediaStart < 0 || input.mediaEnd > duration) {
+      throw new Error('transcription time is invalid');
+    }
+    const unitId = randomUUID();
+    assertUnitTextRoleFree(db, unitId, 'transcription');
     db.prepare(
       `INSERT INTO units (
         id, layer_id, start_time, end_time, created_at, updated_at
@@ -276,6 +358,7 @@ export function acceptTranscriptionCandidate(
       `INSERT INTO unit_texts (id, unit_id, role, body, provenance_json, updated_at)
        VALUES (?, ?, 'transcription', ?, ?, ?)`,
     ).run(randomUUID(), unitId, input.text, provenanceJson(run, now), now);
+    writeUnitFieldValues(db, unitId, undefined);
     try {
       db.prepare(
         `INSERT INTO transcription_acceptances (
@@ -481,6 +564,12 @@ function requireRun(db: SqliteDatabase, id: string): ModelRun {
   return run;
 }
 
+function assertInsideRun(run: ModelRun, start: number, end: number): void {
+  if (start < run.rangeStart || end > run.rangeEnd) {
+    throw new Error('transcription range is outside the run');
+  }
+}
+
 function requireCurrentLifecycle(db: SqliteDatabase, run: ModelRun): void {
   const manuscript = db
     .prepare('SELECT lifecycle_generation AS lifecycleGeneration FROM manuscripts WHERE id = ?')
@@ -489,6 +578,20 @@ function requireCurrentLifecycle(db: SqliteDatabase, run: ModelRun): void {
   if (manuscript.lifecycleGeneration !== run.lifecycleGeneration) {
     throw new Error('transcription run is stale');
   }
+}
+
+/** Read-only credential for the entire requested target, captured before external work. */
+export function modelRunTarget(db: SqliteDatabase, runId: string) {
+  const run = requireRun(db, runId);
+  requireCurrentLifecycle(db, run);
+  const mapping = mappingOf(db, run.manuscriptId);
+  const rows = overlappingTexts(
+    db,
+    run.layerId,
+    invertTextTimeMapping(run.rangeStart, mapping),
+    invertTextTimeMapping(run.rangeEnd, mapping),
+  );
+  return { revision: mapping.revision, fingerprint: targetFingerprint(rows) };
 }
 
 function mappingOf(

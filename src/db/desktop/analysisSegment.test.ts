@@ -1,11 +1,11 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { callDesktopSession } from './desktopCall';
 import { openProject } from './openProject';
-import { openDesktopSession, resetDesktopSessions } from './projectSession';
+import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
 const T = '2026-10-26T00:00:00.000Z';
@@ -127,5 +127,47 @@ describe('segmentUnitWords', () => {
       callDesktopSession(reopened.sessionId, 'analysis.listMorphemes', { unitId: unit.id }),
     ).toEqual(morphemes);
     resetDesktopSessions();
+  });
+
+  it('rolls the graph back when a word projection insert fails', () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const media = callDesktopSession(session.sessionId, 'media.create', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 4,
+    }) as { id: string };
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      mediaId: media.id,
+      title: { und: 'M' },
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { und: 'T' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      startTime: 0,
+      endTime: 2,
+      text: 'word',
+    }) as { id: string };
+    requireDesktopSession(session.sessionId).db.exec(
+      "CREATE TEMP TRIGGER audit_fail_token BEFORE INSERT ON tokens BEGIN SELECT RAISE(ABORT, 'audit injected token failure'); END",
+    );
+    expect(() =>
+      callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id }),
+    ).toThrow('audit injected token failure');
+    callDesktopSession(session.sessionId, 'reopen', {});
+    expect(
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: unit.id }),
+    ).toMatchObject({
+      graph: null,
+      analysisGeneration: 0,
+      graphFingerprint: '',
+    });
   });
 });
