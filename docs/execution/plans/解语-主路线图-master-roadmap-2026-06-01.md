@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-30
+last_reviewed: 2026-10-31
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -232,6 +232,11 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 > **进度与建议下一刀**：#306 / N1 模拟模型响应→内存候选→人工采纳已落地，真实 Electron 合成流程通过；默认关闭，一周自用待做，阈值批量与逐条拒绝计数仍未完成，#306 不关闭。#303/#305 的真实 Whisper 开发闭环也已通过 Electron 合成采纳/重开；按 [ADR-0098](../../adr/0098-model-delivery-followups-in-second-stage.md)，模型下载、持久管理、转码及随包分发移第二程 #285，当前不做、不挡第一程；后续可领取 #312 反馈诊断、#313 示例产品入口；#329/#280 先补桌面测试与 CI 替代。细节只维护在[单库当前剩余队列](./desktop-project-sqlite-2026-10-25.md#当前剩余工作与下一刀2026-10-30)。
 >
 > **后移发布项**：真机安装、Windows、升级和真实系统垃圾箱不计本轮，后续按 #277/#282 的发布范围领取。真实示例仍仅用户制作和试用。A15 放量、B7 与协作等不因此解冻。
+>
+> **待审（2026-10-31）· 四页工作区计划文档**：对象是两份计划文，不是实施切片。下一步动作是**审核并拍板是否按清单做**；审完再谈开工。**现在不开工，不做切片 0，不改产品代码。**
+> - 账本（Grill 十二条 + 对账）：[jieyu-4ws-ledger-2026-10-31.md](./jieyu-4ws-ledger-2026-10-31.md)
+> - 实施清单（切片 0–7 + P0 待复核并行 + P1 按页设计）：[jieyu-4ws-impl-checklist-2026-10-31.md](./jieyu-4ws-impl-checklist-2026-10-31.md)
+> - 范围摘要（仅便于审读，不授权开工）：转写→标注→词典→语料 + 最小分析只读；Legacy 逐项退出；工作集延期接替。
 
 > **存储接口切片记录（止于 2026-10-25，不再往下补方法）**：本段是已停止的旧端口记录，不是下一刀。后续只看单库计划的当前剩余队列。不要按下面的 `.jyd` 列继续补方法。[#275](https://github.com/Abe-Junwei/Jieyu/issues/275) 的存储接口开始写 SQLite。本机 userData 里的回合和审计、跨文件的说话人分配、一份文稿里的正则拆分、一份文稿里的轨道行、项目库里的来源记录，以及项目库里的录音行，已经用 better-sqlite3 写入并关掉再打开读回，还没换成默认实现。说话人名单在项目行的 `speaker_ids_json`，语段种类在 `.jyd` 的 `units.unit_type`（ADR-0071）。正则拆分的起止时间、更新时间和项目编号在语段行和正文行上（ADR-0072）。轨道行的项目编号和更新时间在 `track_entities` 上，车道锁定表仍是 `lane_lock_json`（ADR-0073）。来源记录的哈希、外部编号、导入时间和更新时间在项目库 `source_records` 上（ADR-0074）。录音行在项目库 `media_items` 上，音频字节仍是普通文件（ADR-0075）。去掉一条空录音先改文稿再改项目库，不删音频文件，也不改 `meta.audio_id`（ADR-0076）。文稿改挂录音是替换 `meta.audio_id`，不追加第二条（ADR-0077）。语段关系和父子链接只写在同一份文稿里，跨文稿的不写（ADR-0078）。桌面壳在开关打开时经一次 IPC 换上这个实现（ADR-0079），冒烟写入一条回合并关掉再打开读回。开关默认关，浏览器仍用 Dexie。会话和消息留在项目库，改标题、改消息正文或清空一个会话的消息后关掉再打开仍在（ADR-0080）。引用和推理正文不进消息行。另一项目的录音按 `media_items.text_id` 列出来，不另加列。语段编号按 `.jyd` 里已有的 `id` 和 `text_id` 列出，不读整份语段文档。另一项目的语段也用这一列，空的项目编号不算另一项目。锚点按 `.jyd` 里已有的 `media_id` 计数。同一个编号在两份文稿里又落在同一条录音上就拒绝，不另加列。词按语段已有的 `text_id` 计数，不另加列，不读整行。同一个编号在两份文稿里又属于同一项目就拒绝。审计列表读 userData 里已有的 `payload_json`，不另加列。产物的创建时间在项目库 `agent_artifacts.created_at`，可空，迁移不读这列，旧库不加列（ADR-0081）。空的创建时间拒绝读取。写入先提交产物，再提交审计；审计失败时产物留下。其余项目库和 `.jyd` 上的业务操作停在这里，不再补。另一项目的层用 `.jyd` 里可空的 `layers.text_id`（ADR-0082）。迁移不读这列，旧库不加列。空的项目编号拒绝读取。没有这列的旧文稿，非空查询拒绝。项目行另加可空的 `title_json`、`created_at`、`updated_at`（ADR-0083）。迁移不读这三列，旧库不加列。空的标题或时间拒绝读取，`name` 不当成标题。2026-10-25 起不再按这份草稿往下补方法，下一步见 [桌面项目单库](./desktop-project-sqlite-2026-10-25.md)。定义副本只含这张文稿用到的语言、显示名、别名、正字法和说话人（ADR-0070）。会话记忆载荷（ADR-0066）、`model_runs`（ADR-0057 第 8 条）、语言记录上的数组与备注（ADR-0067）、词条 DMLex 正文（ADR-0068），以及结构规则正文、正字法转换规则与样例、车道锁定表（ADR-0069）已写入并读回。[#280](https://github.com/Abe-Junwei/Jieyu/issues/280) 与之并行。#276 与 [#328](https://github.com/Abe-Junwei/Jieyu/issues/328) 已落地。已落成的决定：存储接口 [ADR-0048](../../adr/0048-storage-port.md)、模型接口 [ADR-0057](../../adr/0057-model-interface-transcribe.md)、IndexedDB 归层 [ADR-0058](../../adr/0058-indexeddb-two-layer-placement.md)、文件夹内容 [ADR-0061](../../adr/0061-jyd-manuscript-file-audio-stays-plain.md)、[ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)、只做桌面版 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、新功能冻结 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 >
@@ -393,6 +398,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 - 工程治理：[代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md)
 - 持久化方向以 [ADR 目录的有效条款对照](../../adr/README.md) 为准：文件夹内容是 [ADR-0085](../../adr/0085-desktop-project-one-sqlite.md)，交换包和每日备份仍是 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)，新存储的一次操作一次事务沿用 [ADR-0048](../../adr/0048-storage-port.md) 的业务方法，仍有效的桌面条款见 [ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)，桌面剥离协作是 [ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md)，只做桌面版是 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)。冻结与有限开放以 [ADR-0086](../../adr/0086-desktop-release-scope-and-format-freeze.md) 为准，覆盖 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md) 的解冻顺序。当前存储切片见 [桌面项目单库](./desktop-project-sqlite-2026-10-25.md)。排期见 [试用地图](../../wayfinder/trial-handoff/map.md)。
 - 2026-10-30 单库本轮及七项复审修复已验收；剩余执行顺序只看[单库当前队列](./desktop-project-sqlite-2026-10-25.md#当前剩余工作与下一刀2026-10-30)。真机安装、Windows、升级和真实系统垃圾箱留后续发布；M7-C 旧路径退出独立跟踪，单库总计划保持 active。
+- **待审·四页工作区**：[功能对账账本](./jieyu-4ws-ledger-2026-10-31.md) 与 [实施清单](./jieyu-4ws-impl-checklist-2026-10-31.md)（`status: proposed`）。路线图下一步是审这两份文档并拍板是否按清单做；**现在不开工、不做切片 0**。
 - 规格目录里还有未收口的 `annotation-utterance-graph-change`、`corpus-analysis-query-tools`、`corpus-analysis-report`、`corpus-external-evidence`，另有 `_template`。`card-sqlite-file` 的任务已勾完，目录按 ADR-0051 删除。协作出站队列草稿已删除，恢复时的约束见 C4。
 
 ## 4. 适用边界与显式废弃
@@ -414,6 +420,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期       | 说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-31 | **待审·四页工作区计划**：账本与实施清单已落盘（`jieyu-4ws-ledger-2026-10-31.md`、`jieyu-4ws-impl-checklist-2026-10-31.md`，`proposed`）。路线图下一步是审核这两份文档并拍板是否按清单做；**现在不开工、不做切片 0、不改产品代码**。 |
 | 2026-10-30 | **单库复审收口与剩余队列**：数据库合同、恢复/删除/附件界面及七项修复已验收；建议下一刀为 #306 模拟模型到候选/采纳，随后推进真实引擎、反馈诊断及示例入口。旧路径先补测试/CI 替代；真机安装、Windows、升级和真实垃圾箱留后续发布。详见单库当前队列，不关闭远端单。 |
 | 2026-10-29 | **M7-B 打包配置**。Mac arm64 的 dmg/zip、Windows x64 的 nsis、GitHub 发布已核对。应用里没有更新器，CI 不出安装包。真机安装和真实示例未做。不关闭 #282/#277。 |
 | 2026-10-29 | **M7-C 旧路径**。生产、脚本、CI、E2E 的替代都核对过。旧页面、旧库检查、Chromium 门槛和浏览器用例还在，未删。独立 userData 和协作代码留下。不等 #326。不关闭 #280/#329。 |
