@@ -10,10 +10,13 @@ import '../styles/pages/annotation-workspace.css';
 import { FeatureAvailabilityPanel } from '../components/FeatureAvailabilityPanel';
 import { featureFlags } from '../ai/config/featureFlags';
 import { t, useLocale } from '../i18n';
+import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
+import { DesktopAnnotationPage } from './DesktopAnnotationPage';
 
 export function AnnotationPage() {
   const locale = useLocale();
+  const desktopHost = readDesktopProjectHost();
 
   if (!featureFlags.annotationPageEnabled) {
     return (
@@ -31,5 +34,9 @@ export function AnnotationPage() {
     );
   }
 
+  if (desktopHost !== null) return <DesktopAnnotationPage host={desktopHost} />;
+  if ('jieyuDesktop' in globalThis) {
+    return <p>{t(locale, 'workspace.annotation.unavailable.summary')}</p>;
+  }
   return <AnnotationWorkspace />;
 }

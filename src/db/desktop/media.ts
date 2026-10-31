@@ -70,6 +70,44 @@ export function createMedia(db: SqliteDatabase, folder: string, input: MediaCrea
   return write();
 }
 
+export interface DeletedMedia {
+  id: string;
+  relpath: string;
+  deletedAt: string;
+  retainUntil: string;
+  reminderShownAt: string | null;
+}
+
+export function listDeletedMedia(db: SqliteDatabase): DeletedMedia[] {
+  const rows = db
+    .prepare(
+      `SELECT id, relpath, deleted_at AS deletedAt, retain_until AS retainUntil,
+              reminder_shown_at AS reminderShownAt
+       FROM media
+       WHERE deleted_at IS NOT NULL AND retain_until IS NOT NULL
+       ORDER BY deleted_at, id`,
+    )
+    .all() as DeletedMedia[];
+  return rows;
+}
+
+export function listActiveMedia(db: SqliteDatabase): Media[] {
+  const rows = db
+    .prepare(
+      `SELECT id, relpath, sha256, filename, duration, created_at
+       FROM media WHERE deleted_at IS NULL ORDER BY created_at, id`,
+    )
+    .all() as MediaRow[];
+  return rows.map((row) => ({
+    id: row.id,
+    relpath: row.relpath,
+    sha256: row.sha256,
+    filename: row.filename,
+    duration: row.duration,
+    createdAt: row.created_at,
+  }));
+}
+
 export function getMedia(db: SqliteDatabase, id: string): Media | null {
   const row = db
     .prepare('SELECT id, relpath, sha256, filename, duration, created_at FROM media WHERE id = ?')

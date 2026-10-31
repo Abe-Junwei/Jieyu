@@ -310,4 +310,51 @@ item []:
     const imported = importFromTextGrid(textGrid);
     expect(imported.units).toEqual([{ startTime: 1.25, endTime: 1.25, transcription: 'click' }]);
   });
+
+  it('keeps same-named additional tiers instead of overwriting (#435)', () => {
+    const content = `File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 1
+tiers? <exists>
+size = 3
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "Transcription"
+        xmin = 0
+        xmax = 1
+        intervals: size = 1
+        intervals [1]:
+            xmin = 0
+            xmax = 1
+            text = "hello"
+    item [2]:
+        class = "IntervalTier"
+        name = "Gloss"
+        xmin = 0
+        xmax = 1
+        intervals: size = 1
+        intervals [1]:
+            xmin = 0
+            xmax = 1
+            text = "first"
+    item [3]:
+        class = "IntervalTier"
+        name = "Gloss"
+        xmin = 0
+        xmax = 1
+        intervals: size = 1
+        intervals [1]:
+            xmin = 0
+            xmax = 1
+            text = "second"
+`;
+    const imported = importFromTextGrid(content);
+    expect(imported.additionalTiers.size).toBe(2);
+    expect(imported.additionalTiers.get('Gloss')?.[0]?.text).toBe('first');
+    expect(imported.additionalTiers.get('Gloss (2)')?.[0]?.text).toBe('second');
+  });
+
 });

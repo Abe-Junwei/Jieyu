@@ -59,10 +59,10 @@ describe('record custom fields', () => {
       .run(T, T);
     project.db
       .prepare(
-        `INSERT INTO messages (id, conversation_id, role, body, created_at)
-         VALUES ('g1', 'c1', 'user', 'hello', ?)`,
+        `INSERT INTO messages (id, conversation_id, role, body, created_at, updated_at)
+         VALUES ('g1', 'c1', 'user', 'hello', ?, ?)`,
       )
-      .run(T);
+      .run(T, T);
     const hosts = [
       ['source', 's1'],
       ['note', 'n1'],

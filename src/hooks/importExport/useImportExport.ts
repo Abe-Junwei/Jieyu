@@ -792,6 +792,9 @@ export function useImportExport(input: UseImportExportInput) {
             translations,
             tokens,
             morphemes,
+            ...(defaultTrcLayer?.languageId
+              ? { languageTag: defaultTrcLayer.languageId }
+              : {}),
             ...(timelineMetadata ? { timelineMetadata } : {}),
             ...(segmentsByLayer ? { segmentsByLayer } : {}),
             ...(segmentContents ? { segmentContents } : {}),

@@ -19,9 +19,11 @@ import {
   restoreAnalysis,
   splitAnalysisNode,
   submitAnalysis,
+  undoUnitText,
 } from './analysisRestore';
 import { openProject } from './openProject';
-import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
+import { getAnalysisRoot, updateUnitText, writeAnalysisRoot, type UnitTextUndo } from './units';
+import { deleteManuscript, restoreManuscript } from './manuscripts';
 
 const roots: string[] = [];
 const T = '2026-10-25T00:00:00.000Z';
@@ -208,6 +210,72 @@ describe('analysis text invalidation', () => {
     reopened.close();
   });
 
+  it('rolls back after the text row update and keeps the previous graph', () => {
+    const { dir, project, unitId, stored } = projectWith([token('n1', 0)]);
+    const applied = applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+      ],
+    });
+    project.db.exec(
+      `CREATE TEMP TRIGGER abort_text_write AFTER UPDATE ON unit_texts
+       BEGIN SELECT RAISE(ABORT, 'injected'); END`,
+    );
+    expect(() => updateUnitText(project.db, { unitId, text: 'ta' })).toThrow('injected');
+    project.close();
+
+    const reopened = openProject(dir);
+    expect(reopened.units.get(unitId)?.text).toBe('ka');
+    expect(getAnalysisRoot(reopened.db, unitId)).toEqual(applied.root);
+    expect(
+      reopened.db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId),
+    ).toEqual({ n: 1 });
+    expect(reopened.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 0,
+    });
+    reopened.close();
+  });
+
+  it('rolls back a graph edit that fails after projection', () => {
+    const { dir, project, unitId, stored } = projectWith([token('n1', 0)]);
+    expect(() =>
+      applyAnalysis(
+        project.db,
+        {
+          unitId,
+          expected: {
+            manuscriptGeneration: 0,
+            analysisGeneration: stored.analysisGeneration,
+            graphFingerprint: stored.graphFingerprint,
+          },
+          changes: [
+            { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+          ],
+        },
+        () => {
+          throw new Error('injected');
+        },
+      ),
+    ).toThrow('injected');
+    project.close();
+
+    const reopened = openProject(dir);
+    expect(getAnalysisRoot(reopened.db, unitId)).toEqual(stored);
+    expect(
+      reopened.db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId),
+    ).toEqual({ n: 0 });
+    expect(reopened.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 0,
+    });
+    reopened.close();
+  });
+
   it('leaves the accepted graph in place when the text is unchanged', () => {
     const { project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
     const updated = updateUnitText(project.db, { unitId, text: 'ka' });
@@ -308,6 +376,91 @@ describe('analysis text invalidation', () => {
     reopened.close();
   });
 });
+
+describe('unit text undo', () => {
+  it('restores the previous string, graph, projection, links, and notes in one write', () => {
+    const { dir, project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
+    applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+      ],
+    });
+    associate(project.db, 'l1', 'n1');
+    let undo: UnitTextUndo | undefined;
+    updateUnitText(project.db, { unitId, text: 'ta' }, undefined, (record) => {
+      undo = record;
+    });
+    const restored = undoUnitText(project.db, undo ?? fail('missing undo'));
+    expect(restored.text).toBe('ka');
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.zh).toBe('已往');
+    expect(
+      project.db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId),
+    ).toEqual({ n: 1 });
+    expect(linkAttachment(project.db, 'l1')).toBe('active');
+    expect(noteRow(project.db, 'note-l1')).toEqual({
+      attachment: 'active',
+      body: 'original',
+      category: null,
+    });
+    expect(project.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 2,
+    });
+    project.close();
+
+    const reopened = openProject(dir);
+    expect(reopened.units.get(unitId)?.text).toBe('ka');
+    expect(getAnalysisRoot(reopened.db, unitId)?.graph?.nodes[0]?.domain?.gloss?.zh).toBe('已往');
+    expect(linkAttachment(reopened.db, 'l1')).toBe('active');
+    reopened.close();
+  });
+
+  it('rolls back a failed undo and refuses a record after a later edit', () => {
+    const { project, unitId, stored } = projectWith([token('n1', 0, 'r1')]);
+    applyAnalysis(project.db, {
+      unitId,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: stored.analysisGeneration,
+        graphFingerprint: stored.graphFingerprint,
+      },
+      changes: [
+        { action: 'node.setMapValue', nodeId: 'n1', field: 'gloss', key: 'zh', value: '已往' },
+      ],
+    });
+    associate(project.db, 'l1', 'n1');
+    let undo: UnitTextUndo | undefined;
+    updateUnitText(project.db, { unitId, text: 'ta' }, undefined, (record) => {
+      undo = record;
+    });
+    const recorded = undo ?? fail('missing undo');
+    expect(() =>
+      undoUnitText(project.db, recorded, () => {
+        throw new Error('injected');
+      }),
+    ).toThrow('injected');
+    expect(project.units.get(unitId)?.text).toBe('ta');
+    expect(getAnalysisRoot(project.db, unitId)?.graph).toBeNull();
+    expect(linkAttachment(project.db, 'l1')).toBe('detached');
+    expect(project.db.prepare('SELECT generation FROM manuscripts').get()).toEqual({
+      generation: 1,
+    });
+    updateUnitText(project.db, { unitId, text: 'za' });
+    expect(() => undoUnitText(project.db, recorded)).toThrow('unit text undo is stale');
+    expect(project.units.get(unitId)?.text).toBe('za');
+    expect(getAnalysisRoot(project.db, unitId)?.graph).toBeNull();
+    project.close();
+  });
+});
+
+function fail(message: string): never {
+  throw new Error(message);
+}
 
 describe('analysis split and merge', () => {
   it('splits a node without carrying its link, note, or residue onto the new nodes', () => {
@@ -771,6 +924,33 @@ describe('analysis split and merge', () => {
         ],
       }),
     ).toThrow('analysis reference is missing');
+    project.close();
+  });
+
+  it('refuses an analysis result saved before the manuscript was restored', () => {
+    const { project, unitId, manuscriptId } = projectWith([token('n1', 0)]);
+    const suggestion = submitNow(project.db, unitId, graph([token('n1', 0), token('n2', 1)]));
+    const snapshot = insertReviewSnapshot(project.db, readAnalysisMaterial(project.db, unitId));
+    const before = getAnalysisRoot(project.db, unitId)?.analysisGeneration;
+    deleteManuscript(project.db, manuscriptId);
+    restoreManuscript(project.db, manuscriptId);
+    const expected = creds(
+      getAnalysisRoot(project.db, unitId) ?? { analysisGeneration: 0, graphFingerprint: '' },
+    );
+    expect(() => acceptAnalysis(project.db, { candidateId: suggestion.id, expected })).toThrow(
+      'analysis candidate is stale',
+    );
+    expect(() => restoreAnalysis(project.db, { candidateId: snapshot, expected })).toThrow(
+      'analysis candidate is stale',
+    );
+    expect(getAnalysisRoot(project.db, unitId)?.analysisGeneration).toBe(before);
+    expect(getAnalysisRoot(project.db, unitId)?.graph?.nodes.map((node) => node.id)).toEqual([
+      'n1',
+    ]);
+    const again = submitNow(project.db, unitId, graph([token('n1', 0), token('n2', 1)]));
+    const accepted = acceptAnalysis(project.db, { candidateId: again.id, expected });
+    expect(accepted.applied).toBe(true);
+    expect(accepted.root.graph?.nodes.map((node) => node.id)).toEqual(['n1', 'n2']);
     project.close();
   });
 });

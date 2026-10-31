@@ -8,6 +8,7 @@ import {
 } from '../../annotation/analysisGraphDomain';
 import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
 import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
+import { unitBelongsToDeletedManuscript } from './manuscripts';
 import {
   detachAnalysisAssociations,
   getAnalysisCandidate,
@@ -17,7 +18,9 @@ import {
   nodeIdsOf,
   readAnalysisMaterial,
   rejectOtherPendingSuggestions,
+  requireCurrentCandidateLifecycle,
   type AnalysisAssociationLink,
+  type AnalysisAssociationNote,
   type AnalysisCandidateRecord,
   type AnalysisMaterial,
 } from './analysisCandidates';
@@ -29,7 +32,7 @@ import {
 import { assertRetargetedReferences } from './referenceState';
 import { convertSnapshotGraph } from './customFieldMigration';
 import { restoreAnalysisNote } from './notes';
-import { getAnalysisRoot, type AnalysisRoot } from './units';
+import { getAnalysisRoot, getUnit, type AnalysisRoot, type Unit, type UnitTextUndo } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -60,6 +63,7 @@ export interface AnalysisReadState {
 }
 
 export function readAnalysisState(db: SqliteDatabase, unitId: string): AnalysisReadState {
+  if (unitBelongsToDeletedManuscript(db, unitId)) throw new Error('manuscript is deleted');
   const material = readAnalysisMaterial(db, unitId);
   return {
     unitId: material.unitId,
@@ -198,6 +202,7 @@ export function acceptAnalysis(
   const write = db.transaction(() => {
     const candidate = requireCandidate(db, input.candidateId);
     if (candidate.kind !== 'suggestion') throw new Error('analysis candidate is not a suggestion');
+    requireCurrentCandidateLifecycle(db, candidate);
     const material = readAnalysisMaterial(db, candidate.unitId);
     const root = getAnalysisRoot(db, candidate.unitId);
     if (!root) throw new Error('unit is missing');
@@ -238,6 +243,7 @@ export function restoreAnalysis(
       candidate.kind === 'review-snapshot' ||
       (candidate.kind === 'suggestion' && candidate.status === 'accepted');
     if (!restorable) throw new Error('analysis candidate is not a snapshot');
+    requireCurrentCandidateLifecycle(db, candidate);
     const material = readAnalysisMaterial(db, candidate.unitId);
     if (candidate.text !== material.text) throw new Error('restore text does not match');
     if (candidate.redactedDefinitionIds.length > 0) {
@@ -261,6 +267,40 @@ export function restoreAnalysis(
     );
     reattach(db, candidate, nodeIdsOf(written.graph), now);
     return written;
+  });
+  return write();
+}
+
+export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?: () => void): Unit {
+  const write = db.transaction(() => {
+    const material = readAnalysisMaterial(db, undo.unitId);
+    if (!unitTextStillAfter(db, material, undo)) throw new Error('unit text undo is stale');
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
+    ).run(undo.prior.text, now, undo.unitId);
+    afterText?.();
+    if (undo.prior.graph !== null) {
+      const refreshed = readAnalysisMaterial(db, undo.unitId);
+      const written = writeGraph(db, refreshed, undo.prior.graph, true);
+      reattach(
+        db,
+        {
+          unitId: undo.unitId,
+          links: undo.prior.links,
+          notes: undo.prior.notes,
+          createdAt: now,
+        },
+        nodeIdsOf(written.graph),
+        now,
+      );
+    } else {
+      db.prepare('UPDATE units SET updated_at = ? WHERE id = ?').run(now, undo.unitId);
+    }
+    db.prepare(
+      'UPDATE manuscripts SET generation = generation + 1, updated_at = ? WHERE id = ?',
+    ).run(now, undo.prior.manuscriptId);
+    return readUnitTextUndo(db, undo);
   });
   return write();
 }
@@ -411,29 +451,275 @@ export function writeGraph(
   const fingerprint = analysisGraphFingerprint(validated);
   const generation = material.analysisGeneration + 1;
   const now = new Date().toISOString();
-  db.prepare(
-    `UPDATE units
-     SET analysis_graph_json = ?, analysis_generation = ?, graph_fingerprint = ?, updated_at = ?
-     WHERE id = ?`,
-  ).run(JSON.stringify(validated), generation, fingerprint, now, material.unitId);
-  const projected = projectAnalysisGraph(validated, material.unitId);
-  replaceProjection(db, material.unitId, projected.tokens, projected.morphemes);
-  syncProjectedLinks(db, validated);
-  const stored = getAnalysisRoot(db, material.unitId);
-  if (
-    !stored?.graph ||
-    stored.analysisGeneration !== generation ||
-    stored.graphFingerprint !== fingerprint ||
-    JSON.stringify(stored.graph) !== JSON.stringify(validated)
-  ) {
-    throw new Error('analysis write readback failed');
+  const write = db.transaction(() => {
+    db.prepare(
+      `UPDATE units
+       SET analysis_graph_json = ?, analysis_generation = ?, graph_fingerprint = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(JSON.stringify(validated), generation, fingerprint, now, material.unitId);
+    const projected = projectAnalysisGraph(validated, material.unitId);
+    replaceProjection(db, material.unitId, projected.tokens, projected.morphemes);
+    syncProjectedLinks(db, validated);
+    const stored = getAnalysisRoot(db, material.unitId);
+    if (
+      !stored?.graph ||
+      stored.analysisGeneration !== generation ||
+      stored.graphFingerprint !== fingerprint ||
+      JSON.stringify(stored.graph) !== JSON.stringify(validated)
+    ) {
+      throw new Error('analysis write readback failed');
+    }
+    return stored;
+  });
+  return write();
+}
+
+export interface UnitWord {
+  id: string;
+  form: string;
+  gloss: Record<string, string>;
+  pos: string;
+}
+
+export function listUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
+  if (db.prepare('SELECT 1 FROM units WHERE id = ?').get(unitId) === undefined) {
+    throw new Error('unit is missing');
   }
-  return stored;
+  if (unitBelongsToDeletedManuscript(db, unitId)) return [];
+  const rows = db
+    .prepare(
+      'SELECT id, form_json, gloss_json, pos FROM tokens WHERE unit_id = ? ORDER BY token_index, id',
+    )
+    .all(unitId) as { id: string; form_json: string; gloss_json: string; pos: string | null }[];
+  return rows.map((row) => ({
+    id: row.id,
+    form: wordForm(row.form_json),
+    gloss: JSON.parse(row.gloss_json) as Record<string, string>,
+    pos: row.pos ?? '',
+  }));
+}
+
+export function segmentUnitWords(db: SqliteDatabase, unitId: string): UnitWord[] {
+  const material = readAnalysisMaterial(db, unitId);
+  if (material.graph?.nodes.some((node) => node.type === 'token') === true) {
+    return listUnitWords(db, unitId);
+  }
+  const forms = material.text.split(/\s+/).filter((form) => form.length > 0);
+  if (forms.length === 0) throw new Error('unit text is empty');
+  const now = new Date().toISOString();
+  // ponytail: whitespace split only. Switch to annotationRetokenize when the page needs a preview, morphemes, or non-space orthographies.
+  const tokens = forms.map((form, index) => ({
+    id: randomUUID(),
+    type: 'token' as const,
+    label: form,
+    domain: {
+      form: { default: form },
+      index,
+      createdAt: now,
+      updatedAt: now,
+      provenance: { actorType: 'human' as const, method: 'manual' as const, createdAt: now },
+    },
+  }));
+  const graph =
+    material.graph === null
+      ? {
+          payloadVersion: 1 as const,
+          id: randomUUID(),
+          text: material.text,
+          nodes: tokens,
+          relations: [],
+        }
+      : { ...material.graph, nodes: [...material.graph.nodes, ...tokens] };
+  writeGraph(db, material, graph);
+  return listUnitWords(db, unitId);
+}
+
+function wordForm(formJson: string): string {
+  const form = JSON.parse(formJson) as { default?: unknown };
+  return typeof form.default === 'string' ? form.default : '';
+}
+
+export interface UnitMorpheme {
+  id: string;
+  tokenId: string;
+  form: string;
+  gloss: Record<string, string>;
+}
+
+export function listUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorpheme[] {
+  if (db.prepare('SELECT 1 FROM units WHERE id = ?').get(unitId) === undefined) {
+    throw new Error('unit is missing');
+  }
+  if (unitBelongsToDeletedManuscript(db, unitId)) return [];
+  const rows = db
+    .prepare(
+      `SELECT morphemes.id, morphemes.token_id, morphemes.form_json, morphemes.gloss_json
+       FROM morphemes
+       JOIN tokens ON tokens.id = morphemes.token_id
+       WHERE tokens.unit_id = ?
+       ORDER BY tokens.token_index, morphemes.morpheme_index, morphemes.id`,
+    )
+    .all(unitId) as { id: string; token_id: string; form_json: string; gloss_json: string }[];
+  return rows.map((row) => ({
+    id: row.id,
+    tokenId: row.token_id,
+    form: wordForm(row.form_json),
+    gloss: JSON.parse(row.gloss_json) as Record<string, string>,
+  }));
+}
+
+export function segmentUnitMorphemes(db: SqliteDatabase, unitId: string): UnitMorpheme[] {
+  const material = readAnalysisMaterial(db, unitId);
+  if (material.graph === null) throw new Error('unit has no words');
+  if (material.graph.nodes.some((node) => node.type === 'morpheme')) {
+    return listUnitMorphemes(db, unitId);
+  }
+  const now = new Date().toISOString();
+  const nodes = [...material.graph.nodes];
+  const relations = [...material.graph.relations];
+  // ponytail: split on "-" and "=" only. Use the annotation morpheme editor when glosses or non-segmented forms matter.
+  for (const token of material.graph.nodes) {
+    if (token.type !== 'token' || token.domain === undefined) continue;
+    const parts = (token.domain.form.default ?? '').split(/[-=]/).filter((part) => part.length > 0);
+    if (parts.length < 2) continue;
+    for (const [index, part] of parts.entries()) {
+      const id = randomUUID();
+      nodes.push({
+        id,
+        type: 'morpheme',
+        label: part,
+        domain: { form: { default: part }, index, createdAt: now, updatedAt: now },
+        surfaceParts: [{ tokenId: token.id, formKey: 'default' }],
+      });
+      relations.push({ id: randomUUID(), type: 'hasPart', sourceId: token.id, targetId: id });
+    }
+  }
+  if (nodes.length === material.graph.nodes.length)
+    throw new Error('morpheme split needs a separator');
+  writeGraph(db, material, { ...material.graph, nodes, relations });
+  return listUnitMorphemes(db, unitId);
+}
+
+function unitTextStillAfter(
+  db: SqliteDatabase,
+  material: AnalysisMaterial,
+  undo: UnitTextUndo,
+): boolean {
+  if (
+    material.unitId !== undo.unitId ||
+    material.text !== undo.after.text ||
+    material.graphFingerprint !== undo.after.graphFingerprint ||
+    material.analysisGeneration !== undo.after.analysisGeneration ||
+    material.manuscriptId !== undo.prior.manuscriptId ||
+    material.manuscriptGeneration !== undo.after.manuscriptGeneration
+  ) {
+    return false;
+  }
+  if (undo.prior.graph === null) return true;
+  if (material.graph !== null) return false;
+  const tokens = db
+    .prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?')
+    .get(undo.unitId) as {
+    n: number;
+  };
+  if (tokens.n !== 0) return false;
+  const linkRow = db.prepare(
+    `SELECT attachment, lexeme_id, sense_id, role, confidence, provenance_json
+     FROM token_lexeme_links WHERE id = ?`,
+  );
+  for (const link of undo.prior.links) {
+    const row = linkRow.get(link.id) as
+      | {
+          attachment: string;
+          lexeme_id: string;
+          sense_id: string | null;
+          role: string | null;
+          confidence: number | null;
+          provenance_json: string | null;
+        }
+      | undefined;
+    const provenance = row?.provenance_json == null ? null : JSON.parse(row.provenance_json);
+    if (
+      row === undefined ||
+      row.attachment !== 'detached' ||
+      row.lexeme_id !== link.lexemeId ||
+      row.sense_id !== link.senseId ||
+      row.role !== link.role ||
+      row.confidence !== link.confidence ||
+      JSON.stringify(provenance) !== JSON.stringify(link.provenance ?? null)
+    ) {
+      return false;
+    }
+  }
+  for (const nodeId of nodeIdsOf(undo.prior.graph)) {
+    const active = db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM token_lexeme_links
+         WHERE target_id = ? AND attachment = 'active'`,
+      )
+      .get(nodeId) as { n: number };
+    if (active.n !== 0) return false;
+  }
+  for (const note of undo.prior.notes) {
+    const row = db.prepare('SELECT attachment FROM notes WHERE id = ?').get(note.id) as
+      { attachment: string } | undefined;
+    if (row?.attachment !== 'detached') return false;
+  }
+  return true;
+}
+
+function readUnitTextUndo(db: SqliteDatabase, undo: UnitTextUndo): Unit {
+  const unit = getUnit(db, undo.unitId);
+  const root = getAnalysisRoot(db, undo.unitId);
+  const generation = db
+    .prepare('SELECT generation FROM manuscripts WHERE id = ?')
+    .get(undo.prior.manuscriptId) as { generation: number } | undefined;
+  if (
+    !unit ||
+    unit.text !== undo.prior.text ||
+    !root ||
+    generation?.generation !== undo.after.manuscriptGeneration + 1
+  ) {
+    throw new Error('unit text undo readback failed');
+  }
+  if (undo.prior.graph === null) {
+    if (root.graph !== null || root.graphFingerprint !== undo.after.graphFingerprint) {
+      throw new Error('unit text undo readback failed');
+    }
+    return unit;
+  }
+  if (!root.graph || root.graphFingerprint !== analysisGraphFingerprint(undo.prior.graph)) {
+    throw new Error('unit text undo readback failed');
+  }
+  const tokens = db
+    .prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?')
+    .get(undo.unitId) as {
+    n: number;
+  };
+  if (tokens.n !== undo.prior.projectionTokenCount)
+    throw new Error('unit text undo readback failed');
+  for (const link of undo.prior.links) {
+    const row = db
+      .prepare('SELECT attachment FROM token_lexeme_links WHERE id = ?')
+      .get(link.id) as { attachment: string } | undefined;
+    if (row?.attachment !== 'active') throw new Error('unit text undo readback failed');
+  }
+  for (const note of undo.prior.notes) {
+    const row = db.prepare('SELECT attachment FROM notes WHERE id = ?').get(note.id) as
+      { attachment: string } | undefined;
+    if (row?.attachment !== 'active') throw new Error('unit text undo readback failed');
+  }
+  return unit;
 }
 
 function reattach(
   db: SqliteDatabase,
-  candidate: AnalysisCandidateRecord,
+  candidate: {
+    unitId: string;
+    links: readonly AnalysisAssociationLink[];
+    notes: readonly AnalysisAssociationNote[];
+    createdAt: string;
+  },
   liveIds: readonly string[],
   now: string,
 ): void {

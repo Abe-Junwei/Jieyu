@@ -38,12 +38,14 @@ import {
   resolveImportedEafTierLanguage,
   type EafLanguageRecord,
 } from '../../utils/eafTierLanguage';
+import { ensureDomParser } from '../../utils/ensureDomParser';
 
 const log = createLogger('EafService');
 
 type AnnotationEntry = EafPickAnnotation;
 
 export function importFromEaf(xmlString: string, options?: EafImportOptions): EafImportResult {
+  ensureDomParser();
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
 

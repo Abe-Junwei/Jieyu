@@ -20,6 +20,7 @@ import { createDesktopClient } from './client';
 import { createDefinition } from './customFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
 import { callDesktopSession } from './desktopCall';
+import { deleteManuscript } from './manuscripts';
 import { openProject } from './openProject';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 import { getAnalysisRoot, writeAnalysisRoot } from './units';
@@ -88,7 +89,7 @@ function seeded() {
     contentType: 'transcription',
   });
   const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
-  return { dir, project, unit };
+  return { dir, project, manuscript, unit };
 }
 
 function submitNow(db: InstanceType<typeof Database>, unitId: string, graph: unknown) {
@@ -277,6 +278,36 @@ describe('custom field purge', () => {
     expect(
       project.db.prepare('SELECT id FROM custom_field_definitions WHERE id = ?').get(second.id),
     ).toEqual({ id: second.id });
+    project.close();
+  });
+
+  it('purges a definition still held by a deleted manuscript graph', () => {
+    const { project, manuscript, unit } = seeded();
+    const root = writeAnalysisRoot(project.db, {
+      unitId: unit.id,
+      graph: graph(),
+      expectedAnalysisGeneration: 0,
+    });
+    const field = createDefinition(project.db, {
+      targetType: 'analysis-node',
+      name: { und: 'x' },
+      fieldType: 'number',
+    });
+    applyAnalysis(project.db, {
+      unitId: unit.id,
+      expected: {
+        manuscriptGeneration: 0,
+        analysisGeneration: root.analysisGeneration,
+        graphFingerprint: root.graphFingerprint,
+      },
+      changes: [{ action: 'customField.set', nodeId: 'n1', definitionId: field.id, value: 3 }],
+    });
+    deleteManuscript(project.db, manuscript.id);
+    const preview = previewPurge(project.db, field.id);
+    purgeDefinition(project.db, requestOf(preview, field.id));
+    expect(
+      project.db.prepare('SELECT id FROM custom_field_definitions WHERE id = ?').get(field.id),
+    ).toBeUndefined();
     project.close();
   });
 });

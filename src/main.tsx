@@ -1,3 +1,5 @@
+// Electron's header CSP blocks the inline refresh script Vite inserts into index.html.
+import '@vitejs/plugin-react/preamble';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

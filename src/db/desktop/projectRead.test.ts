@@ -1,9 +1,10 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   bindDesktopMediaSession,
+  grantDesktopMedia,
   resetDesktopMediaGrants,
   resolveDesktopMedia,
 } from '../../desktop/skeleton/desktopMediaGrant';
@@ -112,5 +113,20 @@ describe('desktop project read', () => {
       'media path escapes the project folder',
     );
     expect(resolveDesktopMedia('bad')).toBeNull();
+  });
+
+  it('refuses a media grant when replacing the session with an unreadable project fails', () => {
+    const root = folder();
+    const first = join(root, 'first');
+    const bad = join(root, 'bad');
+    mkdirSync(first);
+    const session = openDesktopSession(first, [first, bad]);
+    bindDesktopMediaSession(session.sessionId);
+    const token = grantDesktopMedia(session.sessionId, join(first, 'audio.wav'));
+    mkdirSync(bad);
+    writeFileSync(join(bad, 'project.sqlite'), 'invalid');
+    expect(() => openDesktopSession(bad, [first, bad])).toThrow();
+    expect(() => requireDesktopSession(session.sessionId)).toThrow('project session expired');
+    expect(resolveDesktopMedia(token)).toBeNull();
   });
 });

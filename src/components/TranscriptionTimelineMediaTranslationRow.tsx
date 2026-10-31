@@ -176,7 +176,7 @@ export function TranscriptionTimelineMediaTranslationRow({
           ? {
               onTranscribeRecording: () => {
                 const b = readNonEmptyAudioBlobFromMediaItem(audioMedia);
-                void transcribeVoiceTranslation(
+                return transcribeVoiceTranslation(
                   sourceUnit,
                   layer,
                   b ? { audioBlob: b } : undefined,

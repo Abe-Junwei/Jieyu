@@ -113,7 +113,9 @@ describe('custom field hosts', () => {
         scale: 1,
       }).timeMappingRevision,
     ).toBe(1);
-    expect(replaceSettings(db, 'p1', { keep: true })).toEqual({ keep: true });
+    expect(replaceSettings(db, 'p1', { characterVariantLines: 'keep' })).toEqual({
+      characterVariantLines: 'keep',
+    });
     expect(
       ensureProjectLanguage(db, {
         name: { zh: '再来' },
@@ -239,7 +241,7 @@ describe('custom field hosts', () => {
     expect(
       readFieldValue(reopened.db, languageField?.id ?? '', 'language', createdLanguage.id),
     ).toBe('kept');
-    expect(reopened.settings.get('p1')).toEqual({ keep: true });
+    expect(reopened.settings.get('p1')).toEqual({ characterVariantLines: 'keep' });
     reopened.close();
   });
 

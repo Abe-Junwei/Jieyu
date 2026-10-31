@@ -316,6 +316,9 @@ export const featureFlags = {
   sqliteStoragePortEnabled: sqliteStoragePortFlagEnabled(
     import.meta.env.VITE_SQLITE_STORAGE_PORT_ENABLED,
   ),
+  /** Desktop model-response candidates. Default off; one-week dogfood before enabling. */
+  desktopModelCandidatesEnabled:
+    readOptionalBooleanFlag(import.meta.env.VITE_DESKTOP_MODEL_CANDIDATES_ENABLED) ?? false,
   /**
    * M5-C / C8：桌面项目字段管理。默认关闭，不进旧标注页。
    * Env `VITE_PROJECT_CUSTOM_FIELDS_ENABLED=true` opens it on the folder library page.

@@ -1,0 +1,13 @@
+{
+  "mac": {
+    "dmg": ["arm64"],
+    "zip": ["arm64"]
+  },
+  "win": {
+    "nsis": ["x64"],
+    "verifyUpdateCodeSignature": false
+  },
+  "publish": "github",
+  "updaterInApp": false,
+  "installerWorkflow": false
+}
