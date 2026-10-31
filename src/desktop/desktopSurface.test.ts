@@ -14,19 +14,19 @@ afterEach(() => {
 });
 
 describe('resolveDesktopSurface', () => {
+  it('keeps browser regression routes available without a desktop host', () => {
+    expect(resolveDesktopSurface(null)).toBe('legacy');
+  });
+
   it('uses the desktop page when the host is ready', () => {
     expect(resolveDesktopSurface(host)).toBe('desktop');
   });
 
-  it('stays unavailable in Electron when the bridge or the flag is off', () => {
+  it('stays unavailable when the desktop host is missing', () => {
     (globalThis as { jieyuDesktop?: { projectReadEnabled: boolean } }).jieyuDesktop = {
       projectReadEnabled: false,
     };
     expect(resolveDesktopSurface(null)).toBe('unavailable');
-  });
-
-  it('keeps the old page for the browser dev shell', () => {
-    expect(resolveDesktopSurface(null)).toBe('legacy');
   });
 
   it('recognises an expired project session', () => {

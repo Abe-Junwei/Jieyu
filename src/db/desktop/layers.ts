@@ -97,9 +97,12 @@ export function listLayers(db: SqliteDatabase, manuscriptId: string): Layer[] {
 export function getLayer(db: SqliteDatabase, id: string): Layer | null {
   const row = db
     .prepare(
-      `SELECT id, manuscript_id, key, name_json, tier_type, content_type,
-            language_id, orthography_id, parent_id, sort_order, created_at, updated_at
-     FROM layers WHERE id = ?`,
+      `SELECT layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
+              layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
+              layers.sort_order, layers.created_at, layers.updated_at
+       FROM layers
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       WHERE layers.id = ? AND manuscripts.deleted_at IS NULL`,
     )
     .get(id) as LayerRow | undefined;
   if (!row) return null;

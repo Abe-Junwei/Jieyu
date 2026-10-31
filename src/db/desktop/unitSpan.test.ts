@@ -5,12 +5,20 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from './desktopCall';
 import {
   closeDesktopSession,
+  desktopSessionFolder,
   openDesktopSession,
   requireDesktopSession,
   resetDesktopSessions,
 } from './projectSession';
+import {
+  createDefinition,
+  missingUnitFields,
+  readFieldValue,
+  removeUnitValue,
+  setFieldValue,
+} from './customFields';
 import { mergeUnits, splitUnit, undoMerge, undoSplit } from './unitSpan';
-import { updateUnitText } from './units';
+import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
 
 const roots: string[] = [];
 
@@ -73,6 +81,9 @@ describe('unit span', () => {
     expect(
       count(db, 'SELECT COUNT(*) AS n FROM token_lexeme_links WHERE target_id = ?', copiedToken),
     ).toBe(1);
+    expect(
+      callDesktopSession(session.sessionId, 'lexicon.listTokenLinks', { unitId: split.right.id }),
+    ).toHaveLength(1);
 
     undoSplit(db, split.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
@@ -188,6 +199,322 @@ describe('unit span', () => {
       text: '甲',
       endTime: 1,
     });
+  });
+
+  it('copies a required field onto the new unit and rolls back when that field is missing', () => {
+    const session = open();
+    const unitId = seed(session.sessionId, 0, 2, 'pre-fix');
+    const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'unit',
+      name: { zh: '注' },
+      fieldType: 'text',
+      required: true,
+    }) as { id: string };
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(() => splitUnit(db, { unitId, time: 1 })).toThrow('unit is missing a required field');
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      endTime: 2,
+    });
+    callDesktopSession(session.sessionId, 'customFields.setValue', {
+      definitionId: field.id,
+      targetType: 'unit',
+      targetId: unitId,
+      value: 'filled',
+      expectedRevision: 1,
+    });
+    const split = splitUnit(db, { unitId, time: 1 });
+    const dir = desktopSessionFolder(session.sessionId);
+    closeDesktopSession(session.sessionId);
+    const again = openDesktopSession(dir, [dir]);
+    expect(
+      callDesktopSession(again.sessionId, 'customFields.missingUnitFields', {
+        unitId: split.right.id,
+      }),
+    ).toEqual([]);
+  });
+
+  it('keeps custom reference identity and remaps graph structure onto the copy', () => {
+    const session = open();
+    const unitId = seed(session.sessionId, 0, 2, 'ka');
+    const otherId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 2, 3, '乙');
+    const db = requireDesktopSession(session.sessionId).db;
+    const select = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'unit',
+      name: { zh: '类' },
+      fieldType: 'select',
+      options: [{ label: { zh: '甲' } }],
+    }) as { id: string; options: { id: string }[] };
+    const optionId = select.options[0]?.id ?? '';
+    const unitRef = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'unit',
+      name: { zh: '引' },
+      fieldType: 'ref',
+      targetTypes: ['unit'],
+      cardinality: 'one',
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'notes.create', {
+      id: 'unit-note',
+      anchor: { kind: 'unit', unitId },
+      content: { zh: '语段' },
+    });
+    const noteField = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'note',
+      name: { zh: '注' },
+      fieldType: 'text',
+      required: true,
+    }) as { id: string };
+    const nodeField = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'analysis-node',
+      name: { zh: '记' },
+      fieldType: 'text',
+      required: true,
+    }) as { id: string };
+    const nodeRef = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'analysis-node',
+      name: { zh: '内引' },
+      fieldType: 'ref',
+      targetTypes: ['analysis-node'],
+      cardinality: 'one',
+    }) as { id: string };
+    const danglingRef = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'analysis-node',
+      name: { zh: '失效' },
+      fieldType: 'ref',
+      targetTypes: ['analysis-node'],
+      cardinality: 'one',
+    }) as { id: string };
+    const relationField = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'analysis-relation',
+      name: { zh: '边' },
+      fieldType: 'text',
+      required: true,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'customFields.setValue', {
+      definitionId: select.id,
+      targetType: 'unit',
+      targetId: unitId,
+      value: optionId,
+      expectedRevision: 1,
+    });
+    const externalRef = { targetType: 'unit', targetId: otherId };
+    callDesktopSession(session.sessionId, 'customFields.setValue', {
+      definitionId: unitRef.id,
+      targetType: 'unit',
+      targetId: unitId,
+      value: externalRef,
+      expectedRevision: 1,
+    });
+    callDesktopSession(session.sessionId, 'customFields.setValue', {
+      definitionId: noteField.id,
+      targetType: 'note',
+      targetId: 'unit-note',
+      value: '记',
+      expectedRevision: 1,
+    });
+    const nodePointer = { targetType: 'analysis-node', targetId: 'n2', unitId };
+    const danglingPointer = { targetType: 'analysis-node', targetId: 'n3', unitId };
+    writeAnalysisRoot(db, {
+      unitId,
+      expectedAnalysisGeneration: 0,
+      graph: {
+        payloadVersion: 1,
+        id: 'g1',
+        text: 'ka',
+        nodes: [
+          {
+            ...word('n1', 0),
+            customFields: {
+              [nodeField.id]: 'kept',
+              [nodeRef.id]: nodePointer,
+              [danglingRef.id]: danglingPointer,
+            },
+          },
+          { ...word('n2', 1), customFields: { [nodeField.id]: 'other' } },
+          { ...word('n3', 2), customFields: { [nodeField.id]: 'gone' } },
+          {
+            id: 'm',
+            type: 'morpheme',
+            label: 'k',
+            domain: { form: { default: 'k' }, index: 0, createdAt: T, updatedAt: T },
+            surfaceParts: [{ tokenId: 'n1', formKey: 'default' }],
+            customFields: { [nodeField.id]: 'part' },
+          },
+        ],
+        relations: [
+          {
+            id: 'r1',
+            type: 'next',
+            sourceId: 'n1',
+            targetId: 'n2',
+            customFields: { [relationField.id]: 'edge' },
+          },
+        ],
+      },
+    });
+    const written = getAnalysisRoot(db, unitId);
+    writeAnalysisRoot(db, {
+      unitId,
+      expectedAnalysisGeneration: written?.analysisGeneration ?? 0,
+      graph: {
+        payloadVersion: 1,
+        id: 'g1',
+        text: 'ka',
+        nodes: (written?.graph?.nodes ?? []).filter((node) => node.id !== 'n3'),
+        relations: written?.graph?.relations ?? [],
+      },
+    });
+    const split = callDesktopSession(session.sessionId, 'units.split', {
+      unitId,
+      time: 1,
+    }) as { left: { id: string }; right: { id: string } };
+    const copiedNote = db
+      .prepare('SELECT id FROM notes WHERE unit_id = ? AND id != ?')
+      .get(split.right.id, 'unit-note') as { id: string };
+    const copied = getAnalysisRoot(db, split.right.id)?.graph;
+    const copiedNode = copied?.nodes.find((node) => node.customFields?.[nodeField.id] === 'kept');
+    const copiedRelation = copied?.relations[0];
+    expect(readFieldValue(db, select.id, 'unit', split.right.id)).toBe(optionId);
+    expect(readFieldValue(db, unitRef.id, 'unit', split.right.id)).toEqual(externalRef);
+    expect(readFieldValue(db, noteField.id, 'note', copiedNote.id)).toBe('记');
+    expect(copiedNode?.customFields?.[nodeRef.id]).toEqual(nodePointer);
+    expect(copiedNode?.customFields?.[danglingRef.id]).toEqual(danglingPointer);
+    expect(copiedNode?.id).not.toBe('n1');
+    expect(copiedRelation?.sourceId).not.toBe('n1');
+    expect(copiedRelation?.targetId).not.toBe('n2');
+    expect(copiedRelation?.customFields?.[relationField.id]).toBe('edge');
+    expect(copied?.nodes.find((node) => node.type === 'morpheme')?.surfaceParts?.[0]?.tokenId).toBe(
+      copiedNode?.id,
+    );
+    expect(
+      getAnalysisRoot(db, unitId)
+        ?.graph?.nodes.map((node) => node.id)
+        .sort(),
+    ).toEqual(['m', 'n1', 'n2']);
+    const dir = desktopSessionFolder(session.sessionId);
+    closeDesktopSession(session.sessionId);
+    const again = openDesktopSession(dir, [dir]);
+    const againDb = requireDesktopSession(again.sessionId).db;
+    expect(readFieldValue(againDb, unitRef.id, 'unit', split.right.id)).toEqual(externalRef);
+    expect(
+      getAnalysisRoot(againDb, split.right.id)?.graph?.nodes.find(
+        (node) => node.customFields?.[nodeField.id] === 'kept',
+      )?.customFields?.[danglingRef.id],
+    ).toEqual(danglingPointer);
+    expect(
+      getAnalysisRoot(againDb, split.right.id)?.graph?.nodes.find(
+        (node) => node.customFields?.[nodeField.id] === 'kept',
+      )?.customFields?.[nodeRef.id],
+    ).toEqual(nodePointer);
+  });
+
+  it('rolls back a split that would copy an invalid required reference and keeps the previous undo', () => {
+    const session = open();
+    const unitId = seed(session.sessionId, 0, 4, 'ka');
+    const targetId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 4, 5, '乙');
+    const db = requireDesktopSession(session.sessionId).db;
+    const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'unit',
+      name: { zh: '必引' },
+      fieldType: 'ref',
+      targetTypes: ['unit'],
+      cardinality: 'one',
+      required: true,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'customFields.setValue', {
+      definitionId: field.id,
+      targetType: 'unit',
+      targetId: unitId,
+      value: { targetType: 'unit', targetId: targetId },
+      expectedRevision: 1,
+    });
+    const split = callDesktopSession(session.sessionId, 'units.split', {
+      unitId,
+      time: 2,
+    }) as { left: { id: string; endTime: number }; right: { id: string } };
+    removeUnitValue(db, { definitionId: field.id, unitId: split.left.id });
+    const optional = createDefinition(db, {
+      targetType: 'unit',
+      name: { zh: '另' },
+      fieldType: 'text',
+    });
+    setFieldValue(db, {
+      definitionId: optional.id,
+      targetType: 'unit',
+      targetId: split.left.id,
+      value: 'still',
+      expectedRevision: 1,
+    });
+    const generation = generationOf(db, split.left.id);
+    const fingerprint = getAnalysisRoot(db, split.left.id)?.graphFingerprint ?? '';
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.split', { unitId: split.left.id, time: 1 }),
+    ).toThrow('unit is missing a required field');
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
+      { endTime: split.left.endTime },
+    );
+    expect(generationOf(db, split.left.id)).toBe(generation);
+    expect(getAnalysisRoot(db, split.left.id)?.graphFingerprint ?? '').toBe(fingerprint);
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({
+      id: unitId,
+      endTime: 4,
+    });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: split.right.id })).toBeNull();
+  });
+
+  it('keeps a merged-away reference identity and revalidates only the same id', () => {
+    const session = open();
+    const unitId = seed(session.sessionId, 0, 2, 'ka');
+    const targetId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 2, 3, '乙');
+    const db = requireDesktopSession(session.sessionId).db;
+    const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'unit',
+      name: { zh: '必引' },
+      fieldType: 'ref',
+      targetTypes: ['unit'],
+      cardinality: 'one',
+      required: true,
+    }) as { id: string };
+    const pointer = { targetType: 'unit', targetId };
+    callDesktopSession(session.sessionId, 'customFields.setValue', {
+      definitionId: field.id,
+      targetType: 'unit',
+      targetId: unitId,
+      value: pointer,
+      expectedRevision: 1,
+    });
+    const merged = mergeUnits(db, { keepId: unitId, removeId: targetId });
+    expect(readFieldValue(db, field.id, 'unit', unitId)).toEqual(pointer);
+    const optional = createDefinition(db, {
+      targetType: 'unit',
+      name: { zh: '另' },
+      fieldType: 'text',
+    });
+    setFieldValue(db, {
+      definitionId: optional.id,
+      targetType: 'unit',
+      targetId: unitId,
+      value: 'still',
+      expectedRevision: 1,
+    });
+    expect(() => splitUnit(db, { unitId, time: 1 })).toThrow('unit is missing a required field');
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      endTime: 3,
+      text: 'ka',
+    });
+    expect(readFieldValue(db, optional.id, 'unit', unitId)).toBe('still');
+    undoMerge(db, merged.undo);
+    expect(missingUnitFields(db, unitId)).toEqual([]);
+    const namesake = (
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId: layerOf(session.sessionId, unitId),
+        startTime: 3,
+        endTime: 4,
+        text: '乙',
+        fieldValues: { [field.id]: pointer },
+      }) as { id: string }
+    ).id;
+    expect(namesake).not.toBe(targetId);
+    expect(readFieldValue(db, field.id, 'unit', unitId)).toEqual(pointer);
   });
 
   it('rejects a split outside the span and units that cannot merge', () => {
@@ -310,6 +637,22 @@ describe('session unit span undo', () => {
       'unit text undo is empty',
     );
   });
+
+  it('reads the copied unit after a split that moved morpheme surfaces', () => {
+    const session = open();
+    const unitId = seed(session.sessionId, 0, 2, 'word');
+    callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'pre-fix' });
+    callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId });
+    callDesktopSession(session.sessionId, 'analysis.segmentMorphemes', { unitId });
+    const result = callDesktopSession(session.sessionId, 'units.split', {
+      unitId,
+      time: 1,
+    }) as { right: { id: string } };
+    callDesktopSession(session.sessionId, 'reopen', {});
+    expect(() =>
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: result.right.id }),
+    ).not.toThrow();
+  });
 });
 
 function open() {
@@ -352,6 +695,37 @@ function seedUnit(
       text,
     }) as { id: string }
   ).id;
+}
+
+const T = '2026-10-25T00:00:00.000Z';
+
+function word(id: string, index: number) {
+  return {
+    id,
+    type: 'token' as const,
+    label: id,
+    domain: {
+      form: { default: 'ka' },
+      index,
+      createdAt: T,
+      updatedAt: T,
+      provenance: { actorType: 'human' as const, method: 'manual' as const, createdAt: T },
+    },
+  };
+}
+
+function generationOf(db: ReturnType<typeof requireDesktopSession>['db'], unitId: string): number {
+  return (
+    db
+      .prepare(
+        `SELECT manuscripts.lifecycle_generation AS generation
+         FROM units
+         JOIN layers ON layers.id = units.layer_id
+         JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+         WHERE units.id = ?`,
+      )
+      .get(unitId) as { generation: number }
+  ).generation;
 }
 
 function layerOf(sessionId: string, unitId: string): string {

@@ -29,6 +29,7 @@ export interface Unit {
   createdAt: string;
   updatedAt: string;
   text: string;
+  textId: string;
 }
 
 export interface UnitCreate {
@@ -51,22 +52,45 @@ interface UnitRow {
   created_at: string;
   updated_at: string;
   text: string;
+  text_id: string;
 }
 
-const READ = `
+const UNIT_SELECT = `
 SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
        units.start_time, units.end_time, units.created_at, units.updated_at,
-       unit_texts.body AS text
+       unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
 JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
-WHERE units.id = ?
 `;
+
+const READ_STORED = `${UNIT_SELECT} WHERE units.id = ?`;
+
+const READ_VISIBLE = `
+${UNIT_SELECT}
+JOIN layers ON layers.id = units.layer_id
+JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+WHERE units.id = ? AND manuscripts.deleted_at IS NULL
+`;
+
+export function assertUnitTextRoleFree(db: SqliteDatabase, unitId: string, role: string): void {
+  const row = db
+    .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = ?')
+    .get(unitId, role) as { n: number };
+  if (row.n !== 0) throw new Error('unit text role is duplicated');
+}
+
+function assertUnitSpan(start: number, end: number): void {
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
+    throw new Error('unit time is invalid');
+  }
+}
 
 export function createUnit(
   db: SqliteDatabase,
   input: UnitCreate,
   afterUnitInsert?: () => void,
 ): Unit {
+  assertUnitSpan(input.startTime, input.endTime);
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {
@@ -85,6 +109,7 @@ export function createUnit(
       now,
     );
     afterUnitInsert?.();
+    assertUnitTextRoleFree(db, id, 'transcription');
     db.prepare(
       `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES (?, ?, 'transcription', ?, ?)`,
     ).run(randomUUID(), id, input.text, now);
@@ -99,7 +124,7 @@ export function createUnit(
 const LIST = `
 SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
        units.start_time, units.end_time, units.created_at, units.updated_at,
-       unit_texts.body AS text
+       unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
 JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
 JOIN layers ON layers.id = units.layer_id
@@ -108,8 +133,15 @@ WHERE units.layer_id = ? AND manuscripts.deleted_at IS NULL
 ORDER BY units.start_time, units.id
 `;
 
+/** Includes a unit whose manuscript is deleted. Writers use this so the delete trigger still reports. */
+export function readStoredUnit(db: SqliteDatabase, id: string): Unit | null {
+  const row = db.prepare(READ_STORED).get(id) as UnitRow | undefined;
+  if (!row) return null;
+  return mapUnit(row);
+}
+
 export function getUnit(db: SqliteDatabase, id: string): Unit | null {
-  const row = db.prepare(READ).get(id) as UnitRow | undefined;
+  const row = db.prepare(READ_VISIBLE).get(id) as UnitRow | undefined;
   if (!row) return null;
   return mapUnit(row);
 }
@@ -124,8 +156,8 @@ export function updateBoundary(
   afterLeftUpdate?: () => void,
 ): { left: Unit; right: Unit } {
   const write = db.transaction(() => {
-    const left = getUnit(db, input.leftId);
-    const right = getUnit(db, input.rightId);
+    const left = readStoredUnit(db, input.leftId);
+    const right = readStoredUnit(db, input.rightId);
     if (!left || !right) throw new Error('boundary units are missing');
     if (left.layerId !== right.layerId || left.endTime !== right.startTime) {
       throw new Error('boundary units are not adjacent');
@@ -145,8 +177,8 @@ export function updateBoundary(
       now,
       right.id,
     );
-    const nextLeft = getUnit(db, left.id);
-    const nextRight = getUnit(db, right.id);
+    const nextLeft = readStoredUnit(db, left.id);
+    const nextRight = readStoredUnit(db, right.id);
     if (!nextLeft || !nextRight) throw new Error('boundary readback failed');
     return { left: nextLeft, right: nextRight };
   });
@@ -180,8 +212,9 @@ export function updateUnitText(
   if (input.text.length === 0) throw new Error('unit text is empty');
   let remembered: UnitTextUndo | null = null;
   const write = db.transaction(() => {
-    const existing = getUnit(db, input.unitId);
+    const existing = readStoredUnit(db, input.unitId);
     if (!existing) throw new Error('unit is missing');
+    assertManuscriptEditable(db, input.unitId);
     if (existing.text === input.text) return existing;
     const material = readAnalysisMaterial(db, input.unitId);
     if (material.graph !== null) {
@@ -189,6 +222,10 @@ export function updateUnitText(
       afterSnapshot?.();
     }
     const now = new Date().toISOString();
+    const texts = db
+      .prepare(`SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = 'transcription'`)
+      .get(input.unitId) as { n: number };
+    if (texts.n !== 1) throw new Error('unit text role is duplicated');
     db.prepare(
       `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
     ).run(input.text, now, input.unitId);
@@ -207,7 +244,7 @@ export function updateUnitText(
     db.prepare(
       'UPDATE manuscripts SET generation = generation + 1, updated_at = ? WHERE id = ?',
     ).run(now, material.manuscriptId);
-    const unit = getUnit(db, input.unitId);
+    const unit = readStoredUnit(db, input.unitId);
     const manuscript = db
       .prepare('SELECT generation FROM manuscripts WHERE id = ?')
       .get(material.manuscriptId) as { generation: number } | undefined;
@@ -300,7 +337,7 @@ export function writeAnalysisRoot(
     if (current.analysisGeneration !== input.expectedAnalysisGeneration) {
       throw new Error('analysis generation does not match');
     }
-    const text = getUnit(db, input.unitId)?.text;
+    const text = readStoredUnit(db, input.unitId)?.text;
     if (text === undefined) throw new Error('unit is missing');
     const graph = validateAnalysisGraphPayload(input.graph, text);
     assertEditedSurfaceParts(current.graph, graph);
@@ -328,6 +365,19 @@ export function writeAnalysisRoot(
   return write();
 }
 
+function assertManuscriptEditable(db: SqliteDatabase, unitId: string): void {
+  const row = db
+    .prepare(
+      `SELECT manuscripts.deleted_at AS deletedAt
+       FROM units
+       JOIN layers ON layers.id = units.layer_id
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       WHERE units.id = ?`,
+    )
+    .get(unitId) as { deletedAt: string | null } | undefined;
+  if (row?.deletedAt != null) throw new Error('manuscript is deleted');
+}
+
 function mapUnit(row: UnitRow): Unit {
   return {
     id: row.id,
@@ -339,5 +389,6 @@ function mapUnit(row: UnitRow): Unit {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     text: row.text,
+    textId: row.text_id,
   };
 }

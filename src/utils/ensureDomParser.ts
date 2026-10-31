@@ -4,14 +4,14 @@
  *
  * linkedom 只在缺少 DOMParser 时动态加载，避免浏览器 Vite 打包拉进 cssom (#427 build)。
  * Load linkedom only when DOMParser is missing so the browser Vite build does not pull cssom.
+ *
+ * Electron/Node ESM 没有裸 require；用 process.getBuiltinModule('module').createRequire (#452)。
+ * Electron/Node ESM has no bare require; use process.getBuiltinModule('module').createRequire (#452).
  */
 export function ensureDomParser(): void {
   if (typeof globalThis.DOMParser !== 'undefined') return;
   try {
-    // Keep the module id out of the static import graph (Node/Electron main only).
-    const { DOMParser: LinkedomDOMParser } = eval('require')('linkedom') as {
-      DOMParser: typeof DOMParser;
-    };
+    const { DOMParser: LinkedomDOMParser } = loadLinkedom();
     globalThis.DOMParser = LinkedomDOMParser as unknown as typeof DOMParser;
   } catch (error) {
     throw new Error(
@@ -20,4 +20,21 @@ export function ensureDomParser(): void {
       }`,
     );
   }
+}
+
+function loadLinkedom(): { DOMParser: typeof DOMParser } {
+  // Keep linkedom out of the static import graph (browser Vite must not pull cssom).
+  const nodeModule = (
+    process as NodeJS.Process & {
+      getBuiltinModule?: (id: string) => {
+        createRequire: (filename: string | URL) => NodeRequire;
+      };
+    }
+  ).getBuiltinModule?.('module');
+  if (nodeModule?.createRequire === undefined) {
+    throw new ReferenceError('require is not defined');
+  }
+  return nodeModule.createRequire(import.meta.url)('linkedom') as {
+    DOMParser: typeof DOMParser;
+  };
 }

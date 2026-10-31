@@ -4,6 +4,7 @@ import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopAnalysisReview } from './useDesktopAnalysisReview';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
+import { DesktopScopeNote } from './DesktopScopeNote';
 import '../styles/pages/desktop-project-read.css';
 
 export function DesktopAnalysisPage({ host }: { host: DesktopReadHost }) {
@@ -60,12 +61,24 @@ export function DesktopAnalysisPage({ host }: { host: DesktopReadHost }) {
           {selected === undefined || review.view === null ? null : (
             <div className="desktop-project-read-units">
               <p>
-                {review.view.labels.length === 0
+                {review.view.nodes.length === 0
                   ? t(locale, 'workspace.analysis.noGraph')
                   : tf(locale, 'workspace.analysis.currentLabels', {
-                      labels: review.view.labels.join(' '),
+                      labels: review.view.nodes.map((node) => node.label).join(' '),
                     })}
               </p>
+              {read.sessionId === null
+                ? null
+                : review.view.nodes.map((node) => (
+                    <DesktopScopeNote
+                      key={node.id}
+                      sessionId={read.sessionId ?? ''}
+                      desktopCall={host.desktopCall}
+                      scope={{ kind: 'analysis_node', unitId: selected.id, nodeId: node.id }}
+                      label={`${t(locale, 'app.desktopRead.analysisNote')}: ${node.label}`}
+                      saveLabel={`${t(locale, 'app.desktopRead.saveAnalysisNote')}: ${node.label}`}
+                    />
+                  ))}
               {review.candidates.length === 0 ? (
                 <p>{t(locale, 'workspace.analysis.emptyCandidates')}</p>
               ) : null}
