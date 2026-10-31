@@ -52,6 +52,10 @@ function renderView(
       saveNoteLabel="Save note"
       saveTimelineNoteLabel="Save timeline note"
       saveWaveformNoteLabel="Save waveform note"
+      draft={null}
+      onEditText={() => undefined}
+      onComposeText={() => undefined}
+      onLeaveUnit={(go) => go()}
       onSelectManuscript={() => undefined}
       onSaveText={() => undefined}
       onUndoText={() => undefined}

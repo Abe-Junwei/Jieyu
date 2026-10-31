@@ -549,6 +549,18 @@ async function openWindow(): Promise<BrowserWindow> {
     if (abandoned !== null) releaseDesktopMediaSession(abandoned);
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // 渲染进程有未保存正文时会取消 beforeunload；Electron 默认静默不关窗，这里改为问用户。
+  win.webContents.on('will-prevent-unload', (event) => {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'question',
+      buttons: ['留在这里', '放弃修改并关闭'],
+      defaultId: 0,
+      cancelId: 0,
+      message: '正文还没保存',
+      detail: '关闭后，这段没保存的修改会丢失。',
+    });
+    if (choice === 1) event.preventDefault();
+  });
   win.webContents.on('will-navigate', (event, url) => {
     if (!isAppNavigation(url, win.webContents.getURL())) event.preventDefault();
   });

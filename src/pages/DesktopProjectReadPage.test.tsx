@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from '../db/desktop/desktopCall';
 import {
@@ -22,10 +23,16 @@ import {
 import { LocaleProvider } from '../i18n';
 import { DesktopCorpusPage } from './DesktopCorpusPage';
 import { DesktopProjectReadPage } from './DesktopProjectReadPage';
+import {
+  subscribeDesktopDomainEvents,
+  type DesktopDomainEvent,
+} from '../desktop/desktopDomainEvents';
 
 const roots: string[] = [];
 
 afterEach(() => {
+  resetDesktopPageRouters();
+  while (eventStops.length > 0) eventStops.pop()?.();
   cleanup();
   delete (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop;
   resetDesktopSessions();
@@ -37,13 +44,31 @@ afterEach(() => {
 function renderPage() {
   return render(
     <LocaleProvider locale="en-US">
-      <MemoryRouter initialEntries={['/desktop-project']}>
+      <DesktopPageRouter initialEntries={['/desktop-project']}>
         <Routes>
           <Route path="/" element={<div>home</div>} />
-          <Route path="/desktop-project" element={<DesktopProjectReadPage />} />
+          <Route path="/elsewhere" element={<div>elsewhere</div>} />
+          <Route
+            path="/desktop-project"
+            element={
+              <>
+                <LeaveProbe />
+                <DesktopProjectReadPage />
+              </>
+            }
+          />
         </Routes>
-      </MemoryRouter>
+      </DesktopPageRouter>
     </LocaleProvider>,
+  );
+}
+
+function LeaveProbe() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => void navigate('/elsewhere')}>
+      leave page
+    </button>
   );
 }
 
@@ -266,6 +291,183 @@ describe('DesktopProjectReadPage', () => {
     expect(callDesktopSession(session.sessionId, 'units.get', { id: right.id })).toMatchObject({
       startTime: 1,
       text: '乙',
+    });
+  });
+
+  describe('slice 0: text save through the invalidation table', () => {
+    it('re-reads through the single table, not a page reload, and shows the saved value', async () => {
+      const dir = tempFolder();
+      writeFileSync(join(dir, 'a.wav'), '');
+      const session = openDesktopSession(dir, [dir]);
+      const unit = seedReadUnit(session.sessionId, 0, 1, '原句');
+      const { host, calls } = countingHost(session.sessionId);
+      const events = recordEvents();
+      mountWith(host);
+      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      const listsBefore = calls.filter((call) => call === 'units.list').length;
+      fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
+        target: { value: '改过' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
+      expect(await screen.findByRole('button', { name: '0.0–1.0 改过' })).toBeTruthy();
+      expect(textValue('Text')).toBe('改过');
+      expect(events).toEqual([
+        {
+          type: 'unit.textSaved',
+          sessionId: session.sessionId,
+          manuscriptId: expect.any(String),
+          unitId: unit.id,
+        },
+      ]);
+      expect(calls.filter((call) => call === 'units.list').length).toBe(listsBefore + 1);
+      reopenDesktopSession(session.sessionId);
+      expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+        text: '改过',
+      });
+    });
+
+    it('keeps the draft, emits nothing, and stops a silent leave when the save fails', async () => {
+      const dir = tempFolder();
+      writeFileSync(join(dir, 'a.wav'), '');
+      const session = openDesktopSession(dir, [dir]);
+      const unit = seedReadUnit(session.sessionId, 0, 1, '原句');
+      const { host, failText } = countingHost(session.sessionId);
+      const events = recordEvents();
+      mountWith(host);
+      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      failText(true);
+      fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
+        target: { value: '草稿' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
+      expect(await screen.findByText('Text was not saved; the draft is kept')).toBeTruthy();
+      expect(textValue('Text')).toBe('草稿');
+      expect(events).toEqual([]);
+      fireEvent.click(screen.getByRole('button', { name: 'leave page' }));
+      const dialog = await screen.findByRole('dialog', { name: 'This text is not saved yet' });
+      expect(screen.queryByText('elsewhere')).toBeNull();
+      expect(dialog.textContent).toContain('Text was not saved; the draft is kept');
+      fireEvent.click(screen.getByRole('button', { name: 'Stay here' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(textValue('Text')).toBe('草稿');
+      fireEvent.click(screen.getByRole('button', { name: 'leave page' }));
+      await screen.findByRole('dialog', { name: 'This text is not saved yet' });
+      failText(false);
+      fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
+      expect(await screen.findByText('elsewhere')).toBeTruthy();
+      expect(events.map((event) => event.type)).toEqual(['unit.textSaved']);
+      expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+        text: '草稿',
+      });
+    });
+
+    it('saves a submittable draft before switching units and asks before dropping a failed one', async () => {
+      const dir = tempFolder();
+      writeFileSync(join(dir, 'a.wav'), '');
+      const session = openDesktopSession(dir, [dir]);
+      const left = seedReadUnit(session.sessionId, 0, 1, '左');
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId: left.layerId,
+        startTime: 1,
+        endTime: 2,
+        text: '右',
+      });
+      const { host, failText } = countingHost(session.sessionId);
+      mountWith(host);
+      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 左' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
+        target: { value: '左改' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: '1.0–2.0 右' }));
+      expect(await screen.findByRole('button', { name: '0.0–1.0 左改' })).toBeTruthy();
+      await waitFor(() => expect(textValue('Text')).toBe('右'));
+      failText(true);
+      fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
+        target: { value: '右改' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: '0.0–1.0 左改' }));
+      await screen.findByRole('dialog', { name: 'This text is not saved yet' });
+      expect(textValue('Text')).toBe('右改');
+      fireEvent.click(screen.getByRole('button', { name: 'Discard this edit' }));
+      await waitFor(() => expect(textValue('Text')).toBe('左改'));
+      expect(callDesktopSession(session.sessionId, 'units.get', { id: left.id })).toMatchObject({
+        text: '左改',
+      });
+      expect(screen.getByRole('button', { name: '1.0–2.0 右' })).toBeTruthy();
+    });
+
+    it('does not submit while an IME composition is open', async () => {
+      const dir = tempFolder();
+      writeFileSync(join(dir, 'a.wav'), '');
+      const session = openDesktopSession(dir, [dir]);
+      const unit = seedReadUnit(session.sessionId, 0, 1, '原句');
+      const { host, calls } = countingHost(session.sessionId);
+      mountWith(host);
+      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      const input = screen.getByRole('textbox', { name: 'Text' });
+      fireEvent.compositionStart(input);
+      fireEvent.change(input, { target: { value: 'ni' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
+      fireEvent.click(screen.getByRole('button', { name: 'leave page' }));
+      await screen.findByRole('dialog', { name: 'This text is not saved yet' });
+      expect(calls.filter((call) => call === 'units.updateText')).toEqual([]);
+      fireEvent.click(screen.getByRole('button', { name: 'Stay here' }));
+      fireEvent.change(input, { target: { value: '你' } });
+      fireEvent.compositionEnd(input);
+      fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
+      expect(await screen.findByRole('button', { name: '0.0–1.0 你' })).toBeTruthy();
+      expect(calls.filter((call) => call === 'units.updateText')).toEqual(['units.updateText']);
+      expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+        text: '你',
+      });
+    });
+
+    it('drops a slow read from the old session after switching projects', async () => {
+      const dir = tempFolder();
+      writeFileSync(join(dir, 'a.wav'), '');
+      const current = openDesktopSession(dir, [dir]);
+      seedReadUnit(current.sessionId, 0, 1, '新项目');
+      const stale = 'stale-session';
+      let releaseOld: () => void = () => {};
+      const oldGate = new Promise<void>((resolve) => {
+        releaseOld = resolve;
+      });
+      const picks = [stale, current.sessionId];
+      const host: DesktopReadHost = {
+        projectReadEnabled: true,
+        chooseDesktopFolder: () => Promise.resolve({ sessionId: picks.shift() ?? '' }),
+        desktopCall: async (id, method, args) => {
+          if (id !== stale) return callDesktopSession(id, method, args);
+          if (method === 'manuscripts.list') {
+            return [{ id: 'old-ms', title: { zh: '旧稿' }, mediaId: 'old-media' }];
+          }
+          if (method === 'layers.list') {
+            return [
+              {
+                id: 'old-layer',
+                tierType: 'time-aligned',
+                contentType: 'transcription',
+              },
+            ];
+          }
+          if (method === 'units.list') {
+            await oldGate;
+            return [{ id: 'old-unit', startTime: 0, endTime: 1, text: '旧项目' }];
+          }
+          if (method === 'project.get') return { title: { und: 'old' } };
+          return [];
+        },
+        desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+      };
+      mountWith(host);
+      await waitFor(() => expect(readOpenProjectSession()).toBe(stale));
+      fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+      expect(await screen.findByRole('button', { name: '0.0–1.0 新项目' })).toBeTruthy();
+      releaseOld();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(screen.queryByRole('button', { name: '0.0–1.0 旧项目' })).toBeNull();
+      expect(screen.queryByRole('button', { name: '旧稿' })).toBeNull();
+      expect(screen.getByRole('button', { name: '0.0–1.0 新项目' })).toBeTruthy();
     });
   });
 
@@ -705,13 +907,13 @@ describe('DesktopProjectReadPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     render(
       <LocaleProvider locale="en-US">
-        <MemoryRouter initialEntries={['/corpus']}>
+        <DesktopPageRouter initialEntries={['/corpus']}>
           <LocationProbe />
           <Routes>
             <Route path="/corpus" element={<DesktopCorpusPage />} />
             <Route path="/desktop-project" element={<DesktopProjectReadPage />} />
           </Routes>
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>,
     );
     fireEvent.change(await screen.findByRole('textbox', { name: 'Query text' }), {
@@ -1537,7 +1739,7 @@ describe('DesktopProjectReadPage', () => {
       target: { value: 'project-note' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save project note' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Manuscript note: 文稿' }), {
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Manuscript note: 文稿' }), {
       target: { value: 'manuscript-note' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save manuscript note: 文稿' }));
@@ -1701,6 +1903,49 @@ function mount(sessionId: string): void {
   (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
   renderPage();
   fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+}
+
+function mountWith(host: DesktopReadHost): void {
+  (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
+}
+
+/** Real single-library calls with a call log; `failText(true)` makes `units.updateText` reject like a lost session. */
+function countingHost(sessionId: string) {
+  const calls: string[] = [];
+  let failing = false;
+  const host: DesktopReadHost = {
+    projectReadEnabled: true,
+    chooseDesktopFolder: () => Promise.resolve({ sessionId }),
+    desktopCall: (id, method, args) => {
+      calls.push(method);
+      if (failing && method === 'units.updateText') {
+        return Promise.reject(new Error('session closed'));
+      }
+      return Promise.resolve(callDesktopSession(id, method, args));
+    },
+    desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
+  };
+  return {
+    host,
+    calls,
+    failText: (value: boolean) => {
+      failing = value;
+    },
+  };
+}
+
+const eventStops: (() => void)[] = [];
+
+function recordEvents(): DesktopDomainEvent[] {
+  const seen: DesktopDomainEvent[] = [];
+  eventStops.push(
+    subscribeDesktopDomainEvents((event) => {
+      seen.push(event);
+    }),
+  );
+  return seen;
 }
 
 function LocationProbe() {

@@ -7,6 +7,7 @@ import {
   type ManuscriptDeletePreview,
 } from '../app/desktopProjectReadPageAccess';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
+import { useDesktopDraftGuard } from '../desktop/useDesktopDraftGuard';
 import { t, useLocale } from '../i18n';
 import { DesktopConversationPanel } from './DesktopConversationPanel';
 import { DesktopCorpusQueryPanel } from './DesktopCorpusQueryPanel';
@@ -14,6 +15,7 @@ import { DesktopExchangePanel } from './DesktopExchangePanel';
 import { DesktopDailyBackupPanel } from './DesktopDailyBackupPanel';
 import { DesktopDeletedItemsPanel } from './DesktopDeletedItemsPanel';
 import { DesktopDeletionReminderDialog } from './DesktopDeletionReminderDialog';
+import { DesktopDraftLeaveDialog } from './DesktopDraftLeaveDialog';
 import { DesktopManuscriptDeleteDialog } from './DesktopManuscriptDeleteDialog';
 import { DesktopMediaReregisterPanel } from './DesktopMediaReregisterPanel';
 import { DesktopProjectReadView } from './DesktopProjectReadView';
@@ -40,6 +42,7 @@ export function DesktopProjectReadPage() {
   const [deletePreview, setDeletePreview] = useState<ManuscriptDeletePreview | null>(null);
   const [dueReminders, setDueReminders] = useState<DueDeletionReminder[] | null>(null);
   const [deletedReload, setDeletedReload] = useState(0);
+  const draft = useDesktopDraftGuard((current) => read.saveText(current.unitId, current.text));
 
   if (host === null) return <Navigate to="/" replace />;
 
@@ -47,7 +50,11 @@ export function DesktopProjectReadPage() {
 
   return (
     <section className="desktop-project-read">
-      <button type="button" className="btn btn-primary" onClick={read.openFolder}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => draft.leave(read.openFolder)}
+      >
         {t(locale, 'app.desktopRead.openFolder')}
       </button>
       {read.projectTitle.length > 0 ? <p>{read.projectTitle}</p> : null}
@@ -68,12 +75,14 @@ export function DesktopProjectReadPage() {
         <DesktopCorpusQueryPanel
           host={host}
           sessionId={read.sessionId}
-          onLocate={(manuscriptId, layerId, unitId) => {
-            setFocusUnitId(unitId);
-            if (read.model?.manuscriptId !== manuscriptId || read.model.layerId !== layerId) {
-              read.selectManuscript(manuscriptId, layerId);
-            }
-          }}
+          onLocate={(manuscriptId, layerId, unitId) =>
+            draft.leave(() => {
+              setFocusUnitId(unitId);
+              if (read.model?.manuscriptId !== manuscriptId || read.model.layerId !== layerId) {
+                read.selectManuscript(manuscriptId, layerId);
+              }
+            })
+          }
         />
       )}
       {read.sessionId === null ? null : (
@@ -114,7 +123,11 @@ export function DesktopProjectReadPage() {
           saveTimelineNoteLabel={t(locale, 'app.desktopRead.saveTimelineNote')}
           saveWaveformNoteLabel={t(locale, 'app.desktopRead.saveWaveformNote')}
           onSelectManuscript={read.selectManuscript}
-          onSaveText={read.saveText}
+          draft={draft.draft}
+          onEditText={draft.edit}
+          onComposeText={draft.setComposing}
+          onSaveText={() => void draft.commit()}
+          onLeaveUnit={(go) => draft.leave(go)}
           onUndoText={read.undoText}
           onSplit={read.splitUnit}
           onMerge={read.mergeUnits}
@@ -215,7 +228,7 @@ export function DesktopProjectReadPage() {
           listDailyBackups={host.listDailyBackups}
           restoreDailyBackup={host.restoreDailyBackup}
           openRestoredBackup={host.openRestoredBackup}
-          onOpened={read.adoptOpenedSession}
+          onOpened={(sessionId) => draft.leave(() => read.adoptOpenedSession(sessionId))}
         />
       )}
       {dueReminders === null || host === null || read.sessionId === null ? null : (
@@ -280,6 +293,16 @@ export function DesktopProjectReadPage() {
               })
               .catch(() => setDeletePreview(null));
           }}
+        />
+      )}
+      {draft.prompt === null ? null : (
+        <DesktopDraftLeaveDialog
+          failed={draft.prompt.failed}
+          saving={draft.saving}
+          canRetry={draft.canRetry}
+          onRetry={draft.retry}
+          onDiscard={draft.discard}
+          onStay={draft.stay}
         />
       )}
       {featureFlags.projectCustomFieldsEnabled && read.sessionId !== null ? (

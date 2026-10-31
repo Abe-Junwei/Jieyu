@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from '../db/desktop/desktopCall';
 import { openDesktopSession, resetDesktopSessions } from '../db/desktop/projectSession';
@@ -20,6 +20,7 @@ const roots: string[] = [];
 const T = '2026-10-28T00:00:00.000Z';
 
 afterEach(() => {
+  resetDesktopPageRouters();
   cleanup();
   delete (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop;
   forgetOpenProjectSession();
@@ -63,11 +64,11 @@ function hostFor(methods: string[], writes: unknown[]): DesktopReadHost {
 function page() {
   return (
     <LocaleProvider locale="en-US">
-      <MemoryRouter>
+      <DesktopPageRouter>
         <DesktopAnalysisPage
           host={(globalThis as unknown as { jieyuDesktop: DesktopReadHost }).jieyuDesktop}
         />
-      </MemoryRouter>
+      </DesktopPageRouter>
     </LocaleProvider>
   );
 }

@@ -45,7 +45,12 @@ export function DesktopProjectReadView(props: {
   saveTimelineNoteLabel: string;
   saveWaveformNoteLabel: string;
   onSelectManuscript: (id: string) => void;
-  onSaveText: (unitId: string, text: string) => void;
+  draft: { unitId: string; text: string } | null;
+  onEditText: (unitId: string, text: string, savedText: string) => void;
+  onComposeText: (composing: boolean) => void;
+  onSaveText: () => void;
+  /** Runs `go` once any unsaved text draft is saved or discarded. */
+  onLeaveUnit: (go: () => void) => void;
   onUndoText: () => void;
   onSplit: (unitId: string, time: number) => void;
   onMerge: (keepId: string, removeId: string) => void;
@@ -64,7 +69,6 @@ export function DesktopProjectReadView(props: {
   focusUnitId?: string | null;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const textRef = useRef<HTMLInputElement>(null);
   const boundaryRef = useRef<HTMLInputElement>(null);
   const splitRef = useRef<HTMLInputElement>(null);
   const offsetRef = useRef<HTMLInputElement>(null);
@@ -74,10 +78,14 @@ export function DesktopProjectReadView(props: {
   const pendingFocus = useRef<string | null>(null);
   const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
   const focusUnit = (unit: DesktopProjectReadUnit) => {
-    setSelectedId(unit.id);
-    const audio = audioRef.current;
-    if (audio === null) return;
-    audio.currentTime = playerStart(unit, props.timeMapping);
+    const go = () => {
+      setSelectedId(unit.id);
+      const audio = audioRef.current;
+      if (audio === null) return;
+      audio.currentTime = playerStart(unit, props.timeMapping);
+    };
+    if (unit.id === selectedId) go();
+    else props.onLeaveUnit(go);
   };
   useEffect(() => {
     pendingFocus.current = props.focusUnitId ?? null;
@@ -110,7 +118,7 @@ export function DesktopProjectReadView(props: {
             key={manuscript.id}
             type="button"
             aria-current={manuscript.id === props.manuscriptId ? 'true' : 'false'}
-            onClick={() => props.onSelectManuscript(manuscript.id)}
+            onClick={() => props.onLeaveUnit(() => props.onSelectManuscript(manuscript.id))}
           >
             {manuscriptLabel(manuscript.title, manuscript.id)}
           </button>
@@ -133,19 +141,14 @@ export function DesktopProjectReadView(props: {
       {selected === null ? null : (
         <div className="desktop-project-read-units">
           <input
-            ref={textRef}
-            key={`${selected.id}:${selected.text}`}
+            key={selected.id}
             aria-label={props.textLabel}
-            defaultValue={selected.text}
+            value={props.draft?.unitId === selected.id ? props.draft.text : selected.text}
+            onChange={(event) => props.onEditText(selected.id, event.target.value, selected.text)}
+            onCompositionStart={() => props.onComposeText(true)}
+            onCompositionEnd={() => props.onComposeText(false)}
           />
-          <button
-            type="button"
-            onClick={() => {
-              const text = textRef.current?.value ?? '';
-              if (text.length === 0) return;
-              props.onSaveText(selected.id, text);
-            }}
-          >
+          <button type="button" onClick={() => props.onSaveText()}>
             {props.saveTextLabel}
           </button>
           <button type="button" onClick={() => props.onUndoText()}>

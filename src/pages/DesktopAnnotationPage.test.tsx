@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from '../db/desktop/desktopCall';
 import { openDesktopSession, resetDesktopSessions } from '../db/desktop/projectSession';
@@ -24,6 +24,7 @@ function DesktopAnnotationUnderTest() {
 const roots: string[] = [];
 
 afterEach(() => {
+  resetDesktopPageRouters();
   cleanup();
   delete (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop;
   forgetOpenProjectSession();
@@ -70,9 +71,9 @@ describe('DesktopAnnotationPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());
@@ -143,9 +144,9 @@ describe('DesktopAnnotationPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());
@@ -253,9 +254,9 @@ describe('DesktopAnnotationPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());
@@ -367,9 +368,9 @@ describe('DesktopAnnotationPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());
@@ -469,9 +470,9 @@ describe('DesktopAnnotationPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());
@@ -568,9 +569,9 @@ describe('DesktopAnnotationPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());
@@ -656,9 +657,9 @@ describe('DesktopAnnotationPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());
@@ -755,9 +756,9 @@ describe('DesktopAnnotationPage', () => {
     };
     const page = () => (
       <LocaleProvider locale="en-US">
-        <MemoryRouter>
+        <DesktopPageRouter>
           <DesktopAnnotationUnderTest />
-        </MemoryRouter>
+        </DesktopPageRouter>
       </LocaleProvider>
     );
     const view = render(page());

@@ -299,6 +299,45 @@ test('opens, plays, edits, refuses a second process, and reads the edit back', a
   }
 });
 
+test('asks before closing a window with an unsaved text draft', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-m4c-draft-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('draft-close');
+  let closed = false;
+  let savedText = '';
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: openFolder }).click();
+    await page.getByRole('button', { name: 'Clip', exact: true }).click();
+    await page
+      .getByRole('button', { name: /^0\.0–/ })
+      .first()
+      .click();
+    await expect(page.getByRole('textbox', { name: textLabel })).not.toHaveValue('');
+    savedText = await page.getByRole('textbox', { name: textLabel }).inputValue();
+    await page.getByRole('textbox', { name: textLabel }).fill('unsaved draft');
+    await stubCloseAnswer(app, 0);
+    await closeFirstWindow(app);
+    await expect.poll(() => closeAsks(app)).toBe(1);
+    await expect(page.getByRole('textbox', { name: textLabel })).toHaveValue('unsaved draft');
+    await stubCloseAnswer(app, 1);
+    const gone = page.waitForEvent('close');
+    await closeFirstWindow(app);
+    await gone;
+    closed = true;
+    expect(await closeAsks(app)).toBe(2);
+  } finally {
+    if (!closed) await app.close();
+    else await app.close().catch(() => {});
+  }
+  expect(unitTexts(copy)).not.toContain('unsaved draft');
+  expect(unitTexts(copy)).toContain(savedText);
+  rmSync(copy, { recursive: true, force: true });
+});
+
 test('an unreadable folder stays closed', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const blocked = mkdtempSync(join(tmpdir(), 'jieyu-unreadable-'));
@@ -574,4 +613,38 @@ async function stubFolderDialog(app: ElectronApplication, projectFolder: string)
     };
     host.dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [picked] });
   }, projectFolder);
+}
+
+async function stubCloseAnswer(app: ElectronApplication, answer: number): Promise<void> {
+  await app.evaluate((main, picked) => {
+    const host = main as unknown as { dialog: { showMessageBoxSync: () => number } };
+    const holder = globalThis as unknown as { __closeAsks?: number };
+    host.dialog.showMessageBoxSync = () => {
+      holder.__closeAsks = (holder.__closeAsks ?? 0) + 1;
+      return picked;
+    };
+  }, answer);
+}
+
+function closeAsks(app: ElectronApplication): Promise<number> {
+  return app.evaluate(() => (globalThis as unknown as { __closeAsks?: number }).__closeAsks ?? 0);
+}
+
+async function closeFirstWindow(app: ElectronApplication): Promise<void> {
+  await app.evaluate((main) => {
+    const host = main as unknown as {
+      BrowserWindow: { getAllWindows: () => { close: () => void }[] };
+    };
+    host.BrowserWindow.getAllWindows()[0]?.close();
+  });
+}
+
+function unitTexts(projectFolder: string): string[] {
+  const db = new Database(join(projectFolder, 'project.sqlite'), { readonly: true });
+  try {
+    const rows = db.prepare('SELECT body FROM unit_texts').all() as { body: string }[];
+    return rows.map((row) => row.body);
+  } finally {
+    db.close();
+  }
 }

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from '../db/desktop/desktopCall';
 import { openDesktopSession, resetDesktopSessions } from '../db/desktop/projectSession';
@@ -15,6 +15,7 @@ import { DesktopProjectReadPage } from './DesktopProjectReadPage';
 const roots: string[] = [];
 
 afterEach(() => {
+  resetDesktopPageRouters();
   cleanup();
   delete (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop;
   resetDesktopSessions();
@@ -26,12 +27,9 @@ afterEach(() => {
 function renderPage() {
   return render(
     <LocaleProvider locale="en-US">
-      <MemoryRouter initialEntries={['/desktop-project']}>
-        <Routes>
-          <Route path="/" element={<div>home</div>} />
-          <Route path="/desktop-project" element={<DesktopProjectReadPage />} />
-        </Routes>
-      </MemoryRouter>
+      <DesktopPageRouter initialEntries={['/desktop-project']}>
+        <DesktopProjectReadPage />
+      </DesktopPageRouter>
     </LocaleProvider>,
   );
 }
