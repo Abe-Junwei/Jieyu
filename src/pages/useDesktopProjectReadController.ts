@@ -23,6 +23,7 @@ export function useDesktopProjectReadController(
   const [notes, setNotes] = useState<UnitNote[]>([]);
   const [projectTitle, setProjectTitle] = useState('');
   const [error, setError] = useState('');
+  const [loadEpoch, setLoadEpoch] = useState(0);
   const shownSession = useRef(sessionId);
   const loadGenerationRef = useRef(0);
 
@@ -35,6 +36,8 @@ export function useDesktopProjectReadController(
     setProjectTitle('');
     setError('');
     setSessionId(nextSessionId);
+    // Same sessionId alone won't re-run the effect; bump so remount/open-again reloads.
+    setLoadEpoch((epoch) => epoch + 1);
   };
 
   useEffect(() => {
@@ -76,7 +79,7 @@ export function useDesktopProjectReadController(
     return () => {
       cancelled = true;
     };
-  }, [host, includeMedia, locale, locateLayerId, locateManuscriptId, sessionId]);
+  }, [host, includeMedia, loadEpoch, locale, locateLayerId, locateManuscriptId, sessionId]);
 
   const openFolder = () => {
     if (host === null) return;
