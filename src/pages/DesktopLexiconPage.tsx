@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 import { filterDesktopLexemes } from './lexicon/desktopLexemeDraft';
+import { DesktopLexiconAttachments } from './DesktopLexiconAttachments';
 import { useDesktopLexiconController } from './useDesktopLexiconController';
 import '../styles/pages/desktop-project-read.css';
 
@@ -63,6 +64,13 @@ export function DesktopLexiconPage({ host }: { host: DesktopReadHost }) {
               ? t(locale, 'workspace.annotation.lexemeCreateSubmit')
               : t(locale, 'workspace.lexicon.edit.save')}
           </button>
+          {lexicon.sessionId !== null && !lexicon.creating && lexicon.selectedId.length > 0 ? (
+            <DesktopLexiconAttachments
+              sessionId={lexicon.sessionId}
+              lexemeId={lexicon.selectedId}
+              desktopCall={host.desktopCall}
+            />
+          ) : null}
         </>
       ) : null}
     </section>

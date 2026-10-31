@@ -1,0 +1,26 @@
+[
+  {
+    "name": "tiny",
+    "file": "ggml-tiny.bin",
+    "sizeBytes": 77691713,
+    "sha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+    "license": "MIT",
+    "sourceUrl": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+  },
+  {
+    "name": "base",
+    "file": "ggml-base.bin",
+    "sizeBytes": 147951465,
+    "sha256": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+    "license": "MIT",
+    "sourceUrl": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+  },
+  {
+    "name": "small",
+    "file": "ggml-small.bin",
+    "sizeBytes": 487601967,
+    "sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+    "license": "MIT",
+    "sourceUrl": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+  }
+]

@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,6 +23,7 @@ import { segmentUnitWords } from './analysisRestore';
 import { createDefinition } from './customFields';
 import { importForeignFile } from './foreignImport';
 import { openProject } from './openProject';
+import { exportDesktopJym, importDesktopJym } from './projectExchange';
 import { listUnits } from './units';
 
 const roots: string[] = [];
@@ -224,9 +234,9 @@ describe('foreign file import', () => {
       ).toBeGreaterThan(0);
 
       writeFileSync(join(source, 'kept.lift'), lift());
-      expect(importForeignFile({ folder: project, file: join(source, 'kept.lift') }).written).toBeGreaterThan(
-        0,
-      );
+      expect(
+        importForeignFile({ folder: project, file: join(source, 'kept.lift') }).written,
+      ).toBeGreaterThan(0);
     } finally {
       globalThis.DOMParser = saved;
     }
@@ -305,6 +315,43 @@ describe('foreign file import', () => {
     ).toThrow('media hash does not match');
     expect(readFileSync(join(project, media.relpath)).equals(replaced)).toBe(true);
     expect(texts(project)).toEqual(['kept sentence']);
+  });
+
+  it('deletes only the files this import created when a later write fails', () => {
+    const project = library();
+    const source = join(rootOf(project), 'source');
+    const audio = Buffer.from('synthetic-chain');
+    const grid = textGrid('kept sentence');
+    writeFileSync(join(source, 'kept.wav'), audio);
+    writeFileSync(join(source, 'kept.TextGrid'), grid);
+    writeFileSync(join(source, 'roles.txt'), 'tx 转写\n');
+    const kept = join(project, 'already.txt');
+    writeFileSync(kept, 'stay');
+    const opened = openProject(project);
+    opened.db.exec(
+      `CREATE TEMP TRIGGER abort_import_manuscript BEFORE INSERT ON manuscripts
+       BEGIN SELECT RAISE(ABORT, 'injected'); END`,
+    );
+    expect(() =>
+      importForeignFile({
+        folder: project,
+        file: join(source, 'kept.TextGrid'),
+        roles: join(source, 'roles.txt'),
+        db: opened.db,
+      }),
+    ).toThrow('injected');
+    opened.close();
+    expect(existsSync(join(source, 'kept.wav'))).toBe(true);
+    expect(existsSync(join(source, 'kept.TextGrid'))).toBe(true);
+    expect(readFileSync(kept, 'utf8')).toBe('stay');
+    expect(existsSync(sourceFile(project, Buffer.from(grid), '.textgrid'))).toBe(false);
+    expect(
+      existsSync(join(project, 'media', `${createHash('sha256').update(audio).digest('hex')}.wav`)),
+    ).toBe(false);
+    const again = openProject(project);
+    expect(again.db.prepare('SELECT COUNT(*) AS n FROM manuscripts').get()).toEqual({ n: 0 });
+    expect(again.db.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({ n: 0 });
+    again.close();
   });
 
   it('projects a legal interval and reports the one that does not fit', () => {
@@ -496,6 +543,143 @@ describe('foreign file import', () => {
       { title: JSON.stringify({ und: 'One' }), text: 'first sentence' },
       { title: JSON.stringify({ und: 'Two' }), text: 'second sentence' },
     ]);
+  });
+
+  it('does not publish imported sources through a symlink outside the project', () => {
+    const root = mkdtempSync(join(tmpdir(), 'jieyu-import-sources-'));
+    roots.push(root);
+    const folder = join(root, 'project');
+    mkdirSync(folder);
+    openProject(folder).close();
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    symlinkSync(outside, join(folder, 'sources'));
+    const file = join(root, 'test.TextGrid');
+    writeFileSync(
+      file,
+      `File type = "ooTextFile"\nObject class = "TextGrid"\nxmin = 0\nxmax = 1\ntiers? <exists>\nsize = 0\nitem []:\n`,
+    );
+    try {
+      importForeignFile({ folder, file });
+    } catch {
+      /* rejection is allowed */
+    }
+    expect(readdirSync(outside)).toEqual([]);
+  });
+
+  it('backs up a LIFT source referenced by lexeme provenance', () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-import-lift-'));
+    const restored = mkdtempSync(join(tmpdir(), 'jieyu-import-lift-restored-'));
+    roots.push(folder, restored);
+    const project = openProject(folder);
+    try {
+      const file = join(folder, 'sample.lift');
+      writeFileSync(
+        file,
+        '<lift version="0.13"><entry id="e1"><lexical-unit><form lang="und"><text>word</text></form></lexical-unit><sense id="s1"><definition><form lang="und"><text>meaning</text></form></definition></sense></entry></lift>',
+      );
+      expect(importForeignFile({ folder, file, db: project.db }).written).toBe(1);
+      const row = project.db
+        .prepare('SELECT provenance_json FROM lexemes WHERE provenance_json IS NOT NULL')
+        .get() as { provenance_json: string };
+      const relpath = (JSON.parse(row.provenance_json) as { relpath: string }).relpath;
+      importDesktopJym(restored, exportDesktopJym(project.db, folder));
+      expect(readFileSync(join(restored, relpath)).byteLength).toBeGreaterThan(0);
+    } finally {
+      project.close();
+    }
+  });
+
+  it('preserves the FLEx phrase speaker or reports it as unprojected', () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-import-flex-'));
+    roots.push(folder);
+    const project = openProject(folder);
+    try {
+      const file = join(folder, 'phrase.flextext');
+      writeFileSync(join(folder, 'roles.txt'), 'primary 转写\n');
+      writeFileSync(join(folder, 'phrase.wav'), 'audio');
+      writeFileSync(
+        file,
+        `<document><interlinear-text><paragraphs><paragraph><phrases>
+      <phrase guid="p1" speaker="Alice" begin-time-offset="0" end-time-offset="1000">
+        <item type="txt" lang="und">hello</item>
+      </phrase></phrases></paragraph></paragraphs></interlinear-text></document>`,
+      );
+      const result = importForeignFile({ folder, file, db: project.db });
+      expect(result.written).toBe(1);
+      const row = project.db
+        .prepare(
+          'SELECT speakers.name FROM units LEFT JOIN speakers ON units.speaker_id = speakers.id',
+        )
+        .get() as { name: string | null };
+      expect(
+        row.name === 'Alice' || result.unprojected.some((item) => item.name.includes('Alice')),
+      ).toBe(true);
+    } finally {
+      project.close();
+    }
+  });
+
+  it('keeps the imported source file referenced by provenance after JYM restore', () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-import-source-'));
+    const destination = mkdtempSync(join(tmpdir(), 'jieyu-import-source-restored-'));
+    roots.push(folder, destination);
+    const project = openProject(folder);
+    try {
+      const file = join(folder, 'source.TextGrid');
+      writeFileSync(join(folder, 'source.wav'), 'audio');
+      writeFileSync(join(folder, 'roles.txt'), 'tx 转写\n');
+      writeFileSync(
+        file,
+        `File type = "ooTextFile"\nObject class = "TextGrid"\nxmin = 0\nxmax = 1\ntiers? <exists>\nsize = 1\nitem []:\nitem [1]:\nclass = "IntervalTier"\nname = "tx"\nxmin = 0\nxmax = 1\nintervals: size = 1\nintervals [1]:\nxmin = 0\nxmax = 1\ntext = "sentence"\n`,
+      );
+      expect(importForeignFile({ folder, file, db: project.db }).written).toBe(1);
+      const row = project.db.prepare('SELECT provenance_json FROM unit_texts').get() as {
+        provenance_json: string;
+      };
+      const { relpath } = JSON.parse(row.provenance_json) as { relpath: string };
+      expect(existsSync(join(folder, relpath))).toBe(true);
+      importDesktopJym(destination, exportDesktopJym(project.db, folder));
+      expect(existsSync(join(destination, relpath))).toBe(true);
+    } finally {
+      project.close();
+    }
+  });
+
+  it('reports JYB units whose layer cannot be projected', () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-import-jyb-'));
+    roots.push(folder);
+    const file = join(folder, 'sample.jyb');
+    writeFileSync(
+      file,
+      zipSync({
+        mimetype: strToU8('application/vnd.jieyu.jyb'),
+        'data/library.json': strToU8(
+          JSON.stringify({
+            projects: [
+              {
+                name: 'imported',
+                collections: {
+                  layer_units: [
+                    {
+                      id: 'u1',
+                      mediaId: 'm1',
+                      layerId: 'missing',
+                      startTime: 0,
+                      endTime: 1,
+                      text: 'orphan sentence',
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        ),
+      }),
+    );
+    const result = importForeignFile({ folder, file });
+    expect(result.written).toBe(0);
+    expect(result.unprojected.length).toBeGreaterThan(0);
   });
 });
 

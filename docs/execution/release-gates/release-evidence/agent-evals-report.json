@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-03T03:36:09.379Z",
+  "generatedAt": "2026-10-30T10:06:18.636Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
@@ -9,13 +9,13 @@
     "suitePath": "scripts/agent-evals/suite.v1.json"
   },
   "summary": {
-    "total": 17,
-    "passed": 17,
+    "total": 18,
+    "passed": 18,
     "failed": 0,
     "passRate": 1,
     "requiredPassRate": 0.9,
     "maxFailedCases": 0,
-    "coveredGoldenTasks": 83,
+    "coveredGoldenTasks": 85,
     "requiredGoldenTasksMin": 30,
     "coveredTrajectorySignals": [
       "tool_selection",
@@ -36,32 +36,8 @@
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-09-03T03:35:11.007Z",
-    "endedAt": "2026-09-03T03:36:09.379Z"
-  },
-  "auditTrace": {
-    "enabled": true,
-    "path": "/workspace/docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
-    "rowCount": 9,
-    "decisionRowCount": 2,
-    "metadataDecisionRowCount": 2,
-    "schemaV1DecisionRowCount": 2,
-    "t4PartialProgressDecisionRowCount": 1,
-    "t4ProposeRollbackDecisionRowCount": 1,
-    "chainedRunCount": 1,
-    "missingAgentRunIdCount": 0,
-    "parseErrorCount": 0,
-    "trajectorySignalsFromAudit": [
-      "tool_selection",
-      "gate_correctness",
-      "audit_traceability",
-      "approval_explainability",
-      "recovery_path",
-      "agent_run_id_chain"
-    ],
-    "missingTrajectorySignalsFromAudit": [],
-    "passed": true,
-    "failureReasons": []
+    "startedAt": "2026-10-30T10:03:31.749Z",
+    "endedAt": "2026-10-30T10:06:18.636Z"
   },
   "cases": [
     {
@@ -73,10 +49,10 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:11.008Z",
-      "endedAt": "2026-09-03T03:35:32.618Z",
-      "elapsedMs": 21610,
-      "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
+      "startedAt": "2026-10-30T10:03:31.750Z",
+      "endedAt": "2026-10-30T10:05:31.530Z",
+      "elapsedMs": 119780,
+      "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit && tsc -p electron --noEmit\n\n",
       "stderr": ""
     },
     {
@@ -88,11 +64,11 @@
       "command": "npm run check:architecture-guard:core",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:32.618Z",
-      "endedAt": "2026-09-03T03:35:33.054Z",
-      "elapsedMs": 436,
+      "startedAt": "2026-10-30T10:05:31.531Z",
+      "endedAt": "2026-10-30T10:05:37.413Z",
+      "elapsedMs": 5882,
       "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
-      "stderr": "[check-architecture-guard] WARN: 17 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: line count 416/420 reached 99% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionMixedSelectionMutationCluster.ts: line count 265/280 reached 95% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 248/280 reached 89% of ceiling\n- src/pages/useTranscriptionChatWindowLayout.ts: line count 278/300 reached 93% of ceiling\n- src/pages/useTranscriptionChatWindowLayout.ts: useEffect count 7/8 reached 88% of ceiling\n- src/pages/useOrchestratorViewModels.ts: line count 268/300 reached 89% of ceiling\n"
+      "stderr": "[check-architecture-guard] WARN: 28 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/transcription/useSegmentRangeGesturePreviewWriter.ts: ratchet floor unchanged for 106d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useSpeakerActionRoutingController.ts: line count 416/420 reached 99% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionMixedSelectionMutationCluster.ts: line count 271/280 reached 97% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 248/280 reached 89% of ceiling\n- src/pages/useTranscriptionProjectMediaController.ts: ratchet floor unchanged for 106d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useTranscriptionTimelineInteractionController.ts: ratchet floor unchanged for 106d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useTranscriptionChatWindowLayout.ts: line count 280/300 reached 93% of ceiling\n- src/pages/useTranscriptionChatWindowLayout.ts: useEffect count 7/8 reached 88% of ceiling\n- src/hooks/importExport/useImportExport.importHandlers.ts: line count 1316/1500 reached 88% of ceiling\n- src/hooks/importExport/useImportExport.ts: line count 1280/1500 reached 85% of ceiling\n- src/pages/LanguageMetadataWorkspacePage.tsx: line count 697/800 reached 87% of ceiling\n- src/pages/LexiconPage.tsx: line count 706/800 reached 88% of ceiling\n- src/pages/OrchestratorWaveformContent.tsx: line count 706/800 reached 88% of ceiling\n- src/pages/annotation/AnnotationIgtRow.tsx: line count 745/800 reached 93% of ceiling\n- src/pages/annotation/annotationRetokenize.ts: line count 785/800 reached 98% of ceiling\n- src/pages/useOrchestratorViewModels.ts: line count 272/300 reached 91% of ceiling\n- src/pages/useTranscriptionSegmentBatchMerge.ts: line count 256/300 reached 85% of ceiling\n"
     },
     {
       "id": "ai-messages-isolation",
@@ -103,9 +79,9 @@
       "command": "node scripts/check-ai-messages-isolation.mjs",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:33.054Z",
-      "endedAt": "2026-09-03T03:35:33.077Z",
-      "elapsedMs": 23,
+      "startedAt": "2026-10-30T10:05:37.413Z",
+      "endedAt": "2026-10-30T10:05:37.573Z",
+      "elapsedMs": 160,
       "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
       "stderr": ""
     },
@@ -122,10 +98,10 @@
       "command": "npx vitest run src/ai/memory/userDirectiveExtractor.test.ts src/hooks/ai/useAiChat.responsePolicy.test.ts src/hooks/ai/useAiChat.backgroundMemory.test.ts src/hooks/ai/useAiChat.toolDecisionPipeline.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:33.077Z",
-      "endedAt": "2026-09-03T03:35:35.238Z",
-      "elapsedMs": 2161,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/memory/userDirectiveExtractor.test.ts (2 tests) 7ms\n ✓ src/hooks/ai/useAiChat.backgroundMemory.test.ts (12 tests) 23ms\n ✓ src/hooks/ai/useAiChat.responsePolicy.test.ts (2 tests) 3ms\n ✓ src/hooks/ai/useAiChat.toolDecisionPipeline.test.ts (2 tests) 8ms\n\n Test Files  4 passed (4)\n      Tests  18 passed (18)\n   Start at  03:35:33\n   Duration  1.22s (transform 1.07s, setup 1.04s, import 1.04s, tests 42ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:05:37.573Z",
+      "endedAt": "2026-10-30T10:05:44.210Z",
+      "elapsedMs": 6637,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/hooks/ai/useAiChat.responsePolicy.test.ts (2 tests) 5ms\n ✓ src/ai/memory/userDirectiveExtractor.test.ts (2 tests) 10ms\n ✓ src/hooks/ai/useAiChat.backgroundMemory.test.ts (12 tests) 21ms\n ✓ src/hooks/ai/useAiChat.toolDecisionPipeline.test.ts (6 tests) 23ms\n\n Test Files  4 passed (4)\n      Tests  22 passed (22)\n   Start at  18:05:41\n   Duration  2.46s (transform 2.74s, setup 2.41s, import 1.97s, tests 60ms, environment 1ms)\n\n",
       "stderr": ""
     },
     {
@@ -140,10 +116,10 @@
       "command": "npx vitest run src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/hooks/ai/useAiChat.streamCompletion.test.ts src/hooks/ai/useAiChat.agentLoopRunner.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:35.238Z",
-      "endedAt": "2026-09-03T03:35:38.080Z",
-      "elapsedMs": 2842,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/chat/sessionMemory.test.ts (27 tests) 151ms\n ✓ src/hooks/ai/useAiChat.streamCompletion.test.ts (19 tests) 21ms\n ✓ src/hooks/ai/useAiChat.agentLoopRunner.test.ts (8 tests) 16ms\n ✓ src/ai/chat/promptContext.tiered.test.ts (3 tests) 3ms\n\n Test Files  4 passed (4)\n      Tests  57 passed (57)\n   Start at  03:35:35\n   Duration  2.00s (transform 2.11s, setup 1.03s, import 3.10s, tests 190ms, environment 431ms)\n\n",
+      "startedAt": "2026-10-30T10:05:44.210Z",
+      "endedAt": "2026-10-30T10:05:47.713Z",
+      "elapsedMs": 3503,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/chat/promptContext.tiered.test.ts (4 tests) 3ms\n ✓ src/ai/chat/sessionMemory.test.ts (27 tests) 158ms\n ✓ src/hooks/ai/useAiChat.streamCompletion.test.ts (19 tests) 17ms\n ✓ src/hooks/ai/useAiChat.agentLoopRunner.test.ts (8 tests) 12ms\n\n Test Files  4 passed (4)\n      Tests  58 passed (58)\n   Start at  18:05:44\n   Duration  2.53s (transform 4.86s, setup 2.19s, import 5.44s, tests 189ms, environment 896ms)\n\n",
       "stderr": ""
     },
     {
@@ -157,10 +133,10 @@
       "command": "npx vitest run scripts/generate-release-evidence-bundle.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:38.080Z",
-      "endedAt": "2026-09-03T03:35:40.035Z",
-      "elapsedMs": 1955,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ scripts/generate-release-evidence-bundle.test.ts (18 tests) 705ms\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  03:35:38\n   Duration  1.10s (transform 178ms, setup 274ms, import 21ms, tests 705ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:05:47.713Z",
+      "endedAt": "2026-10-30T10:05:50.137Z",
+      "elapsedMs": 2424,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ scripts/generate-release-evidence-bundle.test.ts (18 tests) 1276ms\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  18:05:48\n   Duration  1.58s (transform 141ms, setup 217ms, import 18ms, tests 1.28s, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -176,10 +152,10 @@
       "command": "npx vitest run src/components/ai/AiChatAlertsPanel.test.tsx",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:40.035Z",
-      "endedAt": "2026-09-03T03:35:42.065Z",
-      "elapsedMs": 2030,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/components/ai/AiChatAlertsPanel.test.tsx (10 tests) 197ms\n\n Test Files  1 passed (1)\n      Tests  10 passed (10)\n   Start at  03:35:40\n   Duration  1.19s (transform 327ms, setup 268ms, import 224ms, tests 197ms, environment 396ms)\n\n",
+      "startedAt": "2026-10-30T10:05:50.137Z",
+      "endedAt": "2026-10-30T10:05:52.212Z",
+      "elapsedMs": 2075,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/components/ai/AiChatAlertsPanel.test.tsx (11 tests) 183ms\n\n Test Files  1 passed (1)\n      Tests  11 passed (11)\n   Start at  18:05:50\n   Duration  1.10s (transform 277ms, setup 239ms, import 206ms, tests 183ms, environment 385ms)\n\n",
       "stderr": ""
     },
     {
@@ -195,10 +171,10 @@
       "command": "npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"renders directive console MVP and allows deactivating one directive\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"shows decision explanation message and reason in decision panel\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"keeps the AI decision panel collapsed by default\"",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:42.065Z",
-      "endedAt": "2026-09-03T03:35:50.189Z",
-      "elapsedMs": 8124,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 7 skipped) 172ms\n\n Test Files  1 passed (1)\n      Tests  1 passed | 7 skipped (8)\n   Start at  03:35:42\n   Duration  1.93s (transform 767ms, setup 271ms, import 975ms, tests 172ms, environment 401ms)\n\n\n RUN  v4.1.9 /workspace\n\n ↓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 8 skipped)\n\n Test Files  1 skipped (1)\n      Tests  8 skipped (8)\n   Start at  03:35:45\n   Duration  1.75s (transform 769ms, setup 268ms, import 976ms, tests 0ms, environment 398ms)\n\n\n RUN  v4.1.9 /workspace\n\n ↓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 8 skipped)\n\n Test Files  1 skipped (1)\n      Tests  8 skipped (8)\n   Start at  03:35:48\n   Duration  1.75s (transform 775ms, setup 273ms, import 977ms, tests 0ms, environment 396ms)\n\n",
+      "startedAt": "2026-10-30T10:05:52.212Z",
+      "endedAt": "2026-10-30T10:05:59.440Z",
+      "elapsedMs": 7228,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 7 skipped) 134ms\n\n Test Files  1 passed (1)\n      Tests  1 passed | 7 skipped (8)\n   Start at  18:05:52\n   Duration  1.65s (transform 768ms, setup 240ms, import 843ms, tests 134ms, environment 364ms)\n\n\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ↓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 8 skipped)\n\n Test Files  1 skipped (1)\n      Tests  8 skipped (8)\n   Start at  18:05:55\n   Duration  1.46s (transform 703ms, setup 213ms, import 798ms, tests 0ms, environment 373ms)\n\n\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ↓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 8 skipped)\n\n Test Files  1 skipped (1)\n      Tests  8 skipped (8)\n   Start at  18:05:57\n   Duration  1.55s (transform 759ms, setup 214ms, import 880ms, tests 0ms, environment 386ms)\n\n",
       "stderr": ""
     },
     {
@@ -212,11 +188,11 @@
       "command": "npx vitest run src/ai/tasks/TaskRunner.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:50.189Z",
-      "endedAt": "2026-09-03T03:35:57.362Z",
-      "elapsedMs": 7173,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/tasks/TaskRunner.test.ts (18 tests) 5124ms\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  03:35:50\n   Duration  6.26s (transform 316ms, setup 270ms, import 364ms, tests 5.12s, environment 402ms)\n\n",
-      "stderr": ""
+      "startedAt": "2026-10-30T10:05:59.440Z",
+      "endedAt": "2026-10-30T10:06:06.992Z",
+      "elapsedMs": 7552,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/tasks/TaskRunner.test.ts (23 tests) 5679ms\n\n Test Files  1 passed (1)\n      Tests  23 passed (23)\n   Start at  18:06:00\n   Duration  6.65s (transform 331ms, setup 239ms, import 279ms, tests 5.68s, environment 378ms)\n\n",
+      "stderr": "stderr | src/ai/tasks/TaskRunner.test.ts > TaskRunner > does not rerun a completed business task when recording done fails\n[TaskRunner] Task completed but recording done status failed { err: {}, taskId: 'task_embed_1793354761056_3d5n6d' }\n\nstderr | src/ai/tasks/TaskRunner.test.ts > TaskRunner > settles a failed task even when recording failed status also fails\n[TaskRunner] Recording failed task status failed { err: {}, taskId: 'task_embed_1793354761521_kfz2hr' }\n\n"
     },
     {
       "id": "vertical-workflow-reflections",
@@ -230,10 +206,10 @@
       "command": "npx vitest run src/ai/vertical/segmentQaReflection.test.ts src/ai/vertical/annotationQaReflection.test.ts src/ai/vertical/lexemeCandidatesReflection.test.ts src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:57.362Z",
-      "endedAt": "2026-09-03T03:35:59.414Z",
-      "elapsedMs": 2052,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts (21 tests) 7ms\n ✓ src/ai/vertical/lexemeCandidatesReflection.test.ts (11 tests) 5ms\n ✓ src/ai/vertical/segmentQaReflection.test.ts (20 tests) 6ms\n ✓ src/ai/vertical/annotationQaReflection.test.ts (11 tests) 5ms\n\n Test Files  4 passed (4)\n      Tests  63 passed (63)\n   Start at  03:35:57\n   Duration  1.15s (transform 538ms, setup 1.00s, import 53ms, tests 23ms, environment 1.28s)\n\n",
+      "startedAt": "2026-10-30T10:06:06.992Z",
+      "endedAt": "2026-10-30T10:06:08.474Z",
+      "elapsedMs": 1482,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts (21 tests) 9ms\n ✓ src/ai/vertical/annotationQaReflection.test.ts (11 tests) 3ms\n ✓ src/ai/vertical/segmentQaReflection.test.ts (20 tests) 4ms\n ✓ src/ai/vertical/lexemeCandidatesReflection.test.ts (11 tests) 3ms\n\n Test Files  4 passed (4)\n      Tests  63 passed (63)\n   Start at  18:06:07\n   Duration  646ms (transform 476ms, setup 793ms, import 43ms, tests 20ms, environment 1.11s)\n\n",
       "stderr": ""
     },
     {
@@ -248,10 +224,10 @@
       "command": "npx vitest run src/ai/vertical/adoptionQueue.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:35:59.414Z",
-      "endedAt": "2026-09-03T03:36:01.062Z",
-      "elapsedMs": 1648,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/vertical/adoptionQueue.test.ts (17 tests) 7ms\n\n Test Files  1 passed (1)\n      Tests  17 passed (17)\n   Start at  03:35:59\n   Duration  802ms (transform 182ms, setup 273ms, import 10ms, tests 7ms, environment 404ms)\n\n",
+      "startedAt": "2026-10-30T10:06:08.475Z",
+      "endedAt": "2026-10-30T10:06:10.010Z",
+      "elapsedMs": 1535,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/adoptionQueue.test.ts (17 tests) 7ms\n\n Test Files  1 passed (1)\n      Tests  17 passed (17)\n   Start at  18:06:09\n   Duration  678ms (transform 128ms, setup 202ms, import 8ms, tests 7ms, environment 393ms)\n\n",
       "stderr": ""
     },
     {
@@ -266,10 +242,10 @@
       "command": "npx vitest run src/ai/vertical/corpusSourceSet.test.ts src/ai/vertical/sourceResolver.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:36:01.062Z",
-      "endedAt": "2026-09-03T03:36:02.373Z",
-      "elapsedMs": 1311,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/vertical/corpusSourceSet.test.ts (24 tests) 8ms\n ✓ src/ai/vertical/sourceResolver.test.ts (15 tests) 5ms\n\n Test Files  2 passed (2)\n      Tests  39 passed (39)\n   Start at  03:36:01\n   Duration  436ms (transform 325ms, setup 545ms, import 29ms, tests 13ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:06:10.010Z",
+      "endedAt": "2026-10-30T10:06:11.049Z",
+      "elapsedMs": 1039,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/corpusSourceSet.test.ts (24 tests) 5ms\n ✓ src/ai/vertical/sourceResolver.test.ts (17 tests) 4ms\n\n Test Files  2 passed (2)\n      Tests  41 passed (41)\n   Start at  18:06:10\n   Duration  295ms (transform 262ms, setup 419ms, import 23ms, tests 10ms, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -284,10 +260,10 @@
       "command": "npx vitest run src/ai/vertical/verticalWorkflowRegistry.test.ts src/ai/vertical/verticalP0.test.ts src/ai/vertical/verticalWorkflowSelection.test.ts src/ai/vertical/verticalWorkflowAudit.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:36:02.373Z",
-      "endedAt": "2026-09-03T03:36:03.858Z",
-      "elapsedMs": 1485,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/vertical/verticalWorkflowSelection.test.ts (6 tests) 4ms\n ✓ src/ai/vertical/verticalWorkflowRegistry.test.ts (7 tests) 6ms\n ✓ src/ai/vertical/verticalP0.test.ts (5 tests) 5ms\n ✓ src/ai/vertical/verticalWorkflowAudit.test.ts (4 tests) 3ms\n\n Test Files  4 passed (4)\n      Tests  22 passed (22)\n   Start at  03:36:02\n   Duration  641ms (transform 532ms, setup 985ms, import 201ms, tests 18ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:06:11.049Z",
+      "endedAt": "2026-10-30T10:06:12.201Z",
+      "elapsedMs": 1152,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/verticalWorkflowAudit.test.ts (4 tests) 3ms\n ✓ src/ai/vertical/verticalWorkflowRegistry.test.ts (7 tests) 4ms\n ✓ src/ai/vertical/verticalWorkflowSelection.test.ts (7 tests) 3ms\n ✓ src/ai/vertical/verticalP0.test.ts (5 tests) 4ms\n\n Test Files  4 passed (4)\n      Tests  23 passed (23)\n   Start at  18:06:11\n   Duration  409ms (transform 614ms, setup 863ms, import 175ms, tests 13ms, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -306,10 +282,10 @@
       "command": "npx vitest run scripts/agent-evals/auditTrajectoryAssertions.test.ts scripts/run-agent-evals.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:36:03.858Z",
-      "endedAt": "2026-09-03T03:36:05.375Z",
-      "elapsedMs": 1517,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ scripts/agent-evals/auditTrajectoryAssertions.test.ts (8 tests) 7ms\n ✓ scripts/run-agent-evals.test.ts (6 tests) 220ms\n\n Test Files  2 passed (2)\n      Tests  14 passed (14)\n   Start at  03:36:04\n   Duration  630ms (transform 358ms, setup 584ms, import 18ms, tests 227ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:06:12.201Z",
+      "endedAt": "2026-10-30T10:06:13.577Z",
+      "elapsedMs": 1376,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ scripts/agent-evals/auditTrajectoryAssertions.test.ts (9 tests) 5ms\n ✓ scripts/run-agent-evals.test.ts (6 tests) 339ms\n\n Test Files  2 passed (2)\n      Tests  15 passed (15)\n   Start at  18:06:12\n   Duration  623ms (transform 254ms, setup 415ms, import 14ms, tests 344ms, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -324,10 +300,10 @@
       "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:36:05.375Z",
-      "endedAt": "2026-09-03T03:36:06.731Z",
-      "elapsedMs": 1356,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ scripts/agent-evals/cases/semantic-cases.test.ts (60 tests) 11ms\n\n Test Files  1 passed (1)\n      Tests  60 passed (60)\n   Start at  03:36:05\n   Duration  536ms (transform 257ms, setup 265ms, import 149ms, tests 11ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:06:13.577Z",
+      "endedAt": "2026-10-30T10:06:14.760Z",
+      "elapsedMs": 1183,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ scripts/agent-evals/cases/semantic-cases.test.ts (63 tests) 9ms\n\n Test Files  1 passed (1)\n      Tests  63 passed (63)\n   Start at  18:06:14\n   Duration  417ms (transform 200ms, setup 206ms, import 134ms, tests 9ms, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -341,10 +317,10 @@
       "command": "npx vitest run src/ai/vertical/evidencePacket.test.ts src/ai/vertical/evidenceSourceRef.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:36:06.731Z",
-      "endedAt": "2026-09-03T03:36:07.987Z",
-      "elapsedMs": 1256,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/ai/vertical/evidencePacket.test.ts (1 test) 2ms\n ✓ src/ai/vertical/evidenceSourceRef.test.ts (4 tests) 3ms\n\n Test Files  2 passed (2)\n      Tests  5 passed (5)\n   Start at  03:36:07\n   Duration  406ms (transform 335ms, setup 564ms, import 14ms, tests 6ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:06:14.761Z",
+      "endedAt": "2026-10-30T10:06:15.807Z",
+      "elapsedMs": 1046,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/evidencePacket.test.ts (1 test) 2ms\n ✓ src/ai/vertical/evidenceSourceRef.test.ts (4 tests) 2ms\n\n Test Files  2 passed (2)\n      Tests  5 passed (5)\n   Start at  18:06:15\n   Duration  286ms (transform 255ms, setup 421ms, import 11ms, tests 5ms, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -359,10 +335,28 @@
       "command": "npx vitest run src/components/ai/AiChatAssistantMessage.test.tsx",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-03T03:36:07.987Z",
-      "endedAt": "2026-09-03T03:36:09.379Z",
-      "elapsedMs": 1392,
-      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ src/components/ai/AiChatAssistantMessage.test.tsx (3 tests) 11ms\n\n Test Files  1 passed (1)\n      Tests  3 passed (3)\n   Start at  03:36:08\n   Duration  548ms (transform 270ms, setup 277ms, import 144ms, tests 11ms, environment 0ms)\n\n",
+      "startedAt": "2026-10-30T10:06:15.807Z",
+      "endedAt": "2026-10-30T10:06:16.980Z",
+      "elapsedMs": 1173,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/components/ai/AiChatAssistantMessage.test.tsx (3 tests) 9ms\n\n Test Files  1 passed (1)\n      Tests  3 passed (3)\n   Start at  18:06:16\n   Duration  377ms (transform 191ms, setup 203ms, import 99ms, tests 9ms, environment 0ms)\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "external-mcp-trust-schema-scan",
+      "name": "B11 external MCP schema scan (no 16k truncation / inputSchema injection)",
+      "category": "policy",
+      "goldenTaskCount": 2,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/ai/mcp/client/externalMcpTrustRegistry.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-10-30T10:06:16.980Z",
+      "endedAt": "2026-10-30T10:06:18.636Z",
+      "elapsedMs": 1656,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/mcp/client/externalMcpTrustRegistry.test.ts (8 tests) 37ms\n\n Test Files  1 passed (1)\n      Tests  8 passed (8)\n   Start at  18:06:17\n   Duration  867ms (transform 257ms, setup 204ms, import 209ms, tests 37ms, environment 348ms)\n\n",
       "stderr": ""
     }
   ]

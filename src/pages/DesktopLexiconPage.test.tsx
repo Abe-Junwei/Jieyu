@@ -1,25 +1,42 @@
 // @vitest-environment jsdom
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { callDesktopSession } from '../db/desktop/desktopCall';
-import { openDesktopSession, resetDesktopSessions } from '../db/desktop/projectSession';
+import {
+  openDesktopSession,
+  requireDesktopSession,
+  resetDesktopSessions,
+} from '../db/desktop/projectSession';
 import { releaseAllProjectLocks } from '../desktop/skeleton/projectLock';
 import {
   forgetOpenProjectSession,
   rememberOpenProjectSession,
 } from '../desktop/openProjectSession';
-import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { readDesktopProjectHost, type DesktopReadHost } from '../desktop/projectReadHost';
 import { LocaleProvider } from '../i18n';
-import { LexiconPage } from './LexiconPage';
+import { DesktopLexiconPage } from './DesktopLexiconPage';
 
 const roots: string[] = [];
 
+beforeEach(() => {
+  vi.stubGlobal(
+    'URL',
+    class extends URL {
+      static createObjectURL() {
+        return 'blob:attachment-preview';
+      }
+      static revokeObjectURL() {}
+    },
+  );
+});
+
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   delete (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop;
   forgetOpenProjectSession();
   resetDesktopSessions();
@@ -38,10 +55,12 @@ function hostFor(): DesktopReadHost {
 }
 
 function renderPage() {
+  const host = readDesktopProjectHost();
+  if (host === null) throw new Error('desktop host is missing');
   return render(
     <LocaleProvider locale="en-US">
       <MemoryRouter>
-        <LexiconPage />
+        <DesktopLexiconPage host={host} />
       </MemoryRouter>
     </LocaleProvider>,
   );
@@ -70,7 +89,7 @@ describe('DesktopLexiconPage', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'kept' }));
-    expect(screen.queryByText('Entry attachments')).toBeNull();
+    expect(await screen.findByText('This entry has no attachments yet.')).toBeTruthy();
     const headword = await screen.findByRole('textbox', { name: 'Headword' });
     const translation = screen.getByRole('textbox', { name: 'Sense translation' });
     expect((headword as HTMLInputElement).value).toBe('kept');
@@ -96,7 +115,47 @@ describe('DesktopLexiconPage', () => {
         },
       },
     );
-    expect(screen.queryByText('Entry attachments')).toBeNull();
+    expect(screen.getByText('This entry has no attachments yet.')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Choose an attachment file'), {
+      target: { files: [] },
+    });
+    fireEvent.change(screen.getByLabelText('Choose an attachment file'), {
+      target: { files: [new File([], 'empty.png', { type: 'image/png' })] },
+    });
+    expect(callDesktopSession(session.sessionId, 'attachments.list', { lexemeId: 'kept' })).toEqual(
+      [],
+    );
+    const file = new File([Uint8Array.from([1, 2, 3, 4])], 'plate.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Choose an attachment file'), {
+      target: { files: [file] },
+    });
+    expect(await screen.findByText('plate.png')).toBeTruthy();
+
+    cleanup();
+    resetDesktopSessions();
+    const again = openDesktopSession(folder, [folder]);
+    rememberOpenProjectSession(again.sessionId);
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'kept-again' }));
+    expect(
+      ((await screen.findByRole('textbox', { name: 'Headword' })) as HTMLInputElement).value,
+    ).toBe('kept-again');
+    expect(await screen.findByText('plate.png')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open attachment' }));
+    expect(await screen.findByText('Opened image/png')).toBeTruthy();
+    const listed = callDesktopSession(again.sessionId, 'attachments.list', {
+      lexemeId: 'kept',
+    }) as { id: string }[];
+    const read = callDesktopSession(again.sessionId, 'attachments.read', {
+      linkId: listed[0]?.id,
+    }) as { mimeType: string; bytes: Uint8Array };
+    expect(read.mimeType).toBe('image/png');
+    expect(Buffer.from(read.bytes).equals(Buffer.from([1, 2, 3, 4]))).toBe(true);
+    const [objectName] = readdirSync(join(folder, 'attachments', 'objects'));
+    writeFileSync(join(folder, 'attachments', 'objects', objectName ?? ''), 'nope');
+    fireEvent.click(screen.getByRole('button', { name: 'Open attachment' }));
+    expect(await screen.findByText('The attachment did not open')).toBeTruthy();
+    expect(screen.queryByText('Opened image/png')).toBeNull();
   });
 
   it('creates a lexeme in the open desktop project', async () => {
@@ -206,13 +265,144 @@ describe('DesktopLexiconPage', () => {
         },
       });
     });
-    expect(callDesktopSession(session.sessionId, 'lexicon.getEntry', { id: 'alpha' })).toMatchObject(
-      {
-        entry: {
-          headword: 'alpha',
-          senses: [{ id: 'sa', headwordTranslations: [{ text: 'A' }] }],
-        },
+    expect(
+      callDesktopSession(session.sessionId, 'lexicon.getEntry', { id: 'alpha' }),
+    ).toMatchObject({
+      entry: {
+        headword: 'alpha',
+        senses: [{ id: 'sa', headwordTranslations: [{ text: 'A' }] }],
+      },
+    });
+  });
+
+  it('drops one shared attachment link and still opens the other entry', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-desktop-lexicon-share-'));
+    roots.push(folder);
+    const session = openDesktopSession(folder, [folder]);
+    saveLexeme(session.sessionId, 'one');
+    saveLexeme(session.sessionId, 'two');
+    const bytes = Uint8Array.from([9, 8, 7]);
+    callDesktopSession(session.sessionId, 'attachments.publish', {
+      lexemeId: 'one',
+      displayName: 'plate.png',
+      kind: 'image',
+      mimeType: 'image/png',
+      bytes,
+      operationId: 'op-1',
+    });
+    callDesktopSession(session.sessionId, 'attachments.publish', {
+      lexemeId: 'two',
+      displayName: 'plate.png',
+      kind: 'image',
+      mimeType: 'image/png',
+      bytes,
+      operationId: 'op-2',
+    });
+    rememberOpenProjectSession(session.sessionId);
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = hostFor();
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'one' }));
+    expect(await screen.findByText('plate.png')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove attachment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      callDesktopSession(session.sessionId, 'attachments.list', { lexemeId: 'one' }),
+    ).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove attachment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm removal' }));
+    await waitFor(() => {
+      expect(
+        callDesktopSession(session.sessionId, 'attachments.list', { lexemeId: 'one' }),
+      ).toEqual([]);
+    });
+    expect(screen.queryByText('It is unknown whether this attachment was removed')).toBeNull();
+    expect(screen.queryByText('The attachment was removed from this project')).toBeNull();
+    expect(readdirSync(join(folder, 'attachments', 'objects'))).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'two' }));
+    expect(await screen.findByText('plate.png')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open attachment' }));
+    expect(await screen.findByText('Opened image/png')).toBeTruthy();
+  });
+
+  it('keeps an attachment when cleanup is unknown and does not try again', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'jieyu-desktop-lexicon-unknown-'));
+    roots.push(folder);
+    const session = openDesktopSession(folder, [folder]);
+    saveLexeme(session.sessionId, 'one');
+    callDesktopSession(session.sessionId, 'attachments.publish', {
+      lexemeId: 'one',
+      displayName: 'plate.png',
+      kind: 'image',
+      mimeType: 'image/png',
+      bytes: Uint8Array.from([1, 2, 3]),
+      operationId: 'op-1',
+    });
+    let calls = 0;
+    rememberOpenProjectSession(session.sessionId);
+    const host: DesktopReadHost = {
+      ...hostFor(),
+      desktopCall: (id, method, args) =>
+        Promise.resolve(
+          callDesktopSession(
+            id,
+            method,
+            args,
+            method === 'attachments.finishCleanup'
+              ? () => {
+                  calls += 1;
+                  throw new Error('disk');
+                }
+              : undefined,
+          ),
+        ),
+    };
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = host;
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'one' }));
+    expect(await screen.findByText('plate.png')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove attachment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm removal' }));
+    expect(
+      await screen.findByText('It is unknown whether this attachment was removed'),
+    ).toBeTruthy();
+    expect(screen.queryByText('The attachment was removed from this project')).toBeNull();
+    expect(calls).toBe(1);
+    expect(readdirSync(join(folder, 'attachments', 'objects'))).toHaveLength(1);
+    const file = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT id, state FROM attachment_files')
+      .get() as { id: string; state: string };
+    expect(file.state).toBe('cleanup_unknown');
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const again = await callDesktopSession(
+      session.sessionId,
+      'attachments.finishCleanup',
+      { fileId: file.id },
+      async () => {
+        calls += 1;
+        return 'moved';
       },
     );
+    expect(again).toEqual({ fileId: file.id, state: 'cleanup_unknown' });
+    expect(calls).toBe(1);
+    expect(
+      existsSync(
+        join(
+          folder,
+          'attachments',
+          'objects',
+          readdirSync(join(folder, 'attachments', 'objects'))[0] ?? '',
+        ),
+      ),
+    ).toBe(true);
   });
 });
+
+function saveLexeme(sessionId: string, id: string): void {
+  callDesktopSession(sessionId, 'lexicon.saveEntry', {
+    id,
+    entry: {
+      headword: id,
+      senses: [{ id: 's', definitions: [{ text: 't' }], headwordTranslations: [{ text: id }] }],
+    },
+  });
+}
