@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const external = [
   'electron',
   'better-sqlite3',
+  'linkedom',
   ...builtinModules,
   ...builtinModules.map((name) => `node:${name}`),
 ];

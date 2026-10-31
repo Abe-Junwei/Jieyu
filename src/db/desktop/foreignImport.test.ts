@@ -58,6 +58,24 @@ describe('foreign file import', () => {
     ).toBe(true);
   });
 
+  it('imports TextGrid when DOMParser is absent (#452)', () => {
+    const project = library();
+    const source = join(rootOf(project), 'source');
+    writeFileSync(join(source, 'kept.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'kept.TextGrid'), textGrid('kept sentence'));
+    writeFileSync(join(source, 'roles.txt'), 'tx 转写\n');
+    // @ts-expect-error intentional: non-XML import must not need DOMParser
+    delete globalThis.DOMParser;
+    expect(
+      importForeignFile({
+        folder: project,
+        file: join(source, 'kept.TextGrid'),
+        roles: join(source, 'roles.txt'),
+      }),
+    ).toMatchObject({ paths: [project], written: 1 });
+    expect(texts(project)).toEqual(['kept sentence']);
+  });
+
   it('writes an unmarked TextGrid with default transcription role when media is present (#429)', () => {
     const project = library();
     const source = join(rootOf(project), 'source');
