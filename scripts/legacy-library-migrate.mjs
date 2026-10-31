@@ -6,12 +6,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { applyPlan, DestinationNotEmptyError, readProject } from './apply-legacy-plan.mjs';
 import { killWhenReady } from './lib/sigkill-harness.mjs';
+import { createSyntheticDir } from './lib/synthetic-write-target.mjs';
 
 const APPLY_MODULE = fileURLToPath(new URL('./apply-legacy-plan.mjs', import.meta.url));
 
@@ -43,7 +43,7 @@ function samplePlan() {
 }
 
 function withDir(prefix, run) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const dir = createSyntheticDir(prefix);
   return Promise.resolve()
     .then(() => run(dir))
     .finally(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -54,7 +54,9 @@ function snapshot(dir) {
   for (const entry of fs.readdirSync(dir, { recursive: true, withFileTypes: true })) {
     if (!entry.isFile()) continue;
     const file = path.join(entry.parentPath, entry.name);
-    out[path.relative(dir, file)] = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+    out[path.relative(dir, file)] = createHash('sha256')
+      .update(fs.readFileSync(file))
+      .digest('hex');
   }
   return out;
 }
@@ -107,7 +109,10 @@ test('a file name that leaves the destination or collides by case is refused bef
 test('an injected failure removes the destination it created and keeps one it did not', () =>
   withDir('jieyu-migrate-fail-', (dir) => {
     const fresh = path.join(dir, 'nested', 'project');
-    assert.throws(() => applyPlan(samplePlan(), fresh, { failAfterAudio: true }), /injected failure/);
+    assert.throws(
+      () => applyPlan(samplePlan(), fresh, { failAfterAudio: true }),
+      /injected failure/,
+    );
     assert.equal(fs.existsSync(path.join(dir, 'nested')), false);
 
     const existing = path.join(dir, 'existing');

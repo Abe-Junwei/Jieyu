@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { mediaCleanupReady } from './mediaCleanup';
 import { readStringMap } from './stringMap';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -16,6 +17,7 @@ export interface DueDeletionReminder {
   title: Record<string, string> | null;
   relpath: string | null;
   retainUntil: string;
+  removable: boolean;
 }
 
 export function listDueDeletionReminders(db: SqliteDatabase): DueDeletionReminder[] {
@@ -43,6 +45,7 @@ export function listDueDeletionReminders(db: SqliteDatabase): DueDeletionReminde
       title: readStringMap(row.titleJson),
       relpath: null,
       retainUntil: row.retainUntil,
+      removable: false,
     })),
     ...recordings.map((row) => ({
       target: 'media' as const,
@@ -50,6 +53,7 @@ export function listDueDeletionReminders(db: SqliteDatabase): DueDeletionReminde
       title: null,
       relpath: row.relpath,
       retainUntil: row.retainUntil,
+      removable: mediaCleanupReady(db, row.id),
     })),
   ];
 }

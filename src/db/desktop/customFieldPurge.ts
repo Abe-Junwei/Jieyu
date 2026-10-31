@@ -14,7 +14,7 @@ import {
   type CustomFieldLocation,
   type StoredDefinitionRevision,
 } from './customFields';
-import { getUnit } from './units';
+import { readStoredUnit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -98,7 +98,7 @@ function stripUnitGraph(
   definitionId: string,
 ): void {
   if (location.unitId === undefined) throw new Error('analysis graph is missing');
-  const unit = getUnit(db, location.unitId);
+  const unit = readStoredUnit(db, location.unitId);
   const row = db
     .prepare('SELECT analysis_graph_json FROM units WHERE id = ?')
     .get(location.unitId) as { analysis_graph_json: string | null } | undefined;
@@ -110,24 +110,81 @@ function stripUnitGraph(
     unit.text,
   );
   if (!stripField(graph, definitionId, location)) throw new Error('custom field value is missing');
+  withRetainedWrite(db, location.unitId, () => {
+    db.prepare(
+      'UPDATE units SET analysis_graph_json = ?, graph_fingerprint = ?, updated_at = ? WHERE id = ?',
+    ).run(
+      JSON.stringify(graph),
+      analysisGraphFingerprint(graph),
+      new Date().toISOString(),
+      location.unitId,
+    );
+  });
+}
+
+function retainedManuscript(
+  db: SqliteDatabase,
+  unitId: string,
+):
+  | {
+      id: string;
+      deletedAt: string | null;
+      retainUntil: string | null;
+      reminderShownAt: string | null;
+    }
+  | undefined {
+  return db
+    .prepare(
+      `SELECT manuscripts.id AS id, manuscripts.deleted_at AS deletedAt,
+              manuscripts.retain_until AS retainUntil,
+              manuscripts.reminder_shown_at AS reminderShownAt
+       FROM units
+       JOIN layers ON layers.id = units.layer_id
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       WHERE units.id = ?`,
+    )
+    .get(unitId) as
+    | {
+        id: string;
+        deletedAt: string | null;
+        retainUntil: string | null;
+        reminderShownAt: string | null;
+      }
+    | undefined;
+}
+
+function withRetainedWrite(db: SqliteDatabase, unitId: string, write: () => void): void {
+  const held = retainedManuscript(db, unitId);
+  if (held === undefined || held.deletedAt === null) {
+    write();
+    return;
+  }
   db.prepare(
-    'UPDATE units SET analysis_graph_json = ?, graph_fingerprint = ?, updated_at = ? WHERE id = ?',
-  ).run(
-    JSON.stringify(graph),
-    analysisGraphFingerprint(graph),
-    new Date().toISOString(),
-    location.unitId,
-  );
+    `UPDATE manuscripts
+     SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL
+     WHERE id = ?`,
+  ).run(held.id);
+  try {
+    write();
+  } finally {
+    db.prepare(
+      `UPDATE manuscripts
+       SET deleted_at = ?, retain_until = ?, reminder_shown_at = ?
+       WHERE id = ?`,
+    ).run(held.deletedAt, held.retainUntil, held.reminderShownAt, held.id);
+  }
 }
 
 function stripCandidate(db: SqliteDatabase, id: string, definitionId: string): void {
   const row = db
     .prepare(
-      `SELECT text, graph_json, graph_fingerprint, definition_revisions_json, redacted_definition_ids_json
+      `SELECT unit_id, text, graph_json, graph_fingerprint, definition_revisions_json,
+              redacted_definition_ids_json
        FROM analysis_candidates WHERE id = ?`,
     )
     .get(id) as
     | {
+        unit_id: string;
         text: string;
         graph_json: string;
         graph_fingerprint: string;
@@ -144,17 +201,19 @@ function stripCandidate(db: SqliteDatabase, id: string, definitionId: string): v
   const redacted = JSON.parse(row.redacted_definition_ids_json) as string[];
   if (!redacted.includes(definitionId)) redacted.push(definitionId);
   redacted.sort();
-  db.prepare(
-    `UPDATE analysis_candidates
-     SET graph_json = ?, definition_revisions_json = ?, redacted_definition_ids_json = ?, updated_at = ?
-     WHERE id = ?`,
-  ).run(
-    JSON.stringify(graph),
-    JSON.stringify(revisions),
-    JSON.stringify(redacted),
-    new Date().toISOString(),
-    id,
-  );
+  withRetainedWrite(db, row.unit_id, () => {
+    db.prepare(
+      `UPDATE analysis_candidates
+       SET graph_json = ?, definition_revisions_json = ?, redacted_definition_ids_json = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(
+      JSON.stringify(graph),
+      JSON.stringify(revisions),
+      JSON.stringify(redacted),
+      new Date().toISOString(),
+      id,
+    );
+  });
   const kept = db
     .prepare('SELECT graph_fingerprint FROM analysis_candidates WHERE id = ?')
     .get(id) as {

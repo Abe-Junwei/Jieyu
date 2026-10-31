@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from './desktopCall';
 import { finishMediaCleanup } from './mediaCleanup';
+import { restoreRegisteredMedia } from './mediaReregister';
 import { openProject } from './openProject';
 import { openDesktopSession, resetDesktopSessions } from './projectSession';
 
@@ -109,9 +110,16 @@ describe('media file cleanup', () => {
     ).resolves.toEqual({ id: 'op-fail', state: 'failed' });
     expect(count(failed.db, 'media')).toBe(1);
     expect(existsSync(join(failedDir, 'a.wav'))).toBe(true);
+    expect(state(failed.db, 'op-fail')).toBe('failed');
     await expect(
       finishMediaCleanup(failed.db, failedDir, 'media-1', 'op-other', async () => 'moved'),
     ).rejects.toThrow('media cleanup is already open');
+    failed.close();
+    const reopened = openProject(failedDir);
+    expect(state(reopened.db, 'op-fail')).toBe('failed');
+    expect(count(reopened.db, 'media')).toBe(1);
+    expect(existsSync(join(failedDir, 'a.wav'))).toBe(true);
+    reopened.close();
 
     const unknownDir = folder();
     const unknown = openProject(unknownDir);
@@ -156,11 +164,145 @@ describe('media file cleanup', () => {
     ).resolves.toEqual({ id: 'op-missing', state: 'unknown' });
     expect(count(missing.db, 'media')).toBe(1);
 
-    failed.close();
     unknown.close();
     stayed.close();
     replaced.close();
     missing.close();
+  });
+
+  it('refuses to restore a recording while its trash call is in flight', async () => {
+    const dir = folder();
+    const project = openProject(dir);
+    writeReady(project.db, dir, 'gone.wav', 'gone-wav');
+    due(project.db);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const cleanup = finishMediaCleanup(project.db, dir, 'media-1', 'op', async (file) => {
+      await gate;
+      rmSync(file);
+      return 'moved';
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(() => restoreRegisteredMedia(project.db, 'media-1')).toThrow(
+      'media cleanup is in progress',
+    );
+    release();
+    await expect(cleanup).resolves.toEqual({ id: 'op', state: 'unknown' });
+    expect(existsSync(join(dir, 'gone.wav'))).toBe(false);
+    expect(project.db.prepare('SELECT id FROM media').all()).toEqual([{ id: 'media-1' }]);
+    project.close();
+    const reopened = openProject(dir);
+    expect(reopened.db.prepare('SELECT id FROM media').all()).toEqual([{ id: 'media-1' }]);
+    expect(state(reopened.db, 'op')).toBe('unknown');
+    reopened.close();
+  });
+
+  it('refuses a second cleanup of the same recording while trash is in flight', async () => {
+    const dir = folder();
+    const project = openProject(dir);
+    writeReady(project.db, dir, 'gone.wav', 'gone-wav');
+    due(project.db);
+    let calls = 0;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const cleanup = finishMediaCleanup(project.db, dir, 'media-1', 'op', async (file) => {
+      calls += 1;
+      await gate;
+      rmSync(file);
+      return 'moved';
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    await expect(
+      finishMediaCleanup(project.db, dir, 'media-1', 'op', async () => {
+        calls += 1;
+        return 'moved';
+      }),
+    ).rejects.toThrow('media cleanup is in progress');
+    release();
+    await expect(cleanup).resolves.toEqual({ id: 'op', state: 'confirmed' });
+    expect(calls).toBe(1);
+    project.close();
+  });
+
+  it('cancels a stored cleanup intent when the recording is restored before trash', async () => {
+    const dir = folder();
+    const project = openProject(dir);
+    writeReady(project.db, dir, 'gone.wav', 'gone-wav');
+    due(project.db);
+    const media = project.db
+      .prepare('SELECT relpath, sha256 FROM media WHERE id = ?')
+      .get('media-1') as {
+      relpath: string;
+      sha256: string;
+    };
+    project.db
+      .prepare(
+        `INSERT INTO media_cleanups (id, media_id, relpath, sha256, state)
+         VALUES (?, ?, ?, ?, 'intent')`,
+      )
+      .run('op', 'media-1', media.relpath, media.sha256);
+    expect(restoreRegisteredMedia(project.db, 'media-1')).toEqual({ id: 'media-1' });
+    expect(count(project.db, 'media_cleanups')).toBe(0);
+    let called = false;
+    await expect(
+      finishMediaCleanup(project.db, dir, 'media-1', 'op', async () => {
+        called = true;
+        return 'moved';
+      }),
+    ).rejects.toThrow('media is active');
+    expect(called).toBe(false);
+    expect(existsSync(join(dir, 'gone.wav'))).toBe(true);
+    project.close();
+  });
+
+  it('does not send an unknown cleanup to the trash again', async () => {
+    const dir = folder();
+    const project = openProject(dir);
+    writeReady(project.db, dir, 'a.wav', 'body');
+    due(project.db);
+    await expect(
+      finishMediaCleanup(project.db, dir, 'media-1', 'op-unknown', async () => 'unknown'),
+    ).resolves.toEqual({ id: 'op-unknown', state: 'unknown' });
+    let called = false;
+    await expect(
+      finishMediaCleanup(project.db, dir, 'media-1', 'op-unknown', async () => {
+        called = true;
+        return 'moved';
+      }),
+    ).resolves.toEqual({ id: 'op-unknown', state: 'unknown' });
+    expect(called).toBe(false);
+    project.close();
+    const reopened = openProject(dir);
+    expect(state(reopened.db, 'op-unknown')).toBe('unknown');
+    expect(count(reopened.db, 'media')).toBe(1);
+    expect(existsSync(join(dir, 'a.wav'))).toBe(true);
+    reopened.close();
+  });
+
+  it('does not confirm a cleanup whose recording identity changed during trash', async () => {
+    const dir = folder();
+    const project = openProject(dir);
+    writeReady(project.db, dir, 'gone.wav', 'gone-wav');
+    due(project.db);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const cleanup = finishMediaCleanup(project.db, dir, 'media-1', 'op', async (file) => {
+      await gate;
+      project.db.prepare('UPDATE media SET sha256 = ? WHERE id = ?').run('0'.repeat(64), 'media-1');
+      rmSync(file);
+      return 'moved';
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    release();
+    await expect(cleanup).resolves.toEqual({ id: 'op', state: 'unknown' });
+    expect(project.db.prepare('SELECT id FROM media').all()).toEqual([{ id: 'media-1' }]);
+    project.close();
   });
 
   it('clears a recording through the desktop call and refuses a call without trash', async () => {

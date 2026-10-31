@@ -29,7 +29,7 @@ function DesktopSessionGate(props: {
   desktop: (host: DesktopReadHost) => ReactNode;
 }) {
   const sessionId = readOpenProjectSession();
-  const [phase, setPhase] = useState<'check' | 'ready' | 'folder'>(
+  const [phase, setPhase] = useState<'check' | 'ready' | 'folder' | 'unavailable'>(
     sessionId === null ? 'folder' : 'check',
   );
 
@@ -47,7 +47,7 @@ function DesktopSessionGate(props: {
           setPhase('folder');
           return;
         }
-        setPhase('ready');
+        setPhase('unavailable');
       },
     );
     return () => {
@@ -58,6 +58,7 @@ function DesktopSessionGate(props: {
   if (sessionId === null || phase === 'folder') {
     return <Navigate to="/desktop-project" replace />;
   }
+  if (phase === 'unavailable') return <DesktopUnavailable />;
   if (phase !== 'ready') return null;
   return props.desktop(props.host);
 }

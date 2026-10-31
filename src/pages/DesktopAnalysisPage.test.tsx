@@ -189,6 +189,28 @@ describe('DesktopAnalysisPage', () => {
     ]);
   });
 
+  it('keeps an analysis-node note after the project is reopened', async () => {
+    const { folder, sessionId, unitId } = openFolder();
+    submitSuggestion(sessionId, unitId, 'past');
+    (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = hostFor([], []);
+    rememberOpenProjectSession(sessionId);
+    const view = render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Accept suggestion: past' }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Analysis note: past' }), {
+      target: { value: 'node-note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save analysis note: past' }));
+    expect(await screen.findByText('node-note')).toBeTruthy();
+    view.unmount();
+    resetDesktopSessions();
+    const reopened = openDesktopSession(folder, [folder]);
+    rememberOpenProjectSession(reopened.sessionId);
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    expect(await screen.findByText('node-note')).toBeTruthy();
+  });
+
   it('rolls back when the suggestion no longer matches the current credentials', async () => {
     const { folder, sessionId, unitId } = openFolder();
     const suggestionRow = submitSuggestion(sessionId, unitId, 'past');

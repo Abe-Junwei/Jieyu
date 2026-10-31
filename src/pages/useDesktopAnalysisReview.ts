@@ -10,7 +10,7 @@ export interface DesktopAnalysisCandidate {
 }
 
 interface AnalysisView {
-  labels: string[];
+  nodes: { id: string; label: string }[];
 }
 
 export function useDesktopAnalysisReview(
@@ -41,7 +41,10 @@ export function useDesktopAnalysisReview(
       .then(([state, listed]) => {
         if (cancelled || id !== request.current) return;
         setView({
-          labels: state.graph === null ? [] : state.graph.nodes.map((node) => node.label),
+          nodes:
+            state.graph === null
+              ? []
+              : state.graph.nodes.map((node) => ({ id: node.id, label: node.label })),
         });
         setCandidates(
           listed.flatMap((item) => {

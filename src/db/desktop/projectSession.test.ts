@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   closeDesktopSession,
   openDesktopSession,
+  openPreparedDesktopSession,
   reopenDesktopSession,
   requireDesktopSession,
   resetDesktopSessions,
@@ -73,7 +74,7 @@ describe('desktop project session', () => {
     }
     const again = openDesktopSession(dir, [dir], {
       dir: backupDir,
-      now: new Date('2026-10-27T18:00:00.000Z'),
+      now: new Date(2026, 9, 27, 18, 0, 0),
     });
     expect(again.sessionId).not.toBe(sessionId);
     expect(() => requireDesktopSession(sessionId)).toThrow('project session expired');
@@ -174,5 +175,41 @@ describe('desktop project session', () => {
         .db.prepare('SELECT id FROM media WHERE id = ?')
         .get('media-big'),
     ).toEqual({ id: 'media-big' });
+  });
+
+  it('keeps the live session when the restored folder cannot be prepared', () => {
+    const liveDir = folder();
+    const badDir = folder();
+    const opened = openDesktopSession(liveDir, [liveDir, badDir]);
+    const before = createHash('sha256')
+      .update(readFileSync(join(liveDir, 'project.sqlite')))
+      .digest('hex');
+    writeFileSync(join(badDir, 'project.sqlite'), 'not a library');
+    expect(() => openPreparedDesktopSession(badDir, [liveDir, badDir])).toThrow(
+      'project.sqlite is not a Jieyu project library',
+    );
+    const row = requireDesktopSession(opened.sessionId)
+      .db.prepare('SELECT id FROM project')
+      .get() as { id: string };
+    expect(row.id.length).toBeGreaterThan(0);
+    expect(
+      createHash('sha256')
+        .update(readFileSync(join(liveDir, 'project.sqlite')))
+        .digest('hex'),
+    ).toBe(before);
+  });
+
+  it('switches only after the next project is prepared', () => {
+    const liveDir = folder();
+    const nextDir = folder();
+    const opened = openDesktopSession(liveDir, [liveDir, nextDir]);
+    const before = readFileSync(join(liveDir, 'project.sqlite'));
+    const next = openPreparedDesktopSession(nextDir, [liveDir, nextDir]);
+    expect(next.sessionId).not.toBe(opened.sessionId);
+    expect(() => requireDesktopSession(opened.sessionId)).toThrow('project session expired');
+    expect(
+      requireDesktopSession(next.sessionId).db.prepare('SELECT COUNT(*) AS n FROM project').get(),
+    ).toEqual({ n: 1 });
+    expect(readFileSync(join(liveDir, 'project.sqlite'))).toEqual(before);
   });
 });

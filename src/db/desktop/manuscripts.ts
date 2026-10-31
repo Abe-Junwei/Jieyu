@@ -59,6 +59,11 @@ export function createManuscript(db: SqliteDatabase, input: ManuscriptCreate): M
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {
+    const media = db
+      .prepare('SELECT deleted_at AS deletedAt FROM media WHERE id = ?')
+      .get(input.mediaId) as { deletedAt: string | null } | undefined;
+    if (media === undefined) throw new Error('media is missing');
+    if (media.deletedAt !== null) throw new Error('media is deleted');
     db.prepare(
       `INSERT INTO manuscripts (id, title_json, media_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?)`,

@@ -4,7 +4,13 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { callDesktopSession } from './desktopCall';
-import type { CorpusQueryCursor, CorpusQueryHit, CorpusQueryPage } from './corpusQuery';
+import {
+  queryCorpus,
+  type CorpusQueryCursor,
+  type CorpusQueryHit,
+  type CorpusQueryPage,
+} from './corpusQuery';
+import { openProject } from './openProject';
 import { openDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
@@ -375,4 +381,57 @@ describe('corpus query', () => {
     });
     expect(query(lib.sessionId, { text: 'other', limit: 10 }).items).toEqual([]);
   });
+
+  it('pages a broad form query across more units than one statement can bind', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    try {
+      const t = '2026-10-29';
+      project.db
+        .prepare(
+          'INSERT INTO media(id,relpath,sha256,filename,duration,created_at) VALUES(?,?,?,?,?,?)',
+        )
+        .run('m', 'a.wav', 'a', 'a.wav', 40000, t);
+      const manuscript = project.manuscripts.create({ title: { und: 'm' }, mediaId: 'm' });
+      const layer = project.layers.create({
+        manuscriptId: manuscript.id,
+        key: 'tx',
+        name: { und: 'tx' },
+        tierType: 'time-aligned',
+        contentType: 'transcription',
+      });
+      const insertUnit = project.db.prepare(
+        'INSERT INTO units(id,layer_id,start_time,end_time,created_at,updated_at) VALUES(?,?,?,?,?,?)',
+      );
+      const insertText = project.db.prepare(
+        "INSERT INTO unit_texts(id,unit_id,role,body,updated_at) VALUES(?,?,'transcription','ka',?)",
+      );
+      const insertToken = project.db.prepare(
+        "INSERT INTO tokens(id,unit_id,token_index,form_json,gloss_json,created_at,updated_at) VALUES(?,?,0,?, '{}',?,?)",
+      );
+      project.db.transaction(() => {
+        for (let i = 0; i < 33000; i++) {
+          const id = `u${i}`;
+          insertUnit.run(id, layer.id, i, i + 1, t, t);
+          insertText.run(`x${i}`, id, t);
+          insertToken.run(`k${i}`, id, JSON.stringify({ default: 'ka' }), t, t);
+        }
+      })();
+      expect(() =>
+        queryCorpus(project.db, {
+          manuscriptId: null,
+          text: null,
+          form: 'ka',
+          gloss: null,
+          pos: null,
+          lexemeId: null,
+          senseId: null,
+          limit: 20,
+          cursor: null,
+        }),
+      ).not.toThrow();
+    } finally {
+      project.close();
+    }
+  }, 60_000);
 });

@@ -7,11 +7,11 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { deriveCards } from '../src/db/projectFiles/deriveCards.ts';
+import { createSyntheticDir, syntheticWriteFile } from './lib/synthetic-write-target.mjs';
 
 const JYD_APPLICATION_ID = 0x4a594443;
 const PROJECT_APPLICATION_ID = 0x4a59504a;
@@ -21,7 +21,7 @@ function sha256(bytes) {
 }
 
 function writeDatabase(file, applicationId, statements) {
-  const db = new DatabaseSync(file);
+  const db = new DatabaseSync(syntheticWriteFile(file));
   db.exec('PRAGMA journal_mode = DELETE');
   db.exec(`PRAGMA application_id = ${applicationId}`);
   db.exec('PRAGMA user_version = 1');
@@ -30,7 +30,7 @@ function writeDatabase(file, applicationId, statements) {
 }
 
 test('rebuilt cards keep manuscript and audio ids, and the copied audio hash matches', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-jyd-'));
+  const dir = createSyntheticDir('jieyu-jyd-');
   try {
     const source = Buffer.from('RIFF....WAVEfmt synthetic');
     const sourceHash = sha256(source);
@@ -67,9 +67,7 @@ test('rebuilt cards keep manuscript and audio ids, and the copied audio hash mat
     const first = deriveCards(manuscripts, audios);
     const rebuilt = deriveCards(manuscripts, audios);
     assert.deepEqual(rebuilt, first);
-    assert.deepEqual(rebuilt.cards, [
-      { manuscriptId: 'doc-1', audioId: 'audio-1', hidden: false },
-    ]);
+    assert.deepEqual(rebuilt.cards, [{ manuscriptId: 'doc-1', audioId: 'audio-1', hidden: false }]);
     assert.equal(fs.existsSync(`${path.join(dir, '录音01.jyd')}-wal`), false);
     assert.equal(fs.existsSync(`${path.join(dir, 'project.sqlite')}-journal`), false);
   } finally {

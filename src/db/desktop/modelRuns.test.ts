@@ -5,7 +5,7 @@ import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { callDesktopSession } from './desktopCall';
-import { openDesktopSession, resetDesktopSessions } from './projectSession';
+import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
 
@@ -427,6 +427,56 @@ describe('transcription run storage', () => {
     ).toMatchObject({ text: 'next' });
   });
 
+  it('rolls back an accept when a required unit field is missing', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId);
+    const run = finishOk(session.sessionId, start(session.sessionId, seeded).id);
+    const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
+      runId: run.id,
+      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
+    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    const candidate = preview.candidates[0];
+    if (candidate === undefined) throw new Error('preview missing');
+    callDesktopSession(session.sessionId, 'customFields.createDefinition', {
+      targetType: 'unit',
+      name: { zh: '必填' },
+      fieldType: 'text',
+      required: true,
+    });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'op-missing',
+        runId: run.id,
+        chunkIndex: 0,
+        segmentIndex: 0,
+        mediaStart: 0,
+        mediaEnd: 1,
+        timeMappingRevision: preview.timeMappingRevision,
+        targetFingerprint: candidate.targetFingerprint,
+        text: 'ka',
+      }),
+    ).toThrow('unit is missing a required field');
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(db.prepare('SELECT COUNT(*) AS n FROM units').get()).toEqual({ n: 0 });
+    expect(db.prepare('SELECT COUNT(*) AS n FROM transcription_acceptances').get()).toEqual({
+      n: 0,
+    });
+    expect(
+      db.prepare('SELECT pending_count AS n FROM model_runs WHERE id = ?').get(run.id),
+    ).toEqual({
+      n: 1,
+    });
+    resetDesktopSessions();
+    releaseAllProjectLocks();
+    const again = openDesktopSession(dir, [dir]);
+    const reopened = requireDesktopSession(again.sessionId).db;
+    expect(reopened.prepare('SELECT COUNT(*) AS n FROM units').get()).toEqual({ n: 0 });
+    expect(
+      reopened.prepare('SELECT pending_count AS n FROM model_runs WHERE id = ?').get(run.id),
+    ).toEqual({ n: 1 });
+  });
+
   it('refuses finish and preview when the lifecycle generation moves during a running task', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);
@@ -455,6 +505,86 @@ describe('transcription run storage', () => {
     expect(
       callDesktopSession(reopened.sessionId, 'modelRuns.get', { runId: running.id }),
     ).toMatchObject({ status: 'running', pendingCount: 0, finishedAt: null });
+  });
+
+  it('rejects a preview and an accept outside the run range', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId);
+    const run = callDesktopSession(session.sessionId, 'modelRuns.start', {
+      manuscriptId: seeded.manuscriptId,
+      layerId: seeded.layerId,
+      modelId: 'm',
+      modelVersion: '1',
+      manifestSha256: 'x',
+      params: {},
+      rangeStart: 2,
+      rangeEnd: 3,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: run.id,
+      status: 'ok',
+      chunkCount: 1,
+    });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.preview', {
+        runId: run.id,
+        candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 3, mediaEnd: 4 }],
+      }),
+    ).toThrow('transcription range is outside the run');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'outside-run',
+        runId: run.id,
+        chunkIndex: 0,
+        segmentIndex: 0,
+        mediaStart: 3,
+        mediaEnd: 4,
+        timeMappingRevision: 0,
+        targetFingerprint: 'none',
+        text: 'outside-run',
+      }),
+    ).toThrow('transcription range is outside the run');
+  });
+
+  it('rejects an accept whose range differs from the preview', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId);
+    const run = callDesktopSession(session.sessionId, 'modelRuns.start', {
+      manuscriptId: seeded.manuscriptId,
+      layerId: seeded.layerId,
+      modelId: 'm',
+      modelVersion: '1',
+      manifestSha256: 'x',
+      params: {},
+      rangeStart: 2,
+      rangeEnd: 3,
+    }) as { id: string };
+    callDesktopSession(session.sessionId, 'modelRuns.finish', {
+      runId: run.id,
+      status: 'ok',
+      chunkCount: 1,
+    });
+    const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
+      runId: run.id,
+      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
+    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    const candidate = preview.candidates[0];
+    if (candidate === undefined) throw new Error('preview missing');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'op',
+        runId: run.id,
+        chunkIndex: 0,
+        segmentIndex: 0,
+        mediaStart: 100,
+        mediaEnd: 101,
+        timeMappingRevision: preview.timeMappingRevision,
+        targetFingerprint: candidate.targetFingerprint,
+        text: 'outside',
+      }),
+    ).toThrow();
   });
 });
 

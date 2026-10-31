@@ -1,5 +1,6 @@
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -30,7 +31,7 @@ export function saveDailyProjectBackup(input: {
   mkdirSync(requested, { recursive: true });
   const backupRoot = realpathSync(requested);
   if (isInside(folderRoot, backupRoot)) throw new Error('backup directory is inside the project');
-  const day = (input.now ?? new Date()).toISOString().slice(0, 10);
+  const day = localDay(input.now ?? new Date());
   if (!DAY_FILE.test(`${day}.jym`)) throw new Error('backup day is invalid');
   const bytes = exportDesktopJym(input.db, input.folder);
   const target = path.join(backupRoot, `${day}.jym`);
@@ -46,22 +47,17 @@ export function saveDailyProjectBackup(input: {
     rmSync(temporary, { force: true });
     throw error;
   }
-  const names = readdirSync(backupRoot)
-    .filter((name) => DAY_FILE.test(name))
-    .sort();
+  const names = backupDayFiles(backupRoot);
   for (const name of names.slice(0, Math.max(0, names.length - DAILY_BACKUP_KEEP))) {
-    rmSync(path.join(backupRoot, name), { force: true });
+    rmSync(path.join(backupRoot, name));
   }
   return target;
 }
 
 export function listDailyBackupDays(backupDir: string): string[] {
   if (!existsSync(backupDir)) return [];
-  return readdirSync(backupDir)
-    .map((name) => {
-      const match = DAY_FILE.exec(name);
-      return match?.[1];
-    })
+  return backupDayFiles(backupDir)
+    .map((name) => DAY_FILE.exec(name)?.[1])
     .filter((day): day is string => day !== undefined)
     .sort((left, right) => right.localeCompare(left))
     .slice(0, DAILY_BACKUP_KEEP);
@@ -76,6 +72,19 @@ export function restoreDailyBackup(input: {
   const file = path.join(input.backupDir, `${input.day}.jym`);
   if (!existsSync(file)) throw new Error('backup file is missing');
   importDesktopJym(input.destination, readFileSync(file));
+}
+
+function backupDayFiles(backupRoot: string): string[] {
+  if (!existsSync(backupRoot)) return [];
+  return readdirSync(backupRoot)
+    .filter((name) => DAY_FILE.test(name) && lstatSync(path.join(backupRoot, name)).isFile())
+    .sort();
+}
+
+function localDay(now: Date): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 function canonicalPath(target: string): string {

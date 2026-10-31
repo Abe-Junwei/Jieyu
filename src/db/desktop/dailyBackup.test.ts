@@ -11,7 +11,7 @@ import { deleteManuscript, getManuscript, listManuscripts } from './manuscripts'
 import { listDueDeletionReminders, purgeManuscript, showDeletionReminder } from './manuscriptPurge';
 import { openProject } from './openProject';
 import { importDesktopJym } from './projectExchange';
-import { getUnit, listUnits } from './units';
+import { listUnits, readStoredUnit } from './units';
 import { sliceForRange } from '../../desktop/skeleton/mediaRange';
 
 const roots: string[] = [];
@@ -68,7 +68,7 @@ describe('daily project backup', () => {
       db: project.db,
       folder: projectDir,
       backupDir,
-      now: new Date('2026-10-27T18:00:00.000Z'),
+      now: new Date(2026, 9, 27, 18, 0, 0),
     });
     expect(latest.endsWith('/2026-10-27.jym')).toBe(true);
     expect(existsSync(latest)).toBe(true);
@@ -189,7 +189,7 @@ describe('daily project backup', () => {
       reminderShownAt: string | null;
     };
     expect(media).toEqual({ deletedAt: shownAt, retainUntil, reminderShownAt: null });
-    expect(getUnit(restored.db, unit.id)?.text).toBe('kept sentence');
+    expect(readStoredUnit(restored.db, unit.id)?.text).toBe('kept sentence');
     expect(
       createHash('sha256')
         .update(readFileSync(join(restoredDir, 'gone.wav')))
@@ -207,7 +207,7 @@ describe('daily project backup', () => {
     expect(() => purgeManuscript(restored.db, manuscript.id)).toThrow(
       'manuscript is inside its retention window',
     );
-    expect(getUnit(restored.db, unit.id)?.text).toBe('kept sentence');
+    expect(readStoredUnit(restored.db, unit.id)?.text).toBe('kept sentence');
     restored.close();
 
     purgeManuscript(project.db, manuscript.id);

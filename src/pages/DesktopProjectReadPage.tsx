@@ -12,10 +12,14 @@ import { DesktopConversationPanel } from './DesktopConversationPanel';
 import { DesktopCorpusQueryPanel } from './DesktopCorpusQueryPanel';
 import { DesktopExchangePanel } from './DesktopExchangePanel';
 import { DesktopDailyBackupPanel } from './DesktopDailyBackupPanel';
+import { DesktopDeletedItemsPanel } from './DesktopDeletedItemsPanel';
 import { DesktopDeletionReminderDialog } from './DesktopDeletionReminderDialog';
 import { DesktopManuscriptDeleteDialog } from './DesktopManuscriptDeleteDialog';
+import { DesktopMediaReregisterPanel } from './DesktopMediaReregisterPanel';
 import { DesktopProjectReadView } from './DesktopProjectReadView';
+import { DesktopScopeNote } from './DesktopScopeNote';
 import { DesktopSpeakerCatalogPanel } from './DesktopSpeakerCatalogPanel';
+import { DesktopTranscriptionAcceptPanel } from './DesktopTranscriptionAcceptPanel';
 import { ProjectCustomFieldManager } from './ProjectCustomFieldManager';
 import { canConfirmManuscriptDelete } from './desktopManuscriptDelete';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
@@ -35,6 +39,7 @@ export function DesktopProjectReadPage() {
   const [focusUnitId, setFocusUnitId] = useState<string | null>(locate?.unitId ?? null);
   const [deletePreview, setDeletePreview] = useState<ManuscriptDeletePreview | null>(null);
   const [dueReminders, setDueReminders] = useState<DueDeletionReminder[] | null>(null);
+  const [deletedReload, setDeletedReload] = useState(0);
 
   if (host === null) return <Navigate to="/" replace />;
 
@@ -117,6 +122,58 @@ export function DesktopProjectReadPage() {
           onSaveMapping={read.saveMapping}
           onSaveNote={read.saveUnitNote}
           onSaveTierNote={read.saveTierNote}
+          noteSessionId={read.sessionId}
+          noteDesktopCall={host.desktopCall}
+          textNoteLabel={t(locale, 'app.desktopRead.textNote')}
+          saveTextNoteLabel={t(locale, 'app.desktopRead.saveTextNote')}
+        />
+      )}
+      {read.sessionId === null ? null : (
+        <DesktopScopeNote
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          scope={{ kind: 'project' }}
+          label={t(locale, 'app.desktopRead.projectNote')}
+          saveLabel={t(locale, 'app.desktopRead.saveProjectNote')}
+        />
+      )}
+      {read.sessionId === null || selected === undefined ? null : (
+        <DesktopScopeNote
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          scope={{ kind: 'manuscript', manuscriptId: selected.id }}
+          label={`${t(locale, 'app.desktopRead.manuscriptNote')}: ${manuscriptTitle(selected.title, locale)}`}
+          saveLabel={`${t(locale, 'app.desktopRead.saveManuscriptNote')}: ${manuscriptTitle(selected.title, locale)}`}
+        />
+      )}
+      {read.sessionId === null || read.model?.layerId == null ? null : (
+        <DesktopScopeNote
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          scope={{ kind: 'layer', layerId: read.model.layerId }}
+          label={t(locale, 'app.desktopRead.layerNote')}
+          saveLabel={t(locale, 'app.desktopRead.saveLayerNote')}
+        />
+      )}
+      {read.sessionId === null ? null : (
+        <DesktopMediaReregisterPanel sessionId={read.sessionId} desktopCall={host.desktopCall} />
+      )}
+      {read.sessionId === null ? null : (
+        <DesktopDeletedItemsPanel
+          sessionId={read.sessionId}
+          desktopCall={host.desktopCall}
+          reloadToken={deletedReload}
+          onRestored={() => read.refresh()}
+        />
+      )}
+      {read.model?.manuscriptId == null || host === null || read.sessionId === null ? null : (
+        <DesktopTranscriptionAcceptPanel
+          host={host}
+          layerId={read.model.layerId}
+          sessionId={read.sessionId}
+          manuscriptId={read.model.manuscriptId}
+          desktopCall={host.desktopCall}
+          onAccepted={() => read.refresh()}
         />
       )}
       {read.model?.manuscriptId == null || host === null || read.sessionId === null ? null : (
@@ -157,12 +214,39 @@ export function DesktopProjectReadPage() {
           sessionId={read.sessionId}
           listDailyBackups={host.listDailyBackups}
           restoreDailyBackup={host.restoreDailyBackup}
+          openRestoredBackup={host.openRestoredBackup}
+          onOpened={read.adoptOpenedSession}
         />
       )}
       {dueReminders === null || host === null || read.sessionId === null ? null : (
         <DesktopDeletionReminderDialog
           items={dueReminders}
           onClose={() => setDueReminders(null)}
+          onPurge={(id) => {
+            const sessionId = read.sessionId;
+            if (sessionId === null || host === null) return Promise.reject(new Error('missing'));
+            return createDesktopClient({ desktopCall: host.desktopCall })
+              .purgeManuscript(sessionId, id)
+              .then(() => {
+                setDueReminders(null);
+                setDeletedReload((current) => current + 1);
+                return read.refresh();
+              });
+          }}
+          onRemoveFile={(id, operationId) => {
+            const sessionId = read.sessionId;
+            if (sessionId === null || host === null) return Promise.reject(new Error('missing'));
+            return createDesktopClient({ desktopCall: host.desktopCall })
+              .finishMediaCleanup(sessionId, id, operationId)
+              .then((result) => {
+                if (result.state === 'confirmed') {
+                  setDueReminders(null);
+                  setDeletedReload((current) => current + 1);
+                  return read.refresh().then(() => result);
+                }
+                return result;
+              });
+          }}
           onShown={(item) => {
             const sessionId = read.sessionId;
             if (sessionId === null) return;
@@ -203,4 +287,8 @@ export function DesktopProjectReadPage() {
       ) : null}
     </section>
   );
+}
+
+function manuscriptTitle(title: Record<string, string>, locale: string): string {
+  return title[locale] ?? Object.values(title)[0] ?? '';
 }
