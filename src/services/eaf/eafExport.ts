@@ -21,6 +21,7 @@ import {
 import { buildEafAdditionalTierXml } from './eafExportAdditionalTiers';
 import { buildNoteTierXml } from './eafExportNotes';
 import { buildEafWordTierXml } from './eafExportWords';
+import { collectReservedEafAnnIds, takeEafAnnId } from './eafExportScratch';
 
 import { finalizeXmlExport } from '../../utils/xmlSafeText';
 
@@ -159,7 +160,8 @@ export function exportToEaf(input: EafExportInput): string {
     }
   }
 
-  // Build annotation ID counter
+  // Preserve externalRef IDs, then allocate free aN (#431)
+  const usedAnnIds = collectReservedEafAnnIds(translations, layerSegmentContents);
   let annCounter = 1;
 
   // Determine default transcription layer
@@ -190,6 +192,8 @@ export function exportToEaf(input: EafExportInput): string {
     tierNameByLayerId.set(defaultTrcLayer.id, defaultTierId);
   }
   for (const layer of layers) {
+    // Default tier must keep the actual exported TIER_ID (#432).
+    if (defaultTrcLayer && layer.id === defaultTrcLayer.id) continue;
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
     const tierName = layerMeta.tierId ?? readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
     tierNameByLayerId.set(layer.id, tierName);
@@ -213,6 +217,17 @@ export function exportToEaf(input: EafExportInput): string {
 
   // Transcription tier (default)
   const uttAnnotationIdMap = new Map<string, string>(); // uttId → annotationId（用于翻译层 REF_ANNOTATION）
+  const uttAnnotationIdByLayerId = new Map<string, Map<string, string>>();
+  if (defaultTrcId) {
+    uttAnnotationIdByLayerId.set(defaultTrcId, uttAnnotationIdMap);
+  }
+  const scratch = {
+    tsCounter,
+    annCounter,
+    usedAnnIds,
+    timeSlots,
+    usedConstraintTypes: new Set<string>(),
+  };
   const transcriptionAnnotations = sorted.map((utt) => {
     const slots = uttSlotMap.get(utt.id)!;
     const tr = defaultTrcId
@@ -221,7 +236,7 @@ export function exportToEaf(input: EafExportInput): string {
         )
       : undefined;
     const text = tr?.text ?? utt.transcription?.default ?? '';
-    const annotationId = tr?.externalRef ?? `a${annCounter++}`;
+    const annotationId = takeEafAnnId(scratch, { externalRef: tr?.externalRef });
     uttAnnotationIdMap.set(utt.id, annotationId);
     return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
@@ -229,13 +244,7 @@ export function exportToEaf(input: EafExportInput): string {
             </ALIGNABLE_ANNOTATION>
         </ANNOTATION>`;
   });
-
-  const scratch = {
-    tsCounter,
-    annCounter,
-    timeSlots,
-    usedConstraintTypes: new Set<string>(),
-  };
+  annCounter = scratch.annCounter;
   const translationTierXml = buildEafAdditionalTierXml({
     layers,
     defaultTrcId,
@@ -245,6 +254,7 @@ export function exportToEaf(input: EafExportInput): string {
     layerSegmentContents,
     uttSlotMap,
     uttAnnotationIdMap,
+    uttAnnotationIdByLayerId,
     defaultTierId,
     tierNameByLayerId,
     transcriptionLayerIdByKey,
@@ -367,7 +377,7 @@ ${transcriptionAnnotations.join('\n')}
 })()}
 ${wordTierXml.join('\n')}
 ${translationTierXml.join('\n')}
-${buildNoteTierXml(sorted, uttSlotMap, userNotes ?? [], annCounter, uttAnnotationIdMap, speakers ?? [], defaultTierId)}
+${buildNoteTierXml(sorted, uttSlotMap, userNotes ?? [], scratch, uttAnnotationIdMap, speakers ?? [], defaultTierId)}
 ${footerLines.join('\n')}
 </ANNOTATION_DOCUMENT>
 `,

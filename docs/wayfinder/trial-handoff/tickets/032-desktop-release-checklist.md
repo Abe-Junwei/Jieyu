@@ -4,12 +4,16 @@ label: wayfinder:task
 mode: HITL
 status: open
 assignee:
-blocked_by: [009,027,035,037,038,040,041]
+blocked_by: [009,027,040,041]
 issue: https://github.com/Abe-Junwei/Jieyu/issues/282
 ---
 
 # 桌面试用版发布检查单（改写主路线图 C1）
 
+
+## 当前排期覆盖（2026-10-30，ADR-0098）
+
+模型下载、持久管理、转码和随包分发移至第二程 #285，当前不做，不作为第一程 #250、单库 #275 或发布检查 #282 的前置。已完成的模拟/真实引擎开发闭环与人工采纳保留；默认关闭，不等于随包能力验收。下文较早的“挡首发”及整单依赖在这些余项上作废，见 [ADR-0098](../../../adr/0098-model-delivery-followups-in-second-stage.md)。
 
 <!-- desktop-sqlite-slices:v1:start -->
 ## 当前可执行切片与关闭条件（2026-10-25 本轮重排）
@@ -19,10 +23,12 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/282
 - [ ] M7-A/#259 已冻结，#275/#325 与必要恢复/接替的证据可追溯。
 - [ ] 不丢数据：原子写入/读回、失败回滚、删除恢复、含音频备份恢复，#312 反馈邮件与诊断包可用。Sentry 不新增首发阻塞。
 - [ ] #277：Mac Apple 芯片、Windows x64 真机安装/启动/自动更新通过，签名/公证及发布证据齐。
-- [ ] #303/#305/#306：含本机转写的核心流程通过；#313-B 工程合成等价验证先做，D14 后由用户完成真实示例最终试用。代理不读/上传/粘贴真实语料。
+- [ ] #313-B 工程合成等价验证先做，D14 后由用户完成真实示例最终试用。代理不读/上传/粘贴真实语料。
 - [ ] 三硬门槛齐，才按发布流程交付；本单不吞并各子单实现。
 
 #311/#333/#299 在 M4 后可做但不挡首发；#298/B7 仍第二程。#281/#326 保持取消，不再要求演练/迁入或授权删旧数据。
+
+2026-10-29：打包配置已核对，检查是 `npm run check:install-targets`。Mac arm64、Windows x64、GitHub 发布写在 `electron-builder.yml`。应用里没有更新器，CI 不出安装包。真机安装和真实示例未做。上面的框不勾。#282/#277 仍开着。
 
 
 详细前置/验收见[单库切片清单](../../../execution/plans/desktop-project-sqlite-2026-10-25.md#可领取切片与交付顺序2026-10-25-本轮重排)。本轮同步不代表实现完成；下方较早范围保留，冲突以本节为准。
@@ -30,7 +36,7 @@ issue: https://github.com/Abe-Junwei/Jieyu/issues/282
 
 ## 2026-10-25 已确认范围
 
-取消 #326 迁入门槛；#281 本次演练也不再阻塞 D14。仍须 D14、#277 安装更新、#312 反馈及示例核心流程含本机转写的证据。#275 只验收单库集成，不吞并发布验收；#311/#333/#299 可提前但不挡首发。 依据 [ADR-0086](../../../adr/0086-desktop-release-scope-and-format-freeze.md)、[ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 和[单库计划](../../../execution/plans/desktop-project-sqlite-2026-10-25.md)。GitHub 已于 2026-10-25 写入当前范围。以下原 Question 留作历史输入，冲突处按本节执行。
+取消 #326 迁入门槛；#281 本次演练也不再阻塞 D14。仍须对应的 D14、#277、#312 和示例核心流程证据；模型交付余项已按 ADR-0098 移出首发前置。#275 只验收单库集成，不吞并发布验收；#311/#333/#299 可提前但不挡首发。 依据 [ADR-0086](../../../adr/0086-desktop-release-scope-and-format-freeze.md)、[ADR-0087](../../../adr/0087-project-deletion-retention-and-media-cleanup.md) 和[单库计划](../../../execution/plans/desktop-project-sqlite-2026-10-25.md)。GitHub 已于 2026-10-25 写入当前范围。以下原 Question 留作历史输入，冲突处按本节执行。
 
 ## Question
 

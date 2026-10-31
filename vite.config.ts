@@ -568,6 +568,8 @@ export default defineConfig({
       'tests/e2e/**',
       'tests/e2e-desktop/**',
       'tests/e2e-sandbox/**',
+      /* node:test script checks run via npm run test:project-files-scripts */
+      'scripts/**/*.mjs',
       '.superdesign/**',
     ],
     /* threads：单进程内跑用例，避免 forks 多进程各拉一份巨型 i18n 导致堆 OOM | Avoid per-fork duplicate heaps for large dict imports */

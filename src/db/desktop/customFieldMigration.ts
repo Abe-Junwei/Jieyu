@@ -9,7 +9,7 @@ import {
   parseCustomFieldDefinition,
   type CustomFieldTarget,
 } from './customFieldValidation';
-import { getUnit } from './units';
+import { readStoredUnit } from './units';
 import {
   CUSTOM_FIELD_UPDATE_KEYS,
   assertDefinitionValue,
@@ -172,7 +172,7 @@ function writeGraphValues(
   unitId: string,
   conversions: readonly FieldConversion[],
 ): void {
-  const unit = getUnit(db, unitId);
+  const unit = readStoredUnit(db, unitId);
   const row = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(unitId) as
     { analysis_graph_json: string | null } | undefined;
   if (unit === null || row === undefined || row.analysis_graph_json === null) {

@@ -7,7 +7,7 @@ import {
 } from '../../db/types';
 import { readEnglishFallbackMultiLangLabel } from '../../utils/multiLangLabels';
 import type { EafExportInput } from './eafTypes';
-import type { EafExportScratch } from './eafExportScratch';
+import { takeEafAnnId, type EafExportScratch } from './eafExportScratch';
 import { escapeXml, parseEafMetaFromLayerKey } from './eafXml';
 
 export function buildEafAdditionalTierXml(input: {
@@ -19,6 +19,7 @@ export function buildEafAdditionalTierXml(input: {
   layerSegmentContents: Map<string, Map<string, LayerUnitContentDocType>> | undefined;
   uttSlotMap: Map<string, { tsStart: string; tsEnd: string }>;
   uttAnnotationIdMap: Map<string, string>;
+  uttAnnotationIdByLayerId: Map<string, Map<string, string>>;
   defaultTierId: string;
   tierNameByLayerId: Map<string, string>;
   transcriptionLayerIdByKey: Map<string, string>;
@@ -38,6 +39,7 @@ export function buildEafAdditionalTierXml(input: {
     layerSegmentContents,
     uttSlotMap,
     uttAnnotationIdMap,
+    uttAnnotationIdByLayerId,
     defaultTierId,
     tierNameByLayerId,
     transcriptionLayerIdByKey,
@@ -51,10 +53,29 @@ export function buildEafAdditionalTierXml(input: {
   let tsCounter = scratch.tsCounter;
   let annCounter = scratch.annCounter;
   const { timeSlots, usedConstraintTypes } = scratch;
-  const additionalLayers = layers.filter(
-    (l) =>
-      l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
-  );
+  const registerLayerAnnotation = (layerId: string, uttId: string, annotationId: string) => {
+    let map = uttAnnotationIdByLayerId.get(layerId);
+    if (!map) {
+      map = new Map();
+      uttAnnotationIdByLayerId.set(layerId, map);
+    }
+    map.set(uttId, annotationId);
+  };
+  const parentAnnotationIdForHost = (
+    hostLayerId: string | undefined,
+    uttId: string,
+  ): string | undefined => {
+    if (hostLayerId) {
+      const fromHost = uttAnnotationIdByLayerId.get(hostLayerId)?.get(uttId);
+      if (fromHost) return fromHost;
+    }
+    return uttAnnotationIdMap.get(uttId);
+  };
+  // Process non-default transcription first so host annotation maps exist (#433).
+  const additionalLayers = [
+    ...layers.filter((l) => l.layerType === 'transcription' && l.id !== defaultTrcId),
+    ...layers.filter((l) => l.layerType === 'translation'),
+  ];
   const translationTierXml: string[] = [];
 
   for (const layer of additionalLayers) {
@@ -88,6 +109,38 @@ export function buildEafAdditionalTierXml(input: {
 
       const useAlignableAnnotation =
         constraint === 'independent_boundary' || constraint === 'time_subdivision';
+      const translationHostLinks = hostLinksByTranslationLayerId.get(layer.id) ?? [];
+      const hostIds: string[] = [];
+      const seenHostIds = new Set<string>();
+      let preferredHostTranscriptionLayerId: string | undefined;
+      for (const link of translationHostLinks) {
+        const hostIdFromId =
+          typeof link.hostTranscriptionLayerId === 'string'
+            ? link.hostTranscriptionLayerId.trim()
+            : '';
+        const resolvedHostId =
+          hostIdFromId.length > 0
+            ? hostIdFromId
+            : (transcriptionLayerIdByKey.get(link.transcriptionLayerKey?.trim() ?? '') ?? '');
+        if (!resolvedHostId || seenHostIds.has(resolvedHostId)) continue;
+        seenHostIds.add(resolvedHostId);
+        hostIds.push(resolvedHostId);
+        if (!preferredHostTranscriptionLayerId && link.isPreferred) {
+          preferredHostTranscriptionLayerId = resolvedHostId;
+        }
+      }
+      const effectivePreferredHostTranscriptionLayerId =
+        preferredHostTranscriptionLayerId ?? hostIds[0];
+      if (hostIds.length > 1) {
+        onWarning?.({
+          code: 'translation-multi-host-lossy',
+          layerId: layer.id,
+          hostCount: hostIds.length,
+          ...(effectivePreferredHostTranscriptionLayerId
+            ? { preferredHostTranscriptionLayerId: effectivePreferredHostTranscriptionLayerId }
+            : {}),
+        });
+      }
       // Build segment lookup for segment-specific boundaries | 构建 segment 查找（用于独立边界导出）
       const layerSegs = useAlignableAnnotation ? layerSegments?.get(layer.id) : undefined;
       const segByUttId = new Map<string, LayerUnitDocType[]>();
@@ -118,7 +171,8 @@ export function buildEafAdditionalTierXml(input: {
                   const tsEnd = `ts${tsCounter++}`;
                   timeSlots.push({ id: tsStart, ms: Math.round(seg.startTime * 1000) });
                   timeSlots.push({ id: tsEnd, ms: Math.round(seg.endTime * 1000) });
-                  const annotationId = tr.externalRef ?? `a${annCounter++}`;
+                  const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
+            annCounter = scratch.annCounter;
                   return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStart}" TIME_SLOT_REF2="${tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
@@ -132,7 +186,8 @@ export function buildEafAdditionalTierXml(input: {
 
             const tr = candidates[0];
             if (!tr?.text) return null;
-            const annotationId = tr.externalRef ?? `a${annCounter++}`;
+            const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
+            annCounter = scratch.annCounter;
             const slots = uttSlotMap.get(utt.id)!;
             return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
@@ -143,8 +198,9 @@ export function buildEafAdditionalTierXml(input: {
             // Symbolic association: use REF_ANNOTATION
             const tr = layerTranslationsByUnit.get(utt.id)?.[0];
             if (!tr?.text) return null;
-            const annotationId = tr.externalRef ?? `a${annCounter++}`;
-            const parentAnnId = uttAnnotationIdMap.get(utt.id);
+            const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
+            annCounter = scratch.annCounter;
+            const parentAnnId = parentAnnotationIdForHost(effectivePreferredHostTranscriptionLayerId, utt.id);
             if (!parentAnnId) return null;
             return `        <ANNOTATION>
             <REF_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" ANNOTATION_REF="${escapeXml(parentAnnId)}">
@@ -156,41 +212,6 @@ export function buildEafAdditionalTierXml(input: {
         .filter(Boolean);
 
       if (annotations.length > 0) {
-        const translationHostLinks = hostLinksByTranslationLayerId.get(layer.id) ?? [];
-        const hostIds: string[] = [];
-        const seenHostIds = new Set<string>();
-        let preferredHostTranscriptionLayerId: string | undefined;
-
-        for (const link of translationHostLinks) {
-          const hostIdFromId =
-            typeof link.hostTranscriptionLayerId === 'string'
-              ? link.hostTranscriptionLayerId.trim()
-              : '';
-          const resolvedHostId =
-            hostIdFromId.length > 0
-              ? hostIdFromId
-              : (transcriptionLayerIdByKey.get(link.transcriptionLayerKey?.trim() ?? '') ?? '');
-          if (!resolvedHostId || seenHostIds.has(resolvedHostId)) continue;
-          seenHostIds.add(resolvedHostId);
-          hostIds.push(resolvedHostId);
-          if (!preferredHostTranscriptionLayerId && link.isPreferred) {
-            preferredHostTranscriptionLayerId = resolvedHostId;
-          }
-        }
-
-        const effectivePreferredHostTranscriptionLayerId =
-          preferredHostTranscriptionLayerId ?? hostIds[0];
-        if (hostIds.length > 1) {
-          onWarning?.({
-            code: 'translation-multi-host-lossy',
-            layerId: layer.id,
-            hostCount: hostIds.length,
-            ...(effectivePreferredHostTranscriptionLayerId
-              ? { preferredHostTranscriptionLayerId: effectivePreferredHostTranscriptionLayerId }
-              : {}),
-          });
-        }
-
         const shouldIncludeParentRef = constraint !== 'independent_boundary';
         // 翻译宿主 tier 仅来自 layer_links（preferred / 首条）；不再回读 translation.parentLayerId | PARENT_REF from links only
         const parentTierId = effectivePreferredHostTranscriptionLayerId
@@ -248,7 +269,8 @@ ${annotations.join('\n')}
             const tsStartId = `ts${tsCounter++}`;
             const tsEndId = `ts${tsCounter++}`;
             timeSlots.push({ id: tsStartId, ms: startMs }, { id: tsEndId, ms: endMs });
-            const annotationId = `a${annCounter++}`;
+            const annotationId = takeEafAnnId(scratch);
+            annCounter = scratch.annCounter;
             return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStartId}" TIME_SLOT_REF2="${tsEndId}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
@@ -282,7 +304,9 @@ ${segAnnotations.join('\n')}
             const tr = layerTranslations.find((t) => t.unitId === utt.id);
             if (!tr?.text) return null;
             const slots = uttSlotMap.get(utt.id)!;
-            const annotationId = tr?.externalRef ?? `a${annCounter++}`;
+            const annotationId = takeEafAnnId(scratch, { externalRef: tr?.externalRef });
+            annCounter = scratch.annCounter;
+            registerLayerAnnotation(layer.id, utt.id, annotationId);
             return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>

@@ -15,7 +15,7 @@ describe('useTranscriptionMediaLaneRowTextAutosave', () => {
     const scheduleAutoSave = vi.fn();
     const clearAutoSaveTimer = vi.fn();
     const saveSegmentContentForLayer = vi.fn().mockResolvedValue(undefined);
-    const saveUnitLayerText = vi.fn().mockResolvedValue(undefined);
+    const saveUnitText = vi.fn().mockResolvedValue(undefined);
     const setUnitDrafts = vi.fn();
     const focusedTranslationDraftKeyRef: MutableRefObject<string | null> = { current: null };
 
@@ -30,7 +30,7 @@ describe('useTranscriptionMediaLaneRowTextAutosave', () => {
         scheduleAutoSave,
         clearAutoSaveTimer,
         saveSegmentContentForLayer,
-        saveUnitLayerText,
+        saveUnitText,
         focusedTranslationDraftKeyRef,
       }),
     );
@@ -48,7 +48,7 @@ describe('useTranscriptionMediaLaneRowTextAutosave', () => {
     const scheduleAutoSave = vi.fn();
     const clearAutoSaveTimer = vi.fn();
     const saveSegmentContentForLayer = vi.fn().mockResolvedValue(undefined);
-    const saveUnitLayerText = vi.fn().mockResolvedValue(undefined);
+    const saveUnitText = vi.fn().mockResolvedValue(undefined);
     const setUnitDrafts = vi.fn();
     const focusedTranslationDraftKeyRef: MutableRefObject<string | null> = { current: null };
 
@@ -63,7 +63,7 @@ describe('useTranscriptionMediaLaneRowTextAutosave', () => {
         scheduleAutoSave,
         clearAutoSaveTimer,
         saveSegmentContentForLayer,
-        saveUnitLayerText,
+        saveUnitText,
         focusedTranslationDraftKeyRef,
       }),
     );
@@ -199,7 +199,7 @@ describe('useTranscriptionMediaLaneRowTextAutosave blur', () => {
     const scheduleAutoSave = vi.fn();
     const clearAutoSaveTimer = vi.fn();
     const saveSegmentContentForLayer = vi.fn().mockResolvedValue(undefined);
-    const saveUnitLayerText = vi.fn().mockResolvedValue(undefined);
+    const saveUnitText = vi.fn().mockResolvedValue(undefined);
     const setUnitDrafts = vi.fn();
     const focusedTranslationDraftKeyRef: MutableRefObject<string | null> = { current: null };
 
@@ -214,7 +214,7 @@ describe('useTranscriptionMediaLaneRowTextAutosave blur', () => {
         scheduleAutoSave,
         clearAutoSaveTimer,
         saveSegmentContentForLayer,
-        saveUnitLayerText,
+        saveUnitText,
         focusedTranslationDraftKeyRef,
       }),
     );
@@ -318,5 +318,117 @@ describe('useMediaTranslationLaneRowDraftAutosave', () => {
     });
     expect(clearAutoSaveTimer).toHaveBeenCalledWith('tr-L1-U1');
     expect(scheduleAutoSave).not.toHaveBeenCalled();
+  });
+});
+
+describe('useTranscriptionMediaLaneRowTextAutosave unit writer (#454)', () => {
+  it('schedules unit-text save via saveUnitText, not saveUnitLayerText', async () => {
+    const scheduleAutoSave = vi.fn();
+    const clearAutoSaveTimer = vi.fn();
+    const saveSegmentContentForLayer = vi.fn().mockResolvedValue(undefined);
+    const saveUnitText = vi.fn().mockResolvedValue(undefined);
+    const setUnitDrafts = vi.fn();
+    const focusedTranslationDraftKeyRef: MutableRefObject<string | null> = { current: null };
+
+    const { result } = renderHook(() =>
+      useTranscriptionMediaLaneRowTextAutosave({
+        unitKind: 'unit',
+        layerId: 'trc-1',
+        unitId: 'U1',
+        draftKey: 'dk',
+        sourceText: 'orig',
+        setUnitDrafts,
+        scheduleAutoSave,
+        clearAutoSaveTimer,
+        saveSegmentContentForLayer,
+        saveUnitText,
+        focusedTranslationDraftKeyRef,
+      }),
+    );
+
+    act(() => {
+      result.current.handleDraftChange({
+        target: { value: 'edited' },
+      } as ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(scheduleAutoSave).toHaveBeenCalledWith('utt-trc-1-U1', expect.any(Function));
+    const task = scheduleAutoSave.mock.calls[0]?.[1] as () => Promise<void>;
+    await act(async () => {
+      await task();
+    });
+    expect(saveUnitText).toHaveBeenCalledWith('U1', 'edited', 'trc-1');
+  });
+
+  it('blur persists unit text through saveUnitText', async () => {
+    vi.spyOn(fireAndForgetModule, 'fireAndForget').mockImplementation((p) => {
+      void p;
+    });
+    const scheduleAutoSave = vi.fn();
+    const clearAutoSaveTimer = vi.fn();
+    const saveSegmentContentForLayer = vi.fn().mockResolvedValue(undefined);
+    const saveUnitText = vi.fn().mockResolvedValue(undefined);
+    const setUnitDrafts = vi.fn();
+    const focusedTranslationDraftKeyRef: MutableRefObject<string | null> = { current: null };
+
+    const { result } = renderHook(() =>
+      useTranscriptionMediaLaneRowTextAutosave({
+        unitKind: 'unit',
+        layerId: 'trc-1',
+        unitId: 'U1',
+        draftKey: 'dk',
+        sourceText: 'orig',
+        setUnitDrafts,
+        scheduleAutoSave,
+        clearAutoSaveTimer,
+        saveSegmentContentForLayer,
+        saveUnitText,
+        focusedTranslationDraftKeyRef,
+      }),
+    );
+
+    act(() => {
+      result.current.handleDraftBlur({
+        target: { value: 'edited' },
+      } as FocusEvent<HTMLInputElement>);
+    });
+
+    expect(saveUnitText).toHaveBeenCalledWith('U1', 'edited', 'trc-1');
+    vi.restoreAllMocks();
+  });
+});
+
+describe('transcription unit writer vs layer writer (#454)', () => {
+  it('createSaveUnitLayerText rejects a transcription layer id', async () => {
+    const { createSaveUnitLayerText } = await import('./useTranscriptionUnitActions.textWrites');
+    const setSaveState = vi.fn();
+    const saveLayer = createSaveUnitLayerText({
+      defaultTranscriptionLayerId: 'trc-1',
+      layerById: new Map([
+        [
+          'trc-1',
+          {
+            id: 'trc-1',
+            textId: 't1',
+            key: 'trc',
+            name: { zho: '转写' },
+            layerType: 'transcription',
+            languageId: 'und',
+            modality: 'text',
+            isDefault: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      ]) as never,
+      locale: 'zh-CN',
+      pushUndo: vi.fn(),
+      resolveUnitById: vi.fn(async () => null),
+      setSaveState,
+      setTranslations: vi.fn(),
+      setUnitDrafts: vi.fn(),
+    });
+    await saveLayer('U1', 'edited', 'trc-1');
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
   });
 });

@@ -91,6 +91,13 @@ describe('FlexService golden round-trip', () => {
     const imported = importFromFlextext(readGolden('empty.flextext'));
     expect(imported.units).toEqual([]);
   });
+
+  it('rejects non-FLEx XML that only shares the .flextext extension (#407)', () => {
+    expect(() => importFromFlextext('<foo/>')).toThrow(/no interlinear-text/);
+    expect(() => importFromFlextext('<?xml version="1.0"?><bar><baz/></bar>')).toThrow(
+      /no interlinear-text/,
+    );
+  });
 });
 
 describe('FlexService RTL phrase round-trip', () => {
@@ -203,6 +210,74 @@ describe('FlexService RTL phrase round-trip', () => {
     expect(imported.units[0]?.annotationId).toBe('p1');
   });
 
+
+  it('derives txt and gls language tags from layers when languageTag is omitted (#410)', () => {
+    const sourceLayer = makeDefaultLayer();
+    sourceLayer.languageId = 'bod';
+    const glossLayer: LayerDocType = {
+      id: 'layer_gls_zh',
+      textId: 'text_1',
+      key: 'gls_zh',
+      name: { zho: '译文' },
+      layerType: 'translation',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      sortOrder: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_lang',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: sourceLayer.id,
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'བཀྲ་ཤིས་' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const translations: LayerUnitContentDocType[] = [
+      {
+        id: 'utr_src',
+        unitId: 'utt_lang',
+        layerId: sourceLayer.id,
+        modality: 'text',
+        text: 'བཀྲ་ཤིས་',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_gls',
+        unitId: 'utt_lang',
+        layerId: glossLayer.id,
+        modality: 'text',
+        text: '吉祥',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const flex = exportToFlextext({
+      units,
+      layers: [sourceLayer, glossLayer],
+      translations,
+    });
+    expect(flex).toContain('type="txt" lang="bod"');
+    expect(flex).toContain('type="gls" lang="zho"');
+    expect(flex).not.toContain('type="txt" lang="und"');
+    expect(flex).not.toContain('type="gls" lang="en"');
+    const imported = importFromFlextext(flex);
+    expect(imported.sourceLanguage).toBe('bod');
+    expect(imported.glossLanguage).toBe('zho');
+    expect(imported.phraseGlosses.get('p1')).toBe('吉祥');
+  });
+
   it('aligns phrase glosses by phrase guid, not array index', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <document version="2">
@@ -302,6 +377,25 @@ describe('FlexService RTL phrase round-trip', () => {
   });
 });
 
+it('keeps phrase speakers on imported units (#409)', () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <interlinear-text>
+    <paragraphs><paragraph><phrases>
+      <phrase guid="a" speaker="Alice" begin-time-offset="0" end-time-offset="1000">
+        <item type="txt" lang="en">one</item>
+      </phrase>
+      <phrase guid="b" speaker="Bob" begin-time-offset="1000" end-time-offset="2000">
+        <item type="txt" lang="en">two</item>
+      </phrase>
+    </phrases></paragraph></paragraphs>
+  </interlinear-text>
+</document>`;
+  const imported = importFromFlextext(xml);
+  expect(imported.participants).toEqual(['Alice', 'Bob']);
+  expect(imported.units.map((unit) => unit.speakerId)).toEqual(['Alice', 'Bob']);
+});
+
 describe('FlexService field mapping', () => {
   it('reads pos and msa, keeps one translation row per phrase writing system, and skips unmapped items', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -353,6 +447,7 @@ describe('FlexService field mapping', () => {
     expect(imported.translationTiers?.get('FLEx Literal (eng)')?.[0]?.text).toBe('story this');
     expect(imported.translationTiers?.size).toBe(2);
     expect(imported.participants).toEqual(['Lenny Saumar']);
+    expect(imported.units[0]?.speakerId).toBe('Lenny Saumar');
     expect(imported.documentTitle?.eng).toBe('Pear Story');
     expect(imported.userNotes).toEqual(
       expect.arrayContaining([

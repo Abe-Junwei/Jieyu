@@ -32,7 +32,8 @@
   ],
   "ignoreDependencies": [
     "@electron/rebuild",
-    "electron-builder"
+    "electron-builder",
+    "linkedom"
   ],
   "ignoreIssues": {
     "src/ai/chat/toolCallSchemas.ts": ["exports"],

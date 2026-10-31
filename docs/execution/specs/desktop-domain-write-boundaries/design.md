@@ -3,7 +3,7 @@ title: desktop-domain-write-boundaries design
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-10-26
+last_reviewed: 2026-10-27
 source_of_truth: desktop-domain-write-boundaries-spec
 depends_on:
   - ./requirements.md
@@ -34,7 +34,7 @@ analysis.apply/restore 与 updateText 共用主进程内部逻辑和同一连接
 
 ## 5. 附件与宿主失败边界
 
-R5 必须先给出文件发布/清除状态机：准备文件→原子写登记/关联→文件收尾；最后引用解除后即使登记行要删除，也必须有仍可恢复的文件身份和操作依据。其载体待 R5，不在这里发明表。数据库事务不包普通文件 I/O；回滚、崩溃结果未知、重试、新关联及路径被替换都要验证。不自动套录音保留期，不因“ref_count=0”声称磁盘已删除。
+附件的发布和收尾状态机已由 [ADR-0095](../../../adr/0095-attachment-file-publish-and-cleanup.md) 接受，表还没建。数据库事务不包普通文件 I/O。最后一条链接先留下文件行，结果未知不删除该行，不套录音保留期，也不因链接数为 0 声称磁盘已删除。
 M2/M3：probeStore 只对独立临时夹具开放；选择/打开项目后旧 skeleton:write-probe 不能修改它。这条已经接到主进程。对合法库、错误标识文件、空文件的拒绝路径验证字节不变，不为探针补 application_id 伪装新格式；这不是新格式兼容策略。
 M4 时间片：替换首次声学绑定改语段时间的旧路径；offset/scale 更新后文献秒保持原值，播放器及转写结果换算符合公式。对应旧测试必须在接替时改为新业务结果，而不是直接复制断言。
 

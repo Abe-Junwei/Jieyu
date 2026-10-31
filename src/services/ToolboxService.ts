@@ -101,6 +101,19 @@ function splitTokens(line: string | undefined): string[] {
   return line.trim().split(/\s+/).filter(Boolean);
 }
 
+/** Non-whitespace placeholder so empty gloss/POS slots survive whitespace tokenization. */
+const TOOLBOX_EMPTY_ANALYSIS = '*';
+
+function isToolboxEmptyAnalysis(token: string | undefined): boolean {
+  if (!token) return true;
+  return token.split(/[-=]/).every((part) => part.trim() === '' || part.trim() === TOOLBOX_EMPTY_ANALYSIS);
+}
+
+function toolboxAnalysisSlot(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : TOOLBOX_EMPTY_ANALYSIS;
+}
+
 function appendTimelineHeaderMarkers(
   lines: string[],
   timelineMetadata?: TimelineInteropMetadata,
@@ -150,15 +163,23 @@ function parseWords(
     const morphGlosses = splitMorphemes(geTokens[wi] ?? '');
     const morphPos = splitMorphemes(psTokens[wi] ?? '');
 
+    const glossParts = morphGlosses.map((g) =>
+      g === TOOLBOX_EMPTY_ANALYSIS ? '' : g,
+    );
+    const posParts = morphPos.map((p) => (p === TOOLBOX_EMPTY_ANALYSIS ? '' : p));
     const morphemes = morphForms.map((m, mi) => ({
       form: { default: m },
-      ...(morphGlosses[mi] ? { gloss: { eng: morphGlosses[mi] } } : {}),
-      ...(morphPos[mi] ? { pos: morphPos[mi] } : {}),
+      ...(glossParts[mi] ? { gloss: { eng: glossParts[mi] } } : {}),
+      ...(posParts[mi] ? { pos: posParts[mi] } : {}),
     }));
+
+    const wordGlossRaw = geTokens[wi];
+    const wordGloss =
+      wordGlossRaw && !isToolboxEmptyAnalysis(wordGlossRaw) ? wordGlossRaw : undefined;
 
     return {
       form: { default: txTokens[wi] ?? mbWord },
-      ...(geTokens[wi] ? { gloss: { eng: geTokens[wi] } } : {}),
+      ...(wordGloss ? { gloss: { eng: wordGloss } } : {}),
       ...(morphemes.length > 0 ? { morphemes } : {}),
     };
   });
@@ -360,21 +381,29 @@ function buildWordMarkers(
       const base = word.form.default ?? Object.values(word.form)[0] ?? '';
       if (base) mbWords.push(base);
       const wGloss = word.gloss?.eng ?? Object.values(word.gloss ?? {})[0] ?? '';
-      if (wGloss) geWords.push(wGloss);
+      // Always reserve a slot so later words do not shift (#434).
+      geWords.push(toolboxAnalysisSlot(wGloss));
       return;
     }
 
     mbWords.push(morphs.map((m) => m.form.default ?? Object.values(m.form)[0] ?? '').join('-'));
     geWords.push(
-      morphs.map((m) => m.gloss?.eng ?? Object.values(m.gloss ?? {})[0] ?? '').join('-'),
+      morphs
+        .map((m) => toolboxAnalysisSlot(m.gloss?.eng ?? Object.values(m.gloss ?? {})[0] ?? ''))
+        .join('-'),
     );
-    psWords.push(morphs.map((m) => m.pos ?? '').join('-'));
+    psWords.push(
+      morphs.map((m) => toolboxAnalysisSlot(m.pos ?? '')).join('-'),
+    );
   });
+
+  const hasRealGloss = geWords.some((w) => !isToolboxEmptyAnalysis(w));
+  const hasRealPos = psWords.some((w) => !isToolboxEmptyAnalysis(w));
 
   return {
     ...(mbWords.some(Boolean) ? { mb: mbWords.join(' ') } : {}),
-    ...(geWords.some(Boolean) ? { ge: geWords.join(' ') } : {}),
-    ...(psWords.some((w) => w.trim().length > 0) ? { ps: psWords.join(' ') } : {}),
+    ...(hasRealGloss ? { ge: geWords.join(' ') } : {}),
+    ...(hasRealPos ? { ps: psWords.join(' ') } : {}),
   };
 }
 
