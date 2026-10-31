@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-26T06:49:16.159Z",
-  "aggregate": "202c8eebbe85d7f17eff66455af640ffb9e384546d77dfcd678572186c2e2953",
+  "generatedAt": "2026-10-27T04:58:02.329Z",
+  "aggregate": "f05e7125df955d29ab998932ef7c97a4e57c1cdb7d8d1d01ad84bef1c5396d3b",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -27,7 +27,7 @@
     "src/styles/pages/annotation-workspace.css": "9897c0e0264010022ef299f84b9a492035ff6684458d13942f6ea32bd30e9a16",
     "src/styles/pages/app-shell-layout.css": "dc7f94d7405e92ad25b25a67c59a9eeddcaf43a7cc82ab1ef7119aeca57e1c8b",
     "src/styles/pages/corpus-library-workspace.css": "010f51e6efdbd1f622877f9285a4bbf67fcd98758ac31431633307ed96ae9480",
-    "src/styles/pages/desktop-project-read.css": "dd270898dc7b6a92357cbccd040f4ccb767cbf61c720b15777384983172371c8",
+    "src/styles/pages/desktop-project-read.css": "3cccf8f60a1aac19eec9c014df395b3f73caea57031c4418d7714f2be86d7e79",
     "src/styles/pages/feature-availability.css": "41085a30ed3f77bd180c65cf0842dd839dcf81ff0496684b5cb4bb6231872c09",
     "src/styles/pages/home-page.css": "6f10b0a6de15abbbd8afec7ceb585f5c18d5ec5d931a466f128850ea9db3145b",
     "src/styles/pages/language-metadata-workspace.css": "920a61a590082eeb16c266158d43ed4fb01039e831553bd3d40e6b55547b93ec",

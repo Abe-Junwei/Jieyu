@@ -1,6 +1,5 @@
+import type { ProjectTranscriptionInput } from '../src/desktop/transcriptionTypes';
 import { contextBridge, ipcRenderer } from 'electron';
-import { desktopProjectReadEnabled } from '../src/desktop/skeleton/desktopProjectReadFlag';
-
 export interface RequestChunkEvent {
   requestId: string;
   chunk: string;
@@ -14,8 +13,25 @@ const desktop = {
     ipcRenderer.invoke('desktop:close-session', sessionId),
   desktopCall: (sessionId: string, method: string, args: unknown) =>
     ipcRenderer.invoke('desktop:call', sessionId, method, args),
-  projectReadEnabled: desktopProjectReadEnabled(process.env.JIEYU_DESKTOP_PROJECT_READ),
+  chooseLocalWhisper: (sessionId: string) =>
+    ipcRenderer.invoke('desktop:choose-local-whisper', sessionId),
+  chooseTranscriptionModel: (sessionId: string) =>
+    ipcRenderer.invoke('desktop:choose-transcription-model', sessionId),
+  transcribeProject: (sessionId: string, input: ProjectTranscriptionInput) =>
+    ipcRenderer.invoke('desktop:transcribe-project', sessionId, input),
+  cancelProjectTranscription: (sessionId: string, requestId: string) =>
+    ipcRenderer.invoke('desktop:cancel-project-transcription', sessionId, requestId),
+  transcribeModel: (input: unknown) => ipcRenderer.invoke('model:transcribe', input),
+  cancelModel: (requestId: string) => ipcRenderer.invoke('model:cancel', requestId),
+  projectReadEnabled: true,
   chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
+  chooseImportFile: () => ipcRenderer.invoke('desktop:choose-import-file'),
+  chooseExportFile: (name: string) => ipcRenderer.invoke('desktop:choose-export-file', name),
+  listDailyBackups: (sessionId: string) => ipcRenderer.invoke('desktop:list-backups', sessionId),
+  restoreDailyBackup: (sessionId: string, day: string) =>
+    ipcRenderer.invoke('desktop:restore-backup', sessionId, day),
+  openRestoredBackup: (sessionId: string) =>
+    ipcRenderer.invoke('desktop:open-restored-backup', sessionId),
   desktopMediaUrl: (sessionId: string, mediaId: string) =>
     ipcRenderer.invoke('desktop:media-url', sessionId, mediaId),
   storeSecret: (plain: string) => ipcRenderer.invoke('skeleton:store-secret', plain),

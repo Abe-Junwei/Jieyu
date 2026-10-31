@@ -3,7 +3,8 @@
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "types": ["node"],
+    "types": ["node", "vite/client"],
+    "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
     "noUnusedLocals": true,
@@ -14,9 +15,12 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "paths": {
+      "~/*": ["../src/*"]
+    }
   },
-  "include": ["./**/*.ts", "../src/desktop/skeleton/**/*.ts"],
+  "include": ["./**/*.ts", "./**/*.d.ts", "../src/desktop/skeleton/**/*.ts"],
   "exclude": [
     "../src/desktop/skeleton/**/*.test.ts",
     "../src/desktop/skeleton/sqliteStorageHost.ts",

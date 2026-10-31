@@ -1,8 +1,8 @@
 ---
-name: 启动全仓分轮排错
+name: migrated-skill
 description: "Use when: 需要一键启动单智能体全链路排错（范围建档、对话回顾、分轮修复、根因归并、逐行收口）。"
+disable-model-invocation: true
 argument-hint: "输入功能范围与策略（例如：origin/main...HEAD，跳过 docs，自动修复，门槛无 P0/P1）"
-agent: "全链路排错智能体"
 ---
 请按“全链路排错智能体”的流程执行本次任务，并严格遵循以下要求：
 

@@ -37,6 +37,7 @@ const TIER_ROLE_TOKENS = new Set([
   'source',
   'text',
   'title',
+  'transcription',
   'translation',
   'txt',
   'tx',

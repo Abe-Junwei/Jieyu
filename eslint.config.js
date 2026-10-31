@@ -102,7 +102,6 @@ export default [
       'src/pages/voiceDictationFlow.ts',
       'src/pages/waveformAcousticOverlay.utils.ts',
       'src/pages/waveformRuntimeStorage.ts',
-      'src/pages/HomePage.tsx',
       'src/pages/LanguageMetadataWorkspacePage.test.tsx',
       'src/pages/timelineUnitViewUnitHelpers.ts',
       'src/pages/TranscriptionPage.PdfRuntime.tsx',

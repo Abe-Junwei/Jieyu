@@ -13,6 +13,7 @@ import {
 import { dirname, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { releaseProjectLock, tryAcquireProjectLock } from '../../desktop/skeleton/projectLock';
+import { sweepAttachmentTmp } from './attachments';
 import { createLayer, getLayer, type Layer, type LayerCreate } from './layers';
 import { createMedia, getMedia, type Media, type MediaCreate } from './media';
 import {
@@ -92,6 +93,12 @@ export function openProject(
     const db = new Database(target);
     db.exec('PRAGMA foreign_keys = ON');
     db.exec('PRAGMA busy_timeout = 5000');
+    try {
+      sweepAttachmentTmp(folder);
+    } catch (error) {
+      db.close();
+      throw error;
+    }
     return bindProject(db, folder, () => {
       db.close();
       releaseProjectLock(folder);

@@ -5,6 +5,7 @@
   padding: 16px;
 }
 
+.desktop-project-read-query,
 .desktop-project-read-manuscripts,
 .desktop-project-read-units {
   display: flex;

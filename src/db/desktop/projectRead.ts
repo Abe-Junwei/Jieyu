@@ -12,6 +12,7 @@ export interface DesktopProjectReadApi {
 export interface DesktopProjectRead {
   manuscripts: Manuscript[];
   manuscriptId: string | null;
+  layerId: string | null;
   audioUrl: string | null;
   units: Unit[];
 }
@@ -20,6 +21,8 @@ export async function loadDesktopProjectRead(
   api: DesktopProjectReadApi,
   sessionId: string,
   manuscriptId?: string,
+  includeMedia = true,
+  layerId?: string,
 ): Promise<DesktopProjectRead> {
   const manuscripts = await api.listManuscripts(sessionId);
   const selected =
@@ -30,13 +33,13 @@ export async function loadDesktopProjectRead(
     throw new Error('manuscript is missing');
   }
   if (selected === undefined) {
-    return { manuscripts, manuscriptId: null, audioUrl: null, units: [] };
+    return { manuscripts, manuscriptId: null, layerId: null, audioUrl: null, units: [] };
   }
   const layers = await api.listLayers(sessionId, selected.id);
-  const layer = layers.find(
-    (item) => item.tierType === 'time-aligned' && item.contentType === 'transcription',
-  );
+  const layer =
+    layers.find((item) => item.id === layerId) ??
+    layers.find((item) => item.tierType === 'time-aligned' && item.contentType === 'transcription');
   const units = layer === undefined ? [] : await api.listUnits(sessionId, layer.id);
-  const audioUrl = await api.mediaPlayUrl(sessionId, selected.mediaId);
-  return { manuscripts, manuscriptId: selected.id, audioUrl, units };
+  const audioUrl = includeMedia ? await api.mediaPlayUrl(sessionId, selected.mediaId) : null;
+  return { manuscripts, manuscriptId: selected.id, layerId: layer?.id ?? null, audioUrl, units };
 }
