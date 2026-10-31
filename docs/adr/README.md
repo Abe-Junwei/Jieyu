@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-26
+last_reviewed: 2026-10-30
 source_of_truth: decision-index
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0095**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0099**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -21,10 +21,11 @@ source_of_truth: decision-index
 
 ## 桌面存储：当前有效条款
 
-下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。基础单库布局以 [ADR-0085](./0085-desktop-project-one-sqlite.md) 为准；范围/冻结与开发格式见 [ADR-0086](./0086-desktop-release-scope-and-format-freeze.md)，删除/恢复见 [ADR-0087](./0087-project-deletion-retention-and-media-cleanup.md)，M1 未覆盖的领域落点见 [ADR-0088](./0088-desktop-sqlite-domain-landings.md)。分析过期、曾经接受与恢复见 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)。完整载荷、全项目字段和失效引用见 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md)。字段修订、诊断补交、备注锚点、转写接受回执、删除准入、备份快照和恢复执行隔离见 [ADR-0091](./0091-field-revisions-diagnostic-delivery-and-later-milestones.md)。冲突条款按对应新篇执行。
+下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。基础单库布局以 [ADR-0085](./0085-desktop-project-one-sqlite.md) 为准；范围/冻结与开发格式见 [ADR-0086](./0086-desktop-release-scope-and-format-freeze.md)，删除/恢复见 [ADR-0087](./0087-project-deletion-retention-and-media-cleanup.md)，M1 未覆盖的领域落点见 [ADR-0088](./0088-desktop-sqlite-domain-landings.md)。分析过期、曾经接受与恢复见 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)。完整载荷、全项目字段和失效引用见 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md)。字段修订、诊断补交、备注锚点、转写接受回执、删除准入、备份快照和恢复执行隔离见 [ADR-0091](./0091-field-revisions-diagnostic-delivery-and-later-milestones.md)。写入口、项目与来源初始化及复制时的自定义引用身份见 [ADR-0097](./0097-desktop-write-entry-initialization-and-reference-identity.md)。模型交付余项的第二程归属与非阻塞边界见 [ADR-0098](./0098-model-delivery-followups-in-second-stage.md)。冲突条款按对应新篇执行。
 
 | 事项                                                                                                                                                      | 唯一权威                                                                                                                                                                                                 | 不要再当成权威                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 模型交付阶段 | [ADR-0098](./0098-model-delivery-followups-in-second-stage.md)：下载、持久管理、转码与随包分发归第二程，不挡第一程 | ADR-0086 及旧试用决定中把这些未完成余项列为首发前置 |
 | 桌面用 SQLite、浏览器用 Dexie、新代码走存储接口                                                                                                           | ADR-0085：新存储只写 SQLite，一次操作一次事务。操作仍是业务方法，不接受表名（ADR-0048 第 3 条的这一句）                                                                                                 | Dexie 与 SQLite 各写一套；按浏览器保存路径先实现新规则                                                                   |
 | 交换包与每日备份 | ADR-0046 第 2、6 条中不冲突要求；ADR-0086 取消旧 JYB 迁入，ADR-0087 定已删除对象的包保留与恢复 | 只备数据库替代含音频备份、把 #326 当首发阻塞、恢复旧包立即清除 |
 | 文件夹里放什么                                                                                                                                            | ADR-0085：音频是原文件，结构化数据只有 `project.sqlite`，文稿是表里的一行                                                                                                                                | 一份文稿一个 `.jyd`（ADR-0061 第 1–4、6 条）；ADR-0046 第 1、5 条的 `project.sqlite` + `media/`                          |
@@ -74,6 +75,7 @@ source_of_truth: decision-index
 - [0094：转写运行与接受事实](./0094-transcription-run-acceptance-facts.md)
 - [0095：附件文件发布与最后引用收尾](./0095-attachment-file-publish-and-cleanup.md)
 - [0096：删除周期列](./0096-deletion-cycle-columns.md)
+- [0097：桌面写入口、创建初始化与引用身份](./0097-desktop-write-entry-initialization-and-reference-identity.md)
 
 R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebuild/design.md)，取舍已接受为 ADR-0090，代码未改。附件 R5 已接受为 ADR-0095，表未建。删除周期列已接受为 ADR-0096，并已写入 schema。
 
@@ -169,6 +171,7 @@ R1 的字段编码留在[执行规格](../execution/specs/annotation-graph-rebui
 - [0094-transcription-run-acceptance-facts.md](./0094-transcription-run-acceptance-facts.md)
 - [0095-attachment-file-publish-and-cleanup.md](./0095-attachment-file-publish-and-cleanup.md)
 - [0096-deletion-cycle-columns.md](./0096-deletion-cycle-columns.md)
+- [0097-desktop-write-entry-initialization-and-reference-identity.md](./0097-desktop-write-entry-initialization-and-reference-identity.md)
 
 ## 已关闭的另一套编号
 

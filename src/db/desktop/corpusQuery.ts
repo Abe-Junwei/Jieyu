@@ -280,8 +280,16 @@ function selectUnits(
     params.push(input.text);
   }
   if (input.unitIds !== null) {
-    where.push(`units.id IN (${input.unitIds.map(() => '?').join(', ')})`);
-    params.push(...input.unitIds);
+    db.exec('CREATE TEMP TABLE IF NOT EXISTS corpus_hit_units (id TEXT PRIMARY KEY)');
+    db.exec('DELETE FROM corpus_hit_units');
+    const insert = db.prepare('INSERT OR IGNORE INTO corpus_hit_units (id) VALUES (?)');
+    const writeIds = db.transaction((ids: readonly string[]) => {
+      for (const id of ids) insert.run(id);
+    });
+    for (let index = 0; index < input.unitIds.length; index += 400) {
+      writeIds(input.unitIds.slice(index, index + 400));
+    }
+    where.push('units.id IN (SELECT id FROM corpus_hit_units)');
   }
   const cursor = input.cursor;
   if (cursor !== null) {

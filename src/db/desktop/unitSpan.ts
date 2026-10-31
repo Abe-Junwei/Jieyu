@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import { getUnit, type Unit } from './units';
+import {
+  analysisGraphFingerprint,
+  type AnalysisGraphPayload,
+} from '../../annotation/analysisGraphDomain';
+import { assertStoredCustomFields, missingFields } from './customFields';
+import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -216,6 +221,7 @@ export function splitUnit(
       now,
       now,
     );
+    assertUnitTextRoleFree(db, createdId, 'transcription');
     db.prepare(
       `INSERT INTO unit_texts (id, unit_id, role, body, updated_at)
        VALUES (?, ?, 'transcription', ?, ?)`,
@@ -223,8 +229,8 @@ export function splitUnit(
     const copied = copyAssociations(db, existing.id, createdId);
     bumpGeneration(db, place.manuscriptId, now);
     afterWrite?.();
-    const left = getUnit(db, existing.id);
-    const right = getUnit(db, createdId);
+    const left = readStoredUnit(db, existing.id);
+    const right = readStoredUnit(db, createdId);
     const generation = generationOf(db, place.manuscriptId);
     if (
       !left ||
@@ -272,8 +278,8 @@ export function undoSplit(db: SqliteDatabase, undo: UnitSplitUndo, afterWrite?: 
     );
     bumpGeneration(db, undo.manuscriptId, now);
     afterWrite?.();
-    const unit = getUnit(db, undo.unitId);
-    const created = getUnit(db, undo.createdId);
+    const unit = readStoredUnit(db, undo.unitId);
+    const created = readStoredUnit(db, undo.createdId);
     if (
       !unit ||
       created !== null ||
@@ -318,8 +324,8 @@ export function mergeUnits(
     deleteUnitTree(db, remove.id);
     bumpGeneration(db, place.manuscriptId, now);
     afterWrite?.();
-    const unit = getUnit(db, keep.id);
-    const gone = getUnit(db, remove.id);
+    const unit = readStoredUnit(db, keep.id);
+    const gone = readStoredUnit(db, remove.id);
     if (
       !unit ||
       gone !== null ||
@@ -364,8 +370,8 @@ export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: 
     insertRemovedUnit(db, undo.removed);
     bumpGeneration(db, undo.manuscriptId, now);
     afterWrite?.();
-    const keep = getUnit(db, undo.keepId);
-    const removed = getUnit(db, undo.removeId);
+    const keep = readStoredUnit(db, undo.keepId);
+    const removed = readStoredUnit(db, undo.removeId);
     if (
       !keep ||
       !removed ||
@@ -386,7 +392,7 @@ export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: 
 }
 
 function requireLiveUnit(db: SqliteDatabase, id: string): Unit {
-  const unit = getUnit(db, id);
+  const unit = readStoredUnit(db, id);
   if (!unit) throw new Error('unit is missing');
   return unit;
 }
@@ -575,6 +581,25 @@ function copyAssociations(
       note.created_at,
       note.updated_at,
     );
+    copyTableFields(db, 'note', note.id, id);
+    if (missingFields(db, 'note', id).length > 0) {
+      throw new Error('note is missing a required field');
+    }
+  }
+  copyGraph(db, fromId, toId, tokenMap, morphemeMap);
+  copyTableFields(db, 'unit', fromId, toId);
+  if (missingFields(db, 'unit', toId).length > 0) {
+    throw new Error('unit is missing a required field');
+  }
+  const copiedGraph = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(toId) as
+    { analysis_graph_json: string | null } | undefined;
+  if (copiedGraph?.analysis_graph_json != null) {
+    assertStoredCustomFields(
+      db,
+      JSON.parse(copiedGraph.analysis_graph_json) as AnalysisGraphPayload,
+      toId,
+      { prior: null, preserveDangling: true },
+    );
   }
   return {
     noteIds,
@@ -582,6 +607,64 @@ function copyAssociations(
     morphemeIds: [...morphemeMap.values()],
     linkIds,
   };
+}
+
+function copyTableFields(
+  db: SqliteDatabase,
+  targetType: string,
+  fromId: string,
+  toId: string,
+): void {
+  const rows = db
+    .prepare(
+      `SELECT definition_id, value_json, updated_at
+       FROM custom_field_values WHERE target_type = ? AND target_id = ?`,
+    )
+    .all(targetType, fromId) as Array<{
+    definition_id: string;
+    value_json: string;
+    updated_at: string;
+  }>;
+  const insert = db.prepare(
+    `INSERT INTO custom_field_values (definition_id, target_type, target_id, value_json, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  );
+  for (const row of rows) {
+    insert.run(row.definition_id, targetType, toId, row.value_json, row.updated_at);
+  }
+}
+
+function copyGraph(
+  db: SqliteDatabase,
+  fromId: string,
+  toId: string,
+  tokenMap: ReadonlyMap<string, string>,
+  morphemeMap: ReadonlyMap<string, string>,
+): void {
+  const row = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(fromId) as
+    { analysis_graph_json: string | null } | undefined;
+  if (row?.analysis_graph_json == null) return;
+  const graph = JSON.parse(row.analysis_graph_json) as AnalysisGraphPayload;
+  const idMap = new Map<string, string>([...tokenMap, ...morphemeMap]);
+  for (const node of graph.nodes) {
+    if (!idMap.has(node.id)) idMap.set(node.id, randomUUID());
+  }
+  const remap = (id: string) => idMap.get(id) ?? id;
+  for (const node of graph.nodes) {
+    node.id = remap(node.id);
+    for (const part of node.surfaceParts ?? []) part.tokenId = remap(part.tokenId);
+  }
+  for (const relation of graph.relations) {
+    relation.id = randomUUID();
+    relation.sourceId = remap(relation.sourceId);
+    relation.targetId = remap(relation.targetId);
+  }
+  graph.id = randomUUID();
+  db.prepare(
+    `UPDATE units
+     SET analysis_graph_json = ?, analysis_generation = 1, graph_fingerprint = ?
+     WHERE id = ?`,
+  ).run(JSON.stringify(graph), analysisGraphFingerprint(graph), toId);
 }
 
 function retargetSurface(json: string, tokenMap: ReadonlyMap<string, string>): string {
@@ -596,8 +679,8 @@ function retargetSurface(json: string, tokenMap: ReadonlyMap<string, string>): s
 }
 
 function splitStillAfter(db: SqliteDatabase, undo: UnitSplitUndo): boolean {
-  const left = getUnit(db, undo.unitId);
-  const right = getUnit(db, undo.createdId);
+  const left = readStoredUnit(db, undo.unitId);
+  const right = readStoredUnit(db, undo.createdId);
   if (
     !left ||
     !right ||
@@ -624,10 +707,10 @@ function splitStillAfter(db: SqliteDatabase, undo: UnitSplitUndo): boolean {
 }
 
 function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
-  const keep = getUnit(db, undo.keepId);
+  const keep = readStoredUnit(db, undo.keepId);
   return (
     keep !== null &&
-    getUnit(db, undo.removeId) === null &&
+    readStoredUnit(db, undo.removeId) === null &&
     keep.startTime === undo.mergedStart &&
     keep.endTime === undo.mergedEnd &&
     keep.text === undo.keepText &&
@@ -724,6 +807,7 @@ function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
      VALUES (?, ?, ?, ?, ?, ?)`,
   );
   for (const row of removed.texts) {
+    assertUnitTextRoleFree(db, unit.id, row.role);
     insertText.run(row.id, unit.id, row.role, row.body, row.provenance_json, row.updated_at);
   }
   const insertToken = db.prepare(

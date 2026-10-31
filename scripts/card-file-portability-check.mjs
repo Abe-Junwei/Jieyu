@@ -8,10 +8,10 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import * as sqlite from 'node:sqlite';
+import { createSyntheticDir, syntheticWriteFile } from './lib/synthetic-write-target.mjs';
 
 const { DatabaseSync } = sqlite;
 const backupSkip =
@@ -19,47 +19,51 @@ const backupSkip =
     ? false
     : `node:sqlite on Node ${process.version} has no backup(); use a Node 22 release that exports it (22.16+)`;
 
-test('a card file is portable only after a consistent backup and close', { skip: backupSkip }, async () => {
-  const { backup } = sqlite;
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-card-'));
-  try {
-    const src = path.join(dir, 'card.sqlite');
-    const db = new DatabaseSync(src);
-    db.exec('PRAGMA journal_mode = WAL');
-    db.exec('CREATE TABLE blob (id TEXT PRIMARY KEY, bytes BLOB)');
-    db.prepare('INSERT INTO blob (id, bytes) VALUES (?, ?)').run('a', Buffer.from('audio-bytes'));
+test(
+  'a card file is portable only after a consistent backup and close',
+  { skip: backupSkip },
+  async () => {
+    const { backup } = sqlite;
+    const dir = createSyntheticDir('jieyu-card-');
+    try {
+      const src = path.join(dir, 'card.sqlite');
+      const db = new DatabaseSync(syntheticWriteFile(src));
+      db.exec('PRAGMA journal_mode = WAL');
+      db.exec('CREATE TABLE blob (id TEXT PRIMARY KEY, bytes BLOB)');
+      db.prepare('INSERT INTO blob (id, bytes) VALUES (?, ?)').run('a', Buffer.from('audio-bytes'));
 
-    const naive = path.join(dir, 'naive.sqlite');
-    fs.copyFileSync(src, naive);
-    const naiveDb = new DatabaseSync(naive, { readOnly: true });
-    assert.throws(() => naiveDb.prepare('SELECT id FROM blob').get());
-    naiveDb.close();
+      const naive = path.join(dir, 'naive.sqlite');
+      fs.copyFileSync(src, naive);
+      const naiveDb = new DatabaseSync(naive, { readOnly: true });
+      assert.throws(() => naiveDb.prepare('SELECT id FROM blob').get());
+      naiveDb.close();
 
-    const backed = path.join(dir, 'backed.sqlite');
-    await backup(db, backed);
-    db.close();
-    const backedDb = new DatabaseSync(backed);
-    backedDb.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-    backedDb.close();
-    assert.equal(fs.existsSync(`${backed}-wal`), false);
-    assert.equal(fs.existsSync(`${backed}-shm`), false);
+      const backed = path.join(dir, 'backed.sqlite');
+      await backup(db, backed);
+      db.close();
+      const backedDb = new DatabaseSync(syntheticWriteFile(backed));
+      backedDb.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+      backedDb.close();
+      assert.equal(fs.existsSync(`${backed}-wal`), false);
+      assert.equal(fs.existsSync(`${backed}-shm`), false);
 
-    const alone = path.join(dir, 'alone.sqlite');
-    fs.copyFileSync(backed, alone);
-    const read = new DatabaseSync(alone, { readOnly: true });
-    const row = read.prepare('SELECT bytes FROM blob WHERE id = ?').get('a');
-    read.close();
-    assert.equal(Buffer.from(row.bytes).toString(), 'audio-bytes');
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
+      const alone = path.join(dir, 'alone.sqlite');
+      fs.copyFileSync(backed, alone);
+      const read = new DatabaseSync(alone, { readOnly: true });
+      const row = read.prepare('SELECT bytes FROM blob WHERE id = ?').get('a');
+      read.close();
+      assert.equal(Buffer.from(row.bytes).toString(), 'audio-bytes');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  },
+);
 
 test('a rollback-journal write is not a single file until it commits and closes', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-journal-'));
+  const dir = createSyntheticDir('jieyu-journal-');
   try {
     const src = path.join(dir, 'doc.sqlite');
-    const db = new DatabaseSync(src);
+    const db = new DatabaseSync(syntheticWriteFile(src));
     db.exec('PRAGMA journal_mode = DELETE');
     db.exec('CREATE TABLE row (id INTEGER PRIMARY KEY)');
     db.exec('BEGIN');

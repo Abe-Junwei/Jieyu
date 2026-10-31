@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
 import type Database from 'better-sqlite3';
+import { writeRequiredFieldValues } from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -11,22 +12,48 @@ export interface ProjectIdentity {
   updatedAt: string;
 }
 
-/** One identity row. A later open keeps the row that is already there. */
-export function ensureProjectIdentity(db: SqliteDatabase, folder: string): ProjectIdentity {
+/**
+ * One identity row. fieldValues are stored only while that row is created, in the same transaction.
+ * An existing row rejects them and is not patched, even when a later required field is still empty.
+ */
+export function ensureProjectIdentity(
+  db: SqliteDatabase,
+  folder: string,
+  fieldValues?: Record<string, unknown>,
+): ProjectIdentity {
   const existing = getProjectIdentity(db);
-  if (existing !== null) return existing;
-  const name = basename(folder).trim();
-  const title = { und: name.length > 0 ? name : 'project' };
-  const now = new Date().toISOString();
-  const id = randomUUID();
-  db.prepare(
-    'INSERT INTO project (id, title_json, created_at, updated_at) VALUES (?, ?, ?, ?)',
-  ).run(id, JSON.stringify(title), now, now);
-  const stored = getProjectIdentity(db);
-  if (stored === null || stored.id !== id || stored.title.und !== title.und) {
-    throw new Error('project readback failed');
+  if (existing !== null) {
+    if (fieldValues !== undefined) throw new Error('project is already initialized');
+    return existing;
   }
-  return stored;
+  const create = db.transaction(() => {
+    const name = basename(folder).trim();
+    const title = { und: name.length > 0 ? name : 'project' };
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    db.prepare(
+      'INSERT INTO project (id, title_json, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    ).run(id, JSON.stringify(title), now, now);
+    writeRequiredFieldValues(db, 'project', id, fieldValues);
+    const stored = getProjectIdentity(db);
+    if (stored === null || stored.id !== id || stored.title.und !== title.und) {
+      throw new Error('project readback failed');
+    }
+    const projectId = stored.id;
+    for (const [definitionId, value] of Object.entries(fieldValues ?? {})) {
+      const kept = db
+        .prepare(
+          `SELECT value_json FROM custom_field_values
+           WHERE definition_id = ? AND target_type = 'project' AND target_id = ?`,
+        )
+        .get(definitionId, projectId) as { value_json: string } | undefined;
+      if (kept === undefined || kept.value_json !== JSON.stringify(value)) {
+        throw new Error('project readback failed');
+      }
+    }
+    return stored;
+  });
+  return create();
 }
 
 export function getProjectIdentity(db: SqliteDatabase): ProjectIdentity | null {

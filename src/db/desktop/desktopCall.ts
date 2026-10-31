@@ -1,19 +1,21 @@
 import {
+  finishAttachmentCleanup,
+  listAttachmentLinks,
   publishAttachment,
+  readAttachmentLink,
   removeAttachmentLink,
-  type AttachmentKind,
-  type AttachmentPublish,
 } from './attachments';
 import { applyAnalysis } from './analysis';
 import { importForeignFile } from './foreignImport';
 import { getProjectIdentity } from './projectIdentity';
 import {
+  assertExportTarget,
   exportDesktopJym,
   exportDesktopJyt,
   exportDesktopManuscriptJyt,
   saveDesktopPackage,
 } from './projectExchange';
-import { queryCorpus, type CorpusQuery, type CorpusQueryCursor } from './corpusQuery';
+import { queryCorpus } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
 import { listAnalysisCandidates } from './analysisCandidates';
 import {
@@ -27,8 +29,6 @@ import {
   segmentUnitWords,
   splitAnalysisNode,
   submitAnalysis,
-  undoUnitText,
-  type AnalysisCredentials,
 } from './analysisRestore';
 import {
   createBridge,
@@ -42,13 +42,8 @@ import {
   updateBridge,
   updateOrthography,
   updateProjectLanguage,
-  type BridgeCreate,
-  type LanguageEnsure,
-  type OrthographyCreate,
 } from './catalog';
 import {
-  CUSTOM_FIELD_DEFINITION_KEYS,
-  CUSTOM_FIELD_UPDATE_KEYS,
   addOption,
   createDefinition,
   importDefinition,
@@ -67,30 +62,15 @@ import {
 } from './customFields';
 import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
-import {
-  patchBibliography,
-  redeliverBibliography,
-  type BibliographyPatch,
-} from './bibliographyFields';
-import {
-  patchConversation,
-  redeliverConversation,
-  type ConversationPatch,
-} from './conversationFields';
-import { assignSpeaker, undoAssignSpeaker } from './speakerAssign';
-import { patchSpeaker, redeliverSpeaker, type SpeakerPatch } from './speakerFields';
+import { patchBibliography, redeliverBibliography } from './bibliographyFields';
+import { patchConversation, redeliverConversation } from './conversationFields';
+import { assignSpeaker } from './speakerAssign';
+import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
-import { patchSource, redeliverSource, type SourcePatch } from './sourceFields';
+import { createSource, patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
-import { createLayer, listLayers, type LayerCreate } from './layers';
-import {
-  linkSense,
-  removeSense,
-  saveLexemeEntry,
-  getLexemeEntry,
-  type LexemeLinkWrite,
-  type LexemeSave,
-} from './lexicon';
+import { createLayer, listLayers } from './layers';
+import { linkSense, removeSense, saveLexemeEntry, getLexemeEntry } from './lexicon';
 import {
   clearTokenLexemeLink,
   createLinkedLexeme,
@@ -99,7 +79,7 @@ import {
   matchLexemeLinkQuery,
   replaceTokenLexemeLink,
 } from './lexemeLink';
-import { createMedia, type MediaCreate } from './media';
+import { createMedia, listActiveMedia, listDeletedMedia } from './media';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
@@ -108,14 +88,12 @@ import {
   finishModelRun,
   getModelRun,
   interruptUnfinishedRuns,
+  listAcceptableRuns,
   stopManuscriptTasks,
   stopRecordingTasks,
   previewModelRun,
   readTranscriptionAcceptance,
   startModelRun,
-  type ModelRunFinish,
-  type ModelRunStart,
-  type PreviewCandidateInput,
 } from './modelRuns';
 import {
   createContentNote,
@@ -124,9 +102,6 @@ import {
   listLexemeNotes,
   saveLexemeNote,
   updateContentNote,
-  type ContentNoteAnchor,
-  type ContentNoteCategory,
-  type ContentNoteQuery,
 } from './notes';
 import { createConversation, listConversations } from './conversations';
 import {
@@ -134,7 +109,6 @@ import {
   clearConversationMessages,
   listMessages,
   updateMessageBody,
-  type MessageAppend,
 } from './messages';
 import { listDueDeletionReminders, purgeManuscript, showDeletionReminder } from './manuscriptPurge';
 import {
@@ -148,207 +122,727 @@ import {
   restoreManuscript,
   rollbackManuscriptTimeMapping,
   setManuscriptTimeMapping,
-  type ManuscriptCreate,
 } from './manuscripts';
 import {
-  clearUnitTextUndo,
   desktopSessionFolder,
-  peekUnitStep,
-  rememberUnitAssignUndo,
-  rememberUnitMergeUndo,
-  rememberUnitSplitUndo,
-  rememberUnitTextUndo,
   reopenDesktopSession,
   requireDesktopSession,
 } from './projectSession';
+import { clearSessionEdit, rememberSessionEdit, undoSessionEdit } from './sessionEdit';
+import { desktopOperations, isDesktopOperation, type DesktopOperations } from './operationContract';
 import {
   createUnit,
   getUnit,
   listUnits,
   updateBoundary,
   updateUnitText,
-  type UnitCreate,
+  type UnitTextUndo,
 } from './units';
-import { mergeUnits, splitUnit, undoMerge, undoSplit } from './unitSpan';
+import { mergeUnits, splitUnit } from './unitSpan';
 
-const METHODS = [
-  'media.create',
-  'media.delete',
-  'media.previewDelete',
-  'media.showReminder',
-  'media.finishCleanup',
-  'media.reregister',
-  'media.restoreRegistered',
-  'deletion.listDue',
-  'attachments.publish',
-  'attachments.removeLink',
-  'project.get',
-  'manuscripts.create',
-  'manuscripts.list',
-  'manuscripts.listDeleted',
-  'manuscripts.delete',
-  'manuscripts.previewDelete',
-  'manuscripts.restore',
-  'manuscripts.showReminder',
-  'manuscripts.purge',
-  'manuscripts.setTimeMapping',
-  'manuscripts.rollbackTimeMapping',
-  'layers.create',
-  'layers.list',
-  'catalog.ensureProjectDefinition',
-  'catalog.getLanguage',
-  'catalog.listLanguages',
-  'catalog.updateLanguage',
-  'orthographies.create',
-  'orthographies.list',
-  'orthographies.update',
-  'bridges.create',
-  'bridges.get',
-  'bridges.list',
-  'bridges.update',
-  'lexicon.saveEntry',
-  'lexicon.getEntry',
-  'lexicon.linkSense',
-  'lexicon.removeSense',
-  'lexicon.listLinkCandidates',
-  'lexicon.matchLink',
-  'lexicon.listTokenLinks',
-  'lexicon.replaceTokenLink',
-  'lexicon.clearTokenLink',
-  'lexicon.createLinkedEntry',
-  'notes.create',
-  'notes.update',
-  'notes.delete',
-  'notes.list',
-  'notes.saveLexeme',
-  'notes.listLexeme',
-  'modelRuns.start',
-  'modelRuns.finish',
-  'modelRuns.preview',
-  'modelRuns.accept',
-  'modelRuns.abandon',
-  'modelRuns.interrupt',
-  'modelRuns.stopManuscript',
-  'modelRuns.stopRecording',
-  'modelRuns.get',
-  'modelRuns.readAcceptance',
-  'corpus.query',
-  'units.create',
-  'units.get',
-  'units.list',
-  'units.updateText',
-  'units.undoText',
-  'units.undo',
-  'units.split',
-  'units.merge',
-  'units.updateBoundary',
-  'customFields.createDefinition',
-  'customFields.updateDefinition',
-  'customFields.addOption',
-  'customFields.updateOptionLabel',
-  'customFields.importDefinition',
-  'customFields.previewUnitValue',
-  'customFields.setUnitValue',
-  'customFields.removeUnitValue',
-  'customFields.missingUnitFields',
-  'customFields.previewValue',
-  'customFields.setValue',
-  'customFields.removeValue',
-  'customFields.missingFields',
-  'customFields.listDefinitions',
-  'references.listLinks',
-  'customFields.locateValues',
-  'customFields.previewMigration',
-  'customFields.migrateDefinition',
-  'customFields.previewPurge',
-  'customFields.purgeDefinition',
-  'sources.patch',
-  'sources.redeliver',
-  'speakers.patch',
-  'speakers.redeliver',
-  'speakers.create',
-  'speakers.list',
-  'speakers.assign',
-  'conversations.create',
-  'conversations.list',
-  'conversations.patch',
-  'conversations.redeliver',
-  'messages.append',
-  'messages.update',
-  'messages.clear',
-  'messages.list',
-  'bibliography.patch',
-  'bibliography.redeliver',
-  'analysis.apply',
-  'analysis.readState',
-  'analysis.listCandidates',
-  'analysis.listWords',
-  'analysis.segmentWords',
-  'analysis.listMorphemes',
-  'analysis.segmentMorphemes',
-  'analysis.import',
-  'analysis.submit',
-  'analysis.accept',
-  'analysis.restore',
-  'analysis.split',
-  'analysis.merge',
-  'exchange.importFile',
-  'exchange.exportJyt',
-  'exchange.exportJym',
-  'exchange.exportManuscript',
-  'reopen',
-] as const;
+type ContractCtx = {
+  db: ReturnType<typeof requireDesktopSession>['db'];
+  folder: string;
+  sessionId: string;
+  trash?: MediaTrash;
+};
 
-type DesktopMethod = (typeof METHODS)[number];
+type ContractHandlers = {
+  [K in keyof DesktopOperations]: DesktopOperations[K]['undo'] extends 'replace-on-success'
+    ? {
+        run: (
+          ctx: ContractCtx,
+          input: ReturnType<DesktopOperations[K]['check']>,
+        ) => { value: DesktopOperations[K]['output']; undo: UnitTextUndo | null };
+        remember: (sessionId: string, undo: UnitTextUndo) => void;
+      }
+    : {
+        run: (
+          ctx: ContractCtx,
+          input: ReturnType<DesktopOperations[K]['check']>,
+        ) => DesktopOperations[K]['output'] | Promise<DesktopOperations[K]['output']>;
+      };
+};
 
-const KEEPS_UNIT_TEXT_UNDO = new Set<DesktopMethod>([
-  'project.get',
-  'exchange.exportJyt',
-  'exchange.exportJym',
-  'exchange.exportManuscript',
-  'units.updateText',
-  'units.undoText',
-  'units.undo',
-  'speakers.assign',
-  'speakers.list',
-  'catalog.listLanguages',
-  'catalog.getLanguage',
-  'orthographies.list',
-  'bridges.list',
-  'bridges.get',
-  'units.get',
-  'units.list',
-  'manuscripts.list',
-  'manuscripts.listDeleted',
-  'manuscripts.previewDelete',
-  'layers.list',
-  'notes.list',
-  'notes.listLexeme',
-  'corpus.query',
-  'lexicon.getEntry',
-  'lexicon.listLinkCandidates',
-  'lexicon.matchLink',
-  'lexicon.listTokenLinks',
-  'modelRuns.get',
-  'modelRuns.readAcceptance',
-  'media.previewDelete',
-  'deletion.listDue',
-  'customFields.listDefinitions',
-  'customFields.missingUnitFields',
-  'customFields.missingFields',
-  'customFields.locateValues',
-  'customFields.previewUnitValue',
-  'customFields.previewValue',
-  'customFields.previewMigration',
-  'customFields.previewPurge',
-  'references.listLinks',
-  'analysis.readState',
-  'analysis.listCandidates',
-  'analysis.listWords',
-  'analysis.listMorphemes',
-  'messages.list',
-  'conversations.list',
-]);
+const operationHandlers = {
+  'project.get': {
+    run: (ctx: ContractCtx) => getProjectIdentity(ctx.db),
+  },
+  'layers.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.create']['check']>) =>
+      createLayer(ctx.db, input),
+  },
+  'layers.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.list']['check']>) =>
+      listLayers(ctx.db, input.manuscriptId),
+  },
+  'catalog.ensureProjectDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['catalog.ensureProjectDefinition']['check']>,
+    ) => ensureProjectLanguage(ctx.db, input),
+  },
+  'catalog.getLanguage': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['catalog.getLanguage']['check']>) =>
+      getProjectLanguage(ctx.db, input.id),
+  },
+  'catalog.listLanguages': {
+    run: (ctx: ContractCtx) => listProjectLanguages(ctx.db),
+  },
+  'catalog.updateLanguage': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['catalog.updateLanguage']['check']>,
+    ) => updateProjectLanguage(ctx.db, input),
+  },
+  'orthographies.create': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['orthographies.create']['check']>,
+    ) => createOrthography(ctx.db, input),
+  },
+  'orthographies.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['orthographies.list']['check']>) =>
+      listOrthographies(ctx.db, input.languageId),
+  },
+  'orthographies.update': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['orthographies.update']['check']>,
+    ) => updateOrthography(ctx.db, input),
+  },
+  'bridges.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bridges.create']['check']>) =>
+      createBridge(ctx.db, input),
+  },
+  'bridges.get': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bridges.get']['check']>) =>
+      getBridge(ctx.db, input.id),
+  },
+  'bridges.list': {
+    run: (ctx: ContractCtx) => listBridges(ctx.db),
+  },
+  'bridges.update': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bridges.update']['check']>) =>
+      updateBridge(ctx.db, input),
+  },
+  'lexicon.saveEntry': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.saveEntry']['check']>) =>
+      saveLexemeEntry(ctx.db, input),
+  },
+  'lexicon.getEntry': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.getEntry']['check']>) =>
+      getLexemeEntry(ctx.db, input.id),
+  },
+  'lexicon.linkSense': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.linkSense']['check']>) =>
+      linkSense(ctx.db, input),
+  },
+  'lexicon.removeSense': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.removeSense']['check']>) =>
+      removeSense(ctx.db, input),
+  },
+  'lexicon.listLinkCandidates': {
+    run: (ctx: ContractCtx) => listLexemeLinkCandidates(ctx.db),
+  },
+  'lexicon.matchLink': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['lexicon.matchLink']['check']>) =>
+      matchLexemeLinkQuery(ctx.db, input.query),
+  },
+  'lexicon.listTokenLinks': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.listTokenLinks']['check']>,
+    ) => listTokenLexemeLinks(ctx.db, input.unitId),
+  },
+  'lexicon.replaceTokenLink': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.replaceTokenLink']['check']>,
+    ) => replaceTokenLexemeLink(ctx.db, input),
+  },
+  'lexicon.clearTokenLink': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.clearTokenLink']['check']>,
+    ) => clearTokenLexemeLink(ctx.db, input.tokenId),
+  },
+  'lexicon.createLinkedEntry': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['lexicon.createLinkedEntry']['check']>,
+    ) => createLinkedLexeme(ctx.db, input),
+  },
+  'notes.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.create']['check']>) =>
+      createContentNote(ctx.db, input),
+  },
+  'notes.update': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.update']['check']>) =>
+      updateContentNote(ctx.db, input),
+  },
+  'notes.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.delete']['check']>) =>
+      deleteContentNote(ctx.db, input.id),
+  },
+  'notes.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.list']['check']>) =>
+      listContentNotes(ctx.db, input),
+  },
+  'notes.saveLexeme': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.saveLexeme']['check']>) =>
+      saveLexemeNote(ctx.db, input),
+  },
+  'notes.listLexeme': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.listLexeme']['check']>) =>
+      listLexemeNotes(ctx.db, input.lexemeId),
+  },
+  'modelRuns.listAcceptable': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.listAcceptable']['check']>,
+    ) => listAcceptableRuns(ctx.db, input.manuscriptId),
+  },
+  'modelRuns.start': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.start']['check']>) =>
+      startModelRun(ctx.db, input),
+  },
+  'modelRuns.finish': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.finish']['check']>) =>
+      finishModelRun(ctx.db, input),
+  },
+  'modelRuns.preview': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.preview']['check']>) =>
+      previewModelRun(ctx.db, input),
+  },
+  'modelRuns.accept': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.accept']['check']>) =>
+      acceptTranscriptionCandidate(ctx.db, input),
+  },
+  'modelRuns.abandon': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.abandon']['check']>) =>
+      abandonPending(ctx.db, input.runId),
+  },
+  'modelRuns.interrupt': {
+    run: (ctx: ContractCtx) => interruptUnfinishedRuns(ctx.db),
+  },
+  'modelRuns.stopManuscript': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.stopManuscript']['check']>,
+    ) => stopManuscriptTasks(ctx.db, input.id),
+  },
+  'modelRuns.stopRecording': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.stopRecording']['check']>,
+    ) => stopRecordingTasks(ctx.db, input.id),
+  },
+  'modelRuns.get': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['modelRuns.get']['check']>) =>
+      getModelRun(ctx.db, input.runId),
+  },
+  'modelRuns.readAcceptance': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['modelRuns.readAcceptance']['check']>,
+    ) => readTranscriptionAcceptance(ctx.db, input.operationId),
+  },
+  'corpus.query': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['corpus.query']['check']>) =>
+      queryCorpus(ctx.db, input),
+  },
+  'units.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.create']['check']>) =>
+      createUnit(ctx.db, input),
+  },
+  'units.get': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.get']['check']>) =>
+      getUnit(ctx.db, input.id),
+  },
+  'units.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.list']['check']>) =>
+      listUnits(ctx.db, input.layerId),
+  },
+  'units.undoText': {
+    run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db, 'text'),
+  },
+  'units.undo': {
+    run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db),
+  },
+  'units.split': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
+      const split = splitUnit(ctx.db, input);
+      rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
+      return { left: split.left, right: split.right };
+    },
+  },
+  'units.merge': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.merge']['check']>) => {
+      const merged = mergeUnits(ctx.db, input);
+      rememberSessionEdit(ctx.sessionId, { kind: 'merge', undo: merged.undo });
+      return merged.unit;
+    },
+  },
+  'units.updateBoundary': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.updateBoundary']['check']>,
+    ) => updateBoundary(ctx.db, input),
+  },
+  'deletion.listDue': {
+    run: (ctx: ContractCtx) => listDueDeletionReminders(ctx.db),
+  },
+  'attachments.publish': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.publish']['check']>) =>
+      publishAttachment(ctx.db, ctx.folder, input),
+  },
+  'attachments.removeLink': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['attachments.removeLink']['check']>,
+    ) => removeAttachmentLink(ctx.db, input.linkId),
+  },
+  'attachments.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.list']['check']>) =>
+      listAttachmentLinks(ctx.db, input.lexemeId),
+  },
+  'attachments.read': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['attachments.read']['check']>) =>
+      readAttachmentLink(ctx.db, ctx.folder, input.linkId),
+  },
+  'attachments.finishCleanup': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['attachments.finishCleanup']['check']>,
+    ) => {
+      if (ctx.trash === undefined) throw new Error('attachment trash is missing');
+      return finishAttachmentCleanup(ctx.db, ctx.folder, input.fileId, ctx.trash);
+    },
+  },
+  'customFields.createDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.createDefinition']['check']>,
+    ) => createDefinition(ctx.db, input),
+  },
+  'customFields.updateDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.updateDefinition']['check']>,
+    ) => updateDefinition(ctx.db, input),
+  },
+  'customFields.addOption': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.addOption']['check']>,
+    ) => addOption(ctx.db, input),
+  },
+  'customFields.updateOptionLabel': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.updateOptionLabel']['check']>,
+    ) => updateOptionLabel(ctx.db, input),
+  },
+  'customFields.importDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.importDefinition']['check']>,
+    ) => importDefinition(ctx.db, input),
+  },
+  'customFields.previewUnitValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewUnitValue']['check']>,
+    ) => previewUnitValue(ctx.db, input),
+  },
+  'customFields.setUnitValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.setUnitValue']['check']>,
+    ) => setUnitValue(ctx.db, input),
+  },
+  'customFields.removeUnitValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.removeUnitValue']['check']>,
+    ) => removeUnitValue(ctx.db, input),
+  },
+  'customFields.missingUnitFields': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.missingUnitFields']['check']>,
+    ) => missingUnitFields(ctx.db, input.unitId),
+  },
+  'customFields.previewValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewValue']['check']>,
+    ) => previewFieldValue(ctx.db, input),
+  },
+  'customFields.setValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.setValue']['check']>,
+    ) => setFieldValue(ctx.db, input),
+  },
+  'customFields.removeValue': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.removeValue']['check']>,
+    ) => removeFieldValue(ctx.db, input),
+  },
+  'customFields.missingFields': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.missingFields']['check']>,
+    ) => missingFields(ctx.db, input.targetType, input.targetId, input.lexemeId),
+  },
+  'customFields.listDefinitions': {
+    run: (ctx: ContractCtx) => listDefinitions(ctx.db),
+  },
+  'customFields.locateValues': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.locateValues']['check']>,
+    ) => locateCustomFieldValues(ctx.db, input.definitionId),
+  },
+  'customFields.previewMigration': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewMigration']['check']>,
+    ) => previewMigration(ctx.db, input.definitionId),
+  },
+  'customFields.migrateDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.migrateDefinition']['check']>,
+    ) => migrateDefinition(ctx.db, input),
+  },
+  'customFields.previewPurge': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.previewPurge']['check']>,
+    ) => previewPurge(ctx.db, input.definitionId, ctx.sessionId),
+  },
+  'customFields.purgeDefinition': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['customFields.purgeDefinition']['check']>,
+    ) => purgeDefinition(ctx.db, input, undefined, ctx.sessionId),
+  },
+  'sources.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.create']['check']>) =>
+      createSource(ctx.db, input),
+  },
+  'sources.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.patch']['check']>) =>
+      patchSource(ctx.db, input),
+  },
+  'sources.redeliver': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['sources.redeliver']['check']>) =>
+      redeliverSource(ctx.db, input.operationId),
+  },
+  'speakers.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.patch']['check']>) =>
+      patchSpeaker(ctx.db, input),
+  },
+  'speakers.redeliver': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.redeliver']['check']>) =>
+      redeliverSpeaker(ctx.db, input.operationId),
+  },
+  'speakers.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.create']['check']>) =>
+      createSpeaker(ctx.db, input),
+  },
+  'speakers.list': {
+    run: (ctx: ContractCtx) => listSpeakers(ctx.db),
+  },
+  'speakers.assign': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.assign']['check']>) => {
+      const assigned = assignSpeaker(ctx.db, input);
+      if (assigned.undo !== null) {
+        rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: assigned.undo });
+      }
+      return assigned.units;
+    },
+  },
+  'conversations.create': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['conversations.create']['check']>,
+    ) => createConversation(ctx.db, input),
+  },
+  'conversations.list': {
+    run: (ctx: ContractCtx) => listConversations(ctx.db),
+  },
+  'conversations.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['conversations.patch']['check']>) =>
+      patchConversation(ctx.db, input),
+  },
+  'conversations.redeliver': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['conversations.redeliver']['check']>,
+    ) => redeliverConversation(ctx.db, input.operationId),
+  },
+  'messages.append': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.append']['check']>) =>
+      appendMessage(ctx.db, input),
+  },
+  'messages.update': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.update']['check']>) =>
+      updateMessageBody(ctx.db, input),
+  },
+  'messages.clear': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.clear']['check']>) =>
+      clearConversationMessages(ctx.db, input.conversationId),
+  },
+  'messages.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['messages.list']['check']>) =>
+      listMessages(ctx.db, input.conversationId),
+  },
+  'bibliography.patch': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['bibliography.patch']['check']>) =>
+      patchBibliography(ctx.db, input),
+  },
+  'bibliography.redeliver': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['bibliography.redeliver']['check']>,
+    ) => redeliverBibliography(ctx.db, input.operationId),
+  },
+  'references.listLinks': {
+    run: (ctx: ContractCtx) => readLexemeLinks(ctx.db),
+  },
+  'analysis.apply': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.apply']['check']>) =>
+      applyAnalysis(ctx.db, input),
+  },
+  'analysis.readState': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.readState']['check']>) =>
+      readAnalysisState(ctx.db, input.unitId),
+  },
+  'analysis.listCandidates': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.listCandidates']['check']>,
+    ) => listAnalysisCandidates(ctx.db, input.unitId),
+  },
+  'analysis.listWords': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.listWords']['check']>) =>
+      listUnitWords(ctx.db, input.unitId),
+  },
+  'analysis.segmentWords': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.segmentWords']['check']>,
+    ) => segmentUnitWords(ctx.db, input.unitId),
+  },
+  'analysis.listMorphemes': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.listMorphemes']['check']>,
+    ) => listUnitMorphemes(ctx.db, input.unitId),
+  },
+  'analysis.segmentMorphemes': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['analysis.segmentMorphemes']['check']>,
+    ) => segmentUnitMorphemes(ctx.db, input.unitId),
+  },
+  'analysis.import': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.import']['check']>) =>
+      importAnalysis(ctx.db, input),
+  },
+  'analysis.submit': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.submit']['check']>) =>
+      submitAnalysis(ctx.db, input),
+  },
+  'analysis.accept': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.accept']['check']>) =>
+      acceptAnalysis(ctx.db, input),
+  },
+  'analysis.restore': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.restore']['check']>) =>
+      restoreAnalysis(ctx.db, input),
+  },
+  'analysis.split': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.split']['check']>) =>
+      splitAnalysisNode(ctx.db, input),
+  },
+  'analysis.merge': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['analysis.merge']['check']>) =>
+      mergeAnalysisNodes(ctx.db, input),
+  },
+  'exchange.importFile': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['exchange.importFile']['check']>) =>
+      importForeignFile({
+        folder: ctx.folder,
+        file: input.file,
+        db: ctx.db,
+        ...(input.roles === undefined ? {} : { roles: input.roles }),
+      }),
+  },
+  'exchange.exportJyt': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['exchange.exportJyt']['check']>,
+    ) => {
+      assertExportTarget(ctx.folder, input, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(input, exportDesktopJyt(ctx.db));
+    },
+  },
+  'exchange.exportJym': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['exchange.exportJym']['check']>,
+    ) => {
+      assertExportTarget(ctx.folder, input, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(input, exportDesktopJym(ctx.db, ctx.folder));
+    },
+  },
+  'exchange.exportManuscript': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['exchange.exportManuscript']['check']>,
+    ) => {
+      assertExportTarget(ctx.folder, input.file, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(
+        input.file,
+        exportDesktopManuscriptJyt(ctx.db, [input.manuscriptId]),
+      );
+    },
+  },
+  'units.updateText': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
+      const box: { undo: UnitTextUndo | null } = { undo: null };
+      const unit = updateUnitText(ctx.db, input, undefined, (undo) => {
+        box.undo = undo;
+      });
+      return { value: unit, undo: box.undo };
+    },
+    remember: (sessionId, undo) => {
+      rememberSessionEdit(sessionId, { kind: 'text', undo });
+    },
+  },
+  'media.finishCleanup': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['media.finishCleanup']['check']>,
+    ) => {
+      if (ctx.trash === undefined) throw new Error('media trash is missing');
+      return finishMediaCleanup(ctx.db, ctx.folder, input.id, input.operationId, ctx.trash);
+    },
+  },
+  'media.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.create']['check']>) =>
+      createMedia(ctx.db, ctx.folder, input),
+  },
+  'media.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.delete']['check']>) =>
+      deleteRecording(ctx.db, input.id),
+  },
+  'media.previewDelete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.previewDelete']['check']>) =>
+      previewRecordingDelete(ctx.db, input.id),
+  },
+  'media.showReminder': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.showReminder']['check']>) =>
+      showDeletionReminder(ctx.db, 'media', input.id),
+  },
+  'media.reregister': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.reregister']['check']>) =>
+      reregisterMedia(ctx.db, ctx.folder, input),
+  },
+  'media.restoreRegistered': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['media.restoreRegistered']['check']>,
+    ) => restoreRegisteredMedia(ctx.db, input.id),
+  },
+  'media.list': {
+    run: (ctx: ContractCtx) => listActiveMedia(ctx.db),
+  },
+  'media.listDeleted': {
+    run: (ctx: ContractCtx) => listDeletedMedia(ctx.db),
+  },
+  'manuscripts.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.create']['check']>) =>
+      createManuscript(ctx.db, input),
+  },
+  'manuscripts.list': {
+    run: (ctx: ContractCtx) => listManuscripts(ctx.db),
+  },
+  'manuscripts.listDeleted': {
+    run: (ctx: ContractCtx) => listDeletedManuscripts(ctx.db),
+  },
+  'manuscripts.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.delete']['check']>) =>
+      deleteManuscript(ctx.db, input.id),
+  },
+  'manuscripts.previewDelete': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.previewDelete']['check']>,
+    ) => previewManuscriptDelete(ctx.db, input.id),
+  },
+  'manuscripts.restore': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.restore']['check']>) =>
+      restoreManuscript(ctx.db, input.id),
+  },
+  'manuscripts.showReminder': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.showReminder']['check']>,
+    ) => showDeletionReminder(ctx.db, 'manuscript', input.id),
+  },
+  'manuscripts.purge': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.purge']['check']>) =>
+      purgeManuscript(ctx.db, input.id),
+  },
+  'manuscripts.setTimeMapping': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.setTimeMapping']['check']>,
+    ) => setManuscriptTimeMapping(ctx.db, input),
+  },
+  'manuscripts.rollbackTimeMapping': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.rollbackTimeMapping']['check']>,
+    ) => rollbackManuscriptTimeMapping(ctx.db, input),
+  },
+} satisfies ContractHandlers;
+
+function runContract(
+  method: keyof DesktopOperations,
+  sessionId: string,
+  args: unknown,
+  trash?: MediaTrash,
+): unknown {
+  const project = requireDesktopSession(sessionId);
+  if (desktopOperations[method].undo === 'clear') clearSessionEdit(sessionId);
+  const ctx: ContractCtx = {
+    db: project.db,
+    folder: desktopSessionFolder(sessionId),
+    sessionId,
+    ...(trash === undefined ? {} : { trash }),
+  };
+  const raw = objectArg(args);
+  if (method === 'units.updateText') {
+    const done = operationHandlers['units.updateText'].run(
+      ctx,
+      desktopOperations['units.updateText'].check(raw),
+    );
+    if (done.undo !== null) operationHandlers['units.updateText'].remember(sessionId, done.undo);
+    return done.value;
+  }
+  // ponytail: one cast. Each handler is still checked by `satisfies ContractHandlers`. Put a case back if a call is not check-then-run.
+  const check = desktopOperations[method].check as (input: Record<string, unknown>) => unknown;
+  const run = operationHandlers[method].run as (ctx: ContractCtx, input: unknown) => unknown;
+  return run(ctx, check(raw));
+}
 
 export function callDesktopSession(
   sessionId: string,
@@ -356,500 +850,18 @@ export function callDesktopSession(
   args: unknown,
   trash?: MediaTrash,
 ): unknown {
-  const parsed = parseMethod(method);
-  if (parsed === 'reopen') {
+  if (isDesktopOperation(method)) return runContract(method, sessionId, args, trash);
+  if (method === 'reopen') {
     reopenDesktopSession(sessionId);
     return { reopened: true };
   }
-  const project = requireDesktopSession(sessionId);
-  if (!KEEPS_UNIT_TEXT_UNDO.has(parsed)) clearUnitTextUndo(sessionId);
-  const input = objectArg(args);
-  switch (parsed) {
-    case 'project.get':
-      knownKeys(input, []);
-      return getProjectIdentity(project.db);
-    case 'media.create':
-      return createMedia(project.db, desktopSessionFolder(sessionId), mediaCreate(input));
-    case 'media.delete':
-      knownKeys(input, ['id']);
-      return deleteRecording(project.db, requiredString(input.id, 'id'));
-    case 'media.previewDelete':
-      knownKeys(input, ['id']);
-      return previewRecordingDelete(project.db, requiredString(input.id, 'id'));
-    case 'media.showReminder':
-      knownKeys(input, ['id']);
-      return showDeletionReminder(project.db, 'media', requiredString(input.id, 'id'));
-    case 'media.finishCleanup':
-      knownKeys(input, ['id', 'operationId']);
-      if (trash === undefined) throw new Error('media trash is missing');
-      return finishMediaCleanup(
-        project.db,
-        desktopSessionFolder(sessionId),
-        requiredString(input.id, 'id'),
-        requiredString(input.operationId, 'operationId'),
-        trash,
-      );
-    case 'media.reregister':
-      knownKeys(input, ['relpath', 'duration']);
-      return reregisterMedia(project.db, desktopSessionFolder(sessionId), {
-        relpath: requiredString(input.relpath, 'relpath'),
-        duration: requiredNumber(input.duration, 'duration'),
-      });
-    case 'media.restoreRegistered':
-      knownKeys(input, ['id']);
-      return restoreRegisteredMedia(project.db, requiredString(input.id, 'id'));
-    case 'deletion.listDue':
-      knownKeys(input, []);
-      return listDueDeletionReminders(project.db);
-    case 'attachments.publish':
-      return publishAttachment(
-        project.db,
-        desktopSessionFolder(sessionId),
-        attachmentPublish(input),
-      );
-    case 'attachments.removeLink':
-      knownKeys(input, ['linkId']);
-      return removeAttachmentLink(project.db, requiredString(input.linkId, 'linkId'));
-    case 'manuscripts.create':
-      return createManuscript(project.db, manuscriptCreate(input));
-    case 'manuscripts.list':
-      return listManuscripts(project.db);
-    case 'manuscripts.listDeleted':
-      knownKeys(input, []);
-      return listDeletedManuscripts(project.db);
-    case 'manuscripts.delete':
-      knownKeys(input, ['id']);
-      return deleteManuscript(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.previewDelete':
-      knownKeys(input, ['id']);
-      return previewManuscriptDelete(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.restore':
-      knownKeys(input, ['id']);
-      return restoreManuscript(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.showReminder':
-      knownKeys(input, ['id']);
-      return showDeletionReminder(project.db, 'manuscript', requiredString(input.id, 'id'));
-    case 'manuscripts.purge':
-      knownKeys(input, ['id']);
-      return purgeManuscript(project.db, requiredString(input.id, 'id'));
-    case 'manuscripts.setTimeMapping':
-      return setManuscriptTimeMapping(project.db, timeMappingSet(input));
-    case 'manuscripts.rollbackTimeMapping':
-      return rollbackManuscriptTimeMapping(project.db, {
-        manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-        expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
-      });
-    case 'layers.create':
-      return createLayer(project.db, layerCreate(input));
-    case 'layers.list':
-      return listLayers(project.db, requiredString(input.manuscriptId, 'manuscriptId'));
-    case 'catalog.ensureProjectDefinition':
-      return ensureProjectLanguage(project.db, languageEnsure(input));
-    case 'catalog.getLanguage':
-      return getProjectLanguage(project.db, requiredString(input.id, 'id'));
-    case 'catalog.listLanguages':
-      knownKeys(input, []);
-      return listProjectLanguages(project.db);
-    case 'catalog.updateLanguage':
-      knownKeys(input, ['id', 'locale', 'value']);
-      return updateProjectLanguage(project.db, {
-        id: requiredString(input.id, 'id'),
-        locale: requiredString(input.locale, 'locale'),
-        value: requiredString(input.value, 'value'),
-      });
-    case 'orthographies.create':
-      return createOrthography(project.db, orthographyCreate(input));
-    case 'orthographies.list':
-      knownKeys(input, ['languageId']);
-      return listOrthographies(project.db, requiredString(input.languageId, 'languageId'));
-    case 'orthographies.update':
-      knownKeys(input, ['id', 'scriptTag']);
-      return updateOrthography(project.db, {
-        id: requiredString(input.id, 'id'),
-        scriptTag: requiredString(input.scriptTag, 'scriptTag'),
-      });
-    case 'bridges.create':
-      return createBridge(project.db, bridgeCreate(input));
-    case 'bridges.get':
-      return getBridge(project.db, requiredString(input.id, 'id'));
-    case 'bridges.list':
-      knownKeys(input, []);
-      return listBridges(project.db);
-    case 'bridges.update': {
-      knownKeys(input, ['id', 'rules']);
-      const rules = input.rules;
-      if (typeof rules !== 'object' || rules === null || Array.isArray(rules)) {
-        throw new Error('bridge rules must be an object');
-      }
-      return updateBridge(project.db, {
-        id: requiredString(input.id, 'id'),
-        rules: rules as Record<string, unknown>,
-      });
-    }
-    case 'lexicon.saveEntry':
-      return saveLexemeEntry(project.db, lexemeSave(input));
-    case 'lexicon.getEntry':
-      return getLexemeEntry(project.db, requiredString(input.id, 'id'));
-    case 'lexicon.linkSense':
-      return linkSense(project.db, lexemeLink(input));
-    case 'lexicon.removeSense':
-      return removeSense(project.db, {
-        lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-        senseId: requiredString(input.senseId, 'senseId'),
-      });
-    case 'lexicon.listLinkCandidates':
-      knownKeys(input, []);
-      return listLexemeLinkCandidates(project.db);
-    case 'lexicon.matchLink':
-      knownKeys(input, ['query']);
-      return matchLexemeLinkQuery(project.db, requiredString(input.query, 'query'));
-    case 'lexicon.listTokenLinks':
-      knownKeys(input, ['unitId']);
-      return listTokenLexemeLinks(project.db, requiredString(input.unitId, 'unitId'));
-    case 'lexicon.replaceTokenLink':
-      knownKeys(input, ['tokenId', 'lexemeId', 'senseId']);
-      return replaceTokenLexemeLink(project.db, {
-        tokenId: requiredString(input.tokenId, 'tokenId'),
-        lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-        senseId: requiredString(input.senseId, 'senseId'),
-      });
-    case 'lexicon.createLinkedEntry':
-      knownKeys(input, ['targetId', 'headword', 'translation']);
-      return createLinkedLexeme(project.db, {
-        targetId: requiredString(input.targetId, 'targetId'),
-        headword: requiredString(input.headword, 'headword'),
-        translation: requiredString(input.translation, 'translation'),
-      });
-    case 'lexicon.clearTokenLink':
-      knownKeys(input, ['tokenId']);
-      return clearTokenLexemeLink(project.db, requiredString(input.tokenId, 'tokenId'));
-    case 'notes.create':
-      return createContentNote(project.db, noteCreate(input));
-    case 'notes.update':
-      return updateContentNote(project.db, noteRevise(input));
-    case 'notes.delete':
-      knownKeys(input, ['id']);
-      return deleteContentNote(project.db, requiredString(input.id, 'id'));
-    case 'notes.list':
-      return listContentNotes(project.db, noteList(input));
-    case 'notes.saveLexeme':
-      return saveLexemeNote(project.db, lexemeNoteSave(input));
-    case 'notes.listLexeme':
-      knownKeys(input, ['lexemeId']);
-      return listLexemeNotes(project.db, requiredString(input.lexemeId, 'lexemeId'));
-    case 'corpus.query':
-      return queryCorpus(project.db, corpusQuery(input));
-    case 'units.create':
-      return createUnit(project.db, unitCreate(input));
-    case 'units.get':
-      return getUnit(project.db, requiredString(input.id, 'id'));
-    case 'units.list':
-      return listUnits(project.db, requiredString(input.layerId, 'layerId'));
-    case 'units.updateText':
-      return updateUnitText(
-        project.db,
-        {
-          unitId: requiredString(input.unitId, 'unitId'),
-          text: requiredString(input.text, 'text'),
-        },
-        undefined,
-        (undo) => {
-          rememberUnitTextUndo(sessionId, undo);
-        },
-      );
-    case 'units.undoText':
-      return undoRemembered(sessionId, project.db, 'text');
-    case 'units.undo':
-      return undoRemembered(sessionId, project.db);
-    case 'units.split': {
-      const split = splitUnit(project.db, {
-        unitId: requiredString(input.unitId, 'unitId'),
-        time: requiredNumber(input.time, 'time'),
-      });
-      rememberUnitSplitUndo(sessionId, split.undo);
-      return { left: split.left, right: split.right };
-    }
-    case 'units.merge': {
-      const merged = mergeUnits(project.db, {
-        keepId: requiredString(input.keepId, 'keepId'),
-        removeId: requiredString(input.removeId, 'removeId'),
-      });
-      rememberUnitMergeUndo(sessionId, merged.undo);
-      return merged.unit;
-    }
-    case 'units.updateBoundary':
-      return updateBoundary(project.db, {
-        leftId: requiredString(input.leftId, 'leftId'),
-        rightId: requiredString(input.rightId, 'rightId'),
-        time: requiredNumber(input.time, 'time'),
-      });
-    case 'customFields.createDefinition':
-      knownKeys(input, CUSTOM_FIELD_DEFINITION_KEYS);
-      return createDefinition(project.db, input);
-    case 'customFields.updateDefinition':
-      knownKeys(input, CUSTOM_FIELD_UPDATE_KEYS);
-      return updateDefinition(project.db, input);
-    case 'customFields.addOption':
-      knownKeys(input, ['definitionId', 'expectedRevision', 'label', 'sortOrder']);
-      return addOption(project.db, input);
-    case 'customFields.updateOptionLabel':
-      knownKeys(input, ['definitionId', 'optionId', 'expectedRevision', 'label']);
-      return updateOptionLabel(project.db, input);
-    case 'customFields.importDefinition':
-      knownKeys(input, ['mode', 'definition']);
-      return importDefinition(project.db, input);
-    case 'customFields.previewUnitValue':
-      knownKeys(input, ['definitionId', 'unitId', 'value']);
-      return previewUnitValue(project.db, input);
-    case 'customFields.setUnitValue':
-      knownKeys(input, ['definitionId', 'unitId', 'value', 'expectedRevision']);
-      return setUnitValue(project.db, input);
-    case 'customFields.removeUnitValue':
-      knownKeys(input, ['definitionId', 'unitId']);
-      return removeUnitValue(project.db, input);
-    case 'customFields.missingUnitFields':
-      knownKeys(input, ['unitId']);
-      return missingUnitFields(project.db, requiredString(input.unitId, 'unitId'));
-    case 'customFields.previewValue':
-      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'value', 'lexemeId']);
-      return previewFieldValue(project.db, input);
-    case 'customFields.setValue':
-      knownKeys(input, [
-        'definitionId',
-        'targetType',
-        'targetId',
-        'value',
-        'expectedRevision',
-        'lexemeId',
-      ]);
-      return setFieldValue(project.db, input);
-    case 'customFields.removeValue':
-      knownKeys(input, ['definitionId', 'targetType', 'targetId', 'lexemeId']);
-      return removeFieldValue(project.db, input);
-    case 'customFields.missingFields':
-      knownKeys(input, ['targetType', 'targetId', 'lexemeId']);
-      return missingFields(
-        project.db,
-        requiredString(input.targetType, 'targetType'),
-        requiredString(input.targetId, 'targetId'),
-        input.lexemeId === undefined ? undefined : requiredString(input.lexemeId, 'lexemeId'),
-      );
-    case 'customFields.listDefinitions':
-      knownKeys(input, []);
-      return listDefinitions(project.db);
-    case 'references.listLinks':
-      knownKeys(input, []);
-      return readLexemeLinks(project.db);
-    case 'customFields.locateValues':
-      knownKeys(input, ['definitionId']);
-      return locateCustomFieldValues(
-        project.db,
-        requiredString(input.definitionId, 'definitionId'),
-      );
-    case 'customFields.previewMigration':
-      knownKeys(input, ['definitionId']);
-      return previewMigration(project.db, requiredString(input.definitionId, 'definitionId'));
-    case 'customFields.migrateDefinition':
-      knownKeys(input, ['definitionId', 'expectedRevision', 'definition', 'conversions']);
-      return migrateDefinition(project.db, input);
-    case 'customFields.previewPurge':
-      knownKeys(input, ['definitionId']);
-      return previewPurge(
-        project.db,
-        requiredString(input.definitionId, 'definitionId'),
-        sessionId,
-      );
-    case 'customFields.purgeDefinition':
-      knownKeys(input, ['definitionId', 'expectedRevision', 'previewFingerprint']);
-      return purgeDefinition(project.db, input, undefined, sessionId);
-    case 'sources.patch':
-      return patchSource(project.db, sourcePatch(input));
-    case 'sources.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverSource(project.db, requiredString(input.operationId, 'operationId'));
-    case 'speakers.patch':
-      return patchSpeaker(project.db, speakerPatch(input));
-    case 'speakers.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverSpeaker(project.db, requiredString(input.operationId, 'operationId'));
-    case 'speakers.create':
-      knownKeys(input, ['name']);
-      return createSpeaker(project.db, { name: requiredString(input.name, 'name') });
-    case 'speakers.list':
-      knownKeys(input, []);
-      return listSpeakers(project.db);
-    case 'speakers.assign': {
-      knownKeys(input, ['speakerId', 'unitIds']);
-      const assigned = assignSpeaker(project.db, {
-        speakerId: requiredString(input.speakerId, 'speakerId'),
-        unitIds: stringIds(input.unitIds, 'unitIds'),
-      });
-      if (assigned.undo !== null) rememberUnitAssignUndo(sessionId, assigned.undo);
-      return assigned.units;
-    }
-    case 'conversations.create':
-      knownKeys(input, ['title']);
-      return createConversation(project.db, { title: requiredString(input.title, 'title') });
-    case 'conversations.list':
-      knownKeys(input, []);
-      return listConversations(project.db);
-    case 'conversations.patch':
-      return patchConversation(project.db, conversationPatch(input));
-    case 'conversations.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverConversation(project.db, requiredString(input.operationId, 'operationId'));
-    case 'messages.append':
-      return appendMessage(project.db, messageAppend(input));
-    case 'messages.update':
-      knownKeys(input, ['id', 'body']);
-      return updateMessageBody(project.db, {
-        id: requiredString(input.id, 'id'),
-        body: requiredString(input.body, 'body'),
-      });
-    case 'messages.clear':
-      knownKeys(input, ['conversationId']);
-      return clearConversationMessages(
-        project.db,
-        requiredString(input.conversationId, 'conversationId'),
-      );
-    case 'messages.list':
-      knownKeys(input, ['conversationId']);
-      return listMessages(project.db, requiredString(input.conversationId, 'conversationId'));
-    case 'bibliography.patch':
-      return patchBibliography(project.db, bibliographyPatch(input));
-    case 'bibliography.redeliver':
-      knownKeys(input, ['operationId']);
-      return redeliverBibliography(project.db, requiredString(input.operationId, 'operationId'));
-    case 'analysis.apply':
-      return applyAnalysis(project.db, analysisApply(input));
-    case 'analysis.readState':
-      knownKeys(input, ['unitId']);
-      return readAnalysisState(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.listCandidates':
-      knownKeys(input, ['unitId']);
-      return listAnalysisCandidates(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.listWords':
-      knownKeys(input, ['unitId']);
-      return listUnitWords(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.segmentWords':
-      knownKeys(input, ['unitId']);
-      return segmentUnitWords(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.listMorphemes':
-      knownKeys(input, ['unitId']);
-      return listUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.segmentMorphemes':
-      knownKeys(input, ['unitId']);
-      return segmentUnitMorphemes(project.db, requiredString(input.unitId, 'unitId'));
-    case 'analysis.import':
-      return importAnalysis(project.db, analysisImport(input));
-    case 'analysis.submit':
-      return submitAnalysis(project.db, analysisSubmit(input));
-    case 'analysis.accept':
-      return acceptAnalysis(project.db, analysisCandidate(input));
-    case 'analysis.restore':
-      return restoreAnalysis(project.db, analysisRestore(input));
-    case 'analysis.split':
-      return splitAnalysisNode(project.db, analysisSplit(input));
-    case 'analysis.merge':
-      return mergeAnalysisNodes(project.db, analysisMerge(input));
-    case 'modelRuns.start':
-      return startModelRun(project.db, modelRunStart(input));
-    case 'modelRuns.finish':
-      return finishModelRun(project.db, modelRunFinish(input));
-    case 'modelRuns.preview':
-      return previewModelRun(project.db, modelRunPreview(input));
-    case 'modelRuns.accept':
-      return acceptTranscriptionCandidate(project.db, modelRunAccept(input));
-    case 'modelRuns.abandon':
-      knownKeys(input, ['runId']);
-      return abandonPending(project.db, requiredString(input.runId, 'runId'));
-    case 'modelRuns.interrupt':
-      knownKeys(input, []);
-      return interruptUnfinishedRuns(project.db);
-    case 'modelRuns.stopManuscript':
-      knownKeys(input, ['id']);
-      return stopManuscriptTasks(project.db, requiredString(input.id, 'id'));
-    case 'modelRuns.stopRecording':
-      knownKeys(input, ['id']);
-      return stopRecordingTasks(project.db, requiredString(input.id, 'id'));
-    case 'modelRuns.get':
-      knownKeys(input, ['runId']);
-      return getModelRun(project.db, requiredString(input.runId, 'runId'));
-    case 'modelRuns.readAcceptance':
-      knownKeys(input, ['operationId']);
-      return readTranscriptionAcceptance(
-        project.db,
-        requiredString(input.operationId, 'operationId'),
-      );
-    case 'exchange.importFile':
-      return importExchangeFile(project.db, desktopSessionFolder(sessionId), input);
-    case 'exchange.exportJyt':
-      return saveDesktopPackage(exportFile(input), exportDesktopJyt(project.db));
-    case 'exchange.exportJym':
-      return saveDesktopPackage(
-        exportFile(input),
-        exportDesktopJym(project.db, desktopSessionFolder(sessionId)),
-      );
-    case 'exchange.exportManuscript':
-      knownKeys(input, ['file', 'manuscriptId']);
-      return saveDesktopPackage(
-        requiredString(input.file, 'file'),
-        exportDesktopManuscriptJyt(project.db, [
-          requiredString(input.manuscriptId, 'manuscriptId'),
-        ]),
-      );
-    default: {
-      const unreachable: never = parsed;
-      return unreachable;
-    }
-  }
-}
-
-function exportFile(input: Record<string, unknown>): string {
-  knownKeys(input, ['file']);
-  return requiredString(input.file, 'file');
-}
-
-function importExchangeFile(
-  db: Parameters<typeof importForeignFile>[0]['db'],
-  folder: string,
-  input: Record<string, unknown>,
-): ReturnType<typeof importForeignFile> {
-  knownKeys(input, ['file', 'roles']);
-  const roles = input.roles === undefined ? undefined : requiredString(input.roles, 'roles');
-  return importForeignFile({
-    folder,
-    file: requiredString(input.file, 'file'),
-    ...(db === undefined ? {} : { db }),
-    ...(roles === undefined ? {} : { roles }),
-  });
-}
-
-function attachmentPublish(input: Record<string, unknown>): AttachmentPublish {
-  knownKeys(input, ['lexemeId', 'displayName', 'kind', 'mimeType', 'bytes', 'operationId']);
-  return {
-    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-    displayName: requiredString(input.displayName, 'displayName'),
-    kind: attachmentKind(input.kind),
-    mimeType: requiredString(input.mimeType, 'mimeType'),
-    bytes: attachmentBytes(input.bytes),
-    operationId: requiredString(input.operationId, 'operationId'),
-  };
-}
-
-function attachmentKind(value: unknown): AttachmentKind {
-  if (value === 'image' || value === 'audio' || value === 'document') return value;
-  throw new Error('attachment kind is invalid');
-}
-
-function attachmentBytes(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  throw new Error('attachment bytes are invalid');
-}
-
-function parseMethod(method: string): DesktopMethod {
-  if ((METHODS as readonly string[]).includes(method)) return method as DesktopMethod;
   throw new Error('unknown desktop call');
+}
+
+function mediaRelpaths(db: { prepare(sql: string): { all(): unknown[] } }): string[] {
+  return (db.prepare('SELECT relpath FROM media').all() as { relpath: string }[]).map(
+    (row) => row.relpath,
+  );
 }
 
 function objectArg(args: unknown): Record<string, unknown> {
@@ -857,1120 +869,4 @@ function objectArg(args: unknown): Record<string, unknown> {
     throw new Error('desktop call args must be an object');
   }
   return args as Record<string, unknown>;
-}
-
-function requiredString(value: unknown, name: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`desktop call ${name} must be a string`);
-  }
-  return value;
-}
-
-function sourcePatch(input: Record<string, unknown>): SourcePatch {
-  knownKeys(input, ['operationId', 'id', 'label', 'externalId']);
-  const label = sourceField(input.label, 'label');
-  const externalId = sourceField(input.externalId, 'externalId');
-  if (label === undefined && externalId === undefined) throw new Error('source patch is empty');
-  return {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-    ...(label === undefined ? {} : { label }),
-    ...(externalId === undefined ? {} : { externalId }),
-  };
-}
-
-function bibliographyPatch(input: Record<string, unknown>): BibliographyPatch {
-  knownKeys(input, [
-    'operationId',
-    'id',
-    'title',
-    'authors',
-    'year',
-    'publisher',
-    'doi',
-    'url',
-    'citationKey',
-    'sourceType',
-    'notes',
-    'accessRights',
-  ]);
-  const title = speakerText(input.title, 'title', false);
-  const publisher = speakerText(input.publisher, 'publisher', true);
-  const doi = speakerText(input.doi, 'doi', true);
-  const url = speakerText(input.url, 'url', true);
-  const citationKey = speakerText(input.citationKey, 'citationKey', true);
-  const year = bibliographyYear(input.year);
-  const authors = bibliographyAuthors(input.authors);
-  const sourceType = speakerEnum(input.sourceType, 'sourceType', [
-    'book',
-    'article',
-    'thesis',
-    'fieldnotes',
-    'grammar',
-    'other',
-  ]);
-  const accessRights = speakerEnum(input.accessRights, 'accessRights', [
-    'open',
-    'restricted',
-    'confidential',
-  ]);
-  const notes = speakerNotes(input.notes);
-  const patch: BibliographyPatch = {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-  };
-  if (title !== undefined) {
-    if (typeof title.value !== 'string')
-      throw new Error('desktop call title.value must be a string');
-    patch.title = { expectedRevision: title.expectedRevision, value: title.value };
-  }
-  if (authors !== undefined) patch.authors = authors;
-  if (year !== undefined) patch.year = year;
-  if (publisher !== undefined) patch.publisher = publisher;
-  if (doi !== undefined) patch.doi = doi;
-  if (url !== undefined) patch.url = url;
-  if (citationKey !== undefined) patch.citationKey = citationKey;
-  if (sourceType !== undefined) patch.sourceType = sourceType;
-  if (notes !== undefined) patch.notes = orderedNotes(notes);
-  if (accessRights !== undefined) patch.accessRights = accessRights;
-  if (Object.keys(patch).length === 2) throw new Error('bibliography patch is empty');
-  return patch;
-}
-
-function bibliographyYear(
-  value: unknown,
-): { expectedRevision: number; value: number | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const year = record.value;
-  if (year !== null && (typeof year !== 'number' || !Number.isInteger(year))) {
-    throw new Error('desktop call year.value must be a year');
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, 'year'), value: year };
-}
-
-function bibliographyAuthors(
-  value: unknown,
-): { expectedRevision: number; value: string[] | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const authors = record.value;
-  if (authors === null) {
-    return { expectedRevision: revisionOf(record.expectedRevision, 'authors'), value: null };
-  }
-  if (
-    !Array.isArray(authors) ||
-    authors.some((item) => typeof item !== 'string' || item.length === 0)
-  ) {
-    throw new Error('desktop call authors.value must be author names');
-  }
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, 'authors'),
-    value: authors as string[],
-  };
-}
-
-function orderedNotes(patch: { expectedRevision: number; value: Record<string, string> | null }): {
-  expectedRevision: number;
-  value: Record<string, string> | null;
-} {
-  if (patch.value === null) return patch;
-  const keys = Object.keys(patch.value).sort();
-  if (keys.length === 0 || keys.some((key) => patch.value?.[key]?.length === 0)) {
-    throw new Error('desktop call notes.value must be notes');
-  }
-  const ordered: Record<string, string> = {};
-  for (const key of keys) ordered[key] = patch.value[key] ?? '';
-  return { expectedRevision: patch.expectedRevision, value: ordered };
-}
-
-function messageAppend(input: Record<string, unknown>): MessageAppend {
-  knownKeys(input, ['id', 'conversationId', 'role', 'body']);
-  return {
-    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
-    conversationId: requiredString(input.conversationId, 'conversationId'),
-    role: messageRole(input.role),
-    body: requiredString(input.body, 'body'),
-  };
-}
-
-function messageRole(value: unknown): MessageAppend['role'] {
-  if (value === 'system' || value === 'user' || value === 'assistant' || value === 'tool') {
-    return value;
-  }
-  throw new Error('desktop call role must be a message role');
-}
-
-function conversationPatch(input: Record<string, unknown>): ConversationPatch {
-  knownKeys(input, [
-    'operationId',
-    'id',
-    'title',
-    'mode',
-    'providerId',
-    'model',
-    'archived',
-    'clearedAt',
-  ]);
-  const title = speakerText(input.title, 'title', false);
-  const providerId = speakerText(input.providerId, 'providerId', true);
-  const model = speakerText(input.model, 'model', true);
-  const clearedAt = speakerText(input.clearedAt, 'clearedAt', true);
-  const mode = speakerEnum(input.mode, 'mode', ['assistant', 'analysis', 'review']);
-  const archived = conversationArchived(input.archived);
-  const patch: ConversationPatch = {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-  };
-  if (title !== undefined) {
-    if (typeof title.value !== 'string')
-      throw new Error('desktop call title.value must be a string');
-    patch.title = { expectedRevision: title.expectedRevision, value: title.value };
-  }
-  if (mode !== undefined) patch.mode = mode;
-  if (providerId !== undefined) patch.providerId = providerId;
-  if (model !== undefined) patch.model = model;
-  if (archived !== undefined) patch.archived = archived;
-  if (clearedAt !== undefined) patch.clearedAt = clearedAt;
-  if (Object.keys(patch).length === 2) throw new Error('conversation patch is empty');
-  return patch;
-}
-
-function conversationArchived(
-  value: unknown,
-): { expectedRevision: number; value: boolean | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const archived = record.value;
-  if (archived !== null && typeof archived !== 'boolean') {
-    throw new Error('desktop call archived.value must be a boolean');
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, 'archived'), value: archived };
-}
-
-function speakerPatch(input: Record<string, unknown>): SpeakerPatch {
-  knownKeys(input, [
-    'operationId',
-    'id',
-    'name',
-    'pseudonym',
-    'gender',
-    'birthYear',
-    'languageIds',
-    'dialect',
-    'accent',
-    'role',
-    'consentStatus',
-    'accessRights',
-    'address',
-    'notes',
-  ]);
-  const patch: SpeakerPatch = {
-    operationId: requiredString(input.operationId, 'operationId'),
-    id: requiredString(input.id, 'id'),
-  };
-  const name = speakerText(input.name, 'name', false);
-  const pseudonym = speakerText(input.pseudonym, 'pseudonym', true);
-  const gender = speakerText(input.gender, 'gender', true);
-  const dialect = speakerText(input.dialect, 'dialect', true);
-  const accent = speakerText(input.accent, 'accent', true);
-  const address = speakerText(input.address, 'address', true);
-  const birthYear = speakerBirthYear(input.birthYear);
-  const languageIds = speakerLanguageIds(input.languageIds);
-  const role = speakerEnum(input.role, 'role', [
-    'speaker',
-    'translator',
-    'annotator',
-    'researcher',
-  ]);
-  const consentStatus = speakerEnum(input.consentStatus, 'consentStatus', [
-    'granted',
-    'restricted',
-    'anonymous',
-  ]);
-  const accessRights = speakerEnum(input.accessRights, 'accessRights', [
-    'open',
-    'restricted',
-    'confidential',
-  ]);
-  const notes = speakerNotes(input.notes);
-  if (name !== undefined) {
-    if (typeof name.value !== 'string') throw new Error('desktop call name.value must be a string');
-    patch.name = { expectedRevision: name.expectedRevision, value: name.value };
-  }
-  if (pseudonym !== undefined) patch.pseudonym = pseudonym;
-  if (gender !== undefined) patch.gender = gender;
-  if (birthYear !== undefined) patch.birthYear = birthYear;
-  if (languageIds !== undefined) patch.languageIds = languageIds;
-  if (dialect !== undefined) patch.dialect = dialect;
-  if (accent !== undefined) patch.accent = accent;
-  if (role !== undefined) patch.role = role;
-  if (consentStatus !== undefined) patch.consentStatus = consentStatus;
-  if (accessRights !== undefined) patch.accessRights = accessRights;
-  if (address !== undefined) patch.address = address;
-  if (notes !== undefined) patch.notes = notes;
-  if (Object.keys(patch).length === 2) throw new Error('speaker patch is empty');
-  return patch;
-}
-
-function speakerText(
-  value: unknown,
-  name: string,
-  nullable: boolean,
-): { expectedRevision: number; value: string | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const text = record.value;
-  if (text === null && nullable) {
-    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
-  }
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, name),
-    value: requiredString(text, `${name}.value`),
-  };
-}
-
-function speakerBirthYear(
-  value: unknown,
-): { expectedRevision: number; value: number | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const year = record.value;
-  if (year !== null && (typeof year !== 'number' || !Number.isInteger(year))) {
-    throw new Error('desktop call birthYear.value must be a year');
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, 'birthYear'), value: year };
-}
-
-function speakerLanguageIds(
-  value: unknown,
-): { expectedRevision: number; value: string[] | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const ids = record.value;
-  if (ids === null) {
-    return { expectedRevision: revisionOf(record.expectedRevision, 'languageIds'), value: null };
-  }
-  if (!Array.isArray(ids) || ids.some((item) => typeof item !== 'string' || item.length === 0)) {
-    throw new Error('desktop call languageIds.value must be language ids');
-  }
-  if (new Set(ids).size !== ids.length)
-    throw new Error('desktop call languageIds.value must be language ids');
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, 'languageIds'),
-    value: ids as string[],
-  };
-}
-
-function speakerEnum<T extends string>(
-  value: unknown,
-  name: string,
-  allowed: readonly T[],
-): { expectedRevision: number; value: T | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const item = record.value;
-  if (item === null)
-    return { expectedRevision: revisionOf(record.expectedRevision, name), value: null };
-  if (typeof item !== 'string' || !allowed.includes(item as T)) {
-    throw new Error(`desktop call ${name}.value is invalid`);
-  }
-  return { expectedRevision: revisionOf(record.expectedRevision, name), value: item as T };
-}
-
-function speakerNotes(
-  value: unknown,
-): { expectedRevision: number; value: Record<string, string> | null } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  if (record.value === null) {
-    return { expectedRevision: revisionOf(record.expectedRevision, 'notes'), value: null };
-  }
-  return {
-    expectedRevision: revisionOf(record.expectedRevision, 'notes'),
-    value: stringMap(record.value, 'notes.value'),
-  };
-}
-
-function revisionOf(value: unknown, name: string): number {
-  const revision = requiredNumber(value, `${name}.expectedRevision`);
-  if (!Number.isInteger(revision) || revision < 0) {
-    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
-  }
-  return revision;
-}
-
-function sourceField(
-  value: unknown,
-  name: 'label' | 'externalId',
-): { expectedRevision: number; value: string } | undefined {
-  if (value === undefined) return undefined;
-  const record = objectArg(value);
-  knownKeys(record, ['expectedRevision', 'value']);
-  const expectedRevision = requiredNumber(record.expectedRevision, `${name}.expectedRevision`);
-  if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
-    throw new Error(`desktop call ${name}.expectedRevision must be a revision`);
-  }
-  return { expectedRevision, value: requiredString(record.value, `${name}.value`) };
-}
-
-function fingerprintString(value: unknown): string {
-  if (typeof value !== 'string') throw new Error('desktop call graphFingerprint must be a string');
-  return value;
-}
-
-function requiredIndex(value: unknown, name: string): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new Error(`desktop call ${name} must be an index`);
-  }
-  return value;
-}
-
-function undoRemembered(
-  sessionId: string,
-  db: Parameters<typeof undoUnitText>[0],
-  only?: 'text',
-): ReturnType<typeof undoUnitText> | ReturnType<typeof undoAssignSpeaker> {
-  const current = peekUnitStep(sessionId);
-  if (current === null || (only === 'text' && current.kind !== 'text')) {
-    throw new Error('unit text undo is empty');
-  }
-  try {
-    const unit = applyRemembered(db, current);
-    clearUnitTextUndo(sessionId);
-    return unit;
-  } catch (error) {
-    if (error instanceof Error && error.message.endsWith('undo is stale')) {
-      clearUnitTextUndo(sessionId);
-    }
-    throw error;
-  }
-}
-
-function applyRemembered(
-  db: Parameters<typeof undoUnitText>[0],
-  current: NonNullable<ReturnType<typeof peekUnitStep>>,
-): ReturnType<typeof undoUnitText> | ReturnType<typeof undoAssignSpeaker> {
-  switch (current.kind) {
-    case 'text':
-      return undoUnitText(db, current.undo);
-    case 'split':
-      return undoSplit(db, current.undo);
-    case 'merge':
-      return undoMerge(db, current.undo);
-    case 'assign':
-      return undoAssignSpeaker(db, current.undo);
-    default: {
-      const unreachable: never = current;
-      return unreachable;
-    }
-  }
-}
-
-function stringIds(value: unknown, name: string): string[] {
-  const list = listArg(value, name);
-  if (list.some((item) => typeof item !== 'string' || item.length === 0)) {
-    throw new Error(`desktop call ${name} must be a list`);
-  }
-  return list as string[];
-}
-
-function requiredNumber(value: unknown, name: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new Error(`desktop call ${name} must be a number`);
-  }
-  return value;
-}
-
-function stringMap(value: unknown, name: string): Record<string, string> {
-  const record = objectArg(value);
-  const out: Record<string, string> = {};
-  for (const [key, item] of Object.entries(record)) {
-    if (typeof item !== 'string') throw new Error(`desktop call ${name} values must be strings`);
-    out[key] = item;
-  }
-  return out;
-}
-
-function analysisCredentials(input: Record<string, unknown>): AnalysisCredentials {
-  const expected = objectArg(input.expected);
-  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
-  return {
-    manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
-    analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
-    graphFingerprint: fingerprintString(expected.graphFingerprint),
-  };
-}
-
-function analysisImport(input: Record<string, unknown>): {
-  unitId: string;
-  expected: AnalysisCredentials;
-  nodes: unknown[];
-  relations: unknown[];
-  removeNodes: unknown[];
-  removeRelations: unknown[];
-} {
-  knownKeys(input, ['unitId', 'expected', 'nodes', 'relations', 'removeNodes', 'removeRelations']);
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    expected: analysisCredentials(input),
-    nodes: listArg(input.nodes, 'nodes'),
-    relations: listArg(input.relations, 'relations'),
-    removeNodes: listArg(input.removeNodes, 'removeNodes'),
-    removeRelations: listArg(input.removeRelations, 'removeRelations'),
-  };
-}
-
-function listArg(value: unknown, name: string): unknown[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value)) throw new Error(`desktop call ${name} must be a list`);
-  return value;
-}
-
-function analysisSubmit(input: Record<string, unknown>): {
-  unitId: string;
-  graph: unknown;
-  expected: AnalysisCredentials;
-  definitionRevisions: { definitionId: string; revision: number }[];
-} {
-  knownKeys(input, ['unitId', 'graph', 'expected', 'definitionRevisions']);
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    graph: input.graph,
-    expected: analysisCredentials(input),
-    definitionRevisions: revisionBasis(input.definitionRevisions),
-  };
-}
-
-function revisionBasis(value: unknown): { definitionId: string; revision: number }[] {
-  if (!Array.isArray(value)) throw new Error('custom field revision does not match');
-  return value.map((item) => {
-    const record = objectArg(item);
-    knownKeys(record, ['definitionId', 'revision']);
-    return {
-      definitionId: requiredString(record.definitionId, 'definitionId'),
-      revision: requiredNumber(record.revision, 'revision'),
-    };
-  });
-}
-
-function analysisCandidate(input: Record<string, unknown>): {
-  candidateId: string;
-  expected: AnalysisCredentials;
-} {
-  knownKeys(input, ['candidateId', 'expected']);
-  return {
-    candidateId: requiredString(input.candidateId, 'candidateId'),
-    expected: analysisCredentials(input),
-  };
-}
-
-function analysisRestore(input: Record<string, unknown>): {
-  candidateId: string;
-  expected: AnalysisCredentials;
-  conversions?: unknown[];
-} {
-  knownKeys(input, ['candidateId', 'expected', 'conversions']);
-  return {
-    candidateId: requiredString(input.candidateId, 'candidateId'),
-    expected: analysisCredentials(input),
-    ...(input.conversions === undefined
-      ? {}
-      : { conversions: listArg(input.conversions, 'conversions') }),
-  };
-}
-
-function analysisSplit(input: Record<string, unknown>): {
-  unitId: string;
-  nodeId: string;
-  into: [unknown, unknown];
-  expected: AnalysisCredentials;
-} {
-  knownKeys(input, ['unitId', 'nodeId', 'into', 'expected']);
-  if (!Array.isArray(input.into) || input.into.length !== 2) {
-    throw new Error('desktop call into must be a pair');
-  }
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    nodeId: requiredString(input.nodeId, 'nodeId'),
-    into: [input.into[0], input.into[1]],
-    expected: analysisCredentials(input),
-  };
-}
-
-function analysisMerge(input: Record<string, unknown>): {
-  unitId: string;
-  nodeIds: [string, string];
-  into: unknown;
-  expected: AnalysisCredentials;
-} {
-  knownKeys(input, ['unitId', 'nodeIds', 'into', 'expected']);
-  if (!Array.isArray(input.nodeIds) || input.nodeIds.length !== 2) {
-    throw new Error('desktop call nodeIds must be a pair');
-  }
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    nodeIds: [
-      requiredString(input.nodeIds[0], 'nodeIds'),
-      requiredString(input.nodeIds[1], 'nodeIds'),
-    ],
-    into: input.into,
-    expected: analysisCredentials(input),
-  };
-}
-
-function analysisApply(input: Record<string, unknown>): {
-  unitId: string;
-  expected: { manuscriptGeneration: number; analysisGeneration: number; graphFingerprint: string };
-  changes: unknown[];
-} {
-  knownKeys(input, ['unitId', 'expected', 'changes']);
-  const expected = objectArg(input.expected);
-  knownKeys(expected, ['manuscriptGeneration', 'analysisGeneration', 'graphFingerprint']);
-  if (!Array.isArray(input.changes)) throw new Error('desktop call changes must be a list');
-  return {
-    unitId: requiredString(input.unitId, 'unitId'),
-    expected: {
-      manuscriptGeneration: requiredNumber(expected.manuscriptGeneration, 'manuscriptGeneration'),
-      analysisGeneration: requiredNumber(expected.analysisGeneration, 'analysisGeneration'),
-      graphFingerprint: requiredString(expected.graphFingerprint, 'graphFingerprint'),
-    },
-    changes: input.changes,
-  };
-}
-
-const NOTE_KINDS = [
-  'project',
-  'manuscript',
-  'layer',
-  'unit',
-  'unit_text',
-  'token',
-  'morpheme',
-  'analysis_node',
-] as const;
-
-const NOTE_VIEWS = ['timeline', 'waveform'] as const;
-
-const NOTE_CATEGORIES = [
-  'comment',
-  'question',
-  'todo',
-  'linguistic',
-  'fieldwork',
-  'correction',
-  'topic',
-] as const;
-
-function noteCreate(input: Record<string, unknown>) {
-  knownKeys(input, ['id', 'anchor', 'content', 'category', 'provenance']);
-  return {
-    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
-    anchor: noteAnchor(input.anchor),
-    content: stringMap(input.content, 'content'),
-    ...('category' in input ? { category: noteCategory(input.category) } : {}),
-    ...('provenance' in input ? { provenance: input.provenance } : {}),
-  };
-}
-
-function noteRevise(input: Record<string, unknown>) {
-  knownKeys(input, ['id', 'content', 'category']);
-  if (!('content' in input) && !('category' in input)) throw new Error('note revision is empty');
-  return {
-    id: requiredString(input.id, 'id'),
-    ...('content' in input ? { content: stringMap(input.content, 'content') } : {}),
-    ...('category' in input ? { category: noteCategory(input.category) } : {}),
-  };
-}
-
-function noteList(input: Record<string, unknown>): ContentNoteQuery {
-  knownKeys(input, ['anchorKind', 'manuscriptId', 'unitId', 'nodeId', 'layerId', 'attachment']);
-  return {
-    ...('anchorKind' in input ? { anchorKind: noteKind(input.anchorKind) } : {}),
-    ...('manuscriptId' in input
-      ? { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') }
-      : {}),
-    ...('unitId' in input ? { unitId: requiredString(input.unitId, 'unitId') } : {}),
-    ...('nodeId' in input ? { nodeId: requiredString(input.nodeId, 'nodeId') } : {}),
-    ...('layerId' in input ? { layerId: requiredString(input.layerId, 'layerId') } : {}),
-    ...('attachment' in input ? { attachment: noteAttachment(input.attachment) } : {}),
-  };
-}
-
-function lexemeNoteSave(input: Record<string, unknown>) {
-  knownKeys(input, ['lexemeId', 'id', 'senseId', 'content', 'category', 'provenance']);
-  return {
-    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
-    ...(input.senseId === undefined ? {} : { senseId: requiredString(input.senseId, 'senseId') }),
-    content: stringMap(input.content, 'content'),
-    ...('category' in input ? { category: noteCategory(input.category) } : {}),
-    ...('provenance' in input ? { provenance: input.provenance } : {}),
-  };
-}
-
-function noteAnchor(value: unknown): ContentNoteAnchor {
-  const anchor = objectArg(value);
-  const kind = noteKind(anchor.kind);
-  switch (kind) {
-    case 'project':
-      knownKeys(anchor, ['kind']);
-      return { kind };
-    case 'manuscript':
-      knownKeys(anchor, ['kind', 'manuscriptId']);
-      return { kind, manuscriptId: requiredString(anchor.manuscriptId, 'manuscriptId') };
-    case 'layer':
-      knownKeys(anchor, ['kind', 'layerId']);
-      return { kind, layerId: requiredString(anchor.layerId, 'layerId') };
-    case 'unit':
-      knownKeys(anchor, ['kind', 'unitId', 'view']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        ...('view' in anchor ? { view: noteView(anchor.view) } : {}),
-      };
-    case 'unit_text':
-      knownKeys(anchor, ['kind', 'unitTextId']);
-      return { kind, unitTextId: requiredString(anchor.unitTextId, 'unitTextId') };
-    case 'token':
-      knownKeys(anchor, ['kind', 'unitId', 'tokenId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        tokenId: requiredString(anchor.tokenId, 'tokenId'),
-      };
-    case 'morpheme':
-      knownKeys(anchor, ['kind', 'unitId', 'morphemeId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        morphemeId: requiredString(anchor.morphemeId, 'morphemeId'),
-      };
-    case 'analysis_node':
-      knownKeys(anchor, ['kind', 'unitId', 'nodeId']);
-      return {
-        kind,
-        unitId: requiredString(anchor.unitId, 'unitId'),
-        nodeId: requiredString(anchor.nodeId, 'nodeId'),
-      };
-    default: {
-      const unreachable: never = kind;
-      throw new Error(`note anchor is invalid: ${String(unreachable)}`);
-    }
-  }
-}
-
-function noteView(value: unknown): 'timeline' | 'waveform' {
-  if (typeof value !== 'string') throw new Error('note anchor is invalid');
-  const found = NOTE_VIEWS.find((view) => view === value);
-  if (found === undefined) throw new Error('note anchor is invalid');
-  return found;
-}
-
-function noteKind(value: unknown): ContentNoteAnchor['kind'] {
-  if (typeof value !== 'string') throw new Error('note anchor is invalid');
-  const found = NOTE_KINDS.find((kind) => kind === value);
-  if (found === undefined) throw new Error('note anchor is invalid');
-  return found;
-}
-
-function noteCategory(value: unknown): ContentNoteCategory | null {
-  if (value === null) return null;
-  if (typeof value !== 'string') throw new Error('note category is invalid');
-  const found = NOTE_CATEGORIES.find((item) => item === value);
-  if (found === undefined) throw new Error('note category is invalid');
-  return found;
-}
-
-function noteAttachment(value: unknown): 'active' | 'detached' | 'any' {
-  if (value === 'active' || value === 'detached' || value === 'any') return value;
-  throw new Error('note attachment is invalid');
-}
-
-function mediaCreate(input: Record<string, unknown>): MediaCreate {
-  return {
-    relpath: requiredString(input.relpath, 'relpath'),
-    sha256: requiredString(input.sha256, 'sha256'),
-    duration: requiredNumber(input.duration, 'duration'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function manuscriptCreate(input: Record<string, unknown>): ManuscriptCreate {
-  return {
-    title: stringMap(input.title, 'title'),
-    mediaId: requiredString(input.mediaId, 'mediaId'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function layerCreate(input: Record<string, unknown>): LayerCreate {
-  knownKeys(input, [
-    'manuscriptId',
-    'key',
-    'name',
-    'tierType',
-    'contentType',
-    'languageId',
-    'orthographyId',
-    'parentId',
-    'sortOrder',
-    'fieldValues',
-  ]);
-  return {
-    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-    key: requiredString(input.key, 'key'),
-    name: stringMap(input.name, 'name'),
-    tierType: requiredString(input.tierType, 'tierType'),
-    contentType: requiredString(input.contentType, 'contentType'),
-    ...('languageId' in input
-      ? { languageId: optionalString(input.languageId, 'languageId') }
-      : {}),
-    ...('orthographyId' in input
-      ? { orthographyId: optionalString(input.orthographyId, 'orthographyId') }
-      : {}),
-    ...('parentId' in input ? { parentId: optionalString(input.parentId, 'parentId') } : {}),
-    ...('sortOrder' in input ? { sortOrder: requiredNumber(input.sortOrder, 'sortOrder') } : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function timeMappingSet(input: Record<string, unknown>): {
-  manuscriptId: string;
-  expectedRevision: number;
-  offsetSec: number;
-  scale: number;
-  sourceMediaId?: string;
-} {
-  const sourceMediaId = input.sourceMediaId;
-  return {
-    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-    expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
-    offsetSec: requiredNumber(input.offsetSec, 'offsetSec'),
-    scale: requiredNumber(input.scale, 'scale'),
-    ...(typeof sourceMediaId === 'string' ? { sourceMediaId } : {}),
-  };
-}
-
-function modelRunStart(input: Record<string, unknown>): ModelRunStart {
-  knownKeys(input, [
-    'manuscriptId',
-    'layerId',
-    'modelId',
-    'modelVersion',
-    'manifestSha256',
-    'params',
-    'rangeStart',
-    'rangeEnd',
-  ]);
-  return {
-    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-    layerId: requiredString(input.layerId, 'layerId'),
-    modelId: requiredString(input.modelId, 'modelId'),
-    modelVersion: requiredString(input.modelVersion, 'modelVersion'),
-    manifestSha256: requiredString(input.manifestSha256, 'manifestSha256'),
-    params: objectArg(input.params),
-    rangeStart: requiredNumber(input.rangeStart, 'rangeStart'),
-    rangeEnd: requiredNumber(input.rangeEnd, 'rangeEnd'),
-  };
-}
-
-function modelRunFinish(input: Record<string, unknown>): ModelRunFinish {
-  const status = requiredString(input.status, 'status');
-  const runId = requiredString(input.runId, 'runId');
-  const chunkCount = requiredIndex(input.chunkCount, 'chunkCount');
-  if (status === 'error') {
-    knownKeys(input, ['runId', 'status', 'chunkCount', 'errorCode']);
-    return {
-      runId,
-      status,
-      chunkCount,
-      errorCode: requiredString(input.errorCode, 'errorCode'),
-    };
-  }
-  if (status === 'ok' || status === 'cancelled') {
-    knownKeys(input, ['runId', 'status', 'chunkCount']);
-    return { runId, status, chunkCount };
-  }
-  throw new Error('desktop call status must be a run status');
-}
-
-function modelRunPreview(input: Record<string, unknown>): {
-  runId: string;
-  candidates: PreviewCandidateInput[];
-} {
-  knownKeys(input, ['runId', 'candidates']);
-  if (!Array.isArray(input.candidates)) throw new Error('desktop call candidates must be an array');
-  return {
-    runId: requiredString(input.runId, 'runId'),
-    candidates: input.candidates.map((item, index) => previewCandidate(item, index)),
-  };
-}
-
-function previewCandidate(value: unknown, index: number): PreviewCandidateInput {
-  const candidate = objectArg(value);
-  knownKeys(candidate, ['chunkIndex', 'segmentIndex', 'mediaStart', 'mediaEnd']);
-  return {
-    chunkIndex: requiredIndex(candidate.chunkIndex, `candidates.${index}.chunkIndex`),
-    segmentIndex: requiredIndex(candidate.segmentIndex, `candidates.${index}.segmentIndex`),
-    mediaStart: requiredNumber(candidate.mediaStart, `candidates.${index}.mediaStart`),
-    mediaEnd: requiredNumber(candidate.mediaEnd, `candidates.${index}.mediaEnd`),
-  };
-}
-
-function modelRunAccept(input: Record<string, unknown>): {
-  operationId: string;
-  runId: string;
-  chunkIndex: number;
-  segmentIndex: number;
-  mediaStart: number;
-  mediaEnd: number;
-  timeMappingRevision: number;
-  targetFingerprint: string;
-  text: string;
-} {
-  knownKeys(input, [
-    'operationId',
-    'runId',
-    'chunkIndex',
-    'segmentIndex',
-    'mediaStart',
-    'mediaEnd',
-    'timeMappingRevision',
-    'targetFingerprint',
-    'text',
-  ]);
-  return {
-    operationId: requiredString(input.operationId, 'operationId'),
-    runId: requiredString(input.runId, 'runId'),
-    chunkIndex: requiredIndex(input.chunkIndex, 'chunkIndex'),
-    segmentIndex: requiredIndex(input.segmentIndex, 'segmentIndex'),
-    mediaStart: requiredNumber(input.mediaStart, 'mediaStart'),
-    mediaEnd: requiredNumber(input.mediaEnd, 'mediaEnd'),
-    timeMappingRevision: requiredIndex(input.timeMappingRevision, 'timeMappingRevision'),
-    targetFingerprint: requiredString(input.targetFingerprint, 'targetFingerprint'),
-    text: requiredString(input.text, 'text'),
-  };
-}
-
-function languageEnsure(input: Record<string, unknown>): LanguageEnsure {
-  const aliases = input.aliases;
-  return {
-    name: stringMap(input.name, 'name'),
-    sourceType: requiredString(input.sourceType, 'sourceType'),
-    ...(typeof input.iso6393 === 'string' ? { iso6393: input.iso6393 } : {}),
-    ...(typeof input.glottocode === 'string' ? { glottocode: input.glottocode } : {}),
-    ...(Array.isArray(aliases) ? { aliases: aliases.map(aliasInput) } : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function aliasInput(value: unknown): { alias: string; aliasType: string } {
-  const record = objectArg(value);
-  return {
-    alias: requiredString(record.alias, 'alias'),
-    aliasType: requiredString(record.aliasType, 'aliasType'),
-  };
-}
-
-function orthographyCreate(input: Record<string, unknown>): OrthographyCreate {
-  return {
-    languageId: requiredString(input.languageId, 'languageId'),
-    name: stringMap(input.name, 'name'),
-    scriptTag: requiredString(input.scriptTag, 'scriptTag'),
-    sourceType: requiredString(input.sourceType, 'sourceType'),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function bridgeCreate(input: Record<string, unknown>): BridgeCreate {
-  const rules = input.rules;
-  if (typeof rules !== 'object' || rules === null || Array.isArray(rules)) {
-    throw new Error('bridge rules must be an object');
-  }
-  const sampleCases = input.sampleCases;
-  return {
-    sourceOrthographyId: requiredString(input.sourceOrthographyId, 'sourceOrthographyId'),
-    targetOrthographyId: requiredString(input.targetOrthographyId, 'targetOrthographyId'),
-    engine: requiredString(input.engine, 'engine'),
-    rules: rules as Record<string, unknown>,
-    ...(typeof input.sampleInput === 'string' ? { sampleInput: input.sampleInput } : {}),
-    ...(typeof input.sampleOutput === 'string' ? { sampleOutput: input.sampleOutput } : {}),
-    ...(Array.isArray(sampleCases)
-      ? {
-          sampleCases: sampleCases.map((item) => {
-            const record = objectArg(item);
-            const expectedOutput = record.expectedOutput;
-            return {
-              input: requiredString(record.input, 'input'),
-              ...(typeof expectedOutput === 'string' ? { expectedOutput } : {}),
-            };
-          }),
-        }
-      : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function lexemeSave(input: Record<string, unknown>): LexemeSave {
-  const tags = input.tags;
-  const link = input.link;
-  return {
-    ...(typeof input.id === 'string' ? { id: input.id } : {}),
-    entry: objectArg(input.entry),
-    ...(input.jieyu === undefined ? {} : { jieyu: objectArg(input.jieyu) }),
-    ...(tags === undefined ? {} : { tags: booleanMap(tags) }),
-    ...('accessRights' in input ? { accessRights: accessArg(input.accessRights) } : {}),
-    ...(link === undefined ? {} : { link: linkWrite(link) }),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-    ...('senseFieldValues' in input
-      ? { senseFieldValues: senseFieldValueMap(input.senseFieldValues) }
-      : {}),
-  };
-}
-
-function lexemeLink(input: Record<string, unknown>): LexemeLinkWrite & { lexemeId: string } {
-  return {
-    lexemeId: requiredString(input.lexemeId, 'lexemeId'),
-    ...linkWrite(input),
-  };
-}
-
-function linkWrite(value: unknown): LexemeLinkWrite {
-  const record = objectArg(value);
-  return {
-    targetType: requiredString(record.targetType, 'targetType'),
-    targetId: requiredString(record.targetId, 'targetId'),
-    senseId: requiredString(record.senseId, 'senseId'),
-    ...(typeof record.role === 'string' ? { role: record.role } : {}),
-  };
-}
-
-function accessArg(value: unknown): string | null {
-  if (value === null) return null;
-  if (typeof value !== 'string') throw new Error('lexeme access is invalid');
-  return value;
-}
-
-function booleanMap(value: unknown): Record<string, boolean> {
-  const record = objectArg(value);
-  const tags: Record<string, boolean> = {};
-  for (const [key, item] of Object.entries(record)) {
-    if (typeof item !== 'boolean') throw new Error('lexeme tags are invalid');
-    tags[key] = item;
-  }
-  return tags;
-}
-
-function corpusQuery(input: Record<string, unknown>): CorpusQuery {
-  knownKeys(input, [
-    'manuscriptId',
-    'text',
-    'form',
-    'gloss',
-    'pos',
-    'lexemeId',
-    'senseId',
-    'limit',
-    'cursor',
-  ]);
-  const lexemeId = optionalQueryString(input, 'lexemeId');
-  const senseId = optionalQueryString(input, 'senseId');
-  if ((lexemeId === null) !== (senseId === null)) {
-    throw new Error('sense query needs lexemeId and senseId');
-  }
-  return {
-    manuscriptId: optionalQueryString(input, 'manuscriptId'),
-    text: optionalQueryString(input, 'text'),
-    form: optionalQueryString(input, 'form'),
-    gloss: optionalQueryString(input, 'gloss'),
-    pos: optionalQueryString(input, 'pos'),
-    lexemeId,
-    senseId,
-    limit: requiredLimit(input.limit),
-    cursor: corpusCursor(input.cursor),
-  };
-}
-
-function optionalQueryString(input: Record<string, unknown>, name: string): string | null {
-  if (!(name in input) || input[name] === null) return null;
-  if (typeof input[name] !== 'string') throw new Error(`desktop call ${name} must be a string`);
-  return input[name];
-}
-
-function requiredLimit(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    throw new Error('desktop call limit must be a positive integer');
-  }
-  return value;
-}
-
-function corpusCursor(value: unknown): CorpusQueryCursor | null {
-  if (value === undefined || value === null) return null;
-  const cursor = objectArg(value);
-  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
-  return {
-    manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
-    layerId: requiredString(cursor.layerId, 'layerId'),
-    startTime: requiredNumber(cursor.startTime, 'startTime'),
-    unitId: requiredString(cursor.unitId, 'unitId'),
-  };
-}
-
-function unitCreate(input: Record<string, unknown>): UnitCreate {
-  knownKeys(input, [
-    'layerId',
-    'startTime',
-    'endTime',
-    'text',
-    'speakerId',
-    'parentUnitId',
-    'fieldValues',
-  ]);
-  return {
-    layerId: requiredString(input.layerId, 'layerId'),
-    startTime: requiredNumber(input.startTime, 'startTime'),
-    endTime: requiredNumber(input.endTime, 'endTime'),
-    text: requiredString(input.text, 'text'),
-    ...('speakerId' in input ? { speakerId: optionalString(input.speakerId, 'speakerId') } : {}),
-    ...('parentUnitId' in input
-      ? { parentUnitId: optionalString(input.parentUnitId, 'parentUnitId') }
-      : {}),
-    ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
-  };
-}
-
-function senseFieldValueMap(value: unknown): Record<string, Record<string, unknown>> {
-  const record = fieldValueMap(value);
-  const senses: Record<string, Record<string, unknown>> = {};
-  for (const [senseId, item] of Object.entries(record)) {
-    senses[senseId] = fieldValueMap(item);
-  }
-  return senses;
-}
-
-function fieldValueMap(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('desktop call fieldValues must be an object');
-  }
-  return value as Record<string, unknown>;
-}
-
-function knownKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
-  for (const key of Object.keys(input)) {
-    if (!allowed.includes(key)) throw new Error(`desktop call field ${key} is not supported`);
-  }
-}
-
-function optionalString(value: unknown, name: string): string | null {
-  if (value === null) return null;
-  return requiredString(value, name);
 }

@@ -3,7 +3,11 @@ import type Database from 'better-sqlite3';
 import type { JieyuAnchoredNote } from '../dmlexTypes';
 import { parseStoredJieyuLexeme } from '../dmlexEntrySchema';
 import { provenanceSchema } from '../provenanceSchema';
-import { lexemeExtensionForSave, splitLexemeExtension } from './customFields';
+import {
+  lexemeExtensionForSave,
+  splitLexemeExtension,
+  writeRequiredFieldValues,
+} from './customFields';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -37,6 +41,7 @@ export interface ContentNoteWrite {
   content: Record<string, string>;
   category?: ContentNoteCategory | null;
   provenance?: unknown | null;
+  fieldValues?: Record<string, unknown>;
 }
 
 export interface ContentNoteRevision {
@@ -122,6 +127,10 @@ const NOTE_COLUMNS = `id, anchor_kind, project_id, manuscript_id, layer_id, unit
   unit_text_id, token_id, morpheme_id, node_id, view, content_json, category, provenance_json,
   attachment, created_at, updated_at`;
 
+const NOTE_VISIBLE = `manuscript_id IS NULL OR manuscript_id NOT IN (
+  SELECT id FROM manuscripts WHERE deleted_at IS NOT NULL
+)`;
+
 export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): ContentNote {
   const write = db.transaction(() => {
     const id = noteId(input.id);
@@ -154,6 +163,7 @@ export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): 
       now,
       now,
     );
+    writeRequiredFieldValues(db, 'note', id, input.fieldValues);
     const stored = readContentNote(db, id);
     if (stored === null) throw new Error('note readback failed');
     return stored;
@@ -161,9 +171,17 @@ export function createContentNote(db: SqliteDatabase, input: ContentNoteWrite): 
   return write();
 }
 
-export function readContentNote(db: SqliteDatabase, id: string): ContentNote | null {
+/** Includes a note whose manuscript is deleted. Writers use this so the delete trigger still reports. */
+export function readStoredContentNote(db: SqliteDatabase, id: string): ContentNote | null {
   const row = db.prepare(`SELECT ${NOTE_COLUMNS} FROM notes WHERE id = ?`).get(id) as
     NoteRow | undefined;
+  return row === undefined ? null : mapNote(row);
+}
+
+export function readContentNote(db: SqliteDatabase, id: string): ContentNote | null {
+  const row = db
+    .prepare(`SELECT ${NOTE_COLUMNS} FROM notes WHERE id = ? AND (${NOTE_VISIBLE})`)
+    .get(id) as NoteRow | undefined;
   return row === undefined ? null : mapNote(row);
 }
 
@@ -173,7 +191,7 @@ export function updateContentNote(db: SqliteDatabase, input: ContentNoteRevision
     throw new Error('note revision is empty');
   }
   const write = db.transaction(() => {
-    const existing = readContentNote(db, id);
+    const existing = readStoredContentNote(db, id);
     if (existing === null) throw new Error('note is missing');
     db.prepare(`UPDATE notes SET content_json = ?, category = ?, updated_at = ? WHERE id = ?`).run(
       input.content === undefined ? contentJson(existing.content) : contentJson(input.content),
@@ -181,7 +199,7 @@ export function updateContentNote(db: SqliteDatabase, input: ContentNoteRevision
       new Date().toISOString(),
       id,
     );
-    const stored = readContentNote(db, id);
+    const stored = readStoredContentNote(db, id);
     if (stored === null) throw new Error('note readback failed');
     return stored;
   });
@@ -191,9 +209,20 @@ export function updateContentNote(db: SqliteDatabase, input: ContentNoteRevision
 export function deleteContentNote(db: SqliteDatabase, id: string): { id: string } {
   const note = noteId(id);
   const write = db.transaction(() => {
-    if (readContentNote(db, note) === null) throw new Error('note is missing');
+    if (readStoredContentNote(db, note) === null) throw new Error('note is missing');
+    const place = db
+      .prepare('SELECT manuscript_id AS manuscriptId FROM notes WHERE id = ?')
+      .get(note) as { manuscriptId: string | null };
+    if (place.manuscriptId !== null) {
+      const manuscript = db
+        .prepare('SELECT deleted_at AS deletedAt FROM manuscripts WHERE id = ?')
+        .get(place.manuscriptId) as { deletedAt: string | null } | undefined;
+      if (manuscript !== undefined && manuscript.deletedAt !== null) {
+        throw new Error('manuscript is deleted');
+      }
+    }
     db.prepare('DELETE FROM notes WHERE id = ?').run(note);
-    if (readContentNote(db, note) !== null) throw new Error('note readback failed');
+    if (readStoredContentNote(db, note) !== null) throw new Error('note readback failed');
     return { id: note };
   });
   return write();
@@ -223,11 +252,7 @@ export function listContentNotes(db: SqliteDatabase, query: ContentNoteQuery = {
     clauses.push('layer_id = ?');
     params.push(query.layerId);
   }
-  clauses.push(`(
-    manuscript_id IS NULL OR manuscript_id NOT IN (
-      SELECT id FROM manuscripts WHERE deleted_at IS NOT NULL
-    )
-  )`);
+  clauses.push(`(${NOTE_VISIBLE})`);
   const attachment = query.attachment ?? 'any';
   if (attachment !== 'any') {
     clauses.push('attachment = ?');

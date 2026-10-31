@@ -49,9 +49,30 @@ export function classifyLexemeReference(
 export function readLexemeLinks(db: SqliteDatabase): LexemeLinkReading[] {
   const rows = db
     .prepare(
-      `SELECT id, target_type, target_id, lexeme_id, sense_id, role, attachment
-       FROM token_lexeme_links
-       ORDER BY id`,
+      `SELECT links.id, links.target_type, links.target_id, links.lexeme_id, links.sense_id,
+              links.role, links.attachment
+       FROM token_lexeme_links AS links
+       WHERE NOT (
+         (
+           links.target_type = 'token' AND EXISTS (
+             SELECT 1 FROM tokens
+             JOIN units ON units.id = tokens.unit_id
+             JOIN layers ON layers.id = units.layer_id
+             JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+             WHERE tokens.id = links.target_id AND manuscripts.deleted_at IS NOT NULL
+           )
+         ) OR (
+           links.target_type = 'morpheme' AND EXISTS (
+             SELECT 1 FROM morphemes
+             JOIN tokens ON tokens.id = morphemes.token_id
+             JOIN units ON units.id = tokens.unit_id
+             JOIN layers ON layers.id = units.layer_id
+             JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+             WHERE morphemes.id = links.target_id AND manuscripts.deleted_at IS NOT NULL
+           )
+         )
+       )
+       ORDER BY links.id`,
     )
     .all() as {
     id: string;
