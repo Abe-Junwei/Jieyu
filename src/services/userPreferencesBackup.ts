@@ -317,16 +317,12 @@ export async function restoreRecordedUserPreferences(
     if (!allowed.has(key)) continue;
     if (key === 'jieyu.aiChat.settings') {
       try {
-        const current = await loadAiChatSettingsFromStorage();
         if (value === null) {
-          const defaults = normalizeAiChatSettings();
-          const patch: Partial<AiChatSettings> = {};
-          for (const field of AI_CHAT_SAFE_FIELDS) {
-            (patch as Record<string, unknown>)[field] = defaults[field];
-          }
-          await persistAiChatSettings(normalizeAiChatSettings({ ...current, ...patch }));
+          // Snapshot null = never configured; clear vault so readback stays null (#453).
+          await browserAiChatKeyVault.clear();
           storage.removeItem(key);
         } else {
+          const current = await loadAiChatSettingsFromStorage();
           const incoming = JSON.parse(value) as unknown;
           if (!isPlainObject(incoming)) continue;
           const patch: Partial<AiChatSettings> = {};

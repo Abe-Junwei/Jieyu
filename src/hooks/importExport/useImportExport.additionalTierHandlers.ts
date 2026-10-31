@@ -375,18 +375,42 @@ export async function importAdditionalTiers(input: {
         for (const write of writes) {
           if (importMediaId) {
             const segId = newId('seg');
-            await LayerSegmentationV2Service.createSegment({
-              id: segId,
-              textId: importTextId,
-              mediaId: importMediaId,
-              layerId: write.layerId,
-              unitId: parentMatch.id,
-              startTime: annStart,
-              endTime: annEnd,
-              createdAt: segNow,
-              updatedAt: segNow,
-            });
+            await LayerSegmentationV2Service.createSegmentWithContentAtomic(
+              {
+                id: segId,
+                textId: importTextId,
+                mediaId: importMediaId,
+                layerId: write.layerId,
+                parentUnitId: parentMatch.id,
+                startTime: annStart,
+                endTime: annEnd,
+                createdAt: segNow,
+                updatedAt: segNow,
+              },
+              {
+                id: newId('utr'),
+                textId: importTextId,
+                unitId: segId,
+                layerId: write.layerId,
+                modality: 'text',
+                text: write.text,
+                sourceType: 'human',
+                ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
+                createdAt: segNow,
+                updatedAt: segNow,
+              },
+            );
+            if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
+              await input.tokenGraph.write({
+                hostUnitId: segId,
+                tokens: annotation.tokens,
+                now: segNow,
+                language: tierLang,
+              });
+            }
+            continue;
           }
+          // No media: keep content on the overlapping host unit (segments need mediaId).
           await LayerUnitSegmentWriteService.insertSegmentContents(input.db, [
             {
               id: newId('utr'),

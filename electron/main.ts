@@ -60,6 +60,7 @@ import {
 import { fileContainsProbeTable, writeSkeletonProbe } from '../src/desktop/skeleton/probeStore';
 import { sqliteStoragePortFlagEnabled } from '../src/desktop/skeleton/sqliteStoragePortFlag';
 import { ensureUserDataLayout, projectBackupDir } from '../src/desktop/skeleton/userDataLayout';
+import { configureDesktopDiagnosticStore } from '../src/db/desktop/diagnosticDelivery';
 
 const userDataDir = process.env.JIEYU_DESKTOP_USER_DATA;
 if (typeof userDataDir === 'string' && userDataDir.length > 0) {
@@ -744,6 +745,7 @@ app
   .whenReady()
   .then(async () => {
     ensureUserDataLayout(app.getPath('userData'));
+    configureDesktopDiagnosticStore(app.getPath('userData'));
     installCsp();
     installMediaProtocol();
     installAppProtocol();

@@ -683,6 +683,20 @@ export function readStoredPairedReadingEditorHeightMap(): Record<string, number>
   return {};
 }
 
+/** 独立译文行右键/选择用译文 segment id；无则回落原文宿主 (#455) */
+export function resolvePairedReadingTargetMenuUnitId(input: {
+  translationSegmentId?: string | undefined;
+  contextMenuSourceUnitId?: string | null;
+  sourceUnitIds: readonly string[];
+  primaryUnitId: string;
+}): string {
+  const seg = input.translationSegmentId?.trim() ?? '';
+  if (seg.length > 0) return seg;
+  const focused = input.contextMenuSourceUnitId;
+  if (focused != null && input.sourceUnitIds.includes(focused)) return focused;
+  return input.primaryUnitId;
+}
+
 export function mergePairedReadingTimelineUnitById(
   unitsOnCurrentMedia: LayerUnitDocType[],
   segmentParentUnitLookup: LayerUnitDocType[] | undefined,

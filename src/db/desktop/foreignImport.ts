@@ -97,9 +97,12 @@ export function importForeignFile(input: {
   roles?: string;
   db?: Sqlite;
 }): ImportResult {
-  ensureDomParser();
   const extension = path.extname(input.file).toLowerCase();
   if (!EXTENSIONS.has(extension)) throw new Error('import extension is unsupported');
+  // XML formats need DOMParser; TextGrid/Toolbox/JYB must not be blocked by it (#452).
+  if (extension === '.eaf' || extension === '.flextext' || extension === '.lift') {
+    ensureDomParser();
+  }
   const bytes = readFileSync(input.file);
   if (extension === '.jyb') {
     if (input.db !== undefined) throw new Error('import extension is unsupported');

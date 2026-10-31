@@ -1,6 +1,6 @@
 # 开放语料测试集
 
-这些标注文件只在本机使用，用来检验解语的 ELAN、FLEx、LIFT 导入。`.eaf`、`.flextext`、`.lift`、`.xml` 已写入 `.gitignore`，提交和发布都不包含它们。清单在 `manifest.json`。每个文件保留原许可，不并入本仓库的 ISC 许可。
+这些标注文件只在本机使用，用来检验解语的 ELAN、FLEx、LIFT 导入。`.eaf`、`.flextext`、`.lift`、`.xml` 已写入 `.gitignore`，提交和发布都不包含它们。清单在 `manifest.json`。每个文件保留原许可，不并入本仓库的 AGPL-3.0-or-later 许可。
 
 摘录只保留不超过 20 秒的前 8 条非空标注，以及与之对齐的词、语素和注释层。音视频没有下载。
 

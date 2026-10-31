@@ -45,6 +45,7 @@ export function AudioImportDialog({
 }: AudioImportDialogProps) {
   const locale = useLocale();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const selectionSeqRef = useRef(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -66,6 +67,7 @@ export function AudioImportDialog({
   }, [isOpen, onPendingSelectionConsumed, pendingSelection]);
 
   const reset = () => {
+    selectionSeqRef.current += 1;
     setSelectedFile(null);
     setDuration(null);
     setError('');
@@ -75,12 +77,19 @@ export function AudioImportDialog({
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  useEffect(() => {
+    return () => {
+      selectionSeqRef.current += 1;
+    };
+  }, []);
+
   const handleClose = () => {
     reset();
     onClose();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectionSeq = ++selectionSeqRef.current;
     setError('');
     setDuration(null);
     setMismatchAcknowledged(false);
@@ -106,6 +115,10 @@ export function AudioImportDialog({
     media.addEventListener(
       'loadedmetadata',
       () => {
+        if (selectionSeqRef.current !== selectionSeq) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
         if (Number.isFinite(media.duration)) {
           setDuration(media.duration);
         } else {
@@ -118,6 +131,10 @@ export function AudioImportDialog({
     media.addEventListener(
       'error',
       () => {
+        if (selectionSeqRef.current !== selectionSeq) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
         setError(t(locale, 'transcription.importDialog.unsupportedMedia'));
         URL.revokeObjectURL(objectUrl);
       },
