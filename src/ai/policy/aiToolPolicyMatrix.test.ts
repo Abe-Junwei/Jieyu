@@ -13,8 +13,21 @@ import {
   isAiToolSegmentWriteWithExplicitTarget,
   isAiToolWritePreviewRequired,
 } from './aiToolPolicyMatrix';
+import { LOCAL_CONTEXT_TOOL_NAMES } from './localContextToolEffects';
 
 describe('aiToolPolicyMatrix', () => {
+  it('does not register project deletion or restore', () => {
+    const names = [...Object.keys(AI_TOOL_POLICY_MATRIX), ...LOCAL_CONTEXT_TOOL_NAMES];
+    for (const name of [
+      'manuscripts.delete',
+      'manuscripts.restore',
+      'manuscripts.purge',
+      'media.delete',
+    ]) {
+      expect(names).not.toContain(name);
+    }
+  });
+
   it('marks set_transcription_text as segment write with explicit target', () => {
     expect(isAiToolSegmentWriteWithExplicitTarget('set_transcription_text')).toBe(true);
   });

@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   previewTextTimeMapping,
   type TextTimeMapping,
 } from '../services/LinguisticService.timeMapping';
+import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { DesktopScopeNote } from './DesktopScopeNote';
 
 export interface DesktopProjectReadManuscript {
   id: string;
@@ -12,6 +14,7 @@ export interface DesktopProjectReadManuscript {
 export interface DesktopProjectReadUnit {
   id: string;
   layerId?: string;
+  textId?: string;
   startTime: number;
   endTime: number;
   text: string;
@@ -28,6 +31,10 @@ export function DesktopProjectReadView(props: {
   audioLabel: string;
   textLabel: string;
   saveTextLabel: string;
+  undoTextLabel: string;
+  splitLabel: string;
+  splitTimeLabel: string;
+  mergeNextLabel: string;
   boundaryLabel: string;
   moveBoundaryLabel: string;
   offsetLabel: string;
@@ -39,19 +46,49 @@ export function DesktopProjectReadView(props: {
   saveWaveformNoteLabel: string;
   onSelectManuscript: (id: string) => void;
   onSaveText: (unitId: string, text: string) => void;
+  onUndoText: () => void;
+  onSplit: (unitId: string, time: number) => void;
+  onMerge: (keepId: string, removeId: string) => void;
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
   onSaveMapping: (offsetSec: number, scale: number) => void;
   onSaveNote: (unitId: string, text: string) => void;
   onSaveTierNote: (unitId: string, view: 'timeline' | 'waveform', text: string) => void;
+  noteSessionId?: string | null;
+  noteDesktopCall?: DesktopReadHost['desktopCall'];
+  textNoteLabel?: string;
+  saveTextNoteLabel?: string;
+  focusUnitId?: string | null;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textRef = useRef<HTMLInputElement>(null);
   const boundaryRef = useRef<HTMLInputElement>(null);
+  const splitRef = useRef<HTMLInputElement>(null);
   const offsetRef = useRef<HTMLInputElement>(null);
   const scaleRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const pendingFocus = useRef<string | null>(null);
   const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
+  const focusUnit = (unit: DesktopProjectReadUnit) => {
+    setSelectedId(unit.id);
+    const audio = audioRef.current;
+    if (audio === null) return;
+    audio.currentTime = playerStart(unit, props.timeMapping);
+  };
+  useEffect(() => {
+    pendingFocus.current = props.focusUnitId ?? null;
+  }, [props.focusUnitId]);
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (id === null) return;
+    const unit = props.units.find((item) => item.id === id);
+    if (unit === undefined) return;
+    pendingFocus.current = null;
+    setSelectedId(unit.id);
+    const audio = audioRef.current;
+    if (audio === null) return;
+    audio.currentTime = playerStart(unit, props.timeMapping);
+  }, [props.focusUnitId, props.units, props.timeMapping]);
   const readNoteText = () => noteRef.current?.value ?? '';
   const clearNoteText = () => {
     if (noteRef.current !== null) noteRef.current.value = '';
@@ -82,15 +119,7 @@ export function DesktopProjectReadView(props: {
       <div className="desktop-project-read-units">
         {props.units.map((unit) => (
           <div key={unit.id}>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedId(unit.id);
-                const audio = audioRef.current;
-                if (audio === null) return;
-                audio.currentTime = playerStart(unit, props.timeMapping);
-              }}
-            >
+            <button type="button" onClick={() => focusUnit(unit)}>
               {`${unit.startTime.toFixed(1)}–${unit.endTime.toFixed(1)} ${unit.text}`}
             </button>
             <span>{playerRange(unit, props.timeMapping)}</span>
@@ -101,7 +130,7 @@ export function DesktopProjectReadView(props: {
         <div className="desktop-project-read-units">
           <input
             ref={textRef}
-            key={selected.id}
+            key={`${selected.id}:${selected.text}`}
             aria-label={props.textLabel}
             defaultValue={selected.text}
           />
@@ -115,6 +144,30 @@ export function DesktopProjectReadView(props: {
           >
             {props.saveTextLabel}
           </button>
+          <button type="button" onClick={() => props.onUndoText()}>
+            {props.undoTextLabel}
+          </button>
+          <input
+            ref={splitRef}
+            key={`split-${selected.id}`}
+            aria-label={props.splitTimeLabel}
+            defaultValue={String((selected.startTime + selected.endTime) / 2)}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const time = Number(splitRef.current?.value);
+              if (!Number.isFinite(time)) return;
+              props.onSplit(selected.id, time);
+            }}
+          >
+            {props.splitLabel}
+          </button>
+          {next === null ? null : (
+            <button type="button" onClick={() => props.onMerge(selected.id, next.id)}>
+              {props.mergeNextLabel}
+            </button>
+          )}
           {next === null ? null : (
             <>
               <input
@@ -181,6 +234,19 @@ export function DesktopProjectReadView(props: {
                 {props.saveWaveformNoteLabel}
               </button>
             </>
+          )}
+          {selected.textId === undefined ||
+          props.noteSessionId == null ||
+          props.noteDesktopCall === undefined ||
+          props.textNoteLabel === undefined ||
+          props.saveTextNoteLabel === undefined ? null : (
+            <DesktopScopeNote
+              sessionId={props.noteSessionId}
+              desktopCall={props.noteDesktopCall}
+              scope={{ kind: 'unit_text', unitId: selected.id, unitTextId: selected.textId }}
+              label={`${props.textNoteLabel}: ${selected.text}`}
+              saveLabel={props.saveTextNoteLabel ?? ''}
+            />
           )}
         </div>
       )}

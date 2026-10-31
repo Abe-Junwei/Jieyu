@@ -28,6 +28,7 @@ import {
 } from '../utils/bidiPlainText';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 import { normalizeImportedLanguageTag } from '../utils/eafTierLanguage';
+import { ensureDomParser } from '../utils/ensureDomParser';
 
 type TimelineInteropMetadata = Pick<
   OrthographyInteropMetadata,
@@ -65,6 +66,8 @@ export interface FlexImportResult {
     phraseId?: string;
     /** Present only when phrase@guid is non-empty. Synthetic pN keys are not stable ids. */
     annotationId?: string;
+    /** phrase@speaker when present; import maps this through the speaker resolver. */
+    speakerId?: string;
     tokens?: Array<{
       form: Record<string, string>;
       gloss?: Record<string, string>;
@@ -242,7 +245,7 @@ export function exportToFlextext(input: FlexExportInput): string {
     orthographies,
     tokens = [],
     morphemes = [],
-    languageTag = 'und',
+    languageTag: languageTagOption,
     timelineMetadata,
     segmentsByLayer,
     segmentContents,
@@ -252,6 +255,12 @@ export function exportToFlextext(input: FlexExportInput): string {
     layers.find((l) => l.layerType === 'transcription' && l.isDefault) ??
     layers.find((l) => l.layerType === 'transcription');
   const firstTranslationLayer = layers.find((l) => l.layerType === 'translation');
+  // Prefer an explicit tag; otherwise derive from the transcription / translation layers (#410).
+  const languageTag =
+    languageTagOption?.trim() ||
+    defaultTranscriptionLayer?.languageId?.trim() ||
+    'und';
+  const glossLanguageTag = firstTranslationLayer?.languageId?.trim() || 'und';
   const wrapLayerText = (text: string, layer?: LayerDocType) => {
     if (!layer?.languageId) return text;
     const renderPolicy = resolveOrthographyRenderPolicy(
@@ -342,7 +351,7 @@ export function exportToFlextext(input: FlexExportInput): string {
               .join('\n')}\n              </words>`
           : '';
 
-      return `            <phrase guid="${phraseId}" begin-time-offset="${flexOffsetMs(u.startTime)}" end-time-offset="${flexOffsetMs(u.endTime)}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wrappedGls ? `\n              <item type="gls" lang="en">${escapeXml(wrappedGls)}</item>` : ''}${wordsXml}\n            </phrase>`;
+      return `            <phrase guid="${phraseId}" begin-time-offset="${flexOffsetMs(u.startTime)}" end-time-offset="${flexOffsetMs(u.endTime)}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wrappedGls ? `\n              <item type="gls" lang="${escapeXml(glossLanguageTag)}">${escapeXml(wrappedGls)}</item>` : ''}${wordsXml}\n            </phrase>`;
     })
     .join('\n');
 
@@ -588,6 +597,7 @@ function parseFlexPhrase(
 }
 
 export function importFromFlextext(xmlString: string): FlexImportResult {
+  ensureDomParser();
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
 
@@ -667,10 +677,11 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
   };
 
   const interlinearTexts = Array.from(doc.querySelectorAll('interlinear-text'));
-  const phraseRoots =
-    interlinearTexts.length > 0
-      ? interlinearTexts
-      : ([doc.documentElement].filter(Boolean) as Element[]);
+  // Non-FLEx XML (e.g. <foo/>) must not parse as an empty import that can wipe a document (#407).
+  if (interlinearTexts.length === 0) {
+    throw new Error('flextext has no interlinear-text');
+  }
+  const phraseRoots = interlinearTexts;
 
   phraseRoots.forEach((root, rootIndex) => {
     const headerItems = itemsOf(root);
@@ -722,6 +733,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
           transcription: parsed.transcription,
           phraseId: parsed.phraseId,
           ...(parsed.stableGuid ? { annotationId: parsed.stableGuid } : {}),
+          ...(parsed.speaker ? { speakerId: parsed.speaker } : {}),
           ...(parsed.tokens ? { tokens: parsed.tokens } : {}),
         });
       });

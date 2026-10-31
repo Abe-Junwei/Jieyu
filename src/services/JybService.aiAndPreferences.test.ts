@@ -302,3 +302,89 @@ describe('REV5-N1: a packaged service address never receives local secrets', () 
     expect(packed.entries.map((e) => e.key)).toEqual(['jieyu.locale']);
   });
 });
+
+describe('AI preference snapshot uses vault effective values (#437)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('records and restores vault AI settings, and verify matches loadAiChatSettingsFromStorage', async () => {
+    const { persistAiChatSettings, loadAiChatSettingsFromStorage } =
+      await import('../ai/config/aiChatSettingsStorage');
+    const { normalizeAiChatSettings } = await import('../ai/providers/providerCatalog');
+    const {
+      readCurrentUserPreferences,
+      restoreRecordedUserPreferences,
+      packAiChatSettingsForBackup,
+    } = await import('./userPreferencesBackup');
+
+    await persistAiChatSettings(
+      normalizeAiChatSettings({
+        providerKind: 'openai-compatible',
+        model: 'original-model',
+        apiKey: 'sk-LOCAL',
+        baseUrl: 'https://api.trusted.example',
+      }),
+    );
+    expect(localStorage.getItem('jieyu.aiChat.settings')).toBeNull();
+
+    const recorded = await readCurrentUserPreferences(['jieyu.aiChat.settings']);
+    expect(recorded[0]?.value).not.toBeNull();
+    expect(JSON.parse(recorded[0]!.value!)).toMatchObject({ model: 'original-model' });
+
+    // Simulate an import that overwrote the vault model.
+    await persistAiChatSettings(
+      normalizeAiChatSettings({
+        providerKind: 'openai-compatible',
+        model: 'imported-model',
+        apiKey: 'sk-LOCAL',
+        baseUrl: 'https://api.trusted.example',
+      }),
+    );
+    expect((await loadAiChatSettingsFromStorage()).model).toBe('imported-model');
+
+    await restoreRecordedUserPreferences(recorded);
+    const loaded = await loadAiChatSettingsFromStorage();
+    expect(loaded.model).toBe('original-model');
+    expect(loaded.apiKey).toBe('sk-LOCAL');
+    expect(localStorage.getItem('jieyu.aiChat.settings')).toBeNull();
+
+    const after = await readCurrentUserPreferences(['jieyu.aiChat.settings']);
+    expect(after[0]?.value).toBe(recorded[0]?.value);
+    expect(JSON.parse(after[0]!.value!)).toEqual(
+      packAiChatSettingsForBackup(loaded),
+    );
+  });
+});
+
+describe('AI preference null restore keeps absence (#453)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('empty vault → snapshot null → restore → readback null', async () => {
+    const { persistAiChatSettings, loadAiChatSettingsFromStorage } =
+      await import('../ai/config/aiChatSettingsStorage');
+    const { browserAiChatKeyVault } = await import('../ai/config/keyVault');
+    const { normalizeAiChatSettings } = await import('../ai/providers/providerCatalog');
+    const { readCurrentUserPreferences, restoreRecordedUserPreferences } =
+      await import('./userPreferencesBackup');
+
+    expect(await browserAiChatKeyVault.load()).toBeNull();
+    const recorded = await readCurrentUserPreferences(['jieyu.aiChat.settings']);
+    expect(recorded).toEqual([{ key: 'jieyu.aiChat.settings', value: null }]);
+
+    // Contaminate vault after the snapshot, as an import would.
+    await persistAiChatSettings(
+      normalizeAiChatSettings({
+        providerKind: 'openai-compatible',
+        model: 'imported-model',
+        apiKey: 'sk-LOCAL',
+        baseUrl: 'https://api.trusted.example',
+      }),
+    );
+    expect((await loadAiChatSettingsFromStorage()).model).toBe('imported-model');
+
+    await restoreRecordedUserPreferences(recorded);
+    expect(await browserAiChatKeyVault.load()).toBeNull();
+    expect(localStorage.getItem('jieyu.aiChat.settings')).toBeNull();
+    const after = await readCurrentUserPreferences(['jieyu.aiChat.settings']);
+    expect(after).toEqual([{ key: 'jieyu.aiChat.settings', value: null }]);
+  });
+});

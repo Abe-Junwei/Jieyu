@@ -225,12 +225,41 @@ export function readPackagedUserPreferences(raw: unknown): {
   return { entries, ignoredKeys: [...new Set(ignoredKeys)].sort() };
 }
 
-/** 本机这些键的当前值（null = 不存在），写回前存进整库快照 | Current local values, kept in the snapshot */
-export function readCurrentUserPreferences(
+/**
+ * 本机这些键的当前生效值（null = 不存在/从未配置），写回前存进整库快照。
+ * AI 设置走 vault/加载接口，不读已删除的明文键（#437）。
+ * Current effective values for these keys (null = absent / never configured), kept in the snapshot.
+ * AI settings use the vault/load API, not the deleted plain key (#437).
+ */
+export async function readCurrentUserPreferences(
   keys: readonly string[],
   storage: StorageLike | null = defaultStorage(),
-): Array<{ key: string; value: string | null }> {
-  return keys.map((key) => ({ key, value: storage?.getItem(key) ?? null }));
+): Promise<Array<{ key: string; value: string | null }>> {
+  const out: Array<{ key: string; value: string | null }> = [];
+  for (const key of keys) {
+    if (key === 'jieyu.aiChat.settings') {
+      try {
+        const fromVault = await browserAiChatKeyVault.load();
+        const plain = storage?.getItem(key) ?? null;
+        if (fromVault === null && plain === null) {
+          out.push({ key, value: null });
+          continue;
+        }
+        const settings = fromVault ?? (await loadAiChatSettingsFromStorage());
+        const packed = packAiChatSettingsForBackup(settings);
+        if (isDefaultAiChatPack(packed) && fromVault === null && plain === null) {
+          out.push({ key, value: null });
+          continue;
+        }
+        out.push({ key, value: JSON.stringify(packed) });
+      } catch {
+        out.push({ key, value: storage?.getItem(key) ?? null });
+      }
+      continue;
+    }
+    out.push({ key, value: storage?.getItem(key) ?? null });
+  }
+  return out;
 }
 
 /**
@@ -271,19 +300,46 @@ export async function applyUserPreferences(
 }
 
 /**
- * 把偏好写回快照里记下的原值（null = 原来没有，删掉）；返回写过的键。只用于从整库快照恢复。
- * Put preferences back to the raw values a snapshot recorded (null = absent, removed); returns the
- * keys touched. Only used when restoring a library snapshot.
+ * 把偏好写回快照里记下的原值（null = 原来没有）；返回写过的键。只用于从整库快照恢复。
+ * AI 设置经 vault 合并恢复，保留本机凭据；核验应走 readCurrentUserPreferences（#437）。
+ * Put preferences back to the raw values a snapshot recorded (null = absent); returns the keys
+ * touched. Only used when restoring a library snapshot. AI settings merge through the vault and
+ * keep local secrets; verification should use readCurrentUserPreferences (#437).
  */
-export function restoreRecordedUserPreferences(
+export async function restoreRecordedUserPreferences(
   recorded: ReadonlyArray<{ key: string; value: string | null }>,
-  storage: Pick<Storage, 'setItem' | 'removeItem'> | null = defaultStorage(),
-): string[] {
+  storage: Pick<Storage, 'setItem' | 'removeItem' | 'getItem'> | null = defaultStorage(),
+): Promise<string[]> {
   if (!storage) return [];
   const allowed = new Set(USER_PREFERENCE_KEYS);
   const touched: string[] = [];
   for (const { key, value } of recorded) {
     if (!allowed.has(key)) continue;
+    if (key === 'jieyu.aiChat.settings') {
+      try {
+        if (value === null) {
+          // Snapshot null = never configured; clear vault so readback stays null (#453).
+          await browserAiChatKeyVault.clear();
+          storage.removeItem(key);
+        } else {
+          const current = await loadAiChatSettingsFromStorage();
+          const incoming = JSON.parse(value) as unknown;
+          if (!isPlainObject(incoming)) continue;
+          const patch: Partial<AiChatSettings> = {};
+          for (const field of AI_CHAT_SAFE_FIELDS) {
+            if (field in incoming) {
+              (patch as Record<string, unknown>)[field] = incoming[field];
+            }
+          }
+          await persistAiChatSettings(normalizeAiChatSettings({ ...current, ...patch }));
+          storage.removeItem(key);
+        }
+        touched.push(key);
+      } catch {
+        // vault/JSON failure: skip this key | vault/JSON 失败则跳过
+      }
+      continue;
+    }
     if (value === null) storage.removeItem(key);
     else storage.setItem(key, value);
     touched.push(key);

@@ -444,6 +444,124 @@ describe('content notes', () => {
     stored.close();
   });
 
+  it('rewrites a note in place and deletes by id across a reopened session', () => {
+    const dir = folder();
+    const project = openProject(dir);
+    project.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('m1', 'a.wav', 'aa', 'a.wav', 3, T);
+    const manuscript = project.manuscripts.create({ title: { zh: '文稿' }, mediaId: 'm1' });
+    const layer = project.layers.create({
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    project.close();
+
+    const session = openDesktopSession(dir, [dir]);
+    const kept = callDesktopSession(session.sessionId, 'notes.create', {
+      id: 'kept',
+      anchor: { kind: 'unit', unitId: unit.id },
+      content: { zh: '原来' },
+      category: 'comment',
+    }) as { createdAt: string };
+    callDesktopSession(session.sessionId, 'notes.create', {
+      id: 'dropped',
+      anchor: { kind: 'unit', unitId: unit.id },
+      content: { zh: '删' },
+    });
+    callDesktopSession(session.sessionId, 'notes.create', {
+      id: 'axis',
+      anchor: { kind: 'unit', unitId: unit.id, view: 'timeline' },
+      content: { zh: '时间轴' },
+    });
+    const revised = callDesktopSession(session.sessionId, 'notes.update', {
+      id: 'kept',
+      content: { zh: '改过' },
+      category: 'question',
+    });
+    expect(revised).toMatchObject({
+      id: 'kept',
+      anchorKind: 'unit',
+      unitId: unit.id,
+      manuscriptId: manuscript.id,
+      view: null,
+      layerId: null,
+      tokenId: null,
+      morphemeId: null,
+      nodeId: null,
+      attachment: 'active',
+      content: { zh: '改过' },
+      category: 'question',
+      createdAt: kept.createdAt,
+    });
+    expect(
+      callDesktopSession(session.sessionId, 'notes.update', { id: 'kept', category: 'todo' }),
+    ).toMatchObject({ content: { zh: '改过' }, category: 'todo', view: null });
+    expect(
+      callDesktopSession(session.sessionId, 'notes.update', {
+        id: 'axis',
+        content: { zh: '轴' },
+      }),
+    ).toMatchObject({ content: { zh: '轴' }, category: null, view: 'timeline', unitId: unit.id });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'notes.update', {
+        id: 'kept',
+        anchor: { kind: 'project' },
+        content: { zh: '挪' },
+      }),
+    ).toThrow('desktop call field anchor is not supported');
+    expect(() => callDesktopSession(session.sessionId, 'notes.update', { id: 'kept' })).toThrow(
+      'note revision is empty',
+    );
+    expect(() =>
+      callDesktopSession(session.sessionId, 'notes.update', {
+        id: 'missing',
+        content: { zh: '无' },
+      }),
+    ).toThrow('note is missing');
+    expect(() => callDesktopSession(session.sessionId, 'notes.delete', { id: 'missing' })).toThrow(
+      'note is missing',
+    );
+    expect(callDesktopSession(session.sessionId, 'notes.delete', { id: 'dropped' })).toEqual({
+      id: 'dropped',
+    });
+    resetDesktopSessions();
+
+    const reopened = openDesktopSession(dir, [dir]);
+    expect(callDesktopSession(reopened.sessionId, 'notes.list', { unitId: unit.id })).toEqual([
+      expect.objectContaining({
+        id: 'axis',
+        anchorKind: 'unit',
+        unitId: unit.id,
+        view: 'timeline',
+        content: { zh: '轴' },
+        category: null,
+        attachment: 'active',
+      }),
+      expect.objectContaining({
+        id: 'kept',
+        anchorKind: 'unit',
+        unitId: unit.id,
+        manuscriptId: manuscript.id,
+        view: null,
+        content: { zh: '改过' },
+        category: 'todo',
+        createdAt: kept.createdAt,
+        attachment: 'active',
+      }),
+    ]);
+    expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      text: 'ka',
+    });
+    resetDesktopSessions();
+  });
+
   it('detaches notes for a deleted layer or text and drops them when the manuscript is cleared', () => {
     const dir = folder();
     const project = openProject(dir);

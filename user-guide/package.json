@@ -10,10 +10,14 @@
     "docs:preview": "vitepress preview"
   },
   "devDependencies": {
-    "vitepress": "1.6.4"
+    "vitepress": "1.6.4",
+    "vite": "6.4.4"
   },
   "engines": {
     "node": ">=22",
     "npm": ">=10"
+  },
+  "overrides": {
+    "vite": "6.4.4"
   }
 }

@@ -4,16 +4,16 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { importFiles, trashNext } from '../src/db/projectFiles/fileOps.ts';
+import { createSyntheticDir, syntheticWriteFile } from './lib/synthetic-write-target.mjs';
 
 const PROJECT_APPLICATION_ID = 0x4a59504a;
 
 function createProjectDb(file) {
-  const db = new DatabaseSync(file);
+  const db = new DatabaseSync(syntheticWriteFile(file));
   db.exec('PRAGMA journal_mode = DELETE');
   db.exec(`PRAGMA application_id = ${PROJECT_APPLICATION_ID}`);
   db.exec('PRAGMA user_version = 1');
@@ -88,7 +88,7 @@ function load(db) {
 }
 
 test('an interrupted delete resumes after the project database is reopened', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jieyu-op-'));
+  const dir = createSyntheticDir('jieyu-op-');
   try {
     const audioBytes = Buffer.from('synthetic-wav');
     const imported = importFiles(
@@ -115,7 +115,7 @@ test('an interrupted delete resumes after the project database is reopened', () 
     save(writing, halfway.project);
     writing.close();
 
-    const reading = new DatabaseSync(dbFile);
+    const reading = new DatabaseSync(syntheticWriteFile(dbFile));
     const reopened = load(reading);
     reading.close();
     const done = trashNext(reopened, { opId: 'op-trash', paths: ['别的.wav'] });
