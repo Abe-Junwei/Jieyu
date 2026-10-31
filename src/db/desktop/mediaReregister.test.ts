@@ -125,6 +125,28 @@ describe('media reregistration', () => {
       resetDesktopSessions();
     }
   });
+
+  it('refuses a new manuscript on a deleted recording', () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    try {
+      const media = callDesktopSession(session.sessionId, 'media.create', {
+        relpath: 'a.wav',
+        sha256: 'aa',
+        duration: 4,
+      }) as { id: string };
+      callDesktopSession(session.sessionId, 'media.delete', { id: media.id });
+      expect(() =>
+        callDesktopSession(session.sessionId, 'manuscripts.create', {
+          mediaId: media.id,
+          title: { und: 'new' },
+        }),
+      ).toThrow();
+    } finally {
+      resetDesktopSessions();
+    }
+  });
 });
 
 function insertDeleted(

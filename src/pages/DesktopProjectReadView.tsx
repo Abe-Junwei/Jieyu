@@ -3,6 +3,8 @@ import {
   previewTextTimeMapping,
   type TextTimeMapping,
 } from '../services/LinguisticService.timeMapping';
+import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { DesktopScopeNote } from './DesktopScopeNote';
 
 export interface DesktopProjectReadManuscript {
   id: string;
@@ -12,6 +14,7 @@ export interface DesktopProjectReadManuscript {
 export interface DesktopProjectReadUnit {
   id: string;
   layerId?: string;
+  textId?: string;
   startTime: number;
   endTime: number;
   text: string;
@@ -50,6 +53,10 @@ export function DesktopProjectReadView(props: {
   onSaveMapping: (offsetSec: number, scale: number) => void;
   onSaveNote: (unitId: string, text: string) => void;
   onSaveTierNote: (unitId: string, view: 'timeline' | 'waveform', text: string) => void;
+  noteSessionId?: string | null;
+  noteDesktopCall?: DesktopReadHost['desktopCall'];
+  textNoteLabel?: string;
+  saveTextNoteLabel?: string;
   focusUnitId?: string | null;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -227,6 +234,19 @@ export function DesktopProjectReadView(props: {
                 {props.saveWaveformNoteLabel}
               </button>
             </>
+          )}
+          {selected.textId === undefined ||
+          props.noteSessionId == null ||
+          props.noteDesktopCall === undefined ||
+          props.textNoteLabel === undefined ||
+          props.saveTextNoteLabel === undefined ? null : (
+            <DesktopScopeNote
+              sessionId={props.noteSessionId}
+              desktopCall={props.noteDesktopCall}
+              scope={{ kind: 'unit_text', unitId: selected.id, unitTextId: selected.textId }}
+              label={`${props.textNoteLabel}: ${selected.text}`}
+              saveLabel={props.saveTextNoteLabel ?? ''}
+            />
           )}
         </div>
       )}
