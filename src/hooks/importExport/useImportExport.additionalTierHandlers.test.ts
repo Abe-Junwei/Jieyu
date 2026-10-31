@@ -3,9 +3,20 @@ import type { LayerDocType, LayerUnitDocType } from '../../db';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
 import { createImportedTokenGraphWriter } from './persistImportedTokenGraph';
 
-const { mockSaveTokensBatch, mockSyncUnitText } = vi.hoisted(() => ({
+const {
+  mockSaveTokensBatch,
+  mockSyncUnitText,
+  mockCreateSegmentWithContentAtomic,
+  mockCreateSegment,
+  mockInsertSegmentContents,
+} = vi.hoisted(() => ({
   mockSaveTokensBatch: vi.fn(async (_rows?: unknown) => undefined),
   mockSyncUnitText: vi.fn(async (_db?: unknown, _unit?: unknown, _doc?: unknown) => undefined),
+  mockCreateSegmentWithContentAtomic: vi.fn(
+    async (_segment?: unknown, _content?: unknown) => undefined,
+  ),
+  mockCreateSegment: vi.fn(async (_segment?: unknown) => undefined),
+  mockInsertSegmentContents: vi.fn(async (_db?: unknown, _rows?: unknown) => undefined),
 }));
 
 vi.mock('../../services/LinguisticService', () => ({
@@ -22,7 +33,15 @@ vi.mock('../../services/LinguisticService', () => ({
 
 vi.mock('../../services/LayerSegmentationV2Service', () => ({
   LayerSegmentationV2Service: {
-    createSegmentWithContentAtomic: vi.fn(async () => undefined),
+    createSegmentWithContentAtomic: (segment: unknown, content: unknown) =>
+      mockCreateSegmentWithContentAtomic(segment, content),
+    createSegment: (segment: unknown) => mockCreateSegment(segment),
+  },
+}));
+
+vi.mock('../../services/LayerUnitSegmentWriteService', () => ({
+  LayerUnitSegmentWriteService: {
+    insertSegmentContents: (db: unknown, rows: unknown) => mockInsertSegmentContents(db, rows),
   },
 }));
 
@@ -96,6 +115,9 @@ describe('importAdditionalTiers', () => {
   beforeEach(() => {
     mockSaveTokensBatch.mockClear();
     mockSyncUnitText.mockClear();
+    mockCreateSegmentWithContentAtomic.mockClear();
+    mockInsertSegmentContents.mockClear();
+    mockCreateSegment.mockClear();
   });
 
   it('persists tokens from translation-tier annotations onto matched host units', async () => {
@@ -155,4 +177,137 @@ describe('importAdditionalTiers', () => {
       }),
     ]);
   });
+
+  it('independent_boundary translation writes parentUnitId and content on the new segment id', async () => {
+    const defaultLayer = makeLayer('trc-default', 'transcription');
+    const glossLayer = {
+      ...makeLayer('trl-gloss', 'translation'),
+      name: { eng: 'Gloss Tier' },
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const unit = makeUnit('utt-1', 0, 10);
+
+    await importAdditionalTiers({
+      db: {} as never,
+      now: NOW,
+      textId: 'text-import',
+      mediaId: 'media-1',
+      layers: [defaultLayer, glossLayer],
+      additionalTiers: new Map([
+        [
+          'Gloss Tier',
+          [
+            {
+              startTime: 2,
+              endTime: 4,
+              text: '独立译文',
+              annotationId: 'a1',
+            },
+          ],
+        ],
+      ]),
+      insertedUnits: [{ id: unit.id, startTime: 0, endTime: 10, unit }],
+      importedTierMetadata: new Map(),
+      tierNameToLayerId: new Map(),
+      effectiveTranscriptionLayerId: defaultLayer.id,
+      eafResult: null,
+      resolveDbLanguageName: () => undefined,
+      resolveEafLanguageLabel: () => undefined,
+      resolveLayerDisplayName: (_candidates, fallback) => ({
+        label: fallback,
+        source: 'fallback' as const,
+      }),
+      planImportedWrites: vi.fn(async () => [{ layerId: glossLayer.id, text: '独立译文' }]),
+      rememberLayer: vi.fn(),
+      tokenGraph: createImportedTokenGraphWriter({ textId: 'text-import' }),
+    });
+
+    expect(mockCreateSegmentWithContentAtomic).toHaveBeenCalledTimes(1);
+    const call = mockCreateSegmentWithContentAtomic.mock.calls.at(0);
+    expect(call).toBeDefined();
+    const segment = call?.[0] as { id: string; parentUnitId?: string; unitId?: string };
+    const content = call?.[1] as { unitId: string; layerId: string; text: string };
+    expect(segment).toBeDefined();
+    expect(content).toBeDefined();
+    expect(segment).toEqual(
+      expect.objectContaining({
+        parentUnitId: 'utt-1',
+        layerId: glossLayer.id,
+        startTime: 2,
+        endTime: 4,
+      }),
+    );
+    expect(segment.unitId).toBeUndefined();
+    expect(typeof segment.id).toBe('string');
+    expect(segment.id.length).toBeGreaterThan(0);
+    expect(content).toEqual(
+      expect.objectContaining({
+        unitId: segment.id,
+        layerId: glossLayer.id,
+        text: '独立译文',
+      }),
+    );
+    expect(mockCreateSegment).not.toHaveBeenCalled();
+  });
+
+  it('without media, independent_boundary translation keeps content on the host unit', async () => {
+    const defaultLayer = makeLayer('trc-default', 'transcription');
+    const glossLayer = {
+      ...makeLayer('trl-gloss', 'translation'),
+      name: { eng: 'Gloss Tier' },
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const unit = makeUnit('utt-1', 0, 10);
+    delete (unit as { mediaId?: string }).mediaId;
+
+    await importAdditionalTiers({
+      db: {} as never,
+      now: NOW,
+      textId: 'text-import',
+      layers: [defaultLayer, glossLayer],
+      additionalTiers: new Map([
+        [
+          'Gloss Tier',
+          [
+            {
+              startTime: 2,
+              endTime: 4,
+              text: 'host fallback',
+              annotationId: 'a1',
+            },
+          ],
+        ],
+      ]),
+      insertedUnits: [{ id: unit.id, startTime: 0, endTime: 10, unit }],
+      importedTierMetadata: new Map(),
+      tierNameToLayerId: new Map(),
+      effectiveTranscriptionLayerId: defaultLayer.id,
+      eafResult: null,
+      resolveDbLanguageName: () => undefined,
+      resolveEafLanguageLabel: () => undefined,
+      resolveLayerDisplayName: (_candidates, fallback) => ({
+        label: fallback,
+        source: 'fallback' as const,
+      }),
+      planImportedWrites: vi.fn(async () => [{ layerId: glossLayer.id, text: 'host fallback' }]),
+      rememberLayer: vi.fn(),
+      tokenGraph: createImportedTokenGraphWriter({ textId: 'text-import' }),
+    });
+
+    expect(mockCreateSegmentWithContentAtomic).not.toHaveBeenCalled();
+    expect(mockInsertSegmentContents).toHaveBeenCalledTimes(1);
+    const rows = mockInsertSegmentContents.mock.calls.at(0)?.[1] as Array<{
+      unitId: string;
+      text: string;
+      layerId: string;
+    }>;
+    expect(rows).toEqual([
+      expect.objectContaining({
+        unitId: 'utt-1',
+        layerId: glossLayer.id,
+        text: 'host fallback',
+      }),
+    ]);
+  });
+
 });
