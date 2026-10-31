@@ -15,7 +15,7 @@ depends_on:
 
 > **落盘**：`docs/execution/plans/jieyu-4ws-ledger-2026-10-31.md`（`status: active`）  
 > **配套实施清单**：[jieyu-4ws-impl-checklist-2026-10-31.md](./jieyu-4ws-impl-checklist-2026-10-31.md)  
-> **状态**：对账 + Grill 拍板 + 开工前审查修订；**已拍板（2026-10-31，用户书面「确认」）**：通过；分析页保留采纳/恢复并改名「分析复核」；切片 0 含换数据路由、不套 flag；延期项都能等；四页优先于 #312/#313/#277；验收=合成项目 Playwright Electron + 用户每片末木雅抽验（代理不碰真实材料）；切片 1 起每页精稿先行。Prajwal #295 三项不在本次拍板内，仍待审。  
+> **状态**：对账 + Grill 拍板 + 开工前审查修订；**已拍板（2026-10-31，用户书面「确认」）**：通过；分析页保留采纳/恢复并改名「分析复核」；切片 0 含换数据路由、不套 flag；延期项都能等；四页优先于 #312/#313/#277；验收=合成项目 Playwright Electron + 用户每片末木雅抽验（代理不碰真实材料）；切片 1 起每页精稿先行。Prajwal（Oleafly #295）三项已另排进主路线图 §3 Stage A P-1/P-2/P-3。  
 > **单库衔接**：[desktop-project-sqlite-2026-10-25.md](./desktop-project-sqlite-2026-10-25.md) 当前剩余队列
 
 ---
