@@ -233,10 +233,11 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 >
 > **后移发布项**：真机安装、Windows、升级和真实系统垃圾箱不计本轮，后续按 #277/#282 的发布范围领取。真实示例仍仅用户制作和试用。A15 放量、B7 与协作等不因此解冻。
 >
-> **待审（2026-10-31）· 四页工作区计划文档**：**硬门禁——审核通过前不得正式开工**（含切片 0、产品代码、Figma 改稿；P0/P1 并行项同门禁）。对象是两份计划文，不是实施切片。下一步动作是**审核并拍板是否按清单做**；**未书面拍板「通过」前，不得领工、不得开 PR、不得改产品代码。**
+> **四页工作区计划 · **已拍板（2026-10-31，用户书面「确认」）****：通过；分析页保留采纳/恢复并改名「分析复核」；切片 0 含换数据路由、不套 flag；延期项都能等；四页优先于 #312/#313/#277；验收=合成项目 Playwright Electron + 用户每片末木雅抽验（代理不碰真实材料）；切片 1 起每页精稿先行。Prajwal #295 三项不在本次拍板内，仍待审。下一刀是切片 0 T1（换数据路由），规格见 [desktop-4ws-slice0-text-save](../specs/desktop-4ws-slice0-text-save/)。
 > - 账本（Grill 十二条 + 对账）：[jieyu-4ws-ledger-2026-10-31.md](./jieyu-4ws-ledger-2026-10-31.md)
 > - 实施清单（切片 0–7 + P0 待复核并行 + P1 按页设计）：[jieyu-4ws-impl-checklist-2026-10-31.md](./jieyu-4ws-impl-checklist-2026-10-31.md)
-> - 范围摘要（仅便于审读，**不授权开工**）：转写→标注→词典→语料 + 最小分析只读；Legacy 逐项退出；工作集延期接替。
+> - 范围摘要：转写→标注→词典→语料 + 分析复核页；Legacy 逐项退出（桌面暂不可用项写明）；工作集延期接替。
+> - **开工前审查（2026-10-31）已完成并回写两份计划**：Legacy 桌面不可达改标「桌面暂不可用」；词典附件、改正文后分析失效按现有代码改基线；切片 2 拆 2a/2b；切片 6 改为复用既有 `DesktopAnalysisPage`；补 ADR-0086 白名单、flag、SDD 原则；切片 0 补路由/关窗/过渡期前置并写好规格草案 [desktop-4ws-slice0-text-save](../specs/desktop-4ws-slice0-text-save/)。已于同日拍板，见账本 §11 第 7–12 条。
 >
 > **待审（2026-10-31）· Prajwal 建议（Oleafly Discussion #295）**：**硬门禁——审核通过前不得正式开工**（含粗糙装包发布/试用工单、Linguist README 改写、真实金标准夹具实施；亦不发正式 Release）。来源 [discussioncomment-19306914](https://github.com/Oleafly/Oleafly/discussions/295#discussioncomment-19306914)（Prajwal，2026-10-31 Asia/Shanghai）。**不是** [#342](https://github.com/Abe-Junwei/Jieyu/issues/342)（未排期 C4 协作草案）。对象是可拍板条目，不是实施切片。下一步动作是**审核并拍板是否纳入首发 / README / 导出域排期**；**未书面拍板「通过」前，不得领工、不得开 PR、不得改产品代码/README 主文、不得发安装包。**
 > - **粗糙可装包试用**（挂 **C1** / [#282](https://github.com/Abe-Junwei/Jieyu/issues/282) 周边，不另开切片 ID）：即使 CI 未全绿也可先出粗糙桌面安装包；本人用木雅会话走通录音→导出；2–3 位田野同事卡住点写入路线图 / issues（衔接 [#312](https://github.com/Abe-Junwei/Jieyu/issues/312) / [#250 试用地图](../../wayfinder/trial-handoff/map.md)）。**审核通过前不得正式开工装包/试用工单**；与「后移发布项」里真机安装排期可并行讨论，拍板前不领工。
