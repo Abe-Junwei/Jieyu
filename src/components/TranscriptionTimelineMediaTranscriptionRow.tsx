@@ -30,7 +30,7 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
     ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
-  saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   audioMedia?: MediaItemDocType;
@@ -75,7 +75,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   saveSegmentContentForLayer,
   scheduleAutoSave,
   clearAutoSaveTimer,
-  saveUnitLayerText,
+  saveUnitText,
   setUnitDrafts,
   focusedTranslationDraftKeyRef,
   audioMedia,
@@ -100,7 +100,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
       scheduleAutoSave,
       clearAutoSaveTimer,
       saveSegmentContentForLayer,
-      saveUnitLayerText,
+      saveUnitText,
       focusedTranslationDraftKeyRef,
     });
   const layerSupportsAudio =

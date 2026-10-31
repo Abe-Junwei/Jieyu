@@ -28,7 +28,7 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
   saveSegmentContentForLayer:
     | ((segmentId: string, layerId: string, value: string) => Promise<void>)
     | undefined;
-  saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
   focusedTranslationDraftKeyRef: MutableRefObject<string | null>;
 }) {
   const {
@@ -41,7 +41,7 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
     scheduleAutoSave,
     clearAutoSaveTimer,
     saveSegmentContentForLayer,
-    saveUnitLayerText,
+    saveUnitText,
     focusedTranslationDraftKeyRef,
   } = params;
 
@@ -69,8 +69,8 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
       }
       if (value.trim() && value !== sourceText) {
         scheduleAutoSave(rowKey, async () => {
-          await writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
-            saveUnitLayerText,
+          await writeChosenTimelineText({ kind: 'unit-text', unitId, layerId }, value, {
+            saveUnitText,
           });
         });
       } else {
@@ -88,7 +88,7 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
       scheduleAutoSave,
       clearAutoSaveTimer,
       saveSegmentContentForLayer,
-      saveUnitLayerText,
+      saveUnitText,
     ],
   );
 
@@ -114,8 +114,8 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
       clearAutoSaveTimer(rowKey);
       if (value !== sourceText) {
         fireAndForget(
-          writeChosenTimelineText({ kind: 'unit-layer', unitId, layerId }, value, {
-            saveUnitLayerText,
+          writeChosenTimelineText({ kind: 'unit-text', unitId, layerId }, value, {
+            saveUnitText,
           }),
           {
             context: 'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts:L91',
@@ -132,7 +132,7 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
       rowKey,
       clearAutoSaveTimer,
       saveSegmentContentForLayer,
-      saveUnitLayerText,
+      saveUnitText,
       focusedTranslationDraftKeyRef,
     ],
   );

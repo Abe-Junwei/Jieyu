@@ -94,7 +94,7 @@ interface TranscriptionLaneProps {
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
   scheduleAutoSave: (key: string, saveFn: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
-  saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   translationAudioByLayer?: Map<string, Map<string, LayerUnitContentDocType>>;
   mediaItemById: Map<string, MediaItemDocType>;
@@ -187,7 +187,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(
     saveSegmentContentForLayer,
     scheduleAutoSave,
     clearAutoSaveTimer,
-    saveUnitLayerText,
+    saveUnitText,
     focusedTranslationDraftKeyRef,
     translationAudioByLayer,
     mediaItemById,
@@ -359,7 +359,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(
                 saveSegmentContentForLayer={saveSegmentContentForLayer}
                 scheduleAutoSave={scheduleAutoSave}
                 clearAutoSaveTimer={clearAutoSaveTimer}
-                saveUnitLayerText={saveUnitLayerText}
+                saveUnitText={saveUnitText}
                 focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
                 {...(audioMedia ? { audioMedia } : {})}
                 recording={recording}
